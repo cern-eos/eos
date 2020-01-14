@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: CRC32C.hh
+// File: SHA256.hh
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
 
@@ -21,117 +21,105 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_CRC32C_HH__
-#define __EOSFST_CRC32C_HH__
+#ifndef __EOSFST_SHA256_HH__
+#define __EOSFST_SHA256_HH__
 
 /*----------------------------------------------------------------------------*/
 #include "fst/Namespace.hh"
 #include "fst/checksum/CheckSum.hh"
-#include "common/crc32c/crc32c.h"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucString.hh"
-#include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
-#include <zlib.h>
+#include <openssl/sha.h>
 
-#ifdef ISAL_FOUND
-#include <isa-l.h>
-#endif
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
-class CRC32C : public CheckSum
+class SHA256 : public CheckSum
 {
 private:
-  off_t crc32coffset;
-  uint32_t crcsum;
-  bool finalized;
+  SHA256_CTX ctx;
 
+  off_t sha256offset;
+  unsigned char sha256[SHA256_DIGEST_LENGTH + 1];
 public:
 
-  CRC32C() : CheckSum("crc32c")
+  SHA256 () : CheckSum ("sha256")
   {
     Reset();
   }
 
   off_t
-  GetLastOffset()
+  GetLastOffset ()
   {
-    return crc32coffset;
+    return sha256offset;
   }
 
   bool
-  Add(const char* buffer, size_t length, off_t offset)
+  Add (const char* buffer, size_t length, off_t offset)
   {
-    if (offset != crc32coffset) {
-      needsRecalculation = true;
-      return false;
+    if (offset != sha256offset)
+    {
+        needsRecalculation = true;
+        return false;
     }
-
-#ifdef ISAL_FOUND
-    crcsum = crc32_iscsi( (unsigned char*) buffer, length, crcsum);
-#else 
-    crcsum = checksum::crc32c(crcsum, (const Bytef*) buffer, length);
-#endif
-
-    crc32coffset += length;
+    SHA256_Update(&ctx, (const void*) buffer, (unsigned long) length);
+    sha256offset += length;
     return true;
   }
 
   const char*
-  GetHexChecksum()
+  GetHexChecksum ()
   {
-    if (!finalized) {
-      Finalize();
+    Checksum = "";
+    char hexs[16];
+    for (int i = 0; i < SHA256_DIGEST_LENGTH; i++)
+    {
+        sprintf(hexs, "%02x", sha256[i]);
+        Checksum += hexs;
     }
-
-    char scrc32[1024];
-    sprintf(scrc32, "%08x", crcsum);
-    Checksum = scrc32;
     return Checksum.c_str();
   }
 
   const char*
-  GetBinChecksum(int& len)
+  GetBinChecksum (int &len)
   {
-    if (!finalized) {
-      Finalize();
-    }
-
-    len = sizeof(unsigned int);
-    return (char*) &crcsum;
+    len = SHA256_DIGEST_LENGTH;
+    return (char*) &sha256;
   }
 
   int
-  GetCheckSumLen()
+  GetCheckSumLen ()
   {
-    return sizeof(unsigned int);
+    return SHA256_DIGEST_LENGTH;
   }
 
   void
-  Reset()
+  Finalize ()
   {
-    crcsum = checksum::crc32cInit();
-    crc32coffset = 0;
-    needsRecalculation = 0;
-    finalized = false;
-  }
-
-  void
-  Finalize()
-  {
-    if (!finalized) {
-#ifndef ISAL_FOUND
-      crcsum = checksum::crc32cFinish(crcsum);
-#endif
+    if (!finalized) 
+    {
+      SHA256_Final(sha256, &ctx);
+      sha256[SHA256_DIGEST_LENGTH] = 0;
       finalized = true;
     }
   }
 
+  void
+  Reset ()
+  {
+    sha256offset = 0;
+    SHA256_Init(&ctx);
+    memset(sha256, 0, SHA256_DIGEST_LENGTH + 1);
+    needsRecalculation = 0;
+    sha256[0] = 0;
+    finalized = false;
+  }
+
   virtual
-  ~CRC32C() { };
+  ~SHA256 () { };
 
 };
 

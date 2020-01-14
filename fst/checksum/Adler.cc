@@ -24,6 +24,10 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/checksum/Adler.hh"
 
+#ifdef ISAL_FOUND
+#include <isa-l.h>
+#endif
+
 EOSFSTNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
@@ -35,7 +39,12 @@ Adler::Add (const char* buffer, size_t length, off_t offset)
 
   adler = adler32(0L, Z_NULL, 0);
   Chunk currChunk;
+
+#ifdef ISAL_FOUND
+  adler = isal_adler32(adler, (const unsigned char*) buffer, length);
+#else
   adler = adler32(adler, (const Bytef*) buffer, length);
+#endif
   adleroffset = offset + length;
   if (adleroffset > maxoffset)
   {

@@ -69,7 +69,10 @@ public:
     kMD5 = 0x4,
     kSHA1 = 0x5,
     kCRC32C = 0x6,
-    kXSmax = kCRC32C
+    kCRC64  = 0x7, 
+    kSHA256 = 0x8, 
+    kXXHASH64 = 0x9, 
+    kXSmax = kXXHASH64
   };
 
 
@@ -318,6 +321,19 @@ public:
       return 20;
     }
 
+    if ((layout & 0xf) == kCRC64) {
+      return 8;
+    }
+
+    if ((layout & 0xf) == kSHA256) {
+      return 32;
+    }
+
+    if ((layout & 0xf) == kXXHASH64) {
+      return 8;
+    }
+
+
     return 0;
   }
 
@@ -333,10 +349,16 @@ public:
       return 4;
     } else if (xs_type == "crc32c") {
       return 4;
+    } else if (xs_type == "xxhash64") {
+      return 8;
+    } else if (xs_type == "crc64") {
+      return 8;
     } else if (xs_type == "md5") {
       return 16;
     } else if (xs_type == "sha") {
       return 20;
+    } else if (xs_type == "sha256") {
+      return 32;
     } else {
       return 0;
     }
@@ -637,6 +659,18 @@ public:
       return "sha";
     }
 
+    if (GetChecksum(layout) == kSHA256) {
+      return "sha256";
+    }
+
+    if (GetChecksum(layout) == kCRC64) {
+      return "crc64";
+    }
+
+    if (GetChecksum(layout) == kXXHASH64) {
+      return "xxhash64";
+    }
+
     return "none";
   }
 
@@ -656,6 +690,12 @@ public:
       return kMD5;
     } else if (checksum == "sha") {
       return kSHA1;
+    } else if (checksum == "crc64") {
+      return kCRC64;
+    } else if (checksum == "sha256") {
+      return kSHA256;
+    } else if (checksum == "xxhash64") {
+      return kXXHASH64;
     } else {
       return kNone;
     }
@@ -691,6 +731,18 @@ public:
       return "sha1";
     }
 
+    if (GetChecksum(layout) == kSHA256) {
+      return "sha256";
+    }
+
+    if (GetChecksum(layout) == kCRC64) {
+      return "crc64";
+    }
+
+    if (GetChecksum(layout) == kXXHASH64) {
+      return "xxhash64";
+    }
+
     return "none";
   }
 
@@ -722,6 +774,18 @@ public:
 
     if (GetBlockChecksum(layout) == kSHA1) {
       return "sha";
+    }
+
+    if (GetBlockChecksum(layout) == kSHA256) {
+      return "sha256";
+    }
+
+    if (GetBlockChecksum(layout) == kCRC64) {
+      return "crc64";
+    }
+
+    if (GetBlockChecksum(layout) == kXXHASH64) {
+      return "xxhash64";
     }
 
     return "none";
@@ -849,6 +913,18 @@ public:
 
       if (xsum == "sha") {
         return kSHA1;
+      }
+      
+      if (xsum == "sha256") {
+	return kSHA256;
+      } 
+
+      if (xsum == "crc64") {
+	return kCRC64;
+      }
+
+      if (xsum == "xxhash64") {
+	return kXXHASH64;
       }
     }
 

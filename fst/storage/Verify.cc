@@ -29,9 +29,9 @@
 #include "fst/XrdFstOfs.hh"
 #include "fst/XrdFstOss.hh"
 #include "fst/io/FileIoPluginCommon.hh"
+#include "fst/FmdDbMap.hh"
 #include "fst/Verify.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
-#include "fst/FmdDbMap.hh"
 #include "common/Path.hh"
 /*----------------------------------------------------------------------------*/
 

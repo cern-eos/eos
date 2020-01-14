@@ -32,6 +32,19 @@ else()
   set(DAVIX_HDR "")
 endif()
 
+
+if(ISALCRYPTO_FOUND)
+  add_definitions(-DISALCRYPTO_FOUND)
+endif()
+
+if(ISAL_FOUND)
+  add_definitions(-DISAL_FOUND)
+endif()
+
+if(XXHASH_FOUND)
+  add_definitions(-DXXHASH_FOUND)
+endif()
+
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
@@ -193,7 +206,11 @@ target_link_libraries(EosFstIo PUBLIC
   ${OPENSSL_CRYPTO_LIBRARY}
   ${JSONC_LIBRARIES}
   ${DAVIX_LIBRARIES}
-  ${CMAKE_THREAD_LIBS_INIT})
+  ${CMAKE_THREAD_LIBS_INIT}
+  ${ISALCRYPTO_LIBRARY}
+  ${ISAL_LIBRARY}
+  ${XXHASH_LIBRARY}
+  )
 
 set_target_properties(EosFstIo PROPERTIES
   VERSION ${VERSION}
@@ -226,6 +243,9 @@ target_link_libraries(EosFstIo-Static PUBLIC
   ${OPENSSL_CRYPTO_LIBRARY_STATIC}
   ${JSONC_LIBRARIES}
   ${DAVIX_LIBRARIES}
+  ${ISALCRYPTO_LIBRARY}
+  ${ISAL_LIBRARY}
+  ${XXHASH_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
 target_compile_definitions(EosFstIo-Static PRIVATE
@@ -463,6 +483,10 @@ add_executable(eos-adler32
   checksum/Adler.cc
   checksum/CheckSum.cc)
 
+add_executable(eos-checksum
+  tools/CheckSum.cc
+  checksum/CheckSum.cc)
+
 set_target_properties(eos-scan-fs PROPERTIES COMPILE_FLAGS -D_NOOFS=1)
 set_target_properties(eos-fsck-fs PROPERTIES COMPILE_FLAGS -D_NOOFS=1)
 
@@ -479,6 +503,10 @@ target_link_libraries(eos-compute-blockxs PRIVATE
   ${CMAKE_THREAD_LIBS_INIT})
 
 target_link_libraries(eos-adler32 PRIVATE
+  EosFstIo
+  ${CMAKE_THREAD_LIBS_INIT} )
+
+target_link_libraries(eos-checksum PRIVATE
   EosFstIo
   ${CMAKE_THREAD_LIBS_INIT} )
 
@@ -500,7 +528,7 @@ install(PROGRAMS
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
 install(TARGETS
-  eos-ioping eos-adler32 eos-leveldb-inspect
+  eos-ioping eos-adler32 eos-checksum eos-leveldb-inspect
   eos-check-blockxs eos-compute-blockxs eos-scan-fs eos-fsck-fs
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 

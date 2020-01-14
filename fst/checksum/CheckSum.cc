@@ -93,7 +93,7 @@ CheckSum::ScanFile(const char* path, unsigned long long& scansize,
   }
 
   (void) eos::common::CloExec::Set(fd);
-  bool scan = ScanFile(fd, scansize, scantime, rate);
+  bool scan = ScanFile(fd, scansize, scantime, rate, (std::string(path) == "/dev/stdin")?true:false);
   (void) close(fd);
   return scan;
 }
@@ -103,7 +103,7 @@ CheckSum::ScanFile(const char* path, unsigned long long& scansize,
 /* scan of a complete file */
 bool
 CheckSum::ScanFile(int fd, unsigned long long& scansize, float& scantime,
-                   int rate)
+                   int rate, bool is_stdin)
 {
   static int buffersize = 1024 * 1024;
   struct timezone tz;
@@ -115,7 +115,12 @@ CheckSum::ScanFile(int fd, unsigned long long& scansize, float& scantime,
   Reset();
   int nread = 0;
   off_t offset = 0;
-  char* buffer = (char*) malloc(buffersize);
+  char* buffer = 0;
+
+  if (posix_memalign((void**) &buffer, 256*1024, buffersize)) {
+    fprintf(stderr, "warning: failed to use posix_memaling \n");
+    buffer = (char*) malloc(buffersize);
+  }
 
   if (!buffer) {
     return false;
@@ -123,7 +128,11 @@ CheckSum::ScanFile(int fd, unsigned long long& scansize, float& scantime,
 
   do {
     errno = 0;
-    nread = pread(fd, buffer, buffersize, offset);
+    if (is_stdin) {
+      nread = read(fd, buffer, buffersize);
+    } else {
+      nread = pread(fd, buffer, buffersize, offset);
+    }
 
     if (nread < 0) {
       free(buffer);

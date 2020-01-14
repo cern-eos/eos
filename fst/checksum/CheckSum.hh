@@ -193,7 +193,7 @@ public:
   virtual bool ScanFile(ReadCallBack rcb, unsigned long long& scansize,
                         float& scantime, int rate = 0);
   virtual bool ScanFile(int fd, unsigned long long& scansize, float& scantime,
-                        int rate = 0);
+                        int rate = 0, bool is_stdin=false);
   virtual bool ScanFile(const char* path, off_t offsetInit, size_t lengthInit,
                         const char* partialChecksum,
                         unsigned long long& scansize, float& scantime, int rate = 0);

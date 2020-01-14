@@ -1,11 +1,11 @@
 // ----------------------------------------------------------------------
-// File: CRC32C.hh
+// File: XXHASH64.hh
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2020 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,117 +21,102 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_CRC32C_HH__
-#define __EOSFST_CRC32C_HH__
+#ifndef __EOSFST_XXHASH64_HH__
+#define __EOSFST_XXHASH64_HH__
 
 /*----------------------------------------------------------------------------*/
 #include "fst/Namespace.hh"
 #include "fst/checksum/CheckSum.hh"
-#include "common/crc32c/crc32c.h"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucString.hh"
-#include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
-#include <zlib.h>
+#include <xxhash.h>
 
-#ifdef ISAL_FOUND
-#include <isa-l.h>
-#endif
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
-class CRC32C : public CheckSum
+class XXHASH64 : public CheckSum
 {
 private:
-  off_t crc32coffset;
-  uint32_t crcsum;
-  bool finalized;
+  off_t xxhash64offset;
+  uint64_t crcsum;
+  XXH64_state_t* state;
 
 public:
 
-  CRC32C() : CheckSum("crc32c")
+  XXHASH64 () : CheckSum ("xxhash64"), state(0)
   {
     Reset();
   }
 
   off_t
-  GetLastOffset()
+  GetLastOffset ()
   {
-    return crc32coffset;
+    return xxhash64offset;
   }
 
   bool
-  Add(const char* buffer, size_t length, off_t offset)
+  Add (const char* buffer, size_t length, off_t offset)
   {
-    if (offset != crc32coffset) {
+    if (offset != xxhash64offset)
+    {
       needsRecalculation = true;
       return false;
     }
-
-#ifdef ISAL_FOUND
-    crcsum = crc32_iscsi( (unsigned char*) buffer, length, crcsum);
-#else 
-    crcsum = checksum::crc32c(crcsum, (const Bytef*) buffer, length);
-#endif
-
-    crc32coffset += length;
+    crcsum = XXH64_update(state, (const Bytef*) buffer, length);
+    xxhash64offset += length;
     return true;
   }
 
   const char*
-  GetHexChecksum()
+  GetHexChecksum ()
   {
-    if (!finalized) {
-      Finalize();
-    }
-
-    char scrc32[1024];
-    sprintf(scrc32, "%08x", crcsum);
-    Checksum = scrc32;
+    char sxxhash64[1024];
+    sprintf(sxxhash64, "%16lx", crcsum);
+    Checksum = sxxhash64;
     return Checksum.c_str();
   }
 
   const char*
-  GetBinChecksum(int& len)
+  GetBinChecksum (int &len)
   {
-    if (!finalized) {
-      Finalize();
-    }
-
-    len = sizeof(unsigned int);
+    len = sizeof (unsigned int);
     return (char*) &crcsum;
   }
 
   int
-  GetCheckSumLen()
+  GetCheckSumLen ()
   {
-    return sizeof(unsigned int);
+    return sizeof (unsigned int);
   }
 
-  void
-  Reset()
+  void 
+  Finalize () 
   {
-    crcsum = checksum::crc32cInit();
-    crc32coffset = 0;
+    if (!finalized) {
+      crcsum = XXH64_digest(state);
+    }
+  }
+  
+  void
+  Reset ()
+  {
+    if (state) {
+      XXH64_freeState(state);
+    }
+    state = XXH64_createState();
+    XXH64_reset(state, 0);
+    xxhash64offset = 0;
+    crcsum = 0;
+
     needsRecalculation = 0;
     finalized = false;
   }
 
-  void
-  Finalize()
-  {
-    if (!finalized) {
-#ifndef ISAL_FOUND
-      crcsum = checksum::crc32cFinish(crcsum);
-#endif
-      finalized = true;
-    }
-  }
-
   virtual
-  ~CRC32C() { };
+  ~XXHASH64 () { };
 
 };
 

@@ -30,6 +30,12 @@
 #include "fst/checksum/CRC32C.hh"
 #include "fst/checksum/MD5.hh"
 #include "fst/checksum/SHA1.hh"
+#include "fst/checksum/CRC64.hh"
+#include "fst/checksum/SHA256.hh"
+
+#ifdef XXHASH_FOUND
+#include "fst/checksum/XXHASH64.hh"
+#endif
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -59,6 +65,14 @@ public:
       return static_cast<CheckSum*>(new MD5());
     } else if (xs_type == eos::common::LayoutId::kSHA1) {
       return static_cast<CheckSum*>(new SHA1());
+    } else if (xs_type == eos::common::LayoutId::kCRC64) {
+      return static_cast<CheckSum*>(new CRC64());
+    } else if (xs_type == eos::common::LayoutId::kSHA256) {
+      return static_cast<CheckSum*>(new SHA256());
+#ifdef XXHASH_FOUND
+    } else if (xs_type == eos::common::LayoutId::kXXHASH64) {
+      return static_cast<CheckSum*>(new XXHASH64());
+#endif
     }
 
     return nullptr;
