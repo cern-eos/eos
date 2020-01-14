@@ -278,11 +278,11 @@ public:
   SetLogId(const char* newlogid, const char* td)
   {
     if (newlogid && (newlogid != logId)) {
-      snprintf(logId, sizeof(logId) - 1, "%s", newlogid);
+      snprintf(logId, sizeof(logId) , "%s", newlogid);
     }
 
     if (td) {
-      snprintf(cident, sizeof(cident) - 1, "%s", td);
+      snprintf(cident, sizeof(cident) , "%s", td);
     }
   }
 
