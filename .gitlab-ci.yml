@@ -375,6 +375,10 @@ build_cc7_asan:
 
 
 build_cc7_eos_xrd:
+  before_script:
+    - source gitlab-ci/export_branch.sh
+    - echo "Exporting BRANCH=${BRANCH}"
+    - sed -i "s/pgm \/usr\/bin\/xrdcp/pgm \/bin\/true/g" misc/etc/xrd.cf.fst
   <<: *cc7_template_definition
   variables:
     BUILD_NAME: cc7_eos_xrd
