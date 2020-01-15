@@ -78,7 +78,7 @@ git checkout -b %{version} tags/v%{version}
 git submodule update --init --recursive
 %build
 cd grpc
-%if %{?fedora}%{!?fedora:0} >= 19
+%if %{?fedora}%{!?fedora:0} >= 19 || 0%{distribution} == 8
 export CPPFLAGS="-Wno-error=class-memaccess -Wno-error=tautological-compare -Wno-error=ignored-qualifiers -Wno-error=stringop-truncation"
 export HAS_SYSTEM_PROTOBUF=false
 %endif
