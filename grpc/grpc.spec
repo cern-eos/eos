@@ -33,7 +33,7 @@
 Summary: gRPC, A high performance, open-source universal RPC framework
 Name: grpc
 Version: 1.19.0
-Release: 1%{?dist}
+Release: 2%{?dist}
 License: BSD
 URL: http://www.grpc.io/
 Source0: https://github.com/grpc/grpc/archive/v%{version}.tar.gz
@@ -123,5 +123,7 @@ rm -rf %{buildroot}
 %{_libdir}/*.a
 
 %changelog
+* Thu Jan 16 2020 Mihai Patrascoiu <mihai.patrascoiu@cern.ch> - 1.19.0-2
+- Add CentOS 8 build
 * Fri Jul 27 2018 AJP
 - Initial revision
