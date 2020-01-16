@@ -80,12 +80,6 @@ target_link_libraries(eos-ns-convert
   EosNsInMemory-Static
   ${FOLLY_LIBRARIES})
 
-add_executable(eos-dump-proto-md tools/EosDumpProtoMd.cc)
-
-target_link_libraries(eos-dump-proto-md
-  EosNsCommon-Static
-  ${PROTOBUF_LIBRARY})
-
 add_executable(eos-ns-convert-to-locality-hashes tools/EosConvertToLocalityHashes.cc)
 
 target_link_libraries(eos-ns-convert-to-locality-hashes
@@ -97,7 +91,7 @@ add_executable(eos-ns-inspect tools/InspectionTool.cc)
 target_link_libraries(eos-ns-inspect
   EosNsCommon-Static)
 
-install(TARGETS eos-ns-convert eos-dump-proto-md eos-ns-convert-to-locality-hashes eos-ns-inspect
+install(TARGETS eos-ns-convert eos-ns-convert-to-locality-hashes eos-ns-inspect
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

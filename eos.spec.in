@@ -377,7 +377,6 @@ The EOS server installation containing MGM, FST & MQ service.
 %defattr(-, root, root, -)
 %{_bindir}/eos-ns-convert
 %{_bindir}/eos-ns-convert-to-locality-hashes
-%{_bindir}/eos-dump-proto-md
 %{_sbindir}/eosfilesync
 %{_sbindir}/eosdirsync
 %{_sbindir}/eos-tty-broadcast
