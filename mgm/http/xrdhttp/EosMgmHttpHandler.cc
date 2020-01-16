@@ -102,7 +102,7 @@ OwningXrdSecEntity::CreateFrom(const XrdSecEntity& other)
   }
 
   mSecEntity->credslen = other.credslen;
-  mSecEntity->rsvd = other.rsvd;
+  //mSecEntity->rsvd = other.rsvd;
   // @note addrInfo is not copied for the moment
   mSecEntity->addrInfo = nullptr;
 
@@ -252,12 +252,14 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
 
   std::string path = normalized_headers["xrd-http-fullresource"];
   std::string authz_data = normalized_headers["authorization"];
+  std::string enc_authz = eos::common::StringConversion::curl_escaped(authz_data);
+  // @todo (esindril) do the proper reverse mapping of HTTP predicate to the
+  // access operation type
   Access_Operation oper = AOP_Stat;
   std::string data = "authz=";
-  data += authz_data;
+  data += enc_authz;
   std::unique_ptr<XrdOucEnv> env = std::make_unique<XrdOucEnv>(data.c_str(),
                                    data.length());
-  *env;
   // Make a copy of the original XrdSecEntity so that the authorization plugin
   // can update the name of the client from the macaroon info
   OwningXrdSecEntity client(req.GetSecEntity());
