@@ -60,6 +60,7 @@
 #include "common/PasswordHandler.hh"
 #include "common/ShellCmd.hh"
 #include "common/InstanceName.hh"
+#include "common/StringTokenizer.hh"
 #include "namespace/interface/IChLogFileMDSvc.hh"
 #include "namespace/interface/IChLogContainerMDSvc.hh"
 #include "namespace/interface/IView.hh"
@@ -483,6 +484,57 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
               }
             } else {
               role = lrole;
+            }
+          }
+        }
+      }
+
+      // Handle TPC redirection for delegation
+      // ofs.tpc redirect [delegated|undelegated] <host>[:<port>]
+      if (strncmp(var, "ofs.tpc", 7) == 0) {
+        var += 7;
+
+        if (!(var = Config.GetLine())) {
+          Eroute.Emsg("Config", "argument for ofs.tpc is missing");
+          NoGo = 1;
+        } else {
+          std::string line {var};
+          auto tokens = eos::common::StringTokenizer::split<std::list<std::string>>(line,
+                        ' ');
+
+          // We're only intereseted in the redirect directive since we anyway
+          // enable TPC support by default by setting the XRDTPC env variable
+          if (tokens.front() == "redirect") {
+            mTpcRedirect = true;
+            tokens.pop_front();
+
+            if (tokens.empty()) {
+              Eroute.Emsg("Config", "argument for ofs.tpc is missing");
+              NoGo = 1;
+            } else {
+              bool rdr_delegated = (tokens.front() == "delegated");
+              tokens.pop_front();
+
+              if (tokens.empty()) {
+                Eroute.Emsg("Config", "argument for ofs.tpc redirect is missing");
+                NoGo = 1;
+              } else {
+                std::string rdr_info = tokens.front();
+                size_t pos = rdr_info.find(':');
+                int rdr_port {1094};
+                std::string rdr_host {rdr_info.substr(0, pos)};
+
+                if (pos != std::string::npos) {
+                  try {
+                    rdr_port = std::stoul(rdr_info.substr(pos + 1));
+                  } catch (...) {
+                    Eroute.Emsg("Config", "ofs.tpc redirect failed to convert port,"
+                                "use default 1094");
+                  }
+                }
+
+                mTpcRdrInfo.emplace(rdr_delegated, std::make_pair(rdr_host, rdr_port));
+              }
             }
           }
         }
@@ -1778,13 +1830,11 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
 #endif
   // start the Admin socket
-
   {
-    std::string admin_socket_path = std::string(gOFS->MgmMetaLogDir.c_str()) + std::string("/.admin_socket:") + std::to_string(ManagerPort);
+    std::string admin_socket_path = std::string(gOFS->MgmMetaLogDir.c_str()) +
+                                    std::string("/.admin_socket:") + std::to_string(ManagerPort);
     AdminSocketServer.reset(new eos::mgm::AdminSocket(admin_socket_path));
   }
-
-
   // start the LRU daemon
   mLRUEngine->Start();
 

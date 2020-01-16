@@ -192,11 +192,12 @@ public:
   virtual bool KillJob() final;
 
   //----------------------------------------------------------------------------
-  //! Return the result 
+  //! Return the result
   //----------------------------------------------------------------------------
-  virtual const char* GetResult(size_t& size) { return "bla";}
-  
-
+  virtual const char* GetResult(size_t& size) const
+  {
+    return "bla";
+  }
 
 protected:
   virtual bool OpenTemporaryOutputFiles();
@@ -212,7 +213,8 @@ protected:
   //! @return retc return code
   //----------------------------------------------------------------------------
   void GetPathFromFid(XrdOucString& path, unsigned long long fid,
-                     const std::string& err_msg_prefix); // drop when we drop non-proto commands using it
+                      const std::string&
+                      err_msg_prefix); // drop when we drop non-proto commands using it
 
   int GetPathFromFid(std::string& path, unsigned long long fid,
                      std::string& err_msg);
@@ -226,7 +228,8 @@ protected:
   //! @param err_msg_prefix error message to be displayed in case of exception
   //----------------------------------------------------------------------------
   void GetPathFromCid(XrdOucString& path, unsigned long long cid,
-                      const std::string& err_msg_prefix); // drop when we drop non-proto commands using it
+                      const std::string&
+                      err_msg_prefix); // drop when we drop non-proto commands using it
 
   int GetPathFromCid(std::string& path, unsigned long long cid,
                      std::string& err_msg);

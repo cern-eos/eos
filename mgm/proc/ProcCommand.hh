@@ -187,7 +187,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get the result stream  of a proc command
   //----------------------------------------------------------------------------
-  inline const char* GetResult(size_t& size) const
+  inline const char* GetResult(size_t& size) const override
   {
     if (mClosed) {
       size = 0;

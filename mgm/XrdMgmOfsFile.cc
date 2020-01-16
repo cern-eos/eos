@@ -249,6 +249,12 @@ XrdMgmOfsFile::open(const char* inpath,
   }
 
   openOpaque = new XrdOucEnv(ininfo);
+
+  // Handle (delegated) tpc redirection for writes
+  if (isRW && RedirectTpcAccess()) {
+    return SFS_REDIRECT;
+  }
+
   {
     // figure out if this is FUSE access
     const char* val = 0;
@@ -273,6 +279,7 @@ XrdMgmOfsFile::open(const char* inpath,
       }
     }
   }
+
   {
     // figure out if this is an OC upload
     const char* val = 0;
@@ -281,6 +288,7 @@ XrdMgmOfsFile::open(const char* inpath,
       ocUploadUuid = val;
     }
   }
+
   {
     // populate tried hosts from the CGI
     const char* val = 0;
@@ -290,6 +298,7 @@ XrdMgmOfsFile::open(const char* inpath,
       tried_cgi += ",";
     }
   }
+
   {
     // extract the workflow name from the CGI
     const char* val = 0;
@@ -2839,4 +2848,35 @@ XrdMgmOfsFile::GetTriedrcErrno(const std::string& input) const
   }
 
   return 0;
+}
+
+//------------------------------------------------------------------------------
+// Handle (delegated) TPC redirection
+//------------------------------------------------------------------------------
+bool
+XrdMgmOfsFile::RedirectTpcAccess()
+{
+  if (!gOFS->mTpcRedirect) {
+    return false;
+  }
+
+  const char* tpc_key = openOpaque->Get("tpc.key");
+
+  if (tpc_key == nullptr) {
+    return false;
+  }
+
+  bool is_delegated_tpc = (strncmp(tpc_key, "delegated", 9) == 0);
+  auto it = gOFS->mTpcRdrInfo.find(is_delegated_tpc);
+
+  // If rdr info not present or if host is empty then skip
+  if ((it == gOFS->mTpcRdrInfo.end()) || (it->second.first.empty())) {
+    return false;
+  }
+
+  error.setErrInfo(it->second.second, it->second.first.c_str());
+  eos_debug("msg=\"tpc %s redirect\" rdr_host=%s rdr_port=%i",
+            is_delegated_tpc ? "delegated" : "undelegated",
+            it->second.first.c_str(), it->second.second);
+  return true;
 }

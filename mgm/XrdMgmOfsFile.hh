@@ -215,6 +215,15 @@ private:
   //----------------------------------------------------------------------------
   int GetTriedrcErrno(const std::string& input) const;
 
+  //----------------------------------------------------------------------------
+  //! Handle (delegated) TPC redirection
+  //!
+  //! @return true if redirection required (the error object will be properly
+  //!         populated with the redirection host and port info), otherwise
+  //!         false
+  //----------------------------------------------------------------------------
+  bool RedirectTpcAccess();
+
   int oh; //< file handle
   std::string fileName; //< file name
   XrdOucEnv* openOpaque; //< opaque info given with 'open'
