@@ -24,7 +24,7 @@
 #-------------------------------------------------------------------------------
 %define distribution %(/usr/lib/rpm/redhat/dist.sh --distnum)
 %if 0%{distribution} == 6 || 0%{distribution} == 7
-%global __strip /opt/rh/devtoolset-8/root/usr/bin/strip
+%global __strip /opt/rh/devtoolset-6/root/usr/bin/strip
 %endif
 
 #-------------------------------------------------------------------------------
@@ -33,7 +33,7 @@
 Summary: gRPC, A high performance, open-source universal RPC framework
 Name: grpc
 Version: 1.19.0
-Release: 2%{?dist}
+Release: 1%{?dist}
 License: BSD
 URL: http://www.grpc.io/
 Source0: https://github.com/grpc/grpc/archive/v%{version}.tar.gz
