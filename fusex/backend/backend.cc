@@ -240,7 +240,7 @@ backend::getCAP(fuse_req_t req,
                )
 /* -------------------------------------------------------------------------- */
 {
-  uint64_t myclock = (uint64_t) time(NULL);
+  uint64_t myclock = (uint64_t) time(NULL)+13; // allow for 'slow' requests up-to 15s
   std::string requestURL = getURL(req, inode, myclock, "fuseX", "getfusex",
                                   "GETCAP", "", true);
   return fetchResponse(requestURL, contv);
@@ -432,7 +432,7 @@ backend::fetchResponse(std::string& requestURL,
 
       std::string xrootderr = status.GetErrorMessage();
 
-      // the xrootd mapping of errno to everything unknwon to EIO is really unfortunate
+      // the xrootd mapping of errno to everything unknown to EIO is really unfortunate
       if (xrootderr.find("get-cap-clock-out-of-sync") != std::string::npos) {
         // this is a time synchronization error
         errno = EL2NSYNC;
