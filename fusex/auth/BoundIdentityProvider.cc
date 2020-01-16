@@ -84,6 +84,40 @@ BoundIdentityProvider::krb5EnvToBoundIdentity(const JailInformation& jail,
 }
 
 //------------------------------------------------------------------------------
+// Attempt to produce a BoundIdentity object out of OAUTH2 environment
+// variables. NO fallback to default paths. If not possible, return nullptr.
+//------------------------------------------------------------------------------
+std::shared_ptr<const BoundIdentity>
+BoundIdentityProvider::oauth2EnvToBoundIdentity(const JailInformation& jail,
+  const Environment& env, uid_t uid, gid_t gid, bool reconnect,
+  LogbookScope &scope)
+{
+  std::string path = env.get("OAUTH2_TOKEN");
+
+  //----------------------------------------------------------------------------
+  // Drop FILE:, if exists
+  //----------------------------------------------------------------------------
+  const std::string prefix = "FILE:";
+  if(startswith(path, prefix)) {
+    path = path.substr(prefix.size());
+  }
+
+  if(path.empty()) {
+    //--------------------------------------------------------------------------
+    // Early exit, no need to go through the trouble
+    // of userCredsToBoundIdentity.
+    //--------------------------------------------------------------------------
+    LOGBOOK_INSERT(scope, "Invalid OAUTH2_TOKEN (size: " << path.size() << ")");
+    return {};
+  }
+
+  LOGBOOK_INSERT(scope, "Found OAUTH2_TOKEN: " << path << ", need to validate");
+  return userCredsToBoundIdentity(jail,
+           UserCredentials::MakeOAUTH2(jail.id, path, uid, gid), reconnect,
+           scope);
+}
+
+//------------------------------------------------------------------------------
 // Attempt to produce a BoundIdentity object out of X509 environment
 // variables. NO fallback to default paths. If not possible, return nullptr.
 //------------------------------------------------------------------------------
@@ -160,6 +194,17 @@ BoundIdentityProvider::environmentToBoundIdentity(const JailInformation& jail,
     }
 
     //----------------------------------------------------------------------------
+    // Try to use OAUTH2 if available.
+    //----------------------------------------------------------------------------
+    if (credConfig.use_user_oauth2) {
+      output = oauth2EnvToBoundIdentity(jail, env, uid, gid, reconnect, scope);
+      
+      if (output) {
+	return output;
+      }
+    }
+
+    //----------------------------------------------------------------------------
     // Try to use SSS if available.
     //----------------------------------------------------------------------------
     if (credConfig.use_user_sss) {
@@ -194,6 +239,17 @@ BoundIdentityProvider::environmentToBoundIdentity(const JailInformation& jail,
   if(credConfig.use_user_krb5cc) {
     output = krb5EnvToBoundIdentity(jail, env, uid, gid, reconnect, scope);
 
+    if (output) {
+      return output;
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  // Try to us OAUTH2 if available.
+  //----------------------------------------------------------------------------
+  if (credConfig.use_user_oauth2) {
+    output = oauth2EnvToBoundIdentity(jail, env, uid, gid, reconnect, scope);
+    
     if (output) {
       return output;
     }
@@ -347,6 +403,7 @@ BoundIdentityProvider::defaultPathsToBoundIdentity(const JailInformation& jail,
   Environment defaultEnv;
   defaultEnv.push_back("KRB5CCNAME=FILE:/tmp/krb5cc_" + std::to_string(uid));
   defaultEnv.push_back("X509_USER_PROXY=/tmp/x509up_u" + std::to_string(uid));
+  defaultEnv.push_back("OAUTH2_TOKEN=FILE:/tmp/oauthtk_" + std::to_string(uid));
 
   LogbookScope subscope(scope.makeScope(
     SSTR("Attempting to produce BoundIdentity out of default paths for uid="

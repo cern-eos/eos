@@ -82,10 +82,22 @@ private:
                gid_t gid, SearchOrder& out);
 
   //----------------------------------------------------------------------------
+  //! Append oauth2 UserCredentials built from OAUTH2_TOKEN_FILE-equivalent string.
+  //----------------------------------------------------------------------------
+  void addOAUTH2(const JailIdentifier& id, std::string path, uid_t uid,
+               gid_t gid, SearchOrder& out);
+
+  //----------------------------------------------------------------------------
   //! Append UserCredentials object built from KRB5CCNAME
   //----------------------------------------------------------------------------
   void addKrb5FromEnv(const JailIdentifier& id, const Environment& env,
                       uid_t uid, gid_t gid, SearchOrder& out);
+
+  //----------------------------------------------------------------------------
+  //! Append UserCredentials object built from OAUTH2_TOKEN_FILE
+  //----------------------------------------------------------------------------
+  void addOAUTH2FromEnv(const JailIdentifier& id, const Environment& env,
+			uid_t uid, gid_t gid, SearchOrder& out);
 
   //----------------------------------------------------------------------------
   //! Append UserCredentials object built from X509_USER_PROXY

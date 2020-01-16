@@ -145,6 +145,14 @@ private:
     bool reconnect, LogbookScope &scope);
 
   //----------------------------------------------------------------------------
+  // Attempt to produce a BoundIdentity object out of OAUTH2 environment
+  // variables. If not possible, return nullptr.
+  //----------------------------------------------------------------------------
+  std::shared_ptr<const BoundIdentity> oauth2EnvToBoundIdentity(
+    const JailInformation& jail, const Environment& env, uid_t uid, gid_t gid,
+    bool reconnect, LogbookScope &scope);
+
+  //----------------------------------------------------------------------------
   // Given a set of user-provided, non-trusted UserCredentials, attempt to
   // translate them into a BoundIdentity object. (either by allocating a new
   // connection, or re-using a cached one)

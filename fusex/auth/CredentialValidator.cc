@@ -223,7 +223,7 @@ bool CredentialValidator::validate(const JailInformation &jail,
   }
 
   //----------------------------------------------------------------------------
-  // Only KRB5, X509 remaining. Test credential file permissions.
+  // Only KRB5, X509, OAUTH2 remaining. Test credential file permissions.
   //----------------------------------------------------------------------------
   SecurityChecker::Info info = checker.lookup(jail, uc.fname, uc.uid, uc.gid);
 
@@ -298,7 +298,7 @@ bool CredentialValidator::checkValidity(const JailInformation& jail,
   }
 
   //----------------------------------------------------------------------------
-  // KRB5, X509: Check underlying file, ensure contents have not changed.
+  // KRB5, X509, OAUTH2: Check underlying file, ensure contents have not changed.
   //----------------------------------------------------------------------------
   SecurityChecker::Info info = checker.lookup(jail, uc.fname, uc.uid, uc.gid);
 

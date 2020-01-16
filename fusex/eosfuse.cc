@@ -587,6 +587,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         root["auth"]["sss"] = 1;
       }
 
+      if (!root["auth"].isMember("oauth2")) {
+        root["auth"]["oauth2"] = 1;
+      }
+
       if (!root["auth"].isMember("ignore-containerization")) {
         root["auth"]["ignore-containerization"] = 0;
       }
@@ -599,16 +603,17 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         }
       }
 
-      if (root["auth"]["sss"] == 1) {
+      if ( (root["auth"]["sss"] == 1) || (root["auth"]["oauth2"] == 1) ) {
         if (!root["auth"].isMember("ssskeytab")) {
           root["auth"]["ssskeytab"] = default_ssskeytab;
           config.ssskeytab = root["auth"]["ssskeytab"].asString();
           struct stat buf;
 
           if (stat(config.ssskeytab.c_str(), &buf)) {
-            fprintf(stderr, "error: sss keytabfile '%s' does not exist!\n",
+            fprintf(stderr, "warning: sss keytabfile '%s' does not exist - disabling sss/oauth2\n",
                     config.ssskeytab.c_str());
-            exit(EINVAL);
+	    root["auth"]["sss"] = 0;
+	    root["auth"]["oauth2"] = 0;
           }
         }
       }
@@ -860,13 +865,14 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       config.mqname = config.mqidentity;
       config.auth.fuse_shared = root["auth"]["shared-mount"].asInt();
       config.auth.use_user_krb5cc = root["auth"]["krb5"].asInt();
+      config.auth.use_user_oauth2 = root["auth"]["oauth2"].asInt();
       config.auth.ignore_containerization =
         root["auth"]["ignore-containerization"].asInt();
       config.auth.use_user_gsiproxy = root["auth"]["gsi"].asInt();
       config.auth.use_user_sss = root["auth"]["sss"].asInt();
       config.auth.credentialStore = root["auth"]["credential-store"].asString();
 
-      if (config.auth.use_user_sss) {
+      if (config.auth.use_user_sss || config.auth.use_user_oauth2) {
         // store keytab location for this mount
         setenv("XrdSecSSSKT", root["auth"]["ssskeytab"].asString().c_str(), 1);
       }

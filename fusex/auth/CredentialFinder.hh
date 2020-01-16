@@ -44,7 +44,7 @@ class CredentialConfig
 public:
 
   CredentialConfig() : use_user_krb5cc(false), use_user_gsiproxy(false),
-    use_user_sss(false), tryKrb5First(false), fallback2nobody(false),
+    use_user_sss(false), use_user_oauth2(false), tryKrb5First(false), fallback2nobody(false),
     fuse_shared(false),
     environ_deadlock_timeout(500), forknoexec_heuristic(true),
     ignore_containerization(false) { }
@@ -55,6 +55,8 @@ public:
   bool use_user_gsiproxy;
   //! Indicates if user sss file should be used for authentication
   bool use_user_sss;
+  //! Indicates if user oauth2 file should be used for authentication
+  bool use_user_oauth2;
   //! Indicates if Krb5 should be tried before Gsi
   bool tryKrb5First;
   //! Indicates if unix authentication (as nobody) should be used as a fallback
@@ -178,6 +180,8 @@ public:
     } else if (uc.type == CredentialType::X509) {
       paramsMap["xrd.wantprot"] = "gsi,unix";
       paramsMap["xrd.gsiusrpxy"] = getFinalPath();
+    } else if (uc.type == CredentialType::OAUTH2) {
+      paramsMap["xrd.wantprot"] = "sss";
     } else {
       THROW("should never reach here");
     }

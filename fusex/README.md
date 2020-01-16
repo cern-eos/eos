@@ -62,6 +62,7 @@ This
     "gsi-first" : 0,
     "sss" : 1,
     "ssskeytab" : "/etc/eos/fuse.sss.keytab",
+    "oauth2" : 1,
     "environ-deadlock-timeout" : 100,
     "forknoexec-heuristic" : 1
   },

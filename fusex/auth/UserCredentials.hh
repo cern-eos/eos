@@ -28,7 +28,7 @@
 #include "Utils.hh"
 #include <sstream>
 #include <sys/types.h>
-
+#include "common/StringConversion.hh"
 //------------------------------------------------------------------------------
 // Designates what kind of user credentials we're dealing with:
 // - KRB5: Kerberos file-based ticket cache
@@ -43,6 +43,7 @@ enum class CredentialType : std::uint32_t {
   X509,
   SSS,
   NOBODY,
+  OAUTH2,
   INVALID
 };
 
@@ -62,6 +63,9 @@ inline std::string credentialTypeAsString(CredentialType type) {
     }
     case CredentialType::SSS: {
       return "sss";
+    }
+    case CredentialType::OAUTH2: {
+      return "oauth2";
     }
     case CredentialType::NOBODY: {
       return "nobody";
@@ -127,6 +131,24 @@ struct UserCredentials {
     retval.keyring = keyring;
     retval.uid = uid;
     retval.gid = gid;
+    return retval;
+  }
+
+  //----------------------------------------------------------------------------
+  // Constructor: Make a OAUTH2 object.
+  // TODO(gbitzes): Actually test this...
+  //----------------------------------------------------------------------------
+  static UserCredentials MakeOAUTH2(const JailIdentifier& jail,
+    const std::string& path, uid_t uid, gid_t gid) {
+
+    UserCredentials retval;
+    retval.type = CredentialType::OAUTH2;
+    retval.jail = jail;
+    retval.fname = path;
+    retval.uid = uid;
+    retval.gid = gid;    
+    std::string out;
+    fprintf(stderr,"loaded: %s\n", eos::common::StringConversion::LoadFileIntoString(path.c_str(), retval.endorsement));
     return retval;
   }
 
@@ -251,6 +273,7 @@ struct UserCredentials {
 
     switch(type) {
       case CredentialType::KRB5:
+      case CredentialType::OAUTH2:
       case CredentialType::X509: {
         ss << ": " << fname << " for uid=" << uid << ", gid=" << gid <<
           ", under " << jail.describe();

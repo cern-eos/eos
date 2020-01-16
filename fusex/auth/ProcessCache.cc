@@ -66,9 +66,9 @@ ProcessCache::discoverBoundIdentity(const JailInformation& jail,
   // Shortcut: If all authentication methods are disabled, just use Unix
   //----------------------------------------------------------------------------
   if (!credConfig.use_user_krb5cc && !credConfig.use_user_gsiproxy &&
-      !credConfig.use_user_sss) {
+      !credConfig.use_user_sss && !credConfig.use_user_oauth2) {
 
-    LogbookScope scope = logbook.makeScope("krb5, x509, and SSS disabled - "
+    LogbookScope scope = logbook.makeScope("krb5, x509, OAUTH2 and SSS disabled - "
       "falling back to UNIX");
     return boundIdentityProvider.unixAuth(processInfo.getPid(), uid, gid,
       reconnect, scope);

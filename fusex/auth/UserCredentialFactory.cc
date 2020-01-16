@@ -93,6 +93,35 @@ void UserCredentialFactory::addKrb5(const JailIdentifier &id, std::string path,
 }
 
 //------------------------------------------------------------------------------
+// Append OAUTH2 UserCredentials built from KRB5CCNAME-equivalent string.
+//------------------------------------------------------------------------------
+void UserCredentialFactory::addOAUTH2(const JailIdentifier &id, std::string path,
+  uid_t uid, gid_t gid, SearchOrder &out)
+{
+  if(!config.use_user_oauth2 || path.empty()) {
+    return;
+  }
+
+  //----------------------------------------------------------------------------
+  // Drop FILE:, if exists
+  //----------------------------------------------------------------------------
+  const std::string prefix = "FILE:";
+  if(startswith(path, prefix)) {
+    path = path.substr(prefix.size());
+  }
+
+  if(path.empty()) {
+    //--------------------------------------------------------------------------
+    // Early exit, nothing to add to search order.
+    //--------------------------------------------------------------------------
+    return;
+  }
+
+  out.emplace_back(UserCredentials::MakeOAUTH2(id, path, uid, gid));
+  return;
+}
+
+//------------------------------------------------------------------------------
 // Append krb5 UserCredentials built from Environment, if KRB5CCNAME
 // is defined.
 //------------------------------------------------------------------------------
@@ -101,6 +130,17 @@ void UserCredentialFactory::addKrb5FromEnv(const JailIdentifier &id,
 {
   return addKrb5(id, env.get("KRB5CCNAME"), uid, gid, out);
 }
+
+//------------------------------------------------------------------------------
+// Append OAUTH2 UserCredentials built from Environment, if OAUHT2_TOKEN
+// is defined.
+//------------------------------------------------------------------------------
+void UserCredentialFactory::addOAUTH2FromEnv(const JailIdentifier &id,
+  const Environment& env, uid_t uid, gid_t gid, SearchOrder &out)
+{
+  return addOAUTH2(id, env.get("OAUTH2_TOKEN"), uid, gid, out);
+}
+
 
 //------------------------------------------------------------------------------
 // Append krb5 UserCredentials built from X509_USER_PROXY-equivalent string.
@@ -144,6 +184,13 @@ void UserCredentialFactory::addDefaultsFromEnv(const JailIdentifier &id,
   // Add krb5, x509 derived from environment variables
   //----------------------------------------------------------------------------
   addKrb5AndX509FromEnv(id, env, uid, gid, searchOrder);
+
+  //----------------------------------------------------------------------------
+  // Add oauth2 derived from environment variables
+  if (config.use_user_oauth2) {
+    addOAUTH2FromEnv(id, env, uid, gid, searchOrder);
+  }
+
 }
 
 //------------------------------------------------------------------------------
