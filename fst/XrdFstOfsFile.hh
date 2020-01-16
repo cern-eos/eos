@@ -638,10 +638,12 @@ public:
   //! Queue file for CTA archiving
   //!
   //! @param statinfo The file stat structure
+  //! @param queueing_errmsg Error message from CTA queueing
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool QueueForArchiving(const struct stat& statinfo);
+  bool QueueForArchiving(const struct stat& statinfo,
+                         std::string& queueing_errmsg);
 
   //----------------------------------------------------------------------------
   //! Notify the workflow protobuf endpoint that the user has closed a file that

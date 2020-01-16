@@ -1024,6 +1024,7 @@ XrdFstOfsFile::_close()
   bool commited_to_mgm = false;
   bool consistencyerror = false;
   bool atomicoverlap = false;
+  std::string queueing_errmsg;
 
   // Any close on a file opened in TPC mode invalidates tpc keys
   if (mTpcKey.length()) {
@@ -1216,7 +1217,7 @@ XrdFstOfsFile::_close()
           if (mTapeEnabled && isCreation && mSyncEventOnClose &&
               mEventWorkflow != common::RETRIEVE_WRITTEN_WORKFLOW_NAME) {
             // Queueing error: queueing for archive failed
-            queueingerror = !QueueForArchiving(statinfo);
+            queueingerror = !QueueForArchiving(statinfo, queueing_errmsg);
 
             if (queueingerror) {
               deleteOnClose = true;
@@ -1632,6 +1633,14 @@ XrdFstOfsFile::_close()
         eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason="
                  "\"suppressed atomic uploadh\"", mCapOpaque->Get("mgm.path"),
                  mFstPath.c_str());
+      } else if (queueingerror) {
+        std::string message =
+          SSTR("store file - file has been cleaned because of a queueing "
+               << "to archive error; reason=\"" << queueing_errmsg << "\"");
+        gOFS.Emsg(epname, error, EIO, message.c_str(), mNsPath.c_str());
+        eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"%s\"",
+                    mCapOpaque->Get("mgm.path"), mFstPath.c_str(),
+                    queueing_errmsg.c_str());
       } else {
         // Client has disconnected and file is cleaned-up
         gOFS.Emsg(epname, error, EIO, "store file - file has been "
@@ -2994,7 +3003,8 @@ XrdFstOfsFile::VerifyChecksum()
 // Queue file for CTA archiving
 //------------------------------------------------------------------------------
 bool
-XrdFstOfsFile::QueueForArchiving(const struct stat& statinfo)
+XrdFstOfsFile::QueueForArchiving(const struct stat& statinfo,
+                                 std::string& queueing_errmsg)
 {
   std::string decodedAttributes;
   eos::common::SymKey::Base64Decode(mEventAttributes.c_str(), decodedAttributes);
@@ -3003,7 +3013,7 @@ XrdFstOfsFile::QueueForArchiving(const struct stat& statinfo)
                                                 attributes,
                                                 eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_EQUALS,
                                                 eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_SEPARATOR, nullptr);
-  std::string errMsgBackFromWfEndpoint;
+
   const int notifyRc = NotifyProtoWfEndPointClosew(mFmd->mProtoFmd.fid(),
                                                    mFmd->mProtoFmd.lid(),
                                                    statinfo.st_size,
@@ -3016,18 +3026,16 @@ XrdFstOfsFile::QueueForArchiving(const struct stat& statinfo)
                                                    mCapOpaque->Get("mgm.path"),
                                                    mCapOpaque->Get("mgm.manager"),
                                                    attributes,
-                                                   errMsgBackFromWfEndpoint);
+                                                   queueing_errmsg);
 
   // Note: error variable defined in XrdSfsFile interface
   if (notifyRc == 0) {
     error.setErrCode(0);
     eos_info("Return code rc=%i errc=%d", SFS_OK, error.getErrInfo());
     return true;
-  } else if (SendArchiveFailedToManager(mFmd->mProtoFmd.fid(),
-                                        errMsgBackFromWfEndpoint)) {
+  } else if (SendArchiveFailedToManager(mFmd->mProtoFmd.fid(), queueing_errmsg)) {
     eos_crit("msg=\"Failed to send archive failed event to manager\" "
-             "errMsgBackFromWfEndpoint=\"%s\"",
-             errMsgBackFromWfEndpoint.c_str());
+             "queueing_errmsg=\"%s\"", queueing_errmsg.c_str());
   }
 
   error.setErrCode(EIO);
