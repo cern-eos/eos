@@ -181,7 +181,7 @@ public:
       paramsMap["xrd.wantprot"] = "gsi,unix";
       paramsMap["xrd.gsiusrpxy"] = getFinalPath();
     } else if (uc.type == CredentialType::OAUTH2) {
-      paramsMap["xrd.wantprot"] = "sss";
+      paramsMap["xrd.wantprot"] = "sss,unix";
     } else {
       THROW("should never reach here");
     }
