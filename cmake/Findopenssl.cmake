@@ -4,7 +4,6 @@
 # OPENSSL_FOUND          - system has openssl
 # OPENSSL_INCLUDE_DIRS   - openssl include directories
 # OPENSSL_CRYPTO_LIBRARY - openssl crypto library directory
-# OPENSSL_CRYPTO_LIBRARY_STATIC - openssl crypto static library directory
 
 include(FindPackageHandleStandardArgs)
 
@@ -23,23 +22,15 @@ else()
     HINTS ${OPENSSL_ROOT_DIR}
     PATH_SUFFIXES ${LIBRARY_PATH_PREFIX})
 
-  find_library(
-    OPENSSL_CRYPTO_LIBRARY_STATIC
-    NAMES libcrypto.a
-    HINTS ${OPENSSL_ROOT_DIR}
-    PATH_SUFFIXES ${LIBRARY_PATH_PREFIX})
-
   set(OPENSSL_INCLUDE_DIRS ${OPENSSL_INCLUDE_DIR})
 
   find_package_handle_standard_args(
     openssl
     DEFAULT_MSG
     OPENSSL_CRYPTO_LIBRARY
-    OPENSSL_INCLUDE_DIR
-    OPENSSL_CRYPTO_LIBRARY_STATIC)
+    OPENSSL_INCLUDE_DIR)
 
   mark_as_advanced(
     OPENSSL_CRYPTO_LIBRARY
-    OPENSSL_INCLUDE_DIR
-    OPENSSL_CRYPTO_LIBRARY_STATIC)
+    OPENSSL_INCLUDE_DIR)
 endif()

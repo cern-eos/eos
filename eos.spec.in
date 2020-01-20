@@ -199,8 +199,9 @@ Requires: bzip2-devel
 BuildRequires: elfutils-devel
 Requires: elfutils-devel
 
-BuildRequires: libuuid-devel, ncurses-static, openssl-static, zlib-static,
-BuildRequires: libcurl-devel libcurl, sparsehash-devel
+BuildRequires: zlib-static,
+BuildRequires: libcurl, libcurl-devel
+BuildRequires: libuuid-devel, sparsehash-devel
 %if 0%{?rhel} == 6 || 0%{?el6} == 1
 BuildRequires: zeromq3, zeromq3-devel
 BuildRequires: libevent2, libevent2-devel
