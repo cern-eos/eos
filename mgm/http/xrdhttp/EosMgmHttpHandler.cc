@@ -38,6 +38,28 @@ XrdVERSIONINFO(XrdHttpGetExtHandler, EosMgmHttp);
 static XrdVERSIONINFODEF(compiledVer, EosMgmHttp, XrdVNUMBER, XrdVERSION);
 
 //------------------------------------------------------------------------------
+// Do a "rough" mapping between HTTP verbs and access operation types
+// @todo(esindril): this should be improved and used when deciding what type
+// of operation the current access requires
+//------------------------------------------------------------------------------
+Access_Operation MapHttpVerbToAOP(const std::string& http_verb)
+{
+  Access_Operation op = AOP_Any;
+
+  if (http_verb == "GET") {
+    op = AOP_Read;
+  } else if (http_verb == "PUT") {
+    op = AOP_Create;
+  } else if (http_verb == "DELETE") {
+    op = AOP_Delete;
+  } else {
+    op  = AOP_Stat;
+  }
+
+  return op;
+}
+
+//------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
 OwningXrdSecEntity::~OwningXrdSecEntity()
@@ -124,25 +146,23 @@ EosMgmHttpHandler::Config(XrdSysError* eDest, const char* confg,
                           const char* parms, XrdOucEnv* myEnv)
 {
   using namespace eos::common;
-  std::string macaroons_lib_path_orig {""};
-  std::string scitokens_lib_path_orig {""};
   std::string macaroons_lib_path {""};
   std::string scitokens_lib_path {""};
 
   if (getenv("EOSMGMOFS")) {
-    //@todo(esindril): this is ugly, there should be some other way of getting
-    // this info ...
+    // @todo(esindril): this is ugly, there should be some other way of getting
+    // the pointer to the OFS plugin
     gOfs = (XrdMgmOfs*)(strtoull(getenv("EOSMGMOFS"), 0, 10));
     std::string cfg;
     StringConversion::LoadFileIntoString(confg, cfg);
     auto lines = StringTokenizer::split<std::vector<std::string>>(cfg, '\n');
 
     for (auto& line : lines) {
+      eos::common::trim(line);
+
       if (line.find("eos::mgm::http::redirect-to-https=1") != std::string::npos) {
         mRedirectToHttps = true;
-      } else if (line.find("mgmofs.macaroonslib") != std::string::npos) {
-        trim(line);
-        eos_info("line=\"%s\"", line.c_str());
+      } else if (line.find("mgmofs.macaroonslib") == 0) {
         auto tokens = StringTokenizer::split<std::vector<std::string>>(line, ' ');
 
         if (tokens.size() < 2) {
@@ -151,8 +171,8 @@ EosMgmHttpHandler::Config(XrdSysError* eDest, const char* confg,
           return 1;
         }
 
-        macaroons_lib_path_orig = tokens[1];
         macaroons_lib_path = tokens[1];
+        eos::common::trim(macaroons_lib_path);
         // Make sure the path exists
         struct stat info;
 
@@ -170,19 +190,21 @@ EosMgmHttpHandler::Config(XrdSysError* eDest, const char* confg,
 
         // Enable also the SciTokens library if present in the configuration
         if (tokens.size() > 2) {
-          scitokens_lib_path_orig = tokens[2];
           scitokens_lib_path = tokens[2];
+          eos::common::trim(scitokens_lib_path);
 
-          // Make sure the path exists
-          if (stat(scitokens_lib_path.c_str(), &info)) {
-            eos_warning("msg=\"no such mgmofs.macaroonslib on disk\" path=%s",
-                        scitokens_lib_path.c_str());
-            scitokens_lib_path.replace(scitokens_lib_path.find(".so"), 3, "-4.so");
-
+          if (!scitokens_lib_path.empty()) {
+            // Make sure the path exists
             if (stat(scitokens_lib_path.c_str(), &info)) {
-              eos_err("msg=\"no such mgmofs.macaroonslib on disk\" path=%s",
-                      scitokens_lib_path.c_str());
-              return 1;
+              eos_warning("msg=\"no such mgmofs.macaroonslib on disk\" path=%s",
+                          scitokens_lib_path.c_str());
+              scitokens_lib_path.replace(scitokens_lib_path.find(".so"), 3, "-4.so");
+
+              if (stat(scitokens_lib_path.c_str(), &info)) {
+                eos_err("msg=\"no such mgmofs.macaroonslib on disk\" path=%s",
+                        scitokens_lib_path.c_str());
+                return 1;
+              }
             }
           }
         }
@@ -227,8 +249,20 @@ EosMgmHttpHandler::Config(XrdSysError* eDest, const char* confg,
   if (!scitokens_lib_path.empty()) {
     // The "authz_parms" argument needs to be set to
     // <xrd_macaroons_lib> <sci_tokens_lib_path>
-    // so that the XrdMacaroons library properly chanins them
-    authz_parms = macaroons_lib_path_orig + " " + scitokens_lib_path_orig;
+    // so that the XrdMacaroons library properly chanins them and the library
+    // names need to be without the -4.so in their path.
+    if (macaroons_lib_path.find("-4.so") == std::string::npos) {
+      std::string tmp_macaroons_path = macaroons_lib_path;
+      tmp_macaroons_path.replace(tmp_macaroons_path.find(".so"), 3, "-4.so");
+      authz_parms += tmp_macaroons_path;
+      authz_parms += " ";
+    }
+
+    if (scitokens_lib_path.find("-4.so") == std::string::npos) {
+      std::string tmp_scitokens_path = scitokens_lib_path;
+      tmp_scitokens_path.replace(tmp_scitokens_path.find(".so"), 3, "-4.so");
+      authz_parms += tmp_scitokens_path;
+    }
   }
 
   if (authz_ep &&
@@ -264,6 +298,7 @@ EosMgmHttpHandler::MatchesPath(const char* verb, const char* path)
 int
 EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
 {
+  using eos::common::StringConversion;
   std::string body;
 
   if (req.verb == "POST") {
@@ -290,11 +325,20 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
 
   std::string path = normalized_headers["xrd-http-fullresource"];
   std::string authz_data = normalized_headers["authorization"];
-  std::string enc_authz = eos::common::StringConversion::curl_escaped(authz_data);
-  // @todo(esindril) do the proper curl encoding without the funny prefix
-  enc_authz.erase(0, 7);
-  // @todo (esindril) do the proper reverse mapping of HTTP predicate to the
-  // access operation type
+  std::string enc_authz = StringConversion::curl_default_escaped(authz_data);
+  // @todo (esindril) this needs to be reviewed to pass in the proper access
+  // operations but this will fail for the moment since the macaroons contains
+  // the following activities:
+  // >>> print M.inspect()
+  // location eosdev
+  // identifier 3593a5a8-df23-42ee-9157-0242b074ac66
+  //      cid name:esindril
+  //      cid activity:READ_METADATA
+  //      cid activity:DOWNLOAD,UPLOAD,MANAGE
+  //      cid path:/eos/
+  //      cid before:2020-01-20T12:24:15Z
+  // signature 3b1d8c33384b22d2f0814abf3d28195bfc18d518f8e410d1b75c603457be6e97
+  //Access_Operation oper = MapHttpVerbToAOP(req.verb);
   Access_Operation oper = AOP_Stat;
   std::string data = "authz=";
   data += enc_authz;

@@ -440,7 +440,6 @@ XrdMgmOfsFile::open(const char* inpath,
   }
 
   gOFS->MgmStats.Add("Open", vid.uid, vid.gid, 1);
-  eos_debug("authorize start");
 
   if (open_flag & O_CREAT) {
     AUTHORIZE(client, openOpaque, AOP_Create, "create", inpath, error);
@@ -450,7 +449,6 @@ XrdMgmOfsFile::open(const char* inpath,
     isRewrite = true;
   }
 
-  eos_debug("msg=\"authorize done\"");
   eos::common::Path cPath(path);
   // indicate the scope for a possible token
   vid.scope = cPath.GetPath();
