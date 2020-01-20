@@ -61,6 +61,7 @@
 #include "common/ShellCmd.hh"
 #include "common/InstanceName.hh"
 #include "common/StringTokenizer.hh"
+#include "common/StringUtils.hh"
 #include "namespace/interface/IChLogFileMDSvc.hh"
 #include "namespace/interface/IChLogContainerMDSvc.hh"
 #include "namespace/interface/IView.hh"
@@ -499,10 +500,11 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           NoGo = 1;
         } else {
           std::string line {var};
+          eos::common::trim(line);
           auto tokens = eos::common::StringTokenizer::split<std::list<std::string>>(line,
                         ' ');
 
-          // We're only intereseted in the redirect directive since we anyway
+          // We're only interested in the redirect directive since we anyway
           // enable TPC support by default by setting the XRDTPC env variable
           if (tokens.front() == "redirect") {
             mTpcRedirect = true;
@@ -533,6 +535,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
                   }
                 }
 
+                Eroute.Say("=====> ofs.tpc redirect to: ", rdr_host.c_str(),
+                           std::to_string(rdr_port).c_str());
                 mTpcRdrInfo.emplace(rdr_delegated, std::make_pair(rdr_host, rdr_port));
               }
             }

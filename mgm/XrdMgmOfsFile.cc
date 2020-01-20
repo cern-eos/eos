@@ -2864,7 +2864,7 @@ XrdMgmOfsFile::RedirectTpcAccess()
     return false;
   }
 
-  bool is_delegated_tpc = (strncmp(tpc_key, "delegated", 9) == 0);
+  bool is_delegated_tpc = (strncmp(tpc_key, "delegate", 9) == 0);
   auto it = gOFS->mTpcRdrInfo.find(is_delegated_tpc);
 
   // If rdr info not present or if host is empty then skip
