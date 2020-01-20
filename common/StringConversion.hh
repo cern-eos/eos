@@ -693,6 +693,24 @@ public:
     }
   }
 
+  //----------------------------------------------------------------------------
+  //! Return an escaped URI
+  //!
+  //! @param str - uri to escape
+  //! @return escaped URI string
+  //----------------------------------------------------------------------------
+  static std::string
+  curl_default_escaped(const std::string& str);
+
+  //----------------------------------------------------------------------------
+  //! Return an unescaped URI
+  //!
+  //! @param str - uri to unescape
+  //! @return unescaped URI string
+  //----------------------------------------------------------------------------
+  static std::string
+  curl_default_unescaped(const std::string& str);
+
   // ---------------------------------------------------------------------------
   /**
    * Return an unescaped URI
@@ -781,15 +799,16 @@ public:
   //! Replace multiple characters in a string
   //------------------------------------------------------------------------------
   static void Replace(std::string& subject,
-		      const char a,
-		      const char b ) 
+                      const char a,
+                      const char b)
   {
-    if (subject.empty())
+    if (subject.empty()) {
       return;
-  
-    for (size_t i = 0; i< subject.size(); ++i) {
+    }
+
+    for (size_t i = 0; i < subject.size(); ++i) {
       if (subject[i] == a) {
-	subject[i] = b;
+        subject[i] = b;
       }
     }
   }

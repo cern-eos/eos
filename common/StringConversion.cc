@@ -1046,8 +1046,61 @@ thread_local CURL* StringConversion::curl = NULL;
 pthread_key_t  StringConversion::sPthreadKey;
 pthread_once_t StringConversion::sTlInit = PTHREAD_ONCE_INIT;
 
+
 //------------------------------------------------------------------------------
 // Escape string using CURL
+//------------------------------------------------------------------------------
+std::string
+StringConversion::curl_default_escaped(const std::string& str)
+{
+  pthread_once(&sTlInit, tlInitThreadKey);
+  std::string ret_str = "<no-encoding>";
+
+  // encode the key
+  if (!curl) {
+    curl = tlCurlInit();
+  }
+
+  if (curl) {
+    char* output = curl_easy_escape(curl, str.c_str(), str.length());
+
+    if (output) {
+      ret_str = output;
+      curl_free(output);
+    }
+  }
+
+  return ret_str;
+}
+
+//------------------------------------------------------------------------------
+// Unescape string using CURL
+//------------------------------------------------------------------------------
+std::string
+StringConversion::curl_default_unescaped(const std::string& str)
+{
+  pthread_once(&sTlInit, tlInitThreadKey);
+  std::string ret_str = "<no-encoding>";
+
+  // encode the key
+  if (!curl) {
+    curl = tlCurlInit();
+  }
+
+  if (curl) {
+    char* output = curl_easy_unescape(curl, str.c_str(), str.length(), 0);
+
+    if (output) {
+      ret_str = output;
+      curl_free(output);
+    }
+  }
+
+  return ret_str;
+}
+
+//------------------------------------------------------------------------------
+// Escape string using CURL and add speical /#curl# prefix to the string
 //------------------------------------------------------------------------------
 std::string
 StringConversion::curl_escaped(const std::string& str)
@@ -1081,7 +1134,7 @@ StringConversion::curl_escaped(const std::string& str)
 }
 
 //------------------------------------------------------------------------------
-// Unescape string using CURL
+// Unescape string using CURL that contains special /#curl# prefix
 //------------------------------------------------------------------------------
 std::string
 StringConversion::curl_unescaped(const std::string& str)
