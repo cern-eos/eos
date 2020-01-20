@@ -330,6 +330,9 @@ add_library(EosFstOss MODULE
 target_link_libraries(EosFstOss PRIVATE
   EosCommon
   EosCrc32c-Static
+  ${LIBISALCRYPTO_LIBRARIES}
+  ${LIBISAL_LIBRARIES}
+  ${LIBXXHASH_LIBRARIES}
   ${UUID_LIBRARIES}
   ${XROOTD_SERVER_LIBRARY})
 
