@@ -1,0 +1,8 @@
+ams -fstype=eos  :ams
+atlas -fstype=eos  :atlas
+cms -fstype=eos  :cms
+lhcb -fstype=eos  :lhcb
+project -fstype=eos  :project
+theory -fstype=eos  :theory
+workspace -fstype=eos  :workspace
+experiment -fstype=eosx,fsname=experiment  :eosxd
