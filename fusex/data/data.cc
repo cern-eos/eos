@@ -894,7 +894,7 @@ data::datax::TryRecovery(fuse_req_t req, bool iswrite)
       XrdCl::Proxy* proxy = mFile->xrdiorw(req);
 
       if (proxy) {
-        proxy->WriteQueue().clear();
+        proxy->CleanWriteQueue();
       }
     }
 
@@ -933,7 +933,7 @@ data::datax::TryRecovery(fuse_req_t req, bool iswrite)
       eos_err("unrecoverable error - code=%d errNo=%d",
               proxy->opening_state().code,
               proxy->opening_state().errNo);
-      proxy->WriteQueue().clear();
+      proxy->CleanWriteQueue();
       return XrdCl::Proxy::status2errno(proxy->opening_state());
     }
 
@@ -965,7 +965,7 @@ data::datax::TryRecovery(fuse_req_t req, bool iswrite)
       eos_err("unrecoverable error - code=%d errNo=%d",
               proxy->opening_state().code,
               proxy->opening_state().errNo);
-      proxy->WriteQueue().clear();
+      proxy->CleanWriteQueue();
       return XrdCl::Proxy::status2errno(proxy->opening_state());
     }
 
@@ -1300,7 +1300,7 @@ data::datax::try_wopen(fuse_req_t req, XrdCl::Proxy*& proxy,
 
   if (proxy->WaitOpen(req) == EINTR) {
     eos_warning("request interrupted");
-    proxy->WriteQueue().clear();
+    proxy->CleanWriteQueue();
     return EINTR;
   }
 
@@ -1351,7 +1351,7 @@ data::datax::try_wopen(fuse_req_t req, XrdCl::Proxy*& proxy,
 
     if ((req && fuse_req_interrupted(req)) || (newproxy->WaitOpen(req) == EINTR)) {
       eos_warning("request interrupted");
-      proxy->WriteQueue().clear();
+      proxy->CleanWriteQueue();
       return EINTR;
     }
 
@@ -1389,7 +1389,7 @@ data::datax::try_wopen(fuse_req_t req, XrdCl::Proxy*& proxy,
 
           if (req && fuse_req_interrupted(req)) {
             eos_warning("request interrupted");
-            proxy->WriteQueue().clear();
+            proxy->CleanWriteQueue();
             return EINTR;
           }
         }
@@ -1458,7 +1458,7 @@ data::datax::recover_write(fuse_req_t req)
        ! proxy->opening_state_should_retry())
      ) {
     // error useless to retry
-    proxy->WriteQueue().clear();
+    proxy->CleanWriteQueue();
     proxy->ChunkMap().clear();
     eos_crit("recover write-open-fatal queue=%d errno=%d",
              proxy->WriteQueue().size(), XrdCl::Proxy::status2errno(status));
@@ -1500,6 +1500,7 @@ data::datax::recover_write(fuse_req_t req)
     if (rc) {
       mRecoveryStack.push_back(eos_silent("hint='read-open failed with rc=%d'", rc));
       delete aproxy;
+      proxy->CleanWriteQueue();
       return rc;
     }
   }
@@ -1528,6 +1529,7 @@ data::datax::recover_write(fuse_req_t req)
       if (fd < 0) {
 	sBufferManager.put_buffer(buffer);
 	eos_crit("failed to open local stagefile %s", stagefile.c_str());
+	proxy->CleanWriteQueue();
 	return EREMOTEIO;
       }
     }
@@ -1556,6 +1558,7 @@ data::datax::recover_write(fuse_req_t req)
           eos_warning("failed to signal end-flush");
         }
 
+	proxy->CleanWriteQueue();
         return EIO;
       }
     } else {
@@ -1576,8 +1579,8 @@ data::datax::recover_write(fuse_req_t req)
 	    
 	    if (req && end_flush(req)) {
 	      eos_warning("failed to signal end-flush");
-          }
-	    
+	    }
+	    proxy->CleanWriteQueue();
 	    return EREMOTEIO;
 	  } else {
 	    off += bytesRead;
@@ -1594,6 +1597,7 @@ data::datax::recover_write(fuse_req_t req)
 	      eos_warning("failed to signal end-flush");
 	    }
 	    
+	    proxy->CleanWriteQueue();
 	    return EREMOTEIO;
 	  }
 	} while (bytesRead > 0);
@@ -1633,7 +1637,8 @@ data::datax::recover_write(fuse_req_t req)
       if (req && end_flush(req)) {
         eos_warning("failed to signal end-flush");
       }
-
+      
+      proxy->CleanWriteQueue();
       return rc;
     }
 
@@ -1653,7 +1658,15 @@ data::datax::recover_write(fuse_req_t req)
 	  if (req && end_flush(req)) {
 	    eos_warning("failed to signal end-flush");
 	  }
-	  
+
+	  sBufferManager.put_buffer(buffer);
+	  delete uploadproxy;
+
+	  if (req && end_flush(req)) {
+	    eos_warning("failed to signal end-flush");
+	  }
+
+	  proxy->CleanWriteQueue();
 	  return EREMOTEIO;
 	}
 	
@@ -1678,7 +1691,8 @@ data::datax::recover_write(fuse_req_t req)
 	if (req && end_flush(req)) {
 	  eos_warning("failed to signal end-flush");
 	}
-	
+
+	proxy->CleanWriteQueue();
 	return EREMOTEIO;
       }
       
@@ -1704,6 +1718,7 @@ data::datax::recover_write(fuse_req_t req)
     }
   } else {
     eos_crit("no local cache data for recovery");
+    proxy->CleanWriteQueue();
     return EREMOTEIO;
   }
 
@@ -2028,6 +2043,21 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
       }
 
       dw = jw;
+    }
+
+    {
+      // stop sending more writes in case of unrecoverable errors
+      XrdCl::Proxy* proxy = mFile->xrdiorw(req);
+      
+      if (proxy->opening_state().IsError() &&
+	  ! proxy->opening_state_should_retry()) {
+	eos_err("unrecoverable error - code=%d errNo=%d",
+		proxy->opening_state().code,
+		proxy->opening_state().errNo);
+	proxy->CleanWriteQueue();
+	errno = XrdCl::Proxy::status2errno(proxy->opening_state());
+	return -1;
+      }
     }
 
     // send an asynchronous upstream write, which does not wait for the file open to be done
