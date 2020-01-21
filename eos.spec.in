@@ -149,14 +149,14 @@ BuildRequires: eos-protobuf3-devel = 3.5.1-5.el7.cern.eos
 %global __requires_exclude ^libprotobuf.so.*$
 %endif
 %else
-%if %{?fedora}%{!?fedora:0} >= 27
+%if %{?fedora}%{!?fedora:0} >= 27 || 0%{distribution} == 8
 BuildRequires: protobuf >= 3.3, protobuf-devel >= 3.3, protobuf-compiler >= 3.3
 %else
 BuildRequires: protobuf3 >= 3.3, protobuf3-devel >= 3.3, protobuf3-compiler >= 3.3
 %endif
 %endif
 %else
-%if %{?fedora}%{!?fedora:0} >= 27
+%if %{?fedora}%{!?fedora:0} >= 27  || 0%{distribution} == 8
 BuildRequires: protobuf >= 3.3, protobuf-devel >= 3.3, protobuf-compiler >= 3.3
 %else
 BuildRequires: protobuf3 >= 3.3, protobuf3-devel >= 3.3, protobuf3-compiler >= 3.3
@@ -357,14 +357,14 @@ Requires: logrotate
 %if 0%{?distribution} == 7
 Requires: eos-protobuf3 = 3.5.1-5.el7.cern.eos
 %else
-%if %{?fedora}%{!?fedora:0} >= 27
+%if %{?fedora}%{!?fedora:0} >= 27 || 0%{distribution} == 8
 Requires: protobuf >= 3.3
 %else
 Requires: protobuf3 >= 3.3
 %endif
 %endif
 %else
-%if %{?fedora}%{!?fedora:0} >= 27
+%if %{?fedora}%{!?fedora:0} >= 27 || 0%{distribution} == 8
 Requires: protobuf >= 3.3
 %else
 Requires: protobuf3 >= 3.3
@@ -538,14 +538,14 @@ Requires: xrootd-client >= %{xrootd_version_min}
 %if 0%{?distribution} == 7
 Requires: eos-protobuf3 = 3.5.1-5.el7.cern.eos
 %else
-%if %{?fedora}%{!?fedora:0} >= 27
+%if %{?fedora}%{!?fedora:0} >= 27 || 0%{distribution} == 8
 Requires: protobuf >= 3.3
 %else
 Requires: protobuf3 >= 3.3
 %endif
 %endif
 %else
-%if %{?fedora}%{!?fedora:0} >= 27
+%if %{?fedora}%{!?fedora:0} >= 27 || 0%{distribution} == 8
 Requires: protobuf >= 3.3
 %else
 Requires: protobuf3 >= 3.3
@@ -595,14 +595,14 @@ Requires: xrootd-client >= %{xrootd_version_min}
 %if 0%{?distribution} == 7
 Requires: eos-protobuf3
 %else
-%if %{?fedora}%{!?fedora:0} >= 27
+%if %{?fedora}%{!?fedora:0} >= 27 || 0%{distribution} == 8
 Requires: protobuf >= 3.3
 %else
 Requires: protobuf3 >= 3.3
 %endif
 %endif
 %else
-%if %{?fedora}%{!?fedora:0} >= 27
+%if %{?fedora}%{!?fedora:0} >= 27 || 0%{distribution} == 8
 Requires: protobuf >= 3.3
 %else
 Requires: protobuf3 >= 3.3
