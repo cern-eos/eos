@@ -2631,6 +2631,10 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                   hb.mutable_heartbeat_()->set_trace(stacktrace);
                 } else {
                   if (rsp.evict_().reason().find("sendlog") != std::string::npos) {
+		    std::string refs;
+		    XrdCl::Proxy::WriteAsyncHandler::DumpReferences(refs);
+		    eos_static_warning("\n%s\n", refs.c_str());
+
                     sendlog = "";
                     int logtagindex =
                       eos::common::Logging::GetInstance().GetPriorityByString("debug");
