@@ -333,7 +333,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     jsonconfig = getenv("HOME");
     jsonconfig += "/.eos/fuse";
     default_ssskeytab = getenv("HOME");
-    default_ssskeytab += ".eos/fuse.sss.keytab";
+    default_ssskeytab += "/.eos/fuse.sss.keytab";
   }
 
   if (fsname.length()) {
