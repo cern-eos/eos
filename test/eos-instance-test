@@ -995,7 +995,7 @@ categorie="checksum"
 
 runtest "### adler32 " unix 0 "" shell echo -n "123456789 |  eos-checksum adler /dev/stdin | grep 091e01de"
 runtest "### crc32   " unix 0 "" shell echo -n "123456789 |  eos-checksum crc32 /dev/stdin | grep cbf43926"
-runtest "### crc32c  " unix 0 "" shell echo -n "123456789 |  eos-checksum crc32c /dev/stdin | grep 1cf96d7c"
+runtest "### crc32c  " unix 0 "" shell echo -n "123456789 |  eos-checksum crc32c /dev/stdin | grep e3069283"
 runtest "### crc64   " unix 0 "" shell echo -n "123456789 |  eos-checksum crc64 /dev/stdin | grep 6c40df5f0b497347"
 runtest "### md5     " unix 0 "" shell echo -n "123456789 |  eos-checksum md5 /dev/stdin  | grep 25f9e794323b453885f5181f1b624d0b"
 runtest "### xxhash64" unix 0 "" shell echo -n "123456789 |  eos-checksum xxhash64 /dev/stdin | grep 8cb841db40e6ae83"
