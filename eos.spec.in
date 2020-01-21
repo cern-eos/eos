@@ -919,6 +919,38 @@ The autofs mounter for CERN EOS user/project mounting
 %files -n eos-fusex-cern-autofs
 %defattr(-, root, root, -)
 /sbin/automount.cern.eos
+%config(noreplace) /etc/auto.eos
+%config(noreplace) /etc/eos/fuse.home-i00.conf
+%config(noreplace) /etc/eos/fuse.home-i01.conf
+%config(noreplace) /etc/eos/fuse.home-i02.conf
+%config(noreplace) /etc/eos/fuse.home-i03.conf
+%config(noreplace) /etc/eos/fuse.home-i04.conf
+%config(noreplace) /etc/eos/fuse.project-a.conf
+%config(noreplace) /etc/eos/fuse.project-b.conf
+%config(noreplace) /etc/eos/fuse.project-c.conf
+%config(noreplace) /etc/eos/fuse.project-d.conf
+%config(noreplace) /etc/eos/fuse.project-e.conf
+%config(noreplace) /etc/eos/fuse.project-f.conf
+%config(noreplace) /etc/eos/fuse.project-g.conf
+%config(noreplace) /etc/eos/fuse.project-h.conf
+%config(noreplace) /etc/eos/fuse.project-i.conf
+%config(noreplace) /etc/eos/fuse.project-j.conf
+%config(noreplace) /etc/eos/fuse.project-k.conf
+%config(noreplace) /etc/eos/fuse.project-l.conf
+%config(noreplace) /etc/eos/fuse.project-m.conf
+%config(noreplace) /etc/eos/fuse.project-n.conf
+%config(noreplace) /etc/eos/fuse.project-o.conf
+%config(noreplace) /etc/eos/fuse.project-p.conf
+%config(noreplace) /etc/eos/fuse.project-q.conf
+%config(noreplace) /etc/eos/fuse.project-r.conf
+%config(noreplace) /etc/eos/fuse.project-s.conf
+%config(noreplace) /etc/eos/fuse.project-t.conf
+%config(noreplace) /etc/eos/fuse.project-u.conf
+%config(noreplace) /etc/eos/fuse.project-v.conf
+%config(noreplace) /etc/eos/fuse.project-w.conf
+%config(noreplace) /etc/eos/fuse.project-x.conf
+%config(noreplace) /etc/eos/fuse.project-y.conf
+%config(noreplace) /etc/eos/fuse.project-z.conf
 
 %if %{?_with_server:1}%{!?_with_server:0}
 #-------------------------------------------------------------------------------
