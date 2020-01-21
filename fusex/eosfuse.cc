@@ -572,7 +572,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       }
 
       if (!root["options"].isMember("flush-wait-open")) {
-        root["options"]["flush-wait-open"] = 2;
+        root["options"]["flush-wait-open"] = 1;
       }
 
       if (!root["options"].isMember("show-tree-size")) {
@@ -677,7 +677,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     }
 
     if (!root["options"].isMember("write-size-flush-interval")) {
-      root["options"]["write-size-flush-interval"] = 5;
+      root["options"]["write-size-flush-interval"] = 10;
     }
 
     if (!root["options"].isMember("submounts")) {
