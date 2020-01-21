@@ -35,6 +35,9 @@ ssize_t XrdCl::Proxy::sChunkTimeout = 300;
 XrdCl::BufferManager XrdCl::Proxy::sWrBufferManager;
 XrdCl::BufferManager XrdCl::Proxy::sRaBufferManager;
 
+std::mutex XrdCl::Proxy::WriteAsyncHandler::gBuffReferenceMutex;
+std::map<std::string, uint64_t> XrdCl::Proxy::WriteAsyncHandler::gBufferReference;
+
 /* -------------------------------------------------------------------------- */
 XRootDStatus
 /* -------------------------------------------------------------------------- */
@@ -849,6 +852,25 @@ XrdCl::Proxy::WriteAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
   if (no_chunks_left) {
     mProxy->CheckSelfDestruction();
   }
+}
+
+static std::mutex gBuffReferenceMutex;
+std::map<std::string, uint64_t> gBufferReference;
+
+/* -------------------------------------------------------------------------- */
+void 
+/* -------------------------------------------------------------------------- */
+XrdCl::Proxy::WriteAsyncHandler::DumpReferences(std::string& out) 
+{
+  std::lock_guard<std::mutex> lock(gBuffReferenceMutex);
+  for (auto it = gBufferReference.begin(); it != gBufferReference.end(); ++it) {
+    out += "ref:";
+    out += it->first;
+    out += " := ";
+    out += std::to_string(it->second);
+    out += "\n";
+  }
+  return;
 }
 
 /* -------------------------------------------------------------------------- */

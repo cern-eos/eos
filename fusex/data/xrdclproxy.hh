@@ -39,6 +39,7 @@
 #include <queue>
 #include <thread>
 #include <atomic>
+#include <mutex>
 
 // need some redefines for XRootD v3
 #ifndef EOSCITRINE
@@ -220,17 +221,29 @@ public:
 
   shared_buffer get_buffer(size_t size, bool blocking = true)
   {
+    struct timespec ts;
+    eos::common::Timing::GetTimeSpec(ts, true);
+    
     // make sure, we don't have more buffers in flight than max_inflight_size
     do {
       size_t cnt = 0;
       {
         XrdSysMutexHelper lLock(this);
+	static time_t grace_buffer_time = 0;
 
         if ((inflight_size < max_inflight_size) &&
             (inflight_buffers < 16384)) { // avoid to trigger XRootD SID exhaustion
           break;
         }
 
+	// a grace buffer period allows to unstuck a getbuffer dead-lock where buffers are referenced by a failing fd
+	if ( ts.tv_sec < grace_buffer_time ) {
+	  if ((inflight_size < (2*max_inflight_size) &&
+	       (inflight_buffers < 16384))) {
+	    break;
+	  }
+	}
+	
         if (!(cnt % 1000)) {
           if (inflight_size >= max_inflight_size) {
             eos_static_info("inflight-buffer exceeds maximum number of bytes [%ld/%ld]",
@@ -249,6 +262,18 @@ public:
           return nullptr;
         }
 	xoff_cnt++;
+
+	double exec_time_sec = 1.0 * eos::common::Timing::GetCoarseAgeInNs(&ts,
+									   0) / 1000000000.0;
+	
+	if (exec_time_sec > 200 ) {
+	  // temporarily increase the buffer size to unlock a buffer starvation dead-lock
+	  grace_buffer_time = time(NULL) + 60; 
+	    // exceptionally grant more buffers to recover from a dead-lock situation
+	  eos_static_warning("granting grace buffers now=%u until then=%u", 
+			     ts.tv_sec, 
+			     grace_buffer_time );
+	}
       }
       cnt++;
       // we wait that the situation relaxes
@@ -818,6 +843,16 @@ public:
     {
       mBuffer = sWrBufferManager.get_buffer(size);
       mBuffer->resize(size);
+      if (file)
+      {
+	std::lock_guard<std::mutex> lock(gBuffReferenceMutex);
+	mId = std::to_string( (uint64_t) file);
+	mId += ":open=";
+	mId += std::to_string(file->state());
+	mId += ":";
+	mId += file->url();
+	gBufferReference[mId] = size;
+      }
       XrdSysCondVarHelper lLock(mProxy->WriteCondVar());
       mProxy->WriteCondVar().Signal();
     }
@@ -825,6 +860,8 @@ public:
     virtual ~WriteAsyncHandler()
     {
       sWrBufferManager.put_buffer(mBuffer);
+      std::lock_guard<std::mutex> lock(gBuffReferenceMutex);
+      gBufferReference.erase(mId);
     }
 
     char* buffer()
@@ -866,11 +903,18 @@ public:
     virtual void HandleResponse(XrdCl::XRootDStatus* pStatus,
                                 XrdCl::AnyObject* pResponse);
 
+    static std::mutex gBuffReferenceMutex;
+    static std::map<std::string, uint64_t> gBufferReference;
+
+    static void DumpReferences(std::string& out);
+
   private:
     Proxy* mProxy;
     shared_buffer mBuffer;
     off_t woffset;
     uint16_t mTimeout;
+    std::string mId;
+
   };
 
   // ---------------------------------------------------------------------- //
@@ -1116,6 +1160,11 @@ public:
   void CleanWriteQueue() {
     XWriteQueueDirectSubmission=0;
     XWriteQueueScheduledSubmission=0;
+
+    for (auto it = WriteQueue().begin(); it != WriteQueue().end(); ++it) {
+      ChunkMap().erase((uint64_t)it->get());
+    }
+
     WriteQueue().clear();
   }
 
