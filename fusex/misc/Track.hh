@@ -120,7 +120,7 @@ public:
 
   double blocked_ms(std::string& function) {
     // return's the time of the longest blocked mutex
-    double max_blocked = 0;
+    double max_blocked = 5;
     function = "";
     // get current time
     auto now = std::chrono::steady_clock::now();
