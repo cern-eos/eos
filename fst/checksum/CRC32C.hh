@@ -38,6 +38,7 @@
 #ifdef ISAL_FOUND
 #include <isa-l.h>
 #endif
+
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -123,9 +124,7 @@ public:
   Finalize()
   {
     if (!finalized) {
-#ifndef ISAL_FOUND
       crcsum = checksum::crc32cFinish(crcsum);
-#endif
       finalized = true;
     }
   }
