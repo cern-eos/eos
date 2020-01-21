@@ -323,8 +323,10 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
     normalized_headers[LC_STRING(hdr.first)] = hdr.second;
   }
 
+  OwningXrdSecEntity client(req.GetSecEntity());
+  std::string authz_data = (normalized_headers.count("authorization") ?
+                            normalized_headers["authorization"] : "");
   std::string path = normalized_headers["xrd-http-fullresource"];
-  std::string authz_data = normalized_headers["authorization"];
   std::string enc_authz = StringConversion::curl_default_escaped(authz_data);
   // @todo (esindril) this needs to be reviewed to pass in the proper access
   // operations but this will fail for the moment since the macaroons contains
@@ -346,16 +348,21 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
                                    data.length());
   // Make a copy of the original XrdSecEntity so that the authorization plugin
   // can update the name of the client from the macaroon info
-  OwningXrdSecEntity client(req.GetSecEntity());
-  eos_info("before authorization client_name=%s", client.GetObj()->name);
   mAuthzMacaroonsHandler->Access(client.GetObj(), path.c_str(), oper, env.get());
-  eos_info("after authorization client_name=%s", client.GetObj()->name);
+  eos_info("msg=\"authorization done\" client_name=%s", client.GetObj()->name);
   std::string query = (normalized_headers.count("xrd-http-query") ?
                        normalized_headers["xrd-http-query"] : "");
   std::map<std::string, std::string> cookies;
   std::unique_ptr<eos::common::ProtocolHandler> handler =
     gOfs->mHttpd->XrdHttpHandler(req.verb, req.resource, normalized_headers,
                                  query, cookies, body, *client.GetObj());
+
+  if (handler == nullptr) {
+    std::string errmsg = "failed to create handler";
+    return req.SendSimpleResp(500, errmsg.c_str(), "", errmsg.c_str(),
+                              errmsg.length());
+  }
+
   eos::common::HttpResponse* response = handler->GetResponse();
 
   if (response == nullptr) {

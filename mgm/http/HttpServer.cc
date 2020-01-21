@@ -267,7 +267,7 @@ HttpServer::XrdHttpHandler(std::string& method,
   if (!handler) {
     eos_static_err("msg=\"no matching protocol for request method %s\"",
                    method.c_str());
-    return 0;
+    return nullptr;
   }
 
   size_t bodySize = body.length();
