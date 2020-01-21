@@ -120,7 +120,7 @@ public:
 
   double blocked_ms(std::string& function) {
     // return's the time of the longest blocked mutex
-    double max_blocked = 5;
+    double max_blocked = 0;
     function = "";
     // get current time
     auto now = std::chrono::steady_clock::now();
@@ -136,6 +136,12 @@ public:
 	  function = it.second->caller;
 	}
       }
+    }
+
+    if (max_blocked < 10) {
+      // don't report under 10ms
+      max_blocked = 0;
+      function = "";
     }
     return max_blocked;
   }
