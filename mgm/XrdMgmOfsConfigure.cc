@@ -494,12 +494,13 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       // ofs.tpc redirect [delegated|undelegated] <host>[:<port>]
       if (strncmp(var, "ofs.tpc", 7) == 0) {
         var += 7;
+        char c_line[4096];
 
-        if (!(var = Config.GetLine())) {
+        if (Config.GetRest(c_line, 4096) == 0) {
           Eroute.Emsg("Config", "argument for ofs.tpc is missing");
           NoGo = 1;
         } else {
-          std::string line {var};
+          std::string line {c_line};
           eos::common::trim(line);
           auto tokens = eos::common::StringTokenizer::split<std::list<std::string>>(line,
                         ' ');
