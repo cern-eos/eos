@@ -262,6 +262,8 @@ EosMgmHttpHandler::Config(XrdSysError* eDest, const char* confg,
       std::string tmp_scitokens_path = scitokens_lib_path;
       tmp_scitokens_path.replace(tmp_scitokens_path.find(".so"), 3, "-4.so");
       authz_parms += tmp_scitokens_path;
+    } else {
+      authz_parms += scitokens_lib_path;
     }
   }
 
