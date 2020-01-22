@@ -38,6 +38,12 @@
 %define _with_eos_xrootd_rh 1
 %endif
 
+# Explicit python macro for CentOS 8
+# Note: RHEL8 does not provide a default python anymore
+%if 0%{distribution} == 8
+%define __python /usr/bin/python3
+%endif
+
 #-------------------------------------------------------------------------------
 # Compute additional macros based on environment or existing definitions
 #-------------------------------------------------------------------------------
