@@ -73,7 +73,9 @@ const char* Server::cident = "fxserver";
 Server::Server()
 {
   SetLogId(logId, "fxserver");
-  c_max_children = getenv("EOS_MGM_FUSEX_MAX_CHILDREN")?strtoull(getenv("EOS_MGM_FUSEX_MAX_CHILDREN"),0,10):32768;
+  c_max_children = getenv("EOS_MGM_FUSEX_MAX_CHILDREN") ? strtoull(
+                     getenv("EOS_MGM_FUSEX_MAX_CHILDREN"), 0, 10) : 32768;
+
   if (!c_max_children) {
     c_max_children = 32768;
   }
@@ -95,7 +97,8 @@ Server::~Server()
 void
 Server::start()
 {
-  eos_static_info("msg=\"starting fuse server\" max-children=%llu", c_max_children);
+  eos_static_info("msg=\"starting fuse server\" max-children=%llu",
+                  c_max_children);
   std::thread monitorthread(&FuseServer::Clients::MonitorHeartBeat,
                             &(this->mClients));
   monitorthread.detach();
@@ -334,13 +337,11 @@ Server::FillContainerMD(uint64_t id, eos::fusex::md& dir,
     eos_debug("container-id=%llx", id);
   }
 
-
   eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
 
   try {
     cmd = gOFS->eosDirectoryService->getContainerMD(id, &clock);
     rd_ns_lock.Release();
-
     cmd->getCTime(ctime);
     cmd->getMTime(mtime);
     cmd->getTMTime(tmtime);
@@ -366,10 +367,13 @@ Server::FillContainerMD(uint64_t id, eos::fusex::md& dir,
     eos::IFileMD::XAttrMap xattrs = cmd->getAttributes();
 
     for (const auto& elem : xattrs) {
-      if ( (elem.first) == "sys.vtrace")
-	continue;
-      if ( (elem.first) == "sys.utrace")
-	continue;
+      if ((elem.first) == "sys.vtrace") {
+        continue;
+      }
+
+      if ((elem.first) == "sys.utrace") {
+        continue;
+      }
 
       (*dir.mutable_attr())[elem.first] = elem.second;
 
@@ -453,7 +457,6 @@ Server::FillFileMD(uint64_t inode, eos::fusex::md& file,
     eos_debug("clock=%llx", clock);
     file.set_name(fmd->getName());
     gmd = fmd;
-
     rd_ns_lock.Release();
 
     if (fmd->hasAttribute(k_mdino)) {
@@ -510,10 +513,13 @@ Server::FillFileMD(uint64_t inode, eos::fusex::md& file,
         continue;
       }
 
-      if ( (elem.first) == "sys.vtrace")
-	continue;
-      if ( (elem.first) == "sys.utrace")
-	continue;
+      if ((elem.first) == "sys.vtrace") {
+        continue;
+      }
+
+      if ((elem.first) == "sys.utrace") {
+        continue;
+      }
 
       (*file.mutable_attr())[elem.first] = elem.second;
 
@@ -591,7 +597,8 @@ Server::FillContainerCAP(uint64_t id,
   dir.mutable_capability()->set_id(id);
 
   if (EOS_LOGS_DEBUG) {
-    eos_debug("container-id=%#llx vid.sudoer %d dir.uid %u name %s", id, vid.sudoer, (uid_t) dir.uid(), dir.name().c_str());
+    eos_debug("container-id=%#llx vid.sudoer %d dir.uid %u name %s", id, vid.sudoer,
+              (uid_t) dir.uid(), dir.name().c_str());
   }
 
   struct timespec ts;
@@ -674,8 +681,12 @@ Server::FillContainerCAP(uint64_t id,
     // look at ACLs
     std::string sysacl = (*(dir.mutable_attr()))["sys.acl"];
     std::string useracl = (*(dir.mutable_attr()))["user.acl"];
-    if (EOS_LOGS_DEBUG)
-        eos_debug("name='%s' sysacl='%s' useracl='%s' count(sys.eval.useracl)=%d", dir.name().c_str(), sysacl.c_str(), useracl.c_str(), dir.attr().count("sys.eval.useracl"));
+
+    if (EOS_LOGS_DEBUG) {
+      eos_debug("name='%s' sysacl='%s' useracl='%s' count(sys.eval.useracl)=%d",
+                dir.name().c_str(), sysacl.c_str(), useracl.c_str(),
+                dir.attr().count("sys.eval.useracl"));
+    }
 
     if (sysacl.length() || useracl.length()) {
       bool evaluseracl = (!S_ISDIR(dir.mode())) ||
@@ -687,7 +698,8 @@ Server::FillContainerCAP(uint64_t id,
 
       if (EOS_LOGS_DEBUG)
         eos_debug("cap id=%lld name %s evaluseracl %d CanRead %d CanWrite %d CanChmod %d CanChown %d CanUpdate %d CanNotDelete %d",
-                  id, dir.name().c_str(), evaluseracl, acl.CanRead(), acl.CanWrite(), acl.CanChmod(), acl.CanChown(),
+                  id, dir.name().c_str(), evaluseracl, acl.CanRead(), acl.CanWrite(),
+                  acl.CanChmod(), acl.CanChown(),
                   acl.CanUpdate(), acl.CanNotDelete());
 
       if (acl.IsMutable()) {
@@ -1074,7 +1086,7 @@ Server::prefetchMD(const eos::fusex::md& md)
   } else if (md.operation() == md.DELETE) {
     Prefetcher::prefetchInodeWithChildrenAndWait(gOFS->eosView, md.md_pino());
 
-    if(S_ISDIR(md.mode())) {
+    if (S_ISDIR(md.mode())) {
       Prefetcher::prefetchInodeWithChildrenAndWait(gOFS->eosView, md.md_ino());
     }
   }
@@ -1414,8 +1426,8 @@ Server::OpSetDirectory(const std::string& id,
       pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
 
       if (!cmd && md.md_ino()) {
-	// directory existed but has been deleted
-	throw_mdexception(ENOENT, "No such directory : " << md.md_ino());
+        // directory existed but has been deleted
+        throw_mdexception(ENOENT, "No such directory : " << md.md_ino());
       }
 
       if (cmd->getParentId() != md.md_pino()) {
@@ -1481,14 +1493,23 @@ Server::OpSetDirectory(const std::string& id,
         gOFS->eosView->renameContainer(cmd.get(), md.name());
       }
 
-      if (cmd->getCUid() != (uid_t)md.uid() /* a chown */ && !vid.sudoer && (uid_t)md.uid() != vid.uid) {
+      if (cmd->getCUid() != (uid_t)md.uid() /* a chown */ && !vid.sudoer &&
+          (uid_t)md.uid() != vid.uid) {
         /* chown is under control of container sys.acl only, if a vanilla user chowns to other than themselves */
         Acl acl;
-	    eos::IContainerMD::XAttrMap attrmap = cmd->getAttributes();
-        if (EOS_LOGS_DEBUG)
-            eos_debug("sysacl '%s' useracl '%s' evaluseracl %d (ignored)", attrmap["sys.acl"].c_str(), attrmap["user.acl"].c_str(), attrmap.count("sys.eval.useracl"));
+        eos::IContainerMD::XAttrMap attrmap = cmd->getAttributes();
+
+        if (EOS_LOGS_DEBUG) {
+          eos_debug("sysacl '%s' useracl '%s' evaluseracl %d (ignored)",
+                    attrmap["sys.acl"].c_str(), attrmap["user.acl"].c_str(),
+                    attrmap.count("sys.eval.useracl"));
+        }
+
         acl.SetFromAttrMap(attrmap, vid, NULL, true /* sysacl-only */);
-        if (!acl.CanChown()) return EPERM;
+
+        if (!acl.CanChown()) {
+          return EPERM;
+        }
       }
 
       if (pcmd->getMode() & S_ISGID) {
@@ -1590,7 +1611,7 @@ Server::OpSetDirectory(const std::string& id,
       char btime[256];
       snprintf(btime, sizeof(btime), "%lu.%lu", md.btime(), md.btime_ns());
       cmd->setAttribute("sys.eos.btime", btime);
-      cmd->setAttribute("sys.vtrace",vid.getTrace());
+      cmd->setAttribute("sys.vtrace", vid.getTrace());
     }
 
     if (op != UPDATE && md.pmtime()) {
@@ -1714,8 +1735,8 @@ Server::OpSetFile(const std::string& id,
       fmd = gOFS->eosFileService->getFileMD(fid);
 
       if (!fmd && md_ino) {
-	// file existed but has been deleted
-	throw_mdexception(ENOENT, "No such file : " << md_ino);
+        // file existed but has been deleted
+        throw_mdexception(ENOENT, "No such file : " << md_ino);
       }
 
       if (EOS_LOGS_DEBUG) eos_debug("updating %s => %s ",
@@ -1742,44 +1763,44 @@ Server::OpSetFile(const std::string& id,
             eos_debug("removing previous file in move %s", md.name().c_str());
           }
 
-	  eos::IContainerMD::XAttrMap attrmap = pcmd->getAttributes();
-	  // recycle bin - not for hardlinked files or hardlinks!
-	  if (attrmap.count(Recycle::gRecyclingAttribute) &&
-	      (!ofmd->hasAttribute(k_mdino)) &&
-	      (!ofmd->hasAttribute(k_nlink))) {
-	    // translate to a path name and call the complex deletion function
-	    // this is vulnerable to a hard to trigger race conditions
-	    std::string fullpath = gOFS->eosView->getUri(ofmd.get());
-	    gOFS->WriteRecycleRecord(ofmd);
-	    gOFS->eosViewRWMutex.UnLockWrite();
-	    XrdOucErrInfo error;
-	    (void) gOFS->_rem(fullpath.c_str(), error, vid, "", false, true,
-			      false, true, false);
-	    gOFS->eosViewRWMutex.LockWrite();
-	  } else {
-	    // no recycle bin
-	    try {
-	      pcmd->removeFile(md.name());
+          eos::IContainerMD::XAttrMap attrmap = pcmd->getAttributes();
 
-	      eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
+          // recycle bin - not for hardlinked files or hardlinks!
+          if (attrmap.count(Recycle::gRecyclingAttribute) &&
+              (!ofmd->hasAttribute(k_mdino)) &&
+              (!ofmd->hasAttribute(k_nlink))) {
+            // translate to a path name and call the complex deletion function
+            // this is vulnerable to a hard to trigger race conditions
+            std::string fullpath = gOFS->eosView->getUri(ofmd.get());
+            gOFS->WriteRecycleRecord(ofmd);
+            gOFS->eosViewRWMutex.UnLockWrite();
+            XrdOucErrInfo error;
+            (void) gOFS->_rem(fullpath.c_str(), error, vid, "", false, true,
+                              false, true, false);
+            gOFS->eosViewRWMutex.LockWrite();
+          } else {
+            // no recycle bin
+            try {
+              pcmd->removeFile(md.name());
+              eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
 
-	      // free previous quota
-	      if (quotanode) {
-		quotanode->removeFile(ofmd.get());
-	      }
+              // free previous quota
+              if (quotanode) {
+                quotanode->removeFile(ofmd.get());
+              }
 
-	      // unlink the existing file
-	      ofmd->setContainerId(0);
-	      ofmd->unlinkAllLocations();
-	      gOFS->eosFileService->updateStore(ofmd.get());
-	    } catch (eos::MDException& e) {
-	    }
-	  }
-	}
+              // unlink the existing file
+              ofmd->setContainerId(0);
+              ofmd->unlinkAllLocations();
+              gOFS->eosFileService->updateStore(ofmd.get());
+            } catch (eos::MDException& e) {
+            }
+          }
+        }
 
-	pcmd->addFile(fmd.get());
-	gOFS->eosView->updateFileStore(fmd.get());
-	gOFS->eosView->updateContainerStore(pcmd.get());
+        pcmd->addFile(fmd.get());
+        gOFS->eosView->updateFileStore(fmd.get());
+        gOFS->eosView->updateContainerStore(pcmd.get());
       } else {
         if (fmd->getName() != md.name()) {
           // this indicates a file rename
@@ -1797,52 +1818,66 @@ Server::OpSetFile(const std::string& id,
               eos_debug("removing previous file in update %s", md.name().c_str());
             }
 
-	    eos::IContainerMD::XAttrMap attrmap = pcmd->getAttributes();
-	    // recycle bin - not for hardlinked files or hardlinks!
-	    if (attrmap.count(Recycle::gRecyclingAttribute) &&
-		(!ofmd->hasAttribute(k_mdino)) &&
-		(!ofmd->hasAttribute(k_nlink))) {
-	      // translate to a path name and call the complex deletion function
-	      // this is vulnerable to a hard to trigger race conditions
-	      std::string fullpath = gOFS->eosView->getUri(ofmd.get());
-	      gOFS->WriteRecycleRecord(ofmd);
-	      gOFS->eosViewRWMutex.UnLockWrite();
-	      XrdOucErrInfo error;
-	      (void) gOFS->_rem(fullpath.c_str(), error, vid, "", false, false,
-				false, true, false);
-	      gOFS->eosViewRWMutex.LockWrite();
-	    } else {
-	      try {
-		pcmd->removeFile(md.name());
-		eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
+            eos::IContainerMD::XAttrMap attrmap = pcmd->getAttributes();
 
-		// free previous quota
-		if (quotanode) {
-		  quotanode->removeFile(ofmd.get());
-		}
+            // recycle bin - not for hardlinked files or hardlinks!
+            if (attrmap.count(Recycle::gRecyclingAttribute) &&
+                (!ofmd->hasAttribute(k_mdino)) &&
+                (!ofmd->hasAttribute(k_nlink))) {
+              // translate to a path name and call the complex deletion function
+              // this is vulnerable to a hard to trigger race conditions
+              std::string fullpath = gOFS->eosView->getUri(ofmd.get());
+              gOFS->WriteRecycleRecord(ofmd);
+              gOFS->eosViewRWMutex.UnLockWrite();
+              XrdOucErrInfo error;
+              (void) gOFS->_rem(fullpath.c_str(), error, vid, "", false, false,
+                                false, true, false);
+              gOFS->eosViewRWMutex.LockWrite();
+            } else {
+              try {
+                pcmd->removeFile(md.name());
+                eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
 
-		// unlink the existing file
-		ofmd->setContainerId(0);
-		ofmd->unlinkAllLocations();
-		gOFS->eosFileService->updateStore(ofmd.get());
-	      } catch (eos::MDException& e) {
-	      }
-	    }
-	  }
-	  gOFS->eosView->renameFile(fmd.get(), md.name());
+                // free previous quota
+                if (quotanode) {
+                  quotanode->removeFile(ofmd.get());
+                }
+
+                // unlink the existing file
+                ofmd->setContainerId(0);
+                ofmd->unlinkAllLocations();
+                gOFS->eosFileService->updateStore(ofmd.get());
+              } catch (eos::MDException& e) {
+              }
+            }
+          }
+
+          gOFS->eosView->renameFile(fmd.get(), md.name());
         }
       }
 
-      if (EOS_LOGS_DEBUG)
-          eos_debug("vid.sudoer %d vid.uid %u md.uid() %u fmd->getCUid() %u", vid.sudoer, vid.uid, (uid_t)md.uid(), fmd->getCUid());
-      if (fmd->getCUid() != (uid_t)md.uid() /* a chown */ && !vid.sudoer && (uid_t)md.uid() != vid.uid) {
+      if (EOS_LOGS_DEBUG) {
+        eos_debug("vid.sudoer %d vid.uid %u md.uid() %u fmd->getCUid() %u", vid.sudoer,
+                  vid.uid, (uid_t)md.uid(), fmd->getCUid());
+      }
+
+      if (fmd->getCUid() != (uid_t)md.uid() /* a chown */ && !vid.sudoer &&
+          (uid_t)md.uid() != vid.uid) {
         /* chown is under control of container sys.acl only, if a vanilla user chowns to other than themselves */
         Acl acl;
-	    eos::IContainerMD::XAttrMap attrmap = pcmd->getAttributes();
-        if (EOS_LOGS_DEBUG)
-            eos_debug("sysacl '%s' useracl '%s' (ignored) evaluseracl %d", attrmap["sys.acl"].c_str(), attrmap["user.acl"].c_str(), attrmap.count("sys.eval.useracl"));
+        eos::IContainerMD::XAttrMap attrmap = pcmd->getAttributes();
+
+        if (EOS_LOGS_DEBUG) {
+          eos_debug("sysacl '%s' useracl '%s' (ignored) evaluseracl %d",
+                    attrmap["sys.acl"].c_str(), attrmap["user.acl"].c_str(),
+                    attrmap.count("sys.eval.useracl"));
+        }
+
         acl.SetFromAttrMap(attrmap, vid, NULL, true /* sysacl-only */);
-        if (!acl.CanChown()) return EPERM;
+
+        if (!acl.CanChown()) {
+          return EPERM;
+        }
       }
 
       eos_info("fid=%08llx ino=%lx pino=%lx cpino=%lx update-file",
@@ -1892,24 +1927,20 @@ Server::OpSetFile(const std::string& id,
       resp.mutable_ack_()->set_code(resp.ack_().OK);
       resp.mutable_ack_()->set_transactionid(md.reqid());
       resp.mutable_ack_()->set_md_ino(eos::common::FileId::FidToInode(gmd->getId()));
-
       // prepare to broadcast the new hardlink around, need to create an md object with the hardlink
       eos::fusex::md g_md;
       uint64_t g_ino = eos::common::FileId::FidToInode(gmd->getId());
       lock.Release();
       FillFileMD(g_ino, g_md, vid);
-
       // release the namespace lock before serialization/broadcasting
       resp.SerializeToString(response);
       struct timespec pt_mtime;
       pt_mtime.tv_sec = md.mtime();
       pt_mtime.tv_nsec = md.mtime_ns();
       gOFS->eosDirectoryService->updateStore(pcmd.get());
-
       uint64_t clock = 0;
       Cap().BroadcastMD(md, tgt_md_ino, md_pino, clock, pt_mtime);
       Cap().BroadcastMD(g_md, g_ino, md_pino, clock, pt_mtime);
-
       return 0;
     } else {
       // file creation
@@ -1973,7 +2004,7 @@ Server::OpSetFile(const std::string& id,
       char btime[256];
       snprintf(btime, sizeof(btime), "%lu.%lu", md.btime(), md.btime_ns());
       fmd->setAttribute("sys.eos.btime", btime);
-      fmd->setAttribute("sys.vtrace",vid.getTrace());
+      fmd->setAttribute("sys.vtrace", vid.getTrace());
     }
 
     fmd->setName(md.name());
@@ -2185,7 +2216,7 @@ Server::OpSetLink(const std::string& id,
       char btime[256];
       snprintf(btime, sizeof(btime), "%lu.%lu", md.btime(), md.btime_ns());
       fmd->setAttribute("sys.eos.btime", btime);
-      fmd->setAttribute("sys.vtrace",vid.getTrace());
+      fmd->setAttribute("sys.vtrace", vid.getTrace());
     }
 
     struct timespec pt_mtime;
@@ -2452,17 +2483,17 @@ Server::OpDeleteFile(const std::string& id,
             eos::common::FileId::InodeToFid(tgt_md_ino), &clock);
         long nlink = std::stol(gmd->getAttribute(k_nlink)) - 1;
 
-	if (nlink) {
-	  gmd->setAttribute(k_nlink, std::to_string(nlink));
-	} else {
-	  gmd->removeAttribute(k_nlink);
-	}
+        if (nlink) {
+          gmd->setAttribute(k_nlink, std::to_string(nlink));
+        } else {
+          gmd->removeAttribute(k_nlink);
+        }
 
-	gOFS->eosFileService->updateStore(gmd.get());
-	eos_info("hlnk nlink update on %s for %s now %ld",
-		 gmd->getName().c_str(), fmd->getName().c_str(), nlink);
+        gOFS->eosFileService->updateStore(gmd.get());
+        eos_info("hlnk nlink update on %s for %s now %ld",
+                 gmd->getName().c_str(), fmd->getName().c_str(), nlink);
 
-	if (nlink <=0) {
+        if (nlink <= 0) {
           if (gmd->getName().substr(0, 13) == "...eos.ino...") {
             eos_info("hlnk unlink target %s for %s nlink %ld",
                      gmd->getName().c_str(), fmd->getName().c_str(), nlink);
@@ -2583,7 +2614,6 @@ Server::OpDeleteLink(const std::string& id,
       // no link
       throw_mdexception(ENOENT, "No such link : " << md.md_ino());
     }
-
 
     pcmd->setMTime(mtime);
     eos_info("ino=%lx delete-link", (long) md.md_ino());
