@@ -15,6 +15,27 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.6.8 Citrine``
+===================
+
+2020-01-22
+
+Bug
+---
+
+* FUSEX: fix writer starvation triggered by EDQUOT errors
+
+Improvement
+-----------
+
+* FUSEX: support oauth token files - see OS-9604
+* FUSEX: allow to track write buffers using 'eos fusex evict UUID sendlog'
+* FUSEX: add CERN automount script/configs and update SELINUX policies accordingly supporting SquashFS mounting
+* FST: support ISA-L accelerated adler/crc32c checksum
+* FST: add generic eos-checksum command
+* FST: support xxhash64,crc64 and sha256 as checksums 
+
+
 ``v4.6.7 Citrine``
 ===================
 
