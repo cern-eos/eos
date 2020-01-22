@@ -13,11 +13,13 @@ require {
 	type tmp_t;
 	type var_spool_t;
 	type user_tmp_t;
+	type device_t;
 	class lnk_file { read getattr create };
 	class dir add_name;
-	class file { write read create setattr getattr unlink };
-	class process { getpgid };
+	class file { write read create setattr getattr unlink ioctl open };
+	class process { getpgid noatsecure rlimitinh siginh ptrace };
 	class fifo_file { create unlink open };
+	class capability { net_admin sys_ptrace };
 }
 
 #============= automount_t ==============
@@ -25,6 +27,10 @@ allow automount_t initrc_tmp_t:file write;
 allow automount_t automount_var_run_t:lnk_file create;
 allow automount_t user_tmp_t:file { create unlink };
 allow automount_t var_spool_t:lnk_file { create read };
+allow automount_t mount_t:process { noatsecure rlimitinh siginh };
+allow automount_t self:process ptrace;
+allow automount_t device_t:file { open read write ioctl };
+allow automount_t self:capability { net_admin sys_ptrace };
 
 #============= mount_t ==============
 allow mount_t var_log_t:dir add_name;
