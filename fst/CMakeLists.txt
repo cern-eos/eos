@@ -368,23 +368,15 @@ set_target_properties(
 target_compile_definitions(XrdEosFst-Objects PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
-add_library(XrdEosFst MODULE
+add_library(XrdEosFst-${PLUGIN_VERSION} MODULE
   $<TARGET_OBJECTS:XrdEosFst-Objects>
   $<TARGET_OBJECTS:XrdSsiPbEosCta-Objects>
   $<TARGET_OBJECTS:EosConsoleHelpers-Objects>)
 
-target_compile_definitions(XrdEosFst PUBLIC
+target_compile_definitions(XrdEosFst-${PLUGIN_VERSION} PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
-add_library(XrdEosFst-Static STATIC
-  $<TARGET_OBJECTS:XrdEosFst-Objects>
-  $<TARGET_OBJECTS:XrdSsiPbEosCta-Objects>
-  $<TARGET_OBJECTS:EosConsoleHelpers-Objects>)
-
-target_compile_definitions(XrdEosFst-Static PUBLIC
-  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
-
-target_link_libraries(XrdEosFst PRIVATE
+target_link_libraries(XrdEosFst-${PLUGIN_VERSION} PRIVATE
   EosCommon
   EosCommonServer
   EosFstIo
@@ -403,6 +395,14 @@ target_link_libraries(XrdEosFst PRIVATE
   ${OPENSSL_CRYPTO_LIBRARY}
   ${ZMQ_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
+
+add_library(XrdEosFst-Static STATIC
+  $<TARGET_OBJECTS:XrdEosFst-Objects>
+  $<TARGET_OBJECTS:XrdSsiPbEosCta-Objects>
+  $<TARGET_OBJECTS:EosConsoleHelpers-Objects>)
+
+target_compile_definitions(XrdEosFst-Static PUBLIC
+  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
 target_link_libraries(XrdEosFst-Static PUBLIC
   EosCommonServer-Static
@@ -422,38 +422,7 @@ target_link_libraries(XrdEosFst-Static PUBLIC
   ${ZMQ_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
 
-#-------------------------------------------------------------------------------
-# @todo(esindril): Remove this once XrdTpc properly supports loading fslib
-# without the -4 prefix. 
-add_library(XrdEosFst-4 MODULE
-  $<TARGET_OBJECTS:XrdEosFst-Objects>
-  $<TARGET_OBJECTS:XrdSsiPbEosCta-Objects>
-  $<TARGET_OBJECTS:EosConsoleHelpers-Objects>)
-
-target_compile_definitions(XrdEosFst PUBLIC
-  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
-
-target_link_libraries(XrdEosFst-4 PRIVATE
-  EosCommon
-  EosCommonServer
-  EosFstIo
-  EosNsCommon
-  eosCapability-Static
-  ${Z_LIBRARY}
-  ${UUID_LIBRARIES}
-  ${ATTR_LIBRARIES}
-  ${GLIBC_RT_LIBRARY}
-  ${GLIBC_DL_LIBRARY}
-  ${PROTOBUF_LIBRARY}
-  ${NCURSES_LIBRARIES}
-  ${XROOTD_CL_LIBRARY}
-  ${XROOTD_UTILS_LIBRARY}
-  ${XROOTD_SSI_LIBRARY}
-  ${OPENSSL_CRYPTO_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT})
-#-------------------------------------------------------------------------------
-
-install(TARGETS EosFstOss XrdEosFst XrdEosFst-4
+install(TARGETS EosFstOss XrdEosFst-${PLUGIN_VERSION}
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

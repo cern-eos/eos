@@ -277,22 +277,22 @@ set_target_properties(
   PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
-add_library(XrdEosMgm MODULE
+add_library(XrdEosMgm-${PLUGIN_VERSION} MODULE
   $<TARGET_OBJECTS:EosAuthProto-Objects>
   $<TARGET_OBJECTS:XrdEosMgm-Objects>
   $<TARGET_OBJECTS:XrdSsiPbEosCta-Objects>)
 
 target_compile_definitions(
-  XrdEosMgm PUBLIC
+  XrdEosMgm-${PLUGIN_VERSION} PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
 if (MICROHTTPD_FOUND)
   target_compile_definitions(
-    XrdEosMgm PUBLIC -DEOS_MICRO_HTTPD=1)
+    XrdEosMgm-${PLUGIN_VERSION} PUBLIC -DEOS_MICRO_HTTPD=1)
 endif()
 
 target_link_libraries(
-  XrdEosMgm PUBLIC
+  XrdEosMgm-${PLUGIN_VERSION} PUBLIC
   qclient
   EosCommon
   EosCommonServer
@@ -317,13 +317,13 @@ target_link_libraries(
 
 if (GRPC_FOUND)
   target_link_libraries(
-    XrdEosMgm PUBLIC
+    XrdEosMgm-${PLUGIN_VERSION} PUBLIC
     ${GRPC_LIBRARY}
     ${GRPC_GRPC++_LIBRARY})
 endif()
 
 install(
-  TARGETS XrdEosMgm
+  TARGETS XrdEosMgm-${PLUGIN_VERSION}
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

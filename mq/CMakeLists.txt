@@ -89,13 +89,13 @@ set_target_properties(
 # XrdMqOfs library
 #-------------------------------------------------------------------------------
 if (NOT CLIENT)
-add_library(XrdMqOfs MODULE
+add_library(XrdMqOfs-${PLUGIN_VERSION} MODULE
   XrdMqOfs.cc       XrdMqOfs.hh
   XrdMqMessage.cc   XrdMqMessage.hh
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/BackendClient.cc)
 
 target_link_libraries(
-  XrdMqOfs PRIVATE
+  XrdMqOfs-${PLUGIN_VERSION} PRIVATE
   EosCommon
   qclient
   ${UUID_LIBRARIES}
@@ -105,7 +105,7 @@ target_link_libraries(
   ${OPENSSL_CRYPTO_LIBRARY})
 
 install(
-  TARGETS XrdMqOfs
+  TARGETS XrdMqOfs-${PLUGIN_VERSION}
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

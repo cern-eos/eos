@@ -26,6 +26,9 @@
 #-------------------------------------------------------------------------------
 set(LIBRARY_PATH_PREFIX "lib")
 
+# This version must reflect the XRootD major version compiled against
+set(PLUGIN_VERSION 4)
+
 #-------------------------------------------------------------------------------
 # Get UID/GID for an account
 #-------------------------------------------------------------------------------

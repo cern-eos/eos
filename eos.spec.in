@@ -31,6 +31,7 @@
 %define xrootd_version_min 1:4.11.1
 %define major_version @CPACK_PACKAGE_VERSION_MAJOR@
 %define release_version @CPACK_PACKAGE_RELEASE@
+%define xrootd_plugin_version @CPACK_XROOTD_PLUGIN_VERSION@
 
 # release tags like x.y.z-1 enable automatically to build with eos-xrootd
 %if "%release_version" == "1"
@@ -411,11 +412,11 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_libdir}/libEosAuthOfs.so
 %{_libdir}/libEosFstOss.so
 %{_libdir}/libXrdEosFst.so
-%{_libdir}/libXrdEosFst-4.so
+%{_libdir}/libXrdEosFst-%{xrootd_plugin_version}.so
 %{_libdir}/libEosNsInMemory.so
-%{_libdir}/libXrdEosMgm.so
+%{_libdir}/libXrdEosMgm-%{xrootd_plugin_version}.so
 %{_libdir}/libEosMgmHttp.so
-%{_libdir}/libXrdMqOfs.so
+%{_libdir}/libXrdMqOfs-%{xrootd_plugin_version}.so
 %{_libdir}/libEosNsQuarkdb.so
 %config(noreplace) %{_sysconfdir}/xrd.cf.fst
 %config(noreplace) %{_sysconfdir}/xrd.cf.mgm
