@@ -999,7 +999,7 @@ Server::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
       }
 
       // write-once excludes updates, also denials
-      if (acl.CanNotWrite() || acl.CanWriteOnce())) {
+      if (acl.CanNotWrite() || acl.CanWriteOnce()) {
         w_ok = false;
       }
 
