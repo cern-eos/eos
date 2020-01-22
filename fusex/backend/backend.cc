@@ -947,7 +947,7 @@ backend::getURL(fuse_req_t req, const std::string& path, std::string cmd,
   query["mgm.uuid"] = clientuuid;
 
   if (setinline) {
-    query["mgm.inline"] = 1;
+    query["mgm.inline"] = "1";
   }
 
   if (req) {
@@ -999,7 +999,7 @@ backend::getURL(fuse_req_t req, uint64_t inode, const std::string& name,
   query["mgm.cid"] = cap::capx::getclientid(req);
 
   if (setinline) {
-    query["mgm.inline"] = 1;
+    query["mgm.inline"] = "1";
   }
 
   query["fuse.v"] = std::to_string(FUSEPROTOCOLVERSION);
@@ -1040,7 +1040,7 @@ backend::getURL(fuse_req_t req, uint64_t inode, uint64_t clock, std::string cmd,
   query["mgm.cid"] = cap::capx::getclientid(req);
 
   if (setinline) {
-    query["mgm.inline"] = 1;
+    query["mgm.inline"] = "1";
   }
 
   query["fuse.v"] = std::to_string(FUSEPROTOCOLVERSION);
