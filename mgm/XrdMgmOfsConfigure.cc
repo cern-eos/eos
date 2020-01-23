@@ -1808,6 +1808,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       eos_crit("cannot start fs listener thread");
       NoGo = 1;
     }
+
+    mFilesystemMonitorThread.reset(&XrdMgmOfs::FileSystemMonitorThread, this);
   }
 
   if (!ObjectNotifier.Start()) {

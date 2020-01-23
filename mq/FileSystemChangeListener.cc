@@ -51,8 +51,35 @@ bool FileSystemChangeListener::startListening() {
 //------------------------------------------------------------------------------
 // Consume next event, block until there's one
 //------------------------------------------------------------------------------
-bool FileSystemChangeListener::fetch(Event &out, common::ThreadAssistant &assistant) {
-  return false;
+bool FileSystemChangeListener::fetch(Event &out, ThreadAssistant &assistant) {
+  mNotifier.tlSubscriber->mSubjMtx.Lock();
+
+  if(mNotifier.tlSubscriber->NotificationSubjects.size() == 0u) {
+    mNotifier.tlSubscriber->mSubjMtx.UnLock();
+    mNotifier.tlSubscriber->mSubjSem.Wait();
+    mNotifier.tlSubscriber->mSubjMtx.Lock();
+  }
+
+  if(mNotifier.tlSubscriber->NotificationSubjects.size() == 0u) {
+    mNotifier.tlSubscriber->mSubjMtx.UnLock();
+    return false;
+  }
+
+  XrdMqSharedObjectManager::Notification event;
+  event = mNotifier.tlSubscriber->NotificationSubjects.front();
+  mNotifier.tlSubscriber->NotificationSubjects.pop_front();
+  mNotifier.tlSubscriber->mSubjMtx.UnLock();
+
+  out.fileSystemQueue = event.mSubject.c_str();
+  size_t dpos = out.fileSystemQueue.find(";");
+  if(dpos != std::string::npos) {
+    out.key = out.fileSystemQueue;
+    out.key.erase(0, dpos+1);
+    out.fileSystemQueue.erase(dpos);
+  }
+
+  out.deletion = (event.mType == XrdMqSharedObjectManager::kMqSubjectDeletion);
+  return true;
 }
 
 EOSMQNAMESPACE_END

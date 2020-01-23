@@ -77,6 +77,7 @@
 #include "mgm/XrdMgmOfs/fsctl/CommitHelper.hh"
 #include "mgm/QueryPrepareResponse.hh"
 #include "mq/SharedHashWrapper.hh"
+#include "mq/FileSystemChangeListener.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/utils/Stat.hh"
@@ -274,7 +275,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   eDest = ep;
   ConfigFN = 0;
   enforceRecycleBin = false;
-    
+
   if (getenv("EOS_MGM_HTTP_PORT")) {
     mHttpdPort = strtol(getenv("EOS_MGM_HTTP_PORT"), 0, 10);
   }

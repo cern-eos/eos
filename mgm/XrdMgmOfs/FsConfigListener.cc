@@ -93,6 +93,8 @@ XrdMgmOfs::processIncomingMgmConfigurationChange(const std::string& key)
 void
 XrdMgmOfs::ProcessGeotagChange(const std::string& queue)
 {
+  eos_static_warning("SENTINEL geotag change: %s", queue.c_str());
+
   std::string newgeotag;
   eos::common::FileSystem::fsid_t fsid = 0;
   eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
@@ -181,6 +183,62 @@ XrdMgmOfs::ProcessGeotagChange(const std::string& queue)
   }
 }
 
+//------------------------------------------------------------------------------
+// A thread monitoring for important key-value changes in filesystems
+//------------------------------------------------------------------------------
+void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept {
+  eos::mq::FileSystemChangeListener changeListener("filesystem-listener-thread", ObjectNotifier);
+
+  bool ok = changeListener.subscribe("stat.errc");
+  ok &= changeListener.subscribe("stat.geotag");
+  ok &= changeListener.startListening();
+
+  if(!ok) {
+    eos_static_crit("Unspecified problem when attempting to subscribe to filesystem key changes");
+  }
+
+  while(!assistant.terminationRequested()) {
+    eos::mq::FileSystemChangeListener::Event event;
+    if(changeListener.fetch(event, assistant) && !event.isDeletion()) {
+      eos_static_warning("SENTINEL event: %s, %s", event.fileSystemQueue.c_str(), event.key.c_str());
+
+      if(event.key == "stat.geotag") {
+        ProcessGeotagChange(event.fileSystemQueue);
+      }
+      else {
+        // This is a filesystem status error
+        if (gOFS->mMaster->IsMaster()) {
+          // only an MGM master needs to initiate draining
+          eos::common::FileSystem::fsid_t fsid = 0;
+          long long errc = 0;
+          std::string configstatus = "";
+          std::string bootstatus = "";
+          eos::common::ConfigStatus cfgstatus = eos::common::ConfigStatus::kOff;
+          eos::common::BootStatus bstatus = eos::common::BootStatus::kDown;
+          // read the id from the hash and the current error value
+          eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+          FileSystem* fs = FsView::gFsView.mIdView.lookupByQueuePath(event.fileSystemQueue);
+
+          if (fs) {
+            fsid = (eos::common::FileSystem::fsid_t) fs->GetLongLong("id");
+            errc = (int) fs->GetLongLong("stat.errc");
+            configstatus = fs->GetString("configstatus");
+            bootstatus = fs->GetString("stat.boot");
+            cfgstatus = eos::common::FileSystem::GetConfigStatusFromString(configstatus.c_str());
+            bstatus = eos::common::FileSystem::GetStatusFromString(bootstatus.c_str());
+          }
+
+          if (fs && fsid && errc &&
+             (cfgstatus >= eos::common::ConfigStatus::kRO) &&
+             (bstatus == eos::common::BootStatus::kOpsError)) {
+            // Case when we take action and explicitly ask to start a drain job
+            fs->SetConfigStatus(eos::common::ConfigStatus::kDrain);
+          }
+        }
+      }
+    }
+  }
+}
 
 /*----------------------------------------------------------------------------*/
 /*
@@ -199,16 +257,7 @@ void
 XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
 {
   // setup the modifications which the fs listener thread is waiting for
-  std::string watch_errc = "stat.errc";
-  std::string watch_geotag = "stat.geotag";
   bool ok = true;
-  // Need to notify the FsView when a geotag changes to keep the tree structure
-  // up-to-date
-  ok &= ObjectNotifier.SubscribesToKey("fsconfiglistener", watch_geotag,
-                                       XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
-  // Need to take action on filesystem errors
-  ok &= ObjectNotifier.SubscribesToKey("fsconfiglistener", watch_errc,
-                                       XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
   // Need to apply remote configuration changes
   ok &= ObjectNotifier.SubscribesToSubject("fsconfiglistener",
         MgmConfigQueue.c_str(),
@@ -288,39 +337,6 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
           if (!gOFS->mMaster->IsMaster()) {
             // only an MGM slave needs to apply this
             processIncomingMgmConfigurationChange(key.c_str());
-          }
-        } else if (key == watch_geotag) {
-          ProcessGeotagChange(queue);
-        } else {
-          // This is a filesystem status error
-          if (gOFS->mMaster->IsMaster()) {
-            // only an MGM master needs to initiate draining
-            eos::common::FileSystem::fsid_t fsid = 0;
-            long long errc = 0;
-            std::string configstatus = "";
-            std::string bootstatus = "";
-            eos::common::ConfigStatus cfgstatus = eos::common::ConfigStatus::kOff;
-            eos::common::BootStatus bstatus = eos::common::BootStatus::kDown;
-            // read the id from the hash and the current error value
-            eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-            FileSystem* fs = FsView::gFsView.mIdView.lookupByQueuePath(queue);
-
-            if (fs) {
-              fsid = (eos::common::FileSystem::fsid_t) fs->GetLongLong("id");
-              errc = (int) fs->GetLongLong("stat.errc");
-              configstatus = fs->GetString("configstatus");
-              bootstatus = fs->GetString("stat.boot");
-              cfgstatus = eos::common::FileSystem::GetConfigStatusFromString(
-                            configstatus.c_str());
-              bstatus = eos::common::FileSystem::GetStatusFromString(bootstatus.c_str());
-            }
-
-            if (fs && fsid && errc &&
-                (cfgstatus >= eos::common::ConfigStatus::kRO) &&
-                (bstatus == eos::common::BootStatus::kOpsError)) {
-              // Case when we take action and explicitly ask to start a drain job
-              fs->SetConfigStatus(eos::common::ConfigStatus::kDrain);
-            }
           }
         }
 

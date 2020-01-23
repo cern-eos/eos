@@ -26,7 +26,6 @@
 #include "mgm/IMaster.hh"
 #include <qclient/ResponseParsing.hh>
 #include <qclient/MultiBuilder.hh>
-#include "common/GlobalConfig.hh"
 #include "qclient/structures/QScanner.hh"
 #include <ctime>
 

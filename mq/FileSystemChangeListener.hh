@@ -27,9 +27,7 @@
 #include "mq/Namespace.hh"
 #include <string>
 
-namespace eos::common {
-  class ThreadAssistant;
-}
+class ThreadAssistant;
 
 class XrdMqSharedHash;
 class XrdMqSharedObjectManager;
@@ -49,6 +47,12 @@ public:
   struct Event {
     std::string fileSystemQueue;
     std::string key;
+    bool deletion = false;
+
+    bool isDeletion() const {
+      return deletion;
+    }
+
   };
 
   //----------------------------------------------------------------------------
@@ -69,7 +73,7 @@ public:
   //----------------------------------------------------------------------------
   //! Consume next event, block until there's one.
   //----------------------------------------------------------------------------
-  bool fetch(Event &out, common::ThreadAssistant &assistant);
+  bool fetch(Event &out, ThreadAssistant &assistant);
 
 private:
   XrdMqSharedObjectChangeNotifier &mNotifier;

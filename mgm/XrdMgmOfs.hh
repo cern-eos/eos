@@ -1300,6 +1300,11 @@ public:
   void FsConfigListener(ThreadAssistant& assistant) noexcept;
 
   //----------------------------------------------------------------------------
+  // A thread monitoring for important key-value changes in filesystems
+  //----------------------------------------------------------------------------
+  void FileSystemMonitorThread(ThreadAssistant& assistant) noexcept;
+
+  //----------------------------------------------------------------------------
   // Get key from MGM config queue
   //----------------------------------------------------------------------------
   bool getMGMConfigValue(const std::string& key, std::string& value);
@@ -1499,6 +1504,8 @@ public:
   pthread_t mStatsTid; ///< Thread Id of the stats thread
   AssistedThread mFsConfigTid; ///< Fs listener/config change thread
   AssistedThread mAuthMasterTid; ///< Thread Id of the authentication thread
+  AssistedThread mFilesystemMonitorThread; ///< Thread to listen for significant filesystem changes
+
   std::vector<pthread_t> mVectTid; ///< vector of auth worker threads ids
 
   //----------------------------------------------------------------------------
