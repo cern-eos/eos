@@ -251,16 +251,16 @@ EosMgmHttpHandler::Config(XrdSysError* eDest, const char* confg,
     // <xrd_macaroons_lib> <sci_tokens_lib_path>
     // so that the XrdMacaroons library properly chanins them and the library
     // names need to be without the -4.so in their path.
-    if (macaroons_lib_path.find("-4.so") == std::string::npos) {
+    if (macaroons_lib_path.find("-4.so") != std::string::npos) {
       std::string tmp_macaroons_path = macaroons_lib_path;
-      tmp_macaroons_path.replace(tmp_macaroons_path.find(".so"), 3, "-4.so");
+      tmp_macaroons_path.replace(tmp_macaroons_path.find("-4.so"), 5, ".so");
       authz_parms += tmp_macaroons_path;
       authz_parms += " ";
     }
 
-    if (scitokens_lib_path.find("-4.so") == std::string::npos) {
+    if (scitokens_lib_path.find("-4.so") != std::string::npos) {
       std::string tmp_scitokens_path = scitokens_lib_path;
-      tmp_scitokens_path.replace(tmp_scitokens_path.find(".so"), 3, "-4.so");
+      tmp_scitokens_path.replace(tmp_scitokens_path.find("-4.so"), 5, ".so");
       authz_parms += tmp_scitokens_path;
     } else {
       authz_parms += scitokens_lib_path;
