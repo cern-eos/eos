@@ -71,6 +71,11 @@ public:
       return false;
     }
 
+    if (finalized) {                /* handle read + append case, a little hackish. Alternative: set needsRecalculation */
+        crcsum = ~crcsum;           /* undo what Finalize did under the hood */
+        finalized = false;
+    }
+
 #ifdef ISAL_FOUND
     crcsum = crc32_iscsi( (unsigned char*) buffer, length, crcsum);
 #else 

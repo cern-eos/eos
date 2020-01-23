@@ -37,6 +37,9 @@ Adler::Add (const char* buffer, size_t length, off_t offset)
   if (offset != adleroffset)
     needsRecalculation = true;
 
+  if (finalized)                /* handle read/append case, no problem in this case */
+      finalized = false;
+
   adler = adler32(0L, Z_NULL, 0);
   Chunk currChunk;
 

@@ -609,7 +609,9 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
   int rc = mLayout->Read(fileOffset, buffer, buffer_size);
   eos_debug("layout read %d checkSum %d", rc, mCheckSum.get());
 
-  if ((rc > 0) && (mCheckSum)) {
+  /* maintaining a checksum is tricky if there have been writes,
+   * but the read + append case can be supported in "Add" */
+  if ((rc > 0) && (mCheckSum) && (!mHasWrite)) {
     XrdSysMutexHelper cLock(mChecksumMutex);
     mCheckSum->Add(buffer, static_cast<size_t>(rc),
                    static_cast<off_t>(fileOffset));
@@ -638,10 +640,14 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
             static_cast<unsigned long long>(buffer_size));
 
   if ((fileOffset + buffer_size) >= openSize) {
-    if (mCheckSum) {
+    if (mCheckSum && (!mHasWrite)) {
+      /* even if there were only reads up to here the file may still be modified if opened R/W. As
+       * VerifyChecksum "finalises" the context, this has to be handled in write anyway;
+       * but not finalising now speeds up the slightly less marginal case of "write a lot" +
+       * "read a little" + "write a little" (seen in "git") */
       if (!mCheckSum->NeedsRecalculation()) {
         // If this is the last read of sequential reading, we can verify
-        // the checksum now
+        // the checksum now (unless we're writing as well)
         if (VerifyChecksum()) {
           return gOFS.Emsg("read", error, EIO, "read file - wrong file "
                            "checksum fn=", FName());

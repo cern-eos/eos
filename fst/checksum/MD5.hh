@@ -48,7 +48,7 @@ public:
   off_t GetLastOffset() {return md5offset;}
 
   bool Add(const char* buffer, size_t length, off_t offset) {
-    if (offset != md5offset) {
+    if (offset != md5offset || finalized) {
       needsRecalculation = true;
       return false;
     }
