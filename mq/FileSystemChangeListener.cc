@@ -56,7 +56,7 @@ bool FileSystemChangeListener::fetch(Event &out, ThreadAssistant &assistant) {
 
   if(mNotifier.tlSubscriber->NotificationSubjects.size() == 0u) {
     mNotifier.tlSubscriber->mSubjMtx.UnLock();
-    mNotifier.tlSubscriber->mSubjSem.Wait();
+    mNotifier.tlSubscriber->mSubjSem.Wait(1);
     mNotifier.tlSubscriber->mSubjMtx.Lock();
   }
 

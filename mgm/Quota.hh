@@ -559,32 +559,6 @@ public:
   int FilePlacement(Scheduler::PlacementArguments* args);
 
   //----------------------------------------------------------------------------
-  //! Take the decision from where to access a file. The core of the
-  //! implementation is in the Scheduler and GeoTreeEngine.
-  //!
-  //! @param vid virutal id of the client
-  //! @param focedfsid forced filesystem for access
-  //! @param forcedspace forced space for access
-  //! @param tried_cgi cgi containing already tried hosts
-  //! @param lid layout fo the file
-  //! @param locationsfs filesystem ids where layout is stored
-  //! @param dataproxys if non null, schedule dataproxys for each fs
-  //! @param firewallentpts if non null, schedule firewall entry points for each fs
-  //! @param fsindex return index pointing to layout entry filesystem
-  //! @param isRW indicate pure read or rd/wr access
-  //! @param bookingsize size to book additionally for rd/wr access
-  //! @param unavailfs return filesystems currently unavailable
-  //! @param min_fsstatus define minimum filesystem state to allow fs selection
-  //! @param overridegeoloc override geolocation defined in the virtual id
-  //! @param noIO don't apply the penalty as this file access won't result in
-  //!             any IO
-  //!
-  //! @return 0 if successful, otherwise a non-zero value
-  //! @warning Must be called with a lock on the FsView::gFsView::ViewMutex
-  //----------------------------------------------------------------------------
-  static int FileAccess(Scheduler::AccessArguments* args);
-
-  //----------------------------------------------------------------------------
   //! @brief Retrieve the kAllGroupLogicalBytesIs and kAllGroupLogicalBytesTarget
   //! values for the quota nodes.
   //!

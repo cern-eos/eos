@@ -74,7 +74,6 @@ const int GeoTreeEngine::sfgErrc = 1 << 17;
 const int GeoTreeEngine::sfgPubTmStmp = 1 << 18;
 
 set<string> GeoTreeEngine::gWatchedKeys;
-set<string> GeoTreeEngine::gWatchedKeysGw;
 
 const map<string, int> GeoTreeEngine::gNotifKey2EnumSched = {
   make_pair("id", sfgId),
@@ -184,27 +183,6 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem* fs,
       is_new_entry = true;
       // Force update to be sure that the fast structures are properly created
       updateFastStruct = true;
-#ifdef EOS_GEOTREEENGINE_USE_INSTRUMENTED_MUTEX
-#ifdef EOS_INSTRUMENTED_RWMUTEX
-      char buffer[64], buffer2[64];
-      sprintf(buffer, "GTE %s doublebuffer", group->mName.c_str());
-      sprintf(buffer2, "%s doublebuffer", group->mName.c_str());
-      mapEntry->doubleBufferMutex.SetDebugName(buffer2);
-      int retcode = eos::common::RWMutex::AddOrderRule(buffer,
-                    std::vector<eos::common::RWMutex*>(
-      { &pAddRmFsMutex, &pTreeMapMutex, &mapEntry->doubleBufferMutex}));
-      eos_info("creating RWMutex rule order %p, retcode is %d",
-               &mapEntry->doubleBufferMutex, retcode);
-      sprintf(buffer, "GTE %s slowtree", group->mName.c_str());
-      sprintf(buffer2, "%s slowtree", group->mName.c_str());
-      mapEntry->slowTreeMutex.SetDebugName(buffer2);
-      retcode = eos::common::RWMutex::AddOrderRule(buffer,
-                std::vector<eos::common::RWMutex*>(
-      { &pAddRmFsMutex, &pTreeMapMutex, &mapEntry->slowTreeMutex}));
-      eos_info("creating RWMutex rule order %p, retcode is %d",
-               &mapEntry->slowTreeMutex, retcode);
-#endif
-#endif
     }
 
     mapEntry->slowTreeMutex.LockWrite();

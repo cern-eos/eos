@@ -66,6 +66,11 @@ public:
   bool subscribe(const std::string &key);
 
   //----------------------------------------------------------------------------
+  //! Subscribe to the given channel and key combination
+  //----------------------------------------------------------------------------
+  bool subscribe(const std::string &channel, const std::string &key);
+
+  //----------------------------------------------------------------------------
   //! Start listening - no more subscriptions from this point on
   //----------------------------------------------------------------------------
   bool startListening();

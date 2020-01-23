@@ -1432,7 +1432,7 @@ ProcCommand::File()
                 } else {
                   // We got a new replication vector
                   for (unsigned int i = 0; i < selectedfs.size(); i++) {
-                    if (!(errno = Quota::FileAccess(&acsargs))) {
+                    if (!(errno = Scheduler::FileAccess(&acsargs))) {
                       // This is now our source filesystem
                       unsigned int sourcefsid = sourcefs[fsIndex];
 

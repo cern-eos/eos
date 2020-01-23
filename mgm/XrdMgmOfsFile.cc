@@ -1404,7 +1404,7 @@ XrdMgmOfsFile::open(const char* inpath,
       return Emsg(epname, error, EINVAL, "open - invalid access argument", path);
     }
 
-    retc = Quota::FileAccess(&acsargs);
+    retc = Scheduler::FileAccess(&acsargs);
 
     if (acsargs.isRW) {
       // if this is an update, we don't have to send the client to cgi excluded locations,

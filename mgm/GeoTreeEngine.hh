@@ -26,7 +26,6 @@
 
 // THIS IS EXPERIMENTAL AND DOES NOT REALLY WORK
 // FOR FUTURE WORK
-//#define EOS_GEOTREEENGINE_USE_INSTRUMENTED_MUTEX
 #define HAVE_ATOMICS 1
 
 /*----------------------------------------------------------------------------*/
@@ -935,9 +934,6 @@ protected:
 
   //! this is the set of all the watched keys to be notified about for FileSystems
   static set<std::string> gWatchedKeys;
-
-  //! this is the set of all the watched keys to be notified about for Gateways/DataProxy
-  static set<std::string> gWatchedKeysGw;
 
   //! this map allow to convert a notification key to an enum for efficient processing
   static const std::map<string, int> gNotifKey2EnumSched;

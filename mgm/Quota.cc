@@ -1967,16 +1967,6 @@ Quota::FilePlacement(Scheduler::PlacementArguments* args)
 }
 
 //------------------------------------------------------------------------------
-// Take the decision from where to access a file. The core of the
-// implementation is in the Scheduler and GeoTreeEngine.
-//------------------------------------------------------------------------------
-int
-Quota::FileAccess(Scheduler::AccessArguments* args)
-{
-  return Scheduler::FileAccess(args);
-}
-
-//------------------------------------------------------------------------------
 // Create quota node for path
 //------------------------------------------------------------------------------
 bool

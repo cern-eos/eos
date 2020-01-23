@@ -472,7 +472,7 @@ ProcCommand::FileInfo(const char* path)
                       eos_static_err("msg=\"open - invalid access argument\"");
                     }
 
-                    schedretc = Quota::FileAccess(&acsargs);
+                    schedretc = Scheduler::FileAccess(&acsargs);
 
                     if (schedretc) {
                       eos_static_warning("msg=\"cannot schedule the proxy\"");
