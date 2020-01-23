@@ -634,7 +634,7 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   eos_static_debug("");
   EosFuse& me = instance();
   // concurrency monitor
-  filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino);
+  fuse_filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino);
   std::string dirfullpath;
   char fullpath[16384];
   char* name = 0;
@@ -706,7 +706,7 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   if (!dir_status) {
     // Dir not in cache or invalid, fall-back to normal reading
     struct fuse_entry_param* entriesstats = NULL;
-    filesystem::dirlist dlist;
+    fuse_filesystem::dirlist dlist;
     size_t nstats = 0;
     me.fs().inodirlist((unsigned long long) ino, fullpath, fuse_req_ctx(req)->uid,
                        fuse_req_ctx(req)->gid, fuse_req_ctx(req)->pid, dlist,
@@ -777,7 +777,7 @@ EosFuse::readdir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
 {
   eos::common::Timing timing(__func__);
   EosFuse& me = instance();
-  filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino);
+  fuse_filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino);
   COMMONTIMING("_start_", &timing);
   eos_static_debug("");
 
@@ -803,7 +803,7 @@ EosFuse::releasedir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
 {
   eos::common::Timing timing(__func__);
   EosFuse& me = instance();
-  filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino, true);
+  fuse_filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino, true);
   COMMONTIMING("_start_", &timing);
   eos_static_debug("");
 
@@ -834,7 +834,7 @@ EosFuse::statfs(fuse_req_t req, fuse_ino_t ino)
   COMMONTIMING("_start_", &timing);
   eos_static_debug("");
   EosFuse& me = instance();
-  filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino);
+  fuse_filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino);
   int res = 0;
   char* path = NULL;
   struct statvfs svfs, svfs2;
@@ -887,7 +887,7 @@ EosFuse::mkdir(fuse_req_t req, fuse_ino_t parent, const char* name, mode_t mode)
   COMMONTIMING("_start_", &timing);
   eos_static_debug("");
   EosFuse& me = instance();
-  filesystem::Track::Monitor mon(__func__, me.fs().iTrack, parent);
+  fuse_filesystem::Track::Monitor mon(__func__, me.fs().iTrack, parent);
   std::string parentpath;
   std::string fullpath;
   UPDATEPROCCACHE;
@@ -965,7 +965,7 @@ EosFuse::unlink(fuse_req_t req, fuse_ino_t parent, const char* name)
   COMMONTIMING("_start_", &timing);
   eos_static_debug("");
   EosFuse& me = instance();
-  filesystem::Track::Monitor pmon(__func__, me.fs().iTrack, parent);
+  fuse_filesystem::Track::Monitor pmon(__func__, me.fs().iTrack, parent);
   const char* parentpath = 0;
   std::string fullpath;
   char ifullpath[16384];
@@ -1003,7 +1003,7 @@ EosFuse::unlink(fuse_req_t req, fuse_ino_t parent, const char* name)
 
   ino = me.fs().inode(ifullpath);
   me.fs().unlock_r_p2i();   // <=
-  filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino, true);
+  fuse_filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino, true);
   eos_static_debug("path=%s ipath=%s inode=%llu", fullpath.c_str(), ifullpath,
                    ino);
   me.fs().dir_cache_forget(parent);
@@ -1028,7 +1028,7 @@ EosFuse::rmdir(fuse_req_t req, fuse_ino_t parent, const char* name)
   COMMONTIMING("_start_", &timing);
   eos_static_debug("");
   EosFuse& me = instance();
-  filesystem::Track::Monitor mon(__func__, me.fs().iTrack, parent);
+  fuse_filesystem::Track::Monitor mon(__func__, me.fs().iTrack, parent);
   const char* parentpath = NULL;
   std::string fullpath;
   char ifullpath[16384];
@@ -1100,8 +1100,8 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char* name,
   eos_static_debug("oldparent=%llu newparent=%llu oldname=%s newname=%s",
                    (unsigned long long)parent, (unsigned long long)newparent, name, newname);
   EosFuse& me = instance();
-  filesystem::Track::Monitor monp(__func__, me.fs().iTrack, parent);
-  filesystem::Track::Monitor monn(__func__, me.fs().iTrack, newparent);
+  fuse_filesystem::Track::Monitor monp(__func__, me.fs().iTrack, parent);
+  fuse_filesystem::Track::Monitor monn(__func__, me.fs().iTrack, newparent);
   const char* parentpath = NULL;
   const char* newparentpath = NULL;
   std::string fullpath;
@@ -1138,7 +1138,7 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char* name,
                    fullpath.c_str(), newfullpath.c_str(), (unsigned long long) stbuf.st_ino,
                    (unsigned long long) parent, (unsigned long long) newparent, retcold);
   int retc = 0;
-  filesystem::Track::Monitor mone(__func__, me.fs().iTrack, stbuf.st_ino, true);
+  fuse_filesystem::Track::Monitor mone(__func__, me.fs().iTrack, stbuf.st_ino, true);
   retc = me.fs().rename(fullpath.c_str(), newfullpath.c_str(),
                         fuse_req_ctx(req)->uid,
                         fuse_req_ctx(req)->gid, fuse_req_ctx(req)->pid);
@@ -1181,7 +1181,7 @@ EosFuse::access(fuse_req_t req, fuse_ino_t ino, int mask)
   EosFuse& me = instance();
 // re-resolve the inode
   ino = me.fs().redirect_i2i(ino);
-  filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino);
+  fuse_filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino);
   std::string fullpath;
   const char* name = NULL;
   UPDATEPROCCACHE;
@@ -1232,7 +1232,7 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   EosFuse& me = instance();
 // re-resolve the inode
   ino = me.fs().redirect_i2i(ino);
-  filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino, true);
+  fuse_filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino, true);
   int res;
   mode_t mode = 0;
   std::string fullpath;
@@ -1272,8 +1272,8 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
     return;
   }
 
-  filesystem::fd_user_info* info = (filesystem::fd_user_info*) calloc(1,
-                                   sizeof(filesystem::fd_user_info));
+  fuse_filesystem::fd_user_info* info = (fuse_filesystem::fd_user_info*) calloc(1,
+                                   sizeof(fuse_filesystem::fd_user_info));
   info->fd = res;
   info->uid = fuse_req_ctx(req)->uid;
   info->gid = fuse_req_ctx(req)->gid;
@@ -1336,7 +1336,7 @@ EosFuse::create(fuse_req_t req, fuse_ino_t parent, const char* name,
   COMMONTIMING("_start_", &timing);
   eos_static_debug("");
   EosFuse& me = instance();
-  filesystem::Track::Monitor mon(__func__, me.fs().iTrack, parent, true);
+  fuse_filesystem::Track::Monitor mon(__func__, me.fs().iTrack, parent, true);
   int res;
   unsigned long long rinode = 0;
   bool mknod = false;
@@ -1397,8 +1397,8 @@ EosFuse::create(fuse_req_t req, fuse_ino_t parent, const char* name,
     }
 
     // Update file information structure
-    filesystem::fd_user_info* info = (filesystem::fd_user_info*) calloc(1,
-                                     sizeof(filesystem::fd_user_info));
+    fuse_filesystem::fd_user_info* info = (fuse_filesystem::fd_user_info*) calloc(1,
+                                     sizeof(fuse_filesystem::fd_user_info));
     info->fd = res;
     info->uid = fuse_req_ctx(req)->uid;
     info->gid = fuse_req_ctx(req)->gid;
@@ -1470,7 +1470,7 @@ EosFuse::read(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
                    (unsigned long long) ino, size, (unsigned long long) off);
 
   if (fi && fi->fh) {
-    filesystem::fd_user_info* info = (filesystem::fd_user_info*) fi->fh;
+    fuse_filesystem::fd_user_info* info = (fuse_filesystem::fd_user_info*) fi->fh;
     char* buf = me.fs().attach_rd_buff(thread_id(), size);
     eos_static_debug("inode=%lld size=%lld off=%lld buf=%lld fh=%lld",
                      (long long) ino, (long long) size,
@@ -1500,10 +1500,10 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char* buf, size_t size,
 {
   eos_static_debug("");
   EosFuse& me = instance();
-  filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino, true);
+  fuse_filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino, true);
 
   if (fi && fi->fh) {
-    filesystem::fd_user_info* info = (filesystem::fd_user_info*) fi->fh;
+    fuse_filesystem::fd_user_info* info = (fuse_filesystem::fd_user_info*) fi->fh;
     eos_static_debug("inode=%lld size=%lld off=%lld buf=%lld fh=%lld",
                      (long long) ino, (long long) size,
                      (long long) off, (long long) buf, (long long) info->fd);
@@ -1533,11 +1533,11 @@ EosFuse::release(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   COMMONTIMING("_start_", &timing);
   eos_static_debug("");
   EosFuse& me = instance();
-  filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino, true);
+  fuse_filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino, true);
   errno = 0;
 
   if (fi && fi->fh) {
-    filesystem::fd_user_info* info = (filesystem::fd_user_info*) fi->fh;
+    fuse_filesystem::fd_user_info* info = (fuse_filesystem::fd_user_info*) fi->fh;
     int fd = info->fd;
     eos_static_debug("inode=%lld fh=%lld",
                      (long long) ino, (long long) fd);
@@ -1576,10 +1576,10 @@ EosFuse::fsync(fuse_req_t req, fuse_ino_t ino, int datasync,
   }
 
 // concurrency monitor
-  filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino);
+  fuse_filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino);
 
   if (fi && fi->fh) {
-    filesystem::fd_user_info* info = (filesystem::fd_user_info*) fi->fh;
+    fuse_filesystem::fd_user_info* info = (fuse_filesystem::fd_user_info*) fi->fh;
     eos_static_debug("inode=%lld fh=%lld",
                      (long long) ino, (long long) info->fd);
 
@@ -1617,11 +1617,11 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   COMMONTIMING("_start_", &timing);
   eos_static_debug("");
   EosFuse& me = instance();
-  filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino, true);
+  fuse_filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino, true);
   errno = 0;
 
   if (fi && fi->fh) {
-    filesystem::fd_user_info* info = (filesystem::fd_user_info*) fi->fh;
+    fuse_filesystem::fd_user_info* info = (fuse_filesystem::fd_user_info*) fi->fh;
     int err_flush = me.fs().flush(info->fd, fuse_req_ctx(req)->uid,
                                   fuse_req_ctx(req)->gid, fuse_req_ctx(req)->pid);
 
@@ -1675,7 +1675,7 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
   EosFuse& me = instance();
 // re-resolve the inode
   ino = me.fs().redirect_i2i(ino);
-  filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino);
+  fuse_filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino);
   int retc = 0;
   size_t init_size = size;
   std::string fullpath;
@@ -1757,7 +1757,7 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
   EosFuse& me = instance();
 // re-resolve the inode
   ino = me.fs().redirect_i2i(ino);
-  filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino, true);
+  fuse_filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino, true);
   int retc = 0;
   std::string fullpath;
   const char* name = NULL;
@@ -1792,7 +1792,7 @@ EosFuse::listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
   EosFuse& me = instance();
 // re-resolve the inode
   ino = me.fs().redirect_i2i(ino);
-  filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino);
+  fuse_filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino);
   int retc = 0;
   size_t init_size = size;
   std::string fullpath;
@@ -1860,7 +1860,7 @@ EosFuse::removexattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name)
   EosFuse& me = instance();
 // re-resolve the inode
   ino = me.fs().redirect_i2i(ino);
-  filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino);
+  fuse_filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino);
   int retc = 0;
   std::string fullpath;
   const char* name = NULL;
@@ -1894,7 +1894,7 @@ EosFuse::readlink(fuse_req_t req, fuse_ino_t ino)
   EosFuse& me = instance();
 // re-resolve the inode
   ino = me.fs().redirect_i2i(ino);
-  filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino);
+  fuse_filesystem::Track::Monitor mon(__func__, me.fs().iTrack, ino);
   std::string fullpath;
   const char* name = NULL;
   UPDATEPROCCACHE;
@@ -1935,7 +1935,7 @@ EosFuse::symlink(fuse_req_t req, const char* link, fuse_ino_t parent,
   COMMONTIMING("_start_", &timing);
   eos_static_debug("");
   EosFuse& me = instance();
-  filesystem::Track::Monitor mon(__func__, me.fs().iTrack, parent);
+  fuse_filesystem::Track::Monitor mon(__func__, me.fs().iTrack, parent);
   const char* parentpath = NULL;
   char partialpath[16384];
   std::string fullpath;

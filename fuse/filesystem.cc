@@ -61,7 +61,7 @@
 #define OSPAGESIZE 65536
 #endif
 
-filesystem::filesystem():
+fuse_filesystem::fuse_filesystem():
   pid_max(32767), uid_max(0), link_pidmap(false),
   lazy_open_ro(false), lazy_open_rw(false), async_open(false),
   lazy_open_disabled(false), inline_repair(false),
@@ -93,7 +93,7 @@ filesystem::filesystem():
   mMapPidDenyRmMutex.SetBlockedStackTracing(false);
 }
 
-filesystem::~filesystem()
+fuse_filesystem::~fuse_filesystem()
 {
   FuseCacheEntry* dir = 0;
   std::map<unsigned long long, FuseCacheEntry*>::iterator iter;
@@ -113,9 +113,9 @@ filesystem::~filesystem()
 }
 
 void*
-filesystem::CacheCleanup(void* p)
+fuse_filesystem::CacheCleanup(void* p)
 {
-  filesystem* me = (filesystem*)p;
+  fuse_filesystem* me = (fuse_filesystem*)p;
   XrdSysTimer sleeper;
 
   while (1) {
@@ -200,7 +200,7 @@ filesystem::CacheCleanup(void* p)
 }
 
 void
-filesystem::log(const char* _level, const char* msg)
+fuse_filesystem::log(const char* _level, const char* msg)
 {
   std::string level = _level;
 
@@ -218,7 +218,7 @@ filesystem::log(const char* _level, const char* msg)
 }
 
 void
-filesystem::log_settings()
+fuse_filesystem::log_settings()
 {
   std::string s = "lazy-open-ro           := ";
 
@@ -331,7 +331,7 @@ myrealpath(const char* __restrict path, char* __restrict resolved, pid_t pid);
 // Lock read
 //------------------------------------------------------------------------------
 void
-filesystem::lock_r_p2i()
+fuse_filesystem::lock_r_p2i()
 {
   mutex_inode_path.LockRead();
 }
@@ -340,7 +340,7 @@ filesystem::lock_r_p2i()
 // Unlock read
 //------------------------------------------------------------------------------
 void
-filesystem::unlock_r_p2i()
+fuse_filesystem::unlock_r_p2i()
 {
   mutex_inode_path.UnLockRead();
 }
@@ -349,7 +349,7 @@ filesystem::unlock_r_p2i()
 // Drop the basename and return only the last level path name
 //------------------------------------------------------------------------------
 std::string
-filesystem::base_name(unsigned long long inode)
+fuse_filesystem::base_name(unsigned long long inode)
 {
   eos::common::RWMutexReadLock vLock(mutex_inode_path);
   const char* fname = path(inode);
@@ -380,7 +380,7 @@ filesystem::base_name(unsigned long long inode)
 //! Return the CGI of an URL
 //----------------------------------------------------------------------------
 const char*
-filesystem::get_cgi(const char* url)
+fuse_filesystem::get_cgi(const char* url)
 {
   return url ? (strchr(url, '?')) : 0;
 }
@@ -389,7 +389,7 @@ filesystem::get_cgi(const char* url)
 //! Return the CGI of an URL
 //----------------------------------------------------------------------------
 XrdOucString
-filesystem::get_url_nocgi(const char* url)
+fuse_filesystem::get_url_nocgi(const char* url)
 {
   XrdOucString surl = url;
   surl.erase(surl.find("?"));
@@ -400,7 +400,7 @@ filesystem::get_url_nocgi(const char* url)
 // Translate from inode to path
 //------------------------------------------------------------------------------
 const char*
-filesystem::path(unsigned long long inode)
+fuse_filesystem::path(unsigned long long inode)
 {
 // Obs: use lock_r_p2i/unlock_r_p2i in the scope of the returned string
   if (inode2path.count(inode)) {
@@ -415,7 +415,7 @@ filesystem::path(unsigned long long inode)
 //------------------------------------------------------------------------------
 
 unsigned long long
-filesystem::inode(const char* path)
+fuse_filesystem::inode(const char* path)
 {
   eos::common::RWMutexReadLock rd_lock(mutex_inode_path);
   unsigned long long ret = 0;
@@ -431,7 +431,7 @@ filesystem::inode(const char* path)
 // Store an inode <-> path mapping
 //------------------------------------------------------------------------------
 void
-filesystem::store_p2i(unsigned long long inode, const char* path)
+fuse_filesystem::store_p2i(unsigned long long inode, const char* path)
 {
   eos::common::RWMutexWriteLock wr_lock(mutex_inode_path);
   path2inode[path] = inode;
@@ -442,7 +442,7 @@ filesystem::store_p2i(unsigned long long inode, const char* path)
 //! Store an inode/mtime pair
 //----------------------------------------------------------------------------
 void
-filesystem::store_i2mtime(unsigned long long inode, timespec ts)
+fuse_filesystem::store_i2mtime(unsigned long long inode, timespec ts)
 {
   eos::common::RWMutexWriteLock wr_lock(mutex_inode_path);
   inode2mtime[inode] = ts;
@@ -457,7 +457,7 @@ filesystem::store_i2mtime(unsigned long long inode, timespec ts)
 //! Store and test inode/mtime pair - returns true if open can set keep_cache
 //----------------------------------------------------------------------------
 bool
-filesystem::store_open_i2mtime(unsigned long long inode)
+fuse_filesystem::store_open_i2mtime(unsigned long long inode)
 {
   bool retval = false;
   eos::common::RWMutexWriteLock wr_lock(mutex_inode_path);
@@ -490,7 +490,7 @@ filesystem::store_open_i2mtime(unsigned long long inode)
 // Replace a prefix when directories are renamed
 //------------------------------------------------------------------------------
 void
-filesystem::replace_prefix(const char* oldprefix, const char* newprefix)
+fuse_filesystem::replace_prefix(const char* oldprefix, const char* newprefix)
 {
   eos::common::RWMutexWriteLock wr_lock(mutex_inode_path);
   std::string sprefix = oldprefix;
@@ -526,7 +526,7 @@ filesystem::replace_prefix(const char* oldprefix, const char* newprefix)
 // Store an inode <-> path mapping given the parent inode
 //------------------------------------------------------------------------------
 void
-filesystem::store_child_p2i(unsigned long long inode,
+fuse_filesystem::store_child_p2i(unsigned long long inode,
                             unsigned long long childinode,
                             const char* name)
 {
@@ -568,7 +568,7 @@ filesystem::store_child_p2i(unsigned long long inode,
 // Delete an inode <-> path mapping given the inode
 //------------------------------------------------------------------------------
 void
-filesystem::forget_p2i(unsigned long long inode)
+fuse_filesystem::forget_p2i(unsigned long long inode)
 {
   eos::common::RWMutexWriteLock wr_lock(mutex_inode_path);
 
@@ -591,7 +591,7 @@ filesystem::forget_p2i(unsigned long long inode)
 // two ino1,ino2=>path1 mappings
 //------------------------------------------------------------------------------
 void
-filesystem::redirect_p2i(unsigned long long inode, unsigned long long new_inode)
+fuse_filesystem::redirect_p2i(unsigned long long inode, unsigned long long new_inode)
 {
   eos::common::RWMutexWriteLock wr_lock(mutex_inode_path);
 
@@ -617,7 +617,7 @@ filesystem::redirect_p2i(unsigned long long inode, unsigned long long new_inode)
 // Redirect an inode to the latest valid inode version - due to repair actions
 //------------------------------------------------------------------------------
 unsigned long long
-filesystem::redirect_i2i(unsigned long long inode)
+fuse_filesystem::redirect_i2i(unsigned long long inode)
 {
   eos::common::RWMutexReadLock rd_lock(mutex_inode_path);
 
@@ -640,7 +640,7 @@ filesystem::redirect_i2i(unsigned long long inode)
 // Get a cached directory
 //------------------------------------------------------------------------------
 int
-filesystem::dir_cache_get(unsigned long long inode,
+fuse_filesystem::dir_cache_get(unsigned long long inode,
                           struct timespec mtime,
                           struct timespec ctime,
                           struct dirbuf** b)
@@ -675,7 +675,7 @@ filesystem::dir_cache_get(unsigned long long inode,
 // Forget a cached directory
 //------------------------------------------------------------------------------
 int
-filesystem::dir_cache_forget(unsigned long long inode)
+fuse_filesystem::dir_cache_forget(unsigned long long inode)
 {
   eos::common::RWMutexWriteLock wr_lock(mutex_fuse_cache);
 
@@ -698,7 +698,7 @@ filesystem::dir_cache_forget(unsigned long long inode)
 // Add or update a cache directory entry
 //------------------------------------------------------------------------------
 void
-filesystem::dir_cache_sync(unsigned long long inode,
+fuse_filesystem::dir_cache_sync(unsigned long long inode,
                            int nentries,
                            struct timespec mtime,
                            struct timespec ctime,
@@ -747,7 +747,7 @@ filesystem::dir_cache_sync(unsigned long long inode,
 // Get a subentry from a cached directory
 //------------------------------------------------------------------------------
 int
-filesystem::dir_cache_get_entry(fuse_req_t req,
+fuse_filesystem::dir_cache_get_entry(fuse_req_t req,
                                 unsigned long long inode,
                                 unsigned long long entry_inode,
                                 const char* efullpath,
@@ -785,7 +785,7 @@ filesystem::dir_cache_get_entry(fuse_req_t req,
 // Add new subentry to a cached directory
 //------------------------------------------------------------------------------
 void
-filesystem::dir_cache_add_entry(unsigned long long inode,
+fuse_filesystem::dir_cache_add_entry(unsigned long long inode,
                                 unsigned long long entry_inode,
                                 struct fuse_entry_param* e)
 {
@@ -800,7 +800,7 @@ filesystem::dir_cache_add_entry(unsigned long long inode,
 
 
 bool
-filesystem::dir_cache_update_entry(unsigned long long entry_inode,
+fuse_filesystem::dir_cache_update_entry(unsigned long long entry_inode,
                                    struct stat* buf)
 {
   eos::common::RWMutexReadLock rd_lock(mutex_fuse_cache);
@@ -823,7 +823,7 @@ filesystem::dir_cache_update_entry(unsigned long long entry_inode,
 // Create artificial file descriptor
 //------------------------------------------------------------------------------
 int
-filesystem::generate_fd()
+fuse_filesystem::generate_fd()
 {
   int retc = -1;
 
@@ -845,7 +845,7 @@ filesystem::generate_fd()
 // Add new mapping between fd and raw file object
 //------------------------------------------------------------------------------
 int
-filesystem::force_rwopen(
+fuse_filesystem::force_rwopen(
   unsigned long long inode,
   uid_t uid, gid_t gid, pid_t pid
 )
@@ -898,7 +898,7 @@ filesystem::force_rwopen(
 // Add new mapping between fd and raw file object
 //------------------------------------------------------------------------------
 int
-filesystem::add_fd2file(LayoutWrapper* raw_file,
+fuse_filesystem::add_fd2file(LayoutWrapper* raw_file,
                         unsigned long long inode,
                         uid_t uid, gid_t gid, pid_t pid,
                         bool isROfd,
@@ -1003,7 +1003,7 @@ filesystem::add_fd2file(LayoutWrapper* raw_file,
 // Get the file abstraction object corresponding to the fd
 //------------------------------------------------------------------------------
 std::shared_ptr<FileAbstraction>
-filesystem::get_file(int fd, bool* isRW, bool forceRWtoo)
+fuse_filesystem::get_file(int fd, bool* isRW, bool forceRWtoo)
 {
   std::shared_ptr<FileAbstraction> fabst;
   eos_static_debug("fd=%i", fd);
@@ -1034,7 +1034,7 @@ filesystem::get_file(int fd, bool* isRW, bool forceRWtoo)
 // Remove entry from mapping
 //------------------------------------------------------------------------------
 int
-filesystem::remove_fd2file(int fd, unsigned long long inode, uid_t uid,
+fuse_filesystem::remove_fd2file(int fd, unsigned long long inode, uid_t uid,
                            gid_t gid,
                            pid_t pid)
 {
@@ -1121,7 +1121,7 @@ filesystem::remove_fd2file(int fd, unsigned long long inode, uid_t uid,
 }
 
 char*
-filesystem::attach_rd_buff(pthread_t tid, size_t size)
+fuse_filesystem::attach_rd_buff(pthread_t tid, size_t size)
 {
   XrdSysMutexHelper lock(IoBufferLock);
   IoBufferMap[tid].Resize(size);
@@ -1136,13 +1136,13 @@ filesystem::attach_rd_buff(pthread_t tid, size_t size)
 // Get user name from the uid and change the effective user ID of the thread
 //------------------------------------------------------------------------------
 int
-filesystem::update_proc_cache(uid_t uid, gid_t gid, pid_t pid)
+fuse_filesystem::update_proc_cache(uid_t uid, gid_t gid, pid_t pid)
 {
   return authidmanager.updateProcCache(uid, gid, pid);
 }
 
 std::string
-filesystem::get_login(uid_t uid, gid_t gid, pid_t pid)
+fuse_filesystem::get_login(uid_t uid, gid_t gid, pid_t pid)
 {
   return authidmanager.getLogin(uid, gid, pid);
 }
@@ -1155,7 +1155,7 @@ filesystem::get_login(uid_t uid, gid_t gid, pid_t pid)
 // Remove extended attribute
 //------------------------------------------------------------------------------
 int
-filesystem::rmxattr(const char* path,
+fuse_filesystem::rmxattr(const char* path,
                     const char* xattr_name,
                     uid_t uid,
                     gid_t gid,
@@ -1229,7 +1229,7 @@ filesystem::rmxattr(const char* path,
 //------------------------------------------------------------------------------
 // Set extended attribute
 int
-filesystem::setxattr(const char* path,
+fuse_filesystem::setxattr(const char* path,
                      const char* xattr_name,
                      const char* xattr_value,
                      size_t size,
@@ -1323,7 +1323,7 @@ filesystem::setxattr(const char* path,
 // Read an extended attribute
 //------------------------------------------------------------------------------
 int
-filesystem::getxattr(const char* path,
+fuse_filesystem::getxattr(const char* path,
                      const char* xattr_name,
                      char** xattr_value,
                      size_t* size,
@@ -1434,7 +1434,7 @@ filesystem::getxattr(const char* path,
 // List extended attributes
 //------------------------------------------------------------------------------
 int
-filesystem::listxattr(const char* path,
+fuse_filesystem::listxattr(const char* path,
                       char** xattr_list,
                       size_t* size,
                       uid_t uid,
@@ -1549,7 +1549,7 @@ filesystem::listxattr(const char* path,
 // (e.g., st_ino) then it should be set to 0 or given a "reasonable" value.
 //------------------------------------------------------------------------------
 int
-filesystem::stat(const char* path, struct stat* buf, uid_t uid, gid_t gid,
+fuse_filesystem::stat(const char* path, struct stat* buf, uid_t uid, gid_t gid,
                  pid_t pid, unsigned long long inode, bool onlysizemtime)
 {
   eos_static_info("path=%s, uid=%i, gid=%i inode=%lu",
@@ -1821,7 +1821,7 @@ filesystem::stat(const char* path, struct stat* buf, uid_t uid, gid_t gid,
 // Return statistics about the filesystem
 //------------------------------------------------------------------------------
 int
-filesystem::statfs(const char* path, struct statvfs* stbuf, uid_t uid,
+fuse_filesystem::statfs(const char* path, struct statvfs* stbuf, uid_t uid,
                    gid_t gid, pid_t pid)
 {
   eos_static_info("path=%s", path);
@@ -1929,7 +1929,7 @@ filesystem::statfs(const char* path, struct statvfs* stbuf, uid_t uid,
 // Change permissions for the file
 //------------------------------------------------------------------------------
 int
-filesystem::chmod(const char* path,
+fuse_filesystem::chmod(const char* path,
                   mode_t mode,
                   uid_t uid,
                   gid_t gid,
@@ -2005,7 +2005,7 @@ filesystem::chmod(const char* path,
 // Postpone utimes to a file close if still open
 //------------------------------------------------------------------------------
 int
-filesystem::utimes_if_open(unsigned long long inode,
+fuse_filesystem::utimes_if_open(unsigned long long inode,
                            struct timespec* utimes,
                            uid_t uid, gid_t gid, pid_t pid)
 {
@@ -2037,7 +2037,7 @@ filesystem::utimes_if_open(unsigned long long inode,
 // Update the last access time and last modification time
 //------------------------------------------------------------------------------
 int
-filesystem::utimes(const char* path,
+fuse_filesystem::utimes(const char* path,
                    struct timespec* tvp,
                    uid_t uid,
                    gid_t gid,
@@ -2116,7 +2116,7 @@ filesystem::utimes(const char* path,
 // Symlink
 //----------------------------------------------------------------------------
 int
-filesystem::symlink(const char* path, const char* link, uid_t uid, gid_t gid,
+fuse_filesystem::symlink(const char* path, const char* link, uid_t uid, gid_t gid,
                     pid_t pid)
 {
   eos_static_info("path=%s link=%s uid=%u pid=%u", path, link, uid, pid);
@@ -2194,7 +2194,7 @@ filesystem::symlink(const char* path, const char* link, uid_t uid, gid_t gid,
 //----------------------------------------------------------------------------
 
 int
-filesystem::readlink(const char* path, char* buf, size_t bufsize, uid_t uid,
+fuse_filesystem::readlink(const char* path, char* buf, size_t bufsize, uid_t uid,
                      gid_t gid, pid_t pid)
 {
   eos_static_info("path=%s uid=%u pid=%u", path, uid, pid);
@@ -2292,7 +2292,7 @@ filesystem::readlink(const char* path, char* buf, size_t bufsize, uid_t uid,
 //------------------------------------------------------------------------------
 
 int
-filesystem::access(const char* path,
+fuse_filesystem::access(const char* path,
                    int mode,
                    uid_t uid,
                    gid_t gid,
@@ -2368,7 +2368,7 @@ filesystem::access(const char* path,
 //------------------------------------------------------------------------------
 
 int
-filesystem::inodirlist(unsigned long long dirinode,
+fuse_filesystem::inodirlist(unsigned long long dirinode,
                        const char* path,
                        uid_t uid,
                        gid_t gid,
@@ -2765,7 +2765,7 @@ filesystem::inodirlist(unsigned long long dirinode,
 // Get directory entries
 //------------------------------------------------------------------------------
 struct dirent*
-filesystem::readdir(const char* path_dir, size_t* size,
+fuse_filesystem::readdir(const char* path_dir, size_t* size,
                     uid_t uid,
                     gid_t gid,
                     pid_t pid)
@@ -2833,7 +2833,7 @@ filesystem::readdir(const char* path_dir, size_t* size,
 // Create a directory with the given name
 //------------------------------------------------------------------------------
 int
-filesystem::mkdir(const char* path,
+fuse_filesystem::mkdir(const char* path,
                   mode_t mode,
                   uid_t uid,
                   gid_t gid,
@@ -2960,7 +2960,7 @@ filesystem::mkdir(const char* path,
 // Remove the given directory
 //------------------------------------------------------------------------------
 int
-filesystem::rmdir(const char* path, uid_t uid, gid_t gid, pid_t pid)
+fuse_filesystem::rmdir(const char* path, uid_t uid, gid_t gid, pid_t pid)
 {
   eos::common::Timing rmdirtiming("rmdir");
   COMMONTIMING("START", &rmdirtiming);
@@ -3004,7 +3004,7 @@ filesystem::rmdir(const char* path, uid_t uid, gid_t gid, pid_t pid)
 //------------------------------------------------------------------------------
 // Map open return codes to errno's
 int
-filesystem::get_open_idx(const unsigned long long& inode)
+fuse_filesystem::get_open_idx(const unsigned long long& inode)
 {
   unsigned long long idx = 0;
 
@@ -3021,7 +3021,7 @@ filesystem::get_open_idx(const unsigned long long& inode)
 // Open a file
 //------------------------------------------------------------------------------
 int
-filesystem::open(const char* path,
+fuse_filesystem::open(const char* path,
                  int oflags,
                  mode_t mode,
                  uid_t uid,
@@ -3452,7 +3452,7 @@ filesystem::open(const char* path,
 // Set utimes
 //------------------------------------------------------------------------------
 int
-filesystem::utimes_from_fabst(std::shared_ptr<FileAbstraction> fabst,
+fuse_filesystem::utimes_from_fabst(std::shared_ptr<FileAbstraction> fabst,
                               unsigned long long inode, uid_t uid, gid_t gid, pid_t pid)
 {
   LayoutWrapper* raw_file = fabst->GetRawFileRW();
@@ -3594,7 +3594,7 @@ filesystem::utimes_from_fabst(std::shared_ptr<FileAbstraction> fabst,
 // you can free up any temporarily allocated data structures.
 //------------------------------------------------------------------------------
 int
-filesystem::close(int fildes, unsigned long long inode, uid_t uid, gid_t gid,
+fuse_filesystem::close(int fildes, unsigned long long inode, uid_t uid, gid_t gid,
                   pid_t pid)
 {
   int ret = -1;
@@ -3649,7 +3649,7 @@ filesystem::close(int fildes, unsigned long long inode, uid_t uid, gid_t gid,
 // Flush file data to disk
 //------------------------------------------------------------------------------
 int
-filesystem::flush(int fd, uid_t uid, gid_t gid, pid_t pid)
+fuse_filesystem::flush(int fd, uid_t uid, gid_t gid, pid_t pid)
 {
   int retc = 0;
   eos_static_info("fd=%d ", fd);
@@ -3707,7 +3707,7 @@ filesystem::flush(int fd, uid_t uid, gid_t gid, pid_t pid)
 // Truncate file
 //------------------------------------------------------------------------------
 int
-filesystem::truncate(int fildes, off_t offset)
+fuse_filesystem::truncate(int fildes, off_t offset)
 {
   eos::common::Timing truncatetiming("truncate");
   COMMONTIMING("START", &truncatetiming);
@@ -3770,7 +3770,7 @@ filesystem::truncate(int fildes, off_t offset)
 // Truncate file
 //------------------------------------------------------------------------------
 int
-filesystem::truncate2(const char* fullpath, unsigned long long inode,
+fuse_filesystem::truncate2(const char* fullpath, unsigned long long inode,
                       unsigned long truncsize, uid_t uid, gid_t gid, pid_t pid)
 {
   if (inode) {
@@ -3816,7 +3816,7 @@ filesystem::truncate2(const char* fullpath, unsigned long long inode,
 // was at or beyond the end of the file
 //------------------------------------------------------------------------------
 ssize_t
-filesystem::pread(int fildes,
+fuse_filesystem::pread(int fildes,
                   void* buf,
                   size_t nbyte,
                   off_t offset)
@@ -3901,7 +3901,7 @@ filesystem::pread(int fildes,
 // Write to file
 //------------------------------------------------------------------------------
 ssize_t
-filesystem::pwrite(int fildes, const void* buf, size_t nbyte, off_t offset)
+fuse_filesystem::pwrite(int fildes, const void* buf, size_t nbyte, off_t offset)
 {
   eos::common::Timing xpw("pwrite");
   COMMONTIMING("start", &xpw);
@@ -3972,7 +3972,7 @@ filesystem::pwrite(int fildes, const void* buf, size_t nbyte, off_t offset)
 // Flush any dirty information about the file to disk
 //------------------------------------------------------------------------------
 int
-filesystem::fsync(int fildes)
+fuse_filesystem::fsync(int fildes)
 {
   eos::common::Timing xps("fsync");
   COMMONTIMING("start", &xps);
@@ -4022,7 +4022,7 @@ filesystem::fsync(int fildes)
 // Remove (delete) the given file, symbolic link, hard link, or special node
 //------------------------------------------------------------------------------
 int
-filesystem::unlink(const char* path, uid_t uid, gid_t gid, pid_t pid,
+fuse_filesystem::unlink(const char* path, uid_t uid, gid_t gid, pid_t pid,
                    unsigned long long inode)
 {
   eos::common::Timing xpu("unlink");
@@ -4064,7 +4064,7 @@ filesystem::unlink(const char* path, uid_t uid, gid_t gid, pid_t pid,
 // Rename file/dir
 //------------------------------------------------------------------------------
 int
-filesystem::rename(const char* oldpath, const char* newpath, uid_t uid,
+fuse_filesystem::rename(const char* oldpath, const char* newpath, uid_t uid,
                    gid_t gid, pid_t pid)
 {
   eos::common::Timing xpr("rename");
@@ -4121,7 +4121,7 @@ static void addSecUidGid(uid_t uid, gid_t gid, XrdOucString& str)
 // Build strong authentication CGI url info
 //------------------------------------------------------------------------------
 std::string
-filesystem::strongauth_cgi(uid_t uid, gid_t gid, pid_t pid)
+fuse_filesystem::strongauth_cgi(uid_t uid, gid_t gid, pid_t pid)
 {
   XrdOucString str = "";
 
@@ -4175,7 +4175,7 @@ bye:
 // - if we are a user private mount we don't need to specify that
 //------------------------------------------------------------------------------
 std::string
-filesystem::user_url(uid_t uid, gid_t gid, pid_t pid)
+fuse_filesystem::user_url(uid_t uid, gid_t gid, pid_t pid)
 {
   std::string url = "root://";
 
@@ -4198,7 +4198,7 @@ filesystem::user_url(uid_t uid, gid_t gid, pid_t pid)
 // anywhere whithin the EOS_FUSE_RMLVL_PROTECT levels from the root directory
 //------------------------------------------------------------------------------
 int
-filesystem::is_toplevel_rm(int pid, const char* local_dir)
+fuse_filesystem::is_toplevel_rm(int pid, const char* local_dir)
 {
   eos_static_debug("is_toplevel_rm for pid %d and mountpoint %s", pid, local_dir);
 
@@ -4449,7 +4449,7 @@ filesystem::is_toplevel_rm(int pid, const char* local_dir)
 //------------------------------------------------------------------------------
 // Get the list of the features available on the MGM
 //------------------------------------------------------------------------------
-bool filesystem::get_features(const std::string& url,
+bool fuse_filesystem::get_features(const std::string& url,
                               std::map<std::string, std::string>* features)
 {
   XrdCl::Buffer arg;
@@ -4527,7 +4527,7 @@ bool filesystem::get_features(const std::string& url,
 // daemon is available.
 //------------------------------------------------------------------------------
 bool
-filesystem::check_mgm(std::map<std::string, std::string>* features)
+fuse_filesystem::check_mgm(std::map<std::string, std::string>* features)
 {
   std::string address = getenv("EOS_RDRURL") ? getenv("EOS_RDRURL") : "";
 
@@ -4588,7 +4588,7 @@ filesystem::check_mgm(std::map<std::string, std::string>* features)
 // Init function
 //------------------------------------------------------------------------------
 bool
-filesystem::initlogging()
+fuse_filesystem::initlogging()
 {
   FILE* fstderr;
 
@@ -4667,7 +4667,7 @@ static bool getenv_boolean_flag(const std::string& name, bool default_value)
 }
 
 bool
-filesystem::init(int argc, char* argv[], void* userdata,
+fuse_filesystem::init(int argc, char* argv[], void* userdata,
                  std::map<std::string, std::string>* features)
 {
   if (!initlogging()) {
@@ -5026,7 +5026,7 @@ filesystem::init(int argc, char* argv[], void* userdata,
   eos_static_notice("krb5=%d", credConfig.use_user_krb5cc ? 1 : 0);
   eos_static_notice("starting filesystem");
 
-  if ((XrdSysThread::Run(&tCacheCleanup, filesystem::CacheCleanup,
+  if ((XrdSysThread::Run(&tCacheCleanup, fuse_filesystem::CacheCleanup,
                          static_cast<void*>(this),
                          0, "Cache Cleanup Thread"))) {
     eos_static_crit("failed to start cache clean-up thread");
@@ -5080,7 +5080,7 @@ strlcat(char* dst, const char* src, size_t siz)
 // especially in is_toplevel_rm
 //------------------------------------------------------------------------------
 int
-filesystem::mylstat(const char* __restrict name, struct stat* __restrict __buf,
+fuse_filesystem::mylstat(const char* __restrict name, struct stat* __restrict __buf,
                     pid_t pid)
 {
   std::string path(name);
@@ -5110,7 +5110,7 @@ filesystem::mylstat(const char* __restrict name, struct stat* __restrict __buf,
 // C++ compatibility and regular lstat was replaced with the above mylstat.
 //------------------------------------------------------------------------------
 char*
-filesystem::myrealpath(const char* __restrict path, char* __restrict resolved,
+fuse_filesystem::myrealpath(const char* __restrict path, char* __restrict resolved,
                        pid_t pid)
 {
   struct stat sb;

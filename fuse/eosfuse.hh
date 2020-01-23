@@ -127,15 +127,15 @@ public:
   {
     if(instance().config.encode_pathname)
       return true;
-    return filesystem::checkpathname(pathname);
+    return fuse_filesystem::checkpathname(pathname);
   }
   
-  filesystem&
+  fuse_filesystem&
   fs() { return fsys;}
   
 private:
 
-  filesystem fsys;
+  fuse_filesystem fsys;
 
   typedef struct cfg
   {

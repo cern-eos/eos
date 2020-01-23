@@ -70,13 +70,13 @@ extern int xrootd_nullresponsebug_retrycount;
 // When it happens we sleep between attempts.
 extern int xrootd_nullresponsebug_retrysleep;
 
-class filesystem
+class fuse_filesystem
 {
 public:
 
-  filesystem();
+  fuse_filesystem();
 
-  virtual ~filesystem();
+  virtual ~fuse_filesystem();
 
   typedef std::vector<unsigned long long> dirlist;
 
