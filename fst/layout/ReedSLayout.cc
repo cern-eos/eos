@@ -88,6 +88,8 @@ ReedSLayout::InitialiseJerasure()
   }
 
   // Initialise Jerasure data structures
+  static std::mutex jerasure_init_mutex;
+  std::lock_guard<std::mutex> lock(jerasure_init_mutex);
   matrix = cauchy_good_general_coding_matrix(mNbDataBlocks, mNbParityFiles, w);
   bitmatrix = jerasure_matrix_to_bitmatrix(mNbDataBlocks, mNbParityFiles, w,
               matrix);
