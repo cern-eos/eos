@@ -2138,16 +2138,15 @@ void GeoTreeEngine::listenFsChange(ThreadAssistant& assistant)
       }
     }
 
-    pAddRmFsMutex.LockWrite();
-
     mq::FileSystemChangeListener::Event event;
     while(mFsListener.fetch(event, assistant)) {
-
       if(event.isDeletion()) {
           eos_debug("received deletion on subject %s : the fs was removed from "
                     "the GeoTreeEngine, skipping this update", event.fileSystemQueue.c_str());
           continue;
       }
+
+      pAddRmFsMutex.LockWrite();
 
       auto notifTypeIt = gQueue2NotifType.find(event.fileSystemQueue);
 
@@ -2164,9 +2163,10 @@ void GeoTreeEngine::listenFsChange(ThreadAssistant& assistant)
           }
         }
       }
+
+      pAddRmFsMutex.UnLockWrite();
     }
 
-    pAddRmFsMutex.UnLockWrite();
     // Do the processing
     common::IntervalStopwatch stopwatch((std::chrono::milliseconds(
                                            pTimeFrameDurationMs)));
