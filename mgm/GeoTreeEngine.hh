@@ -34,6 +34,7 @@
 #include "common/table_formatter/TableFormatterBase.hh"
 #include "common/Timing.hh"
 #include "common/FileSystem.hh"
+#include "mq/FileSystemChangeListener.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysAtomics.hh"
@@ -938,11 +939,6 @@ protected:
   //! this map allow to convert a notification key to an enum for efficient processing
   static const std::map<string, int> gNotifKey2EnumSched;
 
-  //! this map allow to convert a notification key to an enum for efficient processing
-  static const std::map<string, int> gNotifKey2EnumProxy;
-
-  //! this is the list of the watched queues to be notified about
-  std::set<std::string> pWatchedQueues;
   //--------------------------------------------------------------------------------------------------------
   //--------------------------------------------------------------------------------------------------------
 
@@ -1114,6 +1110,7 @@ protected:
       pCircFrCnt2Timestamp(circSize) {}
   };
   LatencySubSys pLatencySched;
+  mq::FileSystemChangeListener mFsListener;
   //
   // => background updating
   //
@@ -1655,51 +1652,11 @@ protected:
                      const std::string& accesserGeotag) const ;
   std::string accessGetProxygroup(const std::string& geotag) const ;
 public:
-  //! [public member functions]
-  GeoTreeEngine() :
-    pSkipSaturatedAccess(true), pSkipSaturatedDrnAccess(true),
-    pSkipSaturatedBlcAccess(true), pProxyCloseToFs(true),
-    pPenaltyUpdateRate(1),
-    pFillRatioLimit(80), pFillRatioCompTol(100), pSaturationThres(10),
-    pTimeFrameDurationMs(1000), pPublishToPenaltyDelayMs(1000),
-    pAccessGeotagMapping("accessgeotagmapping"),
-    pAccessProxygroup("accessproxygroup"),
-    pCircSize(30), pFrameCount(0),
-    pPenaltySched(pCircSize),
-    pLatencySched(pCircSize)
-  {
-    // by default, disable all the placement operations for non geotagged fs
-    addDisabledBranch("*", "plct", "nogeotag", NULL, false);
-    addDisabledBranch("*", "accsdrain", "nogeotag", NULL, false);
-    // set blocking mutexes for lower latencies
-    pAddRmFsMutex.SetBlocking(true);
-    configMutex.SetBlocking(true);
-    pTreeMapMutex.SetBlocking(true);
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  GeoTreeEngine();
 
-    for (auto it = pPenaltySched.pCircFrCnt2FsPenalties.begin();
-         it != pPenaltySched.pCircFrCnt2FsPenalties.end(); it++) {
-      it->reserve(100);
-    }
-
-    // create the thread local key to handle allocation/destruction of thread local geobuffers
-    pthread_key_create(&gPthreadKey, GeoTreeEngine::tlFree);
-
-    // initialize pauser semaphore
-    if (sem_init(&gUpdaterPauseSem, 0, 1)) {
-      throw "sem_init() failed";
-    }
-
-#ifdef EOS_GEOTREEENGINE_USE_INSTRUMENTED_MUTEX
-#ifdef EOS_INSTRUMENTED_RWMUTEX
-    eos::common::RWMutex::SetOrderCheckingGlobal(true);
-    pAddRmFsMutex.SetDebugName("pAddRmFsMutex");
-    pTreeMapMutex.SetDebugName("pTreeMapMutex");
-    eos::common::RWMutex::AddOrderRule("GTE base rule",
-                                       std::vector<eos::common::RWMutex*>(
-    { &pAddRmFsMutex, &pTreeMapMutex}));
-#endif
-#endif
-  }
   // ---------------------------------------------------------------------------
   //! Force a refresh of the information in the scheduling trees
   // @return

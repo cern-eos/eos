@@ -107,6 +107,44 @@ const unsigned char GeoTreeEngine::sntFilesystem = 1,
                                    GeoTreeEngine::sntDataproxy = 4;
 std::map<std::string, unsigned char> GeoTreeEngine::gQueue2NotifType;
 
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+GeoTreeEngine::GeoTreeEngine() :
+  pSkipSaturatedAccess(true), pSkipSaturatedDrnAccess(true),
+  pSkipSaturatedBlcAccess(true), pProxyCloseToFs(true),
+  pPenaltyUpdateRate(1),
+  pFillRatioLimit(80), pFillRatioCompTol(100), pSaturationThres(10),
+  pTimeFrameDurationMs(1000), pPublishToPenaltyDelayMs(1000),
+  pAccessGeotagMapping("accessgeotagmapping"),
+  pAccessProxygroup("accessproxygroup"),
+  pCircSize(30), pFrameCount(0),
+  pPenaltySched(pCircSize),
+  pLatencySched(pCircSize),
+  mFsListener("geotree-fs-listener", gOFS->ObjectNotifier) {
+
+  // by default, disable all the placement operations for non geotagged fs
+  addDisabledBranch("*", "plct", "nogeotag", NULL, false);
+  addDisabledBranch("*", "accsdrain", "nogeotag", NULL, false);
+  // set blocking mutexes for lower latencies
+  pAddRmFsMutex.SetBlocking(true);
+  configMutex.SetBlocking(true);
+  pTreeMapMutex.SetBlocking(true);
+
+  for (auto it = pPenaltySched.pCircFrCnt2FsPenalties.begin();
+    it != pPenaltySched.pCircFrCnt2FsPenalties.end(); it++) {
+    it->reserve(100);
+  }
+
+  // create the thread local key to handle allocation/destruction of thread local geobuffers
+  pthread_key_create(&gPthreadKey, GeoTreeEngine::tlFree);
+
+  // initialize pauser semaphore
+  if (sem_init(&gUpdaterPauseSem, 0, 1)) {
+    throw "sem_init() failed";
+ }
+}
+
 bool GeoTreeEngine::forceRefreshSched()
 {
   // prevent any other use of the fast structures

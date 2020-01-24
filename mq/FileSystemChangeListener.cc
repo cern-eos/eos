@@ -41,6 +41,22 @@ bool FileSystemChangeListener::subscribe(const std::string &key) {
 }
 
 //------------------------------------------------------------------------------
+// Subscribe to the given channel and key combination
+//------------------------------------------------------------------------------
+bool FileSystemChangeListener::subscribe(const std::string &channel, const std::set<std::string> &key) {
+  return mNotifier.SubscribesToSubjectAndKey(mListenerName.c_str(), channel,
+    key, XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
+}
+
+//----------------------------------------------------------------------------
+//! Unsubscribe from the given channel and key combination
+//----------------------------------------------------------------------------
+bool FileSystemChangeListener::unsubscribe(const std::string &channel, const std::set<std::string> &key) {
+  return mNotifier.UnsubscribesToSubjectAndKey(mListenerName.c_str(), channel,
+    key, XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
+}
+
+//------------------------------------------------------------------------------
 // Start listening
 //------------------------------------------------------------------------------
 bool FileSystemChangeListener::startListening() {

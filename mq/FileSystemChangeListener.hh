@@ -26,6 +26,7 @@
 
 #include "mq/Namespace.hh"
 #include <string>
+#include <set>
 
 class ThreadAssistant;
 
@@ -68,7 +69,12 @@ public:
   //----------------------------------------------------------------------------
   //! Subscribe to the given channel and key combination
   //----------------------------------------------------------------------------
-  bool subscribe(const std::string &channel, const std::string &key);
+  bool subscribe(const std::string &channel, const std::set<std::string> &key);
+
+  //----------------------------------------------------------------------------
+  //! Unsubscribe from the given channel and key combination
+  //----------------------------------------------------------------------------
+  bool unsubscribe(const std::string &channel, const std::set<std::string> &key);
 
   //----------------------------------------------------------------------------
   //! Start listening - no more subscriptions from this point on
