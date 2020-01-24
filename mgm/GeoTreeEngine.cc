@@ -326,9 +326,7 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem* fs,
 
     gQueue2NotifType[fs->GetQueuePath()] |= sntFilesystem;
 
-    if (!gOFS->ObjectNotifier.SubscribesToSubjectAndKey("geotreeengine",
-        fs->GetQueuePath(), gWatchedKeys,
-        XrdMqSharedObjectChangeNotifier::kMqSubjectModification)) {
+    if(!mFsListener.subscribe(fs->GetQueuePath(), gWatchedKeys)) {
       eos_crit("error inserting fs %lu into group %s : error subscribing to "
                "shared object notifications", (unsigned long)fsid,
                group->mName.c_str());
@@ -443,9 +441,7 @@ bool GeoTreeEngine::removeFsFromGroup(FileSystem* fs, FsGroup* group,
   }
   // ==== update the shared object notifications
   {
-    if (!gOFS->ObjectNotifier.UnsubscribesToSubjectAndKey("geotreeengine",
-        fs->GetQueuePath(), gWatchedKeys,
-        XrdMqSharedObjectChangeNotifier::kMqSubjectModification)) {
+    if (!mFsListener.unsubscribe(fs->GetQueuePath(), gWatchedKeys)) {
       mapEntry->slowTreeMutex.UnLockWrite();
       eos_crit("error removing fs %lu into group %s : error unsubscribing to "
                "shared object notifications", (unsigned long)fsid,
@@ -462,24 +458,6 @@ bool GeoTreeEngine::removeFsFromGroup(FileSystem* fs, FsGroup* group,
   // ==== discard updates about this fs
   // ==== clean the notifications buffer
   gNotificationsBufferFs.erase(fs->GetQueuePath());
-  // ==== clean the thread-local notification queue
-  {
-    XrdMqSharedObjectChangeNotifier::Subscriber* subscriber =
-      gOFS->ObjectNotifier.GetSubscriberFromCatalog("geotreeengine", false);
-    subscriber->mSubjMtx.Lock();
-
-    for (auto it = subscriber->NotificationSubjects.begin();
-         it != subscriber->NotificationSubjects.end(); it++) {
-      // to mark the filesystem as removed, we change the notification type flag
-      if (it->mSubject.compare(0, fs->GetQueuePath().length(),
-                               fs->GetQueuePath()) == 0) {
-        eos_warning("found a notification to remove %s ", it->mSubject.c_str());
-        it->mType = XrdMqSharedObjectManager::kMqSubjectDeletion;
-      }
-    }
-
-    subscriber->mSubjMtx.UnLock();
-  }
   // ==== update the entry
   SchedTreeBase::TreeNodeInfo info;
   const SlowTreeNode* intree = mapEntry->fs2SlowTreeNode[fsid];
@@ -2146,9 +2124,8 @@ void GeoTreeEngine::StopUpdater()
 void GeoTreeEngine::listenFsChange(ThreadAssistant& assistant)
 {
   gUpdaterStarted = true;
-  gOFS->ObjectNotifier.BindCurrentThread("geotreeengine");
 
-  if (!gOFS->ObjectNotifier.StartNotifyCurrentThread()) {
+  if(!mFsListener.startListening()) {
     eos_crit("error starting shared objects change notifications");
   } else {
     eos_info("GeoTreeEngine updater is starting...");
@@ -2161,84 +2138,34 @@ void GeoTreeEngine::listenFsChange(ThreadAssistant& assistant)
       }
     }
 
-    gOFS->ObjectNotifier.tlSubscriber->mSubjSem.Wait(1);
-    // to be sure that we won't try to access a removed fs
     pAddRmFsMutex.LockWrite();
-    // we always take a lock to take something from the queue and then release it
-    gOFS->ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
 
-    // listens on modifications on filesystem objects
-    while (gOFS->ObjectNotifier.tlSubscriber->NotificationSubjects.size()) {
-      XrdMqSharedObjectManager::Notification event;
-      event = gOFS->ObjectNotifier.tlSubscriber->NotificationSubjects.front();
-      gOFS->ObjectNotifier.tlSubscriber->NotificationSubjects.pop_front();
-      string newsubject = event.mSubject.c_str();
+    mq::FileSystemChangeListener::Event event;
+    while(mFsListener.fetch(event, assistant)) {
 
-      if (event.mType == XrdMqSharedObjectManager::kMqSubjectCreation) {
-        // ---------------------------------------------------------------------
-        // handle subject creation
-        // ---------------------------------------------------------------------
-        eos_warning("received creation on subject %s : don't know what to do with this!",
-                    newsubject.c_str());
-        continue;
+      if(event.isDeletion()) {
+          eos_debug("received deletion on subject %s : the fs was removed from "
+                    "the GeoTreeEngine, skipping this update", event.fileSystemQueue.c_str());
+          continue;
       }
 
-      if (event.mType == XrdMqSharedObjectManager::kMqSubjectDeletion) {
-        // ---------------------------------------------------------------------
-        // handle subject deletion
-        // ---------------------------------------------------------------------
-        eos_debug("received deletion on subject %s : the fs was removed from "
-                  "the GeoTreeEngine, skipping this update", newsubject.c_str());
-        continue;
-      }
+      auto notifTypeIt = gQueue2NotifType.find(event.fileSystemQueue);
 
-      if (event.mType == XrdMqSharedObjectManager::kMqSubjectModification) {
-        // ---------------------------------------------------------------------
-        // handle subject modification
-        // ---------------------------------------------------------------------
-        eos_debug("received modification on subject %s", newsubject.c_str());
-        string key = newsubject;
-        string queue = newsubject;
-        size_t dpos = 0;
-
-        if ((dpos = queue.find(";")) != string::npos) {
-          key.erase(0, dpos + 1);
-          queue.erase(dpos);
-        }
-
-        auto notifTypeIt = gQueue2NotifType.find(queue);
-
-        if (notifTypeIt == gQueue2NotifType.end()) {
-          eos_err("could not determine the type of notification associated to queue ",
-                  queue.c_str());
-        } else {
-          // A machine might have several roles at the same time (DataProxy and
-          // Gateway), so an update might end in multiple update maps
-          if (notifTypeIt->second & sntFilesystem) {
-            if (gNotificationsBufferFs.count(queue)) {
-              (gNotificationsBufferFs)[queue] |= gNotifKey2EnumSched.at(key);
-            } else {
-              (gNotificationsBufferFs)[queue] = gNotifKey2EnumSched.at(key);
-            }
+      if (notifTypeIt == gQueue2NotifType.end()) {
+        eos_err("could not determine the type of notification associated to queue ", event.fileSystemQueue.c_str());
+      } else {
+        // A machine might have several roles at the same time (DataProxy and
+        // Gateway), so an update might end in multiple update maps
+        if (notifTypeIt->second & sntFilesystem) {
+          if (gNotificationsBufferFs.count(event.fileSystemQueue)) {
+            (gNotificationsBufferFs)[event.fileSystemQueue] |= gNotifKey2EnumSched.at(event.key);
+          } else {
+            (gNotificationsBufferFs)[event.fileSystemQueue] = gNotifKey2EnumSched.at(event.key);
           }
         }
-
-        continue;
       }
-
-      if (event.mType == XrdMqSharedObjectManager::kMqSubjectKeyDeletion) {
-        // Handle subject key deletion
-        eos_warning("received subject deletion on subject %s : don't know "
-                    "what to do with this!", newsubject.c_str());
-        continue;
-      }
-
-      eos_warning("msg=\"don't know what to do with subject\" subject=%s",
-                  newsubject.c_str());
-      continue;
     }
 
-    gOFS->ObjectNotifier.tlSubscriber->mSubjMtx.UnLock();
     pAddRmFsMutex.UnLockWrite();
     // Do the processing
     common::IntervalStopwatch stopwatch((std::chrono::milliseconds(
