@@ -1655,7 +1655,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  GeoTreeEngine();
+  GeoTreeEngine(XrdMqSharedObjectChangeNotifier &notifier);
 
   // ---------------------------------------------------------------------------
   //! Force a refresh of the information in the scheduling trees
