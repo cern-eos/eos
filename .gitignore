@@ -32,7 +32,6 @@ Namespace/tests/text_runner
 valgrind.supp
 eos-log-repair
 /build/
-/build_fuzz/
 __pycache__
 kineticio-dist.tgz
 # clion specific configs
@@ -45,3 +44,5 @@ kineticio-dist.tgz
 .vscode
 nbproject
 my_clang_cache.cmake
+# ccache specific configs
+/ccache/
