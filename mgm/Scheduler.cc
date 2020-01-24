@@ -24,6 +24,7 @@
 #include "mgm/Scheduler.hh"
 #include "mgm/Quota.hh"
 #include "GeoTreeEngine.hh"
+#include "mgm/XrdMgmOfs.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -114,7 +115,7 @@ Scheduler::FilePlacement(PlacementArguments* args)
 
   // place the group iterator
   if (!args->alreadyused_filesystems->empty()) {
-    if (!gGeoTreeEngine.getInfosFromFsIds(*args->alreadyused_filesystems,
+    if (!gOFS->mGeoTreeEngine->getInfosFromFsIds(*args->alreadyused_filesystems,
                                           &fsidsgeotags,
                                           0, &groupsToTry)) {
       eos_static_debug("could not retrieve scheduling group for all avoid fsids");
@@ -183,7 +184,7 @@ Scheduler::FilePlacement(PlacementArguments* args)
     eos_static_debug("Trying GeoTree Placement on group: %s, total groups: %d, groupsToTry: %d ",
                      group->mName.c_str(), FsView::gFsView.mSpaceGroupView[*args->spacename].size(),
                      groupsToTry.size());
-    bool placeRes = gGeoTreeEngine.placeNewReplicasOneGroup(
+    bool placeRes = gOFS->mGeoTreeEngine->placeNewReplicasOneGroup(
                       group, nfilesystems,
                       args->selected_filesystems,
                       args->inode,
@@ -283,7 +284,7 @@ int Scheduler::FileAccess(AccessArguments* args)
   if (!args->tried_cgi->empty()) {
     std::vector<std::string> hosts;
 
-    if (!gGeoTreeEngine.getInfosFromFsIds(*args->locationsfs, 0,
+    if (!gOFS->mGeoTreeEngine->getInfosFromFsIds(*args->locationsfs, 0,
                                           &hosts, 0)) {
       eos_static_debug("could not retrieve host for all the avoided fsids");
     }
@@ -302,7 +303,7 @@ int Scheduler::FileAccess(AccessArguments* args)
     }
   }
 
-  return gGeoTreeEngine.accessHeadReplicaMultipleGroup(nReqStripes,
+  return gOFS->mGeoTreeEngine->accessHeadReplicaMultipleGroup(nReqStripes,
          *args->fsindex,
          args->locationsfs,
          args->inode,

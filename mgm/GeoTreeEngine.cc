@@ -44,8 +44,6 @@ using namespace eos::mgm;
 
 EOSMGMNAMESPACE_BEGIN
 
-GeoTreeEngine gGeoTreeEngine;
-
 // We assume that all the trees have the same max size, we should take the max
 // of all the sizes otherwise
 const size_t GeoTreeEngine::gGeoBufferSize = sizeof(FastPlacementTree) +
@@ -3341,57 +3339,57 @@ bool GeoTreeEngine::setParameter(std::string param, const std::string& value,
     ok = true;}
 
   if (param == "timeframedurationms") {
-    ok = gGeoTreeEngine.setTimeFrameDurationMs(ival, setconfig);
+    ok = this->setTimeFrameDurationMs(ival, setconfig);
   } else if (param == "saturationthres") {
-    ok = gGeoTreeEngine.setSaturationThres((char)ival, setconfig);
+    ok = this->setSaturationThres((char)ival, setconfig);
   } else if (param == "fillratiocomptol") {
-    ok = gGeoTreeEngine.setFillRatioCompTol((char)ival, setconfig);
+    ok = this->setFillRatioCompTol((char)ival, setconfig);
   } else if (param == "fillratiolimit") {
-    ok = gGeoTreeEngine.setFillRatioLimit((char)ival, setconfig);
+    ok = this->setFillRatioLimit((char)ival, setconfig);
   } else if (param == "accessulscorepenalty") {
     if (iparamidx > -2) {
-      ok = gGeoTreeEngine.setAccessUlScorePenalty((char)ival, iparamidx, setconfig);
+      ok = this->setAccessUlScorePenalty((char)ival, iparamidx, setconfig);
     } else {
       readParamVFromString(pPenaltySched.pAccessUlScorePenalty, value);
     }
   } else if (param == "accessdlscorepenalty") {
     if (iparamidx > -2) {
-      ok = gGeoTreeEngine.setAccessDlScorePenalty((char)ival, iparamidx, setconfig);
+      ok = this->setAccessDlScorePenalty((char)ival, iparamidx, setconfig);
     } else {
       readParamVFromString(pPenaltySched.pAccessDlScorePenalty, value);
     }
   } else if (param == "plctulscorepenalty") {
     if (iparamidx > -2) {
-      ok = gGeoTreeEngine.setPlctUlScorePenalty((char)ival, iparamidx, setconfig);
+      ok = this->setPlctUlScorePenalty((char)ival, iparamidx, setconfig);
     } else {
       readParamVFromString(pPenaltySched.pPlctUlScorePenalty, value);
     }
   } else if (param == "plctdlscorepenalty") {
     if (iparamidx > -2) {
-      ok = gGeoTreeEngine.setPlctDlScorePenalty((char)ival, iparamidx, setconfig);
+      ok = this->setPlctDlScorePenalty((char)ival, iparamidx, setconfig);
     } else {
       readParamVFromString(pPenaltySched.pPlctDlScorePenalty, value);
     }
   } else if (param == "gwscorepenalty") {
     if (iparamidx > -2) {
-      ok = gGeoTreeEngine.setProxyScorePenalty((char)ival, iparamidx, setconfig);
+      ok = this->setProxyScorePenalty((char)ival, iparamidx, setconfig);
     } else {
       readParamVFromString(pPenaltySched.pProxyScorePenalty, value);
     }
   } else if (param == "skipsaturatedblcaccess") {
-    ok = gGeoTreeEngine.setSkipSaturatedBlcAccess((bool)ival, setconfig);
+    ok = this->setSkipSaturatedBlcAccess((bool)ival, setconfig);
   } else if (param == "skipsaturateddrnaccess") {
-    ok = gGeoTreeEngine.setSkipSaturatedDrnAccess((bool)ival, setconfig);
+    ok = this->setSkipSaturatedDrnAccess((bool)ival, setconfig);
   } else if (param == "skipsaturatedaccess") {
-    ok = gGeoTreeEngine.setSkipSaturatedAccess((bool)ival, setconfig);
+    ok = this->setSkipSaturatedAccess((bool)ival, setconfig);
   } else if (param == "penaltyupdaterate") {
-    ok = gGeoTreeEngine.setPenaltyUpdateRate((float)dval, setconfig);
+    ok = this->setPenaltyUpdateRate((float)dval, setconfig);
   } else if (param == "disabledbranches") {
     ok = true;
 
     if (value.size() > 4) {
       // first, clear the list of disabled branches
-      gGeoTreeEngine.rmDisabledBranch("*", "*", "*", NULL);
+      this->rmDisabledBranch("*", "*", "*", NULL);
       // remove leading and trailing square brackets
       string list(value.substr(2, value.size() - 4));
       // from the end to avoid reallocation of the string
@@ -3404,17 +3402,16 @@ bool GeoTreeEngine::setParameter(std::string param, const std::string& value,
         auto comidx2 = list.find(',', comidx + 1);
         string optype(list.substr(comidx + 1, comidx2 - comidx - 1));
         string group(list.substr(comidx2 + 1, idxr - comidx2 - 1));
-        ok = ok &&
-             gGeoTreeEngine.addDisabledBranch(group, optype, geotag, NULL, setconfig);
+        ok = ok && this->addDisabledBranch(group, optype, geotag, NULL, setconfig);
         list.erase(idxl, std::string::npos);
       }
     }
   } else if (param == "proxyclosetofs") {
-    ok = gGeoTreeEngine.setProxyCloseToFs((bool)ival, setconfig);
+    ok = this->setProxyCloseToFs((bool)ival, setconfig);
   } else if (param == "accessgeotagmapping") {
-    ok = gGeoTreeEngine.setAccessGeotagMapping(value, setconfig);
+    ok = this->setAccessGeotagMapping(value, setconfig);
   } else if (param == "accessproxygroup") {
-    ok = gGeoTreeEngine.setAccessProxygroup(value, setconfig);
+    ok = this->setAccessProxygroup(value, setconfig);
   }
 
   return ok;

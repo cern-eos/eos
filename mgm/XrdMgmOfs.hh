@@ -1650,6 +1650,9 @@ public:
   //! Class tracking file creations for sanity
   std::unique_ptr<eos::mgm::ReplicationTracker> mReplicationTracker;
 
+  //! GeoTreeEngine
+  std::unique_ptr<eos::mgm::GeoTreeEngine> mGeoTreeEngine;
+
   //! Class inspecting files in the namespace for statistics
   std::unique_ptr<eos::mgm::FileInspector> mFileInspector;
 

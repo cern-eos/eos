@@ -1286,6 +1286,10 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   ConfEngine->SetAutoSave(true);
+
+  // Initialize geotree engine
+  mGeoTreeEngine.reset(new eos::mgm::GeoTreeEngine());
+
   // Create comment log to save all proc commands executed with a comment
   mCommentLog.reset(new eos::common::CommentLog("/var/log/eos/mgm/logbook.log"));
 
@@ -1945,8 +1949,9 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // to be sure not to miss any notification while everything is starting up
   // we don't check if it succeeds because we might fail because we timeout
   // if there is no FST sending update
-  gGeoTreeEngine.forceRefresh();
-  gGeoTreeEngine.StartUpdater();
+  mGeoTreeEngine->forceRefresh();
+  mGeoTreeEngine->StartUpdater();
+
   // Start the drain engine
   mDrainEngine.Start();
   return NoGo;

@@ -35,6 +35,7 @@
 #include "mgm/RouteEndpoint.hh"
 #include "mgm/PathRouting.hh"
 #include "mgm/fsck/Fsck.hh"
+#include "mgm/XrdMgmOfs.hh"
 #include "common/StringUtils.hh"
 #include "mq/SharedHashWrapper.hh"
 #include <sstream>
@@ -176,7 +177,7 @@ IConfigEngine::ApplyEachConfig(const char* key, XrdOucString* val, void* arg)
   } else if (skey.beginswith("geosched:")) {
     skey.erase(0, 9);
 
-    if (!gGeoTreeEngine.setParameter(skey.c_str(), sval.c_str(), -2)) {
+    if (!gOFS->mGeoTreeEngine->setParameter(skey.c_str(), sval.c_str(), -2)) {
       eos_static_err("failed applying config line key: |geosched:%s| => |%s|",
                      skey.c_str(), val->c_str());
       oss_err << "error: failed applying config line key: geosched:"

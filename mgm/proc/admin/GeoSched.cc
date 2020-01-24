@@ -51,7 +51,7 @@ ProcCommand::GeoSched()
       }
 
       std::string info;
-      gGeoTreeEngine.printInfo(info, btree, bsnapsh, bprm, bst, schedgroup.c_str(),
+      gOFS->mGeoTreeEngine->printInfo(info, btree, bsnapsh, bprm, bst, schedgroup.c_str(),
                                optype.c_str(), useColors, monitoring);
       stdOut += info.c_str();
       retc = SFS_OK;
@@ -64,12 +64,12 @@ ProcCommand::GeoSched()
       int iparamidx = paramidx.atoi();
       bool ok = false;
       // -> save it to the config
-      ok = gGeoTreeEngine.setParameter(param.c_str(), value.c_str(), iparamidx, true);
+      ok = gOFS->mGeoTreeEngine->setParameter(param.c_str(), value.c_str(), iparamidx, true);
       retc = ok ? SFS_OK : SFS_ERROR;
     }
 
     if (mSubCmd == "updtpause") {
-      if (gGeoTreeEngine.PauseUpdater()) {
+      if (gOFS->mGeoTreeEngine->PauseUpdater()) {
         stdOut += "GeoTreeEngine has been paused\n";
       } else {
         stdOut += "GeoTreeEngine could not be paused at the moment\n";
@@ -79,13 +79,13 @@ ProcCommand::GeoSched()
     }
 
     if (mSubCmd == "updtresume") {
-      gGeoTreeEngine.ResumeUpdater();
+      gOFS->mGeoTreeEngine->ResumeUpdater();
       stdOut += "GeoTreeEngine has been resumed\n";
       retc = SFS_OK;
     }
 
     if (mSubCmd == "forcerefresh") {
-      gGeoTreeEngine.forceRefresh();
+      gOFS->mGeoTreeEngine->forceRefresh();
       stdOut += "GeoTreeEngine has been refreshed\n";
       retc = SFS_OK;
     }
@@ -96,19 +96,19 @@ ProcCommand::GeoSched()
       XrdOucString optype = pOpaque->Get("mgm.optype");
 
       if (mSubCmd == "disabledadd") {
-        gGeoTreeEngine.addDisabledBranch(group.c_str(), optype.c_str(), geotag.c_str(),
+        gOFS->mGeoTreeEngine->addDisabledBranch(group.c_str(), optype.c_str(), geotag.c_str(),
                                          &stdOut, true); // -> save it to the config
         retc = SFS_OK;
       }
 
       if (mSubCmd == "disabledrm") {
-        gGeoTreeEngine.rmDisabledBranch(group.c_str(), optype.c_str(), geotag.c_str(),
+        gOFS->mGeoTreeEngine->rmDisabledBranch(group.c_str(), optype.c_str(), geotag.c_str(),
                                         &stdOut, true); // -> save it to the config
         retc = SFS_OK;
       }
 
       if (mSubCmd == "disabledshow") {
-        gGeoTreeEngine.showDisabledBranches(group.c_str(), optype.c_str(),
+        gOFS->mGeoTreeEngine->showDisabledBranches(group.c_str(), optype.c_str(),
                                             geotag.c_str(), &stdOut);
         retc = SFS_OK;
       }
@@ -120,36 +120,36 @@ ProcCommand::GeoSched()
       bool monitoring = pOpaque->Get("mgm.monitoring");
 
       if (mSubCmd == "accesssetdirect") {
-        gGeoTreeEngine.setAccessGeotagMapping(&stdOut, geotag.c_str(),
+        gOFS->mGeoTreeEngine->setAccessGeotagMapping(&stdOut, geotag.c_str(),
                                               geotag_list.c_str(), true);
         retc = SFS_OK;
       }
 
       if (mSubCmd == "accesscleardirect") {
-        gGeoTreeEngine.clearAccessGeotagMapping(&stdOut,
+        gOFS->mGeoTreeEngine->clearAccessGeotagMapping(&stdOut,
                                                 geotag == "all" ? "" : geotag.c_str(), true);
         retc = SFS_OK;
       }
 
       if (mSubCmd == "accessshowdirect") {
-        gGeoTreeEngine.showAccessGeotagMapping(&stdOut, monitoring);
+        gOFS->mGeoTreeEngine->showAccessGeotagMapping(&stdOut, monitoring);
         retc = SFS_OK;
       }
 
       if (mSubCmd == "accesssetproxygroup") {
-        gGeoTreeEngine.setAccessProxygroup(&stdOut, geotag.c_str(), geotag_list.c_str(),
+        gOFS->mGeoTreeEngine->setAccessProxygroup(&stdOut, geotag.c_str(), geotag_list.c_str(),
                                            true);
         retc = SFS_OK;
       }
 
       if (mSubCmd == "accessclearproxygroup") {
-        gGeoTreeEngine.clearAccessProxygroup(&stdOut,
+        gOFS->mGeoTreeEngine->clearAccessProxygroup(&stdOut,
                                              geotag == "all" ? "" : geotag.c_str(), true);
         retc = SFS_OK;
       }
 
       if (mSubCmd == "accessshowproxygroup") {
-        gGeoTreeEngine.showAccessProxygroup(&stdOut, monitoring);
+        gOFS->mGeoTreeEngine->showAccessProxygroup(&stdOut, monitoring);
         retc = SFS_OK;
       }
     }

@@ -366,7 +366,7 @@ XrdMgmOfs::OrderlyShutdown()
   eos_warning("%s", "msg=\"stopping central drainning\"");
   mDrainEngine.Stop();
   eos_warning("%s", "msg=\"stopping geotree engine updater\"");
-  gGeoTreeEngine.StopUpdater();
+  mGeoTreeEngine->StopUpdater();
 
   if (IoStats) {
     eos_warning("%s", "msg=\"stopping and deleting IoStats\"");
@@ -661,11 +661,11 @@ static unsigned int countNbElementsInXrdOucTList(const XrdOucTList* listPtr)
 int
 XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecEntity* client)
 {
-  if(pargs.opts & Prep_QUERY) {
-    return _prepare_query(pargs, error, client);
-  } else {
+  // if(pargs.opts & Prep_QUERY) {
+  //   return _prepare_query(pargs, error, client);
+  // } else {
     return _prepare(pargs, error, client);
-  }
+  // }
 }
 
 

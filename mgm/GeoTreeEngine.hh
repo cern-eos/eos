@@ -2151,8 +2151,6 @@ public:
 
 };
 
-extern GeoTreeEngine gGeoTreeEngine;
-
 EOSMGMNAMESPACE_END
 
 #endif

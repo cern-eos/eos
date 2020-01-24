@@ -525,13 +525,13 @@ DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain)
     existing_repl.push_back(elem);
   }
 
-  if (!gGeoTreeEngine.getInfosFromFsIds(existing_repl, &fsid_geotags, 0, 0)) {
+  if (!gOFS->mGeoTreeEngine->getInfosFromFsIds(existing_repl, &fsid_geotags, 0, 0)) {
     eos_err("msg=\"failed to retrieve info for existing replicas\" fxid=%08llx",
             mFileId);
     return false;
   }
 
-  bool res = gGeoTreeEngine.placeNewReplicasOneGroup(
+  bool res = gOFS->mGeoTreeEngine->placeNewReplicasOneGroup(
                group, nfilesystems,
                &new_repl,
                (ino64_t) fdrain.mProto.id(),
