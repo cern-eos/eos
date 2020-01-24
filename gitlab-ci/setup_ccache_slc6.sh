@@ -7,6 +7,5 @@ export CCACHE_BASEDIR="`rpm --eval %_builddir`/`ls build/SRPMS/*.src.rpm | awk -
 export CCACHE_SLOPPINESS=pch_defines
 
 ccache -z
-ccache -p
 
 set +x

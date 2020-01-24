@@ -9,6 +9,5 @@ export CCACHE_NOHASHDIR=true
 export CCACHE_MAXSIZE=1.5G
 
 ccache -z
-ccache -p
 
 set +x
