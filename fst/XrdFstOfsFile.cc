@@ -960,7 +960,9 @@ XrdFstOfsFile::truncate(XrdSfsFileOffset fsize)
 
   int rc = mLayout->Truncate(fsize);
   if (!rc) {
-    mHasWrite = true;
+    if (fsize != openSize) {
+      mHasWrite = true;
+    }
   }
   return rc;
 }
