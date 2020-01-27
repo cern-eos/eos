@@ -721,7 +721,6 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
     }
   }
 
-  mHasWrite = true;
   eos_debug("rc=%d offset=%lu size=%lu", rc, fileOffset,
             static_cast<unsigned long>(buffer_size));
 
@@ -737,7 +736,10 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
     }
 
     hasWriteError = true;
+  } else {
+    mHasWrite = true;
   }
+
 
   if (rc < 0) {
     int envlen = 0;
@@ -948,8 +950,6 @@ XrdFstOfsFile::truncate(XrdSfsFileOffset fsize)
   }
 
   if (fsize != openSize) {
-    mHasWrite = true;
-
     if (mCheckSum) {
       if (fsize != mCheckSum->GetMaxOffset()) {
         mCheckSum->Reset();
@@ -958,7 +958,11 @@ XrdFstOfsFile::truncate(XrdSfsFileOffset fsize)
     }
   }
 
-  return mLayout->Truncate(fsize);
+  int rc = mLayout->Truncate(fsize);
+  if (!rc) {
+    mHasWrite = true;
+  }
+  return rc;
 }
 
 //------------------------------------------------------------------------------
