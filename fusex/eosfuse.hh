@@ -179,8 +179,10 @@ public:
                     struct fuse_file_info* fi,
                     struct flock* lock, int sleep);
 
+#if ( FUSE_VERSION > 28 )
   static void flock(fuse_req_t req, fuse_ino_t ino,
 		    struct fuse_file_info *fi, int op);
+#endif
 
   metad mds;
   ::data datas;

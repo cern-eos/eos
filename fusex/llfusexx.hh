@@ -145,7 +145,9 @@ protected:
     operations.symlink = &T::symlink;
     operations.getlk = &T::getlk;
     operations.setlk = &T::setlk;
+#if ( FUSE_VERSION > 28 )
     operations.flock = &T::flock;
+#endif
   }
 
 public:

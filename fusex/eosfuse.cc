@@ -5761,6 +5761,7 @@ EosFuse::setlk(fuse_req_t req, fuse_ino_t ino,
                     dump(id, ino, 0, rc).c_str());
 }
 
+#if ( FUSE_VERSION > 28 )
 void
 /* -------------------------------------------------------------------------- */
 EosFuse::flock(fuse_req_t req, fuse_ino_t ino,
@@ -5844,7 +5845,7 @@ EosFuse::flock(fuse_req_t req, fuse_ino_t ino,
   eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
                     dump(id, ino, 0, rc).c_str());
 }
-
+#endif
 
 /* -------------------------------------------------------------------------- */
 void
