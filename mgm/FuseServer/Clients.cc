@@ -120,6 +120,7 @@ FuseServer::Clients::MonitorHeartBeat()
       for (auto it = evictmap.begin(); it != evictmap.end(); ++it) {
         mMap.erase(it->second);
         mUUIDView.erase(it->first);
+	gOFS->zMQ->gFuseServer.Locks().dropLocks(it->first);
       }
     }
 
