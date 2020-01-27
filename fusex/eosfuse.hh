@@ -178,6 +178,10 @@ public:
   static void setlk(fuse_req_t req, fuse_ino_t ino,
                     struct fuse_file_info* fi,
                     struct flock* lock, int sleep);
+
+  static void flock(fuse_req_t req, fuse_ino_t ino,
+		    struct fuse_file_info *fi, int op);
+
   metad mds;
   ::data datas;
   cap caps;

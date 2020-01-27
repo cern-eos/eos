@@ -62,6 +62,7 @@ extern "C" { /* this 'extern "C"' brace will eventually end up in the .h file, t
 
 #include <sys/resource.h>
 #include <sys/types.h>
+#include <sys/file.h>
 
 #include "common/XattrCompat.hh"
 
@@ -4454,6 +4455,11 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
     lock.l_start = 0;
     lock.l_len = -1;
     lock.l_pid = fi->lock_owner;
+
+    if (io->flocked) {
+      lock.l_pid = fuse_req_ctx(req)->pid;
+    }
+
     rc |= Instance().mds.setlk(req, io->mdctx(), &lock, 0);
   }
 
@@ -5754,6 +5760,91 @@ EosFuse::setlk(fuse_req_t req, fuse_ino_t ino,
   eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
                     dump(id, ino, 0, rc).c_str());
 }
+
+void
+/* -------------------------------------------------------------------------- */
+EosFuse::flock(fuse_req_t req, fuse_ino_t ino,
+	       struct fuse_file_info *fi, int op)
+/* -------------------------------------------------------------------------- */
+{
+  eos::common::Timing timing(__func__);
+  COMMONTIMING("_start_", &timing);
+  eos_static_debug("");
+  ADD_FUSE_STAT(__func__, req);
+  EXEC_TIMING_BEGIN(__func__);
+  Track::Monitor mon(__func__, Instance().Tracker(), ino, true);
+  fuse_id id(req);
+  int rc = 0;
+
+  if (!Instance().Config().options.global_locking) {
+    // use default local locking
+    rc = EOPNOTSUPP;
+  } else {
+    // use global locking
+    data::data_fh* io = (data::data_fh*) fi->fh;
+
+    if (io) {
+      metad::shared_md md = io->mdctx();
+
+      size_t w_ms = 10;
+      int sleep = 1;
+
+      struct flock lock;
+
+      lock.l_len = 0;
+      lock.l_start = 0;
+
+      if ( op & LOCK_NB ) {
+	sleep = 0;
+      }
+
+      if ( op & LOCK_SH ) {
+	lock.l_type = F_RDLCK; 
+      } else if ( op & LOCK_EX ) {
+	lock.l_type = F_WRLCK;
+      } else if ( op & LOCK_UN ) {
+	lock.l_type = F_UNLCK;
+      } else {
+	rc = EINVAL;
+      }
+
+      lock.l_pid = fuse_req_ctx(req)->pid;
+
+      if (!rc) {
+	do {
+	  // we currently implement the polling lock on client side due to the
+	  // thread-per-link model of XRootD
+	  rc = Instance().mds.setlk(req, md, &lock, sleep);
+	  if (rc && sleep) {
+	    std::this_thread::sleep_for(std::chrono::milliseconds(w_ms));
+	    // do exponential back-off with a hard limit at 1s
+	    w_ms *= 2;
+	    
+	    if (w_ms > 1000) {
+	      w_ms = 1000;
+	    }
+	    
+          continue;
+	  }
+	  
+	  break;
+	} while (rc);
+      }
+      if (!rc) {
+	io->flocked = true;
+      }
+    } else {
+      rc = ENXIO;
+    }
+  }
+
+  fuse_reply_err(req, rc);
+  EXEC_TIMING_END(__func__);
+  COMMONTIMING("_stop_", &timing);
+  eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
+                    dump(id, ino, 0, rc).c_str());
+}
+
 
 /* -------------------------------------------------------------------------- */
 void

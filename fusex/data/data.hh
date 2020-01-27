@@ -285,6 +285,7 @@ public:
     cap::shared_cap cap_;
     metad::shared_md md;
     bool rw;
+    bool flocked;
     std::string _authid;
     std::atomic<bool> update_mtime_on_flush;
     std::atomic<time_t> next_size_flush;

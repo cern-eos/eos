@@ -145,6 +145,7 @@ protected:
     operations.symlink = &T::symlink;
     operations.getlk = &T::getlk;
     operations.setlk = &T::setlk;
+    operations.flock = &T::flock;
   }
 
 public:
