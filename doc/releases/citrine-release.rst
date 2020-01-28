@@ -24,6 +24,10 @@ Bug
 ---
 
 * FUSEX: fix writer starvation triggered by EDQUOT errors
+* [EOS-3872] - FST should delete file on WCLOSE when archive request cannot not be queued
+* [EOS-3873] - Coredump in jerasure_matrix_to_bitmatrix
+* [EOS-3885] - Add "tape enabled" configuration attribute to /etc/xrd.cf.mgm
+* [EOS-3915] - FUSEX uses std::stoll instead of std::stoull to parse inodes, breaking new inode encoding scheme
 
 Improvement
 -----------
@@ -33,7 +37,8 @@ Improvement
 * FUSEX: add CERN automount script/configs and update SELINUX policies accordingly supporting SquashFS mounting
 * FST: support ISA-L accelerated adler/crc32c checksum
 * FST: add generic eos-checksum command
-* FST: support xxhash64,crc64 and sha256 as checksums 
+* FST: support xxhash64,crc64 and sha256 as checksums
+* ALL: Add basic support for Macaroons and SciTokens
 
 
 ``v4.6.7 Citrine``
