@@ -54,7 +54,7 @@ before_script:
     - git submodule update --init --recursive
     - mkdir build; cd build
     - cmake ../ -DPACKAGEONLY=1 ; make srpm ; cd ../
-    - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-8/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
+    - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-8/x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
     - dnf builddep --nogpgcheck --allowerasing -y build/SRPMS/*
     - if [[ $CI_COMMIT_TAG ]]; then BUILD_TYPE=tag; else BUILD_TYPE=commit; fi
     - if [ "$BUILD_TYPE" == "commit" ]; then source gitlab-ci/setup_ccache.sh; else export CCACHE_DISABLE=1; fi
@@ -171,6 +171,33 @@ before_script:
     # - docker exec -i eos-cli1 env EOS_MGM_URL=root://eos-mgm1.eoscluster.cern.ch eos fuse mount /eos_fuse
     # - docker exec -i eos-cli1 env EOS_MGM_URL=root://eos-mgm1.eoscluster.cern.ch eos fuse mount /eos_fuse2
     # - docker exec -i eos-cli1 python /eosclient-tests/run.py --workdir="/eos_fuse/dockertest /eos_fuse2/dockertest" ci
+  <<: *system_test_after_script_template
+  artifacts:
+    when: on_failure
+    expire_in: 3 days
+    paths:
+      - eos-logs/
+
+
+.system_test_c8_template: &system_test_c8_template_definition
+  script:
+    - sudo ./eos-docker/scripts/shutdown_services.sh
+    - ./eos-docker/scripts/remove_unused_images.sh
+    - docker pull gitlab-registry.cern.ch/dss/${EOS_IMG_NAME}${CI_COMMIT_TAG-$CI_PIPELINE_ID}
+    - if [[ "$CI_JOB_NAME" == system_test_c8_qdb* ]]; then
+        sudo ./eos-docker/scripts/start_services.sh -q -k mit -i gitlab-registry.cern.ch/dss/${EOS_IMG_NAME}${CI_COMMIT_TAG-$CI_PIPELINE_ID};
+      else
+        sudo ./eos-docker/scripts/start_services.sh -k mit -i gitlab-registry.cern.ch/dss/${EOS_IMG_NAME}${CI_COMMIT_TAG-$CI_PIPELINE_ID};
+      fi
+    - docker exec -i eos-cli1 git clone https://gitlab.cern.ch/dss/eosclient-tests.git
+    - if [[ "$CI_JOB_NAME" == system_test_c8_qdb* ]]; then docker cp eos-cli1:/usr/sbin/eos-fsck-test .; ./eos-fsck-test --type docker; rm -rf eos-fsck-test; fi
+    - docker exec -i eos-mgm1 eos-instance-test-ci
+    - docker exec -di eos-cli1 /bin/bash -c 'mkdir /eos1/; mount -t fuse eosxd -ofsname=mount-1 /eos1/'
+    - docker exec -di eos-cli1 /bin/bash -c 'mkdir /eos2/; mount -t fuse eosxd -ofsname=mount-2 /eos2/'
+    - docker exec -i -u eos-user eos-cli1 /bin/bash -c 'mkdir /eos1/dockertest/fusex_tests/; cd /eos1/dockertest/fusex_tests/; fusex-benchmark'
+    # Set default python version (remove once eosclient-tests are EL8 python-compliant)
+    - docker exec -i eos-cli1 /bin/bash -c 'alternatives --remove-all python ; alternatives --install /usr/bin/python python /usr/bin/python2 1000'
+    - docker exec -i -u eos-user eos-cli1 python /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" ci;
   <<: *system_test_after_script_template
   artifacts:
     when: on_failure
@@ -584,6 +611,25 @@ cc7_docker_image_commit:
     - tags
 
 
+c8_docker_image_commit:
+  stage: build:dockerimage
+  tags:
+    - docker-image-build
+  script:
+    - ""
+  variables:
+    TO: gitlab-registry.cern.ch/dss/eos:c8_${CI_PIPELINE_ID}
+    DOCKER_FILE: eos-docker/Dockerfile_c8
+  dependencies:
+    - build_c8
+    - clone_docker
+  only:
+    - branches
+  except:
+    - beryl_aquamarine
+    - tags
+
+
 ubuntu_bionic_docker_image_commit:
   stage: build:dockerimage
   tags:
@@ -901,6 +947,32 @@ system_test_qdb_xrd_testing:
     - clone_docker
   only:
     - schedules
+  allow_failure: true
+  retry: 1
+
+
+system_test_c8:
+  stage: test
+  <<: *system_test_c8_template_definition
+  variables:
+    EOS_IMG_NAME: "eos:c8_"
+  tags:
+    - shell-with-docker
+  dependencies:
+    - clone_docker
+  allow_failure: true
+  retry: 1
+
+
+system_test_c8_qdb:
+  stage: test
+  <<: *system_test_c8_template_definition
+  variables:
+    EOS_IMG_NAME: "eos:c8_"
+  tags:
+    - shell-with-docker
+  dependencies:
+    - clone_docker
   allow_failure: true
   retry: 1
 
