@@ -5,9 +5,9 @@ fs
 
   fs add|boot|config|dropdeletion|dropghosts|dropfiles|dumpmd|ls|mv|rm|status [OPTIONS]
     Options:
-    fs add [-m|--manual <fsid>] <uuid> <node-queue>|<host>[:<port>] <mountpoint> [<schedgroup>] [<status>]
+    fs add [-m|--manual <fsid>] <uuid> <node-queue>|<host>[:<port>] <mountpoint> [<space>] [<status>]
     add and assign a filesystem based on the unique identifier of the disk <uuid>
-    -m|--manual  : add with user specified <fsid> and <schedgroup>
+    -m|--manual  : add with user specified <fsid> and <space>
     <fsid>       : numeric filesystem id 1...65535
     <uuid>       : unique string identifying current filesystem
     <node-queue> : internal EOS identifier for a node e.g /eos/<host>:<port>/fst
@@ -15,8 +15,8 @@ fs
     <host>       : FQDN of host where filesystem is mounter
     <port>       : FST XRootD port number [usually 1095]
     <mountponit> : local path of the mounted filesystem e.g /data/
-    <schedgroup> : scheduling group in which to insert filesystem, if nothing
-    is specified then "default" scheduling group is used
+    <space>      : space in which to insert the filesystem, if nothing is
+    specified then space "default" is used
     <status>     : set filesystem status after insertion e.g off|rw|ro etc.
 .. code-block:: text
 
@@ -35,7 +35,7 @@ fs
     <sourceid>   : id of the source filesystem
     <targetid>   : id of the target filesystem
   
-    fs config <fsid>|<uuid>|<host>:<port> <key>=<value>
+    fs config <fsid> <key>=<value>
     configure the filesystem parameter, where <key> and <value> can be:
     configstatus=rw|wo|ro|drain|draindead|off|empty [--comment "<comment>"]
     rw        : set filesystem in read-write mode
@@ -50,10 +50,16 @@ fs
     headroom=<size>
     headroom to keep per filesystem. <size> can be (>0)[BMGT]
     scaninterval=<seconds>
-    configure a scanner thread to recheck the file & block checksum
-    of all stored files every <seconds>. 0 disables scanning
+    entry rescan interval (default 7 days), 0 disables scanning
     scanrate=<MB/s>
-    configure the maximum scan rate
+    maximum IO scan rate per filesystem
+    scan_disk_interval=<seconds>
+    disk consistency thread scan interval (default 4h)
+    scan_ns_interval=<seconds>
+    namespace consistency thread scan interval (default 3 days)
+    scan_ns_rate=<entries/s>
+    maximum scan rate of ns entries for the NS consistency. This
+    is bound by the maxium number of IOPS per disk.
     graceperiod=<seconds>
     grace period before a filesystem with an operation error gets
     automatically drained
@@ -75,9 +81,10 @@ fs
     with the S3 storage endpoint
     fs dropdeletion <fsid>
     drop all pending deletions on the filesystem
-    fs dropghosts <fsid>
-    drop all filesystem view ghost entries
-    (ids without meta data objects in the namespace)
+    fs dropghosts <fsid> [--fxid fid1 [fid2] ...]
+    drop file ids (hex) without a corresponding metadata object in
+    the namespace that are still accounted in the file system view.
+    If no fxid is provided then all fids on the file system are checked.
     fs dropfiles <fsid> [-f]
     drop all files on the filesystem
     -f : unlink/remove files from the namespace (you have to remove
@@ -89,7 +96,7 @@ fs
     --size : dump only the file sizes
     -m     : print full metadata record in env format
     -s     : silent mode (will keep an internal reference)
-    fs ls [-m|-l|-e|--io|--fsck|-d|--drain] [-s] [-b|--brief] [[matchlist]]
+    fs ls [-m|-l|-e|--io|--fsck|[-d|--drain]|-D|-F] [-s] [-b|--brief] [[matchlist]]
     list filesystems using the default output format
     -m         : monitoring format
     -b|--brief : display hostnames without domain names
@@ -99,6 +106,13 @@ fs
     --fsck     : display filesystem check statistics
     -d|--drain : display filesystems in drain or draindead status
     along with drain progress and statistics
+    -D|--drain_jobs :
+    dispaly ongoing drain transfers, matchlist needs to be an integer
+    representing the drain file system id
+    -F|--failed_drain_jobs :
+    dispaly failed drain transfers, matchlist needs to be an integer
+    representing the drain file system id. This will only display
+    information while the draining is ongoing
     -s         : silent mode
     [matchlist]
     -> can be the name of a space or a comma separated list of
@@ -109,7 +123,8 @@ fs
     'fs ls -l default,drain,bootfailure'
     fs mv [--force] <src_fsid|src_grp|src_space> <dst_grp|dst_space>
     move filesystem(s) in different scheduling group or space
-    --force   : force mode - allows to move non-empty filesystems bypassing group and node constraints
+    --force   : force mode - allows to move non-empty filesystems bypassing group
+    and node constraints
     src_fsid  : source filesystem id
     src_grp   : all filesystems from scheduling group are moved
     src_space : all filesystems from space are moved

@@ -34,6 +34,7 @@ Client Commands
   clicommands/health
   clicommands/help
   clicommands/info
+  clicommands/inspector
   clicommands/io
   clicommands/json
   clicommands/license
@@ -64,7 +65,9 @@ Client Commands
   clicommands/stat
   clicommands/test
   clicommands/timing
+  clicommands/token
   clicommands/touch
+  clicommands/tracker
   clicommands/transfer
   clicommands/version
   clicommands/vid

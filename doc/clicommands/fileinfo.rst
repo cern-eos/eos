@@ -3,17 +3,22 @@ fileinfo
 
 .. code-block:: text
 
-  usage: fileinfo <path> [--path] [--fxid] [--fid] [--size] [--checksum] [--fullpath] [-m] [--silent] [--env] :  print file information for <path>
-    fileinfo fxid:<fid-hex>                                           :  print file information for fid <fid-hex>
-    fileinfo fid:<fid-dec>                                            :  print file information for fid <fid-dec>
-    fileinfo inode:<fid-dec>                                          :  print file information for inode (decimal)>
-    --path  :  selects to add the path information to the output
-    --fxid  :  selects to add the hex file id information to the output
-    --fid   :  selects to add the base10 file id information to the output
-    --size  :  selects to add the size information to the output
-    --checksum :  selects to add the checksum information to the output
-    --fullpath :  selects to add the full path information to each replica
-    --proxy    :  selects to add the proxy information if any
-    -m     :  print single line in monitoring format
-    --env  :  print in OucEnv format
-    -s     :  silent - used to run as internal command
+  fileinfo <identifier> [--path] [--fid] [--fxid] [--size] [--checksum] [--fullpath] [--proxy] [-m] [--env] [-s|--silent]
+    Prints file information for specified <identifier>
+    <identifier> = <path>|fid:<fid-dec>|fxid:<fid-hex>|inode:<inode-dec>
+  Options:
+    --path                        :  filters output to show path field
+    --fid                         :  filters output to show fid field
+    --fxid                        :  filters output to show fxid field
+    --size                        :  filters output to show size field
+    --checksum                    :  filters output to show checksum field
+    --fullpath                    :  adds physical path information to the output
+    --proxy                       :  adds proxy information to the output
+    -m                            :  prints single-line information in monitoring format
+    --env                         :  prints information in OucEnv format
+    -s | --silent                      :  silent - used to run as internal command
+.. code-block:: text
+
+  Remarks:
+    Filters stack up and apply only to normal display mode.
+    Command also supports JSON output.

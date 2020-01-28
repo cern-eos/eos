@@ -50,5 +50,14 @@ ns
     -f         : control the file cache
     <max_num>  : max number of entries
     <max_size> : max size of the cache - not implemented yet
+    ns cache drop-single-file <id of file to drop>
+    force refresh of the given FileMD by dropping it from the cache
+    ns cache drop-single-container <id of container to drop>
+    force refresh of the given ContainerMD by dropping it from the cache
     ns max_drain_threads <num>
     set the max number of threads in the drain pool, default 400, minimum 4
+    ns reserve-ids <file id> <container id>
+    blacklist file and container IDs below the given threshold. The namespace
+    will not allocate any file or container with IDs less than, or equal to the
+    given blacklist thresholds.
+  

@@ -6,14 +6,16 @@ geosched
   '[eos] geosched ..' Interact with the file geoscheduling engine in EOS.
   geosched show|set|updater|forcerefresh|disabled|access ...
   Options:
-    geosched show [-c] tree [<scheduling subgroup>]                    :  show scheduling trees
+    geosched show [-c|-m] tree [<scheduling group>]                    :  show scheduling trees
     :  if <scheduling group> is specified only the tree for this group is shown. If it's not all, the trees are shown.
     :  '-c' enables color display
-    geosched show [-c] snapshot [{<scheduling subgroup>,*}] [<optype>] :  show snapshots of scheduling trees
+    :  '-m' list in monitoring format
+    geosched show [-c|-m] snapshot [{<scheduling group>,*} [<optype>]] :  show snapshots of scheduling trees
     :  if <scheduling group> is specified only the snapshot(s) for this group is/are shown. If it's not all, the snapshots for all the groups are shown.
     :  if <optype> is specified only the snapshot for this operation is shown. If it's not, the snapshots for all the optypes are shown.
     :  <optype> can be one of the folowing plct,accsro,accsrw,accsdrain,plctdrain
     :  '-c' enables color display
+    :  '-m' list in monitoring format
     geosched show param                                                :  show internal parameters
     geosched show state [-m]                                           :  show internal state
     :  '-m' list in monitoring format
@@ -28,10 +30,12 @@ geosched
     geosched access setdirect <geotag> <geotag_list>                   :  set a mapping between an accesser geotag and a set of target geotags
     :  these mappings specify which geotag can be accessed from which geotag without going through a firewall entrypoint
     :  geotag_list is of the form token1::token2,token3::token4::token5,...
-    geosched access showdirect                                         :  show mappings between accesser geotags and target geotags
+    geosched access showdirect [-m]                                    :  show mappings between accesser geotags and target geotags
+    :  '-m' list in monitoring format
     geosched access cleardirect {<geotag>|all}                         :  clear a mapping between an accesser geotag and a set of target geotags
-    geosched access setproxygroup <geotag> <proxygroup>               :  set the proxygroup acting as a firewall entrypoint for the given subtree
+    geosched access setproxygroup <geotag> <proxygroup>                :  set the proxygroup acting as a firewall entrypoint for the given subtree
     :  if a client accesses a file from a geotag which does not have direct access to the subtree the replica is,
     :  it will be scheduled to access through a node from the given proxygroup
-    geosched access showproxygroup                                     :  show mappings between accesser geotags and target geotags
+    geosched access showproxygroup [-m]                                :  show mappings between accesser geotags and target geotags
+    :  '-m' list in monitoring format
     geosched access clearproxygroup {<geotag>|all}                     :  clear a mapping between an accesser geotag and a set of target geotags

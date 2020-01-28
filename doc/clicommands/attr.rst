@@ -6,41 +6,43 @@ attr
   '[eos] attr ..' provides the extended attribute interface for directories in EOS.
   attr [OPTIONS] ls|set|get|rm ...
   Options:
-  attr [-r] ls <path> :
+  attr [-r] ls <identifier> :
     : list attributes of path
    -r : list recursive on all directory children
-  attr [-r] set <key>=<value> <path> :
+  attr [-r] set <key>=<value> <identifier> :
     : set attributes of path (-r recursive)
-  attr [-r] set default=replica|raiddp|raid6|archive <path> :
-    : set attributes of path (-r recursive) to the EOS defaults for replicas,dual-parity-raid (4+2), raid-6 (4+2) or archive layouts (5+3).
+  attr [-r] set default=replica|raiddp|raid5|raid6|archive|qrain <identifier> :
+    : set attributes of path (-r recursive) to the EOS defaults for replicas, dual-parity-raid (4+2), raid-6 (4+2) or archive layouts (5+3).
    -r : set recursive on all directory children
-  attr [-r] get <key> <path> :
+  attr [-r] get <key> <identifier> :
     : get attributes of path (-r recursive)
    -r : get recursive on all directory children
-  attr [-r] rm  <key> <path> :
+  attr [-r] rm  <key> <identifier> :
     : delete attributes of path (-r recursive)
 .. code-block:: text
 
    -r : delete recursive on all directory children
-  attr [-r] link <origin> <path> :
-    : link attributes of <origin> under the attributes of <path> (-r recursive)
+  attr [-r] link <origin> <identifier> :
+    : link attributes of <origin> under the attributes of <identifier> (-r recursive)
    -r : apply recursive on all directory children
-  attr [-r] unlink <path> :
-    : remove attribute link of <path> (-r recursive)
+  attr [-r] unlink <identifier> :
+    : remove attribute link of <identifier> (-r recursive)
    -r : apply recursive on all directory children
-  attr [-r] fold <path> :
-    : fold attributes of <path> if an attribute link is defined (-r recursive)
+  attr [-r] fold <identifier> :
+    : fold attributes of <identifier> if an attribute link is defined (-r recursive)
     all attributes which are identical to the origin-link attributes are removed locally
    -r : apply recursive on all directory children
-  If <key> starts with 'sys.' you have to be member of the sudoer group to see this attributes or modify.
+  Remarks:
+    <identifier> = <path>|fid:<fid-dec>|fxid:<fid-hex>|pid:<pid-dec>|pxid:<pid-hex>
+    If <key> starts with 'sys.' you have to be member of the sudoers group to see this attributes or modify.
   Administrator Variables:
-    sys.forced.space=<space>              : enforces to use <space>    [configuration dependend]
-    sys.forced.group=<group>              : enforces to use <group>, where <group> is the numerical index of <space>.<n>    [configuration dependend]
-    sys.forced.layout=<layout>            : enforces to use <layout>   [<layout>=(plain,replica)]
+    sys.forced.space=<space>              : enforces to use <space>    [configuration dependent]
+    sys.forced.group=<group>              : enforces to use <group>, where <group> is the numerical index of <space>.<n>    [configuration dependent]
+    sys.forced.layout=<layout>            : enforces to use <layout>   [<layout>=(plain,replica,raid5,raid6,archive,qrain)]
     sys.forced.checksum=<checksum>        : enforces to use file-level checksum <checksum>
     <checksum> = adler,crc32,crc32c,md5,sha
     sys.forced.blockchecksum=<checksum>   : enforces to use block-level checksum <checksum>
-    <checksuM> = adler,crc32,crc32c,md5,sha
+    <checksum> = adler,crc32,crc32c,md5,sha
     sys.forced.nstripes=<n>               : enforces to use <n> stripes[<n>= 1..16]
     sys.forced.blocksize=<w>              : enforces to use a blocksize of <w> - <w> can be 4k,64k,128k,256k or 1M
     sys.forced.placementpolicy=<policy>[:geotag] : enforces to use replica/stripe placement policy <policy> [<policy>={scattered|hybrid:<geotag>|gathered:<geotag>}]
@@ -57,18 +59,18 @@ attr
     sys.lru.expire.empty=<age>            : delete empty directories older than <age>
     sys.lru.expire.match=[match1:<age1>,match2:<age2>..]
     : defines the rule that files with a given match will be removed if
-    they havn't been accessed longer than <age> ago. <age> is defined like 3600,3600s,60min,1h,1mo,y ...
+    they haven't been accessed longer than <age> ago. <age> is defined like 3600,3600s,60min,1h,1mo,1y...
     sys.lru.watermark=<low>:<high>        : if the watermark reaches more than <high> %, files will be removed
     until the usage is reaching <low> %.
-    sys.lru.convert.match=[match1:<age1>,match2:<age2>...]
-    defines the rule that files with a given match will be converted to the layouts defined by sys.conversion.<match> when their access time reaches <age>.
+    sys.lru.convert.match=[match1:<age1>,match2:<age2>,match3:<age3>:<<size3>,match4:<age4>:><size4>...]
+    defines the rule that files with a given match will be converted to the layouts defined by sys.conversion.<match> when their access time reaches <age>. Optionally a size limitation can be given e.g. '*:1w:>1G' as 1 week old and larger than 1G or '*:1d:<1k' as one day old and smaller than 1k
     sys.stall.unavailable=<sec>           : stall clients for <sec> seconds if a needed file system is unavailable
     sys.redirect.enoent=<host[:port]>     : redirect clients opening non existing files to <host[:port]>
-    => hence this variable has to be set on the directory at level 2 in the eos namespace e.g. /eog/public
-    sys.redirect.enonet=<host[:port]>     : redirect clients opening unaccessible files to <host[:port]>
-    => hence this variable has to be set on the directory at level 2 in the eos namespace e.g. /eog/public
+    => hence this variable has to be set on the directory at level 2 in the eos namespace e.g. /eos/public
+    sys.redirect.enonet=<host[:port]>     : redirect clients opening inaccessible files to <host[:port]>
+    => hence this variable has to be set on the directory at level 2 in the eos namespace e.g. /eos/public
     sys.recycle=....                      : define the recycle bin for that directory - WARNING: never modify this variables via 'attr' ... use the 'recycle' interface
-    sys.recycle.keeptime=<seconds>        : define the time how long files stay in a recycle bin before final deletions taks place. This attribute has to defined on the recycle - WARNING: never modify this variables via 'attr' ... use the 'recycle' interface
+    sys.recycle.keeptime=<seconds>        : define the time how long files stay in a recycle bin before final deletions takes place. This attribute has to defined on the recycle - WARNING: never modify this variables via 'attr' ... use the 'recycle' interface
     sys.recycle.keepratio=< 0 .. 1.0 >    : ratio of used/max quota for space and inodes in the recycle bin under which files are still kept in the recycle bin even if their lifetime has exceeded. If not defined pure lifetime policy will be applied
     sys.versioning=<n>                    : keep <n> versions of a file e.g. if you upload a file <n+10> times it will keep the last <n+1> versions
     sys.acl=<acllist>                     : set's an ACL which is honored for open,rm & rmdir operations
@@ -100,7 +102,7 @@ attr
     => JSON arrays: place a continuous whole number from 0 to the attribute name, e.g. sys.accounting.accessmode.{0,1,2,...}
     => array of objects: you can combine the above two to achieve arbitrary JSON output, e.g. sys.accounting.storageendpoints.0.name, sys.accounting.storageendpoints.0.id and sys.accounting.storageendpoints.1.name ...
     sys.proc=<opaque command>             : run arbitrary command on accessing the file
-    => <opaque comamnd> command to execute in opaque format, e.g. mgm.cmd=accounting&mgm.subcmd=report&mgm.format=fuse
+    => <opaque command> command to execute in opaque format, e.g. mgm.cmd=accounting&mgm.subcmd=report&mgm.format=fuse
   User Variables:
     user.forced.space=<space>              : s.a.
     user.forced.layout=<layout>            : s.a.
@@ -124,13 +126,16 @@ attr
   ....... Layouts ...
   ...................
   - set 2 replica as standard layout ...
-    |eos> attr set default=replicae /eos/instance/2-replica
+    |eos> attr set default=replica /eos/instance/2-replica
   --------------------------------------------------------------------------------
   - set RAID-6 4+2 as standard layout ...
     |eos> attr set default=raid6 /eos/instance/raid-6
   --------------------------------------------------------------------------------
   - set ARCHIVE 5+3 as standard layout ...
     |eos> attr set default=archive /eos/instance/archive
+  --------------------------------------------------------------------------------
+  - set QRAIN 8+4 as standard layout ...
+    |eos> attr set default=qrain /eos/instance/qrain
   --------------------------------------------------------------------------------
   - re-configure a layout for different number of stripes (e.g. 10) ...
     |eos> attr set sys.forced.stripes=10 /eos/instance/archive
@@ -143,7 +148,7 @@ attr
   ....... LRU Cache ...
   .....................
   - configure a volume based LRU cache with a low/high watermark 
-    e.g. when the cache reaches the high watermark it cleans the oldest files untile low-watermark is reached ...
+    e.g. when the cache reaches the high watermark it cleans the oldest files until low-watermark is reached ...
     |eos> quota set -g 99 -v 1T /eos/instance/cache/                           # define project quota on the cache
     |eos> attr set sys.lru.watermark=90:95  /eos/instance/cache/               # define 90 as low and 95 as high watermark
     |eos> attr set sys.force.atime=300 /eos/dev/instance/cache/                # track atime with a time resolution of 5 minutes
@@ -158,6 +163,7 @@ attr
   --------------------------------------------------------------------------------
   - configure automatic layout conversion if a file has reached a defined age ...
     |eos> attr set sys.lru.convert.match="*:1mo" /eos/dev/instance/convert/    # convert all files older than a month to the layout defined next
+    |eos> attr set sys.lru.convert.match="*:1mo:>2G" /eos/dev/instance/convert/# convert all files older than a month and larger than 2Gb to the layout defined next
     |eos> attr set sys.conversion.*=20640542 /eos/dev/instance/convert/          # define the conversion layout (hex) for the match rule '*' - this is RAID6 4+2
     |eos> attr set sys.conversion.*=20640542|gathered:site1::rack2 /eos/dev/instance/convert/ # same thing specifying a placement policy for the replicas/stripes
   --------------------------------------------------------------------------------

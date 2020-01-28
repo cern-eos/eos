@@ -3,7 +3,7 @@ cp
 
 .. code-block:: text
 
-  cp [--async] [--atomic] [--rate=<rate>] [--streams=<n>] [--depth=<d>] [--checksum] [--no-overwrite|-k] [--preserve|-p] [--recursive|-r|-R] [-s|--silent] [-a] [-n] [-S] [-d] <src> <dst>
+  cp [--async] [--atomic] [--rate=<rate>] [--streams=<n>] [--depth=<d>] [--checksum] [--no-overwrite|-k] [--preserve|-p] [--recursive|-r|-R] [-s|--silent] [-a] [-n] [-S] [-d[=][<lvl>] <src> <dst>
   '[eos] cp ..' provides copy functionality to EOS.
     <src>|<dst> can be root://<host>/<path>, a local path /tmp/../ or an eos path /eos/ in the connected instance
   Options:
@@ -17,7 +17,7 @@ cp
     -p              : create destination directory
     -n              : hide progress bar
     -S              : print summary
-    -d | --debug          : enable debug information
+    -d | --debug          : enable debug information (optional <lvl>=1|2|3)
     -s | --silent         : no output outside error messages
     -k | --no-overwrite   : disable overwriting of files
     -P | --preserve       : preserves file creation and modification time from the source

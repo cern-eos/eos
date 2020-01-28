@@ -1,5 +1,5 @@
-space
------
+inspector
+---------
 
 .. code-block:: text
 

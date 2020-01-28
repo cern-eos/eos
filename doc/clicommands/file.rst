@@ -57,6 +57,8 @@ file
     create a 0-size/0-replica file if <path> does not exist or update modification time of an existing file to the present time
   file verify <path>|fid:<fid-dec>|fxid:<fid-hex> [<fsid>] [-checksum] [-commitchecksum] [-commitsize] [-rate <rate>] : 
     verify a file against the disk images
+  file verify <path|fid:<fid-dec>|fxid:<fid-hex> -resync : 
+    ask all locations to resync their file md records
     <fsid>          : verifies only the replica on <fsid>
     -checksum       : trigger the checksum calculation during the verification process
     -commitchecksum : commit the computed checksum to the MGM
@@ -64,10 +66,10 @@ file
     -rate <rate>    : restrict the verification speed to <rate> per node
   file version <path> [purge-version] :
     create a new version of a file by cloning
+    <purge-version> : defines the max. number of versions to keep
   file versions [grab-version] :
     list versions of a file
-    grab a version of a file
-    <purge-version> : defines the max. number of versions to keep
+    grab a version [grab-version] of a file
 .. code-block:: text
 
     if not specified it will add a new version without purging any previous version

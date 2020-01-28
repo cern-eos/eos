@@ -3,31 +3,30 @@ fsck
 
 .. code-block:: text
 
-  usage: fsck stat                                                  :  print status of consistency check
-    fsck enable [<interval>]                                   :  enable fsck
-    <interval> :  check interval in minutes - default 30 minutes       fsck disable                                               :  disable fsck
-    fsck report [-h] [-a] [-i] [-l] [--json] [--error <tag> ]  :  report consistency check results                                                               -a :  break down statistics per filesystem
-    -i :  print concerned file ids
-    -l :  print concerned logical names
-    --json :  select JSON output format
-    --error :  select to report only error tag <tag>
-    -h :  print help explaining the individual tags!
-    fsck repair --checksum
-    :  issues a 'verify' operation on all files with checksum errors
-    fsck repair --checksum-commit
-    :  issues a 'verify' operation on all files with checksum errors and forces a commit of size and checksum to the MGM
-    fsck repair --resync
-    :  issues a 'resync' operation on all files with any error. This will resync the MGM meta data to the storage node and will clean-up 'ghost' entries in the FST meta data cache.
-    fsck repair --unlink-unregistered
-    :  unlink replicas which are not connected/registered to their logical name
-    fsck repair --unlink-orphans
-    :  unlink replicas which don't belong to any logical name
-    fsck repair --adjust-replicas[-nodrop]
-    :  try to fix all replica inconsistencies - if --adjust-replicas-nodrop is used replicas are only added but never removed!
-    fsck repair --drop-missing-replicas
-    :  just drop replicas from the namespace if they cannot be found on disk
-    fsck repair --unlink-zero-replicas
-    :  drop all files which have no replica's attached and are older than 48 hours!
-    fsck repair --replace-damaged-replicas
-    :  drop the damaged replica of the file and recover with a healthy one if possible!
-    fsck repair --all                                          :  do all the repair actions besides <checksum-commit>
+  fsck [stat|config|report|repair]
+    control and display file system check information
+.. code-block:: text
+
+    fsck stat
+    print summary of consistency checks
+    fsck config <key> [<value>]
+    configure the fsck with the following possible options:
+    toggle-collect       : enable/disable error collection thread, <value> represents
+    the collection interval in minutes [default 30]
+    toggle-repair        : enable/disable repair thread, no <value> required    show-dark-files      : yes/no [default no]
+    show-offline         : yes/no [default no]
+    show-no-replica      : yes/no [default no]
+    max-queued-jobs      : maximum number of queued jobs
+    max-thread-pool-size : maximum number of threads in the fsck pool
+    fsck report [-a] [-h] [-i] [-l] [-j|--json] [--error <tag1> <tag2> ...]
+    report consistency check results, with the following options
+    -a         : break down statistics per file system
+    -i         : display file identifiers
+    -l         : display logical file name
+    -j|--json  : display in JSON output format
+    --error    : dispaly information about the following error tags
+    fsck repair --fxid <val> [--async]
+    repair the given file if there are any errors
+    --fxid  : hexadecimal file identifier
+    --async : job queued and ran by the repair thread if enabled
+  
