@@ -31,7 +31,7 @@ doxydoc
 Namespace/tests/text_runner
 valgrind.supp
 eos-log-repair
-/build/
+/build*/
 __pycache__
 kineticio-dist.tgz
 # clion specific configs
