@@ -52,7 +52,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  GlobalConfigChangeListener(const std::string &name, XrdMqSharedObjectChangeNotifier &notifier);
+  GlobalConfigChangeListener(const std::string &name, const std::string &configQueue, XrdMqSharedObjectChangeNotifier &notifier);
 
   //----------------------------------------------------------------------------
   //! Consume next event, block until there's one.
@@ -62,6 +62,7 @@ public:
 private:
   XrdMqSharedObjectChangeNotifier &mNotifier;
   std::string mListenerName;
+  std::string mConfigQueue;
 };
 
 EOSMQNAMESPACE_END

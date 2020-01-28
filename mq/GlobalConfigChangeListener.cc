@@ -29,16 +29,49 @@ EOSMQNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-GlobalConfigChangeListener::GlobalConfigChangeListener(const std::string &name, XrdMqSharedObjectChangeNotifier &notifier)
-: mNotifier(notifier) {
+GlobalConfigChangeListener::GlobalConfigChangeListener(const std::string &name, const std::string &configQueue, XrdMqSharedObjectChangeNotifier &notifier)
+: mNotifier(notifier), mListenerName(name), mConfigQueue(configQueue) {
 
+  mNotifier.SubscribesToSubject(mListenerName.c_str(), mConfigQueue.c_str(),
+    XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
+
+  mNotifier.SubscribesToSubject(mListenerName.c_str(), mConfigQueue.c_str(),
+    XrdMqSharedObjectChangeNotifier::kMqSubjectDeletion);
+
+  mNotifier.BindCurrentThread(mListenerName);
+  mNotifier.StartNotifyCurrentThread();
 }
 
 //------------------------------------------------------------------------------
 // Consume next event, block until there's one.
 //------------------------------------------------------------------------------
 bool GlobalConfigChangeListener::fetch(Event &out, ThreadAssistant &assistant) {
-  return false;
+  mNotifier.tlSubscriber->mSubjMtx.Lock();
+
+  if(mNotifier.tlSubscriber->NotificationSubjects.size() == 0u) {
+    mNotifier.tlSubscriber->mSubjMtx.UnLock();
+    mNotifier.tlSubscriber->mSubjSem.Wait(1);
+    mNotifier.tlSubscriber->mSubjMtx.Lock();
+  }
+
+  if(mNotifier.tlSubscriber->NotificationSubjects.size() == 0u) {
+    mNotifier.tlSubscriber->mSubjMtx.UnLock();
+    return false;
+  }
+
+  XrdMqSharedObjectManager::Notification event;
+  event = mNotifier.tlSubscriber->NotificationSubjects.front();
+  mNotifier.tlSubscriber->NotificationSubjects.pop_front();
+  mNotifier.tlSubscriber->mSubjMtx.UnLock();
+
+  out.key = event.mSubject.c_str();
+  size_t dpos = out.key.find(";");
+  if(dpos != std::string::npos) {
+    out.key.erase(0, dpos+1);
+  }
+
+  out.deletion = (event.mType == XrdMqSharedObjectManager::kMqSubjectDeletion);
+  return true;
 }
 
 EOSMQNAMESPACE_END
