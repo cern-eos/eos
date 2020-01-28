@@ -53,15 +53,14 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'EOS'
-copyright = u'2018, CERN'
+copyright = u'2020, CERN'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.
 #
 # The short X.Y version.
-version = os.environ['VERSION']
-# The full version, including alpha/beta/rc tags.
+version = "4.6"
 release = "CITRINE"
 
 

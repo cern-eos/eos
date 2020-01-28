@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 # ------------------------------------------------------------------------------
 # File: generate_docs.py
 # Author: Joaquim Rocha <jrocha@cern.ch>
@@ -37,31 +37,42 @@
 
 from __future__ import unicode_literals
 from __future__ import print_function
-from errno import EIO
+from errno import EIO, EINVAL
 import sys
 import os
 import subprocess
 import shutil
 
-SPHINX_BUILD = "/usr/bin/sphinx-build"
+SPHINX_BUILD, __ = subprocess.Popen(["which sphinx-build"],
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE,
+                                    shell=True).communicate()
+SPHINX_BUILD = SPHINX_BUILD.decode().strip()
+
+try:
+    print("SPHINX_BUILD is: {0}".format(SPHINX_BUILD))
+    os.stat(SPHINX_BUILD)
+except OSError as e:
+    print("ERROR: Could not find SPHINX executable", file=sys.stderr)
+    sys.exit(EINVAL)
+
 EOS_EXE = "/usr/bin/eos"
 CMD_NAME_CONVERT = {".q": "pointq", "?": "question"}
 
 def get_dict_cmd_info():
     """ Return a dictionary of eos commands and their description """
     if not os.path.exists(EOS_EXE):
-	raise OSError("could not find \"eos\" executable")
+        raise OSError("could not find \"eos\" executable")
 
     cmds_out, __ = subprocess.Popen(["{0} help".format(EOS_EXE)],
-				    stdout=subprocess.PIPE,
-				    stderr=subprocess.PIPE,
-				    shell=True).communicate()
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE,
+                                    shell=True).communicate()
     cmd_dict = {}
 
-
-    for line in cmds_out.splitlines()[1:]:
-	[cmd, desc] = line.split(' ',1 )
-	cmd_dict[cmd] = desc
+    for line in cmds_out.decode().splitlines()[1:]:
+        [cmd, desc] = line.split(' ',1)
+        cmd_dict[cmd] = desc
 
     return cmd_dict
 
@@ -70,56 +81,58 @@ def generate_summary_rst(file_path, cmd_lst):
     for which a description is provided.
 
     Args:
-	file_path (string): Absolute path to file
-	cmd_lst  (lst): List of all the commands
+        file_path (string): Absolute path to file
+        cmd_lst  (lst): List of all the commands
     """
     header ='\n'.join([".. _clientcommands:",
-		       "",
-		       "Client Commands",
-		       "================",
-		       "",
-		       ".. toctree::",
-		       "  :maxdepth: 2",
-		       "", ""])
+                       "",
+                       "Client Commands",
+                       "================",
+                       "",
+                       ".. toctree::",
+                       "  :maxdepth: 2",
+                       "", ""])
 
     with open(file_path, 'w') as f:
-	f.write(header)
+        f.write(header)
 
-	for cmd in cmd_lst:
-	    if cmd in CMD_NAME_CONVERT:
-		fn_cmd = CMD_NAME_CONVERT[cmd]
-	    else:
-		fn_cmd = cmd
+        for cmd in cmd_lst:
+            if cmd in CMD_NAME_CONVERT:
+                fn_cmd = CMD_NAME_CONVERT[cmd]
+            else:
+                fn_cmd = cmd
 
-	    f.write("  clicommands/{0}\n".format(fn_cmd))
+            f.write("  clicommands/{0}\n".format(fn_cmd))
 
 def format_cmd_help(cmd):
     """ Format the help output of the command to be written int the .rst file.
 
     Args:
-	cmd (string): EOS command
+        cmd (string): EOS command
 
     Return:
-	Contents of the rst file for this command
+        Contents of the rst file for this command
     """
     out, __ = subprocess.Popen([EOS_EXE, cmd, "-h"],
-			       stdout=subprocess.PIPE,
-			       stderr=subprocess.PIPE).communicate()
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE).communicate()
+    out = out.decode()
+
     if '--help-all' in out:
-	sys.stdout.flush()
-	out, __ = subprocess.Popen([EOS_EXE, cmd, "-H"],
-				   stdout=subprocess.PIPE,
-				   stderr=subprocess.PIPE).communicate()
+        sys.stdout.flush()
+        out, __ = subprocess.Popen([EOS_EXE, cmd, "-H"],
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE).communicate()
     sys.stdout.flush()
 
     # Some commands print to stdout, others to stderr
     # Process stderr when stdout is empty
     if not out:
-	out = __
+        out = __.decode()
 
     # The first line usually contains the command, so we remove it
     if out.startswith(cmd):
-	out = out[len(cmd) + 4:]
+        out = out[len(cmd) + 4:]
 
     blocks = out.split("\n\n")
     out_rst = ''.join([cmd, '\n', ('-' * len(cmd)), '\n\n'])
@@ -127,82 +140,82 @@ def format_cmd_help(cmd):
     inside_subcmd = True
 
     for block in blocks:
-	if inside_subcmd:
-	    inside_subcmd = False
-	    out_rst += ".. code-block:: text\n\n"
+        if inside_subcmd:
+            inside_subcmd = False
+            out_rst += ".. code-block:: text\n\n"
 
-	for line in block.splitlines():
-	    usage_tag = "Usage: "
-	    space_tag = "  "
+        for line in block.splitlines():
+            usage_tag = "Usage: "
+            space_tag = "  "
 
-	    if line.startswith(usage_tag):
-		inside_subcmd = True
-		line = line[len(usage_tag):]
+            if line.startswith(usage_tag):
+                inside_subcmd = True
+                line = line[len(usage_tag):]
 
-	    if line.startswith(space_tag):
-		line = ''.join([space_tag, line.strip()])
+            if line.startswith(space_tag):
+                line = ''.join([space_tag, line.strip()])
 
-	    out_rst += ''.join([space_tag, line, '\n'])
+            out_rst += ''.join([space_tag, line, '\n'])
 
     return out_rst
 
 def format_cmd_desc(cmd, desc):
     """ Format the description output of the command to be written to the .rst
-	file.
+        file.
 
     Args:
-	cmd (string): EOS command
-	desc (string): Command description
+        cmd (string): EOS command
+        desc (string): Command description
 
     Return:
-	Contents of the .rst file for this command.
+        Contents of the .rst file for this command.
     """
     space_tag = "  "
     # Uncapitalize first letter of description
     desc = desc[0].lower() + desc[1:]
     title_rst = ''.join([cmd, '\n', ('-' * len(cmd)), '\n\n'])
     out_rst = ''.join([title_rst, ".. code-block:: text\n\n", space_tag, cmd,
-		       " : ", desc])
+                       " : ", desc])
     return out_rst
 
 def generate_cmds_rst(root_dir, cmd_dict):
     """ Generate .rst description files for the individual commands
 
     Args:
-	root_dir (string): Absolute path where file are saved
-	cmd_dict (dict): Dictionary with commands and their description
+        root_dir (string): Absolute path where file are saved
+        cmd_dict (dict): Dictionary with commands and their description
     """
     # List of commands that don't have "-h" flag, so we just put their
     # description in the .rst file.
     desc_only_lst = ['console', '?', '.q', 'license', 'version', 'motd', 'pwd',
-		     'silent', 'touch', 'whoami', 'json', 'exit', 'timing', 'help',
-		     'quit', 'member', 'rtlog']
+                     'silent', 'touch', 'whoami', 'json', 'exit', 'timing', 'help',
+                     'quit', 'member', 'rtlog']
 
-    for (cmd, desc) in cmd_dict.iteritems():
-	print("Processing command {0}".format(cmd), file=sys.stdout)
+    for (cmd, desc) in cmd_dict.items():
+        print("Processing command {0}".format(cmd), file=sys.stdout)
 
-	if cmd in desc_only_lst:
-	    out_rst = format_cmd_desc(cmd, desc)
-	else:
-	    out_rst = format_cmd_help(cmd)
+        if cmd in desc_only_lst:
+            out_rst = format_cmd_desc(cmd, desc)
+        else:
+            out_rst = format_cmd_help(cmd)
 
-	# For strange commands rename the .rst filenames
-	if cmd in CMD_NAME_CONVERT:
-	    fn_cmd = CMD_NAME_CONVERT[cmd]
-	else:
-	    fn_cmd = cmd
+        # For strange commands rename the .rst filenames
+        if cmd in CMD_NAME_CONVERT:
+            fn_cmd = CMD_NAME_CONVERT[cmd]
+        else:
+            fn_cmd = cmd
 
-	fpath_rst = ''.join([root_dir, "/", fn_cmd, ".rst"])
-	with open(fpath_rst, 'w') as f:
-	    f.write(out_rst)
+        fpath_rst = ''.join([root_dir, "/", fn_cmd, ".rst"])
+        with open(fpath_rst, 'w') as f:
+            f.write(out_rst)
 
 def main():
     """ Main function """
     try:
-	cmd_dict = get_dict_cmd_info()
+        cmd_dict = get_dict_cmd_info()
     except OSError as e:
-	print("ERROR: {0}".format(e))
-	sys.exit(EIO)
+        print("ERROR: {0}".format(e))
+        sys.exit(EIO)
 
     # Create summary file clicommands.rst and directory containing the description
     # of the individual commands
@@ -213,30 +226,30 @@ def main():
 
     # Clean up old documentation
     if (os.path.exists(doc_dest) or os.path.exists(cli_cmd_file)
-	or os.path.exists(cli_cmd_dir)):
+        or os.path.exists(cli_cmd_dir)):
 
-	print("INFO: Clean up old documentation", file=sys.stdout)
+        print("INFO: Clean up old documentation", file=sys.stdout)
 
-	for entry in [doc_dest, cli_cmd_dir, cli_cmd_file]:
-	    try:
-		if os.path.isdir(entry):
-		    shutil.rmtree(entry)
-		else:
-		    os.remove(entry)
-	    except OSError as __:
-		pass # entry already deleted
+        for entry in [doc_dest, cli_cmd_dir, cli_cmd_file]:
+            try:
+                if os.path.isdir(entry):
+                    shutil.rmtree(entry)
+                else:
+                    os.remove(entry)
+            except OSError as __:
+                pass # entry already deleted
 
     try:
-	os.makedirs(cli_cmd_dir)
+        os.makedirs(cli_cmd_dir)
     except OSError as e:
-	print("ERROR: {0}".format(e), file=sys.stderr)
-	sys.exit(EIO)
+        print("ERROR: {0}".format(e), file=sys.stderr)
+        sys.exit(EIO)
 
     try:
-	os.mknod(cli_cmd_file)
+        os.mknod(cli_cmd_file)
     except Exception as e:
-	print("ERROR: {0}".format(e), file=sys.stderr)
-	sys.exit(EIO)
+        print("ERROR: {0}".format(e), file=sys.stderr)
+        sys.exit(EIO)
 
     # Generate the CLI commands documentation
     cmd_lst = sorted(cmd_dict.keys())
@@ -246,13 +259,13 @@ def main():
     # Generate the rest of the documentation using Sphinx
     print("Generating Sphinx documentation ...")
     sphinx_proc = subprocess.Popen([SPHINX_BUILD, "-b", "html", cwd, doc_dest],
-				   stdout=subprocess.PIPE,
-				   stderr=subprocess.PIPE)
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE)
     out, err = sphinx_proc.communicate()
 
     if sphinx_proc.returncode:
-	print("ERROR: sphinx-build failed, msg={0}".format(err))
-	sys.exit(sphinx_proc.returncode)
+        print("ERROR: sphinx-build failed, msg={0}".format(err))
+        sys.exit(sphinx_proc.returncode)
 
 if __name__ == '__main__':
     main()
