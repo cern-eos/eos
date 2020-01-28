@@ -70,7 +70,7 @@ bool GlobalConfigChangeListener::fetch(Event &out, ThreadAssistant &assistant) {
     out.key.erase(0, dpos+1);
   }
 
-  out.deletion = (event.mType == XrdMqSharedObjectManager::kMqSubjectDeletion);
+  out.deletion = (event.mType == XrdMqSharedObjectManager::kMqSubjectKeyDeletion);
   return true;
 }
 

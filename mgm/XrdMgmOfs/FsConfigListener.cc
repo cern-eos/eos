@@ -93,8 +93,6 @@ XrdMgmOfs::processIncomingMgmConfigurationChange(const std::string& key)
 void
 XrdMgmOfs::ProcessGeotagChange(const std::string& queue)
 {
-  eos_static_warning("SENTINEL geotag change: %s", queue.c_str());
-
   std::string newgeotag;
   eos::common::FileSystem::fsid_t fsid = 0;
   eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
@@ -200,8 +198,6 @@ void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept {
   while(!assistant.terminationRequested()) {
     eos::mq::FileSystemChangeListener::Event event;
     if(changeListener.fetch(event, assistant) && !event.isDeletion()) {
-      eos_static_warning("SENTINEL event: %s, %s", event.fileSystemQueue.c_str(), event.key.c_str());
-
       if(event.key == "stat.geotag") {
         ProcessGeotagChange(event.fileSystemQueue);
       }
@@ -256,119 +252,23 @@ void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept {
 void
 XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
 {
-  // setup the modifications which the fs listener thread is waiting for
-  bool ok = true;
-  // Need to apply remote configuration changes
-  ok &= ObjectNotifier.SubscribesToSubject("fsconfiglistener",
-        MgmConfigQueue.c_str(),
-        XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
-  // Need to apply remote configuration changes
-  ok &= ObjectNotifier.SubscribesToSubject("fsconfiglistener",
-        MgmConfigQueue.c_str(),
-        XrdMqSharedObjectChangeNotifier::kMqSubjectDeletion);
-
-  if (!ok) {
-    eos_crit("msg=\"error subscribing to shared objects change notifications\"");
-  }
-
-  ObjectNotifier.BindCurrentThread("fsconfiglistener");
-
-  if (!ObjectNotifier.StartNotifyCurrentThread()) {
-    eos_crit("msg=\"error starting shared objects change notifications\"");
-  }
+  eos::mq::GlobalConfigChangeListener changeListener("fs-config-listener-thread",
+    MgmConfigQueue.c_str(), ObjectNotifier);
 
   // Thread listening on filesystem errors and configuration changes
   while (!assistant.terminationRequested()) {
-    gOFS->ObjectNotifier.tlSubscriber->mSubjSem.Wait();
+    eos::mq::GlobalConfigChangeListener::Event event;
+    if(changeListener.fetch(event, assistant)) {
 
-    if (assistant.terminationRequested()) {
-      break;
+      if(!event.isDeletion() && !gOFS->mMaster->IsMaster()) {
+        // This is an MGM configuration modification - only an MGM
+        // slave needs to apply this.
+        processIncomingMgmConfigurationChange(event.key);
+      }
+      else if(event.isDeletion()) {
+        gOFS->ConfEngine->DeleteConfigValue(0, event.key.c_str(), false);
+        gOFS->ConfEngine->ApplyKeyDeletion(event.key.c_str());
+      }
     }
-
-    // we always take a lock to take something from the queue and then release it
-    gOFS->ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
-
-    // Listens for modifications on filesystem objects
-    while (gOFS->ObjectNotifier.tlSubscriber->NotificationSubjects.size()) {
-      XrdMqSharedObjectManager::Notification event;
-      event = gOFS->ObjectNotifier.tlSubscriber->NotificationSubjects.front();
-      gOFS->ObjectNotifier.tlSubscriber->NotificationSubjects.pop_front();
-      gOFS->ObjectNotifier.tlSubscriber->mSubjMtx.UnLock();
-      eos_debug("msg=\"MGM shared object notification subject is %s\"",
-                event.mSubject.c_str());
-      std::string newsubject = event.mSubject.c_str();
-
-      // Handle subject creation
-      if (event.mType == XrdMqSharedObjectManager::kMqSubjectCreation) {
-        eos_debug("msg=\"received creation on subject\" subject=\"%s\"",
-                  newsubject.c_str());
-        gOFS->ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
-        continue;
-      }
-
-      // Handle subject deletion
-      if (event.mType == XrdMqSharedObjectManager::kMqSubjectDeletion) {
-        eos_debug("msg=\"received deletion on subject\" subject=\"%s\"",
-                  newsubject.c_str());
-        gOFS->ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
-        continue;
-      }
-
-      // Handle subject modification
-      if (event.mType == XrdMqSharedObjectManager::kMqSubjectModification) {
-        eos_debug("msg=\"received modification on subject\" subject=\"%s\"",
-                  newsubject.c_str());
-        // if this is an error status on a file system, check if the filesystem
-        // is > drained state and in this case launch a drain job with
-        // the opserror flag by calling StartDrainJob
-        // We use directly the ObjectManager Interface because it is more handy
-        // with the available information we have at this point
-        std::string key = newsubject;
-        std::string queue = newsubject;
-        size_t dpos = 0;
-
-        if ((dpos = queue.find(";")) != std::string::npos) {
-          key.erase(0, dpos + 1);
-          queue.erase(dpos);
-        }
-
-        if (queue == MgmConfigQueue.c_str()) {
-          // This is an MGM configuration modification
-          if (!gOFS->mMaster->IsMaster()) {
-            // only an MGM slave needs to apply this
-            processIncomingMgmConfigurationChange(key.c_str());
-          }
-        }
-
-        gOFS->ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
-        continue;
-      }
-
-      // Handle subject key deletion
-      if (event.mType == XrdMqSharedObjectManager::kMqSubjectKeyDeletion) {
-        eos_info("msg=\"received deletion on subject\" subject=\"%s\"",
-                 newsubject.c_str());
-        std::string key = newsubject;
-        std::string queue = newsubject;
-        size_t dpos = 0;
-
-        if ((dpos = queue.find(";")) != std::string::npos) {
-          key.erase(0, dpos + 1);
-          queue.erase(dpos);
-        }
-
-        gOFS->ConfEngine->DeleteConfigValue(0, key.c_str(), false);
-        gOFS->ConfEngine->ApplyKeyDeletion(key.c_str());
-        gOFS->ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
-        continue;
-      }
-
-      eos_warning("msg=\"don't know what to do with subject\" subject=\"%s\"",
-                  newsubject.c_str());
-      gOFS->ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
-      continue;
-    }
-
-    gOFS->ObjectNotifier.tlSubscriber->mSubjMtx.UnLock();
   }
 }

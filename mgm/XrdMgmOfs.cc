@@ -78,6 +78,7 @@
 #include "mgm/QueryPrepareResponse.hh"
 #include "mq/SharedHashWrapper.hh"
 #include "mq/FileSystemChangeListener.hh"
+#include "mq/GlobalConfigChangeListener.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/utils/Stat.hh"
