@@ -419,10 +419,10 @@ build_cc7_coverage:
 
 
 build_fedora_stable:
-  image: fedora:29
+  image: fedora:31
   <<: *fedora_template_definition
   variables:
-    EOS_ARCH: fc-29
+    EOS_ARCH: fc-31
   tags:
     - docker_node
     - fedora_stable
