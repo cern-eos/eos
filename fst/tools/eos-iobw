@@ -25,4 +25,9 @@
 # Usage: eos-iobw <path> => prints bandwidth in MB/s
 test -z "$1"&& echo 0.00 && exit -1
 path=`df $1 | tail -1 | awk '{print $1}'`
-dd iflag=direct if=$path of=/dev/null bs=4M count=128 2>&1 | grep bytes | cut -d "," -f 3 | awk '{print $1}'
+elapsed=`/usr/bin/time -f "%e" dd iflag=direct if=$path of=/dev/null bs=4M count=128 2>&1 | tail -1`
+echo 512 $elapsed | awk '{ if ($2) {printf("%.02d\n", $1/$2)} else print "0.00"}'
+
+
+
+
