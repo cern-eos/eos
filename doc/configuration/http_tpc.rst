@@ -421,7 +421,7 @@ To configure the **oidc-agent**, you can follow these steps:
    # later use
    export SCI_TOKEN=`oidc-toke WLCG_<your_username>
    # Trigger a HTTP download using the SciToken information
-   curl -v -L -H "Authorization: Bearer $TOKEN" https://eospps.cern.ch:9000/eos/pps/users/esindril/file1.dat
+   curl -v -L -H "Authorization: Bearer $SCI_TOKEN" https://eospps.cern.ch:9000/eos/pps/users/esindril/file1.dat
 
 
 .. only:: adminmode
