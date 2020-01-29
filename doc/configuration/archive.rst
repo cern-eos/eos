@@ -33,7 +33,7 @@ follows:
 The variables set in ``/etc/sysconfig/eosarchived`` are general ones that apply
 to both the daemon process and the individual tranfer proceses spawned later on.
 
-Another configuration file which holds further configurable values is
+Another file which holds further configurable values is
 ``/etc/eosarchived.conf``. The advantage of this file is that it can be modified
 while the daemon is running and newly submitted transfers will pick-up the new
 configuration without the need of a full daemon restart.

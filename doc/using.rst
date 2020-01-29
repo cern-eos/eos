@@ -16,7 +16,6 @@ Using EOS
    using/manila
    using/policies
    using/systemd
-   using/tpc
    using/fusex
    using/versions
    using/oauth2

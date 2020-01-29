@@ -28,6 +28,7 @@ This chapter discusses several components of EOS and how they are configured.
    configuration/geotags
    configuration/groupbalancer
    configuration/http
+   configuration/http_tpc
    configuration/inspector
    configuration/kinetic
    configuration/lru
