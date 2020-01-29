@@ -522,10 +522,9 @@ XrdMqClient::RefreshBrokersEndpoints()
       }
 
       XrdCl::URL new_url(broker.first);
+      const std::string old_host_id {new_url.GetHostId()};
+      // Update the new url endpoint
       new_url.SetHostPort(new_host, new_port);
-      eos_static_info("msg=\"refersh broker endpoint\" old_url=\"%s\" "
-                      "new_url=\"%s\"", broker.first.c_str(),
-                      new_url.GetURL().c_str());
 
       if (!new_url.IsValid()) {
         eos_static_err("msg=\"skip adding invalid new broker url\", "
@@ -533,6 +532,23 @@ XrdMqClient::RefreshBrokersEndpoints()
         continue;
       }
 
+      if (new_url.GetHostId() == old_host_id) {
+        // The new endpoint is the same as the old one, therefore we trigger
+        // a reconnection only if stat of the endpoint fails - this can happen
+        // when the MQ is restarted without an MGM restart.
+        auto recv_channel = broker.second.first;
+        XrdCl::StatInfo* stinfo {nullptr};
+        auto st = recv_channel->Stat(true, stinfo);
+        delete stinfo;
+
+        if (st.IsOK()) {
+          continue;
+        }
+      }
+
+      eos_static_info("msg=\"refresh broker endpoint\" old_url=\"%s\" "
+                      "new_url=\"%s\"", broker.first.c_str(),
+                      new_url.GetURL().c_str());
       endpoint_replacements.emplace(broker.first, new_url.GetURL());
     }
   }
@@ -547,12 +563,6 @@ XrdMqClient::RefreshBrokersEndpoints()
     auto it_old = mMapBrokerToChannels.find(replace.first);
 
     if (it_old == mMapBrokerToChannels.end()) {
-      continue;
-    }
-
-    if (mMapBrokerToChannels.find(replace.second) != mMapBrokerToChannels.end()) {
-      eos_static_err("msg=\"broker already exists\" url=\"%s\"",
-                     replace.second.c_str());
       continue;
     }
 
