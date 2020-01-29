@@ -7,12 +7,12 @@ HTTP(XrdHttp) and XRootD TPC with delegated credentials
 ########################################################
 
 There are several ways in which a third-party transfer can be triggerred in an
-XRootD based system like EOS. Currenlty EOS supports third-party-copy transfers
+XRootD based system like EOS. Currently EOS supports third-party-copy transfers
 for both the XRootD and HTTP protocol.
 
 Depending on the authetication/authorization model there are several ways in which
 a third-party-copy transfer can proceed but they fall in the following broad
-categoried:
+categories:
 
   - `XRootD TPC without delegated credentials`_
   - `XRootD TPC with delegated credentials`_
@@ -22,7 +22,7 @@ XRootD TPC without delegated credentials
 *****************************************
 
 EOS enforces authentication and authorization of client on the MGM node and
-supports the following mechanisms:
+supports the following authentication mechanisms:
   - `KRB5 (Kerberos 5) <https://xrootd.slac.stanford.edu/doc/dev49/sec_config.htm#_Toc517294110>`_
   - `GSI certificates <https://xrootd.slac.stanford.edu/doc/dev49/sec_config.htm#_Toc517294098>`_
   - `SSS (Simple Shared Secret) <https://xrootd.slac.stanford.edu/doc/dev49/sec_config.htm#_Toc517294117>`_
@@ -50,10 +50,10 @@ While this option can easily be enabled in different EOS services managed by
 the same organization, this becomes impossible when one of the TPC endpoints
 is not an EOS instance or is managed by a different entity.
 
-The TPC model is XRootD is pull based. Therefore, TPC transfers that have the
+The TPC model in XRootD is pull based. Therefore, TPC transfers that have the
 EOS endpoint as source of the transfer work no matter the configuration setup,
 while TPC transfers with EOS as the destination will fail without disabling the
-SSS enforcement. A simple way to trigger a TPC trasfer is by using the **xrdcp**
+SSS enforcement. A simple way to trigger a TPC transfer is by using the **xrdcp**
 command with the following options:
 
 .. code-block:: bash
@@ -103,13 +103,15 @@ in the example above. Support for delegated credentials also requires subtile
 changes to the **sec.protocol** directive that are clearly explained in the
 XRootD documentation and already present in the provided example.
 
-The :ref:`helper script <xrootd-third-party-copy>` refereced in the configuration
+.. The :ref:`helper script <xrootd-third-party-copy>` refereced in the configuration
+The ``xrootd-third-party-copy.sh`` refereced in the configuration
 makes use of specific environment variables exported by the XRootD PSS service
 in the context of the TPC process doing the transfer.
 
+.. :caption: Contents of the xrootd-third-party-copy.sh file
+.. :name: xrootd-third-party-copy
+
 .. code-block:: bash
-   :caption: Contents of the xrootd-third-party-copy.sh file
-   :name: xrootd-third-party-copy
 
    #!/bin/bash
    dst='root://'$XRDXROOTD_ORIGIN'/'$2
@@ -117,7 +119,7 @@ in the context of the TPC process doing the transfer.
 
 
 Once the XRootD gateway is setup, the EOS MGM configuration needs to be updated
-so that any incoming TPC trasfers with delegated credentials where EOS is the
+so that any incoming TPC trasnfers with delegated credentials where EOS is the
 destination endpoint are redirected to the gateway node. This is done by adding
 the following directive to the default EOS MGM configuration file located in
 ``/etc/xrd.cf.mgm``:
@@ -128,7 +130,7 @@ the following directive to the default EOS MGM configuration file located in
 
 In order to trigger a TPC transfer with delegated credentials the user needs to
 have a valid X509 certificate that the xrdcp command can use during the transfer.
-The xrdcp command will automatically pick the user certificate by using the
+The xrdcp command will automatically pick up the user certificate by using the
 following environment variables:
 
 .. code-block:: bash
@@ -194,17 +196,18 @@ for testing the token support against the EOS instance:
     tools like **macaroon-init** useful when trying to acquire a macaroons for
     testing purposes
 
-Support for HTTP(S) access in EOS is provided through an HTTP external-handler
+Support for HTTP(S) access in EOS is provided through an HTTP external handler
 plug-in library which is distributed by default with any EOS version called
 **libEosMgmHttp.so**.
 
-Below you can find reference configuration file that will enable HTTP(S) support
-and HTTP TPC with both macaroons and scitokens support on the MGM. Each line
+Below you can find a reference configuration file that will enable HTTP(S) support
+and HTTP TPC with both macaroons and scitokens on the MGM. Each line
 contains a description of the functionality provided.
 
-.. code-block:: cfg
-   :caption: Contents of /etc/xrd.cf.mgm file
-   :linenos:
+.. :caption: Contents of /etc/xrd.cf.mgm file
+.. :linenos:
+
+.. code-block:: bash
 
    # Load and enable HTTP(S) access on port 9000 on the current instance
    xrd.protocol XrdHttp:9000 /usr/lib64/libXrdHttp.so
@@ -254,8 +257,9 @@ information about the IAM (Identity and Access Management) provider that the
 client/MGM service will contact for SciTokens support. A reference ``scitokens.cfg``
 file is provided below:
 
+.. :caption: Contents of the /etc/xrootd/scitokens.cfg file
+
 .. code-block:: bash
-   :caption: Contents of the /etc/xrootd/scitokens.cfg file
 
    [Global]
    audience = https://wlcg.cern.ch/jwt/v1/any
@@ -273,8 +277,9 @@ is mapped to.
 Apart from the **MGM**, the **FST** configuration also needs to be updated in
 order to support HTTP(XrdHttp) and HTTP TPC access.
 
+.. :caption: Contents of the /etc/xrd.cf.fst file relevant for HTTP config
+
 .. code-block:: bash
-   :caption: Contents of the /etc/xrd.cf.fst file relevant for HTTP config
 
    # Enable the XrdHttp plugin and listen on port 9001 for connections
    xrd.protocol XrdHttp:9001 /usr/lib64/libXrdHttp.so
@@ -293,8 +298,9 @@ where MGM will redirect incoming clients requesting HTTP(S) access to the data.
 This can easily be done by adding a systemd custom configuration file for the
 FST service in ``/usr/lib/systemd/system/eos@fst.service.d/custom.conf``.
 
+.. :caption: Contenst of the custom.conf file
+
 .. code-block:: bash
-   :caption: Contenst of the custom.conf file
 
    [Service]
    Environment=EOS_FST_HTTP_PORT=9001
@@ -353,13 +359,14 @@ HTTP transfers with Macaroon authentication
 
 To trigger a HTTP transfer using a Macaroon token, we first need to acquire a
 Macaroon from the EOS MGM endpoint using our X509 certificate and then use this
-macarron to authenticate/authorize the transrer. The macaroon token will embed
+macarron to authenticate/authorize the transfer. The macaroon token will embed
 the username from the X509 certificate (or the mapped identity from the
 "grid map file)" so that when the token request is issued the client identity
 on the server side will be mapped to this username.
 
+.. :caption: Requesting a macaroon using a X509 certificate.
+
 .. code-block:: bash
-   :caption: Requesting a macaroon using a X509 certificate.
 
    # Make sure the following environment variables point to the client
    # certificate and private key
@@ -379,8 +386,9 @@ contents of the macaroon if they have access to the ``/etc/eos.macaroon.secret``
 file. This can easily be done by installing the **python2-macaroons** package
 from EPEL and launching a python shell as follows:
 
+.. :caption: Python script to decode a Macaroon token
+
 .. code-block:: python
-   :caption: Python script to decode a Macaroon token
 
    >>> import macaroons
    >>> secret = open("/etc/eos.macaroon.secret", 'r').read()
@@ -401,7 +409,7 @@ HTTP transfers with SciToken authentication
 -------------------------------------------
 
 HTTP transfers with SciTokens work in a similar way to Macaroon tokens. In order
-to get a SciToken, on needs to be registered with an IAM provider and install
+to get a SciToken, one needs to be registered with an IAM provider and install
 the **oidc-agent** package which provides the client tools to register and request
 tokens. An RPM package for CentOS7 is already available from the
 `GitHub releases page of the project <https://github.com/indigo-dc/oidc-agent/releases>`_.
