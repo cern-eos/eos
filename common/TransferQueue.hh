@@ -36,6 +36,7 @@
 #include "common/Namespace.hh"
 #include "common/TransferJob.hh"
 #include "common/FileSystem.hh"
+#include "common/Locators.hh"
 #include "mq/XrdMqSharedObject.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
@@ -52,42 +53,6 @@ namespace qclient {
 EOSCOMMONNAMESPACE_BEGIN
 
 class FileSystem;
-
-//------------------------------------------------------------------------------
-//! Class to fully specify a TransferQueue
-//------------------------------------------------------------------------------
-class TransferQueueLocator {
-public:
-  //----------------------------------------------------------------------------
-  //! Constructor: Queue tied to a FileSystem
-  //----------------------------------------------------------------------------
-  TransferQueueLocator(const FileSystemLocator &fsLocator, const std::string &tag);
-
-  //----------------------------------------------------------------------------
-  //! Constructor: Queue tied to an FST
-  //----------------------------------------------------------------------------
-  TransferQueueLocator(const std::string &fstQueue, const std::string &tag);
-
-  //----------------------------------------------------------------------------
-  //! Get "queue"
-  //----------------------------------------------------------------------------
-  std::string getQueue() const;
-
-  //----------------------------------------------------------------------------
-  //! Get "queuepath"
-  //----------------------------------------------------------------------------
-  std::string getQueuePath() const;
-
-  //----------------------------------------------------------------------------
-  //! Get QDB key for this queue
-  //----------------------------------------------------------------------------
-  std::string getQDBKey() const;
-
-private:
-  FileSystemLocator mLocator;
-  std::string mFstQueue;
-  std::string mTag;
-};
 
 //------------------------------------------------------------------------------
 //! Class implementing the base class of a transfer queue used in FST & MGM

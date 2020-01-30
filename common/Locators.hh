@@ -208,6 +208,41 @@ private:
   std::string mChannel;
 };
 
+//------------------------------------------------------------------------------
+//! Class to fully specify a TransferQueue
+//------------------------------------------------------------------------------
+class TransferQueueLocator {
+public:
+  //----------------------------------------------------------------------------
+  //! Constructor: Queue tied to a FileSystem
+  //----------------------------------------------------------------------------
+  TransferQueueLocator(const FileSystemLocator &fsLocator, const std::string &tag);
+
+  //----------------------------------------------------------------------------
+  //! Constructor: Queue tied to an FST
+  //----------------------------------------------------------------------------
+  TransferQueueLocator(const std::string &fstQueue, const std::string &tag);
+
+  //----------------------------------------------------------------------------
+  //! Get "queue"
+  //----------------------------------------------------------------------------
+  std::string getQueue() const;
+
+  //----------------------------------------------------------------------------
+  //! Get "queuepath"
+  //----------------------------------------------------------------------------
+  std::string getQueuePath() const;
+
+  //----------------------------------------------------------------------------
+  //! Get QDB key for this queue
+  //----------------------------------------------------------------------------
+  std::string getQDBKey() const;
+
+private:
+  FileSystemLocator mLocator;
+  std::string mFstQueue;
+  std::string mTag;
+};
 
 EOSCOMMONNAMESPACE_END
 
