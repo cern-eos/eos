@@ -45,6 +45,7 @@ add_library(XrdMqClient-Objects OBJECT
   MessagingRealm.cc              MessagingRealm.hh
   ReportListener.cc              ReportListener.hh
   SharedHashWrapper.cc           SharedHashWrapper.hh
+  SharedQueueWrapper.cc          SharedQueueWrapper.hh
   XrdMqClient.cc                 XrdMqClient.hh
   XrdMqMessage.cc                XrdMqMessage.hh
   XrdMqMessaging.cc              XrdMqMessaging.hh

@@ -34,56 +34,6 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
-//------------------------------------------------------------------------------
-// Constructor
-//------------------------------------------------------------------------------
-TransferQueueLocator::TransferQueueLocator(const FileSystemLocator &fsLocator, const std::string &tag)
-: mLocator(fsLocator), mTag(tag) {}
-
-//------------------------------------------------------------------------------
-// Constructor: Queue tied to an FST
-//------------------------------------------------------------------------------
-TransferQueueLocator::TransferQueueLocator(const std::string &fstQueue, const std::string &tag)
-: mFstQueue(fstQueue), mTag(tag) {}
-
-//------------------------------------------------------------------------------
-// Get "queue"
-//------------------------------------------------------------------------------
-std::string TransferQueueLocator::getQueue() const {
-  if(!mFstQueue.empty()) {
-    return mFstQueue;
-  }
-  else {
-    return mLocator.getFSTQueue();
-  }
-}
-
-//------------------------------------------------------------------------------
-// Get "queuepath"
-//------------------------------------------------------------------------------
-std::string TransferQueueLocator::getQueuePath() const {
-  if(!mFstQueue.empty()) {
-    return SSTR(mFstQueue << "/gw/txqueue/" << mTag);
-  }
-  else {
-    return SSTR(mLocator.getQueuePath() << "/txqueue/" << mTag);
-  }
-}
-
-//------------------------------------------------------------------------------
-// Get QDB key for this queue
-//------------------------------------------------------------------------------
-std::string TransferQueueLocator::getQDBKey() const {
-  if(!mFstQueue.empty()) {
-    std::vector<std::string> parts;
-    parts = eos::common::StringTokenizer::split<std::vector<std::string>>(mFstQueue, '/');
-    return SSTR("txqueue-fst||" << parts[1] << "||" << mTag);
-  }
-  else {
-    return SSTR("txqueue-filesystem||" << mLocator.getHostPort() << "||" << mLocator.getStoragePath() << "||" << mTag);
-  }
-}
-
 /*----------------------------------------------------------------------------*/
 /**
  * Constructor for a transfer queue

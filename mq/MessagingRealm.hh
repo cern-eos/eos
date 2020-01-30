@@ -53,6 +53,21 @@ public:
   //----------------------------------------------------------------------------
   MessagingRealm(qclient::SharedManager *qsom);
 
+  //----------------------------------------------------------------------------
+  //! Is this a QDB realm?
+  //----------------------------------------------------------------------------
+  bool onQDB() const;
+
+  //----------------------------------------------------------------------------
+  //! Get legacy change notifier
+  //----------------------------------------------------------------------------
+  XrdMqSharedObjectChangeNotifier* getChangeNotifier() const;
+
+  //----------------------------------------------------------------------------
+  //! Get qclient shared manager
+  //----------------------------------------------------------------------------
+  qclient::SharedManager* getQSharedManager() const;
+
 private:
   XrdMqSharedObjectManager *mSom;
   XrdMqSharedObjectChangeNotifier *mNotifier;

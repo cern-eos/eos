@@ -1,11 +1,11 @@
 // ----------------------------------------------------------------------
-// File: MessagingRealm.cc
+// File: SharedQueueWrapper.cc
 // Author: Georgios Bitzes - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2020 CERN/Switzerland                                  *
+ * Copyright (C) 2019 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,42 +21,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mq/MessagingRealm.hh"
+#include "mq/SharedQueueWrapper.hh"
 
 EOSMQNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-// Initialize legacy-MQ-based messaging realm.
+// Constructor
 //------------------------------------------------------------------------------
-MessagingRealm::MessagingRealm(XrdMqSharedObjectManager *som, XrdMqSharedObjectChangeNotifier *notif)
-: mSom(som), mNotifier(notif), mQSom(nullptr) {}
-
-//------------------------------------------------------------------------------
-// Initialize QDB-based messaging realm.
-//------------------------------------------------------------------------------
-MessagingRealm::MessagingRealm(qclient::SharedManager *qsom)
-: mSom(nullptr), mQSom(qsom) {}
-
-//------------------------------------------------------------------------------
-// Is this a QDB realm?
-//------------------------------------------------------------------------------
-bool MessagingRealm::onQDB() const {
-  return mQSom != nullptr;
-}
-
-//------------------------------------------------------------------------------
-// Get legacy change notifier
-//------------------------------------------------------------------------------
-XrdMqSharedObjectChangeNotifier* MessagingRealm::getChangeNotifier() const {
-  return mNotifier;
-}
-
-//------------------------------------------------------------------------------
-// Get qclient shared manager
-//------------------------------------------------------------------------------
-qclient::SharedManager* MessagingRealm::getQSharedManager() const {
-  return mQSom;
-}
-
+SharedQueueWrapper::SharedQueueWrapper(mq::MessagingRealm* realm, const common::TransferQueueLocator& locator)
+: mRealm(realm), mLocator(locator) {}
 
 EOSMQNAMESPACE_END
