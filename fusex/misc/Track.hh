@@ -147,7 +147,7 @@ public:
   }
 
   std::shared_ptr<meta_t>
-  Attach(unsigned long long ino, bool exclusive = false)
+  Attach(unsigned long long ino, bool exclusive = false, const char* caller = 0)
   {
     std::shared_ptr<meta_t> m;
     {
@@ -158,6 +158,7 @@ public:
       }
 
       m = iNodes[ino];
+      m->caller = caller;
     }
 
     if (!m->openr && !m->openw) {
@@ -188,11 +189,11 @@ public:
 	if (EOS_LOGS_DEBUG)
 	  eos_static_debug("trylock caller=%s self=%lld in=%llu exclusive=%d", caller,
 			   thread_id(), ino, exclusive);
-        this->me = tracker.Attach(ino, exclusive);
-	this->me->caller = caller;
         this->ino = ino;
         this->caller = caller;
         this->exclusive = exclusive;
+        this->me = tracker.Attach(ino, exclusive, caller);
+
 	if (EOS_LOGS_DEBUG)
 	  eos_static_debug("locked  caller=%s self=%lld in=%llu exclusive=%d obj=%llx",
 			   caller, thread_id(), ino, exclusive,
