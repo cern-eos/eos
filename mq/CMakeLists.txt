@@ -42,6 +42,7 @@ add_library(XrdMqClient-Objects OBJECT
   ErrorReportListener.cc         ErrorReportListener.hh
   FileSystemChangeListener.cc    FileSystemChangeListener.hh
   GlobalConfigChangeListener.cc  GlobalConfigChangeListener.hh
+  MessagingRealm.cc              MessagingRealm.hh
   ReportListener.cc              ReportListener.hh
   SharedHashWrapper.cc           SharedHashWrapper.hh
   XrdMqClient.cc                 XrdMqClient.hh
