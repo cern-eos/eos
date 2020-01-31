@@ -127,8 +127,7 @@ Storage::RegisterFileSystem(const std::string& queuepath)
     return;
   }
 
-  fst::FileSystem* fs = new fst::FileSystem(locator, &gOFS.ObjectManager,
-      gOFS.mQSOM.get());
+  fst::FileSystem* fs = new fst::FileSystem(locator, gOFS.mMessagingRealm.get());
   fs->SetStatus(eos::common::BootStatus::kDown);
   fs->SetLocalId();
   fs->SetLocalUuid();

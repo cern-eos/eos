@@ -33,6 +33,7 @@
 #include "common/FileSystem.hh"
 #include "common/StringConversion.hh"
 #include "common/FileId.hh"
+#include "mq/MessagingRealm.hh"
 #include <vector>
 #include <list>
 #include <queue>
@@ -61,8 +62,7 @@ public:
   //-----------------------------------------------------------------------------
   //! Constructor
   //-----------------------------------------------------------------------------
-  FileSystem(const common::FileSystemLocator& locator,
-             XrdMqSharedObjectManager* som, qclient::SharedManager* qsom);
+  FileSystem(const common::FileSystemLocator& locator, mq::MessagingRealm *realm);
 
   //-----------------------------------------------------------------------------
   //! Destructor

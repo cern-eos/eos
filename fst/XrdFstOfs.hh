@@ -34,6 +34,7 @@
 #include "common/ThreadPool.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mq/XrdMqSharedObject.hh"
+#include "mq/MessagingRealm.hh"
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
 #include "XrdOuc/XrdOucString.hh"
@@ -399,6 +400,7 @@ public:
   std::unique_ptr<qclient::SharedManager> mQSOM; ///< MQ on QDB - can be null
   //! Notifying any shared object changes
   XrdMqSharedObjectChangeNotifier ObjectNotifier;
+  std::unique_ptr<mq::MessagingRealm> mMessagingRealm;
   XrdScheduler* TransferScheduler; ///< TransferScheduler
   XrdSysMutex TransferSchedulerMutex; ///< protecting the TransferScheduler
   XrdOucString eoscpTransferLog; ///< eoscp.log full path

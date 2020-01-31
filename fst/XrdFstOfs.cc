@@ -761,6 +761,8 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
                                            mQdbContactDetails.constructSubscriptionOptions()));
   }
 
+  mMessagingRealm.reset(new mq::MessagingRealm(&ObjectManager, &ObjectNotifier, mQSOM.get()));
+
   // Setup auth dir
   {
     XrdOucString scmd = "mkdir -p ";

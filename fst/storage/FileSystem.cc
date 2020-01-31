@@ -37,9 +37,8 @@ EOSFSTNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 FileSystem::FileSystem(const common::FileSystemLocator& locator,
-                       XrdMqSharedObjectManager* som,
-                       qclient::SharedManager* qsom):
-  eos::common::FileSystem(locator, som, qsom, true),
+  mq::MessagingRealm *realm) :
+  eos::common::FileSystem(locator, realm->getSom(), realm->getQSom(), true),
   mLocalId(0ul), mLocalUuid(""),  mScanDir(nullptr), mFileIO(nullptr),
   mTxDirectory("")
 {
