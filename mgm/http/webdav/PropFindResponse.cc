@@ -189,9 +189,10 @@ PropFindResponse::BuildResponse(eos::common::HttpRequest* request)
         if (entryname.beginswith(EOS_COMMON_PATH_VERSION_FILE_PREFIX) ||
             entryname.beginswith(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) ||
             entryname.beginswith(EOS_WEBDAV_HIDE_IN_PROPFIND_PREFIX) ||
+	    entryname.beginswith("...eos.ino...") ||
             (entryname == ".") ||
             (entryname == "..")) {
-          // skip over . .. and hidden files
+          // skip over . .., and hidden files
           continue;
         }
 
@@ -329,6 +330,15 @@ PropFindResponse::BuildResponseNode(const std::string& url,
   if (gOFS->_stat(urlp.c_str(), &statInfo, error, *mVirtualIdentity,
                   (const char*) 0, &etag)) {
     eos_static_err("msg=\"error stating %s: %s\"", urlp.c_str(),
+                   error.getErrText());
+    SetResponseCode(ResponseCodes::NOT_FOUND);
+    return NULL;
+  }
+
+  // hide hardlinks
+  if ( etag == "hardlink" ) {
+    // this is the 'best' guess to identify a hardlink entry (for now)
+    eos_static_err("msg=\"hiding hardlinkg %s: %s\"", urlp.c_str(),
                    error.getErrText());
     SetResponseCode(ResponseCodes::NOT_FOUND);
     return NULL;

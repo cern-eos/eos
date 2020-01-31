@@ -259,6 +259,9 @@ XrdMgmOfs::_stat(const char* path,
 
     if (etag) {
       eos::calculateEtag(fmd.get(), *etag);
+      if (fmd->hasAttribute("sys.eos.mdino")) {
+	*etag = "hardlink";
+      }
     }
 
     EXEC_TIMING_END("Stat");
