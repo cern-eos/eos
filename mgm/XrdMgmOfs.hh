@@ -188,6 +188,10 @@ class socket_t;
 class context_t;
 }
 
+namespace eos::mq {
+  class MessagingRealm;
+}
+
 enum class NamespaceState {
   kDown = 0,
   kBooting = 1,
@@ -1678,6 +1682,8 @@ public:
   XrdMqSharedObjectManager ObjectManager; ///< Shared Hash/Queue ObjectManager
   //! Shared Hash/Queue Object Change Notifier
   XrdMqSharedObjectChangeNotifier ObjectNotifier;
+
+  std::unique_ptr<eos::mq::MessagingRealm> mMessagingRealm;
   Drainer mDrainEngine; ///< Centralized draining
   std::unique_ptr<HttpServer> mHttpd; ///<  Http daemon if available
 

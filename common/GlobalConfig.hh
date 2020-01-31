@@ -39,6 +39,10 @@ namespace qclient {
   class SharedManager;
 }
 
+namespace eos::mq {
+  class MessagingRealm;
+}
+
 EOSCOMMONNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
@@ -52,7 +56,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  GlobalConfig(): mSom(nullptr) {};
+  GlobalConfig(): mRealm(nullptr) {};
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -67,49 +71,27 @@ public:
   //----------------------------------------------------------------------------
   //! Return the shared object manager
   //----------------------------------------------------------------------------
-  inline XrdMqSharedObjectManager* SOM()
-  {
-    return mSom;
-  }
+  XrdMqSharedObjectManager* SOM();
 
   //----------------------------------------------------------------------------
   //! Return the QDB SharedManager
   //----------------------------------------------------------------------------
-  inline qclient::SharedManager* QSOM()
-  {
-    return mQsom;
-  }
+  qclient::SharedManager* QSOM();
 
   //----------------------------------------------------------------------------
   //! Reset the global config
   //----------------------------------------------------------------------------
-  inline void Reset()
-  {
-    if (mSom) {
-      mSom->Clear();
-    }
-  }
+  void Reset();
 
   //----------------------------------------------------------------------------
-  //! Store the object manager in the global config
-  //!
-  //! @param som pointer to a shared object manager
+  //! Store global pointer to messaging realm
   //----------------------------------------------------------------------------
-  inline void SetSOM(XrdMqSharedObjectManager* som)
-  {
-    mSom = som;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Set global qclient SharedManager object - can be null
-  //----------------------------------------------------------------------------
-  inline void setQSharedManager(qclient::SharedManager* qsom) {
-    mQsom = qsom;
+  void SetRealm(mq::MessagingRealm *realm) {
+    mRealm = realm;
   }
 
 private:
-  XrdMqSharedObjectManager* mSom; ///< Pointer to the global object manager
-  qclient::SharedManager* mQsom = nullptr;
+  mq::MessagingRealm* mRealm; ///< Pointer to the global messaging realm
 };
 
 EOSCOMMONNAMESPACE_END

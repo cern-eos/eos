@@ -67,6 +67,7 @@
 #include "namespace/interface/IView.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "mq/SharedHashWrapper.hh"
+#include "mq/MessagingRealm.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysPlugin.hh"
@@ -1390,7 +1391,17 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   MgmConfigQueue += "/mgm/";
   ObjectNotifier.SetShareObjectManager(&ObjectManager);
   // we need to set the shared object manager to be used
-  eos::common::GlobalConfig::gConfig.SetSOM(&ObjectManager);
+
+  qclient::SharedManager *qsm = nullptr;
+  if((getenv("EOS_USE_MQ_ON_QDB") != 0)) {
+    eos_static_info("MQ on QDB - setting up SharedManager..");
+    qsm = new qclient::SharedManager(
+      mQdbContactDetails.members,
+      mQdbContactDetails.constructSubscriptionOptions());
+  }
+
+  mMessagingRealm.reset(new eos::mq::MessagingRealm(&ObjectManager, &ObjectNotifier, qsm));
+  eos::common::GlobalConfig::gConfig.SetRealm(mMessagingRealm.get());
   eos::common::InstanceName::set(MgmOfsInstanceName.c_str());
   eos::mq::SharedHashWrapper::initialize(&ObjectManager);
   // set the object manager to listener only
@@ -1428,16 +1439,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     dumperfile += "/so.mgm.dump.";
     dumperfile += ManagerId;
     ObjectManager.StartDumper(dumperfile.c_str());
-  }
-
-  if ((getenv("EOS_USE_MQ_ON_QDB") != 0)) {
-    eos_static_info("MQ on QDB - setting up SharedManager..");
-    // Using QDB as MQ? Currently experimental - functionality not switched over
-    // to QDB will still use the old MQ.
-    qclient::SharedManager* sm = new qclient::SharedManager(
-      mQdbContactDetails.members,
-      mQdbContactDetails.constructSubscriptionOptions());
-    eos::common::GlobalConfig::gConfig.setQSharedManager(sm);
   }
 
   SetupGlobalConfig();

@@ -46,17 +46,18 @@ public:
   //----------------------------------------------------------------------------
   //! Initialize legacy-MQ-based messaging realm.
   //----------------------------------------------------------------------------
-  MessagingRealm(XrdMqSharedObjectManager *som, XrdMqSharedObjectChangeNotifier *notifier);
+  MessagingRealm(XrdMqSharedObjectManager *som, XrdMqSharedObjectChangeNotifier *notifier,
+    qclient::SharedManager *qsom);
 
   //----------------------------------------------------------------------------
-  //! Initialize QDB-based messaging realm.
+  //! Have access to QDB?
   //----------------------------------------------------------------------------
-  MessagingRealm(qclient::SharedManager *qsom);
+  bool haveQDB() const;
 
   //----------------------------------------------------------------------------
-  //! Is this a QDB realm?
+  //! Get som
   //----------------------------------------------------------------------------
-  bool onQDB() const;
+  XrdMqSharedObjectManager* getSom() const;
 
   //----------------------------------------------------------------------------
   //! Get legacy change notifier
@@ -66,7 +67,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get qclient shared manager
   //----------------------------------------------------------------------------
-  qclient::SharedManager* getQSharedManager() const;
+  qclient::SharedManager* getQSom() const;
 
 private:
   XrdMqSharedObjectManager *mSom;

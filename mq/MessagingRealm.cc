@@ -28,20 +28,22 @@ EOSMQNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Initialize legacy-MQ-based messaging realm.
 //------------------------------------------------------------------------------
-MessagingRealm::MessagingRealm(XrdMqSharedObjectManager *som, XrdMqSharedObjectChangeNotifier *notif)
-: mSom(som), mNotifier(notif), mQSom(nullptr) {}
-
-//------------------------------------------------------------------------------
-// Initialize QDB-based messaging realm.
-//------------------------------------------------------------------------------
-MessagingRealm::MessagingRealm(qclient::SharedManager *qsom)
-: mSom(nullptr), mQSom(qsom) {}
+MessagingRealm::MessagingRealm(XrdMqSharedObjectManager *som,
+  XrdMqSharedObjectChangeNotifier *notif, qclient::SharedManager *qsom)
+: mSom(som), mNotifier(notif), mQSom(qsom) {}
 
 //------------------------------------------------------------------------------
 // Is this a QDB realm?
 //------------------------------------------------------------------------------
-bool MessagingRealm::onQDB() const {
+bool MessagingRealm::haveQDB() const {
   return mQSom != nullptr;
+}
+
+//------------------------------------------------------------------------------
+// Get som
+//------------------------------------------------------------------------------
+XrdMqSharedObjectManager* MessagingRealm::getSom() const {
+  return mSom;
 }
 
 //------------------------------------------------------------------------------
@@ -54,7 +56,7 @@ XrdMqSharedObjectChangeNotifier* MessagingRealm::getChangeNotifier() const {
 //------------------------------------------------------------------------------
 // Get qclient shared manager
 //------------------------------------------------------------------------------
-qclient::SharedManager* MessagingRealm::getQSharedManager() const {
+qclient::SharedManager* MessagingRealm::getQSom() const {
   return mQSom;
 }
 
