@@ -25,6 +25,7 @@
 #define __EOSMGM_FILESYSTEM_HH__
 
 #include "common/FileSystem.hh"
+#include "mq/MessagingRealm.hh"
 #include "mgm/Namespace.hh"
 
 /*----------------------------------------------------------------------------*/
@@ -64,8 +65,8 @@ public:
   //! @param som external shared object manager object
   //----------------------------------------------------------------------------
   FileSystem(const common::FileSystemLocator& locator,
-             XrdMqSharedObjectManager* som, qclient::SharedManager* qsom) :
-    eos::common::FileSystem(locator, som, qsom)
+             mq::MessagingRealm* msr) :
+    eos::common::FileSystem(locator, msr->getSom(), msr->getQSom())
   {}
 
   //----------------------------------------------------------------------------
