@@ -1085,6 +1085,12 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     Config.Close();
   }
 
+  if(!mQdbContactDetails.members.empty() && mQdbContactDetails.password.empty()) {
+    Eroute.Say("=====> Configuration error: Found QDB cluster members, but no password."
+      " EOS will only connect to password-protected QDB instances. (mgmofs.qdbpassword / mgmofs.qdbpassword_file missing)");
+    return 1;
+  }
+
   if (NoGo) {
     return NoGo;
   }

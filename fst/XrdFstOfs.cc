@@ -648,6 +648,12 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     return 1;
   }
 
+  if(!mQdbContactDetails.members.empty() && mQdbContactDetails.password.empty()) {
+    Eroute.Say("=====> Configuration error: Found QDB cluster members, but no password."
+      " EOS will only connect to password-protected QDB instances. (fstofs.qdbpassword / fstofs.qdbpassword_file missing)");
+    return 1;
+  }
+
   if (eos::fst::Config::gConfig.autoBoot) {
     Eroute.Say("=====> fstofs.autoboot : true");
   } else {

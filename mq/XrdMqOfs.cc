@@ -533,6 +533,12 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
     return rc;
   }
 
+  if(!mQdbContactDetails.members.empty() && mQdbContactDetails.password.empty()) {
+    Eroute.Say("=====> Configuration error: Found QDB cluster members, but no password."
+      " EOS will only connect to password-protected QDB instances. (mqofs.qdbpassword / mqofs.qdbpassword_file missing)");
+    return 1;
+  }
+
   // Create a qclient object if cluster information provided
   if (!mQdbCluster.empty()) {
     mQcl = std::make_unique<qclient::QClient>(mQdbContactDetails.members,
