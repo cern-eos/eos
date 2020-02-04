@@ -75,8 +75,9 @@ We will run three instances of **QuarkDB** on ports 7001, 7002 and 7003. The def
   if exec xrootd
     xrd.port 7777
     xrd.protocol redis:7777 /usr/lib64/libXrdQuarkDB.so
-    redis.mode standalone
+    redis.mode raft
     redis.database /var/quarkdb
+    redis.password_file /etc/eos.keytab
   fi
 
 Using this as a reference, we start customizing the configuration files for our three QuarkDB instances:
@@ -90,10 +91,8 @@ Using this as a reference, we start customizing the configuration files for our 
      sed -i 's/7777/700'"${i}"'/g' /etc/xrootd/xrootd-quarkdb${i}.cfg
      # Customize the storage location
      sed -i 's/\/var\/quarkdb/\/var\/lib\/quarkdb\/qdb'"${i}"'/g' /etc/xrootd/xrootd-quarkdb${i}.cfg
-     # Set the instance to run in "raft" mode
-     sed -i 's/standalone/raft/g' /etc/xrootd/xrootd-quarkdb${i}.cfg
      # Add myself entry to the config
-     sed -i 's/fi/ redis.myself localhost:700'"${i}"'\n&/' /etc/xrootd/xrootd-quarkdb${i}.cfg
+     sed -i 's/fi/  redis.myself localhost:700'"${i}"'\n&/' /etc/xrootd/xrootd-quarkdb${i}.cfg
      # Prepare the log and working directories for the instances
      mkdir -p /var/log/quarkdb/
      mkdir -p /var/spool/quarkdb/
