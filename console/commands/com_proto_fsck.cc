@@ -61,12 +61,12 @@ void com_fsck_help()
       << "  fsck stat\n"
       << "    print summary of consistency checks\n"
       << std::endl
-      << "  fsck config <key> [<value>]\n" << std::endl
+      << "  fsck config <key> [<value>]\n"
       << "    configure the fsck with the following possible options:"
       << std::endl
       << "    toggle-collect       : enable/disable error collection thread, <value> represents\n"
       << "                           the collection interval in minutes [default 30]\n"
-      << "    toggle-repair        : enable/disable repair thread, no <value> required"
+      << "    toggle-repair        : enable/disable repair thread, no <value> required\n"
       << "    show-dark-files      : yes/no [default no]\n"
       << "    show-offline         : yes/no [default no]\n"
       << "    show-no-replica      : yes/no [default no]\n"
