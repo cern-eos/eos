@@ -427,7 +427,7 @@ To configure the **oidc-agent**, you can follow these steps:
    oidc-add WLCG_<your_username>
    # Request a token from the IAM and save it as an environment variable for
    # later use
-   export SCI_TOKEN=`oidc-toke WLCG_<your_username>
+   export SCI_TOKEN=`oidc-token WLCG_<your_username>`
    # Trigger a HTTP download using the SciToken information
    curl -v -L -H "Authorization: Bearer $SCI_TOKEN" https://esdss000.cern.ch:9000/eos/dev/replica/file1.dat
 
