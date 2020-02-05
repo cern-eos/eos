@@ -81,7 +81,7 @@ We will run three instances of **QuarkDB** on ports 7001, 7002 and 7003. The def
   fi
 
 In this example, we're using the EOS keytab file as a password for QuarkDB as well. The entire file contents will be read, and used as the password. No special parsing of the keytab file occurs, the entire thing is considered as the secret string. We're using the EOS keytab just for convenience, in principle any 32+ character string can be used as a password. Check out the `QDB documentation
-http://quarkdb.web.cern.ch/quarkdb/docs/master/AUTHENTICATION.html`_ for more information regarding password authentication.
+<http://quarkdb.web.cern.ch/quarkdb/docs/master/AUTHENTICATION.html>`_ for more information regarding password authentication.
 
 Using this as a reference, we start customizing the configuration files for our three QuarkDB instances:
 
