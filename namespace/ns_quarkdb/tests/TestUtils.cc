@@ -21,9 +21,6 @@
 // desc:   Test utilities
 //------------------------------------------------------------------------------
 
-#include <qclient/QClient.hh>
-#include <gtest/gtest.h>
-#include <sstream>
 #include "TestUtils.hh"
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
@@ -31,6 +28,10 @@
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
+#include <sstream>
+#include <fstream>
+#include <qclient/QClient.hh>
+#include <gtest/gtest.h>
 
 EOSNSTESTING_BEGIN
 
@@ -49,13 +50,21 @@ NsTestsFixture::NsTestsFixture()
   RequestBuilder::OverrideNumberOfFileBuckets(128);
   RequestBuilder::OverrideNumberOfContainerBuckets(128);
   srandom(time(nullptr));
-
   // Connection parameters
   std::string qdb_hostport = getenv("EOS_QUARKDB_HOSTPORT") ?
                              getenv("EOS_QUARKDB_HOSTPORT") : "localhost:9999";
-
   std::string qdb_passwd = getenv("EOS_QUARKDB_PASSWD") ?
                            getenv("EOS_QUARKDB_PASSWD") : "";
+  std::string qdb_passwd_file = getenv("EOS_QUARKDB_PASSWD_FILE") ?
+                                getenv("EOS_QUARKDB_PASSWD_FILE") : "/etc/eos.keyab";
+
+  if (qdb_passwd.empty() && !qdb_passwd_file.empty()) {
+    // Read the password from the file
+    std::ifstream f(qdb_passwd_file);
+    std::stringstream buff;
+    buff << f.rdbuf();
+    qdb_passwd = buff.str();
+  }
 
   testconfig = {
     {"queue_path", "/tmp/eos-ns-tests/"},
@@ -89,16 +98,17 @@ void NsTestsFixture::setSizeMapper(IQuotaStats::SizeMapper mapper)
 
 void NsTestsFixture::initServices()
 {
-  if(namespaceGroupPtr) {
+  if (namespaceGroupPtr) {
     // Already initialized.
     return;
   }
 
   namespaceGroupPtr.reset(new eos::QuarkNamespaceGroup());
-
   std::string err;
-  if(!namespaceGroupPtr->initialize(&nsMutex, testconfig, err)) {
-    std::cerr << "Test error: could not initialize namespace group! Terminating." << std::endl;
+
+  if (!namespaceGroupPtr->initialize(&nsMutex, testconfig, err)) {
+    std::cerr << "Test error: could not initialize namespace group! Terminating." <<
+              std::endl;
     std::terminate();
   }
 
@@ -163,7 +173,7 @@ eos::MetadataFlusher* NsTestsFixture::quotaFlusher()
 
 void NsTestsFixture::shut_down_everything()
 {
-  if(namespaceGroupPtr) {
+  if (namespaceGroupPtr) {
     namespaceGroupPtr->getHierarchicalView()->finalize();
     namespaceGroupPtr->getFilesystemView()->finalize();
   }
