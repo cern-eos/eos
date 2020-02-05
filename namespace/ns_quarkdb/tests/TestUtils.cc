@@ -56,7 +56,7 @@ NsTestsFixture::NsTestsFixture()
   std::string qdb_passwd = getenv("EOS_QUARKDB_PASSWD") ?
                            getenv("EOS_QUARKDB_PASSWD") : "";
   std::string qdb_passwd_file = getenv("EOS_QUARKDB_PASSWD_FILE") ?
-                                getenv("EOS_QUARKDB_PASSWD_FILE") : "/etc/eos.keyab";
+                                getenv("EOS_QUARKDB_PASSWD_FILE") : "/etc/eos.keytab";
 
   if (qdb_passwd.empty() && !qdb_passwd_file.empty()) {
     // Read the password from the file
