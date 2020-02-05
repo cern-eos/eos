@@ -118,7 +118,8 @@ function corrupt_d_mem_sz_diff() {
 function corrupt_m_mem_sz_diff() {
   # Use the eos-ns-inspect tool to corrupt the MGM file size
   local QDB_CLUSTER=$(exec_cmd eos-mgm1 "cat /etc/xrd.cf.mgm | grep \"^mgmofs.qdbcluster\" | awk '{print \$2;}'")
-  exec_cmd eos-cli1 "eos-ns-inspect change-fid --no-dry-run --members ${QDB_CLUSTER} --fid $(( 16#${FXID_M_MEM_SZ_DIFF} )) --new-size 1234568"
+  local QDB_PWDFILE=$(exec_cmd eos-mgm1 "cat /etc/xrd.cf.mgm | grep \"^mgmofs.qdbpassword_file\" | awk '{print \$2;}'")
+  exec_cmd eos-cli1 "eos-ns-inspect change-fid --no-dry-run --members ${QDB_CLUSTER} --password-file ${QDB_PWDFILE} --fid $(( 16#${FXID_M_MEM_SZ_DIFF} )) --new-size 1234568"
   exec_cmd eos-cli1 "eos -r 0 0 ns cache drop-single-file $(( 16#${FXID_M_MEM_SZ_DIFF} ))"
 }
 
@@ -136,7 +137,8 @@ function corrupt_d_cx_diff() {
 function corrupt_m_cx_diff() {
   # Use the eos-ns-inspect tool to corrupt the MGM checksum value
   local QDB_CLUSTER=$(exec_cmd eos-mgm1 "cat /etc/xrd.cf.mgm | grep \"^mgmofs.qdbcluster\" | awk '{print \$2;}'")
-  exec_cmd eos-cli1 "eos-ns-inspect change-fid --no-dry-run --members ${QDB_CLUSTER} --fid $(( 16#${FXID_M_CX_DIFF} )) --new-checksum 12345678"
+  local QDB_PWDFILE=$(exec_cmd eos-mgm1 "cat /etc/xrd.cf.mgm | grep \"^mgmofs.qdbpassword_file\" | awk '{print \$2;}'")
+  exec_cmd eos-cli1 "eos-ns-inspect change-fid --no-dry-run --members ${QDB_CLUSTER} --password-file ${QDB_PWDFILE} --fid $(( 16#${FXID_M_CX_DIFF} )) --new-checksum 12345678"
   exec_cmd eos-cli1 "eos -r 0 0 ns cache drop-single-file $(( 16#${FXID_M_CX_DIFF} ))"
 }
 
