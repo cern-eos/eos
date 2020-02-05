@@ -149,7 +149,7 @@ Load::GetNetRate(const char* dev, const char* tag)
 }
 
 //------------------------------------------------------------------------------
-// Method run by scurbber thread to  measurement both disk and network values
+// Method run by scrubber thread to  measurement both disk and network values
 // on regular intervals.
 //------------------------------------------------------------------------------
 void
