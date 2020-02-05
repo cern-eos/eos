@@ -80,6 +80,9 @@ We will run three instances of **QuarkDB** on ports 7001, 7002 and 7003. The def
     redis.password_file /etc/eos.keytab
   fi
 
+In this example, we're using the EOS keytab file as a password for QuarkDB as well. The entire file contents will be read, and used as the password. No special parsing of the keytab file occurs, the entire thing is considered as the secret string. We're using the EOS keytab just for convenience, in principle any 32+ character string can be used as a password. Check out the `QDB documentation
+http://quarkdb.web.cern.ch/quarkdb/docs/master/AUTHENTICATION.html`_ for more information regarding password authentication.
+
 Using this as a reference, we start customizing the configuration files for our three QuarkDB instances:
 
 .. code-block:: bash
@@ -177,7 +180,21 @@ To integrate the MGM service with the **QuarkDB** cluster we need to make severa
     .. code-block:: bash
 
        mgmofs.qdbcluster localhost:7001 localhost:7002 localhost:7003
+       mgmofs.qdbpassword_file /etc/eos.keytab
 
+  * Do the same for the FST configuration:
+
+    .. code-block:: bash
+
+       fstofs.qdbcluster localhost:7001 localhost:7002 localhost:7003
+       fstofs.qdbpassword_file /etc/eos.keytab
+
+  * As well as the MQ service:
+
+    .. code-block:: bash
+
+       mqofs.qdbcluster localhost:7001 localhost:7002 localhost:7003
+       mqofs.qdbpassword_file /etc/eos.keytab
 
 Start the MGM daemon as a master:
 
