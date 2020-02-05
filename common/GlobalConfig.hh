@@ -35,12 +35,17 @@
 #include <string>
 #include <stdint.h>
 
-namespace qclient {
-  class SharedManager;
+namespace qclient
+{
+class SharedManager;
 }
 
-namespace eos::mq {
-  class MessagingRealm;
+namespace eos
+{
+namespace mq
+{
+class MessagingRealm;
+}
 }
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -91,7 +96,8 @@ public:
   //----------------------------------------------------------------------------
   //! Store global pointer to messaging realm
   //----------------------------------------------------------------------------
-  void SetRealm(mq::MessagingRealm *realm) {
+  void SetRealm(mq::MessagingRealm* realm)
+  {
     mRealm = realm;
   }
 

@@ -188,8 +188,12 @@ class socket_t;
 class context_t;
 }
 
-namespace eos::mq {
-  class MessagingRealm;
+namespace eos
+{
+namespace mq
+{
+class MessagingRealm;
+}
 }
 
 enum class NamespaceState {
@@ -1509,7 +1513,8 @@ public:
   pthread_t mStatsTid; ///< Thread Id of the stats thread
   AssistedThread mFsConfigTid; ///< Fs listener/config change thread
   AssistedThread mAuthMasterTid; ///< Thread Id of the authentication thread
-  AssistedThread mFilesystemMonitorThread; ///< Thread to listen for significant filesystem changes
+  AssistedThread
+  mFilesystemMonitorThread; ///< Thread to listen for significant filesystem changes
 
   std::vector<pthread_t> mVectTid; ///< vector of auth worker threads ids
 
