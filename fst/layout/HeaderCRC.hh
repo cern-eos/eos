@@ -22,15 +22,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_HEADERCRC_HH__
-#define __EOSFST_HEADERCRC_HH__
-
-/*----------------------------------------------------------------------------*/
+#pragma once
+#include "XrdCl/XrdClFile.hh"
 #include "common/Logging.hh"
 #include "fst/Namespace.hh"
-/*----------------------------------------------------------------------------*/
-#include <XrdCl/XrdClFile.hh>
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -42,7 +37,6 @@ class FileIo;
 class HeaderCRC : public eos::common::LogId
 {
 public:
-
   //----------------------------------------------------------------------------
   //! Constructor
   //!
@@ -52,23 +46,19 @@ public:
   //----------------------------------------------------------------------------
   HeaderCRC(int sizeHeader, int sizeBlock);
 
-
   //----------------------------------------------------------------------------
   //! Constructor with parameter
   //!
   //! @sizeHeader maximum size the header will have in the beginning of the file
   //! @numBlocks number of data blocks in the current file
   //! @sizeBlock the size of the stripe block
-  //!
   //----------------------------------------------------------------------------
   HeaderCRC(int sizeHeader, long long int numBlocks, int sizeBlock);
-
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~HeaderCRC();
-
+  ~HeaderCRC() = default;
 
   //----------------------------------------------------------------------------
   //! Write header to file
@@ -77,7 +67,6 @@ public:
   //! @param timeout timeout value
   //!
   //! @return status of the operation
-  //!
   //----------------------------------------------------------------------------
   bool WriteToFile(FileIo* pFile, uint16_t timeout);
 
@@ -89,86 +78,69 @@ public:
   //! @param timeout timeout value
   //!
   //! @return status of the operation
-  //!
   //----------------------------------------------------------------------------
   bool ReadFromFile(FileIo* pFile, uint16_t timeout);
-
 
   //----------------------------------------------------------------------------
   //! Get tag of the header
   //----------------------------------------------------------------------------
-  const char*
-  GetTag() const
+  inline const char* GetTag() const
   {
     return mTag;
   }
 
-
   //----------------------------------------------------------------------------
   //! Get size of header
   //----------------------------------------------------------------------------
-  inline int
-  GetSize() const
+  inline int GetSize() const
   {
     return mSizeHeader;
   }
 
-
   //----------------------------------------------------------------------------
   //! Get block size the file contains
   //----------------------------------------------------------------------------
-  inline size_t
-  GetSizeBlock() const
+  inline size_t GetSizeBlock() const
   {
     return mSizeBlock;
   }
 
-
   //----------------------------------------------------------------------------
   //! Get size of last block in file
   //----------------------------------------------------------------------------
-  inline size_t
-  GetSizeLastBlock() const
+  inline size_t GetSizeLastBlock() const
   {
     return mSizeLastBlock;
   }
 
-
   //----------------------------------------------------------------------------
   //! Get number of blocks in file
   //----------------------------------------------------------------------------
-  inline long int
-  GetNoBlocks() const
+  inline long int GetNoBlocks() const
   {
     return mNumBlocks;
   }
 
-
   //----------------------------------------------------------------------------
   //! Get id of the stripe the header belongs to
   //----------------------------------------------------------------------------
-  inline unsigned int
-  GetIdStripe() const
+  inline unsigned int GetIdStripe() const
   {
     return mIdStripe;
   }
 
-
   //----------------------------------------------------------------------------
   //! Set number of blocks in the file
   //----------------------------------------------------------------------------
-  void
-  SetNoBlocks(long long int numBlocks)
+  inline void SetNoBlocks(long long int numBlocks)
   {
     mNumBlocks = numBlocks;
   }
 
-
   //----------------------------------------------------------------------------
   //! Set size of last block in the file
   //----------------------------------------------------------------------------
-  void
-  SetSizeLastBlock(size_t sizeLastBlock)
+  inline void SetSizeLastBlock(size_t sizeLastBlock)
   {
     mSizeLastBlock = sizeLastBlock;
   }
@@ -176,38 +148,31 @@ public:
   //----------------------------------------------------------------------------
   //! Set id of the stripe the header belongs to
   //----------------------------------------------------------------------------
-  void
-  SetIdStripe(unsigned int stripe)
+  inline void SetIdStripe(unsigned int stripe)
   {
     mIdStripe = stripe;
   }
 
-
   //----------------------------------------------------------------------------
   //! Test if header is valid
   //----------------------------------------------------------------------------
-  inline const bool
-  IsValid() const
+  inline const bool IsValid() const
   {
     return mValid;
   }
 
-
   //----------------------------------------------------------------------------
   //! Set the header state (valid/corrupted)
   //----------------------------------------------------------------------------
-  void
-  SetState(bool state)
+  inline void SetState(bool state)
   {
     mValid = state;
   }
 
-
   //----------------------------------------------------------------------------
   //! Get size of the file based on the info in the header
   //----------------------------------------------------------------------------
-  off_t
-  GetSizeFile() const
+  off_t GetSizeFile() const
   {
     if (mNumBlocks) {
       return static_cast<off_t>((mNumBlocks - 1) * mSizeBlock +
@@ -217,8 +182,12 @@ public:
     return 0;
   }
 
-private:
+  //----------------------------------------------------------------------------
+  //! Dump header info in readable format
+  //----------------------------------------------------------------------------
+  std::string DumpInfo() const;
 
+private:
   char mTag[16]; ///< layout tag
   bool mValid; ///< status of the file
   long long int mNumBlocks; ///< total number of blocks
@@ -230,5 +199,3 @@ private:
 };
 
 EOSFSTNAMESPACE_END
-
-#endif     // __EOSFST_HEADERCRC_HH__

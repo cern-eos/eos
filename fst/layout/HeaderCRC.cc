@@ -21,12 +21,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
-#include <stdint.h>
-/*----------------------------------------------------------------------------*/
 #include "fst/layout/HeaderCRC.hh"
 #include "fst/io/FileIo.hh"
-/*----------------------------------------------------------------------------*/
+#include <stdint.h>
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -43,9 +40,10 @@ HeaderCRC::HeaderCRC(int sizeHeader, int sizeBlock) :
   mSizeBlock(sizeBlock),
   mSizeHeader(sizeHeader)
 {
-  //empty
+  if (mSizeHeader == 0) {
+    mSizeHeader = eos::common::LayoutId::OssXsBlockSize;
+  }
 }
-
 
 //------------------------------------------------------------------------------
 // Constructor with parameter
@@ -59,15 +57,10 @@ HeaderCRC::HeaderCRC(int sizeHeader, long long numBlocks, int sizeBlock) :
   mSizeHeader(sizeHeader)
 {
   (void) memcpy(mTag, msTagName, strlen(msTagName));
-}
 
-
-//------------------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------------------
-HeaderCRC::~HeaderCRC()
-{
-  //empty
+  if (mSizeHeader == 0) {
+    mSizeHeader = eos::common::LayoutId::OssXsBlockSize;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -105,7 +98,9 @@ HeaderCRC::ReadFromFile(FileIo* pFile, uint16_t timeout)
   offset += sizeof mSizeLastBlock;
   memcpy(&read_sizeblock, buff + offset, sizeof read_sizeblock);
 
-  if (mSizeBlock != read_sizeblock) {
+  if (mSizeBlock == 0) {
+    mSizeBlock = read_sizeblock;
+  } else if (mSizeBlock != read_sizeblock) {
     eos_err("error=block size read from file does not match block size expected");
     mValid = false;
   }
@@ -114,7 +109,6 @@ HeaderCRC::ReadFromFile(FileIo* pFile, uint16_t timeout)
   mValid = true;
   return mValid;
 }
-
 
 //------------------------------------------------------------------------------
 // Write header to generic file
@@ -146,5 +140,24 @@ HeaderCRC::WriteToFile(FileIo* pFile, uint16_t timeout)
   return mValid;
 }
 
+//------------------------------------------------------------------------------
+// Dump header info in readable format
+//------------------------------------------------------------------------------
+std::string
+HeaderCRC::DumpInfo() const
+{
+  std::ostringstream oss;
+
+  if (!mValid) {
+    oss << "ERROR: RAIN header not valid!";
+    return oss.str();
+  }
+
+  oss << "Stripe index    : " << mIdStripe << std::endl
+      << "Num. blocks     : " << mNumBlocks << std::endl
+      << "Block size      : " << mSizeBlock << std::endl
+      << "Size last block : " << mSizeLastBlock << std::endl;
+  return oss.str();
+}
 
 EOSFSTNAMESPACE_END

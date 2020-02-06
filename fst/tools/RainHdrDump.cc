@@ -1,6 +1,7 @@
 //------------------------------------------------------------------------------
-// File: RecoverRaidDP.cc
-// Author: Elvin-Alin Sindrilaru - CERN
+//! @file RainHdrDump.cc
+//! @author Elvin-Alin Sindrilaru - CERN
+//! @brief Tool to dump the header information of a RAIN stripe file
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -21,24 +22,40 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include <cstdio>
-#include <cstdlib>
-#include <fst/RaidDPScan.hh>
-#include "XrdOuc/XrdOucString.hh"
+#include "fst/layout/HeaderCRC.hh"
+#include "fst/io/local/FsIo.hh"
+#include <iostream>
 
-int
-main(int argc, char* argv[])
+int main(int argc, char* argv[])
 {
   if (argc != 2) {
-    fprintf(stderr, "usage: eos-raiddp-scan <file_name>\n");
-    exit(-1);
+    std::cerr << "Usage: " << argv[0] << " <rain_stripe_file>" << std::endl;
+    return -1;
   }
 
-  XrdOucString fileName = argv[1];
-  eos::fst::RaidDPScan* rds = new eos::fst::RaidDPScan(fileName.c_str(), false);
+  std::string stripe_path = argv[1];
+  struct stat st;
 
-  if (rds) {
-    eos::fst::RaidDPScan::StaticThreadProc((void*) rds);
-    delete rds;
+  if (stat(stripe_path.c_str(), &st)) {
+    std::cerr << "ERROR: No such file " << stripe_path << std::endl;
+    return -1;
   }
+
+  eos::fst::FsIo f(stripe_path);
+
+  if (f.fileOpen(SFS_O_RDONLY)) {
+    std::cerr << "ERROR: Failed to open file " << stripe_path << std::endl;
+    return -1;
+  }
+
+  eos::fst::HeaderCRC hd(0, 0);
+
+  if (hd.ReadFromFile(&f, 0)) {
+    std::cout << "RAIN header info:" << std::endl
+              << hd.DumpInfo() << std::endl;
+  } else {
+    std::cout << "ERROR: Failed to read header information!" << std::endl;
+  }
+
+  return 0;
 }

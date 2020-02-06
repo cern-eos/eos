@@ -461,6 +461,12 @@ install(TARGETS EosFstOss XrdEosFst-${PLUGIN_VERSION}
 #-------------------------------------------------------------------------------
 # Other executables
 #-------------------------------------------------------------------------------
+add_executable(eos-rain-hd-dump
+  tools/RainHdrDump.cc)
+
+target_link_libraries(eos-rain-hd-dump
+  EosFstIo)
+
 add_executable(eos-leveldb-inspect
   tools/eos-leveldb-inspect.cc)
 
@@ -539,7 +545,7 @@ install(PROGRAMS
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
 install(TARGETS
-  eos-ioping eos-adler32 eos-checksum eos-leveldb-inspect
+  eos-ioping eos-adler32 eos-checksum eos-leveldb-inspect eos-rain-hd-dump
   eos-check-blockxs eos-compute-blockxs eos-scan-fs eos-fsck-fs
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
