@@ -24,6 +24,7 @@
 #include "common/GlobalConfig.hh"
 #include "common/Assert.hh"
 #include "common/InstanceName.hh"
+#include "mq/XrdMqSharedObject.hh"
 #include "mq/MessagingRealm.hh"
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -38,28 +39,6 @@ std::string
 GlobalConfig::GetGlobalMgmConfigQueue() const
 {
   return SSTR("/config/" << InstanceName::get() << "/mgm/");
-}
-
-//------------------------------------------------------------------------------
-//! Return the shared object manager
-//------------------------------------------------------------------------------
-XrdMqSharedObjectManager* GlobalConfig::SOM() {
-  if(!mRealm) {
-    return nullptr;
-  }
-
-  return mRealm->getSom();
-}
-
-//------------------------------------------------------------------------------
-//! Return the QDB SharedManager
-//------------------------------------------------------------------------------
-qclient::SharedManager* GlobalConfig::QSOM() {
-  if(!mRealm) {
-    return nullptr;
-  }
-
-  return mRealm->getQSom();
 }
 
 //------------------------------------------------------------------------------

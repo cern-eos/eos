@@ -33,7 +33,6 @@
 #include "common/StringConversion.hh"
 #include "common/LinuxStat.hh"
 #include "common/ShellCmd.hh"
-#include "mq/XrdMqMessaging.hh"
 #include "MonitorVarPartition.hh"
 #include <google/dense_hash_map>
 #include <math.h>

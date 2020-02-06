@@ -32,6 +32,7 @@
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "mq/XrdMqMessage.hh"
 /*----------------------------------------------------------------------------*/
 #include <sys/types.h>
 #include <sys/stat.h>

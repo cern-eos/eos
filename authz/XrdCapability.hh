@@ -24,7 +24,6 @@
 #ifndef __EOSAUTHZ_CAPABILITY_HH__
 #define __EOSAUTHZ_CAPABILITY_HH__
 /*----------------------------------------------------------------------------*/
-#include "mq/XrdMqMessage.hh"
 #include "common/SymKeys.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdAcc/XrdAccAuthorize.hh"

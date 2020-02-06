@@ -26,8 +26,9 @@
 
 #include "mgm/Namespace.hh"
 #include "mq/XrdMqMessaging.hh"
-#include "mq/XrdMqSharedObject.hh"
 #include "common/Logging.hh"
+
+class XrdMqSharedObjectManager;
 
 EOSMGMNAMESPACE_BEGIN
 

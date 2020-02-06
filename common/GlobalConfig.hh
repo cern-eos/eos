@@ -29,23 +29,13 @@
 
 #include "common/Namespace.hh"
 #include "common/StringConversion.hh"
-#include "mq/XrdMqSharedObject.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include <string>
 #include <stdint.h>
 
-namespace qclient
-{
-class SharedManager;
-}
-
-namespace eos
-{
-namespace mq
-{
-class MessagingRealm;
-}
+namespace eos::mq {
+  class MessagingRealm;
 }
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -72,16 +62,6 @@ public:
   //! Get the global MGM configuration queue
   //----------------------------------------------------------------------------
   std::string GetGlobalMgmConfigQueue() const;
-
-  //----------------------------------------------------------------------------
-  //! Return the shared object manager
-  //----------------------------------------------------------------------------
-  XrdMqSharedObjectManager* SOM();
-
-  //----------------------------------------------------------------------------
-  //! Return the QDB SharedManager
-  //----------------------------------------------------------------------------
-  qclient::SharedManager* QSOM();
 
   //----------------------------------------------------------------------------
   //! Return the MessagingRealm pointer

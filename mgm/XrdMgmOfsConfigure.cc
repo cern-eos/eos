@@ -2290,7 +2290,7 @@ XrdMgmOfs::SetupGlobalConfig()
   std::string configQueue = SSTR("/config/" << eos::common::InstanceName::get() <<
                                  "/mgm/");
 
-  if (!eos::common::GlobalConfig::gConfig.SOM()->CreateSharedHash(
+  if (!ObjectManager.CreateSharedHash(
         configQueue.c_str(), "/eos/*/mgm")) {
     eos_crit("msg=\"cannot add global config queue\" qpath=\"%s\"",
              configQueue.c_str());
@@ -2298,7 +2298,7 @@ XrdMgmOfs::SetupGlobalConfig()
 
   configQueue = SSTR("/config/" << eos::common::InstanceName::get() << "/all/");
 
-  if (!eos::common::GlobalConfig::gConfig.SOM()->CreateSharedHash(
+  if (!ObjectManager.CreateSharedHash(
         configQueue.c_str(), "/eos/*")) {
     eos_crit("msg=\"cannot add global config queue\" qpath=\"%s\"",
              configQueue.c_str());
@@ -2306,7 +2306,7 @@ XrdMgmOfs::SetupGlobalConfig()
 
   configQueue = SSTR("/config/" << eos::common::InstanceName::get() << "/fst/");
 
-  if (!eos::common::GlobalConfig::gConfig.SOM()->CreateSharedHash(
+  if (!ObjectManager.CreateSharedHash(
         configQueue.c_str(), "/eos/*/fst")) {
     eos_crit("msg=\"cannot add global config queue\" qpath=\"%s\"",
              configQueue.c_str());

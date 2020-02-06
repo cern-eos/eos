@@ -27,7 +27,6 @@
 #include "mgm/Messaging.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/FsView.hh"
-#include "mq/XrdMqTiming.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -211,9 +210,6 @@ Messaging::Process(XrdMqMessage* new_msg)
       delete advisorymessage;
     }
   } else {
-    //    XrdMqTiming somTiming("ParseEnvMessage");;
-    //    TIMING("ParseEnv-Start",&somTiming);
-    //    somTiming.Print();
     // deal with shared object exchange messages
     if (mSom) {
       // do a cut on the maximum allowed delay for shared object messages
