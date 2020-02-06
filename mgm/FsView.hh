@@ -32,7 +32,6 @@
 #include "common/RWMutex.hh"
 #include "common/SymKeys.hh"
 #include "common/Logging.hh"
-#include "common/GlobalConfig.hh"
 #include "common/TransferQueue.hh"
 #include "common/Locators.hh"
 #include "common/InstanceName.hh"
@@ -607,16 +606,7 @@ public:
   //!
   //! @param name nodeview name
   //----------------------------------------------------------------------------
-  explicit FsNode(const char* name)
-    : BaseView(common::SharedHashLocator::makeForNode(name))
-  {
-    mName = name;
-    mType = "nodesview";
-    SetConfigMember("stat.hostport", GetMember("hostport"), false);
-    mGwQueue = new eos::common::TransferQueue(
-      eos::common::TransferQueueLocator(mName, "txq"),
-      eos::common::GlobalConfig::gConfig.getRealm(), false);
-  }
+  explicit FsNode(const char* name);
 
   //----------------------------------------------------------------------------
   //! Destructor

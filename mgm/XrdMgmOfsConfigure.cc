@@ -1404,7 +1404,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   mMessagingRealm.reset(new eos::mq::MessagingRealm(&ObjectManager, &ObjectNotifier, qsm));
-  eos::common::GlobalConfig::gConfig.SetRealm(mMessagingRealm.get());
   eos::common::InstanceName::set(MgmOfsInstanceName.c_str());
   eos::mq::SharedHashWrapper::initialize(&ObjectManager);
   // set the object manager to listener only

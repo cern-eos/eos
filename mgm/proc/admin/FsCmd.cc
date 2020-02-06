@@ -117,7 +117,7 @@ FsCmd::Add(const eos::console::FsProto::AddProto& addProto)
   std::string space = addProto.schedgroup();
   std::string configstatus = addProto.status();
   XrdOucString out, err;
-  retc = proc_fs_add(sfsid, uuid, nodequeue, mountpoint, space, configstatus,
+  retc = proc_fs_add(gOFS->mMessagingRealm.get(), sfsid, uuid, nodequeue, mountpoint, space, configstatus,
                      out, err, mVid);
   mOut = out.c_str() != nullptr ? out.c_str() : "";
   mErr = err.c_str() != nullptr ? err.c_str() : "";

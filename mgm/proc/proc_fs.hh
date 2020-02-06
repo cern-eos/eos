@@ -33,6 +33,10 @@
 #include "XrdSec/XrdSecEntity.hh"
 #include <set>
 
+namespace eos::mq {
+  class MessagingRealm;
+}
+
 EOSMGMNAMESPACE_BEGIN
 
 //! Type of entity we are dealing with during an fs operation
@@ -94,6 +98,7 @@ int proc_fs_config(std::string& identifier, std::string& key,
 //------------------------------------------------------------------------------
 //! Add a new filesystem
 //!
+//! @param realm messaging realm
 //! @param sfsid id of the filesystem
 //! @param uuid uuid of the filesystem
 //! @param nodename node identifier in the node queue
@@ -106,8 +111,8 @@ int proc_fs_config(std::string& identifier, std::string& key,
 //!
 //! @return 0 if successful, otherwise error code value
 //------------------------------------------------------------------------------
-int proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
-                std::string& mountpoint, std::string& space,
+int proc_fs_add(mq::MessagingRealm* realm, std::string& sfsid, std::string& uuid,
+                std::string& nodename, std::string& mountpoint, std::string& space,
                 std::string& configstatus, XrdOucString& stdOut,
                 XrdOucString& stdErr,
                 eos::common::VirtualIdentity& vid_in);

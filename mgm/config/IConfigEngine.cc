@@ -466,7 +466,8 @@ IConfigEngine::ResetConfig(bool apply_stall_redirect)
   gOFS->ResetPathMap();
   gOFS->mRouting->Clear();
   FsView::gFsView.Reset();
-  eos::common::GlobalConfig::gConfig.Reset();
+  gOFS->ObjectManager.Clear();
+
   {
     XrdSysMutexHelper lock(mMutex);
     sConfigDefinitions.clear();

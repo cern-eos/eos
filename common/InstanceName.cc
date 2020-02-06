@@ -54,6 +54,13 @@ std::string InstanceName::get() {
 }
 
 //------------------------------------------------------------------------------
+// Get MGM global config queue
+//------------------------------------------------------------------------------
+std::string InstanceName::getGlobalMgmConfigQueue() {
+  return SSTR("/config/" << InstanceName::get() << "/mgm/");
+}
+
+//------------------------------------------------------------------------------
 // Has the instance name been set?
 //------------------------------------------------------------------------------
 bool InstanceName::empty() {

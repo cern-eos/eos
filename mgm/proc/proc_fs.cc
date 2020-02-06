@@ -537,7 +537,7 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
 // Add filesystem
 //------------------------------------------------------------------------------
 int
-proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
+proc_fs_add(mq::MessagingRealm *realm, std::string& sfsid, std::string& uuid, std::string& nodename,
             std::string& mountpoint, std::string& space, std::string& configstatusStr,
             XrdOucString& stdOut, XrdOucString& stdErr,
             eos::common::VirtualIdentity& vid_in)
@@ -633,11 +633,11 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
           stdErr += "error: conflict adding your uuid & id mapping";
           retc = EINVAL;
         } else {
-          fs = new FileSystem(locator, eos::common::GlobalConfig::gConfig.getRealm());
+          fs = new FileSystem(locator, realm);
         }
       } else {
         fsid = FsView::gFsView.CreateMapping(uuid);
-        fs = new FileSystem(locator, eos::common::GlobalConfig::gConfig.getRealm());
+        fs = new FileSystem(locator, realm);
       }
 
       XrdOucString sizestring;

@@ -35,6 +35,7 @@
 #include "common/table_formatter/TableFormatterBase.hh"
 #include "common/StringConversion.hh"
 #include "common/Assert.hh"
+#include "common/InstanceName.hh"
 #include "mq/SharedHashWrapper.hh"
 #include "common/Constants.hh"
 #include "common/token/EosTok.hh"
@@ -2216,8 +2217,7 @@ FsView::FindByQueuePath(std::string& queuepath)
 bool
 FsView::SetGlobalConfig(const std::string& key, const std::string& value)
 {
-  using eos::common::GlobalConfig;
-  std::string ckey = SSTR(GlobalConfig::gConfig.GetGlobalMgmConfigQueue()
+  std::string ckey = SSTR(common::InstanceName::getGlobalMgmConfigQueue()
                           << "#" << key);
 
   if (value.empty()) {
@@ -2396,6 +2396,19 @@ BaseView::GetMember(const std::string& member) const
   }
 
   return "";
+}
+
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+FsNode::FsNode(const char* name) : BaseView(common::SharedHashLocator::makeForNode(name))
+{
+  mName = name;
+  mType = "nodesview";
+  SetConfigMember("stat.hostport", GetMember("hostport"), false);
+  mGwQueue = new eos::common::TransferQueue(
+    eos::common::TransferQueueLocator(mName, "txq"),
+    gOFS->mMessagingRealm.get(), false);
 }
 
 //------------------------------------------------------------------------------
@@ -2765,7 +2778,7 @@ FsView::ApplyFsConfig(const char* inkey, std::string& val)
 
   // Apply only the registration for a new filesystem if it does not exist
   if (!fs) {
-    fs = new FileSystem(locator, eos::common::GlobalConfig::gConfig.getRealm());
+    fs = new FileSystem(locator, gOFS->mMessagingRealm.get());
   }
 
   common::FileSystemUpdateBatch batch;
