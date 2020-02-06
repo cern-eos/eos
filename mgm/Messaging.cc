@@ -72,27 +72,25 @@ Messaging::Listen(ThreadAssistant& assistant) noexcept
   std::unique_ptr<XrdMqMessage> new_msg;
 
   while (!assistant.terminationRequested()) {
-
     int64_t t1 = std::chrono::duration_cast<std::chrono::milliseconds>
-      (std::chrono::steady_clock::now().time_since_epoch()).count();
-
+                 (std::chrono::steady_clock::now().time_since_epoch()).count();
     new_msg.reset(XrdMqMessaging::gMessageClient.RecvMessage(&assistant));
-
     int64_t t2  =  std::chrono::duration_cast<std::chrono::milliseconds>
-      (std::chrono::steady_clock::now().time_since_epoch()).count();
+                   (std::chrono::steady_clock::now().time_since_epoch()).count();
 
-    if ( (t2 - t1) > 2000) {
+    if ((t2 - t1) > 2000) {
       eos_warning("MQ heartbeat recv lasted %ld milliseconds",
-		  t2-t1);
+                  t2 - t1);
     }
 
     if (new_msg) {
       int64_t t3  =  std::chrono::duration_cast<std::chrono::milliseconds>
-	(std::chrono::steady_clock::now().time_since_epoch()).count();
+                     (std::chrono::steady_clock::now().time_since_epoch()).count();
       Process(new_msg.get());
-      if ( (t3 - t2) > 2000) {
-	eos_warning("MQ heartbeat processing lasted %ld milliseconds",
-		    t3-t2);
+
+      if ((t3 - t2) > 2000) {
+        eos_warning("MQ heartbeat processing lasted %ld milliseconds",
+                    t3 - t2);
       }
     } else {
       assistant.wait_for(std::chrono::seconds(1));
@@ -104,39 +102,40 @@ Messaging::Listen(ThreadAssistant& assistant) noexcept
 // Process heartbeat information based on the given advisory message
 //----------------------------------------------------------------------------
 void
-Messaging::ProcessIncomingHeartbeat(const std::string &nodequeue, bool online, time_t senderTimeSec)
+Messaging::ProcessIncomingHeartbeat(const std::string& nodequeue, bool online,
+                                    time_t senderTimeSec)
 {
   if (FsView::gFsView.mNodeView.count(nodequeue)) {
     if (online) {
       FsView::gFsView.mNodeView[nodequeue]->SetStatus("online");
-      FsView::gFsView.mNodeView[nodequeue]->SetActiveStatus(eos::common::ActiveStatus::kOnline);
+      FsView::gFsView.mNodeView[nodequeue]->SetActiveStatus(
+        eos::common::ActiveStatus::kOnline);
     } else {
       FsView::gFsView.mNodeView[nodequeue]->SetStatus("offline");
-      FsView::gFsView.mNodeView[nodequeue]->SetActiveStatus(eos::common::ActiveStatus::kOffline);
+      FsView::gFsView.mNodeView[nodequeue]->SetActiveStatus(
+        eos::common::ActiveStatus::kOffline);
 
       // Propagate into filesystem states
       for (auto it = FsView::gFsView.mNodeView[nodequeue]->begin();
-            it != FsView::gFsView.mNodeView[nodequeue]->end(); ++it) {
+           it != FsView::gFsView.mNodeView[nodequeue]->end(); ++it) {
+        FileSystem* entry = FsView::gFsView.mIdView.lookupByID(*it);
 
-        FileSystem *entry = FsView::gFsView.mIdView.lookupByID(*it);
-        if(entry) {
+        if (entry) {
           entry->SetStatus(eos::common::BootStatus::kDown, false);
         }
       }
     }
 
-    eos_debug("msg=\"setting heart beat to %llu for node queue=%s\"",
-            (unsigned long long) senderTimeSec,
-            nodequeue.c_str());
-
+    // eos_debug("msg=\"setting heart beat to %llu for node queue=%s\"",
+    //         (unsigned long long) senderTimeSec, nodequeue.c_str());
     FsView::gFsView.mNodeView[nodequeue]->SetHeartBeat(senderTimeSec);
 
     // Propagate into filesystems
     for (auto it = FsView::gFsView.mNodeView[nodequeue]->begin();
-      it != FsView::gFsView.mNodeView[nodequeue]->end(); ++it) {
+         it != FsView::gFsView.mNodeView[nodequeue]->end(); ++it) {
+      FileSystem* entry = FsView::gFsView.mIdView.lookupByID(*it);
 
-      FileSystem *entry = FsView::gFsView.mIdView.lookupByID(*it);
-      if(entry) {
+      if (entry) {
         entry->setLocalHeartbeatTime(senderTimeSec);
       }
     }
@@ -162,19 +161,21 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
     // register the node to the global view and config
     // =========| LockWrite
     eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
-
     eos_static_info("Registering node queue %s ..", nodequeue.c_str());
+
     if (FsView::gFsView.RegisterNode(nodequeue.c_str())) {
       // Just initialize config queue, taken care by constructor
       mq::SharedHashWrapper(common::SharedHashLocator::makeForNode(nodequeue));
     }
 
-    ProcessIncomingHeartbeat(nodequeue, advmsg->kOnline, advmsg->kMessageHeader.kSenderTime_sec);
+    ProcessIncomingHeartbeat(nodequeue, advmsg->kOnline,
+                             advmsg->kMessageHeader.kSenderTime_sec);
     // =========| UnLockWrite
     return true;
   } else {
     // here we can go just with a read lock
-    ProcessIncomingHeartbeat(nodequeue, advmsg->kOnline, advmsg->kMessageHeader.kSenderTime_sec);
+    ProcessIncomingHeartbeat(nodequeue, advmsg->kOnline,
+                             advmsg->kMessageHeader.kSenderTime_sec);
     FsView::gFsView.ViewMutex.UnLockRead(); // |========= UnLockRead
     return true;
   }

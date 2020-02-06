@@ -2887,8 +2887,8 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message,
               cid.assign(val, cidstart[i] + 1, keystart[i + 1] - 1 - (cidstart[i]));
             }
 
-            eos_debug("subject=%s, key=%s, val=%s", subject.c_str(),
-                      key.c_str(), value.c_str());
+            // eos_debug("subject=%s, key=%s, val=%s", subject.c_str(),
+            //           key.c_str(), value.c_str());
 
             if (subjectlist.size() > 1) {
               // This is a multiplexed update, where we have to remove the
