@@ -26,7 +26,6 @@
 
 #include "mgm/Namespace.hh"
 #include "mgm/FileSystem.hh"
-#include "mgm/config/IConfigEngine.hh"
 #include "mgm/utils/FilesystemUuidMapper.hh"
 #include "mgm/utils/FileSystemRegistry.hh"
 #include "common/RWMutex.hh"
@@ -56,6 +55,7 @@ class Balancer;
 class GroupBalancer;
 class GeoBalancer;
 class Converter;
+class IConfigEngine;
 
 //------------------------------------------------------------------------------
 //! Base class representing any element in a GeoTree

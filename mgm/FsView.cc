@@ -32,6 +32,7 @@
 #include "mgm/Converter.hh"
 #include "mgm/GeoTreeEngine.hh"
 #include "mgm/config/ConfigParsing.hh"
+#include "mgm/config/IConfigEngine.hh"
 #include "common/table_formatter/TableFormatterBase.hh"
 #include "common/StringConversion.hh"
 #include "common/Assert.hh"

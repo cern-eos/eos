@@ -77,6 +77,7 @@
 #include "mgm/XrdMgmOfs/fsctl/CommitHelper.hh"
 #include "mgm/QueryPrepareResponse.hh"
 #include "mgm/auth/AccessChecker.hh"
+#include "mgm/config/IConfigEngine.hh"
 #include "mq/SharedHashWrapper.hh"
 #include "mq/FileSystemChangeListener.hh"
 #include "mq/GlobalConfigChangeListener.hh"

@@ -22,6 +22,7 @@
 #include "mgm/Access.hh"
 #include "mgm/WFE.hh"
 #include "mgm/fsck/Fsck.hh"
+#include "mgm/config/IConfigEngine.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IFsView.hh"

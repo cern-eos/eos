@@ -25,6 +25,7 @@
 
 #include "mgm/GeoTreeEngine.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/config/IConfigEngine.hh"
 #include "common/table_formatter/TableFormatterBase.hh"
 #include "common/FileSystem.hh"
 #include "common/IntervalStopwatch.hh"

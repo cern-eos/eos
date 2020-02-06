@@ -27,6 +27,7 @@
 #include "mgm/Quota.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Recycle.hh"
+#include "mgm/config/IConfigEngine.hh"
 #include "common/Statfs.hh"
 #include "common/ShellCmd.hh"
 #include "common/plugin_manager/PluginManager.hh"

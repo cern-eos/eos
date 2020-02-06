@@ -26,6 +26,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "common/table_formatter/TableFormatterBase.hh"
 #include "namespace/interface/IView.hh"
+#include "mgm/config/IConfigEngine.hh"
 #include <errno.h>
 
 EOSMGMNAMESPACE_BEGIN

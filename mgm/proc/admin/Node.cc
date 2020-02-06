@@ -24,6 +24,7 @@
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/IMaster.hh"
+#include "mgm/config/IConfigEngine.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
