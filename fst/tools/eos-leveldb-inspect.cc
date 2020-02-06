@@ -230,13 +230,15 @@ void DumpFsckStats(eos::common::DbMap& db, bool verbose = false)
     }
 
     if (!f.mProtoFmd.layouterror()) {
-      if (f.mProtoFmd.size() && f.mProtoFmd.diskchecksum().length() &&
+      if (f.mProtoFmd.size() && !LayoutId::IsRain(f.mProtoFmd.lid()) &&
+          f.mProtoFmd.diskchecksum().length() &&
           (f.mProtoFmd.diskchecksum() != f.mProtoFmd.checksum())) {
         statistics["d_cx_diff"]++;
         fid_set["d_cx_diff"].insert(f.mProtoFmd.fid());
       }
 
-      if (f.mProtoFmd.size() && f.mProtoFmd.mgmchecksum().length() &&
+      if (f.mProtoFmd.size() && !LayoutId::IsRain(f.mProtoFmd.lid()) &&
+          f.mProtoFmd.mgmchecksum().length() &&
           (f.mProtoFmd.mgmchecksum() != f.mProtoFmd.checksum())) {
         statistics["m_cx_diff"]++;
         fid_set["m_cx_diff"].insert(f.mProtoFmd.fid());
@@ -251,8 +253,7 @@ void DumpFsckStats(eos::common::DbMap& db, bool verbose = false)
       if (f.mProtoFmd.size() != eos::common::FmdHelper::UNDEF) {
         // Report missmatch only for replica layout files
         if ((f.mProtoFmd.size() != f.mProtoFmd.disksize()) &&
-            (eos::common::LayoutId::GetLayoutType(f.mProtoFmd.lid())
-             == eos::common::LayoutId::kReplica)) {
+            !LayoutId::IsRain(f.mProtoFmd.lid())) {
           statistics["d_mem_sz_diff"]++;
           fid_set["d_mem_sz_diff"].insert(f.mProtoFmd.fid());
         }
@@ -312,7 +313,7 @@ void DumpFsckStats(eos::common::DbMap& db, bool verbose = false)
               << print_fids(fid_set["rep_diff_n"])
               << "Files missing on disk[rep_missing_n]:          "
               << statistics["rep_missing_n"] << std::endl
-              << print_fids(fid_set["rep_diff_n"]) << std::endl;
+              << print_fids(fid_set["rep_missing_n"]) << std::endl;
   } else {
     std::cout << "Num. entries in DB[mem_n]:                     "
               << statistics["mem_n"] << std::endl

@@ -1383,6 +1383,7 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
     std::map<std::string, size_t>& statistics,
     std::map<std::string, std::set < eos::common::FileId::fileid_t> >& fidset)
 {
+  using eos::common::LayoutId;
   eos::common::RWMutexReadLock map_rd_lock(mMapMutex);
 
   if (!mDbMap.count(fsid)) {
@@ -1461,13 +1462,15 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
       }
 
       if (!proto_fmd.layouterror()) {
-        if (proto_fmd.size() && proto_fmd.diskchecksum().length() &&
+        if (proto_fmd.size() && !LayoutId::IsRain(proto_fmd.lid()) &&
+            proto_fmd.diskchecksum().length() &&
             (proto_fmd.diskchecksum() != proto_fmd.checksum())) {
           statistics["d_cx_diff"]++;
           fidset["d_cx_diff"].insert(proto_fmd.fid());
         }
 
-        if (proto_fmd.size() && proto_fmd.mgmchecksum().length() &&
+        if (proto_fmd.size() && !LayoutId::IsRain(proto_fmd.lid()) &&
+            proto_fmd.mgmchecksum().length() &&
             (proto_fmd.mgmchecksum() != proto_fmd.checksum())) {
           statistics["m_cx_diff"]++;
           fidset["m_cx_diff"].insert(proto_fmd.fid());
@@ -1478,10 +1481,9 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
         statistics["d_sync_n"]++;
 
         if (proto_fmd.size() != eos::common::FmdHelper::UNDEF) {
-          // Report missmatch only for replica layout files
+          // Report missmatch only for non-rain layout files
           if ((proto_fmd.size() != proto_fmd.disksize()) &&
-              (eos::common::LayoutId::GetLayoutType(proto_fmd.lid())
-               == eos::common::LayoutId::kReplica)) {
+              !LayoutId::IsRain(proto_fmd.lid())) {
             statistics["d_mem_sz_diff"]++;
             fidset["d_mem_sz_diff"].insert(proto_fmd.fid());
           }
