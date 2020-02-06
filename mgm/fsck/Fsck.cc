@@ -108,8 +108,12 @@ Fsck::ApplyFsckConfig()
     if (kv_map.count(sRepairKey)) {
       mRepairEnabled = (kv_map[sRepairKey] == "1");
 
+      if (!mCollectEnabled) {
+        mRepairEnabled = false;
+      }
+
       if (mRepairEnabled != mRepairRunning) {
-        Config(sRepairKey, "", msg);
+        Config(sRepairKey, mRepairEnabled ? "1" : "0", msg);
       }
     }
   }
@@ -147,7 +151,7 @@ Fsck::Config(const std::string& key, const std::string& value, std::string& msg)
   }
 
   if (key == sCollectKey) {
-    mCollectEnabled = ! mCollectRunning;
+    mCollectEnabled = !mCollectRunning;
 
     if (mCollectRunning) {
       // Stop also repair thread if it's running
@@ -184,7 +188,7 @@ Fsck::Config(const std::string& key, const std::string& value, std::string& msg)
       return false;
     }
 
-    mRepairEnabled = ! mRepairRunning;
+    mRepairEnabled = !mRepairRunning;
 
     if (mRepairRunning) {
       mRepairThread.join();
