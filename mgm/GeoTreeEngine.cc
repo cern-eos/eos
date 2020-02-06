@@ -108,7 +108,7 @@ std::map<std::string, unsigned char> GeoTreeEngine::gQueue2NotifType;
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-GeoTreeEngine::GeoTreeEngine(XrdMqSharedObjectChangeNotifier &notifier) :
+GeoTreeEngine::GeoTreeEngine(XrdMqSharedObjectChangeNotifier& notifier) :
   pSkipSaturatedAccess(true), pSkipSaturatedDrnAccess(true),
   pSkipSaturatedBlcAccess(true), pProxyCloseToFs(true),
   pPenaltyUpdateRate(1),
@@ -119,8 +119,8 @@ GeoTreeEngine::GeoTreeEngine(XrdMqSharedObjectChangeNotifier &notifier) :
   pCircSize(30), pFrameCount(0),
   pPenaltySched(pCircSize),
   pLatencySched(pCircSize),
-  mFsListener("geotree-fs-listener", notifier) {
-
+  mFsListener("geotree-fs-listener", notifier)
+{
   // by default, disable all the placement operations for non geotagged fs
   addDisabledBranch("*", "plct", "nogeotag", NULL, false);
   addDisabledBranch("*", "accsdrain", "nogeotag", NULL, false);
@@ -130,7 +130,7 @@ GeoTreeEngine::GeoTreeEngine(XrdMqSharedObjectChangeNotifier &notifier) :
   pTreeMapMutex.SetBlocking(true);
 
   for (auto it = pPenaltySched.pCircFrCnt2FsPenalties.begin();
-    it != pPenaltySched.pCircFrCnt2FsPenalties.end(); it++) {
+       it != pPenaltySched.pCircFrCnt2FsPenalties.end(); it++) {
     it->reserve(100);
   }
 
@@ -140,7 +140,7 @@ GeoTreeEngine::GeoTreeEngine(XrdMqSharedObjectChangeNotifier &notifier) :
   // initialize pauser semaphore
   if (sem_init(&gUpdaterPauseSem, 0, 1)) {
     throw "sem_init() failed";
- }
+  }
 }
 
 bool GeoTreeEngine::forceRefreshSched()
@@ -326,7 +326,7 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem* fs,
 
     gQueue2NotifType[fs->GetQueuePath()] |= sntFilesystem;
 
-    if(!mFsListener.subscribe(fs->GetQueuePath(), gWatchedKeys)) {
+    if (!mFsListener.subscribe(fs->GetQueuePath(), gWatchedKeys)) {
       eos_crit("error inserting fs %lu into group %s : error subscribing to "
                "shared object notifications", (unsigned long)fsid,
                group->mName.c_str());
@@ -1147,7 +1147,8 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
 
 bool
 GeoTreeEngine::placeNewReplicasOneGroup(FsGroup* group,
-                                        const size_t& nNewReplicas, vector<FileSystem::fsid_t>* newReplicas,
+                                        const size_t& nNewReplicas,
+                                        vector<FileSystem::fsid_t>* newReplicas,
                                         ino64_t inode, std::vector<std::string>* dataProxys,
                                         std::vector<std::string>* firewallEntryPoint,
                                         SchedType type,
@@ -2125,7 +2126,7 @@ void GeoTreeEngine::listenFsChange(ThreadAssistant& assistant)
 {
   gUpdaterStarted = true;
 
-  if(!mFsListener.startListening()) {
+  if (!mFsListener.startListening()) {
     eos_crit("error starting shared objects change notifications");
   } else {
     eos_info("GeoTreeEngine updater is starting...");
@@ -2139,27 +2140,30 @@ void GeoTreeEngine::listenFsChange(ThreadAssistant& assistant)
     }
 
     mq::FileSystemChangeListener::Event event;
-    while(mFsListener.fetch(event, assistant)) {
-      if(event.isDeletion()) {
-          eos_debug("received deletion on subject %s : the fs was removed from "
-                    "the GeoTreeEngine, skipping this update", event.fileSystemQueue.c_str());
-          continue;
+
+    while (mFsListener.fetch(event, assistant)) {
+      if (event.isDeletion()) {
+        eos_debug("received deletion on subject %s : the fs was removed from "
+                  "the GeoTreeEngine, skipping this update", event.fileSystemQueue.c_str());
+        continue;
       }
 
       pAddRmFsMutex.LockWrite();
-
       auto notifTypeIt = gQueue2NotifType.find(event.fileSystemQueue);
 
       if (notifTypeIt == gQueue2NotifType.end()) {
-        eos_err("could not determine the type of notification associated to queue ", event.fileSystemQueue.c_str());
+        eos_err("could not determine the type of notification associated to queue ",
+                event.fileSystemQueue.c_str());
       } else {
         // A machine might have several roles at the same time (DataProxy and
         // Gateway), so an update might end in multiple update maps
         if (notifTypeIt->second & sntFilesystem) {
           if (gNotificationsBufferFs.count(event.fileSystemQueue)) {
-            (gNotificationsBufferFs)[event.fileSystemQueue] |= gNotifKey2EnumSched.at(event.key);
+            (gNotificationsBufferFs)[event.fileSystemQueue] |= gNotifKey2EnumSched.at(
+                  event.key);
           } else {
-            (gNotificationsBufferFs)[event.fileSystemQueue] = gNotifKey2EnumSched.at(event.key);
+            (gNotificationsBufferFs)[event.fileSystemQueue] = gNotifKey2EnumSched.at(
+                  event.key);
           }
         }
       }

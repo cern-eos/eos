@@ -70,12 +70,14 @@
 
 /* copied for "eos_static_..." */
 static int
-emsg(XrdOucErrInfo& error, int ec, const char *txt, const char *txt2) {
-
+emsg(XrdOucErrInfo& error, int ec, const char* txt, const char* txt2)
+{
   // Get the reason for the error
-  if (ec < 0) ec = -ec;
+  if (ec < 0) {
+    ec = -ec;
+  }
 
-  char *etext = strerror(ec);
+  char* etext = strerror(ec);
   char sbuff[1024];
   char ebuff[64];
 
@@ -84,7 +86,8 @@ emsg(XrdOucErrInfo& error, int ec, const char *txt, const char *txt2) {
     snprintf(ebuff, sizeof(ebuff), "error code %d", ec);
   }
 
-  snprintf(sbuff, sizeof(sbuff), "create_cow: unable to %s %s: %s", txt, txt2, etext);
+  snprintf(sbuff, sizeof(sbuff), "create_cow: unable to %s %s: %s", txt, txt2,
+           etext);
   eos_static_err(sbuff);
   error.setErrInfo(ec, sbuff);
   return SFS_ERROR;
@@ -96,34 +99,40 @@ emsg(XrdOucErrInfo& error, int ec, const char *txt, const char *txt2) {
 
 int
 XrdMgmOfsFile::create_cow(bool isDelete, uint64_t cloneId,
-        std::shared_ptr<eos::IContainerMD> dmd, std::shared_ptr<eos::IFileMD> fmd,
-        eos::common::VirtualIdentity& vid, XrdOucErrInfo& error)
+                          std::shared_ptr<eos::IContainerMD> dmd, std::shared_ptr<eos::IFileMD> fmd,
+                          eos::common::VirtualIdentity& vid, XrdOucErrInfo& error)
 {
   char sbuff[1024];
-  snprintf(sbuff, sizeof(sbuff), "%s/clone/%ld", gOFS->MgmProcPath.c_str(), cloneId);
+  snprintf(sbuff, sizeof(sbuff), "%s/clone/%ld", gOFS->MgmProcPath.c_str(),
+           cloneId);
   std::shared_ptr<eos::IContainerMD> cloneMd, dirMd;
 
   try {
     cloneMd = gOFS->eosView->getContainer(sbuff);
   } catch (eos::MDException& e) {
-    eos_static_debug("caught exception %d %s path %s\n", e.getErrno(), e.getMessage().str().c_str(), sbuff);
+    eos_static_debug("caught exception %d %s path %s\n", e.getErrno(),
+                     e.getMessage().str().c_str(), sbuff);
     return emsg(error, ENOENT /*EEXIST*/, "open file ()", sbuff);
   }
 
-  if (!dmd) return emsg(error, ENOENT, "determine parent", fmd->getName().c_str());
+  if (!dmd) {
+    return emsg(error, ENOENT, "determine parent", fmd->getName().c_str());
+  }
 
   /* set up directory for clone */
   int tlen = strlen(sbuff);
-  snprintf(sbuff+tlen, sizeof(sbuff)-tlen, "/%lx", dmd->getId());
+  snprintf(sbuff + tlen, sizeof(sbuff) - tlen, "/%lx", dmd->getId());
+
   try {
     dirMd = gOFS->eosView->getContainer(sbuff);
   } catch (eos::MDException& e) {
     dirMd = gOFS->eosView->createContainer(sbuff, true);
     dirMd->setMode(dmd->getMode());
-
     eos::IFileMD::XAttrMap xattrs = dmd->getAttributes();
+
     for (const auto& a : xattrs) {
-      if (a.first == "sys.acl" || a.first == "user.acl" || a.first == "sys.eval.useracl") {
+      if (a.first == "sys.acl" || a.first == "user.acl" ||
+          a.first == "sys.eval.useracl") {
         dirMd->setAttribute(a.first, a.second);
       }
     }
@@ -141,9 +150,9 @@ XrdMgmOfsFile::create_cow(bool isDelete, uint64_t cloneId,
     std::shared_ptr<eos::IFileMD> gmd;
     eos::IFileMD::ctime_t ttime;
     tlen = strlen(sbuff);
-    snprintf(sbuff+tlen, sizeof(sbuff)-tlen, "/%lx", fmd->getId());
+    snprintf(sbuff + tlen, sizeof(sbuff) - tlen, "/%lx", fmd->getId());
     gmd = gOFS->eosView->createFile(sbuff, vid.uid, vid.gid);
-    gmd->setAttribute("sys.clone.targetFid", sbuff+tlen+1);
+    gmd->setAttribute("sys.clone.targetFid", sbuff + tlen + 1);
     fmd->getCTime(ttime);
     gmd->setCTime(ttime);
     fmd->getMTime(ttime);
@@ -155,8 +164,10 @@ XrdMgmOfsFile::create_cow(bool isDelete, uint64_t cloneId,
     gmd->setSize(fmd->getSize());
     gmd->setChecksum(fmd->getChecksum());
     gmd->setContainerId(dirMd->getId());
-    for (unsigned int i = 0; i < fmd->getNumLocation(); i++)
+
+    for (unsigned int i = 0; i < fmd->getNumLocation(); i++) {
       gmd->addLocation(fmd->getLocation(i));
+    }
 
     gOFS->eosFileService->updateStore(gmd.get());
     fmd->setCloneFST(eos::common::FileId::Fid2Hex(gmd->getId()));
@@ -167,7 +178,8 @@ XrdMgmOfsFile::create_cow(bool isDelete, uint64_t cloneId,
   gOFS->FuseXCastContainer(dirMd->getIdentifier());
   gOFS->FuseXCastContainer(dirMd->getParentIdentifier());       /* cloneMd */
   gOFS->FuseXCastRefresh(dirMd->getIdentifier(), dirMd->getParentIdentifier());
-  gOFS->FuseXCastRefresh(cloneMd->getIdentifier(), cloneMd->getParentIdentifier());
+  gOFS->FuseXCastRefresh(cloneMd->getIdentifier(),
+                         cloneMd->getParentIdentifier());
   return 0;
 }
 
@@ -195,6 +207,7 @@ XrdMgmOfsFile::open(const char* inpath,
  */
 /*----------------------------------------------------------------------------*/
 {
+  using eos::common::LayoutId;
   static const char* epname = "open";
   const char* tident = error.getErrUser();
   errno = 0;
@@ -248,10 +261,10 @@ XrdMgmOfsFile::open(const char* inpath,
   bool isRepairRead = false;
   // chunk upload ID
   XrdOucString ocUploadUuid = "";
-  // list of filesystem IDs to reconstruct
-  std::vector<unsigned int> PioReconstructFsList;
+  // Set of filesystem IDs to reconstruct
+  std::set<unsigned int> pio_reconstruct_fs;
   // list of filesystem IDs usable for replacement of RAIN file
-  std::vector<unsigned int> PioReplacementFsList;
+  std::vector<unsigned int> pio_replacement_fs;
   // tried hosts CGI
   std::string tried_cgi;
   // file size
@@ -451,9 +464,7 @@ XrdMgmOfsFile::open(const char* inpath,
     isPio = true;
   }
 
-  // ---------------------------------------------------------------------------
-  // discover PIO reconstruction mode
-  // ---------------------------------------------------------------------------
+  // Discover PIO reconstruction mode
   XrdOucString sPioRecover = (openOpaque) ?
                              openOpaque->Get("eos.pio.action") : "";
 
@@ -487,7 +498,7 @@ XrdMgmOfsFile::open(const char* inpath,
       }
 
       // store in the reconstruction filesystem list
-      PioReconstructFsList.push_back(rfs);
+      pio_reconstruct_fs.insert(rfs);
     }
   }
 
@@ -633,20 +644,18 @@ XrdMgmOfsFile::open(const char* inpath,
           }
 
           if (fmd) {
-
             /* these should be picked up from XrdMgmOfs.cc ?? */
             const char* k_mdino = "sys.eos.mdino";
             // const char* k_nlink = "sys.eos.nlink";
 
             /* in case of a hard link, may need to switch to target */
-            if (fmd->hasAttribute(k_mdino)) {        /* This is a hard link to another file */
+            if (fmd->hasAttribute(
+                  k_mdino)) {        /* This is a hard link to another file */
               std::shared_ptr<eos::IFileMD> gmd;
-
               uint64_t mdino = std::stoll(fmd->getAttribute(k_mdino));
               gmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(mdino));
               eos_info("hlnk switched from %s (%#lx) to file %s (%#lx)",
-                      fmd->getName().c_str(), fmd->getId(), gmd->getName().c_str(), gmd->getId());
-                                          
+                       fmd->getName().c_str(), fmd->getId(), gmd->getName().c_str(), gmd->getId());
               fmd = gmd;
             }
 
@@ -782,11 +791,13 @@ XrdMgmOfsFile::open(const char* inpath,
     // ACL and permission check
     // -------------------------------------------------------------------------
     eos::IFileMD::XAttrMap attrmapF;
+
     if (fmd) {
-        eos::listAttributes(gOFS->eosView, fmd.get(), attrmapF, false);
+      eos::listAttributes(gOFS->eosView, fmd.get(), attrmapF, false);
     } else {
-        gOFS->_attr_ls(cPath.GetPath(), error, vid, 0, attrmapF, false);
+      gOFS->_attr_ls(cPath.GetPath(), error, vid, 0, attrmapF, false);
     }
+
     acl.SetFromAttrMap(attrmap, vid, &attrmapF);
     eos_info("acl=%d r=%d w=%d wo=%d egroup=%d shared=%d mutable=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
@@ -914,7 +925,7 @@ XrdMgmOfsFile::open(const char* inpath,
     // FUSE mount with lazy-open mode enabled.
     if (!getenv("EOS_ALLOW_RAIN_RWM") && isRewrite && (vid.uid > 3) &&
         (fmdsize != 0) &&
-        ((eos::common::LayoutId::IsRain(fmdlid)))) {
+        ((LayoutId::IsRain(fmdlid)))) {
       // Unpriviledged users are not allowed to open RAIN files for update
       gOFS->MgmStats.Add("OpenFailedNoUpdate", vid.uid, vid.gid, 1);
       return Emsg(epname, error, EPERM, "update RAIN layout file - "
@@ -1144,7 +1155,7 @@ XrdMgmOfsFile::open(const char* inpath,
   // ---------------------------------------------------------------------------
   XrdOucString capability = "";
 
-  if(gOFS->mTapeEnabled) {
+  if (gOFS->mTapeEnabled) {
     capability += "&tapeenabled=1";
   }
 
@@ -1157,17 +1168,23 @@ XrdMgmOfsFile::open(const char* inpath,
       } else {
         capability += "&mgm.access=create";
       }
+
       uint64_t cloneId;
+
       if (fmd && (cloneId = fmd->getCloneId()) != 0) {
         char sbuff[1024];
         std::string cloneFST = fmd->getCloneFST();
 
         if (cloneFST == "") {      /* This triggers the copy-on-write */
-          if (int rc = create_cow(false, cloneId, dmd, fmd, vid, error)) return rc;
+          if (int rc = create_cow(false, cloneId, dmd, fmd, vid, error)) {
+            return rc;
+          }
         }
 
-        eos_debug("file %s cloneid %ld cloneFST %s trunc %d", path, fmd->getCloneId(), fmd->getCloneFST().c_str(), open_mode & SFS_O_TRUNC);
-        snprintf(sbuff, sizeof(sbuff), "&mgm.cloneid=%ld&mgm.cloneFST=%s", cloneId, fmd->getCloneFST().c_str());
+        eos_debug("file %s cloneid %ld cloneFST %s trunc %d", path, fmd->getCloneId(),
+                  fmd->getCloneFST().c_str(), open_mode & SFS_O_TRUNC);
+        snprintf(sbuff, sizeof(sbuff), "&mgm.cloneid=%ld&mgm.cloneFST=%s", cloneId,
+                 fmd->getCloneFST().c_str());
         capability += sbuff;
       }
     } else {
@@ -1178,11 +1195,11 @@ XrdMgmOfsFile::open(const char* inpath,
   // ---------------------------------------------------------------------------
   // forward some allowed user opaque tags
   // ---------------------------------------------------------------------------
-  unsigned long layoutId = (isCreation) ? eos::common::LayoutId::kPlain : fmdlid;
+  unsigned long layoutId = (isCreation) ? LayoutId::kPlain : fmdlid;
   // the client can force to read a file on a defined file system
   unsigned long forcedFsId = 0;
   // the client can force to place a file in a specified group of a space
-  long forcedGroup = -1;
+  long forced_group = -1;
   // this is the filesystem defining the client access point in the selection
   // vector - for writes it is always 0, for reads it comes out of the
   // FileAccess function
@@ -1194,7 +1211,7 @@ XrdMgmOfsFile::open(const char* inpath,
   eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
   // select space and layout according to policies
   Policy::GetLayoutAndSpace(path, attrmap, vid, new_lid, space, *openOpaque,
-                            forcedFsId, forcedGroup);
+                            forcedFsId, forced_group);
   // get placement policy
   Policy::GetPlctPolicy(path, attrmap, vid, *openOpaque, plctplcy, targetgeotag);
   unsigned long long ext_mtime_sec = 0;
@@ -1248,7 +1265,7 @@ XrdMgmOfsFile::open(const char* inpath,
 
   if ((!isInjection) && (isCreation || (open_mode == SFS_O_TRUNC))) {
     eos_info("blocksize=%llu lid=%x",
-             eos::common::LayoutId::GetBlocksize(new_lid), new_lid);
+             LayoutId::GetBlocksize(new_lid), new_lid);
     layoutId = new_lid;
     {
       std::shared_ptr<eos::IFileMD> fmdnew;
@@ -1367,17 +1384,24 @@ XrdMgmOfsFile::open(const char* inpath,
   capability += gOFS->ManagerId.c_str();
   capability += "&mgm.fid=";
   std::string hex_fid;
+
   if (!isRW) {
     const char* val;
+
     if ((val = openOpaque->Get("eos.clonefst")) && (strlen(val) < 32)) {
       hex_fid = fmd->getCloneFST();
       eos_debug("open read eos.clonefst %s hex_fid %s", val, hex_fid.c_str());
-      if (hex_fid != val) return Emsg(epname, error, EINVAL, "open - invalid clonefst argument", path);
+
+      if (hex_fid != val) {
+        return Emsg(epname, error, EINVAL, "open - invalid clonefst argument", path);
+      }
     }
   }
+
   if (hex_fid.empty()) {
     hex_fid = eos::common::FileId::Fid2Hex(fileId);
   }
+
   capability += hex_fid.c_str();
   XrdOucString sizestring;
   capability += "&mgm.cid=";
@@ -1466,7 +1490,7 @@ XrdMgmOfsFile::open(const char* inpath,
     plctargs.bookingsize = isFuse ? fuse_bookingsize : bookingsize;
     plctargs.dataproxys = &proxys;
     plctargs.firewallentpts = &firewalleps;
-    plctargs.forced_scheduling_group_index = forcedGroup;
+    plctargs.forced_scheduling_group_index = forced_group;
     plctargs.grouptag = containertag;
     plctargs.lid = layoutId;
     plctargs.inode = (ino64_t) fmd->getId();
@@ -1486,8 +1510,8 @@ XrdMgmOfsFile::open(const char* inpath,
 
     retc = Quota::FilePlacement(&plctargs);
 
-    // reshuffle the selectedfs by returning as first entry the lowest if the sum of the fsid is odd
-    // the highest if the sum is even
+    // reshuffle the selectedfs by returning as first entry the lowest if the
+    // sum of the fsid is odd the highest if the sum is even
     if (selectedfs.size() > 0) {
       std::vector<unsigned int> newselectedfs;
       auto result = std::minmax_element(selectedfs.begin(), selectedfs.end());
@@ -1505,7 +1529,6 @@ XrdMgmOfsFile::open(const char* inpath,
         }
       }
 
-      //do the swap
       selectedfs.swap(newselectedfs);
     }
   } else {
@@ -1560,20 +1583,20 @@ XrdMgmOfsFile::open(const char* inpath,
     retc = Scheduler::FileAccess(&acsargs);
 
     if (acsargs.isRW) {
-      // if this is an update, we don't have to send the client to cgi excluded locations,
-      // we tell that the file is unreachable
+      // If this is an update, we don't have to send the client to cgi
+      // excluded locations, we tell that the file is unreachable
       for (size_t k = 0; k < selectedfs.size(); k++) {
         // if the fs is available
         if (std::find(unavailfs.begin(), unavailfs.end(),
                       selectedfs[k]) != unavailfs.end()) {
-          eos_info("location %d is excluded as an unavailable filesystem - returning ENETUNREACH",
-                   selectedfs[k]);
+          eos_info("msg=\"location %d is excluded as an unavailable filesystem"
+                   " - returning ENETUNREACH\"", selectedfs[k]);
           retc = ENETUNREACH;
         }
       }
     }
 
-    if ((retc == ENETUNREACH) || (retc == EROFS) || (isRepair)) {
+    if ((retc == ENETUNREACH) || (retc == EROFS) || isRepair) {
       if ((((fmd->getSize() == 0) && (bookingsize == 0)) || isRepair)) {
         // File-recreation due to offline/full file systems
         const char* containertag = 0;
@@ -1592,7 +1615,7 @@ XrdMgmOfsFile::open(const char* inpath,
         plctargs.bookingsize = bookingsize;
         plctargs.dataproxys = &proxys;
         plctargs.firewallentpts = &firewalleps;
-        plctargs.forced_scheduling_group_index = forcedGroup;
+        plctargs.forced_scheduling_group_index = forced_group;
         plctargs.grouptag = containertag;
         plctargs.lid = layoutId;
         plctargs.inode = (ino64_t) fmd->getId();
@@ -1636,34 +1659,7 @@ XrdMgmOfsFile::open(const char* inpath,
     }
   }
 
-  /// ###############
-  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
-
-  if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
-    std::stringstream strstr;
-    strstr << "\nselectedfs are : ";
-
-    for (const auto& it : selectedfs) {
-      strstr << it << "  ";
-    }
-
-    strstr << "\nproxys are : ";
-
-    for (const auto& it : proxys) {
-      strstr << it << "  ";
-    }
-
-    strstr << "\nfirewallentrypoints are : ";
-
-    for (const auto& it : firewalleps) {
-      strstr << it << "  ";
-    }
-
-    strstr << "  and retc=" << retc;
-    eos_static_debug(strstr.str().c_str());
-  }
-
-  /// ###############
+  LogSchedulingInfo(selectedfs, proxys, firewalleps);
 
   if (retc) {
     // If we don't have quota we don't bounce the client back
@@ -1808,7 +1804,7 @@ XrdMgmOfsFile::open(const char* inpath,
         // ---------------------------------------------------------------------
         {
           // get an empty file checksum
-          std::string binchecksum = eos::common::LayoutId::GetEmptyFileChecksum(layoutId);
+          std::string binchecksum = LayoutId::GetEmptyFileChecksum(layoutId);
           eos::Buffer cx;
           cx.putData(binchecksum.c_str(), binchecksum.size());
 
@@ -1954,9 +1950,9 @@ XrdMgmOfsFile::open(const char* inpath,
     }
   }
 
-  // if this is a RAIN layout, we want a nice round-robin for the entry server since it
-  // has the burden of encoding and traffic fan-out
-  if (isRW && eos::common::LayoutId::IsRain(layoutId)) {
+  // If this is a RAIN layout, we want a nice round-robin for the entry
+  // server since it  has the burden of encoding and traffic fan-out
+  if (isRW && LayoutId::IsRain(layoutId)) {
     fsIndex = fileId % selectedfs.size();
     eos_static_info("selecting entry-server fsIndex=%lu fsid=%lu fxid=%lx mod=%lu",
                     fsIndex, selectedfs[fsIndex], fileId, selectedfs.size());
@@ -1964,7 +1960,7 @@ XrdMgmOfsFile::open(const char* inpath,
 
   // Get the redirection host from the selected entry in the vector
   if (!selectedfs[fsIndex]) {
-    eos_err("0 filesystem in selection");
+    eos_err("%s", "msg=\"0 filesystem in selection\"");
     return Emsg(epname, error, ENETUNREACH, "received filesystem id 0", path);
   }
 
@@ -2068,32 +2064,24 @@ XrdMgmOfsFile::open(const char* inpath,
   // For 'pio' mode we hand out plain layouts to the client and add the IO
   // layout as an extra field
   // ---------------------------------------------------------------------------
-  std::set<unsigned long> ufs;
-  {
-    // get the unique number of filesystems
-    for (size_t i = 0; i < selectedfs.size(); i++) {
-      ufs.insert(selectedfs[i]);
-    }
-
-    for (size_t i = 0; i < PioReconstructFsList.size(); i++) {
-      ufs.insert(PioReconstructFsList[i]);
-    }
-  }
-  new_lid = eos::common::LayoutId::GetId(
-              isPio ? eos::common::LayoutId::kPlain :
-              eos::common::LayoutId::GetLayoutType(layoutId),
-              (isPio ? eos::common::LayoutId::kNone :
-               eos::common::LayoutId::GetChecksum(layoutId)),
+  // Get the unique set of file systems
+  std::set<unsigned int> ufs(selectedfs.begin(), selectedfs.end());
+  ufs.insert(pio_reconstruct_fs.begin(), pio_reconstruct_fs.end());
+  new_lid = LayoutId::GetId(
+              isPio ? LayoutId::kPlain :
+              LayoutId::GetLayoutType(layoutId),
+              (isPio ? LayoutId::kNone :
+               LayoutId::GetChecksum(layoutId)),
               isPioReconstruct ? static_cast<int>(ufs.size()) : static_cast<int>
               (selectedfs.size()),
-              eos::common::LayoutId::GetBlocksizeType(layoutId),
-              eos::common::LayoutId::GetBlockChecksum(layoutId));
+              LayoutId::GetBlocksizeType(layoutId),
+              LayoutId::GetBlockChecksum(layoutId));
 
   // For RAIN layouts we need to keep the original number of stripes since this
   // is used to compute the different groups and block sizes in the FSTs
-  if ((eos::common::LayoutId::IsRain(layoutId))) {
-    eos::common::LayoutId::SetStripeNumber(new_lid,
-                                           eos::common::LayoutId::GetStripeNumber(layoutId));
+  if ((LayoutId::IsRain(layoutId))) {
+    LayoutId::SetStripeNumber(new_lid,
+                              LayoutId::GetStripeNumber(layoutId));
   }
 
   capability += "&mgm.lid=";
@@ -2115,15 +2103,14 @@ XrdMgmOfsFile::open(const char* inpath,
                   maximumsize);
   }
 
-  // expected size of the target file on close
+  // Expected size of the target file on close
   if (targetsize) {
     capability += "&mgm.targetsize=";
     capability += eos::common::StringConversion::GetSizeString(sizestring,
                   targetsize);
   }
 
-  if (eos::common::LayoutId::GetLayoutType(layoutId) ==
-      eos::common::LayoutId::kPlain) {
+  if (LayoutId::GetLayoutType(layoutId) == LayoutId::kPlain) {
     capability += "&mgm.fsid=";
     capability += (int) filesystem->GetId();
   }
@@ -2148,200 +2135,140 @@ XrdMgmOfsFile::open(const char* inpath,
   XrdOucString infolog = "";
   XrdOucString piolist = "";
 
-  if ((eos::common::LayoutId::GetLayoutType(layoutId) ==
-       eos::common::LayoutId::kReplica) ||
-      (eos::common::LayoutId::IsRain(layoutId))) {
+  if ((LayoutId::GetLayoutType(layoutId) == LayoutId::kReplica) ||
+      (LayoutId::IsRain(layoutId))) {
     capability += "&mgm.fsid=";
     capability += (int) filesystem->GetId();
     eos::mgm::FileSystem* repfilesystem = 0;
     replacedfs.resize(selectedfs.size());
 
-    // -------------------------------------------------------------------------
-    // if replacement has been specified try to get new locations for reco.
-    // -------------------------------------------------------------------------
-
-    if (isPioReconstruct && !(PioReconstructFsList.empty())) {
+    // If replacement has been specified try to get new locations for
+    // reconstruction or for missing stripes
+    if (isPioReconstruct && !(pio_reconstruct_fs.empty())) {
       const char* containertag = 0;
 
       if (attrmap.count("user.tag")) {
         containertag = attrmap["user.tag"].c_str();
       }
 
-      // -----------------------------------------------------------------------
-      // create a plain layout with the number of replacement stripes to be
-      // scheduled in the file placement routine
-      // -----------------------------------------------------------------------
-      unsigned long plainLayoutId = new_lid;
-      eos::common::LayoutId::SetStripeNumber(plainLayoutId,
-                                             PioReconstructFsList.size() - 1);
-      // -----------------------------------------------------------------------
-      // get the original placement group of the first fs to reconstruct
-      {
-        eos::common::FileSystem::fs_snapshot_t orig_snapshot;
-        // get an original filesystem which is not in the reconstruction list
-        unsigned int orig_fs = 0;
-
-        for (unsigned int i = 0; i < fmd->getNumLocation(); i++) {
-          orig_fs = fmd->getLocation(i);
-          bool isInReco = false;
-
-          for (unsigned int j = 0; j < PioReconstructFsList.size(); j++) {
-            if (orig_fs == PioReconstructFsList[j]) {
-              isInReco = true;
-              break;
-            }
-          }
-
-          if (!isInReco) {
-            break;
-          }
-
-          orig_fs = 0;
-        }
-
-        if (!orig_fs) {
-          // there is no original filesystem which is not in reconstruction
-          return Emsg(epname, error, EINVAL, "get original filesystem for reconstruction",
-                      path);
-        }
-
-        // get an original filesystem which is not in the reconstruction list
-        eos::mgm::FileSystem* origfs = FsView::gFsView.mIdView.lookupByID(orig_fs);
-
-        if (!origfs) {
-          // not existing original filesystem
-          return Emsg(epname, error, EINVAL, "reconstruct filesystem", path);
-        }
-
-        origfs->SnapShotFileSystem(orig_snapshot);
-        forcedGroup = orig_snapshot.mGroupIndex;
+      // Get the scheduling group of one of the stripes
+      if (fmd->getNumLocation() == 0) {
+        eos_err("msg=\"no locations available for file\"");
+        return Emsg(epname, error, EIO, "get any locations for file", path);
       }
-      // -----------------------------------------------------------------------
-      eos_info("nstripes=%d => nstripes=%d [ sub-group=%d ]",
-               eos::common::LayoutId::GetStripeNumber(new_lid),
-               eos::common::LayoutId::GetStripeNumber(plainLayoutId),
-               forcedGroup);
-      // -----------------------------------------------------------------------
-      // compute the size of the stripes to be placed
-      // -----------------------------------------------------------------------
-      unsigned long long plainBookingSize =
-        fmd->getSize() /
-        (eos::common::LayoutId::GetStripeNumber(layoutId) + 1);
-      plainBookingSize += 4096;
-      plainBookingSize *= PioReconstructFsList.size();
+
+      eos::common::FileSystem::fs_snapshot_t orig_snapshot;
+      unsigned int orig_id = fmd->getLocation(0);
+      eos::mgm::FileSystem* orig_fs = FsView::gFsView.mIdView.lookupByID(orig_id);
+
+      if (!orig_fs) {
+        return Emsg(epname, error, EINVAL, "reconstruct filesystem", path);
+      }
+
+      orig_fs->SnapShotFileSystem(orig_snapshot);
+      forced_group = orig_snapshot.mGroupIndex;
+      // Add new stripes if file doesn't have the nomial number
+      auto stripe_diff = (LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1) -
+                         selectedfs.size();
+      // Create a plain layout with the number of replacement stripes to be
+      // scheduled in the file placement routine
+      unsigned long plain_lid = new_lid;
+      LayoutId::SetStripeNumber(plain_lid,
+                                pio_reconstruct_fs.size() - 1 + stripe_diff);
+      eos_info("msg=\"nominal stripes:%d reconstructed stripes=%d group_idx=%d\"",
+               LayoutId::GetStripeNumber(new_lid) + 1,
+               LayoutId::GetStripeNumber(plain_lid) + 1,
+               forced_group);
+      // Compute the size of the stripes to be placed
+      unsigned long num_data_stripes = LayoutId::GetStripeNumber(layoutId) + 1 -
+                                       LayoutId::GetRedundancyStripeNumber(layoutId);
+      uint64_t plain_book_sz = (uint64_t)std::ceil((float)fmd->getSize() /
+                               LayoutId::GetBlocksize(layoutId));
+      plain_book_sz = std::ceil((float) plain_book_sz / std::pow(num_data_stripes,
+                                2)) *
+                      num_data_stripes * LayoutId::GetBlocksize(layoutId) + LayoutId::OssXsBlockSize;
+      eos_info("msg=\"plain booking size is %llu", plain_book_sz);
       eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
-      /// ###############
-      // if the client should go through a firewall entrypoint, try to get it
-      // if the scheduled fs need to be accessed through a dataproxy, try to get it
-      // if any of the two fails, the scheduling operation fails
+      // Attempt to use a firewall entrypoint or a dataproxy if required, if any
+      // of the two fail, then scheduling fails
       Scheduler::PlacementArguments plctargs;
       plctargs.alreadyused_filesystems = &selectedfs;
-      plctargs.bookingsize = plainBookingSize;
+      plctargs.bookingsize = plain_book_sz;
       plctargs.dataproxys = &proxys;
       plctargs.firewallentpts = &firewalleps;
-      plctargs.forced_scheduling_group_index = forcedGroup;
+      plctargs.forced_scheduling_group_index = forced_group;
       plctargs.grouptag = containertag;
-      plctargs.lid = plainLayoutId;
+      plctargs.lid = plain_lid;
       plctargs.inode = (ino64_t) fmd->getId();
       plctargs.path = path;
       plctargs.plctTrgGeotag = &targetgeotag;
       plctargs.plctpolicy = plctplcy;
-      plctargs.selected_filesystems = &PioReplacementFsList;
+      plctargs.selected_filesystems = &pio_replacement_fs;
       std::string spacename = space.c_str();
       plctargs.spacename = &spacename;
       plctargs.truncate = false;
       plctargs.vid = &rootvid;
 
       if (!plctargs.isValid()) {
-        // there is something wrong in the arguments of file placement
         return Emsg(epname, error, EIO, "open - invalid placement argument", path);
       }
 
       retc = Quota::FilePlacement(&plctargs);
-
-      /// ###############
-      if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
-        std::stringstream strstr;
-        strstr << "\nselectedfs are : ";
-
-        for (const auto& it : selectedfs) {
-          strstr << it << "  ";
-        }
-
-        strstr << "\nproxys are : ";
-
-        for (const auto& it : proxys) {
-          strstr << it << "  ";
-        }
-
-        strstr << "\nfirewallentrypoints are : ";
-
-        for (const auto& it : firewalleps) {
-          strstr << it << "  ";
-        }
-
-        strstr << "  and retc=" << retc;
-        eos_static_debug(strstr.str().c_str());
-      }
-
-      /// ###############
+      LogSchedulingInfo(selectedfs, proxys, firewalleps);
 
       if (retc) {
-        // the placement didn't work, we cannot schedule reconstruction
         gOFS->MgmStats.Add("OpenFailedReconstruct", rootvid.uid, rootvid.gid, 1);
         return Emsg(epname, error, retc, "schedule stripes for reconstruction", path);
       }
 
-      for (int i = 0; i < (int) PioReplacementFsList.size(); i++) {
-        eos_debug("msg=\"scheduled fs for reconstruction\" rec-fsid=%lu nrecofs=%lu",
-                  PioReplacementFsList[i], PioReplacementFsList.size());
+      for (const auto& elem : pio_replacement_fs) {
+        eos_debug("msg=\"reconstruction scheduled on new fs\" fsid=%lu num=%lu",
+                  elem, pio_replacement_fs.size());
       }
 
-      // add fsid=0 filesystems to the selection vector if it has less than the nominal replica
-      auto selection_diff = (eos::common::LayoutId::GetStripeNumber(
-                               fmd->getLayoutId()) + 1) - selectedfs.size();
-      eos_info("selection-diff=%d %d/%d", selection_diff,
-               (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1),
-               selectedfs.size());
+      auto selection_diff = (LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1)
+                            - selectedfs.size();
+      eos_info("msg=\"fs selection summary\" nominal=%d actual=%d diff=%d",
+               (LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1),
+               selectedfs.size(), selection_diff);
 
-      if (selection_diff > 0) {
-        unavailfs.push_back(0);
+      // If there as stripes missing then fill them in from the replacements
+      if (pio_replacement_fs.size() < selection_diff) {
+        eos_err("msg=\"not enough replacement fs\" need=%lu have=%lu",
+                selection_diff, pio_replacement_fs.size());
+        return Emsg(epname, error, retc, "schedule enough stripes for reconstruction",
+                    path);
+      }
 
-        for (auto i = 0ul; i < selection_diff; i++) {
-          selectedfs.push_back(0);
-          eos_info("msg=\"adding fsid=0 as missing filesystem\"");
-        }
+      for (auto i = 0; i < selection_diff; ++i) {
+        selectedfs.push_back(pio_replacement_fs.back());
+        pio_replacement_fs.pop_back();
       }
     }
 
     // Put all the replica urls into the capability
     for (unsigned int i = 0; i < selectedfs.size(); ++i) {
       if (!selectedfs[i]) {
-        eos_err("0 filesystem in replica vector");
+        eos_err("%s", "msg=\"fsid 0 in replica vector\"");
       }
 
       // Logic to discover filesystems to be reconstructed
       bool replace = false;
 
       if (isPioReconstruct) {
-        for (size_t k = 0; k < PioReconstructFsList.size(); k++) {
-          if (selectedfs[i] == PioReconstructFsList[k]) {
-            replace = true;
-            break;
-          }
-        }
+        replace = (pio_reconstruct_fs.find(selectedfs[i]) != pio_reconstruct_fs.end());
       }
 
       if (replace) {
         // If we don't find any replacement
-        if (PioReplacementFsList.empty()) {
+        if (pio_replacement_fs.empty()) {
           return Emsg(epname, error, EIO, "get replacement file system", path);
         }
 
         // Take one replacement filesystem from the replacement list
         replacedfs[i] = selectedfs[i];
-        selectedfs[i] = PioReplacementFsList.back();
-        PioReplacementFsList.pop_back();
+        selectedfs[i] = pio_replacement_fs.back();
+        pio_replacement_fs.pop_back();
         eos_info("msg=\"replace fs\" old-fsid=%u new-fsid=%u", replacedfs[i],
                  selectedfs[i]);
       } else {
@@ -2352,75 +2279,76 @@ XrdMgmOfsFile::open(const char* inpath,
       repfilesystem = FsView::gFsView.mIdView.lookupByID(selectedfs[i]);
 
       if (!repfilesystem) {
-        // don't fail IO on a shadow file system but throw a critical error message
+        // Don't fail IO on a shadow file system but throw a critical error
+        // message
         eos_crit("msg=\"Unable to get replica filesystem information\" "
                  "path=\"%s\" fsid=%d", path, selectedfs[i]);
         continue;
-      } else {
-        if (replace) {
-          fsIndex = i;
+      }
 
-          // Set the FST gateway if this is available otherwise the actual FST
-          if ((firewalleps.size() > fsIndex) && (proxys.size() > fsIndex) &&
-              !(firewalleps[fsIndex].empty()) &&
-              ((!proxys[fsIndex].empty() && firewalleps[fsIndex] != proxys[fsIndex]) ||
-               (firewalleps[fsIndex] != repfilesystem->GetString("hostport")))) {
-            // Build the URL for the forwarding proxy and must have the following
-            // redirection proxy:port?eos.fstfrw=endpoint:port/abspath
-            auto idx = firewalleps[fsIndex].rfind(':');
+      if (replace) {
+        fsIndex = i;
+
+        // Set the FST gateway if this is available otherwise the actual FST
+        if ((firewalleps.size() > fsIndex) && (proxys.size() > fsIndex) &&
+            !(firewalleps[fsIndex].empty()) &&
+            ((!proxys[fsIndex].empty() && firewalleps[fsIndex] != proxys[fsIndex]) ||
+             (firewalleps[fsIndex] != repfilesystem->GetString("hostport")))) {
+          // Build the URL for the forwarding proxy and must have the following
+          // redirection proxy:port?eos.fstfrw=endpoint:port/abspath
+          auto idx = firewalleps[fsIndex].rfind(':');
+
+          if (idx != std::string::npos) {
+            targethost = firewalleps[fsIndex].substr(0, idx).c_str();
+            targetport = atoi(firewalleps[fsIndex].substr(idx + 1,
+                              std::string::npos).c_str());
+            targethttpport = 8001;
+          } else {
+            targethost = firewalleps[fsIndex].c_str();
+            targetport = 0;
+            targethttpport = 0;
+          }
+
+          std::ostringstream oss;
+          oss << targethost << "?" << "eos.fstfrw=";
+
+          // check if we have to redirect to the fs host or to a proxy
+          if (proxys[fsIndex].empty()) {
+            oss << repfilesystem->GetString("host").c_str() << ":" <<
+                repfilesystem->GetString("port").c_str();
+          } else {
+            oss << proxys[fsIndex];
+          }
+
+          redirectionhost = oss.str().c_str();
+        } else {
+          if ((proxys.size() > fsIndex) && !proxys[fsIndex].empty())  {
+            // We have a proxy to use
+            (void) proxys[fsIndex].c_str();
+            auto idx = proxys[fsIndex].rfind(':');
 
             if (idx != std::string::npos) {
-              targethost = firewalleps[fsIndex].substr(0, idx).c_str();
-              targetport = atoi(firewalleps[fsIndex].substr(idx + 1,
-                                std::string::npos).c_str());
+              targethost = proxys[fsIndex].substr(0, idx).c_str();
+              targetport = atoi(proxys[fsIndex].substr(idx + 1, std::string::npos).c_str());
               targethttpport = 8001;
             } else {
-              targethost = firewalleps[fsIndex].c_str();
+              targethost = proxys[fsIndex].c_str();
               targetport = 0;
               targethttpport = 0;
             }
-
-            std::ostringstream oss;
-            oss << targethost << "?" << "eos.fstfrw=";
-
-            // check if we have to redirect to the fs host or to a proxy
-            if (proxys[fsIndex].empty()) {
-              oss << repfilesystem->GetString("host").c_str() << ":" <<
-                  repfilesystem->GetString("port").c_str();
-            } else {
-              oss << proxys[fsIndex];
-            }
-
-            redirectionhost = oss.str().c_str();
           } else {
-            if ((proxys.size() > fsIndex) && !proxys[fsIndex].empty())  {
-              // We have a proxy to use
-              (void) proxys[fsIndex].c_str();
-              auto idx = proxys[fsIndex].rfind(':');
-
-              if (idx != std::string::npos) {
-                targethost = proxys[fsIndex].substr(0, idx).c_str();
-                targetport = atoi(proxys[fsIndex].substr(idx + 1, std::string::npos).c_str());
-                targethttpport = 8001;
-              } else {
-                targethost = proxys[fsIndex].c_str();
-                targetport = 0;
-                targethttpport = 0;
-              }
-            } else {
-              // There is no proxy to use
-              targethost  = repfilesystem->GetString("host").c_str();
-              targetport  = atoi(repfilesystem->GetString("port").c_str());
-              targethttpport  = atoi(repfilesystem->GetString("stat.http.port").c_str());
-            }
-
-            redirectionhost = targethost;
-            redirectionhost += "?";
+            // There is no proxy to use
+            targethost  = repfilesystem->GetString("host").c_str();
+            targetport  = atoi(repfilesystem->GetString("port").c_str());
+            targethttpport  = atoi(repfilesystem->GetString("stat.http.port").c_str());
           }
 
-          // point at the right vector entry
-          fsIndex = i;
+          redirectionhost = targethost;
+          redirectionhost += "?";
         }
+
+        // point at the right vector entry
+        fsIndex = i;
       }
 
       capability += "&mgm.url";
@@ -2497,7 +2425,7 @@ XrdMgmOfsFile::open(const char* inpath,
         piolist += "&";
       }
 
-      eos_debug("Redirection Url %d => %s", i, replicahost.c_str());
+      eos_debug("msg=\"redirection url\" %d => %s", i, replicahost.c_str());
       infolog += "target[";
       infolog += (int) i;
       infolog += "]=(";
@@ -2541,8 +2469,7 @@ XrdMgmOfsFile::open(const char* inpath,
       redirectionhost += "&mgm.blockchecksum=";
       redirectionhost += openOpaque->Get("eos.blockchecksum");
     } else {
-      if ((!isRW) && (eos::common::LayoutId::GetLayoutType(layoutId) ==
-                      eos::common::LayoutId::kReplica)) {
+      if ((!isRW) && (LayoutId::GetLayoutType(layoutId) == LayoutId::kReplica)) {
         redirectionhost += "&mgm.blockchecksum=ignore";
       }
     }
@@ -3034,4 +2961,38 @@ XrdMgmOfsFile::RedirectTpcAccess()
             is_delegated_tpc ? "delegated" : "undelegated",
             it->second.first.c_str(), it->second.second);
   return true;
+}
+
+//------------------------------------------------------------------------------
+// Dump scheduling info
+//------------------------------------------------------------------------------
+void
+XrdMgmOfsFile::LogSchedulingInfo(const std::vector<unsigned int>& selected_fs,
+                                 const std::vector<std::string>& proxy_eps,
+                                 const std::vector<std::string>& fwall_eps) const
+{
+  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+
+  if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
+    std::ostringstream oss;
+    oss << "selectedfs: ";
+
+    for (const auto& elem : selected_fs) {
+      oss << elem << "  ";
+    }
+
+    oss << "proxys: ";
+
+    for (const auto& elem : proxy_eps) {
+      oss << elem << "  ";
+    }
+
+    oss << "firewallentrypoints: ";
+
+    for (const auto& elem : fwall_eps) {
+      oss << elem << "  ";
+    }
+
+    eos_debug("msg=\"scheduling info %s\"", oss.str().c_str());
+  }
 }

@@ -51,7 +51,8 @@ Scheduler::FilePlacement(PlacementArguments* args)
 {
   eos_static_debug("requesting file placement from geolocation %s",
                    args->vid->geolocation.c_str());
-  // the caller routine has to lock via => eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex)
+  // The caller routine has to lock via =>
+  //  eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex)
   std::map<eos::common::FileSystem::fsid_t, float> availablefs;
   std::map<eos::common::FileSystem::fsid_t, std::string> availablefsgeolocation;
   std::list<eos::common::FileSystem::fsid_t> availablevector;
@@ -116,8 +117,8 @@ Scheduler::FilePlacement(PlacementArguments* args)
   // place the group iterator
   if (!args->alreadyused_filesystems->empty()) {
     if (!gOFS->mGeoTreeEngine->getInfosFromFsIds(*args->alreadyused_filesystems,
-                                          &fsidsgeotags,
-                                          0, &groupsToTry)) {
+        &fsidsgeotags,
+        0, &groupsToTry)) {
       eos_static_debug("could not retrieve scheduling group for all avoid fsids");
     } else {
       eos_static_debug("succesfully retrieved scheduling groups for all avoid fsids");
@@ -285,7 +286,7 @@ int Scheduler::FileAccess(AccessArguments* args)
     std::vector<std::string> hosts;
 
     if (!gOFS->mGeoTreeEngine->getInfosFromFsIds(*args->locationsfs, 0,
-                                          &hosts, 0)) {
+        &hosts, 0)) {
       eos_static_debug("could not retrieve host for all the avoided fsids");
     }
 

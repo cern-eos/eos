@@ -90,8 +90,8 @@ public:
   // utility function: create copy-on-write clone
   //----------------------------------------------------------------------------
   static int create_cow(bool isDelete, uint64_t cloneId,
-          std::shared_ptr<eos::IContainerMD> dmd, std::shared_ptr<eos::IFileMD> fmd,
-          eos::common::VirtualIdentity& vid, XrdOucErrInfo& error);
+                        std::shared_ptr<eos::IContainerMD> dmd, std::shared_ptr<eos::IFileMD> fmd,
+                        eos::common::VirtualIdentity& vid, XrdOucErrInfo& error);
 
   //----------------------------------------------------------------------------
   // open a file
@@ -230,6 +230,17 @@ private:
   //!         false
   //----------------------------------------------------------------------------
   bool RedirectTpcAccess();
+
+  //----------------------------------------------------------------------------
+  //! Dump scheduling info
+  //!
+  //! @param selected_fs list of selected file systems
+  //! @param proxys list of data proxy endpoints
+  //! @param fwall_eps firewall entrypoints
+  //----------------------------------------------------------------------------
+  void LogSchedulingInfo(const std::vector<unsigned int>& selected_fs,
+                         const std::vector<std::string>& proxy_eps,
+                         const std::vector<std::string>& fwall_eps) const;
 
   int oh; //< file handle
   std::string fileName; //< file name
