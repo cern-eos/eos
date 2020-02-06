@@ -38,8 +38,12 @@
 #endif
 #include <atomic>
 
-namespace eos::mq {
-  class MessagingRealm;
+namespace eos
+{
+namespace mq
+{
+class MessagingRealm;
+}
 }
 
 namespace qclient

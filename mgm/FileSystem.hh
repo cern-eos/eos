@@ -28,8 +28,12 @@
 #include "mq/MessagingRealm.hh"
 #include "mgm/Namespace.hh"
 
-namespace eos::mq {
-  class MessagingRealm;
+namespace eos
+{
+namespace mq
+{
+class MessagingRealm;
+}
 }
 
 /*----------------------------------------------------------------------------*/

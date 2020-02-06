@@ -45,13 +45,18 @@
 #include <stdint.h>
 /*----------------------------------------------------------------------------*/
 
-namespace eos::mq {
-  class MessagingRealm;
+namespace eos
+{
+namespace mq
+{
+class MessagingRealm;
+}
 }
 
-namespace qclient {
-  class SharedManager;
-  class SharedDeque;
+namespace qclient
+{
+class SharedManager;
+class SharedDeque;
 }
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -96,8 +101,8 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  TransferQueue(const TransferQueueLocator &locator,
-    mq::MessagingRealm* realm, bool bc2mgm);
+  TransferQueue(const TransferQueueLocator& locator,
+                mq::MessagingRealm* realm, bool bc2mgm);
 
   //----------------------------------------------------------------------------
   //! Get queue path
