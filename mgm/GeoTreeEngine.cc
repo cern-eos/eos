@@ -108,7 +108,7 @@ std::map<std::string, unsigned char> GeoTreeEngine::gQueue2NotifType;
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-GeoTreeEngine::GeoTreeEngine(XrdMqSharedObjectChangeNotifier& notifier) :
+GeoTreeEngine::GeoTreeEngine(mq::MessagingRealm *realm) :
   pSkipSaturatedAccess(true), pSkipSaturatedDrnAccess(true),
   pSkipSaturatedBlcAccess(true), pProxyCloseToFs(true),
   pPenaltyUpdateRate(1),
@@ -119,7 +119,7 @@ GeoTreeEngine::GeoTreeEngine(XrdMqSharedObjectChangeNotifier& notifier) :
   pCircSize(30), pFrameCount(0),
   pPenaltySched(pCircSize),
   pLatencySched(pCircSize),
-  mFsListener("geotree-fs-listener", notifier)
+  mFsListener("geotree-fs-listener", *(realm->getChangeNotifier()))
 {
   // by default, disable all the placement operations for non geotagged fs
   addDisabledBranch("*", "plct", "nogeotag", NULL, false);

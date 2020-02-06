@@ -29,6 +29,7 @@
 #include "common/ParseUtils.hh"
 #include "common/Assert.hh"
 #include "common/Constants.hh"
+#include "mq/MessagingRealm.hh"
 #include <curl/curl.h>
 
 EOSCOMMONNAMESPACE_BEGIN;
@@ -471,12 +472,11 @@ void FileSystem::fs_snapshot_t::fillFromCoreParams(const FileSystemCoreParams&
 // Constructor
 //------------------------------------------------------------------------------
 FileSystem::FileSystem(const FileSystemLocator& locator,
-                       XrdMqSharedObjectManager* som,
-                       qclient::SharedManager* qsom, bool bc2mgm)
+                       mq::MessagingRealm *realm, bool bc2mgm)
   : mLocator(locator), mHashLocator(locator, bc2mgm)
 {
-  mSharedManager = qsom;
-  mSom = som;
+  mSharedManager = realm->getQSom();
+  mSom = realm->getSom();
   mInternalBootStatus = BootStatus::kDown;
   cActive = ActiveStatus::kOffline;
   cStatus = BootStatus::kDown;
@@ -502,9 +502,9 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
 
     mq::SharedHashWrapper(mHashLocator).set(updateBatch);
     mBalanceQueue = new TransferQueue(TransferQueueLocator(mLocator, "balanceq"),
-                                      mSom, qsom, bc2mgm);
+                                      realm, bc2mgm);
     mExternQueue = new TransferQueue(TransferQueueLocator(mLocator, "externq"),
-                                     mSom, qsom, bc2mgm);
+                                     realm, bc2mgm);
   } else {
     mBalanceQueue = 0;
     mExternQueue = 0;

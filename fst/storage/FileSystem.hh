@@ -33,18 +33,17 @@
 #include "common/FileSystem.hh"
 #include "common/StringConversion.hh"
 #include "common/FileId.hh"
-#include "mq/MessagingRealm.hh"
 #include <vector>
 #include <list>
 #include <queue>
 #include <map>
 
-namespace eos
-{
-namespace common
-{
-class Statfs;
+namespace eos::mq {
+  class MessagingRealm;
 }
+
+namespace eos::common {
+  class Statfs;
 }
 
 EOSFSTNAMESPACE_BEGIN

@@ -45,6 +45,10 @@
 #include <stdint.h>
 /*----------------------------------------------------------------------------*/
 
+namespace eos::mq {
+  class MessagingRealm;
+}
+
 namespace qclient {
   class SharedManager;
   class SharedDeque;
@@ -93,7 +97,7 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   TransferQueue(const TransferQueueLocator &locator,
-    XrdMqSharedObjectManager* som, qclient::SharedManager *qsom,  bool bc2mgm);
+    mq::MessagingRealm* realm, bool bc2mgm);
 
   //----------------------------------------------------------------------------
   //! Get queue path

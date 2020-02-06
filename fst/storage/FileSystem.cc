@@ -38,7 +38,7 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 FileSystem::FileSystem(const common::FileSystemLocator& locator,
   mq::MessagingRealm *realm) :
-  eos::common::FileSystem(locator, realm->getSom(), realm->getQSom(), true),
+  eos::common::FileSystem(locator, realm, true),
   mLocalId(0ul), mLocalUuid(""),  mScanDir(nullptr), mFileIO(nullptr),
   mTxDirectory("")
 {

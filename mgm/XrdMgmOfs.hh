@@ -110,7 +110,6 @@
 #include "mgm/proc/admin/SpaceCmd.hh"
 #include "mgm/drain/Drainer.hh"
 #include "mgm/IdTrackerWithValidity.hh"
-#include "mgm/auth/AccessChecker.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/INamespaceGroup.hh"

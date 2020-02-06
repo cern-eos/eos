@@ -615,8 +615,7 @@ public:
     SetConfigMember("stat.hostport", GetMember("hostport"), false);
     mGwQueue = new eos::common::TransferQueue(
       eos::common::TransferQueueLocator(mName, "txq"),
-      eos::common::GlobalConfig::gConfig.SOM(),
-      eos::common::GlobalConfig::gConfig.QSOM(), false);
+      eos::common::GlobalConfig::gConfig.getRealm(), false);
   }
 
   //----------------------------------------------------------------------------

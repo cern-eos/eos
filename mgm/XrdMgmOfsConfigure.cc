@@ -1308,9 +1308,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
   ConfEngine->SetAutoSave(true);
 
-  // Initialize geotree engine
-  mGeoTreeEngine.reset(new eos::mgm::GeoTreeEngine(ObjectNotifier));
-
   // Create comment log to save all proc commands executed with a comment
   mCommentLog.reset(new eos::common::CommentLog("/var/log/eos/mgm/logbook.log"));
 
@@ -1448,6 +1445,9 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   SetupGlobalConfig();
+
+  // Initialize geotree engine
+  mGeoTreeEngine.reset(new eos::mgm::GeoTreeEngine(mMessagingRealm.get()));
 
   // Eventually autoload a configuration
   if (getenv("EOS_AUTOLOAD_CONFIG")) {

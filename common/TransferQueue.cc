@@ -24,6 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "common/TransferQueue.hh"
 #include "common/StringTokenizer.hh"
+#include "mq/MessagingRealm.hh"
 #include <qclient/shared/SharedDeque.hh>
 #include <qclient/shared/SharedManager.hh>
 /*----------------------------------------------------------------------------*/
@@ -46,7 +47,7 @@ EOSCOMMONNAMESPACE_BEGIN
  * @param bc2mgm broadcast-to-manager flag indicating if changes are broadcasted to manager nodes
  */
 /*----------------------------------------------------------------------------*/
-TransferQueue::TransferQueue(const TransferQueueLocator &locator, XrdMqSharedObjectManager* som, qclient::SharedManager* qsom, bool bc2mgm)
+TransferQueue::TransferQueue(const TransferQueueLocator &locator, mq::MessagingRealm *realm, bool bc2mgm)
 {
   mQueue = locator.getQueue();
   mFullQueue = locator.getQueuePath();
@@ -63,9 +64,8 @@ TransferQueue::TransferQueue(const TransferQueueLocator &locator, XrdMqSharedObj
     mSlave = false;
   }
 
-
-  mSom = som;
-  mQsom = qsom;
+  mSom = realm->getSom();
+  mQsom = realm->getQSom();
 
   if(mQsom) {
     mSharedDeque.reset(new qclient::SharedDeque(mQsom, locator.getQDBKey()));
@@ -79,7 +79,7 @@ TransferQueue::TransferQueue(const TransferQueueLocator &locator, XrdMqSharedObj
     if(!hashQueue) {
       mSom->HashMutex.UnLockRead();
       // create the hash object
-      if (mSom->CreateSharedQueue(mFullQueue.c_str(), mQueue.c_str(), som)) {
+      if (mSom->CreateSharedQueue(mFullQueue.c_str(), mQueue.c_str(), mSom)) {
         mSom->HashMutex.LockRead();
         hashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(), "queue");
         mSom->HashMutex.UnLockRead();

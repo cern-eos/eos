@@ -38,6 +38,10 @@
 #endif
 #include <atomic>
 
+namespace eos::mq {
+  class MessagingRealm;
+}
+
 namespace qclient
 {
 
@@ -539,8 +543,7 @@ public:
   //!                  key-value pairs
   //! @param bc2mgm   If true we broad cast to the management server
   //----------------------------------------------------------------------------
-  FileSystem(const FileSystemLocator& locator,
-             XrdMqSharedObjectManager* som, qclient::SharedManager* qsom,
+  FileSystem(const FileSystemLocator& locator, mq::MessagingRealm* realm,
              bool b2mgm = false);
 
   //----------------------------------------------------------------------------

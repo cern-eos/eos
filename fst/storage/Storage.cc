@@ -250,7 +250,7 @@ Storage::Storage(const char* meta_dir)
   mGwQueue = new eos::common::TransferQueue(
     eos::common::TransferQueueLocator(eos::fst::Config::gConfig.FstQueue.c_str(),
                                       "txq"),
-    &gOFS.ObjectManager, gOFS.mQSOM.get(), true);
+    gOFS.mMessagingRealm.get(), true);
   mTxGwQueue = new TransferQueue(&mGwQueue);
 
   if (mTxGwQueue) {

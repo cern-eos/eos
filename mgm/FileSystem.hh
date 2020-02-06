@@ -28,6 +28,10 @@
 #include "mq/MessagingRealm.hh"
 #include "mgm/Namespace.hh"
 
+namespace eos::mq {
+  class MessagingRealm;
+}
+
 /*----------------------------------------------------------------------------*/
 /**
  * @file FileSystem.hh
@@ -66,7 +70,7 @@ public:
   //----------------------------------------------------------------------------
   FileSystem(const common::FileSystemLocator& locator,
              mq::MessagingRealm* msr) :
-    eos::common::FileSystem(locator, msr->getSom(), msr->getQSom())
+    eos::common::FileSystem(locator, msr)
   {}
 
   //----------------------------------------------------------------------------

@@ -35,6 +35,7 @@
 #include "common/Timing.hh"
 #include "common/FileSystem.hh"
 #include "mq/FileSystemChangeListener.hh"
+#include "mq/MessagingRealm.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysAtomics.hh"
@@ -1655,7 +1656,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  GeoTreeEngine(XrdMqSharedObjectChangeNotifier &notifier);
+  GeoTreeEngine(mq::MessagingRealm *realm);
 
   // ---------------------------------------------------------------------------
   //! Force a refresh of the information in the scheduling trees
