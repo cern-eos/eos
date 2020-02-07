@@ -29,8 +29,9 @@ bool EnvToFstFmd(XrdOucEnv& env, FmdHelper& fmd)
 {
   // Check that all tags are present
   std::set<std::string> tags {"id", "cid", "fsid", "ctime", "ctime_ns", "mtime",
-                              "mtime_ns", "atime", "atime_ns", "size", "disksize", "mgmsize", "lid",
-                              "uid", "gid", "filecxerror", "blockcxerror", "layouterror", "locations"};
+                              "mtime_ns", "atime", "atime_ns", "size", "disksize",
+                              "mgmsize", "lid", "uid", "gid", "filecxerror",
+                              "blockcxerror", "layouterror", "locations"};
 
   for (const auto& tag : tags) {
     if (env.Get(tag.c_str()) == nullptr) {

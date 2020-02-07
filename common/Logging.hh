@@ -165,11 +165,16 @@ EOSCOMMONNAMESPACE_BEGIN
 //! Log Macros usable from static member functions without LogId object
 //------------------------------------------------------------------------------
 #define eos_static_log(__EOSCOMMON_LOG_PRIORITY__ , ...) \
-  eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, "static", \
-    0,0,0,0, "",  (__EOSCOMMON_LOG_PRIORITY__) , __VA_ARGS__
-#define eos_static_debug(...) \
-  eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, "static..............................", \
-                                          eos::common::gLogging.gZeroVid, "", (LOG_DEBUG), __VA_ARGS__)
+  eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, \
+                                          "static..............................", \
+                                          eos::common::gLogging.gZeroVid, "", \
+                                          (__EOSCOMMON_LOG_PRIORITY__) , \
+                                          __VA_ARGS__)
+#define eos_static_debug(...)                                           \
+  eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, \
+                                          "static..............................", \
+                                          eos::common::gLogging.gZeroVid, "", \
+                                          (LOG_DEBUG), __VA_ARGS__)
 #define eos_static_info(...) \
   eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, "static..............................", \
                              eos::common::gLogging.gZeroVid, "", (LOG_INFO), __VA_ARGS__)
@@ -320,7 +325,7 @@ public:
       snprintf(logId, sizeof(logId), "%s", vid.token->Voucher().c_str());
     } else {
       if (newlogid != logId) {
-	snprintf(logId, sizeof(logId), "%s", newlogid);
+        snprintf(logId, sizeof(logId), "%s", newlogid);
       }
     }
   }
