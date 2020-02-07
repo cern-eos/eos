@@ -3394,7 +3394,7 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
   notification->mutable_wf()->set_event(cta::eos::Workflow::CLOSEW);
   notification->mutable_wf()->mutable_instance()->set_name(instance_name);
   auto xrdname = getenv("XRDNAME");
-  auto requester_instance = std::string(mHostName) + ":" + (xrdname ? std::string(xrdname) : "NULL");
+  auto requester_instance = std::string(gOFS.mHostName) + ":" + (xrdname ? std::string(xrdname) : "NULL");
   notification->mutable_wf()->set_requester_instance(requester_instance);
   notification->mutable_file()->set_lpath(fullpath);
   notification->mutable_file()->set_fid(file_id);
