@@ -284,6 +284,7 @@ Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
       stdErr = "error: broadcast failed\n";
     }
 
+    eos_debug("msg=\"fsck response for broadcast\" out=\"%s\"", stdOut.c_str());
     decltype(eFsMap) tmp_err_map;
     std::vector<std::string> lines;
     // Convert into a line-wise seperated array
@@ -402,7 +403,7 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
       eos::common::RWMutexReadLock rd_lock(mErrMutex);
       local_emap.insert(eFsMap.begin(), eFsMap.end());
     }
-    std::list<std::string> err_priority {"unreg_n", "rep_diff_n",
+    std::list<std::string> err_priority {"blockxs_err", "unreg_n", "rep_diff_n",
                                          "rep_missing_n", "m_mem_sz_diff",
                                          "m_cx_diff", "d_mem_sz_diff",
                                          "d_cx_diff"};

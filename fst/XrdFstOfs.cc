@@ -451,7 +451,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     const int max_tag_size = 8;
     char* node_geotag_tmp = getenv("EOS_GEOTAG");
     // Copy to a different string as strtok is modifying the pointed string
-    char node_geotag [strlen(node_geotag_tmp)+1];
+    char node_geotag [strlen(node_geotag_tmp) + 1];
     strcpy(node_geotag, node_geotag_tmp);
     char* gtag = strtok(node_geotag, "::");
 
@@ -648,9 +648,10 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     return 1;
   }
 
-  if(!mQdbContactDetails.members.empty() && mQdbContactDetails.password.empty()) {
+  if (!mQdbContactDetails.members.empty() &&
+      mQdbContactDetails.password.empty()) {
     Eroute.Say("=====> Configuration error: Found QDB cluster members, but no password."
-      " EOS will only connect to password-protected QDB instances. (fstofs.qdbpassword / fstofs.qdbpassword_file missing)");
+               " EOS will only connect to password-protected QDB instances. (fstofs.qdbpassword / fstofs.qdbpassword_file missing)");
     return 1;
   }
 
@@ -767,8 +768,8 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
                                            mQdbContactDetails.constructSubscriptionOptions()));
   }
 
-  mMessagingRealm.reset(new mq::MessagingRealm(&ObjectManager, &ObjectNotifier, mQSOM.get()));
-
+  mMessagingRealm.reset(new mq::MessagingRealm(&ObjectManager, &ObjectNotifier,
+                        mQSOM.get()));
   // Setup auth dir
   {
     XrdOucString scmd = "mkdir -p ";
@@ -1172,7 +1173,7 @@ XrdFstOfs::SetDebug(XrdOucEnv& env)
   } else {
     // We set the shared hash debug for the lowest 'debug' level
     if (debuglevel == "debug") {
-      ObjectManager.SetDebug(true);
+      //ObjectManager.SetDebug(true);
     } else {
       ObjectManager.SetDebug(false);
     }
@@ -1768,7 +1769,6 @@ XrdFstOfs::MakeDeletionReport(eos::common::FileSystem::fsid_t fsid,
   struct timespec ts_now;
   char report[16384];
   eos::common::Timing::GetTimeSpec(ts_now);
-
   snprintf(report, sizeof(report) - 1,
            "log=%s&"
            "host=%s&fid=%llu&fxid=%08llx&fsid=%u&"

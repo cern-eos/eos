@@ -39,13 +39,14 @@ EOSMGMNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 enum class FsckErr {
   None = 0x00,
-  MgmXsDiff = 0x01,
-  FstXsDiff = 0x02,
-  MgmSzDiff = 0x03,
-  FstSzDiff = 0x04,
-  UnregRepl = 0x05,
-  DiffRepl  = 0x06,
-  MissRepl  = 0x07
+  MgmXsDiff  = 0x01,
+  FstXsDiff  = 0x02,
+  MgmSzDiff  = 0x03,
+  FstSzDiff  = 0x04,
+  UnregRepl  = 0x05,
+  DiffRepl   = 0x06,
+  MissRepl   = 0x07,
+  BlockxsErr = 0x08
 };
 
 //------------------------------------------------------------------------------
@@ -149,12 +150,28 @@ public:
   bool RepairFstXsSzDiff();
 
   //----------------------------------------------------------------------------
-  //! Method to repair replica inconsistencies e.g. unregistered replicas,
+  //! Method to repair inconsistencies e.g. unregistered replicas,
   //! under/over replication, missing replicas
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
+  bool RepairInconsistencies();
+
+  //----------------------------------------------------------------------------
+  //! Method to repair inconsistencies for replica files e.g. unregistered
+  //! replicas, under/over replication, missing replicas
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
   bool RepairReplicaInconsistencies();
+
+  //----------------------------------------------------------------------------
+  //! Method to repair inconsistencies for RAIN files e.g. unregistered
+  //! stripes, under/over replication, missing stripes
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool RepairRainInconsistencies();
 
   //----------------------------------------------------------------------------
   //! Collect MGM file metadata information

@@ -50,13 +50,14 @@ FsckEntry::FsckEntry(eos::IFileMD::id_t fid,
   mQcl(qcl)
 {
   mMapRepairOps = {
-    {FsckErr::MgmXsDiff, &FsckEntry::RepairMgmXsSzDiff},
-    {FsckErr::MgmSzDiff, &FsckEntry::RepairMgmXsSzDiff},
-    {FsckErr::FstXsDiff, &FsckEntry::RepairFstXsSzDiff},
-    {FsckErr::FstSzDiff, &FsckEntry::RepairFstXsSzDiff},
-    {FsckErr::UnregRepl, &FsckEntry::RepairReplicaInconsistencies},
-    {FsckErr::DiffRepl,  &FsckEntry::RepairReplicaInconsistencies},
-    {FsckErr::MissRepl,  &FsckEntry::RepairReplicaInconsistencies}
+    {FsckErr::MgmXsDiff,  &FsckEntry::RepairMgmXsSzDiff},
+    {FsckErr::MgmSzDiff,  &FsckEntry::RepairMgmXsSzDiff},
+    {FsckErr::FstXsDiff,  &FsckEntry::RepairFstXsSzDiff},
+    {FsckErr::FstSzDiff,  &FsckEntry::RepairFstXsSzDiff},
+    {FsckErr::BlockxsErr, &FsckEntry::RepairFstXsSzDiff},
+    {FsckErr::UnregRepl,  &FsckEntry::RepairReplicaInconsistencies},
+    {FsckErr::DiffRepl,   &FsckEntry::RepairReplicaInconsistencies},
+    {FsckErr::MissRepl,   &FsckEntry::RepairReplicaInconsistencies}
   };
   mRepairFactory = [](eos::common::FileId::fileid_t fid,
                       eos::common::FileSystem::fsid_t fsid_src,
@@ -292,59 +293,59 @@ FsckEntry::RepairMgmXsSzDiff()
 bool
 FsckEntry::RepairFstXsSzDiff()
 {
-  // This only makes sense for replica layouts
-  if (LayoutId::IsRain(mMgmFmd.layout_id())) {
-    return true;
-  }
-
-  std::string mgm_xs_val =
-    StringConversion::BinData2HexString(mMgmFmd.checksum().c_str(),
-                                        SHA_DIGEST_LENGTH,
-                                        LayoutId::GetChecksumLen(mMgmFmd.layout_id()));
-  // Make sure at least one disk xs and size match the MGM ones
-  uint64_t sz_val {0ull};
-  std::string xs_val;
-  std::set<eos::common::FileSystem::fsid_t> good_fsids;
   std::set<eos::common::FileSystem::fsid_t> bad_fsids;
 
-  for (auto it = mFstFileInfo.cbegin(); it != mFstFileInfo.cend(); ++it) {
-    auto& finfo = it->second;
+  if (LayoutId::IsRain(mMgmFmd.layout_id())) {
+    bad_fsids.insert(mFsidErr);
+  } else { // for replica layouts
+    std::string mgm_xs_val =
+      StringConversion::BinData2HexString(mMgmFmd.checksum().c_str(),
+                                          SHA_DIGEST_LENGTH,
+                                          LayoutId::GetChecksumLen(mMgmFmd.layout_id()));
+    // Make sure at least one disk xs and size match the MGM ones
+    uint64_t sz_val {0ull};
+    std::string xs_val;
+    std::set<eos::common::FileSystem::fsid_t> good_fsids;
 
-    if (finfo->mFstErr != FstErr::None) {
-      eos_err("msg=\"unavailable replica info\" fxid=%08llx fsid=%lu",
-              mFid, it->first);
-      bad_fsids.insert(it->first);
-      continue;
+    for (auto it = mFstFileInfo.cbegin(); it != mFstFileInfo.cend(); ++it) {
+      auto& finfo = it->second;
+
+      if (finfo->mFstErr != FstErr::None) {
+        eos_err("msg=\"unavailable replica info\" fxid=%08llx fsid=%lu",
+                mFid, it->first);
+        bad_fsids.insert(it->first);
+        continue;
+      }
+
+      xs_val = finfo->mFstFmd.mProtoFmd.diskchecksum();
+      sz_val = finfo->mFstFmd.mProtoFmd.disksize();
+      eos_debug_lite("mgm_sz=%llu mgm_xs=%s fst_sz_sz=%llu fst_sz_disk=%llu, "
+                     "fst_xs=%s", mMgmFmd.size(), mgm_xs_val.c_str(),
+                     finfo->mFstFmd.mProtoFmd.size(),
+                     finfo->mFstFmd.mProtoFmd.disksize(),
+                     finfo->mFstFmd.mProtoFmd.checksum().c_str());
+
+      // The disksize/xs must also match the original reference size/xs
+      if ((mgm_xs_val == xs_val) && (mMgmFmd.size() == sz_val) &&
+          (finfo->mFstFmd.mProtoFmd.size() == sz_val) &&
+          (finfo->mFstFmd.mProtoFmd.checksum() == xs_val)) {
+        good_fsids.insert(finfo->mFstFmd.mProtoFmd.fsid());
+      } else {
+        bad_fsids.insert(finfo->mFstFmd.mProtoFmd.fsid());
+      }
     }
 
-    xs_val = finfo->mFstFmd.mProtoFmd.diskchecksum();
-    sz_val = finfo->mFstFmd.mProtoFmd.disksize();
-    eos_debug_lite("mgm_sz=%llu mgm_xs=%s fst_sz_sz=%llu fst_sz_disk=%llu, "
-                   "fst_xs=%s", mMgmFmd.size(), mgm_xs_val.c_str(),
-                   finfo->mFstFmd.mProtoFmd.size(),
-                   finfo->mFstFmd.mProtoFmd.disksize(),
-                   finfo->mFstFmd.mProtoFmd.checksum().c_str());
-
-    // The disksize/xs must also match the original reference size/xs
-    if ((mgm_xs_val == xs_val) && (mMgmFmd.size() == sz_val) &&
-        (finfo->mFstFmd.mProtoFmd.size() == sz_val) &&
-        (finfo->mFstFmd.mProtoFmd.checksum() == xs_val)) {
-      good_fsids.insert(finfo->mFstFmd.mProtoFmd.fsid());
-    } else {
-      bad_fsids.insert(finfo->mFstFmd.mProtoFmd.fsid());
+    if (bad_fsids.empty()) {
+      eos_warning("msg=\"fst xs/size repair skip - no bad replicas\" fxid=%08llx",
+                  mFid);
+      return true;
     }
-  }
 
-  if (bad_fsids.empty()) {
-    eos_warning("msg=\"fst xs/size repair skip - no bad replicas\" fxid=%08llx",
-                mFid);
-    return true;
-  }
-
-  if (good_fsids.empty()) {
-    eos_err("msg=\"fst xs/size repair failed - no good replicas\" fxid=%08llx",
-            mFid);
-    return false;
+    if (good_fsids.empty()) {
+      eos_err("msg=\"fst xs/size repair failed - no good replicas\" fxid=%08llx",
+              mFid);
+      return false;
+    }
   }
 
   bool all_repaired {true};
@@ -363,6 +364,10 @@ FsckEntry::RepairFstXsSzDiff()
       eos_info("msg=\"fst xs/size repair successful\" fxid=%08llx bad_fsid=%lu",
                mFid, bad_fsid);
     }
+
+    if (LayoutId::IsRain(mMgmFmd.layout_id())) {
+      break;
+    }
   }
 
   // Trigger an MGM resync on all the replicas so that the locations get
@@ -372,17 +377,90 @@ FsckEntry::RepairFstXsSzDiff()
 }
 
 //------------------------------------------------------------------------------
-// Method to repair an unregistered FST replica
+// Method to repair file inconsistencies
+//------------------------------------------------------------------------------
+bool
+FsckEntry::RepairInconsistencies()
+{
+  if (LayoutId::IsRain(mMgmFmd.layout_id())) {
+    return RepairRainInconsistencies();
+  } else {
+    return RepairReplicaInconsistencies();
+  }
+}
+
+//------------------------------------------------------------------------------
+// Method to repair RAIN file inconsistencies
+//------------------------------------------------------------------------------
+bool
+FsckEntry::RepairRainInconsistencies()
+{
+  if (mReportedErr == FsckErr::UnregRepl) {
+    if (mMgmFmd.locations_size() >=
+        LayoutId::GetStripeNumber(mMgmFmd.layout_id() + 1)) {
+      // If we have enough stripes - just drop it
+      DropReplica(mFsidErr);
+      return true;
+    } else {
+      // If not enough stripes then register it and trigger a check
+      if (gOFS) {
+        try {
+          // Grab the file metadata object and update it
+          eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, mFid);
+          eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+          auto fmd = gOFS->eosFileService->getFileMD(mFid);
+          fmd->addLocation(mFsidErr);
+          gOFS->eosView->updateFileStore(fmd.get());
+        } catch (const eos::MDException& e) {
+          eos_err("msg=\"unregistered stripe repair failed - no such filemd\" "
+                  "fxid=%08llx", mFid);
+          return false;
+        }
+      } else {
+        // For testing just update the MGM fmd object
+        mMgmFmd.mutable_locations()->Add(mFsidErr);
+      }
+    }
+  } else  if (mReportedErr == FsckErr::DiffRepl) {
+    // If "over-replicated" (this should hardly ever happen) then drop the excess
+    // stripes and trigger a check (drain) with first stripe as source
+    while (mMgmFmd.locations_size() >
+           LayoutId::GetStripeNumber(mMgmFmd.layout_id() + 1)) {
+      eos::common::FileSystem::fsid_t drop_fsid = *mMgmFmd.locations().rbegin();
+      mMgmFmd.mutable_locations()->RemoveLast();
+      DropReplica(drop_fsid);
+    }
+  }
+
+  // Trigger a fsck repair job to make sure all the remaining stripes are
+  // recovered and and new ones are created if need be. By default pick the
+  // first stripe as "source" unless we have a better candidate
+  eos::common::FileSystem::fsid_t src_fsid = mMgmFmd.locations(0);
+
+  if (mReportedErr == FsckErr::MissRepl) {
+    src_fsid = mFsidErr;
+  }
+
+  auto repair_job = mRepairFactory(mFid, src_fsid, 0, {}, {}, true, "fsck");
+  repair_job->DoIt();
+
+  if (repair_job->GetStatus() != FsckRepairJob::Status::OK) {
+    eos_err("msg=\"stripe inconsistency repair failed\" fxid=%08llx "
+            "src_fsid=%lu", mFid, src_fsid);
+    return false;
+  } else {
+    eos_info("msg=\"stripe inconsistency repair successful\" fxid=%08llx "
+             "src_fsid=%lu", mFid, src_fsid);
+    return true;
+  }
+}
+
+//------------------------------------------------------------------------------
+// Method to repair replica file inconsistencies
 //------------------------------------------------------------------------------
 bool
 FsckEntry::RepairReplicaInconsistencies()
 {
-  if (LayoutId::IsRain(mMgmFmd.layout_id())) {
-    // Any stripe inconsistency translates into a rewrite of the file
-    // @todo (esindril)
-    return true;
-  }
-
   std::string mgm_xs_val =
     StringConversion::BinData2HexString(mMgmFmd.checksum().c_str(),
                                         SHA_DIGEST_LENGTH,
@@ -760,6 +838,8 @@ FsckErr ConvertToFsckErr(const std::string& serr)
     return FsckErr::DiffRepl;
   } else if (serr == "rep_missing_n") {
     return FsckErr::MissRepl;
+  } else if (serr == "blockxs_err") {
+    return FsckErr::BlockxsErr;
   } else {
     return FsckErr::None;
   }

@@ -140,10 +140,10 @@ DrainTransferJob::DoIt() noexcept
     XrdCl::CopyProcess cpy;
     cpy.AddJob(properties, &result);
     XrdCl::XRootDStatus prepare_st = cpy.Prepare();
-    eos_info("[tpc]: id=%s url=%s => id=%s url=%s logid=%s prepare_msg=%s",
-             url_src.GetHostId().c_str(), url_src.GetLocation().c_str(),
-             url_dst.GetHostId().c_str(), url_dst.GetLocation().c_str(),
-             log_id.c_str(), prepare_st.ToStr().c_str());
+    eos_info("[tpc]: app=%s logid=%s src_url=%s => dst_url=%s logid=%s "
+             "prepare_msg=%s", mAppTag.c_str(), log_id.c_str(),
+             url_src.GetLocation().c_str(), url_dst.GetLocation().c_str(),
+             prepare_st.ToStr().c_str());
 
     if (prepare_st.IsOK()) {
       XrdCl::XRootDStatus tpc_st = cpy.Run(&mProgressHandler);
@@ -651,7 +651,7 @@ DrainTransferJob::GetInfo(const std::list<std::string>& tags) const
 // Update MGM stats depending on the type of transfer
 //------------------------------------------------------------------------------
 void
-DrainTransferJob::UpdateMgmStats(Status status)
+DrainTransferJob::UpdateMgmStats()
 {
   std::string tag_stats;
 
@@ -661,9 +661,9 @@ DrainTransferJob::UpdateMgmStats(Status status)
     tag_stats = "Unknown";
   }
 
-  if (status == Status::OK) {
+  if (mStatus == Status::OK) {
     tag_stats += "Successful";
-  } else if (status == Status::Failed) {
+  } else if (mStatus == Status::Failed) {
     tag_stats += "Failed";
   } else {
     tag_stats += "Started";

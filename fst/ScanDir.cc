@@ -863,7 +863,7 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
 
   // Check block checksum
   if (blockxs_err) {
-    LogMsg(LOG_ERR, "msg=\"corrupted block checksum\" path=%s ",
+    LogMsg(LOG_ERR, "msg=\"corrupted block checksum\" path=%s "
            "blockxs_path=%s.xsmap", file_path.c_str(), file_path.c_str());
 
     if (mBgThread) {

@@ -434,7 +434,7 @@ FmdDbMapHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
               ((fmd->mProtoFmd.filecxerror() == 1) ||
                (fmd->mProtoFmd.mgmchecksum().length() &&
                 (fmd->mProtoFmd.mgmchecksum() != fmd->mProtoFmd.checksum())))) {
-            eos_crit("msg=\"checksum error flagged/detected fxid=%08llx "
+            eos_crit("msg=\"checksum error flagged/detected\" fxid=%08llx "
                      "fsid=%lu checksum=%s diskchecksum=%s mgmchecksum=%s "
                      "filecxerror=%d blockcxerror=%d", fid,
                      (unsigned long) fsid, fmd->mProtoFmd.checksum().c_str(),
@@ -445,7 +445,12 @@ FmdDbMapHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
             return nullptr;
           }
         } else {
-          // @todo(esindril) decide what flags to set for rain layouts
+          // Don't return a record if there is a blockxs error
+          if (!do_create && (fmd->mProtoFmd.blockcxerror() == 1)) {
+            eos_crit("msg=\"blockxs error detected\" fxid=%08llx fsid=%lu",
+                     fid, fsid);
+            return nullptr;
+          }
         }
 
         return fmd;
@@ -591,8 +596,8 @@ FmdDbMapHandler::UpdateWithDiskInfo(eos::common::FileSystem::fsid_t fsid,
   valfmd.mProtoFmd.set_disksize(disk_size);
   valfmd.mProtoFmd.set_diskchecksum(disk_xs);
   valfmd.mProtoFmd.set_checktime(check_ts_sec);
-  valfmd.mProtoFmd.set_filecxerror(filexs_err);
-  valfmd.mProtoFmd.set_blockcxerror(blockxs_err);
+  valfmd.mProtoFmd.set_filecxerror(filexs_err ? 1 : 0);
+  valfmd.mProtoFmd.set_blockcxerror(blockxs_err ? 1 : 0);
 
   // Update reference size only if undefined
   if (valfmd.mProtoFmd.size() == eos::common::FmdHelper::UNDEF) {
@@ -1391,29 +1396,29 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
   }
 
   // query in-memory
-  statistics["mem_n"] = 0; // number of files in DB
-  statistics["d_sync_n"] = 0; // number of synced files from disk
-  statistics["m_sync_n"] = 0; // number of synced files from MGM server
-  // number of files with disk and reference size mismatch
-  statistics["d_mem_sz_diff"] = 0;
-  // number of files with MGM and reference size mismatch
-  statistics["m_mem_sz_diff"] = 0;
-  // number of files with disk and reference checksum mismatch
-  statistics["d_cx_diff"] = 0;
-  // number of files with MGM and reference checksum mismatch
-  statistics["m_cx_diff"] = 0;
-  statistics["orphans_n"] = 0; // number of orphaned replicas
-  statistics["unreg_n"] = 0; // number of unregistered replicas
-  statistics["rep_diff_n"] = 0; // number of files with replica number mismatch
-  statistics["rep_missing_n"] = 0; // number of files which are missing on disk
-  fidset["m_mem_sz_diff"].clear();
+  statistics  = {
+    {"mem_n",         0}, // no. of files in db
+    {"d_sync_n",      0}, // no. of synced files from disk
+    {"m_sync_n",      0}, // no. of synced files from MGM
+    {"d_mem_sz_diff", 0}, // no. files with disk and reference size mismatch
+    {"m_mem_sz_diff", 0}, // no. files with MGM and reference size mismatch
+    {"d_cx_diff",     0}, // no. files with disk and reference checksum mismatch
+    {"m_cx_diff",     0}, // no. files with MGM and reference checksum mismatch
+    {"orphans_n",     0}, // no. of orphaned replicas
+    {"unreg_n",       0}, // no. of unregistered replicas
+    {"rep_diff_n",    0}, // no. of files with replicas number mismatch
+    {"rep_missing_n", 0}, // no. of files missing on disk
+    {"blockxs_err",   0}  // no. of replicas with blockxs error
+  };
   fidset["d_mem_sz_diff"].clear();
-  fidset["m_cx_diff"].clear();
+  fidset["m_mem_sz_diff"].clear();
   fidset["d_cx_diff"].clear();
+  fidset["m_cx_diff"].clear();
   fidset["orphans_n"].clear();
   fidset["unreg_n"].clear();
   fidset["rep_diff_n"].clear();
   fidset["rep_missing_n"].clear();
+  fidset["blocxs_err"].clear();
 
   if (!IsSyncing(fsid)) {
     const eos::common::DbMapTypes::Tkey* k;
@@ -1427,6 +1432,11 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
       auto& proto_fmd = f.mProtoFmd;
       proto_fmd.ParseFromString(v->value);
       statistics["mem_n"]++;
+
+      if (proto_fmd.blockcxerror()) {
+        statistics["blockxs_err"]++;
+        fidset["blockxs_err"].insert(proto_fmd.fid());
+      }
 
       if (proto_fmd.layouterror()) {
         if (proto_fmd.layouterror() & LayoutId::kOrphan) {
@@ -1454,26 +1464,12 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
         statistics["m_sync_n"]++;
 
         if (proto_fmd.size() != eos::common::FmdHelper::UNDEF) {
-          if (proto_fmd.size() != proto_fmd.mgmsize()) {
+          // Report missmatch only for non-rain layout files
+          if (!LayoutId::IsRain(proto_fmd.lid()) &&
+              proto_fmd.size() != proto_fmd.mgmsize()) {
             statistics["m_mem_sz_diff"]++;
             fidset["m_mem_sz_diff"].insert(proto_fmd.fid());
           }
-        }
-      }
-
-      if (!proto_fmd.layouterror()) {
-        if (proto_fmd.size() && !LayoutId::IsRain(proto_fmd.lid()) &&
-            proto_fmd.diskchecksum().length() &&
-            (proto_fmd.diskchecksum() != proto_fmd.checksum())) {
-          statistics["d_cx_diff"]++;
-          fidset["d_cx_diff"].insert(proto_fmd.fid());
-        }
-
-        if (proto_fmd.size() && !LayoutId::IsRain(proto_fmd.lid()) &&
-            proto_fmd.mgmchecksum().length() &&
-            (proto_fmd.mgmchecksum() != proto_fmd.checksum())) {
-          statistics["m_cx_diff"]++;
-          fidset["m_cx_diff"].insert(proto_fmd.fid());
         }
       }
 
@@ -1482,10 +1478,26 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
 
         if (proto_fmd.size() != eos::common::FmdHelper::UNDEF) {
           // Report missmatch only for non-rain layout files
-          if ((proto_fmd.size() != proto_fmd.disksize()) &&
-              !LayoutId::IsRain(proto_fmd.lid())) {
+          if (!LayoutId::IsRain(proto_fmd.lid()) &&
+              (proto_fmd.size() != proto_fmd.disksize())) {
             statistics["d_mem_sz_diff"]++;
             fidset["d_mem_sz_diff"].insert(proto_fmd.fid());
+          }
+        }
+      }
+
+      if (!proto_fmd.layouterror()) {
+        if (!LayoutId::IsRain(proto_fmd.lid())) {
+          if (proto_fmd.size() && proto_fmd.diskchecksum().length() &&
+              (proto_fmd.diskchecksum() != proto_fmd.checksum())) {
+            statistics["d_cx_diff"]++;
+            fidset["d_cx_diff"].insert(proto_fmd.fid());
+          }
+
+          if (proto_fmd.size() && proto_fmd.mgmchecksum().length() &&
+              (proto_fmd.mgmchecksum() != proto_fmd.checksum())) {
+            statistics["m_cx_diff"]++;
+            fidset["m_cx_diff"].insert(proto_fmd.fid());
           }
         }
       }

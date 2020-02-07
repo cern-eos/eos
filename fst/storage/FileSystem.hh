@@ -38,12 +38,14 @@
 #include <queue>
 #include <map>
 
-namespace eos::mq {
-  class MessagingRealm;
+namespace eos::mq
+{
+class MessagingRealm;
 }
 
-namespace eos::common {
-  class Statfs;
+namespace eos::common
+{
+class Statfs;
 }
 
 EOSFSTNAMESPACE_BEGIN
@@ -61,7 +63,7 @@ public:
   //-----------------------------------------------------------------------------
   //! Constructor
   //-----------------------------------------------------------------------------
-  FileSystem(const common::FileSystemLocator& locator, mq::MessagingRealm *realm);
+  FileSystem(const common::FileSystemLocator& locator, mq::MessagingRealm* realm);
 
   //-----------------------------------------------------------------------------
   //! Destructor
@@ -154,7 +156,7 @@ public:
       return;
     }
 
-    eos_static_debug("before=%d after=%d", mLocalBootStatus.load(), status);
+    eos_debug("before=%d after=%d", mLocalBootStatus.load(), status);
 
     if ((mLocalBootStatus == eos::common::BootStatus::kBooted) &&
         (status == eos::common::BootStatus::kOpsError)) {

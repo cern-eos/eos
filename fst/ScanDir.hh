@@ -230,7 +230,7 @@ public:
   void LogMsg(int log_level, Args&& ... args)
   {
     if (mBgThread) {
-      eos_log(log_level, std::forward<Args>(args) ...);
+      eos_static_log(log_level, std::forward<Args>(args) ...);
     } else {
       if ((log_level == LOG_INFO) || (log_level == LOG_DEBUG)) {
         fprintf(stdout, std::forward<Args>(args) ...);
