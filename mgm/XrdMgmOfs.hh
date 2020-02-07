@@ -494,7 +494,8 @@ public:
             std::map<std::string, std::set<std::string> >& found,
             const char* key = 0, const char* val = 0, bool no_files = false,
             time_t millisleep = 0, bool nscounter = true, int maxdepth = 0,
-            const char* filematch = 0, bool take_lock = true, bool json_output = false, FILE *fstdout = NULL);
+            const char* filematch = 0, bool take_lock = true, bool json_output = false,
+            FILE* fstdout = NULL);
 
   // ---------------------------------------------------------------------------
   // delete dir
@@ -1460,8 +1461,8 @@ public:
   //----------------------------------------------------------------------------
   // Namespace specific variables
   //----------------------------------------------------------------------------
-  std::atomic<NamespaceState>
-  mNamespaceState; ///< Initialization state of the namespace
+//! Initialization state of the namespace
+  std::atomic<NamespaceState> mNamespaceState;
   std::atomic<time_t> mFileInitTime; ///< Time for the file initialization
   std::atomic<time_t> mTotalInitTime; ///< Time for entire initialization
   std::atomic<time_t> mStartTime; ///< Timestamp when daemon started

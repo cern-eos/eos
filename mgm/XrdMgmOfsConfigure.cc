@@ -681,6 +681,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
             if ((!strcmp("true", val) || (!strcmp("1", val)))) {
               mTapeEnabled = true;
             }
+
             Eroute.Say("=====> mgmofs.tapeenabled : ", val);
           }
         }
@@ -1085,9 +1086,10 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     Config.Close();
   }
 
-  if(!mQdbContactDetails.members.empty() && mQdbContactDetails.password.empty()) {
+  if (!mQdbContactDetails.members.empty() &&
+      mQdbContactDetails.password.empty()) {
     Eroute.Say("=====> Configuration error: Found QDB cluster members, but no password."
-      " EOS will only connect to password-protected QDB instances. (mgmofs.qdbpassword / mgmofs.qdbpassword_file missing)");
+               " EOS will only connect to password-protected QDB instances. (mgmofs.qdbpassword / mgmofs.qdbpassword_file missing)");
     return 1;
   }
 
@@ -1307,7 +1309,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   ConfEngine->SetAutoSave(true);
-
   // Create comment log to save all proc commands executed with a comment
   mCommentLog.reset(new eos::common::CommentLog("/var/log/eos/mgm/logbook.log"));
 
@@ -1386,6 +1387,26 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     return 1;
   }
 
+  // Create different type of master object depending on the ns implementation
+  // and environment options
+  if (ns_lib_path.find("EosNsQuarkdb") != std::string::npos) {
+    NsInQDB = true;
+  }
+
+  bool use_qdb_master = false;
+
+  if (NsInQDB && getenv("EOS_USE_QDB_MASTER")) {
+    use_qdb_master = true;
+    mMaster.reset(new eos::mgm::QdbMaster(mQdbContactDetails, ManagerId.c_str()));
+  } else {
+    mMaster.reset(new eos::mgm::Master());
+  }
+
+  // Initialize the master/slave class
+  if (!mMaster->Init()) {
+    return 1;
+  }
+
   // Create global visible configuration parameters using 3 queues
   // "/eos/<instance>/"
   XrdOucString configbasequeue = "/config/";
@@ -1394,16 +1415,17 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   MgmConfigQueue += "/mgm/";
   ObjectNotifier.SetShareObjectManager(&ObjectManager);
   // we need to set the shared object manager to be used
+  qclient::SharedManager* qsm = nullptr;
 
-  qclient::SharedManager *qsm = nullptr;
-  if((getenv("EOS_USE_MQ_ON_QDB") != 0)) {
+  if ((getenv("EOS_USE_MQ_ON_QDB") != 0)) {
     eos_static_info("MQ on QDB - setting up SharedManager..");
     qsm = new qclient::SharedManager(
       mQdbContactDetails.members,
       mQdbContactDetails.constructSubscriptionOptions());
   }
 
-  mMessagingRealm.reset(new eos::mq::MessagingRealm(&ObjectManager, &ObjectNotifier, qsm));
+  mMessagingRealm.reset(new eos::mq::MessagingRealm(&ObjectManager,
+                        &ObjectNotifier, qsm));
   eos::common::InstanceName::set(MgmOfsInstanceName.c_str());
   eos::mq::SharedHashWrapper::initialize(&ObjectManager);
   // set the object manager to listener only
@@ -1444,7 +1466,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   SetupGlobalConfig();
-
   // Initialize geotree engine
   mGeoTreeEngine.reset(new eos::mgm::GeoTreeEngine(mMessagingRealm.get()));
 
@@ -1482,27 +1503,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   instancepath += subpath;
   // Initialize user mapping
   eos::common::Mapping::Init();
-
-  if (ns_lib_path.find("EosNsQuarkdb") != std::string::npos) {
-    NsInQDB = true;
-  }
-
-  // Create different type of master object depending on the ns implementation
-  // and environment options
-  bool use_qdb_master = false;
-
-  if (NsInQDB && getenv("EOS_USE_QDB_MASTER")) {
-    use_qdb_master = true;
-    mMaster.reset(new eos::mgm::QdbMaster(mQdbContactDetails, ManagerId.c_str()));
-  } else {
-    mMaster.reset(new eos::mgm::Master());
-  }
-
-  // Initialize the master/slave class
-  if (!mMaster->Init()) {
-    return 1;
-  }
-
   // Configure the meta data catalog
   eosViewRWMutex.SetBlocking(true);
 #ifdef EOS_INSTRUMENTED_RWMUTEX
@@ -1758,10 +1758,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // Initialize the replication tracker
   mReplicationTracker.reset(ReplicationTracker::Create(
                               MgmProcTrackerPath.c_str()));
-
   // Initialize the file inspector
   mFileInspector.reset(FileInspector::Create());
-
   // Set also the archiver ZMQ endpoint were client requests are sent
   std::ostringstream oss;
   oss << "ipc://" << MgmArchiveDir.c_str() << "archive_frontend.ipc";
@@ -1973,7 +1971,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // if there is no FST sending update
   mGeoTreeEngine->forceRefresh();
   mGeoTreeEngine->StartUpdater();
-
   // Start the drain engine
   mDrainEngine.Start();
   return NoGo;
