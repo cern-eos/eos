@@ -122,29 +122,6 @@ if [[ $? -ne 0 ]]; then
       exit 1
 fi
 
-# Now test the draindead mode, for this we simulate a fmd open error on the
-# targeted file system
-#eos node config eos-fst4.eoscluster.cern.ch:1095 error.simulation=fmd_open
-#eos fs config 4 configstatus=draindead
-#eos fs ls | grep " 4 " | grep "draindead" | grep "prepare\|draining"
-
-#while [[ $? -eq 0 ]]; do
-#      sleep 2
-#      eos fs ls | grep " 4 " | grep "draindead" | grep "prepare\|draining"
-#done
-
-#eos fs ls | grep " 4 " | grep "empty" | grep "drained"
-
-#if [[ $? -ne 0 ]]; then
-#      echo "error: file system 4 is not drained"
-#      exit 1
-#else
-#    echo "Draindead file system 4 successfully drained"
-#fi
-
-#eos node config eos-fst4.eoscluster.cern.ch:1095 error.simulation=none
-#eos fs config 4 configstatus=rw
-
 # Remove all the files and directories
 eos rm -rF "/eos/dockertest/drain_test/replica/*"
 eos rm -rF "/eos/dockertest/drain_test/raiddp/*"
