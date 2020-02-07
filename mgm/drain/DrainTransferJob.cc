@@ -55,14 +55,14 @@ void
 DrainTransferJob::DoIt() noexcept
 {
   using eos::common::LayoutId;
-  UpdateMgmStats(mStatus);
+  UpdateMgmStats();
   eos_debug_lite("msg=\"running job\" fsid_src=%i fsid_dst=%i fxid=%08llx",
                  mFsIdSource.load(), mFsIdTarget.load(), mFileId);
 
   if (mProgressHandler.ShouldCancel(0)) {
-    gOFS->MgmStats.Add("DrainCentralFailed", 0, 0, 1);
     ReportError(SSTR("msg=\"job cancelled before starting\" fxid="
                      << eos::common::FileId::Fid2Hex(mFileId)));
+    UpdateMgmStats();
     return;
   }
 
@@ -80,7 +80,7 @@ DrainTransferJob::DoIt() noexcept
     eos_info("msg=\"drain ghost entry successful\" fxid=%s",
              eos::common::FileId::Fid2Hex(mFileId).c_str());
     mStatus = Status::OK;
-    UpdateMgmStats(mStatus);
+    UpdateMgmStats();
     return;
   }
 
@@ -88,7 +88,7 @@ DrainTransferJob::DoIt() noexcept
     if (!SelectDstFs(fdrain)) {
       ReportError(SSTR("msg=\"failed to select destination file system\" fxid="
                        << eos::common::FileId::Fid2Hex(mFileId)));
-      UpdateMgmStats(mStatus);
+      UpdateMgmStats();
       return;
     }
 
@@ -97,7 +97,7 @@ DrainTransferJob::DoIt() noexcept
         (LayoutId::GetLayoutType(fdrain.mProto.layout_id()) ==
          LayoutId::kReplica)) {
       mStatus = DrainZeroSizeFile(fdrain);
-      UpdateMgmStats(mStatus);
+      UpdateMgmStats();
       return;
     }
 
@@ -109,7 +109,7 @@ DrainTransferJob::DoIt() noexcept
     // When no more sources are available the url_src is empty and mStatus is
     // properly set
     if (!url_src.IsValid() || !url_dst.IsValid()) {
-      UpdateMgmStats(mStatus);
+      UpdateMgmStats();
       return;
     }
 
@@ -166,10 +166,10 @@ DrainTransferJob::DoIt() noexcept
           break;
         }
       } else {
-        eos_info("msg=\"drain successful\" logid=%s fxid=%s",
+        eos_info("msg=\"%s successful\" logid=%s fxid=%s", mAppTag.c_str(),
                  log_id.c_str(), eos::common::FileId::Fid2Hex(mFileId).c_str());
         mStatus = Status::OK;
-        UpdateMgmStats(mStatus);
+        UpdateMgmStats();
         return;
       }
     } else {
@@ -179,7 +179,7 @@ DrainTransferJob::DoIt() noexcept
   }
 
   mStatus = Status::Failed;
-  UpdateMgmStats(mStatus);
+  UpdateMgmStats();
   return;
 }
 
@@ -525,7 +525,8 @@ DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain)
     existing_repl.push_back(elem);
   }
 
-  if (!gOFS->mGeoTreeEngine->getInfosFromFsIds(existing_repl, &fsid_geotags, 0, 0)) {
+  if (!gOFS->mGeoTreeEngine->getInfosFromFsIds(existing_repl, &fsid_geotags, 0,
+      0)) {
     eos_err("msg=\"failed to retrieve info for existing replicas\" fxid=%08llx",
             mFileId);
     return false;

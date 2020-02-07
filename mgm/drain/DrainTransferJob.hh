@@ -269,10 +269,8 @@ private:
   //! Update MGM stats depending on the type of transfer. The generic
   //! DrainTransferJob can be used in different components eg. fsck. For the
   //! time being this will update the MGM statistics only for the drainer.
-  //!
-  //! @param status transfer status
   //----------------------------------------------------------------------------
-  void UpdateMgmStats(Status status);
+  void UpdateMgmStats();
 
   std::string mAppTag; ///< Application tag for the transfer
   const eos::common::FileId::fileid_t mFileId; ///< File id to transfer
