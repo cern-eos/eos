@@ -437,9 +437,14 @@ XrdMgmOfs::Schedule2Balance(const char* path,
     using eos::common::LayoutId;
     unsigned long tgt_lid = LayoutId::SetLayoutType(lid, LayoutId::kPlain);
 
-    // Mask block checksums (set to kNone) for replica layouts
     if (LayoutId::GetLayoutType(lid) == LayoutId::kReplica) {
+      // Mask block checksums (set to kNone) for replica layouts
       tgt_lid = LayoutId::SetBlockChecksum(tgt_lid, LayoutId::kNone);
+    } else if (LayoutId::IsRain(lid)) {
+      // Disable checksum check for RAIN layouts since we're reading one
+      // stripe through a plain layout and this would compare the stripe
+      // checkusm with the full RAIN file checksum
+      tgt_lid = LayoutId::SetChecksum(tgt_lid, LayoutId::kNone);
     }
 
     // Construct capability strings

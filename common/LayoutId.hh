@@ -69,9 +69,9 @@ public:
     kMD5 = 0x4,
     kSHA1 = 0x5,
     kCRC32C = 0x6,
-    kCRC64  = 0x7, 
-    kSHA256 = 0x8, 
-    kXXHASH64 = 0x9, 
+    kCRC64  = 0x7,
+    kSHA256 = 0x8,
+    kXXHASH64 = 0x9,
     kXSmax = kXXHASH64
   };
 
@@ -296,6 +296,30 @@ public:
   }
 
   //--------------------------------------------------------------------------
+  //! Set checksum in the layout encoding
+  //!
+  //! @param layout input layout encoding
+  //! @param xs_type checksum type
+  //!
+  //! @return new layout encoding
+  //--------------------------------------------------------------------------
+  static unsigned long
+  SetChecksum(unsigned long layout, unsigned long xs_type)
+  {
+    xs_type &= 0x0f;
+
+    if ((xs_type < kNone) || (xs_type > kXSmax)) {
+      xs_type = kNone;
+    }
+
+    // Wipe out the old checksum type
+    unsigned long tmp = layout & 0xfffffff0;
+    // Set the new blockxs value
+    tmp |= xs_type;
+    return tmp;
+  }
+
+  //--------------------------------------------------------------------------
   //! Get length of Layout checksum in bytes
   //--------------------------------------------------------------------------
   static unsigned long
@@ -332,7 +356,6 @@ public:
     if ((layout & 0xf) == kXXHASH64) {
       return 8;
     }
-
 
     return 0;
   }
@@ -914,17 +937,17 @@ public:
       if (xsum == "sha") {
         return kSHA1;
       }
-      
+
       if (xsum == "sha256") {
-	return kSHA256;
-      } 
+        return kSHA256;
+      }
 
       if (xsum == "crc64") {
-	return kCRC64;
+        return kCRC64;
       }
 
       if (xsum == "xxhash64") {
-	return kXXHASH64;
+        return kXXHASH64;
       }
     }
 
