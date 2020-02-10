@@ -145,7 +145,7 @@ int parse_debug_level(XrdOucString option);
 int
 com_cp(char* argin)
 {
-  XrdOucString rate = "0";
+  XrdOucString rate="";
   XrdOucString streams = "0";
   XrdOucString atomic = "";
   std::vector<XrdOucString> source_find_list;
