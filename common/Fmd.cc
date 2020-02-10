@@ -51,10 +51,13 @@ bool EnvToFstFmd(XrdOucEnv& env, FmdHelper& fmd)
   fmd.mProtoFmd.set_mtime_ns(strtoul(env.Get("mtime_ns"), 0, 10));
   fmd.mProtoFmd.set_size(strtoull(env.Get("size"), 0, 10));
   fmd.mProtoFmd.set_disksize(strtoull(env.Get("disksize"), 0, 10));
-  fmd.mProtoFmd.set_lid(strtoul(env.Get("lid"), 0, 10));
+  fmd.mProtoFmd.set_lid(strtoul(env.Get("lid"), 0, 16));
   fmd.mProtoFmd.set_uid((uid_t) strtoul(env.Get("uid"), 0, 10));
   fmd.mProtoFmd.set_gid((gid_t) strtoul(env.Get("gid"), 0, 10));
   fmd.mProtoFmd.set_checksum(env.Get("checksum"));
+  fmd.mProtoFmd.set_filecxerror(strtoul(env.Get("filecxerror"), 0, 16));
+  fmd.mProtoFmd.set_blockcxerror(strtoul(env.Get("blockcxerror"), 0, 16));
+  fmd.mProtoFmd.set_layouterror(strtoul(env.Get("layouterror"), 0, 16));
 
   if (fmd.mProtoFmd.checksum() == "none") {
     fmd.mProtoFmd.set_checksum("");

@@ -39,78 +39,6 @@
 void com_fileinfo_help();
 
 //------------------------------------------------------------------------------
-//! Return a remote file attribute
-//!
-//! @param manager host:port of the server to contact
-//! @param key extended attribute key to get
-//! @param path file path to read attributes from
-//! @param attribute reference where to store the attribute value
-//------------------------------------------------------------------------------
-int
-GetRemoteAttribute(const char* manager, const char* key,
-                   const char* path, XrdOucString& attribute)
-{
-  if ((!key) || (!path)) {
-    return EINVAL;
-  }
-
-  int rc = 0;
-  XrdCl::Buffer arg;
-  XrdCl::Buffer* response = 0;
-  XrdCl::XRootDStatus status;
-  XrdOucString fmdquery = "/?fst.pcmd=getxattr&fst.getxattr.key=";
-  fmdquery += key;
-  fmdquery += "&fst.getxattr.path=";
-  fmdquery += path;
-  XrdOucString address = "root://";
-  address += manager;
-  address += "//dummy";
-  XrdCl::URL url(address.c_str());
-
-  if (!url.IsValid()) {
-    eos_static_err("error=URL is not valid: %s", address.c_str());
-    return EINVAL;
-  }
-
-  std::unique_ptr<XrdCl::FileSystem> fs(new XrdCl::FileSystem(url));
-
-  if (!fs) {
-    eos_static_err("error=failed to get new FS object");
-    return EINVAL;
-  }
-
-  arg.FromString(fmdquery.c_str());
-  status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, response);
-
-  if (status.IsOK()) {
-    rc = 0;
-    eos_static_debug("got attribute meta data from server %s for key=%s path=%s"
-                     " attribute=%s", manager, key, path, response->GetBuffer());
-  } else {
-    rc = ECOMM;
-    eos_static_err("Unable to retrieve meta data from server %s for key=%s path=%s",
-                   manager, key, path);
-  }
-
-  if (rc) {
-    delete response;
-    return EIO;
-  }
-
-  if (!strncmp(response->GetBuffer(), "ERROR", 5)) {
-    // remote side couldn't get the record
-    eos_static_info("Unable to retrieve meta data on remote server %s for key=%s "
-                    "path=%s", manager, key, path);
-    delete response;
-    return ENODATA;
-  }
-
-  attribute = response->GetBuffer();
-  delete response;
-  return 0;
-}
-
-//------------------------------------------------------------------------------
 //! Return Fmd from a remote filesystem
 //!
 //! @param manager host:port of the server to contact
@@ -266,37 +194,25 @@ com_fileinfo(char* arg1)
 void com_fileinfo_help()
 {
   std::ostringstream oss;
-  oss << "Usage: fileinfo <identifier> [--path] [--fid] [--fxid] [--size] [--checksum] [--fullpath] [--proxy] [-m] [--env] [-s|--silent]"
-      << std::endl
-      << "    Prints file information for specified <identifier>" << std::endl
-      << "        <identifier> = <path>|fid:<fid-dec>|fxid:<fid-hex>|inode:<inode-dec>"
-      << std::endl
-      << "Options:" << std::endl
-      << "        --path                        :  filters output to show path field"
-      << std::endl
-      << "        --fid                         :  filters output to show fid field"
-      << std::endl
-      << "        --fxid                        :  filters output to show fxid field"
-      << std::endl
-      << "        --size                        :  filters output to show size field"
-      << std::endl
-      << "        --checksum                    :  filters output to show checksum field"
-      << std::endl
-      << "        --fullpath                    :  adds physical path information to the output"
-      << std::endl
-      << "        --proxy                       :  adds proxy information to the output"
-      << std::endl
-      << "        -m                            :  prints single-line information in monitoring format"
-      << std::endl
-      << "        --env                         :  prints information in OucEnv format"
-      << std::endl
-      << "   -s | --silent                      :  silent - used to run as internal command"
-      << std::endl
-      << std::endl
-      << "Remarks:" << std::endl
-      << "        Filters stack up and apply only to normal display mode." <<
-      std::endl
-      << "        Command also supports JSON output." << std::endl;
+  oss << "Usage: fileinfo <identifier> [--path] [--fid] [--fxid] [--size] "
+      << "[--checksum] [--fullpath] [--proxy] [-m] [--env] [-s|--silent]\n"
+      << "  Prints file information for specified <identifier>\n"
+      << "  <identifier> = <path>|fid:<fid-dec>|fxid:<fid-hex>|inode:<inode-dec>\n"
+      << "Options:\n"
+      << "  --path        : filters output to show path field\n"
+      << "  --fid         : filters output to show fid field\n"
+      << "  --fxid        : filters output to show fxid field\n"
+      << "  --size        : filters output to show size field\n"
+      << "  --checksum    : filters output to show checksum field\n"
+      << "  --fullpath    : adds physical path information to the output\n"
+      << "  --proxy       : adds proxy information to the output\n"
+      << "  --env         : prints information in OucEnv format\n"
+      << "  -m            : prints single-line information in monitoring format\n"
+      << "  -s | --silent : silent - used to run as internal command\n"
+      << "\n"
+      << " Remarks:\n"
+      << "  Filters stack up and apply only to normal display mode.\n"
+      << "  Command also supports JSON output.\n";
   std::cout << oss.str() << std::endl;
 }
 
@@ -759,253 +675,237 @@ com_file(char* arg1)
     int envlen = 0;
     XrdOucEnv* newresult = new XrdOucEnv(result->Env(envlen));
     delete result;
-    XrdOucString checksumattribute = "NOTREQUIRED";
-    bool consistencyerror = false;
 
-    if (envlen) {
-      XrdOucString ns_path = newresult->Get("mgm.nspath");
-      XrdOucString checksumtype = newresult->Get("mgm.checksumtype");
-      XrdOucString checksum = newresult->Get("mgm.checksum");
-      XrdOucString size = newresult->Get("mgm.size");
-
-      if ((option.find("%silent") == STR_NPOS) && (!silent)) {
-        fprintf(stdout, "path=\"%s\" fxid=\"%4s\" size=\"%s\" nrep=\"%s\" "
-                "checksumtype=\"%s\" checksum=\"%s\"\n",
-                ns_path.c_str(), newresult->Get("mgm.fid0"),
-                size.c_str(), newresult->Get("mgm.nrep"),
-                checksumtype.c_str(), newresult->Get("mgm.checksum"));
-      }
-
-      int i = 0;
-      XrdOucString inconsistencylable = "";
-      int nreplicaonline = 0;
-
-      for (i = 0; i < 255; i++) {
-        XrdOucString repurl = "mgm.replica.url";
-        repurl += i;
-        XrdOucString repfid = "mgm.fid";
-        repfid += i;
-        XrdOucString repfsid = "mgm.fsid";
-        repfsid += i;
-        XrdOucString repbootstat = "mgm.fsbootstat";
-        repbootstat += i;
-        XrdOucString repfstpath = "mgm.fstpath";
-        repfstpath += i;
-
-        if (newresult->Get(repurl.c_str())) {
-          // Query
-          XrdCl::StatInfo* stat_info = 0;
-          XrdCl::XRootDStatus status;
-          XrdOucString address = "root://";
-          address += newresult->Get(repurl.c_str());
-          address += "//dummy";
-          XrdCl::URL url(address.c_str());
-
-          if (!url.IsValid()) {
-            fprintf(stderr, "error=URL is not valid: %s", address.c_str());
-            global_retc = EINVAL;
-            return (0);
-          }
-
-          // Get XrdCl::FileSystem object
-          std::unique_ptr<XrdCl::FileSystem> fs {new XrdCl::FileSystem(url)};
-
-          if (!fs) {
-            fprintf(stderr, "error=failed to get new FS object");
-            global_retc = ECOMM;
-            return (0);
-          }
-
-          XrdOucString bs = newresult->Get(repbootstat.c_str());
-          bool down = (bs != "booted");
-          int retc = 0;
-          int oldsilent = silent;
-          eos::common::FmdHelper fmd;
-
-          if ((option.find("%silent")) != STR_NPOS) {
-            silent = true;
-          }
-
-          if (down && ((option.find("%force")) == STR_NPOS)) {
-            consistencyerror = true;
-            inconsistencylable = "DOWN";
-
-            if (!silent) {
-              fprintf(stderr,
-                      "error: unable to retrieve file meta data from %s [ status=%s ]\n",
-                      newresult->Get(repurl.c_str()), bs.c_str());
-            }
-          } else {
-            // fprintf( stderr,"%s %s %s\n",newresult->Get(repurl.c_str()),
-            //          newresult->Get(repfid.c_str()),newresult->Get(repfsid.c_str()) );
-            if ((option.find("%checksumattr") != STR_NPOS)) {
-              checksumattribute = "";
-
-              if ((retc = GetRemoteAttribute(newresult->Get(repurl.c_str()),
-                                             "user.eos.checksum",
-                                             newresult->Get(repfstpath.c_str()),
-                                             checksumattribute))) {
-                if (!silent) {
-                  fprintf(stderr, "error: unable to retrieve extended attribute from %s [%d]\n",
-                          newresult->Get(repurl.c_str()), retc);
-                }
-              }
-            }
-
-            //..................................................................
-            // Do a remote stat using XrdCl::FileSystem
-            //..................................................................
-            uint64_t rsize;
-            XrdOucString statpath = newresult->Get(repfstpath.c_str());
-
-            if (!statpath.beginswith("/")) {
-              // base 64 encode this path
-              XrdOucString statpath64;
-              eos::common::SymKey::Base64(statpath, statpath64);
-              statpath = "/#/";
-              statpath += statpath64;
-            }
-
-            status = fs->Stat(statpath.c_str(), stat_info);
-
-            if (!status.IsOK()) {
-              consistencyerror = true;
-              inconsistencylable = "STATFAILED";
-              rsize = -1;
-            } else {
-              rsize = stat_info->GetSize();
-            }
-
-            // Free memory
-            delete stat_info;
-
-            if ((retc = GetRemoteFmdFromLocalDb(newresult->Get(repurl.c_str()),
-                                                newresult->Get(repfid.c_str()),
-                                                newresult->Get(repfsid.c_str()), fmd))) {
-              if (!silent) {
-                fprintf(stderr, "error: unable to retrieve file meta data from %s [%d]\n",
-                        newresult->Get(repurl.c_str()), retc);
-              }
-
-              consistencyerror = true;
-              inconsistencylable = "NOFMD";
-            } else {
-              const auto& proto_fmd = fmd.mProtoFmd;
-              XrdOucString cx = proto_fmd.checksum().c_str();
-
-              for (unsigned int k = (cx.length() / 2); k < SHA_DIGEST_LENGTH; k++) {
-                cx += "00";
-              }
-
-              XrdOucString disk_cx = proto_fmd.diskchecksum().c_str();
-
-              for (unsigned int k = (disk_cx.length() / 2); k < SHA_DIGEST_LENGTH; k++) {
-                disk_cx += "00";
-              }
-
-              if ((option.find("%size")) != STR_NPOS) {
-                char ss[1024];
-                sprintf(ss, "%" PRIu64, proto_fmd.size());
-                XrdOucString sss = ss;
-
-                if (sss != size) {
-                  consistencyerror = true;
-                  inconsistencylable = "SIZE";
-                } else {
-                  if (proto_fmd.size() != (unsigned long long) rsize) {
-                    if (!consistencyerror) {
-                      consistencyerror = true;
-                      inconsistencylable = "FSTSIZE";
-                    }
-                  }
-                }
-              }
-
-              if ((option.find("%checksum")) != STR_NPOS) {
-                if (cx != checksum) {
-                  consistencyerror = true;
-                  inconsistencylable = "CHECKSUM";
-                }
-              }
-
-              if ((option.find("%checksumattr") != STR_NPOS)) {
-                if ((checksumattribute.length() < 8) || (!cx.beginswith(checksumattribute))) {
-                  consistencyerror = true;
-                  inconsistencylable = "CHECKSUMATTR";
-                }
-              }
-
-              nreplicaonline++;
-
-              if (!silent) {
-                fprintf(stdout, "nrep=\"%02d\" fsid=\"%s\" host=\"%s\" fstpath=\"%s\" "
-                        "size=\"%" PRIu64 "\" statsize=\"%llu\" checksum=\"%s\" diskchecksum=\"%s\"",
-                        i, newresult->Get(repfsid.c_str()),
-                        newresult->Get(repurl.c_str()),
-                        newresult->Get(repfstpath.c_str()),
-                        proto_fmd.size(), static_cast<long long>(rsize),
-                        cx.c_str(), disk_cx.c_str());
-
-                if ((option.find("%checksumattr") != STR_NPOS)) {
-                  fprintf(stdout, " checksumattr=\"%s\"", checksumattribute.c_str());
-                }
-
-                fprintf(stdout, "\n");
-              }
-            }
-          }
-
-          if ((option.find("%silent")) != STR_NPOS) {
-            silent = oldsilent;
-          }
-        } else {
-          break;
-        }
-      }
-
-      if ((option.find("%nrep")) != STR_NPOS) {
-        int nrep = 0;
-        int stripes = 0;
-
-        if (newresult->Get("mgm.stripes")) {
-          stripes = atoi(newresult->Get("mgm.stripes"));
-        }
-
-        if (newresult->Get("mgm.nrep")) {
-          nrep = atoi(newresult->Get("mgm.nrep"));
-        }
-
-        if (nrep != stripes) {
-          consistencyerror = true;
-
-          if (inconsistencylable != "NOFMD") {
-            inconsistencylable = "REPLICA";
-          }
-        }
-      }
-
-      if ((option.find("%output")) != STR_NPOS) {
-        if (consistencyerror) {
-          fprintf(stdout,
-                  "INCONSISTENCY %s path=%-32s fxid=%s size=%s stripes=%s nrep=%s nrepstored=%d nreponline=%d checksumtype=%s checksum=%s\n",
-                  inconsistencylable.c_str(), path.c_str(), newresult->Get("mgm.fid0"),
-                  size.c_str(), newresult->Get("mgm.stripes"), newresult->Get("mgm.nrep"), i,
-                  nreplicaonline, checksumtype.c_str(), newresult->Get("mgm.checksum"));
-        }
-      }
-
-      if (consistencyerror) {
-        global_retc = EFAULT;
-      }
-
-      delete newresult;
-    } else {
+    if (!envlen) {
       fprintf(stderr, "error: couldn't get meta data information\n");
       global_retc = EIO;
       return (0);
     }
 
-    return (consistencyerror);
+    XrdOucString ns_path = newresult->Get("mgm.nspath");
+    XrdOucString checksumtype = newresult->Get("mgm.checksumtype");
+    XrdOucString checksum = newresult->Get("mgm.checksum");
+    uint64_t mgm_size = std::stoull(newresult->Get("mgm.size"));
+    bool silent_cmd = ((option.find("%silent") != STR_NPOS) || silent);
+
+    if (!silent_cmd) {
+      fprintf(stdout, "path=\"%s\" fxid=\"%4s\" size=\"%llu\" nrep=\"%s\" "
+              "checksumtype=\"%s\" checksum=\"%s\"\n",
+              ns_path.c_str(), newresult->Get("mgm.fid0"),
+              (unsigned long long)mgm_size, newresult->Get("mgm.nrep"),
+              checksumtype.c_str(), newresult->Get("mgm.checksum"));
+    }
+
+    std::string err_label;
+    std::set<std::string> set_errors;
+    int nrep_online = 0;
+    int i = 0;
+
+    for (i = 0; i < 255; ++i) {
+      err_label = "none";
+      XrdOucString repurl = "mgm.replica.url";
+      repurl += i;
+      XrdOucString repfid = "mgm.fid";
+      repfid += i;
+      XrdOucString repfsid = "mgm.fsid";
+      repfsid += i;
+      XrdOucString repbootstat = "mgm.fsbootstat";
+      repbootstat += i;
+      XrdOucString repfstpath = "mgm.fstpath";
+      repfstpath += i;
+
+      if (!newresult->Get(repurl.c_str())) {
+        break;
+      }
+
+      // Query the FSTs for stripe info
+      XrdCl::StatInfo* stat_info = 0;
+      XrdCl::XRootDStatus status;
+      std::ostringstream oss;
+      oss << "root://" << newresult->Get(repurl.c_str()) << "//dummy";
+      XrdCl::URL url(oss.str());
+
+      if (!url.IsValid()) {
+        fprintf(stderr, "error: URL is not valid: %s", oss.str().c_str());
+        global_retc = EINVAL;
+        return (0);
+      }
+
+      // Get XrdCl::FileSystem object
+      std::unique_ptr<XrdCl::FileSystem> fs {new XrdCl::FileSystem(url)};
+
+      if (!fs) {
+        fprintf(stderr, "error: failed to get new FS object");
+        global_retc = ECOMM;
+        return (0);
+      }
+
+      XrdOucString bs = newresult->Get(repbootstat.c_str());
+      bool down = (bs != "booted");
+
+      if (down && ((option.find("%force")) == STR_NPOS)) {
+        err_label = "DOWN";
+        set_errors.insert(err_label);
+
+        if (!silent_cmd) {
+          fprintf(stderr, "error: unable to retrieve file meta data from %s "
+                  "[ status=%s ]\n", newresult->Get(repurl.c_str()), bs.c_str());
+        }
+
+        continue;
+      }
+
+      // Do a remote stat using XrdCl::FileSystem
+      uint64_t stat_size = std::numeric_limits<uint64_t>::max();
+      XrdOucString statpath = newresult->Get(repfstpath.c_str());
+
+      if (!statpath.beginswith("/")) {
+        // base 64 encode this path
+        XrdOucString statpath64;
+        eos::common::SymKey::Base64(statpath, statpath64);
+        statpath = "/#/";
+        statpath += statpath64;
+      }
+
+      status = fs->Stat(statpath.c_str(), stat_info);
+
+      if (!status.IsOK()) {
+        err_label = "STATFAILED";
+        set_errors.insert(err_label);
+      } else {
+        stat_size = stat_info->GetSize();
+      }
+
+      // Free memory
+      delete stat_info;
+      int retc = 0;
+      eos::common::FmdHelper fmd;
+
+      if ((retc = GetRemoteFmdFromLocalDb(newresult->Get(repurl.c_str()),
+                                          newresult->Get(repfid.c_str()),
+                                          newresult->Get(repfsid.c_str()), fmd))) {
+        if (!silent_cmd) {
+          fprintf(stderr, "error: unable to retrieve file meta data from %s [%d]\n",
+                  newresult->Get(repurl.c_str()), retc);
+        }
+
+        err_label = "NOFMD";
+        set_errors.insert(err_label);
+      } else {
+        const auto& proto_fmd = fmd.mProtoFmd;
+        XrdOucString cx = proto_fmd.checksum().c_str();
+
+        for (unsigned int k = (cx.length() / 2); k < SHA_DIGEST_LENGTH; ++k) {
+          cx += "00";
+        }
+
+        XrdOucString disk_cx = proto_fmd.diskchecksum().c_str();
+
+        for (unsigned int k = (disk_cx.length() / 2); k < SHA_DIGEST_LENGTH; ++k) {
+          disk_cx += "00";
+        }
+
+        if (eos::common::LayoutId::IsRain(proto_fmd.lid()) == false) {
+          // These checks make sense only for non-rain layouts
+          if (proto_fmd.size() != mgm_size) {
+            err_label = "SIZE";
+            set_errors.insert(err_label);
+          } else {
+            if (proto_fmd.size() != (unsigned long long) stat_size) {
+              err_label = "FSTSIZE";
+              set_errors.insert(err_label);
+            }
+          }
+
+          if (cx != checksum) {
+            err_label = "CHECKSUM";
+            set_errors.insert(err_label);
+          }
+
+          if ((disk_cx.length() < 8) ||
+              (!cx.beginswith(disk_cx.c_str()))) {
+            err_label = "DISK_CHECKSUM";
+            set_errors.insert(err_label);
+          }
+
+          if (!silent_cmd) {
+            fprintf(stdout, "nrep=\"%02d\" fsid=\"%s\" host=\"%s\" fstpath=\"%s\" "
+                    "size=\"%llu\" statsize=\"%llu\" checksum=\"%s\" diskchecksum=\"%s\" "
+                    "error_label=\"%s\"\n",
+                    i, newresult->Get(repfsid.c_str()),
+                    newresult->Get(repurl.c_str()),
+                    newresult->Get(repfstpath.c_str()),
+                    (unsigned long long)proto_fmd.size(),
+                    (unsigned long long)(stat_size),
+                    cx.c_str(), disk_cx.c_str(), err_label.c_str());
+          }
+        } else {
+          // For RAIN layouts we only check for block-checksum errors
+          if (proto_fmd.blockcxerror()) {
+            err_label = "BLOCK_XS";
+            set_errors.insert(err_label);
+          }
+
+          if (!silent_cmd) {
+            fprintf(stdout, "nrep=\"%02d\" fsid=\"%s\" host=\"%s\" fstpath=\"%s\" "
+                    "size=\"%llu\" statsize=\"%llu\" error_label=\"%s\"\n",
+                    i, newresult->Get(repfsid.c_str()),
+                    newresult->Get(repurl.c_str()),
+                    newresult->Get(repfstpath.c_str()),
+                    (unsigned long long)proto_fmd.size(),
+                    (unsigned long long)(stat_size), err_label.c_str());
+          }
+        }
+
+        ++nrep_online;
+      }
+    }
+
+    int nrep = 0;
+    int stripes = 0;
+
+    if (newresult->Get("mgm.stripes")) {
+      stripes = atoi(newresult->Get("mgm.stripes"));
+    }
+
+    if (newresult->Get("mgm.nrep")) {
+      nrep = atoi(newresult->Get("mgm.nrep"));
+    }
+
+    if (nrep != stripes) {
+      if (set_errors.find("NOFMD") == set_errors.end()) {
+        err_label = "NUM_REPLICAS";
+        set_errors.insert(err_label);
+      }
+    }
+
+    if (set_errors.size()) {
+      if ((option.find("%output")) != STR_NPOS) {
+        fprintf(stdout, "INCONSISTENCY %s path=%-32s fxid=%s size=%llu "
+                "stripes=%d nrep=%d nrepstored=%d nreponline=%d "
+                "checksumtype=%s checksum=%s\n", set_errors.begin()->c_str(),
+                path.c_str(), newresult->Get("mgm.fid0"),
+                (unsigned long long) mgm_size, stripes, nrep, i, nrep_online,
+                checksumtype.c_str(), newresult->Get("mgm.checksum"));
+      }
+
+      if (((option.find("%size") != STR_NPOS) &&
+           ((set_errors.find("SIZE") != set_errors.end() ||
+             set_errors.find("FSTSIZE") != set_errors.end()))) ||
+          ((option.find("%checksum") != STR_NPOS) &&
+           ((set_errors.find("CHECKSUM") != set_errors.end()) ||
+            (set_errors.find("BLOCK_XS") != set_errors.end()))) ||
+          ((option.find("%diskchecksum") != STR_NPOS) &&
+           (set_errors.find("DISK_CHECKSUM") != set_errors.end())) ||
+          ((option.find("%nrep") != STR_NPOS) &&
+           ((set_errors.find("NOFMD") != set_errors.end()) ||
+            (set_errors.find("NUM_REPLICAS") != set_errors.end())))) {
+        global_retc = EFAULT;
+      }
+    }
+
+    delete newresult;
+    return (0);
   }
 
   if (option.length()) {
@@ -1026,17 +926,17 @@ com_file_usage:
   fprintf(stdout,
           "                                                  tries to bring a files with replica layouts to the nominal replica level [ need to be root ]\n");
   fprintf(stdout,
-          "file check [<path>|fid:<fid-dec>|fxid:<fid-hex>] [%%size%%checksum%%nrep%%checksumattr%%force%%output%%silent] :\n");
+          "file check [<path>|fid:<fid-dec>|fxid:<fid-hex>] [%%size%%checksum%%nrep%%diskchecksum%%force%%output%%silent] :\n");
   fprintf(stdout,
           "                                                  retrieves stat information from the physical replicas and verifies the correctness\n");
   fprintf(stdout,
-          "       - %%size                                                       :  return with error code EFAULT if there is a mismatch between the size meta data information\n");
+          "       - %%size                                                       :  return EFAULT if mismatch between the size meta data information\n");
   fprintf(stdout,
-          "       - %%checksum                                                   :  return with error code EFAULT if there is a mismatch between the checksum meta data information\n");
+          "       - %%checksum                                                   :  return EFAULT if mismatch between the checksum meta data information\n");
   fprintf(stdout,
-          "       - %%nrep                                                       :  return with error code EFAULT if there is a mismatch between the layout number of replicas and the existing replicas\n");
+          "       - %%nrep                                                       :  return EFAULT if mismatch between the layout number of replicas and the existing replicas\n");
   fprintf(stdout,
-          "       - %%checksumattr                                               :  return with error code EFAULT if there is a mismatch between the checksum in the extended attributes on the FST and the FMD checksum\n");
+          "       - %%diskchecksum                                               :  return EFAULT if mismatch between the disk checksum on the FST and the reference checksum\n");
   fprintf(stdout,
           "       - %%silent                                                     :  suppresses all information for each replica to be printed\n");
   fprintf(stdout,
@@ -1135,7 +1035,6 @@ com_file_usage:
           "                                                  create a new version of a file by cloning\n");
   fprintf(stdout,
           "       <purge-version> : defines the max. number of versions to keep\n");
-
   fprintf(stdout, "file versions [grab-version] :\n");
   fprintf(stdout,
           "                                                  list versions of a file\n");
