@@ -919,7 +919,6 @@ The autofs mounter for CERN EOS user/project mounting
 %files -n eos-fusex-cern-autofs
 %defattr(-, root, root, -)
 /sbin/automount.cern.eos
-%config(noreplace) /etc/auto.eos
 %config(noreplace) /etc/eos/fuse.home-i00.conf
 %config(noreplace) /etc/eos/fuse.home-i01.conf
 %config(noreplace) /etc/eos/fuse.home-i02.conf
