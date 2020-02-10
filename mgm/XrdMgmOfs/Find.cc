@@ -43,42 +43,51 @@
 #include <string.h>
 #include <curl/curl.h>
 
-class _cloneFoundItem {
-  public:
-    id_t id;
-    int depth;
-    bool isContainer;
+class _cloneFoundItem
+{
+public:
+  id_t id;
+  int depth;
+  bool isContainer;
 
-    _cloneFoundItem(id_t i, int d, bool cont) : id(i), depth(d), isContainer(cont) { };
+  _cloneFoundItem(id_t i, int d, bool cont) : id(i), depth(d),
+    isContainer(cont) { };
 };
 
 /* prefix-less, stripped-down version of eos::common::StringConversion::curl_escaped */
 static std::string
-_clone_escape(std::string s) {
+_clone_escape(std::string s)
+{
+  if (strpbrk(s.c_str(), " %") == NULL) {
+    return s;  /* only use escape sequences when needed */
+  }
 
-  if (strpbrk(s.c_str(), " %") == NULL) return s;           /* only use escape sequences when needed */
+  static CURL* curlAnchor = NULL;
 
-  static CURL *curlAnchor = NULL;
-  if (curlAnchor == NULL) curlAnchor = curl_easy_init();
+  if (curlAnchor == NULL) {
+    curlAnchor = curl_easy_init();
+  }
 
-  char *esc = curl_easy_escape(curlAnchor, s.c_str(), s.size());
+  char* esc = curl_easy_escape(curlAnchor, s.c_str(), s.size());
   std::string t(esc);
   curl_free(esc);
-
 #ifdef notNeededThereAintNoSlashesInFilenames
   size_t pos = 0;
-  while (pos = t.find("%2F", pos)) {
-      t.replace(pos, 3, "/");
-      pos += 1;
-  }
-#endif
 
-  return(t);
+  while (pos = t.find("%2F", pos)) {
+    t.replace(pos, 3, "/");
+    pos += 1;
+  }
+
+#endif
+  return (t);
 }
 
 static void
-_cloneResp(XrdOucErrInfo& out_error, XrdOucString& stdErr, eos::common::VirtualIdentity& vid,
-            std::list<_cloneFoundItem>& _found, bool json_output, FILE *fstdout) {
+_cloneResp(XrdOucErrInfo& out_error, XrdOucString& stdErr,
+           eos::common::VirtualIdentity& vid,
+           std::list<_cloneFoundItem>& _found, bool json_output, FILE* fstdout)
+{
   std::stack<std::string> pp;
   std::shared_ptr<eos::IContainerMD> cmd;
   int depth = 0;
@@ -87,24 +96,25 @@ _cloneResp(XrdOucErrInfo& out_error, XrdOucString& stdErr, eos::common::VirtualI
   Json::Value j;
   Json::FastWriter jfw;
 
-  if ( ! _found.empty()) {                                  /* first element is root of tree */
-      p = gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(_found.front().id).get());
-      pp.push(p.substr(0,p.rfind('/', p.length()-2)+1));    /* "parent" path: /eos/a1/a2/ -> /eos/a1/ */
-      pp.push(std::string("/eos/a1/dummy/"));               /* expect 1st element container @ depth 0, here's a dummy */
+  if (! _found.empty()) {                                   /* first element is root of tree */
+    p = gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(
+                                _found.front().id).get());
+    pp.push(p.substr(0, p.rfind('/',
+                                p.length() - 2) + 1)); /* "parent" path: /eos/a1/a2/ -> /eos/a1/ */
+    pp.push(std::string("/eos/a1/dummy/"));               /* expect 1st element container @ depth 0, here's a dummy */
   }
 
   // typedef std::tuple<mode_t/*st_mode*/, id_t/*st_ino*/, int/*st_dev*/, int/*st_nlink*/, uid_t/*st_uid*/, gid_t/*st_gid*/,
   //        size_t/*st_size*/, double/*st_atime*/, double/*st_mtime*/, double/*st_ctime*/> s_tuple;
-  
   char sts[2048];
-  const char *sts_format = "(%d," /*st_mode*/
-      "%ld," /*st_ino*/ "%d," /*st_dev*/ "%d," /*st_nlink*/
-      "%ld," /*st_uid*/ "%ld,"/*st_gid*/ "%ld," /*st_size*/
-      "%9.7f," /*st_atime*/
-      "%9.7f," /*st_mtime*/
-      "%9.7f)" /*st_ctime*/;
+  const char* sts_format = "(%d," /*st_mode*/
+                           "%ld," /*st_ino*/ "%d," /*st_dev*/ "%d," /*st_nlink*/
+                           "%ld," /*st_uid*/ "%ld,"/*st_gid*/ "%ld," /*st_size*/
+                           "%9.7f," /*st_atime*/
+                           "%9.7f," /*st_mtime*/
+                           "%9.7f)" /*st_ctime*/;
 
-  for (auto i: _found) {
+  for (auto i : _found) {
     eos::IContainerMD::XAttrMap attrmap;
 
     if (i.isContainer) {
@@ -112,13 +122,14 @@ _cloneResp(XrdOucErrInfo& out_error, XrdOucString& stdErr, eos::common::VirtualI
         cmd = gOFS->eosDirectoryService->getContainerMD(i.id);
       } catch (eos::MDException& e) {
         errno = e.getErrno();
-        eos_static_err("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
+        eos_static_err("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+                       e.getMessage().str().c_str());
         return;
       }
 
       while (i.depth <= depth) {            /* pop previous container(s) */
-          pp.pop();
-          depth--;
+        pp.pop();
+        depth--;
       };
 
       while (i.depth > depth) {
@@ -127,6 +138,7 @@ _cloneResp(XrdOucErrInfo& out_error, XrdOucString& stdErr, eos::common::VirtualI
       }
 
       cmd->getTMTime(stime);
+
       if (json_output) {
         struct timespec ts;
         j.clear();
@@ -134,35 +146,46 @@ _cloneResp(XrdOucErrInfo& out_error, XrdOucString& stdErr, eos::common::VirtualI
         j["t"] = (Json::Value::UInt64) stime.tv_sec;
         j["c"] = (Json::Value::UInt64) cmd->getCloneId();
         j["T"] = cmd->getCloneFST();
-        cmd->getMTime(ts); j["mt"] = (Json::Value::UInt64) ts.tv_sec;
-        cmd->getCTime(ts); j["ct"] = (Json::Value::UInt64) ts.tv_sec;
+        cmd->getMTime(ts);
+        j["mt"] = (Json::Value::UInt64) ts.tv_sec;
+        cmd->getCTime(ts);
+        j["ct"] = (Json::Value::UInt64) ts.tv_sec;
         eos::listAttributes(gOFS->eosView, cmd.get(), attrmap, false);
         eos::IContainerMD::ctime_t ctime, mtime;
-        cmd->getCTime(ctime); cmd->getMTime(mtime);
+        cmd->getCTime(ctime);
+        cmd->getMTime(mtime);
         snprintf(sts, sizeof(sts), sts_format,
-                cmd->getMode()|S_IFDIR, cmd->getId(), 42, cmd->getNumFiles(),   /*st_mode,st_ino,st_dev,st_nlink*/
-                cmd->getCUid(), cmd->getCGid(), cmd->getNumContainers(),        /*st_uid,st_gid,st_size*/
-                0.0,                                                            /*st_atime*/
-                mtime.tv_sec+mtime.tv_nsec*10E-9,
-                ctime.tv_sec+ctime.tv_nsec*10E-9);
-      } else
-        fprintf(fstdout, "%s %ld:%ld:%s\n", pp.top().c_str(), stime.tv_sec, cmd->getCloneId(), cmd->getCloneFST().c_str());
+                 cmd->getMode() | S_IFDIR, cmd->getId(), 42,
+                 cmd->getNumFiles(), /*st_mode,st_ino,st_dev,st_nlink*/
+                 cmd->getCUid(), cmd->getCGid(),
+                 cmd->getNumContainers(),        /*st_uid,st_gid,st_size*/
+                 0.0,                                                            /*st_atime*/
+                 mtime.tv_sec + mtime.tv_nsec * 10E-9,
+                 ctime.tv_sec + ctime.tv_nsec * 10E-9);
+      } else {
+        fprintf(fstdout, "%s %ld:%ld:%s\n", pp.top().c_str(), stime.tv_sec,
+                cmd->getCloneId(), cmd->getCloneFST().c_str());
+      }
     } else {    /* a file */
       std::shared_ptr<eos::IFileMD> fmd, gmd;
       uint64_t mdino = 0, hardlinkTgt = 0;
 
       try {
         gmd = gOFS->eosFileService->getFileMD(i.id);
+
         if (gmd->getName().substr(0, 13) == "...eos.ino...") {
-            /* This is a zombie hard link target, kept around simply because another file points to it;
-             * drop it from the dump - if that other file is backed up it'll get picked up again.
-             */
-            continue;
+          /* This is a zombie hard link target, kept around simply because another file points to it;
+           * drop it from the dump - if that other file is backed up it'll get picked up again.
+           */
+          continue;
         }
+
         if (!gmd->hasAttribute(k_mdino)) {
           fmd = gmd;
-          if (fmd->hasAttribute(k_nlink)) { /* a (no-zombie) target for hard link(s), goes into the log */
-              hardlinkTgt = eos::common::FileId::FidToInode(fmd->getId());
+
+          if (fmd->hasAttribute(
+                k_nlink)) { /* a (no-zombie) target for hard link(s), goes into the log */
+            hardlinkTgt = eos::common::FileId::FidToInode(fmd->getId());
           }
         } else {                                /* this is a hard link to another file */
           /*
@@ -173,77 +196,97 @@ _cloneResp(XrdOucErrInfo& out_error, XrdOucString& stdErr, eos::common::VirtualI
            * on restore they could be fiddled back together over the clone_path;
            * from above: we do not report the zombie targets themselves
            */
-
           mdino = std::stoll(gmd->getAttribute(k_mdino));
           fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(mdino));
           eos_static_debug("hlnk switched from %s to file %s (%#llx)",
-                    gmd->getName().c_str(), fmd->getName().c_str(), mdino);
+                           gmd->getName().c_str(), fmd->getName().c_str(), mdino);
         }
-
       } catch (eos::MDException& e) {
-        eos_static_err("exception ec=%d emsg=\"%s\" dir %s id %#lx\n", e.getErrno(), e.getMessage().str().c_str(), p.c_str());
+        eos_static_err("exception ec=%d emsg=\"%s\" dir %s id %#lx\n", e.getErrno(),
+                       e.getMessage().str().c_str(), p.c_str());
         return;
       }
 
       gOFS->FuseXCastFile(fmd->getIdentifier());
       fmd->getSyncTime(stime);
+
       if (json_output) {
         char sbuff[256];
         struct timespec ts;
         j.clear();
         sprintf(sbuff, "%lx/%lx", cmd->getId(), fmd->getId());
-        j["n"] = pp.top()+gmd->getName();                   // Name
+        j["n"] = pp.top() + gmd->getName();                 // Name
         j["t"] = (Json::Value::UInt64) stime.tv_sec;        // time stamp
         j["c"] = (Json::Value::UInt64) fmd->getCloneId();   // cloneId
         j["T"] = fmd->getCloneFST();                        // tag
         j["p"] = sbuff;                                     // clone path
-        if (mdino)
-            j["H"] = (Json::Value::UInt64)mdino;            // a hard link alias: the mdino can be used to find the peers on restore
-        if (hardlinkTgt)
-            j["L"] = (Json::Value::UInt64)hardlinkTgt;      // a hard link target: the inum can be used to find the peers on restore
+
+        if (mdino) {
+          j["H"] = (Json::Value::UInt64)
+                   mdino;  // a hard link alias: the mdino can be used to find the peers on restore
+        }
+
+        if (hardlinkTgt) {
+          j["L"] = (Json::Value::UInt64)
+                   hardlinkTgt;  // a hard link target: the inum can be used to find the peers on restore
+        }
+
         if (fmd->isLink()) {
           j["S"] = fmd->getLink();                          // the target of the symlink
         }
-        fmd->getMTime(ts); j["mt"] = (Json::Value::UInt64) ts.tv_sec;
-        fmd->getCTime(ts); j["ct"] = (Json::Value::UInt64) ts.tv_sec;
+
+        fmd->getMTime(ts);
+        j["mt"] = (Json::Value::UInt64) ts.tv_sec;
+        fmd->getCTime(ts);
+        j["ct"] = (Json::Value::UInt64) ts.tv_sec;
         eos::listAttributes(gOFS->eosView, fmd.get(), attrmap, false);
         eos::IContainerMD::ctime_t ctime, mtime;
-        cmd->getCTime(ctime); cmd->getMTime(mtime);
-        size_t nlink = (attrmap.count("sys.eos.nlink") > 0) ? std::stol(attrmap["sys.eos.nlink"]) : 1;
+        cmd->getCTime(ctime);
+        cmd->getMTime(mtime);
+        size_t nlink = (attrmap.count("sys.eos.nlink") > 0) ? std::stol(
+                         attrmap["sys.eos.nlink"]) : 1;
         snprintf(sts, sizeof(sts), sts_format,
-                fmd->getFlags()|S_IFREG, fmd->getId(), 42, nlink,               /*st_mode,st_ino,st_dev,st_nlink*/
-                fmd->getCUid(), fmd->getCGid(), fmd->getSize(),                 /*st_uid,st_gid,st_size*/
-                0.0,                                                            /*st_atime*/
-                mtime.tv_sec+mtime.tv_nsec*10E-9,
-                ctime.tv_sec+ctime.tv_nsec*10E-9);
+                 fmd->getFlags() | S_IFREG, fmd->getId(), 42,
+                 nlink,             /*st_mode,st_ino,st_dev,st_nlink*/
+                 fmd->getCUid(), fmd->getCGid(),
+                 fmd->getSize(),                 /*st_uid,st_gid,st_size*/
+                 0.0,                                                            /*st_atime*/
+                 mtime.tv_sec + mtime.tv_nsec * 10E-9,
+                 ctime.tv_sec + ctime.tv_nsec * 10E-9);
       } else
-        fprintf(fstdout, "%s%s %ld:%ld/%lx/%lx:%s\n", pp.top().c_str(), _clone_escape(gmd->getName()).c_str(),
-               stime.tv_sec, fmd->getCloneId(), cmd->getId(), fmd->getId(), fmd->getCloneFST().c_str());
+        fprintf(fstdout, "%s%s %ld:%ld/%lx/%lx:%s\n", pp.top().c_str(),
+                _clone_escape(gmd->getName()).c_str(),
+                stime.tv_sec, fmd->getCloneId(), cmd->getId(), fmd->getId(),
+                fmd->getCloneFST().c_str());
     }
-    
+
     if (json_output) {
       Json::Value attr;
 
       for (auto it = attrmap.begin(); it != attrmap.end(); it++) {
-          if (it->first == "sys.vtrace" || it->first == k_mdino || it->first == k_nlink ) continue;
-          attr[it->first] = it->second;
+        if (it->first == "sys.vtrace" || it->first == k_mdino || it->first == k_nlink) {
+          continue;
+        }
+
+        attr[it->first] = it->second;
       }
+
       j["attr"] = attr;
       j["st"] = sts;
-
       fprintf(fstdout, "%s", jfw.write(j).c_str());
     }
   }
 };
 
 static bool
-_cloneMD(std::shared_ptr<eos::IContainerMD>& cloneMd, char cFlag, uint64_t cloneId, std::shared_ptr<eos::IContainerMD>& cmd) {
-
+_cloneMD(std::shared_ptr<eos::IContainerMD>& cloneMd, char cFlag,
+         uint64_t cloneId, std::shared_ptr<eos::IContainerMD>& cmd)
+{
   char buff[1024];
-
-  snprintf(buff, sizeof(buff), "%s/clone/%ld", gOFS->MgmProcPath.c_str(), cloneId);
+  snprintf(buff, sizeof(buff), "%s/clone/%ld", gOFS->MgmProcPath.c_str(),
+           cloneId);
   std::string clonePath(buff);
-    
+
   try {
     cloneMd = gOFS->eosView->getContainer(clonePath);
 
@@ -251,21 +294,26 @@ _cloneMD(std::shared_ptr<eos::IContainerMD>& cloneMd, char cFlag, uint64_t clone
       eos_static_err("clone directory %s already exists!", clonePath.c_str());
       return false;
     }
-
   } catch (eos::MDException& e) {
-    eos_static_debug("exception ec=%d emsg=\"%s\" cFlag '%c'", e.getErrno(), e.getMessage().str().c_str(), cFlag);
+    eos_static_debug("exception ec=%d emsg=\"%s\" cFlag '%c'", e.getErrno(),
+                     e.getMessage().str().c_str(), cFlag);
+
     if (cFlag == '+') {
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
       eos::common::Path mdPath(buff);
-      std::shared_ptr<eos::IContainerMD> pCloneMd = gOFS->eosView->getContainer(mdPath.GetParentPath());
+
       try {
+        std::shared_ptr<eos::IContainerMD> pCloneMd = gOFS->eosView->getContainer(
+              mdPath.GetParentPath());
         cloneMd = gOFS->eosView->createContainer(clonePath);
         cloneMd->setMode(S_IFDIR | S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
-        eos_static_info("%s permissions are %#o", clonePath.c_str(), cloneMd->getMode());
+        eos_static_info("%s permissions are %#o", clonePath.c_str(),
+                        cloneMd->getMode());
         cloneMd->setAttribute("sys.clone.root",  gOFS->eosView->getUri(cmd.get()));
         gOFS->eosDirectoryService->updateStore(cloneMd.get());
         gOFS->eosDirectoryService->updateStore(pCloneMd.get());
-        eos::ContainerIdentifier md_id = cloneMd->getIdentifier();       /* copied from "mkdir" */
+        eos::ContainerIdentifier md_id =
+          cloneMd->getIdentifier();       /* copied from "mkdir" */
         eos::ContainerIdentifier d_id = pCloneMd->getIdentifier();
         eos::ContainerIdentifier d_pid = pCloneMd->getParentIdentifier();
         lock.Release();
@@ -277,92 +325,118 @@ _cloneMD(std::shared_ptr<eos::IContainerMD>& cloneMd, char cFlag, uint64_t clone
         return false;
       }
     } else {
-        return false;
+      return false;
     }
   }
+
   return true;
 }
 
 static int
 _clone(std::shared_ptr<eos::IContainerMD>& cmd,
-                 XrdOucErrInfo& out_error, XrdOucString& stdErr, eos::common::VirtualIdentity& vid,
-                 std::list<_cloneFoundItem>& _found,
-                 char cFlag, uint64_t cloneId, time_t newId, std::shared_ptr<eos::IContainerMD> cloneMd, int depth)
+       XrdOucErrInfo& out_error, XrdOucString& stdErr,
+       eos::common::VirtualIdentity& vid,
+       std::list<_cloneFoundItem>& _found,
+       char cFlag, uint64_t cloneId, time_t newId,
+       std::shared_ptr<eos::IContainerMD> cloneMd, int depth)
 {
   // cmd could almost be passed "by value", except for the "-" (purge) case; hence the cmd_ref passed by reference
-  std::shared_ptr<eos::IContainerMD> ccmd;                          /* container pointer for recursion */
+  std::shared_ptr<eos::IContainerMD>
+  ccmd;                          /* container pointer for recursion */
   int rc = SFS_OK;
-
   std::shared_ptr<eos::IFileMD> fmd;
   std::string link;
   eos::IContainerMD::tmtime_t stime;
-
   eos::common::RWMutexWriteLock rwlock;
-  
+
   /* Only at depth 0: find/create clone anchor directory for operations that require it */
   if (cloneMd == NULL && cFlag != '?' && cFlag != '>') {
-    if (! _cloneMD(cloneMd, cFlag, (cFlag == '+') ? newId : cloneId, cmd) )
-        return SFS_ERROR;
+    if (! _cloneMD(cloneMd, cFlag, (cFlag == '+') ? newId : cloneId, cmd)) {
+      return SFS_ERROR;
+    }
 
     /* The eosViewRWMutex lock is explicitly grabbed (for '+') only at the "root" level of the tree and
      * "quickly" released and re-grabbed at each directory in lower levels. Hence at deeper
      * recursion levels the lock is already held on entry */
     if (cFlag == '+') {
-        rwlock.Grab(gOFS->eosViewRWMutex);
-    }
-    else if (cFlag == '-' && cloneMd->hasAttribute("sys.clone.root")) {   /* reset start of purge */
+      rwlock.Grab(gOFS->eosViewRWMutex);
+    } else if (cFlag == '-' &&
+               cloneMd->hasAttribute("sys.clone.root")) { /* reset start of purge */
       std::string rootDir = cloneMd->getAttribute("sys.clone.root");
+
       try {
-        cmd = gOFS->eosView->getContainer(rootDir);             /* this only happens @ depth 0! */
+        cmd = gOFS->eosView->getContainer(
+                rootDir);             /* this only happens @ depth 0! */
         eos_static_info("clone %ld purge switch to hint %s", cloneId, rootDir.c_str());
       } catch (eos::MDException& e) {
-          eos_static_info("clone %ld root hint %s ignored ec=%d emsg='%s'",
-                  cloneId, rootDir.c_str(), e.getErrno(), e.getMessage().str().c_str());
+        eos_static_info("clone %ld root hint %s ignored ec=%d emsg='%s'",
+                        cloneId, rootDir.c_str(), e.getErrno(), e.getMessage().str().c_str());
       }
     }
   }
 
   if (cFlag == '+') {
-      /* cloneId <= 9: special, single level markers
-       * all others: this is a new clone, make the directory part of it
-       */
-      uint64_t thisId = newId, saveId;
-      if (cloneId < 10) {
-          thisId = cloneId;
-          saveId = cmd->getCloneId();
-          if (saveId >= 10) saveId = 0;                             /* only save an Id serving as marker */
+    /* cloneId <= 9: special, single level markers
+     * all others: this is a new clone, make the directory part of it
+     */
+    uint64_t thisId = newId, saveId;
 
-          cmd->setCloneFST(saveId ? std::to_string(saveId) : "");  /* save this for later restore */
+    if (cloneId < 10) {
+      thisId = cloneId;
+      saveId = cmd->getCloneId();
+
+      if (saveId >= 10) {
+        saveId = 0;  /* only save an Id serving as marker */
       }
-      cmd->setCloneId(thisId);
-      gOFS->eosDirectoryService->updateStore(cmd.get());
-      if (cloneId <= 9) return 0;
-  }
-  else if (cFlag == '-' && (uint64_t)cmd->getCloneId() == cloneId) {
-      /* clean the directory flag if it is part of this clone */
-      std::string prev_marker = cmd->getCloneFST();                 /* reset cloneId to a potential previous marker */
-      uint64_t cleanId = 0;
-      if (!prev_marker.empty()) {
-          cmd->setCloneFST("");
-          cleanId = std::stol(prev_marker);
-      }
-      cmd->setCloneId(cleanId);
-      gOFS->eosDirectoryService->updateStore(cmd.get());
+
+      cmd->setCloneFST(saveId ? std::to_string(saveId) :
+                       "");  /* save this for later restore */
+    }
+
+    cmd->setCloneId(thisId);
+    gOFS->eosDirectoryService->updateStore(cmd.get());
+
+    if (cloneId <= 9) {
+      return 0;
+    }
+  } else if (cFlag == '-' && (uint64_t)cmd->getCloneId() == cloneId) {
+    /* clean the directory flag if it is part of this clone */
+    std::string prev_marker =
+      cmd->getCloneFST();                 /* reset cloneId to a potential previous marker */
+    uint64_t cleanId = 0;
+
+    if (!prev_marker.empty()) {
+      cmd->setCloneFST("");
+      cleanId = std::stol(prev_marker);
+    }
+
+    cmd->setCloneId(cleanId);
+    gOFS->eosDirectoryService->updateStore(cmd.get());
   }
 
   _found.emplace_back(cmd->getId(), depth, true);
-  if (EOS_LOGS_DEBUG) eos_static_debug("_found container %#lx depth %d %s cloneId=%d", cmd->getId(), depth, cmd->getName().c_str(), cloneId);
+
+  if (EOS_LOGS_DEBUG) {
+    eos_static_debug("_found container %#lx depth %d %s cloneId=%d", cmd->getId(),
+                     depth, cmd->getName().c_str(), cloneId);
+  }
 
   for (auto fit = eos::FileMapIterator(cmd); fit.valid(); fit.next()) {
-    if (EOS_LOGS_DEBUG) eos_static_debug("%c depth %d file %s id %#lx", cFlag, depth, fit.key().c_str(), fit.value());
+    if (EOS_LOGS_DEBUG) {
+      eos_static_debug("%c depth %d file %s id %#lx", cFlag, depth, fit.key().c_str(),
+                       fit.value());
+    }
 
     try {
       fmd = gOFS->eosFileService->getFileMD(fit.value());
     } catch (eos::MDException& e) {
       char sbuff[1024];
-      snprintf(sbuff, sizeof(sbuff),"msg=\"exception\" ec=%d fn=%s/%s emsg=\"%s\"\n", e.getErrno(), cmd->getName().c_str(), fit.key().c_str(), e.getMessage().str().c_str());
+      snprintf(sbuff, sizeof(sbuff), "msg=\"exception\" ec=%d fn=%s/%s emsg=\"%s\"\n",
+               e.getErrno(), cmd->getName().c_str(), fit.key().c_str(),
+               e.getMessage().str().c_str());
       eos_static_info(sbuff);
-      stdErr += sbuff; stdErr += "\n";
+      stdErr += sbuff;
+      stdErr += "\n";
       continue;
     }
 
@@ -374,42 +448,59 @@ _clone(std::shared_ptr<eos::IContainerMD>& cmd,
 
     fmd->getSyncTime(stime);
 
-    switch(cFlag) {
-      case '>':
-        if ((uint64_t) stime.tv_sec < cloneId) continue;
-      case '+':
-        if ((uint64_t) stime.tv_sec < cloneId) break;
-        fmd->setCloneId((uint64_t) newId);
-        fmd->setCloneFST("");       /* clean clone fid */
-        gOFS->eosFileService->updateStore(fmd.get());
-        break;
-      case '=':
-      case '-':
-        if (fmd->getCloneId() != cloneId) continue;
-        if (cFlag == '-' && cloneId > 9) {
-          gOFS->eosViewRWMutex.LockWrite();
-          std::string hex_fid = fmd->getCloneFST();
-          fmd->setCloneId(0);         /* clear cloneId */
-          fmd->setCloneFST("");       /* clean up clone fid */
-          gOFS->eosFileService->updateStore(fmd.get());
-          gOFS->eosViewRWMutex.UnLockWrite();
+    switch (cFlag) {
+    case '>':
+      if ((uint64_t) stime.tv_sec < cloneId) {
+        continue;
+      }
 
-          if (hex_fid != "") {
-            eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
-            eos::common::FileId::fileid_t clFid = eos::common::FileId::Hex2Fid(hex_fid.c_str());
-            try {
-              std::shared_ptr<eos::IFileMD> gmd = gOFS->eosFileService->getFileMD(clFid);
-              gOFS->_rem(gOFS->eosView->getUri(gmd.get()).c_str(), out_error, rootvid, "", false, true, true, true);
-            } catch (eos::MDException& e) {
-              eos_static_info("msg=\"exception\" ec=%d fid=%#lx emsg=\"%s\"\n", e.getErrno(), clFid, e.getMessage().str().c_str());
-            }
-          }
-          continue;
-        }
-      case '?':
+    case '+':
+      if ((uint64_t) stime.tv_sec < cloneId) {
         break;
-      default: /* do something intelligent */
-        ;
+      }
+
+      fmd->setCloneId((uint64_t) newId);
+      fmd->setCloneFST("");       /* clean clone fid */
+      gOFS->eosFileService->updateStore(fmd.get());
+      break;
+
+    case '=':
+    case '-':
+      if (fmd->getCloneId() != cloneId) {
+        continue;
+      }
+
+      if (cFlag == '-' && cloneId > 9) {
+        gOFS->eosViewRWMutex.LockWrite();
+        std::string hex_fid = fmd->getCloneFST();
+        fmd->setCloneId(0);         /* clear cloneId */
+        fmd->setCloneFST("");       /* clean up clone fid */
+        gOFS->eosFileService->updateStore(fmd.get());
+        gOFS->eosViewRWMutex.UnLockWrite();
+
+        if (hex_fid != "") {
+          eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
+          eos::common::FileId::fileid_t clFid = eos::common::FileId::Hex2Fid(
+                                                  hex_fid.c_str());
+
+          try {
+            std::shared_ptr<eos::IFileMD> gmd = gOFS->eosFileService->getFileMD(clFid);
+            gOFS->_rem(gOFS->eosView->getUri(gmd.get()).c_str(), out_error, rootvid, "",
+                       false, true, true, true);
+          } catch (eos::MDException& e) {
+            eos_static_info("msg=\"exception\" ec=%d fid=%#lx emsg=\"%s\"\n", e.getErrno(),
+                            clFid, e.getMessage().str().c_str());
+          }
+        }
+
+        continue;
+      }
+
+    case '?':
+      break;
+
+    default: /* do something intelligent */
+      ;
     }
 
     /* The output is produced in _cloneResp, outside the big lock */
@@ -417,10 +508,16 @@ _clone(std::shared_ptr<eos::IContainerMD>& cmd,
   }
 
   for (auto dit = eos::ContainerMapIterator(cmd); dit.valid(); dit.next()) {
+    if (cFlag == '+') {
+      gOFS->eosViewRWMutex.UnLockWrite();
+    }
 
-    if (cFlag == '+') gOFS->eosViewRWMutex.UnLockWrite();
-    eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView, dit.value());
-    if (cFlag == '+') gOFS->eosViewRWMutex.LockWrite();
+    eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView,
+        dit.value());
+
+    if (cFlag == '+') {
+      gOFS->eosViewRWMutex.LockWrite();
+    }
 
     try {
       ccmd = gOFS->eosDirectoryService->getContainerMD(dit.value());
@@ -428,61 +525,73 @@ _clone(std::shared_ptr<eos::IContainerMD>& cmd,
       errno = e.getErrno();
       ccmd.reset();
       eos_static_info("msg=\"exception\" ec=%d cid %#lx emsg=\"%s\"\n",
-                e.getErrno(), dit.value(), e.getMessage().str().c_str());
+                      e.getErrno(), dit.value(), e.getMessage().str().c_str());
       continue;
     }
 
     ccmd->getTMTime(stime);
-
     /* if (cFlag == '?' && stime.tv_sec < cloneId) continue;     only if stime reliably percolates down to the root */
-
     uint64_t ccId = ccmd->getCloneId();
 
     if (ccId == 0 || cloneId == 0 || cFlag == '+' ||
-            ( (cFlag == '=' || cFlag == '-') && ccId == cloneId)  ) {     /* Only descend for matching subdirs */
-      int rc2 = _clone(ccmd, out_error, stdErr, vid, _found, cFlag, cloneId, newId, cloneMd, depth+1);
-      if (rc2 > rc) rc = rc2;
-    }
+        ((cFlag == '=' || cFlag == '-') &&
+         ccId == cloneId)) {        /* Only descend for matching subdirs */
+      int rc2 = _clone(ccmd, out_error, stdErr, vid, _found, cFlag, cloneId, newId,
+                       cloneMd, depth + 1);
 
+      if (rc2 > rc) {
+        rc = rc2;
+      }
+    }
   }
 
-  if ( cloneMd != NULL && depth == 0 && cFlag == '-') {        /* clean up clone directory */
+  if (cloneMd != NULL && depth == 0 &&
+      cFlag == '-') {         /* clean up clone directory */
     std::list<std::string> ctrs2remove;
     std::list<std::string> ctrs2zap;
+
     for (auto dit = eos::ContainerMapIterator(cloneMd); dit.valid(); dit.next()) {
       try {
         ccmd = gOFS->eosDirectoryService->getContainerMD(dit.value());
         std::list<std::string> files2remove;
         std::list<std::string> files2zap;
+
         for (auto fit = eos::FileMapIterator(ccmd); fit.valid(); fit.next()) {
           try {
             fmd = gOFS->eosFileService->getFileMD(fit.value());
             files2remove.push_back(gOFS->eosView->getUri(fmd.get()));
           } catch (eos::MDException& e) {
             char sbuff[1024];
-            int sblen = snprintf(sbuff, sizeof(sbuff), "exception ec=%d emsg=\"%s\" cid %#lx %s fid %#lx %s\n",
-                    e.getErrno(), e.getMessage().str().c_str(), dit.value(), ccmd->getName().c_str(), fit.value(), fit.key().c_str());
+            int sblen = snprintf(sbuff, sizeof(sbuff),
+                                 "exception ec=%d emsg=\"%s\" cid %#lx %s fid %#lx %s\n",
+                                 e.getErrno(), e.getMessage().str().c_str(), dit.value(),
+                                 ccmd->getName().c_str(), fit.value(), fit.key().c_str());
             stdErr += sbuff;
-            sbuff[sblen-1] = '\0' /* no new-line */;
+            sbuff[sblen - 1] = '\0' /* no new-line */;
             eos_static_info(sbuff);
             files2zap.push_back(fit.key());
           }
         }
+
         for (auto it = files2remove.begin(); it != files2remove.end(); it++) {
           try {
             gOFS->eosView->unlinkFile(*it);
           } catch (eos::MDException& e) {
-            eos_static_err("exception ec=%d emsg=\"%s\" cid %#lx uri %s\n", e.getErrno(), e.getMessage().str().c_str(), dit.value(), (*it).c_str());
+            eos_static_err("exception ec=%d emsg=\"%s\" cid %#lx uri %s\n", e.getErrno(),
+                           e.getMessage().str().c_str(), dit.value(), (*it).c_str());
           }
         }
+
         for (auto it = files2zap.begin(); it != files2zap.end(); it++) {
           eos_static_info("zapping file %s in %s", it->c_str(), ccmd->getName().c_str());
           ccmd->removeFile(*it);
         }
+
         ctrs2remove.push_back(gOFS->eosView->getUri(ccmd.get()));
       } catch (eos::MDException& e) {
         ccmd.reset();
-        eos_static_info("exception ec=%d emsg=\"%s\" cid %#lx name %s\n", e.getErrno(), e.getMessage().str().c_str(), dit.value(), dit.key().c_str());
+        eos_static_info("exception ec=%d emsg=\"%s\" cid %#lx name %s\n", e.getErrno(),
+                        e.getMessage().str().c_str(), dit.value(), dit.key().c_str());
         ctrs2zap.push_back(dit.key());
         continue;
       }
@@ -493,25 +602,31 @@ _clone(std::shared_ptr<eos::IContainerMD>& cmd,
         gOFS->eosView->removeContainer(*it);
       } catch (eos::MDException& e) {
         char sbuff[4096];
-        int sblen = snprintf(sbuff, sizeof(sbuff), "exception ec=%d emsg=\"%s\" name %s\n", e.getErrno(), e.getMessage().str().c_str(), it->c_str());
+        int sblen = snprintf(sbuff, sizeof(sbuff),
+                             "exception ec=%d emsg=\"%s\" name %s\n", e.getErrno(),
+                             e.getMessage().str().c_str(), it->c_str());
         stdErr += sbuff;
         out_error.setErrInfo(e.getErrno(), sbuff);
-        sbuff[sblen-1] = '\0' /* no new-line */;
+        sbuff[sblen - 1] = '\0' /* no new-line */;
         eos_static_info(sbuff);
         return SFS_ERROR;
       }
     }
+
     for (auto it = ctrs2zap.begin(); it != ctrs2zap.end(); it++) {
       eos_static_info("zapping %s", (*it).c_str());
+
       try {
         cloneMd->removeContainer(*it);
         gOFS->eosDirectoryService->updateStore(cloneMd.get());
       } catch (eos::MDException& e) {
         char sbuff[4096];
-        int sblen = snprintf(sbuff, sizeof(sbuff), "exception ec=%d emsg=\"%s\" name %s\n", e.getErrno(), e.getMessage().str().c_str(), it->c_str());
+        int sblen = snprintf(sbuff, sizeof(sbuff),
+                             "exception ec=%d emsg=\"%s\" name %s\n", e.getErrno(),
+                             e.getMessage().str().c_str(), it->c_str());
         eos_static_debug(sbuff);
         out_error.setErrInfo(e.getErrno(), sbuff);
-        sbuff[sblen-1] = '\0' /* no new-line */;
+        sbuff[sblen - 1] = '\0' /* no new-line */;
         eos_static_info(sbuff);
         return SFS_ERROR;
       }
@@ -524,9 +639,11 @@ _clone(std::shared_ptr<eos::IContainerMD>& cmd,
       gOFS->FuseXCastDeletion(cloneDir, cname);
     } catch (eos::MDException& e) {
       char sbuff[4096];
-      int sblen = snprintf(sbuff, sizeof(sbuff), "exception ec=%d emsg=\"%s\" name %s\n", e.getErrno(), e.getMessage().str().c_str(), cloneMd->getName().c_str());
+      int sblen = snprintf(sbuff, sizeof(sbuff),
+                           "exception ec=%d emsg=\"%s\" name %s\n", e.getErrno(),
+                           e.getMessage().str().c_str(), cloneMd->getName().c_str());
       out_error.setErrInfo(e.getErrno(), sbuff);
-      sbuff[sblen-1] = '\0' /* no new-line */;
+      sbuff[sblen - 1] = '\0' /* no new-line */;
       eos_static_info(sbuff);
       return SFS_ERROR;
     }
@@ -545,12 +662,11 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
                  std::map<std::string, std::set<std::string> >& found,
                  const char* key, const char* val, bool no_files,
                  time_t millisleep, bool nscounter, int maxdepth,
-                 const char* filematch, bool take_lock, bool json_output, FILE *fstdout)
+                 const char* filematch, bool take_lock, bool json_output, FILE* fstdout)
 {
   std::vector< std::vector<std::string> > found_dirs;
   std::shared_ptr<eos::IContainerMD> cmd;
   std::string Path = path;
-
   EXEC_TIMING_BEGIN("Find");
 
   if (nscounter) {
@@ -590,13 +706,19 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
      * '?' = list all with clone-id and stime data */
     char cFlag = val[0];
 
-    if (strchr(">=?-+", cFlag) == NULL) return SFS_ERROR;   /* invalid argugment */
+    if (strchr(">=?-+", cFlag) == NULL) {
+      return SFS_ERROR;  /* invalid argugment */
+    }
 
-    time_t clone_id = atol(val+1);                  /* could be 0 */
+    time_t clone_id = atol(val + 1);                /* could be 0 */
 
-    if (limitresult) return SFS_ERROR;
+    if (limitresult) {
+      return SFS_ERROR;
+    }
 
-    eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView, Path.c_str());
+    eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView,
+        Path.c_str());
+
     try {
       cmd = gOFS->eosView->getContainer(Path.c_str(), false);
     } catch (eos::MDException& e) {
@@ -608,10 +730,12 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
 
     time_t newId = time(NULL);
     std::list<_cloneFoundItem> _found;
+    int rc = _clone(cmd, out_error, stdErr, vid, _found, cFlag, clone_id, newId,
+                    NULL, 0);  /* clone releases and re-acquires the eosViewRWMutex! */
 
-    int rc = _clone(cmd, out_error, stdErr, vid, _found, cFlag, clone_id, newId, NULL, 0);  /* clone releases and re-acquires the eosViewRWMutex! */
-    if (rc == 0) 
+    if (rc == 0) {
       _cloneResp(out_error, stdErr, vid, _found, json_output, fstdout);
+    }
 
     return rc;
   }
@@ -649,10 +773,9 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
                   e.getErrno(), e.getMessage().str().c_str());
       }
 
-
       if (take_lock) {
         ns_rd_lock.Release();
-	sub_cmd_take_lock = true;
+        sub_cmd_take_lock = true;
       }
 
       if (!gOFS->allow_public_access(Path.c_str(), vid)) {
