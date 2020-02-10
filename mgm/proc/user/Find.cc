@@ -771,7 +771,8 @@ ProcCommand::Find()
 
               for (unsigned int i = 0; i < fmd->getNumLocation(); i++) {
                 int loc = fmd->getLocation(i);
-                size_t size = fmd->getSize();
+                uint64_t size = eos::common::LayoutId::GetStripeFileSize(fmd->getLayoutId(),
+                                fmd->getSize());
 
                 if (!loc) {
                   eos_err("fsid 0 found %s %llu", fmd->getName().c_str(), fmd->getId());
@@ -1007,7 +1008,7 @@ ProcCommand::Find()
       unsigned long long avgsize = (unsigned long long)(sizedistributionn[itsd->first]
                                    ? itsd->second / sizedistributionn[itsd->first] : 0);
       fprintf(fstdout,
-              "sizeorder=%02d \trange=[ %-12s ... %-12s ] volume=%-12s \tavgsize=%-12s \tnbyptes=%llu \t avgnbytes=%llu \t nfiles=%llu\n",
+              "sizeorder=%02d \trange=[ %-12s ... %-12s ] volume=%-12s \tavgsize=%-12s \tnbytes=%llu \t avgnbytes=%llu \t nfiles=%llu\n",
               itsd->first
               , eos::common::StringConversion::GetReadableSizeString(sizestring1, lowerlimit,
                   "B")

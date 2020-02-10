@@ -591,6 +591,39 @@ public:
     return GetChecksumLen((layout >> 20) & 0xf);
   }
 
+
+  //--------------------------------------------------------------------------
+  //! Get stripe(replica) file size based on the full size of the file and
+  //! the given layout
+  //!
+  //! @param lid layout id
+  //! @param fsize file size
+  //!
+  //! @return stripe(replica) file size
+  //--------------------------------------------------------------------------
+  static uint64_t
+  GetStripeFileSize(const unsigned long lid, const uint64_t fsize)
+  {
+    if (!IsRain(lid)) {
+      return fsize;
+    }
+
+    int num_data_stripes = 0;
+    int num_all_stripes = GetStripeNumber(lid) + 1;
+    int num_parity_stripes = GetRedundancyStripeNumber(lid);
+
+    // In case values don't make sense just return the full size of the file
+    if (num_parity_stripes >= num_all_stripes) {
+      return fsize;
+    }
+
+    uint64_t block_sz = GetBlocksize(lid);
+    num_data_stripes = num_all_stripes - num_parity_stripes;
+    uint64_t group_sz = block_sz * std::pow(num_data_stripes, 2);
+    return static_cast<uint64_t>(std::ceil((float)fsize / group_sz)) *
+           num_data_stripes * block_sz;
+  }
+
   //--------------------------------------------------------------------------
   //! Return multiplication factor for a given layout e.g. the physical space
   //! factor for a given layout
