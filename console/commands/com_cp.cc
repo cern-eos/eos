@@ -1033,9 +1033,16 @@ com_cp(char* argin)
 
     if (transfersize.length()) {
       cmdtext += "-T ";
+      cmdtext += transfersize;
+      cmdtext += " ";
     }
 
-    cmdtext += transfersize;
+    if (rate.length()) {
+      cmdtext += "-t ";
+      cmdtext += rate.c_str();
+      cmdtext += " ";
+    }
+      
     cmdtext += "-N $'";
     cmdtext += safename.c_str();
     cmdtext += "' ";
