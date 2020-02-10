@@ -3558,7 +3558,24 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char* name,
     p1md = Instance().mds.get(req, parent, p1cap->authid());
     p2md = Instance().mds.get(req, newparent, p2cap->authid());
     uint64_t md_ino = 0;
+    uint64_t del_ino = 0;
+      
     {
+      // logic avoiding a delete/rename sync.async race
+      {
+	XrdSysMutexHelper pLock(p2md->Locker());
+	auto it = p2md->get_todelete().find(
+					    eos::common::StringConversion::EncodeInvalidUTF8(name));
+	
+	if ((it != p2md->get_todelete().end()) && it->second) {
+	  del_ino = it->second;
+	}
+      }
+      
+      if (del_ino) {
+	Instance().mds.wait_deleted(req, del_ino);
+      }
+      
       XrdSysMutexHelper mLock(md->Locker());
 
       if (md->deleted()) {
