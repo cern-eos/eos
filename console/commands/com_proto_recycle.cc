@@ -91,9 +91,10 @@ void com_recycle_help()
       << "    <date> : can be <year>, <year>/<month> or <year>/<month>/<day>"
       << std::endl
       << std::endl
-      << "   recycle restore [-f|--force-original-name] [-r|--restore-versions] <recycle-key>"
+      << "   recycle restore [-p] [-f|--force-original-name] [-r|--restore-versions] <recycle-key>"
       << std::endl
       << "     undo the deletion identified by the <recycle-key>" << std::endl
+      << "     -p : create all missing parent directories" 
       << "     -f : move deleted files/dirs back to their original location (otherwise"
       << std::endl
       << "          the key entry will have a <.inode> suffix)" << std::endl

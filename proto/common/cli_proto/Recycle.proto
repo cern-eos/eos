@@ -19,6 +19,7 @@ message RecycleProto {
     bool ForceOrigName   = 1;
     bool RestoreVersions = 2;
     string Key = 3;
+    bool MakePath = 4;
   }
 
   message ConfigProto {

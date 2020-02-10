@@ -1007,7 +1007,7 @@ Recycle::PrintOld(std::string& std_out, std::string& std_err,
 int
 Recycle::Restore(std::string& std_out, std::string& std_err,
                  eos::common::VirtualIdentity& vid, const char* key,
-                 bool force_orig_name, bool restore_versions)
+                 bool force_orig_name, bool restore_versions, bool make_path)
 {
   eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
 
@@ -1136,13 +1136,30 @@ Recycle::Restore(std::string& std_out, std::string& std_err,
 
   // check if original parent path exists
   if (gOFS->_stat(oPath.GetParentPath(), &buf, lError, rootvid, "")) {
-    std_err = "error: you have to recreate the restore directory path=";
-    std_err += oPath.GetParentPath();
-    std_err += " to be able to restore this file/tree\n";
-    std_err += "hint: retry after creating the mentioned directory\n";
-    return ENOENT;
+    if (make_path) {
+      XrdOucErrInfo lError;
+      // create path
+      ProcCommand cmd;
+      XrdOucString info = "mgm.cmd=mkdir&mgm.option=p&mgm.path=";
+      info += oPath.GetParentPath();
+      cmd.open("/proc/user", info.c_str(), vid, &lError);
+      cmd.close();
+      int rc = cmd.GetRetc();
+      
+      if (rc) {
+	std_err+="error: creation failed: ";
+	std_err += cmd.GetStdErr();
+	return rc;
+      }
+    } else {
+      std_err = "error: you have to recreate the restore directory path=";
+      std_err += oPath.GetParentPath();
+      std_err += " to be able to restore this file/tree\n";
+      std_err += "hint: retry after creating the mentioned directory\n";
+      return ENOENT;
+    }
   }
-
+  
   // check if original path is existing
   if (!gOFS->_stat(oPath.GetPath(), &buf, lError, rootvid, "")) {
     if (force_orig_name == false) {

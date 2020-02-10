@@ -76,7 +76,8 @@ RecycleCmd::ProcessRequest() noexcept
     const eos::console::RecycleProto_RestoreProto& restore = recycle.restore();
     reply.set_retc(Recycle::Restore(std_out, std_err, mVid, restore.key().c_str(),
                                     restore.forceorigname(),
-                                    restore.restoreversions()));
+                                    restore.restoreversions(),
+				    restore.makepath()));
 
     if (reply.retc()) {
       reply.set_std_err(std_err.c_str());

@@ -147,6 +147,8 @@ RecycleHelper::ParseCommand(const char* arg)
         restore->set_forceorigname(true);
       } else if ((soption == "-r") || (soption == "--restore-versions")) {
         restore->set_restoreversions(true);
+      }  else if (soption == "-p") {
+	restore->set_makepath(true);
       } else {
         // This must be the recycle-key
         restore->set_key(soption);

@@ -175,11 +175,12 @@ public:
    * @param key (==inode) to undelete
    * @param force_orig_name flag to force restore to the original name
    * @param restore_versions flag to restore all versions
+   * @param make_path flag to recreate all missing parent directories
    * @return 0 if done, otherwise errno
    */
   static int Restore(std::string& std_out, std::string& std_err,
                      eos::common::VirtualIdentity& vid, const char* key,
-                     bool force_orig_name, bool restore_versions);
+                     bool force_orig_name, bool restore_versions, bool make_path=false);
 
   static int PurgeOld(std::string& std_out, std::string& std_err,
                       eos::common::VirtualIdentity& vid);
