@@ -102,8 +102,8 @@ class NamespaceExplorer;
 class SearchNode
 {
 public:
-  SearchNode(NamespaceExplorer &explorer, ContainerIdentifier id,
-    SearchNode* prnt, folly::Executor *exec, bool ignoreFiles);
+  SearchNode(NamespaceExplorer &explorer, ContainerIdentifier expectedParent,
+    ContainerIdentifier id, SearchNode* prnt, folly::Executor *exec, bool ignoreFiles);
 
   inline ContainerIdentifier getID() const
   {
@@ -142,6 +142,7 @@ public:
 
 private:
   NamespaceExplorer &explorer;
+  ContainerIdentifier expectedParent;
   ContainerIdentifier id;
   qclient::QClient& qcl;
   SearchNode* parent = nullptr;
