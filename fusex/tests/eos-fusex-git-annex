@@ -1,0 +1,28 @@
+#!/bin/bash
+set -x #echo on
+
+USAGE="usage: eos-test-fusex-git-annex <test-dir> "
+
+[[ -z "$1" ]] && echo $USAGE  && exit -1
+
+treedir=$1
+fail=0
+cd $treedir
+testdir=`uuidgen`
+mkdir $testdir
+cd $testdir
+git init
+git annex init
+cp /etc/passwd . 
+git annex add passwd
+sleep 2
+ls | grep passwd || fail=1
+rm passwd
+rm -rf .git
+cd $treedir
+rmdir $testdir
+exit $fail
+
+
+
+
