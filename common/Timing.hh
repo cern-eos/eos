@@ -41,17 +41,18 @@ EOSCOMMONNAMESPACE_BEGIN
 //! Convert a system_clock timepoint into milliseconds since epoch
 //------------------------------------------------------------------------------
 inline std::chrono::milliseconds timepointToMillisecondsSinceEpoch(
-  std::chrono::system_clock::time_point tp) {
-
+  std::chrono::system_clock::time_point tp)
+{
   return std::chrono::duration_cast<std::chrono::milliseconds>(
-    tp.time_since_epoch()
-  );
+           tp.time_since_epoch()
+         );
 }
 
 //------------------------------------------------------------------------------
 //! Get system time in milliseconds since epoch
 //------------------------------------------------------------------------------
-inline std::chrono::milliseconds getEpochInMilliseconds() {
+inline std::chrono::milliseconds getEpochInMilliseconds()
+{
   return timepointToMillisecondsSinceEpoch(std::chrono::system_clock::now());
 }
 
@@ -143,6 +144,17 @@ public:
     struct timespec ts;
     GetTimeSpec(ts);
     return (1000000000 * ts.tv_sec + ts.tv_nsec);
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get current time in seconds
+  //----------------------------------------------------------------------------
+  static long long
+  GetNowInSec()
+  {
+    struct timespec ts;
+    GetTimeSpec(ts);
+    return ts.tv_sec;
   }
 
   //----------------------------------------------------------------------------
@@ -344,14 +356,15 @@ public:
   //! Note: the function resets the value of errno
   //----------------------------------------------------------------------------
   static int
-  Timespec_from_TimespecStr(std::string timespec_str, struct timespec &ts)
+  Timespec_from_TimespecStr(std::string timespec_str, struct timespec& ts)
   {
-    const char *nptr = timespec_str.c_str();
+    const char* nptr = timespec_str.c_str();
     size_t pos = timespec_str.find(".");
-    struct timespec lts{0, 0};
-    char *endptr = NULL;
+    struct timespec lts {
+      0, 0
+    };
+    char* endptr = NULL;
     errno = 0;
-
     ts.tv_sec = ts.tv_nsec = 0;
 
     if (pos == std::string::npos) {
@@ -391,7 +404,6 @@ public:
   {
     struct timespec ts;
     int rc = Timespec_from_TimespecStr(timespec_str, ts);
-
     return (rc == 0) ? (ts.tv_sec * 1000000000 + ts.tv_nsec) : -1;
   }
 
@@ -465,16 +477,17 @@ public:
   static
   std::string ltime(time_t& t)
   {
-    struct tm * timeinfo;
+    struct tm* timeinfo;
     timeinfo = localtime(&t);
-
     char a_time[4096];
-    a_time[0]=0;
+    a_time[0] = 0;
     asctime_r(timeinfo, a_time);
     std::string s_atime = a_time;
+
     if (s_atime.length()) {
-      s_atime.erase(s_atime.length()-1);
+      s_atime.erase(s_atime.length() - 1);
     }
+
     return s_atime;
   }
 

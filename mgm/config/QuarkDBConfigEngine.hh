@@ -21,9 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSMGM_QUARKDBCONFIGENGINE__HH__
-#define __EOSMGM_QUARKDBCONFIGENGINE__HH__
-
+#pragma once
 #include "mgm/config/IConfigEngine.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/qclient/include/qclient/structures/QHash.hh"
@@ -119,7 +117,8 @@ public:
   //!
   //! @return true if saved successfully, otherwise false
   //----------------------------------------------------------------------------
-  bool SaveConfig(std::string filename, bool overwrite, bool autosave, const std::string& comment, XrdOucString& err) override;
+  bool SaveConfig(std::string filename, bool overwrite, bool autosave,
+                  const std::string& comment, XrdOucString& err) override;
 
   //----------------------------------------------------------------------------
   //! List all configurations
@@ -171,7 +170,8 @@ public:
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool PushToQuarkDB(const std::string& filename, bool overwrite, XrdOucString& err) override;
+  bool PushToQuarkDB(const std::string& filename, bool overwrite,
+                     XrdOucString& err) override;
 
   //----------------------------------------------------------------------------
   //! Load a configuration from QuarkDB
@@ -199,7 +199,7 @@ private:
   //----------------------------------------------------------------------------
   // Store configuration into given name
   //----------------------------------------------------------------------------
-  void storeIntoQuarkDB(const std::string &name);
+  void storeIntoQuarkDB(const std::string& name);
 
   QdbContactDetails mQdbContactDetails;
   std::unique_ptr<qclient::QClient> mQcl;
@@ -226,11 +226,13 @@ private:
   }
 
   //----------------------------------------------------------------------------
-  //! Get current timestamp
+  //! Check if configuration key is deprecated
   //!
-  //! @param out output string
+  //! @param config_key configuration key to be set
+  //!
+  //! @param return true if deprecated, otherwise false
   //----------------------------------------------------------------------------
-  void getTimeStamp(XrdOucString& out);
+  bool IsDeprecated(const std::string& config_key) const;
 
   //----------------------------------------------------------------------------
   //! Filter configuration
@@ -244,5 +246,3 @@ private:
 };
 
 EOSMGMNAMESPACE_END
-
-#endif

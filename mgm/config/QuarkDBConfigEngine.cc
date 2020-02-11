@@ -24,6 +24,7 @@
 #include "mgm/config/QuarkDBConfigEngine.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/IMaster.hh"
+#include "common/Timing.hh"
 #include <qclient/ResponseParsing.hh>
 #include <qclient/MultiBuilder.hh>
 #include "qclient/structures/QScanner.hh"
@@ -536,17 +537,24 @@ void QuarkDBConfigEngine::storeIntoQuarkDB(const std::string& name)
   multiBuilder.emplace_back("hclone", keyname, hash_key_backup);
   multiBuilder.emplace_back("del", keyname);
   std::vector<std::future<qclient::redisReplyPtr>> replies;
+  std::set<std::string> deprecated;
   XrdSysMutexHelper lock(mMutex);
 
-  for (auto it = sConfigDefinitions.begin(); it != sConfigDefinitions.end();
-       it++) {
-    multiBuilder.emplace_back("hset", keyname, it->first, it->second);
+  for (const auto& elem : sConfigDefinitions) {
+    if (IsDeprecated(elem.first)) {
+      deprecated.insert(elem.first);
+    } else {
+      multiBuilder.emplace_back("hset", keyname, elem.first, elem.second);
+    }
   }
 
-  XrdOucString stime;
-  getTimeStamp(stime);
+  // Remove deprecated keys
+  for (const auto& rm_key : deprecated) {
+    sConfigDefinitions.erase(rm_key);
+  }
+
   multiBuilder.emplace_back("hset", keyname, "timestamp",
-                            std::string(stime.c_str()));
+                            std::to_string(eos::common::Timing::GetNowInSec()));
   qclient::redisReplyPtr reply = mQcl->execute(multiBuilder.getDeque()).get();
 
   // The transaction has taken place, validate that the response makes sense
@@ -596,14 +604,18 @@ void QuarkDBConfigEngine::storeIntoQuarkDB(const std::string& name)
 }
 
 //------------------------------------------------------------------------------
-// Get current timestamp
+// Check if configuration key is deprecated
 //------------------------------------------------------------------------------
-void
-QuarkDBConfigEngine::getTimeStamp(XrdOucString& out)
+bool
+QuarkDBConfigEngine::IsDeprecated(const std::string& config_key) const
 {
-  time_t now = time(0);
-  out = ctime(&now);
-  out.erase(out.length() - 1);
+  if (config_key.find("global:") == 0) {
+    if (config_key.find("#drainer.central") != std::string::npos) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 EOSMGMNAMESPACE_END

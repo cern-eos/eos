@@ -33,13 +33,11 @@
 #include "XrdSec/XrdSecEntity.hh"
 #include <set>
 
-namespace eos
-{
-namespace mq
+namespace eos::mq
 {
 class MessagingRealm;
 }
-}
+
 
 EOSMGMNAMESPACE_BEGIN
 
