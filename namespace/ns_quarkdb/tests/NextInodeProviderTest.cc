@@ -200,6 +200,14 @@ TEST_F(NextInodeProviderTest, BlacklistingOffByOne)
 
   inodeProvider->blacklistBelow(4294967296);
   ASSERT_EQ(inodeProvider->reserve(), 4294967298);
+  ASSERT_EQ(inodeProvider->reserve(), 4294967299);
+  ASSERT_EQ(inodeProvider->reserve(), 4294967300);
+  ASSERT_EQ(inodeProvider->reserve(), 4294967301);
+
+  inodeProvider.reset(new NextInodeProvider());
+  inodeProvider->configure(myhash, "counter");
+  inodeProvider->blacklistBelow(4294967296);
+  ASSERT_EQ(inodeProvider->reserve(), 4294967304);
 }
 
 
