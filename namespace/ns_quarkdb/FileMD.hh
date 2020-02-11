@@ -161,7 +161,7 @@ public:
   //! Get cloneId
   //----------------------------------------------------------------------------
   inline uint64_t
-  getCloneId() const
+  getCloneId() const override
   {
     std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     return mFile.cloneid();
@@ -170,16 +170,17 @@ public:
   //----------------------------------------------------------------------------
   //! Set cloneId
   //----------------------------------------------------------------------------
-  void setCloneId(uint64_t id) {
+  void setCloneId(uint64_t id) override
+  {
     std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-      mFile.set_cloneid(id);
+    mFile.set_cloneid(id);
   }
 
   //----------------------------------------------------------------------------
   //! Get cloneFST
   //----------------------------------------------------------------------------
   const std::string
-  getCloneFST() const
+  getCloneFST() const override
   {
     std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     return mFile.clonefst();
@@ -188,9 +189,10 @@ public:
   //----------------------------------------------------------------------------
   //! Set cloneFST
   //----------------------------------------------------------------------------
-  void setCloneFST(const std::string& data) {
+  void setCloneFST(const std::string& data) override
+  {
     std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-      mFile.set_clonefst(data);
+    mFile.set_clonefst(data);
   }
 
   //----------------------------------------------------------------------------

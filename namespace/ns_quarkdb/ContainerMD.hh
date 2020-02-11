@@ -332,7 +332,7 @@ public:
   //! Get cloneId
   //----------------------------------------------------------------------------
   inline time_t
-  getCloneId() const
+  getCloneId() const override
   {
     std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     return mCont.cloneid();
@@ -342,7 +342,7 @@ public:
   //! Set cloneId
   //----------------------------------------------------------------------------
   inline void
-  setCloneId(time_t id)
+  setCloneId(time_t id) override
   {
     std::unique_lock<std::shared_timed_mutex> lock(mMutex);
     mCont.set_cloneid(id);
@@ -352,7 +352,7 @@ public:
   //! Get cloneFST
   //----------------------------------------------------------------------------
   inline const std::string
-  getCloneFST() const
+  getCloneFST() const override
   {
     std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     return mCont.clonefst();
@@ -361,9 +361,9 @@ public:
   //----------------------------------------------------------------------------
   //! Set cloneFST
   //----------------------------------------------------------------------------
-  void setCloneFST(const std::string& data) {
+  void setCloneFST(const std::string& data) override
+  {
     std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-
     mCont.set_clonefst(data);
   }
 
@@ -555,7 +555,7 @@ private:
   eos::ns::ContainerMdProto mCont;      ///< Protobuf container representation
   IContainerMDSvc* pContSvc = nullptr;  ///< Container metadata service
   IFileMDSvc* pFileSvc = nullptr;       ///< File metadata service
-  MetadataFlusher *pFlusher = nullptr;  ///< Metadata flusher object
+  MetadataFlusher* pFlusher = nullptr;  ///< Metadata flusher object
   qclient::QClient* pQcl;               ///< QClient object
   std::string pFilesKey;                ///< Map files key
   std::string pDirsKey;                 ///< Map dir key
