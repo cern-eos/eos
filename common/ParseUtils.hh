@@ -123,7 +123,7 @@ inline bool ParseHostNamePort(const std::string& input, std::string& host,
     host = input;
     port = 1094;
   } else {
-    host = input.substr(0, pos - 1);
+    host = input.substr(0, pos);
     int64_t ret = 0ll;
 
     if (!ParseInt64(input.substr(pos + 1), ret)) {

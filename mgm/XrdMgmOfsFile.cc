@@ -1731,7 +1731,7 @@ XrdMgmOfsFile::open(const char* inpath,
       }
 
       if (!gOFS->mMaster->IsMaster() && gOFS->mMaster->IsRemoteMasterOk()) {
-        // redirect ENONET to an alive remote master
+        // Redirect ENONET to the actual master
         int port {0};
         std::string hostname;
         std::string master_id = gOFS->mMaster->GetMasterId();
