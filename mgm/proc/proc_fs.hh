@@ -33,8 +33,12 @@
 #include "XrdSec/XrdSecEntity.hh"
 #include <set>
 
-namespace eos::mq {
-  class MessagingRealm;
+namespace eos
+{
+namespace mq
+{
+class MessagingRealm;
+}
 }
 
 EOSMGMNAMESPACE_BEGIN
@@ -111,7 +115,8 @@ int proc_fs_config(std::string& identifier, std::string& key,
 //!
 //! @return 0 if successful, otherwise error code value
 //------------------------------------------------------------------------------
-int proc_fs_add(mq::MessagingRealm* realm, std::string& sfsid, std::string& uuid,
+int proc_fs_add(mq::MessagingRealm* realm, std::string& sfsid,
+                std::string& uuid,
                 std::string& nodename, std::string& mountpoint, std::string& space,
                 std::string& configstatus, XrdOucString& stdOut,
                 XrdOucString& stdErr,
