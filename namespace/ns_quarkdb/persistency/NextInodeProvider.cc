@@ -17,11 +17,15 @@
  ************************************************************************/
 
 #include "common/Logging.hh"
+#include "common/Assert.hh"
 #include "namespace/ns_quarkdb/persistency/NextInodeProvider.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "qclient/structures/QHash.hh"
 #include <memory>
 #include <numeric>
+
+#define __PRI64_PREFIX "l"
+#define PRId64         __PRI64_PREFIX "d"
 
 EOSNSNAMESPACE_BEGIN
 
@@ -37,7 +41,7 @@ InodeBlock::InodeBlock(int64_t start, int64_t len)
 //------------------------------------------------------------------------------
 // Check if block has more inodes to give
 //------------------------------------------------------------------------------
-bool InodeBlock::empty() {
+bool InodeBlock::empty() const {
   return mStart + mLen <= mNextId;
 }
 
@@ -55,6 +59,19 @@ bool InodeBlock::reserve(int64_t &out) {
 }
 
 //------------------------------------------------------------------------------
+// Get first free ID - what reserve _would_ have returned, without actually
+// allocating the inode.
+//------------------------------------------------------------------------------
+bool InodeBlock::getFirstFreeID(int64_t &out) const {
+  if(empty()) {
+    return false;
+  }
+
+  out = mNextId;
+  return true;
+}
+
+//------------------------------------------------------------------------------
 // Blacklist all IDs below the given number, including the threshold itself.
 //------------------------------------------------------------------------------
 void InodeBlock::blacklistBelow(int64_t threshold) {
@@ -67,7 +84,7 @@ void InodeBlock::blacklistBelow(int64_t threshold) {
 // Constructor
 //------------------------------------------------------------------------------
 NextInodeProvider::NextInodeProvider()
-  : pHash(nullptr), pField(""), mNextId(0), mBlockEnd(-1), mStepIncrease(1)
+  : pHash(nullptr), pField(""), mInodeBlock(0, 0), mStepIncrease(1)
 {
 }
 
@@ -78,18 +95,12 @@ int64_t NextInodeProvider::getFirstFreeId()
 {
   std::lock_guard<std::mutex> lock(mMtx);
 
-  if (mBlockEnd < mNextId) {
-    IFileMD::id_t id = 0;
-    std::string sval = pHash->hget(pField);
-
-    if (!sval.empty()) {
-      id = std::stoull(sval);
-    }
-
-    return id + 1;
+  int64_t out;
+  if(mInodeBlock.getFirstFreeID(out)) {
+    return out;
   }
 
-  return mNextId;
+  return getDBValue() + 1;
 }
 
 //------------------------------------------------------------------------------
@@ -103,17 +114,15 @@ int64_t NextInodeProvider::reserve()
 {
   std::lock_guard<std::mutex> lock(mMtx);
 
-  if (mBlockEnd < mNextId) {
-    mBlockEnd = pHash->hincrby(pField, mStepIncrease);
-    mNextId = mBlockEnd - mStepIncrease + 1;
-
-    // Increase step for next round
-    if (mStepIncrease <= 5000) {
-      mStepIncrease++;
-    }
+  int64_t out;
+  if(mInodeBlock.reserve(out)) {
+    return out;
   }
 
-  return mNextId++;
+  // We're out if inodes, allocate next inode block
+  allocateInodeBlock();
+  eos_assert(mInodeBlock.reserve(out));
+  return out;
 }
 
 //------------------------------------------------------------------------------
@@ -124,13 +133,31 @@ void NextInodeProvider::blacklistBelow(int64_t threshold)
 {
   std::lock_guard<std::mutex> lock(mMtx);
 
-  if(mBlockEnd <= threshold) {
-    mBlockEnd = threshold + mStepIncrease;
-    pHash->hset(pField, std::to_string(mBlockEnd));
-    mNextId = threshold+1;
+  mInodeBlock.blacklistBelow(threshold);
+  if(mInodeBlock.empty()) {
+    // Our cached inode block has ran out of inodes - suspicious.
+    // We might need to touch the DB.
+    blacklistDBThreshold(threshold);
   }
-  else {
-    mNextId = std::max(mNextId, threshold+1);
+}
+
+//------------------------------------------------------------------------------
+// Blacklist DB threshold
+//------------------------------------------------------------------------------
+void NextInodeProvider::blacklistDBThreshold(int64_t threshold) {
+  int64_t currentValue = getDBValue();
+
+  if(currentValue < threshold) {
+    // Major event coming up, blacklisting inodes operation hitting the DB.
+    eos_static_notice("Inode blacklisting operation hitting QDB: " PRId64 " -> " PRId64, currentValue, threshold);
+
+    // We need to set currentValue to "threshold". We use HINCRBY due to paranoia,
+    // to ensure we would **never** decrease the value in the DB.
+
+    int64_t diff = threshold - currentValue;
+    eos_assert(diff > 0);
+    eos_assert(pHash->hincrby(pField, diff) == threshold);
+    eos_assert(getDBValue() == threshold);
   }
 }
 
@@ -143,6 +170,33 @@ void NextInodeProvider::configure(qclient::QHash& hash,
   std::lock_guard<std::mutex> lock(mMtx);
   pHash = &hash;
   pField = field;
+}
+
+//------------------------------------------------------------------------------
+// Get counter value stored in DB, no caching
+//------------------------------------------------------------------------------
+int64_t NextInodeProvider::getDBValue() {
+  int64_t id = 0;
+
+  std::string sval = pHash->hget(pField);
+  if (!sval.empty()) {
+    id = std::stoull(sval);
+  }
+
+  return id;
+}
+
+//------------------------------------------------------------------------------
+// Allocate new inode block
+//------------------------------------------------------------------------------
+void NextInodeProvider::allocateInodeBlock() {
+  int64_t blockEnd = pHash->hincrby(pField, mStepIncrease);
+  mInodeBlock = InodeBlock(blockEnd - mStepIncrease + 1, mStepIncrease);
+
+  // Increase step for next round
+  if (mStepIncrease <= 5000) {
+    mStepIncrease++;
+  }
 }
 
 EOSNSNAMESPACE_END

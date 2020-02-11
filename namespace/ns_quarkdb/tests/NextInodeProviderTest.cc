@@ -83,7 +83,7 @@ TEST_F(NextInodeProviderTest, Blacklisting)
   ASSERT_EQ(inodeProvider.reserve(), 3);
 
   inodeProvider.blacklistBelow(4);
-  ASSERT_EQ("7", myhash.hget("counter"));
+  ASSERT_EQ("4", myhash.hget("counter"));
 
   ASSERT_EQ(inodeProvider.reserve(), 5);
   ASSERT_EQ(inodeProvider.reserve(), 6);
@@ -98,7 +98,7 @@ TEST_F(NextInodeProviderTest, Blacklisting)
   }
 
   inodeProvider.blacklistBelow(10000);
-  ASSERT_EQ("10101", myhash.hget("counter"));
+  ASSERT_EQ("10000", myhash.hget("counter"));
 
   for(size_t i = 10001; i < 10100; i++) {
     ASSERT_EQ(inodeProvider.reserve(), i);
@@ -178,5 +178,29 @@ TEST(InodeBlock, BlacklistingAll) {
   ASSERT_EQ(ino, 19);
   ASSERT_TRUE(block.empty());
 }
+
+TEST_F(NextInodeProviderTest, BlacklistingOffByOne)
+{
+  std::unique_ptr<qclient::QClient> qcl = createQClient();
+
+  qclient::QHash myhash;
+  myhash.setKey("ns-tests-next-inode-provider");
+  myhash.setClient(*qcl.get());
+  myhash.hdel("counter");
+
+  std::unique_ptr<NextInodeProvider> inodeProvider;
+  inodeProvider.reset(new NextInodeProvider());
+  inodeProvider->configure(myhash, "counter");
+
+  inodeProvider->blacklistBelow(4294967296);
+  ASSERT_EQ(inodeProvider->reserve(), 4294967297);
+
+  inodeProvider.reset(new NextInodeProvider());
+  inodeProvider->configure(myhash, "counter");
+
+  inodeProvider->blacklistBelow(4294967296);
+  ASSERT_EQ(inodeProvider->reserve(), 4294967298);
+}
+
 
 EOSNSTESTING_END

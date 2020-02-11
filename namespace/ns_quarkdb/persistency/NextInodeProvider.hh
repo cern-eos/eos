@@ -48,9 +48,15 @@ public:
   bool reserve(int64_t &out);
 
   //----------------------------------------------------------------------------
+  //! Get first free ID - what reserve _would_ have returned, without actually
+  //! allocating the inode.
+  //----------------------------------------------------------------------------
+  bool getFirstFreeID(int64_t &out) const;
+
+  //----------------------------------------------------------------------------
   //! Check if block has more inodes to give
   //----------------------------------------------------------------------------
-  bool empty();
+  bool empty() const;
 
   //----------------------------------------------------------------------------
   //! Blacklist all IDs below the given number, including the threshold itself.
@@ -101,12 +107,31 @@ public:
   int64_t reserve();
 
 private:
+  //----------------------------------------------------------------------------
+  //! Get counter value stored in DB, no caching
+  //----------------------------------------------------------------------------
+  int64_t getDBValue();
+
+  //----------------------------------------------------------------------------
+  //! Allocate new inode block
+  //----------------------------------------------------------------------------
+  void allocateInodeBlock();
+
+  //----------------------------------------------------------------------------
+  //! Blacklist DB threshold
+  //----------------------------------------------------------------------------
+  void blacklistDBThreshold(int64_t threshold);
+
   std::mutex mMtx;
   qclient::QHash* pHash; ///< qclient hash - no ownership
   std::string pField;
-  int64_t mNextId;
-  int64_t mBlockEnd;
+
+  InodeBlock mInodeBlock;
   int64_t mStepIncrease;
+
+  // int64_t mNextId;
+  // int64_t mBlockEnd;
+
 };
 
 EOSNSNAMESPACE_END
