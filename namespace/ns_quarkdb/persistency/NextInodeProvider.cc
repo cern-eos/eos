@@ -26,6 +26,44 @@
 EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
+// Inode block constructor
+//------------------------------------------------------------------------------
+InodeBlock::InodeBlock(int64_t start, int64_t len)
+: mStart(start), mLen(len) {
+
+  mNextId = mStart;
+}
+
+//------------------------------------------------------------------------------
+// Check if block has more inodes to give
+//------------------------------------------------------------------------------
+bool InodeBlock::empty() {
+  return mStart + mLen <= mNextId;
+}
+
+//------------------------------------------------------------------------------
+// Reserve, only if there's enough space
+//------------------------------------------------------------------------------
+bool InodeBlock::reserve(int64_t &out) {
+  if(!empty()) {
+    out = mNextId;
+    mNextId++;
+    return true;
+  }
+
+  return false;
+}
+
+//------------------------------------------------------------------------------
+// Blacklist all IDs below the given number, including the threshold itself.
+//------------------------------------------------------------------------------
+void InodeBlock::blacklistBelow(int64_t threshold) {
+  if(mNextId <= threshold) {
+    mNextId = threshold+1;
+  }
+}
+
+//------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 NextInodeProvider::NextInodeProvider()

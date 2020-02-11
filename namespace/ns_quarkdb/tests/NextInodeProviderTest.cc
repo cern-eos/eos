@@ -105,4 +105,78 @@ TEST_F(NextInodeProviderTest, Blacklisting)
   }
 }
 
+TEST(InodeBlock, BasicSanity) {
+  int64_t ino = 0;
+
+  InodeBlock block(1, 0);
+  ASSERT_TRUE(block.empty());
+  ASSERT_FALSE(block.reserve(ino));
+
+  block = InodeBlock(1, -1);
+  ASSERT_TRUE(block.empty());
+  ASSERT_FALSE(block.reserve(ino));
+
+  block = InodeBlock(1, 1);
+  ASSERT_FALSE(block.empty());
+  ASSERT_TRUE(block.reserve(ino));
+  ASSERT_EQ(ino, 1);
+  ASSERT_TRUE(block.empty());
+
+  block = InodeBlock(9, 3);
+  ASSERT_FALSE(block.empty());
+  for(int64_t i = 9; i < 9+3; i++) {
+    ASSERT_TRUE(block.reserve(ino));
+    ASSERT_EQ(ino, i);
+  }
+
+  ASSERT_TRUE(block.empty());
+}
+
+TEST(InodeBlock, Blacklisting) {
+  int64_t ino = 0;
+
+  InodeBlock block(10, 10);
+  ASSERT_FALSE(block.empty());
+  block.blacklistBelow(9);
+
+  ASSERT_TRUE(block.reserve(ino));
+  ASSERT_EQ(ino, 10);
+
+  block.blacklistBelow(11);
+  ASSERT_TRUE(block.reserve(ino));
+  ASSERT_EQ(ino, 12);
+
+  block.blacklistBelow(11);
+  ASSERT_TRUE(block.reserve(ino));
+  ASSERT_EQ(ino, 13);
+
+  block.blacklistBelow(18);
+  ASSERT_TRUE(block.reserve(ino));
+  ASSERT_EQ(ino, 19);
+
+  ASSERT_FALSE(block.reserve(ino));
+  ASSERT_TRUE(block.empty());
+}
+
+TEST(InodeBlock, BlacklistingAll) {
+  int64_t ino = 0;
+
+  InodeBlock block(10, 10);
+  ASSERT_FALSE(block.empty());
+  block.blacklistBelow(19);
+  ASSERT_TRUE(block.empty());
+
+  block = InodeBlock(10, 10);
+  ASSERT_FALSE(block.empty());
+  block.blacklistBelow(20);
+  ASSERT_TRUE(block.empty());
+
+  block = InodeBlock(10, 10);
+  ASSERT_FALSE(block.empty());
+  block.blacklistBelow(18);
+  ASSERT_TRUE(block.reserve(ino));
+  ASSERT_EQ(ino, 19);
+  ASSERT_TRUE(block.empty());
+}
+
 EOSNSTESTING_END
