@@ -25,6 +25,7 @@
 #include "mgm/txengine/TransferFsDB.hh"
 #include "mgm/FsView.hh"
 #include "common/StringConversion.hh"
+#include "common/TransferQueue.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

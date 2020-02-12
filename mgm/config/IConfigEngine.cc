@@ -29,6 +29,7 @@
 #include "mgm/Vid.hh"
 #include "mgm/Iostat.hh"
 #include "mgm/proc/proc_fs.hh"
+#include "mgm/config/ConfigParsing.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/GeoTreeEngine.hh"
 #include "mgm/txengine/TransferEngine.hh"
@@ -375,45 +376,13 @@ IConfigEngine::DeleteConfigValueByMatch(const char* prefix, const char* match)
 bool
 IConfigEngine::ParseConfig(XrdOucString& inconfig, XrdOucString& err)
 {
-  int line_num = 0;
-  std::string s;
-  std::istringstream streamconfig(inconfig.c_str());
-  XrdSysMutexHelper lock(mMutex);
-  sConfigDefinitions.clear();
+  std::string err1;
+  bool retval = ConfigParsing::parseConfigurationFile(inconfig.c_str(),
+    sConfigDefinitions, err1);
 
-  while ((getline(streamconfig, s, '\n'))) {
-    line_num++;
-
-    if (s.length()) {
-      XrdOucString key = s.c_str();
-      int seppos = key.find(" => ");
-
-      if (seppos == STR_NPOS) {
-        std::ostringstream oss;
-        oss << "parsing error in configuration file line "
-            << line_num << ":" <<  s.c_str();
-        err = oss.str().c_str();
-        errno = EINVAL;
-        return false;
-      }
-
-      XrdOucString value;
-      value.assign(key, seppos + 4);
-      key.erase(seppos);
-
-      // Add entry only if key and value are not empty
-      if (key.length() && value.length()) {
-        eos_notice("setting config key=%s value=%s", key.c_str(), value.c_str());
-        sConfigDefinitions[key.c_str()] = value.c_str();
-      } else {
-        eos_notice("skipping empty config key=%s value=%s", key.c_str(), value.c_str());
-      }
-    }
-  }
-
-  return true;
+  err = err1.c_str();
+  return retval;
 }
-
 
 //------------------------------------------------------------------------------
 // Dump method for selective configuration printing

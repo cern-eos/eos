@@ -31,15 +31,19 @@
 #include "common/RWMutex.hh"
 #include "common/SymKeys.hh"
 #include "common/Logging.hh"
-#include "common/TransferQueue.hh"
 #include "common/Locators.hh"
 #include "common/InstanceName.hh"
+#include "common/AssistedThread.hh"
 #ifndef __APPLE__
 #include <sys/vfs.h>
 #else
 #include <sys/param.h>
 #include <sys/mount.h>
 #endif
+
+namespace eos::common {
+  class TransferQueue;
+}
 
 //------------------------------------------------------------------------------
 //! @file FsView.hh

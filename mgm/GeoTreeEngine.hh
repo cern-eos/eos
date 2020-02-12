@@ -40,6 +40,7 @@
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysAtomics.hh"
 /*----------------------------------------------------------------------------*/
+#include <list>
 #include <dirent.h>
 #include <sys/types.h>
 #include <sys/stat.h>

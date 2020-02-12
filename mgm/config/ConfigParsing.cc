@@ -93,5 +93,47 @@ bool ConfigParsing::parseFilesystemConfig(const std::string &config,
   return true;
 }
 
+//------------------------------------------------------------------------------
+// Parse configuration file
+//
+// Returns if parsing was successful or not.
+//------------------------------------------------------------------------------
+bool ConfigParsing::parseConfigurationFile(const std::string &contents,
+    std::map<std::string, std::string> &out, std::string &err) {
+
+  int line_num = 0;
+  std::string s;
+  std::istringstream streamconfig(contents);
+  out.clear();
+
+  while ((getline(streamconfig, s, '\n'))) {
+    line_num++;
+
+    if (s.length()) {
+      XrdOucString key = s.c_str();
+      int seppos = key.find(" => ");
+
+      if (seppos == STR_NPOS) {
+        err = SSTR("parsing error in configuration file line "
+            << line_num << ":" <<  s.c_str());
+        return false;
+      }
+
+      XrdOucString value;
+      value.assign(key, seppos + 4);
+      key.erase(seppos);
+
+      // Add entry only if key and value are not empty
+      if (key.length() && value.length()) {
+        eos_static_notice("setting config key=%s value=%s", key.c_str(), value.c_str());
+        out[key.c_str()] = value.c_str();
+      } else {
+        eos_static_notice("skipping empty config key=%s value=%s", key.c_str(), value.c_str());
+      }
+    }
+  }
+
+  return true;
+}
 
 EOSMGMNAMESPACE_END

@@ -41,7 +41,7 @@
 #include "mgm/proc/admin/AccessCmd.hh"
 #include "mgm/proc/admin/FsckCmd.hh"
 #include <google/protobuf/util/json_util.h>
-
+#include "XrdOuc/XrdOucEnv.hh"
 
 EOSMGMNAMESPACE_BEGIN
 thread_local eos::common::LogId ProcInterface::tlLogId;
@@ -251,7 +251,7 @@ ProcInterface::HandleProtobufRequest(eos::console::RequestProto& req,
   case RequestProto::kNode:
     cmd.reset(new NodeCmd(std::move(req), vid));
     break;
-  
+
   case RequestProto::kFsck:
     cmd.reset(new FsckCmd(std::move(req), vid));
     break;

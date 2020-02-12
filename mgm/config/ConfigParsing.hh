@@ -45,6 +45,13 @@ public:
   static bool parseFilesystemConfig(const std::string &config,
     std::map<std::string, std::string> &out);
 
+  //----------------------------------------------------------------------------
+  //! Parse configuration file
+  //!
+  //! Returns if parsing was successful or not.
+  //----------------------------------------------------------------------------
+  static bool parseConfigurationFile(const std::string &contents,
+    std::map<std::string, std::string> &out, std::string &err);
 
 };
 

@@ -351,6 +351,18 @@ target_link_libraries(
   ${XROOTD_UTILS_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
+add_executable(eos-config-export
+  config/eos-config-export.cc
+  config/ConfigParsing.cc                           config/ConfigParsing.hh
+)
+
+target_link_libraries(
+  eos-config-export
+  EosCommon
+  EosNsCommon-Static
+  ${CMAKE_THREAD_LIBS_INIT}
+)
+
 #-------------------------------------------------------------------------------
 # Create executables for testing the MGM configuration
 #-------------------------------------------------------------------------------

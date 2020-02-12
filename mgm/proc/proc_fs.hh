@@ -32,6 +32,7 @@
 #include "namespace/interface/IFileMD.hh"
 #include "XrdSec/XrdSecEntity.hh"
 #include <set>
+#include <list>
 
 namespace eos::mq
 {

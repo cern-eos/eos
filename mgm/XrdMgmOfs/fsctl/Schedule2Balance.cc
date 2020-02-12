@@ -24,6 +24,7 @@
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
 #include "common/SecEntity.hh"
+#include "common/TransferQueue.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IFileMDSvc.hh"

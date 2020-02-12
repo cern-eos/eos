@@ -40,6 +40,7 @@
 #include "mq/SharedHashWrapper.hh"
 #include "common/Constants.hh"
 #include "common/token/EosTok.hh"
+#include "common/TransferQueue.hh"
 
 using eos::common::RWMutexReadLock;
 

@@ -37,6 +37,7 @@
 #include "common/plugin_manager/DynamicLibrary.hh"
 #include "common/plugin_manager/PluginManager.hh"
 #include "common/Strerror_r_wrapper.hh"
+#include "common/TransferQueue.hh"
 #include "namespace/Constants.hh"
 #include "namespace/interface/ContainerIterators.hh"
 #include "namespace/utils/Checksum.hh"
