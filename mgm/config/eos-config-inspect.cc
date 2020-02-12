@@ -97,6 +97,9 @@ int main(int argc, char* argv[]) {
   exportSubcommand->add_option("--source", sourceFile, "Path to the source configuration file to export")
     ->required();
 
+  bool overwrite = false;
+  exportSubcommand->add_flag("--overwrite", overwrite, "Overwrite already-existing configuration in QDB.");
+
   //----------------------------------------------------------------------------
   // Set-up target
   //----------------------------------------------------------------------------
@@ -182,7 +185,7 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  if(existsResp.value() != 0) {
+  if(!overwrite && existsResp.value() != 0) {
     std::cerr << "ERROR: There's MGM configuration stored in QDB already -- will not delete." << std::endl;
     return 1;
   }
