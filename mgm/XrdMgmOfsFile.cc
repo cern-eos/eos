@@ -738,8 +738,7 @@ XrdMgmOfsFile::open(const char* inpath,
           }
 
           rcode = SFS_REDIRECT;
-          error.setErrInfo(ecode, new XrdOucBuffer((char*)redirectionhost.c_str(), redirectionhost.length()+1));
-
+          gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode);
           gOFS->MgmStats.Add("RedirectENOENT", vid.uid, vid.gid, 1);
           XrdOucString predirectionhost = redirectionhost.c_str();
           eos::common::StringConversion::MaskTag(predirectionhost, "cap.msg");
@@ -1125,7 +1124,7 @@ XrdMgmOfsFile::open(const char* inpath,
       }
 
       rcode = SFS_REDIRECT;
-      error.setErrInfo(ecode, new XrdOucBuffer((char*)redirectionhost.c_str(), redirectionhost.length()+1));
+      gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode);
       gOFS->MgmStats.Add("RedirectENOENT", vid.uid, vid.gid, 1);
       return rcode;
     }
@@ -1726,7 +1725,7 @@ XrdMgmOfsFile::open(const char* inpath,
         }
 
         rcode = SFS_REDIRECT;
-	error.setErrInfo(ecode, new XrdOucBuffer((char*)redirectionhost.c_str(), redirectionhost.length()+1));
+        gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode);
         gOFS->MgmStats.Add("RedirectENONET", vid.uid, vid.gid, 1);
         return rcode;
       }
@@ -1747,7 +1746,7 @@ XrdMgmOfsFile::open(const char* inpath,
         redirectionhost = hostname.c_str();
         ecode = port;
         rcode = SFS_REDIRECT;
-	error.setErrInfo(ecode, new XrdOucBuffer((char*)redirectionhost.c_str(), redirectionhost.length()+1));
+        gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode);
         gOFS->MgmStats.Add("RedirectENONET", vid.uid, vid.gid, 1);
         return rcode;
       }
@@ -2581,9 +2580,9 @@ XrdMgmOfsFile::open(const char* inpath,
   }
 
   rcode = SFS_REDIRECT;
-  error.setErrInfo(ecode, new XrdOucBuffer((char*)redirectionhost.c_str(), redirectionhost.length()+1));
+  gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode);
 
-  if (redirectionhost.length() > (int) 1024*1024) {
+  if (redirectionhost.length() > (int) 1024 * 1024) {
     return Emsg(epname, error, ENOMEM,
                 "open file - capability exceeds 1M limit", path);
   }

@@ -1638,6 +1638,17 @@ public:
   void OrderlyShutdown();
 
   //----------------------------------------------------------------------------
+  //! Populate file error object with redirection information that can be
+  //! longer than 2kb. For this we need to use the XrdOucBuffer interface.
+  //!
+  //! @param err_obj file error object to populate with redirection info
+  //! @param rdr_info string holding the redirection host and opaque data
+  //! @param rdr_port redirection port
+  //----------------------------------------------------------------------------
+  void SetRedirectionInfo(XrdOucErrInfo& err_obj,
+                          const std::string& rdr_info, int rdr_port);
+
+  //----------------------------------------------------------------------------
   // Class objects
   //----------------------------------------------------------------------------
   XrdAccAuthorize* Authorization = nullptr; ///< Authorization service
@@ -1733,6 +1744,8 @@ public:
   static std::string prepareOptsToString(const int opts);
 
 private:
+  //! XrdOucBuffPool object for managing redirection buffers >= 2kb
+  XrdOucBuffPool mRdrBuffPool;
   //! Tracker for balanced fids
   eos::mgm::IdTrackerWithValidity<eos::IFileMD::id_t> mBalancingTracker;
   //! Tracker for drained fids

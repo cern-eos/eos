@@ -474,6 +474,7 @@ public:
     long mDiskType;
     long mDiskBsize;
     long mDiskBlocks;
+    // @todo (esindril) to be dropped
     long mDiskBused;
     long mDiskBfree;
     long mDiskBavail;

@@ -274,6 +274,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   WFEPtr(new eos::mgm::WFE()), WFEd(*WFEPtr), UTF8(false), mFstGwHost(""),
   mFstGwPort(0), mQdbCluster(""), mHttpdPort(8000),
   mFusexPort(1100), mGRPCPort(50051),
+  mRdrBuffPool(2 * eos::common::KB, eos::common::MB, 8, 64),
   mBalancingTracker(std::chrono::seconds(600), std::chrono::seconds(3600)),
   mDrainTracker(std::chrono::seconds(600), std::chrono::seconds(3600)),
   mJeMallocHandler(new eos::common::JeMallocHandler()),
@@ -666,12 +667,13 @@ static unsigned int countNbElementsInXrdOucTList(const XrdOucTList* listPtr)
 // Prepare a file or query the status of a previous prepare request
 //-------------------------------------------------------------------------------------
 int
-XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecEntity* client)
+XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
+                   const XrdSecEntity* client)
 {
   // if(pargs.opts & Prep_QUERY) {
   //   return _prepare_query(pargs, error, client);
   // } else {
-    return _prepare(pargs, error, client);
+  return _prepare(pargs, error, client);
   // }
 }
 
@@ -682,7 +684,8 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecEntity* 
 // EOS will call a prepare workflow if defined
 //--------------------------------------------------------------------------------------
 int
-XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecEntity* client)
+XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
+                    const XrdSecEntity* client)
 {
   EXEC_TIMING_BEGIN("Prepare");
   eos_info("prepareOpts=\"%s\"", prepareOptsToString(pargs.opts).c_str());
@@ -735,6 +738,7 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecEntity*
       // This is a placeholder. To use this feature, EOS should generate a unique ID here.
       reqid = "eos:" + reqid;
     }
+
     break;
 
   case Prep_CANCEL:
@@ -936,15 +940,15 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecEntity*
 // Query the status of a previous prepare request
 //-------------------------------------------------------------------------------------------
 int
-XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecEntity* client)
+XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error,
+                          const XrdSecEntity* client)
 {
   EXEC_TIMING_BEGIN("QueryPrepare");
   ACCESSMODE_R;
-
   eos::common::VirtualIdentity vid;
   {
     const char* tident = error.getErrUser();
-    XrdOucTList *optr = pargs.oinfo;
+    XrdOucTList* optr = pargs.oinfo;
     std::string info(optr && optr->text ? optr->text : "");
     eos::common::Mapping::IdMap(client, info.c_str(), tident, vid);
   }
@@ -955,22 +959,26 @@ XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecE
     MAYREDIRECT;
   }
   int path_cnt = 0;
-  for(XrdOucTList *pptr = pargs.paths; pptr; pptr = pptr->next) ++path_cnt;
-  gOFS->MgmStats.Add("QueryPrepare", vid.uid, vid.gid, path_cnt);
 
+  for (XrdOucTList* pptr = pargs.paths; pptr; pptr = pptr->next) {
+    ++path_cnt;
+  }
+
+  gOFS->MgmStats.Add("QueryPrepare", vid.uid, vid.gid, path_cnt);
   // ID of the original prepare request. We don't need this to look up the list of files in
   // the request, as they are provided in the arguments. Anyway we return it in the reply
   // as a convenience for the client to track which prepare request the query applies to.
   XrdOucString reqid(pargs.reqid);
-
   std::vector<QueryPrepareResponse> response;
 
   // Set the response for each file in the list
-  for(XrdOucTList *pptr = pargs.paths; pptr; pptr = pptr->next) {
-    if(!pptr->text) continue;
-    response.push_back(QueryPrepareResponse(pptr->text));
-    auto &rsp = response.back();
+  for (XrdOucTList* pptr = pargs.paths; pptr; pptr = pptr->next) {
+    if (!pptr->text) {
+      continue;
+    }
 
+    response.push_back(QueryPrepareResponse(pptr->text));
+    auto& rsp = response.back();
     // check if the file exists
     XrdOucString prep_path;
     {
@@ -984,41 +992,57 @@ XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecE
       const char* ininfo = "";
       MAYREDIRECT;
     }
-    if(prep_path.length() == 0) {
+
+    if (prep_path.length() == 0) {
       rsp.error_text = "path empty or uses forbidden characters";
       continue;
     }
+
     XrdSfsFileExistence check;
-    if(_exists(prep_path.c_str(), check, error, client, "") || check != XrdSfsFileExistIsFile) {
+
+    if (_exists(prep_path.c_str(), check, error, client, "") ||
+        check != XrdSfsFileExistIsFile) {
       rsp.error_text = "file does not exist or is not accessible to you";
       continue;
     }
-    rsp.is_exists = true;
 
+    rsp.is_exists = true;
     // Check file state (online/offline)
     XrdOucErrInfo xrd_error;
     struct stat buf;
-    if(_stat(rsp.path.c_str(), &buf, xrd_error, vid, nullptr, nullptr, false)) {
+
+    if (_stat(rsp.path.c_str(), &buf, xrd_error, vid, nullptr, nullptr, false)) {
       rsp.error_text = xrd_error.getErrText();
       continue;
     }
+
     _stat_set_flags(&buf);
     rsp.is_online = !(buf.st_rdev & XRDSFS_OFFLINE);
-
     // Check file status in the extended attributes
     eos::IFileMD::XAttrMap xattrs;
-    if(_attr_ls(eos::common::Path(prep_path.c_str()).GetPath(), xrd_error, vid, nullptr, xattrs) == 0) {
+
+    if (_attr_ls(eos::common::Path(prep_path.c_str()).GetPath(), xrd_error, vid,
+                 nullptr, xattrs) == 0) {
       auto xattr_it = xattrs.find(eos::common::RETRIEVE_REQID_ATTR_NAME);
-      if(xattr_it != xattrs.end()) {
+
+      if (xattr_it != xattrs.end()) {
         // has file been requested? (not necessarily with this request ID)
         rsp.is_requested = !xattr_it->second.empty();
         // and is this specific request ID present in the request?
         rsp.is_reqid_present = (xattr_it->second.find(reqid.c_str()) != string::npos);
       }
+
       xattr_it = xattrs.find(eos::common::RETRIEVE_REQTIME_ATTR_NAME);
-      if(xattr_it != xattrs.end()) rsp.request_time = xattr_it->second;
+
+      if (xattr_it != xattrs.end()) {
+        rsp.request_time = xattr_it->second;
+      }
+
       xattr_it = xattrs.find(eos::common::RETRIEVE_ERROR_ATTR_NAME);
-      if(xattr_it != xattrs.end()) rsp.error_text = xattr_it->second;
+
+      if (xattr_it != xattrs.end()) {
+        rsp.error_text = xattr_it->second;
+      }
     } else {
       // failed to read extended attributes
       rsp.error_text = xrd_error.getErrText();
@@ -1032,16 +1056,20 @@ XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecE
   json_ss << "{"
           << "\"request_id\":\"" << reqid << "\","
           << "\"responses\":[";
-
   bool is_first(true);
-  for(auto &r : response) {
-    if(is_first) { is_first = false; } else { json_ss << ","; }
+
+  for (auto& r : response) {
+    if (is_first) {
+      is_first = false;
+    } else {
+      json_ss << ",";
+    }
+
     json_ss << r;
   }
 
   json_ss << "]"
           << "}";
-
   // Send the reply. XRootD requires that we put it into a buffer that can be released with free().
   auto  json_len = json_ss.str().length();
   char* json_buf = reinterpret_cast<char*>(malloc(json_len));
@@ -1051,7 +1079,6 @@ XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecE
   // Ownership of xrd_buff is passed to error. Note that as we are returning SFS_DATA, the first
   // parameter is the buffer length rather than an error code.
   error.setErrInfo(xrd_buff->BuffSize(), xrd_buff);
-
   EXEC_TIMING_END("QueryPrepare");
   return SFS_DATA;
 }
@@ -1567,4 +1594,37 @@ XrdMgmOfs::prepareOptsToString(const int opts)
 
 #endif
   return result.str();
+}
+
+//------------------------------------------------------------------------------
+// Populate file error object with redirection information that can be
+// longer than 2kb. For this we need to use the XrdOucBuffer interface.
+//------------------------------------------------------------------------------
+void
+XrdMgmOfs::SetRedirectionInfo(XrdOucErrInfo& err_obj,
+                              const std::string& rdr_info, int rdr_port)
+{
+  if (rdr_info.empty() || (rdr_port == 0)) {
+    return;
+  }
+
+  // If size < 2kb just set it directly
+  if (rdr_info.length() < 2 * 1024) {
+    err_obj.setErrInfo(rdr_port, rdr_info.c_str());
+  }
+
+  // Otherwise use the XrdOucBuffPool to manage XrdOucBuffer object that can
+  // hold redirection info >= 2kb
+  XrdOucBuffer* buff = mRdrBuffPool.Alloc(rdr_info.length() + 1);
+
+  if (buff == nullptr) {
+    eos_static_err("msg=\"requested redirection buffer allocation size too "
+                   "big\" req_sz=%llu max_sz=%i", rdr_info.length(),
+                   mRdrBuffPool.MaxSize());
+    return;
+  }
+
+  (void) strcpy(buff->Buffer(), rdr_info.c_str());
+  buff->SetLen(rdr_info.length() + 1);
+  err_obj.setErrInfo(rdr_port, buff);
 }
