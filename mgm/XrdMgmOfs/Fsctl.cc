@@ -249,6 +249,10 @@ XrdMgmOfs::FSctl(const int cmd,
     return SFS_DATA;
   }
 
+  if (cmd == SFS_FSCTL_PLUGIO) {
+    return dispatchSFS_FSCTL_PLUGIO(args, error, vid, client);
+  }
+
   if (cmd != SFS_FSCTL_PLUGIN) {
     return Emsg(epname, error, EOPNOTSUPP, "execute FSctl command [EOPNOTSUPP]",
                 inpath);
@@ -376,4 +380,39 @@ XrdMgmOfs::FSctl(const int cmd,
   }
 
   return Emsg(epname, error, EINVAL, "execute FSctl command [EINVAL]", inpath);
+}
+
+/*----------------------------------------------------------------------------*/
+/*
+ * Handle an SFS_FSCTL_PLUGIO command
+ *
+ */
+/*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::dispatchSFS_FSCTL_PLUGIO(XrdSfsFSctl& args,
+                                    XrdOucErrInfo& error,
+                                    eos::common::VirtualIdentity& vid,
+                                    const XrdSecEntity* client)
+{
+  static const int maxArgLen = 1024;
+  const char * const arg1 = args.Arg1Len > 0 ? args.Arg1 : "";
+  // args.Arg2 is always set to 0 by XrdXrootdProtocol::do_Qopaque(short qopt)
+
+  std::ostringstream errMsg;
+  errMsg << "Unable to execute cmd=SFS_FSCTL_PLUGIO arg1=";
+  if (0 > args.Arg1Len) {
+    errMsg << "\"NEGATIVE NUMBER OF BYTES\"";
+  } else if (strnlen(arg1, args.Arg1Len) == (unsigned int)(args.Arg1Len)) {
+    errMsg << "\"NOT NULL TERMINATED\"";
+  } else if (args.Arg1Len > maxArgLen) {
+    errMsg << "\"LARGER THAN " << maxArgLen << " BYTES INCLUDING NULL TERMINATOR\"";
+  } else {
+    errMsg << "\"" << arg1 << "\"";
+  }
+  errMsg << " [EOPNOTSUPP]";
+
+  eos_err(errMsg.str().c_str());
+
+  error.setErrInfo(EOPNOTSUPP, errMsg.str().c_str());
+  return SFS_ERROR;
 }

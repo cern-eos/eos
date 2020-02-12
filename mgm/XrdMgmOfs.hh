@@ -2120,6 +2120,14 @@ private:
             XrdOucErrInfo& error,
             eos::common::VirtualIdentity& vid,
             const XrdSecEntity* client);
+
+  // ---------------------------------------------------------------------------
+  //! Handle an SFS_FSCTL_PLUGIO command
+  // ---------------------------------------------------------------------------
+  int dispatchSFS_FSCTL_PLUGIO(XrdSfsFSctl& args,
+                               XrdOucErrInfo& error,
+                               eos::common::VirtualIdentity& vid,
+                               const XrdSecEntity* client);
 };
 
 extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
