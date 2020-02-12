@@ -111,13 +111,17 @@ TEST(InodeBlock, BasicSanity) {
   InodeBlock block(1, 0);
   ASSERT_TRUE(block.empty());
   ASSERT_FALSE(block.reserve(ino));
+  ASSERT_FALSE(block.getFirstFreeID(ino));
 
   block = InodeBlock(1, -1);
   ASSERT_TRUE(block.empty());
   ASSERT_FALSE(block.reserve(ino));
+  ASSERT_FALSE(block.getFirstFreeID(ino));
 
   block = InodeBlock(1, 1);
   ASSERT_FALSE(block.empty());
+  ASSERT_TRUE(block.getFirstFreeID(ino));
+  ASSERT_EQ(ino, 1);
   ASSERT_TRUE(block.reserve(ino));
   ASSERT_EQ(ino, 1);
   ASSERT_TRUE(block.empty());
@@ -125,6 +129,9 @@ TEST(InodeBlock, BasicSanity) {
   block = InodeBlock(9, 3);
   ASSERT_FALSE(block.empty());
   for(int64_t i = 9; i < 9+3; i++) {
+    ASSERT_TRUE(block.getFirstFreeID(ino));
+    ASSERT_EQ(ino, i);
+
     ASSERT_TRUE(block.reserve(ino));
     ASSERT_EQ(ino, i);
   }
@@ -209,6 +216,54 @@ TEST_F(NextInodeProviderTest, BlacklistingOffByOne)
   inodeProvider->blacklistBelow(4294967296);
   ASSERT_EQ(inodeProvider->reserve(), 4294967304);
 }
+
+TEST_F(NextInodeProviderTest, MultipleResets)
+{
+  std::unique_ptr<qclient::QClient> qcl = createQClient();
+
+  qclient::QHash myhash;
+  myhash.setKey("ns-tests-next-inode-provider");
+  myhash.setClient(*qcl.get());
+  myhash.hdel("counter");
+
+  int64_t expectedIno = 1;
+  int64_t ino = 0;
+
+  std::unique_ptr<NextInodeProvider> inodeProvider;
+  inodeProvider.reset(new NextInodeProvider());
+  inodeProvider->configure(myhash, "counter");
+
+  ASSERT_EQ(inodeProvider->reserve(), 1);
+  inodeProvider->blacklistBelow(-10);
+  ASSERT_EQ(inodeProvider->reserve(), 2);
+  inodeProvider->blacklistBelow(2);
+  ASSERT_EQ(inodeProvider->reserve(), 3);
+
+  ASSERT_EQ("3", myhash.hget("counter"));
+  inodeProvider.reset(new NextInodeProvider());
+  inodeProvider->configure(myhash, "counter");
+
+  inodeProvider->blacklistBelow(3);
+  ASSERT_EQ("3", myhash.hget("counter"));
+
+  ASSERT_EQ(inodeProvider->reserve(), 4);
+  ASSERT_EQ(inodeProvider->reserve(), 5);
+  ASSERT_EQ(inodeProvider->reserve(), 6);
+  ASSERT_EQ(inodeProvider->reserve(), 7);
+
+  inodeProvider->blacklistBelow(7);
+
+  ASSERT_EQ("9", myhash.hget("counter"));
+  inodeProvider.reset(new NextInodeProvider());
+  inodeProvider->configure(myhash, "counter");
+
+  ASSERT_EQ("9", myhash.hget("counter"));
+  inodeProvider->blacklistBelow(9);
+
+  ASSERT_EQ(inodeProvider->reserve(), 10);
+  ASSERT_EQ("10", myhash.hget("counter"));
+}
+
 
 
 EOSNSTESTING_END

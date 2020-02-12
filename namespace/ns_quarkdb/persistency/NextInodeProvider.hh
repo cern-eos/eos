@@ -128,10 +128,6 @@ private:
 
   InodeBlock mInodeBlock;
   int64_t mStepIncrease;
-
-  // int64_t mNextId;
-  // int64_t mBlockEnd;
-
 };
 
 EOSNSNAMESPACE_END
