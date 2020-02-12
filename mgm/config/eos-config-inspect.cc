@@ -81,14 +81,20 @@ bool checkConnection(qclient::QClient &qcl) {
 }
 
 int main(int argc, char* argv[]) {
-  CLI::App app("Tool to export an .eoscf configuration file into QDB");
+  CLI::App app("Tool to inspect contents of the QuarkDB-based EOS configuration.");
+  app.require_subcommand();
+
+  //----------------------------------------------------------------------------
+  // Set-up export subcommand..
+  //----------------------------------------------------------------------------
+  auto exportSubcommand = app.add_subcommand("export", "Read a legacy file-based configuration file, and export to QDB. Ensure the MGM is not running while you run this command!");
 
   //----------------------------------------------------------------------------
   // Set-up source
   //----------------------------------------------------------------------------
   std::string sourceFile;
 
-  app.add_option("--source", sourceFile, "Path to the source configuration file to export")
+  exportSubcommand->add_option("--source", sourceFile, "Path to the source configuration file to export")
     ->required();
 
   //----------------------------------------------------------------------------
@@ -100,7 +106,7 @@ int main(int argc, char* argv[]) {
   std::string password;
   std::string passwordFile;
 
-  addClusterOptions(&app, membersStr, memberValidator, password, passwordFile);
+  addClusterOptions(exportSubcommand, membersStr, memberValidator, password, passwordFile);
 
   //----------------------------------------------------------------------------
   // Parse

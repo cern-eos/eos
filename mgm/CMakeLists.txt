@@ -351,13 +351,13 @@ target_link_libraries(
   ${XROOTD_UTILS_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
-add_executable(eos-config-export
-  config/eos-config-export.cc
+add_executable(eos-config-inspect
+  config/eos-config-inspect.cc
   config/ConfigParsing.cc                           config/ConfigParsing.hh
 )
 
 target_link_libraries(
-  eos-config-export
+  eos-config-inspect
   EosCommon
   EosNsCommon-Static
   ${CMAKE_THREAD_LIBS_INIT}
@@ -403,4 +403,10 @@ if(Linux)
       ${GRPC_LIBRARY}
       ${GRPC_GRPC++_LIBRARY})
   endif()
+
+  install(TARGETS eos-config-inspect
+    LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
+
 endif()
