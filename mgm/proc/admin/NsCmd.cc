@@ -314,13 +314,20 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
       eosxd_active_clients, eosxd_locked_clients);
   bool monitoring = stat.monitor() || WantsJsonOutput();
 
+  CacheStatistics fileCacheStats = gOFS->eosFileService->getCacheStatistics();
+  CacheStatistics containerCacheStats = gOFS->eosDirectoryService->getCacheStatistics();
+
   if (monitoring) {
     oss << "uid=all gid=all ns.total.files=" << f << std::endl
         << "uid=all gid=all ns.total.directories=" << d << std::endl
         << "uid=all gid=all ns.current.fid=" << fid_now
-        << " ns.current.cid=" << cid_now
-        << " ns.generated.fid=" << (int)(fid_now - gOFS->mBootFileId)
-        << " ns.generated.cid=" << (int)(cid_now - gOFS->mBootContainerId) << std::endl
+        << "uid=all gid=all ns.current.cid=" << cid_now
+        << "uid=all gid=all ns.generated.fid=" << (int)(fid_now - gOFS->mBootFileId)
+        << "uid=all gid=all ns.generated.cid=" << (int)(cid_now - gOFS->mBootContainerId) << std::endl
+        << "uid=all gid=all ns.cache.files.maxsize=" << fileCacheStats.maxNum << std::endl
+        << "uid=all gid=all ns.cache.files.occupancy=" << fileCacheStats.occupancy << std::endl
+        << "uid=all gid=all ns.cache.containers.maxsize=" << containerCacheStats.maxNum << std::endl
+        << "uid=all gid=all ns.cache.containers.occupancy=" << containerCacheStats.occupancy << std::endl
         << "uid=all gid=all ns.total.files.changelog.size="
         << StringConversion::GetSizeString(clfsize, (unsigned long long) statf.st_size)
         << std::endl
@@ -436,9 +443,6 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << "ALL      eosxd locked clients             " <<
         eosxd_locked_clients << std::endl
         << line << std::endl;
-    CacheStatistics fileCacheStats = gOFS->eosFileService->getCacheStatistics();
-    CacheStatistics containerCacheStats =
-      gOFS->eosDirectoryService->getCacheStatistics();
 
     if (fileCacheStats.enabled || containerCacheStats.enabled) {
       oss << "ALL      File cache max num               " << fileCacheStats.maxNum <<
