@@ -609,8 +609,8 @@ void
 QdbMaster::EnableNsCaching()
 {
   std::map<std::string, std::string> map_cfg;
-  map_cfg[constants::sMaxNumCacheFiles] = std::to_string(3e7);
-  map_cfg[constants::sMaxNumCacheDirs] = std::to_string(3e6);
+  map_cfg[constants::sMaxNumCacheFiles] = std::to_string(40000000);
+  map_cfg[constants::sMaxNumCacheDirs] = std::to_string(5000000);
   gOFS->eosFileService->configure(map_cfg);
   gOFS->eosDirectoryService->configure(map_cfg);
 }
