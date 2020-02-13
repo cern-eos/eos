@@ -422,9 +422,9 @@ IConfigEngine::get(const std::string &prefix, const std::string &key,
 {
   XrdSysMutexHelper lock(mMutex);
 
-  std::string config_key = formFullKey(prefix, key);
-  auto it = sConfigDefinition.find(config_key);
-  if(it == sConfigDefinition.end()) {
+  std::string config_key = formFullKey(prefix.c_str(), key.c_str());
+  auto it = sConfigDefinitions.find(config_key);
+  if(it == sConfigDefinitions.end()) {
     return false;
   }
 
