@@ -37,6 +37,8 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+class IConfigEngine;
+
 //------------------------------------------------------------------------------
 //! Class IMaster
 //------------------------------------------------------------------------------
@@ -204,6 +206,13 @@ public:
   //! @return string describing the status
   //----------------------------------------------------------------------------
   virtual std::string PrintOut() = 0;
+
+  //----------------------------------------------------------------------------
+  //! Populate namespace cache configuration
+  //----------------------------------------------------------------------------
+  void fillNamespaceCacheConfig(IConfigEngine *configEngine,
+    std::map<std::string, std::string> &namespaceConfig) const;
+
 
 protected:
   std::string mLog; ///< Master logs

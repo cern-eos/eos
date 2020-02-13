@@ -230,6 +230,7 @@ add_library(
   FuseServer/Caps.cc FuseServer/Caps.hh
   FuseServer/Flush.cc FuseServer/Flush.hh
   fuse-locks/LockTracker.cc   fuse-locks/LockTracker.hh
+  IMaster.cc                  IMaster.hh
   Master.cc
   QdbMaster.cc
   Recycle.cc

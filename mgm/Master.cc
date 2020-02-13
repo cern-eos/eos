@@ -1724,6 +1724,7 @@ Master::BootNamespace()
     namespaceConfig["qdb_password"] = gOFS->mQdbPassword;
     namespaceConfig["qdb_flusher_md"] = SSTR(instance_id << "_md");
     namespaceConfig["qdb_flusher_quota"] = SSTR(instance_id << "_quota");
+    fillNamespaceCacheConfig(gOFS->ConfEngine, namespaceConfig);
 
     // Forbit running as slave with the QDB namespace when the legacy master-
     // slave setup is still enabled
@@ -1739,6 +1740,7 @@ Master::BootNamespace()
     eos_err("msg=\"could not initialize namespace group, err: %s\"", err.c_str());
     return false;
   }
+
 
   //----------------------------------------------------------------------------
   // Fetch all required services out of namespace group

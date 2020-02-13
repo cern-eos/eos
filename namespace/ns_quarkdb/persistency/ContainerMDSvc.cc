@@ -39,7 +39,7 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 QuarkContainerMDSvc::QuarkContainerMDSvc(qclient::QClient *qcl, MetadataFlusher *flusher)
   : pQuotaStats(nullptr), pFileSvc(nullptr), pQcl(qcl), pFlusher(flusher),
-    mMetaMap(), mNumConts(0ull) {}
+    mMetadataProvider(nullptr), mMetaMap(), mNumConts(0ull) {}
 
 //------------------------------------------------------------------------------
 // Destructor

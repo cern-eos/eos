@@ -38,6 +38,7 @@
 #include "namespace/ns_quarkdb/NamespaceGroup.hh"
 #include "namespace/Resolver.hh"
 #include "namespace/Constants.hh"
+#include "mgm/config/IConfigEngine.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/fsck/Fsck.hh"
 #include "mgm/Quota.hh"
@@ -817,13 +818,21 @@ NsCmd::CacheSubcmd(const eos::console::NsProto_CacheProto& cache,
   std::map<std::string, std::string> map_cfg;
 
   if (cache.op() == NsProto_CacheProto::SET_FILE) {
-    map_cfg[sMaxNumCacheFiles] = std::to_string(cache.max_num());
-    map_cfg[sMaxSizeCacheFiles] = std::to_string(cache.max_size());
-    gOFS->eosFileService->configure(map_cfg);
+    if(cache.max_num() > 100) {
+      map_cfg[sMaxNumCacheFiles] = std::to_string(cache.max_num());
+      map_cfg[sMaxSizeCacheFiles] = std::to_string(cache.max_size());
+
+      gOFS->ConfEngine->SetConfigValue("ns", "cache-size-nfiles", std::to_string(cache.max_num()).c_str());
+      gOFS->eosFileService->configure(map_cfg);
+    }
   } else if (cache.op() == NsProto_CacheProto::SET_DIR) {
-    map_cfg[sMaxNumCacheDirs] = std::to_string(cache.max_num());
-    map_cfg[sMaxSizeCacheDirs] = std::to_string(cache.max_size());
-    gOFS->eosDirectoryService->configure(map_cfg);
+    if(cache.max_num() > 100) {
+      map_cfg[sMaxNumCacheDirs] = std::to_string(cache.max_num());
+      map_cfg[sMaxSizeCacheDirs] = std::to_string(cache.max_size());
+
+      gOFS->ConfEngine->SetConfigValue("ns", "cache-size-ndirs", std::to_string(cache.max_num()).c_str());
+      gOFS->eosDirectoryService->configure(map_cfg);
+    }
   } else if (cache.op() == NsProto_CacheProto::DROP_FILE) {
     map_cfg[sMaxNumCacheFiles] = std::to_string(UINT64_MAX);
     map_cfg[sMaxSizeCacheFiles] = std::to_string(UINT64_MAX);

@@ -298,7 +298,8 @@ bool
 QuarkDBConfigEngine::PullFromQuarkDB(qclient::QHash& hash, XrdOucString& err)
 {
   err = "";
-  mMutex.Lock();
+  std::lock_guard lock(mMutex);
+
   sConfigDefinitions.clear();
 
   for (auto it = hash.getIterator(); it.valid(); it.next()) {
@@ -313,7 +314,6 @@ QuarkDBConfigEngine::PullFromQuarkDB(qclient::QHash& hash, XrdOucString& err)
     sConfigDefinitions[key] = value;
   }
 
-  mMutex.UnLock();
   return true;
 }
 
@@ -373,7 +373,7 @@ QuarkDBConfigEngine::SetConfigValue(const char* prefix, const char* key,
   eos_debug("msg=\"store config\" key=\"%s\" val=\"%s\"", key, val);
   std::string config_key = formFullKey(prefix, key);
   {
-    XrdSysMutexHelper lock(mMutex);
+    std::lock_guard lock(mMutex);
     sConfigDefinitions[config_key] = val;
   }
 
@@ -416,7 +416,7 @@ QuarkDBConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
   }
 
   {
-    XrdSysMutexHelper lock(mMutex);
+    std::lock_guard lock(mMutex);
     sConfigDefinitions.erase(config_key);
   }
 
@@ -538,7 +538,8 @@ void QuarkDBConfigEngine::storeIntoQuarkDB(const std::string& name)
   multiBuilder.emplace_back("del", keyname);
   std::vector<std::future<qclient::redisReplyPtr>> replies;
   std::set<std::string> deprecated;
-  XrdSysMutexHelper lock(mMutex);
+
+  std::lock_guard lock(mMutex);
 
   for (const auto& elem : sConfigDefinitions) {
     if (IsDeprecated(elem.first)) {

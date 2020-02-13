@@ -40,7 +40,8 @@ std::chrono::seconds QuarkFileMDSvc::sFlushInterval(5);
 // Constructor
 //------------------------------------------------------------------------------
 QuarkFileMDSvc::QuarkFileMDSvc(qclient::QClient *qcl, MetadataFlusher *flusher)
-  : pQuotaStats(nullptr), pContSvc(nullptr), pFlusher(flusher), pQcl(qcl),
+  : pQuotaStats(nullptr), pContSvc(nullptr), pFlusher(flusher),
+    mMetadataProvider(nullptr), pQcl(qcl),
     mMetaMap(), mNumFiles(0ull) {}
 
 //------------------------------------------------------------------------------

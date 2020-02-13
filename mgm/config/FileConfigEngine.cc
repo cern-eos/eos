@@ -608,7 +608,7 @@ FileConfigEngine::SetConfigValue(const char* prefix, const char* key,
   std::string configname = formFullKey(prefix, key);
   eos_static_debug("%s => %s", key, val);
   {
-    XrdSysMutexHelper lock(mMutex);
+    std::lock_guard lock(mMutex);
     sConfigDefinitions[configname] = val;
   }
 
@@ -636,7 +636,7 @@ FileConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
   }
 
   {
-    XrdSysMutexHelper lock(mMutex);
+    std::lock_guard lock(mMutex);
     sConfigDefinitions.erase(configname);
   }
 

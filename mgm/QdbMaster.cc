@@ -101,6 +101,7 @@ QdbMaster::BootNamespace()
   namespaceConfig["qdb_password"] = gOFS->mQdbPassword;
   namespaceConfig["qdb_flusher_md"] = SSTR(instance_id << "_md");
   namespaceConfig["qdb_flusher_quota"] = SSTR(instance_id << "_quota");
+  fillNamespaceCacheConfig(gOFS->ConfEngine, namespaceConfig);
 
   if (!gOFS->namespaceGroup->initialize(&gOFS->eosViewRWMutex, namespaceConfig,
                                         err)) {
@@ -609,8 +610,7 @@ void
 QdbMaster::EnableNsCaching()
 {
   std::map<std::string, std::string> map_cfg;
-  map_cfg[constants::sMaxNumCacheFiles] = std::to_string(40000000);
-  map_cfg[constants::sMaxNumCacheDirs] = std::to_string(5000000);
+  fillNamespaceCacheConfig(gOFS->ConfEngine, map_cfg);
   gOFS->eosFileService->configure(map_cfg);
   gOFS->eosDirectoryService->configure(map_cfg);
 }

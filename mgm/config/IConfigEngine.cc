@@ -37,6 +37,9 @@
 #include "mgm/PathRouting.hh"
 #include "mgm/fsck/Fsck.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/IMaster.hh"
+#include "namespace/interface/IContainerMDSvc.hh"
+#include "namespace/interface/IFileMDSvc.hh"
 #include "common/StringUtils.hh"
 #include "mq/SharedHashWrapper.hh"
 #include <sstream>
@@ -190,8 +193,16 @@ IConfigEngine::ApplyEachConfig(const char* key, XrdOucString* val, void* arg)
   } else if (skey.beginswith("policy:")) {
     // Set a policy - not used
     return 0;
-  } else {
-    oss_err << "error: unsupported configuration line: "
+  } else if (skey.beginswith("ns:")) {
+    // internal NS configuration option
+    std::map<std::string, std::string> map_cfg;
+    gOFS->mMaster->fillNamespaceCacheConfig(gOFS->ConfEngine, map_cfg);
+    gOFS->eosFileService->configure(map_cfg);
+    gOFS->eosDirectoryService->configure(map_cfg);
+    return 0;
+  }
+  else {
+    oss_err << "error: unsupported configuration line: " << skey.c_str() << " -> "
             << sval.c_str() << std::endl;
   }
 
@@ -245,7 +256,7 @@ IConfigEngine::ApplyConfig(XrdOucString& err, bool apply_stall_redirect)
   Access::Reset(!apply_stall_redirect);
   {
     eos::common::RWMutexWriteLock wr_view_lock(eos::mgm::FsView::gFsView.ViewMutex);
-    XrdSysMutexHelper lock(mMutex);
+    std::lock_guard lock(mMutex);
     // Disable the defaults in FsSpace
     FsSpace::gDisableDefaults = true;
 
@@ -357,7 +368,7 @@ IConfigEngine::DeleteConfigValueByMatch(const char* prefix, const char* match)
   XrdOucString smatch = prefix;
   smatch += ":";
   smatch += match;
-  XrdSysMutexHelper lock(mMutex);
+  std::lock_guard lock(mMutex);
   auto it = sConfigDefinitions.begin();
 
   while (it != sConfigDefinitions.end()) {
@@ -395,7 +406,7 @@ IConfigEngine::DumpConfig(XrdOucString& out, const std::string& filename)
   pinfo.option = "";
 
   if (filename.empty()) {
-    XrdSysMutexHelper lock(mMutex);
+    std::lock_guard lock(mMutex);
 
     for (auto& sConfigDefinition : sConfigDefinitions) {
       eos_static_debug("%s => %s", sConfigDefinition.first.c_str(),
@@ -420,9 +431,10 @@ bool
 IConfigEngine::get(const std::string &prefix, const std::string &key,
   std::string &out)
 {
-  XrdSysMutexHelper lock(mMutex);
+  std::lock_guard lock(mMutex);
 
   std::string config_key = formFullKey(prefix.c_str(), key.c_str());
+
   auto it = sConfigDefinitions.find(config_key);
   if(it == sConfigDefinitions.end()) {
     return false;
@@ -456,7 +468,7 @@ IConfigEngine::ResetConfig(bool apply_stall_redirect)
   gOFS->ObjectManager.Clear();
 
   {
-    XrdSysMutexHelper lock(mMutex);
+    std::lock_guard lock(mMutex);
     sConfigDefinitions.clear();
   }
   // Load all the quota nodes from the namespace
@@ -487,7 +499,7 @@ IConfigEngine::InsertComment(const char* comment)
     esccomment.insert("\"", 0);
     esccomment.append("\"");
     std::string configkey = SSTR("comment-" << timestamp << ":");
-    XrdSysMutexHelper lock(mMutex);
+    std::lock_guard lock(mMutex);
     sConfigDefinitions[configkey] = esccomment.c_str();
   }
 }

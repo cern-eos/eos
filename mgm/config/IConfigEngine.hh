@@ -29,6 +29,7 @@
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include <sstream>
+#include <mutex>
 
 //------------------------------------------------------------------------------
 //! @brief Interface Class responsible to handle configuration (load, save,
@@ -313,7 +314,7 @@ protected:
   };
 
   std::unique_ptr<ICfgEngineChangelog> mChangelog; ///< Changelog object
-  XrdSysMutex mMutex; ///< Protect the static configuration definitions hash
+  std::recursive_mutex mMutex; ///< Protect the static configuration definitions hash
   bool mAutosave; ///< Create autosave file for each change
   //! Broadcast changes into the MGM configuration queue (config/<inst>/mgm)
   bool mBroadcast;
