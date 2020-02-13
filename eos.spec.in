@@ -72,6 +72,11 @@
   %endif
 %endif
 
+# Avoid richacl for CentOS 8 until RPMs are provided
+%if 0%{distribution} == 8
+%define use_richacl 0
+%endif
+
 #-------------------------------------------------------------------------------
 # Custom strip command for SLC6, CC7
 #-------------------------------------------------------------------------------
