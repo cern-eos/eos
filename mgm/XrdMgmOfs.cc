@@ -1612,6 +1612,7 @@ XrdMgmOfs::SetRedirectionInfo(XrdOucErrInfo& err_obj,
   // If size < 2kb just set it directly
   if (rdr_info.length() < 2 * 1024) {
     err_obj.setErrInfo(rdr_port, rdr_info.c_str());
+    return;
   }
 
   // Otherwise use the XrdOucBuffPool to manage XrdOucBuffer object that can
