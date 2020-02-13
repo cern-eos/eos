@@ -177,6 +177,12 @@ public:
   virtual bool AutoSave() = 0;
 
   //----------------------------------------------------------------------------
+  //! Get a configuration value
+  //----------------------------------------------------------------------------
+  bool get(const std::string &prefix, const std::string &key,
+    std::string &out);
+
+  //----------------------------------------------------------------------------
   //! Set a configuration value
   //!
   //! @param prefix identifies the type of configuration parameter

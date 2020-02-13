@@ -413,6 +413,24 @@ IConfigEngine::DumpConfig(XrdOucString& out, const std::string& filename)
   return true;
 }
 
+//------------------------------------------------------------------------------
+// Get a configuration value
+//------------------------------------------------------------------------------
+bool
+IConfigEngine::get(const std::string &prefix, const std::string &key,
+  std::string &out)
+{
+  XrdSysMutexHelper lock(mMutex);
+
+  std::string config_key = formFullKey(prefix, key);
+  auto it = sConfigDefinition.find(config_key);
+  if(it == sConfigDefinition.end()) {
+    return false;
+  }
+
+  out = it->second;
+  return true;
+}
 
 //------------------------------------------------------------------------------
 // Reset the configuration
