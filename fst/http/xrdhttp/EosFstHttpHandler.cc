@@ -146,14 +146,14 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
       }
 
       if ((response->GetResponseCode() != 0) &&
-          (response->GetResponseCode() != 200)
-         ) {
+          (response->GetResponseCode() != 200)) {
         return req.SendSimpleResp(response->GetResponseCode(),
                                   response->GetResponseCodeDescription().c_str(),
                                   header.c_str(), response->GetBody().c_str(), response->GetBody().length());
       } else {
-        if ((response->GetResponseCode() == 0) && normalized_headers.count("expect") &&
-            (normalized_headers["expect"] == "100-continue")) {
+        if ((response->GetResponseCode() == 0) &&
+            (normalized_headers.count("expect") &&
+             (normalized_headers["expect"] == "100-continue"))) {
           // reply to 100-CONTINUE request
           if (EOS_LOGS_DEBUG) {
             eos_static_debug("sending 100-continue");
