@@ -737,8 +737,12 @@ XrdMgmOfsFile::open(const char* inpath,
             ecode = 1094;
           }
 
+          if (!gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode)) {
+            eos_err("msg=\"failed setting redirection\" path=\"%s\"", path);
+            return SFS_ERROR;
+          }
+
           rcode = SFS_REDIRECT;
-          gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode);
           gOFS->MgmStats.Add("RedirectENOENT", vid.uid, vid.gid, 1);
           XrdOucString predirectionhost = redirectionhost.c_str();
           eos::common::StringConversion::MaskTag(predirectionhost, "cap.msg");
@@ -1123,8 +1127,12 @@ XrdMgmOfsFile::open(const char* inpath,
         ecode = 1094;
       }
 
+      if (!gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode)) {
+        eos_err("msg=\"failed setting redirection\" path=\"%s\"", path);
+        return SFS_ERROR;
+      }
+
       rcode = SFS_REDIRECT;
-      gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode);
       gOFS->MgmStats.Add("RedirectENOENT", vid.uid, vid.gid, 1);
       return rcode;
     }
@@ -1724,8 +1732,12 @@ XrdMgmOfsFile::open(const char* inpath,
           ecode = 1094;
         }
 
+        if (!gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode)) {
+          eos_err("msg=\"failed setting redirection\" path=\"%s\"", path);
+          return SFS_ERROR;
+        }
+
         rcode = SFS_REDIRECT;
-        gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode);
         gOFS->MgmStats.Add("RedirectENONET", vid.uid, vid.gid, 1);
         return rcode;
       }
@@ -1745,8 +1757,13 @@ XrdMgmOfsFile::open(const char* inpath,
 
         redirectionhost = hostname.c_str();
         ecode = port;
+
+        if (!gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode)) {
+          eos_err("msg=\"failed setting redirection\" path=\"%s\"", path);
+          return SFS_ERROR;
+        }
+
         rcode = SFS_REDIRECT;
-        gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode);
         gOFS->MgmStats.Add("RedirectENONET", vid.uid, vid.gid, 1);
         return rcode;
       }
@@ -2580,11 +2597,10 @@ XrdMgmOfsFile::open(const char* inpath,
   }
 
   rcode = SFS_REDIRECT;
-  gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode);
 
-  if (redirectionhost.length() > (int) 1024 * 1024) {
-    return Emsg(epname, error, ENOMEM,
-                "open file - capability exceeds 1M limit", path);
+  if (!gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode)) {
+    eos_err("msg=\"failed setting redirection\" path=\"%s\"", path);
+    return SFS_ERROR;
   }
 
   XrdOucString predirectionhost = redirectionhost.c_str();

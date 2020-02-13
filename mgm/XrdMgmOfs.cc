@@ -1601,18 +1601,19 @@ XrdMgmOfs::prepareOptsToString(const int opts)
 // Populate file error object with redirection information that can be
 // longer than 2kb. For this we need to use the XrdOucBuffer interface.
 //------------------------------------------------------------------------------
-void
+bool
 XrdMgmOfs::SetRedirectionInfo(XrdOucErrInfo& err_obj,
                               const std::string& rdr_info, int rdr_port)
 {
   if (rdr_info.empty() || (rdr_port == 0)) {
-    return;
+    err_obj.setErrInfo(EINVAL, "no redirection info available");
+    return false;
   }
 
   // If size < 2kb just set it directly
   if (rdr_info.length() < 2 * 1024) {
     err_obj.setErrInfo(rdr_port, rdr_info.c_str());
-    return;
+    return true;
   }
 
   // Otherwise use the XrdOucBuffPool to manage XrdOucBuffer object that can
@@ -1623,10 +1624,12 @@ XrdMgmOfs::SetRedirectionInfo(XrdOucErrInfo& err_obj,
     eos_static_err("msg=\"requested redirection buffer allocation size too "
                    "big\" req_sz=%llu max_sz=%i", rdr_info.length(),
                    mRdrBuffPool.MaxSize());
-    return;
+    err_obj.setErrInfo(EINVAL, "redirection buffer too bid (>1MB)");
+    return false;
   }
 
   (void) strcpy(buff->Buffer(), rdr_info.c_str());
   buff->SetLen(rdr_info.length() + 1);
   err_obj.setErrInfo(rdr_port, buff);
+  return true;
 }

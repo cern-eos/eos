@@ -1644,8 +1644,11 @@ public:
   //! @param err_obj file error object to populate with redirection info
   //! @param rdr_info string holding the redirection host and opaque data
   //! @param rdr_port redirection port
+  //!
+  //! @return true if successful, otherwise false. If there is any error then
+  //!         the err_obj is properly populated with the relevant error msg.
   //----------------------------------------------------------------------------
-  void SetRedirectionInfo(XrdOucErrInfo& err_obj,
+  bool SetRedirectionInfo(XrdOucErrInfo& err_obj,
                           const std::string& rdr_info, int rdr_port);
 
   //----------------------------------------------------------------------------
