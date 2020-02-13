@@ -30,7 +30,7 @@
 #include "common/Logging.hh"
 #include <string>
 
-class sqlite3;
+struct sqlite3;
 
 EOSMGMNAMESPACE_BEGIN
 
