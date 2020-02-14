@@ -2585,12 +2585,7 @@ XrdMgmOfsFile::open(const char* inpath,
   }
 
   // Always redirect
-  if ((vid.prot == "https") ||
-      (vid.prot == "http") ||
-      // @todo (esindril) this is just a workaround for the fact that XrdHttp
-      // does not properly populate the prot field in the XrdSecEntity object.
-      // See https://github.com/xrootd/xrootd/issues/1122
-      (strcmp(client->tident, "http") == 0)) {
+  if ((vid.prot == "https") || (vid.prot == "http")) {
     ecode = targethttpport;
   } else {
     ecode = targetport;

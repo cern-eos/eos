@@ -92,7 +92,6 @@ Mapping::Init()
   }
 
   gOAuth.Init();
-
 }
 
 //------------------------------------------------------------------------------
@@ -196,6 +195,14 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   groupalias += "gid";
   RWMutexReadLock lock(gMapMutex);
   vid.prot = client->prot;
+
+  // @todo (esindril) this is just a workaround for the fact that XrdHttp
+  // does not properly populate the prot field in the XrdSecEntity object.
+  // See https://github.com/xrootd/xrootd/issues/1122
+  if ((strlen(client->tident) == 4) &&
+      (strcmp(client->tident, "http") == 0)) {
+    vid.prot = "https";
+  }
 
   if (vid.prot == "sss") {
     vid.key = (client->endorsements ? client->endorsements : "");
@@ -734,7 +741,6 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   XrdOucString ruid = Env.Get("eos.ruid");
   XrdOucString rgid = Env.Get("eos.rgid");
   XrdOucString rapp = Env.Get("eos.app");
-
   const char* authz = Env.Get("authz");
 
   // ---------------------------------------------------------------------------
@@ -748,63 +754,63 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     eos::common::StringConversion::Tokenize(client->tident, vtident, "@");
 
     // token provided as key
-    if (keyname.substr(0,8) == "zteos64:") {
+    if (keyname.substr(0, 8) == "zteos64:") {
       // this is an eos token
       authz = vid.key.c_str();
     }  else {
       // try oauth2
       std::string oauthname;
+
       // check for OAuth contents
-      if ( (oauthname = gOAuth.Handle(keyname, vid)).empty() ||
-	   // enable/disable oauth2 mapping
-	   !gVirtualUidMap.count("oauth2:\"<pwd>\":uid") ) {
-	// treat as mapping key
-	if (vtident.size() == 2) {
-	  maptident += vtident[1];
-	}
-	
-	maptident += "\":uid";
-	eos_static_info("%d %s %s %s", vtident.size(), client->tident,
-			maptident.c_str(), wildcardmaptident.c_str());
-	
-	if (gVirtualUidMap.count(maptident.c_str()) ||
-	    gVirtualUidMap.count(wildcardmaptident.c_str())) {
-	  // if this is an allowed gateway, map according to client name or authkey
-	  std::string uidkey = "sss:\"";
-	  uidkey += "key:";
-	  uidkey += keyname;
-	  uidkey += "\":uid";
-	  vid.uid = 99;
-	  vid.uid_list.clear();
-	  vid.uid_list.push_back(99);
-	  
-	  if (gVirtualUidMap.count(uidkey.c_str())) {
-	    vid.uid = gVirtualUidMap[uidkey.c_str()];
-	  vid.uid_list.push_back(vid.uid);
-	  }
-	  
-	  std::string gidkey = "sss:\"";
-	  gidkey += "key:";
-	  gidkey += keyname;
-	  gidkey += "\":gid";
-	  vid.gid = 99;
-	  vid.gid_list.clear();
-	  vid.gid_list.push_back(99);
-	  
-	  if (gVirtualGidMap.count(gidkey.c_str())) {
-	    vid.gid = gVirtualGidMap[gidkey.c_str()];
-	    vid.gid_list.push_back(vid.gid);
-	  }
-	} else {
-	  // we are nobody if we are not an authorized host
-	  vid = VirtualIdentity::Nobody();
-	  vid.prot = "sss";
-	}
-	
+      if ((oauthname = gOAuth.Handle(keyname, vid)).empty() ||
+          // enable/disable oauth2 mapping
+          !gVirtualUidMap.count("oauth2:\"<pwd>\":uid")) {
+        // treat as mapping key
+        if (vtident.size() == 2) {
+          maptident += vtident[1];
+        }
+
+        maptident += "\":uid";
+        eos_static_info("%d %s %s %s", vtident.size(), client->tident,
+                        maptident.c_str(), wildcardmaptident.c_str());
+
+        if (gVirtualUidMap.count(maptident.c_str()) ||
+            gVirtualUidMap.count(wildcardmaptident.c_str())) {
+          // if this is an allowed gateway, map according to client name or authkey
+          std::string uidkey = "sss:\"";
+          uidkey += "key:";
+          uidkey += keyname;
+          uidkey += "\":uid";
+          vid.uid = 99;
+          vid.uid_list.clear();
+          vid.uid_list.push_back(99);
+
+          if (gVirtualUidMap.count(uidkey.c_str())) {
+            vid.uid = gVirtualUidMap[uidkey.c_str()];
+            vid.uid_list.push_back(vid.uid);
+          }
+
+          std::string gidkey = "sss:\"";
+          gidkey += "key:";
+          gidkey += keyname;
+          gidkey += "\":gid";
+          vid.gid = 99;
+          vid.gid_list.clear();
+          vid.gid_list.push_back(99);
+
+          if (gVirtualGidMap.count(gidkey.c_str())) {
+            vid.gid = gVirtualGidMap[gidkey.c_str()];
+            vid.gid_list.push_back(vid.gid);
+          }
+        } else {
+          // we are nobody if we are not an authorized host
+          vid = VirtualIdentity::Nobody();
+          vid.prot = "sss";
+        }
       } else {
-	// map oauthname
-	Mapping::getPhysicalIds(oauthname.c_str(), vid);
-	vid.prot="oauth2";
+        // map oauthname
+        Mapping::getPhysicalIds(oauthname.c_str(), vid);
+        vid.prot = "oauth2";
       }
     }
   }
@@ -852,35 +858,42 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   }
 
   bool token_sudo = false;
+
   // ---------------------------------------------------------------------------
   // token based mapping
   // ---------------------------------------------------------------------------
   if (authz) {
     std::string sauthz = authz;
-    if (sauthz.substr(0,8) == "zteos64:") {
+
+    if (sauthz.substr(0, 8) == "zteos64:") {
       // this is an eos token
       eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
-      std::string key = symkey?symkey->GetKey64():"0123457890defaultkey";
+      std::string key = symkey ? symkey->GetKey64() : "0123457890defaultkey";
       int rc = 0;
       vid.token = std::make_shared<EosTok>();
-      if ( (rc = vid.token->Read(sauthz,key,eos::common::EosTok::sTokenGeneration, false))) {
-	vid.token->Reset();
-	eos_static_err("failed to decode token tident='%s' token='%s' errno=%d", tident, sauthz.c_str(), -rc);
+
+      if ((rc = vid.token->Read(sauthz, key, eos::common::EosTok::sTokenGeneration,
+                                false))) {
+        vid.token->Reset();
+        eos_static_err("failed to decode token tident='%s' token='%s' errno=%d", tident,
+                       sauthz.c_str(), -rc);
       } else {
-	// if owner or group is specified, adjust this
-	if (!vid.token->Owner().empty()) {
-	  token_sudo = true;
-	  ruid = vid.token->Owner().c_str();
-	}
-	if (!vid.token->Group().empty()) {
-	  token_sudo = true;
-	  rgid = vid.token->Group().c_str();
-	}
-	if (EOS_LOGS_INFO) {
-	  std::string dump;
-	  vid.token->Dump(dump, true, true);
-	  eos_static_info("%s",dump.c_str());
-	}
+        // if owner or group is specified, adjust this
+        if (!vid.token->Owner().empty()) {
+          token_sudo = true;
+          ruid = vid.token->Owner().c_str();
+        }
+
+        if (!vid.token->Group().empty()) {
+          token_sudo = true;
+          rgid = vid.token->Group().c_str();
+        }
+
+        if (EOS_LOGS_INFO) {
+          std::string dump;
+          vid.token->Dump(dump, true, true);
+          eos_static_info("%s", dump.c_str());
+        }
       }
     }
   }
@@ -895,9 +908,11 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       std::string luid = ruid.c_str();
       sel_uid = (gVirtualUidMap.count(ruid.c_str())) ? gVirtualUidMap[ruid.c_str() ] :
                 99;
+
       if (sel_uid == 99) {
         sel_uid = UserNameToUid(luid, errc);
       }
+
       if (errc) {
         sel_uid = 99;
       }
@@ -982,22 +997,23 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     vid.gid_string = GidToGroupName(vid.gid, errc);
   }
 
-  // verify origin 
+  // verify origin
   if (vid.token) {
     if (vid.token->Valid()) {
-      if (vid.token->VerifyOrigin(vid.host, vid.uid_string, std::string(vid.prot.c_str()))) {
-	// invalidate this token
-	if (EOS_LOGS_DEBUG) {
-	  eos_static_debug("invalidating token - origin mismatch %s:%s:%s", 
-			   vid.host.c_str(), 
-			   vid.uid_string.c_str(), 
-			   vid.prot.c_str());
-	}
-	vid.token->Reset();
+      if (vid.token->VerifyOrigin(vid.host, vid.uid_string,
+                                  std::string(vid.prot.c_str()))) {
+        // invalidate this token
+        if (EOS_LOGS_DEBUG) {
+          eos_static_debug("invalidating token - origin mismatch %s:%s:%s",
+                           vid.host.c_str(),
+                           vid.uid_string.c_str(),
+                           vid.prot.c_str());
+        }
+
+        vid.token->Reset();
       }
     }
   }
-
 
   if (rapp.length()) {
     vid.app = rapp.c_str();
@@ -1289,8 +1305,8 @@ Mapping::Print(XrdOucString& stdOut, XrdOucString option)
 
   if ((!option.length()) || ((option.find("N")) != STR_NPOS)) {
     char sline[1024];
-    snprintf(sline, sizeof(sline), "publicaccesslevel: => %d\n", 
-	    gNobodyAccessTreeDeepness);
+    snprintf(sline, sizeof(sline), "publicaccesslevel: => %d\n",
+             gNobodyAccessTreeDeepness);
     stdOut += sline;
   }
 
@@ -1631,7 +1647,7 @@ Mapping::UserNameToUid(const std::string& username, int& errc)
     XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
 
     if (gPhysicalUserIdCache.count(username)) {
-      fprintf(stderr,"returning from cache: %d\n", gPhysicalUserIdCache[username]);
+      fprintf(stderr, "returning from cache: %d\n", gPhysicalUserIdCache[username]);
       return gPhysicalUserIdCache[username];
     }
   }
@@ -1814,12 +1830,13 @@ Mapping::KommaListToUidVector(const char* list, std::vector<uid_t>& vector_list)
       uid_t uid ;
 
       if (std::find_if(username.begin(), username.end(),
-          [](unsigned char c) {
-            return std::isalpha(c);
-          })
-          != username.end()) {
+      [](unsigned char c) {
+      return std::isalpha(c);
+      })
+      != username.end()) {
         uid = eos::common::Mapping::UserNameToUid(username, errc);
-      } else {
+      }
+      else {
         try {
           uid = std::stoul(username);
         } catch (const std::exception& e) {
@@ -1856,7 +1873,6 @@ Mapping::KommaListToGidVector(const char* list, std::vector<gid_t>& vector_list)
 
     if (kommapos != STR_NPOS) {
       number.assign(slist, 0, kommapos - 1);
-
       int errc;
       std::string groupname = number.c_str();
       gid_t gid = GroupNameToGid(groupname, errc);
@@ -2010,12 +2026,14 @@ VirtualIdentity Mapping::Someone(const std::string& name)
   vid = VirtualIdentity::Nobody();
   int errc = 0;
   uid_t uid = UserNameToUid(name, errc);
+
   if (!errc) {
     vid.uid = uid;
     vid.uid_string = name;
     vid.name = name.c_str();
     vid.tident = std::string(name + "@grpc").c_str();
   }
+
   return vid;
 }
 
@@ -2027,22 +2045,21 @@ VirtualIdentity Mapping::Someone(uid_t uid, gid_t gid)
   VirtualIdentity vid;
   vid = VirtualIdentity::Nobody();
   int errc = 0;
-  
   vid.uid = uid;
   vid.gid = gid;
-  vid.uid_list = {uid,99};
-  vid.gid_list = {uid,99};
+  vid.uid_list = {uid, 99};
+  vid.gid_list = {uid, 99};
   vid.sudoer = false;
-
   vid.uid_string = UidToUserName(uid, errc);
+
   if (!errc) {
     vid.name = vid.uid_string.c_str();
   } else {
     vid.name = UidAsString(uid).c_str();
   }
+
   vid.gid_string = GidToGroupName(gid, errc);
   vid.tident = std::string(vid.uid_string + "@grpc").c_str();
-
   return vid;
 }
 
