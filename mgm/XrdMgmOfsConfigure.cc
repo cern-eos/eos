@@ -1687,6 +1687,28 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       }
     }
 
+    // Create directory for clone functionality
+    XrdOucString clonePath(MgmProcPath + "/clone");
+    try {
+      eosmd = gOFS->eosView->getContainer(clonePath.c_str());
+    } catch (const eos::MDException& e) {
+      eosmd = nullptr;
+    }
+
+    if (!eosmd) {
+      try {
+        eosmd = gOFS->eosView->createContainer(clonePath.c_str(), true);
+        eosmd->setMode(S_IFDIR | S_IRWXU | S_IROTH | S_IXOTH | S_IRGRP | S_IXGRP);
+        eosmd->setCUid(2); // clone directory is owned by daemon
+        eosmd->setCGid(2);
+        gOFS->eosView->updateContainerStore(eosmd.get());
+      } catch (const eos::MDException& e) {
+        Eroute.Emsg("Config", "cannot set the /eos/../proc/clone directory "
+                    "mode to initial mode");
+        eos_crit("cannot set the /eos/../proc/clone directory mode to 770");
+      }
+    }
+
     // Create workflow directory
     try {
       eosmd = gOFS->eosView->getContainer(MgmProcWorkflowPath.c_str());
@@ -2202,7 +2224,6 @@ XrdMgmOfs::SetupProcFiles()
   procpathreconnect += "/reconnect";
   XrdOucString procpathmaster = MgmProcPath;
   procpathmaster += "/master";
-  XrdOucString clonePath(MgmProcPath + "/clone");
   XrdOucErrInfo error;
   eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
   std::shared_ptr<eos::IFileMD> fmd;
@@ -2259,10 +2280,6 @@ XrdMgmOfs::SetupProcFiles()
     fmd->setSize(4096);
     eosView->updateFileStore(fmd.get());
   }
-
-  try {
-    cmd = eosView->createContainer(clonePath.c_str());
-  } catch (eos::MDException& e) {};
 
   try {
     fmd.reset();

@@ -46,11 +46,11 @@
 class _cloneFoundItem
 {
 public:
-  id_t id;
+  eos::IContainerMD::id_t id;
   int depth;
   bool isContainer;
 
-  _cloneFoundItem(id_t i, int d, bool cont) : id(i), depth(d),
+  _cloneFoundItem(eos::IContainerMD::id_t i, int d, bool cont) : id(i), depth(d),
     isContainer(cont) { };
 };
 
@@ -295,8 +295,8 @@ _cloneMD(std::shared_ptr<eos::IContainerMD>& cloneMd, char cFlag,
       return false;
     }
   } catch (eos::MDException& e) {
-    eos_static_debug("exception ec=%d emsg=\"%s\" cFlag '%c'", e.getErrno(),
-                     e.getMessage().str().c_str(), cFlag);
+    eos_static_debug("clonePath %s exception ec=%d emsg=\"%s\" cFlag '%c'", buff,
+            e.getErrno(), e.getMessage().str().c_str(), cFlag);
 
     if (cFlag == '+') {
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
@@ -304,16 +304,15 @@ _cloneMD(std::shared_ptr<eos::IContainerMD>& cloneMd, char cFlag,
 
       try {
         std::shared_ptr<eos::IContainerMD> pCloneMd = gOFS->eosView->getContainer(
-              mdPath.GetParentPath());
+                mdPath.GetParentPath());
         cloneMd = gOFS->eosView->createContainer(clonePath);
         cloneMd->setMode(S_IFDIR | S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
         eos_static_info("%s permissions are %#o", clonePath.c_str(),
-                        cloneMd->getMode());
+                cloneMd->getMode());
         cloneMd->setAttribute("sys.clone.root",  gOFS->eosView->getUri(cmd.get()));
         gOFS->eosDirectoryService->updateStore(cloneMd.get());
         gOFS->eosDirectoryService->updateStore(pCloneMd.get());
-        eos::ContainerIdentifier md_id =
-          cloneMd->getIdentifier();       /* copied from "mkdir" */
+        eos::ContainerIdentifier md_id = cloneMd->getIdentifier(); /* see "mkdir" */
         eos::ContainerIdentifier d_id = pCloneMd->getIdentifier();
         eos::ContainerIdentifier d_pid = pCloneMd->getParentIdentifier();
         lock.Release();
