@@ -484,6 +484,9 @@ build_c8:
     BUILD_NAME: c8
   tags:
     - docker_node
+  only:
+    - schedules
+    - tags
 
 
 build_fedora_stable:
@@ -624,7 +627,8 @@ c8_docker_image_commit:
     - build_c8
     - clone_docker
   only:
-    - branches
+    - schedules
+    - tags
   except:
     - beryl_aquamarine
     - tags
@@ -960,6 +964,9 @@ system_test_c8:
     - shell-with-docker
   dependencies:
     - clone_docker
+  only:
+    - schedules
+    - tags
   allow_failure: true
   retry: 1
 
@@ -973,6 +980,9 @@ system_test_c8_qdb:
     - shell-with-docker
   dependencies:
     - clone_docker
+  only:
+    - schedules
+    - tags
   allow_failure: true
   retry: 1
 
