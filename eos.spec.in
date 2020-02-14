@@ -223,15 +223,14 @@ BuildRequires: bzip2-devel
 Requires: bzip2
 %endif
 
-# Use ISA-L[_crypto] on CC7
+# ISA-L[_crypto] and XXHash dependencies for CC7 and C8
 %if %{?_with_server:1}%{!?_with_server:0}
-%if 0%{?distribution} == 7
-BuildRequires: libisa-l-devel
-BuildRequires: libisa-l_crypto-devel
+%if 0%{distribution} == 7 || 0%{distribution} == 8
 BuildRequires: xxhash-devel
-Requires: libisa-l
-Requires: libisa-l_crypto
-Requires: xxhash-devel
+%if 0%{distribution} == 7
+BuildRequires: libisa-l-devel libisa-l_crypto-devel
+Requires: libisa-l libisa-l_crypto
+%endif
 %endif
 %endif
 
