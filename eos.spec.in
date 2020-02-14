@@ -1182,6 +1182,7 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_sbindir}/eos-rename-test
 %{_sbindir}/eos-grpc-test
 %{_sbindir}/eos-token-test
+%{_sbindir}/eos-timestamp-test
 %{_sbindir}/eos-http-upload-test
 %{_sbindir}/eoscp-rain-test
 %{_sbindir}/eos-fuse-test
