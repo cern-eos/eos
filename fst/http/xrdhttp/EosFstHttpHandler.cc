@@ -17,11 +17,13 @@ EosFstHttpHandler::MatchesPath(const char* verb, const char* path)
     eos_static_debug("verb=%s path=%s", verb, path);
   }
 
-  if (std::string(verb) == "COPY") {
+
+  // Leave the XrdHttpTPC plugin deal with COPY/OPTIONS verbs
+  if ((strcmp(verb, "COPY") == 0) || (strcmp(verb, "OPTIONS") == 0)) {
     return false;
-  } else {
-    return true;
   }
+  
+  return true;
 }
 
 
