@@ -445,7 +445,7 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_libdir}/libXrdEosFst-%{xrootd_plugin_version}.so
 %{_libdir}/libEosNsInMemory.so
 %{_libdir}/libXrdEosMgm-%{xrootd_plugin_version}.so
-%{_libdir}/libEosMgmHttp.so
+%{_libdir}/libEosMgmHttp-%{xrootd_plugin_version}.so
 %{_libdir}/libXrdMqOfs-%{xrootd_plugin_version}.so
 %{_libdir}/libEosNsQuarkdb.so
 %config(noreplace) %{_sysconfdir}/xrd.cf.fst
@@ -542,7 +542,6 @@ Requires: xrootd-client >= %{xrootd_version_min}
 %endif
 
 # Select protobuf package
-
 %if ! %{without eos_protobuf3_rh}
 # Install eos-protobuf3
 %if 0%{?distribution} == 7
@@ -922,11 +921,9 @@ if [ "$1" -ge "1" ]; then # Upgrade
   done
 fi
 
-
 #-------------------------------------------------------------------------------
 # Package eos-fusex-cern-autofs
 #-------------------------------------------------------------------------------
-
 %package -n eos-fusex-cern-autofs
 Summary: The autofs mounter for CERN EOS user/project mounting
 Group: Applications/File

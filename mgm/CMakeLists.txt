@@ -79,16 +79,16 @@ set_target_properties(
 #add_dependencies(EosMgmHttp-Objects EosProtobuf)
 add_dependencies(EosMgmHttp-Objects EosAuthProto-Objects)
 
-add_library(EosMgmHttp MODULE
+add_library(EosMgmHttp-${PLUGIN_VERSION} MODULE
   $<TARGET_OBJECTS:EosMgmHttp-Objects>)
 
-target_link_libraries(EosMgmHttp PUBLIC
+target_link_libraries(EosMgmHttp-${PLUGIN_VERSION} PUBLIC
   EosCommon
   EosCommonServer
   ${XROOTD_HTTP_UTILS_LIBRARY})
 
 install(
-  TARGETS EosMgmHttp
+  TARGETS EosMgmHttp-${PLUGIN_VERSION}
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
