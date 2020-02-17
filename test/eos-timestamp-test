@@ -97,7 +97,7 @@ echo "EOS_MGM_HOSTNAME=${EOS_MGM_HOSTNAME}"
 
 # Initial setup
 eos mkdir -p /eos/${EOS_INSTANCE_NAME}/timestamp_tests/
-eos touch /eos/${EOS_INSTANCE_NAME}/timestamp_tests/file
+touch /eos1/${EOS_INSTANCE_NAME}/timestamp_tests/file
 
 retrieve_timestamps /eos/${EOS_INSTANCE_NAME}/timestamp_tests/file
 mtime_init=$mtime
