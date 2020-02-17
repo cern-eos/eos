@@ -75,13 +75,13 @@ if '-P' in opt:
     try:
         parentId = int(opt['-P'])
     except ValueError:
-            print("invalid parent Id")
+            print("invalid parent Id", file=sys.stderr)
             sys.exit(22)
 
 opt['-S'] = int(opt['-S'])
 
 if opt['-B'].startswith("root:") and not canXroot:
-    print("backup media specify 'xroot://' but XRootD.client module did not load")
+    print("backup media specify 'xroot://' but XRootD.client module did not load", file=sys.stderr)
     sys.exit(1)
 
 eos_instance = os.popen("eos version").readlines()[0].split('=')[1].rstrip()
@@ -95,8 +95,8 @@ def do_clone(subcmd):
     try:
       os.system(cmd)
     except:
-      print("Unexpected error:", sys.exc_info()[0])
-      print("cmd:", cmd)
+      print("Unexpected error:", sys.exc_info()[0], file=sys.stderr)
+      print("cmd:", cmd, file=sys.stderr)
       raise
 
     line1 = open(catalogFile[1]).readline()
@@ -132,7 +132,7 @@ class Blob:                 # the files where data are stored in
             self.bfile = open("%sb.%d" % (prefix, self.blob_num), "wb")     # 'wb' or 'w' hardly matters, we don't write ourselves
             os.lseek(self.bfile.fileno(), 0, 0)     # this may be implicit, but vital for the subprocess writes
 
-        print("blob", self.blob_num, "created")
+        print("blob", self.blob_num, "created", file=sys.stderr)
         self.size = 0
 
     def getBlob(self, sz):
@@ -148,7 +148,7 @@ class Blob:                 # the files where data are stored in
 
     def close(self):
         self.bfile.close()
-        print("blob", self.blob_num, "closed size", self.size)
+        print("blob", self.blob_num, "closed size", self.size, file=sys.stderr)
 
 
 def copy_xrdcp(path, cpath, blob):
@@ -248,7 +248,7 @@ def do_backup():
             opt['-U'] = os.environ['EOS_MGM_URL']
             if opt['-U'] == '': raise KeyError
         except KeyError:
-            print("need to specify 'U' or define EOS_MGM_URL in the environment")
+            print("need to specify 'U' or define EOS_MGM_URL in the environment", file=sys.stderr)
             sys.exit(1)
 
     if '-F' in opt:
@@ -264,7 +264,7 @@ def do_backup():
         else:
             f = open(catalogFile, "r")
     except IOError as e:
-        print("cannot open catalog: %s" % e)
+        print("cannot open catalog: %s" % e, file=sys.stderr)
         sys.exit(5)
 
     #findOut = f.readlines()
@@ -419,7 +419,6 @@ def do_restore():
                     jj = json.loads(l)
                 except Exception as e:
                     print("error %r line %d ='%s'" % (e, lineNum, l), file=sys.stderr)
-                    pdb.set_trace()
                     sys.exit(1)
 
             lineNum += 1
@@ -491,5 +490,5 @@ elif subcmd == 'backup':
 elif subcmd == 'restore':
   do_restore()
 else:
-  print("incorrect argument", subcmd)
+  print("incorrect argument", subcmd, file=sys.stderr)
   sys.exit(1)
