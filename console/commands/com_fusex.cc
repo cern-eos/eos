@@ -273,5 +273,7 @@ com_fusex_usage:
           "   fusex conf 10                                             :  define heartbeat interval as 10 seconds\n");
   fprintf(stdout,
           "   fusex conf 10 10                                          :  define heartbeat and quota interval as 10 seconds\n");
+  fprintf(stdout, 
+	  "   fusex conf 0 0 256 @b[67]                                :  suppress broadcasts when more than 256 clients are conected and the target matches @b[67]\n");
   return (0);
 }
