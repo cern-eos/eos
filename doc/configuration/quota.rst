@@ -97,7 +97,8 @@ It is possible to set a physical space restriction using the space parameter **n
    # restrict the physical space usage to 1P
    eosdevsrv1:# eos space config default space.nominalsize=1P
 
-The restriction is only used, if the connected user is not in the **sudoer** list.
+The restriction is only used, if the connected user is not in the **sudoer** list. The current usage and space setting is 
+cached for 30s e.g. it might take up to 30s until any change may take effect.
 
 Quota Enforcement
 -----------------
