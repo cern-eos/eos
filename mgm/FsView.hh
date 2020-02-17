@@ -933,11 +933,19 @@ public:
     return mIdView.size();
   }
 
+  //----------------------------------------------------------------------------
+  //! Physical bytes available
+  //----------------------------------------------------------------------------
+  bool UnderNominalQuota(const std::string& space, bool isroot=false);
+
 private:
   IConfigEngine* mConfigEngine;
   AssistedThread mHeartBeatThread; ///< Thread monitoring heart-beats
   //! Object to map between fsid <-> uuid
   FilesystemUuidMapper mFilesystemMapper;
+
+  std::map<std::string, std::pair<bool, time_t>> mUsageOk;
+  XrdSysMutex mUsageMutex;
 };
 
 //------------------------------------------------------------------------------

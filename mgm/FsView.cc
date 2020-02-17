@@ -1069,6 +1069,69 @@ bool FsView::IsQuotaEnabled(const std::string& space)
   return is_enabled;
 }
 
+
+//----------------------------------------------------------------------------
+//! Physical bytes available
+//----------------------------------------------------------------------------
+bool FsView::UnderNominalQuota(const std::string& space, bool isroot)
+{
+  if (isroot) {
+    return true;
+  }
+	      
+  time_t now = time(NULL);
+
+  {
+    XrdSysMutexHelper scope_lock(mUsageMutex);
+    {
+      // return cached value
+      auto it = mUsageOk.find(space);
+      if (it != mUsageOk.end()) {
+	if (it->second.second > now) {
+	  return it->second.first;
+	}
+      }
+    }
+  }
+
+  {
+    auto spaceobj = mSpaceView.find(space);
+    if (spaceobj == mSpaceView.end()) {
+      // no space, we don't block by nominal quota
+      return true;
+    }
+    
+    // refresh the nominal value
+    std::string nominal = spaceobj->second->GetMember("cfg.nominalsize");
+    if (nominal=="???") {
+      // no setting, quota is fine
+      return true;
+    }
+
+    uint64_t nominalbytes = strtoul(nominal.c_str(), 0, 10);
+    uint64_t usedbytes = 0 ;
+    for (auto fs = mIdView.begin(); fs != mIdView.end(); ++fs) {
+      if (fs->second->GetSpace() != space) {
+	// only account the requested space
+	continue;
+      }
+      usedbytes += fs->second->GetUsedbytes();
+    }
+
+    bool usage_ok = false;
+    if (usedbytes < nominalbytes) {
+      usage_ok = true;
+    }
+
+    // store the current values
+    XrdSysMutexHelper scope_lock(mUsageMutex);
+    mUsageOk[space].first = usage_ok;
+    mUsageOk[space].second = now + 30; // cache for 30 seconds
+    return usage_ok;
+  }
+}
+
+
 //------------------------------------------------------------------------------
 // @brief return's the printout format for a given option
 // @param option see the implementation for valid options

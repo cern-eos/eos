@@ -1963,6 +1963,16 @@ Quota::FilePlacement(Scheduler::PlacementArguments* args)
     return ENOSPC;
   }
 
+  if (FsView::gFsView.mSpaceView.count(*args->spacename)) {
+    if (!FsView::gFsView.UnderNominalQuota(*args->spacename, args->vid->sudoer)) {
+      eos_static_err("msg=\"over physical quota limit (nominal space setting)\" space=\"%s\"",
+		     args->spacename->c_str());
+      return ENOSPC;
+    } else {
+      eos_static_info("nomoinal quota ok");
+    }
+  }
+
   // Call the scheduler implementation
   return Scheduler::FilePlacement(args);
 }
