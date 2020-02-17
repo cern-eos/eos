@@ -212,7 +212,6 @@ public:
   bool isZeroSizeFile; //< true if the file has 0 size
 
 private:
-
   //----------------------------------------------------------------------------
   //! Parse the triedrc opaque info and return the corresponding error number
   //!
@@ -241,6 +240,21 @@ private:
   void LogSchedulingInfo(const std::vector<unsigned int>& selected_fs,
                          const std::vector<std::string>& proxy_eps,
                          const std::vector<std::string>& fwall_eps) const;
+
+  //----------------------------------------------------------------------------
+  //! Handle token authorization for the http acccess protocol and extract the
+  //! username of the client executing the current operation from the token.
+  //! This will populate the XrdSecEntity.name field used later on to establish
+  //! the virtual identity.
+  //!
+  //! @param client XrdSecEntity object
+  //! @param path path of the request
+  //! @param opaque opaque information that should contain "&authz=<...>"
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool HandleTokenAuthz(XrdSecEntity* client , const std::string& path,
+                        const std::string& opaque);
 
   int oh; //< file handle
   std::string fileName; //< file name

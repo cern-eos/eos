@@ -28,6 +28,7 @@
 //! Forward declaration
 class XrdMgmOfs;
 class XrdAccAuthorize;
+class XrdSfsFileSystem;
 
 //------------------------------------------------------------------------------
 //! Class OwningXrdSecEntity - this class is used to copy the contents of an
@@ -88,14 +89,14 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   EosMgmHttpHandler() :
-    mRedirectToHttps(false), mMacaroonsHandler(nullptr),
-    mAuthzMacaroonsHandler(nullptr)
+    mRedirectToHttps(false), mTokenLibHandler(nullptr),
+    mTokenAuthzHandler(nullptr), mMgmOfsHandler(nullptr)
   {}
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~EosMgmHttpHandler() = default;
+  virtual ~EosMgmHttpHandler();
 
   //----------------------------------------------------------------------------
   //! Initialize the external request handler
@@ -149,11 +150,11 @@ public:
   int ProcessReq(XrdHttpExtReq& req) override;
 
 private:
-  XrdMgmOfs* gOfs; ///< Pointer to the OFS plugin object
   bool mRedirectToHttps; ///< Flag if http traffic should be redirected to https
-  XrdHttpExtHandler* mMacaroonsHandler; ///< Macaroons ext http handler
-  //! Authz plugin from libMacaroons
-  XrdAccAuthorize* mAuthzMacaroonsHandler;
+  XrdHttpExtHandler* mTokenLibHandler; ///< Macaroons ext http handler
+  //! Authz plugin from libMacaroons/libXrdSciTokens
+  XrdAccAuthorize* mTokenAuthzHandler;
+  XrdMgmOfs* mMgmOfsHandler; ///< Pointer to the MGM OFS plugin
 
   //----------------------------------------------------------------------------
   //! Copy XrdSecEntity info
@@ -162,6 +163,19 @@ private:
   //! @param dst newly populated objed
   //----------------------------------------------------------------------------
   void CopyXrdSecEntity(const XrdSecEntity& src, XrdSecEntity& dst) const;
+
+  //----------------------------------------------------------------------------
+  //! Get a pointer to the MGM OFS plugin
+  //!
+  //! @param eDest error object that must be used to print any errors or msgs
+  //! @param confg name of the configuration file
+  //! @param myEnv environment variables for configuring the external handler;
+  //!              it may be null.
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool GetOfsPlugin(XrdSysError* eDest, const std::string& confg,
+                    XrdOucEnv* myEnv);
 };
 
 /******************************************************************************/

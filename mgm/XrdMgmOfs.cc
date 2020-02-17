@@ -177,7 +177,7 @@ extern "C" {
                       const char* configfn)
   {
     if (gOFS) {
-      // initialize filesystems only once
+      // File system object already initalized
       return gOFS;
     }
 
@@ -300,8 +300,6 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   eos::common::LogId::SetSingleShotLogId();
   mZmqContext = new zmq::context_t(1);
   IoStats.reset(new eos::mgm::Iostat());
-  // export pointer to this object ... sigh ...
-  setenv("EOSMGMOFS", std::to_string((unsigned long long)this).c_str(), 1);
 
   if (mHttpdPort)  {
     mHttpd.reset(new eos::mgm::HttpServer(mHttpdPort));

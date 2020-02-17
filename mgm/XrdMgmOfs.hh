@@ -1652,8 +1652,21 @@ public:
                           const std::string& rdr_info, int rdr_port);
 
   //----------------------------------------------------------------------------
+  //! Set token authorization handler - this is called by the HTTP external
+  //! handler which is responsible for loading the authorization plugin from
+  //! the corresponding XrdMacaroons or XrdSciTokens libraries.
+  //!
+  //! @param token_authz pointer to the toke authorization plugin
+  //----------------------------------------------------------------------------
+  inline void SetTokenAuthzHandler(XrdAccAuthorize* token_authz)
+  {
+    mTokenAuthzHandler = token_authz;
+  }
+
+  //----------------------------------------------------------------------------
   // Class objects
   //----------------------------------------------------------------------------
+  XrdAccAuthorize* mTokenAuthzHandler {nullptr}; ///< Token authz handler
   XrdAccAuthorize* Authorization = nullptr; ///< Authorization service
 
   //! Mgm Namespace Statistics
