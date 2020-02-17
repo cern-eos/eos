@@ -304,6 +304,40 @@ int Inspector::scanFileMetadata(bool onlySizes, bool fullPaths, std::ostream &ou
 }
 
 //------------------------------------------------------------------------------
+// Scan all deathrow entries
+//------------------------------------------------------------------------------
+int Inspector::scanDeathrow(std::ostream &out, std::ostream &err) {
+  FileScanner fileScanner(mQcl);
+
+  while(fileScanner.valid()) {
+    FileScanner::Item item;
+    eos::ns::FileMdProto proto;
+
+    if (!fileScanner.getItem(proto, &item)) {
+      break;
+    }
+
+    if(proto.cont_id() != 0) {
+      break;
+    }
+
+    std::string xs;
+    eos::appendChecksumOnStringProtobuf(proto, xs);
+    out << "fid=" << proto.id() << " name=" << fetchNameOrPath(proto, item) << " pid=" << proto.cont_id() << " uid=" << proto.uid() << " size=" << proto.size() << " xs=" << xs << std::endl;
+
+    fileScanner.next();
+  }
+
+  std::string errorString;
+  if(fileScanner.hasError(errorString)) {
+    err << errorString;
+    return 1;
+  }
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
 // Forcefully overwrite the given ContainerMD - USE WITH CAUTION
 //------------------------------------------------------------------------------
 int Inspector::overwriteContainerMD(bool dryRun, uint64_t id, uint64_t parentId, const std::string &name, std::ostream &out, std::ostream &err) {

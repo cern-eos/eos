@@ -78,6 +78,11 @@ public:
   int scanFileMetadata(bool onlySizes, bool fullPaths, std::ostream &out, std::ostream &err);
 
   //----------------------------------------------------------------------------
+  //! Scan all deathrow entries
+  //----------------------------------------------------------------------------
+  int scanDeathrow(std::ostream &out, std::ostream &err);
+
+  //----------------------------------------------------------------------------
   //! Forcefully overwrite the given ContainerMD - USE WITH CAUTION
   //----------------------------------------------------------------------------
   int overwriteContainerMD(bool dryRun, uint64_t id, uint64_t parentId, const std::string &name, std::ostream &out, std::ostream &err);

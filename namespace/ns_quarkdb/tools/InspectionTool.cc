@@ -112,6 +112,7 @@ int main(int argc, char* argv[]) {
   dumpSubcommand->add_flag("--show-size", showSize, "Show file size");
   dumpSubcommand->add_flag("--show-mtime", showMtime, "Show file modification time");
 
+
   //----------------------------------------------------------------------------
   // Set-up print subcommand..
   //----------------------------------------------------------------------------
@@ -174,6 +175,12 @@ int main(int argc, char* argv[]) {
   bool onlySizes = false;
   scanFilesSubcommand->add_flag("--only-sizes", onlySizes, "Only print file sizes, once per line.");
   scanFilesSubcommand->add_flag("--full-paths", fullPaths, "Show full file paths, if possible");
+
+  //----------------------------------------------------------------------------
+  // Set-up scan-deathrow subcommand..
+  //----------------------------------------------------------------------------
+  auto scanDeathrowSubcommand = app.add_subcommand("scan-deathrow", "Show all files currently scheduled to be deleted");
+  addClusterOptions(scanDeathrowSubcommand, membersStr, memberValidator, password, passwordFile);
 
   //----------------------------------------------------------------------------
   // Set-up check-naming-conflicts subcommand..
@@ -403,6 +410,10 @@ int main(int argc, char* argv[]) {
 
   if(scanFilesSubcommand->parsed()) {
     return inspector.scanFileMetadata(onlySizes, fullPaths, std::cout, std::cerr);
+  }
+
+  if(scanDeathrowSubcommand->parsed()) {
+    return inspector.scanDeathrow(std::cout, std::cerr);
   }
 
   if(checkOrphansSubcommand->parsed()) {
