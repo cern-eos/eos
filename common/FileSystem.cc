@@ -894,6 +894,24 @@ std::string FileSystem::GetString(const char* key)
   return mq::SharedHashWrapper(mHashLocator).get(key);
 }
 
+//--------------------------------------------------------------------------                                                 
+//! Get used bytes                                                                                                           
+//--------------------------------------------------------------------------                                                 
+uint64_t 
+FileSystem::GetUsedbytes()
+{
+  return GetLongLong("stat.statfs.usedbytes");
+}
+
+//--------------------------------------------------------------------------                                                 
+//! Get used bytes space name
+//--------------------------------------------------------------------------                                                 
+std::string
+FileSystem::GetSpace() 
+{
+  return getCoreParams().getSpace();
+}
+
 //------------------------------------------------------------------------------
 // Serializes hash contents as follows 'key1=val1 key2=val2 ... keyn=valn'
 // but return only keys that don't start with filter_prefix. If specified,
