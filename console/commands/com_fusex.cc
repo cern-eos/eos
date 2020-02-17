@@ -114,9 +114,12 @@ com_fusex(char* arg1)
   } else if (subcmd == "conf") {
     XrdOucString interval = subtokenizer.GetToken();
     XrdOucString quota_interval = subtokenizer.GetToken();
+    XrdOucString bc_audience = subtokenizer.GetToken();
+    XrdOucString bc_audience_match = subtokenizer.GetToken();
+
     int i_interval = interval.length() ? atoi(interval.c_str()) : 0;
     int q_interval = quota_interval.length() ? atoi(quota_interval.c_str()) : 0;
-
+    
     if ((i_interval < 0) ||
         (i_interval > 15)) {
       goto com_fusex_usage;
@@ -134,6 +137,15 @@ com_fusex(char* arg1)
     if (quota_interval.length()) {
       in += "&mgm.fusex.qc=";
       in += quota_interval;
+    }
+
+    if (bc_audience.length()) {
+      in += "&mgm.fusex.bc.max=";
+      in += bc_audience;
+    }
+    if (bc_audience_match.length()) {
+      in += "&mgm.fusex.bc.match=";
+      in += bc_audience_match;
     }
   } else {
     goto com_fusex_usage;
@@ -246,7 +258,10 @@ com_fusex_usage:
   fprintf(stdout,
           "           fusex caps -p ^/eos/caps/                                 :  show all caps in subtree /eos/caps\n");
   fprintf(stdout,
-          "       fusex conf [<heartbeat-in-seconds>] [quota-check-in-seconds]  :  show heartbeat and quota interval\n");
+          "       fusex conf [<heartbeat-in-seconds>] [quota-check-in-seconds] [max broadcast audience] [broadcast audience match]\n");
+  fprintf(stdout, "                                                             :  show heartbeat and quota interval\n");
+
+  
   fprintf(stdout,
           "                                                                     :  [ optional change heartbeat interval from [1-15] seconds ]\n");
   fprintf(stdout,

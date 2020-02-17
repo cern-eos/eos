@@ -423,8 +423,27 @@ FuseServer::Caps::BroadcastRefresh(uint64_t inode,
                   inode,
                   parent_inode);
   std::vector<shared_cap> bccaps;
+  size_t n_suppressed = 0;
 
   if (mInodeCaps.count(parent_inode)) {
+
+    bool suppress_audience = false;
+
+    regex_t regex;
+    // audience check
+    int audience = gOFS->zMQ->gFuseServer.Client().BroadCastMaxAudience();
+    std::string match = gOFS->zMQ->gFuseServer.Client().BroadCastAudienceSuppressMatch();
+
+    if (audience && ((mInodeCaps[parent_inode].size() > (size_t)audience))) {
+      suppress_audience = true;
+      if (regcomp(&regex, match.c_str(), REG_ICASE | REG_EXTENDED | REG_NOSUB)) {
+        suppress_audience = false;
+	eos_static_err("msg=\"broadcast audience suppress match not valid regex\" regex=\"%s\"", 
+		       match.c_str());
+      }
+    }
+
+
     for (auto it = mInodeCaps[parent_inode].begin();
          it != mInodeCaps[parent_inode].end(); ++it) {
       shared_cap cap;
@@ -446,6 +465,13 @@ FuseServer::Caps::BroadcastRefresh(uint64_t inode,
         continue;
       }
 
+      if (suppress_audience) {
+	if (regexec(&regex, cap->clientid().c_str(), 0, NULL, 0) != REG_NOMATCH) {
+	  n_suppressed++;
+	  continue;
+	}
+      }
+
       if (cap->id()) {
         bccaps.push_back(cap);
       }
@@ -460,6 +486,10 @@ FuseServer::Caps::BroadcastRefresh(uint64_t inode,
         it->clientid()
                                                 );
     errno = 0;
+  }
+
+  if (n_suppressed) {
+    gOFS->MgmStats.Add("Eosxd::int::BcRefreshSup", 0, 0, n_suppressed);
   }
 
   EXEC_TIMING_END("Eosxd::int::BcRefresh");
@@ -496,8 +526,25 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
                   refcap->authid().c_str());
   std::set<std::string> clients_sent;
   std::vector<shared_cap> bccaps;
+  
+  size_t n_suppressed = 0;
 
   if (mInodeCaps.count(md_pino)) {
+    bool suppress_audience = false;
+    regex_t regex;
+    // audience check
+    int audience = gOFS->zMQ->gFuseServer.Client().BroadCastMaxAudience();
+    std::string match = gOFS->zMQ->gFuseServer.Client().BroadCastAudienceSuppressMatch();
+
+    if (audience && (mInodeCaps[md_pino].size() > (size_t) audience)) {
+      suppress_audience = true;
+      if (regcomp(&regex, match.c_str(), REG_ICASE | REG_EXTENDED | REG_NOSUB)) {
+        suppress_audience = false;
+	eos_static_err("msg=\"broadcast audience suppress match not valid regex\" regex=\"%s\"", 
+		       match.c_str());
+      }     
+    }
+
     for (auto it = mInodeCaps[md_pino].begin();
          it != mInodeCaps[md_pino].end(); ++it) {
       shared_cap cap;
@@ -508,12 +555,6 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
       } else {
         continue;
       }
-
-      eos_static_info("id=%lx clientid=%s clientuuid=%s authid=%s",
-                      cap->id(),
-                      cap->clientid().c_str(),
-                      cap->clientuuid().c_str(),
-                      cap->authid().c_str());
 
       // skip our own cap!
       if (cap->authid() == md.authid()) {
@@ -530,6 +571,20 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
         continue;
       }
 
+      
+      if (suppress_audience) {
+	if (regexec(&regex, cap->clientid().c_str(), 0, NULL, 0) != REG_NOMATCH) {
+	  n_suppressed++;
+	  continue;
+	}
+      }
+
+      eos_static_info("id=%lx clientid=%s clientuuid=%s authid=%s",
+                      cap->id(),
+                      cap->clientid().c_str(),
+                      cap->clientuuid().c_str(),
+                      cap->authid().c_str());
+      
       if (cap->id() && !clients_sent.count(cap->clientuuid())) {
         bccaps.push_back(cap);
         // make sure we sent the update only once to each client, eveh if this
@@ -550,6 +605,10 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
                                            clock,
                                            p_mtime);
     errno = 0;
+  }
+
+  if (n_suppressed) {
+    gOFS->MgmStats.Add("Eosxd::int::BcMDSup", 0, 0, n_suppressed);
   }
 
   EXEC_TIMING_END("Eosxd::int::BcMD");

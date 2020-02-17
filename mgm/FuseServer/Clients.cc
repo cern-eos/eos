@@ -1079,4 +1079,23 @@ FuseServer::Clients::BroadcastDropAllCaps(const std::string& identity,
 }
 
 
+/*----------------------------------------------------------------------------*/
+void 
+FuseServer::Clients::SetBroadCastMaxAudience(int size)
+/*----------------------------------------------------------------------------*/
+{
+  mMaxBroadCastAudience = size;
+}
+
+/*----------------------------------------------------------------------------*/                                           
+void 
+FuseServer::Clients::SetBroadCastAudienceSuppressMatch(const std::string& match)
+{
+  mMaxbroadCastAudienceMatch = match;
+}
+
+
+
+
+
 EOSMGMNAMESPACE_END

@@ -226,8 +226,26 @@ EOSFUSESERVERNAMESPACE_BEGIN
       return mQuotaCheckInterval;
     }
 
+    // get broadcast max audience
+    int BroadCastMaxAudience() const 
+    {
+      return mMaxBroadCastAudience;
+    }
+
+    // get broadcast audience match
+    std::string BroadCastAudienceSuppressMatch() const
+    {
+      return mMaxbroadCastAudienceMatch;
+    }
+
     // to defer an operation based on client versions
     bool DeferClient(std::string clienversion, std::string minimum_allowed_version);
+
+    // set max audience before suppression
+    void SetBroadCastMaxAudience(int size);
+
+    // set max audience client match to be suppressed
+    void SetBroadCastAudienceSuppressMatch(const std::string& match);
 
   private:
     // lookup client full id to heart beat
@@ -247,6 +265,12 @@ EOSFUSESERVERNAMESPACE_BEGIN
 
     // quota check interval
     int mQuotaCheckInterval;
+
+    // max audience before suppression
+    int mMaxBroadCastAudience;
+
+    // match string for hosts which get suppressed
+    std::string mMaxbroadCastAudienceMatch;
 
     std::atomic<bool> terminate_;
   };

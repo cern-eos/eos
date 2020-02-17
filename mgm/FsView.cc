@@ -33,6 +33,7 @@
 #include "mgm/GeoTreeEngine.hh"
 #include "mgm/config/ConfigParsing.hh"
 #include "mgm/config/IConfigEngine.hh"
+#include "mgm/ZMQ.hh"
 #include "common/table_formatter/TableFormatterBase.hh"
 #include "common/StringConversion.hh"
 #include "common/Assert.hh"
@@ -2848,16 +2849,22 @@ FsView::ApplyGlobalConfig(const char* key, std::string& val)
   if (tokens[1] == "token.generation") {
     eos_static_info("token-generation := %s", val.c_str());
     eos::common::EosTok::sTokenGeneration = strtoull(val.c_str(), 0, 10);
-  }
-
-  if (tokens[1] == "policy.recycle") {
+  }  else if (tokens[1] == "policy.recycle") {
     eos_static_info("policy-recycle := %s", val.c_str());
-
+    
     if (val == "on") {
       gOFS->enforceRecycleBin = true;
     } else {
       gOFS->enforceRecycleBin = false;
     }
+  } else if (tokens[1] == "fusex.hbi") {
+    gOFS->zMQ->gFuseServer.Client().SetHeartbeatInterval(atoi(val.c_str()));
+  } else if (tokens[1] == "fusex.qti") {
+    gOFS->zMQ->gFuseServer.Client().SetQuotaCheckInterval(atoi(val.c_str()));
+  } else if (tokens[1] == "fusex.bca") {
+    gOFS->zMQ->gFuseServer.Client().SetBroadCastMaxAudience(atoi(val.c_str()));
+  } else if (tokens[1] == "fusex.bca_match") {
+    gOFS->zMQ->gFuseServer.Client().SetBroadCastAudienceSuppressMatch(val.c_str());
   }
 
   common::SharedHashLocator locator;
