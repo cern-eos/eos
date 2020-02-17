@@ -200,7 +200,8 @@ ScanDir::RunNsScan(ThreadAssistant& assistant) noexcept
 {
   using namespace std::chrono;
   using eos::common::FileId;
-  eos_info("%s", "msg=\"started the ns scan thread\"");
+  eos_info("msg=\"started the ns scan thread\" fsid=%lu dirpath=\"%s\"",
+           mFsId, mDirPath.c_str());
 
   if (gOFS.mFsckQcl == nullptr) {
     eos_notice("%s", "msg=\"no qclient present, skipping ns scan\"");
@@ -219,7 +220,8 @@ ScanDir::RunNsScan(ThreadAssistant& assistant) noexcept
 
   // Get a random smearing and avoid that all start at the same time
   size_t sleep_sec = (1.0 * mNsIntervalSec * random() / RAND_MAX);
-  eos_info("msg=\"delay ns scan thread by %llu seconds\"", sleep_sec);
+  eos_info("msg=\"delay ns scan thread by %llu seconds\" fsid=%lu dirpath=\"%s\"",
+           sleep_sec, mFsId, mDirPath.c_str());
   assistant.wait_for(seconds(sleep_sec));
 
   while (!assistant.terminationRequested()) {
