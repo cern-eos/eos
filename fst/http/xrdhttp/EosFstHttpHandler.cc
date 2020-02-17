@@ -17,15 +17,13 @@ EosFstHttpHandler::MatchesPath(const char* verb, const char* path)
     eos_static_debug("verb=%s path=%s", verb, path);
   }
 
-
   // Leave the XrdHttpTPC plugin deal with COPY/OPTIONS verbs
   if ((strcmp(verb, "COPY") == 0) || (strcmp(verb, "OPTIONS") == 0)) {
     return false;
   }
-  
+
   return true;
 }
-
 
 
 int
@@ -54,14 +52,16 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
     verb = "CREATE"; // CREATE makes sure, the the handler just opens the file and all writes are done later
   }
 
-  std::unique_ptr<eos::common::ProtocolHandler> handler =
-    OFS->mHttpd->XrdHttpHandler(verb,
-                                req.resource,
-                                normalized_headers,
-                                query,
-                                cookies,
-                                body,
-                                req.GetSecEntity());
+  std::unique_ptr<eos::common::ProtocolHandler>
+  handler = OFS->mHttpd->XrdHttpHandler(verb, req.resource, normalized_headers,
+                                        query, cookies, body, req.GetSecEntity());
+
+  if (handler == nullptr) {
+    std::string errmsg = "failed to create handler";
+    return req.SendSimpleResp(500, errmsg.c_str(), "", errmsg.c_str(),
+                              errmsg.length());
+  }
+
   eos::common::HttpResponse* response = handler->GetResponse();
 
   if (response) {
