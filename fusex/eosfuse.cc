@@ -4273,6 +4273,17 @@ EosFuse::release(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
 
   if (fi->fh) {
     data::data_fh* io = (data::data_fh*) fi->fh;
+
+    if (io->flocked) {
+      // unlock all locks for that owner
+      struct flock lock;
+      lock.l_type = F_UNLCK;
+      lock.l_start = 0;
+      lock.l_len = -1;
+      lock.l_pid = fuse_req_ctx(req)->pid;
+      rc |= Instance().mds.setlk(req, io->mdctx(), &lock, 0);
+    }
+
     std::string cookie = "";
     io->ioctx()->detach(req, cookie, io->rw);
     Instance().caps.close_writer_inode(io->cap_);
