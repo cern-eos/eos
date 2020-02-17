@@ -180,6 +180,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   // you first are 'nobody'
   vid = VirtualIdentity::Nobody();
   XrdOucEnv Env(env);
+  std::string authz = (Env.Get("authz") ? Env.Get("authz") : "");
   vid.name = client->name;
   vid.tident = tident;
   vid.sudoer = false;
@@ -204,11 +205,8 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     vid.prot = "https";
   }
 
-  if (vid.prot == "sss") {
-    vid.key = (client->endorsements ? client->endorsements : "");
-  }
-
-  if (vid.prot == "grpc") {
+  // SSS and GRPC might contain a key embedded in the endorsements field
+  if ((vid.prot == "sss") || (vid.prot == "grpc")) {
     vid.key = (client->endorsements ? client->endorsements : "");
   }
 
@@ -216,9 +214,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     eos_static_debug("key %s", vid.key.c_str());
   }
 
-  // ---------------------------------------------------------------------------
-  // kerberos mapping
-  // ---------------------------------------------------------------------------
+  // KRB5 mapping
   if ((vid.prot == "krb5")) {
     eos_static_debug("krb5 mapping");
 
@@ -240,9 +236,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // gsi mapping
-  // ---------------------------------------------------------------------------
+  // GSI mapping
   if ((vid.prot == "gsi")) {
     eos_static_debug("gsi mapping");
 
@@ -263,9 +257,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       vid.uid_list.push_back(99);
     }
 
-    // ---------------------------------------------------------------------------
     // VOMS mapping
-    // ---------------------------------------------------------------------------
     if (client->grps) {
       std::string vomsstring = "voms:\"";
       vomsstring += client->grps;
@@ -312,9 +304,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // gsi mapping
-  // ---------------------------------------------------------------------------
+  // https mapping
   if ((vid.prot == "https")) {
     eos_static_debug("https mapping");
 
@@ -350,9 +340,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     }
   }
 
-  // ---------------------------------------------------------------------------
   // sss mapping
-  // ---------------------------------------------------------------------------
   if ((vid.prot == "sss")) {
     eos_static_debug("sss mapping");
 
@@ -399,9 +387,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     }
   }
 
-  // ---------------------------------------------------------------------------
   // unix mapping
-  // ---------------------------------------------------------------------------
   if ((vid.prot == "unix")) {
     eos_static_debug("unix mapping");
 
@@ -449,9 +435,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     }
   }
 
-  // ---------------------------------------------------------------------------
   // tident mapping
-  // ---------------------------------------------------------------------------
   XrdOucString mytident = "";
   XrdOucString myrole = "";
   XrdOucString wildcardtident = "";
@@ -482,10 +466,10 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   swcgidtident += "\":gid";
   XrdOucString sprotuidtident = swcuidtident;
   XrdOucString sprotgidtident = swcgidtident;
-  sprotuidtident.replace("*",
-                         vid.prot); // there can be a protocol specific rule like sss:@<host>:uid...
-  sprotgidtident.replace("*",
-                         vid.prot); // there can be a protocol specific rule like sss:@<host>:gid...
+// there can be a protocol specific rule like sss:@<host>:uid...
+  sprotuidtident.replace("*", vid.prot);
+// there can be a protocol specific rule like sss:@<host>:gid...
+  sprotgidtident.replace("*", vid.prot);
   eos_static_debug("swcuidtident=%s sprotuidtident=%s myrole=%s",
                    swcuidtident.c_str(), sprotuidtident.c_str(), myrole.c_str());
 
@@ -515,11 +499,9 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // wild card tidents/protocol tidents
-  // one can define mapping entries like '*@host:uid=>0' e.g. for fuse mounts
-  // or only for a certain protocol like 'sss@host:uid=>0'
-  // ---------------------------------------------------------------------------
+  // Wildcard tidents/protocol tidents - one can define mapping entries like
+  // '*@host:uid=>0' e.g. for fuse mounts or only for a certain protocol
+  // like 'sss@host:uid=>0'
   XrdOucString tuid = "";
   XrdOucString tgid = "";
 
@@ -665,9 +647,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   eos_static_debug("suidtident:%s sgidtident:%s", suidtident.c_str(),
                    sgidtident.c_str());
 
-  // ---------------------------------------------------------------------------
-  // the configuration door for localhost clients adds always the adm/adm vid's
-  // ---------------------------------------------------------------------------
+  // Configuration door for localhost clients adds always the adm/adm vid's
   if ((suidtident == "tident:\"root@localhost.localdomain\":uid") ||
       (suidtident == "tident:\"root@localhost\":uid")) {
     vid.sudoer = true;
@@ -683,9 +663,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // grpc key mapping
-  // ---------------------------------------------------------------------------
+  // GRPC key mapping
   if ((vid.prot == "grpc") && vid.key.length()) {
     std::string keyname = vid.key.c_str();
     std::string maptident = "tident:\"grpc@";
@@ -735,17 +713,12 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     }
   }
 
-  // ---------------------------------------------------------------------------
   // Environment selected roles
-  // ---------------------------------------------------------------------------
   XrdOucString ruid = Env.Get("eos.ruid");
   XrdOucString rgid = Env.Get("eos.rgid");
   XrdOucString rapp = Env.Get("eos.app");
-  const char* authz = Env.Get("authz");
 
-  // ---------------------------------------------------------------------------
-  // sss key mapping
-  // ---------------------------------------------------------------------------
+  // SSS key mapping
   if ((vid.prot == "sss") && vid.key.length()) {
     std::string keyname = vid.key.c_str();
     std::string maptident = "tident:\"sss@";
@@ -756,7 +729,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     // token provided as key
     if (keyname.substr(0, 8) == "zteos64:") {
       // this is an eos token
-      authz = vid.key.c_str();
+      authz = vid.key;
     }  else {
       // try oauth2
       std::string oauthname;
@@ -815,9 +788,8 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // explicit virtual mapping overrules physical mappings - the second one comes from the physical mapping before
-  // ---------------------------------------------------------------------------
+  // Explicit virtual mapping overrules physical mappings - the second one
+  // comes from the physical mapping before
   vid.uid = (gVirtualUidMap.count(useralias.c_str())) ?
             gVirtualUidMap[useralias.c_str() ] : vid.uid;
 
@@ -834,9 +806,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     vid.gid_list.insert(vid.gid_list.begin(), vid.gid);
   }
 
-  // ---------------------------------------------------------------------------
-  // add virtual user and group roles - if any
-  // ---------------------------------------------------------------------------
+  // Add virtual user and group roles - if any
   if (gUserRoleVector.count(vid.uid)) {
     uid_vector::const_iterator it;
 
@@ -859,24 +829,20 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
 
   bool token_sudo = false;
 
-  // ---------------------------------------------------------------------------
-  // token based mapping
-  // ---------------------------------------------------------------------------
-  if (authz) {
-    std::string sauthz = authz;
-
-    if (sauthz.substr(0, 8) == "zteos64:") {
+  // Handle token based mapping
+  if (!authz.empty()) {
+    if (authz.substr(0, 8) == "zteos64:") {
       // this is an eos token
       eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
       std::string key = symkey ? symkey->GetKey64() : "0123457890defaultkey";
       int rc = 0;
       vid.token = std::make_shared<EosTok>();
 
-      if ((rc = vid.token->Read(sauthz, key, eos::common::EosTok::sTokenGeneration,
+      if ((rc = vid.token->Read(authz, key, eos::common::EosTok::sTokenGeneration,
                                 false))) {
         vid.token->Reset();
         eos_static_err("failed to decode token tident='%s' token='%s' errno=%d", tident,
-                       sauthz.c_str(), -rc);
+                       authz.c_str(), -rc);
       } else {
         // if owner or group is specified, adjust this
         if (!vid.token->Owner().empty()) {
@@ -937,16 +903,12 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     }
   }
 
-  // ---------------------------------------------------------------------------
   // Sudoer flag setting
-  // ---------------------------------------------------------------------------
   if (gSudoerMap.count(vid.uid)) {
     vid.sudoer = true;
   }
 
-  // ---------------------------------------------------------------------------
   // Check if we are allowed to take sel_uid & sel_gid
-  // ---------------------------------------------------------------------------
   if (!vid.sudoer && !token_sudo) {
     // if we are not a sudore, scan the allowed ids
     if (vid.hasUid(sel_uid)) {
@@ -1021,9 +983,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
 
   time_t now = time(NULL);
 
-  // ---------------------------------------------------------------------------
   // Check the Geo Location
-  // ---------------------------------------------------------------------------
   if ((!vid.geolocation.length()) && (gGeoMap.size())) {
     // if the geo location was not set externally and we have some recipe we try
     // to translate the host name and match a rule
@@ -1056,14 +1016,10 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     }
   }
 
-  // ---------------------------------------------------------------------------
   // Maintain the active client map and expire old entries
-  // ---------------------------------------------------------------------------
   ActiveLock.Lock();
 
-  // ---------------------------------------------------------------------------
-  // safty measures not to exceed memory by 'nasty' clients
-  // ---------------------------------------------------------------------------
+  // Safety measures not to exceed memory by 'nasty' clients
   if (ActiveTidents.size() > 25000) {
     ActiveExpire();
   }
@@ -1087,15 +1043,9 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   }
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * Print the current mappings
- *
- * @param stdOut the output is stored here
- * @param option can be 'u' for user role mappings 'g' for group role mappings 's' for sudoer list 'U' for user alias mapping 'G' for group alias mapping 'y' for gateway mappings (tidents) 'a' for authentication mapping rules 'l' for geo location rules, 'n' for the anonymous access deepness of user nobody
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Print the current mappings
+//------------------------------------------------------------------------------
 void
 Mapping::Print(XrdOucString& stdOut, XrdOucString option)
 {

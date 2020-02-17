@@ -259,10 +259,21 @@ public:
   static void
   KommaListToGidVector(const char* list, std::vector<gid_t>& vector_list);
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Printout mapping in the format specified by option
-  // ---------------------------------------------------------------------------
-
+  //!
+  //! @param stdOut string stat stores the output
+  //! @param option can be:
+  //!         'u' for user role mappings
+  //!         'g' for group role mappings
+  //!         's' for sudoer list
+  //!         'U' for user alias mapping
+  //!         'G' for group alias mapping
+  //!         'y' for gateway mappings (tidents)
+  //!         'a' for authentication mapping rules
+  //!         'l' for geo location rules
+  //!         'n' for the anonymous access deepness of user nobody
+  //----------------------------------------------------------------------------
   static void Print(XrdOucString& stdOut, XrdOucString option = "");
 
   // ---------------------------------------------------------------------------
@@ -317,7 +328,8 @@ public:
   // ---------------------------------------------------------------------------
   static std::string GidAsString(gid_t gid);
 
-  static int GetPublicAccessLevel() {
+  static int GetPublicAccessLevel()
+  {
     RWMutexReadLock lock(gMapMutex);
     return Mapping::gNobodyAccessTreeDeepness;
   }
@@ -334,7 +346,7 @@ public:
 
   // ---------------------------------------------------------------------------
   //! Check if a resource is allowed for OAUTH2
-    // ---------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   static bool IsOAuth2Resource(const std::string& resource);
 
 };
