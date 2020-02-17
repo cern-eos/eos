@@ -37,7 +37,7 @@ a **quota** command in the EOS shell:
 
 .. code-block:: bash
 
-   eosdevsrv1:# eos -b quota
+   eosdevsrv1:# eos quota
    # _______________________________________________________________________________________________
    # ==> Quota Node: /eos/dev/2rep/
    # _______________________________________________________________________________________________
@@ -86,7 +86,18 @@ quota for group 99:
 
 .. code-block:: bash
 
-   eosdevsrv1:# eos -b set -g 99 -p /eos/lhc/higgs-project/ -v 1P -i 100M
+   eosdevsrv1:# eos set -g 99 -p /eos/lhc/higgs-project/ -v 1P -i 100M
+
+Space Quota
+-----------
+It is possible to set a physical space restriction using the space parameter **nominalsize**
+
+.. code-block:: bash
+
+   # restrict the physical space usage to 1P
+   eosdevsrv1:# eos space config default space.nominalsize=1P
+
+The restriction is only used, if the connected user is not in the **sudoer** list.
 
 Quota Enforcement
 -----------------
@@ -103,19 +114,19 @@ To see your quota as a user use:
 
 .. code-block:: bash
 
-   eosdevsrv1:# eos -b quota
+   eosdevsrv1:# eos quota
 
 To see quota of all users (if you are an admin):
 
 .. code-block:: bash
  
-   eosdevsrv1:# eos -b quota ls 
+   eosdevsrv1:# eos quota ls 
 
 To see the quota node for a particular directory/subtree:
 
 .. code-block:: bash
 
-   eosdevsrv1:# eos -b quota ls /eos/lhc/higgs-project/
+   eosdevsrv1:# eos quota ls /eos/lhc/higgs-project/
  
 Set Quota
 +++++++++
