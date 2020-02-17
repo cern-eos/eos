@@ -24,6 +24,10 @@ function usage() {
   echo "       k8s    : script runs in a Kubernetes setup and requires a namespace argument"
 }
 
+secs_to_human() {
+  echo "$(( ${1} / 3600 ))h $(( (${1} / 60) % 60 ))m $(( ${1} % 60 ))s"
+}
+
 # Forward the given command to the proper executor Docker or Kubernetes. Gets
 # as argument a container name and a shell command to be executed
 function exec_cmd() {
@@ -264,7 +268,7 @@ function check_all_errors_collected() {
         echo "error: some of the errors were not discovered"
         exit 1
       else
-        echo "info: sleep for 5 seconds waiting for error collection"
+        echo "info: sleep for 5 seconds waiting for error collection, `secs_to_human $((${CURRENT_TIME} - ${START_TIME}))` passed"
         sleep 5
       fi
 
@@ -350,7 +354,7 @@ check_all_errors_collected
 exec_cmd eos-cli1 "eos -r 0 0 fsck config toggle-repair"
 
 # Wait for all the errors to be repaired
-MAX_DELAY=300
+MAX_DELAY=600
 START_TIME=$(date +%s)
 
 while
@@ -363,7 +367,7 @@ while
       cleanup
       exit 1
     else
-      echo "info: sleep for 5 seconds waiting for errors to be repaired"
+      echo "info: sleep for 5 seconds waiting for error collection, `secs_to_human $((${CURRENT_TIME} - ${START_TIME}))` passed"
       sleep 5
     fi
   else

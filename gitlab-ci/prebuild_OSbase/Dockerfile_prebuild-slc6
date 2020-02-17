@@ -1,0 +1,22 @@
+FROM gitlab-registry.cern.ch/linuxsupport/slc6-base
+
+LABEL maintainer="Fabio Luchetti, faluchet@cern.ch, CERN 2020"
+
+WORKDIR /builds/dss/eos/
+
+RUN yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar ccache sl-release-scl
+
+RUN source gitlab-ci/export_branch.sh \
+    && echo "Exporting BRANCH=${BRANCH}" \
+    && git submodule update --init --recursive \
+    && mkdir build \
+    && cd build/ \
+    && cmake3 ../ -DPACKAGEONLY=1 && make srpm \
+    && cd ../ \
+    && echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-6/x86_64/\ngpgcheck=0\nenabled=1\npriority=1\n' >> /etc/yum.repos.d/eos-depend.repo \
+    && yum-builddep --nogpgcheck --setopt="cern*.exclude=xrootd*" -y build/SRPMS/*
+
+# just to install 'ts', nice to benchmark the build time.
+RUN yum install -y moreutils
+
+ENTRYPOINT /bin/bash

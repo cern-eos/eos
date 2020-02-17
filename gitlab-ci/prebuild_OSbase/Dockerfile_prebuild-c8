@@ -1,0 +1,23 @@
+FROM gitlab-registry.cern.ch/linuxsupport/c8-base
+
+LABEL maintainer="Fabio Luchetti, faluchet@cern.ch, CERN 2020"
+
+WORKDIR /builds/dss/eos/
+
+RUN dnf install -y epel-release \
+    && dnf install --nogpg -y gcc-c++ cmake ccache make dnf-plugins-core python2 python3 python3-setuptools rpm-build rpm-sign which git tar
+
+RUN source gitlab-ci/export_branch.sh \
+    && echo "Exporting BRANCH=${BRANCH}" \
+    && git submodule update --init --recursive \
+    && mkdir build \
+    && cd build \
+    && cmake ../ -DPACKAGEONLY=1 && make srpm \
+    && cd ../ \
+    && echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-8/x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo \
+    && dnf builddep --nogpgcheck --allowerasing -y build/SRPMS/*
+
+# just to install 'ts', nice to benchmark the build time.
+RUN yum install -y moreutils
+
+ENTRYPOINT /bin/bash
