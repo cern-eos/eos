@@ -29,6 +29,7 @@
 #include "common/StringTokenizer.hh"
 #include "common/StringUtils.hh"
 #include "common/Timing.hh"
+#include "common/Path.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdAcc/XrdAccAuthorize.hh"
@@ -342,6 +343,8 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
   std::string authz_data = (normalized_headers.count("authorization") ?
                             normalized_headers["authorization"] : "");
   std::string path = normalized_headers["xrd-http-fullresource"];
+  eos::common::Path canonical_path(path);
+  path = canonical_path.GetFullPath().c_str();
   std::string enc_authz = StringConversion::curl_default_escaped(authz_data);
   // @todo (esindril) this needs to be reviewed to pass in the proper access
   // operations but this will fail for the moment since the macaroons contains
