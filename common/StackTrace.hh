@@ -43,22 +43,20 @@ public:
   //----------------------------------------------------------------------------
   //! Construct gdb command
   //----------------------------------------------------------------------------
-  static std::string constructGdbCommand() {
+  static std::string constructGdbCommand()
+  {
     struct stat statbuf;
-    if(stat("/usr/bin/scl", &statbuf) != 0) {
-      return "gdb";
+
+    if (stat("/opt/rh/devtoolset-8/root/usr/bin/gdb", &statbuf) == 0) {
+      return "/opt/rh/devtoolset-8/root/usr/bin/gdb";
     }
 
-    if(stat("/opt/rh/devtoolset-8", &statbuf) == 0) {
-      return "scl enable devtoolset-8 gdb";
+    if (stat("/opt/rh/devtoolset-7/root/usr/bin/gdb", &statbuf) == 0) {
+      return "/opt/rh/devtoolset-8/root/usr/bin/gdb";
     }
 
-    if(stat("/opt/rh/devtoolset-7", &statbuf) == 0) {
-      return "scl enable devtoolset-7 gdb";
-    }
-
-    if(stat("/opt/rh/devtoolset-6", &statbuf) == 0) {
-      return "scl enable devtoolset-6 gdb";
+    if (stat("/opt/rh/devtoolset-6/root/usr/bin/gdb", &statbuf) == 0) {
+      return "/opt/rh/devtoolset-6/root/usr/bin/gdb";
     }
 
     return "gdb";
@@ -67,22 +65,24 @@ public:
   //----------------------------------------------------------------------------
   //! Create a readable back trace using gdb
   //----------------------------------------------------------------------------
-  static void GdbTrace(const char* executable, pid_t pid, const char* what, const char* file = "/var/eos/md/stacktrace", std::string* ret_dump=0)
+  static void GdbTrace(const char* executable, pid_t pid, const char* what,
+                       const char* file = "/var/eos/md/stacktrace", std::string* ret_dump = 0)
   {
     std::string exe;
+
     if (!executable) {
       std::string procentry = "/proc/";
       procentry += std::to_string(pid);
       procentry += "/exe";
       char buf[4096];
       ssize_t size_link = ::readlink(procentry.c_str(), buf, sizeof(buf));
-      if(size_link>0) {
-	exe.assign(buf, size_link);
+
+      if (size_link > 0) {
+        exe.assign(buf, size_link);
       }
     } else {
       exe = executable;
     }
-
 
     fprintf(stderr, "#########################################################"
             "################\n");
@@ -90,8 +90,7 @@ public:
             (unsigned int) pid, what);
     fprintf(stderr, "#########################################################"
             "################\n");
-
-    XrdOucString  gdbline="ulimit -v 10000000000; ";
+    XrdOucString  gdbline = "ulimit -v 10000000000; ";
     gdbline += constructGdbCommand().c_str();
     gdbline += " --quiet ";
     gdbline += exe.c_str();
@@ -102,13 +101,12 @@ public:
     gdbline += what;
     gdbline += "\" >&" ;
     gdbline += file;
-
     eos::common::ShellCmd shelltrace(gdbline.c_str());
     shelltrace.wait(120);
     std::string cat = "cat ";
     cat += file;
     std::string gdbdump = StringConversion::StringFromShellCmd
-      (cat.c_str());
+                          (cat.c_str());
 
     if (ret_dump) {
       *ret_dump = gdbdump;
@@ -118,8 +116,8 @@ public:
 
     if (!strcmp("thread apply all bt", what)) {
       if (!ret_dump) {
-	// We can extract the signal thread from all thread back traces
-	GdbSignaledTrace(gdbdump);
+        // We can extract the signal thread from all thread back traces
+        GdbSignaledTrace(gdbdump);
       }
     }
   }
