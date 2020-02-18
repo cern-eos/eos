@@ -669,11 +669,11 @@ int
 XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
                    const XrdSecEntity* client)
 {
-  // if(pargs.opts & Prep_QUERY) {
-  //   return _prepare_query(pargs, error, client);
-  // } else {
-  return _prepare(pargs, error, client);
-  // }
+  if(pargs.opts & Prep_QUERY) {
+    return _prepare_query(pargs, error, client);
+  } else {
+    return _prepare(pargs, error, client);
+  }
 }
 
 
