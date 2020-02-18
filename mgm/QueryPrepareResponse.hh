@@ -30,15 +30,16 @@ EOSMGMNAMESPACE_BEGIN
 
 struct QueryPrepareResponse {
   QueryPrepareResponse() :
-    is_exists(false), is_online(false), is_requested(false), is_reqid_present(false) {}
+    is_exists(false), is_on_tape(false), is_online(false), is_requested(false), is_reqid_present(false) {}
 
   QueryPrepareResponse(const std::string _path) :
-    path(_path), is_exists(false), is_online(false), is_requested(false), is_reqid_present(false) {}
+    path(_path), is_exists(false), is_on_tape(false), is_online(false), is_requested(false), is_reqid_present(false) {}
 
   friend std::ostream& operator<<(std::ostream& json, QueryPrepareResponse &qpr) {
     json << "{"
          << "\"path\":\""       << qpr.path << "\","
-         << "\"exists\":"       << (qpr.is_exists        ? "true," : "false,")
+         << "\"path_exists\":"  << (qpr.is_exists        ? "true," : "false,")
+         << "\"on_tape\":"      << (qpr.is_on_tape       ? "true," : "false,")
          << "\"online\":"       << (qpr.is_online        ? "true," : "false,")
          << "\"requested\":"    << (qpr.is_requested     ? "true," : "false,")
          << "\"has_reqid\":"    << (qpr.is_reqid_present ? "true," : "false,")
@@ -50,6 +51,7 @@ struct QueryPrepareResponse {
 
   std::string path;
   bool is_exists;
+  bool is_on_tape;
   bool is_online;
   bool is_requested;
   bool is_reqid_present;
