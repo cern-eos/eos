@@ -221,3 +221,22 @@ The statistics file counter can be reset by running as root:
 .. code-block:: bash
 
    eosxd set system.eos.resetstat - /eos/
+
+Server Side Configuration
+-------------------------
+
+The **eosxd** network provides four configuration parameters, which can be shown or modified using **eos fusex conf**
+
+.. code-block:: bash
+
+   [root@eos ]# eos fusex conf
+   info: configured FUSEX broadcast max. client audience 256 listeners
+   info: configured FUESX broadcast audience to suppress match is '@b[67]'
+   info: configured FUSEX heartbeat interval is 10 seconds
+   info: configured FUSEX quota check interval is 10 seconds
+
+The default heartbeat interval is 10 seconds. It is the interval each **eosxd** process sends a heartbeat message to the MGM server. The quota check interval is the interval after which the MGM FuseServer checks again if a **eosxd** client went out of quota or back to quota. The default is also 10 seconds. 
+
+When working with thousands of clients within a single directory the amount of messages in the FuseServer broadcast network can overwhelm the MGM messaging capacity. To reduce the amount of messages sent around while files are open and written, a threshold can be defined after which a certain audience of clients will not receive anymore meta-data update or forced refresh messages. If 1000 clients write 1000 files within a single directory the message rate is 100kHz for file-size updates while the clients are writing. In the example above if a message hits more than 256 listeners and the client names start with b6 or b6 messages will be suppressed. Messages emitted when files are created or commmitted are not suppressed!
+
+   
