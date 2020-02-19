@@ -61,7 +61,6 @@ function retrieve_timestamps() {
   ctime=`echo ${fileinfo} | jq '(.ctime|tostring) + "." + (.ctime_ns|tostring)'`
   btime=`echo ${fileinfo} | jq '(.btime|tostring) + "." + (.btime_ns|tostring)'`
 
-  echo "fileinfo on $1"
   echo "mtime=${mtime} ctime=${ctime} btime=${btime}"
   echo ""
 }
@@ -99,60 +98,63 @@ echo "EOS_MGM_HOSTNAME=${EOS_MGM_HOSTNAME}"
 eos mkdir -p /eos/${EOS_INSTANCE_NAME}/timestamp_tests/
 touch /eos1/${EOS_INSTANCE_NAME}/timestamp_tests/file
 
+echo "Retrieving initial timestamps"
 retrieve_timestamps /eos/${EOS_INSTANCE_NAME}/timestamp_tests/file
 mtime_init=$mtime
 ctime_init=$ctime
 btime_init=$btime
 
-
-# Need to compare only the integer part of the timestamp because birthtime is decimal numbers different to the other two times.
-# which will be deemed correct in this test.
-mtime_i=$(echo ${mtime_init} | cut -d "." -f1)
-ctime_i=$(echo ${ctime_init} | cut -d "." -f1)
-btime_i=$(echo ${btime_init} | cut -d "." -f1)
-
-## check all timestamps are identical
-if [[ ${mtime_i} != ${ctime_i} || ${mtime_i} != ${btime_i} ]]; then
+# TEST: All timestamps should be identical
+# Note: Compare only the integer part of the timestamp for birthtime
+#       (btime has a slight btime_ns difference)
+if [[ ${mtime_init} != ${ctime_init} || ${mtime_init%.*} != ${btime_init%.*} ]]; then
   echo "Timestamps are not equal after test file creation" >&2
   exit 1
 fi
 
-# Modify file content and retrieve timestamps
-sleep 2
+## File content modification scenario
 echo 'start' > /eos1/${EOS_INSTANCE_NAME}/timestamp_tests/file
-retrieve_timestamps /eos/${EOS_INSTANCE_NAME}/timestamp_tests/file 
+echo "Retrieving timestamps after content modification"
+retrieve_timestamps /eos/${EOS_INSTANCE_NAME}/timestamp_tests/file
 mtime_cont=$mtime
 ctime_cont=$ctime
 btime_cont=$btime
 
-## perform modification checks
+# TEST: Content modification should affect mtime and ctime
 if [[ ${mtime_init} == ${mtime_cont} || ${ctime_init} == ${ctime_cont} || ${btime_init} != ${btime_cont} ]]; then
   echo "Content modification timestamps not working as expected" >&2
   exit 1
 fi
 
-## perform file metadata change scenario
-sleep 2
+## File metadata change scenario
 eos attr set user.eos.dummy="value" /eos/${EOS_INSTANCE_NAME}/timestamp_tests/file
-retrieve_timestamps /eos/${EOS_INSTANCE_NAME}/timestamp_tests/file 
+echo "Retrieving timestamps after metadata-only modification"
+retrieve_timestamps /eos/${EOS_INSTANCE_NAME}/timestamp_tests/file
 mtime_metad=$mtime
 ctime_metad=$ctime
 btime_metad=$btime
 
+# TEST: Metadata-only change should affect only ctime
 if [[ ${mtime_cont} != ${mtime_metad} || ${ctime_cont} == ${ctime_metad} || ${btime_cont} != ${btime_metad} ]]; then
   echo "Metadata modification timestamps not behaving as expected" >&2
   exit 1
 fi
 
-## perform touch scenario
-sleep 2
+## Touch scenario
 eos touch /eos/${EOS_INSTANCE_NAME}/timestamp_tests/file
+echo "Retrieving timestamps after touch"
 retrieve_timestamps /eos/${EOS_INSTANCE_NAME}/timestamp_tests/file 
 mtime_touch=$mtime
 ctime_touch=$ctime
 btime_touch=$btime
 
+# TEST: Touch should affect mtime and ctime
 if [[ ${mtime_cont} == ${mtime_touch} || ${ctime_cont} == ${ctime_touch} || ${btime_cont} != ${btime_touch} ]]; then
   echo "Touch command timestamps not behaving as expected" >&2
   exit 1
 fi
+
+# Clean-up
+eos rm /eos/dockertest/timestamp_tests/*
+eos rmdir /eos/dockertest/timestamp_tests/
+exit 0
