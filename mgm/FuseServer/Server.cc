@@ -378,7 +378,7 @@ Server::FillContainerMD(uint64_t id, eos::fusex::md& dir,
 
       (*dir.mutable_attr())[elem.first] = elem.second;
 
-      if ((elem.first) == "eos.btime") {
+      if ((elem.first) == "sys.eos.btime") {
         std::string key, val;
         eos::common::StringConversion::SplitKeyValue(elem.second, key, val, ".");
         dir.set_btime(strtoul(key.c_str(), 0, 10));
@@ -2921,16 +2921,14 @@ Server::replaceNonSysAttributes(const std::shared_ptr<eos::IFileMD>& fmd,
 
   // Remove all non-system attributes
   for (const auto& attr : xattrs) {
-    if ((attr.first.substr(0, 3) != "sys") ||
-        (attr.first == "sys.eos.btime")) {
+    if ((attr.first.substr(0, 3) != "sys")) {
       fmd->removeAttribute(attr.first);
     }
   }
 
   // Register non-system client-supplied attributes
   for (const auto& attr : md.attr()) {
-    if ((attr.first.substr(0, 3) != "sys") ||
-        (attr.first == "sys.eos.btime")) {
+    if ((attr.first.substr(0, 3) != "sys")) {
       fmd->setAttribute(attr.first, attr.second);
     }
   }
