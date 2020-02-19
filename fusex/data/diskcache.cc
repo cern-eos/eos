@@ -77,7 +77,8 @@ diskcache::init_daemonized(const cacheconfig& config)
   sDirCleaner = std::make_shared<dircleaner>(config.location,
 					     "dc",
 					     config.total_file_cache_size,
-					     config.total_file_cache_inodes
+					     config.total_file_cache_inodes,
+					     config.clean_threshold
 					    );
   sDirCleaner->set_trim_suffix(".dc");
 
