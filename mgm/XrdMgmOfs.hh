@@ -728,7 +728,8 @@ public:
              XrdOucErrInfo& error,
              eos::common::VirtualIdentity& vid,
              const char* ininfo = 0,
-             bool doLock = true);
+             bool doLock = true, 
+	     bool useLayout = false);
 
   //----------------------------------------------------------------------------
   //! List extended attributes for a given file/directory - high-level API.

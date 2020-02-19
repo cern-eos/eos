@@ -333,6 +333,9 @@ com_file(char* arg1)
     in += Path2FileDenominator(path) ? "&mgm.file.id=" : "&mgm.path=";
     in += path;
     in += "&mgm.subcmd=touch";
+    if (option.find("n") != STR_NPOS) {
+      in += "&mgm.file.touch.nolayout=true";
+    }
   }
 
   if (cmd == "drop") {
@@ -1010,9 +1013,10 @@ com_file_usage:
           "                                                  add/remove/unlink a filesystem location to/from a file in the location index - attention this does not move any data!\n");
   fprintf(stdout,
           "                                                  unlink keeps the location in the list of deleted files e.g. the location get's a deletion request\n");
-  fprintf(stdout, "file touch [<path>|fid:<fid-dec>|fxid:<fid-hex>] :\n");
+  fprintf(stdout, "file touch [-n] [<path>|fid:<fid-dec>|fxid:<fid-hex>] :\n");
   fprintf(stdout,
           "                                                  create a 0-size/0-replica file if <path> does not exist or update modification time of an existing file to the present time\n");
+  fprintf(stdout, "                                          - by default it uses placement logic - use [-n] to disable placement\n");
   fprintf(stdout,
           "file verify <path>|fid:<fid-dec>|fxid:<fid-hex> [<fsid>] [-checksum] [-commitchecksum] [-commitsize] [-rate <rate>] : \n");
   fprintf(stdout,

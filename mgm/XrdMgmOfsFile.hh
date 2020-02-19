@@ -96,11 +96,20 @@ public:
   //----------------------------------------------------------------------------
   // open a file
   //----------------------------------------------------------------------------
+  int open(eos::common::VirtualIdentity* vid,
+	   const char* fileName,
+	   XrdSfsFileOpenMode openMode,
+	   mode_t createMode,
+	   const XrdSecEntity* client,
+	   const char* opaque);
+  
   int open(const char* fileName,
-           XrdSfsFileOpenMode openMode,
-           mode_t createMode,
-           const XrdSecEntity* client = 0,
-           const char* opaque = 0);
+	   XrdSfsFileOpenMode openMode,
+	   mode_t createMode,
+	   const XrdSecEntity* client = 0,
+           const char* opaque = 0) {
+    return open(0, fileName, openMode, createMode, client, opaque);
+  }
 
   //----------------------------------------------------------------------------
   // close a file

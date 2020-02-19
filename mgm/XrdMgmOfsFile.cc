@@ -185,7 +185,8 @@ XrdMgmOfsFile::create_cow(bool isDelete, uint64_t cloneId,
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfsFile::open(const char* inpath,
+XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
+		    const char* inpath,
                     XrdSfsFileOpenMode open_mode,
                     mode_t Mode,
                     const XrdSecEntity* client,
@@ -233,7 +234,11 @@ XrdMgmOfsFile::open(const char* inpath,
                   inpath);
     }
 
-    eos::common::Mapping::IdMap(client, ininfo, tident, vid);
+    if (!invid) {
+      eos::common::Mapping::IdMap(client, ininfo, tident, vid);
+    } else {
+      vid = *invid;
+    }
     EXEC_TIMING_END("IdMap");
   }
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
@@ -1434,7 +1439,7 @@ XrdMgmOfsFile::open(const char* inpath,
   }
 
   // Size which will be reserved with a placement of one replica for the file
-  unsigned long long bookingsize;
+  unsigned long long bookingsize = 0;
   bool hasClientBookingSize = false;
   unsigned long long targetsize = 0;
   unsigned long long minimumsize = 0;
@@ -2266,7 +2271,7 @@ XrdMgmOfsFile::open(const char* inpath,
                     path);
       }
 
-      for (auto i = 0; i < selection_diff; ++i) {
+      for (size_t i = 0; i < selection_diff; ++i) {
         selectedfs.push_back(pio_replacement_fs.back());
         pio_replacement_fs.pop_back();
       }
@@ -3030,7 +3035,8 @@ XrdMgmOfsFile::HandleTokenAuthz(XrdSecEntity* client, const std::string& path,
   // @todo (esindril) this is just a workaround for the fact that XrdHttp
   // does not properly populate the prot field in the XrdSecEntity object.
   // See https://github.com/xrootd/xrootd/issues/1122
-  if ((strlen(client->tident) == 4) &&
+  if (client && 
+      (strlen(client->tident) == 4) &&
       (strcmp(client->tident, "http") == 0)) {
     XrdOucEnv op_env(opaque.c_str());
     std::string authz = (op_env.Get("authz") ? op_env.Get("authz") : "");

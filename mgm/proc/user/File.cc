@@ -1197,6 +1197,10 @@ ProcCommand::File()
     // -------------------------------------------------------------------------
     if (mSubCmd == "touch") {
       cmdok = true;
+      bool useLayout = true;
+      if (pOpaque->Get("mgm.file.touch.nolayout")) {
+	useLayout = false;
+      }
 
       if (!spath.length()) {
         stdErr = "error: There is no file with given id! '";
@@ -1204,7 +1208,7 @@ ProcCommand::File()
         stdErr += "'";
         retc = ENOENT;
       } else {
-        if (gOFS->_touch(spath.c_str(), *mError, *pVid, 0)) {
+        if (gOFS->_touch(spath.c_str(), *mError, *pVid, 0, true, useLayout)) {
           stdErr = "error: unable to touch '";
           stdErr += spath.c_str();
           stdErr += "'";
