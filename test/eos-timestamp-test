@@ -41,6 +41,9 @@ mtime=0
 ctime=0
 btime=0
 
+# Global return code
+rc=0
+
 #------------------------------------------------------------------------------
 # Helper functions
 #------------------------------------------------------------------------------
@@ -62,7 +65,6 @@ function retrieve_timestamps() {
   btime=`echo ${fileinfo} | jq '(.btime|tostring) + "." + (.btime_ns|tostring)'`
 
   echo "mtime=${mtime} ctime=${ctime} btime=${btime}"
-  echo ""
 }
 
 #------------------------------------------------------------------------------
@@ -98,7 +100,7 @@ echo "EOS_MGM_HOSTNAME=${EOS_MGM_HOSTNAME}"
 eos mkdir -p /eos/${EOS_INSTANCE_NAME}/timestamp_tests/
 touch /eos1/${EOS_INSTANCE_NAME}/timestamp_tests/file
 
-echo "Retrieving initial timestamps"
+printf "\nRetrieving initial timestamps\n"
 retrieve_timestamps /eos/${EOS_INSTANCE_NAME}/timestamp_tests/file
 mtime_init=$mtime
 ctime_init=$ctime
@@ -109,12 +111,13 @@ btime_init=$btime
 #       (btime has a slight btime_ns difference)
 if [[ ${mtime_init} != ${ctime_init} || ${mtime_init%.*} != ${btime_init%.*} ]]; then
   echo "Timestamps are not equal after test file creation" >&2
-  exit 1
+  rc=1
 fi
 
 ## File content modification scenario
+sleep 1
+printf "\nRetrieving timestamps after content modification\n"
 echo 'start' > /eos1/${EOS_INSTANCE_NAME}/timestamp_tests/file
-echo "Retrieving timestamps after content modification"
 retrieve_timestamps /eos/${EOS_INSTANCE_NAME}/timestamp_tests/file
 mtime_cont=$mtime
 ctime_cont=$ctime
@@ -122,13 +125,17 @@ btime_cont=$btime
 
 # TEST: Content modification should affect mtime and ctime
 if [[ ${mtime_init} == ${mtime_cont} || ${ctime_init} == ${ctime_cont} || ${btime_init} != ${btime_cont} ]]; then
-  echo "Content modification timestamps not working as expected" >&2
-  exit 1
+  echo "Content modification timestamps not behaving as expected" >&2
+  if [[ ${mtime_init} == ${mtime_cont} ]]; then echo "-- mtime did not change" >&2 ; fi
+  if [[ ${ctime_init} == ${ctime_cont} ]]; then echo "-- ctime did not change" >&2 ; fi
+  if [[ ${btime_init} != ${btime_cont} ]]; then echo "-- btime changed but it should not have" >&2 ; fi
+  rc=1
 fi
 
 ## File metadata change scenario
+sleep 1
+printf "\nRetrieving timestamps after metadata-only modification\n"
 eos attr set user.eos.dummy="value" /eos/${EOS_INSTANCE_NAME}/timestamp_tests/file
-echo "Retrieving timestamps after metadata-only modification"
 retrieve_timestamps /eos/${EOS_INSTANCE_NAME}/timestamp_tests/file
 mtime_metad=$mtime
 ctime_metad=$ctime
@@ -137,24 +144,31 @@ btime_metad=$btime
 # TEST: Metadata-only change should affect only ctime
 if [[ ${mtime_cont} != ${mtime_metad} || ${ctime_cont} == ${ctime_metad} || ${btime_cont} != ${btime_metad} ]]; then
   echo "Metadata modification timestamps not behaving as expected" >&2
-  exit 1
+  if [[ ${mtime_cont} != ${mtime_metad} ]]; then echo "-- mtime changed but it should not have" >&2 ; fi
+  if [[ ${ctime_cont} == ${ctime_metad} ]]; then echo "-- ctime did not change" >&2 ; fi
+  if [[ ${btime_cont} != ${btime_metad} ]]; then echo "-- btime changed but it should not have" >&2 ; fi
+  rc=1
 fi
 
 ## Touch scenario
-eos touch /eos/${EOS_INSTANCE_NAME}/timestamp_tests/file
-echo "Retrieving timestamps after touch"
-retrieve_timestamps /eos/${EOS_INSTANCE_NAME}/timestamp_tests/file 
+sleep 1
+printf "\nRetrieving timestamps after touch\n"
+eos touch /eos/${EOS_INSTANCE_NAME}/timestamp_tests/file > /dev/null
+retrieve_timestamps /eos/${EOS_INSTANCE_NAME}/timestamp_tests/file
 mtime_touch=$mtime
 ctime_touch=$ctime
 btime_touch=$btime
 
 # TEST: Touch should affect mtime and ctime
-if [[ ${mtime_cont} == ${mtime_touch} || ${ctime_cont} == ${ctime_touch} || ${btime_cont} != ${btime_touch} ]]; then
+if [[ ${mtime_metad} == ${mtime_touch} || ${ctime_metad} == ${ctime_touch} || ${btime_metad} != ${btime_touch} ]]; then
   echo "Touch command timestamps not behaving as expected" >&2
-  exit 1
+  if [[ ${mtime_metad} == ${mtime_touch} ]]; then echo "-- mtime did not change" >&2 ; fi
+  if [[ ${ctime_metad} == ${ctime_touch} ]]; then echo "-- ctime did not change" >&2 ; fi
+  if [[ ${btime_metad} != ${btime_touch} ]]; then echo "-- btime changed but it should not have" >&2 ; fi
+  rc=1
 fi
 
 # Clean-up
 eos rm /eos/dockertest/timestamp_tests/*
 eos rmdir /eos/dockertest/timestamp_tests/
-exit 0
+exit ${rc}
