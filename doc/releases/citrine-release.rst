@@ -15,6 +15,42 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
+``v4.7.0 Citrine``
+===================
+
+2020-02-19
+
+New Feature
+------------
+
+* Provide backup-clone functionality
+* [EOS-3956] - Provide the expected checksum per block in the namespace in RAIN files
+
+
+Bug
+----
+
+* [EOS-3377] - find -b shows wrong accounting for RAIN files
+* [EOS-3867] - MGM redirecting to itself
+* [EOS-3912] - Balancing prevented for RAIN files
+* [EOS-3917] - SetNodeConfigDefault might be called before gOFS->mMaster has been initialized
+* [EOS-3954] - eos documentation guides people towards an insecure QDB deployment
+* [EOS-3969] - Bug in NextInodeProvider raises possibility of creating two containers with colliding IDs
+
+
+Task
+-----
+
+* [EOS-3819] - Create automatically the missing directories when recovering files
+
+Improvement
+------------
+
+* [EOS-3370] - RFE: "eos file check" , "eos file info" should show 'user.eos.filecxerror' status for full-replica
+* [EOS-3967] - Extend redirection URL length accepted by the MGM
+
+
 ``v4.6.8 Citrine``
 ===================
 
