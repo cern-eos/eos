@@ -1970,7 +1970,7 @@ Quota::FilePlacement(Scheduler::PlacementArguments* args)
       return ENOSPC;
     } else {
       if (EOS_LOGS_DEBUG) {
-	eos_static_debug("nomoinal quota ok");
+	eos_static_debug("nominal quota ok");
       }
     }
   }
