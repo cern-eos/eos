@@ -472,7 +472,8 @@ int journalcache::init_daemonized(const cacheconfig& config)
   jDirCleaner = std::make_shared<dircleaner>(config.location,
 					     "jc",
 					     config.total_file_journal_size,
-					     config.total_file_journal_inodes
+					     config.total_file_journal_inodes,
+					     config.clean_threshold
 					     );
   jDirCleaner->set_trim_suffix(".jc");
 
