@@ -60,7 +60,7 @@ endif (Linux)
 # Compile flags
 #-------------------------------------------------------------------------------
 set(EOSXD_COMPILE_FLAGS
-  "-DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\" ${FLAGS_IF_ROCKSDB_WAS_FOUND}"
+  "-DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DFUSE_MOUNT_VERSION=V${FUSE_MOUNT_VERSION} -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\" ${FLAGS_IF_ROCKSDB_WAS_FOUND}"
 )
 
 #-------------------------------------------------------------------------------

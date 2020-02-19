@@ -28,6 +28,12 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#if FUSE_MOUNT_VERSION == v29
+#define FUSE_SUPPORTS_FLOCK
+#pragma message("FUSE_SUPPORTS_FLOCK")
+#endif
+
+
 #ifndef FUSE_USE_VERSION
 #ifdef __APPLE__
 #define FUSE_USE_VERSION 27
@@ -37,6 +43,8 @@
 
 #ifdef _FUSE3
 #define FUSE_USE_VERSION 30
+#define FUSE_SUPPORTS_FLOCK
+#pragma message("FUSE_SUPPORTS_FLOCK")
 #pragma message("FUSE 30")
 #else
 #define FUSE_USE_VERSION 28
@@ -145,7 +153,7 @@ protected:
     operations.symlink = &T::symlink;
     operations.getlk = &T::getlk;
     operations.setlk = &T::setlk;
-#if ( FUSE_VERSION > 28 )
+#ifdef FUSE_SUPPORTS_FLOCK
     operations.flock = &T::flock;
 #endif
   }

@@ -4,6 +4,7 @@
 # FUSE_FOUND        - system has fuse
 # FUSE_INCLUDE_DIRS - fuse include directories
 # FUSE_LIBRARIES    - libraries need to use fuse
+# FUSE_MOUNT_VERSION - major version reported by fusermount 
 
 include(FindPackageHandleStandardArgs)
 
@@ -28,6 +29,17 @@ else()
       NAMES fuse
       HINTS ${FUSE_ROOT_DIR}
       PATH_SUFFIXES ${LIBRARY_PATH_PREFIX})
+
+     execute_process(
+      COMMAND sh -c "fusermount --version | cut -d ' ' -f 3 | cut -d '.' -f 1,2 | sed s/'\\.'//g"
+      OUTPUT_VARIABLE FUSEVERSION
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+      RESULT_VARIABLE RETC)
+      set(${FUSE_MOUNT_VERSION} ${FUSEVERSION} PARENT_SCOPE)
+      if(NOT ("${RETC}" STREQUAL "0") )
+        set(${FUSE_MOUNT_VERSION} "" PARENT_SCOPE)
+      endif()
+      message(STATUS "Setting FUSE_MOUNT_VERSION: ${FUSEVERSION}")
   endif(MacOSX)
 
   set(FUSE_INCLUDE_DIRS ${FUSE_INCLUDE_DIR})

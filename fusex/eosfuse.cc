@@ -824,6 +824,11 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         root["options"]["write-size-flush-interval"].asInt();
       config.options.inmemory_inodes = root["options"]["inmemory-inodes"].asInt();
 
+      config.options.flock=false;
+#ifdef FUSE_SUPPORTS_FLOCK
+      config.options.flock=true;
+#endif
+
       if (config.options.no_xattr) {
         disable_xattr();
       }
@@ -1561,7 +1566,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         eos_static_warning("sss-keytabfile         := %s", config.ssskeytab.c_str());
       }
 
-      eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d core-affinity:%d no-xattr:%d no-link:%d nocache-graceperiod:%d rm-rf-protect-level=%d rm-rf-bulk=%d t(lease)=%d t(size-flush)=%d submounts=%d ino(in-mem)=%d",
+      eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d core-affinity:%d no-xattr:%d no-link:%d nocache-graceperiod:%d rm-rf-protect-level=%d rm-rf-bulk=%d t(lease)=%d t(size-flush)=%d submounts=%d ino(in-mem)=%d flock:%d",
                          config.options.enable_backtrace,
                          config.options.md_kernelcache,
                          config.options.md_kernelcache_enoent_timeout,
@@ -1585,7 +1590,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
                          config.options.leasetime,
                          config.options.write_size_flush_interval,
                          config.options.submounts,
-                         config.options.inmemory_inodes
+                         config.options.inmemory_inodes,
+			 config.options.flock
                         );
       eos_static_warning("cache                  := rh-type:%s rh-nom:%d rh-max:%d rh-blocks:%d max-rh-buffer=%lu max-wr-buffer=%lu tot-size=%ld tot-ino=%ld jc-size=%ld jc-ino=%ld dc-loc:%s jc-loc:%s clean-thrs:%02f%%%",
                          cconfig.read_ahead_strategy.c_str(),
@@ -5789,7 +5795,7 @@ EosFuse::setlk(fuse_req_t req, fuse_ino_t ino,
                     dump(id, ino, 0, rc).c_str());
 }
 
-#if ( FUSE_VERSION > 28 )
+#ifdef FUSE_SUPPORTS_FLOCK
 void
 /* -------------------------------------------------------------------------- */
 EosFuse::flock(fuse_req_t req, fuse_ino_t ino,

@@ -268,6 +268,7 @@ public:
       int write_size_flush_interval;
       int submounts;
       int inmemory_inodes;
+      bool flock;
       std::vector<std::string> no_fsync_suffixes;
     } options_t;
 
