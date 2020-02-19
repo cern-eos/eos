@@ -140,7 +140,7 @@ DrainTransferJob::DoIt() noexcept
     XrdCl::CopyProcess cpy;
     cpy.AddJob(properties, &result);
     XrdCl::XRootDStatus prepare_st = cpy.Prepare();
-    eos_info("[tpc]: app=%s logid=%s src_url=%s => dst_url=%s logid=%s "
+    eos_info("[tpc]: app=%s logid=%s src_url=%s => dst_url=%s"
              "prepare_msg=%s", mAppTag.c_str(), log_id.c_str(),
              url_src.GetLocation().c_str(), url_dst.GetLocation().c_str(),
              prepare_st.ToStr().c_str());
