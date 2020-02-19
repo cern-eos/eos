@@ -32,14 +32,13 @@ else()
 
      execute_process(
       COMMAND sh -c "fusermount --version | cut -d ' ' -f 3 | cut -d '.' -f 1,2 | sed s/'\\.'//g"
-      OUTPUT_VARIABLE FUSEVERSION
+      OUTPUT_VARIABLE FUSE_MOUNT_VERSION
       OUTPUT_STRIP_TRAILING_WHITESPACE
       RESULT_VARIABLE RETC)
-      set(${FUSE_MOUNT_VERSION} ${FUSEVERSION} PARENT_SCOPE)
       if(NOT ("${RETC}" STREQUAL "0") )
         set(${FUSE_MOUNT_VERSION} "" PARENT_SCOPE)
       endif()
-      message(STATUS "Setting FUSE_MOUNT_VERSION: ${FUSEVERSION}")
+      message(STATUS "Setting FUSE_MOUNT_VERSION: ${FUSE_MOUNT_VERSION}")
   endif(MacOSX)
 
   set(FUSE_INCLUDE_DIRS ${FUSE_INCLUDE_DIR})

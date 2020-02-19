@@ -28,7 +28,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#if FUSE_MOUNT_VERSION == v29
+#if ( FUSE_MOUNT_VERSION == 290 )
 #define FUSE_SUPPORTS_FLOCK
 #pragma message("FUSE_SUPPORTS_FLOCK")
 #endif
