@@ -161,7 +161,7 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
             eos_static_debug("sending 100-continue");
           }
 
-          req.SendSimpleResp(100, "", "", "", 0);
+          req.SendSimpleResp(100, nullptr, header.c_str(), "", 0);
         }
 
         int retc = 0;
