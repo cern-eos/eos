@@ -26,9 +26,32 @@
 #include "common/Timing.hh"
 #include <XrdOuc/XrdOucTokenizer.hh>
 #include "curl/curl.h"
+#include <pthread.h>
 #include <regex>
 
 EOSCOMMONNAMESPACE_BEGIN
+
+static std::atomic<int> sCounter {0};
+
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+CurlGlobalInitializer::CurlGlobalInitializer()
+{
+  if (sCounter++ == 0) {
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+CurlGlobalInitializer::~CurlGlobalInitializer()
+{
+  if (--sCounter == 0) {
+    curl_global_cleanup();
+  }
+}
 
 char StringConversion::pAscii2HexLkup[256];
 char StringConversion::pHex2AsciiLkup[16];
@@ -1028,24 +1051,23 @@ CURL* StringConversion::tlCurlInit()
     eos_static_crit("error initialising CURL easy session");
   }
 
-  if (buf && pthread_setspecific(sPthreadKey, buf))
+  if (buf && pthread_setspecific(sPthreadKey, buf)) {
     eos_static_crit("error registering thread-local buffer located at %p for "
                     "cleaning up : memory will be leaked when thread is "
                     "terminated", buf);
+  }
 
   return buf;
 }
 
 void StringConversion::tlInitThreadKey()
 {
-  curl_global_init(CURL_GLOBAL_DEFAULT);
   pthread_key_create(&sPthreadKey, StringConversion::tlCurlFree);
 }
 
 thread_local CURL* StringConversion::curl = NULL;
 pthread_key_t  StringConversion::sPthreadKey;
-pthread_once_t StringConversion::sTlInit = PTHREAD_ONCE_INIT;
-
+pthread_once_t StringConversion::sInit = PTHREAD_ONCE_INIT;
 
 //------------------------------------------------------------------------------
 // Escape string using CURL
@@ -1053,8 +1075,8 @@ pthread_once_t StringConversion::sTlInit = PTHREAD_ONCE_INIT;
 std::string
 StringConversion::curl_default_escaped(const std::string& str)
 {
-  pthread_once(&sTlInit, tlInitThreadKey);
-  std::string ret_str = "<no-encoding>";
+  pthread_once(&sInit, tlInitThreadKey);
+  std::string ret_str;
 
   // encode the key
   if (!curl) {
@@ -1079,8 +1101,8 @@ StringConversion::curl_default_escaped(const std::string& str)
 std::string
 StringConversion::curl_default_unescaped(const std::string& str)
 {
-  pthread_once(&sTlInit, tlInitThreadKey);
-  std::string ret_str = "<no-encoding>";
+  pthread_once(&sInit, tlInitThreadKey);
+  std::string ret_str;
 
   // encode the key
   if (!curl) {
@@ -1105,7 +1127,7 @@ StringConversion::curl_default_unescaped(const std::string& str)
 std::string
 StringConversion::curl_escaped(const std::string& str)
 {
-  pthread_once(&sTlInit, tlInitThreadKey);
+  pthread_once(&sInit, tlInitThreadKey);
   std::string ret_str = "<no-encoding>";
 
   // encode the key
@@ -1139,7 +1161,7 @@ StringConversion::curl_escaped(const std::string& str)
 std::string
 StringConversion::curl_unescaped(const std::string& str)
 {
-  pthread_once(&sTlInit, tlInitThreadKey);
+  pthread_once(&sInit, tlInitThreadKey);
   std::string ret_str = "<no-encoding>";
 
   // encode the key

@@ -41,7 +41,6 @@
 #include "common/FileId.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include <string.h>
-#include <curl/curl.h>
 
 class _cloneFoundItem
 {
@@ -54,7 +53,7 @@ public:
     isContainer(cont) { };
 };
 
-/* prefix-less, stripped-down version of eos::common::StringConversion::curl_escaped */
+/* curl encode string if needed */
 static std::string
 _clone_escape(std::string s)
 {
@@ -62,15 +61,7 @@ _clone_escape(std::string s)
     return s;  /* only use escape sequences when needed */
   }
 
-  static CURL* curlAnchor = NULL;
-
-  if (curlAnchor == NULL) {
-    curlAnchor = curl_easy_init();
-  }
-
-  char* esc = curl_easy_escape(curlAnchor, s.c_str(), s.size());
-  std::string t(esc);
-  curl_free(esc);
+  std::string t = eos::common::StringConversion::curl_default_escaped(s);
 #ifdef notNeededThereAintNoSlashesInFilenames
   size_t pos = 0;
 
@@ -296,7 +287,7 @@ _cloneMD(std::shared_ptr<eos::IContainerMD>& cloneMd, char cFlag,
     }
   } catch (eos::MDException& e) {
     eos_static_debug("clonePath %s exception ec=%d emsg=\"%s\" cFlag '%c'", buff,
-            e.getErrno(), e.getMessage().str().c_str(), cFlag);
+                     e.getErrno(), e.getMessage().str().c_str(), cFlag);
 
     if (cFlag == '+' || cFlag == '-') {
       /* for '-': the clone directory may have been incorrectly removed, this should 
@@ -306,11 +297,11 @@ _cloneMD(std::shared_ptr<eos::IContainerMD>& cloneMd, char cFlag,
 
       try {
         std::shared_ptr<eos::IContainerMD> pCloneMd = gOFS->eosView->getContainer(
-                mdPath.GetParentPath());
+              mdPath.GetParentPath());
         cloneMd = gOFS->eosView->createContainer(clonePath);
         cloneMd->setMode(S_IFDIR | S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
         eos_static_info("%s permissions are %#o", clonePath.c_str(),
-                cloneMd->getMode());
+                        cloneMd->getMode());
         cloneMd->setAttribute("sys.clone.root",  gOFS->eosView->getUri(cmd.get()));
         gOFS->eosDirectoryService->updateStore(cloneMd.get());
         gOFS->eosDirectoryService->updateStore(pCloneMd.get());

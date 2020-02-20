@@ -30,7 +30,6 @@
 #include "common/Assert.hh"
 #include "common/Constants.hh"
 #include "mq/MessagingRealm.hh"
-#include <curl/curl.h>
 
 EOSCOMMONNAMESPACE_BEGIN;
 
@@ -472,7 +471,7 @@ void FileSystem::fs_snapshot_t::fillFromCoreParams(const FileSystemCoreParams&
 // Constructor
 //------------------------------------------------------------------------------
 FileSystem::FileSystem(const FileSystemLocator& locator,
-                       mq::MessagingRealm *realm, bool bc2mgm)
+                       mq::MessagingRealm* realm, bool bc2mgm)
   : mLocator(locator), mHashLocator(locator, bc2mgm)
 {
   mSharedManager = realm->getQSom();
@@ -894,20 +893,20 @@ std::string FileSystem::GetString(const char* key)
   return mq::SharedHashWrapper(mHashLocator).get(key);
 }
 
-//--------------------------------------------------------------------------                                                 
-//! Get used bytes                                                                                                           
-//--------------------------------------------------------------------------                                                 
-uint64_t 
+//--------------------------------------------------------------------------
+//! Get used bytes
+//--------------------------------------------------------------------------
+uint64_t
 FileSystem::GetUsedbytes()
 {
   return GetLongLong("stat.statfs.usedbytes");
 }
 
-//--------------------------------------------------------------------------                                                 
+//--------------------------------------------------------------------------
 //! Get used bytes space name
-//--------------------------------------------------------------------------                                                 
+//--------------------------------------------------------------------------
 std::string
-FileSystem::GetSpace() 
+FileSystem::GetSpace()
 {
   return getCoreParams().getSpace();
 }
@@ -925,44 +924,37 @@ FileSystem::GetSpace()
 static std::string serializeWithFilter(
   const std::map<std::string, std::string>& contents, const char* filter_prefix)
 {
+  using eos::common::StringConversion;
   std::string key;
   std::string val;
   std::ostringstream oss;
-  CURL* curl = curl_easy_init();
 
-  if (curl) {
-    for (auto it = contents.begin(); it != contents.end(); it++) {
-      key = it->first.c_str();
+  for (auto it = contents.begin(); it != contents.end(); it++) {
+    key = it->first.c_str();
 
-      // @todo(esindril): This should be removed in version 5.0.0. Exclude old
-      // drainstatus indicator which is not saved in the config anymore.
-      if (key == "drainstatus") {
-        continue;
-      }
-
-      if (((filter_prefix == nullptr) || (strlen(filter_prefix) == 0)) ||
-          (key.find(filter_prefix) != 0)) {
-        val = it->second;
-
-        if (curl) {
-          if ((val[0] == '"') && (val[val.length() - 1] == '"')) {
-            std::string to_encode = val.substr(1, val.length() - 2);
-            char* encoded = curl_easy_escape(curl, to_encode.c_str(), 0);
-
-            if (encoded) {
-              val = '"';
-              val += encoded;
-              val += '"';
-              curl_free(encoded);
-            }
-          }
-        }
-
-        oss << key << "=" << val.c_str() << " ";
-      }
+    // @todo(esindril): This should be removed in version 5.0.0. Exclude old
+    // drainstatus indicator which is not saved in the config anymore.
+    if (key == "drainstatus") {
+      continue;
     }
 
-    curl_easy_cleanup(curl);
+    if (((filter_prefix == nullptr) || (strlen(filter_prefix) == 0)) ||
+        (key.find(filter_prefix) != 0)) {
+      val = it->second;
+
+      if ((val[0] == '"') && (val[val.length() - 1] == '"')) {
+        std::string to_encode = val.substr(1, val.length() - 2);
+        std::string encoded = StringConversion::curl_default_escaped(to_encode);
+
+        if (!encoded.empty()) {
+          val = '"';
+          val += encoded;
+          val += '"';
+        }
+      }
+
+      oss << key << "=" << val.c_str() << " ";
+    }
   }
 
   return oss.str();

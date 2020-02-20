@@ -866,11 +866,27 @@ private:
   static thread_local CURL* curl;
   //! Thread-local storage management
   static pthread_key_t sPthreadKey;
-  static pthread_once_t sTlInit;
+  static pthread_once_t sInit;
   static void tlCurlFree(void* arg);
   static CURL* tlCurlInit();
   static void tlInitThreadKey();
 };
+
+
+//------------------------------------------------------------------------------
+//! Static cURL global initializer
+//------------------------------------------------------------------------------
+static struct CurlGlobalInitializer {
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  CurlGlobalInitializer();
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  ~CurlGlobalInitializer();
+} sCurlGlobalInit; ///< Static initializer for every translation unit
 
 EOSCOMMONNAMESPACE_END
 #endif

@@ -21,11 +21,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "mgm/config/ConfigParsing.hh"
 #include "common/StringConversion.hh"
 #include "common/Logging.hh"
-#include <curl/curl.h>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -36,56 +34,46 @@ EOSMGMNAMESPACE_BEGIN
 //!
 //! Returns if parsing was successful or not.
 //------------------------------------------------------------------------------
-bool ConfigParsing::parseFilesystemConfig(const std::string &config,
-  std::map<std::string, std::string> &out) {
+bool ConfigParsing::parseFilesystemConfig(const std::string& config,
+    std::map<std::string, std::string>& out)
+{
+  using eos::common::StringConversion;
 
-  if(config.empty()) {
+  if (config.empty()) {
     return false;
   }
 
   out.clear();
-
   // Tokenize
   std::vector<std::string> tokens;
   eos::common::StringConversion::Tokenize(config, tokens);
 
-  // Decode
-  CURL* curl = curl_easy_init();
-  if(!curl) {
-    eos_static_crit("Could not initialize CURL object!");
-    return false;
-  }
-
-  for(size_t i = 0; i < tokens.size(); i++) {
+  for (size_t i = 0; i < tokens.size(); i++) {
     std::vector<std::string> keyval;
-
     // Split based on "="
     eos::common::StringConversion::Tokenize(tokens[i], keyval, "=");
-
     std::string sval = keyval[1];
 
     // Curl decode string literal value
     if (sval[0] == '"' && sval[sval.length() - 1] == '"') {
       std::string to_decode = sval.substr(1, sval.length() - 2);
-      char* decoded = curl_easy_unescape(curl, to_decode.c_str(), 0, 0);
+      std::string decoded = StringConversion::curl_default_unescaped(to_decode);
 
-      if (decoded) {
+      if (!decoded.empty()) {
         keyval[1] = '"';
         keyval[1] += decoded;
         keyval[1] += '"';
-        curl_free(decoded);
       }
     }
 
     out[keyval[0]] = keyval[1];
   }
 
-  curl_easy_cleanup(curl);
-
   if ((!out.count("queuepath")) ||
       (!out.count("queue")) ||
       (!out.count("id"))) {
-    eos_static_err("%s", "msg=\"could not parse configuration entry: %s\"", config.c_str());
+    eos_static_err("%s", "msg=\"could not parse configuration entry: %s\"",
+                   config.c_str());
     return false;
   }
 
@@ -98,9 +86,9 @@ bool ConfigParsing::parseFilesystemConfig(const std::string &config,
 //
 // Returns if parsing was successful or not.
 //------------------------------------------------------------------------------
-bool ConfigParsing::parseConfigurationFile(const std::string &contents,
-    std::map<std::string, std::string> &out, std::string &err) {
-
+bool ConfigParsing::parseConfigurationFile(const std::string& contents,
+    std::map<std::string, std::string>& out, std::string& err)
+{
   int line_num = 0;
   std::string s;
   std::istringstream streamconfig(contents);
@@ -115,7 +103,7 @@ bool ConfigParsing::parseConfigurationFile(const std::string &contents,
 
       if (seppos == STR_NPOS) {
         err = SSTR("parsing error in configuration file line "
-            << line_num << ":" <<  s.c_str());
+                   << line_num << ":" <<  s.c_str());
         return false;
       }
 
@@ -128,7 +116,8 @@ bool ConfigParsing::parseConfigurationFile(const std::string &contents,
         eos_static_notice("setting config key=%s value=%s", key.c_str(), value.c_str());
         out[key.c_str()] = value.c_str();
       } else {
-        eos_static_notice("skipping empty config key=%s value=%s", key.c_str(), value.c_str());
+        eos_static_notice("skipping empty config key=%s value=%s", key.c_str(),
+                          value.c_str());
       }
     }
   }

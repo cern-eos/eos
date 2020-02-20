@@ -356,35 +356,27 @@ public:
   //! Note: the function resets the value of errno
   //----------------------------------------------------------------------------
   static int
-  Timespec_from_TimespecStr(std::string timespec_str, struct timespec& ts)
+  Timespec_from_TimespecStr(const std::string& timespec_str, struct timespec& ts)
   {
-    const char* nptr = timespec_str.c_str();
     size_t pos = timespec_str.find(".");
     struct timespec lts {
       0, 0
     };
-    char* endptr = NULL;
-    errno = 0;
     ts.tv_sec = ts.tv_nsec = 0;
 
-    if (pos == std::string::npos) {
-      lts.tv_sec = strtoull(nptr, &endptr, 10);
-    } else {
-      nptr = timespec_str.substr(0, pos).c_str();
-      lts.tv_sec = strtoull(nptr, &endptr, 10);
-
-      // Failed conversion or no digits found
-      if ((errno != 0) || (nptr == endptr)) {
-        return -1;
-      }
-
-      nptr = timespec_str.substr(pos + 1, 9).c_str();
-      lts.tv_nsec = strtoull(nptr, &endptr, 10);
+    try {
+      // long tv_nsec nanoseconds (valid values are [0, 999999999])
+      lts.tv_sec = std::stoull(timespec_str.substr(0, pos));
+    } catch (...) {
+      return -1;
     }
 
-    // Failed conversion or no digits found
-    if ((errno != 0) || (nptr == endptr)) {
-      return -1;
+    if (pos != std::string::npos) {
+      try {
+        lts.tv_nsec = std::stoull(timespec_str.substr(pos + 1, 9));
+      } catch (...) {
+        return -1;
+      }
     }
 
     ts = lts;

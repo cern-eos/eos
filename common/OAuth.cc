@@ -41,12 +41,9 @@ OAuth::Init()
 }
 
 
-std::size_t 
-OAuth::callback(
-		const char* in,
-		std::size_t size,
-		std::size_t num,
-		std::string* out)
+std::size_t
+OAuth::callback(const char* in, std::size_t size,
+                std::size_t num, std::string* out)
 {
   const std::size_t totalBytes(size * num);
   out->append(in, totalBytes);
@@ -59,79 +56,71 @@ void
 OAuth::PurgeCache(time_t& now)
 {
   static time_t last_purge = time(NULL);
-
   eos::common::RWMutexWriteLock lock(mOAuthCacheMutex);
 
   // purge every 5 min if we have more than 64k entries or every hour for less
-  if ( ( ( mOAuthInfo.size() > 65336 ) && (now - last_purge) > 300 ) || 
-       ( ( now - last_purge) > 3600 ) ){
-    
-    for ( auto it = mOAuthInfo.begin(); it != mOAuthInfo.end(); ) {
-      time_t ctime = strtoull(it->second["ctime"].c_str(),0,10);
-      time_t etime = strtoull(it->second["etime"].c_str(),0,10);
-      if ( 
-	  ( etime && (etime < now) ) || 
-	  ( ( now - ctime ) > cache_validity_time ) ) {
-	it = mOAuthInfo.erase(it);
+  if (((mOAuthInfo.size() > 65336) && (now - last_purge) > 300) ||
+      ((now - last_purge) > 3600)) {
+    for (auto it = mOAuthInfo.begin(); it != mOAuthInfo.end();) {
+      time_t ctime = strtoull(it->second["ctime"].c_str(), 0, 10);
+      time_t etime = strtoull(it->second["etime"].c_str(), 0, 10);
+
+      if (
+        (etime && (etime < now)) ||
+        ((now - ctime) > cache_validity_time)) {
+        it = mOAuthInfo.erase(it);
       } else {
-	++it;
+        ++it;
       }
     }
   }
 }
 
 int
-OAuth::Validate(OAuth::AuthInfo& info, const std::string& accesstoken, const std::string& resource, const std::string& refreshtoken, time_t expires)
+OAuth::Validate(OAuth::AuthInfo& info, const std::string& accesstoken,
+                const std::string& resource, const std::string& refreshtoken, time_t expires)
 {
   if (!Mapping::IsOAuth2Resource(resource)) {
-    eos_static_err("'%s' is not an allowed resource", 
-		   resource.c_str());
+    eos_static_err("'%s' is not an allowed resource",
+                   resource.c_str());
     return false;
   }
 
   time_t now = time(NULL);
 
-  
   if (expires && (expires < now)) {
     return ETIME;
   }
 
   // get the hash
   uint64_t tokenhash = Hash(accesstoken);
-
   PurgeCache(now);
-
   {
     eos::common::RWMutexReadLock lock(mOAuthCacheMutex);
     auto cache = mOAuthInfo.find(tokenhash);
-    
-    if (cache != mOAuthInfo.end()) {
-      time_t ctime = strtoull(cache->second["ctime"].c_str(),0,10);
-      time_t etime = strtoull(cache->second["etime"].c_str(),0,10);
 
-      if ( (!etime) || (etime > now)) {
-	if ( (now - ctime) < cache_validity_time ) {
-	  info = cache->second;
-	  return 0;
-	}
+    if (cache != mOAuthInfo.end()) {
+      time_t ctime = strtoull(cache->second["ctime"].c_str(), 0, 10);
+      time_t etime = strtoull(cache->second["etime"].c_str(), 0, 10);
+
+      if ((!etime) || (etime > now)) {
+        if ((now - ctime) < cache_validity_time) {
+          info = cache->second;
+          return 0;
+        }
       }
     }
   }
-
   auto curl = curl_easy_init();
 
   if (curl) {
     std::string httpsresource = std::string("https://") + resource;
-
     curl_easy_setopt(curl, CURLOPT_URL, httpsresource.c_str());
-
     long httpCode(0);
     std::unique_ptr<std::string> httpData(new std::string());
-
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, httpData.get());
-
-    std::string auth="Authorization: Bearer ";
+    std::string auth = "Authorization: Bearer ";
     auth += accesstoken;
     auto chunk = curl_slist_append(NULL, auth.c_str());
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk);
@@ -141,7 +130,6 @@ OAuth::Validate(OAuth::AuthInfo& info, const std::string& accesstoken, const std
     }
 
     curl_easy_perform(curl);
-
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
     curl_easy_cleanup(curl);
 
@@ -150,52 +138,52 @@ OAuth::Validate(OAuth::AuthInfo& info, const std::string& accesstoken, const std
       Json::Reader jsonReader;
 
       if (jsonReader.parse(*httpData.get(), jsonData)) {
-	if (EOS_LOGS_DEBUG) {
-	  std::cerr << "Successfully parsed JSON data" << std::endl;
-	  std::cerr << "\nJSON data received:" << std::endl;
-	  std::cerr << jsonData.toStyledString() << std::endl;
-	}
+        if (EOS_LOGS_DEBUG) {
+          std::cerr << "Successfully parsed JSON data" << std::endl;
+          std::cerr << "\nJSON data received:" << std::endl;
+          std::cerr << jsonData.toStyledString() << std::endl;
+        }
 
-	if (jsonData.isMember("name")) {
-	  info["name"] = jsonData["name"].asString();
-	}
+        if (jsonData.isMember("name")) {
+          info["name"] = jsonData["name"].asString();
+        }
 
-	if (jsonData.isMember("username")) {
-	  // OAuth style
-	  info["username"] = jsonData["username"].asString();
-	} else {
-	  // OIDC style
-	  if (jsonData.isMember("sub")) {
-	    info["username"] = jsonData["sub"].asString();
-	  } else {
-	    // we need to have this field to map someone
-	    return EINVAL;
-	  }
-	}
+        if (jsonData.isMember("username")) {
+          // OAuth style
+          info["username"] = jsonData["username"].asString();
+        } else {
+          // OIDC style
+          if (jsonData.isMember("sub")) {
+            info["username"] = jsonData["sub"].asString();
+          } else {
+            // we need to have this field to map someone
+            return EINVAL;
+          }
+        }
 
-	if (jsonData.isMember("email")) {
-	  info["email"] = jsonData["email"].asString();
-	}
+        if (jsonData.isMember("email")) {
+          info["email"] = jsonData["email"].asString();
+        }
 
-	if (jsonData.isMember("federation")) {
-	  info["federation"] = jsonData["federation"].asString();
-	}
+        if (jsonData.isMember("federation")) {
+          info["federation"] = jsonData["federation"].asString();
+        }
 
-	// cache this entry
-	info["ctime"] = std::to_string(time(NULL));
-	info["etime"] = expires?std::to_string(expires):std::to_string(now + cache_validity_time);
-
-	eos::common::RWMutexWriteLock lock(mOAuthCacheMutex);
-	mOAuthInfo[tokenhash] = info;
-	return 0;
+        // cache this entry
+        info["ctime"] = std::to_string(time(NULL));
+        info["etime"] = expires ? std::to_string(expires) : std::to_string(
+                          now + cache_validity_time);
+        eos::common::RWMutexWriteLock lock(mOAuthCacheMutex);
+        mOAuthInfo[tokenhash] = info;
+        return 0;
       } else {
-	return EINVAL;
+        return EINVAL;
       }
     } else {
       return (int)httpCode;
     }
   }
-  
+
   return EFAULT;
 }
 
@@ -204,45 +192,49 @@ OAuth::Handle(const std::string& info, eos::common::VirtualIdentity& vid)
 {
   std::vector<std::string> tokens;
   eos::common::StringConversion::Tokenize(info, tokens, ":");
+
   if (tokens.size() > 1) {
     if (tokens[0] == "oauth2") {
       if (tokens.size() < 3) {
-	tokens.push_back("");
+        tokens.push_back("");
       }
+
       if (tokens.size() < 4) {
-	tokens.push_back("0");
+        tokens.push_back("0");
       }
+
       if (tokens.size() < 5) {
-	tokens.push_back("");
+        tokens.push_back("");
       }
+
       OAuth::AuthInfo oinfo;
       time_t expires = strtoull(tokens[3].c_str(), 0, 10);
 
       if (!Validate(oinfo, tokens[1], tokens[2], tokens[4], expires)) {
-	// valid token, now map the user name
-	eos_static_info("username='%s' name='%s' federation='%s' email='%s' expires=%llu",
-			oinfo["username"].c_str(),
-			oinfo["name"].c_str(),
-			oinfo["federation"].c_str(),
-			oinfo["email"].c_str(),
-			expires);
-
-	vid.federation = oinfo["federation"];
-	vid.email = oinfo["email"];
-	vid.fullname = oinfo["name"];
-	return oinfo["username"];
+        // valid token, now map the user name
+        eos_static_info("username='%s' name='%s' federation='%s' email='%s' expires=%llu",
+                        oinfo["username"].c_str(),
+                        oinfo["name"].c_str(),
+                        oinfo["federation"].c_str(),
+                        oinfo["email"].c_str(),
+                        expires);
+        vid.federation = oinfo["federation"];
+        vid.email = oinfo["email"];
+        vid.fullname = oinfo["name"];
+        return oinfo["username"];
       }
     }
   }
+
   return "";
 }
 
 uint64_t
-OAuth::Hash(const std::string& token) 
+OAuth::Hash(const std::string& token)
 {
   //  std::cerr << "hashing token: " << token << std::endl;
   //  std::cerr << "hash: " <<  Murmur3::MurmurHasher<std::string> {}(token) << std::endl;
-  return Murmur3::MurmurHasher<std::string> {} (token);
+  return Murmur3::MurmurHasher<std::string> {}(token);
 }
 
 EOSCOMMONNAMESPACE_END;
