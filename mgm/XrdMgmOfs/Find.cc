@@ -298,7 +298,9 @@ _cloneMD(std::shared_ptr<eos::IContainerMD>& cloneMd, char cFlag,
     eos_static_debug("clonePath %s exception ec=%d emsg=\"%s\" cFlag '%c'", buff,
             e.getErrno(), e.getMessage().str().c_str(), cFlag);
 
-    if (cFlag == '+') {
+    if (cFlag == '+' || cFlag == '-') {
+      /* for '-': the clone directory may have been incorrectly removed, this should 
+       * not prevent a cleanup */
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
       eos::common::Path mdPath(buff);
 
@@ -530,18 +532,19 @@ _clone(std::shared_ptr<eos::IContainerMD>& cmd,
 
     ccmd->getTMTime(stime);
     /* if (cFlag == '?' && stime.tv_sec < cloneId) continue;     only if stime reliably percolates down to the root */
-    uint64_t ccId = ccmd->getCloneId();
+    uint64_t ccId = ccmd->getCloneId();         /* current container's cloneId */
 
-    if (ccId == 0 || cloneId == 0 || cFlag == '+' ||
-        ((cFlag == '=' || cFlag == '-') &&
-         ccId == cloneId)) {        /* Only descend for matching subdirs */
+    if (ccId == 0 || cloneId == 0 || cFlag == '+' || cFlag == '-' ||
+            ( (cFlag == '-') && ccId == cloneId)
+       ) {        /* Only descend for matching subdirs */
       int rc2 = _clone(ccmd, out_error, stdErr, vid, _found, cFlag, cloneId, newId,
                        cloneMd, depth + 1);
 
       if (rc2 > rc) {
         rc = rc2;
       }
-    }
+    } else eos_static_debug("Not descending into did:%lld ccId %lld cFlag '%c'",
+            ccmd->getId(), ccId, cFlag);
   }
 
   if (cloneMd != NULL && depth == 0 &&
@@ -728,6 +731,8 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
     }
 
     time_t newId = time(NULL);
+    eos_static_info("sys.clone=%c%lld %s >%lld",
+            cFlag, clone_id, Path.c_str(), newId);
     std::list<_cloneFoundItem> _found;
     int rc = _clone(cmd, out_error, stdErr, vid, _found, cFlag, clone_id, newId,
                     NULL, 0);  /* clone releases and re-acquires the eosViewRWMutex! */
