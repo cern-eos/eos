@@ -89,7 +89,7 @@ QdbMaster::BootNamespace()
   std::string err;
 
   if (gOFS->mQdbCluster.empty()) {
-    eos_alert("msg=\"mgmofs.qdbcluster configuration is missing\"");
+    eos_alert("%s", "msg=\"mgmofs.qdbcluster configuration is missing\"");
     gOFS->mNamespaceState = NamespaceState::kFailed;
     return false;
   }
@@ -174,7 +174,6 @@ QdbMaster::BootNamespace()
   }
 
   gOFS->namespaceGroup->startCacheRefreshListener();
-
   gOFS->mFileInitTime = time(nullptr) - gOFS->mFileInitTime;
   gOFS->mTotalInitTime = time(nullptr) - gOFS->mTotalInitTime;
   gOFS->mNamespaceState = NamespaceState::kBooted;
@@ -182,12 +181,12 @@ QdbMaster::BootNamespace()
 
   // Get process status after boot
   if (!eos::common::LinuxStat::GetStat(gOFS->LinuxStatsStartup)) {
-    eos_err("msg=\"failed to grab /proc/self/stat information\"");
+    eos_err("%s", "msg=\"failed to grab /proc/self/stat information\"");
   }
 
   while (mOneOff) {
     std::this_thread::sleep_for(std::chrono::seconds(1));
-    eos_info("msg=\"wait for the supervisor to run once\"");
+    eos_info("%s", "msg=\"wait for the supervisor to run once\"");
   }
 
   return true;
@@ -261,7 +260,7 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
       if (new_is_master) {
         // Increase the lease validity for the transition
         if (!AcquireLease(master_init_lease)) {
-          eos_err("msg=\"failed to renew lease during transition\"");
+          eos_err("%s", "msg=\"failed to renew lease during transition\"");
           continue;
         }
 
@@ -282,7 +281,7 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
         } else {
           // Increase the lease validity for the transition
           if (!AcquireLease(master_init_lease)) {
-            eos_err("msg=\"failed to renew lease during transition\"");
+            eos_err("%s", "msg=\"failed to renew lease during transition\"");
             continue;
           }
 
@@ -332,7 +331,7 @@ QdbMaster::SlaveToMaster()
   gOFS->ObjectManager.EnableBroadCast(true);
 
   if (!ApplyMasterConfig(std_out, std_err, Transition::kSlaveToMaster)) {
-    eos_err("msg=\"failed to apply master configuration\"");
+    eos_err("%s", "msg=\"failed to apply master configuration\"");
     std::abort();
   }
 
@@ -376,6 +375,17 @@ QdbMaster::MasterToSlave()
 
   DisableNsCaching();
   Access::SetMasterToSlaveRules(new_master_id);
+
+  // When we boot the first time also load the config
+  if (mOneOff) {
+    std::string std_out, std_err;
+
+    if (!ApplyMasterConfig(std_out, std_err, Transition::kSlaveToMaster)) {
+      eos_err("%s", "msg=\"failed to apply configuration\"");
+      std::abort();
+    }
+  }
+
   gOFS->mTracker.SetAcceptingRequests(true);
 }
 
