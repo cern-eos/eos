@@ -27,8 +27,8 @@ Each FST sends for each file replica or piece it writes a record which looks lik
 &lid=1048578&fid=1056332&fsid=1&ots=1525425804&otms=531&cts=1525425804&ctms=533&nrc=0&nwc=1&rb=0&rb_min=0&rb_max=0
 &rb_sigma=0.00&rv_op=0&rvb_min=0&rvb_max=0&rvb_sum=0&rvb_sigma=0.00&rs_op=0&rsb_min=0&rsb_max=0&rsb_sum=0&rsb_sigma=0.00
 &rc_min=0&rc_max=0&rc_sum=0&rc_sigma=0.00&wb=2202&wb_min=2202&wb_max=2202&wb_sigma=0.00&sfwdb=0&sbwdb=0&sxlfwdb=0
-&sxlbwdb=0&nfwds=0&nbwds=0&nxlfwds=0&nxlbwds=0&rt=0.00&rvt=0.00&wt=0.01&osize=0&csize=2202&sec.prot=sss&sec.name=daemon
-&sec.host=localhost&sec.vorg=&sec.grps=daemon&sec.role=&sec.info=&sec.app=eoscp``
+&sxlbwdb=0&nfwds=0&nbwds=0&nxlfwds=0&nxlbwds=0&rt=0.00&rvt=0.00&wt=0.01&osize=0&csize=2202&delete_on_close=0
+&sec.prot=sss&sec.name=daemon&sec.host=localhost&sec.vorg=&sec.grps=daemon&sec.role=&sec.info=&sec.app=eoscp``
 
 .. epigraph::
 
@@ -84,6 +84,7 @@ Each FST sends for each file replica or piece it writes a record which looks lik
    wt                   time spent in ms waiting for disk writes
    osize                size of the file when opening
    csize                size of the file when closing
+   delete_on_close      flag indicating delete on close status
    sec.prot             security protocol e.g. krb5,gsi,sss,unix
    sec.name             mapped user name e.g. root/daemon
    sec.host             client host

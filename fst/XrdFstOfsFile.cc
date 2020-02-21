@@ -1534,25 +1534,11 @@ XrdFstOfsFile::_close()
 
     gettimeofday(&closeTime, &tz);
 
-    if (!deleteOnClose) {
-      // Prepare a report and add to the report queue
-      if (mTpcFlag != kTpcSrcCanDo) {
-        // We don't want a report for the source tpc setup. The kTpcSrcRead
-        // stage actually uses the opaque info from kTpcSrcSetup and that's
-        // why we also generate a report at this stage.
-        XrdOucString reportString = "";
-        MakeReportEnv(reportString);
-        gOFS.ReportQueueMutex.Lock();
-        gOFS.ReportQueue.push(reportString);
-        gOFS.ReportQueueMutex.UnLock();
-      }
-
-      if (mIsRW) {
-        // Store in the WrittenFilesQueue
-        gOFS.WrittenFilesQueueMutex.Lock();
-        gOFS.WrittenFilesQueue.push(*mFmd.get());
-        gOFS.WrittenFilesQueueMutex.UnLock();
-      }
+    if (!deleteOnClose && mIsRW) {
+      // Store in the WrittenFilesQueue
+      gOFS.WrittenFilesQueueMutex.Lock();
+      gOFS.WrittenFilesQueue.push(*mFmd.get());
+      gOFS.WrittenFilesQueueMutex.UnLock();
     }
 
     // Check if the target filesystem has been put into some non-operational mode
@@ -1580,6 +1566,18 @@ XrdFstOfsFile::_close()
                    mNsPath.c_str());
         deleteOnClose = false;
       }
+    }
+
+    // Prepare a report and add to the report queue
+    if (mTpcFlag != kTpcSrcCanDo) {
+      // We don't want a report for the source tpc setup. The kTpcSrcRead
+      // stage actually uses the opaque info from kTpcSrcSetup and that's
+      // why we also generate a report at this stage.
+      XrdOucString reportString = "";
+      MakeReportEnv(reportString);
+      gOFS.ReportQueueMutex.Lock();
+      gOFS.ReportQueue.push(reportString);
+      gOFS.ReportQueueMutex.UnLock();
     }
 
     if (deleteOnClose && (!mFusex) &&
@@ -1744,8 +1742,8 @@ XrdFstOfsFile::_close()
                   "missing replicas\" path=%s", mNsPath.c_str());
     }
 
+    // Trigger an MGM event from the entry point
     if (!rc && (mEventOnClose || mSyncEventOnClose) && mLayout->IsEntryServer()) {
-      //trigger an MGM event if asked from the entry point
       XrdOucString capOpaqueFile = "";
       XrdOucString eventType = "";
       capOpaqueFile += "/?";
@@ -2756,7 +2754,8 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
              "wb=%llu&wb_min=%llu&wb_max=%llu&wb_sigma=%.02f&"
              "sfwdb=%llu&sbwdb=%llu&sxlfwdb=%llu&sxlbwdb=%llu&"
              "nfwds=%lu&nbwds=%lu&nxlfwds=%lu&nxlbwds=%lu&"
-             "rt=%.02f&rvt=%.02f&wt=%.02f&osize=%llu&csize=%llu&%s"
+             "rt=%.02f&rvt=%.02f&wt=%.02f&osize=%llu&csize=%llu&"
+             "delete_on_close=%d&%s"
              , this->logId
              , mCapOpaque->Get("mgm.path") ? mCapOpaque->Get("mgm.path") : mNsPath.c_str()
              , mFstPath.c_str()
@@ -2786,6 +2785,7 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
              , ((wTime.tv_sec * 1000.0) + (wTime.tv_usec / 1000.0))
              , (unsigned long long) openSize
              , (unsigned long long) closeSize
+             , (deleteOnClose) ? 1 : 0
              , eos::common::SecEntity::ToEnv(mSecString.c_str(),
                  (sec_tpc ? "tpc" : 0)).c_str());
     reportString = report;
