@@ -2303,7 +2303,8 @@ metad::mdstackfree(ThreadAssistant& assistant)
           stat.inodes_dec();
         } else {
           if (it->second->deleted()) {
-            if (!has_flush(it->first)) {
+            if ( (!has_flush(it->first)) &&
+		 (!EosFuse::Instance().datas.has(it->first)) ) {
               eos_static_debug("removing deleted inode from mdmap ino=%#lx path=%s",
                                it->first, it->second->fullpath().c_str());
               mdmap.lru_remove(it->first);
