@@ -19,14 +19,13 @@ This release is based on XRootD V4 and IPV6 enabled.
 ``v4.7.0 Citrine``
 ===================
 
-2020-02-19
+2020-02-21
 
 New Feature
 ------------
 
 * Provide backup-clone functionality
 * [EOS-3956] - Provide the expected checksum per block in the namespace in RAIN files
-
 
 Bug
 ----
@@ -37,7 +36,6 @@ Bug
 * [EOS-3917] - SetNodeConfigDefault might be called before gOFS->mMaster has been initialized
 * [EOS-3954] - eos documentation guides people towards an insecure QDB deployment
 * [EOS-3969] - Bug in NextInodeProvider raises possibility of creating two containers with colliding IDs
-
 
 Task
 -----
