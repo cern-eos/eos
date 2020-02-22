@@ -24,6 +24,7 @@
 #ifndef __EOSMGMSMARTSPACESTATS_HH__
 #define __EOSMGMSMARTSPACESTATS_HH__
 
+#include "mgm/Namespace.hh"
 #include "mgm/tgc/CachedValue.hh"
 #include "mgm/tgc/ITapeGcMgm.hh"
 #include "mgm/tgc/SpaceStats.hh"
