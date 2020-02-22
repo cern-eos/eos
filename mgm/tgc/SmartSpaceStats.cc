@@ -21,7 +21,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/Logging.hh"
 #include "mgm/tgc/SmartSpaceStats.hh"
+#include "mgm/tgc/Utils.hh"
+
+#include <sstream>
 
 EOSTGCNAMESPACE_BEGIN
 
@@ -29,7 +33,11 @@ EOSTGCNAMESPACE_BEGIN
 //! Constructor
 //------------------------------------------------------------------------------
 SmartSpaceStats::SmartSpaceStats(const std::string &spaceName, ITapeGcMgm &mgm, CachedValue<SpaceConfig> &config):
-  m_spaceName(spaceName), m_mgm(mgm), m_queryTimestamp(0), m_config(config)
+  m_spaceName(spaceName),
+  m_mgm(mgm),
+  m_queryMgmTimestamp(0),
+  m_freedBytesHistogram(TGC_FREED_BYTES_HISTOGRAM_NB_BINS, TGC_DEFAULT_FREED_BYTES_HISTOGRAM_BIN_WIDTH_SECS, m_clock),
+  m_config(config)
 {
 }
 
@@ -44,18 +52,59 @@ SmartSpaceStats::get()
   const auto spaceConfig = m_config.get();
 
   std::lock_guard<std::mutex> lock(m_mutex);
-  const std::time_t secsSinceLastQuery = now - m_queryTimestamp;
+  const std::time_t secsSinceLastQuery = now - m_queryMgmTimestamp;
 
   if(secsSinceLastQuery >= spaceConfig.queryPeriodSecs) {
     try {
-      m_stats = m_mgm.getSpaceStats(m_spaceName);
+      m_mgmStats = m_mgm.getSpaceStats(m_spaceName);
     } catch(...) {
-      m_stats = SpaceStats();
+      m_mgmStats = SpaceStats();
     }
-    m_queryTimestamp = now;
+    m_queryMgmTimestamp = now;
   }
 
-  return m_stats;
+  if (0 == spaceConfig.queryPeriodSecs || TGC_MAX_QRY_PERIOD_SECS < spaceConfig.queryPeriodSecs) {
+    std::ostringstream msg;
+    msg << "spaceName=\"" << m_spaceName << "\" msg=\"Ignoring new value of " << TGC_NAME_QRY_PERIOD_SECS <<
+      " : Value must be > 0 and <= " << TGC_MAX_QRY_PERIOD_SECS << ": Value=" << spaceConfig.queryPeriodSecs << "\"";
+    eos_static_err(msg.str().c_str());
+  } else {
+    const std::uint32_t oldBinWidthSecs = m_freedBytesHistogram.getBinWidthSecs();
+    const std::uint32_t newBinWidthSecs =
+      Utils::divideAndRoundUp(spaceConfig.queryPeriodSecs, m_freedBytesHistogram.getNbBins());
+    if (0 == newBinWidthSecs) {
+      std::ostringstream msg;
+      msg << "spaceName=\"" << m_spaceName << "\" msg=\"The newBinWidthSecs value of 0 will be ignored."
+        " Value must be greater than 0.\"";
+      eos_static_err(msg.str().c_str());
+    } else if (newBinWidthSecs != oldBinWidthSecs) {
+      m_freedBytesHistogram.setBinWidthSecs(newBinWidthSecs);
+      std::ostringstream msg;
+      msg << "spaceName=\"" << m_spaceName << "\" msg=\"Changed bin width of freed bytes histogram:"
+        " oldValue=" << oldBinWidthSecs << " newValue=" << newBinWidthSecs << "\"";
+      eos_static_info(msg.str().c_str());
+    }
+  }
+
+  // Space statistics from the MGM are not timestamped and therefore may
+  // themselves be out of data by as much as spaceConfig.queryPeriodSecs
+  //
+  // Add the count of bytes the garbage collector has freed in the last
+  // spaceConfig.queryPeriodSecs even if this may cause a temporary double
+  // count
+  uint64_t nbBytesFreed = 0;
+  try {
+    nbBytesFreed = m_freedBytesHistogram.getNbBytesFreedInLastNbSecs(spaceConfig.queryPeriodSecs);
+  } catch(FreedBytesHistogram::TooFarBackInTime &ex) {
+    nbBytesFreed = m_freedBytesHistogram.getTotalBytesFreed();
+
+    std::ostringstream msg;
+    msg << "msg=\"" << ex.what() << "\"";
+    eos_static_err(msg.str().c_str());
+  }
+  m_mgmStats.availBytes += nbBytesFreed;
+
+  return m_mgmStats;
 }
 
 //----------------------------------------------------------------------------
@@ -65,7 +114,7 @@ std::time_t
 SmartSpaceStats::getQueryTimestamp()
 {
   std::lock_guard<std::mutex> lock(m_mutex);
-  return m_queryTimestamp;
+  return m_queryMgmTimestamp;
 }
 
 //------------------------------------------------------------------------------
@@ -76,7 +125,7 @@ SmartSpaceStats::fileQueuedForDeletion(const size_t deletedFileSizeBytes)
 {
   std::lock_guard<std::mutex> lock(m_mutex);
 
-  m_stats.availBytes += deletedFileSizeBytes;
+  m_freedBytesHistogram.bytesFreed(deletedFileSizeBytes);
 }
 
 EOSTGCNAMESPACE_END

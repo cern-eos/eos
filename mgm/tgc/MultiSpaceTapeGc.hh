@@ -79,7 +79,7 @@ public:
   //!
   //! @param space The name of the EOs space
   //----------------------------------------------------------------------------
-  void enable(const std::string &space) noexcept;
+  void enable(const std::string &space);
 
   //----------------------------------------------------------------------------
   //! Notify GC the specified file has been opened
@@ -91,7 +91,7 @@ public:
   //! @param fid file identifier
   //----------------------------------------------------------------------------
   void fileOpened(const std::string &space, const std::string &path,
-    const IFileMD::id_t fid) noexcept;
+    const IFileMD::id_t fid);
 
   //----------------------------------------------------------------------------
   //! @return map from EOS space name to tape-aware GC statistics

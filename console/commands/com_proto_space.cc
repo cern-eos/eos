@@ -434,7 +434,8 @@ void com_space_help()
       << "                                                                      : globally enforce using always a recycle bin\n"
       << std::endl
       << "Tape specific configuration parameters:\n"
-      << "space config <space-name> space." << eos::mgm::tgc::TGC_NAME_QRY_PERIOD_SECS << "=<#>                 : delay in seconds between queries from the tape-aware GC [ default=" << eos::mgm::tgc::TGC_DEFAULT_QRY_PERIOD_SECS << " ]\n"
+      << "space config <space-name> space." << eos::mgm::tgc::TGC_NAME_QRY_PERIOD_SECS << "=<#>                 : tape-aware GC query period in seconds [ default=" << eos::mgm::tgc::TGC_DEFAULT_QRY_PERIOD_SECS << " ]\n"
+      << "                                                                        => value must be > 0 and <= " << eos::mgm::tgc::TGC_MAX_QRY_PERIOD_SECS << "\n"
       << "space config <space-name> space." << eos::mgm::tgc::TGC_NAME_AVAIL_BYTES << "=<#>                    : configure the number of available bytes the space should have [ default=" << eos::mgm::tgc::TGC_DEFAULT_AVAIL_BYTES << " ] \n"
       << "space config <space-name> space." << eos::mgm::tgc::TGC_NAME_TOTAL_BYTES << "=<#>                    : configure the total number of bytes the space should have before the tape-aware GC kicks in [ default=" << eos::mgm::tgc::TGC_DEFAULT_TOTAL_BYTES << " ] \n"
       << std::endl

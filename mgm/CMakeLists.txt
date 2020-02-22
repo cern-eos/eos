@@ -172,9 +172,12 @@ add_library(
   tgc/MultiSpaceTapeGc.cc
   tgc/SpaceToTapeGcMap.cc
   tgc/DummyTapeGcMgm.cc
+  tgc/FreedBytesHistogram.cc
+  tgc/IClock.cc
   tgc/ITapeGcMgm.cc
   tgc/Lru.cc
   tgc/MaxLenExceeded.cc
+  tgc/RealClock.cc
   tgc/RealTapeGcMgm.cc
   tgc/SmartSpaceStats.cc
   tgc/SpaceNotFound.cc

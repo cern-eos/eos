@@ -26,7 +26,9 @@
 
 #include "mgm/Namespace.hh"
 #include "mgm/tgc/CachedValue.hh"
+#include "mgm/tgc/FreedBytesHistogram.hh"
 #include "mgm/tgc/ITapeGcMgm.hh"
+#include "mgm/tgc/RealClock.hh"
 #include "mgm/tgc/SpaceStats.hh"
 
 #include <ctime>
@@ -94,14 +96,26 @@ private:
   mutable std::mutex m_mutex;
 
   //----------------------------------------------------------------------------
-  //! The timestamp at which the last query was made
+  //! The timestamp at which the last query to the MGM was made
   //----------------------------------------------------------------------------
-  std::time_t m_queryTimestamp;
+  std::time_t m_queryMgmTimestamp;
 
   //----------------------------------------------------------------------------
-  //! Statistics about the EOS space being managed
+  //! MGM statistics about the EOS space being managed
   //----------------------------------------------------------------------------
-  SpaceStats m_stats;
+  SpaceStats m_mgmStats;
+
+  //----------------------------------------------------------------------------
+  //! Object responsible for providing the current time
+  //!
+  //! This member variable MUST be declared before m_freedBytesHistogram
+  //----------------------------------------------------------------------------
+  RealClock m_clock;
+
+  //----------------------------------------------------------------------------
+  //! Histogram of freed bytes over time
+  //----------------------------------------------------------------------------
+  FreedBytesHistogram m_freedBytesHistogram;
 
   //----------------------------------------------------------------------------
   //! The configuration of the tape-aware garbage collector

@@ -101,3 +101,87 @@ TEST_F(TgcUtilsTest, toUint64_not_a_number) {
 
   ASSERT_THROW(Utils::toUint64("one"), Utils::InvalidUint64);
 }
+
+//------------------------------------------------------------------------------
+// Test
+//------------------------------------------------------------------------------
+TEST_F(TgcUtilsTest, divideAndRoundToNearest) {
+  using namespace eos::mgm::tgc;
+
+  ASSERT_EQ(1, Utils::divideAndRoundToNearest( 1, 1));
+  ASSERT_EQ(2, Utils::divideAndRoundToNearest( 2, 1));
+  ASSERT_EQ(3, Utils::divideAndRoundToNearest( 3, 1));
+
+  ASSERT_EQ(1, Utils::divideAndRoundToNearest( 1, 2));
+  ASSERT_EQ(1, Utils::divideAndRoundToNearest( 2, 2));
+  ASSERT_EQ(2, Utils::divideAndRoundToNearest( 3, 2));
+  ASSERT_EQ(2, Utils::divideAndRoundToNearest( 4, 2));
+  ASSERT_EQ(3, Utils::divideAndRoundToNearest( 5, 2));
+  ASSERT_EQ(3, Utils::divideAndRoundToNearest( 6, 2));
+
+  ASSERT_EQ(0, Utils::divideAndRoundToNearest( 1, 3));
+  ASSERT_EQ(1, Utils::divideAndRoundToNearest( 2, 3));
+  ASSERT_EQ(1, Utils::divideAndRoundToNearest( 3, 3));
+  ASSERT_EQ(1, Utils::divideAndRoundToNearest( 4, 3));
+  ASSERT_EQ(2, Utils::divideAndRoundToNearest( 5, 3));
+  ASSERT_EQ(2, Utils::divideAndRoundToNearest( 6, 3));
+  ASSERT_EQ(2, Utils::divideAndRoundToNearest( 7, 3));
+  ASSERT_EQ(3, Utils::divideAndRoundToNearest( 8, 3));
+  ASSERT_EQ(3, Utils::divideAndRoundToNearest( 9, 3));
+  ASSERT_EQ(3, Utils::divideAndRoundToNearest(10, 3));
+
+  ASSERT_EQ(0, Utils::divideAndRoundToNearest( 1, 4));
+  ASSERT_EQ(1, Utils::divideAndRoundToNearest( 2, 4));
+  ASSERT_EQ(1, Utils::divideAndRoundToNearest( 3, 4));
+  ASSERT_EQ(1, Utils::divideAndRoundToNearest( 4, 4));
+  ASSERT_EQ(1, Utils::divideAndRoundToNearest( 5, 4));
+  ASSERT_EQ(2, Utils::divideAndRoundToNearest( 6, 4));
+  ASSERT_EQ(2, Utils::divideAndRoundToNearest( 7, 4));
+  ASSERT_EQ(2, Utils::divideAndRoundToNearest( 8, 4));
+  ASSERT_EQ(2, Utils::divideAndRoundToNearest( 9, 4));
+  ASSERT_EQ(3, Utils::divideAndRoundToNearest(10, 4));
+  ASSERT_EQ(3, Utils::divideAndRoundToNearest(11, 4));
+  ASSERT_EQ(3, Utils::divideAndRoundToNearest(12, 4));
+  ASSERT_EQ(3, Utils::divideAndRoundToNearest(13, 4));
+}
+
+//------------------------------------------------------------------------------
+// Test
+//------------------------------------------------------------------------------
+TEST_F(TgcUtilsTest, divideAndRoundUp) {
+  using namespace eos::mgm::tgc;
+
+  ASSERT_EQ(1, Utils::divideAndRoundUp( 1, 1));
+  ASSERT_EQ(2, Utils::divideAndRoundUp( 2, 1));
+  ASSERT_EQ(3, Utils::divideAndRoundUp( 3, 1));
+
+  ASSERT_EQ(1, Utils::divideAndRoundUp( 1, 2));
+  ASSERT_EQ(1, Utils::divideAndRoundUp( 2, 2));
+  ASSERT_EQ(2, Utils::divideAndRoundUp( 3, 2));
+  ASSERT_EQ(2, Utils::divideAndRoundUp( 4, 2));
+  ASSERT_EQ(3, Utils::divideAndRoundUp( 5, 2));
+  ASSERT_EQ(3, Utils::divideAndRoundUp( 6, 2));
+
+  ASSERT_EQ(1, Utils::divideAndRoundUp( 1, 3));
+  ASSERT_EQ(1, Utils::divideAndRoundUp( 2, 3));
+  ASSERT_EQ(1, Utils::divideAndRoundUp( 3, 3));
+  ASSERT_EQ(2, Utils::divideAndRoundUp( 4, 3));
+  ASSERT_EQ(2, Utils::divideAndRoundUp( 5, 3));
+  ASSERT_EQ(2, Utils::divideAndRoundUp( 6, 3));
+  ASSERT_EQ(3, Utils::divideAndRoundUp( 7, 3));
+  ASSERT_EQ(3, Utils::divideAndRoundUp( 8, 3));
+  ASSERT_EQ(3, Utils::divideAndRoundUp( 9, 3));
+
+  ASSERT_EQ(1, Utils::divideAndRoundUp( 1, 4));
+  ASSERT_EQ(1, Utils::divideAndRoundUp( 2, 4));
+  ASSERT_EQ(1, Utils::divideAndRoundUp( 3, 4));
+  ASSERT_EQ(1, Utils::divideAndRoundUp( 4, 4));
+  ASSERT_EQ(2, Utils::divideAndRoundUp( 5, 4));
+  ASSERT_EQ(2, Utils::divideAndRoundUp( 6, 4));
+  ASSERT_EQ(2, Utils::divideAndRoundUp( 7, 4));
+  ASSERT_EQ(2, Utils::divideAndRoundUp( 8, 4));
+  ASSERT_EQ(3, Utils::divideAndRoundUp( 9, 4));
+  ASSERT_EQ(3, Utils::divideAndRoundUp(10, 4));
+  ASSERT_EQ(3, Utils::divideAndRoundUp(11, 4));
+  ASSERT_EQ(3, Utils::divideAndRoundUp(12, 4));
+}

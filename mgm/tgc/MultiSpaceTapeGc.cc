@@ -48,14 +48,14 @@ m_tapeEnabled(false), m_gcs(mgm)
 // Enable garbage collection for the specified EOS space
 //------------------------------------------------------------------------------
 void
-MultiSpaceTapeGc::enable(const std::string &space) noexcept
+MultiSpaceTapeGc::enable(const std::string &space)
 {
   // Any attempt to enable tape support for an EOS space means tape support in
   // general is enabled
   m_tapeEnabled = true;
 
   const char *const msgFormat =
-    "Unable to enable tape-aware garbage collection space=%s: %s";
+    "space=\"%s\" msg=\"Unable to enable tape-aware garbage collection: %s\"";
 
   try {
     auto &gc = m_gcs.createGc(space);
@@ -72,12 +72,12 @@ MultiSpaceTapeGc::enable(const std::string &space) noexcept
 //------------------------------------------------------------------------------
 void
 MultiSpaceTapeGc::fileOpened(const std::string &space, const std::string &path,
-  const IFileMD::id_t fid) noexcept
+  const IFileMD::id_t fid)
 {
   if (!m_tapeEnabled) return;
 
   const char *const msgFormat =
-    "Error handling 'file opened' event space=%s fxid=%08llx path=%s: %s";
+    "space=\"%s\" path=\"%s\" fxid=%08llx msg=\"Error handling 'file opened' event: %s\"";
 
   try {
     auto &gc = m_gcs.getGc(space);
@@ -85,10 +85,9 @@ MultiSpaceTapeGc::fileOpened(const std::string &space, const std::string &path,
   } catch (SpaceToTapeGcMap::UnknownEOSSpace&) {
     // Ignore events for EOS spaces that do not have an enabled tape-aware GC
   } catch (std::exception &ex) {
-    eos_static_err(msgFormat, space.c_str(), fid, path.c_str(), ex.what());
+    eos_static_err(msgFormat, space.c_str(), path.c_str(), fid, ex.what());
   } catch (...) {
-    eos_static_err(msgFormat, space.c_str(), path.c_str(),
-      "Caught an unknown exception");
+    eos_static_err(msgFormat, space.c_str(), path.c_str(), fid, "Caught an unknown exception");
   }
 }
 
@@ -98,9 +97,22 @@ MultiSpaceTapeGc::fileOpened(const std::string &space, const std::string &path,
 std::map<std::string, TapeGcStats>
 MultiSpaceTapeGc::getStats() const
 {
-  if (!m_tapeEnabled) std::map<std::string, TapeGcStats>();
+  const char *const msgFormat =
+    "msg=\"Unable to get statistics about tape-aware garbage collectors: %s\"";
 
-  return m_gcs.getStats();
+  try {
+    if (!m_tapeEnabled) {
+      return std::map<std::string, TapeGcStats>();
+    }
+
+    return m_gcs.getStats();
+  } catch (std::exception &ex) {
+    eos_static_err(msgFormat, ex.what());
+  } catch (...) {
+    eos_static_err(msgFormat, "Caught an unknown exception");
+  }
+
+  return std::map<std::string, TapeGcStats>();
 }
 
 //----------------------------------------------------------------------------
@@ -111,54 +123,63 @@ MultiSpaceTapeGc::handleFSCTL_PLUGIO_tgc(XrdOucErrInfo& error,
                                          eos::common::VirtualIdentity& vid,
                                          const XrdSecEntity* client)
 {
-  if (vid.host != "localhost" && vid.host != "localhost.localdomain") {
-    std::ostringstream replyMsg, logMsg;
-    replyMsg << __FUNCTION__ << ": System access restricted - unauthorized identity used";
-    logMsg << "msg=\"" << replyMsg.str() << "\"";
-    eos_static_err(logMsg.str().c_str());
-    error.setErrInfo(EACCES, replyMsg.str().c_str());
-    return SFS_ERROR;
-  }
-
-  if (!m_tapeEnabled) {
-    std::ostringstream replyMsg, logMsg;
-    replyMsg << __FUNCTION__ << ": Support for tape is not enabled";
-    logMsg << "msg=\"" << replyMsg.str() << "\"";
-    eos_static_err(logMsg.str().c_str());
-    error.setErrInfo(ENOTSUP, replyMsg.str().c_str());
-    return SFS_ERROR;
-  }
-
-  const uint64_t replySize = 1048576; // 1 MiB
-  char * const reply = static_cast<char*>(malloc(replySize));
-  if (!reply) {
-    std::ostringstream replyMsg, logMsg;
-    replyMsg << __FUNCTION__ << ": Failed to allocate memory for reply: replySize=" << replySize;
-    logMsg << "msg=\"" << replyMsg.str() << "\"";
-    eos_static_err(logMsg.str().c_str());
-    error.setErrInfo(ENOMEM, replyMsg.str().c_str());
-    return SFS_ERROR;
-  }
-
-  std::ostringstream json;
   try {
-    m_gcs.toJson(json, replySize - 1);
-  } catch(MaxLenExceeded &ml) {
-    std::ostringstream msg;
-    msg << "msg=\"" << ml.what() << "\"";
-    eos_static_err(msg.str().c_str());
-    error.setErrInfo(ERANGE, ml.what());
-    return SFS_ERROR;
-  }
-  std::strncpy(reply, json.str().c_str(), replySize);
-  reply[replySize - 1] = '\0';
+    if (vid.host != "localhost" && vid.host != "localhost.localdomain") {
+      std::ostringstream replyMsg, logMsg;
+      replyMsg << __FUNCTION__ << ": System access restricted - unauthorized identity used";
+      logMsg << "msg=\"" << replyMsg.str() << "\"";
+      eos_static_err(logMsg.str().c_str());
+      error.setErrInfo(EACCES, replyMsg.str().c_str());
+      return SFS_ERROR;
+    }
 
-  // Ownership of reply is taken by the xrd_buff object.
-  // Error then takes ownership of the xrd_buff object
-  XrdOucBuffer * const xrd_buff = new XrdOucBuffer(reply, replySize);
-  xrd_buff->SetLen(strlen(reply + 1));
-  error.setErrInfo(xrd_buff->BuffSize(), xrd_buff);
-  return SFS_DATA;
+    if (!m_tapeEnabled) {
+      std::ostringstream replyMsg, logMsg;
+      replyMsg << __FUNCTION__ << ": Support for tape is not enabled";
+      logMsg << "msg=\"" << replyMsg.str() << "\"";
+      eos_static_err(logMsg.str().c_str());
+      error.setErrInfo(ENOTSUP, replyMsg.str().c_str());
+      return SFS_ERROR;
+    }
+
+    const uint64_t replySize = 1048576; // 1 MiB
+    char * const reply = static_cast<char*>(malloc(replySize));
+    if (!reply) {
+      std::ostringstream replyMsg, logMsg;
+      replyMsg << __FUNCTION__ << ": Failed to allocate memory for reply: replySize=" << replySize;
+      logMsg << "msg=\"" << replyMsg.str() << "\"";
+      eos_static_err(logMsg.str().c_str());
+      error.setErrInfo(ENOMEM, replyMsg.str().c_str());
+      return SFS_ERROR;
+    }
+
+    std::ostringstream json;
+    try {
+      m_gcs.toJson(json, replySize - 1);
+    } catch(MaxLenExceeded &ml) {
+      std::ostringstream msg;
+      msg << "msg=\"" << ml.what() << "\"";
+      eos_static_err(msg.str().c_str());
+      error.setErrInfo(ERANGE, ml.what());
+      return SFS_ERROR;
+    }
+    std::strncpy(reply, json.str().c_str(), replySize);
+    reply[replySize - 1] = '\0';
+
+    // Ownership of reply is taken by the xrd_buff object.
+    // Error then takes ownership of the xrd_buff object
+    XrdOucBuffer * const xrd_buff = new XrdOucBuffer(reply, replySize);
+    xrd_buff->SetLen(strlen(reply + 1));
+    error.setErrInfo(xrd_buff->BuffSize(), xrd_buff);
+    return SFS_DATA;
+  } catch (std::exception &ex) {
+    eos_static_err("msg=\"handleFSCTL_PLUGIO_tgc failed: %s\"", ex.what());
+  } catch (...) {
+    eos_static_err("msg=\"handleFSCTL_PLUGIO_tgc failed: Caught an unknown exception\"");
+  }
+
+  error.setErrInfo(ECANCELED, "handleFSCTL_PLUGIO_tgc failed");
+  return SFS_ERROR;
 }
 
 EOSTGCNAMESPACE_END

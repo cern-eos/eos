@@ -79,6 +79,24 @@ public:
   //! Return true if the specified string is a valid unsigned integer
   //------------------------------------------------------------------------------
   static bool isValidUInt(std::string str);
+
+  //----------------------------------------------------------------------------
+  //! @return x divided by y rounded to the neareset integer
+  //! @param x dividend
+  //! @param y dividor
+  //----------------------------------------------------------------------------
+  static std::uint64_t divideAndRoundToNearest(const std::uint64_t x, const std::uint64_t y) {
+    return (x + y / 2) / y;
+  }
+
+  //----------------------------------------------------------------------------
+  //! @return x divided by y rounded up
+  //! @param x dividend
+  //! @param y dividor
+  //----------------------------------------------------------------------------
+  static std::uint64_t divideAndRoundUp(const std::uint64_t x, const std::uint64_t y) {
+    return (x + y - 1) / y;
+  }
 };
 
 EOSTGCNAMESPACE_END

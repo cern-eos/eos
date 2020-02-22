@@ -43,11 +43,26 @@ EOSTGCNAMESPACE_BEGIN
 /// cached configuration
 const std::uint64_t TGC_DEFAULT_MAX_CONFIG_CACHE_AGE_SECS = 10;
 
+// Maximum number of bins within a histogram of freed bytes over time
+const std::uint32_t TGC_FREED_BYTES_HISTOGRAM_MAX_NB_BINS = 65535;
+
+/// Fixed number of bins within a histogram of freed bytes over time
+const std::uint32_t TGC_FREED_BYTES_HISTOGRAM_NB_BINS = 600;
+
+// Maximum bin width in seconds of a histogram of freed bytes over time
+const std::uint32_t TGC_FREED_BYTES_HISTOGRAM_MAX_BIN_WIDTH_SECS = 65535;
+
+/// Default bin width in seconds of a histogram of freed bytes over time
+const std::uint32_t TGC_DEFAULT_FREED_BYTES_HISTOGRAM_BIN_WIDTH_SECS = 1;
+
 /// Name of a space configuration member
 constexpr const char * TGC_NAME_QRY_PERIOD_SECS = "tgc.qryperiodsecs";
 
+/// Maximum delay in seconds between EOS space queries for the tape-aware GC
+const std::uint64_t TGC_MAX_QRY_PERIOD_SECS = TGC_FREED_BYTES_HISTOGRAM_NB_BINS * TGC_FREED_BYTES_HISTOGRAM_MAX_BIN_WIDTH_SECS;
+
 /// Default delay in seconds between EOS space queries for the tape-aware GC
-const std::uint64_t TGC_DEFAULT_QRY_PERIOD_SECS = 310;
+const std::uint64_t TGC_DEFAULT_QRY_PERIOD_SECS = 320;
 
 /// Name of a space configuration member
 constexpr const char * TGC_NAME_AVAIL_BYTES = "tgc.availbytes";

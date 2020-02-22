@@ -63,6 +63,7 @@ set(MGM_UT_SRCS
   mgm/IdTrackerTests.cc
   mgm/FsckEntryTests.cc
   mgm/tgc/CachedValueTests.cc
+  mgm/tgc/FreedBytesHistogramTests.cc
   mgm/tgc/LruTests.cc
   mgm/tgc/MultiSpaceTapeGcTests.cc
   mgm/tgc/SpaceToTapeGcMapTests.cc
