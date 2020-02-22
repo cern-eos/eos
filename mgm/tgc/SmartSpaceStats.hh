@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: SmartFreeAndUSedBytes.hh
+// File: SmartSpaceStats.hh
 // Author: Steven Murray - CERN
 // ----------------------------------------------------------------------
 
@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSMGMTGCFREEBYTES_HH__
-#define __EOSMGMTGCFREEBYTES_HH__
+#ifndef __EOSMGMSMARTSPACESTATS_HH__
+#define __EOSMGMSMARTSPACESTATS_HH__
 
 #include "mgm/tgc/CachedValue.hh"
 #include "mgm/tgc/ITapeGcMgm.hh"
@@ -34,7 +34,7 @@
 
 /*----------------------------------------------------------------------------*/
 /**
- * @file SmartFreeAndUSedBytes.hh
+ * @file SmartSpaceStats.hh
  *
  * @brief Class encapsulating how the tape-aware GC updates its internal
  * statistics about the EOS space it is managing.
