@@ -42,7 +42,7 @@
 
 from __future__ import print_function
 
-import getopt, json, os, re, signal, stat, subprocess, sys, tempfile, time, traceback
+import getopt, json, os, re, signal, stat, subprocess, sys, tempfile, threading, time, traceback
 import pdb
 
     
@@ -57,7 +57,7 @@ signal.signal(signal.SIGINT, request_stop)
 
 # options
 subcmd = sys.argv[1]
-opts, args = getopt.getopt(sys.argv[2:], "B:F:P:U:bS:")
+opts, args = getopt.getopt(sys.argv[2:], "B:F:P:U:bvS:")
 
 # default backupDirPrefix and parentId
 dflt = [('-B', "/tmp/backupDir"),('-P', 10),('-S',1024*1024*1024)]
@@ -66,6 +66,7 @@ dflt = [('-B', "/tmp/backupDir"),('-P', 10),('-S',1024*1024*1024)]
 opt = dict(dflt+opts)
 
 try:
+    os.putenv("XRD_WORKERTHREADS", "50")            # os.environ would not work here
     from XRootD import client
     from XRootD.client.flags import MkDirFlags, OpenFlags
     canXroot = True
@@ -119,10 +120,10 @@ def do_clone(subcmd):
       xx = json.loads(line1)
       cloneId = xx['c']
     except Exception as e:
-      print(e, "catalogFile", catalogFile[1])
-      if hasattr(e, 'msg'): print(e.msg)
-      if hasattr(e, 'message'): print(e.message)
-      print("line #1: '%s'" % line1)
+      print(e, "catalogFile", catalogFile[1], file=sys.stderr)
+      if hasattr(e, 'msg'): print(e.msg, file=sys.stderr)
+      if hasattr(e, 'message'): print(e.message, file=sys.stderr)
+      print("line #1: '%s'" % line1, file=sys.stderr)
       raise
 
     tCatFile = "%s.%s.clone" % (catalogFile[1], cloneId)
@@ -131,43 +132,74 @@ def do_clone(subcmd):
 
     return (cloneId, tCatFile)
 
-# perform a clone unless a catalogFile has been given, then back up files
+# blob: holds a single BIG file, a flat set of files copied with xrdcp,
+# or a flat set of files copied asynchronously
+BLOBS = []
+blobCV = threading.Condition()
+blobq = []
+blob_slots = 6              # run slots
+blobs_active = []
+
 class Blob:                 # the files where data are stored in
-    def __init__(self, num, prefix, isCopy=False):
-        self.blob_num = num
-        self.next_blob = num+1
+    def __init__(self, prefix, isCopy=False):
+        # blob chain management
+        self.blob_num = len(BLOBS)
+        BLOBS.append(self)
         self.prefix = prefix
         self.isCopy = isCopy
+        self.closing = False
         self.blobname = "%sb.%d" % (prefix, self.blob_num)
+        self.size = 0               # current file size
+        self.csize = 0              # current commited size
+
+        # files to be transferred into this blob (or placeholder for copy-blobs and xrdcp)
+        self.bufsz = 1<<24                          # 16 MB
+        self.items = []                             # list of (jsonTag, path, cpath, urlopts)
+        self.currItem = -1                          # item current being backed up
+        self.state = -1                             # stopped=-1, idle=0, copy_clone=1, copy_live=2, override=3, ...    in close=98, closed=99
 
         self.blXroot = canXroot and prefix.startswith("root:")
         if self.blXroot:
             if not self.isCopy:
                 self.bfile = client.File()
                 self.bfile.open(self.blobname, OpenFlags.NEW)
+
+                def cb(st, resp, hotlist):
+                    with blobCV:
+                        blobq.append((self, (st, resp, hotlist,)))
+                        blobCV.notify()
+
+                self.XrdCB = cb
+
         else:
             self.bfile = open(self.blobname, "wb")  # 'wb' or 'w' hardly matters, we don't write ourselves
             os.lseek(self.bfile.fileno(), 0, 0)     # this may be implicit, but vital for the subprocess writes
 
         print("blob", self.blob_num, "created", file=sys.stderr)
-        self.size = 0
+
 
     def getBlob(self, sz, noCopy=False):
-        if sz >= opt['-S']/2 and not noCopy:       # create a copyjob item, blob will be a single file
-            new_blob = Blob(self.next_blob, self.prefix, isCopy=True)
-            self.next_blob = new_blob.next_blob
+        if sz >= opt['-S']/10 and not noCopy:           # create a copyjob item, blob will be a single file
+            new_blob = Blob(self.prefix, isCopy=True)
+            new_blob.csize += sz                        # save projected size, we'll start at offset 0 anyway
             return (self, new_blob)
         elif sz > opt['-S']:
-            new_blob = Blob(self.next_blob, self.prefix)
-            self.next_blob = new_blob.next_blob
+            new_blob = Blob(self.prefix)
             return (self, new_blob)
-        if self.size > opt['-S']:
-            new_blob = Blob(self.next_blob, self.prefix)
+        if self.csize > opt['-S']:
+            print(f"blob {self.blob_num} committed {self.csize} files {len(self.items)}", file=sys.stderr)
+            new_blob = Blob(self.prefix)
+            new_blob.csize = sz
+            blobs_active.remove(self)
+            blobs_active.append(new_blob)
             self.close()
             return (new_blob, new_blob)
+
+        self.csize += sz
         return (self, self)
 
     def config_copyjob(self, src, altsrc):              # clone / live file
+        self.state = 0
         self.src = (src, altsrc)
         self.trg = "%sb.%d" % (self.prefix, self.blob_num)
         copyjobs.append(self)
@@ -182,14 +214,183 @@ class Blob:                 # the files where data are stored in
         if not st.ok: return False
 
         self.size = info.size
-        print("copy job", self.src[self.srcIndex], self.blobname, "size", self.size)
+        print("copy job", self.src[self.srcIndex], self.blobname, "size", self.size, file=sys.stderr)
         copyprocess.add_job(self.src[self.srcIndex], self.blobname, thirdparty="only")      # could be  "first"
         return True
 
     def close(self):
-        if not self.isCopy:
-            self.bfile.close()
-            print("blob", self.blob_num, "closed size", self.size, file=sys.stderr)
+        global blob_slots
+        self.closing = True
+        if self.state == 0:
+            self.state_machine()
+
+        if self.state == 98:
+            self.state = 99
+            if not self.isCopy:
+                self.bfile.close()
+                blob_slots += 1
+                print(f"blob {self.blob_num} closed size {self.size} slots {blob_slots}", file=sys.stderr)
+
+                for n in range(self.blob_num, len(BLOBS)):
+                    if BLOBS[n].state == -1:
+                        BLOBS[n].run()
+                        break
+
+    def addItem(self, json, path, cpath, urlopts=""):
+        if self.isCopy:         # use a more efficient (3rd-party) xrootd copy into a single blob
+            json['b'] = "%d:%d:%d" % (self.blob_num, 0, self.csize)
+            self.items.append((json, None, None, None,))
+            self.config_copyjob("%s/%s" % (opt['-U'], path), "%s/%s" % (opt['-U'], cpath))
+        else:
+            self.items.append((json, path, cpath, urlopts,))
+            self.run()
+
+    def run(self):
+        global blob_slots
+
+        if self.state == -1:
+            if blob_slots <= 0: return
+            blob_slots -= 1
+            self.state = 0                          # set to idle
+
+        if self.state == 0:                         # is idle
+            self.state_machine()
+
+    def state_machine(self, cbargs=()):
+        if len(cbargs) == 3 and self.state >= 0 and self.state <=9:
+            st, resp, hotlist = cbargs
+            i = self.items[self.currItem]
+            #print("blob %d: %s or %s to %s --" % (self.blob_num, i[1], i[2], self.blobname), "st: ok %r code %r len %d" % (st.ok, st.code, len(resp)), file=sys.stderr)
+            self.continue_read(*cbargs)
+
+        if self.state == 0:                             # idle
+            self.pick_next_element()
+
+        if self.state == 98:
+            self.close()
+
+
+
+        # there is no progress
+        #print(f"state_machine blob {self.blob_num} file {self.currItem} cbargs {len(cbargs)} closing {self.closing} state {self.state} files {len(self.items)}", file=sys.stderr)
+        #return
+
+    def pick_next_element(self):                        # only called with self.state == 0!
+        item = None
+        for i in range(self.currItem+1, len(self.items)):
+            self.currItem = i
+            if self.items[i][1] is not None:            # this could be a non-File (e.g. Directory) entry
+                item = self.items[i]                    # (jsonTag, path, cpath, urlopts="")
+                break
+
+        if item is None:                                
+            if self.closing: self.state = 98
+            return
+
+        self.sm_oldSize = self.size                     # remember where this file started in the blob
+
+        # try copy the clone first
+        self.sm_src = client.File()
+        self.state = 1                      # copy clone
+        cpath = "%s/%s%s" % (opt['-U'], item[2], item[3])
+        st, xx = self.sm_src.open(cpath)
+
+        if st.ok:
+            if "-v" in opt: print(f"Copying clone {cpath} for {item[1]}", file=sys.stderr)
+        else:       # copy live file
+            self.sm_src = client.File()
+            st, xx = self.sm_src.open("%s/%s%s" % (opt['-U'], item[1], item[3]))
+            self.state = 2  # copying live file
+
+        # start the first read
+        self.sm_offset = 0
+        try:
+            st = self.sm_src.read(offset=self.sm_offset, size=self.bufsz, callback=self.XrdCB)
+            #print(f"1st read blob {self.blob_num} file {self.currItem} st.ok {st.ok} st.code {st.code}", file=sys.stderr)
+            if st.ok: return                # state machine continues after callback
+        except Exception as e:
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(f"line {exc_tb.tb_lineno} error {e} reading {item[1]} @{self.sm_offset}:{self.bufsz}", file=sys.stderr)
+            if hasattr(e, 'msg'): print(e.msg, file=sys.stderr)
+            if hasattr(e, 'message'): print(e.message, file=sys.stderr)
+            self.state = 0
+            self.state_machine()
+
+
+    def continue_read(self, st, buff, hl):              # handle callback with data
+        if not st.ok:
+            print(f"failed read {st} blob {self.blob_num} file {self.currItem} '{self.items[self.currItem]}'", file=sys.stderr)
+            self.sm_src.close()
+            self.state = 0
+        else:                               # read completed, buff holds data
+            # sanity checks
+            try:
+                sz = int(eval(self.items[self.currItem][0]['st'])[stat.ST_SIZE])
+                if len(buff) > sz:
+                    raise AssertionError("buffer exceeds file size")
+                if self.sm_offset > sz:
+                    raise AssertionError("sm_offset %d exceeds file size: %s" %(self.sm_offset, self.items[self.currItem][0]))
+                if self.size-self.sm_oldSize > sz:
+                    raise AssertionError("blob space used exceeds file size")
+            except Exception as e:
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                print(f"line {exc_tb.tb_lineno} error {e}", file=sys.stderr)
+                pdb.set_trace()
+
+            #print(f"continue_read: blob {self.blob_num} file {self.currItem} st.ok {st.ok} len {len(buff)}", file=sys.stderr)
+            if len(buff) > 0:               # write buffer, read next one
+
+                st2, xx = self.bfile.write(buff, offset=self.size)
+                self.size += len(buff)
+                self.sm_offset += len(buff)
+
+                # sanity check
+                try:
+                  sz = int(eval(self.items[self.currItem][0]['st'])[stat.ST_SIZE])
+                  if self.sm_offset > sz:
+                    raise AssertionError("sm_offset %d exceeds file size: %s" %(self.sm_offset, self.items[self.currItem][0]))
+                except Exception as e:
+                    exc_type, exc_obj, exc_tb = sys.exc_info()
+                    print(f"line {exc_tb.tb_lineno} error {e}", file=sys.stderr)
+                    pdb.set_trace()
+
+                st2 = self.sm_src.read(offset=self.sm_offset, size=self.bufsz, callback=self.XrdCB)
+                #print(f"next read blob {self.blob_num} file {self.currItem} st: ok", st2.ok, "code", st2.code, file=sys.stderr)
+            else:                           # a zero length read signals EOF
+                item = self.items[self.currItem]
+                rc = st.errno
+                #print(f"closing blob {self.blob_num} file {self.currItem}, rc={rc}", file=sys.stderr)
+                self.sm_src.close()
+
+                item[0]['b'] = "%d:%d:%d" % (self.blob_num, self.sm_oldSize, self.size-self.sm_oldSize)
+                
+                if self.state == 2:         # finished live file, try the clone again
+                    st2, xx = self.sm_src.open("%s/%s%s" % (opt['-U'], item[2], item[3]))
+                    if not st2.ok:          # can't read clone, the live file be it then
+                        self.state = 0
+
+                    else:                   # clone should overwrite what we just copied
+                        self.state = 3      # override with clone
+                        self.sm_offset = 0
+                        self.size = self.sm_oldSize
+                        self.bfile.truncate(self.size)
+                        try:
+                            st2 = self.sm_src.read(offset=self.sm_offset, size=self.bufsz, callback=self.XrdCB)
+                            print("1st read clone ok", st.ok, "code", st.code, file=sys.stderr)
+                        except Exception as e:
+                            exc_type, exc_obj, exc_tb = sys.exc_info()
+                            print(f"line {exc_tb.tb_lineno} error {e} reading {item[2]} @{self.sm_offset}:{self.bufsz}", file=sys.stderr)
+                            if hasattr(e, 'msg'): print(e.msg, file=sys.stderr)
+                            if hasattr(e, 'message'): print(e.message, file=sys.stderr)
+                            self.state = 0
+                elif self.state == 3:
+                    self.state = 0
+                else:
+                    self.state = 0
+
+        #print(f"continue_read blob {self.blob_num} file {self.currItem} state {self.state}", file=sys.stderr)
+
+
 
 
 def copy_xrdcp(path, cpath, blob):
@@ -229,59 +430,6 @@ def copy_xrdcp(path, cpath, blob):
     return rc
 
 
-def copy_xroot(path, cpath, blob, urlopts):
-    rc = 0
-
-    if blob.isCopy:         # use a more efficient (3rd-party) xrootd copy into a single blob
-        rc = 0 if blob.config_copyjob("%s/%s" % (opt['-U'], path), "%s/%s" % (opt['-U'], cpath)) else 1
-        return rc
-
-    # try copy the clone first
-    oldSize = blob.size
-    bufsz = 1<<24               # 16 MB
-    src = client.File()
-    st, xx = src.open("%s/%s%s" % (opt['-U'], cpath, urlopts))
-
-    if not st.ok:       # copy live file
-        src = client.File()
-        st, xx = src.open("%s/%s%s" % (opt['-U'], path, urlopts))
-        offset = 0
-        while True:
-            try:
-                st, buff = src.read(offset=offset, size=bufsz)
-            except Exception as e:
-                print(f"error {e} reading {path} @{offset}:{bufsz}")
-                if hasattr(e, 'msg'): print(e.msg)
-                if hasattr(e, 'message'): print(e.message)
-                buff=b''
-
-            if len(buff) == 0: break
-            st, xx = blob.bfile.write(buff, offset=blob.size)
-            blob.size += len(buff)
-            offset += len(buff)
-
-        rc = st.errno
-        src.close()
-
-        # prepare to retry clone
-        src = client.File()
-        st, xx = src.open("%s/%s%s" % (opt['-U'], cpath, urlopts))
-
-    if st.ok:                   # copy the clone
-        blob.size = oldSize
-        blob.bfile.truncate(blob.size)
-        offset = 0
-        while True:
-            st2, buff = src.read(offset=offset, size=bufsz)
-            if len(buff) == 0: break
-            st2, xx = blob.bfile.write(buff, offset=blob.size)
-            blob.size += len(buff)
-            offset += len(buff)
-
-        src.close()
-        rc = st2.errno
-
-    return rc
 
 
 class MyCopyProgressHandler(client.utils.CopyProgressHandler):
@@ -296,117 +444,7 @@ class MyCopyProgressHandler(client.utils.CopyProgressHandler):
         print("update", file=sys.stderr)
         #print('processed: %d, total: %d' % (processed, total), file=sys.stderr)
 
-
-def do_backup():
-    b_Xroot = canXroot and opt['-B'].startswith("root:")
-
-    if '-U' not in opt and not b_Xroot:
-        try:
-            opt['-U'] = os.environ['EOS_MGM_URL']
-            if opt['-U'] == '': raise KeyError
-        except KeyError:
-            print("need to specify 'U' or define EOS_MGM_URL in the environment", file=sys.stderr)
-            sys.exit(1)
-
-    if '-F' in opt:
-        catalogFile = opt['-F']
-    else:
-        cloneId, catalogFile = do_clone("backup")
-    
-    c_Xroot = canXroot and catalogFile.startswith("root:")
-    try:
-        if c_Xroot:
-            f = client.File()
-            f.open(catalogFile)
-        else:
-            f = open(catalogFile, "r")
-    except IOError as e:
-        print("cannot open catalog: %s" % e, file=sys.stderr)
-        sys.exit(5)
-
-    #findOut = f.readlines()
-    line1 = f.readline()
-
-    jj = json.loads(line1)
-    cloneId = jj['c']
-    rootPath = jj['n']
-
-    backupDir = "%s/%s/" % (opt['-B'].rstrip('/'), cloneId)
-    if b_Xroot:
-        b_fs = client.FileSystem(backupDir)
-        xx = re.match("^root://\S+/(/\S+)", backupDir)
-        backupDirPath = xx.group(1)
-        b_fs.mkdir(backupDirPath, MkDirFlags.MAKEPATH)
-        newCatalog = client.File()
-        status, xxx = newCatalog.open(backupDir + "catalog", OpenFlags.NEW)
-        newCatalog.write(line1, offset=0)
-        newCatPos = len(line1)
-    else:
-        if not os.path.isdir(backupDir): os.mkdir(backupDir)
-
-        newCatalog = open(backupDir + "catalog", "w")
-        newCatalog.write(line1)
-
-    curr_blob = Blob(0, backupDir)
-
-    print("cloneId %s backup_media %s" % (cloneId, backupDir[:-1]))
-
-    cloneDir = "/eos/%s/proc/clone/" % (eos_instance[3:] if eos_instance.startswith("eos") else eos_instance)
-    while not stop_requested:
-        l = f.readline()
-        if len(l) == 0: break
-
-        jj = json.loads(l)
-        fCloneId = jj['c']              # id of clone the file belongs to, might be from an earlier dump
-        path = jj['n']
-        if not path.endswith('/'): 		# this is a file
-            clonePath = "%s/%s" % (fCloneId, jj['p'])
-        stime = jj['t']
-
-# jj['st']: "(st_mode, st_ino, st_dev, st_nlink, st_uid, st_gid, st_size, st_atime, st_mtime, st_ctime)"
-
-        if path.endswith('/') or fCloneId != cloneId: # if a dir or a file unmodified in incremental dump
-            if b_Xroot:
-                newCatalog.write(l, offset=newCatPos)
-                newCatPos += len(l)
-            else:
-                newCatalog.write(l)
-            continue	
-
-        # this is a plain file
-        st = eval(jj['st'])
-        curr_blob, tblob = curr_blob.getBlob(st[stat.ST_SIZE], noCopy='H' in jj)
-        cpath = cloneDir + clonePath
-
-        copied_live = False
-        startpos = tblob.size        # blob.bfile.tell() would be useless, pertubated by subprocess writes
-
-        o_opt = ''
-        if 'H' in jj:               # problem encountered: cksum on git hard-links not (always?) updated ??
-            o_opt = "?eos.checksum=ignore"
-            print("Hard link %s copied with %s" % (path, o_opt), file=sys.stderr)
-
-        if tblob.blXroot:
-            copy_xroot(path, cpath, tblob, urlopts=o_opt)
-        else:
-            copy_xrdcp(path, cpath, tblob)
-
-        jj['b'] = "%d:%d:%d" % (tblob.blob_num, startpos, tblob.size-startpos)
-        jxx=json.dumps(jj) + "\n"
-        if b_Xroot:
-            newCatalog.write(jxx, offset=newCatPos)
-            newCatPos += len(jxx)
-        else:
-            newCatalog.write(jxx)
-	    
-        if tblob is not curr_blob:               # an individual blob for a BIG file
-            tblob.close()
-	    
-    f.close()
-
-    newCatalog.close()
-    curr_blob.close()
-
+def myCopyprocess():
     try:
         if len(copyjobs) > 0:
             print("running %d xrootd copies" % len(copyjobs), file=sys.stderr)
@@ -465,7 +503,6 @@ def do_backup():
                             st = copies2[1][i]['status']
                             if not st.ok:
                                 blob = copyjobs2[i]
-                                print("retry:", blob.src[blob.srcIndex], file=sys.stderr)
                                 print("failed:", blob.src[0], "or", blob.src[1], "to", blob.trg, file=sys.stderr)
                     except Exception as e:
                         exc_type, exc_obj, exc_tb = sys.exc_info()
@@ -476,6 +513,149 @@ def do_backup():
         exc_type, exc_obj, exc_tb = sys.exc_info()
         print("Oops %s %r running copy jobs in line %d:" % (type(e), e, exc_tb.tb_lineno), file=sys.stderr)
         traceback.print_tb(exc_tb, None, sys.stderr)
+
+
+# perform a clone unless a catalogFile has been given, then back up files
+def do_backup():
+    b_Xroot = canXroot and opt['-B'].startswith("root:")
+
+    if '-U' not in opt and not b_Xroot:
+        try:
+            opt['-U'] = os.environ['EOS_MGM_URL']
+            if opt['-U'] == '': raise KeyError
+        except KeyError:
+            print("need to specify 'U' or define EOS_MGM_URL in the environment", file=sys.stderr)
+            sys.exit(1)
+
+    if '-F' in opt:
+        catalogFile = opt['-F']
+    else:
+        cloneId, catalogFile = do_clone("backup")
+    
+    c_Xroot = canXroot and catalogFile.startswith("root:")
+    try:
+        if c_Xroot:
+            f = client.File()
+            f.open(catalogFile)
+        else:
+            f = open(catalogFile, "r")
+    except IOError as e:
+        print("cannot open catalog: %s" % e, file=sys.stderr)
+        sys.exit(5)
+
+    #findOut = f.readlines()
+    line1 = f.readline()
+
+    jj = json.loads(line1)
+    cloneId = jj['c']
+    rootPath = jj['n']
+
+    backupDir = "%s/%s/" % (opt['-B'].rstrip('/'), cloneId)
+    if b_Xroot:
+        b_fs = client.FileSystem(backupDir)
+        xx = re.match("^root://\S+/(/\S+)", backupDir)
+        backupDirPath = xx.group(1)
+        b_fs.mkdir(backupDirPath, MkDirFlags.MAKEPATH)
+        newCatalog = client.File()
+        status, xxx = newCatalog.open(backupDir + "catalog", OpenFlags.NEW)
+        newCatalog.write(line1, offset=0)
+        newCatPos = len(line1)
+    else:
+        if not os.path.isdir(backupDir): os.mkdir(backupDir)
+
+        newCatalog = open(backupDir + "catalog", "w")
+        newCatalog.write(line1)
+
+    num_files = 0
+    for n in range(3): blobs_active.append(Blob(backupDir))
+
+    print("cloneId %s backup_media %s" % (cloneId, backupDir[:-1]))
+
+    cloneDir = "/eos/%s/proc/clone/" % (eos_instance[3:] if eos_instance.startswith("eos") else eos_instance)
+
+    while not stop_requested:
+
+        while True:
+            with blobCV:
+                tblob = None            # shouldn't be needed!
+                if len(blobq) == 0: break
+                tblob, cbargs = blobq.pop(0)
+
+            tblob.state_machine(cbargs)
+
+        l = f.readline()
+        if len(l) == 0: break
+
+        curr_blob = blobs_active[int(num_files/1) % len(blobs_active)]
+
+        jj = json.loads(l)
+        fCloneId = jj['c']              # id of clone the file belongs to, might be from an earlier dump
+        path = jj['n']
+        if not path.endswith('/'): 		# this is a file
+            clonePath = "%s/%s" % (fCloneId, jj['p'])
+        stime = jj['t']
+
+# jj['st']: "(st_mode, st_ino, st_dev, st_nlink, st_uid, st_gid, st_size, st_atime, st_mtime, st_ctime)"
+
+        # Insert catalog-only entry for a  dir, a file unmodified in incremental dump, or a symlink
+        if path.endswith('/') or fCloneId != cloneId or 'S' in jj:
+            if b_Xroot:
+                curr_blob.addItem(jj, None, None, "")
+            else:
+                newCatalog.write(l)
+            continue	
+
+        # this is a plain file
+        num_files += 1
+        st = eval(jj['st'])
+        curr_blob, tblob = curr_blob.getBlob(st[stat.ST_SIZE], noCopy='H' in jj)
+        cpath = cloneDir + clonePath
+
+        o_opt = ''
+        if 'H' in jj:               # problem encountered: cksum on git hard-links not (always?) updated ??
+            o_opt = "?eos.checksum=ignore"
+            print("Hard link %s copied with %s" % (path, o_opt), file=sys.stderr)
+
+        if tblob.isCopy or tblob.blXroot:           # add file to the list
+            tblob.addItem(jj, path, cpath, o_opt)
+        else:
+            startpos = tblob.size        # blob.bfile.tell() would be useless, pertubated by subprocess writes
+            copy_xrdcp(path, cpath, tblob)
+
+            jj['b'] = "%d:%d:%d" % (tblob.blob_num, startpos, tblob.size-startpos)
+            jxx=json.dumps(jj) + "\n"
+            newCatalog.write(jxx)
+	    
+        if tblob is not curr_blob:                  # an individual blob for a BIG file
+            tblob.close()
+	    
+    f.close()
+    for b in blobs_active: b.close()
+
+    copythread = threading.Thread(target=myCopyprocess)
+    copythread.start()
+
+    if b_Xroot:
+        for b in BLOBS:
+            while (not b.isCopy) and b.state != 99:
+                with blobCV:
+                    if blobCV.wait_for(lambda: len(blobq) > 0, timeout=5):
+                        tblob, cbargs = blobq.pop(0)
+                    else:
+                        tblob = None
+                if tblob:
+                    tblob.state_machine(cbargs)
+                else:
+                    print(f"Waiting for close on blob {b.blob_num} closing {b.closing} state {b.state} current item {b.currItem+1} (of {len(b.items)})", file=sys.stderr)
+
+            print(f"blob {b.blob_num} state {b.state} items {len(b.items)}", file=sys.stderr)
+            for i in b.items:
+                jxx = json.dumps(i[0]) + "\n"
+                newCatalog.write(jxx, offset=newCatPos)
+                newCatPos += len(jxx)
+
+    copythread.join()
+    newCatalog.close()
 
 
     cmd = "eos find -f -x sys.clone=-%s %s > /dev/null" % (cloneId, args[0])
@@ -529,7 +709,9 @@ def do_restore():
 
             cat[rpath]['stime'] = stime
             cat[rpath]['c'] = cloneId
-            if 'b' in jj: cat[rpath]['b'] = jj['b']
+            for k in ['b', 'S', 'H', 'L']:
+                if k in jj: cat[rpath][k] = jj[k]
+
             if lastCatFile: cat[rpath]['keep'] = True
 
         cFile.close()
@@ -542,6 +724,8 @@ def do_restore():
         if not 'keep' in cat[p]: continue
         if p.endswith('/') or p == '':  # a directory
             os.makedirs(trg + p)
+        elif 'S' in cat[p]:             # this is a symlink
+            os.symlink(cat[p]['S'], f"{trg}/{p}")
         else:
           try:
             bIndex, bOffset, bLen = map(int, cat[p]['b'].split(":"))
@@ -573,9 +757,9 @@ def do_restore():
             trgFile.close()
           except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
-            print("Exception %s in line %d:" % (type(e), exc_tb.tb_lineno))
-            print(p)
-            if p in cat: print(cat[p])
+            print("Exception %s in line %d:" % (type(e), exc_tb.tb_lineno), file=sys.stderr)
+            print(p, file=sys.stderr)
+            if p in cat: print(cat[p], file=sys.stderr)
 
 # main
 if subcmd == 'clone':
