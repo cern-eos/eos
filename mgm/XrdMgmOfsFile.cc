@@ -187,7 +187,7 @@ XrdMgmOfsFile::create_cow(bool isDelete, uint64_t cloneId,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
-		    const char* inpath,
+                    const char* inpath,
                     XrdSfsFileOpenMode open_mode,
                     mode_t Mode,
                     const XrdSecEntity* client,
@@ -240,6 +240,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     } else {
       vid = *invid;
     }
+
     EXEC_TIMING_END("IdMap");
   }
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
@@ -2559,7 +2560,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
   }
 
-  if (nullptr != fmd && nullptr != space.c_str() && fmd->hasAttribute("sys.archive.file_id")) {
+  if (nullptr != fmd && nullptr != space.c_str() &&
+      fmd->hasAttribute("sys.archive.file_id")) {
     gOFS->mTapeGc->fileOpened(space.c_str(), path, fmd->getId());
   }
 
@@ -2979,6 +2981,13 @@ XrdMgmOfsFile::RedirectTpcAccess()
   }
 
   bool is_delegated_tpc = (strncmp(tpc_key, "delegate", 8) == 0);
+  // Support the tpc.dlgon=1 marker for XRootD client >= 4.11.2
+  const char* dlg_marker = openOpaque->Get("tpc.dlgon");
+
+  if (dlg_marker) {
+    is_delegated_tpc = is_delegated_tpc || (strncmp(dlg_marker, "1", 1) == 0);
+  }
+
   auto it = gOFS->mTpcRdrInfo.find(is_delegated_tpc);
 
   // If rdr info not present or if host is empty then skip
@@ -3040,7 +3049,7 @@ XrdMgmOfsFile::HandleTokenAuthz(XrdSecEntity* client, const std::string& path,
   // @todo (esindril) this is just a workaround for the fact that XrdHttp
   // does not properly populate the prot field in the XrdSecEntity object.
   // See https://github.com/xrootd/xrootd/issues/1122
-  if (client && 
+  if (client &&
       (strlen(client->tident) == 4) &&
       (strcmp(client->tident, "http") == 0)) {
     XrdOucEnv op_env(opaque.c_str());
