@@ -25,6 +25,7 @@ New Feature
 ------------
 
 * Provide backup-clone functionality
+* Provide tape garbage collector base-line implementation
 * [EOS-3956] - Provide the expected checksum per block in the namespace in RAIN files
 
 Bug
