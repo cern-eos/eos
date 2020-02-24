@@ -36,6 +36,7 @@ Bug
 * [EOS-3917] - SetNodeConfigDefault might be called before gOFS->mMaster has been initialized
 * [EOS-3954] - eos documentation guides people towards an insecure QDB deployment
 * [EOS-3969] - Bug in NextInodeProvider raises possibility of creating two containers with colliding IDs
+* [EOS-4000] - Spurious errors of fusex-benchmark test 13
 
 Task
 -----
