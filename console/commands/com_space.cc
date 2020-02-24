@@ -26,7 +26,6 @@
 #include "common/StringTokenizer.hh"
 #include "common/StringConversion.hh"
 #include "common/SymKeys.hh"
-#include "mgm/tgc/Constants.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 /*----------------------------------------------------------------------------*/
 
@@ -564,12 +563,6 @@ com_space_usage:
           "       space config <space-name> space.graceperiod=<sec>             : configure the default grace  period if not defined on a filesystem (see fs for details)\n");
   fprintf(stdout,
           "       space config <space-name> space.filearchivedgc=on|off         : enable/disable the 'file archived' garbage collector [ default=off ]\n");
-  fprintf(stdout,
-          "       space config <space-name> space.%s=<#>             : delay in seconds between queries from the tape-aware GC [ default=%lu ]\n", eos::mgm::tgc::TGC_NAME_QRY_PERIOD_SECS, eos::mgm::tgc::TGC_DEFAULT_QRY_PERIOD_SECS);
-  fprintf(stdout,
-          "       space config <space-name> space.%s=<#>            : configure the number of available bytes the space should have [ default=%lu ] \n", eos::mgm::tgc::TGC_NAME_AVAIL_BYTES, eos::mgm::tgc::TGC_DEFAULT_AVAIL_BYTES);
-  fprintf(stdout,
-          "       space config <space-name> space.%s=<#>            : configure the total number bytes the space should have before the tape-aware GC kicks in [ default=%lu ] \n", eos::mgm::tgc::TGC_NAME_TOTAL_BYTES, eos::mgm::tgc::TGC_DEFAULT_TOTAL_BYTES);
   fprintf(stdout,
           "       space config <space-name> space.tracker=on|off                : enable/disable the space layout creation tracker [default=off]\n");
   fprintf(stdout,
