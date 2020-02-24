@@ -853,7 +853,7 @@ runtest "### Attr Set  " unix 0 "" eos attr set user.attr.key='value' "fid:${fid
 runtest "### Attr Get  " unix 0 "" eos attr get user.attr.key "fid:${fid} | grep -w 'value'"
 runtest "### Attr Get  " unix 0 "" eosj attr get user.attr.key "fid:${fid} | jq -r '.attr.get[].user.attr.key' | grep -w 'value'"
 runtest "### Attr Rm   " unix 0 "" eos attr rm user.attr.key "fid:${fid}"
-runtest "### Attr Ls   " unix 0 "" eos attr ls "fid:${fid} | wc -l | grep -w 1"
+runtest "### Attr Ls   " unix 0 "" eos attr ls "fid:${fid} | wc -l | grep -w 3"
 runtest "### Attr Get  " unix 1 "" eos attr get user.attr.key "fid:invalid"
 runtest "### Attr Get  " unix 1 "" eos attr get user.attr.key "fxid:123456"
 runtest "### Attr Get  " unix 1 "" eos attr get user.attr.key "pxid:"
