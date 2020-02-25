@@ -18,14 +18,14 @@ default:
 
 
 #-------------------------------------------------------------------------------
-# Prebuild @note keep aside until solid
+# Prebuild @note stick to v0.16.0 until < https://github.com/GoogleContainerTools/kaniko/issues/1038 > is fixed
 #-------------------------------------------------------------------------------
 
 # @todo commit a :stable image manually, and a :latest on daily schedules
 .prebuid-template: &prebuild-template_definition
   stage: prebuild
   image:
-    name: gcr.io/kaniko-project/executor:debug
+    name: gcr.io/kaniko-project/executor:v0.16.0
     entrypoint: [""]
   script:
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
@@ -946,7 +946,6 @@ rpm_testing_artifacts:
     - docker_node
   only:
     - master
-    - dev
     - tags
   retry: 2
 
@@ -982,10 +981,8 @@ debian_artifacts:
     - docker_node
   dependencies:
     - build_ubuntu_bionic
-    # - build_ubuntu_disco     # Re-enable with Ubuntu Disco build
   only:
-    - master
-    - dev
+    - schedules
     - tags
   retry: 2
   allow_failure: true
@@ -1066,7 +1063,7 @@ clean_k8s_cluster:
 # Manually triggered builds
 #-------------------------------------------------------------------------------
 
-.eos_nginx_slc6:
+eos_nginx_slc6:
   stage: build:manual
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
@@ -1089,7 +1086,7 @@ clean_k8s_cluster:
   environment:
     name: nginx-slc6-prod
 
-.eos_nginx_cc7:
+eos_nginx_cc7:
   stage: build:manual
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
@@ -1109,7 +1106,7 @@ clean_k8s_cluster:
   environment:
     name: nginx-cc7-prod
 
-.eos_apmon_slc6:
+eos_apmon_slc6:
   stage: build:manual
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
@@ -1137,7 +1134,7 @@ clean_k8s_cluster:
   environment:
     name: apmon-slc6-prod
 
-.eos_apmon_cc7:
+eos_apmon_cc7:
   stage: build:manual
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
@@ -1157,7 +1154,7 @@ clean_k8s_cluster:
   environment:
     name: apmon-cc7-prod
 
-.eos_microhttpd_slc6:
+eos_microhttpd_slc6:
   stage: build:manual
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
@@ -1177,7 +1174,7 @@ clean_k8s_cluster:
     - fedora_rawhide
   when: manual
 
-.eos_microhttpd_cc7:
+eos_microhttpd_cc7:
   stage: build:manual
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
@@ -1195,7 +1192,7 @@ clean_k8s_cluster:
     - docker_node
   when: manual
 
-.eos_docs:
+eos_docs:
   stage: build:manual
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
@@ -1209,7 +1206,7 @@ clean_k8s_cluster:
     - docker_node
   when: manual
 
-.eos_repopackage:
+eos_repopackage:
   stage: build:manual
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
