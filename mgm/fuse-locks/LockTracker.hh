@@ -35,15 +35,9 @@
 #include <mutex>
 #include <fcntl.h>
 #include "mgm/Namespace.hh"
-
-/*----------------------------------------------------------------------------*/
+#include "common/Assert.hh"
 
 EOSMGMNAMESPACE_BEGIN
-
-
-/*----------------------------------------------------------------------------*/
-#define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " \
-        <<#message << " = " << message << std::endl
 
 template<typename T>
 bool isPointBetween(const T& start, const T& target, const T& end)
