@@ -200,8 +200,7 @@ IConfigEngine::ApplyEachConfig(const char* key, XrdOucString* val, void* arg)
     gOFS->eosFileService->configure(map_cfg);
     gOFS->eosDirectoryService->configure(map_cfg);
     return 0;
-  }
-  else {
+  } else {
     oss_err << "error: unsupported configuration line: " << skey.c_str() << " -> "
             << sval.c_str() << std::endl;
   }
@@ -389,8 +388,7 @@ IConfigEngine::ParseConfig(XrdOucString& inconfig, XrdOucString& err)
 {
   std::string err1;
   bool retval = ConfigParsing::parseConfigurationFile(inconfig.c_str(),
-    sConfigDefinitions, err1);
-
+                sConfigDefinitions, err1);
   err = err1.c_str();
   return retval;
 }
@@ -428,15 +426,14 @@ IConfigEngine::DumpConfig(XrdOucString& out, const std::string& filename)
 // Get a configuration value
 //------------------------------------------------------------------------------
 bool
-IConfigEngine::get(const std::string &prefix, const std::string &key,
-  std::string &out)
+IConfigEngine::get(const std::string& prefix, const std::string& key,
+                   std::string& out)
 {
   std::lock_guard lock(mMutex);
-
   std::string config_key = formFullKey(prefix.c_str(), key.c_str());
-
   auto it = sConfigDefinitions.find(config_key);
-  if(it == sConfigDefinitions.end()) {
+
+  if (it == sConfigDefinitions.end()) {
     return false;
   }
 
@@ -466,7 +463,6 @@ IConfigEngine::ResetConfig(bool apply_stall_redirect)
   gOFS->mRouting->Clear();
   FsView::gFsView.Reset();
   gOFS->ObjectManager.Clear();
-
   {
     std::lock_guard lock(mMutex);
     sConfigDefinitions.clear();
@@ -479,11 +475,11 @@ IConfigEngine::ResetConfig(bool apply_stall_redirect)
 // Insert comment
 //------------------------------------------------------------------------------
 void
-IConfigEngine::InsertComment(const char* comment)
+IConfigEngine::InsertComment(const std::string& comment)
 {
-  if (comment) {
+  if (!comment.empty()) {
     // Store comments as "<unix-tst> <date> <comment>"
-    XrdOucString esccomment = comment;
+    XrdOucString esccomment = comment.c_str();
     time_t now = time(0);
     char timestamp[1024];
     sprintf(timestamp, "%lu", now);

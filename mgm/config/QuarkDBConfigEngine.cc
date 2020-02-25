@@ -182,7 +182,7 @@ QuarkDBConfigEngine::SaveConfig(std::string filename, bool overwrite,
     }
   }
 
-  InsertComment(comment.c_str());
+  InsertComment(comment);
   // Store a new hash
   std::string hash_key = formConfigHashKey(filename);
   qclient::QHash q_hash(*mQcl, hash_key);
@@ -299,7 +299,6 @@ QuarkDBConfigEngine::PullFromQuarkDB(qclient::QHash& hash, XrdOucString& err)
 {
   err = "";
   std::lock_guard lock(mMutex);
-
   sConfigDefinitions.clear();
 
   for (auto it = hash.getIterator(); it.valid(); it.next()) {
@@ -538,7 +537,6 @@ void QuarkDBConfigEngine::storeIntoQuarkDB(const std::string& name)
   multiBuilder.emplace_back("del", keyname);
   std::vector<std::future<qclient::redisReplyPtr>> replies;
   std::set<std::string> deprecated;
-
   std::lock_guard lock(mMutex);
 
   for (const auto& elem : sConfigDefinitions) {

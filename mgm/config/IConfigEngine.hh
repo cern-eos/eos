@@ -159,7 +159,8 @@ public:
   //!
   //! @return true if saved successfully, otherwise false
   //----------------------------------------------------------------------------
-  virtual bool SaveConfig(std::string filename, bool overwrite, bool autosave, const std::string& comment, XrdOucString& err) = 0;
+  virtual bool SaveConfig(std::string filename, bool overwrite, bool autosave,
+                          const std::string& comment, XrdOucString& err) = 0;
 
   //----------------------------------------------------------------------------
   //! List all configurations
@@ -180,8 +181,8 @@ public:
   //----------------------------------------------------------------------------
   //! Get a configuration value
   //----------------------------------------------------------------------------
-  bool get(const std::string &prefix, const std::string &key,
-    std::string &out);
+  bool get(const std::string& prefix, const std::string& key,
+           std::string& out);
 
   //----------------------------------------------------------------------------
   //! Set a configuration value
@@ -220,7 +221,8 @@ public:
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  virtual bool PushToQuarkDB(const std::string& filename, bool overwrite, XrdOucString& err) = 0;
+  virtual bool PushToQuarkDB(const std::string& filename, bool overwrite,
+                             XrdOucString& err) = 0;
 
   //----------------------------------------------------------------------------
   //! Delete a configuration key from the responsible object
@@ -299,12 +301,12 @@ public:
   //----------------------------------------------------------------------------
   //! Publish the given configuration change
   //----------------------------------------------------------------------------
-  void publishConfigChange(const std::string &key, const std::string &value);
+  void publishConfigChange(const std::string& key, const std::string& value);
 
   //----------------------------------------------------------------------------
   //! Publish the deletion of the given configuration key
   //----------------------------------------------------------------------------
-  void publishConfigDeletion(const std::string &key);
+  void publishConfigDeletion(const std::string& key);
 
 protected:
   //! Helper struct for passing information in/out of XrdOucHash callbacks
@@ -314,7 +316,8 @@ protected:
   };
 
   std::unique_ptr<ICfgEngineChangelog> mChangelog; ///< Changelog object
-  std::recursive_mutex mMutex; ///< Protect the static configuration definitions hash
+  std::recursive_mutex
+  mMutex; ///< Protect the static configuration definitions hash
   bool mAutosave; ///< Create autosave file for each change
   //! Broadcast changes into the MGM configuration queue (config/<inst>/mgm)
   bool mBroadcast;
@@ -328,7 +331,7 @@ protected:
   //!
   //! @param comment pointer to character array, may be nullptr
   //----------------------------------------------------------------------------
-  void InsertComment(const char* comment);
+  void InsertComment(const std::string& comment);
 
 private:
   //----------------------------------------------------------------------------
