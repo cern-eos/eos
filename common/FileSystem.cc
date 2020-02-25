@@ -29,6 +29,7 @@
 #include "common/ParseUtils.hh"
 #include "common/Assert.hh"
 #include "common/Constants.hh"
+#include "common/ParseUtils.hh"
 #include "mq/MessagingRealm.hh"
 
 EOSCOMMONNAMESPACE_BEGIN;
@@ -498,7 +499,7 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
       updateBatch.SetDurable("configstatus", "down");
     }
 
-    mq::SharedHashWrapper(mHashLocator).set(updateBatch);
+    mq::SharedHashWrapper(mRealm, mHashLocator).set(updateBatch);
     mBalanceQueue = new TransferQueue(TransferQueueLocator(mLocator, "balanceq"),
                                       realm, bc2mgm);
     mExternQueue = new TransferQueue(TransferQueueLocator(mLocator, "externq"),
@@ -827,7 +828,7 @@ FileSystem::GetRegisterRequestString()
 //------------------------------------------------------------------------------
 bool FileSystem::applyBatch(const FileSystemUpdateBatch& batch)
 {
-  return mq::SharedHashWrapper(mHashLocator).set(batch.getBatch());
+  return mq::SharedHashWrapper(mRealm, mHashLocator).set(batch.getBatch());
 }
 
 //------------------------------------------------------------------------------
@@ -859,7 +860,7 @@ bool FileSystem::setLongLongLocal(const std::string& key, int64_t value)
 //------------------------------------------------------------------------------
 bool FileSystem::SetString(const char* key, const char* str, bool broadcast)
 {
-  return mq::SharedHashWrapper(mHashLocator).set(key, str, broadcast);
+  return mq::SharedHashWrapper(mRealm, mHashLocator).set(key, str, broadcast);
 }
 
 //------------------------------------------------------------------------------
@@ -867,7 +868,7 @@ bool FileSystem::SetString(const char* key, const char* str, bool broadcast)
 //------------------------------------------------------------------------------
 bool FileSystem::RemoveKey(const char* key, bool broadcast)
 {
-  return mq::SharedHashWrapper(mHashLocator).del(key, broadcast);
+  return mq::SharedHashWrapper(mRealm, mHashLocator).del(key, broadcast);
 }
 
 //------------------------------------------------------------------------------
@@ -875,7 +876,7 @@ bool FileSystem::RemoveKey(const char* key, bool broadcast)
 //------------------------------------------------------------------------------
 bool FileSystem::GetKeys(std::vector<std::string>& keys)
 {
-  return mq::SharedHashWrapper(mHashLocator).getKeys(keys);
+  return mq::SharedHashWrapper(mRealm, mHashLocator).getKeys(keys);
 }
 
 //------------------------------------------------------------------------------
@@ -889,7 +890,21 @@ std::string FileSystem::GetString(const char* key)
     return "1";
   }
 
-  return mq::SharedHashWrapper(mHashLocator).get(key);
+  return mq::SharedHashWrapper(mRealm, mHashLocator).get(key);
+}
+
+//------------------------------------------------------------------------------
+// Get a long long value by key
+//------------------------------------------------------------------------------
+long long FileSystem::GetLongLong(const char* key) {
+  return ParseLongLong(GetString(key));
+}
+
+//------------------------------------------------------------------------------
+// Get a double value by key
+//------------------------------------------------------------------------------
+double FileSystem::GetDouble(const char* key) {
+  return ParseDouble(GetString(key));
 }
 
 //--------------------------------------------------------------------------
@@ -1093,7 +1108,7 @@ FileSystem::CreateConfig(std::string& key, std::string& val)
   key = mLocator.getQueuePath();
   val.clear();
   std::map<std::string, std::string> contents;
-  mq::SharedHashWrapper(mHashLocator).getContents(contents);
+  mq::SharedHashWrapper(mRealm, mHashLocator).getContents(contents);
   val = serializeWithFilter(contents, "stat.");
 }
 
@@ -1102,7 +1117,7 @@ FileSystem::CreateConfig(std::string& key, std::string& val)
 //------------------------------------------------------------------------------
 FileSystemCoreParams FileSystem::getCoreParams()
 {
-  mq::SharedHashWrapper hash(mHashLocator);
+  mq::SharedHashWrapper hash(mRealm, mHashLocator);
   std::string id;
 
   if (!hash.get("id", id) || id.empty()) {
@@ -1124,7 +1139,7 @@ FileSystemCoreParams FileSystem::getCoreParams()
 bool
 FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
 {
-  mq::SharedHashWrapper hash(mHashLocator, dolock, false);
+  mq::SharedHashWrapper hash(mRealm, mHashLocator, dolock, false);
   std::string tmp;
 
   if (!hash.get("id", tmp)) {
@@ -1264,7 +1279,7 @@ void
 FileSystem::Print(TableHeader& table_mq_header, TableData& table_mq_data,
                   std::string listformat, const std::string& filter)
 {
-  mq::SharedHashWrapper hash(mHashLocator);
+  mq::SharedHashWrapper hash(mRealm, mHashLocator);
   printOntoTable(hash, table_mq_header, table_mq_data, listformat, filter);
 }
 

@@ -27,7 +27,6 @@
 #include "mq/Namespace.hh"
 #include "common/Locators.hh"
 #include "common/RWMutex.hh"
-#include "common/table_formatter/TableCell.hh"
 #include <string>
 #include <vector>
 #include <map>
@@ -82,12 +81,19 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
+  SharedHashWrapper(mq::MessagingRealm *realm, const common::SharedHashLocator& locator,
+    bool takeLock = true, bool create = true);
+
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
   SharedHashWrapper(const common::SharedHashLocator& locator,
                     bool takeLock = true, bool create = true);
 
   //----------------------------------------------------------------------------
   //! "Constructor" for global MGM hash
   //----------------------------------------------------------------------------
+  static SharedHashWrapper makeGlobalMgmHash(mq::MessagingRealm *realm);
   static SharedHashWrapper makeGlobalMgmHash();
 
   //----------------------------------------------------------------------------

@@ -26,6 +26,7 @@
 #include "common/IntervalStopwatch.hh"
 #include "common/LayoutId.hh"
 #include "common/Timing.hh"
+#include "common/ParseUtils.hh"
 #include "mgm/Master.hh"
 #include "mgm/FsView.hh"
 #include "mgm/inspector/FileInspector.hh"

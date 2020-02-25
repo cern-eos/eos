@@ -25,8 +25,8 @@
 #define __EOSCOMMON_FILESYSTEM_HH__
 
 #include "common/Namespace.hh"
-#include "common/ParseUtils.hh"
 #include "common/Locators.hh"
+#include "common/table_formatter/TableCell.hh"
 #include "mq/SharedHashWrapper.hh"
 #include <string>
 #include <stdint.h>
@@ -717,20 +717,12 @@ public:
   //----------------------------------------------------------------------------
   //! Get a long long value by key
   //----------------------------------------------------------------------------
-  long long
-  GetLongLong(const char* key)
-  {
-    return ParseLongLong(GetString(key));
-  }
+  long long GetLongLong(const char* key);
 
   //----------------------------------------------------------------------------
   //! Get a double value by key
   //----------------------------------------------------------------------------
-  double
-  GetDouble(const char* key)
-  {
-    return ParseDouble(GetString(key));
-  }
+  double GetDouble(const char* key);
 
   //----------------------------------------------------------------------------
   //! Return handle to the balance queue.

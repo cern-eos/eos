@@ -29,6 +29,7 @@
 #include "common/InstanceName.hh"
 #include "common/Assert.hh"
 #include "common/FileSystem.hh"
+#include "common/ParseUtils.hh"
 #include "common/StringUtils.hh"
 
 EOSCOMMONNAMESPACE_BEGIN

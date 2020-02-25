@@ -30,12 +30,12 @@ EOSMQNAMESPACE_BEGIN
 
 mq::MessagingRealm* SharedHashWrapper::gRealm;
 
-//------------------------------------------------------------------------------
-// Constructor
-//------------------------------------------------------------------------------
-SharedHashWrapper::SharedHashWrapper(const common::SharedHashLocator& locator,
-                                     bool takeLock, bool create)
-  : mSom(gRealm->getSom()), mLocator(locator)
+//----------------------------------------------------------------------------
+//! Constructor
+//----------------------------------------------------------------------------
+SharedHashWrapper::SharedHashWrapper(mq::MessagingRealm *realm, const common::SharedHashLocator& locator,
+  bool takeLock, bool create)
+  : mSom(realm->getSom()), mLocator(locator)
 {
   if (takeLock) {
     mReadLock.Grab(mSom->HashMutex);
@@ -59,11 +59,23 @@ SharedHashWrapper::SharedHashWrapper(const common::SharedHashLocator& locator,
 }
 
 //------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+SharedHashWrapper::SharedHashWrapper(const common::SharedHashLocator& locator,
+                                     bool takeLock, bool create)
+: SharedHashWrapper(gRealm, locator, takeLock, create) {}
+
+//------------------------------------------------------------------------------
 // "Constructor" for global MGM hash
 //------------------------------------------------------------------------------
 SharedHashWrapper SharedHashWrapper::makeGlobalMgmHash()
 {
-  return SharedHashWrapper(common::SharedHashLocator::makeForGlobalHash());
+  return makeGlobalMgmHash(gRealm);
+}
+
+SharedHashWrapper SharedHashWrapper::makeGlobalMgmHash(mq::MessagingRealm *realm)
+{
+  return SharedHashWrapper(realm, common::SharedHashLocator::makeForGlobalHash());
 }
 
 //------------------------------------------------------------------------------
