@@ -37,6 +37,8 @@ class XrdMqSharedObjectManager;
 
 EOSMQNAMESPACE_BEGIN
 
+class MessagingRealm;
+
 //------------------------------------------------------------------------------
 //! Compatibility class for shared hashes - work in progress.
 //------------------------------------------------------------------------------
@@ -156,17 +158,18 @@ public:
   static bool deleteHash(const common::SharedHashLocator &locator);
 
   //----------------------------------------------------------------------------
-  //! Initialize, set shared manager.
+  //! Initialize, set messaging realm.
   //! Call this function before using any SharedHashWrapper!
   //----------------------------------------------------------------------------
-  static void initialize(XrdMqSharedObjectManager* som);
+  static void initialize(mq::MessagingRealm* realm);
 
 private:
+  XrdMqSharedObjectManager* mSom;
   common::SharedHashLocator mLocator;
   common::RWMutexReadLock mReadLock;
   XrdMqSharedHash* mHash;
 
-  static XrdMqSharedObjectManager* mSom;
+  static mq::MessagingRealm* gRealm;
 };
 
 EOSMQNAMESPACE_END

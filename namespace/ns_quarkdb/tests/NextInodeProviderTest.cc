@@ -226,9 +226,6 @@ TEST_F(NextInodeProviderTest, MultipleResets)
   myhash.setClient(*qcl.get());
   myhash.hdel("counter");
 
-  int64_t expectedIno = 1;
-  int64_t ino = 0;
-
   std::unique_ptr<NextInodeProvider> inodeProvider;
   inodeProvider.reset(new NextInodeProvider());
   inodeProvider->configure(myhash, "counter");

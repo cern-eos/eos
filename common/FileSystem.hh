@@ -402,10 +402,8 @@ protected:
   //! broadcasted or not (only MGMs should broadcast deletion!)
   bool BroadCastDeletion;
 
-  //! Handle to the shared object manager object
-  //! Before usage mSom needs a read lock and mHash has to be validated
-  //! to avoid race conditions in deletion.
-  XrdMqSharedObjectManager* mSom;
+  //! This filesystem's messaging realm
+  mq::MessagingRealm* mRealm;
 
   //! Handle to the balance queue
   TransferQueue* mBalanceQueue;
@@ -415,9 +413,6 @@ protected:
 
   //! boot status stored inside the object not the hash
   BootStatus mInternalBootStatus;
-
-  //! QClient shared manager - no ownership, can be null
-  qclient::SharedManager* mSharedManager = nullptr;
 
   //! Store the last heartbeat time - set/get through
   //! the corresponding functions, not published on MQ.

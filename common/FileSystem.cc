@@ -474,8 +474,7 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
                        mq::MessagingRealm* realm, bool bc2mgm)
   : mLocator(locator), mHashLocator(locator, bc2mgm)
 {
-  mSharedManager = realm->getQSom();
-  mSom = realm->getSom();
+  mRealm = realm;
   mInternalBootStatus = BootStatus::kDown;
   cActive = ActiveStatus::kOffline;
   cStatus = BootStatus::kDown;
@@ -485,7 +484,7 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
   cConfigTime = 0;
   std::string broadcast = mHashLocator.getBroadcastQueue();
 
-  if (mSom) {
+  if(realm->getSom()) {
     mq::SharedHashWrapper::Batch updateBatch;
     updateBatch.SetDurable("queue", mLocator.getFSTQueue());
     updateBatch.SetDurable("queuepath", mLocator.getQueuePath());

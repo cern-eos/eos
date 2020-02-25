@@ -23,18 +23,19 @@
 
 #include "SharedHashWrapper.hh"
 #include "mq/XrdMqSharedObject.hh"
+#include "mq/MessagingRealm.hh"
 #include "common/ParseUtils.hh"
 
 EOSMQNAMESPACE_BEGIN
 
-XrdMqSharedObjectManager* SharedHashWrapper::mSom;
+mq::MessagingRealm* SharedHashWrapper::gRealm;
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 SharedHashWrapper::SharedHashWrapper(const common::SharedHashLocator& locator,
                                      bool takeLock, bool create)
-  : mLocator(locator)
+  : mSom(gRealm->getSom()), mLocator(locator)
 {
   if (takeLock) {
     mReadLock.Grab(mSom->HashMutex);
@@ -261,16 +262,16 @@ bool SharedHashWrapper::getContents(std::map<std::string, std::string>& out)
 // Initialize, set shared manager.
 // Call this function before using any SharedHashWrapper!
 //------------------------------------------------------------------------------
-void SharedHashWrapper::initialize(XrdMqSharedObjectManager* som)
+void SharedHashWrapper::initialize(mq::MessagingRealm* realm)
 {
-  mSom = som;
+  gRealm = realm;
 }
 
 //------------------------------------------------------------------------------
 // Delete a shared hash, without creating an object first
 //------------------------------------------------------------------------------
 bool SharedHashWrapper::deleteHash(const common::SharedHashLocator &locator) {
-  return mSom->DeleteSharedHash(locator.getConfigQueue().c_str(), true);
+  return gRealm->getSom()->DeleteSharedHash(locator.getConfigQueue().c_str(), true);
 }
 
 //------------------------------------------------------------------------------
