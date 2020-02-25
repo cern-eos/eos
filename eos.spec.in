@@ -302,7 +302,7 @@ cd build
   %if 0%{distribution} == 6 || 0%{distribution} == 7
     %if 0%{distribution} == 6
     echo "Install custom cmake 3.15.5 required by EOS"
-    mkdir ./make_install/
+    mkdir ./cmake_install/
     ../misc/slc6/cmake-3.15.5-Linux-x86_64.sh --prefix=./cmake_install/ --skip-license
     %define cmake ./cmake_install/bin/cmake
     %endif
