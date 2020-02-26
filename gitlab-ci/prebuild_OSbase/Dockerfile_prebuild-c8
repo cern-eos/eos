@@ -18,6 +18,6 @@ RUN source gitlab-ci/export_branch.sh \
     && dnf builddep --nogpgcheck --allowerasing -y build/SRPMS/*
 
 # just to install 'ts', nice to benchmark the build time.
-RUN yum install -y moreutils
+RUN dnf install -y moreutils
 
 ENTRYPOINT /bin/bash
