@@ -316,8 +316,8 @@ build_c8:
   image: gitlab-registry.cern.ch/linuxsupport/c8-base
   script:
     - dnf install -y epel-release
-    - dnf install --nogpg -y gcc-c++ cmake ccache make dnf-plugins-core python2 python3 python3-setuptools rpm-build rpm-sign which git tar
     - dnf install -y moreutils # just to install 'ts', nice to benchmark the build time
+    - dnf install --nogpg -y gcc-c++ cmake ccache make dnf-plugins-core python2 python3 python3-setuptools rpm-build rpm-sign which git tar | ts
     - git submodule update --init --recursive
     - mkdir build
     - cd build/
@@ -349,20 +349,18 @@ build_c8:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
-    - date
-    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar ccache sl-release-scl
+    - yum install -y moreutils # just to install 'ts', nice to benchmark the build time
+    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar ccache sl-release-scl | ts
     - git submodule update --init --recursive
     - mkdir build
     - cd build/
     - cmake3 ../ -DPACKAGEONLY=1 ${CMAKE_OPTIONS}
-    - make srpm
+    - make srpm | ts
     - cd ../
     - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n' >> /etc/yum.repos.d/eos-depend.repo
-    - yum-builddep --nogpgcheck --setopt="cern*.exclude=xrootd*" -y build/SRPMS/*
+    - yum-builddep --nogpgcheck --setopt="cern*.exclude=xrootd*" -y build/SRPMS/* | ts
     - if [ "$COMMIT_TYPE" == "tag" ]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache.sh; fi
-    - date
-    - rpmbuild --rebuild --with server ${RPMBUILD_OPTIONS} --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
-    - date
+    - rpmbuild --rebuild --with server ${RPMBUILD_OPTIONS} --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | ts
     - ccache -s
     - if [ "$COMMIT_TYPE" == "tag" ]; then gpg --allow-secret-key-import --import /keys/stci-debian-repo.sec; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
     - mkdir ${BUILD_NAME}_artifacts
