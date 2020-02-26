@@ -1806,12 +1806,20 @@ Server::OpSetFile(const std::string& id,
         if (fmd->getName() != md.name()) {
           // this indicates a file rename
           op = RENAME;
+	  bool hasVersion = false;
           ofmd = pcmd->findFile(md.name());
 
           if (EOS_LOGS_DEBUG) eos_debug("rename %s [%lx] => %s [%lx]",
                                           fmd->getName().c_str(), fid,
                                           md.name().c_str(),
                                           ofmd ? ofmd->getId() : 0);
+
+
+	  eos::common::Path oPath(gOFS->eosView->getUri(fmd.get()).c_str());
+	  
+	  if (pcmd->findContainer(std::string(oPath.GetName()))) {
+	    hasVersion = true;
+	  }
 
           if (ofmd) {
             // the target might exist, so we remove it
@@ -1833,6 +1841,7 @@ Server::OpSetFile(const std::string& id,
               XrdOucErrInfo error;
               (void) gOFS->_rem(fullpath.c_str(), error, vid, "", false, false,
                                 false, true, false);
+
               gOFS->eosViewRWMutex.LockWrite();
             } else {
               try {
@@ -1851,9 +1860,21 @@ Server::OpSetFile(const std::string& id,
               } catch (eos::MDException& e) {
               }
             }
-          }
-
+	  }
+	  	  
           gOFS->eosView->renameFile(fmd.get(), md.name());
+
+
+	  if (hasVersion) {
+	    eos::common::Path nPath(gOFS->eosView->getUri(fmd.get()).c_str());
+	    gOFS->eosViewRWMutex.UnLockWrite();
+	    XrdOucErrInfo error;
+	    if (gOFS->_rename(oPath.GetVersionDirectory(), nPath.GetVersionDirectory(),
+			error, vid, "", "", false, false, false)) {
+	      eos_err("failed to rename version directory '%s'=>'%s'\n");
+	    }
+	    gOFS->eosViewRWMutex.LockWrite();
+	  }
         }
       }
 
