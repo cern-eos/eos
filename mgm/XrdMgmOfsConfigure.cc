@@ -701,8 +701,12 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         }
 
         if (!strcmp("tgc.enablespace", var)) {
-          Eroute.Emsg("Config", "mgmofs.tgc.enablespace is not currently supported");
-          NoGo = 1;
+          std::ostringstream tapeGcSpacesStream;
+          while ((val = Config.GetWord())) {
+            tapeGcSpaces.push_back(val);
+            tapeGcSpacesStream << " " << val;
+          }
+          Eroute.Say("=====> mgmofs.tgc.enablespace :", tapeGcSpacesStream.str().c_str());
         }
 
         if (!strcmp("authorize", var)) {
