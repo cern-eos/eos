@@ -85,7 +85,12 @@ ConvertHelper::ParseCommand(const char* arg)
     return false;
   }
 
-  if (token == "status") {
+  if (token == "enable" || token == "disable") {
+    auto action = (token == "enable") ?
+                  eos::console::ConvertProto_ActionProto::ENABLE :
+                  eos::console::ConvertProto_ActionProto::DISABLE;
+    convert->mutable_action()->set_action(action);
+  } else if (token == "status") {
     convert->mutable_status();
   } else if (token == "file") {
     eos::console::ConvertProto_FileProto* file = convert->mutable_file();
@@ -276,7 +281,8 @@ int com_convert(char* arg)
 void com_convert_help()
 {
   std::ostringstream oss;
-  oss << "Usage: convert status                           : prints Converter Engine statistics" << std::endl
+  oss << "Usage: convert enable/disable                   : enable or disable the Convert Engine" << std::endl
+      << "       convert status                           : prints Converter Engine statistics" << std::endl
       << "       convert file <identifier> <conversion>   : schedules a file conversion" << std::endl
       << "       convert rule <identifier> <conversion>   : applies a conversion rule on the given directory" << std::endl
       << std::endl

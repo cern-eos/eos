@@ -59,6 +59,15 @@ public:
 
 private:
   //----------------------------------------------------------------------------
+  //! Execute action subcommand
+  //!
+  //! @param status status subcommand proto object
+  //! @param reply reply proto object
+  //----------------------------------------------------------------------------
+  void ActionSubcmd(const eos::console::ConvertProto_ActionProto& action,
+                    eos::console::ReplyProto& reply);
+
+  //----------------------------------------------------------------------------
   //! Execute status subcommand
   //!
   //! @param status status subcommand proto object
