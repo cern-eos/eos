@@ -33,6 +33,7 @@
 #ifndef __EOSMGM_MACROS__HH__
 #define __EOSMGM_MACROS__HH__
 
+#include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfs.hh"
 
 USE_EOSMGMNAMESPACE
@@ -306,6 +307,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
       ((vid.host != "localhost") &&                                            \
        (vid.host != "localhost.localdomain")) ){                               \
     eos_err("system access restricted - unauthorized identity used");          \
+    gOFS->MgmStats.Add("EAccess", vid.uid, vid.gid, 1);                        \
     return Emsg(epname, error, EACCES,"give access - system access "           \
                 "restricted - unauthorized identity used");                    \
   }
@@ -329,6 +331,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
                 "path=\"%s\" user@domain=\"%s\"", vid.uid, vid.gid, vid.host.c_str(),            \
                 (vid.tident.c_str() ? vid.tident.c_str() : ""), inpath,       \
                 vid.getUserAtDomain().c_str());                               \
+	gOFS->MgmStats.Add("EAccess", vid.uid, vid.gid, 1);                   \
         return Emsg(epname, error, EACCES,"give access - user access "        \
                     "restricted - unauthorized identity used");               \
       }                                                                       \
@@ -336,6 +339,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
     if (Access::gAllowedDomains.size() &&                                     \
         (!Access::gAllowedDomains.count("-")) &&                              \
         (!Access::gAllowedDomains.count(vid.domain))) {                       \
+      gOFS->MgmStats.Add("EAccess", vid.uid, vid.gid, 1);                     \
       eos_err("domain access restricted - unauthorized identity "             \
               "vid.domain=\"%s\"for "                                         \
               "path=\"%s\"", vid.domain.c_str(),                              \
@@ -366,6 +370,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
                 (vid.tident.c_str() ? vid.tident.c_str() : ""), inpath,       \
                 vid.getUserAtDomain().c_str());                               \
         retc = EACCES;                                                        \
+	gOFS->MgmStats.Add("EAccess", vid.uid, vid.gid, 1);                   \
         stdErr += "error: user access restricted - unauthorized identity used";\
         return SFS_OK;                                                        \
       }                                                                       \
@@ -378,6 +383,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
               "path=\"%s\"", vid.domain.c_str(),                              \
               inpath);                                                        \
       retc = EACCES;                                                          \
+      gOFS->MgmStats.Add("EAccess", vid.uid, vid.gid, 1);                     \
       stdErr += "error: domain access restricted - unauthorized identity used";\
       return SFS_OK;                                                          \
     }                                                                         \
