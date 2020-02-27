@@ -34,6 +34,11 @@
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "zlib.h"
 
+#ifdef __APPLE__
+#define ENOKEY 126
+#define EKEYREJECTED 129
+#endif
+
 EOSCOMMONNAMESPACE_BEGIN
 
 SymKeyStore gSymKeyStore; //< global SymKey store singleton
