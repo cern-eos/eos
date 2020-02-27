@@ -27,6 +27,16 @@
 #include <execinfo.h>
 #define BACKWARD_HAS_BFD 1
 #include "common/backward-cpp/backward.hpp"
+
+#if !defined(bfd_get_section_flags)
+#define bfd_get_section_flags(ptr, section) bfd_section_flags(section)
+#endif /* !defined(bfd_get_section_flags) */
+#if !defined(bfd_get_section_size)
+#define bfd_get_section_size(section) bfd_section_size(section)
+#endif /* !defined(bfd_get_section_size) */
+#if !defined(bfd_get_section_vma)
+#define bfd_get_section_vma(ptr, section) bfd_section_vma(section)
+#endif /* !defined(bfd_get_section_size) */
 #endif
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -39,7 +49,7 @@ std::string getStacktrace()
 #else
 std::string getStacktrace()
 {
-  if(getenv("EOS_ENABLE_BACKWARD_STACKTRACE")) {
+  if (getenv("EOS_ENABLE_BACKWARD_STACKTRACE")) {
     // Very heavy-weight stacktrace, only use during development.
     std::ostringstream ss;
     backward::StackTrace st;
@@ -52,29 +62,25 @@ std::string getStacktrace()
   }
 
   std::ostringstream o;
-
-  void * array[24];
+  void* array[24];
   int size = backtrace(array, 24);
-
-  char ** messages = backtrace_symbols(array, size);
+  char** messages = backtrace_symbols(array, size);
 
   // skip first stack frame (points here)
-  for (int i = 1; i < size && messages != NULL; ++i)
-  {
-    char *mangled_name = 0, *offset_begin = 0, *offset_end = 0;
+  for (int i = 1; i < size && messages != NULL; ++i) {
+    char* mangled_name = 0, *offset_begin = 0, *offset_end = 0;
 
     // find parantheses and +address offset surrounding mangled name
-    for (char *p = messages[i]; *p; ++p)
-    {
-      if (!p) break;
+    for (char* p = messages[i]; *p; ++p) {
+      if (!p) {
+        break;
+      }
 
       if (*p == '(') {
         mangled_name = p;
-      }
-      else if (*p == '+') {
+      } else if (*p == '+') {
         offset_begin = p;
-      }
-      else if (*p == ')') {
+      } else if (*p == ')') {
         offset_end = p;
         break;
       }
@@ -82,27 +88,26 @@ std::string getStacktrace()
 
     // if the line could be processed, attempt to demangle the symbol
     if (mangled_name && offset_begin && offset_end &&
-      mangled_name < offset_begin)
-    {
+        mangled_name < offset_begin) {
       *mangled_name++ = '\0';
       *offset_begin++ = '\0';
       *offset_end++ = '\0';
-
       int status;
-      char * real_name = abi::__cxa_demangle(mangled_name, 0, 0, &status);
+      char* real_name = abi::__cxa_demangle(mangled_name, 0, 0, &status);
 
       // if demangling is successful, output the demangled function name
       if (status == 0) {
         o << "[bt]: (" << i << ") " << messages[i] << " : "
-        << real_name << "+" << offset_begin << offset_end
-        << " ";
+          << real_name << "+" << offset_begin << offset_end
+          << " ";
       }
       // otherwise, output the mangled function name
       else {
         o << "[bt]: (" << i << ") " << messages[i] << " : "
-        << mangled_name << "+" << offset_begin << offset_end
-        << " ";
+          << mangled_name << "+" << offset_begin << offset_end
+          << " ";
       }
+
       free(real_name);
     }
     // otherwise, print the whole line
@@ -112,7 +117,6 @@ std::string getStacktrace()
   }
 
   free(messages);
-
   return o.str();
 }
 #endif
