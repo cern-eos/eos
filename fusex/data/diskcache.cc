@@ -154,11 +154,28 @@ diskcache::attach(fuse_req_t req, std::string& acookie, int flag)
     }
 
     // need to open the file
-    fd = open(path.c_str(), O_CREAT | O_RDWR, S_IRWXU);
-
-    if (fd < 0) {
-      return -errno;
-    }
+    size_t tries=0;
+    do {
+      fd = open(path.c_str(), O_CREAT | O_RDWR, S_IRWXU);
+     
+      if (fd < 0) {
+	if (errno == ENOENT) {
+	  tries++;
+	  // re-create the directory structure
+	  rc = location(path);
+	  if (rc) {
+	    return rc;
+	  }
+	  if (tries < 10) {
+	    continue;
+	  } else {
+	    return -errno;
+	  }
+	}
+	return -errno;
+      }
+      break;
+    } while(1);
   }
 
   std::string ccookie;

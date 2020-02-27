@@ -161,11 +161,29 @@ int journalcache::attach(fuse_req_t req, std::string& cookie, int _flags)
     }
 
 
-    fd = open(path.c_str(), O_CREAT | O_RDWR, S_IRWXU);
+    // need to open the file 
+    size_t tries=0;
+    do {
+      fd = open(path.c_str(), O_CREAT | O_RDWR, S_IRWXU);
 
-    if (fd < 0) {
-      return -errno;
-    }
+      if (fd < 0) {
+        if (errno == ENOENT) {
+          tries++;
+          // re-create the directory structure                                                                                   
+          rc = location(path);
+          if (rc) {
+            return rc;
+          }
+          if (tries < 10) {
+            continue;
+          } else {
+            return -errno;
+          }
+        }
+        return -errno;
+      }
+      break;
+    } while(1);
 
     cachesize = read_journal();
   }
