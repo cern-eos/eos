@@ -30,14 +30,12 @@
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFsView.hh"
-#include "authz/XrdCapability.hh"
 #include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Macros.hh"
 #include "mgm/FsView.hh"
 #include "mgm/IdTrackerWithValidity.hh"
-
-#include <XrdOuc/XrdOucEnv.hh>
+#include "XrdOuc/XrdOucEnv.hh"
 
 //----------------------------------------------------------------------------
 // Utility functions to help with file balance scheduling
@@ -127,19 +125,20 @@ XrdOucString constructTargetCapability(unsigned long lid,
 }
 
 int issueFullCapability(XrdOucString source_cap, XrdOucString target_cap,
-                        unsigned long long capValidity,
+                        std::chrono::seconds capValidity,
                         const char* source_hostport,
                         const char* target_hostport,
                         unsigned long long fid,
                         XrdOucString& full_capability,
                         XrdOucErrInfo& error)
 {
+  using namespace eos::common;
   XrdOucEnv insourcecap_env(source_cap.c_str());
   XrdOucEnv intargetcap_env(target_cap.c_str());
   XrdOucEnv* sourcecap_env = 0;
   XrdOucEnv* targetcap_env = 0;
-  eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
-  int rc = gCapabilityEngine.Create(&insourcecap_env, sourcecap_env,
+  SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
+  int rc = SymKey::CreateCapability(&insourcecap_env, sourcecap_env,
                                     symkey, capValidity);
 
   if (rc) {
@@ -147,7 +146,7 @@ int issueFullCapability(XrdOucString source_cap, XrdOucString target_cap,
     return rc;
   }
 
-  rc = gCapabilityEngine.Create(&intargetcap_env, targetcap_env,
+  rc = SymKey::CreateCapability(&intargetcap_env, targetcap_env,
                                 symkey, capValidity);
 
   if (rc) {

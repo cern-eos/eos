@@ -26,7 +26,6 @@
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IFsView.hh"
-#include "authz/XrdCapability.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -57,13 +56,14 @@ XrdOucString constructCapability(int fsid, const char* localprefix)
 bool sendDeleteMessage(XrdOucString capability,
                        const char* idlist,
                        const char* receiver,
-                       unsigned long long capValidity)
+                       std::chrono::seconds capValidity)
 {
+  using namespace eos::common;
   capability += idlist;
   XrdOucEnv incapenv(capability.c_str());
   XrdOucEnv* outcapenv = 0;
-  eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
-  int rc = gCapabilityEngine.Create(&incapenv, outcapenv, symkey, capValidity);
+  SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
+  int rc = SymKey::CreateCapability(&incapenv, outcapenv, symkey, capValidity);
 
   if (rc) {
     eos_static_err("unable to create capability - incap=%s errno=%u",

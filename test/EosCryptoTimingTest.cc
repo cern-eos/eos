@@ -1,11 +1,11 @@
-// ----------------------------------------------------------------------
-// File: XrdMqCryptoTest.cc
-// Author: Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
+//! @file EosCryptoTimingTest.cc
+//! @author: Elvin Sindrilaru - CERN
+//----------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2020 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,32 +21,29 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#define TRACE_debug 0xffff
-#include "mq/XrdMqMessage.hh"
-#include "mq/XrdMqTiming.hh"
-#include "XrdSys/XrdSysLogger.hh"
+#include "common/SymKeys.hh"
+#include "common/Timing.hh"
 #include <stdio.h>
 
 int main(int argc, char* argv[])
 {
-  XrdMqMessage message("HelloCrypto");
-  message.SetBody("mqtest=testmessage12343556124368273468273468273468273468234");
-  XrdMqTiming mqs("Symmetric Enc/Dec-Timing");
-  TIMING("START", &mqs);
+  using eos::common::SymKey;
+  eos::common::Timing tm("Symmetric Enc/Dec-Timing");
+  COMMONTIMING("START", &tm);
   char* secretkey = (char*) "12345678901234567890";
   XrdOucString textplain = "this is a very secret message";
   XrdOucString textencrypted = "";
   XrdOucString textdecrypted = "";
 
   for (int i = 0; i < 1000; i++) {
-    if (!XrdMqMessage::SymmetricStringEncrypt(textplain, textencrypted,
-        secretkey)) {
+    if (!SymKey::SymmetricStringEncrypt(textplain, textencrypted,
+                                        secretkey)) {
       fprintf(stderr, "error: failed symmetric string encrypt\n");
       exit(-1);
     }
 
-    if (!XrdMqMessage::SymmetricStringDecrypt(textencrypted, textdecrypted,
-        secretkey)) {
+    if (!SymKey::SymmetricStringDecrypt(textencrypted, textdecrypted,
+                                        secretkey)) {
       fprintf(stderr, "error: failed symmetric key decrypt\n");
       exit(-1);
     }
@@ -54,7 +51,7 @@ int main(int argc, char* argv[])
     int inlen = strlen(secretkey);
     std::string fout;
 
-    if (!XrdMqMessage::Base64Encode(secretkey, inlen, fout)) {
+    if (!SymKey::Base64Encode(secretkey, inlen, fout)) {
       fprintf(stderr, "error: cannot base64 encode\n");
       exit(-1);
     }
@@ -63,7 +60,7 @@ int main(int argc, char* argv[])
     char* binout = 0;
     ssize_t outlen;
 
-    if (!XrdMqMessage::Base64Decode((char*)fout.c_str(), binout, outlen)) {
+    if (!SymKey::Base64Decode((char*)fout.c_str(), binout, outlen)) {
       fprintf(stderr, "error: cannot base64 decode\n");
       exit(-1);
     }
@@ -74,6 +71,6 @@ int main(int argc, char* argv[])
     // textencrypted.c_str(), textdecrypted.c_str());
   }
 
-  TIMING("STOP", &mqs);
-  mqs.Print();
+  COMMONTIMING("STOP", &tm);
+  tm.Print();
 }

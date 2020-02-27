@@ -27,7 +27,6 @@
 #include "mgm/GeoTreeEngine.hh"
 #include "mgm/Stat.hh"
 #include "mgm/proc/proc_fs.hh"
-#include "authz/XrdCapability.hh"
 #include "common/SecEntity.hh"
 #include "common/LayoutId.hh"
 #include "namespace/interface/IView.hh"
@@ -231,8 +230,7 @@ XrdCl::URL
 DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
                               const std::string& log_id)
 {
-  using eos::common::LayoutId;
-  using eos::common::StringConversion;
+  using namespace eos::common;
   XrdCl::URL url_src;
   eos::common::FileSystem::fs_snapshot_t src_snapshot;
   unsigned long lid = fdrain.mProto.layout_id();
@@ -331,9 +329,9 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
   int caprc = 0;
   XrdOucEnv* output_cap = 0;
   XrdOucEnv input_cap(src_params.str().c_str());
-  eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
+  SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
 
-  if ((caprc = gCapabilityEngine.Create(&input_cap, output_cap,
+  if ((caprc = SymKey::CreateCapability(&input_cap, output_cap,
                                         symkey, gOFS->mCapabilityValidity))) {
     ReportError(SSTR("msg=\"unable to create src capability, errno=" << caprc
                      << "\""));
@@ -378,8 +376,7 @@ XrdCl::URL
 DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
                               const std::string& log_id)
 {
-  using eos::common::LayoutId;
-  using eos::common::StringConversion;
+  using namespace eos::common;
   XrdCl::URL url_dst;
   eos::common::FileSystem::fs_snapshot_t dst_snapshot;
   unsigned long lid = fdrain.mProto.layout_id();
@@ -463,9 +460,9 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
   int caprc = 0;
   XrdOucEnv* output_cap = 0;
   XrdOucEnv input_cap(dst_params.str().c_str());
-  eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
+  SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
 
-  if ((caprc = gCapabilityEngine.Create(&input_cap, output_cap,
+  if ((caprc = SymKey::CreateCapability(&input_cap, output_cap,
                                         symkey, gOFS->mCapabilityValidity))) {
     std::string err = "msg=\"unable to create dst capability, errno=";
     err += caprc;

@@ -43,13 +43,13 @@
 #include "namespace/utils/Checksum.hh"
 #include "namespace/utils/RenameSafetyCheck.hh"
 #include "namespace/utils/Attributes.hh"
-#include "authz/XrdCapability.hh"
 #include "grpc/GrpcServer.hh"
 #include "mgm/AdminSocket.hh"
 #include "mgm/Stat.hh"
 #include "mgm/Access.hh"
 #include "mgm/FileSystem.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/XrdMgmAuthz.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/XrdMgmOfsFile.hh"
 #include "mgm/XrdMgmOfsTrace.hh"
@@ -91,18 +91,19 @@
 #include "namespace/utils/Checksum.hh"
 #include "namespace/utils/Etag.hh"
 #include "namespace/utils/Attributes.hh"
-#include <XrdVersion.hh>
-#include <XrdOss/XrdOss.hh>
-#include <XrdOuc/XrdOucBuffer.hh>
-#include <XrdOuc/XrdOucEnv.hh>
-#include <XrdOuc/XrdOucTokenizer.hh>
-#include <XrdOuc/XrdOucTrace.hh>
-#include <XrdSys/XrdSysError.hh>
-#include <XrdSys/XrdSysLogger.hh>
-#include <XrdSys/XrdSysPthread.hh>
-#include <XrdSec/XrdSecInterface.hh>
-#include <XrdSfs/XrdSfsAio.hh>
-#include <XrdSfs/XrdSfsFlags.hh>
+#include "XrdVersion.hh"
+#include "XrdOss/XrdOss.hh"
+#include "XrdOuc/XrdOucBuffer.hh"
+#include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucTokenizer.hh"
+#include "XrdOuc/XrdOucTList.hh"
+#include "XrdOuc/XrdOucTrace.hh"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysLogger.hh"
+#include "XrdSys/XrdSysPthread.hh"
+#include "XrdSec/XrdSecInterface.hh"
+#include "XrdSfs/XrdSfsAio.hh"
+#include "XrdSfs/XrdSfsFlags.hh"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 
 #ifdef __APPLE__
@@ -164,15 +165,28 @@ extern "C" {
   extern "C" void __gcov_flush();
 #endif
 
-//------------------------------------------------------------------------------
-//! Filesystem Plugin factory function
-//!
-//! @param native_fs (not used)
-//! @param lp the logger object
-//! @param configfn the configuration file name
-//!
-//! @returns configures and returns our MgmOfs object
-//------------------------------------------------------------------------------
+  //------------------------------------------------------------------------------
+  // XrdAccAuthorizeObject() is called to obtain an instance of the auth object
+  // that will be used for all subsequent authorization decisions. If it returns
+  // a null pointer; initialization fails and the program exits. The args are:
+  //
+  // lp    -> XrdSysLogger to be tied to an XrdSysError object for messages
+  // cfn   -> The name of the configuration file
+  // parm  -> Paramexters specified on the authlib directive. If none it is zero.
+  //------------------------------------------------------------------------------
+  XrdAccAuthorize* XrdAccAuthorizeObject(XrdSysLogger* lp,
+                                         const char*   cfn,
+                                         const char*   parm);
+
+  //------------------------------------------------------------------------------
+  //! Filesystem Plugin factory function
+  //!
+  //! @param native_fs (not used)
+  //! @param lp the logger object
+  //! @param configfn the configuration file name
+  //!
+  //! @returns configures and returns our MgmOfs object
+  //------------------------------------------------------------------------------
   XrdSfsFileSystem*
   XrdSfsGetFileSystem(XrdSfsFileSystem* native_fs,
                       XrdSysLogger* lp,
@@ -210,7 +224,7 @@ extern "C" {
     }
 
     // Initialize authorization module ServerAcc
-    gOFS->CapabilityEngine = (XrdCapability*) XrdAccAuthorizeObject(lp, configfn,
+    gOFS->CapabilityEngine = (XrdMgmAuthz*) XrdAccAuthorizeObject(lp, configfn,
                              nullptr);
 
     if (!gOFS->CapabilityEngine) {
@@ -271,7 +285,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   ErrorLog(true), eosDirectoryService(0), eosFileService(0), eosView(0),
   eosFsView(0), eosContainerAccounting(0), eosSyncTimeAccounting(0),
   mStatsTid(0), mFrontendPort(0), mNumAuthThreads(0),
-  zMQ(nullptr), Authorization(0), MgmStatsPtr(new eos::mgm::Stat()),
+  zMQ(nullptr), mExtAuthz(nullptr), MgmStatsPtr(new eos::mgm::Stat()),
   MgmStats(*MgmStatsPtr), mFsckEngine(new Fsck()), mMaster(nullptr),
   mRouting(new eos::mgm::PathRouting()), mLRUEngine(new eos::mgm::LRU()),
   WFEPtr(new eos::mgm::WFE()), WFEd(*WFEPtr), UTF8(false), mFstGwHost(""),
@@ -313,7 +327,6 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
 
   EgroupRefresh.reset(new eos::mgm::Egroup());
   Recycler.reset(new eos::mgm::Recycle());
-
   mTapeGcMgm.reset(new tgc::RealTapeGcMgm(*this));
   mTapeGc.reset(new tgc::MultiSpaceTapeGc(*mTapeGcMgm));
 }
@@ -674,7 +687,7 @@ int
 XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
                    const XrdSecEntity* client)
 {
-  if(pargs.opts & Prep_QUERY) {
+  if (pargs.opts & Prep_QUERY) {
     return _prepare_query(pargs, error, client);
   } else {
     return _prepare(pargs, error, client);

@@ -21,7 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include <mq/XrdMqMessage.hh>
+#include "mq/XrdMqMessage.hh"
+#include "common/SymKeys.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include <sys/time.h>
 #include <uuid/uuid.h>
@@ -36,6 +37,16 @@
 #include <openssl/err.h>
 #include <openssl/pem.h>
 #include <openssl/ssl.h>
+#include <openssl/evp.h>
+
+// Add compatibility methods present in OpenSSL >= 1.1.0 if we use an older
+// version of OpenSSL
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined (LIBRESSL_VERSION_NUMBER)
+void* EVP_MD_CTX_md_data(const EVP_MD_CTX* ctx)
+{
+  return ctx->md_data;
+}
+#endif
 
 EVP_PKEY*    XrdMqMessage::PrivateKey = 0;
 XrdOucString XrdMqMessage::PublicKeyDirectory = "";
@@ -535,258 +546,6 @@ bool XrdMqMessage::Decode()
 }
 
 //------------------------------------------------------------------------------
-// Base64 encoding
-//------------------------------------------------------------------------------
-bool
-XrdMqMessage::Base64Encode(const char* decoded_bytes, ssize_t decoded_length,
-                           std::string& out)
-{
-  BIO* bmem, *b64;
-  BUF_MEM* bptr;
-  b64 = BIO_new(BIO_f_base64());
-
-  if (!b64) {
-    Eroute.Emsg("Verify", ENOMEM, "get new base64 BIO");
-    return false;
-  }
-
-  BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
-  bmem = BIO_new(BIO_s_mem());
-
-  if (!bmem) {
-    Eroute.Emsg("Verify", ENOMEM, "get new mem BIO");
-    return false;
-  }
-
-  b64 = BIO_push(b64, bmem);
-  BIO_write(b64, decoded_bytes, decoded_length);
-
-  if (BIO_flush(b64) != 1) {
-    BIO_free_all(b64);
-    Eroute.Emsg("Verify", EIO, "flush bio");
-    return false;
-  }
-
-  BIO_get_mem_ptr(b64, &bptr);
-  out.assign(bptr->data, bptr->length);
-  BIO_free_all(b64);
-  return true;
-}
-
-//------------------------------------------------------------------------------
-// Base64 decoding
-//------------------------------------------------------------------------------
-bool
-XrdMqMessage::Base64Decode(const char* encoded_bytes, char*& decoded_bytes,
-                           ssize_t& decoded_length)
-{
-  BIO* b64, *bmem;
-  ssize_t buffer_length;
-  bmem = BIO_new_mem_buf((void*)encoded_bytes, -1);
-
-  if (!bmem) {
-    Eroute.Emsg("Verify", ENOMEM, "get new mem BIO");
-    return false;
-  }
-
-  b64 = BIO_new(BIO_f_base64());
-
-  if (!b64) {
-    Eroute.Emsg("Verify", ENOMEM, "get new BIO");
-    return false;
-  }
-
-  BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
-  bmem = BIO_push(b64, bmem);
-  buffer_length = BIO_get_mem_data(bmem, NULL);
-  decoded_bytes = (char*) malloc(buffer_length + 1);
-  decoded_length = BIO_read(bmem, decoded_bytes, buffer_length);
-  decoded_bytes[decoded_length] = '\0';
-  BIO_free_all(bmem);
-  return true;
-}
-
-bool
-XrdMqMessage::Base64DecodeBroken(XrdOucString& in, char*& out, ssize_t& outlen)
-{
-  BIO* b64, *bmem;
-  b64 = BIO_new(BIO_f_base64());
-
-  if (!b64) {
-    Eroute.Emsg("Verify", ENOMEM, "get new BIO");
-    return false;
-  }
-
-  unsigned int body64len = in.length();
-  bmem = BIO_new_mem_buf((void*)in.c_str(), body64len);
-
-  if (!bmem) {
-    Eroute.Emsg("Verify", ENOMEM, "get new mem BIO");
-    return false;
-  }
-
-  char* encryptionbuffer = (char*) malloc(body64len);
-  bmem                = BIO_push(b64  , bmem);
-  outlen = BIO_read(bmem , encryptionbuffer, body64len);
-  BIO_free_all(b64);
-  out = encryptionbuffer;
-  return true;
-}
-
-
-#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
-//------------------------------------------------------------------------------
-// Cipher encrypt
-//------------------------------------------------------------------------------
-bool
-XrdMqMessage::CipherEncrypt(const char* data, ssize_t data_length,
-                            char*& encrypted_data, ssize_t& encrypted_length,
-                            char* key)
-{
-  // Set the initialization vector so that the encrypted text is unique
-  uint_fast8_t iv[EVP_MAX_IV_LENGTH];
-  sprintf((char*)iv, "$KJh#(}q");
-  const EVP_CIPHER* cipher = XMQCIPHER();
-
-  if (!cipher) {
-    Eroute.Emsg(__FUNCTION__, EINVAL, "get cipher");
-    return false;
-  }
-
-  // This is slow, but we really don't care here for small messages
-  int buff_capacity = data_length + EVP_CIPHER_block_size(cipher);
-  char* encrypt_buff = (char*) malloc(buff_capacity);
-
-  if (!encrypt_buff) {
-    Eroute.Emsg(__FUNCTION__, ENOMEM, "allocate encryption memory");
-    return false;
-  }
-
-  uint_fast8_t* fast_ptr = (uint_fast8_t*)encrypt_buff;
-  encrypted_length = 0;
-  EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
-  EVP_CIPHER_CTX_init(ctx);
-  EVP_EncryptInit_ex(ctx, cipher, 0, (const unsigned char*)key, iv);
-
-  if (!(EVP_EncryptUpdate(ctx, fast_ptr, (int*)&encrypted_length,
-                          (uint_fast8_t*)data, data_length))) {
-    Eroute.Emsg(__FUNCTION__, EINVAL, "update cipher block");
-    EVP_CIPHER_CTX_free(ctx);
-    free(encrypt_buff);
-    return false;
-  }
-
-  if (encrypted_length < 0) {
-    EVP_CIPHER_CTX_free(ctx);
-    free(encrypt_buff);
-    return false;
-  }
-
-  fast_ptr += encrypted_length;
-  int tmplen = 0;
-
-  if (!(EVP_EncryptFinal(ctx, fast_ptr, &tmplen))) {
-    Eroute.Emsg(__FUNCTION__, EINVAL, "finalize cipher block");
-    EVP_CIPHER_CTX_free(ctx);
-    free(encrypt_buff);
-    return false;
-  }
-
-  encrypted_length += tmplen;
-
-  if (encrypted_length > buff_capacity) {
-    Eroute.Emsg(__FUNCTION__, ENOMEM, "guarantee uncorrupted memory - memory"
-                " overwrite detected");
-    EVP_CIPHER_CTX_free(ctx);
-    free(encrypt_buff);
-    return false;
-  }
-
-  encrypted_data = encrypt_buff;
-  EVP_CIPHER_CTX_free(ctx);
-  return true;
-}
-
-//------------------------------------------------------------------------------
-// Cipher decrypt
-//------------------------------------------------------------------------------
-bool
-XrdMqMessage::CipherDecrypt(char* encrypted_data, ssize_t encrypted_length,
-                            char*& data, ssize_t& data_length, char* key, bool noerror)
-{
-  // Set the initialization vector
-  uint_fast8_t iv[EVP_MAX_IV_LENGTH];
-  sprintf((char*)iv, "$KJh#(}q");
-  const EVP_CIPHER* cipher = XMQCIPHER();
-
-  if (!cipher) {
-    Eroute.Emsg(__FUNCTION__, EINVAL, "get cipher");
-    return false;
-  }
-
-  // This is slow, but we really don't care here for small messages. We're
-  // going to null terminate the text under the assumption it's non-null
-  // terminated ASCII text.
-  int buff_capacity = encrypted_length + EVP_CIPHER_block_size(cipher) + 1;
-  data = (char*) malloc(buff_capacity);
-
-  if (!data) {
-    Eroute.Emsg(__FUNCTION__, ENOMEM, "allocate decryption memory");
-    return false;
-  }
-
-  uint_fast8_t* fast_ptr = (uint_fast8_t*)data;
-  data_length = 0;
-  EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
-  EVP_CIPHER_CTX_init(ctx);
-  EVP_DecryptInit_ex(ctx, cipher, 0, (const unsigned char*) key, iv);
-  int decrypt_len = 0;
-
-  if (!EVP_DecryptUpdate(ctx, fast_ptr, &decrypt_len,
-                         (uint_fast8_t*)encrypted_data, encrypted_length)) {
-    Eroute.Emsg(__FUNCTION__, EINVAL, "update cipher block");
-    EVP_CIPHER_CTX_free(ctx);
-    free(data);
-    return false;
-  }
-
-  if (decrypt_len < 0) {
-    EVP_CIPHER_CTX_free(ctx);
-    free(data);
-    return false;
-  }
-
-  fast_ptr += decrypt_len;
-  int tmplen = 0;
-
-  if (!EVP_DecryptFinal(ctx, fast_ptr, &tmplen)) {
-    if (!noerror) {
-      Eroute.Emsg(__FUNCTION__, EINVAL, "finalize cipher block");
-    }
-
-    EVP_CIPHER_CTX_free(ctx);
-    free(data);
-    return false;
-  }
-
-  data_length = decrypt_len + tmplen;
-
-  if (data_length > buff_capacity) {
-    Eroute.Emsg(__FUNCTION__, ENOMEM, "guarantee uncorrupted memory - "
-                "memory overwrite detected");
-    EVP_CIPHER_CTX_free(ctx);
-    free(data);
-    return false;
-  }
-
-  // Null terminate the decrypted buffer
-  data[data_length] = 0;
-  EVP_CIPHER_CTX_free(ctx);
-  return true;
-}
-
-
-//------------------------------------------------------------------------------
 // RSA encrypt
 //------------------------------------------------------------------------------
 bool
@@ -817,15 +576,18 @@ XrdMqMessage::RSAEncrypt(char* data, ssize_t data_length, char*& encrypted_data,
 //------------------------------------------------------------------------------
 // RSA key wrapper
 //------------------------------------------------------------------------------
-class RSAWrapper {
+class RSAWrapper
+{
 public:
-  RSAWrapper(RSA *r) : rsa(r) {}
+  RSAWrapper(RSA* r) : rsa(r) {}
 
-  ~RSAWrapper() {
+  ~RSAWrapper()
+  {
     RSA_free(rsa);
   }
 
-  RSA* get() {
+  RSA* get()
+  {
     return rsa;
   }
 private:
@@ -841,7 +603,10 @@ XrdMqMessage::RSADecrypt(char* encrypted_data, ssize_t encrypted_length,
 {
   KeyWrapper* wrapper = PublicKeyHash.Find(key_hash.c_str());
   EVP_PKEY* pkey = nullptr;
-  if(wrapper) pkey = wrapper->get();
+
+  if (wrapper) {
+    pkey = wrapper->get();
+  }
 
   if (!pkey) {
     Eroute.Emsg(__FUNCTION__, EINVAL, "load requested public key:",
@@ -884,7 +649,7 @@ XrdMqMessage::RSADecrypt(char* encrypted_data, ssize_t encrypted_length,
 //------------------------------------------------------------------------------
 bool XrdMqMessage::Sign(bool encrypt)
 {
-  unsigned int sig_len;
+  ssize_t sig_len;
   unsigned char sig_buf[16384];
   EVP_MD_CTX* md_ctx = EVP_MD_CTX_create();
   std::string b64out;
@@ -893,14 +658,14 @@ bool XrdMqMessage::Sign(bool encrypt)
   EVP_SignUpdate(md_ctx, kMessageBody.c_str(), kMessageBody.length());
   sig_len = sizeof(sig_buf);
 
-  if (!EVP_SignFinal(md_ctx, sig_buf, &sig_len, PrivateKey)) {
+  if (!EVP_SignFinal(md_ctx, sig_buf, (unsigned int*)&sig_len, PrivateKey)) {
     EVP_MD_CTX_destroy(md_ctx);
     return false;
   }
 
   std::string signature;
 
-  if (!Base64Encode((char*)sig_buf, sig_len, signature)) {
+  if (!eos::common::SymKey::Base64Encode((char*)sig_buf, sig_len, signature)) {
     EVP_MD_CTX_destroy(md_ctx);
     return false;
   }
@@ -912,8 +677,8 @@ bool XrdMqMessage::Sign(bool encrypt)
 
   if (!encrypt) {
     // Base64 encode the message digest
-    if (!Base64Encode((char*)EVP_MD_CTX_md_data(md_ctx), SHA_DIGEST_LENGTH,
-                      b64out)) {
+    if (!eos::common::SymKey::Base64Encode((char*)EVP_MD_CTX_md_data(md_ctx),
+                                           (ssize_t)SHA_DIGEST_LENGTH, b64out)) {
       EVP_MD_CTX_destroy(md_ctx);
       return false;
     }
@@ -936,7 +701,7 @@ bool XrdMqMessage::Sign(bool encrypt)
   }
 
   // Base64 encode the rsa encoded digest
-  if (!Base64Encode(rsadigest, rsalen, b64out)) {
+  if (!eos::common::SymKey::Base64Encode(rsadigest, rsalen, b64out)) {
     EVP_MD_CTX_destroy(md_ctx);
     free(rsadigest);
     return false;
@@ -954,14 +719,16 @@ bool XrdMqMessage::Sign(bool encrypt)
   char* encryptptr = 0;
   ssize_t encryptlen = 0;
 
-  if ((!CipherEncrypt(kMessageBody.c_str(), kMessageBody.length(),
-                      encryptptr, encryptlen, (char*)EVP_MD_CTX_md_data(md_ctx)))) {
+  if ((!eos::common::SymKey::CipherEncrypt(kMessageBody.c_str(),
+       kMessageBody.length(),
+       encryptptr, encryptlen,
+       (char*)EVP_MD_CTX_md_data(md_ctx)))) {
     Eroute.Emsg(__FUNCTION__, EINVAL, "encrypt message");
     EVP_MD_CTX_destroy(md_ctx);
     return false;
   }
 
-  if ((!Base64Encode(encryptptr, encryptlen, b64out))) {
+  if ((!eos::common::SymKey::Base64Encode(encryptptr, encryptlen, b64out))) {
     Eroute.Emsg(__FUNCTION__, EINVAL, "base64 encode message");
     EVP_MD_CTX_destroy(md_ctx);
     free(encryptptr);
@@ -981,6 +748,8 @@ bool XrdMqMessage::Sign(bool encrypt)
 //------------------------------------------------------------------------------
 bool XrdMqMessage::Verify()
 {
+  using eos::common::SymKey;
+
   if (!Decode()) {
     Eroute.Emsg(__FUNCTION__, EINVAL, "decode message");
     return false;
@@ -1014,8 +783,9 @@ bool XrdMqMessage::Verify()
     char* decrypteddigest = 0;
     ssize_t decrypteddigestlen = 0;
 
-    if (!Base64Decode((char*)kMessageHeader.kMessageDigest.c_str(), encrypteddigest,
-                      encrypteddigestlen)) {
+    if (!eos::common::SymKey::Base64Decode((char*)
+                                           kMessageHeader.kMessageDigest.c_str(),
+                                           encrypteddigest, encrypteddigestlen)) {
       Eroute.Emsg(__FUNCTION__, EINVAL, "base64 decode encrypted message digest");
       free(encrypteddigest);
       return false;
@@ -1041,8 +811,8 @@ bool XrdMqMessage::Verify()
     char* encryptedbody = 0;
     ssize_t encryptedbodylen = 0;
 
-    if (!Base64Decode((char*)kMessageBody.c_str(), encryptedbody,
-                      encryptedbodylen)) {
+    if (!eos::common::SymKey::Base64Decode((char*)kMessageBody.c_str(),
+                                           encryptedbody, encryptedbodylen)) {
       Eroute.Emsg(__FUNCTION__, EINVAL, "base64 decode encrypted message body");
       free(encryptedbody);
       free(encrypteddigest);
@@ -1054,8 +824,8 @@ bool XrdMqMessage::Verify()
     char* data;
     ssize_t data_len;
 
-    if (!CipherDecrypt(encryptedbody, encryptedbodylen, data, data_len,
-                       decrypteddigest)) {
+    if (!eos::common::SymKey::CipherDecrypt(encryptedbody, encryptedbodylen, data,
+                                            data_len, decrypteddigest)) {
       Eroute.Emsg(__FUNCTION__, EINVAL, "base64 decode encrypted message body");
       free(encryptedbody);
       free(encrypteddigest);
@@ -1093,8 +863,9 @@ bool XrdMqMessage::Verify()
   char* sig = 0;
   ssize_t siglen = 0;
 
-  if (!Base64Decode((char*)kMessageHeader.kMessageSignature.c_str(), sig,
-                    siglen)) {
+  if (!eos::common::SymKey::Base64Decode((char*)
+                                         kMessageHeader.kMessageSignature.c_str(),
+                                         sig, siglen)) {
     Eroute.Emsg(__FUNCTION__, EINVAL, "base64 decode message signature");
     free(sig);
     return false;
@@ -1102,7 +873,10 @@ bool XrdMqMessage::Verify()
 
   KeyWrapper* wrapper = PublicKeyHash.Find(PublicKeyName.c_str());
   EVP_PKEY* PublicKey = nullptr;
-  if(wrapper) PublicKey = wrapper->get();
+
+  if (wrapper) {
+    PublicKey = wrapper->get();
+  }
 
   if (!PublicKey) {
     Eroute.Emsg(__FUNCTION__, EINVAL, "load requested public key:",
@@ -1133,556 +907,6 @@ bool XrdMqMessage::Verify()
   kMessageHeader.Encode();
   return true;
 }
-#else
-//------------------------------------------------------------------------------
-// Cipher encrypt
-//------------------------------------------------------------------------------
-bool
-XrdMqMessage::CipherEncrypt(const char* data, ssize_t data_length,
-                            char*& encrypted_data, ssize_t& encrypted_length,
-                            char* key)
-{
-  // Set the initialization vector so that the encrypted text is unique
-  uint_fast8_t iv[EVP_MAX_IV_LENGTH];
-  sprintf((char*)iv, "$KJh#(}q");
-  const EVP_CIPHER* cipher = XMQCIPHER();
-
-  if (!cipher) {
-    Eroute.Emsg(__FUNCTION__, EINVAL, "get cipher");
-    return false;
-  }
-
-  // This is slow, but we really don't care here for small messages
-  int buff_capacity = data_length + EVP_CIPHER_block_size(cipher);
-  char* encrypt_buff = (char*) malloc(buff_capacity);
-
-  if (!encrypt_buff) {
-    Eroute.Emsg(__FUNCTION__, ENOMEM, "allocate encryption memory");
-    return false;
-  }
-
-  uint_fast8_t* fast_ptr = (uint_fast8_t*)encrypt_buff;
-  encrypted_length = 0;
-  EVP_CIPHER_CTX ctx;
-  EVP_CIPHER_CTX_init(&ctx);
-  EVP_EncryptInit_ex(&ctx, cipher, 0, (const unsigned char*)key, iv);
-
-  if (!(EVP_EncryptUpdate(&ctx, fast_ptr, (int*)&encrypted_length,
-                          (uint_fast8_t*)data, data_length))) {
-    Eroute.Emsg(__FUNCTION__, EINVAL, "update cipher block");
-    EVP_CIPHER_CTX_cleanup(&ctx);
-    free(encrypt_buff);
-    return false;
-  }
-
-  if (encrypted_length < 0) {
-    EVP_CIPHER_CTX_cleanup(&ctx);
-    free(encrypt_buff);
-    return false;
-  }
-
-  fast_ptr += encrypted_length;
-  int tmplen = 0;
-
-  if (!(EVP_EncryptFinal(&ctx, fast_ptr, &tmplen))) {
-    Eroute.Emsg(__FUNCTION__, EINVAL, "finalize cipher block");
-    EVP_CIPHER_CTX_cleanup(&ctx);
-    free(encrypt_buff);
-    return false;
-  }
-
-  encrypted_length += tmplen;
-
-  if (encrypted_length > buff_capacity) {
-    Eroute.Emsg(__FUNCTION__, ENOMEM, "guarantee uncorrupted memory - memory"
-                " overwrite detected");
-    EVP_CIPHER_CTX_cleanup(&ctx);
-    free(encrypt_buff);
-    return false;
-  }
-
-  encrypted_data = encrypt_buff;
-  EVP_CIPHER_CTX_cleanup(&ctx);
-  return true;
-}
-
-//------------------------------------------------------------------------------
-// Cipher decrypt
-//------------------------------------------------------------------------------
-bool
-XrdMqMessage::CipherDecrypt(char* encrypted_data, ssize_t encrypted_length,
-                            char*& data, ssize_t& data_length, char* key, bool noerror)
-{
-  // Set the initialization vector
-  uint_fast8_t iv[EVP_MAX_IV_LENGTH];
-  sprintf((char*)iv, "$KJh#(}q");
-  const EVP_CIPHER* cipher = XMQCIPHER();
-
-  if (!cipher) {
-    Eroute.Emsg(__FUNCTION__, EINVAL, "get cipher");
-    return false;
-  }
-
-  // This is slow, but we really don't care here for small messages. We're
-  // going to null terminate the text under the assumption it's non-null
-  // terminated ASCII text.
-  int buff_capacity = encrypted_length + EVP_CIPHER_block_size(cipher) + 1;
-  data = (char*) malloc(buff_capacity);
-
-  if (!data) {
-    Eroute.Emsg(__FUNCTION__, ENOMEM, "allocate decryption memory");
-    return false;
-  }
-
-  uint_fast8_t* fast_ptr = (uint_fast8_t*)data;
-  data_length = 0;
-  EVP_CIPHER_CTX ctx;
-  EVP_CIPHER_CTX_init(&ctx);
-  EVP_DecryptInit_ex(&ctx, cipher, 0, (const unsigned char*) key, iv);
-  int decrypt_len = 0;
-
-  if (!EVP_DecryptUpdate(&ctx, fast_ptr, &decrypt_len,
-                         (uint_fast8_t*)encrypted_data, encrypted_length)) {
-    Eroute.Emsg(__FUNCTION__, EINVAL, "update cipher block");
-    EVP_CIPHER_CTX_cleanup(&ctx);
-    free(data);
-    return false;
-  }
-
-  if (decrypt_len < 0) {
-    EVP_CIPHER_CTX_cleanup(&ctx);
-    free(data);
-    return false;
-  }
-
-  fast_ptr += decrypt_len;
-  int tmplen = 0;
-
-  if (!EVP_DecryptFinal(&ctx, fast_ptr, &tmplen)) {
-    if (!noerror) {
-      Eroute.Emsg(__FUNCTION__, EINVAL, "finalize cipher block");
-    }
-
-    EVP_CIPHER_CTX_cleanup(&ctx);
-    free(data);
-    return false;
-  }
-
-  data_length = decrypt_len + tmplen;
-
-  if (data_length >= buff_capacity) {
-    Eroute.Emsg(__FUNCTION__, ENOMEM, "guarantee uncorrupted memory - "
-                "memory overwrite detected");
-    EVP_CIPHER_CTX_cleanup(&ctx);
-    free(data);
-    return false;
-  }
-
-  // Null terminate the decrypted buffer
-  data[data_length] = 0;
-  EVP_CIPHER_CTX_cleanup(&ctx);
-  return true;
-}
-
-
-//------------------------------------------------------------------------------
-// RSA encrypt
-//------------------------------------------------------------------------------
-bool
-XrdMqMessage::RSAEncrypt(char* data, ssize_t data_length, char*& encrypted_data,
-                         ssize_t& encrypted_length)
-{
-  encrypted_data = (char*)malloc(RSA_size(PrivateKey->pkey.rsa));
-
-  if (!encrypted_data) {
-    return false;
-  }
-
-  encrypted_length = RSA_private_encrypt(data_length, (uint_fast8_t*)data,
-                                         (uint_fast8_t*)encrypted_data,
-                                         PrivateKey->pkey.rsa, RSA_PKCS1_PADDING);
-
-  if (encrypted_length < 0) {
-    free(encrypted_data);
-    encrypted_data = 0;
-    Eroute.Emsg(__FUNCTION__, EINVAL, "encrypt with private key",
-                ERR_error_string(ERR_get_error(), 0));
-    return false;
-  }
-
-  return true;
-}
-
-//------------------------------------------------------------------------------
-// RSA Decrypt
-//------------------------------------------------------------------------------
-bool
-XrdMqMessage::RSADecrypt(char* encrypted_data, ssize_t encrypted_length,
-                         char*& data, ssize_t& data_length, XrdOucString& key_hash)
-{
-  KeyWrapper* wrapper = PublicKeyHash.Find(key_hash.c_str());
-  EVP_PKEY* pkey = nullptr;
-  if(wrapper) pkey = wrapper->get();
-
-  if (!pkey) {
-    Eroute.Emsg(__FUNCTION__, EINVAL, "load requested public key:",
-                key_hash.c_str());
-    return false;
-  }
-
-  if ((encrypted_length != (unsigned int)RSA_size(pkey->pkey.rsa))) {
-    Eroute.Emsg(__FUNCTION__, EINVAL, "decrypt - keylength/encryption buffer"
-                " mismatch");
-    return false;
-  }
-
-  data = (char*)malloc(RSA_size(pkey->pkey.rsa));
-
-  if (!data) {
-    return false;
-  }
-
-  data_length = RSA_public_decrypt(encrypted_length,
-                                   (uint_fast8_t*)encrypted_data,
-                                   (uint_fast8_t*)data, pkey->pkey.rsa,
-                                   RSA_PKCS1_PADDING);
-
-  if (data_length < 0) {
-    free(data);
-    data = 0;
-    Eroute.Emsg(__FUNCTION__, EINVAL, "decrypt with public key",
-                ERR_error_string(ERR_get_error(), 0));
-    return false;
-  }
-
-  return true;
-}
-
-//------------------------------------------------------------------------------
-// Sign
-//------------------------------------------------------------------------------
-bool XrdMqMessage::Sign(bool encrypt)
-{
-  unsigned int sig_len;
-  unsigned char sig_buf[16384];
-  EVP_MD_CTX md_ctx;
-  std::string b64out;
-  EVP_MD_CTX_init(&md_ctx);
-  EVP_SignInit(&md_ctx, EVP_sha1());
-  EVP_SignUpdate(&md_ctx, kMessageBody.c_str(), kMessageBody.length());
-  sig_len = sizeof(sig_buf);
-
-  if (!EVP_SignFinal(&md_ctx, sig_buf, &sig_len, PrivateKey)) {
-    EVP_MD_CTX_cleanup(&md_ctx);
-    return false;
-  }
-
-  std::string signature;
-
-  if (!Base64Encode((char*)sig_buf, sig_len, signature)) {
-    EVP_MD_CTX_cleanup(&md_ctx);
-    return false;
-  }
-
-  kMessageHeader.kMessageSignature = "rsa:";
-  kMessageHeader.kMessageSignature += PublicKeyFileHash;
-  kMessageHeader.kMessageSignature += ":";
-  kMessageHeader.kMessageSignature += signature.c_str();
-
-  if (!encrypt) {
-    // Base64 encode the message digest
-    if (!Base64Encode((char*)md_ctx.md_data, SHA_DIGEST_LENGTH, b64out)) {
-      EVP_MD_CTX_cleanup(&md_ctx);
-      return false;
-    }
-
-    kMessageHeader.kMessageDigest = b64out.c_str();
-    EVP_MD_CTX_cleanup(&md_ctx);
-    Encode();
-    return true;
-  }
-
-  // RSA encode the message digest
-  char* rsadigest = 0;
-  ssize_t rsalen;
-
-  if (!RSAEncrypt((char*)md_ctx.md_data, SHA_DIGEST_LENGTH, rsadigest,
-                  rsalen)) {
-    EVP_MD_CTX_cleanup(&md_ctx);
-    free(rsadigest);
-    return false;
-  }
-
-  // Base64 encode the rsa encoded digest
-  if (!Base64Encode(rsadigest, rsalen, b64out)) {
-    EVP_MD_CTX_cleanup(&md_ctx);
-    free(rsadigest);
-    return false;
-  }
-
-  kMessageHeader.kMessageDigest = b64out.c_str();
-  free(rsadigest);
-  // Add a prefix with the public key rsa:<pubkey>:<encrypted64>digest
-  XrdOucString sdigest = "rsa:";
-  sdigest += PublicKeyFileHash;
-  sdigest += ":";
-  sdigest += kMessageHeader.kMessageDigest;
-  kMessageHeader.kMessageDigest = sdigest;
-  // Encrypt the message with the plain digest
-  char* encryptptr = 0;
-  ssize_t encryptlen = 0;
-
-  if ((!CipherEncrypt(kMessageBody.c_str(), kMessageBody.length(),
-                      encryptptr, encryptlen, (char*)md_ctx.md_data))) {
-    Eroute.Emsg(__FUNCTION__, EINVAL, "encrypt message");
-    EVP_MD_CTX_cleanup(&md_ctx);
-    return false;
-  }
-
-  if ((!Base64Encode(encryptptr, encryptlen, b64out))) {
-    Eroute.Emsg(__FUNCTION__, EINVAL, "base64 encode message");
-    EVP_MD_CTX_cleanup(&md_ctx);
-    free(encryptptr);
-    return false;
-  }
-
-  kMessageBody = b64out.c_str();
-  kMessageHeader.kEncrypted = true;
-  free(encryptptr);
-  EVP_MD_CTX_cleanup(&md_ctx);
-  Encode();
-  return true;
-}
-
-//------------------------------------------------------------------------------
-// Verify
-//------------------------------------------------------------------------------
-bool XrdMqMessage::Verify()
-{
-  if (!Decode()) {
-    Eroute.Emsg(__FUNCTION__, EINVAL, "decode message");
-    return false;
-  }
-
-  if (kMessageHeader.kEncrypted) {
-    // Decode the digest
-    if (!kMessageHeader.kMessageDigest.beginswith("rsa:")) {
-      Eroute.Emsg(__FUNCTION__, EINVAL,
-                  "decode message digest - is not rsa encrypted");
-      return false;
-    }
-
-    // Get public key
-    XrdOucString PublicKeyName;
-    int dpos = kMessageHeader.kMessageDigest.find(":", 4);
-
-    if (dpos != STR_NPOS) {
-      PublicKeyName.assign(kMessageHeader.kMessageDigest, 4, dpos - 1);
-    } else {
-      Eroute.Emsg(__FUNCTION__, EINVAL,
-                  "find public key reference in message digest");
-      return false;
-    }
-
-    // Truncate the key rsa:<publickeyhash> from the digest string
-    kMessageHeader.kMessageDigest.erase(0, dpos + 1);
-    // Base64 decode the digest string
-    char* encrypteddigest = 0;
-    ssize_t encrypteddigestlen = 0;
-    char* decrypteddigest = 0;
-    ssize_t decrypteddigestlen = 0;
-
-    if (!Base64Decode((char*)kMessageHeader.kMessageDigest.c_str(), encrypteddigest,
-                      encrypteddigestlen)) {
-      Eroute.Emsg(__FUNCTION__, EINVAL, "base64 decode encrypted message digest");
-      free(encrypteddigest);
-      return false;
-    }
-
-    if (!RSADecrypt(encrypteddigest, (unsigned int) encrypteddigestlen,
-                    decrypteddigest, decrypteddigestlen, PublicKeyName)) {
-      Eroute.Emsg(__FUNCTION__, EINVAL, "RSA decrypt encrypted message digest");
-      free(encrypteddigest);
-      free(decrypteddigest);
-      return false;
-    }
-
-    if (decrypteddigestlen != SHA_DIGEST_LENGTH) {
-      Eroute.Emsg(__FUNCTION__, EINVAL, "RSA decrypted message digest has illegal "
-                  "length");
-      free(encrypteddigest);
-      free(decrypteddigest);
-      return false;
-    }
-
-    // Base64 decode message body
-    char* encryptedbody = 0;
-    ssize_t encryptedbodylen = 0;
-
-    if (!Base64Decode((char*)kMessageBody.c_str(), encryptedbody,
-                      encryptedbodylen)) {
-      Eroute.Emsg(__FUNCTION__, EINVAL, "base64 decode encrypted message body");
-      free(encryptedbody);
-      free(encrypteddigest);
-      free(decrypteddigest);
-      return false;
-    }
-
-    // CIPHER decrypt message body
-    char* data;
-    ssize_t data_len;
-
-    if (!CipherDecrypt(encryptedbody, encryptedbodylen, data, data_len,
-                       decrypteddigest)) {
-      Eroute.Emsg(__FUNCTION__, EINVAL, "base64 decode encrypted message body");
-      free(encryptedbody);
-      free(encrypteddigest);
-      free(decrypteddigest);
-      return false;
-    }
-
-    kMessageBody = data;
-    kMessageHeader.kEncrypted = false;
-    free(encryptedbody);
-    free(encrypteddigest);
-    free(decrypteddigest);
-  }
-
-  // Decompose the signature
-  if (!kMessageHeader.kMessageSignature.beginswith("rsa:")) {
-    Eroute.Emsg(__FUNCTION__, EINVAL, "decode message signature - misses rsa: tag");
-    return false;
-  }
-
-  // Get public key
-  XrdOucString PublicKeyName = "";
-  int dpos = kMessageHeader.kMessageSignature.find(":", 4);
-
-  if (dpos != STR_NPOS) {
-    PublicKeyName.assign(kMessageHeader.kMessageSignature, 4, dpos - 1);
-  } else {
-    Eroute.Emsg(__FUNCTION__, EINVAL, "find public key reference in signature");
-    return false;
-  }
-
-  // Truncate the key rsa:<publickeyhash> from the digest string
-  kMessageHeader.kMessageSignature.erase(0, dpos + 1);
-  // Base64 decode signature
-  char* sig = 0;
-  ssize_t siglen = 0;
-
-  if (!Base64Decode((char*)kMessageHeader.kMessageSignature.c_str(), sig,
-                    siglen)) {
-    Eroute.Emsg(__FUNCTION__, EINVAL, "base64 decode message signature");
-    free(sig);
-    return false;
-  }
-
-  KeyWrapper* wrapper = PublicKeyHash.Find(PublicKeyName.c_str());
-  EVP_PKEY* PublicKey = nullptr;
-  if(wrapper) PublicKey = wrapper->get();
-
-  if (!PublicKey) {
-    Eroute.Emsg(__FUNCTION__, EINVAL, "load requested public key:",
-                PublicKeyName.c_str());
-    free(sig);
-    return false;
-  }
-
-  // Verify the signature of the body
-  EVP_MD_CTX md_ctx;
-  EVP_VerifyInit(&md_ctx, EVP_sha1());
-  EVP_VerifyUpdate(&md_ctx, kMessageBody.c_str(), kMessageBody.length());
-  int retc = EVP_VerifyFinal(&md_ctx, (unsigned char*) sig, siglen, PublicKey);
-  EVP_MD_CTX_cleanup(&md_ctx);
-
-  if (!retc) {
-    Eroute.Emsg(__FUNCTION__, EPERM, "verify signature of message body",
-                ERR_error_string(ERR_get_error(), 0));
-    free(sig);
-    return false;
-  }
-
-  free(sig);
-  kMessageBuffer = "";
-  kMessageHeader.kMessageSignature = "";
-  kMessageHeader.kMessageDigest = "";
-  kMessageHeader.kEncrypted = false;
-  kMessageHeader.Encode();
-  return true;
-}
-#endif
-
-//------------------------------------------------------------------------------
-// SymmetricStringEncrypt - key length is SHA_DIGEST_LENGTH
-//------------------------------------------------------------------------------
-bool
-XrdMqMessage::SymmetricStringEncrypt(XrdOucString& in, XrdOucString& out,
-                                     char* key)
-{
-  char* tmpbuf = 0;
-  ssize_t tmpbuflen = 0;
-
-  if (!CipherEncrypt(in.c_str(), in.length(), tmpbuf, tmpbuflen, key)) {
-    return false;
-  }
-
-  std::string b64out;
-
-  if (!Base64Encode(tmpbuf, tmpbuflen, b64out)) {
-    free(tmpbuf);
-    return false;
-  }
-
-  out = b64out.c_str();
-  free(tmpbuf);
-  return true;
-}
-
-
-//------------------------------------------------------------------------------
-// SymmetricStringDecrypt - key length is SHA_DIGEST_LENGTH
-//------------------------------------------------------------------------------
-bool
-XrdMqMessage::SymmetricStringDecrypt(XrdOucString& in, XrdOucString& out,
-                                     char* key)
-{
-  char* tmpbuf = 0;
-  ssize_t tmpbuflen;
-
-  if (!Base64Decode((char*)in.c_str(), tmpbuf, tmpbuflen)) {
-    if (Base64DecodeBroken(in, tmpbuf, tmpbuflen)) {
-      // might be an old encoder
-    } else {
-      free(tmpbuf);
-      return false;
-    }
-  }
-
-  char* data;
-  ssize_t data_len;
-
-  if (!CipherDecrypt(tmpbuf, tmpbuflen, data, data_len, key, true)) {
-    // test with an older decoding version
-    if (Base64DecodeBroken(in, tmpbuf, tmpbuflen)) {
-      // might be an old encoder
-    } else {
-      free(tmpbuf);
-      return false;
-    }
-
-    if (!CipherDecrypt(tmpbuf, tmpbuflen, data, data_len, key)) {
-      free(tmpbuf);
-      return false;
-    }
-  }
-
-  out = data;
-  free(tmpbuf);
-  free(data);
-  return true;
-}
-
 
 //------------------------------------------------------------------------------
 // SetReply

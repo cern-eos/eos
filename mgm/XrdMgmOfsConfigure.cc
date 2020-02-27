@@ -26,7 +26,6 @@
 #include <fcntl.h>
 #include <cstring>
 #include <sstream>
-#include "authz/XrdCapability.hh"
 #include "grpc/GrpcServer.hh"
 #include "mgm/AdminSocket.hh"
 #include "mgm/Stat.hh"
@@ -69,11 +68,12 @@
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "mq/SharedHashWrapper.hh"
 #include "mq/MessagingRealm.hh"
+#include "XrdAcc/XrdAccAuthorize.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdOuc/XrdOucTrace.hh"
-#include <qclient/shared/SharedManager.hh>
+#include "qclient/shared/SharedManager.hh"
 
 extern XrdOucTrace gMgmOfsTrace;
 extern void xrdmgmofs_shutdown(int sig);
@@ -1259,7 +1259,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     XrdSysPlugin* myLib;
     XrdAccAuthorize * (*ep)(XrdSysLogger*, const char*, const char*);
     // Authorization comes from the library or we use the default
-    Authorization = XrdAccAuthorizeObject(Eroute.logger(), ConfigFN, 0);
 
     if (!(myLib = new XrdSysPlugin(&Eroute, mAuthLib.c_str()))) {
       Eroute.Emsg("Config", "Failed to load authorization library!");
@@ -1272,7 +1271,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         Eroute.Emsg("Config", "Failed to get authorization library plugin!");
         NoGo = 1;
       } else {
-        Authorization = ep(Eroute.logger(), ConfigFN, 0);
+        mExtAuthz = ep(Eroute.logger(), ConfigFN, 0);
       }
     }
   }
@@ -1436,7 +1435,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   mMessagingRealm.reset(new eos::mq::MessagingRealm(&ObjectManager,
                         &ObjectNotifier, qsm));
   eos::common::InstanceName::set(MgmOfsInstanceName.c_str());
-
   eos::mq::SharedHashWrapper::initialize(mMessagingRealm.get());
   // set the object manager to listener only
   ObjectManager.EnableBroadCast(false);
@@ -1699,6 +1697,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
     // Create directory for clone functionality
     XrdOucString clonePath(MgmProcPath + "/clone");
+
     try {
       eosmd = gOFS->eosView->getContainer(clonePath.c_str());
     } catch (const eos::MDException& e) {
@@ -2008,16 +2007,18 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
   if (mTapeEnabled) {
     // Enable tape-aware garbage collection as configured
-    for(const auto &tapeGcSpace : tapeGcSpaces) {
+    for (const auto& tapeGcSpace : tapeGcSpaces) {
       mTapeGc->enable(tapeGcSpace);
     }
   } else if (!tapeGcSpaces.empty()) {
     std::ostringstream tapeGcSpaceWarning;
     tapeGcSpaceWarning << "msg=\"These spaces will not be enabled for the "
-      "tape-aware GC because mgmofs.tapeenabled=false:";
-    for(const auto &tapeGcSpace : tapeGcSpaces) {
+                       "tape-aware GC because mgmofs.tapeenabled=false:";
+
+    for (const auto& tapeGcSpace : tapeGcSpaces) {
       tapeGcSpaceWarning << " " << tapeGcSpace;
     }
+
     tapeGcSpaceWarning << "\"";
     eos_warning(tapeGcSpaceWarning.str().c_str());
   }

@@ -127,6 +127,7 @@ class XrdMgmOfsFile;
 class XrdMgmOfsDirectory;
 class XrdCapability;
 class XrdAccAuthorize;
+class XrdMgmAuthz;
 
 namespace eos
 {
@@ -138,18 +139,13 @@ class IFileMDChangeListener;
 class IContainerMDChangeListener;
 }
 
-namespace eos
-{
-namespace common
+namespace eos::common
 {
 class CommentLog;
 class JeMallocHandler;
 }
-}
 
-namespace eos
-{
-namespace mgm
+namespace eos::mgm
 {
 class AdminSocket;
 class IConfigEngine;
@@ -170,19 +166,17 @@ class PathRouting;
 class CommitHelper;
 class ReplicationTracker;
 class FileInspector;
-namespace tgc {
+}
+
+namespace eos::mgm::tgc
+{
 class RealTapeGcMgm;
 class MultiSpaceTapeGc;
 }
-}
-}
 
-namespace eos
-{
-namespace auth
+namespace eos::auth
 {
 class RequestProto;
-}
 }
 
 namespace zmq
@@ -191,12 +185,9 @@ class socket_t;
 class context_t;
 }
 
-namespace eos
-{
-namespace mq
+namespace eos::mq
 {
 class MessagingRealm;
-}
 }
 
 enum class NamespaceState {
@@ -732,8 +723,8 @@ public:
              XrdOucErrInfo& error,
              eos::common::VirtualIdentity& vid,
              const char* ininfo = 0,
-             bool doLock = true, 
-	     bool useLayout = false);
+             bool doLock = true,
+             bool useLayout = false);
 
   //----------------------------------------------------------------------------
   //! List extended attributes for a given file/directory - high-level API.
@@ -1407,8 +1398,8 @@ public:
   char* ConfigFN; ///< name of the configuration file
   IConfigEngine* ConfEngine; ///< storing/restoring configuration
   //! Authorization module for token encryption/decryption
-  XrdCapability* CapabilityEngine;
-  uint64_t mCapabilityValidity; ///< Time in seconds the capability is valid
+  XrdMgmAuthz* CapabilityEngine;
+  std::chrono::seconds mCapabilityValidity; ///< Capability validity duration
   XrdOucString MgmOfsBroker; ///< Url of the message broker without MGM subject
   XrdOucString MgmOfsBrokerUrl; ///< Url of the message broker with MGM subject
   XrdOucString MgmArchiveDstUrl; ////< URL where all archives are saved
@@ -1672,7 +1663,7 @@ public:
   // Class objects
   //----------------------------------------------------------------------------
   XrdAccAuthorize* mTokenAuthzHandler {nullptr}; ///< Token authz handler
-  XrdAccAuthorize* Authorization = nullptr; ///< Authorization service
+  XrdAccAuthorize* mExtAuthz {nullptr}; ///< Authorization service
 
   //! Mgm Namespace Statistics
   std::unique_ptr<Stat> MgmStatsPtr;

@@ -171,8 +171,8 @@ public:
       XrdOucString val64 = tokens[2].c_str();
       char* keyout = 0;
       char* valout = 0;
-      size_t keyout_len = 0;
-      size_t valout_len = 0;
+      ssize_t keyout_len = 0;
+      ssize_t valout_len = 0;
       eos::common::SymKey::Base64Decode(key64, keyout, keyout_len);
       eos::common::SymKey::Base64Decode(val64, valout, valout_len);
 

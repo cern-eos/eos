@@ -23,6 +23,42 @@
 
 #include "gtest/gtest.h"
 #include "common/SymKeys.hh"
+#include <fstream>
+#include <list>
+
+//------------------------------------------------------------------------------
+// Cipher encoding and decoding test
+//------------------------------------------------------------------------------
+TEST(SymKeys, CipherTest)
+{
+  using namespace eos::common;
+  char* key = (char*)"12345678901234567890";
+  std::list<ssize_t> set_lengths {1, 10, 100, 1024, 4096, 5746};
+
+  for (auto it = set_lengths.begin(); it != set_lengths.end(); ++it) {
+    std::unique_ptr<char[]> data {new char[*it]};
+    // Generate random data
+    std::ifstream urandom("/dev/urandom", std::ios::in | std::ios::binary);
+    urandom.read(data.get(), (ssize_t)*it);
+    urandom.close();
+    // Encrypt data
+    char* encrypted_data;
+    ssize_t encrypted_length = 0;
+    ASSERT_TRUE(SymKey::CipherEncrypt(data.get(), *it, encrypted_data,
+                                      encrypted_length, key));
+    // Decrypt data
+    char* decrypted_data;
+    ssize_t decrypted_length = 0;
+    ASSERT_TRUE(SymKey::CipherDecrypt(encrypted_data, encrypted_length,
+                                      decrypted_data, decrypted_length,
+                                      key));
+    ASSERT_TRUE(*it == decrypted_length)
+        << "Expected:" << *it << ", obtained:" << decrypted_length << std::endl;
+    ASSERT_TRUE(memcmp(data.get(), decrypted_data, decrypted_length) == 0);
+    free(encrypted_data);
+    free(decrypted_data);
+  }
+}
 
 //------------------------------------------------------------------------------
 // Base64 test
@@ -49,7 +85,7 @@ TEST(SymKeys, Base64Test)
         << "Expected:" << elem->second << ", obtained:" << encoded << std::endl;
     // Check decoding
     char* decoded_bytes;
-    size_t decoded_length;
+    ssize_t decoded_length;
     ASSERT_TRUE(eos::common::SymKey::Base64Decode(encoded.c_str(), decoded_bytes,
                 decoded_length));
     ASSERT_TRUE(elem->first.length() == (size_t)decoded_length)

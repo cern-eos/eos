@@ -439,6 +439,7 @@ TransferEngine::Clear(XrdOucString& stdOut, XrdOucString& stdErr,
 void
 TransferEngine::Scheduler(ThreadAssistant& assistant) noexcept
 {
+  using namespace eos::common;
   eos_static_info("running transfer scheduler");
   size_t loopsleep = 500000;
   assistant.wait_for(std::chrono::seconds(10));
@@ -556,8 +557,8 @@ TransferEngine::Scheduler(ThreadAssistant& assistant) noexcept
               eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
 
               if (credential.length() && symkey &&
-                  XrdMqMessage::SymmetricStringEncrypt(credential, enccredential,
-                      (char*)symkey->GetKey())) {
+                  SymKey::SymmetricStringEncrypt(credential, enccredential,
+                                                 (char*)symkey->GetKey())) {
                 transferjob += "&tx.auth.cred=";
                 transferjob += enccredential;
                 transferjob += "&tx.auth.digest=";
@@ -576,7 +577,6 @@ TransferEngine::Scheduler(ThreadAssistant& assistant) noexcept
                   if ((FsView::gFsView.mNodeView[*it]->mGwQueue->Size() < 20) &&
                       ((time(NULL) - FsView::gFsView.mNodeView[*it]->GetHeartBeat()) < 10) &&
                       (status == "online")) {
-
                     txjob.reset(new eos::common::TransferJob(transferjob.c_str()));
 
                     if (FsView::gFsView.mNodeView[*it]->mGwQueue->Add(txjob.get())) {

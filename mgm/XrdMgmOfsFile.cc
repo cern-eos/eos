@@ -50,7 +50,6 @@
 #include "namespace/utils/Attributes.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/Resolver.hh"
-#include "authz/XrdCapability.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSfs/XrdSfsAio.hh"
@@ -530,7 +529,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   // proc filter
   if (ProcInterface::IsProcAccess(path)) {
-    if (gOFS->Authorization &&
+    if (gOFS->mExtAuthz &&
         (vid.prot != "sss") &&
         (vid.host != "localhost") &&
         (vid.host != "localhost.localdomain")) {
@@ -2478,8 +2477,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   int caprc = 0;
   XrdOucEnv* capabilityenvRaw = nullptr;
 
-  if ((caprc = gCapabilityEngine.Create(&incapability, capabilityenvRaw, symkey,
-                                        gOFS->mCapabilityValidity))) {
+  if ((caprc = eos::common::SymKey::CreateCapability(&incapability,
+               capabilityenvRaw,
+               symkey, gOFS->mCapabilityValidity))) {
     return Emsg(epname, error, caprc, "sign capability", path);
   }
 

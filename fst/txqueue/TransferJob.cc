@@ -54,7 +54,8 @@ ToString(const T& t)
   return oss.str();
 }
 
-TransferJob::TransferJob(TransferQueue* queue, std::unique_ptr<eos::common::TransferJob> job,
+TransferJob::TransferJob(TransferQueue* queue,
+                         std::unique_ptr<eos::common::TransferJob> job,
                          int bw, int timeout)
 {
   mQueue = queue;
@@ -301,7 +302,7 @@ TransferJob::DoIt()
   mDoItThread = XrdSysThread::ID();
   std::string sTmp, strBand;
   std::string fileName =
-      eos::fst::Config::gConfig.FstAuthDir.c_str(); // script name for the transfer script
+    eos::fst::Config::gConfig.FstAuthDir.c_str(); // script name for the transfer script
   std::string fileStageName = fileName;
   std::stringstream command, ss, commando, so;
   std::string uuid = NewUuid();
@@ -401,7 +402,7 @@ TransferJob::DoIt()
         XrdOucString todecrypt = symmsg;
         XrdOucString decrypted = "";
 
-        if (XrdMqMessage::SymmetricStringDecrypt(todecrypt, decrypted,
+        if (eos::common::SymKey::SymmetricStringDecrypt(todecrypt, decrypted,
             (char*) key->GetKey())) {
           if (decrypted.beginswith("krb5:")) {
             decrypted.erase(0, 5);
@@ -415,7 +416,7 @@ TransferJob::DoIt()
 
           // now base64decode the decrypted credential
           char* credential = 0;
-          size_t credentiallen = 0;
+          ssize_t credentiallen = 0;
 
           if (eos::common::SymKey::Base64Decode(decrypted, credential, credentiallen)) {
             if (credential) {

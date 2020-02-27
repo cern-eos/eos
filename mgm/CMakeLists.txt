@@ -186,6 +186,7 @@ add_library(
   XrdMgmOfsFile.cc
   XrdMgmOfsDirectory.cc
   XrdMgmOfs.cc
+  XrdMgmAuthz.cc
   XrdMgmOfs/fsctl/Access.cc
   XrdMgmOfs/fsctl/AdjustReplica.cc
   XrdMgmOfs/fsctl/Checksum.cc
@@ -309,7 +310,6 @@ target_link_libraries(
   EosCommon
   EosCommonServer
   EosNsCommon
-  eosCapability-Static
   bfd
   ${FOLLY_LIBRARIES}
   ${Z_LIBRARY}
@@ -392,7 +392,6 @@ if(Linux)
     XrdEosMgm-Static PUBLIC
     EosNsCommon-Static
     EosCommonServer-Static
-    eosCapability-Static
     ${FOLLY_LIBRARIES}
     ${Z_LIBRARY}
     ${ZMQ_LIBRARIES}

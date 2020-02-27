@@ -21,13 +21,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "gtest/gtest.h"
+#include "mq/XrdMqMessage.hh"
 #include <openssl/pem.h>
 #include <openssl/ssl.h>
 #include <fstream>
-#include <list>
 #include <memory>
-#include "gtest/gtest.h"
-#include "mq/XrdMqMessage.hh"
 
 // RSA private and public keys used for testing
 static std::string rsa_private_key =
@@ -79,72 +78,6 @@ GenerateRandomData(char* data, ssize_t length)
   std::ifstream urandom("/dev/urandom", std::ios::in | std::ios::binary);
   urandom.read(data, length);
   urandom.close();
-}
-
-//------------------------------------------------------------------------------
-// Base64 test
-//------------------------------------------------------------------------------
-TEST(XrdMqMessage, Base64Test)
-{
-  std::map<std::string, std::string> map_tests = {
-    {"",  ""},
-    {"f", "Zg=="},
-    {"fo", "Zm8="},
-    {"foo", "Zm9v"},
-    {"foob", "Zm9vYg=="},
-    {"fooba", "Zm9vYmE="},
-    {"foobar", "Zm9vYmFy"},
-    {"testtest", "dGVzdHRlc3Q="}
-  };
-
-  for (auto elem = map_tests.begin(); elem != map_tests.end(); ++elem) {
-    // Check encoding
-    std::string encoded;
-    ASSERT_TRUE(XrdMqMessage::Base64Encode((char*)elem->first.c_str(),
-                                           elem->first.length(), encoded));
-    ASSERT_TRUE(elem->second == encoded)
-        << "Expected:" << elem->second << ", obtained:" << encoded << std::endl;
-    // Check decoding
-    char* decoded_bytes;
-    ssize_t decoded_length;
-    ASSERT_TRUE(XrdMqMessage::Base64Decode((char*)encoded.c_str(),
-                                           decoded_bytes, decoded_length));
-    ASSERT_TRUE(elem->first.length() == (size_t)decoded_length)
-        << "Expected:" << elem->first.length() << ", obtained:" << decoded_length;
-    ASSERT_TRUE(elem->first == decoded_bytes)
-        << "Expected:" << elem->first << ", obtained:" << decoded_bytes;
-    free(decoded_bytes);
-  }
-}
-
-//------------------------------------------------------------------------------
-// Cipher encoding and decoding test
-//------------------------------------------------------------------------------
-TEST(XrdMqMessage, CipherTest)
-{
-  char* key = (char*)"12345678901234567890";
-  std::list<ssize_t> set_lengths {1, 10, 100, 1024, 4096, 5746};
-
-  for (auto it = set_lengths.begin(); it != set_lengths.end(); ++it) {
-    std::unique_ptr<char[]> data {new char[*it]};
-    GenerateRandomData(data.get(), (ssize_t)*it);
-    // Encrypt data
-    char* encrypted_data;
-    ssize_t encrypted_length = 0;
-    ASSERT_TRUE(XrdMqMessage::CipherEncrypt(data.get(), *it, encrypted_data,
-                                            encrypted_length, key));
-    // Decrypt data
-    char* decrypted_data;
-    ssize_t decrypted_length = 0;
-    ASSERT_TRUE(XrdMqMessage::CipherDecrypt(encrypted_data, encrypted_length,
-                                            decrypted_data, decrypted_length,
-                                            key));
-    ASSERT_TRUE(*it == decrypted_length)
-        << "Expected:" << *it << ", obtained:" << decrypted_length << std::endl;
-    ASSERT_TRUE(memcmp(data.get(), decrypted_data, decrypted_length) == 0);
-    free(encrypted_data);
-    free(decrypted_data);
-  }
 }
 
 //------------------------------------------------------------------------------

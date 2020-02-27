@@ -99,8 +99,7 @@ XrdMgmOfs::CreateSharePath(const char* inpath,
   ouc_sign += hex_fid.c_str();
   XrdOucString ouc_signed;
 
-  if (!XrdMqMessage::SymmetricStringEncrypt(ouc_sign,
-      ouc_signed,
+  if (!eos::common::SymKey::SymmetricStringEncrypt(ouc_sign, ouc_signed,
       (char*) symkey->GetKey())) {
     errno = EKEYREJECTED;
     return std::string("");
@@ -188,8 +187,7 @@ XrdMgmOfs::VerifySharePath(const char* path,
   ouc_sign += hex_fid.c_str();
   XrdOucString ouc_signed;
 
-  if (!XrdMqMessage::SymmetricStringEncrypt(ouc_sign,
-      ouc_signed,
+  if (!eos::common::SymKey::SymmetricStringEncrypt(ouc_sign, ouc_signed,
       (char*) symkey->GetKey())) {
     eos_static_err("msg=\"failed to encrypt to verify shared link");
     return false;

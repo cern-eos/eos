@@ -28,6 +28,7 @@
 #include <openssl/x509.h>
 #include <openssl/engine.h>
 #include <openssl/hmac.h>
+#include <openssl/crypto.h>
 #include "common/Namespace.hh"
 #include "common/SymKeys.hh"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
@@ -38,6 +39,32 @@ EOSCOMMONNAMESPACE_BEGIN
 SymKeyStore gSymKeyStore; //< global SymKey store singleton
 XrdSysMutex SymKey::msMutex;
 
+// Add compatibility methods present in OpenSSL >= 1.1.0 if we use an older
+// version of OpenSSL
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined (LIBRESSL_VERSION_NUMBER)
+#define EVP_MD_CTX_new EVP_MD_CTX_create
+#define EVP_MD_CTX_free EVP_MD_CTX_destroy
+#define ASN1_STRING_get0_data(x) ASN1_STRING_data(x)
+
+static HMAC_CTX* HMAC_CTX_new(void)
+{
+  HMAC_CTX* ctx = (HMAC_CTX*)OPENSSL_malloc(sizeof(*ctx));
+
+  if (ctx != NULL) {
+    HMAC_CTX_init(ctx);
+  }
+
+  return ctx;
+}
+
+static void HMAC_CTX_free(HMAC_CTX* ctx)
+{
+  if (ctx != NULL) {
+    HMAC_CTX_cleanup(ctx);
+    OPENSSL_free(ctx);
+  }
+}
+#endif
 
 //----------------------------------------------------------------------------
 // Constructor for a symmetric key
@@ -47,7 +74,7 @@ SymKey::SymKey(const char* inkey, time_t invalidity)
   key64 = "";
   memcpy(key, inkey, SHA_DIGEST_LENGTH);
   SymKey::Base64Encode(key, SHA_DIGEST_LENGTH, key64);
-  validity = invalidity;
+  mValidity = invalidity;
   SHA_CTX sha1;
   SHA1_Init(&sha1);
   SHA1_Update(&sha1, (const char*) inkey, SHA_DIGEST_LENGTH);
@@ -57,10 +84,6 @@ SymKey::SymKey(const char* inkey, time_t invalidity)
   strncpy(keydigest64, skeydigest64.c_str(), (SHA_DIGEST_LENGTH * 2) - 1);
 }
 
-
-
-
-#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
 //------------------------------------------------------------------------------
 // Compute the HMAC SHA-256 value
 //------------------------------------------------------------------------------
@@ -144,92 +167,6 @@ SymKey::Sha256(const std::string& data,
   return result;
 }
 
-#else
-
-//------------------------------------------------------------------------------
-// Compute the HMAC SHA-256 value
-//------------------------------------------------------------------------------
-std::string
-SymKey::HmacSha256(std::string& key,
-                   std::string& data,
-                   unsigned int blockSize,
-                   unsigned int resultSize)
-{
-  HMAC_CTX ctx;
-  std::string result;
-  unsigned int data_len = data.length();
-  unsigned int key_len = key.length();
-  unsigned char* pKey = (unsigned char*) key.c_str();
-  unsigned char* pData = (unsigned char*) data.c_str();
-  result.resize(resultSize);
-  unsigned char* pResult = (unsigned char*) result.c_str();
-  ENGINE_load_builtin_engines();
-  ENGINE_register_all_complete();
-  HMAC_CTX_init(&ctx);
-  HMAC_Init_ex(&ctx, pKey, key_len, EVP_sha256(), NULL);
-
-  while (data_len > blockSize) {
-    HMAC_Update(&ctx, pData, blockSize);
-    data_len -= blockSize;
-    pData += blockSize;
-  }
-
-  if (data_len) {
-    HMAC_Update(&ctx, pData, data_len);
-  }
-
-  HMAC_Final(&ctx, pResult, &resultSize);
-  HMAC_CTX_cleanup(&ctx);
-  return result;
-}
-
-//------------------------------------------------------------------------------
-// Compute the SHA256 value
-//------------------------------------------------------------------------------
-std::string
-SymKey::Sha256(const std::string& data,
-               unsigned int blockSize)
-{
-  unsigned int data_len = data.length();
-  unsigned char* pData = (unsigned char*) data.c_str();
-  std::string result;
-  result.resize(EVP_MAX_MD_SIZE);
-  unsigned char* pResult = (unsigned char*) result.c_str();
-  unsigned int sz_result;
-  {
-    XrdSysMutexHelper scope_lock(msMutex);
-    EVP_MD_CTX* md_ctx = EVP_MD_CTX_create();
-    EVP_DigestInit_ex(md_ctx, EVP_sha256(), NULL);
-
-    while (data_len > blockSize) {
-      EVP_DigestUpdate(md_ctx, pData, blockSize);
-      data_len -= blockSize;
-      pData += blockSize;
-    }
-
-    if (data_len) {
-      EVP_DigestUpdate(md_ctx, pData, data_len);
-    }
-
-    EVP_DigestFinal_ex(md_ctx, pResult, &sz_result);
-    EVP_MD_CTX_cleanup(md_ctx);
-  }
-  std::ostringstream oss;
-  oss.fill('0');
-  oss << std::hex;
-  pResult = (unsigned char*) result.c_str();
-
-  for (unsigned int i = 0; i < sz_result; ++i) {
-    oss << std::setw(2) << (unsigned int) *pResult;
-    pResult++;
-  }
-
-  result = oss.str();
-  return result;
-}
-
-#endif
-
 //------------------------------------------------------------------------------
 // Compute the HMAC SHA-1 value according to AWS standard
 //------------------------------------------------------------------------------
@@ -258,7 +195,8 @@ SymKey::HmacSha1(std::string& data, const char* key)
 // Base64 encoding function - base function
 //------------------------------------------------------------------------------
 bool
-SymKey::Base64Encode(const char* in, unsigned int inlen, std::string& out)
+SymKey::Base64Encode(const char* decoded_bytes, ssize_t decoded_length,
+                     std::string& out)
 {
   BIO* b64 = BIO_new(BIO_f_base64());
 
@@ -266,15 +204,15 @@ SymKey::Base64Encode(const char* in, unsigned int inlen, std::string& out)
     return false;
   }
 
+  BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
   BIO* bmem = BIO_new(BIO_s_mem());
 
   if (!bmem) {
     return false;
   }
 
-  BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
   b64 = BIO_push(b64, bmem);
-  BIO_write(b64, (const void*)in, inlen);
+  BIO_write(b64, decoded_bytes, decoded_length);
 
   if (BIO_flush(b64) != 1) {
     BIO_free_all(b64);
@@ -283,7 +221,6 @@ SymKey::Base64Encode(const char* in, unsigned int inlen, std::string& out)
 
   BUF_MEM* bptr;
   BIO_get_mem_ptr(b64, &bptr);
-  out.resize(bptr->length + 1, '\0');
   out.assign(bptr->data, bptr->length);
   BIO_free_all(b64);
   return true;
@@ -293,7 +230,7 @@ SymKey::Base64Encode(const char* in, unsigned int inlen, std::string& out)
 // Base64 encoding function - returning an XrdOucString object
 //------------------------------------------------------------------------------
 bool
-SymKey::Base64Encode(char* in, unsigned int inlen, XrdOucString& out)
+SymKey::Base64Encode(const char* in, unsigned int inlen, XrdOucString& out)
 {
   std::string encoded;
 
@@ -309,9 +246,10 @@ SymKey::Base64Encode(char* in, unsigned int inlen, XrdOucString& out)
 // Base64 decoding function - base function
 //------------------------------------------------------------------------------
 bool
-SymKey::Base64Decode(const char* in, char*& out, size_t& outlen)
+SymKey::Base64Decode(const char* encoded_bytes, char*& decoded_bytes,
+                     ssize_t& decoded_length)
 {
-  BIO* bmem = BIO_new_mem_buf((void*)in, -1);
+  BIO* bmem = BIO_new_mem_buf((void*)encoded_bytes, -1);
 
   if (!bmem) {
     return false;
@@ -325,9 +263,10 @@ SymKey::Base64Decode(const char* in, char*& out, size_t& outlen)
 
   BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
   bmem = BIO_push(b64, bmem);
-  size_t buffer_length = BIO_get_mem_data(bmem, NULL);
-  out = (char*) calloc(buffer_length + 1, sizeof(char));
-  outlen = BIO_read(bmem, out, buffer_length);
+  ssize_t buffer_length = BIO_get_mem_data(bmem, NULL);
+  decoded_bytes = (char*) malloc(buffer_length + 1);
+  decoded_length = BIO_read(bmem, decoded_bytes, buffer_length);
+  decoded_bytes[decoded_length] = '\0';
   BIO_free_all(bmem);
   return true;
 }
@@ -364,7 +303,7 @@ SymKey::Base64Decode(const char* in, std::string& out)
 // Base64 decoding of input given as XrdOucString
 //------------------------------------------------------------------------------
 bool
-SymKey::Base64Decode(XrdOucString& in, char*& out, size_t& outlen)
+SymKey::Base64Decode(XrdOucString& in, char*& out, ssize_t& outlen)
 {
   return Base64Decode(in.c_str(), out, outlen);
 }
@@ -427,9 +366,9 @@ SymKey::DeBase64(XrdOucString& in, XrdOucString& out)
   XrdOucString in64 = in;
   in64.erase(0, 7);
   char* valout = 0;
-  size_t valout_len = 0;
+  ssize_t valout_len = 0;
 
-  if (eos::common::SymKey::Base64Decode(in64, valout, valout_len)) {
+  if (Base64Decode(in64, valout, valout_len)) {
     std::string s;
     s.assign(valout, 0, valout_len);
     out = s.c_str();
@@ -454,8 +393,8 @@ SymKey::DeBase64(std::string& in, std::string& out)
   XrdOucString in64 = in.c_str();
   in64.erase(0, 7);
   char* valout = 0;
-  size_t valout_len = 0;
-  eos::common::SymKey::Base64Decode(in64, valout, valout_len);
+  ssize_t valout_len = 0;
+  Base64Decode(in64, valout, valout_len);
 
   if (valout) {
     out.assign(valout, valout_len);
@@ -511,8 +450,8 @@ SymKey::ZDeBase64(std::string& in, std::string& out)
   XrdOucString in64 = in.c_str();
   in64.erase(0, 8);
   char* valout = 0;
-  size_t valout_len = 0;
-  eos::common::SymKey::Base64Decode(in64, valout, valout_len);
+  ssize_t valout_len = 0;
+  Base64Decode(in64, valout, valout_len);
 
   if (valout) {
     // first 8 bytes are the length of the decompressed data in hext
@@ -559,7 +498,7 @@ SymKey::ProtobufBase64Encode(const google::protobuf::Message* msg,
     return false;
   }
 
-  return eos::common::SymKey::Base64Encode(buffer.data(), buffer.size(), output);
+  return Base64Encode(buffer.data(), buffer.size(), output);
 }
 
 //------------------------------------------------------------------------------
@@ -573,7 +512,7 @@ SymKeyStore::SetKey64(const char* inkey64, time_t invalidity)
   }
 
   char* binarykey = 0;
-  size_t outlen = 0;
+  ssize_t outlen = 0;
   XrdOucString key64 = inkey64;
 
   if (!SymKey::Base64Decode(key64, binarykey, outlen)) {
@@ -648,6 +587,309 @@ SymKeyStore::GetCurrentKey()
   }
 
   return 0;
+}
+
+//------------------------------------------------------------------------------
+// Create EOS specific capability and append to the output env object
+//------------------------------------------------------------------------------
+int
+SymKey::CreateCapability(XrdOucEnv* inenv, XrdOucEnv*& outenv,
+                         SymKey* key, std::chrono::seconds validity)
+{
+  if (!key) {
+    return ENOKEY;
+  }
+
+  if (!inenv) {
+    return EINVAL;
+  }
+
+  if (outenv) {
+    delete outenv;
+    outenv = nullptr;
+  }
+
+  int envlen;
+  XrdOucString toencrypt = inenv->Env(envlen);
+  // Add the validity time
+  toencrypt += "&cap.valid=";
+  char svalidity[32];
+  snprintf(svalidity, 32, "%llu",
+           (long long unsigned int)(time(NULL) + validity.count()));
+  toencrypt += svalidity;
+  XrdOucString encrypted = "";
+
+  if (!SymmetricStringEncrypt(toencrypt, encrypted, (char*)key->GetKey())) {
+    return EKEYREJECTED;
+  }
+
+  XrdOucString encenv = "";
+  encenv += "cap.sym=";
+  encenv += key->GetDigest64();
+  encenv += "&cap.msg=";
+  encenv += encrypted;
+
+  while (encenv.replace('\n', '#')) {};
+
+  outenv = new XrdOucEnv(encenv.c_str());
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Extract EOS specific capability encoded in the env object
+//------------------------------------------------------------------------------
+int
+SymKey::ExtractCapability(XrdOucEnv* inenv, XrdOucEnv*& outenv)
+{
+  if (outenv) {
+    delete outenv;
+    outenv = nullptr;
+  }
+
+  if (!inenv) {
+    return EINVAL;
+  }
+
+  int envlen;
+  XrdOucString instring = inenv->Env(envlen);
+
+  while (instring.replace('#', '\n')) {};
+
+  XrdOucEnv fixedenv(instring.c_str());
+
+  const char* symkey = fixedenv.Get("cap.sym");
+
+  const char* symmsg = fixedenv.Get("cap.msg");
+
+  //  fprintf(stderr,"%s\n%s\n", symkey, symmsg);
+  if ((!symkey) || (!symmsg)) {
+    return EINVAL;
+  }
+
+  eos::common::SymKey* key {nullptr};
+
+  if (!(key = eos::common::gSymKeyStore.GetKey(symkey))) {
+    return ENOKEY;
+  }
+
+  XrdOucString todecrypt = symmsg;
+  XrdOucString decrypted = "";
+
+  if (!SymmetricStringDecrypt(todecrypt, decrypted, (char*)key->GetKey())) {
+    return EKEYREJECTED;
+  }
+
+  outenv = new XrdOucEnv(decrypted.c_str());
+
+  // Check time validity
+  if (!outenv->Get("cap.valid")) {
+    // validity missing
+    return EINVAL;
+  } else {
+    time_t now = time(NULL);
+    time_t capnow = atoi(outenv->Get("cap.valid"));
+
+    // Capability expired!!!
+    if (capnow < now) {
+      return ETIME;
+    }
+  }
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Cipher encrypt
+//------------------------------------------------------------------------------
+bool
+SymKey::CipherEncrypt(const char* data, ssize_t data_length,
+                      char*& encrypted_data, ssize_t& encrypted_length,
+                      char* key)
+{
+  // Set the initialization vector so that the encrypted text is unique
+  uint_fast8_t iv[EVP_MAX_IV_LENGTH];
+  sprintf((char*)iv, "$KJh#(}q");
+  const EVP_CIPHER* cipher = EVP_des_cbc();
+
+  if (!cipher) {
+    return false;
+  }
+
+  // This is slow, but we really don't care here for small messages
+  int buff_capacity = data_length + EVP_CIPHER_block_size(cipher);
+  char* encrypt_buff = (char*) malloc(buff_capacity);
+
+  if (!encrypt_buff) {
+    return false;
+  }
+
+  uint_fast8_t* fast_ptr = (uint_fast8_t*)encrypt_buff;
+  encrypted_length = 0;
+  EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+  EVP_CIPHER_CTX_init(ctx);
+  EVP_EncryptInit_ex(ctx, cipher, 0, (const unsigned char*)key, iv);
+
+  if (!(EVP_EncryptUpdate(ctx, fast_ptr, (int*)&encrypted_length,
+                          (uint_fast8_t*)data, data_length))) {
+    EVP_CIPHER_CTX_free(ctx);
+    free(encrypt_buff);
+    return false;
+  }
+
+  if (encrypted_length < 0) {
+    EVP_CIPHER_CTX_free(ctx);
+    free(encrypt_buff);
+    return false;
+  }
+
+  fast_ptr += encrypted_length;
+  int tmplen = 0;
+
+  if (!(EVP_EncryptFinal(ctx, fast_ptr, &tmplen))) {
+    EVP_CIPHER_CTX_free(ctx);
+    free(encrypt_buff);
+    return false;
+  }
+
+  encrypted_length += tmplen;
+
+  if (encrypted_length > buff_capacity) {
+    EVP_CIPHER_CTX_free(ctx);
+    free(encrypt_buff);
+    return false;
+  }
+
+  encrypted_data = encrypt_buff;
+  EVP_CIPHER_CTX_free(ctx);
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Cipher decrypt
+//------------------------------------------------------------------------------
+bool
+SymKey::CipherDecrypt(char* encrypted_data, ssize_t encrypted_length,
+                      char*& data, ssize_t& data_length, char* key, bool noerror)
+{
+  // Set the initialization vector
+  uint_fast8_t iv[EVP_MAX_IV_LENGTH];
+  sprintf((char*)iv, "$KJh#(}q");
+  const EVP_CIPHER* cipher = EVP_des_cbc();
+
+  if (!cipher) {
+    return false;
+  }
+
+  // This is slow, but we really don't care here for small messages. We're
+  // going to null terminate the text under the assumption it's non-null
+  // terminated ASCII text.
+  int buff_capacity = encrypted_length + EVP_CIPHER_block_size(cipher) + 1;
+  data = (char*) malloc(buff_capacity);
+
+  if (!data) {
+    return false;
+  }
+
+  uint_fast8_t* fast_ptr = (uint_fast8_t*)data;
+  data_length = 0;
+  EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+  EVP_CIPHER_CTX_init(ctx);
+  EVP_DecryptInit_ex(ctx, cipher, 0, (const unsigned char*) key, iv);
+  int decrypt_len = 0;
+
+  if (!EVP_DecryptUpdate(ctx, fast_ptr, &decrypt_len,
+                         (uint_fast8_t*)encrypted_data, encrypted_length)) {
+    EVP_CIPHER_CTX_free(ctx);
+    free(data);
+    return false;
+  }
+
+  if (decrypt_len < 0) {
+    EVP_CIPHER_CTX_free(ctx);
+    free(data);
+    return false;
+  }
+
+  fast_ptr += decrypt_len;
+  int tmplen = 0;
+
+  if (!EVP_DecryptFinal(ctx, fast_ptr, &tmplen)) {
+    if (!noerror) {
+      std::cerr << __FUNCTION__ << "errno=" <<  EINVAL
+                << " msg=\"Unable to finalize cipher block\"" << std::endl;
+    }
+
+    EVP_CIPHER_CTX_free(ctx);
+    free(data);
+    return false;
+  }
+
+  data_length = decrypt_len + tmplen;
+
+  if (data_length > buff_capacity) {
+    EVP_CIPHER_CTX_free(ctx);
+    free(data);
+    return false;
+  }
+
+  // Null terminate the decrypted buffer
+  data[data_length] = 0;
+  EVP_CIPHER_CTX_free(ctx);
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Encrypt string and base64 encode it
+//------------------------------------------------------------------------------
+bool
+SymKey::SymmetricStringEncrypt(XrdOucString& in, XrdOucString& out, char* key)
+{
+  char* tmpbuf = 0;
+  ssize_t tmpbuflen = 0;
+
+  if (!CipherEncrypt(in.c_str(), in.length(), tmpbuf, tmpbuflen, key)) {
+    return false;
+  }
+
+  std::string b64out;
+
+  if (!Base64Encode(tmpbuf, tmpbuflen, b64out)) {
+    free(tmpbuf);
+    return false;
+  }
+
+  out = b64out.c_str();
+  free(tmpbuf);
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Decrypt base64 encoded string
+//------------------------------------------------------------------------------
+bool
+SymKey::SymmetricStringDecrypt(XrdOucString& in, XrdOucString& out, char* key)
+{
+  char* tmpbuf = 0;
+  ssize_t tmpbuflen;
+
+  if (!Base64Decode((char*)in.c_str(), tmpbuf, tmpbuflen)) {
+    free(tmpbuf);
+    return false;
+  }
+
+  char* data;
+  ssize_t data_len;
+
+  if (!CipherDecrypt(tmpbuf, tmpbuflen, data, data_len, key, true)) {
+    free(tmpbuf);
+    return false;
+  }
+
+  out = data;
+  free(tmpbuf);
+  free(data);
+  return true;
 }
 
 EOSCOMMONNAMESPACE_END

@@ -41,7 +41,7 @@ ProcCommand::Motd()
   if (motdupload.length() &&
       ((!pVid->uid) || vid.hasUid(3) || vid.hasGid(4))) {
     // root + admins can set the MOTD
-    size_t motdlen = 0;
+    ssize_t motdlen = 0;
     char* motdout = 0;
     eos_info("decoding motd\n");
 

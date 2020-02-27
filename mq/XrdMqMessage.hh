@@ -39,12 +39,12 @@
 #define XMQCADVISORYSTATUS       "xmqclient.advisory.status"
 #define XMQCADVISORYQUERY        "xmqclient.advisory.query"
 #define XMQCADVISORYFLUSHBACKLOG "xmqclient.advisory.flushbacklog"
-#define XMQCIPHER EVP_des_cbc
 
 //------------------------------------------------------------------------------
 //! Class KeyWrapper
 //------------------------------------------------------------------------------
-class KeyWrapper {
+class KeyWrapper
+{
 public:
 
   //----------------------------------------------------------------------------
@@ -52,25 +52,27 @@ public:
   //!
   //! By constructing this object, you give up ownership of the pointer!
   //----------------------------------------------------------------------------
-  KeyWrapper(EVP_PKEY *key) : pkey(key) { }
+  KeyWrapper(EVP_PKEY* key) : pkey(key) { }
   KeyWrapper() {}
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~KeyWrapper() {
-    if(pkey) {
+  ~KeyWrapper()
+  {
+    if (pkey) {
       EVP_PKEY_free(pkey);
       pkey = nullptr;
     }
   }
 
-  EVP_PKEY* get() {
+  EVP_PKEY* get()
+  {
     return pkey;
   }
 
 private:
-  EVP_PKEY *pkey = nullptr;
+  EVP_PKEY* pkey = nullptr;
 };
 
 //------------------------------------------------------------------------------
@@ -219,72 +221,6 @@ public:
   virtual bool Decode();
 
   //----------------------------------------------------------------------------
-  //! Base64 encode
-  //!
-  //! @param decoded_bytes input data
-  //! @param decoded_length input length
-  //! @param out encoded data
-  //!
-  //! @return true if encoding successful, otherwise false
-  //----------------------------------------------------------------------------
-  static bool Base64Encode(const char* decoded_bytes, ssize_t decoded_length,
-                           std::string& out);
-
-  //----------------------------------------------------------------------------
-  //! Base64 decode
-  //!
-  //! @param encoded_bytes input data
-  //! @param decoded_bytes output data
-  //! @param decoded_length output length
-  //!
-  //! @return true if decoding successful, otherwise false
-  //----------------------------------------------------------------------------
-  static bool Base64Decode(const char* encoded_bytes, char*& decoded_bytes,
-                           ssize_t& decoded_length);
-
-
-  //----------------------------------------------------------------------------
-  //! Base64 decode (broken version from old release for compatibility)
-  //!
-  //! @param encoded bytes string
-  //! @param decoded bytes output string
-  //! @param decoded bytes length
-  //!
-  //! @return true if decoding successful, otherwise false
-  //----------------------------------------------------------------------------
-  static bool Base64DecodeBroken(XrdOucString& in, char*& out, ssize_t& outlen);
-  //----------------------------------------------------------------------------
-  //! Cipher encrypt using provided key
-  //!
-  //! @param data data to be encrypted
-  //! @param data_length length of the data
-  //! @param encrypted_data output encrypted data. It's not necessarily null
-  //!        terminated and could contain embedded nulls.
-  //! @param encrypted_length output data length
-  //! @param key cipher key whose length must be SHA_DIGEST_LENGTH (20)
-  //!
-  //! @return true if encryption successful, otherwise false
-  //----------------------------------------------------------------------------
-  static bool CipherEncrypt(const char* data, ssize_t data_length,
-                            char*& encrypted_data, ssize_t& encrypted_length,
-                            char* key);
-
-  //----------------------------------------------------------------------------
-  //! Cipher decrypt using provided key
-  //!
-  //! @param encrypted_data input encrypted data
-  //! @param encrypted_length input data length
-  //! @param data decrypted data pointer for which the caller takes ownership
-  //! @param data_length length of the decrypted data
-  //! @param key cipher key whose length must be SHA_DIGEST_LENGTH (20)
-  //! @param noerror flag - if true disable error printing in the function
-  //!
-  //! @return true if decryption successful, otherwise false
-  //----------------------------------------------------------------------------
-  static bool CipherDecrypt(char* encrypted_data, ssize_t encrypted_length,
-                            char*& data, ssize_t& data_length, char* key, bool noerror = false);
-
-  //----------------------------------------------------------------------------
   //! RSA encrypt using private key
   //!
   //! @param data input data
@@ -327,20 +263,6 @@ public:
   bool Verify();
 
   //----------------------------------------------------------------------------
-  //!
-  //! key length is SHA_DIGEST_LENGTH
-  //----------------------------------------------------------------------------
-  static bool SymmetricStringEncrypt(XrdOucString& in, XrdOucString& out,
-                                     char* key);
-
-  //----------------------------------------------------------------------------
-  //!
-  //! key length is SHA_DIGEST_LENGTH
-  //----------------------------------------------------------------------------
-  static bool SymmetricStringDecrypt(XrdOucString& in, XrdOucString& out,
-                                     char* key);
-
-  //----------------------------------------------------------------------------
   //! Print contents of the message object
   //----------------------------------------------------------------------------
   virtual void Print();
@@ -373,6 +295,7 @@ public:
   static const char* Seal(XrdOucString& s, const char* seal = "#and#")
   {
     while (s.replace("&", seal)) {};
+
     return s.c_str();
   }
 
@@ -388,6 +311,7 @@ public:
   static const char* UnSeal(XrdOucString& s, const char* seal = "#and#")
   {
     while (s.replace(seal, "&")) {};
+
     return s.c_str();
   }
 

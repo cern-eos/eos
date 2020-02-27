@@ -22,13 +22,13 @@
  ************************************************************************/
 
 #include "XrdOuc/XrdOucEnv.hh"
-#include "authz/XrdCapability.hh"
 #include "fst/storage/Storage.hh"
 #include "fst/Messaging.hh"
 #include "fst/Deletion.hh"
 #include "fst/Verify.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/FmdDbMap.hh"
+#include "common/SymKeys.hh"
 #include "common/ShellCmd.hh"
 
 EOSFSTNAMESPACE_BEGIN
@@ -136,7 +136,7 @@ Messaging::Process(XrdMqMessage* newmessage)
     XrdOucEnv* capOpaque = NULL;
     int caprc = 0;
 
-    if ((caprc = gCapabilityEngine.Extract(&action, capOpaque))) {
+    if ((caprc = eos::common::SymKey::ExtractCapability(&action, capOpaque))) {
       // no capability - go away!
       if (capOpaque) {
         delete capOpaque;

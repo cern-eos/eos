@@ -33,7 +33,6 @@
 #include "fst/layout/LayoutPlugin.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/storage/FileSystem.hh"
-#include "authz/XrdCapability.hh"
 #include "XrdOss/XrdOssApi.hh"
 #include "fst/io/FileIoPluginCommon.hh"
 #include "namespace/utils/Etag.hh"
@@ -2511,7 +2510,7 @@ XrdFstOfsFile::ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client)
       // Store also the decoded capability info
       XrdOucEnv tmp_env(opaque.c_str());
       XrdOucEnv* cap_env {nullptr};
-      int caprc = gCapabilityEngine.Extract(&tmp_env, cap_env);
+      int caprc = eos::common::SymKey::ExtractCapability(&tmp_env, cap_env);
 
       if (caprc == ENOKEY) {
         delete cap_env;
@@ -2647,7 +2646,8 @@ XrdFstOfsFile::ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client)
       (mTpcFlag == kTpcSrcCanDo)) {
     mOpenOpaque.reset(new XrdOucEnv(opaque.c_str()));
     XrdOucEnv* ptr_opaque {nullptr};
-    int caprc = gCapabilityEngine.Extract(mOpenOpaque.get(), ptr_opaque);
+    int caprc = eos::common::SymKey::ExtractCapability(mOpenOpaque.get(),
+                ptr_opaque);
     mCapOpaque.reset(ptr_opaque);
 
     if (caprc) {

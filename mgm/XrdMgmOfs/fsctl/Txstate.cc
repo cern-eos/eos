@@ -72,7 +72,7 @@ XrdMgmOfs::Txstate(const char* path,
 
     if (sstate) {
       char* logout = 0;
-      size_t loglen = 0;
+      ssize_t loglen = 0;
 
       if (logb64) {
         XrdOucString slogb64 = logb64;

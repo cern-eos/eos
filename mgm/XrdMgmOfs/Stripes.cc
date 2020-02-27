@@ -583,6 +583,7 @@ XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
  */
 /*----------------------------------------------------------------------------*/
 {
+  using namespace eos::common;
   using eos::common::LayoutId;
   static const char* epname = "replicatestripe";
   unsigned long long fid = fmd->getId();
@@ -736,13 +737,14 @@ XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
   XrdOucEnv* source_capabilityenv = 0;
   XrdOucEnv* target_capabilityenv = 0;
   XrdOucString fullcapability = "";
-  eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
+  SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
   int caprc = 0;
 
-  if ((caprc = gCapabilityEngine.Create(&insource_capability,
+  if ((caprc = SymKey::CreateCapability(&insource_capability,
                                         source_capabilityenv,
                                         symkey, mCapabilityValidity)) ||
-      (caprc = gCapabilityEngine.Create(&intarget_capability, target_capabilityenv,
+      (caprc = SymKey::CreateCapability(&intarget_capability,
+                                        target_capabilityenv,
                                         symkey, mCapabilityValidity))) {
     eos_err("unable to create source/target capability - errno=%u", caprc);
     errno = caprc;

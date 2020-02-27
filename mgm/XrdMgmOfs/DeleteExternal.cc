@@ -45,9 +45,7 @@ XrdMgmOfs::DeleteExternal(eos::common::FileSystem::fsid_t fsid,
  */
 /*----------------------------------------------------------------------------*/
 {
-  // ---------------------------------------------------------------------------
-  // send an explicit deletion message to any fsid/fid pair
-  // ---------------------------------------------------------------------------
+  using namespace eos::common;
   XrdMqMessage message("deletion");
   eos::mgm::FileSystem* fs = 0;
   XrdOucString receiver = "";
@@ -57,7 +55,6 @@ XrdMgmOfs::DeleteExternal(eos::common::FileSystem::fsid_t fsid,
   // get the filesystem from the FS view
   {
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-
     fs = FsView::gFsView.mIdView.lookupByID(fsid);
 
     if (fs) {
@@ -78,10 +75,10 @@ XrdMgmOfs::DeleteExternal(eos::common::FileSystem::fsid_t fsid,
   if (fs) {
     XrdOucEnv incapability(capability.c_str());
     XrdOucEnv* capabilityenv = 0;
-    eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
+    SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
     int caprc = 0;
 
-    if ((caprc = gCapabilityEngine.Create(&incapability, capabilityenv, symkey,
+    if ((caprc = SymKey::CreateCapability(&incapability, capabilityenv, symkey,
                                           mCapabilityValidity))) {
       eos_static_err("unable to create capability - errno=%u", caprc);
     } else {

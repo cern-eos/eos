@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "authz/XrdCapability.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/XrdFstOss.hh"
 #include "fst/FmdDbMap.hh"
@@ -42,6 +41,7 @@
 #include "common/Constants.hh"
 #include "common/StringConversion.hh"
 #include "common/StringTokenizer.hh"
+#include "common/SymKeys.hh"
 #include "common/XattrCompat.hh"
 #include "mq/SharedHashWrapper.hh"
 #include "XrdNet/XrdNetOpts.hh"
@@ -1348,7 +1348,7 @@ XrdFstOfs::rem(const char* path,
   XrdOucEnv* capOpaque = 0;
   int caprc = 0;
 
-  if ((caprc = gCapabilityEngine.Extract(&openOpaque, capOpaque))) {
+  if ((caprc = eos::common::SymKey::ExtractCapability(&openOpaque, capOpaque))) {
     // No capability - go away!
     if (capOpaque) {
       delete capOpaque;

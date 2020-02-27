@@ -27,13 +27,12 @@
 //! @brief Classs implementing a symmetric key store and CODEC facility
 //------------------------------------------------------------------------------
 
-#ifndef __EOSCOMMON_SYMKEYS__HH__
-#define __EOSCOMMON_SYMKEYS__HH__
-
+#pragma once
 #include "common/Namespace.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include <google/protobuf/message.h>
 #include <openssl/sha.h>
 #include <time.h>
@@ -49,17 +48,85 @@ EOSCOMMONNAMESPACE_BEGIN
 ///-----------------------------------------------------------------------------
 class SymKey
 {
-private:
-  static XrdSysMutex msMutex; ///< mutex for protecting the access to OpenSSL
-  char key[SHA_DIGEST_LENGTH + 1]; //< the symmetric key in binary format
-  //! the digest of the key  in binary format
-  char keydigest[SHA_DIGEST_LENGTH + 1];
-  //! the digest of the key in base64 format
-  char keydigest64[SHA_DIGEST_LENGTH * 2];
-  XrdOucString key64; //< the key in base64 format
-  time_t validity; //< unix time when the validity of the key stops
-
 public:
+  //----------------------------------------------------------------------------
+  //! Cipher encrypt using provided key
+  //!
+  //! @param data data to be encrypted
+  //! @param data_length length of the data
+  //! @param encrypted_data output encrypted data. It's not necessarily null
+  //!        terminated and could contain embedded nulls.
+  //! @param encrypted_length output data length
+  //! @param key cipher key whose length must be SHA_DIGEST_LENGTH (20)
+  //!
+  //! @return true if encryption successful, otherwise false
+  //----------------------------------------------------------------------------
+  static bool CipherEncrypt(const char* data, ssize_t data_length,
+                            char*& encrypted_data, ssize_t& encrypted_length,
+                            char* key);
+
+  //----------------------------------------------------------------------------
+  //! Cipher decrypt using provided key
+  //!
+  //! @param encrypted_data input encrypted data
+  //! @param encrypted_length input data length
+  //! @param data decrypted data pointer for which the caller takes ownership
+  //! @param data_length length of the decrypted data
+  //! @param key cipher key whose length must be SHA_DIGEST_LENGTH (20)
+  //! @param noerror flag - if true disable error printing in the function
+  //!
+  //! @return true if decryption successful, otherwise false
+  //----------------------------------------------------------------------------
+  static bool CipherDecrypt(char* encrypted_data, ssize_t encrypted_length,
+                            char*& data, ssize_t& data_length, char* key, bool noerror = false);
+
+  //----------------------------------------------------------------------------
+  //! Encrypt string and base64 encode it
+  //!
+  //! @param in input string
+  //! @param out output string
+  //! @param key symmetric key used for encryption
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  static bool SymmetricStringEncrypt(XrdOucString& in, XrdOucString& out,
+                                     char* key);
+
+  //----------------------------------------------------------------------------
+  //! Decrypt base64 encoded string
+  //!
+  //! @param in base64 encoded encrypted string
+  //! @param out decoded and decrypted string
+  //! @param key symmetric key used for decryption
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  static bool SymmetricStringDecrypt(XrdOucString& in, XrdOucString& out,
+                                     char* key);
+
+  //----------------------------------------------------------------------------
+  //! Create EOS specific capability and append to the output env object
+  //!
+  //! @param inenv input env object
+  //! @param outenv output env object
+  //! @param key key object used for encrypting the capability
+  //! @param validity duration for which the capability is valid
+  //!
+  //! @return 0 if successful, otherwise errno
+  //----------------------------------------------------------------------------
+  static int CreateCapability(XrdOucEnv* inenv, XrdOucEnv*& outenv,
+                              SymKey* key, std::chrono::seconds validity);
+
+  //----------------------------------------------------------------------------
+  //! Extract EOS specific capability encoded in the env object
+  //!
+  //! @param inenv input env object
+  //! @param outenv output env object
+  //!
+  //! @return 0 if successful, otherwise errno
+  //----------------------------------------------------------------------------
+  static int ExtractCapability(XrdOucEnv* inenv, XrdOucEnv*& outenv);
+
   //----------------------------------------------------------------------------
   //! Compute the HMAC SHA-256 value of the data passed as input
   //!
@@ -77,7 +144,6 @@ public:
                                 std::string& data,
                                 unsigned int blockSize = 64,
                                 unsigned int resultSize = 32);
-
 
   //----------------------------------------------------------------------------
   //! Compute the SHA-256 value of the data passed as input
@@ -103,17 +169,16 @@ public:
   //----------------------------------------------------------------------------
   static std::string HmacSha1(std::string& data, const char* key = NULL);
 
-
   //----------------------------------------------------------------------------
   //! Base64 encode a string - base function
   //!
-  //! @param in input data
-  //! @param inline input data length
+  //! @param decoded_bytes input data
+  //! @param decoded_length input data length
   //! @param out encoded data in std::string
   //!
   //! @return true if succesful, otherwise false
   //----------------------------------------------------------------------------
-  static bool Base64Encode(const char* in, unsigned int inlen,
+  static bool Base64Encode(const char* decoded_bytes, ssize_t decoded_length,
                            std::string& out);
 
   //----------------------------------------------------------------------------
@@ -125,7 +190,7 @@ public:
   //!
   //! @return true if succesful, otherwise false
   //----------------------------------------------------------------------------
-  static bool Base64Encode(char* in, unsigned int inlen, XrdOucString& out);
+  static bool Base64Encode(const char* in, unsigned int inlen, XrdOucString& out);
 
   //----------------------------------------------------------------------------
   //! Base64 decode data, output as char* and length
@@ -134,7 +199,8 @@ public:
   //! @param out decoded data
   //! @param outlen decoded data length
   //----------------------------------------------------------------------------
-  static bool Base64Decode(const char* in, char*& out, size_t& outlen);
+  static bool Base64Decode(const char* encoded_bytes, char*& decoded_bytes,
+                           ssize_t& decoded_length);
 
   //----------------------------------------------------------------------------
   //! Base64 decode data, output as string
@@ -151,7 +217,7 @@ public:
   //! @param out decoded data
   //! @param outlen decoded data length
   //----------------------------------------------------------------------------
-  static bool Base64Decode(XrdOucString& in, char*& out, size_t& outlen);
+  static bool Base64Decode(XrdOucString& in, char*& out, ssize_t& outlen);
 
   //----------------------------------------------------------------------------
   //! Decode a base64: prefixed string
@@ -195,14 +261,13 @@ public:
   //!
   //! @param inkey binary key of SHA_DIGEST_LENGTH
   //! @param invalidity unix time stamp when the key becomes invalid
-  //!
   //----------------------------------------------------------------------------
   SymKey(const char* inkey, time_t invalidity);
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~SymKey() { }
+  ~SymKey() = default;
 
   //----------------------------------------------------------------------------
   //! Output a key and it's digest to stderr
@@ -222,8 +287,7 @@ public:
   //----------------------------------------------------------------------------
   //! Return the binary key
   //----------------------------------------------------------------------------
-  const char*
-  GetKey()
+  inline const char* GetKey()
   {
     return key;
   }
@@ -231,8 +295,7 @@ public:
   //----------------------------------------------------------------------------
   //! Return the base64 encoded key
   //----------------------------------------------------------------------------
-  const char*
-  GetKey64()
+  inline const char* GetKey64()
   {
     return key64.c_str();
   }
@@ -240,8 +303,7 @@ public:
   //----------------------------------------------------------------------------
   //! Return the binary key digest
   //----------------------------------------------------------------------------
-  const char*
-  GetDigest()
+  inline const char* GetDigest()
   {
     return keydigest;
   }
@@ -249,19 +311,17 @@ public:
   //----------------------------------------------------------------------------
   //! Return the base64 encoded digest
   //----------------------------------------------------------------------------
-  const char*
-  GetDigest64()
+  inline const char* GetDigest64()
   {
     return keydigest64;
   }
 
   //----------------------------------------------------------------------------
-  //! Return the expiration time stamp of the key
+  //! Return the expiration timestamp of the key
   //----------------------------------------------------------------------------
-  time_t
-  GetValidity()
+  inline time_t GetValidity()
   {
-    return validity;
+    return mValidity;
   }
 
   //----------------------------------------------------------------------------
@@ -270,10 +330,10 @@ public:
   bool
   IsValid()
   {
-    if (!validity) {
+    if (!mValidity) {
       return true;
     } else {
-      return ((time(0) + EOSCOMMONSYMKEYS_GRACEPERIOD) > validity);
+      return ((time(0) + EOSCOMMONSYMKEYS_GRACEPERIOD) > mValidity);
     }
   }
 
@@ -286,6 +346,15 @@ public:
     return new SymKey(inkey, validity);
   }
 
+private:
+  static XrdSysMutex msMutex; ///< mutex for protecting the access to OpenSSL
+  char key[SHA_DIGEST_LENGTH + 1]; //< the symmetric key in binary format
+  //! the digest of the key in binary format
+  char keydigest[SHA_DIGEST_LENGTH + 1];
+  //! the digest of the key in base64 format
+  char keydigest64[SHA_DIGEST_LENGTH * 2];
+  XrdOucString key64; //< the key in base64 format
+  time_t mValidity; //< unix time when the validity of the key stops
 };
 
 //------------------------------------------------------------------------------
@@ -333,6 +402,5 @@ public:
   SymKey* GetCurrentKey();
 };
 
-extern SymKeyStore gSymKeyStore; //< global SymKey store singleton
+extern SymKeyStore gSymKeyStore; //< Global SymKey store singleton
 EOSCOMMONNAMESPACE_END
-#endif

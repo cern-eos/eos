@@ -56,7 +56,7 @@ add_executable(eos-mmap EosMmap.cc)
 add_executable(eoshashbench EosHashBenchmark.cc)
 add_executable(eos-io-tool eos_io_tool.cc)
 add_executable(eos-open-trunc-update EosOpenTruncUpdate.cc)
-
+add_executable(eos-crypto-timing-test EosCryptoTimingTest.cc)
 
 add_executable(
   testhmacsha256
@@ -86,6 +86,7 @@ target_link_libraries(xrdcpslowwriter ${XROOTD_CL_LIBRARY})
 target_link_libraries(eoshashbench EosCommon ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(testhmacsha256 EosCommon ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(eos-open-trunc-update ${XROOTD_CL_LIBRARY} ${XROOTD_POSIX_LIBRARY} ${XROOTD_UTILS_LIBRARY})
+target_link_libraries(eos-crypto-timing-test PRIVATE EosCommon)
 target_link_libraries(eos-udp-dumper)
 
 target_link_libraries(
