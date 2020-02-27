@@ -56,12 +56,14 @@ ConvertCmd::ProcessRequest() noexcept
     (mReqProto.format() == eos::console::RequestProto::JSON);
 
   if (!gOFS->mConverterDriver) {
-    reply.set_std_err("error: ConverterEngine is disabled");
+    reply.set_std_err("error: ConverterEngine service is not enabled");
     reply.set_retc(ENOTSUP);
     return reply;
   }
 
-  if (subcmd == eos::console::ConvertProto::kStatus) {
+  if (subcmd == eos::console::ConvertProto::kAction) {
+    ActionSubcmd(convert.action(), reply);
+  } else if (subcmd == eos::console::ConvertProto::kStatus) {
     StatusSubcmd(convert.status(), reply, jsonOutput);
   } else if (subcmd == eos::console::ConvertProto::kFile) {
     FileSubcmd(convert.file(), reply, jsonOutput);
@@ -73,6 +75,27 @@ ConvertCmd::ProcessRequest() noexcept
   }
 
   return reply;
+}
+
+//------------------------------------------------------------------------------
+// Execute action subcommand
+//------------------------------------------------------------------------------
+void ConvertCmd::ActionSubcmd(
+  const eos::console::ConvertProto_ActionProto& action,
+  eos::console::ReplyProto& reply)
+{
+  std::ostringstream out;
+  auto converter_action = action.action();
+
+  if (converter_action == eos::console::ConvertProto_ActionProto::ENABLE) {
+    gOFS->mConverterDriver->Start();
+    out << "ConverterEngine started";
+  } else {
+    gOFS->mConverterDriver->Stop();
+    out << "ConverterEngine stopped";
+  }
+
+  reply.set_std_out(out.str());
 }
 
 //------------------------------------------------------------------------------
@@ -107,10 +130,12 @@ void ConvertCmd::StatusSubcmd(
   uint64_t failed = gOFS->mConverterDriver->NumFailedJobs();
   int64_t pending = gOFS->mConverterDriver->NumQdbPendingJobs();
   int64_t failed_qdb = gOFS->mConverterDriver->NumQdbFailedJobs();
+  auto state = gOFS->mConverterDriver->IsRunning() ? "enabled" : "disabled";
 
   if (jsonOutput) {
     Json::Value json;
     json["threadpool"] = parseThreadpool(threadpool.c_str());
+    json["status"] = state;
     json["running"] = (Json::Value::UInt64) running;
     json["pending"] = (Json::Value::UInt64) pending;
     json["failed"] = (Json::Value::UInt64) failed;
@@ -118,6 +143,7 @@ void ConvertCmd::StatusSubcmd(
     out << Json::StyledWriter().write(json);
   } else {
     out << "Threadpool: " << threadpool << std::endl
+        << "Status: " << state << std::endl
         << "Running jobs: " << running << std::endl
         << "Pending jobs: " << pending << std::endl
         << "Failed jobs: " << failed << std::endl
