@@ -21,11 +21,10 @@ default:
 # Prebuild @note stick to v0.16.0 until < https://github.com/GoogleContainerTools/kaniko/issues/1038 > is fixed
 #-------------------------------------------------------------------------------
 
-# @todo commit a :stable image manually, and a :latest on daily schedules
 .prebuid-template: &prebuild-template_definition
   stage: prebuild
   image:
-    name: gcr.io/kaniko-project/executor:v0.16.0
+    name: gcr.io/kaniko-project/executor:debug-v0.16.0
     entrypoint: [""]
   script:
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
@@ -38,58 +37,51 @@ default:
   only:
     - schedules
 
-.prebuild-cc7:
+prebuild-cc7:
   <<: *prebuild-template_definition
   variables:
     PREBUILD_NAME: cc7
-  only:
-    - schedules
 
-.prebuid-slc6:
+prebuid-slc6:
   <<: *prebuild-template_definition
   variables:
     PREBUILD_NAME: slc6
 
-.prebuild-c8:
+prebuild-c8:
   <<: *prebuild-template_definition
   variables:
     PREBUILD_NAME: c8
 
-.prebuild-cc7_asan:
+prebuild-cc7_asan:
   <<: *prebuild-template_definition
   variables:
     PREBUILD_NAME: cc7_asan
     CMAKE_OPTIONS: "-DASAN=1"
     CXXFLAGS: "-Wno-parentheses"  # Avoid boost header compilation errors
-  allow_failure: true
 
-.prebuild-cc7_clang:
+prebuild-cc7_clang:
   <<: *prebuild-template_definition
   variables:
     PREBUILD_NAME: cc7_clang
     CMAKE_OPTIONS: "-DCLANG_BUILD=1"
-  allow_failure: true
 
-.prebuild-cc7_xrd_cta:
+prebuild-cc7_xrd_cta:
   <<: *prebuild-template_definition
   variables:
     PREBUILD_NAME: cc7_xrd_cta
-  allow_failure: true
 
-.prebuild-cc7_xrd_testing:
+prebuild-cc7_xrd_testing:
   <<: *prebuild-template_definition
   variables:
     PREBUILD_NAME: cc7_xrd_testing
-  allow_failure: true
 
-.prebuild-cc7_coverage:
+prebuild-cc7_coverage:
   <<: *prebuild-template_definition
   variables:
     PREBUILD_NAME: cc7_coverage
   only:
     variables:
       - $COVERAGE_SCHEDULE
-  allow_failure: true
 
 #-------------------------------------------------------------------------------
 # Build RPMs
@@ -97,10 +89,8 @@ default:
 
 build_cc7:
   stage: build:rpm
-  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7
   script:
-    - date
-    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar ccache sl-release-scl
     - git submodule update --init --recursive
     - mkdir build
     - cd build/
@@ -110,9 +100,7 @@ build_cc7:
     - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n' >> /etc/yum.repos.d/eos-depend.repo
     - yum-builddep --nogpgcheck --setopt="cern*.exclude=xrootd*" -y build/SRPMS/*
     - if [ "$COMMIT_TYPE" == "tag" ]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache.sh; fi
-    - date
-    - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
-    - date
+    - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | ts
     - ccache -s
     - if [ "$COMMIT_TYPE" == "tag" ]; then gpg --allow-secret-key-import --import /keys/stci-debian-repo.sec; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
     - mkdir cc7_artifacts; cp -R build/SRPMS/ build/RPMS/ cc7_artifacts
@@ -130,10 +118,8 @@ build_cc7:
 
 build_slc6:
   stage: build:rpm
-  image: gitlab-registry.cern.ch/linuxsupport/slc6-base
+  image: gitlab-registry.cern.ch/dss/eos/prebuild-slc6
   script:
-    - date
-    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar ccache sl-release-scl
     # Install custom cmake version that has minimal support for features needed
     # by EOS i.e. anything >= 3.12 works fine. To be dropped together with SLC6
     # support.
@@ -147,14 +133,10 @@ build_slc6:
     - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-6/x86_64/\ngpgcheck=0\nenabled=1\npriority=1\n' >> /etc/yum.repos.d/eos-depend.repo
     - yum-builddep --nogpgcheck --setopt="cern*.exclude=xrootd*" -y build/SRPMS/*
     - if [ "$COMMIT_TYPE" == "tag" ]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache_slc6.sh; fi
-    - date
-    - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
-    - date
+    - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | ts
     - ccache -s
     - if [ "$COMMIT_TYPE" == "tag" ]; then gpg --allow-secret-key-import --import /keys/stci-debian-repo.sec; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
-    - mkdir slc6_artifacts
-    - cp -R build/SRPMS slc6_artifacts
-    - cp -R build/RPMS slc6_artifacts
+    - mkdir slc6_artifacts; cp -R build/SRPMS build/RPMS slc6_artifacts
   cache:
     key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
     paths:
@@ -225,8 +207,7 @@ clone_docker:
     - if [[ $CI_COMMIT_TAG ]]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache_deb.sh; fi
     - dpkg-buildpackage -b -us -uc -tc --buildinfo-option="-udeb_packages" --changes-option="-udeb_packages"
     - ccache -s
-    - mkdir ${EOS_ARCH}_artifacts/
-    - cp deb_packages/*.deb ${EOS_ARCH}_artifacts
+    - mkdir ${EOS_ARCH}_artifacts/; cp deb_packages/*.deb ${EOS_ARCH}_artifacts
   cache:
     key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
     paths:
@@ -270,9 +251,7 @@ build_ubuntu_bionic:
     - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
     - ccache -s
     - if [ "$COMMIT_TYPE" == "tag" ]; then gpg2 --allow-secret-key-import --import /keys/stci-debian-repo.sec; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
-    - mkdir ${EOS_ARCH}_artifacts
-    - cp -R build/SRPMS ${EOS_ARCH}_artifacts
-    - cp -R build/RPMS ${EOS_ARCH}_artifacts
+    - mkdir ${EOS_ARCH}_artifacts; cp -R build/SRPMS build/RPMS ${EOS_ARCH}_artifacts
   cache:
     key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
     paths:
@@ -313,25 +292,21 @@ build_fedora_rawhide:
 
 build_c8:
   stage: build:rpm
-  image: gitlab-registry.cern.ch/linuxsupport/c8-base
+  image: gitlab-registry.cern.ch/dss/eos/prebuild-c8
   script:
-    - dnf install -y epel-release
-    - dnf install -y moreutils # just to install 'ts', nice to benchmark the build time
-    - dnf install --nogpg -y gcc-c++ cmake ccache make dnf-plugins-core python2 python3 python3-setuptools rpm-build rpm-sign which git tar | ts
     - git submodule update --init --recursive
     - mkdir build
     - cd build/
     - cmake ../ -DPACKAGEONLY=1
-    - make srpm | ts
+    - make srpm
     - cd ../
     - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-8/x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
-    - dnf builddep --nogpgcheck --allowerasing -y build/SRPMS/* | ts
+    - dnf builddep --nogpgcheck --allowerasing -y build/SRPMS/*
     - if [ "$COMMIT_TYPE" == "tag" ]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache.sh; fi
     - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | ts
     - ccache -s
     - if [ "$COMMIT_TYPE" == "tag" ]; then gpg2 --allow-secret-key-import --import /keys/stci-debian-repo.sec; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
-    - mkdir c8_artifacts
-    - cp -R build/SRPMS/ build/RPMS c8_artifacts
+    - mkdir c8_artifacts; cp -R build/SRPMS/ build/RPMS c8_artifacts
   cache:
     key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
     paths:
@@ -347,24 +322,21 @@ build_c8:
 
 .build_cc7_exotic-template: &build_cc7_exotic-template_definition
   stage: build:rpm
-  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  image: gitlab-registry.cern.ch/dss/eos/prebuild-${BUILD_NAME}
   script:
-    - yum install -y moreutils # just to install 'ts', nice to benchmark the build time
-    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar ccache sl-release-scl | ts
     - git submodule update --init --recursive
     - mkdir build
     - cd build/
     - cmake3 ../ -DPACKAGEONLY=1 ${CMAKE_OPTIONS}
-    - make srpm | ts
+    - make srpm
     - cd ../
     - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n' >> /etc/yum.repos.d/eos-depend.repo
-    - yum-builddep --nogpgcheck --setopt="cern*.exclude=xrootd*" -y build/SRPMS/* | ts
+    - yum-builddep --nogpgcheck --setopt="cern*.exclude=xrootd*" -y build/SRPMS/*
     - if [ "$COMMIT_TYPE" == "tag" ]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache.sh; fi
     - rpmbuild --rebuild --with server ${RPMBUILD_OPTIONS} --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | ts
     - ccache -s
     - if [ "$COMMIT_TYPE" == "tag" ]; then gpg --allow-secret-key-import --import /keys/stci-debian-repo.sec; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
-    - mkdir ${BUILD_NAME}_artifacts
-    - cp -R build/SRPMS/ build/RPMS/ ${BUILD_NAME}_artifacts
+    - mkdir ${BUILD_NAME}_artifacts; cp -R build/SRPMS/ build/RPMS/ ${BUILD_NAME}_artifacts
   cache:
     key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
     paths:
@@ -377,6 +349,9 @@ build_c8:
   allow_failure: true
   only:
     - schedules
+  tags:
+    - docker_node
+    - cc7
 
 build_cc7_asan:
   <<: *build_cc7_exotic-template_definition
@@ -385,8 +360,6 @@ build_cc7_asan:
     CMAKE_OPTIONS: "-DASAN=1"
     RPMBUILD_OPTIONS: "--with asan"
     CXXFLAGS: "-Wno-parentheses"    # Avoid boost header compilation errors
-  tags:
-    - docker_node
 
 build_cc7_clang:
   <<: *build_cc7_exotic-template_definition
@@ -394,9 +367,6 @@ build_cc7_clang:
     BUILD_NAME: cc7_clang
     CMAKE_OPTIONS: "-DCLANG_BUILD=1"
     RPMBUILD_OPTIONS: "--with clang"
-  tags:
-    - docker_node
-    - cc7
 
 build_cc7_xrd_testing: # Re-enable xrd_testing jobs once project ugprades to XRootD 5
   before_script:
@@ -410,9 +380,6 @@ build_cc7_xrd_testing: # Re-enable xrd_testing jobs once project ugprades to XRo
     BUILD_NAME: cc7_xrd_testing
   except:
     - tags
-  tags:
-    - docker_node
-    - cc7
 
 build_cc7_xrd_cta:
   # @note drop 'before_script:' once repos and specs are properly set elsewhere
@@ -427,9 +394,6 @@ build_cc7_xrd_cta:
   <<: *build_cc7_exotic-template_definition
   variables:
     BUILD_NAME: cc7_xrd_cta
-  tags:
-    - docker_node
-    - cc7
 
 build_cc7_coverage:
   <<: *build_cc7_exotic-template_definition
@@ -439,9 +403,6 @@ build_cc7_coverage:
   only:
     variables:
       - $COVERAGE_SCHEDULE
-  tags:
-    - docker_node
-    - cc7
 
 
 #-------------------------------------------------------------------------------
@@ -659,14 +620,14 @@ k8s_system:
   dependencies: []
   retry: 1
   tags:
-    - k8s_node
+    - shell-with-kubernetes
 
 k8s_fusex:
   <<: *dock8s_fusex_test_template
   dependencies: []
   retry: 1
   tags:
-    - k8s_node
+    - shell-with-kubernetes
 
 k8s_stress:
   stage: test
@@ -678,7 +639,7 @@ k8s_stress:
   dependencies: []
   retry: 1
   tags:
-    - k8s_node
+    - shell-with-kubernetes
 
 dock_system:
   <<: *dock8s_system_test_template
@@ -746,7 +707,7 @@ k8s_fusex_ubuntu:
     - schedules
     - tags
   tags:
-    - k8s_node
+    - shell-with-kubernetes
 
 k8s_system_c8:
   <<: *dock8s_system_test_template
@@ -759,7 +720,7 @@ k8s_system_c8:
   only:
     - schedules
   tags:
-    - k8s_node
+    - shell-with-kubernetes
 
 k8s_system_xt: # xt stands for xrd_testing. Must shorten to not hit HOST_NAME_MAX
   <<: *dock8s_system_test_template
@@ -771,8 +732,7 @@ k8s_system_xt: # xt stands for xrd_testing. Must shorten to not hit HOST_NAME_MA
   only:
     - schedules
   tags:
-    - shell-with-docker
-    - k8s_node
+    - shell-with-kubernetes
 
 dock_fusex_ubuntu:
   <<: *dock8s_fusex_test_template
@@ -1051,7 +1011,7 @@ clean_k8s_cluster:
       xargs --no-run-if-empty kubectl delete namespaces
   dependencies: []
   tags:
-    - k8s_node
+    - shell-with-kubernetes
   allow_failure: true
   only:
     - schedules
