@@ -2048,7 +2048,14 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
     {
       // stop sending more writes in case of unrecoverable errors
       XrdCl::Proxy* proxy = mFile->xrdiorw(req);
-      
+
+      // block writes on read-only fds
+      if (!proxy) {
+	errno = EROFS;
+	return -1;
+      }
+
+
       if (proxy->opening_state().IsError() &&
 	  ! proxy->opening_state_should_retry()) {
 	eos_err("unrecoverable error - code=%d errNo=%d",
