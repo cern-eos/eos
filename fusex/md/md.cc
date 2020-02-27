@@ -3272,8 +3272,13 @@ metad::pmap::lru_add(fuse_ino_t ino, shared_md md)
 
   // lru list insert with outside lock handling
   if (this->count(lru_first)) {
-    // connect the new inode to the head of the lru list
-    (*this)[lru_first]->set_lru_next(ino);
+    if ((*this)[lru_first]) {
+      // connect the new inode to the head of the lru list
+      (*this)[lru_first]->set_lru_next(ino);
+    } else {
+      // points to swapped-out entry
+      lru_last = ino;
+    }
   }
 
   lru_first = ino;
