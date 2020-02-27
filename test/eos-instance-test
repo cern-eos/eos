@@ -1377,6 +1377,62 @@ runtest "### FUSE stat " unix 0 "" shell stat "/eos/$EOS_TEST_INSTANCE/test/inst
 fi
 
 ################################################################################
+# eos FUSE tests
+################################################################################
+# ------------------------------------------------------------------------------
+categorie="fusex"
+# ------------------------------------------------------------------------------
+
+echo "### Running FUSEX tests ... disabling krb5/x509 ..."
+export X509_USER_PROXY=/tmp/invalid
+export KRB5CCNAME=/tmp/invalid
+
+test -d /test-fusex/ && umount -fl /test-fusex/
+test -d /test-fusex/ || mkdir /test-fusex/
+
+eosxd -ofsname=localhost.localdomain:/eos /test-fusex/
+
+ls -la /test-fusex/
+
+if [ -e "/test-fusex/$EOS_TEST_INSTANCE" ];
+then
+runtest "### Mkdir     " unix 0 "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex"
+runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex"
+runtest "### Attr Set  " unix 0 "" eos attr set sys.versioning=3 /eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/
+runtest "### Mkdir     " unix 0 "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/"
+runtest "### Mkdir     " unix 0 "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir2/"
+runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f1"
+runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f1"
+runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f2"
+runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f2"
+runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f2"
+runtest "### Fusex-Stat" unix 0 "" shell stat "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex"
+runtest "### Fusex-Stat" unix 0 "" shell stat "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/f1"
+runtest "### Fusex-Stat" unix 0 "" shell stat "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/f2"
+runtest "### Versions  " unix 0 "" eos file versions "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f1 | wc -l | grep -w 1"
+runtest "### Versions  " unix 0 "" eos file versions "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f2 | wc -l | grep -w 2"
+runtest "### Rename    " unix 0 "" shell mv -f /test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/f1 /test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/f2
+runtest "### Versions  " unix 1 "" eos file versions "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f1 | wc -l | grep -w 1"
+runtest "### Versions  " unix 0 "" eos file versions "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/f2 | wc -l | grep -w 1"
+runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/f1"
+runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/f1"
+runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/f1"
+runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir2/f1"
+runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir2/f1"
+runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/f2"
+runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir2/f2"
+runtest "### Versions  " unix 0 "" eos file versions "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/f1 | wc -l | grep -w 2"
+runtest "### Versions  " unix 0 "" eos file versions "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir2/f1 | wc -l | grep -w 1"
+runtest "### Rename    " unix 0 "" shell mv -f /test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/f1 /test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir2/f1
+runtest "### Rename    " unix 0 "" shell mv -f /test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/f2 /test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir2/f2
+runtest "### Versions  " unix 0 "" eos file versions "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir2/f2 | wc -l | grep -w 1"
+runtest "### Versions  " unix 0 "" eos file versions "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir2/f1 | wc -l | grep -w 2"
+runtest "### Cleanup"    unix 2 "" eos rm  "-r /eos/$EOS_TEST_INSTANCE/test/instancetest/fusex"
+test -d /test-fusex/ && umount -fl /test-fusex/
+test -d /test-fusex/ && rmdir /test-fusex/
+fi
+
+################################################################################
 # Third party copy tests
 ################################################################################
 # ------------------------------------------------------------------------------
