@@ -1267,7 +1267,7 @@ runtest "### Rmdir     " unix 0 "" eos rm -rf /eos/$EOS_TEST_INSTANCE/test/insta
 categorie="tag"
 # ------------------------------------------------------------------------------
 runtest "### Mkdir     " unix 0 "" eos mkdir /eos/$EOS_TEST_INSTANCE/test/instancetest/tag/
-runtest "### Touch     " unix 0 "" eos touch /eos/$EOS_TEST_INSTANCE/test/instancetest/tag/touch
+runtest "### Touch     " unix 0 "" eos touch -n /eos/$EOS_TEST_INSTANCE/test/instancetest/tag/touch
 runtest "### Tag       " unix 0 "" eos file tag /eos/$EOS_TEST_INSTANCE/test/instancetest/tag/touch +1
 runtest "### Tag       " unix 1 "" eos file tag /eos/$EOS_TEST_INSTANCE/test/instancetest/tag/touch +1
 runtest "### Tag       " unix 0 "" eos file tag /eos/$EOS_TEST_INSTANCE/test/instancetest/tag/touch ~1
