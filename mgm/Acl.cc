@@ -63,7 +63,9 @@ Acl::Acl(const char* path, XrdOucErrInfo& error,
          const eos::common::VirtualIdentity& vid,
          eos::IContainerMD::XAttrMap& attrmap, bool lockNs)
 {
-  gOFS->_attr_ls(path, error, vid, 0, attrmap, lockNs);
+  if (path && strlen(path)) {
+    gOFS->_attr_ls(path, error, vid, 0, attrmap, lockNs);
+  }
   // Set the acl rules from the attributes
   SetFromAttrMap(attrmap, vid);
 }
