@@ -97,6 +97,8 @@ add_library(EosCommon-Objects OBJECT
   table_formatter/TableFormatterBase.cc
   token/EosTok.cc)
 
+# Avoid warnings related to bfd_get_section* macros being redefined
+target_compile_options(EosCommon-Objects PRIVATE -Wno-macro-redefined)
 set_target_properties(EosCommon-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 

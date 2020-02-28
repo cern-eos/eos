@@ -26,8 +26,6 @@
 #ifndef __APPLE__
 #include <execinfo.h>
 #define BACKWARD_HAS_BFD 1
-#include "common/backward-cpp/backward.hpp"
-
 #if !defined(bfd_get_section_flags)
 #define bfd_get_section_flags(ptr, section) bfd_section_flags(section)
 #endif /* !defined(bfd_get_section_flags) */
@@ -37,6 +35,8 @@
 #if !defined(bfd_get_section_vma)
 #define bfd_get_section_vma(ptr, section) bfd_section_vma(section)
 #endif /* !defined(bfd_get_section_size) */
+
+#include "common/backward-cpp/backward.hpp"
 #endif
 
 EOSCOMMONNAMESPACE_BEGIN
