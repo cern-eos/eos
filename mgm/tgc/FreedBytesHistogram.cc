@@ -158,7 +158,7 @@ FreedBytesHistogram::alignHistogramWithNow()
 
   // Zero off out-of-date bins
   for (size_t i = 0; i < nbBinsToMove; i++) {
-    const size_t binIndex = m_startIndex + i;
+    const size_t binIndex = (m_startIndex + i) % m_histogram.size();
     m_histogram.at(binIndex) = 0;
   }
 

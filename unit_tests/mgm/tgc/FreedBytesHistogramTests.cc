@@ -584,3 +584,47 @@ TEST_F(TgcFreedBytesHistogramTest, bytesFreed_many_times_same_bin)
   ASSERT_EQ(0, histogram.getFreedBytesInBin(2));
   ASSERT_THROW(histogram.getFreedBytesInBin(4), FreedBytesHistogram::InvalidBinIndex);
 }
+
+//------------------------------------------------------------------------------
+// Test
+//------------------------------------------------------------------------------
+TEST_F(TgcFreedBytesHistogramTest, time_gap_larger_than_histogram)
+{
+  using namespace eos::mgm::tgc;
+
+  const std::size_t nbBins = 3;
+  const std::uint32_t binWidthSecs = 3;
+  const time_t historyLimitSecs = nbBins * binWidthSecs;
+  const std::time_t initialTime = 1000;
+  DummyClock clock(initialTime);
+  FreedBytesHistogram histogram(nbBins, binWidthSecs, clock);
+
+  ASSERT_EQ(nbBins, histogram.getNbBins());
+  ASSERT_EQ(binWidthSecs, histogram.getBinWidthSecs());
+
+  ASSERT_EQ(0, histogram.getTotalBytesFreed());
+
+  for (time_t lastNbSecs = 0; lastNbSecs <= historyLimitSecs; lastNbSecs++) {
+    ASSERT_EQ(0, histogram.getNbBytesFreedInLastNbSecs(historyLimitSecs));
+  }
+
+  ASSERT_EQ(0, histogram.getTotalBytesFreed());
+
+  clock.setTime(1000); histogram.bytesFreed(1);
+  clock.setTime(1003); histogram.bytesFreed(2);
+  clock.setTime(1006); histogram.bytesFreed(3);
+
+  ASSERT_EQ(3, histogram.getFreedBytesInBin(0));
+  ASSERT_EQ(2, histogram.getFreedBytesInBin(1));
+  ASSERT_EQ(1, histogram.getFreedBytesInBin(2));
+  ASSERT_THROW(histogram.getFreedBytesInBin(4), FreedBytesHistogram::InvalidBinIndex);
+
+  clock.setTime(9009); histogram.bytesFreed(4);
+  clock.setTime(9012); histogram.bytesFreed(5);
+  clock.setTime(9015); histogram.bytesFreed(6);
+
+  ASSERT_EQ(6, histogram.getFreedBytesInBin(0));
+  ASSERT_EQ(5, histogram.getFreedBytesInBin(1));
+  ASSERT_EQ(4, histogram.getFreedBytesInBin(2));
+  ASSERT_THROW(histogram.getFreedBytesInBin(4), FreedBytesHistogram::InvalidBinIndex);
+}
