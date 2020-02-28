@@ -357,6 +357,7 @@ QdbMaster::MasterToSlave()
   eos_info("%s", "msg=\"master to slave transition\"");
   RemoveStatusFile(EOSMGMMASTER_SUBSYS_RW_LOCKFILE);
   mIsMaster = false;
+  UpdateMasterId("");
   gOFS->mDrainEngine.Stop();
   gOFS->mFsckEngine->Stop();
   Access::StallInfo old_stall; // to be discarded
@@ -367,14 +368,7 @@ QdbMaster::MasterToSlave()
       std::chrono::milliseconds(100));
   // We are the slave, we just listen and don't broadcast anything
   gOFS->ObjectManager.EnableBroadCast(false);
-  std::string new_master_id = GetMasterId();
-
-  if (new_master_id == mIdentity) {
-    new_master_id.clear();
-  }
-
   DisableNsCaching();
-  Access::SetMasterToSlaveRules(new_master_id);
 
   // When we boot the first time also load the config
   if (mOneOff) {
