@@ -105,11 +105,10 @@ bool Inspector::checkConnection(std::string& err)
 // Dump contents of the given path. ERRNO-like integer return value, 0
 // means no error.
 //------------------------------------------------------------------------------
-int Inspector::dump(const std::string& dumpPath, bool relative, bool rawPaths, bool noDirs, bool noFiles, bool showSize, bool showMtime, std::ostream& out)
+int Inspector::dump(const std::string& dumpPath, bool relative, bool rawPaths, bool noDirs, bool noFiles, bool showSize, bool showMtime, const std::string &attrQuery, std::ostream& out)
 {
   ExplorationOptions explorerOpts;
   explorerOpts.ignoreFiles = noFiles;
-
 
   std::unique_ptr<folly::Executor> executor(new folly::IOThreadPoolExecutor(4));
   NamespaceExplorer explorer(dumpPath, explorerOpts, mQcl, executor.get());
@@ -144,6 +143,13 @@ int Inspector::dump(const std::string& dumpPath, bool relative, bool rawPaths, b
 
     if(showMtime && item.isFile) {
       out << " mtime=" << Printing::timespecToTimestamp(Printing::parseTimespec(item.fileMd.mtime()));
+    }
+
+    if(!attrQuery.empty()) {
+      out << " " << attrQuery << "=";
+      if(item.containerMd.xattrs().count(attrQuery) != 0) {
+        out << item.containerMd.xattrs().at(attrQuery) << " ";
+      }
     }
 
     out << std::endl;

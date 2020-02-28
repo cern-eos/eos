@@ -97,6 +97,7 @@ int main(int argc, char* argv[]) {
   addClusterOptions(dumpSubcommand, membersStr, memberValidator, password, passwordFile);
 
   std::string dumpPath;
+  std::string attrQuery;
   bool relativePaths = false;
   bool rawPaths = false;
   bool noDirs = false;
@@ -107,6 +108,7 @@ int main(int argc, char* argv[]) {
 
   dumpSubcommand->add_option("--path", dumpPath, "The target path to dump")
     ->required();
+  dumpSubcommand->add_option("--attr-query", attrQuery, "Print the specified extended attribute");
   dumpSubcommand->add_flag("--relative-paths", relativePaths, "Print paths relative to --path");
   dumpSubcommand->add_flag("--raw-paths", rawPaths, "Print the raw paths without path= in front, and nothing else");
   dumpSubcommand->add_flag("--no-dirs", noDirs, "Don't print directories, only files");
@@ -379,7 +381,7 @@ int main(int argc, char* argv[]) {
   // Dispatch subcommand
   //----------------------------------------------------------------------------
   if(dumpSubcommand->parsed()) {
-    return inspector.dump(dumpPath, relativePaths, rawPaths, noDirs, noFiles, showSize, showMtime, std::cout);
+    return inspector.dump(dumpPath, relativePaths, rawPaths, noDirs, noFiles, showSize, showMtime, attrQuery, std::cout);
   }
 
   if(namingConflictsSubcommand->parsed()) {

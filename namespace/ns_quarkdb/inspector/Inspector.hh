@@ -63,7 +63,7 @@ public:
   //! Dump contents of the given path. ERRNO-like integer return value, 0
   //! means no error.
   //----------------------------------------------------------------------------
-  int dump(const std::string &path, bool relative, bool rawPaths, bool noDirs, bool noFiles, bool showSize, bool showMtime, std::ostream &out);
+  int dump(const std::string &path, bool relative, bool rawPaths, bool noDirs, bool noFiles, bool showSize, bool showMtime, const std::string &attrQuery, std::ostream &out);
 
   //----------------------------------------------------------------------------
   //! Scan all directories in the namespace, and print out some information
