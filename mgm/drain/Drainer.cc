@@ -307,17 +307,33 @@ Drainer::WaitForAllDrainToStop()
         fs_elem->SignalStop();
       }
     }
+  }
+  bool all_stopped {false};
 
-    for (auto& node_elem : mDrainFs) {
-      for (const auto& fs_elem : node_elem.second) {
-        while (fs_elem->IsRunning()) {
-          std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  while (!all_stopped) {
+    {
+      all_stopped = true;
+      eos::common::RWMutexReadLock rd_lock(mDrainMutex);
+
+      for (auto& node_elem : mDrainFs) {
+        for (const auto& fs_elem : node_elem.second) {
+          if (fs_elem->IsRunning()) {
+            all_stopped = false;
+            break;
+          }
+        }
+
+        if (!all_stopped) {
+          break;
         }
       }
+    }
 
-      node_elem.second.clear();
+    if (!all_stopped) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
   }
+
   eos::common::RWMutexWriteLock wr_lock(mDrainMutex);
   mDrainFs.clear();
   mPending.clear();
