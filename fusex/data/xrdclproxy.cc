@@ -631,30 +631,32 @@ XrdCl::Proxy::CloseAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
 /* -------------------------------------------------------------------------- */
 {
   eos_static_debug("");
-  XrdSysCondVarHelper lLock(mProxy->OpenCondVar());
-
-  if (!status->IsOK()) {
-    // if the open failed before, we leave the open failed state here
-    if (!mProxy->isDeleted()) {
-      if (mProxy->state() != XrdCl::Proxy::FAILED) {
-        eos_static_crit("%x current status = %d - setting CLOSEFAILED - msg=%s url=%s\n",
-                        mProxy, mProxy->state(), status->ToString().c_str(), mProxy->url().c_str());
-        mProxy->set_state(XrdCl::Proxy::CLOSEFAILED, status);
+  {
+    XrdSysCondVarHelper lLock(mProxy->OpenCondVar());
+    
+    if (!status->IsOK()) {
+      // if the open failed before, we leave the open failed state here
+      if (!mProxy->isDeleted()) {
+	if (mProxy->state() != XrdCl::Proxy::FAILED) {
+	  eos_static_crit("%x current status = %d - setting CLOSEFAILED - msg=%s url=%s\n",
+			  mProxy, mProxy->state(), status->ToString().c_str(), mProxy->url().c_str());
+	  mProxy->set_state(XrdCl::Proxy::CLOSEFAILED, status);
+	}
+      } else {
+	eos_static_info("%x current status = %d - silencing CLOSEFAILED - msg=%s url=%s\n",
+			mProxy, mProxy->state(), status->ToString().c_str(), mProxy->url().c_str());
+	// an unlinked file can have a close failure response
+	XRootDStatus okstatus;
+	mProxy->set_state(XrdCl::Proxy::CLOSED, &okstatus);
       }
     } else {
-      eos_static_info("%x current status = %d - silencing CLOSEFAILED - msg=%s url=%s\n",
-                      mProxy, mProxy->state(), status->ToString().c_str(), mProxy->url().c_str());
-      // an unlinked file can have a close failure response
-      XRootDStatus okstatus;
-      mProxy->set_state(XrdCl::Proxy::CLOSED, &okstatus);
+      mProxy->set_state(XrdCl::Proxy::CLOSED, status);
     }
-  } else {
-    mProxy->set_state(XrdCl::Proxy::CLOSED, status);
+    
+    mProxy->OpenCondVar().Signal();
+    delete response;
+    delete status;
   }
-
-  mProxy->OpenCondVar().Signal();
-  delete response;
-  delete status;
   mProxy->CheckSelfDestruction();
 }
 
@@ -1324,8 +1326,11 @@ void
 XrdCl::Proxy::CheckSelfDestruction()
 {
   if (should_selfdestroy()) {
-    eos_debug("self-destruction %llx", this);
-    delete this;
+    if (!IsClosing()) {
+      // don't destroy if we still expect an async close callback
+      eos_debug("self-destruction %llx", this);
+      delete this;
+    }
   }
 }
 
