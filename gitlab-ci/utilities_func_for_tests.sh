@@ -22,7 +22,7 @@ function exec_cmd() {
 # and the rest is the command to be executed
 function exec_cmd_docker() {
   set -o xtrace
-  docker exec -i $1 /bin/bash -l -c "${@:2}"
+  docker exec -i $1 /bin/bash -c "${@:2}"
   set +o xtrace
 }
 
@@ -30,7 +30,7 @@ function exec_cmd_docker() {
 # and the rest is the command to be executed
 function exec_cmd_k8s() {
   set -o xtrace
-  kubectl exec --namespace=$K8S_NAMESPACE $(get_podname $1) -- /bin/bash -l -c "${@:2}"
+  kubectl exec --namespace=$K8S_NAMESPACE $(get_podname $1) -- /bin/bash -c "${@:2}"
   set +o xtrace
 }
 
