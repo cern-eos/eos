@@ -845,7 +845,7 @@ system_test_qdb:
 # RPM publishing
 #-------------------------------------------------------------------------------
 
-publish_koji_cc7:
+.publish_koji_template: &publish_koji_template_definition
   stage: publish
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
@@ -854,30 +854,35 @@ publish_koji_cc7:
     - mkdir ~/.koji
     - echo -e '[koji]\nserver = https://kojihub.cern.ch/kojihub\nweburl = https://koji.cern.ch/\ntopurl = https://koji.cern.ch/kojifiles\nkrb_canon_host = no\nkrb_rdns = False\n' >> ~/.koji/config
     - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
-    - koji build eos7 cc7_artifacts/SRPMS/*.src.rpm
+    - koji build ${TARGET} ${BUILD_NAME}_artifacts/SRPMS/*.src.rpm
+  only:
+    - tags
   tags:
     - docker_node
+
+publish_koji_c8:
+  <<: *publish_koji_template_definition
+  variables:
+    TARGET: "eos8"
+    BUILD_NAME: "c8"
+  dependencies:
+    - build_c8
+
+publish_koji_cc7:
+  <<: *publish_koji_template_definition
+  variables:
+    TARGET: "eos7"
+    BUILD_NAME: "cc7"
   dependencies:
     - build_cc7
-  only:
-    - tags
 
 publish_koji_slc6:
-  stage: publish
-  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
-  script:
-    - yum install --nogpg -y sssd-client
-    - yum install -y koji
-    - mkdir ~/.koji
-    - echo -e '[koji]\nserver = https://kojihub.cern.ch/kojihub\nweburl = https://koji.cern.ch/\ntopurl = https://koji.cern.ch/kojifiles\nkrb_canon_host = no\nkrb_rdns = False\n' >> ~/.koji/config
-    - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
-    - koji build eos6 slc6_artifacts/SRPMS/*.src.rpm
-  tags:
-    - docker_node
+  <<: *publish_koji_template_definition
+  variables:
+    TARGET: "eos6"
+    BUILD_NAME: "slc6"
   dependencies:
     - build_slc6
-  only:
-    - tags
 
 rpm_commit_artifacts:
   stage: publish
