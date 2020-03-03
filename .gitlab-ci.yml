@@ -35,7 +35,8 @@ default:
           *) echo "var PREBUILD_NAME:$PREBUILD_NAME not properly defined"; exit 1 ;;
       esac
   only:
-    - schedules
+    variables:
+      - $PREBUILD_TRIGGER
 
 prebuild-cc7:
   <<: *prebuild-template_definition
@@ -543,7 +544,6 @@ cc7_asan_docker_image:
       - $COVERAGE_SCHEDULE
   allow_failure: true
 
-
 #-------------------------------------------------------------------------------
 # Dock8rnetes testing framework (exec_cmd wraps both docker and k8s!)
 #-------------------------------------------------------------------------------
@@ -589,16 +589,18 @@ cc7_asan_docker_image:
   stage: test
   <<: *dock8s_before_script_template
   script:
-    - exec_cmd eos-cli1 'git clone https://gitlab.cern.ch/dss/eosclient-tests.git'
+    # prepare mountpoints
     - exec_cmd eos-cli1 'atd; at now <<< "mkdir /eos1/; mount -t fuse eosxd -ofsname=mount-1 /eos1/; mkdir /eos2/; mount -t fuse eosxd -ofsname=mount-2 /eos2/;"'
     - exec_cmd eos-cli1 'count=0; while [[ $count -le 10 ]] && ( [[ ! -d /eos1/dockertest/ ]] || [[ ! -d /eos2/dockertest/ ]] ); do echo "Wait for mount... $count"; (( count++ )); sleep 1; done;'
 
-    # regression test(s)
-    - exec_cmd eos-cli1 'cd /eosclient-tests; git checkout eos-4001; python /eosclient-tests/run.py --workdir=/eos1/dockertest eos4001; rc=$?; git checkout master; exit $rc'
-    # clone tests
-    - exec_cmd eos-cli1 ' env EOS_MGM_URL="${EOS_MGM_URL:-root://eos-mgm1.eoscluster.cern.ch}" bash -c "cd /eosclient-tests; git checkout rtb_clone; prepare/clone_test.sh prepare; rc=$?; git checkout master; exit $rc"'
-
+    # fusex benchmark
     - exec_cmd eos-cli1 "su - eos-user -c 'mkdir /eos1/dockertest/fusex_tests/; cd /eos1/dockertest/fusex_tests/; fusex-benchmark'"
+
+    # eosclient-tests
+    - exec_cmd eos-cli1 'git clone https://gitlab.cern.ch/dss/eosclient-tests.git'
+    - exec_cmd eos-cli1 'python /eosclient-tests/run.py --workdir=/eos1/dockertest file_versions'
+    # @note on docker setup, eos-cli1 doesn't have EOS_MGM_URL set
+    - exec_cmd eos-cli1 ' env EOS_MGM_URL="${EOS_MGM_URL:-root://eos-mgm1.eoscluster.cern.ch}" bash -c "cd /eosclient-tests; git checkout rtb_clone; prepare/clone_test.sh prepare; rc=$?; git checkout master; exit $rc"'
     # @todo(esindril): run "all" tests in schedule mode once these are properly supported
     # if [ "$CI_PIPELINE_SOURCE" == "schedule" ];
     # then
@@ -805,6 +807,7 @@ unit_test_asan:
     - if [[ "$CI_JOB_NAME" == system_test_qdb* ]]; then docker cp eos-cli1:/usr/sbin/eos-fsck-test .; ./eos-fsck-test --type docker; rm -rf eos-fsck-test; fi
     - docker exec -di eos-cli1 /bin/bash -c 'mkdir /eos1/; mount -t fuse eosxd -ofsname=mount-1 /eos1/'
     - docker exec -di eos-cli1 /bin/bash -c 'mkdir /eos2/; mount -t fuse eosxd -ofsname=mount-2 /eos2/'
+    - sleep 3; # @note allow some time to mount
     - docker exec -i eos-cli1 env EOS_MGM_URL=root://eos-mgm1.eoscluster.cern.ch bash -c 'cd /eosclient-tests; git checkout rtb_clone; prepare/clone_test.sh prepare; rc=$?; git checkout master; exit $rc'
     - docker exec -i -u eos-user eos-cli1 /bin/bash -c 'mkdir /eos1/dockertest/fusex_tests/; cd /eos1/dockertest/fusex_tests/; fusex-benchmark'
     - docker exec -i eos-mgm1 eos-instance-test-ci
