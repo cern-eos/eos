@@ -363,8 +363,9 @@ int
 diskcache::set_attr(const std::string& key, const std::string& value)
 /* -------------------------------------------------------------------------- */
 {
+  int rc = 0;
+
   if (fd > 0) {
-    int rc = 0;
 #ifdef __APPLE__
     rc = fsetxattr(fd, key.c_str(), value.c_str(), value.size(), 0, 0);
 #else
@@ -374,10 +375,19 @@ diskcache::set_attr(const std::string& key, const std::string& value)
     if (rc && errno == ENOTSUP) {
       throw std::runtime_error("diskcache has no xattr support");
     }
-  }
+  } else {
+    // set attribute by path since the diskcache could be unattached
+    std::string path;
+    rc = location(path);
+#ifdef __APPLE__
+    rc = setxattr(path.c_str(), key.c_str(), value.c_str(), value.size(), 0, 0);
+#else
+    rc = setxattr(path.c_str(), key.c_str(), value.c_str(), value.size(), 0);
+#endif
+  } 
 
-  eos_static_debug("set_attr key=%s val=%s fd=%d\n", key.c_str(), value.c_str(),
-		   fd);
+  eos_static_debug("set_attr key=%s val=%s fd=%d rc=%d\n", key.c_str(), value.c_str(),
+		   fd, rc);
   return -1;
 }
 
