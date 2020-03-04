@@ -235,7 +235,14 @@ EosMgmHttpHandler::Config(XrdSysError* eDest, const char* confg,
   XrdSysPlugin tokens_plugin(eDest, macaroons_lib_path.c_str(), "macaroonslib",
                              &compiledVer, 1);
   void* http_addr = tokens_plugin.getPlugin(http_symbol.c_str(), 0, 0);
+  tokens_plugin.Persist();
   ep = (XrdHttpExtHandler * (*)(XrdHttpExtHandlerArgs))(http_addr);
+
+  if (!http_addr) {
+    eos_err("msg=\"no XrdHttpGetExtHandler entry point in library\" "
+            "lib=\"%s\"", macaroons_lib_path.c_str());
+    return 1;
+  }
 
   if (ep && (mTokenLibHandler = ep(eDest, confg, parms, myEnv))) {
     eos_info("%s", "msg=\"XrdHttpGetExthandler from libXrdMacaroons loaded "
@@ -464,6 +471,7 @@ EosMgmHttpHandler::GetOfsPlugin(XrdSysError* eDest, const std::string& confg,
       std::string ofs_symbol {"XrdSfsGetFileSystem"};
       XrdSysPlugin ofs_plugin(eDest, resolve_path, "mgmofs", &compiledVer, 1);
       void* ofs_addr = ofs_plugin.getPlugin(ofs_symbol.c_str(), 0, 0);
+      ofs_plugin.Persist();
       ep = (XrdSfsFileSystem * (*)(XrdSfsFileSystem*, XrdSysLogger*, const char*))
            (ofs_addr);
       XrdSfsFileSystem* sfs_fs {nullptr};
