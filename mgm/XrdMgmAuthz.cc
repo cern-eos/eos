@@ -24,11 +24,8 @@
 #include "mgm/XrdMgmAuthz.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucString.hh"
-#include "XrdOuc/XrdOucTrace.hh"
 #include "XrdVersion.hh"
 
-XrdSysError Eroute(0, "capability");
-XrdOucTrace Trace(&Eroute);
 XrdMgmAuthz* gMgmAuthz {nullptr};
 
 // Set the version information
@@ -43,25 +40,26 @@ XrdVERSIONINFO(XrdAccAuthorizeObject, EosMgmAuthz);
 // cfn   -> The name of the configuration file
 // parm  -> Paramexters specified on the authlib directive. If none it is zero.
 //------------------------------------------------------------------------------
-extern "C" XrdAccAuthorize* XrdAccAuthorizeObject(XrdSysLogger* lp,
-    const char*   cfn,
-    const char*   parm)
+extern "C"
+XrdAccAuthorize* XrdAccAuthorizeObject(XrdSysLogger* lp, const char*   cfn,
+                                       const char*   parm)
 {
+  XrdSysError eroute(lp, "mgmauthz_");
+
   if (gMgmAuthz) {
+    eroute.Say("====== XrdMgmAuthz already loaded and available");
     return gMgmAuthz;
   }
 
-  Eroute.SetPrefix("mgmauthz__");
-  Eroute.logger(lp);
-  XrdOucString version = "EOS MGM Authorization ";
+  XrdOucString version = "EOS MGM Authorization (XrdMgmAuthz) ";
   version += VERSION;
-  Eroute.Say("++++++ (c) 2020 CERN/IT-ST ", version.c_str());
+  eroute.Say("++++++ (c) 2020 CERN/IT-ST ", version.c_str());
   gMgmAuthz = new XrdMgmAuthz();
 
   if (!gMgmAuthz) {
-    Eroute.Say("------ XrdMgmAuthz allocation failed!");
+    eroute.Say("------ XrdMgmAuthz allocation failed!");
   } else {
-    Eroute.Say("------ XrdMgmAuthz initialization completed");
+    eroute.Say("------ XrdMgmAuthz initialization completed");
   }
 
   return static_cast<XrdAccAuthorize*>(gMgmAuthz);
@@ -76,5 +74,5 @@ XrdMgmAuthz::Access(const XrdSecEntity* Entity, const char* path,
 {
   eos_static_info("msg=\"checking access\" path=\"%s\", name=\"%s\"",
                   path, Entity->name);
-  return XrdAccPriv_None;
+  return XrdAccPriv_All;
 }
