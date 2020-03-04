@@ -1758,7 +1758,8 @@ data::datax::detach(fuse_req_t req, std::string& cookie, int flags)
   int rflush = flush(req);
   XrdSysMutexHelper lLock(mLock);
   int bcache = mFile->file() ? mFile->file()->detach(cookie) : 0;
-  int jcache = mFile->journal() ? (isRW ? mFile->journal()->detach(
+  int jcache = mFile->journal() ? ( (isRW ||
+				     (mFlags & O_CACHE)) ? mFile->journal()->detach(
                                      cookie) : 0) : 0;
   int xio = 0;
 
@@ -1931,7 +1932,6 @@ data::datax::pread(fuse_req_t req, void* buf, size_t count, off_t offset)
       if (mFile->journal()) {
         // retrieve all journal chunks matching our range
         chunks = ((mFile->journal()))->get_chunks(offset + br, count - br);
-        bool first_matching_chunk = true;
 
         for (auto it = chunks.begin(); it != chunks.end(); ++it) {
           eos_err("offset=%ld count=%lu overlay-chunk offset=%ld size=%lu\n", offset,
@@ -1941,12 +1941,6 @@ data::datax::pread(fuse_req_t req, void* buf, size_t count, off_t offset)
                                                 (it->offset - offset - br), it->size, it->offset);
 
           if (ljr >= 0) {
-            if (first_matching_chunk) {
-              // initialize the remaing unwritten buffer with zero's the first time we have a match since results could be sparse
-              memset((char*) buf + br + bytesRead, 0, count - br - bytesRead);
-              first_matching_chunk = false;
-            }
-
             // check if the journal contents extends the remote read
             ssize_t chunkread = it->offset + it->size - offset - br;
 
@@ -1968,7 +1962,9 @@ data::datax::pread(fuse_req_t req, void* buf, size_t count, off_t offset)
               bytesRead = count;
             } else {
               //  this should not be required, because logically we cannot get here
-              bytesRead = mFile->journal()->get_max_offset() - offset;
+	      eos_err("consistency error : max-journal=%ld offset=%ld count=%lu br=%lu bytesread=%lu",
+		      mFile->journal()->get_max_offset(), offset, count, br, bytesRead);
+	      // we don't set bytesread here!
             }
           }
         }
@@ -2752,10 +2748,10 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                 }
 
                 if (fit->second->IsOpen()) {
-                  eos_static_info("flushing journal for req=%s id=%#lx", fit->first.c_str(),
-                                  (*it)->id());
-                  // flush the journal using an asynchronous thread pool
-                  (*it)->journalflush_async(fit->first);
+		  eos_static_info("skip flushing journal for req=%s id=%#lx", fit->first.c_str(),
+				  (*it)->id());
+		  // flush the journal using an asynchronous thread pool
+		  // skipped: (*it)->journalflush_async(fit->first);
                   fit->second->set_state_TS(XrdCl::Proxy::WAITWRITE);
                   eos_static_info("changing to wait write state");
                 }

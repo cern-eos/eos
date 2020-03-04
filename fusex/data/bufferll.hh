@@ -155,6 +155,12 @@ public:
     return size();
   }
 
+  void zero()
+  {
+    RWMutexReadLock dLock(mMutex);
+    memset(ptr(), 0, size());
+  }
+
   //------------------------------------------------------------------------
   //! low-level pointer to the memory - better know what you do with that
   //------------------------------------------------------------------------
@@ -226,6 +232,7 @@ public:
       buffer->resize(buffersize);
       buffer->reserve(buffersize);
       buffer->shrink_to_fit();
+      buffer->zero();
       queued_size += buffersize;
       return;
     }
