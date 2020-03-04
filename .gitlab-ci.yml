@@ -599,8 +599,7 @@ cc7_asan_docker_image:
     # eosclient-tests
     - exec_cmd eos-cli1 'git clone https://gitlab.cern.ch/dss/eosclient-tests.git'
     - exec_cmd eos-cli1 'python /eosclient-tests/run.py --workdir=/eos1/dockertest file_versions'
-    # @note on docker setup, eos-cli1 doesn't have EOS_MGM_URL set
-    - exec_cmd eos-cli1 ' env EOS_MGM_URL="${EOS_MGM_URL:-root://eos-mgm1.eoscluster.cern.ch}" bash -c "cd /eosclient-tests; git checkout rtb_clone; prepare/clone_test.sh prepare; rc=$?; git checkout master; exit $rc"'
+    - exec_cmd eos-cli1 'cd /eosclient-tests; git checkout rtb_clone; prepare/clone_test.sh prepare; rc=$?; git checkout master; exit $rc'
     # @todo(esindril): run "all" tests in schedule mode once these are properly supported
     # if [ "$CI_PIPELINE_SOURCE" == "schedule" ];
     # then
@@ -793,56 +792,6 @@ unit_test_asan:
   tags:
     - docker_node
 
-#-------------------------------------------------------------------------------
-# OLD Docker testing framework @todo drop it and merge with the new setup once stable
-#-------------------------------------------------------------------------------
-
-.system_test_template: &system_test_template_definition
-  script:
-    - sudo ./eos-docker/scripts/shutdown_services.sh
-    - ./eos-docker/scripts/remove_unused_images.sh
-    - docker pull gitlab-registry.cern.ch/dss/${EOS_IMG_NAME}${CI_COMMIT_TAG-$CI_PIPELINE_ID}
-    - if [[ "$CI_JOB_NAME" == system_test_qdb* ]]; then sudo ./eos-docker/scripts/start_services.sh -q -i gitlab-registry.cern.ch/dss/${EOS_IMG_NAME}${CI_COMMIT_TAG-$CI_PIPELINE_ID}; else sudo ./eos-docker/scripts/start_services.sh -i gitlab-registry.cern.ch/dss/${EOS_IMG_NAME}${CI_COMMIT_TAG-$CI_PIPELINE_ID}; fi
-    - docker exec -i eos-cli1 git clone https://gitlab.cern.ch/dss/eosclient-tests.git
-    - if [[ "$CI_JOB_NAME" == system_test_qdb* ]]; then docker cp eos-cli1:/usr/sbin/eos-fsck-test .; ./eos-fsck-test --type docker; rm -rf eos-fsck-test; fi
-    - docker exec -di eos-cli1 /bin/bash -c 'mkdir /eos1/; mount -t fuse eosxd -ofsname=mount-1 /eos1/'
-    - docker exec -di eos-cli1 /bin/bash -c 'mkdir /eos2/; mount -t fuse eosxd -ofsname=mount-2 /eos2/'
-    - sleep 3; # @note allow some time to mount
-    - docker exec -i eos-cli1 env EOS_MGM_URL=root://eos-mgm1.eoscluster.cern.ch bash -c 'cd /eosclient-tests; git checkout rtb_clone; prepare/clone_test.sh prepare; rc=$?; git checkout master; exit $rc'
-    - docker exec -i -u eos-user eos-cli1 /bin/bash -c 'mkdir /eos1/dockertest/fusex_tests/; cd /eos1/dockertest/fusex_tests/; fusex-benchmark'
-    - docker exec -i eos-mgm1 eos-instance-test-ci
-    # @todo(esindril): run "all" tests in schedule mode once these are properly supported
-    # - if [ "$CI_PIPELINE_SOURCE" == "schedule" ]; then
-    #     docker exec -i eos-mgm1 eos vid add gateway eos-cli1.eoscluster.cern.ch unix;
-    #     docker exec -i eos-cli1 env EOS_FUSE_NO_ROOT_SQUASH=1 python /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" ci;
-    #   fi
-    # until then just run the "ci" tests
-    - docker exec -i eos-cli1 /bin/bash -c 'cd eosclient-tests &&  for n in prepare/*.sh; do /bin/bash $n prepare; done'
-    - docker exec -i -u eos-user eos-cli1 python /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" ci;
-    - docker exec -i eos-cli1 /bin/bash -c 'cd eosclient-tests && for n in prepare/*.sh; do /bin/bash $n cleanup; done'
-    # - docker exec -i eos-cli1 env EOS_MGM_URL=root://eos-mgm1.eoscluster.cern.ch eos fuse mount /eos_fuse
-    # - docker exec -i eos-cli1 env EOS_MGM_URL=root://eos-mgm1.eoscluster.cern.ch eos fuse mount /eos_fuse2
-    # - docker exec -i eos-cli1 python /eosclient-tests/run.py --workdir="/eos_fuse/dockertest /eos_fuse2/dockertest" ci
-  after_script:
-    - ./eos-docker/scripts/collect_logs.sh eos-logs/
-    - sudo ./eos-docker/scripts/shutdown_services.sh
-  artifacts:
-    when: on_failure
-    expire_in: 3 days
-    paths:
-      - eos-logs/
-
-system_test_qdb:
-  stage: test
-  <<: *system_test_template_definition
-  variables:
-    EOS_IMG_NAME: "eos:"
-  tags:
-    - shell-with-docker
-  dependencies:
-    - clone_docker
-  allow_failure: true
-  retry: 1
 
 #-------------------------------------------------------------------------------
 # RPM publishing
