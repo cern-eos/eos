@@ -185,3 +185,38 @@ TEST_F(TgcUtilsTest, divideAndRoundUp) {
   ASSERT_EQ(3, Utils::divideAndRoundUp(11, 4));
   ASSERT_EQ(3, Utils::divideAndRoundUp(12, 4));
 }
+
+//------------------------------------------------------------------------------
+// Test
+//------------------------------------------------------------------------------
+TEST_F(TgcUtilsTest, bufToTimespec) {
+  using namespace eos::mgm::tgc;
+
+  timespec src;
+
+  src.tv_sec = 1234;
+  src.tv_nsec = 5678;
+
+  std::string buf((char *)&src, sizeof(src));
+
+  const timespec result = Utils::bufToTimespec(buf);
+
+  ASSERT_EQ(src.tv_sec, result.tv_sec);
+  ASSERT_EQ(src.tv_nsec, result.tv_nsec);
+}
+
+//------------------------------------------------------------------------------
+// Test
+//------------------------------------------------------------------------------
+TEST_F(TgcUtilsTest, bufToTimespec_BufSizeMismatch) {
+  using namespace eos::mgm::tgc;
+
+  timespec src;
+
+  src.tv_sec = 1234;
+  src.tv_nsec = 5678;
+
+  std::string buf((char *)&src, sizeof(src) - 1);
+
+  ASSERT_THROW(Utils::bufToTimespec(buf), Utils::BufSizeMismatch);
+}

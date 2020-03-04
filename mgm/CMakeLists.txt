@@ -93,6 +93,26 @@ install(
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 
+set (MGM_TGC_SRC_FILES
+  tgc/MultiSpaceTapeGc.cc
+  tgc/SpaceToTapeGcMap.cc
+  tgc/DummyTapeGcMgm.cc
+  tgc/FreedBytesHistogram.cc
+  tgc/IClock.cc
+  tgc/ITapeGcMgm.cc
+  tgc/Lru.cc
+  tgc/MaxLenExceeded.cc
+  tgc/RealClock.cc
+  tgc/RealTapeGcMgm.cc
+  tgc/SmartSpaceStats.cc
+  tgc/SpaceNotFound.cc
+  tgc/TapeGc.cc
+  tgc/Utils.cc)
+
+foreach(MGM_TGC_SRC_FILE_SRC ${MGM_TGC_SRC_FILES})
+  set_property(SOURCE ${MGM_TGC_SRC_FILE_SRC} APPEND_STRING PROPERTY COMPILE_FLAGS " -Werror")
+endforeach(MGM_TGC_SRC_FILE_SRC)
+
 #-------------------------------------------------------------------------------
 # XrdEosMgm-Objects library
 #-------------------------------------------------------------------------------
@@ -107,6 +127,7 @@ add_library(
   Macros.cc
   GeoTreeEngine.cc
   Messaging.cc
+  ${MGM_TGC_SRC_FILES}
   Policy.cc
   proc/IProcCommand.cc
   proc/ProcInterface.cc
@@ -169,20 +190,6 @@ add_library(
   proc/user/Whoami.cc
   Quota.cc
   Scheduler.cc
-  tgc/MultiSpaceTapeGc.cc
-  tgc/SpaceToTapeGcMap.cc
-  tgc/DummyTapeGcMgm.cc
-  tgc/FreedBytesHistogram.cc
-  tgc/IClock.cc
-  tgc/ITapeGcMgm.cc
-  tgc/Lru.cc
-  tgc/MaxLenExceeded.cc
-  tgc/RealClock.cc
-  tgc/RealTapeGcMgm.cc
-  tgc/SmartSpaceStats.cc
-  tgc/SpaceNotFound.cc
-  tgc/TapeGc.cc
-  tgc/Utils.cc
   Vid.cc
   FsView.cc
   XrdMgmOfsConfigure.cc

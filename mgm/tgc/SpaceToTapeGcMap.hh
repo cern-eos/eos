@@ -29,6 +29,7 @@
 #include "mgm/tgc/TapeGcStats.hh"
 
 #include <map>
+#include <set>
 
 /*----------------------------------------------------------------------------*/
 /**
@@ -107,6 +108,11 @@ public:
   std::map<std::string, TapeGcStats> getStats() const;
 
   //----------------------------------------------------------------------------
+  //! @return a list of the names of the EOS spaces being garbage collected
+  //----------------------------------------------------------------------------
+  std::set<std::string> getSpaces() const;
+
+  //----------------------------------------------------------------------------
   //! Writes the JSON representation of this object to the specified stream.
   //!
   //! @param os Input/Output parameter specifying the stream to write to.
@@ -117,6 +123,11 @@ public:
   //! @throw MaxLenExceeded if the length of the JSON string has exceeded maxLen
   //----------------------------------------------------------------------------
   void toJson(std::ostringstream &os, std::uint64_t maxLen = 0) const;
+
+  //--------------------------------------------------------------------------
+  //! Start the worker thread of each garbage collector
+  //--------------------------------------------------------------------------
+  void startGcWorkerThreads();
 
 private:
 

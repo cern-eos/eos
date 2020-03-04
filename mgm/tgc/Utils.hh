@@ -97,6 +97,18 @@ public:
   static std::uint64_t divideAndRoundUp(const std::uint64_t x, const std::uint64_t y) {
     return (x + y - 1) / y;
   }
+
+  /// Thrown when there has been a buffer size mismatch
+  struct BufSizeMismatch: public std::runtime_error {
+    BufSizeMismatch(const std::string &msg): std::runtime_error(msg) {}
+  };
+
+  //----------------------------------------------------------------------------
+  //! @return a copy of the specified buffer in the form of a timespec structure
+  //! @throw BufSizeMismatch if the size of the specified buffer does not
+  //! exactly match the size of a timespec structure
+  //----------------------------------------------------------------------------
+  static timespec bufToTimespec(const std::string &buf);
 };
 
 EOSTGCNAMESPACE_END

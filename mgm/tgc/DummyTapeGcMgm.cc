@@ -117,6 +117,26 @@ DummyTapeGcMgm::stagerrmAsRoot(const IFileMD::id_t /* fid */)
 }
 
 //----------------------------------------------------------------------------
+// Return map from file system ID to EOS space name
+//----------------------------------------------------------------------------
+std::map<common::FileSystem::fsid_t, std::string>
+DummyTapeGcMgm::getFsIdToSpaceMap()
+{
+  return std::map<common::FileSystem::fsid_t, std::string> ();
+}
+
+//----------------------------------------------------------------------------
+// Return map from EOS space name to disk replicas within that space
+//----------------------------------------------------------------------------
+std::map<std::string, std::set<ITapeGcMgm::FileIdAndCtime> >
+DummyTapeGcMgm::getSpaceToDiskReplicasMap(const std::set<std::string> &spacesToMap, std::atomic<bool> &stop,
+  uint64_t &nbfilesScanned)
+{
+  nbfilesScanned = 0;
+  return std::map<std::string, std::set<FileIdAndCtime> >();
+}
+
+//----------------------------------------------------------------------------
 // Set the configuration of the tape-aware garbage collector
 //----------------------------------------------------------------------------
 void

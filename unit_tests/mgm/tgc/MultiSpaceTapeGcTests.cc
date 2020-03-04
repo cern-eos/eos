@@ -55,7 +55,7 @@ TEST_F(TgcMultiSpaceTapeGcTest, constructor)
 //------------------------------------------------------------------------------
 // Test
 //------------------------------------------------------------------------------
-TEST_F(TgcMultiSpaceTapeGcTest, enable_one_space)
+TEST_F(TgcMultiSpaceTapeGcTest, start_with_one_eos_space)
 {
   using namespace eos::mgm::tgc;
 
@@ -63,7 +63,9 @@ TEST_F(TgcMultiSpaceTapeGcTest, enable_one_space)
   MultiSpaceTapeGc gc(mgm);
 
   const std::string space = "space";
-  gc.enable(space);
+  std::set<std::string> spaces;
+  spaces.insert(space);
+  gc.start(spaces);
  
   const auto now = std::time(nullptr);
   const auto stats = gc.getStats();
@@ -79,7 +81,7 @@ TEST_F(TgcMultiSpaceTapeGcTest, enable_one_space)
 //------------------------------------------------------------------------------
 // Test
 //------------------------------------------------------------------------------
-TEST_F(TgcMultiSpaceTapeGcTest, enable_two_spaces)
+TEST_F(TgcMultiSpaceTapeGcTest, start_with_two_eos_spaces)
 {
   using namespace eos::mgm::tgc;
 
@@ -88,8 +90,10 @@ TEST_F(TgcMultiSpaceTapeGcTest, enable_two_spaces)
 
   const std::string space1 = "space1";
   const std::string space2 = "space2";
-  gc.enable(space1);
-  gc.enable(space2);
+  std::set<std::string> spaces;
+  spaces.insert(space1);
+  spaces.insert(space2);
+  gc.start(spaces);
 
   const auto stats = gc.getStats();
   ASSERT_EQ(2, stats.size());
@@ -104,4 +108,3 @@ TEST_F(TgcMultiSpaceTapeGcTest, enable_two_spaces)
   ASSERT_EQ(0, itor->second.nbStagerrms);
   ASSERT_EQ(0, itor->second.lruQueueSize);
 }
-

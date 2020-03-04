@@ -56,7 +56,7 @@ public:
   //! Boolean operator
   //--------------------------------------------------------------------------
   operator bool() const {
-  std::unique_lock<std::mutex> lock(m_mutex);
+    std::unique_lock<std::mutex> lock(m_mutex);
     return m_flag;
   }
 

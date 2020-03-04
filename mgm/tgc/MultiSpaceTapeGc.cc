@@ -24,6 +24,12 @@
 #include "common/Logging.hh"
 #include "mgm/tgc/MaxLenExceeded.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
+#include "mgm/tgc/Utils.hh"
+
+#include <iomanip>
+#include <sstream>
+#include <stdexcept>
+#include <time.h>
 
 /*----------------------------------------------------------------------------*/
 /**
@@ -40,30 +46,25 @@ EOSTGCNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 MultiSpaceTapeGc::MultiSpaceTapeGc(ITapeGcMgm &mgm):
-m_tapeEnabled(false), m_gcs(mgm)
+m_tapeEnabled(false), m_mgm(mgm), m_gcs(mgm)
 {
 }
 
 //------------------------------------------------------------------------------
-// Enable garbage collection for the specified EOS space
+// Destructor
 //------------------------------------------------------------------------------
-void
-MultiSpaceTapeGc::enable(const std::string &space)
+MultiSpaceTapeGc::~MultiSpaceTapeGc()
 {
-  // Any attempt to enable tape support for an EOS space means tape support in
-  // general is enabled
-  m_tapeEnabled = true;
-
-  const char *const msgFormat =
-    "space=\"%s\" msg=\"Unable to enable tape-aware garbage collection: %s\"";
-
   try {
-    auto &gc = m_gcs.createGc(space);
-    gc.enable();
-  } catch (std::exception &ex) {
-    eos_static_err(msgFormat, space.c_str(), ex.what());
-  } catch (...) {
-    eos_static_err(msgFormat, space.c_str(), "Caught an unknown exception");
+    std::lock_guard<std::mutex> workerLock(m_workerMutex);
+    if(m_worker) {
+      m_stop = true;
+      m_worker->join();
+    }
+  } catch(std::exception &ex) {
+    eos_static_err("msg=\"%s\"", ex.what());
+  } catch(...) {
+    eos_static_err("msg=\"Caught an unknown exception\"");
   }
 }
 
@@ -71,23 +72,22 @@ MultiSpaceTapeGc::enable(const std::string &space)
 // Notify GC the specified file has been opened
 //------------------------------------------------------------------------------
 void
-MultiSpaceTapeGc::fileOpened(const std::string &space, const std::string &path,
-  const IFileMD::id_t fid)
+MultiSpaceTapeGc::fileOpened(const std::string &space, const IFileMD::id_t fid)
 {
-  if (!m_tapeEnabled) return;
+  if (!m_tapeEnabled || !m_gcsPopulatedUsingQdb) return;
 
   const char *const msgFormat =
-    "space=\"%s\" path=\"%s\" fxid=%08llx msg=\"Error handling 'file opened' event: %s\"";
+    "space=\"%s\" fxid=%08llx msg=\"Error handling 'file opened' event: %s\"";
 
   try {
     auto &gc = m_gcs.getGc(space);
-    gc.fileOpened(path, fid);
+    gc.fileOpened(fid);
   } catch (SpaceToTapeGcMap::UnknownEOSSpace&) {
-    // Ignore events for EOS spaces that do not have an enabled tape-aware GC
+    // Ignore events for EOS spaces that do not have a tape-aware GC
   } catch (std::exception &ex) {
-    eos_static_err(msgFormat, space.c_str(), path.c_str(), fid, ex.what());
+    eos_static_err(msgFormat, space.c_str(), fid, ex.what());
   } catch (...) {
-    eos_static_err(msgFormat, space.c_str(), path.c_str(), fid, "Caught an unknown exception");
+    eos_static_err(msgFormat, space.c_str(), fid, "Caught an unknown exception");
   }
 }
 
@@ -180,6 +180,92 @@ MultiSpaceTapeGc::handleFSCTL_PLUGIO_tgc(XrdOucErrInfo& error,
 
   error.setErrInfo(ECANCELED, "handleFSCTL_PLUGIO_tgc failed");
   return SFS_ERROR;
+}
+
+//------------------------------------------------------------------------------
+// Start garbage collection for the specified EOS spaces
+//------------------------------------------------------------------------------
+void
+MultiSpaceTapeGc::start(const std::set<std::string> spaces) {
+  // Starting garbage collecton implies that support for tape is enabled
+  m_tapeEnabled = true;
+
+  if (m_startMethodCalled.test_and_set()) {
+    std::ostringstream msg;
+    msg << __FUNCTION__ << " failed: Garbage collection has already been started";
+    throw GcAlreadyStarted(msg.str());
+  }
+
+  for (const auto &space: spaces) {
+    m_gcs.createGc(space);
+  }
+
+  std::function<void()> entryPoint = std::bind(&MultiSpaceTapeGc::workerThreadEntryPoint, this);
+  {
+    std::lock_guard<std::mutex> workerLock(m_workerMutex);
+    m_worker = std::make_unique<std::thread>(entryPoint);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Entry point for the worker thread of this object
+//------------------------------------------------------------------------------
+void
+MultiSpaceTapeGc::workerThreadEntryPoint() noexcept
+{
+  try {
+    populateGcsUsingQdb();
+    m_gcsPopulatedUsingQdb = true;
+    m_gcs.startGcWorkerThreads();
+  } catch (std::exception &ex) {
+    eos_static_crit("msg=\"Worker thread of the multi-space tape-aware garbage collector failed: %s\"", ex.what());
+  } catch (...) {
+    eos_static_crit("msg=\"Worker thread of the multi-space tape-aware garbage collector failed:"
+      " Caught an unknown exception\"");
+  }
+}
+
+//----------------------------------------------------------------------------
+// Populate the in-memory LRUs of the tape garbage collectors using Quark DB
+//----------------------------------------------------------------------------
+void
+MultiSpaceTapeGc::populateGcsUsingQdb() {
+  eos_static_info("msg=\"Starting to populate the meta-data of the tape-aware garbage collectors\"");
+  const auto startTgcPopulation = time(nullptr);
+
+  const auto gcSpaces = m_gcs.getSpaces();
+  uint64_t nbFilesScanned = 0;
+  auto gcSpaceToFiles = m_mgm.getSpaceToDiskReplicasMap(gcSpaces, m_stop, nbFilesScanned);
+
+  // Build up space GC LRU structures whilst reducing space file lists
+  for (auto &spaceAndFiles : gcSpaceToFiles) {
+    const auto &space = spaceAndFiles.first;
+    auto &files = spaceAndFiles.second;
+    auto &gc = m_gcs.getGc(space);
+    {
+      std::ostringstream msg;
+      msg << "msg=\"About to populate the tape-aware GC meta-data for an EOS space\" space=\"" << space << "\" nbFiles="
+        << files.size();
+      eos_static_info(msg.str().c_str());
+    }
+    for (auto fileItor = files.begin(); fileItor != files.end();) {
+      if (m_stop) {
+        eos_static_info("msg=\"Requested to stop populating the meta-data of the tape-aware garbage collectors\"");
+        return;
+      }
+
+      gc.fileOpened(fileItor->id);
+      fileItor = files.erase(fileItor);
+    }
+  }
+
+  {
+    const auto populationDurationSecs = time(nullptr) - startTgcPopulation;
+    std::ostringstream msg;
+    msg << "msg=\"Finished populating the meta-data of the tape-aware garbage collectors\" nbFilesScanned=" << nbFilesScanned << " durationSecs=" <<
+    populationDurationSecs;
+    eos_static_info(msg.str().c_str());
+  }
 }
 
 EOSTGCNAMESPACE_END

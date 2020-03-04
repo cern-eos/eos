@@ -24,12 +24,16 @@
 #ifndef __EOSMGMTGC_ITAPEGCMGM_HH__
 #define __EOSMGMTGC_ITAPEGCMGM_HH__
 
+#include "common/FileSystem.hh"
 #include "mgm/Namespace.hh"
 #include "mgm/tgc/SpaceStats.hh"
 #include "mgm/tgc/SpaceConfig.hh"
 #include "namespace/interface/IFileMD.hh"
+#include "namespace/ns_quarkdb/QdbContactDetails.hh"
 
+#include <atomic>
 #include <cstdint>
+#include <set>
 #include <stdexcept>
 #include <string>
 
@@ -103,6 +107,64 @@ public:
   //! @param fid The file identifier
   //----------------------------------------------------------------------------
   virtual void stagerrmAsRoot(const IFileMD::id_t fid) = 0;
+
+  //----------------------------------------------------------------------------
+  //! @return Map from file system ID to EOS space name
+  //----------------------------------------------------------------------------
+  virtual std::map<common::FileSystem::fsid_t, std::string> getFsIdToSpaceMap() = 0;
+
+  //------------------------------------------------------------------------------
+  //! Structure containing the identifier and ctime of an EOS file which can
+  //! be ordered by ctime within an std container.
+  //------------------------------------------------------------------------------
+  struct FileIdAndCtime
+  {
+    //----------------------------------------------------------------------------
+    //! The EOS identifier
+    //----------------------------------------------------------------------------
+    IFileMD::id_t id;
+
+    //----------------------------------------------------------------------------
+    //! The ctime
+    //----------------------------------------------------------------------------
+    timespec ctime;
+
+    //----------------------------------------------------------------------------
+    //! Constructor
+    //----------------------------------------------------------------------------
+    FileIdAndCtime(): id(0) {
+      ctime.tv_sec = 0;
+      ctime.tv_nsec = 0;
+    }
+
+    //----------------------------------------------------------------------------
+    //! Constructor
+    //----------------------------------------------------------------------------
+    FileIdAndCtime(const IFileMD::id_t i, const timespec c): id(i), ctime(c) {}
+
+    //----------------------------------------------------------------------------
+    //! Less than operator
+    //----------------------------------------------------------------------------
+    bool operator<(const FileIdAndCtime &rhs) const {
+      if (ctime.tv_sec == rhs.ctime.tv_sec) {
+        return ctime.tv_nsec < rhs.ctime.tv_nsec;
+      } else {
+        return ctime.tv_sec < rhs.ctime.tv_sec;
+      }
+    }
+  };
+
+  //----------------------------------------------------------------------------
+  //! @return map from EOS space name to disk replicas within that space - the
+  //! disk replicas are ordered from oldest first to youngest last
+  //! @param spaces names of the EOS spaces to be mapped
+  //! @param stop reference to a shared atomic boolean that if set to true will
+  //! cause this method to stop and return
+  //! @param nbFilesScanned reference to a counter which this method will set to
+  //! the total number of files scanned
+  //----------------------------------------------------------------------------
+  virtual std::map<std::string, std::set<FileIdAndCtime> > getSpaceToDiskReplicasMap(
+    const std::set<std::string> &spacesToMap, std::atomic<bool> &stop, uint64_t &nbFilesScanned) = 0;
 };
 
 EOSTGCNAMESPACE_END

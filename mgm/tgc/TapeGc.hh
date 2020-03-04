@@ -97,19 +97,16 @@ public:
   TapeGc &operator=(const TapeGc &) = delete;
 
   //----------------------------------------------------------------------------
-  //! Enable the GC
+  //! Idempotent method to start the worker thread of the tape-aware GC
   //----------------------------------------------------------------------------
-  void enable() noexcept;
+  void startWorkerThread();
 
   //----------------------------------------------------------------------------
   //! Notify GC the specified file has been opened
-  //! @note This method does nothing and returns immediately if the GC has not
-  //! been enabled
   //!
-  //! @param path file path
   //! @param fid file identifier
   //----------------------------------------------------------------------------
-  void fileOpened(const std::string &path, IFileMD::id_t fid) noexcept;
+  void fileOpened(IFileMD::id_t fid) noexcept;
 
   //----------------------------------------------------------------------------
   //! @return statistics
@@ -136,14 +133,14 @@ protected:
   /// The name of the EOS space managed by this garbage collector
   std::string m_spaceName;
 
-  /// Used to ensure the enable() method only starts the worker thread once
-  std::atomic_flag m_enabledMethodCalled = ATOMIC_FLAG_INIT;
-
-  /// True if the GC has been enabled
-  std::atomic<bool> m_enabled;
+  /// Ensures startWorkerThread() only starts the worker thread once
+  std::atomic_flag m_startWorkerThreadMethodCalled = ATOMIC_FLAG_INIT;
 
   /// True if the worker thread should stop
   BlockingFlag m_stop;
+
+  /// Mutex dedicated to protecting the m_worker member variable
+  std::mutex m_workerMutex;
 
   /// The one and only GC worker thread
   std::unique_ptr<std::thread> m_worker;
@@ -153,12 +150,6 @@ protected:
 
   /// Queue of Least Recently Used (LRU) files
   Lru m_lruQueue;
-
-  //----------------------------------------------------------------------------
-  //! Facilitate unit-testing by enabling this garbage collector without
-  //! starting the worker thread
-  //----------------------------------------------------------------------------
-  void enableWithoutStartingWorkerThread();
 
   //----------------------------------------------------------------------------
   //! Entry point for the GC worker thread
@@ -180,16 +171,6 @@ protected:
   //! @return True if a file was garbage collected
   //----------------------------------------------------------------------------
   bool tryToGarbageCollectASingleFile() noexcept;
-
-  //----------------------------------------------------------------------------
-  //! Return the preamble to be placed at the beginning of every log message
-  //!
-  //! @param space The name of the EOS space
-  //! @param path The file path
-  //! @param fid The file identifier
-  //----------------------------------------------------------------------------
-  static std::string createLogPreamble(const std::string &space,
-    const std::string &path, IFileMD::id_t fid);
 
   //----------------------------------------------------------------------------
   //! Configuration

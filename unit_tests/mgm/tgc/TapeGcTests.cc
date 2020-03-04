@@ -64,7 +64,7 @@ TEST_F(TgcTapeGcTest, constructor)
 //------------------------------------------------------------------------------
 // Test
 //------------------------------------------------------------------------------
-TEST_F(TgcTapeGcTest, enable)
+TEST_F(TgcTapeGcTest, startWorkerThread)
 {
   using namespace eos::mgm::tgc;
 
@@ -74,23 +74,7 @@ TEST_F(TgcTapeGcTest, enable)
   DummyTapeGcMgm mgm;
   TapeGc gc(mgm, space, maxConfigCacheAgeSecs);
 
-  gc.enable();
-}
-
-//------------------------------------------------------------------------------
-// Test
-//------------------------------------------------------------------------------
-TEST_F(TgcTapeGcTest, enableWithoutStartingWorkerThread)
-{
-  using namespace eos::mgm::tgc;
-
-  const std::string space = "space";
-  const std::time_t maxConfigCacheAgeSecs = 0; // Always renew cached value
-
-  DummyTapeGcMgm mgm;
-  TestingTapeGc gc(mgm, space, maxConfigCacheAgeSecs);
-
-  gc.enableWithoutStartingWorkerThread();
+  gc.startWorkerThread();
 }
 
 //------------------------------------------------------------------------------
@@ -105,8 +89,6 @@ TEST_F(TgcTapeGcTest, tryToGarbageCollectASingleFile)
 
   DummyTapeGcMgm mgm;
   TestingTapeGc gc(mgm, space, maxConfigCacheAgeSecs);
-
-  gc.enableWithoutStartingWorkerThread();
 
   ASSERT_EQ(0, mgm.getNbCallsToGetTapeGcSpaceConfig());
 
@@ -128,9 +110,8 @@ TEST_F(TgcTapeGcTest, tryToGarbageCollectASingleFile)
   ASSERT_EQ(0, mgm.getNbCallsToGetFileSizeBytes());
   ASSERT_EQ(0, mgm.getNbCallsToStagerrmAsRoot());
 
-  const std::string path = "the_file_path";
   eos::IFileMD::id_t fid = 1;
-  gc.fileOpened(path, fid);
+  gc.fileOpened(fid);
 
   gc.tryToGarbageCollectASingleFile();
 
@@ -181,15 +162,12 @@ TEST_F(TgcTapeGcTest, toJson)
   DummyTapeGcMgm mgm;
   TestingTapeGc gc(mgm, space, maxConfigCacheAgeSecs);
 
-  gc.enableWithoutStartingWorkerThread();
-
   for (eos::IFileMD::id_t fid = 1; fid <= 3; fid++) {
-    const std::string path = std::string("the_file_path_") + std::to_string(fid);
-    gc.fileOpened(path, fid);
+    gc.fileOpened(fid);
   }
 
   const std::string expectedJson =
-    "{\"spaceName\":\"space\",\"enabled\":\"true\",\"lruQueue\":{\"size\":\"3\","
+    "{\"spaceName\":\"space\",\"lruQueue\":{\"size\":\"3\","
     "\"fids_from_MRU_to_LRU\":[\"0x0000000000000003\",\"0x0000000000000002\",\"0x0000000000000001\"]}}";
   std::ostringstream json;
   gc.toJson(json);
@@ -208,8 +186,6 @@ TEST_F(TgcTapeGcTest, toJson_exceed_maxLen)
 
   DummyTapeGcMgm mgm;
   TestingTapeGc gc(mgm, space, maxConfigCacheAgeSecs);
-
-  gc.enableWithoutStartingWorkerThread();
 
   std::ostringstream json;
   const std::string::size_type maxLen = 1;

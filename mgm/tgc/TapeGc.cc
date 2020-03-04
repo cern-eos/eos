@@ -29,6 +29,7 @@
 
 #include <cstring>
 #include <functional>
+#include <iomanip>
 #include <ios>
 #include <sstream>
 
@@ -40,7 +41,6 @@ EOSTGCNAMESPACE_BEGIN
 TapeGc::TapeGc(ITapeGcMgm &mgm, const std::string &spaceName, const std::time_t maxConfigCacheAgeSecs):
   m_mgm(mgm),
   m_spaceName(spaceName),
-  m_enabled(false),
   m_config(std::bind(&ITapeGcMgm::getTapeGcSpaceConfig, &mgm, spaceName), maxConfigCacheAgeSecs),
   m_spaceStats(spaceName, mgm, m_config),
   m_nbStagerrms(0)
@@ -53,8 +53,8 @@ TapeGc::TapeGc(ITapeGcMgm &mgm, const std::string &spaceName, const std::time_t 
 TapeGc::~TapeGc()
 {
   try {
-    // m_enabled is an std::atomic and is set within enable() after m_worker
-    if(m_enabled && m_worker) {
+    std::lock_guard<std::mutex> workerLock(m_workerMutex);
+    if(m_worker) {
       m_stop.setToTrue();
       m_worker->join();
     }
@@ -66,23 +66,29 @@ TapeGc::~TapeGc()
 }
 
 //------------------------------------------------------------------------------
-// Enable the GC
+// Idempotent method to start the worker thread of the tape-aware GC
 //------------------------------------------------------------------------------
 void
-TapeGc::enable() noexcept
+TapeGc::startWorkerThread()
 {
   try {
-    // Do nothing if the calling thread is not the first to call eable()
-    if (m_enabledMethodCalled.test_and_set()) return;
-
-    m_enabled = true;
+    // Do nothing if calling thread is not the first to call startWorkerThread()
+    if (m_startWorkerThreadMethodCalled.test_and_set()) return;
 
     std::function<void()> entryPoint = std::bind(&TapeGc::workerThreadEntryPoint, this);
-    m_worker = std::make_unique<std::thread>(entryPoint);
+
+    {
+      std::lock_guard<std::mutex> workerLock(m_workerMutex);
+      m_worker = std::make_unique<std::thread>(entryPoint);
+    }
   } catch(std::exception &ex) {
-    eos_static_err("msg=\"%s\"", ex.what());
+    std::ostringstream msg;
+    msg << __FUNCTION__ << " failed: " << ex.what();
+    throw std::runtime_error(msg.str());
   } catch(...) {
-    eos_static_err("msg=\"Caught an unknown exception\"");
+    std::ostringstream msg;
+    msg << __FUNCTION__ << " failed: Caught an unknown exception";
+    throw std::runtime_error(msg.str());
   }
 }
 
@@ -102,22 +108,19 @@ TapeGc::workerThreadEntryPoint() noexcept
 // Notify GC the specified file has been opened
 //------------------------------------------------------------------------------
 void
-TapeGc::fileOpened(const std::string &path, const IFileMD::id_t fid) noexcept
+TapeGc::fileOpened(const IFileMD::id_t fid) noexcept
 {
-  if(!m_enabled) return;
-
   try {
-    const std::string preamble = createLogPreamble(m_spaceName, path, fid);
-    eos_static_debug(preamble.c_str());
-
     std::lock_guard<std::mutex> lruQueueLock(m_lruQueueMutex);
     const bool exceededBefore = m_lruQueue.maxQueueSizeExceeded();
     m_lruQueue.fileAccessed(fid);
 
     // Only log crossing the max queue size threshold - don't log each access
     if(!exceededBefore && m_lruQueue.maxQueueSizeExceeded()) {
-      eos_static_warning("%s msg=\"Tape aware max queue size has been passed - "
-        "new files will be ignored\"", preamble.c_str());
+      std::ostringstream msg;
+      msg <<"space=\"" << m_spaceName << "\" fxid=" << std::hex << fid <<
+        " msg=\"Max queue size of tape-aware GC has been passed - new files will be ignored\"";
+      eos_static_warning(msg.str().c_str());
     }
   } catch(std::exception &ex) {
     eos_static_err("msg=\"%s\"", ex.what());
@@ -229,21 +232,6 @@ TapeGc::tryToGarbageCollectASingleFile() noexcept
 }
 
 //----------------------------------------------------------------------------
-// Return the preamble to be placed at the beginning of every log message
-//----------------------------------------------------------------------------
-std::string
-TapeGc::createLogPreamble(const std::string &space, const std::string &path,
-  const IFileMD::id_t fid)
-{
-  std::ostringstream preamble;
-
-  preamble << "space=\"" << space << "\" fxid=" << std::hex << fid <<
-    " path=\"" << path << "\"";
-
-  return preamble.str();
-}
-
-//----------------------------------------------------------------------------
 // Return statistics
 //----------------------------------------------------------------------------
 TapeGcStats
@@ -293,7 +281,6 @@ TapeGc::toJson(std::ostringstream &os, const std::uint64_t maxLen) const {
     os <<
       "{"
       "\"spaceName\":\"" << m_spaceName << "\","
-      "\"enabled\":" << (m_enabled ? "\"true\"" : "\"false\"") << ","
       "\"lruQueue\":";
     m_lruQueue.toJson(os, maxLen);
     os << "}";
@@ -308,17 +295,6 @@ TapeGc::toJson(std::ostringstream &os, const std::uint64_t maxLen) const {
       throw MaxLenExceeded(msg.str());
     }
   }
-}
-
-//----------------------------------------------------------------------------
-// Enabling this garbage collector without starting the worker thread
-//----------------------------------------------------------------------------
-void
-TapeGc::enableWithoutStartingWorkerThread() {
-  // Do nothing if the calling thread is not the first to call enable()
-  if (m_enabledMethodCalled.test_and_set()) return;
-
-  m_enabled = true;
 }
 
 //------------------------------------------------------------------------------

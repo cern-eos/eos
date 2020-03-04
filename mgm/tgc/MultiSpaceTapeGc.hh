@@ -32,6 +32,8 @@
 
 #include <atomic>
 #include <map>
+#include <set>
+#include <stdexcept>
 #include <string>
 #include <XrdSfs/XrdSfsInterface.hh>
 
@@ -62,7 +64,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~MultiSpaceTapeGc() = default;
+  ~MultiSpaceTapeGc();
 
   //----------------------------------------------------------------------------
   //! Delete copy constructor
@@ -75,11 +77,22 @@ public:
   MultiSpaceTapeGc &operator=(const MultiSpaceTapeGc &) = delete;
 
   //----------------------------------------------------------------------------
-  //! Enable garbage collection for the specified EOS space
-  //!
-  //! @param space The name of the EOs space
+  //! Thrown if garbage collection has already started
   //----------------------------------------------------------------------------
-  void enable(const std::string &space);
+  struct GcAlreadyStarted: public std::runtime_error {
+    GcAlreadyStarted(const std::string &msg): std::runtime_error(msg) {}
+  };
+
+  //----------------------------------------------------------------------------
+  //! Start garbage collection for the specified EOS spaces
+  //!
+  //! Please note that calling this method tells this object that support for
+  //! tape is enabled
+  //!
+  //! @param spaces names of the EOS spaces that are to be garbage collected
+  //! @throw GCAlreadyStarted if garbage collection has already been started
+  //----------------------------------------------------------------------------
+  void start(const std::set<std::string> spaces);
 
   //----------------------------------------------------------------------------
   //! Notify GC the specified file has been opened
@@ -87,11 +100,9 @@ public:
   //! been enabled
   //!
   //! @param space the name of the EOS space where the file resides
-  //! @param path file path
   //! @param fid file identifier
   //----------------------------------------------------------------------------
-  void fileOpened(const std::string &space, const std::string &path,
-    const IFileMD::id_t fid);
+  void fileOpened(const std::string &space, const IFileMD::id_t fid);
 
   //----------------------------------------------------------------------------
   //! @return map from EOS space name to tape-aware GC statistics
@@ -106,14 +117,57 @@ public:
 private:
 
   //----------------------------------------------------------------------------
-  // ! True if tape support is enabled
+  //! True if tape support is enabled
   //----------------------------------------------------------------------------
   std::atomic<bool> m_tapeEnabled;
+
+  //----------------------------------------------------------------------------
+  //! Ensures start() only starts garbage collection once
+  //----------------------------------------------------------------------------
+  std::atomic_flag m_startMethodCalled = ATOMIC_FLAG_INIT;
+
+  //----------------------------------------------------------------------------
+  //! The interface to the EOS MGM
+  //----------------------------------------------------------------------------
+  ITapeGcMgm &m_mgm;
 
   //----------------------------------------------------------------------------
   //! Thread safe map from EOS space name to tape aware garbage collector
   //----------------------------------------------------------------------------
   SpaceToTapeGcMap m_gcs;
+
+  //----------------------------------------------------------------------------
+  //! True if the worker thread of this object should stop
+  //----------------------------------------------------------------------------
+  std::atomic<bool> m_stop = false;
+
+  //----------------------------------------------------------------------------
+  //! Mutex dedicated to protecting the m_worker member variable
+  //----------------------------------------------------------------------------
+  std::mutex m_workerMutex;
+
+  //----------------------------------------------------------------------------
+  //! The worker thread for this object (each TapeGc also has its own separate
+  //! worker thread)
+  //----------------------------------------------------------------------------
+  std::unique_ptr<std::thread> m_worker;
+
+  //----------------------------------------------------------------------------
+  //! Becomes true when the metadata of the tape-aware GCs has been fully
+  //! populated using Quark DB
+  //----------------------------------------------------------------------------
+  std::atomic<bool> m_gcsPopulatedUsingQdb = false;
+
+  //----------------------------------------------------------------------------
+  //! Entry point for the worker thread of this object
+  //----------------------------------------------------------------------------
+  void workerThreadEntryPoint() noexcept;
+
+  //----------------------------------------------------------------------------
+  //! Populate the in-memory LRU data structures of the tape aware garbage
+  //! collectors using Quark DB
+  //----------------------------------------------------------------------------
+  void populateGcsUsingQdb();
 };
 
 EOSTGCNAMESPACE_END

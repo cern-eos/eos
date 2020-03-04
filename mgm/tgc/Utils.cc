@@ -23,6 +23,8 @@
 
 #include "mgm/tgc/Utils.hh"
 
+#include <cstring>
+
 EOSTGCNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
@@ -76,6 +78,24 @@ Utils::isValidUInt(std::string str)
   }
 
   return true;
+}
+
+//------------------------------------------------------------------------------
+// Return a copy of the specified buffer in the form of a timespec structure
+//------------------------------------------------------------------------------
+timespec
+Utils::bufToTimespec(const std::string &buf) {
+  if (sizeof(timespec) != buf.size()) {
+    std::ostringstream msg;
+    msg << __FUNCTION__ << " failed: Buffer size does match sizeof(timespec): buf.size()=" << buf.size() <<
+      " sizeof(timespec)" << sizeof(timespec);
+    throw BufSizeMismatch(msg.str());
+  }
+
+  timespec result;
+  std::memcpy(&result, buf.data(), sizeof(timespec));
+
+  return result;
 }
 
 EOSTGCNAMESPACE_END

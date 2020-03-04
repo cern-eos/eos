@@ -106,6 +106,23 @@ public:
   void stagerrmAsRoot(IFileMD::id_t fid) override;
 
   //----------------------------------------------------------------------------
+  //! @return Map from file system ID to EOS space name
+  //----------------------------------------------------------------------------
+  std::map<common::FileSystem::fsid_t, std::string> getFsIdToSpaceMap() override;
+
+  //----------------------------------------------------------------------------
+  //! @return map from EOS space name to disk replicas within that space - the
+  //! disk replicas are ordered from oldest first to youngest last
+  //! @param spaces names of the EOS spaces to be mapped
+  //! @param stop reference to a shared atomic boolean that if set to true will
+  //! cause this method to stop and return
+  //! @param nbFilesScanned reference to a counter which this method will set to
+  //! the total number of files scanned
+  //----------------------------------------------------------------------------
+  std::map<std::string, std::set<FileIdAndCtime> > getSpaceToDiskReplicasMap(
+    const std::set<std::string> &spacesToMap, std::atomic<bool> &stop, uint64_t &nbFilesScanned) override;
+
+  //----------------------------------------------------------------------------
   //! Set the tape-aware garbage collector configuration for the specified EOS
   //! space
   //!

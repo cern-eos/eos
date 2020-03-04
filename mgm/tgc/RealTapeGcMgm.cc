@@ -28,6 +28,8 @@
 #include "mgm/tgc/SpaceNotFound.hh"
 #include "mgm/tgc/Utils.hh"
 #include "namespace/interface/IFileMDSvc.hh"
+#include "namespace/ns_quarkdb/inspector/FileScanner.hh"
+#include "namespace/ns_quarkdb/qclient/include/qclient/QClient.hh"
 #include "namespace/Prefetcher.hh"
 
 #include <sstream>
@@ -245,6 +247,144 @@ RealTapeGcMgm::stagerrmAsRoot(const IFileMD::id_t fid)
   if(result.retc()) {
     throw std::runtime_error(result.std_err());
   }
+}
+
+//----------------------------------------------------------------------------
+// Return map from file system ID to EOS space name
+//----------------------------------------------------------------------------
+std::map<common::FileSystem::fsid_t, std::string>
+RealTapeGcMgm::getFsIdToSpaceMap()
+{
+  std::map<common::FileSystem::fsid_t, std::string> fsIdToSpace;
+
+  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+
+  const auto spaces = getSpaces();
+
+  for (const auto &space: spaces) {
+    const auto spaceItor = FsView::gFsView.mSpaceView.find(space);
+
+    if (FsView::gFsView.mSpaceView.end() == spaceItor) {
+      throw SpaceNotFound(std::string(__FUNCTION__) + ": Cannot find space " +
+                          space + ": FsView does not know the space name");
+    }
+
+    if (nullptr == spaceItor->second) {
+      throw SpaceNotFound(std::string(__FUNCTION__) + ": Cannot find space " +
+                          space + ": Pointer to FsSpace is nullptr");
+    }
+
+    const FsSpace &fsSpace = *(spaceItor->second);
+
+    for (const auto fsId: fsSpace) {
+      const auto itor = fsIdToSpace.find(fsId);
+      if (fsIdToSpace.end() != itor) {
+        std::ostringstream msg;
+        msg << __FUNCTION__ << " failed: Found a filesystem in more than one EOS space: fsId=" << fsId <<
+          " firstSpace=" << itor->second << " secondSpace=" << space;
+        throw std::runtime_error(msg.str());
+      }
+      fsIdToSpace[fsId] = space;
+    }
+  }
+
+  return fsIdToSpace;
+}
+
+//----------------------------------------------------------------------------
+// Return a list of the names of all the EOS spaces
+//----------------------------------------------------------------------------
+std::set<std::string>
+RealTapeGcMgm::getSpaces() const
+{
+  std::set<std::string> spaces;
+
+  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+
+  for (const auto nameAndSpace : FsView::gFsView.mSpaceView) {
+    if (0 != spaces.count(nameAndSpace.first)) {
+      std::ostringstream msg;
+      msg << __FUNCTION__ << " failed: Detected two EOS spaces with the same name: space=" <<
+        nameAndSpace.first;
+      throw std::runtime_error(msg.str());
+    }
+    spaces.insert(nameAndSpace.first);
+  }
+
+  return spaces;
+}
+
+//----------------------------------------------------------------------------
+// Return map from EOS space name to disk replicas within that space
+//----------------------------------------------------------------------------
+std::map<std::string, std::set<ITapeGcMgm::FileIdAndCtime> >
+RealTapeGcMgm::getSpaceToDiskReplicasMap(const std::set<std::string> &spacesToMap, std::atomic<bool> &stop,
+  uint64_t &nbFilesScanned)
+{
+  nbFilesScanned = 0;
+
+  if (m_ofs.mQdbContactDetails.members.empty()) {
+    std::ostringstream msg;
+    msg << __FUNCTION__ << " failed: QdbContactDetails.members is empty";
+    eos_static_warning(msg.str().c_str());
+    throw std::runtime_error(msg.str());
+  }
+
+  std::map<std::string, std::set<FileIdAndCtime> > spaceToReplicas;
+  const auto fsIdToSpace = getFsIdToSpaceMap();
+  qclient::QClient qdbClient(m_ofs.mQdbContactDetails.members, m_ofs.mQdbContactDetails.constructOptions());
+  FileScanner fileScanner(qdbClient);
+
+  std::set<int> fsIdsWithNoSpace;
+
+  while (fileScanner.valid()) {
+    eos::ns::FileMdProto file;
+
+    if (stop) {
+      eos_static_info("The creation of the EOS space name to files map has been requested to stop");
+      break;
+    }
+
+    if (!fileScanner.getItem(file)) {
+      eos_static_warning("msg=\"fileScanner stopped iterating early\"");
+      break;
+    }
+
+    const auto ctime = Utils::bufToTimespec(file.ctime());
+    const int locationsSize = file.locations_size();
+    for (int locationIndex = 0; locationIndex < locationsSize; locationIndex++) {
+      const int fsId = file.locations(locationIndex);
+      const auto itor = fsIdToSpace.find(fsId);
+      if (fsIdToSpace.end() == itor) {
+        fsIdsWithNoSpace.insert(fsId);
+      } else {
+        const std::string &space = itor->second;
+        if (spacesToMap.count(space)) {
+          spaceToReplicas[space].emplace(file.id(), ctime);
+        }
+      }
+    }
+
+    nbFilesScanned++;
+    fileScanner.next();
+  }
+
+  if (!fsIdsWithNoSpace.empty()) {
+    std::ostringstream msg;
+    msg << "msg=\"Found file system IDs with no EOS space\" fsIds=\"";
+    bool isFirstFsId = true;
+    for(const auto fsId: fsIdsWithNoSpace) {
+      if (isFirstFsId) {
+        isFirstFsId = false;
+      } else {
+        msg << ",";
+      }
+      msg << fsId;
+    }
+    eos_static_warning(msg.str().c_str());
+  }
+
+  return spaceToReplicas;
 }
 
 EOSTGCNAMESPACE_END

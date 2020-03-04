@@ -126,6 +126,31 @@ SpaceToTapeGcMap::getStats() const
 }
 
 //----------------------------------------------------------------------------
+// Return the names of the EOS spaces being garbage collected
+//----------------------------------------------------------------------------
+std::set<std::string>
+SpaceToTapeGcMap::getSpaces() const
+{
+  std::set<std::string> spaces;
+
+  std::lock_guard<std::mutex> lock(m_mutex);
+
+  for (auto &spaceAndTapeGc : m_gcs) {
+    if (nullptr != spaceAndTapeGc.second) {
+      if (0 != spaces.count(spaceAndTapeGc.first)) {
+        std::ostringstream msg;
+        msg << __FUNCTION__ << " failed: Detected two garbage collectors working on the same EOS space: space=" <<
+          spaceAndTapeGc.first;
+        throw std::runtime_error(msg.str());
+      }
+      spaces.insert(spaceAndTapeGc.first);
+    }
+  }
+
+  return spaces;
+}
+
+//----------------------------------------------------------------------------
 // Return A JSON string representation of this map
 //----------------------------------------------------------------------------
 void
@@ -165,6 +190,21 @@ SpaceToTapeGcMap::toJson(std::ostringstream &os, std::uint64_t maxLen) const
       std::ostringstream msg;
       msg << __FUNCTION__ << ": maxLen exceeded: maxLen=" << maxLen;
       throw MaxLenExceeded(msg.str());
+    }
+  }
+}
+
+//--------------------------------------------------------------------------
+// Start the worker thread of each garbage collector
+//--------------------------------------------------------------------------
+void
+SpaceToTapeGcMap::startGcWorkerThreads()
+{
+  std::lock_guard<std::mutex> lock(m_mutex);
+
+  for(auto &spaceAndTapeGc : m_gcs) {
+    if(nullptr != spaceAndTapeGc.second) {
+      spaceAndTapeGc.second->startWorkerThread();
     }
   }
 }

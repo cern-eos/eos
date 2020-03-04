@@ -63,7 +63,7 @@ SmartSpaceStats::get()
     m_queryMgmTimestamp = now;
   }
 
-  if (0 == spaceConfig.queryPeriodSecs || TGC_MAX_QRY_PERIOD_SECS < spaceConfig.queryPeriodSecs) {
+  if (0 == spaceConfig.queryPeriodSecs || TGC_MAX_QRY_PERIOD_SECS < ((std::uint64_t)spaceConfig.queryPeriodSecs)) {
     std::ostringstream msg;
     msg << "spaceName=\"" << m_spaceName << "\" msg=\"Ignoring new value of " << TGC_NAME_QRY_PERIOD_SECS <<
       " : Value must be > 0 and <= " << TGC_MAX_QRY_PERIOD_SECS << ": Value=" << spaceConfig.queryPeriodSecs << "\"";

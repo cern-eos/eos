@@ -2682,7 +2682,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   if (nullptr != fmd && nullptr != space.c_str() &&
       fmd->hasAttribute("sys.archive.file_id")) {
-    gOFS->mTapeGc->fileOpened(space.c_str(), path, fmd->getId());
+    gOFS->mTapeGc->fileOpened(space.c_str(), fmd->getId());
   }
 
   // Also trigger synchronous create workflow event if it's defined
