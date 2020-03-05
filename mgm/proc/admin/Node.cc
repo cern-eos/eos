@@ -539,7 +539,6 @@ ProcCommand::Node()
         stdErr = "error: invalid parameters";
         retc = EINVAL;
       } else {
-        XrdMqMessage message("mgm");
         XrdOucString msgbody = "";
         msgbody = eos::common::FileSystem::GetRegisterRequestString();
         msgbody += "&mgm.path2register=";
@@ -555,7 +554,6 @@ ProcCommand::Node()
           msgbody += "&mgm.root=true";
         }
 
-        message.SetBody(msgbody.c_str());
         XrdOucString nodequeue = "/eos/";
 
         if (registernode == "*") {
@@ -566,9 +564,11 @@ ProcCommand::Node()
 
         nodequeue += "/fst";
 
-        if (XrdMqMessaging::gMessageClient.SendMessage(message, nodequeue.c_str())) {
+        mq::MessagingRealm::Response response = gOFS->mMessagingRealm->sendMessage("msg", msgbody.c_str(), nodequeue.c_str());
+        if(response.ok()) {
           stdOut = "success: sent global register message to all fst nodes";
-        } else {
+        }
+        else {
           stdErr = "error: could not send global fst register message!";
           retc = EIO;
         }

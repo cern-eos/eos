@@ -25,9 +25,11 @@
 #define EOS_MQ_MESSAGING_REALM_HH
 
 #include "mq/Namespace.hh"
+#include <string>
 
 class XrdMqSharedObjectManager;
 class XrdMqSharedObjectChangeNotifier;
+class XrdMqClient;
 
 namespace qclient {
   class SharedManager;
@@ -43,11 +45,20 @@ EOSMQNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 class MessagingRealm {
 public:
+  struct Response {
+    int status;
+    std::string response;
+
+    bool ok() const {
+      return status == 0;
+    }
+  };
+
   //----------------------------------------------------------------------------
   //! Initialize legacy-MQ-based messaging realm.
   //----------------------------------------------------------------------------
   MessagingRealm(XrdMqSharedObjectManager *som, XrdMqSharedObjectChangeNotifier *notifier,
-    qclient::SharedManager *qsom);
+    XrdMqClient *messageClient, qclient::SharedManager *qsom);
 
   //----------------------------------------------------------------------------
   //! Have access to QDB?
@@ -69,9 +80,16 @@ public:
   //----------------------------------------------------------------------------
   qclient::SharedManager* getQSom() const;
 
+  //----------------------------------------------------------------------------
+  //! Send message to the given receiver queue
+  //----------------------------------------------------------------------------
+  Response sendMessage(const std::string &descr, const std::string &payload,
+    const std::string &receiver);
+
 private:
   XrdMqSharedObjectManager *mSom;
   XrdMqSharedObjectChangeNotifier *mNotifier;
+  XrdMqClient *mMessageClient;
 
   qclient::SharedManager *mQSom;
 };

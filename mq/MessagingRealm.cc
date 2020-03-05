@@ -22,6 +22,8 @@
  ************************************************************************/
 
 #include "mq/MessagingRealm.hh"
+#include "mq/XrdMqMessage.hh"
+#include "mq/XrdMqClient.hh"
 
 EOSMQNAMESPACE_BEGIN
 
@@ -29,8 +31,10 @@ EOSMQNAMESPACE_BEGIN
 // Initialize legacy-MQ-based messaging realm.
 //------------------------------------------------------------------------------
 MessagingRealm::MessagingRealm(XrdMqSharedObjectManager *som,
-  XrdMqSharedObjectChangeNotifier *notif, qclient::SharedManager *qsom)
-: mSom(som), mNotifier(notif), mQSom(qsom) {}
+  XrdMqSharedObjectChangeNotifier *notif, XrdMqClient *mqcl,
+  qclient::SharedManager *qsom)
+
+: mSom(som), mNotifier(notif), mMessageClient(mqcl), mQSom(qsom) {}
 
 //------------------------------------------------------------------------------
 // Is this a QDB realm?
@@ -60,5 +64,23 @@ qclient::SharedManager* MessagingRealm::getQSom() const {
   return mQSom;
 }
 
+//------------------------------------------------------------------------------
+//! Send message to the given receiver queue
+//------------------------------------------------------------------------------
+MessagingRealm::Response MessagingRealm::sendMessage(const std::string &descr, const std::string &payload, const std::string &receiver) {
+  Response resp;
+
+  XrdMqMessage message(descr.c_str());
+  message.SetBody(payload.c_str());
+
+  if(mMessageClient->SendMessage(message, receiver.c_str())) {
+    resp.status = 0;
+  }
+  else {
+    resp.status = 1;
+  }
+
+  return resp;
+}
 
 EOSMQNAMESPACE_END

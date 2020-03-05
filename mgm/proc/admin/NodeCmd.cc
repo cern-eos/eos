@@ -26,6 +26,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/IMaster.hh"
 #include "mgm/config/IConfigEngine.hh"
+#include "mq/MessagingRealm.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -447,7 +448,6 @@ void NodeCmd::RegisterSubcmd(const eos::console::NodeProto_RegisterProto&
     return;
   }
 
-  XrdMqMessage message("mgm");
   std::string msgbody = eos::common::FileSystem::GetRegisterRequestString();
   msgbody += "&mgm.path2register=" + registerx.node_path2register();
   msgbody += "&mgm.space2register=" + registerx.node_space2register();
@@ -460,13 +460,14 @@ void NodeCmd::RegisterSubcmd(const eos::console::NodeProto_RegisterProto&
     msgbody += "&mgm.root=true";
   }
 
-  message.SetBody(msgbody.c_str());
   std::string nodequeue = "/eos/" + registerx.node_name() + "/fst";
 
-  if (XrdMqMessaging::gMessageClient.SendMessage(message, nodequeue.c_str())) {
+  mq::MessagingRealm::Response response = gOFS->mMessagingRealm->sendMessage("msg", msgbody, nodequeue);
+  if(response.ok()) {
     reply.set_std_out("success: sent global register message to all fst nodes");
     reply.set_retc(0);
-  } else {
+  }
+  else {
     reply.set_std_err("error: could not send global fst register message!");
     reply.set_retc(EIO);
   }

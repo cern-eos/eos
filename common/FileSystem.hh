@@ -50,7 +50,6 @@ namespace qclient
 {
 
 class SharedManager;
-class TransientSharedHash;
 
 }
 
