@@ -16,6 +16,18 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.7.1 Citrine``
+===================
+
+2020-03-06
+
+Bug
+----
+
+* FST: Disable async close functionality that triggers a bug in XRootD due to memory corruption - seen in EOSPROJECT
+* EOS-4027: RAIN file chunk dropped when chunk drain fails due to node being offline - seen in EOSALICEDAQ
+
+
 ``v4.7.0 Citrine``
 ===================
 
