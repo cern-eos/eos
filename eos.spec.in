@@ -1146,6 +1146,7 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_sbindir}/fusex-benchmark
 %{_sbindir}/eos-fusex-certify
 %{_sbindir}/eos-fusex-ioverify
+%{_sbindir}/eos-fusex-recovery
 %{_sbindir}/xrdcpabort
 %{_sbindir}/xrdcpappend
 %{_sbindir}/xrdcpposixcache
