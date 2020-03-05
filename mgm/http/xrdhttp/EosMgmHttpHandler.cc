@@ -342,7 +342,8 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
   std::map<std::string, std::string> normalized_headers;
 
   for (const auto& hdr : req.headers) {
-    eos_info("hdr key=%s value=%s", hdr.first.c_str(), hdr.second.c_str());
+    eos_static_info("msg=\"normalize hdr\" key=\"%s\" value=\"%s\"",
+                    hdr.first.c_str(), hdr.second.c_str());
     normalized_headers[LC_STRING(hdr.first)] = hdr.second;
   }
 

@@ -37,11 +37,13 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
   }
 
   std::map<std::string, std::string> cookies;
-  // normalize the input headers to lower-case
   std::map<std::string, std::string> normalized_headers;
 
-  for (auto it = req.headers.begin(); it != req.headers.end(); ++it) {
-    normalized_headers[LC_STRING(it->first)] = it->second;
+  // Normalize the input headers to lower-case
+  for (const auto& hdr : req.headers) {
+    eos_static_info("msg\"normalize hdr\" key=\"%s\" value=\"%s\"",
+                    hdr.first.c_str(),  hdr.second.c_str());
+    normalized_headers[LC_STRING(hdr.first)] = hdr.second;
   }
 
   std::string query = normalized_headers.count("xrd-http-query") ?
