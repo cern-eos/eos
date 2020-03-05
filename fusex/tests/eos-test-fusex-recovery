@@ -1,5 +1,4 @@
 #!/bin/bash
-
 if [ "$1" = "1" ] ; then 
 hasspare=`eos space ls spare`;
 test -z $hasspare || (echo " you have a spare space already defined - stopping this test" && exit -1)
@@ -40,7 +39,7 @@ mount -t fuse eosxd -ofsname=`hostname -f`:/eos/_recovery_/ /recover/
 
 ls -lart /recover
 sleep 1
-rm -r /recover/*
+rm -r /recover/* && echo nothing to delete
 sleep 1
 
 ##########################################################################
@@ -64,6 +63,8 @@ dd if=/dev/zero of=/recover/nospace.2 bs=1M count=128 oflag=sync 2>&1 | grep "No
 # update
 dd if=/dev/zero of=/recover/nospace.2 bs=1M count=128 oflag=sync 2>&1 | grep "No space left on device" || (echo "no space left on device (sync update) error fault" && exit -1)
 
+unlink /recover/nospace.1
+unlink /recover/nospace.2
 
 echo "# ------------------------------------------------------------------"
 echo "# recovery case 1 - update a file on an offline filesystem"
@@ -82,10 +83,15 @@ eos file info eos/_recovery_/recovery.1G
 echo "[3] making one filesystem RO, add a new one as RW"
 eos fs config ${fsarray[1]} configstatus=ro
 eos fs config ${fsarray[2]} configstatus=rw
+eos fs config ${fsarray[3]} configstatus=rw
 sleep 5
 echo "[4] append the second half of the 1G file with one filesystem down"
 dd if=/var/tmp/recovery.1G skip=500 of=/recover/recovery.1G bs=1M count=500 conv=notrunc oflag=append
 eos file info eos/_recovery_/recovery.1G
+
+eos file info /eos/_recovery_/recovery.1G | grep online  | grep -w rw | wc -l | grep 2 >& /dev/null
+rc=$?
+
 sleep 5
 
 unlink /recover/recovery.1G
@@ -95,7 +101,7 @@ fi
 fsarray=(`eos fs ls -m | grep spare | awk '{print $3}' | sed s/id=//g`)
 
 for id in ${fsarray[*]}; do 
-  echo "7377813624" | eos fs dropfiles $id -f 
+  eos fs dropdeletion $id
   eos fs config $id configstatus=empty
   eos fs rm $id
   pid=`echo $id | awk '{printf("%04d\n",$1);}'`
@@ -105,7 +111,9 @@ done
 test -e /recover && umount -fl /recover/
 test -e /recover/ && rmdir /recover/
 rm -rf /spare/*
-
+test $rc -eq 0 && echo "info: test succeeded" 
+test $rc -eq 0 || echo "error: test failed" 
+exit $rc
 
 
 
