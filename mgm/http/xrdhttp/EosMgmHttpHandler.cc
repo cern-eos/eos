@@ -385,6 +385,8 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
 {
   using eos::common::StringConversion;
   std::string body;
+  // @todo(esindril): handle redirection to new MGM master if the
+  // current one is a slave
 
   if (req.verb == "POST") {
     // Delegate request to the XrdMacaroons library

@@ -3209,8 +3209,8 @@ XrdMgmOfsFile::HandleTokenAuthz(XrdSecEntity* client, const std::string& path,
       // @todo (esindril) this should be mapped to the correct operation type
       Access_Operation oper = AOP_Stat;
 
-      if (gOFS->mTokenAuthzHandler &&
-          (gOFS->mTokenAuthzHandler->Access(client, path.c_str(), oper, &op_env)
+      if (gOFS->mTokenAuthz &&
+          (gOFS->mTokenAuthz->Access(client, path.c_str(), oper, &op_env)
            == XrdAccPriv_None)) {
         return false;
       }

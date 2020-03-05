@@ -116,6 +116,7 @@
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "mgm/FuseNotificationGuard.hh"
 #include "mgm/InFlightTracker.hh"
+#include "XrdAcc/XrdAccPrivs.hh"
 #include <google/sparse_hash_map>
 #include <chrono>
 #include <mutex>
@@ -125,7 +126,6 @@ USE_EOSMGMNAMESPACE
 //! Forward declaration
 class XrdMgmOfsFile;
 class XrdMgmOfsDirectory;
-class XrdCapability;
 class XrdAccAuthorize;
 class XrdMgmAuthz;
 
@@ -691,19 +691,51 @@ public:
   int _access(const char*, int mode, XrdOucErrInfo&,
               eos::common::VirtualIdentity& vid, const char*, bool lock = true);
 
-  // ---------------------------------------------------------------------------
-  // define access permissions by vid for a file/directory
-  // ---------------------------------------------------------------------------
-  int acc_access(const char*,
-                 XrdOucErrInfo&,
-                 eos::common::VirtualIdentity& vid,
-                 std::string& accperm);
+  //----------------------------------------------------------------------------
+  //! @brief define access permissions for files/directories
+  //!
+  //! @param path path to access
+  //! @param error object
+  //! @param virtual ID of the client
+  //! @param accperm - return string defining access permission
+  //! @return SFS_OK if found, otherwise SFS_ERR
+  //!
+  //! Definition of accperm see here:
+  //! Code  Resource         Description
+  //! S       File or Folder       is shared
+  //! R       File or Folder       can share (includes reshare)
+  //! M       File or Folder       is mounted (like on DropBox, Samba, etc.)
+  //! W       File             can write file
+  //! C       Folder           can create file in folder
+  //! K       Folder           can create folder (mkdir)
+  //! D       File or Folder   can delete file or folder
+  //! N     File or Folder   can rename file or folder
+  //! V     File or Folder   can move file or folder
+  //----------------------------------------------------------------------------
+  int acc_access(const char* path, XrdOucErrInfo& error,
+                 eos::common::VirtualIdentity& vid, std::string& accperm);
 
-  // ---------------------------------------------------------------------------
-  // test if public access is allowed in a given path
-  // ---------------------------------------------------------------------------
-  bool allow_public_access(const char* path,
-                           eos::common::VirtualIdentity& vid);
+  //----------------------------------------------------------------------------
+  //! Test if public access is allowed in a given path
+  //!
+  //! @param path path to access
+  //! @param vid virtual identity of the user
+  //!
+  //! @return true if access is allowed, otherwise false
+  //----------------------------------------------------------------------------
+  bool allow_public_access(const char* path, eos::common::VirtualIdentity& vid);
+
+  //----------------------------------------------------------------------------
+  //! Get the allowed XrdAccPrivs i.e. allowed operations on the given path
+  //! for the client in the XrdSecEntity
+  //!
+  //! @param path accessed path
+  //! @param client client identity
+  //!
+  //! @return XrdAccPrivs flags for the path and user combinatino
+  //----------------------------------------------------------------------------
+  XrdAccPrivs GetXrdAccPrivs(const std::string& path,
+                             const XrdSecEntity* client, XrdOucEnv* env);
 
   // ---------------------------------------------------------------------------
   // set utimes
@@ -1397,8 +1429,6 @@ public:
   //----------------------------------------------------------------------------
   char* ConfigFN; ///< name of the configuration file
   IConfigEngine* ConfEngine; ///< storing/restoring configuration
-  //! Authorization module for token encryption/decryption
-  XrdMgmAuthz* CapabilityEngine;
   std::chrono::seconds mCapabilityValidity; ///< Capability validity duration
   XrdOucString MgmOfsBroker; ///< Url of the message broker without MGM subject
   XrdOucString MgmOfsBrokerUrl; ///< Url of the message broker with MGM subject
@@ -1656,13 +1686,16 @@ public:
   //----------------------------------------------------------------------------
   inline void SetTokenAuthzHandler(XrdAccAuthorize* token_authz)
   {
-    mTokenAuthzHandler = token_authz;
+    mTokenAuthz = token_authz;
   }
 
   //----------------------------------------------------------------------------
   // Class objects
   //----------------------------------------------------------------------------
-  XrdAccAuthorize* mTokenAuthzHandler {nullptr}; ///< Token authz handler
+  //! Authorization module used by external plugins to retrieve and/or check
+  //! access permissions for users and paths
+  XrdMgmAuthz* mMgmAuthz {nullptr};
+  XrdAccAuthorize* mTokenAuthz {nullptr}; ///< Token authz handler
   XrdAccAuthorize* mExtAuthz {nullptr}; ///< Authorization service
 
   //! Mgm Namespace Statistics

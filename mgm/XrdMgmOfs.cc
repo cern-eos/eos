@@ -223,11 +223,11 @@ extern "C" {
       return nullptr;
     }
 
-    // Initialize authorization module ServerAcc
-    gOFS->CapabilityEngine = (XrdMgmAuthz*) XrdAccAuthorizeObject(lp, configfn,
-                             nullptr);
+    // Initialize authorization plugin XrdMgmAuthz
+    gOFS->mMgmAuthz = (XrdMgmAuthz*) XrdAccAuthorizeObject(lp, configfn,
+                      nullptr);
 
-    if (!gOFS->CapabilityEngine) {
+    if (!gOFS->mMgmAuthz) {
       return nullptr;
     }
 
@@ -275,8 +275,7 @@ extern "C" {
 // Constructor MGM Ofs
 //------------------------------------------------------------------------------
 XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
-  ConfigFN(0), ConfEngine(0), CapabilityEngine(0),
-  mCapabilityValidity(3600), MgmOfsMessaging(0),
+  ConfigFN(0), ConfEngine(0), mCapabilityValidity(3600), MgmOfsMessaging(0),
   ManagerPort(1094), LinuxStatsStartup{0}, HostName(0), HostPref(0),
   mNamespaceState(NamespaceState::kDown), mFileInitTime(0),
   mTotalInitTime(time(nullptr)), mStartTime(time(nullptr)), Shutdown(false),

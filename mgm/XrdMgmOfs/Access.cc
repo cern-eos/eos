@@ -196,46 +196,25 @@ XrdMgmOfs::_access(const char* path,
     return Emsg(epname, error, EACCES, "access", path);
   }
 
-  // check publicaccess level                                                                        
+  // check publicaccess level
   if (!allow_public_access(path, vid)) {
     errno = EACCES;
-    return Emsg(epname, error, EACCES, "access - public access level restriction", path);
+    return Emsg(epname, error, EACCES, "access - public access level restriction",
+                path);
   }
-
 
   errno = EOPNOTSUPP;
   return Emsg(epname, error, EOPNOTSUPP, "access", path);
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Define access permissions by vid for a file/directory
+//------------------------------------------------------------------------------
 int
 XrdMgmOfs::acc_access(const char* path,
                       XrdOucErrInfo& error,
                       eos::common::VirtualIdentity& vid,
                       std::string& accperm)
-/*----------------------------------------------------------------------------*/
-/*
- * @brief define access permissions for files/directories
- *
- * @param path path to access
- * @param error object
- * @param virtual ID of the client
- * @param accperm - return string defining access permission
- * @return SFS_OK if found, otherwise SFS_ERR
- *
- * Definition of accperm see here:
- * Code  Resource         Description
- * S       File or Folder       is shared
- * R       File or Folder       can share (includes reshare)
- * M       File or Folder       is mounted (like on DropBox, Samba, etc.)
- * W       File             can write file
- * C       Folder           can create file in folder
- * K       Folder           can create folder (mkdir)
- * D       File or Folder   can delete file or folder
- * N     File or Folder   can rename file or folder
- * V     File or Folder   can move file or folder
- */
-/*----------------------------------------------------------------------------*/
 {
   eos_debug("path=%s mode=%x uid=%u gid=%u", path, vid.uid, vid.gid);
   gOFS->MgmStats.Add("Access", vid.uid, vid.gid, 1);
@@ -361,32 +340,76 @@ XrdMgmOfs::acc_access(const char* path,
 
   return SFS_OK;
 }
-/*----------------------------------------------------------------------------*/
 
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Test if public access is allowed for a given path
+//------------------------------------------------------------------------------
 bool
 XrdMgmOfs::allow_public_access(const char* path,
-			       eos::common::VirtualIdentity& vid)
+                               eos::common::VirtualIdentity& vid)
 {
   // check only for anonymous access
-  if (vid.uid != 99)
+  if (vid.uid != 99) {
     return true;
+  }
 
   // check publicaccess level
   int level = eos::common::Mapping::GetPublicAccessLevel();
-  if (level >= 1024) { 
+
+  if (level >= 1024) {
     // short cut
     return true;
   }
 
   eos::common::Path cPath(path);
+
   if ((int)cPath.GetSubPathSize() >= level) {
     // forbid everything to nobody in that case
     errno = EACCES;
     return false;
   }
+
   return true;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Get the allowed XrdAccPrivs i.e. allowed operations on the given path
+// for the client in the XrdSecEntity
+//------------------------------------------------------------------------------
+XrdAccPrivs
+XrdMgmOfs::GetXrdAccPrivs(const std::string& path, const XrdSecEntity* client,
+                          XrdOucEnv* env)
+{
+  std::string eos_path;
+  eos::common::VirtualIdentity vid;
+  auto basic_checks = [&, this]() -> int {
+    const char* epname = "access";
+    char* ininfo = nullptr;
+    XrdOucErrInfo error;
+    const char* inpath = path.c_str();
+    const char* tident = client->tident;
+    NAMESPACEMAP;
+    BOUNCE_ILLEGAL_NAMES;
+    AUTHORIZE(client, env, AOP_Stat, "access", inpath, error);
+
+    EXEC_TIMING_BEGIN("IdMap");
+    eos::common::Mapping::IdMap(client, ininfo, tident, vid);
+    EXEC_TIMING_END("IdMap");
+    gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
+    BOUNCE_NOT_ALLOWED;
+    ACCESSMODE_R;
+    MAYSTALL;
+    MAYREDIRECT;
+    eos_path = path;
+    return SFS_OK;
+  };
+
+  if (basic_checks()) {
+    eos_err("msg=\"failed basic checks for access privilege resolution\" "
+            "path=\"%s\", user=\"%s\"", path.c_str(),
+            (client->name ? client->name : ""));
+    return XrdAccPriv_None;
+  }
+
+  return XrdAccPriv_All;
+}

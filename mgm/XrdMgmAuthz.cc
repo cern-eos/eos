@@ -47,7 +47,7 @@ XrdAccAuthorize* XrdAccAuthorizeObject(XrdSysLogger* lp, const char*   cfn,
   XrdSysError eroute(lp, "mgmauthz_");
 
   if (gMgmAuthz) {
-    eroute.Say("====== XrdMgmAuthz already loaded and available");
+    eroute.Say("====== XrdMgmAuthz plugin already loaded and available");
     return gMgmAuthz;
   }
 
@@ -57,9 +57,9 @@ XrdAccAuthorize* XrdAccAuthorizeObject(XrdSysLogger* lp, const char*   cfn,
   gMgmAuthz = new XrdMgmAuthz();
 
   if (!gMgmAuthz) {
-    eroute.Say("------ XrdMgmAuthz allocation failed!");
+    eroute.Say("------ XrdMgmAuthz plugin initialization failed!");
   } else {
-    eroute.Say("------ XrdMgmAuthz initialization completed");
+    eroute.Say("------ XrdMgmAuthz plugin initialization faile");
   }
 
   return static_cast<XrdAccAuthorize*>(gMgmAuthz);
