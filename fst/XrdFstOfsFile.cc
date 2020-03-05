@@ -1250,8 +1250,6 @@ XrdFstOfsFile::_close()
         }
       }
 
-      // Store the entry server information before closing the layout
-      bool isEntryServer = mLayout->IsEntryServer();
       // First we assume that, if we have writes, we update it
       closeSize = openSize;
 
@@ -1277,7 +1275,7 @@ XrdFstOfsFile::_close()
               deleteOnClose = true;
               mLayout->Remove();
 
-              if (isEntryServer) {
+              if (mLayout->IsEntryServer()) {
                 capOpaqueString += "&mgm.dropall=1";
               }
 
@@ -1391,7 +1389,7 @@ XrdFstOfsFile::_close()
                 }
               }
             } else {
-              if (isEntryServer && !isReplication && !mIsInjection) {
+              if (mLayout->IsEntryServer() && !isReplication && !mIsInjection) {
                 // The entry server commits size and checksum
                 capOpaqueFile += "&mgm.commit.size=1&mgm.commit.checksum=1";
               } else {
