@@ -403,6 +403,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     }
   }
 
+  try
   {
     // parse JSON configuration
     Json::Value root;
@@ -1249,6 +1250,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         exit(rc);
       }
     }
+
     {
       if (!mountpoint.length()) {
         // we allow to take the mountpoint from the json file if it is not given on the command line
@@ -1715,6 +1717,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     }
 
     return err ? 1 : 0;
+  } catch (Json::Exception const&) {
+    fprintf(stderr,"error: catched json config exception");
+    exit(-1);
   }
 }
 
