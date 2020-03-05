@@ -1380,7 +1380,7 @@ XrdFstOfsFile::_close()
 
             if (mRainReconstruct) {
               // Indicate that this is a commit of a RAIN reconstruction
-              if (isEntryServer) {
+              if (mLayout->IsEntryServer()) {
                 capOpaqueFile += "&mgm.reconstruction=1";
 
                 if (!hasReadError && mOpenOpaque->Get("eos.pio.recfs")) {
