@@ -60,7 +60,7 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   mIsDevNull(false), isCreation(false), isReplication(false),
   mIsInjection(false), mRainReconstruct(false), deleteOnClose(false),
   repairOnClose(false), mIsOCchunk(false), writeErrorFlag(false),
-  commitReconstruction(false), mEventOnClose(false), mEventWorkflow(""),
+  mEventOnClose(false), mEventWorkflow(""),
   mSyncEventOnClose(false), mFmd(nullptr), mCheckSum(nullptr),
   mLayout(nullptr), mCloseCb(nullptr), mMaxOffsetWritten(0ull), openSize(0),
   closeSize(0), mTpcThreadStatus(EINVAL), mTpcState(kTpcIdle),
@@ -1257,7 +1257,7 @@ XrdFstOfsFile::_close()
       closeSize = openSize;
 
       if ((!checksumerror) && (!minimumsizeerror) &&
-          (mHasWrite || isCreation || commitReconstruction) &&
+          (mHasWrite || isCreation) &&
           (!mRainReconstruct || !hasReadError)) {
         // Commit meta data
         struct stat statinfo;
@@ -1383,12 +1383,13 @@ XrdFstOfsFile::_close()
 
             if (mRainReconstruct) {
               // Indicate that this is a commit of a RAIN reconstruction
-              capOpaqueFile += "&mgm.reconstruction=1";
+              if (isEntryServer) {
+                capOpaqueFile += "&mgm.reconstruction=1";
 
-              if (!hasReadError && mOpenOpaque->Get("eos.pio.recfs")) {
-                capOpaqueFile += "&mgm.drop.fsid=";
-                capOpaqueFile += mOpenOpaque->Get("eos.pio.recfs");
-                commitReconstruction = true;
+                if (!hasReadError && mOpenOpaque->Get("eos.pio.recfs")) {
+                  capOpaqueFile += "&mgm.drop.fsid=";
+                  capOpaqueFile += mOpenOpaque->Get("eos.pio.recfs");
+                }
               }
             } else {
               if (isEntryServer && !isReplication && !mIsInjection) {

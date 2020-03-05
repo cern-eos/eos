@@ -257,15 +257,6 @@ public:
   bool repairOnClose; ///< indicator that the file should get repaired on close
   bool mIsOCchunk; //! indicator this is an OC chunk upload
   int writeErrorFlag; //! uses kOFSxx enums to specify an error condition
-
-  //! Indicator that this FST has to commit after reconstruction
-  //! * if the reconstructed piece is not existing on disk we commit anyway
-  //! since it is a creation.
-  //! * if it does exist maybe from a previous movement where the replica was
-  //! not yet deleted, we would register another stripe without deleting one
-  //! * there fore we indicate with  mOpenOpaque->Get("eos.pio.commitfs") which
-  //! filesystem should actually commit during reconstruction
-  bool commitReconstruction;
   bool mEventOnClose; ///< Indicator to send a specified event to MGM on close
   //! Indicates the workflow to be triggered by an event
   XrdOucString mEventWorkflow;
