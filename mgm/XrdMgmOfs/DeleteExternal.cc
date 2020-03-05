@@ -46,7 +46,6 @@ XrdMgmOfs::DeleteExternal(eos::common::FileSystem::fsid_t fsid,
 /*----------------------------------------------------------------------------*/
 {
   using namespace eos::common;
-  XrdMqMessage message("deletion");
   eos::mgm::FileSystem* fs = 0;
   XrdOucString receiver = "";
   XrdOucString msgbody = "mgm.cmd=drop";
@@ -84,11 +83,12 @@ XrdMgmOfs::DeleteExternal(eos::common::FileSystem::fsid_t fsid,
     } else {
       int caplen = 0;
       msgbody += capabilityenv->Env(caplen);
-      message.SetBody(msgbody.c_str());
 
-      if (!Messaging::gMessageClient.SendMessage(message, receiver.c_str())) {
+      eos::mq::MessagingRealm::Response response = mMessagingRealm->sendMessage("deletion", msgbody.c_str(), receiver.c_str());
+      if(!response.ok()){
         eos_static_err("unable to send deletion message to %s", receiver.c_str());
-      } else {
+      }
+      else {
         ok = true;
       }
     }

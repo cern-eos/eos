@@ -56,8 +56,8 @@ Storage::Report()
       message.SetBody(report.c_str());
       eos_debug("broadcasting report message: %s", msgbody.c_str());
 
-      if (!XrdMqMessaging::gMessageClient.SendMessage(message,
-          monitorReceiver.c_str())) {
+      mq::MessagingRealm::Response response = gOFS.mMessagingRealm->sendMessage("report", report.c_str(), monitorReceiver.c_str());
+      if(!response.ok()) {
         // display communication error
         eos_err("cannot send report broadcast");
         failure = true;

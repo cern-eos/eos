@@ -155,15 +155,15 @@ XrdMgmOfs::_verifystripe(const char* path,
     opaquestring += option;
   }
 
-  XrdMqMessage message("verifycation");
   XrdOucString msgbody = "mgm.cmd=verify";
   msgbody += opaquestring;
-  message.SetBody(msgbody.c_str());
 
-  if (!Messaging::gMessageClient.SendMessage(message, receiver.c_str())) {
+  eos::mq::MessagingRealm::Response response = mMessagingRealm->sendMessage("verifycation", msgbody.c_str(), receiver.c_str());
+  if(!response.ok()){
     eos_static_err("unable to send verification message to %s", receiver.c_str());
     errno = ECOMM;
-  } else {
+  }
+  else {
     errno = 0;
   }
 

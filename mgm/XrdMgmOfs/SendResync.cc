@@ -35,7 +35,6 @@ XrdMgmOfs::SendResync(eos::common::FileId::fileid_t fid,
 {
   EXEC_TIMING_BEGIN("SendResync");
   gOFS->MgmStats.Add("SendResync", vid.uid, vid.gid, 1);
-  XrdMqMessage message("resync");
   XrdOucString msgbody = "mgm.cmd=resync";
   char payload[4096];
   // @todo(esindril) Transition, eventually send mgm.fid=HEX
@@ -43,7 +42,6 @@ XrdMgmOfs::SendResync(eos::common::FileId::fileid_t fid,
            "&mgm.fsid=%lu&mgm.fid=%llu&mgm.fxid=%08llx",
            (unsigned long) fsid, fid, fid);
   msgbody += payload;
-  message.SetBody(msgbody.c_str());
   // Figure out the receiver
   std::string receiver;
   {
@@ -58,7 +56,8 @@ XrdMgmOfs::SendResync(eos::common::FileId::fileid_t fid,
     receiver = fs->GetQueue();
   }
 
-  if (!Messaging::gMessageClient.SendMessage(message, receiver.c_str())) {
+  eos::mq::MessagingRealm::Response response = mMessagingRealm->sendMessage("resync", msgbody.c_str(), receiver);
+  if(!response.ok()){
     eos_err("msg=\"failed to send resync message\" dst=%s", receiver.c_str());
     return -1;
   }

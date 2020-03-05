@@ -23,6 +23,7 @@
 
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
+#include "mq/MessagingRealm.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -85,8 +86,8 @@ Storage::ErrorReport()
 
       // evt. exclude some messages from upstream reporting if the contain [NB]
       if (report.find("[NB]") == STR_NPOS) {
-        if (!XrdMqMessaging::gMessageClient.SendMessage(message,
-            errorReceiver.c_str())) {
+        mq::MessagingRealm::Response response = gOFS.mMessagingRealm->sendMessage("errorreport", report.c_str(), errorReceiver.c_str());
+        if (!response.ok()) {
           // display communication error
           eos_err("cannot send errorreport broadcast");
           failure = true;

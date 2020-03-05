@@ -27,6 +27,7 @@
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IFsView.hh"
 #include "mq/XrdMqMessaging.hh"
+#include "mq/MessagingRealm.hh"
 #include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Macros.hh"
@@ -72,10 +73,9 @@ bool sendDeleteMessage(XrdOucString capability,
     int caplen = 0;
     XrdOucString msgbody = "mgm.cmd=drop";
     msgbody += outcapenv->Env(caplen);
-    XrdMqMessage message("deletion");
-    message.SetBody(msgbody.c_str());
 
-    if (!Messaging::gMessageClient.SendMessage(message, receiver)) {
+    eos::mq::MessagingRealm::Response response = gOFS->mMessagingRealm->sendMessage("deletion", msgbody.c_str(), receiver);
+    if(!response.ok()) {
       eos_static_err("unable to send deletion message to %s", receiver);
       rc = -1;
     }
