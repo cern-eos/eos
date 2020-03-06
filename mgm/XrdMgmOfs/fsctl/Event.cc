@@ -67,7 +67,7 @@ XrdMgmOfs::Event(const char* path,
   if (agid) {
     localVid.gid = strtoul(agid, 0, 10);
     localVid.gid_string = eos::common::Mapping::GidToGroupName(localVid.gid, errc);
-    localVid.gid_list = vid.gid_list;
+    localVid.allowed_gids = vid.allowed_gids;
   }
 
   if (asec) {

@@ -59,7 +59,8 @@ TEST(Access, SetRule)
   ASSERT_EQ(old_stall.mIsGlobal, Access::gStallGlobal);
 }
 
-IContainerMDPtr makeContainer(uid_t uid, gid_t gid, int mode) {
+IContainerMDPtr makeContainer(uid_t uid, gid_t gid, int mode)
+{
   IContainerMDPtr cont(new eos::QuarkContainerMD());
   cont->setCUid(uid);
   cont->setCGid(gid);
@@ -67,203 +68,158 @@ IContainerMDPtr makeContainer(uid_t uid, gid_t gid, int mode) {
   return cont;
 }
 
-eos::common::VirtualIdentity makeIdentity(uid_t uid, gid_t gid) {
+eos::common::VirtualIdentity makeIdentity(uid_t uid, gid_t gid)
+{
   eos::common::VirtualIdentity vid;
   vid.uid = uid;
   vid.gid = gid;
   return vid;
 }
 
-TEST(AccessChecker, UserRWX) {
+TEST(AccessChecker, UserRWX)
+{
   IContainerMDPtr cont = makeContainer(1234, 9999,
-    S_IFDIR | S_IRWXU);
-
+                                       S_IFDIR | S_IRWXU);
   // No access for "other"
   ASSERT_FALSE(mgm::AccessChecker::checkContainer(
-    cont.get(), mgm::Acl(), R_OK, makeIdentity(3333, 3333)));
-
+                 cont.get(), mgm::Acl(), R_OK, makeIdentity(3333, 3333)));
   ASSERT_FALSE(mgm::AccessChecker::checkContainer(
-    cont.get(), mgm::Acl(), W_OK, makeIdentity(3333, 3333)));
-
+                 cont.get(), mgm::Acl(), W_OK, makeIdentity(3333, 3333)));
   ASSERT_FALSE(mgm::AccessChecker::checkContainer(
-    cont.get(), mgm::Acl(), X_OK, makeIdentity(3333, 3333)));
-
+                 cont.get(), mgm::Acl(), X_OK, makeIdentity(3333, 3333)));
   ASSERT_FALSE(mgm::AccessChecker::checkContainer(
-    cont.get(), mgm::Acl(), R_OK | W_OK | X_OK, makeIdentity(3333, 3333)));
-
+                 cont.get(), mgm::Acl(), R_OK | W_OK | X_OK, makeIdentity(3333, 3333)));
   // No access for "group"
   ASSERT_FALSE(mgm::AccessChecker::checkContainer(
-    cont.get(), mgm::Acl(), R_OK, makeIdentity(3333, 9999)));
-
+                 cont.get(), mgm::Acl(), R_OK, makeIdentity(3333, 9999)));
   ASSERT_FALSE(mgm::AccessChecker::checkContainer(
-    cont.get(), mgm::Acl(), W_OK, makeIdentity(3333, 9999)));
-
+                 cont.get(), mgm::Acl(), W_OK, makeIdentity(3333, 9999)));
   ASSERT_FALSE(mgm::AccessChecker::checkContainer(
-    cont.get(), mgm::Acl(), X_OK, makeIdentity(3333, 9999)));
-
+                 cont.get(), mgm::Acl(), X_OK, makeIdentity(3333, 9999)));
   ASSERT_FALSE(mgm::AccessChecker::checkContainer(
-    cont.get(), mgm::Acl(), R_OK | W_OK | X_OK, makeIdentity(3333, 9999)));
-
+                 cont.get(), mgm::Acl(), R_OK | W_OK | X_OK, makeIdentity(3333, 9999)));
   // Allow access for user
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(
-    cont.get(), mgm::Acl(), R_OK, makeIdentity(1234, 8888)));
-
+                cont.get(), mgm::Acl(), R_OK, makeIdentity(1234, 8888)));
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(
-    cont.get(), mgm::Acl(), W_OK, makeIdentity(1234, 8888)));
-
+                cont.get(), mgm::Acl(), W_OK, makeIdentity(1234, 8888)));
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(
-    cont.get(), mgm::Acl(), X_OK, makeIdentity(1234, 8888)));
-
+                cont.get(), mgm::Acl(), X_OK, makeIdentity(1234, 8888)));
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(
-    cont.get(), mgm::Acl(), R_OK | W_OK | X_OK, makeIdentity(1234, 8888)));
+                cont.get(), mgm::Acl(), R_OK | W_OK | X_OK, makeIdentity(1234, 8888)));
 }
 
-TEST(AccessChecker, rwxrwxrx) {
+TEST(AccessChecker, rwxrwxrx)
+{
   IContainerMDPtr cont = makeContainer(1234, 9999,
-    S_IFDIR | S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-
+                                       S_IFDIR | S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
   // rwx for user
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(
-    cont.get(), mgm::Acl(), R_OK, makeIdentity(1234, 8888)));
-
+                cont.get(), mgm::Acl(), R_OK, makeIdentity(1234, 8888)));
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(
-    cont.get(), mgm::Acl(), W_OK, makeIdentity(1234, 8888)));
-
+                cont.get(), mgm::Acl(), W_OK, makeIdentity(1234, 8888)));
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(
-    cont.get(), mgm::Acl(), X_OK, makeIdentity(1234, 8888)));
-
+                cont.get(), mgm::Acl(), X_OK, makeIdentity(1234, 8888)));
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(
-    cont.get(), mgm::Acl(), R_OK | W_OK | X_OK, makeIdentity(1234, 8888)));
-
+                cont.get(), mgm::Acl(), R_OK | W_OK | X_OK, makeIdentity(1234, 8888)));
   // rwx for group
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(
-    cont.get(), mgm::Acl(), R_OK, makeIdentity(3333, 9999)));
-
+                cont.get(), mgm::Acl(), R_OK, makeIdentity(3333, 9999)));
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(
-    cont.get(), mgm::Acl(), W_OK, makeIdentity(3333, 9999)));
-
+                cont.get(), mgm::Acl(), W_OK, makeIdentity(3333, 9999)));
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(
-    cont.get(), mgm::Acl(), X_OK, makeIdentity(3333, 9999)));
-
+                cont.get(), mgm::Acl(), X_OK, makeIdentity(3333, 9999)));
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(
-    cont.get(), mgm::Acl(), R_OK | W_OK | X_OK, makeIdentity(3333, 9999)));
-
+                cont.get(), mgm::Acl(), R_OK | W_OK | X_OK, makeIdentity(3333, 9999)));
   // rx for other
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(
-    cont.get(), mgm::Acl(), R_OK, makeIdentity(3333, 3333)));
-
+                cont.get(), mgm::Acl(), R_OK, makeIdentity(3333, 3333)));
   ASSERT_FALSE(mgm::AccessChecker::checkContainer(
-    cont.get(), mgm::Acl(), W_OK, makeIdentity(3333, 3333)));
-
+                 cont.get(), mgm::Acl(), W_OK, makeIdentity(3333, 3333)));
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(
-    cont.get(), mgm::Acl(), X_OK, makeIdentity(3333, 3333)));
-
+                cont.get(), mgm::Acl(), X_OK, makeIdentity(3333, 3333)));
   ASSERT_FALSE(mgm::AccessChecker::checkContainer(
-    cont.get(), mgm::Acl(), R_OK | W_OK | X_OK, makeIdentity(3333, 3333)));
-
+                 cont.get(), mgm::Acl(), R_OK | W_OK | X_OK, makeIdentity(3333, 3333)));
   ASSERT_FALSE(mgm::AccessChecker::checkContainer(
-    cont.get(), mgm::Acl(), R_OK | W_OK, makeIdentity(3333, 3333)));
-
+                 cont.get(), mgm::Acl(), R_OK | W_OK, makeIdentity(3333, 3333)));
   ASSERT_FALSE(mgm::AccessChecker::checkContainer(
-    cont.get(), mgm::Acl(), X_OK | W_OK, makeIdentity(3333, 3333)));
-
+                 cont.get(), mgm::Acl(), X_OK | W_OK, makeIdentity(3333, 3333)));
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(
-    cont.get(), mgm::Acl(), R_OK | X_OK, makeIdentity(3333, 3333)));
+                cont.get(), mgm::Acl(), R_OK | X_OK, makeIdentity(3333, 3333)));
 }
 
-TEST(AccessChecker, WithAclUserRWX) {
+TEST(AccessChecker, WithAclUserRWX)
+{
   IContainerMDPtr cont = makeContainer(5555, 9999,
-    S_IFDIR | S_IRWXU);
-
+                                       S_IFDIR | S_IRWXU);
   // no access for other
   ASSERT_FALSE(mgm::AccessChecker::checkContainer(
-    cont.get(), mgm::Acl(), R_OK, makeIdentity(1234, 8888)));
-
+                 cont.get(), mgm::Acl(), R_OK, makeIdentity(1234, 8888)));
   ASSERT_FALSE(mgm::AccessChecker::checkContainer(
-    cont.get(), mgm::Acl(), W_OK, makeIdentity(1234, 8888)));
-
+                 cont.get(), mgm::Acl(), W_OK, makeIdentity(1234, 8888)));
   ASSERT_FALSE(mgm::AccessChecker::checkContainer(
-    cont.get(), mgm::Acl(), X_OK, makeIdentity(1234, 8888)));
-
+                 cont.get(), mgm::Acl(), X_OK, makeIdentity(1234, 8888)));
   ASSERT_FALSE(mgm::AccessChecker::checkContainer(
-    cont.get(), mgm::Acl(), R_OK | W_OK | X_OK, makeIdentity(1234, 8888)));
-
+                 cont.get(), mgm::Acl(), R_OK | W_OK | X_OK, makeIdentity(1234, 8888)));
   // .. unless we have an acl
   eos::common::VirtualIdentity vid1 = makeIdentity(1234, 8888);
-  vid1.gid_list = { 8888 };
-
+  vid1.allowed_gids = { 8888 };
   eos::mgm::Acl acl("u:1234:rwx", "", vid1, true);
   ASSERT_TRUE(acl.HasAcl());
-
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(
-    cont.get(), acl, R_OK, makeIdentity(1234, 8888)));
-
+                cont.get(), acl, R_OK, makeIdentity(1234, 8888)));
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(
-    cont.get(), acl, W_OK, makeIdentity(1234, 8888)));
-
+                cont.get(), acl, W_OK, makeIdentity(1234, 8888)));
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(
-    cont.get(), acl, X_OK, makeIdentity(1234, 8888)));
-
+                cont.get(), acl, X_OK, makeIdentity(1234, 8888)));
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(
-    cont.get(), acl, R_OK | W_OK | X_OK, makeIdentity(1234, 8888)));
-
+                cont.get(), acl, R_OK | W_OK | X_OK, makeIdentity(1234, 8888)));
   // .. try passing the extended attributes, instead of the Acl object
   eos::IContainerMD::XAttrMap xattrmap;
   xattrmap["sys.acl"] = "u:1234:rwx";
-
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(
-    cont.get(), xattrmap, R_OK, vid1));
-
+                cont.get(), xattrmap, R_OK, vid1));
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(
-    cont.get(), xattrmap, W_OK, vid1));
-
+                cont.get(), xattrmap, W_OK, vid1));
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(
-    cont.get(), xattrmap, X_OK, vid1));
-
+                cont.get(), xattrmap, X_OK, vid1));
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(
-    cont.get(), xattrmap, R_OK | W_OK | X_OK, vid1));
-
+                cont.get(), xattrmap, R_OK | W_OK | X_OK, vid1));
   // try a group acl ...
-  vid1.gid_list = { 8888 };
-
+  vid1.allowed_gids = { 8888 };
   eos::mgm::Acl acl2("g:8888:rwx", "", vid1, true);
   ASSERT_TRUE(acl.HasAcl());
-
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(
-    cont.get(), acl, R_OK, makeIdentity(1234, 8888)));
-
+                cont.get(), acl, R_OK, makeIdentity(1234, 8888)));
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(
-    cont.get(), acl, W_OK, makeIdentity(1234, 8888)));
-
+                cont.get(), acl, W_OK, makeIdentity(1234, 8888)));
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(
-    cont.get(), acl, X_OK, makeIdentity(1234, 8888)));
-
+                cont.get(), acl, X_OK, makeIdentity(1234, 8888)));
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(
-    cont.get(), acl, R_OK | W_OK | X_OK, makeIdentity(1234, 8888)));
+                cont.get(), acl, R_OK | W_OK | X_OK, makeIdentity(1234, 8888)));
 }
 
-TEST(AccessChecker, WithPrepare) {
+TEST(AccessChecker, WithPrepare)
+{
   IContainerMDPtr cont = makeContainer(19229, 9999,
-    S_IFDIR | S_IRWXU);
-
+                                       S_IFDIR | S_IRWXU);
   eos::common::VirtualIdentity vid1 = makeIdentity(19229, 1489);
-  vid1.gid_list = {1489};
-
-  eos::mgm::Acl acl("u:19227:rwx+d,u:19229:rwx+dp,u:19230:rwx+dp", "", vid1, true);
+  vid1.allowed_gids = {1489};
+  eos::mgm::Acl acl("u:19227:rwx+d,u:19229:rwx+dp,u:19230:rwx+dp", "", vid1,
+                    true);
   ASSERT_TRUE(acl.HasAcl());
-
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(
-    cont.get(), acl, P_OK, vid1));
-
+                cont.get(), acl, P_OK, vid1));
   // no prepare flag for uid 19229
-  acl = eos::mgm::Acl("u:19227:rwx+d,u:19229:rwx+d,u:19230:rwx+dp", "", vid1, true);
+  acl = eos::mgm::Acl("u:19227:rwx+d,u:19229:rwx+d,u:19230:rwx+dp", "", vid1,
+                      true);
   ASSERT_TRUE(acl.HasAcl());
-
   ASSERT_FALSE(mgm::AccessChecker::checkContainer(
-    cont.get(), acl, P_OK, vid1));
+                 cont.get(), acl, P_OK, vid1));
 }
 
-IFileMDPtr makeFile(uid_t uid, gid_t gid, int mode) {
+IFileMDPtr makeFile(uid_t uid, gid_t gid, int mode)
+{
   IFileMDPtr file(new eos::QuarkFileMD());
   file->setCUid(uid);
   file->setCGid(gid);
@@ -271,83 +227,67 @@ IFileMDPtr makeFile(uid_t uid, gid_t gid, int mode) {
   return file;
 }
 
-TEST(AccessChecker, FileUserRWX) {
+TEST(AccessChecker, FileUserRWX)
+{
   IFileMDPtr file = makeFile(5555, 9999, S_IRWXU);
-
   ASSERT_TRUE(mgm::AccessChecker::checkFile(file.get(), X_OK,
-    makeIdentity(5555, 1111)));
-
+              makeIdentity(5555, 1111)));
   ASSERT_TRUE(mgm::AccessChecker::checkFile(file.get(), R_OK | X_OK,
-    makeIdentity(5555, 1111)));
-
+              makeIdentity(5555, 1111)));
   ASSERT_TRUE(mgm::AccessChecker::checkFile(file.get(), W_OK | X_OK,
-    makeIdentity(5555, 1111)));
-
+              makeIdentity(5555, 1111)));
   ASSERT_TRUE(mgm::AccessChecker::checkFile(file.get(), R_OK | W_OK | X_OK,
-    makeIdentity(5555, 1111)));
-
+              makeIdentity(5555, 1111)));
   // different uid than the file in question
   ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), X_OK,
-    makeIdentity(9999, 1111)));
-
+               makeIdentity(9999, 1111)));
   ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), R_OK | X_OK,
-    makeIdentity(9999, 1111)));
-
+               makeIdentity(9999, 1111)));
   ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), W_OK | X_OK,
-    makeIdentity(9999, 1111)));
-
+               makeIdentity(9999, 1111)));
   ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), R_OK | W_OK | X_OK,
-    makeIdentity(9999, 1111)));
-
+               makeIdentity(9999, 1111)));
   // different uid, same gid, still deny
   ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), X_OK,
-    makeIdentity(9999, 9999)));
-
+               makeIdentity(9999, 9999)));
   ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), R_OK | X_OK,
-    makeIdentity(9999, 9999)));
-
+               makeIdentity(9999, 9999)));
   ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), W_OK | X_OK,
-    makeIdentity(9999, 9999)));
-
+               makeIdentity(9999, 9999)));
   ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), R_OK | W_OK | X_OK,
-    makeIdentity(9999, 9999)));
+               makeIdentity(9999, 9999)));
 }
 
-TEST(AccessChecker, FileGroupRWX) {
+TEST(AccessChecker, FileGroupRWX)
+{
   // file only allows group access
   IFileMDPtr file = makeFile(5555, 9999, S_IRWXG);
-
   // file has same uid, and group as file - allow
   ASSERT_TRUE(mgm::AccessChecker::checkFile(file.get(), X_OK,
-    makeIdentity(5555, 9999)));
-
+              makeIdentity(5555, 9999)));
   // file has same uid - deny
   ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), X_OK,
-    makeIdentity(5555, 8888)));
-
+               makeIdentity(5555, 8888)));
   // others - deny
   ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), X_OK,
-    makeIdentity(1111, 2222)));
+               makeIdentity(1111, 2222)));
 }
 
-TEST(AccessChecker, FileOtherRWX) {
+TEST(AccessChecker, FileOtherRWX)
+{
   // file only allows group access - weird, but possible
   IFileMDPtr file = makeFile(5555, 9999, S_IRWXO);
-
   // file has same uid/gid, deny
   ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), X_OK,
-    makeIdentity(5555, 9999)));
-
+               makeIdentity(5555, 9999)));
   // file has same uid, deny
   ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), X_OK,
-    makeIdentity(5555, 8888)));
-
+               makeIdentity(5555, 8888)));
   // file has same gid, deny
   ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), X_OK,
-    makeIdentity(6666, 9999)));
-
+               makeIdentity(6666, 9999)));
   // different uid, different gid, grant
   ASSERT_TRUE(mgm::AccessChecker::checkFile(file.get(), X_OK,
-    makeIdentity(2222, 3333)));
+              makeIdentity(2222, 3333)));
 }
 

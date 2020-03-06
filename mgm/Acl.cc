@@ -66,6 +66,7 @@ Acl::Acl(const char* path, XrdOucErrInfo& error,
   if (path && strlen(path)) {
     gOFS->_attr_ls(path, error, vid, 0, attrmap, lockNs);
   }
+
   // Set the acl rules from the attributes
   SetFromAttrMap(attrmap, vid);
 }
@@ -75,7 +76,7 @@ Acl::Acl(const char* path, XrdOucErrInfo& error,
 //------------------------------------------------------------------------------
 void
 Acl::SetFromAttrMap(const eos::IContainerMD::XAttrMap& attrmap,
-                    const eos::common::VirtualIdentity& vid, eos::IFileMD::XAttrMap *attrmapF,
+                    const eos::common::VirtualIdentity& vid, eos::IFileMD::XAttrMap* attrmapF,
                     bool sysaclOnly)
 {
   bool evalUseracl = false;
@@ -85,10 +86,14 @@ Acl::SetFromAttrMap(const eos::IContainerMD::XAttrMap& attrmap,
   if (!sysaclOnly) {
     if (attrmapF != NULL && attrmapF->count("user.acl") > 0) {
       evalUseracl = attrmapF->count("sys.eval.useracl") > 0;
-      if (evalUseracl) useracl = (*attrmapF)["user.acl"];
+
+      if (evalUseracl) {
+        useracl = (*attrmapF)["user.acl"];
+      }
     } else {
       evalUseracl = attrmap.count("sys.eval.useracl") > 0;
       auto it = attrmap.find("user.acl");
+
       if (it != attrmap.end()) {
         useracl = it->second;
       }
@@ -96,14 +101,18 @@ Acl::SetFromAttrMap(const eos::IContainerMD::XAttrMap& attrmap,
   }
 
   tokenacl = TokenAcl(vid);
-
   std::string sysAcl;
   auto it = attrmap.find("sys.acl");
-  if(it != attrmap.end()) {
+
+  if (it != attrmap.end()) {
     sysAcl = it->second;
   }
 
-  if (EOS_LOGS_DEBUG) eos_static_debug("sysacl='%s' useracl='%s' tokenacl='%s' evalUseracl=%d", sysAcl.c_str(), useracl.c_str(), tokenacl.c_str(), evalUseracl);
+  if (EOS_LOGS_DEBUG) {
+    eos_static_debug("sysacl='%s' useracl='%s' tokenacl='%s' evalUseracl=%d",
+                     sysAcl.c_str(), useracl.c_str(), tokenacl.c_str(), evalUseracl);
+  }
+
   Set(sysAcl, useracl, tokenacl, vid, evalUseracl);
 }
 
@@ -112,7 +121,7 @@ Acl::SetFromAttrMap(const eos::IContainerMD::XAttrMap& attrmap,
 //------------------------------------------------------------------------------
 void
 Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
-       const eos::common::VirtualIdentity& vid, bool allowUserAcl)
+         const eos::common::VirtualIdentity& vid, bool allowUserAcl)
 {
   std::string acl = "";
 
@@ -168,23 +177,27 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
   std::vector<std::string> rules;
   std::string delimiter = ",";
   eos::common::StringConversion::Tokenize(sysacl, rules, delimiter);
-  int num_sysacl_rules = rules.size();     /* number of entries in sysacl, used to limit "+" (reallow) */
-  if (allowUserAcl)
-    eos::common::StringConversion::Tokenize(useracl, rules, delimiter);     /* append to rules */
-  if (EOS_LOGS_DEBUG)
-    eos_static_debug("sysacl '%s' (%d entries), useracl '%s', total %d entries", sysacl.c_str(), num_sysacl_rules, useracl.c_str(), rules.size());
+  int num_sysacl_rules =
+    rules.size();     /* number of entries in sysacl, used to limit "+" (reallow) */
+
+  if (allowUserAcl) {
+    eos::common::StringConversion::Tokenize(useracl, rules,
+                                            delimiter);  /* append to rules */
+  }
+
+  if (EOS_LOGS_DEBUG) {
+    eos_static_debug("sysacl '%s' (%d entries), useracl '%s', total %d entries",
+                     sysacl.c_str(), num_sysacl_rules, useracl.c_str(), rules.size());
+  }
 
   std::vector<std::string>::const_iterator it;
   XrdOucString sizestring1;
   XrdOucString sizestring2;
-
   char denials[256], reallows[256];
   memset(denials, 0, sizeof(denials));        /* start with no denials */
   memset(reallows, 0, sizeof(reallows));      /* nor reallows */
 
-  for (size_t n_gid = 0; n_gid < vid.gid_list.size(); ++n_gid) {
-    gid_t chk_gid = vid.gid_list[n_gid];
-
+  for (const auto& chk_gid : vid.allowed_gids) {
     // Only check non-system groups
     if (chk_gid < 3) {
       continue;
@@ -212,7 +225,11 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
       groupname = "_INVAL_";
     }
 
-    if (EOS_LOGS_DEBUG) eos_static_debug("username '%s' groupname '%s'", username.c_str(), groupname.c_str());
+    if (EOS_LOGS_DEBUG) {
+      eos_static_debug("username '%s' groupname '%s'", username.c_str(),
+                       groupname.c_str());
+    }
+
     std::string usr_name_tag = "u:";
     usr_name_tag += username;
     usr_name_tag += ":";
@@ -223,13 +240,18 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
     std::string keytag = "k:";
     keytag += vid.key;
     keytag += ":";;
-    if (EOS_LOGS_DEBUG) eos_static_debug("%s %s %s %s %s", usertag.c_str(), grouptag.c_str(),
-                     usr_name_tag.c_str(), grp_name_tag.c_str(), keytag.c_str());
+
+    if (EOS_LOGS_DEBUG) eos_static_debug("%s %s %s %s %s", usertag.c_str(),
+                                           grouptag.c_str(),
+                                           usr_name_tag.c_str(), grp_name_tag.c_str(), keytag.c_str());
+
     // Rule interpretation logic
     int sysacl_rules_remaining = num_sysacl_rules;
+
     for (it = rules.begin(); it != rules.end(); it++) {
       bool egroupmatch = false;
-      sysacl_rules_remaining -= 1;                    /* when negative, we're in user.acl */
+      sysacl_rules_remaining -=
+        1;                    /* when negative, we're in user.acl */
 
       // Check for e-group membership
       if (!it->compare(0, strlen("egroup:"), "egroup:")) {
@@ -286,89 +308,96 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
           }
 
           switch (c) {
-            case '!':
-              deny = true;
-              continue;
+          case '!':
+            deny = true;
+            continue;
 
-            case '+':
-              reallow = true;
-              continue;
+          case '+':
+            reallow = true;
+            continue;
 
-            case 'a': // 'a' defines archiving permission
-              mCanArchive = !deny;
-              break;
+          case 'a': // 'a' defines archiving permission
+            mCanArchive = !deny;
+            break;
 
-            case 'r': // 'r' defines read permission
-              mCanRead = !deny;
-              break;
+          case 'r': // 'r' defines read permission
+            mCanRead = !deny;
+            break;
 
-            case 'x': // 'x' defines browsing permission
-              mCanBrowse = !deny;
-              break;
+          case 'x': // 'x' defines browsing permission
+            mCanBrowse = !deny;
+            break;
 
-            case 'p': // 'p' defines workflow permission
-              mCanPrepare = !deny;
-              break;
+          case 'p': // 'p' defines workflow permission
+            mCanPrepare = !deny;
+            break;
 
-            case 'm': // 'm' defines mode change permission
-              if (deny) {
-                mCanNotChmod = true;
-              } else {
-                mCanChmod = true;
+          case 'm': // 'm' defines mode change permission
+            if (deny) {
+              mCanNotChmod = true;
+            } else {
+              mCanChmod = true;
+            }
+
+            break;
+
+          case 'c': // 'c' defines owner change permission (for directories)
+            /* pass here; but chown imposes further restrictions, like limited to sys.acl */
+            mCanChown = true;
+            break;
+
+          case 'd': // '!d' forbids deletion
+            if (deny && !mCanDelete) {
+              mCanNotDelete = true;
+            } else if (reallow) {
+              if (sysacl_rules_remaining < 0) {
+                eos_static_info("'+d' ignored in user acl '%s'", entry[2].c_str());
+                reallow = 0;        /* ignore the reallow */
+                break;
               }
-              break;
 
-            case 'c': // 'c' defines owner change permission (for directories)
-              /* pass here; but chown imposes further restrictions, like limited to sys.acl */
-              mCanChown = true;
-              break;
+              mCanDelete = true;
+              mCanNotDelete = false;
+              mCanWriteOnce = false;
+              denials['d'] = 0;               /* drop denial, 'd' and 'u' are "odd" */
+            }
 
-            case 'd': // '!d' forbids deletion
-              if (deny && !mCanDelete) {
-                mCanNotDelete = true;
-              } else if (reallow) {
-                if (sysacl_rules_remaining < 0) {
-                  eos_static_info("'+d' ignored in user acl '%s'", entry[2].c_str());
-                  reallow = 0;        /* ignore the reallow */
-                  break;
-                }
-                mCanDelete = true;
-                mCanNotDelete = false;
-                mCanWriteOnce = false;
-                denials['d'] = 0;               /* drop denial, 'd' and 'u' are "odd" */
+            break;
+
+          case 'u':// '!u' denies update, 'u' and '+u' add update. '!+u' and '+!u' would *deny* updates
+            mCanUpdate = !deny;
+
+            if (mCanUpdate && reallow) {
+              denials['u'] = 0;  /* drop denial, 'd' and 'u' are "odd" */
+            }
+
+            break;
+
+          case 'w': // 'wo' defines write once permissions, 'w' defines write permissions if 'wo' is not granted
+            if ((s + 1)[0] == 'o') {  /* this is a 'wo' */
+              s++;
+              c = 'W';        /* for the denial entry */
+              mCanWriteOnce = !deny;
+            } else {
+              if (!mCanWriteOnce) {
+                mCanWrite = !deny;
+                mCanUpdate = !deny; // by default 'w' adds update rights
               }
-              break;
+            }
 
-            case 'u':// '!u' denies update, 'u' and '+u' add update. '!+u' and '+!u' would *deny* updates
-              mCanUpdate = !deny;
+            break;
 
-              if (mCanUpdate && reallow) {
-                denials['u'] = 0;  /* drop denial, 'd' and 'u' are "odd" */
-              }
-              break;
+          case 'q':
+            if (sysacl_rules_remaining >=
+                0) { // this is only valid if specified as a sysacl
+              mCanSetQuota = !deny;
+            }
 
-            case 'w': // 'wo' defines write once permissions, 'w' defines write permissions if 'wo' is not granted
-              if ((s + 1)[0] == 'o') {  /* this is a 'wo' */
-                s++;
-                c = 'W';        /* for the denial entry */
-                mCanWriteOnce = !deny;
-              } else {
-                if (!mCanWriteOnce) {
-                  mCanWrite = !deny;
-                  mCanUpdate = !deny; // by default 'w' adds update rights
-                }
-              }
-              break;
+            break;
 
-            case 'q':
-              if (sysacl_rules_remaining >= 0) { // this is only valid if specified as a sysacl
-                mCanSetQuota = !deny;
-              }
-              break;
-
-            case 'i': // 'i' makes directories immutable
-              mIsMutable = deny;
-              break;
+          case 'i': // 'i' makes directories immutable
+            mIsMutable = deny;
+            break;
           }
 
           mHasAcl = true;
@@ -388,58 +417,79 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
   /* Now that all ACLs have been parsed, handle re-allows and denials */
   char rights[] = "arxpmcWwdui";
   unsigned char r;
+
   for (int i = 0; (r = rights[i]); i++) {
     bool is_allowed;
+
     if (reallows[r]) {
-        denials[r] = 0;
-        is_allowed = true;
-        eos_static_debug("reallow %c", r);
+      denials[r] = 0;
+      is_allowed = true;
+      eos_static_debug("reallow %c", r);
     } else if (denials[r]) {        /* re-allows beat denials */
-        is_allowed = false;
-        if (r != 'W') eos_static_debug("deny %c", r);
-    } else continue;
+      is_allowed = false;
+
+      if (r != 'W') {
+        eos_static_debug("deny %c", r);
+      }
+    } else {
+      continue;
+    }
 
     switch (r) {
-      case 'a':
-        mCanArchive = is_allowed;
-        break;
-      case 'r':
-        mCanRead = is_allowed;
-        mCanNotRead = !is_allowed;
-        break;
-      case 'x':
-        mCanBrowse = is_allowed;
-        mCanNotBrowse = !is_allowed;
-        break;
-      case 'p':
-        mCanPrepare = is_allowed;
-        break;
-      case 'm':
-        mCanNotChmod = !is_allowed;
-        break;
-      case 'c':
-        mCanChown = is_allowed;
-        break;
-      case 'W':
-        mCanWriteOnce = is_allowed;
-        eos_static_debug("writeonce %d", mCanWriteOnce);
-        break;
-      case 'w':
-        mCanWrite = is_allowed;
-        mCanNotWrite = !is_allowed;
-        /* if mCanWrite, grant mCanUpdate implicitely unless 'u' explicitely denied */
-        if (mCanWrite) mCanUpdate = true;   /* 'u' is checked after 'w', this could be reverted */
-        break;
-      case 'd':
-        mCanNotDelete = !is_allowed;
-        break;
-      case 'u':
-        mCanUpdate = is_allowed;
-        mCanNotUpdate = !is_allowed;
-        break;
-      case 'i':
-        mIsMutable = !is_allowed;
-        break;
+    case 'a':
+      mCanArchive = is_allowed;
+      break;
+
+    case 'r':
+      mCanRead = is_allowed;
+      mCanNotRead = !is_allowed;
+      break;
+
+    case 'x':
+      mCanBrowse = is_allowed;
+      mCanNotBrowse = !is_allowed;
+      break;
+
+    case 'p':
+      mCanPrepare = is_allowed;
+      break;
+
+    case 'm':
+      mCanNotChmod = !is_allowed;
+      break;
+
+    case 'c':
+      mCanChown = is_allowed;
+      break;
+
+    case 'W':
+      mCanWriteOnce = is_allowed;
+      eos_static_debug("writeonce %d", mCanWriteOnce);
+      break;
+
+    case 'w':
+      mCanWrite = is_allowed;
+      mCanNotWrite = !is_allowed;
+
+      /* if mCanWrite, grant mCanUpdate implicitely unless 'u' explicitely denied */
+      if (mCanWrite) {
+        mCanUpdate = true;  /* 'u' is checked after 'w', this could be reverted */
+      }
+
+      break;
+
+    case 'd':
+      mCanNotDelete = !is_allowed;
+      break;
+
+    case 'u':
+      mCanUpdate = is_allowed;
+      mCanNotUpdate = !is_allowed;
+      break;
+
+    case 'i':
+      mIsMutable = !is_allowed;
+      break;
     }
   }
 
@@ -448,9 +498,11 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
       "mCanRead %d mCanNotRead %d mCanWrite %d mCanNotWrite %d mCanWriteOnce %d mCanUpdate %d mCanNotUpdate %d "
       "mCanBrowse %d mCanNotBrowse %d mCanChmod %d mCanChown %d mCanNotDelete %d mCanNotChmod %d "
       "mCanDelete %d mCanSetQuota %d mHasAcl %d mHasEgroup %d mIsMutable %d mCanArchive %d mCanPrepare %d",
-      mCanRead, mCanNotRead, mCanWrite, mCanNotWrite, mCanWriteOnce, mCanUpdate, mCanNotUpdate,
+      mCanRead, mCanNotRead, mCanWrite, mCanNotWrite, mCanWriteOnce, mCanUpdate,
+      mCanNotUpdate,
       mCanBrowse, mCanNotBrowse, mCanChmod, mCanChown, mCanNotDelete, mCanNotChmod,
-      mCanDelete, mCanSetQuota, mHasAcl, mHasEgroup, mIsMutable, mCanArchive, mCanPrepare);
+      mCanDelete, mCanSetQuota, mHasAcl, mHasEgroup, mIsMutable, mCanArchive,
+      mCanPrepare);
   }
 }
 
@@ -489,7 +541,8 @@ Acl::IsValid(const std::string& value, XrdOucErrInfo& error, bool is_sys_acl,
   regexErrorCode = regcomp(&regex, regexString.c_str(), REG_EXTENDED);
 
   if (regexErrorCode) {
-    eos_static_debug("regcomp regexErrorCode=%d regex '%s'", regexErrorCode, regexString.c_str());      // the setErrInfo below does not always produce a visible result
+    eos_static_debug("regcomp regexErrorCode=%d regex '%s'", regexErrorCode,
+                     regexString.c_str());      // the setErrInfo below does not always produce a visible result
     error.setErrInfo(2, "failed to compile regex");
     regfree(&regex);
     return false;
@@ -628,21 +681,22 @@ Acl::ConvertIds(std::string& acl_val, bool to_string)
 // Extract an ACL rule from a token
 //------------------------------------------------------------------------------
 
-std::string 
+std::string
 Acl::TokenAcl(const eos::common::VirtualIdentity& vid) const
 {
   if (vid.token) {
     if (vid.token->Valid()) {
       if (!vid.token->ValidatePath(vid.scope)) {
-	std::string tokenacl;
-	tokenacl = "u:";
-	tokenacl += vid.uid_string;
-	tokenacl += ":";
-	tokenacl += vid.token->Permission();
-	return tokenacl;
+        std::string tokenacl;
+        tokenacl = "u:";
+        tokenacl += vid.uid_string;
+        tokenacl += ":";
+        tokenacl += vid.token->Permission();
+        return tokenacl;
       }
     }
   }
+
   return "";
 }
 

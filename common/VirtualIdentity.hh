@@ -22,11 +22,12 @@
  ************************************************************************/
 
 #include "common/Namespace.hh"
+#include "common/token/Token.hh"
+#include "XrdOuc/XrdOucString.hh"
 #include <vector>
 #include <memory>
 #include <string>
-#include <XrdOuc/XrdOucString.hh>
-#include "common/token/Token.hh"
+#include <set>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -40,8 +41,8 @@ struct VirtualIdentity {
   gid_t gid;
   std::string uid_string;
   std::string gid_string;
-  std::vector<uid_t> uid_list;
-  std::vector<gid_t> gid_list;
+  std::set<uid_t> allowed_uids;
+  std::set<gid_t> allowed_gids;
   XrdOucString tident;
   XrdOucString name;
   XrdOucString prot;
@@ -59,7 +60,7 @@ struct VirtualIdentity {
   std::string scope;
   bool sudoer;
   std::shared_ptr<Token> token;
-  
+
   //----------------------------------------------------------------------------
   //! Constructor - assign to "nobody" by default
   //----------------------------------------------------------------------------
@@ -78,12 +79,18 @@ struct VirtualIdentity {
   //----------------------------------------------------------------------------
   //! Check if the uid vector contains has the requested uid
   //----------------------------------------------------------------------------
-  bool hasUid(uid_t uid) const;
+  inline bool hasUid(uid_t uid) const
+  {
+    return (allowed_uids.find(uid) != allowed_uids.end());
+  }
 
   //----------------------------------------------------------------------------
   //! Check if the gid vector contains has the requested gid
   //----------------------------------------------------------------------------
-  bool hasGid(gid_t gid) const;
+  bool hasGid(gid_t gid) const
+  {
+    return (allowed_gids.find(gid) != allowed_gids.end());
+  }
 
   //----------------------------------------------------------------------------
   //! Check if this client is coming from localhost

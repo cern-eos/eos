@@ -1385,14 +1385,14 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     return SFS_OK;
   }
 
+  // @todo(esindril) the tag is wrong should actually be mgm.uid
   capability += "&mgm.ruid=";
   capability += (int) vid.uid;
   capability += "&mgm.rgid=";
   capability += (int) vid.gid;
-  capability += "&mgm.uid=";
-  capability += (int) vid.uid_list[0];
-  capability += "&mgm.gid=";
-  capability += (int) vid.gid_list[0];
+  // @todo(esindril) not used and should be removed
+  capability += "&mgm.uid=99";
+  capability += "&mgm.gid=99";
   capability += "&mgm.path=";
   {
     // an '&' will create a failure on the FST

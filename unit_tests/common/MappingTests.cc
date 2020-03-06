@@ -35,8 +35,8 @@ TEST(Mapping, VidAssignOperator)
   vid.gid = 99;
   vid.uid_string = "99";
   vid.gid_string = "99";
-  vid.uid_list = {2, 3, 99};
-  vid.gid_list = {2, 4, 99};
+  vid.allowed_uids = {2, 3, 99};
+  vid.allowed_gids = {2, 4, 99};
   vid.tident = "client:process_id:sockd_fd";
   vid.name = "dummy_user";
   vid.prot = "xrootd";
@@ -52,9 +52,8 @@ TEST(Mapping, VidAssignOperator)
   ASSERT_EQ(vid.gid, copy_vid.gid);
   ASSERT_EQ(vid.uid_string, copy_vid.uid_string);
   ASSERT_EQ(vid.gid_string, copy_vid.gid_string);
-  ASSERT_EQ(vid.uid_list, copy_vid.uid_list);
-  ASSERT_EQ(vid.gid_list, copy_vid.gid_list);
-
+  ASSERT_EQ(vid.allowed_uids, copy_vid.allowed_uids);
+  ASSERT_EQ(vid.allowed_gids, copy_vid.allowed_gids);
   ASSERT_STREQ(vid.tident.c_str(), copy_vid.tident.c_str());
   ASSERT_STREQ(vid.name.c_str(),  copy_vid.name.c_str());
   ASSERT_STREQ(vid.prot.c_str(), copy_vid.prot.c_str());
@@ -65,44 +64,33 @@ TEST(Mapping, VidAssignOperator)
   ASSERT_EQ(vid.geolocation, copy_vid.geolocation);
   ASSERT_EQ(vid.app, copy_vid.app);
   ASSERT_EQ(vid.sudoer, copy_vid.sudoer);
-
   ASSERT_TRUE(vid.hasUid(2));
   ASSERT_TRUE(copy_vid.hasUid(2));
-
   ASSERT_TRUE(vid.hasUid(3));
   ASSERT_TRUE(copy_vid.hasUid(3));
-
   ASSERT_TRUE(vid.hasUid(99));
   ASSERT_TRUE(copy_vid.hasUid(99));
-
   ASSERT_FALSE(vid.hasUid(4));
   ASSERT_FALSE(copy_vid.hasUid(4));
-
   ASSERT_TRUE(vid.hasGid(4));
   ASSERT_TRUE(copy_vid.hasGid(4));
-
   ASSERT_FALSE(vid.hasGid(3));
   ASSERT_FALSE(copy_vid.hasGid(3));
 }
 
-TEST(VirtualIdentity, IsLocalhost) {
+TEST(VirtualIdentity, IsLocalhost)
+{
   VirtualIdentity vid;
-
   vid.host = "localhost";
   ASSERT_TRUE(vid.isLocalhost());
-
   vid.host = "localhost6";
   ASSERT_TRUE(vid.isLocalhost());
-
   vid.host = "localhost.localdomain";
   ASSERT_TRUE(vid.isLocalhost());
-
   vid.host = "localhost6.localdomain6";
   ASSERT_TRUE(vid.isLocalhost());
-
   vid.host = "pickles";
   ASSERT_FALSE(vid.isLocalhost());
-
   vid.host = "asdf";
   ASSERT_FALSE(vid.isLocalhost());
 }

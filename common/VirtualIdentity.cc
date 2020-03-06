@@ -36,8 +36,8 @@ VirtualIdentity VirtualIdentity::Root()
   VirtualIdentity vid;
   vid.uid = 0;
   vid.gid = 0;
-  vid.uid_list = {0};
-  vid.gid_list = {0};
+  vid.allowed_uids = {0};
+  vid.allowed_gids = {0};
   vid.name = "root";
   vid.prot = "local";
   vid.tident = "service@localhost";
@@ -53,40 +53,12 @@ VirtualIdentity VirtualIdentity::Nobody()
   VirtualIdentity vid;
   vid.uid = 99;
   vid.gid = 99;
-  vid.uid_list = {99};
-  vid.gid_list = {99};
+  vid.allowed_uids = {99};
+  vid.allowed_gids = {99};
   vid.name = "nobody";
   vid.sudoer = false;
   vid.tident = "nobody@unknown";
   return vid;
-}
-
-//------------------------------------------------------------------------------
-// Check if the uid vector contained has the requested uid
-//------------------------------------------------------------------------------
-bool VirtualIdentity::hasUid(uid_t uid) const
-{
-  for (auto it = uid_list.begin(); it != uid_list.end(); it++) {
-    if (*it == uid) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-//------------------------------------------------------------------------------
-// Check if the uid vector contained has the requested uid
-//------------------------------------------------------------------------------
-bool VirtualIdentity::hasGid(gid_t gid) const
-{
-  for (auto it = gid_list.begin(); it != gid_list.end(); it++) {
-    if (*it == gid) {
-      return true;
-    }
-  }
-
-  return false;
 }
 
 //------------------------------------------------------------------------------
@@ -131,9 +103,12 @@ std::string
 VirtualIdentity::getTrace() const
 {
   std::stringstream ss;
-  
   time_t now = time(NULL);
-  ss << "[" << eos::common::Timing::ltime(now) << "] uid:" << uid << "[" << uid_string << "] gid:" << gid << "[" << gid_string << "] tident:" << tident.c_str() << " name:" << name << " dn:" << dn << " prot:" << prot << " host:" << host << " domain:" << domain << " geo:" << geolocation << " sudo:" << sudoer;
+  ss << "[" << eos::common::Timing::ltime(now) << "] uid:" << uid << "[" <<
+     uid_string << "] gid:" << gid << "[" << gid_string << "] tident:" <<
+     tident.c_str() << " name:" << name << " dn:" << dn << " prot:" << prot <<
+     " host:" << host << " domain:" << domain << " geo:" << geolocation << " sudo:"
+     << sudoer;
   return ss.str();
 }
 

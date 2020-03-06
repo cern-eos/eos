@@ -33,7 +33,6 @@
 #include "XrdOuc/XrdOucHash.hh"
 #include <map>
 #include <set>
-#include <vector>
 #include <string>
 #include <google/dense_hash_map>
 
@@ -50,28 +49,28 @@ class Mapping
 private:
 public:
 
-  typedef std::vector<uid_t>
-  uid_vector; //< typedef of list storing valid uids of a user
-  typedef std::vector<gid_t>
-  gid_vector; //< typedef of list storing valid gids of a user
-  typedef std::map<uid_t, uid_vector >
-  UserRoleMap_t; //< typedef of map storing uid vectors per uid
-  typedef std::map<uid_t, gid_vector >
-  GroupRoleMap_t; //< typedef of map storing gid vectors per gid
-  typedef std::map<std::string, uid_t>
-  VirtualUserMap_t; //< typedef of map storing translation rules from auth methods to uids
-  typedef std::map<std::string, gid_t>
-  VirtualGroupMap_t; //< typedef of map storing translation rules from auth methods to gids
-  typedef std::map<uid_t, bool >
-  SudoerMap_t; //< typedef of map storing members of the suid group
-  typedef std::map<std::string, std::string>
-  GeoLocationMap_t; //< typedef of map storing translation of string(IP) => geo location string
-  typedef std::set<std::pair<std::string, std::string>>
-      AllowedTidentMatches_t; //< typedef of set storing all host patterns which are allowed to use tident mapping
-  // ---------------------------------------------------------------------------
-  //! Class wrapping an uid/gid pari
-  // ---------------------------------------------------------------------------
+  //! Typedef of list storing valid uids of a user
+  typedef std::set<uid_t> uid_set;
+  //! Typedef of list storing valid gids of a user
+  typedef std::set<gid_t> gid_set;
+  //! Typedef of map storing uid set per uid
+  typedef std::map<uid_t, uid_set > UserRoleMap_t;
+  //! Typedef of map storing gid set per gid
+  typedef std::map<uid_t, gid_set > GroupRoleMap_t;
+  //! Typedef of map storing translation rules from auth methods to uids
+  typedef std::map<std::string, uid_t> VirtualUserMap_t;
+  //! Typedef of map storing translation rules from auth methods to gids
+  typedef std::map<std::string, gid_t> VirtualGroupMap_t;
+  //! Typedef of map storing members of the suid group
+  typedef std::map<uid_t, bool > SudoerMap_t;
+  //! Typedef of map storing translation of string(IP) => geo location string
+  typedef std::map<std::string, std::string> GeoLocationMap_t;
+  //! Typedef of set storing all host patterns which are allowed to use tident mapping
+  typedef std::set<std::pair<std::string, std::string>>  AllowedTidentMatches_t;
 
+  //----------------------------------------------------------------------------
+  //! Class wrapping an uid/gid pari
+  //----------------------------------------------------------------------------
   class id_pair
   {
   public:
@@ -84,9 +83,7 @@ public:
       gid = igid;
     }
 
-    ~id_pair()
-    {
-    };
+    ~id_pair() = default;
   };
 
   class ip_cache
@@ -100,11 +97,9 @@ public:
     {
       mLifeTime = lifetime;
     }
-    // Destructor
 
-    virtual ~ip_cache()
-    {
-    }
+    // Destructor
+    virtual ~ip_cache() = default;
 
     // Getter translates host name to IP string
     std::string GetIp(const char* hostname);
@@ -179,7 +174,7 @@ public:
   // ---------------------------------------------------------------------------
   //! A cache for physical group id caching (e.g. from group name to gid)
   // ---------------------------------------------------------------------------
-  static XrdOucHash<gid_vector> gPhysicalGidCache;
+  static XrdOucHash<gid_set> gPhysicalGidCache;
 
   // ---------------------------------------------------------------------------
   //! A mutex protecting the physical id->name caches
@@ -251,13 +246,13 @@ public:
   //! Convert a komma separated uid string to a vector uid list
   // ---------------------------------------------------------------------------
   static void
-  KommaListToUidVector(const char* list, std::vector<uid_t>& vector_list);
+  CommaListToUidSet(const char* list, std::set<uid_t>& uids_set);
 
   // ---------------------------------------------------------------------------
   //! Convert a komma separated gid string to a vector gid list
   // ---------------------------------------------------------------------------
   static void
-  KommaListToGidVector(const char* list, std::vector<gid_t>& vector_list);
+  CommaListToGidSet(const char* list, std::set<gid_t>& gids_set);
 
   //----------------------------------------------------------------------------
   //! Printout mapping in the format specified by option
@@ -294,9 +289,9 @@ public:
   // ---------------------------------------------------------------------------
   //! Reduce the trace identifier information to user@host
   // ---------------------------------------------------------------------------
-
   static const char* ReduceTident(XrdOucString& tident,
-                                  XrdOucString& wildcardtident, XrdOucString& mytident, XrdOucString& myhost);
+                                  XrdOucString& wildcardtident,
+                                  XrdOucString& mytident, XrdOucString& myhost);
 
   // ---------------------------------------------------------------------------
   //! Convert a uid to a user name

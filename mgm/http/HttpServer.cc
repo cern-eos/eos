@@ -406,7 +406,7 @@ HttpServer::Authenticate(std::map<std::string, std::string>& headers)
           // Try to match with SSL header
           if (dn == clientDN) {
             eos_static_info("msg=\"mapped client certificate successfully\" "
-                            "dn=\"%s\"username=\"%s\"", dn.c_str(), username.c_str());
+                            "dn=\"%s\" username=\"%s\"", dn.c_str(), username.c_str());
             break;
           }
 
@@ -498,7 +498,8 @@ HttpServer::Authenticate(std::map<std::string, std::string>& headers)
       header_host.erase(pos);
     }
 
-    eos_static_debug("msg=\"connection/header\" header-host=\"%s\" connection-host=\"%s\" real-ip=%s",
+    eos_static_debug("msg=\"connection/header\" header-host=\"%s\" "
+                     "connection-host=\"%s\" real-ip=%s",
                      header_host.c_str(), headers["client-real-host"].c_str(),
                      headers["client-real-ip"].c_str());
 

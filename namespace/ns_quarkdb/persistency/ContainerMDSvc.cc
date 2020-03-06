@@ -37,9 +37,10 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-QuarkContainerMDSvc::QuarkContainerMDSvc(qclient::QClient *qcl, MetadataFlusher *flusher)
+QuarkContainerMDSvc::QuarkContainerMDSvc(qclient::QClient* qcl,
+    MetadataFlusher* flusher)
   : pQuotaStats(nullptr), pFileSvc(nullptr), pQcl(qcl), pFlusher(flusher),
-    mMetadataProvider(nullptr), mMetaMap(), mNumConts(0ull) {}
+    mMetaMap(), mMetadataProvider(nullptr), mNumConts(0ull) {}
 
 //------------------------------------------------------------------------------
 // Destructor
@@ -90,7 +91,7 @@ QuarkContainerMDSvc::initialize()
     throw e;
   }
 
-  if(mUnifiedInodeProvider == nullptr) {
+  if (mUnifiedInodeProvider == nullptr) {
     MDException e(EINVAL);
     e.getMessage()  << __FUNCTION__  << " No inode provider set for "
                     << "the container metadata service";
@@ -123,8 +124,8 @@ QuarkContainerMDSvc::SafetyCheck()
   std::string blob;
   IContainerMD::id_t free_id = getFirstFreeId();
   std::vector<uint64_t> offsets  = {1, 10, 50, 100, 501, 1001, 11000, 50000,
-                                  100000, 150199, 200001, 1000002, 2000123
-                                 };
+                                    100000, 150199, 200001, 1000002, 2000123
+                                   };
   std::vector<folly::Future<eos::ns::ContainerMdProto>> futs;
 
   for (auto incr : offsets) {
@@ -144,7 +145,8 @@ QuarkContainerMDSvc::SafetyCheck()
     // Uh-oh, this is bad.
     MDException e(EEXIST);
     e.getMessage()  << __FUNCTION__ << " FATAL: Risk of data loss, found "
-                    << "container (" << free_id + offsets[i] << ") with id bigger than max container id (" << free_id << ")";
+                    << "container (" << free_id + offsets[i] <<
+                    ") with id bigger than max container id (" << free_id << ")";
     throw e;
   }
 }
@@ -200,11 +202,10 @@ QuarkContainerMDSvc::createContainer(IContainerMD::id_t id)
 {
   uint64_t free_id;
 
-  if(id > 0) {
+  if (id > 0) {
     mUnifiedInodeProvider->blacklistContainerId(id);
     free_id = id;
-  }
-  else {
+  } else {
     free_id = mUnifiedInodeProvider->reserveContainerId();
   }
 
@@ -221,8 +222,9 @@ QuarkContainerMDSvc::createContainer(IContainerMD::id_t id)
 void
 QuarkContainerMDSvc::updateStore(IContainerMD* obj)
 {
-  if(obj->getName() == "") {
-    eos_static_crit("updateContainerStore called on container with empty name; id=%llu, parent=%llu, trace=%s", obj->getId(), obj->getParentId(), common::getStacktrace().c_str());
+  if (obj->getName() == "") {
+    eos_static_crit("updateContainerStore called on container with empty name; id=%llu, parent=%llu, trace=%s",
+                    obj->getId(), obj->getParentId(), common::getStacktrace().c_str());
     // eventually throw, once we understand how this happens
   }
 
@@ -272,7 +274,8 @@ QuarkContainerMDSvc::addChangeListener(IContainerMDChangeListener* listener)
 // Create container in parent
 //------------------------------------------------------------------------------
 std::shared_ptr<IContainerMD>
-QuarkContainerMDSvc::createInParent(const std::string& name, IContainerMD* parent)
+QuarkContainerMDSvc::createInParent(const std::string& name,
+                                    IContainerMD* parent)
 {
   std::shared_ptr<IContainerMD> container = createContainer(0);
   container->setName(name);
@@ -344,7 +347,7 @@ QuarkContainerMDSvc::getNumContainers()
 //------------------------------------------------------------------------------
 void
 QuarkContainerMDSvc::notifyListeners(IContainerMD* obj,
-                                IContainerMDChangeListener::Action a)
+                                     IContainerMDChangeListener::Action a)
 {
   for (const auto& elem : pListeners) {
     elem->containerMDChanged(obj, a);

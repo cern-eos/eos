@@ -39,12 +39,12 @@ ProcCommand::Whoami()
     stdOut += (int) pVid->uid;
     stdOut += " uids=";
 
-    for (unsigned int i = 0; i < pVid->uid_list.size(); i++) {
-      stdOut += (int) pVid->uid_list[i];
+    for (const auto& uid : pVid->allowed_uids) {
+      stdOut += (int)uid;
       stdOut += ",";
     }
 
-    if (pVid->uid_list.size()) {
+    if (!pVid->allowed_uids.empty()) {
       stdOut.erase(stdOut.length() - 1);
     }
 
@@ -52,12 +52,12 @@ ProcCommand::Whoami()
     stdOut += (int) pVid->gid;
     stdOut += " gids=";
 
-    for (unsigned int i = 0; i < pVid->gid_list.size(); i++) {
-      stdOut += (int) pVid->gid_list[i];
+    for (const auto& gid : pVid->allowed_gids) {
+      stdOut += (int)gid;
       stdOut += ",";
     }
 
-    if (pVid->gid_list.size()) {
+    if (!pVid->allowed_gids.empty()) {
       stdOut.erase(stdOut.length() - 1);
     }
 
@@ -77,22 +77,28 @@ ProcCommand::Whoami()
     stdOut += (int) pVid->uid;
     stdOut += " (";
 
-    for (unsigned int i = 0; i < pVid->uid_list.size(); i++) {
-      stdOut += (int) pVid->uid_list[i];
+    for (const auto& uid : pVid->allowed_uids) {
+      stdOut += (int)uid;
       stdOut += ",";
     }
 
-    stdOut.erase(stdOut.length() - 1);
+    if (!pVid->allowed_uids.empty()) {
+      stdOut.erase(stdOut.length() - 1);
+    }
+
     stdOut += ") gid=";
     stdOut += (int) pVid->gid;
     stdOut += " (";
 
-    for (unsigned int i = 0; i < pVid->gid_list.size(); i++) {
-      stdOut += (int) pVid->gid_list[i];
+    for (const auto& gid : pVid->allowed_gids) {
+      stdOut += (int)gid;
       stdOut += ",";
     }
 
-    stdOut.erase(stdOut.length() - 1);
+    if (!pVid->allowed_gids.empty()) {
+      stdOut.erase(stdOut.length() - 1);
+    }
+
     stdOut += ")";
     stdOut += " [authz:";
     stdOut += pVid->prot;
@@ -111,13 +117,13 @@ ProcCommand::Whoami()
       stdOut += " geo-location=";
       stdOut += pVid->geolocation.c_str();
     }
-    
+
     if (pVid->key.length()) {
       if (pVid->prot == "sss") {
-	stdOut += " key=";
-	stdOut += pVid->key.c_str();
+        stdOut += " key=";
+        stdOut += pVid->key.c_str();
       } else {
-	stdOut += " key=<oauth2>";
+        stdOut += " key=<oauth2>";
       }
     }
 
@@ -140,11 +146,13 @@ ProcCommand::Whoami()
     }
 
     std::string tokenDump;
+
     if (pVid->token) {
       pVid->token->Dump(tokenDump, true, false);
-      if (tokenDump.length()> 4) {
-	stdOut += "\n";
-	stdOut += tokenDump.c_str();
+
+      if (tokenDump.length() > 4) {
+        stdOut += "\n";
+        stdOut += tokenDump.c_str();
       }
     }
   }

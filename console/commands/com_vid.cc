@@ -181,8 +181,8 @@ com_vid(char* arg1)
         goto com_vid_usage;
       }
 
-      if ( (type.beginswith("-h") || type.beginswith("=-h")) && (type!= "-https")) {
-	goto com_vid_usage;
+      if ((type.beginswith("-h") || type.beginswith("=-h")) && (type != "-https")) {
+        goto com_vid_usage;
       }
 
       bool hastype = false;
@@ -228,8 +228,8 @@ com_vid(char* arg1)
       }
 
       if ((type == "-oauth2")) {
-	in += "&mgm.vid.auth=oauth2";
-	hastype = true;
+        in += "&mgm.vid.auth=oauth2";
+        hastype = true;
       }
 
       if (!hastype) {
@@ -278,8 +278,6 @@ com_vid(char* arg1)
         XrdOucString vid = subtokenizer.GetTokenUnquoted();
 
         if (vid.length()) {
-          fprintf(stderr, "Got %s\n", vid.c_str());
-
           if (vid.beginswith("vgid:")) {
             vid.replace("vgid:", "");
             in += "&mgm.vid.gid=";
@@ -405,15 +403,15 @@ com_vid(char* arg1)
     XrdOucString in = "mgm.cmd=vid&mgm.subcmd=set";
     XrdOucString vidkey = "";
     XrdOucString level = subtokenizer.GetTokenUnquoted();
-    
+
     if (!level.length()) {
       goto com_vid_usage;
     }
-    
+
     if (level.beginswith("-h") || level.beginswith("=-h")) {
       goto com_vid_usage;
     }
-    
+
     vidkey = "publicaccesslevel";
     in += "&mgm.vid.cmd=publicaccesslevel";
     in += "&mgm.vid.key=";
@@ -540,8 +538,8 @@ com_vid_usage:
           "                                        -y : show configured gateways\n");
   fprintf(stdout,
           "                                        -a : show authentication\n");
-  fprintf(stdout,                                  
-	  "                                        -N : show maximum anonymous (nobody) access level deepness - the tree deepness where unauthenticated access is possible (default is 1024)\n");
+  fprintf(stdout,
+          "                                        -N : show maximum anonymous (nobody) access level deepness - the tree deepness where unauthenticated access is possible (default is 1024)\n");
   fprintf(stdout,
           "                                        -l : show geo location mapping\n");
   fprintf(stdout,
@@ -551,7 +549,7 @@ com_vid_usage:
   fprintf(stdout, "       vid set membership <uid> -gids [<gid1>,<gid2>,...]\n");
   fprintf(stdout,
           "       vid rm membership <uid>             : delete the membership entries for <uid>.\n");
-  fprintf(stdout, "       vid set membership <uid> [+|-]sudo \n");  
+  fprintf(stdout, "       vid set membership <uid> [+|-]sudo \n");
   fprintf(stdout,
           "       vid set map -krb5|-gsi|-https|-sss|-unix|-tident|-voms|-grpc|-oauth2 <pattern> [vuid:<uid>] [vgid:<gid>] \n");
   fprintf(stdout,
@@ -561,7 +559,7 @@ com_vid_usage:
   fprintf(stdout,
           "           -grpc key:<key> : <key> has to be added to the relevant GRPC request in the field 'authkey'\n\n");
   fprintf(stdout,
-	  "           -oauth2 key:<oauth-resource> : <oauth-resource> describes the OAUTH resource endpoint to translate OAUTH tokens to user identities\n\n");
+          "           -oauth2 key:<oauth-resource> : <oauth-resource> describes the OAUTH resource endpoint to translate OAUTH tokens to user identities\n\n");
   fprintf(stdout,
           "       vid set geotag <IP-prefix> <geotag>  : add to all IP's matching the prefix <prefix> the geo location tag <geotag>\n");
   fprintf(stdout,
@@ -579,11 +577,10 @@ com_vid_usage:
           "                                            : adds/removes a host as a (fuse) gateway with 'su' priviledges\n");
   fprintf(stdout,
           "                                              [<prot>] restricts the gateway role change to the specified authentication method\n");
-
-  fprintf(stdout, 
-	  "       vid publicaccesslevel <level>\n");
-  fprintf(stdout, 
-	  "                                           : sets the deepest directory level where anonymous access (nobody) is possible\n");
+  fprintf(stdout,
+          "       vid publicaccesslevel <level>\n");
+  fprintf(stdout,
+          "                                           : sets the deepest directory level where anonymous access (nobody) is possible\n");
   global_retc = EINVAL;
   return (0);
 }

@@ -53,17 +53,16 @@ Vid::Set(const char* value, bool storeConfig)
     return false;
   }
 
-  if (vidcmd == "publicaccesslevel") {    
+  if (vidcmd == "publicaccesslevel") {
     if (storeConfig) {
       gOFS->ConfEngine->SetConfigValue("vid", skey.c_str(), value);
     }
-    
+
     if ((val = env.Get("mgm.vid.level"))) {
-      eos::common::Mapping::gNobodyAccessTreeDeepness = (int) strtol(val,0,10);
+      eos::common::Mapping::gNobodyAccessTreeDeepness = (int) strtol(val, 0, 10);
       set = true;
     }
   }
-
 
   if (vidcmd == "geotag") {
     if ((val = env.Get("mgm.vid.geotag"))) {
@@ -93,7 +92,8 @@ Vid::Set(const char* value, bool storeConfig)
       }) !=
       username.end()) {
         uid = eos::common::Mapping::UserNameToUid(username, errc);
-      } else {
+      }
+      else {
         try {
           uid = std::stoul(username);
         } catch (const std::exception& e) {
@@ -115,8 +115,8 @@ Vid::Set(const char* value, bool storeConfig)
     if ((val = env.Get("mgm.vid.target.uid"))) {
       // fill uid target list
       eos::common::Mapping::gUserRoleVector[uid].clear();
-      eos::common::Mapping::KommaListToUidVector(val,
-          eos::common::Mapping::gUserRoleVector[uid]);
+      eos::common::Mapping::CommaListToUidSet(val,
+                                              eos::common::Mapping::gUserRoleVector[uid]);
 
       if (storeConfig) {
         gOFS->ConfEngine->SetConfigValue("vid", skey.c_str(), svalue.c_str());
@@ -128,8 +128,8 @@ Vid::Set(const char* value, bool storeConfig)
     if ((val = env.Get("mgm.vid.target.gid"))) {
       // fill gid target list
       eos::common::Mapping::gGroupRoleVector[uid].clear();
-      eos::common::Mapping::KommaListToGidVector(val,
-          eos::common::Mapping::gGroupRoleVector[uid]);
+      eos::common::Mapping::CommaListToGidSet(val,
+                                              eos::common::Mapping::gGroupRoleVector[uid]);
 
       if (storeConfig) {
         gOFS->ConfEngine->SetConfigValue("vid", skey.c_str(), svalue.c_str());
@@ -370,7 +370,8 @@ Vid::Rm(XrdOucEnv& env,
       if (errc) {
         uid = 99;
       }
-    } else {
+    }
+    else {
       try {
         uid = std::stoul(usrname);
       } catch (const std::exception& e) {
@@ -397,7 +398,8 @@ Vid::Rm(XrdOucEnv& env,
       if (errc) {
         gid = 99;
       }
-    } else {
+    }
+    else {
       try {
         gid = std::stoul(grpname);
       } catch (const std::exception& e) {

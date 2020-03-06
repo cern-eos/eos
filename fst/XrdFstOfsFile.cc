@@ -2327,16 +2327,16 @@ XrdFstOfsFile::ProcessCapOpaque(bool& is_repair_read,
   }
 
   if ((val = mCapOpaque->Get("mgm.uid"))) {
-    vid.uid_list.clear();
-    vid.uid_list.push_back(atoi(val));
+    vid.allowed_uids.clear();
+    vid.allowed_uids.insert(atoi(val));
   } else {
     return gOFS.Emsg(epname, error, EINVAL, "open - sec uid missing",
                      mNsPath.c_str());
   }
 
   if ((val = mCapOpaque->Get("mgm.gid"))) {
-    vid.gid_list.clear();
-    vid.gid_list.push_back(atoi(val));
+    vid.allowed_gids.clear();
+    vid.allowed_gids.insert(atoi(val));
   } else {
     return gOFS.Emsg(epname, error, EINVAL, "open - sec gid missing",
                      mNsPath.c_str());

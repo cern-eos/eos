@@ -367,9 +367,7 @@ S3Store::ListBucket(const std::string& bucket, const std::string& query)
           entry += Timing::UnixTimestamp_to_ISO8601(mtime.tv_sec);
           entry += "</LastModified>";
           entry += "<ETag>\"";
-
           eos::appendChecksumOnStringAsHex(fmd.get(), entry);
-
           entry += "\"</ETag>";
           entry += "<Size>";
           std::string sconv;
@@ -490,7 +488,7 @@ S3Store::HeadBucket(const std::string& id,
 
   // set the bucket id as vid
   vid.uid = uid;
-  vid.uid_list.push_back(uid);
+  vid.allowed_uids.insert(uid);
   struct stat buf;
   // build the bucket path
   std::string bucketpath = mS3ContainerPath[bucket];
@@ -562,7 +560,7 @@ S3Store::HeadObject(const std::string& id,
 
   // set the bucket id as vid
   vid.uid = uid;
-  vid.uid_list.push_back(uid);
+  vid.allowed_uids.insert(uid);
   struct stat buf;
   // build the full path for the request
   std::string objectpath = mS3ContainerPath[bucket];
@@ -648,7 +646,7 @@ S3Store::GetObject(eos::common::HttpRequest* request,
 
   // set the bucket id as vid
   vid.uid = uid;
-  vid.uid_list.push_back(uid);
+  vid.allowed_uids.insert(uid);
   struct stat buf;
   // build the full path for the request
   std::string objectpath = mS3ContainerPath[bucket];
@@ -830,7 +828,7 @@ S3Store::PutObject(eos::common::HttpRequest* request,
 
   // set the bucket id as vid
   vid.uid = uid;
-  vid.uid_list.push_back(uid);
+  vid.allowed_uids.insert(uid);
   // build the full path for the request
   std::string objectpath = mS3ContainerPath[bucket];
 
@@ -926,7 +924,7 @@ S3Store::DeleteObject(eos::common::HttpRequest* request,
 
   // set the bucket id as vid
   vid.uid = uid;
-  vid.uid_list.push_back(uid);
+  vid.allowed_uids.insert(uid);
   struct stat buf;
   // build the full path for the request
   std::string objectpath = mS3ContainerPath[bucket];

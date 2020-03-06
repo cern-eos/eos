@@ -39,10 +39,9 @@ std::chrono::seconds QuarkFileMDSvc::sFlushInterval(5);
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-QuarkFileMDSvc::QuarkFileMDSvc(qclient::QClient *qcl, MetadataFlusher *flusher)
+QuarkFileMDSvc::QuarkFileMDSvc(qclient::QClient* qcl, MetadataFlusher* flusher)
   : pQuotaStats(nullptr), pContSvc(nullptr), pFlusher(flusher),
-    mMetadataProvider(nullptr), pQcl(qcl),
-    mMetaMap(), mNumFiles(0ull) {}
+    pQcl(qcl), mMetaMap(), mNumFiles(0ull), mMetadataProvider(nullptr) {}
 
 //------------------------------------------------------------------------------
 // Destructor
@@ -118,7 +117,7 @@ QuarkFileMDSvc::SafetyCheck()
   std::string blob;
   IFileMD::id_t free_id = getFirstFreeId();
   std::vector<uint64_t> offsets {1, 10, 50, 100, 501, 1001, 11000, 50000,
-                               100000, 150199, 200001, 1000002, 2000123 };
+                                 100000, 150199, 200001, 1000002, 2000123 };
   std::vector<folly::Future<eos::ns::FileMdProto>> futs;
 
   for (auto incr : offsets) {
@@ -138,7 +137,8 @@ QuarkFileMDSvc::SafetyCheck()
     // Uh-oh, this is bad.
     MDException e(EEXIST);
     e.getMessage()  << __FUNCTION__ << " FATAL: Risk of data loss, found "
-                    << "file (" << free_id + offsets[i] << ") with id bigger than max file id (" << free_id << ")";
+                    << "file (" << free_id + offsets[i] << ") with id bigger than max file id (" <<
+                    free_id << ")";
     throw e;
   }
 }
@@ -193,11 +193,10 @@ QuarkFileMDSvc::createFile(IFileMD::id_t id)
 {
   uint64_t free_id;
 
-  if(id > 0) {
+  if (id > 0) {
     mUnifiedInodeProvider.blacklistFileId(id);
     free_id = id;
-  }
-  else {
+  } else {
     free_id = mUnifiedInodeProvider.reserveFileId();
   }
 
@@ -215,8 +214,9 @@ QuarkFileMDSvc::createFile(IFileMD::id_t id)
 void
 QuarkFileMDSvc::updateStore(IFileMD* obj)
 {
-  if(obj->getName() == "") {
-    eos_static_crit("updateFileStore called on file with empty name; id=%llu, parent=%llu, trace=%s", obj->getId(), obj->getContainerId(), common::getStacktrace().c_str());
+  if (obj->getName() == "") {
+    eos_static_crit("updateFileStore called on file with empty name; id=%llu, parent=%llu, trace=%s",
+                    obj->getId(), obj->getContainerId(), common::getStacktrace().c_str());
     // eventually throw, once we understand how this happens
   }
 
@@ -322,7 +322,8 @@ void QuarkFileMDSvc::blacklistBelow(FileIdentifier id)
 //------------------------------------------------------------------------------
 // Get pointer to metadata provider
 //------------------------------------------------------------------------------
-MetadataProvider* QuarkFileMDSvc::getMetadataProvider() {
+MetadataProvider* QuarkFileMDSvc::getMetadataProvider()
+{
   return mMetadataProvider.get();
 }
 
