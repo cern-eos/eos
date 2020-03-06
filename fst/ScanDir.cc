@@ -466,6 +466,13 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
   while (!assistant.terminationRequested()) {
 #ifndef _NOOFS
     auto fs = gOFS.Storage->GetFileSystemById(mFsId);
+
+    if (fs == nullptr) {
+      eos_notice("msg=\"file system being deleted, abort any further scanning\""
+                 " fsid=%lu", mFsId);
+      return;
+    }
+
     fs->UpdateInconsistencyInfo();
 #endif
     mNumScannedFiles =  mTotalScanSize =  mNumCorruptedFiles = 0;
