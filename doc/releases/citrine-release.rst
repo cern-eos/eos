@@ -16,6 +16,28 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.7.2 Citrine``
+===================
+
+2020-03-09
+
+Bug
+----
+
+* [EOS-3920] - eosxd crash in EosFuse::DumpStatistic()
+* [EOS-4016] - FUSEX: file content mixup / data corruption
+* [EOS-4025] - utimes call does not set cookie in disk cache
+* [EOS-4031] - fst crash in eos::fst::FileSystem::UpdateInconsistencyInfo() while
+  registering fss
+* [EOS-3605] - FUSEX crash in metad::pmap::lru_add()
+* [EOS-4029] - eosxd abort() in Json::Value::isMember - "Json::Value::find(key, end, found): requires objectValue or nullValue"
+
+Improvement
+------------
+
+* [EOS-3745] - Allow static mapping of HTTP access to a non-root user
+
+
 ``v4.7.1 Citrine``
 ===================
 
