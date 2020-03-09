@@ -32,27 +32,6 @@ else()
   set(DAVIX_HDR "")
 endif()
 
-if(ISALCRYPTO_FOUND)
-  add_definitions(-DISALCRYPTO_FOUND)
-  set(LIBISALCRYPTO_LIBRARIES ${ISALCRYPTO_LIBRARIES})
-else()
-  set(LIBISALCRYPTO_LIBRARIES "")
-endif()
-
-if(ISAL_FOUND)
-  add_definitions(-DISAL_FOUND)
-  set(LIBISAL_LIBRARIES ${ISAL_LIBRARIES})
-else()
-  set(LIBISAL_LIBRARIES "")
-endif()
-
-if(XXHASH_FOUND)
-  add_definitions(-DXXHASH_FOUND)
-  set(LIBXXHASH_LIBRARIES ${XXHASH_LIBRARIES})
-else()
-  set(LIBXXHASH_LIBRARIES "")
-endif()
-
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${DAVIX_INCLUDE_DIRS}
@@ -205,13 +184,12 @@ target_link_libraries(EosFstIo PUBLIC
   EosCrc32c-Objects
   EosCommon
   XROOTD::SERVER
+  ISAL::ISAL
+  ISAL::ISAL_CRYPTO
+  XXHASH::XXHASH
   ${GLIBC_DL_LIBRARY}
   ${DAVIX_LIBRARIES}
-  ${CMAKE_THREAD_LIBS_INIT}
-  ${LIBISALCRYPTO_LIBRARIES}
-  ${LIBISAL_LIBRARIES}
-  ${LIBXXHASH_LIBRARIES}
-  )
+  ${CMAKE_THREAD_LIBS_INIT})
 
 set_target_properties(EosFstIo PROPERTIES
   VERSION ${VERSION}
@@ -235,10 +213,10 @@ target_link_libraries(EosFstIo-Static PUBLIC
   EosCliProto-Objects
   EosCrc32c-Objects
   XROOTD::SERVER
+  ISAL::ISAL
+  ISAL::ISAL_CRYPTO
+  XXHASH::XXHASH
   ${DAVIX_LIBRARIES}
-  ${LIBISALCRYPTO_LIBRARIES}
-  ${LIBISAL_LIBRARIES}
-  ${LIBXXHASH_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
   XrdMqClient-Static)
 
@@ -283,7 +261,10 @@ add_library(EosFstOss MODULE
   $<TARGET_OBJECTS:EosCrc32c-Objects>)
 
 target_link_libraries(EosFstOss PRIVATE
-  EosCommon)
+  EosCommon
+  ISAL::ISAL
+  ISAL::ISAL_CRYPTO
+  XXHASH::XXHASH)
 
 #-------------------------------------------------------------------------------
 # XrdEosFst library
@@ -350,11 +331,7 @@ target_compile_definitions(XrdEosFst-Objects PUBLIC
 
 add_library(XrdEosFst-${PLUGIN_VERSION} MODULE
   $<TARGET_OBJECTS:XrdEosFst-Objects>
-  $<TARGET_OBJECTS:XrdSsiPbEosCta-Objects>
   $<TARGET_OBJECTS:EosConsoleHelpers-Objects>)
-
-target_compile_definitions(XrdEosFst-${PLUGIN_VERSION} PUBLIC
-  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
 target_link_libraries(XrdEosFst-${PLUGIN_VERSION} PRIVATE
   XrdEosFst-Objects
@@ -364,15 +341,17 @@ target_link_libraries(XrdEosFst-${PLUGIN_VERSION} PRIVATE
   EosNsCommon
   ZLIB::ZLIB
   XROOTD::SSI
-  eosCapability-Static
   ${CMAKE_THREAD_LIBS_INIT})
+
+target_compile_definitions(XrdEosFst-${PLUGIN_VERSION} PUBLIC
+  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
 add_library(XrdEosFst-Static STATIC $<TARGET_OBJECTS:XrdEosFst-Objects>)
 
 target_compile_definitions(XrdEosFst-Static PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
-target_link_libraries(XrdEosFst-${PLUGIN_VERSION} PRIVATE
+target_link_libraries(XrdEosFst-Static PUBLIC
   XrdEosFst-Objects
   EosConsoleHelpers-Objects
   EosCommonServer
@@ -380,7 +359,6 @@ target_link_libraries(XrdEosFst-${PLUGIN_VERSION} PRIVATE
   EosNsCommon
   ZLIB::ZLIB
   XROOTD::SSI
-  eosCapability-Static
   ${CMAKE_THREAD_LIBS_INIT})
 
 install(TARGETS EosFstOss XrdEosFst-${PLUGIN_VERSION}
@@ -406,8 +384,7 @@ target_link_libraries(EosFstHttp PUBLIC
   EosCommonServer
   XROOTD::SSI
   XROOTD::HTTP
-  XROOTD::PRIVATE
-  eosCapability-Static)
+  XROOTD::PRIVATE)
 
 install(TARGETS EosFstHttp
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}

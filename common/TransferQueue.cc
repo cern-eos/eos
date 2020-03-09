@@ -24,6 +24,7 @@
 #include "common/TransferQueue.hh"
 #include "mq/SharedQueueWrapper.hh"
 
+EOSCOMMONNAMESPACE_BEGIN
 /*----------------------------------------------------------------------------*/
 /**
  * Constructor for a transfer queue

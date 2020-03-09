@@ -44,17 +44,19 @@ target_link_libraries(EosMgmProto-Objects PUBLIC
 #-------------------------------------------------------------------------------
 # EosMgmHttp library
 #-------------------------------------------------------------------------------
-add_library(EosMgmHttp MODULE
+add_library(EosMgmHttp-Objects OBJECT
   http/xrdhttp/EosMgmHttpHandler.hh
   http/xrdhttp/EosMgmHttpHandler.cc)
 
-set_target_properties(
-  EosMgmHttp-Objects
-  PROPERTIES
-  POSITION_INDEPENDENT_CODE TRUE)
+target_link_libraries(EosMgmHttp-Objects PUBLIC
+  EosAuthProto-Objects
+  XROOTD::UTILS
+  XROOTD::PRIVATE
+  XROOTD::HTTP
+  FOLLY::FOLLY)
 
-#add_dependencies(EosMgmHttp-Objects EosProtobuf)
-add_dependencies(EosMgmHttp-Objects EosAuthProto-Objects)
+set_target_properties(EosMgmHttp-Objects
+  PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 
 add_library(EosMgmHttp-${PLUGIN_VERSION} MODULE
   $<TARGET_OBJECTS:EosMgmHttp-Objects>)
@@ -363,7 +365,6 @@ if(Linux)
     XROOTD::PRIVATE
     EosNsCommon-Static
     EosCommonServer-Static
-    eosCapability-Static
     ${GLIBC_DL_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT})
 

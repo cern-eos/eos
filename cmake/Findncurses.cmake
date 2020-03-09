@@ -25,14 +25,10 @@ find_library(NCURSES_LIBRARY
   HINTS ${NCURSES_ROOT} ${PC_ncurses_LIBDIR} ${PC_ncurses_LIBRARY_DIRS}
   PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR})
 
-if (Linux)
-  find_library(NCURSES_LIBRARY_STATIC
-    NAMES libncurses.a
-    HINTS ${NCURSES_ROOT} ${PC_ncurses_LIBDIR} ${PC_ncurses_LIBRARY_DIRS}
-    PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR})
-else ()
-  set(NCURSES_LIBRARY_STATIC ${NCURSES_LIBRARY})
-endif()
+find_library(NCURSES_LIBRARY_STATIC
+  NAMES libncurses.a
+  HINTS ${NCURSES_ROOT} ${PC_ncurses_LIBDIR} ${PC_ncurses_LIBRARY_DIRS}
+  PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR})
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(ncurses

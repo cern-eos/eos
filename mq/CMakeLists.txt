@@ -45,6 +45,7 @@ add_library(XrdMqClient-Objects OBJECT
 
 target_link_libraries(XrdMqClient-Objects PUBLIC
   XROOTD::UTILS
+  PROTOBUF::PROTOBUF
   OPENSSL::OPENSSL)
 
 set_target_properties(XrdMqClient-Objects PROPERTIES

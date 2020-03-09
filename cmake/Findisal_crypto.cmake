@@ -1,40 +1,51 @@
 # Try to find libisa-l_crypto (devel)
 # Once done, this will define
 #
-# ISALCRYPTO_FOUND - system has isa-l_crypto
-# ISALCRYPTO_INCLUDE_DIRS - the isa-l_crypto include directories
-# ISALCRYPTO_LIBRARIES - isa-l_crypto libraries directories
-# ISALCRYPTO_LIBRARY_STATIC - isa-l_crypto static library 
+# ISALCRYPTO_FOUND          - system has isa-l_crypto
+# ISALCRYPTO_INCLUDE_DIRS   - the isa-l_crypto include directories
+# ISALCRYPTO_LIBRARIES      - isa-l_crypto libraries directories
+# ISALCRYPTO_LIBRARY_STATIC - isa-l_crypto static library
+#
+# and the following imported targets
+#
+# ISAL::ISAL_CRYPTO
+# ISAL::ISAL_CRYPTO_STATIC
 
-if(ISALCRYPTO_INCLUDE_DIRS AND ISALCRYPTO_LIBRARIES)
-set(ISALCRYPTO_FIND_QUIETLY TRUE)
-endif(ISALCRYPTO_INCLUDE_DIRS AND ISALCRYPTO_LIBRARIES)
+find_path(ISAL_CRYPTO_INCLUDE_DIR
+  NAMES isa-l_crypto.h
+  HINTS ${ISAL_CRYPTO_ROOT}
+  PATH_SUFFIXES include)
 
-find_path( ISALCRYPTO_INCLUDE_DIR isa-l_crypto.h
-  HINTS
-  /usr
-  ${ISALCRYPTO_DIR}
-  PATH_SUFFIXES include )
+find_library(ISAL_CRYPTO_LIBRARY
+  NAME isal_crypto
+  HINTS ${ISAL_CRYPTO_ROOT}
+  PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR})
 
-find_library(
-    ISALCRYPTO_LIBRARY_STATIC
-    NAMES libisal_crypto.a
-    HINTS ${ISALCRYPTO_DIR}
-    PATH_SUFFIXES ${LIBRARY_PATH_PREFIX}
-)
+find_library(ISAL_CRYPTO_LIBRARY_STATIC
+  NAME libisal_crypto.a
+  HINTS ${ISAL_CRYPTO_ROOT}
+  PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR})
 
-find_library( ISALCRYPTO_LIBRARY isal_crypto
-  HINTS
-  /usr
-  ${ISALCRYPTO_DIR}
-  PATH_SUFFIXES lib )
-
-set(ISALCRYPTO_INCLUDE_DIRS ${ISALCRYPTO_INCLUDE_DIR})
-set(ISALCRYPTO_LIBRARIES ${ISALCRYPTO_LIBRARY})
-
-# handle the QUIETLY and REQUIRED arguments and set ISALCRYPTO_FOUND to TRUE if
-# all listed variables are TRUE
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(isalcrypto DEFAULT_MSG ISALCRYPTO_INCLUDE_DIR ISALCRYPTO_LIBRARY)
+find_package_handle_standard_args(isal_crypto
+  REQUIRED_VARS ISAL_CRYPTO_LIBRARY ISAL_CRYPTO_INCLUDE_DIR
+  ISAL_CRYPTO_LIBRARY_STATIC)
+mark_as_advanced(ISAL_CRYPTO_LIBRARY ISAL_CRYPTO_INCLUDE_DIR
+  ISAL_CRYPTO_LIBRARY_STATIC)
 
-mark_as_advanced(ISALCRYPTO_INCLUDE_DIR ISALCRYPTO_LIBRARY)
+if (ISAL_CRYPTO_FOUND AND NOT TARGET ISAL::ISAL_CRYPTO)
+  add_library(ISAL::ISAL_CRYPTO STATIC IMPORTED)
+  set_target_properties(ISAL::ISAL_CRYPTO PROPERTIES
+    IMPORTED_LOCATION "${ISAL_CRYPTO_LIBRARY}"
+    INTERFACE_INCLUDE_DIRECTORIES "${ISAL_CRYPTO_INCLUDE_DIR}")
+  target_compile_definitions(ISAL::ISAL_CRYPTO INTERFACE ISALCRYPTO_FOUND)
+
+  add_library(ISAL::ISAL_CRYPTO_STATIC STATIC IMPORTED)
+  set_target_properties(ISAL::ISAL_CRYPTO_STATIC PROPERTIES
+    IMPORTED_LOCATION "${ISAL_CRYPTO_LIBRARY_STATIC}"
+    INTERFACE_INCLUDE_DIRECTORIES "${ISAL_CRYPTO_INCLUDE_DIR}")
+  target_compile_definitions(ISAL::ISAL_CRYPTO_STATIC INTERFACE ISAL_FOUND)
+endif()
+
+set(ISAL_CRYPTO_INCLUDE_DIRS ${ISAL_CRYPTO_INCLUDE_DIR})
+set(ISAL_CRYPTO_LIBRARIES ${ISALC_RYPTO_LIBRARY})
