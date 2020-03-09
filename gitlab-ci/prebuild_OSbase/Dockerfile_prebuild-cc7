@@ -16,7 +16,8 @@ RUN if [[ $PREBUILD_NAME == "cc7_xrd_testing" ]]; then \
       sed -i "s/xrootd_version_min 1:4.11.2/xrootd_version_min 1:4.11.0/g" eos.spec.in; \
     fi
 
-RUN yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar ccache sl-release-scl rpm-sign
+RUN yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar ccache sl-release-scl rpm-sign \
+    && yum clean all
 
 RUN source gitlab-ci/export_branch.sh \
     && echo "Exporting BRANCH=${BRANCH}" \

@@ -5,7 +5,8 @@ LABEL maintainer="Fabio Luchetti, faluchet@cern.ch, CERN 2020"
 WORKDIR /builds/dss/eos/
 
 RUN dnf install -y epel-release \
-    && dnf install --nogpg -y gcc-c++ cmake ccache make dnf-plugins-core python2 python3 python3-setuptools rpm-build rpm-sign which git tar
+    && dnf install --nogpg -y gcc-c++ cmake ccache make dnf-plugins-core python2 python3 python3-setuptools rpm-build rpm-sign which git tar \
+    && yum clean all
 
 RUN source gitlab-ci/export_branch.sh \
     && echo "Exporting BRANCH=${BRANCH}" \

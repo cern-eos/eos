@@ -722,11 +722,13 @@ dock_stress:
 
 unit_test:
   image:
-    name: gitlab-registry.cern.ch/dss/eos:${$CI_PIPELINE_ID}
+    name: gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
     entrypoint: ["/bin/bash", "-c"]
   <<: *unit_test_template_definition
   dependencies: []
   retry: 1
+  except:
+  - tags
   tags:
     - docker_node
     - unit_tests
@@ -738,6 +740,8 @@ unit_test_tag:
   <<: *unit_test_template_definition
   dependencies: []
   retry: 1
+  only:
+  - tags
   tags:
     - docker_node
     - unit_tests
