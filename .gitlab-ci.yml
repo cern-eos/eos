@@ -703,13 +703,14 @@ dock_stress:
 
 unit_test:
   image:
-    name: gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG}${CI_PIPELINE_ID}
+    name: gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG:-$CI_PIPELINE_ID}
     entrypoint: ["/bin/bash", "-c"]
   <<: *unit_test_template_definition
   dependencies: []
   retry: 1
   tags:
     - docker_node
+    - unit_tests
 
 # schedules ------------------------------
 
@@ -735,6 +736,7 @@ k8s_system_c8:
   allow_failure: true
   only:
     - schedules
+    - tags
   tags:
     - shell-with-kubernetes
 
@@ -793,7 +795,7 @@ dock_system_xt:
 
 unit_test_asan:
   image:
-    name: gitlab-registry.cern.ch/dss/eos:asan_${CI_COMMIT_TAG}${CI_PIPELINE_ID}
+    name: gitlab-registry.cern.ch/dss/eos:asan_${CI_COMMIT_TAG:-$CI_PIPELINE_ID}
     entrypoint: ["/bin/bash", "-c"]
   <<: *unit_test_template_definition
   variables:
@@ -806,6 +808,7 @@ unit_test_asan:
     - schedules
   tags:
     - docker_node
+    - unit_tests
 
 
 #-------------------------------------------------------------------------------
