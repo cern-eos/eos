@@ -719,32 +719,27 @@ dock_stress:
     - chown -R daemon:daemon /var/quarkdb/node-0
     - /usr/bin/xrootd -n qdb -c /etc/xrd.cf.quarkdb -l /var/log/eos/xrdlog.qdb -b -Rdaemon
     - eos-ns-quarkdb-tests
+  dependencies: []
+  retry: 1
+  tags:
+    - docker_node
+    - unit_tests
+
+unit_test:tag:
+  image:
+    name: gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG}
+    entrypoint: ["/bin/bash", "-c"]
+  <<: *unit_test_template_definition
+  only:
+    - tags
 
 unit_test:
   image:
     name: gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
     entrypoint: ["/bin/bash", "-c"]
   <<: *unit_test_template_definition
-  dependencies: []
-  retry: 1
   except:
-  - tags
-  tags:
-    - docker_node
-    - unit_tests
-
-unit_test_tag:
-  image:
-    name: gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG}
-    entrypoint: ["/bin/bash", "-c"]
-  <<: *unit_test_template_definition
-  dependencies: []
-  retry: 1
-  only:
-  - tags
-  tags:
-    - docker_node
-    - unit_tests
+    - tags
 
 # schedules ------------------------------
 
@@ -835,31 +830,8 @@ unit_test_asan:
   variables:
     LSAN_OPTIONS: "suppressions=/var/eos/test/LeakSanitizer.supp"  # Suppress known memory leaks. For the generic tests
     ASAN_OPTIONS: "fast_unwind_on_malloc=0"  # Avoid indirect leaks from linked dependencies. For the namespace tests
-  dependencies: []
-  retry: 1
-  allow_failure: true
   only:
     - schedules
-  tags:
-    - docker_node
-    - unit_tests
-
-unit_test_asan_tag:
-  image:
-    name: gitlab-registry.cern.ch/dss/eos:asan_${CI_COMMIT_TAG}
-    entrypoint: ["/bin/bash", "-c"]
-  <<: *unit_test_template_definition
-  variables:
-    LSAN_OPTIONS: "suppressions=/var/eos/test/LeakSanitizer.supp"  # Suppress known memory leaks. For the generic tests
-    ASAN_OPTIONS: "fast_unwind_on_malloc=0"  # Avoid indirect leaks from linked dependencies. For the namespace tests
-  dependencies: []
-  retry: 1
-  allow_failure: true
-  only:
-    - schedules
-  tags:
-    - docker_node
-    - unit_tests
 
 
 #-------------------------------------------------------------------------------

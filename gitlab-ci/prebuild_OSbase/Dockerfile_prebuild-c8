@@ -6,9 +6,7 @@ WORKDIR /builds/dss/eos/
 
 RUN dnf install -y epel-release \
     && dnf install --nogpg -y gcc-c++ cmake ccache make dnf-plugins-core python2 python3 python3-setuptools rpm-build rpm-sign which git tar \
-    && yum clean all
-
-RUN source gitlab-ci/export_branch.sh \
+    && source gitlab-ci/export_branch.sh \
     && echo "Exporting BRANCH=${BRANCH}" \
     && git submodule update --init --recursive \
     && mkdir build \
@@ -16,9 +14,10 @@ RUN source gitlab-ci/export_branch.sh \
     && cmake ../ -DPACKAGEONLY=1 && make srpm \
     && cd ../ \
     && echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-8/x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo \
-    && dnf builddep --nogpgcheck --allowerasing -y build/SRPMS/*
-
-# just to install 'ts', nice to benchmark the build time.
-RUN dnf install -y moreutils
+    && dnf builddep --nogpgcheck --allowerasing -y build/SRPMS/* \
+    && yum install -y moreutils \
+    && yum clean all
+# install moreutils just for 'ts', nice to benchmark the build time.
+# cleaning yum cache should reduce image size.
 
 ENTRYPOINT /bin/bash
