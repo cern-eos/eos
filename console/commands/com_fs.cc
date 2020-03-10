@@ -503,7 +503,6 @@ com_fs(char* arg1)
     std::vector<std::string> files_found;
     files_found.clear();
     command_result_stdout_to_vector(files_found);
-    std::vector<std::string>::const_iterator it;
 
     if (!files_found.size()) {
       output_result(CommandEnv);
@@ -582,9 +581,8 @@ com_fs(char* arg1)
 
     for (unsigned int i = 0; i < files_found1.size(); i++) {
       bool found = false;
-      std::vector<std::string>::iterator it;
 
-      for (it = files_found2.begin(); it != files_found2.end(); ++it) {
+      for (auto it = files_found2.begin(); it != files_found2.end(); ++it) {
         if (files_found1[i] == *it) {
           files_found2.erase(it);
           found = true;
@@ -638,7 +636,6 @@ com_fs(char* arg1)
     std::vector<std::string> files_found;
     files_found.clear();
     command_result_stdout_to_vector(files_found);
-    std::vector<std::string>::const_iterator it;
 
     if (!files_found.size()) {
       output_result(CommandEnv);
@@ -741,7 +738,6 @@ com_fs(char* arg1)
     std::vector<std::string> files_found;
     files_found.clear();
     command_result_stdout_to_vector(files_found);
-    std::vector<std::string>::const_iterator it;
 
     if (!files_found.size()) {
       output_result(CommandEnv);

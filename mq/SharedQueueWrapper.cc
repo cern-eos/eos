@@ -109,5 +109,4 @@ bool SharedQueueWrapper::push_back(const std::string &item) {
   return false;
 }
 
-
 EOSMQNAMESPACE_END

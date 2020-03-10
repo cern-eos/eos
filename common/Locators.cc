@@ -226,7 +226,7 @@ SharedHashLocator::SharedHashLocator(const std::string& instanceName, Type type,
                                      const std::string& name)
   : mInitialized(true), mInstanceName(instanceName), mType(type), mName(name)
 {
-  switch (type) {
+  switch (mType) {
   case Type::kSpace: {
     mMqSharedHashPath = SSTR("/config/" << instanceName << "/space/" << name);
     mBroadcastQueue = "/eos/*/mgm";
