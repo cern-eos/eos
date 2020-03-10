@@ -176,7 +176,7 @@ BuildRequires: protobuf3 >= 3.3, protobuf3-devel >= 3.3, protobuf3-compiler >= 3
 
 BuildRequires: git, readline-devel
 BuildRequires: openssl, openssl-devel, openssl-static
-BuildRequires: ncurses, ncurses-devel
+BuildRequires: ncurses, ncurses-devel, ncurses-static
 BuildRequires: zlib, zlib-devel
 BuildRequires: fuse-devel, fuse >= 2.5
 BuildRequires: krb5-devel
