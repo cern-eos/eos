@@ -1800,8 +1800,9 @@ Server::OpSetFile(const std::string& id,
 	    }
 	    gOFS->eosViewRWMutex.LockWrite();
 	  } else {
-	    // recycle bin - not for hardlinked files or hardlinks!
+	    // recycle bin - not for hardlinked files or hardlinks nor files to be cloned!
 	    if (try_recycle && (attrmap.count(Recycle::gRecyclingAttribute) || hasVersion) &&
+                (ofmd->getCloneId() == 0 || !(ofmd->getCloneFST().empty())) &&
 		(!ofmd->hasAttribute(k_mdino)) &&
 		(!ofmd->hasAttribute(k_nlink))) {
 	      // translate to a path name and call the complex deletion function
@@ -1816,7 +1817,16 @@ Server::OpSetFile(const std::string& id,
 	    } else {
 	      // no recycle bin
 	      try {
-		pcmd->removeFile(md.name());
+                uint64_t cloneId = ofmd->getCloneId();
+                if (cloneId != 0 and ofmd->getCloneFST().empty()) {     /* this file needs to be cloned */
+                    XrdOucErrInfo error;
+                    XrdMgmOfsFile::create_cow(true, cloneId, pcmd, ofmd, vid, error);
+                } else {
+                    pcmd->removeFile(md.name());
+                    // unlink the existing file
+                    ofmd->setContainerId(0);
+                    ofmd->unlinkAllLocations();
+                }
 		eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
 		
 		// free previous quota
@@ -1824,9 +1834,6 @@ Server::OpSetFile(const std::string& id,
 		  quotanode->removeFile(ofmd.get());
 		}
 		
-		// unlink the existing file
-		ofmd->setContainerId(0);
-		ofmd->unlinkAllLocations();
 		gOFS->eosFileService->updateStore(ofmd.get());
 	      } catch (eos::MDException& e) {
 	      }
@@ -1905,8 +1912,9 @@ Server::OpSetFile(const std::string& id,
 	      gOFS->eosViewRWMutex.LockWrite();
 	    } 
 
-	    // recycle bin - not for hardlinked files or hardlinks!
+	    // recycle bin - not for hardlinked files or hardlinks nor files to be cloned!
 	    if (try_recycle && (attrmap.count(Recycle::gRecyclingAttribute) || hasVersion) &&
+                (ofmd->getCloneId() == 0 || !(ofmd->getCloneFST().empty())) &&
 		(!ofmd->hasAttribute(k_mdino)) &&
 		(!ofmd->hasAttribute(k_nlink))) {
 	      // translate to a path name and call the complex deletion function
@@ -1920,7 +1928,16 @@ Server::OpSetFile(const std::string& id,
 	      gOFS->eosViewRWMutex.LockWrite();
 	    } else {
 	      try {
-		pcmd->removeFile(md.name());
+                uint64_t cloneId = ofmd->getCloneId();
+                if (cloneId != 0 and ofmd->getCloneFST().empty()) {     /* this file needs to be cloned */
+                    XrdOucErrInfo error;
+                    XrdMgmOfsFile::create_cow(true, cloneId, pcmd, ofmd, vid, error);
+                } else {
+                    pcmd->removeFile(md.name());
+                    // unlink the existing file
+                    ofmd->setContainerId(0);
+                    ofmd->unlinkAllLocations();
+                }
 		eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
 		
 		// free previous quota
@@ -1928,9 +1945,6 @@ Server::OpSetFile(const std::string& id,
 		  quotanode->removeFile(ofmd.get());
 		}
 		
-		// unlink the existing file
-		ofmd->setContainerId(0);
-		ofmd->unlinkAllLocations();
 		gOFS->eosFileService->updateStore(ofmd.get());
 	      } catch (eos::MDException& e) {
 	      }
@@ -2593,9 +2607,16 @@ Server::OpDeleteFile(const std::string& id,
           if (gmd->getName().substr(0, 13) == "...eos.ino...") {
             eos_info("hlnk unlink target %s for %s nlink %ld",
                      gmd->getName().c_str(), fmd->getName().c_str(), nlink);
-            pcmd->removeFile(gmd->getName());
-            gmd->setContainerId(0);
-            gmd->unlinkAllLocations();
+
+            uint64_t cloneId = gmd->getCloneId();
+            if (cloneId != 0 and gmd->getCloneFST().empty()) {     /* this file needs to be cloned */
+                XrdOucErrInfo error;
+                XrdMgmOfsFile::create_cow(true, cloneId, pcmd, gmd, vid, error);
+            } else {
+                pcmd->removeFile(gmd->getName());
+                gmd->unlinkAllLocations();
+                gmd->setContainerId(0);
+            }
             gOFS->eosFileService->updateStore(gmd.get());
           }
         }
