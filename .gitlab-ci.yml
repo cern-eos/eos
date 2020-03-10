@@ -154,7 +154,7 @@ macosx_dmg:
     - mkdir build
     - mkdir install
     - cd build
-    - cmake -DCLIENT=1 -DCMAKE_INSTALL_PREFIX=/usr/local -D ZLIB_ROOT_DIR=/usr/local/opt/zlib/ -D OPENSSL_ROOT_DIR=/usr/local/opt/openssl/ -D NCURSES_ROOT_DIR=/usr/local/opt/ncurses/ -D ZMQ_ROOT_DIR=/usr/local/opt/zeromq/ -D XROOTD_ROOT_DIR=/usr/local/opt/xrootd/ -D UUID_ROOT_DIR=/usr/local/opt/ossp-uuid ..
+    - cmake -DCLIENT=1 -DCMAKE_INSTALL_PREFIX=/usr/local -D ZLIB_ROOT=/usr/local/opt/zlib/ -D OPENSSL_ROOT=/usr/local/opt/openssl/ -D NCURSES_ROOT=/usr/local/opt/ncurses/ -D ZMQ_ROOT=/usr/local/opt/zeromq/ -D XROOTD_ROOT=/usr/local/opt/xrootd/ -D UUID_ROOT=/usr/local/opt/ossp-uuid ..
     - make -j 4
     - make install DESTDIR=../install/
     - version=`../genversion.sh`
