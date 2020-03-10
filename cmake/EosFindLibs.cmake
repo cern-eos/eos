@@ -145,5 +145,7 @@ else()
   add_library(BZ2::BZ2                     UNKNOWN IMPORTED)
   add_library(XFS::XFS                     INTERFACE IMPORTED)
   add_library(GOOGLE::SPARSEHASH           INTERFACE IMPORTED)
-  
+  add_library(ISAL::ISAL                   STATIC IMPORTED)
+  add_library(ISAL::ISAL_CRYPTO            STATIC IMPORTED)
+  add_library(XXHASH::XXHASH               STATIC IMPORTED)
 endif()
