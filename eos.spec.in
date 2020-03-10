@@ -174,16 +174,12 @@ BuildRequires: protobuf3 >= 3.3, protobuf3-devel >= 3.3, protobuf3-compiler >= 3
 %endif
 %endif
 
-
 BuildRequires: git, readline-devel
-BuildRequires: openssl, openssl-devel
+BuildRequires: openssl, openssl-devel, openssl-static
 BuildRequires: ncurses, ncurses-devel
 BuildRequires: zlib, zlib-devel
 BuildRequires: fuse-devel, fuse >= 2.5
 BuildRequires: krb5-devel
-%if %{use_richacl}
-BuildRequires: librichacl-devel, richacl >= 1.12
-%endif
 BuildRequires: redhat-rpm-config
 BuildRequires: leveldb-devel
 BuildRequires: libattr-devel, xfsprogs-devel
@@ -227,6 +223,10 @@ BuildRequires: zeromq, zeromq-devel, cppzmq-devel
 BuildRequires: libevent, libevent-devel
 BuildRequires: bzip2-devel
 Requires: bzip2
+%endif
+
+%if %{use_richacl}
+BuildRequires: librichacl-devel, richacl >= 1.12
 %endif
 
 # ISA-L[_crypto] and XXHash dependencies for CC7 and C8
