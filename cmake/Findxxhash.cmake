@@ -33,7 +33,7 @@ if (XXHASH_FOUND AND NOT TARGET XXHASH::XXHASH)
   target_compile_definitions(XXHASH::XXHASH INTERFACE XXHASH_FOUND)
 else()
   message ("Notice: XXHASH not found, no XXHASH support")
-  add_library(XXHASH::XXHASH STATIC IMPORTED)
+  add_library(XXHASH::XXHASH INTERFACE IMPORTED)
 endif()
 
 set(XXHASH_INCLUDE_DIRS ${XXHASH_INCLUDE_DIR})
