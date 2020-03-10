@@ -34,6 +34,7 @@
 memorycache::memorycache(fuse_ino_t _ino) : ino(_ino)
   /* -------------------------------------------------------------------------- */
 {
+  (void) ino;
   return;
 }
 

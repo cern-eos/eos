@@ -174,7 +174,10 @@ void MetadataFlusher::synchronize(ItemIndex targetIndex)
 // Class to receive notifications from the BackgroundFlusher
 //------------------------------------------------------------------------------
 FlusherNotifier::FlusherNotifier(MetadataFlusher& flusher):
-  mFlusher(flusher) {}
+  mFlusher(flusher)
+{
+  (void) mFlusher; // avoid compilation warning
+}
 
 //------------------------------------------------------------------------------
 // Record network events

@@ -36,7 +36,8 @@ XrdCl::BufferManager XrdCl::Proxy::sWrBufferManager;
 XrdCl::BufferManager XrdCl::Proxy::sRaBufferManager;
 
 std::mutex XrdCl::Proxy::WriteAsyncHandler::gBuffReferenceMutex;
-std::map<std::string, uint64_t> XrdCl::Proxy::WriteAsyncHandler::gBufferReference;
+std::map<std::string, uint64_t>
+XrdCl::Proxy::WriteAsyncHandler::gBufferReference;
 
 /* -------------------------------------------------------------------------- */
 XRootDStatus
@@ -633,26 +634,26 @@ XrdCl::Proxy::CloseAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
   eos_static_debug("");
   {
     XrdSysCondVarHelper lLock(mProxy->OpenCondVar());
-    
+
     if (!status->IsOK()) {
       // if the open failed before, we leave the open failed state here
       if (!mProxy->isDeleted()) {
-	if (mProxy->state() != XrdCl::Proxy::FAILED) {
-	  eos_static_crit("%x current status = %d - setting CLOSEFAILED - msg=%s url=%s\n",
-			  mProxy, mProxy->state(), status->ToString().c_str(), mProxy->url().c_str());
-	  mProxy->set_state(XrdCl::Proxy::CLOSEFAILED, status);
-	}
+        if (mProxy->state() != XrdCl::Proxy::FAILED) {
+          eos_static_crit("%x current status = %d - setting CLOSEFAILED - msg=%s url=%s\n",
+                          mProxy, mProxy->state(), status->ToString().c_str(), mProxy->url().c_str());
+          mProxy->set_state(XrdCl::Proxy::CLOSEFAILED, status);
+        }
       } else {
-	eos_static_info("%x current status = %d - silencing CLOSEFAILED - msg=%s url=%s\n",
-			mProxy, mProxy->state(), status->ToString().c_str(), mProxy->url().c_str());
-	// an unlinked file can have a close failure response
-	XRootDStatus okstatus;
-	mProxy->set_state(XrdCl::Proxy::CLOSED, &okstatus);
+        eos_static_info("%x current status = %d - silencing CLOSEFAILED - msg=%s url=%s\n",
+                        mProxy, mProxy->state(), status->ToString().c_str(), mProxy->url().c_str());
+        // an unlinked file can have a close failure response
+        XRootDStatus okstatus;
+        mProxy->set_state(XrdCl::Proxy::CLOSED, &okstatus);
       }
     } else {
       mProxy->set_state(XrdCl::Proxy::CLOSED, status);
     }
-    
+
     mProxy->OpenCondVar().Signal();
     delete response;
     delete status;
@@ -856,15 +857,13 @@ XrdCl::Proxy::WriteAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
   }
 }
 
-static std::mutex gBuffReferenceMutex;
-std::map<std::string, uint64_t> gBufferReference;
-
 /* -------------------------------------------------------------------------- */
-void 
+void
 /* -------------------------------------------------------------------------- */
-XrdCl::Proxy::WriteAsyncHandler::DumpReferences(std::string& out) 
+XrdCl::Proxy::WriteAsyncHandler::DumpReferences(std::string& out)
 {
   std::lock_guard<std::mutex> lock(gBuffReferenceMutex);
+
   for (auto it = gBufferReference.begin(); it != gBufferReference.end(); ++it) {
     out += "ref:";
     out += it->first;
@@ -872,6 +871,7 @@ XrdCl::Proxy::WriteAsyncHandler::DumpReferences(std::string& out)
     out += std::to_string(it->second);
     out += "\n";
   }
+
   return;
 }
 
@@ -1121,6 +1121,7 @@ XrdCl::Proxy::ReadAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
           delete response;
         }
       }
+
       // we free the buffer, so it get's back to the buffer handler;
       release_buffer();
     }

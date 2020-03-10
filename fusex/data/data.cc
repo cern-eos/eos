@@ -306,11 +306,11 @@ data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
         XrdCl::XRootDStatus status = it->second->WaitOpen();
 
         if (!status.IsOK()) {
-	  if ((status.errNo == kXR_overQuota)) {
-	    eos_crit("flush error errno=%d", XrdCl::Proxy::status2errno(status));
-	    return XrdCl::Proxy::status2errno(status);
-	  }
-	  
+          if (status.errNo == kXR_overQuota) {
+            eos_crit("flush error errno=%d", XrdCl::Proxy::status2errno(status));
+            return XrdCl::Proxy::status2errno(status);
+          }
+
           journal_recovery = true;
           eos_err("file not open");
         }
@@ -371,7 +371,7 @@ data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
       if (mFile->journal()->reset()) {
         char msg[1024];
         snprintf(msg, sizeof(msg), "journal reset failed - ino=%#lx", id());
-	eos_crit("%s", msg);
+        eos_crit("%s", msg);
         throw std::runtime_error(msg);
       }
 
@@ -409,7 +409,7 @@ data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
           if (mFile->journal()->reset()) {
             char msg[1024];
             snprintf(msg, sizeof(msg), "journal reset failed - ino=%#lx", id());
-	    eos_crit("%s", msg);
+            eos_crit("%s", msg);
             throw std::runtime_error(msg);
           }
 
@@ -663,14 +663,16 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
 
   if (bcache < 0) {
     char msg[1024];
-    snprintf(msg, sizeof(msg), "attach to cache failed - ino=%#lx errno=%d", id(), errno);
+    snprintf(msg, sizeof(msg), "attach to cache failed - ino=%#lx errno=%d", id(),
+             errno);
     eos_crit("%s", msg);
     throw std::runtime_error(msg);
   }
 
   if (jcache < 0) {
     char msg[1024];
-    snprintf(msg, sizeof(msg), "attach to journal failed - ino=%#lx errno=%d", id(), errno);
+    snprintf(msg, sizeof(msg), "attach to journal failed - ino=%#lx errno=%d", id(),
+             errno);
     eos_crit("%s", msg);
     throw std::runtime_error(msg);
   }
@@ -832,8 +834,8 @@ data::datax::prefetch(fuse_req_t req, bool lock)
                                       (size_t) mFile->file()->prefetch_size());
       // try to send an async read request
       mPrefetchHandler = proxy->ReadAsyncPrepare(0, prefetch_size, false);
-
       bool nobuffer = false;
+
       if (mPrefetchHandler->valid()) {
         status = proxy->PreReadAsync(0, prefetch_size, mPrefetchHandler, 0);
       } else {
@@ -844,13 +846,14 @@ data::datax::prefetch(fuse_req_t req, bool lock)
                                       "no free read-ahead buffer"
                                      );
         status = newstatus;
-	nobuffer = true;
+        nobuffer = true;
       }
 
       if (!status.IsOK()) {
-	if (!nobuffer) {
-	  eos_err("pre-fetch failed error=%s", status.ToStr().c_str());
-	}
+        if (!nobuffer) {
+          eos_err("pre-fetch failed error=%s", status.ToStr().c_str());
+        }
+
         mPrefetchHandler = 0;
       } else {
         // instruct the read-ahead handler where to start
@@ -1547,11 +1550,13 @@ data::datax::recover_write(fuse_req_t req)
     // we have to recover this from remote
     eos_debug("recover from remote file");
     recover_from_file_cache = false;
-    ssize_t truncate_size = mFile->journal()?mFile->journal()->get_truncatesize():-1;
-    
+    ssize_t truncate_size = mFile->journal() ? mFile->journal()->get_truncatesize()
+                            : -1;
+
     if (truncate_size == 0) {
       recover_truncate = true;
     }
+
     mRecoveryStack.push_back(eos_silent("hint='recover from remote file'"));
   }
 
@@ -1569,32 +1574,29 @@ data::datax::recover_write(fuse_req_t req)
     }
   }
 
-  
   std::unique_ptr<XrdCl::Proxy> newproxy(aproxy);
 
   if (mFile->file() || recover_truncate) {
-
     void* buf = 0;
     std::string stagefile;
     int fd = 0;
-    off_t off = 0;      
+    off_t off = 0;
     uint32_t size = 1 * 1024 * 1024;
     bufferllmanager::shared_buffer buffer;
 
     if (!recover_truncate) {
       mFile->file()->recovery_location(stagefile);
-
       buffer = sBufferManager.get_buffer(size);
       buf = (void*) buffer->ptr();
       // open local stagefile
       fd = ::open(stagefile.c_str(), O_CREAT | O_RDWR, S_IRWXU);
       ::unlink(stagefile.c_str());
-      
+
       if (fd < 0) {
-	sBufferManager.put_buffer(buffer);
-	eos_crit("failed to open local stagefile %s", stagefile.c_str());
-	proxy->CleanWriteQueue();
-	return EREMOTEIO;
+        sBufferManager.put_buffer(buffer);
+        eos_crit("failed to open local stagefile %s", stagefile.c_str());
+        proxy->CleanWriteQueue();
+        return EREMOTEIO;
       }
     }
 
@@ -1612,9 +1614,10 @@ data::datax::recover_write(fuse_req_t req)
 
       // recover file from the local start cache
       if (mFile->file()->pread(buf, mFile->file()->size(), 0) < 0) {
-	if (!recover_truncate) {
-	  sBufferManager.put_buffer(buffer);
-	}
+        if (!recover_truncate) {
+          sBufferManager.put_buffer(buffer);
+        }
+
         close(fd);
         eos_crit("unable to read file for recovery from local file cache");
 
@@ -1622,50 +1625,51 @@ data::datax::recover_write(fuse_req_t req)
           eos_warning("failed to signal end-flush");
         }
 
-	proxy->CleanWriteQueue();
+        proxy->CleanWriteQueue();
         return EIO;
       }
     } else {
       eos_debug("recovering from remote file into stage file %s", stagefile.c_str());
 
       if (!recover_truncate) {
-	// download all into local stagefile, we don't need to do this, if there is a truncate request
-	uint32_t bytesRead = 0;
-	
-	do {
-	  status = newproxy->Read(off, size, buf, bytesRead);
-	  eos_debug("off=%lu bytesread=%u", off, bytesRead);
-	  
-	  if (!status.IsOK()) {
-	    sBufferManager.put_buffer(buffer);
-	    eos_warning("failed to read remote file for recovery");
-	    ::close(fd);
-	    
-	    if (req && end_flush(req)) {
-	      eos_warning("failed to signal end-flush");
-	    }
-	    proxy->CleanWriteQueue();
-	    return EREMOTEIO;
-	  } else {
-	    off += bytesRead;
-	  }
-	  
-	  ssize_t wr = ::write(fd, buf, bytesRead);
-	  
-	  if (wr != bytesRead) {
-	    sBufferManager.put_buffer(buffer);
-	    eos_crit("failed to write to local stage file %s", stagefile.c_str());
-	    ::close(fd);
-	    
-	    if (req && end_flush(req)) {
-	      eos_warning("failed to signal end-flush");
-	    }
-	    
-	    proxy->CleanWriteQueue();
-	    return EREMOTEIO;
-	  }
-	} while (bytesRead > 0);
-      } 
+        // download all into local stagefile, we don't need to do this, if there is a truncate request
+        uint32_t bytesRead = 0;
+
+        do {
+          status = newproxy->Read(off, size, buf, bytesRead);
+          eos_debug("off=%lu bytesread=%u", off, bytesRead);
+
+          if (!status.IsOK()) {
+            sBufferManager.put_buffer(buffer);
+            eos_warning("failed to read remote file for recovery");
+            ::close(fd);
+
+            if (req && end_flush(req)) {
+              eos_warning("failed to signal end-flush");
+            }
+
+            proxy->CleanWriteQueue();
+            return EREMOTEIO;
+          } else {
+            off += bytesRead;
+          }
+
+          ssize_t wr = ::write(fd, buf, bytesRead);
+
+          if (wr != bytesRead) {
+            sBufferManager.put_buffer(buffer);
+            eos_crit("failed to write to local stage file %s", stagefile.c_str());
+            ::close(fd);
+
+            if (req && end_flush(req)) {
+              eos_warning("failed to signal end-flush");
+            }
+
+            proxy->CleanWriteQueue();
+            return EREMOTEIO;
+          }
+        } while (bytesRead > 0);
+      }
     }
 
     // upload into identical inode using the drop & replace option (repair flag)
@@ -1693,77 +1697,78 @@ data::datax::recover_write(fuse_req_t req)
 
     if (rc) {
       if (!recover_truncate) {
-	sBufferManager.put_buffer(buffer);
+        sBufferManager.put_buffer(buffer);
       }
+
       ::close(fd);
       delete uploadproxy;
 
       if (req && end_flush(req)) {
         eos_warning("failed to signal end-flush");
       }
-      
+
       proxy->CleanWriteQueue();
       return rc;
     }
 
     off_t upload_offset = 0;
-      
+
     if (!recover_truncate) {
       ssize_t nr = 0;
-      
+
       do {
-	nr = ::pread(fd, buf, size, upload_offset);
-	
-	if (nr < 0) {
-	  sBufferManager.put_buffer(buffer);
-	  eos_crit("failed to read from local stagefile");
-	  ::close(fd);
-	  
-	  if (req && end_flush(req)) {
-	    eos_warning("failed to signal end-flush");
-	  }
+        nr = ::pread(fd, buf, size, upload_offset);
 
-	  sBufferManager.put_buffer(buffer);
-	  delete uploadproxy;
+        if (nr < 0) {
+          sBufferManager.put_buffer(buffer);
+          eos_crit("failed to read from local stagefile");
+          ::close(fd);
 
-	  if (req && end_flush(req)) {
-	    eos_warning("failed to signal end-flush");
-	  }
+          if (req && end_flush(req)) {
+            eos_warning("failed to signal end-flush");
+          }
 
-	  proxy->CleanWriteQueue();
-	  return EREMOTEIO;
-	}
-	
-	if (nr) {
-	  // send asynchronous upstream writes
-	  XrdCl::Proxy::write_handler handler = uploadproxy->WriteAsyncPrepare(nr,
-									       upload_offset, 60);
-	  uploadproxy->ScheduleWriteAsync(buf, handler);
-	  upload_offset += nr;
-	}
+          sBufferManager.put_buffer(buffer);
+          delete uploadproxy;
+
+          if (req && end_flush(req)) {
+            eos_warning("failed to signal end-flush");
+          }
+
+          proxy->CleanWriteQueue();
+          return EREMOTEIO;
+        }
+
+        if (nr) {
+          // send asynchronous upstream writes
+          XrdCl::Proxy::write_handler handler = uploadproxy->WriteAsyncPrepare(nr,
+                                                upload_offset, 60);
+          uploadproxy->ScheduleWriteAsync(buf, handler);
+          upload_offset += nr;
+        }
       } while (nr > 0);
-      ::close(fd);
 
+      ::close(fd);
       // collect the writes to verify everything is alright now
       uploadproxy->WaitWrite(req);
-      
+
       if (!uploadproxy->write_state().IsOK()) {
-	sBufferManager.put_buffer(buffer);
-	eos_crit("got failure when collecting outstanding writes from the upload proxy");
-	delete uploadproxy;
-	
-	if (req && end_flush(req)) {
-	  eos_warning("failed to signal end-flush");
-	}
+        sBufferManager.put_buffer(buffer);
+        eos_crit("got failure when collecting outstanding writes from the upload proxy");
+        delete uploadproxy;
 
-	proxy->CleanWriteQueue();
-	return EREMOTEIO;
+        if (req && end_flush(req)) {
+          eos_warning("failed to signal end-flush");
+        }
+
+        proxy->CleanWriteQueue();
+        return EREMOTEIO;
       }
-      
-      mRecoveryStack.push_back(eos_silent("uploaded-bytes=%lu", upload_offset));
 
+      mRecoveryStack.push_back(eos_silent("uploaded-bytes=%lu", upload_offset));
       sBufferManager.put_buffer(buffer);
     }
+
     eos_notice("finished write recovery successfully");
     // replace the proxy object
     mFile->set_xrdiorw(req, uploadproxy);
@@ -1822,8 +1827,8 @@ data::datax::detach(fuse_req_t req, std::string& cookie, int flags)
   int rflush = flush(req);
   XrdSysMutexHelper lLock(mLock);
   int bcache = mFile->file() ? mFile->file()->detach(cookie) : 0;
-  int jcache = mFile->journal() ? ( (isRW ||
-				     (mFlags & O_CACHE)) ? mFile->journal()->detach(
+  int jcache = mFile->journal() ? ((isRW ||
+                                    (mFlags & O_CACHE)) ? mFile->journal()->detach(
                                      cookie) : 0) : 0;
   int xio = 0;
 
@@ -2026,9 +2031,9 @@ data::datax::pread(fuse_req_t req, void* buf, size_t count, off_t offset)
               bytesRead = count;
             } else {
               //  this should not be required, because logically we cannot get here
-	      eos_err("consistency error : max-journal=%ld offset=%ld count=%lu br=%lu bytesread=%lu",
-		      mFile->journal()->get_max_offset(), offset, count, br, bytesRead);
-	      // we don't set bytesread here!
+              eos_err("consistency error : max-journal=%ld offset=%ld count=%lu br=%lu bytesread=%lu",
+                      mFile->journal()->get_max_offset(), offset, count, br, bytesRead);
+              // we don't set bytesread here!
             }
           }
         }
@@ -2111,19 +2116,18 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
 
       // block writes on read-only fds
       if (!proxy) {
-	errno = EROFS;
-	return -1;
+        errno = EROFS;
+        return -1;
       }
 
-
       if (proxy->opening_state().IsError() &&
-	  ! proxy->opening_state_should_retry()) {
-	eos_err("unrecoverable error - code=%d errNo=%d",
-		proxy->opening_state().code,
-		proxy->opening_state().errNo);
-	proxy->CleanWriteQueue();
-	errno = XrdCl::Proxy::status2errno(proxy->opening_state());
-	return -1;
+          ! proxy->opening_state_should_retry()) {
+        eos_err("unrecoverable error - code=%d errNo=%d",
+                proxy->opening_state().code,
+                proxy->opening_state().errNo);
+        proxy->CleanWriteQueue();
+        errno = XrdCl::Proxy::status2errno(proxy->opening_state());
+        return -1;
       }
     }
 
@@ -2839,10 +2843,10 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                 }
 
                 if (fit->second->IsOpen()) {
-		  eos_static_info("skip flushing journal for req=%s id=%#lx", fit->first.c_str(),
-				  (*it)->id());
-		  // flush the journal using an asynchronous thread pool
-		  // skipped: (*it)->journalflush_async(fit->first);
+                  eos_static_info("skip flushing journal for req=%s id=%#lx", fit->first.c_str(),
+                                  (*it)->id());
+                  // flush the journal using an asynchronous thread pool
+                  // skipped: (*it)->journalflush_async(fit->first);
                   fit->second->set_state_TS(XrdCl::Proxy::WAITWRITE);
                   eos_static_info("changing to wait write state");
                 }

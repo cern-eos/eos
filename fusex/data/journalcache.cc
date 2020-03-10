@@ -41,7 +41,7 @@ size_t journalcache::sMaxSize = journalcache::sDefaultMaxSize;
 shared_ptr<dircleaner> journalcache::jDirCleaner;
 
 journalcache::journalcache(fuse_ino_t ino) : ino(ino), cachesize(0),
-					     truncatesize(-1), max_offset(0), fd(-1),nbAttached(0), nbFlushed(0)
+  truncatesize(-1), max_offset(0), fd(-1), nbAttached(0), nbFlushed(0)
 {
   memset(&attachstat, 0, sizeof(attachstat));
   memset(&detachstat, 0, sizeof(detachstat));
@@ -54,20 +54,16 @@ journalcache::~journalcache()
     eos_static_debug("closing fd=%d\n", fd);
     detachstat.st_size = 0 ;
     fstat(fd, &detachstat);
-      
     int rc = close(fd);
 
     if (rc) {
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wterminate"
-      throw std::logic_error("journalcache::~journalcache fd close failed");
-#pragma GCC diagnostic pop
-
+      eos_static_crit("%s", "msg=\"journalcache::~journalcache fd close failed\"");
+      std::abort();
     }
-    
+
     if (jDirCleaner) {
       jDirCleaner->get_external_tree().change(detachstat.st_size - attachstat.st_size,
-					      0);
+                                              0);
     }
 
     if (!(flags & O_CACHE)) {
@@ -75,6 +71,7 @@ journalcache::~journalcache()
       journal.clear();
       unlink();
     }
+
     fd = -1;
   }
 }
@@ -83,8 +80,8 @@ int journalcache::location(std::string& path, bool mkpath)
 {
   char cache_path[1024 + 20];
   snprintf(cache_path, sizeof(cache_path), "%s/%03lX/%08lX.jc",
-           sLocation.c_str(), 
-	   (ino > 0x0fffffff)? (ino >> 28) % 4096 : ino%4096, ino);
+           sLocation.c_str(),
+           (ino > 0x0fffffff) ? (ino >> 28) % 4096 : ino % 4096, ino);
 
   if (mkpath) {
     eos::common::Path cPath(cache_path);
@@ -143,8 +140,8 @@ int journalcache::read_journal()
 int journalcache::attach(fuse_req_t req, std::string& cookie, int _flags)
 {
   XrdSysMutexHelper lck(mtx);
-  
   flags = _flags;
+
   if ((nbAttached == 0) && (fd == -1)) {
     std::string path;
     int rc = location(path);
@@ -156,34 +153,38 @@ int journalcache::attach(fuse_req_t req, std::string& cookie, int _flags)
     if (stat(path.c_str(), &attachstat)) {
       // a new file
       if (jDirCleaner) {
-	jDirCleaner->get_external_tree().change(0, 1);
+        jDirCleaner->get_external_tree().change(0, 1);
       }
     }
 
+    // need to open the file
+    size_t tries = 0;
 
-    // need to open the file 
-    size_t tries=0;
     do {
       fd = open(path.c_str(), O_CREAT | O_RDWR, S_IRWXU);
 
       if (fd < 0) {
         if (errno == ENOENT) {
           tries++;
-          // re-create the directory structure                                                                                   
+          // re-create the directory structure
           rc = location(path);
+
           if (rc) {
             return rc;
           }
+
           if (tries < 10) {
             continue;
           } else {
             return -errno;
           }
         }
+
         return -errno;
       }
+
       break;
-    } while(1);
+    } while (1);
 
     cachesize = read_journal();
   }
@@ -207,13 +208,15 @@ int journalcache::unlink()
   if (!rc) {
     struct stat buf;
     rc = stat(path.c_str(), &buf);
+
     if (!rc) {
       rc = ::unlink(path.c_str());
+
       if (!rc) {
         // a deleted file
-	if (jDirCleaner) {
-	  jDirCleaner->get_external_tree().change(-buf.st_size, -1);
-	}
+        if (jDirCleaner) {
+          jDirCleaner->get_external_tree().change(-buf.st_size, -1);
+        }
       }
     }
   }
@@ -413,9 +416,10 @@ ssize_t journalcache::pwrite(const void* buf, size_t count, off_t offset)
     truncatesize = offset + count;
   }
 
-  if ( (ssize_t)(offset + count) >  max_offset) {
+  if ((ssize_t)(offset + count) >  max_offset) {
     max_offset = offset + count;
   }
+
   return count;
 }
 
@@ -423,7 +427,6 @@ int journalcache::truncate(off_t offset, bool invalidate)
 {
   int rc = 0;
   write_lock lck(clck);
-
   fstat(fd, &detachstat);
 
   if (offset) {
@@ -440,11 +443,13 @@ int journalcache::truncate(off_t offset, bool invalidate)
     max_offset = 0;
     journal.clear();
     cachesize = 0;
+
     if (!::ftruncate(fd, 0)) {
       if (jDirCleaner) {
-	jDirCleaner->get_external_tree().change(detachstat.st_size - attachstat.st_size,
-						0);
+        jDirCleaner->get_external_tree().change(detachstat.st_size - attachstat.st_size,
+                                                0);
       }
+
       attachstat.st_size = offset;
     }
   }
@@ -488,15 +493,16 @@ int journalcache::init(const cacheconfig& config)
 int journalcache::init_daemonized(const cacheconfig& config)
 {
   jDirCleaner = std::make_shared<dircleaner>(config.location,
-					     "jc",
-					     config.total_file_journal_size,
-					     config.total_file_journal_inodes,
-					     config.clean_threshold
-					     );
+                "jc",
+                config.total_file_journal_size,
+                config.total_file_journal_inodes,
+                config.clean_threshold
+                                            );
   jDirCleaner->set_trim_suffix(".jc");
 
   if (config.clean_on_startup) {
-    eos_static_info("cleaning journal path=%s",config.location.c_str());
+    eos_static_info("cleaning journal path=%s", config.location.c_str());
+
     if (jDirCleaner->cleanall(".jc")) {
       eos_static_err("journal cleanup failed");
       return -1;
