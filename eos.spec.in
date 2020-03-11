@@ -322,7 +322,8 @@ cd build
   %endif
 %else
   %if 0%{distribution} == 7
-    scl enable llvm-toolset-7 "env QA_RPATHS=3 CC=clang CXX=clang++ %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_RPATH=/lib64/:/usr/lib64/ -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=true -DXROOTD_ROOT=/opt/eos/xrootd/ %{build_flags}"
+    source  /opt/rh/llvm-toolset-7/enable
+    env QA_RPATHS=3 CC=clang CXX=clang++ %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_RPATH=/lib64/:/usr/lib64/ -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=true -DXROOTD_ROOT=/opt/eos/xrootd/ %{build_flags}
   %else
     CC=clang CXX=clang++ %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=true %{build_flags}
   %endif
