@@ -119,6 +119,13 @@ int Inspector::dump(const std::string& dumpPath, bool relative, bool rawPaths, b
       continue;
     }
 
+    if(!attrQuery.empty()) {
+      out << " " << attrQuery << "=";
+      if(item.containerMd.xattrs().count(attrQuery) != 0) {
+        out << item.containerMd.xattrs().at(attrQuery) << " ";
+      }
+    }
+
     if(!rawPaths) {
       out << "path=";
     }
@@ -143,13 +150,6 @@ int Inspector::dump(const std::string& dumpPath, bool relative, bool rawPaths, b
 
     if(showMtime && item.isFile) {
       out << " mtime=" << Printing::timespecToTimestamp(Printing::parseTimespec(item.fileMd.mtime()));
-    }
-
-    if(!attrQuery.empty()) {
-      out << " " << attrQuery << "=";
-      if(item.containerMd.xattrs().count(attrQuery) != 0) {
-        out << item.containerMd.xattrs().at(attrQuery) << " ";
-      }
     }
 
     out << std::endl;
