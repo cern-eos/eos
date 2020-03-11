@@ -5,8 +5,6 @@
 %define distribution %(/usr/lib/rpm/redhat/dist.sh --distnum)
 %define devtoolset devtoolset-8
 %define cmake cmake3
-%define compiler gcc
-
 
 # By default we build the eos client SRPMS, if the entire build is required
 # then pass the "--with server" flag to the rpmbuild command
@@ -47,13 +45,20 @@
 #-------------------------------------------------------------------------------
 # Compute additional macros based on environment or existing definitions
 #-------------------------------------------------------------------------------
+%define compiler gcc
 
 %if %{?_with_clang:1}%{!?_with_clang:0}
   %define compiler clang
 %endif
 
-%if %{?_with_asan:1}%{!?_with_asan:0}
-  %define devtoolset devtoolset-8
+#-------------------------------------------------------------------------------
+# Custom strip command for SLC6, CC7
+#-------------------------------------------------------------------------------
+%if "%{compiler}" == "gcc"
+    %if 0%{distribution} == 6 || 0%{distribution} == 7
+        %global __strip /opt/rh/%{devtoolset}/root/usr/bin/strip
+        %global __objdump /opt/rh/%{devtoolset}/root/usr/bin/objdump
+    %endif
 %endif
 
 %if %{?fedora:1}%{!?fedora:0}
@@ -81,15 +86,6 @@
 # Avoid richacl for CentOS 8 until RPMs are provided
 %if 0%{distribution} == 8
 %define use_richacl 0
-%endif
-
-#-------------------------------------------------------------------------------
-# Custom strip command for SLC6, CC7
-#-------------------------------------------------------------------------------
-%if "%{compiler}" == "gcc"
-%if 0%{distribution} == 6 || 0%{distribution} == 7
-%global __strip /opt/rh/%{devtoolset}/root/usr/bin/strip
-%endif
 %endif
 
 #-------------------------------------------------------------------------------
@@ -282,7 +278,7 @@ The EOS software package.
 %prep
 %setup -n %{name}-%{version}-@CPACK_PACKAGE_RELEASE@
 %global build_type RelWithDebInfo
-%global build_flags -DBUILD_MANPAGES=1
+%global build_flags -DBUILD_MANPAGES=1 -DFUSEXCLIENT=1
 %if %{?_with_server:0}%{!?_with_server:1}
 %global build_flags %{build_flags} -DCLIENT=1
 %endif
