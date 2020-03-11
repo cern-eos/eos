@@ -93,6 +93,7 @@ target_link_libraries(EosCommon-Objects PUBLIC
   fmt
   ${LIBBFD_LIBRARIES}
   ${GLIBC_DL_LIBRARY}
+  ${GLIBC_RT_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
 set_target_properties(EosCommon-Objects PROPERTIES

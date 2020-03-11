@@ -127,8 +127,7 @@ target_link_libraries(eosxd-objects PUBLIC
   JSONCPP::JSONCPP
   XROOTD::PRIVATE
   XROOTD::UTILS
-  ZMQ::ZMQ
-  ${GLIBC_RT_LIBRARY})
+  ZMQ::ZMQ)
 
 if (FUSE3_FOUND)
   target_link_libraries(eosxd-objects PUBLIC FUSE3::FUSE3)
