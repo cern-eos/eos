@@ -448,7 +448,7 @@ cc7_docker_image_commit:
   script:
     - ""
   variables:
-    TO: gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
+    TO: gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_SHORT_SHA}
     DOCKER_FILE: eos-docker/Dockerfile
   dependencies:
     - build_cc7
@@ -481,7 +481,7 @@ ubuntu_bionic_docker_image_commit:
   script:
     - ""
   variables:
-    TO: gitlab-registry.cern.ch/dss/eos:ubuntu_bionic_client_${CI_PIPELINE_ID}
+    TO: gitlab-registry.cern.ch/dss/eos:ubuntu_bionic_client_${CI_COMMIT_SHORT_SHA}
     DOCKER_FILE: eos-docker/Dockerfile_ubuntu_bionic
   dependencies:
     - build_ubuntu_bionic
@@ -515,7 +515,7 @@ c8_docker_image_commit:
   script:
     - ""
   variables:
-    TO: gitlab-registry.cern.ch/dss/eos:c8_${CI_PIPELINE_ID}
+    TO: gitlab-registry.cern.ch/dss/eos:c8_${CI_COMMIT_SHORT_SHA}
     DOCKER_FILE: eos-docker/Dockerfile_c8
   dependencies:
     - build_c8
@@ -533,7 +533,7 @@ cc7_xrd_testing_docker_image:
   script:
     - ""
   variables:
-    TO: gitlab-registry.cern.ch/dss/eos:xrd_testing_${CI_PIPELINE_ID}
+    TO: gitlab-registry.cern.ch/dss/eos:xrd_testing_${CI_COMMIT_SHORT_SHA}
     DOCKER_FILE: eos-docker/Dockerfile_xrd_testing
   dependencies:
     - build_cc7_xrd_testing
@@ -549,7 +549,7 @@ cc7_asan_docker_image:
   script:
     - ""
   variables:
-    TO: gitlab-registry.cern.ch/dss/eos:asan_${CI_PIPELINE_ID}
+    TO: gitlab-registry.cern.ch/dss/eos:asan_${CI_COMMIT_SHORT_SHA}
     DOCKER_FILE: eos-docker/Dockerfile_asan
     BUILD_ARG: BRANCH=${BRANCH}
   dependencies:
@@ -566,7 +566,7 @@ cc7_asan_docker_image:
   script:
     - ""
   variables:
-    TO: gitlab-registry.cern.ch/dss/eos:coverage_${CI_PIPELINE_ID}
+    TO: gitlab-registry.cern.ch/dss/eos:coverage_${CI_COMMIT_SHORT_SHA}
     DOCKER_FILE: eos-docker/Dockerfile_coverage
     BUILD_ARG: BRANCH=${BRANCH}
   dependencies:
@@ -735,7 +735,7 @@ unit_test:tag:
 
 unit_test:
   image:
-    name: gitlab-registry.cern.ch/dss/eos:${CI_PIPELINE_ID}
+    name: gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_SHORT_SHA}
     entrypoint: ["/bin/bash", "-c"]
   <<: *unit_test_template_definition
   except:
@@ -824,7 +824,7 @@ dock_system_xt:
 
 unit_test_asan:
   image:
-    name: gitlab-registry.cern.ch/dss/eos:asan_${CI_PIPELINE_ID}
+    name: gitlab-registry.cern.ch/dss/eos:asan_${CI_COMMIT_SHORT_SHA}
     entrypoint: ["/bin/bash", "-c"]
   <<: *unit_test_template_definition
   variables:

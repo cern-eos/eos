@@ -15,8 +15,8 @@ RUN dnf install -y epel-release \
     && cd ../ \
     && echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-8/x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo \
     && dnf builddep --nogpgcheck --allowerasing -y build/SRPMS/* \
-    && yum install -y moreutils \
-    && yum clean all
+    && dnf install -y moreutils \
+    && dnf clean all
 # install moreutils just for 'ts', nice to benchmark the build time.
 # cleaning yum cache should reduce image size.
 
