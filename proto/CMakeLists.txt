@@ -120,7 +120,7 @@ set_target_properties(EosCliProto-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 #-------------------------------------------------------------------------------
-# Generate protobol buffer object for GRPC
+# Generate protobol buffer objects for GRPC
 #-------------------------------------------------------------------------------
 if (GRPC_FOUND)
   set(GRPC_PROTOS ${CMAKE_SOURCE_DIR}/common/grpc-proto/protobuf/Rpc.proto)
@@ -133,7 +133,7 @@ if (GRPC_FOUND)
   set(GRPC_SVC_HDRS ${GRPC_SVC_HDRS} PARENT_SCOPE)
 
   set_source_files_properties(
-#    ${GRPC_SRCS}
+#   ${GRPC_SRCS}
 #   ${GRPC_HDRS}
     ${GRPC_SVC_SRCS}
     ${GRPC_SVC_HDRS}

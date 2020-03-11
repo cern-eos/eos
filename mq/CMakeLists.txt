@@ -72,8 +72,7 @@ add_library(XrdMqClient-Static STATIC
 
 target_link_libraries(XrdMqClient-Static PUBLIC
   XrdMqClient-Objects
-  EosCommon-Static
-  OPENSSL::OPENSSL_STATIC)
+  EosCommon-Static)
 
 set_target_properties(XrdMqClient-Static PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
@@ -87,9 +86,7 @@ add_library(XrdMqOfs-${PLUGIN_VERSION} MODULE
   XrdMqMessage.cc   XrdMqMessage.hh
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/BackendClient.cc)
 
-target_link_libraries(
-  XrdMqOfs-${PLUGIN_VERSION} PRIVATE
-  EosCommon
+target_link_libraries(XrdMqOfs-${PLUGIN_VERSION} PRIVATE
   qclient
   EosCommon)
 

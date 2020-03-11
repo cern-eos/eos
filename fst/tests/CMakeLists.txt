@@ -46,6 +46,7 @@ target_link_libraries(eos-fst-test PRIVATE
   gtest
   qclient
   gmock_main
+  XrdMqClient
   EosFstIo-Static)
 
 target_compile_definitions(

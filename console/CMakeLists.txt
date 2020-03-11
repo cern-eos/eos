@@ -159,7 +159,7 @@ target_link_libraries(
   EosConsoleHelpers-Objects
   ZMQ::ZMQ
   XROOTD::POSIX
-  READLINE::READLINE
+  XrdMqClient
   EosFstIo-Static)
 
 install(PROGRAMS eosadmin

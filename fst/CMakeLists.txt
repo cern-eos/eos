@@ -160,10 +160,7 @@ add_library(EosFstIo-Objects OBJECT
 
 target_link_libraries(EosFstIo-Objects PUBLIC
   Jerasure-Objects
-  EosFstProto-Objects
-  EosConsoleHelpers-Objects
-  ZLIB::ZLIB
-  XROOTD::UTILS
+  EosCommon
   XROOTD::PRIVATE)
 
 target_compile_definitions(EosFstIo-Objects PRIVATE
@@ -188,8 +185,7 @@ target_link_libraries(EosFstIo PUBLIC
   ISAL::ISAL_CRYPTO
   XXHASH::XXHASH
   ${GLIBC_DL_LIBRARY}
-  ${DAVIX_LIBRARIES}
-  ${CMAKE_THREAD_LIBS_INIT})
+  ${DAVIX_LIBRARIES})
 
 set_target_properties(EosFstIo PROPERTIES
   VERSION ${VERSION}
@@ -210,15 +206,12 @@ target_link_libraries(EosFstIo-Static PUBLIC
   EosFstIo-Objects
   Jerasure-Objects
   GfComplete-Objects
-  EosCliProto-Objects
   EosCrc32c-Objects
   XROOTD::SERVER
   ISAL::ISAL
   ISAL::ISAL_CRYPTO
   XXHASH::XXHASH
-  ${DAVIX_LIBRARIES}
-  ${CMAKE_THREAD_LIBS_INIT}
-  XrdMqClient-Static)
+  ${DAVIX_LIBRARIES})
 
 target_compile_definitions(EosFstIo-Static PRIVATE
   -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
@@ -330,18 +323,17 @@ target_compile_definitions(XrdEosFst-Objects PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
 add_library(XrdEosFst-${PLUGIN_VERSION} MODULE
-  $<TARGET_OBJECTS:XrdEosFst-Objects>
-  $<TARGET_OBJECTS:EosConsoleHelpers-Objects>)
+  $<TARGET_OBJECTS:XrdEosFst-Objects>)
 
 target_link_libraries(XrdEosFst-${PLUGIN_VERSION} PRIVATE
   XrdEosFst-Objects
   EosConsoleHelpers-Objects
   EosCommonServer
   EosFstIo
+  # @todo(gbitzes) move calculateEtag to common so that we don't have to couple
+  # the fst lib with the ns one
   EosNsCommon
-  ZLIB::ZLIB
-  XROOTD::SSI
-  ${CMAKE_THREAD_LIBS_INIT})
+  XROOTD::SSI)
 
 target_compile_definitions(XrdEosFst-${PLUGIN_VERSION} PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
@@ -356,10 +348,10 @@ target_link_libraries(XrdEosFst-Static PUBLIC
   EosConsoleHelpers-Objects
   EosCommonServer
   EosFstIo
+  # @todo(gbitzes) move calculateEtag to common so that we don't have to couple
+  # the fst lib with the ns one
   EosNsCommon
-  ZLIB::ZLIB
-  XROOTD::SSI
-  ${CMAKE_THREAD_LIBS_INIT})
+  XROOTD::SSI)
 
 install(TARGETS EosFstOss XrdEosFst-${PLUGIN_VERSION}
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
@@ -375,16 +367,14 @@ add_library(EosFstHttp MODULE
 
 target_link_libraries(EosFstHttp PUBLIC
   XrdEosFst-Objects
-  EosFstIo
   EosConsoleHelpers-Objects
-  EosCommon
+  EosFstIo
   # @todo(gbitzes) move calculateEtag to common so that we don't have to couple
   # the fst lib with the ns one
   EosNsCommon
   EosCommonServer
   XROOTD::SSI
-  XROOTD::HTTP
-  XROOTD::PRIVATE)
+  XROOTD::HTTP)
 
 install(TARGETS EosFstHttp
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
@@ -418,17 +408,21 @@ add_executable(eos-compute-blockxs
 
 add_executable(eos-scan-fs
   tools/ScanXS.cc
-  ScanDir.cc             Load.cc
+  ScanDir.cc
+  Load.cc
   FmdDbMap.cc
-  checksum/Adler.cc      checksum/CheckSum.cc)
+  checksum/Adler.cc
+  checksum/CheckSum.cc)
 
 target_compile_definitions(eos-scan-fs PUBLIC -D_NOOFS=1)
 
 add_executable(eos-fsck-fs
-  Fsck.cc                Load.cc
+  Fsck.cc
+  Load.cc
   FmdDbMap.cc
   tools/Fsck.cc
-  checksum/Adler.cc      checksum/CheckSum.cc)
+  checksum/Adler.cc
+  checksum/CheckSum.cc)
 
 target_compile_definitions(eos-fsck-fs PUBLIC -D_NOOFS=1)
 
@@ -446,25 +440,16 @@ set_target_properties(eos-fsck-fs PROPERTIES COMPILE_FLAGS -D_NOOFS=1)
 
 add_executable(eos-ioping tools/IoPing.c)
 target_compile_options(eos-ioping PRIVATE -std=gnu99)
-
 target_link_libraries(eos-ioping PRIVATE ${GLIBC_M_LIBRARY} ${GLIBC_RT_LIBRARY})
-
 target_link_libraries(eos-check-blockxs PRIVATE EosFstIo)
-
 target_link_libraries(eos-compute-blockxs PRIVATE EosFstIo)
-
 target_link_libraries(eos-adler32 PRIVATE EosFstIo)
-
-target_link_libraries(eos-checksum PRIVATE
-  EosFstIo
-  ${CMAKE_THREAD_LIBS_INIT} )
-
+target_link_libraries(eos-checksum PRIVATE EosFstIo)
 target_link_libraries(eos-scan-fs PRIVATE
   EosFstIo
   EosCommonServer
   EosNsCommon-Static
   FOLLY::FOLLY)
-
 target_link_libraries(eos-fsck-fs PRIVATE
   EosFstIo
   EosCommonServer

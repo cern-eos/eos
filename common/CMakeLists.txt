@@ -21,7 +21,8 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include)
+include_directories(${CMAKE_SOURCE_DIR}
+  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include)
 
 #-------------------------------------------------------------------------------
 # CTA integration related operations
@@ -80,6 +81,7 @@ add_library(EosCommon-Objects OBJECT
 target_compile_options(EosCommon-Objects PRIVATE -Wno-macro-redefined)
 set_target_properties(EosCommon-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
+
 target_link_libraries(EosCommon-Objects PUBLIC
   EosFstProto-Objects
   EosCliProto-Objects
@@ -88,10 +90,10 @@ target_link_libraries(EosCommon-Objects PUBLIC
   JSONCPP::JSONCPP
   OPENSSL::OPENSSL
   XROOTD::UTILS
-  ${GLIBC_RT_LIBRARY})
-
-target_include_directories(EosCommon-Objects
-  PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>)
+  fmt
+  ${LIBBFD_LIBRARIES}
+  ${GLIBC_DL_LIBRARY}
+  ${CMAKE_THREAD_LIBS_INIT})
 
 set_target_properties(EosCommon-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
@@ -99,32 +101,19 @@ set_target_properties(EosCommon-Objects PROPERTIES
 target_compile_definitions(EosCommon-Objects PUBLIC
   DAEMONUID=${DAEMONUID} DAEMONGID=${DAEMONGID})
 
-set(EOSCOMMON_LIBS
-  fmt
-  ${GLIBC_DL_LIBRARY}
-  ${LIBBFD_LIBRARIES}
-  ${CMAKE_THREAD_LIBS_INIT})
-
 #-------------------------------------------------------------------------------
 # EosCommon and EosCommon-Static library
 #-------------------------------------------------------------------------------
 add_library(EosCommon SHARED $<TARGET_OBJECTS:EosCommon-Objects>)
 
 target_link_libraries(EosCommon PUBLIC
-  ${EOSCOMMON_LIBS}
   EosCommon-Objects
   EosFstProto-Objects
   EosCliProto-Objects
   EosNsQuarkdbProto-Objects
-  CURL::libcurl
   NCURSES::NCURSES
-  ZLIB::ZLIB
   UUID::UUID
-  XROOTD::CL
-  XROOTD::UTILS)
-
-target_include_directories(EosCommon
-  PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>)
+  XROOTD::CL)
 
 set_target_properties(EosCommon PROPERTIES
   VERSION ${VERSION}
@@ -134,22 +123,17 @@ set_target_properties(EosCommon PROPERTIES
 add_library(EosCommon-Static STATIC $<TARGET_OBJECTS:EosCommon-Objects>)
 
 target_link_libraries(EosCommon-Static PUBLIC
-  ${EOSCOMMON_LIBS}
   EosCommon-Objects
   EosFstProto-Objects
   EosCliProto-Objects
   EosNsQuarkdbProto-Objects
   XROOTD::CL
-  XROOTD::UTILS
   UUID::UUID
   ZLIB::ZLIB_STATIC
   NCURSES::NCURSES_STATIC)
 
 set_target_properties(EosCommon-Static PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
-
-target_include_directories(EosCommon-Static
-  PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>)
 
 install(TARGETS EosCommon
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
@@ -183,9 +167,6 @@ if (Linux)
     LEVELDB::LEVELDB
     LIBMICROHTTPD::LIBMICROHTTPD)
 
-  target_include_directories(EosCommonServer-Objects
-    PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>)
-
   target_compile_definitions(EosCommonServer-Objects PUBLIC
     -DSQLITE_NO_SYNC=1)
 
@@ -199,18 +180,15 @@ if (Linux)
     EosCommonServer-Objects
     XrdSsiPbEosCta-Objects
     XrdMqClient
-    UUID::UUID
-    XROOTD::CL
-    fmt
     qclient)
+
+  target_compile_definitions(EosCommonServer PUBLIC
+    -DSQLITE_NO_SYNC=1)
 
   set_target_properties(EosCommonServer PROPERTIES
     VERSION ${VERSION}
     SOVERSION ${VERSION_MAJOR}
     MACOSX_RPATH TRUE)
-
-  target_compile_definitions(EosCommonServer PUBLIC
-    -DSQLITE_NO_SYNC=1)
 
   add_library(EosCommonServer-Static STATIC
     $<TARGET_OBJECTS:EosCommonServer-Objects>)
@@ -218,10 +196,7 @@ if (Linux)
   target_link_libraries(EosCommonServer-Static PUBLIC
     EosCommonServer-Objects
     XrdSsiPbEosCta-Objects
-    UUID::UUID
-    XROOTD::CL
     XrdMqClient-Static
-    fmt
     qclient)
 
   target_compile_definitions(EosCommonServer-Static PUBLIC
@@ -257,21 +232,12 @@ if(NOT CLIENT AND Linux)
     EosCommonServer
     ${CMAKE_THREAD_LIBS_INIT})
 
-  target_include_directories(dbmaptestburn PRIVATE
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>)
-
   target_link_libraries(mutextest PRIVATE
     EosCommon-Static
     ${CMAKE_THREAD_LIBS_INIT})
-
-  target_include_directories(mutextest PRIVATE
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>)
 
   target_link_libraries(dbmaptestfunc PRIVATE
     EosCommon
     EosCommonServer
     ${CMAKE_THREAD_LIBS_INIT})
-
-  target_include_directories(dbmaptestfunc PRIVATE
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>)
 endif()
