@@ -16,6 +16,17 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.7.3 Citrine``
+===================
+
+2020-03-12
+
+Bug
+----
+
+* [EOS-4042] Cannot see the content of a version
+
+
 ``v4.7.2 Citrine``
 ===================
 
