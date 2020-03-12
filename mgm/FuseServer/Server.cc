@@ -1788,6 +1788,7 @@ Server::OpSetFile(const std::string& id,
 	  }
 
 	  bool try_recycle = true;	  
+	  bool created_version = false;
 	  // create a version before replacing
 	  if (versioning && !hasVersion) {
 	    XrdOucErrInfo error;
@@ -1797,6 +1798,7 @@ Server::OpSetFile(const std::string& id,
 	      try_recycle = true;
 	    } else {
 	      try_recycle = false;
+	      created_version = true;
 	    }
 	    gOFS->eosViewRWMutex.LockWrite();
 	  } else {
@@ -1815,27 +1817,29 @@ Server::OpSetFile(const std::string& id,
 				false, true, false);
 	      gOFS->eosViewRWMutex.LockWrite();
 	    } else {
-	      // no recycle bin
-	      try {
-                uint64_t cloneId = ofmd->getCloneId();
-                if (cloneId != 0 and ofmd->getCloneFST().empty()) {     /* this file needs to be cloned */
+	      if (!created_version) {
+		// no recycle bin, no version
+		try {
+		  uint64_t cloneId = ofmd->getCloneId();
+		  if (cloneId != 0 and ofmd->getCloneFST().empty()) {     /* this file needs to be cloned */
                     XrdOucErrInfo error;
                     XrdMgmOfsFile::create_cow(true, cloneId, pcmd, ofmd, vid, error);
-                } else {
+		  } else {
                     pcmd->removeFile(md.name());
                     // unlink the existing file
                     ofmd->setContainerId(0);
                     ofmd->unlinkAllLocations();
-                }
-		eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
-		
-		// free previous quota
-		if (quotanode) {
-		  quotanode->removeFile(ofmd.get());
+		  }
+		  eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
+		  
+		  // free previous quota
+		  if (quotanode) {
+		    quotanode->removeFile(ofmd.get());
+		  }
+		  
+		  gOFS->eosFileService->updateStore(ofmd.get());
+		} catch (eos::MDException& e) {
 		}
-		
-		gOFS->eosFileService->updateStore(ofmd.get());
-	      } catch (eos::MDException& e) {
 	      }
 	    }
 	  }
@@ -1896,6 +1900,7 @@ Server::OpSetFile(const std::string& id,
 	    }
 	    
 	    bool try_recycle = true;
+	    bool created_version = false;
 	    // create a version before replacing
 	    if (versioning && !hasVersion) {
 	      XrdOucErrInfo error;
@@ -1905,6 +1910,7 @@ Server::OpSetFile(const std::string& id,
 		try_recycle = true;
 	      } else {
 		try_recycle = false;
+		created_version = true;
 	      }
 
 	      if (EOS_LOGS_DEBUG) eos_debug("tried versioning - try_recycle=%d", try_recycle);
@@ -1927,26 +1933,28 @@ Server::OpSetFile(const std::string& id,
 				false, true, false);
 	      gOFS->eosViewRWMutex.LockWrite();
 	    } else {
-	      try {
-                uint64_t cloneId = ofmd->getCloneId();
-                if (cloneId != 0 and ofmd->getCloneFST().empty()) {     /* this file needs to be cloned */
+	      if (!created_version) {
+		try {
+		  uint64_t cloneId = ofmd->getCloneId();
+		  if (cloneId != 0 and ofmd->getCloneFST().empty()) {     /* this file needs to be cloned */
                     XrdOucErrInfo error;
                     XrdMgmOfsFile::create_cow(true, cloneId, pcmd, ofmd, vid, error);
-                } else {
+		  } else {
                     pcmd->removeFile(md.name());
                     // unlink the existing file
                     ofmd->setContainerId(0);
                     ofmd->unlinkAllLocations();
-                }
-		eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
-		
-		// free previous quota
-		if (quotanode) {
-		  quotanode->removeFile(ofmd.get());
+		  }
+		  eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
+		  
+		  // free previous quota
+		  if (quotanode) {
+		    quotanode->removeFile(ofmd.get());
+		  }
+		  
+		  gOFS->eosFileService->updateStore(ofmd.get());
+		} catch (eos::MDException& e) {
 		}
-		
-		gOFS->eosFileService->updateStore(ofmd.get());
-	      } catch (eos::MDException& e) {
 	      }
 	    }
 	  }
