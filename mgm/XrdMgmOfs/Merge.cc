@@ -66,6 +66,13 @@ XrdMgmOfs::merge(const char* src, const char* dst, XrdOucErrInfo& error,
       dst_fmd->getMTime(mtime);
       src_fmd->setMTime(mtime);
       src_fmd->setFlags(dst_fmd->getFlags());
+      // Copy also the sys.tmp.etag if present
+      const std::string etag = "sys.tmp.etag";
+
+      if (dst_fmd->hasAttribute(etag)) {
+        src_fmd->setAttribute(etag, dst_fmd->getAttribute(etag));
+      }
+
       eosView->updateFileStore(src_fmd.get());
       eos::FileIdentifier f_id = src_fmd->getIdentifier();
       viewLock.Release();
