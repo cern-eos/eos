@@ -28,10 +28,10 @@ EOSCOMMONNAMESPACE_BEGIN
 bool EnvToFstFmd(XrdOucEnv& env, FmdHelper& fmd)
 {
   // Check that all tags are present
-  std::set<std::string> tags {"id", "cid", "fsid", "ctime", "ctime_ns", "mtime",
-                              "mtime_ns", "atime", "atime_ns", "size", "disksize",
-                              "mgmsize", "lid", "uid", "gid", "filecxerror",
-                              "blockcxerror", "layouterror", "locations"};
+  std::set<std::string> tags {"id", "cid",  "ctime", "ctime_ns", "mtime",
+                              "mtime_ns", "size", "lid", "uid", "gid"};
+  //      "fsid",  "disksize", "filecxerror",
+  //      "blockcxerror", "layouterror", "locations"};
 
   for (const auto& tag : tags) {
     if (env.Get(tag.c_str()) == nullptr) {
@@ -44,38 +44,62 @@ bool EnvToFstFmd(XrdOucEnv& env, FmdHelper& fmd)
 
   fmd.mProtoFmd.set_fid(strtoull(env.Get("id"), 0, 10));
   fmd.mProtoFmd.set_cid(strtoull(env.Get("cid"), 0, 10));
-  fmd.mProtoFmd.set_fsid(strtoull(env.Get("fsid"), 0, 10));
   fmd.mProtoFmd.set_ctime(strtoul(env.Get("ctime"), 0, 10));
   fmd.mProtoFmd.set_ctime_ns(strtoul(env.Get("ctime_ns"), 0, 10));
   fmd.mProtoFmd.set_mtime(strtoul(env.Get("mtime"), 0, 10));
   fmd.mProtoFmd.set_mtime_ns(strtoul(env.Get("mtime_ns"), 0, 10));
   fmd.mProtoFmd.set_size(strtoull(env.Get("size"), 0, 10));
-  fmd.mProtoFmd.set_disksize(strtoull(env.Get("disksize"), 0, 10));
   fmd.mProtoFmd.set_lid(strtoul(env.Get("lid"), 0, 16));
   fmd.mProtoFmd.set_uid((uid_t) strtoul(env.Get("uid"), 0, 10));
   fmd.mProtoFmd.set_gid((gid_t) strtoul(env.Get("gid"), 0, 10));
-  fmd.mProtoFmd.set_checksum(env.Get("checksum"));
-  fmd.mProtoFmd.set_filecxerror(strtoul(env.Get("filecxerror"), 0, 16));
-  fmd.mProtoFmd.set_blockcxerror(strtoul(env.Get("blockcxerror"), 0, 16));
-  fmd.mProtoFmd.set_layouterror(strtoul(env.Get("layouterror"), 0, 16));
+
+  if (env.Get("fsid")) {
+    fmd.mProtoFmd.set_fsid(strtoull(env.Get("fsid"), 0, 10));
+  }
+
+  if (env.Get("disksize")) {
+    fmd.mProtoFmd.set_disksize(strtoull(env.Get("disksize"), 0, 10));
+  }
+
+  if (env.Get("checksum")) {
+    fmd.mProtoFmd.set_checksum(env.Get("checksum"));
+  }
+
+  if (env.Get("filecxerror")) {
+    fmd.mProtoFmd.set_filecxerror(strtoul(env.Get("filecxerror"), 0, 16));
+  }
+
+  if (env.Get("blockcxerror")) {
+    fmd.mProtoFmd.set_blockcxerror(strtoul(env.Get("blockcxerror"), 0, 16));
+  }
+
+  if (env.Get("layouterror")) {
+    fmd.mProtoFmd.set_layouterror(strtoul(env.Get("layouterror"), 0, 16));
+  }
 
   if (fmd.mProtoFmd.checksum() == "none") {
     fmd.mProtoFmd.set_checksum("");
   }
 
-  fmd.mProtoFmd.set_diskchecksum(env.Get("diskchecksum"));
+  if (env.Get("diskchecksum")) {
+    fmd.mProtoFmd.set_diskchecksum(env.Get("diskchecksum"));
+  }
 
   if (fmd.mProtoFmd.diskchecksum() == "none") {
     fmd.mProtoFmd.set_diskchecksum("");
   }
 
-  fmd.mProtoFmd.set_mgmchecksum(env.Get("mgmchecksum"));
+  if (env.Get("mgmchecksum")) {
+    fmd.mProtoFmd.set_mgmchecksum(env.Get("mgmchecksum"));
+  }
 
   if (fmd.mProtoFmd.mgmchecksum() == "none") {
     fmd.mProtoFmd.set_mgmchecksum("");
   }
 
-  fmd.mProtoFmd.set_locations(env.Get("locations"));
+  if (env.Get("locations")) {
+    fmd.mProtoFmd.set_locations(env.Get("locations"));
+  }
 
   if (fmd.mProtoFmd.locations() == "none") {
     fmd.mProtoFmd.set_locations("");
