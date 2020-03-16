@@ -124,7 +124,7 @@ BuildRequires: %{cmake} >= 3.3
 # ----------------------
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
-%if 0%{?distribution} == 7
+%if 0%{?distribution} == 7 || 0%{?distribution} == 8
 BuildRequires: eos-xrootd == %{eos_xrootd_version_min}
 # dont' put an explicit dependency on xrootd because eos-xrootd hides the shared libraries from provide
 %global __requires_exclude ^libXrd*
@@ -341,7 +341,7 @@ Group: Applications/File
 # ----------------------
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
-%if 0%{?distribution} == 7
+%if 0%{?distribution} == 7 || 0%{?distribution} == 8
 Requires: eos-xrootd == %{eos_xrootd_version_min}
 %else
 Requires: xrootd >= %{xrootd_version_min}
@@ -538,7 +538,7 @@ Group: Applications/File
 # Select xrootd package
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
-%if 0%{?distribution} == 7
+%if 0%{?distribution} == 7 || 0%{?distribution} == 8
 Requires: eos-xrootd == %{eos_xrootd_version_min}
 %else
 Requires: xrootd-client >= %{xrootd_version_min}
@@ -595,7 +595,7 @@ Requires: zeromq
 # Select xrootd package
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
-%if 0%{?distribution} == 7
+%if 0%{?distribution} == 7 || 0%{?distribution} == 8
 Requires: eos-xrootd == %{eos_xrootd_version_min}
 %else
 Requires: xrootd-client >= %{xrootd_version_min}
@@ -694,7 +694,7 @@ Group: Applications/File
 # ----------------------
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
-%if 0%{?distribution} == 7
+%if 0%{?distribution} == 7 || 0%{?distribution} == 8
 Requires: eos-xrootd == %{eos_xrootd_version_min}
 %else
 Requires: xrootd-client >= %{xrootd_version_min}
@@ -853,7 +853,7 @@ Group: Applications/File
 # ----------------------
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
-%if 0%{?distribution} == 7
+%if 0%{?distribution} == 7 || 0%{?distribution} == 8
 Requires: eos-xrootd == %{eos_xrootd_version_min}
 %else
 Requires: xrootd-client >= %{xrootd_version_min}
@@ -1018,7 +1018,7 @@ Requires: python-daemon python-zmq python3-fusepy
 # ----------------------
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
-%if 0%{?distribution} == 7
+%if 0%{?distribution} == 7 || 0%{?distribution} == 8
 Requires: eos-xrootd == %{eos_xrootd_version_min}
 %else
 Requires: xrootd-python >= %{xrootd_version_min}
