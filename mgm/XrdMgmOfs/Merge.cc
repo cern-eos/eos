@@ -67,10 +67,18 @@ XrdMgmOfs::merge(const char* src, const char* dst, XrdOucErrInfo& error,
       src_fmd->setMTime(mtime);
       src_fmd->setFlags(dst_fmd->getFlags());
       // Copy also the sys.tmp.etag if present
+      auto xattr_map = dst_fmd->getAttributes();
+
+      for (const auto& elem : xattr_map) {
+        src_fmd->setAttribute(elem.first, elem.second);
+      }
+
       const std::string etag = "sys.tmp.etag";
 
-      if (dst_fmd->hasAttribute(etag)) {
-        src_fmd->setAttribute(etag, dst_fmd->getAttribute(etag));
+      if (!src_fmd->hasAttribute(etag)) {
+        std::string etag_value;
+        eos::calculateEtag(dst_fmd.get(), etag_value);
+        src_fmd->setAttribute(etag, etag_value);
       }
 
       eosView->updateFileStore(src_fmd.get());
