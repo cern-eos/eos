@@ -834,7 +834,6 @@ Group: Applications/File
 
 Requires: eos-fusex-core = @CPACK_PACKAGE_VERSION@
 Requires: eos-fusex-selinux = @CPACK_PACKAGE_VERSION@
-Requires: eos-fusex-cern-autofs = @CPACK_PACKAGE_VERSION@
 
 %description -n eos-fusex
 The new EOS fuse client bundle.
