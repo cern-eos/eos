@@ -410,8 +410,10 @@ _clone(std::shared_ptr<eos::IContainerMD>& cmd,
     gOFS->eosDirectoryService->updateStore(cmd.get());
   }
 
-  if (cFlag != '!' or (cmd->getCloneId() != 0 and (uint64_t)cmd->getCloneId() != cloneId))
-      _found.emplace_back(cmd->getId(), depth, true);   /* log this directory */
+  if (cFlag != '!' or (cmd->getCloneId() != 0 and
+                       (uint64_t)cmd->getCloneId() != cloneId)) {
+    _found.emplace_back(cmd->getId(), depth, true);  /* log this directory */
+  }
 
   if (EOS_LOGS_DEBUG) {
     eos_static_debug("_found container %#lx depth %d %s cloneId=%d", cmd->getId(),
@@ -489,12 +491,16 @@ _clone(std::shared_ptr<eos::IContainerMD>& cmd,
 
         continue;
       }
+
       break;
 
     case '!':
-      if (fmd->getCloneId() == 0 || (uint64_t)fmd->getCloneId() == cloneId) continue;
+      if (fmd->getCloneId() == 0 || (uint64_t)fmd->getCloneId() == cloneId) {
+        continue;
+      }
+
       break;
-       
+
     case '?':
       break;
 
@@ -532,8 +538,8 @@ _clone(std::shared_ptr<eos::IContainerMD>& cmd,
     /* if (cFlag == '?' && stime.tv_sec < cloneId) continue;     only if stime reliably percolates down to the root */
     uint64_t ccId = ccmd->getCloneId();         /* current container's cloneId */
 
-    if (ccId == 0 || cloneId == 0 || cFlag == '+' || cFlag == '-' ||
-        ((cFlag == '-') && ccId == cloneId)
+    if (ccId == 0 or cloneId == 0 or cFlag == '+' or cFlag == '!' or
+        ((cFlag == '-' or cFlag == '=') && ccId == cloneId)
        ) {        /* Only descend for matching subdirs */
       int rc2 = _clone(ccmd, out_error, stdErr, vid, _found, cFlag, cloneId, newId,
                        cloneMd, depth + 1);
