@@ -200,7 +200,7 @@ private:
   int kRecvBufferAlloc;
   size_t kInternalBufferPosition;
   bool kInitOK;
-  std::atomic<bool> mNewMqBroker {false};
+  std::atomic<bool> mNewMqBroker {true};
 
   //----------------------------------------------------------------------------
   //! Refresh the in/out-bound channels to all the brokers even if we don't

@@ -599,6 +599,8 @@ XrdMqClient::RefreshBrokersEndpoints()
                       xrd_url.GetURL().c_str());
     }
   }
+
+  mNewMqBroker = true;
 }
 
 //------------------------------------------------------------------------------
