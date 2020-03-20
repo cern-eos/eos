@@ -469,6 +469,9 @@ XrdMqClient::RecvFromInternalBuffer()
 void
 XrdMqClient::RefreshBrokersEndpoints()
 {
+  // Only one refresh at a time
+  static std::mutex s_mutex_refresh;
+  std::unique_lock lock(s_mutex_refresh);
   std::map<std::string, std::string> endpoint_replacements;
   {
     // Collect broker endpoints that need to be updated
