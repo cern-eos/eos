@@ -41,8 +41,9 @@
 #include <sys/mount.h>
 #endif
 
-namespace eos::common {
-  class TransferQueue;
+namespace eos::common
+{
+class TransferQueue;
 }
 
 //------------------------------------------------------------------------------
@@ -443,7 +444,7 @@ public:
   //!
   //! Call with fsview lock at-least-read locked.
   //----------------------------------------------------------------------------
-  bool shouldConsiderForStatistics(FileSystem* fs);
+  bool ShouldConsiderForStatistics(FileSystem* fs);
 
   //----------------------------------------------------------------------------
   //! Calculate the sum of <param> as long long
@@ -936,7 +937,7 @@ public:
   //----------------------------------------------------------------------------
   //! Physical bytes available
   //----------------------------------------------------------------------------
-  bool UnderNominalQuota(const std::string& space, bool isroot=false);
+  bool UnderNominalQuota(const std::string& space, bool isroot = false);
 
 private:
   IConfigEngine* mConfigEngine;

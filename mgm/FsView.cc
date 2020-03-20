@@ -984,18 +984,21 @@ FsSpace::FsSpace(const char* name)
 
     // Set the default delay in seconds between queries from the tape-aware GC
     if (GetConfigMember(tgc::TGC_NAME_QRY_PERIOD_SECS).empty()) {
-      SetConfigMember(tgc::TGC_NAME_QRY_PERIOD_SECS, std::to_string(tgc::TGC_DEFAULT_QRY_PERIOD_SECS));
+      SetConfigMember(tgc::TGC_NAME_QRY_PERIOD_SECS,
+                      std::to_string(tgc::TGC_DEFAULT_QRY_PERIOD_SECS));
     }
 
     // Set the default number of available bytes the garbage collector is targetting
     if (GetConfigMember(tgc::TGC_NAME_AVAIL_BYTES).empty()) {
-      SetConfigMember(tgc::TGC_NAME_AVAIL_BYTES, std::to_string(tgc::TGC_DEFAULT_AVAIL_BYTES));
+      SetConfigMember(tgc::TGC_NAME_AVAIL_BYTES,
+                      std::to_string(tgc::TGC_DEFAULT_AVAIL_BYTES));
     }
 
     // Set the default total number of bytes that must be available before
     // garbage collection can start
     if (GetConfigMember(tgc::TGC_NAME_TOTAL_BYTES).empty()) {
-      SetConfigMember(tgc::TGC_NAME_TOTAL_BYTES, std::to_string(tgc::TGC_DEFAULT_TOTAL_BYTES));
+      SetConfigMember(tgc::TGC_NAME_TOTAL_BYTES,
+                      std::to_string(tgc::TGC_DEFAULT_TOTAL_BYTES));
     }
   }
 
@@ -1095,47 +1098,51 @@ bool FsView::UnderNominalQuota(const std::string& space, bool isroot)
   if (isroot) {
     return true;
   }
-	      
-  time_t now = time(NULL);
 
+  time_t now = time(NULL);
   {
     XrdSysMutexHelper scope_lock(mUsageMutex);
     {
       // return cached value
       auto it = mUsageOk.find(space);
+
       if (it != mUsageOk.end()) {
-	if (it->second.second > now) {
-	  return it->second.first;
-	}
+        if (it->second.second > now) {
+          return it->second.first;
+        }
       }
     }
   }
-
   {
     auto spaceobj = mSpaceView.find(space);
+
     if (spaceobj == mSpaceView.end()) {
       // no space, we don't block by nominal quota
       return true;
     }
-    
+
     // refresh the nominal value
     std::string nominal = spaceobj->second->GetMember("cfg.nominalsize");
-    if (nominal=="???") {
+
+    if (nominal == "???") {
       // no setting, quota is fine
       return true;
     }
 
     uint64_t nominalbytes = strtoul(nominal.c_str(), 0, 10);
     uint64_t usedbytes = 0 ;
+
     for (auto fs = mIdView.begin(); fs != mIdView.end(); ++fs) {
       if (fs->second->GetSpace() != space) {
-	// only account the requested space
-	continue;
+        // only account the requested space
+        continue;
       }
+
       usedbytes += fs->second->GetUsedbytes();
     }
 
     bool usage_ok = false;
+
     if (usedbytes < nominalbytes) {
       usage_ok = true;
     }
@@ -1703,7 +1710,7 @@ FsView::Register(FileSystem* fs, const common::FileSystemCoreParams& coreParams,
 
     if (registerInGeoTreeEngine &&
         !gOFS->mGeoTreeEngine->insertFsIntoGroup(fs, mGroupView[coreParams.getGroup()],
-                                          coreParams)) {
+            coreParams)) {
       // Roll back the changes
       if (UnRegister(fs, false)) {
         eos_err("could not insert insert fs %u into GeoTreeEngine : fs was "
@@ -1859,7 +1866,7 @@ FsView::MoveGroup(FileSystem* fs, std::string group)
       }
 
       if (!gOFS->mGeoTreeEngine->insertFsIntoGroup(fs, mGroupView[group],
-                                            fs->getCoreParams())) {
+          fs->getCoreParams())) {
         if (fs->SetString("schedgroup", group.c_str()) && UnRegister(fs, false)) {
           if (oldgroup && fs->SetString("schedgroup", oldgroup->mName.c_str()) &&
               Register(fs, fs->getCoreParams())) {
@@ -2484,7 +2491,8 @@ BaseView::GetMember(const std::string& member) const
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-FsNode::FsNode(const char* name) : BaseView(common::SharedHashLocator::makeForNode(name))
+FsNode::FsNode(const char* name) : BaseView(
+    common::SharedHashLocator::makeForNode(name))
 {
   mName = name;
   mType = "nodesview";
@@ -2931,7 +2939,7 @@ FsView::ApplyGlobalConfig(const char* key, std::string& val)
     eos::common::EosTok::sTokenGeneration = strtoull(val.c_str(), 0, 10);
   }  else if (tokens[1] == "policy.recycle") {
     eos_static_info("policy-recycle := %s", val.c_str());
-    
+
     if (val == "on") {
       gOFS->enforceRecycleBin = true;
     } else {
@@ -3010,7 +3018,7 @@ FsView::BroadcastMasterId(const std::string master_id)
 //
 // Call with fsview lock at-least-read locked.
 //------------------------------------------------------------------------------
-bool BaseView::shouldConsiderForStatistics(FileSystem* fs)
+bool BaseView::ShouldConsiderForStatistics(FileSystem* fs)
 {
   if (!fs) {
     return false;
@@ -3178,7 +3186,7 @@ BaseView::AverageDouble(const char* param, bool lock,
     FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it);
 
     if (mType == "groupview") {
-      consider = shouldConsiderForStatistics(fs);
+      consider = ShouldConsiderForStatistics(fs);
     }
 
     if (consider) {
@@ -3215,7 +3223,7 @@ BaseView::MaxAbsDeviation(const char* param, bool lock,
     FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it);
 
     if (mType == "groupview") {
-      consider = shouldConsiderForStatistics(fs);
+      consider = ShouldConsiderForStatistics(fs);
     }
 
     if (consider) {
@@ -3256,7 +3264,7 @@ BaseView::MaxDeviation(const char* param, bool lock,
     FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it);
 
     if (mType == "groupview") {
-      consider = shouldConsiderForStatistics(fs);
+      consider = ShouldConsiderForStatistics(fs);
     }
 
     if (consider) {
@@ -3296,7 +3304,7 @@ BaseView::MinDeviation(const char* param, bool lock,
     FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it);
 
     if (mType == "groupview") {
-      consider = shouldConsiderForStatistics(fs);
+      consider = ShouldConsiderForStatistics(fs);
     }
 
     if (consider) {
@@ -3336,7 +3344,7 @@ BaseView::SigmaDouble(const char* param, bool lock,
     FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it);
 
     if (mType == "groupview") {
-      consider = shouldConsiderForStatistics(fs);
+      consider = ShouldConsiderForStatistics(fs);
     }
 
     if (consider) {
@@ -3373,7 +3381,7 @@ BaseView::ConsiderCount(bool lock,
     FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it);
 
     if (mType == "groupview") {
-      consider = shouldConsiderForStatistics(fs);
+      consider = ShouldConsiderForStatistics(fs);
     }
 
     if (consider) {
