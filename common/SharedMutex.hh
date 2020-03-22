@@ -24,10 +24,14 @@
 #include "common/Namespace.hh"
 #include "common/IRWMutex.hh"
 
+#ifdef __APPLE__
+#include <shared_mutex>
+#else
 #include <bits/c++config.h>
 #define _GLIBCXX_USE_PTHREAD_RWLOCK_T 0
 #include <shared_mutex>
 #define _GLIBCXX_USE_PTHREAD_RWLOCK_T 1
+#endif
 
 EOSCOMMONNAMESPACE_BEGIN
 
