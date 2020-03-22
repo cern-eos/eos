@@ -39,55 +39,42 @@ FilesystemUuidMapper::FilesystemUuidMapper() {}
 // Otherwise, we return true.
 //------------------------------------------------------------------------------
 bool FilesystemUuidMapper::injectMapping(eos::common::FileSystem::fsid_t id,
-  const std::string &uuid) {
-
-  //----------------------------------------------------------------------------
+    const std::string& uuid)
+{
   // Valid id?
-  //----------------------------------------------------------------------------
-  if(id <= 0) {
+  if (id <= 0) {
     return false;
   }
 
-  //----------------------------------------------------------------------------
   // Valid uuid?
-  //----------------------------------------------------------------------------
-  if(uuid.empty()) {
+  if (uuid.empty()) {
     return false;
   }
 
-  std::unique_lock<std::shared_timed_mutex> lock(mutex);
-
-  //----------------------------------------------------------------------------
+  eos::common::RWMutexWriteLock wr_lock(mMutex);
   // Do we have an entry with the given uuid already?
-  //----------------------------------------------------------------------------
   auto it1 = uuid2fs.find(uuid);
-  if(it1 != uuid2fs.end()) {
-    if(it1->second != id) {
-      //------------------------------------------------------------------------
+
+  if (it1 != uuid2fs.end()) {
+    if (it1->second != id) {
       // We already have an entry for the given uuid, and it's assigned to
       // a different id.. reject.
-      //------------------------------------------------------------------------
       return false;
     }
   }
 
-  //----------------------------------------------------------------------------
   // Do we have an entry with the given fsid already?
-  //----------------------------------------------------------------------------
   auto it2 = fs2uuid.find(id);
-  if(it2 != fs2uuid.end()) {
-    if(it2->second != uuid) {
-      //------------------------------------------------------------------------
+
+  if (it2 != fs2uuid.end()) {
+    if (it2->second != uuid) {
       // We already have an entry for the given fsid, and it's assigned to
       // a different uuid.. reject.
-      //------------------------------------------------------------------------
       return false;
     }
   }
 
-  //----------------------------------------------------------------------------
   // No conflicts, insert.
-  //----------------------------------------------------------------------------
   uuid2fs[uuid] = id;
   fs2uuid[id] = uuid;
   return true;
@@ -96,8 +83,9 @@ bool FilesystemUuidMapper::injectMapping(eos::common::FileSystem::fsid_t id,
 //------------------------------------------------------------------------------
 // Retrieve size of the map
 //------------------------------------------------------------------------------
-size_t FilesystemUuidMapper::size() const {
-  std::shared_lock<std::shared_timed_mutex> lock(mutex);
+size_t FilesystemUuidMapper::size() const
+{
+  eos::common::RWMutexReadLock rd_lock(mMutex);
   eos_assert(uuid2fs.size() == fs2uuid.size());
   return uuid2fs.size();
 }
@@ -105,9 +93,9 @@ size_t FilesystemUuidMapper::size() const {
 //------------------------------------------------------------------------------
 // Clear contents
 //------------------------------------------------------------------------------
-void FilesystemUuidMapper::clear() {
-  std::unique_lock<std::shared_timed_mutex> lock(mutex);
-
+void FilesystemUuidMapper::clear()
+{
+  eos::common::RWMutexWriteLock wr_lock(mMutex);
   uuid2fs.clear();
   fs2uuid.clear();
 }
@@ -115,16 +103,18 @@ void FilesystemUuidMapper::clear() {
 //------------------------------------------------------------------------------
 // Is there any entry with the given fsid?
 //------------------------------------------------------------------------------
-bool FilesystemUuidMapper::hasFsid(eos::common::FileSystem::fsid_t id) const {
-  std::shared_lock<std::shared_timed_mutex> lock(mutex);
+bool FilesystemUuidMapper::hasFsid(eos::common::FileSystem::fsid_t id) const
+{
+  eos::common::RWMutexReadLock rd_lock(mMutex);
   return fs2uuid.find(id) != fs2uuid.end();
 }
 
 //------------------------------------------------------------------------------
 // Is there any entry with the given uuid?
 //------------------------------------------------------------------------------
-bool FilesystemUuidMapper::hasUuid(const std::string &uuid) const {
-  std::shared_lock<std::shared_timed_mutex> lock(mutex);
+bool FilesystemUuidMapper::hasUuid(const std::string& uuid) const
+{
+  eos::common::RWMutexReadLock rd_lock(mMutex);
   return uuid2fs.find(uuid) != uuid2fs.end();
 }
 
@@ -132,12 +122,13 @@ bool FilesystemUuidMapper::hasUuid(const std::string &uuid) const {
 // Retrieve the fsid that corresponds to the given uuid. Return 0 if none
 // exists.
 //------------------------------------------------------------------------------
-eos::common::FileSystem::fsid_t FilesystemUuidMapper::lookup(
-  const std::string &uuid) const {
-
-  std::shared_lock<std::shared_timed_mutex> lock(mutex);
+eos::common::FileSystem::fsid_t
+FilesystemUuidMapper::lookup(const std::string& uuid) const
+{
+  eos::common::RWMutexReadLock rd_lock(mMutex);
   auto it = uuid2fs.find(uuid);
-  if(it == uuid2fs.end()) {
+
+  if (it == uuid2fs.end()) {
     return 0;
   }
 
@@ -148,12 +139,13 @@ eos::common::FileSystem::fsid_t FilesystemUuidMapper::lookup(
 //! Retrieve the uuid that corresponds to the given fsid. Return "" if none
 //! exists.
 //------------------------------------------------------------------------------
-std::string FilesystemUuidMapper::lookup(
-  eos::common::FileSystem::fsid_t id) const {
-
-  std::shared_lock<std::shared_timed_mutex> lock(mutex);
+std::string
+FilesystemUuidMapper::lookup(eos::common::FileSystem::fsid_t id) const
+{
+  eos::common::RWMutexReadLock rd_lock(mMutex);
   auto it = fs2uuid.find(id);
-  if(it == fs2uuid.end()) {
+
+  if (it == fs2uuid.end()) {
     return "";
   }
 
@@ -164,18 +156,18 @@ std::string FilesystemUuidMapper::lookup(
 //! Remove a mapping, given the fsid. Returns true if the element was found
 //! and removed, and false if not found.
 //------------------------------------------------------------------------------
-bool FilesystemUuidMapper::remove(eos::common::FileSystem::fsid_t id) {
-  std::unique_lock<std::shared_timed_mutex> lock(mutex);
-
+bool FilesystemUuidMapper::remove(eos::common::FileSystem::fsid_t id)
+{
+  eos::common::RWMutexWriteLock wr_lock(mMutex);
   auto it = fs2uuid.find(id);
-  if(it == fs2uuid.end()) {
+
+  if (it == fs2uuid.end()) {
     return false;
   }
 
   // Find the reverse relationship, which _must_ exist
   auto it2 = uuid2fs.find(it->second);
   eos_assert(it2 != uuid2fs.end());
-
   // Drop both
   fs2uuid.erase(it);
   uuid2fs.erase(it2);
@@ -186,18 +178,18 @@ bool FilesystemUuidMapper::remove(eos::common::FileSystem::fsid_t id) {
 //! Remove a mapping, given the uuid. Returns true if the element was found
 //! and removed, and false if not found.
 //------------------------------------------------------------------------------
-bool FilesystemUuidMapper::remove(const std::string &uuid) {
-  std::unique_lock<std::shared_timed_mutex> lock(mutex);
-
+bool FilesystemUuidMapper::remove(const std::string& uuid)
+{
+  eos::common::RWMutexWriteLock wr_lock(mMutex);
   auto it = uuid2fs.find(uuid);
-  if(it == uuid2fs.end()) {
+
+  if (it == uuid2fs.end()) {
     return false;
   }
 
   // Find the reverse relationship, which _must_ exist
   auto it2 = fs2uuid.find(it->second);
   eos_assert(it2 != fs2uuid.end());
-
   // Drop both
   uuid2fs.erase(it);
   fs2uuid.erase(it2);
@@ -212,19 +204,19 @@ bool FilesystemUuidMapper::remove(const std::string &uuid) {
 // - This map cannot hold more than 64k filesystems - legacy limitation from
 //   original implementation in FsView, not sure if we can remove it.
 //------------------------------------------------------------------------------
-eos::common::FileSystem::fsid_t FilesystemUuidMapper::allocate(
-  const std::string &uuid) {
-
-  std::unique_lock<std::shared_timed_mutex> lock(mutex);
-
+eos::common::FileSystem::fsid_t
+FilesystemUuidMapper::allocate(const std::string& uuid)
+{
+  eos::common::RWMutexWriteLock wr_lock(mMutex);
   // Given uuid exists already?
   auto it = uuid2fs.find(uuid);
-  if(it != uuid2fs.end()) {
+
+  if (it != uuid2fs.end()) {
     return it->second; // nothing more to do
   }
 
   // Does not exist, need to allocate..
-  if(uuid2fs.empty()) {
+  if (uuid2fs.empty()) {
     // Entire structure is empty, start from 1.
     eos::common::FileSystem::fsid_t id = 1;
     uuid2fs[uuid] = id;
@@ -235,9 +227,9 @@ eos::common::FileSystem::fsid_t FilesystemUuidMapper::allocate(
   // Find largest fsid currently in use
   eos::common::FileSystem::fsid_t maxInUse = fs2uuid.rbegin()->first;
 
-  if(maxInUse < 64000) {
+  if (maxInUse < 64000) {
     // Allocate maxInUse+1
-    eos::common::FileSystem::fsid_t id = maxInUse+1;
+    eos::common::FileSystem::fsid_t id = maxInUse + 1;
     uuid2fs[uuid] = id;
     fs2uuid[id] = uuid;
     return id;
@@ -245,8 +237,8 @@ eos::common::FileSystem::fsid_t FilesystemUuidMapper::allocate(
 
   // We don't allow values larger than 64k.. linear search from 1 to 64k
   // to find an open spot.
-  for(eos::common::FileSystem::fsid_t id = 1; id < 64000; id++) {
-    if(fs2uuid.count(id) == 0) {
+  for (eos::common::FileSystem::fsid_t id = 1; id < 64000; id++) {
+    if (fs2uuid.count(id) == 0) {
       // Found an empty spot
       uuid2fs[uuid] = id;
       fs2uuid[id] = uuid;

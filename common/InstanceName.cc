@@ -27,17 +27,16 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
-std::shared_timed_mutex InstanceName::mMutex;
+eos::common::RWMutex InstanceName::mMutex;
 std::string InstanceName::mInstanceName;
 
 //------------------------------------------------------------------------------
 // Set eos instance name - call this only once
 //------------------------------------------------------------------------------
-void InstanceName::set(const std::string &name) {
-  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-
+void InstanceName::set(const std::string& name)
+{
+  eos::common::RWMutexWriteLock wr_lock(mMutex);
   eos_static_info("Setting global instance name => %s", name.c_str());
-
   eos_assert(mInstanceName.empty());
   eos_assert(!name.empty());
   mInstanceName = name;
@@ -46,9 +45,9 @@ void InstanceName::set(const std::string &name) {
 //------------------------------------------------------------------------------
 // Get eos instance name
 //------------------------------------------------------------------------------
-std::string InstanceName::get() {
-  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-
+std::string InstanceName::get()
+{
+  eos::common::RWMutexReadLock rd_lock(mMutex);
   eos_assert(!mInstanceName.empty());
   return mInstanceName;
 }
@@ -56,23 +55,26 @@ std::string InstanceName::get() {
 //------------------------------------------------------------------------------
 // Get MGM global config queue
 //------------------------------------------------------------------------------
-std::string InstanceName::getGlobalMgmConfigQueue() {
+std::string InstanceName::getGlobalMgmConfigQueue()
+{
   return SSTR("/config/" << InstanceName::get() << "/mgm/");
 }
 
 //------------------------------------------------------------------------------
 // Has the instance name been set?
 //------------------------------------------------------------------------------
-bool InstanceName::empty() {
-  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+bool InstanceName::empty()
+{
+  eos::common::RWMutexReadLock rd_lock(mMutex);
   return mInstanceName.empty();
 }
 
 //------------------------------------------------------------------------------
 // Clear stored instance name - used in unit tests
 //------------------------------------------------------------------------------
-void InstanceName::clear() {
-  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+void InstanceName::clear()
+{
+  eos::common::RWMutexWriteLock wr_lock(mMutex);
   mInstanceName.clear();
 }
 

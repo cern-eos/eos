@@ -37,23 +37,25 @@ OpenFileTracker::OpenFileTracker() {}
 //------------------------------------------------------------------------------
 void OpenFileTracker::up(eos::common::FileSystem::fsid_t fsid, uint64_t fid)
 {
-  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+  eos::common::RWMutexWriteLock wr_lock(mMutex);
   mContents[fsid][fid]++;
 }
 
 //------------------------------------------------------------------------------
 //! Wait for an excl open of a file and count up
 //------------------------------------------------------------------------------
-void OpenFileTracker::waitExclOpen(eos::common::FileSystem::fsid_t fsid, uint64_t fid)
+void OpenFileTracker::waitExclOpen(eos::common::FileSystem::fsid_t fsid,
+                                   uint64_t fid)
 {
   do {
     bool busy = false;
     {
-      std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+      eos::common::RWMutexWriteLock wr_lock(mMutex);
       busy = mContents[fsid][fid];
+
       if (!busy) {
-	mContents[fsid][fid]++;
-	break;
+        mContents[fsid][fid]++;
+        break;
       }
     }
     // this is not starvation free, but considering the use-case it won't happen
@@ -69,7 +71,7 @@ void OpenFileTracker::waitExclOpen(eos::common::FileSystem::fsid_t fsid, uint64_
 //------------------------------------------------------------------------------
 void OpenFileTracker::down(eos::common::FileSystem::fsid_t fsid, uint64_t fid)
 {
-  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+  eos::common::RWMutexWriteLock wr_lock(mMutex);
   auto fsit = mContents.find(fsid);
 
   if (fsit == mContents.end()) {
@@ -127,7 +129,7 @@ bool OpenFileTracker::isOpen(eos::common::FileSystem::fsid_t fsid,
 int32_t OpenFileTracker::getUseCount(eos::common::FileSystem::fsid_t fsid,
                                      uint64_t fid) const
 {
-  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+  eos::common::RWMutexReadLock rd_lock(mMutex);
   auto fsit = mContents.find(fsid);
 
   if (fsit == mContents.end()) {
@@ -148,7 +150,7 @@ int32_t OpenFileTracker::getUseCount(eos::common::FileSystem::fsid_t fsid,
 //------------------------------------------------------------------------------
 bool OpenFileTracker::isAnyOpen() const
 {
-  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+  eos::common::RWMutexReadLock rd_lock(mMutex);
   return ! mContents.empty();
 }
 
@@ -159,7 +161,7 @@ std::map<size_t, std::set<uint64_t>> OpenFileTracker::getSortedByUsecount(
                                     eos::common::FileSystem::fsid_t fsid) const
 {
   std::map<size_t, std::set<uint64_t>> contentsSortedByUsecount;
-  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+  eos::common::RWMutexReadLock rd_lock(mMutex);
   auto fsit = mContents.find(fsid);
 
   if (fsit == mContents.end()) {
@@ -180,7 +182,7 @@ std::map<size_t, std::set<uint64_t>> OpenFileTracker::getSortedByUsecount(
 int32_t OpenFileTracker::getOpenOnFilesystem(eos::common::FileSystem::fsid_t
     fsid) const
 {
-  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+  eos::common::RWMutexReadLock rd_lock(mMutex);
   auto fsit = mContents.find(fsid);
 
   if (fsit == mContents.end()) {

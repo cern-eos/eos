@@ -25,8 +25,8 @@
 
 #include "mgm/Namespace.hh"
 #include "mgm/FileSystem.hh"
+#include "common/RWMutex.hh"
 #include <map>
-#include <shared_mutex>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -38,12 +38,14 @@ EOSMGMNAMESPACE_BEGIN
 //! The API (together with users of this class) will be improved incrementally.
 //------------------------------------------------------------------------------
 
-class FileSystemRegistry {
+class FileSystemRegistry
+{
 public:
   //----------------------------------------------------------------------------
   //! Types
   //----------------------------------------------------------------------------
-  using const_iterator = std::map<eos::common::FileSystem::fsid_t, mgm::FileSystem*>::const_iterator;
+  using const_iterator =
+    std::map<eos::common::FileSystem::fsid_t, mgm::FileSystem*>::const_iterator;
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -53,28 +55,32 @@ public:
   //----------------------------------------------------------------------------
   //! Map compatibility: begin()
   //----------------------------------------------------------------------------
-  const_iterator begin() const {
+  const_iterator begin() const
+  {
     return mById.cbegin();
   }
 
   //----------------------------------------------------------------------------
   //! Map compatibility: cbegin()
   //----------------------------------------------------------------------------
-  const_iterator cbegin() const {
+  const_iterator cbegin() const
+  {
     return mById.cbegin();
   }
 
   //----------------------------------------------------------------------------
   //! Map compatibility: end()
   //----------------------------------------------------------------------------
-  const_iterator end() const {
+  const_iterator end() const
+  {
     return mById.cend();
   }
 
   //----------------------------------------------------------------------------
   //! Map compatibility: cend()
   //----------------------------------------------------------------------------
-  const_iterator cend() const {
+  const_iterator cend() const
+  {
     return mById.cend();
   }
 
@@ -91,7 +97,7 @@ public:
   //----------------------------------------------------------------------------
   //! Lookup a FileSystem object by queuepath - return nullptr if none exists
   //----------------------------------------------------------------------------
-  mgm::FileSystem* lookupByQueuePath(const std::string &queuepath) const;
+  mgm::FileSystem* lookupByQueuePath(const std::string& queuepath) const;
 
   //----------------------------------------------------------------------------
   //! Does a FileSystem with the given id exist?
@@ -104,7 +110,8 @@ public:
   //! Refuse if either the FileSystem pointer already exists, or another
   //! FileSystem has the same ID.
   //----------------------------------------------------------------------------
-  bool registerFileSystem(const common::FileSystemLocator &locator, common::FileSystem::fsid_t fsid, mgm::FileSystem *fs);
+  bool registerFileSystem(const common::FileSystemLocator& locator,
+                          common::FileSystem::fsid_t fsid, mgm::FileSystem* fs);
 
   //----------------------------------------------------------------------------
   //! Return number of registered filesystems
@@ -119,7 +126,7 @@ public:
   //----------------------------------------------------------------------------
   //! Erase by ptr - return true if found and erased, false otherwise
   //------------------------- ---------------------------------------------------
-  bool eraseByPtr(mgm::FileSystem *fs);
+  bool eraseByPtr(mgm::FileSystem* fs);
 
   //------------------------------------------------------------------------------
   //! Entirely clear registry contents
@@ -132,14 +139,13 @@ private:
     std::string mQueuePath;
 
     IdAndQueuePath(eos::common::FileSystem::fsid_t id,
-      const std::string &queuepath) : mId(id), mQueuePath(queuepath) {}
+                   const std::string& queuepath) : mId(id), mQueuePath(queuepath) {}
   };
 
-  mutable std::shared_timed_mutex mMutex;
+  mutable eos::common::RWMutex mMutex;
   std::map<eos::common::FileSystem::fsid_t, mgm::FileSystem*> mById;
   std::map<mgm::FileSystem*, IdAndQueuePath> mByFsPtr;
   std::map<std::string, mgm::FileSystem*> mByQueuePath;
 };
 
 EOSMGMNAMESPACE_END
-

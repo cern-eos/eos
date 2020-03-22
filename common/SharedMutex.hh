@@ -24,12 +24,10 @@
 #include "common/Namespace.hh"
 #include "common/IRWMutex.hh"
 
-#ifdef __APPLE__
+#include <bits/c++config.h>
+#define _GLIBCXX_USE_PTHREAD_RWLOCK_T 0
 #include <shared_mutex>
-#else
-#pragma message "WARNING: We are using a copy of the shared mutex to enable the condition variable implementation!!!"
-#include "common/shared_mutex"
-#endif
+#define _GLIBCXX_USE_PTHREAD_RWLOCK_T 1
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -108,11 +106,7 @@ public:
   int TimedWrLock(uint64_t timeout_ns) override;
 
 private:
-#ifdef __APPLE__
   std::shared_timed_mutex mSharedMutex;
-#else
-  eos::common::shared_timed_mutex mSharedMutex;
-#endif
 };
 
 EOSCOMMONNAMESPACE_END

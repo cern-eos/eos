@@ -26,7 +26,7 @@
 
 #include "mgm/Namespace.hh"
 #include "common/FileSystem.hh"
-#include <shared_mutex>
+#include "common/RWMutex.hh"
 
 //------------------------------------------------------------------------------
 //! @file  FilesystemUuidMapper.hh
@@ -35,7 +35,8 @@
 //------------------------------------------------------------------------------
 EOSMGMNAMESPACE_BEGIN
 
-class FilesystemUuidMapper {
+class FilesystemUuidMapper
+{
 public:
   //----------------------------------------------------------------------------
   //! Constructor
@@ -49,7 +50,7 @@ public:
   //! Otherwise, we return true.
   //----------------------------------------------------------------------------
   bool injectMapping(eos::common::FileSystem::fsid_t id,
-    const std::string &uuid);
+                     const std::string& uuid);
 
   //----------------------------------------------------------------------------
   //! Is there any entry with the given fsid?
@@ -59,7 +60,7 @@ public:
   //----------------------------------------------------------------------------
   //! Is there any entry with the given uuid?
   //----------------------------------------------------------------------------
-  bool hasUuid(const std::string &uuid) const;
+  bool hasUuid(const std::string& uuid) const;
 
   //----------------------------------------------------------------------------
   //! Retrieve size of the map
@@ -70,7 +71,7 @@ public:
   //! Retrieve the fsid that corresponds to the given uuid. Return 0 if none
   //! exists.
   //----------------------------------------------------------------------------
-  eos::common::FileSystem::fsid_t lookup(const std::string &uuid) const;
+  eos::common::FileSystem::fsid_t lookup(const std::string& uuid) const;
 
   //----------------------------------------------------------------------------
   //! Retrieve the uuid that corresponds to the given fsid. Return "" if none
@@ -88,7 +89,7 @@ public:
   //! Remove a mapping, given the uuid. Returns true if the element was found
   //! and removed, and false if not found.
   //----------------------------------------------------------------------------
-  bool remove(const std::string &uuid);
+  bool remove(const std::string& uuid);
 
   //----------------------------------------------------------------------------
   //! Clear contents
@@ -103,11 +104,10 @@ public:
   //! - This map cannot hold more than 64k filesystems - legacy limitation from
   //!   original implementation in FsView, not sure if we can remove it.
   //----------------------------------------------------------------------------
-  eos::common::FileSystem::fsid_t allocate(const std::string &uuid);
+  eos::common::FileSystem::fsid_t allocate(const std::string& uuid);
 
 private:
-  mutable std::shared_timed_mutex mutex;
-
+  mutable eos::common::RWMutex mMutex;
   //! Map translating a file system ID to a unique ID
   std::map<eos::common::FileSystem::fsid_t, std::string> fs2uuid;
   //! Map translating a unique ID to a filesystem ID

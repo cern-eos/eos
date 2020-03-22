@@ -25,8 +25,8 @@
 #define EOS_COMMON_INSTANCE_NAME_HH
 
 #include "common/Namespace.hh"
+#include "common/RWMutex.hh"
 #include <string>
-#include <shared_mutex>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -36,13 +36,14 @@ EOSCOMMONNAMESPACE_BEGIN
 //!
 //! Do not use before initialization, and do not initialize twice.
 //------------------------------------------------------------------------------
-class InstanceName {
+class InstanceName
+{
 public:
 
   //----------------------------------------------------------------------------
   //! Set eos instance name - call this only once
   //----------------------------------------------------------------------------
-  static void set(const std::string &name);
+  static void set(const std::string& name);
 
   //----------------------------------------------------------------------------
   //! Get eos instance name - do not call before getInstanceName
@@ -66,7 +67,7 @@ public:
 
 private:
   static std::string mInstanceName;
-  static std::shared_timed_mutex mMutex;
+  static RWMutex mMutex;
 };
 
 EOSCOMMONNAMESPACE_END
