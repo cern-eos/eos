@@ -25,7 +25,6 @@
 # Search for dependencies
 #-------------------------------------------------------------------------------
 option(PACKAGEONLY "Build without dependencies" OFF)
-option(FUSEXCLIENT "Build FUSEX client" OFF)
 option(CLIENT "Build only client packages" OFF)
 option(BUILD_XRDCL_RAIN_PLUGIN "Enable XrdCl RAIN plugin" OFF)
 
