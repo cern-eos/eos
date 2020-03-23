@@ -2485,7 +2485,8 @@ XrdFstOfsFile::ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client)
     gOFS.TpcMap[mIsTpcDst][tpc_key].path = mNsPath.c_str();
     gOFS.TpcMap[mIsTpcDst][tpc_key].lfn = tpc_lfn;
     // Set tpc key expiration time to 1 minute
-    gOFS.TpcMap[mIsTpcDst][tpc_key].expires = time(NULL) + 60;
+    gOFS.TpcMap[mIsTpcDst][tpc_key].expires = time(NULL) +
+        gOFS.mTpcKeyValidity.count();
     mFstTpcInfo = gOFS.TpcMap[mIsTpcDst][tpc_key];
     mTpcKey = tpc_key;
 

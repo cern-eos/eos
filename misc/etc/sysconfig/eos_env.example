@@ -150,6 +150,9 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # it is undefined = disabled
 # EOS_FST_TPC_READASYNC=1
 
+# Modify the TPC key validity which by default is 120 seconds
+# EOS_FST_TPC_KEY_VALIDITY_SEC=120
+
 #-------------------------------------------------------------------------------
 # HTTPD Configuration
 #-------------------------------------------------------------------------------

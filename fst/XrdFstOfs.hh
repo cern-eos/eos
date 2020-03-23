@@ -410,6 +410,7 @@ public:
   bool mMqOnQdb; ///< Are we using QDB as an MQ?
   int mHttpdPort; ///< listening port of the http server
   std::unique_ptr<HttpServer> mHttpd; ///< Embedded http server if available
+  std::chrono::seconds mTpcKeyValidity {120}; ///< TPC key validity
 
 private:
 #ifdef IN_TEST_HARNESS
@@ -462,6 +463,11 @@ public:
   //!         such offset if provided
   //----------------------------------------------------------------------------
   uint64_t GetSimulationErrorOffset(const std::string& input) const;
+
+  //----------------------------------------------------------------------------
+  //! Update the TPC key validity value (default 120)
+  //----------------------------------------------------------------------------
+  void UpdateTpcKeyValidity();
 };
 
 //------------------------------------------------------------------------------

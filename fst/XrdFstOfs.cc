@@ -364,6 +364,8 @@ XrdFstOfs::XrdFstOfs() :
     fprintf(stderr, "Config Enabled CallManager xrootd connection pool with "
             "size=%i\n", max_size);
   }
+
+  UpdateTpcKeyValidity();
 }
 
 //------------------------------------------------------------------------------
@@ -769,8 +771,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   }
 
   mMessagingRealm.reset(new mq::MessagingRealm(&ObjectManager, &ObjectNotifier,
-    &XrdMqMessaging::gMessageClient, mQSOM.get()));
-
+                        &XrdMqMessaging::gMessageClient, mQSOM.get()));
   // Setup auth dir
   {
     XrdOucString scmd = "mkdir -p ";
@@ -1865,6 +1866,33 @@ XrdFstOfs::RequestBroadcasts()
     eos::common::RWMutexReadLock rd_lock(ObjectManager.HashMutex);
     hash = ObjectManager.GetHash(Config::gConfig.FstQueueWildcard.c_str());
     hash->BroadcastRequest(Config::gConfig.FstDefaultReceiverQueue.c_str());
+  }
+}
+
+//----------------------------------------------------------------------------
+//! Update the TPC key validity value (default 120)
+//----------------------------------------------------------------------------
+void
+XrdFstOfs::UpdateTpcKeyValidity()
+{
+  const char* ptr = getenv("EOS_FST_TPC_KEY_VALIDITY_SEC");
+
+  if (ptr && strlen(ptr)) {
+    std::string str(ptr);
+
+    try {
+      int validity_sec = std::stoi(str);
+
+      if (validity_sec < 60) {
+        validity_sec = 60;
+      }
+
+      mTpcKeyValidity = std::chrono::seconds(validity_sec);
+      fprintf(stderr, "=====> Update TPC key validity to %li seconds\n",
+              mTpcKeyValidity.count());
+    } catch (...) {
+      // no change
+    }
   }
 }
 
