@@ -41,11 +41,10 @@ XrdMgmOfs::GetFusex(const char* path,
 {
   static const char* epname = "GetFusex";
   ACCESSMODE_R;
-  MAYSTALL;
+  FUNCTIONMAYSTALL("Eosxd::prot::STAT", vid, error);
   MAYREDIRECT;
-  EXEC_TIMING_BEGIN("Eosxd::ext::0-QUERY");
-  gOFS->MgmStats.Add("GetFusex", vid.uid, vid.gid, 1);
-  gOFS->MgmStats.Add("Eosxd::ext::0-QUERY", vid.uid, vid.gid, 1);
+  EXEC_TIMING_BEGIN("Eosxd::prot::STAT");
+  gOFS->MgmStats.Add("Eosxd::prot::STAT", vid.uid, vid.gid, 1);
   ProcCommand procCommand;
   std::string spath = path;
 
@@ -65,7 +64,7 @@ XrdMgmOfs::GetFusex(const char* path,
       memcpy(dup_result, result, len);
       XrdOucBuffer* buff = new XrdOucBuffer(dup_result, len);
       error.setErrInfo(len, buff);
-      EXEC_TIMING_END("Eosxd::ext::0-QUERY");
+      EXEC_TIMING_END("Eosxd::prot::STAT");
       return SFS_DATA;
     } else {
       return Emsg(epname, error, ENOMEM, "call GetFusex - out of memory", path);

@@ -172,6 +172,10 @@ public:
     return SFS_OK;
   }
 
+  virtual std::string GetCmd(const char* cgi = 0) {
+    return "proto";
+  }
+
   //----------------------------------------------------------------------------
   //! Method implementing the specific behavior of the command executed
   //----------------------------------------------------------------------------
@@ -198,6 +202,8 @@ public:
   {
     return "bla";
   }
+
+  virtual void SetError(XrdOucErrInfo* error) {};
 
 protected:
   virtual bool OpenTemporaryOutputFiles();

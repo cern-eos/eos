@@ -45,10 +45,10 @@ XrdMgmOfs::Fusex(const char* path,
 {
   static const char* epname = "Fusex";
   ACCESSMODE_W;
-  MAYSTALL;
+  FUNCTIONMAYSTALL("Eosxd::prot::SET", vid, error);
   MAYREDIRECT;
-  EXEC_TIMING_BEGIN("Eosxd::ext::0-HANDLE");
-  gOFS->MgmStats.Add("Eosxd::ext::0-HANDLE", vid.uid, vid.gid, 1);
+  EXEC_TIMING_BEGIN("Eosxd::prot::SET");
+  gOFS->MgmStats.Add("Eosxd::prot::SET", vid.uid, vid.gid, 1);
   eos_static_debug("protobuf-len=%d", protobuf.length());
   eos::fusex::md md;
 
@@ -74,6 +74,6 @@ XrdMgmOfs::Fusex(const char* path,
   XrdOucString response = "Fusex:";
   response += b64response.c_str();
   error.setErrInfo(response.length(), response.c_str());
-  EXEC_TIMING_END("Eosxd::ext::0-HANDLE");
+  EXEC_TIMING_END("Eosxd::prot::SET");
   return SFS_DATA;
 }

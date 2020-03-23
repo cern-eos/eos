@@ -39,8 +39,12 @@ EOSMGMNAMESPACE_BEGIN
 int
 ProcCommand::FuseX()
 {
-  gOFS->MgmStats.Add("Eosxd::ext::0-STREAM", pVid->uid, pVid->gid, 1);
-  EXEC_TIMING_BEGIN("Eosxd::ext::0-STREAM");
+  ACCESSMODE_R;
+  FUNCTIONMAYSTALL("Eosxd::prot::LS", *pVid, *mError);
+  { FUNCTIONMAYSTALL("Eosxd::ext::LS", *pVid, *mError);}
+  { FUNCTIONMAYSTALL("Eosxd::ext::LS-Entry", *pVid, *mError);}
+  gOFS->MgmStats.Add("Eosxd::prot::LS", pVid->uid, pVid->gid, 1);
+  EXEC_TIMING_BEGIN("Eosxd::prot::LS");
   // -------------------------------------------------------------------------------------------------------
   // This function returns meta data by inode or if provided first translates a path into an inode.
   // The client can provide the meta-data clock. If it is equivalent to the stored clock, this function
@@ -283,7 +287,7 @@ ProcCommand::FuseX()
     eos_debug("result-dump=%s",
               eos::common::StringConversion::string_to_hex(result).c_str());
 
-  EXEC_TIMING_END("Eosxd::ext::0-STREAM");
+  EXEC_TIMING_END("Eosxd::prot::LS");
 
 
   return SFS_OK;

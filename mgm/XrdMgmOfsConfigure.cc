@@ -2066,9 +2066,9 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("DropStripe", 0, 0, 0);
   MgmStats.Add("Exists", 0, 0, 0);
   MgmStats.Add("Exists", 0, 0, 0);
-  MgmStats.Add("Eosxd::ext::0-HANDLE", 0, 0, 0);
-  MgmStats.Add("Eosxd::ext::0-STREAM", 0, 0, 0);
-  MgmStats.Add("Eosxd::ext::0-QUERY", 0, 0, 0);
+  MgmStats.Add("Eosxd::prot::SET", 0, 0, 0);
+  MgmStats.Add("Eosxd::prot::LS", 0, 0, 0);
+  MgmStats.Add("Eosxd::prot::STAT", 0, 0, 0);
   MgmStats.Add("Eosxd::ext::GET", 0, 0, 0);
   MgmStats.Add("Eosxd::ext::SET", 0, 0, 0);
   MgmStats.Add("Eosxd::ext::LS", 0, 0, 0);

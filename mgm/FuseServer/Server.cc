@@ -75,10 +75,10 @@ Server::Server()
 {
   SetLogId(logId, "fxserver");
   c_max_children = getenv("EOS_MGM_FUSEX_MAX_CHILDREN") ? strtoull(
-                     getenv("EOS_MGM_FUSEX_MAX_CHILDREN"), 0, 10) : 32768;
+                     getenv("EOS_MGM_FUSEX_MAX_CHILDREN"), 0, 10) : 134217728;
 
   if (!c_max_children) {
-    c_max_children = 32768;
+    c_max_children = 134217728;
   }
 }
 
@@ -390,9 +390,12 @@ Server::FillContainerMD(uint64_t id, eos::fusex::md& dir,
 
     if (dir.operation() == dir.LS) {
       // we put a hard-coded listing limit for service protection
-      if ((uint64_t)dir.nchildren() > c_max_children) {
-        // xrootd does not handle E2BIG ... sigh
-        return ENAMETOOLONG;
+      if (vid.app != "fuse::restic") {
+	// no restrictions for restic backups
+	if ((uint64_t)dir.nchildren() > c_max_children) {
+	  // xrootd does not handle E2BIG ... sigh
+	  return ENAMETOOLONG;
+	}
       }
 
       for (auto it = eos::FileMapIterator(cmd); it.valid(); it.next()) {

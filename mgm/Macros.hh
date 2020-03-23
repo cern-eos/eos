@@ -98,6 +98,25 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
     }                                                                   \
   }
 
+#define FUNCTIONMAYSTALL(FUNCTION, VID, ERROR) eos::mgm::InFlightRegistration tracker_helper(gOFS->mTracker); \
+  if (gOFS->IsStall) {                                                  \
+    XrdOucString stallmsg="";                                           \
+    int stalltime=0;                                                    \
+    if (gOFS->ShouldStall((FUNCTION),__AccessMode__, (VID), stalltime, stallmsg)) { \
+      if (stalltime) {                                                  \
+        return gOFS->Stall((ERROR),stalltime, stallmsg.c_str());	\
+      } else {                                                          \
+        return gOFS->Emsg("maystall", (ERROR), EPERM, stallmsg.c_str(), ""); \
+      }                                                                 \
+    } else {                                                            \
+      if (!tracker_helper.IsOK()) {                                     \
+        stallmsg="track request, stall the client 5 seconds";           \
+        stalltime = 5;                                                  \
+        return gOFS->Stall((ERROR),stalltime, stallmsg.c_str());	\
+      }                                                                 \
+    }                                                                   \
+  }
+
 
 //------------------------------------------------------------------------------
 //! Redirect Macro

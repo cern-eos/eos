@@ -544,12 +544,19 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       mProcCmd = ProcInterface::GetProcCommand(tident, vid, path, ininfo, logId);
 
       if (mProcCmd) {
+	eos_static_info("proccmd=%s", mProcCmd->GetCmd(ininfo).c_str());
+
         mProcCmd->SetLogId(logId, vid, tident);
+	mProcCmd->SetError(&error);
         rcode = mProcCmd->open(path, ininfo, vid, &error);
+
 
         // If we need to stall the client then save the IProcCommand object and
         // add it to the map for when the client comes back.
         if (rcode > 0) {
+	  if (mProcCmd->GetCmd(ininfo)!= "proto") {
+	    return rcode;
+	  }
           if (!ProcInterface::SaveSubmittedCmd(tident, std::move(mProcCmd))) {
             eos_err("failed to save submitted command object");
             return Emsg(epname, error, EINVAL, "save sumitted command object "

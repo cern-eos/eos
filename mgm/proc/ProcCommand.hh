@@ -24,6 +24,7 @@
 #pragma once
 #include "mgm/Namespace.hh"
 #include "IProcCommand.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include <iomanip>
 #include <json/json.h>
 
@@ -304,6 +305,21 @@ public:
   //! table format
   //----------------------------------------------------------------------------
   bool KeyValToHttpTable(XrdOucString& stdOut);
+
+  //----------------------------------------------------------------------------
+  //! Return the name of the command
+  //----------------------------------------------------------------------------
+
+  std::string GetCmd(const char* cgi) {
+    if (cgi) {
+      XrdOucEnv env(cgi);
+      return env.Get("mgm.cmd")?env.Get("mgm.cmd") : "none";
+    }
+  }
+
+  void SetError(XrdOucErrInfo* error) {
+    mError = error;
+  };
 
 protected:
   eos::common::VirtualIdentity* pVid; ///< Pointer to virtual identity
