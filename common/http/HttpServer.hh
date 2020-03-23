@@ -53,7 +53,7 @@ protected:
 #endif
   int                mPort;     //!< The port this server listens on
   AssistedThread     mThreadId; //!< This thread's ID
-  bool               mRunning;  //!< Is this server running?
+  std::atomic<bool>  mRunning;  //!< Is this server running?
   static HttpServer* gHttp;     //!< This is the instance of the HTTP server
   //!< allowing the Handler function to call
   //!< class member functions

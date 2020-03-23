@@ -849,7 +849,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
 
   mHttpd.reset(new eos::fst::HttpServer(mHttpdPort));
 
-  if (mHttpdPort) {
+  if (mHttpdPort && mHttpd) {
     mHttpd->Start();
   }
 
