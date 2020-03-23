@@ -1759,6 +1759,10 @@ public:
   //----------------------------------------------------------------------------
   static std::string prepareOptsToString(const int opts);
 
+  uint64_t getFuseBookingSize() {
+    return mFusePlacementBooking;
+  }
+
 private:
   //! XrdOucBuffPool object for managing redirection buffers >= 2kb
   XrdOucBuffPool mRdrBuffPool;
@@ -1781,6 +1785,8 @@ private:
   //! Map for delegated/undelegated TPC redirection info
   std::map<bool, std::pair<std::string, int>> mTpcRdrInfo;
   static thread_local eos::common::LogId tlLogId;
+
+  uint64_t mFusePlacementBooking; ///< space/quota which is requested when placing a file via FUSE(x)
 
   //----------------------------------------------------------------------------
   //! Check that the auth ProtocolBuffer request has not been tampered with

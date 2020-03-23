@@ -313,6 +313,12 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
     mGRPCPort = strtol(getenv("EOS_MGM_GRPC_PORT"), 0, 10);
   }
 
+  if (getenv("EOS_MGM_FUSE_BOOKING_SIZE")) {
+    mFusePlacementBooking = strtol(getenv("EOS_MGM_FUSE_BOOKING_SIZE"), 0, 10);
+  } else {
+    mFusePlacementBooking = 5 * 1024 * 1024 * 1024ll;
+  }
+
   eos::common::LogId::SetSingleShotLogId();
   mZmqContext = new zmq::context_t(1);
   IoStats.reset(new eos::mgm::Iostat());

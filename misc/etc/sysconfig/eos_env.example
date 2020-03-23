@@ -287,3 +287,11 @@ EOS_TTY_BROACAST_EGREP="\"CRIT|ALERT|EMERG|PROGRESS\""
 
 # uncomment to allow a multi-threaded boot process using maximum number of cores available
 # EOS_NS_BOOT_PARALLEL
+
+
+# ------------------------------------------------------------------
+# MGM FUSE configuration
+# ------------------------------------------------------------------
+
+# uncomment to change the minimum needed size available to create a new file
+# EOS_MGM_FUSE_BOOKING_SIZE = 5368709120
