@@ -309,15 +309,18 @@ public:
   //----------------------------------------------------------------------------
   //! Return the name of the command
   //----------------------------------------------------------------------------
-
-  std::string GetCmd(const char* cgi) {
+  std::string GetCmd(const char* cgi)
+  {
     if (cgi) {
       XrdOucEnv env(cgi);
-      return env.Get("mgm.cmd")?env.Get("mgm.cmd") : "none";
+      return env.Get("mgm.cmd") ? env.Get("mgm.cmd") : "none";
     }
+
+    return "none";
   }
 
-  void SetError(XrdOucErrInfo* error) {
+  void SetError(XrdOucErrInfo* error)
+  {
     mError = error;
   };
 
