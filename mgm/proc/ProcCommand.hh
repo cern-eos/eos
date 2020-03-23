@@ -309,7 +309,7 @@ public:
   //----------------------------------------------------------------------------
   //! Return the name of the command
   //----------------------------------------------------------------------------
-  std::string GetCmd(const char* cgi)
+  std::string GetCmd(const char* cgi) override
   {
     if (cgi) {
       XrdOucEnv env(cgi);
@@ -319,10 +319,10 @@ public:
     return "none";
   }
 
-  void SetError(XrdOucErrInfo* error)
+  void SetError(XrdOucErrInfo* error) override
   {
     mError = error;
-  };
+  }
 
 protected:
   eos::common::VirtualIdentity* pVid; ///< Pointer to virtual identity
