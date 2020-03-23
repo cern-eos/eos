@@ -16,6 +16,28 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.7.4 Citrine``
+===================
+
+2020-03-23
+
+Bug
+----
+
+* [EOS-4013] - EOSBACKUP "FST still misses the required capability key"
+* [EOS-4046] - sync client re-downloading files
+
+New Feature
+------------
+
+* [EOS-4057] - Allow fine-graned stall rules for eosxd access and restic bypass
+
+Improvement
+------------
+
+* [EOS-4056] - Make the TPC key validity configurable
+
+
 ``v4.7.3 Citrine``
 ===================
 
