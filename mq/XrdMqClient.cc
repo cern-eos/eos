@@ -299,47 +299,44 @@ XrdMqMessage*
 XrdMqClient::RecvMessage(ThreadAssistant* assistant)
 {
   std::shared_ptr<XrdCl::File> recv_channel;
-  {
-    eos::common::RWMutexReadLock rd_lock(mMutexMap);
+  eos::common::RWMutexReadLock rd_lock(mMutexMap);
 
-    if (mMapBrokerToChannels.size() != 1) {
-      eos_static_err("msg=\"no support for multi-broker setup or no broker "
-                     "registered\" map_size=%i", mMapBrokerToChannels.size());
-      return nullptr;
-    }
-
-    // Single broker case - check if there is still a buffered message
-    XrdMqMessage* message;
-    message = RecvFromInternalBuffer();
-
-    if (message) {
-      return message;
-    }
-
-    if (!mMapBrokerToChannels.empty()) {
-      recv_channel = mMapBrokerToChannels.begin()->second.first;
-    } else {
-      eos_static_err("%s", "msg=\"no broker registered\"");
-      return nullptr;
-    }
+  if (mMapBrokerToChannels.size() != 1) {
+    eos_static_err("msg=\"no support for multi-broker setup or no broker "
+                   "registered\" map_size=%i", mMapBrokerToChannels.size());
+    return nullptr;
   }
+
+  // Single broker case - check if there is still a buffered message
+  XrdMqMessage* message;
+  message = RecvFromInternalBuffer();
+
+  if (message) {
+    return message;
+  }
+
+  if (mMapBrokerToChannels.empty()) {
+    eos_static_err("%s", "msg=\"no broker registered\"");
+    return nullptr;
+  }
+
   uint16_t timeout = (getenv("EOS_FST_OP_TIMEOUT") ?
                       atoi(getenv("EOS_FST_OP_TIMEOUT")) : 0);
   XrdCl::StatInfo* stinfo = nullptr;
+  recv_channel = mMapBrokerToChannels.begin()->second.first;
 
   while (!recv_channel->Stat(true, stinfo, timeout).IsOK()) {
     // Any error on stat requires a refresh of the broker endpoints
+    rd_lock.Release();
     RefreshBrokersEndpoints();
-    {
-      eos::common::RWMutexReadLock rd_lock(mMutexMap);
+    rd_lock.Grab(mMutexMap);
 
-      if (!mMapBrokerToChannels.empty()) {
-        recv_channel = mMapBrokerToChannels.begin()->second.first;
-      } else {
-        eos_static_err("%s", "msg=\"no broker registered\"");
-        return nullptr;
-      }
+    if (mMapBrokerToChannels.empty()) {
+      eos_static_err("%s", "msg=\"no broker registered\"");
+      return nullptr;
     }
+
+    recv_channel = mMapBrokerToChannels.begin()->second.first;
 
     if (assistant) {
       assistant->wait_for(std::chrono::seconds(2));

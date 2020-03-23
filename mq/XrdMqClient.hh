@@ -229,7 +229,7 @@ private:
     //! Handle response method. See XrdClFile.hh class for signature.
     //--------------------------------------------------------------------------
     virtual void HandleResponse(XrdCl::XRootDStatus* status,
-                                XrdCl::AnyObject* response)
+                                XrdCl::AnyObject* response) override
     {
       XrdSysMutexHelper vLock(Lock);
 
