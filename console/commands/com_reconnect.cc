@@ -23,7 +23,6 @@
 
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
-#include "XrdClient/XrdClientConn.hh"
 #include "common/StringTokenizer.hh"
 /*----------------------------------------------------------------------------*/
 
@@ -53,7 +52,6 @@ com_reconnect(char* arg1)
 
     XrdOucString path = serveruri;
     path += "//proc/admin/";
-
     /* - NOT SUPPORTED IN THE NEW CLIENT
     XrdClientAdmin admin(path.c_str());
     admin.Connect();
@@ -61,7 +59,6 @@ com_reconnect(char* arg1)
       admin.GetClientConn()->Disconnect(true);
     }
      */
-
     return (0);
   } else {
     fprintf(stdout,
