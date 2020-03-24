@@ -305,11 +305,9 @@ cd build
       mkdir ./cmake_install/
       ../misc/slc6/cmake-3.15.5-Linux-x86_64.sh --prefix=./cmake_install/ --skip-license
       %define cmake ./cmake_install/bin/cmake
-    %endif
-    %if 0%{distribution} == 8
-      env QA_RPATHS=3 %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=%{build_type} -DXROOTD_ROOT_DIR=/opt/eos/xrootd/ %{build_flags}
+      %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=%{build_type} %{build_flags}
     %else
-      scl enable %{devtoolset} "env QA_RPATHS=3 %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=%{build_type} -DXROOTD_ROOT_DIR=/opt/eos/xrootd/ %{build_flags}"
+     %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=%{build_type} -DXROOTD_ROOT_DIR=/opt/eos/xrootd/ %{build_flags}
     %endif
   %else
     %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=%{build_type} %{build_flags}
