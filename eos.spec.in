@@ -300,7 +300,10 @@ mkdir -p build
 cd build
 
 %if "%{?compiler}" == "gcc"
-  source /opt/rh/%{devtoolset}/enable
+
+  %if 0%{distribution} == 6 || 0%{distribution} == 7
+    source /opt/rh/%{devtoolset}/enable
+  %endif
 
   %if 0%{distribution} == 6 || 0%{distribution} == 7 || 0%{distribution} == 8
     %if 0%{distribution} == 6
