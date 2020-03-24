@@ -298,7 +298,10 @@ The EOS software package.
 test -e $RPM_BUILD_ROOT && rm -r $RPM_BUILD_ROOT
 mkdir -p build
 cd build
+
 %if "%{?compiler}" == "gcc"
+  source /opt/rh/devtoolset-8/enable
+
   %if 0%{distribution} == 6 || 0%{distribution} == 7 || 0%{distribution} == 8
     %if 0%{distribution} == 6
       echo "Install custom cmake 3.15.5 required by EOS"
