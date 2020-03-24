@@ -381,6 +381,9 @@ public:
     void ioflush(ThreadAssistant&
                  assistant); // thread for delayed asynchronous close
 
+    bool waitflush(uint64_t seconds);
+    void join() { tIOFlush.join(); }
+
   private:
     AssistedThread tIOFlush;
   };
@@ -390,6 +393,7 @@ public:
   virtual ~data();
 
   void init();
+  void terminate(uint64_t seconds);
 
   shared_data get(fuse_req_t req,
                   fuse_ino_t ino,

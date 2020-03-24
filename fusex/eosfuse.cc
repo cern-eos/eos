@@ -577,6 +577,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         root["options"]["flush-wait-open"] = 1;
       }
 
+      if (!root["options"].isMember("flush-wait-umount")) {
+        root["options"]["flush-wait-umount"] = 120;
+      }
+
       if (!root["options"].isMember("show-tree-size")) {
         root["options"]["show-tree-size"] = 0;
       }
@@ -809,6 +813,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       config.options.rmdir_is_sync = root["options"]["rmdir-is-sync"].asInt();
       config.options.global_flush = root["options"]["global-flush"].asInt();
       config.options.flush_wait_open = root["options"]["flush-wait-open"].asInt();
+      config.options.flush_wait_umount = root["options"]["flush-wait-umount"].asInt();
       config.options.global_locking = root["options"]["global-locking"].asInt();
       config.options.overlay_mode = strtol(
                                       root["options"]["overlay-mode"].asString().c_str(), 0, 8);
@@ -1568,7 +1573,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         eos_static_warning("sss-keytabfile         := %s", config.ssskeytab.c_str());
       }
 
-      eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d core-affinity:%d no-xattr:%d no-link:%d nocache-graceperiod:%d rm-rf-protect-level=%d rm-rf-bulk=%d t(lease)=%d t(size-flush)=%d submounts=%d ino(in-mem)=%d flock:%d",
+      eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d flush-w-umount:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d core-affinity:%d no-xattr:%d no-link:%d nocache-graceperiod:%d rm-rf-protect-level=%d rm-rf-bulk=%d t(lease)=%d t(size-flush)=%d submounts=%d ino(in-mem)=%d flock:%d",
                          config.options.enable_backtrace,
                          config.options.md_kernelcache,
                          config.options.md_kernelcache_enoent_timeout,
@@ -1579,6 +1584,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
                          config.options.rmdir_is_sync,
                          config.options.global_flush,
                          config.options.flush_wait_open,
+                         config.options.flush_wait_umount,
                          config.options.global_locking,
                          no_fsync_list.c_str(),
                          config.options.overlay_mode,
@@ -1674,6 +1680,11 @@ EosFuse::run(int argc, char* argv[], void* userdata)
           }
         }
       }
+
+      if (config.options.flush_wait_umount) {
+	datas.terminate(config.options.flush_wait_umount);
+      }
+
 
       eos_static_warning("eosxd stopped version %s - FUSE protocol version %d",
                          VERSION, FUSE_USE_VERSION);

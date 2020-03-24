@@ -40,6 +40,7 @@ This
     "rmdir-is-sync" : 0,
     "global-flush" : 0,
     "flush-wait-open" : 1, // 1 = flush waits for open when updating - 2 = flush waits for open when creating - 0 flush never waits
+    "flush-wait-umount" : 120, // seconds to wait for write-back data to be flushed out before terminating the mount - only used if not automounted
     "global-locking" : 1,
     "fd-limit" : 524288,
     "no-fsync" : [ ".db", ".db-journal", ".sqlite", ".sqlite-journal", ".db3", ".db3-journal", "*.o" ],

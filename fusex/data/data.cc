@@ -70,6 +70,18 @@ data::init()
 }
 
 /* -------------------------------------------------------------------------- */
+void
+/* -------------------------------------------------------------------------- */
+data::terminate(uint64_t seconds)
+/* -------------------------------------------------------------------------- */
+{
+  if (datamap.waitflush(seconds)) {
+    datamap.join();
+  }
+}
+
+
+/* -------------------------------------------------------------------------- */
 data::shared_data
 /* -------------------------------------------------------------------------- */
 data::get(fuse_req_t req,
@@ -2697,6 +2709,33 @@ data::datax::dump_recovery_stack()
   }
 }
 
+
+
+/* -------------------------------------------------------------------------- */
+bool
+/* -------------------------------------------------------------------------- */
+data::dmap::waitflush(uint64_t seconds)
+{
+  // wait that all pending data is flushed for 'seconds'
+  // if all is flushed, it returns true, otherwise false
+
+  for (uint64_t i=0; i< seconds; ++i) {
+    size_t nattached=0;
+    {
+      XrdSysMutexHelper mLock(this);
+      nattached = this->size();
+    }
+    if (nattached) {
+      eos_static_warning("[ waiting data to be flushed for %03d io objects] [ %d of %d seconds ]", nattached, i, seconds);
+      std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    } else {
+      eos_static_warning("[ all data flushed ]");
+      return true;
+    }
+  }
+  eos_static_warning("[ data flush timed out after %d seconds ]", seconds);
+  return false;
+}
 
 /* -------------------------------------------------------------------------- */
 void
