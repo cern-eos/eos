@@ -16,6 +16,17 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.7.5 Citrine``
+===================
+
+2020-03-23
+
+Bug
+----
+
+* This only fixes a Koji build issue otherwise it's identical to 4.7.4
+
+
 ``v4.7.4 Citrine``
 ===================
 
