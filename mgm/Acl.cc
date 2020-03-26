@@ -64,7 +64,10 @@ Acl::Acl(const char* path, XrdOucErrInfo& error,
          eos::IContainerMD::XAttrMap& attrmap, bool lockNs)
 {
   if (path && strlen(path)) {
-    gOFS->_attr_ls(path, error, vid, 0, attrmap, lockNs);
+    int rc = gOFS->_attr_ls(path, error, vid, 0, attrmap, lockNs);
+    if (rc) {
+      eos_static_info("attr-ls failed: path=%s errno=%d", path, errno);
+    }
   }
 
   // Set the acl rules from the attributes
