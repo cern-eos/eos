@@ -46,7 +46,7 @@ public:
    */
   HttpServer(int port = 8001) :
     eos::common::HttpServer::HttpServer(port)
-  {};
+  {}
 
   /**
    * Destructor

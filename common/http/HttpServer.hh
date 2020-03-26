@@ -50,13 +50,6 @@ public:
   //!<class member functions
   static HttpServer* gHttp;
 
-  static std::string to_string(unsigned long long num)
-  {
-    char sout[128];
-    sprintf(sout, "%llu", num);
-    return sout;
-  }
-
   /**
    * Constructor
    */
