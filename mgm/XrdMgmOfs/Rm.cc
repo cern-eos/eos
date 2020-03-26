@@ -153,28 +153,6 @@ XrdMgmOfs::_rem(const char* path,
     owner_gid = fmd->getCGid();
     fid = fmd->getId();
 
-    if (fmd->hasAttribute("sys.eos.mdino") || fmd->hasAttribute("sys.eos.nlink")) {
-      eos_static_info("hlnk rm target fid %#lx", fid);
-      bool ok = true;
-
-      if (fmd->hasAttribute("sys.eos.nlink")) {
-        long nlink = std::stol(fmd->getAttribute("sys.eos.nlink"));
-        eos_static_info("hlnk rm target nlink %ld", nlink);
-        ok = (nlink == 0) && (strncmp(fmd->getName().c_str(), "...eos.ino...", 13));
-
-        if (!vid.uid) { // allow root to delete whatever is needed
-          ok = true;
-        }
-      }
-
-      if (!ok) {
-        gOFS->eosViewRWMutex.UnLockWrite();
-        errno = EXDEV;
-        return Emsg(epname, error, errno,
-                    "remove file with hard links only through fusex", path);
-      }
-    }
-
     try {
       container = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
       aclpath = gOFS->eosView->getUri(container.get());
@@ -257,15 +235,16 @@ XrdMgmOfs::_rem(const char* path,
       // -----------------------------------------------------------------------
       XrdOucString sPath = path;
 
-      if (!(no_recycling) && 
-	  (gOFS->enforceRecycleBin || attrmap.count(Recycle::gRecyclingAttribute)) && (!sPath.beginswith(Recycle::gRecyclingPrefix.c_str()))) {
+      if (!(no_recycling) &&
+          (gOFS->enforceRecycleBin || attrmap.count(Recycle::gRecyclingAttribute)) &&
+          (!sPath.beginswith(Recycle::gRecyclingPrefix.c_str()))) {
         // ---------------------------------------------------------------------
         // this is two-step deletion via a recyle bin
         // ---------------------------------------------------------------------
-	if (gOFS->enforceRecycleBin) {
-	  // add the recycle attribute to enable recycling funcionality
-	  attrmap[Recycle::gRecyclingAttribute] = Recycle::gRecyclingPrefix;
-	}
+        if (gOFS->enforceRecycleBin) {
+          // add the recycle attribute to enable recycling funcionality
+          attrmap[Recycle::gRecyclingAttribute] = Recycle::gRecyclingPrefix;
+        }
         doRecycle = true;
       } else {
         // ---------------------------------------------------------------------
@@ -283,7 +262,7 @@ XrdMgmOfs::_rem(const char* path,
         }
       }
     }
-  } else {
+  } else {      /* file does not exist */
     gOFS->eosViewRWMutex.UnLockWrite();
     errno = ENOENT;
     return Emsg(epname, error, errno, "remove", path);
@@ -291,11 +270,7 @@ XrdMgmOfs::_rem(const char* path,
 
   if (!doRecycle) {
     try {
-      uint64_t cloneId;
-      if (!simulate && fmd->getCloneFST().empty() && (cloneId = fmd->getCloneId()) != 0) {
-        eos_info("Creating cow clone (delete) for %s fxid:%lx cloneId %lld", path, fmd->getId(), cloneId);
-        errno = XrdMgmOfsFile::create_cow(true, cloneId, container, fmd, vid, error);
-      }
+
       if (!simulate) {
         eos_info("unlinking from view %s", path);
         Workflow workflow;
@@ -319,32 +294,37 @@ XrdMgmOfs::_rem(const char* path,
           throw e;
         }
 
-        gOFS->eosView->unlinkFile(path);
-        // Reload file object that was modifed in the unlinkFile method
-        // TODO: this can be dropped if you use the unlinkFile which takes
-        // as argument the IFileMD object
-        fmd = gOFS->eosFileService->getFileMD(fmd->getId());
+        /* create a Copy-on-Write clone if needed */
+        errno = XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, container, fmd, vid, error);
 
-        // Drop the TAPE_FS_ID which otherwise would prevent the
-        // file metadata cleanup
-        if (fmd->hasUnlinkedLocation(eos::common::TAPE_FS_ID)) {
-          fmd->removeLocation(eos::common::TAPE_FS_ID);
-        }
+        if (!XrdMgmOfsFile::handleHardlinkDelete(container, fmd, vid)) {
+            gOFS->eosView->unlinkFile(path);
+            // Reload file object that was modifed in the unlinkFile method
+            // TODO: this can be dropped if you use the unlinkFile which takes
+            // as argument the IFileMD object
+            fmd = gOFS->eosFileService->getFileMD(fmd->getId());
 
-        if ((!fmd->getNumUnlinkedLocation()) && (!fmd->getNumLocation())) {
-          gOFS->eosView->removeFile(fmd.get());
-        }
+            // Drop the TAPE_FS_ID which otherwise would prevent the
+            // file metadata cleanup
+            if (fmd->hasUnlinkedLocation(eos::common::TAPE_FS_ID)) {
+              fmd->removeLocation(eos::common::TAPE_FS_ID);
+            }
 
-        gOFS->WriteRmRecord(fmd);
+            if ((!fmd->getNumUnlinkedLocation()) && (!fmd->getNumLocation())) {
+              gOFS->eosView->removeFile(fmd.get());
+            }
 
-        if (container) {
-          container->setMTimeNow();
-          container->notifyMTimeChange(gOFS->eosDirectoryService);
-          eosView->updateContainerStore(container.get());
-          gOFS->FuseXCastContainer(container->getIdentifier());
-          gOFS->FuseXCastDeletion(container->getIdentifier(), fmd->getName());
-          gOFS->FuseXCastRefresh(container->getIdentifier(),
-                                 container->getParentIdentifier());
+            gOFS->WriteRmRecord(fmd);
+
+            if (container) {
+              container->setMTimeNow();
+              container->notifyMTimeChange(gOFS->eosDirectoryService);
+              eosView->updateContainerStore(container.get());
+              gOFS->FuseXCastContainer(container->getIdentifier());
+              gOFS->FuseXCastDeletion(container->getIdentifier(), fmd->getName());
+              gOFS->FuseXCastRefresh(container->getIdentifier(),
+                                     container->getParentIdentifier());
+            }
         }
       }
 
@@ -383,6 +363,11 @@ XrdMgmOfs::_rem(const char* path,
         if ((rc = lRecycle.ToGarbage(epname, error, fusexcast))) {
           return rc;
         } else {
+          if (container) {
+              if (XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowUnlink, container, fmd, vid, error) > -1)
+                  eos_info("create_cow for recycled %s (fxid:%lx)", fmd->getName().c_str(), fmd->getId());
+          }
+          
           recyclePath = error.getErrText();
           gOFS->WriteRecycleRecord(fmd);
         }

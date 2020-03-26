@@ -86,10 +86,26 @@ public:
   //----------------------------------------------------------------------------
   virtual ~XrdMgmOfsFile();
 
+  
+  //----------------------------------------------------------------------------
+  // hard link attributes
+  //----------------------------------------------------------------------------
+  static constexpr char* k_mdino = (char *)"sys.eos.mdino";
+  static constexpr char* k_nlink = (char *)"sys.eos.nlink";
+
+  static int
+  handleHardlinkDelete(std::shared_ptr<eos::IContainerMD> cmd,
+        std::shared_ptr<eos::IFileMD> fmd,
+        eos::common::VirtualIdentity& vid);
+
+  //----------------------------------------------------------------------------
   //----------------------------------------------------------------------------
   // utility function: create copy-on-write clone
   //----------------------------------------------------------------------------
-  static int create_cow(bool isDelete, uint64_t cloneId,
+  static const int cowUpdate = 0;              // do copy, for file updates
+  static const int cowDelete = 1;              // do rename, for file deletes
+  static const int cowUnlink = 2;              // create hard link, when name vanishes e.g. Recycle
+  static int create_cow(int cowType,
                         std::shared_ptr<eos::IContainerMD> dmd, std::shared_ptr<eos::IFileMD> fmd,
                         eos::common::VirtualIdentity& vid, XrdOucErrInfo& error);
 

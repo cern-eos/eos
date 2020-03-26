@@ -172,11 +172,11 @@ _cloneResp(XrdOucErrInfo& out_error, XrdOucString& stdErr,
           continue;
         }
 
-        if (!gmd->hasAttribute(k_mdino)) {
+        if (!gmd->hasAttribute(XrdMgmOfsFile::k_mdino)) {
           fmd = gmd;
 
-          if (fmd->hasAttribute(
-                k_nlink)) { /* a (no-zombie) target for hard link(s), goes into the log */
+          if (fmd->hasAttribute(XrdMgmOfsFile::k_nlink)) {
+            /* a (no-zombie) target for hard link(s), goes into the log */
             hardlinkTgt = eos::common::FileId::FidToInode(fmd->getId());
           }
         } else {                                /* this is a hard link to another file */
@@ -188,7 +188,7 @@ _cloneResp(XrdOucErrInfo& out_error, XrdOucString& stdErr,
            * on restore they could be fiddled back together over the clone_path;
            * from above: we do not report the zombie targets themselves
            */
-          mdino = std::stoll(gmd->getAttribute(k_mdino));
+          mdino = std::stoll(gmd->getAttribute(XrdMgmOfsFile::k_mdino));
           fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(mdino));
           eos_static_debug("hlnk switched from %s to file %s (%#llx)",
                            gmd->getName().c_str(), fmd->getName().c_str(), mdino);
@@ -256,7 +256,8 @@ _cloneResp(XrdOucErrInfo& out_error, XrdOucString& stdErr,
       Json::Value attr;
 
       for (auto it = attrmap.begin(); it != attrmap.end(); it++) {
-        if (it->first == "sys.vtrace" || it->first == k_mdino || it->first == k_nlink) {
+        if (it->first == "sys.vtrace" ||
+            it->first == XrdMgmOfsFile::k_mdino || it->first == XrdMgmOfsFile::k_nlink) {
           continue;
         }
 
@@ -341,6 +342,7 @@ _clone(std::shared_ptr<eos::IContainerMD>& cmd,
   std::string link;
   eos::IContainerMD::tmtime_t stime;
   eos::common::RWMutexWriteLock rwlock;
+  eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
 
   /* Only at depth 0: find/create clone anchor directory for operations that require it */
   if (cloneMd == NULL && cFlag != '?' && cFlag != '>') {
@@ -360,7 +362,7 @@ _clone(std::shared_ptr<eos::IContainerMD>& cmd,
       try {
         cmd = gOFS->eosView->getContainer(
                 rootDir);             /* this only happens @ depth 0! */
-        eos_static_info("clone %ld purge switch to hint %s", cloneId, rootDir.c_str());
+        eos_static_info("clone %ld purge hint %s", cloneId, rootDir.c_str());
       } catch (eos::MDException& e) {
         eos_static_info("clone %ld root hint %s ignored ec=%d emsg='%s'",
                         cloneId, rootDir.c_str(), e.getErrno(), e.getMessage().str().c_str());
@@ -436,8 +438,6 @@ _clone(std::shared_ptr<eos::IContainerMD>& cmd,
 
     if (fmd->isLink()) {
       link = fmd->getLink();
-      //found[cPath].insert(fname+" -> "+link);
-      //???
     }
 
     fmd->getSyncTime(stime);
@@ -473,7 +473,6 @@ _clone(std::shared_ptr<eos::IContainerMD>& cmd,
         gOFS->eosViewRWMutex.UnLockWrite();
 
         if (hex_fid != "") {
-          eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
           eos::common::FileId::fileid_t clFid = eos::common::FileId::Hex2Fid(
                                                   hex_fid.c_str());
 
@@ -575,7 +574,8 @@ _clone(std::shared_ptr<eos::IContainerMD>& cmd,
 
         for (auto it = files2remove.begin(); it != files2remove.end(); it++) {
           try {
-            gOFS->eosView->unlinkFile(*it);
+            gOFS->_rem((*it).c_str(), out_error, rootvid, "",
+                       false, true, true, true);
           } catch (eos::MDException& e) {
             eos_static_err("exception ec=%d emsg=\"%s\" cid %#lx uri %s\n", e.getErrno(),
                            e.getMessage().str().c_str(), dit.value(), (*it).c_str());

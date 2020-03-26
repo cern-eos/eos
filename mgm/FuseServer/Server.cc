@@ -58,8 +58,8 @@ EOSFUSESERVERNAMESPACE_BEGIN
 #define U_OK 128   // can update
 #define SU_OK 256  // set utime
 
-const char* k_mdino = "sys.eos.mdino";
-const char* k_nlink = "sys.eos.nlink";
+#define k_mdino  XrdMgmOfsFile::k_mdino
+#define k_nlink  XrdMgmOfsFile::k_nlink
 
 
 USE_EOSFUSESERVERNAMESPACE
@@ -1750,20 +1750,20 @@ Server::OpSetFile(const std::string& id,
       if (fmd->getContainerId() != md.md_pino()) {
         // this indicates a file move
         op = MOVE;
-	bool hasVersion = false;
+        bool hasVersion = false;
 
         if (EOS_LOGS_DEBUG) {
           eos_debug("moving %lx => %lx", fmd->getContainerId(), md.md_pino());
         }
 
-	eos::common::Path oPath(gOFS->eosView->getUri(fmd.get()).c_str());
-	
-	std::string vdir = EOS_COMMON_PATH_VERSION_FILE_PREFIX;
-	vdir += oPath.GetName();
+        eos::common::Path oPath(gOFS->eosView->getUri(fmd.get()).c_str());
+        
+        std::string vdir = EOS_COMMON_PATH_VERSION_FILE_PREFIX;
+        vdir += oPath.GetName();
 
-	if (pcmd->findContainer(vdir)) {
-	  hasVersion = true;
-	}
+        if (pcmd->findContainer(vdir)) {
+          hasVersion = true;
+        }
 
         cpcmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
         cpcmd->removeFile(fmd->getName());
@@ -1820,28 +1820,25 @@ Server::OpSetFile(const std::string& id,
 	      gOFS->eosViewRWMutex.LockWrite();
 	    } else {
 	      if (!created_version) {
-		  // no recycle bin, no version
-		  try {
-		    uint64_t cloneId = ofmd->getCloneId();
-		    if (cloneId != 0 and ofmd->getCloneFST().empty()) {     /* this file needs to be cloned */
-                  XrdOucErrInfo error;
-                  XrdMgmOfsFile::create_cow(true, cloneId, pcmd, ofmd, vid, error);
-		    } else {
-                      pcmd->removeFile(md.name());
-                      // unlink the existing file
-                      ofmd->setContainerId(0);
-                      ofmd->unlinkAllLocations();
-		    }
-		    eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
-		    
-		    // free previous quota
-		    if (quotanode) {
-		      quotanode->removeFile(ofmd.get());
-		    }
-		    
-		    gOFS->eosFileService->updateStore(ofmd.get());
-		  } catch (eos::MDException& e) {
-		}
+		// no recycle bin, no version
+		try {
+                    XrdOucErrInfo error;
+                    if (XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, pcmd, ofmd, vid, error) == -1) {
+                        pcmd->removeFile(md.name());
+                        // unlink the existing file
+                        ofmd->setContainerId(0);
+                        ofmd->unlinkAllLocations();
+                    }
+                    eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
+
+                    // free previous quota
+                    if (quotanode) {
+                      quotanode->removeFile(ofmd.get());
+                    }
+
+                    gOFS->eosFileService->updateStore(ofmd.get());
+                } catch (eos::MDException& e) {
+                }
 	      }
 	    }
 	  }
@@ -1849,7 +1846,7 @@ Server::OpSetFile(const std::string& id,
 
         pcmd->addFile(fmd.get());
         gOFS->eosView->updateFileStore(fmd.get());
-	    gOFS->eosView->updateContainerStore(pcmd.get());
+        gOFS->eosView->updateContainerStore(pcmd.get());
 
 	    if (hasVersion) {
 	      eos::common::Path nPath(gOFS->eosView->getUri(fmd.get()).c_str());
@@ -1936,11 +1933,8 @@ Server::OpSetFile(const std::string& id,
 	    } else {
 	      if (!created_version) {
 		    try {
-		      uint64_t cloneId = ofmd->getCloneId();
-		      if (cloneId != 0 and ofmd->getCloneFST().empty()) {     /* this file needs to be cloned */
-                    XrdOucErrInfo error;
-                    XrdMgmOfsFile::create_cow(true, cloneId, pcmd, ofmd, vid, error);
-		      } else {
+              XrdOucErrInfo error;
+              if (XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete,pcmd, ofmd, vid, error) == -1) {
                     pcmd->removeFile(md.name());
                     // unlink the existing file
                     ofmd->setContainerId(0);
@@ -2608,11 +2602,8 @@ Server::OpDeleteFile(const std::string& id,
             eos_info("hlnk unlink target %s for %s nlink %ld",
                      gmd->getName().c_str(), fmd->getName().c_str(), nlink);
 
-            uint64_t cloneId = gmd->getCloneId();
-            if (cloneId != 0 and gmd->getCloneFST().empty()) {     /* this file needs to be cloned */
-                XrdOucErrInfo error;
-                XrdMgmOfsFile::create_cow(true, cloneId, pcmd, gmd, vid, error);
-            } else {
+            XrdOucErrInfo error;
+            if (XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete,pcmd, gmd, vid, error) == -1) {
                 pcmd->removeFile(gmd->getName());
                 gmd->unlinkAllLocations();
                 gmd->setContainerId(0);
@@ -2650,7 +2641,7 @@ Server::OpDeleteFile(const std::string& id,
         gOFS->WriteRmRecord(fmd);
       } else if (doDelete) {        /* delete, but clone first */
         XrdOucErrInfo error;
-        XrdMgmOfsFile::create_cow(true, cloneId, pcmd, fmd, vid, error);
+        XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, pcmd, fmd, vid, error);
         gOFS->WriteRmRecord(fmd);
       }
 
