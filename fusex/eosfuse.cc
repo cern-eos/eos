@@ -4170,6 +4170,7 @@ EosFuse::read(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
     if ((res = io->ioctx()->peek_pread(req, buf, size, off)) == -1) {
       rc = errno ? errno : EIO;
     } else {
+      eos_static_debug("reply res=%lu", res);
       fuse_reply_buf(req, buf, res);
     }
 

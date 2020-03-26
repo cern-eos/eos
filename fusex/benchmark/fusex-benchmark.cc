@@ -31,6 +31,7 @@
 #define LOOP_17 1234
 #define LOOP_18 100
 #define LOOP_19 100
+#define LOOP_20 10
 
 int main(int argc, char* argv[])
 {
@@ -815,7 +816,7 @@ int main(int argc, char* argv[])
     fl.l_len = 100;
     fl.l_pid = 0;
 
-    for (size_t i = 0; i < LOOP_18; i++) {
+    for (size_t i = 0; i < LOOP_19; i++) {
 
       int do_shared_lock  = fcntl(fd, F_SETLKW, &fl);
       
@@ -829,6 +830,60 @@ int main(int argc, char* argv[])
     unlink("lockme");
     
     COMMONTIMING("exclusive-lock-loop", &tm);
+  }
+
+  // ------------------------------------------------------------------------ //
+  testno = 20;
+
+  if ((testno >= test_start) && (testno <= test_stop)) {
+    fprintf(stderr, ">>> test %04d\n", testno);
+
+    char buffer[1024];
+    char rbuffer[1024];
+    sprintf(buffer,"https://git.test.cern.ch");
+
+    for (size_t i = 0; i < LOOP_19; i++) {
+
+      int fd = creat("config.lock", S_IRWXU);
+      if (fd < 0) {
+	fprintf(stderr, "[test=%3d] file creation failed errno=%d\n", testno, errno);
+	exit(testno);
+      }
+      size_t nwrite = (size_t)write(fd, buffer, strlen(buffer)+1);
+      if (nwrite != (strlen(buffer)+1)) {
+	fprintf(stderr,"[test=%3d] file write failed - wrote %lu/%lu - errno=%d\n", testno, nwrite, strlen(buffer)+1, errno);
+	fprintf(stderr,"[test=%3d] iteration=%lu\n", testno, i);
+	exit(testno);
+      }
+
+      close(fd);
+
+      if (rename("config.lock","config")) {
+	fprintf(stderr,"[test=%3d] file rename failed - errno=%d\n", testno, errno);
+	fprintf(stderr,"[test=%3d] iteration=%lu\n", testno, i);
+	exit(testno);
+      }
+      fd = open("config", 0);
+      if (fd<0) {
+	fprintf(stderr,"[test=%3d] file open for read failed - errno=%d\n", testno, errno);
+	fprintf(stderr,"[test=%3d] iteration=%lu\n", testno, i);
+	exit(testno);
+      }
+      memset(rbuffer, 0, 1024);
+      size_t nread = (size_t) read(fd,rbuffer, 1024);
+      if (nread != (strlen(buffer)+1)) {
+	fprintf(stderr,"[test=%3d] file read failed - read %lu/%lu - errno=%d\n", testno, nread, strlen(buffer)+1, errno);
+	fprintf(stderr,"[test=%3d] iteration=%lu\n", testno, i);
+	exit(testno);
+      }
+      if (strncmp(buffer, rbuffer, strlen(buffer)+1)) {
+	fprintf(stderr,"[test=%3d] file read wrong contents - read %lu/%lu", testno, read, strlen(buffer)+1);
+	fprintf(stderr,"[test=%3d] iteration=%lu\n", testno, i);
+	exit(testno);
+      }
+      close(fd);
+    }
+    COMMONTIMING("version-rename-loop", &tm);
   }
 
   tm.Print();

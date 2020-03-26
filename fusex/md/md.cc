@@ -1757,12 +1757,13 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
         uint64_t local_mtime_ns = md->mtime_ns();
         md->CopyFrom(cont.md_());
 
-        if (EosFuse::Instance().datas.has(ino, true)) {
+	shared_md d_md = EosFuse::Instance().datas.retrieve_wr_md(ino);
+	if (d_md) {
           // see if this file is open for write, because in that case
           // we have to keep the local size information and modification times
-          md->set_size(local_size);
-          md->set_mtime(local_mtime);
-          md->set_mtime_ns(local_mtime_ns);
+          md->set_size(d_md->size());
+          md->set_mtime(d_md->mtime());
+          md->set_mtime_ns(d_md->mtime_ns());
         }
       } else {
         eos_static_warning("deferring MD overwrite local-ino=%016lx remote-ino=%016lx ",
@@ -1854,20 +1855,27 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
             size_t local_size = md->size();
             uint64_t local_mtime = md->mtime();
             uint64_t local_mtime_ns = md->mtime_ns();
-            md->CopyFrom(map->second);
-            md->clear_refresh();
 
-            if (EosFuse::Instance().datas.has(ino, true)) {
-              // see if this file is open for write, because in that case
-              // we have to keep the local size information and modification times
-              md->set_size(local_size);
-              md->set_mtime(local_mtime);
-              md->set_mtime_ns(local_mtime_ns);
-            }
+	    md->CopyFrom(map->second);
+	    md->clear_refresh();
 
-            md->set_nchildren(md->local_children().size());
-            // if this object was a listing type, keep that
-            md->set_type(mdtype);
+	    shared_md d_md = EosFuse::Instance().datas.retrieve_wr_md(ino);
+	    if (d_md) {
+	      // see if this file is open for write, because in that case
+	      // we have to keep the local size information and modification times
+	      md->set_size(d_md->size());
+	      md->set_mtime(d_md->mtime());
+	      md->set_mtime_ns(d_md->mtime_ns());
+	    } else {
+	      if (has_flush(ino)) {
+		md->set_size(local_size);
+		md->set_mtime(local_mtime);
+		md->set_mtime_ns(local_mtime_ns);
+	      }
+	    }
+	    md->set_nchildren(md->local_children().size());
+	    // if this object was a listing type, keep that
+	    md->set_type(mdtype);
           } else {
             // we have to overlay the listing
             std::map<std::string, uint64_t> todelete;

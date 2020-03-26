@@ -140,6 +140,21 @@ data::has(fuse_ino_t ino, bool checkwriteopen)
 }
 
 /* -------------------------------------------------------------------------- */
+metad::shared_md
+data::retrieve_wr_md(fuse_ino_t ino)
+/* -------------------------------------------------------------------------- */
+{
+  // return the shared_md  boject if this is a writer
+  XrdSysMutexHelper mLock(datamap);
+  if (datamap.count(ino)) {
+    if (datamap[ino]->flags() & (O_RDWR | O_WRONLY)) {
+      return datamap[ino]->md();
+    }
+  }
+  return nullptr;
+}
+
+/* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
 data::release(fuse_req_t req,

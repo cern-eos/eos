@@ -232,6 +232,11 @@ public:
     static std::string kInlineMaxSize;
     static std::string kInlineCompressor;
 
+
+    metad::shared_md md() {
+      return mMd;
+    }
+
     std::string fullpath()
     {
       return mMd->fullpath();
@@ -400,6 +405,7 @@ public:
                   metad::shared_md m);
 
   bool has(fuse_ino_t ino, bool checkwriteopen = false);
+  metad::shared_md retrieve_wr_md(fuse_ino_t ino);
 
   void release(fuse_req_t req,
                fuse_ino_t ino);
