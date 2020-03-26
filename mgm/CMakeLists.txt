@@ -303,7 +303,6 @@ target_link_libraries(XrdEosMgm-${PLUGIN_VERSION} PUBLIC
   EosNsCommon
   bfd
   ${GLIBC_DL_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT}
   ${CMAKE_THREAD_LIBS_INIT})
 
 install(

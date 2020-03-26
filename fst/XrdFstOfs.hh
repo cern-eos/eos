@@ -409,7 +409,8 @@ public:
   std::shared_ptr<qclient::QClient> mFsckQcl; ///< Qclient used for fsck
   bool mMqOnQdb; ///< Are we using QDB as an MQ?
   int mHttpdPort; ///< listening port of the http server
-  std::unique_ptr<HttpServer> mHttpd; ///< Embedded http server if available
+  std::unique_ptr<eos::fst::HttpServer>
+  mHttpd; ///< Embedded http server if available
   std::chrono::seconds mTpcKeyValidity {120}; ///< TPC key validity
 
 private:

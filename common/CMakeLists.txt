@@ -114,7 +114,8 @@ target_link_libraries(EosCommon PUBLIC
   EosNsQuarkdbProto-Objects
   NCURSES::NCURSES
   UUID::UUID
-  XROOTD::CL)
+  XROOTD::CL
+  ${CMAKE_THREAD_LIBS_INIT})
 
 set_target_properties(EosCommon PROPERTIES
   VERSION ${VERSION}
@@ -181,7 +182,8 @@ if (Linux)
     EosCommonServer-Objects
     XrdSsiPbEosCta-Objects
     XrdMqClient
-    qclient)
+    qclient
+    ${CMAKE_THREAD_LIBS_INIT})
 
   target_compile_definitions(EosCommonServer PUBLIC
     -DSQLITE_NO_SYNC=1)
@@ -198,7 +200,8 @@ if (Linux)
     EosCommonServer-Objects
     XrdSsiPbEosCta-Objects
     XrdMqClient-Static
-    qclient)
+    qclient
+    ${CMAKE_THREAD_LIBS_INIT})
 
   target_compile_definitions(EosCommonServer-Static PUBLIC
     -DSQLITE_NO_SYNC=1)

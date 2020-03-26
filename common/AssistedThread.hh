@@ -21,15 +21,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_ASSISTED_THREAD_H
-#define EOS_ASSISTED_THREAD_H
-
-#include <atomic>
+#pragma once
 #include <thread>
 #include <mutex>
 #include <condition_variable>
 #include <functional>
 #include <vector>
+#include <atomic>
 
 //------------------------------------------------------------------------------
 // C++ threads offer no easy way to stop a thread once it's started. Signalling
@@ -62,30 +60,35 @@ class AssistedThread;
 //------------------------------------------------------------------------------
 //! Class ThreadAssistant
 //------------------------------------------------------------------------------
-class ThreadAssistant {
+class ThreadAssistant
+{
 public:
-  void reset() {
+  void reset()
+  {
     stopFlag = false;
     terminationCallbacks.clear();
   }
 
-  void requestTermination() {
+  void requestTermination()
+  {
     std::lock_guard<std::mutex> lock(mtx);
-    if(!stopFlag) {
+
+    if (!stopFlag) {
       stopFlag = true;
       notifier.notify_all();
 
-      for(size_t i = 0; i < terminationCallbacks.size(); i++) {
+      for (size_t i = 0; i < terminationCallbacks.size(); i++) {
         terminationCallbacks[i]();
       }
     }
   }
 
-  void registerCallback(std::function<void()> callable) {
+  void registerCallback(std::function<void()> callable)
+  {
     std::lock_guard<std::mutex> lock(mtx);
     terminationCallbacks.emplace_back(std::move(callable));
 
-    if(stopFlag) {
+    if (stopFlag) {
       //------------------------------------------------------------------------
       // Careful here.. This is a race condition where thread termination has
       // already been requested, even though we're not done yet registering
@@ -97,28 +100,38 @@ public:
     }
   }
 
-  void dropCallbacks() {
+  void dropCallbacks()
+  {
     std::lock_guard<std::mutex> lock(mtx);
     terminationCallbacks.clear();
   }
 
-  bool terminationRequested() {
+  bool terminationRequested()
+  {
     return stopFlag;
   }
 
   template<typename T>
-  void wait_for(T duration) {
+  void wait_for(T duration)
+  {
     std::unique_lock<std::mutex> lock(mtx);
 
-    if(stopFlag) return;
+    if (stopFlag) {
+      return;
+    }
+
     notifier.wait_for(lock, duration);
   }
 
   template<typename T>
-  void wait_until(T duration) {
+  void wait_until(T duration)
+  {
     std::unique_lock<std::mutex> lock(mtx);
 
-    if(stopFlag) return;
+    if (stopFlag) {
+      return;
+    }
+
     notifier.wait_until(lock, duration);
   }
 
@@ -150,40 +163,45 @@ public:
   //
   // NOTE: assistant object must belong to a different thread!
   //----------------------------------------------------------------------------
-  void propagateTerminationSignal(AssistedThread &thread);
+  void propagateTerminationSignal(AssistedThread& thread);
 
 private:
+  friend class AssistedThread;
   // Private constructor - only AssistedThread can create such an object.
   ThreadAssistant(bool flag) : stopFlag(flag) {}
-  friend class AssistedThread;
 
   std::atomic<bool> stopFlag;
   std::mutex mtx;
   std::condition_variable notifier;
-
   std::vector<std::function<void()>> terminationCallbacks;
 };
 
-class AssistedThread {
+class AssistedThread
+{
 public:
   //----------------------------------------------------------------------------
   //! null constructor, no underlying thread
   //----------------------------------------------------------------------------
-  AssistedThread() : assistant(new ThreadAssistant(true)), joined(true) { }
+  AssistedThread() :
+    assistant(new ThreadAssistant(true)), joined(true)
+  {}
 
   //----------------------------------------------------------------------------
   // universal references, perfect forwarding, variadic template
   // (C++ is intensifying)
   //----------------------------------------------------------------------------
   template<typename... Args>
-  AssistedThread(Args&&... args) : assistant(new ThreadAssistant(false)), joined(false), th(std::forward<Args>(args)..., std::ref(*assistant)) {
-  }
+  AssistedThread(Args&& ... args) :
+    assistant(new ThreadAssistant(false)), joined(false),
+    th(std::forward<Args>(args)..., std::ref(*assistant))
+  {}
 
   // No assignment, no copying
   AssistedThread& operator=(const AssistedThread&) = delete;
 
   // Moving is allowed.
-  AssistedThread(AssistedThread&& other) {
+  AssistedThread(AssistedThread&& other)
+  {
     assistant = std::move(other.assistant);
     joined = other.joined;
     th = std::move(other.th);
@@ -191,51 +209,65 @@ public:
   }
 
   template<typename... Args>
-  void reset(Args&&... args) {
+  void reset(Args&& ... args)
+  {
     join();
-
     assistant.get()->reset();
     joined = false;
     th = std::thread(std::forward<Args>(args)..., std::ref(*assistant));
   }
 
-  virtual ~AssistedThread() {
+  virtual ~AssistedThread()
+  {
     join();
   }
 
-  void stop() {
-    if(joined) return;
+  void stop()
+  {
+    if (joined) {
+      return;
+    }
+
     assistant->requestTermination();
   }
 
-  void join() {
-    if(joined) return;
-    stop();
+  void join()
+  {
+    if (joined) {
+      return;
+    }
 
+    stop();
     blockUntilThreadJoins();
   }
 
   // Different meaning than join, which explicitly asks the thread to
   // terminate. Here, we simply wait until the thread exits on its own.
-  void blockUntilThreadJoins() {
-    if(joined) return;
+  void blockUntilThreadJoins()
+  {
+    if (joined) {
+      return;
+    }
 
     th.join();
     joined = true;
   }
 
-  void registerCallback(std::function<void()> callable) {
+  void registerCallback(std::function<void()> callable)
+  {
     assistant->registerCallback(std::move(callable));
   }
 
-  void dropCallbacks() {
+  void dropCallbacks()
+  {
     assistant->dropCallbacks();
   }
 
   //----------------------------------------------------------------------------
   //! Set thread name. Useful to have in GDB traces, for example.
   //----------------------------------------------------------------------------
-  void setName(const std::string &threadName) {
+  void setName(const std::string& threadName)
+  {
 #ifndef __APPLE__
     pthread_setname_np(th.native_handle(), threadName.c_str());
 #endif
@@ -247,8 +279,7 @@ private:
   std::thread th;
 };
 
-inline void ThreadAssistant::propagateTerminationSignal(AssistedThread &thread) {
+inline void ThreadAssistant::propagateTerminationSignal(AssistedThread& thread)
+{
   registerCallback(std::bind(&AssistedThread::stop, &thread));
 }
-
-#endif

@@ -568,7 +568,8 @@ XrdMqClient::RefreshBrokersEndpoints()
 
     // Close old receive channel with small timeout to avoid any hangs
     auto recv_channel = it_old->second.first;
-    (void) recv_channel->Close(1);
+    auto tmp_stat =  recv_channel->Close(1);
+    (void) tmp_stat; // make the compiler happy, we don't care about the resp
     mMapBrokerToChannels.erase(it_old);
     XrdCl::URL xrd_url(replace.second);
     auto ret = mMapBrokerToChannels.emplace

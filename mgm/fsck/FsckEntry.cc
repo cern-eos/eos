@@ -396,7 +396,7 @@ bool
 FsckEntry::RepairRainInconsistencies()
 {
   if (mReportedErr == FsckErr::UnregRepl) {
-    if (mMgmFmd.locations_size() >=
+    if (static_cast<unsigned long>(mMgmFmd.locations_size()) >=
         LayoutId::GetStripeNumber(mMgmFmd.layout_id() + 1)) {
       // If we have enough stripes - just drop it
       DropReplica(mFsidErr);
@@ -424,7 +424,7 @@ FsckEntry::RepairRainInconsistencies()
   } else  if (mReportedErr == FsckErr::DiffRepl) {
     // If "over-replicated" (this should hardly ever happen) then drop the excess
     // stripes and trigger a check (drain) with first stripe as source
-    while (mMgmFmd.locations_size() >
+    while (static_cast<unsigned long>(mMgmFmd.locations_size()) >
            LayoutId::GetStripeNumber(mMgmFmd.layout_id() + 1)) {
       eos::common::FileSystem::fsid_t drop_fsid = *mMgmFmd.locations().rbegin();
       mMgmFmd.mutable_locations()->RemoveLast();

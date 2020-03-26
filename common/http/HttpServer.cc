@@ -40,17 +40,15 @@ EOSCOMMONNAMESPACE_BEGIN
 #define MHD_USE_EPOLL_LINUX_ONLY 512
 #endif
 
-HttpServer* HttpServer::gHttp; //!< Global HTTP server
+HttpServer* HttpServer::gHttp {nullptr}; //!< Global HTTP server
 
-/*----------------------------------------------------------------------------*/
-HttpServer::HttpServer(int port)
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+HttpServer::HttpServer(int port):
+  mPort(port), mRunning(false)
 {
   gHttp = this;
-#ifdef EOS_MICRO_HTTPD
-  mDaemon = 0;
-#endif
-  mPort = port;
-  mRunning = false;
 }
 
 /*----------------------------------------------------------------------------*/

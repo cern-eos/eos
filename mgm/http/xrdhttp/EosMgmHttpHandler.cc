@@ -134,7 +134,7 @@ OwningXrdSecEntity::CreateFrom(const XrdSecEntity& other)
   }
 
   mSecEntity->Reset();
-  strncpy(mSecEntity->prot, other.prot, XrdSecPROTOIDSIZE - 1);
+  strncpy(mSecEntity->prot, other.prot, XrdSecPROTOIDSIZE);
 
   if (other.name) {
     mSecEntity->name = strdup(other.name);

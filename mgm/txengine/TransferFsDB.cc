@@ -181,7 +181,7 @@ TransferFsDB::Ls(XrdOucString& sid, XrdOucString& option, XrdOucString& group,
 
   if (!monitoring) {
     if ((!summary) && (!monitoring)) {
-      snprintf(outline, sizeof(outline) - 1,
+      snprintf(outline, sizeof(outline),
                "%-8s %-8s %-8s %-16s %-4s %-6s %-4s %-4s %-8s %-48s %-48s\n", "ID", "STATUS",
                "PROGRESS", "GROUP", "RATE", "STREAM", "UID", "GID", "EXPTIME", "EXECHOST",
                "SUBMISSIONHOST");
@@ -197,12 +197,12 @@ TransferFsDB::Ls(XrdOucString& sid, XrdOucString& option, XrdOucString& group,
                0));
 
       if (etime < 0) {
-        snprintf(setime, sizeof(setime) - 1, "expired");
+        snprintf(setime, sizeof(setime), "expired");
       } else {
-        snprintf(setime, sizeof(setime) - 1, "%lu", (unsigned long) etime);
+        snprintf(setime, sizeof(setime), "%lu", (unsigned long) etime);
       }
 
-      snprintf(outline, sizeof(outline) - 1,
+      snprintf(outline, sizeof(outline),
                "%-8s %-8s %-8s %-16s %-4s %-6s %-4s %-4s %-8s %-48s %-48s%s\n",
                Qr[i]["id"].c_str(),
                Qr[i]["status"].c_str(),
@@ -265,7 +265,7 @@ TransferFsDB::Ls(XrdOucString& sid, XrdOucString& option, XrdOucString& group,
 
       for (it = groupby.begin(); it != groupby.end(); it++) {
         char sline[1024];
-        snprintf(sline, sizeof(sline) - 1, "# %-16s := %d\n", it->first.c_str(),
+        snprintf(sline, sizeof(sline), "# %-16s := %d\n", it->first.c_str(),
                  it->second);
         stdOut += sline;
       }
@@ -274,7 +274,7 @@ TransferFsDB::Ls(XrdOucString& sid, XrdOucString& option, XrdOucString& group,
 
       for (it = groupby.begin(); it != groupby.end(); it++) {
         char sline[1024];
-        snprintf(sline, sizeof(sline) - 1, "tx.n.%s=%d ", it->first.c_str(),
+        snprintf(sline, sizeof(sline), "tx.n.%s=%d ", it->first.c_str(),
                  it->second);
         stdOut += sline;
       }
@@ -356,7 +356,7 @@ TransferFsDB::SetState(long long id, int state)
   } else {
     query += " where id = ";
     char sid[16];
-    snprintf(sid, sizeof(sid) - 1, "%lld", id);
+    snprintf(sid, sizeof(sid), "%lld", id);
     query += sid;
   }
 
@@ -404,12 +404,12 @@ TransferFsDB::SetProgress(long long id, float progress)
   // for id=0 it sets the state on all ids
   XrdOucString query = "";
   char sprogress[16];
-  snprintf(sprogress, sizeof(sprogress) - 1, "%.02f", progress);
+  snprintf(sprogress, sizeof(sprogress), "%.02f", progress);
   query = "update transfers set progress=";
   query += sprogress;
   query += " where id = ";
   char sid[16];
-  snprintf(sid, sizeof(sid) - 1, "%lld", id);
+  snprintf(sid, sizeof(sid), "%lld", id);
   query += sid;
 
   if ((sqlite3_exec(DB, query.c_str(), CallBack, this, &ErrMsg))) {
@@ -436,7 +436,7 @@ TransferFsDB::SetExecutionHost(long long id, std::string& exechost)
   } else {
     query += "' where id = ";
     char sid[16];
-    snprintf(sid, sizeof(sid) - 1, "%lld", id);
+    snprintf(sid, sizeof(sid), "%lld", id);
     query += sid;
   }
 
@@ -459,10 +459,10 @@ TransferFsDB::SetCredential(long long id, std::string credential,
   query += credential.c_str();
   query += "' expires= ";
   char sid[16];
-  snprintf(sid, sizeof(sid) - 1, "%lu", (unsigned long) exptime);
+  snprintf(sid, sizeof(sid), "%lu", (unsigned long) exptime);
   query += sid;
   query += "  where id = ";
-  snprintf(sid, sizeof(sid) - 1, "%lld", id);
+  snprintf(sid, sizeof(sid), "%lld", id);
   query += sid;
 
   if ((sqlite3_exec(DB, query.c_str(), CallBack, this, &ErrMsg))) {
@@ -488,7 +488,7 @@ TransferFsDB::SetLog(long long id, std::string log)
   query += slog.c_str();
   query += "'  where id = ";
   char sid[16];
-  snprintf(sid, sizeof(sid) - 1, "%lld", id);
+  snprintf(sid, sizeof(sid), "%lld", id);
   query += sid;
 
   if ((sqlite3_exec(DB, query.c_str(), CallBack, this, &ErrMsg))) {
@@ -512,7 +512,7 @@ TransferFsDB::GetTransfer(long long id, bool nolock)
   XrdOucString query = "";
   query = "select * from transfers where id=";
   char sid[16];
-  snprintf(sid, sizeof(sid) - 1, "%lld", id);
+  snprintf(sid, sizeof(sid), "%lld", id);
   query += sid;
 
   if ((sqlite3_exec(DB, query.c_str(), CallBack, this, &ErrMsg))) {
@@ -586,7 +586,7 @@ TransferFsDB::Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate,
   insert += sgid;
   insert += "',";
   char sexptime[1024];
-  snprintf(sexptime, sizeof(sexptime) - 1, "%lu", exptime);
+  snprintf(sexptime, sizeof(sexptime), "%lu", exptime);
   insert += "'";
   insert += sexptime;
   insert += "',";
@@ -618,7 +618,7 @@ TransferFsDB::Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate,
 
   long long rowid = sqlite3_last_insert_rowid(DB);
   char srowid [256];
-  snprintf(srowid, sizeof(srowid) - 1, "%lld", rowid);
+  snprintf(srowid, sizeof(srowid), "%lld", rowid);
   stdOut += "success: submitted transfer id=";
   stdOut += srowid;
   return 0;
@@ -637,7 +637,7 @@ TransferFsDB::Cancel(long long id, XrdOucString& stdOut, XrdOucString& stdErr,
   query = "delete from transfers ";
   query += "where id = ";
   char sid[16];
-  snprintf(sid, sizeof(sid) - 1, "%lld", id);
+  snprintf(sid, sizeof(sid), "%lld", id);
   query += sid;
 
   if ((sqlite3_exec(DB, query.c_str(), CallBack, this, &ErrMsg))) {
@@ -678,7 +678,7 @@ TransferFsDB::Archive(long long id, XrdOucString& stdOut, XrdOucString& stdErr,
   query = "select * from transfers ";
   query += "where id = ";
   char sid[16];
-  snprintf(sid, sizeof(sid) - 1, "%lld", id);
+  snprintf(sid, sizeof(sid), "%lld", id);
   query += sid;
 
   if ((sqlite3_exec(DB, query.c_str(), CallBack, this, &ErrMsg))) {

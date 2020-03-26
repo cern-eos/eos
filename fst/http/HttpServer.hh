@@ -27,34 +27,31 @@
  * @brief creates an HTTP redirector instance running on the FST
  */
 
-#ifndef __EOSFST_HTTP__HH__
-#define __EOSFST_HTTP__HH__
-
-/*----------------------------------------------------------------------------*/
+#pragma once
 #include "fst/Namespace.hh"
 #include "common/Logging.hh"
 #include "common/http/HttpServer.hh"
 #include "common/http/ProtocolHandler.hh"
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
+//------------------------------------------------------------------------------
+//! Class HttpServer
+//------------------------------------------------------------------------------
 class HttpServer : public eos::common::HttpServer
 {
-
 public:
-
   /**
    * Constructor
    */
-  HttpServer(int port = 8001) : eos::common::HttpServer::HttpServer(port) {};
+  HttpServer(int port = 8001) :
+    eos::common::HttpServer::HttpServer(port)
+  {};
 
   /**
    * Destructor
    */
-  virtual ~HttpServer() {};
+  virtual ~HttpServer() = default;
 
 #ifdef EOS_MICRO_HTTPD
   /**
@@ -73,20 +70,18 @@ public:
           void**                 ptr);
 
   /**
-   * HTTP object handler function on FST called by XrdHttp 
+   * HTTP object handler function on FST called by XrdHttp
    *
    * @return see implementation
    */
-
   virtual std::unique_ptr<eos::common::ProtocolHandler>
-  XrdHttpHandler(std::string& method, 
+  XrdHttpHandler(std::string& method,
                  std::string& uri,
-                 std::map<std::string,std::string>& headers, 
-                 std::string& query, 
-                 std::map<std::string,std::string>& cookies, 
+                 std::map<std::string, std::string>& headers,
+                 std::string& query,
+                 std::map<std::string, std::string>& cookies,
                  std::string& body,
-                 const XrdSecEntity& client
-                 );
+                 const XrdSecEntity& client);
 
   /**
    * HTTP complete handler function
@@ -113,23 +108,22 @@ public:
   FileReaderCallback(void* cls, uint64_t pos, char* buf, size_t max);
 
   virtual ssize_t
-  FileReader(eos::common::ProtocolHandler* handler, uint64_t pos, char* buf, size_t max);
+  FileReader(eos::common::ProtocolHandler* handler, uint64_t pos, char* buf,
+             size_t max);
 
   virtual ssize_t
-  FileWriter(eos::common::ProtocolHandler* handler, 
-	     std::string& method,
-	     std::string& uri,
-	     std::map<std::string,std::string>& headers,
-	     std::string& query,
-	     std::map<std::string,std::string>& cookies,
-	     std::string& body);
+  FileWriter(eos::common::ProtocolHandler* handler,
+             std::string& method,
+             std::string& uri,
+             std::map<std::string, std::string>& headers,
+             std::string& query,
+             std::map<std::string, std::string>& cookies,
+             std::string& body);
 
   virtual ssize_t
   FileClose(eos::common::ProtocolHandler* handler, int rc);
-  
+
 #endif
 };
 
 EOSFSTNAMESPACE_END
-
-#endif

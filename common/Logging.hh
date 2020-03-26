@@ -261,8 +261,8 @@ public:
   void
   SetSingleShotLogId(const char* td = "<single-exec>")
   {
-    snprintf(logId, sizeof(logId) - 1, "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx");
-    snprintf(cident, sizeof(cident) - 1, "%s", td);
+    snprintf(logId, sizeof(logId), "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx");
+    snprintf(cident, sizeof(cident), "%s", td);
   }
 
   //----------------------------------------------------------------------------
@@ -272,7 +272,7 @@ public:
   SetLogId(const char* newlogid)
   {
     if (newlogid && (strncmp(newlogid, logId, sizeof(newlogid) - 1) != 0)) {
-      snprintf(logId, sizeof(logId) - 1, "%s", newlogid);
+      snprintf(logId, sizeof(logId), "%s", newlogid);
     }
   }
 

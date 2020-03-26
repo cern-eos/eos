@@ -21,19 +21,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "fst/http/HttpServer.hh"
 #include "fst/http/ProtocolHandlerFactory.hh"
 #include "fst/XrdFstOfsFile.hh"
 #include "common/http/ProtocolHandler.hh"
 #include "common/SecEntity.hh"
 #include "fst/XrdFstOfs.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
-/*----------------------------------------------------------------------------*/
-
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 

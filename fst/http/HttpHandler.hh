@@ -27,21 +27,13 @@
  * @brief  Keeps a handle to an HTTP file/range request
  */
 
-#ifndef __EOSFST_HTTP_HANDLER__HH__
-#define __EOSFST_HTTP_HANDLER__HH__
-
-/*----------------------------------------------------------------------------*/
+#pragma once
 #include "common/http/HttpHandler.hh"
 #include "common/http/MimeTypes.hh"
-
 #include "fst/Namespace.hh"
 #include "fst/XrdFstOfs.hh"
-/*----------------------------------------------------------------------------*/
-#include "XrdSys/XrdSysPthread.hh"
-/*----------------------------------------------------------------------------*/
 #include <string>
 #include <map>
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -51,31 +43,48 @@ class HttpHandler : public eos::common::HttpHandler
 {
 public:
   int                        mRc;                 //< return code of a file open
-  XrdSecEntity               mClient;             //< the sec entity of the connected client
-  XrdFstOfsFile             *mFile;               //< handle to a file
-  std::map<off_t, ssize_t>   mOffsetMap;          //< map with offset+length of range requests
+  XrdSecEntity
+  mClient;             //< the sec entity of the connected client
+  XrdFstOfsFile*             mFile;               //< handle to a file
+  std::map<off_t, ssize_t>
+  mOffsetMap;          //< map with offset+length of range requests
   std::map<int, std::string> mMultipartHeaderMap; //< multipart header map
   off_t                      mRangeRequestSize;   //< sum of all range requests
   off_t                      mFileSize;           //< total file size
-  off_t                      mRequestSize;        //< size of the total output including headers
-  off_t                      mContentLength;      //< size of the content provided by client
+  off_t
+  mRequestSize;        //< size of the total output including headers
+  off_t
+  mContentLength;      //< size of the content provided by client
   off_t                      mLastUploadSize;     //< size of the last upload call
   off_t                      mUploadLeftSize;     //< size of data still to upload
 
-  bool                       mRangeDecodingError; //< indicating an invalid range request
-  bool                       mRangeRequest;       //< indication if httpHandle has a range request
-  std::string                mBoundary;           //< boundary "EOSMULTIPARBOUNDARY"
-  std::string                mBoundaryEnd;        //< end boundary "--EOSMULTIPARTBOUNDARY--"
+  bool
+  mRangeDecodingError; //< indicating an invalid range request
+  bool
+  mRangeRequest;       //< indication if httpHandle has a range request
+  std::string
+  mBoundary;           //< boundary "EOSMULTIPARBOUNDARY"
+  std::string
+  mBoundaryEnd;        //< end boundary "--EOSMULTIPARTBOUNDARY--"
   std::string                mMultipartHeader;    //< multipart Content tag
-  std::string                mSinglepartHeader;   //< singlepart range used if there is only one entry in mOffsetMap;
-  size_t                     mCurrentCallbackOffsetIndex; //< current index to use in the callback
-  off_t                      mCurrentCallbackOffset; //< next offset from where to read in the offset map at position index
-  bool                       mLastChunk; //< indicates the last chunk in a chunked upload
-  bool                       mBoundaryEndSent;    //< true when the boundary end was sent
-  std::string                mPrint;              //< print buffer to print the handle contents
-  int                        mCloseCode;          //< close code to return if file upload was successful
-  unsigned long long         mFileId;             //< file id used in EOS - determined after Ofs::Open
-  std::string                mLogId;              //< log id used in EOS - determined after Ofs::Open
+  std::string
+  mSinglepartHeader;   //< singlepart range used if there is only one entry in mOffsetMap;
+  size_t
+  mCurrentCallbackOffsetIndex; //< current index to use in the callback
+  off_t
+  mCurrentCallbackOffset; //< next offset from where to read in the offset map at position index
+  bool
+  mLastChunk; //< indicates the last chunk in a chunked upload
+  bool
+  mBoundaryEndSent;    //< true when the boundary end was sent
+  std::string
+  mPrint;              //< print buffer to print the handle contents
+  int
+  mCloseCode;          //< close code to return if file upload was successful
+  unsigned long long
+  mFileId;             //< file id used in EOS - determined after Ofs::Open
+  std::string
+  mLogId;              //< log id used in EOS - determined after Ofs::Open
   int                        mErrCode;            //< first seen error code
   std::string                mErrText;            //< error text
 
@@ -85,7 +94,7 @@ public:
   /**
    * Constructor
    */
-  HttpHandler ()
+  HttpHandler()
   {
     mFile                   = 0;
     mRangeRequestSize       = 0;
@@ -114,7 +123,7 @@ public:
    * Destructor
    */
   virtual
-  ~HttpHandler ();
+  ~HttpHandler();
 
   /**
    * Check whether the given method and headers are a match for this protocol.
@@ -125,7 +134,7 @@ public:
    * @return true if the protocol matches, false otherwise
    */
   static bool
-  Matches (const std::string &method, HeaderMap &headers);
+  Matches(const std::string& method, HeaderMap& headers);
 
   /**
    * Build a response to the given HTTP request.
@@ -139,7 +148,7 @@ public:
    * @param cookies  the map of cookie headers
    */
   void
-  HandleRequest (eos::common::HttpRequest *request);
+  HandleRequest(eos::common::HttpRequest* request);
 
   /**
    * Print a representation of this handler's range request data
@@ -147,10 +156,10 @@ public:
    * @return pointer to HTTP printout string
    */
   const char*
-  Print ()
+  Print()
   {
     char line[4096];
-    snprintf(line, sizeof (line) - 1,
+    snprintf(line, sizeof(line) - 1,
              "range-request=%llu range-request-size=%llu "
              "request-size=%llu file-size=%llu",
              (unsigned long long) mRangeRequest,
@@ -167,40 +176,42 @@ public:
    * @param contenttype content type to put into the multipart header
    */
   void
-  CreateMultipartHeader (std::string contenttype)
+  CreateMultipartHeader(std::string contenttype)
   {
     mRequestSize = mRangeRequestSize;
-    if (mOffsetMap.size() != 1)
-    {
+
+    if (mOffsetMap.size() != 1) {
       mRequestSize += mBoundaryEnd.length();
     }
+
     size_t index = 0;
-    for (auto it = mOffsetMap.begin(); it != mOffsetMap.end(); it++)
-    {
+
+    for (auto it = mOffsetMap.begin(); it != mOffsetMap.end(); it++) {
       std::string header = "\n--EOSMULTIPARTBOUNDARY\nContent-Type: ";
       header += contenttype;
       header += "\nContent-Range: ";
       char srange[256];
       snprintf(srange,
-               sizeof (srange) - 1,
+               sizeof(srange) - 1,
                "bytes %llu-%llu/%llu",
                (unsigned long long) it->first,
-               (unsigned long long) ((it->second) ? (it->first + it->second-1)
-                                                  : mRangeRequestSize),
+               (unsigned long long)((it->second) ? (it->first + it->second - 1)
+                                    : mRangeRequestSize),
                (unsigned long long) mFileSize
-               );
-      if (mOffsetMap.size() == 1)
-      {
+              );
+
+      if (mOffsetMap.size() == 1) {
         mSinglepartHeader = srange;
       }
 
       header += srange;
       header += "\n\n";
       mMultipartHeaderMap[index] = header;
-      if (mOffsetMap.size() != 1)
-      {
+
+      if (mOffsetMap.size() != 1) {
         mRequestSize += mMultipartHeaderMap[index].length();
       }
+
       index++;
     }
   }
@@ -217,10 +228,10 @@ public:
    * @return true if valid request, otherwise false
    */
   bool
-  DecodeByteRange (std::string               rangeheader,
-                   std::map<off_t, ssize_t> &offsetmap,
-                   off_t                  &requestsize,
-                   off_t                     filesize);
+  DecodeByteRange(std::string               rangeheader,
+                  std::map<off_t, ssize_t>& offsetmap,
+                  off_t&                  requestsize,
+                  off_t                     filesize);
 
   /**
    * Initialize this HTTP handler
@@ -228,7 +239,7 @@ public:
    * @param request  the client request object
    */
   void
-  Initialize (eos::common::HttpRequest *request);
+  Initialize(eos::common::HttpRequest* request);
 
   /**
    * Handle an HTTP GET request.
@@ -238,7 +249,7 @@ public:
    * @return an HTTP response object
    */
   eos::common::HttpResponse*
-  Get (eos::common::HttpRequest *request);
+  Get(eos::common::HttpRequest* request);
 
   /**
    * Handle an HTTP HEAD request.
@@ -248,7 +259,7 @@ public:
    * @return an HTTP response object
    */
   eos::common::HttpResponse*
-  Head (eos::common::HttpRequest *request);
+  Head(eos::common::HttpRequest* request);
 
   /**
    * Handle an HTTP PUT request.
@@ -258,11 +269,7 @@ public:
    * @return an HTTP response object
    */
   eos::common::HttpResponse*
-  Put (eos::common::HttpRequest *request);
+  Put(eos::common::HttpRequest* request);
 
 };
-
-/*----------------------------------------------------------------------------*/
 EOSFSTNAMESPACE_END
-
-#endif

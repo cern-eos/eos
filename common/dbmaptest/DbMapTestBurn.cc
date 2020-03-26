@@ -113,11 +113,12 @@ TestWriteOnTheFly(void* threadid)
     }
 
     if (!overwrite) {
-      sprintf(ks + 4, "%7.7d", k);
+      char* ptr = ks + 4;
+      sprintf(ptr, "%07d", k);
     }
 
-    sprintf(vs + 6, "%7.7d", k);
-    sprintf(cs + 8, "%7.7d", k);
+    sprintf(vs + 6, "%07d", k);
+    sprintf(cs + 8, "%07d", k);
     m.set(ks, vs, cs);
   }
 
@@ -418,7 +419,7 @@ main()
         }
 
         char ks[] = "key_xxxxxxx";
-        sprintf(ks + 4, "%7.7d", kk);
+        sprintf(ks + 4, "%07d", kk);
         DbMap::Tval val;
 
         if (!m.get(ks, &val)) {

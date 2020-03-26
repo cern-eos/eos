@@ -28,15 +28,11 @@
  *         instance
  */
 
-#ifndef __EOSCOMMON_HTTP_SERVER__HH__
-#define __EOSCOMMON_HTTP_SERVER__HH__
-
+#pragma once
 #include "common/http/HttpRequest.hh"
 #include "common/http/HttpResponse.hh"
 #include "common/AssistedThread.hh"
 #include "common/Namespace.hh"
-#include <string>
-#include <iostream>
 
 #ifdef EOS_MICRO_HTTPD
 #include <microhttpd.h>
@@ -44,19 +40,15 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
+//------------------------------------------------------------------------------
+//! Class HttpServer
+//------------------------------------------------------------------------------
 class HttpServer
 {
-
-protected:
-#ifdef EOS_MICRO_HTTPD
-  struct MHD_Daemon* mDaemon;   //!< MicroHttpd daemon instance
-#endif
-  int                mPort;     //!< The port this server listens on
-  AssistedThread     mThreadId; //!< This thread's ID
-  std::atomic<bool>  mRunning;  //!< Is this server running?
-  static HttpServer* gHttp;     //!< This is the instance of the HTTP server
-  //!< allowing the Handler function to call
-  //!< class member functions
+public:
+  //! Instance of the HTTP server allowing the Handler function to call
+  //!<class member functions
+  static HttpServer* gHttp;
 
   static std::string to_string(unsigned long long num)
   {
@@ -65,7 +57,6 @@ protected:
     return sout;
   }
 
-public:
   /**
    * Constructor
    */
@@ -274,9 +265,16 @@ public:
   CleanupConnections();
 
 #endif
+
+protected:
+#ifdef EOS_MICRO_HTTPD
+  struct MHD_Daemon* mDaemon {
+    nullptr
+  };   //!< MicroHttpd daemon instance
+#endif
+  int                mPort;     //!< The port this server listens on
+  std::atomic<bool>  mRunning;  //!< Is this server running?
+  AssistedThread     mThreadId; //!< This thread's ID
 };
 
-/*----------------------------------------------------------------------------*/
 EOSCOMMONNAMESPACE_END
-
-#endif

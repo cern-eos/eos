@@ -291,7 +291,8 @@ XrdFstOss::Unlink(const char* path, int opts, XrdOucEnv* ep)
   // Unlink the file
   int i;
   char local_path[MAXPATHLEN + 1 + 8];
-  strncpy(local_path, path, std::min(strlen(path) + 1, (size_t)MAXPATHLEN + 8));
+  strncpy(local_path, path, (size_t)(MAXPATHLEN + 8));
+  local_path[MAXPATHLEN + 8] = '\0';
 
   if (lstat(local_path, &statinfo)) {
     retc = (errno == ENOENT ? 0 : -errno);
@@ -383,7 +384,8 @@ XrdFstOss::Create(const char* tident,
     return -ENAMETOOLONG;
   }
 
-  strncpy(local_path, path, std::min(strlen(path) + 1, (size_t)MAXPATHLEN));
+  strncpy(local_path, path, (size_t)(MAXPATHLEN));
+  local_path[MAXPATHLEN] = '\0';
 
   // Determine the state of the file. We will need this information as we go on
   if ((missing = lstat(path, &buf))) {
@@ -505,10 +507,10 @@ XrdFstOss::Rename(const char* oldname,
   char* slash_plus, sPChar;
   struct stat statbuff;
   static const mode_t pMode = S_IRWXU | S_IRWXG;
-  strncpy(local_path_old, oldname,
-          std::min(strlen(oldname) + 1, (size_t)MAXPATHLEN + 7));
-  strncpy(local_path_new, newname,
-          std::min(strlen(newname) + 1, (size_t)MAXPATHLEN + 7));
+  strncpy(local_path_old, oldname, (size_t)(MAXPATHLEN + 7));
+  local_path_old[MAXPATHLEN + 7] = '\0';
+  strncpy(local_path_new, newname, (size_t)(MAXPATHLEN + 7));
+  local_path_new[MAXPATHLEN + 7] = '\0';
   // Make sure that the target file does not exist
   retc2 = lstat(local_path_new, &statbuff);
 
@@ -553,7 +555,8 @@ XrdFstOss::Stat(const char* path,
 {
   int retc;
   char local_path[MAXPATHLEN + 1];
-  strncpy(local_path, path, std::min(strlen(path) + 1, (size_t)MAXPATHLEN));
+  strncpy(local_path, path, (size_t)(MAXPATHLEN));
+  local_path[MAXPATHLEN] = '\0';
 
   // Stat the file in the local filesystem and update access time if so requested
   if (!stat(local_path, buff)) {
@@ -583,7 +586,8 @@ XrdFstOss::Truncate(const char* path,
 {
   struct stat statbuff;
   char local_path[MAXPATHLEN + 1];
-  strncpy(local_path, path, std::min(strlen(path) + 1, (size_t)MAXPATHLEN));
+  strncpy(local_path, path, (size_t)(MAXPATHLEN));
+  local_path[MAXPATHLEN] = '\0';
 
   if (lstat(local_path, &statbuff)) {
     return -errno;
