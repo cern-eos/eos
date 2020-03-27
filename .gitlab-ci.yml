@@ -235,7 +235,7 @@ build_c8:
     # @todo once the XRootD deb repos are better structured we can point to a
     # particular stable branch for the moment we force install the version we want
     - export XROOTD_VERSION=`grep "define xrootd_version_min" eos.spec.in | awk -F ':' '{print $2;}'`
-    - apt-get install -y xrootd-server=${XROOTD-VERSION} xrootd-clients=%{XROOTD_VERSION} libxrootd-dev=${XROOTD_VERSION} libxrootd-private-dev=${XROOTD_VERSION}
+    - apt-get install -y xrootd-server=${XROOTD_VERSION} xrootd-clients=%{XROOTD_VERSION} libxrootd-dev=${XROOTD_VERSION} libxrootd-private-dev=${XROOTD_VERSION}
     - mk-build-deps --build-dep debian/control
     - gdebi -n eos-build-deps-depends*.deb
     - dch --create -v `./genversion.sh` --package eos --urgency low --distribution ${EOS_ARCH} -M "This package is built and released automatically. For important notices and releases subscribe to our mailing lists or visit our website."
