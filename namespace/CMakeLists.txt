@@ -110,9 +110,6 @@ add_library(
 
 add_dependencies(EosNsCommon-Objects EosCliProto-Objects)
 
-target_link_libraries(EosNsCommon-Objects PUBLIC
-  ${JSONCPP_LIBRARIES})
-
 set_target_properties(
   EosNsCommon-Objects
   PROPERTIES
@@ -133,6 +130,7 @@ target_link_libraries(
   EosCommon
   qclient
   rocksdb
+  ${JSONCPP_LIBRARIES}
   ${FOLLY_LIBRARIES}
   ${Z_LIBRARY} fmt)
 
