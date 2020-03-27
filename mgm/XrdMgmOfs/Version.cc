@@ -71,6 +71,7 @@ XrdMgmOfs::Version(eos::common::FileId::fileid_t fid,
       bname = cPath.GetName();
       fidvid.uid = fmd->getCUid();
       fidvid.gid = fmd->getCGid();
+      fidvid.allowed_gids.insert(fidvid.gid);
       eos::IFileMD::ctime_t ctime;
       fmd->getCTime(ctime);
       filectime = (time_t) ctime.tv_sec;
