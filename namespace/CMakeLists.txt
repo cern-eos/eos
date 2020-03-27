@@ -29,9 +29,9 @@ include_directories(
   ${CMAKE_SOURCE_DIR}
   ${XROOTD_INCLUDE_DIR}
   ${PROTOBUF_INCLUDE_DIRS}
+  ${JSONCPP_INCLUDE_DIRS}
   ${FOLLY_INCLUDE_DIRS}
-  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
-)
+  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include)
 
 add_library(
   EosNsCommon-Objects OBJECT
@@ -110,12 +110,16 @@ add_library(
 
 add_dependencies(EosNsCommon-Objects EosCliProto-Objects)
 
+target_link_libraries(EosNsCommon-Objects PUBLIC
+  ${JSONCPP_LIBRARIES})
+
 set_target_properties(
   EosNsCommon-Objects
   PROPERTIES
   POSITION_INDEPENDENT_CODE True)
 
 add_library(EosNsCommon SHARED $<TARGET_OBJECTS:EosNsCommon-Objects>)
+
 
 target_include_directories(
   EosNsCommon PUBLIC
