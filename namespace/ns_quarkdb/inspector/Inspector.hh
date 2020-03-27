@@ -24,6 +24,7 @@
 #pragma once
 #include "namespace/Namespace.hh"
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
+#include "proto/ContainerMd.pb.h"
 #include <string>
 #include <map>
 #include <vector>
@@ -36,6 +37,7 @@ EOSNSNAMESPACE_BEGIN
 
 class ContainerScanner;
 class FileScanner;
+class OutputSink;
 
 struct CacheNotifications {
   CacheNotifications() {}
@@ -52,7 +54,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  Inspector(qclient::QClient &qcl);
+  Inspector(qclient::QClient &qcl, OutputSink &sink);
 
   //----------------------------------------------------------------------------
   //! Is the connection to QDB ok? If not, pointless to run anything else.
@@ -64,6 +66,12 @@ public:
   //! means no error.
   //----------------------------------------------------------------------------
   int dump(const std::string &path, bool relative, bool rawPaths, bool noDirs, bool noFiles, bool showSize, bool showMtime, const std::string &attrQuery, std::ostream &out);
+
+  //----------------------------------------------------------------------------
+  //! Scan all directories in the namespace, and print everything known
+  //! about a directory.
+  //----------------------------------------------------------------------------
+  int scanDirsPrintAll();
 
   //----------------------------------------------------------------------------
   //! Scan all directories in the namespace, and print out some information
@@ -179,6 +187,7 @@ public:
 
 private:
   qclient::QClient &mQcl;
+  OutputSink &mOutputSink;
 
   //----------------------------------------------------------------------------
   //! Check if given path is a good choice as a destination for repaired

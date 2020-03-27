@@ -22,6 +22,7 @@
 #include "namespace/ns_quarkdb/inspector/ContainerScanner.hh"
 #include "namespace/ns_quarkdb/inspector/FileScanner.hh"
 #include "namespace/ns_quarkdb/inspector/Printing.hh"
+#include "namespace/ns_quarkdb/inspector/OutputSink.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
 #include "namespace/ns_quarkdb/ContainerMD.hh"
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
@@ -77,7 +78,8 @@ static std::string toYesOrNo(bool val) {
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-Inspector::Inspector(qclient::QClient& qcl) : mQcl(qcl) { }
+Inspector::Inspector(qclient::QClient& qcl, OutputSink &sink)
+: mQcl(qcl), mOutputSink(sink) { }
 
 //------------------------------------------------------------------------------
 // Is the connection to QDB ok? If not, pointless to run anything else.
@@ -206,6 +208,35 @@ uint64_t safeGet(folly::Future<uint64_t> &fut) {
   uint64_t val = std::move(fut).get();
   fut = val;
   return val;
+}
+
+//------------------------------------------------------------------------------
+// Scan all directories in the namespace, and print everything known about a
+// particular directory.
+//------------------------------------------------------------------------------
+int Inspector::scanDirsPrintAll() {
+  ContainerScanner containerScanner(mQcl);
+
+  while(containerScanner.valid()) {
+    eos::ns::ContainerMdProto proto;
+    ContainerScanner::Item item;
+
+    if (!containerScanner.getItem(proto, &item)) {
+      break;
+    }
+
+    mOutputSink.print(proto);
+
+    containerScanner.next();
+  }
+
+  std::string errorString;
+  if(containerScanner.hasError(errorString)) {
+    mOutputSink.err(errorString);
+    return 1;
+  }
+
+  return 0;
 }
 
 //------------------------------------------------------------------------------

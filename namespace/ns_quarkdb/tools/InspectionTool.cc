@@ -18,6 +18,7 @@
 
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "namespace/ns_quarkdb/inspector/Inspector.hh"
+#include "namespace/ns_quarkdb/inspector/OutputSink.hh"
 #include "common/PasswordHandler.hh"
 #include "common/ParseUtils.hh"
 #include "CLI11.hpp"
@@ -156,7 +157,7 @@ int main(int argc, char* argv[]) {
   oneReplicaLayoutSubcommand->add_flag("--filter-internal", filterInternal, "Filter internal entries, such as versioning, aborted atomic uploads, etc");
 
   //----------------------------------------------------------------------------
-  // Set-up scan-directories subcommand..
+  // Set-up scan-dirs-show-all subcommand..
   //----------------------------------------------------------------------------
   auto scanDirsSubcommand = app.add_subcommand("scan-dirs", "Dump the full list of container metadata across the entire namespace");
   addClusterOptions(scanDirsSubcommand, membersStr, memberValidator, password, passwordFile);
@@ -169,6 +170,12 @@ int main(int argc, char* argv[]) {
   scanDirsSubcommand->add_flag("--full-paths", fullPaths, "Show full container paths, if possible");
   scanDirsSubcommand->add_flag("--count-contents", countContents, "Count how many files and containers are in each directory (non-recursive)");
   scanDirsSubcommand->add_option("--count-threshold", countThreshold, "Only print containers which contain more than the specified number of items. Useful for detecting huge containers on which 'ls' might hang");
+
+  //----------------------------------------------------------------------------
+  // Set-up scan-dirs-print-all subcommand..
+  //----------------------------------------------------------------------------
+  auto scanDirsPrintAllSubcommand = app.add_subcommand("scan-dirs-show-all", "Dump the full list of container metadata across the entire namespace");
+  addClusterOptions(scanDirsPrintAllSubcommand, membersStr, memberValidator, password, passwordFile);
 
   //----------------------------------------------------------------------------
   // Set-up scan-files subcommand..
@@ -369,7 +376,8 @@ int main(int argc, char* argv[]) {
   //----------------------------------------------------------------------------
   // Set-up Inspector object, ensure sanity
   //----------------------------------------------------------------------------
-  Inspector inspector(qcl);
+  std::unique_ptr<OutputSink> outputSink(new StreamSink(std::cout, std::cerr));
+  Inspector inspector(qcl, *outputSink);
   std::string connectionErr;
 
   if(!inspector.checkConnection(connectionErr)) {
@@ -402,6 +410,10 @@ int main(int argc, char* argv[]) {
 
   if(scanDirsSubcommand->parsed()) {
     return inspector.scanDirs(onlyNoAttrs, fullPaths, countContents, countThreshold, std::cout, std::cerr);
+  }
+
+  if(scanDirsPrintAllSubcommand->parsed()) {
+    return inspector.scanDirsPrintAll();
   }
 
   if(stripediffSubcommand->parsed()) {
