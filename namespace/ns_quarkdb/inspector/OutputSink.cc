@@ -66,29 +66,35 @@ void StreamSink::err(const std::string &str) {
 // Constructor
 //------------------------------------------------------------------------------
 JsonStreamSink::JsonStreamSink(std::ostream &out, std::ostream &err)
-: mOut(out), mErr(err) {
+: mOut(out), mErr(err), mFirst(true) {
 
-  mOut << "{" << std::endl;
+  mOut << "[" << std::endl;
 }
 
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
 JsonStreamSink::~JsonStreamSink() {
-  mOut << "}" << std::endl;
+  mOut << "]" << std::endl;
 }
 
 //------------------------------------------------------------------------------
 // Print implementation
 //------------------------------------------------------------------------------
 void JsonStreamSink::print(const std::map<std::string, std::string> &line) {
+  if(!mFirst) {
+    mOut << "," << std::endl;
+  }
+
+  mFirst = false;
+
   Json::Value json;
 
   for(auto it = line.begin(); it != line.end(); it++) {
     json[it->first] = it->second;
   }
 
-  mOut << json << "," << std::endl;
+  mOut << json;
 }
 
 //------------------------------------------------------------------------------

@@ -110,6 +110,8 @@ public:
 private:
   std::ostream &mOut;
   std::ostream &mErr;
+
+  bool mFirst;
 };
 
 
