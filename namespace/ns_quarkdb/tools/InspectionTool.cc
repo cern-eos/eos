@@ -177,6 +177,9 @@ int main(int argc, char* argv[]) {
   auto scanDirsPrintAllSubcommand = app.add_subcommand("scan-dirs-show-all", "Dump the full list of container metadata across the entire namespace");
   addClusterOptions(scanDirsPrintAllSubcommand, membersStr, memberValidator, password, passwordFile);
 
+  bool json = false;
+  scanDirsPrintAllSubcommand->add_flag("--json", json, "Use json output");
+
   //----------------------------------------------------------------------------
   // Set-up scan-files subcommand..
   //----------------------------------------------------------------------------
@@ -376,7 +379,15 @@ int main(int argc, char* argv[]) {
   //----------------------------------------------------------------------------
   // Set-up Inspector object, ensure sanity
   //----------------------------------------------------------------------------
-  std::unique_ptr<OutputSink> outputSink(new StreamSink(std::cout, std::cerr));
+  std::unique_ptr<OutputSink> outputSink;
+
+  if(json) {
+    outputSink.reset(new JsonStreamSink(std::cout, std::cerr));
+  }
+  else {
+    outputSink.reset(new StreamSink(std::cout, std::cerr));
+  }
+
   Inspector inspector(qcl, *outputSink);
   std::string connectionErr;
 

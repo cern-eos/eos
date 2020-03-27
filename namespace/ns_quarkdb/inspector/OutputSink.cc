@@ -18,6 +18,7 @@
 
 #include "namespace/ns_quarkdb/inspector/OutputSink.hh"
 #include <sstream>
+#include <json/json.h>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -58,6 +59,42 @@ void StreamSink::print(const std::map<std::string, std::string> &line) {
 // Debug output
 //------------------------------------------------------------------------------
 void StreamSink::err(const std::string &str) {
+  mErr << str << std::endl;
+}
+
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+JsonStreamSink::JsonStreamSink(std::ostream &out, std::ostream &err)
+: mOut(out), mErr(err) {
+
+  mOut << "{" << std::endl;
+}
+
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+JsonStreamSink::~JsonStreamSink() {
+  mOut << "}" << std::endl;
+}
+
+//------------------------------------------------------------------------------
+// Print implementation
+//------------------------------------------------------------------------------
+void JsonStreamSink::print(const std::map<std::string, std::string> &line) {
+  Json::Value json;
+
+  for(auto it = line.begin(); it != line.end(); it++) {
+    json[it->first] = it->second;
+  }
+
+  mOut << json << "," << std::endl;
+}
+
+//------------------------------------------------------------------------------
+// Debug output
+//------------------------------------------------------------------------------
+void JsonStreamSink::err(const std::string &str) {
   mErr << str << std::endl;
 }
 
