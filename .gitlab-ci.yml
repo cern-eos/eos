@@ -624,6 +624,8 @@ cc7_asan_docker_image:
     # prepare mountpoints
     - exec_cmd eos-cli1 'atd; at now <<< "mkdir /eos1/; mount -t fuse eosxd -ofsname=mount-1 /eos1/; mkdir /eos2/; mount -t fuse eosxd -ofsname=mount-2 /eos2/;"'
     - exec_cmd eos-cli1 'count=0; while [[ $count -le 10 ]] && ( [[ ! -d /eos1/dockertest/ ]] || [[ ! -d /eos2/dockertest/ ]] ); do echo "Wait for mount... $count"; (( count++ )); sleep 1; done;'
+    # some tests requires versioning, some do not but they don't care ...
+    - exec_cmd eos-mgm1 'eos attr set sys.versioning="10" eos/dockertest'
 
     # fusex benchmark
     - exec_cmd eos-cli1 "su - eos-user -c 'mkdir /eos1/dockertest/fusex_tests/; cd /eos1/dockertest/fusex_tests/; fusex-benchmark'"
