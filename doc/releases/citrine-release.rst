@@ -16,6 +16,18 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.7.6 Citrine``
+===================
+
+2020-03-30
+
+Bug
+----
+
+* [EOS-4063] - Error creating version folder
+* [EOS-4069] - Git clone does not work
+
+
 ``v4.7.5 Citrine``
 ===================
 
