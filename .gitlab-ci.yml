@@ -359,6 +359,7 @@ build_cc7_asan:
 
 build_cc7_opt_xrootd:
   <<: *build_cc7_exotic-template_definition
+  image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7
   variables:
     BUILD_NAME: cc7_opt_xrootd
     RPMBUILD_OPTIONS: "--with eos_xrootd_rh"
