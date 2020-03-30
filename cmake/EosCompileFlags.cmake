@@ -68,3 +68,15 @@ if (ASAN)
 
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
 endif()
+
+if (TSAN)
+  set(CMAKE_REQUIRED_FLAGS "-fsanitize=thread")
+  check_cxx_compiler_flag(-fsanitize=thread HAVE_FLAG_TSAN)
+  unset(CMAKE_REQUIRED_FLAGS)
+
+  if (NOT HAVE_FLAG_TSAN)
+    message(FATAL_ERROR "A compiler with '-fsanitize=thread' support is required.")
+  endif()
+
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
+endif()
