@@ -357,22 +357,6 @@ build_cc7_asan:
     - docker_node
     - cc7_asan
 
-build_cc7_opt_xrootd:
-  <<: *build_cc7_exotic-template_definition
-  image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7
-  variables:
-    BUILD_NAME: cc7_opt_xrootd
-    RPMBUILD_OPTIONS: "--with eos_xrootd_rh"
-  except:
-    - tags
-  when: manual
-  allow_failure: true
-  only:
-    - master
-  tags:
-    - docker_node
-    - cc7
-
 build_cc7_clang:
   <<: *build_cc7_exotic-template_definition
   variables:
@@ -398,6 +382,30 @@ build_cc7_xrd_testing: # Re-enable xrd_testing jobs once project ugprades to XRo
   tags:
     - docker_node
     - cc7_xrd_testing
+
+# @note please contact CTA team / jleduc if you want to change this job'
+build_cc7_opt_xrootd:
+  before_script:
+    - source gitlab-ci/export_branch.sh
+    - echo "Exporting BRANCH=${BRANCH}"
+    - source gitlab-ci/export_commit-type.sh
+    - echo "Exporting COMMIT_TYPE=${COMMIT_TYPE}"
+    - sed -i "s/pgm \/usr\/bin\/xrdcp/pgm \/bin\/true/g" misc/etc/xrd.cf.fst
+  <<: *build_cc7_exotic-template_definition
+  image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7
+  variables:
+    BUILD_NAME: cc7_opt_xrootd
+    CMAKE_OPTIONS: "-DEOS_XROOTD=1"
+    RPMBUILD_OPTIONS: "--with eos_xrootd_rh"
+  except:
+    - tags
+  when: manual
+  allow_failure: true
+  only:
+    - master
+  tags:
+    - docker_node
+    - cc7
 
 build_cc7_coverage:
   <<: *build_cc7_exotic-template_definition
