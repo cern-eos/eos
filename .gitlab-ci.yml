@@ -67,11 +67,6 @@ prebuild-cc7_clang:
     PREBUILD_NAME: cc7_clang
     CMAKE_OPTIONS: "-DCLANG_BUILD=1"
 
-prebuild-cc7_xrd_cta:
-  <<: *prebuild-template_definition
-  variables:
-    PREBUILD_NAME: cc7_xrd_cta
-
 prebuild-cc7_xrd_testing:
   <<: *prebuild-template_definition
   variables:
@@ -362,6 +357,19 @@ build_cc7_asan:
     - docker_node
     - cc7_asan
 
+build_cc7_opt_xrootd:
+  <<: *build_cc7_exotic-template_definition
+  variables:
+    BUILD_NAME: cc7_opt_xrootd
+    RPMBUILD_OPTIONS: "--with eos_xrootd_rh"
+  tags:
+    - docker_node
+    - cc7
+  except:
+    - tags
+  when: manual
+  allow_failure: true
+
 build_cc7_clang:
   <<: *build_cc7_exotic-template_definition
   variables:
@@ -387,23 +395,6 @@ build_cc7_xrd_testing: # Re-enable xrd_testing jobs once project ugprades to XRo
   tags:
     - docker_node
     - cc7_xrd_testing
-
-build_cc7_xrd_cta:
-  # @todo drop 'before_script:' once repos and specs are properly set elsewhere
-  before_script:
-    - source gitlab-ci/export_branch.sh
-    - echo "Exporting BRANCH=${BRANCH}"
-    - source gitlab-ci/export_commit-type.sh
-    - echo "Exporting COMMIT_TYPE=${COMMIT_TYPE}"
-    - echo -e '[xrootd-cta]\nname=XRootD CTA-CI repository\nbaseurl=https://cta-ci-repo.web.cern.ch/cta-ci-repo/xrootd_tag/\ngpgcheck=0\nenabled=1\npriority=1\nprotect=0\n' >> /etc/yum.repos.d/xrootd-cta.repo
-    - sed -i "s/eos_xrootd_version_min 0:4.11.2/eos_xrootd_version_min 0:4.11.0/g" eos.spec.in
-    - sed -i "s/xrootd_version_min 1:4.11.2/xrootd_version_min 1:4.11.0/g" eos.spec.in
-  <<: *build_cc7_exotic-template_definition
-  variables:
-    BUILD_NAME: cc7_xrd_cta
-  tags:
-    - docker_node
-    - cc7_xrd_cta
 
 build_cc7_coverage:
   <<: *build_cc7_exotic-template_definition
