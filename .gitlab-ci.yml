@@ -362,13 +362,15 @@ build_cc7_opt_xrootd:
   variables:
     BUILD_NAME: cc7_opt_xrootd
     RPMBUILD_OPTIONS: "--with eos_xrootd_rh"
-  tags:
-    - docker_node
-    - cc7
   except:
     - tags
   when: manual
   allow_failure: true
+  only:
+    - master
+  tags:
+    - docker_node
+    - cc7
 
 build_cc7_clang:
   <<: *build_cc7_exotic-template_definition
