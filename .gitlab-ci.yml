@@ -30,49 +30,51 @@ default:
   script:
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
     - case $PREBUILD_NAME in
-       slc6) /kaniko/executor --destination "gitlab-registry.cern.ch/dss/eos/prebuild-${PREBUILD_NAME}" --dockerfile $CI_PROJECT_DIR/gitlab-ci/prebuild_OSbase/Dockerfile_prebuild-slc6 --context $CI_PROJECT_DIR ;;
-         c8) /kaniko/executor --destination "gitlab-registry.cern.ch/dss/eos/prebuild-${PREBUILD_NAME}" --dockerfile $CI_PROJECT_DIR/gitlab-ci/prebuild_OSbase/Dockerfile_prebuild-c8 --context $CI_PROJECT_DIR ;;
-      *cc7*) /kaniko/executor --destination "gitlab-registry.cern.ch/dss/eos/prebuild-${PREBUILD_NAME}" --dockerfile $CI_PROJECT_DIR/gitlab-ci/prebuild_OSbase/Dockerfile_prebuild-cc7 --context $CI_PROJECT_DIR --build-arg PREBUILD_NAME="$PREBUILD_NAME" --build-arg CMAKE_OPTIONS="$CMAKE_OPTIONS" ;;
+       slc6) /kaniko/executor --destination gitlab-registry.cern.ch/dss/eos/prebuild-slc6 --dockerfile $CI_PROJECT_DIR/gitlab-ci/prebuild_OSbase/Dockerfile_prebuild-slc6 --context $CI_PROJECT_DIR ;;
+        cc7) /kaniko/executor --destination gitlab-registry.cern.ch/dss/eos/prebuild-cc7 --dockerfile $CI_PROJECT_DIR/gitlab-ci/prebuild_OSbase/Dockerfile_prebuild-cc7 --context $CI_PROJECT_DIR ;;
+         c8) /kaniko/executor --destination gitlab-registry.cern.ch/dss/eos/prebuild-c8 --dockerfile $CI_PROJECT_DIR/gitlab-ci/prebuild_OSbase/Dockerfile_prebuild-c8 --context $CI_PROJECT_DIR ;;
+      cc7_*) /kaniko/executor --destination "gitlab-registry.cern.ch/dss/eos/prebuild-$PREBUILD_NAME --dockerfile $CI_PROJECT_DIR/gitlab-ci/prebuild_OSbase/Dockerfile_prebuild-cc7_exotic
+                --context $CI_PROJECT_DIR --build-arg PREBUILD_NAME="$PREBUILD_NAME" --build-arg CMAKE_OPTIONS="$CMAKE_OPTIONS" --build-arg CXXFLAGS="$CXXFLAGS" ;;
           *) echo "var PREBUILD_NAME:$PREBUILD_NAME not properly defined"; exit 1 ;;
       esac
   only:
     variables:
       - $PREBUILD_TRIGGER
 
-prebuild-cc7:
-  <<: *prebuild-template_definition
-  variables:
-    PREBUILD_NAME: cc7
-
 prebuid-slc6:
   <<: *prebuild-template_definition
   variables:
     PREBUILD_NAME: slc6
+
+prebuild-cc7:
+  <<: *prebuild-template_definition
+  variables:
+    PREBUILD_NAME: cc7
 
 prebuild-c8:
   <<: *prebuild-template_definition
   variables:
     PREBUILD_NAME: c8
 
-prebuild-cc7_asan:
+.prebuild-cc7_asan:
   <<: *prebuild-template_definition
   variables:
     PREBUILD_NAME: cc7_asan
     CMAKE_OPTIONS: "-DASAN=1"
     CXXFLAGS: "-Wno-parentheses"  # Avoid boost header compilation errors
 
-prebuild-cc7_clang:
+.prebuild-cc7_clang:
   <<: *prebuild-template_definition
   variables:
     PREBUILD_NAME: cc7_clang
     CMAKE_OPTIONS: "-DCLANG_BUILD=1"
 
-prebuild-cc7_xrd_testing:
+.prebuild-cc7_xrd_testing:
   <<: *prebuild-template_definition
   variables:
     PREBUILD_NAME: cc7_xrd_testing
 
-prebuild-cc7_coverage:
+.prebuild-cc7_coverage:
   <<: *prebuild-template_definition
   variables:
     PREBUILD_NAME: cc7_coverage
@@ -249,6 +251,7 @@ build_c8:
   dependencies: []
   allow_failure: true # @todo false for tags
 
+# @todo, temporarely always enabled, then move to schedules and tags
 build_ubuntu_bionic:
   image: ubuntu:bionic
   before_script:
@@ -259,6 +262,9 @@ build_ubuntu_bionic:
   <<: *build_ubuntu-template_definition
   variables:
     EOS_ARCH: bionic
+#  only:
+#    - schedules
+#    - tags
   tags:
     - docker_node
     - ubuntu
@@ -289,9 +295,6 @@ build_ubuntu_bionic:
       - ${EOS_ARCH}_artifacts/
   dependencies: []
   allow_failure: true # @todo false for tags
-  only:
-    - schedules
-    - tags
 
 build_fedora_stable:
   image: fedora:31
@@ -316,9 +319,10 @@ build_fedora_rawhide:
     - docker_node
     - fedora_rawhide
 
+# @note Using "normal" cc7 as it doesn't actually need an exotic one, yet
 .build_cc7_exotic-template: &build_cc7_exotic-template_definition
   stage: build:rpm
-  image: gitlab-registry.cern.ch/dss/eos/prebuild-${BUILD_NAME}
+  image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7
   script:
     - git submodule update --init --recursive
     - mkdir build
@@ -343,8 +347,6 @@ build_fedora_rawhide:
       - ${BUILD_NAME}_artifacts/
   dependencies: []
   allow_failure: true
-  only:
-    - schedules
 
 build_cc7_asan:
   <<: *build_cc7_exotic-template_definition
@@ -353,6 +355,9 @@ build_cc7_asan:
     CMAKE_OPTIONS: "-DASAN=1"
     RPMBUILD_OPTIONS: "--with asan"
     CXXFLAGS: "-Wno-parentheses"    # Avoid boost header compilation errors
+  only:
+    - schedules
+    - tags
   tags:
     - docker_node
     - cc7_asan
@@ -363,6 +368,9 @@ build_cc7_clang:
     BUILD_NAME: cc7_clang
     CMAKE_OPTIONS: "-DCLANG_BUILD=1"
     RPMBUILD_OPTIONS: "--with clang"
+  only:
+    - schedules
+    - tags
   tags:
     - docker_node
     - cc7_clang
@@ -383,7 +391,7 @@ build_cc7_xrd_testing: # Re-enable xrd_testing jobs once project ugprades to XRo
     - docker_node
     - cc7_xrd_testing
 
-# @note please contact CTA team / jleduc if you want to change this job'
+# @note please contact CTA team / jleduc if you want to change this job
 build_cc7_opt_xrootd:
   before_script:
     - source gitlab-ci/export_branch.sh
@@ -402,7 +410,8 @@ build_cc7_opt_xrootd:
   when: manual
   allow_failure: true
   only:
-    - master
+    - schedules
+    - tags
   tags:
     - docker_node
     - cc7
@@ -526,22 +535,6 @@ c8_docker_image_commit:
     - tags
   allow_failure: true
 
-cc7_xrd_testing_docker_image:
-  stage: build:dockerimage
-  tags:
-    - docker-image-build
-  script:
-    - ""
-  variables:
-    TO: gitlab-registry.cern.ch/dss/eos:xrd_testing_${CI_COMMIT_SHORT_SHA}
-    DOCKER_FILE: eos-docker/Dockerfile_xrd_testing
-  dependencies:
-    - build_cc7_xrd_testing
-    - clone_docker
-  only:
-    - schedules
-  allow_failure: true
-
 cc7_asan_docker_image:
   stage: build:dockerimage
   tags:
@@ -554,6 +547,22 @@ cc7_asan_docker_image:
     BUILD_ARG: BRANCH=${BRANCH}
   dependencies:
     - build_cc7_asan
+    - clone_docker
+  only:
+    - schedules
+  allow_failure: true
+
+cc7_xrd_testing_docker_image:
+  stage: build:dockerimage
+  tags:
+    - docker-image-build
+  script:
+    - ""
+  variables:
+    TO: gitlab-registry.cern.ch/dss/eos:xrd_testing_${CI_COMMIT_SHORT_SHA}
+    DOCKER_FILE: eos-docker/Dockerfile_xrd_testing
+  dependencies:
+    - build_cc7_xrd_testing
     - clone_docker
   only:
     - schedules
