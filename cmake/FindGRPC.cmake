@@ -1,12 +1,12 @@
 #
-# Locate and configure the gRPC library
+# Locate and configure the GRPC library
 #
 # Adds the following targets:
 #
-#  gRPC::grpc - gRPC library
-#  gRPC::grpc++ - gRPC C++ library
-#  gRPC::grpc++_reflection - gRPC C++ reflection library
-#  gRPC::grpc_cpp_plugin - C++ generator plugin for Protocol Buffers
+#  GRPC::grpc - gRPC library
+#  GRPC::grpc++ - gRPC C++ library
+#  GRPC::grpc++_reflection - gRPC C++ reflection library
+#  GRPC::grpc_cpp_plugin - C++ generator plugin for Protocol Buffers
 #
 
 #
@@ -63,7 +63,7 @@ function(GRPC_GENERATE_CPP SRCS HDRS DEST)
              "${DEST}/${FIL_WE}.grpc.pb.h"
       COMMAND ${PROTOBUF_PROTOC_EXECUTABLE}
       ARGS --grpc_out ${DEST} ${_protobuf_include_path} --plugin=protoc-gen-grpc=${GRPC_CPP_PLUGIN} ${ABS_FIL}
-      DEPENDS ${ABS_FIL} ${PROTOBUF_PROTOC_EXECUTABLE} gRPC::grpc_cpp_plugin
+      DEPENDS ${ABS_FIL} ${PROTOBUF_PROTOC_EXECUTABLE} GRPC::grpc_cpp_plugin
       COMMENT "Running C++ gRPC compiler on ${FIL}"
       VERBATIM )
   endforeach()
@@ -100,41 +100,41 @@ find_program(GRPC_CPP_PLUGIN
   NAMES grpc_cpp_plugin)
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(gRPC
+find_package_handle_standard_args(GRPC
   REQUIRED_VARS GRPC_LIBRARY GRPC_INCLUDE_DIR
   GRPC_GRPC++_REFLECTION_LIBRARY GRPC_CPP_PLUGIN)
 
 mark_as_advanced(GRPC_LIBRARY GRPC_GRPC++_LIBRARY 
   GRPC_GRPC++_REFLECTION_LIBRARY GRPC_CPP_PLUGIN)
 
-if (GRPC_FOUND AND NOT TARGET gRPC::grpc AND NOT TARGET gRPC::grpc++)
-  add_library(gRPC::grpc UNKNOWN IMPORTED)
-  set_target_properties(gRPC::grpc PROPERTIES
+if (GRPC_FOUND AND NOT TARGET GRPC::grpc AND NOT TARGET GRPC::grpc++)
+  add_library(GRPC::grpc UNKNOWN IMPORTED)
+  set_target_properties(GRPC::grpc PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES ${GRPC_INCLUDE_DIR}
     INTERFACE_LINK_LIBRARIES "-lpthread;-ldl"
     IMPORTED_LOCATION ${GRPC_LIBRARY}
     INTERFACE_COMPILE_DEFINITIONS EOS_GRPC=1)
 
-  add_library(gRPC::grpc++ UNKNOWN IMPORTED)
-  set_target_properties(gRPC::grpc++ PROPERTIES
+  add_library(GRPC::grpc++ UNKNOWN IMPORTED)
+  set_target_properties(GRPC::grpc++ PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES ${GRPC_INCLUDE_DIR}
-    INTERFACE_LINK_LIBRARIES gRPC::grpc
+    INTERFACE_LINK_LIBRARIES GRPC::grpc
     IMPORTED_LOCATION ${GRPC_GRPC++_LIBRARY}
     INTERFACE_COMPILE_DEFINITIONS EOS_GRPC=1)
 
-  add_library(gRPC::grpc++_reflection UNKNOWN IMPORTED)
-  set_target_properties(gRPC::grpc++_reflection PROPERTIES
+  add_library(GRPC::grpc++_reflection UNKNOWN IMPORTED)
+  set_target_properties(GRPC::grpc++_reflection PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES ${GRPC_INCLUDE_DIR}
-    INTERFACE_LINK_LIBRARIES gRPC::grpc++
+    INTERFACE_LINK_LIBRARIES GRPC::grpc++
     IMPORTED_LOCATION ${GRPC_GRPC++_REFLECTION_LIBRARY})
 
-  add_executable(gRPC::grpc_cpp_plugin IMPORTED)
-  set_target_properties(gRPC::grpc_cpp_plugin PROPERTIES
+  add_executable(GRPC::grpc_cpp_plugin IMPORTED)
+  set_target_properties(GRPC::grpc_cpp_plugin PROPERTIES
     IMPORTED_LOCATION ${GRPC_CPP_PLUGIN})
 else()
   message ("Notice: gRPC not found, no gRPC access available")
-  add_library(gRPC::grpc INTERFACE IMPORTED)
-  add_library(gRPC::grpc++ INTERFACE IMPORTED)
-  add_library(gRPC::grpc++_reflection INTERFACE IMPORTED)
-  add_executable(gRPC::grpc_cpp_plugin IMPORTED)
+  add_library(GRPC::grpc INTERFACE IMPORTED)
+  add_library(GRPC::grpc++ INTERFACE IMPORTED)
+  add_library(GRPC::grpc++_reflection INTERFACE IMPORTED)
+  add_executable(GRPC::grpc_cpp_plugin IMPORTED)
 endif()

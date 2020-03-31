@@ -127,14 +127,10 @@ if (GRPC_FOUND)
   set(GRPC_PROTOBUF_PATH "${CMAKE_BINARY_DIR}/proto/")
   grpc_generate_cpp(GRPC_SVC_SRCS GRPC_SVC_HDRS ${GRPC_PROTOBUF_PATH} ${GRPC_PROTOS})
 
-#  set(GRPC_SRCS ${GRPC_SRCS} PARENT_SCOPE)
-#  set(GRPC_HDRS ${GRPC_HDRS} PARENT_SCOPE)
   set(GRPC_SVC_SRCS ${GRPC_SVC_SRCS} PARENT_SCOPE)
   set(GRPC_SVC_HDRS ${GRPC_SVC_HDRS} PARENT_SCOPE)
 
   set_source_files_properties(
-#   ${GRPC_SRCS}
-#   ${GRPC_HDRS}
     ${GRPC_SVC_SRCS}
     ${GRPC_SVC_HDRS}
     PROPERTIES GENERATED TRUE)
@@ -144,8 +140,7 @@ if (GRPC_FOUND)
     ${GRPC_SVC_HDRS})
 
   target_link_libraries(EosGrpcProto-Objects PUBLIC
-#    EosCliProto-Objects
-    gRPC::grpc++
+    GRPC::grpc++
     PROTOBUF::PROTOBUF)
 
   target_include_directories(EosGrpcProto-Objects PUBLIC

@@ -26,6 +26,7 @@
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/PermissionHandler.hh"
+#include "namespace/MDException.hh"
 #include <sys/stat.h>
 
 EOSNSNAMESPACE_BEGIN
@@ -148,15 +149,14 @@ ContainerMD::findContainer(const std::string& name)
 // Find item
 //------------------------------------------------------------------------------
 folly::Future<FileOrContainerMD>
-ContainerMD::findItem(const std::string &name)
+ContainerMD::findItem(const std::string& name)
 {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   FileOrContainerMD retval;
-
   // First, check if a file with such name exists.
   retval.file = findFile(name);
 
-  if(retval.file) {
+  if (retval.file) {
     // Yep, we're done.
     return retval;
   }
@@ -360,6 +360,7 @@ bool
 ContainerMD::access(uid_t uid, gid_t gid, int flags)
 {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+
   // root can do everything
   if (uid == 0) {
     return true;
@@ -372,7 +373,6 @@ ContainerMD::access(uid_t uid, gid_t gid, int flags)
 
   // Filter out based on sys.mask
   mode_t filteredMode = PermissionHandler::filterWithSysMask(pXAttrs, pMode);
-
   // Convert the flags
   char convFlags = PermissionHandler::convertRequested(flags);
 
@@ -443,9 +443,9 @@ IContainerMD::ContainerMap
 ContainerMD::copyContainerMap() const
 {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-
   IContainerMD::ContainerMap retval;
-  for(auto it = mSubcontainers.cbegin(); it != mSubcontainers.cend(); ++it) {
+
+  for (auto it = mSubcontainers.cbegin(); it != mSubcontainers.cend(); ++it) {
     retval.insert_or_assign(it->first, it->second);
   }
 
@@ -459,9 +459,9 @@ IContainerMD::FileMap
 ContainerMD::copyFileMap() const
 {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-
   IContainerMD::FileMap retval;
-  for(auto it = mFiles.cbegin(); it != mFiles.cend(); ++it) {
+
+  for (auto it = mFiles.cbegin(); it != mFiles.cend(); ++it) {
     retval.insert_or_assign(it->first, it->second);
   }
 

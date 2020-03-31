@@ -23,7 +23,6 @@
 
 include_directories(
   ${CMAKE_SOURCE_DIR}
-  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
   ${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/include)
 
 #-------------------------------------------------------------------------------
@@ -50,10 +49,9 @@ add_library(EosMgmHttp-Objects OBJECT
 
 target_link_libraries(EosMgmHttp-Objects PUBLIC
   EosAuthProto-Objects
-  XROOTD::UTILS
+  EosCommonServer
   XROOTD::PRIVATE
-  XROOTD::HTTP
-  FOLLY::FOLLY)
+  XROOTD::HTTP)
 
 set_target_properties(EosMgmHttp-Objects
   PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
@@ -62,12 +60,7 @@ add_library(EosMgmHttp-${PLUGIN_VERSION} MODULE
   $<TARGET_OBJECTS:EosMgmHttp-Objects>)
 
 target_link_libraries(EosMgmHttp-${PLUGIN_VERSION} PUBLIC
-  EosCommon
-  EosCommonServer
-  XROOTD::UTILS
-  XROOTD::HTTP
-  XROOTD::PRIVATE
-  FOLLY::FOLLY)
+  EosMgmHttp-Objects)
 
 install(
   TARGETS EosMgmHttp-${PLUGIN_VERSION}
@@ -267,12 +260,11 @@ target_link_libraries(XrdEosMgm-Objects PUBLIC
   EosAuthProto-Objects
   XrdSsiPbEosCta-Objects
   EosGrpcProto-Objects
+  EosCommonServer
   LIBMICROHTTPD::LIBMICROHTTPD
   GOOGLE::SPARSEHASH
   JSONCPP::JSONCPP
   XROOTD::PRIVATE
-  XROOTD::UTILS
-  FOLLY::FOLLY
   LDAP::LDAP
   ZMQ::ZMQ)
 
@@ -295,11 +287,8 @@ target_link_libraries(XrdEosMgm-${PLUGIN_VERSION} PUBLIC
   ZLIB::ZLIB
   XROOTD::CL
   XROOTD::SSI
-  XROOTD::UTILS
   XROOTD::PRIVATE
-  qclient
   EosCommon
-  EosCommonServer
   EosNsCommon
   bfd
   ${GLIBC_DL_LIBRARY}
@@ -330,7 +319,6 @@ add_executable(
 target_link_libraries(
   testschedulingtree
   EosCommon
-  XROOTD::UTILS
   ${CMAKE_THREAD_LIBS_INIT})
 
 add_executable(eos-config-inspect

@@ -23,6 +23,7 @@
 
 #include "MDException.hh"
 #include "common/Logging.hh"
+#include <folly/ExceptionWrapper.h>
 
 namespace eos
 {

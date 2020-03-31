@@ -29,7 +29,7 @@
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdNet/XrdNet.hh"
-#include "XrdNet/XrdNetPeer.hh"
+//#include "XrdNet/XrdNetPeer.hh"
 #include <string>
 #include <map>
 #include <sstream>
@@ -209,8 +209,8 @@ HttpServer::CleanupConnections()
   XrdSysLogger logger;
   XrdSysError error(&logger);
   XrdNet cNet(&error);
-  XrdNetPeer cPeer;
-  cNet.Connect(cPeer, "localhost", mPort);
+  // XrdNetPeer cPeer;
+  // cNet.Connect(cPeer, "localhost", mPort);
 }
 
 

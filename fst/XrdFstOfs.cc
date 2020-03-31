@@ -814,7 +814,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     eos_crit("error starting the shared object change notifier");
   }
 
-// Create the specific listener class
+  // Create the specific listener class
   Messaging = new eos::fst::Messaging(
     eos::fst::Config::gConfig.FstOfsBrokerUrl.c_str(),
     eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str(),
@@ -844,7 +844,11 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   mHttpdPort = 8001;
 
   if (getenv("EOS_FST_HTTP_PORT")) {
-    mHttpdPort = strtol(getenv("EOS_FST_HTTP_PORT"), 0, 10);
+    try {
+      mHttpdPort = std::stol(getenv("EOS_FST_HTTP_PORT"));
+    } catch (...) {
+      // no change
+    }
   }
 
   mHttpd.reset(new eos::fst::HttpServer(mHttpdPort));

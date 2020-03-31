@@ -21,10 +21,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(
- ${CMAKE_BINARY_DIR}
- ${CMAKE_SOURCE_DIR}
- ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include)
+include_directories(${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR})
 
 add_subdirectory(tests)
 
@@ -41,7 +38,6 @@ target_link_libraries(EosNsQuarkdb PUBLIC
   EosNsCommon
   qclient
   rocksdb
-  FOLLY::FOLLY
   ${BZ2_LIBRARY}
   ${GLIBC_DL_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
@@ -63,8 +59,7 @@ target_link_libraries(eos-ns-convert PRIVATE
   jemalloc
   qclient
   EosCommon
-  EosNsInMemory-Static
-  FOLLY::FOLLY)
+  EosNsInMemory-Static)
 
 add_executable(eos-ns-convert-to-locality-hashes tools/EosConvertToLocalityHashes.cc)
 
@@ -73,7 +68,7 @@ target_link_libraries(eos-ns-convert-to-locality-hashes PRIVATE
 
 add_executable(eos-ns-inspect tools/InspectionTool.cc)
 
-target_link_libraries(eos-ns-inspect PRIVATE EosNsCommon-Static FOLLY::FOLLY)
+target_link_libraries(eos-ns-inspect PRIVATE EosNsCommon-Static)
 
 add_executable(eos-fid-to-path tools/Fid2PathTool.cc)
 

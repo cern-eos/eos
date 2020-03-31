@@ -179,7 +179,6 @@ target_link_libraries(EosFstIo PUBLIC
   Jerasure-Objects
   GfComplete-Objects
   EosCrc32c-Objects
-  EosCommon
   XROOTD::SERVER
   ISAL::ISAL
   ISAL::ISAL_CRYPTO
@@ -311,9 +310,10 @@ target_link_libraries(XrdEosFst-Objects PUBLIC
   EosNsQuarkdbProto-Objects
   XrdSsiPbEosCta-Objects
   EosConsoleHelpers-Objects
+  EosCommonServer
+  EosNsCommon
   XROOTD::UTILS
   XROOTD::PRIVATE
-  FOLLY::FOLLY
   XFS::XFS)
 
 set_target_properties(XrdEosFst-Objects PROPERTIES
@@ -328,11 +328,8 @@ add_library(XrdEosFst-${PLUGIN_VERSION} MODULE
 target_link_libraries(XrdEosFst-${PLUGIN_VERSION} PRIVATE
   XrdEosFst-Objects
   EosConsoleHelpers-Objects
-  EosCommonServer
   EosFstIo
-  # @todo(gbitzes) move calculateEtag to common so that we don't have to couple
-  # the fst lib with the ns one
-  EosNsCommon
+
   XROOTD::SSI)
 
 target_compile_definitions(XrdEosFst-${PLUGIN_VERSION} PUBLIC
@@ -393,8 +390,7 @@ target_link_libraries(eos-rain-hd-dump
 add_executable(eos-leveldb-inspect
   tools/eos-leveldb-inspect.cc)
 
-target_link_libraries(eos-leveldb-inspect PRIVATE
-  EosCommonServer FOLLY::FOLLY)
+target_link_libraries(eos-leveldb-inspect PRIVATE EosCommonServer)
 
 add_executable(eos-check-blockxs
   tools/CheckBlockXS.cc
@@ -448,13 +444,11 @@ target_link_libraries(eos-checksum PRIVATE EosFstIo)
 target_link_libraries(eos-scan-fs PRIVATE
   EosFstIo
   EosCommonServer
-  EosNsCommon-Static
-  FOLLY::FOLLY)
+  EosNsCommon-Static)
 target_link_libraries(eos-fsck-fs PRIVATE
   EosFstIo
   EosCommonServer
-  EosNsCommon-Static
-  FOLLY::FOLLY)
+  EosNsCommon-Static)
 
 install(PROGRAMS
   tools/eosfstregister

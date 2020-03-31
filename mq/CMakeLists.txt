@@ -87,8 +87,8 @@ add_library(XrdMqOfs-${PLUGIN_VERSION} MODULE
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/BackendClient.cc)
 
 target_link_libraries(XrdMqOfs-${PLUGIN_VERSION} PRIVATE
-  qclient
-  EosCommon)
+  EosCommon
+  qclient)
 
 install(TARGETS XrdMqOfs-${PLUGIN_VERSION}
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}

@@ -21,8 +21,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(${CMAKE_SOURCE_DIR}
-  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include)
+include_directories(${CMAKE_SOURCE_DIR})
 
 #-------------------------------------------------------------------------------
 # CTA integration related operations
@@ -163,8 +162,8 @@ if (Linux)
     stringencoders/modp_numtoa.c)
 
   target_link_libraries(EosCommonServer-Objects PUBLIC
+    qclient
     XROOTD::UTILS
-    XROOTD::PRIVATE
     PROTOBUF::PROTOBUF
     LEVELDB::LEVELDB
     LIBMICROHTTPD::LIBMICROHTTPD)
@@ -182,7 +181,6 @@ if (Linux)
     EosCommonServer-Objects
     XrdSsiPbEosCta-Objects
     XrdMqClient
-    qclient
     ${CMAKE_THREAD_LIBS_INIT})
 
   target_compile_definitions(EosCommonServer PUBLIC
@@ -219,6 +217,8 @@ if(NOT CLIENT AND Linux)
   add_executable(dbmaptestburn dbmaptest/DbMapTestBurn.cc)
   add_executable(mutextest
     mutextest/RWMutexTest.cc RWMutex.cc PthreadRWMutex.cc StacktraceHere.cc)
+  # Avoid warnings related to bfd_get_section* macros being redefined
+  target_compile_options(mutextest PRIVATE -Wno-macro-redefined)
 
   PROTOBUF_GENERATE_CPP(DBMAPTEST_SRCS DBMAPTEST_HDRS dbmaptest/test.proto)
   set_source_files_properties(

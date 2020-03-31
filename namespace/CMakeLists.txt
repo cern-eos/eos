@@ -61,7 +61,6 @@ add_library(
   utils/ThreadUtils.cc
   utils/TestHelpers.cc
   utils/Buffer.hh
-
   utils/Etag.cc                       utils/Etag.hh
 
   # non-loadable classes used in QDB namespace
@@ -107,16 +106,16 @@ add_library(
   ns_quarkdb/VersionEnforcement.cc                        ns_quarkdb/VersionEnforcement.hh)
 
 target_link_libraries(EosNsCommon-Objects PUBLIC
+  qclient
   EosCliProto-Objects
+  EosCommon
   XROOTD::UTILS
-  JSONCPP::JSONCPP
-  FOLLY::FOLLY)
+  JSONCPP::JSONCPP)
 
 set_target_properties(EosNsCommon-Objects
   PROPERTIES POSITION_INDEPENDENT_CODE True)
 
 add_library(EosNsCommon SHARED $<TARGET_OBJECTS:EosNsCommon-Objects>)
-
 
 target_include_directories(
   EosNsCommon PUBLIC
@@ -127,8 +126,6 @@ target_include_directories(
 target_link_libraries(EosNsCommon PUBLIC
   EosNsCommon-Objects
   EosCrc32c-Objects
-  EosCommon
-  qclient
   rocksdb
   fmt)
 

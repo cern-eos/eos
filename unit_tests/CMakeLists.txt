@@ -1,3 +1,4 @@
+
 # ----------------------------------------------------------------------
 # File: CMakeLists.txt
 # Author: Jozsef Makai <jmakai@cern.ch> CERN
@@ -134,7 +135,6 @@ add_executable(eos-fst-unit-tests ${UT_FST_SRCS})
 target_link_libraries(eos-fst-unit-tests PRIVATE
   gtest_main
   gmock
-  qclient
   XrdEosFst-Static)
 
 install(TARGETS
