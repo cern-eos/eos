@@ -635,8 +635,10 @@ cc7_xrd_testing_docker_image:
     # prepare mountpoints
     - exec_cmd eos-cli1 'atd; at now <<< "mkdir /eos1/; mount -t fuse eosxd -ofsname=mount-1 /eos1/; mkdir /eos2/; mount -t fuse eosxd -ofsname=mount-2 /eos2/;"'
     - exec_cmd eos-cli1 'count=0; while [[ $count -le 10 ]] && ( [[ ! -d /eos1/dockertest/ ]] || [[ ! -d /eos2/dockertest/ ]] ); do echo "Wait for mount... $count"; (( count++ )); sleep 1; done;'
-    # some tests requires versioning, some do not but they don't care ...
-    - exec_cmd eos-mgm1 'eos attr set sys.versioning="10" eos/dockertest'
+    # some tests requires cernbox attributes configurations, some do not but they don't care...
+    - if [[ $CI_JOB_NAME =~ "cbox" ]]; then
+        ./gitlab-ci/attr_set_cernbox-like.sh;
+      fi
 
     # fusex benchmark
     - exec_cmd eos-cli1 "su - eos-user -c 'mkdir /eos1/dockertest/fusex_tests/; cd /eos1/dockertest/fusex_tests/; fusex-benchmark'"
@@ -644,7 +646,7 @@ cc7_xrd_testing_docker_image:
     # eosclient-tests
     - exec_cmd eos-cli1 'git clone https://gitlab.cern.ch/dss/eosclient-tests.git'
     - exec_cmd eos-cli1 'python /eosclient-tests/run.py --workdir=/eos1/dockertest file_versions'
-
+    # ubuntu releases do not support 'clone' yet
     - if [[ ! $CI_JOB_NAME =~ "ubuntu" ]]; then
         exec_cmd eos-cli1 'cd /eosclient-tests; git checkout rtb_clone; prepare/clone_test.sh prepare; rc=$?; git checkout master; exit $rc';
       fi
@@ -679,6 +681,13 @@ k8s_fusex:
   tags:
     - shell-with-kubernetes
 
+k8s_fusex_cbox:
+  <<: *dock8s_fusex_test_template
+  dependencies: []
+  retry: 1
+  tags:
+    - shell-with-kubernetes
+
 k8s_stress:
   stage: test
   <<: *dock8s_before_script_template
@@ -700,6 +709,14 @@ dock_system:
     - shell-with-docker
 
 dock_fusex:
+  <<: *dock8s_fusex_test_template
+  dependencies:
+    - clone_docker
+  retry: 1
+  tags:
+    - shell-with-docker
+
+dock_fusex_cbox:
   <<: *dock8s_fusex_test_template
   dependencies:
     - clone_docker
