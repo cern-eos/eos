@@ -1617,7 +1617,7 @@ int WFE::Job::HandleProtoMethodEvents(std::string& errorMsg,
   } else if (event == "sync::delete" || event == "delete") {
     return HandleProtoMethodDeleteEvent(fullPath, errorMsg);
   } else if (event == "sync::closew" || event == "closew") {
-    return HandleProtoMethodCloseEvent(event, fullPath);
+    return HandleProtoMethodCloseEvent(event, fullPath, ininfo);
   } else if (event == "sync::archived" || event == "archived") {
     return HandleProtoMethodArchivedEvent(event, fullPath, ininfo);
   } else if (event == RETRIEVE_FAILED_WORKFLOW_NAME) {
@@ -2053,13 +2053,34 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string& fullPath,
 
 int
 WFE::Job::HandleProtoMethodCloseEvent(const std::string& event,
-                                      const std::string& fullPath)
+                                      const std::string& fullPath,
+                                      const char* const ininfo)
 {
   EXEC_TIMING_BEGIN("Proto::Close");
   gOFS->MgmStats.Add("Proto::Close", 0, 0, 1);
 
   if (mActions[0].mWorkflow == RETRIEVE_WRITTEN_WORKFLOW_NAME) {
     resetRetrieveIdListAndErrorMsg(fullPath);
+  }
+
+  {
+    XrdOucEnv opaque(ininfo);
+    const char* const archive_req_id = opaque.Get("mgm.archive_req_id");
+      
+    if (archive_req_id != nullptr && *archive_req_id != '\0') {
+      try {
+        eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+        auto fmd = gOFS->eosFileService->getFileMD(mFid);
+        fmd->setAttribute(CTA_OBJECTSTORE_ARCHIVE_REQ_ID_NAME, archive_req_id);
+        gOFS->eosView->updateFileStore(fmd.get());
+      } catch (std::exception& se) {
+        eos_static_err("msg=\"Failed to set xattr: %s\" path=\"%s\" xattr_name=\"%s\" xattr_value=\"%s\"",
+          se.what(), fullPath.c_str(), CTA_OBJECTSTORE_ARCHIVE_REQ_ID_NAME, archive_req_id);
+      } catch (...) {
+        eos_static_err("msg=\"Failed to set xattr: Caught an unknown exception\" path=\"%s\" xattr_name=\"%s\""
+          " xattr_value=\"%s\"", fullPath.c_str(), CTA_OBJECTSTORE_ARCHIVE_REQ_ID_NAME, archive_req_id);
+      }
+    }
   }
 
   MoveWithResults(SFS_OK);

@@ -1081,6 +1081,7 @@ XrdFstOfsFile::_close()
   bool consistencyerror = false;
   bool atomicoverlap = false;
   std::string queueing_errmsg;
+  std::string archive_req_id;
 
   // Any close on a file opened in TPC mode invalidates tpc keys
   if (mTpcKey.length()) {
@@ -1269,7 +1270,7 @@ XrdFstOfsFile::_close()
           if (mTapeEnabled && isCreation && mSyncEventOnClose &&
               mEventWorkflow != common::RETRIEVE_WRITTEN_WORKFLOW_NAME) {
             // Queueing error: queueing for archive failed
-            queueingerror = !QueueForArchiving(statinfo, queueing_errmsg);
+            queueingerror = !QueueForArchiving(statinfo, queueing_errmsg, archive_req_id);
 
             if (queueingerror) {
               deleteOnClose = true;
@@ -1767,6 +1768,11 @@ XrdFstOfsFile::_close()
       if (mEventWorkflow.length()) {
         capOpaqueFile += "&mgm.workflow=";
         capOpaqueFile += mEventWorkflow.c_str();
+      }
+
+      if (!archive_req_id.empty()) {
+        capOpaqueFile += "&mgm.archive_req_id=";
+        capOpaqueFile += archive_req_id.c_str();
       }
 
       eos_info("msg=\"notify\" event=\"%s\" workflow=\"%s\"", eventType.c_str(),
@@ -3059,7 +3065,8 @@ XrdFstOfsFile::VerifyChecksum()
 //------------------------------------------------------------------------------
 bool
 XrdFstOfsFile::QueueForArchiving(const struct stat& statinfo,
-                                 std::string& queueing_errmsg)
+                                 std::string& queueing_errmsg,
+                                 std::string& archive_req_id)
 {
   std::string decodedAttributes;
   eos::common::SymKey::Base64Decode(mEventAttributes.c_str(), decodedAttributes);
@@ -3080,7 +3087,8 @@ XrdFstOfsFile::QueueForArchiving(const struct stat& statinfo,
                        mCapOpaque->Get("mgm.path"),
                        mCapOpaque->Get("mgm.manager"),
                        attributes,
-                       queueing_errmsg);
+                       queueing_errmsg,
+                       archive_req_id);
 
   // Note: error variable defined in XrdSfsFile interface
   if (notifyRc == 0) {
@@ -3377,7 +3385,8 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
     const std::string& fullpath,
     const std::string& manager_name,
     const std::map<std::string, std::string>& xattrs,
-    std::string& errmsg_wfe)
+    std::string& errmsg_wfe,
+    std::string &archive_req_id)
 {
   using namespace eos::common;
   cta::xrd::Request request;
@@ -3475,6 +3484,15 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
 
   switch (response.type()) {
   case cta::xrd::Response::RSP_SUCCESS:
+    {
+      auto archiveReqIdItor = response.xattr().find("sys.cta.objectstore.id");
+      if (response.xattr().end() != archiveReqIdItor) {
+        archive_req_id = archiveReqIdItor->second;
+      } else {
+        eos_static_err("msg=\"Failed to extract sys.cta.objectstore.id from response to closew notification to"
+         " protowfendpoint\" path=\"%s\"", fullpath.c_str());
+      }
+    }
     return 0;
 
   case cta::xrd::Response::RSP_ERR_CTA:

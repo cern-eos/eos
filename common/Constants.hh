@@ -36,6 +36,8 @@ static constexpr auto RETRIEVE_REQTIME_ATTR_NAME = "sys.retrieve.req_time";
 static constexpr auto RETRIEVE_ERROR_ATTR_NAME = "sys.retrieve.error";
 //! Archive request failure reason
 static constexpr auto ARCHIVE_ERROR_ATTR_NAME = "sys.archive.error";
+//! CTA internal objectsore id for archive requests
+static constexpr auto CTA_OBJECTSTORE_ARCHIVE_REQ_ID_NAME = "sys.cta.archive.objectstore.id";
 //! CTA internal objectstore id for prepare requests
 static constexpr auto CTA_OBJECTSTORE_REQ_ID_NAME = "sys.cta.objectstore.id";
 // Workflow names

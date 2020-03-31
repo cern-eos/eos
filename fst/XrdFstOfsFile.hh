@@ -630,11 +630,14 @@ public:
   //!
   //! @param statinfo The file stat structure
   //! @param queueing_errmsg Error message from CTA queueing
+  //! @param archive_req_id Output parameter: The archive request ID returned by
+  //! the ProtoEfEndPoint
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   bool QueueForArchiving(const struct stat& statinfo,
-                         std::string& queueing_errmsg);
+                         std::string& queueing_errmsg,
+                         std::string &archive_req_id);
 
   //----------------------------------------------------------------------------
   //! Notify the workflow protobuf endpoint that the user has closed a file that
@@ -655,6 +658,8 @@ public:
   //! workflow protobuf endpoint
   //! @param errmsg_wfe Output parameter: Error message back from the workflow
   //! protobuf endpoint
+  //! @param archive_req_id Output parameter: The archive request ID returned by
+  //! the ProtoEfEndPoint
   //!
   //! @return 0 if successful, error code otherwise
   //----------------------------------------------------------------------------
@@ -668,7 +673,8 @@ public:
                                   const std::string& fullpath,
                                   const std::string& manager_name,
                                   const std::map<std::string, std::string>& xattrs,
-                                  std::string& errmsg_wfe);
+                                  std::string& errmsg_wfe,
+                                  std::string &archive_req_id);
 
   //----------------------------------------------------------------------------
   //! Send archive failed event to the manager

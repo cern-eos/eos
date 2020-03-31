@@ -226,7 +226,9 @@ public:
     //! @brief Handles a "proto" method "close" event
     //! @param event the precise name of the event
     //! @param fullPath the full path of the file
-    int HandleProtoMethodCloseEvent(const std::string &event, const std::string &fullPath);
+    //! @ininfo original opaque information of the URL that triggered the event
+    int HandleProtoMethodCloseEvent(const std::string &event, const std::string &fullPath,
+      const char * const ininfo);
 
     //! @brief Handles a "proto" method "archived" event
     //! @param event the precise name of the event
