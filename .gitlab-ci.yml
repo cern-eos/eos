@@ -319,7 +319,7 @@ build_fedora_rawhide:
     - docker_node
     - fedora_rawhide
 
-# @note Using "normal" cc7 as it doesn't actually need an exotic one, yet
+# @note Using "normal" cc7 image as it doesn't actually need an exotic one, yet
 .build_cc7_exotic-template: &build_cc7_exotic-template_definition
   stage: build:rpm
   image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7
@@ -357,7 +357,6 @@ build_cc7_asan:
     CXXFLAGS: "-Wno-parentheses"    # Avoid boost header compilation errors
   only:
     - schedules
-    - tags
   tags:
     - docker_node
     - cc7_asan
@@ -370,7 +369,6 @@ build_cc7_clang:
     RPMBUILD_OPTIONS: "--with clang"
   only:
     - schedules
-    - tags
   tags:
     - docker_node
     - cc7_clang
@@ -385,8 +383,8 @@ build_cc7_xrd_testing: # Re-enable xrd_testing jobs once project ugprades to XRo
   <<: *build_cc7_exotic-template_definition
   variables:
     BUILD_NAME: cc7_xrd_testing
-  except:
-    - tags
+  only:
+    - schedules
   tags:
     - docker_node
     - cc7_xrd_testing
@@ -405,16 +403,11 @@ build_cc7_opt_xrootd:
     BUILD_NAME: cc7_opt_xrootd
     CMAKE_OPTIONS: "-DEOS_XROOTD=1"
     RPMBUILD_OPTIONS: "--with eos_xrootd_rh"
-  except:
-    - tags
-  when: manual
   allow_failure: true
-  only:
-    - schedules
-    - tags
   tags:
     - docker_node
     - cc7
+  when: manual
 
 build_cc7_coverage:
   <<: *build_cc7_exotic-template_definition
