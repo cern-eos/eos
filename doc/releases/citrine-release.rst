@@ -19,6 +19,27 @@ This release is based on XRootD V4 and IPV6 enabled.
 ``v4.7.6 Citrine``
 ===================
 
+2020-04-01
+
+Bug
+---
+
+* MGM: fix lock order violation in FuseServer file creation
+* NS: Fix inverted condition when calculating etag for md5
+* Fixes bit-flip error when setting rsp.is_on_tape
+
+
+Improvements
+-------------
+
+* MGM: disable fusex versioning on rename - can by defining  xattr 'sys.fusex.versioning'
+* MGM: clone/hard links/recycle bin
+* MGM: Made tape-aware GC persistent between MGM restarts
+
+
+``v4.7.6 Citrine``
+===================
+
 2020-03-30
 
 Bug
