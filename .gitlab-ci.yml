@@ -613,7 +613,11 @@ cc7_xrd_testing_docker_image:
         docker cp eos-cli1:/usr/sbin/eos-fsck-test .;
         chmod +x eos-fsck-test; date; ./eos-fsck-test --type docker; date; rm -rf eos-fsck-test;
       fi
-    - date; exec_cmd eos-mgm1 eos-instance-test-ci; date;
+    - date
+    - exec_cmd eos-mgm1 'eos ns mutex --toggleorder'
+    - exec_cmd eos-mgm1 eos-instance-test-ci
+    - exec_cmd eos-mgm1 'grep "RWMutex. Order Checking Error in thread" /var/log/eos/mgm/xrdlog.mgm && exit 1 || exit 0'
+    - date
   <<: *dock8s_after_script_template
   artifacts:
     when: on_failure
@@ -634,7 +638,9 @@ cc7_xrd_testing_docker_image:
       fi
 
     # fusex benchmark
+    - exec_cmd eos-mgm1 'eos ns mutex --toggleorder'
     - exec_cmd eos-cli1 "su - eos-user -c 'mkdir /eos1/dockertest/fusex_tests/; cd /eos1/dockertest/fusex_tests/; fusex-benchmark'"
+    - exec_cmd eos-mgm1 'grep "RWMutex. Order Checking Error in thread" /var/log/eos/mgm/xrdlog.mgm && exit 1 || exit 0'
 
     # eosclient-tests
     - exec_cmd eos-cli1 'git clone https://gitlab.cern.ch/dss/eosclient-tests.git'
