@@ -1782,11 +1782,13 @@ Server::OpSetFile(const std::string& id,
 
 	  // check if there is versioning to be done
 	  int versioning = 0;
-	  if (attrmap.count("sys.versioning")) {
-	    versioning = std::stoi(attrmap["sys.versioning"]);
-	  } else {
-	    if (attrmap.count("user.versioning")) {
-	      versioning = std::stoi(attrmap["user.versioning"]);
+	  if (attrmap.count("sys.fusex.versioning")) {
+	    if (attrmap.count("sys.versioning")) {
+	      versioning = std::stoi(attrmap["sys.versioning"]);
+	    } else {
+	      if (attrmap.count("user.versioning")) {
+		versioning = std::stoi(attrmap["user.versioning"]);
+	      }
 	    }
 	  }
 
@@ -1890,14 +1892,15 @@ Server::OpSetFile(const std::string& id,
 	    
 	    // check if there is versioning to be done
 	    int versioning = 0;
-	    if (attrmap.count("sys.versioning")) {
-	      versioning = std::stoi(attrmap["sys.versioning"]);
-	    } else {
-	      if (attrmap.count("user.versioning")) {
-            versioning = std::stoi(attrmap["user.versioning"]);
+	    if (attrmap.count("sys.fusex.versioning")) {
+	      if (attrmap.count("sys.versioning")) {
+		versioning = std::stoi(attrmap["sys.versioning"]);
+	      } else {
+		if (attrmap.count("user.versioning")) {
+		  versioning = std::stoi(attrmap["user.versioning"]);
+		}
 	      }
 	    }
-	    
 	    bool try_recycle = true;
 	    bool created_version = false;
 	    // create a version before replacing
