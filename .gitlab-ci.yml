@@ -406,7 +406,7 @@ build_cc7_opt_xrootd:
   allow_failure: true
   tags:
     - docker_node
-    - cc7
+    - cc7_opt_xrootd
   when: manual
 
 build_cc7_coverage:
@@ -674,7 +674,7 @@ k8s_fusex:
   tags:
     - shell-with-kubernetes
 
-k8s_fusex_cbox:
+.k8s_fusex_cbox:
   <<: *dock8s_fusex_test_template
   dependencies: []
   retry: 1
@@ -709,7 +709,7 @@ dock_fusex:
   tags:
     - shell-with-docker
 
-dock_fusex_cbox:
+.dock_fusex_cbox:
   <<: *dock8s_fusex_test_template
   dependencies:
     - clone_docker
