@@ -35,6 +35,7 @@ Improvements
 * MGM: disable fusex versioning on rename - can by defining  xattr 'sys.fusex.versioning'
 * MGM: clone/hard links/recycle bin
 * MGM: Made tape-aware GC persistent between MGM restarts
+* MGM/FST The sys.archive.req_id xattr of a file is now set when is is queued for archival to tape
 
 
 ``v4.7.6 Citrine``
