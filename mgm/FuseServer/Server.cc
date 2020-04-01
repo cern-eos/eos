@@ -1715,6 +1715,8 @@ Server::OpSetFile(const std::string& id,
   eos_info("ino=%lx pin=%lx authid=%s file", (long) md.md_ino(),
            (long) md.md_pino(),
            md.authid().c_str());
+
+  eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   std::shared_ptr<eos::IFileMD> fmd;
   std::shared_ptr<eos::IFileMD> ofmd;
@@ -1733,6 +1735,7 @@ Server::OpSetFile(const std::string& id,
     }
 
     if (md_ino) {
+      fs_rd_lock.Release();
       // file update
       op = UPDATE;
       // dir update
@@ -2001,6 +2004,8 @@ Server::OpSetFile(const std::string& id,
                (long) md.md_ino(),
                (long) md.md_pino(), (long) fmd->getContainerId());
     } else if (strncmp(md.target().c_str(), "////hlnk", 8) == 0) {  /* hard link creation */
+      fs_rd_lock.Release();
+
       uint64_t tgt_md_ino = atoll(md.target().c_str() + 8);
 
       if (pcmd->findContainer(md.name())) {
@@ -2075,7 +2080,9 @@ Server::OpSetFile(const std::string& id,
       XrdOucEnv env;
       // retrieve the layout
       Policy::GetLayoutAndSpace("fusex", attrmap, vid, layoutId, space, env,
-                                forcedFsId, forcedGroup, true);
+                                forcedFsId, forcedGroup, false);
+
+      fs_rd_lock.Release();
 
       if (eos::mgm::FsView::gFsView.IsQuotaEnabled(space.c_str())) {
         // check inode quota here
