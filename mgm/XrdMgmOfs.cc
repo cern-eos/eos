@@ -1040,7 +1040,7 @@ XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     }
 
     _stat_set_flags(&buf);
-    rsp.is_on_tape = !(buf.st_rdev & XRDSFS_HASBKUP);
+    rsp.is_on_tape = buf.st_rdev & XRDSFS_HASBKUP;
     rsp.is_online  = !(buf.st_rdev & XRDSFS_OFFLINE);
     // Check file status in the extended attributes
     eos::IFileMD::XAttrMap xattrs;
