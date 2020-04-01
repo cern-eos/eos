@@ -33,7 +33,7 @@ default:
        slc6) /kaniko/executor --destination gitlab-registry.cern.ch/dss/eos/prebuild-slc6 --dockerfile $CI_PROJECT_DIR/gitlab-ci/prebuild_OSbase/Dockerfile_prebuild-slc6 --context $CI_PROJECT_DIR ;;
         cc7) /kaniko/executor --destination gitlab-registry.cern.ch/dss/eos/prebuild-cc7 --dockerfile $CI_PROJECT_DIR/gitlab-ci/prebuild_OSbase/Dockerfile_prebuild-cc7 --context $CI_PROJECT_DIR ;;
          c8) /kaniko/executor --destination gitlab-registry.cern.ch/dss/eos/prebuild-c8 --dockerfile $CI_PROJECT_DIR/gitlab-ci/prebuild_OSbase/Dockerfile_prebuild-c8 --context $CI_PROJECT_DIR ;;
-      cc7_*) /kaniko/executor --destination "gitlab-registry.cern.ch/dss/eos/prebuild-$PREBUILD_NAME --dockerfile $CI_PROJECT_DIR/gitlab-ci/prebuild_OSbase/Dockerfile_prebuild-cc7_exotic
+      cc7_*) /kaniko/executor --destination gitlab-registry.cern.ch/dss/eos/prebuild-$PREBUILD_NAME --dockerfile $CI_PROJECT_DIR/gitlab-ci/prebuild_OSbase/Dockerfile_prebuild-cc7_exotic
                 --context $CI_PROJECT_DIR --build-arg PREBUILD_NAME="$PREBUILD_NAME" --build-arg CMAKE_OPTIONS="$CMAKE_OPTIONS" --build-arg CXXFLAGS="$CXXFLAGS" ;;
           *) echo "var PREBUILD_NAME:$PREBUILD_NAME not properly defined"; exit 1 ;;
       esac
@@ -630,7 +630,7 @@ cc7_xrd_testing_docker_image:
     - exec_cmd eos-cli1 'count=0; while [[ $count -le 10 ]] && ( [[ ! -d /eos1/dockertest/ ]] || [[ ! -d /eos2/dockertest/ ]] ); do echo "Wait for mount... $count"; (( count++ )); sleep 1; done;'
     # some tests requires cernbox attributes configurations, some do not but they don't care...
     - if [[ $CI_JOB_NAME =~ "cbox" ]]; then
-        ./gitlab-ci/attr_set_cernbox-like.sh;
+        . ./gitlab-ci/attr_set_cernbox-like.sh;
       fi
 
     # fusex benchmark
