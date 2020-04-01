@@ -1782,7 +1782,7 @@ Server::OpSetFile(const std::string& id,
 
 	  // check if there is versioning to be done
 	  int versioning = 0;
-	  if (attrmap.count("sys.fusex.versioning")) {
+	  if (attrmap.count("user.fusex.rename.version")) {
 	    if (attrmap.count("sys.versioning")) {
 	      versioning = std::stoi(attrmap["sys.versioning"]);
 	    } else {
@@ -1892,7 +1892,7 @@ Server::OpSetFile(const std::string& id,
 	    
 	    // check if there is versioning to be done
 	    int versioning = 0;
-	    if (attrmap.count("sys.fusex.versioning")) {
+	    if (attrmap.count("user.fusex.rename.version")) {
 	      if (attrmap.count("sys.versioning")) {
 		versioning = std::stoi(attrmap["sys.versioning"]);
 	      } else {
