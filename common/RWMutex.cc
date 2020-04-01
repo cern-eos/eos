@@ -1103,11 +1103,14 @@ RWMutex::CheckAndUnlockOrder()
   for (unsigned char k = 0; k < nrules; k++) {
     unsigned long int mask = (1 << rankinrule[k]);
 
-    // check if following mutex is already locked in the same thread
-    if (ordermask_staticthread[k] >= (mask << 1)) {
-      char strmess[1024];
-      sprintf(strmess, "unlocking %s at address %p", mDebugName.c_str(), this);
-      OrderViolationMessage(k, strmess);
+    if (0) {
+      // we don't care about unlocking order violations, there is no problem with that
+      // check if following mutex is already locked in the same thread
+      if (ordermask_staticthread[k] >= (mask << 1)) {
+	char strmess[1024];
+	sprintf(strmess, "unlocking %s at address %p", mDebugName.c_str(), this);
+	OrderViolationMessage(k, strmess);
+      }
     }
 
     ordermask_staticthread[k] &= (~mask);
