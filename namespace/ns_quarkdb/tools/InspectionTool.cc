@@ -157,7 +157,7 @@ int main(int argc, char* argv[]) {
   oneReplicaLayoutSubcommand->add_flag("--filter-internal", filterInternal, "Filter internal entries, such as versioning, aborted atomic uploads, etc");
 
   //----------------------------------------------------------------------------
-  // Set-up scan-dirs-show-all subcommand..
+  // Set-up scan-dirs subcommand..
   //----------------------------------------------------------------------------
   auto scanDirsSubcommand = app.add_subcommand("scan-dirs", "Dump the full list of container metadata across the entire namespace");
   addClusterOptions(scanDirsSubcommand, membersStr, memberValidator, password, passwordFile);
@@ -172,7 +172,7 @@ int main(int argc, char* argv[]) {
   scanDirsSubcommand->add_option("--count-threshold", countThreshold, "Only print containers which contain more than the specified number of items. Useful for detecting huge containers on which 'ls' might hang");
 
   //----------------------------------------------------------------------------
-  // Set-up scan-dirs-print-all subcommand..
+  // Set-up scan-dirs-show-all subcommand..
   //----------------------------------------------------------------------------
   auto scanDirsPrintAllSubcommand = app.add_subcommand("scan-dirs-show-all", "Dump the full list of container metadata across the entire namespace");
   addClusterOptions(scanDirsPrintAllSubcommand, membersStr, memberValidator, password, passwordFile);
@@ -187,8 +187,16 @@ int main(int argc, char* argv[]) {
   addClusterOptions(scanFilesSubcommand, membersStr, memberValidator, password, passwordFile);
 
   bool onlySizes = false;
-  scanFilesSubcommand->add_flag("--only-sizes", onlySizes, "Only print file sizes, once per line.");
+  scanFilesSubcommand->add_flag("--only-sizes", onlySizes, "Only print file sizes, one per line.");
   scanFilesSubcommand->add_flag("--full-paths", fullPaths, "Show full file paths, if possible");
+
+  //----------------------------------------------------------------------------
+  // Set-up scan-files-show-all subcommand..
+  //----------------------------------------------------------------------------
+  auto scanFilesShowAllSubcommand = app.add_subcommand("scan-files-show-all", "Dump the full list of file metadata across the entire namespace");
+  addClusterOptions(scanFilesShowAllSubcommand, membersStr, memberValidator, password, passwordFile);
+
+  scanFilesShowAllSubcommand->add_flag("--json", json, "Use json output");
 
   //----------------------------------------------------------------------------
   // Set-up scan-deathrow subcommand..
@@ -437,6 +445,10 @@ int main(int argc, char* argv[]) {
 
   if(scanFilesSubcommand->parsed()) {
     return inspector.scanFileMetadata(onlySizes, fullPaths, std::cout, std::cerr);
+  }
+
+  if(scanFilesShowAllSubcommand->parsed()) {
+    return inspector.scanFileMetadataShowAll();
   }
 
   if(scanDeathrowSubcommand->parsed()) {

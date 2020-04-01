@@ -345,6 +345,35 @@ int Inspector::scanFileMetadata(bool onlySizes, bool fullPaths, std::ostream &ou
 }
 
 //------------------------------------------------------------------------------
+// Scan all file metadata in the namespace, and print out all information
+// about each one.
+//------------------------------------------------------------------------------
+int Inspector::scanFileMetadataShowAll() {
+  FilePrintingOptions opts;
+  FileScanner fileScanner(mQcl);
+
+  while(fileScanner.valid()) {
+    eos::ns::FileMdProto proto;
+    FileScanner::Item item;
+
+    if (!fileScanner.getItem(proto, &item)) {
+      break;
+    }
+
+    mOutputSink.print(proto, opts);
+    fileScanner.next();
+  }
+
+  std::string errorString;
+  if(fileScanner.hasError(errorString)) {
+    mOutputSink.err(errorString);
+    return 1;
+  }
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
 // Scan all deathrow entries
 //------------------------------------------------------------------------------
 int Inspector::scanDeathrow(std::ostream &out, std::ostream &err) {

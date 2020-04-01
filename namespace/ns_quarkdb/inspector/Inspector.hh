@@ -86,6 +86,12 @@ public:
   int scanFileMetadata(bool onlySizes, bool fullPaths, std::ostream &out, std::ostream &err);
 
   //----------------------------------------------------------------------------
+  //! Scan all file metadata in the namespace, and print out all information
+  //! about each one.
+  //----------------------------------------------------------------------------
+  int scanFileMetadataShowAll();
+
+  //----------------------------------------------------------------------------
   //! Scan all deathrow entries
   //----------------------------------------------------------------------------
   int scanDeathrow(std::ostream &out, std::ostream &err);

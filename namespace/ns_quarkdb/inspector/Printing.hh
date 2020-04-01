@@ -33,13 +33,22 @@ EOSNSNAMESPACE_BEGIN
 //! File printing options
 //------------------------------------------------------------------------------
 struct FilePrintingOptions {
-  bool showId;
-  bool showName;
-  bool showParent;
-  bool showSize;
-  bool showMTime;
-  bool showCTime;
-
+  bool showId = true;
+  bool showContId = true;
+  bool showUid = true;
+  bool showGid = true;
+  bool showSize = true;
+  bool showLayoutId = true;
+  bool showFlags = true;
+  bool showName = true;
+  bool showLinkName = true;
+  bool showCTime = true;
+  bool showMTime = true;
+  bool showChecksum = true;
+  bool showLocations = true;
+  bool showUnlinkLocations = true;
+  bool showXAttr = true;
+  bool showSTime = true;
 };
 
 //------------------------------------------------------------------------------

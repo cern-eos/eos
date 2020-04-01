@@ -24,11 +24,13 @@
 #pragma once
 #include "namespace/Namespace.hh"
 #include "proto/ContainerMd.pb.h"
+#include "proto/FileMd.pb.h"
 #include <map>
 
 EOSNSNAMESPACE_BEGIN
 
 struct ContainerPrintingOptions;
+struct FilePrintingOptions;
 
 //------------------------------------------------------------------------------
 //! Interface for printing output
@@ -49,6 +51,11 @@ public:
   //! Print everything known about a ContainerMD
   //----------------------------------------------------------------------------
   void print(const eos::ns::ContainerMdProto &proto, const ContainerPrintingOptions &opts);
+
+  //----------------------------------------------------------------------------
+  //! Print everything known about a FileMD
+  //----------------------------------------------------------------------------
+  void print(const eos::ns::FileMdProto &proto, const FilePrintingOptions &opts);
 
   //----------------------------------------------------------------------------
   //! Debug output

@@ -18,6 +18,7 @@
 
 #include "namespace/ns_quarkdb/inspector/OutputSink.hh"
 #include "namespace/ns_quarkdb/inspector/Printing.hh"
+#include "namespace/utils/Checksum.hh"
 #include <sstream>
 #include <json/json.h>
 
@@ -32,6 +33,23 @@ std::string to_octal_string(uint32_t v) {
   std::ostringstream ss;
   ss << std::oct << v;
   return ss.str();
+}
+
+//------------------------------------------------------------------------------
+// Serialize locations vector
+//------------------------------------------------------------------------------
+template<typename T>
+static std::string serializeLocations(const T& vec) {
+  std::ostringstream stream;
+
+  for(int i = 0; i < vec.size(); i++) {
+    stream << vec[i];
+    if(i != vec.size() - 1) {
+      stream << ",";
+    }
+  }
+
+  return stream.str();
 }
 
 //------------------------------------------------------------------------------
@@ -88,6 +106,83 @@ void OutputSink::print(const eos::ns::ContainerMdProto &proto, const ContainerPr
     for(auto it = proto.xattrs().begin(); it != proto.xattrs().end(); it++) {
       out[SSTR("xattr." << it->first)] = it->second;
     }
+  }
+
+  print(out);
+}
+
+//------------------------------------------------------------------------------
+//! Print everything known about a FileMD
+//------------------------------------------------------------------------------
+void OutputSink::print(const eos::ns::FileMdProto &proto, const FilePrintingOptions &opts) {
+  std::map<std::string, std::string> out;
+
+  if(opts.showId) {
+    out["fid"] = std::to_string(proto.id());
+  }
+
+  if(opts.showContId) {
+    out["cont_id"] = std::to_string(proto.cont_id());
+  }
+
+  if(opts.showUid) {
+    out["uid"] = std::to_string(proto.uid());
+  }
+
+  if(opts.showGid) {
+    out["gid"] = std::to_string(proto.gid());
+  }
+
+  if(opts.showSize) {
+    out["size"] = std::to_string(proto.size());
+  }
+
+  if(opts.showLayoutId) {
+    out["layout_id"] = std::to_string(proto.layout_id());
+  }
+
+  if(opts.showFlags) {
+    out["flags"] = to_octal_string(proto.flags());
+  }
+
+  if(opts.showName) {
+    out["name"] = proto.name();
+  }
+
+  if(opts.showLinkName) {
+    out["link_name"] = proto.link_name();
+  }
+
+  if(opts.showCTime) {
+    out["ctime"] = Printing::timespecToTimestamp(Printing::parseTimespec(proto.ctime()));
+  }
+
+  if(opts.showMTime) {
+    out["mtime"] = Printing::timespecToTimestamp(Printing::parseTimespec(proto.mtime()));
+  }
+
+  if(opts.showChecksum) {
+    std::string xs;
+    eos::appendChecksumOnStringProtobuf(proto, xs);
+    out["checksum"] = xs;
+  }
+
+  if(opts.showLocations) {
+    out["locations"] = serializeLocations(proto.locations());
+  }
+
+  if(opts.showLocations) {
+    out["unlink_locations"] = serializeLocations(proto.unlink_locations());
+  }
+
+  if(opts.showXAttr) {
+    for(auto it = proto.xattrs().begin(); it != proto.xattrs().end(); it++) {
+      out[SSTR("xattr." << it->first)] = it->second;
+    }
+  }
+
+  if(opts.showSTime) {
+    out["stime"] = Printing::timespecToTimestamp(Printing::parseTimespec(proto.stime()));
   }
 
   print(out);
