@@ -64,7 +64,7 @@ void calculateEtag(bool useChecksum, const fst::FmdBase &fmdBase, std::string &o
 // checksum type from layout id of fmdproto?
 //------------------------------------------------------------------------------
 void calculateEtagInodeAndChecksum(const fst::FmdBase &fmdBase, std::string &out) {
-  if(eos::common::LayoutId::GetChecksum(fmdBase.lid()) == eos::common::LayoutId::kMD5) {
+  if(eos::common::LayoutId::GetChecksum(fmdBase.lid()) != eos::common::LayoutId::kMD5) {
     // use inode + checksum
     char setag[256];
     snprintf(setag, sizeof(setag) - 1, "\"%llu:%s\"",
