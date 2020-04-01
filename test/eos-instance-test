@@ -1398,6 +1398,7 @@ if [ -e "/test-fusex/$EOS_TEST_INSTANCE" ];
 then
 runtest "### Mkdir     " unix 0 "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex"
 runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex"
+runtest "### Attr Set  " unix 0 "" eos attr set user.fusex.rename.version=1 /eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/
 runtest "### Attr Set  " unix 0 "" eos attr set sys.versioning=3 /eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/
 runtest "### Mkdir     " unix 0 "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/"
 runtest "### Mkdir     " unix 0 "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir2/"
