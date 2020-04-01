@@ -46,11 +46,18 @@ struct FilePrintingOptions {
 //! Container printing options
 //------------------------------------------------------------------------------
 struct ContainerPrintingOptions {
-  bool showId;
-  bool showName;
-  bool showParent;
-  bool showUid;
-  bool showMode;
+  bool showId = true;
+  bool showParent = true;
+  bool showUid = true;
+  bool showGid = true;
+  bool showTreeSize = true;
+  bool showMode = true;
+  bool showFlags = true;
+  bool showName = true;
+  bool showCTime = true;
+  bool showMTime = true;
+  bool showSTime = true;
+  bool showXAttr = true;
 };
 
 //------------------------------------------------------------------------------

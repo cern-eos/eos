@@ -28,6 +28,8 @@
 
 EOSNSNAMESPACE_BEGIN
 
+struct ContainerPrintingOptions;
+
 //------------------------------------------------------------------------------
 //! Interface for printing output
 //------------------------------------------------------------------------------
@@ -46,7 +48,7 @@ public:
   //----------------------------------------------------------------------------
   //! Print everything known about a ContainerMD
   //----------------------------------------------------------------------------
-  void print(const eos::ns::ContainerMdProto &proto);
+  void print(const eos::ns::ContainerMdProto &proto, const ContainerPrintingOptions &opts);
 
   //----------------------------------------------------------------------------
   //! Debug output

@@ -215,6 +215,7 @@ uint64_t safeGet(folly::Future<uint64_t> &fut) {
 // particular directory.
 //------------------------------------------------------------------------------
 int Inspector::scanDirsPrintAll() {
+  ContainerPrintingOptions opts;
   ContainerScanner containerScanner(mQcl);
 
   while(containerScanner.valid()) {
@@ -225,7 +226,7 @@ int Inspector::scanDirsPrintAll() {
       break;
     }
 
-    mOutputSink.print(proto);
+    mOutputSink.print(proto, opts);
 
     containerScanner.next();
   }

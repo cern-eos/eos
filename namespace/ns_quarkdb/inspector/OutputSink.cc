@@ -17,19 +17,78 @@
  ************************************************************************/
 
 #include "namespace/ns_quarkdb/inspector/OutputSink.hh"
+#include "namespace/ns_quarkdb/inspector/Printing.hh"
 #include <sstream>
 #include <json/json.h>
+
+#define SSTR(message) static_cast<std::ostringstream&>(std::ostringstream().flush() << message).str()
 
 EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
+//! Convert to octal string
+//------------------------------------------------------------------------------
+std::string to_octal_string(uint32_t v) {
+  std::ostringstream ss;
+  ss << std::oct << v;
+  return ss.str();
+}
+
+//------------------------------------------------------------------------------
 //! Print everything known about a ContainerMD
 //------------------------------------------------------------------------------
-void OutputSink::print(const eos::ns::ContainerMdProto &proto) {
+void OutputSink::print(const eos::ns::ContainerMdProto &proto, const ContainerPrintingOptions &opts) {
   std::map<std::string, std::string> out;
 
-  out["cid"] = std::to_string(proto.id());
-  out["name"] = proto.name();
+  if(opts.showId) {
+    out["cid"] = std::to_string(proto.id());
+  }
+
+  if(opts.showParent) {
+    out["parent_id"] = std::to_string(proto.parent_id());
+  }
+
+  if(opts.showUid) {
+    out["uid"] = std::to_string(proto.uid());
+  }
+
+  if(opts.showGid) {
+    out["gid"] = std::to_string(proto.gid());
+  }
+
+  if(opts.showTreeSize) {
+    out["tree_size"] = std::to_string(proto.tree_size());
+  }
+
+  if(opts.showMode) {
+    out["mode"] = to_octal_string(proto.mode());
+  }
+
+  if(opts.showMode) {
+    out["flags"] = to_octal_string(proto.flags());
+  }
+
+  if(opts.showName) {
+    out["name"] = proto.name();
+  }
+
+  if(opts.showCTime) {
+    out["ctime"] = Printing::timespecToTimestamp(Printing::parseTimespec(proto.ctime()));
+  }
+
+  if(opts.showMTime) {
+    out["mtime"] = Printing::timespecToTimestamp(Printing::parseTimespec(proto.mtime()));
+  }
+
+  if(opts.showSTime) {
+    out["stime"] = Printing::timespecToTimestamp(Printing::parseTimespec(proto.stime()));
+  }
+
+  if(opts.showXAttr) {
+    for(auto it = proto.xattrs().begin(); it != proto.xattrs().end(); it++) {
+      out[SSTR("xattr." << it->first)] = it->second;
+    }
+  }
 
   print(out);
 }
