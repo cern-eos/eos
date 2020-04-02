@@ -235,31 +235,22 @@ HttpServer::XrdHttpHandler(std::string& method,
                            const XrdSecEntity& client)
 {
   WAIT_BOOT;
-  headers["client-real-ip"] = "NOIPLOOKUP";
-  headers["client-real-host"] = client.host;
-  headers["x-real-ip"] = client.host;
-
-  if (client.moninfo && strlen(client.moninfo)) {
-    headers["ssl_client_s_dn"] = client.moninfo;
-  }
-
-  // If request contains a bearer token then we need to update the
-  // "remote-user" header to the real identity of the client as it
-  // was embedded in the bearer token and then saved in client.name;
-  auto it = headers.find("authorization");
-
-  if (it != headers.end()) {
-    if ((it->second.find("Bearer") == 0) && (client.name != nullptr)) {
-      headers["remote-user"] = client.name;
-    }
-  }
-
-  eos::common::VirtualIdentity* vid = Authenticate(headers);
-  eos_static_info("request=%s client-real-ip=%s client-real-host=%s vid.uid=%s vid.gid=%s vid.host=%s vid.dn=%s vid.tident=%s",
+  eos::common::VirtualIdentity* vid = new eos::common::VirtualIdentity();
+  EXEC_TIMING_BEGIN("IdMap");
+  eos::common::Mapping::IdMap(&client, "eos.app=http", client.tident, *vid, true);
+  EXEC_TIMING_END("IdMap");
+  // Update the vid.name as the mapping might have changed the vid.uid and it
+  // is the name that is used later on for all the authorization bits
+  int errc = 0;
+  std::string usr_name = eos::common::Mapping::UidToUserName(vid->uid, errc);
+  vid->name = (errc ? std::to_string(vid->uid).c_str() : usr_name.c_str());
+  eos_static_info("request=%s client-real-ip=%s client-real-host=%s "
+                  "vid.name=%s vid.uid=%s vid.gid=%s vid.host=%s "
+                  "vid.dn=%s vid.tident=%s",
                   method.c_str(), headers["client-real-ip"].c_str(),
-                  headers["client-real-host"].c_str(),
-                  vid->uid_string.c_str(), vid->gid_string.c_str(), vid->host.c_str(),
-                  vid->dn.c_str(), vid->tident.c_str());
+                  headers["client-real-host"].c_str(), vid->name.c_str(),
+                  vid->uid_string.c_str(), vid->gid_string.c_str(),
+                  vid->host.c_str(), vid->dn.c_str(), vid->tident.c_str());
   ProtocolHandlerFactory factory = ProtocolHandlerFactory();
   std::unique_ptr<eos::common::ProtocolHandler> handler(
     factory.CreateProtocolHandler(method, headers, vid));
