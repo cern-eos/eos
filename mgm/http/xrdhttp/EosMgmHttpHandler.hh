@@ -64,6 +64,22 @@ public:
     return mSecEntity.get();
   }
 
+  //------------------------------------------------------------------------------
+  //! Standardise VOMS info so that HTTP and XRootD populate the XrdSecEntity in
+  //! a similar way. The VOMS sec extractor populates the XrdSecEntity with
+  //! the following info:
+  //! VO: dteam
+  //! grps: '/dteam /dteam/Role=NULL /dteam/Role =NULL/Capability=NULL'
+  //!
+  //! and the purpose of this method is to rewrite these to follow the format
+  //! used by the XrdSecgis plugin, namely:
+  //: VOMS: Entity.vorg:         dteam
+  //! secgsi_Authenticate: VOMS: Entity.grps:         /dteam
+  //! secgsi_Authenticate: VOMS: Entity.role:         <none>
+  //! secgsi_Authenticate: VOMS: Entity.endorsements: /dteam/Role=NULL/Capability=NULL
+  //------------------------------------------------------------------------------
+  void StandardiseVOMS();
+
 private:
   std::unique_ptr<XrdSecEntity> mSecEntity;
 
