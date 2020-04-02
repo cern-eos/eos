@@ -259,51 +259,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       vid.allowed_uids.insert(99);
     }
 
-    // VOMS mapping
-    if (client->grps) {
-      std::string vomsstring = "voms:\"";
-      vomsstring += client->grps;
-      vomsstring += ":";
-      vid.grps = client->grps;
-
-      if (client->role) {
-        // the role might be NULL
-        vomsstring += client->role;
-        vid.role = client->role;
-      }
-
-      vomsstring += "\"";
-      std::string vomsuidstring = vomsstring;
-      std::string vomsgidstring = vomsstring;
-      vomsuidstring += ":uid";
-      vomsgidstring += ":gid";
-
-      // mapping to user
-      if (gVirtualUidMap.count(vomsuidstring)) {
-        vid.allowed_uids.clear();
-        vid.allowed_gids.clear();
-        // use physical mapping for VOMS roles
-        // convert mapped uid to user name
-        int errc = 0;
-        std::string cname = Mapping::UidToUserName(gVirtualUidMap[vomsuidstring], errc);
-
-        if (!errc) {
-          Mapping::getPhysicalIds(cname.c_str(), vid);
-        } else {
-          vid = VirtualIdentity::Nobody();
-          eos_static_err("voms-mapping: cannot translate uid=%d to user name with the password db",
-                         (int) gVirtualUidMap[vomsuidstring]);
-        }
-      }
-
-      // mapping to group
-      if (gVirtualGidMap.count(vomsgidstring)) {
-        // use group mapping for VOMS roles
-        vid.allowed_gids.clear();
-        vid.gid = gVirtualGidMap[vomsgidstring];
-        vid.allowed_gids.insert(vid.gid);
-      }
-    }
+    HandleVOMS(client, vid);
   }
 
   // https mapping
@@ -347,6 +303,8 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         vid.allowed_gids.insert(vid.gid);
       }
     }
+
+    HandleVOMS(client, vid);
   }
 
   // sss mapping
@@ -993,7 +951,8 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
 
       // we use the geo location with the longest name match
       for (it = gGeoMap.begin(); it != gGeoMap.end(); ++it) {
-        // if we have a previously matched geoloc and if it's longer that the current one, try the next one
+        // If we have a previously matched geoloc and if it's longer that the
+        // current one, try the next one
         if (longuestmatch != gGeoMap.end() &&
             it->first.length() <= longuestmatch->first.length()) {
           continue;
@@ -1031,6 +990,61 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     eos_static_info("%s sec.tident=\"%s\" vid.uid=%d vid.gid=%d",
                     eos::common::SecEntity::ToString(client, Env.Get("eos.app")).c_str(),
                     tident, vid.uid, vid.gid);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Handle VOMS mapping
+//------------------------------------------------------------------------------
+void
+Mapping::HandleVOMS(const XrdSecEntity* client, VirtualIdentity& vid)
+{
+  // No VOMS info available
+  if ((client->grps == nullptr) || (strlen(client->grps) == 0)) {
+    return;
+  }
+
+  // VOMS mapping
+  std::string vomsstring = "voms:\"";
+  vomsstring += client->grps;
+  vomsstring += ":";
+  vid.grps = client->grps;
+
+  if (client->role) {
+    // the role might be NULL
+    vomsstring += client->role;
+    vid.role = client->role;
+  }
+
+  vomsstring += "\"";
+  std::string vomsuidstring = vomsstring;
+  std::string vomsgidstring = vomsstring;
+  vomsuidstring += ":uid";
+  vomsgidstring += ":gid";
+
+  // Mapping to user
+  if (gVirtualUidMap.count(vomsuidstring)) {
+    vid.allowed_uids.clear();
+    vid.allowed_gids.clear();
+    // Use physical mapping for VOMS roles, convert mapped uid to user name
+    int errc = 0;
+    std::string cname = Mapping::UidToUserName(gVirtualUidMap[vomsuidstring], errc);
+
+    if (!errc) {
+      Mapping::getPhysicalIds(cname.c_str(), vid);
+    } else {
+      vid = VirtualIdentity::Nobody();
+      eos_static_err("voms-mapping: cannot translate uid=%d to user name with "
+                     "the password db", (int) gVirtualUidMap[vomsuidstring]);
+    }
+  }
+
+  // Mapping to group
+  if (gVirtualGidMap.count(vomsgidstring)) {
+    // se group mapping for VOMS roles
+    vid.allowed_gids.clear();
+    vid.gid = gVirtualGidMap[vomsgidstring];
+    vid.allowed_gids.insert(vid.gid);
   }
 }
 

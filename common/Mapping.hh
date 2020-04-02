@@ -22,9 +22,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSCOMMON_MAPPING__
-#define __EOSCOMMON_MAPPING__
-
+#pragma once
 #include "common/Namespace.hh"
 #include "common/RWMutex.hh"
 #include "common/OAuth.hh"
@@ -46,7 +44,6 @@ EOSCOMMONNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 class Mapping
 {
-private:
 public:
 
   //! Typedef of list storing valid uids of a user
@@ -344,9 +341,16 @@ public:
   // ---------------------------------------------------------------------------
   static bool IsOAuth2Resource(const std::string& resource);
 
+private:
+
+  //----------------------------------------------------------------------------
+  //! Handle VOMS mapping
+  //!
+  //! @param client XrdSecEntity object
+  //! @parma vid virtual identity
+  //! @note needs to be called with the gMapMutex locked
+  //----------------------------------------------------------------------------
+  static void HandleVOMS(const XrdSecEntity* client, VirtualIdentity& vid);
 };
 
-/*----------------------------------------------------------------------------*/
 EOSCOMMONNAMESPACE_END
-
-#endif
