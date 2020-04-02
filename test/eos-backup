@@ -65,6 +65,12 @@ dflt = [('-B', "/tmp/backupDir"),('-P', 10),('-S',1024*1024*1024)]
 # resulting options
 opt = dict(dflt+opts)
 
+if '-U' not in opt:
+    opt['-U'] = os.getenv("EOS_MGM_URL")
+if opt['-U'] is None:
+    print("require a valid URL ('-U root://my_mgm')", file=sys.stderr)
+    sys.exit(1)
+
 try:
     os.putenv("XRD_WORKERTHREADS", "50")            # os.environ would not work here
     from XRootD import client
@@ -237,6 +243,9 @@ class Blob:                 # the files where data are stored in
                         break
 
     def addItem(self, json, path, cpath, urlopts=""):
+        if path is not None:
+            path = "/.fxid:" + cpath.split('/')[-1]     # access by fxid, protects against renames
+
         if self.isCopy:         # use a more efficient (3rd-party) xrootd copy into a single blob
             json['b'] = "%d:%d:%d" % (self.blob_num, 0, self.csize)
             self.items.append((json, None, None, None,))
@@ -299,6 +308,7 @@ class Blob:                 # the files where data are stored in
             if "-v" in opt: print(f"Copying clone {cpath} for {item[1]}", file=sys.stderr)
         else:       # copy live file
             self.sm_src = client.File()
+            path = "%s/%s%s" % (opt['-U'], item[1], item[3])
             st, xx = self.sm_src.open("%s/%s%s" % (opt['-U'], item[1], item[3]))
             self.state = 2  # copying live file
 

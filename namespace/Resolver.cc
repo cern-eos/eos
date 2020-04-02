@@ -85,6 +85,10 @@ FileIdentifier Resolver::retrieveFileIdentifier(XrdOucString& str)
     return FileIdentifier(strtoull(str.c_str() + 5, 0, 16));
   }
 
+  if (str.beginswith("/.fxid:")) {
+    return FileIdentifier(strtoull(str.c_str() + 7, 0, 16));
+  }
+
   if (str.beginswith("ino:")) {
     ret = strtoull(str.c_str() + 4, 0, 16);
 

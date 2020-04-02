@@ -473,8 +473,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   unsigned long long byfid = 0;
   unsigned long long bypid = 0;
 
-  if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")) ||
-       (spath.beginswith("ino:")))) {
+  /* check paths starting with fid: fxid: ino: ... */
+  if (spath.beginswith("fid:") || spath.beginswith("fxid:") ||
+       spath.beginswith("ino:")) {
     WAIT_BOOT;
     // reference by fid+fsid
     byfid = eos::Resolver::retrieveFileIdentifier(spath).getUnderlyingUInt64();
@@ -694,6 +695,26 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   }
 
   gOFS->MgmStats.Add("Open", vid.uid, vid.gid, 1);
+
+  bool dotFxid = spath.beginswith("/.fxid:");
+  if (dotFxid) {
+    byfid = eos::Resolver::retrieveFileIdentifier(spath).getUnderlyingUInt64();
+
+    try {
+      eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, byfid);
+      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+      fmd = gOFS->eosFileService->getFileMD(byfid);
+      spath = gOFS->eosView->getUri(fmd.get()).c_str();
+      bypid = fmd->getContainerId();
+      eos_info("msg=\"access by inode\" ino=%s path=%s", path, spath.c_str());
+      path = spath.c_str();
+    } catch (eos::MDException& e) {
+      eos_debug("caught exception %d %s\n", e.getErrno(),
+                e.getMessage().str().c_str());
+      return Emsg(epname, error, ENOENT,
+                  "open - you specified a not existing fxid", path);
+    }
+  }
 
   if (open_flag & O_CREAT) {
     AUTHORIZE(client, openOpaque, AOP_Create, "create", inpath, error);
@@ -929,6 +950,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     // -------------------------------------------------------------------------
     // ACL and permission check
     // -------------------------------------------------------------------------
+    if (dotFxid and (not vid.sudoer) and (vid.uid != 0)) {
+        /* restricted: this could allow access to a file hidden by the hierarchy */
+        eos_debug(".fxid=%d uid %d sudoer %d", dotFxid, vid.uid, vid.sudoer);
+        errno = EPERM;
+        return Emsg(epname, error, errno, "open file - open by fxid denied", path);
+    }
+
     eos::IFileMD::XAttrMap attrmapF;
 
     if (fmd) {
