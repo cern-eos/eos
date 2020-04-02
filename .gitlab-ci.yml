@@ -373,7 +373,7 @@ build_cc7_clang:
     - docker_node
     - cc7_clang
 
-build_cc7_xrd_testing: # Re-enable xrd_testing jobs once project ugprades to XRootD 5
+.build_cc7_xrd_testing: # @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
   before_script:
     - source gitlab-ci/export_branch.sh
     - echo "Exporting BRANCH=${BRANCH}"
@@ -389,8 +389,7 @@ build_cc7_xrd_testing: # Re-enable xrd_testing jobs once project ugprades to XRo
     - docker_node
     - cc7_xrd_testing
 
-# @note please contact CTA team / jleduc if you want to change this job
-build_cc7_opt_xrootd:
+build_cc7_opt_xrootd: # @note please contact CTA team / jleduc if you want to change this job
   before_script:
     - source gitlab-ci/export_branch.sh
     - echo "Exporting BRANCH=${BRANCH}"
@@ -404,6 +403,8 @@ build_cc7_opt_xrootd:
     CMAKE_OPTIONS: "-DEOS_XROOTD=1"
     RPMBUILD_OPTIONS: "--with eos_xrootd_rh"
   allow_failure: true
+  except:
+    - tags
   tags:
     - docker_node
     - cc7_opt_xrootd
@@ -545,7 +546,7 @@ cc7_asan_docker_image:
     - schedules
   allow_failure: true
 
-cc7_xrd_testing_docker_image:
+.cc7_xrd_testing_docker_image: # @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
   stage: build:dockerimage
   tags:
     - docker-image-build
@@ -799,7 +800,8 @@ k8s_system_c8:
   tags:
     - shell-with-kubernetes
 
-k8s_system_xt: # xt stands for xrd_testing. Must shorten to not hit HOST_NAME_MAX
+.k8s_system_xt: # @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
+               # xt stands for xrd_testing. Must shorten to not hit HOST_NAME_MAX
   <<: *dock8s_system_test_template
   variables:
     BASETAG: "xrd_testing_"
@@ -839,7 +841,8 @@ dock_system_c8:
   tags:
     - shell-with-docker
 
-dock_system_xt:
+.dock_system_xt: # @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
+  # xt stands for xrd_testing. Must shorten to not hit HOST_NAME_MAX
   <<: *dock8s_system_test_template
   variables:
     BASETAG: "xrd_testing_"
