@@ -27,6 +27,29 @@
 EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
+// Escape non-printable string
+//------------------------------------------------------------------------------
+std::string Printing::escapeNonPrintable(const std::string &str) {
+  std::stringstream ss;
+
+  for(size_t i = 0; i < str.size(); i++) {
+    if(isprint(str[i])) {
+      ss << str[i];
+    }
+    else if(str[i] == '\0') {
+      ss << "\\x00";
+    }
+    else {
+      char buff[16];
+      snprintf(buff, 16, "\\x%02X", (unsigned char) str[i]);
+      ss << buff;
+    }
+  }
+  
+  return ss.str();
+}
+
+//------------------------------------------------------------------------------
 // Serialize locations vector
 //------------------------------------------------------------------------------
 template<typename T>

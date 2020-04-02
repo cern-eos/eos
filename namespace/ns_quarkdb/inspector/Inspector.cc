@@ -312,8 +312,9 @@ std::string fetchNameOrPath(const eos::ns::FileMdProto &proto, FileScanner::Item
 // Scan all file metadata in the namespace, and print out some information
 // about each one. (even potentially unreachable ones)
 //------------------------------------------------------------------------------
-int Inspector::scanFileMetadata(bool onlySizes, bool fullPaths, std::ostream &out, std::ostream &err) {
+int Inspector::scanFileMetadata(bool onlySizes, bool fullPaths) {
   FileScanner fileScanner(mQcl, fullPaths);
+  FilePrintingOptions opts;
 
   while(fileScanner.valid()) {
     FileScanner::Item item;
@@ -323,44 +324,13 @@ int Inspector::scanFileMetadata(bool onlySizes, bool fullPaths, std::ostream &ou
       break;
     }
 
-    if(!onlySizes) {
-      std::string xs;
-      eos::appendChecksumOnStringProtobuf(proto, xs);
-      out << "fid=" << proto.id() << " name=" << fetchNameOrPath(proto, item) << " pid=" << proto.cont_id() << " uid=" << proto.uid() << " size=" << proto.size() << " xs=" << xs << std::endl;
+    if(onlySizes) {
+      mOutputSink.print(std::to_string(proto.size()));
     }
     else {
-      out << proto.size() << std::endl;
+      mOutputSink.print(proto, opts, item);
     }
 
-    fileScanner.next();
-  }
-
-  std::string errorString;
-  if(fileScanner.hasError(errorString)) {
-    err << errorString;
-    return 1;
-  }
-
-  return 0;
-}
-
-//------------------------------------------------------------------------------
-// Scan all file metadata in the namespace, and print out all information
-// about each one.
-//------------------------------------------------------------------------------
-int Inspector::scanFileMetadataShowAll() {
-  FilePrintingOptions opts;
-  FileScanner fileScanner(mQcl);
-
-  while(fileScanner.valid()) {
-    eos::ns::FileMdProto proto;
-    FileScanner::Item item;
-
-    if (!fileScanner.getItem(proto, &item)) {
-      break;
-    }
-
-    mOutputSink.print(proto, opts);
     fileScanner.next();
   }
 

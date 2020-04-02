@@ -93,6 +93,10 @@ public:
   static std::string timespecToFileinfo(const struct timespec &val);
   static std::string timespecToTimestamp(const struct timespec &val);
 
+  //----------------------------------------------------------------------------
+  // Escape non-printable string
+  //----------------------------------------------------------------------------
+  static std::string escapeNonPrintable(const std::string &str);
 
   //----------------------------------------------------------------------------
   //! Parse timespec

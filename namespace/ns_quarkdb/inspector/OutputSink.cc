@@ -112,17 +112,17 @@ void OutputSink::print(const eos::ns::ContainerMdProto &proto, const ContainerPr
 }
 
 //------------------------------------------------------------------------------
-//! Print everything known about a FileMD
+//! Populate map with file attributes
 //------------------------------------------------------------------------------
-void OutputSink::print(const eos::ns::FileMdProto &proto, const FilePrintingOptions &opts) {
-  std::map<std::string, std::string> out;
+static void populateMetadata(const eos::ns::FileMdProto &proto,
+  const FilePrintingOptions &opts, std::map<std::string, std::string> &out) {
 
   if(opts.showId) {
     out["fid"] = std::to_string(proto.id());
   }
 
   if(opts.showContId) {
-    out["cont_id"] = std::to_string(proto.cont_id());
+    out["pid"] = std::to_string(proto.cont_id());
   }
 
   if(opts.showUid) {
@@ -164,7 +164,7 @@ void OutputSink::print(const eos::ns::FileMdProto &proto, const FilePrintingOpti
   if(opts.showChecksum) {
     std::string xs;
     eos::appendChecksumOnStringProtobuf(proto, xs);
-    out["checksum"] = xs;
+    out["xs"] = xs;
   }
 
   if(opts.showLocations) {
@@ -184,7 +184,43 @@ void OutputSink::print(const eos::ns::FileMdProto &proto, const FilePrintingOpti
   if(opts.showSTime) {
     out["stime"] = Printing::timespecToTimestamp(Printing::parseTimespec(proto.stime()));
   }
+}
 
+//------------------------------------------------------------------------------
+//! Return full path, if possible, otherwise empty
+//------------------------------------------------------------------------------
+static std::string populateFullPath(const eos::ns::FileMdProto &proto, const FilePrintingOptions &opts, FileScanner::Item &item) {
+  item.fullPath.wait();
+  if(item.fullPath.hasException()) {
+    return std::string();
+  }
+
+  std::string fullPath = std::move(item.fullPath).get();
+
+  if(fullPath.empty()) {
+    return std::string();
+  }
+
+  return SSTR(fullPath << proto.name());
+
+}
+
+//------------------------------------------------------------------------------
+//! Print everything known about a FileMD
+//------------------------------------------------------------------------------
+void OutputSink::print(const eos::ns::FileMdProto &proto, const FilePrintingOptions &opts) {
+  std::map<std::string, std::string> out;
+  populateMetadata(proto, opts, out);
+  print(out);
+}
+
+//------------------------------------------------------------------------------
+//! Print everything known about a FileMD, including full path if available
+//------------------------------------------------------------------------------
+void OutputSink::print(const eos::ns::FileMdProto &proto, const FilePrintingOptions &opts, FileScanner::Item &item) {
+  std::map<std::string, std::string> out;
+  populateMetadata(proto, opts, out);
+  out["path"] = populateFullPath(proto, opts, item);
   print(out);
 }
 
@@ -203,17 +239,24 @@ void StreamSink::print(const std::map<std::string, std::string> &line) {
       mOut << " ";
     }
 
-    mOut << it->first << "=" << it->second;
+    mOut << Printing::escapeNonPrintable(it->first) << "=" << Printing::escapeNonPrintable(it->second);
   }
 
   mOut << std::endl;
 }
 
 //------------------------------------------------------------------------------
+// Print interface, single string implementation
+//------------------------------------------------------------------------------
+void StreamSink::print(const std::string &out) {
+  mOut << Printing::escapeNonPrintable(out) << std::endl;
+}
+
+//------------------------------------------------------------------------------
 // Debug output
 //------------------------------------------------------------------------------
 void StreamSink::err(const std::string &str) {
-  mErr << str << std::endl;
+  mErr << Printing::escapeNonPrintable(str) << std::endl;
 }
 
 //------------------------------------------------------------------------------
@@ -249,6 +292,13 @@ void JsonStreamSink::print(const std::map<std::string, std::string> &line) {
   }
 
   mOut << json;
+}
+
+//------------------------------------------------------------------------------
+// Print interface, single string implementation
+//------------------------------------------------------------------------------
+void JsonStreamSink::print(const std::string &out) {
+  mOut << out << std::endl;
 }
 
 //------------------------------------------------------------------------------

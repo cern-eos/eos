@@ -23,6 +23,7 @@
 
 #pragma once
 #include "namespace/Namespace.hh"
+#include "namespace/ns_quarkdb/inspector/FileScanner.hh"
 #include "proto/ContainerMd.pb.h"
 #include "proto/FileMd.pb.h"
 #include <map>
@@ -48,6 +49,11 @@ public:
   virtual void print(const std::map<std::string, std::string> &out) = 0;
 
   //----------------------------------------------------------------------------
+  //! Print interface, single string
+  //----------------------------------------------------------------------------
+  virtual void print(const std::string &out) = 0;
+
+  //----------------------------------------------------------------------------
   //! Print everything known about a ContainerMD
   //----------------------------------------------------------------------------
   void print(const eos::ns::ContainerMdProto &proto, const ContainerPrintingOptions &opts);
@@ -56,6 +62,11 @@ public:
   //! Print everything known about a FileMD
   //----------------------------------------------------------------------------
   void print(const eos::ns::FileMdProto &proto, const FilePrintingOptions &opts);
+
+  //----------------------------------------------------------------------------
+  //! Print everything known about a FileMD, including full path if available
+  //----------------------------------------------------------------------------
+  void print(const eos::ns::FileMdProto &proto, const FilePrintingOptions &opts, FileScanner::Item &item);
 
   //----------------------------------------------------------------------------
   //! Debug output
@@ -80,6 +91,11 @@ public:
   //! Print implementation
   //----------------------------------------------------------------------------
   virtual void print(const std::map<std::string, std::string> &line) override;
+
+  //----------------------------------------------------------------------------
+  //! Print interface, single string implementation
+  //----------------------------------------------------------------------------
+  virtual void print(const std::string &out) override;
 
   //----------------------------------------------------------------------------
   //! Debug output
@@ -110,6 +126,11 @@ public:
   //! Print implementation
   //----------------------------------------------------------------------------
   virtual void print(const std::map<std::string, std::string> &line) override;
+
+  //----------------------------------------------------------------------------
+  //! Print interface, single string implementation
+  //----------------------------------------------------------------------------
+  virtual void print(const std::string &out) override;
 
   //----------------------------------------------------------------------------
   //! Debug output

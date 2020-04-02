@@ -190,13 +190,7 @@ int main(int argc, char* argv[]) {
   scanFilesSubcommand->add_flag("--only-sizes", onlySizes, "Only print file sizes, one per line.");
   scanFilesSubcommand->add_flag("--full-paths", fullPaths, "Show full file paths, if possible");
 
-  //----------------------------------------------------------------------------
-  // Set-up scan-files-show-all subcommand..
-  //----------------------------------------------------------------------------
-  auto scanFilesShowAllSubcommand = app.add_subcommand("scan-files-show-all", "Dump the full list of file metadata across the entire namespace");
-  addClusterOptions(scanFilesShowAllSubcommand, membersStr, memberValidator, password, passwordFile);
-
-  scanFilesShowAllSubcommand->add_flag("--json", json, "Use json output");
+  scanFilesSubcommand->add_flag("--json", json, "Use json output");
 
   //----------------------------------------------------------------------------
   // Set-up scan-deathrow subcommand..
@@ -444,11 +438,7 @@ int main(int argc, char* argv[]) {
   }
 
   if(scanFilesSubcommand->parsed()) {
-    return inspector.scanFileMetadata(onlySizes, fullPaths, std::cout, std::cerr);
-  }
-
-  if(scanFilesShowAllSubcommand->parsed()) {
-    return inspector.scanFileMetadataShowAll();
+    return inspector.scanFileMetadata(onlySizes, fullPaths);
   }
 
   if(scanDeathrowSubcommand->parsed()) {

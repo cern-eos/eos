@@ -83,13 +83,7 @@ public:
   //! Scan all file metadata in the namespace, and print out some information
   //! about each one. (even potentially unreachable directories)
   //----------------------------------------------------------------------------
-  int scanFileMetadata(bool onlySizes, bool fullPaths, std::ostream &out, std::ostream &err);
-
-  //----------------------------------------------------------------------------
-  //! Scan all file metadata in the namespace, and print out all information
-  //! about each one.
-  //----------------------------------------------------------------------------
-  int scanFileMetadataShowAll();
+  int scanFileMetadata(bool onlySizes, bool fullPaths);
 
   //----------------------------------------------------------------------------
   //! Scan all deathrow entries
