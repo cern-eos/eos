@@ -24,6 +24,7 @@
 #pragma once
 #include "namespace/Namespace.hh"
 #include "namespace/ns_quarkdb/inspector/FileScanner.hh"
+#include "namespace/ns_quarkdb/inspector/ContainerScanner.hh"
 #include "proto/ContainerMd.pb.h"
 #include "proto/FileMd.pb.h"
 #include <map>
@@ -59,6 +60,13 @@ public:
   void print(const eos::ns::ContainerMdProto &proto, const ContainerPrintingOptions &opts);
 
   //----------------------------------------------------------------------------
+  //! Print everything known about a ContainerMD, including
+  //! full path if available
+  //----------------------------------------------------------------------------
+  void print(const eos::ns::ContainerMdProto &proto, const ContainerPrintingOptions &opts,
+    ContainerScanner::Item &item, bool showCounts);
+
+  //----------------------------------------------------------------------------
   //! Print everything known about a FileMD
   //----------------------------------------------------------------------------
   void print(const eos::ns::FileMdProto &proto, const FilePrintingOptions &opts);
@@ -66,7 +74,8 @@ public:
   //----------------------------------------------------------------------------
   //! Print everything known about a FileMD, including full path if available
   //----------------------------------------------------------------------------
-  void print(const eos::ns::FileMdProto &proto, const FilePrintingOptions &opts, FileScanner::Item &item);
+  void print(const eos::ns::FileMdProto &proto, const FilePrintingOptions &opts,
+    FileScanner::Item &item);
 
   //----------------------------------------------------------------------------
   //! Debug output

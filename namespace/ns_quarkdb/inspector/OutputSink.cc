@@ -29,10 +29,46 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Convert to octal string
 //------------------------------------------------------------------------------
-std::string to_octal_string(uint32_t v) {
+static std::string to_octal_string(uint32_t v) {
   std::ostringstream ss;
   ss << std::oct << v;
   return ss.str();
+}
+
+//------------------------------------------------------------------------------
+//! Return full path, if possible, otherwise empty
+//------------------------------------------------------------------------------
+static std::string populateFullPath(const eos::ns::FileMdProto &proto, FileScanner::Item &item) {
+  item.fullPath.wait();
+  if(item.fullPath.hasException()) {
+    return std::string();
+  }
+
+  std::string fullPath = std::move(item.fullPath).get();
+
+  if(fullPath.empty()) {
+    return std::string();
+  }
+
+  return SSTR(fullPath << proto.name());
+}
+
+//------------------------------------------------------------------------------
+//! Return full path, if possible, otherwise empty
+//------------------------------------------------------------------------------
+static std::string populateFullPath(const eos::ns::ContainerMdProto &proto, ContainerScanner::Item &item) {
+  item.fullPath.wait();
+  if(item.fullPath.hasException()) {
+    return std::string();
+  }
+
+  std::string fullPath = std::move(item.fullPath).get();
+
+  if(fullPath.empty()) {
+    return std::string();
+  }
+
+  return fullPath;
 }
 
 //------------------------------------------------------------------------------
@@ -53,10 +89,10 @@ static std::string serializeLocations(const T& vec) {
 }
 
 //------------------------------------------------------------------------------
-//! Print everything known about a ContainerMD
+//! Populate map with container attributes
 //------------------------------------------------------------------------------
-void OutputSink::print(const eos::ns::ContainerMdProto &proto, const ContainerPrintingOptions &opts) {
-  std::map<std::string, std::string> out;
+static void populateMetadata(const eos::ns::ContainerMdProto &proto,
+  const ContainerPrintingOptions &opts, std::map<std::string, std::string> &out) {
 
   if(opts.showId) {
     out["cid"] = std::to_string(proto.id());
@@ -106,6 +142,49 @@ void OutputSink::print(const eos::ns::ContainerMdProto &proto, const ContainerPr
     for(auto it = proto.xattrs().begin(); it != proto.xattrs().end(); it++) {
       out[SSTR("xattr." << it->first)] = it->second;
     }
+  }
+}
+
+//------------------------------------------------------------------------------
+//! Print everything known about a ContainerMD
+//------------------------------------------------------------------------------
+void OutputSink::print(const eos::ns::ContainerMdProto &proto, const ContainerPrintingOptions &opts) {
+  std::map<std::string, std::string> out;
+  populateMetadata(proto, opts, out);
+  print(out);
+}
+
+//------------------------------------------------------------------------------
+// Get count as string
+//------------------------------------------------------------------------------
+static std::string countAsString(folly::Future<uint64_t> &fut) {
+  fut.wait();
+
+  if(fut.hasException()) {
+    return "N/A";
+  }
+
+  uint64_t val = std::move(fut).get();
+  fut = val;
+
+  return std::to_string(val);
+}
+
+//------------------------------------------------------------------------------
+//! Print everything known about a ContainerMD, including full path if available
+//------------------------------------------------------------------------------
+void OutputSink::print(const eos::ns::ContainerMdProto &proto, const ContainerPrintingOptions &opts, ContainerScanner::Item &item, bool showCounts) {
+  std::map<std::string, std::string> out;
+  populateMetadata(proto, opts, out);
+
+  std::string fullPath = populateFullPath(proto, item);
+  if(!fullPath.empty()) {
+    out["path"] = fullPath;
+  }
+
+  if(showCounts) {
+    out["file-count"] = countAsString(item.fileCount);
+    out["container-count"] = countAsString(item.containerCount);
   }
 
   print(out);
@@ -187,25 +266,6 @@ static void populateMetadata(const eos::ns::FileMdProto &proto,
 }
 
 //------------------------------------------------------------------------------
-//! Return full path, if possible, otherwise empty
-//------------------------------------------------------------------------------
-static std::string populateFullPath(const eos::ns::FileMdProto &proto, const FilePrintingOptions &opts, FileScanner::Item &item) {
-  item.fullPath.wait();
-  if(item.fullPath.hasException()) {
-    return std::string();
-  }
-
-  std::string fullPath = std::move(item.fullPath).get();
-
-  if(fullPath.empty()) {
-    return std::string();
-  }
-
-  return SSTR(fullPath << proto.name());
-
-}
-
-//------------------------------------------------------------------------------
 //! Print everything known about a FileMD
 //------------------------------------------------------------------------------
 void OutputSink::print(const eos::ns::FileMdProto &proto, const FilePrintingOptions &opts) {
@@ -220,7 +280,12 @@ void OutputSink::print(const eos::ns::FileMdProto &proto, const FilePrintingOpti
 void OutputSink::print(const eos::ns::FileMdProto &proto, const FilePrintingOptions &opts, FileScanner::Item &item) {
   std::map<std::string, std::string> out;
   populateMetadata(proto, opts, out);
-  out["path"] = populateFullPath(proto, opts, item);
+
+  std::string fullPath = populateFullPath(proto, item);
+  if(!fullPath.empty()) {
+    out["path"] = fullPath;
+  }
+
   print(out);
 }
 

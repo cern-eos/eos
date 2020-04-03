@@ -249,6 +249,7 @@ int Inspector::scanDirs(bool onlyNoAttrs, bool fullPaths, bool countContents, si
     countContents = true;
   }
 
+  ContainerPrintingOptions opts;
   ContainerScanner containerScanner(mQcl, fullPaths, countContents);
 
   while(containerScanner.valid()) {
@@ -269,20 +270,13 @@ int Inspector::scanDirs(bool onlyNoAttrs, bool fullPaths, bool countContents, si
       continue;
     }
 
-    out << "cid=" << proto.id() << " name=" << fetchNameOrPath(proto, item) << " parent=" << proto.parent_id() << " uid=" << proto.uid() << " mode=" << std::oct << proto.mode() << std::dec;
-
-    if(countContents) {
-      out << " file-count=" << countAsString(item.fileCount);
-      out << " container-count=" << countAsString(item.containerCount);
-    }
-
-    out << std::endl;
+    mOutputSink.print(proto, opts, item, countContents);
     containerScanner.next();
   }
 
   std::string errorString;
   if(containerScanner.hasError(errorString)) {
-    err << errorString;
+    mOutputSink.err(errorString);
     return 1;
   }
 
