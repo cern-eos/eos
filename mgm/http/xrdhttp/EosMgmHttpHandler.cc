@@ -307,7 +307,6 @@ EosMgmHttpHandler::Config(XrdSysError* eDest, const char* confg,
   void* http_addr = tokens_plugin.getPlugin(http_symbol.c_str(), 0, 0);
   tokens_plugin.Persist();
   ep = (XrdHttpExtHandler * (*)(XrdHttpExtHandlerArgs))(http_addr);
-  std::string mauthz_parms = "chain_authz=libXrdEosMgm.so";
 
   if (!http_addr) {
     eos_err("msg=\"no XrdHttpGetExtHandler entry point in library\" "
@@ -315,7 +314,11 @@ EosMgmHttpHandler::Config(XrdSysError* eDest, const char* confg,
     return 1;
   }
 
-  if (ep && (mTokenHttpHandler = ep(eDest, confg, (const char*)&mauthz_parms[0],
+  // Add a pointer to the MGM authz handler so that it can be used by the
+  // macaroons library to get access persissions for token requests
+  myEnv->PutPtr("XrdAccAuthorize*", (void*)mMgmOfsHandler->mMgmAuthz);
+
+  if (ep && (mTokenHttpHandler = ep(eDest, confg, (const char*) nullptr,
                                     myEnv))) {
     eos_info("%s", "msg=\"XrdHttpGetExthandler from libXrdMacaroons loaded "
              "successfully\"");
@@ -332,15 +335,13 @@ EosMgmHttpHandler::Config(XrdSysError* eDest, const char* confg,
   authz_ep = (XrdAccAuthorize * (*)(XrdSysLogger*, const char*,
                                     const char*))(authz_addr);
   // The "authz_parms" argument needs to be set to
-  // chain_authz=<sci_tokens_lib_path> chain_authz=<libEosMgmOfs.so>
-  // so that the XrdMacaroons library properly chanis the various authz plugins
-  //std::string authz_parms = "chain_authz=libXrdEosMgm.so";
+  // [<sci_tokens_lib_path>] <libEosMgmOfs.so>
+  // so that the XrdMacaroons library properly chains the various authz plugins
   std::string authz_parms = "libXrdEosMgm.so";
 
   if (!scitokens_lib_path.empty()) {
     std::ostringstream oss;
-    oss << "chain_authz=" << scitokens_lib_path << " "
-        << "chain_authz=libXrdEosMgm.so";
+    oss <<  scitokens_lib_path << " " << authz_parms;;
     authz_parms = oss.str();
   }
 
@@ -419,28 +420,25 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
   eos::common::Path canonical_path(path);
   path = canonical_path.GetFullPath().c_str();
   std::string enc_authz = StringConversion::curl_default_escaped(authz_data);
-  // @todo (esindril) this needs to be reviewed to pass in the proper access
-  // operations but this will fail for the moment since the macaroons contains
-  // the following activities:
-  // >>> print M.inspect()
-  // location eosdev
-  // identifier 3593a5a8-df23-42ee-9157-0242b074ac66
-  //      cid name:esindril
-  //      cid activity:READ_METADATA
-  //      cid activity:DOWNLOAD,UPLOAD,MANAGE
-  //      cid path:/eos/
-  //      cid before:2020-01-20T12:24:15Z
-  // signature 3b1d8c33384b22d2f0814abf3d28195bfc18d518f8e410d1b75c603457be6e97
-  //Access_Operation oper = MapHttpVerbToAOP(req.verb);
-  Access_Operation oper = AOP_Stat;
+  Access_Operation oper = MapHttpVerbToAOP(req.verb);
   std::string data = "authz=";
   data += enc_authz;
   std::unique_ptr<XrdOucEnv> env = std::make_unique<XrdOucEnv>(data.c_str(),
                                    data.length());
+
   // Make a copy of the original XrdSecEntity so that the authorization plugin
   // can update the name of the client from the macaroon info
-  mTokenAuthzHandler->Access(client.GetObj(), path.c_str(), oper, env.get());
-  eos_info("msg=\"authorization done\" client_name=%s", client.GetObj()->name);
+  if (mTokenAuthzHandler->Access(client.GetObj(), path.c_str(), oper,
+                                 env.get()) ==
+      XrdAccPriv_None) {
+    eos_err("msg=\"token authorization failed\" path=\"%s\"", path.c_str());
+    std::string errmsg = "token authorization failed";
+    return req.SendSimpleResp(403, errmsg.c_str(), "", errmsg.c_str(),
+                              errmsg.length());
+  }
+
+  eos_info("msg=\"token authorization done\" client_name=%s",
+           client.GetObj()->name);
   std::string query = (normalized_headers.count("xrd-http-query") ?
                        normalized_headers["xrd-http-query"] : "");
   std::map<std::string, std::string> cookies;
