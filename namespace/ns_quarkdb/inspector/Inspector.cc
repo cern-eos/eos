@@ -180,22 +180,6 @@ std::string fetchNameOrPath(const eos::ns::ContainerMdProto &proto, ContainerSca
 }
 
 //------------------------------------------------------------------------------
-// Get count as string
-//------------------------------------------------------------------------------
-std::string countAsString(folly::Future<uint64_t> &fut) {
-  fut.wait();
-
-  if(fut.hasException()) {
-    return "N/A";
-  }
-
-  uint64_t val = std::move(fut).get();
-  fut = val;
-
-  return SSTR(val);
-}
-
-//------------------------------------------------------------------------------
 // Safe uint64_t get, without exceptions. Return 0 in case of exception.
 //------------------------------------------------------------------------------
 uint64_t safeGet(folly::Future<uint64_t> &fut) {
@@ -208,36 +192,6 @@ uint64_t safeGet(folly::Future<uint64_t> &fut) {
   uint64_t val = std::move(fut).get();
   fut = val;
   return val;
-}
-
-//------------------------------------------------------------------------------
-// Scan all directories in the namespace, and print everything known about a
-// particular directory.
-//------------------------------------------------------------------------------
-int Inspector::scanDirsPrintAll() {
-  ContainerPrintingOptions opts;
-  ContainerScanner containerScanner(mQcl);
-
-  while(containerScanner.valid()) {
-    eos::ns::ContainerMdProto proto;
-    ContainerScanner::Item item;
-
-    if (!containerScanner.getItem(proto, &item)) {
-      break;
-    }
-
-    mOutputSink.print(proto, opts);
-
-    containerScanner.next();
-  }
-
-  std::string errorString;
-  if(containerScanner.hasError(errorString)) {
-    mOutputSink.err(errorString);
-    return 1;
-  }
-
-  return 0;
 }
 
 //------------------------------------------------------------------------------

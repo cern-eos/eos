@@ -175,14 +175,6 @@ int main(int argc, char* argv[]) {
   scanDirsSubcommand->add_flag("--json", json, "Use json output");
 
   //----------------------------------------------------------------------------
-  // Set-up scan-dirs-show-all subcommand..
-  //----------------------------------------------------------------------------
-  auto scanDirsPrintAllSubcommand = app.add_subcommand("scan-dirs-show-all", "Dump the full list of container metadata across the entire namespace");
-  addClusterOptions(scanDirsPrintAllSubcommand, membersStr, memberValidator, password, passwordFile);
-
-  scanDirsPrintAllSubcommand->add_flag("--json", json, "Use json output");
-
-  //----------------------------------------------------------------------------
   // Set-up scan-files subcommand..
   //----------------------------------------------------------------------------
   auto scanFilesSubcommand = app.add_subcommand("scan-files", "Dump the full list of file metadata across the entire namespace");
@@ -425,10 +417,6 @@ int main(int argc, char* argv[]) {
 
   if(scanDirsSubcommand->parsed()) {
     return inspector.scanDirs(onlyNoAttrs, fullPaths, countContents, countThreshold);
-  }
-
-  if(scanDirsPrintAllSubcommand->parsed()) {
-    return inspector.scanDirsPrintAll();
   }
 
   if(stripediffSubcommand->parsed()) {
