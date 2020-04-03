@@ -2740,10 +2740,7 @@ Server::OpDeleteLink(const std::string& id,
 
     pcmd->setMTime(mtime);
     eos_info("ino=%lx delete-link", (long) md.md_ino());
-    pcmd->removeFile(fmd->getName());
-    fmd->setContainerId(0);
-    fmd->unlinkAllLocations();
-    gOFS->eosFileService->updateStore(fmd.get());
+    gOFS->eosView->removeFile(fmd.get());
     gOFS->eosDirectoryService->updateStore(pcmd.get());
     pcmd->notifyMTimeChange(gOFS->eosDirectoryService);
     // release the namespace lock before serialization/broadcasting
