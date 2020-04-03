@@ -31,7 +31,6 @@
 #include "proto/ContainerMd.pb.h"
 #include "common/FutureWrapper.hh"
 #include <sys/time.h>
-#include <shared_mutex>
 
 #define FRIEND_TEST(test_case_name, test_name)\
 friend class test_case_name##_##test_name##_Test

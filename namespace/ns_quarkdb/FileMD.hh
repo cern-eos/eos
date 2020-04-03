@@ -24,12 +24,12 @@
 #ifndef EOS_NS_FILE_MD_HH
 #define EOS_NS_FILE_MD_HH
 
+#include "common/SharedMutexWrapper.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "proto/FileMd.pb.h"
 #include <cstdint>
 #include <sys/time.h>
-#include <shared_mutex>
 
 #define FRIEND_TEST(test_case_name, test_name)\
 friend class test_case_name##_##test_name##_Test

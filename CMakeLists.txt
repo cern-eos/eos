@@ -123,7 +123,7 @@ endif ()
 #-------------------------------------------------------------------------------
 # Build qclient static library
 #-------------------------------------------------------------------------------
-include_directories(SYSTEM ${FOLLY_INCLUDE_DIRS})
+include_directories(SYSTEM ${FOLLY_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR})
 add_subdirectory(namespace/ns_quarkdb/qclient)
 
 add_subdirectory(common)

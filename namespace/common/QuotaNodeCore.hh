@@ -24,11 +24,11 @@
 #ifndef EOS_NS_COMMON_QUOTA_NODE_CORE_HH
 #define EOS_NS_COMMON_QUOTA_NODE_CORE_HH
 
+#include "common/SharedMutexWrapper.hh"
 #include "namespace/Namespace.hh"
 #include "namespace/interface/Identifiers.hh"
 #include <map>
 #include <unordered_set>
-#include <shared_mutex>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -39,7 +39,8 @@ class QuotaNode;
 //! QuotaNode core logic, which keeps track of user/group volume/inode use for
 //! a single quotanode.
 //------------------------------------------------------------------------------
-class QuotaNodeCore {
+class QuotaNodeCore
+{
 public:
 
   struct UsageInfo {
@@ -52,7 +53,8 @@ public:
       return *this;
     }
 
-    bool operator==(const UsageInfo& other) const {
+    bool operator==(const UsageInfo& other) const
+    {
       return (space == other.space) &&
              (physicalSpace == other.physicalSpace) &&
              (files == other.files);

@@ -24,6 +24,7 @@
 #ifndef EOS_NS_ICONTAINER_MD_HH
 #define EOS_NS_ICONTAINER_MD_HH
 
+#include "common/SharedMutexWrapper.hh"
 #include "namespace/Namespace.hh"
 #include "namespace/utils/Buffer.hh"
 #include "namespace/utils/LocalityHint.hh"
@@ -36,7 +37,6 @@
 #include <string>
 #include <map>
 #include <set>
-#include <shared_mutex>
 #include <sys/time.h>
 #include <google/dense_hash_map>
 #include <folly/futures/Future.h>
