@@ -106,6 +106,7 @@ int main(int argc, char* argv[]) {
   bool showSize = false;
   bool showMtime = false;
   bool withParents = false;
+  bool json = false;
 
   dumpSubcommand->add_option("--path", dumpPath, "The target path to dump")
     ->required();
@@ -171,13 +172,14 @@ int main(int argc, char* argv[]) {
   scanDirsSubcommand->add_flag("--count-contents", countContents, "Count how many files and containers are in each directory (non-recursive)");
   scanDirsSubcommand->add_option("--count-threshold", countThreshold, "Only print containers which contain more than the specified number of items. Useful for detecting huge containers on which 'ls' might hang");
 
+  scanDirsSubcommand->add_flag("--json", json, "Use json output");
+
   //----------------------------------------------------------------------------
   // Set-up scan-dirs-show-all subcommand..
   //----------------------------------------------------------------------------
   auto scanDirsPrintAllSubcommand = app.add_subcommand("scan-dirs-show-all", "Dump the full list of container metadata across the entire namespace");
   addClusterOptions(scanDirsPrintAllSubcommand, membersStr, memberValidator, password, passwordFile);
 
-  bool json = false;
   scanDirsPrintAllSubcommand->add_flag("--json", json, "Use json output");
 
   //----------------------------------------------------------------------------
@@ -422,7 +424,7 @@ int main(int argc, char* argv[]) {
   }
 
   if(scanDirsSubcommand->parsed()) {
-    return inspector.scanDirs(onlyNoAttrs, fullPaths, countContents, countThreshold, std::cout, std::cerr);
+    return inspector.scanDirs(onlyNoAttrs, fullPaths, countContents, countThreshold);
   }
 
   if(scanDirsPrintAllSubcommand->parsed()) {

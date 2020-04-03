@@ -244,7 +244,7 @@ int Inspector::scanDirsPrintAll() {
 // Scan all directories in the namespace, and print out some information
 // about each one. (even potentially unreachable directories)
 //------------------------------------------------------------------------------
-int Inspector::scanDirs(bool onlyNoAttrs, bool fullPaths, bool countContents, size_t countThreshold, std::ostream &out, std::ostream &err) {
+int Inspector::scanDirs(bool onlyNoAttrs, bool fullPaths, bool countContents, size_t countThreshold) {
   if(countThreshold > 0) {
     countContents = true;
   }
