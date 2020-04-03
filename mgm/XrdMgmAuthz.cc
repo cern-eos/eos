@@ -74,5 +74,10 @@ XrdMgmAuthz::Access(const XrdSecEntity* Entity, const char* path,
 {
   eos_static_info("msg=\"checking access\" path=\"%s\", name=\"%s\"",
                   path, Entity->name);
+
+  if ((Entity == nullptr) || (Entity->name == nullptr)) {
+    return XrdAccPriv_None;
+  }
+
   return XrdAccPriv_All;
 }
