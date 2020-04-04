@@ -243,6 +243,35 @@ void ConversionJob::DoIt() noexcept
     return;
   }
 
+  // Finalize  QoS transition
+  XrdOucString target_qos;
+  XrdOucString current_qos;
+
+  if (gOFS->_qos_get(source_path.c_str(), error, rootvid,
+                     "target_qos", target_qos)) {
+    HandleError("error retrieving target_qos", SSTR("path=" << source_path
+                << " emsg=\"" << error.getErrText() << "\""));
+    return;
+  }
+
+  if (target_qos != "null") {
+    if (gOFS->_qos_get(source_path.c_str(), error, rootvid,
+                       "current_qos", current_qos)) {
+      HandleError("error retrieving current_qos", SSTR("path=" << source_path
+                  << " emsg=\"" << error.getErrText() << "\""));
+      return;
+    }
+
+    if (target_qos == current_qos) {
+      if (gOFS->_attr_rem(source_path.c_str(), error, rootvid,
+                          (const char*) 0, "user.eos.qos.target")) {
+        HandleError("error removing target_qos", SSTR("path=" << source_path
+                    << " emsg=\"" << error.getErrText() << "\""));
+        return;
+      }
+    }
+  }
+
   gOFS->MgmStats.Add("ConversionJobSuccessful", 0, 0, 1);
   eos_info("msg=\"conversion successful\" conversion_id=%s",
            mConversionInfo.ToString().c_str());
