@@ -41,7 +41,7 @@ function run_test_script() {
 #------------------------------------------------------------------------------
 
 # Arguments setup
-if [[ "$1" == "--quarkdb" ]]; then
+if eos ns | grep -q "In-flight FileMD" ; then
   QUARKDB=true
 fi
 
