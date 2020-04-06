@@ -1493,6 +1493,15 @@ runtest "### Find Purge" unix 0 "EOSROLE='-r 99 99'" eos find --purge 1 /eos/$EO
 runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 2"
 runtest "### Find Purge" unix 0 "EOSROLE='-r 99 99'" eos find --purge 0 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
 runtest "### Stat      " unix 1 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd"
+# Versioning test when acls control the permission for the user on the folder and
+# implicitly also for the creation of the versions directory.
+runtest "### Mkdir     " unix 0 "EOSROLE='-r 99 99'" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/acl_versions/"
+runtest "### Chmod     " unix 0 "" eos chmod "2550" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/acl_versions/"
+runtest "### Attr Set  " unix 0 "" eos attr set sys.acl="u:99:rwx" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/acl_versions/"
+runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/acl_versions/file.dat"
+runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/acl_versions/file.dat"
+runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/acl_versions/.sys.v#.file.dat | wc -l | grep -w 1"
+runtest "### Cleanup"    unix 2 "" eos rm  "-r /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/acl_versions/"
 runtest "### Cleanup"    unix 2 "" eos rm  "-r /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning"
 
 ################################################################################
