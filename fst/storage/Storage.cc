@@ -749,10 +749,10 @@ Storage::RunBootThread(FileSystem* fs)
 bool
 Storage::OpenTransaction(unsigned int fsid, unsigned long long fid)
 {
-  FileSystem* fs = mFsMap[fsid];
+  auto it = mFsMap.find(fsid);
 
-  if (fs) {
-    return fs->OpenTransaction(fid);
+  if (it != mFsMap.end()) {
+    return it->second->OpenTransaction(fid);
   }
 
   return false;
@@ -764,10 +764,10 @@ Storage::OpenTransaction(unsigned int fsid, unsigned long long fid)
 bool
 Storage::CloseTransaction(unsigned int fsid, unsigned long long fid)
 {
-  FileSystem* fs = mFsMap[fsid];
+  auto it = mFsMap.find(fsid);
 
-  if (fs) {
-    return fs->CloseTransaction(fid);
+  if (it != mFsMap.end()) {
+    return it->second->CloseTransaction(fid);
   }
 
   return false;
@@ -822,7 +822,13 @@ Storage::GetNumDeletions()
 FileSystem*
 Storage::GetFileSystemById(eos::common::FileSystem::fsid_t fsid)
 {
-  return mFsMap[fsid];
+  auto it = mFsMap.find(fsid);
+
+  if (it != mFsMap.end()) {
+    return it->second;
+  }
+
+  return nullptr;
 }
 
 //------------------------------------------------------------------------------

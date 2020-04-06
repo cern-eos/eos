@@ -46,6 +46,13 @@ Storage::Supervisor()
 
       for (const auto& elem : mFsMap) {
         auto fs = elem.second;
+
+        if (!fs) {
+          eos_warning("msg=\"skip file system id without object in map\" "
+                      "fsid=%lu", elem.first);
+          continue;
+        }
+
         eos::common::BootStatus bootstatus = fs->GetStatus();
         eos::common::ConfigStatus configstatus = fs->GetConfigStatus();
 
@@ -66,6 +73,13 @@ Storage::Supervisor()
 
         for (const auto& elem : mFsMap) {
           auto fs = elem.second;
+
+          if (!fs) {
+            eos_warning("msg=\"skip file system id without object in map\" "
+                        "fsid=%lu", elem.first);
+            continue;
+          }
+
           eos::common::BootStatus bootstatus = fs->GetStatus();
           eos::common::ConfigStatus configstatus = fs->GetConfigStatus();
 
