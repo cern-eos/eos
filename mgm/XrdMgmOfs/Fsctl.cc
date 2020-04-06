@@ -86,6 +86,12 @@ XrdMgmOfs::fsctl(const int cmd,
     if (env.Get("eos.space")) {
       query_space = true;
       space = env.Get("eos.space");
+    } else {
+      const char *const defaultSpaceOverride = getenv("EOS_MGM_STATVFS_DEFAULT_SPACE");
+      if (nullptr != defaultSpaceOverride && *defaultSpaceOverride != '\0') {
+        query_space = true;
+        space = defaultSpaceOverride;
+      }
     }
     
     eos_thread_info("path=%s cgi=%s", path.c_str(), opaque.c_str());

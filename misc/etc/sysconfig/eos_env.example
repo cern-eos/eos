@@ -298,3 +298,12 @@ EOS_TTY_BROACAST_EGREP="\"CRIT|ALERT|EMERG|PROGRESS\""
 
 # uncomment to change the minimum needed size available to create a new file
 # EOS_MGM_FUSE_BOOKING_SIZE = 5368709120
+
+
+# ------------------------------------------------------------------
+# MGM 'xrdfs query space' configuration
+# ------------------------------------------------------------------
+
+# uncoment to set the EOS space name to be used by 'xrdfs query space' commands
+# that do not explicitly specify an EOS space name
+# EOS_MGM_STATVFS_DEFAULT_SPACE="default"
