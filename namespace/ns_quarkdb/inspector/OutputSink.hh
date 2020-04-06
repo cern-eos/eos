@@ -60,6 +60,12 @@ public:
   void print(const eos::ns::ContainerMdProto &proto, const ContainerPrintingOptions &opts);
 
   //----------------------------------------------------------------------------
+  //! Print everything known about a ContainerMD -- custom path
+  //----------------------------------------------------------------------------
+  void printWithCustomPath(const eos::ns::ContainerMdProto &proto, const ContainerPrintingOptions &opts,
+    const std::string &customPath);
+
+  //----------------------------------------------------------------------------
   //! Print everything known about a ContainerMD, including
   //! full path if available
   //----------------------------------------------------------------------------
@@ -70,6 +76,12 @@ public:
   //! Print everything known about a FileMD
   //----------------------------------------------------------------------------
   void print(const eos::ns::FileMdProto &proto, const FilePrintingOptions &opts);
+
+  //----------------------------------------------------------------------------
+  //! Print everything known about a FileMD -- custom path
+  //----------------------------------------------------------------------------
+  void printWithCustomPath(const eos::ns::FileMdProto &proto, const FilePrintingOptions &opts,
+    const std::string &customPath);
 
   //----------------------------------------------------------------------------
   //! Print everything known about a FileMD, including full path if available

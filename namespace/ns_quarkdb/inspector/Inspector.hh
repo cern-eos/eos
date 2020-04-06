@@ -68,6 +68,11 @@ public:
   int dump(const std::string &path, bool relative, bool rawPaths, bool noDirs, bool noFiles, bool showSize, bool showMtime, const std::string &attrQuery, std::ostream &out);
 
   //----------------------------------------------------------------------------
+  //! Scan contents of the given path.
+  //----------------------------------------------------------------------------
+  int scan(const std::string &path, bool relative, bool rawPaths, bool noDirs, bool noFiles);
+
+  //----------------------------------------------------------------------------
   //! Scan all directories in the namespace, and print out some information
   //! about each one. (even potentially unreachable directories)
   //----------------------------------------------------------------------------

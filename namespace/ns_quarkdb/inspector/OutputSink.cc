@@ -154,6 +154,17 @@ void OutputSink::print(const eos::ns::ContainerMdProto &proto, const ContainerPr
   print(out);
 }
 
+//----------------------------------------------------------------------------
+//! Print everything known about a ContainerMD -- custom path
+//----------------------------------------------------------------------------
+void OutputSink::printWithCustomPath(const eos::ns::ContainerMdProto &proto, const ContainerPrintingOptions &opts,
+  const std::string &customPath) {
+  std::map<std::string, std::string> out;
+  out["path"] = customPath;
+  populateMetadata(proto, opts, out);
+  print(out);
+}
+
 //------------------------------------------------------------------------------
 // Get count as string
 //------------------------------------------------------------------------------
@@ -270,6 +281,18 @@ static void populateMetadata(const eos::ns::FileMdProto &proto,
 //------------------------------------------------------------------------------
 void OutputSink::print(const eos::ns::FileMdProto &proto, const FilePrintingOptions &opts) {
   std::map<std::string, std::string> out;
+  populateMetadata(proto, opts, out);
+  print(out);
+}
+
+//----------------------------------------------------------------------------
+// Print everything known about a FileMD -- custom path
+//----------------------------------------------------------------------------
+void OutputSink::printWithCustomPath(const eos::ns::FileMdProto &proto, const FilePrintingOptions &opts,
+    const std::string &customPath) {
+
+  std::map<std::string, std::string> out;
+  out["path"] = customPath;
   populateMetadata(proto, opts, out);
   print(out);
 }

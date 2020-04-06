@@ -94,7 +94,7 @@ int main(int argc, char* argv[]) {
   //----------------------------------------------------------------------------
   // Set-up dump subcommand..
   //----------------------------------------------------------------------------
-  auto dumpSubcommand = app.add_subcommand("dump", "Recursively dump entire namespace contents under a specific path");
+  auto dumpSubcommand = app.add_subcommand("dump", "[DEPRECATED] Recursively dump entire namespace contents under a specific path");
   addClusterOptions(dumpSubcommand, membersStr, memberValidator, password, passwordFile);
 
   std::string dumpPath;
@@ -118,6 +118,20 @@ int main(int argc, char* argv[]) {
   dumpSubcommand->add_flag("--show-size", showSize, "Show file size");
   dumpSubcommand->add_flag("--show-mtime", showMtime, "Show file modification time");
 
+  //----------------------------------------------------------------------------
+  // Set-up scan subcommand..
+  //----------------------------------------------------------------------------
+  auto scanSubcommand = app.add_subcommand("scan", "Recursively scan and print entire namespace contents under a specific path");
+  addClusterOptions(scanSubcommand, membersStr, memberValidator, password, passwordFile);
+
+  scanSubcommand->add_option("--path", dumpPath, "The target path to scan")
+    ->required();
+  scanSubcommand->add_flag("--relative-paths", relativePaths, "Print paths relative to --path");
+  scanSubcommand->add_flag("--raw-paths", rawPaths, "Print the raw paths without path= in front, and nothing else");
+  scanSubcommand->add_flag("--no-dirs", noDirs, "Don't print directories, only files");
+  scanSubcommand->add_flag("--no-files", noFiles, "Don't print files, only directories");
+
+  scanSubcommand->add_flag("--json", json, "Use json output");
 
   //----------------------------------------------------------------------------
   // Set-up print subcommand..
@@ -397,6 +411,10 @@ int main(int argc, char* argv[]) {
   //----------------------------------------------------------------------------
   if(dumpSubcommand->parsed()) {
     return inspector.dump(dumpPath, relativePaths, rawPaths, noDirs, noFiles, showSize, showMtime, attrQuery, std::cout);
+  }
+
+  if(scanSubcommand->parsed()) {
+    return inspector.scan(dumpPath, relativePaths, rawPaths, noDirs, noFiles);
   }
 
   if(namingConflictsSubcommand->parsed()) {

@@ -104,6 +104,59 @@ bool Inspector::checkConnection(std::string& err)
 }
 
 //------------------------------------------------------------------------------
+// Construct path
+//------------------------------------------------------------------------------
+static std::string constructPath(const std::string &rootPath, const std::string
+  &fullPath, bool relative) {
+
+  if(relative) {
+    return fullPath.substr(rootPath.size());
+  }
+
+  return fullPath;
+}
+
+//------------------------------------------------------------------------------
+// Scan contents of the given path.
+//------------------------------------------------------------------------------
+int Inspector::scan(const std::string &rootPath, bool relative, bool rawPaths, bool noDirs, bool noFiles) {
+  FilePrintingOptions filePrintingOpts;
+  ContainerPrintingOptions containerPrintingOpts;
+
+  ExplorationOptions explorerOpts;
+  explorerOpts.ignoreFiles = noFiles;
+
+  std::unique_ptr<folly::Executor> executor(new folly::IOThreadPoolExecutor(4));
+  NamespaceExplorer explorer(rootPath, explorerOpts, mQcl, executor.get());
+  NamespaceItem item;
+
+  while (explorer.fetch(item)) {
+    if(noDirs && !item.isFile) {
+      continue;
+    }
+
+    std::string outputPath = constructPath(rootPath, item.fullPath, relative);
+
+    if(rawPaths) {
+      mOutputSink.print(outputPath);
+      continue;
+    }
+
+    if(item.isFile) {
+      mOutputSink.printWithCustomPath(item.fileMd, filePrintingOpts, outputPath);
+      continue;
+    }
+
+    if(!item.isFile) {
+      mOutputSink.printWithCustomPath(item.containerMd, containerPrintingOpts, outputPath);
+      continue;
+    }
+  }
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
 // Dump contents of the given path. ERRNO-like integer return value, 0
 // means no error.
 //------------------------------------------------------------------------------
