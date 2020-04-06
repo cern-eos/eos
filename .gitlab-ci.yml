@@ -916,6 +916,8 @@ unit_test_asan:
     - koji build ${TARGET} ${BUILD_NAME}_artifacts/SRPMS/*.src.rpm
   only:
     - tags
+  except:
+    - /.*xdc.*/
   tags:
     - docker_node
     - publish
@@ -959,18 +961,16 @@ rpm_commit_artifacts:
   allow_failure: true
   when: manual
 
-rpm_testing_artifacts:
+rpm_xdc_release_artifacts:
   stage: publish
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install --nogpg -y sudo sssd-client createrepo
-    - if [[ -n "$CI_COMMIT_TAG" ]]; then BUILD_TYPE="tag/testing"; else BUILD_TYPE="commit"; fi
-    - sudo -u stci -H ./gitlab-ci/store_artifacts.sh ${BRANCH} ${BUILD_TYPE} /eos/project/s/storage-ci/www/eos
+    - sudo -u stci -H ./gitlab-ci/store_artifacts.sh "citrine-xdc" "release" /eos/project/s/storage-ci/www/eos
   tags:
     - docker_node
     - publish
   only:
-    - master
     - tags
   retry: 2
 
@@ -1006,7 +1006,6 @@ debian_artifacts:
   dependencies:
     - build_ubuntu_bionic
   only:
-    - schedules
     - tags
   retry: 2
   allow_failure: true
@@ -1027,6 +1026,8 @@ debian_artifacts_volume:
     - build_ubuntu_bionic
   only:
     - tags
+  except:
+    - /.*xdc.*/
   tags:
     - docker_node
     - publish
