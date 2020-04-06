@@ -16,7 +16,28 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
-``v4.7.6 Citrine``
+``v4.7.8 Citrine``
+===================
+
+2020-04-06
+
+Bug
+---
+
+* [EOS-4082] MGM: remove sym link files from the file view directly
+* FST: Fix misuse of [] operator on map which can lead to crashes
+* COMMON: Make sure we use the same shared_mutex implementation (cv)
+  everywhere and update qclient
+
+Improvement
+------------
+
+* COMMON: Encapsulate VOMS mapping functionality and reuse it for both gsi
+   and http authentication
+* [EOS-3960] - eos-ns-inspect improvements
+
+
+``v4.7.7 Citrine``
 ===================
 
 2020-04-01
