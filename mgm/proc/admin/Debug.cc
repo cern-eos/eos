@@ -51,10 +51,8 @@ ProcCommand::Debug()
       XrdOucString debugnode = pOpaque->Get("mgm.nodename");
       XrdOucString debuglevel = pOpaque->Get("mgm.debuglevel");
       XrdOucString filterlist = pOpaque->Get("mgm.filter");
-      XrdMqMessage message("debug");
       int envlen;
       XrdOucString body = pOpaque->Env(envlen);
-      message.SetBody(body.c_str());
       // filter out several *'s ...
       int nstars = 0;
       int npos = 0;
@@ -110,7 +108,7 @@ ProcCommand::Debug()
           if (debugnode == "*") {
             debugnode = "/eos/*/fst";
 
-            if (!Messaging::gMessageClient.SendMessage(message, debugnode.c_str())) {
+            if (!gOFS->mMessagingRealm->sendMessage("debug", body.c_str(), debugnode.c_str()).ok()) {
               stdErr = "error: could not send debug level to nodes mgm.nodename=";
               stdErr += debugnode;
               stdErr += "\n";
@@ -128,7 +126,7 @@ ProcCommand::Debug()
             debugnode = "/eos/*/mgm";
             // Ignore return value as we've already set the loglevel for the
             // current instance. We're doing this only for the slave.
-            (void) Messaging::gMessageClient.SendMessage(message, debugnode.c_str());
+            (void) gOFS->mMessagingRealm->sendMessage("debug", body.c_str(), debugnode.c_str());
             stdOut += "success: switched to mgm.debuglevel=";
             stdOut += debuglevel;
             stdOut += " on nodes mgm.nodename=";
@@ -138,7 +136,7 @@ ProcCommand::Debug()
           } else {
             if (debugnode != "") {
               // send to the specified list
-              if (!Messaging::gMessageClient.SendMessage(message, debugnode.c_str())) {
+              if (!gOFS->mMessagingRealm->sendMessage("debug", body.c_str(), debugnode.c_str()).ok()) {
                 stdErr = "error: could not send debug level to nodes mgm.nodename=";
                 stdErr += debugnode;
                 retc = EINVAL;

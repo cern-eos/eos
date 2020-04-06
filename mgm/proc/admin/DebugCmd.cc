@@ -119,7 +119,6 @@ void DebugCmd::SetSubcmd(const eos::console::DebugProto_SetProto& set,
     err << "error: you have to take role 'root' to execute this command";
     ret_c = EPERM;
   } else {
-    XrdMqMessage message("debug");
     std::string body;
     // filter out several *'s ...
     int nstars = 0;
@@ -135,7 +134,6 @@ void DebugCmd::SetSubcmd(const eos::console::DebugProto_SetProto& set,
       ret_c = EINVAL;
     } else {
       body = PrepareMsg(set);
-      message.SetBody(body.c_str());
       eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
       // Always check debug level exists first
       int debugval = g_logging.GetPriorityByString(set.debuglevel().c_str());
@@ -172,7 +170,7 @@ void DebugCmd::SetSubcmd(const eos::console::DebugProto_SetProto& set,
           std::string all_nodes;
           all_nodes = "/eos/*/fst";
 
-          if (!Messaging::gMessageClient.SendMessage(message, all_nodes.c_str())) {
+          if (!gOFS->mMessagingRealm->sendMessage("debug", body.c_str(), all_nodes.c_str()).ok()) {
             err << ("error: could not send debug level to nodes mgm.nodename=" +
                    all_nodes + "\n").c_str();
             ret_c = EINVAL;
@@ -186,8 +184,7 @@ void DebugCmd::SetSubcmd(const eos::console::DebugProto_SetProto& set,
           all_nodes = "/eos/*/mgm";
           // Ignore return value as we've already set the loglevel for the
           // current instance. We're doing this only for the slave.
-          (void) Messaging::gMessageClient.SendMessage(message,
-              all_nodes.c_str());
+          (void) gOFS->mMessagingRealm->sendMessage("debug", body.c_str(), all_nodes.c_str());
           out << ("success: switched to mgm.debuglevel=" + set.debuglevel() +
                   " on nodes mgm.nodename=" + all_nodes).c_str();
           eos_static_notice("forwarding debug level <%s> to nodes mgm.nodename=%s",
@@ -196,7 +193,7 @@ void DebugCmd::SetSubcmd(const eos::console::DebugProto_SetProto& set,
         } else {
           if (!set.nodename().empty()) {
             // Send to the specified list
-            if (!Messaging::gMessageClient.SendMessage(message, set.nodename().c_str())) {
+            if (!gOFS->mMessagingRealm->sendMessage("debug", body.c_str(), set.nodename().c_str()).ok()) {
               err << ("error: could not send debug level to nodes mgm.nodename=" +
                      set.nodename()).c_str();
               ret_c = EINVAL;
