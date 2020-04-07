@@ -68,7 +68,6 @@ TransferQueue::~TransferQueue ()
 {
   if (mBroadcast) {
     Clear();
-    eos::mq::SharedQueueWrapper(mRealm, mLocator, mBroadcast).clear();
   }
 }
 

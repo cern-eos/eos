@@ -1451,7 +1451,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     // Create the specific listener class
     MgmOfsMessaging = new Messaging(MgmOfsBrokerUrl.c_str(),
                                     MgmDefaultReceiverQueue.c_str(),
-                                    true, true, &ObjectManager);
+                                    mMessagingRealm.get());
 
     if (!MgmOfsMessaging->StartListenerThread()) {
       eos_crit("%s", "msg=\"messaging failed to start listening thread\"");

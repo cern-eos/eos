@@ -30,20 +30,23 @@
 
 class XrdMqSharedObjectManager;
 
+namespace eos::mq {
+  class MessagingRealm;
+}
+
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 //! Class Messaging
 //------------------------------------------------------------------------------
-class Messaging: public XrdMqMessaging, public eos::common::LogId
+class Messaging : public XrdMqMessaging, public eos::common::LogId
 {
 public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
   Messaging(const char* url, const char* defaultreceiverqueue,
-            bool advisorystatus = false, bool advisoryquery = false,
-            XrdMqSharedObjectManager* som = 0);
+            mq::MessagingRealm *realm);
 
   //----------------------------------------------------------------------------
   //! Destructor

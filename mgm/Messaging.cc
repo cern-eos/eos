@@ -27,6 +27,7 @@
 #include "mgm/Messaging.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/FsView.hh"
+#include "mq/MessagingRealm.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -34,15 +35,14 @@ EOSMGMNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 Messaging::Messaging(const char* url, const char* defaultreceiverqueue,
-                     bool advisorystatus, bool advisoryquery,
-                     XrdMqSharedObjectManager* som)
+                     mq::MessagingRealm *realm)
 {
-  mSom = som;
+  mSom = realm->getSom();
 
   // Add to a broker with the flushbacklog flag since we don't want to
   // block message flow in case of a master/slave MGM where one got stuck or
   // is too slow
-  if (gMessageClient.AddBroker(url, advisorystatus, advisoryquery , true)) {
+  if (gMessageClient.AddBroker(url, true, true , true)) {
     mIsZombie = false;
   } else {
     mIsZombie = true;
