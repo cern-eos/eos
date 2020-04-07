@@ -35,9 +35,36 @@
 EOSMGMNAMESPACE_BEGIN
 
 
+
+
 int
 ProcCommand::Ls()
 {
+  struct result {
+    std::string out;
+    std::string err;
+    int retc;
+
+    std::string getCacheName(uint64_t ino, uint64_t mtime_sec, uint64_t mtime_nsec, std::string options) {
+      std::string cacheentry;
+      cacheentry = std::to_string(ino);
+      cacheentry += ":";
+      cacheentry += std::to_string(mtime_sec);
+      cacheentry += ".";
+      cacheentry += std::to_string(mtime_nsec);
+      if (options.length()) {
+	cacheentry += ":";
+	cacheentry += options;
+      }
+      return cacheentry;
+    }
+  };
+
+
+
+
+  static eos::common::LRU::Cache<std::string, struct result> dirCache;
+
   std::ostringstream oss;
   gOFS->MgmStats.Add("Ls", pVid->uid, pVid->gid, 1);
   XrdOucString spath = pOpaque->Get("mgm.path");
@@ -61,6 +88,7 @@ ProcCommand::Ls()
   spath = path;
   XrdOucString option = pOpaque->Get("mgm.option");
   bool showbackendstatus = false;
+  bool longlisting = false;
 
   if (!spath.length()) {
     stdErr = "error: you have to give a path name to call 'ls'";
@@ -80,6 +108,9 @@ ProcCommand::Ls()
     XrdOucString ls_file;
     std::string uri;
 
+    std::string cacheentry;
+    struct result cachedresult;
+
     if (gOFS->_stat(spath.c_str(), &buf, *mError, *pVid, (const char*) 0, 0, true,
                     &uri)) {
       stdErr = mError->getErrText();
@@ -87,6 +118,18 @@ ProcCommand::Ls()
     } else {
       // put the resolved uri path
       spath = uri.c_str();
+
+      cacheentry = cachedresult.getCacheName(buf.st_ino, buf.st_mtim.tv_sec, buf.st_mtim.tv_nsec, std::string(option.length()?option.c_str():""));
+
+      if (dirCache.tryGet(cacheentry, cachedresult)) {
+	// return from cache
+	retc = cachedresult.retc;
+	stdOut = cachedresult.out.c_str();
+	stdErr = cachedresult.err.c_str();
+	// reinsert LRU
+	dirCache.insert(cacheentry, cachedresult);
+	return SFS_OK;
+      }
 
       // if this is a directory open it and list
       if (S_ISDIR(buf.st_mode) && ((option.find("d")) == STR_NPOS)) {
@@ -124,6 +167,10 @@ ProcCommand::Ls()
       if ((option.find("y")) != STR_NPOS) {
         showbackendstatus = true;
         option += "l";
+      }
+
+      if ((option.find("l") != STR_NPOS)) {
+	longlisting = true;
       }
 
       if (!listrc) {
@@ -305,6 +352,13 @@ ProcCommand::Ls()
         stdErr += "error: unable to open directory";
         retc = errno;
       }
+    }
+    if (!retc && !showbackendstatus && !longlisting) {
+      // we cannot cache listing where people ask for dynamicinformation of children like folder size, Y option ...
+      cachedresult.retc = retc;
+      cachedresult.out = stdOut.c_str();
+      cachedresult.err = stdErr.c_str();
+      dirCache.insert(cacheentry, cachedresult);
     }
   }
 
