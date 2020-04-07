@@ -25,6 +25,7 @@
 #pragma once
 #include "common/Logging.hh"
 #include "common/Mapping.hh"
+#include "common/LRU.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
@@ -131,10 +132,18 @@ public:
     return dirName.c_str();
   }
 
+
+  typedef std::set<std::string> listing_t;
+
+  static eos::common::LRU::Cache<std::string, shared_ptr<listing_t>> dirCache;
+
 private:
+
+  std::string getCacheName(uint64_t id, uint64_t mtime_sec, uint64_t mtime_nsec, bool nofiles, bool nodirs);
+
   std::string dirName;
   eos::common::VirtualIdentity vid;
-  std::set<std::string> dh_list;
-  std::set<std::string>::const_iterator dh_it;
+  shared_ptr<listing_t> dh_list;
+  listing_t::const_iterator dh_it;
   std::mutex mDirLsMutex; ///< Mutex protecting access to dh_list
 };
