@@ -119,6 +119,8 @@ XrdMgmOfs::ShouldStall(const char* function,
 	       it != Access::gStallRules.end();
 	       it++) {
 
+	    stallid="Stall";
+
 	    auto eosxd_pos = it->first.rfind("Eosxd");
 	    auto pos = it->first.rfind(":");
 
