@@ -197,7 +197,7 @@ BuildRequires: cppunit-devel
 BuildRequires: help2man
 
 %if %{?_with_server:1}%{!?_with_server:0}
-BuildRequires: eos-rocksdb = 5.7.3-1.*
+BuildRequires: eos-rocksdb >= 5.7.3-1, eos-rocksdb <= 5.7.3-1
 BuildRequires: openldap-devel
 BuildRequires: e2fsprogs-devel
 BuildRequires: libmicrohttpd, libmicrohttpd-devel >= 0.9.38
@@ -410,8 +410,8 @@ Requires: zeromq3
 BuildRequires: zeromq, zeromq-devel, cppzmq-devel
 Requires: zeromq
 %endif
-BuildRequires: eos-folly = 2019.11.11.00-1.*
-Requires: eos-folly = 2019.11.11.00-1.*
+BuildRequires: eos-folly >= 2019.11.11.00-1, eos-folly <= 2019.11.11.00-1
+Requires: eos-folly >= 2019.11.11.00-1, eos-folly <= 2019.11.11.00-1
 
 %description -n eos-server
 The EOS server installation containing MGM, FST & MQ service.
