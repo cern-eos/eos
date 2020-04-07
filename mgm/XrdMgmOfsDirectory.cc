@@ -45,6 +45,8 @@
 #endif
 
 
+eos::common::LRU::Cache<std::string, shared_ptr<XrdMgmOfsDirectory::listing_t>> XrdMgmOfsDirectory::dirCache(1024,0);
+
 //------------------------------------------------------------------------------
 //! MGM Directory Interface
 //------------------------------------------------------------------------------
@@ -59,6 +61,28 @@ XrdMgmOfsDirectory::XrdMgmOfsDirectory(char* user, int MonID):
   vid = eos::common::VirtualIdentity::Nobody();
   eos::common::LogId();
 }
+
+
+//------------------------------------------------------------------------------
+// Construct a key name to cache a listing entry
+//------------------------------------------------------------------------------
+std::string
+XrdMgmOfsDirectory::getCacheName(uint64_t id, uint64_t mtime_sec, uint64_t mtime_nsec, bool nofiles,bool nodirs)
+{
+  std::string cacheentry = std::to_string(id);
+  cacheentry += ":";
+  cacheentry += std::to_string(mtime_sec);
+  cacheentry += ".";
+  cacheentry += std::to_string(mtime_nsec);
+  if (nofiles) {
+    cacheentry+= "!f";
+  }
+  if (nodirs) {
+    cacheentry+= "!d";
+  }
+  return cacheentry;
+}
+
 
 //------------------------------------------------------------------------------
 // Open a directory object with bouncing/mapping & namespace mapping
@@ -135,9 +159,15 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
   std::shared_ptr<eos::IContainerMD> dh;
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
+  std::string cacheentry;
+
   try {
     eos::IContainerMD::XAttrMap attrmap;
     dh = gOFS->eosView->getContainer(cPath.GetPath());
+    eos::IFileMD::ctime_t mtime;
+    dh->getMTime(mtime);
+
+    cacheentry = getCacheName(dh->getId(), mtime.tv_sec, mtime.tv_nsec, env.Get("ls.skip.files"), env.Get("ls.skip.directories"));
 
     lock.Release();
 
@@ -164,30 +194,33 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
       gOFS->MgmStats.Add("OpenDir-Entry", vid.uid, vid.gid,
                          dh->getNumContainers() + dh->getNumFiles());
       std::unique_lock<std::mutex> scope_lock(mDirLsMutex);
-      dh_list.clear();
 
-      if (!env.Get("ls.skip.files")) {
-        // Collect all file names
-        for (auto it = eos::FileMapIterator(dh); it.valid(); it.next()) {
-          dh_list.insert(it.key());
-        }
+      // try to get the listing from the cache
+
+      if (!dirCache.tryGet(cacheentry, dh_list)) {
+	dh_list = std::make_shared<listing_t>();
+	if (!env.Get("ls.skip.files")) {
+	  // Collect all file names
+	  for (auto it = eos::FileMapIterator(dh); it.valid(); it.next()) {
+	    dh_list->insert(it.key());
+	  }
+	}
+	if (!env.Get("ls.skip.directories")) {
+	  // Collect all subcontainers
+	  for (auto it = eos::ContainerMapIterator(dh); it.valid(); it.next()) {
+	    dh_list->insert(it.key());
+	  }
+	  dh_list->insert(".");
+
+	  // The root dir has no .. entry
+	  if (strcmp(dir_path, "/")) {
+	    dh_list->insert("..");
+	  }
+	}
       }
 
-      if (!env.Get("ls.skip.directories")) {
-        // Collect all subcontainers
-        for (auto it = eos::ContainerMapIterator(dh); it.valid(); it.next()) {
-          dh_list.insert(it.key());
-        }
-
-        dh_list.insert(".");
-
-        // The root dir has no .. entry
-        if (strcmp(dir_path, "/")) {
-          dh_list.insert("..");
-        }
-      }
-
-      dh_it = dh_list.begin();
+      dh_it = dh_list->begin();
+      dirCache.insert(cacheentry, dh_list); // cache listing
     }
   } catch (eos::MDException& e) {
     dh.reset();
@@ -230,7 +263,9 @@ XrdMgmOfsDirectory::nextEntry()
 {
   std::unique_lock<std::mutex> scope_lock(mDirLsMutex);
 
-  if (dh_list.empty() || dh_it == dh_list.end()) {
+  if ( (!dh_list) ||
+       (dh_list->empty()) ||
+       (dh_it == dh_list->end()) ) {
     // No more entries
     return (const char*) 0;
   }
@@ -247,7 +282,7 @@ int
 XrdMgmOfsDirectory::close()
 {
   std::unique_lock<std::mutex> scope_lock(mDirLsMutex);
-  dh_list.clear();
+  dh_list = nullptr;
   return SFS_OK;
 }
 
