@@ -38,6 +38,7 @@ XrdMgmOfs::ShouldStall(const char* function,
   std::string smsg = "";
   stalltime = 0;
   bool stall = true;
+  std::string functionname = function;
 
   // After booting don't stall FST nodes
   if (gOFS->IsNsBooted() && (vid.prot == "sss") &&
@@ -114,7 +115,8 @@ XrdMgmOfs::ShouldStall(const char* function,
         std::string groupwildcardmatch = "rate:group:*";
         std::map<std::string, std::string>::const_iterator it;
 
-	if (vid.app != "fuse::restic") {
+	if ( (functionname != "stat") && // never stall stats
+	     (vid.app != "fuse::restic") ) {
 	  for (it = Access::gStallRules.begin();
 	       it != Access::gStallRules.end();
 	       it++) {
