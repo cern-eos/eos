@@ -26,6 +26,7 @@
 #include "mgm/FsView.hh"
 #include "common/StringConversion.hh"
 #include "common/TransferQueue.hh"
+#include "mq/XrdMqMessage.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

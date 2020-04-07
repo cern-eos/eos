@@ -37,12 +37,8 @@
 #include "common/TransferJob.hh"
 #include "common/FileSystem.hh"
 #include "common/Locators.hh"
-#include "mq/XrdMqSharedObject.hh"
-/*----------------------------------------------------------------------------*/
-#include "XrdOuc/XrdOucString.hh"
 /*----------------------------------------------------------------------------*/
 #include <string>
-#include <stdint.h>
 /*----------------------------------------------------------------------------*/
 
 namespace eos
@@ -50,6 +46,7 @@ namespace eos
 namespace mq
 {
 class MessagingRealm;
+class SharedQueueWrapper;
 }
 }
 
@@ -70,27 +67,12 @@ class TransferQueue
 {
 private:
   //----------------------------------------------------------------------------
-  //! Queue name e.g. /eos/host/fst/mntpoint
-  //----------------------------------------------------------------------------
-  std::string mQueue;
-
-  //----------------------------------------------------------------------------
-  //! Full Queue name e.g. /eos/'host'/fst/mntpoint/txqueue/'txname'
-  //----------------------------------------------------------------------------
-  std::string mFullQueue;
-
-  //----------------------------------------------------------------------------
-  //! Indicator for a queue slave e.g. if the object is deleted it __does__ __not__ clear the queue!
-  //----------------------------------------------------------------------------
-  bool mSlave;
-
-  //----------------------------------------------------------------------------
   //! Reference to the underlying shared queue maintained by the shared object manager
   //! Usage of this object requires a read lock on the shared object manager and the hash has to be validated!
   //----------------------------------------------------------------------------
-  XrdMqSharedObjectManager* mSom;
-  qclient::SharedManager* mQsom;
-  std::unique_ptr<qclient::SharedDeque> mSharedDeque;
+  mq::MessagingRealm *mRealm;
+  TransferQueueLocator mLocator;
+  bool mBroadcast;
 
   //----------------------------------------------------------------------------
   //! Count number of jobs executed + mutex
@@ -103,6 +85,11 @@ public:
   //----------------------------------------------------------------------------
   TransferQueue(const TransferQueueLocator& locator,
                 mq::MessagingRealm* realm, bool bc2mgm);
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~TransferQueue();
 
   //----------------------------------------------------------------------------
   //! Get queue path
@@ -146,12 +133,7 @@ public:
   // ---------------------------------------------------------------------------
   //! Clear all jobs from the queue
   // ---------------------------------------------------------------------------
-  bool Clear();
-
-  // ---------------------------------------------------------------------------
-  //! Destructor
-  // ---------------------------------------------------------------------------
-  virtual ~TransferQueue();
+  void Clear();
 
 };
 

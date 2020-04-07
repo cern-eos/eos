@@ -30,6 +30,7 @@
 #include "common/Assert.hh"
 #include "common/Constants.hh"
 #include "common/ParseUtils.hh"
+#include "common/StringConversion.hh"
 #include "mq/MessagingRealm.hh"
 
 EOSCOMMONNAMESPACE_BEGIN;

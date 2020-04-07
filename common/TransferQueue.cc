@@ -23,10 +23,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "common/TransferQueue.hh"
-#include "common/StringTokenizer.hh"
-#include "mq/MessagingRealm.hh"
-#include <qclient/shared/SharedDeque.hh>
-#include <qclient/shared/SharedManager.hh>
+#include "mq/SharedQueueWrapper.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 
@@ -48,50 +45,12 @@ EOSCOMMONNAMESPACE_BEGIN
  */
 /*----------------------------------------------------------------------------*/
 TransferQueue::TransferQueue(const TransferQueueLocator &locator, mq::MessagingRealm *realm, bool bc2mgm)
+: mRealm(realm), mLocator(locator), mBroadcast(bc2mgm)
 {
-  mQueue = locator.getQueue();
-  mFullQueue = locator.getQueuePath();
   mJobGetCount = 0;
-
-  if (bc2mgm)
-  {
-    // the fst has to reply to the mgm and set up the right broadcast queue
-    mQueue = "/eos/*/mgm";
-    mSlave = true;
-  }
-  else
-  {
-    mSlave = false;
-  }
-
-  mSom = realm->getSom();
-  mQsom = realm->getQSom();
-
-  if(mQsom) {
-    mSharedDeque.reset(new qclient::SharedDeque(mQsom, locator.getQDBKey()));
-    if(!mSlave) {
-      mSharedDeque->clear();
-    }
-  }
-  else if (mSom) {
-    mSom->HashMutex.LockRead();
-    XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(), "queue");
-    if(!hashQueue) {
-      mSom->HashMutex.UnLockRead();
-      // create the hash object
-      if (mSom->CreateSharedQueue(mFullQueue.c_str(), mQueue.c_str(), mSom)) {
-        mSom->HashMutex.LockRead();
-        hashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(), "queue");
-        mSom->HashMutex.UnLockRead();
-      }
-    }
-    else {
-      // remove all scheduled objects
-      if (!mSlave) {
-        hashQueue->Clear();
-      }
-      mSom->HashMutex.UnLockRead();
-    }
+  eos::mq::SharedQueueWrapper queue(mRealm, mLocator, mBroadcast);
+  if(mBroadcast) {
+    queue.clear();
   }
 }
 
@@ -99,7 +58,7 @@ TransferQueue::TransferQueue(const TransferQueueLocator &locator, mq::MessagingR
 //! Get queue path
 //------------------------------------------------------------------------------
 std::string TransferQueue::getQueuePath() const {
-  return mFullQueue;
+  return mLocator.getQueuePath();
 }
 
 /*----------------------------------------------------------------------------*/
@@ -107,8 +66,9 @@ std::string TransferQueue::getQueuePath() const {
 /*----------------------------------------------------------------------------*/
 TransferQueue::~TransferQueue ()
 {
-  if (!mSlave) {
+  if (mBroadcast) {
     Clear();
+    eos::mq::SharedQueueWrapper(mRealm, mLocator, mBroadcast).clear();
   }
 }
 
@@ -125,23 +85,7 @@ TransferQueue::~TransferQueue ()
 bool
 TransferQueue::Add (eos::common::TransferJob* job)
 {
-  bool retc = false;
-  if(mQsom) {
-    return mSharedDeque->push_back(job->GetSealed());
-  }
-  else if (mSom)
-  {
-    mSom->HashMutex.LockRead();
-    XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetQueue(mFullQueue.c_str());
-    if(hashQueue) {
-      retc = hashQueue->PushBack("", job->GetSealed());
-    }
-    else {
-      fprintf(stderr, "error: couldn't get queue %s!\n", mFullQueue.c_str());
-    }
-    mSom->HashMutex.UnLockRead();
-  }
-  return retc;
+  return eos::mq::SharedQueueWrapper(mRealm, mLocator, mBroadcast).push_back(job->GetSealed());
 }
 
 /*----------------------------------------------------------------------------*/
@@ -156,60 +100,22 @@ TransferQueue::Add (eos::common::TransferJob* job)
 std::unique_ptr<TransferJob>
 TransferQueue::Get ()
 {
-  if(mQsom) {
-    std::string sealed;
-    if(!mSharedDeque->pop_front(sealed)) {
-      return {};
-    }
+  std::string item = eos::mq::SharedQueueWrapper(mRealm, mLocator, mBroadcast).getItem();
 
-    std::unique_ptr<TransferJob> job = TransferJob::Create(sealed.c_str());
-    IncGetJobCount();
-    return job;
+  if(item.empty()) {
+    return {};
   }
-  else if (mSom) {
-    mSom->HashMutex.LockRead();
 
-    XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetQueue(mFullQueue.c_str());
-    if(hashQueue) {
-      std::string value = hashQueue->PopFront();
-      mSom->HashMutex.UnLockRead();
-
-      if (value.empty()) {
-        return 0;
-      } else {
-        std::unique_ptr<TransferJob> job = TransferJob::Create(value.c_str());
-        IncGetJobCount();
-        return job;
-      }
-    } else {
-      fprintf(stderr, "error: couldn't get queue %s!\n", mFullQueue.c_str());
-    }
-
-    mSom->HashMutex.UnLockRead();
-  }
-  return 0;
+  std::unique_ptr<TransferJob> job = TransferJob::Create(item.c_str());
+  IncGetJobCount();
+  return job;
 }
 
 // ---------------------------------------------------------------------------
 //! Clear all jobs from the queue
 // ---------------------------------------------------------------------------
-bool TransferQueue::Clear()
-{
-  if(mQsom) {
-    return mSharedDeque->clear();
-  }
-  else if (mSom) {
-    RWMutexReadLock lock(mSom->HashMutex);
-    XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetQueue(
-                                  mFullQueue.c_str());
-
-    if (hashQueue) {
-      hashQueue->Clear();
-      return true;
-    }
-  }
-
-  return false;
+void TransferQueue::Clear() {
+  eos::mq::SharedQueueWrapper(mRealm, mLocator, mBroadcast).clear();
 }
 
 //------------------------------------------------------------------------------
@@ -217,22 +123,7 @@ bool TransferQueue::Clear()
 //------------------------------------------------------------------------------
 size_t TransferQueue::Size()
 {
-  if(mQsom) {
-    size_t output = 0;
-    mSharedDeque->size(output);
-    return output;
-  }
-  else if (mSom) {
-    RWMutexReadLock lock(mSom->HashMutex);
-    XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetQueue(
-                                  mFullQueue.c_str());
-
-    if (hashQueue) {
-      return hashQueue->GetSize();
-    }
-  }
-
-  return 0;
+  return eos::mq::SharedQueueWrapper(mRealm, mLocator, mBroadcast).size();
 }
 
 /*----------------------------------------------------------------------------*/

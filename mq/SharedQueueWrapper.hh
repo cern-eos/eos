@@ -43,12 +43,37 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  SharedQueueWrapper(mq::MessagingRealm* realm, const common::TransferQueueLocator& locator);
+  SharedQueueWrapper(mq::MessagingRealm* realm,
+    const common::TransferQueueLocator& locator, bool broadcast);
+
+  //----------------------------------------------------------------------------
+  //! Clear contents
+  //----------------------------------------------------------------------------
+  void clear();
+
+  //----------------------------------------------------------------------------
+  //! Get size
+  //----------------------------------------------------------------------------
+  size_t size();
+
+  //----------------------------------------------------------------------------
+  //! Get item, if available
+  //----------------------------------------------------------------------------
+  std::string getItem();
+
+  //----------------------------------------------------------------------------
+  //! push item
+  //----------------------------------------------------------------------------
+  bool push_back(const std::string &item);
 
 private:
   mq::MessagingRealm *mRealm;
   common::TransferQueueLocator mLocator;
+  bool mBroadcast;
+  std::string mQueue;
+  std::string mFullQueue;
 
+  XrdMqSharedObjectManager* mSom;
 };
 
 
