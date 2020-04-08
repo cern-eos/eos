@@ -265,11 +265,14 @@ com_access_usage:
   fprintf(stdout,
           "                                  <target-host> : hostname to which all requests get redirected\n");
   fprintf(stdout,
+          "                                                  <taget-hosts> can be structured like <host>:<port[:<delay-in-ms>] where <delay> holds each request for a given time before redirecting\n");
+  fprintf(stdout,
           "                                          [r|w] : optional set a redirect for read/write requests seperatly\n");
   fprintf(stdout,
           "                                       [ENONET] : optional set a redirect if a file is offline (ENONET) \n");
   fprintf(stdout,
           "                                       [ENOENT] : optional set a redirect if a file is not existing     \n");
+
   fprintf(stdout, "access rm redirect [r|w|ENOENT|ENONET]  :\n");
   fprintf(stdout,
           "                                                  removes global redirection\n");

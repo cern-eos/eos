@@ -88,9 +88,20 @@ XrdMgmOfs::ShouldRedirect(const char* function, int __AccessMode__,
           host = tokens[0];
           port = 1094;
         } else {
-          host = tokens[0];
-          port = ( strtol(tokens[1].c_str(), nullptr,10) == 0 ? 1094 : 0 );
-        }
+	  if (tokens.size() == 2) {
+	    host = tokens[0];
+	    port = strtol(tokens[1].c_str(), nullptr,10);
+	  } else {
+	    if (tokens.size() == 3) {
+	      host = tokens[0];
+	      port = strtol(tokens[1].c_str(), nullptr,10);
+	      uint64_t delay = ( strtol(tokens[2].c_str(), nullptr,10 ));
+	      if (delay) {
+		std::this_thread::sleep_for(std::chrono::milliseconds(delay));
+	      }
+	    }
+	  }
+	}
       }
 
       return true;

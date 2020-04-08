@@ -361,6 +361,7 @@ void com_access_help()
       << "\t      [ENOENT]      : optional set a redirect if a file is not existing\n"
       << "\t      [ENONET]      : optional set a redirect if a file is offline\n"
       << "\t      [ENETUNREACH] : optional set a redirect if @todo \n"
+      << "\t                      <taget-hosts> can be structured like <host>:<port[:<delay-in-ms>] where <delay> holds each request for a given time before redirecting\n"
       << std::endl
       << "access set stall <stall-time> [r|w|ENOENT|ENONET|ENETUNREACH] : allows to set a global stall time\n"
       << "\t <stall-time> : time in seconds after which clients should rebounce\n"
@@ -406,6 +407,7 @@ void com_access_help()
       << " access allow domain -                          : use domain allow as whitelist - e.g. nobody@bar will additionally allow the nobody user from domain bar!\n"
       << " access allow domain bar                        : Allow only domain bar\n"
       << " access set redirect foo                        : Redirect all requests to host foo\n"
+      << " access set redirect foo:1094:1000              : Redirect all requests to host foo:1094 and hold each reqeust for 1000ms\n"
       << " access rm redirect                             : Remove redirection to previously defined host foo\n"
       << " access set stall 60                            : Stall all clients by 60 seconds\n"
       << " access ls                                      : Print all defined access rules\n"
