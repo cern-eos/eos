@@ -322,6 +322,9 @@ cap::acquire(fuse_req_t req,
             )
 /* -------------------------------------------------------------------------- */
 {
+  // the parent of 1 might be 0
+  if (!ino) { ino = 1; }
+
   std::string cid = cap::capx::capid(req, ino);
   eos_static_debug("inode=%08lx cap-id=%s mode=%x", ino, cid.c_str(), mode);
   shared_cap cap = get(req, ino);
