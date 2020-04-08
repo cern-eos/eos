@@ -391,11 +391,11 @@ Server::FillContainerMD(uint64_t id, eos::fusex::md& dir,
     if (dir.operation() == dir.LS) {
       // we put a hard-coded listing limit for service protection
       if (vid.app != "fuse::restic") {
-	// no restrictions for restic backups
-	if ((uint64_t)dir.nchildren() > c_max_children) {
-	  // xrootd does not handle E2BIG ... sigh
-	  return ENAMETOOLONG;
-	}
+        // no restrictions for restic backups
+        if ((uint64_t)dir.nchildren() > c_max_children) {
+          // xrootd does not handle E2BIG ... sigh
+          return ENAMETOOLONG;
+        }
       }
 
       for (auto it = eos::FileMapIterator(cmd); it.valid(); it.next()) {
@@ -1715,7 +1715,6 @@ Server::OpSetFile(const std::string& id,
   eos_info("ino=%lx pin=%lx authid=%s file", (long) md.md_ino(),
            (long) md.md_pino(),
            md.authid().c_str());
-
   eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   std::shared_ptr<eos::IFileMD> fmd;
@@ -1760,7 +1759,6 @@ Server::OpSetFile(const std::string& id,
         }
 
         eos::common::Path oPath(gOFS->eosView->getUri(fmd.get()).c_str());
-        
         std::string vdir = EOS_COMMON_PATH_VERSION_FILE_PREFIX;
         vdir += oPath.GetName();
 
@@ -1771,7 +1769,6 @@ Server::OpSetFile(const std::string& id,
         cpcmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
         cpcmd->removeFile(fmd->getName());
         gOFS->eosView->updateContainerStore(cpcmd.get());
-
         fmd->setName(md.name());
         ofmd = pcmd->findFile(md.name());
 
@@ -1782,87 +1779,97 @@ Server::OpSetFile(const std::string& id,
           }
 
           eos::IContainerMD::XAttrMap attrmap = pcmd->getAttributes();
+          // check if there is versioning to be done
+          int versioning = 0;
 
-	  // check if there is versioning to be done
-	  int versioning = 0;
-	  if (attrmap.count("user.fusex.rename.version")) {
-	    if (attrmap.count("sys.versioning")) {
-	      versioning = std::stoi(attrmap["sys.versioning"]);
-	    } else {
-	      if (attrmap.count("user.versioning")) {
-		versioning = std::stoi(attrmap["user.versioning"]);
-	      }
-	    }
-	  }
+          if (attrmap.count("user.fusex.rename.version")) {
+            if (attrmap.count("sys.versioning")) {
+              versioning = std::stoi(attrmap["sys.versioning"]);
+            } else {
+              if (attrmap.count("user.versioning")) {
+                versioning = std::stoi(attrmap["user.versioning"]);
+              }
+            }
+          }
 
-	  bool try_recycle = true;	  
-	  bool created_version = false;
-	  // create a version before replacing
-	  if (versioning && !hasVersion) {
-	    XrdOucErrInfo error;
-	    gOFS->eosViewRWMutex.UnLockWrite();
-	    eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
-	    if (gOFS->Version(ofmd->getId(), error, rootvid, versioning)) {
-	      try_recycle = true;
-	    } else {
-	      try_recycle = false;
-	      created_version = true;
-	    }
-	    gOFS->eosViewRWMutex.LockWrite();
-	  } else {
-	    // recycle bin - not for hardlinked files or hardlinks nor files to be cloned!
-	    if (try_recycle && (attrmap.count(Recycle::gRecyclingAttribute) || hasVersion) &&
+          bool try_recycle = true;
+          bool created_version = false;
+
+          // create a version before replacing
+          if (versioning && !hasVersion) {
+            XrdOucErrInfo error;
+            gOFS->eosViewRWMutex.UnLockWrite();
+            eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
+
+            if (gOFS->Version(ofmd->getId(), error, rootvid, versioning)) {
+              try_recycle = true;
+            } else {
+              try_recycle = false;
+              created_version = true;
+            }
+
+            gOFS->eosViewRWMutex.LockWrite();
+          } else {
+            // recycle bin - not for hardlinked files or hardlinks nor files to be cloned!
+            if (try_recycle && (attrmap.count(Recycle::gRecyclingAttribute) ||
+                                hasVersion) &&
                 (ofmd->getCloneId() == 0 || !(ofmd->getCloneFST().empty())) &&
                 (!ofmd->hasAttribute(k_mdino)) && (!ofmd->hasAttribute(k_nlink))) {
-	      // translate to a path name and call the complex deletion function
-	      // this is vulnerable to a hard to trigger race conditions
-	      std::string fullpath = gOFS->eosView->getUri(ofmd.get());
-	      gOFS->WriteRecycleRecord(ofmd);
-	      gOFS->eosViewRWMutex.UnLockWrite();
-	      XrdOucErrInfo error;
-	      (void) gOFS->_rem(fullpath.c_str(), error, vid, "",
-                    false, false, false, true, false);
-	      gOFS->eosViewRWMutex.LockWrite();
-	    } else {
-	      if (!created_version) {
-		// no recycle bin, no version
-		try {
-                    XrdOucErrInfo error;
-                    if (XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, pcmd, ofmd, vid, error) == -1) {
-                        pcmd->removeFile(md.name());
-                        // unlink the existing file
-                        ofmd->setContainerId(0);
-                        ofmd->unlinkAllLocations();
-                    }
-                    eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
+              // translate to a path name and call the complex deletion function
+              // this is vulnerable to a hard to trigger race conditions
+              std::string fullpath = gOFS->eosView->getUri(ofmd.get());
+              gOFS->WriteRecycleRecord(ofmd);
+              gOFS->eosViewRWMutex.UnLockWrite();
+              XrdOucErrInfo error;
+              (void) gOFS->_rem(fullpath.c_str(), error, vid, "",
+                                false, false, false, true, false);
+              gOFS->eosViewRWMutex.LockWrite();
+            } else {
+              if (!created_version) {
+                // no recycle bin, no version
+                try {
+                  XrdOucErrInfo error;
 
-                    // free previous quota
-                    if (quotanode) {
-                      quotanode->removeFile(ofmd.get());
-                    }
+                  if (XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, pcmd, ofmd, vid,
+                                                error) == -1) {
+                    pcmd->removeFile(md.name());
+                    // unlink the existing file
+                    ofmd->setContainerId(0);
+                    ofmd->unlinkAllLocations();
+                  }
 
-                    gOFS->eosFileService->updateStore(ofmd.get());
+                  eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
+
+                  // free previous quota
+                  if (quotanode) {
+                    quotanode->removeFile(ofmd.get());
+                  }
+
+                  gOFS->eosFileService->updateStore(ofmd.get());
                 } catch (eos::MDException& e) {
                 }
-	      }
-	    }
-	  }
-	}
+              }
+            }
+          }
+        }
 
         pcmd->addFile(fmd.get());
         gOFS->eosView->updateFileStore(fmd.get());
         gOFS->eosView->updateContainerStore(pcmd.get());
 
-	    if (hasVersion) {
-	      eos::common::Path nPath(gOFS->eosView->getUri(fmd.get()).c_str());
-	      gOFS->eosViewRWMutex.UnLockWrite();
-	      XrdOucErrInfo error;
-	      if (gOFS->_rename(oPath.GetVersionDirectory(), nPath.GetVersionDirectory(),
-	    		    error, vid, "", "", false, false, false)) {
-	        eos_err("failed to rename version directory '%s'=>'%s'\n");
-	      }
-	      gOFS->eosViewRWMutex.LockWrite();
-	    }
+        if (hasVersion) {
+          eos::common::Path nPath(gOFS->eosView->getUri(fmd.get()).c_str());
+          gOFS->eosViewRWMutex.UnLockWrite();
+          XrdOucErrInfo error;
+
+          if (gOFS->_rename(oPath.GetVersionDirectory(), nPath.GetVersionDirectory(),
+                            error, vid, "", "", false, false, false)) {
+            eos_err("failed to rename version directory '%s'=>'%s'\n",
+                    oPath.GetVersionDirectory(), nPath.GetVersionDirectory());
+          }
+
+          gOFS->eosViewRWMutex.LockWrite();
+        }
       } else {
         if (fmd->getName() != md.name()) {
           // this indicates a file rename
@@ -1875,103 +1882,116 @@ Server::OpSetFile(const std::string& id,
                                           md.name().c_str(),
                                           ofmd ? ofmd->getId() : 0);
 
-	  eos::common::Path oPath(gOFS->eosView->getUri(fmd.get()).c_str());
-	  std::string vdir = EOS_COMMON_PATH_VERSION_FILE_PREFIX;
-	  vdir += oPath.GetName();
-	  
-	  if (pcmd->findContainer(vdir)) {
-	    hasVersion = true;
-	  }
-	  
-	  if (EOS_LOGS_DEBUG) eos_debug("v=%s version=%d exists=%d", vdir.c_str(), hasVersion, ofmd?1:0);
+          eos::common::Path oPath(gOFS->eosView->getUri(fmd.get()).c_str());
+          std::string vdir = EOS_COMMON_PATH_VERSION_FILE_PREFIX;
+          vdir += oPath.GetName();
+
+          if (pcmd->findContainer(vdir)) {
+            hasVersion = true;
+          }
+
+          if (EOS_LOGS_DEBUG) {
+            eos_debug("v=%s version=%d exists=%d", vdir.c_str(), hasVersion, ofmd ? 1 : 0);
+          }
 
           if (ofmd) {
             // the target might exist, so we remove it
             if (EOS_LOGS_DEBUG) {
               eos_debug("removing previous file in update %s", md.name().c_str());
             }
-	    
+
             eos::IContainerMD::XAttrMap attrmap = pcmd->getAttributes();
-	    
-	    // check if there is versioning to be done
-	    int versioning = 0;
-	    if (attrmap.count("user.fusex.rename.version")) {
-	      if (attrmap.count("sys.versioning")) {
-		versioning = std::stoi(attrmap["sys.versioning"]);
-	      } else {
-		if (attrmap.count("user.versioning")) {
-		  versioning = std::stoi(attrmap["user.versioning"]);
-		}
-	      }
-	    }
-	    bool try_recycle = true;
-	    bool created_version = false;
-	    // create a version before replacing
-	    if (versioning && !hasVersion) {
-	      XrdOucErrInfo error;
-	      gOFS->eosViewRWMutex.UnLockWrite();
-	      eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
-	      if (gOFS->Version(ofmd->getId(), error, rootvid, versioning)) {
-            try_recycle = true;
-	      } else {
-            try_recycle = false;
-            created_version = true;
-	      }
+            // check if there is versioning to be done
+            int versioning = 0;
 
-	      if (EOS_LOGS_DEBUG) eos_debug("tried versioning - try_recycle=%d", try_recycle);
-			      
-	      gOFS->eosViewRWMutex.LockWrite();
-	    } 
+            if (attrmap.count("user.fusex.rename.version")) {
+              if (attrmap.count("sys.versioning")) {
+                versioning = std::stoi(attrmap["sys.versioning"]);
+              } else {
+                if (attrmap.count("user.versioning")) {
+                  versioning = std::stoi(attrmap["user.versioning"]);
+                }
+              }
+            }
 
-	    // recycle bin - not for hardlinked files or hardlinks nor files to be cloned!
-	    if (try_recycle && (attrmap.count(Recycle::gRecyclingAttribute) || hasVersion) &&
+            bool try_recycle = true;
+            bool created_version = false;
+
+            // create a version before replacing
+            if (versioning && !hasVersion) {
+              XrdOucErrInfo error;
+              gOFS->eosViewRWMutex.UnLockWrite();
+              eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
+
+              if (gOFS->Version(ofmd->getId(), error, rootvid, versioning)) {
+                try_recycle = true;
+              } else {
+                try_recycle = false;
+                created_version = true;
+              }
+
+              if (EOS_LOGS_DEBUG) {
+                eos_debug("tried versioning - try_recycle=%d", try_recycle);
+              }
+
+              gOFS->eosViewRWMutex.LockWrite();
+            }
+
+            // recycle bin - not for hardlinked files or hardlinks nor files to be cloned!
+            if (try_recycle && (attrmap.count(Recycle::gRecyclingAttribute) ||
+                                hasVersion) &&
                 (ofmd->getCloneId() == 0 || !(ofmd->getCloneFST().empty())) &&
                 (!ofmd->hasAttribute(k_mdino)) && (!ofmd->hasAttribute(k_nlink))) {
-	      // translate to a path name and call the complex deletion function
-	      // this is vulnerable to a hard to trigger race conditions
-	      std::string fullpath = gOFS->eosView->getUri(ofmd.get());
-	      gOFS->WriteRecycleRecord(ofmd);
-	      gOFS->eosViewRWMutex.UnLockWrite();
-	      XrdOucErrInfo error;
-	      (void) gOFS->_rem(fullpath.c_str(), error, vid, "", false, false,
-				false, true, false);
-	      gOFS->eosViewRWMutex.LockWrite();
-	    } else {
-	      if (!created_version) {
-		    try {
+              // translate to a path name and call the complex deletion function
+              // this is vulnerable to a hard to trigger race conditions
+              std::string fullpath = gOFS->eosView->getUri(ofmd.get());
+              gOFS->WriteRecycleRecord(ofmd);
+              gOFS->eosViewRWMutex.UnLockWrite();
               XrdOucErrInfo error;
-              if (XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete,pcmd, ofmd, vid, error) == -1) {
+              (void) gOFS->_rem(fullpath.c_str(), error, vid, "", false, false,
+                                false, true, false);
+              gOFS->eosViewRWMutex.LockWrite();
+            } else {
+              if (!created_version) {
+                try {
+                  XrdOucErrInfo error;
+
+                  if (XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, pcmd, ofmd, vid,
+                                                error) == -1) {
                     pcmd->removeFile(md.name());
                     // unlink the existing file
                     ofmd->setContainerId(0);
                     ofmd->unlinkAllLocations();
-		      }
-		      eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
-		      
-		      // free previous quota
-		      if (quotanode) {
-		        quotanode->removeFile(ofmd.get());
-		      }
-		      
-		      gOFS->eosFileService->updateStore(ofmd.get());
-		    } catch (eos::MDException& e) {
-		    }
-	      }
-	    }
-	  }
-	  
-      gOFS->eosView->renameFile(fmd.get(), md.name());
+                  }
 
-	  if (hasVersion) {
-	    eos::common::Path nPath(gOFS->eosView->getUri(fmd.get()).c_str());
-	    gOFS->eosViewRWMutex.UnLockWrite();
-	    XrdOucErrInfo error;
-	    if (gOFS->_rename(oPath.GetVersionDirectory(), nPath.GetVersionDirectory(),
-			error, vid, "", "", false, false, false)) {
-	      eos_err("failed to rename version directory '%s'=>'%s'\n");
-	    }
-	    gOFS->eosViewRWMutex.LockWrite();
-	  }
+                  eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
+
+                  // free previous quota
+                  if (quotanode) {
+                    quotanode->removeFile(ofmd.get());
+                  }
+
+                  gOFS->eosFileService->updateStore(ofmd.get());
+                } catch (eos::MDException& e) {
+                }
+              }
+            }
+          }
+
+          gOFS->eosView->renameFile(fmd.get(), md.name());
+
+          if (hasVersion) {
+            eos::common::Path nPath(gOFS->eosView->getUri(fmd.get()).c_str());
+            gOFS->eosViewRWMutex.UnLockWrite();
+            XrdOucErrInfo error;
+
+            if (gOFS->_rename(oPath.GetVersionDirectory(), nPath.GetVersionDirectory(),
+                              error, vid, "", "", false, false, false)) {
+              eos_err("failed to rename version directory '%s'=>'%s'\n");
+            }
+
+            gOFS->eosViewRWMutex.LockWrite();
+          }
         }
       }
 
@@ -2003,9 +2023,9 @@ Server::OpSetFile(const std::string& id,
                (long) fid,
                (long) md.md_ino(),
                (long) md.md_pino(), (long) fmd->getContainerId());
-    } else if (strncmp(md.target().c_str(), "////hlnk", 8) == 0) {  /* hard link creation */
+    } else if (strncmp(md.target().c_str(), "////hlnk",
+                       8) == 0) {  /* hard link creation */
       fs_rd_lock.Release();
-
       uint64_t tgt_md_ino = atoll(md.target().c_str() + 8);
 
       if (pcmd->findContainer(md.name())) {
@@ -2013,10 +2033,12 @@ Server::OpSetFile(const std::string& id,
       }
 
       /* fmd is the target file corresponding to tgt_fid, gmd the file corresponding to new name */
-      fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(tgt_md_ino));
+      fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(
+                                              tgt_md_ino));
       std::shared_ptr<eos::IFileMD> gmd = gOFS->eosFileService->createFile(0);
       int nlink;
-      nlink = (fmd->hasAttribute(k_nlink)) ? std::stoi(fmd->getAttribute(k_nlink))+1 : 1;
+      nlink = (fmd->hasAttribute(k_nlink)) ? std::stoi(fmd->getAttribute(
+                k_nlink)) + 1 : 1;
 
       if (EOS_LOGS_DEBUG) {
         eos_debug("hlnk fid=%08llx target name %s nlink %d create hard link %s",
@@ -2029,7 +2051,7 @@ Server::OpSetFile(const std::string& id,
       gmd->setName(md.name());
 
       if (EOS_LOGS_DEBUG)
-          eos_debug("hlnk %s mdino %s %s nlink %s",
+        eos_debug("hlnk %s mdino %s %s nlink %s",
                   gmd->getName().c_str(), gmd->getAttribute(k_mdino).c_str(),
                   fmd->getName().c_str(), fmd->getAttribute(k_nlink).c_str());
 
@@ -2081,7 +2103,6 @@ Server::OpSetFile(const std::string& id,
       // retrieve the layout
       Policy::GetLayoutAndSpace("fusex", attrmap, vid, layoutId, space, env,
                                 forcedFsId, forcedGroup, false);
-
       fs_rd_lock.Release();
 
       if (eos::mgm::FsView::gFsView.IsQuotaEnabled(space.c_str())) {
@@ -2594,7 +2615,7 @@ Server::OpDeleteFile(const std::string& id,
         uint64_t clock;
         /* gmd = the file holding the inode */
         std::shared_ptr<eos::IFileMD> gmd = gOFS->eosFileService->getFileMD(
-            eos::common::FileId::InodeToFid(tgt_md_ino), &clock);
+                                              eos::common::FileId::InodeToFid(tgt_md_ino), &clock);
         long nlink = std::stol(gmd->getAttribute(k_nlink)) - 1;
 
         if (nlink) {
@@ -2611,13 +2632,15 @@ Server::OpDeleteFile(const std::string& id,
           if (gmd->getName().substr(0, 13) == "...eos.ino...") {
             eos_info("hlnk unlink target %s for %s nlink %ld",
                      gmd->getName().c_str(), fmd->getName().c_str(), nlink);
-
             XrdOucErrInfo error;
-            if (XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete,pcmd, gmd, vid, error) == -1) {
-                pcmd->removeFile(gmd->getName());
-                gmd->unlinkAllLocations();
-                gmd->setContainerId(0);
+
+            if (XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, pcmd, gmd, vid,
+                                          error) == -1) {
+              pcmd->removeFile(gmd->getName());
+              gmd->unlinkAllLocations();
+              gmd->setContainerId(0);
             }
+
             gOFS->eosFileService->updateStore(gmd.get());
           }
         }
@@ -2639,12 +2662,14 @@ Server::OpDeleteFile(const std::string& id,
           doDelete = false;
         } else {
           eos_info("hlnk nlink %ld for %s, will be deleted",
-                      nlink, fmd->getName().c_str());
+                   nlink, fmd->getName().c_str());
         }
       }
 
       uint64_t cloneId;
-      if (doDelete && ( ((cloneId = fmd->getCloneId()) == 0) || !(fmd->getCloneFST().empty()) )) {
+
+      if (doDelete && (((cloneId = fmd->getCloneId()) == 0) ||
+                       !(fmd->getCloneFST().empty()))) {
         pcmd->removeFile(fmd->getName());
         fmd->setContainerId(0);
         fmd->unlinkAllLocations();
