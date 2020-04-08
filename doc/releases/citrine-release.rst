@@ -16,6 +16,25 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.7.9 Citrine``
+===================
+
+2020-04-08
+
+Bug
+----
+
+* [EOS-4095] - MGM crash in `eos::common::Logging::log`
+* [EOS-4096] - Crash due to missing args in FuseServer error message
+
+Improvement
+------------
+
+* NS: Use std::mutex in the NS LRU implementation instead of eos::common::RWMutex
+  for better performance
+* [EOS-4003] - Export sys xattr to trusted machines through FUSEX
+
+
 ``v4.7.8 Citrine``
 ===================
 
