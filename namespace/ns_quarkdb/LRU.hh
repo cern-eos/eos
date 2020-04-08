@@ -25,7 +25,6 @@
 #ifndef __EOS_NS_LRU_HH__
 #define __EOS_NS_LRU_HH__
 
-#include "common/RWMutex.hh"
 #include "common/AssistedThread.hh"
 #include "common/ConcurrentQueue.hh"
 #include "common/Murmur3.hh"
@@ -123,7 +122,7 @@ public:
   inline std::uint64_t
   size() const
   {
-    eos::common::RWMutexWriteLock lock_w(mMutex);
+    std::unique_lock<std::mutex> lock(mMutex);
     return mMap.size();
   }
 
@@ -135,7 +134,7 @@ public:
   inline std::uint64_t
   get_max_num() const
   {
-    eos::common::RWMutexWriteLock lock_w(mMutex);
+    std::unique_lock<std::mutex> lock(mMutex);
     return mMaxNum;
   }
 
@@ -148,7 +147,7 @@ public:
   inline void
   set_max_num(const std::uint64_t max_num)
   {
-    eos::common::RWMutexWriteLock lock_w(mMutex);
+    std::unique_lock<std::mutex> lock(mMutex);
 
     if (max_num == 0ull) {
       // Flush and disable cache
@@ -196,9 +195,8 @@ private:
   MapT mMap;   ///< Internal map pointing to obj in list
   ListT mList; ///< Internal list of objects where new/used objects are at the
   ///< end of the list
-  //! Mutext to protect access to the map and list which is set to blocking
-  //! mutable eos::common::RWMutex mMutex;
-  mutable eos::common::RWMutex mMutex;
+  //! Mutext to protect access to the map and list
+  mutable std::mutex mMutex;
   std::uint64_t mMaxNum; ///< Maximum number of entries
   eos::common::ConcurrentQueue< std::shared_ptr<EntryT> > mToDelete;
   AssistedThread mCleanerThread; ///< Thread doing the deallocations
@@ -217,7 +215,6 @@ LRU<IdT, EntryT>::LRU(std::uint64_t max_num) :
 {
   mMap.set_empty_key(IdT(UINT64_MAX - 1));
   mMap.set_deleted_key(IdT(UINT64_MAX));
-  mMutex.SetBlocking(true);
   mCleanerThread.reset(&LRU::CleanerJob, this);
 }
 
@@ -231,7 +228,7 @@ LRU<IdT, EntryT>::~LRU()
   mCleanerThread.stop();
   mToDelete.push(sentinel);
   mCleanerThread.join();
-  eos::common::RWMutexWriteLock lock_w(mMutex);
+  std::unique_lock<std::mutex> lock(mMutex);
   mMap.clear();
   mList.clear();
 }
@@ -243,7 +240,7 @@ template <typename IdT, typename EntryT>
 std::shared_ptr<EntryT>
 LRU<IdT, EntryT>::get(IdT id)
 {
-  eos::common::RWMutexWriteLock lock_w(mMutex);
+  std::unique_lock<std::mutex> lock(mMutex);
   auto iter_map = mMap.find(id);
 
   if (iter_map == mMap.end()) {
@@ -253,7 +250,7 @@ LRU<IdT, EntryT>::get(IdT id)
   // Move object to the end of the list i.e. recently accessed
   auto iter_new = mList.insert(mList.end(), *iter_map->second);
   mList.erase(iter_map->second);
-  mMap[id] = iter_new;
+  iter_map->second = iter_new;
   return *iter_new;
 }
 
@@ -264,7 +261,7 @@ template <typename IdT, typename EntryT>
 typename std::enable_if<hasGetId<EntryT>::value, std::shared_ptr<EntryT>>::type
     LRU<IdT, EntryT>::put(IdT id, std::shared_ptr<EntryT> obj)
 {
-  eos::common::RWMutexWriteLock lock_w(mMutex);
+  std::unique_lock<std::mutex> lock(mMutex);
 
   if (mMaxNum == 0ull) {
     return obj;
@@ -294,7 +291,7 @@ template <typename IdT, typename EntryT>
 bool
 LRU<IdT, EntryT>::remove(IdT id)
 {
-  eos::common::RWMutexWriteLock lock_w(mMutex);
+  std::unique_lock<std::mutex> lock(mMutex);
   auto iter_map = mMap.find(id);
 
   if (iter_map == mMap.end()) {

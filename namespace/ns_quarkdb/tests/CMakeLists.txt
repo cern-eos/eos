@@ -61,18 +61,13 @@ install(
 # eosnsbench executable
 #-------------------------------------------------------------------------------
 add_executable(eosnsbench EosNamespaceBenchmark.cc)
+target_compile_options(eosnsbench PUBLIC -DFILE_OFFSET_BITS=64)
+target_link_libraries(eosnsbench PRIVATE EosNsCommon-Static)
 
-target_compile_options(
-  eosnsbench
-  PUBLIC -DFILE_OFFSET_BITS=64)
+add_executable(eos-lru-benchmark LruBenchmark.cc)
+target_link_libraries(eos-lru-benchmark EosCommon)
 
-target_link_libraries(
-  eosnsbench
-  EosNsCommon-Static)
-
-install(
-  TARGETS
-  eosnsbench
+install(TARGETS eosnsbench eos-lru-benchmark
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
