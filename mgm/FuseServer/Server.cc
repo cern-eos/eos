@@ -1864,7 +1864,7 @@ Server::OpSetFile(const std::string& id,
 
           if (gOFS->_rename(oPath.GetVersionDirectory(), nPath.GetVersionDirectory(),
                             error, vid, "", "", false, false, false)) {
-            eos_err("failed to rename version directory '%s'=>'%s'\n",
+            eos_err("failed to rename version directory '%s'=>'%s'",
                     oPath.GetVersionDirectory(), nPath.GetVersionDirectory());
           }
 
