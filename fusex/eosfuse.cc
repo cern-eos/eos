@@ -5181,10 +5181,10 @@ EosFuse::listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
   // retrieve the appropriate cap
   if (S_ISDIR(md->mode())) {
     pcap = Instance().caps.acquire(req, ino,
-                                   SA_OK, true);
+                                   R_OK, true);
   } else {
     pcap = Instance().caps.acquire(req, md->pid(),
-                                   SA_OK, true);
+                                   R_OK, true);
   }
 
   if (pcap->errc()) {
@@ -5202,7 +5202,7 @@ EosFuse::listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
         attrlistsize += it->first.length() + 1;
 
         if (it->first.substr(0, 4) == "sys.") {
-          attrlist += "eos.";
+	  attrlist += "eos.";
           attrlistsize += strlen("eos.");
         }
 
