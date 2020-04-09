@@ -13,15 +13,16 @@ The EOS permission system is based on a combination of **ACLs**  and **POSIX** p
 
 There are two major differences to traditional storage systems:
 
-#. Files don't carry their permissions (only the ownership for quota accounting). They inherit the permissions from the parent directory automatically!
+#. Files don't carry their permissions (only the ownership for quota accounting). They inherit the permissions from the parent directory.
 #. Permissions are only checked in the direct parent, EOS is not walking through the complete directory hierarchy.
+#. For ACLs, a directory ACL applies to all files, except those who have their own ACL.
 
 UNIX Permissions
 
 EOS allows to set user, group and other permissions for read write and browsing defined 
-by ``'r'(4), 'w'(2), 'x'(1)`` e.g. ``777 ='rwx'``.
+by ``'r'(4), 'w'(2), 'x'(1)``, e.g. ``777 ='rwx'``.
 
-Unlike in POSIX the S_ISGID (2---) indicates that any new directory created should inherited automatically all the 
+Unlike in POSIX the S_ISGID (2---) indicates that any new directory created should automatically inherit all the 
 extended attributes defined at creation time from the parent directory.
 
 If the parent attributes are changed after creation, they are not automatically 
@@ -33,16 +34,22 @@ The S_ISVTX bit (1---) is displayed whenever a directory has any extended attrib
 
 ACLs
 ----
-ACLs are defined only on the directory level via the extended attribute
+ACLs are defined on the directory or file level via the extended attributes
 
 .. code-block:: bash
 
    sys.acl=<acllist>
-
    user.acl=<acllist>
+
+.. note::
+
+   For efficiency, file-level ACLs should only be used sparingly, in favour of directory-level ACLs.
 
 The sys.acl attribute can only be defined by SUDO members. 
 The user.acl attribute can be defined by the **owner** or SUDO members. It is only evaluated if the sys.eval.useracl attribute is set.
+
+The sys.acl/user.acl attributes are inherited from the parent at the time a directory is created. Subsequent changes to a directory's ACL
+do not automatically apply to child directories.
 
 <acllist> is defined as a comma separated list of rules:
 
@@ -56,7 +63,7 @@ A rule is defined in the following way:
 
    <rule> = u:<uid|username>|g:<gid|groupname>|egroup:<name>|z::{rwxomqci(!d)(+d)(!u)(+u)}
 
-A rule has three colon separated fields. It starts with the type of rule: 
+A rule has three colon-separated fields. It starts with the type of rule: 
 User (u), Group (g), eGroup (egroup) or all (z). The second field specifies the name or 
 the unix ID of user/group rules and the eGroup name for eGroups  
 The last field contains the rule definition. 
@@ -141,10 +148,12 @@ Validity of Permissions
 
 File Access
 +++++++++++
+A file ACL (if it exists), or the directory's ACL is evaluated
+for access rights.
 
-A user can read a file if the parent directory grants 'r' access via the ACL 
-rules to the user's uid/gid pair. If the ACL does not grant the access, 
-UNIX permissions are evaluated for a matching 'r' permission bit.
+A user can read a file if the ACL grants 'r' access
+to the user's uid/gid pair. If no ACL grants the access, 
+[the directory's] UNIX permissions are evaluated for a matching 'r' permission bit.
 
 A user can create a file if the parent directory grants 'w' access via the ACL 
 rules to the user's uid/gid pair. A user cannot overwrite a file if the ACL 
@@ -184,9 +193,8 @@ file. See **eos chown --help**  for details.
 Directory Access
 ++++++++++++++++
 
-A user can create a directory if he has the UNIX 'wx' permission or the ACL 
-rules grant the 'w' or 'wo' permission. T
-he root role can always create any directory.
+A user can create a directory if they have the UNIX 'wx' permission, or the ACL 
+rules grant the 'w' or 'wo' permission. The root role can always create any directory.
 
 A user can list a directory if the UNIX permissions grant 'rx' or the ACL 
 grants 'x' rights. 
