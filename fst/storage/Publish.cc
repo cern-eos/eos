@@ -306,7 +306,7 @@ Storage::GetFsStatistics(FileSystem* fs)
 
   // Publish inconsistency statistics
   if (fs->GetStatus() == eos::common::BootStatus::kBooted) {
-    output = fs->CollectInconsistencyStats("stat.fsck");
+    output = fs->CollectInconsistencyStats("stat.fsck.");
   }
 
   // Publish statfs
