@@ -431,13 +431,13 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
   if (mTokenAuthzHandler->Access(client.GetObj(), path.c_str(), oper,
                                  env.get()) ==
       XrdAccPriv_None) {
-    eos_err("msg=\"token authorization failed\" path=\"%s\"", path.c_str());
+    eos_err("msg=\"(token) authorization failed\" path=\"%s\"", path.c_str());
     std::string errmsg = "token authorization failed";
     return req.SendSimpleResp(403, errmsg.c_str(), "", errmsg.c_str(),
                               errmsg.length());
   }
 
-  eos_info("msg=\"token authorization done\" client_name=%s",
+  eos_info("msg=\"(token) authorization done\" client_name=%s",
            client.GetObj()->name);
   std::string query = (normalized_headers.count("xrd-http-query") ?
                        normalized_headers["xrd-http-query"] : "");

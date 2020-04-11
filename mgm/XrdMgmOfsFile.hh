@@ -86,17 +86,17 @@ public:
   //----------------------------------------------------------------------------
   virtual ~XrdMgmOfsFile();
 
-  
+
   //----------------------------------------------------------------------------
   // hard link attributes
   //----------------------------------------------------------------------------
-  static constexpr char* k_mdino = (char *)"sys.eos.mdino";
-  static constexpr char* k_nlink = (char *)"sys.eos.nlink";
+  static constexpr char* k_mdino = (char*)"sys.eos.mdino";
+  static constexpr char* k_nlink = (char*)"sys.eos.nlink";
 
   static int
   handleHardlinkDelete(std::shared_ptr<eos::IContainerMD> cmd,
-        std::shared_ptr<eos::IFileMD> fmd,
-        eos::common::VirtualIdentity& vid);
+                       std::shared_ptr<eos::IFileMD> fmd,
+                       eos::common::VirtualIdentity& vid);
 
   //----------------------------------------------------------------------------
   //----------------------------------------------------------------------------
@@ -104,7 +104,8 @@ public:
   //----------------------------------------------------------------------------
   static const int cowUpdate = 0;              // do copy, for file updates
   static const int cowDelete = 1;              // do rename, for file deletes
-  static const int cowUnlink = 2;              // create hard link, when name vanishes e.g. Recycle
+  static const int cowUnlink =
+    2;              // create hard link, when name vanishes e.g. Recycle
   static int create_cow(int cowType,
                         std::shared_ptr<eos::IContainerMD> dmd, std::shared_ptr<eos::IFileMD> fmd,
                         eos::common::VirtualIdentity& vid, XrdOucErrInfo& error);
@@ -113,17 +114,18 @@ public:
   // open a file
   //----------------------------------------------------------------------------
   int open(eos::common::VirtualIdentity* vid,
-	   const char* fileName,
-	   XrdSfsFileOpenMode openMode,
-	   mode_t createMode,
-	   const XrdSecEntity* client,
-	   const char* opaque);
-  
+           const char* fileName,
+           XrdSfsFileOpenMode openMode,
+           mode_t createMode,
+           const XrdSecEntity* client,
+           const char* opaque);
+
   int open(const char* fileName,
-	   XrdSfsFileOpenMode openMode,
-	   mode_t createMode,
-	   const XrdSecEntity* client = 0,
-           const char* opaque = 0) {
+           XrdSfsFileOpenMode openMode,
+           mode_t createMode,
+           const XrdSecEntity* client = 0,
+           const char* opaque = 0)
+  {
     return open(0, fileName, openMode, createMode, client, opaque);
   }
 
@@ -267,10 +269,9 @@ private:
                          const std::vector<std::string>& fwall_eps) const;
 
   //----------------------------------------------------------------------------
-  //! Handle token authorization for the http acccess protocol and extract the
-  //! username of the client executing the current operation from the token.
-  //! This will populate the XrdSecEntity.name field used later on to establish
-  //! the virtual identity.
+  //! Handle (HTTP TPC) token authorization and extract from the token the
+  //! username of the client executing the current operation. This will populate
+  //! the XrdSecEntity.name field used later on to establish the virtual identity
   //!
   //! @param client XrdSecEntity object
   //! @param path path of the request

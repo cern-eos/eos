@@ -113,11 +113,12 @@ XrdMgmOfsFile::create_cow(int cowType,
   char sbuff[1024];
   uint64_t cloneId = fmd->getCloneId();
 
-  if (cloneId == 0 or not fmd->getCloneFST().empty()) return -1;
+  if (cloneId == 0 or not fmd->getCloneFST().empty()) {
+    return -1;
+  }
 
   eos_static_info("Creating cow clone (type %d) for %s fxid:%lx cloneId %lld",
-          cowType, fmd->getName().c_str(), fmd->getId(), cloneId);
-
+                  cowType, fmd->getName().c_str(), fmd->getId(), cloneId);
   snprintf(sbuff, sizeof(sbuff), "%s/clone/%ld", gOFS->MgmProcPath.c_str(),
            cloneId);
   std::shared_ptr<eos::IContainerMD> cloneMd, dirMd;
@@ -154,7 +155,8 @@ XrdMgmOfsFile::create_cow(int cowType,
   }
 
   /* create the clone */
-  if (cowType == XrdMgmOfsFile::cowDelete) {                   /* basically a "mv" */
+  if (cowType ==
+      XrdMgmOfsFile::cowDelete) {                   /* basically a "mv" */
     dmd->removeFile(fmd->getName());
     snprintf(sbuff, sizeof(sbuff), "%lx", fmd->getId());
     fmd->setName(sbuff);
@@ -170,41 +172,38 @@ XrdMgmOfsFile::create_cow(int cowType,
     gmd->setAttribute("sys.clone.targetFid", sbuff + tlen + 1);
     gmd->setSize(fmd->getSize());
 
-    if (cowType == XrdMgmOfsFile::cowUpdate) {  /* prepare a "cp --reflink" (to be performed on the FSTs) */
-        fmd->getCTime(ttime);
-        gmd->setCTime(ttime);
-        fmd->getMTime(ttime);
-        gmd->setMTime(ttime);
-        gmd->setCUid(fmd->getCUid());
-        gmd->setCGid(fmd->getCGid());
-        gmd->setFlags(fmd->getFlags());
-        gmd->setLayoutId(fmd->getLayoutId());
-        gmd->setChecksum(fmd->getChecksum());
-        gmd->setContainerId(dirMd->getId());
+    if (cowType ==
+        XrdMgmOfsFile::cowUpdate) {  /* prepare a "cp --reflink" (to be performed on the FSTs) */
+      fmd->getCTime(ttime);
+      gmd->setCTime(ttime);
+      fmd->getMTime(ttime);
+      gmd->setMTime(ttime);
+      gmd->setCUid(fmd->getCUid());
+      gmd->setCGid(fmd->getCGid());
+      gmd->setFlags(fmd->getFlags());
+      gmd->setLayoutId(fmd->getLayoutId());
+      gmd->setChecksum(fmd->getChecksum());
+      gmd->setContainerId(dirMd->getId());
 
-        for (unsigned int i = 0; i < fmd->getNumLocation(); i++) {
-          gmd->addLocation(fmd->getLocation(i));
-        }
-
+      for (unsigned int i = 0; i < fmd->getNumLocation(); i++) {
+        gmd->addLocation(fmd->getLocation(i));
+      }
     } else if (cowType == cowUnlink) {
-        int nlink = (fmd->hasAttribute(XrdMgmOfsFile::k_nlink)) ?
-            std::stoi(fmd->getAttribute(XrdMgmOfsFile::k_nlink))+1 : 1;
-
-        fmd->setAttribute(k_nlink, std::to_string(nlink));
-        gOFS->eosFileService->updateStore(fmd.get());
-
-        uint64_t hlTarget = eos::common::FileId::FidToInode(fmd->getId());
-        gmd->setAttribute(XrdMgmOfsFile::k_mdino, std::to_string(hlTarget));
-        eos_static_debug("create_cow Unlink %s (%ld) -> %s (%ld)",
-                gmd->getName().c_str(), gmd->getSize(),
-                fmd->getName().c_str(), fmd->getSize());
+      int nlink = (fmd->hasAttribute(XrdMgmOfsFile::k_nlink)) ?
+                  std::stoi(fmd->getAttribute(XrdMgmOfsFile::k_nlink)) + 1 : 1;
+      fmd->setAttribute(k_nlink, std::to_string(nlink));
+      gOFS->eosFileService->updateStore(fmd.get());
+      uint64_t hlTarget = eos::common::FileId::FidToInode(fmd->getId());
+      gmd->setAttribute(XrdMgmOfsFile::k_mdino, std::to_string(hlTarget));
+      eos_static_debug("create_cow Unlink %s (%ld) -> %s (%ld)",
+                       gmd->getName().c_str(), gmd->getSize(),
+                       fmd->getName().c_str(), fmd->getSize());
     }
 
     gOFS->eosFileService->updateStore(gmd.get());
     fmd->setCloneFST(eos::common::FileId::Fid2Hex(gmd->getId()));
     gOFS->eosFileService->updateStore(fmd.get());
   }
-
 
   gOFS->eosDirectoryService->updateStore(dirMd.get());
   gOFS->FuseXCastContainer(dirMd->getIdentifier());
@@ -224,82 +223,87 @@ XrdMgmOfsFile::create_cow(int cowType,
  *----------------------------------------------------------------------------*/
 int
 XrdMgmOfsFile::handleHardlinkDelete(std::shared_ptr<eos::IContainerMD> cmd,
-        std::shared_ptr<eos::IFileMD> fmd,
-        eos::common::VirtualIdentity& vid) {
+                                    std::shared_ptr<eos::IFileMD> fmd,
+                                    eos::common::VirtualIdentity& vid)
+{
+  if (!cmd) {
+    return 0;
+  }
 
-    if (!cmd) return 0;
+  long nlink =
+    -2;                /* assume this has nothing to do with hard links */
 
-    long nlink = -2;                /* assume this has nothing to do with hard links */
+  if (fmd->hasAttribute(XrdMgmOfsFile::k_mdino)) {
+    /* this is a hard link, decrease reference count on underlying file */
+    uint64_t hlTgt = std::stoull(fmd->getAttribute(XrdMgmOfsFile::k_mdino));
+    uint64_t clock;
+    /* gmd = the hard link target */
+    std::shared_ptr<eos::IFileMD> gmd = gOFS->eosFileService->getFileMD(
+                                          eos::common::FileId::InodeToFid(hlTgt), &clock);
+    nlink = std::stol(gmd->getAttribute(XrdMgmOfsFile::k_nlink)) - 1;
 
-    if (fmd->hasAttribute(XrdMgmOfsFile::k_mdino)) {
-        /* this is a hard link, decrease reference count on underlying file */
-        uint64_t hlTgt = std::stoull(fmd->getAttribute(XrdMgmOfsFile::k_mdino));
-        uint64_t clock;
+    if (nlink > 0) {
+      gmd->setAttribute(XrdMgmOfsFile::k_nlink, std::to_string(nlink));
+    } else {
+      gmd->removeAttribute(XrdMgmOfsFile::k_nlink);
+    }
 
-        /* gmd = the hard link target */
-        std::shared_ptr<eos::IFileMD> gmd = gOFS->eosFileService->getFileMD(
-            eos::common::FileId::InodeToFid(hlTgt), &clock);
+    gOFS->eosFileService->updateStore(gmd.get());
+    eos_static_info("hlnk update target %s for %s nlink %ld",
+                    gmd->getName().c_str(), fmd->getName().c_str(), nlink);
 
-        nlink = std::stol(gmd->getAttribute(XrdMgmOfsFile::k_nlink)) - 1;
-        if (nlink > 0) {
-          gmd->setAttribute(XrdMgmOfsFile::k_nlink, std::to_string(nlink));
-        } else {
-          gmd->removeAttribute(XrdMgmOfsFile::k_nlink);
+    if (nlink <= 0) {
+      if (gmd->getName().substr(0, 13) == "...eos.ino...") {
+        eos_static_info("hlnk unlink target %s for %s nlink %ld",
+                        gmd->getName().c_str(), fmd->getName().c_str(), nlink);
+        uint64_t cloneId = gmd->getCloneId();
+
+        if (cloneId != 0 and
+            gmd->getCloneFST().empty()) {     /* this file needs to be cloned */
+          XrdOucErrInfo error;
+          std::shared_ptr<eos::IContainerMD> dmd;
+
+          try {
+            dmd = gOFS->eosDirectoryService->getContainerMD(gmd->getContainerId());
+          } catch (eos::MDException& e) {
+          }
+
+          XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, dmd, gmd, vid, error);
+          return 1;
+        } else {                /* delete hard link target */
+          cmd->removeFile(gmd->getName());
+          gmd->unlinkAllLocations();
+          gmd->setContainerId(0);
         }
 
         gOFS->eosFileService->updateStore(gmd.get());
-        eos_static_info("hlnk update target %s for %s nlink %ld",
-                 gmd->getName().c_str(), fmd->getName().c_str(), nlink);
+      }
+    }
+  } else if (fmd->hasAttribute(
+               XrdMgmOfsFile::k_nlink)) {      /* a hard link target */
+    nlink = std::stol(fmd->getAttribute(XrdMgmOfsFile::k_nlink));
+    eos_static_info("hlnk rm target nlink %ld", nlink);
 
-        if (nlink <= 0) {
-          if (gmd->getName().substr(0, 13) == "...eos.ino...") {
-            eos_static_info("hlnk unlink target %s for %s nlink %ld",
-                     gmd->getName().c_str(), fmd->getName().c_str(), nlink);
-
-            uint64_t cloneId = gmd->getCloneId();
-            if (cloneId != 0 and gmd->getCloneFST().empty()) {     /* this file needs to be cloned */
-                XrdOucErrInfo error;
-                std::shared_ptr<eos::IContainerMD> dmd;
-                try {
-                  dmd = gOFS->eosDirectoryService->getContainerMD(gmd->getContainerId());
-                } catch (eos::MDException& e) {
-                }
-
-                XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, dmd, gmd, vid, error);
-                return 1;
-            } else {                /* delete hard link target */
-                cmd->removeFile(gmd->getName());
-                gmd->unlinkAllLocations();
-                gmd->setContainerId(0);
-            }
-            gOFS->eosFileService->updateStore(gmd.get());
-          }
-        }
+    if (nlink > 0) {
+      // hard links exist, just rename the file so the inode does not disappear
+      char nameBuf[1024];
+      uint64_t ino = eos::common::FileId::FidToInode(fmd->getId());
+      snprintf(nameBuf, sizeof(nameBuf), "...eos.ino...%lx", ino);
+      std::string nameBufs(nameBuf);
+      fmd->setAttribute(XrdMgmOfsFile::k_nlink, std::to_string(nlink));
+      eos_static_info("hlnk unlink rename %s=>%s new nlink %d",
+                      fmd->getName().c_str(), nameBufs.c_str(), nlink);
+      cmd->removeFile(nameBufs);            // if the target exists, remove it!
+      gOFS->eosView->renameFile(fmd.get(), nameBufs);
+      return 1;
     }
 
-    else if (fmd->hasAttribute(XrdMgmOfsFile::k_nlink)) {        /* a hard link target */
-        nlink = std::stol(fmd->getAttribute(XrdMgmOfsFile::k_nlink));
-        eos_static_info("hlnk rm target nlink %ld", nlink);
-        
-        if (nlink > 0) {
-          // hard links exist, just rename the file so the inode does not disappear
-          char nameBuf[1024];
-          uint64_t ino = eos::common::FileId::FidToInode(fmd->getId());
-          snprintf(nameBuf, sizeof(nameBuf), "...eos.ino...%lx", ino);
-          std::string nameBufs(nameBuf);
-          fmd->setAttribute(XrdMgmOfsFile::k_nlink, std::to_string(nlink));
-          eos_static_info("hlnk unlink rename %s=>%s new nlink %d",
-                   fmd->getName().c_str(), nameBufs.c_str(), nlink);
-          cmd->removeFile(nameBufs);            // if the target exists, remove it!
-          gOFS->eosView->renameFile(fmd.get(), nameBufs);
-          return 1;
-        }
+    /* no other links exist, continue deleting the target like a simple file */
+  }
 
-        /* no other links exist, continue deleting the target like a simple file */
-    }
-
-    eos_static_debug("hard link nlink %ld, delete %s", nlink, fmd->getName().c_str());
-    return 0;
+  eos_static_debug("hard link nlink %ld, delete %s", nlink,
+                   fmd->getName().c_str());
+  return 0;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -344,7 +348,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       ininfo = sinfo.c_str();
     }
 
-    // Handle token authz for XrdMacaroons and XrdSciTokens
+    // Handle token authz for XrdMacaroons or XrdSciTokens
     if (!HandleTokenAuthz(const_cast<XrdSecEntity*>(client), inpath,
                           ininfo ? ininfo : "")) {
       eos_err("msg=\"failed token authz\" path=\"%s\" opaque=\"%s\"",
@@ -475,7 +479,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   /* check paths starting with fid: fxid: ino: ... */
   if (spath.beginswith("fid:") || spath.beginswith("fxid:") ||
-       spath.beginswith("ino:")) {
+      spath.beginswith("ino:")) {
     WAIT_BOOT;
     // reference by fid+fsid
     byfid = eos::Resolver::retrieveFileIdentifier(spath).getUnderlyingUInt64();
@@ -664,19 +668,18 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       mProcCmd = ProcInterface::GetProcCommand(tident, vid, path, ininfo, logId);
 
       if (mProcCmd) {
-	eos_static_info("proccmd=%s", mProcCmd->GetCmd(ininfo).c_str());
-
+        eos_static_info("proccmd=%s", mProcCmd->GetCmd(ininfo).c_str());
         mProcCmd->SetLogId(logId, vid, tident);
-	mProcCmd->SetError(&error);
+        mProcCmd->SetError(&error);
         rcode = mProcCmd->open(path, ininfo, vid, &error);
-
 
         // If we need to stall the client then save the IProcCommand object and
         // add it to the map for when the client comes back.
         if (rcode > 0) {
-	  if (mProcCmd->GetCmd(ininfo)!= "proto") {
-	    return rcode;
-	  }
+          if (mProcCmd->GetCmd(ininfo) != "proto") {
+            return rcode;
+          }
+
           if (!ProcInterface::SaveSubmittedCmd(tident, std::move(mProcCmd))) {
             eos_err("failed to save submitted command object");
             return Emsg(epname, error, EINVAL, "save sumitted command object "
@@ -695,8 +698,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   }
 
   gOFS->MgmStats.Add("Open", vid.uid, vid.gid, 1);
-
   bool dotFxid = spath.beginswith("/.fxid:");
+
   if (dotFxid) {
     byfid = eos::Resolver::retrieveFileIdentifier(spath).getUnderlyingUInt64();
 
@@ -804,9 +807,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           }
 
           if (fmd) {
-
             /* in case of a hard link, may need to switch to target */
-            if (fmd->hasAttribute(XrdMgmOfsFile::k_mdino)) {    /* A hard link to another file */
+            if (fmd->hasAttribute(
+                  XrdMgmOfsFile::k_mdino)) {    /* A hard link to another file */
               std::shared_ptr<eos::IFileMD> gmd;
               uint64_t mdino = std::stoll(fmd->getAttribute(XrdMgmOfsFile::k_mdino));
               gmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(mdino));
@@ -951,10 +954,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     // ACL and permission check
     // -------------------------------------------------------------------------
     if (dotFxid and (not vid.sudoer) and (vid.uid != 0)) {
-        /* restricted: this could allow access to a file hidden by the hierarchy */
-        eos_debug(".fxid=%d uid %d sudoer %d", dotFxid, vid.uid, vid.sudoer);
-        errno = EPERM;
-        return Emsg(epname, error, errno, "open file - open by fxid denied", path);
+      /* restricted: this could allow access to a file hidden by the hierarchy */
+      eos_debug(".fxid=%d uid %d sudoer %d", dotFxid, vid.uid, vid.sudoer);
+      errno = EPERM;
+      return Emsg(epname, error, errno, "open file - open by fxid denied", path);
     }
 
     eos::IFileMD::XAttrMap attrmapF;
@@ -3185,10 +3188,9 @@ XrdMgmOfsFile::LogSchedulingInfo(const std::vector<unsigned int>& selected_fs,
 }
 
 //------------------------------------------------------------------------------
-// Handle token authorization for the http acccess protocol and extract the
-// username of the client executing the current operation from the token.
-// This will populate the XrdSecEntity.name field used later on to establish
-// the virtual identity
+// Handle (HTTP TPC) token authorization and extract from the token the username
+// of the client executing the current operation. This will populate the
+// XrdSecEntity.name field used later on to establish the virtual identity.
 //------------------------------------------------------------------------------
 bool
 XrdMgmOfsFile::HandleTokenAuthz(XrdSecEntity* client, const std::string& path,

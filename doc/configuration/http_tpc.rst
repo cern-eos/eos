@@ -420,14 +420,14 @@ To configure the **oidc-agent**, you can follow these steps:
 
    # Start the oidc-agent in the background
    eval $(oidc-agent)
-   oidc-gen WLCG-<your_username> -w decive
+   oidc-gen WLCG-<your_username> -w device
    # Put as issuer https://wlcg.cloud.cnaf.infn.it/ and configure the set of
    # scopes as "max". Then connect the agent to the IAM provide which will
    # prompt you for the password you set up earlier.
-   oidc-add WLCG_<your_username>
+   oidc-add WLCG-<your_username>
    # Request a token from the IAM and save it as an environment variable for
    # later use
-   export SCI_TOKEN=`oidc-token WLCG_<your_username>`
+   export SCI_TOKEN=`oidc-token WLCG-<your_username>`
    # Trigger a HTTP download using the SciToken information
    curl -v -L -H "Authorization: Bearer $SCI_TOKEN" https://esdss000.cern.ch:9000/eos/dev/replica/file1.dat
 
