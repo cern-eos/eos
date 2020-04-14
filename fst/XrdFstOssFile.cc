@@ -21,6 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <fcntl.h>
 #include <algorithm>
 #include "fst/XrdFstOss.hh"
@@ -100,6 +102,28 @@ XrdFstOssFile::Open(const char* path, int flags, mode_t mode, XrdOucEnv& env)
     if (errno == ERANGE) {
       eos_err("error=invalid bookingsize in capability: %s", val);
       return -EINVAL;
+    }
+  }
+
+  // add support for IO flags like synchronous or direct IO
+  if ((val = env.Get("mgm.ioflag"))) {
+    if (!strcmp(val, "direct")) {
+      flags |= O_DIRECT;
+    } else {
+      if (!strcmp(val, "sync")) {
+	// data + meta data
+	flags |= O_DSYNC | O_SYNC;
+      } else {
+	if (!strcmp(val, "msync")) {
+	  // meta data
+	  flags |= O_SYNC;
+	} else {
+	  // data
+	  if (!strcmp(val, "dsync")) {
+	    flags |= O_DSYNC;
+	  }
+	}
+      }
     }
   }
 

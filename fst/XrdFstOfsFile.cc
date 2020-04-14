@@ -447,9 +447,15 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   oss_opaque += std::to_string(mLid).c_str();
   oss_opaque += "&mgm.bookingsize=";
   oss_opaque += static_cast<int>(mBookingSize);
+
+  if ((val = mOpenOpaque->Get("eos.iotype"))) {
+    oss_opaque += "&mgm.ioflag=";
+    oss_opaque += val;
+  }
+
   // Open layout implementation
-  eos_info("fst_path=%s open-mode=%x create-mode=%x layout-name=%s",
-           mFstPath.c_str(), open_mode, create_mode, mLayout->GetName());
+  eos_info("fst_path=%s open-mode=%x create-mode=%x layout-name=%s oss-opaque=%s",
+           mFstPath.c_str(), open_mode, create_mode, mLayout->GetName(), oss_opaque.c_str());
   int rc = mLayout->Open(open_mode, create_mode, oss_opaque.c_str());
 
   if (rc) {
