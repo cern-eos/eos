@@ -33,108 +33,158 @@ EOSCOMMONNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 void
-HttpResponse::AddHeader (const std::string key, const std::string value)
+HttpResponse::AddHeader(const std::string key, const std::string value)
 {
   mResponseHeaders[key] = value;
 }
 
 /*----------------------------------------------------------------------------*/
 std::string
-HttpResponse::ContentType (const std::string &path)
+HttpResponse::ContentType(const std::string& path)
 {
   XrdOucString name = path.c_str();
-  if (name.endswith(".txt") || name.endswith(".log"))
+
+  if (name.endswith(".txt") || name.endswith(".log")) {
     return "text/plain";
-  if (name.endswith(".xml"))
+  }
+
+  if (name.endswith(".xml")) {
     return "text/xml";
-  if (name.endswith(".gif"))
+  }
+
+  if (name.endswith(".gif")) {
     return "image/gif";
-  if (name.endswith(".jpg"))
+  }
+
+  if (name.endswith(".jpg")) {
     return "image/jpg";
-  if (name.endswith(".png"))
+  }
+
+  if (name.endswith(".png")) {
     return "image/png";
-  if (name.endswith(".tiff"))
+  }
+
+  if (name.endswith(".tiff")) {
     return "image/tiff";
-  if (name.endswith(".mp3"))
+  }
+
+  if (name.endswith(".mp3")) {
     return "audio/mp3";
-  if (name.endswith(".mp4"))
+  }
+
+  if (name.endswith(".mp4")) {
     return "audio/mp4";
-  if (name.endswith(".pdf"))
+  }
+
+  if (name.endswith(".pdf")) {
     return "application/pdf";
-  if (name.endswith(".zip"))
+  }
+
+  if (name.endswith(".zip")) {
     return "application/zip";
-  if (name.endswith(".gzip"))
+  }
+
+  if (name.endswith(".gzip")) {
     return "application/gzip";
-  if (name.endswith(".tar.gz"))
+  }
+
+  if (name.endswith(".tar.gz")) {
     return "application/gzip";
+  }
+
   // default is text/plain
   return "text/plain";
 }
 
 /*----------------------------------------------------------------------------*/
 std::string
-HttpResponse::ToString ()
+HttpResponse::ToString()
 {
   std::stringstream ss;
   ss <<   "Response code: " << mResponseCode << std::endl;
-  for (auto it = GetHeaders().begin(); it != GetHeaders().end(); ++it)
-  {
+
+  for (auto it = GetHeaders().begin(); it != GetHeaders().end(); ++it) {
     ss << it->first  << ": " << it->second << std::endl;
   }
+
   ss << "\n\n" << mResponseBody << std::endl;
   return ss.str();
 }
 
 /*----------------------------------------------------------------------------*/
 std::string
-HttpResponse::GetResponseCodeDescription ()  
+HttpResponse::GetResponseCodeDescription()
 {
-
-  switch(mResponseCode) {
+  switch (mResponseCode) {
   case CONTINUE:
     return std::string("CONTINUE");
+
   case OK:
-    return std::string ("OK");
+    return std::string("OK");
+
   case CREATED:
     return std::string("CREATED");
+
   case NO_CONTENT:
     return std::string("NO_CONTENT");
+
   case PARTIAL_CONTENT:
     return std::string("PARTIAL_CONTENT");
+
   case MULTI_STATUS:
     return std::string("MULTI_STATUS");
+
   case NOT_MODIFIED:
     return std::string("NOT_MODIFIED");
+
   case TEMPORARY_REDIRECT:
     return std::string("TEMPORARY_REDIRECT");
+
   case BAD_REQUEST:
     return std::string("BAD_REQUEST");
+
   case UNAUTHORIZED:
     return std::string("UNAUTHORIZED");
+
   case FORBIDDEN:
     return std::string("FORBIDDEN");
+
   case NOT_FOUND:
     return std::string("NOT_FOUND");
+
   case METHOD_NOT_ALLOWED:
     return std::string("METHOD_NOT_ALLOWED");
+
   case CONFLICT:
     return std::string("CONFLICT");
+
+  case LENGTH_REQUIRED:
+    return std::string("LENGTH_REQUIRED");
+
   case PRECONDITION_FAILED:
     return std::string("PRECONDITION_FAILED");
+
   case UNSUPPORTED_MEDIA_TYPE:
     return std::string("UNSUPPORTED_MEDIA_TYPE");
+
   case REQUESTED_RANGE_NOT_SATISFIABLE:
     return std::string("REQUESTED_RANGE_NOT_SATISFIABLE");
+
   case UNPROCESSABLE_ENTITY:
     return std::string("UNPROCESSABLE_ENTITY");
+
   case INTERNAL_SERVER_ERROR:
     return std::string("INTERNAL_SERVER_ERROR");
+
   case NOT_IMPLEMENTED:
     return std::string("NOT_IMPLEMENTED");
+
   case BAD_GATEWAY:
     return std::string("BAD_GATEWAY");
+
   case SERVICE_UNAVAILABLE:
     return std::string("SERVICE_UNAVAILABLE");
+
   default:
     return std::string("UNKNOWN_RESPONSE_CODE");
   }

@@ -50,8 +50,7 @@ public:
   /**
    * Standard HTTP response codes which we use
    */
-  enum ResponseCodes
-  {
+  enum ResponseCodes {
     // Informational 1xx
     CONTINUE                        = 100,
 
@@ -73,6 +72,7 @@ public:
     NOT_FOUND                       = 404,
     METHOD_NOT_ALLOWED              = 405,
     CONFLICT                        = 409,
+    LENGTH_REQUIRED                 = 411,
     PRECONDITION_FAILED             = 412,
     UNSUPPORTED_MEDIA_TYPE          = 415,
     REQUESTED_RANGE_NOT_SATISFIABLE = 416,
@@ -103,13 +103,13 @@ public:
   /**
    * Constructor
    */
-  HttpResponse () :
+  HttpResponse() :
     mResponseCode(OK), mResponseLength(0), mUseFileReaderCallback(false) {};
 
   /**
    * Destructor
    */
-  virtual ~HttpResponse () {};
+  virtual ~HttpResponse() {};
 
   /**
    * Build an appropriate response to the given request. This will be
@@ -120,13 +120,16 @@ public:
    * @return the newly built response object
    */
   virtual HttpResponse*
-  BuildResponse (eos::common::HttpRequest *request) = 0;
+  BuildResponse(eos::common::HttpRequest* request) = 0;
 
   /**
    * @return the map of server response headers
    */
   inline HeaderMap&
-  GetHeaders () { return mResponseHeaders; }
+  GetHeaders()
+  {
+    return mResponseHeaders;
+  }
 
   /**
    * Set all server response headers at once
@@ -134,7 +137,10 @@ public:
    * @param headers  the server response headers to set
    */
   inline void
-  SetHeaders (HeaderMap headers) { mResponseHeaders = headers; }
+  SetHeaders(HeaderMap headers)
+  {
+    mResponseHeaders = headers;
+  }
 
   /**
    * Add a header into the server response header map.
@@ -143,13 +149,16 @@ public:
    * @param value  the header value, e.g. "text/plain"
    */
   void
-  AddHeader (const std::string key, const std::string value);
+  AddHeader(const std::string key, const std::string value);
 
   /**
    * @return the server response body
    */
   inline const std::string&
-  GetBody () { return mResponseBody; }
+  GetBody()
+  {
+    return mResponseBody;
+  }
 
   /**
    * Set the server response body.
@@ -157,19 +166,28 @@ public:
    * @param body  the server response body to be set
    */
   inline void
-  SetBody (std::string body) { mResponseBody = body; };
+  SetBody(std::string body)
+  {
+    mResponseBody = body;
+  };
 
   /**
    * @return the size of the current response body
    */
   inline size_t
-  GetBodySize () { return mResponseBody.length(); }
+  GetBodySize()
+  {
+    return mResponseBody.length();
+  }
 
   /**
    * @return the server response code
    */
   inline int
-  GetResponseCode () { return mResponseCode; }
+  GetResponseCode()
+  {
+    return mResponseCode;
+  }
 
   /**
    * Set the server response code
@@ -177,7 +195,10 @@ public:
    * @param responseCode  the new response code to be set
    */
   inline void
-  SetResponseCode (int responseCode) { mResponseCode = responseCode; };
+  SetResponseCode(int responseCode)
+  {
+    mResponseCode = responseCode;
+  };
 
   /**
    * Deduce an appropriate MIME type for the given path, based on the file
@@ -188,19 +209,19 @@ public:
    * @return the MIME type string, e.g. "application/xml"
    */
   static std::string
-  ContentType (const std::string &path);
+  ContentType(const std::string& path);
 
   /**
    * @return nicely formatted response, ready for printing
    */
   std::string
-  ToString ();
+  ToString();
 
-  /** 
+  /**
    * @return response code string
    */
   std::string
-  GetResponseCodeDescription(); 
+  GetResponseCodeDescription();
 };
 
 /*----------------------------------------------------------------------------*/

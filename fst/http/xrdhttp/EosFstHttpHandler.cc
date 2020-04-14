@@ -51,7 +51,9 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
   std::string verb = req.verb;
 
   if (req.verb == "PUT") {
-    verb = "CREATE"; // CREATE makes sure, the the handler just opens the file and all writes are done later
+    // CREATE makes sure the handler just opens the file and all writes
+    // are done later
+    verb = "CREATE";
   }
 
   std::unique_ptr<eos::common::ProtocolHandler>
@@ -69,13 +71,16 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
   if (response) {
     std::string header;
     response->AddHeader("Date",  eos::common::Timing::utctime(time(NULL)));
-    off_t content_length = 0;
+    long long content_length = 0ll;
     auto headers = response->GetHeaders();
 
     for (auto it = headers.begin(); it != headers.end(); ++it) {
       if (it->first == "Content-Length") {
         // this is added by SendSimpleResp, don't add it here
-        content_length = strtoull(it->second.c_str(), 0, 10);
+        try {
+          content_length = std::stoll(it->second);
+        } catch (...) {}
+
         continue;
       }
 
@@ -96,14 +101,16 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
     if (req.verb == "HEAD") {
       return req.SendSimpleResp(response->GetResponseCode(),
                                 response->GetResponseCodeDescription().c_str(),
-                                header.c_str(), response->GetBody().c_str(), response->GetBody().length());
+                                header.c_str(), response->GetBody().c_str(),
+                                response->GetBody().length());
     }
 
     if (req.verb == "GET") {
       if (response->GetResponseCode() != 200) {
         return req.SendSimpleResp(response->GetResponseCode(),
                                   response->GetResponseCodeDescription().c_str(),
-                                  header.c_str(), response->GetBody().c_str(), response->GetBody().length());
+                                  header.c_str(), response->GetBody().c_str(),
+                                  response->GetBody().length());
       } else {
         int retc = 0;
         retc = req.SendSimpleResp(0, response->GetResponseCodeDescription().c_str(),
@@ -116,8 +123,8 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
         ssize_t nread = 0;
         off_t pos = 0;
         // allocate an IO buffer of 1M or if smaller the required content length
-        std::vector<char> buffer(content_length > (1 * 1024 * 1024) ?
-                                 (1 * 1024 * 1024) : content_length);
+        std::vector<char> buffer(content_length > (1024 * 1024) ?
+                                 (1024 * 1024) : content_length);
 
         do {
           if (EOS_LOGS_DEBUG) {
@@ -142,8 +149,10 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
     }
 
     if (req.verb == "PUT") {
-      content_length = strtoull(normalized_headers.count("content-length") ?
-                                normalized_headers["content-length"].c_str() : "-1", 0, 10);
+      // If no content-length provided then return an error
+      if (normalized_headers.count("content-lenght") == 0) {
+        response->SetResponseCode(eos::common::HttpResponse::LENGTH_REQUIRED);
+      }
 
       if (EOS_LOGS_DEBUG) {
         eos_static_debug("response-code=%d", response->GetResponseCode());
@@ -153,7 +162,8 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
           (response->GetResponseCode() != 200)) {
         return req.SendSimpleResp(response->GetResponseCode(),
                                   response->GetResponseCodeDescription().c_str(),
-                                  header.c_str(), response->GetBody().c_str(), response->GetBody().length());
+                                  header.c_str(), response->GetBody().c_str(),
+                                  response->GetBody().length());
       } else {
         if ((response->GetResponseCode() == 0) &&
             (normalized_headers.count("expect") &&
@@ -167,10 +177,10 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
         }
 
         int retc = 0;
-        off_t content_left = content_length;
+        long long content_left = content_length;
 
         do {
-          size_t content_read = std::min(1 * 1024 * 1024l, content_left);
+          size_t content_read = std::min(1024 * 1024ll, content_left);
           char* data = 0;
           size_t rbytes = req.BuffgetData(content_read, &data, true);
           // @TODO: improve me by avoiding to copy the buffer
@@ -178,7 +188,7 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
           body.assign(data, rbytes);
 
           if (EOS_LOGS_DEBUG) {
-            eos_static_info("content-read=%lu rbytes=%lu body=%u", content_read, rbytes,
+            eos_static_info("content-read=%ll rbytes=%lu body=%u", content_read, rbytes,
                             body.size());
           }
 
