@@ -1428,6 +1428,15 @@ runtest "### Rename    " unix 0 "" shell mv -f /test-fusex/$EOS_TEST_INSTANCE/te
 runtest "### Rename    " unix 0 "" shell mv -f /test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/f2 /test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir2/f2
 runtest "### Versions  " unix 0 "" eos file versions "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir2/f2 | wc -l | grep -w 1"
 runtest "### Versions  " unix 0 "" eos file versions "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir2/f1 | wc -l | grep -w 2"
+runtest "### Upload    " unix 0 "" shell cp /etc/group "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/perm"
+runtest "### Chmod     " unix 0 "" shell chmod 444 "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/perm"
+runtest "### test -x   " unix 1 "" shell test -x "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/perm"
+runtest "### Chmod     " unix 0 "" shell chmod 744 "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/perm"
+runtest "### test -x   " unix 0 "" shell test -x "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/perm"
+runtest "### Chmod     " unix 0 "" shell chmod 474 "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/perm"
+runtest "### test -x   " unix 0 "" shell test -x "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/perm"
+runtest "### Chmod     " unix 0 "" shell chmod 447 "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/perm"
+runtest "### test -x   " unix 0 "" shell test -x "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/perm"
 runtest "### Cleanup"    unix 2 "" eos rm  "-r /eos/$EOS_TEST_INSTANCE/test/instancetest/fusex"
 test -d /test-fusex/ && umount -fl /test-fusex/
 test -d /test-fusex/ && rmdir /test-fusex/
