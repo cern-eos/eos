@@ -52,7 +52,7 @@
 
 #define PROGRAM "eoscp"
 #define DEFAULTBUFFERSIZE 4*1024*1024
-#define MAXSRCDST    16
+#define MAXSRCDST    32
 
 using eos::common::LayoutId;
 
