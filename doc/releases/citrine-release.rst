@@ -16,6 +16,26 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.7.10 Citrine``
+===================
+
+2020-04-17
+
+Bug
+----
+    
+* [EOS-4103] - FUSEX marks as 0600 file as "executable"
+* [EOS-4112] - Deadlock between mdstackfree and data::unlink
+* HTTP/FST: Fix crash by replying with 411 when a PUT without Content-Length is attempted
+
+Improvement
+------------
+
+* [EOS-4108] - Merge tape replicas in conversion jobs
+* [EOS-3913] - eos report is reporting deletion of files that were never transferred in the first place
+* [EOS-4104] - Allow to select, O_DIRECT O_SYNC O_DSYNC via CGI
+
+
 ``v4.7.9 Citrine``
 ===================
 
