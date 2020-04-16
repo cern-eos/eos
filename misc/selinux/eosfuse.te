@@ -1,4 +1,4 @@
-module eosfuse 1.5;
+module eosfuse 1.6;
 
 require {
 	attribute domain;
