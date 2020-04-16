@@ -73,6 +73,11 @@ XrdMgmOfs::merge(const char* src, const char* dst, XrdOucErrInfo& error,
         src_fmd->setAttribute(elem.first, elem.second);
       }
 
+      if (dst_fmd->hasLocation(eos::common::TAPE_FS_ID)) {
+	// pre-serve TAPE locations
+	src_fmd->addLocation(eos::common::TAPE_FS_ID);
+      }
+
       const std::string etag = "sys.tmp.etag";
 
       if (!src_fmd->hasAttribute(etag)) {
