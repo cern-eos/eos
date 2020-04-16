@@ -668,7 +668,7 @@ def do_backup():
     newCatalog.close()
 
 
-    cmd = "eos find -f -x sys.clone=-%s %s > /dev/null" % (cloneId, args[0])
+    cmd = "eos find -f -x sys.clone=-%s %s > /dev/null" % (cloneId, args[0] if len(args) > 0 else rootPath)
     os.system(cmd)
 
 # perform a restore based on multiple catalogFiles

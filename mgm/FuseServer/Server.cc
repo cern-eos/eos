@@ -1810,10 +1810,9 @@ Server::OpSetFile(const std::string& id,
 
             gOFS->eosViewRWMutex.LockWrite();
           } else {
-            // recycle bin - not for hardlinked files or hardlinks nor files to be cloned!
+            // recycle bin - not for hardlinked files or hardlinks!
             if (try_recycle && (attrmap.count(Recycle::gRecyclingAttribute) ||
                                 hasVersion) &&
-                (ofmd->getCloneId() == 0 || !(ofmd->getCloneFST().empty())) &&
                 (!ofmd->hasAttribute(k_mdino)) && (!ofmd->hasAttribute(k_nlink))) {
               // translate to a path name and call the complex deletion function
               // this is vulnerable to a hard to trigger race conditions
@@ -1937,10 +1936,9 @@ Server::OpSetFile(const std::string& id,
               gOFS->eosViewRWMutex.LockWrite();
             }
 
-            // recycle bin - not for hardlinked files or hardlinks nor files to be cloned!
+            // recycle bin - not for hardlinked files or hardlinks !
             if (try_recycle && (attrmap.count(Recycle::gRecyclingAttribute) ||
                                 hasVersion) &&
-                (ofmd->getCloneId() == 0 || !(ofmd->getCloneFST().empty())) &&
                 (!ofmd->hasAttribute(k_mdino)) && (!ofmd->hasAttribute(k_nlink))) {
               // translate to a path name and call the complex deletion function
               // this is vulnerable to a hard to trigger race conditions
@@ -2669,15 +2667,14 @@ Server::OpDeleteFile(const std::string& id,
 
       uint64_t cloneId;
 
-      if (doDelete && (((cloneId = fmd->getCloneId()) == 0) ||
-                       !(fmd->getCloneFST().empty()))) {
-        pcmd->removeFile(fmd->getName());
-        fmd->setContainerId(0);
-        fmd->unlinkAllLocations();
-        gOFS->WriteRmRecord(fmd);
-      } else if (doDelete) {        /* delete, but clone first */
+      if (doDelete) {       /* delete, but clone first if needed */
         XrdOucErrInfo error;
-        XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, pcmd, fmd, vid, error);
+        int rc = XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, pcmd, fmd, vid, error);
+        if (rc == -1) {     /* usual outcome: no cloning */
+          pcmd->removeFile(fmd->getName());
+          fmd->setContainerId(0);
+          fmd->unlinkAllLocations();
+        }
         gOFS->WriteRmRecord(fmd);
       }
 

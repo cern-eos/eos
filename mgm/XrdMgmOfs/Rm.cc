@@ -295,7 +295,7 @@ XrdMgmOfs::_rem(const char* path,
         }
 
         /* create a Copy-on-Write clone if needed */
-        errno = XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, container, fmd, vid, error);
+        XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, container, fmd, vid, error);
 
         if (!XrdMgmOfsFile::handleHardlinkDelete(container, fmd, vid)) {
             gOFS->eosView->unlinkFile(path);
