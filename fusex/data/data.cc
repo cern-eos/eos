@@ -213,17 +213,30 @@ void
 data::unlink(fuse_req_t req, fuse_ino_t ino)
 /* -------------------------------------------------------------------------- */
 {
-  XrdSysMutexHelper mLock(datamap);
+  bool has_data = false;
+  shared_data datap;
+  {
+    XrdSysMutexHelper mLock(datamap);
+    has_data = datamap.count(ino);
+    if (has_data) {
+      datap = datamap[ino];
+    }
+  }
 
-  if (datamap.count(ino)) {
-    XrdSysMutexHelper helper(datamap[ino]->Locker());
-    // wait for open in flight to be done
-    datamap[ino]->WaitOpen();
-    datamap[ino]->unlink(req);
+  if (has_data ) {
+    {
+      XrdSysMutexHelper helper(datap->Locker());
+      // wait for open in flight to be done
+      datap->WaitOpen();
+      datap->unlink(req);
+    }
     // put the unlinked inode in a high bucket, will be removed by the flush thread
-    datamap[ino + 0xffffffff] = datamap[ino];
-    datamap.erase(ino);
-    eos_static_info("datacache::unlink size=%lu", datamap.size());
+    {
+      XrdSysMutexHelper mLock(datamap);
+      datamap[ino + 0xffffffff] = datamap[ino];
+      datamap.erase(ino);
+      eos_static_info("datacache::unlink size=%lu", datamap.size());
+    }
   } else {
     shared_data io = std::make_shared<datax>();
     io->set_id(ino, req);
