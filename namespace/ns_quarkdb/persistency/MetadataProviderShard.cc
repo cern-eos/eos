@@ -52,6 +52,23 @@ MetadataProviderShard::MetadataProviderShard(qclient::QClient *qcl,
 folly::Future<IContainerMDPtr>
 MetadataProviderShard::retrieveContainerMD(ContainerIdentifier id)
 {
+  // Quick check without lock on the long-lived cache. LRU is locked internally,
+  // so this is thread-safe.
+  //
+  // If we get no hit, we have to check again under lock.
+  IContainerMDPtr result = mContainerCache.get(id);
+
+  if (result) {
+    // Handle special case where we're dealing with a tombstone.
+    if (result->isDeleted()) {
+      return folly::makeFuture<IContainerMDPtr>
+             (make_mdexception(ENOENT, "Container #" << id.getUnderlyingUInt64()
+                               << " does not exist (found deletion tombstone)"));
+    }
+
+    return folly::makeFuture<IContainerMDPtr>(std::move(result));
+  }
+
   std::unique_lock<std::mutex> lock(mMutex);
   // A ContainerMD can be in three states: Not in cache, inside in-flight cache,
   // and cached. Is it inside in-flight cache?
@@ -65,7 +82,7 @@ MetadataProviderShard::retrieveContainerMD(ContainerIdentifier id)
   }
 
   // Nope.. is it inside the long-lived cache?
-  IContainerMDPtr result = mContainerCache.get(id);
+  result = mContainerCache.get(id);
 
   if (result) {
     lock.unlock();
@@ -109,6 +126,25 @@ MetadataProviderShard::retrieveContainerMD(ContainerIdentifier id)
 folly::Future<IFileMDPtr>
 MetadataProviderShard::retrieveFileMD(FileIdentifier id)
 {
+  // Quick check without lock on the long-lived cache. LRU is locked internally,
+  // so this is thread-safe.
+  //
+  // If we get no hit, we have to check again under lock.
+
+  // Nope.. is it inside the long-lived cache?
+  IFileMDPtr result = mFileCache.get(id);
+
+  if (result) {
+    // Handle special case where we're dealing with a tombstone.
+    if (result->isDeleted()) {
+      return folly::makeFuture<IFileMDPtr>
+             (make_mdexception(ENOENT, "File #" << id.getUnderlyingUInt64()
+                               << " does not exist (found deletion tombstone)"));
+    }
+
+    return folly::makeFuture<IFileMDPtr>(std::move(result));
+  }
+
   std::unique_lock<std::mutex> lock(mMutex);
 
   // Are we asking for fid=0? Illegal, short-circuit without even contacting
@@ -132,7 +168,7 @@ MetadataProviderShard::retrieveFileMD(FileIdentifier id)
   }
 
   // Nope.. is it inside the long-lived cache?
-  IFileMDPtr result = mFileCache.get(id);
+  result = mFileCache.get(id);
 
   if (result) {
     lock.unlock();
