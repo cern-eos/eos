@@ -93,6 +93,12 @@ class Cache {
   explicit Cache(size_t maxSize = 64, size_t elasticity = 10)
       : maxSize_(maxSize), elasticity_(elasticity) {}
   virtual ~Cache() = default;
+
+  size_t  setMaxSize(size_t maxSize) {
+    maxSize_ = maxSize;
+    return maxSize;
+  }
+
   size_t size() const {
     Guard g(lock_);
     return cache_.size();

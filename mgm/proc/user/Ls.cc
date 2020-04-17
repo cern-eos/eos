@@ -64,7 +64,7 @@ ProcCommand::Ls()
 
 
   static eos::common::LRU::Cache<std::string, struct result> dirCache;
-
+  static bool use_cache = (getenv("EOS_MGM_LISTING_CACHE") && (dirCache.setMaxSize(atoi(getenv("EOS_MGM_LISTING_CACHE")))));
   std::ostringstream oss;
   gOFS->MgmStats.Add("Ls", pVid->uid, pVid->gid, 1);
   XrdOucString spath = pOpaque->Get("mgm.path");
@@ -121,7 +121,7 @@ ProcCommand::Ls()
 
       cacheentry = cachedresult.getCacheName(buf.st_ino, buf.st_mtim.tv_sec, buf.st_mtim.tv_nsec, std::string(option.length()?option.c_str():""));
 
-      if (dirCache.tryGet(cacheentry, cachedresult)) {
+      if (use_cache && dirCache.tryGet(cacheentry, cachedresult)) {
 	// return from cache
 	retc = cachedresult.retc;
 	stdOut = cachedresult.out.c_str();
@@ -358,7 +358,9 @@ ProcCommand::Ls()
       cachedresult.retc = retc;
       cachedresult.out = stdOut.c_str();
       cachedresult.err = stdErr.c_str();
-      dirCache.insert(cacheentry, cachedresult);
+      if (use_cache) {
+	dirCache.insert(cacheentry, cachedresult);
+      }
     }
   }
 

@@ -138,6 +138,8 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
                           const char* info)
 {
   static const char* epname = "opendir";
+  static bool use_cache = (getenv("EOS_MGM_LISTING_CACHE") && (dirCache.setMaxSize(atoi(getenv("EOS_MGM_LISTING_CACHE")))));
+
   XrdOucEnv Open_Env(info);
   errno = 0;
   EXEC_TIMING_BEGIN("OpenDir");
@@ -196,8 +198,7 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
       std::unique_lock<std::mutex> scope_lock(mDirLsMutex);
 
       // try to get the listing from the cache
-
-      if (!dirCache.tryGet(cacheentry, dh_list)) {
+      if (!use_cache || !dirCache.tryGet(cacheentry, dh_list)) {
 	dh_list = std::make_shared<listing_t>();
 	if (!env.Get("ls.skip.files")) {
 	  // Collect all file names
@@ -220,7 +221,9 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
       }
 
       dh_it = dh_list->begin();
-      dirCache.insert(cacheentry, dh_list); // cache listing
+      if (use_cache) {
+	dirCache.insert(cacheentry, dh_list); // cache listing
+      }
     }
   } catch (eos::MDException& e) {
     dh.reset();

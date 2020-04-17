@@ -307,3 +307,9 @@ EOS_TTY_BROACAST_EGREP="\"CRIT|ALERT|EMERG|PROGRESS\""
 # uncoment to set the EOS space name to be used by 'xrdfs query space' commands
 # that do not explicitly specify an EOS space name
 # EOS_MGM_STATVFS_DEFAULT_SPACE="default"
+
+# ------------------------------------------------------------------
+# MGM Directory Listing Cache configuration
+
+# set to 0 to disable listing cache for 'xrdfs ls' and 'eos ls', or a number with the number of dirs to cache
+# EOS_MGM_LISTING_CACHE=1024
