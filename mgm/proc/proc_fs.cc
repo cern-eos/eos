@@ -939,16 +939,16 @@ int proc_mv_fs_group(FsView& fs_view, const std::string& src,
 
       // Check that there is no other file system from the same node in this group
       bool is_forbidden = false;
-      std::string qnode;
-      std::string fs_qnode = fs->GetQueue();
+      std::string host;
+      std::string fs_host = fs->GetHost();
 
       for (auto it = grp->begin(); it != grp->end(); ++it) {
         FileSystem* entry = fs_view.mIdView.lookupByID(*it);
 
         if (entry) {
-          qnode = entry->GetQueue();
+          host = entry->GetHost();
 
-          if (fs_qnode == qnode) {
+          if (fs_host == host) {
             is_forbidden = true;
             break;
           }
