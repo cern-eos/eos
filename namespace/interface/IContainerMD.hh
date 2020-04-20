@@ -37,6 +37,7 @@
 #include <string>
 #include <map>
 #include <set>
+#include <chrono>
 #include <sys/time.h>
 #include <google/dense_hash_map>
 #include <folly/futures/Future.h>
@@ -415,6 +416,16 @@ public:
     return LocalityHint::build(ContainerIdentifier(getParentId()), getName());
   }
 
+  std::chrono::steady_clock::time_point getLastPrefetch() const {
+    std::shared_lock lock(mLastPrefetchMtx);
+    return mLastPrefetch;
+  }
+
+  void setLastPrefetch(std::chrono::steady_clock::time_point tp) {
+    std::unique_lock lock(mLastPrefetchMtx);
+    mLastPrefetch = tp;
+  }
+
 private:
   friend class FileMapIterator;
   friend class ContainerMapIterator;
@@ -427,6 +438,9 @@ private:
   IContainerMD& operator=(const IContainerMD& other) = delete;
 
   bool mIsDeleted; ///< Mark if object is still in cache but it was deleted
+
+  std::chrono::steady_clock::time_point mLastPrefetch;
+  mutable std::shared_mutex mLastPrefetchMtx;
 
 protected:
   //----------------------------------------------------------------------------
