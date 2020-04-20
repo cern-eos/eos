@@ -261,6 +261,11 @@ void Prefetcher::prefetchContainerMDWithChildrenAndWait(IView* view,
   }
 
   IContainerMDPtr cmd = std::move(fut).get();
+
+  if(std::chrono::steady_clock::now() - cmd->getLastPrefetch() <= std::chrono::minutes(10)) {
+    return;
+  }
+
   Prefetcher prefetcher(view);
   std::vector<std::string> paths;
 
@@ -283,6 +288,7 @@ void Prefetcher::prefetchContainerMDWithChildrenAndWait(IView* view,
   }
 
   prefetcher.wait();
+  cmd->setLastPrefetch(std::chrono::steady_clock::now());
 }
 
 //------------------------------------------------------------------------------
@@ -339,6 +345,11 @@ void Prefetcher::prefetchContainerMDWithChildrenAndWait(IView* view,
   }
 
   IContainerMDPtr cmd = std::move(fut).get();
+
+  if(std::chrono::steady_clock::now() - cmd->getLastPrefetch() <= std::chrono::minutes(10)) {
+    return;
+  }
+
   Prefetcher prefetcher(view);
   std::vector<std::string> paths;
 
@@ -351,6 +362,7 @@ void Prefetcher::prefetchContainerMDWithChildrenAndWait(IView* view,
   }
 
   prefetcher.wait();
+  cmd->setLastPrefetch(std::chrono::steady_clock::now());
 }
 
 //------------------------------------------------------------------------------
