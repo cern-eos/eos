@@ -1811,9 +1811,9 @@ Server::OpSetFile(const std::string& id,
             gOFS->eosViewRWMutex.LockWrite();
           } else {
             // recycle bin - not for hardlinked files or hardlinks!
-            if (try_recycle && (attrmap.count(Recycle::gRecyclingAttribute) ||
-                                hasVersion) &&
-                (!ofmd->hasAttribute(k_mdino)) && (!ofmd->hasAttribute(k_nlink))) {
+            if ( (try_recycle &&
+                        (attrmap.count(Recycle::gRecyclingAttribute) || hasVersion)) ||
+                ofmd->hasAttribute(k_mdino) || ofmd->hasAttribute(k_nlink) ) {
               // translate to a path name and call the complex deletion function
               // this is vulnerable to a hard to trigger race conditions
               std::string fullpath = gOFS->eosView->getUri(ofmd.get());
@@ -1937,9 +1937,9 @@ Server::OpSetFile(const std::string& id,
             }
 
             // recycle bin - not for hardlinked files or hardlinks !
-            if (try_recycle && (attrmap.count(Recycle::gRecyclingAttribute) ||
-                                hasVersion) &&
-                (!ofmd->hasAttribute(k_mdino)) && (!ofmd->hasAttribute(k_nlink))) {
+            if ( (try_recycle &&
+                    (attrmap.count(Recycle::gRecyclingAttribute) || hasVersion)) ||
+                 ofmd->hasAttribute(k_mdino) || ofmd->hasAttribute(k_nlink) ) {
               // translate to a path name and call the complex deletion function
               // this is vulnerable to a hard to trigger race conditions
               std::string fullpath = gOFS->eosView->getUri(ofmd.get());
