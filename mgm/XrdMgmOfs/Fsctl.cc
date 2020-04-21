@@ -268,6 +268,7 @@ XrdMgmOfs::FSctl(const int cmd,
   if (fusexset) {
     std::string protobuf;
     protobuf.assign(args.Arg2 + 6, args.Arg2Len - 6);
+    vid.app = "fuse"; // tag client as fuse
     return XrdMgmOfs::Fusex(path, ininfo, protobuf, env, error, vid, client);
   }
 
