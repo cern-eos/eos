@@ -59,6 +59,7 @@ XrdMgmOfs::ShouldStall(const char* function,
 
         // fuse clients don't get stalled by a booted namespace, they get EACCES
         if (vid.app.substr(0,4) == "fuse") {
+	  stallmsg = smsg.c_str();
           return true;
         }
 
@@ -69,6 +70,7 @@ XrdMgmOfs::ShouldStall(const char* function,
 
         // fuse clients don't get stalled by a booted namespace, they get EACCES
         if (vid.app.substr(0,4) == "fuse") {
+	  stallmsg = smsg.c_str();
           return true;
         }
 
@@ -79,6 +81,7 @@ XrdMgmOfs::ShouldStall(const char* function,
 
         // fuse clients don't get stalled by a booted namespace, they get EACCES
         if (vid.app.substr(0,4) == "fuse") {
+	  stallmsg = smsg.c_str();
           return true;
         }
 
@@ -89,6 +92,7 @@ XrdMgmOfs::ShouldStall(const char* function,
 
         // fuse clients don't get stalled by a booted namespace, they get EACCES
         if (vid.app.substr(0,4) == "fuse") {
+	  stallmsg = smsg.c_str();
           return true;
         }
 
