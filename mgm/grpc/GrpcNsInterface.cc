@@ -437,7 +437,10 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
                        const eos::rpc::MDRequest* request, bool check_perms,
                        bool lock)
 {
-  if (request->type() == eos::rpc::FILE) {
+  eos::common::RWMutexReadLock viewReadLock;
+
+  if ( (request->type() == eos::rpc::FILE) ||
+       (request->type() == eos::rpc::STAT) ) {
     // stream file meta data
     eos::common::RWMutexReadLock viewReadLock;
     std::shared_ptr<eos::IFileMD> fmd;
@@ -445,6 +448,7 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
     unsigned long fid = 0;
     uint64_t clock = 0;
     std::string path;
+    bool fallthrough = false;
 
     if (request->id().ino()) {
       // get by inode
@@ -461,7 +465,7 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
     }
 
     if (lock) {
-    viewReadLock.Grab(gOFS->eosViewRWMutex);
+      viewReadLock.Grab(gOFS->eosViewRWMutex);
     }
 
     if (fid) {
@@ -476,7 +480,11 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
         errno = e.getErrno();
         eos_static_debug("caught exception %d %s\n", e.getErrno(),
                          e.getMessage().str().c_str());
-        return grpc::Status((grpc::StatusCode)(errno), e.getMessage().str().c_str());
+	if ( (request->type() != eos::rpc::STAT) ) {
+	  return grpc::Status((grpc::StatusCode)(errno), e.getMessage().str().c_str());
+	} else {
+	  fallthrough  = true;
+	}
       }
     } else {
       try {
@@ -490,64 +498,71 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
         errno = e.getErrno();
         eos_static_debug("caught exception %d %s\n", e.getErrno(),
                          e.getMessage().str().c_str());
-        return grpc::Status((grpc::StatusCode)(errno), e.getMessage().str().c_str());
+	if ( (request->type() != eos::rpc::STAT) ) {
+	  return grpc::Status((grpc::StatusCode)(errno), e.getMessage().str().c_str());
+	} else {
+	  fallthrough  = true;
+	}
       }
     }
 
-    if (check_perms && !Access(vid, R_OK, pmd)) {
-      return grpc::Status(grpc::StatusCode::PERMISSION_DENIED,
-                          "access to parent container denied");
-    }
+    if (!fallthrough) {
+      if (check_perms && !Access(vid, R_OK, pmd)) {
+	return grpc::Status(grpc::StatusCode::PERMISSION_DENIED,
+			    "access to parent container denied");
+      }
 
-    if (Filter(fmd, request->selection())) {
-      // short-cut for filtered MD
+      if (Filter(fmd, request->selection())) {
+	// short-cut for filtered MD
+	return grpc::Status::OK;
+      }
+
+      // create GRPC protobuf object
+      eos::rpc::MDResponse gRPCResponse;
+      gRPCResponse.set_type(eos::rpc::FILE);
+      eos::rpc::FileMdProto gRPCFmd;
+      gRPCResponse.mutable_fmd()->set_name(fmd->getName());
+      gRPCResponse.mutable_fmd()->set_id(fmd->getId());
+      gRPCResponse.mutable_fmd()->set_cont_id(fmd->getContainerId());
+      gRPCResponse.mutable_fmd()->set_uid(fmd->getCUid());
+      gRPCResponse.mutable_fmd()->set_gid(fmd->getCGid());
+      gRPCResponse.mutable_fmd()->set_size(fmd->getSize());
+      gRPCResponse.mutable_fmd()->set_layout_id(fmd->getLayoutId());
+      gRPCResponse.mutable_fmd()->set_flags(fmd->getFlags());
+      gRPCResponse.mutable_fmd()->set_link_name(fmd->getLink());
+      eos::IFileMD::ctime_t ctime;
+      eos::IFileMD::ctime_t mtime;
+      fmd->getCTime(ctime);
+      fmd->getMTime(mtime);
+      gRPCResponse.mutable_fmd()->mutable_ctime()->set_sec(ctime.tv_sec);
+      gRPCResponse.mutable_fmd()->mutable_ctime()->set_n_sec(ctime.tv_nsec);
+      gRPCResponse.mutable_fmd()->mutable_mtime()->set_sec(mtime.tv_sec);
+      gRPCResponse.mutable_fmd()->mutable_mtime()->set_n_sec(mtime.tv_nsec);
+      gRPCResponse.mutable_fmd()->mutable_checksum()->set_value(
+								fmd->getChecksum().getDataPtr(), fmd->getChecksum().size());
+      gRPCResponse.mutable_fmd()->mutable_checksum()->set_type(
+							       eos::common::LayoutId::GetChecksumStringReal(fmd->getLayoutId()));
+      for (const auto& loca : fmd->getLocations()) {
+	gRPCResponse.mutable_fmd()->add_locations(loca);
+      }
+
+      for (const auto& loca : fmd->getUnlinkedLocations()) {
+	gRPCResponse.mutable_fmd()->add_unlink_locations(loca);
+      }
+
+      for (const auto& elem : fmd->getAttributes()) {
+	(*gRPCResponse.mutable_fmd()->mutable_xattrs())[elem.first] = elem.second;
+      }
+
+      gRPCResponse.mutable_fmd()->set_path(path);
+      writer->Write(gRPCResponse);
       return grpc::Status::OK;
     }
+  }
 
-    // create GRPC protobuf object
-    eos::rpc::MDResponse gRPCResponse;
-    gRPCResponse.set_type(eos::rpc::FILE);
-    eos::rpc::FileMdProto gRPCFmd;
-    gRPCResponse.mutable_fmd()->set_name(fmd->getName());
-    gRPCResponse.mutable_fmd()->set_id(fmd->getId());
-    gRPCResponse.mutable_fmd()->set_cont_id(fmd->getContainerId());
-    gRPCResponse.mutable_fmd()->set_uid(fmd->getCUid());
-    gRPCResponse.mutable_fmd()->set_gid(fmd->getCGid());
-    gRPCResponse.mutable_fmd()->set_size(fmd->getSize());
-    gRPCResponse.mutable_fmd()->set_layout_id(fmd->getLayoutId());
-    gRPCResponse.mutable_fmd()->set_flags(fmd->getFlags());
-    gRPCResponse.mutable_fmd()->set_link_name(fmd->getLink());
-    eos::IFileMD::ctime_t ctime;
-    eos::IFileMD::ctime_t mtime;
-    fmd->getCTime(ctime);
-    fmd->getMTime(mtime);
-    gRPCResponse.mutable_fmd()->mutable_ctime()->set_sec(ctime.tv_sec);
-    gRPCResponse.mutable_fmd()->mutable_ctime()->set_n_sec(ctime.tv_nsec);
-    gRPCResponse.mutable_fmd()->mutable_mtime()->set_sec(mtime.tv_sec);
-    gRPCResponse.mutable_fmd()->mutable_mtime()->set_n_sec(mtime.tv_nsec);
-    gRPCResponse.mutable_fmd()->mutable_checksum()->set_value(
-      fmd->getChecksum().getDataPtr(), fmd->getChecksum().size());
-    gRPCResponse.mutable_fmd()->mutable_checksum()->set_type(
-      eos::common::LayoutId::GetChecksumStringReal(fmd->getLayoutId()));
-
-    for (const auto& loca : fmd->getLocations()) {
-      gRPCResponse.mutable_fmd()->add_locations(loca);
-    }
-
-    for (const auto& loca : fmd->getUnlinkedLocations()) {
-      gRPCResponse.mutable_fmd()->add_unlink_locations(loca);
-    }
-
-    for (const auto& elem : fmd->getAttributes()) {
-      (*gRPCResponse.mutable_fmd()->mutable_xattrs())[elem.first] = elem.second;
-    }
-
-    gRPCResponse.mutable_fmd()->set_path(path);
-    writer->Write(gRPCResponse);
-    return grpc::Status::OK;
-  } else if (request->type() == eos::rpc::CONTAINER) {
+  if ( (request->type() == eos::rpc::CONTAINER) ||
+       (request->type() == eos::rpc::STAT) ) {
     // stream container meta data
-    eos::common::RWMutexReadLock viewReadLock;
     std::shared_ptr<eos::IContainerMD> cmd;
     std::shared_ptr<eos::IContainerMD> pmd;
     unsigned long cid = 0;

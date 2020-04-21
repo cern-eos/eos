@@ -110,6 +110,7 @@ class RequestServiceImpl final : public Eos::Service
     switch (request->type()) {
     case eos::rpc::FILE:
     case eos::rpc::CONTAINER:
+    case eos::rpc::STAT:
       return GrpcNsInterface::GetMD(vid, writer, request);
       break;
 

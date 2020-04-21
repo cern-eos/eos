@@ -143,7 +143,7 @@ GrpcClient::Md(const std::string& path,
   if (list) {
     request.set_type(eos::rpc::LISTING);
   } else {
-    request.set_type(eos::rpc::CONTAINER);
+    request.set_type(eos::rpc::STAT);
   }
 
   if (path.length()) {
