@@ -78,24 +78,10 @@ XrdMgmOfs::ShouldStall(const char* function,
         stalltime = 300;
       } else if (Access::gBannedHosts.count(vid.host)) {
         smsg = "operate - your client host is banned in this instance - contact an administrator";
-
-        // fuse clients don't get stalled by a booted namespace, they get EACCES
-        if (vid.app.substr(0,4) == "fuse") {
-	  stallmsg = smsg.c_str();
-          return true;
-        }
-
         // BANNED HOST
         stalltime = 300;
       } else if (Access::gBannedDomains.count(vid.domain)) {
         smsg = "operate - your client domain is banned in this instance - contact an administrator";
-
-        // fuse clients don't get stalled by a booted namespace, they get EACCES
-        if (vid.app.substr(0,4) == "fuse") {
-	  stallmsg = smsg.c_str();
-          return true;
-        }
-
         // BANNED DOMAINS
         stalltime = 300;
       } else if (Access::gStallRules.size() && (Access::gStallGlobal)) {
