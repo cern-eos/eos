@@ -1740,7 +1740,7 @@ FsView::Register(FileSystem* fs, const common::FileSystemCoreParams& coreParams,
       std::string grp_mod = "24";
 
       // Special case of spare space with has size 0 and mod 0
-      if (coreParams.getSpace() == "spare") {
+      if (coreParams.getSpace() == eos::common::EOS_SPARE_GROUP) {
         grp_mod = "0";
       }
 

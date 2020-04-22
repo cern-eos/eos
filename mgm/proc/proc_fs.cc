@@ -632,7 +632,7 @@ proc_fs_add(mq::MessagingRealm* realm, std::string& sfsid, std::string& uuid,
     groupmod = atoi(FsView::gFsView.mSpaceView[splitspace]->GetMember
                     (std::string("cfg.groupmod")).c_str());
   } else {
-    if (splitspace != "spare") {
+    if (splitspace != eos::common::EOS_SPARE_GROUP) {
       eos_static_err("msg=\"no such space\" space=%s", splitspace.c_str());
       stdErr = SSTR("error: not such space \"" << splitspace << "\"").c_str();
       return EINVAL;
@@ -672,9 +672,8 @@ proc_fs_add(mq::MessagingRealm* realm, std::string& sfsid, std::string& uuid,
   splitgroup.clear();
 
   // Handle special case for "spare" space that does not have any groups
-  if (splitspace == "spare") {
+  if (splitspace == eos::common::EOS_SPARE_GROUP) {
     target_grps.clear();
-    splitgroup = splitspace;
   }
 
   for (auto grp_id : target_grps) {
@@ -718,7 +717,7 @@ proc_fs_add(mq::MessagingRealm* realm, std::string& sfsid, std::string& uuid,
     break;
   }
 
-  if (splitgroup.empty()) {
+  if ((splitspace != eos::common::EOS_SPARE_GROUP) && splitgroup.empty()) {
     eos_static_err("msg=\"no group available for file system\" fsid=%lu"
                    " queue=%s", fsid, queuepath.c_str());
     stdErr += "error: no group available for file system";
@@ -743,7 +742,8 @@ proc_fs_add(mq::MessagingRealm* realm, std::string& sfsid, std::string& uuid,
 
   stdOut += SSTR("success: mapped '" << uuid <<  "' <=> fsid=" << fsid).c_str();
   common::GroupLocator groupLocator;
-  std::string description = SSTR(splitspace << "." << splitgroup);
+  std::string description = ((splitspace == eos::common::EOS_SPARE_GROUP) ?
+                             splitspace : SSTR(splitspace << "." << splitgroup));
   common::GroupLocator::parseGroup(description, groupLocator);
   common::FileSystemCoreParams coreParams(fsid, locator, groupLocator, uuid,
                                           configStatus);

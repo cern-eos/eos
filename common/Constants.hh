@@ -37,7 +37,8 @@ static constexpr auto RETRIEVE_ERROR_ATTR_NAME = "sys.retrieve.error";
 //! Archive request failure reason
 static constexpr auto ARCHIVE_ERROR_ATTR_NAME = "sys.archive.error";
 //! CTA internal objectsore id for archive requests
-static constexpr auto CTA_OBJECTSTORE_ARCHIVE_REQ_ID_NAME = "sys.cta.archive.objectstore.id";
+static constexpr auto CTA_OBJECTSTORE_ARCHIVE_REQ_ID_NAME =
+  "sys.cta.archive.objectstore.id";
 //! CTA internal objectstore id for prepare requests
 static constexpr auto CTA_OBJECTSTORE_REQ_ID_NAME = "sys.cta.objectstore.id";
 // Workflow names
@@ -57,4 +58,6 @@ static constexpr auto SCAN_DISK_INTERVAL_NAME = "scan_disk_interval";
 static constexpr auto SCAN_NS_RATE_NAME = "scan_ns_rate";
 //! Time interval after which the ns scanner will rerun
 static constexpr auto SCAN_NS_INTERVAL_NAME = "scan_ns_interval";
+//! Special EOS scheduling group space
+static constexpr auto EOS_SPARE_GROUP = "spare";
 EOSCOMMONNAMESPACE_END
