@@ -3361,7 +3361,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
 
     if (!rc) {
       if (hardlink_target_ino || Instance().Config().options.rmdir_is_sync) {
-        eos_static_warning("waiting for flush of  %d", del_ino);
+        eos_static_warning("waiting for flush of ino=%#lx", del_ino);
 
         if (del_ino) {
           Instance().mds.wait_deleted(req, del_ino);
@@ -3385,7 +3385,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
   // the link count has changed and we have to tell the kernel cache
   if (hardlink_target_ino &&
       EosFuse::Instance().Config().options.md_kernelcache) {
-    eos_static_warning("invalidating inode %d", hardlink_target_ino);
+    eos_static_warning("invalidating inode ino=%#lx", hardlink_target_ino);
     kernelcache::inval_inode(hardlink_target_ino, true);
   }
 
