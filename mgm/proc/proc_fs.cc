@@ -909,7 +909,7 @@ int proc_mv_fs_group(FsView& fs_view, const std::string& src,
   }
 
   // Get the target group
-  if (dst != "spare") {
+  if (dst != eos::common::EOS_SPARE_GROUP) {
     auto const iter = fs_view.mGroupView.find(dst);
 
     if (iter != fs_view.mGroupView.end()) {
@@ -1046,7 +1046,7 @@ int proc_mv_fs_space(FsView& fs_view, const std::string& src,
   int grp_mod = std::atoi(it_space->second->GetConfigMember
                           ("groupmod").c_str());
 
-  if ((dst == "spare") && grp_mod) {
+  if ((dst == eos::common::EOS_SPARE_GROUP) && grp_mod) {
     eos_static_err("%s", "msg=\"space spare must have groupmod 0\"");
     oss << "error: space \"spare\" must have groupmod 0. Please update the "
         << "space configuration using \"eos space define <space> <size> <mod>"
@@ -1062,7 +1062,7 @@ int proc_mv_fs_space(FsView& fs_view, const std::string& src,
     sorted_grps = proc_sort_groups_by_priority(fs_view, dst, grp_size, grp_mod);
   } else {
     // Special case for spare space which doesn't have groups
-    sorted_grps.emplace_back("spare");
+    sorted_grps.emplace_back(eos::common::EOS_SPARE_GROUP);
   }
 
   bool done = false;

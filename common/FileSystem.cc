@@ -271,7 +271,7 @@ bool GroupLocator::parseGroup(const std::string& description,
     out.mSpace = description;
     out.mIndex = 0;
 
-    if (description != "spare") {
+    if (description != eos::common::EOS_SPARE_GROUP) {
       eos_static_crit("Unable to parse group: %s, assuming index is zero",
                       description.c_str());
       return false;
@@ -486,7 +486,7 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
   cConfigTime = 0;
   std::string broadcast = mHashLocator.getBroadcastQueue();
 
-  if(realm->getSom()) {
+  if (realm->getSom()) {
     mq::SharedHashWrapper::Batch updateBatch;
     updateBatch.SetDurable("queue", mLocator.getFSTQueue());
     updateBatch.SetDurable("queuepath", mLocator.getQueuePath());
@@ -897,14 +897,16 @@ std::string FileSystem::GetString(const char* key)
 //------------------------------------------------------------------------------
 // Get a long long value by key
 //------------------------------------------------------------------------------
-long long FileSystem::GetLongLong(const char* key) {
+long long FileSystem::GetLongLong(const char* key)
+{
   return ParseLongLong(GetString(key));
 }
 
 //------------------------------------------------------------------------------
 // Get a double value by key
 //------------------------------------------------------------------------------
-double FileSystem::GetDouble(const char* key) {
+double FileSystem::GetDouble(const char* key)
+{
   return ParseDouble(GetString(key));
 }
 
