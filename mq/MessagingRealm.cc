@@ -30,53 +30,63 @@ EOSMQNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Initialize legacy-MQ-based messaging realm.
 //------------------------------------------------------------------------------
-MessagingRealm::MessagingRealm(XrdMqSharedObjectManager *som,
-  XrdMqSharedObjectChangeNotifier *notif, XrdMqClient *mqcl,
-  qclient::SharedManager *qsom)
+MessagingRealm::MessagingRealm(XrdMqSharedObjectManager* som,
+                               XrdMqSharedObjectChangeNotifier* notif, XrdMqClient* mqcl,
+                               qclient::SharedManager* qsom)
 
-: mSom(som), mNotifier(notif), mMessageClient(mqcl), mQSom(qsom) {}
+  : mSom(som), mNotifier(notif), mMessageClient(mqcl), mQSom(qsom) {}
 
 //------------------------------------------------------------------------------
 // Is this a QDB realm?
 //------------------------------------------------------------------------------
-bool MessagingRealm::haveQDB() const {
+bool MessagingRealm::haveQDB() const
+{
   return mQSom != nullptr;
 }
 
 //------------------------------------------------------------------------------
 // Get som
 //------------------------------------------------------------------------------
-XrdMqSharedObjectManager* MessagingRealm::getSom() const {
+XrdMqSharedObjectManager* MessagingRealm::getSom() const
+{
   return mSom;
 }
 
 //------------------------------------------------------------------------------
 // Get legacy change notifier
 //------------------------------------------------------------------------------
-XrdMqSharedObjectChangeNotifier* MessagingRealm::getChangeNotifier() const {
+XrdMqSharedObjectChangeNotifier* MessagingRealm::getChangeNotifier() const
+{
   return mNotifier;
 }
 
 //------------------------------------------------------------------------------
 // Get qclient shared manager
 //------------------------------------------------------------------------------
-qclient::SharedManager* MessagingRealm::getQSom() const {
+qclient::SharedManager* MessagingRealm::getQSom() const
+{
   return mQSom;
 }
 
 //------------------------------------------------------------------------------
 //! Send message to the given receiver queue
 //------------------------------------------------------------------------------
-MessagingRealm::Response MessagingRealm::sendMessage(const std::string &descr, const std::string &payload, const std::string &receiver) {
+MessagingRealm::Response
+MessagingRealm::sendMessage(const std::string& descr,
+                            const std::string& payload,
+                            const std::string& receiver, bool is_monitor)
+{
   Response resp;
-
   XrdMqMessage message(descr.c_str());
   message.SetBody(payload.c_str());
 
-  if(mMessageClient->SendMessage(message, receiver.c_str())) {
-    resp.status = 0;
+  if (is_monitor) {
+    message.MarkAsMonitor();
   }
-  else {
+
+  if (mMessageClient->SendMessage(message, receiver.c_str())) {
+    resp.status = 0;
+  } else {
     resp.status = 1;
   }
 

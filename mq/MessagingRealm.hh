@@ -31,8 +31,9 @@ class XrdMqSharedObjectManager;
 class XrdMqSharedObjectChangeNotifier;
 class XrdMqClient;
 
-namespace qclient {
-  class SharedManager;
+namespace qclient
+{
+class SharedManager;
 }
 
 EOSMQNAMESPACE_BEGIN
@@ -43,13 +44,15 @@ EOSMQNAMESPACE_BEGIN
 //!
 //! Work in progress.
 //------------------------------------------------------------------------------
-class MessagingRealm {
+class MessagingRealm
+{
 public:
   struct Response {
     int status;
     std::string response;
 
-    bool ok() const {
+    bool ok() const
+    {
       return status == 0;
     }
   };
@@ -57,8 +60,9 @@ public:
   //----------------------------------------------------------------------------
   //! Initialize legacy-MQ-based messaging realm.
   //----------------------------------------------------------------------------
-  MessagingRealm(XrdMqSharedObjectManager *som, XrdMqSharedObjectChangeNotifier *notifier,
-    XrdMqClient *messageClient, qclient::SharedManager *qsom);
+  MessagingRealm(XrdMqSharedObjectManager* som,
+                 XrdMqSharedObjectChangeNotifier* notifier,
+                 XrdMqClient* messageClient, qclient::SharedManager* qsom);
 
   //----------------------------------------------------------------------------
   //! Have access to QDB?
@@ -83,15 +87,15 @@ public:
   //----------------------------------------------------------------------------
   //! Send message to the given receiver queue
   //----------------------------------------------------------------------------
-  Response sendMessage(const std::string &descr, const std::string &payload,
-    const std::string &receiver);
+  Response sendMessage(const std::string& descr, const std::string& payload,
+                       const std::string& receiver, bool is_monitor = false);
 
 private:
-  XrdMqSharedObjectManager *mSom;
-  XrdMqSharedObjectChangeNotifier *mNotifier;
-  XrdMqClient *mMessageClient;
+  XrdMqSharedObjectManager* mSom;
+  XrdMqSharedObjectChangeNotifier* mNotifier;
+  XrdMqClient* mMessageClient;
 
-  qclient::SharedManager *mQSom;
+  qclient::SharedManager* mQSom;
 };
 
 EOSMQNAMESPACE_END

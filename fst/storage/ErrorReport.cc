@@ -78,18 +78,17 @@ Storage::ErrorReport()
       // send all reports away and dump them into the log
       XrdOucString report = gOFS.ErrorReportQueue.front().c_str();
       gOFS.ErrorReportQueueMutex.UnLock();
-      // this type of messages can have no receiver
-      XrdMqMessage message("errorreport");
-      message.MarkAsMonitor();
-      message.SetBody(report.c_str());
       eos_debug("broadcasting errorreport message: %s", report.c_str());
 
       // evt. exclude some messages from upstream reporting if the contain [NB]
       if (report.find("[NB]") == STR_NPOS) {
-        mq::MessagingRealm::Response response = gOFS.mMessagingRealm->sendMessage("errorreport", report.c_str(), errorReceiver.c_str());
+        mq::MessagingRealm::Response response =
+          gOFS.mMessagingRealm->sendMessage("errorreport", report.c_str(),
+                                            errorReceiver.c_str(), false);
+
         if (!response.ok()) {
           // display communication error
-          eos_err("cannot send errorreport broadcast");
+          eos_err("%s", "msg=\"cannot send errorreport broadcast\"");
           failure = true;
           gOFS.ErrorReportQueueMutex.Lock();
           break;

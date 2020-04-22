@@ -50,16 +50,13 @@ Storage::Report()
       gOFS.ReportQueueMutex.UnLock();
       eos_static_info("%s", report.c_str());
       // this type of messages can have no receiver
-      XrdMqMessage message("report");
-      message.MarkAsMonitor();
-      XrdOucString msgbody;
-      message.SetBody(report.c_str());
-      eos_debug("broadcasting report message: %s", msgbody.c_str());
+      mq::MessagingRealm::Response response =
+        gOFS.mMessagingRealm->sendMessage("report", report.c_str(),
+                                          monitorReceiver.c_str(), true);
 
-      mq::MessagingRealm::Response response = gOFS.mMessagingRealm->sendMessage("report", report.c_str(), monitorReceiver.c_str());
-      if(!response.ok()) {
+      if (!response.ok()) {
         // display communication error
-        eos_err("cannot send report broadcast");
+        eos_err("%s", "msg=\"cannot send report broadcast\"");
         failure = true;
         gOFS.ReportQueueMutex.Lock();
         break;
