@@ -537,12 +537,12 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
 // Add filesystem
 //------------------------------------------------------------------------------
 int
-proc_fs_add(mq::MessagingRealm *realm, std::string& sfsid, std::string& uuid, std::string& nodename,
-            std::string& mountpoint, std::string& space, std::string& configstatusStr,
-            XrdOucString& stdOut, XrdOucString& stdErr,
-            eos::common::VirtualIdentity& vid_in)
+proc_fs_add(mq::MessagingRealm* realm, std::string& sfsid, std::string& uuid,
+            std::string& nodename, std::string& mountpoint, std::string& space,
+            std::string& configstatusStr, XrdOucString& stdOut,
+            XrdOucString& stdErr, eos::common::VirtualIdentity& vid_in)
 {
-  int retc = 0;
+  using eos::common::StringConversion;
   const std::string vid_hostname = vid_in.host;
   common::FileSystem::fsid_t fsid = atoi(sfsid.c_str());
   common::ConfigStatus configStatus =
@@ -550,10 +550,9 @@ proc_fs_add(mq::MessagingRealm *realm, std::string& sfsid, std::string& uuid, st
 
   if ((!nodename.length()) || (!mountpoint.length()) || (!space.length()) ||
       (!configstatusStr.length()) ||
-      (configstatusStr.length() && configStatus < eos::common::ConfigStatus::kOff)) {
+      (configStatus < eos::common::ConfigStatus::kOff)) {
     stdErr += "error: illegal parameters";
-    retc = EINVAL;
-    return retc;
+    return EINVAL;
   }
 
   // Node name comes as /eos/<host>..../, we just need <host> without domain
@@ -567,13 +566,8 @@ proc_fs_add(mq::MessagingRealm *realm, std::string& sfsid, std::string& uuid, st
 
   // If EOS_SKIP_SSS_HOSTNAME_MATCH env variable is set then we skip
   // the check below as this currently breaks the Kubernetes setup.
-  bool skip_hostname_match = false;
-
-  if (getenv("EOS_SKIP_SSS_HOSTNAME_MATCH")) {
-    skip_hostname_match = true;
-  }
-
-  eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
+  bool skip_hostname_match = (getenv("EOS_SKIP_SSS_HOSTNAME_MATCH") ?
+                              true : false);
 
   // Rough check that the filesystem is added from a host with the same
   // hostname ... anyway we should have configured 'sss' security
@@ -583,207 +577,197 @@ proc_fs_add(mq::MessagingRealm *realm, std::string& sfsid, std::string& uuid, st
           vid_hostname.compare(0, rnodename.length(),
                                rnodename, 0, rnodename.length())) {
         stdErr = "error: filesystems can only be configured as 'root' or "
-                 "from the server mounting them using sss protocol (1)\n";
-        retc = EPERM;
-        return retc;
+                 "from the server mounting them using sss protocol (1)";
+        return EPERM;
       }
     }
   } else {
     stdErr = "error: filesystems can only be configured as 'root' or "
-             "from the server mounting them using sss protocol (2)\n";
-    retc = EPERM;
-    return retc;
+             "from the server mounting them using sss protocol (2)";
+    return EPERM;
   }
 
+  eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
   // queuepath = /eos/<host:port><path>
   std::string queuepath = nodename;
   queuepath += mountpoint;
   common::FileSystemLocator locator;
 
   if (!common::FileSystemLocator::fromQueuePath(queuepath, locator)) {
-    eos_static_crit("could not parse queue path: %s", queuepath.c_str());
+    eos_static_err("msg=\"could not parse queue path\" queue=\"%s\"",
+                   queuepath.c_str());
     stdErr += "error: could not parse queue path";
-    retc = EINVAL;
-    return retc;
+    return EINVAL;
   }
 
   // Check if this filesystem exists already ....
-  if (!FsView::gFsView.ExistsQueue(nodename, queuepath)) {
-    // Check if there is a mapping for 'uuid'
-    if (FsView::gFsView.GetMapping(uuid) || ((fsid > 0) &&
-        (FsView::gFsView.HasMapping(fsid)))) {
-      if (fsid) {
-        stdErr += "error: filesystem identified by uuid='";
-        stdErr += uuid.c_str();
-        stdErr += "' id='";
-        stdErr += sfsid.c_str();
-        stdErr += "' already exists!";
-      } else {
-        stdErr += "error: filesystem identified by '";
-        stdErr += uuid.c_str();
-        stdErr += "' already exists!";
+  if (FsView::gFsView.ExistsQueue(nodename, queuepath)) {
+    eos_static_err("msg=\"file system already registered\" queue=\"%s\"",
+                   queuepath.c_str());
+    stdErr += "error: cannot register filesystem - it already exists!";
+    return EEXIST;
+  }
+
+  // Check if there is a mapping for 'uuid'
+  if (FsView::gFsView.GetMapping(uuid) ||
+      ((fsid > 0) && (FsView::gFsView.HasMapping(fsid)))) {
+    eos_static_err("msg=\"file system already registered\" uuid=%s fsid=%lu",
+                   uuid.c_str(), fsid);
+    stdErr = SSTR("error: file system identified by uuid=" <<
+                  uuid << " id=" << sfsid << " already exists").c_str();
+    return EEXIST;
+  }
+
+  // We want one atomic update with all the parameters defined
+  std::string splitspace;
+  std::string splitgroup;
+  unsigned int groupsize = 0;
+  unsigned int groupmod = 0;
+  // Logic to automatically adjust scheduling subgroups
+  StringConversion::SplitByPoint(space, splitspace, splitgroup);
+
+  if (FsView::gFsView.mSpaceView.count(splitspace)) {
+    groupsize = atoi(FsView::gFsView.mSpaceView[splitspace]->GetMember
+                     (std::string("cfg.groupsize")).c_str());
+    groupmod = atoi(FsView::gFsView.mSpaceView[splitspace]->GetMember
+                    (std::string("cfg.groupmod")).c_str());
+  } else {
+    eos_static_err("msg=\"no such space\" space=%s", splitspace.c_str());
+    stdErr = SSTR("error: not such space \"" << splitspace << "\"").c_str();
+    return EINVAL;
+  }
+
+  // Groups where we attempt to insert the current file system
+  std::set<int> target_grps;
+
+  // Case when specific group is requested by the user
+  if (splitgroup.length()) {
+    try {
+      int id = std::stoi(splitgroup);
+
+      if (id >= groupmod) {
+        stdErr = SSTR("error: requested group " << id
+                      << " bigger than groupmod").c_str();
+        return EINVAL;
       }
 
-      retc = EEXIST;
+      target_grps.insert(id);
+    } catch (...) {
+      eos_static_err("msg=\"invalid group requested\" group=\"%s\"",
+                     splitgroup.c_str());
+      stdErr = SSTR("error: invalid group requested \""
+                    << splitgroup << "\"").c_str();
+      return EINVAL;
+    }
+  } else {
+    // Otherwise, try out all the groups in the space
+    for (int i = 0; i < groupmod; ++i) {
+      target_grps.insert(i);
+    }
+  }
+
+  // Final group will be decided later on
+  splitgroup.clear();
+
+  // Handle special case for "spare" space that does not have any groups
+  if (splitspace == "spare") {
+    target_grps.clear();
+    splitgroup = splitspace;
+  }
+
+  for (auto grp_id : target_grps) {
+    std::string schedgroup = SSTR(splitspace << "." << grp_id);
+
+    // All good if group is not yet created
+    if (FsView::gFsView.mGroupView.count(schedgroup) == 0) {
+      splitgroup = std::to_string(grp_id);
+      break;
+    }
+
+    FsGroup* group = FsView::gFsView.mGroupView[schedgroup];
+
+    // Skip if group is already full
+    if (group->size() > groupsize) {
+      if (target_grps.size() == 1) {
+        stdErr += SSTR("error: scheduling group " << splitspace << "." << grp_id
+                       << " is full" << std::endl).c_str();
+      }
+
+      continue;
+    }
+
+    // Skip if group already contains an fs from the current node
+    bool exists = false;
+
+    for (auto it = group->begin(); it != group->end(); ++it) {
+      FileSystem* entry = FsView::gFsView.mIdView.lookupByID(*it);
+
+      if (entry && (entry->GetString("host") == locator.getHost())) {
+        exists = true;
+        break;
+      }
+    }
+
+    if (exists) {
+      continue;
+    }
+
+    splitgroup = std::to_string(grp_id);
+    break;
+  }
+
+  if (splitgroup.empty()) {
+    eos_static_err("msg=\"no group available for file system\" fsid=%lu"
+                   " queue=%s", fsid, queuepath.c_str());
+    stdErr += "error: no group available for file system";
+    return EINVAL;
+  }
+
+  FileSystem* fs = nullptr;
+
+  if (fsid) {
+    if (!FsView::gFsView.ProvideMapping(uuid, fsid)) {
+      eos_static_err("msg=\"conflict registering file system uuid/id\""
+                     "uuid=%s fsid=%lu", uuid.c_str(), fsid);
+      stdErr += "error: conflict adding your uuid/fsid mapping";
+      return EINVAL;
     } else {
-      FileSystem* fs = 0;
+      fs = new FileSystem(locator, realm);
+    }
+  } else {
+    fsid = FsView::gFsView.CreateMapping(uuid);
+    fs = new FileSystem(locator, realm);
+  }
 
-      if (fsid) {
-        if (!FsView::gFsView.ProvideMapping(uuid, fsid)) {
-          stdErr += "error: conflict adding your uuid & id mapping";
-          retc = EINVAL;
-        } else {
-          fs = new FileSystem(locator, realm);
-        }
-      } else {
-        fsid = FsView::gFsView.CreateMapping(uuid);
-        fs = new FileSystem(locator, realm);
-      }
+  stdOut += SSTR("success: mapped '" << uuid <<  "' <=> fsid=" << fsid).c_str();
+  common::GroupLocator groupLocator;
+  std::string description = SSTR(splitspace << "." << splitgroup);
+  common::GroupLocator::parseGroup(description, groupLocator);
+  common::FileSystemCoreParams coreParams(fsid, locator, groupLocator, uuid,
+                                          configStatus);
 
-      XrdOucString sizestring;
-      stdOut += "success:   mapped '";
-      stdOut += uuid.c_str();
-      stdOut += "' <=> fsid=";
-      stdOut += eos::common::StringConversion::GetSizeString(sizestring,
-                (unsigned long long) fsid);
-
-      if (fs) {
-        // We want one atomic update with all the parameters defined
-        std::string splitspace;
-        std::string splitgroup;
-        unsigned int groupsize = 0;
-        unsigned int groupmod = 0;
-        unsigned int subgroup = 0;
-        bool dorandom = false;
-        // Logic to automatically adjust scheduling subgroups
-        eos::common::StringConversion::SplitByPoint(space, splitspace, splitgroup);
-
-        if (FsView::gFsView.mSpaceView.count(splitspace)) {
-          groupsize = atoi(FsView::gFsView.mSpaceView[splitspace]->GetMember(
-                             std::string("cfg.groupsize")).c_str());
-          groupmod = atoi(FsView::gFsView.mSpaceView[splitspace]->GetMember(
-                            std::string("cfg.groupmod")).c_str());
-        }
-
-        if (splitgroup.length()) {
-          // We have to check if the desired group is already full, in
-          // case we add to the next group by increasing the number by
-          // <groupmod>.
-          subgroup = atoi(splitgroup.c_str());
-
-          if (splitgroup == "random") {
-            dorandom = true;
-            subgroup = (int)((random() * 1.0 / RAND_MAX) * groupmod);
-          }
-
-          int j = 0;
-          size_t nnotfound = 0;
-
-          for (j = 0; j < 1000; j++) {
-            char newgroup[1024];
-            snprintf(newgroup, sizeof(newgroup) - 1, "%s.%u",
-                     splitspace.c_str(), subgroup);
-            std::string snewgroup = newgroup;
-
-            if (!FsView::gFsView.mGroupView.count(snewgroup)) {
-              // Great, this is still empty
-              splitgroup = newgroup;
-              break;
-            } else {
-              bool exists = false;
-
-              // Check if this node doesn't already have a filesystem in this group
-              for (auto it = FsView::gFsView.mGroupView[snewgroup]->begin();
-                   it != FsView::gFsView.mGroupView[snewgroup]->end(); ++it) {
-                FileSystem* entry = FsView::gFsView.mIdView.lookupByID(*it);
-
-                if (entry && entry->GetString("host") == fs->GetString("host")) {
-                  // This subgroup has already this host
-                  exists = true;
-                }
-              }
-
-              if ((!exists) &&
-                  (((FsView::gFsView.mGroupView[snewgroup]->size()) < groupsize) ||
-                   (groupsize == 0))) {
-                // Great, there is still space here
-                splitgroup = newgroup;
-                break;
-              } else {
-                if (dorandom) {
-                  nnotfound++;
-
-                  if (nnotfound >= groupmod) {
-                    subgroup += groupmod;
-                    nnotfound = 0;
-                  } else {
-                    int offset = subgroup / groupmod;
-                    subgroup++;
-                    subgroup = (offset * groupmod) + (subgroup % groupmod);
-                  }
-                } else {
-                  subgroup += groupmod;
-                }
-              }
-            }
-          }
-
-          if (j == 1000) {
-            eos_static_crit("infinite loop detected finding available scheduling group!");
-            stdErr += "error: infinite loop detected finding available scheduling group!";
-            retc = EFAULT;
-          }
-        } else {
-          if (splitspace != "spare") {
-            splitgroup = splitspace;
-            splitgroup += ".0";
-          } else {
-            splitgroup = splitspace;
-          }
-        }
-
-        if (!retc) {
-          common::GroupLocator groupLocator;
-          common::GroupLocator::parseGroup(splitgroup, groupLocator);
-          common::FileSystemCoreParams coreParams(fsid, locator, groupLocator, uuid,
-                                                  configStatus);
-
-          if (!FsView::gFsView.Register(fs, coreParams)) {
-            // Remove mapping
-            if (FsView::gFsView.RemoveMapping(fsid, uuid)) {
-              stdOut += "\nsuccess: unmapped '";
-              stdOut += uuid.c_str();
-              stdOut += "' <!> fsid=";
-              stdOut += eos::common::StringConversion::GetSizeString(sizestring,
-                        (unsigned long long) fsid);
-            } else {
-              stdErr += "error: cannot remove mapping - this can be fatal!\n";
-            }
-
-            // Remove filesystem object
-            stdErr += "error: cannot register filesystem - check for path duplication!";
-            retc = EINVAL;
-          }
-
-          // Set all the space related default parameters
-          if (FsView::gFsView.mSpaceView.count(space)) {
-            if (FsView::gFsView.mSpaceView[space]->ApplySpaceDefaultParameters(fs)) {
-              // Store the modifications
-              FsView::gFsView.StoreFsConfig(fs);
-            }
-          }
-        } else {
-          stdErr += "error: cannot allocate filesystem object";
-          retc = ENOMEM;
-        }
+  if (FsView::gFsView.Register(fs, coreParams)) {
+    // Set all the space related default parameters
+    if (FsView::gFsView.mSpaceView.count(space)) {
+      if (FsView::gFsView.mSpaceView[space]->ApplySpaceDefaultParameters(fs)) {
+        // Store the modifications
+        FsView::gFsView.StoreFsConfig(fs);
       }
     }
   } else {
-    stdErr += "error: cannot register filesystem - it already exists!";
-    retc = EEXIST;
+    // Remove mapping
+    if (FsView::gFsView.RemoveMapping(fsid, uuid)) {
+      stdErr += SSTR("\ninfo: unmapped '" << uuid << "' <!> fsid=" << fsid).c_str();
+    } else {
+      stdErr += "error: cannot remove mapping - this can be fatal!";
+    }
+
+    // Remove filesystem object
+    stdErr += "error: cannot register filesystem - check for path duplication!";
+    return EINVAL;
   }
 
-  return retc;
+  return 0;
 }
 
 //------------------------------------------------------------------------------
@@ -791,8 +775,8 @@ proc_fs_add(mq::MessagingRealm *realm, std::string& sfsid, std::string& uuid, st
 //------------------------------------------------------------------------------
 int
 proc_fs_mv(std::string& src, std::string& dst, XrdOucString& stdOut,
-           XrdOucString& stdErr,
-           eos::common::VirtualIdentity& vid_in, bool force)
+           XrdOucString& stdErr, eos::common::VirtualIdentity& vid_in,
+           bool force)
 {
   int retc = 0;
   MvOpType operation = get_operation_type(src, dst, stdOut, stdErr);
@@ -859,14 +843,15 @@ bool proc_fs_can_mv(eos::mgm::FileSystem* fs, const std::string& dst,
     }
 
     if (!(is_empty && is_active)) {
-      eos_static_err("fsid %i is not empty or is not active", snapshot.mId);
+      eos_static_err("msg=\"file system is not empty or is not active\" "
+                     "fsid=%lu", snapshot.mId);
       oss << "error: file system " << snapshot.mId << " is not empty or "
           << "is not active" << std::endl;
       stdErr = oss.str().c_str();
       return false;
     }
   } else {
-    eos_static_err("failed to snapshot file system");
+    eos_static_err("%s", "msg=\"failed to snapshot file system\"");
     oss << "error: failed to snapshot files system" << std::endl;
     stdErr = oss.str().c_str();
     return false;
@@ -884,6 +869,7 @@ int proc_mv_fs_group(FsView& fs_view, const std::string& src,
 {
   using eos::mgm::FsView;
   using eos::mgm::FileSystem;
+  using eos::common::StringConversion;
   int pos = dst.find('.');
   eos::common::FileSystem::fsid_t fsid = atoi(src.c_str());
   std::string space = dst.substr(0, pos);
@@ -900,7 +886,7 @@ int proc_mv_fs_group(FsView& fs_view, const std::string& src,
     grp_mod = std::strtoul(it_space->second->GetConfigMember("groupmod").c_str(),
                            nullptr, 10);
   } else {
-    eos_static_err("requested space %s does not exist", space.c_str());
+    eos_static_err("msg=\"requested space %s does not exist\"", space.c_str());
     oss << "error: space " << space << " does not exist" << std::endl;
     stdErr = oss.str().c_str();
     return EINVAL;
@@ -930,14 +916,16 @@ int proc_mv_fs_group(FsView& fs_view, const std::string& src,
 
       // Check that we can still add file systems to this group
       if (!force && (grp_num_fs > grp_size)) {
-        eos_static_err("reached maximum number of fs for group: %s", dst.c_str());
+        eos_static_err("msg=\"reached maximum number of fs for group %s\"",
+                       dst.c_str());
         oss << "error: reached maximum number of file systems for group "
             << dst.c_str() << std::endl;
         stdErr = oss.str().c_str();
         return EINVAL;
       }
 
-      // Check that there is no other file system from the same node in this group
+      // Check that there is no other file system from the same node
+      // in this group
       bool is_forbidden = false;
       std::string host;
       std::string fs_host = fs->GetHost();
@@ -956,10 +944,11 @@ int proc_mv_fs_group(FsView& fs_view, const std::string& src,
       }
 
       if (is_forbidden && !force) {
-        eos_static_err("group %s already contains an fs from the same node",
-                       dst.c_str());
-        oss << "error: group " << dst << " already contains a file system from "
-            << "the same node" << std::endl;
+        eos_static_err("msg=\"group %s already contains an fs from the "
+                       "same node\"", dst.c_str());
+        oss << "error: group " << dst
+            << " already contains a file system from the same node"
+            << std::endl;
         stdErr = oss.str().c_str();
         return EINVAL;
       }
@@ -984,7 +973,7 @@ int proc_mv_fs_group(FsView& fs_view, const std::string& src,
   }
 
   if (fs_view.MoveGroup(fs, dst)) {
-    // apply defaults from the new space
+    // Apply defaults from the new space
     std::set<std::string> paramlist;
     paramlist.insert("scaninterval");
     paramlist.insert("scanrate");
@@ -996,8 +985,7 @@ int proc_mv_fs_group(FsView& fs_view, const std::string& src,
       std::string value = it_space->second->GetConfigMember(*it);
 
       if (value.length()) {
-        int64_t uvalue = eos::common::StringConversion::GetSizeFromString(
-                           value.c_str());
+        int64_t uvalue = StringConversion::GetSizeFromString(value.c_str());
         fs->SetLongLong(it->c_str(), uvalue);
         FsView::gFsView.StoreFsConfig(fs);
         oss << "info: applying space config " << *it << "=" << value << std::endl;
@@ -1036,7 +1024,7 @@ int proc_mv_fs_space(FsView& fs_view, const std::string& src,
       return EINVAL;
     }
   } else {
-    eos_static_err("no such fsid: %i", fsid);
+    eos_static_err("msg=\"no such file system\" fsid=%lu", fsid);
     oss << "error: no such fsid: " << fsid << std::endl;
     stdErr = oss.str().c_str();
     return EINVAL;
@@ -1045,7 +1033,7 @@ int proc_mv_fs_space(FsView& fs_view, const std::string& src,
   auto it_space = fs_view.mSpaceView.find(dst);
 
   if (it_space == fs_view.mSpaceView.end()) {
-    eos_static_info("creating space %s", dst.c_str());
+    eos_static_info("msg=\"creating space %s\"", dst.c_str());
     FsSpace* new_space = new FsSpace(dst.c_str());
     fs_view.mSpaceView[dst] = new_space;
     it_space = fs_view.mSpaceView.find(dst);
@@ -1057,7 +1045,7 @@ int proc_mv_fs_space(FsView& fs_view, const std::string& src,
                           ("groupmod").c_str());
 
   if ((dst == "spare") && grp_mod) {
-    eos_static_err("space \"spare\" must have groupmod 0");
+    eos_static_err("%s", "msg=\"space spare must have groupmod 0\"");
     oss << "error: space \"spare\" must have groupmod 0. Please update the "
         << "space configuration using \"eos space define <space> <size> <mod>"
         << std::endl;
@@ -1086,7 +1074,8 @@ int proc_mv_fs_space(FsView& fs_view, const std::string& src,
   }
 
   if (!done) {
-    eos_static_err("failed to add fs %s to space %s", src.c_str(), dst.c_str());
+    eos_static_err("msg=\"failed to add fs %s to space %s\"",
+                   src.c_str(), dst.c_str());
     std::ostringstream oss;
     oss << "error: failed to add file system " << src.c_str() << " to space "
         << dst.c_str() << " - no suitable group found" << std::endl;

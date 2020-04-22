@@ -117,8 +117,8 @@ FsCmd::Add(const eos::console::FsProto::AddProto& addProto)
   std::string space = addProto.schedgroup();
   std::string configstatus = addProto.status();
   XrdOucString out, err;
-  retc = proc_fs_add(gOFS->mMessagingRealm.get(), sfsid, uuid, nodequeue, mountpoint, space, configstatus,
-                     out, err, mVid);
+  retc = proc_fs_add(gOFS->mMessagingRealm.get(), sfsid, uuid, nodequeue,
+                     mountpoint, space, configstatus, out, err, mVid);
   mOut = out.c_str() != nullptr ? out.c_str() : "";
   mErr = err.c_str() != nullptr ? err.c_str() : "";
   return retc;
@@ -143,10 +143,10 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto)
                           eos::console::FsProto::BootProto::kUuid ?
                           bootProto.uuid() : "");
     bool forcemgmsync = bootProto.syncmgm();
-
     // eos::common::FileSystem::fsid_t fsid = std::stoi(sfsid);
     // @note it would be nicer if the method get refactored
     eos::common::FileSystem::fsid_t fsid = 0;
+
     try {
       fsid = std::stoi(sfsid);
     } catch (const std::exception& e) {
@@ -362,18 +362,18 @@ eos::mgm::FsCmd::List(const eos::console::FsProto::LsProto& lsProto)
 
     if (only_failed) {
       hdr_info = {{"File id",    "fid"},
-                  {"Drain fsid", "fs_src"},
-                  {"Dst fsid",   "fs_dst"},
-                  {"Error info", "err_msg"}
+        {"Drain fsid", "fs_src"},
+        {"Dst fsid",   "fs_dst"},
+        {"Error info", "err_msg"}
       };
     } else {
       hdr_info = {{"File id",     "fid"},
-                  {"Drain fsid",  "fs_src"},
-                  {"Src fsid",    "tx_fs_src"},
-                  {"Dst fsid",    "fs_dst"},
-                  {"Start times", "start_timestamp"},
-                  {"Progress",    "progress"},
-                  {"Avg.(MB/s)",  "speed"}
+        {"Drain fsid",  "fs_src"},
+        {"Src fsid",    "tx_fs_src"},
+        {"Dst fsid",    "fs_dst"},
+        {"Start times", "start_timestamp"},
+        {"Progress",    "progress"},
+        {"Avg.(MB/s)",  "speed"}
       };
     }
 
@@ -462,12 +462,14 @@ FsCmd::Rm(const eos::console::FsProto::RmProto& rmProto)
   if (rmProto.id_case() == eos::console::FsProto::RmProto::kNodeQueue) {
     const auto& hostmountpoint = rmProto.nodequeue();
     auto splitAt = hostmountpoint.find("/fst");
+
     try { // @note quick patch against std::out_of_range, could be nicer
       nodequeue = hostmountpoint.substr(0, splitAt + 4);
       mountpoint = hostmountpoint.substr(splitAt + 4);
     } catch (std::out_of_range& e) {
       mOut = "";
-      mErr = "error: there is no such nodequeue (check format): '" + rmProto.nodequeue() + "' " + id + "\n";
+      mErr = "error: there is no such nodequeue (check format): '" +
+             rmProto.nodequeue() + "' " + id + "\n";
       retc = EINVAL;
       return retc;
     }

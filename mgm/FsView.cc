@@ -2021,7 +2021,7 @@ FsView::ExistsQueue(std::string queue, std::string queuepath)
     for (auto it = mNodeView[queue]->begin(); it != mNodeView[queue]->end(); ++it) {
       FileSystem* candidate = FsView::gFsView.mIdView.lookupByID(*it);
 
-      if (candidate && candidate->GetQueuePath() == queuepath) {
+      if (candidate && (candidate->GetQueuePath() == queuepath)) {
         // This queuepath exists already, we cannot register
         return true;
       }
