@@ -632,9 +632,11 @@ proc_fs_add(mq::MessagingRealm* realm, std::string& sfsid, std::string& uuid,
     groupmod = atoi(FsView::gFsView.mSpaceView[splitspace]->GetMember
                     (std::string("cfg.groupmod")).c_str());
   } else {
-    eos_static_err("msg=\"no such space\" space=%s", splitspace.c_str());
-    stdErr = SSTR("error: not such space \"" << splitspace << "\"").c_str();
-    return EINVAL;
+    if (splitspace != "spare") {
+      eos_static_err("msg=\"no such space\" space=%s", splitspace.c_str());
+      stdErr = SSTR("error: not such space \"" << splitspace << "\"").c_str();
+      return EINVAL;
+    }
   }
 
   // Groups where we attempt to insert the current file system
