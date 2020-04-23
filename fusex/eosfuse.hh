@@ -252,6 +252,7 @@ public:
         kWAIT_FLUSH_ON_CREATE = 2 // if a file is created - flush will wait to open it
       };
 
+      size_t flush_wait_open_size;
 
       int global_locking;
       uint64_t fdlimit;

@@ -257,6 +257,9 @@ data::datax::flush(fuse_req_t req)
   if (mFlags & O_CREAT) {
     flush_wait_open = (EosFuse::Instance().Config().options.flush_wait_open ==
                        EosFuse::Instance().Config().options.kWAIT_FLUSH_ON_CREATE) ? true : false;
+    if ( (!flush_wait_open) && (mMd->size() >= EosFuse::Instance().Config().options.flush_wait_open_size)) {
+      flush_wait_open = true;
+    }
   } else {
     flush_wait_open = (EosFuse::Instance().Config().options.flush_wait_open !=
                        EosFuse::Instance().Config().options.kWAIT_FLUSH_NEVER) ? true : false;
@@ -468,6 +471,17 @@ data::datax::journalflush(std::string cid)
 
   eos_info("retc=0");
   return 0;
+}
+
+
+/* -------------------------------------------------------------------------- */
+bool
+/* -------------------------------------------------------------------------- */
+data::datax::is_wopen(fuse_req_t req)
+/* -------------------------------------------------------------------------- */
+{
+  XrdSysMutexHelper lLock(mLock);
+  return mFile->xrdiorw(req)->IsOpen();
 }
 
 /* -------------------------------------------------------------------------- */

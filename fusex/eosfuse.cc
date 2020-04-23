@@ -577,6 +577,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         root["options"]["flush-wait-open"] = 1;
       }
 
+      if (!root["options"].isMember("flush-wait-open-size")) {
+        root["options"]["flush-wait-open"] = 262144;
+      }
+
       if (!root["options"].isMember("flush-wait-umount")) {
         root["options"]["flush-wait-umount"] = 120;
       }
@@ -813,6 +817,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       config.options.rmdir_is_sync = root["options"]["rmdir-is-sync"].asInt();
       config.options.global_flush = root["options"]["global-flush"].asInt();
       config.options.flush_wait_open = root["options"]["flush-wait-open"].asInt();
+      config.options.flush_wait_open_size = root["options"]["flush-wait-open-size"].asInt();
       config.options.flush_wait_umount = root["options"]["flush-wait-umount"].asInt();
       config.options.global_locking = root["options"]["global-locking"].asInt();
       config.options.overlay_mode = strtol(
@@ -1573,7 +1578,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         eos_static_warning("sss-keytabfile         := %s", config.ssskeytab.c_str());
       }
 
-      eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d flush-w-umount:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d core-affinity:%d no-xattr:%d no-link:%d nocache-graceperiod:%d rm-rf-protect-level=%d rm-rf-bulk=%d t(lease)=%d t(size-flush)=%d submounts=%d ino(in-mem)=%d flock:%d",
+      eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d flush-w-open-sz:%ld flush-w-umount:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d core-affinity:%d no-xattr:%d no-link:%d nocache-graceperiod:%d rm-rf-protect-level=%d rm-rf-bulk=%d t(lease)=%d t(size-flush)=%d submounts=%d ino(in-mem)=%d flock:%d",
                          config.options.enable_backtrace,
                          config.options.md_kernelcache,
                          config.options.md_kernelcache_enoent_timeout,
@@ -1584,6 +1589,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
                          config.options.rmdir_is_sync,
                          config.options.global_flush,
                          config.options.flush_wait_open,
+                         config.options.flush_wait_open_size,
                          config.options.flush_wait_umount,
                          config.options.global_locking,
                          no_fsync_list.c_str(),
@@ -4267,22 +4273,25 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char* buf, size_t size,
             time_t now = time(NULL);
 
             if (Instance().mds.should_flush_write_size()) {
-              if (Instance().Config().options.write_size_flush_interval) {
-                if (io->next_size_flush.load() && (io->next_size_flush.load() < now)) {
-                  // if (io->cap_->valid()) // we want updates also after cap expiration
-		  Instance().mds.update(req, io->md, io->authid());
-                  io->next_size_flush.store(now +
-                                            Instance().Config().options.write_size_flush_interval,
-                                            std::memory_order_seq_cst);
-                } else {
-                  if (!io->next_size_flush.load()) {
-                    io->next_size_flush.store(now +
-                                              Instance().Config().options.write_size_flush_interval,
-                                              std::memory_order_seq_cst);
-                  }
-                }
-              }
-            }
+	      if (Instance().Config().options.write_size_flush_interval) {
+		if (io->ioctx()->is_wopen(req)) {
+		  // only start updating the MGM size if the file could be opened on FSTs
+		  if (io->next_size_flush.load() && (io->next_size_flush.load() < now)) {
+		    // if (io->cap_->valid()) // we want updates also after cap expiration
+		    Instance().mds.update(req, io->md, io->authid());
+		    io->next_size_flush.store(now +
+					      Instance().Config().options.write_size_flush_interval,
+					      std::memory_order_seq_cst);
+		  } else {
+		    if (!io->next_size_flush.load()) {
+		      io->next_size_flush.store(now +
+						Instance().Config().options.write_size_flush_interval,
+						std::memory_order_seq_cst);
+		    }
+		  }
+		}
+	      }
+	    }
           }
           fuse_reply_write(req, size);
         }

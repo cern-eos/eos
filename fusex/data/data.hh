@@ -119,6 +119,7 @@ public:
     int flush(fuse_req_t req);
     int flush_nolock(fuse_req_t req, bool wait_open = true,
                      bool wait_writes = false);
+    bool is_wopen(fuse_req_t req);
     int journalflush(fuse_req_t req);
     int journalflush(std::string cid);
     int journalflush_async(std::string cid);
