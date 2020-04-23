@@ -333,6 +333,7 @@ com_file(char* arg1)
     in += Path2FileDenominator(path) ? "&mgm.file.id=" : "&mgm.path=";
     in += path;
     in += "&mgm.subcmd=touch";
+
     if (option.find("n") != STR_NPOS) {
       in += "&mgm.file.touch.nolayout=true";
     }
@@ -825,8 +826,9 @@ com_file(char* arg1)
             set_errors.insert(err_label);
           }
 
-          if ((disk_cx.length() < 8) ||
-              (!cx.beginswith(disk_cx.c_str()))) {
+          if ((disk_cx.length() > 0) &&
+              ((disk_cx.length() < 8) ||
+               (!cx.beginswith(disk_cx.c_str())))) {
             err_label = "DISK_CHECKSUM";
             set_errors.insert(err_label);
           }
@@ -1016,7 +1018,8 @@ com_file_usage:
   fprintf(stdout, "file touch [-n] [<path>|fid:<fid-dec>|fxid:<fid-hex>] :\n");
   fprintf(stdout,
           "                                                  create a 0-size/0-replica file if <path> does not exist or update modification time of an existing file to the present time\n");
-  fprintf(stdout, "                                          - by default it uses placement logic - use [-n] to disable placement\n");
+  fprintf(stdout,
+          "                                          - by default it uses placement logic - use [-n] to disable placement\n");
   fprintf(stdout,
           "file verify <path>|fid:<fid-dec>|fxid:<fid-hex> [<fsid>] [-checksum] [-commitchecksum] [-commitsize] [-rate <rate>] : \n");
   fprintf(stdout,
