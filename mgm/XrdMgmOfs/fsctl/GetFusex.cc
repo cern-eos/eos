@@ -53,8 +53,9 @@ XrdMgmOfs::GetFusex(const char* path,
                 "call GetFusex - no proc path given [EINVAL]", path);
   }
 
-  if (procCommand.open("/proc/user/", ininfo, vid, &error)) {
-    return SFS_ERROR;
+  int rc = 0;
+  if (rc = procCommand.open("/proc/user/", ininfo, vid, &error)) {
+    return rc;
   } else {
     size_t len;
     const char* result = procCommand.GetResult(len);
