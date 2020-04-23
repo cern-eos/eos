@@ -54,7 +54,8 @@ XrdMgmOfs::GetFusex(const char* path,
   }
 
   int rc = 0;
-  if (rc = procCommand.open("/proc/user/", ininfo, vid, &error)) {
+
+  if ((rc = procCommand.open("/proc/user/", ininfo, vid, &error))) {
     return rc;
   } else {
     size_t len;
