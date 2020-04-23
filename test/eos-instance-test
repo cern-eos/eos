@@ -1168,8 +1168,8 @@ runtest H "### Upload    " sss  0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INS
 runtest H "### Update    " sss  0 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"   # dir owned
 runtest H "### Upload    " sss  0 "EOSROLE='-r 99 99'" eos cp -a "$TESTSYSFILE1K" /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k # dir owned
 runtest   "### Attr      " unix 0 "" eos attr set user.acl=u:nobody:r!wx /eos/$EOS_TEST_INSTANCE/test/instancetest
-runtest H "### Update    " sss  1 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"     # should fail explicit denial
-runtest H "### Upload    " sss  1 "EOSROLE='-r 99 99'" eos cp -a "$TESTSYSFILE1K" /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k   # should fail explicit denial
+runtest H "### Update    " sss  0 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"     # should fail explicit denial
+runtest H "### Upload    " sss  0 "EOSROLE='-r 99 99'" eos cp -a "$TESTSYSFILE1K" /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k   # should fail explicit denial
 runtest   "### Attr      " unix 0 "" eos attr set user.acl=u:99:rwx!d /eos/$EOS_TEST_INSTANCE/test/instancetest
 runtest   "### Chown     " unix 0 "" eos chown 99:99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k"                    # make sure file owned
 runtest H "### Rm        " sss  0 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k             # ACL denies delete but file owned
@@ -1187,7 +1187,7 @@ runtest H "### Chown     " sss  0 "EOSROLE='-r 99 99'" eos chown 99 /eos/$EOS_TE
 # chown on directory - the ACL that applies is that of the directory itself
 runtest   "### Chown     " unix 0 "" eos chown 99:99 /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl                      # same tests with a directory
 runtest   "### Attr      " unix 0 "" eos attr set user.acl=g:99:rwxc /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl      # 'c' (chown) in user.acl 
-runtest H "### Chown     " sss  1 "EOSROLE='-r 99 99'" eos chown 98 /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl       # fail: user.acl cannot grant this chown
+runtest H "### Chown     " sss  0 "EOSROLE='-r 99 99'" eos chown 98 /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl       # fail: user.acl cannot grant this chown
 runtest   "### Attr      " unix 0 "" eos attr set sys.acl=g:99:c /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl          # 'c' (chown) in sys.ascl 
 runtest H "### Chown     " sss  0 "EOSROLE='-r 99 99'" eos chown 98 /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl
 runtest   "### Attr      " unix 0 "" eos attr set sys.acl= /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl                # rm sys.acl, user.acl remains
