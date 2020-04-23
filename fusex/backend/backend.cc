@@ -262,7 +262,7 @@ backend::fetchQueryResponse(std::string& requestURL,
   arg.FromString(sarg);
   XrdCl::Buffer* bresponse = 0;
   XrdCl::XRootDStatus status = Query(url, XrdCl::QueryCode::OpaqueFile, arg,
-                                     bresponse, 30, true);
+                                     bresponse, 30, false);
 
   if (status.IsOK()) {
     eos_static_debug("%x", bresponse);
@@ -1287,8 +1287,9 @@ backend::Query(XrdCl::URL& url, XrdCl::QueryCode::Code query_code,
     if ((noretry) || (timeout &&
                       (total_exec_time_sec >
                        timeout))) {
-      eos_static_err("giving up query after sum-query-exec-s=%.02f backend-timeout-s=%.02f",
-                     total_exec_time_sec, timeout);
+      std::string sarg = url.GetPathWithParams();
+      eos_static_err("giving up query after sum-query-exec-s=%.02f backend-timeout-s=%.02f no-retry=%d url=%s",
+                     total_exec_time_sec, timeout, noretry, sarg.c_str());
       return status;
     }
 
