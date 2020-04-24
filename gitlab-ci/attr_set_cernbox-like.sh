@@ -14,7 +14,7 @@ eos attr set sys.forced.nstripes="2" /eos;
 eos attr set sys.forced.space="default" /eos;
 
 eos mkdir /eos/user
-eos attr set sys.recycle="/eos/dockertest/proc/recycle/" /eos/user;
+#eos attr set sys.recycle="/eos/dockertest/proc/recycle/" /eos/user;
 
 eos mkdir /eos/user/e
 eos attr set sys.forced.maxsize="50000000000" /eos/user/e;

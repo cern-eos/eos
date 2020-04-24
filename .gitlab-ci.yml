@@ -631,16 +631,12 @@ cc7_asan_docker_image:
   <<: *dock8s_before_script_template
   script:
     # prepare mountpoints
-    - exec_cmd eos-cli1 'atd; at now <<< "mkdir /eos1/; mount -t fuse eosxd -ofsname=mount-1 /eos1/; mkdir /eos2/; mount -t fuse eosxd -ofsname=mount-2 /eos2/;"'
+    - exec_cmd eos-cli1 'atd; at now <<< "mkdir -p /eos1/ && mount -t fuse eosxd -ofsname=mount-1 /eos1/; mkdir -p /eos2/ && mount -t fuse eosxd -ofsname=mount-2 /eos2/;"'
     - exec_cmd eos-cli1 'count=0; while [[ $count -le 10 ]] && ( [[ ! -d /eos1/dockertest/ ]] || [[ ! -d /eos2/dockertest/ ]] ); do echo "Wait for mount... $count"; (( count++ )); sleep 1; done;'
-    # some tests requires cernbox attributes configurations, some do not but they don't care...
-    - if [[ $CI_JOB_NAME =~ "cbox" ]]; then
-        . ./gitlab-ci/attr_set_cernbox-like.sh;
-      fi
 
     # fusex benchmark
     - exec_cmd eos-mgm1 'eos ns mutex --toggleorder'
-    - exec_cmd eos-cli1 "su - eos-user -c 'mkdir /eos1/dockertest/fusex_tests/; cd /eos1/dockertest/fusex_tests/; fusex-benchmark'"
+    - exec_cmd eos-cli1 "su eos-user -c 'mkdir /eos1/dockertest/fusex_tests/; cd /eos1/dockertest/fusex_tests/; fusex-benchmark'"
     - exec_cmd eos-mgm1 'grep "RWMutex. Order Checking Error in thread" /var/log/eos/mgm/xrdlog.mgm && exit 1 || exit 0'
 
     # eosclient-tests
@@ -658,7 +654,7 @@ cc7_asan_docker_image:
     # fi
     # until then just run the "ci" tests
     - exec_cmd eos-cli1 'cd eosclient-tests; for n in prepare/*.sh; do /bin/bash $n prepare; done '
-    - exec_cmd eos-cli1 'su - eos-user -c "python /eosclient-tests/run.py --workdir=\"/eos1/dockertest /eos2/dockertest\" ci"'
+    - exec_cmd eos-cli1 'su eos-user -c "python /eosclient-tests/run.py --workdir=\"/eos1/dockertest /eos2/dockertest\" ci"'
     - exec_cmd eos-cli1 ' cd eosclient-tests;  for n in prepare/*.sh; do /bin/bash $n cleanup; done '
   <<: *dock8s_after_script_template
   artifacts:
@@ -666,6 +662,33 @@ cc7_asan_docker_image:
     expire_in: 3 days
     paths:
       - eos-logs/
+
+.dock8s_cbox_test_template: &dock8s_cbox_test_template
+  stage: test
+  <<: *dock8s_before_script_template
+  script:
+    # prepare eoshome folder, cernbox alike
+    - cat ./gitlab-ci/attr_set_cernbox-like.sh | exec_cmd eos-mgm1
+    # prepare mountpoints
+    - exec_cmd eos-cli1 'mkdir -p /eos && eosxd -ofsname=${EOS_MGM_URL:7}:/eos/ /eos'
+    - exec_cmd eos-cli1 'count=0; while [[ $count -le 10 ]] && ( [[ ! -d /eos/ ]] ); do echo "Wait for mount... $count"; (( count++ )); sleep 1; done;'
+    # eosfuse_release_tests
+    - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && git clone https://gitlab.cern.ch/dss/eosclient-tests.git"'
+    - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && ./eosclient-tests/functional_tests/CI_eosfuse_release_tests.sh'
+  <<: *dock8s_after_script_template
+  artifacts:
+    when: on_failure
+    expire_in: 3 days
+    paths:
+      - eos-logs/
+
+k8s_cbox:
+  <<: *dock8s_cbox_test_template
+  dependencies: []
+  retry: 1
+  allow_failure: true
+  tags:
+    - shell-with-kubernetes
 
 k8s_system:
   <<: *dock8s_system_test_template
@@ -675,13 +698,6 @@ k8s_system:
     - shell-with-kubernetes
 
 k8s_fusex:
-  <<: *dock8s_fusex_test_template
-  dependencies: []
-  retry: 1
-  tags:
-    - shell-with-kubernetes
-
-.k8s_fusex_cbox:
   <<: *dock8s_fusex_test_template
   dependencies: []
   retry: 1
