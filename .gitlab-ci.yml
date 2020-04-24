@@ -674,7 +674,7 @@ cc7_asan_docker_image:
     - exec_cmd eos-cli1 'count=0; while [[ $count -le 10 ]] && ( [[ ! -d /eos/ ]] ); do echo "Wait for mount... $count"; (( count++ )); sleep 1; done;'
     # eosfuse_release_tests
     - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && git clone https://gitlab.cern.ch/dss/eosclient-tests.git"'
-    - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && ./eosclient-tests/functional_tests/CI_eosfuse_release_tests.sh'
+    - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && ./eosclient-tests/functional_tests/CI_eosfuse_release_tests.sh /eos/user/e/eos-user'
   <<: *dock8s_after_script_template
   artifacts:
     when: on_failure
