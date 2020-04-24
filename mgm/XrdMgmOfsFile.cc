@@ -1263,7 +1263,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                   acl.CanUpdate(), acl.CanNotUpdate(), stdpermcheck, fmd->getCUid(),
                   fmd->getCGid());
 
-        if (acl.CanNotUpdate()) {
+        if (!acl.CanUpdate() || acl.CanNotUpdate()) {
           // the ACL has !u set - we don't allow to do file updates
           gOFS->MgmStats.Add("OpenFailedNoUpdate", vid.uid, vid.gid, 1);
           return Emsg(epname, error, EPERM, "update file - fobidden by ACL",
