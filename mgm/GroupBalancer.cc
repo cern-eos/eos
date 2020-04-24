@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // File: GroupBalancer.cc
 // Author: Joaquim Rocha - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -44,96 +44,18 @@ extern XrdOucTrace gMgmOfsTrace;
 
 EOSMGMNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Constructor by space name
- *
- * @param spacename name of the associated space
- */
-/*----------------------------------------------------------------------------*/
-GroupBalancer::GroupBalancer(const char* spacename)
-  : mThreshold(.5),
-    mAvgUsedSize(0)
-{
-  mSpaceName = spacename;
-  mLastCheck = 0;
-  XrdSysThread::Run(&mThread, GroupBalancer::StaticGroupBalancer,
-                    static_cast<void*>(this), XRDSYSTHREAD_HOLD,
-                    "GroupBalancer Thread");
-}
-
-/*----------------------------------------------------------------------------*/
-/**
- * @brief thread stop function
- */
-/*----------------------------------------------------------------------------*/
-void
-GroupBalancer::Stop()
-{
-  if (mThread) {
-    XrdSysThread::Cancel(mThread);
-  }
-}
-
-/*----------------------------------------------------------------------------*/
-/**
- * @brief thread join function
- */
-/*----------------------------------------------------------------------------*/
-void
-GroupBalancer::Join()
-{
-  if (mThread) {
-    XrdSysThread::Cancel(mThread);
-    XrdSysThread::Join(mThread, nullptr);
-    mThread = 0;
-  }
-}
-
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Destructor
- */
-/*----------------------------------------------------------------------------*/
-GroupBalancer::~GroupBalancer()
-{
-  Join();
-  clearCachedSizes();
-}
-
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Static thread startup function calling Convert
- */
-/*----------------------------------------------------------------------------*/
-void*
-GroupBalancer::StaticGroupBalancer(void* arg)
-
-{
-  return reinterpret_cast<GroupBalancer*>(arg)->GroupBalance();
-}
-
-/*----------------------------------------------------------------------------*/
-/**
- * @brief GroupSize constructor (capacity must be > 0)
-     */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// GroupSize constructor (capacity must be > 0)
+//------------------------------------------------------------------------------
 GroupSize::GroupSize(uint64_t usedBytes, uint64_t capacity)
-  : mSize(usedBytes),
-    mCapacity(capacity)
-
+  : mSize(usedBytes), mCapacity(capacity)
 {
   assert(capacity > 0);
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Subtracts the given size from this group and adds it to the given
- *        toGroup
- * @param toGroup the group where to add the size
- * @param size the file size that should be swapped
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Subtracts the given size from this group and adds it to the given toGroup
+//------------------------------------------------------------------------------
 void
 GroupSize::swapFile(GroupSize* toGroup, uint64_t size)
 {
@@ -141,24 +63,45 @@ GroupSize::swapFile(GroupSize* toGroup, uint64_t size)
   mSize -= size;
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Gets a random int between 0 and a given maximum
- * @param max the upper bound of the range within which the int will be
- *        generated
- */
-/*----------------------------------------------------------------------------*/
+//-------------------------------------------------------------------------------
+// GroupBalancer constructor
+//-------------------------------------------------------------------------------
+GroupBalancer::GroupBalancer(const char* spacename)
+  : mSpaceName(spacename), mThreshold(.5), mAvgUsedSize(0), mLastCheck(0)
+{
+  mThread.reset(&GroupBalancer::GroupBalance, this);
+}
+
+//------------------------------------------------------------------------------
+// Stop group balancing thread
+//------------------------------------------------------------------------------
+void
+GroupBalancer::Stop()
+{
+  mThread.join();
+}
+
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+GroupBalancer::~GroupBalancer()
+{
+  Stop();
+  clearCachedSizes();
+}
+
+//------------------------------------------------------------------------------
+// Gets a random int between 0 and a given maximum
+//------------------------------------------------------------------------------
 int
 GroupBalancer::getRandom(int max)
 {
   return (int) round(max * random() / (double) RAND_MAX);
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Recalculates the sizes average from the mGroupSizes
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Recalculates the sizes average from the mGroupSizes
+//------------------------------------------------------------------------------
 void
 GroupBalancer::recalculateAvg()
 {
@@ -173,14 +116,11 @@ GroupBalancer::recalculateAvg()
   eos_static_debug("New average calculated: %.02f %%", mAvgUsedSize * 100.0);
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Deletes all the GrouSize objects stored in mGroupSizes and empties it
+//------------------------------------------------------------------------------
 void
 GroupBalancer::clearCachedSizes()
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Deletes all the GrouSize objects stored in mGroupSizes and empties it
- */
-/*----------------------------------------------------------------------------*/
 {
   for (auto it = mGroupSizes.begin(); it != mGroupSizes.end(); ++it) {
     delete(*it).second;
@@ -191,15 +131,13 @@ GroupBalancer::clearCachedSizes()
   mGroupsUnderAvg.clear();
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Places group in mGroupsOverAvg or mGroupsUnderAvg in case they're greater
+// than or less than the current mAvgUsedSize, respectively.
+//------------------------------------------------------------------------------
 void
 GroupBalancer::updateGroupAvgCache(FsGroup* group)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Places group in mGroupsOverAvg or mGroupsUnderAvg in case they're
- *        greater than or less than the current mAvgUsedSize, respectively
- */
-/*----------------------------------------------------------------------------*/
+
 {
   if (mGroupSizes.count(group->mName) == 0) {
     return;
@@ -228,16 +166,14 @@ GroupBalancer::updateGroupAvgCache(FsGroup* group)
   }
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Fills mGroupsOverAvg and mGroupsUnderAvg with the objects in mGroupSizes,
+// in case they're greater than or less than the current mAvgUsedSize,
+// respectively
+//------------------------------------------------------------------------------
 void
 GroupBalancer::fillGroupsByAvg()
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Fills mGroupsOverAvg and mGroupsUnderAvg with the objects in
- *        mGroupSizes, in case they're greater than or less than the current
- *        mAvgUsedSize, respectively
- */
-/*----------------------------------------------------------------------------*/
+
 {
   mGroupsOverAvg.clear();
   mGroupsUnderAvg.clear();
@@ -254,12 +190,10 @@ GroupBalancer::fillGroupsByAvg()
   }
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Fills mGroupSizes, calculates the mAvgUsedSize and fills
- *        mGroupsUnderAvg and mGroupsOverAvg
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Fills mGroupSizes, calculates the mAvgUsedSize and fills mGroupsUnderAvg and
+// mGroupsOverAvg
+//------------------------------------------------------------------------------
 void
 GroupBalancer::populateGroupsInfo()
 {
@@ -302,22 +236,14 @@ GroupBalancer::populateGroupsInfo()
   fillGroupsByAvg();
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Produces a file conversion path to be placed in the proc directory taking
+// into account the given group and also returns its size
+//------------------------------------------------------------------------------
 std::string
 GroupBalancer::getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
-    FsGroup* group,
-    uint64_t* size)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Produces a file conversion path to be placed in the proc directory
- *        taking into account the given group and also returns its size
- * @param fid the file ID
- * @param group the group to which the file will be transferred
- * @param size return address for the size of the file
- *
- * @return name of the proc transfer file
- */
-/*----------------------------------------------------------------------------*/
+    FsGroup* group, uint64_t* size)
+
 {
   char fileName[1024];
   std::shared_ptr<eos::IFileMD> fmd;
@@ -361,15 +287,13 @@ GroupBalancer::getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
   return std::string(fileName);
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// For each entry in mTransfers, checks if the files' paths exist, if they
+// don't, they are deleted from the mTransfers
+//------------------------------------------------------------------------------
 void
 GroupBalancer::updateTransferList()
-/*----------------------------------------------------------------------------*/
-/**
- * @brief For each entry in mTransfers, checks if the files' paths exist, if
- *        they don't, they are deleted from the mTransfers
- */
-/*----------------------------------------------------------------------------*/
+
 {
   for (auto it = mTransfers.begin(); it != mTransfers.end();) {
     eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
@@ -387,20 +311,13 @@ GroupBalancer::updateTransferList()
   eos_static_info("scheduledtransfers=%d", mTransfers.size());
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Creates the conversion file in proc for the file ID, from the given
+// sourceGroup, to the targetGroup (and updates the cache structures)
+//------------------------------------------------------------------------------
 void
 GroupBalancer::scheduleTransfer(eos::common::FileId::fileid_t fid,
-                                FsGroup* sourceGroup,
-                                FsGroup* targetGroup)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Creates the conversion file in proc for the file ID, from the given
- *        sourceGroup, to the targetGroup (and updates the cache structures)
- * @param fid the id of the file to be transferred
- * @param sourceGroup the group where the file is currently located
- * @param targetGroup the group to which the file is will be transferred
- */
-/*----------------------------------------------------------------------------*/
+                                FsGroup* sourceGroup, FsGroup* targetGroup)
 {
   if ((mGroupSizes.count(sourceGroup->mName) == 0) ||
       (mGroupSizes.count(targetGroup->mName) == 0)) {
@@ -435,13 +352,9 @@ GroupBalancer::scheduleTransfer(eos::common::FileId::fileid_t fid,
   updateGroupAvgCache(targetGroup);
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Chooses a random file ID from a random filesystem in the given group
- * @param group the group from which the file id will be chosen
- * @return the chosen file ID
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Chooses a random file ID from a random filesystem in the given group
+//------------------------------------------------------------------------------
 eos::common::FileId::fileid_t
 GroupBalancer::chooseFidFromGroup(FsGroup* group)
 {
@@ -512,15 +425,12 @@ printSizes(const std::map<std::string, GroupSize*>* sizes)
                      (double)(*it).second->filled() * 100.0);
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Picks two groups (source and target) randomly and schedule a file ID
+// to be transferred
+//------------------------------------------------------------------------------
 void
 GroupBalancer::prepareTransfer()
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Picks two groups (source and target) randomly and schedule a file ID
- *        to be transferred
- */
-/*----------------------------------------------------------------------------*/
 {
   FsGroup* fromGroup, *toGroup;
   std::map<std::string, FsGroup*>::iterator over_it, under_it;
@@ -563,16 +473,12 @@ GroupBalancer::prepareTransfer()
   scheduleTransfer(fid, fromGroup, toGroup);
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Check if the sizes cache should be updated (based on the time passed since
+// they were last updated)
+//------------------------------------------------------------------------------
 bool
 GroupBalancer::cacheExpired()
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Check if the sizes cache should be updated (based on the time passed
- *        since they were last updated)
- * @return whether the cache expired or not
- */
-/*----------------------------------------------------------------------------*/
 {
   time_t currentTime = time(NULL);
 
@@ -584,15 +490,12 @@ GroupBalancer::cacheExpired()
   return false;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Schedule a pre-defined number of transfers
+//------------------------------------------------------------------------------
 void
 GroupBalancer::prepareTransfers(int nrTransfers)
 {
-  /*--------------------------------------------------------------------------*/
-  /**
-   * @brief Schedule a pre-defined number of transfers
-   */
-  /*--------------------------------------------------------------------------*/
   int allowedTransfers = nrTransfers - mTransfers.size();
 
   for (int i = 0; i < allowedTransfers; i++) {
@@ -604,58 +507,52 @@ GroupBalancer::prepareTransfers(int nrTransfers)
   }
 }
 
-/*----------------------------------------------------------------------------*/
-void*
-GroupBalancer::GroupBalance()
-/*----------------------------------------------------------------------------*/
-/**
- * @brief eternal loop trying to run conversion jobs
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Eternal loop trying to run conversion jobs
+//------------------------------------------------------------------------------
+void
+GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
 {
-  eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
-  XrdOucErrInfo error;
   gOFS->WaitUntilNamespaceIsBooted();
-  std::this_thread::sleep_for(std::chrono::seconds(10));
-  XrdSysThread::CancelPoint();
+  assistant.wait_for(std::chrono::seconds(10));
+  eos_static_info("%s", "msg=\"starting group balancer thread\"");
 
   // Loop forever until cancelled
-  while (true) {
+  while (!assistant.terminationRequested()) {
     bool isSpaceGroupBalancer = true;
     bool isMaster = true;
     int nrTransfers = 0;
-    {
-      // Extract the current settings if conversion enabled and how many
-      // conversion jobs should run
-      uint64_t timeout_ns = 100 * 1e6; // 100 ms
+    // Extract the current settings if conversion enabled and how many
+    // conversion jobs should run
+    uint64_t timeout_ns = 100 * 1e6; // 100 ms
 
-      // Try to read lock the mutex
-      while (!FsView::gFsView.ViewMutex.TimedRdLock(timeout_ns)) {
-        XrdSysThread::CancelPoint();
+    // Try to read lock the mutex
+    while (!FsView::gFsView.ViewMutex.TimedRdLock(timeout_ns)) {
+      if (assistant.terminationRequested()) {
+        return;
       }
-
-      if (!FsView::gFsView.mSpaceGroupView.count(mSpaceName.c_str())) {
-        FsView::gFsView.ViewMutex.UnLockRead();
-        break;
-      }
-
-      FsSpace* space = FsView::gFsView.mSpaceView[mSpaceName.c_str()];
-
-      if (space->GetConfigMember("converter") != "on") {
-        eos_static_debug("Converter is off for! It needs to be on "
-                         "for the group balancer to work. space=%s",
-                         mSpaceName.c_str());
-        FsView::gFsView.ViewMutex.UnLockRead();
-        goto wait;
-      }
-
-      isSpaceGroupBalancer = space->GetConfigMember("groupbalancer") == "on";
-      nrTransfers = atoi(space->GetConfigMember("groupbalancer.ntx").c_str());
-      mThreshold =
-        atof(space->GetConfigMember("groupbalancer.threshold").c_str());
-      mThreshold /= 100.0;
-      FsView::gFsView.ViewMutex.UnLockRead();
     }
+
+    if (!FsView::gFsView.mSpaceGroupView.count(mSpaceName.c_str())) {
+      FsView::gFsView.ViewMutex.UnLockRead();
+      break;
+    }
+
+    FsSpace* space = FsView::gFsView.mSpaceView[mSpaceName.c_str()];
+
+    if (space->GetConfigMember("converter") != "on") {
+      eos_static_debug("Converter is off for! It needs to be on "
+                       "for the group balancer to work. space=%s",
+                       mSpaceName.c_str());
+      FsView::gFsView.ViewMutex.UnLockRead();
+      goto wait;
+    }
+
+    isSpaceGroupBalancer = space->GetConfigMember("groupbalancer") == "on";
+    nrTransfers = atoi(space->GetConfigMember("groupbalancer.ntx").c_str());
+    mThreshold = atof(space->GetConfigMember("groupbalancer.threshold").c_str());
+    mThreshold /= 100.0;
+    FsView::gFsView.ViewMutex.UnLockRead();
     isMaster = gOFS->mMaster->IsMaster();
 
     if (isMaster && isSpaceGroupBalancer) {
@@ -683,16 +580,9 @@ GroupBalancer::GroupBalance()
     }
 
 wait:
-
-    // Let some time pass or wait for a notification
-    for (size_t i = 0; i < 10; ++i) {
-      std::this_thread::sleep_for(std::chrono::seconds(1));
-      XrdSysThread::CancelPoint();
-    }
+    // Wait for a while ...
+    assistant.wait_for(std::chrono::seconds(10));
   }
-
-  XrdSysThread::SetCancelOn();
-  return 0;
 }
 
 EOSMGMNAMESPACE_END

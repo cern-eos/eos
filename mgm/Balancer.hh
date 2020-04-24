@@ -60,11 +60,6 @@ public:
   void Stop();
 
   //----------------------------------------------------------------------------
-  //! Static function used to start thread
-  //----------------------------------------------------------------------------
-  static void* StaticBalance(void*);
-
-  //----------------------------------------------------------------------------
   //! Balancer implementation - this method en-/disables balancing within
   //! groups depending on the current settings.
   //----------------------------------------------------------------------------

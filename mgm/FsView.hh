@@ -547,11 +547,6 @@ public:
   void Stop();
 
   //----------------------------------------------------------------------------
-  //! Synchronously join threads before destruction
-  //----------------------------------------------------------------------------
-  void Join();
-
-  //----------------------------------------------------------------------------
   //! Apply the default space parameters
   //----------------------------------------------------------------------------
   bool ApplySpaceDefaultParameters(eos::mgm::FileSystem* fs, bool force = false);

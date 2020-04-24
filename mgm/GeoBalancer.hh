@@ -176,16 +176,10 @@ public:
   void Stop();
 
   // ---------------------------------------------------------------------------
-  // thread join function
-  // ---------------------------------------------------------------------------
-  void Join();
-
-  // ---------------------------------------------------------------------------
   // Service implementation e.g. eternal conversion loop running third-party
   // conversion
   // ---------------------------------------------------------------------------
   void GeoBalance(ThreadAssistant& assistant) noexcept;
-
 };
 
 EOSMGMNAMESPACE_END
