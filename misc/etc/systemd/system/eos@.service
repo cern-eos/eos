@@ -32,11 +32,11 @@ EnvironmentFile=/etc/sysconfig/eos_env
 
 ExecStartPre=/bin/sh -c "/usr/sbin/eos_start_pre.sh eos-start-pre %i"
 
-ExecStart=/bin/sh -c 'XRDPROG=/usr/bin/xrootd; test -e /opt/eos/xrootd/bin/xrootd && XRDPROG=/opt/eos/xrootd/bin/xrootd; echo $$XRDPROG ; $$XRDPROG -n %i -c /etc/xrd.cf.%i -l /var/log/eos/xrdlog.%i -s /tmp/xrootd.%i.pid -Rdaemon'
+ExecStart=/bin/sh -c 'XRDPROG=/usr/bin/xrootd; test -e /opt/eos/xrootd/bin/xrootd && XRDPROG=/opt/eos/xrootd/bin/xrootd; echo $$XRDPROG ; $$XRDPROG -n %i -c /etc/xrd.cf.%i -l /var/log/eos/xrdlog.%i -Rdaemon&'
 
 ExecStop=/bin/sh -c "/usr/sbin/eos_start_pre.sh eos-stop %i"
 
-Type=simple
+Type=forking
 User=root
 Group=root
 Restart=on-abort
@@ -45,9 +45,6 @@ LimitNOFILE=65000
 
 # Leverage 'soft-stop' feature of FST (waits for writes to complete || timeout)
 KillMode=mixed
-# @TODO (esindril): Check if this is still necessary for the proper shutdown
-# of the xrotod daemon
-#PIDFile=/tmp/xrootd.%i.pid
 # ExitStatus is KILL because FST daemon. Stop-signal from FST daemon is 9/KILL.
 SuccessExitStatus=KILL
 
