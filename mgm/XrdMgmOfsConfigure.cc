@@ -702,10 +702,12 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
         if (!strcmp("tgc.enablespace", var)) {
           std::ostringstream tapeGcSpacesStream;
+
           while ((val = Config.GetWord())) {
             tapeGcSpaces.insert(val);
             tapeGcSpacesStream << " " << val;
           }
+
           Eroute.Say("=====> mgmofs.tgc.enablespace :", tapeGcSpacesStream.str().c_str());
         }
 
@@ -1437,8 +1439,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   mMessagingRealm.reset(new eos::mq::MessagingRealm(&ObjectManager,
-    &ObjectNotifier, &XrdMqMessaging::gMessageClient, qsm));
-
+                        &ObjectNotifier, &XrdMqMessaging::gMessageClient, qsm));
   eos::common::InstanceName::set(MgmOfsInstanceName.c_str());
   eos::mq::SharedHashWrapper::initialize(mMessagingRealm.get());
   // set the object manager to listener only
@@ -1535,6 +1536,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   ns_mtx->SetDebugName("eosView");
   ns_mtx->SetTiming(false);
   ns_mtx->SetSampling(true, 0.01);
+  fusex_client_mtx->SetDebugName("FusexClient");
+  fusex_cap_mtx->SetDebugName("FusexCap");
   std::vector<eos::common::RWMutex*> order;
   order.push_back(fs_mtx);
   order.push_back(ns_mtx);
@@ -2013,9 +2016,10 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   if (mTapeEnabled) {
     try {
       mTapeGc->start(tapeGcSpaces);
-    } catch (std::exception &ex) {
+    } catch (std::exception& ex) {
       std::ostringstream msg;
-      msg << "msg=\"Failed to start tape-aware garbage collection: " << ex.what() << "\"";
+      msg << "msg=\"Failed to start tape-aware garbage collection: " << ex.what() <<
+          "\"";
       eos_crit(msg.str().c_str());
       NoGo = 1;
     } catch (...) {
@@ -2024,7 +2028,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     }
   } else if (!tapeGcSpaces.empty()) {
     std::ostringstream tapeGcSpaceWarning;
-    tapeGcSpaceWarning << "msg=\"These spaces will not be garbage collected because mgmofs.tapeenabled=false:";
+    tapeGcSpaceWarning <<
+                       "msg=\"These spaces will not be garbage collected because mgmofs.tapeenabled=false:";
 
     for (const auto& tapeGcSpace : tapeGcSpaces) {
       tapeGcSpaceWarning << " " << tapeGcSpace;
