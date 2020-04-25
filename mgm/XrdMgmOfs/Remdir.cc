@@ -21,12 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-
-// -----------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
-// transparent without slowing down the compilation time.
-// -----------------------------------------------------------------------
-
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::remdir(const char* inpath,
@@ -141,10 +135,11 @@ XrdMgmOfs::_remdir(const char* path,
     return Emsg(epname, error, EPERM, "rmdir - immutable", path);
   }
 
-  if (!gOFS->allow_public_access(aclpath.c_str(),vid)) {
+  if (!gOFS->allow_public_access(aclpath.c_str(), vid)) {
     gOFS->eosViewRWMutex.UnLockWrite();
     errno = EACCES;
-    return Emsg(epname, error, EACCES, "access - public access level restriction", aclpath.c_str());    
+    return Emsg(epname, error, EACCES, "access - public access level restriction",
+                aclpath.c_str());
   }
 
   if (ininfo) {

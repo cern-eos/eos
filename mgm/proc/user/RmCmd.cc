@@ -24,6 +24,8 @@
 #include "RmCmd.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
+#include "namespace/interface/IContainerMDSvc.hh"
+#include "namespace/interface/IFileMDSvc.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Recycle.hh"
 #include "mgm/Macros.hh"
@@ -46,22 +48,39 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
   std::string spath;
 
   if (rm.path().empty()) {
-    std::string pathOut;
-    std::string err_msg;
+    std::string full_path;
+    std::string msg;
 
     if (rm.fileid()) {
-      GetPathFromFid(pathOut, rm.fileid(), err_msg);
+      GetPathFromFid(full_path, rm.fileid(), msg);
+    } else  if (rm.containerid()) {
+      GetPathFromCid(full_path, rm.containerid(), msg);
     }
 
-    if (rm.containerid()) {
-      GetPathFromCid(pathOut, rm.containerid(), err_msg);
-    }
+    spath = full_path;
 
-    spath = pathOut;
+    if (spath.empty() && (rm.fileid() || rm.containerid())) {
+      if (vid.uid) {
+        reply.set_std_err("warning: removing a pending deletion is allowed "
+                          "only for the 'root' role");
+        reply.set_retc(EPERM);
+      } else {
+        // Try to remove a file/container metadata object pending deletion
+        // which is blocked in the namespace in a detached state
+        bool is_dir = (rm.containerid() != 0ull);
 
-    if (!spath.length()) {
-      reply.set_std_err(err_msg);
-      reply.set_retc(ENOENT);
+        // If -F is given then we try to force remove the file without waiting
+        // for the confirmation from the diskservers
+        if (RemoveDetached((is_dir ? rm.containerid() : rm.fileid()),
+                           is_dir, force, msg)) {
+          reply.set_std_out(msg);
+          reply.set_retc(0);
+        } else {
+          reply.set_std_err(msg);
+          reply.set_retc(errno);
+        }
+      }
+
       return reply;
     }
   } else {
@@ -86,9 +105,8 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
   std::set<std::string> rmList;
 
   if (force && (vid.uid)) {
-    errStream <<
-              "warning: removing the force flag - this is only allowed for the 'root' role!"
-              << std::endl;
+    errStream << "warning: removing the force flag - this is only allowed "
+              << "for the 'root' role!" << std::endl;
     force = false;
   }
 
@@ -103,7 +121,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
       filter = objPath.GetName();
     }
 
-    // check if this file exists
+    // Check file existence
     XrdSfsFileExistence file_exists;
     XrdOucErrInfo errInfo;
 
@@ -144,8 +162,8 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
         return reply;
       }
 
+      // List the path and match against filter
       XrdMgmOfsDirectory dir;
-      // list the path and match against filter
       int listrc = dir.open(spath.c_str(), mVid, nullptr);
 
       if (!listrc) {
@@ -174,7 +192,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
       rmList.insert(spath);
     }
 
-    // find everything to be deleted
+    // Find everything to be deleted
     if (recursive) {
       std::map<std::string, std::set<std::string>> found;
       std::map<std::string, std::set<std::string>>::const_reverse_iterator rfoundit;
@@ -206,14 +224,10 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
           }
         }
 
-        //.......................................................................
-        // see if we have a recycle policy set
-        //.......................................................................
+        // See if we have a recycle policy set
         if (recyclingAttribute.length() &&
             (spath.find(Recycle::gRecyclingPrefix) != 0)) {
-          //.....................................................................
-          // two step deletion via recycle bin
-          //.....................................................................
+          // Two step deletion via recycle bin
           // delete files in simulation mode
           std::map<uid_t, unsigned long long> user_deletion_size;
           std::map<gid_t, unsigned long long> group_deletion_size;
@@ -222,8 +236,8 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
             for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end();
                  fileit++) {
               std::string fspath = rfoundit->first;
-              size_t l_pos;
               std::string entry = *fileit;
+              size_t l_pos;
 
               if ((l_pos = entry.find(" ->")) != std::string::npos) {
                 entry.erase(l_pos);
@@ -242,7 +256,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
             }
           }
 
-          // delete directories in simulation mode
+          // Delete directories in simulation mode
           for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {
             // don't even try to delete the root directory
             std::string fspath = rfoundit->first;
@@ -295,9 +309,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
             return reply;
           }
         } else {
-          //.....................................................................
-          // standard way to delete files recursively
-          //.....................................................................
+          // Standard way to delete files recursively
           // delete files starting at the deepest level
           for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {
             for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end();
@@ -322,7 +334,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
             }
           }
 
-          // delete directories starting at the deepest level
+          // Delete directories starting at the deepest level
           for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {
             // don't even try to delete the root directory
             std::string fspath = rfoundit->first;
@@ -362,6 +374,80 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
   reply.set_std_out(outStream.str());
   reply.set_std_err(errStream.str());
   return reply;
+}
+
+//------------------------------------------------------------------------------
+// Remove file/container metadata object that was already deleted before
+// but now it's still in the namespace detached from any parent
+//------------------------------------------------------------------------------
+bool
+RmCmd::RemoveDetached(uint64_t id, bool is_dir, bool force,
+                      std::string& msg) const
+{
+  errno = 0;
+
+  if (is_dir) {
+    try {
+      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+      std::shared_ptr<IContainerMD> cont  =
+        gOFS->eosDirectoryService->getContainerMD(id);
+      gOFS->eosDirectoryService->removeContainer(cont.get());
+      return true;
+    } catch (eos::MDException& e) {
+      errno = e.getErrno();
+      eos_debug("msg=\"caught exception\" errno=%d msg=\"%s\"",
+                e.getErrno(), e.getMessage().str().c_str());
+      msg = "error: " + e.getMessage().str() + '\n';
+      return false;
+    }
+  } else {
+    try {
+      eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+      eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+      std::shared_ptr<IFileMD> file = gOFS->eosFileService->getFileMD(id);
+      // If any of the unlink locations is a file systems that doesn't exist
+      // anymore then just remove it
+      auto unlink_locs = file->getUnlinkedLocations();
+
+      for (const auto& uloc : unlink_locs) {
+        if (FsView::gFsView.mIdView.lookupByID(uloc) == nullptr) {
+          file->removeLocation(uloc);
+        }
+      }
+
+      // If there are no more locations we can also delete the file object
+      if (file->getUnlinkedLocations().empty()) {
+        gOFS->eosFileService->removeFile(file.get());
+        msg = "info: file object removed from namespace";
+      } else {
+        // Move the unlinked locations to the locations list and back so
+        // that we notify the listener for disk deletion
+        unlink_locs = file->getUnlinkedLocations();
+
+        for (const auto& uloc : unlink_locs) {
+          file->addLocation(uloc);
+        }
+
+        file->unlinkAllLocations();
+
+        if (force) {
+          gOFS->eosFileService->removeFile(file.get());
+          msg = "info: file force removed from namespace, best-effort disk "
+                "deletion(s)";
+        } else {
+          msg = "info: file locations unlinked, waiting for disk deletion(s)";
+        }
+      }
+
+      return true;
+    } catch (eos::MDException& e) {
+      errno = e.getErrno();
+      eos_debug("msg=\"caught exception\" errno=%d msg=\"%s\"",
+                e.getErrno(), e.getMessage().str().c_str());
+      msg = "error: " + e.getMessage().str() + '\n';
+      return false;
+    }
+  }
 }
 
 EOSMGMNAMESPACE_END

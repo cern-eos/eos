@@ -541,7 +541,7 @@ FsckEntry::RepairReplicaInconsistencies()
   // Then drop any other inconsistent replicas from both the MGM and the FST
   for (auto fsid : to_drop) {
     (void) DropReplica(fsid);
-    // Drop also from the locasl map of FST fmd info
+    // Drop also from the local map of FST fmd info
     mFstFileInfo.erase(fsid);
     auto mutable_loc = mMgmFmd.mutable_locations();
 
