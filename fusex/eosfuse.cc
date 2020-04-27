@@ -3613,7 +3613,7 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char* name,
       {
 	XrdSysMutexHelper pLock(p2md->Locker());
 	auto it = p2md->get_todelete().find(
-					    eos::common::StringConversion::EncodeInvalidUTF8(name));
+					    eos::common::StringConversion::EncodeInvalidUTF8(newname));
 	
 	if ((it != p2md->get_todelete().end()) && it->second) {
 	  del_ino = it->second;
