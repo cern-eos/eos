@@ -24,6 +24,7 @@
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "mgm/config/ConfigParsing.hh"
 #include "common/CLI11.hpp"
+#include "common/PasswordHandler.hh"
 #include <qclient/QClient.hh>
 #include <qclient/ResponseParsing.hh>
 #include <qclient/MultiBuilder.hh>
@@ -165,6 +166,18 @@ int main(int argc, char* argv[])
   }
 
   std::cerr << "--- Successfully parsed configuration file" << std::endl;
+
+  //----------------------------------------------------------------------------
+  // Validate --password and --password-file options..
+  //----------------------------------------------------------------------------
+  if (!passwordFile.empty()) {
+    if (!eos::common::PasswordHandler::readPasswordFile(passwordFile, password)) {
+      std::cerr << "Could not read passwordfile: '" << passwordFile <<
+                "'. Ensure the file exists, and its permissions are 400." << std::endl;
+      return 1;
+    }
+  }
+
   //----------------------------------------------------------------------------
   // Set-up QClient object towards QDB, ensure sanity
   //----------------------------------------------------------------------------
