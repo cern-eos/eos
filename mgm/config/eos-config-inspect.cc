@@ -73,7 +73,14 @@ void addClusterOptions(CLI::App* subcmd, std::string& membersStr,
 //----------------------------------------------------------------------------
 bool checkConnection(qclient::QClient& qcl)
 {
-  qclient::redisReplyPtr reply = qcl.exec("PING").get();
+  std::future<qclient::redisReplyPtr> fut = qcl.exec("PING");
+
+  if(fut.wait_for(std::chrono::seconds(5)) != std::future_status::ready) {
+    std::cerr << "Could not connect to the given QDB cluster, timed out while waiting on std::future" << std::endl;
+    return false;
+  }
+
+  qclient::redisReplyPtr reply = fut.get();
 
   if (!reply) {
     std::cerr << "Could not connect to the given QDB cluster" << std::endl;
