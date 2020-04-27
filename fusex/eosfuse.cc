@@ -664,10 +664,14 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       }
 
       if (!root["options"].isMember("flush-wait-executables")) {
-        root["options"]["flush-wait-executables"].append("/usr/bin/rsync");
-        root["options"]["flush-wait-executables"].append("/usr/bin/cp");
-        root["options"]["flush-wait-executables"].append("/usr/bin/xrdcp");
-        root["options"]["flush-wait-executables"].append("/usr/bin/eoscp");
+        root["options"]["flush-wait-executables"].append("/rsync");
+        root["options"]["flush-wait-executables"].append("/cp");
+        root["options"]["flush-wait-executables"].append("/xrdcp");
+        root["options"]["flush-wait-executables"].append("/eoscp");
+        root["options"]["flush-wait-executables"].append("/python");
+        root["options"]["flush-wait-executables"].append("/python2.7");
+        root["options"]["flush-wait-executables"].append("/python3.4");
+        root["options"]["flush-wait-executables"].append("/python3.6");
       }
     }
 
