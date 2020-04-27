@@ -105,19 +105,24 @@ ProcCommand::File()
       cmdok = true;
       XrdOucString stripes = pOpaque->Get("mgm.file.layout.stripes");
       XrdOucString cksum = pOpaque->Get("mgm.file.layout.checksum");
+      XrdOucString layout = pOpaque->Get("mgm.file.layout.type");
+
       int checksum_type = eos::common::LayoutId::kNone;
       XrdOucString ne = "eos.layout.checksum=";
       ne += cksum;
       XrdOucEnv env(ne.c_str());
       int newstripenumber = 0;
-
+      std::string newlayoutstring;
       if (stripes.length()) {
         newstripenumber = atoi(stripes.c_str());
       }
+      if (layout.length()) {
+	newlayoutstring = layout.c_str();
+      }
 
-      if (!stripes.length() && !cksum.length()) {
+      if (!stripes.length() && !cksum.length() && !newlayoutstring.length() ) {
         stdErr = "error: you have to give a valid number of stripes"
-                 " as an argument to call 'file layout' or a valid checksum";
+                 " as an argument to call 'file layout' or a valid checksum or a layout id";
         retc = EINVAL;
       } else if (stripes.length() &&
                  ((newstripenumber < 1) ||
@@ -173,29 +178,50 @@ ProcCommand::File()
           }
 
           if (fmd) {
-            if ((eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) ==
-                 eos::common::LayoutId::kReplica) ||
-                (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) ==
-                 eos::common::LayoutId::kPlain)) {
-              if (!cksum.length()) {
-                checksum_type = eos::common::LayoutId::GetChecksum(fmd->getLayoutId());
-              }
+	    bool only_replica = false;
+	    bool only_tape = false;
+	    bool any_layout = false;
+	    if (fmd->getNumLocation() > 0) {
+	      only_replica = true;
+	    } else {
+	      any_layout = true;
+	    }
 
-              if (!newstripenumber) {
-                newstripenumber = eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId());
-              }
+	    if (fmd->getNumLocation() == 1) {
+	      if (fmd->hasLocation(EOS_TAPE_FSID)) {
+		only_tape = true;
+	      }
+	    }
 
-              unsigned long newlayout =
-                eos::common::LayoutId::GetId(eos::common::LayoutId::kReplica,
-                                             checksum_type,
-                                             newstripenumber,
-                                             eos::common::LayoutId::GetBlocksizeType(fmd->getLayoutId())
-                                            );
+	    if (!cksum.length()) {
+	      checksum_type = eos::common::LayoutId::GetChecksum(fmd->getLayoutId());
+	    }
+
+	    if (!newstripenumber) {
+	      newstripenumber = eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1;
+	    }
+
+	    int lid = eos::common::LayoutId::kReplica;
+	    unsigned long newlayout =
+	      eos::common::LayoutId::GetId(lid,
+					   checksum_type,
+					   newstripenumber,
+					   eos::common::LayoutId::GetBlocksizeType(fmd->getLayoutId())
+					   );
+	    if (newlayoutstring.length()) {
+	      newlayout = strtol(newlayoutstring.c_str(),0,16);
+	    }
+
+            if ( ( only_replica &&
+		   (((eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) ==
+		     eos::common::LayoutId::kReplica) ||
+		    (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) ==
+		     eos::common::LayoutId::kPlain)) &&
+		    (eos::common::LayoutId::GetLayoutType(newlayout) == eos::common::LayoutId::kReplica))) || only_tape || any_layout) {
+
               fmd->setLayoutId(newlayout);
-              stdOut += "success: setting layoutstripe number to ";
-              stdOut += (newstripenumber + 1);
-              stdOut += " and checksum-type to ";
-              stdOut += cksum.c_str();
+              stdOut += "success: setting layout to ";
+	      stdOut += eos::common::LayoutId::PrintLayoutString(newlayout).c_str();
               stdOut += " for path=";
               stdOut += spath;
               // commit new layout
@@ -203,7 +229,7 @@ ProcCommand::File()
             } else {
               retc = EPERM;
               stdErr = "error: you can only change the number of "
-                       "stripes for files with replica layout";
+                       "stripes for files with replica layout or files without locations";
             }
           } else {
             retc = errno;

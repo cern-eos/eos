@@ -1134,6 +1134,27 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Print a layout human readable
+  //----------------------------------------------------------------------------
+  static std::string PrintLayoutString(int layout) {
+    std::string dump;
+    dump = GetLayoutTypeString(layout);
+    dump += ":";
+    dump += GetStripeNumberString(layout).c_str();
+    dump += "[";
+    dump += std::to_string(GetStripeNumber(layout)+1 - GetRedundancyStripeNumber(layout));
+    dump += "]";
+    dump += ":";
+    dump += GetChecksumString(layout);
+    dump += ":";
+    dump += GetBlockChecksumString(layout);
+    dump += "[";
+    dump += GetBlockSizeString(layout);
+    dump += "]";
+    return dump;
+  }
+
+  //----------------------------------------------------------------------------
   //! Convert a <space>=<hexadecimal layout id> string to an env representation
   //----------------------------------------------------------------------------
   static const char*
