@@ -1,0 +1,161 @@
+#!/bin/bash
+# ----------------------------------------------------------------------
+# File: eos-status
+# Author: Andreas-Joachim Peters - CERN
+# ----------------------------------------------------------------------
+
+# ************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2016 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************
+
+TMPDIR="/tmp/.eos.s.$RANDOM"
+mkdir -p $TMPDIR
+
+# INFO GATEHERING
+export EOS_MGM_URL=ipc://
+QDB=`cat /etc/xrd.cf.mgm | grep qdbcluster | awk '{print $2}' | cut -d ":" -f 1` QDBPWFILE=`cat /etc/xrd.cf.mgm | grep qdbpassword_file | awk '{print $2}'` QDBPW=`cat ${QDBPWFILE}` && redis-cli -c -p 7777 -h "${QDB}" -a "${QDBPW}" raft-leader-info >& $TMPDIR/qdb.info
+
+eos version > $TMPDIR/version.info
+eos ns > $TMPDIR/ns.info
+eos ns stat -m > $TMPDIR/nsstat.info
+eos node ls -m > $TMPDIR/node.info
+eos space ls -m > $TMPDIR/space.info
+eos fs ls -m > $TMPDIR/fs.info
+eos quota ls -m > $TMPDIR/quota.info
+eos group ls -m > $TMPDIR/group.info
+eos fusex ls -m > $TMPDIR/fusex.info
+eos who -a -m > $TMPDIR/who.info
+eos vid ls > $TMPDIR/vid.info
+eos health -m > $TMPDIR/health.info
+eos io stat -x -m > $TMPDIR/iostat.info
+instance=`cat $TMPDIR/version.info  | grep EOS_INSTANCE | cut -d"=" -f 2`
+health="OK";
+cat $TMPDIR/node.info | awk '{print $3,$4}' | sed s/=/\ /g | awk '{print $2,$4}' | sort | uniq -c > $TMPDIR/nodes.info
+cat $TMPDIR/node.info | sed s/\ /\\n/g | grep cfg.stat.sys.eos.version  | cut -d "=" -f 2 | sort | uniq -c > $TMPDIR/versions.info
+cat $TMPDIR/version.info  | grep EOS_SERVER_VERSION | sed s/=/\ /g | awk '{printf("%s-%s\n", $2,$4);}' | sort | uniq -c > $TMPDIR/mgmversion.info
+cat $TMPDIR/qdb.info  | grep VERSION  | awk '{ print $NF }' | sort | uniq -c > $TMPDIR/qdbversion.info
+cat $TMPDIR/space.info | awk '{print $2, $15, $17, $18,$22}' | sed s/=/\ /g | awk '{printf("%-10s (%.02f PB total / %.02f PB used %.02f PB free / %.02f PB avail )\n", $2, ($8+1)/1000000000000000.0,($4+1)/1000000000000000.0, ($6+1)/1000000000000000.0, ($10+1)/1000000000000000.0);}' > $TMPDIR/spaces.info
+cat $TMPDIR/group.info | awk '{print $2, $3'} | sed s/=/\ /g | awk '{print $2,$4}' | cut -d "." -f 1 | awk '{print $2,$1}' | sort | uniq -c > $TMPDIR/groups.info
+cat $TMPDIR/fs.info | awk '{print $6,$7,$8}' | sed s/=/\ /g | awk '{print $6, $4,$2}' | cut -d "." -f 1 | awk '{print $3,$2,$1}' | sort  | uniq -c > $TMPDIR/fss.info
+cat $TMPDIR/who.info | awk '{print $3,$6}' | sort | grep auth| sed s/auth=// | sed s/app=// | sort | uniq -c | awk '{printf("%7s %-5s (%-s)\n",$1,$2,$3);}' > $TMPDIR/whos.info
+cat $TMPDIR/iostat.info | grep app_io_out | sed s/\ /\\n/g  | grep 60s | sed s/60s// | awk '{sum+=$1; printf("%.02f GB/s\n", (sum+1)/1000000000.0/60.0);}' | tail -1 > $TMPDIR/ioout.info
+cat $TMPDIR/iostat.info | grep app_io_in | sed s/\ /\\n/g  | grep 60s | sed s/60s// | awk '{sum+=$1; printf("%.02f GB/s\n", (sum+1)/1000000000.0/60.0);}' | tail -1 > $TMPDIR/ioin.info
+cat $TMPDIR/ns.info | grep eosxd | awk '{ print $NF }' | awk '{printf("%s ",$1);}' | awk '{printf("%s clients (%s active) caps %s locked %s\n", $2,$3,$1,$4);}' > $TMPDIR/eosxd.info
+cat $TMPDIR/fusex.info | awk '{print $3,$4 }' | sed s/=/\ /g | awk '{print $2,$4}' | sort | uniq -c | awk '{printf("%7s %-16s %-s\n", $1,$2,$3);}' > $TMPDIR/eosxdv.info
+cat $TMPDIR/fusex.info | awk '{print $17}' | sed s/=/\ /g | awk '{print $4,$2}' | sort | uniq -c | awk '{printf("%7s %-16s %-s\n", $1,$2,$3);}' > $TMPDIR/eosxdm.info
+cat $TMPDIR/fusex.info | grep "/eos/home-" | awk '{print $17,$18}' | sed s/=/\ /g | awk '{print $4,$2}' | sort | uniq -c | awk '{printf("%7s %-16s %-s\n", $1,$2,$3);}' > $TMPDIR/eosxdh.info
+cat $TMPDIR/fusex.info | awk '{print $28,$38,$39,$40}' | sed s/=/\ /g  | awk '{s1+=$2; s2+=$4; s3+=$6; s4+=$8;n++; printf("%.02f MB/s IN %.02f MB/s OUT %d kIOPS %d MB RSS\n", s2,s3,s4,s1/n);}' | tail -1 > $TMPDIR/eosxdio.info
+qdbstatus=`cat $TMPDIR/qdb.info  | grep NODE-HEALTH | awk '{print $2}'`
+
+masterid=`cat $TMPDIR/ns.info | grep master_id | awk '{ print $NF }' | cut -d "=" -f 2`
+test -z $masterid && masterid="[no lease support]"
+boottime=`cat $TMPDIR/ns.info  | grep "Total boot" | awk '{print $5,$6}'`
+bootstatus=`cat $TMPDIR/ns.info  | grep Files | awk '{print $4}'`;
+files=`cat $TMPDIR/ns.info | grep Files | awk '{print $3}'`
+directories=`cat $TMPDIR/ns.info | grep Directories | awk '{print $3}'`
+ioin=`cat $TMPDIR/ioin.info`
+ioout=`cat $TMPDIR/ioout.info`
+nclients=`cat $TMPDIR/who.info | wc -l`;
+fillratio=`eos geosched show param | grep fillRatioLimit | awk '{print $3}'`
+criticalgroups=`cat $TMPDIR/health.info | grep critical_group | awk '{print $6}' | cut -d "=" -f 2`
+ncriticalgroups=`cat $TMPDIR/health.info | grep critical_group | wc -l`
+placementcontention=`cat $TMPDIR/health.info | grep PlacementContentionCheck | grep -v "full_fs=0"| wc -l`
+nfstoffline=`cat $TMPDIR/nodes.info | grep -v "online on" |wc -l`
+ngroupoffline=`cat $TMPDIR/group.info | grep -v "cfg.status=on" |wc -l`
+nfsdown=`cat $TMPDIR/fs.info | grep -v booted | wc -l`
+
+healthmsg=""
+
+if ( test $ngroupoffline -gt 0 ); then
+  if ( test "$health" = "OK" ); then
+    health="WARN"
+  fi
+  healthmsg="$healthmsg group-offline:$ngroupoffline"
+fi
+
+if ( test $nfsdown -gt 0 ) ; then
+  if ( test "$health" = "OK" ); then
+    health="WARN"
+  fi
+  healthmsg="$healthmsg fs-down:$nfsdown"
+fi
+
+if ( test $placementcontention -gt 0 ); then
+  health="CRIT"
+  healthmsg="$healthmsg crit-contention:$placementcontention"
+  if ( test $ncriticalgroups -gt 0 ); then
+    healthmsg="$healthmsg crit-groups:$ncriticalgroups"
+  fi
+fi
+
+if ( test $nfstoffline -gt 0 ); then
+  if ( test "$health" = "OK" ); then
+    health="WARN"
+  fi
+  healthmsg="$healthmsg node-offline:$nfstoffline"
+fi
+
+if ( test $fillratio -gt 98 ); then
+  if ( test "$health" = "OK" ); then
+    health="WARN"
+  fi
+  healthmsg="$healthmsg sched-ratio:$fillratio"
+fi
+
+function indent()
+{
+(
+    first="$1"
+      IFS=
+      read -r line
+      printf "%*s %s\n" ${#first} "$first" "$line"
+      while read -r line; do
+          printf "%*s %s\n" ${#first} "" "$line"
+      done
+) < $TMPDIR/$2
+}
+
+echo    "instance: $instance"
+echo    "          health:    " "$health       $healthmsg"
+indent  "          nodes:      fst" "nodes.info"
+indent  "          versions:   mgm" "mgmversion.info"
+indent  "                      qdb" "qdbversion.info"
+indent  "                      fst" "versions.info"
+echo
+echo    "services:          "
+echo    "                      $masterid (active)"
+echo    "                      namespace $bootstatus [$boottime]"
+echo    "                      qdb [$qdbstatus]"
+echo
+indent  "storage:  data:      "  "spaces.info"
+echo    "          meta-data: "  "$files files $directories directories"
+indent  "          groups:        " "groups.info"
+indent  "          filesystems:   " "fss.info"
+echo    "          scheduler:     " "$fillratio%% (fill limit)"
+echo
+echo   "clients:  $nclients clients"
+indent  "          auth:          " "whos.info"
+echo    "          io:        "  "$ioin IN $ioout OUT"
+echo
+indent  "          fuse :     "  "eosxd.info"
+indent  "                     "  "eosxdio.info"
+indent  "                      v: "  "eosxdv.info"
+indent  "                      t: "  "eosxdm.info"
+indent  "                      h: "  "eosxdh.info"
+
+# CLEANUP
+rm -rf $TMPDIR

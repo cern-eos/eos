@@ -450,6 +450,7 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_sbindir}/eos-leveldb-inspect
 %{_sbindir}/eos-rain-hd-dump
 %{_sbindir}/eos-filter-stacktrace
+%{_sbindir}/eos-status
 %{_libdir}/libEosCommonServer.so.%{version}
 %{_libdir}/libEosCommonServer.so.%{major_version}
 %{_libdir}/libEosCommonServer.so

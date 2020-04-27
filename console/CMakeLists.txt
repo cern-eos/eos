@@ -93,6 +93,7 @@ add_library(
   commands/com_rtlog.cc
   commands/com_silent.cc
   commands/com_stat.cc
+  commands/com_status.cc
   commands/com_squash.cc
   commands/com_test.cc
   commands/com_timing.cc

@@ -524,7 +524,7 @@ com_file(char* arg1)
     in += Path2FileDenominator(path) ? "&mgm.file.id=" : "&mgm.path=";
     in += path;
 
-    if ((fsid1 != "-stripes") && (fsid1 != "-checksum")) {
+    if ((fsid1 != "-stripes") && (fsid1 != "-checksum") && (fsid1 != "-type")) {
       goto com_file_usage;
     }
 
@@ -534,13 +534,18 @@ com_file(char* arg1)
 
     if (fsid1 == "-stripes") {
       in += "&mgm.file.layout.stripes=";
+      in += fsid2;
     }
 
     if (fsid1 == "-checksum") {
       in += "&mgm.file.layout.checksum=";
+      in += fsid2;
     }
 
-    in += fsid2;
+    if (fsid1 == "-type") {
+      in += "&mgm.file.layout.type=";
+      in += fsid2;
+    }
   }
 
   if (cmd == "workflow") {
@@ -993,6 +998,10 @@ com_file_usage:
           "file layout <path>|fid:<fid-dec>|fxid:<fid-hex>  -checksum <checksum-type> :\n");
   fprintf(stdout,
           "                                                  change the checksum-type of a file to <checksum-type>\n");
+  fprintf(stdout,
+          "file layout <path>|fid:<fid-dec>|fxid:<fid-hex>  -type <hex-layout-type> :\n");
+  fprintf(stdout,
+          "                                                  change the layout-type of a file to <hex-layout-type> (as shown by file info)\n");
   fprintf(stdout,
           "file move [<path>|fid:<fid-dec>|fxid:<fid-hex>] <fsid1> <fsid2> :\n");
   fprintf(stdout,

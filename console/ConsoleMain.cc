@@ -104,6 +104,7 @@ extern int com_protorm(char*);
 extern int com_rmdir(char*);
 extern int com_role(char*);
 extern int com_rtlog(char*);
+extern int com_status(char*);
 extern int com_silent(char*);
 extern int com_protospace(char*);
 extern int com_stagerrm(char*);
@@ -179,6 +180,7 @@ COMMAND commands[] = {
   { (char*) "route", com_route, (char*) "Routing interface"},
   { (char*) "rtlog", com_rtlog, (char*) "Get realtime log output from mgm & fst servers"},
   { (char*) "silent", com_silent, (char*) "Toggle silent flag for stdout"},
+  { (char*) "status", com_status, (char*) "Display status information on an MGM"},
   { (char*) "space", com_protospace, (char*) "Space configuration"},
   { (char*) "stagerrm", com_stagerrm, (char*) "Remove disk replicas of a file if it has tape replicas"},
   { (char*) "stat", com_stat, (char*) "Run 'stat' on a file or directory"},
@@ -680,7 +682,7 @@ usage()
   fprintf(stderr,
           "`eos' is the command line interface (CLI) of the EOS storage system.\n");
   fprintf(stderr,
-          "Usage: eos [-r|--role <uid> <gid>] [-b|--batch] [-v|--version] [-p|--pipe] [-j|--json] [<mgm-url>] [<cmd> {<argN>}|<filename>.eosh]\n");
+          "Usage: eos [-r|--role <uid> <gid>] [-s] [-b|--batch] [-v|--version] [-p|--pipe] [-j|--json] [<mgm-url>] [<cmd> {<argN>}|<filename>.eosh]\n");
   fprintf(stderr,
           "            -r, --role <uid> <gid>              : select user role <uid> and group role <gid>\n");
   fprintf(stderr,
@@ -693,6 +695,8 @@ usage()
           "            -h, --help                          : print help text\n");
   fprintf(stderr,
           "            -v, --version                       : print version information\n");
+  fprintf(stderr,
+          "            -s                                  : run <status> command\n");
   fprintf(stderr,
           "            <mgm-url>                           : XRoot URL of the management server e.g. root://<hostname>[:<port>]\n");
   fprintf(stderr,
@@ -728,6 +732,8 @@ usage()
           "            eos --version                       : print version information\n");
   fprintf(stderr,
           "            eos -b eosscript.eosh               : run the eos shell script 'eosscript.eosh'. This script has to contain linewise commands which are understood by the eos interactive shell\n");
+  fprintf(stderr,
+	  "            eos -s                              : run <status> command\n");
   fprintf(stderr, "\n");
   fprintf(stderr,
           "You can leave the interactive shell with <Control-D>. <Control-C> cleans the current shell line or terminates the shell when a command is currently executed.\n");
@@ -796,6 +802,7 @@ Run(int argc, char* argv[])
           (in1 != "-b") &&
           (in1 != "-p") &&
           (in1 != "-v") &&
+          (in1 != "-s") &&
           (in1 != "-j") &&
           (in1 != "-r")) {
         usage();
@@ -806,6 +813,10 @@ Run(int argc, char* argv[])
     if ((in1 == "--help") || (in1 == "-h")) {
       usage();
       exit(-1);
+    }
+
+    if ((in1 == "-s")) {
+      return com_status(0);
     }
 
     if ((in1 == "--version") || (in1 == "-v")) {

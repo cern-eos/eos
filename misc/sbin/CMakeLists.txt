@@ -30,7 +30,7 @@ if( MacOSX )
 	        WORLD_READ WORLD_EXECUTE)
 else()
   install(
-    FILES mount.eos mount.eosx automount.cern.eos
+    FILES mount.eos mount.eosx automount.cern.eos eos-status
     DESTINATION ${CMAKE_INSTALL_PREFIX}/../sbin/
     PERMISSIONS OWNER_READ OWNER_EXECUTE
 	        GROUP_READ GROUP_EXECUTE
