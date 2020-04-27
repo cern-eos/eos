@@ -1752,9 +1752,6 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
 
     {
       if (!has_flush(ino)) {
-        size_t local_size = md->size();
-        uint64_t local_mtime = md->mtime();
-        uint64_t local_mtime_ns = md->mtime_ns();
         md->CopyFrom(cont.md_());
 
 	shared_md d_md = EosFuse::Instance().datas.retrieve_wr_md(ino);

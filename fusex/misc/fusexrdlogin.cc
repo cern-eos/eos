@@ -78,6 +78,19 @@ int fusexrdlogin::loginurl(XrdCl::URL& url,
                   connection_id);
 }
 
+std::string fusexrdlogin::executable(fuse_req_t req) {
+  fuse_id id(req);
+  ProcessSnapshot snapshot =
+    (id.pid)?processCache->retrieve(id.pid, id.uid, id.gid,
+				    false) : 0;
+  if (snapshot) {
+    return fillExeName(snapshot->getExe());
+  } else {
+    return "unknown";
+  }
+}
+
+
 int fusexrdlogin::loginurl(XrdCl::URL& url,
                            XrdCl::URL::ParamsMap& paramsMap,
                            uid_t uid,

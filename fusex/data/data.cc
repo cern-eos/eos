@@ -30,6 +30,7 @@
 #include "data/xrdclproxy.hh"
 #include "misc/MacOSXHelper.hh"
 #include "misc/fusexrdlogin.hh"
+#include "misc/filename.hh"
 #include "common/Logging.hh"
 #include "common/SymKeys.hh"
 #include <iostream>
@@ -260,11 +261,20 @@ data::datax::flush(fuse_req_t req)
     if ( (!flush_wait_open) && (mMd->size() >= EosFuse::Instance().Config().options.flush_wait_open_size)) {
       flush_wait_open = true;
     }
+
+    if (EosFuse::Instance().Config().options.wait_flush_executables.size()) {
+      if (filename::matches( fusexrdlogin::executable(req), EosFuse::Instance().Config().options.wait_flush_executables)) {
+	eos_notice("flush-wait-open: forced for exec=%s", fusexrdlogin::executable(req).c_str());
+	flush_wait_open = true;
+      }
+    }
   } else {
     flush_wait_open = (EosFuse::Instance().Config().options.flush_wait_open !=
                        EosFuse::Instance().Config().options.kWAIT_FLUSH_NEVER) ? true : false;
   }
-
+  if (EOS_LOGS_DEBUG) {
+    eos_notice("flush-wait-open: %d size=%lu exec=%s\n", flush_wait_open, mMd->size(), fusexrdlogin::executable(req).c_str());
+  }
   return flush_nolock(req, flush_wait_open, false);
 }
 

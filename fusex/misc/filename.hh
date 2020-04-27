@@ -50,6 +50,18 @@ public:
 
     return false;
   }
+
+  static bool matches(const std::string& name,
+		      const std::vector<std::string>& namelist)
+  {
+    for (auto it = namelist.begin(); it != namelist.end(); ++it) {
+      if (name == *it) {
+	return true;
+      }
+    }
+
+    return false;
+  }
 };
 
 #endif
