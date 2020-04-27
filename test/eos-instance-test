@@ -1281,6 +1281,36 @@ runtest "### Tag       " unix 1 "" eos file tag /eos/$EOS_TEST_INSTANCE/test/ins
 runtest "### Rm        " unix 0 "" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/tag/touch
 runtest "### Rmdir     " unix 0 "" eos rmdir /eos/$EOS_TEST_INSTANCE/test/instancetest/tag/
 
+# ------------------------------------------------------------------------------
+categorie="rm"
+# ------------------------------------------------------------------------------
+# These tests assume that the polling interval for deletions on the FST side is
+# less than 7 seconds. Set the EOS_FST_DELETE_QUERY_INTERVAL=5.
+# First test that the removal of a detached file will retrigger the deletion on
+# the diskserver and will wait for the confirmation before dropping the ns entry
+RM_TEST_FILE="/eos/$EOS_TEST_INSTANCE/test/instancetest/rm_test.dat"
+runtest "### Upload      " unix 0 "" eos cp /etc/passwd ${RM_TEST_FILE}
+rm_fxid=$($XROOTSYS/bin/eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo ${RM_TEST_FILE} | jq -r .fxid)
+rm_fsid=$($XROOTSYS/bin/eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo ${RM_TEST_FILE} | jq -r .locations[].fsid | head -n 1)
+runtest "### Rm          " unix 0 "" eos rm -F ${RM_TEST_FILE}
+runtest "### Dropdel     " unix 0 "" eos fs dropdeletion "${rm_fsid}"
+sleep 7
+runtest "### Fileinfo    " unix 0 "" eos fileinfo "fxid:${rm_fxid}"
+runtest "### Rm detached " unix 0 "" eos rm "fxid:${rm_fxid}"
+sleep 7
+runtest "### Fileinfo    " unix 1 "" eos fileinfo "fxid:${rm_fxid}"
+# Secondly test that rm -F on a detached file will clean up the namespace
+# without waiting for a confirmation from the diskservers
+runtest "### Upload      " unix 0 "" eos cp /etc/passwd ${RM_TEST_FILE}
+rm_fxid=$($XROOTSYS/bin/eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo ${RM_TEST_FILE} | jq -r .fxid)
+rm_fsid=$($XROOTSYS/bin/eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo ${RM_TEST_FILE} | jq -r .locations[].fsid | head -n 1)
+runtest "### Rm          " unix 0 "" eos rm -F ${RM_TEST_FILE}
+runtest "### Dropdel     " unix 0 "" eos fs dropdeletion "${rm_fsid}"
+sleep 7
+runtest "### Fileinfo    " unix 0 "" eos fileinfo "fxid:${rm_fxid}"
+runtest "### Rm force    " unix 0 "" eos rm -F "fxid:${rm_fxid}"
+runtest "### Fileinfo    " unix 1 "" eos fileinfo "fxid:${rm_fxid}"
+
 # --------------------------
 # Parallel sockets (does not work currently with 3.1.0 clients)
 # --------------------------
