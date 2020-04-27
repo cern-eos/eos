@@ -668,7 +668,7 @@ cc7_asan_docker_image:
   <<: *dock8s_before_script_template
   script:
     # prepare eoshome folder, cernbox alike
-    - cat ./gitlab-ci/attr_set_cernbox-like.sh | exec_cmd eos-mgm1
+    - exec_cmd eos-mgm1 './eos_create_userhome.sh'
     # prepare mountpoints
     - exec_cmd eos-cli1 'mkdir -p /eos && eosxd -ofsname=${EOS_MGM_URL:7}:/eos/ /eos'
     - exec_cmd eos-cli1 'count=0; while [[ $count -le 10 ]] && ( [[ ! -d /eos/ ]] ); do echo "Wait for mount... $count"; (( count++ )); sleep 1; done;'
