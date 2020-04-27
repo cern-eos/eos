@@ -87,26 +87,56 @@ FsckHelper::ParseCommand(const char* arg)
   } else if (cmd == "repair") {
     eos::console::FsckProto::RepairProto* repair = fsck->mutable_repair();
 
-    if (((option = tokenizer.GetToken()) == nullptr) ||
-        (strcmp(option, "--fxid") != 0)) {
-      return false;
-    }
+    while (tokenizer.NextToken(soption)) {
+      if (soption == "--fxid") {
+        if ((option = tokenizer.GetToken()) == nullptr) {
+          std::cerr << "error: fxid option needs a value\n";
+          return false;
+        }
 
-    if ((option = tokenizer.GetToken()) == nullptr) {
-      return false;
-    }
+        uint64_t fid = eos::common::FileId::Hex2Fid(option);
 
-    uint64_t fid = eos::common::FileId::Hex2Fid(option);
+        if (fid == 0ull) {
+          std::cerr << "error: fid option needs to be non-zero\n";
+          return false;
+        }
 
-    if (fid == 0ull) {
-      return false;
-    }
+        repair->set_fid(fid);
+      } else if (soption == "--fsid") {
+        if ((option = tokenizer.GetToken()) == nullptr) {
+          std::cerr << "error: fsid option needs a value\n";
+          return false;
+        }
 
-    repair->set_fid(fid);
+        soption = option;
+        uint64_t fsid {0ull};
 
-    if (((option = tokenizer.GetToken()) != nullptr) &&
-        (strcmp(option, "--async") == 0)) {
-      repair->set_async(true);
+        try {
+          fsid = std::stoull(soption);
+        } catch (...) {
+          std::cerr << "error: fsid option needs to be numeric\n";
+          return false;
+        }
+
+        if (fsid == 0ull) {
+          std::cerr << "error: fsid option needs to be non-zero\n";
+          return false;
+        }
+
+        repair->set_fsid_err(fsid);
+      } else if (soption == "--error") {
+        if ((option = tokenizer.GetToken()) == nullptr) {
+          std::cerr << "error: the error flag needs an option\n";
+          return false;
+        }
+
+        repair->set_error(option);
+      } else if (soption == "--async") {
+        repair->set_async(true);
+      } else {
+        std::cerr << "error: unknown option \"" << soption << "\n";
+        return false;
+      }
     }
   } else {
     return false;

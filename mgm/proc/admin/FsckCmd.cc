@@ -84,7 +84,9 @@ FsckCmd::ProcessRequest() noexcept
     std::string out;
     const eos::console::FsckProto::RepairProto& repair = fsck.repair();
 
-    if (gOFS->mFsckEngine->RepairEntry(repair.fid(), repair.async(), out)) {
+    if (gOFS->mFsckEngine->RepairEntry(repair.fid(), repair.fsid_err(),
+                                       repair.error(), repair.async(),
+                                       out)) {
       reply.set_std_out(out);
     } else {
       reply.set_std_err(out);

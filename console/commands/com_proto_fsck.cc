@@ -84,9 +84,11 @@ void com_fsck_help()
       << "    --error    : dispaly information about the following error tags"
       << std::endl
       << std::endl
-      << "  fsck repair --fxid <val> [--async]\n"
+      << "  fsck repair --fxid <val> [--fsid <val>] [--error <err_type>] [--async]\n"
       << "    repair the given file if there are any errors\n"
       << "    --fxid  : hexadecimal file identifier\n"
+      << "    --fsid  : explicit file system id used for collecting info\n"
+      << "    --error : error type for given file system id e.g. m_cx_diff unreg_n etc\n"
       << "    --async : job queued and ran by the repair thread if enabled\n"
       << std::endl;
   std::cerr << oss.str() << std::endl;

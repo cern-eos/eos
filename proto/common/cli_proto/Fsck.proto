@@ -18,6 +18,9 @@ message FsckProto {
   message RepairProto {
     bool async = 1;
     uint64 fid = 2;
+    uint64 fsid_err = 3;
+    string error = 4;
+
   }
 
   oneof subcmd {

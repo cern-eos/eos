@@ -146,13 +146,17 @@ public:
   //! Try to repair a given entry
   //!
   //! @param fid file identifier
+  //! @param fsid_err explicit file system id to check
+  //! @param err_type type of error on the explicit file system
   //! @param async if true then submit the job to the repair thread if it's
   //!        enabled
   //! @param err_msg output message
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool RepairEntry(eos::IFileMD::id_t fid, bool async, std::string& out_msg);
+  bool RepairEntry(eos::IFileMD::id_t fid,
+                   eos::common::FileSystem::fsid_t fsid_err,
+                   std::string err_type, bool async, std::string& out_msg);
 
   //----------------------------------------------------------------------------
   //! Set max size of thread pool used for fsck repair jobs

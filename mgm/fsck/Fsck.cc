@@ -459,7 +459,9 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
 // Try to repair a given entry
 //------------------------------------------------------------------------------
 bool
-Fsck::RepairEntry(eos::IFileMD::id_t fid, bool async, std::string& out_msg)
+Fsck::RepairEntry(eos::IFileMD::id_t fid,
+                  eos::common::FileSystem::fsid_t fsid_err,
+                  std::string err_type, bool async, std::string& out_msg)
 {
   if (fid == 0ull) {
     eos_err("%s", "msg=\"not such file id 0\"");
@@ -467,7 +469,7 @@ Fsck::RepairEntry(eos::IFileMD::id_t fid, bool async, std::string& out_msg)
   }
 
   std::shared_ptr<FsckEntry> job {
-    new FsckEntry(fid, 0, "none", mQcl)};
+    new FsckEntry(fid, fsid_err, err_type, mQcl)};
 
   if (async) {
     out_msg = "msg=\"repair job submitted\"";
