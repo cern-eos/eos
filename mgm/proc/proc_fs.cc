@@ -647,7 +647,7 @@ proc_fs_add(mq::MessagingRealm* realm, std::string& sfsid, std::string& uuid,
     try {
       int id = std::stoi(splitgroup);
 
-      if (id >= groupmod) {
+      if (id >= (int)groupmod) {
         stdErr = SSTR("error: requested group " << id
                       << " bigger than groupmod").c_str();
         return EINVAL;
@@ -663,7 +663,7 @@ proc_fs_add(mq::MessagingRealm* realm, std::string& sfsid, std::string& uuid,
     }
   } else {
     // Otherwise, try out all the groups in the space
-    for (int i = 0; i < groupmod; ++i) {
+    for (int i = 0; i < (int)groupmod; ++i) {
       target_grps.insert(i);
     }
   }
