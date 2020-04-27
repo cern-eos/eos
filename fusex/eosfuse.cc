@@ -667,6 +667,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         root["options"]["flush-wait-executables"].append("/usr/bin/rsync");
         root["options"]["flush-wait-executables"].append("/usr/bin/cp");
         root["options"]["flush-wait-executables"].append("/usr/bin/xrdcp");
+        root["options"]["flush-wait-executables"].append("/usr/bin/eoscp");
       }
     }
 
