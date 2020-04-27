@@ -103,8 +103,9 @@ Storage::Remover()
       } else {
         if (response == "submitted") {
           eos_static_debug("manager scheduled deletions for us!");
-          // We wait 30 seconds to receive our deletions
-          std::this_thread::sleep_for(std::chrono::seconds(30));
+          // We wait to receive our deletions
+          std::this_thread::sleep_for(std::chrono::seconds
+                                      ((int)std::ceil(deletionInterval / 10.0)));
         } else {
           eos_static_debug("manager returned no deletion to schedule [ENODATA]");
         }
