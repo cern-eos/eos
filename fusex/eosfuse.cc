@@ -666,6 +666,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       if (!root["options"].isMember("flush-wait-executables")) {
         root["options"]["flush-wait-executables"].append("/usr/bin/rsync");
         root["options"]["flush-wait-executables"].append("/usr/bin/cp");
+        root["options"]["flush-wait-executables"].append("/usr/bin/xrdcp");
       }
     }
 
