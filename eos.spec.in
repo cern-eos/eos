@@ -592,6 +592,7 @@ EOS namespace inspection tool for instance administrators
 %defattr(-, root, root, -)
 %{_bindir}/eos-ns-inspect
 %{_bindir}/eos-config-inspect
+%{_bindir}/eos-fid-to-path
 %endif
 
 #-------------------------------------------------------------------------------

@@ -91,7 +91,12 @@ add_executable(eos-ns-inspect tools/InspectionTool.cc)
 target_link_libraries(eos-ns-inspect
   EosNsCommon-Static)
 
-install(TARGETS eos-ns-convert eos-ns-convert-to-locality-hashes eos-ns-inspect
+add_executable(eos-fid-to-path tools/Fid2PathTool.cc)
+
+target_link_libraries(eos-fid-to-path
+  EosNsCommon-Static)
+
+install(TARGETS eos-ns-convert eos-ns-convert-to-locality-hashes eos-ns-inspect eos-fid-to-path
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
