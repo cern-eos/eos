@@ -1169,11 +1169,13 @@ FmdDbMapHandler::ResyncFileFromQdb(eos::common::FileId::fileid_t fid,
     return ENOENT;
   }
 
-  // If file does not exist on disk then mark as missing
-  if (local_fmd->mProtoFmd.disksize() == eos::common::FmdHelper::UNDEF) {
+  // If file does not exist on disk and has non-zero size at the MGM then
+  // mark as missing
+  if ((local_fmd->mProtoFmd.disksize() == eos::common::FmdHelper::UNDEF) &&
+      (ns_fmd.mProtoFmd.mgmsize() != 0ull)) {
+    eos_warning("msg=\"mark missing replica\" fxid=%08llx fsid=%lu", fid, fsid);
     ns_fmd.mProtoFmd.set_layouterror(ns_fmd.mProtoFmd.layouterror() |
                                      LayoutId::kMissing);
-    eos_warning("msg=\"mark missing replica\" fxid=%08llx fsid=%lu", fid, fsid);
   }
 
   if (!UpdateWithMgmInfo(fsid, fid, ns_fmd.mProtoFmd.cid(),
