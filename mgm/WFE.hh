@@ -245,6 +245,11 @@ public:
     //! @param fullPath the full path of the file
     int HandleProtoMethodArchiveFailedEvent(const std::string &fullPath);
 
+    //! @brief Handles a "proto" method "update_fid" event
+    //! @param fullPath the full path of the file
+    //! @param errorMsg out parameter giving the text of any error response
+    int HandleProtoMethodUpdateFidEvent(const std::string &fullPath, std::string &errorMsg);
+
     //! @brief Resets the extended attributes for tracking retrieve requests
     //! @param fullPath the full path of the file
     void resetRetrieveIdListAndErrorMsg(const std::string &fullPath);

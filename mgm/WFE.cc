@@ -1624,6 +1624,8 @@ int WFE::Job::HandleProtoMethodEvents(std::string& errorMsg,
     return HandleProtoMethodRetrieveFailedEvent(fullPath);
   } else if (event == ARCHIVE_FAILED_WORKFLOW_NAME) {
     return HandleProtoMethodArchiveFailedEvent(fullPath);
+  } else if (event == "sync::update_fid" || event == "update_fid") {
+    return HandleProtoMethodUpdateFidEvent(fullPath, errorMsg);
   } else {
     eos_static_err("Unknown event %s for proto workflow", event.c_str());
     MoveWithResults(SFS_ERROR);
@@ -2284,6 +2286,36 @@ WFE::Job::HandleProtoMethodArchiveFailedEvent(const std::string& fullPath)
   MoveWithResults(SFS_OK);
   EXEC_TIMING_END("Proto::Archive::Failed");
   return SFS_OK;
+}
+
+int
+WFE::Job::HandleProtoMethodUpdateFidEvent(const std::string& fullPath, std::string& errorMsg)
+{
+  EXEC_TIMING_BEGIN("Proto::UpdateFid");
+  gOFS->MgmStats.Add("Proto::UpdateFid", 0, 0, 1);
+  cta::xrd::Request request;
+  auto notification = request.mutable_notification();
+  notification->mutable_cli()->mutable_user()->set_username(GetUserName(mVid.uid));
+  notification->mutable_cli()->mutable_user()->set_groupname(GetGroupName(mVid.gid));
+
+  for (const auto& attribute : CollectAttributes(fullPath)) {
+    google::protobuf::MapPair<std::string, std::string> attr(attribute.first, attribute.second);
+    notification->mutable_file()->mutable_xattr()->insert(attr);
+  }
+
+  notification->mutable_wf()->set_event(cta::eos::Workflow::UPDATE_FID);
+  notification->mutable_wf()->mutable_instance()->set_name(gOFS->MgmOfsInstanceName.c_str());
+  notification->mutable_file()->set_lpath(fullPath);
+  notification->mutable_file()->set_fid(mFid);
+  const int sendRc = SendProtoWFRequest(this, fullPath, request, errorMsg);
+
+  if (SFS_OK != sendRc) {
+    eos_static_err("msg=\"Failed to notify protocol buffer endpoint about file ID update %s: %s\" sendRc=%d "
+                   "newFxid=%08llx", fullPath.c_str(), errorMsg.c_str(), sendRc, mFid);
+  }
+
+  EXEC_TIMING_END("Proto::UpdateFid");
+  return sendRc;
 }
 
 int

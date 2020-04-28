@@ -96,6 +96,49 @@ XrdMgmOfs::merge(const char* src, const char* dst, XrdOucErrInfo& error,
                 e.getMessage().str().c_str());
     }
   }
+
+  {
+    // Parameters to be passed to Workflow::Init()
+    eos::IContainerMD::XAttrMap originalContainerAttributes;
+    const auto &original_path = dst_path;
+    eos::common::FileId::fileid_t new_f_id = 0;
+
+    // Take a lock and get the values of the Workflow::Init() parameters
+    {
+      eos::common::RWMutexWriteLock viewLock(gOFS->eosViewRWMutex);
+      new_f_id = src_fmd->getId();
+      const auto originalContainerId = dst_fmd->getContainerId();
+      const auto originalContainer = gOFS->eosDirectoryService->getContainerMD(originalContainerId);
+      if (SFS_OK != _attr_ls(gOFS->eosView->getUri(originalContainer.get()).c_str(), error, rootvid, 0,
+        originalContainerAttributes, false)) {
+        std::ostringstream msg;
+        msg << "merge source into destination path - failed to list extended attributes of enclosing directory";
+        return Emsg("merge", error, EINVAL, msg.str().c_str(), src_path.c_str());
+      }
+    }
+
+    // Trigger file ID update workflow using the new file ID because the proto
+    // workflow end point already knows the old ID.
+    //
+    // As far as the proto workflow end point is concerned only the original
+    // container and file path is of interest.
+    Workflow workflow;
+    workflow.Init(&originalContainerAttributes, original_path, new_f_id);
+    const char *const empty_ininfo = "";
+    std::string wfError;
+    const int wfRc = workflow.Trigger("sync::update_fid", "default", vid, empty_ininfo, wfError);
+    if (wfRc && ENOKEY == errno && mTapeEnabled) {
+      std::ostringstream msg;
+      msg << "merge source into destination path - mgmofs.tapeenabled is set to true but the sync::update_fid workflow is not defined";
+      return Emsg("merge", error, EINVAL, msg.str().c_str(), src_path.c_str());
+    }
+    if (wfRc && ENOKEY != errno) {
+      std::ostringstream msg;
+      msg << "merge source into destination path - the sync::update_fid workflow failed - " << wfError;
+      return Emsg("merge", error, EINVAL, msg.str().c_str(), src_path.c_str());
+    }
+  }
+
   int rc = SFS_OK;
 
   if (src_fmd && dst_fmd) {
