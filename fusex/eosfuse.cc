@@ -3669,8 +3669,8 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char* name,
   EXEC_TIMING_END(__func__);
   fuse_reply_err(req, rc);
   COMMONTIMING("_stop_", &timing);
-  eos_static_notice("t(ms)=%.03f %s target-name=%s", timing.RealTime(),
-                    dump(id, parent, 0, rc, name).c_str(), newname);
+  eos_static_notice("t(ms)=%.03f %s new-parent-ino=%#lx target-name=%s", timing.RealTime(),
+                    dump(id, parent, 0, rc, name).c_str(), newparent, newname);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -5610,7 +5610,7 @@ EosFuse::symlink(fuse_req_t req, const char* link, fuse_ino_t parent,
       rc = Instance().mds.add_sync(req, pmd, md, pcap->authid());
       md->set_type(md->MD);
 
-      if (rc) {
+      if (!rc) {
         Instance().mds.insert(req, md, pcap->authid());
         pmd->local_enoent().erase(name);
       }
