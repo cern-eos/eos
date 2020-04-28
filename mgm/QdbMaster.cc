@@ -297,7 +297,8 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
 
         // There was a change in the master identity or the current master
         // could not update the lease
-        if (!new_master_id.empty() && (old_master_id != new_master_id)) {
+        if (!new_master_id.empty() && (old_master_id != new_master_id) &&
+            (new_master_id != mIdentity)) {
           Access::SetMasterToSlaveRules(new_master_id);
         }
       }
