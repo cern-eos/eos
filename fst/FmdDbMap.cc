@@ -1418,7 +1418,7 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
   fidset["unreg_n"].clear();
   fidset["rep_diff_n"].clear();
   fidset["rep_missing_n"].clear();
-  fidset["blocxs_err"].clear();
+  fidset["blockxs_err"].clear();
 
   if (!IsSyncing(fsid)) {
     const eos::common::DbMapTypes::Tkey* k;
