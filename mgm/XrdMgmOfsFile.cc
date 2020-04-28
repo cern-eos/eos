@@ -2775,13 +2775,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   eos::common::StringConversion::MaskTag(predirectionhost, "cap.sym");
 
   if (isRW) {
-    eos_info("op=write path=%s info=%s %s redirection=%s:%d",
-             path, pinfo.c_str(), infolog.c_str(), predirectionhost.c_str(),
-             ecode);
+    eos_info("op=write path=%s info=%s %s redirection=%s xrd_port=%d "
+             "http_port=%d", path, pinfo.c_str(), infolog.c_str(),
+             predirectionhost.c_str(), targetport, targethttpport);
   } else {
-    eos_info("op=read  path=%s info=%s %s redirection=%s:%d",
-             path, pinfo.c_str(), infolog.c_str(), predirectionhost.c_str(),
-             ecode);
+    eos_info("op=read path=%s info=%s %s redirection=%s xrd_port=%d "
+             "http_port=%d", path, pinfo.c_str(), infolog.c_str(),
+             predirectionhost.c_str(), targetport, targethttpport);
   }
 
   eos_info("info=\"redirection\" hostport=%s:%d", predirectionhost.c_str(),
