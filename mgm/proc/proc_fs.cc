@@ -820,6 +820,10 @@ bool proc_fs_can_mv(eos::mgm::FileSystem* fs, const std::string& dst,
   FileSystem::fs_snapshot_t snapshot;
 
   if (fs->SnapShotFileSystem(snapshot)) {
+    if (force) {
+      return true;
+    }
+
     if (dst.find('.') != std::string::npos) {
       if (snapshot.mGroup == dst) {
         oss << "error: file system " << snapshot.mId << " is already in "
@@ -839,10 +843,6 @@ bool proc_fs_can_mv(eos::mgm::FileSystem* fs, const std::string& dst,
     // File system must be in RW mode and active for the move to work
     bool is_empty = (fs->GetConfigStatus() == eos::common::ConfigStatus::kEmpty);
     bool is_active = (fs->GetActiveStatus() == eos::common::ActiveStatus::kOnline);
-
-    if (force) {
-      is_empty = is_active = true;
-    }
 
     if (!(is_empty && is_active)) {
       eos_static_err("msg=\"file system is not empty or is not active\" "
@@ -945,7 +945,7 @@ int proc_mv_fs_group(FsView& fs_view, const std::string& src,
         }
       }
 
-      if (is_forbidden && !force) {
+      if (!force && is_forbidden) {
         eos_static_err("msg=\"group %s already contains an fs from the "
                        "same node\"", dst.c_str());
         oss << "error: group " << dst
