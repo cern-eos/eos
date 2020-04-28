@@ -1471,6 +1471,19 @@ runtest "### Chmod     " unix 0 "" shell chmod 474 "/test-fusex/$EOS_TEST_INSTAN
 runtest "### test -x   " unix 0 "" shell test -x "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/perm"
 runtest "### Chmod     " unix 0 "" shell chmod 447 "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/perm"
 runtest "### test -x   " unix 0 "" shell test -x "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/perm"
+runtest "### symlink   " unix 0 "" shell ln -s "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/target" "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/symlink.1"
+runtest "### symlink   " unix 0 "" shell ln -s "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/target" "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/symlink.2"
+runtest "### syj-mkd   " unix 0 "" shell mkdir "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/symdir/"
+sleep 3
+runtest "### stat l1   " unix 0 "" eos stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/symlink.1"
+runtest "### stat l2   " unix 0 "" eos stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/symlink.2"
+runtest "### sym-mv    " unix 0 "" shell mv -f "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/symlink.1" "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/symlink.3"
+runtest "### sym-mv    " unix 0 "" shell mv -f "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/symlink.2" "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/symdir/symlink.4"
+sleep 3
+runtest "### stat l1   " unix 1 "" eos stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/symlink.1"
+runtest "### stat l2   " unix 1 "" eos stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/symlink.2"
+runtest "### stat l1   " unix 0 "" eos stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/symlink.3"
+runtest "### stat l2   " unix 0 "" eos stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/symdir/symlink.4"
 runtest "### Cleanup"    unix 2 "" eos rm  "-r /eos/$EOS_TEST_INSTANCE/test/instancetest/fusex"
 test -d /test-fusex/ && umount -fl /test-fusex/
 test -d /test-fusex/ && rmdir /test-fusex/
