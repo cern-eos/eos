@@ -624,7 +624,7 @@ cc7_asan_docker_image:
     when: on_failure
     expire_in: 3 days
     paths:
-      - eos-logs/
+      - eos-logs-${CI_JOB_ID}/
 
 .dock8s_fusex_test_template: &dock8s_fusex_test_template
   stage: test
@@ -661,7 +661,7 @@ cc7_asan_docker_image:
     when: on_failure
     expire_in: 3 days
     paths:
-      - eos-logs/
+      - eos-logs-${CI_JOB_ID}/
 
 .dock8s_cbox_test_template: &dock8s_cbox_test_template
   stage: test
@@ -670,17 +670,18 @@ cc7_asan_docker_image:
     # prepare eoshome folder, cernbox alike
     - exec_cmd eos-mgm1 './eos_create_userhome.sh'
     # prepare mountpoints
-    - exec_cmd eos-cli1 'mkdir -p /eos && eosxd -ofsname=${EOS_MGM_URL:7}:/eos/ /eos'
+    - exec_cmd eos-cli1 'mkdir -p /eos && eosxd -ofsname=${EOS_MGM_URL:7}:/eos/ /eos &> /dev/null'
     - exec_cmd eos-cli1 'count=0; while [[ $count -le 10 ]] && ( [[ ! -d /eos/ ]] ); do echo "Wait for mount... $count"; (( count++ )); sleep 1; done;'
     # eosfuse_release_tests
+    - exec_cmd eos-cli1 'su eos-user -c "kinit eos-user@TEST.EOS -k -t /home/eos-user/eos-user.keytab"'
     - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && git clone https://gitlab.cern.ch/dss/eosclient-tests.git"'
-    - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && ./eosclient-tests/functional_tests/CI_eosfuse_release_tests.sh /eos/user/e/eos-user'
+    - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && ./eosclient-tests/functional_tests/CI_eosfuse_release_tests.sh /eos/user/e/eos-user"'
   <<: *dock8s_after_script_template
   artifacts:
     when: on_failure
     expire_in: 3 days
     paths:
-      - eos-logs/
+      - eos-logs-${CI_JOB_ID}/
 
 k8s_cbox:
   <<: *dock8s_cbox_test_template
