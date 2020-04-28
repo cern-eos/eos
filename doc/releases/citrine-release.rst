@@ -16,6 +16,44 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.7.11 Citrine``
+===================
+
+2020-04-28
+
+Bug
+----
+
+* [EOS-3867] - MGM redirecting to itself
+* [EOS-4110] - `eos fs mv` not working properly for multi-fst instances
+* [EOS-4122] - `eos file touch` does not create a file if it not exists
+* [EOS-4131] - MGM: Broken logic in fs add leads to various inconsistencies
+* [EOS-4133] - MGM: Deadlock when booting the in memory namespace
+* [EOS-4137] - MQ: Exceeded message backlog never recovers
+* [EOS-4139] - eosxd sees EIO when rate limiter sends stalls
+* [EOS-4140] - Allow the eos command-line tool to modify the disk layout of a "tape only" file
+* [EOS-4150] - MGM: Acl should check for update flag present
+* [EOS-4151] - Broken shutdown sequence for EOS daemons
+* [EOS-4168] - rename & move of symlinks not supported in FuseServer
+
+New Feature
+------------
+
+* [EOS-3415] - feature: `eos status` view
+
+Improvement
+------------
+
+* [EOS-4011] - Allow "eos rm" by fid for weird cases
+* [EOS-4091] - Add LRU caching to XrdMgmOfsDirectory class
+* [EOS-4092] - Add LRU caching to proc::ls function
+* [EOS-4129] - Add STAT equivalent functionality to GRPC
+* [EOS-4142] - Only set filesize in MGM when eosxd has opened a file on FSTs
+* [EOS-4152] - MGM: GroupBalancer improve cancellation/cleanup by using std::thread
+* [EOS-4166] - Enforce wait-for-flush behaviour on file creation for a list of given executables
+* [EOS-4167] - Enhance fsck repair to take an fsid and error type
+
+
 ``v4.7.10 Citrine``
 ===================
 
@@ -23,7 +61,7 @@ This release is based on XRootD V4 and IPV6 enabled.
 
 Bug
 ----
-    
+
 * [EOS-4103] - FUSEX marks as 0600 file as "executable"
 * [EOS-4112] - Deadlock between mdstackfree and data::unlink
 * HTTP/FST: Fix crash by replying with 411 when a PUT without Content-Length is attempted
