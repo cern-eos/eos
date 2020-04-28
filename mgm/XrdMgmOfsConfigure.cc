@@ -2098,6 +2098,7 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("Eosxd::ext::BEGINFLUSH", 0, 0, 0);
   MgmStats.Add("Eosxd::ext::ENDFLUSH", 0, 0, 0);
   MgmStats.Add("Eosxd::ext::CREATELNK", 0, 0, 0);
+  MgmStats.Add("Eosxd::ext::SETLNK", 0, 0, 0);
   MgmStats.Add("Eosxd::ext::DELETELNK", 0, 0, 0);
   MgmStats.Add("Eosxd::int::AuthRevocation", 0, 0, 0);
   MgmStats.Add("Eosxd::int::BcConfig", 0, 0, 0);

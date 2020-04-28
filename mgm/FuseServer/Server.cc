@@ -2281,18 +2281,20 @@ Server::OpSetLink(const std::string& id,
     exclusive = true;
   }
 
-  eos_info("ino=%#lx set-link/fifo %s", (long) md.md_ino(),
+  eos_info("ino=%#lx %s", (long) md.md_ino(),
            md.name().c_str());
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   std::shared_ptr<eos::IFileMD> fmd;
+  std::shared_ptr<eos::IFileMD> ofmd;
   std::shared_ptr<eos::IContainerMD> pcmd;
+  std::shared_ptr<eos::IContainerMD> opcmd;
   uint64_t md_pino = md.md_pino();
 
   try {
-    gOFS->MgmStats.Add("Eosxd::ext::CREATELNK", vid.uid, vid.gid, 1);
-    // link creation
+    // link creation/update
     pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
-    fmd = pcmd->findFile(md.name());
+
+    fmd = md.md_ino() ? gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(md.md_ino())) : 0;
 
     if (!fmd && md.md_ino()) {
       // file existed but has been deleted
@@ -2304,10 +2306,89 @@ Server::OpSetLink(const std::string& id,
     }
 
     if (fmd) {
-      // link update
+      // link MD update
       op = UPDATE;
+
+      if (fmd->getContainerId() != md.md_pino()) {
+	op = MOVE;
+	eos_info("op=MOVE ino=%#lx %s=>%s", (long) md.md_ino(), fmd->getName().c_str(), md.name().c_str());
+
+	opcmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
+
+	// remove symlink from current parent
+        opcmd->removeFile(fmd->getName());
+        gOFS->eosView->updateContainerStore(opcmd.get());
+	// update the name
+        fmd->setName(md.name());
+
+	// check if target exists
+        ofmd = pcmd->findFile(md.name());
+
+        if (ofmd) {
+	  // remove the target - no recycle bin for symlinks
+	  try {
+	    XrdOucErrInfo error;
+
+	    pcmd->removeFile(md.name());
+	    // unlink the existing file
+	    ofmd->setContainerId(0);
+	    ofmd->unlinkAllLocations();
+
+	    eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
+
+	    // free previous quota
+	    if (quotanode) {
+	      quotanode->removeFile(ofmd.get());
+	    }
+
+	    gOFS->eosFileService->updateStore(ofmd.get());
+	    gOFS->eosView->updateContainerStore(opcmd.get());
+	  } catch (eos::MDException& e) {
+	  }
+	}
+
+	eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(opcmd.get());
+
+	// free quota in old parent, will be added to new parent
+	if (quotanode) {
+	  quotanode->removeFile(fmd.get());
+	}
+      } else {
+	if (fmd->getName() != md.name()) {
+	  op = RENAME;
+	  eos_info("op=RENAME ino=%#lx %s=>%s", (long) md.md_ino(), fmd->getName().c_str(), md.name().c_str());
+	  // check if target exists
+          ofmd = pcmd->findFile(md.name());
+
+	  if (ofmd) {
+	    // remove the target - no recycle bin for symlink rename
+	    try {
+	      XrdOucErrInfo error;
+
+	      pcmd->removeFile(md.name());
+	      // unlink the existing file
+	      ofmd->setContainerId(0);
+	      ofmd->unlinkAllLocations();
+
+	      eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
+
+	      // free previous quota
+	      if (quotanode) {
+		quotanode->removeFile(ofmd.get());
+	      }
+
+	      gOFS->eosFileService->updateStore(ofmd.get());
+	    } catch (eos::MDException& e) {
+	    }
+	  }
+
+	  // call the rename function
+          gOFS->eosView->renameFile(fmd.get(), md.name());
+	}
+      }
     } else {
       op = CREATE;
+      eos_info("op=CREATE ino=%#lx %s", (long) md.md_ino(), md.name().c_str());
 
       if (md.name().substr(0, strlen(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX)) ==
           EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) {
@@ -2315,21 +2396,39 @@ Server::OpSetLink(const std::string& id,
         return EPERM;
       }
 
+      fmd = pcmd->findFile(md.name());
+
+      if (fmd && exclusive) {
+	return EEXIST;
+      }
+
       fmd = gOFS->eosFileService->createFile(0);
     }
 
+    switch (op) {
+    case MOVE:
+      gOFS->MgmStats.Add("Eosxd::ext::MV", vid.uid, vid.gid, 1);
+      break;
+
+    case UPDATE:
+      gOFS->MgmStats.Add("Eosxd::ext::UPDATE", vid.uid, vid.gid, 1);
+      break;
+
+    case CREATE:
+      gOFS->MgmStats.Add("Eosxd::ext::CREATELNK", vid.uid, vid.gid, 1);
+      break;
+
+    case RENAME:
+      gOFS->MgmStats.Add("Eosxd::ext::RENAME", vid.uid, vid.gid, 1);
+      break;
+    }
+
+
     fmd->setName(md.name());
-
-    if (S_ISLNK(md.mode())) {
-      fmd->setLink(md.target());
-    }
-
+    fmd->setLink(md.target());
     fmd->setLayoutId(0);
-    md_ino = eos::common::FileId::FidToInode(fmd->getId());
 
-    if (op == CREATE) {
-      pcmd->addFile(fmd.get());
-    }
+    md_ino = eos::common::FileId::FidToInode(fmd->getId());
 
     eos_info("ino=%lx pino=%lx md-ino=%lx create-link", (long) md.md_ino(),
              (long) md.md_pino(), md_ino);
@@ -2347,6 +2446,17 @@ Server::OpSetLink(const std::string& id,
     fmd->setMTime(mtime);
     replaceNonSysAttributes(fmd, md);
 
+    if ( (op == CREATE) || (op == MOVE)) {
+      pcmd->addFile(fmd.get());
+
+      eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
+
+      // add inode quota
+      if (quotanode) {
+	quotanode->addFile(fmd.get());
+      }
+    }
+
     if (op == CREATE) {
       // store the birth time as an extended attribute
       char btime[256];
@@ -2357,12 +2467,11 @@ Server::OpSetLink(const std::string& id,
 
     struct timespec pt_mtime;
 
-    // update the mtime
-    pcmd->setMTime(mtime);
+    pcmd->setMTime(ctime);
 
-    pt_mtime.tv_sec = mtime.tv_sec;
+    pt_mtime.tv_sec = ctime.tv_sec;
 
-    pt_mtime.tv_nsec = mtime.tv_nsec;
+    pt_mtime.tv_nsec = ctime.tv_nsec;
 
     gOFS->eosFileService->updateStore(fmd.get());
 
@@ -2738,7 +2847,6 @@ Server::OpDeleteLink(const std::string& id,
 
   eos::fusex::response resp;
   resp.set_type(resp.ACK);
-  std::shared_ptr<eos::IContainerMD> cmd;
   std::shared_ptr<eos::IContainerMD> pcmd;
   std::shared_ptr<eos::IFileMD> fmd;
   eos::IFileMD::ctime_t mtime;
@@ -2749,13 +2857,8 @@ Server::OpDeleteLink(const std::string& id,
   try {
     pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
 
-    if (S_ISDIR(md.mode())) {
-      cmd = gOFS->eosDirectoryService->getContainerMD(md.md_ino());
-    } else {
-      fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(
-                                              md.md_ino()));
-    }
-
+    fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(
+									  md.md_ino()));
     if (!fmd) {
       // no link
       throw_mdexception(ENOENT, "No such link : " << md.md_ino());
@@ -2764,6 +2867,14 @@ Server::OpDeleteLink(const std::string& id,
     pcmd->setMTime(mtime);
     eos_info("ino=%lx delete-link", (long) md.md_ino());
     gOFS->eosView->removeFile(fmd.get());
+
+    eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
+
+    // free previous quota
+    if (quotanode) {
+      quotanode->removeFile(fmd.get());
+    }
+
     gOFS->eosDirectoryService->updateStore(pcmd.get());
     pcmd->notifyMTimeChange(gOFS->eosDirectoryService);
     // release the namespace lock before serialization/broadcasting
