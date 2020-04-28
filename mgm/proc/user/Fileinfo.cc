@@ -500,6 +500,8 @@ ProcCommand::FileInfo(const char* path)
               if (!Monitoring) {
                 out << std::setw(3) << i << std::setw(8) << location
                     << " NA" << std::endl;
+              } else {
+                out << "fsid=" << location << " ";
               }
             }
 
@@ -867,10 +869,12 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
           if (!fs.mForceGeoTag.empty()) {
             jsonfsinfo["forcegeotag"] = fs.mForceGeoTag;
           }
-
-          jsonfsids.append(jsonfsinfo);
         }
+      } else {
+        jsonfsinfo["fsid"] = *loc_it;
       }
+
+      jsonfsids.append(jsonfsinfo);
     }
 
     json["locations"] = jsonfsids;
