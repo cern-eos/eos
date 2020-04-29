@@ -227,9 +227,9 @@ function corrupt_orphan() {
   local FSID=$(echo "${CMD_OUT}" | head -n1 | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
   local LPATH=$(echo "${CMD_OUT}" | tail -n1)
   # Do it twice to force delete the filemd object
-  exec_cmd eos_mgm1 "eos rm -F fxid;${FXID_ORPHAN}"
-  exec_cmd eos_mgm1 "eos rm -F fxid;${FXID_ORPHAN}"
-  exec_cmd eos_mgm1 "eos fs dropdeletion ${FSID}"
+  exec_cmd eos-mgm1 "eos rm -F fxid:${FXID_ORPHAN}"
+  exec_cmd eos-mgm1 "eos rm -F fxid:${FXID_ORPHAN}"
+  exec_cmd eos-mgm1 "eos fs dropdeletion ${FSID}"
 }
 
 # Configure fsck to run more often and reduce the scan times
@@ -352,6 +352,7 @@ corrupt_rep_diff_over
 corrupt_unreg
 corrupt_rain_blocxs_err
 corrupt_rain_stripe_diff
+corrupt_orphan
 
 # Configure fsck to run more often and reduce scan times
 configure_fsck
