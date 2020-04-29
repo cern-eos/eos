@@ -16,6 +16,16 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.7.12 Citrine``
+===================
+
+2020-04-29
+
+Bug
+----
+
+* [EOS-4178] - use 'x' bits from ACL+POSIX for directories, while only from POSIX for files
+
 ``v4.7.11 Citrine``
 ===================
 
