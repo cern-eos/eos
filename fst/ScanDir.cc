@@ -263,17 +263,20 @@ ScanDir::AccountMissing()
                     "fsid=%lu", fpath.c_str(), fid, mFsId);
           }
         } else {
-          // File missing on disk - create fmd entry and mark it as missing
-          eos_info("msg=\"account for missing replica\" fxid=%08llx fsid=%lu",
-                   fid, mFsId);
+          // File missing on disk - create fmd entry and mark it as missing but
+          // then also check the MGM info since the file might be 0-size so we
+          // need to remove the kMissing flag
           auto fmd = gFmdDbMapHandler.LocalGetFmd(fid, mFsId, true, true);
 
           if (fmd) {
+            fmd->mProtoFmd.set_layouterror(fmd->mProtoFmd.layouterror() |
+                                           LayoutId::kMissing);
+            gFmdDbMapHandler.Commit(fmd.get());
             (void) gFmdDbMapHandler.ResyncFileFromQdb(fid, mFsId, fpath,
                 gOFS.mFsckQcl);
           } else {
-            eos_err("msg=\"faile to create local fmd entry\" fxid=%08llx "
-                    "fsid=%lu", fid, mFsId);
+            eos_err("msg=\"faile to create local fmd entry for missing file\" "
+                    "fxid=%08llx fsid=%lu", fid, mFsId);
           }
         }
       } catch (eos::MDException& e) {
