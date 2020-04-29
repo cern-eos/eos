@@ -3723,27 +3723,29 @@ EosFuse::access(fuse_req_t req, fuse_ino_t ino, int mask)
         }
       }
 
-      // check the execution bits
-      if (mask & X_OK) {
-	bool allowed = false;
-	if (pcap->uid() == md->uid()) {
-	  // check user X permission
-	  if (mode & S_IXUSR) {
+      if (S_ISREG(mode)) {
+	// check the execution bits
+	if (mask & X_OK) {
+	  bool allowed = false;
+	  if (pcap->uid() == md->uid()) {
+	    // check user X permission
+	    if (mode & S_IXUSR) {
+	      allowed = true;
+	    }
+	  }
+	  if (pcap->gid() == md->gid()) {
+	    // check group X permission
+	    if (mode & S_IXGRP) {
+	      allowed = true;
+	    }
+	  }
+	  // check other X permision
+	  if (mode & S_IXOTH) {
 	    allowed = true;
 	  }
-	}
-	if (pcap->gid() == md->gid()) {
-	  // check group X permission
-	  if (mode & S_IXGRP) {
-	    allowed = true;
+	  if (!allowed) {
+	    rc = EACCES;
 	  }
-	}
-	// check other X permision
-	if (mode & S_IXOTH) {
-	  allowed = true;
-	}
-	if (!allowed) {
-	  rc = EACCES;
 	}
       }
     }
