@@ -116,7 +116,6 @@ function corrupt_d_mem_sz_diff() {
   # Extract the fxid and local path, trim the input
   local FSID=$(echo "${CMD_OUT}" | head -n1 | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
   local LPATH=$(echo "${CMD_OUT}" | tail -n1)
-  echo "Fsid: ${FSID}, local_path=${LPATH}"
   exec_cmd "eos-fst${FSID}" "echo \"dummy\" >> ${LPATH}"
 }
 
@@ -145,8 +144,6 @@ function corrupt_m_cx_diff() {
   local QDB_CLUSTER=$(exec_cmd eos-mgm1 "cat /etc/xrd.cf.mgm | grep "^mgmofs.qdbcluster" | awk '{print \$2;}'")
   local QDB_PWDFILE=$(exec_cmd eos-mgm1 "cat /etc/xrd.cf.mgm | grep "^mgmofs.qdbpassword_file" | awk '{print \$2;}'")
   exec_cmd eos-cli1 "eos-ns-inspect change-fid --no-dry-run --members ${QDB_CLUSTER} --password-file ${QDB_PWDFILE} --fid $(( 16#${FXID_M_CX_DIFF} )) --new-checksum 12345678"
-  # todo(esindril) this can be dropped
-  exec_cmd eos-cli1 "eos -r 0 0 ns cache drop-single-file $(( 16#${FXID_M_CX_DIFF} ))"
 }
 
 # Corrupt file to generate rep_missing_n error
@@ -223,6 +220,18 @@ function corrupt_rain_stripe_diff() {
   exec_cmd eos-cli1 "eos -r 0 0 file drop fxid:${FXID_RAIN_DIFF} ${FSID} -f"
 }
 
+# Corrupt file to generate orphan_n error
+function corrupt_orphan() {
+  local CMD_OUT=$(exec_cmd eos-cli1 "eos fileinfo fxid:${FXID_ORPHAN} -m --fullpath | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '{if (\$1 ==\"fsid\" || \$1 ==\"fullpath\") {print \$2};}' | tail -n2")
+  # Extract the fxid and local path, trim the input
+  local FSID=$(echo "${CMD_OUT}" | head -n1 | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+  local LPATH=$(echo "${CMD_OUT}" | tail -n1)
+  # Do it twice to force delete the filemd object
+  exec_cmd eos_mgm1 "eos rm -F fxid;${FXID_ORPHAN}"
+  exec_cmd eos_mgm1 "eos rm -F fxid;${FXID_ORPHAN}"
+  exec_cmd eos_mgm1 "eos fs dropdeletion ${FSID}"
+}
+
 # Configure fsck to run more often and reduce the scan times
 function configure_fsck() {
   # First reduce the scan interval on the FSTs
@@ -253,7 +262,7 @@ function check_all_errors_collected() {
     local FOUND_REP_DIFF_OVER=$(exec_cmd eos-cli1 "eos -r 0 0 fsck report -i | grep ${FXID_REP_DIFF_OVER}")
     local FOUND_RAIN_BLOCKXS=$(exec_cmd eos-cli1 "eos -r 0 0 fsck report -i | grep ${FXID_RAIN_BLOCKXS}")
     local FOUND_RAIN_DIFF=$(exec_cmd eos-cli1 "eos -r 0 0 fsck report -i | grep ${FXID_RAIN_DIFF}")
-    # @todo(esindril) local FOUND_ORPHAN=$(exec_cmd eos-cli1 "eos -r 0 0 fsck report -i | grep ${FXID_ORPHAN}")
+    local FOUND_ORPHAN=$(exec_cmd eos-cli1 "eos -r 0 0 fsck report -i | grep ${FXID_ORPHAN}")
 
     if [[ -z "${FOUND_D_MEM_SZ_DIFF}"  ||
           -z "${FOUND_M_MEM_SZ_DIFF}"  ||
@@ -262,8 +271,9 @@ function check_all_errors_collected() {
           -z "${FOUND_REP_MISSING}"    ||
           -z "${FOUND_REP_DIFF_UNDER}" ||
           -z "${FOUND_REP_DIFF_OVER}"  ||
-          -z "${FOUND_RAIN_BLOCKXS}"    ||
-          -z "${FOUND_RAIN_DIFF}"      ]]; then
+          -z "${FOUND_RAIN_BLOCKXS}"   ||
+          -z "${FOUND_RAIN_DIFF}"      ||
+          -z "${FOUND_ORPHAN}"           ]]; then
       if (( $((${CURRENT_TIME} - ${START_TIME})) >= ${MAX_DELAY} )); then
         echo "error: some of the errors were not discovered"
         exit 1
@@ -359,7 +369,7 @@ START_TIME=$(date +%s)
 
 while
   CURRENT_TIME=$(date +%s)
-  HAS_ERRORS=$(exec_cmd eos-cli1 "eos -r 0 0 fsck report -i")
+  HAS_ERRORS=$(exec_cmd eos-cli1 "eos -r 0 0 fsck report -i | grep -v orphans_n")
 
   if [[ ! -z "${HAS_ERRORS}" ]]; then
     if (( $((${CURRENT_TIME} - ${START_TIME})) >= ${MAX_DELAY} )); then
@@ -367,7 +377,8 @@ while
       cleanup
       exit 1
     else
-      echo "info: sleep for 5 seconds waiting for error collection, `secs_to_human $((${CURRENT_TIME} - ${START_TIME}))` passed"
+      echo "info: sleep for 5 seconds waiting for error collection, "
+      "`secs_to_human $((${CURRENT_TIME} - ${START_TIME}))` passed"
       sleep 5
     fi
   else
