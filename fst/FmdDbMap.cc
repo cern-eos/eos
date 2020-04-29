@@ -1165,7 +1165,7 @@ FmdDbMapHandler::ResyncFileFromQdb(eos::common::FileId::fileid_t fid,
   // Orphan files get moved to a special directory .eosorphans
   if (ns_fmd.mProtoFmd.layouterror() & eos::common::LayoutId::kOrphan) {
     MoveToOrphans(fpath);
-    gFmdDbMapHandler.LocalDeleteFmd(fid, fsid);
+    //gFmdDbMapHandler.LocalDeleteFmd(fid, fsid);
     return ENOENT;
   }
 
