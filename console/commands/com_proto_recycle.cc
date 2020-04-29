@@ -94,7 +94,7 @@ void com_recycle_help()
       << "   recycle restore [-p] [-f|--force-original-name] [-r|--restore-versions] <recycle-key>"
       << std::endl
       << "     undo the deletion identified by the <recycle-key>" << std::endl
-      << "     -p : create all missing parent directories" 
+      << "     -p : create all missing parent directories\n"
       << "     -f : move deleted files/dirs back to their original location (otherwise"
       << std::endl
       << "          the key entry will have a <.inode> suffix)" << std::endl
