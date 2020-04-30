@@ -311,6 +311,8 @@ cd build
     source /opt/rh/%{devtoolset}/enable
   %endif
 
+  which gcc
+
   %if 0%{distribution} == 6 || 0%{distribution} == 7 || 0%{distribution} == 8
     %if 0%{distribution} == 6
       echo "Install custom cmake 3.15.5 required by EOS"
@@ -334,6 +336,17 @@ cd build
 %{__make} %{_smp_mflags}
 
 %install
+
+%if "%{?compiler}" == "gcc"
+  which gcc
+
+  %if 0%{distribution} == 6 || 0%{distribution} == 7
+    source /opt/rh/%{devtoolset}/enable
+  %endif
+
+  which gcc
+%endif
+
 cd build
 %{__make} install DESTDIR=$RPM_BUILD_ROOT
 export QA_RPATHS=3
