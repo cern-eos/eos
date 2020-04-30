@@ -311,8 +311,6 @@ cd build
     source /opt/rh/%{devtoolset}/enable
   %endif
 
-  which gcc
-
   %if 0%{distribution} == 6 || 0%{distribution} == 7 || 0%{distribution} == 8
     %if 0%{distribution} == 6
       echo "Install custom cmake 3.15.5 required by EOS"
@@ -337,14 +335,15 @@ cd build
 
 %install
 
-%if "%{?compiler}" == "gcc"
-  which gcc
+# We have to activate devtoolset in install section as well, since the generation
+# of debuginfo happens here. "make install" will still remember to use devtoolset,
+# but find-debuginfo.sh will not, resulting in a debuginfo package that is corrupted
+# and may cause GDB to crash.
 
+%if "%{?compiler}" == "gcc"
   %if 0%{distribution} == 6 || 0%{distribution} == 7
     source /opt/rh/%{devtoolset}/enable
   %endif
-
-  which gcc
 %endif
 
 cd build
