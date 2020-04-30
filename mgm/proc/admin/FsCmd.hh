@@ -42,7 +42,7 @@ public:
   //----------------------------------------------------------------------------
   FsCmd(eos::console::RequestProto&& req,
         eos::common::VirtualIdentity& vid):
-    IProcCommand(std::move(req), vid, true) {}
+    IProcCommand(std::move(req), vid, true), mRetc(0) {}
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -100,7 +100,7 @@ private:
   static XrdSysSemaphore mSemaphore;
   std::string mOut; ///< Command output string
   std::string mErr; ///< Command error output string
-  int mRetC; ///< Command return code
+  int mRetc; ///< Command return code
 };
 
 EOSMGMNAMESPACE_END
