@@ -90,7 +90,6 @@ build_cc7:
   stage: build:rpm
   image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7
   script:
-    - ccache -C
     - git submodule update --init --recursive
     - mkdir build
     - cd build/
