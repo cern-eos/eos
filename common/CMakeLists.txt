@@ -65,6 +65,8 @@ set_target_properties(EosCrc32c-Static PROPERTIES
 # EosCommon-Objects
 #-------------------------------------------------------------------------------
 add_library(EosCommon-Objects OBJECT
+  config/ConfigParsing.cc                                    config/ConfigParsing.hh
+
   Fmd.cc
   SymKeys.cc
   InstanceName.cc

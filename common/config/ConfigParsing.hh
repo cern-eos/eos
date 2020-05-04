@@ -24,11 +24,11 @@
 #ifndef EOS_MGM_CONFIG_PARSING_HH
 #define EOS_MGM_CONFIG_PARSING_HH
 
-#include "mgm/Namespace.hh"
+#include "common/Namespace.hh"
 #include <string>
 #include <map>
 
-EOSMGMNAMESPACE_BEGIN
+EOSCOMMONNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 //! Class ConfigParsing
@@ -56,6 +56,6 @@ public:
 };
 
 
-EOSMGMNAMESPACE_END
+EOSCOMMONNAMESPACE_END
 
 #endif

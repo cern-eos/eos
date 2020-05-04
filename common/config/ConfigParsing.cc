@@ -21,11 +21,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/config/ConfigParsing.hh"
+#include "common/config/ConfigParsing.hh"
 #include "common/StringConversion.hh"
 #include "common/Logging.hh"
 
-EOSMGMNAMESPACE_BEGIN
+EOSCOMMONNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 //! Parse filesystem configuration into a map. We should have a dedicated
@@ -125,4 +125,4 @@ bool ConfigParsing::parseConfigurationFile(const std::string& contents,
   return true;
 }
 
-EOSMGMNAMESPACE_END
+EOSCOMMONNAMESPACE_END

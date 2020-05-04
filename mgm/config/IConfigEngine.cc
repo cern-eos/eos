@@ -23,13 +23,13 @@
 
 #include "mgm/config/IConfigEngine.hh"
 #include "common/Mapping.hh"
+#include "common/config/ConfigParsing.hh"
 #include "mgm/Access.hh"
 #include "mgm/FsView.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Vid.hh"
 #include "mgm/Iostat.hh"
 #include "mgm/proc/proc_fs.hh"
-#include "mgm/config/ConfigParsing.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/GeoTreeEngine.hh"
 #include "mgm/txengine/TransferEngine.hh"
@@ -387,7 +387,7 @@ bool
 IConfigEngine::ParseConfig(XrdOucString& inconfig, XrdOucString& err)
 {
   std::string err1;
-  bool retval = ConfigParsing::parseConfigurationFile(inconfig.c_str(),
+  bool retval = common::ConfigParsing::parseConfigurationFile(inconfig.c_str(),
                 sConfigDefinitions, err1);
   err = err1.c_str();
   return retval;

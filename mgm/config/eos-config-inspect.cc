@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
-#include "mgm/config/ConfigParsing.hh"
+#include "common/config/ConfigParsing.hh"
 #include "common/CLI11.hpp"
 #include "common/PasswordHandler.hh"
 #include <qclient/QClient.hh>
@@ -166,7 +166,7 @@ int main(int argc, char* argv[])
   std::map<std::string, std::string> configuration;
   std::string err;
 
-  if (!eos::mgm::ConfigParsing::parseConfigurationFile(fullContents,
+  if (!eos::common::ConfigParsing::parseConfigurationFile(fullContents,
       configuration, err)) {
     std::cerr << "Could not parse configuration file: " << err << std::endl;
     return 1;

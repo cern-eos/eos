@@ -24,7 +24,7 @@
 #include "gtest/gtest.h"
 #include "mgm/FsView.hh"
 #include "mgm/utils/FilesystemUuidMapper.hh"
-#include "mgm/config/ConfigParsing.hh"
+#include "common/config/ConfigParsing.hh"
 
 //------------------------------------------------------------------------------
 // Test const_iterator implementation
@@ -154,7 +154,7 @@ TEST(FilesystemUuidMapper, BasicSanity) {
 TEST(ConfigParsing, FilesystemEntry)
 {
   std::map<std::string, std::string> results;
-  ASSERT_TRUE(eos::mgm::ConfigParsing::parseFilesystemConfig(
+  ASSERT_TRUE(eos::common::ConfigParsing::parseFilesystemConfig(
     "bootcheck=0 bootsenttime=1480576520 configstatus=empty drainperiod=86400 drainstatus=drained graceperiod=3600 headroom=25000000000 host=p05798818d95041.cern.ch hostport=p05798818d95041.cern.ch:1095 id=7259 path=/data46 port=1095 queue=/eos/p05798818d95041.cern.ch:1095/fst queuepath=/eos/p05798818d95041.cern.ch:1095/fst/data46 scaninterval=604800 schedgroup=spare uuid=62dce94a-71de-4904-8105-534c61ce2eaa",
     results));
 

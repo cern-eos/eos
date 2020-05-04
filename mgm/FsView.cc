@@ -23,6 +23,7 @@
 
 #include <cfloat>
 #include <curl/curl.h>
+#include "common/config/ConfigParsing.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/IMaster.hh"
 #include "mgm/FsView.hh"
@@ -31,7 +32,6 @@
 #include "mgm/GroupBalancer.hh"
 #include "mgm/Converter.hh"
 #include "mgm/GeoTreeEngine.hh"
-#include "mgm/config/ConfigParsing.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "mgm/tgc/Constants.hh"
 #include "mgm/ZMQ.hh"
@@ -2829,7 +2829,7 @@ FsView::ApplyFsConfig(const char* inkey, std::string& val)
 {
   std::map<std::string, std::string> configmap;
 
-  if (!ConfigParsing::parseFilesystemConfig(val, configmap)) {
+  if (!common::ConfigParsing::parseFilesystemConfig(val, configmap)) {
     eos_err("could not parse fs config entry");
     return false;
   }

@@ -119,7 +119,6 @@ endforeach(MGM_TGC_SRC_FILE_SRC)
 add_library(
   XrdEosMgm-Objects OBJECT
   auth/AccessChecker.cc                             auth/AccessChecker.hh
-  config/ConfigParsing.cc                           config/ConfigParsing.hh
   config/FileConfigEngine.cc                        config/FileConfigEngine.hh
   config/IConfigEngine.cc                           config/IConfigEngine.hh
   config/QuarkDBConfigEngine.cc                     config/QuarkDBConfigEngine.hh
@@ -375,7 +374,7 @@ target_link_libraries(
 
 add_executable(eos-config-inspect
   config/eos-config-inspect.cc
-  config/ConfigParsing.cc                           config/ConfigParsing.hh
+  ../common/config/ConfigParsing.cc                       ../common/config/ConfigParsing.hh
 )
 
 target_link_libraries(
