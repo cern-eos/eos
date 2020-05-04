@@ -183,8 +183,13 @@ public:
   //----------------------------------------------------------------------------
   int printContainerMD(uint64_t cid, bool withParents, std::ostream& out, std::ostream& err);
 
+  //----------------------------------------------------------------------------
+  //! Load configuration
+  //----------------------------------------------------------------------------
+  bool loadConfiguration();
 
 private:
+  std::map<std::string, std::string> mgmConfiguration;
   qclient::QClient &mQcl;
   OutputSink &mOutputSink;
 

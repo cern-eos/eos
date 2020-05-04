@@ -38,6 +38,7 @@
 #include "common/StringUtils.hh"
 #include <folly/executors/IOThreadPoolExecutor.h>
 #include <qclient/QClient.hh>
+#include <qclient/ResponseParsing.hh>
 #include <google/protobuf/util/json_util.h>
 
 EOSNSNAMESPACE_BEGIN
@@ -80,6 +81,22 @@ static std::string toYesOrNo(bool val) {
 //------------------------------------------------------------------------------
 Inspector::Inspector(qclient::QClient& qcl, OutputSink &sink)
 : mQcl(qcl), mOutputSink(sink) { }
+
+//------------------------------------------------------------------------------
+// Load configuration
+//------------------------------------------------------------------------------
+bool Inspector::loadConfiguration() {
+  qclient::redisReplyPtr reply = mQcl.exec("HGETALL", "eos-config:default").get();
+
+  qclient::HgetallParser parser(reply);
+
+  if(!parser.ok()) {
+    return false;
+  }
+
+  mgmConfiguration = parser.value();
+  return true;
+}
 
 //------------------------------------------------------------------------------
 // Is the connection to QDB ok? If not, pointless to run anything else.
