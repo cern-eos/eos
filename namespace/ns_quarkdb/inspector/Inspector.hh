@@ -28,6 +28,7 @@
 #include <string>
 #include <map>
 #include <vector>
+#include <set>
 
 namespace qclient {
   class QClient;
@@ -82,7 +83,7 @@ public:
   //! Scan all file metadata in the namespace, and print out some information
   //! about each one. (even potentially unreachable directories)
   //----------------------------------------------------------------------------
-  int scanFileMetadata(bool onlySizes, bool fullPaths);
+  int scanFileMetadata(bool onlySizes, bool fullPaths, bool onlyUnknownFsids);
 
   //----------------------------------------------------------------------------
   //! Scan all deathrow entries
@@ -190,6 +191,8 @@ public:
 
 private:
   std::map<std::string, std::string> mgmConfiguration;
+  std::set<int64_t> validFsIds;
+
   qclient::QClient &mQcl;
   OutputSink &mOutputSink;
 
@@ -204,7 +207,6 @@ private:
   //! the output.
   //----------------------------------------------------------------------------
   void executeRequestBatch(const std::vector<RedisRequest> &requestBatch, const CacheNotifications &notif, bool dryRun, std::ostream& out, std::ostream& err);
-
 
 };
 

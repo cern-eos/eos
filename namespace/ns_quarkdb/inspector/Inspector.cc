@@ -36,6 +36,7 @@
 #include "common/InodeTranslator.hh"
 #include "common/ParseUtils.hh"
 #include "common/StringUtils.hh"
+#include "common/config/ConfigParsing.hh"
 #include <folly/executors/IOThreadPoolExecutor.h>
 #include <qclient/QClient.hh>
 #include <qclient/ResponseParsing.hh>
@@ -95,6 +96,21 @@ bool Inspector::loadConfiguration() {
   }
 
   mgmConfiguration = parser.value();
+
+  for(auto it = mgmConfiguration.begin(); it != mgmConfiguration.end(); it++) {
+    if(eos::common::startsWith(it->first, "fs:")) {
+      std::map<std::string, std::string> fsConfig;
+      if(eos::common::ConfigParsing::parseFilesystemConfig(it->second, fsConfig)) {
+        if(fsConfig.find("id") != fsConfig.end()) {
+          int64_t fsid;
+          if(common::ParseInt64(fsConfig["id"], fsid)) {
+            validFsIds.insert(fsid);
+          }
+        }
+      }
+    }
+  }
+
   return true;
 }
 
@@ -327,10 +343,40 @@ std::string fetchNameOrPath(const eos::ns::FileMdProto &proto, FileScanner::Item
 }
 
 //------------------------------------------------------------------------------
+// Are all locations in the given set?
+//------------------------------------------------------------------------------
+template<typename T>
+bool allInSet(const T& vec, const std::set<int64_t> &targetSet) {
+  for(auto it = vec.begin(); it != vec.end(); it++) {
+    if(targetSet.find(*it) == targetSet.end()) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Cross-check locations with MGM config
+//------------------------------------------------------------------------------
+static bool checkLocations(const eos::ns::FileMdProto &proto, const std::set<int64_t> &validFsIds) {
+  if(proto.cont_id() == 0) {
+    return true;
+  }
+
+  return allInSet(proto.locations(), validFsIds);
+}
+
+//------------------------------------------------------------------------------
 // Scan all file metadata in the namespace, and print out some information
 // about each one. (even potentially unreachable ones)
 //------------------------------------------------------------------------------
-int Inspector::scanFileMetadata(bool onlySizes, bool fullPaths) {
+int Inspector::scanFileMetadata(bool onlySizes, bool fullPaths, bool findUnknownFsids) {
+  if(findUnknownFsids && !loadConfiguration()) {
+    mOutputSink.err("could not load MGM configuration -- necessary when using --find-unknown-fsids");
+    return -1;
+  }
+
   FileScanner fileScanner(mQcl, fullPaths);
   FilePrintingOptions opts;
 
@@ -340,6 +386,11 @@ int Inspector::scanFileMetadata(bool onlySizes, bool fullPaths) {
 
     if (!fileScanner.getItem(proto, &item)) {
       break;
+    }
+
+    if(findUnknownFsids && checkLocations(proto, validFsIds)) {
+      fileScanner.next();
+      continue;
     }
 
     if(onlySizes) {

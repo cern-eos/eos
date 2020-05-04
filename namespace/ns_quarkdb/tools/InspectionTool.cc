@@ -220,10 +220,14 @@ int main(int argc, char* argv[])
   addClusterOptions(scanFilesSubcommand, membersStr, memberValidator, password,
                     passwordFile);
   bool onlySizes = false;
+  bool findUnknownFsids = false;
+
   scanFilesSubcommand->add_flag("--only-sizes", onlySizes,
                                 "Only print file sizes, one per line.");
   scanFilesSubcommand->add_flag("--full-paths", fullPaths,
                                 "Show full file paths, if possible");
+  scanFilesSubcommand->add_flag("--find-unknown-fsids", findUnknownFsids,
+                                "Only print files for which there is one or more unrecognized fsids in location vector.");
   scanFilesSubcommand->add_flag("--json", json, "Use json output");
   //----------------------------------------------------------------------------
   // Set-up scan-deathrow subcommand..
@@ -490,7 +494,7 @@ int main(int argc, char* argv[])
   }
 
   if (scanFilesSubcommand->parsed()) {
-    return inspector.scanFileMetadata(onlySizes, fullPaths);
+    return inspector.scanFileMetadata(onlySizes, fullPaths, findUnknownFsids);
   }
 
   if (scanDeathrowSubcommand->parsed()) {
