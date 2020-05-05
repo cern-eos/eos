@@ -39,7 +39,7 @@ ExecStop=/bin/sh -c "/usr/sbin/eos_start_pre.sh eos-stop %i"
 Type=forking
 User=root
 Group=root
-Restart=on-abort
+Restart=on-failure
 RestartSec=5
 LimitNOFILE=65000
 

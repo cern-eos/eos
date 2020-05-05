@@ -63,9 +63,16 @@ xrdmgmofs_stacktrace (int sig)
     eos::common::StackTrace::GdbTrace(0, getpid(), "generate-core-file");
   }
 
-  // now we put back the initial handler ...
-  signal(sig, SIG_DFL);
+  if (getenv("EOS_RAISE_SIGNAL_AFTER_SIGV")) {
+    // now we put back the initial handler ...
+    signal(sig, SIG_DFL);
 
-  // ... and send the signal again
-  kill(getpid(), sig);
+    // ... and send the signal again
+    kill(getpid(), sig);
+  }
+  else {
+    // No std::abort to prevent abortd from generating a multi-GB corefile
+    std::quick_exit(128 + sig);
+  }
+
 }
