@@ -804,11 +804,6 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
   auto comp_file_xs = eos::fst::ChecksumPlugins::GetXsObj(xs_type);
   std::unique_ptr<eos::fst::CheckSum> blockXS {GetBlockXS(file_path)};
 
-  // If no checksum then there is nothing to check
-  if (!comp_file_xs && !blockXS) {
-    return false;
-  }
-
   if (comp_file_xs) {
     comp_file_xs->Reset();
   }
