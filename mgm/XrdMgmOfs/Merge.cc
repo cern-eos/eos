@@ -143,7 +143,7 @@ XrdMgmOfs::merge(const char* src, const char* dst, XrdOucErrInfo& error,
 
   if (src_fmd && dst_fmd) {
     // Remove the destination file
-    rc |= gOFS->_rem(dst_path.c_str(), error, rootvid, "", false, false, true);
+    rc |= gOFS->_rem(dst_path.c_str(), error, rootvid, "", false, false, true, false, true, true);
 
     if (rc == 0) {
       // Rename the source to destination

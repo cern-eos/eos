@@ -77,7 +77,8 @@ XrdMgmOfs::_rem(const char* path,
                 bool keepversion,
                 bool no_recycling,
                 bool no_quota_enforcement,
-                bool fusexcast)
+                bool fusexcast,
+		bool no_workflow)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief delete a file from the namespace
@@ -90,6 +91,8 @@ XrdMgmOfs::_rem(const char* path,
  * @param keepversion indicates if the deletion should wipe the version directory
  * @param no_recycling suppresses the recycle bin
  * @param no_quota_enforcment disables quota check on the recycle bin
+ * @param fusexcast broadcast deletions if true
+ * @param no_workflow skip workflow if true
  * @return SFS_OK if success otherwise SFS_ERROR
  *
  * Deletion supports the recycle bin if configured on the parent directory of
@@ -273,26 +276,30 @@ XrdMgmOfs::_rem(const char* path,
 
       if (!simulate) {
         eos_info("unlinking from view %s", path);
-        Workflow workflow;
-        // eventually trigger a workflow
-        workflow.Init(&attrmap, path, fid);
-        errno = 0;
-        gOFS->eosViewRWMutex.UnLockWrite();
-        auto ret_wfe = workflow.Trigger("sync::delete", "default", vid, ininfo, errMsg);
 
-        if (ret_wfe < 0 && errno == ENOKEY) {
-          eos_info("msg=\"no workflow defined for delete\"");
-        } else {
-          eos_info("msg=\"workflow trigger returned\" retc=%d errno=%d", ret_wfe, errno);
-        }
+	if (!no_workflow) {
+	  Workflow workflow;
+	  // eventually trigger a workflow
+	  workflow.Init(&attrmap, path, fid);
+	  errno = 0;
+	  gOFS->eosViewRWMutex.UnLockWrite();
+	  auto ret_wfe = workflow.Trigger("sync::delete", "default", vid, ininfo, errMsg);
 
-        gOFS->eosViewRWMutex.LockWrite();
+	  if (ret_wfe < 0 && errno == ENOKEY) {
+	    eos_info("msg=\"no workflow defined for delete\"");
+	  } else {
+	    eos_info("msg=\"workflow trigger returned\" retc=%d errno=%d", ret_wfe, errno);
+	  }
 
-        if (ret_wfe && errno != ENOKEY) {
-          eos::MDException e(errno);
-          e.getMessage() << "Deletion workflow failed";
-          throw e;
-        }
+	  gOFS->eosViewRWMutex.LockWrite();
+
+
+	  if (ret_wfe && errno != ENOKEY) {
+	    eos::MDException e(errno);
+	    e.getMessage() << "Deletion workflow failed";
+	    throw e;
+	  }
+	}
 
         /* create a Copy-on-Write clone if needed */
         XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, container, fmd, vid, error);

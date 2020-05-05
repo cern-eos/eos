@@ -444,7 +444,8 @@ public:
            bool keepversion = false,
            bool no_recycling = false,
            bool no_quota_enforcement = false,
-           bool fusexcast = true);
+           bool fusexcast = true,
+	   bool no_workflow = false);
 
   //----------------------------------------------------------------------------
   //! Low-level namespace find command
