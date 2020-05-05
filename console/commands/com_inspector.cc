@@ -29,7 +29,7 @@ extern int com_protospace (char*);
 int
 com_inspector (char *arg1)
 {
-  XrdOucString cmd = "inspector";
+  XrdOucString cmd = "inspector ";
   cmd += arg1;
   return com_protospace((char*)cmd.c_str());
 }
