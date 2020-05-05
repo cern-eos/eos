@@ -503,7 +503,7 @@ public:
       deepness = 0;
     };
 
-    virtual ~FtsHandle()  {};
+    virtual ~FtsHandle() = default;
   };
 
   //----------------------------------------------------------------------------
@@ -533,11 +533,14 @@ public:
   //----------------------------------------------------------------------------
   virtual int ftsClose(FileIo::FtsHandle* fts_handle);
 
+#ifdef IN_TEST_HARNESS
+public:
+#else
 private:
+#endif
   static eos::common::XrdConnPool mXrdConnPool; ///< Xrd connection pool
   bool mDoReadahead; ///< mark if readahead is enabled
   const uint32_t mNumRdAheadBlocks; ///< no. of blocks used for readahead
-  const uint64_t mDefaultBlocksize;
   int32_t mBlocksize; ///< block size for rd/wr opertations
   XrdCl::File* mXrdFile; ///< handler to xrd file
   AsyncMetaHandler* mMetaHandler; ///< async requests meta handler
@@ -554,17 +557,19 @@ private:
   ///< RAAI helper for connection ids
   std::unique_ptr<eos::common::XrdConnIdHelper> mXrdIdHelper;
   XrdCl::XRootDStatus mWriteStatus;
+  uint64_t mPrefetchOffset; ///< Last block offset of a prefetch hit
+  uint64_t mPrefetchHits; ///< Number of prefetch hits
+  uint64_t mPrefetchBlocks; ///< Number of prefetched blocks
 
   //----------------------------------------------------------------------------
   //! Method used to prefetch the next block using the readahead mechanism
   //!
   //! @param offset begin offset of the current block we are reading
-  //! @param isWrite true if block is for write, false otherwise
   //! @param timeout timeout value
   //!
   //! @return true if prefetch request was sent, otherwise false
   //----------------------------------------------------------------------------
-  bool PrefetchBlock(int64_t offset, bool isWrite, uint16_t timeout = 0);
+  bool PrefetchBlock(int64_t offset, uint16_t timeout = 0);
 
   //----------------------------------------------------------------------------
   //! Try to find a block in cache with contains the provided offset
@@ -575,6 +580,14 @@ private:
   //!         is found we return the iterator to the end of the map
   //----------------------------------------------------------------------------
   PrefetchMap::iterator FindBlock(uint64_t offset);
+
+  //------------------------------------------------------------------------------
+  //! Recycle blocks from the map that are not useful since the current offset
+  //! is already grater then their offset
+  //!
+  //! @param iter iterator in the map of prefetched blocks
+  //------------------------------------------------------------------------------
+  void RecycleBlocks(std::map<uint64_t, ReadaheadBlock*>::iterator iter);
 
   //----------------------------------------------------------------------------
   //! Download a remote file into a string object

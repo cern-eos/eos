@@ -90,7 +90,7 @@ TEST(BufferManager, AdjustCachedSizes)
   eos::fst::BufferManager buff_mgr(20 * MB);
   std::list<std::shared_ptr<eos::fst::Buffer>> lst_buffs;
 
-  // Recycle a 1MB blocks
+  // Recycle a 1MB blocks in a loop
   for (int i = 0; i < 20; ++i) {
     lst_buffs.push_back(buff_mgr.GetBuffer(1 * MB));
     // do some work with the buffer

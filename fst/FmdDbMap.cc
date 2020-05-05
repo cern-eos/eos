@@ -1152,7 +1152,8 @@ FmdDbMapHandler::ResyncFileFromQdb(eos::common::FileId::fileid_t fid,
   try {
     NsFileProtoToFmd(std::move(file_fut).get(), ns_fmd);
   } catch (const eos::MDException& e) {
-    eos_err("msg=\"failed to get metadata from QDB: %s\"", e.what());
+    eos_err("msg=\"failed to get metadata from QDB: %s\" fxid=%08llx",
+            e.what(), fid);
   }
 
   // Mark any possible layout error, if fid not found in QDB then this is

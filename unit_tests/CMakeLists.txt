@@ -93,7 +93,8 @@ set(FST_UT_SRCS
   fst/UtilsTest.cc
   fst/XrdFstOfsFileTest.cc
   fst/ScanDirTests.cc
-  fst/BufferManagerTests.cc)
+  fst/BufferManagerTests.cc
+  fst/XrdIoTests.cc)
 
 #-------------------------------------------------------------------------------
 # unit tests source files

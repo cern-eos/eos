@@ -58,7 +58,7 @@ public:
   //! @param length request length
   //! @param isWrite chunk belongs to a write request
   //----------------------------------------------------------------------------
-  void Update(uint64_t offset, int32_t length, bool isWrite);
+  void Update(uint64_t offset, int32_t length, bool isWrite = false);
 
   //----------------------------------------------------------------------------
   //! Wait for request to be done
