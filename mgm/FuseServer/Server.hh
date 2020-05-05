@@ -194,6 +194,7 @@ public:
 
   void prefetchMD(const eos::fusex::md& md);
 
+  bool CheckRecycleBinOrVersion(std::shared_ptr<eos::IFileMD> fmd);
 
   void
   MonitorCaps() noexcept;

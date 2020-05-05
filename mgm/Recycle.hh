@@ -220,6 +220,10 @@ public:
     mWakeUp = true;
   }
 
+  static bool InRecycleBin(std::string& path)
+  {
+    return (path.substr(0,Recycle::gRecyclingPrefix.length()) == Recycle::gRecyclingPrefix);
+  }
 
   static std::string gRecyclingPrefix; //< prefix for all recycle bins
   static std::string

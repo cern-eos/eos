@@ -366,6 +366,11 @@ public:
     return true;
   }
 
+  // check if path points to a version
+  static bool IsVersion(std::string& path) {
+    return (path.find(EOS_COMMON_PATH_VERSION_PREFIX) != std::string::npos);
+  }
+
 protected:
   XrdOucString fullPath; //< the full path stored
   XrdOucString parentPath; //< path of the parent directory

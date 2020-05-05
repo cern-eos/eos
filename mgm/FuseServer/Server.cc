@@ -1327,7 +1327,9 @@ Server::OpGetLs(const std::string& id,
 
 //------------------------------------------------------------------------------
 // Server a meta-data SET operation
-//------------------------------------------------------------------------------/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+
+/*----------------------------------------------------------------------------*/
 
 int
 Server::OpSet(const std::string& id,
@@ -1367,7 +1369,9 @@ Server::OpSet(const std::string& id,
 
 //------------------------------------------------------------------------------
 // Server a meta-data SET operation
-//------------------------------------------------------------------------------/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+
+/*----------------------------------------------------------------------------*/
 
 int
 Server::OpSetDirectory(const std::string& id,
@@ -1690,8 +1694,22 @@ Server::OpSetDirectory(const std::string& id,
 
 //------------------------------------------------------------------------------
 // Server a meta-data SET operation
-//------------------------------------------------------------------------------/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 
+/*----------------------------------------------------------------------------*/
+bool
+Server::CheckRecycleBinOrVersion(std::shared_ptr<eos::IFileMD> fmd)
+{
+  std::string path = gOFS->eosView->getUri(fmd.get());
+  return (Recycle::InRecycleBin(path) || eos::common::Path::IsVersion(path));
+}
+
+
+//------------------------------------------------------------------------------
+// Server a meta-data SET operation
+//------------------------------------------------------------------------------
+
+/*----------------------------------------------------------------------------*/
 int
 Server::OpSetFile(const std::string& id,
                   const eos::fusex::md& md,
@@ -1724,6 +1742,7 @@ Server::OpSetFile(const std::string& id,
   uint64_t fid = eos::common::FileId::InodeToFid(md.md_ino());
   md_ino = md.md_ino();
   uint64_t md_pino = md.md_pino();
+  bool recycleOrVersioned = false;
 
   try {
     uint64_t clock = 0;
@@ -1750,248 +1769,254 @@ Server::OpSetFile(const std::string& id,
                                       md.name().c_str());
 
       if (fmd->getContainerId() != md.md_pino()) {
-        // this indicates a file move
-        op = MOVE;
-        bool hasVersion = false;
+	recycleOrVersioned = CheckRecycleBinOrVersion(fmd);
+      }
 
-        if (EOS_LOGS_DEBUG) {
-          eos_debug("moving %lx => %lx", fmd->getContainerId(), md.md_pino());
-        }
+      if (!recycleOrVersioned) {
+	if (fmd->getContainerId() != md.md_pino()) {
+	  // this indicates a file move
+	  op = MOVE;
+	  bool hasVersion = false;
 
-        eos::common::Path oPath(gOFS->eosView->getUri(fmd.get()).c_str());
-        std::string vdir = EOS_COMMON_PATH_VERSION_FILE_PREFIX;
-        vdir += oPath.GetName();
+	  if (EOS_LOGS_DEBUG) {
+	    eos_debug("moving %lx => %lx", fmd->getContainerId(), md.md_pino());
+	  }
 
-        if (pcmd->findContainer(vdir)) {
-          hasVersion = true;
-        }
+	  eos::common::Path oPath(gOFS->eosView->getUri(fmd.get()).c_str());
+	  std::string vdir = EOS_COMMON_PATH_VERSION_FILE_PREFIX;
+	  vdir += oPath.GetName();
 
-        cpcmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
-        cpcmd->removeFile(fmd->getName());
-        gOFS->eosView->updateContainerStore(cpcmd.get());
-        fmd->setName(md.name());
-        ofmd = pcmd->findFile(md.name());
+	  if (pcmd->findContainer(vdir)) {
+	    hasVersion = true;
+	  }
 
-        if (ofmd) {
-          // the target might exist, so we remove it
-          if (EOS_LOGS_DEBUG) {
-            eos_debug("removing previous file in move %s", md.name().c_str());
-          }
+	  cpcmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
+	  cpcmd->removeFile(fmd->getName());
+	  gOFS->eosView->updateContainerStore(cpcmd.get());
+	  fmd->setName(md.name());
+	  ofmd = pcmd->findFile(md.name());
 
-          eos::IContainerMD::XAttrMap attrmap = pcmd->getAttributes();
-          // check if there is versioning to be done
-          int versioning = 0;
+	  if (ofmd) {
+	    // the target might exist, so we remove it
+	    if (EOS_LOGS_DEBUG) {
+	      eos_debug("removing previous file in move %s", md.name().c_str());
+	    }
 
-          if (attrmap.count("user.fusex.rename.version")) {
-            if (attrmap.count("sys.versioning")) {
-              versioning = std::stoi(attrmap["sys.versioning"]);
-            } else {
-              if (attrmap.count("user.versioning")) {
-                versioning = std::stoi(attrmap["user.versioning"]);
-              }
-            }
-          }
+	    eos::IContainerMD::XAttrMap attrmap = pcmd->getAttributes();
+	    // check if there is versioning to be done
+	    int versioning = 0;
 
-          bool try_recycle = true;
-          bool created_version = false;
+	    if (attrmap.count("user.fusex.rename.version")) {
+	      if (attrmap.count("sys.versioning")) {
+		versioning = std::stoi(attrmap["sys.versioning"]);
+	      } else {
+		if (attrmap.count("user.versioning")) {
+		  versioning = std::stoi(attrmap["user.versioning"]);
+		}
+	      }
+	    }
 
-          // create a version before replacing
-          if (versioning && !hasVersion) {
-            XrdOucErrInfo error;
-            gOFS->eosViewRWMutex.UnLockWrite();
-            eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
+	    bool try_recycle = true;
+	    bool created_version = false;
 
-            if (gOFS->Version(ofmd->getId(), error, rootvid, versioning)) {
-              try_recycle = true;
-            } else {
-              try_recycle = false;
-              created_version = true;
-            }
+	    // create a version before replacing
+	    if (versioning && !hasVersion) {
+	      XrdOucErrInfo error;
+	      gOFS->eosViewRWMutex.UnLockWrite();
+	      eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
 
-            gOFS->eosViewRWMutex.LockWrite();
-          } else {
-            // recycle bin - not for hardlinked files or hardlinks!
-            if ( (try_recycle &&
-                        (attrmap.count(Recycle::gRecyclingAttribute) || hasVersion)) ||
-                ofmd->hasAttribute(k_mdino) || ofmd->hasAttribute(k_nlink) ) {
-              // translate to a path name and call the complex deletion function
-              // this is vulnerable to a hard to trigger race conditions
-              std::string fullpath = gOFS->eosView->getUri(ofmd.get());
-              gOFS->WriteRecycleRecord(ofmd);
-              gOFS->eosViewRWMutex.UnLockWrite();
-              XrdOucErrInfo error;
-              (void) gOFS->_rem(fullpath.c_str(), error, vid, "",
-                                false, false, false, true, false);
-              gOFS->eosViewRWMutex.LockWrite();
-            } else {
-              if (!created_version) {
-                // no recycle bin, no version
-                try {
-                  XrdOucErrInfo error;
+	      if (gOFS->Version(ofmd->getId(), error, rootvid, versioning)) {
+		try_recycle = true;
+	      } else {
+		try_recycle = false;
+		created_version = true;
+	      }
 
-                  if (XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, pcmd, ofmd, vid,
-                                                error) == -1) {
-                    pcmd->removeFile(md.name());
-                    // unlink the existing file
-                    ofmd->setContainerId(0);
-                    ofmd->unlinkAllLocations();
-                  }
+	      gOFS->eosViewRWMutex.LockWrite();
+	    } else {
+	      // recycle bin - not for hardlinked files or hardlinks!
+	      if ( (try_recycle &&
+		    (attrmap.count(Recycle::gRecyclingAttribute) || hasVersion)) ||
+		   ofmd->hasAttribute(k_mdino) || ofmd->hasAttribute(k_nlink) ) {
+		// translate to a path name and call the complex deletion function
+		// this is vulnerable to a hard to trigger race conditions
+		std::string fullpath = gOFS->eosView->getUri(ofmd.get());
+		gOFS->WriteRecycleRecord(ofmd);
+		gOFS->eosViewRWMutex.UnLockWrite();
+		XrdOucErrInfo error;
+		(void) gOFS->_rem(fullpath.c_str(), error, vid, "",
+				  false, false, false, true, false);
+		gOFS->eosViewRWMutex.LockWrite();
+	      } else {
+		if (!created_version) {
+		  // no recycle bin, no version
+		  try {
+		    XrdOucErrInfo error;
 
-                  eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
+		    if (XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, pcmd, ofmd, vid,
+						  error) == -1) {
+		      pcmd->removeFile(md.name());
+		      // unlink the existing file
+		      ofmd->setContainerId(0);
+		      ofmd->unlinkAllLocations();
+		    }
 
-                  // free previous quota
-                  if (quotanode) {
-                    quotanode->removeFile(ofmd.get());
-                  }
+		    eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
 
-                  gOFS->eosFileService->updateStore(ofmd.get());
-                } catch (eos::MDException& e) {
-                }
-              }
-            }
-          }
-        }
+		    // free previous quota
+		    if (quotanode) {
+		      quotanode->removeFile(ofmd.get());
+		    }
 
-        pcmd->addFile(fmd.get());
-        gOFS->eosView->updateFileStore(fmd.get());
-        gOFS->eosView->updateContainerStore(pcmd.get());
+		    gOFS->eosFileService->updateStore(ofmd.get());
+		  } catch (eos::MDException& e) {
+		  }
+		}
+	      }
+	    }
+	  }
 
-        if (hasVersion) {
-          eos::common::Path nPath(gOFS->eosView->getUri(fmd.get()).c_str());
-          gOFS->eosViewRWMutex.UnLockWrite();
-          XrdOucErrInfo error;
+	  pcmd->addFile(fmd.get());
+	  gOFS->eosView->updateFileStore(fmd.get());
+	  gOFS->eosView->updateContainerStore(pcmd.get());
 
-          if (gOFS->_rename(oPath.GetVersionDirectory(), nPath.GetVersionDirectory(),
-                            error, vid, "", "", false, false, false)) {
-            eos_err("failed to rename version directory '%s'=>'%s'",
-                    oPath.GetVersionDirectory(), nPath.GetVersionDirectory());
-          }
+	  if (hasVersion) {
+	    eos::common::Path nPath(gOFS->eosView->getUri(fmd.get()).c_str());
+	    gOFS->eosViewRWMutex.UnLockWrite();
+	    XrdOucErrInfo error;
 
-          gOFS->eosViewRWMutex.LockWrite();
-        }
-      } else {
-        if (fmd->getName() != md.name()) {
-          // this indicates a file rename
-          op = RENAME;
-          bool hasVersion = false;
-          ofmd = pcmd->findFile(md.name());
+	    if (gOFS->_rename(oPath.GetVersionDirectory(), nPath.GetVersionDirectory(),
+			      error, vid, "", "", false, false, false)) {
+	      eos_err("failed to rename version directory '%s'=>'%s'",
+		      oPath.GetVersionDirectory(), nPath.GetVersionDirectory());
+	    }
 
-          if (EOS_LOGS_DEBUG) eos_debug("rename %s [%lx] => %s [%lx]",
+	    gOFS->eosViewRWMutex.LockWrite();
+	  }
+	} else {
+	  if (fmd->getName() != md.name()) {
+	    // this indicates a file rename
+	    op = RENAME;
+	    bool hasVersion = false;
+	    ofmd = pcmd->findFile(md.name());
+
+	    if (EOS_LOGS_DEBUG) eos_debug("rename %s [%lx] => %s [%lx]",
                                           fmd->getName().c_str(), fid,
                                           md.name().c_str(),
                                           ofmd ? ofmd->getId() : 0);
 
-          eos::common::Path oPath(gOFS->eosView->getUri(fmd.get()).c_str());
-          std::string vdir = EOS_COMMON_PATH_VERSION_FILE_PREFIX;
-          vdir += oPath.GetName();
+	    eos::common::Path oPath(gOFS->eosView->getUri(fmd.get()).c_str());
+	    std::string vdir = EOS_COMMON_PATH_VERSION_FILE_PREFIX;
+	    vdir += oPath.GetName();
 
-          if (pcmd->findContainer(vdir)) {
-            hasVersion = true;
-          }
+	    if (pcmd->findContainer(vdir)) {
+	      hasVersion = true;
+	    }
 
-          if (EOS_LOGS_DEBUG) {
-            eos_debug("v=%s version=%d exists=%d", vdir.c_str(), hasVersion, ofmd ? 1 : 0);
-          }
+	    if (EOS_LOGS_DEBUG) {
+	      eos_debug("v=%s version=%d exists=%d", vdir.c_str(), hasVersion, ofmd ? 1 : 0);
+	    }
 
-          if (ofmd) {
-            // the target might exist, so we remove it
-            if (EOS_LOGS_DEBUG) {
-              eos_debug("removing previous file in update %s", md.name().c_str());
-            }
+	    if (ofmd) {
+	      // the target might exist, so we remove it
+	      if (EOS_LOGS_DEBUG) {
+		eos_debug("removing previous file in update %s", md.name().c_str());
+	      }
 
-            eos::IContainerMD::XAttrMap attrmap = pcmd->getAttributes();
-            // check if there is versioning to be done
-            int versioning = 0;
+	      eos::IContainerMD::XAttrMap attrmap = pcmd->getAttributes();
+	      // check if there is versioning to be done
+	      int versioning = 0;
 
-            if (attrmap.count("user.fusex.rename.version")) {
-              if (attrmap.count("sys.versioning")) {
-                versioning = std::stoi(attrmap["sys.versioning"]);
-              } else {
-                if (attrmap.count("user.versioning")) {
-                  versioning = std::stoi(attrmap["user.versioning"]);
-                }
-              }
-            }
+	      if (attrmap.count("user.fusex.rename.version")) {
+		if (attrmap.count("sys.versioning")) {
+		  versioning = std::stoi(attrmap["sys.versioning"]);
+		} else {
+		  if (attrmap.count("user.versioning")) {
+		    versioning = std::stoi(attrmap["user.versioning"]);
+		  }
+		}
+	      }
 
-            bool try_recycle = true;
-            bool created_version = false;
+	      bool try_recycle = true;
+	      bool created_version = false;
 
-            // create a version before replacing
-            if (versioning && !hasVersion) {
-              XrdOucErrInfo error;
-              gOFS->eosViewRWMutex.UnLockWrite();
-              eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
+	      // create a version before replacing
+	      if (versioning && !hasVersion) {
+		XrdOucErrInfo error;
+		gOFS->eosViewRWMutex.UnLockWrite();
+		eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
 
-              if (gOFS->Version(ofmd->getId(), error, rootvid, versioning)) {
-                try_recycle = true;
-              } else {
-                try_recycle = false;
-                created_version = true;
-              }
+		if (gOFS->Version(ofmd->getId(), error, rootvid, versioning)) {
+		  try_recycle = true;
+		} else {
+		  try_recycle = false;
+		  created_version = true;
+		}
 
-              if (EOS_LOGS_DEBUG) {
-                eos_debug("tried versioning - try_recycle=%d", try_recycle);
-              }
+		if (EOS_LOGS_DEBUG) {
+		  eos_debug("tried versioning - try_recycle=%d", try_recycle);
+		}
 
-              gOFS->eosViewRWMutex.LockWrite();
-            }
+		gOFS->eosViewRWMutex.LockWrite();
+	      }
 
-            // recycle bin - not for hardlinked files or hardlinks !
-            if ( (try_recycle &&
+	      // recycle bin - not for hardlinked files or hardlinks !
+	      if ( (try_recycle &&
                     (attrmap.count(Recycle::gRecyclingAttribute) || hasVersion)) ||
-                 ofmd->hasAttribute(k_mdino) || ofmd->hasAttribute(k_nlink) ) {
-              // translate to a path name and call the complex deletion function
-              // this is vulnerable to a hard to trigger race conditions
-              std::string fullpath = gOFS->eosView->getUri(ofmd.get());
-              gOFS->WriteRecycleRecord(ofmd);
-              gOFS->eosViewRWMutex.UnLockWrite();
-              XrdOucErrInfo error;
-              (void) gOFS->_rem(fullpath.c_str(), error, vid, "", false, false,
-                                false, true, false);
-              gOFS->eosViewRWMutex.LockWrite();
-            } else {
-              if (!created_version) {
-                try {
-                  XrdOucErrInfo error;
+		   ofmd->hasAttribute(k_mdino) || ofmd->hasAttribute(k_nlink) ) {
+		// translate to a path name and call the complex deletion function
+		// this is vulnerable to a hard to trigger race conditions
+		std::string fullpath = gOFS->eosView->getUri(ofmd.get());
+		gOFS->WriteRecycleRecord(ofmd);
+		gOFS->eosViewRWMutex.UnLockWrite();
+		XrdOucErrInfo error;
+		(void) gOFS->_rem(fullpath.c_str(), error, vid, "", false, false,
+				  false, true, false);
+		gOFS->eosViewRWMutex.LockWrite();
+	      } else {
+		if (!created_version) {
+		  try {
+		    XrdOucErrInfo error;
 
-                  if (XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, pcmd, ofmd, vid,
-                                                error) == -1) {
-                    pcmd->removeFile(md.name());
-                    // unlink the existing file
-                    ofmd->setContainerId(0);
-                    ofmd->unlinkAllLocations();
-                  }
+		    if (XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, pcmd, ofmd, vid,
+						  error) == -1) {
+		      pcmd->removeFile(md.name());
+		      // unlink the existing file
+		      ofmd->setContainerId(0);
+		      ofmd->unlinkAllLocations();
+		    }
 
-                  eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
+		    eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
 
-                  // free previous quota
-                  if (quotanode) {
-                    quotanode->removeFile(ofmd.get());
-                  }
+		    // free previous quota
+		    if (quotanode) {
+		      quotanode->removeFile(ofmd.get());
+		    }
 
-                  gOFS->eosFileService->updateStore(ofmd.get());
-                } catch (eos::MDException& e) {
-                }
-              }
-            }
-          }
+		    gOFS->eosFileService->updateStore(ofmd.get());
+		  } catch (eos::MDException& e) {
+		  }
+		}
+	      }
+	    }
 
-          gOFS->eosView->renameFile(fmd.get(), md.name());
+	    gOFS->eosView->renameFile(fmd.get(), md.name());
 
-          if (hasVersion) {
-            eos::common::Path nPath(gOFS->eosView->getUri(fmd.get()).c_str());
-            gOFS->eosViewRWMutex.UnLockWrite();
-            XrdOucErrInfo error;
+	    if (hasVersion) {
+	      eos::common::Path nPath(gOFS->eosView->getUri(fmd.get()).c_str());
+	      gOFS->eosViewRWMutex.UnLockWrite();
+	      XrdOucErrInfo error;
 
-            if (gOFS->_rename(oPath.GetVersionDirectory(), nPath.GetVersionDirectory(),
-                              error, vid, "", "", false, false, false)) {
-              eos_err("failed to rename version directory '%s'=>'%s'\n",
-		      oPath.GetVersionDirectory(), nPath.GetVersionDirectory());
-            }
+	      if (gOFS->_rename(oPath.GetVersionDirectory(), nPath.GetVersionDirectory(),
+				error, vid, "", "", false, false, false)) {
+		eos_err("failed to rename version directory '%s'=>'%s'\n",
+			oPath.GetVersionDirectory(), nPath.GetVersionDirectory());
+	      }
 
-            gOFS->eosViewRWMutex.LockWrite();
-          }
-        }
+	      gOFS->eosViewRWMutex.LockWrite();
+	    }
+	  }
+	}
       }
 
       if (EOS_LOGS_DEBUG) {
@@ -2143,7 +2168,10 @@ Server::OpSetFile(const std::string& id,
       fmd->setAttribute("sys.vtrace", vid.getTrace());
     }
 
-    fmd->setName(md.name());
+    if (!recycleOrVersioned) {
+      fmd->setName(md.name());
+    }
+
     fmd->setCUid(md.uid());
     fmd->setCGid(md.gid());
     {
