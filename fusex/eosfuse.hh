@@ -271,7 +271,7 @@ public:
       int inmemory_inodes;
       bool flock;
       std::vector<std::string> no_fsync_suffixes;
-      std::vector<std::string> wait_flush_executables;
+      std::vector<std::string> nowait_flush_executables;
     } options_t;
 
     typedef struct recovery

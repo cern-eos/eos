@@ -243,7 +243,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
   char* local_mount_dir = 0;
   int err = 0;
   std::string no_fsync_list;
-  std::string wait_flush_exec_list;
+  std::string nowait_flush_exec_list;
   // check the fsname to choose the right JSON config file
   std::string fsname = "";
 
@@ -663,15 +663,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         root["options"]["no-fsync"].append(".o");
       }
 
-      if (!root["options"].isMember("flush-wait-executables")) {
-        root["options"]["flush-wait-executables"].append("/rsync");
-        root["options"]["flush-wait-executables"].append("/cp");
-        root["options"]["flush-wait-executables"].append("/xrdcp");
-        root["options"]["flush-wait-executables"].append("/eoscp");
-        root["options"]["flush-wait-executables"].append("/python");
-        root["options"]["flush-wait-executables"].append("/python2.7");
-        root["options"]["flush-wait-executables"].append("/python3.4");
-        root["options"]["flush-wait-executables"].append("/python3.6");
+      if (!root["options"].isMember("flush-nowait-executables")) {
+        root["options"]["flush-wait-executables"].append("/tar");
+        root["options"]["flush-wait-executables"].append("/touch");
       }
     }
 
@@ -934,11 +928,11 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         no_fsync_list += ",";
       }
 
-      for (Json::Value::iterator it = root["options"]["flush-wait-executables"].begin();
-	   it!= root["options"]["flush-wait-executables"].end(); ++it) {
-	config.options.wait_flush_executables.push_back(it->asString());
-	wait_flush_exec_list += it->asString();
-	wait_flush_exec_list += ",";
+      for (Json::Value::iterator it = root["options"]["flush-nowait-executables"].begin();
+	   it!= root["options"]["flush-nowait-executables"].end(); ++it) {
+	config.options.nowait_flush_executables.push_back(it->asString());
+	nowait_flush_exec_list += it->asString();
+	nowait_flush_exec_list += ",";
       }
 
       // reset mdcachedir if compiled without rocksdb support
@@ -1597,7 +1591,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         eos_static_warning("sss-keytabfile         := %s", config.ssskeytab.c_str());
       }
 
-      eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d flush-w-open-sz:%ld flush-w-umount:%d locking:%d no-fsync:%s flush-wait-exec:%s ol-mode:%03o show-tree-size:%d core-affinity:%d no-xattr:%d no-link:%d nocache-graceperiod:%d rm-rf-protect-level=%d rm-rf-bulk=%d t(lease)=%d t(size-flush)=%d submounts=%d ino(in-mem)=%d flock:%d",
+      eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d flush-w-open-sz:%ld flush-w-umount:%d locking:%d no-fsync:%s flush-nowait-exec:%s ol-mode:%03o show-tree-size:%d core-affinity:%d no-xattr:%d no-link:%d nocache-graceperiod:%d rm-rf-protect-level=%d rm-rf-bulk=%d t(lease)=%d t(size-flush)=%d submounts=%d ino(in-mem)=%d flock:%d",
                          config.options.enable_backtrace,
                          config.options.md_kernelcache,
                          config.options.md_kernelcache_enoent_timeout,
@@ -1612,7 +1606,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
                          config.options.flush_wait_umount,
                          config.options.global_locking,
                          no_fsync_list.c_str(),
-			 wait_flush_exec_list.c_str(),
+			 nowait_flush_exec_list.c_str(),
                          config.options.overlay_mode,
                          config.options.show_tree_size,
                          config.options.cpu_core_affinity,

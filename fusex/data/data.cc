@@ -262,8 +262,8 @@ data::datax::flush(fuse_req_t req)
       flush_wait_open = true;
     }
 
-    if (EosFuse::Instance().Config().options.wait_flush_executables.size()) {
-      if (filename::matches_suffix( fusexrdlogin::executable(req), EosFuse::Instance().Config().options.wait_flush_executables)) {
+    if (EosFuse::Instance().Config().options.nowait_flush_executables.size()) {
+      if (!filename::matches_suffix( fusexrdlogin::executable(req), EosFuse::Instance().Config().options.nowait_flush_executables)) {
 	eos_notice("flush-wait-open: forced for exec=%s", fusexrdlogin::executable(req).c_str());
 	flush_wait_open = true;
       }
