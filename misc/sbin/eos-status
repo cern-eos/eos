@@ -145,7 +145,7 @@ indent  "storage:  data:      "  "spaces.info"
 echo    "          meta-data: "  "$files files $directories directories"
 indent  "          groups:        " "groups.info"
 indent  "          filesystems:   " "fss.info"
-echo    "          scheduler:     " "$fillratio%% (fill limit)"
+echo    "          scheduler:     " "$fillratio% (fill limit)"
 echo
 echo   "clients:  $nclients clients"
 indent  "          auth:          " "whos.info"
