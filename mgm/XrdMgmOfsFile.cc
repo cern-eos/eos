@@ -808,26 +808,29 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
           if (fmd) {
             /* in case of a hard link, may need to switch to target */
-            if (fmd->hasAttribute(
-                  XrdMgmOfsFile::k_mdino)) {    /* A hard link to another file */
+            /* A hard link to another file */
+            if (fmd->hasAttribute(XrdMgmOfsFile::k_mdino)) {
               std::shared_ptr<eos::IFileMD> gmd;
               uint64_t mdino = std::stoll(fmd->getAttribute(XrdMgmOfsFile::k_mdino));
               gmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(mdino));
               eos_info("hlnk switched from %s (%#lx) to file %s (%#lx)",
-                       fmd->getName().c_str(), fmd->getId(), gmd->getName().c_str(), gmd->getId());
+                       fmd->getName().c_str(), fmd->getId(),
+                       gmd->getName().c_str(), gmd->getId());
               fmd = gmd;
             }
 
             uint64_t dmd_id = fmd->getContainerId();
 
-            // if fmd is resolved via a symbolic link, we have to find the 'real' parent directory
+            // If fmd is resolved via a symbolic link, we have to find the
+            // 'real' parent directory
             if (dmd_id != dmd->getId()) {
               // retrieve the 'real' parent
               try {
                 dmd = gOFS->eosDirectoryService->getContainerMD(dmd_id);
-              } catch (eos::MDException& e) {
+              } catch (const eos::MDException& e) {
                 // this looks like corruption, but will return in ENOENT for the parent
-                dmd = 0;
+                dmd.reset();
+                errno = ENOENT;
               }
             }
           }
@@ -836,7 +839,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         }
 
         if (!fmd) {
-          if (dmd->findContainer(cPath.GetName())) {
+          if (dmd && dmd->findContainer(cPath.GetName())) {
             errno = EISDIR;
           } else {
             errno = ENOENT;
@@ -848,8 +851,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           fmdsize = fmd->getSize();
         }
 
-        d_uid = dmd->getCUid();
-        d_gid = dmd->getCGid();
+        if (dmd) {
+          d_uid = dmd->getCUid();
+          d_gid = dmd->getCGid();
+        }
       } else {
         fmd.reset();
       }
