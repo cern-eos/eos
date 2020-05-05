@@ -115,6 +115,7 @@ int fusexrdlogin::loginurl(XrdCl::URL& url,
     paramsMap["fuse.pid"] = std::to_string(id.pid);
     paramsMap["fuse.uid"] = std::to_string(id.uid);
     paramsMap["fuse.gid"] = std::to_string(id.gid);
+    paramsMap["fuse.ver"] = VERSION;
   }
 
   url.SetUserName(username);
