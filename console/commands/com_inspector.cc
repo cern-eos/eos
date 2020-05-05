@@ -29,7 +29,11 @@ extern int com_protospace (char*);
 int
 com_inspector (char *arg1)
 {
-  XrdOucString cmd = "inspector ";
-  cmd += arg1;
+  XrdOucString cmd = "inspector";
+  if (arg1 && strlen(arg1)) {
+    cmd += " ";
+    cmd += arg1;
+  }
+  fprintf(stderr,"cmd='%s'\n", cmd.c_str());
   return com_protospace((char*)cmd.c_str());
 }
