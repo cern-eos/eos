@@ -70,7 +70,7 @@ FileCfgEngineChangelog::AddEntry(const std::string& action,
 // Get tail of the changelog
 //------------------------------------------------------------------------------
 bool
-FileCfgEngineChangelog::Tail(unsigned int nlines, XrdOucString& tail)
+FileCfgEngineChangelog::Tail(unsigned int nlines, std::string& tail)
 {
   eos::common::DbLog logfile;
   eos::common::DbLog::TlogentryVec qresult;
@@ -95,9 +95,8 @@ FileCfgEngineChangelog::Tail(unsigned int nlines, XrdOucString& tail)
     oss << it->value.c_str() << std::endl;
   }
 
-  tail = oss.str().c_str();
-
-  while (tail.replace("&", " ")) { }
+  tail = oss.str();
+  std::replace(tail.begin(), tail.end(), '&', ' ');
 
   return true;
 }

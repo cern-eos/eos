@@ -57,7 +57,7 @@ public:
   //! @param comment  entry value
   //----------------------------------------------------------------------------
   void AddEntry(const std::string& action, const std::string& key,
-                const std::string& value);
+                const std::string& value) override;
 
   //----------------------------------------------------------------------------
   //! Get tail of the changelog
@@ -67,7 +67,7 @@ public:
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool Tail(unsigned int nlines, XrdOucString& tail);
+  bool Tail(unsigned int nlines, std::string& tail) override;
 
 private:
   const std::string kChangelogKey = "eos-config-changelog"; ///< Changelog key

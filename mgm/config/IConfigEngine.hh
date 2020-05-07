@@ -82,7 +82,7 @@ public:
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  virtual bool Tail(unsigned int nlines, XrdOucString& tail) = 0;
+  virtual bool Tail(unsigned int nlines, std::string& tail) = 0;
 
 protected:
   mutable eos::common::RWMutex mMutex; ///< Mutex protecting the config changes
@@ -126,7 +126,7 @@ public:
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool Tail(unsigned int nlines, XrdOucString& tail)
+  bool Tail(unsigned int nlines, std::string& tail)
   {
     if (!mChangelog) {
       return false;

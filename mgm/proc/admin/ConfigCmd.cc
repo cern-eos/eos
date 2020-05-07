@@ -215,10 +215,10 @@ void ConfigCmd::ChangelogSubcmd(const eos::console::ConfigProto_ChangelogProto&
                                 changelog,
                                 eos::console::ReplyProto& reply)
 {
-  XrdOucString std_out;
+  std::string std_out;
   gOFS->ConfEngine->Tail(changelog.lines(), std_out);
   eos_notice("config changelog");
-  reply.set_std_out(std_out.c_str());
+  reply.set_std_out(std_out);
 }
 
 EOSMGMNAMESPACE_END

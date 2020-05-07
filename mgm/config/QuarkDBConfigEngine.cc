@@ -67,7 +67,7 @@ void QuarkDBCfgEngineChangelog::AddEntry(const std::string& action,
 //------------------------------------------------------------------------------
 // Get tail of the changelog
 //------------------------------------------------------------------------------
-bool QuarkDBCfgEngineChangelog::Tail(unsigned int nlines, XrdOucString& tail)
+bool QuarkDBCfgEngineChangelog::Tail(unsigned int nlines, std::string& tail)
 {
   qclient::redisReplyPtr reply = mQcl.exec("deque-scan-back", kChangelogKey, "0",
                                  "COUNT", SSTR(nlines)).get();
@@ -109,7 +109,7 @@ bool QuarkDBCfgEngineChangelog::Tail(unsigned int nlines, XrdOucString& tail)
     oss << stime << ": " << line << std::endl;
   }
 
-  tail = oss.str().c_str();
+  tail = oss.str();
   return true;
 }
 

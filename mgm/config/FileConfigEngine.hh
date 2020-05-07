@@ -67,7 +67,7 @@ public:
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool Tail(unsigned int nlines, XrdOucString& tail);
+  bool Tail(unsigned int nlines, std::string& tail);
 
 private:
   eos::common::DbMap mMap; ///< Map saving changes

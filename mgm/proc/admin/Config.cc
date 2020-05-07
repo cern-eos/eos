@@ -148,7 +148,9 @@ ProcCommand::Config()
       }
     }
 
-    gOFS->ConfEngine->Tail(nlines, stdOut);
+    std::string tailOut;
+    gOFS->ConfEngine->Tail(nlines, tailOut);
+    stdOut = tailOut.c_str();
     eos_notice("config changelog");
   }
 
