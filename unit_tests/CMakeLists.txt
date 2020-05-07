@@ -157,6 +157,7 @@ install(TARGETS
 add_executable(eos-unit-tests-with-qdb
   with_qdb/Main.cc
   with_qdb/configuration.cc
+  with_qdb/TestUtils.cc                                       with_qdb/TestUtils.hh
 )
 
 target_link_libraries(

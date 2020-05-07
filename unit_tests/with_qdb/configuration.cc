@@ -22,9 +22,15 @@
 //------------------------------------------------------------------------------
 
 #include "unit_tests/with_qdb/TestUtils.hh"
+#include <qclient/QClient.hh>
 
 using namespace eos;
+class VariousTests : public eos::UnitTestsWithQDBFixture {};
 
-TEST(Dummy, Test) {
-  ASSERT_EQ(1+1, 2);
+TEST_F(VariousTests, Ping) {
+  std::unique_ptr<qclient::QClient> qcl = makeQClient();
+
+  qclient::redisReplyPtr reply = qcl->exec("PING").get();
+  ASSERT_EQ(qclient::describeRedisReply(reply),
+    "PONG");
 }

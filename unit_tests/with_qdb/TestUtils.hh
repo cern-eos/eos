@@ -22,7 +22,13 @@
  ************************************************************************/
 #pragma once
 
+#include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include <gtest/gtest.h>
+#include <memory>
+
+namespace qclient {
+  class QClient;
+}
 
 namespace eos
 {
@@ -34,7 +40,18 @@ namespace eos
 class UnitTestsWithQDBFixture : public ::testing::Test
 {
 public:
-  NsTestsFixture();
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  UnitTestsWithQDBFixture();
+
+  //----------------------------------------------------------------------------
+  //! Make QClient object
+  //----------------------------------------------------------------------------
+  std::unique_ptr<qclient::QClient> makeQClient() const;
+
+private:
+  QdbContactDetails mContactDetails;
 };
 
 }
