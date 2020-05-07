@@ -121,6 +121,7 @@ add_library(
   auth/AccessChecker.cc                             auth/AccessChecker.hh
   config/FileConfigEngine.cc                        config/FileConfigEngine.hh
   config/IConfigEngine.cc                           config/IConfigEngine.hh
+  config/QuarkConfigHandler.cc                      config/QuarkConfigHandler.hh
   config/QuarkDBConfigEngine.cc                     config/QuarkDBConfigEngine.hh
   Access.cc
   Macros.cc
