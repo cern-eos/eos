@@ -49,13 +49,13 @@ public:         // [+] prevents '+' interpreted as "one or more"
     "(!?(a|r|w|wo|x|i|m|[+]?d|[+]?u|q|c))+)[,]?)*$";
   static constexpr auto sRegexSysGenericAcl =
     "^(((((u|g|k):(([0-9]+)|([\\.[:alnum:]_-]+)))|(egroup:([\\.[:alnum:]-]+))|(z)):"
-    "(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c|p)+)[,]?)*$";
+    "(!?(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c|p))+)[,]?)*$";
   static constexpr auto sRegexUsrNumericAcl =
     "^(((((u|g):(([0-9]+)))|(egroup:([\\.[:alnum:]-]+))|(z)):"
     "(!?(a|r|w|wo|x|i|m|[+]?d|[+]?u|q|c))+)[,]?)*$";
   static constexpr auto sRegexSysNumericAcl =
     "^(((((u|g):(([0-9]+)))|(egroup:([\\.[:alnum:]-]+))|(z)):"
-    "(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c|p)+)[,]?)*$";
+    "(!?(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c|p))+)[,]?)*$";
 
   //----------------------------------------------------------------------------
   //! Use regex to check ACL format / syntax
@@ -87,8 +87,10 @@ public:         // [+] prevents '+' interpreted as "one or more"
   //! Default Constructor
   //----------------------------------------------------------------------------
   Acl():
-    mCanRead(false), mCanNotRead(false), mCanWrite(false), mCanNotWrite(false), mCanWriteOnce(false),
-    mCanUpdate(false), mCanNotUpdate(false), mCanBrowse(false), mCanNotBrowse(false),
+    mCanRead(false), mCanNotRead(false), mCanWrite(false), mCanNotWrite(false),
+    mCanWriteOnce(false),
+    mCanUpdate(false), mCanNotUpdate(false), mCanBrowse(false),
+    mCanNotBrowse(false),
     mCanChmod(false), mCanChown(false), mCanNotDelete(false),
     mCanNotChmod(false), mCanDelete(false), mCanSetQuota(false), mHasAcl(false),
     mHasEgroup(false), mIsMutable(false), mCanArchive(false), mCanPrepare(false)
@@ -138,8 +140,8 @@ public:         // [+] prevents '+' interpreted as "one or more"
   // Set Acls by interpreting the attribute map
   //----------------------------------------------------------------------------
   void SetFromAttrMap(const eos::IContainerMD::XAttrMap& attrmap,
-    const eos::common::VirtualIdentity& vid,
-    eos::IFileMD::XAttrMap *attrmapF = NULL, bool sysaclOnly = false);
+                      const eos::common::VirtualIdentity& vid,
+                      eos::IFileMD::XAttrMap* attrmapF = NULL, bool sysaclOnly = false);
 
   //----------------------------------------------------------------------------
   //! Enter system and user definition + identity used for ACL interpretation
