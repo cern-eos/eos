@@ -33,3 +33,6 @@ eos attr set sys.mask="700" /eos/user/e/$usr;
 eos attr set sys.mtime.propagation="1" /eos/user/e/$usr;
 eos attr set user.acl="" /eos/user/e/$usr;
 eos access allow user $usr
+
+# Set HOME to eos folder
+#usermod -d /eos/user/e/eos-user/ eos-user

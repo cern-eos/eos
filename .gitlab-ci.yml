@@ -633,15 +633,10 @@ cc7_asan_docker_image:
     # prepare mountpoints
     - exec_cmd eos-cli1 'atd; at now <<< "mkdir -p /eos1/ && mount -t fuse eosxd -ofsname=mount-1 /eos1/; mkdir -p /eos2/ && mount -t fuse eosxd -ofsname=mount-2 /eos2/;"'
     - exec_cmd eos-cli1 'count=0; while [[ $count -le 10 ]] && ( [[ ! -d /eos1/dockertest/ ]] || [[ ! -d /eos2/dockertest/ ]] ); do echo "Wait for mount... $count"; (( count++ )); sleep 1; done;'
-
     # fusex benchmark
     - exec_cmd eos-mgm1 'eos ns mutex --toggleorder'
     - exec_cmd eos-cli1 "su eos-user -c 'mkdir /eos1/dockertest/fusex_tests/; cd /eos1/dockertest/fusex_tests/; fusex-benchmark'"
     - exec_cmd eos-mgm1 'grep "RWMutex. Order Checking Error in thread" /var/log/eos/mgm/xrdlog.mgm && exit 1 || exit 0'
-
-    # eosclient-tests
-    - exec_cmd eos-cli1 'git clone https://gitlab.cern.ch/dss/eosclient-tests.git'
-    - exec_cmd eos-cli1 'python /eosclient-tests/run.py --workdir=/eos1/dockertest file_versions'
     # ubuntu releases do not support 'clone' yet
     - if [[ ! $CI_JOB_NAME =~ "ubuntu" ]]; then
         exec_cmd eos-cli1 'cd /eosclient-tests; git checkout rtb_clone; prepare/clone_test.sh prepare; rc=$?; git checkout master; exit $rc';
@@ -668,14 +663,16 @@ cc7_asan_docker_image:
   <<: *dock8s_before_script_template
   script:
     # prepare eoshome folder, cernbox alike
-    - exec_cmd eos-mgm1 './eos_create_userhome.sh'
+    - exec_cmd eos-mgm1 './eos_create_userhome.sh eos-user'
     # prepare mountpoints
     - exec_cmd eos-cli1 'mkdir -p /eos && eosxd -ofsname=${EOS_MGM_URL:7}:/eos/ /eos &> /dev/null'
     - exec_cmd eos-cli1 'count=0; while [[ $count -le 10 ]] && ( [[ ! -d /eos/ ]] ); do echo "Wait for mount... $count"; (( count++ )); sleep 1; done;'
-    # eosfuse_release_tests
+    # set krb5 ticket and download tests repo
     - exec_cmd eos-cli1 'su eos-user -c "kinit eos-user@TEST.EOS -k -t /home/eos-user/eos-user.keytab"'
-    - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && git clone https://gitlab.cern.ch/dss/eosclient-tests.git"'
-    - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && ./eosclient-tests/functional_tests/CI_eosfuse_release_tests.sh /eos/user/e/eos-user"'
+    - exec_cmd eos-cli1 'su eos-user -c "git clone https://gitlab.cern.ch/dss/eosclient-tests.git /eos/user/e/eos-user/eosclient-tests"'
+    # launch the tests
+    - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && python ./eosclient-tests/run.py --workdir=/eos/user/e/eos-user ci-eosfuse_release"'
+    - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && python ./eosclient-tests/run.py --workdir=/eos/user/e/eos-user regression"'
   <<: *dock8s_after_script_template
   artifacts:
     when: on_failure
