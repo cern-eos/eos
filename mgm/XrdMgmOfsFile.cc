@@ -976,9 +976,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     acl.SetFromAttrMap(attrmap, vid, &attrmapF);
     eos_info("acl=%d r=%d w=%d wo=%d egroup=%d shared=%d mutable=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
-             acl.HasEgroup(),
-             isSharedFile,
-             acl.IsMutable());
+             acl.HasEgroup(), isSharedFile, acl.IsMutable());
 
     if (acl.HasAcl()) {
       if ((vid.uid != 0) && (!vid.sudoer) &&
@@ -998,7 +996,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                     acl.CanUpdate(), acl.CanNotUpdate(), stdpermcheck, fmd->getCUid(),
                     fmd->getCGid());
 
-          if (acl.CanNotUpdate()) {
+          if (acl.CanNotUpdate() || (acl.CanNotWrite() && !acl.CanUpdate())) {
             // the ACL has !u set - we don't allow to do file updates
             gOFS->MgmStats.Add("OpenFailedNoUpdate", vid.uid, vid.gid, 1);
             return Emsg(epname, error, EPERM, "update file - fobidden by ACL",

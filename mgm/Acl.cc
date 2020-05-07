@@ -65,6 +65,7 @@ Acl::Acl(const char* path, XrdOucErrInfo& error,
 {
   if (path && strlen(path)) {
     int rc = gOFS->_attr_ls(path, error, vid, 0, attrmap, lockNs);
+
     if (rc) {
       eos_static_info("attr-ls failed: path=%s errno=%d", path, errno);
     }
@@ -253,8 +254,8 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
 
     for (it = rules.begin(); it != rules.end(); it++) {
       bool egroupmatch = false;
-      sysacl_rules_remaining -=
-        1;                    /* when negative, we're in user.acl */
+      /* when negative, we're in user.acl */
+      sysacl_rules_remaining -= 1;
 
       // Check for e-group membership
       if (!it->compare(0, strlen("egroup:"), "egroup:")) {
