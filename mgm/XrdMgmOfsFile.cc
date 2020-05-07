@@ -982,19 +982,36 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
     if (acl.HasAcl()) {
       if ((vid.uid != 0) && (!vid.sudoer) &&
-          (isRW ? acl.CanNotWrite() : acl.CanNotRead())) {
-        eos_debug("uid %d sudoer %d isRW %d CanNotRead %d CanNotWrite %d",
-                  vid.uid, vid.sudoer, isRW, acl.CanNotRead(), acl.CanNotWrite());
+          (isRW ? (acl.CanNotWrite() && acl.CanNotUpdate()) : acl.CanNotRead())) {
+        eos_debug("uid %d sudoer %d isRW %d CanNotRead %d CanNotWrite %d CanNotUpdate %d",
+                  vid.uid, vid.sudoer, isRW, acl.CanNotRead(), acl.CanNotWrite(),
+                  acl.CanNotUpdate());
         errno = EPERM;
         gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1);
         return Emsg(epname, error, errno, "open file - forbidden by ACL", path);
       }
 
       if (isRW) {
-        // write case
-        if (!(acl.CanWrite() || acl.CanWriteOnce())) {
-          // we have to check the standard permissions
-          stdpermcheck = true;
+        // Update case
+        if (fmd) {
+          eos_debug("CanUpdate %d CanNotUpdate %d stdpermcheck %d file uid/gid = %d/%d",
+                    acl.CanUpdate(), acl.CanNotUpdate(), stdpermcheck, fmd->getCUid(),
+                    fmd->getCGid());
+
+          if (acl.CanNotUpdate()) {
+            // the ACL has !u set - we don't allow to do file updates
+            gOFS->MgmStats.Add("OpenFailedNoUpdate", vid.uid, vid.gid, 1);
+            return Emsg(epname, error, EPERM, "update file - fobidden by ACL",
+                        path);
+          }
+
+          stdpermcheck = (!acl.CanUpdate());
+        } else {
+          // Write case
+          if (!(acl.CanWrite() || acl.CanWriteOnce())) {
+            // We have to check the standard permissions
+            stdpermcheck = true;
+          }
         }
       } else {
         // read case
@@ -1099,8 +1116,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     // Allow updates of 0-size RAIN files so that we are able to write from the
     // FUSE mount with lazy-open mode enabled.
     if (!getenv("EOS_ALLOW_RAIN_RWM") && isRewrite && (vid.uid > 3) &&
-        (fmdsize != 0) &&
-        ((LayoutId::IsRain(fmdlid)))) {
+        (fmdsize != 0) && (LayoutId::IsRain(fmdlid))) {
       // Unpriviledged users are not allowed to open RAIN files for update
       gOFS->MgmStats.Add("OpenFailedNoUpdate", vid.uid, vid.gid, 1);
       return Emsg(epname, error, EPERM, "update RAIN layout file - "
@@ -1162,7 +1178,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             return Emsg(epname, error, EEXIST,
                         "overwrite existing file - you are write-once user");
           } else {
-            if ((!stdpermcheck) && (!acl.CanWrite())) {
+            if ((!stdpermcheck) && (!acl.CanWrite()) && (!acl.CanUpdate())) {
               return Emsg(epname, error, EPERM,
                           "overwrite existing file - you have no write permission");
             }
@@ -1261,19 +1277,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       if (open_flag & O_EXCL) {
         gOFS->MgmStats.Add("OpenFailedExists", vid.uid, vid.gid, 1);
         return Emsg(epname, error, EEXIST, "create file", path);
-      }
-
-      if (acl.HasAcl()) {
-        eos_debug("CanUpdate %d CanNotUpdate %d stdpermcheck %d file uid/gid = %d/%d",
-                  acl.CanUpdate(), acl.CanNotUpdate(), stdpermcheck, fmd->getCUid(),
-                  fmd->getCGid());
-
-        if (!acl.CanUpdate() || acl.CanNotUpdate()) {
-          // the ACL has !u set - we don't allow to do file updates
-          gOFS->MgmStats.Add("OpenFailedNoUpdate", vid.uid, vid.gid, 1);
-          return Emsg(epname, error, EPERM, "update file - fobidden by ACL",
-                      path);
-        }
       }
     }
   } else {
