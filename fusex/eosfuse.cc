@@ -664,8 +664,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       }
 
       if (!root["options"].isMember("flush-nowait-executables")) {
-        root["options"]["flush-wait-executables"].append("/tar");
-        root["options"]["flush-wait-executables"].append("/touch");
+        root["options"]["flush-nowait-executables"].append("/tar");
+        root["options"]["flush-nowait-executables"].append("/touch");
       }
     }
 
