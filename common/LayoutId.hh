@@ -24,7 +24,6 @@
 
 #ifndef __EOSCOMMON_LAYOUTID__HH__
 #define __EOSCOMMON_LAYOUTID__HH__
-
 #include "common/Namespace.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucString.hh"
@@ -572,6 +571,38 @@ public:
   {
     return ((layout >> 28) & 0x7);
   }
+
+  //--------------------------------------------------------------------------
+  //! Return redundancy stripes
+  //--------------------------------------------------------------------------
+  static unsigned long
+  GetRedundancy(unsigned long layout, unsigned long locations)
+  {
+    if ( (GetLayoutType(layout) == kPlain) ||
+	 (GetLayoutType(layout) == kReplica ) ) {
+      return locations;
+    }
+
+    int num_parity_stripes = GetRedundancyStripeNumber(layout);
+    int num_all_stripes = GetStripeNumber(layout) + 1;
+
+    int redundancy = num_parity_stripes + 1 + (locations - num_all_stripes);
+
+    if (redundancy < 0 ) {
+      redundancy = 0;
+    }
+    // return the remaining redundancy value for a file
+    return redundancy;
+  }
+
+  static std::string
+  GetRedundancySymbol(bool has_tape, int redundancy) {
+    char sbst[256];
+    snprintf(sbst, sizeof(sbst), "d%lu::t%i ", has_tape ?
+	     ((redundancy>0)?(redundancy - 1):0) : redundancy, (has_tape ? 1 : 0));
+    return std::string(sbst);
+  }
+
 
   //--------------------------------------------------------------------------
   //! Build block checksum layout from block checksum enum

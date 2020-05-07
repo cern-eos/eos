@@ -269,6 +269,9 @@ ProcCommand::FileInfo(const char* path)
           eos::calculateEtag(fmd_copy.get(), etag);
           eos::appendChecksumOnStringAsHex(fmd_copy.get(), xs_spaces, ' ');
 
+	  std::string redundancy = eos::common::LayoutId::GetRedundancySymbol(fmd_copy->hasLocation(EOS_TAPE_FSID),
+				   eos::common::LayoutId::GetRedundancy(fmd_copy->getLayoutId(), fmd_copy->getNumLocation()));
+
           if (!Monitoring) {
             out << "  File: '" << spath << "'"
                 << "  Flags: " << StringConversion::IntToOctal((int) fmd_copy->getFlags(), 4);
@@ -306,8 +309,16 @@ ProcCommand::FileInfo(const char* path)
                 << " Stripes: " << (LayoutId::GetStripeNumber(fmd_copy->getLayoutId()) + 1)
                 << " Blocksize: " << LayoutId::GetBlockSizeString(fmd_copy->getLayoutId())
                 << " LayoutId: " << FileId::Fid2Hex(fmd_copy->getLayoutId())
+	        << " Redundancy: " << redundancy
                 << std::endl;
             out << "  #Rep: " << fmd_copy->getNumLocation() << std::endl;
+	    if (fmd_copy->hasLocation(EOS_TAPE_FSID)) {
+	      std::string storage_class = xattrs["sys.archive.storage_class"];
+	      std::string archive_id = xattrs["sys.archive.file_id"];
+
+	      out << "TapeID: " << (archive_id.length()?archive_id:"undef") << " StorageClass: " << (storage_class.length()?storage_class:"none")
+		  << std::endl;
+	    }
           } else {
             std::string xs;
 
@@ -498,8 +509,10 @@ ProcCommand::FileInfo(const char* path)
               }
             } else {
               if (!Monitoring) {
-                out << std::setw(3) << i << std::setw(8) << location
-                    << " NA" << std::endl;
+		if (location != EOS_TAPE_FSID) {
+		  out << std::setw(3) << i << std::setw(8) << location
+		      << " NA" << std::endl;
+		}
               } else {
                 out << "fsid=" << location << " ";
               }

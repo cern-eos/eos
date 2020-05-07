@@ -221,7 +221,7 @@ XrdMgmOfs::_stat(const char* path,
     if (fmd->isLink()) {
       buf->st_nlink = 1;
     } else {
-      buf->st_nlink = fmd->getNumLocation();
+      buf->st_nlink = eos::common::LayoutId::GetRedundancy(fmd->getLayoutId(), fmd->getNumLocation());
     }
 
     buf->st_size = fmd->getSize();

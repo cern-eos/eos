@@ -30,6 +30,7 @@
 #include "common/Path.hh"
 #include "common/StringUtils.hh"
 #include "common/Timing.hh"
+#include "common/LayoutId.hh"
 #include "namespace/utils/Mode.hh"
 
 EOSMGMNAMESPACE_BEGIN
@@ -233,12 +234,9 @@ ProcCommand::Ls()
               eos::modeToBuffer(buf.st_mode, modestr);
 
               if (showbackendstatus) {
-                // to be extended later to display in-flight status
-                char sbst[256];
-                snprintf(sbst, sizeof(sbst), "d%lu::t%i ", (buf.st_mode & EOS_TAPE_MODE_T) ?
-                         buf.st_nlink - 1 : buf.st_nlink, (buf.st_mode & EOS_TAPE_MODE_T ? 1 : 0));
+		std::string rsymbol = eos::common::LayoutId::GetRedundancySymbol(buf.st_mode & EOS_TAPE_MODE_T, buf.st_nlink);
                 char sbsts[256];
-                snprintf(sbsts, sizeof(sbsts), "%-9s", sbst);
+                snprintf(sbsts, sizeof(sbsts), "%-9s", rsymbol.c_str());
                 backendstatus = sbsts;
               }
 
