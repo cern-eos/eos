@@ -150,3 +150,25 @@ target_link_libraries(
 install(TARGETS
   eos-fst-unit-tests
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
+
+#-------------------------------------------------------------------------------
+# eos-unit-tests-with-qdb executable
+#-------------------------------------------------------------------------------
+add_executable(eos-unit-tests-with-qdb
+  with_qdb/Main.cc
+  with_qdb/configuration.cc
+)
+
+target_link_libraries(
+  eos-unit-tests-with-qdb
+  gtest_main
+  gmock
+  qclient
+  XrdEosMgm-Static
+  ${READLINE_LIBRARY}
+  ${JSONCPP_LIBRARIES}
+  ${XROOTD_SERVER_LIBRARY})
+
+install(TARGETS
+  eos-unit-tests-with-qdb
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
