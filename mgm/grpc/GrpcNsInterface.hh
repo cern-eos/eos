@@ -143,6 +143,10 @@ public:
   static grpc::Status Token(eos::common::VirtualIdentity& vid, 
 			    eos::rpc::NSResponse::ErrorResponse* reply,
 			    const eos::rpc::NSRequest::TokenRequest* request);
+
+  static grpc::Status Quota(eos::common::VirtualIdentity& vid,
+			    eos::rpc::NSResponse::QuotaResponse* reply,
+			    const eos::rpc::NSRequest::QuotaRequest* request);
   
   static bool Access(eos::common::VirtualIdentity& vid, int mode,
                      std::shared_ptr<eos::IContainerMD> cmd);

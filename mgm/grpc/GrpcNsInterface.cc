@@ -34,6 +34,7 @@
 #include "mgm/Acl.hh"
 #include "mgm/proc/IProcCommand.hh"
 #include "mgm/proc/user/AclCmd.hh"
+#include "mgm/proc/admin/QuotaCmd.hh"
 #include "mgm/proc/user/RmCmd.hh"
 #include "mgm/proc/user/TokenCmd.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -1261,6 +1262,9 @@ GrpcNsInterface::Exec(eos::common::VirtualIdentity& ivid,
   case eos::rpc::NSRequest::kToken:
     return Token(vid, reply->mutable_error(), &(request->token()));
     break;
+  case eos::rpc::NSRequest::kQuota:
+    return Quota(vid, reply->mutable_quota() ,&(request->quota()));
+    break;
   default:
     reply->mutable_error()->set_code(EINVAL);
     reply->mutable_error()->set_msg("error: command not supported");
@@ -2117,6 +2121,89 @@ GrpcNsInterface::Token(eos::common::VirtualIdentity& vid,
 
   reply->set_code(0);
   reply->set_msg(preply.std_out());
+  return grpc::Status::OK;
+}
+
+grpc::Status
+GrpcNsInterface::Quota(eos::common::VirtualIdentity& vid,
+		     eos::rpc::NSResponse::QuotaResponse* reply,
+		     const eos::rpc::NSRequest::QuotaRequest* request)
+{
+  eos::console::RequestProto req;
+  eos::console::QuotaProto_LsProto* ls = req.mutable_quota()->mutable_ls();
+  int rc = 0;
+
+  ls->set_format(true);
+  // filter by username
+  if (request->id().username().length()) {
+    ls->set_uid(request->id().username());
+  }
+  if (request->id().groupname().length()) {
+    ls->set_gid(request->id().groupname());
+  }
+  if (request->path().length()) {
+    ls->set_space(request->path());
+  }
+
+  eos::mgm::QuotaCmd cmd(std::move(req), vid);
+
+
+  eos::console::ReplyProto preply =cmd.ProcessRequest();
+  if (( rc = preply.retc()) ) {
+    std::string msg = "Quota Command Failed: ";
+    msg += preply.std_err();
+    reply->set_code( (rc>0) ? -rc:rc);
+    reply->set_msg(msg);
+    return grpc::Status::OK;
+  }
+
+  // parse the output into a protobuf structure;
+  std::istringstream f(preply.std_out());
+  std::string line;
+  while (std::getline(f, line)) {
+    std::map<std::string, std::string> info;
+
+    if (eos::common::StringConversion::GetKeyValueMap(line.c_str(),
+						      info,
+						      "=",
+						      " ")) {
+      auto node = reply->add_quotanode();
+
+      node->set_path(info["space"]);
+      if (info.count("uid")) {
+	node->set_name(info["uid"]);
+	node->set_type(eos::rpc::QUOTATYPE::USER);
+      }
+      if (info.count("gid")) {
+	node->set_name(info["gid"]);
+	if (info["gid"] == "project") {
+	  node->set_type(eos::rpc::QUOTATYPE::PROJECT);
+	} else {
+	  node->set_type(eos::rpc::QUOTATYPE::GROUP);
+	}
+      }
+      node->set_usedbytes(strtoull(info["usedbytes"].c_str(),0,10));
+      node->set_usedlogicalbytes(strtoull(info["usedlogicalbytes"].c_str(),0,10));
+      node->set_usedfiles(strtoull(info["usedfiles"].c_str(),0,10));
+      node->set_maxbytes(strtoull(info["maxbytes"].c_str(),0,10));
+      node->set_maxlogicalbytes(strtoull(info["maxlogicalbytes"].c_str(),0,10));
+      node->set_maxfiles(strtoull(info["maxfiles"].c_str(),0,10));
+      if (node->maxbytes() > 0) {
+	node->set_percentagusedbytes(100.0*node->usedbytes()/node->maxbytes());
+      } else {
+	node->set_percentagusedbytes(0);
+      }
+      if (node->maxfiles() > 0) {
+	node->set_percentagusedfiles(100.0*node->usedfiles()/node->maxfiles());
+      } else {
+	node->set_percentagusedfiles(0);
+      }
+      node->set_statusbytes(info["statusbytes"]);
+      node->set_statusfiles(info["statusfiles"]);
+    }
+  }
+
+  reply->set_code(0);
   return grpc::Status::OK;
 }
 

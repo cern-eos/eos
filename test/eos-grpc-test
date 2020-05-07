@@ -105,9 +105,12 @@ eos-grpc-ns --token $authkey -p $prefix/t_grpc/file unlink || exit -10
 eos-grpc-ns --token $authkey -p $prefix/t_grpc --sysacl --acl u:adm=rwx acl || exit -11
 eos-grpc-ns --token $authkey -p $prefix/t_grpc --acl u:nobody=rwx acl || exit -11
 eos-grpc-ns --token $authkey -p $prefix/t_grpc --sysacl acl || grep "u:adm=rwx" || exit -11
-eos-grpc-ns --token $authkey -p $prefix/t_grpc acl || grep "u:nobody:rwx" | exit -11
+eos-grpc-ns --token $authkey -p $prefix/t_grpc acl || grep "u:nobody:rwx" || exit -11
 eos rmdir $prefix/t_grpc/
 
+#quota
+eos-grpc-ns --token false quota | grep "you are not a quota administrator"  || exit -12
+eos-grpc-ns --token $authkey quota | grep "you are not a quota administrator"  && exit -12
 
 eos vid rm vid:grpc:\"key:12345678\":gid
 eos vid rm vid:grpc:\"key:12345678\":uid
