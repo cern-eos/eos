@@ -1168,8 +1168,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // Configure log-file fan out
   std::vector<std::string> lFanOutTags {
     "Grpc", "Balancer", "Converter", "DrainJob", "ZMQ", "MetadataFlusher", "Http",
-    "Master", "Recycle", "LRU", "WFE", "WFE::Job", "GroupBalancer",
-    "GeoBalancer", "GeoTreeEngine", "ReplicationTracker", "FileInspector", "#"};
+      "Master", "Recycle", "LRU", "WFE", "WFE::Job", "GroupBalancer",
+      "GeoBalancer", "GeoTreeEngine", "ReplicationTracker", "FileInspector", "Mounts", "#"};
   // Get the XRootD log directory
   char* logdir = 0;
   XrdOucEnv::Import("XRDLOGDIR", logdir);
@@ -1210,6 +1210,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     g_logging.AddFanOutAlias("DrainTransferJob", "DrainJob");
     g_logging.AddFanOutAlias("DrainFs", "DrainJob");
     g_logging.AddFanOutAlias("Drainer", "DrainJob");
+    g_logging.AddFanOutAlias("Clients", "Mounts");
   }
 
   Eroute.Say("=====> mgmofs.broker : ", MgmOfsBrokerUrl.c_str(), "");
@@ -2077,6 +2078,10 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("DropStripe", 0, 0, 0);
   MgmStats.Add("Exists", 0, 0, 0);
   MgmStats.Add("Exists", 0, 0, 0);
+  MgmStats.Add("Eosxd::prot::evicted", 0, 0, 0);
+  MgmStats.Add("Eosxd::prot::mount", 0, 0, 0);
+  MgmStats.Add("Eosxd::prot::umount", 0, 0, 0);
+  MgmStats.Add("Eosxd::prot::offline", 0, 0, 0);
   MgmStats.Add("Eosxd::prot::SET", 0, 0, 0);
   MgmStats.Add("Eosxd::prot::LS", 0, 0, 0);
   MgmStats.Add("Eosxd::prot::STAT", 0, 0, 0);

@@ -58,6 +58,8 @@ EOSFUSESERVERNAMESPACE_BEGIN
     bool
     Dispatch(const std::string identity, eos::fusex::heartbeat& hb);
     void Print(std::string& out, std::string options = "");
+    std::string Info(const std::string& identity);
+
     void HandleStatistics(const std::string identity,
                           const eos::fusex::statistics& stats);
 

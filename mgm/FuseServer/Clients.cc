@@ -86,17 +86,22 @@ FuseServer::Clients::MonitorHeartBeat()
         if (it->second.heartbeat().shutdown()) {
           evictmap[it->second.heartbeat().uuid()] = it->first;
           it->second.set_state(Client::EVICTED);
-          eos_static_info("client='%s' shutdown", it->first.c_str());
+          eos_static_info("client='%s' shutdown [ %s ] ", it->first.c_str(), Info(it->first).c_str());
+	  gOFS->MgmStats.Add("Eosxd::prot::umount", 0, 0, 1);
         } else {
           if (last_heartbeat > mHeartBeatWindow) {
             if (last_heartbeat > mHeartBeatOfflineWindow) {
               if (last_heartbeat > mHeartBeatRemoveWindow) {
                 evictmap[it->second.heartbeat().uuid()] = it->first;
                 it->second.set_state(Client::EVICTED);
+		eos_static_info("client='%s' evicted [ %s ] ", it->first.c_str(), Info(it->first).c_str());
+		gOFS->MgmStats.Add("Eosxd::prot::evicted", 0, 0, 1);
               } else {
                 // drop locks once
                 if (it->second.state() != Client::OFFLINE) {
                   gOFS->zMQ->gFuseServer.Locks().dropLocks(it->second.heartbeat().uuid());
+		  eos_static_info("client='%s' offline [ %s ] ", it->first.c_str(), Info(it->first).c_str());
+		  gOFS->MgmStats.Add("Eosxd::prot::offline", 0, 0, 1);
                 }
 
                 it->second.set_state(Client::OFFLINE);
@@ -210,6 +215,9 @@ FuseServer::Clients::Dispatch(const std::string identity,
   }
 
   if (rc) {
+    eos_static_info("client='%s' mount [ %s ] ", identity.c_str(), Info(identity).c_str());
+    gOFS->MgmStats.Add("Eosxd::prot::mount", 0, 0, 1);
+
     // ask a client to drop all caps when we see him the first time because we might have lost our caps due to a restart/failover
     BroadcastDropAllCaps(identity, hb);
     // communicate our current heart-beat interval
@@ -239,6 +247,45 @@ FuseServer::Clients::Dispatch(const std::string identity,
 
   EXEC_TIMING_END("Eosxd::int::Heartbeat");
   return rc;
+}
+
+
+
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+std::string
+FuseServer::Clients::Info(const std::string& identity)
+{
+  std::string out;
+  char formatline[4096];
+
+  struct timespec tsnow;
+  eos::common::Timing::GetTimeSpec(tsnow);
+
+  auto it = this->map().find(identity);
+
+  if (it != this->map().end()) {
+    snprintf(formatline, sizeof(formatline),
+	     "name=%s host=%s version=%s state=%s start=%s dt=[%.02f:%.02f] uuid=%s pid=%u fds=%u type=%s mount=%s",
+	     it->second.heartbeat().name().c_str(),
+	     it->second.heartbeat().host().c_str(),
+	     it->second.heartbeat().version().c_str(),
+	     it->second.status[it->second.state()],
+	     eos::common::Timing::utctime(it->second.heartbeat().starttime()).c_str(),
+	     (int64_t)tsnow.tv_sec - (int64_t)it->second.heartbeat().clock() +
+	   (((int64_t) tsnow.tv_nsec -
+	     (int64_t) it->second.heartbeat().clock_ns()) * 1.0 / 1000000000.0),
+	     it->second.heartbeat().delta() * 1000,
+	     it->second.heartbeat().uuid().c_str(),
+	     it->second.heartbeat().pid(),
+	     it->second.statistics().open_files(),
+	     it->second.heartbeat().automounted() ? "autofs" : "static",
+	     it->second.heartbeat().mount().c_str()
+	     );
+    out += formatline;
+  }
+  return out;
 }
 
 //------------------------------------------------------------------------------
