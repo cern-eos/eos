@@ -21,17 +21,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSMGM_MGMOFSSTAT__HH__
-#define __EOSMGM_MGMOFSSTAT__HH__
-
-/*----------------------------------------------------------------------------*/
+#pragma once
 #include "mgm/Namespace.hh"
-/*----------------------------------------------------------------------------*/
+#include "common/AssistedThread.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
-/*----------------------------------------------------------------------------*/
 #include <google/sparse_hash_map>
-/*----------------------------------------------------------------------------*/
 #include <vector>
 #include <map>
 #include <string>
@@ -563,11 +558,9 @@ public:
   void PrintOutTotal(XrdOucString& out, bool details = false,
                      bool monitoring = false, bool numerical = false);
 
-  void Circulate();
+  void Circulate(ThreadAssistant& assistant) noexcept;
 
   ~Stat() = default;
 };
 
 EOSMGMNAMESPACE_END
-
-#endif

@@ -283,7 +283,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   mAuthorize(false), mAuthLib(""), mTapeEnabled(false), MgmRedirector(false),
   ErrorLog(true), eosDirectoryService(0), eosFileService(0), eosView(0),
   eosFsView(0), eosContainerAccounting(0), eosSyncTimeAccounting(0),
-  mStatsTid(0), mFrontendPort(0), mNumAuthThreads(0),
+  mFrontendPort(0), mNumAuthThreads(0),
   zMQ(nullptr), mExtAuthz(nullptr), MgmStatsPtr(new eos::mgm::Stat()),
   MgmStats(*MgmStatsPtr), mFsckEngine(new Fsck()), mMaster(nullptr),
   mRouting(new eos::mgm::PathRouting()), mLRUEngine(new eos::mgm::LRU()),
@@ -375,6 +375,7 @@ XrdMgmOfs::OrderlyShutdown()
     mRouting.reset();
   }
 
+  eos_warning("%s", "msg=\"stopping the stats collecting thread\"");
   eos_warning("%s", "msg=\"stopping archive submitter\"");
   mSubmitterTid.join();
 
@@ -1216,17 +1217,6 @@ XrdMgmOfs::Redirect(XrdOucErrInfo& error,
   // Place the error message in the error object and return
   error.setErrInfo(port, host);
   return SFS_REDIRECT;
-}
-
-//------------------------------------------------------------------------------
-// Statistics circular buffer thread startup function
-//------------------------------------------------------------------------------
-void*
-XrdMgmOfs::StartMgmStats(void* pp)
-{
-  XrdMgmOfs* ofs = (XrdMgmOfs*) pp;
-  ofs->MgmStats.Circulate();
-  return 0;
 }
 
 //------------------------------------------------------------------------------

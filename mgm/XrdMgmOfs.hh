@@ -445,7 +445,7 @@ public:
            bool no_recycling = false,
            bool no_quota_enforcement = false,
            bool fusexcast = true,
-	   bool no_workflow = false);
+           bool no_workflow = false);
 
   //----------------------------------------------------------------------------
   //! Low-level namespace find command
@@ -1272,11 +1272,6 @@ public:
   bool DeleteExternal(eos::common::FileSystem::fsid_t fsid,
                       unsigned long long fid);
 
-  // ---------------------------------------------------------------------------
-  // Statistics circular buffer thread startup function
-  // ---------------------------------------------------------------------------
-  static void* StartMgmStats(void* pp);
-
   //----------------------------------------------------------------------------
   //! Authentication master thread startup static function
   //!
@@ -1537,7 +1532,7 @@ public:
   // ---------------------------------------------------------------------------
   // Thread variables
   // ---------------------------------------------------------------------------
-  pthread_t mStatsTid; ///< Thread Id of the stats thread
+  AssistedThread mStatsTid; ///< Stats thread
   AssistedThread mFsConfigTid; ///< Fs listener/config change thread
   AssistedThread mAuthMasterTid; ///< Thread Id of the authentication thread
   AssistedThread
@@ -1793,7 +1788,8 @@ public:
   //----------------------------------------------------------------------------
   static std::string prepareOptsToString(const int opts);
 
-  uint64_t getFuseBookingSize() {
+  uint64_t getFuseBookingSize()
+  {
     return mFusePlacementBooking;
   }
 

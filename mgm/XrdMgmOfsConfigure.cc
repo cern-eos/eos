@@ -1168,8 +1168,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // Configure log-file fan out
   std::vector<std::string> lFanOutTags {
     "Grpc", "Balancer", "Converter", "DrainJob", "ZMQ", "MetadataFlusher", "Http",
-      "Master", "Recycle", "LRU", "WFE", "WFE::Job", "GroupBalancer",
-      "GeoBalancer", "GeoTreeEngine", "ReplicationTracker", "FileInspector", "Mounts", "#"};
+    "Master", "Recycle", "LRU", "WFE", "WFE::Job", "GroupBalancer",
+    "GeoBalancer", "GeoTreeEngine", "ReplicationTracker", "FileInspector", "Mounts", "#"};
   // Get the XRootD log directory
   char* logdir = 0;
   XrdOucEnv::Import("XRDLOGDIR", logdir);
@@ -1853,13 +1853,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   eos_info("starting statistics thread");
-
-  if ((XrdSysThread::Run(&mStatsTid, XrdMgmOfs::StartMgmStats,
-                         static_cast<void*>(this), 0, "Statistics Thread"))) {
-    eos_crit("cannot start statistics thread");
-    NoGo = 1;
-  }
-
+  mStatsTid.reset(&Stat::Circulate, MgmStats);
   eos_info("%s", "msg=\"starting archive submitter thread\"");
   mSubmitterTid.reset(&XrdMgmOfs::StartArchiveSubmitter, this);
 

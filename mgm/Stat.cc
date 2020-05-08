@@ -1152,7 +1152,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
 
 /*----------------------------------------------------------------------------*/
 void
-Stat::Circulate()
+Stat::Circulate(ThreadAssistant& assistant) noexcept
 {
   unsigned long long l1 = 0;
   unsigned long long l2 = 0;
@@ -1169,12 +1169,10 @@ Stat::Circulate()
   unsigned long long ns1tmp = 0ull, ns2tmp = 0ull, view1tmp = 0ull,
                      view2tmp = 0ull, qu1tmp = 0ull, qu2tmp = 0ull;
 #endif
-  XrdSysThread::SetCancelDeferred();
 
   // Empty the circular buffer and extract some Mq statistic values
-  while (true) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(512));
-    XrdSysThread::CancelPoint();
+  while (!assistant.terminationRequested()) {
+    assistant.wait_for(std::chrono::milliseconds(512));
     // --------------------------------------------
     // mq statistics extraction
     l1tmp = XrdMqSharedHash::sSetCounter.load();
@@ -1265,8 +1263,6 @@ Stat::Circulate()
       }
     }
   }
-
-  XrdSysThread::SetCancelOn();
 }
 
 EOSMGMNAMESPACE_END
