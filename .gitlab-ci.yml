@@ -493,6 +493,7 @@ ubuntu_bionic_docker_image_commit:
 #   - schedules
   except:
     - tags
+  allow_failure: true
 
 c8_docker_image_tag:
   stage: build:dockerimage
@@ -637,7 +638,6 @@ cc7_asan_docker_image:
     - exec_cmd eos-mgm1 'eos ns mutex --toggleorder'
     - exec_cmd eos-cli1 "su eos-user -c 'mkdir /eos1/dockertest/fusex_tests/; cd /eos1/dockertest/fusex_tests/; fusex-benchmark'"
     - exec_cmd eos-mgm1 'grep "RWMutex. Order Checking Error in thread" /var/log/eos/mgm/xrdlog.mgm && exit 1 || exit 0'
-
     # download tests repo
     - exec_cmd eos-cli1 'git clone https://gitlab.cern.ch/dss/eosclient-tests.git'
     # ubuntu releases do not support 'clone' yet
@@ -668,7 +668,7 @@ cc7_asan_docker_image:
     # prepare eoshome folder, cernbox alike
     - exec_cmd eos-mgm1 './eos_create_userhome.sh eos-user'
     # prepare mountpoints
-    - exec_cmd eos-cli1 'mkdir -p /eos && eosxd -ofsname=${EOS_MGM_URL:7}:/eos/ /eos &> /dev/null'
+    - exec_cmd eos-cli1 'atd; at now <<< "mkdir -p /eos/ && mount -t fuse eosxd -ofsname=eosdockertest /eos/"'
     - exec_cmd eos-cli1 'count=0; while [[ $count -le 10 ]] && ( [[ ! -d /eos/ ]] ); do echo "Wait for mount... $count"; (( count++ )); sleep 1; done;'
     # set krb5 ticket and download tests repo
     - exec_cmd eos-cli1 'su eos-user -c "kinit eos-user@TEST.EOS -k -t /home/eos-user/eos-user.keytab"'
