@@ -46,7 +46,7 @@ This
     "global-locking" : 1,
     "fd-limit" : 524288,
     "no-fsync" : [ ".db", ".db-journal", ".sqlite", ".sqlite-journal", ".db3", ".db3-journal", "*.o" ],
-    "overlay-mode" : 000,
+    "overlay-mode" : "000",
     "rm-rf-protect-levels" : 1,
     "rm-rf-bulk" : 1,
     "show-tree-size" : 0,
@@ -492,3 +492,8 @@ examples:
            fusex caps -p ^/eos/caps/                                 :  show all caps in subtree /eos/caps
 
 
+Allow traversing of directories without 'x' mode
+-------------------------------------------------
+
+To allow on a mount to cd into directories without 'x' mode bit for the user you can define 'overlay-mode' to allow the access & stat function to work for directories without 'x' bit.
+This is necessary e.g. on a Samba mount to reach a subfolder, which you made accessibla to another person without granting 'x' mode on all parent folders. It is enough to use "1" as overlay mode.

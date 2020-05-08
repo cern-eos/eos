@@ -828,6 +828,14 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       config.options.global_locking = root["options"]["global-locking"].asInt();
       config.options.overlay_mode = strtol(
                                       root["options"]["overlay-mode"].asString().c_str(), 0, 8);
+
+
+      if ( config.options.overlay_mode & 1) {
+	config.options.x_ok = 0;
+      } else {
+	config.options.x_ok = X_OK;
+      }
+
       config.options.fdlimit = root["options"]["fd-limit"].asInt();
       config.options.rm_rf_protect_levels =
         root["options"]["rm-rf-protect-levels"].asInt();
@@ -2021,7 +2029,7 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
     } else {
       fuse_ino_t cap_ino = S_ISDIR(md->mode()) ? ino : md->pid();
       cap::shared_cap pcap = Instance().caps.acquire(req, cap_ino ? cap_ino : 1,
-                             S_IFDIR | X_OK | R_OK);
+						     S_IFDIR | Instance().Config().options.x_ok);
       double cap_lifetime = 0;
       XrdSysMutexHelper capLock(pcap->Locker());
 
@@ -2501,7 +2509,7 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
 
     if (md->id() && !md->deleted()) {
       cap::shared_cap pcap = Instance().caps.acquire(req, parent,
-                             R_OK);
+						     Instance().Config().options.x_ok);
 
       XrdSysMutexHelper mLock(md->Locker());
       md->set_pid(parent);
@@ -2527,7 +2535,7 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
         e.entry_timeout = Instance().Config().options.md_kernelcache_enoent_timeout;
       } else {
         cap::shared_cap pcap = Instance().caps.acquire(req, parent,
-                               R_OK);
+						       Instance().Config().options.x_ok);
         e.entry_timeout = pcap->lifetime();
         metad::shared_md pmd = Instance().mds.getlocal(req, parent);
 
@@ -2583,7 +2591,7 @@ EosFuse::listdir(fuse_req_t req, fuse_ino_t ino, metad::shared_md& md)
   fuse_id id(req);
   // retrieve cap
   cap::shared_cap pcap = Instance().caps.acquire(req, ino,
-                         S_IFDIR | X_OK | R_OK, true);
+                         S_IFDIR | R_OK, true);
   XrdSysMutexHelper cLock(pcap->Locker());
 
   if (pcap->errc()) {
@@ -3575,9 +3583,9 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char* name,
   fuse_id id(req);
   // do a parent check
   cap::shared_cap p1cap = Instance().caps.acquire(req, parent,
-                          S_IFDIR | R_OK, true);
+                          S_IFDIR | W_OK | X_OK, true);
   cap::shared_cap p2cap = Instance().caps.acquire(req, newparent,
-                          S_IFDIR | W_OK, true);
+                          S_IFDIR | W_OK | X_OK, true);
 
   if (p1cap->errc()) {
     rc = p1cap->errc();
@@ -3694,6 +3702,11 @@ EosFuse::access(fuse_req_t req, fuse_ino_t ino, int mask)
     is_deleted = md->deleted();
   }
   pmode &= ~F_OK;
+
+  if (!Instance().Config().options.x_ok) {
+    // if X_OK is maked, X_OK is set to 0
+    pmode &= ~X_OK;
+  }
 
   if (md->id() == 0) {
     rc = is_deleted ? ENOENT : EIO;
@@ -5230,10 +5243,10 @@ EosFuse::listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
   // retrieve the appropriate cap
   if (S_ISDIR(md->mode())) {
     pcap = Instance().caps.acquire(req, ino,
-                                   R_OK, true);
+                                   X_OK, true);
   } else {
     pcap = Instance().caps.acquire(req, md->pid(),
-                                   R_OK, true);
+                                   X_OK, true);
   }
 
   if (pcap->errc()) {
@@ -5450,7 +5463,7 @@ EosFuse::readlink(fuse_req_t req, fuse_ino_t ino)
     rc = md->deleted() ? ENOENT : md->err();
   } else {
     pcap = Instance().caps.acquire(req, md->pid(),
-                                   R_OK, true);
+                                   X_OK, true);
 
     if (pcap->errc()) {
       rc = pcap->errc();
@@ -5554,7 +5567,7 @@ EosFuse::symlink(fuse_req_t req, const char* link, fuse_ino_t parent,
   struct fuse_entry_param e;
   // do a parent check
   cap::shared_cap pcap = Instance().caps.acquire(req, parent,
-                         S_IFDIR | W_OK, true);
+                         S_IFDIR | W_OK | X_OK, true);
 
   if (pcap->errc()) {
     rc = pcap->errc();
@@ -5649,7 +5662,7 @@ EosFuse::link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
   struct fuse_entry_param e;
   // do a parent check
   cap::shared_cap pcap = Instance().caps.acquire(req, parent,
-                         S_IFDIR | W_OK, true);
+                         S_IFDIR | X_OK | W_OK, true);
 
   if (pcap->errc()) {
     rc = pcap->errc();

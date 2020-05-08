@@ -262,6 +262,7 @@ public:
       int free_md_asap;
       int cpu_core_affinity;
       mode_t overlay_mode;
+      mode_t x_ok;
       int no_xattr;
       int no_hardlinks;
       uint32_t nocache_graceperiod;
