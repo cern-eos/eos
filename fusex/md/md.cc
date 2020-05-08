@@ -30,6 +30,7 @@
 #include "misc/MacOSXHelper.hh"
 #include "misc/longstring.hh"
 #include "common/Logging.hh"
+#include "common/Path.hh"
 #include "common/StackTrace.hh"
 #include "common/StringConversion.hh"
 #include <iostream>
@@ -1298,6 +1299,13 @@ metad::mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md,
     p2md->local_enoent().erase(newname); // remove a possible enoent entry
     md->set_name(newname);
     md->setop_update();
+
+    p1md->set_mtime(ts.tv_sec);
+    p1md->set_mtime_ns(ts.tv_nsec);
+    p1md->clear_pmtime();
+    p1md->clear_pmtime_ns();
+    p1md->set_ctime(ts.tv_sec);
+    p1md->set_ctime_ns(ts.tv_nsec);
     p1md->setop_update();
   }
 
