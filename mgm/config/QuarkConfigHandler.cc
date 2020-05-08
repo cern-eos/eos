@@ -41,17 +41,16 @@ QuarkConfigHandler::QuarkConfigHandler(const QdbContactDetails &cd)
 //------------------------------------------------------------------------------
 // Fetch a given configuration
 //------------------------------------------------------------------------------
-bool QuarkConfigHandler::fetchConfiguration(const std::string &name, std::map<std::string, std::string> &out, std::string &err) {
+common::Status QuarkConfigHandler::fetchConfiguration(const std::string &name, std::map<std::string, std::string> &out) {
   qclient::redisReplyPtr reply = mQcl->exec("HGETALL", SSTR("eos-config:" << name)).get();
   qclient::HgetallParser parser(reply);
 
   if(!parser.ok()) {
-    err = parser.err();
-    return false;
+    return common::Status(EINVAL, parser.err());
   }
 
   out = parser.value();
-  return true;
+  return common::Status();
 }
 
 EOSMGMNAMESPACE_END

@@ -47,8 +47,7 @@ TEST_F(ConfigurationTests, BasicFetch) {
   eos::mgm::QuarkConfigHandler ch(getContactDetails());
 
   std::map<std::string, std::string> cfmap;
-  std::string err;
-  ASSERT_TRUE(ch.fetchConfiguration("default", cfmap, err));
+  ASSERT_TRUE(ch.fetchConfiguration("default", cfmap));
 
   ASSERT_EQ(cfmap.size(), 1u);
   ASSERT_EQ(cfmap["a"], "b");

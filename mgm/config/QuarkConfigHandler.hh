@@ -23,6 +23,7 @@
 
 #pragma once
 #include "mgm/Namespace.hh"
+#include "common/Status.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include <map>
 
@@ -45,7 +46,7 @@ public:
   //----------------------------------------------------------------------------
   // Fetch a given configuration
   //----------------------------------------------------------------------------
-  bool fetchConfiguration(const std::string &name, std::map<std::string, std::string> &out, std::string &err);
+  common::Status fetchConfiguration(const std::string &name, std::map<std::string, std::string> &out);
 
 private:
   QdbContactDetails mContactDetails;
