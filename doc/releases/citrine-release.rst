@@ -15,6 +15,29 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.7.13 Citrine``
+===================
+
+2020-05-08
+
+Bug
+----
+
+* [EOS-4084] - 'eos fs mv'  returns 0 even in case of errors
+* [EOS-4171] - GDB seg faults when taking backtraces of EOS daemons
+* [EOS-4182] - FUSEX: 'Invalid argument' instead of 'Permission denied' on non-cached access to restricted directory
+* [EOS-4183] - eosxd: unable to delete, temporary I/O error on directory
+* [EOS-4187] - MGM: fs commands return random "return codes"
+* [EOS-4188] - Crash in XrdMgmOfsFile::open
+* [EOS-4189] - EOSHOME-I00 crash on XrdMgmOfsFile::open
+* [EOS-4209] - MGM: sys.acl does not accept denial of some permissions
+
+Improvement
+------------
+
+* [EOS-4113] - log: add fs number to the MGM logs for FST redirections
+* [EOS-4169] - Missing fsids in file info -m and json when NA context (it is not the case in normal file info)
+
 
 ``v4.7.12 Citrine``
 ===================
