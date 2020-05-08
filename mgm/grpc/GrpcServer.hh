@@ -62,6 +62,7 @@ public:
 
   virtual ~GrpcServer()
   {
+    mServer->Shutdown();
     mThread.join();
   }
 
