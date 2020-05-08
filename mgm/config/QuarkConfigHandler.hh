@@ -24,6 +24,7 @@
 #pragma once
 #include "mgm/Namespace.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
+#include <map>
 
 namespace qclient {
   class QClient;
@@ -41,9 +42,15 @@ public:
   //----------------------------------------------------------------------------
   QuarkConfigHandler(const QdbContactDetails &cd);
 
+  //----------------------------------------------------------------------------
+  // Fetch a given configuration
+  //----------------------------------------------------------------------------
+  bool fetchConfiguration(const std::string &name, std::map<std::string, std::string> &out, std::string &err);
+
 private:
   QdbContactDetails mContactDetails;
   std::unique_ptr<qclient::QClient> mQcl;
+
 
 };
 
