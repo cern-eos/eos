@@ -42,7 +42,7 @@ QuarkConfigHandler::QuarkConfigHandler(const QdbContactDetails &cd)
 // Fetch a given configuration
 //------------------------------------------------------------------------------
 common::Status QuarkConfigHandler::fetchConfiguration(const std::string &name, std::map<std::string, std::string> &out) {
-  qclient::redisReplyPtr reply = mQcl->exec("HGETALL", SSTR("eos-config:" << name)).get();
+  qclient::redisReplyPtr reply = mQcl->exec("HGETALL", formHashKey(name)).get();
   qclient::HgetallParser parser(reply);
 
   if(!parser.ok()) {
@@ -51,6 +51,22 @@ common::Status QuarkConfigHandler::fetchConfiguration(const std::string &name, s
 
   out = parser.value();
   return common::Status();
+}
+
+//------------------------------------------------------------------------------
+// Form target key
+//------------------------------------------------------------------------------
+std::string QuarkConfigHandler::formHashKey(const std::string &name) {
+  return SSTR("eos-config:" << name);
+}
+
+//----------------------------------------------------------------------------
+//! Form backup key
+//----------------------------------------------------------------------------
+std::string QuarkConfigHandler::formBackupHashKey(const std::string& name, time_t timestamp) {
+  char buff[128];
+  strftime(buff, 127, "%Y%m%d%H%M%S", localtime(&timestamp));
+  return SSTR("eos-config-backup" << ":" << name << "-" << buff);
 }
 
 EOSMGMNAMESPACE_END

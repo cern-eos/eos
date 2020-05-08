@@ -48,6 +48,17 @@ public:
   //----------------------------------------------------------------------------
   common::Status fetchConfiguration(const std::string &name, std::map<std::string, std::string> &out);
 
+  //----------------------------------------------------------------------------
+  // Form hash key
+  //----------------------------------------------------------------------------
+  static std::string formHashKey(const std::string &name);
+
+  //----------------------------------------------------------------------------
+  // Form backup key
+  //----------------------------------------------------------------------------
+  static std::string formBackupHashKey(const std::string &name, time_t timestamp);
+
+
 private:
   QdbContactDetails mContactDetails;
   std::unique_ptr<qclient::QClient> mQcl;

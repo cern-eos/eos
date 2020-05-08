@@ -52,3 +52,8 @@ TEST_F(ConfigurationTests, BasicFetch) {
   ASSERT_EQ(cfmap.size(), 1u);
   ASSERT_EQ(cfmap["a"], "b");
 }
+
+TEST_F(ConfigurationTests, HashKeys) {
+  ASSERT_EQ(eos::mgm::QuarkConfigHandler::formHashKey("default"), "eos-config:default");
+  ASSERT_EQ(eos::mgm::QuarkConfigHandler::formBackupHashKey("default", 1588936606), "eos-config-backup:default-20200508111646");
+}
