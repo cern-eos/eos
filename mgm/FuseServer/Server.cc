@@ -1786,12 +1786,17 @@ Server::OpSetFile(const std::string& id,
 	  std::string vdir = EOS_COMMON_PATH_VERSION_FILE_PREFIX;
 	  vdir += oPath.GetName();
 
-	  if (pcmd->findContainer(vdir)) {
+	  cpcmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
+
+	  if (cpcmd->findContainer(vdir)) {
+	    eos_static_info("%s has version", vdir.c_str());
 	    hasVersion = true;
 	  }
 
-	  cpcmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
 	  cpcmd->removeFile(fmd->getName());
+
+	  cpcmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
+
 	  gOFS->eosView->updateContainerStore(cpcmd.get());
 	  fmd->setName(md.name());
 	  ofmd = pcmd->findFile(md.name());
