@@ -54,9 +54,11 @@ void Drainer::Start()
 void
 Drainer::Stop()
 {
-  mThread.join();
-  mIsRunning = false;
-  gOFS->mDrainTracker.Clear();
+  if (mIsRunning) {
+    mIsRunning = false;
+    mThread.join();
+    gOFS->mDrainTracker.Clear();
+  }
 }
 
 //------------------------------------------------------------------------------
