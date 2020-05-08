@@ -30,6 +30,17 @@ namespace eos{
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
+FlushAllOnConstruction::FlushAllOnConstruction(const QdbContactDetails& cd)
+  : contactDetails(cd)
+{
+  qclient::QClient qcl(cd.members, cd.constructOptions());
+  qcl.exec("FLUSHALL").get();
+  qcl.exec("SET", "QDB-INSTANCE-FOR-EOS-NS-TESTS", "YES");
+}
+
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
 UnitTestsWithQDBFixture::UnitTestsWithQDBFixture() {
 
   // Connection parameters
@@ -50,16 +61,23 @@ UnitTestsWithQDBFixture::UnitTestsWithQDBFixture() {
 
   mContactDetails = QdbContactDetails(qclient::Members::fromString(qdb_hostport),
     qdb_passwd);
+  mFlushGuard.reset(new FlushAllOnConstruction(mContactDetails));
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 //! Make QClient object
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 std::unique_ptr<qclient::QClient> UnitTestsWithQDBFixture::makeQClient() const {
   return std::unique_ptr<qclient::QClient>(
            new qclient::QClient(mContactDetails.members, mContactDetails.constructOptions())
   );
 }
 
+//------------------------------------------------------------------------------
+// Retrieve contact details
+//------------------------------------------------------------------------------
+QdbContactDetails UnitTestsWithQDBFixture::getContactDetails() const {
+  return mContactDetails;
+}
 
 }

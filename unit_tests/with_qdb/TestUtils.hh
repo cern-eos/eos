@@ -34,6 +34,18 @@ namespace eos
 {
 
 //------------------------------------------------------------------------------
+//! Class FlushAllOnConstruction
+//------------------------------------------------------------------------------
+class FlushAllOnConstruction
+{
+public:
+  FlushAllOnConstruction(const QdbContactDetails& cd);
+
+private:
+  QdbContactDetails contactDetails;
+};
+
+//------------------------------------------------------------------------------
 //! Test fixture providing generic utilities and initialization / destruction
 //! boilerplate code
 //------------------------------------------------------------------------------
@@ -50,8 +62,15 @@ public:
   //----------------------------------------------------------------------------
   std::unique_ptr<qclient::QClient> makeQClient() const;
 
+  //----------------------------------------------------------------------------
+  //! Retrieve contact details
+  //----------------------------------------------------------------------------
+  QdbContactDetails getContactDetails() const;
+
+
 private:
   QdbContactDetails mContactDetails;
+  std::unique_ptr<FlushAllOnConstruction> mFlushGuard;
 };
 
 }

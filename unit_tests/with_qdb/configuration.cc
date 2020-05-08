@@ -22,10 +22,13 @@
 //------------------------------------------------------------------------------
 
 #include "unit_tests/with_qdb/TestUtils.hh"
+#include "mgm/config/QuarkConfigHandler.hh"
+
 #include <qclient/QClient.hh>
 
 using namespace eos;
 class VariousTests : public eos::UnitTestsWithQDBFixture {};
+class ConfigurationTests : public eos::UnitTestsWithQDBFixture {};
 
 TEST_F(VariousTests, Ping) {
   std::unique_ptr<qclient::QClient> qcl = makeQClient();
@@ -33,4 +36,20 @@ TEST_F(VariousTests, Ping) {
   qclient::redisReplyPtr reply = qcl->exec("PING").get();
   ASSERT_EQ(qclient::describeRedisReply(reply),
     "PONG");
+}
+
+TEST_F(ConfigurationTests, BasicFetch) {
+  std::unique_ptr<qclient::QClient> qcl = makeQClient();
+
+  qclient::redisReplyPtr reply = qcl->exec("HSET", "eos-config:default", "a", "b").get();
+  ASSERT_EQ(qclient::describeRedisReply(reply), "(integer) 1");
+
+  eos::mgm::QuarkConfigHandler ch(getContactDetails());
+
+  std::map<std::string, std::string> cfmap;
+  std::string err;
+  ASSERT_TRUE(ch.fetchConfiguration("default", cfmap, err));
+
+  ASSERT_EQ(cfmap.size(), 1u);
+  ASSERT_EQ(cfmap["a"], "b");
 }
