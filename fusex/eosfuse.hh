@@ -242,7 +242,6 @@ public:
       int rmdir_is_sync;
       int global_flush;
 
-
       int flush_wait_umount;
       int flush_wait_open;
       enum eFLUSH_WAIT_OPEN
@@ -271,6 +270,7 @@ public:
       int submounts;
       int inmemory_inodes;
       bool flock;
+      bool hide_versions;
       std::vector<std::string> no_fsync_suffixes;
       std::vector<std::string> nowait_flush_executables;
     } options_t;

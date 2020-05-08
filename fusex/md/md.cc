@@ -33,6 +33,7 @@
 #include "common/Path.hh"
 #include "common/StackTrace.hh"
 #include "common/StringConversion.hh"
+#include "common/Path.hh"
 #include <iostream>
 #include <sstream>
 #include <vector>
@@ -494,6 +495,13 @@ metad::map_children_to_local(shared_md pmd)
 
     uint64_t remote_ino = map->second;
     uint64_t local_ino = inomap.forward(remote_ino);
+
+    if (EosFuse::Instance().Config().options.hide_versions) {
+      // check for version prefixes
+      if ( map->first.substr(0, strlen(EOS_COMMON_PATH_VERSION_FILE_PREFIX))  == EOS_COMMON_PATH_VERSION_FILE_PREFIX ) {
+	continue;
+      }
+    }
 
     // skip entries we already know, if we don't have the mapping we have forgotten already this one
     if (pmd->local_children().count(

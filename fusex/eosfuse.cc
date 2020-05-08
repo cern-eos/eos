@@ -590,6 +590,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         root["options"]["show-tree-size"] = 0;
       }
 
+      if (!root["options"].isMember("hide-versions")) {
+        root["options"]["hide-versions"] = 1;
+      }
+
       if (!root["auth"].isMember("krb5")) {
         root["auth"]["krb5"] = 1;
       }
@@ -842,6 +846,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       config.options.rm_rf_bulk =
         root["options"]["rm-rf-bulk"].asInt();
       config.options.show_tree_size = root["options"]["show-tree-size"].asInt();
+      config.options.hide_versions = root["options"]["hide-versions"].asInt();
       config.options.cpu_core_affinity = root["options"]["cpu-core-affinity"].asInt();
       config.options.no_xattr = root["options"]["no-xattr"].asInt();
       config.options.no_hardlinks = root["options"]["no-link"].asInt();
@@ -1599,7 +1604,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         eos_static_warning("sss-keytabfile         := %s", config.ssskeytab.c_str());
       }
 
-      eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d flush-w-open-sz:%ld flush-w-umount:%d locking:%d no-fsync:%s flush-nowait-exec:%s ol-mode:%03o show-tree-size:%d core-affinity:%d no-xattr:%d no-link:%d nocache-graceperiod:%d rm-rf-protect-level=%d rm-rf-bulk=%d t(lease)=%d t(size-flush)=%d submounts=%d ino(in-mem)=%d flock:%d",
+      eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d flush-w-open-sz:%ld flush-w-umount:%d locking:%d no-fsync:%s flush-nowait-exec:%s ol-mode:%03o show-tree-size:%d hide-versions:%d core-affinity:%d no-xattr:%d no-link:%d nocache-graceperiod:%d rm-rf-protect-level=%d rm-rf-bulk=%d t(lease)=%d t(size-flush)=%d submounts=%d ino(in-mem)=%d flock:%d",
                          config.options.enable_backtrace,
                          config.options.md_kernelcache,
                          config.options.md_kernelcache_enoent_timeout,
@@ -1617,6 +1622,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 			 nowait_flush_exec_list.c_str(),
                          config.options.overlay_mode,
                          config.options.show_tree_size,
+                         config.options.hide_versions,
                          config.options.cpu_core_affinity,
                          config.options.no_xattr,
                          config.options.no_hardlinks,
