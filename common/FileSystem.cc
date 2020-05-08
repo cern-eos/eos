@@ -1083,7 +1083,10 @@ static void printOntoTable(mq::SharedHashWrapper& hash,
   if (filter.find("d") != string::npos) {
     std::string drain = hash.get("stat.drain");
 
-    if (drain == "nodrain") {
+    // @note there is a bug when initializing stat.drain on an fs which is not
+    // propagated to the shared hash therefore, we need to also exclude the
+    // the empty drain status from the list of active drainings
+    if (drain.empty() || (drain == "nodrain")) {
       toRemove = true;
     }
   }

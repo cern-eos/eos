@@ -3734,7 +3734,6 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
 
   if (outdepth > 0) {
     // Print table for geotag
-//    TableFormatterBase table_geo;
     TableFormatterBase table_geo(dont_color);
     table_geo.SetHeader(table_header);
     table_geo.AddRows(table_data);
