@@ -502,6 +502,7 @@ The EOS server installation containing MGM, FST & MQ service.
     %{_prefix}/lib/systemd/system/eossync@.service
     %{_prefix}/lib/systemd/system/eossync@config.service
     %{_sbindir}/eos_start_pre.sh
+    %{_sbindir}/eos_start.sh
 %else
     %config %{_sysconfdir}/sysconfig/eos.example
     %{_sysconfdir}/rc.d/init.d/eos

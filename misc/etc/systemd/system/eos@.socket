@@ -1,0 +1,9 @@
+[Unit]
+Description=Eos daemon socket
+
+[Sockets]
+# Set the xrd port
+ListenStream=1094
+# Set the http port
+ListenStream=900
+Service=eos@%i.service

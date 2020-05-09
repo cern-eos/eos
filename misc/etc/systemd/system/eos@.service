@@ -31,12 +31,10 @@ WorkingDirectory=/var/eos
 EnvironmentFile=/etc/sysconfig/eos_env
 
 ExecStartPre=/bin/sh -c "/usr/sbin/eos_start_pre.sh eos-start-pre %i"
-
-ExecStart=/bin/sh -c 'XRDPROG=/usr/bin/xrootd; test -e /opt/eos/xrootd/bin/xrootd && XRDPROG=/opt/eos/xrootd/bin/xrootd; echo $$XRDPROG ; $$XRDPROG -n %i -c /etc/xrd.cf.%i -l /var/log/eos/xrdlog.%i -Rdaemon&'
-
+ExecStart=/usr/sbin/eos_start.sh -n %i -c /etc/xrd.cf.%i -l /var/log/eos/xrdlog.%i -Rdaemon
 ExecStop=/bin/sh -c "/usr/sbin/eos_start_pre.sh eos-stop %i"
 
-Type=forking
+Type=simple
 User=root
 Group=root
 Restart=on-failure

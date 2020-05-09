@@ -57,7 +57,5 @@ xrdmgmofs_shutdown(int sig)
   gOFS->Shutdown = true;
   gOFS->OrderlyShutdown();
   eos_static_alert("msg=\"shutdown complete\"");
-  // @todo(esindril) this should be droppend when the MGM cleanly shuts down
-  kill(getpid(), 9);
-  exit(9);
+  std::quick_exit(0);
 }

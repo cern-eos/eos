@@ -39,7 +39,7 @@ endif()
 
 # Script used by systemd in the start-up phase
 install(
-  FILES eos_start_pre.sh eos-status
+  FILES eos_start_pre.sh eos_start.sh eos-status
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
   PERMISSIONS OWNER_READ OWNER_EXECUTE
 	      GROUP_READ GROUP_EXECUTE
