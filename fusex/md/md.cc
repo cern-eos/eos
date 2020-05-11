@@ -498,8 +498,12 @@ metad::map_children_to_local(shared_md pmd)
 
     if (EosFuse::Instance().Config().options.hide_versions && EosFuse::Instance().mds.supports_hideversion()) {
       // check for version prefixes
-      if ( map->first.substr(0, strlen(EOS_COMMON_PATH_VERSION_FILE_PREFIX))  == EOS_COMMON_PATH_VERSION_FILE_PREFIX ) {
-	continue;
+      if ( map->first.substr(0, strlen(EOS_COMMON_PATH_VERSION_FILE_PREFIX)) == EOS_COMMON_PATH_VERSION_FILE_PREFIX ) {
+	// check if there is actually a 'babysitting' reference file for this version, if now we display it!
+	std::string nvfile = map->first.substr( strlen(EOS_COMMON_PATH_VERSION_FILE_PREFIX ));
+	if (pmd->children().count(nvfile)) {
+	  continue;
+	}
       }
     }
 
