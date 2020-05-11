@@ -31,7 +31,7 @@ This
     "debuglevel" : 4,
     "backtrace" : 1,
     "libfusethreads" : 0,
-    "hide-versions" : 1,
+    "hide-versions" : 0,
     "md-kernelcache" : 1,
     "md-kernelcache.enoent.timeout" : 0,
     "md-backend.timeout" : 86400,
