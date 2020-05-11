@@ -725,6 +725,7 @@ dock_system:
   retry: 1
   tags:
     - shell-with-docker
+  when: manual
 
 dock_fusex:
   <<: *dock8s_fusex_test_template
@@ -733,6 +734,7 @@ dock_fusex:
   retry: 1
   tags:
     - shell-with-docker
+  when: manual
 
 dock_cbox:
   <<: *dock8s_fusex_test_template
@@ -741,6 +743,7 @@ dock_cbox:
   retry: 1
   tags:
     - shell-with-docker
+  when: manual
 
 dock_stress:
   stage: test
@@ -754,6 +757,7 @@ dock_stress:
   retry: 1
   tags:
     - shell-with-docker
+  when: manual
 
 .unit_test_template: &unit_test_template_definition
   stage: test
@@ -857,6 +861,7 @@ dock_system_c8:
     - tags
   tags:
     - shell-with-docker
+  when: manual
 
 dock_cbox_c8:
   <<: *dock8s_cbox_test_template
@@ -868,6 +873,7 @@ dock_cbox_c8:
   retry: 1
   tags:
     - shell-with-docker
+  when: manual
 
 dock_fusex_ubuntu:
   <<: *dock8s_fusex_test_template
@@ -882,6 +888,7 @@ dock_fusex_ubuntu:
     - tags
   tags:
     - shell-with-docker
+  when: manual
 
 .dock_system_xt: # @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
   # xt stands for xrd_testing. Must shorten to not hit HOST_NAME_MAX
@@ -896,6 +903,7 @@ dock_fusex_ubuntu:
     - schedules
   tags:
     - shell-with-docker
+  when: manual
 
 unit_test_asan:
   image:
