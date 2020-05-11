@@ -591,7 +591,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       }
 
       if (!root["options"].isMember("hide-versions")) {
-        root["options"]["hide-versions"] = 0;
+        root["options"]["hide-versions"] = 1;
       }
 
       if (!root["auth"].isMember("krb5")) {
