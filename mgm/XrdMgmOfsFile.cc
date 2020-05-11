@@ -990,8 +990,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       }
 
       if (isRW) {
-        // Update case
-        if (fmd) {
+        // Update case - unless SFS_O_TRUNC is specified then this is a normal write
+        if (fmd && ((open_mode & SFS_O_TRUNC) == 0)) {
           eos_debug("CanUpdate %d CanNotUpdate %d stdpermcheck %d file uid/gid = %d/%d",
                     acl.CanUpdate(), acl.CanNotUpdate(), stdpermcheck, fmd->getCUid(),
                     fmd->getCGid());
