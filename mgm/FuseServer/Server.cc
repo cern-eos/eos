@@ -2724,8 +2724,13 @@ Server::OpDeleteFile(const std::string& id,
     eos_info("ino=%lx delete-file", (long) md.md_ino());
     eos::IContainerMD::XAttrMap attrmap = pcmd->getAttributes();
 
+
+    // this is a client hiding versions, force the version cleanup
+    bool version_cleanup = (md.opflags() == eos::fusex::md::DELETEVERSIONS);
+
     // recycle bin - not for hardlinked files or hardlinks!
-    if (attrmap.count(Recycle::gRecyclingAttribute) &&
+    if (
+	( version_cleanup || attrmap.count(Recycle::gRecyclingAttribute) ) &&
         (!fmd->hasAttribute(k_mdino)) && (!fmd->hasAttribute(k_nlink))) {
       // translate to a path name and call the complex deletion function
       // this is vulnerable to a hard to trigger race conditions
@@ -2733,8 +2738,13 @@ Server::OpDeleteFile(const std::string& id,
       gOFS->WriteRecycleRecord(fmd);
       gOFS->eosViewRWMutex.UnLockWrite();
       XrdOucErrInfo error;
-      (void) gOFS->_rem(fullpath.c_str(), error, vid, "", false, false,
-                        false, true, false);
+      (void) gOFS->_rem(fullpath.c_str(), error, vid, "",
+			false,  // not simulated
+			false, // delete versions as well
+                        !attrmap.count(Recycle::gRecyclingAttribute) ,  // indicate if recycle bin is disabled
+			true,  // don't enforce quota
+			false // don't broadcast
+			);
       gOFS->eosViewRWMutex.LockWrite();
     } else {
       try {

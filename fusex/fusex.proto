@@ -4,6 +4,7 @@ package eos.fusex;
 message md {
   enum OP { GET = 0; SET = 1; DELETE = 2; GETCAP = 3; LS = 4; GETLK = 5; SETLK = 6; SETLKW = 7; BEGINFLUSH = 8; ENDFLUSH = 9;}
   enum TYPE { MD = 0; MDLS = 1; EXCL = 2;}
+  enum FLAG { NONE = 0; DELETEVERSIONS = 1; }
 
   fixed64 id = 1;        //< file/container id
   fixed64 pid = 2;       //< parent id
@@ -50,6 +51,7 @@ message md {
   bool creator = 41; //< indicates we are the creator of this md record
   string mv_authid = 42; //< indicates the authid applying to the source directory of a mv
   fixed64 bc_time = 43; //< indicates the reception time of a broadcasted md record
+  FLAG opflags = 44; //< indicates a flag for an operation
 };
 
 message md_state {	
@@ -235,6 +237,7 @@ message config {
   string serverversion = 4; //< software version of the server
   bool appname = 5; //< supports extended app names like fuse::smaba not only fuse
   bool mdquery = 6; //< supports fetchResponseQuery 
+  bool hideversion = 7; //< supports clients hiding versions ( can delete version server side )
 }
 
 message response {

@@ -841,6 +841,12 @@ public:
     return mdquery;
   }
 
+  bool supports_hideversion()
+  {
+    XrdSysMutexHelper cLock(ConfigMutex);
+    return hideversion;
+  }
+
 private:
 
   // Lock _two_ md objects in the given order.
@@ -891,6 +897,7 @@ private:
   bool writesizeflush;
   bool appname;
   bool mdquery;
+  bool hideversion;
   std::string serverversion;
 
   XrdSysCondVar mdflush;

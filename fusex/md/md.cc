@@ -496,7 +496,7 @@ metad::map_children_to_local(shared_md pmd)
     uint64_t remote_ino = map->second;
     uint64_t local_ino = inomap.forward(remote_ino);
 
-    if (EosFuse::Instance().Config().options.hide_versions) {
+    if (EosFuse::Instance().Config().options.hide_versions && EosFuse::Instance().mds.supports_hideversion()) {
       // check for version prefixes
       if ( map->first.substr(0, strlen(EOS_COMMON_PATH_VERSION_FILE_PREFIX))  == EOS_COMMON_PATH_VERSION_FILE_PREFIX ) {
 	continue;
@@ -1194,6 +1194,13 @@ metad::remove(fuse_req_t req, metad::shared_md pmd, metad::shared_md md,
   md->set_mtime(ts.tv_sec);
   md->set_mtime_ns(ts.tv_nsec);
   md->setop_delete();
+
+  if ( EosFuse::Instance().Config().options.hide_versions && EosFuse::Instance().mds.supports_hideversion() ) {
+    // indicate the MGM to remove also all versions
+    md->set_opflags(eos::fusex::md::DELETEVERSIONS);
+  }
+
+
   std::string name = md->name();
   // avoid lock order violation
   md->Locker().UnLock();
@@ -2715,12 +2722,13 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 
             if (rsp.type() == rsp.CONFIG) {
               if (rsp.config_().hbrate()) {
-                eos_static_warning("MGM asked us to set our heartbeat interval to %d seconds, %s dentry-messaging, %s writesizeflush, %s appname, %s mdquery and server-version=%s",
+                eos_static_warning("MGM asked us to set our heartbeat interval to %d seconds, %s dentry-messaging, %s writesizeflush, %s appname, %s mdquery versions %s and server-version=%s",
                                    rsp.config_().hbrate(),
                                    rsp.config_().dentrymessaging() ? "enable" : "disable",
                                    rsp.config_().writesizeflush() ?  "enable" : "disable",
                                    rsp.config_().appname() ? "accepts" : "rejects",
                                    rsp.config_().mdquery() ? "accepts" : "rejects",
+				   rsp.config_().hideversion() ? "hidden" : "visible",
                                    rsp.config_().serverversion().c_str());
                 interval = (int) rsp.config_().hbrate();
                 XrdSysMutexHelper cLock(EosFuse::Instance().mds.ConfigMutex);
@@ -2728,6 +2736,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                 EosFuse::Instance().mds.writesizeflush = rsp.config_().writesizeflush();
                 EosFuse::Instance().mds.appname = rsp.config_().appname();
                 EosFuse::Instance().mds.mdquery = rsp.config_().mdquery();
+		EosFuse::Instance().mds.hideversion = rsp.config_().hideversion();
 
                 if (rsp.config_().serverversion().length()) {
                   EosFuse::Instance().mds.serverversion = rsp.config_().serverversion();
