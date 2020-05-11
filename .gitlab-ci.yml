@@ -665,7 +665,8 @@ cc7_asan_docker_image:
   stage: test
   <<: *dock8s_before_script_template
   script:
-    # prepare eoshome folder, cernbox alike
+    # enable converter and prepare eoshome folder, cernbox alike
+    - exec_cmd eos-mgm1 'eos space config default space.converter=on'
     - exec_cmd eos-mgm1 './eos_create_userhome.sh eos-user'
     # prepare mountpoints
     - exec_cmd eos-cli1 'atd; at now <<< "mkdir -p /eos/ && mount -t fuse eosxd -ofsname=eosdockertest /eos/"'
@@ -677,19 +678,12 @@ cc7_asan_docker_image:
     - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && python ./eosclient-tests/run.py --workdir=/eos/user/e/eos-user ci-eosfuse_release"'
     - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && python ./eosclient-tests/run.py --workdir=/eos/user/e/eos-user regression"'
   <<: *dock8s_after_script_template
+  allow_failure: true # @note remove soon, once stable
   artifacts:
     when: on_failure
     expire_in: 3 days
     paths:
       - eos-logs-${CI_JOB_ID}/
-
-k8s_cbox:
-  <<: *dock8s_cbox_test_template
-  dependencies: []
-  retry: 1
-  allow_failure: true
-  tags:
-    - shell-with-kubernetes
 
 k8s_system:
   <<: *dock8s_system_test_template
@@ -700,6 +694,13 @@ k8s_system:
 
 k8s_fusex:
   <<: *dock8s_fusex_test_template
+  dependencies: []
+  retry: 1
+  tags:
+    - shell-with-kubernetes
+
+k8s_cbox:
+  <<: *dock8s_cbox_test_template
   dependencies: []
   retry: 1
   tags:
@@ -733,7 +734,7 @@ dock_fusex:
   tags:
     - shell-with-docker
 
-.dock_fusex_cbox:
+dock_cbox:
   <<: *dock8s_fusex_test_template
   dependencies:
     - clone_docker
@@ -791,10 +792,10 @@ unit_test:
 
 # schedules ------------------------------
 
-k8s_fusex_ubuntu:
-  <<: *dock8s_fusex_test_template
+k8s_system_c8:
+  <<: *dock8s_system_test_template
   variables:
-    CLI_BASETAG: "ubuntu_bionic_client_"
+    BASETAG: "c8_"
   dependencies: []
   retry: 1
   allow_failure: true
@@ -804,10 +805,23 @@ k8s_fusex_ubuntu:
   tags:
     - shell-with-kubernetes
 
-k8s_system_c8:
-  <<: *dock8s_system_test_template
+k8s_cbox_c8:
+  <<: *dock8s_cbox_test_template
   variables:
     BASETAG: "c8_"
+  dependencies: []
+  retry: 1
+  allow_failure: true
+  only:
+    - schedules
+    - tags
+  tags:
+    - shell-with-kubernetes
+
+k8s_fusex_ubuntu:
+  <<: *dock8s_fusex_test_template
+  variables:
+    CLI_BASETAG: "ubuntu_bionic_client_"
   dependencies: []
   retry: 1
   allow_failure: true
@@ -830,10 +844,10 @@ k8s_system_c8:
   tags:
     - shell-with-kubernetes
 
-dock_fusex_ubuntu:
-  <<: *dock8s_fusex_test_template
+dock_system_c8:
+  <<: *dock8s_system_test_template
   variables:
-    CLI_BASETAG: "ubuntu_bionic_client_"
+    BASETAG: "c8_"
   dependencies:
     - clone_docker
   allow_failure: true
@@ -844,10 +858,21 @@ dock_fusex_ubuntu:
   tags:
     - shell-with-docker
 
-dock_system_c8:
-  <<: *dock8s_system_test_template
+dock_cbox_c8:
+  <<: *dock8s_cbox_test_template
   variables:
     BASETAG: "c8_"
+  dependencies:
+    - clone_docker
+  allow_failure: true
+  retry: 1
+  tags:
+    - shell-with-docker
+
+dock_fusex_ubuntu:
+  <<: *dock8s_fusex_test_template
+  variables:
+    CLI_BASETAG: "ubuntu_bionic_client_"
   dependencies:
     - clone_docker
   allow_failure: true
@@ -880,6 +905,7 @@ unit_test_asan:
   variables:
     LSAN_OPTIONS: "suppressions=/var/eos/test/LeakSanitizer.supp"  # Suppress known memory leaks. For the generic tests
     ASAN_OPTIONS: "fast_unwind_on_malloc=0"  # Avoid indirect leaks from linked dependencies. For the namespace tests
+  allow_failure: true
   only:
     - schedules
 
