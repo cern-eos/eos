@@ -18,6 +18,29 @@ This release is based on XRootD V4 and IPV6 enabled.
 ``v4.7.13 Citrine``
 ===================
 
+2020-05-11
+
+Bug
+---
+
+* [EOS-4210] - `eos fs ls -d` shows disks which are actually not in drain (stat.drain is empty)
+
+New Feature
+-------------
+
+* [EOS-4205] - Be able to hide .sys.v# like folder/files to users
+
+Improvement
+------------
+
+* [EOS-4197] - Show available redundancy in 'ls -y '
+* [EOS-4207] - Add Quota (ls) comand to GRPC interface
+* [EOS-4212] - Review POSIX permission behaviour in eosxd & enable overlay behaviour
+
+
+``v4.7.13 Citrine``
+===================
+
 2020-05-08
 
 Bug
