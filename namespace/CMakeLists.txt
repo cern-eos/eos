@@ -179,8 +179,8 @@ if (CPPUNIT_FOUND)
 
   target_link_libraries(
     text-runner PUBLIC
+    GLIBC::DL
     ${CPPUNIT_LIBRARIES}
-    ${GLIBC_DL_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT})
 endif()
 

@@ -39,7 +39,6 @@ target_link_libraries(EosNsQuarkdb PUBLIC
   qclient
   rocksdb
   ${BZ2_LIBRARY}
-  ${GLIBC_DL_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
 install(TARGETS EosNsQuarkdb

@@ -291,7 +291,6 @@ target_link_libraries(XrdEosMgm-${PLUGIN_VERSION} PUBLIC
   EosCommon
   EosNsCommon
   bfd
-  ${GLIBC_DL_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
 install(
@@ -352,7 +351,6 @@ if(Linux)
     XROOTD::PRIVATE
     EosNsCommon-Static
     EosCommonServer-Static
-    ${GLIBC_DL_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT})
 
   install(TARGETS eos-config-inspect

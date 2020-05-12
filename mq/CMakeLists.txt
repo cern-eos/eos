@@ -1,7 +1,7 @@
-# ----------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 # File: CMakeLists.txt
 # Author: Andreas-Joachim Peters - CERN
-# ----------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 
 # ************************************************************************
 # * EOS - the CERN Disk Storage System                                   *
@@ -21,10 +21,6 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(
-  ${CMAKE_SOURCE_DIR}
-  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include)
-
 #-------------------------------------------------------------------------------
 # XrdMqClient-Objects
 #-------------------------------------------------------------------------------
@@ -40,8 +36,7 @@ add_library(XrdMqClient-Objects OBJECT
   XrdMqClient.cc                 XrdMqClient.hh
   XrdMqMessage.cc                XrdMqMessage.hh
   XrdMqMessaging.cc              XrdMqMessaging.hh
-  XrdMqSharedObject.cc           XrdMqSharedObject.hh
-)
+  XrdMqSharedObject.cc           XrdMqSharedObject.hh)
 
 target_link_libraries(XrdMqClient-Objects PUBLIC
   XROOTD::UTILS

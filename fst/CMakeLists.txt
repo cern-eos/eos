@@ -183,7 +183,6 @@ target_link_libraries(EosFstIo PUBLIC
   ISAL::ISAL
   ISAL::ISAL_CRYPTO
   XXHASH::XXHASH
-  ${GLIBC_DL_LIBRARY}
   ${DAVIX_LIBRARIES})
 
 set_target_properties(EosFstIo PROPERTIES
@@ -436,7 +435,7 @@ set_target_properties(eos-fsck-fs PROPERTIES COMPILE_FLAGS -D_NOOFS=1)
 
 add_executable(eos-ioping tools/IoPing.c)
 target_compile_options(eos-ioping PRIVATE -std=gnu99)
-target_link_libraries(eos-ioping PRIVATE ${GLIBC_M_LIBRARY} ${GLIBC_RT_LIBRARY})
+target_link_libraries(eos-ioping PRIVATE GLIBC::RT GLIBC::M)
 target_link_libraries(eos-check-blockxs PRIVATE EosFstIo)
 target_link_libraries(eos-compute-blockxs PRIVATE EosFstIo)
 target_link_libraries(eos-adler32 PRIVATE EosFstIo)

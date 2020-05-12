@@ -1,7 +1,7 @@
-# ----------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 # File: CMakeLists.txt
 # Author: Andreas-Joachim Peters - CERN
-# ----------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 
 # ************************************************************************
 # * EOS - the CERN Disk Storage System                                   *
@@ -20,8 +20,6 @@
 # * You should have received a copy of the GNU General Public License    *
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
-
-include_directories(${CMAKE_SOURCE_DIR})
 
 #-------------------------------------------------------------------------------
 # CTA integration related operations
@@ -42,8 +40,6 @@ set_target_properties(EosCrc32c-Objects PROPERTIES
 # EosCommon-Objects
 #-------------------------------------------------------------------------------
 add_library(EosCommon-Objects OBJECT
-  config/ConfigParsing.cc                                    config/ConfigParsing.hh
-
   Fmd.cc
   SymKeys.cc
   InstanceName.cc
@@ -61,11 +57,11 @@ add_library(EosCommon-Objects OBJECT
   StringTokenizer.cc
   CommentLog.cc
   RateLimit.cc
-  IntervalStopwatch.cc                                       IntervalStopwatch.hh
-  VirtualIdentity.cc                                         VirtualIdentity.hh
-  XrdConnPool.cc                                             XrdConnPool.hh
-  XrdErrorMap.cc                                             XrdErrorMap.hh
-  OAuth.cc                                                   OAuth.hh
+  IntervalStopwatch.cc
+  VirtualIdentity.cc
+  XrdConnPool.cc
+  XrdErrorMap.cc
+  OAuth.cc
   Strerror_r_wrapper.cc
   ErrnoToString.cc
   JeMallocHandler.cc
@@ -74,6 +70,7 @@ add_library(EosCommon-Objects OBJECT
   plugin_manager/DynamicLibrary.cc
   table_formatter/TableCell.cc
   table_formatter/TableFormatterBase.cc
+  config/ConfigParsing.cc
   token/EosTok.cc)
 
 # Avoid warnings related to bfd_get_section* macros being redefined
@@ -82,6 +79,7 @@ set_target_properties(EosCommon-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 target_link_libraries(EosCommon-Objects PUBLIC
+  fmt
   EosFstProto-Objects
   EosCliProto-Objects
   CURL::libcurl
@@ -89,10 +87,9 @@ target_link_libraries(EosCommon-Objects PUBLIC
   JSONCPP::JSONCPP
   OPENSSL::OPENSSL
   XROOTD::UTILS
-  fmt
+  GLIBC::DL
+  GLIBC::RT
   ${LIBBFD_LIBRARIES}
-  ${GLIBC_DL_LIBRARY}
-  ${GLIBC_RT_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
 set_target_properties(EosCommon-Objects PROPERTIES
