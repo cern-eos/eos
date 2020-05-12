@@ -251,6 +251,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
     if (mIsRW || (mCapOpaque->Get("mgm.zerosize"))) {
       // File does not exist, keep the create flag for writers and readers with 0-size at MGM
+      mIsRW = true;
       isCreation = true;
       openSize = 0;
       // Used to indicate if a file was written in the meanwhile by someone else
@@ -281,12 +282,14 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   // Capability access distinction
   if (mIsRW) {
     if (isCreation) {
-      if (!mCapOpaque->Get("mgm.access")
-          || ((strcmp(mCapOpaque->Get("mgm.access"), "create")) &&
-              (strcmp(mCapOpaque->Get("mgm.access"), "write")) &&
-              (strcmp(mCapOpaque->Get("mgm.access"), "update")))) {
-        return gOFS.Emsg(epname, error, EPERM, "open - capability does not "
-                         "allow to create/write/update this file", path);
+      if (mCapOpaque->Get("mgm.zerosize") == nullptr) {
+        if (!mCapOpaque->Get("mgm.access")
+            || ((strcmp(mCapOpaque->Get("mgm.access"), "create")) &&
+                (strcmp(mCapOpaque->Get("mgm.access"), "write")) &&
+                (strcmp(mCapOpaque->Get("mgm.access"), "update")))) {
+          return gOFS.Emsg(epname, error, EPERM, "open - capability does not "
+                           "allow to create/write/update this file", path);
+        }
       }
     } else {
       if (!mCapOpaque->Get("mgm.access")
@@ -455,7 +458,8 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
   // Open layout implementation
   eos_info("fst_path=%s open-mode=%x create-mode=%x layout-name=%s oss-opaque=%s",
-           mFstPath.c_str(), open_mode, create_mode, mLayout->GetName(), oss_opaque.c_str());
+           mFstPath.c_str(), open_mode, create_mode, mLayout->GetName(),
+           oss_opaque.c_str());
   int rc = mLayout->Open(open_mode, create_mode, oss_opaque.c_str());
 
   if (rc) {
@@ -1273,7 +1277,8 @@ XrdFstOfsFile::_close()
 
         if (!rc) {
           // Attempt archive queueing if tape support enabled
-          if (mTapeEnabled && isCreation && mSyncEventOnClose && mLayout->IsEntryServer() &&
+          if (mTapeEnabled && isCreation && mSyncEventOnClose &&
+              mLayout->IsEntryServer() &&
               mEventWorkflow != common::RETRIEVE_WRITTEN_WORKFLOW_NAME) {
             // Queueing error: queueing for archive failed
             queueingerror = !QueueForArchiving(statinfo, queueing_errmsg, archive_req_id);
@@ -3392,7 +3397,7 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
     const std::string& manager_name,
     const std::map<std::string, std::string>& xattrs,
     std::string& errmsg_wfe,
-    std::string &archive_req_id)
+    std::string& archive_req_id)
 {
   using namespace eos::common;
   cta::xrd::Request request;
@@ -3489,17 +3494,18 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
   }
 
   switch (response.type()) {
-  case cta::xrd::Response::RSP_SUCCESS:
-    {
-      auto archiveReqIdItor = response.xattr().find("sys.cta.objectstore.id");
-      if (response.xattr().end() != archiveReqIdItor) {
-        archive_req_id = archiveReqIdItor->second;
-      } else {
-        eos_static_err("msg=\"Failed to extract sys.cta.objectstore.id from response to closew notification to"
-         " protowfendpoint\" path=\"%s\"", fullpath.c_str());
-      }
+  case cta::xrd::Response::RSP_SUCCESS: {
+    auto archiveReqIdItor = response.xattr().find("sys.cta.objectstore.id");
+
+    if (response.xattr().end() != archiveReqIdItor) {
+      archive_req_id = archiveReqIdItor->second;
+    } else {
+      eos_static_err("msg=\"Failed to extract sys.cta.objectstore.id from response to closew notification to"
+                     " protowfendpoint\" path=\"%s\"", fullpath.c_str());
     }
-    return 0;
+  }
+
+  return 0;
 
   case cta::xrd::Response::RSP_ERR_CTA:
   case cta::xrd::Response::RSP_ERR_USER:
