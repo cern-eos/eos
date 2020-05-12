@@ -79,6 +79,7 @@ add_library(
   ns_quarkdb/explorer/NamespaceExplorer.cc                ns_quarkdb/explorer/NamespaceExplorer.hh
   ns_quarkdb/flusher/MetadataFlusher.cc                   ns_quarkdb/flusher/MetadataFlusher.hh
 
+  ns_quarkdb/inspector/AttributeExtraction.cc             ns_quarkdb/inspector/AttributeExtraction.hh
   ns_quarkdb/inspector/ContainerScanner.cc                ns_quarkdb/inspector/ContainerScanner.hh
   ns_quarkdb/inspector/FileMetadataFilter.cc              ns_quarkdb/inspector/FileMetadataFilter.hh
   ns_quarkdb/inspector/FileScanner.cc                     ns_quarkdb/inspector/FileScanner.hh
