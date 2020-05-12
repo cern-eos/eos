@@ -111,8 +111,7 @@ target_link_libraries(EosCommon PUBLIC
   EosNsQuarkdbProto-Objects
   NCURSES::NCURSES
   UUID::UUID
-  XROOTD::CL
-  ${CMAKE_THREAD_LIBS_INIT})
+  XROOTD::CL)
 
 set_target_properties(EosCommon PROPERTIES
   VERSION ${VERSION}
@@ -162,8 +161,8 @@ if (Linux)
   target_link_libraries(EosCommonServer-Objects PUBLIC
     qclient
     XROOTD::UTILS
-    PROTOBUF::PROTOBUF
     LEVELDB::LEVELDB
+    PROTOBUF::PROTOBUF
     LIBMICROHTTPD::LIBMICROHTTPD)
 
   target_compile_definitions(EosCommonServer-Objects PUBLIC
@@ -178,8 +177,7 @@ if (Linux)
   target_link_libraries(EosCommonServer PUBLIC
     EosCommonServer-Objects
     XrdSsiPbEosCta-Objects
-    XrdMqClient
-    ${CMAKE_THREAD_LIBS_INIT})
+    XrdMqClient)
 
   target_compile_definitions(EosCommonServer PUBLIC
     -DSQLITE_NO_SYNC=1)
@@ -196,8 +194,7 @@ if (Linux)
     EosCommonServer-Objects
     XrdSsiPbEosCta-Objects
     XrdMqClient-Static
-    qclient
-    ${CMAKE_THREAD_LIBS_INIT})
+    qclient)
 
   target_compile_definitions(EosCommonServer-Static PUBLIC
     -DSQLITE_NO_SYNC=1)
@@ -231,15 +228,12 @@ if(NOT CLIENT AND Linux)
 
   target_link_libraries(dbmaptestburn PRIVATE
     EosCommon
-    EosCommonServer
-    ${CMAKE_THREAD_LIBS_INIT})
+    EosCommonServer)
 
   target_link_libraries(mutextest PRIVATE
-    EosCommon-Static
-    ${CMAKE_THREAD_LIBS_INIT})
+    EosCommon-Static)
 
   target_link_libraries(dbmaptestfunc PRIVATE
     EosCommon
-    EosCommonServer
-    ${CMAKE_THREAD_LIBS_INIT})
+    EosCommonServer)
 endif()
