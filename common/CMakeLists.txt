@@ -89,7 +89,8 @@ target_link_libraries(EosCommon-Objects PUBLIC
   XROOTD::UTILS
   GLIBC::DL
   GLIBC::RT
-  ${LIBBFD_LIBRARIES}
+  LIBBFD::LIBBFD
+  LIBBFD::IBERTY
   ${CMAKE_THREAD_LIBS_INIT})
 
 set_target_properties(EosCommon-Objects PROPERTIES

@@ -38,7 +38,7 @@ target_link_libraries(EosNsQuarkdb PUBLIC
   EosNsCommon
   qclient
   rocksdb
-  ${BZ2_LIBRARY}
+  BZ2::BZ2
   ${CMAKE_THREAD_LIBS_INIT})
 
 install(TARGETS EosNsQuarkdb

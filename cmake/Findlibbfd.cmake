@@ -7,43 +7,36 @@
 #
 # LIBBFD_ROOT_DIR may be defined as a hint for where to look
 
+find_path(LIBBFD_INCLUDE_DIR
+  NAMES bfd.h
+  HINTS /opt/rh/devtoolset-8/root ${LIBBFD_ROOT}
+  PATH_SUFFIXES include usr/include)
+
+find_library(LIBBFD_LIBRARY
+  NAMES libbfd.a
+  HINTS /opt/rh/devtoolset-8/root ${LIBBFD_ROOT}
+  PATH_SUFFIXES lib lib64)
+
+find_library(LIBIBERTY_LIBRARY
+  NAMES libiberty.a
+  HINTS /opt/rh/devtoolset-8/root ${LIBBFD_ROOT}
+  PATH_SUFFIXES lib lib64)
+
 include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(libbfd
+  REQUIRE_VARS LIBBFD_LIBRARY LIBIBERTY_LIBRARY LIBBFD_INCLUDE_DIR)
 
-if(LIBBFD_INCLUDE_DIRS AND LIBBFD_LIBRARIES)
-  set(LIBBFD_FIND_QUIETLY TRUE)
-else()
-  find_path(
-    LIBBFD_INCLUDE_DIR
-    NAMES bfd.h
-    HINTS /opt/rh/devtoolset-8/root ${LIBBFD_ROOT_DIR}
-    PATH_SUFFIXES include usr/include
-  )
-
-  find_library(
-    LIBBFD_LIBRARY
-    NAMES libbfd.a
-    HINTS /opt/rh/devtoolset-8/root ${LIBBFD_ROOT_DIR}
-    PATH_SUFFIXES lib lib64
-  )
-
-  find_library(
-    LIBIBERTY_LIBRARY
-    NAMES libiberty.a
-    HINTS /opt/rh/devtoolset-8/root ${LIBBFD_ROOT_DIR}
-    PATH_SUFFIXES lib lib64
-  )
-
-  set(LIBBFD_LIBRARIES ${LIBBFD_LIBRARY} ${LIBIBERTY_LIBRARY})
-  set(LIBBFD_INCLUDE_DIRS ${LIBBFD_INCLUDE_DIR})
-
-  find_package_handle_standard_args(
-    libbfd
-    DEFAULT_MSG
-    LIBBFD_LIBRARY
-    LIBBFD_INCLUDE_DIR)
-
-  if(LIBBFD_FOUND)
-    add_library(libbfd STATIC IMPORTED)
-    set_property(TARGET libbfd PROPERTY IMPORTED_LOCATION ${LIBBFD_LIBRARY})
-  endif()
+if (LIBBFD_FOUND AND NOT TARGET LIBBFD::LIBBFD)
+  add_library(LIBBFD::LIBBFD UNKNOWN IMPORTED)
+  set_target_properties(LIBBFD::LIBBFD PROPERTIES
+    IMPORTED_LOCATION "${LIBBFD_LIBRARY}"
+    INTERFACE_INCLUDE_DIRECTORIES "${LIBBFD_INCLUDE_DIR}")
+  add_library(LIBBFD::IBERTY UNKNOWN IMPORTED)
+  set_target_properties(LIBBFD::IBERTY PROPERTIES
+    IMPORTED_LOCATION "${LIBIBERTY_LIBRARY}"
+    INTERFACE_INCLUDE_DIRECTORIES "${LIBBFD_INCLUDE_DIR}")
 endif()
+
+unset(LIBBFD_INCLUDE_DIR)
+unset(LIBBFD_LIBRARY)
+unset(LIBIBERTY_LIBRARY)
