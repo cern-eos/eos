@@ -85,6 +85,13 @@ if(NOT PACKAGEONLY)
         IMPORTED_LOCATION "${PROTOBUF_LIBRARY}"
         INTERFACE_INCLUDE_DIRECTORIES "${PROTOBUF_INCLUDE_DIR}")
     endif()
+
+    # Add dummy targets for APPLE so simplify the cmake file using these targets
+    add_library(LIBBFD::LIBBFD               UNKNOWN IMPORTED)
+    add_library(LIBBFD::IBERTY               UNKNOWN IMPORTED)
+    add_library(GLIBC::DL                    UNKNOWN IMPORTED)
+    add_library(GLIBC::RT                    UNKNOWN IMPORTED)
+    add_library(GLIBC::M                     UNKNOWN IMPORTED)
   endif()
 
   # The server build also requires
