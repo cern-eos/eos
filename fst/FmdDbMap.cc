@@ -648,8 +648,6 @@ FmdDbMapHandler::UpdateWithMgmInfo(eos::common::FileSystem::fsid_t fsid,
   (void)LocalRetrieveFmd(fid, fsid, valfmd);
   valfmd.mProtoFmd.set_mgmsize(mgmsize);
   valfmd.mProtoFmd.set_mgmchecksum(mgmchecksum);
-  //valfmd.mProtoFmd.set_size(mgmsize);
-  //valfmd.mProtoFmd.set_checksum(mgmchecksum);
   valfmd.mProtoFmd.set_cid(cid);
   valfmd.mProtoFmd.set_lid(lid);
   valfmd.mProtoFmd.set_uid(uid);
@@ -665,6 +663,17 @@ FmdDbMapHandler::UpdateWithMgmInfo(eos::common::FileSystem::fsid_t fsid,
   valfmd.mProtoFmd.set_mgmchecksum(std::string(
                                      valfmd.mProtoFmd.mgmchecksum()).erase
                                    (std::min(valfmd.mProtoFmd.mgmchecksum().length(), cslen)));
+
+  // Update reference size only if undefined
+  if (valfmd.mProtoFmd.size() == eos::common::FmdHelper::UNDEF) {
+    valfmd.mProtoFmd.set_size(mgmsize);
+  }
+
+  // Update the reference checksum only if empty
+  if (valfmd.mProtoFmd.checksum().empty()) {
+    valfmd.mProtoFmd.set_checksum(valfmd.mProtoFmd.mgmchecksum());
+  }
+
   return LocalPutFmd(fid, fsid, valfmd);
 }
 
@@ -1022,7 +1031,7 @@ FmdDbMapHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
 
       // Check if it exists on disk and at the mgm
       if ((fmd->mProtoFmd.disksize() == eos::common::FmdHelper::UNDEF) &&
-          (fmd->mProtoFmd.mgmsize() == eos::common::FmdHelper::UNDEF)) {
+          (fMd.mProtoFmd.mgmsize() == eos::common::FmdHelper::UNDEF)) {
         // There is no replica supposed to be here and there is nothing on
         // disk, so remove it from the database
         eos_warning("removing <ghost> entry for fxid=%08llx on fsid=%lu", fid,
