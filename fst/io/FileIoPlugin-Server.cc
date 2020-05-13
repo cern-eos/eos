@@ -28,10 +28,7 @@
 #include "fst/io/FileIoPluginCommon.hh"
 #include "fst/io/local/LocalIo.hh"
 #include "fst/io/rados/RadosIo.hh"
-
-#ifdef DAVIX_FOUND
 #include "fst/io/davix/DavixIo.hh"
-#endif
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -54,7 +51,7 @@ FileIoPlugin::GetIoObject(std::string path,
   } else if (ioType == LayoutId::kRados) {
     return static_cast<FileIo*>(new RadosIo(path));
   } else if (ioType == LayoutId::kDavix) {
-#ifdef DAVIX_FOUND
+#ifdef HAVE_DAVIX
     std::string s3credentials = "";
 
     // Attempt to retrieve S3 credentials from the filesystem
@@ -65,7 +62,7 @@ FileIoPlugin::GetIoObject(std::string path,
     }
 
     return static_cast<FileIo*>(new DavixIo(path, s3credentials));
-#endif
+#endif // HAVE_DAVIX
     eos_static_warning("EOS has been compiled without DAVIX support.");
     return NULL;
   } else {

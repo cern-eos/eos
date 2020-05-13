@@ -21,19 +21,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-if(DAVIX_FOUND)
-  add_definitions(-DDAVIX_FOUND)
-  set(DAVIX_SRC "io/davix/DavixIo.cc")
-  set(DAVIX_HDR "io/davix/DavixIo.hh")
-else()
-  set(DAVIX_INCLUDE_DIRS "")
-  set(DAVIX_LIBRARIES "")
-  set(DAVIX_SRC "")
-  set(DAVIX_HDR "")
-endif()
-
 include_directories(
-  ${DAVIX_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
   ${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/include)
 
@@ -132,7 +120,7 @@ add_library(EosFstIo-Objects OBJECT
   # File IO interface
   io/FileIo.hh
   io/local/FsIo.cc               io/local/FsIo.hh
-  ${DAVIX_SRC}                   ${DAVIX_HDR}
+  io/davix/DavixIo.cc            io/davix/DavixIo.hh
   io/xrd/XrdIo.cc                io/xrd/XrdIo.hh
   io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
   io/ChunkHandler.cc             io/ChunkHandler.hh
@@ -155,6 +143,7 @@ add_library(EosFstIo-Objects OBJECT
 target_link_libraries(EosFstIo-Objects PUBLIC
   Jerasure-Objects
   EosCommon
+  DAVIX::DAVIX
   XROOTD::PRIVATE)
 
 target_compile_definitions(EosFstIo-Objects PRIVATE
@@ -176,8 +165,7 @@ target_link_libraries(EosFstIo PUBLIC
   XROOTD::SERVER
   ISAL::ISAL
   ISAL::ISAL_CRYPTO
-  XXHASH::XXHASH
-  ${DAVIX_LIBRARIES})
+  XXHASH::XXHASH)
 
 set_target_properties(EosFstIo PROPERTIES
   VERSION ${VERSION}
@@ -202,8 +190,7 @@ target_link_libraries(EosFstIo-Static PUBLIC
   XROOTD::SERVER
   ISAL::ISAL
   ISAL::ISAL_CRYPTO
-  XXHASH::XXHASH
-  ${DAVIX_LIBRARIES})
+  XXHASH::XXHASH)
 
 target_compile_definitions(EosFstIo-Static PRIVATE
   -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
@@ -296,6 +283,7 @@ target_link_libraries(XrdEosFst-Objects PUBLIC
   EosNsQuarkdbProto-Objects
   XrdSsiPbEosCta-Objects
   EosConsoleHelpers-Objects
+  EosFstIo
   EosCommonServer
   EosNsCommon
   XROOTD::UTILS
@@ -314,7 +302,6 @@ add_library(XrdEosFst-${PLUGIN_VERSION} MODULE
 target_link_libraries(XrdEosFst-${PLUGIN_VERSION} PRIVATE
   XrdEosFst-Objects
   EosConsoleHelpers-Objects
-  EosFstIo
   XROOTD::SSI)
 
 target_compile_definitions(XrdEosFst-${PLUGIN_VERSION} PUBLIC

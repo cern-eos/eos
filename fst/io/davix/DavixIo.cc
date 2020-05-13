@@ -21,11 +21,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
+
+#ifdef HAVE_DAVIX
 #include "fst/XrdFstOfsFile.hh"
 #include "fst/io/davix/DavixIo.hh"
 #include "common/Path.hh"
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -53,8 +53,8 @@ std::string getAttrUrl(std::string path)
 //------------------------------------------------------------------------------
 
 DavixIo::DavixIo(std::string path, std::string s3credentials)
-    : FileIo(path, "DavixIo"),
-  mDav(&DavixIo::gContext)
+  : FileIo(path, "DavixIo"),
+    mDav(&DavixIo::gContext)
 {
   //............................................................................
   // In this case the logical file is the same as the local physical file
@@ -89,7 +89,8 @@ DavixIo::DavixIo(std::string path, std::string s3credentials)
 
     // Passed-in credentials take priority over opaque provided
     if (s3credentials.empty() && mOpaque.length()) {
-      XrdOucEnv *opaqueEnv = new XrdOucEnv(mOpaque.c_str());
+      XrdOucEnv* opaqueEnv = new XrdOucEnv(mOpaque.c_str());
+
       if (opaqueEnv->Get("s3credentials")) {
         s3credentials = opaqueEnv->Get("s3credentials");
       }
@@ -102,9 +103,9 @@ DavixIo::DavixIo(std::string path, std::string s3credentials)
     } else {
       // Attempt to retrieve S3 credentials from the global environment
       id = getenv("EOS_FST_S3_ACCESS_KEY") ?
-              getenv("EOS_FST_S3_ACCESS_KEY") : "";
+           getenv("EOS_FST_S3_ACCESS_KEY") : "";
       key = getenv("EOS_FST_S3_SECRET_KEY") ?
-              getenv("EOS_FST_S3_SECRET_KEY") : "";
+            getenv("EOS_FST_S3_SECRET_KEY") : "";
       credSource = "globalEnv";
     }
 
@@ -124,7 +125,6 @@ DavixIo::DavixIo(std::string path, std::string s3credentials)
   mParams.setOperationRetry(0);
   // Use path-based S3 URLs
   mParams.setAwsAlternate(true);
-
   setAttrSync(false);// by default sync attributes lazily
   mAttrLoaded = false;
   mAttrDirty = false;
@@ -233,7 +233,7 @@ DavixIo::RetrieveS3Credentials()
 
   if (mIsS3) {
     pair<Davix::AwsSecretKey, Davix::AwsAccessKey>
-        credPair = mParams.getAwsAutorizationKeys();
+    credPair = mParams.getAwsAutorizationKeys();
     credentials = credPair.second + ":" + credPair.first;
   }
 
@@ -951,5 +951,5 @@ DavixIo::Statfs(struct statfs* sfs)
 }
 
 EOSFSTNAMESPACE_END
-
+#endif // HAVE_DAVIX
 

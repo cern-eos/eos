@@ -22,18 +22,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_DAVIXIO_HH__
-#define __EOSFST_DAVIXIO_HH__
+#pragma once
 
-/*----------------------------------------------------------------------------*/
+#ifdef HAVE_DAVIX
 #include <string>
-/*----------------------------------------------------------------------------*/
 #include "fst/io/FileIo.hh"
 #include "common/FileMap.hh"
-
 #include <davix/davix.hpp>
-
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -97,7 +92,8 @@ public:
   //! @return number of bytes read of -1 if error
   //----------------------------------------------------------------------------
   int64_t fileReadV(XrdCl::ChunkList& chunkList,
-                          uint16_t timeout = 0) {
+                    uint16_t timeout = 0)
+  {
     // Operation not supported in DavixIo
     return -ENOTSUP;
   }
@@ -111,7 +107,8 @@ public:
   //! @return 0(SFS_OK) if request successfully sent, otherwise -1(SFS_ERROR)
   //------------------------------------------------------------------------------
   int64_t fileReadVAsync(XrdCl::ChunkList& chunkList,
-                                 uint16_t timeout = 0) {
+                         uint16_t timeout = 0)
+  {
     // Operation not supported in DavixIo
     return -ENOTSUP;
   }
@@ -254,7 +251,8 @@ public:
   //!
   //! @return 0 on success, -1 otherwise and error code is set
   //----------------------------------------------------------------------------
-  int fileFctl(const std::string& cmd, uint16_t timeout = 0) {
+  int fileFctl(const std::string& cmd, uint16_t timeout = 0)
+  {
     // Operation not supported in DavixIO
     return -ENOTSUP;
   };
@@ -424,5 +422,5 @@ private:
 
 EOSFSTNAMESPACE_END
 
-#endif  // __EOSFST_DAVIXIO_HH__
+#endif  // HAVE_DAVIX
 
