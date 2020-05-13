@@ -37,6 +37,7 @@
 #include "namespace/ns_quarkdb/utils/FutureVectorIterator.hh"
 #include "namespace/ns_quarkdb/inspector/Printing.hh"
 #include "namespace/ns_quarkdb/persistency/FileSystemIterator.hh"
+#include "namespace/ns_quarkdb/inspector/AttributeExtraction.hh"
 #include "namespace/common/QuotaNodeCore.hh"
 #include "namespace/utils/Checksum.hh"
 #include "namespace/utils/Etag.hh"
@@ -1608,5 +1609,101 @@ TEST_F(NamespaceExplorerF, MissingFile) {
 
   ASSERT_TRUE(explorer.fetch(item));
   ASSERT_EQ(item.fullPath, "/dir-1/file-5");
+}
+
+TEST(AttributeExtraction, BasicSanity) {
+  eos::ns::FileMdProto proto;
+  std::string out;
+
+  ASSERT_FALSE(AttributeExtraction::asString(proto, "aaa", out));
+
+  ASSERT_TRUE(AttributeExtraction::asString(proto, "xattr.aaa", out));
+  ASSERT_TRUE(out.empty());
+
+  (*proto.mutable_xattrs())["user.test"] = "123";
+  ASSERT_TRUE(AttributeExtraction::asString(proto, "xattr.user.test", out));
+  ASSERT_EQ(out, "123");
+
+  proto.set_id(1111);
+  ASSERT_TRUE(AttributeExtraction::asString(proto, "fid", out));
+  ASSERT_EQ(out, "1111");
+
+  proto.set_cont_id(22222);
+  ASSERT_TRUE(AttributeExtraction::asString(proto, "pid", out));
+  ASSERT_EQ(out, "22222");
+
+  proto.set_gid(333);
+  ASSERT_TRUE(AttributeExtraction::asString(proto, "gid", out));
+  ASSERT_EQ(out, "333");
+
+  proto.set_uid(444);
+  ASSERT_TRUE(AttributeExtraction::asString(proto, "uid", out));
+  ASSERT_EQ(out, "444");
+
+  proto.set_size(555);
+  ASSERT_TRUE(AttributeExtraction::asString(proto, "size", out));
+  ASSERT_EQ(out, "555");
+
+  unsigned long layout = eos::common::LayoutId::GetId(
+    eos::common::LayoutId::kReplica,
+    eos::common::LayoutId::kAdler,
+    2,
+    eos::common::LayoutId::k4k);
+
+  proto.set_layout_id(layout);
+  ASSERT_TRUE(AttributeExtraction::asString(proto, "layout_id", out));
+  ASSERT_EQ(out, "1048850");
+
+  proto.set_flags(0777);
+  ASSERT_TRUE(AttributeExtraction::asString(proto, "flags", out));
+  ASSERT_EQ(out, "777");
+
+  proto.set_name("aaaaa");
+  ASSERT_TRUE(AttributeExtraction::asString(proto, "name", out));
+  ASSERT_EQ(out, "aaaaa");
+
+  proto.set_link_name("bbbbbb");
+  ASSERT_TRUE(AttributeExtraction::asString(proto, "link_name", out));
+  ASSERT_EQ(out, "bbbbbb");
+
+  struct timespec ctime;
+  ctime.tv_sec = 1999;
+  ctime.tv_nsec = 8888;
+  proto.set_ctime(&ctime, sizeof(ctime));
+  ASSERT_TRUE(AttributeExtraction::asString(proto, "ctime", out));
+  ASSERT_EQ(out, "1999.8888");
+
+  struct timespec mtime;
+  mtime.tv_sec = 1998;
+  mtime.tv_nsec = 7777;
+  proto.set_mtime(&mtime, sizeof(mtime));
+  ASSERT_TRUE(AttributeExtraction::asString(proto, "mtime", out));
+  ASSERT_EQ(out, "1998.7777");
+
+  char buff[32];
+  buff[0] = 0x12; buff[1] = 0x23; buff[2] = 0x55; buff[3] = 0x99;
+  buff[4] = 0xAA; buff[5] = 0xDD; buff[6] = 0x00; buff[7] = 0x55;
+  proto.set_checksum(buff, 8);
+  ASSERT_TRUE(AttributeExtraction::asString(proto, "xs", out));
+  ASSERT_EQ(out, "12235599");
+
+  proto.add_locations(3);
+  proto.add_locations(2);
+  proto.add_locations(1);
+  ASSERT_TRUE(AttributeExtraction::asString(proto, "locations", out));
+  ASSERT_EQ(out, "3,2,1");
+
+  proto.add_unlink_locations(4);
+  proto.add_unlink_locations(5);
+  proto.add_unlink_locations(6);
+  ASSERT_TRUE(AttributeExtraction::asString(proto, "unlink_locations", out));
+  ASSERT_EQ(out, "4,5,6");
+
+  struct timespec stime;
+  stime.tv_sec = 1997;
+  stime.tv_nsec = 5555;
+  proto.set_stime(&stime, sizeof(stime));
+  ASSERT_TRUE(AttributeExtraction::asString(proto, "stime", out));
+  ASSERT_EQ(out, "1997.5555");
 }
 
