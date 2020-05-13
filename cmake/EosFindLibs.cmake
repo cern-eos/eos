@@ -93,7 +93,6 @@ if(NOT PACKAGEONLY)
     add_library(GLIBC::DL    INTERFACE IMPORTED)
     add_library(GLIBC::RT    INTERFACE IMPORTED)
     add_library(GLIBC::M     INTERFACE IMPORTED)
-    add_library(DAVIX::DAVIX INTERFACE IMPORTED)
    endif()
 
   # The server build also requires
