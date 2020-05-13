@@ -2,38 +2,36 @@
 # Once done, this will define
 #
 # ROCKSDB_FOUND              - system has rocksdb
-# ROCKSDB_INCLUDE_DIRS       - rocksdb include directories
-# ROCKSDB_LIBRARY            - rocksdb library
 #
-# ROCKSDB_ROOT_DIR may be defined as a hint for where to look
+# and the following imported targets
+#
+# ROCKSDB::ROCKSDB
+
+find_path(ROCKSDB_INCLUDE_DIR
+  NAMES rocksdb/version.h
+  HINTS ${ROCKSDB_ROOT}
+  PATH_SUFFIXES include)
+
+find_library(ROCKSDB_LIBRARY
+  NAMES librocksdb.a
+  HINTS ${ROCKSDB_ROOT})
 
 include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(rocksdb
+  REQUIRE_VARS ROCKSDB_LIBRARY ROCKSDB_INCLUDE_DIR)
+mark_as_advanced(ROCKSDB_FOUND ROCKSDB_LIBRARY ROCKSDB_INCLUDE_DIR)
 
-if(ROCKSDB_INCLUDE_DIRS AND ROCKSDB_LIBRARIES)
-  set(ROCKSDB_FIND_QUIETLY TRUE)
-else()
-  find_path(
-    ROCKSDB_INCLUDE_DIR
-    NAMES rocksdb/version.h
-    HINTS ${ROCKSDB_ROOT_DIR}
-    PATH_SUFFIXES include)
-
-  find_library(
-    ROCKSDB_LIBRARY
-    NAMES librocksdb.a
-    HINTS ${ROCKSDB_ROOT_DIR})
-
-  set(ROCKSDB_LIBRARIES ${ROCKSDB_LIBRARY})
-  set(ROCKSDB_INCLUDE_DIRS ${ROCKSDB_INCLUDE_DIR})
-
-  find_package_handle_standard_args(
-    rocksdb
-    DEFAULT_MSG
-    ROCKSDB_LIBRARY
-    ROCKSDB_INCLUDE_DIR)
-
-  if(ROCKSDB_FOUND)
-    add_library(rocksdb STATIC IMPORTED)
-    set_property(TARGET rocksdb PROPERTY IMPORTED_LOCATION ${ROCKSDB_LIBRARY})
-  endif()
+if (ROCKSDB_FOUND AND NOT TARGET ROCKSDB::ROCKSDB)
+  add_library(ROCKSDB::ROCKSDB UNKNOWN IMPORTED)
+  set_target_properties(ROCKSDB::ROCKSDB PROPERTIES
+    IMPORTED_LOCATION "${ROCKSDB_LIBRARY}"
+    INTERFACE_INCLUDE_DIRECTORIES "${ROCKSDB_INCLUDE_DIR}"
+    INTERFACE_COMPILE_DEFINITIONS "HAVE_ROCKSDB=1")
+else ()
+  message(WARNING "Notice: rocksdb not found, no rockdb support")
+  add_library(ROCKSDB::ROCKSDB INTERFACE IMPORTED)
 endif()
+
+unset(ROCKSDB_INCLUDE_DIR)
+unset(ROCKSDB_LIBRARY)
+

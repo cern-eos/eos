@@ -22,9 +22,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef FUSE_ROCKS_KV_HH_
-#define FUSE_ROCKS_KV_HH_
+#pragma once
 
+#ifdef HAVE_ROCKSDB
 #include <sys/stat.h>
 #include <sys/types.h>
 #include "llfusexx.hh"
@@ -102,4 +102,4 @@ private:
 
 };
 
-#endif /* FUSE_KV_HH_ */
+#endif // HAVE_ROCKSDB

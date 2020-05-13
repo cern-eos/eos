@@ -28,7 +28,7 @@ set(LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH
   EosCommon
   FUSE::FUSE
   RICHACL::RICHACL
-  ${LIBRARIES_IF_ROCKSDB_WAS_FOUND})
+  ROCKSDB::ROCKSDB)
 
 set(COMPILE_FLAGS_FOR_TEST_EXECUTABLES "${EOSXD_COMPILE_FLAGS} -fPIC")
 
@@ -46,7 +46,7 @@ add_executable(eos-fusex-tests
   interval-tree.cc
   journal-cache.cc
   rb-tree.cc
-  ${TEST_SOURCES_IF_ROCKSDB_WAS_FOUND}
+  rocks-kv.cc
   ${EOSXD_COMMON_SOURCES})
 
 target_link_libraries(eos-fusex-tests PRIVATE

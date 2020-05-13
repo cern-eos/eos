@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-
 #ifdef HAVE_DAVIX
 #include "fst/XrdFstOfsFile.hh"
 #include "fst/io/davix/DavixIo.hh"

@@ -36,7 +36,7 @@ if (LIBBFD_FOUND AND NOT TARGET LIBBFD::LIBBFD)
     IMPORTED_LOCATION "${LIBIBERTY_LIBRARY}"
     INTERFACE_INCLUDE_DIRECTORIES "${LIBBFD_INCLUDE_DIR}")
 else()
-  message ("Notice: librichacl not found, no richacl support")
+  message(WARNING "Notice: libbfd not found, no libbfd support")
   add_library(LIBBFD::LIBBFD INTERFACE IMPORTED)
   add_library(LIBBFD::IBERTY INTERFACE IMPORTED)
 endif()

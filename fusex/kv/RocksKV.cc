@@ -22,16 +22,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#ifdef HAVE_ROCKSDB
 #include <rocksdb/filter_policy.h>
 #include <rocksdb/table.h>
-
 #include "kv/kv.hh"
 #include "kv/RocksKV.hh"
 #include "eosfuse.hh"
 #include "misc/MacOSXHelper.hh"
 #include "common/Logging.hh"
 #include "misc/longstring.hh"
-
 #include <sys/types.h>
 #include <dirent.h>
 #include <regex>
@@ -76,24 +75,20 @@ RocksKV::connect(const std::string& prefix, const std::string& path)
   table_options.block_size = 1024;
   //  table_options.block_cache = rocksdb::NewLRUCache(4*1024);
   //  table_options.cache_index_and_filter_blocks = false;
-
   options.optimize_filters_for_hits = true;
   options.statistics = rocksdb::CreateDBStatistics();
   //  options.compression = rocksdb::kZSTD;
   //  options.bottommost_compression = rocksdb::kZSTD;
-
   options.table_factory.reset(rocksdb::NewBlockBasedTableFactory(table_options));
   options.create_if_missing = true;
-  options.row_cache = rocksdb::NewLRUCache(4*1024*1024);
+  options.row_cache = rocksdb::NewLRUCache(4 * 1024 * 1024);
   options.level_compaction_dynamic_level_bytes = true;
   options.max_subcompactions = 4;
   options.disable_auto_compactions = false;
-  options.write_buffer_size = 1*1024*1024;
-
+  options.write_buffer_size = 1 * 1024 * 1024;
   rocksdb::TransactionDBOptions txopts;
   txopts.transaction_lock_timeout = -1;
   txopts.default_lock_timeout = -1;
-
   rocksdb::TransactionDB* mydb;
   rocksdb::Status st = rocksdb::TransactionDB::Open(options, txopts, path, &mydb);
 
@@ -280,42 +275,52 @@ RocksKV::erase(uint64_t key, const std::string& name_space)
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-RocksKV::clean_stores(const std::string& storedir, const std::string& newdb) 
+RocksKV::clean_stores(const std::string& storedir, const std::string& newdb)
 {
   DIR* dir;
-  struct dirent *ent;
+  struct dirent* ent;
 
   if ((dir = ::opendir(storedir.c_str())) != NULL) {
-    while ((ent = ::readdir (dir)) != NULL) {
+    while ((ent = ::readdir(dir)) != NULL) {
       std::string entry = ent->d_name;
-      if ( (entry == ".") || (entry == "..") ) {
-	continue;
+
+      if ((entry == ".") || (entry == "..")) {
+        continue;
       }
+
       if (entry == newdb) {
-	continue;
+        continue;
       }
+
       if (!entry.length()) {
-	continue;
+        continue;
       }
+
       struct stat buf;
+
       std::string dbdir = storedir;
+
       dbdir += "/";
+
       dbdir += entry;
 
       if (!stat(dbdir.c_str(), &buf)) {
-	// check if this is a directory
-	if (S_ISDIR(buf.st_mode)) {
-	  // cleanup this old directory
-	  std::string rmline = "rm -rf ";
-	  rmline += dbdir;
-	  system(rmline.c_str());
-	  fprintf(stderr,"###### cleaning stale cache directory '%s'\n", 
-		  dbdir.c_str());
-	}
+        // check if this is a directory
+        if (S_ISDIR(buf.st_mode)) {
+          // cleanup this old directory
+          std::string rmline = "rm -rf ";
+          rmline += dbdir;
+          system(rmline.c_str());
+          fprintf(stderr, "###### cleaning stale cache directory '%s'\n",
+                  dbdir.c_str());
+        }
       }
     }
+
     ::closedir(dir);
   }
-  
+
   return 0;
 }
+
+#endif // HAVE_ROCKSDB

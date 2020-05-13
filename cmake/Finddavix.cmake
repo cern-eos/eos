@@ -30,7 +30,7 @@ if (DAVIX_FOUND AND NOT TARGET DAVIX::DAVIX)
     INTERFACE_INCLUDE_DIRECTORIES "${DAVIX_INCLUDE_DIR}"
     INTERFACE_COMPILE_DEFINITIONS "HAVE_DAVIX=1")
 else()
-  message ("Notice: davix not found, no davix support")
+  message(WARNING "Notice: davix not found, no davix support")
   add_library(DAVIX::DAVIX INTERFACE IMPORTED)
 endif()
 

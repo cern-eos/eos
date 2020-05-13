@@ -25,15 +25,6 @@ include_directories(
   ${CMAKE_BINARY_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR})
 
-find_package(RocksDB)
-
-if (ROCKSDB_FOUND)
-  set(SOURCES_IF_ROCKSDB_WAS_FOUND kv/RocksKV.cc kv/RocksKV.hh)
-  set(LIBRARIES_IF_ROCKSDB_WAS_FOUND ${ROCKSDB_LIBRARY})
-  set(FLAGS_IF_ROCKSDB_WAS_FOUND "-DROCKSDB_FOUND")
-  set(TEST_SOURCES_IF_ROCKSDB_WAS_FOUND rocks-kv.cc)
-endif()
-
 if (Linux)
   add_subdirectory(benchmark)
 endif (Linux)
@@ -42,7 +33,7 @@ endif (Linux)
 # Compile flags
 #-------------------------------------------------------------------------------
 set(EOSXD_COMPILE_FLAGS
-  "-DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DFUSE_MOUNT_VERSION=${FUSE_MOUNT_VERSION}0 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\" ${FLAGS_IF_ROCKSDB_WAS_FOUND}"
+  "-DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DFUSE_MOUNT_VERSION=${FUSE_MOUNT_VERSION}0 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\""
 )
 
 #-------------------------------------------------------------------------------
@@ -78,7 +69,7 @@ set(EOSXD_COMMON_LINK_LIBRARIES
   BZ2::BZ2
   LIBBFD::LIBBFD
   RICHACL::RICHACL
-  ${LIBRARIES_IF_ROCKSDB_WAS_FOUND})
+  ROCKSDB::ROCKSDB)
 
 #-------------------------------------------------------------------------------
 # eosxd common objects, shared between tests and main code.
@@ -90,7 +81,7 @@ add_library(eosxd-objects OBJECT
   md/md.cc md/md.hh
   cap/cap.cc cap/cap.hh
   data/data.cc data/data.hh
-  ${SOURCES_IF_ROCKSDB_WAS_FOUND}
+  kv/RocksKV.cc kv/RocksKV.hh
   kv/RedisKV.cc           kv/RedisKV.hh
                           kv/kv.hh
   misc/longstring.cc misc/longstring.hh
@@ -110,6 +101,7 @@ add_library(eosxd-objects OBJECT
   ${PROTO_SRC} ${PROTO_HEADER})
 
 target_link_libraries(eosxd-objects PUBLIC
+  ROCKSDB::ROCKSDB
   HIREDIS::HIREDIS
   LIBEVENT::LIBEVENT
   OPENSSL::OPENSSL

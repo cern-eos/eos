@@ -33,7 +33,7 @@ if (RICHACL_FOUND AND NOT TARGET RICHACL::RICHACL)
     IMPORTED_LOCATION "${RICHACL_LIBRARY}"
     INTERFACE_INCLUDE_DIRECTORIES "${RICHACL_INCLUDE_DIR}")
 else()
-  message ("Notice: librichacl not found, no richacl support")
+  message(WARNING "Notice: librichacl not found, no richacl support")
   add_library(RICHACL::RICHACL INTERFACE IMPORTED)
 endif()
 

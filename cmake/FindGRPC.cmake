@@ -3,9 +3,9 @@
 #
 # Adds the following targets:
 #
-#  GRPC::grpc - gRPC library
-#  GRPC::grpc++ - gRPC C++ library
-#  GRPC::grpc++_reflection - gRPC C++ reflection library
+#  GRPC::grpc - GRPC library
+#  GRPC::grpc++ - GRPC C++ library
+#  GRPC::grpc++_reflection - GRPC C++ reflection library
 #  GRPC::grpc_cpp_plugin - C++ generator plugin for Protocol Buffers
 #
 
@@ -64,7 +64,7 @@ function(GRPC_GENERATE_CPP SRCS HDRS DEST)
       COMMAND ${PROTOBUF_PROTOC_EXECUTABLE}
       ARGS --grpc_out ${DEST} ${_protobuf_include_path} --plugin=protoc-gen-grpc=${GRPC_CPP_PLUGIN} ${ABS_FIL}
       DEPENDS ${ABS_FIL} ${PROTOBUF_PROTOC_EXECUTABLE} GRPC::grpc_cpp_plugin
-      COMMENT "Running C++ gRPC compiler on ${FIL}"
+      COMMENT "Running C++ GRPC compiler on ${FIL}"
       VERBATIM )
   endforeach()
 
@@ -79,23 +79,23 @@ if(NOT DEFINED GRPC_GENERATE_CPP_APPEND_PATH)
   set(GRPC_GENERATE_CPP_APPEND_PATH TRUE)
 endif()
 
-# Find gRPC include directory
+# Find GRPC include directory
 find_path(GRPC_INCLUDE_DIR grpc/grpc.h)
 mark_as_advanced(GRPC_INCLUDE_DIR)
 
-# Find gRPC library
+# Find GRPC library
 find_library(GRPC_LIBRARY
   NAMES grpc)
 
-# Find gRPC C++ library
+# Find GRPC C++ library
 find_library(GRPC_GRPC++_LIBRARY
   NAMES grpc++)
 
-# Find gRPC C++ reflection library
+# Find GRPC C++ reflection library
 find_library(GRPC_GRPC++_REFLECTION_LIBRARY
   NAMES grpc++_reflection)
 
-# Find gRPC CPP generator
+# Find GRPC CPP generator
 find_program(GRPC_CPP_PLUGIN
   NAMES grpc_cpp_plugin)
 
@@ -132,7 +132,7 @@ if (GRPC_FOUND AND NOT TARGET GRPC::grpc AND NOT TARGET GRPC::grpc++)
   set_target_properties(GRPC::grpc_cpp_plugin PROPERTIES
     IMPORTED_LOCATION ${GRPC_CPP_PLUGIN})
 else()
-  message ("Notice: gRPC not found, no gRPC access available")
+  message(WARNING "Notice: GRPC not found, no GRPC access available")
   add_library(GRPC::grpc INTERFACE IMPORTED)
   add_library(GRPC::grpc++ INTERFACE IMPORTED)
   add_library(GRPC::grpc++_reflection INTERFACE IMPORTED)
