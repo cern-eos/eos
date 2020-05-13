@@ -21,9 +21,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(
-  ${CMAKE_SOURCE_DIR}
-  ${CMAKE_BINARY_DIR})
+include_directories(${CMAKE_BINARY_DIR})
 
 set(LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH
   gtest_main

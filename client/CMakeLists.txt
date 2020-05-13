@@ -1,7 +1,7 @@
-# ----------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 # File: CMakeLists.txt
 # Author: Andreas-Joachim Peters - CERN
-# ----------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 
 # ************************************************************************
 # * EOS - the CERN Disk Storage System                                   *
@@ -21,9 +21,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(
-  ${CMAKE_SOURCE_DIR}
-  ${CMAKE_BINARY_DIR})
+include_directories(${CMAKE_BINARY_DIR})
 
 #-------------------------------------------------------------------------------
 # eos executable
@@ -56,43 +54,36 @@ add_executable(eos-grpc-ns-stat grpc/NsStat.cc)
 target_link_libraries(eos-grpc-ping PUBLIC
   EosGrpcProto-Objects
   EosGrpcClient-Objects
-  ${RT_LIBRARIES}
   EosCommon )
 
 target_link_libraries(eos-grpc-md PUBLIC
   EosGrpcProto-Objects
   EosGrpcClient-Objects
-  ${RT_LIBRARIES}
   EosCommon)
 
 target_link_libraries(eos-grpc-find PUBLIC
   EosGrpcProto-Objects
   EosGrpcClient-Objects
-  ${RT_LIBRARIES}
   EosCommon )
 
 target_link_libraries(eos-grpc-ns PUBLIC
   EosGrpcProto-Objects
   EosGrpcClient-Objects
-  ${RT_LIBRARIES}
   EosCommon)
 
 target_link_libraries(eos-grpc-insert PUBLIC
   EosGrpcProto-Objects
   EosGrpcClient-Objects
-  ${RT_LIBRARIES}
   EosCommon )
 
 target_link_libraries(eos-grpc-manila PUBLIC
   EosGrpcProto-Objects
   EosGrpcClient-Objects
-  ${RT_LIBRARIES}
   EosCommon )
 
 target_link_libraries(eos-grpc-ns-stat PUBLIC
   EosGrpcProto-Objects
   EosGrpcClient-Objects
-  ${RT_LIBRARIES}
   EosCommon)
 
 install(TARGETS eos-grpc-ping eos-grpc-md eos-grpc-insert eos-grpc-manila

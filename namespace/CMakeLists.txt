@@ -26,7 +26,6 @@
 #-------------------------------------------------------------------------------
 include_directories(
   ${CMAKE_BINARY_DIR}
-  ${CMAKE_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include)
 
 add_library(

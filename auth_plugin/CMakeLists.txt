@@ -93,7 +93,6 @@ target_link_libraries(EosAuthProto-Objects PUBLIC
   XROOTD::PRIVATE)
 
 target_include_directories(EosAuthProto-Objects PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
   $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
 
@@ -112,8 +111,8 @@ target_link_libraries(
   EosAuthOfs PRIVATE
   EosAuthProto-Objects
   EosCommon
-  XROOTD::PRIVATE
-  ZMQ::ZMQ)
+  ZMQ::ZMQ
+  XROOTD::PRIVATE)  
 
 install(TARGETS EosAuthOfs
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
