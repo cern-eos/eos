@@ -2,8 +2,6 @@
 # Once done, this will define
 #
 # FUSE3_FOUND - system has fuse
-# FUSE3_INCLUDE_DIRS - the fuse include directories
-# FUSE3_LIBRARIES - fuse libraries directories
 #
 # and the following imported target
 #
@@ -27,10 +25,12 @@ if (FUSE3_FOUND AND NOT TARGET FUSE3::FUSE3)
   add_library(FUSE3::FUSE3 UNKNOWN IMPORTED)
   set_target_properties(FUSE3::FUSE3 PROPERTIES
     IMPORTED_LOCATION "${FUSE3_LIBRARY}"
-    INTERFACE_INCLUDE_DIRECTORIES "${FUSE3_INCLUDE_DIR}")
+    INTERFACE_INCLUDE_DIRECTORIES "${FUSE3_INCLUDE_DIR}"
+    INTERFACE_COMPILE_DEFINITIONS "_FUSE3=1")
+else()
+  message(WARNING "Notice: fuse3 not found, no fuse3 support")
+  add_library(FUSE3::FUSE3 INTERFACE IMPORTED)
 endif()
 
-set(FUSE3_INCLUDE_DIRS ${FUSE3_INCLUDE_DIR})
-set(FUSE3_LIBRARIES ${FUSE3_LIBRARY})
 unset(FUSE3_INCLUDE_DIR)
 unset(FUSE3_LIBRARY)
