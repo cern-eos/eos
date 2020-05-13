@@ -21,9 +21,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(
-  ${CMAKE_SOURCE_DIR}
-  ${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/include)
+include_directories(${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/include)
 
 #-------------------------------------------------------------------------------
 # Generate protocol buffer files
@@ -289,12 +287,9 @@ target_link_libraries(XrdEosMgm-${PLUGIN_VERSION} PUBLIC
   XROOTD::SSI
   XROOTD::PRIVATE
   EosCommon
-  EosNsCommon
-  bfd
-  ${CMAKE_THREAD_LIBS_INIT})
+  EosNsCommon)
 
-install(
-  TARGETS XrdEosMgm-${PLUGIN_VERSION}
+install(TARGETS XrdEosMgm-${PLUGIN_VERSION}
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
@@ -309,8 +304,7 @@ install(PROGRAMS eos-repair-tool
 # Create executables for testing the scheduling part
 #-------------------------------------------------------------------------------
 # @todo (esindril): Move these to the test directory
-add_executable(
-  testschedulingtree
+add_executable(testschedulingtree
   geotree/SchedulingTreeTest.cc
   geotree/SchedulingSlowTree.cc
   geotree/SchedulingTreeCommon.cc)
@@ -322,15 +316,12 @@ target_link_libraries(
 
 add_executable(eos-config-inspect
   config/eos-config-inspect.cc
-  ../common/config/ConfigParsing.cc                       ../common/config/ConfigParsing.hh
-)
+  ../common/config/ConfigParsing.cc)
 
 target_link_libraries(
   eos-config-inspect
   EosCommon
-  EosNsCommon-Static
-  ${CMAKE_THREAD_LIBS_INIT}
-)
+  EosNsCommon-Static)
 
 #-------------------------------------------------------------------------------
 # Create executables for testing the MGM configuration
@@ -350,8 +341,7 @@ if(Linux)
     XROOTD::SSI
     XROOTD::PRIVATE
     EosNsCommon-Static
-    EosCommonServer-Static
-    ${CMAKE_THREAD_LIBS_INIT})
+    EosCommonServer-Static)
 
   install(TARGETS eos-config-inspect
     LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}

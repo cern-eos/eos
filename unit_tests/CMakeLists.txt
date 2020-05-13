@@ -1,8 +1,7 @@
-
-# ----------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 # File: CMakeLists.txt
 # Author: Jozsef Makai <jmakai@cern.ch> CERN
-# ----------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 
 # ************************************************************************
 # * EOS - the CERN Disk Storage System                                   *
@@ -22,7 +21,6 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 include_directories(
-  ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
@@ -147,8 +145,7 @@ install(TARGETS
 add_executable(eos-unit-tests-with-qdb
   with_qdb/Main.cc
   with_qdb/configuration.cc
-  with_qdb/TestUtils.cc                                       with_qdb/TestUtils.hh
-)
+  with_qdb/TestUtils.cc)
 
 target_link_libraries(
   eos-unit-tests-with-qdb
@@ -156,9 +153,8 @@ target_link_libraries(
   gmock
   qclient
   XrdEosMgm-Static
-  ${READLINE_LIBRARY}
-  ${JSONCPP_LIBRARIES}
-  ${XROOTD_SERVER_LIBRARY})
+  READLINE::READLINE
+  JSONCPP::JSONCPP)
 
 install(TARGETS
   eos-unit-tests-with-qdb

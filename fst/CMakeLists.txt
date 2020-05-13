@@ -33,15 +33,11 @@ else()
 endif()
 
 include_directories(
-  ${CMAKE_SOURCE_DIR}
   ${DAVIX_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
   ${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/include)
 
-#-------------------------------------------------------------------------------
-# Add tests if not on MacOSX
-#-------------------------------------------------------------------------------
-if (NOT MacOSX)
+if (Linux)
   add_subdirectory(tests)
 endif ()
 
@@ -143,11 +139,9 @@ add_library(EosFstIo-Objects OBJECT
   io/VectChunkHandler.cc         io/VectChunkHandler.hh
   io/SimpleHandler.cc            io/SimpleHandler.hh
   io/FileIoPlugin.cc             io/FileIoPlugin.hh
-
   # Checksum interface
   checksum/CheckSum.cc           checksum/CheckSum.hh
   checksum/Adler.cc              checksum/Adler.hh
-
   # File layout interface
   layout/LayoutPlugin.cc         layout/LayoutPlugin.hh
   layout/Layout.cc               layout/Layout.hh
@@ -267,11 +261,9 @@ set(XRDEOSFST_SRCS
   ScanDir.cc
   Messaging.cc
   io/FileIoPlugin-Server.cc
-
   # OFS layer implementation
   XrdFstOfs.cc                   XrdFstOfs.hh
   XrdFstOfsFile.cc               XrdFstOfsFile.hh
-
   # Storage interface
   storage/Balancer.cc
   storage/Cleaner.cc             storage/Communicator.cc
@@ -281,23 +273,18 @@ set(XRDEOSFST_SRCS
   storage/Report.cc              storage/Scrub.cc
   storage/Storage.cc             storage/Supervisor.cc
   storage/Trim.cc                storage/Verify.cc
-
   # Transfer interface
   txqueue/TransferMultiplexer.cc
   txqueue/TransferJob.cc
   txqueue/TransferQueue.cc
-
   # Utils
   utils/OpenFileTracker.cc
-
   # File metadata interface
   FmdDbMap.cc          FmdDbMap.hh
-
   # HTTP interface
   http/HttpServer.cc    http/HttpServer.hh
   http/HttpHandler.cc   http/HttpHandler.hh
   http/s3/S3Handler.cc  http/s3/S3Handler.hh
-
   # EosFstIo interface
   io/local/LocalIo.cc  io/local/LocalIo.hh)
 
@@ -328,7 +315,6 @@ target_link_libraries(XrdEosFst-${PLUGIN_VERSION} PRIVATE
   XrdEosFst-Objects
   EosConsoleHelpers-Objects
   EosFstIo
-
   XROOTD::SSI)
 
 target_compile_definitions(XrdEosFst-${PLUGIN_VERSION} PUBLIC

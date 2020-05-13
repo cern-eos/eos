@@ -22,8 +22,8 @@
 # ************************************************************************
 
 include_directories(
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_BINARY_DIR})
+  ${CMAKE_BINARY_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR})
 
 if (RICHACL_FOUND)
   include_directories(${RICHACL_INCLUDE_DIRS})
@@ -81,7 +81,6 @@ set(EOSXD_COMMON_LINK_LIBRARIES
   XROOTD::UTILS
   BZ2::BZ2
   LIBBFD::LIBBFD
-  ${CMAKE_THREAD_LIBS_INIT}
   ${LIBRARIES_IF_ROCKSDB_WAS_FOUND})
 
 if (RICHACL_FOUND)

@@ -22,7 +22,6 @@
 # ************************************************************************
 
 include_directories(
-  ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
@@ -72,13 +71,14 @@ target_link_libraries(xrdcpposixcache PRIVATE XROOTD::POSIX XROOTD::UTILS)
 target_link_libraries(xrdcppartial PRIVATE XROOTD::POSIX XROOTD::UTILS)
 target_link_libraries(xrdcpupdate PRIVATE XROOTD::POSIX XROOTD::UTILS)
 target_link_libraries(xrdcpslowwriter PRIVATE XROOTD::CL)
-target_link_libraries(eoshashbench PRIVATE EosCommon ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(eoshashbench PRIVATE EosCommon)
 target_link_libraries(eos-crypto-timing-test PRIVATE EosCommon)
-target_link_libraries(testhmacsha256 PRIVATE EosCommon ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(testhmacsha256 PRIVATE EosCommon)
 target_link_libraries(eos-open-trunc-update PRIVATE XROOTD::CL XROOTD::POSIX XROOTD::UTILS)
 target_link_libraries(eos-io-tool PRIVATE EosFstIo)
-target_link_libraries(xrdstress.exe PRIVATE UUID::UUID XROOTD::CL
-  XROOTD::UTILS XROOTD::POSIX ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(xrdstress.exe PRIVATE
+  UUID::UUID XROOTD::CL XROOTD::UTILS XROOTD::POSIX
+  ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(eoschecksumbench PRIVATE EosFstIo XROOTD::POSIX)
 
 target_compile_definitions(xrdstress.exe PUBLIC -D_FILE_OFFSET_BITS=64)
