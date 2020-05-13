@@ -35,6 +35,10 @@ if (LIBBFD_FOUND AND NOT TARGET LIBBFD::LIBBFD)
   set_target_properties(LIBBFD::IBERTY PROPERTIES
     IMPORTED_LOCATION "${LIBIBERTY_LIBRARY}"
     INTERFACE_INCLUDE_DIRECTORIES "${LIBBFD_INCLUDE_DIR}")
+else()
+  message ("Notice: librichacl not found, no richacl support")
+  add_library(LIBBFD::LIBBFD INTERFACE IMPORTED)
+  add_library(LIBBFD::IBERTY INTERFACE IMPORTED)
 endif()
 
 unset(LIBBFD_INCLUDE_DIR)
