@@ -22,6 +22,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#ifdef HAVE_ROCKSDB
 #include "kv/RocksKV.hh"
 #include "gtest/gtest.h"
 
@@ -58,3 +59,5 @@ TEST(RocksKV, BasicSanity)
   ASSERT_EQ(ret, 15u);
   ASSERT_EQ(kv.inc("test", increment), -1);
 }
+
+#endif // HAVE_ROCKSDB
