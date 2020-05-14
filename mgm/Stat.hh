@@ -77,10 +77,8 @@ public:
   }
 
   void
-  StampZero()
+  StampZero(time_t& time_val)
   {
-    int64_t time_val = time(0);
-
     if (time_val < 0) {
       time_val = 0;
     }
@@ -247,10 +245,8 @@ public:
   }
 
   void
-  StampZero()
+  StampZero(time_t& time_val)
   {
-    int64_t time_val = time(0);
-
     if (time_val < 0) {
       time_val = 0;
     }

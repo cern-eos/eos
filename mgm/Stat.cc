@@ -1231,19 +1231,20 @@ Stat::Circulate(ThreadAssistant& assistant) noexcept
     l2 = l2tmp;
     l3 = l3tmp;
     XrdSysMutexHelper lock(mMutex);
+    time_t now = time(NULL);
 
     // loop over tags
     for (auto tit = StatAvgUid.begin(); tit != StatAvgUid.end(); ++tit) {
       // loop over vids
       for (auto it = tit->second.begin(); it != tit->second.end(); ++it) {
-        it->second.StampZero();
+        it->second.StampZero(now);
       }
     }
 
     for (auto tit = StatAvgGid.begin(); tit != StatAvgGid.end(); ++tit) {
       // loop over vids
       for (auto it = tit->second.begin(); it != tit->second.end(); ++it) {
-        it->second.StampZero();
+        it->second.StampZero(now);
       }
     }
 
@@ -1251,7 +1252,7 @@ Stat::Circulate(ThreadAssistant& assistant) noexcept
          ++tit_ext) {
       // loop over vids
       for (auto it = tit_ext->second.begin(); it != tit_ext->second.end(); ++it) {
-        it->second.StampZero();
+        it->second.StampZero(now);
       }
     }
 
@@ -1259,7 +1260,7 @@ Stat::Circulate(ThreadAssistant& assistant) noexcept
          ++tit_ext) {
       // loop over vids
       for (auto it = tit_ext->second.begin(); it != tit_ext->second.end(); ++it) {
-        it->second.StampZero();
+        it->second.StampZero(now);
       }
     }
   }

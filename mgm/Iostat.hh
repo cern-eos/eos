@@ -71,7 +71,7 @@ public:
   Add(unsigned long long val, time_t starttime, time_t stoptime);
 
   void
-  StampZero();
+  StampZero(time_t& now);
 
   double
   GetAvg86400();

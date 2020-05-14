@@ -1443,13 +1443,15 @@ Iostat::Circulate(ThreadAssistant& assistant) noexcept
     tit;
     google::sparse_hash_map<std::string, IostatAvg >::iterator dit;
 
+    time_t now = time(NULL);
+
     // loop over tags
     for (tit = IostatAvgUid.begin(); tit != IostatAvgUid.end(); ++tit) {
       // loop over vids
       google::sparse_hash_map<uid_t, IostatAvg>::iterator it;
 
       for (it = tit->second.begin(); it != tit->second.end(); ++it) {
-        it->second.StampZero();
+        it->second.StampZero(now);
       }
     }
 
@@ -1458,28 +1460,28 @@ Iostat::Circulate(ThreadAssistant& assistant) noexcept
       google::sparse_hash_map<uid_t, IostatAvg>::iterator it;
 
       for (it = tit->second.begin(); it != tit->second.end(); ++it) {
-        it->second.StampZero();
+        it->second.StampZero(now);
       }
     }
 
     // loop over domain accounting
     for (dit = IostatAvgDomainIOrb.begin(); dit != IostatAvgDomainIOrb.end();
          dit++) {
-      dit->second.StampZero();
+      dit->second.StampZero(now);
     }
 
     for (dit = IostatAvgDomainIOwb.begin(); dit != IostatAvgDomainIOwb.end();
          dit++) {
-      dit->second.StampZero();
+      dit->second.StampZero(now);
     }
 
     // loop over app accounting
     for (dit = IostatAvgAppIOrb.begin(); dit != IostatAvgAppIOrb.end(); dit++) {
-      dit->second.StampZero();
+      dit->second.StampZero(now);
     }
 
     for (dit = IostatAvgAppIOwb.begin(); dit != IostatAvgAppIOwb.end(); dit++) {
-      dit->second.StampZero();
+      dit->second.StampZero(now);
     }
 
     Mutex.UnLock();
@@ -2083,12 +2085,12 @@ Iostat::EncodeUdpPopularityTargets() const
 // Reset all the bins
 //------------------------------------------------------------------------------
 void
-IostatAvg::StampZero()
+IostatAvg::StampZero(time_t& now)
 {
-  unsigned int bin86400 = (time(0) / 1440);
-  unsigned int bin3600 = (time(0) / 60);
-  unsigned int bin300 = (time(0) / 5);
-  unsigned int bin60 = (time(0) / 1);
+  unsigned int bin86400 = (now / 1440);
+  unsigned int bin3600 = (now / 60);
+  unsigned int bin300 = (now / 5);
+  unsigned int bin60 = (now / 1);
   avg86400[(bin86400 + 1) % 60] = 0;
   avg3600[(bin3600 + 1) % 60] = 0;
   avg300[(bin300 + 1) % 60] = 0;
