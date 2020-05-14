@@ -44,13 +44,12 @@ XrdMgmOfs::ShouldStall(const char* function,
   if (gOFS->IsNsBooted() && (vid.prot == "sss") &&
       vid.hasUid(DAEMONUID)) {
     eos_static_debug("info=\"avoid stalling of the FST node\" host=%s",
-                      vid.host.c_str());
+                     vid.host.c_str());
     stall = false;
   }
 
   eos::common::RWMutexReadLock lock(Access::gAccessMutex);
-
-  std::string stallid="Stall";
+  std::string stallid = "Stall";
 
   if (stall) {
     if ((vid.uid > 3)) {
@@ -58,8 +57,8 @@ XrdMgmOfs::ShouldStall(const char* function,
         smsg = "operate - you are banned in this instance - contact an administrator";
 
         // fuse clients don't get stalled by a booted namespace, they get EACCES
-        if (vid.app.substr(0,4) == "fuse") {
-	  stallmsg = smsg.c_str();
+        if (vid.app.substr(0, 4) == "fuse") {
+          stallmsg = smsg.c_str();
           return true;
         }
 
@@ -69,8 +68,8 @@ XrdMgmOfs::ShouldStall(const char* function,
         smsg = "operate - your group is banned in this instance - contact an administrator";
 
         // fuse clients don't get stalled by a booted namespace, they get EACCES
-        if (vid.app.substr(0,4) == "fuse") {
-	  stallmsg = smsg.c_str();
+        if (vid.app.substr(0, 4) == "fuse") {
+          stallmsg = smsg.c_str();
           return true;
         }
 
@@ -105,99 +104,108 @@ XrdMgmOfs::ShouldStall(const char* function,
         std::string groupwildcardmatch = "rate:group:*";
         std::map<std::string, std::string>::const_iterator it;
 
-	if ( (functionname != "stat") && // never stall stats
-	     (vid.app != "fuse::restic") ) {
-	  for (it = Access::gStallRules.begin();
-	       it != Access::gStallRules.end();
-	       it++) {
+        if ((functionname != "stat") &&  // never stall stats
+            (vid.app != "fuse::restic")) {
+          for (it = Access::gStallRules.begin();
+               it != Access::gStallRules.end();
+               it++) {
+            stallid = "Stall";
+            auto eosxd_pos = it->first.rfind("Eosxd");
+            auto pos = it->first.rfind(":");
+            std::string cmd = (eosxd_pos != std::string::npos) ?
+                              it->first.substr(eosxd_pos) : it->first.substr(pos + 1);
+            stallid += "::";
+            stallid += cmd;
 
-	    stallid="Stall";
+            if (EOS_LOGS_DEBUG) {
+              eos_static_debug("rule=%s function=%s", cmd.c_str(), function);
+            }
 
-	    auto eosxd_pos = it->first.rfind("Eosxd");
-	    auto pos = it->first.rfind(":");
+            // only Eosxd rates can be fine-grained by function
+            if (cmd.substr(0, 5) == "Eosxd") {
+              if (cmd != function) {
+                continue;
+              }
+            }
 
-	    std::string cmd = (eosxd_pos != std::string::npos)?
-	      it->first.substr(eosxd_pos) : it->first.substr(pos + 1);
+            double cutoff = strtod(it->second.c_str(), 0) * 1.33;
 
-	    stallid += "::";
-	    stallid += cmd;
-	    if (EOS_LOGS_DEBUG) {
-	      eos_static_debug("rule=%s function=%s", cmd.c_str(), function);
-	    }
-	    // only Eosxd rates can be fine-grained by function
-	    if (cmd.substr(0,5) == "Eosxd") {
-	      if (cmd != function)
-		continue;
-	    }
-	    double cutoff = strtod(it->second.c_str(), 0) * 1.33;
+            if ((it->first.find(userwildcardmatch) == 0)) {
+              // catch all rule = global user rate cut
+              XrdSysMutexHelper statLock(gOFS->MgmStats.mMutex);
 
-	    if ((it->first.find(userwildcardmatch) == 0)) {
-	      // catch all rule = global user rate cut
-	      XrdSysMutexHelper statLock(gOFS->MgmStats.mMutex);
+              if (gOFS->MgmStats.StatAvgUid.count(cmd) &&
+                  gOFS->MgmStats.StatAvgUid[cmd].count(vid.uid) &&
+                  (gOFS->MgmStats.StatAvgUid[cmd][vid.uid].GetAvg5() > cutoff)) {
+                if (!stalltime) {
+                  stalltime = 5;
+                }
 
-	      if (gOFS->MgmStats.StatAvgUid.count(cmd) &&
-		  gOFS->MgmStats.StatAvgUid[cmd].count(vid.uid) &&
-		  (gOFS->MgmStats.StatAvgUid[cmd][vid.uid].GetAvg5() > cutoff)) {
-		if (!stalltime) {
-		  stalltime = 5;
-		}
-		smsg = Access::gStallComment[it->first];
-		break;
-	      }
-	    } else if ((it->first.find(groupwildcardmatch) == 0)) {
-	      // catch all rule = global user rate cut
-	      XrdSysMutexHelper statLock(gOFS->MgmStats.mMutex);
+                smsg = Access::gStallComment[it->first];
+                break;
+              }
+            } else if ((it->first.find(groupwildcardmatch) == 0)) {
+              // catch all rule = global user rate cut
+              XrdSysMutexHelper statLock(gOFS->MgmStats.mMutex);
 
-	      if (gOFS->MgmStats.StatAvgGid.count(cmd) &&
-		  gOFS->MgmStats.StatAvgGid[cmd].count(vid.gid) &&
-		  (gOFS->MgmStats.StatAvgGid[cmd][vid.gid].GetAvg5() > cutoff)) {
-		if (!stalltime) {
-		  stalltime = 5;
-		}
-		smsg = Access::gStallComment[it->first];
-		break;
-	      }
-	    } else if ((it->first.find(usermatch) == 0)) {
-	      // check user rule
-	      if (gOFS->MgmStats.StatAvgUid.count(cmd) &&
-		  gOFS->MgmStats.StatAvgUid[cmd].count(vid.uid) &&
-		  (gOFS->MgmStats.StatAvgUid[cmd][vid.uid].GetAvg5() > cutoff)) {
-		// rate exceeded
-		if (!stalltime) {
-		  stalltime = 5;
-		}
-		smsg = Access::gStallComment[it->first];
-		break;
-	      }
-	    } else if ((it->first.find(groupmatch) == 0)) {
-	      // check group rule
-	      if (gOFS->MgmStats.StatAvgGid.count(cmd) &&
-		  gOFS->MgmStats.StatAvgGid[cmd].count(vid.gid) &&
-		  (gOFS->MgmStats.StatAvgGid[cmd][vid.gid].GetAvg5() > cutoff)) {
-		// rate exceeded
-		if (!stalltime) {
-		  stalltime = 5;
-		}
-		smsg = Access::gStallComment[it->first];
-		break;
-	      }
-	    }
-	  }
-	}
+              if (gOFS->MgmStats.StatAvgGid.count(cmd) &&
+                  gOFS->MgmStats.StatAvgGid[cmd].count(vid.gid) &&
+                  (gOFS->MgmStats.StatAvgGid[cmd][vid.gid].GetAvg5() > cutoff)) {
+                if (!stalltime) {
+                  stalltime = 5;
+                }
+
+                smsg = Access::gStallComment[it->first];
+                break;
+              }
+            } else if ((it->first.find(usermatch) == 0)) {
+              // check user rule
+              XrdSysMutexHelper statLock(gOFS->MgmStats.mMutex);
+
+              if (gOFS->MgmStats.StatAvgUid.count(cmd) &&
+                  gOFS->MgmStats.StatAvgUid[cmd].count(vid.uid) &&
+                  (gOFS->MgmStats.StatAvgUid[cmd][vid.uid].GetAvg5() > cutoff)) {
+                // rate exceeded
+                if (!stalltime) {
+                  stalltime = 5;
+                }
+
+                smsg = Access::gStallComment[it->first];
+                break;
+              }
+            } else if ((it->first.find(groupmatch) == 0)) {
+              // check group rule
+              XrdSysMutexHelper statLock(gOFS->MgmStats.mMutex);
+
+              if (gOFS->MgmStats.StatAvgGid.count(cmd) &&
+                  gOFS->MgmStats.StatAvgGid[cmd].count(vid.gid) &&
+                  (gOFS->MgmStats.StatAvgGid[cmd][vid.gid].GetAvg5() > cutoff)) {
+                // rate exceeded
+                if (!stalltime) {
+                  stalltime = 5;
+                }
+
+                smsg = Access::gStallComment[it->first];
+                break;
+              }
+            }
+          }
+        }
       }
+
       if (stalltime) {
-	// add random offset between 0 and 5 to stalltime
-	int random_stall = rand() % 6;
-	stalltime += random_stall;
-	stallmsg = "Attention: you are currently hold in this instance and each"
-	  " request is stalled for ";
-	stallmsg += (int) stalltime;
-	stallmsg += " seconds ... ";
-	stallmsg += smsg.c_str();
-	eos_static_info("info=\"stalling access to\" uid=%u gid=%u host=%s stall=%d",
-			vid.uid, vid.gid, vid.host.c_str(), stalltime);
-	gOFS->MgmStats.Add(stallid.c_str(), vid.uid, vid.gid, 1);
-	return true;
+        // add random offset between 0 and 5 to stalltime
+        int random_stall = rand() % 6;
+        stalltime += random_stall;
+        stallmsg = "Attention: you are currently hold in this instance and each"
+                   " request is stalled for ";
+        stallmsg += (int) stalltime;
+        stallmsg += " seconds ... ";
+        stallmsg += smsg.c_str();
+        eos_static_info("info=\"stalling access to\" uid=%u gid=%u host=%s stall=%d",
+                        vid.uid, vid.gid, vid.host.c_str(), stalltime);
+        gOFS->MgmStats.Add(stallid.c_str(), vid.uid, vid.gid, 1);
+        return true;
       }
     } else {
       if (Access::gStallRules.size() &&
