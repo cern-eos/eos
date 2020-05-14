@@ -1711,11 +1711,13 @@ TEST(AttributeExtraction, BasicSanity) {
 TEST(FileMetadataFilter, InvalidFilter) {
   EqualityFileMetadataFilter invalidFilter("invalid.attr", "aaa");
   ASSERT_FALSE(invalidFilter.isValid());
+  ASSERT_EQ(invalidFilter.describe(), "[(22): Unknown FileMD attribute: invalid.attr]");
 }
 
 TEST(FileMetadataFilter, ZeroSizeFilter) {
   EqualityFileMetadataFilter sizeFilter("size", "0");
   ASSERT_TRUE(sizeFilter.isValid());
+  ASSERT_EQ(sizeFilter.describe(), "size == 0");
 
   eos::ns::FileMdProto proto;
 

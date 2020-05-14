@@ -44,7 +44,7 @@ bool EqualityFileMetadataFilter::check(const eos::ns::FileMdProto &proto) {
 //------------------------------------------------------------------------------
 // Is the object valid?
 //------------------------------------------------------------------------------
-common::Status EqualityFileMetadataFilter::isValid() {
+common::Status EqualityFileMetadataFilter::isValid() const {
   std::string tmp;
   eos::ns::FileMdProto proto;
 
@@ -53,6 +53,19 @@ common::Status EqualityFileMetadataFilter::isValid() {
   }
 
   return common::Status(EINVAL, SSTR("Unknown FileMD attribute: " << mAttr));
+}
+
+//------------------------------------------------------------------------------
+// Describe object
+//------------------------------------------------------------------------------
+std::string EqualityFileMetadataFilter::describe() const {
+  common::Status st = isValid();
+
+  if(!st) {
+    return SSTR("[" << st.toString() << "]");
+  }
+
+  return SSTR(mAttr << " == " << mValue);
 }
 
 EOSNSNAMESPACE_END
