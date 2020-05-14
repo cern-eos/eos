@@ -125,4 +125,33 @@ private:
   common::Status mStatus;
 };
 
+//------------------------------------------------------------------------------
+//! Token type
+//------------------------------------------------------------------------------
+enum class TokenType {
+  kLPAREN, kRPAREN, kQUOTE, kLITERAL, kEQUALITY
+};
+
+struct ExpressionLexicalToken {
+  TokenType mType;
+  std::string mContents;
+
+  ExpressionLexicalToken(TokenType t, std::string c) : mType(t), mContents(c) {}
+
+  bool operator==(const ExpressionLexicalToken &other) const {
+    return mType == other.mType && mContents == other.mContents;
+  }
+};
+
+//------------------------------------------------------------------------------
+//! Filter expression lexer
+//------------------------------------------------------------------------------
+class FilterExpressionLexer {
+public:
+  //----------------------------------------------------------------------------
+  //! Lex the given string
+  //----------------------------------------------------------------------------
+  static common::Status lex(const std::string &str, std::vector<ExpressionLexicalToken> &tokens);
+};
+
 EOSNSNAMESPACE_END

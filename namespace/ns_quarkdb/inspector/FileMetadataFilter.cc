@@ -104,5 +104,68 @@ std::string ParsedFileMetadataFilter::describe() const {
   return mFilter->describe();
 }
 
+//------------------------------------------------------------------------------
+// Lex the given string
+//------------------------------------------------------------------------------
+common::Status FilterExpressionLexer::lex(const std::string &str, std::vector<ExpressionLexicalToken> &tokens) {
+  tokens.clear();
+
+  size_t pos = 0;
+  while(pos < str.size()) {
+    if(str[pos] == '(') {
+      tokens.emplace_back(ExpressionLexicalToken(TokenType::kLPAREN, "("));
+      pos++;
+      continue;
+    }
+
+    if(str[pos] == ')') {
+      tokens.emplace_back(ExpressionLexicalToken(TokenType::kRPAREN, ")"));
+      pos++;
+      continue;
+    }
+
+    if(isspace(str[pos])) {
+      pos++;
+      continue;
+    }
+
+    if(str[pos] == '\'') {
+      size_t initialPos = pos;
+      pos++;
+
+      while(true) {
+        if(pos >= str.size()) {
+          return common::Status(EINVAL, "lexing failed, mismatched quote: \"'\"");
+        }
+
+        if(str[pos] == '\'') {
+          tokens.emplace_back(ExpressionLexicalToken(TokenType::kLITERAL, std::string(str.begin()+initialPos+1, str.begin()+pos)));
+          break;
+        }
+
+        pos++;
+      }
+
+      pos++;
+      continue;
+    }
+
+    if(str[pos] == '=') {
+      pos++;
+
+      if(pos >= str.size() || str[pos] != '=') {
+        return common::Status(EINVAL, "lexing failed, single stray '=' found (did you mean '=='?)");
+      }
+
+      tokens.emplace_back(ExpressionLexicalToken(TokenType::kEQUALITY, "=="));
+
+      pos++;
+      continue;
+    }
+  }
+
+  return common::Status();
+}
+
 EOSNSNAMESPACE_END
 

@@ -1747,3 +1747,25 @@ TEST(FileMetadataFilter, ParsedExpressionFilter) {
   ASSERT_EQ(parsedFilter.describe(), "[failed to parse expression: (22): invalid expression 'abc'");
   ASSERT_FALSE(parsedFilter.check(proto));
 }
+
+TEST(FilterExpressionLexer, BasicSanity) {
+  std::vector<ExpressionLexicalToken> tokens;
+  common::Status st = FilterExpressionLexer::lex("   (  'abc )( ' == ' cde'  ) ", tokens);
+
+  ASSERT_TRUE(st);
+  ASSERT_EQ(tokens.size(), 5u);
+
+  ASSERT_EQ(tokens[0], ExpressionLexicalToken(TokenType::kLPAREN, "("));
+  ASSERT_EQ(tokens[1], ExpressionLexicalToken(TokenType::kLITERAL, "abc )( "));
+  ASSERT_EQ(tokens[2], ExpressionLexicalToken(TokenType::kEQUALITY, "=="));
+  ASSERT_EQ(tokens[3], ExpressionLexicalToken(TokenType::kLITERAL, " cde"));
+  ASSERT_EQ(tokens[4], ExpressionLexicalToken(TokenType::kRPAREN, ")"));
+}
+
+TEST(FilterExpressionLexer, MismatchedQuote) {
+  std::vector<ExpressionLexicalToken> tokens;
+  common::Status st = FilterExpressionLexer::lex("     'abc )(  ) ", tokens);
+
+  ASSERT_FALSE(st);
+  ASSERT_EQ(st.toString(), "(22): lexing failed, mismatched quote: \"'\"");
+}
