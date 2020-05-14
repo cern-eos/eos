@@ -1853,7 +1853,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   eos_info("starting statistics thread");
-  mStatsTid.reset(&Stat::Circulate, MgmStats);
+  mStatsTid.reset(&Stat::Circulate, &MgmStats);
   eos_info("%s", "msg=\"starting archive submitter thread\"");
   mSubmitterTid.reset(&XrdMgmOfs::StartArchiveSubmitter, this);
 
