@@ -13,7 +13,7 @@ find_library(ATOMIC_LIBRARY
   PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR})
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(atomic
+find_package_handle_standard_args(Atomic
   DEFAULT_MSG ATOMIC_LIBRARY)
 
 if (ATOMIC_FOUND AND NOT TARGET ATOMIC::ATOMIC)

@@ -17,7 +17,7 @@ find_library(ROCKSDB_LIBRARY
   HINTS ${ROCKSDB_ROOT})
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(rocksdb
+find_package_handle_standard_args(RocksDB
   REQUIRE_VARS ROCKSDB_LIBRARY ROCKSDB_INCLUDE_DIR)
 mark_as_advanced(ROCKSDB_FOUND ROCKSDB_LIBRARY ROCKSDB_INCLUDE_DIR)
 

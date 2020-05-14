@@ -25,8 +25,7 @@ else()
    set(CPPUNIT_INCLUDE_DIRS ${CPPUNIT_INCLUDE_DIR})
    set(CPPUNIT_LIBRARIES ${CPPUNIT_LIBRARY})
 
-   find_package_handle_standard_args(
-     cppunit
+   find_package_handle_standard_args(CPPUnit
      DEFAULT_MSG CPPUNIT_INCLUDE_DIR CPPUNIT_LIBRARY)
 
    mark_as_advanced(CPPUNIT_INCLUDE_DIR CPPUNIT_LIBRARY)

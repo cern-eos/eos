@@ -34,7 +34,7 @@ else ()
 endif ()
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(ZLIB
+find_package_handle_standard_args(zlib
   REQUIRED_VARS ZLIB_LIBRARY ZLIB_INCLUDE_DIR ZLIB_LIBRARY_STATIC
   VERSION_VAR ZLIB_VERSION)
 

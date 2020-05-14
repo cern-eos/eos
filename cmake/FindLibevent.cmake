@@ -24,7 +24,7 @@ find_library(
   PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR})
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(libevent
+find_package_handle_standard_args(Libevent
   REQUIRED_VARS LIBEVENT_LIBRARY LIBEVENT_INCLUDE_DIR)
 
 if (LIBEVENT_FOUND AND NOT TARGET LIBEVENT::LIBEVENT)
