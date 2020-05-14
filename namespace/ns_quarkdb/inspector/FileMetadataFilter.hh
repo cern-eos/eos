@@ -90,4 +90,39 @@ private:
   std::string mValue;
 };
 
+//------------------------------------------------------------------------------
+//! Parsed filter
+//------------------------------------------------------------------------------
+class ParsedFileMetadataFilter : public FileMetadataFilter {
+public:
+  //----------------------------------------------------------------------------
+  //! Constructor -- valid parse result
+  //----------------------------------------------------------------------------
+  ParsedFileMetadataFilter(std::unique_ptr<FileMetadataFilter> sub);
+
+  //----------------------------------------------------------------------------
+  //! Constructor -- parse error
+  //----------------------------------------------------------------------------
+  ParsedFileMetadataFilter(const common::Status &err);
+
+  //----------------------------------------------------------------------------
+  //! Is the object valid?
+  //----------------------------------------------------------------------------
+  virtual common::Status isValid() const override;
+
+  //----------------------------------------------------------------------------
+  //! Does the given FileMdProto pass through the filter?
+  //----------------------------------------------------------------------------
+  virtual bool check(const eos::ns::FileMdProto &proto) override;
+
+  //----------------------------------------------------------------------------
+  //! Describe object
+  //----------------------------------------------------------------------------
+  virtual std::string describe() const override;
+
+private:
+  std::unique_ptr<FileMetadataFilter> mFilter;
+  common::Status mStatus;
+};
+
 EOSNSNAMESPACE_END

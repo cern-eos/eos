@@ -65,7 +65,43 @@ std::string EqualityFileMetadataFilter::describe() const {
     return SSTR("[" << st.toString() << "]");
   }
 
-  return SSTR(mAttr << " == " << mValue);
+  return SSTR(mAttr << " == '" << mValue << "'");
+}
+
+//------------------------------------------------------------------------------
+// Constructor -- valid parse result
+//------------------------------------------------------------------------------
+ParsedFileMetadataFilter::ParsedFileMetadataFilter(std::unique_ptr<FileMetadataFilter> sub)
+: mFilter(std::move(sub)) {}
+
+//------------------------------------------------------------------------------
+// Constructor -- parse error
+//------------------------------------------------------------------------------
+ParsedFileMetadataFilter::ParsedFileMetadataFilter(const common::Status &err)
+: mStatus(err) {}
+
+//------------------------------------------------------------------------------
+// Is the object valid?
+//------------------------------------------------------------------------------
+common::Status ParsedFileMetadataFilter::isValid() const {
+  if(!mFilter) return mStatus;
+  return mFilter->isValid();
+}
+
+//------------------------------------------------------------------------------
+// Does the given FileMdProto pass through the filter?
+//------------------------------------------------------------------------------
+bool ParsedFileMetadataFilter::check(const eos::ns::FileMdProto &proto) {
+  if(!mFilter) return false;
+  return mFilter->check(proto);
+}
+
+//------------------------------------------------------------------------------
+// Describe object
+//------------------------------------------------------------------------------
+std::string ParsedFileMetadataFilter::describe() const {
+  if(!mFilter) return SSTR("[failed to parse expression: " << mStatus.toString());
+  return mFilter->describe();
 }
 
 EOSNSNAMESPACE_END
