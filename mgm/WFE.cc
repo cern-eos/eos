@@ -1650,8 +1650,8 @@ WFE::Job::HandleProtoMethodPrepareEvent(const std::string& fullPath,
   // Check if we have a disk replica and if not, whether it's on tape
   if (gOFS->_stat(fullPath.c_str(), &buf, errInfo, mVid, nullptr, nullptr,
                   false) == 0) {
-    onDisk = ((buf.st_mode & EOS_TAPE_MODE_T) ? buf.st_nlink - 1 : buf.st_nlink) >
-             0;
+    // Note that buf.st_mode is an unsigned integer
+    onDisk = (buf.st_mode & EOS_TAPE_MODE_T) ? buf.st_nlink > 1 : buf.st_nlink > 0;
     onTape = (buf.st_mode & EOS_TAPE_MODE_T) != 0;
   } else {
     eos_static_err("Cannot determine file and disk replicas, not doing the prepare. Reason: %s",
