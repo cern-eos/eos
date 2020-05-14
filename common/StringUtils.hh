@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #pragma once
+#include "common/Namespace.hh"
 #include <string>
 #include <algorithm>
 

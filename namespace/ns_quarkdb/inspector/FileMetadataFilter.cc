@@ -17,6 +17,8 @@
  ************************************************************************/
 
 #include "namespace/ns_quarkdb/inspector/FileMetadataFilter.hh"
+#include "namespace/ns_quarkdb/inspector/AttributeExtraction.hh"
+#include "common/Assert.hh"
 
 EOSNSNAMESPACE_BEGIN
 
@@ -26,18 +28,31 @@ EOSNSNAMESPACE_BEGIN
 EqualityFileMetadataFilter::EqualityFileMetadataFilter(const std::string &attr, const std::string &value)
 : mAttr(attr), mValue(value) {}
 
+//----------------------------------------------------------------------------
+// Does the given FileMdProto pass through the filter?
+//----------------------------------------------------------------------------
+bool EqualityFileMetadataFilter::check(const eos::ns::FileMdProto &proto) {
+  std::string value;
+
+  if(!AttributeExtraction::asString(proto, mAttr, value)) {
+    return false;
+  }
+
+  return value == mValue;
+}
+
 //------------------------------------------------------------------------------
 // Is the object valid?
 //------------------------------------------------------------------------------
 common::Status EqualityFileMetadataFilter::isValid() {
-  return common::Status();
-}
+  std::string tmp;
+  eos::ns::FileMdProto proto;
 
-//------------------------------------------------------------------------------
-// Does the given FileMdProto pass through the filter?
-//------------------------------------------------------------------------------
-bool EqualityFileMetadataFilter::check(const eos::ns::FileMdProto &proto) {
-  return true;
+  if(AttributeExtraction::asString(proto, mAttr, tmp)) {
+    return common::Status();
+  }
+
+  return common::Status(EINVAL, SSTR("Unknown FileMD attribute: " << mAttr));
 }
 
 EOSNSNAMESPACE_END

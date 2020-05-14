@@ -38,6 +38,7 @@
 #include "namespace/ns_quarkdb/inspector/Printing.hh"
 #include "namespace/ns_quarkdb/persistency/FileSystemIterator.hh"
 #include "namespace/ns_quarkdb/inspector/AttributeExtraction.hh"
+#include "namespace/ns_quarkdb/inspector/FileMetadataFilter.hh"
 #include "namespace/common/QuotaNodeCore.hh"
 #include "namespace/utils/Checksum.hh"
 #include "namespace/utils/Etag.hh"
@@ -1707,3 +1708,20 @@ TEST(AttributeExtraction, BasicSanity) {
   ASSERT_EQ(out, "1997.5555");
 }
 
+TEST(FileMetadataFilter, InvalidFilter) {
+  EqualityFileMetadataFilter invalidFilter("invalid.attr", "aaa");
+  ASSERT_FALSE(invalidFilter.isValid());
+}
+
+TEST(FileMetadataFilter, ZeroSizeFilter) {
+  EqualityFileMetadataFilter sizeFilter("size", "0");
+  ASSERT_TRUE(sizeFilter.isValid());
+
+  eos::ns::FileMdProto proto;
+
+  proto.set_size(33);
+  ASSERT_FALSE(sizeFilter.check(proto));
+
+  proto.set_size(0);
+  ASSERT_TRUE(sizeFilter.check(proto));
+}
