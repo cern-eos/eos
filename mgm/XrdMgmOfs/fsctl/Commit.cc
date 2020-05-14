@@ -228,12 +228,13 @@ XrdMgmOfs::Commit(const char* path,
       paths["atomic"].Init(fmdname.c_str());
       paths["atomic"].DecodeAtomicPath(option["versioning"]);
       option["atomic"] = (paths["atomic"].GetName() != fmdname);
+
       if (option["commitverify"]) {
-	// disable atomic and versioning functionality for commits originated by "verify --commitxyz"
-	option["atomic"] = false;
-	option["versioning"] = false;
+        // disable atomic and versioning functionality for commits originated by "verify --commitxyz"
+        option["atomic"] = false;
+        option["versioning"] = false;
       }
-      
+
       if (option["update"] && mtime) {
         // Update the modification time only if the file contents changed and
         // mtime != 0
@@ -249,13 +250,14 @@ XrdMgmOfs::Commit(const char* path,
 
       eos_thread_debug("commit: setting size to %llu", fmd->getSize());
 
-      if (!CommitHelper::commit_fmd(vid, cid, fmd, option, emsg)) {
+      if (!CommitHelper::commit_fmd(vid, cid, fmd, size, option, emsg)) {
         return Emsg(epname, error, errno, "commit filesize change", emsg.c_str());
       }
 
       if (option["update"]) {
-	// broadcast file md 
-	gOFS->FuseXCastRefresh(fmd->getIdentifier(),eos::ContainerIdentifier(fmd->getContainerId()));
+        // broadcast file md
+        gOFS->FuseXCastRefresh(fmd->getIdentifier(),
+                               eos::ContainerIdentifier(fmd->getContainerId()));
       }
     }
     {
@@ -288,15 +290,16 @@ XrdMgmOfs::Commit(const char* path,
           // a new one and do the final rename in a transaction
           if (vfid) {
             XrdOucString versionedname = "";
-	    if (gOFS->Version(vfid, error, rootvid, 0xffff, &versionedname, true)) {
-	      eos_static_crit("versioning failed %s/%s vfxid=%08lxx",
-			      paths["versiondir"].GetParentPath(),
-			      paths["atomic"].GetPath(), vfid);
-	      const char* errmsg = "commit - versioning failed";
-	      return Emsg(epname, error, EREMCHG, errmsg, paths["atomic"].GetName());
-	    } else {
-	      paths["version"].Init(versionedname.c_str());
-	    }
+
+            if (gOFS->Version(vfid, error, rootvid, 0xffff, &versionedname, true)) {
+              eos_static_crit("versioning failed %s/%s vfxid=%08lxx",
+                              paths["versiondir"].GetParentPath(),
+                              paths["atomic"].GetPath(), vfid);
+              const char* errmsg = "commit - versioning failed";
+              return Emsg(epname, error, EREMCHG, errmsg, paths["atomic"].GetName());
+            } else {
+              paths["version"].Init(versionedname.c_str());
+            }
           }
         }
 

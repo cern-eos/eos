@@ -569,6 +569,7 @@ bool
 CommitHelper::commit_fmd(eos::common::VirtualIdentity& vid,
                          unsigned long cid,
                          std::shared_ptr<eos::IFileMD>fmd,
+                         unsigned long long replica_size,
                          CommitHelper::option_t& option,
                          std::string& errmsg)
 {
@@ -580,7 +581,10 @@ CommitHelper::commit_fmd(eos::common::VirtualIdentity& vid,
 
     if (fmd->hasAttribute(tmpEtag) && (!option["atomic"] || option["occhunk"])
         && (option["commitsize"] || option["commitchecksum"])) {
-      fmd->removeAttribute(tmpEtag);
+      // Drop the tmp etag only if this was not a creation of a 0-size file
+      if ((fmd->getSize() != 0) || (replica_size != 0)) {
+        fmd->removeAttribute(tmpEtag);
+      }
     }
 
     gOFS->eosView->updateFileStore(fmd.get());
@@ -688,10 +692,10 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
         versiondir->addFile(versionfmd.get());
         versiondir->setMTimeNow();
         gOFS->eosView->updateFileStore(versionfmd.get());
-	gOFS->FuseXCastDeletion(dir->getIdentifier(), paths["atomic"].GetName());
-	gOFS->FuseXCastRefresh(versionfmd->getIdentifier(), versiondir->getIdentifier());
+        gOFS->FuseXCastDeletion(dir->getIdentifier(), paths["atomic"].GetName());
+        gOFS->FuseXCastRefresh(versionfmd->getIdentifier(),
+                               versiondir->getIdentifier());
         gOFS->FuseXCastContainer(versiondir->getIdentifier());
-
         // Update the ownership and mode of the new file to the original
         // one
         fmd->setCUid(versionfmd->getCUid());

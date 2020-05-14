@@ -117,6 +117,7 @@ public:
   static bool commit_fmd(eos::common::VirtualIdentity& vid,
                          unsigned long cid,
                          std::shared_ptr<eos::IFileMD>fmd,
+                         unsigned long long replica_size,
                          CommitHelper::option_t& option,
                          std::string& errmsg);
 
