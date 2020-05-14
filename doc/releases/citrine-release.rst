@@ -15,7 +15,21 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
-``v4.7.13 Citrine``
+
+``v4.7.15 Citrine``
+===================
+
+2020-05-14
+
+Bug
+---
+
+* [EOS-4299] Fix stat counters update frequency
+* MGM: Add missing lock to MgmStats in the stall functionality
+* MGM: stat.st_nlink is an UNSIGNED integer.  Replaced dangerous -1 logic with safe usigned logic
+
+
+``v4.7.14 Citrine``
 ===================
 
 2020-05-11
