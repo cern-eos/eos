@@ -129,7 +129,7 @@ private:
 //! Token type
 //------------------------------------------------------------------------------
 enum class TokenType {
-  kLPAREN, kRPAREN, kQUOTE, kLITERAL, kEQUALITY
+  kLPAREN, kRPAREN, kQUOTE, kLITERAL, kEQUALITY, kAND
 };
 
 struct ExpressionLexicalToken {

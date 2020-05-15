@@ -162,6 +162,20 @@ common::Status FilterExpressionLexer::lex(const std::string &str, std::vector<Ex
       pos++;
       continue;
     }
+
+    if(str[pos] == '&') {
+      pos++;
+
+      if(pos >= str.size() || str[pos] != '&') {
+        return common::Status(EINVAL, "lexing failed, single stray '&' found (did you mean '=='?)");
+      }
+
+      tokens.emplace_back(ExpressionLexicalToken(TokenType::kAND, "&&"));
+
+      pos++;
+      continue;
+    }
+
   }
 
   return common::Status();

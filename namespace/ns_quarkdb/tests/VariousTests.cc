@@ -1750,16 +1750,17 @@ TEST(FileMetadataFilter, ParsedExpressionFilter) {
 
 TEST(FilterExpressionLexer, BasicSanity) {
   std::vector<ExpressionLexicalToken> tokens;
-  common::Status st = FilterExpressionLexer::lex("   (  'abc )( ' == ' cde'  ) ", tokens);
+  common::Status st = FilterExpressionLexer::lex("   (  'abc )( ' == ' cde' && ) ", tokens);
 
   ASSERT_TRUE(st);
-  ASSERT_EQ(tokens.size(), 5u);
+  ASSERT_EQ(tokens.size(), 6u);
 
   ASSERT_EQ(tokens[0], ExpressionLexicalToken(TokenType::kLPAREN, "("));
   ASSERT_EQ(tokens[1], ExpressionLexicalToken(TokenType::kLITERAL, "abc )( "));
   ASSERT_EQ(tokens[2], ExpressionLexicalToken(TokenType::kEQUALITY, "=="));
   ASSERT_EQ(tokens[3], ExpressionLexicalToken(TokenType::kLITERAL, " cde"));
-  ASSERT_EQ(tokens[4], ExpressionLexicalToken(TokenType::kRPAREN, ")"));
+  ASSERT_EQ(tokens[4], ExpressionLexicalToken(TokenType::kAND, "&&"));
+  ASSERT_EQ(tokens[5], ExpressionLexicalToken(TokenType::kRPAREN, ")"));
 }
 
 TEST(FilterExpressionLexer, MismatchedQuote) {
