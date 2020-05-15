@@ -167,7 +167,7 @@ common::Status FilterExpressionLexer::lex(const std::string &str, std::vector<Ex
       pos++;
 
       if(pos >= str.size() || str[pos] != '&') {
-        return common::Status(EINVAL, "lexing failed, single stray '&' found (did you mean '=='?)");
+        return common::Status(EINVAL, "lexing failed, single stray '&' found (did you mean '&&'?)");
       }
 
       tokens.emplace_back(ExpressionLexicalToken(TokenType::kAND, "&&"));
@@ -175,6 +175,20 @@ common::Status FilterExpressionLexer::lex(const std::string &str, std::vector<Ex
       pos++;
       continue;
     }
+
+    if(str[pos] == '|') {
+      pos++;
+
+      if(pos >= str.size() || str[pos] != '|') {
+        return common::Status(EINVAL, "lexing failed, single stray '||' found (did you mean '||'?)");
+      }
+
+      tokens.emplace_back(ExpressionLexicalToken(TokenType::kOR, "||"));
+
+      pos++;
+      continue;
+    }
+
 
   }
 
