@@ -51,30 +51,24 @@ TEST(Timing, TimespecFromTimespecString)
   using eos::common::Timing;
   struct timespec ts;
   int rc;
-
   // Extract timespec from predefined timespec string
   rc = Timing::Timespec_from_TimespecStr("1550061572.9528439045", ts);
   ASSERT_EQ(rc, 0);
   ASSERT_EQ(ts.tv_sec, 1550061572);
   ASSERT_EQ(ts.tv_nsec, 952843904);
-
   rc = Timing::Timespec_from_TimespecStr("1550061572", ts);
   ASSERT_EQ(rc, 0);
   ASSERT_EQ(ts.tv_sec, 1550061572);
   ASSERT_EQ(ts.tv_nsec, 0);
-
   // Convert current time into timespec string
   // Extract timespec from previously generated string
   struct timespec now;
   char buff[64];
-
   Timing::GetTimeSpec(now);
   sprintf(buff, "%ld.%ld", now.tv_sec, now.tv_nsec);
-
   Timing::Timespec_from_TimespecStr(buff, ts);
   ASSERT_EQ(ts.tv_sec, now.tv_sec);
   ASSERT_EQ(ts.tv_nsec, now.tv_nsec);
-
   // Incomplete strings
   ASSERT_EQ(Timing::Timespec_from_TimespecStr("100.no_digits", ts), -1);
   ASSERT_EQ(ts.tv_sec, 0);
@@ -82,7 +76,6 @@ TEST(Timing, TimespecFromTimespecString)
   ASSERT_EQ(Timing::Timespec_from_TimespecStr("no_digits.100", ts), -1);
   ASSERT_EQ(ts.tv_sec, 0);
   ASSERT_EQ(ts.tv_nsec, 0);
-
   // Invalid strings
   ASSERT_EQ(Timing::Timespec_from_TimespecStr("no digits", ts), -1);
   ASSERT_EQ(Timing::Timespec_from_TimespecStr("...", ts), -1);
@@ -95,91 +88,92 @@ TEST(Timing, NsFromTimespecString)
 {
   using eos::common::Timing;
   long long nanoseconds;
-
   // Extract nanoseconds from predefined timespec string
   nanoseconds = Timing::Ns_from_TimespecStr("1550061572.9528439045");
   ASSERT_EQ(nanoseconds, 1550061572952843904ULL);
   nanoseconds = Timing::Ns_from_TimespecStr("1550061572");
   ASSERT_EQ(nanoseconds, 1550061572000000000ULL);
-
   // Convert current time into timespec string
   // Extract nanoseconds from previously generated string
   struct timespec now;
   char buff[64];
-
   Timing::GetTimeSpec(now);
   sprintf(buff, "%ld.%ld", now.tv_sec, now.tv_nsec);
-
   nanoseconds = Timing::Ns_from_TimespecStr(buff);
   ASSERT_EQ(nanoseconds, Timing::GetAgeInNs(0LL, &now));
-
   // Invalid strings
   ASSERT_EQ(Timing::Ns_from_TimespecStr("no digits"), -1);
   ASSERT_EQ(Timing::Ns_from_TimespecStr("..."), -1);
   ASSERT_EQ(Timing::Ns_from_TimespecStr(""), -1);
 }
 
-TEST(SteadyClock, FakeTests) {
+TEST(SteadyClock, FakeTests)
+{
   eos::common::SteadyClock sc(true);
   ASSERT_EQ(sc.getTime(), std::chrono::steady_clock::time_point());
-
   std::chrono::steady_clock::time_point startOfTime;
   startOfTime += std::chrono::seconds(5);
-
   sc.advance(std::chrono::seconds(5));
   ASSERT_EQ(sc.getTime(), startOfTime);
 }
 
-TEST(IntervalStopwatch, BasicSanity) {
+TEST(Timing, TimespecToString)
+{
+  struct timespec ts;
+  ts.tv_sec = 11111111;
+  ts.tv_nsec = 111111111;
+  ASSERT_STREQ(eos::common::Timing::TimespecToString(ts).c_str(),
+               "11111111.111111111");
+  ts.tv_sec = 121212;
+  ts.tv_nsec = 87654321;
+  ASSERT_STREQ(eos::common::Timing::TimespecToString(ts).c_str(),
+               "121212.087654321");
+  ts.tv_sec = 123;
+  ts.tv_nsec = 321;
+  ASSERT_STREQ(eos::common::Timing::TimespecToString(ts).c_str(),
+               "123.000000321");
+}
+
+TEST(IntervalStopwatch, BasicSanity)
+{
   common::SteadyClock sc(true);
-
   IntervalStopwatch stopwatch(std::chrono::milliseconds(0), &sc);
-
   ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(0));
   ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(0));
   ASSERT_EQ(stopwatch.getCycleStart(),
-    std::chrono::steady_clock::time_point());
-
+            std::chrono::steady_clock::time_point());
   sc.advance(std::chrono::milliseconds(999));
   ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(999));
   ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(0));
   ASSERT_EQ(stopwatch.getCycleStart(),
-    std::chrono::steady_clock::time_point());
-
+            std::chrono::steady_clock::time_point());
   stopwatch = IntervalStopwatch(std::chrono::milliseconds(3), &sc);
   ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(0));
   ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(3));
   ASSERT_EQ(stopwatch.getCycleStart(),
-    std::chrono::steady_clock::time_point() + std::chrono::milliseconds(999));
-
+            std::chrono::steady_clock::time_point() + std::chrono::milliseconds(999));
   sc.advance(std::chrono::milliseconds(1));
   ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(1));
   ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(2));
   ASSERT_EQ(stopwatch.getCycleStart(),
-    std::chrono::steady_clock::time_point() + std::chrono::milliseconds(999));
-
+            std::chrono::steady_clock::time_point() + std::chrono::milliseconds(999));
   stopwatch.startCycle(std::chrono::milliseconds(10));
   ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(0));
   ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(10));
   ASSERT_EQ(stopwatch.getCycleStart(),
-    std::chrono::steady_clock::time_point() + std::chrono::milliseconds(1000));
-
+            std::chrono::steady_clock::time_point() + std::chrono::milliseconds(1000));
   sc.advance(std::chrono::milliseconds(1));
   ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(1));
   ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(9));
-
   sc.advance(std::chrono::milliseconds(1));
   ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(2));
   ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(8));
-
   sc.advance(std::chrono::milliseconds(7));
   ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(9));
   ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(1));
-
   sc.advance(std::chrono::milliseconds(1));
   ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(10));
   ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(0));
-
   sc.advance(std::chrono::milliseconds(10));
   ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(20));
   ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(0));
@@ -188,25 +182,20 @@ TEST(IntervalStopwatch, BasicSanity) {
 TEST(IntervalStopwatch, RestartIfExpired)
 {
   common::SteadyClock sc(true);
-
   IntervalStopwatch stopwatch(std::chrono::milliseconds(100), &sc);
   ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(0));
   ASSERT_FALSE(stopwatch.restartIfExpired());
-
   sc.advance(std::chrono::milliseconds(99));
   ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(99));
   ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(1));
   ASSERT_FALSE(stopwatch.restartIfExpired());
-
   sc.advance(std::chrono::milliseconds(2));
   ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(101));
   ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(0));
   ASSERT_TRUE(stopwatch.restartIfExpired());
-
   ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(0));
   ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(100));
   ASSERT_FALSE(stopwatch.restartIfExpired());
-
   sc.advance(std::chrono::milliseconds(50));
   ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(50));
   ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(50));

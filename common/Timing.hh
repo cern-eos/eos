@@ -34,6 +34,7 @@
 #include <string.h>
 #include <string>
 #include <chrono>
+#include <iomanip>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -381,6 +382,22 @@ public:
 
     ts = lts;
     return 0;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Convert timespec struct to timespec string representation. Take care
+  //! particularly for leading 0s.
+  //!
+  //! @param ts timespec structure
+  //!
+  //! @return timespec string representation "<seconds>.<nanoseconds>"
+  //----------------------------------------------------------------------------
+  static std::string
+  TimespecToString(const struct timespec& ts)
+  {
+    std::ostringstream oss;
+    oss << ts.tv_sec << "." << std::setfill('0') << std::setw(9) << ts.tv_nsec;
+    return oss.str();
   }
 
   //----------------------------------------------------------------------------

@@ -268,9 +268,10 @@ ProcCommand::FileInfo(const char* path)
           std::string etag, xs_spaces;
           eos::calculateEtag(fmd_copy.get(), etag);
           eos::appendChecksumOnStringAsHex(fmd_copy.get(), xs_spaces, ' ');
-
-	  std::string redundancy = eos::common::LayoutId::GetRedundancySymbol(fmd_copy->hasLocation(EOS_TAPE_FSID),
-				   eos::common::LayoutId::GetRedundancy(fmd_copy->getLayoutId(), fmd_copy->getNumLocation()));
+          std::string redundancy = eos::common::LayoutId::GetRedundancySymbol(
+                                     fmd_copy->hasLocation(EOS_TAPE_FSID),
+                                     eos::common::LayoutId::GetRedundancy(fmd_copy->getLayoutId(),
+                                         fmd_copy->getNumLocation()));
 
           if (!Monitoring) {
             out << "  File: '" << spath << "'"
@@ -281,25 +282,26 @@ ProcCommand::FileInfo(const char* path)
             }
 
             out << std::endl;
-            out << "  Size: " << fmd_copy->getSize() << std::endl;
-            out << "Modify: " << ctime_r(&filemtime, mtimestring);
+            out << "  Size: " << fmd_copy->getSize()
+                << std::endl
+                << "Modify: " << ctime_r(&filemtime, mtimestring);
             out.seekp(-1, std::ios_base::end);
-            out << " Timestamp: " << mtime.tv_sec << "." << mtime.tv_nsec
-                << std::endl;
-            out << "Change: " << ctime_r(&filectime, ctimestring);
+            out << " Timestamp: " << eos::common::Timing::TimespecToString(mtime)
+                << std::endl
+                << "Change: " << ctime_r(&filectime, ctimestring);
             out.seekp(-1, std::ios_base::end);
-            out << " Timestamp: " << ctime.tv_sec << "." << ctime.tv_nsec
-                << std::endl;
-            out << "Birth : " << ctime_r(&filebtime, btimestring);
+            out << " Timestamp: " << eos::common::Timing::TimespecToString(ctime)
+                << std::endl
+                << " Birth: " << ctime_r(&filebtime, btimestring);
             out.seekp(-1, std::ios_base::end);
-            out << " Timestamp: " << btime.tv_sec << "." << btime.tv_nsec
-                << std::endl;
-            out << "  CUid: " << fmd_copy->getCUid()
+            out << " Timestamp: " << eos::common::Timing::TimespecToString(btime)
+                << std::endl
+                << "  CUid: " << fmd_copy->getCUid()
                 << " CGid: " << fmd_copy->getCGid()
-                << "  Fxid: " << hex_fid
+                << " Fxid: " << hex_fid
                 << " Fid: " << fmd_copy->getId()
-                << "    Pid: " << fmd_copy->getContainerId()
-                << "   Pxid: " << hex_pid
+                << " Pid: " << fmd_copy->getContainerId()
+                << " Pxid: " << hex_pid
                 << std::endl;
             out << "XStype: " << LayoutId::GetChecksumString(fmd_copy->getLayoutId())
                 << "    XS: " << xs_spaces
@@ -309,16 +311,17 @@ ProcCommand::FileInfo(const char* path)
                 << " Stripes: " << (LayoutId::GetStripeNumber(fmd_copy->getLayoutId()) + 1)
                 << " Blocksize: " << LayoutId::GetBlockSizeString(fmd_copy->getLayoutId())
                 << " LayoutId: " << FileId::Fid2Hex(fmd_copy->getLayoutId())
-	        << " Redundancy: " << redundancy
+                << " Redundancy: " << redundancy
                 << std::endl;
             out << "  #Rep: " << fmd_copy->getNumLocation() << std::endl;
-	    if (fmd_copy->hasLocation(EOS_TAPE_FSID)) {
-	      std::string storage_class = xattrs["sys.archive.storage_class"];
-	      std::string archive_id = xattrs["sys.archive.file_id"];
 
-	      out << "TapeID: " << (archive_id.length()?archive_id:"undef") << " StorageClass: " << (storage_class.length()?storage_class:"none")
-		  << std::endl;
-	    }
+            if (fmd_copy->hasLocation(EOS_TAPE_FSID)) {
+              std::string storage_class = xattrs["sys.archive.storage_class"];
+              std::string archive_id = xattrs["sys.archive.file_id"];
+              out << "TapeID: " << (archive_id.length() ? archive_id : "undef") <<
+                  " StorageClass: " << (storage_class.length() ? storage_class : "none")
+                  << std::endl;
+            }
           } else {
             std::string xs;
 
@@ -509,10 +512,10 @@ ProcCommand::FileInfo(const char* path)
               }
             } else {
               if (!Monitoring) {
-		if (location != EOS_TAPE_FSID) {
-		  out << std::setw(3) << i << std::setw(8) << location
-		      << " NA" << std::endl;
-		}
+                if (location != EOS_TAPE_FSID) {
+                  out << std::setw(3) << i << std::setw(8) << location
+                      << " NA" << std::endl;
+                }
               } else {
                 out << "fsid=" << location << " ";
               }
@@ -697,26 +700,26 @@ ProcCommand::DirInfo(const char* path)
           out << std::endl;
           out << "Modify: " << ctime_r(&filemtime, mtimestring);
           out.seekp(-1, std::ios_base::end);
-          out << " Timestamp: " << mtime.tv_sec << "." << mtime.tv_nsec
-              << std::endl;
-          out << "Change: " << ctime_r(&filectime, ctimestring);
+          out << " Timestamp: " << eos::common::Timing::TimespecToString(mtime)
+              << std::endl
+              << "Change: " << ctime_r(&filectime, ctimestring);
           out.seekp(-1, std::ios_base::end);
-          out << " Timestamp: " << ctime.tv_sec << "." << ctime.tv_nsec
-              << std::endl;
-          out << "Sync  : " << ctime_r(&filetmtime, tmtimestring);
+          out << " Timestamp: " << eos::common::Timing::TimespecToString(ctime)
+              << std::endl
+              << "Sync  : " << ctime_r(&filetmtime, tmtimestring);
           out.seekp(-1, std::ios_base::end);
-          out << " Timestamp: " << tmtime.tv_sec << "." << tmtime.tv_nsec
-              << std::endl;
-          out << "Birth : " << ctime_r(&filebtime, btimestring);
+          out << " Timestamp: " << eos::common::Timing::TimespecToString(tmtime)
+              << std::endl
+              << "Birth : " << ctime_r(&filebtime, btimestring);
           out.seekp(-1, std::ios_base::end);
-          out << " Timestamp: " << btime.tv_sec << "." << btime.tv_nsec
+          out << " Timestamp: " << eos::common::Timing::TimespecToString(btime)
               << std::endl;
           out << "  CUid: " << dmd_copy->getCUid()
               << " CGid: " << dmd_copy->getCGid()
-              << "  Fxid: " << hex_fid
+              << " Fxid: " << hex_fid
               << " Fid: " << dmd_copy->getId()
-              << "    Pid: " << dmd_copy->getParentId()
-              << "   Pxid: " << hex_pid
+              << " Pid: " << dmd_copy->getParentId()
+              << " Pxid: " << hex_pid
               << std::endl
               << "  ETAG: " << etag
               << std::endl;
