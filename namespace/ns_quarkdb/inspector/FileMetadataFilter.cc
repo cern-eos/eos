@@ -189,10 +189,46 @@ common::Status FilterExpressionLexer::lex(const std::string &str, std::vector<Ex
       continue;
     }
 
+    if(isalpha(str[pos])) {
+      size_t initialPos = pos;
+
+      while(true) {
+        if(pos >= str.size() || isspace(str[pos])) {
+          tokens.emplace_back(ExpressionLexicalToken(TokenType::kVAR, std::string(str.begin()+initialPos, str.begin()+pos)));
+          break;
+        }
+
+        pos++;
+      }
+    }
+    else {
+      return common::Status(EINVAL, SSTR("Parse error, unreconized character: " << int(str[pos])));
+    }
 
   }
 
   return common::Status();
+}
+
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+FilterExpressionParser::FilterExpressionParser(const std::string &str) {
+
+}
+
+//------------------------------------------------------------------------------
+// Get status
+//------------------------------------------------------------------------------
+common::Status FilterExpressionParser::getStatus() const {
+  return mStatus;
+}
+
+//------------------------------------------------------------------------------
+// Get parsed filter -- call this only ONCE
+//------------------------------------------------------------------------------
+std::unique_ptr<ParsedFileMetadataFilter> FilterExpressionParser::getFilter() {
+  return std::move(mFilter);
 }
 
 EOSNSNAMESPACE_END

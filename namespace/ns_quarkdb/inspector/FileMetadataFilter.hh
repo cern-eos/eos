@@ -129,7 +129,7 @@ private:
 //! Token type
 //------------------------------------------------------------------------------
 enum class TokenType {
-  kLPAREN, kRPAREN, kQUOTE, kLITERAL, kEQUALITY, kAND, kOR
+  kLPAREN, kRPAREN, kQUOTE, kLITERAL, kEQUALITY, kAND, kOR, kVAR
 };
 
 struct ExpressionLexicalToken {
@@ -153,5 +153,32 @@ public:
   //----------------------------------------------------------------------------
   static common::Status lex(const std::string &str, std::vector<ExpressionLexicalToken> &tokens);
 };
+
+//------------------------------------------------------------------------------
+//! Filter expression parser
+//------------------------------------------------------------------------------
+class FilterExpressionParser {
+public:
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  FilterExpressionParser(const std::string &str);
+
+  //----------------------------------------------------------------------------
+  //! Get status
+  //----------------------------------------------------------------------------
+  common::Status getStatus() const;
+
+  //----------------------------------------------------------------------------
+  //! Get parsed filter -- call this only ONCE
+  //----------------------------------------------------------------------------
+  std::unique_ptr<ParsedFileMetadataFilter> getFilter();
+
+private:
+  common::Status mStatus;
+  std::unique_ptr<ParsedFileMetadataFilter> mFilter;
+};
+
+
 
 EOSNSNAMESPACE_END

@@ -1764,6 +1764,25 @@ TEST(FilterExpressionLexer, BasicSanity) {
   ASSERT_EQ(tokens[6], ExpressionLexicalToken(TokenType::kRPAREN, ")"));
 }
 
+TEST(FilterExpressionLexer, VariableEquality) {
+  std::vector<ExpressionLexicalToken> tokens;
+  common::Status st = FilterExpressionLexer::lex("   ( varName123 == 'abc' ) ", tokens);
+
+  ASSERT_TRUE(st);
+  ASSERT_EQ(tokens.size(), 5u);
+
+  ASSERT_EQ(tokens[0], ExpressionLexicalToken(TokenType::kLPAREN, "("));
+
+  ASSERT_EQ(tokens[1].mType, TokenType::kVAR);
+  ASSERT_EQ(tokens[1].mContents, "varName123");
+
+  ASSERT_EQ(tokens[1], ExpressionLexicalToken(TokenType::kVAR, "varName123"));
+
+  ASSERT_EQ(tokens[2], ExpressionLexicalToken(TokenType::kEQUALITY, "=="));
+  ASSERT_EQ(tokens[3], ExpressionLexicalToken(TokenType::kLITERAL, "abc"));
+  ASSERT_EQ(tokens[4], ExpressionLexicalToken(TokenType::kRPAREN, ")"));
+}
+
 TEST(FilterExpressionLexer, MismatchedQuote) {
   std::vector<ExpressionLexicalToken> tokens;
   common::Status st = FilterExpressionLexer::lex("     'abc )(  ) ", tokens);
