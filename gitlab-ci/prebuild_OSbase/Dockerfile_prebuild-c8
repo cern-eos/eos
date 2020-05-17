@@ -4,6 +4,11 @@ LABEL maintainer="Fabio Luchetti, faluchet@cern.ch, CERN 2020"
 
 WORKDIR /builds/dss/eos/
 
+# if the working directory is a not the top-level dir of a git repo OR git remote is not set to the EOS repo url
+RUN yum install --nogpg -y git \
+    && if [[ $(git rev-parse --git-dir) != ".git" || $(git config --get remote.origin.url) != "https://gitlab.cern.ch/dss/eos.git" ]]; \
+        then git clone https://gitlab.cern.ch/dss/eos.git . ; fi
+
 RUN dnf install -y epel-release \
     && dnf install --nogpg -y gcc-c++ cmake ccache make dnf-plugins-core python2 python3 python3-setuptools rpm-build rpm-sign which git tar \
     && source gitlab-ci/export_branch.sh \
