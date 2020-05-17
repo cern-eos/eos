@@ -8,6 +8,7 @@ RUN yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-pr
 	&& source gitlab-ci/export_branch.sh \
     && echo "Exporting BRANCH=${BRANCH}" \
     && git submodule update --init --recursive \
+    && ./misc/cmake/cmake-3.15.5-Linux-x86_64.sh --prefix=/usr/ --skip-license \
     && mkdir build \
     && cd build/ \
     && cmake3 ../ -DPACKAGEONLY=1 && make srpm \

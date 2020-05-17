@@ -378,8 +378,7 @@ while
       cleanup
       exit 1
     else
-      echo "info: sleep for 5 seconds waiting for error collection, "
-      "`secs_to_human $((${CURRENT_TIME} - ${START_TIME}))` passed"
+      echo "info: sleep for 5 seconds waiting for error collection, `secs_to_human $((${CURRENT_TIME} - ${START_TIME}))` passed"
       sleep 5
     fi
   else
