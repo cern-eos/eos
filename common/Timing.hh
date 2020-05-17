@@ -34,6 +34,7 @@
 #include <string.h>
 #include <string>
 #include <chrono>
+#include <sstream>
 #include <iomanip>
 
 EOSCOMMONNAMESPACE_BEGIN
