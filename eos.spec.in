@@ -171,8 +171,8 @@ BuildRequires: protobuf3 >= 3.3, protobuf3-devel >= 3.3, protobuf3-compiler >= 3
 %endif
 
 BuildRequires: git, readline-devel
-BuildRequires: openssl, openssl-devel, openssl-static
-BuildRequires: ncurses, ncurses-devel, ncurses-static
+BuildRequires: openssl, openssl-devel
+BuildRequires: ncurses, ncurses-devel
 BuildRequires: zlib, zlib-devel
 BuildRequires: fuse-devel, fuse >= 2.5
 BuildRequires: krb5-devel
@@ -187,6 +187,10 @@ BuildRequires: glibc-headers
 BuildRequires: binutils-devel
 BuildRequires: cppunit-devel
 BuildRequires: help2man
+
+%if 0%{distribution} != 8
+BuildRequires: openssl-static, ncurses-static
+%endif
 
 %if "%{dist}" == ".el7.x86_64"
 %define folly_dist .el7.cern.x86_64
