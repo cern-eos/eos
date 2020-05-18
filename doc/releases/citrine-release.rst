@@ -16,6 +16,23 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.7.16 Citrine``
+===================
+
+2020-05-18
+
+Bug
+---
+
+* [EOS-4203] - reading empty missing replica file triggers commit & mtime update
+* [EOS-4215] - ns time printing broken in fileinfo command
+
+Improvements
+-------------
+
+* CMAKE: Refactor and simplify the cmake code to move to a target based approach
+
+
 ``v4.7.15 Citrine``
 ===================
 
