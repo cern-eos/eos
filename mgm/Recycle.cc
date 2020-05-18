@@ -533,7 +533,8 @@ Recycle::ToGarbage(const char* epname, XrdOucErrInfo& error, bool fusexcast)
 void
 Recycle::Print(std::string& std_out, std::string& std_err,
                eos::common::VirtualIdentity& vid, bool monitoring,
-               bool translateids, bool details, std::string date, bool global)
+               bool translateids, bool details, std::string date, bool global,
+	       Recycle::RecycleListing* rvec)
 {
   XrdOucString uids;
   XrdOucString gids;
@@ -683,6 +684,19 @@ Recycle::Print(std::string& std_out, std::string& std_err,
                       << " restore-path=" << origpath.c_str()
                       << " restore-key=" << originode.c_str()
                       << std::endl;
+	      if (rvec) {
+		std::map<std::string,std::string> rmap;
+		rmap["uid"] = std::to_string(buf.st_uid);
+		rmap["gid"] = std::to_string(buf.st_gid);
+		rmap["username"] = uids.c_str();
+		rmap["groupname"] = gids.c_str();
+		rmap["size"] = std::to_string(buf.st_size);
+		rmap["dtime"] = std::to_string(buf.st_ctime);
+		rmap["type"] = type.c_str();
+		rmap["path"] = origpath.c_str();
+		rmap["key"] = originode.c_str();
+		rvec->push_back(rmap);
+	      }
             } else {
               char sline[4096];
               XrdOucString sizestring;

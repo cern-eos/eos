@@ -112,6 +112,16 @@ eos rmdir $prefix/t_grpc/
 eos-grpc-ns --token false quota | grep "you are not a quota administrator"  || exit -12
 eos-grpc-ns --token $authkey quota | grep "you are not a quota administrator"  && exit -12
 
+#recycle
+eos-grpc-ns --token $authkey --uid 99 recycle | grep recycles || exit -13
+eos-grpc-ns --token $authkey --uid 99 recycle ls | grep recycles ||  exit -13
+eos-grpc-ns --token $authkey --uid 99 -p invalid recycle restore | grep "\"code\": \"2\"" || exit -13
+eos-grpc-ns --token $authkey --uid 99 recycle restore | grep "\"code\": \"22\"" || exit -13
+eos-grpc-ns --token $authkey --uid 99 recycle purge | grep "\"code\": \"0\"" || exit -13
+eos-grpc-ns --token $authkey --uid 99 --year 2020 recycle purge | grep "\"code\": \"0\"" || exit -13
+eos-grpc-ns --token $authkey --uid 99 --year 2020 --month 5 recycle purge | grep "\"code\": \"0\"" || exit -13
+eos-grpc-ns --token $authkey --uid 99 --year 2020 --month 1 --day 1 recycle purge | grep "\"code\": \"0\"" || exit -13
+
 eos vid rm vid:grpc:\"key:12345678\":gid
 eos vid rm vid:grpc:\"key:12345678\":uid
 eos vid set membership 11 -sudo

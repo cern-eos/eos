@@ -10,7 +10,7 @@ int usage(const char* prog)
   fprintf(stderr, "usage: %s [--key <ssl-key-file> "
           "--cert <ssl-cert-file> "
           "--ca <ca-cert-file>] "
-          "[--endpoint <host:port>] [--token <auth-token>] [--xattr <key:val>] [--mode <mode>] [--username <username>] [ [--groupname <groupname>] [--uid <uid>] [--gid <gid>] [--owner-uid <uid>] [--owner-gid <gid>] [--acl <acl>] [--sysacl] [--norecycle] [-r] [--max-version <max-version>] [--target <target>] -p <path> <command>\n", prog);
+          "[--endpoint <host:port>] [--token <auth-token>] [--xattr <key:val>] [--mode <mode>] [--username <username>] [ [--groupname <groupname>] [--uid <uid>] [--gid <gid>] [--owner-uid <uid>] [--owner-gid <gid>] [--acl <acl>] [--sysacl] [--norecycle] [-r] [--max-version <max-version>] [--target <target>] [--year <year>] [--month <month>] [--day <day>] -p <path> <command>\n", prog);
 
   fprintf(stderr,
 	  "                                     -p <path> mkdir \n"
@@ -28,6 +28,9 @@ int usage(const char* prog)
 	  "                [--max-version <max> -p <path> create-version \n"
 	  "                                     -p <path> list-version \n"
 	  "                [--max-version <max> -p <path> purge-version \n"
+	  "                                               recycle ls\n"
+	  "                                     -p <key>  recycle restore\n"
+          " --year <year> [--month <month> [--day <day>]] recycle purge\n"
 	  "[--username <u> | --groupname <g>] [-p <path>] quota \n \n");
 	  
   return -1;
@@ -44,6 +47,7 @@ int main(int argc, const char* argv[])
   std::string certfile;
   std::string cafile;
   std::string cmd = "";
+  std::string subcmd = "";
   std::string path = "";
   std::string target = "";
   std::string xattr = "";
@@ -52,6 +56,10 @@ int main(int argc, const char* argv[])
   int64_t max_version = -1;
   uid_t uid = 0;
   gid_t gid = 0;
+  uint32_t day = 0;
+  uint32_t month = 0;
+  uint32_t year = 0;
+
   std::string username;
   std::string groupname;
 
@@ -138,6 +146,36 @@ int main(int argc, const char* argv[])
     if (option == "--username") {
       if (argc > i + 1) {
 	username= argv[i + 1];
+	++i;
+	continue;
+      } else {
+	return usage(argv[0]);
+      }
+    }
+
+    if (option == "--year") {
+      if (argc > i + 1) {
+	year = strtoul(argv[i + 1],0,10);
+	++i;
+	continue;
+      } else {
+	return usage(argv[0]);
+      }
+    }
+
+    if (option == "--month") {
+      if (argc > i + 1) {
+        month = strtoul(argv[i + 1],0,10);
+	++i;
+	continue;
+      } else {
+	return usage(argv[0]);
+      }
+    }
+
+    if (option == "--day") {
+      if (argc > i + 1) {
+        day = strtoul(argv[i + 1],0,10);
 	++i;
 	continue;
       } else {
@@ -263,7 +301,17 @@ int main(int argc, const char* argv[])
     cmd = option;
 
     if (argc > (i + 1)) {
-      return usage(argv[0]);
+      if ( cmd == "recycle" ) {
+	subcmd = argv[i+1];
+	if ( (subcmd != "ls" ) &&
+	     (subcmd != "restore") &&
+	     (subcmd != "purge") ) {
+	  return usage(argv[0]);
+	}
+	break;
+      } else {
+	return usage(argv[0]);
+      }
     }
   }
 
@@ -273,7 +321,7 @@ int main(int argc, const char* argv[])
     }
   }
 
-  if (cmd.empty() || ((cmd != "quota") && path.empty() && eostoken.empty())) {
+  if (cmd.empty() || ((cmd != "quota") && (cmd != "recycle") && path.empty() && eostoken.empty())) {
     return usage(argv[0]);
   }
 
@@ -411,6 +459,29 @@ int main(int argc, const char* argv[])
       request.mutable_quota()->mutable_id()->set_groupname(groupname);
     }
     request.mutable_quota()->set_path(path);
+  } else if (cmd == "recycle") {
+
+    if ( (subcmd == "")  ||
+	 (subcmd == "ls") ) {
+      request.mutable_recycle()->set_cmd(eos::rpc::NSRequest::RecycleRequest::LIST);
+    } else if (subcmd == "purge") {
+      if (year) {
+	request.mutable_recycle()->mutable_purgedate()->set_year(year);
+      }
+      if (month) {
+	request.mutable_recycle()->mutable_purgedate()->set_month(month);
+      }
+      if (day) {
+	request.mutable_recycle()->mutable_purgedate()->set_day(day);
+      }
+      request.mutable_recycle()->set_cmd(eos::rpc::NSRequest::RecycleRequest::PURGE);
+    } else if (subcmd == "restore") {
+      request.mutable_recycle()->set_cmd(eos::rpc::NSRequest::RecycleRequest::RESTORE);
+      request.mutable_recycle()->set_key(path);
+    } else {
+      std::cerr << "invalid recycle request" << std::endl;
+      return EINVAL;
+    }
   }
 
   google::protobuf::util::MessageToJsonString(request,

@@ -139,6 +139,8 @@ public:
     return mRecyclePath;
   }
 
+  typedef std::vector<std::map<std::string, std::string>> RecycleListing ;
+
   /**
    * print the recycle bin contents
    * @param std_out where to print
@@ -148,12 +150,15 @@ public:
    * @param translateids selects to display uid/gid as number or string
    * @param global show files of all users as root
    * @param date filter recycle bin for given date <year> or <year>/<month> or <year>/<month>/<day>
+   * @param rvec a vector of maps with all recycle informations requested
    */
   static void Print(std::string& std_out, std::string& std_err,
                     eos::common::VirtualIdentity& vid, bool monitoring,
                     bool transalteids, bool details,
                     std::string date = "",
-                    bool global = false);
+                    bool global = false,
+		    RecycleListing* rvec = 0
+		    );
 
   /**
    * print the recycle bin contents

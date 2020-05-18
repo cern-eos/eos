@@ -39,6 +39,7 @@
 #include "mgm/proc/user/TokenCmd.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
+#include "mgm/Recycle.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/MDException.hh"
 #include "namespace/interface/ContainerIterators.hh"
@@ -1819,9 +1820,113 @@ grpc::Status GrpcNsInterface::Recycle(eos::common::VirtualIdentity& vid,
 				      eos::rpc::NSResponse::RecycleResponse* reply,
 				      const eos::rpc::NSRequest::RecycleRequest* request)
 {
-  reply->set_code(EINVAL);
-  reply->set_msg("error: command is currently not supported");
-  return grpc::Status::OK;
+  if (request->cmd() == eos::rpc::NSRequest::RecycleRequest::RESTORE) {
+    if (!request->key().length()) {
+      reply->set_code(EINVAL);
+      reply->set_msg("error: you need to define the recycle key in the request");
+      return grpc::Status::OK;
+    }
+
+    std::string std_out, std_err;
+
+    eos_static_info("restore: key=% flags=%d:%d:%d",
+		    request->key().c_str(),
+		    request->restoreflag().force(),
+		    request->restoreflag().versions(),
+		    request->restoreflag().mkpath());
+
+    int retc = Recycle::Restore(std_out,
+				std_err,
+				vid,
+				request->key().c_str(),
+				request->restoreflag().force(),
+				request->restoreflag().versions(),
+				request->restoreflag().mkpath());
+
+    if (retc) {
+      reply->set_code(retc);
+      reply->set_msg(std_err.c_str());
+    } else {
+      reply->set_msg(std_out.c_str());
+    }
+    // check restore flags
+    return grpc::Status::OK;
+  } else if (request->cmd() == eos::rpc::NSRequest::RecycleRequest::PURGE) {
+    std::string std_out, std_err;
+    std::string date;
+    if ( request->purgedate().year()) {
+      date += std::to_string(request->purgedate().year());
+      if ( request->purgedate().month()) {
+	char smonth[1024];
+	snprintf(smonth, sizeof(smonth),"/%02u", request->purgedate().month());
+	date += smonth;
+	if ( request->purgedate().day()) {
+	  char sday[1024];
+	  snprintf(sday, sizeof(sday),"/%02u", request->purgedate().day());
+	  date += sday;
+	}
+      }
+    }
+
+    eos_static_info("purge: date=%s", date.c_str());
+
+    // we need a sudoer flag to purge a recycle bin via grpc
+    vid.sudoer = true;
+    int retc = Recycle::Purge(std_out,
+			      std_err,
+			      vid,
+			      date,
+			      false);
+
+    if (retc) {
+      reply->set_code(retc);
+      reply->set_msg(std_err.c_str());
+    } else {
+      reply->set_msg(std_out.c_str());
+    }
+    return grpc::Status::OK;
+  } else if (request->cmd() == eos::rpc::NSRequest::RecycleRequest::LIST) {
+    fprintf(stderr,"Doing Listing\n");
+    std::string std_out, std_err;
+
+    Recycle::RecycleListing rvec;
+
+    Recycle::Print(std_out,
+		   std_err,
+		   vid,
+		   true,
+                   true,
+		   true,
+		   "", false,
+		   &rvec);
+
+    for (auto item : rvec) {
+	eos::rpc::NSResponse::RecycleResponse::RecycleInfo info;
+	if (item["type"] == "file") {
+	  info.set_type(eos::rpc::NSResponse::RecycleResponse::RecycleInfo::FILE);
+	} else if (item["type"]  == "recursive-dir") {
+	  info.set_type(eos::rpc::NSResponse::RecycleResponse::RecycleInfo::TREE);
+	}
+
+	info.mutable_dtime()->set_sec((strtoull(item["dtime"].c_str(), 0, 10)));
+	info.mutable_owner()->set_username(item["username"]);
+	info.mutable_owner()->set_groupname(item["groupname"]);
+	info.mutable_owner()->set_uid(strtoul(item["uid"].c_str(),0,10));
+	info.mutable_owner()->set_gid(strtoul(item["gid"].c_str(),0,10));
+	info.set_size(strtoull(item["size"].c_str(), 0, 10));
+	info.mutable_id()->set_path(item["path"]);
+	info.set_key(item["key"]);
+
+	auto new_info = reply->add_recycles();
+	fprintf(stderr,"Adding one\n");
+	new_info->CopyFrom(info);
+    }
+    return grpc::Status::OK;
+  } else {
+    reply->set_code(EINVAL);
+    reply->set_msg("error: command is currently not supported");
+    return grpc::Status::OK;
+  }
 }
 
 
