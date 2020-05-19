@@ -268,3 +268,22 @@ TEST(FilterExpressionParser, SimpleEquality) {
   proto.set_size(0);
   ASSERT_TRUE(filter->check(proto));
 }
+
+TEST(FilterExpressionParser, YodaEquality) {
+  FilterExpressionParser parser("'0' == size", true);
+  ASSERT_TRUE(parser.getStatus());
+
+  std::unique_ptr<FileMetadataFilter> filter = parser.getFilter();
+  ASSERT_EQ(filter->describe(), "'0' == size");
+  ASSERT_TRUE(filter->isValid());
+}
+
+TEST(FilterExpressionParser, LiteralEquality) {
+  FilterExpressionParser parser("'0' == '1'", true);
+  ASSERT_TRUE(parser.getStatus());
+
+  std::unique_ptr<FileMetadataFilter> filter = parser.getFilter();
+  ASSERT_EQ(filter->describe(), "'0' == '1'");
+  ASSERT_TRUE(filter->isValid());
+}
+

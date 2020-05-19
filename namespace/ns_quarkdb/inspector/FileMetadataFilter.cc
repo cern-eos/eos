@@ -23,6 +23,12 @@
 EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
+// Empty constructor
+//------------------------------------------------------------------------------
+StringEvaluator::StringEvaluator()
+: mName(), mLiteral(true) {}
+
+//------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 StringEvaluator::StringEvaluator(const std::string &name, bool literal)
@@ -318,25 +324,41 @@ bool FilterExpressionParser::fail(const common::Status &st) {
 }
 
 //------------------------------------------------------------------------------
+// Consume simple string expression
+//------------------------------------------------------------------------------
+bool FilterExpressionParser::consumeStringExpression(StringEvaluator &eval) {
+  ExpressionLexicalToken token;
+  if(accept(TokenType::kVAR, &token)) {
+    eval = StringEvaluator(token.mContents, false);
+    return true;
+  }
+
+  if(accept(TokenType::kLITERAL, &token)) {
+    eval = StringEvaluator(token.mContents, true);
+    return true;
+  }
+
+  return false;
+}
+
+//------------------------------------------------------------------------------
 // Consume metadata filter
 //------------------------------------------------------------------------------
 bool FilterExpressionParser::consumeMetadataFilter(std::unique_ptr<FileMetadataFilter> &filter) {
-  ExpressionLexicalToken variableName;
-  if(!accept(TokenType::kVAR, &variableName)) {
-    return fail(EINVAL, "expected variable name");
+  StringEvaluator eval1;
+  StringEvaluator eval2;
+
+  if(!consumeStringExpression(eval1)) {
+    return fail(EINVAL, "expected string expression");
   }
 
   if(!accept(TokenType::kEQUALITY)) {
     return fail(EINVAL, "expected '==' token");
   }
 
-  ExpressionLexicalToken literal;
-  if(!accept(TokenType::kLITERAL, &literal)) {
-    return fail(EINVAL, "expected literal");
+  if(!consumeStringExpression(eval2)) {
+    return fail(EINVAL, "expected string expression");
   }
-
-  StringEvaluator eval1(variableName.mContents, false);
-  StringEvaluator eval2(literal.mContents, true);
 
   filter.reset(new EqualityFileMetadataFilter(eval1, eval2));
   return true;

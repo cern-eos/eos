@@ -61,6 +61,11 @@ public:
 class StringEvaluator {
 public:
   //----------------------------------------------------------------------------
+  //! Empty constructor
+  //----------------------------------------------------------------------------
+  StringEvaluator();
+
+  //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
   StringEvaluator(const std::string &name, bool literal);
@@ -211,6 +216,11 @@ private:
   //! Consume metadata filter
   //----------------------------------------------------------------------------
   bool consumeMetadataFilter(std::unique_ptr<FileMetadataFilter> &filter);
+
+  //----------------------------------------------------------------------------
+  //! Consume simple string expression
+  //----------------------------------------------------------------------------
+  bool consumeStringExpression(StringEvaluator &eval);
 
   //----------------------------------------------------------------------------
   //! Fail with the given status
