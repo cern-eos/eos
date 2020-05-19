@@ -30,6 +30,14 @@ enum cache_t {
 };
 
 struct cacheconfig {
+  cacheconfig () {
+    type = INVALID;
+    total_file_cache_size = total_file_cache_inodes = per_file_cache_max_size = total_file_journal_size = total_file_journal_inodes = per_file_journal_max_size = default_read_ahead_size = max_inflight_read_ahead_buffer_size = max_inflight_write_buffer_size = max_read_ahead_size = 0 ;
+    max_read_ahead_blocks = 0;
+    clean_threshold = 0;
+    clean_on_startup = false;
+  }
+
   cache_t type;
   std::string location;
   uint64_t total_file_cache_size; // total size of the file cache
