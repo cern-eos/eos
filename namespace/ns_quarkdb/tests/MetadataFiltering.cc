@@ -207,3 +207,20 @@ TEST(FilterExpressionLexer, MismatchedQuote) {
   ASSERT_FALSE(st);
   ASSERT_EQ(st.toString(), "(22): lexing failed, mismatched quote: \"'\"");
 }
+
+TEST(FilterExpressionParser, SimpleEquality) {
+  FilterExpressionParser parser("size == '0'", true);
+  ASSERT_TRUE(parser.getStatus());
+
+  std::unique_ptr<FileMetadataFilter> filter = parser.getFilter();
+  ASSERT_EQ(filter->describe(), "size == '0'");
+  ASSERT_TRUE(filter->isValid());
+
+  eos::ns::FileMdProto proto;
+
+  proto.set_size(33);
+  ASSERT_FALSE(filter->check(proto));
+
+  proto.set_size(0);
+  ASSERT_TRUE(filter->check(proto));
+}

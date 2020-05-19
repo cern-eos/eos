@@ -213,8 +213,21 @@ common::Status FilterExpressionLexer::lex(const std::string &str, std::vector<Ex
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-FilterExpressionParser::FilterExpressionParser(const std::string &str) {
+FilterExpressionParser::FilterExpressionParser(const std::string &str, bool showDebug)
+: mDebug(showDebug) {
 
+  mStatus = FilterExpressionLexer::lex(str, mTokens);
+  mCurrent = 0;
+  if(!mStatus) {
+    fail(mStatus);
+    return;
+  }
+
+  std::unique_ptr<FileMetadataFilter> rootFilter;
+  consumeMetadataFilter(rootFilter);
+  if(mStatus) {
+    succeed(std::move(rootFilter));
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -228,8 +241,70 @@ common::Status FilterExpressionParser::getStatus() const {
 // Get parsed filter -- call this only ONCE
 //------------------------------------------------------------------------------
 std::unique_ptr<ParsedFileMetadataFilter> FilterExpressionParser::getFilter() {
+  if(!mStatus) {
+    mFilter.reset(new ParsedFileMetadataFilter(mStatus));
+  }
+
   return std::move(mFilter);
 }
+
+//------------------------------------------------------------------------------
+// Accept token
+//------------------------------------------------------------------------------
+bool FilterExpressionParser::accept(TokenType type, ExpressionLexicalToken *tk) {
+  if(mCurrent >= mTokens.size()) return false;
+  if(mTokens[mCurrent].mType != type) return false;
+  if(tk) *tk = mTokens[mCurrent];
+
+  mCurrent++;
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Succeed
+//------------------------------------------------------------------------------
+void FilterExpressionParser::succeed(std::unique_ptr<FileMetadataFilter> rootFilter) {
+  mFilter.reset(new ParsedFileMetadataFilter(std::move(rootFilter)));
+}
+
+//------------------------------------------------------------------------------
+// Fail with the given error message
+//------------------------------------------------------------------------------
+bool FilterExpressionParser::fail(int errcode, const std::string &msg) {
+  return fail(common::Status(errcode, msg));
+}
+
+//------------------------------------------------------------------------------
+// Fail with the given status
+//------------------------------------------------------------------------------
+bool FilterExpressionParser::fail(const common::Status &st) {
+  mStatus = st;
+  mFilter.reset(new ParsedFileMetadataFilter(mStatus));
+  return false;
+}
+
+//------------------------------------------------------------------------------
+// Consume metadata filter
+//------------------------------------------------------------------------------
+bool FilterExpressionParser::consumeMetadataFilter(std::unique_ptr<FileMetadataFilter> &filter) {
+  ExpressionLexicalToken variableName;
+  if(!accept(TokenType::kVAR, &variableName)) {
+    return fail(EINVAL, "expected variable name");
+  }
+
+  if(!accept(TokenType::kEQUALITY)) {
+    return fail(EINVAL, "expected '==' token");
+  }
+
+  ExpressionLexicalToken literal;
+  if(!accept(TokenType::kLITERAL, &literal)) {
+    return fail(EINVAL, "expected literal");
+  }
+
+  filter.reset(new EqualityFileMetadataFilter(variableName.mContents, literal.mContents));
+  return true;
+}
+
 
 EOSNSNAMESPACE_END
 

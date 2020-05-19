@@ -136,6 +136,8 @@ struct ExpressionLexicalToken {
   TokenType mType;
   std::string mContents;
 
+  ExpressionLexicalToken() {}
+
   ExpressionLexicalToken(TokenType t, std::string c) : mType(t), mContents(c) {}
 
   bool operator==(const ExpressionLexicalToken &other) const {
@@ -162,7 +164,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  FilterExpressionParser(const std::string &str);
+  FilterExpressionParser(const std::string &str, bool showDebug);
 
   //----------------------------------------------------------------------------
   //! Get status
@@ -175,7 +177,37 @@ public:
   std::unique_ptr<ParsedFileMetadataFilter> getFilter();
 
 private:
+  //----------------------------------------------------------------------------
+  //! Accept token
+  //----------------------------------------------------------------------------
+  bool accept(TokenType type, ExpressionLexicalToken *token = nullptr);
+
+  //----------------------------------------------------------------------------
+  //! Consume metadata filter
+  //----------------------------------------------------------------------------
+  bool consumeMetadataFilter(std::unique_ptr<FileMetadataFilter> &filter);
+
+  //----------------------------------------------------------------------------
+  //! Fail with the given status
+  //----------------------------------------------------------------------------
+  bool fail(const common::Status &st);
+
+  //----------------------------------------------------------------------------
+  //! Fail with the given status
+  //----------------------------------------------------------------------------
+  bool fail(int errcode, const std::string &msg);
+
+  //----------------------------------------------------------------------------
+  // Succeed
+  //----------------------------------------------------------------------------
+  void succeed(std::unique_ptr<FileMetadataFilter> rootFilter);
+
+
+  std::vector<ExpressionLexicalToken> mTokens;
+  size_t mCurrent;
+
   common::Status mStatus;
+  bool mDebug;
   std::unique_ptr<ParsedFileMetadataFilter> mFilter;
 };
 
