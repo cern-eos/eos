@@ -290,7 +290,7 @@ ConverterJob::DoIt()
       gOFS->MgmStats.Add("ConversionFailed", owner_uid, owner_gid, 1);
     }
   } else {
-    // Set owner nobody to indicate that this is a failed/faulty entry
+    // Delete conversion entry
     if (!gOFS->_rem(mProcPath.c_str(), error, rootvid, (const char*) 0)) {
       eos_static_info("msg=\"removed failed conversion entry\" name=\"%s\"",
                       mConversionLayout.c_str());
