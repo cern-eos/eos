@@ -106,6 +106,16 @@ XrdMgmOfs::fsctl(const int cmd,
 	  FsView::gFsView.mSpaceView[space.c_str()]->SumLongLong("stat.statfs.capacity",
 							       false);
       }
+
+      unsigned long layoutid = Policy::GetSpacePolicyLayout(space.c_str());
+      if (layoutid) {
+	// if there is a space policy layout defined we scale values to logical bytes
+	float scalefactor = eos::common::LayoutId::GetSizeFactor(layoutid);
+	if (scalefactor) {
+	  freebytes /= scalefactor;
+	  maxbytes /= scalefactor;
+	}
+      }
     } else {
       if (path[path.length() - 1] != '/') {
 	path += '/';

@@ -64,6 +64,9 @@ public:
                              eos::mgm::Scheduler::tPlctPolicy &plctpo,
                              std::string &targetgeotag);
 
+  static unsigned long GetSpacePolicyLayout(const char* space);
+
+
   static bool Set (const char* value);
   static bool Set (XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr);
   static void Ls (XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr);

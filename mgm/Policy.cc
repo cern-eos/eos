@@ -34,6 +34,32 @@
 EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
+unsigned long
+Policy::GetSpacePolicyLayout(const char* space)
+{
+  std::string space_env = "eos.space=";
+  space_env += space;
+  XrdOucEnv env(space_env.c_str());
+  unsigned long forcedfsid;
+  long forcedgroup;
+  unsigned long layoutid = 0;
+  XrdOucString ret_space;
+
+  eos::IContainerMD::XAttrMap attrmap;
+  eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
+  GetLayoutAndSpace("/",
+		    attrmap,
+		    rootvid,
+		    layoutid,
+		    ret_space,
+		    env,
+		    forcedfsid,
+		    forcedgroup,
+		    true);
+  return layoutid;
+}
+
+/*----------------------------------------------------------------------------*/
 void
 Policy::GetLayoutAndSpace(const char* path,
                           eos::IContainerMD::XAttrMap& attrmap,
@@ -80,6 +106,32 @@ Policy::GetLayoutAndSpace(const char* path,
     if (!spacepolicies["space"].empty()) {
       // if there is no explicit space given, we preset with the policy one
       space = spacepolicies["space"].c_str();
+    }
+  }
+
+  it = FsView::gFsView.mSpaceView.find(space.c_str());
+  if (it != FsView::gFsView.mSpaceView.end()) {
+    // overwrite the defaults if they are defined in the target space
+    std::string space_layout   = it->second->GetConfigMember("policy.layout");
+    std::string space_nstripes = it->second->GetConfigMember("policy.nstripes");
+    std::string space_checksum = it->second->GetConfigMember("policy.checksum");
+    std::string space_blocksize= it->second->GetConfigMember("policy.blocksize");
+    std::string space_blockxs  = it->second->GetConfigMember("policy.blockchecksum");
+
+    if (space_layout.length()) {
+      spacepolicies["layout"] = space_layout;
+    }
+    if (space_nstripes.length()) {
+      spacepolicies["nstripes"] = space_nstripes;
+    }
+    if (space_checksum.length()) {
+      spacepolicies["checksum"] = space_checksum;
+    }
+    if (space_blocksize.length()) {
+      spacepolicies["blocksize"] = space_blocksize;
+    }
+    if (space_blockxs.length()) {
+      spacepolicies["blockchecksum"] = space_blockxs;
     }
   }
 
