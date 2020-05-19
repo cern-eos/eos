@@ -123,6 +123,9 @@ set_target_properties(EosCliProto-Objects PROPERTIES
 # Generate protobol buffer objects for GRPC
 #-------------------------------------------------------------------------------
 if (GRPC_FOUND)
+  add_custom_target(RpcFileGeneration DEPENDS
+    ${GRPC_SRCS} ${GRPC_HDRS})
+
   set(GRPC_PROTOS ${CMAKE_SOURCE_DIR}/common/grpc-proto/protobuf/Rpc.proto)
   set(GRPC_PROTOBUF_PATH "${CMAKE_BINARY_DIR}/proto/")
   grpc_generate_cpp(GRPC_SVC_SRCS GRPC_SVC_HDRS ${GRPC_PROTOBUF_PATH} ${GRPC_PROTOS})
@@ -136,8 +139,9 @@ if (GRPC_FOUND)
     PROPERTIES GENERATED TRUE)
 
   add_library(EosGrpcProto-Objects OBJECT
-    ${GRPC_SVC_SRCS}
-    ${GRPC_SVC_HDRS})
+    ${GRPC_SVC_SRCS} ${GRPC_SVC_HDRS})
+
+  add_dependencies(EosGrpcProto-Objects RpcFileGeneration)
 
   target_link_libraries(EosGrpcProto-Objects PUBLIC
     GRPC::grpc++
