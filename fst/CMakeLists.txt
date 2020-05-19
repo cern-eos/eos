@@ -335,7 +335,6 @@ add_library(EosFstHttp MODULE
   http/xrdhttp/EosFstHttpHandler.cc)
 
 target_link_libraries(EosFstHttp PUBLIC
-  XrdEosFst-Objects
   EosConsoleHelpers-Objects
   EosFstIo
   # @todo(gbitzes) move calculateEtag to common so that we don't have to couple

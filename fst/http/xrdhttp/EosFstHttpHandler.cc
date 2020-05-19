@@ -150,7 +150,7 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
 
     if (req.verb == "PUT") {
       // If no content-length provided then return an error
-      if (normalized_headers.count("content-lenght") == 0) {
+      if (normalized_headers.count("content-length") == 0) {
         response->SetResponseCode(eos::common::HttpResponse::LENGTH_REQUIRED);
       }
 
