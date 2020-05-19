@@ -56,6 +56,31 @@ public:
 };
 
 //------------------------------------------------------------------------------
+//! String evaluator
+//------------------------------------------------------------------------------
+class StringEvaluator {
+public:
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  StringEvaluator(const std::string &name, bool literal);
+
+  //----------------------------------------------------------------------------
+  //! Evaluate
+  //----------------------------------------------------------------------------
+  bool evaluate(const eos::ns::FileMdProto &proto, std::string &out) const;
+
+  //----------------------------------------------------------------------------
+  //! Describe
+  //----------------------------------------------------------------------------
+  std::string describe() const;
+
+private:
+  std::string mName;
+  bool mLiteral;
+};
+
+//------------------------------------------------------------------------------
 //! Filter which checks a particular FileMdProto attribute for equality
 //------------------------------------------------------------------------------
 class EqualityFileMetadataFilter : public FileMetadataFilter {
@@ -63,7 +88,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  EqualityFileMetadataFilter(const std::string &attr, const std::string &value);
+  EqualityFileMetadataFilter(const StringEvaluator &ev1, const StringEvaluator &ev2);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -86,28 +111,8 @@ public:
   virtual std::string describe() const override;
 
 private:
-  std::string mAttr;
-  std::string mValue;
-};
-
-//------------------------------------------------------------------------------
-//! String evaluator
-//------------------------------------------------------------------------------
-class StringEvaluator {
-public:
-  //----------------------------------------------------------------------------
-  //! Constructor
-  //----------------------------------------------------------------------------
-  StringEvaluator(const std::string &name, bool literal);
-
-  //----------------------------------------------------------------------------
-  //! Evaluate
-  //----------------------------------------------------------------------------
-  bool evaluate(const eos::ns::FileMdProto &proto, std::string &out) const;
-
-private:
-  std::string mName;
-  bool mLiteral;
+  StringEvaluator mEval1;
+  StringEvaluator mEval2;
 };
 
 //------------------------------------------------------------------------------

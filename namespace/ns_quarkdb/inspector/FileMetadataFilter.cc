@@ -40,23 +40,35 @@ bool StringEvaluator::evaluate(const eos::ns::FileMdProto &proto, std::string &o
   return AttributeExtraction::asString(proto, mName, out);
 }
 
+//------------------------------------------------------------------------------
+// Describe
+//------------------------------------------------------------------------------
+std::string StringEvaluator::describe() const {
+  if(mLiteral) return SSTR("'" << mName << "'");
+  return mName;
+}
+
 //----------------------------------------------------------------------------
 //! Constructor
 //----------------------------------------------------------------------------
-EqualityFileMetadataFilter::EqualityFileMetadataFilter(const std::string &attr, const std::string &value)
-: mAttr(attr), mValue(value) {}
+EqualityFileMetadataFilter::EqualityFileMetadataFilter(const StringEvaluator &ev1, const StringEvaluator &ev2)
+: mEval1(ev1), mEval2(ev2) {}
 
 //----------------------------------------------------------------------------
 // Does the given FileMdProto pass through the filter?
 //----------------------------------------------------------------------------
 bool EqualityFileMetadataFilter::check(const eos::ns::FileMdProto &proto) {
-  std::string value;
+  std::string val1, val2;
 
-  if(!AttributeExtraction::asString(proto, mAttr, value)) {
+  if(!mEval1.evaluate(proto, val1)) {
     return false;
   }
 
-  return value == mValue;
+  if(!mEval2.evaluate(proto, val2)) {
+    return false;
+  }
+
+  return val1 == val2;
 }
 
 //------------------------------------------------------------------------------
@@ -66,11 +78,15 @@ common::Status EqualityFileMetadataFilter::isValid() const {
   std::string tmp;
   eos::ns::FileMdProto proto;
 
-  if(AttributeExtraction::asString(proto, mAttr, tmp)) {
-    return common::Status();
+  if(!mEval1.evaluate(proto, tmp)) {
+    return common::Status(EINVAL, SSTR("could not evaluate string expression " << mEval1.describe()));
   }
 
-  return common::Status(EINVAL, SSTR("Unknown FileMD attribute: " << mAttr));
+  if(!mEval2.evaluate(proto, tmp)) {
+    return common::Status(EINVAL, SSTR("could not evaluate string expression " << mEval2.describe()));
+  }
+
+  return common::Status();
 }
 
 //------------------------------------------------------------------------------
@@ -83,7 +99,7 @@ std::string EqualityFileMetadataFilter::describe() const {
     return SSTR("[" << st.toString() << "]");
   }
 
-  return SSTR(mAttr << " == '" << mValue << "'");
+  return SSTR(mEval1.describe() << " == " << mEval2.describe());
 }
 
 //------------------------------------------------------------------------------
@@ -319,7 +335,10 @@ bool FilterExpressionParser::consumeMetadataFilter(std::unique_ptr<FileMetadataF
     return fail(EINVAL, "expected literal");
   }
 
-  filter.reset(new EqualityFileMetadataFilter(variableName.mContents, literal.mContents));
+  StringEvaluator eval1(variableName.mContents, false);
+  StringEvaluator eval2(literal.mContents, true);
+
+  filter.reset(new EqualityFileMetadataFilter(eval1, eval2));
   return true;
 }
 

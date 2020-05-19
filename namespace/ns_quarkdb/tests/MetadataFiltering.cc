@@ -34,10 +34,12 @@ TEST(StringEvaluator, Literal) {
   std::string out;
 
   StringEvaluator literal("some string literal", true);
+  ASSERT_EQ(literal.describe(), "'some string literal'");
   ASSERT_TRUE(literal.evaluate(proto, out));
   ASSERT_EQ(out, "some string literal");
 
   literal = StringEvaluator("", true);
+  ASSERT_EQ(literal.describe(), "''");
   ASSERT_TRUE(literal.evaluate(proto, out));
   ASSERT_EQ(out, "");
 }
@@ -49,6 +51,7 @@ TEST(StringEvaluator, VariableName) {
   proto.set_size(5);
 
   StringEvaluator literal("size", false);
+  ASSERT_EQ(literal.describe(), "size");
   ASSERT_TRUE(literal.evaluate(proto, out));
   ASSERT_EQ(out, "5");
 
@@ -62,6 +65,7 @@ TEST(StringEvaluator, InvalidVariableName) {
   std::string out;
 
   StringEvaluator literal("aaa", false);
+  ASSERT_EQ(literal.describe(), "aaa");
   ASSERT_FALSE(literal.evaluate(proto, out));
   ASSERT_EQ(out, "");
 }
@@ -163,13 +167,15 @@ TEST(AttributeExtraction, BasicSanity) {
 }
 
 TEST(FileMetadataFilter, InvalidFilter) {
-  EqualityFileMetadataFilter invalidFilter("invalid.attr", "aaa");
+  EqualityFileMetadataFilter invalidFilter(
+    StringEvaluator("invalid.attr", false), StringEvaluator("aaa", true));
+
   ASSERT_FALSE(invalidFilter.isValid());
-  ASSERT_EQ(invalidFilter.describe(), "[(22): Unknown FileMD attribute: invalid.attr]");
+  ASSERT_EQ(invalidFilter.describe(), "[(22): could not evaluate string expression invalid.attr]");
 }
 
 TEST(FileMetadataFilter, ZeroSizeFilter) {
-  EqualityFileMetadataFilter sizeFilter("size", "0");
+  EqualityFileMetadataFilter sizeFilter(StringEvaluator("size", false), StringEvaluator("0", true));
   ASSERT_TRUE(sizeFilter.isValid());
   ASSERT_EQ(sizeFilter.describe(), "size == '0'");
 
@@ -183,7 +189,8 @@ TEST(FileMetadataFilter, ZeroSizeFilter) {
 }
 
 TEST(FileMetadataFilter, ParsedExpressionFilter) {
-  std::unique_ptr<FileMetadataFilter> sub(new EqualityFileMetadataFilter("size", "0"));
+  std::unique_ptr<FileMetadataFilter> sub(
+    new EqualityFileMetadataFilter(StringEvaluator("size", false), StringEvaluator("0", true)));
   ParsedFileMetadataFilter parsedFilter(std::move(sub));
 
   ASSERT_TRUE(parsedFilter.isValid());
