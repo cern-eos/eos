@@ -2037,6 +2037,11 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string& fullPath,
                    fullPath.c_str(), errorMsg.c_str(), result);
   } else {
     try {
+      // WARNING
+      // Failing to remove the tape location from the EOS namespace after a
+      // successful deletion of the tape file from CTA will give the end user
+      // a false sense of security that their tape file still exists.
+
       // remove tape location
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
       auto fmd = gOFS->eosFileService->getFileMD(mFid);
