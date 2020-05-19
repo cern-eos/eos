@@ -118,6 +118,9 @@ eos-grpc-ns --token $authkey --uid 99 recycle ls | grep recycles ||  exit -13
 eos-grpc-ns --token $authkey --uid 99 -p invalid recycle restore | grep "\"code\": \"2\"" || exit -13
 eos-grpc-ns --token $authkey --uid 99 recycle restore | grep "\"code\": \"22\"" || exit -13
 eos-grpc-ns --token $authkey --uid 99 recycle purge | grep "\"code\": \"0\"" || exit -13
+eos-grpc-ns --token $authkey --uid 99 -p asdf recycle purge | grep "\"code\": \"22\"" || exit -13
+eos-grpc-ns --token $authkey --uid 99 -p fxid:asdf recycle purge | grep "\"code\": \"61\"" || exit -13
+eos-grpc-ns --token $authkey --uid 99 -p pxid:asdf recycle purge | grep "\"code\": \"61\"" || exit -13
 eos-grpc-ns --token $authkey --uid 99 --year 2020 recycle purge | grep "\"code\": \"0\"" || exit -13
 eos-grpc-ns --token $authkey --uid 99 --year 2020 --month 5 recycle purge | grep "\"code\": \"0\"" || exit -13
 eos-grpc-ns --token $authkey --uid 99 --year 2020 --month 1 --day 1 recycle purge | grep "\"code\": \"0\"" || exit -13
