@@ -961,6 +961,21 @@ rpm_commit_artifacts:
   allow_failure: true
   when: manual
 
+rpm_xdc_commit_artifacts:
+  stage: publish
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  script:
+    - yum install --nogpg -y sudo sssd-client createrepo
+    - if [[ $CI_COMMIT_TAG ]]; then echo "This only works for commits"; exit 0; else BUILD_TYPE="commit"; fi
+    - sudo -u stci -H ./gitlab-ci/store_artifacts.sh "citrine-xdc" "commit" /eos/project/s/storage-ci/www/eos
+  tags:
+    - docker_node
+    - publish
+  except:
+    - tags
+  allow_failure: true
+  when: manual
+
 rpm_xdc_release_artifacts:
   stage: publish
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
