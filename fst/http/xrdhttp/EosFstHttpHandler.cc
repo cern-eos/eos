@@ -76,11 +76,6 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
 
     for (auto it = headers.begin(); it != headers.end(); ++it) {
       if (it->first == "Content-Length") {
-        // this is added by SendSimpleResp, don't add it here
-        try {
-          content_length = std::stoll(it->second);
-        } catch (...) {}
-
         continue;
       }
 
@@ -165,6 +160,10 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
                                   header.c_str(), response->GetBody().c_str(),
                                   response->GetBody().length());
       } else {
+        try {
+          content_length = std::stoll(normalized_headers["content-length"]);
+        } catch (...) {}
+
         if ((response->GetResponseCode() == 0) &&
             (normalized_headers.count("expect") &&
              (normalized_headers["expect"] == "100-continue"))) {
@@ -188,8 +187,8 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
           body.assign(data, rbytes);
 
           if (EOS_LOGS_DEBUG) {
-            eos_static_info("content-read=%ll rbytes=%lu body=%u", content_read, rbytes,
-                            body.size());
+            eos_static_info("content-read=%lli rbytes=%lu body=%u content_left=%lli",
+                            content_read, rbytes, body.size(), content_left);
           }
 
           if (rbytes != content_read) {
