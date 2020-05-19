@@ -2030,13 +2030,15 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string& fullPath,
     gOFS->MgmOfsInstanceName.c_str());
   notification->mutable_file()->set_lpath(fullPath);
   notification->mutable_file()->set_fid(mFid);
-  const int sendRc = SendProtoWFRequest(this, fullPath, request, errorMsg);
 
-  if (SFS_OK != sendRc) {
-    eos_static_err("msg=\"Failed to notify protocol buffer endpoint about the deletion of file %s: %s\" sendRc=%d",
-                   fullPath.c_str(), errorMsg.c_str(), sendRc);
-  }
-
+  // IMPORTANT
+  // Remove the tape location from the EOS namespace before actually deleting
+  // the tape file(s). Doing these operations the other way around could result
+  // in failing to remove the tape location of the file from the EOS namespace
+  // after successfully deleting the actual tape files.  This would give the end
+  // user a false sense of security that their tape file still exists when they
+  // list it. This would be considered as data loss by the end user.
+  bool tapeLocationWasRemoved = false;
   try {
     // remove tape location
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
@@ -2044,9 +2046,21 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string& fullPath,
     fmd->unlinkLocation(TAPE_FS_ID);
     fmd->removeLocation(TAPE_FS_ID);
     gOFS->eosView->updateFileStore(fmd.get());
+    tapeLocationWasRemoved = true;
   } catch (eos::MDException& ex) {
     eos_static_err("msg=\"Failed to unlink tape location for file %s",
 		   fullPath.c_str());
+  }
+
+  if (tapeLocationWasRemoved) {
+    const int sendRc = SendProtoWFRequest(this, fullPath, request, errorMsg);
+
+    if (SFS_OK != sendRc) {
+      // The EOS namespace can ignore the failed deletion of the tape file(s) as
+      // this only generates dark data tape which will be picked up later
+      eos_static_err("msg=\"Failed to notify protocol buffer endpoint about the deletion of file %s: %s\" sendRc=%d",
+                     fullPath.c_str(), errorMsg.c_str(), sendRc);
+    }
   }
 
   EXEC_TIMING_END("Proto::Delete");
