@@ -62,7 +62,8 @@ if [ "$1" = "eos-start-pre" ]; then
     mkdir -p /var/spool/eos/core/${2} /var/spool/eos/admin
     mkdir -p /var/log/eos /var/eos/config/${EOS_MGM_HOST}
     touch /var/eos/config/${EOS_MGM_HOST}/default.eoscf
-    chown -R daemon /var/spool/eos /var/spool/eos/admin /var/log/eos 
+    chown -R daemon /var/spool/eos
+    find /var/log/eos -maxdepth 1 -type d -exec chown daemon {} \;
     find /var/eos/ -maxdepth 1 -mindepth 1 -not -path "/var/eos/fs" -not -path "/var/eos/fusex" -type d -exec chown -R daemon {} \;
     chmod -R 775 /var/spool/eos
     mkdir -p /var/eos/auth /var/eos/stage
