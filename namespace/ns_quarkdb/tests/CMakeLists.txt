@@ -37,6 +37,7 @@ add_executable(
   FileSystemViewTest.cc
   HierarchicalViewTest.cc
   Main.cc
+  MetadataFiltering.cc
   MetadataTests.cc
   NextInodeProviderTest.cc
   OtherTests.cc
