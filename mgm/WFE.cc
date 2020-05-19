@@ -2026,31 +2026,31 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string& fullPath,
   }
 
   notification->mutable_wf()->set_event(cta::eos::Workflow::DELETE);
-  notification->mutable_wf()->mutable_instance()->set_name(gOFS->MgmOfsInstanceName.c_str());
+  notification->mutable_wf()->mutable_instance()->set_name(
+    gOFS->MgmOfsInstanceName.c_str());
   notification->mutable_file()->set_lpath(fullPath);
   notification->mutable_file()->set_fid(mFid);
+  const int sendRc = SendProtoWFRequest(this, fullPath, request, errorMsg);
 
-  int result = SFS_OK;
+  if (SFS_OK != sendRc) {
+    eos_static_err("msg=\"Failed to notify protocol buffer endpoint about the deletion of file %s: %s\" sendRc=%d",
+                   fullPath.c_str(), errorMsg.c_str(), sendRc);
+  }
 
-  if (SFS_OK != (result = SendProtoWFRequest(this, fullPath, request, errorMsg))) {
-    eos_static_err("msg=\"Failed to notify protocol buffer endpoint about the deletion of file %s: %s\" result=%d",
-                   fullPath.c_str(), errorMsg.c_str(), result);
-  } else {
-    try {
-      // remove tape location
-      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-      auto fmd = gOFS->eosFileService->getFileMD(mFid);
-      fmd->unlinkLocation(TAPE_FS_ID);
-      fmd->removeLocation(TAPE_FS_ID);
-      gOFS->eosView->updateFileStore(fmd.get());
-    } catch (eos::MDException& ex) {
-      eos_static_err("msg=\"Failed to unlink tape location for file %s", fullPath.c_str());
-      result = ECANCELED;
-    }
+  try {
+    // remove tape location
+    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+    auto fmd = gOFS->eosFileService->getFileMD(mFid);
+    fmd->unlinkLocation(TAPE_FS_ID);
+    fmd->removeLocation(TAPE_FS_ID);
+    gOFS->eosView->updateFileStore(fmd.get());
+  } catch (eos::MDException& ex) {
+    eos_static_err("msg=\"Failed to unlink tape location for file %s",
+		   fullPath.c_str());
   }
 
   EXEC_TIMING_END("Proto::Delete");
-  return result;
+  return SFS_OK; // Ignore any failure in notifying the protocol buffer endpoint
 }
 
 int
