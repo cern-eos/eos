@@ -39,6 +39,7 @@ EOSNSNAMESPACE_BEGIN
 class ContainerScanner;
 class FileScanner;
 class OutputSink;
+class FileMetadataFilter;
 
 struct CacheNotifications {
   CacheNotifications() {}
@@ -189,12 +190,19 @@ public:
   //----------------------------------------------------------------------------
   bool loadConfiguration();
 
+  //----------------------------------------------------------------------------
+  //! Activate the given metadata filter
+  //----------------------------------------------------------------------------
+  void setMetadataFilter(std::unique_ptr<FileMetadataFilter> filter);
+
 private:
   std::map<std::string, std::string> mgmConfiguration;
   std::set<int64_t> validFsIds;
 
   qclient::QClient &mQcl;
   OutputSink &mOutputSink;
+
+  std::unique_ptr<FileMetadataFilter> mMetadataFilter;
 
   //----------------------------------------------------------------------------
   //! Check if given path is a good choice as a destination for repaired

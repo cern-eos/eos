@@ -19,6 +19,8 @@
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "namespace/ns_quarkdb/inspector/Inspector.hh"
 #include "namespace/ns_quarkdb/inspector/OutputSink.hh"
+#include "namespace/ns_quarkdb/inspector/FileMetadataFilter.hh"
+
 #include "common/PasswordHandler.hh"
 #include "common/ParseUtils.hh"
 #include "common/CLI11.hpp"
@@ -93,6 +95,7 @@ int main(int argc, char* argv[])
 {
   CLI::App app("Tool to inspect contents of the QuarkDB-based EOS namespace.");
   app.require_subcommand();
+
   //----------------------------------------------------------------------------
   // Basic parameters, common to all subcommands
   //----------------------------------------------------------------------------
@@ -101,6 +104,10 @@ int main(int argc, char* argv[])
   std::string password;
   std::string passwordFile;
   bool noDryRun = false;
+
+  std::unique_ptr<FileMetadataFilter> metadataFilter;
+  std::string filterExpression;
+
   //----------------------------------------------------------------------------
   // Set-up dump subcommand..
   //----------------------------------------------------------------------------
@@ -229,6 +236,8 @@ int main(int argc, char* argv[])
   scanFilesSubcommand->add_flag("--find-unknown-fsids", findUnknownFsids,
                                 "Only print files for which there is one or more unrecognized fsids in location vector.");
   scanFilesSubcommand->add_flag("--json", json, "Use json output");
+  scanFilesSubcommand->add_option("--where", filterExpression, "Filter results using the given expression.\nNOTE: Filtering is done client side! All results still have to be streamed -- performance is the same.");
+
   //----------------------------------------------------------------------------
   // Set-up scan-deathrow subcommand..
   //----------------------------------------------------------------------------
@@ -427,6 +436,20 @@ int main(int argc, char* argv[])
   }
 
   //----------------------------------------------------------------------------
+  // Parse any filter expressions
+  //----------------------------------------------------------------------------
+  if(!filterExpression.empty()) {
+    FilterExpressionParser parser(filterExpression, false);
+
+    if(!parser.getStatus()) {
+      std::cerr << parser.getStatus().toString() << std::endl;
+      return 1;
+    }
+
+    metadataFilter = parser.getFilter();
+  }
+
+  //----------------------------------------------------------------------------
   // Set-up QClient object towards QDB, ensure sanity
   //----------------------------------------------------------------------------
   qclient::Members members = qclient::Members::fromString(membersStr);
@@ -450,6 +473,8 @@ int main(int argc, char* argv[])
     std::cerr << connectionErr << std::endl;
     return 1;
   }
+
+  inspector.setMetadataFilter(std::move(metadataFilter));
 
   //----------------------------------------------------------------------------
   // Dispatch subcommand

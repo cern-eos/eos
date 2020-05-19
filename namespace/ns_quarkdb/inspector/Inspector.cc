@@ -23,6 +23,7 @@
 #include "namespace/ns_quarkdb/inspector/FileScanner.hh"
 #include "namespace/ns_quarkdb/inspector/Printing.hh"
 #include "namespace/ns_quarkdb/inspector/OutputSink.hh"
+#include "namespace/ns_quarkdb/inspector/FileMetadataFilter.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
 #include "namespace/ns_quarkdb/ContainerMD.hh"
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
@@ -112,6 +113,13 @@ bool Inspector::loadConfiguration() {
   }
 
   return true;
+}
+
+//------------------------------------------------------------------------------
+// Activate the given metadata filter
+//------------------------------------------------------------------------------
+void Inspector::setMetadataFilter(std::unique_ptr<FileMetadataFilter> filter) {
+  mMetadataFilter = std::move(filter);
 }
 
 //------------------------------------------------------------------------------
@@ -389,6 +397,11 @@ int Inspector::scanFileMetadata(bool onlySizes, bool fullPaths, bool findUnknown
     }
 
     if(findUnknownFsids && checkLocations(proto, validFsIds)) {
+      fileScanner.next();
+      continue;
+    }
+
+    if(mMetadataFilter && !mMetadataFilter->check(proto)) {
       fileScanner.next();
       continue;
     }
