@@ -2064,7 +2064,7 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string& fullPath,
   }
 
   EXEC_TIMING_END("Proto::Delete");
-  return tapeLocationWasRemoved ? SFS_OK : ECANCELED;
+  return SFS_OK; // Ignore any failure in notifying the protocol buffer endpoint
 }
 
 int
