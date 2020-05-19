@@ -29,6 +29,43 @@
 
 using namespace eos;
 
+TEST(StringEvaluator, Literal) {
+  eos::ns::FileMdProto proto;
+  std::string out;
+
+  StringEvaluator literal("some string literal", true);
+  ASSERT_TRUE(literal.evaluate(proto, out));
+  ASSERT_EQ(out, "some string literal");
+
+  literal = StringEvaluator("", true);
+  ASSERT_TRUE(literal.evaluate(proto, out));
+  ASSERT_EQ(out, "");
+}
+
+TEST(StringEvaluator, VariableName) {
+  eos::ns::FileMdProto proto;
+  std::string out;
+
+  proto.set_size(5);
+
+  StringEvaluator literal("size", false);
+  ASSERT_TRUE(literal.evaluate(proto, out));
+  ASSERT_EQ(out, "5");
+
+  proto.set_size(555);
+  ASSERT_TRUE(literal.evaluate(proto, out));
+  ASSERT_EQ(out, "555");
+}
+
+TEST(StringEvaluator, InvalidVariableName) {
+  eos::ns::FileMdProto proto;
+  std::string out;
+
+  StringEvaluator literal("aaa", false);
+  ASSERT_FALSE(literal.evaluate(proto, out));
+  ASSERT_EQ(out, "");
+}
+
 TEST(AttributeExtraction, BasicSanity) {
   eos::ns::FileMdProto proto;
   std::string out;

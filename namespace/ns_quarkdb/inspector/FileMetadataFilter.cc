@@ -22,6 +22,24 @@
 
 EOSNSNAMESPACE_BEGIN
 
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+StringEvaluator::StringEvaluator(const std::string &name, bool literal)
+: mName(name), mLiteral(literal) {}
+
+//------------------------------------------------------------------------------
+// Evaluate
+//------------------------------------------------------------------------------
+bool StringEvaluator::evaluate(const eos::ns::FileMdProto &proto, std::string &out) const {
+  if(mLiteral) {
+    out = mName;
+    return true;
+  }
+
+  return AttributeExtraction::asString(proto, mName, out);
+}
+
 //----------------------------------------------------------------------------
 //! Constructor
 //----------------------------------------------------------------------------
