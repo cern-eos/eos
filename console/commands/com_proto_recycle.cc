@@ -84,9 +84,10 @@ void com_recycle_help()
       << "    -m     : display info in monitoring format" << std::endl
       << "    -n     : dispaly numeric uid/gid(s) instead of names" << std::endl
       << std::endl
-      << "  recycle purge [-g|<date>]" << std::endl
+      << "  recycle purge [-g|<date>] [-k <key>]" << std::endl
       << "    purge files in the recycle bin" << std::endl
-      << "    -g     : empties the recycle bin of all users (if done by root or admin)"
+      << "    -g     : empties the recycle bin of all users (if done by root or admin)" << std::endl
+      << " -k <key>  : purge only the given key"
       << std::endl
       << "    <date> : can be <year>, <year>/<month> or <year>/<month>/<day>"
       << std::endl

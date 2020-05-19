@@ -13,6 +13,7 @@ message RecycleProto {
   message PurgeProto {
     bool All     = 1;
     string Date  = 2;
+    string Key   = 3;
   }
 
   message RestoreProto {

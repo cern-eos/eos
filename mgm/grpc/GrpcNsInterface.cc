@@ -1876,7 +1876,8 @@ grpc::Status GrpcNsInterface::Recycle(eos::common::VirtualIdentity& vid,
 			      std_err,
 			      vid,
 			      date,
-			      false);
+			      false,
+			      request->key());
 
     if (retc) {
       reply->set_code(retc);

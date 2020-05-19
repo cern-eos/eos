@@ -65,7 +65,8 @@ RecycleCmd::ProcessRequest() noexcept
   } else if (subcmd == RecycleProto::kPurge) {
     const eos::console::RecycleProto_PurgeProto& purge = recycle.purge();
     reply.set_retc(Recycle::Purge(std_out, std_err, mVid, purge.date(),
-                                  purge.all()));
+				  purge.all(),
+				  purge.key()));
 
     if (reply.retc()) {
       reply.set_std_err(std_err.c_str());

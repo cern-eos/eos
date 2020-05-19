@@ -201,7 +201,9 @@ public:
   static int Purge(std::string& std_out, std::string& std_err,
                    eos::common::VirtualIdentity& vid,
                    std::string date = "",
-                   bool global = false);
+                   bool global = false,
+		   std::string pattern = ""
+		   );
 
   /**
    * configure the recycle bin

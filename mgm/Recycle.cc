@@ -1328,7 +1328,8 @@ int
 Recycle::Purge(std::string& std_out, std::string& std_err,
                eos::common::VirtualIdentity& vid,
                std::string date,
-               bool global)
+               bool global,
+	       std::string key)
 {
   eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
   XrdMgmOfsDirectory dirl;
@@ -1337,6 +1338,23 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
   int nfiles_deleted = 0;
   int nbulk_deleted = 0;
   std::string rpath;
+
+  // translate key into search pattern
+  if (key.length()) {
+    if (key.substr(0,5) == "fxid:") {
+      // purge file
+      key.erase(0,5);
+    } else {
+      if (key.substr(0,5) == "pxid:") {
+	// purge directory
+	key.erase(0,5);
+	key += ".d";
+      } else {
+	std_err = "error: the given key to purge is invalid - must start with fxid: or pxid: (see output of recycle ls)";
+	return EINVAL;
+      }
+    }
+  }
 
   if (vid.uid && !vid.sudoer &&
       !(vid.hasUid(3)) &&
@@ -1398,6 +1416,14 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
       }
 
       if (!gOFS->_stat(pathname.c_str(), &buf, lError, rootvid, "")) {
+
+	if (key.length()) {
+	  // check for a particular string pattern
+	  if (pathname.find(key) == std::string::npos) {
+	    continue;
+	  }
+	}
+
         // execute a proc command
         ProcCommand Cmd;
         XrdOucString info;
@@ -1439,6 +1465,15 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
   std_out += " bulk deletions and ";
   std_out += std::to_string(nfiles_deleted);
   std_out += " individual files from the recycle bin!";
+
+  if (key.length() &&
+      (!nbulk_deleted) &&
+      (!nfiles_deleted) ) {
+    std_err += "error: no entry for key='";
+    std_err += key;
+    std_err += "'";
+    return ENODATA;
+  }
   return 0;
 }
 

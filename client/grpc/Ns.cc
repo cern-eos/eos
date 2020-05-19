@@ -31,6 +31,7 @@ int usage(const char* prog)
 	  "                                               recycle ls\n"
 	  "                                     -p <key>  recycle restore\n"
           " --year <year> [--month <month> [--day <day>]] recycle purge\n"
+          "                                     -p <key>  recycle purge\n"
 	  "[--username <u> | --groupname <g>] [-p <path>] quota \n \n");
 	  
   return -1;
@@ -474,6 +475,7 @@ int main(int argc, const char* argv[])
       if (day) {
 	request.mutable_recycle()->mutable_purgedate()->set_day(day);
       }
+      request.mutable_recycle()->set_key(path);
       request.mutable_recycle()->set_cmd(eos::rpc::NSRequest::RecycleRequest::PURGE);
     } else if (subcmd == "restore") {
       request.mutable_recycle()->set_cmd(eos::rpc::NSRequest::RecycleRequest::RESTORE);
