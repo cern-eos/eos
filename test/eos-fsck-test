@@ -248,7 +248,7 @@ function configure_fsck() {
 # Check that we collected all the errors that we expect
 function check_all_errors_collected() {
   # Allow for at most MAX_DELAY seconds to collect all the errors
-  local MAX_DELAY=300
+  local MAX_DELAY=${1:-"300"}
   local START_TIME=$(date +%s)
   while
     local CURRENT_TIME=$(date +%s)
@@ -302,6 +302,17 @@ function cleanup() {
   exec_cmd eos-cli1 "eos -r 0 0 fsck config toggle-collect"
 }
 
+
+# @todo the whole args parsing story should be rewritten, possibly decoupling docker/kubernetes execution from the test itself
+
+MAX_DELAY=300
+# Late addition of optional argument "max-delay, it must be the first arg"
+if [[ "$1" == "--max-delay" ]]; then
+  MAX_DELAY=$2
+  shift # past argument
+  shift # past value
+fi
+
 # Set up global variables
 IS_DOCKER=false
 K8S_NAMESPACE=""
@@ -338,6 +349,12 @@ if [[ "${IS_DOCKER}" == false ]]; then
   K8S_NAMESPACE="$3"
 fi
 
+echo "eos-fsck-test configuration:"
+echo "MAX_DELAY=$MAX_DELAY"
+echo "IS_DOCKER=$IS_DOCKER"
+echo "K8S_NAMESPACE=$K8S_NAMESPACE (if IS_DOCKER=false)"
+echo
+
 # Create test file
 create_test_files
 
@@ -358,14 +375,13 @@ corrupt_orphan
 configure_fsck
 
 # Check that we are collecting all the expected errors
-check_all_errors_collected
+check_all_errors_collected $MAX_DELAY
 
 # Enable the repair thread and allow a delay of 2 minutes to
 # correct all the discovered errors
 exec_cmd eos-cli1 "eos -r 0 0 fsck config toggle-repair"
 
 # Wait for all the errors to be repaired
-MAX_DELAY=600
 START_TIME=$(date +%s)
 
 while
@@ -378,7 +394,7 @@ while
       cleanup
       exit 1
     else
-      echo "info: sleep for 5 seconds waiting for error collection, `secs_to_human $((${CURRENT_TIME} - ${START_TIME}))` passed"
+      echo "info: sleep for 5 seconds waiting for error repair, `secs_to_human $((${CURRENT_TIME} - ${START_TIME}))` passed"
       sleep 5
     fi
   else

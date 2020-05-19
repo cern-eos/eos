@@ -611,10 +611,10 @@ cc7_asan_docker_image:
   script:
     - if [[ $CI_JOB_NAME =~ "k8s" ]]; then
         kubectl cp $K8S_NAMESPACE/$(get_podname eos-cli1):/usr/sbin/eos-fsck-test ./eos-fsck-test;
-        chmod +x eos-fsck-test; date; ./eos-fsck-test --type k8s $K8S_NAMESPACE; date; rm -rf eos-fsck-test;
+        chmod +x eos-fsck-test; date; ./eos-fsck-test --max-delay 600 --type k8s $K8S_NAMESPACE; date; rm -rf eos-fsck-test;
       elif [[ $CI_JOB_NAME =~ "dock" ]]; then
         docker cp eos-cli1:/usr/sbin/eos-fsck-test .;
-        chmod +x eos-fsck-test; date; ./eos-fsck-test --type docker; date; rm -rf eos-fsck-test;
+        chmod +x eos-fsck-test; date; ./eos-fsck-test --max-delay 600 --type docker; date; rm -rf eos-fsck-test;
       fi
     - date
     - exec_cmd eos-mgm1 'eos ns mutex --toggleorder'
