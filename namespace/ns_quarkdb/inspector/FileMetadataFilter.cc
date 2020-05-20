@@ -57,8 +57,8 @@ std::string StringEvaluator::describe() const {
 //----------------------------------------------------------------------------
 //! Constructor
 //----------------------------------------------------------------------------
-EqualityFileMetadataFilter::EqualityFileMetadataFilter(const StringEvaluator &ev1, const StringEvaluator &ev2)
-: mEval1(ev1), mEval2(ev2) {}
+EqualityFileMetadataFilter::EqualityFileMetadataFilter(const StringEvaluator &ev1, const StringEvaluator &ev2, bool reverse)
+: mEval1(ev1), mEval2(ev2), mReverse(reverse) {}
 
 //----------------------------------------------------------------------------
 // Does the given FileMdProto pass through the filter?
@@ -74,7 +74,12 @@ bool EqualityFileMetadataFilter::check(const eos::ns::FileMdProto &proto) {
     return false;
   }
 
-  return val1 == val2;
+  if(mReverse) {
+    return val1 != val2;
+  }
+  else {
+    return val1 == val2;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -103,6 +108,10 @@ std::string EqualityFileMetadataFilter::describe() const {
 
   if(!st) {
     return SSTR("[" << st.toString() << "]");
+  }
+
+  if(mReverse) {
+    return SSTR(mEval1.describe() << " != " << mEval2.describe());
   }
 
   return SSTR(mEval1.describe() << " == " << mEval2.describe());
@@ -195,6 +204,19 @@ common::Status FilterExpressionLexer::lex(const std::string &str, std::vector<Ex
       }
 
       tokens.emplace_back(ExpressionLexicalToken(TokenType::kEQUALITY, "=="));
+
+      pos++;
+      continue;
+    }
+
+    if(str[pos] == '!') {
+      pos++;
+
+      if(pos >= str.size() || str[pos] != '=') {
+        return common::Status(EINVAL, "lexing failed, single stray '!' found (did you mean '!='?)");
+      }
+
+      tokens.emplace_back(ExpressionLexicalToken(TokenType::kINEQUALITY, "!="));
 
       pos++;
       continue;
@@ -369,15 +391,23 @@ bool FilterExpressionParser::consumeBooleanExpression(std::unique_ptr<FileMetada
     return fail(EINVAL, "expected string expression");
   }
 
-  if(!accept(TokenType::kEQUALITY)) {
-    return fail(EINVAL, "expected '==' token");
+  bool reversedEquality;
+
+  if(accept(TokenType::kEQUALITY)) {
+    reversedEquality = false;
+  }
+  else if(accept(TokenType::kINEQUALITY)) {
+    reversedEquality = true;
+  }
+  else {
+    return fail(EINVAL, "expected '==' or '!=' token");
   }
 
   if(!consumeStringExpression(eval2)) {
     return fail(EINVAL, "expected string expression");
   }
 
-  filter.reset(new EqualityFileMetadataFilter(eval1, eval2));
+  filter.reset(new EqualityFileMetadataFilter(eval1, eval2, reversedEquality));
   return true;
 }
 

@@ -93,7 +93,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  EqualityFileMetadataFilter(const StringEvaluator &ev1, const StringEvaluator &ev2);
+  EqualityFileMetadataFilter(const StringEvaluator &ev1, const StringEvaluator &ev2, bool reverse);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -118,6 +118,7 @@ public:
 private:
   StringEvaluator mEval1;
   StringEvaluator mEval2;
+  bool mReverse;
 };
 
 //------------------------------------------------------------------------------
@@ -160,7 +161,7 @@ private:
 //! Token type
 //------------------------------------------------------------------------------
 enum class TokenType {
-  kLPAREN, kRPAREN, kQUOTE, kLITERAL, kEQUALITY, kAND, kOR, kVAR
+  kLPAREN, kRPAREN, kQUOTE, kLITERAL, kEQUALITY, kINEQUALITY, kAND, kOR, kVAR
 };
 
 struct ExpressionLexicalToken {

@@ -168,14 +168,14 @@ TEST(AttributeExtraction, BasicSanity) {
 
 TEST(FileMetadataFilter, InvalidFilter) {
   EqualityFileMetadataFilter invalidFilter(
-    StringEvaluator("invalid.attr", false), StringEvaluator("aaa", true));
+    StringEvaluator("invalid.attr", false), StringEvaluator("aaa", true), false);
 
   ASSERT_FALSE(invalidFilter.isValid());
   ASSERT_EQ(invalidFilter.describe(), "[(22): could not evaluate string expression invalid.attr]");
 }
 
 TEST(FileMetadataFilter, ZeroSizeFilter) {
-  EqualityFileMetadataFilter sizeFilter(StringEvaluator("size", false), StringEvaluator("0", true));
+  EqualityFileMetadataFilter sizeFilter(StringEvaluator("size", false), StringEvaluator("0", true), false);
   ASSERT_TRUE(sizeFilter.isValid());
   ASSERT_EQ(sizeFilter.describe(), "size == '0'");
 
@@ -190,10 +190,10 @@ TEST(FileMetadataFilter, ZeroSizeFilter) {
 
 TEST(FileMetadataFilter, AndFilter) {
   std::unique_ptr<FileMetadataFilter> sizeFilter(
-    new EqualityFileMetadataFilter(StringEvaluator("size", false), StringEvaluator("0", true)));
+    new EqualityFileMetadataFilter(StringEvaluator("size", false), StringEvaluator("0", true), false));
 
   std::unique_ptr<FileMetadataFilter> nameFilter(
-    new EqualityFileMetadataFilter(StringEvaluator("name", false), StringEvaluator("chickens", true)));
+    new EqualityFileMetadataFilter(StringEvaluator("name", false), StringEvaluator("chickens", true), false));
 
   AndMetadataFilter andFilter(
     std::move(sizeFilter),
@@ -311,4 +311,21 @@ TEST(FilterExpressionParser, TripleAndExpression) {
   std::unique_ptr<FileMetadataFilter> filter = parser.getFilter();
   ASSERT_EQ(filter->describe(), "size == '0' && name == 'chickens' && pid == '0'");
   ASSERT_TRUE(filter->isValid());
+}
+
+TEST(FilterExpressionParser, NotEquals) {
+  FilterExpressionParser parser("size != '0'", true);
+  ASSERT_TRUE(parser.getStatus());
+
+  std::unique_ptr<FileMetadataFilter> filter = parser.getFilter();
+  ASSERT_EQ(filter->describe(), "size != '0'");
+  ASSERT_TRUE(filter->isValid());
+
+  eos::ns::FileMdProto proto;
+
+  proto.set_size(33);
+  ASSERT_TRUE(filter->check(proto));
+
+  proto.set_size(0);
+  ASSERT_FALSE(filter->check(proto));
 }
