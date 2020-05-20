@@ -889,6 +889,12 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 
   for (auto& pathPair : pathsWithPrepare) {
     XrdOucString prep_path = (*pathPair.first ? *pathPair.first : "");
+    {
+      const char* inpath = prep_path.c_str();
+      const char* ininfo = "";
+      NAMESPACEMAP;
+      prep_path = path;
+    }
     XrdOucString prep_info = pathPair.second != nullptr ? (*pathPair.second ?
                              *pathPair.second : "") : "";
     eos_info("msg=\"about to trigger WFE\" path=\"%s\" info=\"%s\"",
