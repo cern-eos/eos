@@ -21,15 +21,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include <string>
-#include <thread>
 #include "gtest/gtest.h"
-
 #include "Namespace.hh"
-#include "FstTestsUtils.hh"
+#include "TestEnv.hh"
 #include "common/RWMutex.hh"
 #include "common/FileSystem.hh"
 #include "fst/storage/MonitorVarPartition.hh"
+
+eos::fst::test::GTest_Logger gLogger(false);
 
 EOSFSTTEST_NAMESPACE_BEGIN
 
@@ -63,7 +62,6 @@ public:
   static constexpr std::int32_t mMonitorInterval = 1;
   std::ofstream fill;
   VarMonitorT monitor;
-  GTest_Logger mLogger;
   std::thread monitor_thread;
   eos::common::RWMutex mFsMutex;
   std::vector<MockFileSystem*> fsVector;
@@ -80,8 +78,7 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   MonitorVarPartitionTest():
-      monitor(10.0, MonitorVarPartitionTest::mMonitorInterval, "/mnt/var_test/"),
-      mLogger(FstTestsEnv::verbose)
+    monitor(10.0, MonitorVarPartitionTest::mMonitorInterval, "/mnt/var_test/")
   {}
 
   virtual void SetUp() override
@@ -89,17 +86,15 @@ public:
     // Initialize partition
     system("mkdir -p /mnt/var_test");
     system("mount -t tmpfs -o size=100m tmpfs /mnt/var_test/");
-
     // Add few fileSystems in the vector
     this->fsVector.push_back(new MockFileSystem());
     this->fsVector.push_back(new MockFileSystem());
     this->fsVector.push_back(new MockFileSystem());
     this->fsVector.push_back(new MockFileSystem());
     fill.open("/mnt/var_test/fill.temp");
-
     // Start monitoring
     this->monitor_thread =
-        std::thread(MonitorVarPartitionTest::StartFstPartitionMonitor, this);
+      std::thread(MonitorVarPartitionTest::StartFstPartitionMonitor, this);
   }
 
   virtual void TearDown() override
@@ -109,11 +104,9 @@ public:
     delete this->fsVector[1];
     delete this->fsVector[2];
     delete this->fsVector[3];
-
     // Stop monitoring
     this->monitor.StopMonitoring();
     this->monitor_thread.join();
-
     system("umount /mnt/var_test/");
     system("rmdir /mnt/var_test/");
   }
@@ -127,6 +120,7 @@ TEST_F(MonitorVarPartitionTest, MonitorVarPartition)
   // Fill partition to more than 90%
   GLOG << "Filling partition to 90%" << std::endl;
   std::string megabyte_line(1024 * 1024, 'a');
+
   for (int i = 1; i <= 90; i++) {
     fill << megabyte_line << std::endl;
   }
@@ -140,7 +134,6 @@ TEST_F(MonitorVarPartitionTest, MonitorVarPartition)
   }
 
   mFsMutex.UnLockRead();
-
   // Setting status of filesystems to RW
   GLOG << "Setting status to RW -- should revert to RO" << std::endl;
   mFsMutex.LockWrite();
@@ -150,7 +143,6 @@ TEST_F(MonitorVarPartitionTest, MonitorVarPartition)
   }
 
   mFsMutex.UnLockWrite();
-
   // Check if status has returned to read-only
   usleep(mMonitorInterval * 1000 * 1000);
   mFsMutex.LockRead();
@@ -160,12 +152,10 @@ TEST_F(MonitorVarPartitionTest, MonitorVarPartition)
   }
 
   mFsMutex.UnLockRead();
-
   // Close and delete file
   GLOG << "Deleting file: /mnt/var_test/fill.temp" << std::endl;
   fill.close();
   system("rm /mnt/var_test/fill.temp");
-
   // Setting status of filesystems to RW
   GLOG << "Setting status to RW -- should stay at RW" << std::endl;
   mFsMutex.LockWrite();
@@ -175,7 +165,6 @@ TEST_F(MonitorVarPartitionTest, MonitorVarPartition)
   }
 
   mFsMutex.UnLockWrite();
-
   // Check if status remains as read/write
   usleep(mMonitorInterval * 1000 * 1000);
   mFsMutex.LockRead();

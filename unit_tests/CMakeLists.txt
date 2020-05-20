@@ -91,10 +91,10 @@ set(FST_UT_SRCS
   fst/XrdFstOfsTests.cc
   fst/HealthTest.cc
   fst/UtilsTest.cc
-  fst/XrdFstOfsFileTest.cc
+  fst/XrdFstOfsFileInternalTest.cc
   fst/ScanDirTests.cc
   fst/BufferManagerTests.cc
-  fst/XrdIoTests.cc)
+  fst/MonitorVarPartitionTest.cc)
 
 #-------------------------------------------------------------------------------
 # unit tests source files
@@ -123,10 +123,6 @@ target_link_libraries(eos-unit-tests PRIVATE
   XROOTD::SERVER
   XrdEosMgm-Static)
 
-install(TARGETS
-  eos-unit-tests
-  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
-
 #-------------------------------------------------------------------------------
 # eos-fst-unit-tests executable
 #-------------------------------------------------------------------------------
@@ -137,9 +133,18 @@ target_link_libraries(eos-fst-unit-tests PRIVATE
   gmock
   XrdEosFst-Static)
 
-install(TARGETS
-  eos-fst-unit-tests
-  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
+#-------------------------------------------------------------------------------
+# eos-unit-tests-with-instance executable
+#-------------------------------------------------------------------------------
+add_executable(eos-unit-tests-with-instance 
+  fst/main_fst.cc
+  fst/TestEnv.cc
+  fst/XrdFstOfsFileTest.cc
+  fst/XrdIoTests.cc)
+
+target_link_libraries(eos-unit-tests-with-instance PRIVATE
+  gtest
+  XrdEosFst-Static) 
 
 #-------------------------------------------------------------------------------
 # eos-unit-tests-with-qdb executable
@@ -159,5 +164,6 @@ target_link_libraries(
   JSONCPP::JSONCPP)
 
 install(TARGETS
+  eos-unit-tests eos-unit-tests-with-instance eos-fst-unit-tests
   eos-unit-tests-with-qdb
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})

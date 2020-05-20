@@ -135,7 +135,7 @@ TEST(BufferManager, MultipleThreads)
       uint64_t max_buff_sz = (1 << buff_mgr.GetNumSlots()) * MB;
       uint64_t value = std::round(std::abs(dis(gen)));
 
-      // Make sure the generated values is withing the
+      // Make sure the generated values is within limits
       if (value <= 0) {
         value = 1;
       } else if (value > max_buff_sz) {
@@ -178,13 +178,14 @@ TEST(BufferManager, MultipleThreads)
     for (int i = 0; i <= buff_mgr.GetNumSlots(); ++i) {
       if (dis_params.first <= (1 << (i + 20))) {
         slot = i;
+        break;
       }
     }
 
     // The slot with the largest allocated size should be "slot"
-    ASSERT_EQ(sorted_slots.rbegin()->first, slot);
     // for (auto& elem: sorted_slots) {
-    //   std::cout << "Slot: " << elem.first << " size: " << elem.second << std::endl;
+    //   std::cerr << "Slot: " << elem.first << " size: " << elem.second << std::endl;
     // }
+    ASSERT_EQ(sorted_slots.rbegin()->first, slot);
   }
 }

@@ -21,23 +21,25 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #define IN_TEST_HARNESS
 #include "fst/io/xrd/XrdIo.hh"
 #undef IN_TEST_HARNESS
-#include "common/StringConversion.hh"
-#include <memory>
+#include "TestEnv.hh"
 
 TEST(XrdIo, BasicPrefetch)
 {
-  // auto& logging = eos::common::Logging::GetInstance();
-  // logging.SetLogPriority(LOG_DEBUG);
+  //auto& logging = eos::common::Logging::GetInstance();
+  //logging.SetLogPriority(LOG_DEBUG);
   using namespace eos::common;
   std::set<int64_t> read_sizes {4 * KB, 1 * MB};
-  std::string url =
-    "root://esdss000.cern.ch:1089//tmp/xrootd0/test_file.dat?fst.readahead=true";
-  std::unique_ptr<eos::fst::XrdIo> file {new eos::fst::XrdIo(url)};
+  std::string address = "root://root@" + gEnv->GetMapping("server");
+  std::string file_path = gEnv->GetMapping("replica_file");
+  // Validate URL
+  XrdCl::URL url(address);
+  ASSERT_TRUE(url.IsValid());
+  std::string file_url = address + "/" + file_path + "?fst.readahead=true";
+  std::unique_ptr<eos::fst::XrdIo> file {new eos::fst::XrdIo(file_url)};
   struct stat info;
   ASSERT_EQ(file->fileOpen(SFS_O_RDONLY), 0);
   ASSERT_EQ(file->fileStat(&info), 0);
@@ -60,8 +62,14 @@ TEST(XrdIo, BasicPrefetch)
     }
 
     offset = 0ull;
-    std::cout << "Read block size: " << length << std::endl
-              << "Prefetched blocks: " << file->mPrefetchBlocks << std::endl
-              << "Prefech hits: " << file->mPrefetchHits << std::endl;
+    GLOG << "Read block size: " << length << std::endl;
+    GLOG << "Prefetched blocks: " << file->mPrefetchBlocks << std::endl;
+    GLOG << "Prefech hits: " << file->mPrefetchHits << std::endl;
+    ASSERT_EQ(file->mPrefetchBlocks,
+              std::ceil((info.st_size - length) * 1.0 / file->mBlocksize));
+    ASSERT_EQ(file->mPrefetchHits, (int)(info.st_size - length) / length);
+    // Reset prefetch counters
+    file->mPrefetchHits = 0ull;
+    file->mPrefetchBlocks = 0ull;
   }
 }

@@ -1,11 +1,12 @@
 //------------------------------------------------------------------------------
-//! @file VarPartitionMonitorTest.hh
-//! @author Stefan Isidorovic <stefan.isidorovic@comtrade.com>
+//! @file TestEnv.hh
+//! @author Elvin Sindrilaru <esindril@cern.ch>
+//! @bried Class containing all the variables need for the test done on the FST
 //------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2016 CERN/Switzerland                                  *
+ * Copyright (C) 2013 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,83 +22,100 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_TESTS_VARPARTITIONMONITORTEST__HH__
-#define __EOSFST_TESTS_VARPARTITIONMONITORTEST__HH__
+#pragma once
+#include "Namespace.hh"
+#include <map>
+#include <string>
+#include <iostream>
+#include <memory>
 
-#include <cppunit/extensions/HelperMacros.h>
-#include <cstdint>
-#include <fstream>
-#include <vector>
-#include <thread>
-#include "common/FileSystem.hh"
-#include "common/RWMutex.hh"
-#include "fst/storage/MonitorVarPartition.hh"
-
-typedef eos::common::FileSystem::eConfigStatus fsstatus_t;
+EOSFSTTEST_NAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-// Mock class implementing only relevant methods related to unit testing
+//! TestEnv class - not thread safe
 //------------------------------------------------------------------------------
-struct MockFileSystem {
-  fsstatus_t status;
-
-  MockFileSystem() : status(eos::common::FileSystem::kRW) {}
-
-  void SetConfigStatus(fsstatus_t status)
-  {
-    this->status = status;
-  }
-
-  fsstatus_t GetConfigStatus(bool cached = false)
-  {
-    return this->status;
-  }
-};
-
-typedef eos::fst::MonitorVarPartition<std::vector<MockFileSystem*>> VarMonitorT;
-
-//------------------------------------------------------------------------------
-//! Class VarPartitionMonitorTest
-//------------------------------------------------------------------------------
-class VarPartitionMonitorTest : public CppUnit::TestCase
+class TestEnv
 {
-  CPPUNIT_TEST_SUITE(VarPartitionMonitorTest);
-  CPPUNIT_TEST(VarMonitorTest);
-  CPPUNIT_TEST_SUITE_END();
-
-  eos::common::RWMutex mFsMutex;
-  std::vector<MockFileSystem*> fsVector;
-  VarMonitorT monitor;
-  std::thread monitor_thread;
-  std::ofstream fill;
-  static std::int32_t mMonitorInterval;
-
 public:
   //----------------------------------------------------------------------------
   //! Constructor
+  //!
+  //! @param EOS endpoint
   //----------------------------------------------------------------------------
-  VarPartitionMonitorTest();
+  TestEnv(const std::string& endpoint);
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~VarPartitionMonitorTest() = default;
+  virtual ~TestEnv();
 
   //----------------------------------------------------------------------------
-  //! CPPUNIT required methods
+  //! Add new entry to the map of parameters
+  //!
+  //! @param key key to be inserted
+  //! @param value value to the inserted
   //----------------------------------------------------------------------------
-  void setUp(void);
-  void tearDown(void);
+  void SetMapping(const std::string& key, const std::string& value);
 
   //----------------------------------------------------------------------------
-  //! Method starting the monitoring thread
+  //! Get value corresponding to the key from the map
+  //!
+  //! @param key key to be searched in the map
+  //!
+  //! @return value stored in the map
   //----------------------------------------------------------------------------
-  static void* StartFstPartitionMonitor(void* pp);
+  std::string GetMapping(const std::string& key) const;
 
-  //----------------------------------------------------------------------------
-  //! Method implementing the test
-  //----------------------------------------------------------------------------
-  void VarMonitorTest();
+private:
+  std::map<std::string, std::string> mMapParam; ///< map testing parameters
+  std::string mPathPrefix; ///< Path prefix inside the instate for tests
+  std::string mHostName; ///< EOS instance hostname
 };
 
-#endif // __EOSFST_TESTS_VARPARTITIONMONITORTEST__HH__
+//------------------------------------------------------------------------------
+//! Logging class
+//------------------------------------------------------------------------------
+class GTest_Logger
+{
+public:
+  GTest_Logger(bool enabled) : mEnabled(enabled) {}
+  bool isEnabled()
+  {
+    return mEnabled;
+  }
+
+  template<typename T> GTest_Logger& operator<<(T const& t)
+  {
+    if (mEnabled) {
+      std::cout << t;
+    }
+
+    return *this;
+  }
+
+  GTest_Logger& operator<<(std::ostream & (*manipulator)(std::ostream&))
+  {
+    if (mEnabled) {
+      std::cout << manipulator;
+    }
+
+    return *this;
+  }
+
+  void SetEnabled(bool enable)
+  {
+    mEnabled = enable;
+  }
+
+private:
+  bool mEnabled;
+};
+
+EOSFSTTEST_NAMESPACE_END
+
+extern std::unique_ptr<eos::fst::test::TestEnv> gEnv;
+extern eos::fst::test::GTest_Logger gLogger;
+
+// Macro to print GTest similar output
+// Uses the GTest_Logger gLogger variable available in the FstFileTest fixtures
+#define GLOG if (gLogger.isEnabled()) { std::cout << "[ INFO     ] "; } gLogger

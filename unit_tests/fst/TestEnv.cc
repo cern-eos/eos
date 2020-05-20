@@ -22,7 +22,11 @@
  ************************************************************************/
 
 #include "TestEnv.hh"
-#include <iostream>
+#include "XrdCl/XrdClURL.hh"
+#include <sstream>
+#include <cstdlib>
+
+#define SSTR(message) static_cast<std::ostringstream&>(std::ostringstream().flush() << message).str()
 
 EOSFSTTEST_NAMESPACE_BEGIN
 
@@ -31,29 +35,57 @@ EOSFSTTEST_NAMESPACE_BEGIN
 //
 // Notice:
 // File file32MB.dat is created as follows:
-// dd if=/dev/zero count=32 bs=1M | tr '\000' '\001' > /eos/dev/test/fst/plain/file32MB.dat
-//
-// The "plain" directory needs to have the following xattrs:
-//   sys.forced.checksum="adler"
-//   sys.forced.layout="plain"
-//   sys.forced.nstripes="1"
-//   sys.forced.space="default"
-//
-// The "raiddp" directory needs to have the following xattrs:
-//   default=raiddp
+// dd if=/dev/zero count=32 bs=1M | tr '\000' '\001' > /eos/dev/test/fst/replica/file32MB.dat
 //
 //------------------------------------------------------------------------------
-TestEnv::TestEnv(std::string instance)
+TestEnv::TestEnv(const std::string& endpoint)
 {
-  std::string pathPrefix = "/eos/" + instance + "/test/fst/";
-  mMapParam.insert(std::make_pair("server", "localhost"));
-  mMapParam.insert(std::make_pair("dummy_file", pathPrefix + "plain/dummy.dat"));
-  mMapParam.insert(std::make_pair("plain_file",
-                                  pathPrefix + "plain/file32MB.dat"));
+  XrdCl::URL url(endpoint);
+
+  if (!url.IsValid()) {
+    std::cerr << "error: invalid endpoint - " << endpoint << std::endl;
+    exit(1);
+  }
+
+  mPathPrefix = url.GetPath();
+
+  if (*mPathPrefix.rbegin() != '/') {
+    mPathPrefix += '/';
+  }
+
+  mPathPrefix += "fst_unit_tests/";
+  mHostName = url.GetHostName();
+  system("dd if=/dev/zero count=32 bs=1M status=none | tr \'\\000\' \'\\001\' > /tmp/file32MB.dat");
+  system(SSTR("eos mkdir -p " << mPathPrefix << "replica ").c_str());
+  system(SSTR("eos attr set default=replica " << mPathPrefix <<
+              "replica > /dev/null 2>&1").c_str());
+  system(SSTR("eos attr rm sys.recycle " << mPathPrefix <<
+              "replica > /dev/null 2>&1").c_str());
+  system(SSTR("eos mkdir -p " << mPathPrefix << "raiddp").c_str());
+  system(SSTR("eos attr set default=raiddp " << mPathPrefix <<
+              "raiddp > /dev/null 2>&1").c_str());
+  system(SSTR("eos attr rm sys.recycle " << mPathPrefix <<
+              "raiddp > /dev/null 2>&1").c_str());
+  system(SSTR("eos mkdir -p " << mPathPrefix << "raid6").c_str());
+  system(SSTR("eos attr set default=raid6 " << mPathPrefix <<
+              "raid6  > /dev/null 2>&1").c_str());
+  system(SSTR("eos attr rm sys.recycle " << mPathPrefix <<
+              "raid6 > /dev/null 2>&1").c_str());
+  system(SSTR("xrdcp -f /tmp/file32MB.dat root://" << mHostName << "/" <<
+              mPathPrefix << "replica/ > /dev/null 2>&1").c_str());
+  system(SSTR("xrdcp -f /tmp/file32MB.dat root://" << mHostName << "/" <<
+              mPathPrefix << "raiddp/ > /dev/null 2>&1").c_str());
+  system(SSTR("xrdcp -f /tmp/file32MB.dat root://" << mHostName << "/" <<
+              mPathPrefix << "raid6/ > /dev/null 2>&1").c_str());
+  mMapParam.insert(std::make_pair("server", mHostName));
+  mMapParam.insert(std::make_pair("dummy_file",
+                                  mPathPrefix + "replica/dummy.dat"));
+  mMapParam.insert(std::make_pair("replica_file",
+                                  mPathPrefix + "replica/file32MB.dat"));
   mMapParam.insert(std::make_pair("raiddp_file",
-                                  pathPrefix + "raiddp/file32MB.dat"));
+                                  mPathPrefix + "raiddp/file32MB.dat"));
   mMapParam.insert(std::make_pair("reeds_file",
-                                  pathPrefix + "raid6/file32MB.dat"));
+                                  mPathPrefix + "raid6/file32MB.dat"));
   mMapParam.insert(std::make_pair("file_size", "33554432")); // 32MB
   // ReadV sequences used for testing
   // Test set 1 - 4KB read out of each MB
@@ -145,15 +177,14 @@ TestEnv::TestEnv(std::string instance)
   mMapParam.insert(std::make_pair("align8_resp_len", "4096"));
 }
 
-
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
 TestEnv::~TestEnv()
 {
-  // empty
+  system(SSTR("eos " << "root://" << mHostName << " rm -rF " << mPathPrefix
+              << " > /dev/null 2>&1").c_str());
 }
-
 
 //------------------------------------------------------------------------------
 // Set key value mapping
@@ -168,7 +199,6 @@ TestEnv::SetMapping(const std::string& key, const std::string& value)
               << " value=" << value << std::endl;
   }
 }
-
 
 //------------------------------------------------------------------------------
 // Get key value mapping

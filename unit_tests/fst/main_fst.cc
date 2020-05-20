@@ -22,10 +22,11 @@
  ************************************************************************/
 
 #include "gtest/gtest.h"
-#include "FstTestsUtils.hh"
+#include "TestEnv.hh"
+#include "XrdCl/XrdClURL.hh"
 
-std::string eos::fst::test::FstTestsEnv::instanceName = "dev";
-bool eos::fst::test::FstTestsEnv::verbose = false;
+std::unique_ptr<eos::fst::test::TestEnv> gEnv {nullptr};
+eos::fst::test::GTest_Logger gLogger(false);
 
 //------------------------------------------------------------------------------
 // Main function for the eos-fst-test executable.
@@ -33,64 +34,59 @@ bool eos::fst::test::FstTestsEnv::verbose = false;
 // Also tests the partition monitoring functionality.
 //
 // Note: a running EOS instance is required for this test to run successfully
-//
-// For setup, please read the info written in eos::fst::tests::TestEnv
 //------------------------------------------------------------------------------
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[])
+{
   using namespace eos::fst::test;
-
+  // Initialize GTest
+  testing::InitGoogleTest(&argc, argv);
   int c;
   bool verbose = false;
-  std::string instance("dev");
-
-  std::string usage = "Usage: eos-fst-test [-v] [-h] [-n <instance>]\
-                           \nTests the writing and downloading of a file on a plain and raiddp setup.\
-                           \nTests the partition monitoring functionality.\
-                           \nNote: a running EOS instance is required for this test to run successfully\
-                           \n\t\t            -v : verbose mode\
-                           \n\t\t            -h : display help\
-                           \n\t\t -n <instance> : the EOS instance name (default is dev)\
+  std::string endpoint;
+  std::string usage = "Usage: eos-fst-test [-v] [-h] [-n <endpoint>]\
+                           \nTests the writing and downloading of a file on a plain and raiddp setup. \
+                           \nTests the partition monitoring functionality. \
+                           \nNote: a running EOS instance is required for this test to run successfully \
+                           \n\t\t            -v : verbose mode          \
+                           \n\t\t            -h : display help          \
+                           \n\t\t -n <endpoint> : EOS endpoint where tests are run (e.g root://localhost//eos/dev/test/) \
                            \n";
 
   // Parse remaining arguments
   while ((c = getopt(argc, argv, "n:vh")) != -1) {
     switch (c) {
-      case 'n': { // Register instance name
-        instance = optarg;
-        break;
-      }
+    case 'n': { // Register endpoint
+      endpoint = optarg;
+      break;
+    }
 
-      case 'v': { // Enable verbose mode
-        verbose = true;
-        break;
-      }
+    case 'v': { // Enable verbose mode
+      verbose = true;
+      break;
+    }
 
-      case 'h': { // Display help text
-        std::cout << usage << std::endl;
-        exit(1);
-      }
+    case 'h': { // Display help text
+      std::cout << usage << std::endl;
+      exit(1);
+    }
 
-      case ':': {
-        std::cout << usage << std::endl;
-        exit(1);
-      }
+    case ':': {
+      std::cout << usage << std::endl;
+      exit(1);
+    }
     }
   }
 
   // Trim starting and trailing '/'
-  instance.erase(instance.find_last_not_of("/") + 1);
-  instance.erase(0, instance.find_first_not_of("/"));
+  XrdCl::URL url(endpoint);
 
-  if (instance.empty()) {
-    std::cerr << "Invalid instance name!" << std::endl;
+  if (!url.IsValid()) {
+    std::cerr << "error: Invalid endpoint - " << endpoint << std::endl;
     exit(1);
   }
 
   // Prepare global environment
-  FstTestsEnv::instanceName = instance;
-  FstTestsEnv::verbose = verbose;
-
-  // Initialize GTest
-  testing::InitGoogleTest(&argc, argv);
+  gEnv.reset(new TestEnv(endpoint));
+  gLogger.SetEnabled(verbose);
   return RUN_ALL_TESTS();
 }
