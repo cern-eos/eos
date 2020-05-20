@@ -33,9 +33,9 @@
 EOSFSTTEST_NAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-// Write test
+// Write test - not useful at the moment
 //------------------------------------------------------------------------------
-TEST(FstFileTest, WriteTest)
+TEST(FstFileTest, DISABLED_WriteTest)
 {
   using namespace XrdCl;
   std::unique_ptr<File> mFile(new File());

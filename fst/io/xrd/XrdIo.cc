@@ -811,7 +811,6 @@ XrdIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
     return fileRead(offset, buffer, length, timeout);
   }
 
-  eos_debug("msg=\"prefetch read\" offset=%lli length=%i", offset, length);
   int64_t nread = 0;
   XrdSysMutexHelper lock(mPrefetchMutex);
   char* ptr_buff = buffer;
@@ -841,7 +840,6 @@ XrdIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
       ++mPrefetchBlocks;
     }
 
-    ++mPrefetchHits;
     SimpleHandler* sh = iter->second->handler;
     uint64_t shift = offset - iter->first;
     RecycleBlocks(iter);
@@ -884,6 +882,7 @@ XrdIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
     nread += read_length;
   }
 
+  ++mPrefetchHits;
   return nread;
 }
 
@@ -926,7 +925,7 @@ bool
 XrdIo::PrefetchBlock(int64_t offset, uint16_t timeout)
 {
   ReadaheadBlock* block {nullptr};
-  eos_debug("msg=\"try to prefetch\" offset=%lli length=%lu",
+  eos_debug("msg=\"try to prefetch\" offset=%lli length=%i",
             offset, mBlocksize);
 
   // Block is already prefetched

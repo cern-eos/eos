@@ -25,14 +25,16 @@
 #define IN_TEST_HARNESS
 #include "fst/io/xrd/XrdIo.hh"
 #undef IN_TEST_HARNESS
+#include "fst/checksum/Adler.hh"
 #include "TestEnv.hh"
+#include <string.h>
 
 TEST(XrdIo, BasicPrefetch)
 {
   //auto& logging = eos::common::Logging::GetInstance();
   //logging.SetLogPriority(LOG_DEBUG);
   using namespace eos::common;
-  std::set<int64_t> read_sizes {4 * KB, 1 * MB};
+  std::set<int64_t> read_sizes {11, 23, 4 * KB, 99999, 1 * MB};
   std::string address = "root://root@" + gEnv->GetMapping("server");
   std::string file_path = gEnv->GetMapping("replica_file");
   // Validate URL
@@ -45,6 +47,7 @@ TEST(XrdIo, BasicPrefetch)
   ASSERT_EQ(file->fileStat(&info), 0);
   uint64_t offset {0ull};
   std::unique_ptr<char> buffer {new char[1 * MB]};
+  std::unique_ptr<char> file_in_mem {new char[info.st_size]};
 
   for (const auto length : read_sizes) {
     while (offset < info.st_size) {
@@ -53,21 +56,30 @@ TEST(XrdIo, BasicPrefetch)
       }
 
       ASSERT_EQ(file->fileReadAsync(offset, buffer.get(), length, true), length);
+      memcpy(file_in_mem.get() + offset, buffer.get(), length);
       offset += length;
     }
 
-    if (offset != info.st_size) {
+    if (offset < info.st_size) {
       ASSERT_EQ(file->fileReadAsync(offset, buffer.get(), length, true),
                 info.st_size - offset);
+      memcpy(file_in_mem.get() + offset, buffer.get(), info.st_size - offset);
     }
 
+    eos::fst::Adler checksum;
+    checksum.Add(file_in_mem.get(), info.st_size, 0);
+    checksum.Finalize();
+    memset(file_in_mem.get(), 0, info.st_size);
     offset = 0ull;
     GLOG << "Read block size: " << length << std::endl;
     GLOG << "Prefetched blocks: " << file->mPrefetchBlocks << std::endl;
     GLOG << "Prefech hits: " << file->mPrefetchHits << std::endl;
+    GLOG << "Checksum: " << checksum.GetHexChecksum() << std::endl;
     ASSERT_EQ(file->mPrefetchBlocks,
               std::ceil((info.st_size - length) * 1.0 / file->mBlocksize));
-    ASSERT_EQ(file->mPrefetchHits, (int)(info.st_size - length) / length);
+    ASSERT_EQ(file->mPrefetchHits,
+              std::ceil((info.st_size - length) * 1.0 / length));
+    ASSERT_STREQ(checksum.GetHexChecksum(), "d9533297");
     // Reset prefetch counters
     file->mPrefetchHits = 0ull;
     file->mPrefetchBlocks = 0ull;

@@ -133,11 +133,11 @@ public:
   //! @return : block size that should be used to initialize
   //!           the mDefaultBlockSize
   //----------------------------------------------------------------------------
-  static uint64_t InitBlocksize()
+  static int32_t InitBlocksize()
   {
     char* ptr = getenv("EOS_FST_XRDIO_BLOCK_SIZE");
     //default is 1M if the envar is not set
-    return (ptr ? strtoul(ptr, 0, 10) : 1024 * 1024ull);
+    return (ptr ? strtol(ptr, 0, 10) : 1024 * 1024);
   }
 
   //----------------------------------------------------------------------------

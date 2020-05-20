@@ -55,7 +55,8 @@ TestEnv::TestEnv(const std::string& endpoint)
 
   mPathPrefix += "fst_unit_tests/";
   mHostName = url.GetHostName();
-  system("dd if=/dev/zero count=32 bs=1M status=none | tr \'\\000\' \'\\001\' > /tmp/file32MB.dat");
+  // Note the yes and tr errors are normal
+  system("yes '\\xDE\\xAD\\xBE\\xEF' | tr -d \\\\n | dd of=/tmp/file32MB.dat count=32 bs=1M iflag=fullblock");
   system(SSTR("eos mkdir -p " << mPathPrefix << "replica ").c_str());
   system(SSTR("eos attr set default=replica " << mPathPrefix <<
               "replica > /dev/null 2>&1").c_str());
