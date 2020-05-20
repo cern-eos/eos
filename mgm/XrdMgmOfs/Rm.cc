@@ -165,7 +165,9 @@ XrdMgmOfs::_rem(const char* path,
 
     // ACL and permission check
     Acl acl(aclpath.c_str(), error, vid, attrmap, false);
-    eos_info("acl=%s mutable=%d", attrmap["sys.acl"].c_str(), acl.IsMutable());
+    eos_info("acl=%d r=%d w=%d wo=%d egroup=%d delete=%d not-delete=%d mutable=%d",
+               acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
+               acl.HasEgroup(), acl.CanDelete(), acl.CanNotDelete(), acl.IsMutable());
 
     if (vid.uid && !acl.IsMutable()) {
       errno = EPERM;
@@ -179,23 +181,8 @@ XrdMgmOfs::_rem(const char* path,
                   aclpath.c_str());
     }
 
-    bool stdpermcheck = false;
-
-    if (acl.HasAcl()) {
-      eos_info("acl=%d r=%d w=%d wo=%d egroup=%d delete=%d not-delete=%d mutable=%d",
-               acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
-               acl.HasEgroup(), acl.CanDelete(), acl.CanNotDelete(), acl.IsMutable());
-
-      if ((!acl.CanWrite()) && (!acl.CanWriteOnce())) {
-        // we have to check the standard permissions
-        stdpermcheck = true;
-      }
-    } else {
-      stdpermcheck = true;
-    }
-
     if (container) {
-      if (stdpermcheck && (!container->access(vid.uid, vid.gid, W_OK | X_OK))) {
+      if (not AccessChecker::checkContainer(container.get(), acl, X_OK | W_OK, vid)) {
         errno = EPERM;
         std::ostringstream oss;
         oss << path << " by tident=" << vid.tident;
@@ -211,15 +198,15 @@ XrdMgmOfs::_rem(const char* path,
       }
 
       // if there is a !d policy we cannot delete files which we don't own
-      if (((vid.uid) && (vid.uid != 3) && (vid.gid != 4) && (acl.CanNotDelete())) &&
-          ((fmd->getCUid() != vid.uid))) {
+      if ( (vid.uid != 0 && vid.uid != 3 && vid.gid != 4 && acl.CanNotDelete()) &&
+              fmd->getCUid() != vid.uid) {
         errno = EPERM;
         // deletion is forbidden for not-owner
         return Emsg(epname, error, EPERM,
                     "remove existing file - ACL forbids file deletion");
       }
 
-      if ((!stdpermcheck) && (!acl.CanWrite())) {
+      if (!acl.CanWrite()) {            /* ????? isn't this caught by checkContainer above? */
         errno = EPERM;
         // this user is not allowed to write
         return Emsg(epname, error, EPERM,

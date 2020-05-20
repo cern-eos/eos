@@ -502,6 +502,10 @@ CommitHelper::handle_location(eos::common::VirtualIdentity& vid,
     }
 
     fmd->setSize(size);
+    if (!(fmd->getFlags() & S_IWUSR) && fmd->hasAttribute("sys.fusex.initial")) {
+        // initial writes on fusex file ?
+        fmd->removeAttribute("sys.fusex.initial");      // that's over now
+    }
   }
 
   if (ns_quota) {

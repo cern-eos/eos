@@ -695,10 +695,9 @@ Server::FillContainerCAP(uint64_t id,
     if (sysacl.length() || useracl.length()) {
       bool evaluseracl = (!S_ISDIR(dir.mode())) ||
                          dir.attr().count("sys.eval.useracl") > 0;
-      Acl acl(sysacl,
-              useracl,
-              vid,
-              evaluseracl);
+      Acl acl(sysacl, useracl,
+              vid, evaluseracl,
+              dir.uid(), dir.gid(), dir.mode());
 
       if (EOS_LOGS_DEBUG)
         eos_debug("cap id=%lld name %s evaluseracl %d CanRead %d CanWrite %d CanChmod %d CanChown %d CanUpdate %d CanNotDelete %d",
@@ -719,9 +718,9 @@ Server::FillContainerCAP(uint64_t id,
           mode &= ~(W_OK | SA_OK | D_OK | M_OK);
         }
 
-        if (acl.CanBrowse()) {
+        if (acl.CanStat()) {
           mode |= X_OK;
-        } else if (acl.CanNotBrowse()) {/* denials override mode bits */
+        } else if (acl.CanNotStat()) {/* denials override mode bits */
           mode &= ~X_OK;
         }
 
@@ -1001,11 +1000,29 @@ Server::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
     }
 
     // ACL and permission check
-    Acl acl(attrmap, vid);
+    eos::IFileMD::XAttrMap *fileAttrs = NULL;
+    eos::IFileMD::XAttrMap fileAttrMap;
+    Acl acl;
+
+    if ( (!S_ISDIR(md.mode())) /* not a dir */ and
+           (md.attr().count("sys.acl") or md.attr().count("user.acl")) )
+    {   /* file-level ACL exists */
+        static char *aclattrs[] = {(char *)"sys.acl", (char *)"user.acl", (char *)"sys.eval.useracl"};
+
+        for (unsigned int i = 0; i < sizeof(aclattrs)/sizeof(aclattrs[0]); i++)
+            if (md.attr().count(aclattrs[i]) > 0) {
+                fileAttrMap[aclattrs[i]] = (md.attr()).at(aclattrs[i]); /* '[]' does not work here, md ist "const" */
+            }
+          
+        fileAttrs = &fileAttrMap;
+    }
+
+    acl.SetFromAttrMap(attrmap, vid, md.attr().count("sys.eval.useracl") == 0,
+             fileAttrs, (uid_t)(md.uid()), (gid_t)(md.gid()), (mode_t)(md.mode()));
     eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d mutable=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
-             acl.CanBrowse(), acl.HasEgroup(), acl.IsMutable());
+             acl.CanStat(), acl.HasEgroup(), acl.IsMutable());
 
     // browse permission by ACL
     if (acl.HasAcl()) {
@@ -1029,7 +1046,7 @@ Server::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
         r_ok |= true;
       }
 
-      if (acl.CanBrowse()) {
+      if (acl.CanStat()) {
         x_ok |= true;
       }
 
@@ -1515,7 +1532,7 @@ Server::OpSetDirectory(const std::string& id,
                     attrmap.count("sys.eval.useracl"));
         }
 
-        acl.SetFromAttrMap(attrmap, vid, NULL, true /* sysacl-only */);
+        acl.SetFromAttrMap(attrmap, vid, /*sysaclOnly=*/true, NULL, 0, 0, 0);   /* Never mind mode bits */
 
         if (!acl.CanChown()) {
           return EPERM;
@@ -1745,6 +1762,7 @@ Server::OpSetFile(const std::string& id,
   md_ino = md.md_ino();
   uint64_t md_pino = md.md_pino();
   bool recycleOrVersioned = false;
+  uint16_t tFlags = 0;
 
   try {
     uint64_t clock = 0;
@@ -2043,7 +2061,7 @@ Server::OpSetFile(const std::string& id,
                     attrmap.count("sys.eval.useracl"));
         }
 
-        acl.SetFromAttrMap(attrmap, vid, NULL, true /* sysacl-only */);
+        acl.SetFromAttrMap(attrmap, vid, /*sysaclOnly=*/true, NULL, 0, 0, 0); /* Never mind mode bits */
 
         if (!acl.CanChown()) {
           return EPERM;
@@ -2173,6 +2191,15 @@ Server::OpSetFile(const std::string& id,
       snprintf(btime, sizeof(btime), "%lu.%lu", md.btime(), md.btime_ns());
       fmd->setAttribute("sys.eos.btime", btime);
       fmd->setAttribute("sys.vtrace", vid.getTrace());
+
+      // Yet-another-hack: fusex creates the file but does not
+      // "return-an-open-file-descriptor", instead the file is re-opened
+      // XrdMgmOfsFile. That's not possible if disallowed by the mode bits,
+      // but legal in Unix and used e.g. by git. This asks for
+      // a temporary "file is being born" flag which is later reset
+
+     if (!(md.mode() & S_IWUSR))
+         fmd->setAttribute("sys.fusex.initial","42");
     }
 
     if (!recycleOrVersioned) {
@@ -2201,7 +2228,7 @@ Server::OpSetFile(const std::string& id,
       }
     }
     // for the moment we store 9 bits here
-    fmd->setFlags(md.mode() & (S_IRWXU | S_IRWXG | S_IRWXO));
+    fmd->setFlags(tFlags | (md.mode() & (S_IRWXU | S_IRWXG | S_IRWXO)));
     eos::IFileMD::ctime_t ctime;
     eos::IFileMD::ctime_t mtime;
     ctime.tv_sec = md.ctime();
@@ -2818,8 +2845,6 @@ Server::OpDeleteFile(const std::string& id,
                    nlink, fmd->getName().c_str());
         }
       }
-
-      uint64_t cloneId;
 
       if (doDelete) {       /* delete, but clone first if needed */
         XrdOucErrInfo error;

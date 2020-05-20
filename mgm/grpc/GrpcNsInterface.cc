@@ -871,14 +871,9 @@ bool
 GrpcNsInterface::Access(eos::common::VirtualIdentity& vid, int mode,
                         std::shared_ptr<eos::IContainerMD> cmd)
 {
-  // UNIX permissions
-  if (cmd->access(vid.uid, vid.gid, mode)) {
-    return true;
-  }
 
   // ACLs - WARNING: this does not support ACLs to be linked attributes !
-  eos::IContainerMD::XAttrMap xattr = cmd->getAttributes();
-  eos::mgm::Acl acl(xattr, vid);
+  eos::mgm::Acl acl(cmd, nullptr, vid);
 
   // check for immutable
   if (vid.uid && !acl.IsMutable() && (mode & W_OK)) {
@@ -901,7 +896,7 @@ GrpcNsInterface::Access(eos::common::VirtualIdentity& vid, int mode,
     }
 
     if (mode & X_OK) {
-      if ((!acl.CanBrowse())) {
+      if ((!acl.CanStat())) {
         permok = false;
       }
     }

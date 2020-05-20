@@ -112,7 +112,7 @@ XrdMgmOfs::_exists(const char* path,
     try {
       cmd = gOFS->eosView->getContainer(path, false);
     } catch (eos::MDException& e) {
-      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+      eos_debug("trying as container: msg=\"exception\" ec=%d emsg=\"%s\"\n",
                 e.getErrno(), e.getMessage().str().c_str());
     };
 

@@ -118,11 +118,12 @@ XrdMgmOfs::_access(const char* path,
   try {
     dh = gOFS->eosView->getContainer(cPath.GetPath());
   } catch (eos::MDException& e) {
-    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
+    eos_debug("trying as container: msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
               e.getMessage().str().c_str());
   }
 
   errno = 0;
+  int cmode;
 
   try {
     eos::IContainerMD::XAttrMap attrmap;
@@ -133,7 +134,12 @@ XrdMgmOfs::_access(const char* path,
       // if this is a file or a not existing directory we check the access on the parent directory
       if (fh) {
         uri = gOFS->eosView->getUri(fh.get());
+        cmode = X_OK;
+        /* P_OK checked on dir only and requires W_OK on dir instead of file */
+        if (mode & P_OK) cmode |= mode & (P_OK | W_OK);
       } else {
+        cmode = mode;
+        mode &= ~(P_OK);                    /* don't require this for files, it's dir-only */
         uri = cPath.GetPath();
       }
 
@@ -146,9 +152,9 @@ XrdMgmOfs::_access(const char* path,
     Acl acl(attr_path.c_str(), error, vid, attrmap, false);
     eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d mutable=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
-             acl.CanBrowse(), acl.HasEgroup(), acl.IsMutable());
+             acl.CanStat(), acl.HasEgroup(), acl.IsMutable());
 
-    if (!AccessChecker::checkContainer(dh.get(), acl, mode, vid)) {
+    if (!AccessChecker::checkContainer(dh.get(), acl, cmode, vid)) {
       errno = EPERM;
       return Emsg(epname, error, EPERM, "access", path);
     }
@@ -166,6 +172,7 @@ XrdMgmOfs::_access(const char* path,
               e.getErrno(), e.getMessage().str().c_str());
   }
 
+
   // Check permissions
   if (!dh) {
     eos_debug("msg=\"access\" errno=ENOENT");
@@ -179,8 +186,8 @@ XrdMgmOfs::_access(const char* path,
   }
 
   if (dh) {
-    eos_debug("msg=\"access\" uid=%d gid=%d retc=%d mode=%o",
-              vid.uid, vid.gid, permok, dh->getMode());
+    eos_debug("msg=\"access\" uid=%d gid=%d retc=%d mode=#%o dirmode=%#0",
+              vid.uid, vid.gid, permok, mode, dh->getMode());
   }
 
   if (dh && (mode & F_OK)) {
@@ -280,7 +287,7 @@ XrdMgmOfs::acc_access(const char* path,
     Acl acl(attr_path.c_str(), error, vid, attrmap, false);
     eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d mutable=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
-             acl.CanBrowse(), acl.HasEgroup(), acl.IsMutable());
+             acl.CanStat(), acl.HasEgroup(), acl.IsMutable());
 
     // browse permission by ACL
     if (acl.HasAcl()) {
@@ -304,7 +311,7 @@ XrdMgmOfs::acc_access(const char* path,
         r_ok |= true;
       }
 
-      if (acl.CanBrowse()) {
+      if (acl.CanStat()) {
         x_ok |= true;
       }
 

@@ -39,6 +39,7 @@
 #include "mgm/Policy.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Acl.hh"
+#include "mgm/auth/AccessChecker.hh"
 #include "mgm/Workflow.hh"
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
@@ -650,7 +651,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   int ecode = 0;
   unsigned long fmdlid = 0;
   unsigned long long cid = 0;
-  eos_debug("mode=%x create=%x truncate=%x", open_mode, SFS_O_CREAT, SFS_O_TRUNC);
+  eos_debug("mode=%#x, byfid=%#llx", open_mode, byfid);
 
   // proc filter
   if (ProcInterface::IsProcAccess(path)) {
@@ -774,7 +775,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   // Get the directory meta data if it exists
   std::shared_ptr<eos::IContainerMD> dmd = nullptr;
   eos::IContainerMD::XAttrMap attrmap;
-  Acl acl;
+  Acl acl, aclC;
   Workflow workflow;
   bool stdpermcheck = false;
   int versioning = 0;
@@ -972,22 +973,49 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       return Emsg(epname, error, errno, "open file - open by fxid denied", path);
     }
 
-    eos::IFileMD::XAttrMap attrmapF;
 
-    if (fmd) {
-      eos::listAttributes(gOFS->eosView, fmd.get(), attrmapF, false);
-    } else {
-      gOFS->_attr_ls(cPath.GetPath(), error, vid, 0, attrmapF, false);
+    aclC.SetFromAttrMap(attrmap, vid, /* sysaclOnly = */ false, NULL,
+        dmd->getCUid(), dmd->getCGid(), dmd->getMode());
+
+    if ((Acl::file_modebits_posix == 1) && (!AccessChecker::checkContainer(dmd.get(), aclC, X_OK, vid))) {
+      eos_debug("access denied, cannot stat");
+      errno = EPERM;
+      return Emsg(epname, error, errno, "open file - stat denied", path);
     }
 
-    acl.SetFromAttrMap(attrmap, vid, &attrmapF);
-    eos_info("acl=%d r=%d w=%d wo=%d egroup=%d shared=%d mutable=%d",
+    eos::IFileMD::XAttrMap attrmapF;
+
+    // HACKs:
+    // oc uploads have flags=0 at start of chunk uploads, S3 files no flags.
+    // fusex file creation messes up the initial writes if the owner is not 
+    // granted write access, seen with .git mode 0444 pack files
+    if (fmd and ocUploadUuid.length() == 0 and
+            (fmd->getFlags() & (S_IRWXU | S_IRWXG | S_IRWXO)) != 0) {
+      mode_t tMode;
+
+      if (Acl::file_modebits_posix == 1) { 
+          tMode = fmd->getFlags();
+          // first write(s) after creation possible without 'w' bit
+          if (!(tMode & S_IWUSR) && fmd->hasAttribute("sys.fusex.initial"))
+            tMode |= S_IRWXU;       // temp. override user access mode
+      } else {
+          tMode = dmd->getMode();
+      }
+         
+      eos::listAttributes(gOFS->eosView, fmd.get(), attrmapF, false);
+      acl.SetFromAttrMap(attrmap, vid, /* sysaclOnly = */ false, &attrmapF,
+          fmd->getCUid(), fmd->getCGid(), tMode);
+    } else {
+      acl = aclC;
+    }
+
+    eos_info("acl=%d r=%d w=%d wo=%d egroup=%d shared=%d mutable=%d posix=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
-             acl.HasEgroup(), isSharedFile, acl.IsMutable());
+             acl.HasEgroup(), isSharedFile, acl.IsMutable(), Acl::file_modebits_posix);
 
     if (acl.HasAcl()) {
       if ((vid.uid != 0) && (!vid.sudoer) &&
-          (isRW ? (acl.CanNotWrite() && acl.CanNotUpdate()) : acl.CanNotRead())) {
+          (isRW ? acl.CanNotWrite() : acl.CanNotRead())) {
         eos_debug("uid %d sudoer %d isRW %d CanNotRead %d CanNotWrite %d CanNotUpdate %d",
                   vid.uid, vid.sudoer, isRW, acl.CanNotRead(), acl.CanNotWrite(),
                   acl.CanNotUpdate());
@@ -1044,19 +1072,29 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
     int taccess = -1;
 
-    if ((!isSharedFile || isRW) && stdpermcheck
-        && (!(taccess = dmd->access(vid.uid, vid.gid,
-                                    (isRW) ? W_OK | X_OK : R_OK | X_OK)))) {
-      eos_debug("fCUid %d dCUid %d uid %d isSharedFile %d isRW %d stdpermcheck %d access %d",
-                fmd ? fmd->getCUid() : 0, dmd->getCUid(), vid.uid, isSharedFile, isRW,
+    /* need X_OK for the container, and W_OK for the file if it exists,
+     * for the container otherwise */
+    
+    if ((!isSharedFile || isRW) && stdpermcheck) {
+      if (fmd) {
+          taccess = AccessChecker::checkContainer(dmd.get(), aclC, X_OK, vid) and
+                    AccessChecker::checkFile(fmd.get(), W_OK, vid) and
+                    acl.CanUpdate();
+      } else {
+          taccess = AccessChecker::checkContainer(dmd.get(), aclC, X_OK|W_OK, vid);
+      }
+      if (!taccess) {
+          eos_debug("fCUid %d dCUid %d uid %d isSharedFile %d isRW %d stdpermcheck %d access %d",
+                fmd ? fmd->getCUid() : -1, dmd->getCUid(), vid.uid, isSharedFile, isRW,
                 stdpermcheck, taccess);
 
-      if (!((vid.uid == DAEMONUID) && (isPioReconstruct))) {
-        // we don't apply this permission check for reconstruction jobs issued via the daemon account
-        errno = EPERM;
-        gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1);
-        return Emsg(epname, error, errno, "open file", path);
-      }
+          if (!((vid.uid == DAEMONUID) && (isPioReconstruct))) {
+            // we don't apply this permission check for reconstruction jobs issued via the daemon account
+            errno = EPERM;
+            gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1);
+            return Emsg(epname, error, errno, "open file", path);
+          }
+      } 
     }
 
     if (sticky_owner) {
@@ -1137,7 +1175,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           return Emsg(epname, error, EEXIST,
                       "overwrite existing file - you are write-once user");
         } else {
-          if ((!stdpermcheck) && (!acl.CanWrite())) {
+          if (!acl.CanWrite()) {
             return Emsg(epname, error, EPERM,
                         "overwrite existing file - you have no write permission");
           }
@@ -1183,7 +1221,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             return Emsg(epname, error, EEXIST,
                         "overwrite existing file - you are write-once user");
           } else {
-            if ((!stdpermcheck) && (!acl.CanWrite()) && (!acl.CanUpdate())) {
+            if ((!acl.CanWrite()) && (!acl.CanUpdate())) {
               return Emsg(epname, error, EPERM,
                           "overwrite existing file - you have no write permission");
             }

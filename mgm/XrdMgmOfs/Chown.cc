@@ -70,20 +70,13 @@ XrdMgmOfs::_chown(const char* path,
 
   // try as a directory
   try {
-    eos::IContainerMD::XAttrMap attrmap;
-    eos::common::Path cPath(path);
     cmd = gOFS->eosView->getContainer(path, !nodereference);
-    eos::listAttributes(gOFS->eosView, cmd.get(), attrmap, false);
 
     // ACL and permission check
-    Acl acl;
-    if (uid != vid.uid) {
-      // if the user is not the owner, user acls are removed
-      attrmap["user.acl"] = "";
-    }
-    acl.SetFromAttrMap(attrmap, vid);  /* also takes care of eval.useracl */
+    bool allowUserAcl = uid == vid.uid;
+    Acl acl(cmd, nullptr, vid, allowUserAcl);
 
-    eos_static_debug("sys.acl %s acl.CanChown() %d", attrmap["sys.acl"].c_str(), acl.CanChown());
+    eos_static_debug("acl.CanChown() %d", acl.CanChown());
 
     if (((vid.uid) && (!vid.hasUid(3) && !vid.hasGid(4) ) &&
          !acl.CanChown()) ||
@@ -126,27 +119,20 @@ XrdMgmOfs::_chown(const char* path,
       }
 
       eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(cmd.get());
+      eos_info("dereference %d", nodereference);
+      fmd = gOFS->eosView->getFile(path, !nodereference);
 
       // ACL and permission check
-      eos::IContainerMD::XAttrMap attrmap;
-      gOFS->_attr_ls(cPath.GetParentPath(), error, vid, 0, attrmap, false);
-      Acl acl;
+      bool allowUserAcl = uid == vid.uid;
+      Acl acl(cmd, fmd, vid, allowUserAcl);
 
-      if (uid != vid.uid) {
-	// if the user is not the owner, user acls are removed
-	attrmap["user.acl"] = "";
-      }
 
-      acl.SetFromAttrMap(attrmap, vid);   /* also takes care of eval.useracl */
-
-      eos_static_debug("sys.acl %s acl.CanChown() %d", attrmap["sys.acl"].c_str(), acl.CanChown());
+      if (EOS_LOGS_DEBUG)
+          eos_static_debug("acl.CanChown() %d uid %d gid %d sudoer %d", acl.CanChown(), vid.uid, vid.gid, vid.sudoer);
 
       if ((vid.uid) && (!vid.sudoer) && (vid.uid != 3) && (vid.gid != 4) && !acl.CanChown()) {
         errno = EPERM;
       } else {
-        eos_info("dereference %d", nodereference);
-        fmd = gOFS->eosView->getFile(path, !nodereference);
-        eos_info("dereference %d", nodereference);
 
         // Subtract the file
         if (ns_quota) {

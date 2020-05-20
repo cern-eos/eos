@@ -19,7 +19,7 @@ There are two major differences to traditional storage systems:
 
 UNIX Permissions
 
-EOS allows to set user, group and other permissions for read write and browsing defined 
+EOS allows to set user, group and other permissions for read write and stat defined 
 by ``'r'(4), 'w'(2), 'x'(1)``, e.g. ``777 ='rwx'``.
 
 Unlike in POSIX the S_ISGID (2---) indicates that any new directory created should automatically inherit all the 
@@ -77,7 +77,7 @@ The following tags compose a rule:
    === =========================================================================
    r   grant read permission
    w   grant write permissions
-   x   grant browsing permission
+   x   grant walk/stat permission for directory entry
    m   grant change mode permission
    !m  forbid change mode operations
    !d  forbid deletion of files and directories
@@ -106,12 +106,12 @@ A complex example is shown here:
    #
    # group z2 can read + write-once (create new files but can't delete)
    #
-   # members of egroup 'eos-dev' can read & write & browse
+   # members of egroup 'eos-dev' can read & write & stat files/walk the directory
    #
    # user name dummy can read + write into directory and modify the permissions 
    # (chmod), but cannot delete directories inside which are not owned by him.
    #
-   # user name adm can read,write,browse, change-mod, set quota on that 
+   # user name adm can read,write,stat, change-mod, set quota on that 
    # directory and change the ownership of directory children
 
 .. note::
@@ -202,7 +202,7 @@ grants 'x' rights.
 .. note::
    
    The root, admin user and admin group role can always 
-   browse directories.
+   stat files/walk directories.
 
 Directory Deletion
 ++++++++++++++++++

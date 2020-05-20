@@ -46,16 +46,23 @@ class Acl
 public:         // [+] prevents '+' interpreted as "one or more"
   static constexpr auto sRegexUsrGenericAcl =
     "^(((((u|g|k):(([0-9]+)|([\\.[:alnum:]_-]+)))|(egroup:([\\.[:alnum:]-]+))|(z)):"
-    "(!?(a|r|w|wo|x|i|m|[+]?d|[+]?u|q|c))+)[,]?)*$";
+    "(!?(a|r|w|wo|x|i|m|[+]?d|[+]?u|q|c))*)[,]?)*$";
   static constexpr auto sRegexSysGenericAcl =
     "^(((((u|g|k):(([0-9]+)|([\\.[:alnum:]_-]+)))|(egroup:([\\.[:alnum:]-]+))|(z)):"
     "(!?(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c|p))+)[,]?)*$";
   static constexpr auto sRegexUsrNumericAcl =
     "^(((((u|g):(([0-9]+)))|(egroup:([\\.[:alnum:]-]+))|(z)):"
-    "(!?(a|r|w|wo|x|i|m|[+]?d|[+]?u|q|c))+)[,]?)*$";
+    "(!?(a|r|w|wo|x|i|m|[+]?d|[+]?u|q|c))*)[,]?)*$";
   static constexpr auto sRegexSysNumericAcl =
     "^(((((u|g):(([0-9]+)))|(egroup:([\\.[:alnum:]-]+))|(z)):"
     "(!?(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c|p))+)[,]?)*$";
+
+  /* initially -1, will be set from config on first use:
+     1 = file modebits work like in Posix
+     0 = file modebits ignored like in AFS
+  */
+  static int file_modebits_posix;
+
 
   //----------------------------------------------------------------------------
   //! Use regex to check ACL format / syntax
@@ -87,11 +94,10 @@ public:         // [+] prevents '+' interpreted as "one or more"
   //! Default Constructor
   //----------------------------------------------------------------------------
   Acl():
+    mbits(0), file_uid(0), file_gid(0),
     mCanRead(false), mCanNotRead(false), mCanWrite(false), mCanNotWrite(false),
-    mCanWriteOnce(false),
-    mCanUpdate(false), mCanNotUpdate(false), mCanBrowse(false),
-    mCanNotBrowse(false),
-    mCanChmod(false), mCanChown(false), mCanNotDelete(false),
+    mCanWriteOnce(false), mCanUpdate(false), mCanNotUpdate(false), mCanStat(false),
+    mCanNotStat(false), mCanChmod(false), mCanChown(false), mCanNotDelete(false),
     mCanNotChmod(false), mCanDelete(false), mCanSetQuota(false), mHasAcl(false),
     mHasEgroup(false), mIsMutable(false), mCanArchive(false), mCanPrepare(false)
   {}
@@ -109,13 +115,20 @@ public:         // [+] prevents '+' interpreted as "one or more"
   //! @param allowUserAcl if true evaluate also the user acl for the permissions
   //----------------------------------------------------------------------------
   Acl(std::string sysacl, std::string useracl,
-      const eos::common::VirtualIdentity& vid, bool allowUserAcl = false);
+      const eos::common::VirtualIdentity& vid, bool allowUserAcl = false,
+      uid_t uid=0, gid_t gid=0, mode_t mbits=0);
 
   /*---------------------------------------------------------------------------*/
-  //! Constructor from XAttrMap
+  //! Constructors from XAttrMap
   /*---------------------------------------------------------------------------*/
   Acl(const eos::IContainerMD::XAttrMap& xattrmap,
-      const eos::common::VirtualIdentity& vid);
+      const eos::common::VirtualIdentity& vid,
+      uid_t uid, gid_t gid, mode_t mbits);
+
+  Acl(std::shared_ptr<eos::IContainerMD> cmd,
+      std::shared_ptr<eos::IFileMD> fmd,
+      const eos::common::VirtualIdentity& vid,
+      bool allowUserAcl = true);
 
   //----------------------------------------------------------------------------
   //! Constructor by path
@@ -141,7 +154,9 @@ public:         // [+] prevents '+' interpreted as "one or more"
   //----------------------------------------------------------------------------
   void SetFromAttrMap(const eos::IContainerMD::XAttrMap& attrmap,
                       const eos::common::VirtualIdentity& vid,
-                      eos::IFileMD::XAttrMap* attrmapF = NULL, bool sysaclOnly = false);
+                      bool sysaclOnly,
+                      eos::IFileMD::XAttrMap *attrmapF,
+                      uid_t file_uid, gid_t file_gid, mode_t fmode);
 
   //----------------------------------------------------------------------------
   //! Enter system and user definition + identity used for ACL interpretation
@@ -157,7 +172,7 @@ public:         // [+] prevents '+' interpreted as "one or more"
   //----------------------------------------------------------------------------
   void Set(std::string sysacl, std::string useracl, std::string tokenacl,
            const eos::common::VirtualIdentity& vid,
-           bool allowUserAcl = false);
+           bool allowUserAcl, uid_t file_uid, gid_t file_gid, mode_t fmodebits);
 
   //----------------------------------------------------------------------------
   // Getter Functions for ACL booleans
@@ -197,14 +212,14 @@ public:         // [+] prevents '+' interpreted as "one or more"
     return mCanNotUpdate;
   }
 
-  inline bool CanBrowse() const
+  inline bool CanStat() const
   {
-    return mCanBrowse;
+    return mCanStat;
   }
 
-  inline bool CanNotBrowse() const
+  inline bool CanNotStat() const
   {
-    return mCanNotBrowse;
+    return mCanNotStat;
   }
 
   inline bool CanChmod() const
@@ -279,6 +294,9 @@ public:         // [+] prevents '+' interpreted as "one or more"
 
 
 private:
+  mode_t mbits; ///< specify permissions for entity (u,g,o) for which no Acl applies
+  uid_t file_uid;
+  gid_t file_gid;
   bool mCanRead; ///< acl allows read access
   bool mCanNotRead; ///< acl denies read access
   bool mCanWrite; ///< acl allows write access
@@ -286,8 +304,8 @@ private:
   bool mCanWriteOnce; ///< acl allows write-once access (creation, no delete)
   bool mCanUpdate; ///< acl allows update of files
   bool mCanNotUpdate; ///< acl denies update of files
-  bool mCanBrowse; ///< acl allows browsing
-  bool mCanNotBrowse; ///< acl allows browsing
+  bool mCanStat; ///< acl allows stat() on files and directories
+  bool mCanNotStat; ///< acl forbids stat() on files and directories
   bool mCanChmod; ///< acl allows mode change
   bool mCanChown; ///< acl allows chown change
   bool mCanNotDelete; ///< acl forbids deletion

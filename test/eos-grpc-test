@@ -79,10 +79,10 @@ eos-grpc-ns --token $authkey -p $prefix/t_grpc/chmod rmdir || exit -9
 #versioning
 eos chmod 777 $prefix/t_grpc/ || exit -10
 eos attr set sys.versioning=3 $prefix/t_grpc/
-eos cp /etc/passwd $prefix/t_grpc/file || exit -10
+eos -r 11 11 cp /etc/passwd $prefix/t_grpc/file || exit -10
 usleep 1200000
-eos cp /etc/passwd $prefix/t_grpc/file || exit -10
-eos cp /etc/passwd $prefix/t_grpc/file || exit -10
+eos -r 11 11 cp /etc/passwd $prefix/t_grpc/file || exit -10
+eos -r 11 11 cp /etc/passwd $prefix/t_grpc/file || exit -10
 eos-grpc-ns --token $authkey -p $prefix/t_grpc/file create-version || exit -10
 eos-grpc-ns --token $authkey -p $prefix/t_grpc/file create-version || exit -10
 eos find $prefix/t_grpc/|| exit -10

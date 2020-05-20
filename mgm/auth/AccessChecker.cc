@@ -41,7 +41,7 @@ bool AccessChecker::checkContainer(IContainerMD *cont,
   //----------------------------------------------------------------------------
   // Construct Acl object
   //----------------------------------------------------------------------------
-  Acl acl(linkedAttrs, vid);
+  Acl acl(linkedAttrs, vid, cont->getCUid(), cont->getCGid(), cont->getMode());
 
   //----------------------------------------------------------------------------
   // Delegate to method taking receiving acl object instead of linked xattrs
@@ -88,13 +88,13 @@ bool AccessChecker::checkContainer(IContainerMD *cont, const Acl &acl,
   //----------------------------------------------------------------------------
   // Basic permission check
   //----------------------------------------------------------------------------
-  bool basicCheck = cont->access(vid.uid, vid.gid, mode);
+  // bool basicCheck = cont->access(vid.uid, vid.gid, mode);
 
   //----------------------------------------------------------------------------
   // Access granted, or we have no Acls? We're done.
   //----------------------------------------------------------------------------
-  if(basicCheck || !acl.HasAcl()) {
-  	return basicCheck;
+  if(!acl.HasAcl()) {
+  	return cont->access(vid.uid, vid.gid, mode);
   }
 
   //----------------------------------------------------------------------------
@@ -127,16 +127,8 @@ bool AccessChecker::checkContainer(IContainerMD *cont, const Acl &acl,
   	return false;
   }
 
-  // if ((mode & X_OK) && (!acl.CanBrowse() && !cont->access(vid.uid, vid.gid, X_OK) ))
-  if ( (mode & X_OK) &&
-       ( acl.CanNotBrowse() ||
-         ( !acl.CanBrowse() && !cont->access(vid.uid, vid.gid, X_OK) )
-        )
-     ) {
-    //--------------------------------------------------------------------------
-    // Asking for browse permission, and neither basic check, nor Acls grant us
-    // browse. Deny.
-    //--------------------------------------------------------------------------
+  // if ((mode & X_OK) && (!acl.CanStat() && !cont->access(vid.uid, vid.gid, X_OK) ))
+  if ( (mode & X_OK) && ((not acl.CanStat()) or acl.CanNotStat()) ) {
   	return false;
   }
 
