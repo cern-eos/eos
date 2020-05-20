@@ -67,8 +67,7 @@ set(EOSXD_COMMON_LINK_LIBRARIES
   XROOTD::CL
   XROOTD::UTILS
   BZ2::BZ2
-  LIBBFD::LIBBFD
-  ROCKSDB::ROCKSDB)
+  LIBBFD::LIBBFD)
 
 #-------------------------------------------------------------------------------
 # eosxd common objects, shared between tests and main code.
