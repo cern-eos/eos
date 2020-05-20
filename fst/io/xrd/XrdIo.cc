@@ -797,9 +797,7 @@ int64_t
 XrdIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
                      XrdSfsXferSize length, bool readahead, uint16_t timeout)
 {
-  eos_debug("offset=%llu length=%llu",
-            static_cast<uint64_t>(offset),
-            static_cast<uint64_t>(length));
+  eos_debug("offset=%lli length=%i", offset, length);
 
   if (!mXrdFile) {
     errno = EIO;
@@ -811,7 +809,8 @@ XrdIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
     return fileRead(offset, buffer, length, timeout);
   }
 
-  int64_t nread = 0;
+  int64_t fread = 0; // direct reads
+  int64_t nread = 0; // total read for current request
   XrdSysMutexHelper lock(mPrefetchMutex);
   char* ptr_buff = buffer;
 
@@ -821,9 +820,9 @@ XrdIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
     if (iter == mMapBlocks.end()) {
       RecycleBlocks(iter);
       // Read directly the current block and prefetch the next one
-      nread = fileRead(offset, buffer, length);
+      fread = fileRead(offset, ptr_buff, length);
 
-      if ((nread == length) && mDoReadahead) {
+      if ((fread == length) && mDoReadahead) {
         if (!PrefetchBlock(offset + length, timeout)) {
           eos_err("msg=\"failed to send prefetch request\" offset=%lli",
                   offset + length);
@@ -831,6 +830,7 @@ XrdIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
         }
       }
 
+      nread += fread;
       return nread;
     }
 
@@ -848,9 +848,10 @@ XrdIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
     if (!sh->WaitOK()) {
       // Error while prefetching, remove block from map
       eos_err("%s", "msg=\"prefetching failed, disable it and clean blocks\"");
-      RecycleBlocks(mMapBlocks.end());
-      nread = fileRead(offset, buffer, length);
       mDoReadahead = false;
+      RecycleBlocks(mMapBlocks.end());
+      fread = fileRead(offset, ptr_buff, length);
+      nread += fread;
       return nread;
     }
 

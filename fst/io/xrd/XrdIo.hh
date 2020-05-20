@@ -87,11 +87,17 @@ struct ReadaheadBlock {
   //! Constuctor
   //!
   //! @param blocksize the size of the readahead
+  //! @param handler pre-allocated handler
   //----------------------------------------------------------------------------
-  ReadaheadBlock(uint64_t blocksize)
+  ReadaheadBlock(uint64_t blocksize, SimpleHandler* hd = nullptr)
   {
     buffer = new char[blocksize];
-    handler = new SimpleHandler();
+
+    if (hd) {
+      handler = hd;
+    } else {
+      handler = new SimpleHandler();
+    }
   }
 
   //----------------------------------------------------------------------------

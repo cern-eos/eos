@@ -55,8 +55,18 @@ TestEnv::TestEnv(const std::string& endpoint)
 
   mPathPrefix += "fst_unit_tests/";
   mHostName = url.GetHostName();
-  // Note the yes and tr errors are normal
+  // Note the yes and tr errors are "acceptable"
+  system("rm -rf /tmp/file32MB.dat; rm -rf /tmp/file_prefetch.dat");
   system("yes '\\xDE\\xAD\\xBE\\xEF' | tr -d \\\\n | dd of=/tmp/file32MB.dat count=32 bs=1M iflag=fullblock");
+
+  for (int i = 0; i < 4; i++) {
+    system("yes '\\xDE\\xAD\\xBE\\xEF' | tr -d \\\\n | dd of=/tmp/file_prefetch.dat count=3 bs=1M iflag=fullblock oflag=append conv=notrunc");
+    system("yes '\\xAD\\xAA\\xDA\\xAD' | tr -d \\\\n | dd of=/tmp/file_prefetch.dat count=3 bs=1M iflag=fullblock oflag=append conv=notrunc");
+    system("yes '\\xAB\\xCD\\xAB\\xCD' | tr -d \\\\n | dd of=/tmp/file_prefetch.dat count=3 bs=1M iflag=fullblock oflag=append conv=notrunc");
+  }
+
+  // Add one last bit to the file so that it has a "random" size
+  system("yes '\\xFE\\xDC\\xCB\\xBA' | tr -d \\\\n | dd of=/tmp/file_prefetch.dat count=1 bs=213 iflag=fullblock oflag=append conv=notrunc");
   system(SSTR("eos mkdir -p " << mPathPrefix << "replica ").c_str());
   system(SSTR("eos attr set default=replica " << mPathPrefix <<
               "replica > /dev/null 2>&1").c_str());
@@ -78,11 +88,15 @@ TestEnv::TestEnv(const std::string& endpoint)
               mPathPrefix << "raiddp/ > /dev/null 2>&1").c_str());
   system(SSTR("xrdcp -f /tmp/file32MB.dat root://" << mHostName << "/" <<
               mPathPrefix << "raid6/ > /dev/null 2>&1").c_str());
+  system(SSTR("xrdcp -f /tmp/file_prefetch.dat root://" << mHostName << "/" <<
+              mPathPrefix << "replica/ > /dev/null 2>&1").c_str());
   mMapParam.insert(std::make_pair("server", mHostName));
   mMapParam.insert(std::make_pair("dummy_file",
                                   mPathPrefix + "replica/dummy.dat"));
   mMapParam.insert(std::make_pair("replica_file",
                                   mPathPrefix + "replica/file32MB.dat"));
+  mMapParam.insert(std::make_pair("prefetch_file",
+                                  mPathPrefix + "replica/file_prefetch.dat"));
   mMapParam.insert(std::make_pair("raiddp_file",
                                   mPathPrefix + "raiddp/file32MB.dat"));
   mMapParam.insert(std::make_pair("reeds_file",

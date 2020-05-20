@@ -128,7 +128,7 @@ public:
   virtual void HandleResponse(XrdCl::XRootDStatus* pStatus,
                               XrdCl::AnyObject* pResponse);
 
-private:
+protected:
   uint64_t mOffset; ///< offset of the request
   int32_t mLength; ///< length of the request
   uint32_t mRespLength; ///< length of response received, only for reads
