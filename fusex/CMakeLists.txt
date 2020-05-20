@@ -68,7 +68,6 @@ set(EOSXD_COMMON_LINK_LIBRARIES
   XROOTD::UTILS
   BZ2::BZ2
   LIBBFD::LIBBFD
-  RICHACL::RICHACL
   ROCKSDB::ROCKSDB)
 
 #-------------------------------------------------------------------------------
@@ -109,6 +108,7 @@ target_link_libraries(eosxd-objects PUBLIC
   JSONCPP::JSONCPP
   XROOTD::PRIVATE
   XROOTD::UTILS
+  RICHACL::RICHACL
   ZMQ::ZMQ)
 
 if (FUSE3_FOUND)
