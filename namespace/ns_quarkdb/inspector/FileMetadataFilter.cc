@@ -109,6 +109,39 @@ std::string EqualityFileMetadataFilter::describe() const {
 }
 
 //------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+AndMetadataFilter::AndMetadataFilter(std::unique_ptr<FileMetadataFilter> filt1,
+    std::unique_ptr<FileMetadataFilter> filt2) {
+
+  mFilter1 = std::move(filt1);
+  mFilter2 = std::move(filt2);
+}
+
+//------------------------------------------------------------------------------
+//! Is the object valid?
+//------------------------------------------------------------------------------
+common::Status AndMetadataFilter::isValid() const {
+  if(!mFilter1->isValid()) return mFilter1->isValid();
+  return mFilter2->isValid();
+}
+
+//------------------------------------------------------------------------------
+// Does the given FileMdProto pass through the filter?
+//------------------------------------------------------------------------------
+bool AndMetadataFilter::check(const eos::ns::FileMdProto &proto) {
+  if(!mFilter1->check(proto)) return false;
+  return mFilter2->check(proto);
+}
+
+//------------------------------------------------------------------------------
+// Describe object
+//------------------------------------------------------------------------------
+std::string AndMetadataFilter::describe() const {
+  return SSTR(mFilter1->describe() << " && " << mFilter2->describe());
+}
+
+//------------------------------------------------------------------------------
 // Lex the given string
 //------------------------------------------------------------------------------
 common::Status FilterExpressionLexer::lex(const std::string &str, std::vector<ExpressionLexicalToken> &tokens) {
@@ -227,7 +260,7 @@ FilterExpressionParser::FilterExpressionParser(const std::string &str, bool show
     return;
   }
 
-  consumeMetadataFilter(mFilter);
+  consumeBooleanExpression(mFilter);
 }
 
 //------------------------------------------------------------------------------
@@ -291,9 +324,24 @@ bool FilterExpressionParser::consumeStringExpression(StringEvaluator &eval) {
 }
 
 //------------------------------------------------------------------------------
+// Has next lexical token?
+//------------------------------------------------------------------------------
+bool FilterExpressionParser::hasNextToken() const {
+  return mCurrent >= mTokens.size();
+}
+
+//------------------------------------------------------------------------------
+// Consume block
+//------------------------------------------------------------------------------
+// bool FilterExpressionParser::consumeBlock(std::unique_ptr<FileMetadataFilter> &filter) {
+//   while(hasNextToken()) {
+//   }
+// }
+
+//------------------------------------------------------------------------------
 // Consume metadata filter
 //------------------------------------------------------------------------------
-bool FilterExpressionParser::consumeMetadataFilter(std::unique_ptr<FileMetadataFilter> &filter) {
+bool FilterExpressionParser::consumeBooleanExpression(std::unique_ptr<FileMetadataFilter> &filter) {
   StringEvaluator eval1;
   StringEvaluator eval2;
 

@@ -121,6 +121,42 @@ private:
 };
 
 //------------------------------------------------------------------------------
+//! And filter
+//------------------------------------------------------------------------------
+class AndMetadataFilter : public FileMetadataFilter {
+public:
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  AndMetadataFilter(std::unique_ptr<FileMetadataFilter> filt1,
+    std::unique_ptr<FileMetadataFilter> filt2);
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~AndMetadataFilter() {}
+
+  //----------------------------------------------------------------------------
+  //! Is the object valid?
+  //----------------------------------------------------------------------------
+  virtual common::Status isValid() const override;
+
+  //----------------------------------------------------------------------------
+  //! Does the given FileMdProto pass through the filter?
+  //----------------------------------------------------------------------------
+  virtual bool check(const eos::ns::FileMdProto &proto) override;
+
+  //----------------------------------------------------------------------------
+  //! Describe object
+  //----------------------------------------------------------------------------
+  virtual std::string describe() const override;
+
+private:
+  std::unique_ptr<FileMetadataFilter> mFilter1;
+  std::unique_ptr<FileMetadataFilter> mFilter2;
+};
+
+//------------------------------------------------------------------------------
 //! Token type
 //------------------------------------------------------------------------------
 enum class TokenType {
@@ -178,9 +214,19 @@ private:
   bool accept(TokenType type, ExpressionLexicalToken *token = nullptr);
 
   //----------------------------------------------------------------------------
+  //! Has next lexical token?
+  //----------------------------------------------------------------------------
+  bool hasNextToken() const;
+
+  //----------------------------------------------------------------------------
+  //! Consume block
+  //----------------------------------------------------------------------------
+  bool consumeBlock(std::unique_ptr<FileMetadataFilter> &filter);
+
+  //----------------------------------------------------------------------------
   //! Consume metadata filter
   //----------------------------------------------------------------------------
-  bool consumeMetadataFilter(std::unique_ptr<FileMetadataFilter> &filter);
+  bool consumeBooleanExpression(std::unique_ptr<FileMetadataFilter> &filter);
 
   //----------------------------------------------------------------------------
   //! Consume simple string expression

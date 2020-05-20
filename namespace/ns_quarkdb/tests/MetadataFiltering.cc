@@ -188,6 +188,35 @@ TEST(FileMetadataFilter, ZeroSizeFilter) {
   ASSERT_TRUE(sizeFilter.check(proto));
 }
 
+TEST(FileMetadataFilter, AndFilter) {
+  std::unique_ptr<FileMetadataFilter> sizeFilter(
+    new EqualityFileMetadataFilter(StringEvaluator("size", false), StringEvaluator("0", true)));
+
+  std::unique_ptr<FileMetadataFilter> nameFilter(
+    new EqualityFileMetadataFilter(StringEvaluator("name", false), StringEvaluator("chickens", true)));
+
+  AndMetadataFilter andFilter(
+    std::move(sizeFilter),
+    std::move(nameFilter)
+  );
+
+  ASSERT_EQ(andFilter.describe(), "size == '0' && name == 'chickens'");
+
+  eos::ns::FileMdProto proto;
+
+  proto.set_size(33);
+  ASSERT_FALSE(andFilter.check(proto));
+
+  proto.set_size(0);
+  ASSERT_FALSE(andFilter.check(proto));
+
+  proto.set_name("chickens");
+  ASSERT_TRUE(andFilter.check(proto));
+
+  proto.set_name("chickens-2");
+  ASSERT_FALSE(andFilter.check(proto));
+}
+
 TEST(FilterExpressionLexer, BasicSanity) {
   std::vector<ExpressionLexicalToken> tokens;
   common::Status st = FilterExpressionLexer::lex("   (  'abc )( ' == ' cde' && || ) ", tokens);
