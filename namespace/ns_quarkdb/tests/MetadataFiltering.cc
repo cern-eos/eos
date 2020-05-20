@@ -295,3 +295,20 @@ TEST(FilterExpressionParser, LiteralEquality) {
   ASSERT_TRUE(filter->isValid());
 }
 
+TEST(FilterExpressionParser, AndExpression) {
+  FilterExpressionParser parser("size == '0' && name == 'chickens'", true);
+  ASSERT_TRUE(parser.getStatus());
+
+  std::unique_ptr<FileMetadataFilter> filter = parser.getFilter();
+  ASSERT_EQ(filter->describe(), "size == '0' && name == 'chickens'");
+  ASSERT_TRUE(filter->isValid());
+}
+
+TEST(FilterExpressionParser, TripleAndExpression) {
+  FilterExpressionParser parser("size == '0' && name == 'chickens' && pid == '0'", true);
+  ASSERT_TRUE(parser.getStatus());
+
+  std::unique_ptr<FileMetadataFilter> filter = parser.getFilter();
+  ASSERT_EQ(filter->describe(), "size == '0' && name == 'chickens' && pid == '0'");
+  ASSERT_TRUE(filter->isValid());
+}

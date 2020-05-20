@@ -260,7 +260,7 @@ FilterExpressionParser::FilterExpressionParser(const std::string &str, bool show
     return;
   }
 
-  consumeBooleanExpression(mFilter);
+  consumeBlock(mFilter);
 }
 
 //------------------------------------------------------------------------------
@@ -327,16 +327,36 @@ bool FilterExpressionParser::consumeStringExpression(StringEvaluator &eval) {
 // Has next lexical token?
 //------------------------------------------------------------------------------
 bool FilterExpressionParser::hasNextToken() const {
-  return mCurrent >= mTokens.size();
+  return mCurrent < mTokens.size();
 }
 
 //------------------------------------------------------------------------------
 // Consume block
 //------------------------------------------------------------------------------
-// bool FilterExpressionParser::consumeBlock(std::unique_ptr<FileMetadataFilter> &filter) {
-//   while(hasNextToken()) {
-//   }
-// }
+bool FilterExpressionParser::consumeBlock(std::unique_ptr<FileMetadataFilter> &filter) {
+  std::unique_ptr<FileMetadataFilter> leftSide;
+  std::unique_ptr<FileMetadataFilter> rightSide;
+
+  if(!consumeBooleanExpression(leftSide)) {
+    return false;
+  }
+
+  if(!hasNextToken()) {
+    filter = std::move(leftSide);
+    return true;
+  }
+
+  if(!accept(TokenType::kAND)) {
+    return fail(EINVAL, "expected '&&' token");
+  }
+
+  if(!consumeBlock(rightSide)) {
+    return false;
+  }
+
+  filter.reset(new AndMetadataFilter(std::move(leftSide), std::move(rightSide)));
+  return true;
+}
 
 //------------------------------------------------------------------------------
 // Consume metadata filter
