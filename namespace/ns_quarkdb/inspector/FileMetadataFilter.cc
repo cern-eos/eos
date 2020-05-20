@@ -352,10 +352,41 @@ bool FilterExpressionParser::hasNextToken() const {
   return mCurrent < mTokens.size();
 }
 
+//----------------------------------------------------------------------------
+// Look-ahead token, but don't consume
+//----------------------------------------------------------------------------
+bool FilterExpressionParser::isLookahead(TokenType type) const {
+  if(!hasNextToken()) return false;
+  return mTokens[mCurrent].mType == type;
+}
+
+//------------------------------------------------------------------------------
+// Consume parenthesied block
+//------------------------------------------------------------------------------
+bool FilterExpressionParser::consumeParenthesizedBlock(std::unique_ptr<FileMetadataFilter> &filter) {
+  if(!accept(TokenType::kLPAREN)) {
+    return fail(EINVAL, "expected '(' token");
+  }
+
+  if(!consumeBlock(filter)) {
+    return false;
+  }
+
+  if(!accept(TokenType::kRPAREN)) {
+    return fail(EINVAL, "expected ')' token");
+  }
+
+  return true;
+}
+
 //------------------------------------------------------------------------------
 // Consume block
 //------------------------------------------------------------------------------
 bool FilterExpressionParser::consumeBlock(std::unique_ptr<FileMetadataFilter> &filter) {
+  if(isLookahead(TokenType::kLPAREN)) {
+    return consumeParenthesizedBlock(filter);
+  }
+
   std::unique_ptr<FileMetadataFilter> leftSide;
   std::unique_ptr<FileMetadataFilter> rightSide;
 
@@ -363,7 +394,7 @@ bool FilterExpressionParser::consumeBlock(std::unique_ptr<FileMetadataFilter> &f
     return false;
   }
 
-  if(!hasNextToken()) {
+  if(!hasNextToken() || isLookahead(TokenType::kRPAREN)) {
     filter = std::move(leftSide);
     return true;
   }

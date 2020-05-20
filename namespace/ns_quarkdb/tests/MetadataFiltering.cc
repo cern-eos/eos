@@ -329,3 +329,14 @@ TEST(FilterExpressionParser, NotEquals) {
   proto.set_size(0);
   ASSERT_FALSE(filter->check(proto));
 }
+
+TEST(FilterExpressionParser, EqualityWithParentheses) {
+  FilterExpressionParser parser("(size == '0')", true);
+  std::cout << parser.getStatus().toString() << std::endl;
+
+  ASSERT_TRUE(parser.getStatus());
+
+  std::unique_ptr<FileMetadataFilter> filter = parser.getFilter();
+  ASSERT_EQ(filter->describe(), "size == '0'");
+  ASSERT_TRUE(filter->isValid());
+}

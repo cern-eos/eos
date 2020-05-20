@@ -215,9 +215,19 @@ private:
   bool accept(TokenType type, ExpressionLexicalToken *token = nullptr);
 
   //----------------------------------------------------------------------------
+  //! Look-ahead token, but don't consume
+  //----------------------------------------------------------------------------
+  bool isLookahead(TokenType type) const;
+
+  //----------------------------------------------------------------------------
   //! Has next lexical token?
   //----------------------------------------------------------------------------
   bool hasNextToken() const;
+
+  //----------------------------------------------------------------------------
+  // Consume parenthesied block
+  //----------------------------------------------------------------------------
+  bool consumeParenthesizedBlock(std::unique_ptr<FileMetadataFilter> &filter);
 
   //----------------------------------------------------------------------------
   //! Consume block
