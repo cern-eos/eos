@@ -50,7 +50,7 @@
 #include <string.h>
 #include <sched.h>
 
-#ifdef RICHACL_FOUND
+#ifdef HAVE_RICHACL
 extern "C" { /* this 'extern "C"' brace will eventually end up in the .h file, then it can be removed */
 #include <sys/richacl.h>
 }
@@ -4882,7 +4882,7 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
             if (pcap->errc()) {
               rc = pcap->errc();
             } else {
-#ifdef RICHACL_FOUND
+#ifdef HAVE_RICHACL
 
               if (key == s_racl) {
                 struct richacl* a = NULL;
@@ -4937,7 +4937,7 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
                   eos_static_debug("racl getxattr %d", value.length());
                 }
               } else
-#endif /*RICHACL_FOUND*/
+#endif /*HAVE_RICHACL*/
                 if (!map.count(key)) {
                   rc = ENOATTR;
                 } else {
@@ -5003,13 +5003,13 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
   std::string value;
   bool local_setxattr = false;
   value.assign(xattr_value, size);
-#ifdef notdefRICHACL_FOUND
+#ifdef notdefHAVE_RICHACL
 
   if (EOS_LOGS_DEBUG) {
     eos_static_debug("value: '%s' l=%d", escape(value).c_str(), size);
   }
 
-#endif /*RICHACL_FOUND*/
+#endif /*HAVE_RICHACL*/
   // the root user has a bypass to be able to change th fuse configuration in
   // realtime
   {
@@ -5157,7 +5157,7 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
               }
 
 #endif
-#ifdef RICHACL_FOUND
+#ifdef HAVE_RICHACL
               else if (key == s_racl) {
                 struct richacl* a = richacl_from_xattr(xattr_value, size);
                 richacl_compute_max_masks(a);
@@ -5203,7 +5203,7 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
                 }
               }
 
-#endif /*RICHACL_FOUND*/
+#endif /*HAVE_RICHACL*/
               else {
                 auto map = md->mutable_attr();
                 bool exists = false;
@@ -5399,7 +5399,7 @@ EosFuse::removexattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name)
 
 #endif
           else {
-#ifdef RICHACL_FOUND
+#ifdef HAVE_RICHACL
 
             if (key == s_racl) {
               key = "user.acl";
