@@ -1,5 +1,3 @@
-usr/sbin/eos-unit-tests-with-instance
-usr/sbin/eos-unit-tests
 usr/sbin/eos-fuse-test
 usr/sbin/eos-fusex-certify
 usr/sbin/eos-instance-test

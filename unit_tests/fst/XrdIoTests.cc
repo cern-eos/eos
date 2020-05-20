@@ -112,13 +112,13 @@ TEST(XrdIo, BasicPrefetch)
         break;
       }
 
-      ASSERT_EQ(file->fileReadAsync(offset, buffer.get(), length, true), length);
+      ASSERT_EQ(file->fileReadPrefetch(offset, buffer.get(), length), length);
       memcpy(file_in_mem.get() + offset, buffer.get(), length);
       offset += length;
     }
 
     if (offset < info.st_size) {
-      ASSERT_EQ(file->fileReadAsync(offset, buffer.get(), length, true),
+      ASSERT_EQ(file->fileReadPrefetch(offset, buffer.get(), length),
                 info.st_size - offset);
       memcpy(file_in_mem.get() + offset, buffer.get(), info.st_size - offset);
     }
@@ -188,13 +188,13 @@ TEST(XrdIo, FailPrefetchInFlight)
           break;
         }
 
-        ASSERT_EQ(file->fileReadAsync(offset, buffer.get(), length, true), length);
+        ASSERT_EQ(file->fileReadPrefetch(offset, buffer.get(), length), length);
         memcpy(file_in_mem.get() + offset, buffer.get(), length);
         offset += length;
       }
 
       if (offset < info.st_size) {
-        ASSERT_EQ(file->fileReadAsync(offset, buffer.get(), length, true),
+        ASSERT_EQ(file->fileReadPrefetch(offset, buffer.get(), length),
                   info.st_size - offset);
         memcpy(file_in_mem.get() + offset, buffer.get(), info.st_size - offset);
       }

@@ -242,7 +242,7 @@ PlainLayout::Read(XrdSfsFileOffset offset, char* buffer,
       }
 
       eos_static_info("read offset=%llu length=%lu", offset, length);
-      int64_t nread = mFileIO->fileReadAsync(offset, buffer, length, readahead);
+      int64_t nread = mFileIO->fileReadPrefetch(offset, buffer, length);
       // Wait for any async requests
       AsyncMetaHandler* ptr_handler = static_cast<AsyncMetaHandler*>
                                       (mFileIO->fileGetAsyncHandler());

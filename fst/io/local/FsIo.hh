@@ -110,11 +110,8 @@ public:
   //!
   //! @return number of bytes read or -1 if error
   //----------------------------------------------------------------------------
-  virtual int64_t fileReadAsync(XrdSfsFileOffset offset,
-                                char* buffer,
-                                XrdSfsXferSize length,
-                                bool readahead = false,
-                                uint16_t timeout = 0);
+  virtual int64_t fileReadPrefetch(XrdSfsFileOffset offset, char* buffer,
+                                   XrdSfsXferSize length, uint16_t timeout = 0);
 
   //----------------------------------------------------------------------------
   //! Vector read - sync

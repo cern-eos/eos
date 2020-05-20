@@ -146,14 +146,12 @@ public:
   //! @param offset offset in file
   //! @param buffer where the data is read
   //! @param length read length
-  //! @param readahead set if readahead is to be used
   //! @param timeout timeout value
   //!
   //! @return number of bytes read or -1 if error
   //----------------------------------------------------------------------------
-  virtual int64_t fileReadAsync(XrdSfsFileOffset offset, char* buffer,
-                                XrdSfsXferSize length, bool readahead = false,
-                                uint16_t timeout = 0) = 0;
+  virtual int64_t fileReadPrefetch(XrdSfsFileOffset offset, char* buffer,
+                                   XrdSfsXferSize length, uint16_t timeout = 0) = 0;
 
   //----------------------------------------------------------------------------
   //! Write to file - async
@@ -399,9 +397,11 @@ public:
   //! Return our own, custom Statfs object, instead of a raw statfs struct.
   //! @return nullptr if unsuccessful
   //----------------------------------------------------------------------------
-  std::unique_ptr<eos::common::Statfs> GetStatfs() {
+  std::unique_ptr<eos::common::Statfs> GetStatfs()
+  {
     struct statfs rawStatfs;
-    if(Statfs(&rawStatfs) != 0) {
+
+    if (Statfs(&rawStatfs) != 0) {
       // Could not retrieve statfs
       return nullptr;
     }

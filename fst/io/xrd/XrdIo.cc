@@ -794,8 +794,8 @@ XrdIo::CleanReadCache()
 // Read with prefetching
 //------------------------------------------------------------------------------
 int64_t
-XrdIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
-                     XrdSfsXferSize length, bool readahead, uint16_t timeout)
+XrdIo::fileReadPrefetch(XrdSfsFileOffset offset, char* buffer,
+                        XrdSfsXferSize length, uint16_t timeout)
 {
   eos_debug("offset=%lli length=%i", offset, length);
 

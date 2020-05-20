@@ -36,7 +36,7 @@ EOSFSTNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 LocalIo::LocalIo(std::string path, XrdFstOfsFile* file,
-		 const XrdSecEntity* client):
+                 const XrdSecEntity* client):
   FsIo(path, "LocalIo"),
   mLogicalFile(file),
   mSecEntity(client)
@@ -59,7 +59,7 @@ LocalIo::~LocalIo()
 //------------------------------------------------------------------------------
 int
 LocalIo::fileOpen(XrdSfsFileOpenMode flags, mode_t mode,
-		  const std::string& opaque, uint16_t timeout)
+                  const std::string& opaque, uint16_t timeout)
 {
   if (!mLogicalFile) {
     eos_err("error= the logical file must exist already");
@@ -69,7 +69,7 @@ LocalIo::fileOpen(XrdSfsFileOpenMode flags, mode_t mode,
   errno = 0;
   eos_info("flags=%x, path=%s", flags, mFilePath.c_str());
   int retc = mLogicalFile->openofs(mFilePath.c_str(), flags, mode, mSecEntity,
-				   opaque.c_str());
+                                   opaque.c_str());
 
   if (retc != SFS_OK) {
     eos_err("error= openofs failed errno=%d retc=%d", errno, retc);
@@ -85,11 +85,11 @@ LocalIo::fileOpen(XrdSfsFileOpenMode flags, mode_t mode,
 //------------------------------------------------------------------------------
 int64_t
 LocalIo::fileRead(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length,
-		  uint16_t timeout)
+                  uint16_t timeout)
 {
   eos_debug("offset = %lld, length = %lld",
-	    static_cast<int64_t>(offset),
-	    static_cast<int64_t>(length));
+            static_cast<int64_t>(offset),
+            static_cast<int64_t>(length));
   return mLogicalFile->readofs(offset, buffer, length);
 }
 
@@ -128,11 +128,11 @@ LocalIo::fileReadVAsync(XrdCl::ChunkList& chunkList, uint16_t timeout)
 //------------------------------------------------------------------------------
 int64_t
 LocalIo::fileWrite(XrdSfsFileOffset offset, const char* buffer,
-		   XrdSfsXferSize length, uint16_t timeout)
+                   XrdSfsXferSize length, uint16_t timeout)
 {
   eos_debug("offset = %lld, length = %lld",
-	    static_cast<int64_t>(offset),
-	    static_cast<int64_t>(length));
+            static_cast<int64_t>(offset),
+            static_cast<int64_t>(length));
   return mLogicalFile->writeofs(offset, buffer, length);
 }
 
@@ -140,8 +140,8 @@ LocalIo::fileWrite(XrdSfsFileOffset offset, const char* buffer,
 // Read from file async - falls back on synchronous mode
 //------------------------------------------------------------------------------
 int64_t
-LocalIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
-		       XrdSfsXferSize length, bool readahead, uint16_t timeout)
+LocalIo::fileReadPrefetch(XrdSfsFileOffset offset, char* buffer,
+                          XrdSfsXferSize length, uint16_t timeout)
 {
   return fileRead(offset, buffer, length, timeout);
 }
@@ -151,7 +151,7 @@ LocalIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
 //------------------------------------------------------------------------------
 int64_t
 LocalIo::fileWriteAsync(XrdSfsFileOffset offset, const char* buffer,
-			XrdSfsXferSize length, uint16_t timeout)
+                        XrdSfsXferSize length, uint16_t timeout)
 {
   return fileWrite(offset, buffer, length, timeout);
 }
@@ -204,7 +204,7 @@ LocalIo::fileFallocate(XrdSfsFileOffset length)
 //------------------------------------------------------------------------------
 int
 LocalIo::fileFdeallocate(XrdSfsFileOffset fromOffset,
-			 XrdSfsFileOffset toOffset)
+                         XrdSfsFileOffset toOffset)
 {
   eos_debug("fdeallocate from = %lli to = %lli", fromOffset, toOffset);
   XrdOucErrInfo error;

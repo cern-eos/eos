@@ -178,8 +178,8 @@ ReedSLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
       }
 
       // Enable readahead
-      nread = mStripe[physical_id]->fileReadAsync(offset_local, mDataBlocks[i],
-              mStripeWidth, true, mTimeout);
+      nread = mStripe[physical_id]->fileReadPrefetch(offset_local, mDataBlocks[i],
+              mStripeWidth, mTimeout);
 
       if (nread != (int64_t)mStripeWidth) {
         eos_debug("msg=\"read block corrupted\" stripe=%u.", i);

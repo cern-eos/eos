@@ -382,13 +382,9 @@ DavixIo::fileWrite(XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 // Read from file async - falls back on synchronous mode
 //------------------------------------------------------------------------------
-
 int64_t
-DavixIo::fileReadAsync(XrdSfsFileOffset offset,
-                       char* buffer,
-                       XrdSfsXferSize length,
-                       bool readahead,
-                       uint16_t timeout)
+DavixIo::fileReadPrefetch(XrdSfsFileOffset offset, char* buffer,
+                          XrdSfsXferSize length, uint16_t timeout)
 {
   return fileRead(offset, buffer, length, timeout);
 }

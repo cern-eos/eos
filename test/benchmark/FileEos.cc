@@ -200,7 +200,7 @@ FileEos::ReadGw(Result*& result)
 
   while (file_size > 0) {
     length = ((file_size > block_size) ?  block_size : file_size);
-    nread = file->fileReadAsync(offset, vect_buff[indx_buff], length, true);
+    nread = file->fileReadPrefetch(offset, vect_buff[indx_buff], length);
     offset += nread;
     file_size -= nread;
     indx_buff = (indx_buff + 1) % total_buffs;

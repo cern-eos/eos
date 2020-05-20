@@ -137,7 +137,7 @@ ReadSequentially(XrdCl::URL& url, std::string& ext_file)
 
     // Read from the EOS file
     if (do_async) {
-      nread = eosf->fileReadAsync(offset, buffer, length, true, timeout);
+      nread = eosf->fileReadPrefetch(offset, buffer, length, timeout);
     } else {
       nread = eosf->fileRead(offset, buffer, length);
     }
@@ -322,7 +322,7 @@ ReadPattern(XrdCl::URL& url,
 
       // Read from the EOS file
       if (do_async) {
-        nread = eosf->fileReadAsync(piece_off, buffer, length, true, timeout);
+        nread = eosf->fileReadPrefetch(piece_off, buffer, length, timeout);
       } else {
         nread = eosf->fileRead(piece_off, buffer, length);
       }

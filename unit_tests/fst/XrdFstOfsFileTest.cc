@@ -350,12 +350,13 @@ TEST(FstFileTest, ReadAsyncTest)
   GLOG << "Performing async read operation" << std::endl;
 
   while (offset < file_size) {
-    off_t read_size = file->fileReadAsync(offset, buffer, buff_size, false);
+    // @todo (esindril) this should use an async method
+    off_t read_size = file->fileRead(offset, buffer, buff_size);
     ASSERT_EQ(buff_size, read_size);
     offset += buff_size;
   }
 
-  off_t read_size = file->fileReadAsync(offset, buffer, buff_size, true);
+  off_t read_size = file->fileRead(offset, buffer, buff_size);
   ASSERT_EQ(read_size, 0);
   ASSERT_EQ(file->fileClose(), 0);
   delete[] buffer;
@@ -390,12 +391,13 @@ TEST(FstFileTest, ReadAsyncTestRA)
   GLOG << "Performing async read operation" << std::endl;
 
   while (offset < file_size) {
-    off_t read_size = file->fileReadAsync(offset, buffer, buff_size, true);
+    // @todo (esindril) this should use an async method
+    off_t read_size = file->fileRead(offset, buffer, buff_size);
     ASSERT_EQ(buff_size, read_size);
     offset += buff_size;
   }
 
-  off_t read_size = file->fileReadAsync(offset, buffer, buff_size, true);
+  off_t read_size = file->fileRead(offset, buffer, buff_size);
   ASSERT_EQ(read_size, 0);
   ASSERT_EQ(file->fileClose(), 0);
   delete[] buffer;

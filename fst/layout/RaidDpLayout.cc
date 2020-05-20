@@ -223,8 +223,8 @@ RaidDpLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
     // Read data from stripe
     if (mStripe[physical_id]) {
       // Enable readahead
-      nread = mStripe[physical_id]->fileReadAsync(offset_local, mDataBlocks[i],
-              mStripeWidth, true, mTimeout);
+      nread = mStripe[physical_id]->fileReadPrefetch(offset_local, mDataBlocks[i],
+              mStripeWidth, mTimeout);
 
       if (nread != (int64_t)mStripeWidth) {
         status_blocks[i] = false;

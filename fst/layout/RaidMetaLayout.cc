@@ -680,10 +680,9 @@ RaidMetaLayout::Read(XrdSfsFileOffset offset, char* buffer,
         if (mStripe[physical_id]) {
           eos_debug("Read stripe_id=%i, logic_offset=%ji, local_offset=%ji, length=%d",
                     local_pos.first, chunk->offset, off_local, chunk->length);
-          nbytes = mStripe[physical_id]->fileReadAsync(off_local,
+          nbytes = mStripe[physical_id]->fileReadPrefetch(off_local,
                    (char*)chunk->buffer,
-                   chunk->length,
-                   true, mTimeout);
+                   chunk->length, mTimeout);
 
           if (nbytes != chunk->length) {
             got_error = true;
@@ -1108,10 +1107,9 @@ RaidMetaLayout::ReadGroup(uint64_t offGroup)
       // Do read operation - chunk info is not interesting at this point
       // !!!Here we can only do normal async requests without readahead as this
       // would lead to corruptions in the parity information computed!!!
-      nread = mStripe[physical_id]->fileReadAsync(off_local,
-              mDataBlocks[MapSmallToBig(i)],
-              mStripeWidth,
-              false, mTimeout);
+      nread = mStripe[physical_id]->fileRead(off_local,
+                                             mDataBlocks[MapSmallToBig(i)],
+                                             mStripeWidth, mTimeout);
 
       if (nread != (int64_t)mStripeWidth) {
         eos_err("error while reading local data blocks stripe=%u", id_stripe);

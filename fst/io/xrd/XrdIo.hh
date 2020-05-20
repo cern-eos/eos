@@ -264,7 +264,6 @@ public:
   //! @param offset offset in file
   //! @param buffer where the data is read
   //! @param length read length
-  //! @param readahead set if readahead is to be used
   //! @param timeout timeout value
   //!
   //! @return number of bytes read or -1 if error
@@ -272,9 +271,8 @@ public:
   //!       any meaningful data when this function returns. The user should call
   //!       fileWaitAsyncIO to enforce this guarantee.
   //----------------------------------------------------------------------------
-  int64_t fileReadAsync(XrdSfsFileOffset offset, char* buffer,
-                        XrdSfsXferSize length, bool readahead = false,
-                        uint16_t timeout = 0);
+  int64_t fileReadPrefetch(XrdSfsFileOffset offset, char* buffer,
+                           XrdSfsXferSize length, uint16_t timeout = 0);
 
   //----------------------------------------------------------------------------
   //! Write to file - async

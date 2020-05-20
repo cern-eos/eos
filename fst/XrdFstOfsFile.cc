@@ -3220,10 +3220,7 @@ XrdFstOfsFile::DoTpcTransfer()
     }
 
     if (getenv("EOS_FST_TPC_READASYNC")) {
-      // @note this way of reading asynchronously in the buffer without waiting
-      // for the async requests works properly only if readahead is enabled.
-      // Otherwise, one must call fileWaitAsyncIO().
-      rbytes = tpcIO.fileReadAsync(offset, &((*buffer)[0]), nread, true, 30);
+      rbytes = tpcIO.fileReadPrefetch(offset, &((*buffer)[0]), nread, 30);
     } else {
       rbytes = tpcIO.fileRead(offset, &((*buffer)[0]), nread);
     }
