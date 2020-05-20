@@ -121,41 +121,6 @@ private:
 };
 
 //------------------------------------------------------------------------------
-//! Parsed filter
-//------------------------------------------------------------------------------
-class ParsedFileMetadataFilter : public FileMetadataFilter {
-public:
-  //----------------------------------------------------------------------------
-  //! Constructor -- valid parse result
-  //----------------------------------------------------------------------------
-  ParsedFileMetadataFilter(std::unique_ptr<FileMetadataFilter> sub);
-
-  //----------------------------------------------------------------------------
-  //! Constructor -- parse error
-  //----------------------------------------------------------------------------
-  ParsedFileMetadataFilter(const common::Status &err);
-
-  //----------------------------------------------------------------------------
-  //! Is the object valid?
-  //----------------------------------------------------------------------------
-  virtual common::Status isValid() const override;
-
-  //----------------------------------------------------------------------------
-  //! Does the given FileMdProto pass through the filter?
-  //----------------------------------------------------------------------------
-  virtual bool check(const eos::ns::FileMdProto &proto) override;
-
-  //----------------------------------------------------------------------------
-  //! Describe object
-  //----------------------------------------------------------------------------
-  virtual std::string describe() const override;
-
-private:
-  std::unique_ptr<FileMetadataFilter> mFilter;
-  common::Status mStatus;
-};
-
-//------------------------------------------------------------------------------
 //! Token type
 //------------------------------------------------------------------------------
 enum class TokenType {
@@ -204,7 +169,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get parsed filter -- call this only ONCE
   //----------------------------------------------------------------------------
-  std::unique_ptr<ParsedFileMetadataFilter> getFilter();
+  std::unique_ptr<FileMetadataFilter> getFilter();
 
 private:
   //----------------------------------------------------------------------------
@@ -232,18 +197,12 @@ private:
   //----------------------------------------------------------------------------
   bool fail(int errcode, const std::string &msg);
 
-  //----------------------------------------------------------------------------
-  // Succeed
-  //----------------------------------------------------------------------------
-  void succeed(std::unique_ptr<FileMetadataFilter> rootFilter);
-
-
   std::vector<ExpressionLexicalToken> mTokens;
   size_t mCurrent;
 
   common::Status mStatus;
   bool mDebug;
-  std::unique_ptr<ParsedFileMetadataFilter> mFilter;
+  std::unique_ptr<FileMetadataFilter> mFilter;
 };
 
 

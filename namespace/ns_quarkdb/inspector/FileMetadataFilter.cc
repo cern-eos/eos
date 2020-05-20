@@ -109,42 +109,6 @@ std::string EqualityFileMetadataFilter::describe() const {
 }
 
 //------------------------------------------------------------------------------
-// Constructor -- valid parse result
-//------------------------------------------------------------------------------
-ParsedFileMetadataFilter::ParsedFileMetadataFilter(std::unique_ptr<FileMetadataFilter> sub)
-: mFilter(std::move(sub)) {}
-
-//------------------------------------------------------------------------------
-// Constructor -- parse error
-//------------------------------------------------------------------------------
-ParsedFileMetadataFilter::ParsedFileMetadataFilter(const common::Status &err)
-: mStatus(err) {}
-
-//------------------------------------------------------------------------------
-// Is the object valid?
-//------------------------------------------------------------------------------
-common::Status ParsedFileMetadataFilter::isValid() const {
-  if(!mFilter) return mStatus;
-  return mFilter->isValid();
-}
-
-//------------------------------------------------------------------------------
-// Does the given FileMdProto pass through the filter?
-//------------------------------------------------------------------------------
-bool ParsedFileMetadataFilter::check(const eos::ns::FileMdProto &proto) {
-  if(!mFilter) return false;
-  return mFilter->check(proto);
-}
-
-//------------------------------------------------------------------------------
-// Describe object
-//------------------------------------------------------------------------------
-std::string ParsedFileMetadataFilter::describe() const {
-  if(!mFilter) return SSTR("[failed to parse expression: " << mStatus.toString());
-  return mFilter->describe();
-}
-
-//------------------------------------------------------------------------------
 // Lex the given string
 //------------------------------------------------------------------------------
 common::Status FilterExpressionLexer::lex(const std::string &str, std::vector<ExpressionLexicalToken> &tokens) {
@@ -263,11 +227,7 @@ FilterExpressionParser::FilterExpressionParser(const std::string &str, bool show
     return;
   }
 
-  std::unique_ptr<FileMetadataFilter> rootFilter;
-  consumeMetadataFilter(rootFilter);
-  if(mStatus) {
-    succeed(std::move(rootFilter));
-  }
+  consumeMetadataFilter(mFilter);
 }
 
 //------------------------------------------------------------------------------
@@ -280,11 +240,7 @@ common::Status FilterExpressionParser::getStatus() const {
 //------------------------------------------------------------------------------
 // Get parsed filter -- call this only ONCE
 //------------------------------------------------------------------------------
-std::unique_ptr<ParsedFileMetadataFilter> FilterExpressionParser::getFilter() {
-  if(!mStatus) {
-    mFilter.reset(new ParsedFileMetadataFilter(mStatus));
-  }
-
+std::unique_ptr<FileMetadataFilter> FilterExpressionParser::getFilter() {
   return std::move(mFilter);
 }
 
@@ -301,13 +257,6 @@ bool FilterExpressionParser::accept(TokenType type, ExpressionLexicalToken *tk) 
 }
 
 //------------------------------------------------------------------------------
-// Succeed
-//------------------------------------------------------------------------------
-void FilterExpressionParser::succeed(std::unique_ptr<FileMetadataFilter> rootFilter) {
-  mFilter.reset(new ParsedFileMetadataFilter(std::move(rootFilter)));
-}
-
-//------------------------------------------------------------------------------
 // Fail with the given error message
 //------------------------------------------------------------------------------
 bool FilterExpressionParser::fail(int errcode, const std::string &msg) {
@@ -319,7 +268,7 @@ bool FilterExpressionParser::fail(int errcode, const std::string &msg) {
 //------------------------------------------------------------------------------
 bool FilterExpressionParser::fail(const common::Status &st) {
   mStatus = st;
-  mFilter.reset(new ParsedFileMetadataFilter(mStatus));
+  mFilter.reset();
   return false;
 }
 

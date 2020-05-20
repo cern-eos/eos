@@ -188,27 +188,6 @@ TEST(FileMetadataFilter, ZeroSizeFilter) {
   ASSERT_TRUE(sizeFilter.check(proto));
 }
 
-TEST(FileMetadataFilter, ParsedExpressionFilter) {
-  std::unique_ptr<FileMetadataFilter> sub(
-    new EqualityFileMetadataFilter(StringEvaluator("size", false), StringEvaluator("0", true)));
-  ParsedFileMetadataFilter parsedFilter(std::move(sub));
-
-  ASSERT_TRUE(parsedFilter.isValid());
-  ASSERT_EQ(parsedFilter.describe(), "size == '0'");
-
-  eos::ns::FileMdProto proto;
-  proto.set_size(33);
-  ASSERT_FALSE(parsedFilter.check(proto));
-
-  proto.set_size(0);
-  ASSERT_TRUE(parsedFilter.check(proto));
-
-  parsedFilter = ParsedFileMetadataFilter(common::Status(EINVAL, "invalid expression 'abc'"));
-  ASSERT_FALSE(parsedFilter.isValid());
-  ASSERT_EQ(parsedFilter.describe(), "[failed to parse expression: (22): invalid expression 'abc'");
-  ASSERT_FALSE(parsedFilter.check(proto));
-}
-
 TEST(FilterExpressionLexer, BasicSanity) {
   std::vector<ExpressionLexicalToken> tokens;
   common::Status st = FilterExpressionLexer::lex("   (  'abc )( ' == ' cde' && || ) ", tokens);
