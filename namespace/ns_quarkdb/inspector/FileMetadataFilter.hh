@@ -122,20 +122,20 @@ private:
 };
 
 //------------------------------------------------------------------------------
-//! And filter
+//! && and || filter
 //------------------------------------------------------------------------------
-class AndMetadataFilter : public FileMetadataFilter {
+class LogicalMetadataFilter : public FileMetadataFilter {
 public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  AndMetadataFilter(std::unique_ptr<FileMetadataFilter> filt1,
-    std::unique_ptr<FileMetadataFilter> filt2);
+  LogicalMetadataFilter(std::unique_ptr<FileMetadataFilter> filt1,
+    std::unique_ptr<FileMetadataFilter> filt2, bool isOR);
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~AndMetadataFilter() {}
+  virtual ~LogicalMetadataFilter() {}
 
   //----------------------------------------------------------------------------
   //! Is the object valid?
@@ -155,6 +155,7 @@ public:
 private:
   std::unique_ptr<FileMetadataFilter> mFilter1;
   std::unique_ptr<FileMetadataFilter> mFilter2;
+  bool mIsOr;
 };
 
 //------------------------------------------------------------------------------

@@ -120,17 +120,18 @@ std::string EqualityFileMetadataFilter::describe() const {
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-AndMetadataFilter::AndMetadataFilter(std::unique_ptr<FileMetadataFilter> filt1,
-    std::unique_ptr<FileMetadataFilter> filt2) {
+LogicalMetadataFilter::LogicalMetadataFilter(std::unique_ptr<FileMetadataFilter> filt1,
+    std::unique_ptr<FileMetadataFilter> filt2, bool isOr) {
 
   mFilter1 = std::move(filt1);
   mFilter2 = std::move(filt2);
+  mIsOr = isOr;
 }
 
 //------------------------------------------------------------------------------
 //! Is the object valid?
 //------------------------------------------------------------------------------
-common::Status AndMetadataFilter::isValid() const {
+common::Status LogicalMetadataFilter::isValid() const {
   if(!mFilter1->isValid()) return mFilter1->isValid();
   return mFilter2->isValid();
 }
@@ -138,16 +139,24 @@ common::Status AndMetadataFilter::isValid() const {
 //------------------------------------------------------------------------------
 // Does the given FileMdProto pass through the filter?
 //------------------------------------------------------------------------------
-bool AndMetadataFilter::check(const eos::ns::FileMdProto &proto) {
-  if(!mFilter1->check(proto)) return false;
+bool LogicalMetadataFilter::check(const eos::ns::FileMdProto &proto) {
+  bool firstCondition = mFilter1->check(proto);
+
+  if(firstCondition && mIsOr) return true;
+  if(!firstCondition && !mIsOr) return false;
+
   return mFilter2->check(proto);
 }
 
 //------------------------------------------------------------------------------
 // Describe object
 //------------------------------------------------------------------------------
-std::string AndMetadataFilter::describe() const {
-  return SSTR(mFilter1->describe() << " && " << mFilter2->describe());
+std::string LogicalMetadataFilter::describe() const {
+  if(mIsOr) {
+    return SSTR("(" << mFilter1->describe() << " || " << mFilter2->describe() << ")");
+  }
+
+  return SSTR("(" << mFilter1->describe() << " && " << mFilter2->describe() << ")");
 }
 
 //------------------------------------------------------------------------------
@@ -407,7 +416,7 @@ bool FilterExpressionParser::consumeBlock(std::unique_ptr<FileMetadataFilter> &f
     return false;
   }
 
-  filter.reset(new AndMetadataFilter(std::move(leftSide), std::move(rightSide)));
+  filter.reset(new LogicalMetadataFilter(std::move(leftSide), std::move(rightSide), false));
   return true;
 }
 

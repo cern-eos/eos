@@ -195,12 +195,13 @@ TEST(FileMetadataFilter, AndFilter) {
   std::unique_ptr<FileMetadataFilter> nameFilter(
     new EqualityFileMetadataFilter(StringEvaluator("name", false), StringEvaluator("chickens", true), false));
 
-  AndMetadataFilter andFilter(
+  LogicalMetadataFilter andFilter(
     std::move(sizeFilter),
-    std::move(nameFilter)
+    std::move(nameFilter),
+    false
   );
 
-  ASSERT_EQ(andFilter.describe(), "size == '0' && name == 'chickens'");
+  ASSERT_EQ(andFilter.describe(), "(size == '0' && name == 'chickens')");
 
   eos::ns::FileMdProto proto;
 
@@ -215,6 +216,39 @@ TEST(FileMetadataFilter, AndFilter) {
 
   proto.set_name("chickens-2");
   ASSERT_FALSE(andFilter.check(proto));
+}
+
+TEST(FileMetadataFilter, OrFilter) {
+  std::unique_ptr<FileMetadataFilter> sizeFilter(
+    new EqualityFileMetadataFilter(StringEvaluator("size", false), StringEvaluator("0", true), false));
+
+  std::unique_ptr<FileMetadataFilter> nameFilter(
+    new EqualityFileMetadataFilter(StringEvaluator("name", false), StringEvaluator("chickens", true), false));
+
+  LogicalMetadataFilter orFilter(
+    std::move(sizeFilter),
+    std::move(nameFilter),
+    true
+  );
+
+  ASSERT_EQ(orFilter.describe(), "(size == '0' || name == 'chickens')");
+
+  eos::ns::FileMdProto proto;
+
+  proto.set_size(33);
+  ASSERT_FALSE(orFilter.check(proto));
+
+  proto.set_size(0);
+  ASSERT_TRUE(orFilter.check(proto));
+
+  proto.set_name("chickens");
+  ASSERT_TRUE(orFilter.check(proto));
+
+  proto.set_name("chickens-2");
+  ASSERT_TRUE(orFilter.check(proto));
+
+  proto.set_size(22);
+  ASSERT_FALSE(orFilter.check(proto));
 }
 
 TEST(FilterExpressionLexer, BasicSanity) {
@@ -300,7 +334,7 @@ TEST(FilterExpressionParser, AndExpression) {
   ASSERT_TRUE(parser.getStatus());
 
   std::unique_ptr<FileMetadataFilter> filter = parser.getFilter();
-  ASSERT_EQ(filter->describe(), "size == '0' && name == 'chickens'");
+  ASSERT_EQ(filter->describe(), "(size == '0' && name == 'chickens')");
   ASSERT_TRUE(filter->isValid());
 }
 
@@ -309,7 +343,7 @@ TEST(FilterExpressionParser, TripleAndExpression) {
   ASSERT_TRUE(parser.getStatus());
 
   std::unique_ptr<FileMetadataFilter> filter = parser.getFilter();
-  ASSERT_EQ(filter->describe(), "size == '0' && name == 'chickens' && pid == '0'");
+  ASSERT_EQ(filter->describe(), "(size == '0' && (name == 'chickens' && pid == '0'))");
   ASSERT_TRUE(filter->isValid());
 }
 
@@ -332,8 +366,6 @@ TEST(FilterExpressionParser, NotEquals) {
 
 TEST(FilterExpressionParser, EqualityWithParentheses) {
   FilterExpressionParser parser("(size == '0')", true);
-  std::cout << parser.getStatus().toString() << std::endl;
-
   ASSERT_TRUE(parser.getStatus());
 
   std::unique_ptr<FileMetadataFilter> filter = parser.getFilter();
