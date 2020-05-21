@@ -1806,23 +1806,6 @@ runtest "### EoscpRaid6  " unix 0 "" eoscp_rain "reeds" "/eos/$EOS_TEST_INSTANCE
 runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/eoscp_rain_dir"
 
 ################################################################################
-# FST tests with plain and raid layouts
-################################################################################
-runtest "### Mkdir     " unix 0 "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/fst/plain"
-runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/fst/plain"
-runtest "### Mkdir     " unix 0 "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/fst/raiddp"
-runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/fst/raiddp"
-runtest "### Attr      " unix 0 "" eos attr set sys.forced.layout=plain "/eos/$EOS_TEST_INSTANCE/test/fst/plain"
-runtest "### Attr      " unix 0 "" eos attr set sys.forced.checksum=adler "/eos/$EOS_TEST_INSTANCE/test/fst/plain"
-runtest "### Attr      " unix 0 "" eos attr set sys.forced.nstripes=1 "/eos/$EOS_TEST_INSTANCE/test/fst/plain"
-runtest "### Attr      " unix 0 "" eos attr set sys.forced.space=default "/eos/$EOS_TEST_INSTANCE/test/fst/plain"
-runtest "### Attr      " unix 0 "" eos attr set default=raiddp "/eos/$EOS_TEST_INSTANCE/test/fst/raiddp"
-runtest "### Upload    " unix 0 "" upload "$TESTFSTFILE32M" "/eos/$EOS_TEST_INSTANCE/test/fst/plain/file32MB.dat"
-runtest "### Upload    " unix 0 "" upload "$TESTFSTFILE32M" "/eos/$EOS_TEST_INSTANCE/test/fst/raiddp/file32MB.dat"
-runtest "### Fst       " unix 0 "" shell eos-fst-test -v -n $EOS_TEST_INSTANCE
-runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/fst"
-
-################################################################################
 # OTHER TESTS
 ################################################################################
 runtest "### Ls max input " unix 1 "" eos ls /file1/file2/file3/file4/file5/file6/file7/file8/file9/file10/file11/file12/file13/file14/file15/file16/file17/file18/file19/file20/file21/file22/file23/file24/file25/file26/file27/file28/file29/file30/file31/file32/file33/file34/file35/file36/file37/file38/file39/file40/file41/file42/file43/file44/file45/file46/file47/file48/file49/file50/file51/file52/file53/file54/file55/file56/file57/file58/file59/file60/file61/file62/file63/file64/file65/file66/file67/file68/file69/file70/file71/file72/file73/file74/file75/file76/file77/file78/file79/file80/file81/file82/file83/file84/file85/file86/file87/file88/file89/file90/file91/file92/file93/file94/file95/file96/file97/file98/file99/file100/file101/file102/file103/file104/file105/file106/file107/file108/file109/file110/file111/file112/file113/file114/file115/file116/file117/file118/file119/file120/file121/file122/file123/file124/file125/file126/file127/file128/file129/file130/file131/file132/file133/file134/file135/file136/file137/file138/file139/file140/file141/file142/file143/file144/file145/file146/file147/file148/file149/file150/file151/file152/file153/file154/file155/file156/file157/file158/file159/file160/file161/file162/file163/file164/file165/file166/file167/file168/file169/file170/file171/file172/file173/file174/file175/file176/file177/file178/file179/file180/file181/file182/file183/file184/file185/file186/file187/file188/file189/file190/file191/file192/file193/file194/file195/file196/file197/file198/file199/file200/file201/file202/file203/file204/file205/file206/file207/file208/file209/file210/file211/file212/file213/file214/file215/file216/file217/file218/file219/file220/file221/file222/file223/file224/file225/file226/file227/file228/file229/file230/file231/file232/file233/file234/file235/file236/file237/file238/file239/file240/file241/file242/file243/file244/file245/file246/file247/file248/file249/file250/file251/file252/file253/file254/file255/file256/file257/file258/file259/file260/file261/file262/file263/file264/file265/file266/file267/file268/file269/file270/file271/file272/file273/file274/file275/file276/file277/file278/file279/file280/file281/file282/file283/file284/file285/file286/file287/file288/file289/file290/file291/file292/file293/file294/file295/file296/file297/file298/file299/file300
