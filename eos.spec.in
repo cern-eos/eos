@@ -1170,7 +1170,6 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_sbindir}/eoscp-rain-test
 %{_sbindir}/eos-fuse-test
 %{_sbindir}/eos-fusex-tests
-%{_sbindir}/eos-fst-test
 %{_sbindir}/eos-oc-test
 %{_sbindir}/fusex-benchmark
 %{_sbindir}/eos-fusex-certify
@@ -1193,6 +1192,7 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_sbindir}/eos-io-test
 %{_sbindir}/eos-io-tool
 %{_sbindir}/eos-unit-tests
+%{_sbindir}/eos-unit-tests-with-instance
 %{_sbindir}/eos-fst-unit-tests
 %{_sbindir}/eos-unit-tests-with-qdb
 %{_sbindir}/eos-ns-quarkdb-tests
