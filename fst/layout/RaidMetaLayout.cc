@@ -1107,9 +1107,9 @@ RaidMetaLayout::ReadGroup(uint64_t offGroup)
       // Do read operation - chunk info is not interesting at this point
       // !!!Here we can only do normal async requests without readahead as this
       // would lead to corruptions in the parity information computed!!!
-      nread = mStripe[physical_id]->fileRead(off_local,
-                                             mDataBlocks[MapSmallToBig(i)],
-                                             mStripeWidth, mTimeout);
+      nread = mStripe[physical_id]->fileReadAsync(off_local,
+              mDataBlocks[MapSmallToBig(i)],
+              mStripeWidth, mTimeout);
 
       if (nread != (int64_t)mStripeWidth) {
         eos_err("error while reading local data blocks stripe=%u", id_stripe);

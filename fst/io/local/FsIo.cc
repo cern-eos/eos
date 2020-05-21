@@ -87,16 +87,6 @@ FsIo::fileRead(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length,
 }
 
 //------------------------------------------------------------------------------
-// Write to file - sync
-//------------------------------------------------------------------------------
-int64_t
-FsIo::fileWrite(XrdSfsFileOffset offset, const char* buffer,
-                XrdSfsXferSize length, uint16_t timeout)
-{
-  return ::pwrite(mFd, buffer, length, offset);
-}
-
-//------------------------------------------------------------------------------
 // Read from file async - falls back on synchronous mode
 //------------------------------------------------------------------------------
 int64_t
@@ -104,6 +94,26 @@ FsIo::fileReadPrefetch(XrdSfsFileOffset offset, char* buffer,
                        XrdSfsXferSize length, uint16_t timeout)
 {
   return fileRead(offset, buffer, length, timeout);
+}
+
+//------------------------------------------------------------------------------
+// Read from file asynchronously - falls back to synchronous mode
+//------------------------------------------------------------------------------
+int64_t
+FsIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
+                    XrdSfsXferSize length, uint16_t timeout)
+{
+  return fileRead(offset, buffer, length, timeout);
+}
+
+//------------------------------------------------------------------------------
+// Write to file - sync
+//------------------------------------------------------------------------------
+int64_t
+FsIo::fileWrite(XrdSfsFileOffset offset, const char* buffer,
+                XrdSfsXferSize length, uint16_t timeout)
+{
+  return ::pwrite(mFd, buffer, length, offset);
 }
 
 //------------------------------------------------------------------------------

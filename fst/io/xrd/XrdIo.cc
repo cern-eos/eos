@@ -791,6 +791,20 @@ XrdIo::CleanReadCache()
 }
 
 //------------------------------------------------------------------------------
+// Read from file asynchronously
+// @note The buffer given by the user is not neccessarily populated with
+//       any meaningful data when this function returns. The user should call
+//       fileWaitAsyncIO to enforce this guarantee.
+//------------------------------------------------------------------------------
+int64_t
+XrdIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
+                     XrdSfsXferSize length, uint16_t timeout)
+{
+  // @todo(esindril) fall back to sync mode for the time being
+  return fileRead(offset, buffer, length, timeout);
+}
+
+//------------------------------------------------------------------------------
 // Read with prefetching
 //------------------------------------------------------------------------------
 int64_t

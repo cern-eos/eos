@@ -350,49 +350,7 @@ TEST(FstFileTest, ReadAsyncTest)
   GLOG << "Performing async read operation" << std::endl;
 
   while (offset < file_size) {
-    // @todo (esindril) this should use an async method
-    off_t read_size = file->fileRead(offset, buffer, buff_size);
-    ASSERT_EQ(buff_size, read_size);
-    offset += buff_size;
-  }
-
-  off_t read_size = file->fileRead(offset, buffer, buff_size);
-  ASSERT_EQ(read_size, 0);
-  ASSERT_EQ(file->fileClose(), 0);
-  delete[] buffer;
-}
-
-
-//------------------------------------------------------------------------------
-// Read async test
-//------------------------------------------------------------------------------
-TEST(FstFileTest, ReadAsyncTestRA)
-{
-  // Initialize
-  std::string address = "root://root@" + gEnv->GetMapping("server");
-  std::string file_path = gEnv->GetMapping("replica_file");
-  // Validate URL
-  XrdCl::URL url(address);
-  ASSERT_TRUE(url.IsValid());
-  // Open file
-  std::string ra = "?fst.readahead=true";
-  std::string file_url = address + "/" + file_path + ra;
-  GLOG << "Opening file: " << file_url << std::endl;
-  std::unique_ptr<eos::fst::XrdIo> file(new eos::fst::XrdIo(file_url));
-  ASSERT_EQ(file->fileOpen(SFS_O_RDONLY, 0), 0);
-  // Get file size
-  struct stat buff = {0};
-  ASSERT_EQ(file->fileStat(&buff), 0);
-  GLOG << "Stat size: " << buff.st_size << std::endl;
-  uint64_t file_size = (uint64_t) buff.st_size;
-  off_t buff_size = 4 * 1024;
-  char* buffer = new char[buff_size];
-  uint64_t offset = 0;
-  GLOG << "Performing async read operation" << std::endl;
-
-  while (offset < file_size) {
-    // @todo (esindril) this should use an async method
-    off_t read_size = file->fileRead(offset, buffer, buff_size);
+    off_t read_size = file->fileReadAsync(offset, buffer, buff_size);
     ASSERT_EQ(buff_size, read_size);
     offset += buff_size;
   }

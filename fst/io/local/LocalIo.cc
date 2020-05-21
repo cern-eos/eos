@@ -94,6 +94,26 @@ LocalIo::fileRead(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length,
 }
 
 //------------------------------------------------------------------------------
+// Read from file async - falls back on synchronous mode
+//------------------------------------------------------------------------------
+int64_t
+LocalIo::fileReadPrefetch(XrdSfsFileOffset offset, char* buffer,
+                          XrdSfsXferSize length, uint16_t timeout)
+{
+  return fileRead(offset, buffer, length, timeout);
+}
+
+//------------------------------------------------------------------------------
+// Read from file asynchronously - falls back to sync mode
+//------------------------------------------------------------------------------
+int64_t
+LocalIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
+                       XrdSfsXferSize length, uint16_t timeout)
+{
+  return fileRead(offset, buffer, length, timeout);
+}
+
+//------------------------------------------------------------------------------
 // Vector read - sync
 //------------------------------------------------------------------------------
 int64_t
@@ -134,16 +154,6 @@ LocalIo::fileWrite(XrdSfsFileOffset offset, const char* buffer,
             static_cast<int64_t>(offset),
             static_cast<int64_t>(length));
   return mLogicalFile->writeofs(offset, buffer, length);
-}
-
-//------------------------------------------------------------------------------
-// Read from file async - falls back on synchronous mode
-//------------------------------------------------------------------------------
-int64_t
-LocalIo::fileReadPrefetch(XrdSfsFileOffset offset, char* buffer,
-                          XrdSfsXferSize length, uint16_t timeout)
-{
-  return fileRead(offset, buffer, length, timeout);
 }
 
 //------------------------------------------------------------------------------

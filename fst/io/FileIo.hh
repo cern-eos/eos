@@ -106,6 +106,35 @@ public:
                            XrdSfsXferSize length, uint16_t timeout = 0) = 0;
 
   //----------------------------------------------------------------------------
+  //! Read from file with prefetching
+  //!
+  //! @param offset offset in file
+  //! @param buffer where the data is read
+  //! @param length read length
+  //! @param timeout timeout value
+  //!
+  //! @return number of bytes read or -1 if error
+  //----------------------------------------------------------------------------
+  virtual int64_t fileReadPrefetch(XrdSfsFileOffset offset, char* buffer,
+                                   XrdSfsXferSize length, uint16_t timeout = 0) = 0;
+
+  //----------------------------------------------------------------------------
+  //! Read from file asynchronously
+  //!
+  //! @param offset offset in file
+  //! @param buffer where the data is read
+  //! @param length read length
+  //! @param timeout timeout value
+  //!
+  //! @return number of bytes read or -1 if error
+  //! @note The buffer given by the user is not neccessarily populated with
+  //!       any meaningful data when this function returns. The user should call
+  //!       fileWaitAsyncIO to enforce this guarantee.
+  //----------------------------------------------------------------------------
+  virtual int64_t fileReadAsync(XrdSfsFileOffset offset, char* buffer,
+                                XrdSfsXferSize length, uint16_t timeout = 0) = 0;
+
+  //----------------------------------------------------------------------------
   //! Vector read - sync
   //!
   //! @param chunkList list of chunks for the vector read
@@ -139,19 +168,6 @@ public:
   //----------------------------------------------------------------------------
   virtual int64_t fileWrite(XrdSfsFileOffset offset, const char* buffer,
                             XrdSfsXferSize length, uint16_t timeout = 0) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Read from file - async
-  //!
-  //! @param offset offset in file
-  //! @param buffer where the data is read
-  //! @param length read length
-  //! @param timeout timeout value
-  //!
-  //! @return number of bytes read or -1 if error
-  //----------------------------------------------------------------------------
-  virtual int64_t fileReadPrefetch(XrdSfsFileOffset offset, char* buffer,
-                                   XrdSfsXferSize length, uint16_t timeout = 0) = 0;
 
   //----------------------------------------------------------------------------
   //! Write to file - async

@@ -344,16 +344,32 @@ DavixIo::fileRead(XrdSfsFileOffset offset,
   return retval;
 }
 
+//------------------------------------------------------------------------------
+// Read from file async - falls back on synchronous mode
+//------------------------------------------------------------------------------
+int64_t
+DavixIo::fileReadPrefetch(XrdSfsFileOffset offset, char* buffer,
+                          XrdSfsXferSize length, uint16_t timeout)
+{
+  return fileRead(offset, buffer, length, timeout);
+}
+
+//------------------------------------------------------------------------------
+// Read from file asynchronously - falls back to synchronous mode
+//------------------------------------------------------------------------------
+int64_t
+DavixIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
+                       XrdSfsXferSize length, uint16_t timeout)
+{
+  return fileRead(offset, buffer, length, timeout);
+}
 
 //------------------------------------------------------------------------------
 // Write to file - sync
 //------------------------------------------------------------------------------
-
 int64_t
-DavixIo::fileWrite(XrdSfsFileOffset offset,
-                   const char* buffer,
-                   XrdSfsXferSize length,
-                   uint16_t timeout)
+DavixIo::fileWrite(XrdSfsFileOffset offset,  const char* buffer,
+                   XrdSfsXferSize length, uint16_t timeout)
 {
   eos_debug("offset = %lld, length = %lld",
             static_cast<int64_t>(offset),
@@ -377,18 +393,6 @@ DavixIo::fileWrite(XrdSfsFileOffset offset,
   seq_offset += length;
   return retval;
 }
-
-
-//------------------------------------------------------------------------------
-// Read from file async - falls back on synchronous mode
-//------------------------------------------------------------------------------
-int64_t
-DavixIo::fileReadPrefetch(XrdSfsFileOffset offset, char* buffer,
-                          XrdSfsXferSize length, uint16_t timeout)
-{
-  return fileRead(offset, buffer, length, timeout);
-}
-
 
 //------------------------------------------------------------------------------
 // Write to file async - falls back on synchronous mode
