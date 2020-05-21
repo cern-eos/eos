@@ -619,6 +619,7 @@ cc7_asan_docker_image:
     - date
     - exec_cmd eos-mgm1 'eos ns mutex --toggleorder'
     - exec_cmd eos-mgm1 eos-instance-test-ci
+    - exec_cmd eos-mgm1 eos-unit-tests-with-instance
     - exec_cmd eos-mgm1 'grep "RWMutex. Order Checking Error in thread" /var/log/eos/mgm/xrdlog.mgm && exit 1 || exit 0'
     - date
   <<: *dock8s_after_script_template
@@ -765,7 +766,7 @@ dock_stress:
   script:
     # generic unit tests
     - eos-unit-tests
-    - eos-fst-unit-tests
+    - eos-unit-tests-fst
     - eos-fusex-tests
     # namespace specific unit tests
     - export EOS_QUARKDB_HOSTPORT=localhost:7777

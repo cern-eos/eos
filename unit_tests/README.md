@@ -11,7 +11,7 @@ To build them individually, the following targets are available:
 
 ```bash
 make eos-unit-tests 
-make eos-fst-unit-tests
+make eos-unit-tests-fst
 ```
 They are provided as executables, with the EOS dependencies linked statically.  
 
@@ -24,7 +24,7 @@ enable the CMAKE `ASAN` flag:
 
 ```bash
 cmake3 ../ -DASAN=1
-make eos-unit-tests eos-fst-unit-tests
+make eos-unit-tests eos-unit-tests-fst
 ```
 To run unit tests with Address Sanitizer, we recommend using 
 the following suppression file `LeakSanitizer.supp`,
@@ -33,7 +33,7 @@ in order to ignore known memory leaks.
 Upon installation, the file is placed in `/var/eos/test/`.
 
 ```bash
-LSAN_OPTIONS=suppressions=/var/eos/test/LeakSanitizer.supp eos-fst-unit-tests
+LSAN_OPTIONS=suppressions=/var/eos/test/LeakSanitizer.supp eos-unit-tests-fst
 ```
 
 #### Known memory leaks

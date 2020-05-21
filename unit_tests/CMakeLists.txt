@@ -124,11 +124,11 @@ target_link_libraries(eos-unit-tests PRIVATE
   XrdEosMgm-Static)
 
 #-------------------------------------------------------------------------------
-# eos-fst-unit-tests executable
+# eos-unit-tests-fst executable
 #-------------------------------------------------------------------------------
-add_executable(eos-fst-unit-tests ${UT_FST_SRCS})
+add_executable(eos-unit-tests-fst ${UT_FST_SRCS})
 
-target_link_libraries(eos-fst-unit-tests PRIVATE
+target_link_libraries(eos-unit-tests-fst PRIVATE
   gtest_main
   gmock
   XrdEosFst-Static)
@@ -164,6 +164,6 @@ target_link_libraries(
   JSONCPP::JSONCPP)
 
 install(TARGETS
-  eos-unit-tests eos-unit-tests-with-instance eos-fst-unit-tests
+  eos-unit-tests eos-unit-tests-with-instance eos-unit-tests-fst
   eos-unit-tests-with-qdb
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
