@@ -1297,7 +1297,7 @@ runtest "### Dropdel     " unix 0 "" eos fs dropdeletion "${rm_fsid}"
 sleep 7
 runtest "### Fileinfo    " unix 0 "" eos fileinfo "fxid:${rm_fxid}"
 runtest "### Rm detached " unix 0 "" eos rm "fxid:${rm_fxid}"
-sleep 7
+sleep 11
 runtest "### Fileinfo    " unix 1 "" eos fileinfo "fxid:${rm_fxid}"
 # Secondly test that rm -F on a detached file will clean up the namespace
 # without waiting for a confirmation from the diskservers

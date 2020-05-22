@@ -150,7 +150,7 @@ TEST(XrdIo, FailPrefetchInFlight)
   //auto& logging = eos::common::Logging::GetInstance();
   //logging.SetLogPriority(LOG_DEBUG);
   using namespace eos::common;
-  std::set<int64_t> read_sizes {1171, 4 * KB, 99999, 1 * MB};
+  std::set<int64_t> read_sizes {1171, 4 * KB, 99999};
   std::string address = "root://root@" + gEnv->GetMapping("server");
   std::string file_path = gEnv->GetMapping("prefetch_file");
   // Validate URL
