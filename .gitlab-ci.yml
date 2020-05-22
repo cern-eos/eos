@@ -637,7 +637,7 @@ cc7_asan_docker_image:
     - exec_cmd eos-cli1 'count=0; while [[ $count -le 10 ]] && ( [[ ! -d /eos1/dockertest/ ]] || [[ ! -d /eos2/dockertest/ ]] ); do echo "Wait for mount... $count"; (( count++ )); sleep 1; done;'
     # fusex benchmark
     - exec_cmd eos-mgm1 'eos ns mutex --toggleorder'
-    - exec_cmd eos-cli1 "su eos-user -c 'mkdir /eos1/dockertest/fusex_tests/; cd /eos1/dockertest/fusex_tests/; fusex-benchmark'"
+    - exec_cmd eos-cli1 'su eos-user -c "mkdir -p /eos1/dockertest/fusex_tests/ && cd /eos1/dockertest/fusex_tests/ && fusex-benchmark"'
     - exec_cmd eos-mgm1 'grep "RWMutex. Order Checking Error in thread" /var/log/eos/mgm/xrdlog.mgm && exit 1 || exit 0'
     # download tests repo
     - exec_cmd eos-cli1 'git clone https://gitlab.cern.ch/dss/eosclient-tests.git'
@@ -652,9 +652,9 @@ cc7_asan_docker_image:
     #   exec_cmd eos-cli1 'env EOS_FUSE_NO_ROOT_SQUASH=1 python /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" ci';
     # fi
     # until then just run the "ci" tests
-    - exec_cmd eos-cli1 'cd eosclient-tests; for n in prepare/*.sh; do /bin/bash $n prepare; done '
+    - exec_cmd eos-cli1 'cd eosclient-tests; for n in prepare/*.sh; do /bin/bash $n prepare; done'
     - exec_cmd eos-cli1 'su eos-user -c "python2 /eosclient-tests/run.py --workdir=\"/eos1/dockertest /eos2/dockertest\" ci"'
-    - exec_cmd eos-cli1 ' cd eosclient-tests;  for n in prepare/*.sh; do /bin/bash $n cleanup; done '
+    - exec_cmd eos-cli1 'cd eosclient-tests; for n in prepare/*.sh; do /bin/bash $n cleanup; done'
   <<: *dock8s_after_script_template
   artifacts:
     when: on_failure
@@ -1100,7 +1100,7 @@ clean_k8s_cluster:
       awk '{print $2 " --namespace=" $1}' | 
       xargs --no-run-if-empty -n2 kubectl delete pods
     - kubectl get namespaces --no-headers -o custom-columns=":metadata.name,:.metadata.creationTimestamp" | 
-      grep -v 'default\|kube-public\|kube-system' | 
+      grep -v 'default\|kube-public\|kube-system\|kube-node-lease' |
       awk '$2 <= "'$( date --utc -d "3 days ago" +"%Y-%m-%dT%H:%M:%SZ" )'" { print $1 }' | 
       xargs --no-run-if-empty kubectl delete namespaces
   dependencies: []

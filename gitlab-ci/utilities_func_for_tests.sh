@@ -30,7 +30,7 @@ function exec_cmd_docker() {
 # and the rest is the command to be executed
 function exec_cmd_k8s() {
   set -o xtrace
-  kubectl exec -it --namespace=$K8S_NAMESPACE $(get_podname $1) -- /bin/bash -lic "${@:2}"
+  kubectl exec --namespace=$K8S_NAMESPACE $(get_podname $1) -- /bin/bash -lc "${@:2}"
   set +o xtrace
 }
 
