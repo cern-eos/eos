@@ -924,14 +924,6 @@ XrdIo::fileReadPrefetch(XrdSfsFileOffset offset, char* buffer,
     uint32_t aligned_length = sh->GetRespLength() - shift;
     uint64_t read_length = ((uint32_t) length < aligned_length) ? length :
                            aligned_length;
-
-    // If prefetch block smaller than mBlocksize and current offset at end
-    // of the prefetch block then we reached the end of file
-    if ((sh->GetRespLength() != mBlocksize) &&
-        ((uint64_t) offset >= iter->first + sh->GetRespLength())) {
-      break;
-    }
-
     ptr_buff = static_cast<char*>(memcpy(ptr_buff,
                                          iter->second->GetDataPtr() + shift,
                                          read_length));
@@ -939,6 +931,13 @@ XrdIo::fileReadPrefetch(XrdSfsFileOffset offset, char* buffer,
     offset += read_length;
     length -= read_length;
     nread += read_length;
+
+    // If prefetch block smaller than mBlocksize and current offset at end
+    // of the prefetch block then we reached the end of file
+    if ((sh->GetRespLength() != mBlocksize) &&
+        ((uint64_t) offset >= iter->first + sh->GetRespLength())) {
+      break;
+    }
   }
 
   ++mPrefetchHits;
