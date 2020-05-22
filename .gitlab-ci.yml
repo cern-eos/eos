@@ -776,9 +776,8 @@ dock_stress:
     - eos-ns-quarkdb-tests
   dependencies: []
   retry: 1
-#  tags:
-#    - docker_node
-#    - unit_tests
+  tags:
+    - docker-privileged
 
 unit_test:tag:
   image:
