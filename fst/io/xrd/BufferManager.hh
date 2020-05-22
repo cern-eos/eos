@@ -23,6 +23,8 @@
 
 #pragma once
 #include "fst/Namespace.hh"
+#include "common/Logging.hh"
+#include "common/StringConversion.hh"
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -163,7 +165,7 @@ private:
 //------------------------------------------------------------------------------
 //! Class BufferManager
 //------------------------------------------------------------------------------
-class BufferManager
+class BufferManager: public eos::common::LogId
 {
 public:
   //----------------------------------------------------------------------------
@@ -243,6 +245,9 @@ public:
     bool keep = (total_size <= mMaxSize);
 
     if (!keep) {
+      eos_debug("msg=\"buffer poll is full\" max_size=%s",
+                eos::common::StringConversion::GetPrettySize(mMaxSize).c_str());
+
       // Perform clean up for rest of slots depending on their size
       for (auto it = sorted_slots.rbegin(); it != sorted_slots.rend(); ++it) {
         if (it->first > slot) {
