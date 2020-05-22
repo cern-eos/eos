@@ -618,8 +618,8 @@ cc7_asan_docker_image:
       fi
     - date
     - exec_cmd eos-mgm1 'eos ns mutex --toggleorder'
-    - exec_cmd eos-mgm1 eos-instance-test-ci
-    - exec_cmd eos-mgm1 eos-unit-tests-with-instance -n root://localhost//eos/dockertest/
+    - exec_cmd eos-mgm1 'eos-instance-test-ci'
+    - exec_cmd eos-mgm1 'eos-unit-tests-with-instance -n root://localhost//eos/dockertest/'
     - exec_cmd eos-mgm1 'grep "RWMutex. Order Checking Error in thread" /var/log/eos/mgm/xrdlog.mgm && exit 1 || exit 0'
     - date
   <<: *dock8s_after_script_template
