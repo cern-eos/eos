@@ -178,7 +178,7 @@ TEST(XrdIo, FailPrefetchInFlight)
     // Add new readahead blocks with custom error at offset
     for (unsigned int i = 0; i < file->mNumRdAheadBlocks; i++) {
       file->mQueueBlocks.push(new eos::fst::ReadaheadBlock(file->mBlocksize,
-                              new MockSimpleHandler(err_off)));
+                              nullptr, new MockSimpleHandler(err_off)));
     }
 
     // Run test with different read size requests

@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #define IN_TEST_HARNESS
 #include "fst/io/xrd/BufferManager.hh"

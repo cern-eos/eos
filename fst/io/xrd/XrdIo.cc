@@ -24,6 +24,7 @@
 #include <stdint.h>
 #include <cstdlib>
 #include "fst/io/xrd/XrdIo.hh"
+#include "fst/io/xrd/BufferManager.hh"
 #include "fst/io/ChunkHandler.hh"
 #include "fst/io/VectChunkHandler.hh"
 #include "fst/io/AsyncMetaHandler.hh"
@@ -40,6 +41,11 @@
 #define EREMOTEIO 121
 #endif
 #endif
+
+namespace
+{
+eos::fst::BufferManager gBuffMgr;
+}
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -63,6 +69,44 @@ std::string getAttrUrl(std::string path)
 }
 
 //------------------------------------------------------------------------------
+// Constuctor for ReadaheadBlock
+//------------------------------------------------------------------------------
+ReadaheadBlock::ReadaheadBlock(uint64_t blocksize, BufferManager* buf_mgr,
+                               SimpleHandler* hd):
+  mBufMgr(buf_mgr)
+{
+  if (mBufMgr) {
+    mBuffer = mBufMgr->GetBuffer(blocksize);
+  } else {
+    mBuffer = std::make_shared<Buffer>(blocksize);
+  }
+
+  if (hd) {
+    mHandler.reset(hd);
+  } else {
+    mHandler = std::make_unique<SimpleHandler>();
+  }
+}
+
+//------------------------------------------------------------------------------
+// Get pointer to the underlying data buffer
+//------------------------------------------------------------------------------
+char* ReadaheadBlock::GetDataPtr()
+{
+  return mBuffer->mData.get();
+}
+
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+ReadaheadBlock::~ReadaheadBlock()
+{
+  if (mBufMgr) {
+    mBufMgr->Recycle(mBuffer);
+  }
+}
+
+//------------------------------------------------------------------------------
 // Handle asynchronous open responses
 //------------------------------------------------------------------------------
 void
@@ -70,7 +114,6 @@ AsyncIoOpenHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* status,
     XrdCl::AnyObject* response,
     XrdCl::HostList* hostList)
 {
-  eos_info("handling response in AsyncIoOpenHandler");
   delete hostList;
 
   // Response shoud be nullptr in general
@@ -514,7 +557,7 @@ XrdIo::fileWaitAsyncIO()
 
     // Wait for any requests on the fly and then close
     while (!mMapBlocks.empty()) {
-      SimpleHandler* shandler = mMapBlocks.begin()->second->handler;
+      SimpleHandler* shandler = mMapBlocks.begin()->second->mHandler.get();
 
       if (shandler->HasRequest()) {
         async_ok = shandler->WaitOK();
@@ -785,7 +828,7 @@ XrdIo::CleanReadCache()
 
   if (mQueueBlocks.empty()) {
     for (unsigned int i = 0; i < mNumRdAheadBlocks; i++) {
-      mQueueBlocks.push(new ReadaheadBlock(mBlocksize));
+      mQueueBlocks.push(new ReadaheadBlock(mBlocksize, &gBuffMgr));
     }
   }
 }
@@ -854,7 +897,7 @@ XrdIo::fileReadPrefetch(XrdSfsFileOffset offset, char* buffer,
       ++mPrefetchBlocks;
     }
 
-    SimpleHandler* sh = iter->second->handler;
+    SimpleHandler* sh = iter->second->mHandler.get();
     uint64_t shift = offset - iter->first;
     RecycleBlocks(iter);
     PrefetchBlock(mMapBlocks.rbegin()->first + mBlocksize);
@@ -889,7 +932,8 @@ XrdIo::fileReadPrefetch(XrdSfsFileOffset offset, char* buffer,
       break;
     }
 
-    ptr_buff = static_cast<char*>(memcpy(ptr_buff, iter->second->buffer + shift,
+    ptr_buff = static_cast<char*>(memcpy(ptr_buff,
+                                         iter->second->GetDataPtr() + shift,
                                          read_length));
     ptr_buff += read_length;
     offset += read_length;
@@ -950,7 +994,7 @@ XrdIo::PrefetchBlock(int64_t offset, uint16_t timeout)
 
   if (mQueueBlocks.empty()) {
     if (mMapBlocks.size() < mNumRdAheadBlocks) {
-      block = new ReadaheadBlock(mBlocksize);
+      block = new ReadaheadBlock(mBlocksize, &gBuffMgr);
     } else {
       return false;
     }
@@ -959,14 +1003,15 @@ XrdIo::PrefetchBlock(int64_t offset, uint16_t timeout)
     mQueueBlocks.pop();
   }
 
-  block->handler->Update(offset, mBlocksize);
-  XrdCl::XRootDStatus status = mXrdFile->Read(offset, mBlocksize, block->buffer,
-                               block->handler, timeout);
+  block->mHandler->Update(offset, mBlocksize);
+  XrdCl::XRootDStatus status = mXrdFile->Read(offset, mBlocksize,
+                               block->GetDataPtr(),
+                               block->mHandler.get(), timeout);
 
   if (!status.IsOK()) {
     // Create tmp status which is deleted in the HandleResponse method
     XrdCl::XRootDStatus* tmp_status = new XrdCl::XRootDStatus(status);
-    block->handler->HandleResponse(tmp_status, NULL);
+    block->mHandler->HandleResponse(tmp_status, NULL);
     mQueueBlocks.push(block);
     return false;
   } else {
@@ -988,7 +1033,7 @@ XrdIo::RecycleBlocks(std::map<uint64_t, ReadaheadBlock*>::iterator iter)
     // requests and prefetch a new block. But first we need to collect any
     // responses which are in-flight as otherwise these response might
     // arrive later on, when we are expecting replies for other blocks
-    SimpleHandler* sh = it->second->handler;
+    SimpleHandler* sh = it->second->mHandler.get();
 
     if (sh->HasRequest()) {
       // Not interested in the result - discard it

@@ -36,8 +36,53 @@ EOSFSTNAMESPACE_BEGIN
 
 //! Forward declarations
 class XrdIo;
+class Buffer;
+class BufferManager;
 class AsyncMetaHandler;
-struct ReadaheadBlock;
+
+//------------------------------------------------------------------------------
+//! Struct that holds a readahead buffer and corresponding handler
+//------------------------------------------------------------------------------
+struct ReadaheadBlock {
+
+  //----------------------------------------------------------------------------
+  //! Constuctor
+  //!
+  //! @param blocksize the size of the readahead
+  //! @param buf_mgr buffer manager, if null buffers are allocated on demand
+  //! @param handler pre-allocated handler
+  //----------------------------------------------------------------------------
+  ReadaheadBlock(uint64_t blocksize, BufferManager* buf_mgr = nullptr,
+                 SimpleHandler* hd = nullptr);
+
+  //----------------------------------------------------------------------------
+  //! Update current request
+  //!
+  //! @param offset offset
+  //! @param length length
+  //! @param isWrite true if write request, otherwise false
+  //----------------------------------------------------------------------------
+  void Update(uint64_t offset, uint32_t length, bool isWrite)
+  {
+    mHandler->Update(offset, length, isWrite);
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get pointer to the underlying data buffer
+  //----------------------------------------------------------------------------
+  char* GetDataPtr();
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~ReadaheadBlock();
+
+  BufferManager* mBufMgr; ///< Buffer manager object
+  std::shared_ptr<Buffer> mBuffer; ///< Current data block
+  std::unique_ptr<SimpleHandler> mHandler; ///< Async handler for the requests
+};
+
+typedef std::map<uint64_t, ReadaheadBlock*> PrefetchMap;
 
 //------------------------------------------------------------------------------
 //! Class used for handling asynchronous open responses
@@ -75,56 +120,6 @@ private:
   XrdIo* mFileIO; ///< File IO object corresponding to this handler
   XrdCl::ResponseHandler* mLayoutOpenHandler; ///< Open handler for the layout
 };
-
-typedef std::map<uint64_t, ReadaheadBlock*> PrefetchMap;
-
-//------------------------------------------------------------------------------
-//! Struct that holds a readahead buffer and corresponding handler
-//------------------------------------------------------------------------------
-struct ReadaheadBlock {
-
-  //----------------------------------------------------------------------------
-  //! Constuctor
-  //!
-  //! @param blocksize the size of the readahead
-  //! @param handler pre-allocated handler
-  //----------------------------------------------------------------------------
-  ReadaheadBlock(uint64_t blocksize, SimpleHandler* hd = nullptr)
-  {
-    buffer = new char[blocksize];
-
-    if (hd) {
-      handler = hd;
-    } else {
-      handler = new SimpleHandler();
-    }
-  }
-
-  //----------------------------------------------------------------------------
-  //! Update current request
-  //!
-  //! @param offset offset
-  //! @param length length
-  //! @param isWrite true if write request, otherwise false
-  //----------------------------------------------------------------------------
-  void Update(uint64_t offset, uint32_t length, bool isWrite)
-  {
-    handler->Update(offset, length, isWrite);
-  }
-
-  //----------------------------------------------------------------------------
-  //! Destructor
-  //----------------------------------------------------------------------------
-  virtual ~ReadaheadBlock()
-  {
-    delete[] buffer;
-    delete handler;
-  }
-
-  char* buffer; ///< pointer to where the data is read
-  SimpleHandler* handler; ///< async handler for the requests
-};
-
 
 //------------------------------------------------------------------------------
 //! Class used for doing remote IO operations using the Xrd client
