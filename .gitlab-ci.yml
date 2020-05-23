@@ -29,10 +29,10 @@ default:
   script:
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
     - case $PREBUILD_NAME in
-       slc6) /kaniko/executor --destination gitlab-registry.cern.ch/dss/eos/prebuild-slc6 --dockerfile $CI_PROJECT_DIR/gitlab-ci/prebuild_OSbase/Dockerfile_prebuild-slc6 --context $CI_PROJECT_DIR ;;
-        cc7) /kaniko/executor --destination gitlab-registry.cern.ch/dss/eos/prebuild-cc7 --dockerfile $CI_PROJECT_DIR/gitlab-ci/prebuild_OSbase/Dockerfile_prebuild-cc7 --context $CI_PROJECT_DIR ;;
-         c8) /kaniko/executor --destination gitlab-registry.cern.ch/dss/eos/prebuild-c8 --dockerfile $CI_PROJECT_DIR/gitlab-ci/prebuild_OSbase/Dockerfile_prebuild-c8 --context $CI_PROJECT_DIR ;;
-      cc7_*) /kaniko/executor --destination gitlab-registry.cern.ch/dss/eos/prebuild-$PREBUILD_NAME --dockerfile $CI_PROJECT_DIR/gitlab-ci/prebuild_OSbase/Dockerfile_prebuild-cc7_exotic
+       slc6) /kaniko/executor --cache=false --destination gitlab-registry.cern.ch/dss/eos/prebuild-slc6 --dockerfile $CI_PROJECT_DIR/gitlab-ci/prebuild_OSbase/Dockerfile_prebuild-slc6 --context $CI_PROJECT_DIR ;;
+        cc7) /kaniko/executor --cache=false --destination gitlab-registry.cern.ch/dss/eos/prebuild-cc7 --dockerfile $CI_PROJECT_DIR/gitlab-ci/prebuild_OSbase/Dockerfile_prebuild-cc7 --context $CI_PROJECT_DIR ;;
+         c8) /kaniko/executor --cache=false --destination gitlab-registry.cern.ch/dss/eos/prebuild-c8 --dockerfile $CI_PROJECT_DIR/gitlab-ci/prebuild_OSbase/Dockerfile_prebuild-c8 --context $CI_PROJECT_DIR ;;
+      cc7_*) /kaniko/executor --cache=false --destination gitlab-registry.cern.ch/dss/eos/prebuild-$PREBUILD_NAME --dockerfile $CI_PROJECT_DIR/gitlab-ci/prebuild_OSbase/Dockerfile_prebuild-cc7_exotic
                 --context $CI_PROJECT_DIR --build-arg PREBUILD_NAME="$PREBUILD_NAME" --build-arg CMAKE_OPTIONS="$CMAKE_OPTIONS" --build-arg CXXFLAGS="$CXXFLAGS" ;;
           *) echo "var PREBUILD_NAME:$PREBUILD_NAME not properly defined"; exit 1 ;;
       esac
@@ -55,6 +55,7 @@ prebuild-c8:
   variables:
     PREBUILD_NAME: c8
 
+# @note hide until useful, but consider deletion
 .prebuild-cc7_asan:
   <<: *prebuild-template_definition
   variables:
@@ -611,10 +612,10 @@ cc7_asan_docker_image:
   script:
     - if [[ $CI_JOB_NAME =~ "k8s" ]]; then
         kubectl cp $K8S_NAMESPACE/$(get_podname eos-cli1):/usr/sbin/eos-fsck-test ./eos-fsck-test;
-        chmod +x eos-fsck-test; date; ./eos-fsck-test --max-delay 600 --type k8s $K8S_NAMESPACE; date; rm -rf eos-fsck-test;
+        chmod +x eos-fsck-test; date; ./eos-fsck-test --max-delay 900 --type k8s $K8S_NAMESPACE; date; rm -rf eos-fsck-test;
       elif [[ $CI_JOB_NAME =~ "dock" ]]; then
         docker cp eos-cli1:/usr/sbin/eos-fsck-test .;
-        chmod +x eos-fsck-test; date; ./eos-fsck-test --max-delay 600 --type docker; date; rm -rf eos-fsck-test;
+        chmod +x eos-fsck-test; date; ./eos-fsck-test --max-delay 900 --type docker; date; rm -rf eos-fsck-test;
       fi
     - date
     - exec_cmd eos-mgm1 'eos ns mutex --toggleorder'
