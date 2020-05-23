@@ -156,6 +156,7 @@ XrdIo::XrdIo(std::string path) :
   // Opaque info can be part of the 'path'
   if (((qpos = mFilePath.find("?")) != std::string::npos)) {
     mOpaque = mFilePath.substr(qpos + 1);
+    mFilePath.erase(qpos);
   } else {
     mOpaque = "";
   }
@@ -216,26 +217,29 @@ XrdIo::fileOpen(XrdSfsFileOpenMode flags,
                 uint16_t timeout)
 {
   const char* val = 0;
-  std::string lOpaque;
-  XrdOucEnv open_opaque(mOpaque.c_str());
-  XrdCl::XRootDStatus okstatus;
-  mWriteStatus = okstatus;
+  mWriteStatus = XrdCl::XRootDStatus();
+
+  if (!opaque.empty()) {
+    if (mOpaque.empty()) {
+      mOpaque = opaque;
+    } else {
+      mOpaque = mOpaque + "&" + opaque;
+    }
+  }
+
+  XrdOucEnv env_opaque(mOpaque.c_str());
 
   // Decide if readahead is used and the block size
-  if ((val = open_opaque.Get("fst.readahead")) &&
+  if ((val = env_opaque.Get("fst.readahead")) &&
       (strncmp(val, "true", 4) == 0)) {
     eos_debug("%s", "msg=\"enabling the readahead\"");
     mDoReadahead = true;
     val = 0;
 
-    if ((val = open_opaque.Get("fst.blocksize"))) {
+    if ((val = env_opaque.Get("fst.blocksize"))) {
       mBlocksize = static_cast<uint64_t>(atoll(val));
     }
   }
-
-  // Final path + opaque info used in the open
-  std::string request;
-  ProcessOpaqueInfo(opaque, request);
 
   if (mXrdFile) {
     delete mXrdFile;
@@ -243,7 +247,8 @@ XrdIo::fileOpen(XrdSfsFileOpenMode flags,
   }
 
   mXrdFile = new XrdCl::File();
-  mTargetUrl.FromString(request);
+  // Final path + opaque info used in the open
+  mTargetUrl.FromString(BuildRequestUrl());
   mXrdIdHelper.reset(new eos::common::XrdConnIdHelper(mXrdConnPool, mTargetUrl));
 
   if (mXrdIdHelper->HasNewConnection()) {
@@ -301,35 +306,28 @@ XrdIo::fileOpenAsync(void* io_handler,
                      const std::string& opaque, uint16_t timeout)
 {
   const char* val = 0;
-  std::string request;
-  std::string lOpaque;
-  size_t qpos = 0;
 
-  // Opaque info can be part of the 'path'
-  if (((qpos = mFilePath.find("?")) != std::string::npos)) {
-    lOpaque = mFilePath.substr(qpos + 1);
-    //    mFilePath.erase(qpos);
-  } else {
-    lOpaque = opaque;
+  if (!opaque.empty()) {
+    if (mOpaque.empty()) {
+      mOpaque = opaque;
+    } else {
+      mOpaque = mOpaque + "&" + opaque;
+    }
   }
 
-  XrdOucEnv open_opaque(lOpaque.c_str());
+  XrdOucEnv env_opaque(mOpaque.c_str());
 
   // Decide if readahead is used and the block size
-  if ((val = open_opaque.Get("fst.readahead")) &&
+  if ((val = env_opaque.Get("fst.readahead")) &&
       (strncmp(val, "true", 4) == 0)) {
     eos_debug("msg=\"enabling the readahead\"");
     mDoReadahead = true;
     val = 0;
 
-    if ((val = open_opaque.Get("fst.blocksize"))) {
+    if ((val = env_opaque.Get("fst.blocksize"))) {
       mBlocksize = static_cast<uint64_t>(atoll(val));
     }
   }
-
-  request = mFilePath;
-  request += "?";
-  request += lOpaque;
 
   if (mXrdFile) {
     delete mXrdFile;
@@ -337,7 +335,7 @@ XrdIo::fileOpenAsync(void* io_handler,
   }
 
   mXrdFile = new XrdCl::File();
-  mTargetUrl.FromString(request);
+  mTargetUrl.FromString(BuildRequestUrl());
   mXrdIdHelper.reset(new eos::common::XrdConnIdHelper(mXrdConnPool, mTargetUrl));
 
   if (mXrdIdHelper->HasNewConnection()) {
@@ -1582,8 +1580,8 @@ XrdIo::GetDirList(XrdCl::FileSystem* fs, const XrdCl::URL& url,
 //------------------------------------------------------------------------------
 // Process opaque info
 //------------------------------------------------------------------------------
-void
-XrdIo::ProcessOpaqueInfo(const std::string& opaque, std::string& out) const
+std::string
+XrdIo::BuildRequestUrl() const
 {
   using namespace std::chrono;
   // Add extra capability expiration time based on the XRD_STREAMTIMEOUT value
@@ -1600,22 +1598,8 @@ XrdIo::ProcessOpaqueInfo(const std::string& opaque, std::string& out) const
   auto valid_sec = time_point_cast<seconds>(now).time_since_epoch().count()
                    + xrdcl_streamtimeout - 1;
   std::ostringstream oss;
-  oss << mFilePath;
-
-  // This could already contain opaque info
-  if (mFilePath.find('?') == std::string::npos) {
-    oss << '?';
-  } else {
-    oss << '&';
-  }
-
-  oss << "fst.valid=" << valid_sec;
-
-  if (opaque.length()) {
-    oss << '&' << opaque;
-  }
-
-  out = oss.str();
+  oss << mFilePath << "?" << "fst.valid=" << valid_sec << "&" << mOpaque;
+  return oss.str();
 }
 
 EOSFSTNAMESPACE_END

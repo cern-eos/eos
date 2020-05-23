@@ -494,7 +494,7 @@ public:
   }
 
 protected:
-  const std::string mFilePath; ///< path to current physical file
+  std::string mFilePath; ///< path to current physical file
   const std::string mType; ///< type
   std::string mLastUrl; ///< last used url if remote file
   std::string mLastTriedUrl; ///< last tried url if remote file

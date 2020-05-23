@@ -628,12 +628,13 @@ private:
                                  std::vector<std::string>* directories);
 
   //----------------------------------------------------------------------------
-  //! Process opaque info
+  //! Build request URL containing the full endpoint with path and any extra
+  //! opaque information
   //!
   //! @param opaque input opaque information
   //! @param out output containing the path with any additional opaque info
   //----------------------------------------------------------------------------
-  void ProcessOpaqueInfo(const std::string& opaque, std::string& out) const;
+  std::string BuildRequestUrl() const;
 
   //----------------------------------------------------------------------------
   //! Disable copy constructor
