@@ -78,7 +78,7 @@ ReadaheadBlock::ReadaheadBlock(uint64_t blocksize, BufferManager* buf_mgr,
   if (mBufMgr) {
     mBuffer = mBufMgr->GetBuffer(blocksize);
   } else {
-    mBuffer = std::make_shared<Buffer>(blocksize);
+    mBuffer = std::make_shared<eos::fst::Buffer>(blocksize);
   }
 
   if (hd) {
@@ -93,7 +93,7 @@ ReadaheadBlock::ReadaheadBlock(uint64_t blocksize, BufferManager* buf_mgr,
 //------------------------------------------------------------------------------
 char* ReadaheadBlock::GetDataPtr()
 {
-  return mBuffer->mData.get();
+  return mBuffer->GetDataPtr();
 }
 
 //------------------------------------------------------------------------------
@@ -224,7 +224,7 @@ XrdIo::fileOpen(XrdSfsFileOpenMode flags,
   // Decide if readahead is used and the block size
   if ((val = open_opaque.Get("fst.readahead")) &&
       (strncmp(val, "true", 4) == 0)) {
-    eos_debug("Enabling the readahead.");
+    eos_debug("%s", "msg=\"enabling the readahead\"");
     mDoReadahead = true;
     val = 0;
 
@@ -253,8 +253,9 @@ XrdIo::fileOpen(XrdSfsFileOpenMode flags,
   // Disable recovery on read and write
   if (!mXrdFile->SetProperty("ReadRecovery", "false") ||
       !mXrdFile->SetProperty("WriteRecovery", "false")) {
-    eos_warning("failed to set XrdCl::File properties read recovery and write "
-                "recovery to false");
+    eos_warning("%s",
+                "msg=failed to set XrdCl::File properties read recovery and write "
+                "recovery to false\"");
   }
 
   XrdCl::OpenFlags::Flags flags_xrdcl = eos::common::LayoutId::MapFlagsSfs2XrdCl(
@@ -274,7 +275,8 @@ XrdIo::fileOpen(XrdSfsFileOpenMode flags,
             mLastErrMsg.c_str());
 
     if (!mLastErrNo) {
-      eos_warning("error encountered despite errno=0; setting errno=22");
+      eos_warning("%s",
+                  "msg=\"error encountered despite errno=0; setting errno=22\"");
       mLastErrNo = EINVAL;
     }
 
@@ -316,7 +318,7 @@ XrdIo::fileOpenAsync(void* io_handler,
   // Decide if readahead is used and the block size
   if ((val = open_opaque.Get("fst.readahead")) &&
       (strncmp(val, "true", 4) == 0)) {
-    eos_debug("Enabling the readahead.");
+    eos_debug("msg=\"enabling the readahead\"");
     mDoReadahead = true;
     val = 0;
 
@@ -345,8 +347,8 @@ XrdIo::fileOpenAsync(void* io_handler,
   // Disable recovery on read and write
   if (!mXrdFile->SetProperty("ReadRecovery", "false") ||
       !mXrdFile->SetProperty("WriteRecovery", "false")) {
-    eos_warning("failed to set XrdCl::File properties read recovery and write "
-                "recovery to false");
+    eos_warning("%s", "msg=\"failed to set XrdCl::File properties read recovery"
+                " and write recovery to false\"");
   }
 
   XrdCl::OpenFlags::Flags flags_xrdcl =
@@ -357,7 +359,7 @@ XrdIo::fileOpenAsync(void* io_handler,
                    (XrdCl::ResponseHandler*)(io_handler), timeout);
 
   if (!status.IsOK()) {
-    eos_err("error=opening remote XrdClFile");
+    eos_err("%s", "msg=\"error opening remote XrdClFile\"");
     errno = status.errNo;
     mLastErrMsg = status.ToString().c_str();
     mLastErrCode  = status.code;
@@ -397,6 +399,103 @@ XrdIo::fileRead(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length,
   }
 
   return bytes_read;
+}
+
+//------------------------------------------------------------------------------
+// Read with prefetching
+//------------------------------------------------------------------------------
+int64_t
+XrdIo::fileReadPrefetch(XrdSfsFileOffset offset, char* buffer,
+                        XrdSfsXferSize length, uint16_t timeout)
+{
+  eos_debug("offset=%lli length=%i", offset, length);
+
+  if (!mXrdFile) {
+    errno = EIO;
+    return SFS_ERROR;
+  }
+
+  if (!mDoReadahead) {
+    eos_debug("%s", "msg=\"readahead is disabled\"");
+    return fileRead(offset, buffer, length, timeout);
+  }
+
+  int64_t fread = 0; // direct reads
+  int64_t nread = 0; // total read for current request
+  XrdSysMutexHelper lock(mPrefetchMutex);
+  char* ptr_buff = buffer;
+
+  while (length) {
+    auto iter = FindBlock(offset);
+
+    if (iter == mMapBlocks.end()) {
+      RecycleBlocks(iter);
+      // Read directly the current block and prefetch the next one
+      fread = fileRead(offset, ptr_buff, length);
+
+      if ((fread == length) && mDoReadahead) {
+        if (!PrefetchBlock(offset + length, timeout)) {
+          eos_err("msg=\"failed to send prefetch request\" offset=%lli",
+                  offset + length);
+          mDoReadahead = false;
+        }
+      }
+
+      nread += fread;
+      return nread;
+    }
+
+    // Update prefetch statistics
+    if (iter->first != mPrefetchOffset) {
+      mPrefetchOffset = iter->first;
+      ++mPrefetchBlocks;
+    }
+
+    SimpleHandler* sh = iter->second->mHandler.get();
+    uint64_t shift = offset - iter->first;
+    RecycleBlocks(iter);
+    PrefetchBlock(mMapBlocks.rbegin()->first + mBlocksize);
+
+    if (!sh->WaitOK()) {
+      // Error while prefetching, remove block from map
+      eos_err("%s", "msg=\"prefetching failed, disable it and clean blocks\"");
+      mDoReadahead = false;
+      RecycleBlocks(mMapBlocks.end());
+      fread = fileRead(offset, ptr_buff, length);
+      nread += fread;
+      return nread;
+    }
+
+    eos_debug("msg=\"read from prefetched block\" blk_off=%lld, req_off= %lld",
+              iter->first, offset);
+
+    if (sh->GetRespLength() <= 0) {
+      // The request got a response but it read 0 bytes
+      eos_debug("%s", "msg=\"response contains 0 bytes\"");
+      return nread;
+    }
+
+    uint32_t aligned_length = sh->GetRespLength() - shift;
+    uint64_t read_length = ((uint32_t) length < aligned_length) ? length :
+                           aligned_length;
+    ptr_buff = static_cast<char*>(memcpy(ptr_buff,
+                                         iter->second->GetDataPtr() + shift,
+                                         read_length));
+    ptr_buff += read_length;
+    offset += read_length;
+    length -= read_length;
+    nread += read_length;
+
+    // If prefetch block smaller than mBlocksize and current offset at the end
+    // of the prefetch block then we reached the end of file
+    if ((sh->GetRespLength() != mBlocksize) &&
+        ((uint64_t) offset >= iter->first + sh->GetRespLength())) {
+      break;
+    }
+  }
+
+  ++mPrefetchHits;
+  return nread;
 }
 
 //------------------------------------------------------------------------------
@@ -448,7 +547,7 @@ XrdIo::fileReadVAsync(XrdCl::ChunkList& chunkList, uint16_t timeout)
   vhandler = mMetaHandler->Register(chunkList, NULL, false);
 
   if (!vhandler) {
-    eos_err("unable to get vector handler");
+    eos_err("%s", "msg=\"unable to get vector handler\"");
     return SFS_ERROR;
   }
 
@@ -640,7 +739,7 @@ int
 XrdIo::fileStat(struct stat* buf, uint16_t timeout)
 {
   if (!mXrdFile) {
-    eos_info("underlying XrdClFile object doesn't exist");
+    eos_err("%s", "msg=\"underlying XrdClFile object doesn't exist\"");
     errno = EIO;
     return SFS_ERROR;
   }
@@ -845,103 +944,6 @@ XrdIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
 {
   // @todo(esindril) fall back to sync mode for the time being
   return fileRead(offset, buffer, length, timeout);
-}
-
-//------------------------------------------------------------------------------
-// Read with prefetching
-//------------------------------------------------------------------------------
-int64_t
-XrdIo::fileReadPrefetch(XrdSfsFileOffset offset, char* buffer,
-                        XrdSfsXferSize length, uint16_t timeout)
-{
-  eos_debug("offset=%lli length=%i", offset, length);
-
-  if (!mXrdFile) {
-    errno = EIO;
-    return SFS_ERROR;
-  }
-
-  if (!mDoReadahead) {
-    eos_debug("%s", "msg=\"readahead is disabled\"");
-    return fileRead(offset, buffer, length, timeout);
-  }
-
-  int64_t fread = 0; // direct reads
-  int64_t nread = 0; // total read for current request
-  XrdSysMutexHelper lock(mPrefetchMutex);
-  char* ptr_buff = buffer;
-
-  while (length) {
-    auto iter = FindBlock(offset);
-
-    if (iter == mMapBlocks.end()) {
-      RecycleBlocks(iter);
-      // Read directly the current block and prefetch the next one
-      fread = fileRead(offset, ptr_buff, length);
-
-      if ((fread == length) && mDoReadahead) {
-        if (!PrefetchBlock(offset + length, timeout)) {
-          eos_err("msg=\"failed to send prefetch request\" offset=%lli",
-                  offset + length);
-          mDoReadahead = false;
-        }
-      }
-
-      nread += fread;
-      return nread;
-    }
-
-    // Update prefetch statistics
-    if (iter->first != mPrefetchOffset) {
-      mPrefetchOffset = iter->first;
-      ++mPrefetchBlocks;
-    }
-
-    SimpleHandler* sh = iter->second->mHandler.get();
-    uint64_t shift = offset - iter->first;
-    RecycleBlocks(iter);
-    PrefetchBlock(mMapBlocks.rbegin()->first + mBlocksize);
-
-    if (!sh->WaitOK()) {
-      // Error while prefetching, remove block from map
-      eos_err("%s", "msg=\"prefetching failed, disable it and clean blocks\"");
-      mDoReadahead = false;
-      RecycleBlocks(mMapBlocks.end());
-      fread = fileRead(offset, ptr_buff, length);
-      nread += fread;
-      return nread;
-    }
-
-    eos_debug("msg=\"read from prefetched block\" blk_off=%lld, req_off= %lld",
-              iter->first, offset);
-
-    if (sh->GetRespLength() <= 0) {
-      // The request got a response but it read 0 bytes
-      eos_debug("%s", "msg=\"response contains 0 bytes\"");
-      return nread;
-    }
-
-    uint32_t aligned_length = sh->GetRespLength() - shift;
-    uint64_t read_length = ((uint32_t) length < aligned_length) ? length :
-                           aligned_length;
-    ptr_buff = static_cast<char*>(memcpy(ptr_buff,
-                                         iter->second->GetDataPtr() + shift,
-                                         read_length));
-    ptr_buff += read_length;
-    offset += read_length;
-    length -= read_length;
-    nread += read_length;
-
-    // If prefetch block smaller than mBlocksize and current offset at end
-    // of the prefetch block then we reached the end of file
-    if ((sh->GetRespLength() != mBlocksize) &&
-        ((uint64_t) offset >= iter->first + sh->GetRespLength())) {
-      break;
-    }
-  }
-
-  ++mPrefetchHits;
-  return nread;
 }
 
 //------------------------------------------------------------------------------

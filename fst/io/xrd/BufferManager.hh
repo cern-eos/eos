@@ -44,9 +44,16 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   Buffer(uint64_t size):
-    mCapacity(size)
+    mCapacity(size),
+    mData(size, '\0')
+  {}
+
+  //----------------------------------------------------------------------------
+  //! Get pointer to underlying data
+  //----------------------------------------------------------------------------
+  inline char* GetDataPtr()
   {
-    mData.reset(new char(size));
+    return &mData.front();
   }
 
   //----------------------------------------------------------------------------
@@ -56,7 +63,7 @@ public:
 
   uint64_t mCapacity; ///< Available size of the buffer
   uint64_t mLength; ///< Length of the useful data
-  std::unique_ptr<char> mData; ///< Buffer holding the data
+  std::vector<char> mData; ///< Buffer holding the data
 };
 
 
@@ -245,7 +252,7 @@ public:
     bool keep = (total_size <= mMaxSize);
 
     if (!keep) {
-      eos_debug("msg=\"buffer poll is full\" max_size=%s",
+      eos_debug("msg=\"buffer pool is full\" max_size=%s",
                 eos::common::StringConversion::GetPrettySize(mMaxSize).c_str());
 
       // Perform clean up for rest of slots depending on their size
