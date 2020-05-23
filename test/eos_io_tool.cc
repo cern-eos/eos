@@ -123,7 +123,6 @@ ReadSequentially(XrdCl::URL& url, std::string& ext_file)
   uint64_t offset = 0;
   int64_t nread = 0;
   int64_t nwrite = 0;
-  int32_t length;
 
   if (do_async) {
     ptr_handler = static_cast<eos::fst::AsyncMetaHandler*>
@@ -131,15 +130,13 @@ ReadSequentially(XrdCl::URL& url, std::string& ext_file)
   }
 
   // Read the whole file sequentially
-  while (eos_fsize > 0) {
-    eos_static_debug("Current file size:%llu", eos_fsize);
-    length = ((eos_fsize < block_size) ? eos_fsize : block_size);
+  uint64_t total_read = 0ull;
 
-    // Read from the EOS file
+  while (total_read < eos_fsize) {
     if (do_async) {
-      nread = eosf->fileReadPrefetch(offset, buffer, length, timeout);
+      nread = eosf->fileReadPrefetch(offset, buffer, block_size, timeout);
     } else {
-      nread = eosf->fileRead(offset, buffer, length);
+      nread = eosf->fileRead(offset, buffer, block_size);
     }
 
     if (nread == SFS_ERROR) {
@@ -149,7 +146,7 @@ ReadSequentially(XrdCl::URL& url, std::string& ext_file)
     }
 
     offset += nread;
-    eos_fsize -= nread;
+    total_read += nread;
 
     if (do_async) {
       // Wait async request to be satisfied
@@ -490,8 +487,8 @@ WriteSequentially(XrdCl::URL& url,
 
 
 //------------------------------------------------------------------------------
-// Write the file in sync/async mode using a certain patter specified in the
-// patter file - list of offset <-> length pieces to be read from the external
+// Write the file in sync/async mode using a certain pattern specified in the
+// pattern file - list of offset <-> length pieces to be read from the external
 // file and written to the EOS file
 //------------------------------------------------------------------------------
 bool
