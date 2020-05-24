@@ -43,7 +43,8 @@ int main(int argc, char* argv[])
   int c;
   bool verbose = false;
   std::string endpoint;
-  std::string usage = "Usage: eos-fst-test [-v] [-h] [-n <endpoint>]\
+  std::string usage =
+    "Usage: eos-unit-tests-with-instance [-v] [-h] [-n <endpoint>]\
                            \nTests the writing and downloading of a file on a plain and raiddp setup. \
                            \nTests the partition monitoring functionality. \
                            \nNote: a running EOS instance is required for this test to run successfully \

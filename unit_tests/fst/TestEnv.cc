@@ -25,6 +25,7 @@
 #include "XrdCl/XrdClURL.hh"
 #include <sstream>
 #include <cstdlib>
+#include <libgen.h>
 
 #define SSTR(message) static_cast<std::ostringstream&>(std::ostringstream().flush() << message).str()
 
@@ -53,7 +54,7 @@ TestEnv::TestEnv(const std::string& endpoint)
     mPathPrefix += '/';
   }
 
-  mPathPrefix += "fst_unit_tests/";
+  mPathPrefix += "fst_unit_tests/dirs/";
   mHostName = url.GetHostName();
   // Note the yes and tr errors are "acceptable"
   system("rm -rf /tmp/file32MB.dat; rm -rf /tmp/file_prefetch.dat");
@@ -197,8 +198,11 @@ TestEnv::TestEnv(const std::string& endpoint)
 //------------------------------------------------------------------------------
 TestEnv::~TestEnv()
 {
-  system(SSTR("eos " << "root://" << mHostName << " rm -rF " << mPathPrefix
-              << " > /dev/null 2>&1").c_str());
+  system(SSTR("eos " << "root://" << mHostName << " rm -rF " <<
+              mPathPrefix).c_str());
+  const std::string dir_to_rm = dirname((char*)std::string(mPathPrefix).c_str());
+  system(SSTR("eos " << "root://" << mHostName << " rmdir " <<
+              dir_to_rm).c_str());
 }
 
 //------------------------------------------------------------------------------
