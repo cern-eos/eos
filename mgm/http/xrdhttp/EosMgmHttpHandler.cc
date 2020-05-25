@@ -516,17 +516,30 @@ EosMgmHttpHandler::GetOfsPlugin(XrdSysError* eDest, const std::string& confg,
     if (line.find("xrootd.fslib") == 0) {
       auto tokens = StringTokenizer::split<std::vector<std::string>>(line, ' ');
 
-      if (tokens.size() != 2) {
+      if (tokens.size() < 2) {
+        eDest->Emsg("Config", "Failed parsing xrootd.fslib directive", "");
         break;
+      }
+
+      std::string lib = tokens[1];
+
+      // Account for different specifications of the OFS plugin
+      if (lib == "-2")  {
+        if (tokens.size() < 3) {
+          eDest->Emsg("Config", "Failed parsing xrootd.fslib directive", "");
+          break;
+        }
+
+        lib = tokens[2];
       }
 
       char resolve_path[2048];
       bool no_alt_path {false};
 
-      if (!XrdOucPinPath(tokens[1].c_str(), no_alt_path, resolve_path,
+      if (!XrdOucPinPath(lib.c_str(), no_alt_path, resolve_path,
                          sizeof(resolve_path))) {
         eDest->Emsg("Config", "Failed to locate the MGM OFS library path for ",
-                    tokens[1].c_str());
+                    lib.c_str());
         break;
       }
 
