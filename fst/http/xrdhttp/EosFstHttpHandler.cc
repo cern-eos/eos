@@ -101,6 +101,15 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
     }
 
     if (req.verb == "GET") {
+      // Need to update the content length determined while opening the file
+      auto it_hd = headers.find("Content-Length");
+      
+      if (it_hd != headers.end()) {
+        try {
+          content_length = std::stoll(it_hd->second);
+        } catch (...) {}
+      }
+
       if (response->GetResponseCode() != 200) {
         return req.SendSimpleResp(response->GetResponseCode(),
                                   response->GetResponseCodeDescription().c_str(),
