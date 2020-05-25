@@ -660,10 +660,6 @@ XrdMgmOfs::_qos_set(const char* path, XrdOucErrInfo& error,
       }
 
       space = filesystem->GetString("schedgroup");
-      size_t ppos = space.find(".");
-      if (ppos != std::string::npos) {
-        space.erase(ppos);
-      }
     }
 
     // Extract new layout components from QoS class
