@@ -90,6 +90,7 @@ ConverterJob::DoIt()
   uid_t owner_uid = 0;
   gid_t owner_gid = 0;
   unsigned long long size = 0;
+  eos::IFileMD::LocationVector src_locations;
   eos::IContainerMD::XAttrMap attrmap;
   XrdOucString sourceChecksum;
   XrdOucString sourceAfterChecksum;
@@ -109,6 +110,7 @@ ConverterJob::DoIt()
       owner_uid = fmd->getCUid();
       owner_gid = fmd->getCGid();
       size = fmd->getSize();
+      src_locations = fmd->getLocations();
       mSourcePath = gOFS->eosView->getUri(fmd.get());
       eos::common::Path cPath(mSourcePath.c_str());
       cmd = gOFS->eosView->getContainer(cPath.GetParentPath());
@@ -165,10 +167,22 @@ ConverterJob::DoIt()
     properties.Set("force", true);
     properties.Set("posc", false);
     properties.Set("coerce", false);
+    std::string exclude_fsids = "&eos.excludefsid=";
+
+    for (const auto& fs : src_locations) {
+      exclude_fsids += std::to_string(fsid);
+      exclude_fsids += ",";
+    }
+
+    if (*exclude_fsids.rbegin() == ',') {
+      exclude_fsids.pop_back();
+    }
+
     std::string source = mSourcePath.c_str();
     std::string target = mProcPath.c_str();
     std::string cgi = "eos.ruid=" SDUID "&eos.rgid=" SDGID "&";
     cgi += mTargetCGI.c_str();
+    cgi += exclude_fsids;
     cgi += "&eos.app=eos/converter";
     cgi += "&eos.targetsize=";
     cgi += sourceSize.c_str();
@@ -539,7 +553,8 @@ Converter::PublishActiveJobs()
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
   char sactive[256];
   snprintf(sactive, sizeof(sactive) - 1, "%lu", mActiveJobs);
-  FsView::gFsView.mSpaceView[mSpaceName.c_str()]->SetConfigMember("stat.converter.active", sactive, true);
+  FsView::gFsView.mSpaceView[mSpaceName.c_str()]->SetConfigMember("stat.converter.active",
+      sactive, true);
 }
 
 //------------------------------------------------------------------------------
