@@ -66,6 +66,8 @@ ConvertCmd::ProcessRequest() noexcept
     ActionSubcmd(convert.action(), reply);
   } else if (subcmd == eos::console::ConvertProto::kStatus) {
     StatusSubcmd(convert.status(), reply, jsonOutput);
+  } else if (subcmd == eos::console::ConvertProto::kConfig) {
+    ConfigSubcmd(convert.config(), reply, jsonOutput);
   } else if (subcmd == eos::console::ConvertProto::kFile) {
     FileSubcmd(convert.file(), reply, jsonOutput);
   } else if (subcmd == eos::console::ConvertProto::kRule) {
@@ -110,12 +112,12 @@ void ConvertCmd::StatusSubcmd(
   std::ostringstream out;
 
   // Lambda function to parse threadpool information
-  auto parseThreadpool = [](std::string threadpool) -> Json::Value {
+  auto parseKeyValueString = [](std::string skeyvalue) -> Json::Value {
     using eos::common::StringConversion;
     std::map<std::string, std::string> map;
     Json::Value json;
 
-    if (StringConversion::GetKeyValueMap(threadpool.c_str(),
+    if (StringConversion::GetKeyValueMap(skeyvalue.c_str(),
                                          map, "=", " ")) {
       for (const auto& it: map) {
         json[it.first] = map[it.first];
@@ -127,6 +129,9 @@ void ConvertCmd::StatusSubcmd(
 
   // Extract Converter Driver parameters
   std::string threadpool = gOFS->mConverterDriver->GetThreadPoolInfo();
+  std::string config = SSTR(
+    "maxthreads=" << gOFS->mConverterDriver->GetMaxThreadPoolSize()
+    << " interval=" << gOFS->mConverterDriver->GetRequestIntervalTime());
   uint64_t running = gOFS->mConverterDriver->NumRunningJobs();
   uint64_t failed = gOFS->mConverterDriver->NumFailedJobs();
   int64_t pending = gOFS->mConverterDriver->NumQdbPendingJobs();
@@ -135,7 +140,8 @@ void ConvertCmd::StatusSubcmd(
 
   if (jsonOutput) {
     Json::Value json;
-    json["threadpool"] = parseThreadpool(threadpool.c_str());
+    json["threadpool"] = parseKeyValueString(threadpool.c_str());
+    json["config"] = parseKeyValueString(config.c_str());
     json["status"] = state;
     json["running"] = (Json::Value::UInt64) running;
     json["pending"] = (Json::Value::UInt64) pending;
@@ -144,6 +150,7 @@ void ConvertCmd::StatusSubcmd(
     out << Json::StyledWriter().write(json);
   } else {
     out << "Threadpool: " << threadpool << std::endl
+        << "Config: " << config << std::endl
         << "Status: " << state << std::endl
         << "Running jobs: " << running << std::endl
         << "Pending jobs: " << pending << std::endl
@@ -152,6 +159,63 @@ void ConvertCmd::StatusSubcmd(
   }
 
   reply.set_std_out(out.str());
+}
+
+//------------------------------------------------------------------------------
+// Execute config subcommand
+//------------------------------------------------------------------------------
+void ConvertCmd::ConfigSubcmd(
+  const eos::console::ConvertProto_ConfigProto& config,
+  eos::console::ReplyProto& reply,
+  bool jsonOutput)
+{
+  using output_map = std::map<std::string, std::string>;
+  std::ostringstream out;
+  std::ostringstream err;
+  output_map output;
+  int retc = 0;
+
+  if (config.maxthreads() != 0) {
+    if (config.maxthreads() > 5000) {
+      err << "error: maxthreads value " << config.maxthreads()
+          << " above 5000 limit" << std::endl;
+      retc = EINVAL;
+    } else {
+      gOFS->mConverterDriver->SetMaxThreadPoolSize(config.maxthreads());
+      output["maxthreads"] = std::to_string(config.maxthreads());
+    }
+  }
+
+  if (config.interval() != 0) {
+    if (config.interval() > 3600 * 24) {
+      err << "error: interval value " << config.interval()
+          << " above 1 day limit" << std::endl;
+      retc = EINVAL;
+    } else {
+      gOFS->mConverterDriver->SetRequestIntervalTime(config.interval());
+      output["interval"] = std::to_string(config.interval());
+    }
+  }
+
+  if (output.empty()) {
+    err << "error: no config values given" << std::endl;
+    retc = ENODATA;
+  } else if (jsonOutput) {
+    Json::Value json;
+    for (auto it = output.begin(); it != output.end(); it++) {
+      json[it->first] = it->second;
+    }
+    out << Json::StyledWriter().write(json);
+  } else {
+    out << "Config values updated:" << std::endl;
+    for (auto it = output.begin(); it != output.end(); it++) {
+      out << it->first << "=" << it->second << std::endl;
+    }
+  }
+
+  reply.set_std_out(out.str());
+  reply.set_std_err(err.str());
+  reply.set_retc(retc);
 }
 
 //------------------------------------------------------------------------------

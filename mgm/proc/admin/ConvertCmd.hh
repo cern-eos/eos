@@ -78,6 +78,17 @@ private:
                     bool jsonOutput = false);
 
   //----------------------------------------------------------------------------
+  //! Execute config subcommand
+  //!
+  //! @param config config subcommand proto object
+  //! @param reply reply proto object
+  //! @param jsonOutput flag to print output in JSON format
+  //----------------------------------------------------------------------------
+  void ConfigSubcmd(const eos::console::ConvertProto_ConfigProto& config,
+                    eos::console::ReplyProto& reply,
+                    bool jsonOutput = false);
+
+  //----------------------------------------------------------------------------
   //! Execute file subcommand
   //!
   //! @param file file subcommand proto object
