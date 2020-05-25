@@ -59,7 +59,7 @@ XrdAccAuthorize* XrdAccAuthorizeObject(XrdSysLogger* lp, const char*   cfn,
   if (!gMgmAuthz) {
     eroute.Say("------ XrdMgmAuthz plugin initialization failed!");
   } else {
-    eroute.Say("------ XrdMgmAuthz plugin initialization faile");
+    eroute.Say("------ XrdMgmAuthz plugin initialization successful");
   }
 
   return static_cast<XrdAccAuthorize*>(gMgmAuthz);
