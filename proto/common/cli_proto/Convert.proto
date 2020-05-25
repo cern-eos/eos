@@ -40,10 +40,16 @@ message ConvertProto {
     ConversionProto conversion = 2;
   }
 
+  message ConfigProto {
+    uint32 maxthreads = 1;
+    uint32 interval = 2;
+  }
+
   oneof subcmd {
     ActionProto action = 1;
     StatusProto status = 2;
     FileProto file = 3;
     RuleProto rule = 4;
+    ConfigProto config = 5;
   }
 }

@@ -92,6 +92,67 @@ ConvertHelper::ParseCommand(const char* arg)
     convert->mutable_action()->set_action(action);
   } else if (token == "status") {
     convert->mutable_status();
+  } else if (token == "config") {
+    eos::console::ConvertProto_ConfigProto* config = convert->mutable_config();
+    bool option = false;
+
+    while (tokenizer.NextToken(token)) {
+      if (token.beginswith("--maxthreads")) {
+        uint32_t maxthreads = 0;
+
+        if (token.beginswith("--maxthreads=")) {
+          token.replace("--maxthreads=", "");
+        } else {
+          tokenizer.NextToken(token);
+        }
+
+        try {
+          maxthreads = std::stoul(token.c_str());
+
+          if (maxthreads == 0) {
+            throw std::invalid_argument("value zero not allowed");
+          }
+        } catch (...) {
+          std::cerr << "error: invalid value for <maxthreads>='"
+                    << token << "'" << std::endl;
+          return false;
+        }
+
+        config->set_maxthreads(maxthreads);
+        option = true;
+      } else if (token.beginswith("--interval")) {
+        uint32_t interval = 0;
+
+        if (token.beginswith("--interval=")) {
+          token.replace("--interval=", "");
+        } else {
+          tokenizer.NextToken(token);
+        }
+
+        try {
+          interval = std::stoul(token.c_str());
+
+          if (interval == 0) {
+            throw std::invalid_argument("value zero not allowed");
+          }
+        } catch (...) {
+          std::cerr << "error: invalid value for <interval>='"
+                    << token << "'" << std::endl;
+          return false;
+        }
+
+        config->set_interval(interval);
+        option = true;
+      } else {
+        std::cerr << "warning: unknown config option '"
+                  << token << "'" << std::endl;
+      }
+    }
+
+    if (!option) {
+      std::cerr << "error: no valid config option given" << std::endl;
+      return false;
+    }
   } else if (token == "file") {
     eos::console::ConvertProto_FileProto* file = convert->mutable_file();
 
@@ -283,10 +344,15 @@ void com_convert_help()
   std::ostringstream oss;
   oss << "Usage: convert enable/disable                   : enable or disable the Convert Engine" << std::endl
       << "       convert status                           : prints Converter Engine statistics" << std::endl
+      << "       convert config <option> [<option>]       : sets Converter Engine configuration option" << std::endl
       << "       convert file <identifier> <conversion>   : schedules a file conversion" << std::endl
       << "       convert rule <identifier> <conversion>   : applies a conversion rule on the given directory" << std::endl
       << std::endl
       << "Note: <identifier> = fid|fxid|cid|cxid|path" << std::endl
-      << "      <conversion> =  <layout:replica> [space] [placement] [checksum]" << std::endl;
+      << "      <conversion> =  <layout:replica> [space] [placement] [checksum]" << std::endl
+      << std::endl
+      << "Config options:" << std::endl
+      << "     --maxthreads=<#>  : sets the converter max threadpool size" << std::endl
+      << "     --interval=<#>    : sets the jobs request interval" << std::endl;
   std::cerr << oss.str() << std::endl;
 }
