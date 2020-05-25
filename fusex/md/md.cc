@@ -842,6 +842,8 @@ metad::get(fuse_req_t req,
         std::string encname = eos::common::StringConversion::EncodeInvalidUTF8(
                                 md->name());
 
+	XrdSysMutexHelper mLock(pmd->Locker());
+
         if (!pmd->local_children().count(encname) &&
             !pmd->get_todelete().count(encname) &&
             !md->deleted()) {
@@ -1090,6 +1092,7 @@ metad::add_sync(fuse_req_t req, shared_md pmd, shared_md md, std::string authid)
 
   eos_static_info("metad::add_sync backend::putMD - stop");
   std::string mdstream;
+  std::string md_name = md->name();
   md->SerializeToString(&mdstream);
   stat.inodes_inc();
   stat.inodes_ever_inc();
@@ -1105,15 +1108,15 @@ metad::add_sync(fuse_req_t req, shared_md pmd, shared_md md, std::string authid)
     XrdSysMutexHelper mLock(pmd->Locker());
 
     if (!pmd->local_children().count(
-          eos::common::StringConversion::EncodeInvalidUTF8(md->name()))) {
+          eos::common::StringConversion::EncodeInvalidUTF8(md_name))) {
       pmd->set_nchildren(pmd->nchildren() + 1);
     }
 
     pmd->local_children()[eos::common::StringConversion::EncodeInvalidUTF8(
-                            md->name())] = md->id();
+                            md_name)] = md->id();
     pmd->set_nlink(1);
     pmd->get_todelete().erase(eos::common::StringConversion::EncodeInvalidUTF8(
-                                md->name()));
+                                md_name));
   }
   md->Locker().Lock();
   mdflush.Lock();
