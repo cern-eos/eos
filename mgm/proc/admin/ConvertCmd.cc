@@ -23,6 +23,7 @@
 
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Scheduler.hh"
+#include "mgm/FsView.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IContainerMD.hh"
@@ -189,15 +190,16 @@ void ConvertCmd::FileSubcmd(const eos::console::ConvertProto_FileProto& file,
     return;
   }
 
-  // Extract file id and layout id
-  eos::common::FileId::fileid_t file_id = 0;
-  uint32_t file_layoutid = 0;
-
+  // Extract file id, layout id and replica location
+  eos::IFileMD::id_t file_id = 0;
+  eos::IFileMD::layoutId_t file_layoutid = 0;
+  eos::IFileMD::location_t replica_location = 0;
   try {
     eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
     auto fmd = gOFS->eosView->getFile(path).get();
     file_id = fmd->getId();
     file_layoutid = fmd->getLayoutId();
+    replica_location = fmd->getLocations().at(0);
   } catch (eos::MDException& e) {
     eos_debug("msg=\"exception retrieving file metadata\" path=%s "
               "ec=%d emsg=\"%s\"", path.c_str(), e.getErrno(),
@@ -208,9 +210,23 @@ void ConvertCmd::FileSubcmd(const eos::console::ConvertProto_FileProto& file,
     return;
   }
 
-  // Handle space default scenario
-  std::string space = conversion.space().empty() ?
-                      "default.0" : conversion.space();
+  // Handle conversion space
+  std::string space = conversion.space();
+
+  if (space.empty()) {
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+    auto filesystem = FsView::gFsView.mIdView.lookupByID(replica_location);
+
+    if (filesystem) {
+      space = filesystem->GetString("schedgroup");
+    } else {
+      err << "error: unable to retrieve "
+          << "filesystem location for '" << path << "'";
+      reply.set_std_err(err.str());
+      reply.set_retc(EINVAL);
+      return;
+    }
+  }
 
   // Handle checksum
   LayoutId::eChecksum echecksum;
@@ -246,6 +262,8 @@ void ConvertCmd::FileSubcmd(const eos::console::ConvertProto_FileProto& file,
     Json::Value json;
     json["conversion_id"] = conversion_id;
     json["path"] = path;
+    json["space"] = space;
+    json["checksum"] = LayoutId::GetChecksumString(echecksum);
     out << Json::StyledWriter().write(json);
   } else {
     out << "Scheduled conversion job: " << conversion_id;
