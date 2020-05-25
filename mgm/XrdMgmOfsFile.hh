@@ -238,7 +238,11 @@ public:
 
   bool isZeroSizeFile; //< true if the file has 0 size
 
+#ifdef IN_TEST_HARNESS
+public:
+#else
 private:
+#endif
   //----------------------------------------------------------------------------
   //! Parse the triedrc opaque info and return the corresponding error number
   //!
@@ -281,6 +285,14 @@ private:
   //----------------------------------------------------------------------------
   bool HandleTokenAuthz(XrdSecEntity* client , const std::string& path,
                         const std::string& opaque);
+
+  //----------------------------------------------------------------------------
+  //! Get file system ids excluded from scheduling
+  //!
+  //! return list of file system ids to exclude
+  //----------------------------------------------------------------------------
+  std::list<unsigned int>
+  GetExcludedFsids() const;
 
   int oh; //< file handle
   std::string fileName; //< file name

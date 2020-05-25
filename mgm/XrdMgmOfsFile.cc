@@ -28,6 +28,7 @@
 #include "common/SecEntity.hh"
 #include "common/StackTrace.hh"
 #include "common/ParseUtils.hh"
+#include "common/StringTokenizer.hh"
 #include "common/Strerror_r_wrapper.hh"
 #include "mgm/Access.hh"
 #include "mgm/FileSystem.hh"
@@ -1642,7 +1643,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   eos::mgm::FileSystem* filesystem = 0;
   std::vector<unsigned int> selectedfs;
-  std::vector<unsigned int> excludefs;
+  std::vector<unsigned int> excludefs = GetExcludedFsids();
   std::vector<std::string> proxys;
   std::vector<std::string> firewalleps;
   // file systems which are unavailable during a read operation
@@ -3226,4 +3227,34 @@ XrdMgmOfsFile::HandleTokenAuthz(XrdSecEntity* client, const std::string& path,
   }
 
   return true;
+}
+
+//------------------------------------------------------------------------------
+// Get file system ids excluded from scheduling
+//------------------------------------------------------------------------------
+std::list<unsigned int>
+XrdMgmOfsFile::GetExcludedFsids() const
+{
+  std::list<unsigned int> fsids;
+  std::string sfsids;
+
+  if (openOpaque) {
+    sfsids = (openOpaque->Get("eos.excludefsid") ?
+              openOpaque->Get("eos.excludefsid") : "");
+  }
+
+  if (sfsids.empty()) {
+    return fsids;
+  }
+
+  auto lst_ids = eos::common::StringTokenizer::split<std::list<std::string>>
+                 (sfsids, ',');
+
+  for (const auto& sid : lst_ids) {
+    try {
+      fsids.push_back(std::stoul(sid));
+    } catch (...) {}
+  }
+
+  return fsids;
 }

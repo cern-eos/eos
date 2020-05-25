@@ -24,7 +24,6 @@
 #include "fst/XrdFstOfsFile.hh"
 #include "fst/XrdFstOfs.hh"
 #undef IN_TEST_HARNESS
-
 #include <memory>
 #include "gtest/gtest.h"
 

@@ -64,7 +64,8 @@ set(MGM_UT_SRCS
   mgm/tgc/SpaceToTapeGcMapTests.cc
   mgm/tgc/TapeGcTests.cc
   mgm/tgc/UtilsTests.cc
-  mgm/XrdMgmOfsTests.cc)
+  mgm/XrdMgmOfsTests.cc
+  mgm/XrdMgmOfsFileTests.cc)
 
 set(COMMON_UT_SRCS
   common/FileIdTests.cc
