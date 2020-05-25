@@ -25,7 +25,7 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-constexpr unsigned int ConverterDriver::cRequestIntervalTime;
+constexpr unsigned int ConverterDriver::cDefaultRequestIntervalTime;
 constexpr unsigned int ConverterDriver::QdbHelper::cBatchSize;
 
 //----------------------------------------------------------------------------
