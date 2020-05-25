@@ -25,7 +25,6 @@
 #include "proto/Convert.pb.h"
 #include "mgm/Namespace.hh"
 #include "mgm/proc/IProcCommand.hh"
-#include "namespace/interface/IFileMD.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
