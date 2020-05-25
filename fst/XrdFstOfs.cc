@@ -1524,6 +1524,7 @@ int
 XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
                  const XrdSecEntity* client)
 {
+  using eos::common::FileId;
   char ipath[16384];
   char iopaque[16384];
   static const char* epname = "FSctl";
@@ -1575,7 +1576,8 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
   XrdOucString opaque = iopaque;
   XrdOucString result = "";
   XrdOucEnv env(opaque.c_str());
-  eos_debug("tident=%s path=%s opaque=%s", tident, path.c_str(), opaque.c_str());
+  eos_debug("tident=%s path=%s opaque=%s prot=%s", tident, path.c_str(),
+            opaque.c_str(), client->prot);
   const char* scmd;
 
   if ((scmd = env.Get("fst.pcmd"))) {
@@ -1666,6 +1668,93 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
         error.setErrInfo(strlen(err) + 1, err);
         return SFS_DATA;
       }
+    }
+
+    if (execmd == "local_rename") {
+      if (strncmp(client->prot, "sss", 3) != 0) {
+        eos_static_err("%s", "msg=\"only sss authenticated clients can trigger"
+                       " a local rename");
+        return gOFS.Emsg(epname, error, EPERM, "do local rename",
+                         "- needs sss authentication");
+      }
+
+      std::string sfsid = (env.Get("fst.rename.fsid") ?
+                           env.Get("fst.rename.fsid") : "");
+      std::string sold_fid = (env.Get("fst.rename.ofid") ?
+                              env.Get("fst.rename.ofid") : "");
+      std::string snew_fid = (env.Get("fst.rename.nfid") ?
+                              env.Get("fst.rename.nfid") : "");
+      unsigned long fsid {0ul};
+      eos::IFileMD::id_t old_fid {0ull};
+      eos::IFileMD::id_t new_fid {0ull};
+
+      try {
+        fsid = std::stoul(sfsid);
+        // File identifier are in hex!
+        old_fid = std::stoull(sold_fid, 0, 16);
+        new_fid = std::stoull(snew_fid, 0, 16);
+      } catch (...) {}
+
+      if (!fsid || !old_fid || !new_fid) {
+        eos_static_err("msg=\"failed local rename, unexpected input \" "
+                       "fsid=\"%s\" old_fid=\"%s\" new_fid=\"%s\"",
+                       sfsid.c_str(), sold_fid.c_str(), snew_fid.c_str());
+        return gOFS.Emsg(epname, error, EINVAL, "do local rename", "");
+      }
+
+      // Get the local mount point for the given file system id
+      std::string fs_prefix;
+      {
+        eos::common::RWMutexReadLock lock(gOFS.Storage->mFsMutex);
+
+        if (fsid && gOFS.Storage->mFsMap.count(fsid)) {
+          fs_prefix = gOFS.Storage->mFsMap[fsid]->GetPath().c_str();
+        }
+      }
+
+      if (fs_prefix.empty()) {
+        eos_static_err("msg=\"failed to get local prefix for file system\" "
+                       "fsid=%08llx", fsid);
+        return gOFS.Emsg(epname, error, EINVAL, "do local rename", "");
+      }
+
+      std::string old_path = FileId::FidPrefix2FullPath(FileId::Fid2Hex(
+                               old_fid).c_str(),
+                             fs_prefix.c_str());
+      std::string new_path = FileId::FidPrefix2FullPath(FileId::Fid2Hex(
+                               new_fid).c_str(),
+                             fs_prefix.c_str());
+      // Check that new path doesn't exist already
+      struct stat info;
+
+      if (::stat(new_path.c_str(), &info) == 0) {
+        eos_static_err("msg=\"new path already exists on filesystem\" "
+                       "fsid=%08llx new_path=%s", fsid, new_path.c_str());
+        return gOFS.Emsg(epname, error, EEXIST, "do local rename", "");
+      }
+
+      // Make sure the directory component of the new location exists
+      mode_t mode = 0755;
+      std::string dirs {new_path};
+      size_t pos = dirs.rfind('/');
+
+      if (pos != std::string::npos) {
+        dirs.erase(dirs.rfind('/'));
+      }
+
+      if (!CreateDirHierarchy(dirs, mode)) {
+        eos_static_err("msg=\"failed creating directory hierarchy\" "
+                       "fsid=%08llx new_path=%s", fsid, new_path.c_str());
+        return gOFS.Emsg(epname, error, EEXIST, "do local rename", "");
+      }
+
+      if (::rename(old_path.c_str(), new_path.c_str())) {
+        eos_static_err("msg=\"rename failed\" old_path=%s new_path=%s errno=%d",
+                       old_path.c_str(), new_path.c_str(), errno);
+        return gOFS.Emsg(epname, error, EEXIST, "do local rename", "");
+      }
+
+      return SFS_OK;
     }
   }
 
@@ -1898,6 +1987,34 @@ XrdFstOfs::UpdateTpcKeyValidity()
       // no change
     }
   }
+}
+
+//------------------------------------------------------------------------------
+// Create directory hierarchy
+//------------------------------------------------------------------------------
+bool
+XrdFstOfs::CreateDirHierarchy(const std::string& dir_hierarchy,
+                              mode_t mode) const
+{
+  struct stat info;
+  std::string path = "/";
+  auto lst_dirs = eos::common::StringTokenizer::split<std::list<std::string>>
+                  (dir_hierarchy, '/');
+
+  for (const auto& dir : lst_dirs) {
+    path += dir;
+    path += "/";
+
+    if (::stat(path.c_str(), &info) == 0) {
+      continue;
+    }
+
+    if (::mkdir(path.c_str(), mode) != 0) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 EOSFSTNAMESPACE_END

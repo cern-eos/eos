@@ -469,6 +469,17 @@ public:
   //! Update the TPC key validity value (default 120)
   //----------------------------------------------------------------------------
   void UpdateTpcKeyValidity();
+
+  //----------------------------------------------------------------------------
+  //! Create directory hierarchy
+  //!
+  //! @param dir_hierarchy given directory hierarcht
+  //! @param mode mode bits for the newly created directories
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool CreateDirHierarchy(const std::string& dir_hierarchy,
+                          mode_t mode) const;
 };
 
 //------------------------------------------------------------------------------
