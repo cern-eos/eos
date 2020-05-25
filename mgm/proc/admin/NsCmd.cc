@@ -381,6 +381,11 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << "uid=all gid=all "
         << gOFS->mFsckEngine->GetThreadPoolInfo() << std::endl;
 
+    if (gOFS->mConverterDriver) {
+      oss << "uid=all gid=all "
+          << gOFS->mConverterDriver->GetThreadPoolInfo() << std::endl;
+    }
+
     // Only display the tape enabled state if it is set to true in order to
     // simplify the disk-only use of EOS
     if (gOFS->mTapeEnabled) {
@@ -540,8 +545,14 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << "ALL      drain info                       "
         << gOFS->mDrainEngine.GetThreadPoolInfo() << std::endl
         << "ALL      fsck info                        "
-        << gOFS->mFsckEngine->GetThreadPoolInfo() << std::endl
-        << line << std::endl;
+        << gOFS->mFsckEngine->GetThreadPoolInfo() << std::endl;
+
+    if (gOFS->mConverterDriver) {
+      oss << "ALL      converter info                   "
+          << gOFS->mConverterDriver->GetThreadPoolInfo() << std::endl;
+    }
+
+    oss << line << std::endl;
 
     // Only display the tape enabled state if it is set to true in order to
     // simplify the disk-only use of EOS
