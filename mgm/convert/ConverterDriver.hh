@@ -48,9 +48,10 @@ public:
   //----------------------------------------------------------------------------
   ConverterDriver(const eos::QdbContactDetails& qdb_details) :
     mQdbHelper(qdb_details), mIsRunning(false),
-    mThreadPool(std::thread::hardware_concurrency(), 400,
-                10, 6, 5, "converter_engine"),
-    mMaxThreadPoolSize(cDefaultMaxThreadPoolSize), mTimestamp()
+    mThreadPool(std::thread::hardware_concurrency(), cDefaultMaxThreadPoolSize,
+                10, 5, 3, "converter_engine"),
+    mMaxThreadPoolSize(cDefaultMaxThreadPoolSize),
+    mRequestIntervalTime(cDefaultRequestIntervalTime), mTimestamp()
   {}
 
   //----------------------------------------------------------------------------
@@ -106,6 +107,14 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Get request interval time
+  //----------------------------------------------------------------------------
+  inline uint32_t GetRequestIntervalTime() const
+  {
+    return mRequestIntervalTime.load();
+  }
+
+  //----------------------------------------------------------------------------
   //! Get number of running jobs
   //----------------------------------------------------------------------------
   inline uint64_t NumRunningJobs() const
@@ -148,6 +157,16 @@ public:
   {
     mThreadPool.SetMaxThreads(max);
     mMaxThreadPoolSize = max;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set the jobs request interval time in seconds
+  //!
+  //! @param time interval time in seconds
+  //----------------------------------------------------------------------------
+  inline void SetRequestIntervalTime(uint32_t time)
+  {
+    mRequestIntervalTime = time;
   }
 
 private:
@@ -251,7 +270,7 @@ private:
   {
     auto elapsed = std::chrono::steady_clock::now() - mTimestamp;
 
-    if (elapsed <= std::chrono::seconds(cRequestIntervalTime)) {
+    if (elapsed <= std::chrono::seconds(mRequestIntervalTime)) {
       return true;
     }
 
@@ -260,7 +279,7 @@ private:
   }
 
   ///< Wait-time between jobs requests constant
-  static constexpr unsigned int cRequestIntervalTime{60};
+  static constexpr unsigned int cDefaultRequestIntervalTime{60};
   ///< Default maximum thread pool size constant
   static constexpr unsigned int cDefaultMaxThreadPoolSize{100};
   AssistedThread mThread; ///< Thread controller object
@@ -268,6 +287,8 @@ private:
   std::atomic<bool> mIsRunning; ///< Mark if converter is running
   eos::common::ThreadPool mThreadPool; ///< Thread pool for conversion jobs
   std::atomic<unsigned int> mMaxThreadPoolSize; ///< Max threadpool size
+  ///< Request interval time in seconds
+  std::atomic<unsigned int> mRequestIntervalTime;
   ///< Timestamp of last jobs request
   std::chrono::steady_clock::time_point mTimestamp;
   ///< Collection of running conversion jobs
