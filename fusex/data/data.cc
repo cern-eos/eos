@@ -2813,6 +2813,7 @@ data::dmap::ioflush(ThreadAssistant& assistant)
       }
 
       for (auto it = data.begin(); it != data.end(); ++it) {
+	XrdSysMutexHelper lLock((*it)->Locker());
         eos_static_info("dbmap-in %#lx => %lx", (*it)->id(), &(*it));
       }
 
