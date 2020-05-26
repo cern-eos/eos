@@ -110,9 +110,9 @@ install(TARGETS xrdstress.exe xrdcpabort xrdcprandom xrdcpextend xrdcpshrink xrd
 install(PROGRAMS xrdstress eos-instance-test eos-instance-test-ci fuse/eos-fuse-test
   eos-rain-test eoscp-rain-test eos-io-test eos-oc-test eos-drain-test
   eos-http-upload-test eos-mq-tests eos-rename-test eos-grpc-test
-  eos-fsck-test eos-token-test eos-backup eos-backup-browser
+  eos-fsck-test eos-token-test eos-backup eos-backup-browser eos-test-utils
+  eos-converter-test
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
   PERMISSIONS OWNER_READ OWNER_EXECUTE
   GROUP_READ GROUP_EXECUTE
   WORLD_READ WORLD_EXECUTE)
-

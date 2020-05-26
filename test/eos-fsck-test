@@ -18,40 +18,14 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # ******************************************************************************
 
+SCRIPTPATH="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+source ${SCRIPTPATH}/eos-test-utils
+
 function usage() {
-  echo "usage: $(basename $0) --type docker/k8s <k8s_namespace>"
+  echo "usage: $(basename $0) [--max-delay <sec_delay>] --type docker/k8s <k8s_namespace>"
+  echo "  --max-delay : optional max delay in seconds"
   echo "       docker : script runs in a Docker based setup"
   echo "       k8s    : script runs in a Kubernetes setup and requires a namespace argument"
-}
-
-secs_to_human() {
-  echo "$(( ${1} / 3600 ))h $(( (${1} / 60) % 60 ))m $(( ${1} % 60 ))s"
-}
-
-# Forward the given command to the proper executor Docker or Kubernetes. Gets
-# as argument a container name and a shell command to be executed
-function exec_cmd() {
-  if [[ "${IS_DOCKER}" == true ]]; then
-    exec_cmd_docker "$@"
-  else
-    exec_cmd_k8s "$@"
-  fi
-}
-
-# Execute command in Docker setup where the first argument is the name of the container
-# and the rest is the command to be executed
-function exec_cmd_docker() {
-  set -o xtrace
-  docker exec -i $1 /bin/bash -l -c "${@:2}"
-  set +o xtrace
-}
-
-# Execute command in Kubernetes setup where the first argument is the name of the Pod
-# and the rest is the command to be executed
-function exec_cmd_k8s() {
-  set -o xtrace
-  kubectl exec --namespace=$K8S_NAMESPACE $(kubectl get pods --namespace=$K8S_NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=$1) -- /bin/bash -l -c "${@:2}"
-  set +o xtrace
 }
 
 # Create and upload test files to the eos instance. We create a random file and
