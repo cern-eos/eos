@@ -304,28 +304,6 @@ ConverterJob::DoIt()
 
   // Delete conversion entry
   (void) gOFS->_rem(mProcPath.c_str(), error, rootvid, (const char*) 0);
-  // if (success) {
-  //   // Merge the conversion entry
-  //   if (!gOFS->merge(mProcPath.c_str(), mSourcePath.c_str(), error, rootvid)) {
-  //     eos_static_info("msg=\"deleted processed conversion job entry\" name=\"%s\"",
-  //                     mConversionLayout.c_str());
-  //     gOFS->MgmStats.Add("ConversionDone", owner_uid, owner_gid, 1);
-  //   } else {
-  //     eos_static_err("msg=\"failed to remove failed conversion job entry\" name=\"%s\"",
-  //                    mConversionLayout.c_str());
-  //     gOFS->MgmStats.Add("ConversionFailed", owner_uid, owner_gid, 1);
-  //   }
-  // } else {
-  //   // Delete conversion entry
-  //   if (!gOFS->_rem(mProcPath.c_str(), error, rootvid, (const char*) 0)) {
-  //     eos_static_info("msg=\"removed failed conversion entry\" name=\"%s\"",
-  //                     mConversionLayout.c_str());
-  //   } else {
-  //     eos_static_err("msg=\"failed to remove failed conversion job entry\" name=\"%s\"",
-  //                    mConversionLayout.c_str());
-  //   }
-  //   gOFS->MgmStats.Add("ConversionFailed", owner_uid, owner_gid, 1);
-  // }
   delete this;
 }
 

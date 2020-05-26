@@ -562,7 +562,6 @@ XrdMgmOfs::Disc(const XrdSecEntity* client)
 #include "XrdMgmOfs/FsConfigListener.cc"
 #include "XrdMgmOfs/Fsctl.cc"
 #include "XrdMgmOfs/Link.cc"
-#include "XrdMgmOfs/Merge.cc"
 #include "XrdMgmOfs/Mkdir.cc"
 #include "XrdMgmOfs/PathMap.cc"
 #include "XrdMgmOfs/Remdir.cc"

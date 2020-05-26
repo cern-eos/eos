@@ -1004,22 +1004,6 @@ public:
                        bool dropstripe = false,
                        bool expressflag = false);
 
-  //----------------------------------------------------------------------------
-  //! @brief Merge one file into another one
-  //!
-  //! @param src_path to merge
-  //! @param dst_path to merge into
-  //! @param error XRootD error object
-  //! @param vid virtual identity
-  //!
-  //! @return SFS_OK if success, otherwise SFS_ERROR
-  //!
-  //! @note This command acts like a rename and keeps the ownership and
-  //! creation time of the target file.
-  //----------------------------------------------------------------------------
-  int merge(const char* src_path, const char* dst_path,
-            XrdOucErrInfo& error, eos::common::VirtualIdentity& vid);
-
   // ---------------------------------------------------------------------------
   // create a versioned file
   // ---------------------------------------------------------------------------
