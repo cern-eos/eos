@@ -1804,6 +1804,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         plctargs.path = path;
         plctargs.plctTrgGeotag = &targetgeotag;
         plctargs.plctpolicy = plctplcy;
+        plctargs.exclude_filesystems = &excludefs;
         plctargs.selected_filesystems = &selectedfs;
         std::string spacename = space.c_str();
         plctargs.spacename = &spacename;
@@ -2394,6 +2395,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       plctargs.path = path;
       plctargs.plctTrgGeotag = &targetgeotag;
       plctargs.plctpolicy = plctplcy;
+      plctargs.exclude_filesystems = &excludefs;
       plctargs.selected_filesystems = &pio_replacement_fs;
       std::string spacename = space.c_str();
       plctargs.spacename = &spacename;
