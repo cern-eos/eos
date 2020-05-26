@@ -611,11 +611,17 @@ cc7_asan_docker_image:
   <<: *dock8s_before_script_template
   script:
     - if [[ $CI_JOB_NAME =~ "k8s" ]]; then
+        kubectl cp $K8S_NAMESPACE/$(get_podname eos-cli1):/usr/sbin/eos-test-utils ./eos-test-utils;
         kubectl cp $K8S_NAMESPACE/$(get_podname eos-cli1):/usr/sbin/eos-fsck-test ./eos-fsck-test;
         chmod +x eos-fsck-test; date; ./eos-fsck-test --max-delay 900 --type k8s $K8S_NAMESPACE; date; rm -rf eos-fsck-test;
+        kubectl cp $K8S_NAMESPACE/$(get_podname eos-cli1):/usr/sbin/eos-converter-test ./eos-converter-test;
+        chmod +x eos-converter-test; date; ./eos-converter-test --type k8s $K8S_NAMESPACE; date; rm -rf eos-converter-test; rm -rf eos-test-utils;
       elif [[ $CI_JOB_NAME =~ "dock" ]]; then
+        docker cp eos-cli1:/usr/sbin/eos-test-utils .;
         docker cp eos-cli1:/usr/sbin/eos-fsck-test .;
+        docker cp eos-cli1:/usr/sbin/eos-converter-test .;
         chmod +x eos-fsck-test; date; ./eos-fsck-test --max-delay 900 --type docker; date; rm -rf eos-fsck-test;
+        chmod +x eos-converter-test; date; ./eos-converter-test --type docker; date; rm -rf eos-converter-test;
       fi
     - date
     - exec_cmd eos-mgm1 'eos ns mutex --toggleorder'
