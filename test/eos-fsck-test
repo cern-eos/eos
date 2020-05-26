@@ -242,7 +242,7 @@ function configure_fsck() {
   done
 
   # Reduce the interval when the fsck collection thread runs
-  exec_cmd eos-cli1  "eos -r 0 0 fsck config toggle-collect 1;"
+  exec_cmd eos-cli1  "eos -r 0 0 fsck config toggle-collect 0.25;"
 }
 
 # Check that we collected all the errors that we expect
