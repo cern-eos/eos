@@ -53,7 +53,7 @@ Fsck::Fsck():
   mShowOffline(false), mShowNoReplica(false), mShowDarkFiles(false),
   mStartProcessing(false), mCollectEnabled(false), mRepairEnabled(false),
   mCollectRunning(false), mRepairRunning(false),
-  mCollectInterval(std::chrono::minutes(30)),
+  mCollectInterval(std::chrono::seconds(30 * 60)),
   eTimeStamp(0),
   mThreadPool(2, mMaxThreadPoolSize, 10, 6, 5, "fsck"),
   mIdTracker(std::chrono::minutes(10), std::chrono::hours(2)), mQcl(nullptr)
@@ -166,13 +166,15 @@ Fsck::Config(const std::string& key, const std::string& value, std::string& msg)
       // If value is present then it represents the collection interval
       if (!value.empty()) {
         try {
-          mCollectInterval = std::chrono::minutes(std::stoul(value));
-        } catch (...) {
-          mCollectInterval = std::chrono::minutes(30);
-        }
+          float fval = std::stof(value);
 
-        if (mCollectInterval < std::chrono::minutes(1)) {
-          mCollectInterval = std::chrono::minutes(1);
+          if (fval < 1) {
+            mCollectInterval = std::chrono::seconds((long)std::ceil(fval * 60));
+          } else {
+            mCollectInterval = std::chrono::seconds((long)fval);
+          }
+        } catch (...) {
+          mCollectInterval = std::chrono::seconds(30 * 60);
         }
       }
 

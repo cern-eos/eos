@@ -199,7 +199,7 @@ private:
   mutable std::string mLog, mTmpLog; ///< In-memory fsck log
   mutable XrdSysMutex mLogMutex; ///< Mutex protecting the in-memory log
   ///< Interval between FSCK collection loops
-  std::chrono::minutes mCollectInterval;
+  std::chrono::seconds mCollectInterval;
   mutable eos::common::RWMutex mErrMutex; ///< Mutex protecting all map obj
   //! Error detail map storing "<error-name>=><fsid>=>[fid1,fid2,fid3...]"
   std::map<std::string,
