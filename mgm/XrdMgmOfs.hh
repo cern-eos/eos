@@ -1046,11 +1046,12 @@ public:
   //!
   //! @param fid file id to be resynced
   //! @param fsid filesystem id where the file should be resynced
+  //! @param force if true force creation of the local entry in the DB
   //!
   //! @return true if successfully send otherwise false
   //----------------------------------------------------------------------------
   int SendResync(eos::common::FileId::fileid_t fid,
-                 eos::common::FileSystem::fsid_t fsid);
+                 eos::common::FileSystem::fsid_t fsid, bool force = false);
 
   // ---------------------------------------------------------------------------
   // static Mkpath is not supported

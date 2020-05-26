@@ -291,7 +291,7 @@ private:
   //!
   //! return list of file system ids to exclude
   //----------------------------------------------------------------------------
-  std::list<unsigned int>
+  std::vector<unsigned int>
   GetExcludedFsids() const;
 
   int oh; //< file handle

@@ -175,6 +175,12 @@ Messaging::Process(XrdMqMessage* newmessage)
     eos::common::FileId::fileid_t fid {0ull};
     eos::common::FileSystem::fsid_t fsid =
       (action.Get("mgm.fsid") ? strtoul(action.Get("mgm.fsid"), 0, 10) : 0);
+    bool force {false};
+    char* ptr = action.Get("mgm.resync_force");
+
+    if (ptr && (strncmp(ptr, "1", 1) == 0)) {
+      force = true;
+    }
 
     if (action.Get("mgm.fxid")) {
       fid = strtoull(action.Get("mgm.fxid"), 0, 16);  // transition
@@ -191,14 +197,35 @@ Messaging::Process(XrdMqMessage* newmessage)
                     (unsigned long) fsid, fid);
         gFmdDbMapHandler.LocalDeleteFmd(fid, fsid);
       } else {
-        auto fMd = gFmdDbMapHandler.LocalGetFmd(fid, fsid, true);
+        auto fMd = gFmdDbMapHandler.LocalGetFmd(fid, fsid, true, force);
 
         if (fMd) {
-          // force a resync of meta data from the MGM
-          // e.g. store in the WrittenFilesQueue to have it done asynchronous
-          gOFS.WrittenFilesQueueMutex.Lock();
-          gOFS.WrittenFilesQueue.push(*fMd.get());
-          gOFS.WrittenFilesQueueMutex.UnLock();
+          if (force) {
+            eos_static_info("msg=\"force resync\" fid=%08llx fsid=%lu",
+                            fid, fsid);
+            std::string fpath = eos::common::FileId::FidPrefix2FullPath
+                                (eos::common::FileId::Fid2Hex(fid).c_str(),
+                                 gOFS.Storage->GetStoragePath(fsid).c_str());
+
+            if (gFmdDbMapHandler.ResyncDisk(fpath.c_str(), fsid, false) == 0) {
+              if (gFmdDbMapHandler.ResyncFileFromQdb(fid, fsid, fpath,
+                                                     gOFS.mFsckQcl) == 0) {
+                return;
+              } else {
+                eos_static_err("msg=\"resync qdb failed\" fid=%08llx fsid=%lu",
+                               fid, fsid);
+              }
+            } else {
+              eos_static_err("msg=\"resync disk failed\" fid=%08llx fsid=%lu",
+                             fid, fsid);
+            }
+          } else {
+            // force a resync of meta data from the MGM
+            // e.g. store in the WrittenFilesQueue to have it done asynchronous
+            gOFS.WrittenFilesQueueMutex.Lock();
+            gOFS.WrittenFilesQueue.push(*fMd.get());
+            gOFS.WrittenFilesQueueMutex.UnLock();
+          }
         }
       }
     }

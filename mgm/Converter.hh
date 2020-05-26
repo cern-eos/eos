@@ -65,6 +65,14 @@ public:
   void DoIt();
 
 private:
+  //----------------------------------------------------------------------------
+  //! Merge origial and the newly converted one so that the initial file
+  //! identifier and all the rest of the metadata information is preserved.
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool Merge();
+
   eos::common::FileId::fileid_t mFid; ///< file id of the conversion job
   std::string mTargetPath; ///< target path of the conversion job
   std::string mSourcePath; ///< source path of the conversion job

@@ -1678,6 +1678,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     plctargs.path = path;
     plctargs.plctTrgGeotag = &targetgeotag;
     plctargs.plctpolicy = plctplcy;
+    plctargs.exclude_filesystems = &excludefs;
     plctargs.selected_filesystems = &selectedfs;
     std::string spacename = space.c_str();
     plctargs.spacename = &spacename;
@@ -3232,10 +3233,10 @@ XrdMgmOfsFile::HandleTokenAuthz(XrdSecEntity* client, const std::string& path,
 //------------------------------------------------------------------------------
 // Get file system ids excluded from scheduling
 //------------------------------------------------------------------------------
-std::list<unsigned int>
+std::vector<unsigned int>
 XrdMgmOfsFile::GetExcludedFsids() const
 {
-  std::list<unsigned int> fsids;
+  std::vector<unsigned int> fsids;
   std::string sfsids;
 
   if (openOpaque) {

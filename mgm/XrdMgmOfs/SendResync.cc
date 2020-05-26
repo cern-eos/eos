@@ -31,7 +31,7 @@
 //------------------------------------------------------------------------------
 int
 XrdMgmOfs::SendResync(eos::common::FileId::fileid_t fid,
-                      eos::common::FileSystem::fsid_t fsid)
+                      eos::common::FileSystem::fsid_t fsid, bool force)
 {
   EXEC_TIMING_BEGIN("SendResync");
   gOFS->MgmStats.Add("SendResync", vid.uid, vid.gid, 1);
@@ -39,8 +39,8 @@ XrdMgmOfs::SendResync(eos::common::FileId::fileid_t fid,
   char payload[4096];
   // @todo(esindril) Transition, eventually send mgm.fid=HEX
   snprintf(payload, sizeof(payload) - 1,
-           "&mgm.fsid=%lu&mgm.fid=%llu&mgm.fxid=%08llx",
-           (unsigned long) fsid, fid, fid);
+           "&mgm.fsid=%lu&mgm.fid=%llu&mgm.fxid=%08llx&mgm.resync_force=%i",
+           (unsigned long) fsid, fid, fid, (int)force);
   msgbody += payload;
   // Figure out the receiver
   std::string receiver;
@@ -55,9 +55,10 @@ XrdMgmOfs::SendResync(eos::common::FileId::fileid_t fid,
 
     receiver = fs->GetQueue();
   }
+  eos::mq::MessagingRealm::Response response =
+    mMessagingRealm->sendMessage("resync", msgbody.c_str(), receiver);
 
-  eos::mq::MessagingRealm::Response response = mMessagingRealm->sendMessage("resync", msgbody.c_str(), receiver);
-  if(!response.ok()){
+  if (!response.ok()) {
     eos_err("msg=\"failed to send resync message\" dst=%s", receiver.c_str());
     return -1;
   }

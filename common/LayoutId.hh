@@ -578,28 +578,29 @@ public:
   static unsigned long
   GetRedundancy(unsigned long layout, unsigned long locations)
   {
-    if ( (GetLayoutType(layout) == kPlain) ||
-	 (GetLayoutType(layout) == kReplica ) ) {
+    if ((GetLayoutType(layout) == kPlain) ||
+        (GetLayoutType(layout) == kReplica)) {
       return locations;
     }
 
     int num_parity_stripes = GetRedundancyStripeNumber(layout);
     int num_all_stripes = GetStripeNumber(layout) + 1;
-
     int redundancy = num_parity_stripes + 1 + (locations - num_all_stripes);
 
-    if (redundancy < 0 ) {
+    if (redundancy < 0) {
       redundancy = 0;
     }
+
     // return the remaining redundancy value for a file
     return redundancy;
   }
 
   static std::string
-  GetRedundancySymbol(bool has_tape, int redundancy) {
+  GetRedundancySymbol(bool has_tape, int redundancy)
+  {
     char sbst[256];
     snprintf(sbst, sizeof(sbst), "d%lu::t%i ", has_tape ?
-	     ((redundancy>0)?(redundancy - 1):0) : redundancy, (has_tape ? 1 : 0));
+             ((redundancy > 0) ? (redundancy - 1) : 0) : redundancy, (has_tape ? 1 : 0));
     return std::string(sbst);
   }
 
@@ -1167,13 +1168,15 @@ public:
   //----------------------------------------------------------------------------
   //! Print a layout human readable
   //----------------------------------------------------------------------------
-  static std::string PrintLayoutString(int layout) {
+  static std::string PrintLayoutString(int layout)
+  {
     std::string dump;
     dump = GetLayoutTypeString(layout);
     dump += ":";
     dump += GetStripeNumberString(layout).c_str();
     dump += "[";
-    dump += std::to_string(GetStripeNumber(layout)+1 - GetRedundancyStripeNumber(layout));
+    dump += std::to_string(GetStripeNumber(layout) + 1 - GetRedundancyStripeNumber(
+                             layout));
     dump += "]";
     dump += ":";
     dump += GetChecksumString(layout);
@@ -1183,6 +1186,37 @@ public:
     dump += GetBlockSizeString(layout);
     dump += "]";
     return dump;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Convert a conversion id string to layout id value to be stored directly
+  //! in the IFileMD object
+  //!
+  //! @param conv_id conversion id in the form of <space>#<hex_lid>~<plc_plcy>
+  //----------------------------------------------------------------------------
+  static unsigned long
+  GetLidFromConversionId(const std::string& conv_id)
+  {
+    using eos::common::StringConversion;
+    std::string space;
+    std::string layout;
+    std::string plctplcy;
+
+    if (!StringConversion::SplitKeyValue(conv_id, space, layout, "#")) {
+      return 0u;
+    }
+
+    if (layout.find('~') != std::string::npos) {
+      StringConversion::SplitKeyValue(layout, layout, plctplcy, "~");
+    }
+
+    unsigned long lid {0ul};
+
+    try {
+      lid = std::stoul(layout, 0, 16);
+    } catch (...) {}
+
+    return lid;
   }
 
   //----------------------------------------------------------------------------

@@ -169,7 +169,7 @@ ConverterJob::DoIt()
     properties.Set("coerce", false);
     std::string exclude_fsids = "&eos.excludefsid=";
 
-    for (const auto& fs : src_locations) {
+    for (const auto& fsid : src_locations) {
       exclude_fsids += std::to_string(fsid);
       exclude_fsids += ",";
     }
@@ -292,32 +292,206 @@ ConverterJob::DoIt()
     }
   }
 
-  if (success) {
-    // Merge the conversion entry
-    if (!gOFS->merge(mProcPath.c_str(), mSourcePath.c_str(), error, rootvid)) {
-      eos_static_info("msg=\"deleted processed conversion job entry\" name=\"%s\"",
-                      mConversionLayout.c_str());
-      gOFS->MgmStats.Add("ConversionDone", owner_uid, owner_gid, 1);
-    } else {
-      eos_static_err("msg=\"failed to remove failed conversion job entry\" name=\"%s\"",
-                     mConversionLayout.c_str());
-      gOFS->MgmStats.Add("ConversionFailed", owner_uid, owner_gid, 1);
-    }
+  if (Merge()) {
+    eos_static_info("msg=\"successful conversion\" name=\"%s\"",
+                    mConversionLayout.c_str());
+    gOFS->MgmStats.Add("ConversionDone", owner_uid, owner_gid, 1);
   } else {
-    // Delete conversion entry
-    if (!gOFS->_rem(mProcPath.c_str(), error, rootvid, (const char*) 0)) {
-      eos_static_info("msg=\"removed failed conversion entry\" name=\"%s\"",
-                      mConversionLayout.c_str());
-    } else {
-      eos_static_err("msg=\"failed to remove failed conversion job entry\" name=\"%s\"",
-                     mConversionLayout.c_str());
-    }
-
+    eos_static_err("msg=\"failed conversion\" name=\"%s\"",
+                   mConversionLayout.c_str());
     gOFS->MgmStats.Add("ConversionFailed", owner_uid, owner_gid, 1);
   }
 
+  // Delete conversion entry
+  (void) gOFS->_rem(mProcPath.c_str(), error, rootvid, (const char*) 0);
+  // if (success) {
+  //   // Merge the conversion entry
+  //   if (!gOFS->merge(mProcPath.c_str(), mSourcePath.c_str(), error, rootvid)) {
+  //     eos_static_info("msg=\"deleted processed conversion job entry\" name=\"%s\"",
+  //                     mConversionLayout.c_str());
+  //     gOFS->MgmStats.Add("ConversionDone", owner_uid, owner_gid, 1);
+  //   } else {
+  //     eos_static_err("msg=\"failed to remove failed conversion job entry\" name=\"%s\"",
+  //                    mConversionLayout.c_str());
+  //     gOFS->MgmStats.Add("ConversionFailed", owner_uid, owner_gid, 1);
+  //   }
+  // } else {
+  //   // Delete conversion entry
+  //   if (!gOFS->_rem(mProcPath.c_str(), error, rootvid, (const char*) 0)) {
+  //     eos_static_info("msg=\"removed failed conversion entry\" name=\"%s\"",
+  //                     mConversionLayout.c_str());
+  //   } else {
+  //     eos_static_err("msg=\"failed to remove failed conversion job entry\" name=\"%s\"",
+  //                    mConversionLayout.c_str());
+  //   }
+  //   gOFS->MgmStats.Add("ConversionFailed", owner_uid, owner_gid, 1);
+  // }
   delete this;
 }
+
+//------------------------------------------------------------------------------
+// Merge origial and the newly converted one so that the initial file
+// identifier and all the rest of the metadata information is preserved.
+// Steps for a successful conversion
+//   1. Update the new locations for original fid
+//   2. Trigger FST rename of the physical files from conv_fid to fid
+//   3. Unlink the locations for original fid
+//   4. Update the layout information for original fid
+//   5. Remove the conv_fid and FST local info
+//   6. Trigger an MGM resync for the new location of fid
+//------------------------------------------------------------------------------
+bool
+ConverterJob::Merge()
+{
+  std::list<eos::IFileMD::location_t> conv_locations;
+  eos::IFileMD::id_t orig_fid {0ull}, conv_fid {0ull};
+  std::shared_ptr<eos::IFileMD> orig_fmd, conv_fmd;
+  unsigned long conv_lid = eos::common::LayoutId::GetLidFromConversionId
+                           (mConversionLayout.c_str());
+  {
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+
+    try {
+      orig_fmd = gOFS->eosFileService->getFileMD(mFid);
+      conv_fmd = gOFS->eosView->getFile(mProcPath);
+    } catch (const eos::MDException& e) {
+      eos_static_err("msg=\"failed to retrieve file metadata\" msg=\"%s\"",
+                     e.what());
+      return false;
+    }
+
+    orig_fid = orig_fmd->getId();
+    conv_fid = conv_fmd->getId();
+
+    // Add the new locations
+    for (const auto& loc : conv_fmd->getLocations()) {
+      orig_fmd->addLocation(loc);
+      conv_locations.push_back(loc);
+    }
+
+    gOFS->eosView->updateFileStore(orig_fmd.get());
+  }
+  // For each location get the FST information and trigger a physical file
+  // rename from the conv_fmd(fid) to the orig_fmd(fid)
+  bool failed_rename = false;
+  std::string fst_host;
+  int fst_port;
+
+  for (const auto& loc : conv_locations) {
+    {
+      eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+      FileSystem* fs = FsView::gFsView.mIdView.lookupByID(loc);
+
+      if ((fs == nullptr) ||
+          (fs->GetStatus() != eos::common::BootStatus::kBooted) ||
+          (fs->GetConfigStatus() != eos::common::ConfigStatus::kRW)) {
+        eos_static_err("msg=\"file system config cannot accept conversion\" "
+                       "fsid=%u", loc);
+        failed_rename = true;
+        break;
+      }
+
+      fst_host = fs->GetHost();
+      fst_port = fs->getCoreParams().getLocator().getPort();
+    }
+    std::ostringstream oss;
+    oss << "root://" << fst_host << ":" << fst_port << "/?xrd.wantprot=sss";
+    XrdCl::URL url(oss.str());
+
+    if (!url.IsValid()) {
+      eos_static_err("msg=\"invalid FST url\" url=\"%s\"", oss.str().c_str());
+      failed_rename = true;
+      break;
+    }
+
+    oss.str("");
+    // Build up the actual query string
+    oss << "/?fst.pcmd=local_rename"
+        << "&fst.rename.ofid=" << eos::common::FileId::Fid2Hex(conv_fid)
+        << "&fst.rename.nfid=" << eos::common::FileId::Fid2Hex(orig_fid)
+        << "&fst.rename.fsid=" << loc
+        << "&fst.nspath=" << mSourcePath;
+    uint16_t timeout = 10;
+    XrdCl::Buffer arg;
+    XrdCl::Buffer* response {nullptr};
+    XrdCl::FileSystem fs {url};
+    arg.FromString(oss.str());
+    XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg,
+                                          response, timeout);
+    delete response;
+
+    if (!status.IsOK()) {
+      eos_static_err("msg=\"failed local rename on file system\" fsid=%u", loc);
+      failed_rename = true;
+      break;
+    }
+
+    eos_static_debug("msg=\"successful rename on file system\" orig_fid=%08llx "
+                     "conv_fid=%08llx fsid=%u", orig_fid, conv_fid, loc);
+  }
+
+  // Do cleanup in case of failures
+  if (failed_rename) {
+    // Update locations and clean up conversion file object
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+
+    try {
+      orig_fmd = gOFS->eosFileService->getFileMD(orig_fid);
+    } catch (const eos::MDException& e) {
+      eos_static_err("msg=\"failed to retrieve file metadata\" msg=\"%s\"",
+                     e.what());
+      return false;
+    }
+
+    // Unlink all the newly added locations
+    for (const auto& loc : orig_fmd->getLocations()) {
+      if (std::find(conv_locations.begin(), conv_locations.end(), loc) !=
+          conv_locations.end()) {
+        orig_fmd->unlinkLocation(loc);
+      }
+    }
+
+    gOFS->eosView->updateFileStore(orig_fmd.get());
+    return false;
+  }
+
+  {
+    // Update locations and clean up conversion file object
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+
+    try {
+      orig_fmd = gOFS->eosFileService->getFileMD(orig_fid);
+      conv_fmd = gOFS->eosFileService->getFileMD(conv_fid);
+    } catch (const eos::MDException& e) {
+      eos_static_err("msg=\"failed to retrieve file metadata\" msg=\"%s\"",
+                     e.what());
+      return false;
+    }
+
+    // Unlink the old locations from the original file object
+    for (const auto& loc : orig_fmd->getLocations()) {
+      if (std::find(conv_locations.begin(), conv_locations.end(), loc) ==
+          conv_locations.end()) {
+        orig_fmd->unlinkLocation(loc);
+      }
+    }
+
+    // Update the new layout id
+    orig_fmd->setLayoutId(conv_lid);
+    gOFS->eosView->updateFileStore(orig_fmd.get());
+  }
+
+  // Trigger a resync of the local information for the new locations
+  for (const auto& loc : conv_locations) {
+    if (gOFS->SendResync(orig_fid, loc, true)) {
+      eos_static_err("msg=\"failed to send resync\" fid=%08llx fsid=%u",
+                     orig_fid, loc);
+    }
+  }
+
+  return true;
+}
+
 
 //------------------------------------------------------------------------------
 // Constructor by space name

@@ -1684,6 +1684,8 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
                               env.Get("fst.rename.ofid") : "");
       std::string snew_fid = (env.Get("fst.rename.nfid") ?
                               env.Get("fst.rename.nfid") : "");
+      std::string ns_path = (env.Get("fst.nspath") ?
+                             env.Get("fst.nspath") : "");
       unsigned long fsid {0ul};
       eos::IFileMD::id_t old_fid {0ull};
       eos::IFileMD::id_t new_fid {0ull};
@@ -1718,12 +1720,12 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
         return gOFS.Emsg(epname, error, EINVAL, "do local rename", "");
       }
 
-      std::string old_path = FileId::FidPrefix2FullPath(FileId::Fid2Hex(
-                               old_fid).c_str(),
-                             fs_prefix.c_str());
-      std::string new_path = FileId::FidPrefix2FullPath(FileId::Fid2Hex(
-                               new_fid).c_str(),
-                             fs_prefix.c_str());
+      std::string old_path =
+        FileId::FidPrefix2FullPath(FileId::Fid2Hex(old_fid).c_str(),
+                                   fs_prefix.c_str());
+      std::string new_path =
+        FileId::FidPrefix2FullPath(FileId::Fid2Hex(new_fid).c_str(),
+                                   fs_prefix.c_str());
       // Check that new path doesn't exist already
       struct stat info;
 
@@ -1748,10 +1750,22 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
         return gOFS.Emsg(epname, error, EEXIST, "do local rename", "");
       }
 
+      // @todo(esindril): update the eos.lfn xattr
       if (::rename(old_path.c_str(), new_path.c_str())) {
         eos_static_err("msg=\"rename failed\" old_path=%s new_path=%s errno=%d",
                        old_path.c_str(), new_path.c_str(), errno);
         return gOFS.Emsg(epname, error, EEXIST, "do local rename", "");
+      } else {
+        if (!ns_path.empty()) {
+          // Update the user.eos.lfn attribute to point to the original
+          // namespace file name
+          if (setxattr(new_path.c_str(), "user.eos.lfn", ns_path.c_str(),
+                       ns_path.length(), 0)) {
+            eos_static_warning("msg=\"failed to update the user.eos.lfn xattr\""
+                               " local_path=\"%s\" ns_path=\"%s\"",
+                               new_path.c_str(), ns_path.c_str());
+          }
+        }
       }
 
       return SFS_OK;

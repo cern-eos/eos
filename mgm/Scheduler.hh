@@ -93,6 +93,8 @@ public:
     std::vector<unsigned int>* alreadyused_filesystems;
     //! selected_filesystems filesystems selected by the scheduler
     std::vector<unsigned int>* selected_filesystems;
+    //! file systems not to be used by the scheduler
+    std::vector<unsigned int>* exclude_filesystems;
     //! if non NULL, schedule dataproxys for each fs if proxygroups are defined (empty string if not defined)
     std::vector<std::string>* dataproxys;
     //! if non NULL, schedule a firewall entry point for each fs
@@ -113,6 +115,7 @@ public:
       vid(0),
       alreadyused_filesystems(0),
       selected_filesystems(0),
+      exclude_filesystems(0),
       dataproxys(0),
       firewallentpts(0)
     {}
@@ -125,6 +128,7 @@ public:
         && lid
         && vid
         && alreadyused_filesystems
+        && exclude_filesystems
         && selected_filesystems;
     }
   };

@@ -872,7 +872,7 @@ FmdDbMapHandler::ResyncDisk(const char* path,
                             (filexs_err == "1"), (blockxs_err == "1"),
                             flaglayouterror)) {
       eos_err("msg=\"failed to update DB\" dbpath=%s fxid=%08llx fsid=%lu",
-              eos::common::DbMap::getDbType().c_str(), fsid, fid);
+              eos::common::DbMap::getDbType().c_str(), fid, fsid);
       return false;
     }
   } else {
@@ -937,7 +937,7 @@ FmdDbMapHandler::ResyncAllDisk(const char* path,
           ResyncDisk(filePath.c_str(), fsid, flaglayouterror);
 
           if (!(cnt % 10000)) {
-            eos_info("msg=\"synced files so far\" nfiles=%llu fsid=%lu", cnt,
+            eos_info("msg=\"synced files so far\" nfiles=%llu fsid=%u", cnt,
                      (unsigned long) fsid);
           }
         }
@@ -991,7 +991,7 @@ FmdDbMapHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
         if (fMd.mProtoFmd.layouterror() & LayoutId::kUnregistered) {
           // There is no replica supposed to be here and there is nothing on
           // disk, so remove it from the database
-          eos_warning("msg=\"removing ghost fmd from db\" fsid=%lu fxid=%08llx",
+          eos_warning("msg=\"removing ghost fmd from db\" fsid=%u fxid=%08llx",
                       fsid, fid);
           LocalDeleteFmd(fMd.mProtoFmd.fid(), fsid);
           return true;
@@ -1014,7 +1014,7 @@ FmdDbMapHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
       // Check if it exists on disk
       if (fmd->mProtoFmd.disksize() == eos::common::FmdHelper::UNDEF) {
         fMd.mProtoFmd.set_layouterror(fMd.mProtoFmd.layouterror() | LayoutId::kMissing);
-        eos_warning("msg=\"mark missing replica\" fxid=%08llx on fsid=%lu",
+        eos_warning("msg=\"mark missing replica\" fxid=%08llx on fsid=%u",
                     fid, fsid);
       }
 
@@ -1034,7 +1034,7 @@ FmdDbMapHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
           (fMd.mProtoFmd.mgmsize() == eos::common::FmdHelper::UNDEF)) {
         // There is no replica supposed to be here and there is nothing on
         // disk, so remove it from the database
-        eos_warning("removing <ghost> entry for fxid=%08llx on fsid=%lu", fid,
+        eos_warning("removing <ghost> entry for fxid=%08llx on fsid=%u", fid,
                     (unsigned long) fsid);
         LocalDeleteFmd(fMd.mProtoFmd.fid(), fsid);
         return true;
@@ -1094,7 +1094,7 @@ FmdDbMapHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
           // Check if it exists on disk
           if (fmd->mProtoFmd.disksize() == eos::common::FmdHelper::UNDEF) {
             fMd.mProtoFmd.set_layouterror(fMd.mProtoFmd.layouterror() | LayoutId::kMissing);
-            eos_warning("found missing replica for fxid=%08llx on fsid=%lu",
+            eos_warning("found missing replica for fxid=%08llx on fsid=%u",
                         fMd.mProtoFmd.fid(), (unsigned long) fsid);
           }
 
@@ -1118,7 +1118,7 @@ FmdDbMapHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
     }
 
     if (!(cnt % 10000)) {
-      eos_info("msg=\"synced files so far\" nfiles=%llu fsid=%lu", cnt,
+      eos_info("msg=\"synced files so far\" nfiles=%llu fsid=%u", cnt,
                (unsigned long) fsid);
     }
   }
@@ -1166,7 +1166,7 @@ FmdDbMapHandler::ResyncFileFromQdb(eos::common::FileId::fileid_t fid,
   if (!local_fmd) {
     // Create the local record
     if (!(local_fmd = LocalGetFmd(fid, fsid, true, true))) {
-      eos_err("msg=\"failed to create local fmd entry\" fxid=%08llx fsid=%llu",
+      eos_err("msg=\"failed to create local fmd entry\" fxid=%08llx fsid=%u",
               fid, fsid);
       return EINVAL;
     }
@@ -1188,7 +1188,7 @@ FmdDbMapHandler::ResyncFileFromQdb(eos::common::FileId::fileid_t fid,
     // missing flag
     if ((local_fmd->mProtoFmd.disksize() == eos::common::FmdHelper::UNDEF) ||
         (local_fmd->mProtoFmd.layouterror() & LayoutId::kMissing)) {
-      eos_warning("msg=\"mark missing replica\" fxid=%08llx fsid=%lu", fid, fsid);
+      eos_warning("msg=\"mark missing replica\" fxid=%08llx fsid=%u", fid, fsid);
       ns_fmd.mProtoFmd.set_layouterror(ns_fmd.mProtoFmd.layouterror() |
                                        LayoutId::kMissing);
     }
@@ -1284,7 +1284,7 @@ FmdDbMapHandler::ResyncAllFromQdb(const QdbContactDetails& contact_details,
     if (local_fmd->mProtoFmd.disksize() == eos::common::FmdHelper::UNDEF) {
       ns_fmd.mProtoFmd.set_layouterror(ns_fmd.mProtoFmd.layouterror() |
                                        LayoutId::kMissing);
-      eos_warning("msg=\"mark missing replica\" fxid=%08llx fsid=%lu", fid, fsid);
+      eos_warning("msg=\"mark missing replica\" fxid=%08llx fsid=%u", fid, fsid);
     }
 
     if (!UpdateWithMgmInfo(fsid, fid, ns_fmd.mProtoFmd.cid(),

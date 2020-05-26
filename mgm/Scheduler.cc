@@ -199,7 +199,7 @@ Scheduler::FilePlacement(PlacementArguments* args)
                       args->plctTrgGeotag ? *args->plctTrgGeotag : "",
                       args->vid->geolocation,
                       ncollocatedfs,
-                      NULL,
+                      args->exclude_filesystems,
                       NULL);
     eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
 
