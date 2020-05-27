@@ -85,43 +85,49 @@ exec_cmd eos-cli1 "dd if=/dev/urandom of=/tmp/conv_test_file.dat bs=1M count=30 
                    eos -r 0 0 space config default space.converter=on
                    eos -r 0 0 mkdir -p ${EOS_CONVERTER_DIR} &&
                    eos -r 0 0 attr set default=replica ${EOS_CONVERTER_DIR} &&
-                   eos cp /tmp/conv_test_file.dat ${EOS_CONVERTER_DIR}/test_file.dat"
-
-ORIG_FINFO=$(exec_cmd eos-cli1 "eos fileinfo -m ${EOS_CONVERTER_DIR}/test_file.dat | sed -e 's/fsid=[[:digit:]]//g'")
-ORIG_LOCATIONS=$(exec_cmd eos-cli1 "eos -j fileinfo ${EOS_CONVERTER_DIR}/test_file.dat | jq -r .locations[].fsid | tr '\n' ' '")
-sleep 5
-exec_cmd eos-cli1 "eos file convert --rewrite ${EOS_CONVERTER_DIR}/test_file.dat"
-
+                   eos cp /tmp/conv_test_file.dat ${EOS_CONVERTER_DIR}/test_replica.dat &&
+                   eos cp /tmp/conv_test_file.dat ${EOS_CONVERTER_DIR}/test_raiddp.dat"
 # Wait for the conversion to be done
 START_TIME=$(date +%s)
 
-while
-  CURRENT_TIME=$(date +%s)
-  NEW_LOCATIONS=$(exec_cmd eos-cli1 "eos -j fileinfo ${EOS_CONVERTER_DIR}/test_file.dat | jq -r .locations[].fsid | tr '\n' ' '")
-  if [[ "${ORIG_LOCATIONS}" != "${NEW_LOCATIONS}" ]]; then
-    echo "info: file successfully converted"
-    break
+for TEST_FILE in ${EOS_CONVERTER_DIR}/test_fil1.dat ${EOS_CONVERTER_DIR}/test_file2.dat; do
+  ORIG_FINFO=$(exec_cmd eos-cli1 "eos fileinfo -m ${TEST_FILE} | sed -e 's/fsid=[[:digit:]]//g'")
+  ORIG_LOCATIONS=$(exec_cmd eos-cli1 "eos -j fileinfo ${TEST_FILE} | jq -r .locations[].fsid | tr '\n' ' '")
+
+  if [[ "${TEST_FILE}" == *raiddp* ]]; then
+     exec_cmd eos-cli1 "eos file convert ${TEST_FILE} raiddp:6"
+  else
+    exec_cmd eos-cli1 "eos file convert --rewrite ${TEST_FILE}"
   fi
 
-  if (( $((${CURRENT_TIME} - ${START_TIME})) >= ${MAX_DELAY} )); then
+  while
+    CURRENT_TIME=$(date +%s)
+    NEW_LOCATIONS=$(exec_cmd eos-cli1 "eos -j fileinfo ${TEST_FILE} | jq -r .locations[].fsid | tr '\n' ' '")
+    if [[ "${ORIG_LOCATIONS}" != "${NEW_LOCATIONS}" ]]; then
+      echo "info: file successfully converted"
+      break
+    fi
+
+    if (( $((${CURRENT_TIME} - ${START_TIME})) >= ${MAX_DELAY} )); then
       echo "error: some errors where not repaired"
       cleanup
       exit 1
-  else
-      echo "info: sleep for 5 seconds waiting for conversion, `secs_to_human $((${CURRENT_TIME} - ${START_TIME}))` passed"
-      sleep 3
+    else
+      echo "info: sleep for 2 seconds waiting for conversion, `secs_to_human $((${CURRENT_TIME} - ${START_TIME}))` passed"
+      sleep 2
+    fi
+  do
+    :
+  done
+
+  NEW_FINFO=$(exec_cmd eos-cli1 "eos fileinfo -m ${TEST_FILE} | sed -e 's/fsid=[[:digit:]]//g'")
+
+  if [[ "${ORIG_FINFO}" != "${NEW_FINFO}" ]]; then
+    echo "error: converted file metadata does not match the original one"
+    cleanup
+    exit 1
   fi
-do
-  :
 done
-
-NEW_FINFO=$(exec_cmd eos-cli1 "eos fileinfo -m ${EOS_CONVERTER_DIR}/test_file.dat | sed -e 's/fsid=[[:digit:]]//g'")
-
-if [[ "${ORIG_FINFO}" != "${NEW_FINFO}" ]]; then
-  echo "error: converted file metadata does not match the original one"
-  cleanup
-  exit 1
-fi
 
 cleanup
 exit 0
