@@ -1076,8 +1076,8 @@ The EOS archive daemon.
 %{_sysconfdir}/rc.d/init.d/eosarchived
 %config(noreplace) %{_sysconfdir}/sysconfig/eosarchived
 %endif
-%dir %attr(660,eosarchi,c3) %{_localstatedir}/eos/archive/
-%dir %attr(660,eosarchi,c3) %{_localstatedir}/log/eos/archive/
+%dir %attr(770,eosarchi,c3) %{_localstatedir}/eos/archive/
+%dir %attr(770,eosarchi,c3) %{_localstatedir}/log/eos/archive/
 
 %pre -n eos-archive
 echo "Make sure eosarchi user and c3 group exist"
