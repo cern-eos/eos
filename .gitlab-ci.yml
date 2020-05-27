@@ -101,7 +101,7 @@ build_cc7:
     - if [ "$COMMIT_TYPE" == "tag" ]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache.sh; fi
     - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | ts
     - ccache -s
-    - if [ "$COMMIT_TYPE" == "tag" ]; then gpg --allow-secret-key-import --import /keys/stci-debian-repo.sec; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
+    - if [ "$COMMIT_TYPE" == "tag" ]; then gpg --import $STCI_REPO_SEC; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
     - mkdir cc7_artifacts; cp -R build/SRPMS/ build/RPMS/ cc7_artifacts
   cache:
     key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
@@ -134,7 +134,7 @@ build_slc6:
     - if [ "$COMMIT_TYPE" == "tag" ]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache_slc6.sh; fi
     - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | ts
     - ccache -s
-    - if [ "$COMMIT_TYPE" == "tag" ]; then gpg --allow-secret-key-import --import /keys/stci-debian-repo.sec; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
+    - if [ "$COMMIT_TYPE" == "tag" ]; then gpg --import $STCI_REPO_SEC; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
     - mkdir slc6_artifacts; cp -R build/SRPMS build/RPMS slc6_artifacts
   cache:
     key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
@@ -203,7 +203,7 @@ build_c8:
     - if [ "$COMMIT_TYPE" == "tag" ]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache.sh; fi
     - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | ts
     - ccache -s
-    - if [ "$COMMIT_TYPE" == "tag" ]; then gpg2 --allow-secret-key-import --import /keys/stci-debian-repo.sec; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
+    - if [ "$COMMIT_TYPE" == "tag" ]; then gpg2 --import $STCI_REPO_SEC; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
     - mkdir c8_artifacts; cp -R build/SRPMS/ build/RPMS c8_artifacts
   cache:
     key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
@@ -284,7 +284,7 @@ build_ubuntu_bionic:
     - export CXXFLAGS="-Wno-parentheses"
     - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
     - ccache -s
-    - if [ "$COMMIT_TYPE" == "tag" ]; then gpg2 --allow-secret-key-import --import /keys/stci-debian-repo.sec; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
+    - if [ "$COMMIT_TYPE" == "tag" ]; then gpg2 --import $STCI_REPO_SEC; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
     - mkdir ${EOS_ARCH}_artifacts; cp -R build/SRPMS build/RPMS ${EOS_ARCH}_artifacts
   cache:
     key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
@@ -336,7 +336,7 @@ build_fedora_rawhide:
     - if [ "$COMMIT_TYPE" == "tag" ]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache.sh; fi
     - rpmbuild --rebuild --with server ${RPMBUILD_OPTIONS} --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | ts
     - ccache -s
-    - if [ "$COMMIT_TYPE" == "tag" ]; then gpg --allow-secret-key-import --import /keys/stci-debian-repo.sec; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
+    - if [ "$COMMIT_TYPE" == "tag" ]; then gpg --import $STCI_REPO_SEC; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
     - mkdir ${BUILD_NAME}_artifacts; cp -R build/SRPMS/ build/RPMS/ ${BUILD_NAME}_artifacts
   cache:
     key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
@@ -1029,7 +1029,7 @@ debian_artifacts:
     - mkdir /home/stci
     - chown -R stci:def-cg /home/stci
     - chmod -R 700 /home/stci
-    - sudo -u stci -H gpg --homedir /home/stci/ --allow-secret-key-import --import /keys/stci-debian-repo.sec
+    - sudo -u stci -H gpg --homedir /home/stci/ --import $STCI_REPO_SEC
     - if [[ $CI_COMMIT_TAG ]]; then BUILD_TYPE=tag; else BUILD_TYPE=commit; fi
     - sudo -u stci -H ./gitlab-ci/store_artifacts_debian.sh /eos/project/s/storage-ci/www/debian/eos/${BRANCH} ${BUILD_TYPE}
   dependencies:
@@ -1050,7 +1050,7 @@ debian_artifacts_volume:
     - apt-get update
     - apt-get install -y sudo apt-utils sssd gpg
     - mkdir /home/stci
-    - gpg --homedir /home/stci/ --allow-secret-key-import --import /keys/stci-debian-repo.sec
+    - gpg --homedir /home/stci/ --import $STCI_REPO_SEC
     - ./gitlab-ci/store_artifacts_debian.sh /mnt/eos_repositories/debian/eos/${BRANCH} tag
   dependencies:
     - build_ubuntu_bionic
@@ -1088,7 +1088,7 @@ clean_debian_artifacts:
     - mkdir /home/stci
     - chown -R stci:def-cg /home/stci
     - chmod -R 700 /home/stci
-    - sudo -u stci -H gpg --homedir /home/stci/ --allow-secret-key-import --import /keys/stci-debian-repo.sec
+    - sudo -u stci -H gpg --homedir /home/stci/ --import $STCI_REPO_SEC
     - sudo -u stci -H ./gitlab-ci/remove_old_artifacts_debian.sh
   allow_failure: true
   only:
