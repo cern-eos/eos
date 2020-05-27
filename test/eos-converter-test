@@ -98,7 +98,7 @@ START_TIME=$(date +%s)
 while
   CURRENT_TIME=$(date +%s)
   NEW_LOCATIONS=$(exec_cmd eos-cli1 "eos -j fileinfo ${EOS_CONVERTER_DIR}/test_file.dat | jq -r .locations[].fsid | tr '\n' ' '")
-  if [[ "${ORIG_LOCATIONS}" == "${NEW_LOCATIONS}" ]]; then
+  if [[ "${ORIG_LOCATIONS}" != "${NEW_LOCATIONS}" ]]; then
     echo "info: file successfully converted"
     break
   fi
