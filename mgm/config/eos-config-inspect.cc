@@ -70,7 +70,7 @@ void addClusterOptions(CLI::App* subcmd, std::string& membersStr,
 
 //------------------------------------------------------------------------------
 // Check connection to QDB cluster
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool checkConnection(qclient::QClient& qcl)
 {
   std::future<qclient::redisReplyPtr> fut = qcl.exec("PING");
@@ -94,6 +94,61 @@ bool checkConnection(qclient::QClient& qcl)
     return false;
   }
 
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Read source configuration file
+//------------------------------------------------------------------------------
+bool readConfigurationFile(const std::string &sourceFile, std::string &fullContents) {
+  std::ifstream infile(sourceFile.c_str());
+
+  if (!infile.is_open()) {
+    return false;
+  }
+
+  std::ostringstream ss;
+  while (!infile.eof()) {
+    std::string s;
+    std::getline(infile, s);
+
+    if (!s.empty()) {
+      ss << s << "\n";
+    }
+  }
+
+  infile.close();
+  fullContents = ss.str();
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Read and parse configuration file
+//------------------------------------------------------------------------------
+bool readAndParseConfiguration(const std::string &path,
+  std::map<std::string, std::string> &configuration) {
+
+  //----------------------------------------------------------------------------
+  // Read source configuration file
+  //----------------------------------------------------------------------------
+  std::string fullContents;
+  if(!readConfigurationFile(path, fullContents) || fullContents.empty()) {
+    std::cerr << "could not read configuration file: " << path << std::endl;
+    return false;
+  }
+
+  //----------------------------------------------------------------------------
+  // Parse
+  //----------------------------------------------------------------------------
+  std::string err;
+
+  if (!eos::common::ConfigParsing::parseConfigurationFile(fullContents,
+      configuration, err)) {
+    std::cerr << "Could not parse configuration file: " << err << std::endl;
+    return false;
+  }
+
+  std::cerr << "--- Successfully parsed configuration file" << std::endl;
   return true;
 }
 
@@ -136,39 +191,10 @@ int main(int argc, char* argv[])
   }
 
   //----------------------------------------------------------------------------
-  // Read source configuration file
-  //----------------------------------------------------------------------------
-  std::ifstream infile(sourceFile.c_str());
-
-  if (!infile.is_open()) {
-    std::cerr << "Unable to open source file" << std::endl;
-    return 1;
-  }
-
-  std::ostringstream ss;
-
-  while (!infile.eof()) {
-    std::string s;
-    std::getline(infile, s);
-
-    if (!s.empty()) {
-      ss << s << "\n";
-    }
-  }
-
-  infile.close();
-  std::string fullContents = ss.str();
-  std::cerr << "--- Successfully read configuration file, size in bytes: " <<
-            fullContents.size() << std::endl;
-  //----------------------------------------------------------------------------
-  // Parse configuration file
+  // Read and parse source configuration file
   //----------------------------------------------------------------------------
   std::map<std::string, std::string> configuration;
-  std::string err;
-
-  if (!eos::common::ConfigParsing::parseConfigurationFile(fullContents,
-      configuration, err)) {
-    std::cerr << "Could not parse configuration file: " << err << std::endl;
+  if(!readAndParseConfiguration(sourceFile, configuration)) {
     return 1;
   }
 
