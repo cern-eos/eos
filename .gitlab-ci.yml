@@ -610,25 +610,42 @@ cc7_asan_docker_image:
   stage: test
   <<: *dock8s_before_script_template
   script:
-    - if [[ $CI_JOB_NAME =~ "k8s" ]]; then
-        kubectl cp $K8S_NAMESPACE/$(get_podname eos-cli1):/usr/sbin/eos-test-utils ./eos-test-utils;
-        kubectl cp $K8S_NAMESPACE/$(get_podname eos-cli1):/usr/sbin/eos-fsck-test ./eos-fsck-test;
-        chmod +x eos-fsck-test; date; ./eos-fsck-test --max-delay 900 --type k8s $K8S_NAMESPACE; date; rm -rf eos-fsck-test;
-        kubectl cp $K8S_NAMESPACE/$(get_podname eos-cli1):/usr/sbin/eos-converter-test ./eos-converter-test;
-        chmod +x eos-converter-test; date; ./eos-converter-test --type k8s $K8S_NAMESPACE; date; rm -rf eos-converter-test; rm -rf eos-test-utils;
-      elif [[ $CI_JOB_NAME =~ "dock" ]]; then
-        docker cp eos-cli1:/usr/sbin/eos-test-utils .;
-        docker cp eos-cli1:/usr/sbin/eos-fsck-test .;
-        docker cp eos-cli1:/usr/sbin/eos-converter-test .;
-        chmod +x eos-fsck-test; date; ./eos-fsck-test --max-delay 900 --type docker; date; rm -rf eos-fsck-test;
-        chmod +x eos-converter-test; date; ./eos-converter-test --type docker; date; rm -rf eos-converter-test;
-      fi
     - date
     - exec_cmd eos-mgm1 'eos ns mutex --toggleorder'
     - exec_cmd eos-mgm1 'eos-instance-test-ci'
+    - date
     - exec_cmd eos-mgm1 'eos-unit-tests-with-instance -n root://localhost//eos/dockertest/'
     - exec_cmd eos-mgm1 'grep "RWMutex. Order Checking Error in thread" /var/log/eos/mgm/xrdlog.mgm && exit 1 || exit 0'
     - date
+  <<: *dock8s_after_script_template
+  artifacts:
+    when: on_failure
+    expire_in: 3 days
+    paths:
+      - eos-logs-${CI_JOB_ID}/
+
+.dock8s_cnvrt_fsck_template: &dock8s_cnvrt_fsck_template
+  stage: test
+  <<: *dock8s_before_script_template
+  script:
+    - cp_to_local_cmd eos-cli1:/usr/sbin/eos-test-utils ./eos-test-utils
+    # converter
+    - cp_to_local_cmd eos-cli1:/usr/sbin/eos-converter-test ./eos-converter-test && chmod +x eos-converter-test
+    - if [[ $CI_JOB_NAME =~ "k8s" ]]; then
+        date && ./eos-converter-test --type k8s $K8S_NAMESPACE && date;
+      elif [[ $CI_JOB_NAME =~ "dock" ]]; then
+        date && ./eos-converter-test --type docker && date;
+      fi
+    - rm -rf eos-converter-test
+    # fsck
+    - cp_to_local_cmd eos-cli1:/usr/sbin/eos-fsck-test ./eos-fsck-test && chmod +x eos-fsck-test
+    - if [[ $CI_JOB_NAME =~ "k8s" ]]; then
+        date  && ./eos-fsck-test --max-delay 900 --type k8s $K8S_NAMESPACE && date;
+      elif [[ $CI_JOB_NAME =~ "dock" ]]; then
+        date && ./eos-fsck-test --max-delay 900 --type docker && date;
+      fi
+    - rm -rf eos-fsck-test
+    - rm -rf eos-test-utils
   <<: *dock8s_after_script_template
   artifacts:
     when: on_failure
@@ -701,6 +718,13 @@ k8s_system:
   tags:
     - shell-with-kubernetes
 
+k8s_cnvrt_fsck:
+  <<: *dock8s_cnvrt_fsck_template
+  dependencies: []
+  retry: 1
+  tags:
+    - shell-with-kubernetes
+
 k8s_fusex:
   <<: *dock8s_fusex_test_template
   dependencies: []
@@ -728,6 +752,15 @@ k8s_stress:
     - shell-with-kubernetes
 
 dock_system:
+  <<: *dock8s_system_test_template
+  dependencies:
+    - clone_docker
+  retry: 1
+  tags:
+    - shell-with-docker
+  when: manual
+
+dock_cnvrt_fsck:
   <<: *dock8s_system_test_template
   dependencies:
     - clone_docker

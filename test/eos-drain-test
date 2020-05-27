@@ -34,7 +34,7 @@ fi
 EOS_MGM_HOSTNAME=$1
 
 # Check preconditions and make sure central draining is enabled
-FST_ONLINE=eos fs ls | grep "online" | wc -l
+FST_ONLINE=$(eos fs ls | grep "online" | wc -l)
 
 if [[ ${FST_ONLINE} -lt 7 ]]; then
       echo "error: not enough FSTs configured"
