@@ -1750,7 +1750,6 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
         return gOFS.Emsg(epname, error, EEXIST, "do local rename", "");
       }
 
-      // @todo(esindril): update the eos.lfn xattr
       if (::rename(old_path.c_str(), new_path.c_str())) {
         eos_static_err("msg=\"rename failed\" old_path=%s new_path=%s errno=%d",
                        old_path.c_str(), new_path.c_str(), errno);
@@ -1764,6 +1763,19 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
             eos_static_warning("msg=\"failed to update the user.eos.lfn xattr\""
                                " local_path=\"%s\" ns_path=\"%s\"",
                                new_path.c_str(), ns_path.c_str());
+          }
+
+          // Rename any potential block xs files
+          std::string old_xs_path = old_path + ".xsmap";
+          std::string new_xs_path = new_path + ".xsmap";
+
+          if (::stat(old_xs_path.c_str(), &info) == 0) {
+            if (::rename(old_xs_path.c_str(), new_xs_path.c_str())) {
+              eos_static_err("msg=\"block xs file rename failed\" "
+                             "old_xs_path=%s new_xs_path=%s errno=%d",
+                             old_xs_path.c_str(), new_xs_path.c_str(), errno);
+              return gOFS.Emsg(epname, error, EEXIST, "do local rename", "");
+            }
           }
         }
       }
