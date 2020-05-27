@@ -396,14 +396,15 @@ ConverterJob::Merge()
     arg.FromString(oss.str());
     XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg,
                                           response, timeout);
-    delete response;
 
-    if (!status.IsOK()) {
+    if (!status.IsOK() || (response->ToString() != "OK")) {
       eos_static_err("msg=\"failed local rename on file system\" fsid=%u", loc);
       failed_rename = true;
+      delete response;
       break;
     }
 
+    delete response;
     eos_static_debug("msg=\"successful rename on file system\" orig_fid=%08llx "
                      "conv_fid=%08llx fsid=%u", orig_fid, conv_fid, loc);
   }

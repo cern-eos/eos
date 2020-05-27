@@ -1780,7 +1780,9 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
         }
       }
 
-      return SFS_OK;
+      const char* done = "OK";
+      error.setErrInfo(strlen(done) + 1, done);
+      return SFS_DATA;
     }
   }
 
