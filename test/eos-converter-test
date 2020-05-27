@@ -91,25 +91,27 @@ exec_cmd eos-cli1 "dd if=/dev/urandom of=/tmp/conv_test_file.dat bs=1M count=30 
 START_TIME=$(date +%s)
 
 for TEST_FILE in ${EOS_CONVERTER_DIR}/test_replica.dat ${EOS_CONVERTER_DIR}/test_raiddp.dat; do
-  ORIG_FINFO=$(exec_cmd eos-cli1 "eos fileinfo -m ${TEST_FILE} | sed -e 's/fsid=[[:digit:]]//g'")
-  ORIG_LOCATIONS=$(exec_cmd eos-cli1 "eos -j fileinfo ${TEST_FILE} | jq -r .locations[].fsid | tr '\n' ' '")
+  # Note we use xargs to trim the output
+  ORIG_FINFO=$(exec_cmd eos-cli1 "eos fileinfo ${TEST_FILE} -m | sed -e 's/fsid=[[:digit:]]//g' | xargs")
+  ORIG_LOCATIONS=$(exec_cmd eos-cli1 "eos -j fileinfo ${TEST_FILE} | jq -r .locations[].fsid | tr '\n' ' ' | xargs")
 
   if [[ "${TEST_FILE}" == *raiddp* ]]; then
-     exec_cmd eos-cli1 "eos file convert ${TEST_FILE} raiddp:6"
+    exec_cmd eos-cli1 "eos file convert ${TEST_FILE} raiddp:6"
   else
     exec_cmd eos-cli1 "eos file convert --rewrite ${TEST_FILE}"
   fi
 
   while
     CURRENT_TIME=$(date +%s)
-    NEW_LOCATIONS=$(exec_cmd eos-cli1 "eos -j fileinfo ${TEST_FILE} | jq -r .locations[].fsid | tr '\n' ' '")
+    NEW_LOCATIONS=$(exec_cmd eos-cli1 "eos -j fileinfo ${TEST_FILE} | jq -r .locations[].fsid | tr '\n' ' ' | xargs")
+
     if [[ "${ORIG_LOCATIONS}" != "${NEW_LOCATIONS}" ]]; then
       echo "info: file successfully converted"
       break
     fi
 
     if (( $((${CURRENT_TIME} - ${START_TIME})) >= ${MAX_DELAY} )); then
-      echo "error: some errors where not repaired"
+      echo "error: conversion failed"
       cleanup
       exit 1
     else
@@ -120,10 +122,12 @@ for TEST_FILE in ${EOS_CONVERTER_DIR}/test_replica.dat ${EOS_CONVERTER_DIR}/test
     :
   done
 
-  NEW_FINFO=$(exec_cmd eos-cli1 "eos fileinfo -m ${TEST_FILE} | sed -e 's/fsid=[[:digit:]]//g'")
+  NEW_FINFO=$(exec_cmd eos-cli1 "eos fileinfo ${TEST_FILE} -m | sed -e 's/fsid=[[:digit:]]//g; s/fsdel=[[:digit:]]//g' | xargs")
 
   if [[ "${ORIG_FINFO}" != "${NEW_FINFO}" ]]; then
     echo "error: converted file metadata does not match the original one"
+    echo "original finfo: \"${ORIG_FINFO}\""
+    echo "new  finfo    : \"${NEW_FINFO}\""
     cleanup
     exit 1
   fi
