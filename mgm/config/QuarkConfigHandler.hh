@@ -49,6 +49,11 @@ public:
   common::Status fetchConfiguration(const std::string &name, std::map<std::string, std::string> &out);
 
   //----------------------------------------------------------------------------
+  // Check if configuration key exists already
+  //----------------------------------------------------------------------------
+  common::Status checkExistence(const std::string &name, bool &existence);
+
+  //----------------------------------------------------------------------------
   // Form hash key
   //----------------------------------------------------------------------------
   static std::string formHashKey(const std::string &name);

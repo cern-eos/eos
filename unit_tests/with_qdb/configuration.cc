@@ -51,6 +51,19 @@ TEST_F(ConfigurationTests, BasicFetch) {
 
   ASSERT_EQ(cfmap.size(), 1u);
   ASSERT_EQ(cfmap["a"], "b");
+
+  bool exists = false;
+  ASSERT_TRUE(ch.checkExistence("default", exists));
+  ASSERT_TRUE(exists);
+
+  ASSERT_TRUE(ch.checkExistence("default-2", exists));
+  ASSERT_FALSE(exists);
+
+  qclient::redisReplyPtr reply2 = qcl->exec("SADD", "eos-config:default-3", "a", "b").get();
+  ASSERT_EQ(qclient::describeRedisReply(reply2), "(integer) 2");
+
+  ASSERT_TRUE(ch.checkExistence("default-3", exists));
+  ASSERT_TRUE(exists);
 }
 
 TEST_F(ConfigurationTests, HashKeys) {
