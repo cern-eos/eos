@@ -600,7 +600,7 @@ cc7_asan_docker_image:
     - exec_cmd eos-mgm1 'grep "RWMutex. Order Checking Error in thread" /var/log/eos/mgm/xrdlog.mgm && exit 1 || exit 0'
     # download tests repo
     - exec_cmd eos-cli1 'git clone https://gitlab.cern.ch/dss/eosclient-tests.git'
-    # ubuntu releases do not support 'clone' yet
+    # ubuntu releases do not support 'clone' yet 
     - if [[ ! $CI_JOB_NAME =~ "ubuntu" ]]; then
         exec_cmd eos-cli1 'cd /eosclient-tests; git checkout rtb_clone; prepare/clone_test.sh prepare; rc=$?; git checkout master; exit $rc';
       fi
