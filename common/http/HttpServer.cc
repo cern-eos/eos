@@ -373,7 +373,7 @@ HttpServer::HttpError(const char* errorText, int errorCode)
     response->SetResponseCode(response->SERVICE_UNAVAILABLE);
   } else if (errorCode == EILSEQ) {
     response->SetResponseCode(response->UNPROCESSABLE_ENTITY);
-  } else if (errorCode = EPERM) {
+  } else if (errorCode == EPERM) {
     response->SetResponseCode(response->FORBIDDEN);
   } else {
     response->SetResponseCode(response->INTERNAL_SERVER_ERROR);
