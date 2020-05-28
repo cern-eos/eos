@@ -145,8 +145,9 @@ function corrupt_rep_diff_over() {
   local VECT_FSID=( $(echo "${CMD_OUT}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//') )
   echo "Used locations: ${VECT_FSID[@]}"
   local NEW_FSID=""
+  local FST_ONLINE=$(exec_cmd eos-mgm1 "eos fs ls | grep \"online\" | wc -l")
 
-  for i in {1..7}; do
+  for i in {1..${FST_ONLINE}}; do
     local found=false
     for e in ${VECT_FSID[@]}; do
       if [[ "$i" == "$e" ]]; then
@@ -209,7 +210,9 @@ function corrupt_orphan() {
 # Configure fsck to run more often and reduce the scan times
 function configure_fsck() {
   # First reduce the scan interval on the FSTs
-  for i in {1..7}; do
+  local FST_ONLINE=$(exec_cmd eos-mgm1 "eos fs ls | grep \"online\" | wc -l")
+
+  for i in {1..${FST_ONLINE}}; do
     exec_cmd eos-cli1  "eos -r 0 0 fs config ${i} scan_disk_interval=20 &&
                         eos -r 0 0 fs config ${i} scan_ns_interval=20 &&
                         eos -r 0 0 fs config ${i} scaninterval=15"
