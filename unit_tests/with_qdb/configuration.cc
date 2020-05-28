@@ -62,8 +62,9 @@ TEST_F(ConfigurationTests, BasicFetch) {
   qclient::redisReplyPtr reply2 = qcl->exec("SADD", "eos-config:default-3", "a", "b").get();
   ASSERT_EQ(qclient::describeRedisReply(reply2), "(integer) 2");
 
-  ASSERT_TRUE(ch.checkExistence("default-3", exists));
-  ASSERT_TRUE(exists);
+  common::Status st = ch.checkExistence("default-3", exists);
+  ASSERT_FALSE(st);
+  ASSERT_EQ(st.toString(), "(22): Received unexpected response in HLEN existence check: Unexpected reply type; was expecting INTEGER, received (error) ERR Invalid argument: WRONGTYPE Operation against a key holding the wrong kind of value");
 }
 
 TEST_F(ConfigurationTests, HashKeys) {

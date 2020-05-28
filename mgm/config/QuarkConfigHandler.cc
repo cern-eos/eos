@@ -42,14 +42,14 @@ QuarkConfigHandler::QuarkConfigHandler(const QdbContactDetails &cd)
 // Check if a given configuration exists
 //------------------------------------------------------------------------------
 common::Status QuarkConfigHandler::checkExistence(const std::string &name, bool &existence) {
-  qclient::IntegerParser existsResp(mQcl->exec("EXISTS", SSTR("eos-config:" << name)).get());
+  qclient::IntegerParser existsResp(mQcl->exec("HLEN", SSTR("eos-config:" << name)).get());
 
   if (!existsResp.ok()) {
     return common::Status(EINVAL,
-      SSTR("Received unexpected response in EXISTS check: " << existsResp.err()));
+      SSTR("Received unexpected response in HLEN existence check: " << existsResp.err()));
   }
 
-  existence = (existsResp.value() != 0);
+  existence = (existsResp.value() > 0);
   return common::Status();
 }
 
