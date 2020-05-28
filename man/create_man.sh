@@ -38,6 +38,7 @@ mkdir man1
 
 # create eos command include file
 wdir=$(dirname $0)
+excluded=( "help" "json" "silent" "timing" "quit" "status" "exit" "test" ".q" "")
 ${wdir}/create_eos_cmds.pl ${excluded[*]} > eos.cmds
 help2man --include eos.cmds --help-option="-h " --no-info "${wdir}/eos_cmd_helper.sh " > man1/eos.1
 gzip man1/eos.1

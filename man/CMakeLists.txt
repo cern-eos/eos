@@ -29,8 +29,8 @@ add_dependencies(man eos)
 
 add_custom_command(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/man1/
-  COMMAND ${CMAKE_COMMAND} -E env "LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/common:$ENV{LD_LIBRARY_PATH}" 
-                                  "PATH=${CMAKE_BINARY_DIR}/console:$ENV{PATH}" 
+  COMMAND ${CMAKE_COMMAND} -E env "LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/common:${CMAKE_BINARY_DIR}/mq:$ENV{LD_LIBRARY_PATH}"
+                                  "PATH=${CMAKE_BINARY_DIR}/console:$ENV{PATH}"
           ${CMAKE_CURRENT_SOURCE_DIR}/create_man.sh
 )
 
