@@ -30,7 +30,7 @@ function exec_cmd_docker() {
 # and the rest is the command to be executed
 function exec_cmd_k8s() {
   set -o xtrace
-  kubectl exec $(get_podname ${1}) -- /bin/bash -lc "${@:2}"
+  kubectl exec --namespace=${K8S_NAMESPACE} $(get_podname ${1}) -- /bin/bash -lc "${@:2}"
   set +o xtrace
 }
 
@@ -48,11 +48,11 @@ function cp_to_local_cmd_docker() {
 
 function cp_to_local_cmd_k8s() {
   local substr=":"
-  kubectl cp "$(get_podname ${1%$substr*})${substr}${1#*$substr}" ${2}
+  kubectl cp "${K8S_NAMESPACE}/$(get_podname ${1%$substr*})${substr}${1#*$substr}" ${2}
 }
 
 function get_podname () {
-    kubectl get pods -l app=${1} | grep -E '([0-9]+)/\1' | awk '{print $1}' || printf "" # Get only READY pods
+    kubectl get pods --namespace=${K8S_NAMESPACE} -l app=${1} | grep -E '([0-9]+)/\1' | awk '{print $1}' # Get only READY pods
 }
 
 
@@ -78,8 +78,6 @@ elif [[ "$2" == "k8s" ]]; then
   else
     if [[ $3 =~ ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$ ]]; then
 	  K8S_NAMESPACE=$3
-	  # permanently save the namespace for all subsequent kubectl commands in that context
-	  kubectl config set-context --current --namespace=${K8S_NAMESPACE}
     else
       usage && exit 1
     fi
