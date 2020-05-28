@@ -92,7 +92,15 @@ START_TIME=$(date +%s)
 
 for TEST_FILE in ${EOS_CONVERTER_DIR}/test_replica.dat ${EOS_CONVERTER_DIR}/test_raiddp.dat; do
   # Note we use xargs to trim the output
-  ORIG_FINFO=$(exec_cmd eos-cli1 "eos fileinfo ${TEST_FILE} -m | sed -e 's/fsid=[[:digit:]]//g' | xargs")
+  ORIG_FINFO=$(exec_cmd eos-cli1 "eos fileinfo ${TEST_FILE} -m | \
+    sed -e '{
+     s/fsid=[[:digit:]]//g;
+     s/fsdel=[[:digit:]]//g;
+     s/layout=[[:alnum:]]\+[[:space:]]//g;
+     s/nstripes=[[:digit:]]\+[[:space:]]//g;
+     s/lid=[[:digit:]]\+[[:space:]]//g;
+     s/nrep=[[:digit:]]\+[[:space:]]//g
+   }' | xargs")
   ORIG_LOCATIONS=$(exec_cmd eos-cli1 "eos -j fileinfo ${TEST_FILE} | jq -r .locations[].fsid | tr '\n' ' ' | xargs")
 
   if [[ "${TEST_FILE}" == *raiddp* ]]; then
@@ -122,7 +130,15 @@ for TEST_FILE in ${EOS_CONVERTER_DIR}/test_replica.dat ${EOS_CONVERTER_DIR}/test
     :
   done
 
-  NEW_FINFO=$(exec_cmd eos-cli1 "eos fileinfo ${TEST_FILE} -m | sed -e 's/fsid=[[:digit:]]//g; s/fsdel=[[:digit:]]//g' | xargs")
+  NEW_FINFO=$(exec_cmd eos-cli1 "eos fileinfo ${TEST_FILE} -m | \
+    sed -e '{
+     s/fsid=[[:digit:]]//g;
+     s/fsdel=[[:digit:]]//g;
+     s/layout=[[:alnum:]]\+[[:space:]]//g;
+     s/nstripes=[[:digit:]]\+[[:space:]]//g;
+     s/lid=[[:digit:]]\+[[:space:]]//g;
+     s/nrep=[[:digit:]]\+[[:space:]]//g
+   }' | xargs")
 
   if [[ "${ORIG_FINFO}" != "${NEW_FINFO}" ]]; then
     echo "error: converted file metadata does not match the original one"
