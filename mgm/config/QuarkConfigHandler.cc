@@ -26,6 +26,7 @@
 
 #include <qclient/QClient.hh>
 #include <qclient/ResponseParsing.hh>
+#include "qclient/structures/QScanner.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -50,6 +51,23 @@ common::Status QuarkConfigHandler::checkExistence(const std::string &name, bool 
   }
 
   existence = (existsResp.value() > 0);
+  return common::Status();
+}
+
+//----------------------------------------------------------------------------
+// Obtain list of available configurations, and backups
+//----------------------------------------------------------------------------
+common::Status QuarkConfigHandler::listConfigurations(std::vector<std::string> &configs, std::vector<std::string> &backups) {
+  qclient::QScanner confScanner(*mQcl, "eos-config:*");
+  for (; confScanner.valid(); confScanner.next()) {
+    configs.emplace_back(confScanner.getValue());
+  }
+
+  qclient::QScanner confScannerBackups(*mQcl, "eos-config-backup:*");
+  for (; confScannerBackups.valid(); confScannerBackups.next()) {
+    backups.emplace_back(confScannerBackups.getValue());
+  }
+
   return common::Status();
 }
 

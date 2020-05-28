@@ -67,6 +67,31 @@ TEST_F(ConfigurationTests, BasicFetch) {
   ASSERT_EQ(st.toString(), "(22): Received unexpected response in HLEN existence check: Unexpected reply type; was expecting INTEGER, received (error) ERR Invalid argument: WRONGTYPE Operation against a key holding the wrong kind of value");
 }
 
+TEST_F(ConfigurationTests, Listing) {
+  std::unique_ptr<qclient::QClient> qcl = makeQClient();
+
+  qclient::redisReplyPtr reply = qcl->exec("HSET", "eos-config:default", "a", "b").get();
+  ASSERT_EQ(qclient::describeRedisReply(reply), "(integer) 1");
+
+  qclient::redisReplyPtr reply2 = qcl->exec("HSET", "eos-config:default-2", "a", "b").get();
+  ASSERT_EQ(qclient::describeRedisReply(reply2), "(integer) 1");
+
+  qclient::redisReplyPtr reply3 = qcl->exec("HSET", "eos-config-backup:default-1", "a", "b").get();
+  ASSERT_EQ(qclient::describeRedisReply(reply3), "(integer) 1");
+
+  eos::mgm::QuarkConfigHandler ch(getContactDetails());
+
+  std::vector<std::string> configs, backups;
+  ASSERT_TRUE(ch.listConfigurations(configs, backups));
+
+  ASSERT_EQ(configs.size(), 2u);
+  ASSERT_EQ(configs[0], "eos-config:default");
+  ASSERT_EQ(configs[1], "eos-config:default-2");
+
+  ASSERT_EQ(backups.size(), 1u);
+  ASSERT_EQ(backups[0], "eos-config-backup:default-1");
+}
+
 TEST_F(ConfigurationTests, HashKeys) {
   ASSERT_EQ(eos::mgm::QuarkConfigHandler::formHashKey("default"), "eos-config:default");
   ASSERT_EQ(eos::mgm::QuarkConfigHandler::formBackupHashKey("default", 1588936606), "eos-config-backup:default-20200508111646");

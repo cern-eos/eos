@@ -54,6 +54,11 @@ public:
   common::Status checkExistence(const std::string &name, bool &existence);
 
   //----------------------------------------------------------------------------
+  // Obtain list of available configurations, and backups
+  //----------------------------------------------------------------------------
+  common::Status listConfigurations(std::vector<std::string> &configs, std::vector<std::string> &backups);
+
+  //----------------------------------------------------------------------------
   // Form hash key
   //----------------------------------------------------------------------------
   static std::string formHashKey(const std::string &name);
