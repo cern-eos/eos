@@ -352,7 +352,7 @@ corrupt_orphan
 configure_fsck
 
 # Check that we are collecting all the expected errors
-check_all_errors_collected $(( MAX_DELAY / 2 )) # collection is faster than repair
+check_all_errors_collected $MAX_DELAY
 
 # Enable the repair thread and allow a delay of 2 minutes to
 # correct all the discovered errors
