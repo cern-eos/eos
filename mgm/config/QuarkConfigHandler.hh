@@ -44,9 +44,21 @@ public:
   QuarkConfigHandler(const QdbContactDetails &cd);
 
   //----------------------------------------------------------------------------
+  // Ensure connection is established
+  //----------------------------------------------------------------------------
+  common::Status checkConnection(std::chrono::milliseconds timeout =
+    std::chrono::seconds(5));
+
+  //----------------------------------------------------------------------------
   // Fetch a given configuration
   //----------------------------------------------------------------------------
   common::Status fetchConfiguration(const std::string &name, std::map<std::string, std::string> &out);
+
+  //----------------------------------------------------------------------------
+  // Write the given configuration
+  //----------------------------------------------------------------------------
+  common::Status writeConfiguration(const std::string &name, const std::map<std::string, std::string> &config,
+    bool overwrite);
 
   //----------------------------------------------------------------------------
   // Check if configuration key exists already

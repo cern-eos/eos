@@ -40,6 +40,14 @@ QuarkConfigHandler::QuarkConfigHandler(const QdbContactDetails &cd)
 }
 
 //------------------------------------------------------------------------------
+// Ensure connection is established
+//------------------------------------------------------------------------------
+common::Status QuarkConfigHandler::checkConnection(std::chrono::milliseconds timeout) {
+  qclient::Status st = mQcl->checkConnection(timeout);
+  return common::Status(st.getErrc(), st.getMsg());
+}
+
+//------------------------------------------------------------------------------
 // Check if a given configuration exists
 //------------------------------------------------------------------------------
 common::Status QuarkConfigHandler::checkExistence(const std::string &name, bool &existence) {

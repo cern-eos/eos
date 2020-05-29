@@ -73,35 +73,6 @@ void addClusterOptions(CLI::App* subcmd, std::string& membersStr,
 }
 
 //------------------------------------------------------------------------------
-// Check connection to QDB cluster
-//------------------------------------------------------------------------------
-bool checkConnection(qclient::QClient& qcl)
-{
-  std::future<qclient::redisReplyPtr> fut = qcl.exec("PING");
-
-  if(fut.wait_for(std::chrono::seconds(5)) != std::future_status::ready) {
-    std::cerr << "Could not connect to the given QDB cluster, timed out while waiting on std::future" << std::endl;
-    return false;
-  }
-
-  qclient::redisReplyPtr reply = fut.get();
-
-  if (!reply) {
-    std::cerr << "Could not connect to the given QDB cluster" << std::endl;
-    return false;
-  }
-
-  if (reply->type != REDIS_REPLY_STATUS ||
-      std::string(reply->str, reply->len) != "PONG") {
-    std::cerr << "Received unexpected response in checkConnection: " <<
-              qclient::describeRedisReply(reply) << std::endl;
-    return false;
-  }
-
-  return true;
-}
-
-//------------------------------------------------------------------------------
 // Read source configuration file
 //------------------------------------------------------------------------------
 bool readConfigurationFile(const std::string &sourceFile, std::string &fullContents) {
@@ -294,8 +265,9 @@ int main(int argc, char* argv[])
   //----------------------------------------------------------------------------
   // Ensure connection is sane
   //----------------------------------------------------------------------------
-  if (!checkConnection(qcl)) {
-    std::cerr << "Could not connect to QDB backend" << std::endl;
+  eos::common::Status status = configHandler.checkConnection(std::chrono::seconds(3));
+  if(!status) {
+    std::cerr << "could not connect to QDB backend: " << status.toString() << std::endl;
     return 1;
   }
 
