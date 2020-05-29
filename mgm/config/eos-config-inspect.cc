@@ -156,6 +156,22 @@ bool readAndParseConfiguration(const std::string &path,
   return true;
 }
 
+int runDumpSubcommand(eos::mgm::QuarkConfigHandler &configHandler) {
+  std::map<std::string, std::string> configuration;
+  eos::common::Status status = configHandler.fetchConfiguration("default", configuration);
+
+  if(!status) {
+    std::cerr << "error while fetching configuration: " << status.toString() << std::endl;
+    return 1;
+  }
+
+  for(auto it = configuration.begin(); it != configuration.end(); it++) {
+    std::cout << it->first << " => " << it->second << std::endl;
+  }
+
+  return 0;
+}
+
 int runExportSubcommand(qclient::QClient &qcl, bool overwrite,
   const std::map<std::string, std::string> &configuration) {
 
@@ -226,6 +242,15 @@ int main(int argc, char* argv[])
                     passwordFile);
 
   //----------------------------------------------------------------------------
+  // Set-up dump subcommand..
+  //----------------------------------------------------------------------------
+  auto dumpSubcommand = app.add_subcommand("dump",
+                          "Dump the contens of a given configuration stored in QDB");
+
+  addClusterOptions(dumpSubcommand, membersStr, memberValidator, password,
+                    passwordFile);
+
+  //----------------------------------------------------------------------------
   // Parse
   //----------------------------------------------------------------------------
   try {
@@ -238,11 +263,13 @@ int main(int argc, char* argv[])
   // Read and parse source configuration file
   //----------------------------------------------------------------------------
   std::map<std::string, std::string> configuration;
-  if(!readAndParseConfiguration(sourceFile, configuration)) {
-    return 1;
-  }
+  if(exportSubcommand->parsed()) {
+    if(!readAndParseConfiguration(sourceFile, configuration)) {
+      return 1;
+    }
 
-  std::cerr << "--- Successfully parsed configuration file" << std::endl;
+    std::cerr << "--- Successfully parsed configuration file" << std::endl;
+  }
 
   //----------------------------------------------------------------------------
   // Validate --password and --password-file options..
@@ -260,6 +287,8 @@ int main(int argc, char* argv[])
   //----------------------------------------------------------------------------
   qclient::Members members = qclient::Members::fromString(membersStr);
   eos::QdbContactDetails contactDetails(members, password);
+
+  eos::mgm::QuarkConfigHandler configHandler(contactDetails);
   qclient::QClient qcl(contactDetails.members, contactDetails.constructOptions());
 
   //----------------------------------------------------------------------------
@@ -270,6 +299,14 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  std::cerr << "--- Successfully connected to QDB backend" << std::endl;
-  return runExportSubcommand(qcl, overwrite, configuration);
+  if(exportSubcommand->parsed()) {
+    return runExportSubcommand(qcl, overwrite, configuration);
+  }
+  else if(dumpSubcommand->parsed()) {
+    return runDumpSubcommand(configHandler);
+  }
+
+  std::cerr << "No subcommand was supplied - should never reach here" <<
+            std::endl;
+  return 1;
 }
