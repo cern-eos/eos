@@ -22,9 +22,13 @@
  ************************************************************************/
 
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
+
 #include "common/config/ConfigParsing.hh"
 #include "common/CLI11.hpp"
 #include "common/PasswordHandler.hh"
+
+#include "mgm/config/QuarkConfigHandler.hh"
+
 #include <qclient/QClient.hh>
 #include <qclient/ResponseParsing.hh>
 #include <qclient/MultiBuilder.hh>
@@ -152,18 +156,64 @@ bool readAndParseConfiguration(const std::string &path,
   return true;
 }
 
+int runExportSubcommand(qclient::QClient &qcl, bool overwrite,
+  const std::map<std::string, std::string> &configuration) {
+
+  //----------------------------------------------------------------------------
+  // Is there any configuration stored in QDB already?
+  //----------------------------------------------------------------------------
+  qclient::IntegerParser existsResp(qcl.exec("EXISTS",
+                                    "eos-config:default").get());
+
+  if (!existsResp.ok()) {
+    std::cerr << "Received unexpected response in EXISTS check: " <<
+              existsResp.err() << std::endl;
+    return 1;
+  }
+
+  if (!overwrite && existsResp.value() != 0) {
+    std::cerr <<
+              "ERROR: There's MGM configuration stored in QDB already -- will not delete." <<
+              std::endl;
+    return 1;
+  }
+
+  //----------------------------------------------------------------------------
+  // Prepare write batch
+  //----------------------------------------------------------------------------
+  qclient::MultiBuilder multiBuilder;
+  multiBuilder.emplace_back("DEL", "eos-config:default");
+
+  for (auto it = configuration.begin(); it != configuration.end(); it++) {
+    multiBuilder.emplace_back("HSET", "eos-config:default", it->first, it->second);
+  }
+
+  std::cerr << "--- Prepared write batch towards QDB, " << multiBuilder.size() <<
+            " commands" << std::endl;
+  std::cerr << "--- Executing write batch: " <<  qclient::describeRedisReply(
+              qcl.execute(multiBuilder.getDeque()).get()) << std::endl;
+  return 0;
+}
+
 int main(int argc, char* argv[])
 {
   CLI::App app("Tool to inspect contents of the QuarkDB-based EOS configuration.");
   app.require_subcommand();
+
+  //----------------------------------------------------------------------------
+  // Parameters common to all subcommands
+  //----------------------------------------------------------------------------
+  std::string membersStr;
+  MemberValidator memberValidator;
+  std::string password;
+  std::string passwordFile;
+
   //----------------------------------------------------------------------------
   // Set-up export subcommand..
   //----------------------------------------------------------------------------
   auto exportSubcommand = app.add_subcommand("export",
                           "Read a legacy file-based configuration file, and export to QDB. Ensure the MGM is not running while you run this command!");
-  //----------------------------------------------------------------------------
-  // Set-up source
-  //----------------------------------------------------------------------------
+
   std::string sourceFile;
   exportSubcommand->add_option("--source", sourceFile,
                                "Path to the source configuration file to export")
@@ -171,13 +221,7 @@ int main(int argc, char* argv[])
   bool overwrite = false;
   exportSubcommand->add_flag("--overwrite", overwrite,
                              "Overwrite already-existing configuration in QDB.");
-  //----------------------------------------------------------------------------
-  // Set-up target
-  //----------------------------------------------------------------------------
-  std::string membersStr;
-  MemberValidator memberValidator;
-  std::string password;
-  std::string passwordFile;
+
   addClusterOptions(exportSubcommand, membersStr, memberValidator, password,
                     passwordFile);
 
@@ -227,38 +271,5 @@ int main(int argc, char* argv[])
   }
 
   std::cerr << "--- Successfully connected to QDB backend" << std::endl;
-  //----------------------------------------------------------------------------
-  // Is there any configuration stored in QDB already?
-  //----------------------------------------------------------------------------
-  qclient::IntegerParser existsResp(qcl.exec("EXISTS",
-                                    "eos-config:default").get());
-
-  if (!existsResp.ok()) {
-    std::cerr << "Received unexpected response in EXISTS check: " <<
-              existsResp.err() << std::endl;
-    return 1;
-  }
-
-  if (!overwrite && existsResp.value() != 0) {
-    std::cerr <<
-              "ERROR: There's MGM configuration stored in QDB already -- will not delete." <<
-              std::endl;
-    return 1;
-  }
-
-  //----------------------------------------------------------------------------
-  // Prepare write batch
-  //----------------------------------------------------------------------------
-  qclient::MultiBuilder multiBuilder;
-  multiBuilder.emplace_back("DEL", "eos-config:default");
-
-  for (auto it = configuration.begin(); it != configuration.end(); it++) {
-    multiBuilder.emplace_back("HSET", "eos-config:default", it->first, it->second);
-  }
-
-  std::cerr << "--- Prepared write batch towards QDB, " << multiBuilder.size() <<
-            " commands" << std::endl;
-  std::cerr << "--- Executing write batch: " <<  qclient::describeRedisReply(
-              qcl.execute(multiBuilder.getDeque()).get()) << std::endl;
-  return 0;
+  return runExportSubcommand(qcl, overwrite, configuration);
 }
