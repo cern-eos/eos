@@ -4883,7 +4883,6 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
               rc = pcap->errc();
             } else {
 #ifdef HAVE_RICHACL
-
               if (key == s_racl) {
                 struct richacl* a = NULL;
 
@@ -5157,8 +5156,8 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
               }
 
 #endif
-#ifdef HAVE_RICHACL
               else if (key == s_racl) {
+#ifdef HAVE_RICHACL
                 struct richacl* a = richacl_from_xattr(xattr_value, size);
                 richacl_compute_max_masks(a);
 
@@ -5201,9 +5200,11 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
                     Instance().mds.wait_flush(req, md); // wait for upstream flush
                   }
                 }
+#else /*HAVE_RICHACL*/
+                rc = EINVAL;                          // fail loudly if not supported
+#endif /*HAVE_RICHACL*/
               }
 
-#endif /*HAVE_RICHACL*/
               else {
                 auto map = md->mutable_attr();
                 bool exists = false;
