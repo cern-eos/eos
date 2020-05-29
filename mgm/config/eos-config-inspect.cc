@@ -199,7 +199,7 @@ int main(int argc, char* argv[])
   // Set-up export subcommand..
   //----------------------------------------------------------------------------
   auto exportSubcommand = app.add_subcommand("export",
-                          "Read a legacy file-based configuration file, and export to QDB. Ensure the MGM is not running while you run this command!");
+                          "[DANGEROUS] Read a legacy file-based configuration file, and export to QDB. Ensure the MGM is not running while you run this command!");
 
   std::string sourceFile;
   exportSubcommand->add_option("--source", sourceFile,

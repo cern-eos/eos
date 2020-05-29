@@ -92,6 +92,26 @@ TEST_F(ConfigurationTests, Listing) {
   ASSERT_EQ(backups[0], "eos-config-backup:default-1");
 }
 
+TEST_F(ConfigurationTests, WriteRead) {
+  eos::mgm::QuarkConfigHandler ch(getContactDetails());
+
+  std::map<std::string, std::string> configuration, configuration2;
+  configuration["a"] = "b";
+  configuration["c"] = "d";
+
+  ASSERT_TRUE(ch.writeConfiguration("default", configuration, false));
+  ASSERT_TRUE(ch.fetchConfiguration("default", configuration2));
+  ASSERT_EQ(configuration, configuration2);
+
+  ASSERT_FALSE(ch.writeConfiguration("default", configuration, false));
+  configuration["d"] = "e";
+  ASSERT_TRUE(ch.writeConfiguration("default", configuration, true));
+
+  ASSERT_FALSE(configuration == configuration2);
+  ASSERT_TRUE(ch.fetchConfiguration("default", configuration2));
+  ASSERT_EQ(configuration, configuration2);
+}
+
 TEST_F(ConfigurationTests, HashKeys) {
   ASSERT_EQ(eos::mgm::QuarkConfigHandler::formHashKey("default"), "eos-config:default");
   ASSERT_EQ(eos::mgm::QuarkConfigHandler::formBackupHashKey("default", 1588936606), "eos-config-backup:default-20200508111646");

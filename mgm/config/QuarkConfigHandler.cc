@@ -26,6 +26,7 @@
 
 #include <qclient/QClient.hh>
 #include <qclient/ResponseParsing.hh>
+#include <qclient/MultiBuilder.hh>
 #include "qclient/structures/QScanner.hh"
 
 EOSMGMNAMESPACE_BEGIN
@@ -91,6 +92,43 @@ common::Status QuarkConfigHandler::fetchConfiguration(const std::string &name, s
   }
 
   out = parser.value();
+  return common::Status();
+}
+
+//------------------------------------------------------------------------------
+// Write the given configuration
+//------------------------------------------------------------------------------
+common::Status QuarkConfigHandler::writeConfiguration(const std::string &name, const std::map<std::string, std::string> &config,
+    bool overwrite) {
+
+  std::string configKey = SSTR("eos-config:" << name);
+  qclient::IntegerParser hlenResp(mQcl->exec("HLEN", configKey).get());
+
+  if (!hlenResp.ok()) {
+    return common::Status(EINVAL, SSTR("received unexpected response in HLEN check: " <<
+      hlenResp.err()));
+  }
+
+  if (!overwrite && hlenResp.value() != 0) {
+    return common::Status(EINVAL, "There's MGM configuration stored in QDB already -- will not delete.");
+  }
+
+  //----------------------------------------------------------------------------
+  // Prepare write batch
+  //----------------------------------------------------------------------------
+  qclient::MultiBuilder multiBuilder;
+  multiBuilder.emplace_back("DEL", "eos-config:default");
+
+  for (auto it = config.begin(); it != config.end(); it++) {
+    multiBuilder.emplace_back("HSET", configKey, it->first, it->second);
+  }
+
+  qclient::redisReplyPtr reply = mQcl->execute(multiBuilder.getDeque()).get();
+  if(reply->elements != config.size() + 1) {
+    return common::Status(EINVAL,
+      SSTR("unexpected number of elements in response: " << qclient::describeRedisReply(reply)));
+  }
+
   return common::Status();
 }
 
