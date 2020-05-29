@@ -256,7 +256,7 @@ com_squash(char* arg1)
 	  target += hostport; 
 	  target += "@";
 	  XrdOucString spackagepath = squashpack.c_str();
-	  while(spackagepath.replace("/",":-:")) {}
+	  while(spackagepath.replace("/","---")) {}
 	  target += spackagepath.c_str();
 	  
 	  if (symlink(target.c_str(), packagepath.GetPath())) {
@@ -303,7 +303,7 @@ com_squash(char* arg1)
     target += hostport; 
     target += "@";
     XrdOucString spackagepath = squashpack.c_str();
-    while(spackagepath.replace("/",":-:")) {}
+    while(spackagepath.replace("/","---")) {}
     target += spackagepath.c_str();
     
     if (symlink(target.c_str(), packagepath.GetPath())) {
