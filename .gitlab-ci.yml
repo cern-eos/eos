@@ -817,8 +817,8 @@ dock_stress:
   dependencies: []
   retry: 1
   tags:
-     - docker_node
-#    - docker-privileged
+    # - docker_node
+    - docker-privileged
 
 unit_test:tag:
   image:
