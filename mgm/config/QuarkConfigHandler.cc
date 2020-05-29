@@ -129,6 +129,13 @@ common::Status QuarkConfigHandler::writeConfiguration(const std::string &name, c
       SSTR("unexpected number of elements in response: " << qclient::describeRedisReply(reply)));
   }
 
+  for(size_t i = 1; i < reply->elements; i++) {
+    qclient::IntegerParser intParse(reply->element[i]);
+    if(!intParse.ok() || intParse.value() != 1) {
+      return common::Status(EINVAL, SSTR("unexpected response in position " << i << ": " << qclient::describeRedisReply(reply->element[i])));
+    }
+  }
+
   return common::Status();
 }
 

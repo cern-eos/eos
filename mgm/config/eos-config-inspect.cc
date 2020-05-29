@@ -143,8 +143,8 @@ int runDumpSubcommand(eos::mgm::QuarkConfigHandler &configHandler) {
   return 0;
 }
 
-int runExportSubcommand(qclient::QClient &qcl, bool overwrite,
-  const std::map<std::string, std::string> &configuration) {
+int runExportSubcommand(eos::mgm::QuarkConfigHandler &configHandler,
+  qclient::QClient &qcl, bool overwrite, const std::map<std::string, std::string> &configuration) {
 
   //----------------------------------------------------------------------------
   // Is there any configuration stored in QDB already?
@@ -272,7 +272,7 @@ int main(int argc, char* argv[])
   }
 
   if(exportSubcommand->parsed()) {
-    return runExportSubcommand(qcl, overwrite, configuration);
+    return runExportSubcommand(configHandler, qcl, overwrite, configuration);
   }
   else if(dumpSubcommand->parsed()) {
     return runDumpSubcommand(configHandler);

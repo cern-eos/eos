@@ -94,6 +94,7 @@ TEST_F(ConfigurationTests, Listing) {
 
 TEST_F(ConfigurationTests, WriteRead) {
   eos::mgm::QuarkConfigHandler ch(getContactDetails());
+  ASSERT_TRUE(ch.checkConnection(std::chrono::seconds(1)));
 
   std::map<std::string, std::string> configuration, configuration2;
   configuration["a"] = "b";
