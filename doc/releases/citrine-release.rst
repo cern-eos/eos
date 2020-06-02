@@ -15,6 +15,17 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.8.1 Citrine``
+===================
+
+2020-06-02
+
+Bug
+----
+
+* SPEC: Fix CentOS8 Koji build
+* MGM: Exclude tape locations from the converter merge procedure
+
 
 ``v4.8.0 Citrine``
 ===================
