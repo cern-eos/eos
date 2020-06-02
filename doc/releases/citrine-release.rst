@@ -16,6 +16,26 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.0 Citrine``
+===================
+
+2020-06-02
+
+Bug
+----
+
+* [EOS-3966] - Fix prefetching especially for RAIN and make it adaptive
+* [EOS-4035] - FST service not starting (timeout) if there are too many log files
+* [EOS-4214] - eos file convert behaviour
+* [EOS-4259] - eosxd crash under metad::add_sync() /  EosFuse::create()
+* [EOS-4260] - eosxd crash data::dmap::ioflush()
+
+Task
+----
+
+* [EOS-3976] - The converter does not honour the source file checksum if sys.forced.checksum is set on /eos/<instance>/proc/conversion
+
+
 ``v4.7.15 Citrine``
 ===================
 
