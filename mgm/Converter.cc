@@ -449,6 +449,10 @@ ConverterJob::Merge()
 
     // Unlink the old locations from the original file object
     for (const auto& loc : orig_fmd->getLocations()) {
+      if (loc == eos::common::TAPE_FS_ID) {
+        continue;
+      }
+
       if (std::find(conv_locations.begin(), conv_locations.end(), loc) ==
           conv_locations.end()) {
         orig_fmd->unlinkLocation(loc);
