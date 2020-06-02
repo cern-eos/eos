@@ -27,15 +27,11 @@ default:
     name: gcr.io/kaniko-project/executor:debug-v0.16.0
     entrypoint: [""]
   script:
-    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
-    - case $PREBUILD_NAME in
-       slc6) /kaniko/executor --cache=false --destination gitlab-registry.cern.ch/dss/eos/prebuild-slc6 --dockerfile $CI_PROJECT_DIR/gitlab-ci/prebuild_OSbase/Dockerfile_prebuild-slc6 --context $CI_PROJECT_DIR ;;
-        cc7) /kaniko/executor --cache=false --destination gitlab-registry.cern.ch/dss/eos/prebuild-cc7 --dockerfile $CI_PROJECT_DIR/gitlab-ci/prebuild_OSbase/Dockerfile_prebuild-cc7 --context $CI_PROJECT_DIR ;;
-         c8) /kaniko/executor --cache=false --destination gitlab-registry.cern.ch/dss/eos/prebuild-c8 --dockerfile $CI_PROJECT_DIR/gitlab-ci/prebuild_OSbase/Dockerfile_prebuild-c8 --context $CI_PROJECT_DIR ;;
-      cc7_*) /kaniko/executor --cache=false --destination gitlab-registry.cern.ch/dss/eos/prebuild-$PREBUILD_NAME --dockerfile $CI_PROJECT_DIR/gitlab-ci/prebuild_OSbase/Dockerfile_prebuild-cc7_exotic
-                --context $CI_PROJECT_DIR --build-arg PREBUILD_NAME="$PREBUILD_NAME" --build-arg CMAKE_OPTIONS="$CMAKE_OPTIONS" --build-arg CXXFLAGS="$CXXFLAGS" ;;
-          *) echo "var PREBUILD_NAME:$PREBUILD_NAME not properly defined"; exit 1 ;;
-      esac
+    - export DESTINATION="gitlab-registry.cern.ch/dss/eos/prebuild-${PREBUILD_NAME}"
+    - export DOCKERFILE="$CI_PROJECT_DIR/gitlab-ci/prebuild_OSbase/prebuild-${PREBUILD_NAME}.Dockerfile"
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(echo -n $CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD | base64)\"}}}" > /kaniko/.docker/config.json
+    # no need yet for --build-arg PREBUILD_NAME="$PREBUILD_NAME" --build-arg CMAKE_OPTIONS="$CMAKE_OPTIONS" --build-arg CXXFLAGS="$CXXFLAGS"
+    - /kaniko/executor --cache="false" --destination $DESTINATION --dockerfile $DOCKERFILE --context $CI_PROJECT_DIR
   only:
     variables:
       - $PREBUILD_TRIGGER
@@ -55,7 +51,7 @@ prebuild-c8:
   variables:
     PREBUILD_NAME: c8
 
-# @note hide until useful, but consider deletion
+# @note Consider deletion
 .prebuild-cc7_asan:
   <<: *prebuild-template_definition
   variables:
@@ -252,7 +248,6 @@ build_c8:
   dependencies: []
   allow_failure: true # @todo false for tags
 
-# @todo, temporarely always enabled, then move to schedules and tags
 build_ubuntu_bionic:
   image: ubuntu:bionic
   before_script:
@@ -263,9 +258,9 @@ build_ubuntu_bionic:
   <<: *build_ubuntu-template_definition
   variables:
     EOS_ARCH: bionic
-#  only:
-#    - schedules
-#    - tags
+  only:
+    - schedules
+    - tags
   tags:
     - docker_node
     - ubuntu
@@ -425,10 +420,102 @@ build_cc7_coverage:
 
 
 #-------------------------------------------------------------------------------
-# Build docker images
+# Build docker images @note stick to v0.16.0 until < https://github.com/GoogleContainerTools/kaniko/issues/1038 > is fixed
 #-------------------------------------------------------------------------------
 
-cc7_docker_image_tag:
+.build_dockerimage-template: &build_dockerimage-template_definition
+  stage: build:dockerimage
+  image:
+    name: gcr.io/kaniko-project/executor:debug-v0.16.0
+    entrypoint: [""]
+  script:
+    - if [[ -z $CI_COMMIT_TAG ]];
+      then export CACHE="true"; export IMAGE_TAG="$BASETAG$CI_COMMIT_SHORT_SHA";
+      else export CACHE="false"; export IMAGE_TAG="$BASETAG$CI_COMMIT_TAG";
+      fi
+    - echo "$CACHE - $IMAGE_TAG"
+    - export DESTINATION="gitlab-registry.cern.ch/dss/eos:${IMAGE_TAG}"
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(echo -n $CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD | base64)\"}}}" > /kaniko/.docker/config.json
+    - /kaniko/executor --cache=$CACHE --destination $DESTINATION --dockerfile $DOCKERFILE --context $CI_PROJECT_DIR
+
+cc7_docker_image:
+  <<: *build_dockerimage-template_definition
+  variables:
+    DOCKERFILE: eos-docker/Dockerfile
+    BASETAG: ""
+  dependencies:
+    - build_cc7
+    - clone_docker
+
+ubuntu_bionic_docker_image:
+  <<: *build_dockerimage-template_definition
+  variables:
+    DOCKERFILE: eos-docker/Dockerfile_ubuntu_bionic
+    BASETAG: "ubuntu_bionic_client_"
+  dependencies:
+    - build_ubuntu_bionic
+    - clone_docker
+  only:
+    - schedules
+    - tags
+  allow_failure: true
+
+# schedules ------------------------------
+
+c8_docker_image:
+  <<: *build_dockerimage-template_definition
+  variables:
+    DOCKERFILE: eos-docker/Dockerfile_c8
+    BASETAG: "c8_"
+  dependencies:
+    - build_c8
+    - clone_docker
+  only:
+    - schedules
+    - tags
+  allow_failure: true
+
+cc7_asan_docker_image:
+  <<: *build_dockerimage-template_definition
+  variables:
+    DOCKERFILE: eos-docker/Dockerfile_asan
+    BASETAG: "asan_"
+  dependencies:
+    - build_cc7_asan
+    - clone_docker
+  only:
+    - schedules
+  allow_failure: true
+
+.cc7_xrd_testing_docker_image:
+  <<: *build_dockerimage-template_definition
+  variables:
+    DOCKERFILE: eos-docker/Dockerfile_xrd_testing
+    BASETAG: "xrd_testing_"
+  dependencies:
+    - build_cc7_xrd_testing
+    - clone_docker
+  only:
+    - wip_cmake
+    - schedules
+  allow_failure: true
+
+.cc7_coverage_docker_image:
+  <<: *build_dockerimage-template_definition
+  variables:
+    DOCKERFILE: eos-docker/Dockerfile_coverage
+    BASETAG: "coverage_"
+  dependencies:
+    - build_cc7_coverage
+    - clone_docker
+  only:
+    variables:
+      - $COVERAGE_SCHEDULE
+  allow_failure: true
+
+# Deprecated, temporarily keep as a backup @note to be dropped -----
+
+.old-cc7_docker_image_tag:
   stage: build:dockerimage
   tags:
     - docker-image-build
@@ -444,7 +531,7 @@ cc7_docker_image_tag:
   only:
     - tags
 
-cc7_docker_image_commit:
+.old-cc7_docker_image_commit:
   stage: build:dockerimage
   tags:
     - docker-image-build
@@ -459,9 +546,7 @@ cc7_docker_image_commit:
   except:
     - tags
 
-# schedules ------------------------------
-
-ubuntu_bionic_docker_image_tag:
+.old-ubuntu_bionic_docker_image_tag:
   stage: build:dockerimage
   tags:
     - docker-image-build
@@ -478,7 +563,7 @@ ubuntu_bionic_docker_image_tag:
     - tags
   allow_failure: true
 
-ubuntu_bionic_docker_image_commit:
+.old-ubuntu_bionic_docker_image_commit:
   stage: build:dockerimage
   tags:
     - docker-image-build
@@ -496,7 +581,7 @@ ubuntu_bionic_docker_image_commit:
     - tags
   allow_failure: true
 
-c8_docker_image_tag:
+.old-c8_docker_image_tag:
   stage: build:dockerimage
   tags:
     - docker-image-build
@@ -513,7 +598,7 @@ c8_docker_image_tag:
     - tags
   allow_failure: true
 
-c8_docker_image_commit:
+.old-c8_docker_image_commit:
   stage: build:dockerimage
   tags:
     - docker-image-build
@@ -531,7 +616,7 @@ c8_docker_image_commit:
     - tags
   allow_failure: true
 
-cc7_asan_docker_image:
+.old-cc7_asan_docker_image:
   stage: build:dockerimage
   tags:
     - docker-image-build
@@ -548,7 +633,7 @@ cc7_asan_docker_image:
     - schedules
   allow_failure: true
 
-.cc7_xrd_testing_docker_image: # @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
+.old-cc7_xrd_testing_docker_image: # @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
   stage: build:dockerimage
   tags:
     - docker-image-build
@@ -565,7 +650,7 @@ cc7_asan_docker_image:
     - schedules
   allow_failure: true
 
-.cc7_coverage_docker_image:
+.old-cc7_coverage_docker_image:
   stage: build:dockerimage
   tags:
     - docker-image-build
