@@ -162,6 +162,30 @@ int runExportSubcommand(const std::string &sourceFile, eos::mgm::QuarkConfigHand
   return 0;
 }
 
+int runListSubcommand(eos::mgm::QuarkConfigHandler &configHandler) {
+  std::vector<std::string> configs, backups;
+  eos::common::Status st = configHandler.listConfigurations(configs, backups);
+
+  if(!st) {
+    std::cerr << "ERROR: " << st.toString() << std::endl;
+    return 1;
+  }
+
+  std::cout << "Stored configurations:" << std::endl;
+  for(auto it = configs.begin(); it != configs.end(); it++) {
+    std::cout << "    " << *it << std::endl;
+  }
+
+  std::cout << std::endl;
+
+  std::cout << "Stored backups:" << std::endl;
+  for(auto it = backups.begin(); it != backups.end(); it++) {
+    std::cout << "    " << *it << std::endl;
+  }
+
+  return 0;
+}
+
 int main(int argc, char* argv[])
 {
   CLI::App app("Tool to inspect contents of the QuarkDB-based EOS configuration.");
@@ -199,6 +223,15 @@ int main(int argc, char* argv[])
                           "Dump the contens of a given configuration stored in QDB");
 
   addClusterOptions(dumpSubcommand, membersStr, memberValidator, password,
+                    passwordFile);
+
+  //----------------------------------------------------------------------------
+  // Set-up dump subcommand..
+  //----------------------------------------------------------------------------
+  auto listSubcommand = app.add_subcommand("list",
+                         "List all stored configurations, including backups");
+
+  addClusterOptions(listSubcommand, membersStr, memberValidator, password,
                     passwordFile);
 
   //----------------------------------------------------------------------------
@@ -242,6 +275,9 @@ int main(int argc, char* argv[])
   }
   else if(dumpSubcommand->parsed()) {
     return runDumpSubcommand(configHandler);
+  }
+  else if(listSubcommand->parsed()) {
+    return runListSubcommand(configHandler);
   }
 
   std::cerr << "No subcommand was supplied - should never reach here" <<
