@@ -143,8 +143,13 @@ int runDumpSubcommand(eos::mgm::QuarkConfigHandler &configHandler) {
   return 0;
 }
 
-int runExportSubcommand(eos::mgm::QuarkConfigHandler &configHandler,
-  bool overwrite, const std::map<std::string, std::string> &configuration) {
+int runExportSubcommand(const std::string &sourceFile, eos::mgm::QuarkConfigHandler &configHandler,
+  bool overwrite) {
+
+  std::map<std::string, std::string> configuration;
+  if(!readAndParseConfiguration(sourceFile, configuration)) {
+    return 1;
+  }
 
   eos::common::Status st = configHandler.writeConfiguration("default", configuration, overwrite);
 
@@ -206,18 +211,6 @@ int main(int argc, char* argv[])
   }
 
   //----------------------------------------------------------------------------
-  // Read and parse source configuration file
-  //----------------------------------------------------------------------------
-  std::map<std::string, std::string> configuration;
-  if(exportSubcommand->parsed()) {
-    if(!readAndParseConfiguration(sourceFile, configuration)) {
-      return 1;
-    }
-
-    std::cerr << "--- Successfully parsed configuration file" << std::endl;
-  }
-
-  //----------------------------------------------------------------------------
   // Validate --password and --password-file options..
   //----------------------------------------------------------------------------
   if (!passwordFile.empty()) {
@@ -245,7 +238,7 @@ int main(int argc, char* argv[])
   }
 
   if(exportSubcommand->parsed()) {
-    return runExportSubcommand(configHandler, overwrite, configuration);
+    return runExportSubcommand(sourceFile, configHandler, overwrite);
   }
   else if(dumpSubcommand->parsed()) {
     return runDumpSubcommand(configHandler);
