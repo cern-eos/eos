@@ -319,7 +319,7 @@ cd build
       %define cmake ./cmake_install/bin/cmake
       %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=%{build_type} %{build_flags}
     %else
-     %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=%{build_type} -DXROOTD_ROOT_DIR=/opt/eos/xrootd/ %{build_flags}
+     %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=%{build_type} -DXROOTD_ROOT=/opt/eos/xrootd/ %{build_flags}
     %endif
   %else
     %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=%{build_type} %{build_flags}
