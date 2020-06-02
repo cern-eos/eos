@@ -111,7 +111,8 @@ build_cc7:
     expire_in: 1 day
     paths:
       - cc7_artifacts/
-#  tags:
+  tags:
+    - docker
 #    - docker_node
 #    - cc7
 
@@ -144,7 +145,8 @@ build_slc6:
     expire_in: 1 day
     paths:
       - slc6_artifacts/
-#  tags:
+  tags:
+    - docker
 #    - docker_node
 #    - slc6
 
@@ -181,7 +183,8 @@ clone_docker:
     expire_in: 1 day
     paths:
       - eos-docker/
-#  tags:
+  tags:
+    - docker
 #    - docker_node
 #    - clone_eosdocker
 
@@ -216,7 +219,8 @@ build_c8:
   only:
     - schedules
     - tags
-#  tags:
+  tags:
+    - docker
 #    - docker_node
 #    - c8
 
@@ -266,7 +270,8 @@ build_ubuntu_bionic:
 #  only:
 #    - schedules
 #    - tags
-#  tags:
+  tags:
+    - docker
 #    - docker_node
 #    - ubuntu
 
@@ -305,7 +310,8 @@ build_fedora_stable:
   only:
     - schedules
     - tags
-#  tags:
+  tags:
+    - docker
 #    - docker_node
 #    - fedora_stable
 
@@ -358,7 +364,8 @@ build_cc7_asan:
     CXXFLAGS: "-Wno-parentheses"    # Avoid boost header compilation errors
   only:
     - schedules
-#  tags:
+  tags:
+    - docker
 #    - docker_node
 #    - cc7_asan
 
@@ -370,7 +377,8 @@ build_cc7_clang:
     RPMBUILD_OPTIONS: "--with clang"
   only:
     - schedules
-#  tags:
+  tags:
+    - docker
 #    - docker_node
 #    - cc7_clang
 
@@ -386,7 +394,8 @@ build_cc7_clang:
     BUILD_NAME: cc7_xrd_testing
   only:
     - schedules
-#  tags:
+  tags:
+    - docker
 #    - docker_node
 #    - cc7_xrd_testing
 
@@ -406,7 +415,8 @@ build_cc7_opt_xrootd: # @note please contact CTA team / jleduc if you want to ch
   allow_failure: true
   except:
     - tags
-#  tags:
+  tags:
+    - docker
 #    - docker_node
 #    - cc7_opt_xrootd
   when: manual
@@ -419,7 +429,8 @@ build_cc7_coverage:
   only:
     variables:
       - $COVERAGE_SCHEDULE
-#  tags:
+  tags:
+    - docker
 #    - docker_node
 #    - cc7
 
@@ -818,8 +829,8 @@ dock_stress:
   dependencies: []
   retry: 1
   tags:
-    - docker_node
-#   - docker-privileged
+    - docker-machine
+    # - docker_node
 
 unit_test:tag:
   image:
