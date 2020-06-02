@@ -317,6 +317,9 @@ cd build
       mkdir ./cmake_install/
       ../misc/cmake/cmake-3.15.5-Linux-x86_64.sh --prefix=./cmake_install/ --skip-license
       %define cmake ./cmake_install/bin/cmake
+    %endif
+
+    if 0%{distribution} == 6
       %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=%{build_type} %{build_flags}
     %else
      %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=%{build_type} -DXROOTD_ROOT=/opt/eos/xrootd/ %{build_flags}
