@@ -99,7 +99,7 @@ if (Linux)
   target_link_libraries(eos-log-repair EosNsInMemory-Static)
 
   install(
-    TARGETS eos-log-compact eos-log-repair EosNsInMemory-Static
+    TARGETS eos-log-compact eos-log-repair
     LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

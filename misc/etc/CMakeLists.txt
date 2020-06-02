@@ -42,10 +42,6 @@ install(
   PERMISSIONS OWNER_READ OWNER_WRITE)
 
 install(
-  FILES sysconfig/xrootd.example
-  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/sysconfig/)
-
-install(
   FILES bash_completion.d/eos
   DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/bash_completion.d/)
 

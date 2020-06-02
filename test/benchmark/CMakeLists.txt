@@ -33,9 +33,9 @@ set_source_files_properties(
   PROPERTIES GENERATED 1)
 
 #-------------------------------------------------------------------------------
-# eos-benchmark executable
+# eos-io-benchmark executable
 #-------------------------------------------------------------------------------
-add_executable(eos-benchmark
+add_executable(eos-io-benchmark
   eosbenchmark.cc     eosbenchmark.hh
   Configuration.cc    Configuration.hh
   DirEos.cc           DirEos.hh
@@ -48,12 +48,12 @@ add_executable(eos-benchmark
   ${CMAKE_SOURCE_DIR}/common/StringConversion.hh
   ${CMAKE_SOURCE_DIR}/fst/io/FileIoPlugin.cc)
 
-target_link_libraries(eos-benchmark PRIVATE
+target_link_libraries(eos-io-benchmark PRIVATE
   EosFstIo
   ${CMAKE_THREAD_LIBS_INIT})
 
-target_compile_definitions(eos-benchmark PUBLIC
+target_compile_definitions(eos-io-benchmark PUBLIC
   -D_LARGE_FILE_SOURCE -D_LARGE64_FILE_SOURCE -D_FILE_OFFSET_BITS=64)
 
-install(TARGETS eos-benchmark
+install(TARGETS eos-io-benchmark
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})

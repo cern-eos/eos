@@ -53,7 +53,7 @@ add_executable(testhmacsha256
   TestHmacSha256.cc
   ${CMAKE_SOURCE_DIR}/common/SymKeys.hh
   ${CMAKE_SOURCE_DIR}/common/SymKeys.cc)
-add_executable(eoschecksumbench
+add_executable(eos-checksum-benchmark
   EosChecksumBenchmark.cc
   ${CMAKE_SOURCE_DIR}/fst/checksum/Adler.cc
   ${CMAKE_SOURCE_DIR}/fst/checksum/CheckSum.cc)
@@ -79,8 +79,7 @@ target_link_libraries(eos-io-tool PRIVATE EosFstIo)
 target_link_libraries(xrdstress.exe PRIVATE
   UUID::UUID XROOTD::CL XROOTD::UTILS XROOTD::POSIX
   ${CMAKE_THREAD_LIBS_INIT})
-target_link_libraries(eoschecksumbench PRIVATE EosFstIo XROOTD::POSIX)
-
+target_link_libraries(eos-checksum-benchmark PRIVATE EosFstIo XROOTD::POSIX)
 target_compile_definitions(xrdstress.exe PUBLIC -D_FILE_OFFSET_BITS=64)
 target_compile_definitions(xrdcpabort PUBLIC -D_FILE_OFFSET_BITS=64)
 target_compile_definitions(xrdcprandom PUBLIC -D_FILE_OFFSET_BITS=64)
@@ -95,8 +94,8 @@ target_compile_definitions(xrdcppartial PUBLIC -D_FILE_OFFSET_BITS=64)
 target_compile_definitions(xrdcpupdate PUBLIC -D_FILE_OFFSET_BITS=64)
 target_compile_definitions(xrdcpposixcache PUBLIC -D_FILE_OFFSET_BITS=64)
 target_compile_definitions(eoshashbench PUBLIC -D_FILE_OFFSET_BITS=64)
-target_compile_definitions(eoschecksumbench PUBLIC -D_FILE_OFFSET_BITS=64)
-target_compile_options(eoschecksumbench PRIVATE -msse4.2)
+target_compile_definitions(eos-checksum-benchmark PUBLIC -D_FILE_OFFSET_BITS=64)
+target_compile_options(eos-checksum-benchmark PRIVATE -msse4.2)
 target_compile_definitions(eos-open-trunc-update PUBLIC -D_FILE_OFFSET_BITS=64)
 
 add_executable(threadpooltest ThreadPoolTest.cc)
@@ -104,7 +103,7 @@ target_link_libraries(threadpooltest PRIVATE EosCommon)
 
 install(TARGETS xrdstress.exe xrdcpabort xrdcprandom xrdcpextend xrdcpshrink xrdcpappend
   xrdcptruncate xrdcpholes xrdcpbackward xrdcpdownloadrandom xrdcppartial xrdcpupdate
-  xrdcpposixcache xrdcpslowwriter eoschecksumbench eos-udp-dumper eos-mmap eos-io-tool
+  xrdcpposixcache xrdcpslowwriter eos-checksum-benchmark eos-udp-dumper eos-mmap eos-io-tool
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
 install(PROGRAMS xrdstress eos-instance-test eos-instance-test-ci fuse/eos-fuse-test

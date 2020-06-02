@@ -1177,6 +1177,7 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_sbindir}/eos-fusex-certify
 %{_sbindir}/eos-fusex-ioverify
 %{_sbindir}/eos-fusex-recovery
+%{_sbindir}/eos-checksum-benchmark
 %{_sbindir}/xrdcpabort
 %{_sbindir}/xrdcpappend
 %{_sbindir}/xrdcpposixcache
@@ -1189,10 +1190,12 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_sbindir}/xrdcptruncate
 %{_sbindir}/xrdcppartial
 %{_sbindir}/xrdcpslowwriter
+%{_sbindir}/xrdcpupdate
 %{_sbindir}/xrdstress
 %{_sbindir}/xrdstress.exe
 %{_sbindir}/eos-io-test
 %{_sbindir}/eos-io-tool
+%{_sbindir}/eos-io-benchmark
 %{_sbindir}/eos-unit-tests
 %{_sbindir}/eos-unit-tests-with-instance
 %{_sbindir}/eos-unit-tests-fst
