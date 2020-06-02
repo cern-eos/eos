@@ -729,6 +729,7 @@ k8s_fusex:
   <<: *dock8s_fusex_test_template
   dependencies: []
   retry: 1
+  allow_failure: true
   tags:
     - shell-with-kubernetes
 
@@ -817,8 +818,8 @@ dock_stress:
   dependencies: []
   retry: 1
   tags:
-    # - docker_node
-    - docker-privileged
+    - docker_node
+#   - docker-privileged
 
 unit_test:tag:
   image:
