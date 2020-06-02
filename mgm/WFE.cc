@@ -2185,6 +2185,8 @@ WFE::Job::HandleProtoMethodArchivedEvent(const std::string& event,
 	fmd->addLocation(TAPE_FS_ID);
 	// Reset the error message
 	fmd->setAttribute(ARCHIVE_ERROR_ATTR_NAME, "");
+  //Reset the CTA archive request objectstore ID
+  fmd->setAttribute(CTA_OBJECTSTORE_ARCHIVE_REQ_ID_NAME,"");
 	gOFS->eosView->updateFileStore(fmd.get());
       } catch (eos::MDException& ex) {
 	// fail silently - file could have been removed already
