@@ -216,9 +216,9 @@ build_c8:
     expire_in: 1 day
     paths:
       - c8_artifacts/
-  only:
-    - schedules
-    - tags
+#  only:
+#    - schedules
+#    - tags
   tags:
     - docker
 #    - docker_node
@@ -362,8 +362,8 @@ build_cc7_asan:
     CMAKE_OPTIONS: "-DASAN=1"
     RPMBUILD_OPTIONS: "--with asan"
     CXXFLAGS: "-Wno-parentheses"    # Avoid boost header compilation errors
-  only:
-    - schedules
+#  only:
+#    - schedules
   tags:
     - docker
 #    - docker_node
@@ -436,8 +436,81 @@ build_cc7_coverage:
 
 
 #-------------------------------------------------------------------------------
-# Build docker images
+# Build docker images @note stick to v0.16.0 until < https://github.com/GoogleContainerTools/kaniko/issues/1038 > is fixed
 #-------------------------------------------------------------------------------
+
+.build_dockerimage-template: &build_dockerimage-template_definition
+  stage: build:dockerimage
+  image:
+    name: gcr.io/kaniko-project/executor:debug-v0.16.0
+    entrypoint: [""]
+  script:
+    # @todo cache to true for commit push, to false for tag push
+    - if [[ -z $CI_COMMIT_TAG ]]; then
+        export CACHE="false"; export IMAGE_TAG="$BASETAG$CI_COMMIT_SHORT_SHA";
+      else
+        export CACHE="false"; export IMAGE_TAG="$BASETAG$CI_COMMIT_TAG";
+      fi
+    - export DESTINATION="gitlab-registry.cern.ch/dss/eos:${IMAGE_TAG}tmp"
+    - echo "$CACHE-$IMAGE_TAG-$DESTINATION"
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
+    - /kaniko/executor --cache=$CACHE --destination $DESTINATION --dockerfile $DOCKER_FILE --context $CI_PROJECT_DIR
+  allow_failure: true
+
+new-cc7_docker_image:
+  <<: *build_dockerimage-template_definition
+  variables:
+    DOCKER_FILE: eos-docker/Dockerfile
+    BASETAG: ""
+  dependencies:
+    - build_cc7
+    - clone_docker
+
+new-ubuntu_bionic_docker_image:
+  <<: *build_dockerimage-template_definition
+  variables:
+    DOCKER_FILE: eos-docker/Dockerfile_ubuntu_bionic
+    BASETAG: "ubuntu_bionic_client_"
+  dependencies:
+    - build_ubuntu_bionic
+    - clone_docker
+
+new-c8_docker_image:
+  <<: *build_dockerimage-template_definition
+  variables:
+    DOCKER_FILE: eos-docker/Dockerfile_c8
+    BASETAG: "c8_"
+  dependencies:
+    - build_c8
+    - clone_docker
+
+new-cc7_asan_docker_image:
+  <<: *build_dockerimage-template_definition
+  variables:
+    DOCKER_FILE: eos-docker/Dockerfile_asan
+    BASETAG: "asan_"
+    BRANCH: $BRANCH
+  dependencies:
+    - build_cc7_asan
+    - clone_docker
+
+.new-cc7_xrd_testing_docker_image:
+  <<: *build_dockerimage-template_definition
+  variables:
+    DOCKER_FILE: eos-docker/Dockerfile_xrd_testing
+    BASETAG: "xrd_testing_"
+  dependencies:
+    - build_cc7_xrd_testing
+    - clone_docker
+
+.new-cc7_coverage_docker_image:
+  <<: *build_dockerimage-template_definition
+  variables:
+    DOCKER_FILE: eos-docker/Dockerfile_coverage
+    BASETAG: "coverage_"
+  dependencies:
+    - build_cc7_coverage
+    - clone_docker
 
 cc7_docker_image_tag:
   stage: build:dockerimage
@@ -829,8 +902,8 @@ dock_stress:
   dependencies: []
   retry: 1
   tags:
-    - docker-machine
-    # - docker_node
+#    - docker-machine
+     - docker_node
 
 unit_test:tag:
   image:
