@@ -27,6 +27,7 @@
 #include "mgm/FsView.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/Master.hh"
+#include "common/Constants.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/utils/Checksum.hh"
