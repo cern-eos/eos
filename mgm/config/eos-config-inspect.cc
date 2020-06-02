@@ -144,41 +144,16 @@ int runDumpSubcommand(eos::mgm::QuarkConfigHandler &configHandler) {
 }
 
 int runExportSubcommand(eos::mgm::QuarkConfigHandler &configHandler,
-  qclient::QClient &qcl, bool overwrite, const std::map<std::string, std::string> &configuration) {
+  bool overwrite, const std::map<std::string, std::string> &configuration) {
 
-  //----------------------------------------------------------------------------
-  // Is there any configuration stored in QDB already?
-  //----------------------------------------------------------------------------
-  qclient::IntegerParser existsResp(qcl.exec("EXISTS",
-                                    "eos-config:default").get());
+  eos::common::Status st = configHandler.writeConfiguration("default", configuration, overwrite);
 
-  if (!existsResp.ok()) {
-    std::cerr << "Received unexpected response in EXISTS check: " <<
-              existsResp.err() << std::endl;
+  if(!st) {
+    std::cerr << "ERROR: " << st.toString() << std::endl;
     return 1;
   }
 
-  if (!overwrite && existsResp.value() != 0) {
-    std::cerr <<
-              "ERROR: There's MGM configuration stored in QDB already -- will not delete." <<
-              std::endl;
-    return 1;
-  }
-
-  //----------------------------------------------------------------------------
-  // Prepare write batch
-  //----------------------------------------------------------------------------
-  qclient::MultiBuilder multiBuilder;
-  multiBuilder.emplace_back("DEL", "eos-config:default");
-
-  for (auto it = configuration.begin(); it != configuration.end(); it++) {
-    multiBuilder.emplace_back("HSET", "eos-config:default", it->first, it->second);
-  }
-
-  std::cerr << "--- Prepared write batch towards QDB, " << multiBuilder.size() <<
-            " commands" << std::endl;
-  std::cerr << "--- Executing write batch: " <<  qclient::describeRedisReply(
-              qcl.execute(multiBuilder.getDeque()).get()) << std::endl;
+  std::cerr << "--- Operation successful - wrote configuration 'default' with " << configuration.size() << " entries" << std::endl;
   return 0;
 }
 
@@ -258,9 +233,7 @@ int main(int argc, char* argv[])
   //----------------------------------------------------------------------------
   qclient::Members members = qclient::Members::fromString(membersStr);
   eos::QdbContactDetails contactDetails(members, password);
-
   eos::mgm::QuarkConfigHandler configHandler(contactDetails);
-  qclient::QClient qcl(contactDetails.members, contactDetails.constructOptions());
 
   //----------------------------------------------------------------------------
   // Ensure connection is sane
@@ -272,7 +245,7 @@ int main(int argc, char* argv[])
   }
 
   if(exportSubcommand->parsed()) {
-    return runExportSubcommand(configHandler, qcl, overwrite, configuration);
+    return runExportSubcommand(configHandler, overwrite, configuration);
   }
   else if(dumpSubcommand->parsed()) {
     return runDumpSubcommand(configHandler);
