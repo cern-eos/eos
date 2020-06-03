@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [[ -n $CI_COMMIT_TAG ]]; then
+if [[ -n "$CI_COMMIT_TAG" ]]; then
     export COMMIT_TYPE=tag
 else
     export COMMIT_TYPE=commit # @note schedules will work as commit
