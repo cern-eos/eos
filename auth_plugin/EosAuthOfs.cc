@@ -36,7 +36,6 @@
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOss/XrdOssApi.hh"
 #include "XrdSec/XrdSecEntity.hh"
-#include "XrdSys/XrdSysDNS.hh"
 #include "XrdNet/XrdNetIF.hh"
 #include "XrdNet/XrdNetUtils.hh"
 #include "XrdNet/XrdNetAddr.hh"
@@ -176,11 +175,17 @@ EosAuthOfs::Configure(XrdSysError& error, XrdOucEnv* envP)
     return 1;
   }
 
-  struct sockaddr inet_addr;
-  memcpy( &inet_addr, addrs[0].SockAddr(), sizeof( sockaddr ) );
+  char buffer[64];
+  int length = addrs[0].Format( buffer, sizeof( buffer ), 
+                                XrdNetAddrInfo::fmtAddr,
+                                XrdNetAddrInfo::noPortRaw );
   delete [] addrs;
-
-  mManagerIp = XrdSysDNS::getHostID(inet_addr);
+  if( length == 0 )
+  {
+    error.Emsg("Config", "hostname is invalid");
+    return 1;
+  }
+  mManagerIp.assign( buffer, length );
 
   // Extract the manager from the config file
   XrdOucStream Config(&error, getenv("XRDINSTANCE"));
