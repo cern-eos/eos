@@ -29,8 +29,8 @@
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSfs/XrdSfsAio.hh"
-#include "XrdSys/XrdSysDNS.hh"
 #include "XrdNet/XrdNetUtils.hh"
+#include "XrdNet/XrdNetAddr.hh"
 #include "mq/XrdMqOfs.hh"
 #include "mq/XrdMqMessage.hh"
 #include "mq/XrdMqOfsTrace.hh"
@@ -382,16 +382,25 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
       return Eroute.Emsg("Config", errno, "cannot get hostname : %s", errtext);
     }
 
-    if (!XrdSysDNS::Host2IP(HostName, &myIPaddr)) {
-      myIPaddr = 0x7f000001;
-    }
+    XrdNetAddr *addrs  = 0;
+    int         nAddrs = 0;
+    const char* err    = XrdNetUtils::GetAddrs( HostName, &addrs, nAddrs,
+                                                XrdNetUtils::allIPv64,
+                                                XrdNetUtils::NoPortRaw );
 
-    strcpy(buff, "[::");
-    bp = buff + 3;
-    bp += XrdSysDNS::IP2String(myIPaddr, 0, bp, 128);
-    *bp++ = ']';
-    *bp++ = ':';
-    sprintf(bp, "%d", myPort);
+    if( err || nAddrs == 0 )
+      sprintf(buff, "[::127.0.0.1]:%d", myPort);
+    else
+    {
+      int len = XrdNetUtils::IPFormat( addrs[0].SockAddr(), buff, sizeof( buff ),
+                                       XrdNetUtils::noPort | XrdNetUtils::oldFmt );
+      delete [] addrs;
+
+      if( len == 0 )
+        sprintf(buff, "[::127.0.0.1]:%d", myPort);
+      else
+        sprintf(buff + len, ":%d", myPort);
+    }
 
     for (i = 0; HostName[i] && HostName[i] != '.'; i++);
 

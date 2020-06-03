@@ -28,7 +28,8 @@
 #include "common/SecEntity.hh"
 #include "common/SymKeys.hh"
 #include "common/token/EosTok.hh"
-#include "XrdSys/XrdSysDNS.hh"
+#include "XrdNet/XrdNetUtils.hh"
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include <pwd.h>
 #include <grp.h>
@@ -1744,20 +1745,25 @@ Mapping::ip_cache::GetIp(const char* hostname)
   }
   {
     // refresh an entry
-    unsigned int ipaddr;
+    XrdNetAddr *addrs  = 0;
+    int         nAddrs = 0;
+    const char* err    = XrdNetUtils::GetAddrs( hostname, &addrs, nAddrs,
+                                                XrdNetUtils::allIPv64,
+                                                XrdNetUtils::NoPortRaw );
+    if( err || nAddrs == 0 ) return "";
+    char buffer[64];
+    int hostlen = addrs[0].Format( buffer, sizeof( buffer ),
+                                   XrdNetAddrInfo::fmtAddr,
+                                   XrdNetAddrInfo::noPortRaw );
+    delete [] addrs;
 
-    if (XrdSysDNS::Host2IP(hostname, &ipaddr) == 1) {
-      char ipstring[64];
-      int hostlen = XrdSysDNS::IP2String(ipaddr, 0, ipstring, 64);
-
-      if (hostlen > 0) {
-        RWMutexWriteLock guard(mLocker);
-        std::string sip = ipstring;
-        mIp2HostMap[hostname] = std::make_pair(now + mLifeTime, sip);
-        eos_static_debug("status=refresh host=%s ip=%s", hostname,
-                         mIp2HostMap[hostname].second.c_str());
-        return sip;
-      }
+    if (hostlen > 0) {
+      RWMutexWriteLock guard(mLocker);
+      std::string sip( buffer, hostlen );
+      mIp2HostMap[hostname] = std::make_pair(now + mLifeTime, sip);
+      eos_static_debug("status=refresh host=%s ip=%s", hostname,
+                       mIp2HostMap[hostname].second.c_str());
+      return sip;
     }
 
     return "";
