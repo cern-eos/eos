@@ -71,7 +71,7 @@
 #include "XrdAcc/XrdAccAuthorize.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdNet/XrdNetUtils.hh"
-#include "XrdSys/XrdSysDNS.hh"
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "qclient/shared/SharedManager.hh"
@@ -411,16 +411,23 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       return Eroute.Emsg("Config", errno, "cannot get hostname : %s", errtext);
     }
 
-    if (!XrdSysDNS::Host2IP(HostName, &myIPaddr)) {
-      myIPaddr = 0x7f000001;
+    XrdNetAddr *addrs  = 0;
+    int         nAddrs = 0;
+    const char* err    = XrdNetUtils::GetAddrs( HostName, &addrs, nAddrs,
+                                                XrdNetUtils::allIPv64,
+                                                XrdNetUtils::NoPortRaw );
+    if( err || nAddrs == 0 )
+      sprintf( buff, "[::127.0.0.1]:%ld", myPort );
+    else
+    {
+      int len = XrdNetUtils::IPFormat( addrs[0].SockAddr(), buff, sizeof( buff ),
+                                       XrdNetUtils::noPort | XrdNetUtils::oldFmt );
+      delete [] addrs;
+      if( len == 0 )
+        sprintf( buff, "[::127.0.0.1]:%ld", myPort );
+      else
+        sprintf( buff + len, ":%ld", myPort );
     }
-
-    strcpy(buff, "[::");
-    bp = buff + 3;
-    bp += XrdSysDNS::IP2String(myIPaddr, 0, bp, 128);
-    *bp++ = ']';
-    *bp++ = ':';
-    sprintf(bp, "%ld", myPort);
 
     for (i = 0; HostName[i] && HostName[i] != '.'; i++);
 
@@ -432,16 +439,27 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     ManagerId = HostName;
     ManagerId += ":";
     ManagerId += (int) myPort;
-    unsigned int ip = 0;
 
-    if (XrdSysDNS::Host2IP(HostName, &ip)) {
-      char buff[1024];
-      XrdSysDNS::IP2String(ip, 0, buff, 1024);
-      ManagerIp = buff;
-      ManagerPort = myPort;
-    } else {
+    addrs  = 0;
+    nAddrs = 0;
+    err    = XrdNetUtils::GetAddrs( HostName, &addrs, nAddrs, XrdNetUtils::allIPv64,
+                                    XrdNetUtils::NoPortRaw );
+
+    if( err )
+      return Eroute.Emsg("Config", errno, "convert hostname to IP address: ", err);
+
+    if( nAddrs == 0 )
       return Eroute.Emsg("Config", errno, "convert hostname to IP address", HostName);
-    }
+
+    int len = XrdNetUtils::IPFormat( addrs[0].SockAddr(), buff, sizeof( buff ),
+                                     XrdNetUtils::noPort | XrdNetUtils::oldFmt );
+    delete [] addrs;
+
+    if( len == 0 )
+      return Eroute.Emsg("Config", errno, "convert hostname to IP address", HostName);
+
+    ManagerIp = XrdOucString( buff, len );
+    ManagerPort = myPort;
 
     Eroute.Say("=====> mgmofs.managerid: ", ManagerId.c_str(), "");
   }
