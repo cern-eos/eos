@@ -26,7 +26,7 @@
 #include "console/ConsoleMain.hh"
 #include "common/StringConversion.hh"
 #include "common/StringTokenizer.hh"
-#include "XrdSys/XrdSysDNS.hh"
+#include "XrdNet/XrdNetUtils.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 /*----------------------------------------------------------------------------*/
 
@@ -287,13 +287,14 @@ com_fs(char* arg1)
 
       if (!mp.length()) {
         mp = arg;
-        char* errtext = 0;
-        hostport = XrdSysDNS::getHostName(0, &errtext);
-
-        if (!hostport.length() || hostport == "0.0.0.0") {
+        const char* errtext = 0;
+        char* myhost = XrdNetUtils::MyHostName( 0, &errtext );
+        if (!myhost) {
           fprintf(stderr, "Error initializing the MQ Client %s\n", errtext);
           return 0;
         }
+        hostport = myhost;
+        free( myhost );
       }
 
       if (!(hostport.find(":") != STR_NPOS)) {
@@ -448,9 +449,9 @@ com_fs(char* arg1)
 
       if (!arg2.length()) {
         // status by mount point
-        char* HostName = XrdSysDNS::getHostName();
+        char* HostName = XrdNetUtils::MyHostName( 0 );
 
-        if (!HostName || std::string(HostName) == "0.0.0.0") {
+        if (!HostName) {
           fprintf(stdout, "Error initializing the MQ Client\n");
           return 0;
         }
@@ -460,6 +461,7 @@ com_fs(char* arg1)
         in += "&mgm.fs.mountpoint=";
         in += arg;
         mp = arg;
+        free( HostName );
       } else {
         in += "&mgm.fs.node=";
         in += arg;

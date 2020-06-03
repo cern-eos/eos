@@ -342,6 +342,7 @@ XrdMgmOfs::~XrdMgmOfs()
 {
   OrderlyShutdown();
   eos_warning("%s", "msg=\"finished destructor\"");
+  if( HostName ) free( HostName );
 }
 
 //------------------------------------------------------------------------------

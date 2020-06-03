@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "mq/XrdMqClient.hh"
-#include <XrdSys/XrdSysDNS.hh>
+#include <XrdNet/XrdNetUtils.hh>
 #include <XrdCl/XrdClDefaultEnv.hh>
 #include <setjmp.h>
 #include <signal.h>
@@ -98,9 +98,9 @@ XrdMqClient::XrdMqClient(const char* clientid, const char* brokerurl,
   } else {
     // By default create the client id as /xmesssage/<domain>/<host>/
     int ppos = 0;
-    char* cfull_name = XrdSysDNS::getHostName();
+    char* cfull_name = XrdNetUtils::MyHostName( 0 );
 
-    if (!cfull_name || std::string(cfull_name) == "0.0.0.0") {
+    if (!cfull_name) {
       kInitOK = false;
     }
 
