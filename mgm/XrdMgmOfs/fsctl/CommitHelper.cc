@@ -592,7 +592,10 @@ CommitHelper::commit_fmd(eos::common::VirtualIdentity& vid,
 
     if (option["update"]) {
       if (cmd->hasAttribute(tmpEtag)) {
-        cmd->removeAttribute(tmpEtag);
+        // Drop the tmp etag only if this was not a creation of a 0-size file
+        if ((fmd->getSize() != 0) || (replica_size != 0)) {
+          cmd->removeAttribute(tmpEtag);
+        }
       }
 
       // update parent mtime
