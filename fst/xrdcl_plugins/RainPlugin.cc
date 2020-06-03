@@ -27,7 +27,7 @@
 #include "XrdVersion.hh"
 #include "RainPlugin.hh"
 #include "RainFile.hh"
-#include "XrdSys/XrdSysDNS.hh"
+#include "XrdNet/XrdNetUtils.hh"
 /*----------------------------------------------------------------------------*/
 
 XrdVERSIONINFO(XrdClGetPlugIn, XrdClGetPlugIn)
@@ -94,7 +94,9 @@ namespace
     //--------------------------------------------------------------------------
     EnvInitializer()
     {
-      std::string host_name = XrdSysDNS::getHostName();
+      char* myhost = XrdNetUtils::MyHostName();
+      std::string host_name = myhost;
+      free( myhost );
       std::string unit = "rain@";
       unit += host_name;
       

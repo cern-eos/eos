@@ -38,6 +38,7 @@
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSys/XrdSysDNS.hh"
 #include "XrdNet/XrdNetIF.hh"
+#include "XrdNet/XrdNetUtils.hh"
 #include "XrdVersion.hh"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 
@@ -147,10 +148,10 @@ EosAuthOfs::Configure(XrdSysError& error, XrdOucEnv* envP)
 
   mPort = myPort;
   // Get the hostname
-  char* errtext = 0;
-  const char* host_name = XrdSysDNS::getHostName(0, &errtext);
+  const char* errtext = 0;
+  const char* host_name = XrdNetUtils::MyHostName(0, &errtext);
 
-  if (!host_name || std::string(host_name) == "0.0.0.0") {
+  if (!host_name) {
     error.Emsg("Config", "hostname is invalid : %s", host_name);
     return 1;
   }
@@ -158,6 +159,7 @@ EosAuthOfs::Configure(XrdSysError& error, XrdOucEnv* envP)
   struct sockaddr inet_addr;
 
   XrdSysDNS::getHostAddr(host_name, inet_addr);
+  free( const_cast<char*>( host_name ) );
 
   mManagerIp = XrdSysDNS::getHostID(inet_addr);
 

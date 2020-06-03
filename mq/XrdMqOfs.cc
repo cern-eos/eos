@@ -30,6 +30,7 @@
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSys/XrdSysDNS.hh"
+#include "XrdNet/XrdNetUtils.hh"
 #include "mq/XrdMqOfs.hh"
 #include "mq/XrdMqMessage.hh"
 #include "mq/XrdMqOfsTrace.hh"
@@ -374,10 +375,10 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
     // Obtain port number we will be using
     myPort = (bp = getenv("XRDPORT")) ? strtol(bp, (char**)0, 10) : 0;
     // Establish our hostname and IPV4 address
-    char* errtext = 0;
-    HostName = XrdSysDNS::getHostName(0, &errtext);
+    const char* errtext = 0;
+    HostName = XrdNetUtils::MyHostName(0, &errtext);
 
-    if (!HostName || std::string(HostName) == "0.0.0.0") {
+    if (!HostName) {
       return Eroute.Emsg("Config", errno, "cannot get hostname : %s", errtext);
     }
 

@@ -70,6 +70,7 @@
 #include "mq/MessagingRealm.hh"
 #include "XrdAcc/XrdAccAuthorize.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdNet/XrdNetUtils.hh"
 #include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdOuc/XrdOucTrace.hh"
@@ -403,10 +404,10 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     myPort = (bp = getenv("XRDPORT")) ? strtol(bp, (char**) 0, 10) : 0;
     // Establish our hostname and IPV4 address
     //
-    char* errtext = 0;
-    HostName = XrdSysDNS::getHostName(0, &errtext);
+    const char* errtext = 0;
+    HostName = XrdNetUtils::MyHostName(0, &errtext);
 
-    if (!HostName || std::string(HostName) == "0.0.0.0") {
+    if (!HostName) {
       return Eroute.Emsg("Config", errno, "cannot get hostname : %s", errtext);
     }
 

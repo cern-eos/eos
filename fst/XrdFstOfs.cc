@@ -45,12 +45,12 @@
 #include "common/XattrCompat.hh"
 #include "mq/SharedHashWrapper.hh"
 #include "XrdNet/XrdNetOpts.hh"
+#include "XrdNet/XrdNetUtils.hh"
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdSfs/XrdSfsAio.hh"
-#include "XrdSys/XrdSysDNS.hh"
 #include "Xrd/XrdScheduler.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
@@ -373,6 +373,7 @@ XrdFstOfs::XrdFstOfs() :
 //------------------------------------------------------------------------------
 XrdFstOfs::~XrdFstOfs()
 {
+  if( mHostName ) free( const_cast<char*>( mHostName ) );
 }
 
 //------------------------------------------------------------------------------
@@ -420,10 +421,10 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   }
 
   // Get the hostname
-  char* errtext = 0;
-  mHostName = XrdSysDNS::getHostName(0, &errtext);
+  const char* errtext = 0;
+  mHostName = XrdNetUtils::MyHostName(0, &errtext);
 
-  if (!mHostName || std::string(mHostName) == "0.0.0.0") {
+  if (!mHostName) {
     Eroute.Emsg("Config", "hostname is invalid : %s", mHostName);
     return 1;
   }
