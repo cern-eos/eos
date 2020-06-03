@@ -39,6 +39,7 @@
 #include "XrdSys/XrdSysDNS.hh"
 #include "XrdNet/XrdNetIF.hh"
 #include "XrdNet/XrdNetUtils.hh"
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdVersion.hh"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 
@@ -156,10 +157,28 @@ EosAuthOfs::Configure(XrdSysError& error, XrdOucEnv* envP)
     return 1;
   }
 
-  struct sockaddr inet_addr;
-
-  XrdSysDNS::getHostAddr(host_name, inet_addr);
+  XrdNetAddr *addrs  = 0;
+  int         nAddrs = 0;
+  const char* err    = XrdNetUtils::GetAddrs( host_name, &addrs, nAddrs,
+                                              XrdNetUtils::allIPv64,
+                                              XrdNetUtils::NoPortRaw );
   free( const_cast<char*>( host_name ) );
+
+  if( err )
+  {
+    error.Emsg("Config", "hostname is invalid : %s", err);
+    return 1;
+  }
+
+  if( nAddrs == 0 )
+  {
+    error.Emsg("Config", "hostname is invalid");
+    return 1;
+  }
+
+  struct sockaddr inet_addr;
+  memcpy( &inet_addr, addrs[0].SockAddr(), sizeof( sockaddr ) );
+  delete [] addrs;
 
   mManagerIp = XrdSysDNS::getHostID(inet_addr);
 

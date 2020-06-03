@@ -34,7 +34,8 @@
 #include "namespace/Prefetcher.hh"
 #include "mq/ReportListener.hh"
 /*----------------------------------------------------------------------------*/
-#include "XrdSys/XrdSysDNS.hh"
+#include "XrdNet/XrdNetUtils.hh"
+#include "XrdNet/XrdNetAddr.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
@@ -1647,8 +1648,23 @@ Iostat::AddUdpTarget(const char* target, bool storeitandlock)
 
       port = atoi(a_port.c_str());
       mUdpSocket[starget] = udpsocket;
-      XrdSysDNS::getHostAddr(a_host.c_str(),
-                             (struct sockaddr*) &mUdpSockAddr[starget]);
+
+      XrdNetAddr *addrs  = 0;
+      int         nAddrs = 0;
+      const char* err    = XrdNetUtils::GetAddrs( a_host.c_str(), &addrs, nAddrs,
+                                                  XrdNetUtils::allIPv64,
+                                                  XrdNetUtils::NoPortRaw );
+
+      if( err || nAddrs == 0 )
+      {
+        if (storeitandlock) {
+          mBcastMutex.UnLock();
+        }
+        return false;
+      }
+      memcpy( (struct sockaddr*) &mUdpSockAddr[starget], addrs[0].SockAddr(), sizeof( sockaddr ) );
+      delete [] addrs;
+
       mUdpSockAddr[starget].sin_family = AF_INET;
       mUdpSockAddr[starget].sin_port = htons(port);
     }
