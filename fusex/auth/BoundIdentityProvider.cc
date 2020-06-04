@@ -36,8 +36,6 @@ BoundIdentityProvider::BoundIdentityProvider(SecurityChecker& checker,
   : securityChecker(checker), environmentReader(reader),
     validator(valid)
 {
-  // create an sss registry
-  sssRegistry = new XrdSecsssID(XrdSecsssID::idDynamic);
 }
 
 //------------------------------------------------------------------------------
@@ -306,7 +304,7 @@ void BoundIdentityProvider::registerSSS(const BoundIdentity& bdi)
     }
 
     // register new ID
-    sssRegistry->Register(bdi.getLogin().getStringID().c_str(), newEntity);
+    XrdSecsssIDInstance().Register(bdi.getLogin().getStringID().c_str(), newEntity);
   }
 }
 
