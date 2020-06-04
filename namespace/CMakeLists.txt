@@ -125,7 +125,6 @@ target_include_directories(
 target_link_libraries(EosNsCommon PUBLIC
   EosNsCommon-Objects
   EosCrc32c-Objects
-  FOLLY::FOLLY
   ROCKSDB::ROCKSDB
   fmt)
 

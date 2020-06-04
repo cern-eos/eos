@@ -4,7 +4,6 @@
 # NCURSES_FOUND           - system has libncurses
 # NCURSES_INCLUDE_DIRS    - libncurses include directories
 # NCURSES_LIBRARIES       - ncurses library
-# NCURSES_LIBRARY_STATIC  - ncurses static library
 #
 # and the following imported targets
 #
@@ -24,11 +23,6 @@ find_library(NCURSES_LIBRARY
   HINTS ${NCURSES_ROOT} ${PC_ncurses_LIBDIR} ${PC_ncurses_LIBRARY_DIRS}
   PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR})
 
-# find_library(NCURSES_LIBRARY_STATIC
-#   NAMES libncurses.a
-#   HINTS ${NCURSES_ROOT} ${PC_ncurses_LIBDIR} ${PC_ncurses_LIBRARY_DIRS}
-#   PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR})
-
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(ncurses
   REQUIRED_VARS NCURSES_LIBRARY NCURSES_INCLUDE_DIR
@@ -41,11 +35,6 @@ if (NCURSES_FOUND AND NOT TARGET NCURSES::NCURSES)
   set_target_properties(NCURSES::NCURSES PROPERTIES
     IMPORTED_LOCATION "${NCURSES_LIBRARY}"
     INTERFACE_INCLUDE_DIRECTORIES "${NCURSES_INCLUDE_DIR}")
-
-  # add_library(NCURSES::NCURSES_STATIC UNKNOWN IMPORTED)
-  # set_target_properties(NCURSES::NCURSES_STATIC PROPERTIES
-  #   IMPORTED_LOCATION "${NCURSES_LIBRARY_STATIC}"
-  #   INTERFACE_INCLUDE_DIRECTORIES "${NCURSES_INCLUDE_DIR}")
 endif()
 
 set(NCURSES_INCLUDE_DIRS ${NCURSES_INCLUDE_DIR})
