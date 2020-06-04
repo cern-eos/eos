@@ -317,13 +317,27 @@ public:
     return mFileIO.get();
   }
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Redirect given path
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual void Redirect(const char* path)
   {
     mFileIO.reset(FileIoPlugin::GetIoObject(path, mOfsFile, mSecEntity));
   }
+
+  //----------------------------------------------------------------------------
+  //! Populate error object with information
+  //!
+  //! @param pfx string prefix
+  //! @param einfo error object
+  //! @param ecode error code
+  //! @param op operation type
+  //! @param target free text information
+  //!
+  //! @return SFS_ERROR
+  // ---------------------------------------------------------------------------
+  int Emsg(const char* pfx, XrdOucErrInfo& einfo, int ecode, const char* op,
+           const char* target = "");
 
 protected:
   bool mIsEntryServer; ///< mark entry server

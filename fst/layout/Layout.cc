@@ -23,6 +23,7 @@
 
 #include "fst/layout/Layout.hh"
 #include "fst/XrdFstOfsFile.hh"
+#include "common/Strerror_r_wrapper.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -60,6 +61,44 @@ Layout::Layout(XrdFstOfsFile* file,
   mLocalPath = (path ? path : "");
   mFileIO.reset(FileIoPlugin::GetIoObject((path ? path : ""), mOfsFile,
                                           mSecEntity));
+}
+
+//------------------------------------------------------------------------------
+// Return error message
+//------------------------------------------------------------------------------
+int
+Layout::Emsg(const char* pfx, XrdOucErrInfo& einfo,
+             int ecode, const char* op, const char* target)
+{
+  char etext[128], buffer[4096];
+
+  // Get the reason for the error
+  if (ecode < 0) {
+    ecode = -ecode;
+  }
+
+  if (eos::common::strerror_r(ecode, etext, sizeof(etext))) {
+    sprintf(etext, "reason unknown (%d)", ecode);
+  }
+
+  // Format the error message
+  snprintf(buffer, sizeof(buffer), "Unable to %s %s; %s", op, target, etext);
+
+  if ((ecode == EIDRM) || (ecode == ENODATA)) {
+    eos_static_debug("Unable to %s %s; %s", op, target, etext);
+  } else {
+    if ((!strcmp(op, "stat")) || (((!strcmp(pfx, "attr_get")) ||
+                                   (!strcmp(pfx, "attr_ls")) ||
+                                   (!strcmp(pfx, "FuseX"))) && (ecode == ENOENT))) {
+      eos_static_debug("Unable to %s %s; %s", op, target, etext);
+    } else {
+      eos_static_err("Unable to %s %s; %s", op, target, etext);
+    }
+  }
+
+  // Place the error message in the error object and return
+  einfo.setErrInfo(ecode, buffer);
+  return SFS_ERROR;
 }
 
 EOSFSTNAMESPACE_END

@@ -73,8 +73,8 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
     if ((replica_index < 0) ||
         (replica_index > 255)) {
       eos_err("illegal replica index %d", replica_index);
-      return gOFS.Emsg("ReplicaPar::Open", *mError, EINVAL,
-                       "open replica - illegal replica index found", index);
+      return Emsg("ReplicaPar::Open", *mError, EINVAL,
+                  "open replica - illegal replica index found", index);
     }
 
     ioLocal = true;
@@ -91,13 +91,13 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
     if ((replica_head < 0) ||
         (replica_head > 255)) {
       eos_err("illegal replica head %d", replica_head);
-      return gOFS.Emsg("ReplicaParOpen", *mError, EINVAL,
-                       "open replica - illegal replica head found", head);
+      return Emsg("ReplicaParOpen", *mError, EINVAL,
+                  "open replica - illegal replica head found", head);
     }
   } else {
     eos_err("replica head missing");
-    return gOFS.Emsg("ReplicaPar::Open", *mError, EINVAL,
-                     "open replica - no replica head defined");
+    return Emsg("ReplicaPar::Open", *mError, EINVAL,
+                "open replica - no replica head defined");
   }
 
   // Define the replication head
@@ -130,9 +130,9 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
         if (mOfsFile->mIsRW) {
           eos_err("Failed to open replica - missing url for replica %s",
                   reptag.c_str());
-          return gOFS.Emsg("ReplicaParOpen", *mError, EINVAL,
-                           "open stripes - missing url for replica ",
-                           reptag.c_str());
+          return Emsg("ReplicaParOpen", *mError, EINVAL,
+                      "open stripes - missing url for replica ",
+                      reptag.c_str());
         } else {
           // For read we can handle one of the replicas missing
           continue;
@@ -182,8 +182,8 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
         eos_err("Failed to open replica - local open failed on path=%s errno=%d",
                 mLocalPath.c_str(), errno);
         delete file;
-        return gOFS.Emsg("ReplicaOpen", *mError, errno,
-                         "open replica - local open failed ", mLocalPath.c_str());
+        return Emsg("ReplicaOpen", *mError, errno,
+                    "open replica - local open failed ", mLocalPath.c_str());
       }
 
       mLastTriedUrl = file->GetLastTriedUrl();
@@ -208,9 +208,9 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
             mLastTriedUrl = file->GetLastTriedUrl();
             eos_err("Failed to open stripes - remote open failed on %s",
                     maskUrl.c_str());
-            return gOFS.Emsg("ReplicaParOpen", *mError, EREMOTEIO,
-                             "open stripes - remote open failed ",
-                             maskUrl.c_str());
+            return Emsg("ReplicaParOpen", *mError, EREMOTEIO,
+                        "open stripes - remote open failed ",
+                        maskUrl.c_str());
           }
 
           mLastTriedUrl = file->GetLastTriedUrl();
@@ -271,8 +271,8 @@ ReplicaParLayout::Read(XrdSfsFileOffset offset, char* buffer,
   if (rc == SFS_ERROR) {
     eos_err("Failed to read from any replica offset=%lld, length=%i",
             offset, length);
-    return gOFS.Emsg("ReplicaParRead", *mError, EREMOTEIO,
-                     "read replica - read failed");
+    return Emsg("ReplicaParRead", *mError, EREMOTEIO,
+                "read replica - read failed");
   }
 
   return rc;
@@ -306,7 +306,7 @@ ReplicaParLayout::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
 
   if (rc == SFS_ERROR) {
     eos_err("Failed to readv from any replica");
-    return gOFS.Emsg("ReplicaParRead", *mError, EREMOTEIO, "readv replica failed");
+    return Emsg("ReplicaParRead", *mError, EREMOTEIO, "readv replica failed");
   }
 
   return rc;
@@ -346,8 +346,8 @@ ReplicaParLayout::Write(XrdSfsFileOffset offset,
       }
 
       hasWriteError = true;
-      return gOFS.Emsg("ReplicaWrite", *mError, errno, "write replica failed",
-                       maskUrl.c_str());
+      return Emsg("ReplicaWrite", *mError, errno, "write replica failed",
+                  maskUrl.c_str());
     }
   }
 
@@ -378,8 +378,8 @@ ReplicaParLayout::Truncate(XrdSfsFileOffset offset)
       eos::common::StringConversion::MaskTag(maskUrl, "cap.msg");
       eos::common::StringConversion::MaskTag(maskUrl, "authz");
       eos_err("Failed to truncate replica %i", i);
-      return gOFS.Emsg("ReplicaParTuncate", *mError, errno, "truncate failed",
-                       maskUrl.c_str());
+      return Emsg("ReplicaParTuncate", *mError, errno, "truncate failed",
+                  maskUrl.c_str());
     }
   }
 
@@ -430,8 +430,8 @@ ReplicaParLayout::Sync()
       }
 
       eos_err("error=failed to sync replica %i", i);
-      return gOFS.Emsg("ReplicaParSync", *mError, errno, "sync failed",
-                       maskUrl.c_str());
+      return Emsg("ReplicaParSync", *mError, errno, "sync failed",
+                  maskUrl.c_str());
     }
   }
 
@@ -469,7 +469,7 @@ ReplicaParLayout::Remove()
   }
 
   if (got_error) {
-    return gOFS.Emsg("ReplicaParRemove", *mError, errno, "remove failed");
+    return Emsg("ReplicaParRemove", *mError, errno, "remove failed");
   }
 
   return rc;
@@ -503,7 +503,7 @@ ReplicaParLayout::Close()
   }
 
   if (rc != SFS_OK) {
-    return gOFS.Emsg("ReplicaParClose", *mError, errno, "close failed", "");
+    return Emsg("ReplicaParClose", *mError, errno, "close failed", "");
   }
 
   return rc;
