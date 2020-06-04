@@ -27,8 +27,10 @@
 #-------------------------------------------------------------------------------
 PROTOBUF_GENERATE_CPP(FMD_SRCS FMD_HDRS namespace/ns_quarkdb/FileMd.proto)
 PROTOBUF_GENERATE_CPP(CMD_SRCS CMD_HDRS namespace/ns_quarkdb/ContainerMd.proto)
-set(NS_PROTO_SRCS ${FMD_SRCS} ${CMD_SRCS})
-set(NS_PROTO_HDRS ${FMD_HDRS} ${CMD_HDRS})
+PROTOBUF_GENERATE_CPP(CHANGELOG_SRCS CHANGELOG_HDRS namespace/ns_quarkdb/ChangelogEntry.proto)
+
+set(NS_PROTO_SRCS ${FMD_SRCS} ${CMD_SRCS} ${CHANGELOG_SRCS})
+set(NS_PROTO_HDRS ${FMD_HDRS} ${CMD_HDRS} ${CHANGELOG_HDRS})
 set_source_files_properties(
   ${NS_PROTO_SRCS}
   ${NS_PROTO_HDRS}

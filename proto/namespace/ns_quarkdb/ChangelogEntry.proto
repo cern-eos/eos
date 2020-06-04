@@ -1,0 +1,15 @@
+syntax = "proto3";
+package eos.mgm;
+
+//------------------------------------------------------------------------------
+// Container metadata protocol buffer object
+//------------------------------------------------------------------------------
+message ConfigModification {
+  string key = 1;
+  string previous_value = 2;
+  string new_value = 3;
+}
+
+message ConfigChangelogEntry {
+  repeated ConfigModification modifications = 1;
+}
