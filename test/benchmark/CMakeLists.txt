@@ -50,6 +50,7 @@ add_executable(eos-io-benchmark
 
 target_link_libraries(eos-io-benchmark PRIVATE
   EosFstIo
+  XROOTD::SERVER
   ${CMAKE_THREAD_LIBS_INIT})
 
 target_compile_definitions(eos-io-benchmark PUBLIC

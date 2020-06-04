@@ -75,11 +75,11 @@ target_link_libraries(eoshashbench PRIVATE EosCommon)
 target_link_libraries(eos-crypto-timing-test PRIVATE EosCommon)
 target_link_libraries(testhmacsha256 PRIVATE EosCommon)
 target_link_libraries(eos-open-trunc-update PRIVATE XROOTD::CL XROOTD::POSIX XROOTD::UTILS)
-target_link_libraries(eos-io-tool PRIVATE EosFstIo)
+target_link_libraries(eos-io-tool PRIVATE EosFstIo XROOTD::SERVER)
 target_link_libraries(xrdstress.exe PRIVATE
   UUID::UUID XROOTD::CL XROOTD::UTILS XROOTD::POSIX
   ${CMAKE_THREAD_LIBS_INIT})
-target_link_libraries(eos-checksum-benchmark PRIVATE EosFstIo XROOTD::POSIX)
+target_link_libraries(eos-checksum-benchmark PRIVATE EosFstIo XROOTD::SERVER XROOTD::POSIX)
 target_compile_definitions(xrdstress.exe PUBLIC -D_FILE_OFFSET_BITS=64)
 target_compile_definitions(xrdcpabort PUBLIC -D_FILE_OFFSET_BITS=64)
 target_compile_definitions(xrdcprandom PUBLIC -D_FILE_OFFSET_BITS=64)

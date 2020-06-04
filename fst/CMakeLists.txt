@@ -158,7 +158,6 @@ target_link_libraries(EosFstIo PUBLIC
   Jerasure-Objects
   GfComplete-Objects
   EosCrc32c-Objects
-  XROOTD::SERVER
   ISAL::ISAL
   ISAL::ISAL_CRYPTO
   XXHASH::XXHASH)
@@ -183,7 +182,6 @@ target_link_libraries(EosFstIo-Static PUBLIC
   Jerasure-Objects
   GfComplete-Objects
   EosCrc32c-Objects
-  XROOTD::SERVER
   ISAL::ISAL
   ISAL::ISAL_CRYPTO
   XXHASH::XXHASH)
@@ -284,6 +282,7 @@ target_link_libraries(XrdEosFst-Objects PUBLIC
   EosNsCommon
   XROOTD::UTILS
   XROOTD::PRIVATE
+  XROOTD::SERVER
   XFS::XFS)
 
 set_target_properties(XrdEosFst-Objects PROPERTIES
@@ -352,7 +351,7 @@ add_executable(eos-rain-hd-dump
   tools/RainHdrDump.cc)
 
 target_link_libraries(eos-rain-hd-dump
-  EosFstIo)
+  EosFstIo XROOTD::SERVER)
 
 add_executable(eos-leveldb-inspect
   tools/eos-leveldb-inspect.cc)
@@ -404,18 +403,14 @@ set_target_properties(eos-fsck-fs PROPERTIES COMPILE_FLAGS -D_NOOFS=1)
 add_executable(eos-ioping tools/IoPing.c)
 target_compile_options(eos-ioping PRIVATE -std=gnu99)
 target_link_libraries(eos-ioping PRIVATE GLIBC::RT GLIBC::M)
-target_link_libraries(eos-check-blockxs PRIVATE EosFstIo)
-target_link_libraries(eos-compute-blockxs PRIVATE EosFstIo)
-target_link_libraries(eos-adler32 PRIVATE EosFstIo)
-target_link_libraries(eos-checksum PRIVATE EosFstIo)
+target_link_libraries(eos-check-blockxs PRIVATE EosFstIo XROOTD::SERVER)
+target_link_libraries(eos-compute-blockxs PRIVATE EosFstIo XROOTD::SERVER)
+target_link_libraries(eos-adler32 PRIVATE EosFstIo XROOTD::SERVER)
+target_link_libraries(eos-checksum PRIVATE EosFstIo XROOTD::SERVER)
 target_link_libraries(eos-scan-fs PRIVATE
-  EosFstIo
-  EosCommonServer
-  EosNsCommon-Static)
+  EosFstIo EosCommonServer EosNsCommon-Static XROOTD::SERVER)
 target_link_libraries(eos-fsck-fs PRIVATE
-  EosFstIo
-  EosCommonServer
-  EosNsCommon-Static)
+  EosFstIo EosCommonServer EosNsCommon-Static XROOTD::SERVER)
 
 install(PROGRAMS
   tools/eosfstregister
