@@ -186,6 +186,22 @@ int runListSubcommand(eos::mgm::QuarkConfigHandler &configHandler) {
   return 0;
 }
 
+int runTailSubcommand(size_t nlines, eos::mgm::QuarkConfigHandler &configHandler) {
+  std::vector<std::string> changelog;
+  eos::common::Status st = configHandler.tailChangelog(nlines, changelog);
+
+  if(!st) {
+    std::cerr << st.toString() << std::endl;
+    return 1;
+  }
+
+  for(auto it = changelog.begin(); it != changelog.end(); it++) {
+    std::cout << *it << std::endl;
+  }
+
+  return 0;
+}
+
 int main(int argc, char* argv[])
 {
   CLI::App app("Tool to inspect contents of the QuarkDB-based EOS configuration.");
@@ -235,6 +251,18 @@ int main(int argc, char* argv[])
                     passwordFile);
 
   //----------------------------------------------------------------------------
+  // Set-up tail-changelog subcommand..
+  //----------------------------------------------------------------------------
+  auto tailSubcommand = app.add_subcommand("tail-changelog",
+                         "Tail configuration changelog");
+
+  size_t nlines = 1000;
+  tailSubcommand->add_option("--nlines", nlines,
+                               "The maximum number of changelog entries to print");
+  addClusterOptions(tailSubcommand, membersStr, memberValidator, password,
+                    passwordFile);
+
+  //----------------------------------------------------------------------------
   // Parse
   //----------------------------------------------------------------------------
   try {
@@ -278,6 +306,9 @@ int main(int argc, char* argv[])
   }
   else if(listSubcommand->parsed()) {
     return runListSubcommand(configHandler);
+  }
+  else if(tailSubcommand->parsed()) {
+    return runTailSubcommand(nlines, configHandler);
   }
 
   std::cerr << "No subcommand was supplied - should never reach here" <<
