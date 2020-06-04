@@ -71,6 +71,11 @@ public:
   common::Status listConfigurations(std::vector<std::string> &configs, std::vector<std::string> &backups);
 
   //----------------------------------------------------------------------------
+  // Show configuration changelog
+  //----------------------------------------------------------------------------
+  common::Status tailChangelog(int nlines, std::vector<std::string> &changelog);
+
+  //----------------------------------------------------------------------------
   // Form hash key
   //----------------------------------------------------------------------------
   static std::string formHashKey(const std::string &name);

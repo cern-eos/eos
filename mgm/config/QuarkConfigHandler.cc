@@ -28,6 +28,7 @@
 #include <qclient/ResponseParsing.hh>
 #include <qclient/MultiBuilder.hh>
 #include "qclient/structures/QScanner.hh"
+#include "qclient/structures/QDeque.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -134,6 +135,36 @@ common::Status QuarkConfigHandler::writeConfiguration(const std::string &name, c
     if(!intParse.ok() || intParse.value() != 1) {
       return common::Status(EINVAL, SSTR("unexpected response in position " << i << ": " << qclient::describeRedisReply(reply->element[i])));
     }
+  }
+
+  return common::Status();
+}
+
+//------------------------------------------------------------------------------
+// Show configuration changelog
+//------------------------------------------------------------------------------
+common::Status QuarkConfigHandler::tailChangelog(int nlines, std::vector<std::string> &entries) {
+  entries.clear();
+
+  qclient::redisReplyPtr reply = mQcl->exec("deque-scan-back", "eos-config-changelog", "0",
+    "COUNT", SSTR(nlines)).get();
+
+  if (!reply || reply->type != REDIS_REPLY_ARRAY) {
+    return common::Status(EINVAL, SSTR("received unexpected reply type: " << qclient::describeRedisReply(reply)));
+  }
+
+  if (reply->elements != 2) {
+    return common::Status(EINVAL, SSTR("received unexpected number of elements in reply: " << qclient::describeRedisReply(reply)));
+  }
+
+  redisReply* array = reply->element[1];
+
+  for (size_t i = 0; i < array->elements; i++) {
+    if (array->element[i]->type != REDIS_REPLY_STRING) {
+      return common::Status(EINVAL, SSTR("received unexpected reply type for element #" << i << ": " << qclient::describeRedisReply(array->element[i])));
+    }
+
+    entries.emplace_back(array->element[i]->str, array->element[i]->len);
   }
 
   return common::Status();

@@ -117,3 +117,26 @@ TEST_F(ConfigurationTests, HashKeys) {
   ASSERT_EQ(eos::mgm::QuarkConfigHandler::formHashKey("default"), "eos-config:default");
   ASSERT_EQ(eos::mgm::QuarkConfigHandler::formBackupHashKey("default", 1588936606), "eos-config-backup:default-20200508111646");
 }
+
+TEST_F(ConfigurationTests, TailLog) {
+  std::unique_ptr<qclient::QClient> qcl = makeQClient();
+
+  qclient::redisReplyPtr reply = qcl->exec("deque-push-back", "eos-config-changelog", "aaa", "bbb", "ccc", "ddd", "eee").get();
+  ASSERT_EQ(qclient::describeRedisReply(reply), "(integer) 5");
+
+  std::vector<std::string> changelog;
+  eos::mgm::QuarkConfigHandler ch(getContactDetails());
+
+  ASSERT_TRUE(ch.tailChangelog(100, changelog));
+  ASSERT_EQ(changelog.size(), 5u);
+  ASSERT_EQ(changelog[0], "aaa");
+  ASSERT_EQ(changelog[1], "bbb");
+  ASSERT_EQ(changelog[2], "ccc");
+  ASSERT_EQ(changelog[3], "ddd");
+  ASSERT_EQ(changelog[4], "eee");
+
+  ASSERT_TRUE(ch.tailChangelog(2, changelog));
+  ASSERT_EQ(changelog.size(), 2u);
+  ASSERT_EQ(changelog[0], "ddd");
+  ASSERT_EQ(changelog[1], "eee");
+}
