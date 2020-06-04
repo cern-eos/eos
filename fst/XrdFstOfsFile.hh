@@ -29,6 +29,7 @@
 #include "fst/utils/TpcInfo.hh"
 #include "common/Fmd.hh"
 #include "common/FileId.hh"
+#include "XrdVersion.hh"
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsTPCInfo.hh"
 #include "XrdOuc/XrdOucString.hh"
@@ -61,10 +62,16 @@ EOSFSTNAMESPACE_BEGIN;
 class Layout;
 class CheckSum;
 
+#if XrdMajorVNUM( XrdVNUMBER ) > 4
+#define XrdOfsFileBase XrdOfsFileFull
+#else
+#define XrdOfsFileBase XrdOfsFile
+#endif
+
 //------------------------------------------------------------------------------
 //! Class XrdFstOfsFile
 //------------------------------------------------------------------------------
-class XrdFstOfsFile : public XrdOfsFile, public eos::common::LogId
+class XrdFstOfsFile : public XrdOfsFileBase, public eos::common::LogId
 {
   friend class ReplicaParLayout;
   friend class RaidMetaLayout;
