@@ -28,11 +28,11 @@ find_package_handle_standard_args(eosfolly
 mark_as_advanced(EOSFOLLY_FOUND EOSFOLLY_LIBRARY EOSFOLLY_INCLUDE_DIR)
 
 if(EOSFOLLY_FOUND AND NOT TARGET FOLLY::FOLLY)
+  # Note: this target is not used for the moment as the folly lib is only
+  # liked directly into qclient.
   add_library(FOLLY::FOLLY STATIC IMPORTED)
   set_target_properties(FOLLY::FOLLY PROPERTIES
     IMPORTED_LOCATION "${EOSFOLLY_LIBRARY}"
-    IMPOPRTED_LOCATION "glog"
-    IMPOPRTED_LOCATION "gflags"
     INTERFACE_INCLUDE_DIRECTORIES "${EOSFOLLY_INCLUDE_DIR}"
     INTERFACE_COMPILE_DEFINITIONS HAVE_FOLLY)
 endif()
