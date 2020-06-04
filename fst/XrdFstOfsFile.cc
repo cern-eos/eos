@@ -48,7 +48,7 @@ constexpr uint16_t XrdFstOfsFile::msDefaultTimeout;
 // Constructor
 //------------------------------------------------------------------------------
 XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
-  XrdOfsFile(user, MonID), eos::common::LogId(),
+  XrdOfsFileBase(user, MonID), eos::common::LogId(),
   mOpenOpaque(nullptr), mCapOpaque(nullptr), mFstPath(""), mBookingSize(0),
   mTargetSize(0), mMinSize(0), mMaxSize(0), viaDelete(false),
   mWrDelete(false), mRainSize(0), mNsPath(""), mLocalPrefix(""),
