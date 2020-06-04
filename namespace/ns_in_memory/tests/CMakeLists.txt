@@ -39,8 +39,7 @@ add_library(EosNsInMemoryTests SHARED
   ${CMAKE_SOURCE_DIR}/namespace/utils/TestHelpers.cc)
 
 target_link_libraries(EosNsInMemoryTests PUBLIC
-  EosNsInMemory
-  ${CPPUNIT_LIBRARIES})
+  EosNsInMemory)
 
 set_target_properties(
   EosNsInMemoryTests

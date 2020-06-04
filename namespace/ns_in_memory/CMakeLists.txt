@@ -57,8 +57,8 @@ add_library(
   ${CMAKE_SOURCE_DIR}/common/ShellExecutor.cc)
 
 target_link_libraries(EosNsInMemory-Objects PUBLIC
+  EosNsCommon
   XROOTD::UTILS
-  FOLLY::FOLLY
   GOOGLE::SPARSEHASH)
 
 target_compile_definitions(EosNsInMemory-Objects
@@ -72,10 +72,7 @@ set_target_properties(EosNsInMemory-Objects
 #-------------------------------------------------------------------------------
 add_library(EosNsInMemory MODULE $<TARGET_OBJECTS:EosNsInMemory-Objects>)
 
-target_link_libraries(EosNsInMemory PUBLIC
-  EosNsCommon
-  FOLLY::FOLLY
-  ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(EosNsInMemory PUBLIC EosNsInMemory-Objects)
 
 #-------------------------------------------------------------------------------
 # EosNsInMemory-Static library
@@ -84,10 +81,7 @@ if (Linux)
   add_library(EosNsInMemory-Static STATIC
     $<TARGET_OBJECTS:EosNsInMemory-Objects>)
 
-  target_link_libraries(EosNsInMemory-Static PUBLIC
-    EosNsCommon-Static
-    FOLLY::FOLLY
-    ${CMAKE_THREAD_LIBS_INIT})
+  target_link_libraries(EosNsInMemory-Static PUBLIC EosNsCommon-Static)
 
   set_target_properties(EosNsInMemory-Static
     PROPERTIES POSITION_INDEPENDENT_CODE True)
