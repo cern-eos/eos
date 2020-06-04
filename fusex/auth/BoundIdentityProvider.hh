@@ -54,8 +54,6 @@ public:
   //----------------------------------------------------------------------------
   ~BoundIdentityProvider()
   {
-    delete sssRegistry;
-    sssRegistry = nullptr;
   }
 
   //----------------------------------------------------------------------------
@@ -118,7 +116,12 @@ private:
   UnixAuthenticator unixAuthenticator;
   CredentialConfig credConfig;
   CredentialCache credentialCache;
-  XrdSecsssID* sssRegistry;
+
+  static XrdSecsssID& XrdSecsssIDInstance()
+  {
+    static XrdSecsssID *sssRegistry = new XrdSecsssID( XrdSecsssID::idDynamic );
+    return *sssRegistry;
+  }
 
   //----------------------------------------------------------------------------
   // Attempt to produce a BoundIdentity object out of KRB5 environment
