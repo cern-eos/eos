@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "mgm/config/QuarkDBConfigEngine.hh"
+#include "mgm/config/QuarkConfigHandler.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/IMaster.hh"
 #include "common/Timing.hh"
@@ -126,6 +127,7 @@ QuarkDBConfigEngine::QuarkDBConfigEngine(const QdbContactDetails&
   mQdbContactDetails = contactDetails;
   mQcl = std::make_unique<qclient::QClient>(mQdbContactDetails.members,
          mQdbContactDetails.constructOptions());
+  mConfigHandler = std::make_unique<QuarkConfigHandler>(mQdbContactDetails);
   mChangelog.reset(new QuarkDBCfgEngineChangelog(mQcl.get()));
 }
 

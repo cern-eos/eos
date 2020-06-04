@@ -1,6 +1,8 @@
 syntax = "proto3";
 package eos.mgm;
 
+import "google/protobuf/timestamp.proto";
+
 //------------------------------------------------------------------------------
 // Container metadata protocol buffer object
 //------------------------------------------------------------------------------
@@ -12,4 +14,5 @@ message ConfigModification {
 
 message ConfigChangelogEntry {
   repeated ConfigModification modifications = 1;
+  google.protobuf.Timestamp timestamp = 2;
 }

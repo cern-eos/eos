@@ -140,3 +140,17 @@ TEST_F(ConfigurationTests, TailLog) {
   ASSERT_EQ(changelog[0], "ddd");
   ASSERT_EQ(changelog[1], "eee");
 }
+
+TEST_F(ConfigurationTests, AppendChangelog) {
+  eos::mgm::ConfigChangelogEntry entry;
+
+  eos::mgm::ConfigModification *modif = entry.add_modifications();
+  modif->set_key("aa");
+  modif->set_previous_value("b");
+  modif->set_new_value("c");
+
+  eos::mgm::QuarkConfigHandler ch(getContactDetails());
+
+  common::Status st = ch.appendChangelog(entry).get();
+  ASSERT_TRUE(st) << st.toString();
+}

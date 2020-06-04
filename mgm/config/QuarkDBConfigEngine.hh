@@ -31,6 +31,8 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+class QuarkConfigHandler;
+
 //------------------------------------------------------------------------------
 //! Class QuarkDBCfgEngineChangelog
 //------------------------------------------------------------------------------
@@ -203,6 +205,7 @@ private:
 
   QdbContactDetails mQdbContactDetails;
   std::unique_ptr<qclient::QClient> mQcl;
+  std::unique_ptr<QuarkConfigHandler> mConfigHandler;
   const std::string kConfigurationHashKeyPrefix = "eos-config";
   const std::string kConfigurationBackupHashKeyPrefix = "eos-config-backup";
 

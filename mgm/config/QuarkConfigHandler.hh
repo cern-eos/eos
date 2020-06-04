@@ -25,7 +25,14 @@
 #include "mgm/Namespace.hh"
 #include "common/Status.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
+#include "proto/ChangelogEntry.pb.h"
 #include <map>
+
+#include <folly/futures/Future.h>
+
+namespace folly {
+  class Executor;
+}
 
 namespace qclient {
   class QClient;
@@ -71,6 +78,11 @@ public:
   common::Status listConfigurations(std::vector<std::string> &configs, std::vector<std::string> &backups);
 
   //----------------------------------------------------------------------------
+  // Append an entry to the changelog
+  //----------------------------------------------------------------------------
+  folly::Future<common::Status> appendChangelog(const eos::mgm::ConfigChangelogEntry &entry);
+
+  //----------------------------------------------------------------------------
   // Show configuration changelog
   //----------------------------------------------------------------------------
   common::Status tailChangelog(int nlines, std::vector<std::string> &changelog);
@@ -89,7 +101,7 @@ public:
 private:
   QdbContactDetails mContactDetails;
   std::unique_ptr<qclient::QClient> mQcl;
-
+  std::unique_ptr<folly::Executor> mExecutor;
 
 };
 

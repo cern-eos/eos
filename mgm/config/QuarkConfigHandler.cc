@@ -30,6 +30,12 @@
 #include "qclient/structures/QScanner.hh"
 #include "qclient/structures/QDeque.hh"
 
+#include <folly/Executor.h>
+#include <folly/executors/IOThreadPoolExecutor.h>
+#include <functional>
+
+using std::placeholders::_1;
+
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
@@ -39,6 +45,8 @@ QuarkConfigHandler::QuarkConfigHandler(const QdbContactDetails &cd)
 : mContactDetails(cd) {
   mQcl = std::unique_ptr<qclient::QClient>(
     new qclient::QClient(mContactDetails.members, mContactDetails.constructOptions()));
+
+  mExecutor.reset(new folly::IOThreadPoolExecutor(2));
 }
 
 //------------------------------------------------------------------------------
@@ -138,6 +146,50 @@ common::Status QuarkConfigHandler::writeConfiguration(const std::string &name, c
   }
 
   return common::Status();
+}
+
+//------------------------------------------------------------------------------
+// Validate appendChangelog response
+//------------------------------------------------------------------------------
+common::Status checkAppendChangelogResponse(qclient::redisReplyPtr reply) {
+  if(!reply) {
+    return common::Status(EINVAL, "no response from QDB backend");
+  }
+
+  if(reply->type != REDIS_REPLY_ARRAY || reply->elements != 2u) {
+    return common::Status(EINVAL, SSTR("unexpected reply from QDB: " << qclient::describeRedisReply(reply)));
+  }
+
+  redisReply *reply0 = reply->element[0];
+  redisReply *reply1 = reply->element[1];
+
+  if(reply0->type != REDIS_REPLY_INTEGER || reply0->integer != 1) {
+    return common::Status(EINVAL, SSTR("unexpected reply from QDB: " << qclient::describeRedisReply(reply)));
+  }
+
+  if(reply1->type != REDIS_REPLY_INTEGER) {
+    return common::Status(EINVAL, SSTR("unexpected reply from QDB: " << qclient::describeRedisReply(reply)));
+  }
+
+  return common::Status();
+}
+
+//------------------------------------------------------------------------------
+// Append an entry to the changelog
+//------------------------------------------------------------------------------
+folly::Future<common::Status> QuarkConfigHandler::appendChangelog(const eos::mgm::ConfigChangelogEntry &entry) {
+  std::string serialized;
+  if(!entry.SerializeToString(&serialized)) {
+    return common::Status(EINVAL, "protobuf seriaization to string failed");
+  }
+
+  qclient::MultiBuilder multiBuilder;
+  multiBuilder.emplace_back("deque-push-back", "eos-config-changelog:default", serialized);
+  multiBuilder.emplace_back("deque-trim-front", "eos-config-changelog:default", "500000");
+
+  return mQcl->follyExecute(multiBuilder.getDeque())
+    .via(mExecutor.get())
+    .thenValue(std::bind(checkAppendChangelogResponse, _1));
 }
 
 //------------------------------------------------------------------------------
