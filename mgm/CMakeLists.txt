@@ -54,14 +54,14 @@ target_link_libraries(EosMgmHttp-Objects PUBLIC
 set_target_properties(EosMgmHttp-Objects
   PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 
-add_library(EosMgmHttp-${PLUGIN_VERSION} MODULE
+add_library(EosMgmHttp-${XRDPLUGIN_SOVERSION} MODULE
   $<TARGET_OBJECTS:EosMgmHttp-Objects>)
 
-target_link_libraries(EosMgmHttp-${PLUGIN_VERSION} PUBLIC
+target_link_libraries(EosMgmHttp-${XRDPLUGIN_SOVERSION} PUBLIC
   EosMgmHttp-Objects)
 
 install(
-  TARGETS EosMgmHttp-${PLUGIN_VERSION}
+  TARGETS EosMgmHttp-${XRDPLUGIN_SOVERSION}
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
@@ -272,13 +272,13 @@ target_compile_definitions(XrdEosMgm-Objects PUBLIC
 set_target_properties(XrdEosMgm-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
-add_library(XrdEosMgm-${PLUGIN_VERSION} MODULE
+add_library(XrdEosMgm-${XRDPLUGIN_SOVERSION} MODULE
   $<TARGET_OBJECTS:XrdEosMgm-Objects>)
 
-target_compile_definitions(XrdEosMgm-${PLUGIN_VERSION} PUBLIC
+target_compile_definitions(XrdEosMgm-${XRDPLUGIN_SOVERSION} PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
-target_link_libraries(XrdEosMgm-${PLUGIN_VERSION} PUBLIC
+target_link_libraries(XrdEosMgm-${XRDPLUGIN_SOVERSION} PUBLIC
   XrdEosMgm-Objects
   EosAuthProto-Objects
   EosGrpcProto-Objects
@@ -289,7 +289,7 @@ target_link_libraries(XrdEosMgm-${PLUGIN_VERSION} PUBLIC
   EosCommon
   EosNsCommon)
 
-install(TARGETS XrdEosMgm-${PLUGIN_VERSION}
+install(TARGETS XrdEosMgm-${XRDPLUGIN_SOVERSION}
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
