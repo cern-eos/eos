@@ -62,7 +62,9 @@ public:
 
   virtual ~GrpcServer()
   {
+#ifdef EOS_GRPC
     mServer->Shutdown();
+#endif
     mThread.join();
   }
 
