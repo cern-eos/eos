@@ -291,15 +291,15 @@ set_target_properties(XrdEosFst-Objects PROPERTIES
 target_compile_definitions(XrdEosFst-Objects PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
-add_library(XrdEosFst-${PLUGIN_VERSION} MODULE
+add_library(XrdEosFst-${XRDPLUGIN_SOVERSION} MODULE
   $<TARGET_OBJECTS:XrdEosFst-Objects>)
 
-target_link_libraries(XrdEosFst-${PLUGIN_VERSION} PRIVATE
+target_link_libraries(XrdEosFst-${XRDPLUGIN_SOVERSION} PRIVATE
   XrdEosFst-Objects
   EosConsoleHelpers-Objects
   XROOTD::SSI)
 
-target_compile_definitions(XrdEosFst-${PLUGIN_VERSION} PUBLIC
+target_compile_definitions(XrdEosFst-${XRDPLUGIN_SOVERSION} PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
 add_library(XrdEosFst-Static STATIC $<TARGET_OBJECTS:XrdEosFst-Objects>)
@@ -317,7 +317,7 @@ target_link_libraries(XrdEosFst-Static PUBLIC
   EosNsCommon
   XROOTD::SSI)
 
-install(TARGETS EosFstOss XrdEosFst-${PLUGIN_VERSION}
+install(TARGETS EosFstOss XrdEosFst-${XRDPLUGIN_SOVERSION}
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
