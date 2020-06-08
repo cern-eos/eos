@@ -92,6 +92,7 @@ ConverterJob::DoIt()
   gid_t owner_gid = 0;
   unsigned long long size = 0;
   eos::IFileMD::LocationVector src_locations;
+  eos::IFileMD::LocationVector src_unlink_loc;
   eos::IContainerMD::XAttrMap attrmap;
   XrdOucString sourceChecksum;
   XrdOucString sourceAfterChecksum;
@@ -112,6 +113,7 @@ ConverterJob::DoIt()
       owner_gid = fmd->getCGid();
       size = fmd->getSize();
       src_locations = fmd->getLocations();
+      src_unlink_loc = fmd->getUnlinkedLocations();
       mSourcePath = gOFS->eosView->getUri(fmd.get());
       eos::common::Path cPath(mSourcePath.c_str());
       cmd = gOFS->eosView->getContainer(cPath.GetParentPath());
@@ -171,6 +173,11 @@ ConverterJob::DoIt()
     std::string exclude_fsids = "&eos.excludefsid=";
 
     for (const auto& fsid : src_locations) {
+      exclude_fsids += std::to_string(fsid);
+      exclude_fsids += ",";
+    }
+
+    for (const auto& fsid : src_unlink_loc) {
       exclude_fsids += std::to_string(fsid);
       exclude_fsids += ",";
     }
@@ -399,7 +406,8 @@ ConverterJob::Merge()
                                           response, timeout);
 
     if (!status.IsOK() || (response->ToString() != "OK")) {
-      eos_static_err("msg=\"failed local rename on file system\" fsid=%u status=%d", loc, status.IsOK());
+      eos_static_err("msg=\"failed local rename on file system\" fsid=%u status=%d",
+                     loc, status.IsOK());
       failed_rename = true;
       delete response;
       break;
