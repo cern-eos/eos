@@ -213,18 +213,6 @@ public:
   virtual void SetConfigDir(const char* configdir) = 0;
 
   //----------------------------------------------------------------------------
-  //! Push a configuration to QuarkDB
-  //!
-  //! @param filename name of the file holding the configuration
-  //! @param overwrite force overwrite of <filename> if the file exists already
-  //! @param err object collecting any possible errors
-  //!
-  //! @return true if successful, otherwise false
-  //----------------------------------------------------------------------------
-  virtual bool PushToQuarkDB(const std::string& filename, bool overwrite,
-                             XrdOucString& err) = 0;
-
-  //----------------------------------------------------------------------------
   //! Delete a configuration key from the responsible object
   //!
   //! @param key configuration key to be deleted

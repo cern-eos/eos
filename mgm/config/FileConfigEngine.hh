@@ -177,14 +177,6 @@ public:
   //----------------------------------------------------------------------------
   void SetConfigDir(const char* configdir) override;
 
-  //----------------------------------------------------------------------------
-  //! Push a configuration to QuarkDB (not invoked in case of FileConfig)
-  //----------------------------------------------------------------------------
-  bool PushToQuarkDB(const std::string& filename, bool overwrite, XrdOucString& err) override
-  {
-    return true;
-  }
-
 private:
   //! Tags used when building the config file names stored on disk
   static const std::string sAutosaveTag;

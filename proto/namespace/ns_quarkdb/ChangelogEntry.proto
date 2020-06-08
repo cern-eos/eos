@@ -13,4 +13,5 @@ message ConfigModification {
 message ConfigChangelogEntry {
   repeated ConfigModification modifications = 1;
   int64 timestamp = 2;
+  string comment = 3;
 }

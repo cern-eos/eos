@@ -65,27 +65,8 @@ ProcCommand::Config()
   }
 
   if (mSubCmd == "export") {
-    if (gOFS->MgmOfsConfigEngineType == "file") {
-      retc = EINVAL;
-      stdErr = "error: this command is available only with ConfigEngine type 'quarkdb'";
-    } else if (pVid->uid == 0) {
-      eos_notice("config export: %s", pOpaque->Env(envlen));
-      eos::mgm::ConfigResetMonitor fsview_cfg_reset_monitor;
-
-
-      std::string cstr = pOpaque->Get("mgm.config.file");
-      bool force = (bool)pOpaque->Get("mgm.config.force");
-
-//      if (!gOFS->ConfEngine->PushToQuarkDB(*pOpaque, stdErr)) {
-      if (!gOFS->ConfEngine->PushToQuarkDB(cstr, force, stdErr)) {
-        retc = errno;
-      } else {
-        stdOut = "success: configuration successfully exported!";
-      }
-    } else {
-      retc = EPERM;
-      stdErr = "error: you have to take role 'root' to execute this command";
-    }
+    retc = EINVAL;
+    stdErr = "error: export command has been deprecated";
   }
 
   if (mSubCmd == "save") {

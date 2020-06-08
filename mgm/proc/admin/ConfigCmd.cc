@@ -136,28 +136,8 @@ void ConfigCmd::ResetSubcmd(eos::console::ReplyProto& reply)
 void ConfigCmd::ExportSubcmd(const eos::console::ConfigProto_ExportProto& exp,
                              eos::console::ReplyProto& reply)
 {
-  if (gOFS->MgmOfsConfigEngineType == "file") {
-    reply.set_std_err("error: this command is available only with ConfigEngine type 'quarkdb'");
-    reply.set_retc(EINVAL);
-    return;
-  }
-
-  if ((mVid.uid != 0)) {
-    reply.set_std_err("error: you have to take role 'root' to execute this command");
-    reply.set_retc(EPERM);
-    return;
-  }
-
-  eos_notice("config export: %s", exp.ShortDebugString().c_str());
-  eos::mgm::ConfigResetMonitor fsview_cfg_reset_monitor;
-  XrdOucString std_err;
-
-  if (!gOFS->ConfEngine->PushToQuarkDB(exp.file(), exp.force(), std_err)) {
-    reply.set_std_err(std_err.c_str());
-    reply.set_retc(errno);
-  } else {
-    reply.set_std_out("success: configuration successfully exported!");
-  }
+  reply.set_std_err("error: export command has been deprecated");
+  reply.set_retc(EINVAL);
 }
 
 //----------------------------------------------------------------------------

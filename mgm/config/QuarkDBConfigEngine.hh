@@ -164,18 +164,6 @@ public:
   //----------------------------------------------------------------------------
 
   //----------------------------------------------------------------------------
-  //! Push a configuration to QuarkDB
-  //!
-  //! @param filename
-  //! @param force_overwrite
-  //! @param err
-  //!
-  //! @return true if successful, otherwise false
-  //----------------------------------------------------------------------------
-  bool PushToQuarkDB(const std::string& filename, bool overwrite,
-                     XrdOucString& err) override;
-
-  //----------------------------------------------------------------------------
   //! Load a configuration from QuarkDB
   //!
   //! @param hash
