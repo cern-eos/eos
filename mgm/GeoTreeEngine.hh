@@ -1526,8 +1526,7 @@ protected:
 
   static void setConfigValue(const char* prefix,
                              const char* key,
-                             const char* val,
-                             bool tochangelog = true);
+                             const char* val);
 
   template<typename T> bool setInternalParam(T& param, const int& value,
       bool updateStructs, const std::string& configentry)

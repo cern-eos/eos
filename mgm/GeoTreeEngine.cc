@@ -3351,10 +3351,9 @@ bool GeoTreeEngine::setParameter(std::string param, const std::string& value,
 
 void GeoTreeEngine::setConfigValue(const char* prefix,
                                    const char* key,
-                                   const char* val,
-                                   bool tochangelog)
+                                   const char* val)
 {
-  gOFS->ConfEngine->SetConfigValue(prefix, key, val, tochangelog);
+  gOFS->ConfEngine->SetConfigValue(prefix, key, val);
 }
 
 bool GeoTreeEngine::markPendingBranchDisablings(const std::string& group,
