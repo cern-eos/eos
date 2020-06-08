@@ -26,6 +26,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/IMaster.hh"
 #include "common/Timing.hh"
+#include "common/StringUtils.hh"
 #include <qclient/ResponseParsing.hh>
 #include <qclient/MultiBuilder.hh>
 #include "qclient/structures/QScanner.hh"
@@ -525,6 +526,10 @@ QuarkDBConfigEngine::IsDeprecated(const std::string& config_key) const
     if (config_key.find("#drainer.central") != std::string::npos) {
       return true;
     }
+  }
+
+  if(common::startsWith(config_key, "comment-")) {
+    return true;
   }
 
   return false;
