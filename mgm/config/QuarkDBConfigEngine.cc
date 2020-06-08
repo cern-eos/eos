@@ -322,9 +322,7 @@ QuarkDBConfigEngine::PullFromQuarkDB(qclient::QHash& hash, XrdOucString& err)
 // Filter the configuration and store in output string
 //------------------------------------------------------------------------------
 void
-QuarkDBConfigEngine::FilterConfig(PrintInfo& pinfo, XrdOucString& out,
-                                  const char* configName)
-
+QuarkDBConfigEngine::FilterConfig(XrdOucString& out, const char* configName)
 {
   qclient::QHash q_hash(*mQcl, formConfigHashKey(configName));
 

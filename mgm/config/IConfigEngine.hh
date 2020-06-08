@@ -285,12 +285,6 @@ public:
   void publishConfigDeletion(const std::string& key);
 
 protected:
-  //! Helper struct for passing information in/out of XrdOucHash callbacks
-  struct PrintInfo {
-    XrdOucString* out; ///< Output string
-    XrdOucString option; ///< Option for printing
-  };
-
   std::unique_ptr<ICfgEngineChangelog> mChangelog; ///< Changelog object
   std::recursive_mutex
   mMutex; ///< Protect the static configuration definitions hash
@@ -313,12 +307,10 @@ private:
   //----------------------------------------------------------------------------
   //! Filter configuration
   //!
-  //! @param info information about the output format
   //! @param out output representation of the configuration after filtering
   //! @param cfg_name configuration name
   //----------------------------------------------------------------------------
-  virtual void FilterConfig(PrintInfo& info, XrdOucString& out,
-                            const char* cfg_name) = 0;
+  virtual void FilterConfig(XrdOucString& out, const char* cfg_name) = 0;
 };
 
 EOSMGMNAMESPACE_END

@@ -542,8 +542,7 @@ FileConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
 // Filter configuration and store it in output string
 //------------------------------------------------------------------------------
 void
-FileConfigEngine::FilterConfig(PrintInfo& pinfo, XrdOucString& out,
-                               const char* cfg_fn)
+FileConfigEngine::FilterConfig(XrdOucString& out, const char* cfg_fn)
 {
   XrdOucString full_path = mConfigDir;
   full_path += cfg_fn;

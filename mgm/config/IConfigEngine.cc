@@ -384,10 +384,6 @@ IConfigEngine::DeleteConfigValueByMatch(const char* prefix, const char* match)
 bool
 IConfigEngine::DumpConfig(XrdOucString& out, const std::string& filename)
 {
-  struct PrintInfo pinfo;
-  pinfo.out = &out;
-  pinfo.option = "";
-
   if (filename.empty()) {
     std::lock_guard lock(mMutex);
 
@@ -400,7 +396,7 @@ IConfigEngine::DumpConfig(XrdOucString& out, const std::string& filename)
 
     while (out.replace("&", " ")) {}
   } else {
-    FilterConfig(pinfo, out, filename.c_str());
+    FilterConfig(out, filename.c_str());
   }
 
   eos::common::StringConversion::SortLines(out);

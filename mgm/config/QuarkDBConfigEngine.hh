@@ -228,12 +228,10 @@ private:
   //----------------------------------------------------------------------------
   //! Filter configuration
   //!
-  //! @param info
   //! @param out
   //! @param cfg_name
   //----------------------------------------------------------------------------
-  void FilterConfig(PrintInfo& info, XrdOucString& out,
-                    const char* cfg_name) override;
+  void FilterConfig(XrdOucString& out, const char* cfg_name) override;
 };
 
 EOSMGMNAMESPACE_END
