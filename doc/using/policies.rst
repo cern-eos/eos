@@ -127,5 +127,63 @@ Policies are displayd using the ``space status`` command:
    ...
 
 
- 
+Automatic Conversion Policies
+-----------------------------
+
+Automatic policy conversion policies allow to trigger a conversion job under two conditions:
+
+* a new file is created with a complete layout (all required replicas/stripes are created)        (use case IO optimization)
+* an existing file is injected with a complete layout (all required replicas/stripes are created) (use case TAPE recall)
+
+Automatic conversion policies hooks are triggered by the ReplicationTracker. You find conversions triggerd in the **ReplicationTracker.log** logfile.
+
+To use automatic conversion hooks one has to enable policy conversion in the **default** space:
+
+.. code-block:: bash
+
+   eos space config default space.policy.conversion=on
+
+To disable either remove the entry or set the value to off:
+
+.. code-block:: bash
+
+   #remove
+   eos space config default space.policy.conversion=remove
+   #or disable
+   eos space config default space.policy.conversion=off
+
+It takes few minutes before the changed state takes effect!
+
+
+To define a policy conversion whenever a file is uploaded for a specific space you configure:
+
+.. code-block:: bash
+
+   # whenever a file is uploaded to the space **default** a conversion is triggered into the space **replicated** using a **replica::2** layout.
+   eos space config default space.policy.conversion.creation=replica:2@replicated
+
+   # alternative declaration using a hex layout ID
+   eos space config default space.policy.conversion.creation=00100112@replicated
+
+Make sure that the convert of the target space is enabled:
+
+.. code-block:: bash
+
+   # enable converter in the target space
+   eos space config default space.convtert=on
+
+To define a policy conversion whenever a file is injected into a specific space you configure:
+
+.. code-block:: bash
+
+   # whenever a file is injected to the space **ssd* a conversion is triggered into the space **spinner** using a **raid6:10** layout.
+   eos space config ssd space.policy.conversion.injection=raid6:10@spinner
+
+   # alternative declaration using a hex layout ID: replace raid6:10 with the **hex layoutid** (e.g. see file info of a file).
+
+.. warning::
+   You cannot change the file checksum during a conversion job! Make sure source and target layout have the same checksum type!
+
+
+
  
