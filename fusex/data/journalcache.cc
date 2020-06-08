@@ -116,8 +116,7 @@ int journalcache::read_journal()
     do {
       if (entrySize == 0) {
 	if ( (pos + sizeof(header_t)) > (long unsigned int)bytesRead) {
-	  // no complete header left, we have re-align the next read to get a full header
-	  totalBytesRead += pos;
+	  // no complete header is left, we have re-align the next read to get a full header
 	  bytesRead = pos;
 	  break;
 	}
