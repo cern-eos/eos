@@ -26,6 +26,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Master.hh"
 #include "mgm/FsView.hh"
+#include "common/config/ConfigParsing.hh"
 #include "common/LinuxStat.hh"
 #include <sstream>
 #include <fcntl.h>
@@ -676,6 +677,20 @@ FileConfigEngine::GetLatestAutosave() const
   }
 
   return std::string();
+}
+
+//------------------------------------------------------------------------------
+// Parse configuration from the input given as a string and add it to the
+// configuration definition hash.
+//------------------------------------------------------------------------------
+bool
+FileConfigEngine::ParseConfig(XrdOucString& inconfig, XrdOucString& err)
+{
+  std::string err1;
+  bool retval = common::ConfigParsing::parseConfigurationFile(inconfig.c_str(),
+                sConfigDefinitions, err1);
+  err = err1.c_str();
+  return retval;
 }
 
 EOSMGMNAMESPACE_END

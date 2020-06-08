@@ -215,6 +215,17 @@ private:
   //----------------------------------------------------------------------------
   bool SaveConfigNoLock(std::string filename, bool overwrite, bool autosave, const std::string& comment, XrdOucString& err);
 
+  //----------------------------------------------------------------------------
+  //! Parse configuration from the input given as a string and add it to the
+  //! configuration definition hash.
+  //!
+  //! @param config string holding the configuration
+  //! @param err object holding any possible errors
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool ParseConfig(XrdOucString& config, XrdOucString& err);
+
 };
 
 EOSMGMNAMESPACE_END

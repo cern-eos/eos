@@ -240,18 +240,6 @@ public:
   bool ApplyConfig(XrdOucString& err, bool apply_stall_redirect = false);
 
   //----------------------------------------------------------------------------
-  //! Parse configuration from the input given as a string and add it to the
-  //! configuration definition hash.
-  //!
-  //! @param config string holding the configuration
-  //! @param err object holding any possible errors
-  //!
-  //! @return true if successful, otherwise false
-  //----------------------------------------------------------------------------
-  bool ParseConfig(XrdOucString& config, XrdOucString& err);
-
-
-  //----------------------------------------------------------------------------
   //! Dump method for selective configuration printing
   //!
   //! @param out output string

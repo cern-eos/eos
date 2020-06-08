@@ -23,7 +23,6 @@
 
 #include "mgm/config/IConfigEngine.hh"
 #include "common/Mapping.hh"
-#include "common/config/ConfigParsing.hh"
 #include "mgm/Access.hh"
 #include "mgm/FsView.hh"
 #include "mgm/Quota.hh"
@@ -377,20 +376,6 @@ IConfigEngine::DeleteConfigValueByMatch(const char* prefix, const char* match)
       it++;
     }
   }
-}
-
-//------------------------------------------------------------------------------
-// Parse configuration from the input given as a string and add it to the
-// configuration definition hash.
-//------------------------------------------------------------------------------
-bool
-IConfigEngine::ParseConfig(XrdOucString& inconfig, XrdOucString& err)
-{
-  std::string err1;
-  bool retval = common::ConfigParsing::parseConfigurationFile(inconfig.c_str(),
-                sConfigDefinitions, err1);
-  err = err1.c_str();
-  return retval;
 }
 
 //------------------------------------------------------------------------------
