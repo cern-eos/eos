@@ -135,7 +135,7 @@ Automatic policy conversion policies allow to trigger a conversion job under two
 * a new file is created with a complete layout (all required replicas/stripes are created)        (use case IO optimization)
 * an existing file is injected with a complete layout (all required replicas/stripes are created) (use case TAPE recall)
 
-Automatic conversion policies hooks are triggered by the ReplicationTracker. You find conversions triggerd in the **ReplicationTracker.log** logfile.
+Automatic conversion policy hooks are triggered by the ReplicationTracker. You find conversions triggerd in the **ReplicationTracker.log** logfile.
 
 To use automatic conversion hooks one has to enable policy conversion in the **default** space:
 
@@ -165,7 +165,7 @@ To define a policy conversion whenever a file is uploaded for a specific space y
    # alternative declaration using a hex layout ID
    eos space config default space.policy.conversion.creation=00100112@replicated
 
-Make sure that the convert of the target space is enabled:
+Make sure that the converter of the target space is enabled:
 
 .. code-block:: bash
 
