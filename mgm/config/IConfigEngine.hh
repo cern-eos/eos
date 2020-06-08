@@ -296,13 +296,6 @@ protected:
   //! Configuration definitions currently in memory
   std::map<std::string, std::string> sConfigDefinitions;
 
-  //----------------------------------------------------------------------------
-  //! Insert comment
-  //!
-  //! @param comment pointer to character array, may be nullptr
-  //----------------------------------------------------------------------------
-  void InsertComment(const std::string& comment);
-
 private:
   //----------------------------------------------------------------------------
   //! Filter configuration

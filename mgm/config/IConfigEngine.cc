@@ -452,33 +452,4 @@ IConfigEngine::ResetConfig(bool apply_stall_redirect)
   Quota::LoadNodes();
 }
 
-//------------------------------------------------------------------------------
-// Insert comment
-//------------------------------------------------------------------------------
-void
-IConfigEngine::InsertComment(const std::string& comment)
-{
-  if (!comment.empty()) {
-    // Store comments as "<unix-tst> <date> <comment>"
-    XrdOucString esccomment = comment.c_str();
-    time_t now = time(0);
-    char timestamp[1024];
-    sprintf(timestamp, "%lu", now);
-    XrdOucString stime = timestamp;
-    stime += " ";
-    stime += ctime(&now);
-    stime.erase(stime.length() - 1);
-    stime += " ";
-
-    while (esccomment.replace("\"", "")) {}
-
-    esccomment.insert(stime.c_str(), 0);
-    esccomment.insert("\"", 0);
-    esccomment.append("\"");
-    std::string configkey = SSTR("comment-" << timestamp << ":");
-    std::lock_guard lock(mMutex);
-    sConfigDefinitions[configkey] = esccomment.c_str();
-  }
-}
-
 EOSMGMNAMESPACE_END

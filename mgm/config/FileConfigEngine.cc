@@ -352,7 +352,6 @@ FileConfigEngine::SaveConfigNoLock(std::string filename, bool overwrite, bool au
 
   if (tmp_fstream.is_open()) {
     XrdOucString config = "";
-    InsertComment(comment.c_str());
     DumpConfig(config, "");
     tmp_fstream << config.c_str();
     tmp_fstream.flush();

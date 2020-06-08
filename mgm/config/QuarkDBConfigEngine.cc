@@ -184,7 +184,6 @@ QuarkDBConfigEngine::SaveConfig(std::string filename, bool overwrite,
     }
   }
 
-  InsertComment(comment);
   // Store a new hash
   std::string hash_key = formConfigHashKey(filename);
   qclient::QHash q_hash(*mQcl, hash_key);
