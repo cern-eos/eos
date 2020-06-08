@@ -115,6 +115,13 @@ int journalcache::read_journal()
 
     do {
       if (entrySize == 0) {
+	if ( (pos + sizeof(header_t)) > (long unsigned int)bytesRead) {
+	  // no complete header left, we have re-align the next read to get a full header
+	  totalBytesRead += pos;
+	  bytesRead = pos;
+	  break;
+	}
+
         header_t* header = reinterpret_cast<header_t*>(buffer + pos);
         journal.insert(header->offset, header->offset + header->size,
                        totalBytesRead + pos);
