@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "mgm/utils/FileSystemRegistry.hh"
+#include "mgm/FsView.hh"
 #include "common/Logging.hh"
 #include "common/Assert.hh"
 
@@ -49,6 +50,23 @@ FileSystemRegistry::lookupByID(eos::common::FileSystem::fsid_t id) const
 
   return it->second;
 }
+
+//----------------------------------------------------------------------------
+//! Lookup a FileSystem space - return "" if it does not exist
+//----------------------------------------------------------------------------
+std::string
+FileSystemRegistry::lookupSpaceByID(eos::common::FileSystem::fsid_t id) const
+{
+  eos::common::RWMutexReadLock rd_lock(mMutex);
+  auto fs = lookupByID(id) ;
+  if (fs) {
+    return fs->getCoreParams().getSpace();
+  } else {
+    return "";
+  }
+}
+
+
 
 //------------------------------------------------------------------------------
 // Lookup a FileSystem object by queuepath - return nullptr if none exists

@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/Constants.hh"
 #include "common/Path.hh"
 #include "common/FileId.hh"
 #include "common/IntervalStopwatch.hh"
@@ -35,6 +36,8 @@
 #include "namespace/Prefetcher.hh"
 
 EOSMGMNAMESPACE_BEGIN
+
+using namespace eos::common;
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -87,28 +90,91 @@ ReplicationTracker::Create(std::shared_ptr<eos::IFileMD> fmd)
   return;
 }
 
+std::string
+ReplicationTracker::ConversionPolicy(bool injection, int fsid)
+{
+  std::string space = FsView::gFsView.mIdView.lookupSpaceByID(fsid);
+  eos_static_info("%s %d", space.c_str(), fsid);
+  if (space.length()) {
+    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+
+    auto it = FsView::gFsView.mSpaceView.find(space);
+    if (it != FsView::gFsView.mSpaceView.end()) {
+      if (injection) {
+	return it->second->GetConfigMember("policy.conversion.injection");
+      } else {
+	return it->second->GetConfigMember("policy.conversion.creation");
+      }
+    }
+  }
+  return "";
+}
+
 //------------------------------------------------------------------------------
 // Commit a file
 //------------------------------------------------------------------------------
 void 
 ReplicationTracker::Commit(std::shared_ptr<eos::IFileMD> fmd)
 {
-  if (!enabled())
-    return;
-
   // check if this is still a 'temporary' name
   if (fmd->getName().substr(0,strlen(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX)) == EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) {
     // check if this is still a 'temporary' name
     return;
   }
 
+  bool tapecopy = fmd->hasLocation(TAPE_FS_ID);
+
   // check replica count
-  if (fmd->getNumLocation() == (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId())+1)) {
+  if ( (fmd->getNumLocation()-tapecopy) == (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId())+1))  {
+
+    if (conversion_enabled()) {
+      // determine the space from the first filesystem ID stored
+      int fsid = fmd->getLocations()[0];
+      if (fsid == TAPE_FS_ID) {
+	if (fmd->getNumLocation() > 1) {
+	  fsid = fmd->getLocations()[1];
+	}
+      }
+      {
+	std::string policy = ConversionPolicy(tapecopy, fsid);
+	if (policy.length()) {
+	  // create a conversion job for this file according to the policy definition
+	  eos_static_info("triggering conversion policy '%s' for fxid:%08llx", policy.c_str(), fmd->getId());
+	  std::string layout;
+	  std::string space;
+	  if ( eos::common::StringConversion::SplitKeyValue(policy,
+							    layout,
+							    space,
+							    "@")) {
+	    std::string info = "mgm.cmd=file&mgm.subcmd=convert&mgm.convert.layout=";
+	    info += layout;
+	    info += "&mgm.convert.space=";
+	    info += space;
+	    info += "&mgm.file.id=";
+	    info += std::to_string(fmd->getId());
+
+	    XrdOucErrInfo error;
+	    eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
+	    ProcCommand cmd;
+	    cmd.open("/proc/user", info.c_str(), rootvid, &error);
+	    cmd.close();
+	    int rc = cmd.GetRetc();
+	    if (rc) {
+	      eos_static_err("converions-hook failed with rc=%d for fxid:%08llx", rc, fmd->getId());
+	    }
+	  }
+	}
+      }
+    }
+    if (!enabled())
+      return;
+
     std::string prefix = Prefix(fmd);
     std::string tag = prefix + eos::common::FileId::Fid2Hex(fmd->getId());
     std::string uri = gOFS->eosView->getUri(fmd.get());
     std::shared_ptr<eos::IFileMD> entry_fmd;
-    
+
+    eos::common::RWMutexWriteLock nslock(gOFS->eosViewRWMutex);
     try {
       entry_fmd = gOFS->eosView->getFile(tag);
       gOFS->eosView->unlinkFile(entry_fmd.get());
@@ -216,6 +282,24 @@ ReplicationTracker::backgroundThread(ThreadAssistant& assistant) noexcept
     }
 
     common::IntervalStopwatch stopwatch( enabled()? opts.interval : std::chrono::seconds(10) );
+
+    if (gOFS->mMaster->IsMaster()) {
+      eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+      auto it = FsView::gFsView.mSpaceView.find("default");
+      if (it != FsView::gFsView.mSpaceView.end()) {
+	if (it->second->GetConfigMember("policy.conversion")=="on") {
+	  if (!conversion_enabled()) {
+	    conversion_enable();
+	    eos_static_info("enabling space conversion hooks");
+	  }
+	} else {
+	  if (conversion_enabled()) {
+	    conversion_disable();
+	    eos_static_info("disabling space conversion hooks");
+	  }
+	}
+      }
+    }
 
     if (opts.enabled && gOFS->mMaster->IsMaster()) {
       eos_static_info("msg=\"scan started!\"");

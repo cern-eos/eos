@@ -90,6 +90,11 @@ public:
   mgm::FileSystem* lookupByID(eos::common::FileSystem::fsid_t id) const;
 
   //----------------------------------------------------------------------------
+  //! Lookup a FileSystem space - return "" if it does not exist
+  //----------------------------------------------------------------------------
+  std::string lookupSpaceByID(eos::common::FileSystem::fsid_t id) const;
+
+  //----------------------------------------------------------------------------
   //! Lookup a FileSystem id by FileSystem pointer - return 0 if none exists
   //----------------------------------------------------------------------------
   eos::common::FileSystem::fsid_t lookupByPtr(mgm::FileSystem* fs) const;

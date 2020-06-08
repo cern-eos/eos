@@ -51,6 +51,7 @@ public:
   virtual ~ReplicationTracker();
 
   void Create(std::shared_ptr<eos::IFileMD> fmd);
+  std::string ConversionPolicy(bool injection, int fsid);
   void Commit(std::shared_ptr<eos::IFileMD> fmd);
   void Validate(std::shared_ptr<eos::IFileMD> fmd);
 
@@ -66,6 +67,10 @@ public:
   bool disable() { if (!enabled()) {return false;} else {mEnabled.store(0, std::memory_order_seq_cst); return true;}}
   bool enable()  { if  (enabled()) {return false;} else {mEnabled.store(1, std::memory_order_seq_cst); return true;}}
 
+  bool conversion_enabled() { return (mConversionEnabled.load())?true:false; }
+  bool conversion_disable() { if (!conversion_enabled()) {return false;} else {mConversionEnabled.store(0, std::memory_order_seq_cst); return true;}}
+  bool conversion_enable()  { if  (conversion_enabled()) {return false;} else {mConversionEnabled.store(1, std::memory_order_seq_cst); return true;}}
+
   Options getOptions();
 
 private:
@@ -74,6 +79,7 @@ private:
   void backgroundThread(ThreadAssistant& assistant) noexcept;
 
   std::atomic<int> mEnabled;
+  std::atomic<int> mConversionEnabled;
   XrdOucErrInfo mError;
   eos::common::VirtualIdentity mVid;
   std::string mPath;

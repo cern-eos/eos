@@ -399,7 +399,7 @@ ConverterJob::Merge()
                                           response, timeout);
 
     if (!status.IsOK() || (response->ToString() != "OK")) {
-      eos_static_err("msg=\"failed local rename on file system\" fsid=%u", loc);
+      eos_static_err("msg=\"failed local rename on file system\" fsid=%u status=%d", loc, status.IsOK());
       failed_rename = true;
       delete response;
       break;
