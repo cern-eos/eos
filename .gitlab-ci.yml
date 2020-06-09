@@ -1170,7 +1170,7 @@ debian_artifacts_volume:
     - apt-get update
     - apt-get install -y sudo apt-utils sssd gpg
     - mkdir /home/stci
-    - gpg --homedir /home/stci/ --import $STCI_REPO_KEY
+    - if [[ -n "$CI_COMMIT_TAG" ]]; then gpg --homedir /home/stci/ --import $STCI_REPO_KEY; fi
     - ./gitlab-ci/store_artifacts_debian.sh /mnt/eos_repositories/debian/eos/${BRANCH} tag
   dependencies:
     - build_ubuntu_bionic
@@ -1208,7 +1208,7 @@ clean_debian_artifacts:
     - mkdir /home/stci
     - chown -R stci:def-cg /home/stci
     - chmod -R 700 /home/stci
-    - sudo -u stci -H gpg --homedir /home/stci/ --import $STCI_REPO_KEY
+    - if [[ -n "$CI_COMMIT_TAG" ]]; then sudo -u stci -H gpg --homedir /home/stci/ --import $STCI_REPO_KEY; fi
     - sudo -u stci -H ./gitlab-ci/remove_old_artifacts_debian.sh
   allow_failure: true
   only:
