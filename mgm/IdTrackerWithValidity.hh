@@ -23,12 +23,16 @@
 //------------------------------------------------------------------------------
 #pragma once
 #include "mgm/Namespace.hh"
-#include "common/RWMutex.hh"
 #include "common/SteadyClock.hh"
 #include <mutex>
 #include <map>
 
 EOSMGMNAMESPACE_BEGIN
+
+//! Type of trackers
+enum class TrackerType {
+  All, Balance, Convert, Drain, Fsck
+};
 
 //------------------------------------------------------------------------------
 //! Class IdTrackerWithValidity
@@ -67,8 +71,11 @@ public:
   //! @param entry
   //! @param validity validity for the newly added entry. If 0 then default
   //!         validity applies.
+  //! @param tt tracker type
+  //!
+  //! @return true if entry added, otherwise false
   //----------------------------------------------------------------------------
-  void AddEntry(EntryT entry, std::chrono::seconds validity =
+  bool AddEntry(EntryT entry, TrackerType tt, std::chrono::seconds validity =
                   std::chrono::seconds::zero());
 
   //----------------------------------------------------------------------------
@@ -87,16 +94,27 @@ public:
 
   //----------------------------------------------------------------------------
   //! Clean up expired entries
+  //!
+  //! @param tt tracker type
   //----------------------------------------------------------------------------
-  void DoCleanup();
+  void DoCleanup(TrackerType tt);
 
   //----------------------------------------------------------------------------
   //! Clear all tracked entries
   //----------------------------------------------------------------------------
-  void Clear()
+  void Clear(TrackerType tt)
   {
-    eos::common::RWMutexWriteLock wr_lock(mRWMutex);
-    mMap.clear();
+    std::unique_lock<std::mutex> lock(mMutex);
+
+    if (tt == TrackerType::All) {
+      mMap.clear();
+    } else {
+      auto it_tracker = mMap.find(tt);
+
+      if (it_tracker != mMap.end()) {
+        it_tracker->second.clear();
+      }
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -108,8 +126,9 @@ public:
   }
 
 private:
-  mutable eos::common::RWMutex mRWMutex;
-  std::map<EntryT, std::chrono::steady_clock::time_point> mMap;
+  mutable std::mutex mMutex;
+  std::map<TrackerType,
+      std::map<EntryT, std::chrono::steady_clock::time_point>> mMap;
   //! Next cleanup timestamp
   std::chrono::steady_clock::time_point mCleanupTimestamp;
   std::chrono::seconds mCleanupInterval; ///< Interval when cleanup is performed
@@ -121,28 +140,32 @@ private:
 // Add entry with expiration
 //------------------------------------------------------------------------------
 template<typename EntryT>
-void
-IdTrackerWithValidity<EntryT>::AddEntry(EntryT entry,
+bool
+IdTrackerWithValidity<EntryT>::AddEntry(EntryT entry, TrackerType tt,
                                         std::chrono::seconds validity)
 {
-  eos::common::RWMutexWriteLock wr_lock(mRWMutex);
+  if (tt == TrackerType::All) {
+    return false;
+  }
+
+  std::unique_lock<std::mutex> lock(mMutex);
+
+  // Check if entry already exists in any of the trackers
+  for (const auto& pair : mMap) {
+    if (pair.second.find(entry) != pair.second.end()) {
+      return false;
+    }
+  }
+
+  auto& tracker_map = mMap[tt]; // will create it if missing
 
   if (validity.count()) {
-    mMap[entry] = eos::common::SteadyClock::now(&mClock) + validity;
+    tracker_map[entry] = eos::common::SteadyClock::now(&mClock) + validity;
   } else {
-    mMap[entry] = eos::common::SteadyClock::now(&mClock) + mEntryValidity;
+    tracker_map[entry] = eos::common::SteadyClock::now(&mClock) + mEntryValidity;
   }
-}
 
-//------------------------------------------------------------------------------
-// Check if entry is already tracked
-//------------------------------------------------------------------------------
-template<typename EntryT>
-bool
-IdTrackerWithValidity<EntryT>::HasEntry(EntryT entry) const
-{
-  eos::common::RWMutexReadLock rd_lock(mRWMutex);
-  return (mMap.find(entry) != mMap.end());
+  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -150,23 +173,29 @@ IdTrackerWithValidity<EntryT>::HasEntry(EntryT entry) const
 //------------------------------------------------------------------------------
 template<typename EntryT>
 void
-IdTrackerWithValidity<EntryT>::DoCleanup()
+IdTrackerWithValidity<EntryT>::DoCleanup(TrackerType tt)
 {
   using namespace std::chrono;
   auto now = eos::common::SteadyClock::now(&mClock);
-  eos::common::RWMutexReadLock rd_lock(mRWMutex);
+  std::unique_lock<std::mutex> lock(mMutex);
 
   if (mCleanupTimestamp < now) {
-    rd_lock.Release();
-    eos::common::RWMutexWriteLock wr_lock(mRWMutex);
     mCleanupTimestamp = now + mCleanupInterval;
 
-    for (auto it = mMap.begin(); it != mMap.end(); /*empty*/) {
-      if (it->second < now) {
-        auto it_del = it++;
-        mMap.erase(it_del);
-      } else {
-        ++it;
+    for (auto& pair : mMap) {
+      if ((tt != TrackerType::All) && (pair.first != tt)) {
+        continue;
+      }
+
+      auto& tracker_map = pair.second;
+
+      for (auto it = tracker_map.begin(); it != tracker_map.end(); /*empty*/) {
+        if (it->second < now) {
+          auto it_del = it++;
+          tracker_map.erase(it_del);
+        } else {
+          ++it;
+        }
       }
     }
   }
@@ -179,12 +208,35 @@ template<typename EntryT>
 void
 IdTrackerWithValidity<EntryT>::RemoveEntry(EntryT entry)
 {
-  eos::common::RWMutexWriteLock wr_lock(mRWMutex);
-  auto it = mMap.find(entry);
+  std::unique_lock<std::mutex> lock(mMutex);
 
-  if (it != mMap.end()) {
-    mMap.erase(it);
+  for (auto& pair : mMap) {
+    auto& tracker_map = pair.second;
+    auto it = tracker_map.find(entry);
+
+    if (it != tracker_map.end()) {
+      tracker_map.erase(it);
+      break;
+    }
   }
+}
+
+//------------------------------------------------------------------------------
+// Check if entry is already tracked
+//------------------------------------------------------------------------------
+template<typename EntryT>
+bool
+IdTrackerWithValidity<EntryT>::HasEntry(EntryT entry) const
+{
+  std::unique_lock<std::mutex> lock(mMutex);
+
+  for (const auto& pair : mMap) {
+    if (pair.second.find(entry) != pair.second.end()) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 EOSMGMNAMESPACE_END

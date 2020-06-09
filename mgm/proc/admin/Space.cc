@@ -388,14 +388,14 @@ ProcCommand::Space()
     }
 
     if (option == "scheduledrain") {
-      gOFS->mDrainTracker.Clear();
+      gOFS->mFidTracker.Clear(TrackerType::Drain);
       stdOut = "info: reset drain scheduling map in space '";
       stdOut += spacename.c_str();
       stdOut += "'";
     }
 
     if (option == "schedulebalance") {
-      gOFS->mBalancingTracker.Clear();
+      gOFS->mFidTracker.Clear(TrackerType::Balance);
       stdOut = "info: reset balance scheduling map in space '";
       stdOut += spacename.c_str();
       stdOut += "'";
@@ -551,8 +551,8 @@ ProcCommand::Space()
                   (key == eos::mgm::tgc::TGC_NAME_QRY_PERIOD_SECS) ||
                   (key == eos::mgm::tgc::TGC_NAME_AVAIL_BYTES) ||
                   (key == eos::mgm::tgc::TGC_NAME_TOTAL_BYTES) ||
-		  (key == "balancer.threshold") ||
-		  (key == "token.generation") ||
+                  (key == "balancer.threshold") ||
+                  (key == "token.generation") ||
                   (key == eos::common::SCAN_IO_RATE_NAME) ||
                   (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
                   (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
@@ -700,16 +700,18 @@ ProcCommand::Space()
                       stdOut += "=";
                       stdOut += value.c_str();
                     }
-		    if (( key == "token.generation" )) {
-		      eos::common::EosTok::sTokenGeneration = strtoull(value.c_str(), 0, 0);
-		    }
-		    if (( key == "policy.recycle" )) {
-		      if (value == "on") {
-			gOFS->enforceRecycleBin = true;
-		      } else {
-			gOFS->enforceRecycleBin = false;
-		      }
-		    }
+
+                    if ((key == "token.generation")) {
+                      eos::common::EosTok::sTokenGeneration = strtoull(value.c_str(), 0, 0);
+                    }
+
+                    if ((key == "policy.recycle")) {
+                      if (value == "on") {
+                        gOFS->enforceRecycleBin = true;
+                      } else {
+                        gOFS->enforceRecycleBin = false;
+                      }
+                    }
                   } else {
                     retc = EINVAL;
                     stdErr = "error: value has to be a positiv number";
@@ -882,7 +884,9 @@ ProcCommand::Space()
             }
           }
 
-          common::SharedHashLocator spaceLocator = common::SharedHashLocator::makeForSpace(spacename);
+          common::SharedHashLocator spaceLocator =
+            common::SharedHashLocator::makeForSpace(spacename);
+
           if (!mq::SharedHashWrapper::deleteHash(spaceLocator)) {
             stdErr = "error: unable to remove config of space '";
             stdErr += spacename.c_str();

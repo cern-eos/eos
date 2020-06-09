@@ -121,13 +121,12 @@ DrainFs::DoIt()
         std::shared_ptr<DrainTransferJob> job {
           new DrainTransferJob(it_fid->getElement(), mFsId, mTargetFsId)};
 
-        if (gOFS->mDrainTracker.HasEntry(it_fid->getElement())) {
+        if (!gOFS->mFidTracker.AddEntry(it_fid->getElement(), TrackerType::Drain)) {
           job->ReportError(SSTR("msg=\"skip currently scheduled drain\" "
                                 "fxid=" << std::hex << it_fid->getElement()));
           eos::common::RWMutexWriteLock wr_lock(mJobsMutex);
           mJobsFailed.insert(job);
         } else {
-          gOFS->mDrainTracker.AddEntry(it_fid->getElement());
           mThreadPool.PushTask<void>([job] {return job->DoIt();});
           eos::common::RWMutexWriteLock wr_lock(mJobsMutex);
           mJobsRunning.push_back(job);
@@ -187,10 +186,10 @@ DrainFs::HandleRunningJobs()
     eos::IFileMD::id_t fxid = eos::common::FileId::Hex2Fid(sfxid.c_str());
 
     if ((*it)->GetStatus() == DrainTransferJob::Status::OK) {
-      gOFS->mDrainTracker.RemoveEntry(fxid);
+      gOFS->mFidTracker.RemoveEntry(fxid);
       it = mJobsRunning.erase(it);
     } else if ((*it)->GetStatus() == DrainTransferJob::Status::Failed) {
-      gOFS->mDrainTracker.RemoveEntry(fxid);
+      gOFS->mFidTracker.RemoveEntry(fxid);
       mJobsFailed.insert(*it);
       it = mJobsRunning.erase(it);
     } else {

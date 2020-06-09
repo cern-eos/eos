@@ -35,7 +35,7 @@ TEST(IdTrackerWithValidity, BasicFunctionality)
   auto& clock = tracker.GetClock();
 
   for (uint64_t i = 11; i < 100; i += 10) {
-    tracker.AddEntry(i);
+    tracker.AddEntry(i, TrackerType::Drain);
     clock.advance(std::chrono::seconds(5));
   }
 
@@ -48,28 +48,28 @@ TEST(IdTrackerWithValidity, BasicFunctionality)
   }
 
   clock.advance(std::chrono::seconds(16)); // Should expire the first entry
-  tracker.DoCleanup();
+  tracker.DoCleanup(TrackerType::Drain);
   ASSERT_FALSE(tracker.HasEntry(11));
   ASSERT_TRUE(tracker.HasEntry(21));
   clock.advance(std::chrono::seconds(100)); // Should expire all entries
-  tracker.DoCleanup();
+  tracker.DoCleanup(TrackerType::Drain);
 
   for (uint64_t i = 11; i < 100; i += 10) {
     ASSERT_FALSE(tracker.HasEntry(i));
   }
 
-  tracker.AddEntry(121);
+  tracker.AddEntry(121, TrackerType::Drain);
   ASSERT_TRUE(tracker.HasEntry(121));
   tracker.RemoveEntry(121);
   ASSERT_FALSE(tracker.HasEntry(121));
 
   // Add enties with custom expiration time
   for (uint64_t i = 13; i < 100; i += 10) {
-    tracker.AddEntry(i, std::chrono::seconds(i));
+    tracker.AddEntry(i, TrackerType::Drain, std::chrono::seconds(i));
   }
 
   clock.advance(std::chrono::seconds(90));
-  tracker.DoCleanup();
+  tracker.DoCleanup(TrackerType::Drain);
   // All but the last entry should be expired
   ASSERT_TRUE(tracker.HasEntry(93));
 
@@ -77,6 +77,6 @@ TEST(IdTrackerWithValidity, BasicFunctionality)
     ASSERT_FALSE(tracker.HasEntry(i));
   }
 
-  tracker.Clear();
+  tracker.Clear(TrackerType::All);
   ASSERT_FALSE(tracker.HasEntry(93));
 }

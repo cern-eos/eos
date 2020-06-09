@@ -56,7 +56,7 @@ Fsck::Fsck():
   mCollectInterval(std::chrono::seconds(30 * 60)),
   eTimeStamp(0),
   mThreadPool(2, mMaxThreadPoolSize, 10, 6, 5, "fsck"),
-  mIdTracker(std::chrono::minutes(10), std::chrono::hours(2)), mQcl(nullptr)
+  mFsckTracker(std::chrono::minutes(10), std::chrono::hours(2)), mQcl(nullptr)
 {}
 
 //------------------------------------------------------------------------------
@@ -414,12 +414,17 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
     for (const auto& err_type : err_priority) {
       for (const auto& elem : local_emap[err_type]) {
         for (const auto& fid : elem.second) {
-          if (mIdTracker.HasEntry(fid)) {
-            eos_debug("msg=\"skip already scheduled repair\" fxid=%08llx", fid);
+          if (!mFsckTracker.AddEntry(fid, TrackerType::Fsck)) {
+            eos_debug("msg=\"skip already scheduled fsck repair\" fxid=%08llx", fid);
             continue;
           }
 
-          mIdTracker.AddEntry(fid);
+          if (!gOFS->mFidTracker.AddEntry(fid, TrackerType::Fsck)) {
+            mFsckTracker.RemoveEntry(fid);
+            eos_debug("msg=\"skip already scheduled transfer\" fxid=%08llx", fid);
+            continue;
+          }
+
           std::shared_ptr<FsckEntry> job {
             new FsckEntry(fid, elem.first, err_type, mQcl)};
           mThreadPool.PushTask<void>([job]() {
@@ -444,7 +449,8 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
       }
     }
 
-    mIdTracker.Clear();
+    mFsckTracker.Clear(TrackerType::All);
+    gOFS->mFidTracker.Clear(TrackerType::Fsck);
     mStartProcessing = false;
     eos_info("%s", "msg=\"loop in fsck repair thread\"");
   }

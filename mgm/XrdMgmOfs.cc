@@ -290,9 +290,8 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   WFEPtr(new eos::mgm::WFE()), WFEd(*WFEPtr), UTF8(false), mFstGwHost(""),
   mFstGwPort(0), mQdbCluster(""), mHttpdPort(8000),
   mFusexPort(1100), mGRPCPort(50051),
+  mFidTracker(std::chrono::seconds(600), std::chrono::seconds(3600)),
   mRdrBuffPool(2 * eos::common::KB, eos::common::MB, 8, 64),
-  mBalancingTracker(std::chrono::seconds(600), std::chrono::seconds(3600)),
-  mDrainTracker(std::chrono::seconds(600), std::chrono::seconds(3600)),
   mJeMallocHandler(new eos::common::JeMallocHandler()),
   mDoneOrderlyShutdown(false)
 {

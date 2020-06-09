@@ -378,14 +378,6 @@ XrdMgmOfs::Schedule2Balance(const char* path,
       continue;
     }
 
-    // Update tracker for scheduled fid balance jobs
-    mBalancingTracker.DoCleanup();
-
-    if (mBalancingTracker.HasEntry(fid)) {
-      eos_thread_debug("msg=\"skip recently scheduled file\" fxid=%08llx", fid);
-      continue;
-    }
-
     // Grab file metadata object
     std::shared_ptr<eos::IFileMD> fmd;
     unsigned long long cid = 0;
@@ -431,6 +423,14 @@ XrdMgmOfs::Schedule2Balance(const char* path,
     // We can release the NS lock since we will definetely return from this
     // function and we have all the necessary info at the local scope
     ns_rd_lock.Release();
+    // Update tracker for scheduled fid balance jobs
+    mFidTracker.DoCleanup(TrackerType::Balance);
+
+    if (!mFidTracker.AddEntry(fid, TrackerType::Balance)) {
+      eos_thread_debug("msg=\"skip recently scheduled file\" fxid=%08llx", fid);
+      continue;
+    }
+
     // Schedule file transfer
     eos_thread_info("subcmd=scheduling fxid=%08llx src_fsid=%u tgt_fsid=%u",
                     fid, src_fsid, tgt_fsid);
@@ -475,6 +475,7 @@ XrdMgmOfs::Schedule2Balance(const char* path,
       eos_thread_err("unable to create %s capability - ec=%d",
                      capError.getErrText(), capError.getErrInfo());
       gOFS->MgmStats.Add("SchedulingFailedBalance", 0, 0, 1);
+      mFidTracker.RemoveEntry(fid);
       return Emsg(epname, error, rc, errstream.str().c_str());
     }
 
@@ -498,7 +499,6 @@ XrdMgmOfs::Schedule2Balance(const char* path,
 
     if (scheduled) {
       // Track new scheduled job
-      mBalancingTracker.AddEntry(fid);
       XrdOucString response = "submitted";
       error.setErrInfo(response.length() + 1, response.c_str());
       gOFS->MgmStats.Add("Scheduled2Balance", 0, 0, 1);
@@ -507,6 +507,7 @@ XrdMgmOfs::Schedule2Balance(const char* path,
                      " job=%s", full_capability.c_str());
       error.setErrInfo(0, "");
       gOFS->MgmStats.Add("SchedulingFailedBalance", 0, 0, 1);
+      mFidTracker.RemoveEntry(fid);
     }
 
     EXEC_TIMING_END("Scheduled2Balance");

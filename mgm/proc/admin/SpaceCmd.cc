@@ -519,14 +519,14 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
   break;
 
   case eos::console::SpaceProto_ResetProto::SCHEDULEDRAIN: {
-    gOFS->mDrainTracker.Clear();
+    gOFS->mFidTracker.Clear(eos::mgm::TrackerType::Drain);
     std_out.str("info: reset drain scheduling map in space '" + reset.mgmspace() +
                 '\'');
   }
   break;
 
   case eos::console::SpaceProto_ResetProto::SCHEDULEBALANCE: {
-    gOFS->mBalancingTracker.Clear();
+    gOFS->mFidTracker.Clear(eos::mgm::TrackerType::Balance);
     std_out.str("info: reset balance scheduling map in space '" + reset.mgmspace() +
                 '\'');
   }
@@ -645,9 +645,9 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
         if (value == "remove") {
           applied = true;
 
-	  if (( key == "policy.recycle" )) {
-	    gOFS->enforceRecycleBin = false;
-	  }
+          if ((key == "policy.recycle")) {
+            gOFS->enforceRecycleBin = false;
+          }
 
           if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->DeleteConfigMember(
                 key)) {
@@ -670,13 +670,13 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             ret_c = 0;
           }
 
-	  if (( key == "policy.recycle" )) {
-	    if (value == "on") {
-	      gOFS->enforceRecycleBin = true;
-	    } else {
-	      gOFS->enforceRecycleBin = false;
-	    }
-	  }
+          if ((key == "policy.recycle")) {
+            if (value == "on") {
+              gOFS->enforceRecycleBin = true;
+            } else {
+              gOFS->enforceRecycleBin = false;
+            }
+          }
         }
       } else {
         if ((key == "nominalsize") ||
@@ -714,7 +714,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             (key == eos::mgm::tgc::TGC_NAME_QRY_PERIOD_SECS) ||
             (key == eos::mgm::tgc::TGC_NAME_AVAIL_BYTES) ||
             (key == eos::mgm::tgc::TGC_NAME_TOTAL_BYTES) ||
-	    (key == "token.generation") ||
+            (key == "token.generation") ||
             (key == "balancer.threshold") ||
             (key == eos::common::SCAN_IO_RATE_NAME) ||
             (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
@@ -876,9 +876,10 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                 std_err.str("error: cannot set space config value");
               } else {
                 std_out.str("success: setting " + key + "=" + value);
-		if (( key == "token.generation" )) {
-		  eos::common::EosTok::sTokenGeneration = strtoull(value.c_str(), 0, 0);
-		}
+
+                if ((key == "token.generation")) {
+                  eos::common::EosTok::sTokenGeneration = strtoull(value.c_str(), 0, 0);
+                }
               }
             } else {
               ret_c = EINVAL;
@@ -1062,7 +1063,9 @@ void SpaceCmd::RmSubcmd(const eos::console::SpaceProto_RmProto& rm,
     }
   }
 
-  common::SharedHashLocator spaceLocator = common::SharedHashLocator::makeForSpace(rm.mgmspace());
+  common::SharedHashLocator spaceLocator =
+    common::SharedHashLocator::makeForSpace(rm.mgmspace());
+
   if (!mq::SharedHashWrapper::deleteHash(spaceLocator)) {
     reply.set_std_err("error: unable to remove config of space '" + rm.mgmspace() +
                       "'");

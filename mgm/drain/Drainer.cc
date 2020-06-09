@@ -57,7 +57,7 @@ Drainer::Stop()
   if (mIsRunning) {
     mIsRunning = false;
     mThread.join();
-    gOFS->mDrainTracker.Clear();
+    gOFS->mFidTracker.Clear(TrackerType::Drain);
   }
 }
 
@@ -273,7 +273,7 @@ Drainer::Drain(ThreadAssistant& assistant) noexcept
   while (!assistant.terminationRequested()) {
     UpdateFromSpaceConfig();
     HandleQueued();
-    gOFS->mDrainTracker.DoCleanup();
+    gOFS->mFidTracker.DoCleanup(TrackerType::Drain);
     assistant.wait_for(std::chrono::seconds(5));
     // Clean up finished or stopped file system drains
     eos::common::RWMutexWriteLock wr_lock(mDrainMutex);

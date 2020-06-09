@@ -75,11 +75,18 @@ ConverterJob::ConverterJob(eos::common::FileId::fileid_t fid,
 }
 
 //------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+ConverterJob::~ConverterJob()
+{
+  gOFS->mFidTracker.RemoveEntry(mFid);
+}
+
+//------------------------------------------------------------------------------
 // Run a third-party conversion transfer
 //------------------------------------------------------------------------------
 void
 ConverterJob::DoIt()
-
 {
   using eos::common::StringConversion;
   eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
@@ -683,20 +690,28 @@ Converter::Convert(ThreadAssistant& assistant) noexcept
     int nschedule = lSpaceTransfers - mActiveJobs;
 
     for (int i = 0; i < nschedule; i++) {
-      if (lConversionFidMap.size()) {
-        auto it = lConversionFidMap.begin();
-        ConverterJob* job = new ConverterJob(it->first,
-                                             it->second.c_str(),
-                                             mSpaceName);
-        // use the global shared scheduler
-        XrdSysMutexHelper sLock(gSchedulerMutex);
-        gScheduler->Schedule((XrdJob*) job);
-        IncActiveJobs();
-        // Remove the entry from the conversion map
-        lConversionFidMap.erase(lConversionFidMap.begin());
-      } else {
+      if (lConversionFidMap.size() == 0) {
         break;
       }
+
+      auto it = lConversionFidMap.begin();
+
+      if (!gOFS->mFidTracker.AddEntry(it->first, TrackerType::Convert)) {
+        eos_static_debug("msg=\"skip recently scheduled file\" fxid=%08llx",
+                         it->first);
+        lConversionFidMap.erase(lConversionFidMap.begin());
+        continue;
+      }
+
+      ConverterJob* job = new ConverterJob(it->first,
+                                           it->second.c_str(),
+                                           mSpaceName);
+      // use the global shared scheduler
+      XrdSysMutexHelper sLock(gSchedulerMutex);
+      gScheduler->Schedule((XrdJob*) job);
+      IncActiveJobs();
+      // Remove the entry from the conversion map
+      lConversionFidMap.erase(lConversionFidMap.begin());
     }
 
     // Let some time pass or wait for a notification

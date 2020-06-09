@@ -219,7 +219,7 @@ private:
   AssistedThread mCollectorThread; ///< Thread collecting errors
   //! Fids repaired in the current loop, the validity is not actually used since
   //! we clear the tracker list at each round.
-  IdTrackerWithValidity<eos::IFileMD::id_t> mIdTracker;
+  IdTrackerWithValidity<eos::IFileMD::id_t> mFsckTracker;
   std::shared_ptr<qclient::QClient> mQcl; ///< QClient object for metadata
 
   //----------------------------------------------------------------------------
