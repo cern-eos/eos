@@ -2674,8 +2674,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
 
     if (openOpaque->Get("eos.mtime")) {
-      redirectionhost += "&mgm.mtime=";
-      redirectionhost += openOpaque->Get("eos.mtime");
+      redirectionhost += "&mgm.mtime=0";
     }
 
     // For the moment we redirect only on storage nodes
