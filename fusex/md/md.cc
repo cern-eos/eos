@@ -196,10 +196,15 @@ metad::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
       // if we have a cap and we listed this directory, we trust the child information
       // --------------------------------------------------
       if (pmd->local_children().count(
-            eos::common::StringConversion::EncodeInvalidUTF8(name))) {
+				      eos::common::StringConversion::EncodeInvalidUTF8(name))) {
         inode = pmd->local_children().at(
-                  eos::common::StringConversion::EncodeInvalidUTF8(name));
+					 eos::common::StringConversion::EncodeInvalidUTF8(name));
       } else {
+	if (pmd->local_enoent().count(name)) {
+          md = std::make_shared<mdx>();
+          md->set_err(ENOENT);
+          return md;
+	}
         // if we are still having the creator MD record, we can be sure, that we know everything about this directory
         if (pmd->creator() ||
             (pmd->type() == pmd->MDLS)) {
