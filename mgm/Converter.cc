@@ -307,7 +307,7 @@ ConverterJob::DoIt()
     }
   }
 
-  if (Merge()) {
+  if (success && Merge()) {
     eos_static_info("msg=\"successful conversion\" name=\"%s\"",
                     mConversionLayout.c_str());
     gOFS->MgmStats.Add("ConversionDone", owner_uid, owner_gid, 1);
