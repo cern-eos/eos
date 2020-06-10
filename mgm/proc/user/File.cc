@@ -106,21 +106,22 @@ ProcCommand::File()
       XrdOucString stripes = pOpaque->Get("mgm.file.layout.stripes");
       XrdOucString cksum = pOpaque->Get("mgm.file.layout.checksum");
       XrdOucString layout = pOpaque->Get("mgm.file.layout.type");
-
       int checksum_type = eos::common::LayoutId::kNone;
       XrdOucString ne = "eos.layout.checksum=";
       ne += cksum;
       XrdOucEnv env(ne.c_str());
       int newstripenumber = 0;
       std::string newlayoutstring;
+
       if (stripes.length()) {
         newstripenumber = atoi(stripes.c_str());
       }
+
       if (layout.length()) {
-	newlayoutstring = layout.c_str();
+        newlayoutstring = layout.c_str();
       }
 
-      if (!stripes.length() && !cksum.length() && !newlayoutstring.length() ) {
+      if (!stripes.length() && !cksum.length() && !newlayoutstring.length()) {
         stdErr = "error: you have to give a valid number of stripes"
                  " as an argument to call 'file layout' or a valid checksum or a layout id";
         retc = EINVAL;
@@ -178,50 +179,53 @@ ProcCommand::File()
           }
 
           if (fmd) {
-	    bool only_replica = false;
-	    bool only_tape = false;
-	    bool any_layout = false;
-	    if (fmd->getNumLocation() > 0) {
-	      only_replica = true;
-	    } else {
-	      any_layout = true;
-	    }
+            bool only_replica = false;
+            bool only_tape = false;
+            bool any_layout = false;
 
-	    if (fmd->getNumLocation() == 1) {
-	      if (fmd->hasLocation(EOS_TAPE_FSID)) {
-		only_tape = true;
-	      }
-	    }
+            if (fmd->getNumLocation() > 0) {
+              only_replica = true;
+            } else {
+              any_layout = true;
+            }
 
-	    if (!cksum.length()) {
-	      checksum_type = eos::common::LayoutId::GetChecksum(fmd->getLayoutId());
-	    }
+            if (fmd->getNumLocation() == 1) {
+              if (fmd->hasLocation(EOS_TAPE_FSID)) {
+                only_tape = true;
+              }
+            }
 
-	    if (!newstripenumber) {
-	      newstripenumber = eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1;
-	    }
+            if (!cksum.length()) {
+              checksum_type = eos::common::LayoutId::GetChecksum(fmd->getLayoutId());
+            }
 
-	    int lid = eos::common::LayoutId::kReplica;
-	    unsigned long newlayout =
-	      eos::common::LayoutId::GetId(lid,
-					   checksum_type,
-					   newstripenumber,
-					   eos::common::LayoutId::GetBlocksizeType(fmd->getLayoutId())
-					   );
-	    if (newlayoutstring.length()) {
-	      newlayout = strtol(newlayoutstring.c_str(),0,16);
-	    }
+            if (!newstripenumber) {
+              newstripenumber = eos::common::LayoutId::GetStripeNumber(
+                                  fmd->getLayoutId()) + 1;
+            }
 
-            if ( ( only_replica &&
-		   (((eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) ==
-		     eos::common::LayoutId::kReplica) ||
-		    (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) ==
-		     eos::common::LayoutId::kPlain)) &&
-		    (eos::common::LayoutId::GetLayoutType(newlayout) == eos::common::LayoutId::kReplica))) || only_tape || any_layout) {
+            int lid = eos::common::LayoutId::kReplica;
+            unsigned long newlayout =
+              eos::common::LayoutId::GetId(lid,
+                                           checksum_type,
+                                           newstripenumber,
+                                           eos::common::LayoutId::GetBlocksizeType(fmd->getLayoutId())
+                                          );
 
+            if (newlayoutstring.length()) {
+              newlayout = strtol(newlayoutstring.c_str(), 0, 16);
+            }
+
+            if ((only_replica &&
+                 (((eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) ==
+                    eos::common::LayoutId::kReplica) ||
+                   (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) ==
+                    eos::common::LayoutId::kPlain)) &&
+                  (eos::common::LayoutId::GetLayoutType(newlayout) ==
+                   eos::common::LayoutId::kReplica))) || only_tape || any_layout) {
               fmd->setLayoutId(newlayout);
               stdOut += "success: setting layout to ";
-	      stdOut += eos::common::LayoutId::PrintLayoutString(newlayout).c_str();
+              stdOut += eos::common::LayoutId::PrintLayoutString(newlayout).c_str();
               stdOut += " for path=";
               stdOut += spath;
               // commit new layout
@@ -1224,8 +1228,9 @@ ProcCommand::File()
     if (mSubCmd == "touch") {
       cmdok = true;
       bool useLayout = true;
+
       if (pOpaque->Get("mgm.file.touch.nolayout")) {
-	useLayout = false;
+        useLayout = false;
       }
 
       if (!spath.length()) {
@@ -1408,6 +1413,7 @@ ProcCommand::File()
               // Fill the existing locations
               std::vector<unsigned int> selectedfs;
               std::vector<unsigned int> unavailfs;
+              std::vector<unsigned int> excludefs;
               std::string tried_cgi;
               // Now we just need to ask for <n> targets
               int layoutId = eos::common::LayoutId::GetId(eos::common::LayoutId::kReplica,
@@ -1432,6 +1438,7 @@ ProcCommand::File()
               plctargs.path = spath.c_str();
               plctargs.plctTrgGeotag = &targetgeotag;
               plctargs.plctpolicy = plctplcy;
+              plctargs.exclude_filesystems = &excludefs;
               plctargs.selected_filesystems = &selectedfs;
               std::string spacename = space.c_str();
               plctargs.spacename = &spacename;
