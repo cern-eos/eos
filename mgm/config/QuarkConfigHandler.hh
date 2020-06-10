@@ -97,7 +97,6 @@ public:
   //----------------------------------------------------------------------------
   static std::string formBackupHashKey(const std::string &name, time_t timestamp);
 
-
 private:
   QdbContactDetails mContactDetails;
   std::unique_ptr<qclient::QClient> mQcl;

@@ -217,15 +217,6 @@ private:
   }
 
   //----------------------------------------------------------------------------
-  //! Check if configuration key is deprecated
-  //!
-  //! @param config_key configuration key to be set
-  //!
-  //! @param return true if deprecated, otherwise false
-  //----------------------------------------------------------------------------
-  bool IsDeprecated(const std::string& config_key) const;
-
-  //----------------------------------------------------------------------------
   //! Filter configuration
   //!
   //! @param out

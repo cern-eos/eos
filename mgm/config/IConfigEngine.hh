@@ -296,7 +296,13 @@ protected:
   //! Configuration definitions currently in memory
   std::map<std::string, std::string> sConfigDefinitions;
 
+  //----------------------------------------------------------------------------
+  //! Check if configuration key is deprecated
+  //----------------------------------------------------------------------------
+  bool IsDeprecated(const std::string& config_key) const;
+
 private:
+
   //----------------------------------------------------------------------------
   //! Filter configuration
   //!

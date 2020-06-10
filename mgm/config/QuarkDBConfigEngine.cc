@@ -506,23 +506,4 @@ void QuarkDBConfigEngine::storeIntoQuarkDB(const std::string& name)
   }
 }
 
-//------------------------------------------------------------------------------
-// Check if configuration key is deprecated
-//------------------------------------------------------------------------------
-bool
-QuarkDBConfigEngine::IsDeprecated(const std::string& config_key) const
-{
-  if (config_key.find("global:") == 0) {
-    if (config_key.find("#drainer.central") != std::string::npos) {
-      return true;
-    }
-  }
-
-  if(common::startsWith(config_key, "comment-")) {
-    return true;
-  }
-
-  return false;
-}
-
 EOSMGMNAMESPACE_END
