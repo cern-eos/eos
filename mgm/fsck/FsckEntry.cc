@@ -76,7 +76,9 @@ FsckEntry::FsckEntry(eos::IFileMD::id_t fid,
 //------------------------------------------------------------------------------
 FsckEntry::~FsckEntry()
 {
-  gOFS->mFidTracker.RemoveEntry(mFid);
+  if (gOFS) {
+    gOFS->mFidTracker.RemoveEntry(mFid);
+  }
 }
 
 //------------------------------------------------------------------------------
