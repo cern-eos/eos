@@ -66,14 +66,13 @@ IConfigEngine::IConfigEngine():
 // XrdOucHash callback function to apply a configuration value
 //------------------------------------------------------------------------------
 int
-IConfigEngine::ApplyEachConfig(const char* key, XrdOucString* val, void* arg)
+IConfigEngine::ApplyEachConfig(const char* key, XrdOucString* val, XrdOucString* err)
 {
   if (!key || !val) {
     return 0;
   }
 
   std::ostringstream oss_err;
-  XrdOucString* err = reinterpret_cast<XrdOucString*>(arg);
   XrdOucString toenv = val->c_str();
 
   while (toenv.replace(" ", "&")) {}

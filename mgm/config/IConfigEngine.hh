@@ -106,7 +106,7 @@ public:
   //!         = 0 - the next hash table item is processed
   //!         > 0 - processing stops and the hash table item is returned
   //----------------------------------------------------------------------------
-  static int ApplyEachConfig(const char* key, XrdOucString* val, void* arg);
+  static int ApplyEachConfig(const char* key, XrdOucString* val, XrdOucString* err);
 
   //----------------------------------------------------------------------------
   //! Constructor

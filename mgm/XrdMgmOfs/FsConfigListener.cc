@@ -79,9 +79,9 @@ XrdMgmOfs::processIncomingMgmConfigurationChange(const std::string& key)
       // FsView::ViewMutex for write
       if (key.find("fs:") == 0) {
         eos::common::RWMutexWriteLock wr_view_lock(FsView::gFsView.ViewMutex);
-        gOFS->ConfEngine->ApplyEachConfig(key.c_str(), &value, (void*) &err);
+        gOFS->ConfEngine->ApplyEachConfig(key.c_str(), &value, &err);
       } else {
-        gOFS->ConfEngine->ApplyEachConfig(key.c_str(), &value, (void*) &err);
+        gOFS->ConfEngine->ApplyEachConfig(key.c_str(), &value, &err);
       }
     }
   }
