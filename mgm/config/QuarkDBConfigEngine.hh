@@ -60,7 +60,7 @@ public:
   //! @param comment  entry value
   //----------------------------------------------------------------------------
   void AddEntry(const std::string& action, const std::string& key,
-                const std::string& value) override;
+                const std::string& value, const std::string& comment = "") override;
 
   //----------------------------------------------------------------------------
   //! Get tail of the changelog
@@ -165,15 +165,6 @@ public:
   //----------------------------------------------------------------------------
 
   //----------------------------------------------------------------------------
-  //! Load a configuration from QuarkDB
-  //!
-  //! @param hash
-  //!
-  //! @return true if successful, otherwise false
-  //----------------------------------------------------------------------------
-  common::Status PullFromQuarkDB(const std::string &configName);
-
-  //----------------------------------------------------------------------------
   //! Set configuration folder
   //!
   //! @param configdir path of the new configuration folder
@@ -187,9 +178,18 @@ public:
 
 private:
   //----------------------------------------------------------------------------
-  // Store configuration into given name
+  //! Store configuration into given name
   //----------------------------------------------------------------------------
   void storeIntoQuarkDB(const std::string& name);
+
+  //----------------------------------------------------------------------------
+  //! Load a configuration from QuarkDB
+  //!
+  //! @param hash
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  common::Status PullFromQuarkDB(const std::string &configName);
 
   QdbContactDetails mQdbContactDetails;
   std::unique_ptr<qclient::QClient> mQcl;

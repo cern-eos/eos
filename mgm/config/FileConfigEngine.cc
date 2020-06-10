@@ -61,7 +61,8 @@ FileCfgEngineChangelog::FileCfgEngineChangelog(const char* chlog_fn):
 void
 FileCfgEngineChangelog::AddEntry(const std::string& action,
                                  const std::string& key,
-                                 const std::string& value)
+                                 const std::string& value,
+                                 const std::string& comment)
 {
   eos::common::RWMutexWriteLock wr_lock(mMutex);
   mMap.set(key, value, action);

@@ -72,7 +72,7 @@ public:
   //! @param comment  entry value
   //----------------------------------------------------------------------------
   virtual void AddEntry(const std::string& action, const std::string& key,
-                        const std::string& value) = 0;
+                        const std::string& value, const std::string& comment = "") = 0;
 
   //----------------------------------------------------------------------------
   //! Get tail of the changelog

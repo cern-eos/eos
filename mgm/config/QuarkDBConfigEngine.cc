@@ -48,7 +48,7 @@ QuarkDBCfgEngineChangelog::QuarkDBCfgEngineChangelog(qclient::QClient* client)
 // Add entry to the changelog
 //------------------------------------------------------------------------------
 void QuarkDBCfgEngineChangelog::AddEntry(const std::string& action,
-    const std::string& key, const std::string& value)
+    const std::string& key, const std::string& value, const std::string &comment)
 {
   // Add entry to the set
   std::ostringstream oss;
@@ -56,6 +56,10 @@ void QuarkDBCfgEngineChangelog::AddEntry(const std::string& action,
 
   if (key != "") {
     oss << " " << key.c_str() << " => " << value.c_str();
+  }
+
+  if(!comment.empty()) {
+    oss << " [" << comment << "]";
   }
 
   mQcl.exec("deque-push-back", kChangelogKey, oss.str());
@@ -200,11 +204,7 @@ QuarkDBConfigEngine::SaveConfig(std::string filename, bool overwrite,
 
   changeLogValue << " successfully";
 
-  if (!comment.empty()) {
-    changeLogValue << "[" << comment << "]";
-  }
-
-  mChangelog->AddEntry("saved config", filename, changeLogValue.str());
+  mChangelog->AddEntry("saved config", filename, changeLogValue.str(), comment);
   mConfigFile = filename.c_str();
   auto end = steady_clock::now();
   auto duration = end - start;

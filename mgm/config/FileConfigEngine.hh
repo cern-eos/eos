@@ -57,7 +57,7 @@ public:
   //! @param comment  entry value
   //----------------------------------------------------------------------------
   void AddEntry(const std::string& action, const std::string& key,
-                const std::string& value);
+                const std::string& value, const std::string &comment = "");
 
   //----------------------------------------------------------------------------
   //! Get tail of the changelog
