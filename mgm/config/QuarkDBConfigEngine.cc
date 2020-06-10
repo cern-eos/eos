@@ -58,10 +58,6 @@ void QuarkDBCfgEngineChangelog::AddEntry(const std::string& action,
     oss << " " << key.c_str() << " => " << value.c_str();
   }
 
-  std::time_t now = std::time(NULL);
-  std::stringstream ss;
-  ss << now;
-  std::string timestamp = ss.str();
   mQcl.exec("deque-push-back", kChangelogKey, oss.str());
   mQcl.exec("deque-trim-front", kChangelogKey, "500000");
 }
