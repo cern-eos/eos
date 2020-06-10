@@ -428,7 +428,6 @@ IConfigEngine::get(const std::string& prefix, const std::string& key,
 void
 IConfigEngine::ResetConfig(bool apply_stall_redirect)
 {
-  mChangelog->AddEntry("reset config", "", "");
   mConfigFile = "";
   (void) Quota::CleanUp();
   {
