@@ -412,35 +412,41 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
     normalized_headers[LC_STRING(hdr.first)] = hdr.second;
   }
 
+  std::string query;
   OwningXrdSecEntity client(req.GetSecEntity());
   client.StandardiseVOMS();
-  std::string authz_data = (normalized_headers.count("authorization") ?
-                            normalized_headers["authorization"] : "");
-  std::string path = normalized_headers["xrd-http-fullresource"];
-  eos::common::Path canonical_path(path);
-  path = canonical_path.GetFullPath().c_str();
-  std::string enc_authz = StringConversion::curl_default_escaped(authz_data);
-  Access_Operation oper = MapHttpVerbToAOP(req.verb);
-  std::string data = "authz=";
-  data += enc_authz;
-  std::unique_ptr<XrdOucEnv> env = std::make_unique<XrdOucEnv>(data.c_str(),
-                                   data.length());
 
-  // Make a copy of the original XrdSecEntity so that the authorization plugin
-  // can update the name of the client from the macaroon info
-  if (mTokenAuthzHandler->Access(client.GetObj(), path.c_str(), oper,
-                                 env.get()) ==
-      XrdAccPriv_None) {
-    eos_err("msg=\"(token) authorization failed\" path=\"%s\"", path.c_str());
-    std::string errmsg = "token authorization failed";
-    return req.SendSimpleResp(403, errmsg.c_str(), "", errmsg.c_str(),
-                              errmsg.length());
+  // Native XrdHttp access
+  if (normalized_headers.find("x-forwarded-for") == normalized_headers.end()) {
+    std::string authz_data = (normalized_headers.count("authorization") ?
+                              normalized_headers["authorization"] : "");
+    std::string path = normalized_headers["xrd-http-fullresource"];
+    eos::common::Path canonical_path(path);
+    path = canonical_path.GetFullPath().c_str();
+    std::string enc_authz = StringConversion::curl_default_escaped(authz_data);
+    Access_Operation oper = MapHttpVerbToAOP(req.verb);
+    std::string data = "authz=";
+    data += enc_authz;
+    std::unique_ptr<XrdOucEnv> env = std::make_unique<XrdOucEnv>(data.c_str(),
+                                     data.length());
+
+    // Make a copy of the original XrdSecEntity so that the authorization plugin
+    // can update the name of the client from the macaroon info
+    if (mTokenAuthzHandler->Access(client.GetObj(), path.c_str(), oper,
+                                   env.get()) == XrdAccPriv_None) {
+      eos_static_err("msg=\"(token) authorization failed\" path=\"%s\"",
+                     path.c_str());
+      std::string errmsg = "token authorization failed";
+      return req.SendSimpleResp(403, errmsg.c_str(), "", errmsg.c_str(),
+                                errmsg.length());
+    }
+
+    eos_static_info("msg=\"(token) authorization done\" client_name=%s",
+                    client.GetObj()->name);
+    query = (normalized_headers.count("xrd-http-query") ?
+             normalized_headers["xrd-http-query"] : "");
   }
 
-  eos_info("msg=\"(token) authorization done\" client_name=%s",
-           client.GetObj()->name);
-  std::string query = (normalized_headers.count("xrd-http-query") ?
-                       normalized_headers["xrd-http-query"] : "");
   std::map<std::string, std::string> cookies;
   std::unique_ptr<eos::common::ProtocolHandler> handler =
     mMgmOfsHandler->mHttpd->XrdHttpHandler(req.verb, req.resource,

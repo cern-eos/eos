@@ -235,10 +235,26 @@ HttpServer::XrdHttpHandler(std::string& method,
                            const XrdSecEntity& client)
 {
   WAIT_BOOT;
-  eos::common::VirtualIdentity* vid = new eos::common::VirtualIdentity();
-  EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(&client, "eos.app=http", client.tident, *vid, true);
-  EXEC_TIMING_END("IdMap");
+  eos::common::VirtualIdentity* vid {nullptr};
+
+  // Native XrdHttp access
+  if (headers.find("x-forwarded-for") == headers.end()) {
+    vid = new eos::common::VirtualIdentity();
+    EXEC_TIMING_BEGIN("IdMap");
+    eos::common::Mapping::IdMap(&client, "eos.app=http", client.tident, *vid, true);
+    EXEC_TIMING_END("IdMap");
+  } else {   // HTTP access through Nginx
+    headers["client-real-ip"] = "NOIPLOOKUP";
+    headers["client-real-host"] = client.host;
+    headers["x-real-ip"] = client.host;
+
+    if (client.moninfo && strlen(client.moninfo)) {
+      headers["ssl_client_s_dn"] = client.moninfo;
+    }
+
+    vid = Authenticate(headers);
+  }
+
   // Update the vid.name as the mapping might have changed the vid.uid and it
   // is the name that is used later on for all the authorization bits
   int errc = 0;
