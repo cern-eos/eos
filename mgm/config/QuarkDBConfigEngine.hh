@@ -120,7 +120,7 @@ public:
   //!
   //! @return true if saved successfully, otherwise false
   //----------------------------------------------------------------------------
-  bool SaveConfig(std::string filename, bool overwrite, bool autosave,
+  bool SaveConfig(std::string filename, bool overwrite,
                   const std::string& comment, XrdOucString& err) override;
 
   //----------------------------------------------------------------------------

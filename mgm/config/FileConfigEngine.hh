@@ -126,13 +126,12 @@ public:
   //!
   //! @param filename name of the file where the current configuration will be saved
   //! @param overwrite force overwrite of <filename> if the file exists already
-  //! @param autosave
   //! @param comment comments
   //! @param err string holding any errors
   //!
   //! @return true if saved successfully, otherwise false
   //----------------------------------------------------------------------------
-  bool SaveConfig(std::string filename, bool overwrite, bool autosave, const std::string& comment, XrdOucString& err) override;
+  bool SaveConfig(std::string filename, bool overwrite, const std::string& comment, XrdOucString& err) override;
 
   //----------------------------------------------------------------------------
   //! List all configurations
@@ -205,13 +204,12 @@ private:
   //!
   //! @param filename name of the file where the current configuration will be saved
   //! @param overwrite force overwrite of <filename> if the file exists already
-  //! @param autosave
   //! @param comment comments
   //! @param err string holding any errors
   //!
   //! @return true if saved successfully, otherwise false
   //----------------------------------------------------------------------------
-  bool SaveConfigNoLock(std::string filename, bool overwrite, bool autosave, const std::string& comment, XrdOucString& err);
+  bool SaveConfigNoLock(std::string filename, bool overwrite, const std::string& comment, XrdOucString& err);
 
   //----------------------------------------------------------------------------
   //! Parse configuration from the input given as a string and add it to the

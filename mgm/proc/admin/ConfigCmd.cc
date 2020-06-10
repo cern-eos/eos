@@ -155,8 +155,7 @@ void ConfigCmd::SaveSubcmd(const eos::console::ConfigProto_SaveProto& save,
   eos_notice("config save: %s", save.ShortDebugString().c_str());
   XrdOucString std_err;
 
-  if (!gOFS->ConfEngine->SaveConfig(save.file(), save.force(), false,
-                                    mReqProto.comment(), std_err)) {
+  if (!gOFS->ConfEngine->SaveConfig(save.file(), save.force(), mReqProto.comment(), std_err)) {
     reply.set_std_err(std_err.c_str());
     reply.set_retc(errno);
   } else {

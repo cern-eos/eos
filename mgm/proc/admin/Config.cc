@@ -74,11 +74,10 @@ ProcCommand::Config()
 
     const char* name = pOpaque->Get("mgm.config.file");
     bool force = (bool)pOpaque->Get("mgm.config.force");
-    bool autosave = (bool)pOpaque->Get("mgm.config.autosave");
     const char* comment = pOpaque->Get("mgm.config.comment");
 
     if (pVid->uid == 0) {
-      if (!gOFS->ConfEngine->SaveConfig(name, force, autosave, comment, stdErr)) {
+      if (!gOFS->ConfEngine->SaveConfig(name, force, comment, stdErr)) {
         retc = errno;
       } else {
         stdOut = "success: configuration successfully saved!";

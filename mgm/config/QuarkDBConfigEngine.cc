@@ -168,7 +168,7 @@ QuarkDBConfigEngine::LoadConfig(const std::string& filename, XrdOucString& err,
 //------------------------------------------------------------------------------
 bool
 QuarkDBConfigEngine::SaveConfig(std::string filename, bool overwrite,
-                                bool autosave, const std::string& comment, XrdOucString& err)
+                                const std::string& comment, XrdOucString& err)
 {
   using namespace std::chrono;
   auto start = steady_clock::now();
@@ -336,7 +336,7 @@ QuarkDBConfigEngine::AutoSave()
     bool overwrite = true;
     XrdOucString err = "";
 
-    if (!SaveConfig(filename, overwrite, false, "", err)) {
+    if (!SaveConfig(filename, overwrite, "", err)) {
       eos_static_err("%s\n", err.c_str());
       return false;
     }
@@ -383,7 +383,7 @@ QuarkDBConfigEngine::SetConfigValue(const char* prefix, const char* key,
     bool overwrite = true;
     XrdOucString err = "";
 
-    if (!SaveConfig(filename, overwrite, false, "", err)) {
+    if (!SaveConfig(filename, overwrite, "", err)) {
       eos_static_err("%s\n", err.c_str());
     }
   }
@@ -420,7 +420,7 @@ QuarkDBConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
     bool overwrite = true;
     XrdOucString err = "";
 
-    if (!SaveConfig(filename, overwrite, false, "", err)) {
+    if (!SaveConfig(filename, overwrite, "", err)) {
       eos_static_err("%s\n", err.c_str());
     }
   }

@@ -274,10 +274,10 @@ FileConfigEngine::LoadConfig(const std::string& filename, XrdOucString& err,
 // Store the current configuration to a given file or QuarkDB.
 //------------------------------------------------------------------------------
 bool
-FileConfigEngine::SaveConfig(std::string filename, bool overwrite, bool autosave, const std::string& comment, XrdOucString& err)
+FileConfigEngine::SaveConfig(std::string filename, bool overwrite, const std::string& comment, XrdOucString& err)
 {
   std::lock_guard<std::mutex> lock(sMutex);
-  return SaveConfigNoLock(filename, overwrite, autosave, comment, err);
+  return SaveConfigNoLock(filename, overwrite, comment, err);
 }
 
 //------------------------------------------------------------------------------
@@ -285,7 +285,7 @@ FileConfigEngine::SaveConfig(std::string filename, bool overwrite, bool autosave
 // be executed by one thread at a time.
 //------------------------------------------------------------------------------
 bool
-FileConfigEngine::SaveConfigNoLock(std::string filename, bool overwrite, bool autosave, const std::string& comment, XrdOucString& err)
+FileConfigEngine::SaveConfigNoLock(std::string filename, bool overwrite, const std::string& comment, XrdOucString& err)
 {
 
   eos_debug("saving config name=%s comment=%s force=%d", filename.c_str(), comment.c_str(), overwrite);
@@ -336,14 +336,7 @@ FileConfigEngine::SaveConfigNoLock(std::string filename, bool overwrite, bool au
         return false;
       }
 
-      if (autosave) {
-        oss << half_path << sAutosaveTag << st.st_mtime <<
-            EOSMGMCONFIGENGINE_EOS_SUFFIX;
-      } else {
-        oss << half_path << sBackupTag << st.st_mtime
-            << EOSMGMCONFIGENGINE_EOS_SUFFIX;
-      }
-
+      oss << half_path << sAutosaveTag << st.st_mtime << EOSMGMCONFIGENGINE_EOS_SUFFIX;
       bkp_path = oss.str();
     }
   }
@@ -394,14 +387,7 @@ FileConfigEngine::SaveConfigNoLock(std::string filename, bool overwrite, bool au
     return false;
   }
 
-  std::string changeLogAction;
-
-  if (autosave) {
-    changeLogAction = "autosaved config";
-  } else {
-    changeLogAction = "saved config";
-  }
-
+  std::string changeLogAction = "saved config";
   std::ostringstream changeLogValue;
 
   if (overwrite) {
@@ -579,10 +565,9 @@ FileConfigEngine::AutoSave()
 
     std::string filename = mConfigFile.c_str();
     bool overwrite = true;
-    bool autosave = true;
     XrdOucString err = "";
 
-    if (!SaveConfigNoLock(filename, overwrite, autosave, "", err)) {
+    if (!SaveConfigNoLock(filename, overwrite, "", err)) {
       eos_static_err("%s\n", err.c_str());
       return false;
     }
