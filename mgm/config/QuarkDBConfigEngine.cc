@@ -147,11 +147,10 @@ QuarkDBConfigEngine::LoadConfig(const std::string& filename, XrdOucString& err,
   }
 
   ResetConfig(apply_stall_redirect);
-  std::string hash_key = formConfigHashKey(filename);
-  eos_notice("HASH KEY NAME => %s", hash_key.c_str());
-  qclient::QHash q_hash(*mQcl, hash_key);
 
-  if (!PullFromQuarkDB(q_hash, err)) {
+  common::Status st = PullFromQuarkDB(filename);
+  if(!st) {
+    err = st.toString().c_str();
     return false;
   }
 
@@ -160,7 +159,6 @@ QuarkDBConfigEngine::LoadConfig(const std::string& filename, XrdOucString& err,
     return false;
   } else {
     mConfigFile = filename.c_str();
-    mChangelog->AddEntry("loaded config", filename, "successfully");
     return true;
   }
 }
@@ -296,26 +294,22 @@ QuarkDBConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
 //------------------------------------------------------------------------------
 // Pull the configuration from QuarkDB
 //------------------------------------------------------------------------------
-bool
-QuarkDBConfigEngine::PullFromQuarkDB(qclient::QHash& hash, XrdOucString& err)
+common::Status
+QuarkDBConfigEngine::PullFromQuarkDB(const std::string &configName)
 {
-  err = "";
   std::lock_guard lock(mMutex);
-  sConfigDefinitions.clear();
-
-  for (auto it = hash.getIterator(); it.valid(); it.next()) {
-    std::string key = it.getKey();
-
-    if (key == "timestamp") {
-      continue;
-    }
-
-    std::string value = it.getValue();
-    eos_notice("setting config key=%s value=%s", key.c_str(), value.c_str());
-    sConfigDefinitions[key] = value;
+  common::Status st = mConfigHandler->fetchConfiguration(configName, sConfigDefinitions);
+  if(!st) {
+    return st;
   }
 
-  return true;
+  sConfigDefinitions.erase("timestamp");
+
+  for(auto it = sConfigDefinitions.begin(); it != sConfigDefinitions.end(); it++) {
+    eos_notice("setting config key=%s value=%s", it->first.c_str(), it->second.c_str());
+  }
+
+  return common::Status();
 }
 
 //------------------------------------------------------------------------------

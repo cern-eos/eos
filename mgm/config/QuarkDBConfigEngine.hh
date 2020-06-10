@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #pragma once
+#include "common/Status.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/qclient/include/qclient/structures/QHash.hh"
@@ -167,11 +168,10 @@ public:
   //! Load a configuration from QuarkDB
   //!
   //! @param hash
-  //! @param err
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool PullFromQuarkDB(qclient::QHash& hash, XrdOucString& err);
+  common::Status PullFromQuarkDB(const std::string &configName);
 
   //----------------------------------------------------------------------------
   //! Set configuration folder
