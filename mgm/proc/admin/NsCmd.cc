@@ -315,9 +315,9 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
   gOFS->zMQ->gFuseServer.Client().ClientStats(eosxd_nclients,
       eosxd_active_clients, eosxd_locked_clients);
   bool monitoring = stat.monitor() || WantsJsonOutput();
-
   CacheStatistics fileCacheStats = gOFS->eosFileService->getCacheStatistics();
-  CacheStatistics containerCacheStats = gOFS->eosDirectoryService->getCacheStatistics();
+  CacheStatistics containerCacheStats =
+    gOFS->eosDirectoryService->getCacheStatistics();
 
   if (monitoring) {
     oss << "uid=all gid=all ns.total.files=" << f << std::endl
@@ -325,11 +325,16 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << "uid=all gid=all ns.current.fid=" << fid_now
         << "uid=all gid=all ns.current.cid=" << cid_now
         << "uid=all gid=all ns.generated.fid=" << (int)(fid_now - gOFS->mBootFileId)
-        << "uid=all gid=all ns.generated.cid=" << (int)(cid_now - gOFS->mBootContainerId) << std::endl
-        << "uid=all gid=all ns.cache.files.maxsize=" << fileCacheStats.maxNum << std::endl
-        << "uid=all gid=all ns.cache.files.occupancy=" << fileCacheStats.occupancy << std::endl
-        << "uid=all gid=all ns.cache.containers.maxsize=" << containerCacheStats.maxNum << std::endl
-        << "uid=all gid=all ns.cache.containers.occupancy=" << containerCacheStats.occupancy << std::endl
+        << "uid=all gid=all ns.generated.cid=" << (int)(cid_now -
+            gOFS->mBootContainerId) << std::endl
+        << "uid=all gid=all ns.cache.files.maxsize=" << fileCacheStats.maxNum <<
+        std::endl
+        << "uid=all gid=all ns.cache.files.occupancy=" << fileCacheStats.occupancy <<
+        std::endl
+        << "uid=all gid=all ns.cache.containers.maxsize=" << containerCacheStats.maxNum
+        << std::endl
+        << "uid=all gid=all ns.cache.containers.occupancy=" <<
+        containerCacheStats.occupancy << std::endl
         << "uid=all gid=all ns.total.files.changelog.size="
         << StringConversion::GetSizeString(clfsize, (unsigned long long) statf.st_size)
         << std::endl
@@ -385,44 +390,54 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
     // simplify the disk-only use of EOS
     if (gOFS->mTapeEnabled) {
       oss << "uid=all gid=all ns.tapeenabled=true" << std::endl;
-
       // Tape GC stats are only displayed if enabled for at least one EOS space
       const auto tgcStats = gOFS->mTapeGc->getStats();
-      if(!tgcStats.empty()) {
+
+      if (!tgcStats.empty()) {
         oss << "uid=all gid=all tgc.stats=stagerrms";
-        for(auto itor = tgcStats.begin(); itor != tgcStats.end(); itor++) {
-          const std::string &tgcSpace = itor->first;
-          const tgc::TapeGcStats &tgcSpaceStats = itor->second;
+
+        for (auto itor = tgcStats.begin(); itor != tgcStats.end(); itor++) {
+          const std::string& tgcSpace = itor->first;
+          const tgc::TapeGcStats& tgcSpaceStats = itor->second;
           oss << " " << tgcSpace << "=" << tgcSpaceStats.nbStagerrms;
         }
+
         oss << std::endl;
         oss << "uid=all gid=all tgc.stats=queuesize";
-        for(auto itor = tgcStats.begin(); itor != tgcStats.end(); itor++) {
-          const std::string &tgcSpace = itor->first;
-          const tgc::TapeGcStats &tgcSpaceStats = itor->second;
+
+        for (auto itor = tgcStats.begin(); itor != tgcStats.end(); itor++) {
+          const std::string& tgcSpace = itor->first;
+          const tgc::TapeGcStats& tgcSpaceStats = itor->second;
           oss << " " << tgcSpace << "=" << tgcSpaceStats.lruQueueSize;
         }
+
         oss << std::endl;
         oss << "uid=all gid=all tgc.stats=totalbytes";
-        for(auto itor = tgcStats.begin(); itor != tgcStats.end(); itor++) {
-          const std::string &tgcSpace = itor->first;
-          const tgc::TapeGcStats &tgcStats = itor->second;
+
+        for (auto itor = tgcStats.begin(); itor != tgcStats.end(); itor++) {
+          const std::string& tgcSpace = itor->first;
+          const tgc::TapeGcStats& tgcStats = itor->second;
           oss << " " << tgcSpace << "=" << tgcStats.spaceStats.totalBytes;
         }
+
         oss << std::endl;
         oss << "uid=all gid=all tgc.stats=availbytes";
-        for(auto itor = tgcStats.begin(); itor != tgcStats.end(); itor++) {
-          const std::string &tgcSpace = itor->first;
-          const tgc::TapeGcStats &tgcStats = itor->second;
+
+        for (auto itor = tgcStats.begin(); itor != tgcStats.end(); itor++) {
+          const std::string& tgcSpace = itor->first;
+          const tgc::TapeGcStats& tgcStats = itor->second;
           oss << " " << tgcSpace << "=" << tgcStats.spaceStats.availBytes;
         }
+
         oss << std::endl;
         oss << "uid=all gid=all tgc.stats=qrytimestamp";
-        for(auto itor = tgcStats.begin(); itor != tgcStats.end(); itor++) {
-          const std::string &tgcSpace = itor->first;
-          const tgc::TapeGcStats &tgcSpaceStats = itor->second;
+
+        for (auto itor = tgcStats.begin(); itor != tgcStats.end(); itor++) {
+          const std::string& tgcSpace = itor->first;
+          const tgc::TapeGcStats& tgcSpaceStats = itor->second;
           oss << " " << tgcSpace << "=" << tgcSpaceStats.queryTimestamp;
         }
+
         oss << std::endl;
       }
     }
@@ -487,19 +502,18 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << line << std::endl;
 
     if (fileCacheStats.enabled || containerCacheStats.enabled) {
-      oss << "ALL      File cache max num               " << fileCacheStats.maxNum <<
-          std::endl
-          << "ALL      File cache occupancy             " << fileCacheStats.occupancy <<
-          std::endl
-          << "ALL      In-flight FileMD                 " << fileCacheStats.inFlight <<
-          std::endl
+      oss << "ALL      File cache max num               " << fileCacheStats.maxNum
+          << std::endl
+          << "ALL      File cache occupancy             " << fileCacheStats.occupancy
+          << std::endl
+          << "ALL      In-flight FileMD                 " << fileCacheStats.inFlight
+          << std::endl
           << "ALL      Container cache max num          " << containerCacheStats.maxNum
           << std::endl
           << "ALL      Container cache occupancy        " << containerCacheStats.occupancy
           << std::endl
           << "ALL      In-flight ContainerMD            " << containerCacheStats.inFlight
-          <<
-          std::endl
+          << std::endl
           << line << std::endl;
     }
 
@@ -541,52 +555,65 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << gOFS->mDrainEngine.GetThreadPoolInfo() << std::endl
         << "ALL      fsck info                        "
         << gOFS->mFsckEngine->GetThreadPoolInfo() << std::endl
+        << line << std::endl
+        << gOFS->mFidTracker.PrintStats()
         << line << std::endl;
 
     // Only display the tape enabled state if it is set to true in order to
     // simplify the disk-only use of EOS
     if (gOFS->mTapeEnabled) {
       oss << "ALL      tapeenabled                      true" << std::endl;
-
       // Tape GC stats are only displayed if enabled for at least one EOS space
       const auto tgcStats = gOFS->mTapeGc->getStats();
-      if(!tgcStats.empty()) {
+
+      if (!tgcStats.empty()) {
         oss << "ALL      tgc.stats=stagerrms             ";
-        for(auto itor = tgcStats.begin(); itor != tgcStats.end(); itor++) {
-          const std::string &tgcSpace = itor->first;
-          const tgc::TapeGcStats &tgcSpaceStats = itor->second;
+
+        for (auto itor = tgcStats.begin(); itor != tgcStats.end(); itor++) {
+          const std::string& tgcSpace = itor->first;
+          const tgc::TapeGcStats& tgcSpaceStats = itor->second;
           oss << " " << tgcSpace << "=" << tgcSpaceStats.nbStagerrms;
         }
+
         oss << std::endl;
         oss << "ALL      tgc.stats=queuesize             ";
-        for(auto itor = tgcStats.begin(); itor != tgcStats.end(); itor++) {
-          const std::string &tgcSpace = itor->first;
-          const tgc::TapeGcStats &tgcSpaceStats = itor->second;
+
+        for (auto itor = tgcStats.begin(); itor != tgcStats.end(); itor++) {
+          const std::string& tgcSpace = itor->first;
+          const tgc::TapeGcStats& tgcSpaceStats = itor->second;
           oss << " " << tgcSpace << "=" << tgcSpaceStats.lruQueueSize;
         }
+
         oss << std::endl;
         oss << "ALL      tgc.stats=totalbytes            ";
-        for(auto itor = tgcStats.begin(); itor != tgcStats.end(); itor++) {
-          const std::string &tgcSpace = itor->first;
-          const tgc::TapeGcStats &tgcStats = itor->second;
+
+        for (auto itor = tgcStats.begin(); itor != tgcStats.end(); itor++) {
+          const std::string& tgcSpace = itor->first;
+          const tgc::TapeGcStats& tgcStats = itor->second;
           oss << " " << tgcSpace << "=" << tgcStats.spaceStats.totalBytes;
         }
+
         oss << std::endl;
         oss << "ALL      tgc.stats=availbytes            ";
-        for(auto itor = tgcStats.begin(); itor != tgcStats.end(); itor++) {
-          const std::string &tgcSpace = itor->first;
-          const tgc::TapeGcStats &tgcStats = itor->second;
+
+        for (auto itor = tgcStats.begin(); itor != tgcStats.end(); itor++) {
+          const std::string& tgcSpace = itor->first;
+          const tgc::TapeGcStats& tgcStats = itor->second;
           oss << " " << tgcSpace << "=" << tgcStats.spaceStats.availBytes;
         }
+
         oss << std::endl;
         oss << "ALL      tgc.stats=qrytimestamp          ";
-        for(auto itor = tgcStats.begin(); itor != tgcStats.end(); itor++) {
-          const std::string &tgcSpace = itor->first;
-          const tgc::TapeGcStats &tgcSpaceStats = itor->second;
+
+        for (auto itor = tgcStats.begin(); itor != tgcStats.end(); itor++) {
+          const std::string& tgcSpace = itor->first;
+          const tgc::TapeGcStats& tgcSpaceStats = itor->second;
           oss << " " << tgcSpace << "=" << tgcSpaceStats.queryTimestamp;
         }
+
         oss << std::endl;
       }
+
       oss << line << std::endl;
     }
   }
@@ -900,19 +927,19 @@ NsCmd::CacheSubcmd(const eos::console::NsProto_CacheProto& cache,
   std::map<std::string, std::string> map_cfg;
 
   if (cache.op() == NsProto_CacheProto::SET_FILE) {
-    if(cache.max_num() > 100) {
+    if (cache.max_num() > 100) {
       map_cfg[sMaxNumCacheFiles] = std::to_string(cache.max_num());
       map_cfg[sMaxSizeCacheFiles] = std::to_string(cache.max_size());
-
-      gOFS->ConfEngine->SetConfigValue("ns", "cache-size-nfiles", std::to_string(cache.max_num()).c_str());
+      gOFS->ConfEngine->SetConfigValue("ns", "cache-size-nfiles",
+                                       std::to_string(cache.max_num()).c_str());
       gOFS->eosFileService->configure(map_cfg);
     }
   } else if (cache.op() == NsProto_CacheProto::SET_DIR) {
-    if(cache.max_num() > 100) {
+    if (cache.max_num() > 100) {
       map_cfg[sMaxNumCacheDirs] = std::to_string(cache.max_num());
       map_cfg[sMaxSizeCacheDirs] = std::to_string(cache.max_size());
-
-      gOFS->ConfEngine->SetConfigValue("ns", "cache-size-ndirs", std::to_string(cache.max_num()).c_str());
+      gOFS->ConfEngine->SetConfigValue("ns", "cache-size-ndirs",
+                                       std::to_string(cache.max_num()).c_str());
       gOFS->eosDirectoryService->configure(map_cfg);
     }
   } else if (cache.op() == NsProto_CacheProto::DROP_FILE) {

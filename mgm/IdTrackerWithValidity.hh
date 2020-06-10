@@ -125,6 +125,16 @@ public:
     return mClock;
   }
 
+  //----------------------------------------------------------------------------
+  //! Get statistics about the tracked files
+  //!
+  //! @param full if true print also the ids for each tracker
+  //! @param monitor if true print info in monitor format
+  //!
+  //! @return string with the required information
+  //----------------------------------------------------------------------------
+  std::string PrintStats(bool full = false, bool monitor = false) const;
+
 private:
   mutable std::mutex mMutex;
   std::map<TrackerType,
@@ -237,6 +247,61 @@ IdTrackerWithValidity<EntryT>::HasEntry(EntryT entry) const
   }
 
   return false;
+}
+
+//----------------------------------------------------------------------------
+//! Get statistics about the tracked files
+//----------------------------------------------------------------------------
+template<typename EntryT>
+std::string
+IdTrackerWithValidity<EntryT>::PrintStats(bool full, bool monitor) const
+{
+  auto get_tracker_name = [](TrackerType tt) -> std::string {
+    if (tt == TrackerType::Drain)
+    {
+      return "drain";
+    } else if (tt == TrackerType::Balance)
+    {
+      return "balance";
+    } else if (tt == TrackerType::Convert)
+    {
+      return "convert";
+    } else if (tt == TrackerType::Fsck)
+    {
+      return "fsck";
+    } else {
+      return "unknown";
+    }
+  };
+  std::ostringstream oss;
+  std::unique_lock<std::mutex> lock(mMutex);
+
+  for (const auto& pair : mMap) {
+    if (monitor) {
+      oss << "uid=all gid=all ";
+    } else {
+      oss << "ALL      tracker info                     ";
+    }
+
+    oss << "tracker=" << get_tracker_name(pair.first)
+        << " size=" << pair.second.size();
+
+    if (full) {
+      oss << " ids=";
+
+      for (const auto& elem : pair.second) {
+        oss << elem.first << " ";
+      }
+    }
+
+    oss << std::endl;
+  }
+
+  if (mMap.empty()) {
+    oss << std::endl;
+  }
+
+  return oss.str();
 }
 
 EOSMGMNAMESPACE_END
