@@ -327,6 +327,8 @@ QdbMaster::SlaveToMaster()
   gOFS->mTracker.SetAcceptingRequests(false);
   gOFS->mTracker.SpinUntilNoRequestsInFlight(true,
       std::chrono::milliseconds(100));
+  gOFS->eosFileService->initialize();
+  gOFS->eosDirectoryService->initialize();
   std::string std_out, std_err;
   // We are the master and we broadcast every configuration change
   gOFS->ObjectManager.EnableBroadCast(true);
