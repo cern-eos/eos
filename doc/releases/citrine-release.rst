@@ -15,6 +15,30 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
+``v4.8.2 Citrine``
+===================
+
+2020-06-11
+
+Bug
+----
+
+* [EOS-4037] - eosxd gets SIGBUS in journalcache::read_journal()
+* [EOS-4083] - eosxd abort() with "std::bad_alloc" under journalcache::get_chunks
+* [EOS-4276] - Add extra checks while updating the directory e-tag on 0-size file updates
+* [EOS-4282] - eos-client-4.7.16-1 requires xrootd-server-libs
+* [EOS-4286] - Cannot set `eos.mtime` using xrdcp opaque query
+* [EOS-4288] - `eos file adjustreplica` : error: invalid argument for file placement (errc=22) (Invalid argument)
+* [EOS-4289] - Replicas dropped after a conversion of a non-healthy file
+
+Improvement
+------------
+
+* [EOS-4284] - Allow automatic layout conversion hooks for file injection and file creation
+* [EOS-4285] - negative cache entries are not served from eosxd cache
+
+
 ``v4.8.1 Citrine``
 ===================
 
@@ -45,6 +69,23 @@ Task
 ----
 
 * [EOS-3976] - The converter does not honour the source file checksum if sys.forced.checksum is set on /eos/<instance>/proc/conversion
+
+
+``v4.7.16 Citrine``
+===================
+
+2020-05-18
+
+Bug
+---
+
+* [EOS-4203] - reading empty missing replica file triggers commit & mtime update
+* [EOS-4215] - ns time printing broken in fileinfo command
+
+Improvements
+-------------
+
+* CMAKE: Refactor and simplify the cmake code to move to a target based approach
 
 
 ``v4.7.15 Citrine``
