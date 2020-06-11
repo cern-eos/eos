@@ -369,13 +369,13 @@ build_cc7_clang:
     - docker_node
     - cc7_clang
 
-.build_cc7_xrd_testing: # @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
+build_cc7_xrd_testing: # @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
   before_script:
     - source gitlab-ci/export_branch.sh
     - echo "Exporting BRANCH=${BRANCH}"
     - source gitlab-ci/export_commit-type.sh
     - echo "Exporting COMMIT_TYPE=${COMMIT_TYPE}"
-    - echo -e '[xrootd-testing]\nname=XRootD Testing repository\nbaseurl=http://xrootd.org/binaries/testing/slc/7/$basearch http://xrootd.cern.ch/sw/repos/testing/slc/7/$basearch\ngpgcheck=0\nenabled=1\npriority=1\nprotect=0\ngpgkey=http://xrootd.cern.ch/sw/releases/RPM-GPG-KEY.txt\nexclude=xrootd-*5.0.0*\n' >> /etc/yum.repos.d/xrootd-testing.repo
+    - echo -e '[xrootd-testing]\nname=XRootD Testing repository\nbaseurl=http://xrootd.web.cern.ch/xrootd/tests/repo/\ngpgcheck=0\nenabled=1\npriority=5\nprotect=0\n' >> /etc/yum.repos.d/xrootd-testing.repo
   <<: *build_cc7_exotic-template_definition
   variables:
     BUILD_NAME: cc7_xrd_testing
@@ -384,6 +384,7 @@ build_cc7_clang:
   tags:
     - docker_node
     - cc7_xrd_testing
+  allow_failure: true
 
 build_cc7_opt_xrootd: # @note please contact CTA team / jleduc if you want to change this job
   before_script:
@@ -487,7 +488,7 @@ cc7_asan_docker_image:
     - schedules
   allow_failure: true
 
-.cc7_xrd_testing_docker_image:
+cc7_xrd_testing_docker_image:
   <<: *build_dockerimage-template_definition
   variables:
     DOCKERFILE: eos-docker/Dockerfile_xrd_testing
