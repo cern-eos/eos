@@ -288,8 +288,6 @@ protected:
   std::recursive_mutex
   mMutex; ///< Protect the static configuration definitions hash
   bool mAutosave; ///< Create autosave file for each change
-  //! Broadcast changes into the MGM configuration queue (config/<inst>/mgm)
-  bool mBroadcast;
   XrdOucString mConfigFile; ///< Currently loaded configuration
 
   //! Configuration definitions currently in memory
