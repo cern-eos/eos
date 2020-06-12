@@ -75,10 +75,10 @@ Server::Server()
 {
   SetLogId(logId, "fxserver");
   c_max_children = getenv("EOS_MGM_FUSEX_MAX_CHILDREN") ? strtoull(
-                     getenv("EOS_MGM_FUSEX_MAX_CHILDREN"), 0, 10) : 134217728;
+								   getenv("EOS_MGM_FUSEX_MAX_CHILDREN"), 0, 10) : 131072;
 
   if (!c_max_children) {
-    c_max_children = 134217728;
+    c_max_children = 131072;
   }
 }
 
