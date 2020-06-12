@@ -1075,7 +1075,7 @@ clean_k8s_cluster:
       xargs --no-run-if-empty -n2 kubectl delete pods
     - kubectl get namespaces --no-headers -o custom-columns=":metadata.name,:.metadata.creationTimestamp" | 
       grep -v 'default\|kube-public\|kube-system\|kube-node-lease' |
-      awk '$2 <= "'$( date --utc -d "3 days ago" +"%Y-%m-%dT%H:%M:%SZ" )'" { print $1 }' | 
+      awk '$2 <= "'$( date --utc -d "1 day ago" +"%Y-%m-%dT%H:%M:%SZ" )'" { print $1 }' |
       xargs --no-run-if-empty kubectl delete namespaces
   dependencies: []
   allow_failure: true
