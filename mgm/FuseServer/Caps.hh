@@ -108,9 +108,11 @@ EOSFUSESERVERNAMESPACE_BEGIN
     {
       eos::common::RWMutexWriteLock lock(*this);
       authid_t id;
+      time_t idtime=0;
 
       if (!mTimeOrderedCap.empty()) {
         id = mTimeOrderedCap.begin()->second;
+	idtime = mTimeOrderedCap.begin()->first;
       } else {
         return false;
       }
@@ -126,10 +128,13 @@ EOSFUSESERVERNAMESPACE_BEGIN
           if (!mInodeCaps[cap->id()].size()) {
             mInodeCaps.erase(cap->id());
           }
-
           return true;
         } else {
-          return false;
+	  if ( (idtime+10) <= now ) {
+	    return true;
+	  } else {
+	    return false;
+	  }
         }
       }
 
