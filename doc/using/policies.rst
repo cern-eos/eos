@@ -165,12 +165,12 @@ To define a policy conversion whenever a file is uploaded for a specific space y
    # alternative declaration using a hex layout ID
    eos space config default space.policy.conversion.creation=00100112@replicated
 
-Make sure that the converter of the target space is enabled:
+Also make sure that the converter is enabled:
 
 .. code-block:: bash
 
-   # enable converter in the target space
-   eos space config default space.convtert=on
+   # enable the converter
+   eos space config default space.converter=on
 
 To define a policy conversion whenever a file is injected into a specific space you configure:
 
