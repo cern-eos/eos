@@ -497,7 +497,6 @@ cc7_xrd_testing_docker_image:
     - build_cc7_xrd_testing
     - clone_docker
   only:
-    - wip_cmake
     - schedules
   allow_failure: true
 
@@ -809,8 +808,9 @@ k8s_fusex_ubuntu:
   tags:
     - shell-with-kubernetes
 
-.k8s_system_xt: # @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
-               # xt stands for xrd_testing. Must shorten to not hit HOST_NAME_MAX
+# @note Re-enabled xrd_testing jobs since project is upgrading to XRootD 5
+# xt stands for xrd_testing; must shorten to not hit HOST_NAME_MAX
+k8s_system_xt:
   <<: *dock8s_system_test_template
   variables:
     BASETAG: "xrd_testing_"
@@ -867,8 +867,9 @@ dock_fusex_ubuntu:
     - shell-with-docker
   when: manual
 
-.dock_system_xt: # @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
-  # xt stands for xrd_testing. Must shorten to not hit HOST_NAME_MAX
+# @note Re-enabled xrd_testing jobs since project is upgrading to XRootD 5
+# xt stands for xrd_testing; must shorten to not hit HOST_NAME_MAX
+dock_system_xt:
   <<: *dock8s_system_test_template
   variables:
     BASETAG: "xrd_testing_"
