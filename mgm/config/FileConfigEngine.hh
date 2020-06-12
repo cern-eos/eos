@@ -180,6 +180,8 @@ private:
   //! Tags used when building the config file names stored on disk
   static const std::string sAutosaveTag;
   static const std::string sBackupTag;
+  //! Broadcast changes into the MGM configuration queue (config/<inst>/mgm)
+  bool mBroadcast;
   std::mutex sMutex;
   XrdOucString mConfigDir; ///< Path where configuration files are stored
 

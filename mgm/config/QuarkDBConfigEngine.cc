@@ -367,7 +367,7 @@ QuarkDBConfigEngine::SetConfigValue(const char* prefix, const char* key,
   }
 
   // In case the change is not coming from a broacast we can can broadcast it
-  if (mBroadcast && not_bcast) {
+  if (not_bcast) {
     // Make this value visible between MGM's
     publishConfigChange(config_key.c_str(), val);
   }
@@ -399,7 +399,7 @@ QuarkDBConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
   std::string config_key = formFullKey(prefix, key);
 
   // In case the change is not coming from a broacast we can can broadcast it
-  if (mBroadcast && not_bcast) {
+  if (not_bcast) {
     // Make this value visible between MGM's
     publishConfigDeletion(config_key.c_str());
   }

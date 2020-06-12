@@ -110,7 +110,7 @@ FileCfgEngineChangelog::Tail(unsigned int nlines, std::string& tail)
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-FileConfigEngine::FileConfigEngine(const char* config_dir)
+FileConfigEngine::FileConfigEngine(const char* config_dir) : mBroadcast(true)
 {
   mConfigDir = config_dir;
   XrdOucString changeLogFile = mConfigDir;

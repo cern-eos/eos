@@ -57,7 +57,7 @@ EOSMGMNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 IConfigEngine::IConfigEngine():
-  mChangelog(), mAutosave(false), mBroadcast(true),
+  mChangelog(), mAutosave(false),
   mConfigFile("default")
 {}
 
