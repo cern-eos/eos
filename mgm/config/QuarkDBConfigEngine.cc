@@ -215,39 +215,44 @@ QuarkDBConfigEngine::SaveConfig(std::string filename, bool overwrite,
 }
 
 //------------------------------------------------------------------------------
+// Drop configname prefix
+//------------------------------------------------------------------------------
+static std::string dropConfigPrefix(const std::string &name) {
+  if(common::startsWith(name, "eos-config:")) {
+    return name.substr(11);
+  }
+
+  if(common::startsWith(name, "eos-config-backup:")) {
+    return name.substr(18);
+  }
+
+  return name;
+}
+
+//------------------------------------------------------------------------------
 // List the existing configurations
 //------------------------------------------------------------------------------
 bool
 QuarkDBConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
 
 {
+
+  std::vector<std::string> configs, backups;
+  common::Status status = mConfigHandler->listConfigurations(configs, backups);
+  if(!status) {
+    configlist += "error: ";
+    configlist += status.toString().c_str();
+    return false;
+  }
+
   configlist = "Existing Configurations on QuarkDB\n";
   configlist += "================================\n";
-  // Get the set from quarkdb with the available configurations
-  qclient::QScanner confScanner(*mQcl, kConfigurationHashKeyPrefix + ":*");
 
-  for (; confScanner.valid(); confScanner.next()) {
-    qclient::QHash q_hash(*mQcl, confScanner.getValue());
-    // Strip the prefix
-    XrdOucString key = confScanner.getValue().c_str();
-    int pos = key.rfind(":");
+  for(auto it = configs.begin(); it != configs.end(); it++) {
+    configlist += "name: ";
+    configlist += dropConfigPrefix(*it).c_str();
 
-    if (pos != -1) {
-      key.erasefromstart(pos + 1);
-    }
-
-    // Retrieve the timestamp value
-    if (q_hash.hexists("timestamp")) {
-      char outline[1024];
-      sprintf(outline, "created: %s name: %s", q_hash.hget("timestamp").c_str(),
-              key.c_str());
-      configlist += outline;
-    } else {
-      configlist += "name: ";
-      configlist += key.c_str();
-    }
-
-    if (key == mConfigFile) {
+    if(dropConfigPrefix(*it) == mConfigFile.c_str()) {
       configlist += " *";
     }
 
@@ -258,28 +263,10 @@ QuarkDBConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
     configlist += "=======================================\n";
     configlist += "Existing Backup Configurations on QuarkDB\n";
     configlist += "=======================================\n";
-    qclient::QScanner confScannerBackup(*mQcl,
-                                        kConfigurationBackupHashKeyPrefix + ":*");
 
-    for (; confScannerBackup.valid(); confScannerBackup.next()) {
-      qclient::QHash q_hash(*mQcl, confScannerBackup.getValue());
-      XrdOucString key = confScannerBackup.getValue().c_str();
-      int pos = key.rfind(":");
-
-      if (pos != -1) {
-        key.erasefromstart(pos + 1);
-      }
-
-      if (q_hash.hexists("timestamp")) {
-        char outline[1024];
-        sprintf(outline, "created: %s name: %s", q_hash.hget("timestamp").c_str(),
-                key.c_str());
-        configlist += outline;
-      } else {
-        configlist += "name: ";
-        configlist += key.c_str();
-      }
-
+    for(auto it = backups.begin(); it != backups.end(); it++) {
+      configlist += "name: ";
+      configlist += dropConfigPrefix(*it).c_str();
       configlist += "\n";
     }
   }
