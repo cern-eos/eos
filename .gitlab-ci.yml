@@ -18,13 +18,13 @@ default:
 
 
 #-------------------------------------------------------------------------------
-# Prebuild @note stick to v0.16.0 until < https://github.com/GoogleContainerTools/kaniko/issues/1038 > is fixed
+# Prebuild
 #-------------------------------------------------------------------------------
 
 .prebuid-template: &prebuild-template_definition
   stage: prebuild
   image:
-    name: gcr.io/kaniko-project/executor:debug-v0.16.0
+    name: gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
   script:
     - export DESTINATION="gitlab-registry.cern.ch/dss/eos/prebuild-${PREBUILD_NAME}"
@@ -421,13 +421,13 @@ build_cc7_coverage:
 
 
 #-------------------------------------------------------------------------------
-# Build docker images @note stick to v0.16.0 until < https://github.com/GoogleContainerTools/kaniko/issues/1038 > is fixed
+# Build docker images
 #-------------------------------------------------------------------------------
 
 .build_dockerimage-template: &build_dockerimage-template_definition
   stage: build:dockerimage
   image:
-    name: gcr.io/kaniko-project/executor:debug-v0.16.0
+    name: gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
   script:
     - if [[ -n "$CI_COMMIT_TAG" ]];
