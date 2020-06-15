@@ -451,8 +451,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     if( nAddrs == 0 )
       return Eroute.Emsg("Config", errno, "convert hostname to IP address", HostName);
 
-    int len = XrdNetUtils::IPFormat( addrs[0].SockAddr(), buff, sizeof( buff ),
-                                     XrdNetUtils::noPort | XrdNetUtils::oldFmt );
+    int len = addrs[0].Format( buff, sizeof( buff ), XrdNetAddrInfo::fmtAddr,
+                               XrdNetAddrInfo::noPortRaw );
     delete [] addrs;
 
     if( len == 0 )
