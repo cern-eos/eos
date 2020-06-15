@@ -595,12 +595,21 @@ public:
                      const eos::common::VirtualIdentity& v)
     : qcl(qc), path(target), vid(v)
   {
-    ExplorationOptions options;
-    options.populateLinkedAttributes = true;
-    options.expansionDecider.reset(new PermissionFilter(vid));
-    options.view = gOFS->eosView;
-    explorer.reset(new NamespaceExplorer(path, options, *qcl,
-                                         static_cast<QuarkNamespaceGroup*>(gOFS->namespaceGroup.get())->getExecutor()));
+    restart();
+  }
+
+  //----------------------------------------------------------------------------
+  // Restart
+  //----------------------------------------------------------------------------
+  void restart() {
+    if(!found) {
+      ExplorationOptions options;
+      options.populateLinkedAttributes = true;
+      options.expansionDecider.reset(new PermissionFilter(vid));
+      options.view = gOFS->eosView;
+      explorer.reset(new NamespaceExplorer(path, options, *qcl,
+                                           static_cast<QuarkNamespaceGroup*>(gOFS->namespaceGroup.get())->getExecutor()));
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -787,11 +796,29 @@ eos::mgm::FindCmd::ProcessRequest() noexcept
   auto max_version = 999999ul;
   bool printSimple = shouldPrintSimple(findRequest);
 
+  bool separateDirectories = false;
+  if(findRequest.directories() && !findRequest.files()) {
+    separateDirectories = true;
+  }
+  else if(findRequest.directories() && findRequest.files()) {
+    separateDirectories = true;
+  }
+
+  bool showFiles = false;
+  if(findRequest.files()) {
+    showFiles = true;
+  }
+  else if(!findRequest.files() && !findRequest.directories()) {
+    showFiles = true;
+  }
+
+
   if (!purge_atomic) {
     try {
       max_version = std::stoul(purgeversion);
       purge = true;
       dirs = true;
+      separateDirectories = true;
     } catch (std::logic_error& err) {
       // this error is handled at client side, should not receive bad input from client
     }
@@ -859,7 +886,7 @@ eos::mgm::FindCmd::ProcessRequest() noexcept
   unsigned long long filecounter = 0;
   unsigned long long dircounter = 0;
 
-  if (findRequest.files() || !nodirs) {
+  if (showFiles) {
     FindResult findResult;
 
     while (findResultProvider->next(findResult)) {
@@ -974,7 +1001,9 @@ eos::mgm::FindCmd::ProcessRequest() noexcept
 
   eos_debug("Listing directories");
 
-  if (dirs) {
+  if(separateDirectories) {
+    findResultProvider->restart();
+
     FindResult findResult;
 
     while (findResultProvider->next(findResult)) {
