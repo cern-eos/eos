@@ -58,8 +58,15 @@ XrdMgmOfs::fsctl(const int cmd,
     // we don't want to manage writes via global redirection - therefore we mark the files as 'r'
     rType[1] = 'r'; //(fstat.st_mode & S_IWUSR            ? 'w' : 'r');
     rType[2] = '\0';
-    sprintf(locResp, "[::%s]:%d ", (char*) gOFS->ManagerIp.c_str(),
-            gOFS->ManagerPort);
+
+    struct sockaddr_in sa;
+    int is_ipv4 = inet_pton( AF_INET, ManagerIp.c_str(), &(sa.sin_addr) );
+    if( is_ipv4 )
+      sprintf(locResp, "[::%s]:%d ", (char*) gOFS->ManagerIp.c_str(),
+              gOFS->ManagerPort);
+    else
+      sprintf(locResp, "[%s]:%d ", (char*) gOFS->ManagerIp.c_str(),
+              gOFS->ManagerPort);
     error.setErrInfo(strlen(locResp) + 3, (const char**) Resp, 2);
     return SFS_DATA;
   }
