@@ -25,6 +25,8 @@
 #define EOS_MGM_CONFIG_PARSING_HH
 
 #include "common/Namespace.hh"
+#include "common/Status.hh"
+
 #include <string>
 #include <map>
 
@@ -44,6 +46,12 @@ public:
   //----------------------------------------------------------------------------
   static bool parseFilesystemConfig(const std::string &config,
     std::map<std::string, std::string> &out);
+
+  //----------------------------------------------------------------------------
+  //! Relocate a filesystem to a different FST
+  //----------------------------------------------------------------------------
+  static Status relocateFilesystem(const std::string &newFstHost, int newFstPort,
+   std::map<std::string, std::string> &configEntry);
 
   //----------------------------------------------------------------------------
   //! Parse configuration file

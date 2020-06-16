@@ -25,6 +25,7 @@
 #include "mgm/FsView.hh"
 #include "mgm/utils/FilesystemUuidMapper.hh"
 #include "common/config/ConfigParsing.hh"
+#include "common/StringUtils.hh"
 
 //------------------------------------------------------------------------------
 // Test const_iterator implementation
@@ -177,5 +178,30 @@ TEST(ConfigParsing, FilesystemEntry)
   ASSERT_EQ(results["uuid"], "62dce94a-71de-4904-8105-534c61ce2eaa");
 
   ASSERT_EQ(results.size(), 17u);
+}
+
+TEST(ConfigParsing, ParseAndJoin) {
+  std::string entry = "configstatus=rw drainperiod=86400 graceperiod=86400 host=example.cern.ch hostport=example.cern.ch:3001 id=1 path=/volume1/fst-space/1 port=3001 queue=/eos/example.cern.ch:3001/fst queuepath=/eos/example.cern.ch:3001/fst/volume1/fst-space/1 scan_disk_interval=14400 scan_ns_interval=259200 scan_ns_rate=50 scaninterval=604800 scanrate=100 schedgroup=default.0 uuid=fst-1";
+  std::map<std::string, std::string> configEntry;
+
+  ASSERT_TRUE(eos::common::ConfigParsing::parseFilesystemConfig(entry,
+    configEntry));
+
+  ASSERT_EQ(eos::common::joinMap(configEntry, " "), entry);
+}
+
+TEST(ConfigParsing, RelocateFilesystem) {
+  std::map<std::string, std::string> configEntry;
+
+  ASSERT_TRUE(eos::common::ConfigParsing::parseFilesystemConfig(
+    "configstatus=rw drainperiod=86400 graceperiod=86400 host=example.cern.ch hostport=example.cern.ch:3001 id=1 path=/volume1/fst-space/1 port=3001 queue=/eos/example.cern.ch:3001/fst queuepath=/eos/example.cern.ch:3001/fst/volume1/fst-space/1 scan_disk_interval=14400 scan_ns_interval=259200 scan_ns_rate=50 scaninterval=604800 scanrate=100 schedgroup=default.0 uuid=fst-1",
+    configEntry));
+
+  ASSERT_TRUE(eos::common::ConfigParsing::relocateFilesystem("example-2.cern.ch", 5001, configEntry));
+
+  ASSERT_EQ(eos::common::joinMap(configEntry, " "),
+    "configstatus=rw drainperiod=86400 graceperiod=86400 host=example-2.cern.ch hostport=example-2.cern.ch:5001 id=1 path=/volume1/fst-space/1 port=5001 queue=/eos/example-2.cern.ch:5001/fst queuepath=/eos/example-2.cern.ch:5001/fst/volume1/fst-space/1 scan_disk_interval=14400 scan_ns_interval=259200 scan_ns_rate=50 scaninterval=604800 scanrate=100 schedgroup=default.0 uuid=fst-1"
+  );
+
 }
 
