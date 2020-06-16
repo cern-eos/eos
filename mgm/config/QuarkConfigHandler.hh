@@ -65,7 +65,7 @@ public:
   // Write the given configuration
   //----------------------------------------------------------------------------
   common::Status writeConfiguration(const std::string &name, const std::map<std::string, std::string> &config,
-    bool overwrite);
+    bool overwrite, const std::string &backup = "");
 
   //----------------------------------------------------------------------------
   // Check if configuration key exists already

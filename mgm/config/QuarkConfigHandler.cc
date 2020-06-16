@@ -108,7 +108,7 @@ common::Status QuarkConfigHandler::fetchConfiguration(const std::string &name, s
 // Write the given configuration
 //------------------------------------------------------------------------------
 common::Status QuarkConfigHandler::writeConfiguration(const std::string &name, const std::map<std::string, std::string> &config,
-    bool overwrite) {
+    bool overwrite, const std::string &backup) {
 
   std::string configKey = SSTR("eos-config:" << name);
   qclient::IntegerParser hlenResp(mQcl->exec("HLEN", configKey).get());
@@ -126,19 +126,28 @@ common::Status QuarkConfigHandler::writeConfiguration(const std::string &name, c
   // Prepare write batch
   //----------------------------------------------------------------------------
   qclient::MultiBuilder multiBuilder;
-  multiBuilder.emplace_back("DEL", "eos-config:default");
+  uint32_t extraReqs = 1;
+
+  if(!backup.empty()) {
+    std::string backupConfigKey = SSTR("eos-config-backup:" << name << "-" << backup);
+    multiBuilder.emplace_back("DEL", backupConfigKey);
+    multiBuilder.emplace_back("HCLONE", configKey, backupConfigKey);
+    extraReqs += 2;
+  }
+
+  multiBuilder.emplace_back("DEL", configKey);
 
   for (auto it = config.begin(); it != config.end(); it++) {
     multiBuilder.emplace_back("HSET", configKey, it->first, it->second);
   }
 
   qclient::redisReplyPtr reply = mQcl->execute(multiBuilder.getDeque()).get();
-  if(reply->elements != config.size() + 1) {
+  if(reply->elements != config.size() + extraReqs) {
     return common::Status(EINVAL,
       SSTR("unexpected number of elements in response: " << qclient::describeRedisReply(reply)));
   }
 
-  for(size_t i = 1; i < reply->elements; i++) {
+  for(size_t i = extraReqs; i < reply->elements; i++) {
     qclient::IntegerParser intParse(reply->element[i]);
     if(!intParse.ok() || intParse.value() != 1) {
       return common::Status(EINVAL, SSTR("unexpected response in position " << i << ": " << qclient::describeRedisReply(reply->element[i])));
