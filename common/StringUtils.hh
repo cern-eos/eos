@@ -84,4 +84,23 @@ static inline std::string boolToString(bool b)
   return "false";
 }
 
+//------------------------------------------------------------------------------
+//! Join map
+//------------------------------------------------------------------------------
+static inline std::string joinMap(const std::map<std::string, std::string> &m, const std::string &delim) {
+  std::ostringstream ss;
+
+  auto it = m.begin();
+  while(it != m.end()) {
+    ss << it->first << "=" << it->second;
+
+    it++;
+    if(it != m.end()) {
+      ss << delim;
+    }
+  }
+
+  return ss.str();
+}
+
 EOSCOMMONNAMESPACE_END

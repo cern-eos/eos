@@ -24,6 +24,7 @@
 #include "common/config/ConfigParsing.hh"
 #include "common/StringConversion.hh"
 #include "common/Logging.hh"
+#include "common/Locators.hh"
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -79,6 +80,28 @@ bool ConfigParsing::parseFilesystemConfig(const std::string& config,
 
   // All clear, configuration is valid
   return true;
+}
+
+//------------------------------------------------------------------------------
+// Relocate a filesystem to a different FST
+//------------------------------------------------------------------------------
+Status ConfigParsing::relocateFilesystem(const std::string &newFstHost, int newFstPort,
+   std::map<std::string, std::string> &configEntry) {
+
+  eos::common::FileSystemLocator locator;
+  if(!common::FileSystemLocator::fromQueuePath(configEntry["queuepath"], locator)) {
+    return Status(EINVAL, SSTR("could not parse queuepath: " << configEntry["queuepath"]));
+  }
+
+  locator = eos::common::FileSystemLocator(newFstHost, newFstPort, locator.getStoragePath());
+
+  configEntry["host"] = newFstHost;
+  configEntry["port"] = SSTR(newFstPort);
+  configEntry["hostport"] = SSTR(newFstHost << ":" << newFstPort);
+  configEntry["queue"] = locator.getFSTQueue();
+  configEntry["queuepath"] = locator.getQueuePath();
+
+  return Status();
 }
 
 //------------------------------------------------------------------------------
