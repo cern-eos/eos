@@ -398,7 +398,15 @@ ReedSLayout::WriteParityToFiles(uint64_t offsetGroup)
   int ret = SFS_OK;
   int64_t nwrite = 0;
   unsigned int physical_id;
+  int64_t write_size = mStripeWidth;
   uint64_t offset_local = (offsetGroup / mNbDataFiles);
+  int64_t offset_allocated = GetAllocationSize(mNbDataFiles, mFileSize);
+
+  if ( (offset_allocated - offset_local) < mStripeWidth ) {
+      // this is the last block, which can be shorter
+      write_size = offset_allocated - offset_local;
+  }
+
   offset_local += mSizeHeader;
 
   for (unsigned int i = mNbDataFiles; i < mNbTotalFiles; i++) {
@@ -407,9 +415,9 @@ ReedSLayout::WriteParityToFiles(uint64_t offsetGroup)
     // Write parity block
     if (mStripe[physical_id]) {
       nwrite = mStripe[physical_id]->fileWriteAsync(offset_local, mDataBlocks[i],
-               mStripeWidth, mTimeout);
+               write_size, mTimeout);
 
-      if (nwrite != (int64_t)mStripeWidth) {
+      if (nwrite != (int64_t)write_size) {
         eos_err("while doing write operation stripe=%u, offset=%lli",
                 i, offset_local);
         ret = SFS_ERROR;
@@ -486,13 +494,57 @@ ReedSLayout::MapSmallToBig(unsigned int idSmall)
 }
 
 
+
+//------------------------------------------------------------------------------
+// Get allocation size for a given stripe
+//------------------------------------------------------------------------------
+
+uint64_t
+ReedSLayout::GetAllocationSize(int i, int64_t length) {
+  int64_t nblocks = length / mStripeWidth;
+  int64_t modulo = nblocks % mNbDataFiles;
+  int64_t left_modulo =mNbDataFiles - modulo;
+  int64_t stripe_blocks = nblocks + left_modulo;
+  int64_t blocks_per_stripe = stripe_blocks / mNbDataFiles;
+  int64_t size = 0;
+
+  if ((unsigned int) i<mNbDataFiles) {
+    // data stripe
+    if (i < modulo) {
+      size = blocks_per_stripe * mStripeWidth;
+    } else {
+      if (i == modulo) {
+	size = ((blocks_per_stripe-1) * mStripeWidth) + ( length % mStripeWidth);
+      } else {
+        // i > modulo
+	size = (blocks_per_stripe-1) * mStripeWidth;
+      }
+    }
+  } else {
+    // parity stripe
+    if (length > (int64_t) mStripeWidth) {
+      int64_t size1 =  blocks_per_stripe * mStripeWidth;
+      int64_t size2 = ((blocks_per_stripe-1) * mStripeWidth) + ( length % mStripeWidth);
+      if (modulo) {
+	size = std::max(size1,size2);
+      } else {
+	size = size2;
+      }
+    } else {
+      size = length;
+    }
+  }
+  return size;
+}
+
+
 //------------------------------------------------------------------------------
 // Allocate file space ( reserve )
 //------------------------------------------------------------------------------
 int
 ReedSLayout::Fallocate(XrdSfsFileOffset length)
 {
-  int64_t size = ceil((1.0 * length) / mSizeGroup) * mStripeWidth + mSizeHeader;
+  int64_t size = GetAllocationSize(mPhysicalStripeIndex, length) + mSizeHeader;
   return mStripe[0]->fileFallocate(size);
 }
 
@@ -504,9 +556,9 @@ int
 ReedSLayout::Fdeallocate(XrdSfsFileOffset fromOffset,
                          XrdSfsFileOffset toOffset)
 {
-  int64_t from_size = ceil((1.0 * fromOffset) / mSizeGroup) * mStripeWidth +
+  int64_t from_size = GetAllocationSize(mPhysicalStripeIndex, fromOffset) +
                       mSizeHeader;
-  int64_t to_size = ceil((1.0 * toOffset) / mSizeGroup) * mStripeWidth +
+  int64_t to_size = GetAllocationSize(mPhysicalStripeIndex, toOffset) +
                     mSizeHeader;
   return mStripe[0]->fileFdeallocate(from_size, to_size);
 }

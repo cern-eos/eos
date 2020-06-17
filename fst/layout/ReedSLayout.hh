@@ -97,7 +97,6 @@ public:
   virtual int Fdeallocate(XrdSfsFileOffset fromOffset,
                           XrdSfsFileOffset toOffset);
 
-
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
@@ -220,6 +219,13 @@ private:
   virtual uint64_t
   GetGlobalOff(int stripe_id, uint64_t local_off);
 
+
+
+  //--------------------------------------------------------------------------
+  //! Return the area which is really written in a given stripe to minimize allcation
+  //--------------------------------------------------------------------------
+  uint64_t
+  GetAllocationSize(int stripe_id, int64_t length);
 
   //--------------------------------------------------------------------------
   //! Disable copy constructor
