@@ -326,6 +326,12 @@ HttpHandler::Get(eos::common::HttpRequest* request)
                                           checksum_name,
                                           checksum_val);
           response->AddHeader("OC-Checksum", checksum_string);
+          const auto& hdrs = request->GetHeaders();
+          auto it = hdrs.find("want-digest");
+
+          if (it != hdrs.end()) {
+            response->AddHeader("Digest", checksum_string);
+          }
         }
       }
 
