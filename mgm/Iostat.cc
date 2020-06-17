@@ -83,7 +83,7 @@ Iostat::Iostat():
     IostatPopularity[i].resize(100000);
   }
 
-  IostatLastPopularityBin = 0;
+  IostatLastPopularityBin = 9999999;
 }
 
 
@@ -1998,8 +1998,6 @@ Iostat::AddToPopularity(std::string path, unsigned long long rb,
     IostatPopularity[popularitybin][sp].rb += rb;
     IostatPopularity[popularitybin][sp].nread++;
   }
-
-  IostatLastPopularityBin = popularitybin;
 }
 
 /* ------------------------------------------------------------------------- */
