@@ -26,6 +26,7 @@
 #include "common/config/ConfigParsing.hh"
 #include "common/CLI11.hpp"
 #include "common/PasswordHandler.hh"
+#include "common/StringUtils.hh"
 
 #include "mgm/config/QuarkConfigHandler.hh"
 
@@ -202,6 +203,65 @@ int runTailSubcommand(size_t nlines, eos::mgm::QuarkConfigHandler &configHandler
   return 0;
 }
 
+int runRelocateFilesystemSubcommand(eos::mgm::QuarkConfigHandler &configHandler, uint32_t fsid, const std::string &newhost, int newport) {
+  std::map<std::string, std::string> configMap;
+  eos::common::Status st = configHandler.fetchConfiguration("default", configMap);
+
+  if(!st) {
+    std::cerr << "could not fetch configuration: " << st.toString() << std::endl;
+    return 1;
+  }
+
+  for(auto it = configMap.begin(); it != configMap.end(); it++) {
+    if(eos::common::startsWith(it->first, "fs:")) {
+      std::map<std::string, std::string> configEntry;
+
+      if(!eos::common::ConfigParsing::parseFilesystemConfig(it->second, configEntry)) {
+        std::cerr << "could not parse fs entry: " << it->first << it->second << std::endl;
+        return 1;
+      }
+
+      if(configEntry["id"] == SSTR(fsid)) {
+        // We have a match
+        std::cout << "Found filesystem with fsid=" << fsid << ": " << configEntry["queue"] << std::endl;
+        std::cout << it->first << " " << it->second << std::endl;
+
+        st = eos::common::ConfigParsing::relocateFilesystem(newhost, newport, configEntry);
+
+        if(!st) {
+          std::cerr << "filesystem relocation failed: " << st.toString() << std::endl;
+          return 1;
+        }
+
+        std::string configKey = SSTR("fs:" << configEntry["queuepath"]);
+        std::string newConfig = eos::common::joinMap(configEntry, " ");
+        std::cout << "After relocation: " << configKey << " " << newConfig << std::endl;
+
+        configMap.erase(it);
+        configMap[configKey] = newConfig;
+
+        char buff[128];
+        time_t timestamp = time(NULL);
+        strftime(buff, 127, "%Y%m%d%H%M%S", localtime(&timestamp));
+        std::string backupName = SSTR("default-" << buff << "-relocation"); 
+
+        st = configHandler.writeConfiguration("default", configMap, true, backupName);
+
+        if(!st) {
+          std::cerr << "writing configuration failed: " << st.toString() << std::endl;
+          return 1;
+        }
+
+        std::cout << "Successfully wrote configuration, backup key: " << backupName << std::endl;
+        return 0;
+      }
+    }
+  }
+
+  std::cerr << "no filesystem found with fsid=" << fsid << std::endl;
+  return 1;
+}
+
 int main(int argc, char* argv[])
 {
   CLI::App app("Tool to inspect contents of the QuarkDB-based EOS configuration.");
@@ -230,6 +290,30 @@ int main(int argc, char* argv[])
                              "Overwrite already-existing configuration in QDB.");
 
   addClusterOptions(exportSubcommand, membersStr, memberValidator, password,
+                    passwordFile);
+
+  //----------------------------------------------------------------------------
+  // Set-up relocate-filesystem subcommand..
+  //----------------------------------------------------------------------------
+  auto relocateFilesystemSubcommand = app.add_subcommand("relocate-filesystem",
+                          "[DANGEROUS] Change the FST to which a filesystem belongs to");
+
+  uint32_t fsid;
+  relocateFilesystemSubcommand->add_option("--fsid", fsid,
+                               "The ID of the filesystem to change")
+  ->required();
+
+  std::string newFstHost;
+  relocateFilesystemSubcommand->add_option("--new-fst-host", newFstHost,
+                               "The new FST host")
+  ->required();
+
+  int newFstPort;
+  relocateFilesystemSubcommand->add_option("--new-fst-port", newFstPort,
+                               "The new FST port")
+  ->required();
+
+  addClusterOptions(relocateFilesystemSubcommand, membersStr, memberValidator, password,
                     passwordFile);
 
   //----------------------------------------------------------------------------
@@ -300,6 +384,9 @@ int main(int argc, char* argv[])
 
   if(exportSubcommand->parsed()) {
     return runExportSubcommand(sourceFile, configHandler, overwrite);
+  }
+  else if(relocateFilesystemSubcommand->parsed()) {
+    return runRelocateFilesystemSubcommand(configHandler, fsid, newFstHost, newFstPort);
   }
   else if(dumpSubcommand->parsed()) {
     return runDumpSubcommand(configHandler);
