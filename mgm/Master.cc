@@ -1726,7 +1726,7 @@ Master::BootNamespace()
     namespaceConfig["qdb_flusher_quota"] = SSTR(instance_id << "_quota");
     fillNamespaceCacheConfig(gOFS->ConfEngine, namespaceConfig);
 
-    // Forbit running as slave with the QDB namespace when the legacy master-
+    // Forbid running as slave with the QDB namespace when the legacy master-
     // slave setup is still enabled
     if (IsMaster() == false) {
       eos_crit("%s", "msg=\"not allowed to run as slave with QDB namespace "
@@ -1740,7 +1740,6 @@ Master::BootNamespace()
     eos_err("msg=\"could not initialize namespace group, err: %s\"", err.c_str());
     return false;
   }
-
 
   //----------------------------------------------------------------------------
   // Fetch all required services out of namespace group
@@ -1867,7 +1866,6 @@ Master::BootNamespace()
     gOFS->mBootContainerId = gOFS->eosDirectoryService->getFirstFreeId();
     MasterLog(eos_notice("eos directory view configure stopped after %d seconds",
                          (tstop - tstart)));
-
     gOFS->namespaceGroup->startCacheRefreshListener();
 
     if (!IsMaster()) {
