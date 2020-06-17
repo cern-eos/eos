@@ -715,7 +715,8 @@ Converter::Convert(ThreadAssistant& assistant) noexcept
     }
 
     // Let some time pass or wait for a notification
-    for (int i = 0; i < 10; i++) {
+    auto limit = (lSpaceTransfers < 10)?lSpaceTransfers:10;
+    for (int i = 0; i < limit?limit:1; i++) {
       mDoneSignal.Wait(1);
 
       if (assistant.terminationRequested()) {
