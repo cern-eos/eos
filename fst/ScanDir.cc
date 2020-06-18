@@ -581,6 +581,12 @@ ScanDir::CheckFile(const std::string& fpath)
 #ifndef _NOOFS
   auto fid = eos::common::FileId::PathToFid(fpath.c_str());
 
+  if (!fid) {
+    eos_static_info("msg=\"skip file which is not a eos data file\", "
+                    "path=\"%s\"", fpath.c_str());
+    return;
+  }
+
   if (mBgThread) {
     if (gOFS.openedForWriting.isOpen(mFsId, fid)) {
       syslog(LOG_ERR, "skipping scan w-open file: localpath=%s fsid=%d fxid=%08llx\n",
