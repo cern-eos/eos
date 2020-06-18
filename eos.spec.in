@@ -231,7 +231,7 @@ BuildRequires: librichacl-devel, richacl >= 1.12
 # ISA-L[_crypto], XXHash and scitokens dependencies for CC7 and C8
 %if %{?_with_server:1}%{!?_with_server:0}
 %if 0%{distribution} == 7 || 0%{distribution} == 8
-BuildRequires: scitokens-cpp, scitokens-devel
+BuildRequires: scitokens-cpp, scitokens-cpp-devel
 BuildRequires: xxhash-devel
 %if 0%{distribution} == 7
 BuildRequires: libisa-l-devel libisa-l_crypto-devel
