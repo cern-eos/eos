@@ -198,25 +198,29 @@ ProcCommand::Rm()
           std::map<gid_t, unsigned long long> group_deletion_size;
 
           for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {
-            for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end();
-                 fileit++) {
-              std::string fspath = rfoundit->first;
-              size_t l_pos;
-              std::string entry = *fileit;
+	    int rpos = 0;
+	    if ((rpos = rfoundit->first.find("/.sys.v#.")) == STR_NPOS) {
+	      // skip to check version files
+	      for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end();
+		   fileit++) {
+		std::string fspath = rfoundit->first;
+		size_t l_pos;
+		std::string entry = *fileit;
 
-              if ((l_pos = entry.find(" ->")) != std::string::npos) {
-                entry.erase(l_pos);
-              }
+		if ((l_pos = entry.find(" ->")) != std::string::npos) {
+		  entry.erase(l_pos);
+		}
 
-              fspath += entry;
+		fspath += entry;
 
-              if (gOFS->_rem(fspath.c_str(), *mError, *pVid, nullptr, true)) {
-                stdErr += "error: unable to remove file - bulk deletion aborted\n";
-                retc = errno;
-                return SFS_OK;
-              }
-            }
-          }
+		if (gOFS->_rem(fspath.c_str(), *mError, *pVid, nullptr, true)) {
+		  stdErr += "error: unable to remove file - bulk deletion aborted\n";
+		  retc = errno;
+		  return SFS_OK;
+		}
+	      }
+	    }
+	  }
 
           // delete directories in simulation mode
           for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {

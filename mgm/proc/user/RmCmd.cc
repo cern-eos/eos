@@ -233,28 +233,31 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
           std::map<gid_t, unsigned long long> group_deletion_size;
 
           for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {
-            for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end();
-                 fileit++) {
-              std::string fspath = rfoundit->first;
-              std::string entry = *fileit;
-              size_t l_pos;
+	    int rpos = 0;
+            if ((rpos = rfoundit->first.find("/.sys.v#.")) == STR_NPOS) {
+	      for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end();
+		   fileit++) {
+		std::string fspath = rfoundit->first;
+		std::string entry = *fileit;
+		size_t l_pos;
 
-              if ((l_pos = entry.find(" ->")) != std::string::npos) {
-                entry.erase(l_pos);
-              }
+		if ((l_pos = entry.find(" ->")) != std::string::npos) {
+		  entry.erase(l_pos);
+		}
 
-              fspath += entry;
-              errInfo.clear();
+		fspath += entry;
+		errInfo.clear();
 
-              if (gOFS->_rem(fspath.c_str(), errInfo, mVid, nullptr, true)) {
-                errStream << "error: unable to remove file '" << fspath << "'"
+		if (gOFS->_rem(fspath.c_str(), errInfo, mVid, nullptr, true)) {
+		  errStream << "error: unable to remove file '" << fspath << "'"
                           << " - bulk deletion aborted" << std::endl;
-                reply.set_std_err(errStream.str());
-                reply.set_retc(errno);
-                return reply;
-              }
-            }
-          }
+		  reply.set_std_err(errStream.str());
+		  reply.set_retc(errno);
+		  return reply;
+		}
+	      }
+	    }
+	  }
 
           // Delete directories in simulation mode
           for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {
