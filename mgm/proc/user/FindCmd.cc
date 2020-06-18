@@ -792,7 +792,6 @@ eos::mgm::FindCmd::ProcessRequest() noexcept
   bool layoutstripes = findRequest.dolayoutstripes();
   bool nofiles = findRequest.directories() && !findRequest.files();
   bool nodirs = findRequest.files();
-  bool dirs = findRequest.directories();
   auto max_version = 999999ul;
   bool printSimple = shouldPrintSimple(findRequest);
 
@@ -817,7 +816,6 @@ eos::mgm::FindCmd::ProcessRequest() noexcept
     try {
       max_version = std::stoul(purgeversion);
       purge = true;
-      dirs = true;
       separateDirectories = true;
     } catch (std::logic_error& err) {
       // this error is handled at client side, should not receive bad input from client

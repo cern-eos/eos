@@ -697,15 +697,18 @@ proc_fs_add(mq::MessagingRealm* realm, std::string& sfsid, std::string& uuid,
       continue;
     }
 
-    // Skip if group already contains an fs from the current node
+    // Skip if group already contains an fs from the current node.
+    // Allow disabling this check in development clusters through the envvar
     bool exists = false;
 
-    for (auto it = group->begin(); it != group->end(); ++it) {
-      FileSystem* entry = FsView::gFsView.mIdView.lookupByID(*it);
+    if (!getenv("EOS_ALLOW_SAME_HOST_IN_GROUP")) {
+      for (auto it = group->begin(); it != group->end(); ++it) {
+        FileSystem* entry = FsView::gFsView.mIdView.lookupByID(*it);
 
-      if (entry && (entry->GetString("host") == locator.getHost())) {
-        exists = true;
-        break;
+        if (entry && (entry->GetString("host") == locator.getHost())) {
+          exists = true;
+          break;
+        }
       }
     }
 
