@@ -59,14 +59,17 @@ XrdMgmOfs::fsctl(const int cmd,
     rType[1] = 'r'; //(fstat.st_mode & S_IWUSR            ? 'w' : 'r');
     rType[2] = '\0';
 
-    struct sockaddr_in sa;
-    int is_ipv4 = inet_pton( AF_INET, ManagerIp.c_str(), &(sa.sin_addr) );
-    if( is_ipv4 )
-      sprintf(locResp, "[::%s]:%d ", (char*) gOFS->ManagerIp.c_str(),
-              gOFS->ManagerPort);
+    if( cmd & SFS_O_HNAME )
+      sprintf(locResp, "%s", (char*) gOFS->ManagerId.c_str());
     else
-      sprintf(locResp, "[%s]:%d ", (char*) gOFS->ManagerIp.c_str(),
-              gOFS->ManagerPort);
+    {
+      struct sockaddr_in sa;
+      int is_ipv4 = inet_pton( AF_INET, ManagerIp.c_str(), &(sa.sin_addr) );
+      if( is_ipv4 )
+        sprintf(locResp, "[::%s]:%d", (char*)ManagerIp.c_str(), gOFS->ManagerPort);
+      else
+        sprintf(locResp, "[%s]:%d", (char*)ManagerIp.c_str(), gOFS->ManagerPort);
+    }
     error.setErrInfo(strlen(locResp) + 3, (const char**) Resp, 2);
     return SFS_DATA;
   }
