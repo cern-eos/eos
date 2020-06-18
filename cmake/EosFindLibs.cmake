@@ -57,6 +57,7 @@ if(NOT PACKAGEONLY)
   find_package(libbfd)
   find_package(richacl)
   find_package(davix)
+  find_package(Scitokens)
 
   if (Linux)
     # Clang Linux build requires libatomic
@@ -89,7 +90,7 @@ if(NOT PACKAGEONLY)
         INTERFACE_INCLUDE_DIRECTORIES "${PROTOBUF_INCLUDE_DIR}")
     endif()
 
-    # Add dummy targets for APPLE so simplify the cmake file using these targets
+    # Add dummy targets for APPLE to simplify the cmake file using these targets
     add_library(GLIBC::DL    INTERFACE IMPORTED)
     add_library(GLIBC::RT    INTERFACE IMPORTED)
     add_library(GLIBC::M     INTERFACE IMPORTED)
@@ -157,6 +158,7 @@ else()
   add_library(RICHACL::RICHACL             UNKNOWN IMPORTED)
   add_library(DAVIX::DAVIX                 UNKNOWN IMPORTED)
   add_library(ROCKSDB::ROCKSDB             UNKNOWN IMPORTED)
+  add_library(SCITOKENS::SCITOKENS         UNKNOWN IMPORTED)
   add_library(XFS::XFS                     INTERFACE IMPORTED)
   add_library(GOOGLE::SPARSEHASH           INTERFACE IMPORTED)
   add_library(ISAL::ISAL                   STATIC IMPORTED)

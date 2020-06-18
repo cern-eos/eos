@@ -23,3 +23,6 @@
 [submodule "common/grpc-proto"]
 	path = common/grpc-proto
 	url = https://:@gitlab.cern.ch:8443/eos/grpc-proto.git
+[submodule "eos-scitokens"]
+	path = eos-scitokens
+	url = https://gitlab.cern.ch/eos/eos-scitokens.git
