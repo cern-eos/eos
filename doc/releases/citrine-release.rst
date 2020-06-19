@@ -16,6 +16,34 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.3 Citrine``
+===================
+
+2020-06-19
+
+Bug
+----
+
+* [EOS-4295] - Folder remove fails while deleting child version files (with Operation not permitted)
+* MGM: remove timeordered caps entries if there insertion time has passed, don't rely on the cap
+  validity beause it can be updated in the meanwhile
+* MGM: default max children for eosxd listing to 128k not 128M
+
+New feature
+------------
+
+MGM: Implement helper method for relocating filesystem to different FST
+
+Improvement
+------------
+
+* Build on top of XRootD 4.12.3 that fixes some HTTP crashes
+* XRootD5 compatibility
+* SCITOKENS: Build libEosAccSciTokens.so as part of the eos release
+* FST: Provide digest information if want-digest header present according to RFC3230
+* [EOS-4299] - ResyncFileFromQdb error after FST upgrade to 4.8.2
+
+
 ``v4.8.2 Citrine``
 ===================
 
