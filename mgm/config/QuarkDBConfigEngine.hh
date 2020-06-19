@@ -206,14 +206,20 @@ private:
   }
 
   //----------------------------------------------------------------------------
+  //! Format time
+  //----------------------------------------------------------------------------
+  static std::string formatBackupTime(time_t timestamp) {
+    char buff[128];
+    strftime(buff, 127, "%Y%m%d%H%M%S", localtime(&timestamp));
+    return SSTR(buff);
+  }
+
+  //----------------------------------------------------------------------------
   //! Form backup configuration hash key
   //----------------------------------------------------------------------------
   std::string formBackupConfigHashKey(const std::string& name, time_t timestamp)
   {
-    char buff[128];
-    time_t now = time(NULL);
-    strftime(buff, 127, "%Y%m%d%H%M%S", localtime(&now));
-    return SSTR(kConfigurationBackupHashKeyPrefix << ":" << name << "-" << buff);
+    return SSTR(kConfigurationBackupHashKeyPrefix << ":" << name << "-" << formatBackupTime(timestamp));
   }
 
   //----------------------------------------------------------------------------

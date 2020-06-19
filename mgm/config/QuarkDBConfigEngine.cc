@@ -420,68 +420,14 @@ QuarkDBConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
 //------------------------------------------------------------------------------
 void QuarkDBConfigEngine::storeIntoQuarkDB(const std::string& name)
 {
-  // Create backup
-  std::string hash_key_backup = formBackupConfigHashKey(name.c_str(), time(NULL));
-  std::string keyname = formConfigHashKey(name);
-  qclient::MultiBuilder multiBuilder;
-  multiBuilder.emplace_back("hclone", keyname, hash_key_backup);
-  multiBuilder.emplace_back("del", keyname);
-  std::vector<std::future<qclient::redisReplyPtr>> replies;
   std::lock_guard lock(mMutex);
-
   clearDeprecated(sConfigDefinitions);
 
-  for (const auto& elem : sConfigDefinitions) {
-    multiBuilder.emplace_back("hset", keyname, elem.first, elem.second);
-  }
+  common::Status st = mConfigHandler->writeConfiguration(name, sConfigDefinitions,
+    true, formatBackupTime(time(NULL)));
 
-  multiBuilder.emplace_back("hset", keyname, "timestamp",
-                            std::to_string(eos::common::Timing::GetNowInSec()));
-  qclient::redisReplyPtr reply = mQcl->execute(multiBuilder.getDeque()).get();
-
-  // The transaction has taken place, validate that the response makes sense
-  if (!reply || reply->type != REDIS_REPLY_ARRAY) {
-    eos_static_crit("Unexpected response from QDB when storing configuration "
-                    "value, bad reply type: %s",
-                    qclient::describeRedisReply(reply).c_str());
-    return;
-  }
-
-  // Expected number of elements?
-  if (reply->elements != sConfigDefinitions.size() + 3) {
-    eos_static_crit("Unexpected number of elements in response from QDB when "
-                    "storing configuration - received %d, expected %d: %s",
-                    reply->elements, sConfigDefinitions.size() + 3,
-                    qclient::describeRedisReply(reply).c_str());
-  }
-
-  // hclone reply - fix..
-  // qclient::StatusParser parser0(reply->element[0]);
-  // if(!parser0.ok() || parser0.value() != "OK") {
-  //   eos_static_crit("Unexpected response from QDB to HCLONE when storing "
-  //                   "configuration value: %s",
-  //                    qclient::describeRedisReply(reply).c_str());
-  //   return;
-  // }
-  // del reply
-  qclient::IntegerParser parser1(reply->element[1]);
-
-  if (!parser1.ok()) {
-    eos_static_crit("Unexpected response from QDB to DEL when storing "
-                    "configuration value: %s",
-                    qclient::describeRedisReply(reply).c_str());
-    return;
-  }
-
-  // replies to individual hset commands
-  for (size_t i = 2; i < reply->elements; i++) {
-    qclient::IntegerParser parser(reply->element[i]);
-
-    if (!parser.ok() || parser.value() != 1) {
-      eos_static_crit("Unexpected response from QDB when storing configuration "
-                      "value: ERR=%s, value=%d", parser.err().c_str(),
-                      parser.value());
-    }
+  if(!st.ok()) {
+    eos_static_crit("Failed to save MGM configuration !!!! %s", st.toString().c_str());
   }
 }
 
