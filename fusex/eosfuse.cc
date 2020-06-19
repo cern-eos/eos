@@ -1908,10 +1908,14 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
     std::string s7;
     std::string s8;
     std::string blocker;
+    uint64_t    blocker_inode;
+    static std::string last_blocker = "";
+    static uint64_t last_blocker_inode = 0;
+    static double last_blocked_ms = 0;
     {
       std::lock_guard<std::mutex> lock(meminfo.mutex());
       XrdSysMutexHelper sLock(getFuseStat().Mutex);
-      double blocked_ms = this->Tracker().blocked_ms(blocker);
+      double blocked_ms = this->Tracker().blocked_ms(blocker, blocker_inode);
       snprintf(ino_stat, sizeof(ino_stat),
                "ALL        threads             := %llu\n"
                "ALL        visze               := %s\n"
@@ -1988,6 +1992,21 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
                blocked_ms,
                blocker.c_str()
               );
+
+
+      if (blocker.length() && last_blocker.empty()) {
+	eos_static_warning("IO blocked on ino=%#lx for op=%s since %.02f ms",
+			   blocker_inode, blocker.c_str(), blocked_ms);
+      }
+
+      if (blocker.empty() && last_blocker.length()) {
+	eos_static_warning("IO unblock on ino=%#lx for op=%s since %.02f ms",
+			   last_blocker_inode, last_blocker.c_str(), last_blocked_ms);
+      }
+
+      last_blocker_inode = blocker_inode;
+      last_blocker = blocker;
+      last_blocked_ms = blocked_ms;
     }
     sout += ino_stat;
     std::ofstream dumpfile(EosFuse::Instance().config.statfilepath);
