@@ -496,7 +496,7 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
       oss_header << "\r\n";
     }
 
-    oss_header << key << ":" << val;
+    oss_header << key << ": " << val;
   }
 
   eos_debug("response-header: %s", oss_header.str().c_str());
