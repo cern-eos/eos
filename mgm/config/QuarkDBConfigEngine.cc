@@ -427,20 +427,12 @@ void QuarkDBConfigEngine::storeIntoQuarkDB(const std::string& name)
   multiBuilder.emplace_back("hclone", keyname, hash_key_backup);
   multiBuilder.emplace_back("del", keyname);
   std::vector<std::future<qclient::redisReplyPtr>> replies;
-  std::set<std::string> deprecated;
   std::lock_guard lock(mMutex);
 
-  for (const auto& elem : sConfigDefinitions) {
-    if (IsDeprecated(elem.first)) {
-      deprecated.insert(elem.first);
-    } else {
-      multiBuilder.emplace_back("hset", keyname, elem.first, elem.second);
-    }
-  }
+  clearDeprecated(sConfigDefinitions);
 
-  // Remove deprecated keys
-  for (const auto& rm_key : deprecated) {
-    sConfigDefinitions.erase(rm_key);
+  for (const auto& elem : sConfigDefinitions) {
+    multiBuilder.emplace_back("hset", keyname, elem.first, elem.second);
   }
 
   multiBuilder.emplace_back("hset", keyname, "timestamp",

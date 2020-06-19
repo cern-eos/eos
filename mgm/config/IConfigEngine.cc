@@ -469,4 +469,22 @@ IConfigEngine::IsDeprecated(const std::string& config_key) const
   return false;
 }
 
+//------------------------------------------------------------------------------
+// Clear deprecated entries from the map
+//------------------------------------------------------------------------------
+void
+IConfigEngine::clearDeprecated(std::map<std::string, std::string> &map) {
+  std::set<std::string> deprecated;
+
+  for (auto it = map.begin(); it != map.end(); it++) {
+    if(IsDeprecated(it->first)) {
+      deprecated.insert(it->first);
+    }
+  }
+
+  for(auto it = deprecated.begin(); it != deprecated.end(); it++) {
+    map.erase(*it);
+  }
+}
+
 EOSMGMNAMESPACE_END
