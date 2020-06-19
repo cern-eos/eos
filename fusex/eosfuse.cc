@@ -1724,6 +1724,13 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       tMetaCommunicate.join();
       tCapFlush.join();
 
+      {
+	// rename the stats file
+	std::string laststat = config.statfilepath;
+	laststat += ".last";
+	::rename(config.statfilepath.c_str(), laststat.c_str());
+      }
+
       if (Instance().Config().options.submounts) {
         Mounter().terminate();
       }
