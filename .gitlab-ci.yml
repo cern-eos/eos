@@ -438,6 +438,7 @@ build_cc7_coverage:
     - export DESTINATION="gitlab-registry.cern.ch/dss/eos:${IMAGE_TAG}"
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(echo -n $CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD | base64)\"}}}" > /kaniko/.docker/config.json
     - /kaniko/executor --cache=$CACHE --destination $DESTINATION --dockerfile $DOCKERFILE --context $CI_PROJECT_DIR
+  retry: 1
 
 cc7_docker_image:
   <<: *build_dockerimage-template_definition
@@ -488,7 +489,10 @@ cc7_asan_docker_image:
     - schedules
   allow_failure: true
 
-cc7_xrd_testing_docker_image:
+
+# @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
+# xt stands for xrd_testing. Must shorten to not hit HOST_NAME_MAX
+.cc7_xrd_testing_docker_image:
   <<: *build_dockerimage-template_definition
   variables:
     DOCKERFILE: eos-docker/Dockerfile_xrd_testing
@@ -808,9 +812,9 @@ k8s_fusex_ubuntu:
   tags:
     - shell-with-kubernetes
 
-# @note Re-enabled xrd_testing jobs since project is upgrading to XRootD 5
-# xt stands for xrd_testing; must shorten to not hit HOST_NAME_MAX
-k8s_system_xt:
+# @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
+# xt stands for xrd_testing. Must shorten to not hit HOST_NAME_MAX
+.k8s_system_xt:
   <<: *dock8s_system_test_template
   variables:
     BASETAG: "xrd_testing_"
@@ -867,9 +871,9 @@ dock_fusex_ubuntu:
     - shell-with-docker
   when: manual
 
-# @note Re-enabled xrd_testing jobs since project is upgrading to XRootD 5
-# xt stands for xrd_testing; must shorten to not hit HOST_NAME_MAX
-dock_system_xt:
+# @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
+# xt stands for xrd_testing. Must shorten to not hit HOST_NAME_MAX
+.dock_system_xt:
   <<: *dock8s_system_test_template
   variables:
     BASETAG: "xrd_testing_"
