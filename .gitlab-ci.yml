@@ -375,7 +375,7 @@ build_cc7_xrd_testing: # @todo Re-enable xrd_testing jobs once project ugprades 
     - echo "Exporting BRANCH=${BRANCH}"
     - source gitlab-ci/export_commit-type.sh
     - echo "Exporting COMMIT_TYPE=${COMMIT_TYPE}"
-    - echo -e '[xrootd-testing]\nname=XRootD Testing repository\nbaseurl=http://xrootd.web.cern.ch/xrootd/tests/repo/\ngpgcheck=0\nenabled=1\npriority=5\nprotect=0\n' >> /etc/yum.repos.d/xrootd-testing.repo
+    - echo -e '[xrootd-testing]\nname=XRootD Testing repository\nbaseurl=http://xrootd.cern.ch/sw/repos/testing/slc/7/$basearch\ngpgcheck=0\nenabled=1\npriority=5\nprotect=0\n' >> /etc/yum.repos.d/xrootd-testing.repo
   <<: *build_cc7_exotic-template_definition
   variables:
     BUILD_NAME: cc7_xrd_testing
