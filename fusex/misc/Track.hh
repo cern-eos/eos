@@ -118,10 +118,11 @@ public:
     return iNodes.size();
   }
 
-  double blocked_ms(std::string& function) {
+  double blocked_ms(std::string& function, uint64_t& inode) {
     // return's the time of the longest blocked mutex
     double max_blocked = 0;
     function = "";
+    inode = 0;
     // get current time
     auto now = std::chrono::steady_clock::now();
 
@@ -134,12 +135,13 @@ public:
 	if (is_blocked > max_blocked) {
 	  max_blocked = is_blocked;
 	  function = it.second->caller;
+	  inode = it.first;
 	}
       }
     }
 
-    if (max_blocked < 10) {
-      // don't report under 10ms
+    if (max_blocked < 1000) {
+      // don't report under 1000ms
       max_blocked = 0;
       function = "";
     }
