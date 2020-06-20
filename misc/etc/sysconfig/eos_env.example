@@ -51,7 +51,9 @@ EOS_MGM_HOST=mgm-master.localdomain
 # The fully qualified hostname of target MGM
 EOS_MGM_HOST_TARGET=mgm-slave.localdomain
 
-# The EOS instance name
+# The EOS instance name N.B.! It MUST start with "eos" and then some alphanumeric characters
+# This is important since there are some special files and directories created inside the /eos/<instance_name> subtree
+# indispensable for the proper functioning of the instance.
 EOS_INSTANCE_NAME=eosdev
 
 # The EOS configuration to load after daemon start
@@ -61,6 +63,7 @@ EOS_AUTOLOAD_CONFIG=default
 EOS_BROKER_URL=root://localhost:1097//eos/
 
 # The EOS host geo location tag used to sort hosts into geographical (rack) locations
+# !!! REQUIRED !!! list of ":" separated tokens of up to 8 chars
 EOS_GEOTAG=""
 
 # The fully qualified hostname of MGM master1
