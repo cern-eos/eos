@@ -469,7 +469,7 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
 
   std::ostringstream oss_header;
   response->AddHeader("Date",  eos::common::Timing::utctime(time(NULL)));
-  auto headers = response->GetHeaders();
+  const auto& headers = response->GetHeaders();
 
   for (const auto& hdr : headers) {
     std::string key = hdr.first;
@@ -500,10 +500,26 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
   }
 
   eos_debug("response-header: %s", oss_header.str().c_str());
-  return req.SendSimpleResp(response->GetResponseCode(),
-                            response->GetResponseCodeDescription().c_str(),
-                            oss_header.str().c_str(), response->GetBody().c_str(),
-                            response->GetBody().length());
+
+  if (req.verb == "HEAD") {
+    long long content_length = 0ll;
+    auto it = headers.find("Content-Length");
+
+    if (it != headers.end()) {
+      try {
+        content_length = std::stoll(it->second);
+      } catch (...) {}
+    }
+
+    return req.SendSimpleResp(response->GetResponseCode(),
+                              response->GetResponseCodeDescription().c_str(),
+                              oss_header.str().c_str(), nullptr, content_length);
+  } else {
+    return req.SendSimpleResp(response->GetResponseCode(),
+                              response->GetResponseCodeDescription().c_str(),
+                              oss_header.str().c_str(), response->GetBody().c_str(),
+                              response->GetBody().length());
+  }
 }
 
 //------------------------------------------------------------------------------
