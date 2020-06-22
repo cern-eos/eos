@@ -110,7 +110,6 @@ void ConvertCmd::StatusSubcmd(
   bool jsonOutput)
 {
   std::ostringstream out;
-
   // Lambda function to parse threadpool information
   auto parseKeyValueString = [](std::string skeyvalue) -> Json::Value {
     using eos::common::StringConversion;
@@ -118,20 +117,20 @@ void ConvertCmd::StatusSubcmd(
     Json::Value json;
 
     if (StringConversion::GetKeyValueMap(skeyvalue.c_str(),
-                                         map, "=", " ")) {
-      for (const auto& it: map) {
+    map, "=", " "))
+    {
+      for (const auto& it : map) {
         json[it.first] = map[it.first];
       }
     }
 
     return json;
   };
-
   // Extract Converter Driver parameters
   std::string threadpool = gOFS->mConverterDriver->GetThreadPoolInfo();
   std::string config = SSTR(
-    "maxthreads=" << gOFS->mConverterDriver->GetMaxThreadPoolSize()
-    << " interval=" << gOFS->mConverterDriver->GetRequestIntervalTime());
+                         "maxthreads=" << gOFS->mConverterDriver->GetMaxThreadPoolSize()
+                         << " interval=" << gOFS->mConverterDriver->GetRequestIntervalSec());
   uint64_t running = gOFS->mConverterDriver->NumRunningJobs();
   uint64_t failed = gOFS->mConverterDriver->NumFailedJobs();
   int64_t pending = gOFS->mConverterDriver->NumQdbPendingJobs();
@@ -192,7 +191,7 @@ void ConvertCmd::ConfigSubcmd(
           << " above 1 day limit" << std::endl;
       retc = EINVAL;
     } else {
-      gOFS->mConverterDriver->SetRequestIntervalTime(config.interval());
+      gOFS->mConverterDriver->SetRequestIntervalSec(config.interval());
       output["interval"] = std::to_string(config.interval());
     }
   }
@@ -202,12 +201,15 @@ void ConvertCmd::ConfigSubcmd(
     retc = ENODATA;
   } else if (jsonOutput) {
     Json::Value json;
+
     for (auto it = output.begin(); it != output.end(); it++) {
       json[it->first] = it->second;
     }
+
     out << Json::StyledWriter().write(json);
   } else {
     out << "Config values updated:" << std::endl;
+
     for (auto it = output.begin(); it != output.end(); it++) {
       out << it->first << "=" << it->second << std::endl;
     }
@@ -232,7 +234,6 @@ void ConvertCmd::FileSubcmd(const eos::console::ConvertProto_FileProto& file,
   std::string errmsg;
   std::string path;
   int retc = 0;
-
   auto enforce_file = XrdSfsFileExistence::XrdSfsFileExistIsFile;
   path = PathFromIdentifierProto(file.identifier(), errmsg);
 
@@ -258,6 +259,7 @@ void ConvertCmd::FileSubcmd(const eos::console::ConvertProto_FileProto& file,
   eos::IFileMD::id_t file_id = 0;
   eos::IFileMD::layoutId_t file_layoutid = 0;
   eos::IFileMD::location_t replica_location = 0;
+
   try {
     eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
     auto fmd = gOFS->eosView->getFile(path).get();
@@ -297,20 +299,19 @@ void ConvertCmd::FileSubcmd(const eos::console::ConvertProto_FileProto& file,
 
   if (conversion.checksum().length()) {
     echecksum = static_cast<LayoutId::eChecksum>(
-      LayoutId::GetChecksumFromString(conversion.checksum()));
+                  LayoutId::GetChecksumFromString(conversion.checksum()));
   } else {
     echecksum = static_cast<LayoutId::eChecksum>(
-      LayoutId::GetChecksum(file_layoutid));
+                  LayoutId::GetChecksum(file_layoutid));
   }
 
   // Schedule conversion job
   std::string conversion_id = BuildConversionId(conversion.layout(),
-                                                echecksum,
-                                                conversion.replica(),
-                                                file_id,
-                                                space,
-                                                conversion.placement());
-
+                              echecksum,
+                              conversion.replica(),
+                              file_id,
+                              space,
+                              conversion.placement());
   eos_info("msg=\"scheduling conversion job\" path=%s conversion_id=%s",
            path.c_str(), conversion_id.c_str());
 
@@ -351,7 +352,6 @@ void ConvertCmd::RuleSubcmd(const eos::console::ConvertProto_RuleProto& rule,
   std::string errmsg;
   std::string path;
   int retc = 0;
-
   auto enforce_dir = XrdSfsFileExistence::XrdSfsFileExistIsDirectory;
   path = PathFromIdentifierProto(rule.identifier(), errmsg);
 
@@ -383,22 +383,19 @@ void ConvertCmd::RuleSubcmd(const eos::console::ConvertProto_RuleProto& rule,
   // Handle space default scenario
   std::string space = conversion.space().empty() ?
                       "default.0" : conversion.space();
-
   // Handle checksum
   LayoutId::eChecksum echecksum = static_cast<LayoutId::eChecksum>(
-    LayoutId::GetChecksumFromString(conversion.checksum()));
-
+                                    LayoutId::GetChecksumFromString(conversion.checksum()));
   //------------------------------------------
   // This part acts as a placeholder
   //------------------------------------------
-
   // Build conversion rule
   std::string conversion_rule = BuildConversionId(conversion.layout(),
-                                                  echecksum,
-                                                  conversion.replica(),
-                                                  0,
-                                                  space,
-                                                  conversion.placement());
+                                echecksum,
+                                conversion.replica(),
+                                0,
+                                space,
+                                conversion.placement());
   size_t pos = conversion_rule.find(":");
 
   if (pos != std::string::npos) {
@@ -408,7 +405,6 @@ void ConvertCmd::RuleSubcmd(const eos::console::ConvertProto_RuleProto& rule,
   // Set rule as extended attribute
   eos_info("msg=\"placing conversion rule\" path=%s conversion_rule=%s",
            path.c_str(), conversion_rule.c_str());
-
 
   if (gOFS->_attr_set(path.c_str(), errInfo, mVid, 0, "sys.eos.convert.rule",
                       conversion_rule.c_str())) {
@@ -555,14 +551,12 @@ static std::string BuildConversionId(const std::string& layout,
   using eos::common::LayoutId;
   unsigned long layoutid = 0;
   std::ostringstream ssid;
-
   layoutid = LayoutId::GetId(LayoutId::GetLayoutFromString(layout),
                              echecksum,
                              stripes,
                              LayoutId::eBlockSize::k4M,
                              LayoutId::eChecksum::kCRC32C,
                              LayoutId::GetRedundancyFromLayoutString(layout));
-
   ssid << std::hex << std::setw(16) << std::setfill('0') << file_id
        << ":" << space
        << "#" << std::setw(8) << std::setfill('0') << layoutid;

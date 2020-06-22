@@ -53,7 +53,7 @@ struct ConversionInfo {
   //----------------------------------------------------------------------------
   inline std::string ToString() const
   {
-    return conversion_string;
+    return mConversionString;
   }
 
   //----------------------------------------------------------------------------
@@ -70,13 +70,13 @@ struct ConversionInfo {
   static std::shared_ptr<ConversionInfo> parseConversionString(
     std::string sconversion);
 
-  const eos::common::FileId::fileid_t fid; ///< File id
-  const eos::common::LayoutId::layoutid_t lid; ///< Target layout id
-  const eos::common::GroupLocator location; ///< Target space/group placement
-  const std::string plct_policy; ///< Placement policy
+  const eos::common::FileId::fileid_t mFid; ///< File id
+  const eos::common::LayoutId::layoutid_t mLid; ///< Target layout id
+  const eos::common::GroupLocator mLocation; ///< Target space/group placement
+  const std::string mPlctPolicy; ///< Placement policy
 
 private:
-  std::string conversion_string; ///< Conversion string representation
+  std::string mConversionString; ///< Conversion string representation
 };
 
 EOSMGMNAMESPACE_END

@@ -42,7 +42,7 @@ class ConversionJob;
 //! Conversion Job. Cancellation is also allowed via this class.
 //------------------------------------------------------------------------------
 class ConversionProgressHandler : public XrdCl::CopyProgressHandler,
-                                  public eos::common::LogId
+  public eos::common::LogId
 {
 public:
   friend class ConversionJob;
@@ -67,7 +67,7 @@ public:
                 const XrdCl::URL* destination) override
   {
     mStartTimestamp = std::chrono::duration_cast<std::chrono::seconds>(
-      std::chrono::system_clock::now().time_since_epoch()).count();
+                        std::chrono::system_clock::now().time_since_epoch()).count();
   }
 
   //----------------------------------------------------------------------------
@@ -128,7 +128,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~ConversionJob() = default;
+  ~ConversionJob();
 
   //----------------------------------------------------------------------------
   //! Execute a third-party copy
@@ -164,7 +164,7 @@ public:
   //----------------------------------------------------------------------------
   inline eos::IFileMD::id_t GetFid() const
   {
-    assert(mFid == mConversionInfo.fid);
+    assert(mFid == mConversionInfo.mFid);
     return mFid;
   }
 
@@ -177,6 +177,14 @@ public:
   }
 
 private:
+  //----------------------------------------------------------------------------
+  //! Merge origial and the newly converted one so that the initial file
+  //! identifier and all the rest of the metadata information is preserved.
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool Merge();
+
   //----------------------------------------------------------------------------
   //! Log the error message, store it and set the job as failed
   //!
@@ -196,6 +204,7 @@ private:
 
   const eos::IFileMD::id_t mFid; ///< Conversion file id
   const ConversionInfo mConversionInfo; ///< Conversion details
+  std::string mSourcePath; ///< Path of file to be converted
   std::string mConversionPath; ///< Path of newly converted file
   std::atomic<Status> mStatus; ///< Conversion job status
   std::string mErrorString; ///< Error message

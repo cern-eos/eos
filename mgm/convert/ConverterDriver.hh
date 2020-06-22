@@ -51,7 +51,7 @@ public:
     mThreadPool(std::thread::hardware_concurrency(), cDefaultMaxThreadPoolSize,
                 10, 5, 3, "converter_engine"),
     mMaxThreadPoolSize(cDefaultMaxThreadPoolSize),
-    mRequestIntervalTime(cDefaultRequestIntervalTime), mTimestamp()
+    mRequestIntervalSec(cDefaultRequestIntervalSec), mTimestamp()
   {}
 
   //----------------------------------------------------------------------------
@@ -109,9 +109,9 @@ public:
   //----------------------------------------------------------------------------
   //! Get request interval time
   //----------------------------------------------------------------------------
-  inline uint32_t GetRequestIntervalTime() const
+  inline uint32_t GetRequestIntervalSec() const
   {
-    return mRequestIntervalTime.load();
+    return mRequestIntervalSec.load();
   }
 
   //----------------------------------------------------------------------------
@@ -164,9 +164,9 @@ public:
   //!
   //! @param time interval time in seconds
   //----------------------------------------------------------------------------
-  inline void SetRequestIntervalTime(uint32_t time)
+  inline void SetRequestIntervalSec(uint32_t time)
   {
-    mRequestIntervalTime = time;
+    mRequestIntervalSec = time;
   }
 
 private:
@@ -179,7 +179,7 @@ private:
     QdbHelper(const eos::QdbContactDetails& qdb_details)
     {
       mQcl = std::make_unique<qclient::QClient>(qdb_details.members,
-                                                qdb_details.constructOptions());
+             qdb_details.constructOptions());
       mQHashPending = qclient::QHash(*mQcl, kConversionPendingHashKey);
       mQHashFailed = qclient::QHash(*mQcl, kConversionFailedHashKey);
     }
@@ -270,7 +270,7 @@ private:
   {
     auto elapsed = std::chrono::steady_clock::now() - mTimestamp;
 
-    if (elapsed <= std::chrono::seconds(mRequestIntervalTime)) {
+    if (elapsed <= std::chrono::seconds(mRequestIntervalSec)) {
       return true;
     }
 
@@ -279,7 +279,7 @@ private:
   }
 
   ///< Wait-time between jobs requests constant
-  static constexpr unsigned int cDefaultRequestIntervalTime{60};
+  static constexpr unsigned int cDefaultRequestIntervalSec{60};
   ///< Default maximum thread pool size constant
   static constexpr unsigned int cDefaultMaxThreadPoolSize{100};
   AssistedThread mThread; ///< Thread controller object
@@ -288,7 +288,7 @@ private:
   eos::common::ThreadPool mThreadPool; ///< Thread pool for conversion jobs
   std::atomic<unsigned int> mMaxThreadPoolSize; ///< Max threadpool size
   ///< Request interval time in seconds
-  std::atomic<unsigned int> mRequestIntervalTime;
+  std::atomic<unsigned int> mRequestIntervalSec;
   ///< Timestamp of last jobs request
   std::chrono::steady_clock::time_point mTimestamp;
   ///< Collection of running conversion jobs
