@@ -112,22 +112,13 @@ Balancer::Balance(ThreadAssistant& assistant) noexcept
 
       // Loop over all groups
       for (auto git = set_fsgrps.begin(); git != set_fsgrps.end(); ++git) {
-        // Need to make sure, nobody is drainig here, otherwise we can get
-        // a scheduling interference between drain and balancing!
-        bool has_drainjob = false;
         total_files = 0;
 
         for (auto it = (*git)->begin(); it != (*git)->end(); ++it) {
-
           eos::common::FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it);
-          if(fs) {
-            total_files += fs->GetLongLong("stat.balancer.running");
-            eos::common::ConfigStatus configstatus = fs->GetConfigStatus();
 
-            if (((configstatus == eos::common::ConfigStatus::kDrain)
-                 || (configstatus == eos::common::ConfigStatus::kDrainDead))) {
-              has_drainjob = true;
-            }
+          if (fs) {
+            total_files += fs->GetLongLong("stat.balancer.running");
           }
 
           // Set transfer running by group
@@ -147,12 +138,7 @@ Balancer::Balance(ThreadAssistant& assistant) noexcept
         if ((dev = (*git)->MaxAbsDeviation("stat.statfs.filled", false)) >
             SpaceDifferenceThreshold) {
           avg = (*git)->AverageDouble("stat.statfs.filled", false);
-
-          if (has_drainjob) {
-            (*git)->SetConfigMember("stat.balancing", "drainwait", true);
-          } else {
-            (*git)->SetConfigMember("stat.balancing", "balancing", true);
-          }
+          (*git)->SetConfigMember("stat.balancing", "balancing", true);
 
           for (auto fsit = (*git)->begin(); fsit != (*git)->end(); ++fsit) {
             FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*fsit);
@@ -185,15 +171,7 @@ Balancer::Balance(ThreadAssistant& assistant) noexcept
 
               // If the value changes significantly, broadcast it
               if (fabs(fsdev - avg) > 0.1) {
-                if (!has_drainjob) {
-                  fs->SetDouble("stat.nominal.filled", avg);
-                }
-              }
-
-              // Disable balancing on this filesystem if draining is running
-              // in the group
-              if (has_drainjob && fsdev) {
-                fs->SetDouble("stat.nominal.filled", 0.0);
+                fs->SetDouble("stat.nominal.filled", avg);
               }
             }
           }
@@ -213,8 +191,9 @@ Balancer::Balance(ThreadAssistant& assistant) noexcept
                   fs->SetDouble("stat.nominal.filled", 0.0);
                 }
 
-                if ((*git)->GetConfigMember("stat.balancing") != "idle")
+                if ((*git)->GetConfigMember("stat.balancing") != "idle") {
                   (*git)->SetConfigMember("stat.balancing", "idle", true);
+                }
               }
             }
           }
