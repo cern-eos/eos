@@ -1848,12 +1848,6 @@ public:
 private:
   //! XrdOucBuffPool object for managing redirection buffers >= 2kb
   XrdOucBuffPool mRdrBuffPool;
-  //! Tracker for balanced fids
-  eos::mgm::IdTrackerWithValidity<eos::IFileMD::id_t> mBalancingTracker;
-  //! Tracker for drained fids
-  eos::mgm::IdTrackerWithValidity<eos::IFileMD::id_t> mDrainTracker;
-  //! Tracker for converted fids
-  eos::mgm::IdTrackerWithValidity<eos::IFileMD::id_t> mConvertingTracker;
   ///< uuid to directory obj. mapping
   std::map<std::string, XrdMgmOfsDirectory*> mMapDirs;
   std::map<std::string, XrdMgmOfsFile*> mMapFiles; ///< uuid to file obj. mapping

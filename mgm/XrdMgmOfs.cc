@@ -293,9 +293,6 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   mFusexPort(1100), mGRPCPort(50051),
   mFidTracker(std::chrono::seconds(600), std::chrono::seconds(3600)),
   mRdrBuffPool(2 * eos::common::KB, eos::common::MB, 8, 64),
-  mBalancingTracker(std::chrono::seconds(600), std::chrono::seconds(3600)),
-  mDrainTracker(std::chrono::seconds(600), std::chrono::seconds(3600)),
-  mConvertingTracker(std::chrono::seconds(600), std::chrono::seconds(3600)),
   mJeMallocHandler(new eos::common::JeMallocHandler()),
   mDoneOrderlyShutdown(false)
 {
@@ -346,7 +343,10 @@ XrdMgmOfs::~XrdMgmOfs()
 {
   OrderlyShutdown();
   eos_warning("%s", "msg=\"finished destructor\"");
-  if( HostName ) free( HostName );
+
+  if (HostName) {
+    free(HostName);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -435,9 +435,8 @@ XrdMgmOfs::OrderlyShutdown()
     WFEPtr.reset();
   }
 
-  eos_warning("%s", "msg=\"stopping abd deleting the Converter engine\"");
+  eos_warning("%s", "msg=\"stopping and deleting the Converter engine\"");
   mConverterDriver.reset();
-
   eos_warning("%s", "msg=\"stopping and deleting the LRU engine\"");
   mLRUEngine.reset();
 

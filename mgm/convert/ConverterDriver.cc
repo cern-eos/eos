@@ -25,11 +25,11 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-constexpr unsigned int ConverterDriver::cDefaultRequestIntervalTime;
+constexpr unsigned int ConverterDriver::cDefaultRequestIntervalSec;
 constexpr unsigned int ConverterDriver::QdbHelper::cBatchSize;
 
 //----------------------------------------------------------------------------
-//! Start converter thread
+// Start converter thread
 //----------------------------------------------------------------------------
 void ConverterDriver::Start()
 {
@@ -40,13 +40,12 @@ void ConverterDriver::Start()
 }
 
 //----------------------------------------------------------------------------
-//! Stop converter thread and all running conversion jobs
+// Stop converter thread and all running conversion jobs
 //----------------------------------------------------------------------------
 void ConverterDriver::Stop()
 {
   mThread.join();
   mIsRunning = false;
-  gOFS->mConvertingTracker.Clear();
 }
 
 //----------------------------------------------------------------------------
@@ -55,7 +54,7 @@ void ConverterDriver::Stop()
 void ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
 {
   gOFS->WaitUntilNamespaceIsBooted(assistant);
-  eos_notice("msg=\"starting converter engine thread\"");
+  eos_notice("%s", "msg=\"starting converter engine\"");
 
   while (!assistant.terminationRequested()) {
     if (ShouldWait()) {
@@ -74,9 +73,13 @@ void ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
         if (conversion_info != nullptr) {
           auto job = std::make_shared<ConversionJob>(fid, *conversion_info.get());
 
-          if (!gOFS->mConvertingTracker.HasEntry(fid)) {
-            gOFS->mConvertingTracker.AddEntry(fid);
-            mThreadPool.PushTask<void>([job]() { return job->DoIt(); });
+          if (!gOFS->mFidTracker.AddEntry(fid, TrackerType::Convert)) {
+            eos_static_debug("msg=\"skip recently scheduled file\" fxid=%08llx",
+                             it.getValue().c_str());
+          } else {
+            mThreadPool.PushTask<void>([job]() {
+              return job->DoIt();
+            });
             eos::common::RWMutexWriteLock wlock(mJobsMutex);
             mJobsRunning.push_back(job);
           }
@@ -138,11 +141,6 @@ void ConverterDriver::HandleRunningJobs()
 void ConverterDriver::RemoveInflightJobs()
 {
   eos::common::RWMutexWriteLock wlock(mJobsMutex);
-
-  for (auto id: mJobsInflightDone) {
-    gOFS->mConvertingTracker.RemoveEntry(id);
-  }
-
   mJobsInflightDone.clear();
 }
 
@@ -151,26 +149,24 @@ void ConverterDriver::RemoveInflightJobs()
 //----------------------------------------------------------------------------
 void ConverterDriver::JoinAllConversionJobs()
 {
-  eos_notice("msg=\"stopping all running conversion jobs\"");
+  eos_notice("%s", "msg=\"stopping all running conversion jobs\"");
   HandleRunningJobs();
-
   {
     eos::common::RWMutexReadLock rlock(mJobsMutex);
 
-    for (auto& job: mJobsRunning) {
+    for (auto& job : mJobsRunning) {
       if (job->GetStatus() == ConversionJob::Status::RUNNING) {
         job->Cancel();
       }
     }
 
-    for (auto& job: mJobsRunning) {
+    for (auto& job : mJobsRunning) {
       while ((job->GetStatus() == ConversionJob::Status::RUNNING) ||
              (job->GetStatus() == ConversionJob::Status::PENDING)) {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
       }
     }
   }
-
   eos::common::RWMutexWriteLock wlock(mJobsMutex);
   mJobsRunning.clear();
 }

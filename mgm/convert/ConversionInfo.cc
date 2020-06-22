@@ -32,21 +32,20 @@ ConversionInfo::ConversionInfo(const eos::common::FileId::fileid_t fid,
                                const eos::common::LayoutId::layoutid_t lid,
                                const eos::common::GroupLocator& location,
                                const std::string& plct_policy) :
-  fid(fid), lid(lid), location(location), plct_policy(plct_policy)
+  mFid(fid), mLid(lid), mLocation(location), mPlctPolicy(plct_policy)
 {
   std::ostringstream conversion;
-
   conversion << std::hex << std::setfill('0')
-             << std::setw(16) << fid           // <fid(016hex)>
-             << ":" << location.getSpace()     // :<space>
-             << "." << location.getIndex()     // .<group>
-             << "#" << std::setw(8) << lid;    // #<layoutid(08hex)>
+             << std::setw(16) << mFid           // <fid(016hex)>
+             << ":" << mLocation.getSpace()     // :<space>
+             << "." << mLocation.getIndex()     // .<group>
+             << "#" << std::setw(8) << mLid;    // #<layoutid(08hex)>
 
-  if (!plct_policy.empty()) {
-    conversion << "~" << plct_policy;          // ~<placement_policy>
+  if (!mPlctPolicy.empty()) {
+    conversion << "~" << mPlctPolicy;          // ~<placement_policy>
   }
 
-  conversion_string = conversion.str();
+  mConversionString = conversion.str();
 }
 
 //----------------------------------------------------------------------------
@@ -62,12 +61,10 @@ std::shared_ptr<ConversionInfo> ConversionInfo::parseConversionString(
   using eos::common::LayoutId;
   using eos::common::GroupLocator;
   const char* errmsg = "unable to parse conversion string";
-
   FileId::fileid_t fid = 0;
   LayoutId::layoutid_t lid = 0;
   GroupLocator location;
   std::string policy;
-
   // Parse file id
   size_t pos = sconversion.find(":");
 
@@ -77,7 +74,10 @@ std::shared_ptr<ConversionInfo> ConversionInfo::parseConversionString(
     return nullptr;
   } else {
     const char* hexfid = sconversion.substr(0, pos).c_str();
-    fid = strtoll(hexfid, 0, 16);
+
+    try {
+      fid = std::stoull(hexfid, 0, 16);
+    } catch (...) {}
   }
 
   // Parse space/group location
@@ -100,7 +100,6 @@ std::shared_ptr<ConversionInfo> ConversionInfo::parseConversionString(
   // Parse layout id
   sconversion.erase(0, pos + 1);
   pos = sconversion.find("~");
-
   const char* hexlid = sconversion.c_str();
 
   if (pos == std::string::npos) {
