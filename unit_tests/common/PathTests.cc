@@ -37,7 +37,7 @@ TEST(Path, BasicFunctionality)
   ASSERT_STRNE(path.GetParentPath(), "/eos/example");
   ASSERT_STREQ(path.GetParentPath(), "/eos/example/");
   ASSERT_STREQ(path.GetFullPath().c_str(), "/eos/example/file");
-  ASSERT_STREQ(path.GetContractedPath().c_str(), "::eos::example::file");
+  ASSERT_STREQ(path.GetContractedPath().c_str(), "..eos..example..file");
   ASSERT_EQ(path.GetSubPathSize(), 3);
   ASSERT_STREQ(path.GetSubPath(2), "/eos/example/");
   ASSERT_STREQ(path.GetSubPath(1), "/eos/");
