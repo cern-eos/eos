@@ -1774,6 +1774,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           eos_info("msg=\"location %d is excluded as an unavailable filesystem"
                    " - returning ENETUNREACH\"", selectedfs[k]);
           retc = ENETUNREACH;
+          break;
         }
       }
     }

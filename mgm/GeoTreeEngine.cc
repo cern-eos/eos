@@ -109,7 +109,7 @@ std::map<std::string, unsigned char> GeoTreeEngine::gQueue2NotifType;
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-GeoTreeEngine::GeoTreeEngine(mq::MessagingRealm *realm) :
+GeoTreeEngine::GeoTreeEngine(mq::MessagingRealm* realm) :
   pSkipSaturatedAccess(true), pSkipSaturatedDrnAccess(true),
   pSkipSaturatedBlcAccess(true), pProxyCloseToFs(true),
   pPenaltyUpdateRate(1),
@@ -1728,7 +1728,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
 
   // Check that enough replicas exist already
   if (nAccessReplicas > existingReplicas->size()) {
-    eos_debug("not enough replica : has %d and requires %d :",
+    eos_debug("msg=\"not enough replicas\" current=%d required=%d",
               (int)existingReplicas->size(), (int)nAccessReplicas);
     return EROFS;
   }
@@ -1766,7 +1766,8 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
 
       // If we cannot find the fs in any group, there is an inconsistency somewhere
       if (mentry == pFs2SchedTME.end()) {
-        eos_warning("cannot find the existing replica in any scheduling group");
+        eos_warning("%s", "msg=\"cannot find the existing replica in any "
+                    "scheduling group\" fsid=%lu", *exrepIt);
         continue;
       }
 
@@ -1783,7 +1784,8 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
       const SchedTreeBase::tFastTreeIdx* idx;
 
       if (!entry->foregroundFastStruct->fs2TreeIdx->get(*exrepIt, idx)) {
-        eos_warning("cannot find fs in the scheduling group in the 2nd pass");
+        eos_warning("msg=\"cannot find fs in the scheduling group in the 2nd "
+                    "pass\" fsid=%lu", *exrepIt);
 
         if (!entry2FsId.count(entry)) {
           entry->doubleBufferMutex.UnLockRead();
@@ -1798,6 +1800,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
       entries.push_back(entry);
       // check if the fs is available
       bool isValid = false;
+      std::string msg;
 
       if (std::find(unavailableFs->begin(), unavailableFs->end(),
                     *exrepIt) == unavailableFs->end()) {
@@ -1805,16 +1808,31 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
         case regularRO:
           isValid = entry->foregroundFastStruct->rOAccessTree->pBranchComp.isValidSlot(
                       &entry->foregroundFastStruct->rOAccessTree->pNodes[*idx].fsData, &freeSlot);
+
+          if (!isValid) {
+            msg = "file system not readable";
+          }
+
           break;
 
         case regularRW:
           isValid = entry->foregroundFastStruct->rWAccessTree->pBranchComp.isValidSlot(
                       &entry->foregroundFastStruct->rWAccessTree->pNodes[*idx].fsData, &freeSlot);
+
+          if (!isValid) {
+            msg = "file system not writable";
+          }
+
           break;
 
         case draining:
           isValid = entry->foregroundFastStruct->drnAccessTree->pBranchComp.isValidSlot(
                       &entry->foregroundFastStruct->drnAccessTree->pNodes[*idx].fsData, &freeSlot);
+
+          if (!isValid) {
+            msg = "file system not readable for drain";
+          }
+
           break;
 
         default:
@@ -1834,6 +1852,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
 
         // update the unavailable fs
         unavailableFs->push_back(*exrepIt);
+        eos_warning("msg=\"%s\" fsid=%%lu", msg.c_str(), *exrepIt);
       }
     }
   }
