@@ -113,7 +113,7 @@ public:
   {
     XrdOucString contractedpath = GetPath();
 
-    while (contractedpath.replace("/", "::")) {}
+    while (contractedpath.replace("/", "..")) {}
 
     return contractedpath.c_str();
   }
