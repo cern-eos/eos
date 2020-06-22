@@ -105,6 +105,7 @@
 #include "common/FileSystem.hh"
 #include "common/AssistedThread.hh"
 #include "common/XrdConnPool.hh"
+#include "common/MutexLatencyWatcher.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mgm/proc/ProcCommand.hh"
 #include "mgm/proc/admin/SpaceCmd.hh"
@@ -1513,6 +1514,7 @@ public:
   eos::common::RWMutex eosViewRWMutex; ///< RW namespace mutex
   XrdOucString
   MgmMetaLogDir; ///<  Directory containing the meta data (change) log files
+  eos::common::MutexLatencyWatcher mViewMutexWatcher;
 
   // ---------------------------------------------------------------------------
   // Thread variables

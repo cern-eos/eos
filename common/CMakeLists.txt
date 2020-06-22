@@ -44,6 +44,7 @@ add_library(EosCommon-Objects OBJECT
   SymKeys.cc
   InstanceName.cc
   Mapping.cc
+  MutexLatencyWatcher.cc
   RWMutex.cc
   SharedMutex.cc
   PthreadRWMutex.cc

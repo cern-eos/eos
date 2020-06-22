@@ -1539,6 +1539,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   eos::common::Mapping::Init();
   // Configure the meta data catalog
   eosViewRWMutex.SetBlocking(true);
+  mViewMutexWatcher.activate(eosViewRWMutex, "eosViewRWMutex");
+
 #ifdef EOS_INSTRUMENTED_RWMUTEX
   eos::common::RWMutex* fs_mtx = &FsView::gFsView.ViewMutex;
   eos::common::RWMutex* quota_mtx = &Quota::pMapMutex;
