@@ -627,7 +627,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
             root["auth"]["sss"] = 0;
             root["auth"]["oauth2"] = 0;
           }
-        }
+        } else {
+	  config.ssskeytab = root["auth"]["ssskeytab"].asString();
+	}
       }
 
       if (!root["inline"].isMember("max-size")) {
@@ -4754,9 +4756,13 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
       } else if (key == "eos.reconnect") {
         Logbook logbook(true);
         const struct fuse_ctx* ctx = fuse_req_ctx(req);
-        ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
-                                   ctx->uid, ctx->gid, true, logbook);
-        value = logbook.toString();
+	ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
+									ctx->uid, ctx->gid, true, logbook);
+	value = logbook.toString();
+	if (size == 0) {
+	  // just make sure, the string does not get longer with the next call
+	  value+=value;
+	}
       } else if (key == "eos.reconnectparent") {
         const struct fuse_ctx* ctx = fuse_req_ctx(req);
         ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
@@ -4767,6 +4773,10 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
           fusexrdlogin::processCache->retrieve(ppid,
                                                ctx->uid, ctx->gid, true, logbook);
         value = logbook.toString();
+	if (size == 0) {
+	  // just make sure, the string does not get longer with the next call
+	  value += value;
+	}
       } else if (key == "eos.identity") {
         const struct fuse_ctx* ctx = fuse_req_ctx(req);
         ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
