@@ -35,6 +35,7 @@
 //------------------------------------------------------------------------------
 AuthenticationGroup::AuthenticationGroup(const CredentialConfig &config_)
 : config(config_) {
+  processCache(); // need to call the constructors in the init phase
 }
 
 //------------------------------------------------------------------------------

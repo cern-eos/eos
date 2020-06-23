@@ -166,11 +166,14 @@ public:
       return;
     }
 
-    if(interceptedPath.empty()) {
-      paramsMap["xrdcl.secuid"] = std::to_string(uc.uid);
-      paramsMap["xrdcl.secgid"] = std::to_string(uc.gid);
-    }
+    if ( (uc.type != CredentialType::OAUTH2) &&
+	 (uc.type != CredentialType::SSS) ) {
+      if(interceptedPath.empty()) {
+	paramsMap["xrdcl.secuid"] = std::to_string(uc.uid);
+	paramsMap["xrdcl.secgid"] = std::to_string(uc.gid);
+      }
 
+    }
     if (uc.type == CredentialType::KRB5) {
       paramsMap["xrd.wantprot"] = "krb5,unix";
       paramsMap["xrd.k5ccname"] = getFinalPath();

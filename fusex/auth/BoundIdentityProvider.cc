@@ -277,7 +277,8 @@ void BoundIdentityProvider::registerSSS(const BoundIdentity& bdi)
 {
   const UserCredentials uc = bdi.getCreds()->getUC();
 
-  if (uc.type == CredentialType::SSS) {
+  if ( (uc.type == CredentialType::SSS) ||
+       (uc.type == CredentialType::OAUTH2) ) {
     // by default we request the uid/gid name of the calling process
     // the xrootd server rejects to map these if the sss key is not issued for anyuser/anygroup
     XrdSecEntity* newEntity = new XrdSecEntity("sss");
@@ -363,7 +364,10 @@ BoundIdentityProvider::userCredsToBoundIdentity(const JailInformation& jail,
   //----------------------------------------------------------------------------
   // We made it, the crowd goes wild, allocate a new connection
   //----------------------------------------------------------------------------
+
   bdi->getLogin() = LoginIdentifier(connectionCounter++);
+  LOGBOOK_INSERT(subscope, "UserCredentials registerSSS (" << bdi->getLogin().getStringID() << ")");
+  LOGBOOK_INSERT(subscope,"Endorsement (" << bdi->getCreds()->getUC().endorsement.c_str() << ")");
   registerSSS(*bdi);
 
   //----------------------------------------------------------------------------
