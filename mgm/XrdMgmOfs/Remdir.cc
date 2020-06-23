@@ -103,7 +103,7 @@ XrdMgmOfs::_remdir(const char* path,
                 qpath.c_str());
   }
 
-  gOFS->eosViewRWMutex.LockWrite();
+  eos::common::RWMutexWriteLock viewLock(gOFS->eosViewRWMutex);
   std::string aclpath;
 
   try {
@@ -122,7 +122,6 @@ XrdMgmOfs::_remdir(const char* path,
   // check existence
   if (!dh) {
     errno = ENOENT;
-    gOFS->eosViewRWMutex.UnLockWrite();
     return Emsg(epname, error, errno, "rmdir", path);
   }
 
@@ -131,12 +130,10 @@ XrdMgmOfs::_remdir(const char* path,
 
   if (vid.uid && !acl.IsMutable()) {
     errno = EPERM;
-    gOFS->eosViewRWMutex.UnLockWrite();
     return Emsg(epname, error, EPERM, "rmdir - immutable", path);
   }
 
   if (!gOFS->allow_public_access(aclpath.c_str(), vid)) {
-    gOFS->eosViewRWMutex.UnLockWrite();
     errno = EACCES;
     return Emsg(epname, error, EACCES, "access - public access level restriction",
                 aclpath.c_str());
@@ -150,7 +147,7 @@ XrdMgmOfs::_remdir(const char* path,
 
       if (option == "r") {
         // Recursive delete - need to unlock before calling the proc function
-        gOFS->eosViewRWMutex.UnLockWrite();
+        viewLock.Release();
         ProcCommand cmd;
         XrdOucString info = "mgm.cmd=rm&mgm.option=r&mgm.path=";
         info += path;
@@ -178,7 +175,6 @@ XrdMgmOfs::_remdir(const char* path,
         (acl.CanNotDelete())) {
       // deletion is explicitly forbidden
       errno = EPERM;
-      gOFS->eosViewRWMutex.UnLockWrite();
       return Emsg(epname, error, EPERM, "rmdir by ACL", path);
     }
 
@@ -198,14 +194,12 @@ XrdMgmOfs::_remdir(const char* path,
 
   if (!permok) {
     errno = EPERM;
-    gOFS->eosViewRWMutex.UnLockWrite();
     return Emsg(epname, error, errno, "rmdir", path);
   }
 
   if ((dh->getFlags() && eos::QUOTA_NODE_FLAG) && (vid.uid)) {
     errno = EADDRINUSE;
     eos_err("%s is a quota node - deletion canceled", path);
-    gOFS->eosViewRWMutex.UnLockWrite();
     return Emsg(epname, error, errno, "rmdir - this is a quota node", path);
   }
 
@@ -225,6 +219,7 @@ XrdMgmOfs::_remdir(const char* path,
       }
 
       eosView->removeContainer(path);
+      viewLock.Release();
 
       if (dhpar) {
         gOFS->FuseXCastContainer(dhpar_id);
@@ -238,7 +233,7 @@ XrdMgmOfs::_remdir(const char* path,
     }
   }
 
-  gOFS->eosViewRWMutex.UnLockWrite();
+  viewLock.Release();
   EXEC_TIMING_END("RmDir");
 
   if (errno) {
