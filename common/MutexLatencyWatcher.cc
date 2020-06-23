@@ -52,17 +52,64 @@ void MutexLatencyWatcher::activate(RWMutex& mutex, const std::string &friendlyNa
 void MutexLatencyWatcher::main(ThreadAssistant &assistant) {
   while(!assistant.terminationRequested()) {
     Datapoint point;
-    point.start = std::chrono::steady_clock::now();
+    point.start = std::chrono::system_clock::now();
     mMutex->LockWrite();
     mMutex->UnLockWrite();
-    point.end = std::chrono::steady_clock::now();
+    point.end = std::chrono::system_clock::now();
 
     if(point.getMilli() > std::chrono::milliseconds(200)) {
       eos_static_warning("acquisition of mutex %s took %d milliseconds", mFriendlyName.c_str(), point.getMilli().count());
     }
 
+    appendDatapoint(point);
     assistant.wait_for(std::chrono::seconds(2));
   }
 }
+
+//------------------------------------------------------------------------------
+// Append datapoint
+//------------------------------------------------------------------------------
+void MutexLatencyWatcher::appendDatapoint(const Datapoint &point) {
+  std::lock_guard<std::mutex> lock(mDataMutex);
+  mData.push_back(point);
+
+  if(mData.size() > 200) {
+    mData.pop_front();
+  }
+}
+
+//------------------------------------------------------------------------------
+// Get latency spikes
+//------------------------------------------------------------------------------
+MutexLatencyWatcher::LatencySpikes MutexLatencyWatcher::getLatencySpikes() const {
+  LatencySpikes spikes;
+  std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
+
+  std::lock_guard<std::mutex> lock(mDataMutex);
+
+  for(auto it = mData.begin(); it != mData.end(); it++) {
+    if(now - it->end <=  std::chrono::minutes(1)) {
+      spikes.lastMinute = std::max(spikes.lastMinute, it->getMilli());
+    }
+
+    if(now - it->end <= std::chrono::minutes(2)) {
+      spikes.last2Minutes = std::max(spikes.last2Minutes, it->getMilli());
+    }
+
+    if(now - it->end <= std::chrono::minutes(5)) {
+      spikes.last5Minutes = std::max(spikes.last5Minutes, it->getMilli());
+    }
+  }
+
+  if(!mData.empty()) {
+    spikes.last = mData.back().getMilli();
+  }
+
+  return spikes;
+}
+
+//------------------------------------------------------------------------------
+//  Append datapoint
+//------------------------------------------------------------------------------
 
 EOSCOMMONNAMESPACE_END

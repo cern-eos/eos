@@ -517,6 +517,12 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
           << line << std::endl;
     }
 
+    common::MutexLatencyWatcher::LatencySpikes viewLatency = gOFS->mViewMutexWatcher.getLatencySpikes();
+    oss << "ALL      eosViewRWMutex latency           " << viewLatency.last.count() << "ms (last) " 
+      << viewLatency.lastMinute.count() << "ms (1 min) " << viewLatency.last2Minutes.count() << "ms (2 min) " <<
+      viewLatency.last5Minutes.count() << "ms (5 min)"
+      << std::endl << line << std::endl;
+
     // Do them one at a time otherwise sizestring is saved only the first time
     oss << "ALL      memory virtual                   "
         << StringConversion::GetReadableSizeString(sizestring, (unsigned long long)

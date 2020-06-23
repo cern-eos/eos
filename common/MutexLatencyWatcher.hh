@@ -35,15 +35,25 @@ EOSCOMMONNAMESPACE_BEGIN
 class MutexLatencyWatcher {
 public:
   //----------------------------------------------------------------------------
-  //! Datapoint
+  //! Datapoint struct
   //----------------------------------------------------------------------------
   struct Datapoint {
-    std::chrono::steady_clock::time_point start;
-    std::chrono::steady_clock::time_point end;
+    std::chrono::system_clock::time_point start;
+    std::chrono::system_clock::time_point end;
 
     std::chrono::milliseconds getMilli() const {
       return std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     }
+  };
+
+  //----------------------------------------------------------------------------
+  //! LatencySpikes struct
+  //----------------------------------------------------------------------------
+  struct LatencySpikes {
+    std::chrono::milliseconds last = std::chrono::milliseconds(0);
+    std::chrono::milliseconds lastMinute = std::chrono::milliseconds(0);
+    std::chrono::milliseconds last2Minutes = std::chrono::milliseconds(0);
+    std::chrono::milliseconds last5Minutes = std::chrono::milliseconds(0);
   };
 
   //----------------------------------------------------------------------------
@@ -62,12 +72,23 @@ public:
   //----------------------------------------------------------------------------
   void main(ThreadAssistant &assistant);
 
+  //----------------------------------------------------------------------------
+  //! Get latency spikes
+  //----------------------------------------------------------------------------
+  LatencySpikes getLatencySpikes() const;
+
 private:
+  //----------------------------------------------------------------------------
+  //! Append datapoint
+  //----------------------------------------------------------------------------
+  void appendDatapoint(const Datapoint &point);
+
+
   eos::common::RWMutex *mMutex;
   std::string mFriendlyName;
   AssistedThread mThread;
 
-  std::mutex mDataMutex;
+  mutable std::mutex mDataMutex;
   std::list<Datapoint> mData;
 };
 
