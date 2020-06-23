@@ -45,11 +45,21 @@ message ConvertProto {
     uint32 interval = 2;
   }
 
+  message ListProto {
+    string type = 1;
+  }
+
+  message ClearProto {
+    string type = 1;
+  }
+
   oneof subcmd {
     ActionProto action = 1;
     StatusProto status = 2;
     FileProto file = 3;
     RuleProto rule = 4;
     ConfigProto config = 5;
+    ListProto list = 6;
+    ClearProto clear = 7;
   }
 }

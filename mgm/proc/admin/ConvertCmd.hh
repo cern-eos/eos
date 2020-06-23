@@ -85,8 +85,7 @@ private:
   //! @param jsonOutput flag to print output in JSON format
   //----------------------------------------------------------------------------
   void ConfigSubcmd(const eos::console::ConvertProto_ConfigProto& config,
-                    eos::console::ReplyProto& reply,
-                    bool jsonOutput = false);
+                    eos::console::ReplyProto& reply, bool jsonOutput = false);
 
   //----------------------------------------------------------------------------
   //! Execute file subcommand
@@ -96,8 +95,7 @@ private:
   //! @param jsonOutput flag to print output in JSON format
   //----------------------------------------------------------------------------
   void FileSubcmd(const eos::console::ConvertProto_FileProto& file,
-                  eos::console::ReplyProto& reply,
-                  bool jsonOutput = false);
+                  eos::console::ReplyProto& reply, bool jsonOutput = false);
 
   //----------------------------------------------------------------------------
   //! Execute rule subcommand
@@ -107,8 +105,26 @@ private:
   //! @param jsonOutput flag to print output in JSON format
   //----------------------------------------------------------------------------
   void RuleSubcmd(const eos::console::ConvertProto_RuleProto& rule,
-                  eos::console::ReplyProto& reply,
-                  bool jsonOutput = false);
+                  eos::console::ReplyProto& reply, bool jsonOutput = false);
+
+  //----------------------------------------------------------------------------
+  //! List jobs subcommand
+  //!
+  //! @param list list subcommand proto object
+  //! @param reply reply proto object
+  //! @param jsonOutput flag to print output in JSON format
+  //----------------------------------------------------------------------------
+  void ListSubcmd(const eos::console::ConvertProto_ListProto& list,
+                  eos::console::ReplyProto& reply, bool jsonOutput = false);
+
+  //----------------------------------------------------------------------------
+  //! Clear jobs subcommand
+  //!
+  //! @param clear clear subcommand proto object
+  //! @param reply reply proto object
+  //----------------------------------------------------------------------------
+  void ClearSubcmd(const eos::console::ConvertProto_ClearProto& clear,
+                   eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
   //! Translate the proto identifier into a namespace path

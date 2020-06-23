@@ -162,33 +162,58 @@ ConvertHelper::ParseCommand(const char* arg)
 
     file->set_allocated_identifier(ParseIdentifier(token));
     eos::console::ConvertProto_ConversionProto*
-      conversion = ParseConversion(tokenizer);
+    conversion = ParseConversion(tokenizer);
 
     if (conversion == nullptr) {
       return false;
     }
 
     file ->set_allocated_conversion(conversion);
-
     // Placeholder for options
   } else if (token == "rule") {
-    eos::console::ConvertProto_RuleProto* rule = convert->mutable_rule();
-
     if (!tokenizer.NextToken(token)) {
       return false;
     }
 
+    eos::console::ConvertProto_RuleProto* rule = convert->mutable_rule();
     rule->set_allocated_identifier(ParseIdentifier(token));
     eos::console::ConvertProto_ConversionProto*
-      conversion = ParseConversion(tokenizer);
+    conversion = ParseConversion(tokenizer);
 
     if (conversion == nullptr) {
       return false;
     }
 
     rule->set_allocated_conversion(conversion);
+  } else if (token == "list") {
+    eos::console::ConvertProto_ListProto* list = convert->mutable_list();
 
-    // Placeholder for options
+    if (!tokenizer.NextToken(token)) {
+      list->set_type("failed");
+    } else {
+      if ((token != "failed") && (token != "pending")) {
+        std::cerr << "error: unknown listing option \'" << token << "\'"
+                  << std::endl;
+        return false;
+      } else {
+        list->set_type(token.c_str());
+      }
+    }
+  } else if (token == "clear") {
+    eos::console::ConvertProto_ClearProto* clear = convert->mutable_clear();
+
+    if (!tokenizer.NextToken(token)) {
+      std::cerr << "error: clear subcommand requires an option" << std::endl;
+      return false;
+    } else {
+      if ((token != "failed") && (token != "pending")) {
+        std::cerr << "error: unknown clear option \'" << token << "\'"
+                  << std::endl;
+        return false;
+      } else {
+        clear->set_type(token.c_str());
+      }
+    }
   } else {
     return false;
   }
@@ -232,14 +257,12 @@ ConvertHelper::ParseConversion(eos::common::StringTokenizer& tokenizer)
   int replica = 0;
   size_t pos;
   bool ok;
-
   // Lambda function to validate layout string
-  auto validLayout = [](const std::string& layout) {
+  auto validLayout = [](const std::string & layout) {
     return eos::common::LayoutId::GetLayoutFromString(layout) != -1;
   };
-
   // Lambda function to validate placement policy string
-  auto validPlacement = [](const std::string& placement) {
+  auto validPlacement = [](const std::string & placement) {
     if (placement == "scattered" || placement == "hybrid" ||
         placement == "gathered") {
       return true;
@@ -247,12 +270,10 @@ ConvertHelper::ParseConversion(eos::common::StringTokenizer& tokenizer)
 
     return false;
   };
-
   // Lambda function to validate checksum string
-  auto validChecksum = [](const std::string& checksum) {
+  auto validChecksum = [](const std::string & checksum) {
     using eos::common::LayoutId;
     auto xs_id = LayoutId::GetChecksumFromString(checksum);
-
     return ((xs_id > -1) && (xs_id != LayoutId::eChecksum::kNone));
   };
 
@@ -309,7 +330,6 @@ ConvertHelper::ParseConversion(eos::common::StringTokenizer& tokenizer)
   conversion->set_space(space);
   conversion->set_placement(placement);
   conversion->set_checksum(checksum);
-
   return conversion;
 }
 
@@ -342,17 +362,40 @@ int com_convert(char* arg)
 void com_convert_help()
 {
   std::ostringstream oss;
-  oss << "Usage: convert enable/disable                   : enable or disable the Convert Engine" << std::endl
-      << "       convert status                           : prints Converter Engine statistics" << std::endl
-      << "       convert config <option> [<option>]       : sets Converter Engine configuration option" << std::endl
-      << "       convert file <identifier> <conversion>   : schedules a file conversion" << std::endl
-      << "       convert rule <identifier> <conversion>   : applies a conversion rule on the given directory" << std::endl
+  oss << "Usage: convert <subcomand>                         " << std::endl
+      << "  convert enable/disable                           " << std::endl
+      << "    enable or disable the converter engine         " << std::endl
       << std::endl
-      << "Note: <identifier> = fid|fxid|cid|cxid|path" << std::endl
-      << "      <conversion> =  <layout:replica> [space] [placement] [checksum]" << std::endl
+      << "  convert status                                   " << std::endl
+      << "    print converter engine statistics              " << std::endl
       << std::endl
-      << "Config options:" << std::endl
-      << "     --maxthreads=<#>  : sets the converter max threadpool size" << std::endl
-      << "     --interval=<#>    : sets the jobs request interval" << std::endl;
+      << "  convert config <option> [<option>]               " << std::endl
+      << "    set converter engine configuration option      " << std::endl
+      << "    --maxthreads=<#> : max threadpool size         " << std::endl
+      << "    --interval=<#>   : jobs request interval       " << std::endl
+      << std::endl
+      << "   convert list [<option>]                         " << std::endl
+      << "     list conversion jobs where <option> is:       " << std::endl
+      << "     --failed : list failed jobs [default]         " << std::endl
+      << "     --pending: list pending jobs                  " << std::endl
+      << std::endl
+      << "   convert clear <option>                         " << std::endl
+      << "     clear list of jobs stored in the backend depending on <option> "
+      << std::endl
+      << "     --failed : clear list of failed jobs         " << std::endl
+      << "     --pending: clear list of pending jobs        " << std::endl
+      << std::endl
+      << "  convert file <identifier> <conversion>           " << std::endl
+      << "    schedule a file conversion                     " << std::endl
+      << "    <identifier> = fid|fxid|path                   " << std::endl
+      << "    <conversion> = <layout:replica> [space] [placement] [checksum]"
+      << std::endl
+      << std::endl
+      << "  convert rule <identifier> <conversion>           " << std::endl
+      << "    apply a conversion rule on the given directory " << std::endl
+      << "    <identifier> = cid|cxid|path                   " << std::endl
+      << "    <conversion> = <layout:replica> [space] [placement] [checksum]"
+      << std::endl
+      << std::endl;
   std::cerr << oss.str() << std::endl;
 }
