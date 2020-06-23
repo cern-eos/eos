@@ -72,6 +72,10 @@ ConvertCmd::ProcessRequest() noexcept
     FileSubcmd(convert.file(), reply, jsonOutput);
   } else if (subcmd == eos::console::ConvertProto::kRule) {
     RuleSubcmd(convert.rule(), reply, jsonOutput);
+  } else if (subcmd == eos::console::ConvertProto::kList) {
+    ListSubcmd(convert.list(), reply, jsonOutput);
+  } else if (subcmd == eos::console::ConvertProto::kClear) {
+    ClearSubcmd(convert.clear(), reply);
   } else {
     reply.set_retc(EINVAL);
     reply.set_std_err("error: command not supported");
@@ -92,10 +96,10 @@ void ConvertCmd::ActionSubcmd(
 
   if (converter_action == eos::console::ConvertProto_ActionProto::ENABLE) {
     gOFS->mConverterDriver->Start();
-    out << "ConverterEngine started";
+    out << "converter engine started";
   } else {
     gOFS->mConverterDriver->Stop();
-    out << "ConverterEngine stopped";
+    out << "converter engine stopped";
   }
 
   reply.set_std_out(out.str());
@@ -128,9 +132,9 @@ void ConvertCmd::StatusSubcmd(
   };
   // Extract Converter Driver parameters
   std::string threadpool = gOFS->mConverterDriver->GetThreadPoolInfo();
-  std::string config = SSTR(
-                         "maxthreads=" << gOFS->mConverterDriver->GetMaxThreadPoolSize()
-                         << " interval=" << gOFS->mConverterDriver->GetRequestIntervalSec());
+  std::string config =
+    SSTR("maxthreads=" << gOFS->mConverterDriver->GetMaxThreadPoolSize() <<
+         " interval=" << gOFS->mConverterDriver->GetRequestIntervalSec());
   uint64_t running = gOFS->mConverterDriver->NumRunningJobs();
   uint64_t failed = gOFS->mConverterDriver->NumFailedJobs();
   int64_t pending = gOFS->mConverterDriver->NumQdbPendingJobs();
@@ -306,12 +310,9 @@ void ConvertCmd::FileSubcmd(const eos::console::ConvertProto_FileProto& file,
   }
 
   // Schedule conversion job
-  std::string conversion_id = BuildConversionId(conversion.layout(),
-                              echecksum,
-                              conversion.replica(),
-                              file_id,
-                              space,
-                              conversion.placement());
+  std::string conversion_id = BuildConversionId(conversion.layout(), echecksum,
+                              conversion.replica(), file_id,
+                              space, conversion.placement());
   eos_info("msg=\"scheduling conversion job\" path=%s conversion_id=%s",
            path.c_str(), conversion_id.c_str());
 
@@ -390,11 +391,8 @@ void ConvertCmd::RuleSubcmd(const eos::console::ConvertProto_RuleProto& rule,
   // This part acts as a placeholder
   //------------------------------------------
   // Build conversion rule
-  std::string conversion_rule = BuildConversionId(conversion.layout(),
-                                echecksum,
-                                conversion.replica(),
-                                0,
-                                space,
+  std::string conversion_rule = BuildConversionId(conversion.layout(), echecksum,
+                                conversion.replica(), 0, space,
                                 conversion.placement());
   size_t pos = conversion_rule.find(":");
 
@@ -425,6 +423,24 @@ void ConvertCmd::RuleSubcmd(const eos::console::ConvertProto_RuleProto& rule,
   }
 
   reply.set_std_out(out.str());
+}
+
+//------------------------------------------------------------------------------
+// List jobs subcommand
+//------------------------------------------------------------------------------
+void
+ConvertCmd::ListSubcmd(const eos::console::ConvertProto_ListProto& list,
+                       eos::console::ReplyProto& reply, bool jsonOutput)
+{
+}
+
+//------------------------------------------------------------------------------
+// Clear jobs subcommand
+//------------------------------------------------------------------------------
+void
+ConvertCmd::ClearSubcmd(const eos::console::ConvertProto_ClearProto& clear,
+                        eos::console::ReplyProto& reply)
+{
 }
 
 //------------------------------------------------------------------------------

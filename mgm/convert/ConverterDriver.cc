@@ -31,7 +31,8 @@ constexpr unsigned int ConverterDriver::QdbHelper::cBatchSize;
 //----------------------------------------------------------------------------
 // Start converter thread
 //----------------------------------------------------------------------------
-void ConverterDriver::Start()
+void
+ConverterDriver::Start()
 {
   if (!mIsRunning.load()) {
     mIsRunning = true;
@@ -42,7 +43,8 @@ void ConverterDriver::Start()
 //----------------------------------------------------------------------------
 // Stop converter thread and all running conversion jobs
 //----------------------------------------------------------------------------
-void ConverterDriver::Stop()
+void
+ConverterDriver::Stop()
 {
   mThread.join();
   mIsRunning = false;
@@ -51,7 +53,8 @@ void ConverterDriver::Stop()
 //----------------------------------------------------------------------------
 // Converter engine thread monitoring
 //----------------------------------------------------------------------------
-void ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
+void
+ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
 {
   gOFS->WaitUntilNamespaceIsBooted(assistant);
   eos_notice("%s", "msg=\"starting converter engine\"");
@@ -106,7 +109,8 @@ void ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
 //----------------------------------------------------------------------------
 // Handle jobs based on status
 //----------------------------------------------------------------------------
-void ConverterDriver::HandleRunningJobs()
+void
+ConverterDriver::HandleRunningJobs()
 {
   eos::common::RWMutexWriteLock wlock(mJobsMutex);
 
@@ -138,7 +142,8 @@ void ConverterDriver::HandleRunningJobs()
 //----------------------------------------------------------------------------
 // Remove finished inflight jobs
 //----------------------------------------------------------------------------
-void ConverterDriver::RemoveInflightJobs()
+void
+ConverterDriver::RemoveInflightJobs()
 {
   eos::common::RWMutexWriteLock wlock(mJobsMutex);
   mJobsInflightDone.clear();
@@ -147,7 +152,8 @@ void ConverterDriver::RemoveInflightJobs()
 //----------------------------------------------------------------------------
 // Signal all conversion jobs to stop
 //----------------------------------------------------------------------------
-void ConverterDriver::JoinAllConversionJobs()
+void
+ConverterDriver::JoinAllConversionJobs()
 {
   eos_notice("%s", "msg=\"stopping all running conversion jobs\"");
   HandleRunningJobs();
@@ -188,7 +194,8 @@ ConverterDriver::ScheduleJob(const eos::IFileMD::id_t& id,
 //--------------------------------------------------------------------------
 // Add conversion job to the queue of pending jobs in QuarkDB
 //--------------------------------------------------------------------------
-bool ConverterDriver::QdbHelper::AddPendingJob(const JobInfoT& jobinfo)
+bool
+ConverterDriver::QdbHelper::AddPendingJob(const JobInfoT& jobinfo)
 {
   try {
     return mQHashPending.hset(std::to_string(jobinfo.first), jobinfo.second);

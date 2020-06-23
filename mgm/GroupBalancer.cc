@@ -335,6 +335,8 @@ GroupBalancer::scheduleTransfer(eos::common::FileId::fileid_t fid,
     return;
   }
 
+  // @todo (esindril): hook in the new converter
+
   if (!gOFS->_touch(fileName.c_str(), mError, rootvid, 0)) {
     eos_static_info("scheduledfile=%s src_group=%s trg_group=%s",
                     fileName.c_str(), sourceGroup->mName.c_str(),

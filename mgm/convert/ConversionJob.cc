@@ -317,7 +317,7 @@ std::string ConversionJob::ConversionCGI(const ConversionInfo& info) const
 }
 
 //------------------------------------------------------------------------------
-// Merge origial and the newly converted one so that the initial file
+// Merge original and the newly converted one so that the initial file
 // identifier and all the rest of the metadata information is preserved.
 // Steps for a successful conversion
 //   1. Update the new locations for original fid
