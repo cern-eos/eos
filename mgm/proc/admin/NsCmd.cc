@@ -318,6 +318,7 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
   CacheStatistics fileCacheStats = gOFS->eosFileService->getCacheStatistics();
   CacheStatistics containerCacheStats =
     gOFS->eosDirectoryService->getCacheStatistics();
+  common::MutexLatencyWatcher::LatencySpikes viewLatency = gOFS->mViewMutexWatcher.getLatencySpikes();
 
   if (monitoring) {
     oss << "uid=all gid=all ns.total.files=" << f << std::endl
@@ -369,7 +370,15 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << "uid=all gid=all ns.fusex.activeclients=" <<
         eosxd_active_clients << std::endl
         << "uid=all gid=all ns.fusex.lockedclients=" <<
-        eosxd_locked_clients << std::endl ;
+        eosxd_locked_clients << std::endl
+        << "uid=all gid=all ns.latencypeak.eosviewmutex.last=" <<
+        viewLatency.last.count() << std::endl
+        << "uid=all gid=all ns.latencypeak.eosviewmutex.1min=" <<
+        viewLatency.lastMinute.count() << std::endl
+        << "uid=all gid=all ns.latencypeak.eosviewmutex.2min=" <<
+        viewLatency.last2Minutes.count() << std::endl
+        << "uid=all gid=all ns.latencypeak.eosviewmutex.5min=" <<
+        viewLatency.last5Minutes.count() << std::endl;
 
     if (pstat.vsize > gOFS->LinuxStatsStartup.vsize) {
       oss << "uid=all gid=all ns.memory.growth=" << (unsigned long long)
@@ -517,8 +526,7 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
           << line << std::endl;
     }
 
-    common::MutexLatencyWatcher::LatencySpikes viewLatency = gOFS->mViewMutexWatcher.getLatencySpikes();
-    oss << "ALL      eosViewRWMutex latency           " << viewLatency.last.count() << "ms (last) " 
+    oss << "ALL      eosViewRWMutex peak-latency      " << viewLatency.last.count() << "ms (last) "
       << viewLatency.lastMinute.count() << "ms (1 min) " << viewLatency.last2Minutes.count() << "ms (2 min) " <<
       viewLatency.last5Minutes.count() << "ms (5 min)"
       << std::endl << line << std::endl;
