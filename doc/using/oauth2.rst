@@ -23,7 +23,7 @@ All XRootD based clients can add the oauth2 token in the endorsement environment
 
    XrdSecsssENDORSEMENT=oauth2:<access_token>:<oauth-resource>
  
-A requirement to use OAUTH2 is to configure/force clients to use sss authentication:
+OAUTH2 is enabled by default, but can be explicitly en-/or disabled:
 
 .. code-block:: bash
 
@@ -35,14 +35,15 @@ A requirement to use OAUTH2 is to configure/force clients to use sss authenticat
    # eosxd config file parameter
 
    "auth" : { 
-     "sss" : 1,
-     "ssskeytab" : "/etc/eos/fuse.sss.keytab",
+     "oauth2" : 1, #default
+     "ssskeytab" : "/etc/eos/fuse.sss.keytab", #default
     }
 
-    env XrdSecsssENDORSEMENT=oauth2:...
+    export OAUTH2_TOKEN=FILE:/tmp/oauthtk_1000
+    # /tmp/oauthtk_1000 contains oauth2:<token>:<oauth-url>
     ls /eos/ 
    
-One has to create an sss key for this communication, however the sss key user can be banned on the instance:
+One has to supply an sss key for this communication, however the sss key user can be banned on the instance:
 Client and server should share an sss key for a user, which is actually not authorized to use the instance e.g.
 
 .. code-block:: bash
@@ -66,9 +67,6 @@ Client and server should share an sss key for a user, which is actually not auth
    # server bans user nfsnobody or maybe uses already user allow, which bans this user by default
    eos access ban user nfsnobody
   
-   # server issues a scoped token binding to a user/group
-   TOKEN=`eos token --path /eos/cms/www/ --permission rwx --expires 1600000000 --owner cmsprod --group zh`
- 
    ############################
    # client
    ############################
