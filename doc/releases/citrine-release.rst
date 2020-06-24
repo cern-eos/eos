@@ -15,6 +15,23 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.8.4 Citrine``
+===================
+
+2020-06-24
+
+Bug
+----
+
+* [EOS-4305] - _remdir sends fusex notifications under namespace lock
+
+Improvement
+------------
+
+* [EOS-3851] - do not `drainwait` group balancing on terminate drain statuses
+* [EOS-4306] - Add namespace mutex acqusition latency stats to "eos ns"
+* Add option to store the LevelDB on the data disk rather than root partition
+
 
 ``v4.8.3 Citrine``
 ===================
