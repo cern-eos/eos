@@ -1322,7 +1322,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
              "Deletion,PrintOut,SharedHash,work");
 
   // Setup configuration directory and start the config engine
-  if (!SetupConfigDir()) {
+  if (MgmOfsConfigEngineType == "file" && !SetupConfigDir()) {
     NoGo = 1;
     return NoGo;
   }
