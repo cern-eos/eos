@@ -191,14 +191,17 @@ QuarkDBConfigEngine::SaveConfig(std::string filename, bool overwrite,
 
   // Store a new hash
   std::string hash_key = formConfigHashKey(filename);
-  qclient::QHash q_hash(*mQcl, hash_key);
 
-  if (q_hash.hlen() > 0 && !overwrite) {
-    errno = EEXIST;
-    err = "error: a configuration with name \"";
-    err += filename.c_str();
-    err += "\" exists already!";
-    return false;
+  if (!overwrite) {
+    bool exists = true;
+    common::Status st = mConfigHandler->checkExistence(filename, exists);
+    if(!st.ok() || exists) {
+      errno = EEXIST;
+      err = "error: a configuration with name \"";
+      err += filename.c_str();
+      err += "\" exists already!";
+      return false;
+    }
   }
 
   storeIntoQuarkDB(filename);
