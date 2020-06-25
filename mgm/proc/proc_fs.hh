@@ -44,10 +44,11 @@ EOSMGMNAMESPACE_BEGIN
 
 //! Type of entity we are dealing with during an fs operation
 enum EntityType {
-  UNKNOWN = 0x00,  // unknown entity
+  UNKNOWN = 0x00, // unknown entity
   FS      = 0x01, // file system
   GROUP   = 0x10, // eos space
-  SPACE   = 0x11  // eos group
+  SPACE   = 0x11, // eos group
+  NODE    = 0x1000 // node
 };
 
 //! Type of accepted operations for fs mv command
@@ -56,7 +57,8 @@ enum class MvOpType {
   FS_2_GROUP  = (EntityType::FS << 2) | EntityType::GROUP,
   FS_2_SPACE  = (EntityType::FS << 2) | EntityType::SPACE,
   GRP_2_SPACE = (EntityType::GROUP << 2) | EntityType::SPACE,
-  SPC_2_SPACE = (EntityType::SPACE << 2) | EntityType::SPACE
+  SPC_2_SPACE = (EntityType::SPACE << 2) | EntityType::SPACE,
+  FS_2_NODE   = (EntityType::FS << 2) | EntityType::NODE
 };
 
 //------------------------------------------------------------------------------
@@ -203,13 +205,15 @@ MvOpType get_operation_type(const std::string& in1, const std::string& in2,
 //! @param stdOut output string
 //! @param stdErr error output string
 //! @param force allows to move non-empty filesystems
+//! @param realm messaging realm
 //!
 //! @return 0 if successful, otherwise error code
 //------------------------------------------------------------------------------
 int proc_fs_mv(std::string& src, std::string& dst, XrdOucString& stdOut,
                XrdOucString& stdErr,
                eos::common::VirtualIdentity& vid_in,
-               bool force);
+               bool force,
+	       mq::MessagingRealm* realm = 0);
 
 
 //------------------------------------------------------------------------------
@@ -294,6 +298,26 @@ int proc_mv_grp_space(FsView& fs_view, const std::string& src,
 int proc_mv_space_space(FsView& fs_view, const std::string& src,
                         const std::string& dst, XrdOucString& stdOut,
                         XrdOucString& stdErr, bool force);
+
+
+//------------------------------------------------------------------------------
+//! Move a filesystem between nodes
+//! @note needs to be called with FsView::ViewMutex locked
+//!
+//! @param fs_view file system view handler
+//! @param src filesyste to move
+//! @param dst destination node
+//! @param stdOut output string
+//! @param stdErr error output string
+//! @param force currently unused
+//!
+//! @return 0 if successful, otherwise error code
+//------------------------------------------------------------------------------
+int proc_mv_fs_node(FsView& fs_view, const std::string& src,
+		    const std::string& dst, XrdOucString& stdOut,
+		    XrdOucString& stdErr, bool force,
+		    eos::common::VirtualIdentity& vid_in,
+		    mq::MessagingRealm* realm);
 
 //------------------------------------------------------------------------------
 //! Sort the groups in a space by priority - the first ones are the ones that

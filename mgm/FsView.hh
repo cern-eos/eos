@@ -719,6 +719,16 @@ public:
   bool MoveGroup(FileSystem* fs, std::string group);
 
   //----------------------------------------------------------------------------
+  //! Move a filesystem to another node
+  //!
+  //! @param fs filesystem object to move
+  //! @param target node
+  //!
+  //! @return true if moved otherwise false
+  //----------------------------------------------------------------------------
+  bool MoveNode(FileSystem* fs, std::string node);
+
+  //----------------------------------------------------------------------------
   //! Store the filesystem configuration into the config engine. Should be
   //! called whenever a filesystem wide parameters is changed.
   //!

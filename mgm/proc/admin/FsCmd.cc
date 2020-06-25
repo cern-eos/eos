@@ -437,7 +437,7 @@ FsCmd::Mv(const eos::console::FsProto::MvProto& mvProto)
     std::string dest = mvProto.dst();
     bool force = mvProto.force();
     XrdOucString out, err;
-    mRetc = proc_fs_mv(source, dest, out, err, mVid, force);
+    mRetc = proc_fs_mv(source, dest, out, err, mVid, force, gOFS->mMessagingRealm.get());
     mOut = out.c_str() != nullptr ? out.c_str() : "";
     mErr = err.c_str() != nullptr ? err.c_str() : "";
   } else {

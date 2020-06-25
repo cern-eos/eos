@@ -42,6 +42,16 @@ EntityType get_entity_type(const std::string& input, XrdOucString& stdOut,
 {
   std::ostringstream oss;
   EntityType ret = EntityType::UNKNOWN;
+
+  // check for nodes
+  size_t ppos = input.find(":");
+  if (ppos != std::string::npos) {
+    // this is a node with port
+    ret = EntityType::NODE;
+    return ret;
+  }
+
+  // check for fs,group,space
   size_t pos = input.find('.');
 
   if (pos == std::string::npos) {
@@ -51,6 +61,7 @@ EntityType get_entity_type(const std::string& input, XrdOucString& stdOut,
       (void) strtol(input.c_str(), nullptr, 10);
 
       if (errno) {
+
         eos_static_err("input fsid: %s must be a numeric value", input.c_str());
         oss << "fsid: " << input << " must be a numeric value";
         stdErr = oss.str().c_str();
@@ -109,7 +120,8 @@ MvOpType get_operation_type(const std::string& in1, const std::string& in2,
   if (((in1_type == EntityType::FS) && (in2_type == EntityType::SPACE)) ||
       ((in1_type == EntityType::FS) && (in2_type == EntityType::GROUP)) ||
       ((in1_type == EntityType::GROUP) && (in2_type == EntityType::SPACE)) ||
-      ((in1_type == EntityType::SPACE) && (in2_type == EntityType::SPACE))) {
+      ((in1_type == EntityType::SPACE) && (in2_type == EntityType::SPACE)) ||
+      ((in1_type == EntityType::FS) && (in2_type == EntityType::NODE))) {
     return static_cast<MvOpType>((in1_type << 2) | in2_type);
   }
 
@@ -596,7 +608,9 @@ proc_fs_add(mq::MessagingRealm* realm, std::string& sfsid, std::string& uuid,
   if (!common::FileSystemLocator::fromQueuePath(queuepath, locator)) {
     eos_static_err("msg=\"could not parse queue path\" queue=\"%s\"",
                    queuepath.c_str());
-    stdErr += "error: could not parse queue path";
+    stdErr += "error: could not parse queue path qeueue='";
+    stdErr += queuepath.c_str();
+    stdErr += "'";
     return EINVAL;
   }
 
@@ -781,7 +795,7 @@ proc_fs_add(mq::MessagingRealm* realm, std::string& sfsid, std::string& uuid,
 int
 proc_fs_mv(std::string& src, std::string& dst, XrdOucString& stdOut,
            XrdOucString& stdErr, eos::common::VirtualIdentity& vid_in,
-           bool force)
+           bool force, mq::MessagingRealm* realm)
 {
   int retc = 0;
   MvOpType operation = get_operation_type(src, dst, stdOut, stdErr);
@@ -804,6 +818,9 @@ proc_fs_mv(std::string& src, std::string& dst, XrdOucString& stdOut,
     retc = proc_mv_space_space(FsView::gFsView, src, dst, stdOut, stdErr, force);
     break;
 
+  case MvOpType::FS_2_NODE:
+    retc = proc_mv_fs_node(FsView::gFsView, src, dst, stdOut, stdErr, force, vid_in, realm);
+    break;
   default:
     stdErr = "error: operation not supported";
     retc = EINVAL;
@@ -1262,6 +1279,82 @@ int proc_mv_space_space(FsView& fs_view, const std::string& src,
 
   return 0;
 }
+
+//------------------------------------------------------------------------------
+// Move FS to a new node
+//------------------------------------------------------------------------------
+int
+proc_mv_fs_node(FsView& fs_view, const std::string& src,
+		    const std::string& dst, XrdOucString& stdOut,
+		    XrdOucString& stdErr, bool force,
+		    eos::common::VirtualIdentity& vid_in,
+		    mq::MessagingRealm* realm)
+{
+  std::ostringstream oss;
+  eos::common::FileSystem::fsid_t fsid = stoi(src.c_str());
+
+  FileSystem* fs = fs_view.mIdView.lookupByID(fsid);
+  if (fs) {
+    FileSystem::fs_snapshot_t snapshot;
+
+    if (fs->SnapShotFileSystem(snapshot)) {
+      // pretend this is empty
+      fs->SetString("configstatus", "empty");
+      std::string a;
+      std::string b;
+      std::string id = src;
+      std::string uuid = snapshot.mUuid;
+      std::string hostport = snapshot.mHostPort;
+      std::string path = snapshot.mPath;
+      std::string space = snapshot.mSpace;
+      std::string configstatus= eos::common::FileSystem::GetConfigStatusAsString(snapshot.mConfigStatus);
+
+      int rc = proc_fs_rm(a,b,
+			  id,
+			  stdOut,
+			  stdErr,
+			  vid_in);
+      FsView::gFsView.ViewMutex.UnLockWrite();
+      if (!rc) {
+	std::string nodename = "/eos/";
+	nodename += dst;
+	nodename += "/fst";
+	int rc = proc_fs_add(realm,
+			     id,
+			     uuid,
+			     nodename,
+			     path,
+			     space,
+			     configstatus,
+			     stdOut,
+			     stdErr,
+			     vid_in
+			     );
+	if (rc) {
+	  oss << "error: failed to reinsert filesystem with id='" << fsid << "' - this is really really bad!!!" << std::endl;
+	  stdErr += oss.str().c_str();
+	  stdOut.erase();
+	}
+      } else {
+	oss << "error: failed ot snapshot filesystem with id='" << fsid << "'" << std::endl;
+	stdErr = oss.str().c_str();
+	stdOut.erase();
+      }
+    } else {
+      oss << "error: failed ot snapshot filesystem with id='" << fsid << "'" << std::endl;
+      stdErr = oss.str().c_str();
+      stdOut.erase();
+    }
+  } else {
+    oss << "error: no such filesystem with id='" << fsid << "'" << std::endl;
+    stdErr = oss.str().c_str();
+    stdOut.erase();
+  }
+  FsView::gFsView.ViewMutex.LockWrite();
+  return 0;
+}
+
+
 
 //------------------------------------------------------------------------------
 // Remove filesystem
