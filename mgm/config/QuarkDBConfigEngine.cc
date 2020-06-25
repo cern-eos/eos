@@ -30,7 +30,12 @@
 #include <qclient/ResponseParsing.hh>
 #include <qclient/MultiBuilder.hh>
 #include "qclient/structures/QScanner.hh"
+
+#include <folly/executors/IOThreadPoolExecutor.h>
+
 #include <ctime>
+#include <functional>
+using std::placeholders::_1;
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -130,6 +135,7 @@ QuarkDBConfigEngine::QuarkDBConfigEngine(const QdbContactDetails&
          mQdbContactDetails.constructOptions());
   mConfigHandler = std::make_unique<QuarkConfigHandler>(mQdbContactDetails);
   mChangelog.reset(new QuarkDBCfgEngineChangelog(mQcl.get()));
+  mExecutor.reset(new folly::IOThreadPoolExecutor(2));
 }
 
 //------------------------------------------------------------------------------
@@ -416,6 +422,15 @@ QuarkDBConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
 }
 
 //------------------------------------------------------------------------------
+// Check write configuration result
+//------------------------------------------------------------------------------
+void checkWriteConfigurationResult(common::Status st) {
+  if(!st.ok()) {
+    eos_static_crit("Failed to save MGM configuration !!!! %s", st.toString().c_str());
+  }
+}
+
+//------------------------------------------------------------------------------
 // Store configuration into given keyname
 //------------------------------------------------------------------------------
 void QuarkDBConfigEngine::storeIntoQuarkDB(const std::string& name)
@@ -423,12 +438,9 @@ void QuarkDBConfigEngine::storeIntoQuarkDB(const std::string& name)
   std::lock_guard lock(mMutex);
   clearDeprecated(sConfigDefinitions);
 
-  common::Status st = mConfigHandler->writeConfiguration(name, sConfigDefinitions,
-    true, formatBackupTime(time(NULL))).get();
-
-  if(!st.ok()) {
-    eos_static_crit("Failed to save MGM configuration !!!! %s", st.toString().c_str());
-  }
+  mConfigHandler->writeConfiguration(name, sConfigDefinitions, true, formatBackupTime(time(NULL)))
+    .via(mExecutor.get())
+    .thenValue(std::bind(checkWriteConfigurationResult, _1));
 }
 
 EOSMGMNAMESPACE_END

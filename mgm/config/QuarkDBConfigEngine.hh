@@ -202,6 +202,8 @@ private:
   const std::string kConfigurationHashKeyPrefix = "eos-config";
   const std::string kConfigurationBackupHashKeyPrefix = "eos-config-backup";
 
+  std::unique_ptr<folly::Executor> mExecutor;
+
   //----------------------------------------------------------------------------
   //! Form configuration hash key
   //----------------------------------------------------------------------------
