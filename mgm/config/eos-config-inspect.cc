@@ -152,7 +152,7 @@ int runExportSubcommand(const std::string &sourceFile, eos::mgm::QuarkConfigHand
     return 1;
   }
 
-  eos::common::Status st = configHandler.writeConfiguration("default", configuration, overwrite);
+  eos::common::Status st = configHandler.writeConfiguration("default", configuration, overwrite).get();
 
   if(!st) {
     std::cerr << "ERROR: " << st.toString() << std::endl;
@@ -245,7 +245,7 @@ int runRelocateFilesystemSubcommand(eos::mgm::QuarkConfigHandler &configHandler,
         strftime(buff, 127, "%Y%m%d%H%M%S", localtime(&timestamp));
         std::string backupName = SSTR("default-" << buff << "-relocation"); 
 
-        st = configHandler.writeConfiguration("default", configMap, true, backupName);
+        st = configHandler.writeConfiguration("default", configMap, true, backupName).get();
 
         if(!st) {
           std::cerr << "writing configuration failed: " << st.toString() << std::endl;

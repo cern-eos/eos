@@ -424,7 +424,7 @@ void QuarkDBConfigEngine::storeIntoQuarkDB(const std::string& name)
   clearDeprecated(sConfigDefinitions);
 
   common::Status st = mConfigHandler->writeConfiguration(name, sConfigDefinitions,
-    true, formatBackupTime(time(NULL)));
+    true, formatBackupTime(time(NULL))).get();
 
   if(!st.ok()) {
     eos_static_crit("Failed to save MGM configuration !!!! %s", st.toString().c_str());

@@ -100,13 +100,13 @@ TEST_F(ConfigurationTests, WriteRead) {
   configuration["a"] = "b";
   configuration["c"] = "d";
 
-  ASSERT_TRUE(ch.writeConfiguration("default", configuration, false));
+  ASSERT_TRUE(ch.writeConfiguration("default", configuration, false).get());
   ASSERT_TRUE(ch.fetchConfiguration("default", configuration2));
   ASSERT_EQ(configuration, configuration2);
 
-  ASSERT_FALSE(ch.writeConfiguration("default", configuration, false));
+  ASSERT_FALSE(ch.writeConfiguration("default", configuration, false).get());
   configuration["d"] = "e";
-  ASSERT_TRUE(ch.writeConfiguration("default", configuration, true));
+  ASSERT_TRUE(ch.writeConfiguration("default", configuration, true).get());
 
   ASSERT_FALSE(configuration == configuration2);
   ASSERT_TRUE(ch.fetchConfiguration("default", configuration2));

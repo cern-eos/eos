@@ -105,9 +105,32 @@ common::Status QuarkConfigHandler::fetchConfiguration(const std::string &name, s
 }
 
 //------------------------------------------------------------------------------
+// Process write configuration reply
+//------------------------------------------------------------------------------
+static common::Status processWriteConfigurationReply(size_t configSize, uint32_t extraReqs, qclient::redisReplyPtr reply) {
+  if(!reply) {
+    return common::Status(EINVAL, "null reply, QDB backend not available?");
+  }
+
+  if(reply->elements != configSize + extraReqs) {
+    return common::Status(EINVAL,
+      SSTR("unexpected number of elements in response: " << qclient::describeRedisReply(reply)));
+  }
+
+  for(size_t i = extraReqs; i < reply->elements; i++) {
+    qclient::IntegerParser intParse(reply->element[i]);
+    if(!intParse.ok() || intParse.value() != 1) {
+      return common::Status(EINVAL, SSTR("unexpected response in position " << i << ": " << qclient::describeRedisReply(reply->element[i])));
+    }
+  }
+
+  return common::Status();
+}
+
+//------------------------------------------------------------------------------
 // Write the given configuration
 //------------------------------------------------------------------------------
-common::Status QuarkConfigHandler::writeConfiguration(const std::string &name, const std::map<std::string, std::string> &config,
+folly::Future<common::Status> QuarkConfigHandler::writeConfiguration(const std::string &name, const std::map<std::string, std::string> &config,
     bool overwrite, const std::string &backup) {
 
   std::string configKey = SSTR("eos-config:" << name);
@@ -141,20 +164,9 @@ common::Status QuarkConfigHandler::writeConfiguration(const std::string &name, c
     multiBuilder.emplace_back("HSET", configKey, it->first, it->second);
   }
 
-  qclient::redisReplyPtr reply = mQcl->execute(multiBuilder.getDeque()).get();
-  if(reply->elements != config.size() + extraReqs) {
-    return common::Status(EINVAL,
-      SSTR("unexpected number of elements in response: " << qclient::describeRedisReply(reply)));
-  }
-
-  for(size_t i = extraReqs; i < reply->elements; i++) {
-    qclient::IntegerParser intParse(reply->element[i]);
-    if(!intParse.ok() || intParse.value() != 1) {
-      return common::Status(EINVAL, SSTR("unexpected response in position " << i << ": " << qclient::describeRedisReply(reply->element[i])));
-    }
-  }
-
-  return common::Status();
+  return mQcl->follyExecute(multiBuilder.getDeque())
+    .via(mExecutor.get())
+    .thenValue(std::bind(processWriteConfigurationReply, config.size(), extraReqs, _1));
 }
 
 //------------------------------------------------------------------------------
