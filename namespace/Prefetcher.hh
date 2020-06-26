@@ -108,9 +108,9 @@ public:
   //! Prefetch ContainerMD with children and wait
   //----------------------------------------------------------------------------
   static void prefetchContainerMDWithChildrenAndWait(IView* view,
-      const std::string& path, bool follow = true);
+      const std::string& path, bool follow = true, bool onlyDirs = false);
   static void prefetchContainerMDWithChildrenAndWait(IView* view,
-      IContainerMD::id_t id);
+      IContainerMD::id_t id, bool onlyDirs = false);
 
 
   //----------------------------------------------------------------------------

@@ -247,7 +247,7 @@ void Prefetcher::prefetchItemAndWait(IView* view, const std::string& path,
 // Prefetch ContainerMD, along with all its children, and wait
 //------------------------------------------------------------------------------
 void Prefetcher::prefetchContainerMDWithChildrenAndWait(IView* view,
-    const std::string& path, bool follow)
+    const std::string& path, bool follow, bool onlyDirs)
 {
   if (view->inMemory()) {
     return;
@@ -279,12 +279,14 @@ void Prefetcher::prefetchContainerMDWithChildrenAndWait(IView* view,
 
   paths.clear();
 
-  for (auto dit = eos::FileMapIterator(cmd); dit.valid(); dit.next()) {
-    paths.emplace_back(SSTR(path << "/" << dit.key()));
-  }
+  if(!onlyDirs) {
+    for (auto dit = eos::FileMapIterator(cmd); dit.valid(); dit.next()) {
+      paths.emplace_back(SSTR(path << "/" << dit.key()));
+    }
 
-  for (size_t i = 0; i < paths.size(); i++) {
-    prefetcher.stageFileMD(paths[i], true);
+    for (size_t i = 0; i < paths.size(); i++) {
+      prefetcher.stageFileMD(paths[i], true);
+    }
   }
 
   prefetcher.wait();
@@ -330,7 +332,7 @@ void Prefetcher::prefetchInodeWithChildrenAndWait(IView* view, uint64_t ino)
 // Prefetch ContainerMD, along with all its children, and wait
 //------------------------------------------------------------------------------
 void Prefetcher::prefetchContainerMDWithChildrenAndWait(IView* view,
-    IContainerMD::id_t id)
+    IContainerMD::id_t id, bool onlyDirs)
 {
   if (view->inMemory()) {
     return;
@@ -357,8 +359,10 @@ void Prefetcher::prefetchContainerMDWithChildrenAndWait(IView* view,
     prefetcher.stageContainerMD(dit.value());
   }
 
-  for (auto dit = eos::FileMapIterator(cmd); dit.valid(); dit.next()) {
-    prefetcher.stageFileMD(dit.value());
+  if(!onlyDirs) {
+    for (auto dit = eos::FileMapIterator(cmd); dit.valid(); dit.next()) {
+      prefetcher.stageFileMD(dit.value());
+    }
   }
 
   prefetcher.wait();
