@@ -184,6 +184,22 @@ To define a policy conversion whenever a file is injected into a specific space 
 .. warning::
    You cannot change the file checksum during a conversion job! Make sure source and target layout have the same checksum type!
 
+You can define a minimum or maximum size criteria to apply automatic policy conversion depending on the file size.
+
+.. code-block:: bash
+
+   # convert files on creation only if they are atleast 100MB
+   eos space config ssd space.policy.conversion.creation.size=>100000000
+
+   # convert files on creation only if they are smaller than 1024 bytes
+   eos space config ssd space.policy.conversion.creation.size=<1024
+
+   # convert files on injection only if they are bigger than 1G
+   eos space config ssd space.policy.conversion.injection.size=>1000000000
+
+   # convert files on injection only if they are smaller than 1M
+   eos space config ssd space.policy.conversion.injection.size=<1000000
+
 
 
  

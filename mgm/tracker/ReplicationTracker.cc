@@ -110,6 +110,26 @@ ReplicationTracker::ConversionPolicy(bool injection, int fsid)
   return "";
 }
 
+std::string
+ReplicationTracker::ConversionSizePolicy(bool injection, int fsid)
+{
+  std::string space = FsView::gFsView.mIdView.lookupSpaceByID(fsid);
+  eos_static_info("%s %d", space.c_str(), fsid);
+  if (space.length()) {
+    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+
+    auto it = FsView::gFsView.mSpaceView.find(space);
+    if (it != FsView::gFsView.mSpaceView.end()) {
+      if (injection) {
+	return it->second->GetConfigMember("policy.conversion.injection.size");
+      } else {
+	return it->second->GetConfigMember("policy.conversion.creation.size");
+      }
+    }
+  }
+  return "";
+}
+
 //------------------------------------------------------------------------------
 // Commit a file
 //------------------------------------------------------------------------------
@@ -138,29 +158,63 @@ ReplicationTracker::Commit(std::shared_ptr<eos::IFileMD> fmd)
       {
 	std::string policy = ConversionPolicy(tapecopy, fsid);
 	if (policy.length()) {
-	  // create a conversion job for this file according to the policy definition
-	  eos_static_info("triggering conversion policy '%s' for fxid:%08llx", policy.c_str(), fmd->getId());
-	  std::string layout;
-	  std::string space;
-	  if ( eos::common::StringConversion::SplitKeyValue(policy,
-							    layout,
-							    space,
-							    "@")) {
-	    std::string info = "mgm.cmd=file&mgm.subcmd=convert&mgm.convert.layout=";
-	    info += layout;
-	    info += "&mgm.convert.space=";
-	    info += space;
-	    info += "&mgm.file.id=";
-	    info += std::to_string(fmd->getId());
 
-	    XrdOucErrInfo error;
-	    eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
-	    ProcCommand cmd;
-	    cmd.open("/proc/user", info.c_str(), rootvid, &error);
-	    cmd.close();
-	    int rc = cmd.GetRetc();
-	    if (rc) {
-	      eos_static_err("converions-hook failed with rc=%d for fxid:%08llx", rc, fmd->getId());
+	  size_t cutoff_size=0;
+	  bool do_conversion = true;
+
+	  std::string size_policy = ConversionSizePolicy(tapecopy,fsid);
+	  if (size_policy.length()) {
+	    switch ((size_policy.at(0))) {
+	    case '<':
+	      // max size policy
+	      cutoff_size = std::stol(size_policy.substr(1));
+	      if (fmd->getSize() >= cutoff_size) {
+		if (EOS_LOGS_DEBUG) {
+		  eos_static_debug("suppressing conversion because of minimum size policy '%s' fxid:%08llx", policy.c_str(), fmd->getId());
+		}
+		do_conversion = false;
+	      }
+	      break;
+	    case '>':
+	      // min size policy
+	      cutoff_size = std::stol(size_policy.substr(1));
+	      if (fmd->getSize() <= cutoff_size) {
+		if (EOS_LOGS_DEBUG) {
+		  eos_static_debug("suppressing conversion because of maximum size policy '%s' fxid:%08llx", policy.c_str(), fmd->getId());
+		}
+		do_conversion = false;
+	      }
+	    default:
+	      eos_static_warning("illegal space conversion policy size: should be empty '', <size '<1000', >size '>1000");
+	      break;
+	    }
+	  }
+
+	  if (do_conversion) {
+	    // create a conversion job for this file according to the policy definition
+	    eos_static_info("triggering conversion policy '%s' for fxid:%08llx", policy.c_str(), fmd->getId());
+	    std::string layout;
+	    std::string space;
+	    if ( eos::common::StringConversion::SplitKeyValue(policy,
+							      layout,
+							      space,
+							      "@")) {
+	      std::string info = "mgm.cmd=file&mgm.subcmd=convert&mgm.convert.layout=";
+	      info += layout;
+	      info += "&mgm.convert.space=";
+	      info += space;
+	      info += "&mgm.file.id=";
+	      info += std::to_string(fmd->getId());
+
+	      XrdOucErrInfo error;
+	      eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
+	      ProcCommand cmd;
+	      cmd.open("/proc/user", info.c_str(), rootvid, &error);
+	      cmd.close();
+	      int rc = cmd.GetRetc();
+	      if (rc) {
+		eos_static_err("converions-hook failed with rc=%d for fxid:%08llx", rc, fmd->getId());
+	      }
 	    }
 	  }
 	}

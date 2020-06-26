@@ -52,6 +52,7 @@ public:
 
   void Create(std::shared_ptr<eos::IFileMD> fmd);
   std::string ConversionPolicy(bool injection, int fsid);
+  std::string ConversionSizePolicy(bool injection, int fsid);
   void Commit(std::shared_ptr<eos::IFileMD> fmd);
   void Validate(std::shared_ptr<eos::IFileMD> fmd);
 
