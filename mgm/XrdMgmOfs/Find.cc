@@ -724,7 +724,7 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
     }
 
     eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView,
-        Path.c_str());
+        Path.c_str(), true, no_files);
 
     try {
       cmd = gOFS->eosView->getContainer(Path.c_str(), false);
@@ -765,7 +765,7 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
 
       // Held only for the current loop
       eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView,
-          Path.c_str());
+          Path.c_str(), true, no_files);
       eos::common::RWMutexReadLock ns_rd_lock;
 
       if (take_lock) {
