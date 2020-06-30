@@ -191,11 +191,12 @@ ConvertHelper::ParseCommand(const char* arg)
     if (!tokenizer.NextToken(token)) {
       list->set_type("failed");
     } else {
-      if ((token != "failed") && (token != "pending")) {
+      if ((token != "--failed") && (token != "--pending")) {
         std::cerr << "error: unknown listing option \'" << token << "\'"
                   << std::endl;
         return false;
       } else {
+        token.erase(0, 2);
         list->set_type(token.c_str());
       }
     }
@@ -206,11 +207,12 @@ ConvertHelper::ParseCommand(const char* arg)
       std::cerr << "error: clear subcommand requires an option" << std::endl;
       return false;
     } else {
-      if ((token != "failed") && (token != "pending")) {
+      if ((token != "--failed") && (token != "--pending")) {
         std::cerr << "error: unknown clear option \'" << token << "\'"
                   << std::endl;
         return false;
       } else {
+        token.erase(0, 2);
         clear->set_type(token.c_str());
       }
     }

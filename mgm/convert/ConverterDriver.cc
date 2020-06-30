@@ -129,7 +129,6 @@ ConverterDriver::HandleRunningJobs()
       if ((*it)->GetStatus() == ConversionJob::Status::FAILED) {
         auto conversion_string = (*it)->GetConversionString();
         mQdbHelper.AddFailedJob(*it);
-        mJobsFailed.insert(*it);
       }
 
       it = mJobsRunning.erase(it);
@@ -208,9 +207,9 @@ ConverterDriver::QdbHelper::AddPendingJob(const JobInfoT& jobinfo)
   return false;
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Add conversion job to the queue of failed jobs in QuarkDB
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool
 ConverterDriver::QdbHelper::AddFailedJob(
   const std::shared_ptr<ConversionJob>& job)
@@ -226,9 +225,43 @@ ConverterDriver::QdbHelper::AddFailedJob(
   return false;
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Get list of pending jobs
+//------------------------------------------------------------------------------
+std::list<ConverterDriver::JobInfoT>
+ConverterDriver::QdbHelper::GetPendingJobs()
+{
+  std::list<JobInfoT> pending;
+
+  for (auto it = mQHashPending.getIterator(cBatchSize, "0");
+       it.valid(); it.next()) {
+    try {
+      pending.emplace_back(std::stoull(it.getKey()), it.getValue());
+    } catch (...) {}
+  }
+
+  return pending;
+}
+
+//------------------------------------------------------------------------------
+// Get list of failed jobs
+//------------------------------------------------------------------------------
+std::list<ConverterDriver::JobFailedT>
+ConverterDriver::QdbHelper::GetFailedJobs()
+{
+  std::list<JobFailedT> failed;
+
+  for (auto it = mQHashFailed.getIterator(cBatchSize, "0");
+       it.valid(); it.next()) {
+    failed.emplace_back(it.getKey(), it.getValue());
+  }
+
+  return failed;
+}
+
+//------------------------------------------------------------------------------
 // Remove conversion job by id from the pending jobs queue in QuarkDB
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool
 ConverterDriver::QdbHelper::RemovePendingJob(const eos::IFileMD::id_t& id)
 {
@@ -272,6 +305,34 @@ ConverterDriver::QdbHelper::NumFailedJobs()
   }
 
   return -1;
+}
+
+//------------------------------------------------------------------------------
+// Clear list of pending jobs
+//------------------------------------------------------------------------------
+void
+ConverterDriver::QdbHelper::ClearPendingJobs()
+{
+  try {
+    (void) mQcl->del(kConversionPendingHashKey);
+  } catch (const std::exception& e) {
+    eos_static_crit("msg=\"Error encountered while clearing the list of "
+                    "pending jobs\" emsg=\"%s\"", e.what());
+  }
+}
+
+//------------------------------------------------------------------------------
+// Clear list of failed jobs
+//------------------------------------------------------------------------------
+void
+ConverterDriver::QdbHelper::ClearFailedJobs()
+{
+  try {
+    (void) mQcl->del(kConversionFailedHashKey);
+  } catch (const std::exception& e) {
+    eos_static_crit("msg=\"Error encountered while clearing the list of "
+                    "failed jobs\" emsg=\"%s\"", e.what());
+  }
 }
 
 EOSMGMNAMESPACE_END

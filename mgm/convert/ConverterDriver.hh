@@ -43,6 +43,9 @@ class ConversionJob;
 class ConverterDriver : public eos::common::LogId
 {
 public:
+  using JobInfoT = std::pair<eos::IFileMD::id_t, std::string>;
+  using JobFailedT = std::pair<std::string, std::string>;
+
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
@@ -124,15 +127,6 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Get number of failed jobs
-  //----------------------------------------------------------------------------
-  inline uint64_t NumFailedJobs() const
-  {
-    eos::common::RWMutexReadLock rlock(mJobsMutex);
-    return mJobsFailed.size();
-  }
-
-  //----------------------------------------------------------------------------
   //! Get number of pending jobs stored in QuarkDB
   //----------------------------------------------------------------------------
   inline uint64_t NumQdbPendingJobs()
@@ -169,9 +163,43 @@ public:
     mRequestIntervalSec = time;
   }
 
-private:
-  using JobInfoT = std::pair<eos::IFileMD::id_t, std::string>;
+  //----------------------------------------------------------------------------
+  //! Get list of pending jobs
+  //!
+  //! @return list of pending jobs
+  //----------------------------------------------------------------------------
+  inline std::list<JobInfoT> GetPendingJobs()
+  {
+    return mQdbHelper.GetPendingJobs();
+  }
 
+  //----------------------------------------------------------------------------
+  //! Get list of failed jobs
+  //!
+  //! @return list of failed jobs
+  //----------------------------------------------------------------------------
+  inline std::list<JobFailedT> GetFailedJobs()
+  {
+    return mQdbHelper.GetFailedJobs();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Clear list of pending jobs
+  //----------------------------------------------------------------------------
+  void ClearPendingJobs()
+  {
+    return mQdbHelper.ClearPendingJobs();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Clear list of failed jobs
+  //----------------------------------------------------------------------------
+  void ClearFailedJobs()
+  {
+    return mQdbHelper.ClearFailedJobs();
+  }
+
+private:
   struct QdbHelper {
     //--------------------------------------------------------------------------
     //! Constructor
@@ -193,6 +221,30 @@ private:
     {
       return mQHashPending.getIterator(cBatchSize, "0");
     }
+
+    //--------------------------------------------------------------------------
+    //! Get list of pending jobs
+    //!
+    //! @return list of pending jobs
+    //--------------------------------------------------------------------------
+    std::list<JobInfoT> GetPendingJobs();
+
+    //--------------------------------------------------------------------------
+    //! Get list of failed jobs
+    //!
+    //! @return list of failed jobs
+    //--------------------------------------------------------------------------
+    std::list<JobFailedT> GetFailedJobs();
+
+    //--------------------------------------------------------------------------
+    //! Clear list of pending jobs
+    //--------------------------------------------------------------------------
+    void ClearPendingJobs();
+
+    //--------------------------------------------------------------------------
+    //! Clear list of failed jobs
+    //--------------------------------------------------------------------------
+    void ClearFailedJobs();
 
     //--------------------------------------------------------------------------
     //! Add conversion job to the queue of pending jobs in QuarkDB.
@@ -293,8 +345,6 @@ private:
   std::chrono::steady_clock::time_point mTimestamp;
   ///< Collection of running conversion jobs
   std::list<std::shared_ptr<ConversionJob>> mJobsRunning;
-  ///< Collection of failed conversion jobs
-  std::set<std::shared_ptr<ConversionJob>> mJobsFailed;
   ///< Collection of in-flight jobs marked as finished
   std::set<eos::IFileMD::id_t> mJobsInflightDone;
   ///< RWMutex protecting the jobs collections

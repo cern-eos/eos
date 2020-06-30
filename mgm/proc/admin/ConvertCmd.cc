@@ -21,14 +21,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "ConvertCmd.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Scheduler.hh"
 #include "mgm/FsView.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IContainerMD.hh"
-#include "ConvertCmd.hh"
-
+#include "common/table_formatter/TableFormatterBase.hh"
 #include <json/json.h>
 
 EOSMGMNAMESPACE_BEGIN
@@ -136,7 +136,7 @@ void ConvertCmd::StatusSubcmd(
     SSTR("maxthreads=" << gOFS->mConverterDriver->GetMaxThreadPoolSize() <<
          " interval=" << gOFS->mConverterDriver->GetRequestIntervalSec());
   uint64_t running = gOFS->mConverterDriver->NumRunningJobs();
-  uint64_t failed = gOFS->mConverterDriver->NumFailedJobs();
+  uint64_t failed = gOFS->mConverterDriver->NumQdbFailedJobs();
   int64_t pending = gOFS->mConverterDriver->NumQdbPendingJobs();
   int64_t failed_qdb = gOFS->mConverterDriver->NumQdbFailedJobs();
   auto state = gOFS->mConverterDriver->IsRunning() ? "enabled" : "disabled";
@@ -432,6 +432,83 @@ void
 ConvertCmd::ListSubcmd(const eos::console::ConvertProto_ListProto& list,
                        eos::console::ReplyProto& reply, bool jsonOutput)
 {
+  std::ostringstream oss;
+  std::list<ConverterDriver::JobInfoT> pending;
+  std::list<ConverterDriver::JobFailedT> failed;
+
+  if (list.type() == "pending") {
+    pending = gOFS->mConverterDriver->GetPendingJobs();
+
+    if (pending.empty()) {
+      reply.set_std_out("info: no pending conversions");
+      return;
+    }
+
+    if (jsonOutput) {
+      Json::Value json;
+
+      for (const auto& elem : pending) {
+        json[std::to_string(elem.first)] = elem.second;
+      }
+
+      oss << Json::StyledWriter().write(json);
+    } else {
+      TableFormatterBase table;
+      TableHeader header;
+      TableData body;
+      header.push_back(std::make_tuple("Fxid", 10, "-s"));
+      header.push_back(std::make_tuple("Conversion string", 0, "-s"));
+      table.SetHeader(header);
+
+      for (const auto& elem : pending) {
+        TableRow row;
+        row.emplace_back(eos::common::FileId::Fid2Hex(elem.first), "-s");
+        row.emplace_back(elem.second, "-s");
+        body.push_back(row);
+      }
+
+      table.AddRows(body);
+      oss << table.GenerateTable();
+    }
+  } else if (list.type() == "failed") {
+    failed = gOFS->mConverterDriver->GetFailedJobs();
+
+    if (failed.empty()) {
+      reply.set_std_out("info: no failed conversions");
+      return;
+    }
+
+    if (jsonOutput) {
+      Json::Value json;
+
+      for (const auto& elem : failed) {
+        json[elem.first] = elem.second;
+      }
+
+      oss << Json::StyledWriter().write(json);
+    } else {
+      TableFormatterBase table;
+      TableHeader header;
+      TableData body;
+      header.push_back(std::make_tuple("Conversion string", 0, "-s"));
+      header.push_back(std::make_tuple("Failure", 80, "-s"));
+      table.SetHeader(header);
+
+      for (const auto& elem : failed) {
+        TableRow row;
+        row.emplace_back(elem.first, "-s");
+        row.emplace_back(elem.second, "-s");
+        body.push_back(row);
+      }
+
+      table.AddRows(body);
+      oss << table.GenerateTable();
+    }
+  }
+
+  if (!oss.str().empty()) {
+    reply.set_std_out(oss.str());
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -441,6 +518,13 @@ void
 ConvertCmd::ClearSubcmd(const eos::console::ConvertProto_ClearProto& clear,
                         eos::console::ReplyProto& reply)
 {
+  if (clear.type() == "pending") {
+    gOFS->mConverterDriver->ClearPendingJobs();
+  } else if (clear.type() == "failed") {
+    gOFS->mConverterDriver->ClearFailedJobs();
+  }
+
+  reply.set_std_out("info: list cleared");
 }
 
 //------------------------------------------------------------------------------

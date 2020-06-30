@@ -335,16 +335,32 @@ GroupBalancer::scheduleTransfer(eos::common::FileId::fileid_t fid,
     return;
   }
 
-  // @todo (esindril): hook in the new converter
+  // Use new converter if available
+  if (gOFS->mConverterDriver) {
+    // Push conversion job to QuarkDB
+    std::string conv_tag = fileName;
+    conv_tag.erase(0, gOFS->MgmProcConversionPath.length() + 1);
 
-  if (!gOFS->_touch(fileName.c_str(), mError, rootvid, 0)) {
-    eos_static_info("scheduledfile=%s src_group=%s trg_group=%s",
-                    fileName.c_str(), sourceGroup->mName.c_str(),
-                    targetGroup->mName.c_str());
-  } else {
-    eos_static_err("msg=\"failed to schedule transfer\" schedulingfile=\"%s\"",
-                   fileName.c_str());
-    return;
+    if (!gOFS->mConverterDriver->ScheduleJob(fid, conv_tag)) {
+      eos_static_info("msg=\"grp_balance scheduled job\" file=\"%s\" "
+                      "src_grp=\"%s\" dst_grp=\"%s\"", conv_tag.c_str(),
+                      sourceGroup->mName.c_str(), targetGroup->mName.c_str());
+    } else {
+      eos_static_err("msg=\"grp_balance failed to schedule job\" "
+                     "file=\"%s\" src_grp=\"%s\" dst_grp=\"%s\"",
+                     conv_tag.c_str(), sourceGroup->mName.c_str(),
+                     targetGroup->mName.c_str());
+    }
+  } else { // use old converter
+    if (!gOFS->_touch(fileName.c_str(), mError, rootvid, 0)) {
+      eos_static_info("scheduledfile=%s src_group=%s trg_group=%s",
+                      fileName.c_str(), sourceGroup->mName.c_str(),
+                      targetGroup->mName.c_str());
+    } else {
+      eos_static_err("msg=\"failed to schedule transfer\" schedulingfile=\"%s\"",
+                     fileName.c_str());
+      return;
+    }
   }
 
   mTransfers[fid] = fileName.c_str();
