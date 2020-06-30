@@ -134,11 +134,10 @@ void ConvertCmd::StatusSubcmd(
   std::string threadpool = gOFS->mConverterDriver->GetThreadPoolInfo();
   std::string config =
     SSTR("maxthreads=" << gOFS->mConverterDriver->GetMaxThreadPoolSize() <<
-         " interval=" << gOFS->mConverterDriver->GetRequestIntervalSec());
+         " poll_interval=" << gOFS->mConverterDriver->GetRequestIntervalSec());
   uint64_t running = gOFS->mConverterDriver->NumRunningJobs();
   uint64_t failed = gOFS->mConverterDriver->NumQdbFailedJobs();
   int64_t pending = gOFS->mConverterDriver->NumQdbPendingJobs();
-  int64_t failed_qdb = gOFS->mConverterDriver->NumQdbFailedJobs();
   auto state = gOFS->mConverterDriver->IsRunning() ? "enabled" : "disabled";
 
   if (jsonOutput) {
@@ -149,16 +148,14 @@ void ConvertCmd::StatusSubcmd(
     json["running"] = (Json::Value::UInt64) running;
     json["pending"] = (Json::Value::UInt64) pending;
     json["failed"] = (Json::Value::UInt64) failed;
-    json["failed_qdb"] = (Json::Value::UInt64) failed_qdb;
     out << Json::StyledWriter().write(json);
   } else {
-    out << "Threadpool: " << threadpool << std::endl
+    out << "Status: " << state << std::endl
         << "Config: " << config << std::endl
-        << "Status: " << state << std::endl
+        << "Threadpool: " << threadpool << std::endl
         << "Running jobs: " << running << std::endl
         << "Pending jobs: " << pending << std::endl
-        << "Failed jobs: " << failed << std::endl
-        << "Failed jobs (QDB): " << failed_qdb;
+        << "Total failed jobs : " << failed << std::endl;
   }
 
   reply.set_std_out(out.str());
@@ -496,8 +493,10 @@ ConvertCmd::ListSubcmd(const eos::console::ConvertProto_ListProto& list,
 
       for (const auto& elem : failed) {
         TableRow row;
+        std::string err_msg {elem.second};
+        std::replace(err_msg.begin(), err_msg.end(), '\0', ';');
         row.emplace_back(elem.first, "-s");
-        row.emplace_back(elem.second, "-s");
+        row.emplace_back(err_msg, "-s");
         body.push_back(row);
       }
 
@@ -630,7 +629,7 @@ static int CheckValidPath(const char* path,
 }
 
 //------------------------------------------------------------------------------
-//! Build and return a conversion id from the provided arguments.
+//! Build and return a conversion id from the provided arguments
 //!
 //! @param layout the conversion layout
 //! @param echecksum the conversion checksum

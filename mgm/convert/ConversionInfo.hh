@@ -22,7 +22,6 @@
  ************************************************************************/
 
 #pragma once
-
 #include "mgm/Namespace.hh"
 #include "common/FileId.hh"
 #include "common/Logging.hh"

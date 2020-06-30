@@ -22,7 +22,6 @@
  ************************************************************************/
 
 #pragma once
-
 #include "mgm/Namespace.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/convert/ConversionInfo.hh"
@@ -178,7 +177,7 @@ public:
 
 private:
   //----------------------------------------------------------------------------
-  //! Merge origial and the newly converted one so that the initial file
+  //! Merge original and the newly converted one so that the initial file
   //! identifier and all the rest of the metadata information is preserved.
   //!
   //! @return true if successful, otherwise false

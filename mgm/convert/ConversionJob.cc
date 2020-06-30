@@ -88,6 +88,9 @@ ConversionJob::ConversionJob(const eos::IFileMD::id_t fid,
 //------------------------------------------------------------------------------
 ConversionJob::~ConversionJob()
 {
+  XrdOucErrInfo error;
+  eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
+  (void) gOFS->_rem(mConversionPath.c_str(), error, rootvid, (const char*) 0);
   gOFS->mFidTracker.RemoveEntry(mFid);
 }
 
@@ -105,8 +108,8 @@ void ConversionJob::DoIt() noexcept
   eos::IFileMD::LocationVector src_locations;
   eos::IFileMD::LocationVector src_unlink_loc;
   gOFS->MgmStats.Add("ConversionJobStarted", 0, 0, 1);
-  eos_debug("msg=\"starting conversion job\" conversion_id=%s",
-            mConversionInfo.ToString().c_str());
+  eos_static_debug("msg=\"starting conversion job\" conversion_id=%s",
+                   mConversionInfo.ToString().c_str());
 
   // Avoid running cancelled jobs
   if (mProgressHandler.ShouldCancel(0)) {
@@ -184,10 +187,10 @@ void ConversionJob::DoIt() noexcept
   XrdCl::CopyProcess copy;
   copy.AddJob(properties, &result);
   XrdCl::XRootDStatus prepare_status = copy.Prepare();
-  eos_info("[tpc]: %s@%s => %s@%s prepare_msg=%s",
-           url_src.GetHostId().c_str(), url_src.GetLocation().c_str(),
-           url_dst.GetHostId().c_str(), url_dst.GetLocation().c_str(),
-           prepare_status.ToStr().c_str());
+  eos_static_info("[tpc]: %s@%s => %s@%s prepare_msg=%s",
+                  url_src.GetHostId().c_str(), url_src.GetLocation().c_str(),
+                  url_dst.GetHostId().c_str(), url_dst.GetLocation().c_str(),
+                  prepare_status.ToStr().c_str());
 
   // Check the TPC prepare status
   if (!prepare_status.IsOK()) {
@@ -205,17 +208,14 @@ void ConversionJob::DoIt() noexcept
     return;
   }
 
-  eos_info("[tpc]: %s => %s status=success tpc_msg=%s",
-           url_src.GetLocation().c_str(), url_dst.GetLocation().c_str(),
-           tpc_status.ToStr().c_str());
+  eos_static_info("[tpc]: %s => %s status=success tpc_msg=%s",
+                  url_src.GetLocation().c_str(), url_dst.GetLocation().c_str(),
+                  tpc_status.ToStr().c_str());
 
-  // -------------------------------------------------------------------------
   // TPC job succeeded:
   //  - Verify new file has all fragments according to layout
   //  - Verify initial file hasn't changed
   //  - Merge the conversion entry
-  // -------------------------------------------------------------------------
-
   // Verify new file has all fragments according to layout
   try {
     eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
@@ -242,10 +242,10 @@ void ConversionJob::DoIt() noexcept
     auto fmd = gOFS->eosFileService->getFileMD(mConversionInfo.mFid);
     eos::appendChecksumOnStringAsHex(fmd.get(), source_xs_postconversion);
   } catch (eos::MDException& e) {
-    eos_debug("msg=\"failed to retrieve file metadata\" fxid=%08llx "
-              "ec=%d emsg=\"%s\" conversion_id=%s", mConversionInfo.mFid,
-              e.getErrno(), e.getMessage().str().c_str(),
-              mConversionInfo.ToString().c_str());
+    eos_static_debug("msg=\"failed to retrieve file metadata\" fxid=%08llx "
+                     "ec=%d emsg=\"%s\" conversion_id=%s", mConversionInfo.mFid,
+                     e.getErrno(), e.getMessage().str().c_str(),
+                     mConversionInfo.ToString().c_str());
   }
 
   if (source_xs != source_xs_postconversion) {
@@ -297,8 +297,8 @@ void ConversionJob::DoIt() noexcept
   }
 
   gOFS->MgmStats.Add("ConversionJobSuccessful", 0, 0, 1);
-  eos_info("msg=\"conversion successful\" conversion_id=%s",
-           mConversionInfo.ToString().c_str());
+  eos_static_info("msg=\"conversion successful\" conversion_id=%s",
+                  mConversionInfo.ToString().c_str());
   mStatus = Status::DONE;
   return;
 }
@@ -310,8 +310,8 @@ void ConversionJob::HandleError(const std::string& emsg,
                                 const std::string& details)
 {
   gOFS->MgmStats.Add("ConversionJobFailed", 0, 0, 1);
-  eos_err("msg=\"%s\" %s conversion_id=%s", emsg.c_str(), details.c_str(),
-          mConversionInfo.ToString().c_str());
+  eos_static_err("msg=\"%s\" %s conversion_id=%s", emsg.c_str(), details.c_str(),
+                 mConversionInfo.ToString().c_str());
   mErrorString = (details.empty()) ? emsg : (emsg + " -- " + details);
   mStatus = Status::FAILED;
 }
@@ -436,8 +436,8 @@ ConversionJob::Merge()
     }
 
     delete response;
-    eos_static_debug("msg=\"successful rename on file system\" orig_fid=%08llx "
-                     "conv_fid=%08llx fsid=%u", orig_fid, conv_fid, loc);
+    eos_static_debug("msg=\"successful rename on file system\" orig_fxid=%08llx "
+                     "conv_fxid=%08llx fsid=%u", orig_fid, conv_fid, loc);
   }
 
   // Do cleanup in case of failures
@@ -498,7 +498,7 @@ ConversionJob::Merge()
   // Trigger a resync of the local information for the new locations
   for (const auto& loc : conv_locations) {
     if (gOFS->SendResync(orig_fid, loc, true)) {
-      eos_static_err("msg=\"failed to send resync\" fid=%08llx fsid=%u",
+      eos_static_err("msg=\"failed to send resync\" fxid=%08llx fsid=%u",
                      orig_fid, loc);
     }
   }

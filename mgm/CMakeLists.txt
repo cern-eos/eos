@@ -220,7 +220,7 @@ add_library(
   utils/FilesystemUuidMapper.cc                utils/FilesystemUuidMapper.hh
   txengine/TransferEngine.cc
   txengine/TransferFsDB.cc
-  Converter.cc
+  convert/old/Converter.cc
   GroupBalancer.cc
   GeoBalancer.cc
   Features.cc
