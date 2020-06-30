@@ -306,21 +306,18 @@ QuarkDBConfigEngine::PullFromQuarkDB(const std::string &configName)
 // Filter the configuration and store in output string
 //------------------------------------------------------------------------------
 void
-QuarkDBConfigEngine::FilterConfig(XrdOucString& out, const char* configName)
+QuarkDBConfigEngine::FilterConfig(std::ostream& out, const std::string &configName)
 {
   std::map<std::string, std::string> config;
   common::Status st = mConfigHandler->fetchConfiguration(configName, config);
 
   if(!st) {
-    out += st.toString().c_str();
+    out << st.toString();
     return;
   }
 
   for(auto it = config.begin(); it != config.end(); it++) {
-    out += it->first.c_str();
-    out += " => ";
-    out += it->second.c_str();
-    out += "\n";
+    out << it->first << " => " << it->second << "\n";
   }
 }
 

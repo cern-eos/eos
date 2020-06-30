@@ -217,7 +217,7 @@ private:
   //! @param out
   //! @param cfg_name
   //----------------------------------------------------------------------------
-  void FilterConfig(XrdOucString& out, const char* cfg_name) override;
+  void FilterConfig(std::ostream& out, const std::string& configName) override;
 };
 
 EOSMGMNAMESPACE_END

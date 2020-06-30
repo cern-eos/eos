@@ -395,7 +395,9 @@ IConfigEngine::DumpConfig(XrdOucString& out, const std::string& filename)
 
     while (out.replace("&", " ")) {}
   } else {
-    FilterConfig(out, filename.c_str());
+    std::ostringstream ss;
+    FilterConfig(ss, filename.c_str());
+    out = ss.str().c_str();
   }
 
   eos::common::StringConversion::SortLines(out);

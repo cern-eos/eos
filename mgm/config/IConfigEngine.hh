@@ -311,7 +311,7 @@ private:
   //! @param out output representation of the configuration after filtering
   //! @param cfg_name configuration name
   //----------------------------------------------------------------------------
-  virtual void FilterConfig(XrdOucString& out, const char* cfg_name) = 0;
+  virtual void FilterConfig(std::ostream& out, const std::string &configName) = 0;
 };
 
 EOSMGMNAMESPACE_END
