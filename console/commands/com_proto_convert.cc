@@ -376,16 +376,16 @@ void com_convert_help()
       << "    --maxthreads=<#> : max threadpool size         " << std::endl
       << "    --interval=<#>   : jobs request interval       " << std::endl
       << std::endl
-      << "   convert list [<option>]                         " << std::endl
-      << "     list conversion jobs where <option> is:       " << std::endl
-      << "     --failed : list failed jobs [default]         " << std::endl
-      << "     --pending: list pending jobs                  " << std::endl
+      << "  convert list [<option>]                          " << std::endl
+      << "    list conversion jobs where <option> is:        " << std::endl
+      << "    --failed : list failed jobs [default]          " << std::endl
+      << "    --pending: list pending jobs                   " << std::endl
       << std::endl
-      << "   convert clear <option>                         " << std::endl
-      << "     clear list of jobs stored in the backend depending on <option> "
+      << "  convert clear <option>                           " << std::endl
+      << "    clear list of jobs stored in the backend depending on <option> "
       << std::endl
-      << "     --failed : clear list of failed jobs         " << std::endl
-      << "     --pending: clear list of pending jobs        " << std::endl
+      << "    --failed : clear list of failed jobs           " << std::endl
+      << "    --pending: clear list of pending jobs          " << std::endl
       << std::endl
       << "  convert file <identifier> <conversion>           " << std::endl
       << "    schedule a file conversion                     " << std::endl
@@ -397,7 +397,6 @@ void com_convert_help()
       << "    apply a conversion rule on the given directory " << std::endl
       << "    <identifier> = cid|cxid|path                   " << std::endl
       << "    <conversion> = <layout:replica> [space] [placement] [checksum]"
-      << std::endl
       << std::endl;
   std::cerr << oss.str() << std::endl;
 }

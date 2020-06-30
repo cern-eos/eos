@@ -30,7 +30,7 @@
 #include "mgm/GeoBalancer.hh"
 #include "mgm/Balancer.hh"
 #include "mgm/GroupBalancer.hh"
-#include "mgm/Converter.hh"
+#include "mgm/convert/old/Converter.hh"
 #include "mgm/GeoTreeEngine.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "mgm/tgc/Constants.hh"

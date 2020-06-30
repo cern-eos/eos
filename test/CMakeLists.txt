@@ -110,7 +110,7 @@ install(PROGRAMS xrdstress eos-instance-test eos-instance-test-ci fuse/eos-fuse-
   eos-rain-test eoscp-rain-test eos-io-test eos-oc-test eos-drain-test
   eos-http-upload-test eos-mq-tests eos-rename-test eos-grpc-test
   eos-fsck-test eos-token-test eos-backup eos-backup-browser eos-test-utils
-  eos-converter-test eos-convert-test eos-qos-test
+  eos-converter-test eos-qos-test
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
   PERMISSIONS OWNER_READ OWNER_EXECUTE
   GROUP_READ GROUP_EXECUTE
