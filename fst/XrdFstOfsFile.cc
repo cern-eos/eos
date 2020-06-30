@@ -760,8 +760,8 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
   int rc = mLayout->Write(fileOffset, const_cast<char*>(buffer), buffer_size);
 
   // If we see a remote IO error, we don't fail, we just call repair afterwards,
-  // only for replica layouts
-  if ((rc < 0) && isCreation &&
+  // only for replica layouts and not for FuseX clients
+  if ((rc < 0) && isCreation && (!mFusex) &&
       (mLayout->GetErrObj()->getErrInfo() == EREMOTEIO) &&
       (eos::common::LayoutId::GetLayoutType(mLid) ==
        eos::common::LayoutId::kReplica)) {
