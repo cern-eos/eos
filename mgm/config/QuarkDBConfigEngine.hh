@@ -199,8 +199,6 @@ private:
   QdbContactDetails mQdbContactDetails;
   std::unique_ptr<qclient::QClient> mQcl;
   std::unique_ptr<QuarkConfigHandler> mConfigHandler;
-  const std::string kConfigurationHashKeyPrefix = "eos-config";
-  const std::string kConfigurationBackupHashKeyPrefix = "eos-config-backup";
 
   std::unique_ptr<folly::Executor> mExecutor;
 
@@ -211,14 +209,6 @@ private:
     char buff[128];
     strftime(buff, 127, "%Y%m%d%H%M%S", localtime(&timestamp));
     return SSTR(buff);
-  }
-
-  //----------------------------------------------------------------------------
-  //! Form backup configuration hash key
-  //----------------------------------------------------------------------------
-  std::string formBackupConfigHashKey(const std::string& name, time_t timestamp)
-  {
-    return SSTR(kConfigurationBackupHashKeyPrefix << ":" << name << "-" << formatBackupTime(timestamp));
   }
 
   //----------------------------------------------------------------------------
