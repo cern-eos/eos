@@ -190,8 +190,6 @@ QuarkDBConfigEngine::SaveConfig(std::string filename, bool overwrite,
   }
 
   // Store a new hash
-  std::string hash_key = formConfigHashKey(filename);
-
   if (!overwrite) {
     bool exists = true;
     common::Status st = mConfigHandler->checkExistence(filename, exists);
@@ -310,13 +308,18 @@ QuarkDBConfigEngine::PullFromQuarkDB(const std::string &configName)
 void
 QuarkDBConfigEngine::FilterConfig(XrdOucString& out, const char* configName)
 {
-  qclient::QHash q_hash(*mQcl, formConfigHashKey(configName));
+  std::map<std::string, std::string> config;
+  common::Status st = mConfigHandler->fetchConfiguration(configName, config);
 
-  for (auto it = q_hash.getIterator(); it.valid(); it.next()) {
-    // Filter according to user specification
-    out += it.getKey().c_str();
+  if(!st) {
+    out += st.toString().c_str();
+    return;
+  }
+
+  for(auto it = config.begin(); it != config.end(); it++) {
+    out += it->first.c_str();
     out += " => ";
-    out += it.getValue().c_str();
+    out += it->second.c_str();
     out += "\n";
   }
 }

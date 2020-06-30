@@ -205,14 +205,6 @@ private:
   std::unique_ptr<folly::Executor> mExecutor;
 
   //----------------------------------------------------------------------------
-  //! Form configuration hash key
-  //----------------------------------------------------------------------------
-  std::string formConfigHashKey(const std::string& name)
-  {
-    return SSTR(kConfigurationHashKeyPrefix << ":" << name);
-  }
-
-  //----------------------------------------------------------------------------
   //! Format time
   //----------------------------------------------------------------------------
   static std::string formatBackupTime(time_t timestamp) {
