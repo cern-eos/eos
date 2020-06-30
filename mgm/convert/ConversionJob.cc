@@ -102,6 +102,8 @@ void ConversionJob::DoIt() noexcept
   std::string source_xs_postconversion;
   bool overwrite_checksum;
   uint64_t source_size;
+  eos::IFileMD::LocationVector src_locations;
+  eos::IFileMD::LocationVector src_unlink_loc;
   gOFS->MgmStats.Add("ConversionJobStarted", 0, 0, 1);
   eos_debug("msg=\"starting conversion job\" conversion_id=%s",
             mConversionInfo.ToString().c_str());
@@ -120,6 +122,8 @@ void ConversionJob::DoIt() noexcept
     auto fmd = gOFS->eosFileService->getFileMD(mConversionInfo.mFid);
     mSourcePath = gOFS->eosView->getUri(fmd.get());
     source_size = fmd->getSize();
+    src_locations = fmd->getLocations();
+    src_unlink_loc = fmd->getUnlinkedLocations();
     eos::appendChecksumOnStringAsHex(fmd.get(), source_xs);
     // Check if conversion requests a checksum rewrite
     std::string file_checksum = LayoutId::GetChecksumString(fmd->getLayoutId());
@@ -145,6 +149,24 @@ void ConversionJob::DoIt() noexcept
     dst_cgi << "&eos.checksum=" << source_xs;
   }
 
+  // Add the list of file systems to exclude for the new entry
+  std::string exclude_fsids = "&eos.excludefsid=";
+
+  for (const auto& fsid : src_locations) {
+    exclude_fsids += std::to_string(fsid);
+    exclude_fsids += ",";
+  }
+
+  for (const auto& fsid : src_unlink_loc) {
+    exclude_fsids += std::to_string(fsid);
+    exclude_fsids += ",";
+  }
+
+  if (*exclude_fsids.rbegin() == ',') {
+    exclude_fsids.pop_back();
+  }
+
+  dst_cgi << exclude_fsids;
   // Prepare the TPC job
   XrdCl::URL url_src = NewUrl();
   url_src.SetParams("eos.ruid=0&eos.rgid=0&eos.app=eos/converter");

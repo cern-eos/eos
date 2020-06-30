@@ -416,22 +416,24 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       return Eroute.Emsg("Config", errno, "cannot get hostname : %s", errtext);
     }
 
-    XrdNetAddr *addrs  = 0;
+    XrdNetAddr* addrs  = 0;
     int         nAddrs = 0;
-    const char* err    = XrdNetUtils::GetAddrs( HostName, &addrs, nAddrs,
-                                                XrdNetUtils::allIPv64,
-                                                XrdNetUtils::NoPortRaw );
-    if( err || nAddrs == 0 )
-      sprintf( buff, "[::127.0.0.1]:%ld", myPort );
-    else
-    {
-      int len = XrdNetUtils::IPFormat( addrs[0].SockAddr(), buff, sizeof( buff ),
-                                       XrdNetUtils::noPort | XrdNetUtils::oldFmt );
+    const char* err    = XrdNetUtils::GetAddrs(HostName, &addrs, nAddrs,
+                         XrdNetUtils::allIPv64,
+                         XrdNetUtils::NoPortRaw);
+
+    if (err || nAddrs == 0) {
+      sprintf(buff, "[::127.0.0.1]:%ld", myPort);
+    } else {
+      int len = XrdNetUtils::IPFormat(addrs[0].SockAddr(), buff, sizeof(buff),
+                                      XrdNetUtils::noPort | XrdNetUtils::oldFmt);
       delete [] addrs;
-      if( len == 0 )
-        sprintf( buff, "[::127.0.0.1]:%ld", myPort );
-      else
-        sprintf( buff + len, ":%ld", myPort );
+
+      if (len == 0) {
+        sprintf(buff, "[::127.0.0.1]:%ld", myPort);
+      } else {
+        sprintf(buff + len, ":%ld", myPort);
+      }
     }
 
     for (i = 0; HostName[i] && HostName[i] != '.'; i++);
@@ -444,28 +446,31 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     ManagerId = HostName;
     ManagerId += ":";
     ManagerId += (int) myPort;
-
     addrs  = 0;
     nAddrs = 0;
-    err    = XrdNetUtils::GetAddrs( HostName, &addrs, nAddrs, XrdNetUtils::allIPv64,
-                                    XrdNetUtils::NoPortRaw );
+    err    = XrdNetUtils::GetAddrs(HostName, &addrs, nAddrs, XrdNetUtils::allIPv64,
+                                   XrdNetUtils::NoPortRaw);
 
-    if( err )
+    if (err) {
       return Eroute.Emsg("Config", errno, "convert hostname to IP address: ", err);
+    }
 
-    if( nAddrs == 0 )
-      return Eroute.Emsg("Config", errno, "convert hostname to IP address", HostName);
+    if (nAddrs == 0) {
+      return Eroute.Emsg("Config", errno, "convert hostname to IP address",
+                         HostName);
+    }
 
-    int len = addrs[0].Format( buff, sizeof( buff ), XrdNetAddrInfo::fmtAddr,
-                               XrdNetAddrInfo::noPortRaw );
+    int len = addrs[0].Format(buff, sizeof(buff), XrdNetAddrInfo::fmtAddr,
+                              XrdNetAddrInfo::noPortRaw);
     delete [] addrs;
 
-    if( len == 0 )
-      return Eroute.Emsg("Config", errno, "convert hostname to IP address", HostName);
+    if (len == 0) {
+      return Eroute.Emsg("Config", errno, "convert hostname to IP address",
+                         HostName);
+    }
 
-    ManagerIp = XrdOucString( buff, len );
+    ManagerIp = XrdOucString(buff, len);
     ManagerPort = myPort;
-
     Eroute.Say("=====> mgmofs.managerid: ", ManagerId.c_str(), "");
   }
 
@@ -1604,7 +1609,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // Configure the meta data catalog
   eosViewRWMutex.SetBlocking(true);
   mViewMutexWatcher.activate(eosViewRWMutex, "eosViewRWMutex");
-
 #ifdef EOS_INSTRUMENTED_RWMUTEX
   eos::common::RWMutex* fs_mtx = &FsView::gFsView.ViewMutex;
   eos::common::RWMutex* quota_mtx = &Quota::pMapMutex;
@@ -2094,15 +2098,10 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   mDrainEngine.Start();
 
   // Start the Converter driver
-  if (getenv("EOS_CONVERTER_DRIVER") != nullptr) {
-    if (!eosView->inMemory()) {
-      eos_info("msg=\"starting Converter Engine\"");
-      mConverterDriver.reset(new eos::mgm::ConverterDriver(mQdbContactDetails));
-      mConverterDriver->Start();
-    } else {
-      eos_notice("msg=\"Running with in-memory namespace. "
-                 "Will not start Converter Engine\"");
-    }
+  if (!eosView->inMemory() && !getenv("EOS_FORCE_DISABLE_NEW_CONVERTER")) {
+    eos_info("msg=\"starting Converter Engine\"");
+    mConverterDriver.reset(new eos::mgm::ConverterDriver(mQdbContactDetails));
+    mConverterDriver->Start();
   }
 
   if (mTapeEnabled) {
