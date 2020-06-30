@@ -1307,6 +1307,7 @@ proc_mv_fs_node(FsView& fs_view, const std::string& src,
       std::string hostport = snapshot.mHostPort;
       std::string path = snapshot.mPath;
       std::string space = snapshot.mSpace;
+      std::string group = snapshot.mGroup;
       std::string configstatus= eos::common::FileSystem::GetConfigStatusAsString(snapshot.mConfigStatus);
 
       int rc = proc_fs_rm(a,b,
@@ -1324,7 +1325,7 @@ proc_mv_fs_node(FsView& fs_view, const std::string& src,
 			     uuid,
 			     nodename,
 			     path,
-			     space,
+			     getenv("EOS_ALLOW_SAME_HOST_IN_GROUP")?group:space,
 			     configstatus,
 			     stdOut,
 			     stdErr,
