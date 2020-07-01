@@ -823,14 +823,21 @@ FsSpace::FsSpace(const char* name)
   mName = name;
   mType = "spaceview";
   mBalancer = new Balancer(name);
-  mConverter = new Converter(name);
   mGroupBalancer = new GroupBalancer(name);
   mGeoBalancer = new GeoBalancer(name);
 
+  // Start old converter if we're using the in-memory NS or if the new one
+  // is disabled on purpose
+  if (!gOFS->NsInQDB || getenv("EOS_FORCE_DISABLE_NEW_CONVERTER") {
+  eos_static_info("%s", "msg=\"start the old converter\"");
+    mConverter = new Converter(name);
+  } else {
+    eos_static_info("%s", "msg=\"skip starting the old converter\"");
+  }
   if (!gDisableDefaults) {
-    // Set default balancing variables
-    // Disable autorepair by default
-    if (GetConfigMember("autorepair").empty()) {
+  // Set default balancing variables
+  // Disable autorepair by default
+  if (GetConfigMember("autorepair").empty()) {
       SetConfigMember("autorepair", "off");
     }
 
@@ -1001,10 +1008,9 @@ FsSpace::FsSpace(const char* name)
                       std::to_string(tgc::TGC_DEFAULT_TOTAL_BYTES));
     }
   }
-
   if (mName == std::string("default")) {
-    // Disable tracker by default
-    if (GetConfigMember("tracker").empty()) {
+  // Disable tracker by default
+  if (GetConfigMember("tracker").empty()) {
       SetConfigMember("tracker", "off");
     }
   }
