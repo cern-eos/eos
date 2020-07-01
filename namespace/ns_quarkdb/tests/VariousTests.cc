@@ -270,7 +270,8 @@ TEST_F(VariousTests, BasicSanity) {
          "Expected number of replicas / stripes: 2\n"
          "Etag: \"12235599aadd00550000000000000000\"\n"
          "Locations: [1, 7]\n"
-         "Unlinked locations: []\n")
+         "Unlinked locations: []\n"
+         "Extended attributes (0):\n")
             );
 
   containerSvc()->updateStore(root.get());
