@@ -25,6 +25,7 @@
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IQuota.hh"
 #include "namespace/interface/IFileMD.hh"
+#include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
@@ -57,6 +58,7 @@ XrdMgmOfs::Drop(const char* path,
   char* afsid = env.Get("mgm.fsid");
 
   if (afid && afsid) {
+    eos::IFileMD::id_t fid = eos::common::FileId::Hex2Fid(afid);
     unsigned long fsid = strtoul(afsid, 0, 10);
     std::shared_ptr<eos::IContainerMD> container;
     std::shared_ptr<eos::IFileMD> fmd;
@@ -64,9 +66,11 @@ XrdMgmOfs::Drop(const char* path,
     eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex);
 
     try {
-      fmd = eosFileService->getFileMD(eos::common::FileId::Hex2Fid(afid));
+      fmd = eosFileService->getFileMD(fid);
     } catch (...) {
-      eos_thread_warning("no meta record exists anymore for fxid=%s", afid);
+      eos_thread_warning("msg=\"no meta record exists anymore\" fxid=%s", afid);
+      // Nevertheless drop the file identifier from the file system view
+      gOFS->eosFsView->eraseEntry(fsid, fid);
     }
 
     if (fmd) {
