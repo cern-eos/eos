@@ -217,8 +217,21 @@ int Inspector::dump(const std::string& dumpPath, bool relative, bool rawPaths, b
 
     if(!attrQuery.empty()) {
       out << " " << attrQuery << "=";
-      if(item.containerMd.xattrs().count(attrQuery) != 0) {
-        out << item.containerMd.xattrs().at(attrQuery) << " ";
+      if(!item.isFile) {
+        if(item.containerMd.xattrs().count(attrQuery) != 0) {
+          out << item.containerMd.xattrs().at(attrQuery) << " ";
+        }
+        else {
+          out << " ";
+        }
+      }
+      else {
+        if(item.fileMd.xattrs().count(attrQuery) != 0) {
+          out << item.fileMd.xattrs().at(attrQuery) << " ";
+        }
+        else {
+          out << " ";
+        }
       }
     }
 
