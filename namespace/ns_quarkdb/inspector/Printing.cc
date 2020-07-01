@@ -121,6 +121,11 @@ void Printing::printMultiline(const eos::ns::ContainerMdProto &proto, std::ostre
   stream << "Tree size: " << proto.tree_size() << std::endl;
   stream << "Mode: " << proto.mode() << std::endl;
   stream << "Flags: " << proto.flags() << std::endl;
+  stream << "Extended attributes (" << proto.xattrs().size() << "):" << std::endl;
+  for(auto it = proto.xattrs().begin(); it != proto.xattrs().end(); it++) {
+    stream << "    " << it->first << "=" << it->second << std::endl;
+  }
+
 }
 
 //------------------------------------------------------------------------------
@@ -148,6 +153,11 @@ void Printing::printMultiline(const eos::ns::FileMdProto &proto, std::ostream &s
 
   stream << "Locations: " << serializeLocations(proto.locations()) << std::endl;
   stream << "Unlinked locations: " << serializeLocations(proto.unlink_locations()) << std::endl;
+  stream << "Extended attributes (" << proto.xattrs().size() << "):" << std::endl;
+  for(auto it = proto.xattrs().begin(); it != proto.xattrs().end(); it++) {
+    stream << "    " << it->first << "=" << it->second << std::endl;
+  }
+
 }
 
 std::string Printing::printMultiline(const eos::ns::FileMdProto &proto) {
