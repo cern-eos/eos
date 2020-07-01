@@ -1320,13 +1320,13 @@ FsView::GetFileSystemFormat(std::string option)
     format += "key=stat.statfs.ffree:format=ol|";
     format += "key=stat.statfs.fused:format=ol|";
     format += "key=stat.statfs.files:format=ol|";
-    format += "key=stat.drain:format=os|";
-    format += "key=stat.drainprogress:format=ol:tag=progress|";
-    format += "key=stat.drainfiles:format=ol|";
-    format += "key=stat.drainbytesleft:format=ol|";
-    format += "key=stat.drain.failed:format=ol|";
+    format += "key=local.drain:format=os|";
+    format += "key=local.drain.progress:format=ol:tag=progress|";
+    format += "key=local.drain.files:format=ol|";
+    format += "key=local.drain.bytesleft:format=ol|";
+    format += "key=local.drain.failed:format=ol|";
+    format += "key=local.drain.timeleft:format=ol|";
     format += "key=graceperiod:format=ol|";
-    format += "key=stat.timeleft:format=ol|";
     format += "key=stat.active:format=os|";
     format += "key=scaninterval:format=os|";
     format += "key=scanreruninterval:format=os|";
@@ -1380,16 +1380,16 @@ FsView::GetFileSystemFormat(std::string option)
     format += "key=stat.fsck.m_cx_diff:width=12:format=l:tag=e(mgm-cx)";
   } else if (option == "d") {
     // drain format
-    format = "header=1:key=host:width=24:format=-S:condition=stat.drain=!nodrain|";
+    format = "header=1:key=host:width=24:format=-S:condition=local.drain=!nodrain|";
     format += "key=port:width=4:format=s|";
     format += "key=id:width=6:format=s|";
     format += "key=path:width=32:format=s|";
-    format += "key=stat.drain:width=12:format=s|";
-    format += "key=stat.drainprogress:width=12:format=l:tag=progress|";
-    format += "key=stat.drainfiles:width=12:format=+l:tag=files|";
-    format += "key=stat.drainbytesleft:width=12:format=+l:tag=bytes-left:unit=B|";
-    format += "key=stat.timeleft:width=11:format=l:tag=timeleft|";
-    format += "key=stat.drain.failed:width=12:format=+l:tag=failed";
+    format += "key=local.drain:width=12:format=s|";
+    format += "key=local.drain.progress:width=12:format=l:tag=progress|";
+    format += "key=local.drain.files:width=12:format=+l:tag=files|";
+    format += "key=local.drain.bytesleft:width=12:format=+l:tag=bytes-left:unit=B|";
+    format += "key=local.drain.timeleft:width=11:format=l:tag=timeleft|";
+    format += "key=local.drain.failed:width=12:format=+l:tag=failed";
   } else if (option == "l") {
     // long format
     format = "header=1:key=host:width=24:format=-S|";
@@ -1401,7 +1401,7 @@ FsView::GetFileSystemFormat(std::string option)
     format += "key=headroom:width=10:format=+f|";
     format += "key=stat.boot:width=12:format=s|";
     format += "key=configstatus:width=14:format=s|";
-    format += "key=stat.drain:width=12:format=s|";
+    format += "key=local.drain:width=12:format=s|";
     format += "key=stat.active:width=8:format=s|";
     format += "key=scaninterval:width=14:format=s|";
     format += "key=stat.health:width=16:format=s|";
@@ -1413,7 +1413,7 @@ FsView::GetFileSystemFormat(std::string option)
     format += "key=path:width=32:format=s|";
     format += "key=stat.boot:width=12:format=s|";
     format += "key=configstatus:width=14:format=s|";
-    format += "key=stat.drain:width=12:format=s|";
+    format += "key=local.drain:width=12:format=s|";
     format += "key=stat.errc:width=3:format=s|";
     format += "key=stat.errmsg:width=0:format=s";
   } else {
@@ -1426,7 +1426,7 @@ FsView::GetFileSystemFormat(std::string option)
     format += "key=stat.geotag:width=16:format=s|";
     format += "key=stat.boot:width=12:format=s|";
     format += "key=configstatus:width=14:format=s|";
-    format += "key=stat.drain:width=12:format=s|";
+    format += "key=local.drain:width=12:format=s|";
     format += "key=stat.active:width=8:format=s|";
     format += "key=stat.health:width=16:format=s";
   }
@@ -2868,10 +2868,7 @@ FsView::ApplyFsConfig(const char* inkey, std::string& val)
     // drain job. This in turn could try to update the status of the file
     // system and will deadlock trying to get the transaction mutex. Therefore,
     // we update the configstatus outside this transaction.
-
-    // @todo (esindril) We remove "drainstatus" from the map as we only use
-    // stat.drain from 4.4.30 on!!!
-    if ((it->first != "configstatus") && (it->first != "drainstatus")) {
+    if (it->first != "configstatus") {
       batch.setStringDurable(it->first, it->second);
     }
   }
@@ -3898,7 +3895,7 @@ FsSpace::ResetDraining()
       if (entry) {
         eos::common::DrainStatus drainstatus =
           (eos::common::FileSystem::GetDrainStatusFromString(
-             entry->GetString("stat.drain").c_str()));
+             entry->GetString("local.drain").c_str()));
 
         if ((drainstatus == eos::common::DrainStatus::kDraining) ||
             (drainstatus == eos::common::DrainStatus::kDrainStalling)) {

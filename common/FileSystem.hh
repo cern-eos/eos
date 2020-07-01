@@ -692,7 +692,7 @@ public:
   bool
   SetDrainStatus(DrainStatus status)
   {
-    return SetString("stat.drain", GetDrainStatusAsString(status), false);
+    return SetString("local.drain", GetDrainStatusAsString(status), false);
   }
 
   //----------------------------------------------------------------------------
@@ -807,7 +807,7 @@ public:
   DrainStatus
   GetDrainStatus()
   {
-    return GetDrainStatusFromString(GetString("stat.drain").c_str());
+    return GetDrainStatusFromString(GetString("local.drain").c_str());
   }
 
   //----------------------------------------------------------------------------

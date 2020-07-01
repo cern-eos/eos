@@ -53,7 +53,7 @@ void FileSystemUpdateBatch::setId(fsid_t fsid)
 //----------------------------------------------------------------------------
 void FileSystemUpdateBatch::setDrainStatusLocal(DrainStatus status)
 {
-  setStringLocal("stat.drain", FileSystem::GetDrainStatusAsString(status));
+  setStringLocal("local.drain", FileSystem::GetDrainStatusAsString(status));
 }
 
 //------------------------------------------------------------------------------
@@ -494,7 +494,7 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
     updateBatch.SetDurable("hostport", locator.getHostPort());
     updateBatch.SetDurable("host", locator.getHost());
     updateBatch.SetDurable("port", std::to_string(locator.getPort()));
-    updateBatch.SetLocal("stat.drain", "nodrain");
+    updateBatch.SetLocal("local.drain", "nodrain");
 
     if (!bc2mgm) {
       updateBatch.SetDurable("configstatus", "down");
@@ -1066,6 +1066,7 @@ static void printOntoTable(mq::SharedHashWrapper& hash,
         if (format.find("o") == std::string::npos) {  //only for table output
           name.replace("stat.", "");
           name.replace("stat.statfs.", "");
+          name.replace("local.", "");
 
           if (formattags.count("tag")) {
             name = formattags["tag"].c_str();
@@ -1081,9 +1082,9 @@ static void printOntoTable(mq::SharedHashWrapper& hash,
   bool toRemove = false;
 
   if (filter.find("d") != string::npos) {
-    std::string drain = hash.get("stat.drain");
+    std::string drain = hash.get("local.drain");
 
-    // @note there is a bug when initializing stat.drain on an fs which is not
+    // @note there is a bug when initializing local.drain on an fs which is not
     // propagated to the shared hash therefore, we need to also exclude the
     // the empty drain status from the list of active drainings
     if (drain.empty() || (drain == "nodrain")) {
@@ -1190,7 +1191,7 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
   fs.mPublishTimestamp = (size_t) hash.getLongLong("stat.publishtimestamp");
   fs.mStatus = GetStatusFromString(hash.get("stat.boot").c_str());
   fs.mConfigStatus = GetConfigStatusFromString(hash.get("configstatus").c_str());
-  fs.mDrainStatus = GetDrainStatusFromString(hash.get("stat.drain").c_str());
+  fs.mDrainStatus = GetDrainStatusFromString(hash.get("local.drain").c_str());
   fs.mActiveStatus = GetActiveStatusFromString(hash.get("stat.active").c_str());
   //headroom can be configured as KMGTP so the string should be properly converted
   fs.mHeadRoom = StringConversion::GetSizeFromString(hash.get("headroom"));

@@ -326,7 +326,7 @@ IProcCommand::ConvertOutputToJsonFormat(const std::string& stdOut)
                                     "groupbalancer.status");
     StringConversion::ReplaceMapKey(map, "cfg.wfe", "cfg.wfe.status");
     StringConversion::ReplaceMapKey(map, "cfg.lru", "cfg.lru.status");
-    StringConversion::ReplaceMapKey(map, "stat.drain", "stat.drain.status");
+    StringConversion::ReplaceMapKey(map, "local.drain", "local.drain.status");
     StringConversion::ReplaceMapKey(map, "stat.health", "stat.health.status");
     StringConversion::ReplaceMapKey(map, "wfe", "wfe.status");
     StringConversion::ReplaceMapKey(map, "lru", "lru.status");
@@ -542,7 +542,7 @@ IProcCommand::HasSlot()
     init = true;
 
     for (const auto& type : {
-        eos::console::RequestProto::kAcl,
+    eos::console::RequestProto::kAcl,
         eos::console::RequestProto::kNs,
         eos::console::RequestProto::kDrain,
         eos::console::RequestProto::kFind,
@@ -561,7 +561,7 @@ IProcCommand::HasSlot()
         eos::console::RequestProto::kToken,
         eos::console::RequestProto::kQos,
         eos::console::RequestProto::kConvert
-    }) {
+  }) {
       mCmdsExecuting.emplace(type, 0ull);
     }
   }

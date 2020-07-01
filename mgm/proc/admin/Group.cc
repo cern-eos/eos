@@ -88,7 +88,8 @@ ProcCommand::Group()
           stdOut += "'";
 
           if (!FsView::gFsView.RegisterGroup(groupname.c_str())) {
-            std::string groupconfigname = common::SharedHashLocator::makeForGroup(groupname).getConfigQueue();
+            std::string groupconfigname = common::SharedHashLocator::makeForGroup(
+                                            groupname).getConfigQueue();
             retc = EIO;
             stdErr = "error: cannot register group <";
             stdErr += groupname.c_str();
@@ -116,7 +117,7 @@ ProcCommand::Group()
                 if (fs) {
                   common::DrainStatus drainstatus =
                     (eos::common::FileSystem::GetDrainStatusFromString(
-                       fs->GetString("stat.drain").c_str()));
+                       fs->GetString("local.drain").c_str()));
 
                   if ((drainstatus == eos::common::DrainStatus::kDraining) ||
                       (drainstatus == eos::common::DrainStatus::kDrainStalling)) {
@@ -200,7 +201,9 @@ ProcCommand::Group()
             }
           }
 
-          common::SharedHashLocator groupLocator = common::SharedHashLocator::makeForGroup(groupname);
+          common::SharedHashLocator groupLocator =
+            common::SharedHashLocator::makeForGroup(groupname);
+
           if (!mq::SharedHashWrapper::deleteHash(groupLocator)) {
             stdErr = "error: unable to remove config of group '";
             stdErr += groupname.c_str();

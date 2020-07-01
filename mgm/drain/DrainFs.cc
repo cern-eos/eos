@@ -212,16 +212,16 @@ DrainFs::SuccessfulDrain()
     mStatus = eos::common::DrainStatus::kDrained;
     eos::common::FileSystemUpdateBatch batch;
     batch.setDrainStatusLocal(mStatus);
-    batch.setLongLongLocal("stat.drainbytesleft", 0);
-    batch.setLongLongLocal("stat.timeleft", 0);
-    batch.setLongLongLocal("stat.drain.failed", 0);
-    batch.setLongLongLocal("stat.drainfiles", 0);
+    batch.setLongLongLocal("local.drain.bytesleft", 0);
+    batch.setLongLongLocal("local.drain.timeleft", 0);
+    batch.setLongLongLocal("local.drain.failed", 0);
+    batch.setLongLongLocal("local.drain.files", 0);
 
     if (!gOFS->Shutdown) {
       // If drain done and the system is not shutting down then set the
       // file system to "empty" state
-      batch.setLongLongLocal("stat.drainprogress", 100);
-      batch.setLongLongLocal("stat.drain.failed", 0);
+      batch.setLongLongLocal("local.drain.progress", 100);
+      batch.setLongLongLocal("local.drain.failed", 0);
       batch.setStringDurable("configstatus", "empty");
       FsView::gFsView.StoreFsConfig(fs);
     }
@@ -244,9 +244,9 @@ DrainFs::FailedDrain()
     mStatus = eos::common::DrainStatus::kDrainFailed;
     eos::common::FileSystemUpdateBatch batch;
     batch.setDrainStatusLocal(mStatus);
-    batch.setLongLongLocal("stat.timeleft", 0);
-    batch.setLongLongLocal("stat.drainprogress", 100);
-    batch.setLongLongLocal("stat.drain.failed", NumFailedJobs());
+    batch.setLongLongLocal("local.drain.timeleft", 0);
+    batch.setLongLongLocal("local.drain.progress", 100);
+    batch.setLongLongLocal("local.drain.failed", NumFailedJobs());
     fs->applyBatch(batch);
   }
 }
@@ -299,11 +299,11 @@ DrainFs::PrepareFs()
 
     mStatus = eos::common::DrainStatus::kDrainPrepare;
     eos::common::FileSystemUpdateBatch batch;
-    batch.setLongLongLocal("stat.drainbytesleft", 0);
-    batch.setLongLongLocal("stat.drainfiles", 0);
-    batch.setLongLongLocal("stat.drain.failed", 0);
-    batch.setLongLongLocal("stat.timeleft", 0);
-    batch.setLongLongLocal("stat.drainprogress", 0);
+    batch.setLongLongLocal("local.drain.bytesleft", 0);
+    batch.setLongLongLocal("local.drain.files", 0);
+    batch.setLongLongLocal("local.drain.failed", 0);
+    batch.setLongLongLocal("local.drain.timeleft", 0);
+    batch.setLongLongLocal("local.drain.progress", 0);
     batch.setDrainStatusLocal(mStatus);
     fs->applyBatch(batch);
     mDrainPeriod = seconds(fs->GetLongLong("drainperiod"));
@@ -331,7 +331,7 @@ DrainFs::PrepareFs()
         return false;
       }
 
-      entry->setLongLongLocal("stat.timeleft", kLoop - 1 - k);
+      entry->setLongLongLocal("local.drain.timeleft", kLoop - 1 - k);
     }
 
     if (mDrainStop) {
@@ -353,9 +353,9 @@ DrainFs::PrepareFs()
   mStatus = eos::common::DrainStatus::kDraining;
   eos::common::FileSystemUpdateBatch batch;
   batch.setDrainStatusLocal(mStatus);
-  batch.setLongLongLocal("stat.drainfiles", mTotalFiles);
-  batch.setLongLongLocal("stat.drain.failed", 0);
-  batch.setLongLongLocal("stat.drainbytesleft",
+  batch.setLongLongLocal("local.drain.files", mTotalFiles);
+  batch.setLongLongLocal("local.drain.failed", 0);
+  batch.setLongLongLocal("local.drain.bytesleft",
                          fs->GetLongLong("stat.statfs.usedbytes"));
   fs->applyBatch(batch);
   return true;
@@ -407,8 +407,8 @@ DrainFs::UpdateProgress()
     if (is_expired) {
       mStatus = eos::common::DrainStatus::kDrainExpired;
       common::FileSystemUpdateBatch batch;
-      batch.setLongLongLocal("stat.timeleft", 0);
-      batch.setLongLongLocal("stat.drainfiles", mPending);
+      batch.setLongLongLocal("local.drain.timeleft", 0);
+      batch.setLongLongLocal("local.drain.files", mPending);
       batch.setDrainStatusLocal(mStatus);
       fs->applyBatch(batch);
       return State::Failed;
@@ -440,11 +440,11 @@ DrainFs::UpdateProgress()
       time_left = duration_cast<seconds>(mDrainEnd - now).count();
     }
 
-    batch.setLongLongLocal("stat.drain.failed", NumFailedJobs());
-    batch.setLongLongLocal("stat.drainfiles", mPending);
-    batch.setLongLongLocal("stat.drainprogress", progress);
-    batch.setLongLongLocal("stat.timeleft", time_left);
-    batch.setLongLongLocal("stat.drainbytesleft",
+    batch.setLongLongLocal("local.drain.failed", NumFailedJobs());
+    batch.setLongLongLocal("local.drain.files", mPending);
+    batch.setLongLongLocal("local.drain.progress", progress);
+    batch.setLongLongLocal("local.drain.timeleft", time_left);
+    batch.setLongLongLocal("local.drain.bytesleft",
                            fs->GetLongLong("stat.statfs.usedbytes"));
     fs->applyBatch(batch);
     eos_debug_lite("msg=\"fsid=%d, update progress", mFsId);
@@ -502,10 +502,10 @@ DrainFs::ResetCounters()
 
   if (fs) {
     common::FileSystemUpdateBatch batch;
-    batch.setLongLongLocal("stat.drainbytesleft", 0);
-    batch.setLongLongLocal("stat.drainfiles", 0);
-    batch.setLongLongLocal("stat.timeleft", 0);
-    batch.setLongLongLocal("stat.drainprogress", 0);
+    batch.setLongLongLocal("local.drain.bytesleft", 0);
+    batch.setLongLongLocal("local.drain.files", 0);
+    batch.setLongLongLocal("local.drain.timeleft", 0);
+    batch.setLongLongLocal("local.drain.progress", 0);
     batch.setDrainStatusLocal(eos::common::DrainStatus::kNoDrain);
     fs->applyBatch(batch);
   }

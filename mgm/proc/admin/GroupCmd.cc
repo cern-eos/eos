@@ -42,12 +42,15 @@ GroupCmd::ProcessRequest() noexcept
   case eos::console::GroupProto::kLs:
     LsSubcmd(group.ls(), reply);
     break;
+
   case eos::console::GroupProto::kRm:
     RmSubcmd(group.rm(), reply);
     break;
+
   case eos::console::GroupProto::kSet:
     SetSubcmd(group.set(), reply);
     break;
+
   default:
     reply.set_retc(EINVAL);
     reply.set_std_err("error: not supported");
@@ -67,7 +70,6 @@ GroupCmd::LsSubcmd(const eos::console::GroupProto_LsProto& ls,
   bool json_output = false;
   std::string list_format;
   std::string format;
-
   auto format_case = ls.outformat();
 
   if ((format_case == GroupProto::LsProto::NONE) && WantsJsonOutput()) {
@@ -75,31 +77,31 @@ GroupCmd::LsSubcmd(const eos::console::GroupProto_LsProto& ls,
   }
 
   switch (format_case) {
-    case GroupProto::LsProto::MONITORING:
-      format = FsView::GetGroupFormat("m");
-      json_output = WantsJsonOutput();
-      break;
+  case GroupProto::LsProto::MONITORING:
+    format = FsView::GetGroupFormat("m");
+    json_output = WantsJsonOutput();
+    break;
 
-    case GroupProto::LsProto::IOGROUP:
-      format = FsView::GetGroupFormat("io");
-      break;
+  case GroupProto::LsProto::IOGROUP:
+    format = FsView::GetGroupFormat("io");
+    break;
 
-    case GroupProto::LsProto::IOFS:
-      format = FsView::GetGroupFormat("IO");
-      list_format = FsView::GetFileSystemFormat("io");
-      // @note in the old implementation was mOutFormat="io", but then mOutFormat
-      // never used again apparently
-      // ls.set_outformat(eos::console::GroupProto_LsProto::IOGROUP);
-      break;
+  case GroupProto::LsProto::IOFS:
+    format = FsView::GetGroupFormat("IO");
+    list_format = FsView::GetFileSystemFormat("io");
+    // @note in the old implementation was mOutFormat="io", but then mOutFormat
+    // never used again apparently
+    // ls.set_outformat(eos::console::GroupProto_LsProto::IOGROUP);
+    break;
 
-    case GroupProto::LsProto::LISTING:
-      format = FsView::GetGroupFormat("l");
-      list_format = FsView::GetFileSystemFormat("l");
-      break;
+  case GroupProto::LsProto::LISTING:
+    format = FsView::GetGroupFormat("l");
+    list_format = FsView::GetFileSystemFormat("l");
+    break;
 
-    default : // NONE
-      format = FsView::GetGroupFormat("");
-      break;
+  default : // NONE
+    format = FsView::GetGroupFormat("");
+    break;
   }
 
   if (!ls.outhost()) {
@@ -169,7 +171,9 @@ GroupCmd::RmSubcmd(const eos::console::GroupProto_RmProto& rm,
     }
   }
 
-  common::SharedHashLocator groupLocator = common::SharedHashLocator::makeForGroup(rm.group());
+  common::SharedHashLocator groupLocator =
+    common::SharedHashLocator::makeForGroup(rm.group());
+
   if (!mq::SharedHashWrapper::deleteHash(groupLocator)) {
     reply.set_std_err(("error: unable to remove config of group '" +
                        rm.group() + "'").c_str());
@@ -216,7 +220,8 @@ GroupCmd::SetSubcmd(const eos::console::GroupProto_SetProto& set,
     reply.set_std_out(("info: creating group '" + set.group() + "'").c_str());
 
     if (!FsView::gFsView.RegisterGroup(set.group().c_str())) {
-      std::string groupconfigname = common::SharedHashLocator::makeForGroup(set.group()).getConfigQueue();
+      std::string groupconfigname = common::SharedHashLocator::makeForGroup(
+                                      set.group()).getConfigQueue();
       reply.set_std_err(("error: cannot register group <" +
                          set.group() + ">").c_str());
       reply.set_retc(EIO);
@@ -244,7 +249,7 @@ GroupCmd::SetSubcmd(const eos::console::GroupProto_SetProto& set,
         if (fs) {
           common::DrainStatus drainstatus =
             (eos::common::FileSystem::GetDrainStatusFromString
-             (fs->GetString("stat.drain").c_str()));
+             (fs->GetString("local.drain").c_str()));
 
           if ((drainstatus == eos::common::DrainStatus::kDraining) ||
               (drainstatus == eos::common::DrainStatus::kDrainStalling)) {
