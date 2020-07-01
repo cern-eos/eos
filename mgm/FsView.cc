@@ -818,7 +818,8 @@ LongLongAggregator::aggregateNodes(
 // Constructor
 //----------------------------------------------------------------------------
 FsSpace::FsSpace(const char* name)
-  : BaseView(common::SharedHashLocator::makeForSpace(name))
+  : BaseView(common::SharedHashLocator::makeForSpace(name)),
+    mConverter(nullptr)
 {
   mName = name;
   mType = "spaceview";
