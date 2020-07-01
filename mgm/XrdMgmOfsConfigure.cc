@@ -401,7 +401,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
   {
     // borrowed from XrdOfs
-    unsigned int myIPaddr = 0;
     char buff[256], *bp;
     int i;
     // Obtain port number we will be using
