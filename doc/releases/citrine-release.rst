@@ -15,6 +15,26 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
+``v4.8.5 Citrine``
+===================
+
+2020-07-01
+
+Bug
+----
+
+* [EOS-4317] - Don't use repairOnClose for eosxd clients
+* [EOS-3994] - MGM should not require mgmofs.configdir if config is stored in QDB
+
+Improvement
+------------
+
+* [EOS-4311] - filesystem move is slow with in-QDB config and the lock taken triggers high node heartbeats
+* [EOS-4312] - Allow to move a filesystem to a diffrent node via a command
+* [EOS-4313] - _find should only prefetch container metadata if no_files is set
+
+
 ``v4.8.4 Citrine``
 ===================
 
