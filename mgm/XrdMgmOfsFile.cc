@@ -1780,7 +1780,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
 
     if ((retc == ENETUNREACH) || (retc == EROFS) || isRepair) {
-      if ((((fmd->getSize() == 0) && (bookingsize == 0)) || isRepair)) {
+      if (isRW && ((((fmd->getSize() == 0) && (bookingsize == 0)) || isRepair))) {
         // File-recreation due to offline/full file systems
         const char* containertag = 0;
 
