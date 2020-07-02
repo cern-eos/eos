@@ -16,6 +16,17 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.6 Citrine``
+===================
+
+2020-07-02
+
+Bug
+----
+
+* MGM: don't place new replicas for read if filesize=0 and a replica is offline
+
+
 ``v4.8.5 Citrine``
 ===================
 
