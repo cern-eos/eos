@@ -32,6 +32,7 @@
 #include "common/ParseUtils.hh"
 #include "common/StringConversion.hh"
 #include "mq/MessagingRealm.hh"
+#include <list>
 
 EOSCOMMONNAMESPACE_BEGIN;
 
@@ -939,7 +940,8 @@ FileSystem::GetSpace()
 // @return string representation of the content for the hash
 //------------------------------------------------------------------------------
 static std::string serializeWithFilter(
-  const std::map<std::string, std::string>& contents, const char* filter_prefix)
+  const std::map<std::string, std::string>& contents,
+  std::list<std::string> filter_prefixes)
 {
   using eos::common::StringConversion;
   std::string key;
@@ -955,18 +957,20 @@ static std::string serializeWithFilter(
       continue;
     }
 
-    if (((filter_prefix == nullptr) || (strlen(filter_prefix) == 0)) ||
-        (key.find(filter_prefix) != 0)) {
-      val = it->second;
+    for (const auto& filter_prefix : filter_prefixes) {
+      if ((filter_prefix.length() == 0) ||
+          (key.find(filter_prefix) != 0)) {
+        val = it->second;
 
-      if ((val[0] == '"') && (val[val.length() - 1] == '"')) {
-        std::string to_encode = val.substr(1, val.length() - 2);
-        std::string encoded = StringConversion::curl_default_escaped(to_encode);
+        if ((val[0] == '"') && (val[val.length() - 1] == '"')) {
+          std::string to_encode = val.substr(1, val.length() - 2);
+          std::string encoded = StringConversion::curl_default_escaped(to_encode);
 
-        if (!encoded.empty()) {
-          val = '"';
-          val += encoded;
-          val += '"';
+          if (!encoded.empty()) {
+            val = '"';
+            val += encoded;
+            val += '"';
+          }
         }
       }
 
@@ -1116,7 +1120,7 @@ FileSystem::CreateConfig(std::string& key, std::string& val)
   val.clear();
   std::map<std::string, std::string> contents;
   mq::SharedHashWrapper(mRealm, mHashLocator).getContents(contents);
-  val = serializeWithFilter(contents, "stat.");
+  val = serializeWithFilter(contents, {"stat.", "local."});
 }
 
 //------------------------------------------------------------------------------
