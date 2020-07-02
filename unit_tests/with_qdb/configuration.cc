@@ -92,6 +92,44 @@ TEST_F(ConfigurationTests, Listing) {
   ASSERT_EQ(backups[0], "default-1");
 }
 
+TEST_F(ConfigurationTests, TrimBackups) {
+  std::unique_ptr<qclient::QClient> qcl = makeQClient();
+  qclient::redisReplyPtr rep;
+
+  rep = qcl->exec("HSET", "eos-config-backup:default-1a", "a", "b").get();
+  ASSERT_EQ(qclient::describeRedisReply(rep), "(integer) 1");
+
+  rep = qcl->exec("HSET", "eos-config-backup:default-2b", "a", "b").get();
+  ASSERT_EQ(qclient::describeRedisReply(rep), "(integer) 1");
+
+  rep = qcl->exec("HSET", "eos-config-backup:default-3c", "a", "b").get();
+  ASSERT_EQ(qclient::describeRedisReply(rep), "(integer) 1");
+
+  rep = qcl->exec("HSET", "eos-config-backup:default-4d", "a", "b").get();
+  ASSERT_EQ(qclient::describeRedisReply(rep), "(integer) 1");
+
+  rep = qcl->exec("HSET", "eos-config-backup:aaaaaa-1", "a", "b").get();
+  ASSERT_EQ(qclient::describeRedisReply(rep), "(integer) 1");
+
+  rep = qcl->exec("HSET", "eos-config-backup:zzzzz-1", "a", "b").get();
+  ASSERT_EQ(qclient::describeRedisReply(rep), "(integer) 1");
+
+  eos::mgm::QuarkConfigHandler ch(getContactDetails());
+  size_t deleted;
+  common::Status st = ch.trimBackups("default", 2, deleted);
+  ASSERT_TRUE(st);
+  ASSERT_EQ(deleted, 2);
+
+  std::vector<std::string> configs, backups;
+  ASSERT_TRUE(ch.listConfigurations(configs, backups));
+
+  std::vector<std::string> expectedConfigs = {};
+  std::vector<std::string> expectedBackups = {"aaaaaa-1", "default-3c", "default-4d", "zzzzz-1"};
+
+  ASSERT_EQ(configs, expectedConfigs);
+  ASSERT_EQ(backups, expectedBackups);
+}
+
 TEST_F(ConfigurationTests, WriteRead) {
   eos::mgm::QuarkConfigHandler ch(getContactDetails());
   ASSERT_TRUE(ch.checkConnection(std::chrono::seconds(1)));

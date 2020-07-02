@@ -88,6 +88,15 @@ public:
   common::Status tailChangelog(int nlines, std::vector<std::string> &changelog);
 
   //----------------------------------------------------------------------------
+  // Trim backups to the nth most recent ones. If no more than N backups exist
+  // anyway, do nothing.
+  //
+  // We will delete a maximum of 200 backups at a time -- you may have to call
+  // this function multiple times to trim everything.
+  //----------------------------------------------------------------------------
+  common::Status trimBackups(const std::string &name, size_t limit, size_t &deleted);
+
+  //----------------------------------------------------------------------------
   // Form hash key
   //----------------------------------------------------------------------------
   static std::string formHashKey(const std::string &name);

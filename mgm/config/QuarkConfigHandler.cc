@@ -23,6 +23,7 @@
 
 #include "mgm/config/QuarkConfigHandler.hh"
 #include "common/Assert.hh"
+#include "common/StringUtils.hh"
 
 #include <qclient/QClient.hh>
 #include <qclient/ResponseParsing.hh>
@@ -240,6 +241,54 @@ common::Status QuarkConfigHandler::tailChangelog(int nlines, std::vector<std::st
     entries.emplace_back(array->element[i]->str, array->element[i]->len);
   }
 
+  return common::Status();
+}
+
+//------------------------------------------------------------------------------
+// Trim backups to the nth most recent ones. If no more than N backups exist
+// anyway, do nothing.
+//
+// We will delete a maximum of 200 backups at a time -- you may have to call
+// this function multiple times to trim everything.
+//------------------------------------------------------------------------------
+common::Status QuarkConfigHandler::trimBackups(const std::string &name, size_t limit, size_t &deleted) {
+  std::vector<std::string> configs, backups;
+  deleted = 0;
+
+  common::Status st = listConfigurations(configs, backups);
+  if(!st) {
+    return st;
+  }
+
+  std::string targetPrefix = SSTR(name << "-");
+  std::vector<std::string> targetsToClean;
+
+  for(size_t i = 0; i < backups.size(); i++) {
+    if(common::startsWith(backups[i], targetPrefix)) {
+      targetsToClean.emplace_back(backups[i]);
+    }
+  }
+
+  int backupsToDelete = (int) targetsToClean.size() - (int) limit;
+  backupsToDelete = std::min(backupsToDelete, 200);
+
+  if(backupsToDelete <= 0) {
+    return common::Status();
+  }
+
+  std::vector<std::string> requestPayload = {"DEL"};
+  for(int i = 0; i < backupsToDelete; i++) {
+    requestPayload.emplace_back(SSTR("eos-config-backup:" << targetsToClean[i]));
+  }
+
+  qclient::redisReplyPtr reply = mQcl->execute(requestPayload).get();
+
+  qclient::IntegerParser intParse(reply);
+  if(!intParse.ok()) {
+    return common::Status(EINVAL, intParse.err());
+  }
+
+  deleted = intParse.value();
   return common::Status();
 }
 
