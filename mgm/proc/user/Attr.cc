@@ -31,6 +31,22 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+//------------------------------------------------------------------------------
+//! Make sure the input given by the client makes sense
+//!
+//! @return true if successful, otherwise false
+//------------------------------------------------------------------------------
+bool SanitizeXattr(const std::string& key, const std::string& value)
+{
+  if ((key == "sys.forced.blocksize") || (key == "user.forced.blocksize")) {
+    std::string out_val;
+    (void)eos::common::SymKey::DeBase64(value, out_val);
+    return eos::common::LayoutId::IsValidBlocksize(out_val);
+  }
+
+  return true;
+}
+
 int
 ProcCommand::Attr()
 {
@@ -45,18 +61,19 @@ ProcCommand::Attr()
   if ((spath.beginswith("fid:") || spath.beginswith("fxid:"))) {
     WAIT_BOOT;
     identifier = Resolver::retrieveFileIdentifier(spath)
-                    .getUnderlyingUInt64();
+                 .getUnderlyingUInt64();
     spath = "";
     GetPathFromFid(spath, identifier, "error: ");
   } else if ((spath.beginswith("pid:") || spath.beginswith("pxid:"))) {
     WAIT_BOOT;
     spath.replace('p', 'f', 0, 1);
     identifier = Resolver::retrieveFileIdentifier(spath)
-                    .getUnderlyingUInt64();
+                 .getUnderlyingUInt64();
     spath = "";
     GetPathFromCid(spath, identifier, "error: ");
   } else {
     spath = eos::common::Path(path).GetPath();
+
     while (spath.replace("#AND#", "&")) {}
   }
 
@@ -68,7 +85,7 @@ ProcCommand::Attr()
     // Retrieval of path from numeric identifier failed
     retc = errno;
   } else if ((mSubCmd != "set") && (mSubCmd != "get") && (mSubCmd != "ls") &&
-       (mSubCmd != "rm") && (mSubCmd != "fold")) {
+             (mSubCmd != "rm") && (mSubCmd != "fold")) {
     // Unrecognized subcommand
     stdErr = "error: the subcommand must be one of 'ls', 'get', 'set', 'rm' or 'fold'!";
     retc = EINVAL;
@@ -85,6 +102,12 @@ ProcCommand::Attr()
       XrdOucString val = pOpaque->Get("mgm.attr.value");
 
       while (val.replace("\"", "")) {
+      }
+
+      if (val.length() && !SanitizeXattr(key.c_str(), val.c_str())) {
+        stdErr = "error: invalid input";
+        retc = EINVAL;
+        return SFS_OK;
       }
 
       // Find everything to be modified i.e. directories only
@@ -161,7 +184,7 @@ ProcCommand::Attr()
               if (key == "user.acl") {
                 XrdOucString evalacl;
 
-               // If someone wants to set a user.acl and the tag sys.eval.useracl
+                // If someone wants to set a user.acl and the tag sys.eval.useracl
                 // is not there, we return an error ...
                 if ((pVid->uid != 0) && gOFS->_attr_get(foundit->first.c_str(),
                                                         *mError, *pVid,

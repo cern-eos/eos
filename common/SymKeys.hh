@@ -224,7 +224,7 @@ public:
   //----------------------------------------------------------------------------
   static bool DeBase64(XrdOucString& in, XrdOucString& out);
 
-  static bool DeBase64(std::string& in, std::string& out);
+  static bool DeBase64(const std::string& in, std::string& out);
 
   //----------------------------------------------------------------------------
   //! Encode a base64: prefixed string

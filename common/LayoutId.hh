@@ -984,7 +984,6 @@ public:
 
     if ((val = env.Get("eos.layout.type"))) {
       int layout = GetLayoutFromString(val);
-
       return (layout != -1) ? layout : kPlain;
     }
 
@@ -1130,7 +1129,6 @@ public:
     return kNone;
   }
 
-
   //--------------------------------------------------------------------------
   //! Return blocksize enum from env definition
   //--------------------------------------------------------------------------
@@ -1176,6 +1174,20 @@ public:
     }
 
     return 0;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Check if this is a valid blocksize specification
+  //!
+  //! @param bs block size in human readable format
+  //!
+  //! @return true if valid, otherwise false
+  //----------------------------------------------------------------------------
+  static bool IsValidBlocksize(const std::string& bs)
+  {
+    std::set<std::string> valid {"4k", "64k", "128k", "512k", "1M", "4M",
+                                 "16M", "64M"};
+    return (valid.find(bs) != valid.end());
   }
 
   //----------------------------------------------------------------------------

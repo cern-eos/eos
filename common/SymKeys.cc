@@ -388,7 +388,7 @@ SymKey::DeBase64(XrdOucString& in, XrdOucString& out)
 // Decode a base64: prefixed string - std::string as input
 //------------------------------------------------------------------------------
 bool
-SymKey::DeBase64(std::string& in, std::string& out)
+SymKey::DeBase64(const std::string& in, std::string& out)
 {
   if (in.substr(0, 7) != "base64:") {
     out = in;
