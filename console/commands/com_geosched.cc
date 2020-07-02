@@ -75,7 +75,8 @@ com_geosched(char* arg1)
     if (subcmd == "state") {
       in += "&mgm.subcmd=showstate";
       subcmd = subtokenizer.GetToken();
-      if (subcmd == "-m"){
+
+      if (subcmd == "-m") {
         in += "&mgm.monitoring=1";
       }
     }
@@ -262,10 +263,11 @@ com_geosched(char* arg1)
 
     if (subcmd == "showdirect" || subcmd == "showproxygroup") {
       if (geotag.length() || geotag_list.length()) {
-        if (geotag == "-m")
+        if (geotag == "-m") {
           in += "&mgm.monitoring=1";
-        else
+        } else {
           goto com_geosched_usage;
+        }
       }
     }
 
@@ -295,39 +297,71 @@ com_geosched_usage:
   fprintf(stdout,
           "Usage: geosched show|set|updater|forcerefresh|disabled|access ...\n");
   fprintf(stdout, "Options:\n");
-  fprintf(stdout, "       geosched show [-c|-m] tree [<scheduling group>]                    :  show scheduling trees\n");
-  fprintf(stdout, "                                                                          :  if <scheduling group> is specified only the tree for this group is shown. If it's not all, the trees are shown.\n");
-  fprintf(stdout, "                                                                          :  '-c' enables color display\n");
-  fprintf(stdout, "                                                                          :  '-m' list in monitoring format\n");
-  fprintf(stdout, "       geosched show [-c|-m] snapshot [{<scheduling group>,*} [<optype>]] :  show snapshots of scheduling trees\n");
-  fprintf(stdout, "                                                                          :  if <scheduling group> is specified only the snapshot(s) for this group is/are shown. If it's not all, the snapshots for all the groups are shown.\n");
-  fprintf(stdout, "                                                                          :  if <optype> is specified only the snapshot for this operation is shown. If it's not, the snapshots for all the optypes are shown.\n");
-  fprintf(stdout, "                                                                          :  <optype> can be one of the folowing plct,accsro,accsrw,accsdrain,plctdrain\n");
-  fprintf(stdout, "                                                                          :  '-c' enables color display\n");
-  fprintf(stdout, "                                                                          :  '-m' list in monitoring format\n");
-  fprintf(stdout, "       geosched show param                                                :  show internal parameters\n");
-  fprintf(stdout, "       geosched show state [-m]                                           :  show internal state\n");
-  fprintf(stdout, "                                                                          :  '-m' list in monitoring format\n");
-  fprintf(stdout, "       geosched set <param name> [param index] <param value>              :  set the value of an internal state parameter (all names can be listed with geosched show state) \n");
-  fprintf(stdout, "       geosched updater {pause|resume}                                    :  pause / resume the tree updater\n");
-  fprintf(stdout, "       geosched forcerefresh                                              :  force a refresh of the trees/snapshots\n");
-  fprintf(stdout, "       geosched disabled add <geotag> {<optype>,*} {<scheduling subgroup>,*}      :  disable a branch of a subtree for the specified group and operation\n");
-  fprintf(stdout, "                                                                                  :  multiple branches can be disabled (by successive calls) as long as they have no intersection\n");
-  fprintf(stdout, "       geosched disabled rm {<geotag>,*} {<optype>,*} {<scheduling subgroup>,*}   :  re-enable a disabled branch for the specified group and operation\n");
-  fprintf(stdout, "                                                                                  :  when called with <geotag> *, the whole tree(s) are re-enabled, canceling all previous disabling\n");
-  fprintf(stdout, "       geosched disabled show {<geotag>,*} {<optype>,*} {<scheduling subgroup>,*} :  show list of disabled branches for for the specified groups and operation\n");
-  fprintf(stdout, "       geosched access setdirect <geotag> <geotag_list>                   :  set a mapping between an accesser geotag and a set of target geotags \n");
-  fprintf(stdout, "                                                                          :  these mappings specify which geotag can be accessed from which geotag without going through a firewall entrypoint\n");
-  fprintf(stdout, "                                                                          :  geotag_list is of the form token1::token2,token3::token4::token5,... \n");
-  fprintf(stdout, "       geosched access showdirect [-m]                                    :  show mappings between accesser geotags and target geotags\n");
-  fprintf(stdout, "                                                                          :  '-m' list in monitoring format\n");
-  fprintf(stdout, "       geosched access cleardirect {<geotag>|all}                         :  clear a mapping between an accesser geotag and a set of target geotags\n");
-  fprintf(stdout, "       geosched access setproxygroup <geotag> <proxygroup>                :  set the proxygroup acting as a firewall entrypoint for the given subtree \n");
-  fprintf(stdout, "                                                                          :  if a client accesses a file from a geotag which does not have direct access to the subtree the replica is,\n");
-  fprintf(stdout, "                                                                          :  it will be scheduled to access through a node from the given proxygroup \n");
-  fprintf(stdout, "       geosched access showproxygroup [-m]                                :  show mappings between accesser geotags and target geotags\n");
-  fprintf(stdout, "                                                                          :  '-m' list in monitoring format\n");
-  fprintf(stdout, "       geosched access clearproxygroup {<geotag>|all}                     :  clear a mapping between an accesser geotag and a set of target geotags\n");
-
+  fprintf(stdout,
+          "       geosched show [-c|-m] tree [<scheduling group>]                    :  show scheduling trees\n");
+  fprintf(stdout,
+          "                                                                          :  if <scheduling group> is specified only the tree for this group is shown. If it's not all, the trees are shown.\n");
+  fprintf(stdout,
+          "                                                                          :  '-c' enables color display\n");
+  fprintf(stdout,
+          "                                                                          :  '-m' list in monitoring format\n");
+  fprintf(stdout,
+          "       geosched show [-c|-m] snapshot [{<scheduling group>,*} [<optype>]] :  show snapshots of scheduling trees\n");
+  fprintf(stdout,
+          "                                                                          :  if <scheduling group> is specified only the snapshot(s) for this group is/are shown. If it's not all, the snapshots for all the groups are shown.\n");
+  fprintf(stdout,
+          "                                                                          :  if <optype> is specified only the snapshot for this operation is shown. If it's not, the snapshots for all the optypes are shown.\n");
+  fprintf(stdout,
+          "                                                                          :  <optype> can be one of the folowing plct,accsro,accsrw,accsdrain,plctdrain\n");
+  fprintf(stdout,
+          "                                                                          :  '-c' enables color display\n");
+  fprintf(stdout,
+          "                                                                          :  '-m' list in monitoring format\n");
+  fprintf(stdout,
+          "       geosched show param                                                :  show internal parameters\n");
+  fprintf(stdout,
+          "       geosched show state [-m]                                           :  show internal state\n");
+  fprintf(stdout,
+          "                                                                          :  '-m' list in monitoring format\n");
+  fprintf(stdout,
+          "       geosched set <param name> [param index] <param value>              :  set the value of an internal state parameter (all names can be listed with geosched show param) \n");
+  fprintf(stdout,
+          "       geosched updater {pause|resume}                                    :  pause / resume the tree updater\n");
+  fprintf(stdout,
+          "       geosched forcerefresh                                              :  force a refresh of the trees/snapshots\n");
+  fprintf(stdout,
+          "       geosched disabled add <geotag> {<optype>,*} {<scheduling subgroup>,*}      :  disable a branch of a subtree for the specified group and operation\n");
+  fprintf(stdout,
+          "                                                                                  :  multiple branches can be disabled (by successive calls) as long as they have no intersection\n");
+  fprintf(stdout,
+          "       geosched disabled rm {<geotag>,*} {<optype>,*} {<scheduling subgroup>,*}   :  re-enable a disabled branch for the specified group and operation\n");
+  fprintf(stdout,
+          "                                                                                  :  when called with <geotag> *, the whole tree(s) are re-enabled, canceling all previous disabling\n");
+  fprintf(stdout,
+          "       geosched disabled show {<geotag>,*} {<optype>,*} {<scheduling subgroup>,*} :  show list of disabled branches for for the specified groups and operation\n");
+  fprintf(stdout,
+          "       geosched access setdirect <geotag> <geotag_list>                   :  set a mapping between an accesser geotag and a set of target geotags \n");
+  fprintf(stdout,
+          "                                                                          :  these mappings specify which geotag can be accessed from which geotag without going through a firewall entrypoint\n");
+  fprintf(stdout,
+          "                                                                          :  geotag_list is of the form token1::token2,token3::token4::token5,... \n");
+  fprintf(stdout,
+          "       geosched access showdirect [-m]                                    :  show mappings between accesser geotags and target geotags\n");
+  fprintf(stdout,
+          "                                                                          :  '-m' list in monitoring format\n");
+  fprintf(stdout,
+          "       geosched access cleardirect {<geotag>|all}                         :  clear a mapping between an accesser geotag and a set of target geotags\n");
+  fprintf(stdout,
+          "       geosched access setproxygroup <geotag> <proxygroup>                :  set the proxygroup acting as a firewall entrypoint for the given subtree \n");
+  fprintf(stdout,
+          "                                                                          :  if a client accesses a file from a geotag which does not have direct access to the subtree the replica is,\n");
+  fprintf(stdout,
+          "                                                                          :  it will be scheduled to access through a node from the given proxygroup \n");
+  fprintf(stdout,
+          "       geosched access showproxygroup [-m]                                :  show mappings between accesser geotags and target geotags\n");
+  fprintf(stdout,
+          "                                                                          :  '-m' list in monitoring format\n");
+  fprintf(stdout,
+          "       geosched access clearproxygroup {<geotag>|all}                     :  clear a mapping between an accesser geotag and a set of target geotags\n");
   return (0);
 }
