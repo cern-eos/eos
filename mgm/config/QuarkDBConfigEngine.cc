@@ -222,21 +222,6 @@ QuarkDBConfigEngine::SaveConfig(std::string filename, bool overwrite,
 }
 
 //------------------------------------------------------------------------------
-// Drop configname prefix
-//------------------------------------------------------------------------------
-static std::string dropConfigPrefix(const std::string &name) {
-  if(common::startsWith(name, "eos-config:")) {
-    return name.substr(11);
-  }
-
-  if(common::startsWith(name, "eos-config-backup:")) {
-    return name.substr(18);
-  }
-
-  return name;
-}
-
-//------------------------------------------------------------------------------
 // List the existing configurations
 //------------------------------------------------------------------------------
 bool
@@ -257,9 +242,9 @@ QuarkDBConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
 
   for(auto it = configs.begin(); it != configs.end(); it++) {
     configlist += "name: ";
-    configlist += dropConfigPrefix(*it).c_str();
+    configlist += it->c_str();
 
-    if(dropConfigPrefix(*it) == mConfigFile.c_str()) {
+    if(*it == mConfigFile.c_str()) {
       configlist += " *";
     }
 
@@ -273,7 +258,7 @@ QuarkDBConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
 
     for(auto it = backups.begin(); it != backups.end(); it++) {
       configlist += "name: ";
-      configlist += dropConfigPrefix(*it).c_str();
+      configlist += it->c_str();
       configlist += "\n";
     }
   }

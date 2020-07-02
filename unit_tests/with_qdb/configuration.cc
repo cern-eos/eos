@@ -85,11 +85,11 @@ TEST_F(ConfigurationTests, Listing) {
   ASSERT_TRUE(ch.listConfigurations(configs, backups));
 
   ASSERT_EQ(configs.size(), 2u);
-  ASSERT_EQ(configs[0], "eos-config:default");
-  ASSERT_EQ(configs[1], "eos-config:default-2");
+  ASSERT_EQ(configs[0], "default");
+  ASSERT_EQ(configs[1], "default-2");
 
   ASSERT_EQ(backups.size(), 1u);
-  ASSERT_EQ(backups[0], "eos-config-backup:default-1");
+  ASSERT_EQ(backups[0], "default-1");
 }
 
 TEST_F(ConfigurationTests, WriteRead) {

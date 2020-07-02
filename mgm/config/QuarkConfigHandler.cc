@@ -78,12 +78,12 @@ common::Status QuarkConfigHandler::checkExistence(const std::string &name, bool 
 common::Status QuarkConfigHandler::listConfigurations(std::vector<std::string> &configs, std::vector<std::string> &backups) {
   qclient::QScanner confScanner(*mQcl, "eos-config:*");
   for (; confScanner.valid(); confScanner.next()) {
-    configs.emplace_back(confScanner.getValue());
+    configs.emplace_back(confScanner.getValue().substr(11));
   }
 
   qclient::QScanner confScannerBackups(*mQcl, "eos-config-backup:*");
   for (; confScannerBackups.valid(); confScannerBackups.next()) {
-    backups.emplace_back(confScannerBackups.getValue());
+    backups.emplace_back(confScannerBackups.getValue().substr(18));
   }
 
   return common::Status();
