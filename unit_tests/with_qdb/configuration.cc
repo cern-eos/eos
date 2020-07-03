@@ -23,6 +23,7 @@
 
 #include "unit_tests/with_qdb/TestUtils.hh"
 #include "mgm/config/QuarkConfigHandler.hh"
+#include "common/Assert.hh"
 
 #include <qclient/QClient.hh>
 
@@ -128,6 +129,49 @@ TEST_F(ConfigurationTests, TrimBackups) {
 
   ASSERT_EQ(configs, expectedConfigs);
   ASSERT_EQ(backups, expectedBackups);
+}
+
+std::string padZeroes(const std::string &str, size_t len) {
+  if(str.size() < len) {
+    std::ostringstream ss;
+    for(size_t i = 0; i < len - str.size(); i++) {
+      ss << "0";
+    }
+
+    ss << str;
+    return ss.str();
+  }
+
+  return str;
+}
+
+TEST_F(ConfigurationTests, TrimBackupsHit200Limit) {
+  std::unique_ptr<qclient::QClient> qcl = makeQClient();
+  qclient::redisReplyPtr rep;
+
+  ASSERT_EQ(padZeroes(SSTR(1), 3), "001");
+  ASSERT_EQ(padZeroes(SSTR(11), 3), "011");
+  ASSERT_EQ(padZeroes(SSTR(111), 3), "111");
+
+  for(size_t i = 0; i < 300; i++) {
+    std::string key = padZeroes(SSTR(i), 3);
+    rep = qcl->exec("HSET", SSTR("eos-config-backup:default-" << key), "a", "b").get();
+    ASSERT_EQ(qclient::describeRedisReply(rep), "(integer) 1");
+  }
+
+  eos::mgm::QuarkConfigHandler ch(getContactDetails());
+  size_t deleted;
+  common::Status st = ch.trimBackups("default", 10, deleted);
+  ASSERT_TRUE(st);
+  ASSERT_EQ(deleted, 200);
+
+  std::vector<std::string> configs, backups;
+  ASSERT_TRUE(ch.listConfigurations(configs, backups));
+  ASSERT_EQ(backups.size(), 100u);
+
+  for(size_t i = 0; i < backups.size(); i++) {
+    ASSERT_EQ(backups[i], SSTR("default-" << padZeroes(SSTR(i+200), 3)));
+  }
 }
 
 TEST_F(ConfigurationTests, WriteRead) {
