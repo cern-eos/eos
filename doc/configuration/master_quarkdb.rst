@@ -71,7 +71,7 @@ One can use the following steps to do this:
   * Check that the two configs are identical
   * Stop the MGM and add the ``mgmofs.cfgtype quarkdb`` to ``/etc/xrd.cf.mgm``
   * Check if there were changes between the in-file config and the in-qdb config after the MGM stopped. If there are differences, re-run the export (with wipe), dump the config again as a file (with the ``eos-config-inspect`` tool), check the diffs again.
- * If all went well in the previous steps, start the MGM
+  * If all went well in the previous steps, start the MGM
 
 To have the QuarkDB HA setup working properly one also needs to set the following
 environment variable for both the MGM and MQ daemons:
