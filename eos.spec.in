@@ -533,6 +533,7 @@ The EOS server installation containing MGM, FST & MQ service.
 %exclude %dir %{_localstatedir}/log/eos/archive/
 
 %post -n eos-server
+if [ ! -f /etc/sysconfig/eos-yum-noscripts ]; then
 echo "Starting conditional EOS services"
 sleep 2
 %if %{use_systemd}
@@ -544,8 +545,10 @@ sleep 2
     /sbin/service eos condrestart > /dev/null 2>&1 || :
     /sbin/service eosd condrestart > /dev/null 2>&1 || :
 %endif
+fi
 
 %preun -n eos-server
+if [ ! -f /etc/sysconfig/eos-yum-noscripts ]; then
 if [ $1 = 0 ]; then
   echo "Stopping EOS services"
   %if %{use_systemd}
@@ -561,6 +564,7 @@ if [ $1 = 0 ]; then
     /sbin/chkconfig --del eos
     /sbin/chkconfig --del eosslave
   %endif
+fi
 fi
 
 #-------------------------------------------------------------------------------
