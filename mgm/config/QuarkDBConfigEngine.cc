@@ -136,6 +136,7 @@ QuarkDBConfigEngine::QuarkDBConfigEngine(const QdbContactDetails&
   mConfigHandler = std::make_unique<QuarkConfigHandler>(mQdbContactDetails);
   mChangelog.reset(new QuarkDBCfgEngineChangelog(mQcl.get()));
   mExecutor.reset(new folly::IOThreadPoolExecutor(2));
+  mCleanupThread.reset(&QuarkDBConfigEngine::cleanupThread, this);
 }
 
 //------------------------------------------------------------------------------
@@ -264,6 +265,26 @@ QuarkDBConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
   }
 
   return true;
+}
+
+//------------------------------------------------------------------------------
+// Cleanup thread
+//------------------------------------------------------------------------------
+void QuarkDBConfigEngine::cleanupThread(ThreadAssistant &assistant) {
+  while(!assistant.terminationRequested()) {
+    assistant.wait_for(std::chrono::minutes(30));
+
+    if(!assistant.terminationRequested()) {
+      size_t deleted;
+      common::Status st = mConfigHandler->trimBackups("default", 1000, deleted);
+      if(!st) {
+        eos_static_crit("unable to clean configuration backups: %s", st.toString().c_str());
+      }
+      else {
+        eos_static_info("deleted %d old configuration backups", deleted);
+      }
+    }
+  }
 }
 
 //------------------------------------------------------------------------------

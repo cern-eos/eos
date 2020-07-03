@@ -23,6 +23,7 @@
 
 #pragma once
 #include "common/Status.hh"
+#include "common/AssistedThread.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/qclient/include/qclient/structures/QHash.hh"
@@ -196,11 +197,17 @@ private:
   //----------------------------------------------------------------------------
   common::Status PullFromQuarkDB(const std::string &configName);
 
+  //----------------------------------------------------------------------------
+  //! Cleanup thread
+  //----------------------------------------------------------------------------
+  void cleanupThread(ThreadAssistant &assistant);
+
   QdbContactDetails mQdbContactDetails;
   std::unique_ptr<qclient::QClient> mQcl;
   std::unique_ptr<QuarkConfigHandler> mConfigHandler;
 
   std::unique_ptr<folly::Executor> mExecutor;
+  AssistedThread mCleanupThread;
 
   //----------------------------------------------------------------------------
   //! Format time
