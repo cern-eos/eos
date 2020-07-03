@@ -57,6 +57,22 @@ achieved by using the "-f" (force overwrite) flag in the "eos config export" com
 After running the export command there should be a key entry in QuarkDB with the
 following name ``eos-config:default`` for the **default** configuration.
 
+An alternative method to do the configuration export is to use the ``eos-config-inspect`` tool.
+One can use the following steps to do this:
+
+ * Install the eos-ns-inspect package (v4.7.15+)
+ * Dry-run (no configuration change yet, just import the current config in QDB for testing) from the current MGM master:
+
+.. code-block:: bash
+
+    eos-config-inspect export --source /var/eos/config/[fqdn_of_current_master]/default.eoscf --members cluster-qdb:7777 --password-file /etc/eos.keytab
+    eos-config-inspect dump --password-file eos.keytab --members cluster-qdb.cern.ch:7777 | tee default.eoscf.qdb
+
+  * Check that the two configs are identical
+  * Stop the MGM and add the ``mgmofs.cfgtype quarkdb`` to ``/etc/xrd.cf.mgm``
+  * Check if there were changes between the in-file config and the in-qdb config after the MGM stopped. If there are differences, re-run the export (with wipe), dump the config again as a file (with the ``eos-config-inspect`` tool), check the diffs again.
+ * If all went well in the previous steps, start the MGM
+
 To have the QuarkDB HA setup working properly one also needs to set the following
 environment variable for both the MGM and MQ daemons:
 
