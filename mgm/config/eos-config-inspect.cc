@@ -262,6 +262,21 @@ int runRelocateFilesystemSubcommand(eos::mgm::QuarkConfigHandler &configHandler,
   return 1;
 }
 
+//------------------------------------------------------------------------------
+// Trim backups subcommand
+//------------------------------------------------------------------------------
+int runTrimBackupsSubcommand(size_t limit, eos::mgm::QuarkConfigHandler &configHandler) {
+  size_t deleted = 0;
+  eos::common::Status st = configHandler.trimBackups("default", limit, deleted);
+  if(!st) {
+    std::cerr << st.toString() << std::endl;
+    return st.getErrc();
+  }
+
+  std::cout << "deleted " << deleted << " config backups" << std::endl;
+  return 0;
+}
+
 int main(int argc, char* argv[])
 {
   CLI::App app("Tool to inspect contents of the QuarkDB-based EOS configuration.");
@@ -347,6 +362,19 @@ int main(int argc, char* argv[])
                     passwordFile);
 
   //----------------------------------------------------------------------------
+  // Set-up trim-backups subcommand..
+  //----------------------------------------------------------------------------
+  auto trimBackupsSubcommand = app.add_subcommand("trim-backups",
+    "Trim number of configuration backups");
+
+  size_t nbackups = 1000;
+  trimBackupsSubcommand->add_option("--limit", nbackups,
+    "The maximum number of backups to keep");
+
+  addClusterOptions(trimBackupsSubcommand, membersStr, memberValidator, password,
+    passwordFile);
+
+  //----------------------------------------------------------------------------
   // Parse
   //----------------------------------------------------------------------------
   try {
@@ -396,6 +424,9 @@ int main(int argc, char* argv[])
   }
   else if(tailSubcommand->parsed()) {
     return runTailSubcommand(nlines, configHandler);
+  }
+  else if(trimBackupsSubcommand->parsed()) {
+    return runTrimBackupsSubcommand(nbackups, configHandler);
   }
 
   std::cerr << "No subcommand was supplied - should never reach here" <<
