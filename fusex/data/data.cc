@@ -370,7 +370,7 @@ data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
       // truncate the journal
       if (mFile->journal()->reset()) {
         char msg[1024];
-        snprintf(msg, sizeof(msg), "journal reset failed - ino=%#lx", id());
+        snprintf(msg, sizeof(msg), "journal reset failed - ino=%#lx errno=%d %s", id(), errno, mFile->journal()->dump().c_str());
         eos_crit("%s", msg);
         throw std::runtime_error(msg);
       }
@@ -408,7 +408,7 @@ data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
           // truncate the journal
           if (mFile->journal()->reset()) {
             char msg[1024];
-            snprintf(msg, sizeof(msg), "journal reset failed - ino=%#lx", id());
+	    snprintf(msg, sizeof(msg), "journal reset failed - ino=%#lx errno=%d %s", id(), errno, mFile->journal()->dump().c_str());
             eos_crit("%s", msg);
             throw std::runtime_error(msg);
           }

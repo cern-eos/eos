@@ -141,6 +141,7 @@ public:
     nbFlushed++;
   }
 
+  std::string dump();
 private:
 
   void process_intersection(interval_tree<uint64_t, const void*>& write,

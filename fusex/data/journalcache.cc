@@ -607,6 +607,22 @@ int journalcache::reset()
   return retc;
 }
 
+std::string journalcache::dump()
+{
+  std::string out;
+  out += "fd=";
+  out += std::to_string(fd);
+  out += " truncatexize=";
+  out += std::to_string(get_truncatesize());
+  out += " maxoffset=";
+  out += std::to_string(get_max_offset());
+  out += " nbattached=";
+  out += std::to_string(nbAttached);
+  out += " nbflushed=";
+  out += std::to_string(nbFlushed);
+  return out;
+}
+
 std::vector<journalcache::chunk_t> journalcache::get_chunks(off_t offset,
     size_t size)
 {
