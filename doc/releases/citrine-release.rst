@@ -16,6 +16,20 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.7 Citrine``
+===================
+
+2020-07-06
+
+Improvements
+------------
+
+* FUSEX: don't print 'IO blocked' for the root inode, since this frequently happens after wake-up
+* FUSEX: print some user information if GETCAP results in EPERM
+* FUSEX: print some debug information if journal()->reset() fails
+* SPEC: Disable running spec scriplets if file /etc/eos/yum_with_noscripts is present
+
+
 ``v4.8.6 Citrine``
 ===================
 
