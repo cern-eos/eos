@@ -376,12 +376,10 @@ Requires: eos-xrootd == %{eos_xrootd_version_min}
 %else
 Requires: xrootd >= %{xrootd_version_min}
 Requires: xrootd-client >= %{xrootd_version_min}
-Requires: xrootd-private-devel >= %{xrootd_version_min}
 %endif
 %else
 Requires: xrootd >= %{xrootd_version_min}
 Requires: xrootd-client >= %{xrootd_version_min}
-Requires: xrootd-private-devel >= %{xrootd_version_min}
 %endif
 
 
