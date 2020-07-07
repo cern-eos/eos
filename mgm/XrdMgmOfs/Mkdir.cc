@@ -133,7 +133,7 @@ XrdMgmOfs::_mkdir(const char* path,
       // ACL and permission check
       Acl acl(cPath.GetParentPath(), error, vid, attrmap, false);
       eos_info("path=%s acl=%d r=%d w=%d wo=%d egroup=%d mutable=%d",
-	       cPath.GetParentPath(),
+               cPath.GetParentPath(),
                acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
                acl.HasEgroup(), acl.IsMutable());
 
@@ -350,12 +350,10 @@ XrdMgmOfs::_mkdir(const char* path,
           eos::IContainerMD::ctime_t ctime;
           newdir->getCTime(ctime);
           newdir->setMTime(ctime);
-
-	  // Store the birth time
-	  char btime[256];
-	  snprintf(btime, sizeof(btime), "%lu.%lu", ctime.tv_sec, ctime.tv_nsec);
-	  newdir->setAttribute("sys.eos.btime", btime);
-
+          // Store the birth time
+          char btime[256];
+          snprintf(btime, sizeof(btime), "%lu.%lu", ctime.tv_sec, ctime.tv_nsec);
+          newdir->setAttribute("sys.eos.btime", btime);
           dir->setMTime(ctime);
           dir->notifyMTimeChange(gOFS->eosDirectoryService);
           // commit
@@ -402,18 +400,18 @@ XrdMgmOfs::_mkdir(const char* path,
     newdir = eosView->createContainer(path);
     newdir->setCUid(vid.uid);
     newdir->setCGid(vid.gid);
-    newdir->setMode(acc_mode);
+    // @note: we always inherit the mode of the parent directory. So far nobody
+    // complained so we'll keep it as it is until someone does.
+    //newdir->setMode(acc_mode);
     newdir->setMode(dir->getMode());
     // Store the in-memory modification time
     eos::IContainerMD::ctime_t ctime;
     newdir->getCTime(ctime);
     newdir->setMTime(ctime);
-    
     // Store the birth time
     char btime[256];
     snprintf(btime, sizeof(btime), "%lu.%lu", ctime.tv_sec, ctime.tv_nsec);
     newdir->setAttribute("sys.eos.btime", btime);
-
     dir->setMTime(ctime);
 
     // If not version directory, then inherit attributes
