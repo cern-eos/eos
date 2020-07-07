@@ -40,7 +40,8 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-QuarkQuotaNode::QuarkQuotaNode(IQuotaStats* quota_stats, IContainerMD::id_t node_id)
+QuarkQuotaNode::QuarkQuotaNode(IQuotaStats* quota_stats,
+                               IContainerMD::id_t node_id)
   : IQuotaNode(quota_stats, node_id)
 {
   std::string snode_id = std::to_string(node_id);
@@ -131,7 +132,8 @@ QuarkQuotaNode::meld(const IQuotaNode* node)
   } while (cursor != "0");
 
   // Meld in the gid map info
-  hmap.setKey(QuarkQuotaStats::KeyQuotaGidMap(std::to_string(impl_node->getId())));
+  hmap.setKey(QuarkQuotaStats::KeyQuotaGidMap(std::to_string(
+                impl_node->getId())));
   cursor = "0";
 
   do {
@@ -157,6 +159,7 @@ void QuarkQuotaNode::updateFromBackend()
   std::pair<std::string, std::map<std::string, std::string>> reply;
   qclient::QHash uid_map(*pQcl, pQuotaUidKey);
   qclient::QHash gid_map(*pQcl, pQuotaGidKey);
+  std::set<std::string> to_delete;
 
   do {
     reply = uid_map.hscan(cursor, count);
@@ -182,9 +185,21 @@ void QuarkQuotaNode::updateFromBackend()
       } else if (type == "files") {
         uinfo.files = std::stoull(elem.second);
       }
+
+      // If nothing is used we can drop the entry from the map
+      if ((uinfo.space == 0ull) && (uinfo.physicalSpace == 0ull) &&
+          (uinfo.files == 0ull)) {
+        to_delete.insert(elem.first);
+        pCore.mUserInfo.erase(it_uid);
+      }
     }
   } while (cursor != "0");
 
+  for (const auto& key_del : to_delete) {
+    uid_map.hdel(key_del);
+  }
+
+  to_delete.clear();
   cursor = "0";
 
   do {
@@ -211,8 +226,19 @@ void QuarkQuotaNode::updateFromBackend()
       } else if (type == "files") {
         ginfo.files = std::stoull(elem.second);
       }
+
+      // If nothing is used we can drop the entry from the map
+      if ((ginfo.space == 0ull) && (ginfo.physicalSpace == 0ull) &&
+          (ginfo.files == 0ull)) {
+        to_delete.insert(elem.first);
+        pCore.mGroupInfo.erase(it_gid);
+      }
     }
   } while (cursor != "0");
+
+  for (const auto& key_del : to_delete) {
+    gid_map.hdel(key_del);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -265,7 +291,8 @@ QuarkQuotaNode::replaceCore(const QuotaNodeCore& updated)
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-QuarkQuotaStats::QuarkQuotaStats(qclient::QClient *qcl, MetadataFlusher *flusher):
+QuarkQuotaStats::QuarkQuotaStats(qclient::QClient* qcl,
+                                 MetadataFlusher* flusher):
   pQcl(qcl), pFlusher(flusher) {}
 
 
@@ -294,7 +321,7 @@ QuarkQuotaStats::getQuotaNode(IContainerMD::id_t node_id)
 {
   auto it = pNodeMap.find(node_id);
 
-  if(it != pNodeMap.end()) {
+  if (it != pNodeMap.end()) {
     return it->second.get();
   }
 
@@ -358,7 +385,8 @@ QuarkQuotaStats::getAllIds()
 {
   std::unordered_set<IContainerMD::id_t> quota_ids;
   qclient::QScanner quota_set(*pQcl, quota::sPrefix + "*:*");
-  for(; quota_set.valid(); quota_set.next()) {
+
+  for (; quota_set.valid(); quota_set.next()) {
     // Extract quota node id
     IContainerMD::id_t id = 0;
 
