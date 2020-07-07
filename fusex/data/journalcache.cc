@@ -54,6 +54,7 @@ journalcache::~journalcache()
     eos_static_debug("closing fd=%d\n", fd);
     detachstat.st_size = 0 ;
     fstat(fd, &detachstat);
+
     int rc = close(fd);
 
     if (rc) {
@@ -599,7 +600,7 @@ int journalcache::reset()
 {
   write_lock lck(clck);
   journal.clear();
-  int retc = ::ftruncate(fd, 0);
+  int retc = (fd > 0)?::ftruncate(fd, 0):0;
   cachesize = 0;
   max_offset = 0;
   truncatesize = -1;
