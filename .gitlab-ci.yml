@@ -281,8 +281,7 @@ build_ubuntu_focal:
   tags:
     - docker_node
     - ubuntu
-  when:
-    - manual
+  when: manual
 
 .build_fedora-template: &build_fedora-template_definition
   stage: build:rpm
@@ -1053,8 +1052,7 @@ debian_focal_artifacts:
   tags:
     - docker_node
     - publish
-  when:
-    - manual
+  when: manual
 
 debian_artifacts_volume:
   stage: publish
