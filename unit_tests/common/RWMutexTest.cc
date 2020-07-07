@@ -24,6 +24,7 @@
 #include "gtest/gtest.h"
 #include "common/RWMutex.hh"
 #include "common/StacktraceHere.hh"
+#include <cstdio>
 
 //------------------------------------------------------------------------------
 // Check stacktrace generation
@@ -129,4 +130,76 @@ TEST(RWMutex, MultiWrLockTest)
   std::this_thread::sleep_for(std::chrono::milliseconds(200));
   ASSERT_NO_THROW(mutex.UnLockWrite());
   t.join();
+}
+
+//------------------------------------------------------------------------------
+// Failed timed lock should not trigger a lock violation
+//------------------------------------------------------------------------------
+TEST(RWMutex, LockOrder)
+{
+  using eos::common::RWMutex;
+  struct capture_out {
+    capture_out(FILE* file):
+      mFile(file)
+    {
+      fflush(mFile);
+      mOldFd = fileno(mFile);
+      mNewFd = dup(mOldFd);
+      freopen("/dev/null", "a", mFile);
+      setvbuf(mFile, mBuffer, _IOFBF, 1024 * 1024);
+    }
+
+    ~capture_out()
+    {
+      freopen("/dev/null", "a", mFile);
+      dup2(mNewFd, mOldFd);
+      setvbuf(mFile, nullptr, _IONBF, 0);
+    }
+
+    FILE* mFile;
+    int mNewFd;
+    int mOldFd;
+    char mBuffer[1024 * 1024];
+  };
+  RWMutex mutex1;
+  RWMutex mutex2;
+  RWMutex::SetOrderCheckingGlobal(true);
+  std::vector<RWMutex*> order;
+  order.push_back(&mutex1);
+  order.push_back(&mutex2);
+  RWMutex::AddOrderRule("rule1", order);
+  auto correct_lock_order = [&]() {
+    mutex1.LockRead();
+    mutex2.LockRead();
+    ASSERT_NO_THROW(mutex2.UnLockRead());
+    ASSERT_NO_THROW(mutex1.UnLockRead());
+  };
+  auto lock_order_violation = [&]() {
+    capture_out cap_err(stderr);
+    mutex2.LockRead();
+    mutex1.LockRead();
+    std::string output = cap_err.mBuffer;
+    ASSERT_TRUE(output.find("Order Checking Error") != std::string::npos);
+    ASSERT_NO_THROW(mutex2.UnLockRead());
+    ASSERT_NO_THROW(mutex1.UnLockRead());
+  };
+  auto failed_timed_no_order_violation = [&]() {
+    capture_out cap_err(stderr);
+    std::thread t([&]() {
+      mutex1.LockWrite();
+      std::this_thread::sleep_for(std::chrono::seconds(1));
+      mutex1.UnLockWrite();
+    });
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    ASSERT_FALSE(mutex1.TimedRdLock(100000));
+    t.join();
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    ASSERT_TRUE(mutex1.TimedRdLock(100000));
+    std::string output = cap_err.mBuffer;
+    ASSERT_TRUE(output.find("Order Checking Error") == std::string::npos);
+    mutex1.UnLockRead();
+  };
+  correct_lock_order();
+  failed_timed_no_order_violation();
+  lock_order_violation();
 }

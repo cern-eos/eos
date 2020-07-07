@@ -245,6 +245,11 @@ RWMutex::TimedRdLock(uint64_t timeout_ns)
 
 #endif
   EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(mRd);
+
+  if (retc) {
+    EOS_RWMUTEX_CHECKORDER_UNLOCK;
+  }
+
   return (retc == 0);
 }
 
@@ -401,7 +406,6 @@ RWMutex::UnLockWrite()
 
 #endif
   int retc = 0;
-
   // mLastWriteLock must be checked _before_ we release the lock!
   int64_t blockedFor = std::chrono::duration_cast<std::chrono::milliseconds>
                        (std::chrono::steady_clock::now().time_since_epoch()).count() - mLastWriteLock;
@@ -468,6 +472,8 @@ RWMutex::TimedWrLock(uint64_t timeout_ns)
     // mLastWriteLock should be updated _after_ we acquire the lock!
     mLastWriteLock = std::chrono::duration_cast<std::chrono::milliseconds>
                      (std::chrono::steady_clock::now().time_since_epoch()).count();
+  } else {
+    EOS_RWMUTEX_CHECKORDER_UNLOCK;
   }
 
   return (retc == 0);
@@ -1107,9 +1113,9 @@ RWMutex::CheckAndUnlockOrder()
       // we don't care about unlocking order violations, there is no problem with that
       // check if following mutex is already locked in the same thread
       if (ordermask_staticthread[k] >= (mask << 1)) {
-	char strmess[1024];
-	sprintf(strmess, "unlocking %s at address %p", mDebugName.c_str(), this);
-	OrderViolationMessage(k, strmess);
+        char strmess[1024];
+        sprintf(strmess, "unlocking %s at address %p", mDebugName.c_str(), this);
+        OrderViolationMessage(k, strmess);
       }
     }
 
@@ -1345,7 +1351,6 @@ RWMutexReadLock::Grab(RWMutex& mutex)
 
   mRdMutex = &mutex;
   mRdMutex->LockRead();
-
   // acquiredAt must be updated _after_ we get the lock, since LockRead
   // may take a long time to complete
   mAcquiredAt = std::chrono::steady_clock::now();
