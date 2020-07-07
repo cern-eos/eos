@@ -16,6 +16,17 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.8 Citrine``
+==================
+
+2020-07-07
+
+Bug
+----
+
+* FUSEX: check in journalcache::reset if there is actually an open journal - fixes EOS-4322
+
+
 ``v4.8.7 Citrine``
 ===================
 
