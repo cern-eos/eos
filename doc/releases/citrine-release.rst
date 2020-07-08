@@ -25,7 +25,7 @@ Bug
 ----
 
 * FUSEX: check in journalcache::reset if there is actually an open journal - fixes EOS-4322
-
+* FUSEX: disable FST checksum checks for all reads in general, which can break recovery if not
 
 ``v4.8.7 Citrine``
 ===================
