@@ -1153,7 +1153,7 @@ data::datax::recover_ropen(fuse_req_t req)
     if (status.errNo == kXR_noserver) {
       double retry_time_sec = 1.0 * eos::common::Timing::GetCoarseAgeInNs(&ts,
                               0) / 1000000000.0;
-      eos_warning("recover no server retry window [ %.02f/%.02f ]",
+      eos_warning("recover no server retry window [ %.02f/%lu ]",
                   retry_time_sec,
                   EosFuse::Instance().Config().recovery.read_open_noserver_retrywindow
                  );
@@ -1311,7 +1311,7 @@ data::datax::try_ropen(fuse_req_t req, XrdCl::Proxy*& proxy,
     if (status.errNo == kXR_noserver) {
       double retry_time_sec = 1.0 * eos::common::Timing::GetCoarseAgeInNs(&ts,
                               0) / 1000000000.0;
-      eos_warning("recover no server retry window [ %.02f/%.02f ]",
+      eos_warning("recover no server retry window [ %.02f/%lu ]",
                   retry_time_sec,
                   EosFuse::Instance().Config().recovery.read_open_noserver_retrywindow
                  );
@@ -1564,7 +1564,7 @@ data::datax::recover_write(fuse_req_t req)
 
   if (!recover_from_file_cache && !recover_truncate) {
     // we need to open this file because it is not complete locally
-    int rc = try_ropen(req, aproxy, mRemoteUrlRW);
+    int rc = try_ropen(req, aproxy, mRemoteUrlRW + "&eos.checksum=ignore");
 
     if (rc) {
       mRecoveryStack.push_back(eos_silent("hint='read-open failed with rc=%d'", rc));
@@ -1641,7 +1641,10 @@ data::datax::recover_write(fuse_req_t req)
 
           if (!status.IsOK()) {
             sBufferManager.put_buffer(buffer);
-            eos_warning("failed to read remote file for recovery");
+            eos_warning("failed to read remote file for recovery msg='%s'",status.ToString().c_str());
+            mRecoveryStack.push_back(
+				     eos_silent("status='%s' hint='failed to read remote file for recovery'",
+						status.ToString().c_str()));
             ::close(fd);
 
             if (req && end_flush(req)) {
@@ -2725,6 +2728,11 @@ data::datax::set_remote(const std::string& hostport,
   remoteurl += "&eos.app=";
   remoteurl += appname;
   remoteurl += "&mgm.mtime=0&mgm.fusex=1&eos.bookingsize=0";
+  if (!isRW) {
+    // we don't check checksums in read, because we might read a file which is open and it does not have
+    // a final checksum when we read over the end
+    remoteurl += "&eos.checksum=ignore";
+  }
   XrdCl::URL url(remoteurl);
   XrdCl::URL::ParamsMap query = url.GetParams();
   fusexrdlogin::loginurl(url, query, req, md_ino);
