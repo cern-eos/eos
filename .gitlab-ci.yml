@@ -1005,6 +1005,7 @@ rpm_stable_artifacts:
   dependencies: []
   when: manual
 
+# @todo rework on the entanglement between the sign, the publish and the removal of the old artifacts
 debian_bionic_artifacts:
   stage: publish
   image: ubuntu:bionic
