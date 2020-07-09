@@ -165,12 +165,34 @@ public:
   DecodeURI(std::string& cgi);
 
 #ifdef EOS_MICRO_HTTPD
+
+#if MHD_VERSION >= 0x00097002
+  #define MHD_RESULT enum MHD_Result
+#else
+  #define MHD_RESULT int
+#endif
+
+  /**
+   * Compatibility hacks for MHD versions
+   */
+  static MHD_RESULT convertToMHD_RESULT(int code) {
+#if MHD_VERSION >= 0x00097002
+    if(code == 1) {
+      return MHD_YES;
+    }
+
+    return MHD_NO;
+#else
+    return code;
+#endif
+  }
+
   /**
    * Calls the instance handler function of the Http object
    *
    * @return see implementation
    */
-  static int
+  static MHD_RESULT
   StaticHandler(void*                  cls,
                 struct MHD_Connection* connection,
                 const char*            url,
@@ -227,7 +249,7 @@ public:
    *
    * @return MHD_YES
    */
-  static int
+  static MHD_RESULT
   BuildQueryString(void*              cls,
                    enum MHD_ValueKind kind,
                    const char*        key,
@@ -244,7 +266,7 @@ public:
    *
    * @return MHD_YES
    */
-  static int
+  static MHD_RESULT
   BuildHeaderMap(void*              cls,
                  enum MHD_ValueKind kind,
                  const char*        key,

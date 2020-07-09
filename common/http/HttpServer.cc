@@ -215,7 +215,7 @@ HttpServer::CleanupConnections()
 
 
 /*----------------------------------------------------------------------------*/
-int
+MHD_RESULT
 HttpServer::StaticHandler(void* cls,
                           struct MHD_Connection* connection,
                           const char* url,
@@ -227,16 +227,16 @@ HttpServer::StaticHandler(void* cls,
 {
   // The static handler function calls back the original http object
   if (gHttp) {
-    return gHttp->Handler(cls,
+    return convertToMHD_RESULT(gHttp->Handler(cls,
                           connection,
                           url,
                           method,
                           version,
                           upload_data,
                           upload_data_size,
-                          ptr);
+                          ptr));
   } else {
-    return 0;
+    return convertToMHD_RESULT(0);
   }
 }
 
@@ -256,7 +256,7 @@ HttpServer::StaticCompleteHandler(void* cls,
 }
 
 /*----------------------------------------------------------------------------*/
-int
+MHD_RESULT
 HttpServer::BuildHeaderMap(void* cls,
                            enum MHD_ValueKind kind,
                            const char* key,
@@ -275,7 +275,7 @@ HttpServer::BuildHeaderMap(void* cls,
 }
 
 /*----------------------------------------------------------------------------*/
-int
+MHD_RESULT
 HttpServer::BuildQueryString(void* cls,
                              enum MHD_ValueKind kind,
                              const char* key,
