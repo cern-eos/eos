@@ -73,7 +73,7 @@ std::shared_ptr<ConversionInfo> ConversionInfo::parseConversionString(
                    "reason=\"invalid fxid\"", errmsg, sconversion.c_str());
     return nullptr;
   } else {
-    const char* hexfid = sconversion.substr(0, pos).c_str();
+    std::string hexfid = sconversion.substr(0, pos).c_str();
 
     try {
       fid = std::stoull(hexfid, 0, 16);
@@ -100,20 +100,22 @@ std::shared_ptr<ConversionInfo> ConversionInfo::parseConversionString(
   // Parse layout id
   sconversion.erase(0, pos + 1);
   pos = sconversion.find("~");
-  const char* hexlid = sconversion.c_str();
+  std::string hexlid = sconversion.c_str();
 
-  if (pos == std::string::npos) {
+  if (pos != std::string::npos) {
     hexlid = sconversion.substr(0, pos).c_str();
   }
 
-  lid = strtoll(hexlid, 0, 16);
+  try {
+    lid = std::stoll(hexlid, 0, 16);
+  } catch (...) {}
 
   // Parse placement policy
   if (pos != std::string::npos) {
     policy = sconversion.substr(pos + 1);
   }
 
-  if (!fid || ! lid) {
+  if (!fid || !lid) {
     eos_static_err("msg=\"%s\" conversion_string=%s "
                    "reason=\"invalid fid or lid\"", errmsg, sconversion.c_str());
     return nullptr;

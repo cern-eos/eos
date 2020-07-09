@@ -31,7 +31,7 @@ EOSCOMMONNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 //! Class XrdConnPool help in creating a pool of xrootd connections that can
-//! be reused and allocated the least congested connection to a new request.
+//! be reused and allocate the least congested connection to a new request.
 //------------------------------------------------------------------------------
 class XrdConnPool: public eos::common::LogId
 {
