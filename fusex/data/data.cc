@@ -2836,7 +2836,53 @@ data::dmap::ioflush(ThreadAssistant& assistant)
             bool repeat = true;
 
             while (repeat) {
+
+	      // close all readers in async fashion
+	      std::map<std::string, XrdCl::Proxy*>& rmap = (*it)->file()->get_xrdioro();
+
+              for (auto fit = rmap.begin();
+                   fit != rmap.end();) {
+                if (!fit->second) {
+		  fit++;
+                  continue;
+                }
+
+                if (fit->second->IsOpening() || fit->second->IsClosing()) {
+                  eos_static_info("skipping xrdclproxyrw state=%d %d", fit->second->stateTS(),
+                                  fit->second->IsClosed());
+                  // skip files which are opening or closing
+		  fit++;
+		  continue;
+                }
+
+                if (fit->second->IsOpen()) {
+		  // close read-only file if longer than 1s open
+		  if ((fit->second->state_age() > 1.0)) {
+		    // closing read-only file
+		    fit->second->CloseAsync();
+		    eos_static_info("closing reader");
+		    fit++;
+		    continue;
+		  }
+                }
+
+                if (fit->second->IsOpening() || fit->second->IsClosing()) {
+		  // skip if its neither opened nor closed
+		  fit++;
+		  continue;
+		}
+
+		if (fit->second->IsClosed()) {
+		  delete fit->second;
+		  fit = (*it)->file()->get_xrdioro().erase(fit);
+		  eos_static_info("deleting reader");
+		  continue;
+		}
+		fit++;
+	      }
+
               std::map<std::string, XrdCl::Proxy*>& map = (*it)->file()->get_xrdiorw();
+
 
               for (auto fit = map.begin();
                    fit != map.end(); ++fit) {
@@ -3019,7 +3065,8 @@ data::dmap::ioflush(ThreadAssistant& assistant)
         XrdSysMutexHelper lLock((*it)->Locker());
 
         // re-check that nobody is attached
-        if (!(*it)->attached_nolock() && !(*it)->file()->get_xrdiorw().size()) {
+        if (!(*it)->attached_nolock() && !(*it)->file()->get_xrdiorw().size() && !(*it)->file()->get_xrdioro().size()) {
+	  eos_static_warning("dropping one");
           // here we make the data object unreachable for new clients
           (*it)->detach_nolock();
           cachehandler::instance().rm((*it)->id());
