@@ -226,10 +226,19 @@ build_c8:
     - wget -O - http://storage-ci.web.cern.ch/storage-ci/storageci.key 2>/dev/null | apt-key add -
     - apt-get update -y
     - git submodule update --init --recursive
-    # @todo once the XRootD deb repos are better structured we can point to a
-    # particular stable branch for the moment we force install the version we want
-    - export XROOTD_VERSION=`grep "define xrootd_version_min" eos.spec.in | awk -F ':' '{print $2;}'`
-    - apt-get install -y xrootd-server=${XROOTD_VERSION} xrootd-clients=${XROOTD_VERSION} libxrootd-dev=${XROOTD_VERSION} libxrootd-private-dev=${XROOTD_VERSION} libxrdapputils1=${XROOTD_VERSION} libxrdcrypto1=${XROOTD_VERSION} libxrdcryptolite1=${XROOTD_VERSION} libxrdxml2=${XROOTD_VERSION} libxrdutils2=${XROOTD_VERSION} libxrootd-server-dev=${XROOTD_VERSION} xrootd-client-libs=${XROOTD_VERSION} xrootd-server-libs=${XROOTD_VERSION} libxrdhttputils1=${XROOTD_VERSION} libxrdserver2=${XROOTD_VERSION} libxrdssilib1=${XROOTD_VERSION} libxrdssishmap1=${XROOTD_VERSION} libxrootd-client-dev=${XROOTD_VERSION} libxrdcl2=${XROOTD_VERSION} libxrdffs2=${XROOTD_VERSION} libxrdposix2=${XROOTD_VERSION} xrootd-client-plugins=${XROOTD_VERSION} xrootd-libs=${XROOTD_VERSION} xrootd-server-plugins=${XROOTD_VERSION} xrootd-plugins=${XROOTD_VERSION}
+#    # @todo once the XRootD deb repos are better structured we can point to a
+#    # particular stable branch for the moment we force install the version we want
+#    - export XROOTD_VERSION=`grep "define xrootd_version_min" eos.spec.in | awk -F ':' '{print $2;}'`
+#    - apt-get install -y
+#        xrootd-server=${XROOTD_VERSION} xrootd-clients=${XROOTD_VERSION}
+#        libxrootd-dev=${XROOTD_VERSION} libxrootd-private-dev=${XROOTD_VERSION}
+#        libxrdapputils1=${XROOTD_VERSION} libxrdcrypto1=${XROOTD_VERSION} libxrdcryptolite1=${XROOTD_VERSION} libxrdxml2=${XROOTD_VERSION}
+#        libxrdutils2=${XROOTD_VERSION} libxrootd-server-dev=${XROOTD_VERSION}
+#        xrootd-client-libs=${XROOTD_VERSION} xrootd-server-libs=${XROOTD_VERSION}
+#        libxrdhttputils1=${XROOTD_VERSION} libxrdserver2=${XROOTD_VERSION} libxrdssilib1=${XROOTD_VERSION}
+#        libxrdssishmap1=${XROOTD_VERSION} libxrootd-client-dev=${XROOTD_VERSION} libxrdcl2=${XROOTD_VERSION}
+#        libxrdffs2=${XROOTD_VERSION} libxrdposix2=${XROOTD_VERSION} xrootd-client-plugins=${XROOTD_VERSION}
+#        xrootd-libs=${XROOTD_VERSION} xrootd-server-plugins=${XROOTD_VERSION} xrootd-plugins=${XROOTD_VERSION}
     - mk-build-deps --build-dep debian/control
     - gdebi -n eos-build-deps-depends*.deb
     - dch --create -v `./genversion.sh` --package eos --urgency low --distribution ${EOS_ARCH} -M "This package is built and released automatically. For important notices and releases subscribe to our mailing lists or visit our website."
@@ -258,9 +267,9 @@ build_ubuntu_bionic:
   <<: *build_ubuntu-template_definition
   variables:
     EOS_ARCH: bionic
-  only:
-    - schedules
-    - tags
+#  only:
+#    - schedules
+#    - tags
   tags:
     - docker_node
     - ubuntu
