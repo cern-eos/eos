@@ -236,7 +236,7 @@ HttpServer::StaticHandler(void* cls,
                           upload_data_size,
                           ptr));
   } else {
-    return convertToMHD_RESULT(0);
+    return MHD_NO;
   }
 }
 
