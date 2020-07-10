@@ -84,7 +84,7 @@ Storage::ErrorReport()
       if (report.find("[NB]") == STR_NPOS) {
         mq::MessagingRealm::Response response =
           gOFS.mMessagingRealm->sendMessage("errorreport", report.c_str(),
-                                            errorReceiver.c_str(), false);
+                                            errorReceiver.c_str(), true);
 
         if (!response.ok()) {
           // display communication error
