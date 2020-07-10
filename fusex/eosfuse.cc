@@ -5561,10 +5561,8 @@ EosFuse::readlink(fuse_req_t req, fuse_ino_t ino)
 
   if (!rc) {
     fuse_reply_readlink(req, target.c_str());
-    return;
   } else {
     fuse_reply_err(req, errno);
-    return;
   }
 
   EXEC_TIMING_END(__func__);
