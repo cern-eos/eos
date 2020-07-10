@@ -241,7 +241,7 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
                           // Stat the directory to get the mtime
                           struct stat buf;
 
-                          if (gOFS->_stat(l4.c_str(), &buf, lError, rootvid, "", 0, false)) {
+                          if (gOFS->_stat(l4.c_str(), &buf, lError, rootvid, "", nullptr, false)) {
                             eos_static_err("msg=\"unable to stat a garbage directory entry\" "
                                            "recycle-path=%s l2-path=%s l3-path=%s",
                                            Recycle::gRecyclingPrefix.c_str(), l2.c_str(), l3.c_str());
@@ -287,11 +287,21 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
 
                   for (auto fileit = dirit->second.begin(); fileit != dirit->second.end();
                        ++fileit) {
-                    std::string fullpath = dirname.c_str();
-                    fullpath += *fileit;
+                    // Symlink files returned by the find command above contain
+                    // a pointer to the original name which needs to be removed
+                    // so that we can properly stat the file.
+                    std::string fname = *fileit;
+                    size_t pos = fname.find(" -> ");
+
+                    if (pos != std::string::npos) {
+                      fname.erase(pos);
+                      eos_static_debug("orig_path=\"%s\" symlink_path=\"%s\"",
+                                       fileit->c_str(), fname.c_str());
+                    }
+
                     XrdOucString originode;
-                    XrdOucString origpath = fileit->c_str();
-                    eos_static_debug("path=%s", fileit->c_str());
+                    XrdOucString origpath = fname.c_str();
+                    eos_static_debug("path=%s", origpath.c_str());
 
                     if ((origpath != "/") && !origpath.beginswith("#")) {
                       continue;
@@ -299,7 +309,11 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
 
                     struct stat buf;
 
-                    if (gOFS->_stat(fullpath.c_str(), &buf, lError, rootvid, "", 0, false)) {
+                    std::string fullpath = dirname.c_str();
+
+                    fullpath += fname;
+
+                    if (gOFS->_stat(fullpath.c_str(), &buf, lError, rootvid, "", nullptr, false)) {
                       eos_static_err("msg=\"unable to stat a garbage directory entry\" "
                                      "recycle-path=%s path=%s",
                                      Recycle::gRecyclingPrefix.c_str(), fullpath.c_str());
@@ -349,52 +363,48 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
 
                 if ((it->second.length()) &&
                     (delpath.endswith(Recycle::gRecyclingPostFix.c_str()))) {
-                  //.............................................................
-                  // do a directory deletion - first find all subtree children
-                  //.............................................................
+                  // Do a directory deletion - first find all subtree children
                   std::map<std::string, std::set<std::string> > found;
                   std::map<std::string, std::set<std::string> >::const_reverse_iterator rfoundit;
-                  std::set<std::string>::const_iterator fileit;
                   XrdOucString err_msg;
 
                   if (gOFS->_find(it->second.c_str(), lError, err_msg, rootvid, found)) {
                     eos_static_err("msg=\"unable to do a find in subtree\" path=%s stderr=\"%s\"",
                                    it->second.c_str(), err_msg.c_str());
                   } else {
-                    //...........................................................
-                    // standard way to delete files recursively
-                    //...........................................................
-                    // delete files starting at the deepest level
+                    // Delete files starting at the deepest level
                     for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {
-                      for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end();
+                      for (auto fileit = rfoundit->second.begin();
+                           fileit != rfoundit->second.end();
                            fileit++) {
-                        std::string fspath = rfoundit->first;
+                        // Symlink files returned by the find command above contain
+                        // a pointer to the original name which needs to be removed
+                        // so that we can properly stat the file.
                         std::string fname = *fileit;
-                        size_t lpos;
+                        size_t pos = fname.find(" -> ");
 
-                        if ((lpos = fname.find(" -> ")) != std::string::npos) {
-                          // rewrite link name
-                          fname.erase(lpos);
+                        if (pos != std::string::npos) {
+                          fname.erase(pos);
+                          eos_static_debug("orig_path=\"%s\" symlink_path=\"%s\"",
+                                           fileit->c_str(), fname.c_str());
                         }
 
-                        fspath += fname;
+                        std::string fullpath = rfoundit->first;
+                        fullpath += fname;
 
-                        if (gOFS->_rem(fspath.c_str(), lError, rootvid, (const char*) 0)) {
-                          eos_static_err("msg=\"unable to remove file\" path=%s", fspath.c_str());
+                        if (gOFS->_rem(fullpath.c_str(), lError, rootvid, (const char*) 0)) {
+                          eos_static_err("msg=\"unable to remove file\" path=%s",
+                                         fullpath.c_str());
                         } else {
-                          eos_static_info("msg=\"permanently deleted file from recycle bin\" path=%s keep-time=%llu",
-                                          fspath.c_str(), lKeepTime);
+                          eos_static_info("msg=\"permanently deleted file from recycle bin\" "
+                                          "path=%s keep-time=%llu", fullpath.c_str(), lKeepTime);
                         }
                       }
                     }
 
-                    //...........................................................
-                    // delete directories starting at the deepest level
-                    //...........................................................
+                    // Delete directories starting at the deepest level
                     for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {
-                      //.........................................................
-                      // don't even try to delete the root directory
-                      //.........................................................
+                      // Don't even try to delete the root directory
                       std::string fspath = rfoundit->first.c_str();
 
                       if (fspath == "/") {
@@ -402,9 +412,11 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
                       }
 
                       if (gOFS->_remdir(rfoundit->first.c_str(), lError, rootvid, (const char*) 0)) {
-                        eos_static_err("msg=\"unable to remove directory\" path=%s", fspath.c_str());
+                        eos_static_err("msg=\"unable to remove directory\" path=%s",
+                                       fspath.c_str());
                       } else {
-                        eos_static_info("msg=\"permanently deleted directory from recycle bin\" path=%s keep-time=%llu",
+                        eos_static_info("msg=\"permanently deleted directory from "
+                                        "recycle bin\" path=%s keep-time=%llu",
                                         fspath.c_str(), lKeepTime);
                       }
                     }
@@ -413,11 +425,11 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
                   lDeletionMap.erase(it);
                   it = lDeletionMap.begin();
                 } else {
-                  //...........................................................
-                  // do a single file deletion
-                  //...........................................................
+                  // Do a single file deletion
                   if (gOFS->_rem(it->second.c_str(), lError, rootvid, (const char*) 0)) {
-                    eos_static_err("msg=\"unable to remove file\" path=%s", it->second.c_str());
+                    eos_static_err("msg=\"unable to remove file\" path=\"%s\" "
+                                   "err_msg=\"%s\" errc=%i", it->second.c_str(),
+                                   lError.getErrText(), lError.getErrInfo());
                   }
 
                   lDeletionMap.erase(it);
@@ -534,7 +546,7 @@ void
 Recycle::Print(std::string& std_out, std::string& std_err,
                eos::common::VirtualIdentity& vid, bool monitoring,
                bool translateids, bool details, std::string date, bool global,
-	       Recycle::RecycleListing* rvec)
+               Recycle::RecycleListing* rvec)
 {
   XrdOucString uids;
   XrdOucString gids;
@@ -621,11 +633,23 @@ Recycle::Print(std::string& std_out, std::string& std_err,
 
         for (auto fileit = dirit->second.begin(); fileit != dirit->second.end();
              ++fileit) {
+          // Symlink files returned by the find command above contain
+          // a pointer to the original name which needs to be removed
+          // so that we can properly stat the file.
+          std::string fname = *fileit;
+          size_t pos = fname.find(" -> ");
+
+          if (pos != std::string::npos) {
+            fname.erase(pos);
+            eos_static_debug("orig_path=\"%s\" symlink_path=\"%s\"",
+                             fileit->c_str(), fname.c_str());
+          }
+
           std::string fullpath = dirname.c_str();
-          fullpath += *fileit;
+          fullpath += fname;
           XrdOucString originode;
-          XrdOucString origpath = fileit->c_str();
-          eos_static_debug("file=%s", fileit->c_str());
+          XrdOucString origpath = fname.c_str();
+          eos_static_debug("file=%s", origpath.c_str());
 
           if ((origpath != "/") && !origpath.beginswith("#")) {
             continue;
@@ -635,11 +659,11 @@ Recycle::Print(std::string& std_out, std::string& std_err,
           while (origpath.replace("#:#", "/")) {
           }
 
+          XrdOucErrInfo error;
           XrdOucString type = "file";
           struct stat buf;
-          XrdOucErrInfo error;
 
-          if (!gOFS->_stat(fullpath.c_str(), &buf, error, vid, "")) {
+          if (!gOFS->_stat(fullpath.c_str(), &buf, error, vid, "", nullptr, false)) {
             if (translateids) {
               int errc = 0;
               uids = eos::common::Mapping::UidToUserName(buf.st_uid, errc).c_str();
@@ -666,13 +690,13 @@ Recycle::Print(std::string& std_out, std::string& std_err,
             originode = origpath;
             originode.erase(0, origpath.length() - 16);
             origpath.erase(origpath.length() - 17);
-	    
-	    // put the key prefixes
-	    if (type == "file") {
-	      originode.insert("fxid:",0);
-	    } else {
-	      originode.insert("pxid:",0);
-	    }
+
+            // put the key prefixes
+            if (type == "file") {
+              originode.insert("fxid:", 0);
+            } else {
+              originode.insert("pxid:", 0);
+            }
 
             if (monitoring) {
               oss_out << "recycle=ls recycle-bin=" << Recycle::gRecyclingPrefix
@@ -684,19 +708,20 @@ Recycle::Print(std::string& std_out, std::string& std_err,
                       << " restore-path=" << origpath.c_str()
                       << " restore-key=" << originode.c_str()
                       << std::endl;
-	      if (rvec) {
-		std::map<std::string,std::string> rmap;
-		rmap["uid"] = std::to_string(buf.st_uid);
-		rmap["gid"] = std::to_string(buf.st_gid);
-		rmap["username"] = uids.c_str();
-		rmap["groupname"] = gids.c_str();
-		rmap["size"] = std::to_string(buf.st_size);
-		rmap["dtime"] = std::to_string(buf.st_ctime);
-		rmap["type"] = type.c_str();
-		rmap["path"] = origpath.c_str();
-		rmap["key"] = originode.c_str();
-		rvec->push_back(rmap);
-	      }
+
+              if (rvec) {
+                std::map<std::string, std::string> rmap;
+                rmap["uid"] = std::to_string(buf.st_uid);
+                rmap["gid"] = std::to_string(buf.st_gid);
+                rmap["username"] = uids.c_str();
+                rmap["groupname"] = gids.c_str();
+                rmap["size"] = std::to_string(buf.st_size);
+                rmap["dtime"] = std::to_string(buf.st_ctime);
+                rmap["type"] = type.c_str();
+                rmap["path"] = origpath.c_str();
+                rmap["key"] = originode.c_str();
+                rvec->push_back(rmap);
+              }
             } else {
               char sline[4096];
               XrdOucString sizestring;
@@ -917,7 +942,7 @@ Recycle::PrintOld(std::string& std_out, std::string& std_err,
             struct stat buf;
             XrdOucErrInfo error;
 
-            if (!gOFS->_stat(fullpath.c_str(), &buf, error, vid, "")) {
+            if (!gOFS->_stat(fullpath.c_str(), &buf, error, vid, "", nullptr, false)) {
               if (translateids) {
                 int errc = 0;
                 uids = eos::common::Mapping::UidToUserName(buf.st_uid, errc).c_str();
@@ -944,13 +969,13 @@ Recycle::PrintOld(std::string& std_out, std::string& std_err,
               originode = origpath;
               originode.erase(0, origpath.length() - 16);
               origpath.erase(origpath.length() - 17);
-	      
-	      // put the key prefixes
-	      if (type == "file") {
-		originode.insert("fxid:",0);
-	      } else {
-		originode.insert("pxid:",0);
-	      }
+
+              // put the key prefixes
+              if (type == "file") {
+                originode.insert("fxid:", 0);
+              } else {
+                originode.insert("pxid:", 0);
+              }
 
               if (monitoring) {
                 XrdOucString sizestring;
@@ -1079,7 +1104,8 @@ Recycle::Restore(std::string& std_out, std::string& std_err,
 
         if (!repath.beginswith(rprefix.c_str()) &&
             !repath.beginswith(newrprefix.c_str())) {
-          std_err = "error: this is not a file in your recycle bin - try to prefix the key with pxid:<key>\n";
+          std_err = "error: this is not a file in your recycle bin - try to "
+                    "prefix the key with pxid:<key>\n";
           return EPERM;
         }
       } catch (eos::MDException& e) {
@@ -1133,8 +1159,10 @@ Recycle::Restore(std::string& std_out, std::string& std_err,
   // Check if the client is the owner of the object to recycle
   struct stat buf;
   XrdOucErrInfo lError;
+  eos_static_info("msg=\"trying to restore file\" path=\"%s\"",
+                  cPath.GetPath());
 
-  if (gOFS->_stat(cPath.GetPath(), &buf, lError, rootvid, "")) {
+  if (gOFS->_stat(cPath.GetPath(), &buf, lError, rootvid, "", nullptr, false)) {
     std_err += "error: unable to stat path to be recycled\n";
     return EIO;
   }
@@ -1159,11 +1187,11 @@ Recycle::Restore(std::string& std_out, std::string& std_err,
       cmd.open("/proc/user", info.c_str(), vid, &lError);
       cmd.close();
       int rc = cmd.GetRetc();
-      
+
       if (rc) {
-	std_err+="error: creation failed: ";
-	std_err += cmd.GetStdErr();
-	return rc;
+        std_err += "error: creation failed: ";
+        std_err += cmd.GetStdErr();
+        return rc;
       }
     } else {
       std_err = "error: you have to recreate the restore directory path=";
@@ -1173,9 +1201,9 @@ Recycle::Restore(std::string& std_out, std::string& std_err,
       return ENOENT;
     }
   }
-  
+
   // check if original path is existing
-  if (!gOFS->_stat(oPath.GetPath(), &buf, lError, rootvid, "")) {
+  if (!gOFS->_stat(oPath.GetPath(), &buf, lError, rootvid, "", nullptr, false)) {
     if (force_orig_name == false) {
       std_err +=
         "error: the original path already exists, use '-f|--force-original-name' \n"
@@ -1278,7 +1306,7 @@ Recycle::PurgeOld(std::string& std_out, std::string& std_err,
     struct stat buf;
     XrdOucErrInfo lError;
 
-    if (!gOFS->_stat(pathname.c_str(), &buf, lError, vid, "")) {
+    if (!gOFS->_stat(pathname.c_str(), &buf, lError, vid, "", nullptr, false)) {
       // execute a proc command
       ProcCommand Cmd;
       XrdOucString info;
@@ -1329,7 +1357,7 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
                eos::common::VirtualIdentity& vid,
                std::string date,
                bool global,
-	       std::string key)
+               std::string key)
 {
   eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
   XrdMgmOfsDirectory dirl;
@@ -1341,17 +1369,17 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
 
   // translate key into search pattern
   if (key.length()) {
-    if (key.substr(0,5) == "fxid:") {
+    if (key.substr(0, 5) == "fxid:") {
       // purge file
-      key.erase(0,5);
+      key.erase(0, 5);
     } else {
-      if (key.substr(0,5) == "pxid:") {
-	// purge directory
-	key.erase(0,5);
-	key += ".d";
+      if (key.substr(0, 5) == "pxid:") {
+        // purge directory
+        key.erase(0, 5);
+        key += ".d";
       } else {
-	std_err = "error: the given key to purge is invalid - must start with fxid: or pxid: (see output of recycle ls)";
-	return EINVAL;
+        std_err = "error: the given key to purge is invalid - must start with fxid: or pxid: (see output of recycle ls)";
+        return EINVAL;
       }
     }
   }
@@ -1405,24 +1433,37 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
 
     for (auto fileit = dirit->second.begin(); fileit != dirit->second.end();
          ++fileit) {
-      XrdOucString fname = fileit->c_str();
-      std::string pathname = dirname.c_str();
-      pathname += *fileit;
-      struct stat buf;
-      XrdOucErrInfo lError;
+      // Symlink files returned by the find command above contain
+      // a pointer to the original name which needs to be removed
+      // so that we can properly stat the file.
+      std::string fname = *fileit;
+      size_t pos = fname.find(" -> ");
 
-      if ((fname != "/") && !fname.beginswith("#")) {
+      if (pos != std::string::npos) {
+        fname.erase(pos);
+        eos_static_debug("orig_path=\"%s\" symlink_path=\"%s\"",
+                         fileit->c_str(), fname.c_str());
+      }
+
+      if ((fname != "/") && (fname.find('#') != 0)) {
         continue;
       }
 
-      if (!gOFS->_stat(pathname.c_str(), &buf, lError, rootvid, "")) {
+      struct stat buf;
 
-	if (key.length()) {
-	  // check for a particular string pattern
-	  if (pathname.find(key) == std::string::npos) {
-	    continue;
-	  }
-	}
+      XrdOucErrInfo lError;
+
+      std::string fullpath = dirname.c_str();
+
+      fullpath += fname;
+
+      if (!gOFS->_stat(fullpath.c_str(), &buf, lError, rootvid, "", nullptr, false)) {
+        if (key.length()) {
+          // check for a particular string pattern
+          if (fullpath.find(key) == std::string::npos) {
+            continue;
+          }
+        }
 
         // execute a proc command
         ProcCommand Cmd;
@@ -1435,7 +1476,7 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
           info = "mgm.cmd=rm&mgm.path=";
         }
 
-        info += pathname.c_str();
+        info += fullpath.c_str();
         int result = Cmd.open("/proc/user", info.c_str(), rootvid, &lError);
         Cmd.AddOutput(std_out, std_err);
 
@@ -1468,12 +1509,13 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
 
   if (key.length() &&
       (!nbulk_deleted) &&
-      (!nfiles_deleted) ) {
+      (!nfiles_deleted)) {
     std_err += "error: no entry for key='";
     std_err += key;
     std_err += "'";
     return ENODATA;
   }
+
   return 0;
 }
 

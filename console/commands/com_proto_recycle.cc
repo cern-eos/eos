@@ -86,17 +86,18 @@ void com_recycle_help()
       << std::endl
       << "  recycle purge [-g|<date>] [-k <key>]" << std::endl
       << "    purge files in the recycle bin" << std::endl
-      << "    -g     : empties the recycle bin of all users (if done by root or admin)" << std::endl
-      << " -k <key>  : purge only the given key"
+      << "    -g       : empty recycle bin of all users (if done by root or admin)"
       << std::endl
-      << "    <date> : can be <year>, <year>/<month> or <year>/<month>/<day>"
+      << "    -k <key> : purge only the given key"
+      << std::endl
+      << "    <date>   : can be <year>, <year>/<month> or <year>/<month>/<day>"
       << std::endl
       << std::endl
-      << "   recycle restore [-p] [-f|--force-original-name] [-r|--restore-versions] <recycle-key>"
+      << "  recycle restore [-p] [-f|--force-original-name] [-r|--restore-versions] <recycle-key>"
       << std::endl
-      << "     undo the deletion identified by the <recycle-key>" << std::endl
-      << "     -p : create all missing parent directories\n"
-      << "     -f : move deleted files/dirs back to their original location (otherwise"
+      << "    undo the deletion identified by the <recycle-key>" << std::endl
+      << "    -p : create all missing parent directories\n"
+      << "    -f : move deleted files/dirs back to their original location (otherwise"
       << std::endl
       << "          the key entry will have a <.inode> suffix)" << std::endl
       << "     -r : restore all previous versions of a file" << std::endl
