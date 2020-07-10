@@ -27,6 +27,8 @@
 #include "misc/MacOSXHelper.hh"
 #include "common/Logging.hh"
 #include "misc/longstring.hh"
+#include "event2/event_struct.h"
+#include "event2/event_compat.h"
 #include "hiredis/adapters/libevent.h"
 
 /* -------------------------------------------------------------------------- */
