@@ -2,10 +2,8 @@ stages:
   - build:manual
   - prebuild
   - build:rpm
-  - clonedocker
   - build:dockerimage
   - test
-  - coverage
   - publish
   - clean
 
@@ -1044,7 +1042,7 @@ debian_focal_artifacts:
     - chmod -R 700 /home/stci
     - if [[ -n "$CI_COMMIT_TAG" ]]; then sudo -u stci -H gpg --homedir /home/stci/ --import $STCI_REPO_KEY; fi
     - if [[ -n "$CI_COMMIT_TAG" ]]; then BUILD_TYPE=tag; else BUILD_TYPE=commit; fi
-    - sudo -u stci -H ./gitlab-ci/store_artifacts_debian.sh /eos/project/s/storage-ci/www/debian/eos/${BRANCH} ${BUILD_TYPE}
+    - sudo -u stci -H -E ./gitlab-ci/store_artifacts_debian.sh /eos/project/s/storage-ci/www/debian/eos/${BRANCH} ${BUILD_TYPE}
   dependencies:
     - build_ubuntu_focal
   only:
