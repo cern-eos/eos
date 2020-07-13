@@ -257,9 +257,9 @@ build_ubuntu_bionic:
   <<: *build_ubuntu-template_definition
   variables:
     EOS_ARCH: bionic
-#  only:
-#    - schedules
-#    - tags
+  only:
+    - schedules
+    - tags
   tags:
     - docker_node
     - ubuntu
