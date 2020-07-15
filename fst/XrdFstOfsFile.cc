@@ -1674,6 +1674,12 @@ XrdFstOfsFile::_close()
                   " of an IO error during a write operation", mNsPath.c_str());
         eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason="
                  "\"write IO error\"", mCapOpaque->Get("mgm.path"), mFstPath.c_str());
+      } else if (writeErrorFlag == kOfsFsRemovedError) {
+	// Filesystem has been unregistered
+	gOFS.Emsg(epname, error, EIO, "store file - file has been cleaned because"
+                  " the target filesystem has been unregistered", mNsPath.c_str());
+        eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason="
+                 "\"FS removed\"", mCapOpaque->Get("mgm.path"), mFstPath.c_str());
       } else if (targetsizeerror) {
         // Target size is different from the uploaded file size
         gOFS.Emsg(epname, error, EIO, "store file - file has been "
@@ -1877,6 +1883,12 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset fileOffset, char* buffer,
     }
   }
 
+  if (mFsId) {
+    if (!gOFS.Storage->mFsMap.count(mFsId)) {
+      return gOFS.Emsg("readeofs", error, EBADF, "read file - filesystem has been unregistered");
+    }
+  }
+
   // Account seeks for monitoring
   if (rOffset != static_cast<unsigned long long>(fileOffset)) {
     if (rOffset < static_cast<unsigned long long>(fileOffset)) {
@@ -1976,6 +1988,14 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset fileOffset, const char* buffer,
                          (mCapOpaque->Get("mgm.path") ? mCapOpaque->Get("mgm.path") :
                           FName()) : FName());
       }
+    }
+
+    // check if the filesystem was unregistered in the meanwhile
+    eos::common::RWMutexReadLock lock(gOFS.Storage->mFsMutex);
+
+    if (!gOFS.Storage->mFsMap.count(mFsId)) {
+      writeErrorFlag = kOfsFsRemovedError;
+      return gOFS.Emsg("writeofs", error, EBADF, "write file - filesystem has been unregistered");
     }
   }
 

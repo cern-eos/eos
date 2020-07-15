@@ -279,7 +279,8 @@ public:
     kOfsIoError = 1, //! generic IO error
     kOfsMaxSizeError = 2, //! maximum file size error
     kOfsDiskFullError = 3, //! disk full error
-    kOfsSimulatedIoError = 4 //! simulated IO error
+    kOfsSimulatedIoError = 4, //! simulated IO error
+    kOfsFsRemovedError = 5 //! filesystem has been unregistered
   };
 
 ///< In-memory file meta data object
