@@ -1564,7 +1564,7 @@ data::datax::recover_write(fuse_req_t req)
 
   if (!recover_from_file_cache && !recover_truncate) {
     // we need to open this file because it is not complete locally
-    int rc = try_ropen(req, aproxy, mRemoteUrlRW + "&eos.checksum=ignore");
+    int rc = try_ropen(req, aproxy, mRemoteUrlRW + "&eos.checksum=ignore&eos.repairread=1");
 
     if (rc) {
       mRecoveryStack.push_back(eos_silent("hint='read-open failed with rc=%d'", rc));
@@ -1772,10 +1772,23 @@ data::datax::recover_write(fuse_req_t req)
       sBufferManager.put_buffer(buffer);
     }
 
+
     eos_notice("finished write recovery successfully");
     // replace the proxy object
     mFile->set_xrdiorw(req, uploadproxy);
     proxy->detach();
+
+    // replay the journal
+    if (mFile->journal()) {
+      if ((rc = journalflush(req))) {
+	mRecoveryStack.push_back(eos_silent("errno='%d' hint='failed journalflush'",
+					    rc));
+	eos_err("journal-flushing failed rc=%d", rc);
+	return rc;
+      } else {
+	mRecoveryStack.push_back(eos_silent("hint='success journalflush'"));
+      }
+    }
 
     // re-open the file centrally for access
     if (req && end_flush(req)) {
@@ -2189,7 +2202,7 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
                        status.ToString().c_str(), tret));
           return -1;
         } else {
-          mRecoveryStack.push_back(eos_silent("status='%s' hint='success TryRecovery'",
+          mRecoveryStack.push_back(eos_silent("triggering-status='%s' hint='success TryRecovery'",
                                               status.ToString().c_str()));
           // re-send the write again
           XrdCl::Proxy::write_handler handler =
@@ -2215,7 +2228,7 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
                        status.ToString().c_str(), tret));
           return -1;
         } else {
-          mRecoveryStack.push_back(eos_silent("status='%s' hint='success TryRecovery'",
+          mRecoveryStack.push_back(eos_silent("triggering-status='%s' hint='success TryRecovery'",
                                               status.ToString().c_str()));
           // re-send the write again
           XrdCl::Proxy::write_handler handler =
@@ -2375,7 +2388,7 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
           eos_err("sync remote-io failed msg=\"%s\"", status.ToString().c_str());
           return -1;
         } else {
-          mRecoveryStack.push_back(eos_silent("status='%s' hint='success TryRecovery'",
+          mRecoveryStack.push_back(eos_silent("triggering-status='%s' hint='success TryRecovery'",
                                               status.ToString().c_str()));
           // get the new proxy object, the recovery might exchange the file object
           proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(req) : mFile->xrdiorw(
@@ -2435,7 +2448,7 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
           break;
         } else {
           // recovery succeeded
-          mRecoveryStack.push_back(eos_silent("status='%s' hint='success TryRecovery'",
+          mRecoveryStack.push_back(eos_silent("triggering-status='%s' hint='success TryRecovery'",
                                               status.ToString().c_str()));
         }
       } else {
@@ -3066,7 +3079,7 @@ data::dmap::ioflush(ThreadAssistant& assistant)
 
         // re-check that nobody is attached
         if (!(*it)->attached_nolock() && !(*it)->file()->get_xrdiorw().size() && !(*it)->file()->get_xrdioro().size()) {
-	  eos_static_warning("dropping one");
+	  eos_static_info("dropping one");
           // here we make the data object unreachable for new clients
           (*it)->detach_nolock();
           cachehandler::instance().rm((*it)->id());

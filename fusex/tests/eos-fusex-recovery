@@ -35,7 +35,7 @@ mkdir /recover/
 truncate -s 0 /var/log/eos/fusex/fuse.`hostname -f`.log
 mount -t fuse eosxd -ofsname=`hostname -f`:/eos/_recovery_/ /recover/
 
-
+#eosxd set system.eos.debug info /recover/
 
 ls -lart /recover
 sleep 1
@@ -79,7 +79,7 @@ eos fs ls -l spare
 sleep 5
 echo "[2] uploading half of the file"
 dd if=/var/tmp/recovery.1G of=/recover/recovery.1G bs=1M count=500
-eos file info eos/_recovery_/recovery.1G
+eos file info /eos/_recovery_/recovery.1G
 echo "[3] making one filesystem RO, add a new one as RW"
 eos fs config ${fsarray[1]} configstatus=ro
 eos fs config ${fsarray[2]} configstatus=rw
@@ -87,7 +87,7 @@ eos fs config ${fsarray[3]} configstatus=rw
 sleep 5
 echo "[4] append the second half of the 1G file with one filesystem down"
 dd if=/var/tmp/recovery.1G skip=500 of=/recover/recovery.1G bs=1M count=500 conv=notrunc oflag=append
-eos file info eos/_recovery_/recovery.1G
+eos file info /eos/_recovery_/recovery.1G
 
 eos file info /eos/_recovery_/recovery.1G | grep online  | grep -w rw | wc -l | grep 2 >& /dev/null
 rc=$?
