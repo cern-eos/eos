@@ -1201,7 +1201,6 @@ eos_apmon_slc6:
     - sudo -u stci -H cp -f rpmbuild/SRPMS/*.src.rpm $STORAGE_PATH
   tags:
     - docker_node
-    - slc6
   when: manual
   environment:
     name: apmon-slc6-prod
@@ -1222,7 +1221,6 @@ eos_apmon_cc7:
     - sudo -u stci -H createrepo --update -q $STORAGE_PATH
   tags:
     - docker_node
-    - cc7
   when: manual
   environment:
     name: apmon-cc7-prod
@@ -1243,7 +1241,6 @@ eos_apmon_c8:
     - sudo -u stci -H createrepo --update -q $STORAGE_PATH
   tags:
     - docker_node
-    - cc7
   when: manual
   environment:
     name: apmon-c8-prod
