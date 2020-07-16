@@ -1227,6 +1227,27 @@ eos_apmon_cc7:
   environment:
     name: apmon-cc7-prod
 
+eos_apmon_c8:
+  stage: build:manual
+  image: gitlab-registry.cern.ch/linuxsupport/c8-base
+  script:
+    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git sssd-client sudo createrepo rsync yum-utils
+    - cd ApMon
+    - ./maketar.sh
+    - rpmbuild --define "_source_filedigest_algorithm md5" --define "_binary_filedigest_algorithm md5" --define "_topdir ./rpmbuild" -ts eos-apmon-*.tar.gz
+    - yum-builddep --nogpgcheck -y rpmbuild/SRPMS/eos-apmon-*.src.rpm
+    - rpmbuild --rebuild --define "_rpmdir rpmbuild/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" rpmbuild/SRPMS/eos-apmon-*.src.rpm
+    - STORAGE_PATH=/eos/project/s/storage-ci/www/eos/${BRANCH}-depend/el-8/x86_64
+    - sudo -u stci -H mkdir -p $STORAGE_PATH
+    - sudo -u stci -H cp -f rpmbuild/RPMS/*.rpm $STORAGE_PATH
+    - sudo -u stci -H createrepo --update -q $STORAGE_PATH
+  tags:
+    - docker_node
+    - cc7
+  when: manual
+  environment:
+    name: apmon-c8-prod
+
 eos_microhttpd_slc6:
   stage: build:manual
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
