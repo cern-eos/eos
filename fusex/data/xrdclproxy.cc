@@ -1096,14 +1096,16 @@ XrdCl::Proxy::ReadAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
       if (response) {
         response->Get(chunk);
 
-        if (chunk->length < mBuffer->size()) {
-          if (EOS_LOGS_DEBUG) {
-            eos_static_debug("handler %x received %lu instead of %lu\n", this,
-                             chunk->length, mBuffer->size());
-          }
+	if (valid()) {
+	  if (chunk->length < mBuffer->size()) {
+	    if (EOS_LOGS_DEBUG) {
+	      eos_static_debug("handler %x received %lu instead of %lu\n", this,
+			       chunk->length, mBuffer->size());
+	    }
 
-          mBuffer->resize(chunk->length);
-        }
+	    mBuffer->resize(chunk->length);
+	  }
+	}
 
         if (!chunk->length) {
           mEOF = true;
@@ -1115,7 +1117,9 @@ XrdCl::Proxy::ReadAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
       }
     } else {
       if (status->IsOK()) {
-        mBuffer->resize(0);
+	if (valid()) {
+	  mBuffer->resize(0);
+	}
 
         if (response) {
           delete response;
