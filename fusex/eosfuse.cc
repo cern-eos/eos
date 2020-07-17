@@ -693,7 +693,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     }
 
     if (!root["options"].isMember("rm-rf-protect-levels")) {
-      root["options"]["rm-rf-protect-levels"] = 1;
+      root["options"]["rm-rf-protect-levels"] = 0;
     }
 
     if (!root["options"].isMember("rm-rf-bulk")) {
@@ -2674,8 +2674,9 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   {
     Track::Monitor mon("opendir", Instance().Tracker(), ino);
 
-    if (isRecursiveRm(req, true, true) &&
-        Instance().Config().options.rm_rf_bulk) {
+    if (Instance().Config().options.rm_rf_protect_levels &&
+	Instance().Config().options.rm_rf_bulk &&
+	isRecursiveRm(req, true, true)) {
       md = Instance().mds.get(req, ino);
 
       if (md && md->attr().count("sys.recycle")) {
@@ -2745,7 +2746,8 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
           eos_static_debug("%s", md->dump().c_str());
         }
 
-        if (isRecursiveRm(req) &&
+	if (Instance().Config().options.rm_rf_protect_levels &&
+	    isRecursiveRm(req) &&
             Instance().mds.calculateDepth(md) <=
             Instance().Config().options.rm_rf_protect_levels) {
           eos_static_warning("Blocking recursive rm (pid = %d)", fuse_req_ctx(req)->pid);
@@ -3364,10 +3366,10 @@ EROFS  pathname refers to a file on a read-only filesystem.
       }
 
       if (!rc) {
-        if (isRecursiveRm(req) &&
-            Instance().Config().options.rm_rf_protect_levels &&
-            Instance().mds.calculateDepth(md) <=
-            Instance().Config().options.rm_rf_protect_levels) {
+        if (Instance().Config().options.rm_rf_protect_levels &&
+	    isRecursiveRm(req) &&
+            ( Instance().mds.calculateDepth(md) <=
+	      Instance().Config().options.rm_rf_protect_levels ) ) {
           eos_static_warning("Blocking recursive rm (pid = %d )", fuse_req_ctx(req)->pid);
           rc = EPERM; // you shall not pass, muahahahahah
         } else {
