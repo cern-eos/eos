@@ -16,6 +16,21 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.9 Citrine``
+==================
+
+2020-07-20
+
+Bug
+----
+
+MGM: suppress commit of left-over entry-gateway replica happening during eosxd recovery - fixes EOS-4340
+FUSEX: bypass recursive rm detection by default if it is not enabled.
+FUSEX: avoid SEGV when read-ahead callback comes and didn't get a buffer - fixes EOS-4338
+FUSEX: fix repair when a write error occurs after the file is larger than the pre-fetch size and the first journal was not yet flushed
+FUSEX: remove 'return' short cut to see timings of readlink
+
+
 ``v4.8.8 Citrine``
 ==================
 
