@@ -22,7 +22,6 @@
  ************************************************************************/
 
 #pragma once
-#include "mq/XrdMqMessage.hh"
 #include "common/SymKeys.hh"
 #include "XrdAcc/XrdAccAuthorize.hh"
 #include "XrdAcc/XrdAccPrivs.hh"

@@ -21,6 +21,9 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
+include_directories(
+  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include)
+
 #-------------------------------------------------------------------------------
 # XrdMqClient-Objects
 #-------------------------------------------------------------------------------
@@ -41,7 +44,9 @@ add_library(XrdMqClient-Objects OBJECT
 target_link_libraries(XrdMqClient-Objects PUBLIC
   XROOTD::UTILS
   PROTOBUF::PROTOBUF
-  OPENSSL::OPENSSL)
+  OPENSSL::OPENSSL
+  qclient
+)
 
 set_target_properties(XrdMqClient-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)

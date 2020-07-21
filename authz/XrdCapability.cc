@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "authz/XrdCapability.hh"
+#include "mq/XrdMqMessage.hh"
 #include "XrdVersion.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdOuc/XrdOucEnv.hh"

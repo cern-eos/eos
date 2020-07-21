@@ -154,6 +154,7 @@ target_link_libraries(eos-unit-tests-with-instance PRIVATE
 add_executable(eos-unit-tests-with-qdb
   with_qdb/Main.cc
   with_qdb/configuration.cc
+  with_qdb/mq.cc
   with_qdb/TestUtils.cc)
 
 target_link_libraries(

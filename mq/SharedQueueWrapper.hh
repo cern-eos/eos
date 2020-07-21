@@ -26,6 +26,11 @@
 
 #include "mq/Namespace.hh"
 #include "common/Locators.hh"
+#include <memory>
+
+namespace qclient {
+  class SharedDeque;
+}
 
 class XrdMqSharedHash;
 class XrdMqSharedObjectManager;
@@ -45,6 +50,11 @@ public:
   //----------------------------------------------------------------------------
   SharedQueueWrapper(mq::MessagingRealm* realm,
     const common::TransferQueueLocator& locator, bool broadcast);
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  ~SharedQueueWrapper();
 
   //----------------------------------------------------------------------------
   //! Clear contents
@@ -74,6 +84,8 @@ private:
   std::string mFullQueue;
 
   XrdMqSharedObjectManager* mSom;
+  std::unique_ptr<qclient::SharedDeque> mSharedDeque;
+
 };
 
 

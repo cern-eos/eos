@@ -24,6 +24,8 @@
 #include "mq/SharedQueueWrapper.hh"
 #include "mq/MessagingRealm.hh"
 #include "mq/XrdMqSharedObject.hh"
+#include <qclient/shared/SharedManager.hh>
+#include <qclient/shared/SharedDeque.hh>
 
 EOSMQNAMESPACE_BEGIN
 
@@ -43,25 +45,41 @@ SharedQueueWrapper::SharedQueueWrapper(mq::MessagingRealm* realm,
     mQueue = "/eos/*/mgm";
   }
 
-  eos::common::RWMutexReadLock lock(mSom->HashMutex);
-  XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(), "queue");
-  lock.Release();
+  qclient::SharedManager* qsom = mRealm->getQSom();
+  if(qsom) {
+    mSharedDeque.reset(new qclient::SharedDeque(qsom, locator.getQDBKey()));
+  }
+  else {
+    eos::common::RWMutexReadLock lock(mSom->HashMutex);
+    XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(), "queue");
+    lock.Release();
 
-  if(!hashQueue) {
-    // create the hash object
-    mSom->CreateSharedQueue(mFullQueue.c_str(), mQueue.c_str(), mSom);
+    if(!hashQueue) {
+      // create the hash object
+      mSom->CreateSharedQueue(mFullQueue.c_str(), mQueue.c_str(), mSom);
+    }
   }
 }
+
+//------------------------------------------------------------------------------
+//! Destructor
+//------------------------------------------------------------------------------
+SharedQueueWrapper::~SharedQueueWrapper() {}
 
 //------------------------------------------------------------------------------
 // Clear contents
 //------------------------------------------------------------------------------
 void SharedQueueWrapper::clear() {
-  eos::common::RWMutexReadLock lock(mSom->HashMutex);
-  XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(), "queue");
+  if(mSharedDeque) {
+    mSharedDeque->clear();
+  }
+  else {
+    eos::common::RWMutexReadLock lock(mSom->HashMutex);
+    XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(), "queue");
 
-  if(hashQueue) {
-    hashQueue->Clear();
+    if(hashQueue) {
+      hashQueue->Clear();
+    }
   }
 }
 
@@ -69,44 +87,64 @@ void SharedQueueWrapper::clear() {
 // Get size
 //------------------------------------------------------------------------------
 size_t SharedQueueWrapper::size() {
-  eos::common::RWMutexReadLock lock(mSom->HashMutex);
-
-  XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetQueue(
-    mFullQueue.c_str());
-
-  if (hashQueue) {
-    return hashQueue->GetSize();
+  if(mSharedDeque) {
+    size_t out = 0;
+    mSharedDeque->size(out);
+    return out;
   }
+  else {
+    eos::common::RWMutexReadLock lock(mSom->HashMutex);
 
-  return 0;
+    XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetQueue(
+      mFullQueue.c_str());
+
+    if (hashQueue) {
+      return hashQueue->GetSize();
+    }
+
+    return 0;
+  }
 }
 
 //------------------------------------------------------------------------------
 // Get item, if available
 //------------------------------------------------------------------------------
 std::string SharedQueueWrapper::getItem() {
-  eos::common::RWMutexReadLock lock(mSom->HashMutex);
-
-  XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetQueue(mFullQueue.c_str());
-  if(hashQueue) {
-    return hashQueue->PopFront();
+  if(mSharedDeque) {
+    std::string out;
+    mSharedDeque->pop_front(out);
+    return out;
   }
+  else {
+    eos::common::RWMutexReadLock lock(mSom->HashMutex);
 
-  return std::string();
+    XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetQueue(mFullQueue.c_str());
+    if(hashQueue) {
+      return hashQueue->PopFront();
+    }
+
+    return std::string();
+  }
 }
 
 //------------------------------------------------------------------------------
 // push item
 //------------------------------------------------------------------------------
 bool SharedQueueWrapper::push_back(const std::string &item) {
-  eos::common::RWMutexReadLock lock(mSom->HashMutex);
-
-  XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetQueue(mFullQueue.c_str());
-  if(hashQueue) {
-    return hashQueue->PushBack("", item);
+  if(mSharedDeque) {
+    qclient::Status st = mSharedDeque->push_back(item);
+    return st.ok();
   }
+  else {
+    eos::common::RWMutexReadLock lock(mSom->HashMutex);
 
-  return false;
+    XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetQueue(mFullQueue.c_str());
+    if(hashQueue) {
+      return hashQueue->PushBack("", item);
+    }
+
+    return false;
+  }
 }
 
 EOSMQNAMESPACE_END
