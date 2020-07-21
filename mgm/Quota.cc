@@ -26,6 +26,8 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "common/table_formatter/TableFormatterBase.hh"
 #include "namespace/interface/IView.hh"
+#include "namespace/ns_quarkdb/NamespaceGroup.hh"
+#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include <errno.h>
 
@@ -221,9 +223,9 @@ long long
 SpaceQuota::GetQuota(unsigned long tag, unsigned long id)
 {
   XrdSysMutexHelper scope_lock(mMutex);
-
   auto it = mMapIdQuota.find(Index(tag, id));
-  if(it != mMapIdQuota.end()) {
+
+  if (it != mMapIdQuota.end()) {
     return static_cast<long long>(it->second);
   }
 
@@ -1782,7 +1784,7 @@ Quota::LoadNodes()
 
   // Create all the necessary space quota nodes
   for (auto it = create_quota.begin(); it != create_quota.end(); ++it) {
-    eos_static_notice("Try to create quota node=%s", it->c_str());
+    eos_static_notice("msg=\"create quota node\" path=\"%s\"", it->c_str());
     (void) Create(it->c_str());
   }
 
@@ -1966,11 +1968,11 @@ Quota::FilePlacement(Scheduler::PlacementArguments* args)
   if (FsView::gFsView.mSpaceView.count(*args->spacename)) {
     if (!FsView::gFsView.UnderNominalQuota(*args->spacename, args->vid->sudoer)) {
       eos_static_err("msg=\"over physical quota limit (nominal space setting)\" space=\"%s\"",
-		     args->spacename->c_str());
+                     args->spacename->c_str());
       return ENOSPC;
     } else {
       if (EOS_LOGS_DEBUG) {
-	eos_static_debug("nominal quota ok");
+        eos_static_debug("nominal quota ok");
       }
     }
   }
@@ -2002,6 +2004,15 @@ Quota::Create(const std::string& path)
       eos_static_crit("Faile to create quota node %s", path.c_str());
       return false;
     }
+  }
+
+  // Synchronize the flusher to avoid a race condition with the slave creating
+  // the same directory when applying the quota
+  auto* qdb_ns_grp = dynamic_cast<eos::QuarkNamespaceGroup*>
+                     (gOFS->namespaceGroup.get());
+
+  if (qdb_ns_grp) {
+    qdb_ns_grp->getMetadataFlusher()->synchronize();
   }
 
   return true;
