@@ -52,7 +52,7 @@ public:
   ConverterDriver(const eos::QdbContactDetails& qdb_details) :
     mQdbHelper(qdb_details), mIsRunning(false),
     mThreadPool(std::thread::hardware_concurrency(), cDefaultMaxThreadPoolSize,
-                10, 5, 3, "converter_engine"),
+                10, 5, 3, "converter"),
     mMaxThreadPoolSize(cDefaultMaxThreadPoolSize),
     mRequestIntervalSec(cDefaultRequestIntervalSec), mTimestamp()
   {}
