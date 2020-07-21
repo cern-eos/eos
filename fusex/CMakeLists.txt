@@ -138,17 +138,3 @@ set_target_properties(eosxd
 install(TARGETS eosxd
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
 
-if (FUSE3_FOUND)
-  add_executable(eosxd3 main.cc)
-
-  target_link_libraries(eosxd3 PUBLIC
-    eosxd-objects
-    jemalloc
-    ${EOSXD_COMMON_LINK_LIBRARIES})
-
-  set_target_properties(eosxd3
-    PROPERTIES COMPILE_FLAGS ${EOSXD_COMPILE_FLAGS})
-
-  install(TARGETS eosxd3
-    RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
-endif()

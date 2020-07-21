@@ -90,12 +90,19 @@ public:
   static void
   lookup(fuse_req_t req, fuse_ino_t parent, const char* name);
 
-  static int listdir(fuse_req_t req, fuse_ino_t ino, metad::shared_md& md);
+  static int listdir(fuse_req_t req, fuse_ino_t ino, metad::shared_md& md, double& lifetime);
 
   static void opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi);
 
   static void readdir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
                       struct fuse_file_info* fi);
+
+
+  static void readdir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
+                      struct fuse_file_info* fi, bool plus);
+
+  static void readdirplus(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
+			  struct fuse_file_info* fi);
 
   static void releasedir(fuse_req_t req, fuse_ino_t ino,
                          struct fuse_file_info* fi);
@@ -141,6 +148,9 @@ public:
                     struct fuse_file_info* fi);
 
   static void forget(fuse_req_t req, fuse_ino_t ino, unsigned long nlookup);
+
+  static void forget_multi(fuse_req_t req, size_t count, 
+			   struct fuse_forget_data *forgets);
 
   static void flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi);
 
@@ -199,10 +209,13 @@ public:
     return fusesession;
   }
 
+
+#ifndef _FUSE3
   fuse_chan* Channel()
   {
     return fusechan;
   }
+#endif
 
   std::string Prefix(std::string path);
 
@@ -229,7 +242,6 @@ public:
     {
       int debug;
       int debuglevel;
-      int libfusethreads;
       int foreground;
       int automounted;
       int md_kernelcache;
@@ -393,6 +405,9 @@ public:
     struct timespec pmd_mtime;
     struct reply_buf b;
 
+    double lifetime;
+    struct timespec opendir_time;
+
     XrdSysMutex items_lock;
   } opendir_t;
 
@@ -513,7 +528,10 @@ private:
   static EosFuse* sEosFuse;
 
   struct fuse_session* fusesession;
+
+#ifndef _FUSE3
   struct fuse_chan* fusechan;
+#endif
 
 
   AssistedThread tDumpStatistic;

@@ -129,6 +129,9 @@ protected:
     operations.opendir = &T::opendir;
     operations.access = &T::access;
     operations.readdir = &T::readdir;
+#ifdef _FUSE3
+    operations.readdirplus = &T::readdirplus;
+#endif
     operations.mkdir = &T::mkdir;
     operations.unlink = &T::unlink;
     operations.rmdir = &T::rmdir;
@@ -143,6 +146,9 @@ protected:
     operations.releasedir = &T::releasedir;
     operations.fsync = &T::fsync;
     operations.forget = &T::forget;
+#ifdef _FUSE3
+    operations.forget_multi = &T::forget_multi;
+#endif
     operations.flush = &T::flush;
     operations.setxattr = &T::setxattr;
     operations.getxattr = &T::getxattr;
