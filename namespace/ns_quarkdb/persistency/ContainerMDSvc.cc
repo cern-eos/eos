@@ -223,8 +223,9 @@ void
 QuarkContainerMDSvc::updateStore(IContainerMD* obj)
 {
   if (obj->getName() == "") {
-    eos_static_crit("updateContainerStore called on container with empty name; id=%llu, parent=%llu, trace=%s",
-                    obj->getId(), obj->getParentId(), common::getStacktrace().c_str());
+    eos_static_crit("updateContainerStore called on container with empty "
+                    "name; id=%llu, parent=%llu, trace=%s", obj->getId(),
+                    obj->getParentId(), common::getStacktrace().c_str());
     // eventually throw, once we understand how this happens
   }
 
