@@ -25,6 +25,25 @@
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include <gtest/gtest.h>
 #include <memory>
+#include <chrono>
+#include <thread>
+
+#define RETRY_ASSERT_TRUE_3(cond, retry, waitInterval) { \
+  bool ok = false; \
+  size_t nretries = 0; \
+  while(nretries++ < retry) { \
+    std::this_thread::sleep_for(std::chrono::milliseconds(waitInterval)); \
+    if((cond)) { \
+      std::cerr << "Condition '" << #cond << "' is true after " << nretries << " attempts" << std::endl; \
+      ok = true; \
+      break; \
+    } \
+  } \
+  if(!ok) { ASSERT_TRUE(cond) << " - failure after " << nretries << " retries "; } \
+}
+
+// retry every 1 ms, 5000 max retries
+#define RETRY_ASSERT_TRUE(cond) RETRY_ASSERT_TRUE_3(cond, 5000, 1)
 
 namespace qclient {
   class QClient;
