@@ -183,6 +183,10 @@ public:
                      bool lock = false
                     );
 
+  shared_cap dummy() {
+    return std::make_shared<capx>();
+  }
+
   bool share_quotanode(shared_cap cap1, shared_cap cap2) 
   {
     return ( cap1->_quota().quota_inode() == cap2->_quota().quota_inode() );

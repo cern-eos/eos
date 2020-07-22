@@ -416,7 +416,7 @@ cap::refresh(fuse_req_t req, shared_cap cap)
     } else {
       if (errno != EPERM) {
 	fuse_id id(req);
-	eos_static_err("GETCAP failed with errno=%d for inode=%16x uid=%lu gid=lu pid=%lu", errno, cap->id(),
+	eos_static_err("GETCAP failed with errno=%d for inode=%16x uid=%lu gid=%lu pid=%lu", errno, cap->id(),
 		       id.uid, id.gid, id.pid);
       }
 
