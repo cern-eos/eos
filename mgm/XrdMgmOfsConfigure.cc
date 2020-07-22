@@ -1529,7 +1529,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   mMessagingRealm.reset(new eos::mq::MessagingRealm(&ObjectManager,
                         &ObjectNotifier, &XrdMqMessaging::gMessageClient, qsm));
   eos::common::InstanceName::set(MgmOfsInstanceName.c_str());
-  eos::mq::SharedHashWrapper::initialize(mMessagingRealm.get());
   // set the object manager to listener only
   ObjectManager.EnableBroadCast(false);
   // setup the modifications which the fs listener thread is waiting for

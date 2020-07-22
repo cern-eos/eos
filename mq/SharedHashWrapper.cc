@@ -28,8 +28,6 @@
 
 EOSMQNAMESPACE_BEGIN
 
-mq::MessagingRealm* SharedHashWrapper::gRealm;
-
 //------------------------------------------------------------------------------
 //! Constructor
 //------------------------------------------------------------------------------
@@ -57,13 +55,6 @@ SharedHashWrapper::SharedHashWrapper(mq::MessagingRealm *realm, const common::Sh
     mHash->SetBroadCastQueue(mLocator.getBroadcastQueue().c_str());
   }
 }
-
-//------------------------------------------------------------------------------
-// Constructor
-//------------------------------------------------------------------------------
-SharedHashWrapper::SharedHashWrapper(const common::SharedHashLocator& locator,
-                                     bool takeLock, bool create)
-: SharedHashWrapper(gRealm, locator, takeLock, create) {}
 
 SharedHashWrapper SharedHashWrapper::makeGlobalMgmHash(mq::MessagingRealm *realm)
 {
@@ -260,15 +251,6 @@ bool SharedHashWrapper::getContents(std::map<std::string, std::string>& out)
   std::unique_lock lock(mHash->mMutex);
   out = mHash->GetContents();
   return true;
-}
-
-//------------------------------------------------------------------------------
-// Initialize, set shared manager.
-// Call this function before using any SharedHashWrapper!
-//------------------------------------------------------------------------------
-void SharedHashWrapper::initialize(mq::MessagingRealm* realm)
-{
-  gRealm = realm;
 }
 
 //------------------------------------------------------------------------------

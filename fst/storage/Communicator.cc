@@ -44,7 +44,7 @@ Storage::GetFstConfigValue(const std::string& key, std::string& value) const
     return false;
   }
 
-  mq::SharedHashWrapper hash(locator, true, false);
+  mq::SharedHashWrapper hash(gOFS.mMessagingRealm.get(), locator, true, false);
   return hash.get(key, value);
 }
 
@@ -367,7 +367,7 @@ Storage::ProcessFsConfigChange(const std::string& queuepath,
   eos_static_info("msg=\"process modification\" qpath=\"%s\" key=\"%s\"",
                   queuepath.c_str(), key.c_str());
   fst::FileSystem* fs = it->second;
-  mq::SharedHashWrapper hash(fs->getHashLocator());
+  mq::SharedHashWrapper hash(gOFS.mMessagingRealm.get(), fs->getHashLocator());
   std::string value;
 
   if (!hash.get(key, value)) {

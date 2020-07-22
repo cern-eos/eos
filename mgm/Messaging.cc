@@ -164,7 +164,7 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
 
     if (FsView::gFsView.RegisterNode(nodequeue.c_str())) {
       // Just initialize config queue, taken care by constructor
-      mq::SharedHashWrapper(common::SharedHashLocator::makeForNode(nodequeue));
+      mq::SharedHashWrapper(gOFS->mMessagingRealm.get(), common::SharedHashLocator::makeForNode(nodequeue));
     }
 
     ProcessIncomingHeartbeat(nodequeue, advmsg->kOnline,

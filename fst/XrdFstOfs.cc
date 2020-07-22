@@ -861,7 +861,6 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   eos_notice("FST_HOST=%s FST_PORT=%ld FST_HTTP_PORT=%d VERSION=%s RELEASE=%s "
              "KEYTABADLER=%s", mHostName, myPort, mHttpdPort, VERSION, RELEASE,
              kt_cks.c_str());
-  eos::mq::SharedHashWrapper::initialize(mMessagingRealm.get());
   return 0;
 }
 

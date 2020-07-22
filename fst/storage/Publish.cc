@@ -467,7 +467,7 @@ Storage::Publish(ThreadAssistant& assistant)
           Config::gConfig.getNodeHashLocator("Publish");
 
         if (!locator.empty()) {
-          mq::SharedHashWrapper hash(locator, true, false);
+          mq::SharedHashWrapper hash(gOFS.mMessagingRealm.get(), locator, true, false);
 
           for (auto it = fstStats.begin(); it != fstStats.end(); it++) {
             hash.set(it->first, it->second);

@@ -2600,7 +2600,7 @@ bool
 BaseView::SetConfigMember(std::string key, std::string value,
                           bool isstatus)
 {
-  bool success = mq::SharedHashWrapper(mLocator).set(key, value);
+  bool success = mq::SharedHashWrapper(gOFS->mMessagingRealm.get(), mLocator).set(key, value);
 
   if (key == "txgw") {
     eos::common::RWMutexWriteLock gwlock(FsView::gFsView.GwMutex);
@@ -2636,7 +2636,7 @@ BaseView::SetConfigMember(std::string key, std::string value,
 std::string
 BaseView::GetConfigMember(std::string key) const
 {
-  return mq::SharedHashWrapper(mLocator).get(key);
+  return mq::SharedHashWrapper(gOFS->mMessagingRealm.get(), mLocator).get(key);
 }
 
 //------------------------------------------------------------------------------
@@ -2645,7 +2645,7 @@ BaseView::GetConfigMember(std::string key) const
 bool
 BaseView::DeleteConfigMember(std::string key) const
 {
-  bool deleted = mq::SharedHashWrapper(mLocator).del(key);
+  bool deleted = mq::SharedHashWrapper(gOFS->mMessagingRealm.get(), mLocator).del(key);
 
   // Delete in the configuration engine
   if (FsView::gFsView.mConfigEngine) {
@@ -2665,7 +2665,7 @@ BaseView::DeleteConfigMember(std::string key) const
 bool
 BaseView::GetConfigKeys(std::vector<std::string>& keys)
 {
-  return mq::SharedHashWrapper(mLocator).getKeys(keys);
+  return mq::SharedHashWrapper(gOFS->mMessagingRealm.get(), mLocator).getKeys(keys);
 }
 
 //------------------------------------------------------------------------------
@@ -2936,7 +2936,7 @@ FsView::ApplyGlobalConfig(const char* key, std::string& val)
     return false;
   }
 
-  mq::SharedHashWrapper hash(locator);
+  mq::SharedHashWrapper hash(gOFS->mMessagingRealm.get(), locator);
   bool success = hash.set(tokens[1].c_str(), val.c_str());
   hash.releaseLocks();
 

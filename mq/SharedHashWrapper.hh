@@ -89,12 +89,6 @@ public:
     bool takeLock = true, bool create = true);
 
   //----------------------------------------------------------------------------
-  //! Constructor
-  //----------------------------------------------------------------------------
-  SharedHashWrapper(const common::SharedHashLocator& locator,
-                    bool takeLock = true, bool create = true);
-
-  //----------------------------------------------------------------------------
   //! "Constructor" for global MGM hash
   //----------------------------------------------------------------------------
   static SharedHashWrapper makeGlobalMgmHash(mq::MessagingRealm *realm);
@@ -166,19 +160,11 @@ public:
   //----------------------------------------------------------------------------
   static bool deleteHash(mq::MessagingRealm* realm, const common::SharedHashLocator &locator);
 
-  //----------------------------------------------------------------------------
-  //! Initialize, set messaging realm.
-  //! Call this function before using any SharedHashWrapper!
-  //----------------------------------------------------------------------------
-  static void initialize(mq::MessagingRealm* realm);
-
 private:
   XrdMqSharedObjectManager* mSom;
   common::SharedHashLocator mLocator;
   common::RWMutexReadLock mReadLock;
   XrdMqSharedHash* mHash;
-
-  static mq::MessagingRealm* gRealm;
 };
 
 EOSMQNAMESPACE_END
