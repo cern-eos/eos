@@ -42,10 +42,10 @@
 #else
 
 #ifdef _FUSE3
-#define FUSE_USE_VERSION 30
+#define FUSE_USE_VERSION 31
 #define FUSE_SUPPORTS_FLOCK
 #pragma message("FUSE_SUPPORTS_FLOCK")
-#pragma message("FUSE 30")
+#pragma message("FUSE 31")
 #else
 #define FUSE_USE_VERSION 28
 #pragma message("FUSE 28")
