@@ -32,6 +32,8 @@ class XrdMqSharedObjectChangeNotifier;
 
 EOSMQNAMESPACE_BEGIN
 
+class MessagingRealm;
+
 //------------------------------------------------------------------------------
 //! Utility class for listening to global MGM configuration changes.
 //------------------------------------------------------------------------------
@@ -52,7 +54,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  GlobalConfigChangeListener(const std::string &name, const std::string &configQueue, XrdMqSharedObjectChangeNotifier &notifier);
+  GlobalConfigChangeListener(mq::MessagingRealm *realm, const std::string &name, const std::string &configQueue);
 
   //----------------------------------------------------------------------------
   //! Consume next event, block until there's one.
@@ -60,7 +62,8 @@ public:
   bool fetch(Event &out, ThreadAssistant &assistant);
 
 private:
-  XrdMqSharedObjectChangeNotifier &mNotifier;
+  mq::MessagingRealm *mMessagingRealm;
+  XrdMqSharedObjectChangeNotifier *mNotifier;
   std::string mListenerName;
   std::string mConfigQueue;
 };

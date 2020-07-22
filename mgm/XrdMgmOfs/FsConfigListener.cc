@@ -252,8 +252,8 @@ void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept {
 void
 XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
 {
-  eos::mq::GlobalConfigChangeListener changeListener("fs-config-listener-thread",
-    MgmConfigQueue.c_str(), ObjectNotifier);
+  eos::mq::GlobalConfigChangeListener changeListener(mMessagingRealm.get(),
+    "fs-config-listener-thread", MgmConfigQueue.c_str());
 
   // Thread listening on filesystem errors and configuration changes
   while (!assistant.terminationRequested()) {
