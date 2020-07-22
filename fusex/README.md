@@ -348,7 +348,7 @@ usage CLI   : eosxd get <key> [<path>]
 
 usage CLI   : eosxd set <key> <value> [<path>]
 
- as root             system.eos.debug <level> <mount>   : set debug level with <level>=notice|info|debug
+ as root             system.eos.debug <level> <mount>   : set debug level with <level>=crit|warn|err|notice|info|debug|trace
                      system.eos.dropcap - <mount>       : drop capability of the given path
                      system.eos.dropcaps - <mount>      : drop call capabilities for given mount
                      system.eos.resetstat - <mount>     : reset the statistic counters
@@ -371,6 +371,8 @@ To change the log configuration do as root:
 # setfattr -n system.eos.debug -v info <path>
 # setfattr -n system.eos.debug -v debug <path>
 # setfattr -n system.eos.debug -v notice <path>
+# enable low-level file tracing on flush, disable by setting anything but debug
+# setfattr -n system.eos.debug -v trace <path>
 ```
 
 To display the local meta data record do as root

@@ -458,12 +458,17 @@ public:
     }
   }
 
+  bool Trace() { return mTrace; }
+  void SetTrace(bool t) { mTrace = t;}
+
 protected:
 
 private:
 
   static bool isRecursiveRm(fuse_req_t req, bool forced = false,
                             bool notverbose = false);
+
+  bool mTrace;
 
   Track tracker;
 

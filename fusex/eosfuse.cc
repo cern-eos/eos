@@ -102,6 +102,7 @@ EosFuse::EosFuse()
   sEosFuse = this;
   fusesession = 0;
   fusechan = 0;
+  SetTrace(false);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -184,7 +185,7 @@ EosFuse::UsageSet()
   std::string usage = "usage CLI   : eosxd set <key> <value> [<path>]\n";
   usage += "\n";
   usage +=
-    " as root             system.eos.debug <level> <mount>   : set debug level with <level>=notice|info|debug\n";
+    " as root             system.eos.debug <level> <mount>   : set debug level with <level>=crit|warn|err|notice|info|debug|trace\n";
   usage +=
     "                     system.eos.dropcap - <mount>       : drop capability of the given path\n";
   usage +=
@@ -4629,6 +4630,18 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
 
   EXEC_TIMING_END(__func__);
   COMMONTIMING("_stop_", &timing);
+
+  // report slow flush
+  if (Instance().Trace() || (timing.RealTime() > 2000)) {
+    std::string path = Instance().mds.calculateLocalPath(io->md);
+    std::string s;
+    eos_static_warning("flush of '%s' took %.03fms\n%s",
+                       Instance().Prefix(path).c_str(),
+                       timing.RealTime(),
+		       io->ioctx()->Dump(s));
+  }
+
+
   eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
                     dump(id, ino, 0, rc).c_str());
 }
@@ -5066,13 +5079,33 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
         rc = EINVAL;
 #ifdef EOSCITRINE
 
+        if (value == "crit") {
+          eos::common::Logging::GetInstance().SetLogPriority(LOG_CRIT);
+	  Instance().SetTrace(false);
+          rc = 0;
+        }
+
+        if (value == "warn") {
+          eos::common::Logging::GetInstance().SetLogPriority(LOG_WARNING);
+	  Instance().SetTrace(false);
+          rc = 0;
+        }
+
+        if (value == "error") {
+          eos::common::Logging::GetInstance().SetLogPriority(LOG_ERR);
+	  Instance().SetTrace(false);
+          rc = 0;
+        }
+
         if (value == "notice") {
           eos::common::Logging::GetInstance().SetLogPriority(LOG_NOTICE);
+	  Instance().SetTrace(false);
           rc = 0;
         }
 
         if (value == "info") {
           eos::common::Logging::GetInstance().SetLogPriority(LOG_INFO);
+	  Instance().SetTrace(false);
           rc = 0;
         }
 
@@ -5081,6 +5114,10 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
           rc = 0;
         }
 
+	if (value == "trace") {
+	  Instance().SetTrace(true);
+	  rc = 0;
+	}
 #else
 
         if (value == "notice") {
