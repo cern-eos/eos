@@ -24,6 +24,7 @@
 
 #include "backend/backend.hh"
 #include "cap/cap.hh"
+#include "auth/Logbook.hh"
 #include "misc/fusexrdlogin.hh"
 #include "eosfuse.hh"
 #include "common/Logging.hh"
@@ -96,7 +97,7 @@ backend::getMD(fuse_req_t req,
   if (listing || !use_mdquery()) {
     return fetchResponse(requestURL, contv);
   } else {
-    return fetchQueryResponse(requestURL, contv);
+    return fetchQueryResponse(requestURL, contv, req);
   }
 }
 
@@ -118,7 +119,7 @@ backend::getMD(fuse_req_t req,
   if (listing || !use_mdquery()) {
     return fetchResponse(requestURL, contv);
   } else {
-    return fetchQueryResponse(requestURL, contv);
+    return fetchQueryResponse(requestURL, contv, req);
   }
 }
 
@@ -141,7 +142,7 @@ backend::getMD(fuse_req_t req,
   if (listing || !use_mdquery()) {
     return fetchResponse(requestURL, contv);
   } else {
-    return fetchQueryResponse(requestURL, contv);
+    return fetchQueryResponse(requestURL, contv, req);
   }
 }
 
@@ -164,7 +165,8 @@ backend::getCAP(fuse_req_t req,
 int
 /* -------------------------------------------------------------------------- */
 backend::fetchQueryResponse(std::string& requestURL,
-                            std::vector<eos::fusex::container>& contv
+                            std::vector<eos::fusex::container>& contv,
+			    fuse_req_t req
                            )
 /* -------------------------------------------------------------------------- */
 {
@@ -256,7 +258,14 @@ backend::fetchQueryResponse(std::string& requestURL,
     // all the other errors are reported back
     if (status.errNo) {
       errno = XrdCl::Proxy::status2errno(status);
-      eos_static_err("error=status is not ok : errno=%d", errno);
+      eos_static_err("error=status is not ok : errno=%d url='%s'", errno, requestURL.c_str());
+
+      // figure out some connection info to report details about this error
+      Logbook logbook(true);
+      const struct fuse_ctx* ctx = fuse_req_ctx(req);
+      ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
+								      ctx->uid, ctx->gid, false, logbook);
+      eos_static_err("%s\n", logbook.toString().c_str());
 
       // xrootd does not transport E2BIG ... sigh
       if (errno == ENAMETOOLONG) {

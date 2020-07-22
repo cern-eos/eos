@@ -80,7 +80,8 @@ public:
 
 
   int fetchQueryResponse(std::string& url,
-			 std::vector<eos::fusex::container>& cont
+			 std::vector<eos::fusex::container>& cont,
+			 fuse_req_t req
 			 );
 
   int rmRf(fuse_req_t req, eos::fusex::md* md);
