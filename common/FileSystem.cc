@@ -533,7 +533,7 @@ FileSystem::~FileSystem()
 //------------------------------------------------------------------------------
 void FileSystem::DeleteSharedHash()
 {
-  mq::SharedHashWrapper::deleteHash(mHashLocator);
+  mq::SharedHashWrapper::deleteHash(mRealm, mHashLocator);
 }
 
 //------------------------------------------------------------------------------

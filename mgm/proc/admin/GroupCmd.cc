@@ -174,7 +174,7 @@ GroupCmd::RmSubcmd(const eos::console::GroupProto_RmProto& rm,
   common::SharedHashLocator groupLocator =
     common::SharedHashLocator::makeForGroup(rm.group());
 
-  if (!mq::SharedHashWrapper::deleteHash(groupLocator)) {
+  if (!mq::SharedHashWrapper::deleteHash(gOFS->mMessagingRealm.get(), groupLocator)) {
     reply.set_std_err(("error: unable to remove config of group '" +
                        rm.group() + "'").c_str());
     reply.set_retc(EIO);

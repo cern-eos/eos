@@ -204,7 +204,7 @@ ProcCommand::Group()
           common::SharedHashLocator groupLocator =
             common::SharedHashLocator::makeForGroup(groupname);
 
-          if (!mq::SharedHashWrapper::deleteHash(groupLocator)) {
+          if (!mq::SharedHashWrapper::deleteHash(gOFS->mMessagingRealm.get(), groupLocator)) {
             stdErr = "error: unable to remove config of group '";
             stdErr += groupname.c_str();
             stdErr += "'";

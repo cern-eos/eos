@@ -320,7 +320,7 @@ ProcCommand::Node()
           }
 
           common::SharedHashLocator nodeLocator = common::SharedHashLocator::makeForNode(nodename);
-          if (!mq::SharedHashWrapper::deleteHash(nodeLocator)) {
+          if (!mq::SharedHashWrapper::deleteHash(gOFS->mMessagingRealm.get(), nodeLocator)) {
             stdErr = "error: unable to remove config of node '";
             stdErr += nodename.c_str();
             stdErr += "'";

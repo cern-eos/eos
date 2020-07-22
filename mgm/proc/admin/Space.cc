@@ -887,7 +887,7 @@ ProcCommand::Space()
           common::SharedHashLocator spaceLocator =
             common::SharedHashLocator::makeForSpace(spacename);
 
-          if (!mq::SharedHashWrapper::deleteHash(spaceLocator)) {
+          if (!mq::SharedHashWrapper::deleteHash(gOFS->mMessagingRealm.get(), spaceLocator)) {
             stdErr = "error: unable to remove config of space '";
             stdErr += spacename.c_str();
             stdErr += "'";

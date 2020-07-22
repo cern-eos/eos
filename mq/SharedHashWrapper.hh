@@ -31,6 +31,10 @@
 #include <vector>
 #include <map>
 
+namespace qclient {
+  class UpdateBatch;
+}
+
 class XrdMqSharedHash;
 class XrdMqSharedObjectManager;
 
@@ -160,7 +164,7 @@ public:
   //----------------------------------------------------------------------------
   //! Delete a shared hash, without creating an object first
   //----------------------------------------------------------------------------
-  static bool deleteHash(const common::SharedHashLocator &locator);
+  static bool deleteHash(mq::MessagingRealm* realm, const common::SharedHashLocator &locator);
 
   //----------------------------------------------------------------------------
   //! Initialize, set messaging realm.

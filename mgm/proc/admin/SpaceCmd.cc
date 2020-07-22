@@ -1066,7 +1066,7 @@ void SpaceCmd::RmSubcmd(const eos::console::SpaceProto_RmProto& rm,
   common::SharedHashLocator spaceLocator =
     common::SharedHashLocator::makeForSpace(rm.mgmspace());
 
-  if (!mq::SharedHashWrapper::deleteHash(spaceLocator)) {
+  if (!mq::SharedHashWrapper::deleteHash(gOFS->mMessagingRealm.get(), spaceLocator)) {
     reply.set_std_err("error: unable to remove config of space '" + rm.mgmspace() +
                       "'");
     reply.set_retc(EIO);

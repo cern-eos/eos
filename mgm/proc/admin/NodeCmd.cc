@@ -211,7 +211,7 @@ void NodeCmd::RmSubcmd(const eos::console::NodeProto_RmProto& rm,
   }
 
   common::SharedHashLocator nodeLocator = common::SharedHashLocator::makeForNode(nodename);
-  if (!mq::SharedHashWrapper::deleteHash(nodeLocator)) {
+  if (!mq::SharedHashWrapper::deleteHash(gOFS->mMessagingRealm.get(), nodeLocator)) {
     reply.set_std_err("error: unable to remove config of node '" + nodename + "'");
     reply.set_retc(EIO);
   } else {

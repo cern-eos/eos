@@ -274,8 +274,8 @@ void SharedHashWrapper::initialize(mq::MessagingRealm* realm)
 //------------------------------------------------------------------------------
 // Delete a shared hash, without creating an object first
 //------------------------------------------------------------------------------
-bool SharedHashWrapper::deleteHash(const common::SharedHashLocator &locator) {
-  return gRealm->getSom()->DeleteSharedHash(locator.getConfigQueue().c_str(), true);
+bool SharedHashWrapper::deleteHash(mq::MessagingRealm* realm, const common::SharedHashLocator &locator) {
+  return realm->getSom()->DeleteSharedHash(locator.getConfigQueue().c_str(), true);
 }
 
 //------------------------------------------------------------------------------
