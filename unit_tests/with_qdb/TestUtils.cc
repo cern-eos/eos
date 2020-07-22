@@ -22,7 +22,9 @@
 //------------------------------------------------------------------------------
 
 #include "TestUtils.hh"
+#include "mq/MessagingRealm.hh"
 #include <qclient/QClient.hh>
+#include <qclient/shared/SharedManager.hh>
 #include <fstream>
 
 namespace eos{
@@ -65,12 +67,41 @@ UnitTestsWithQDBFixture::UnitTestsWithQDBFixture() {
 }
 
 //------------------------------------------------------------------------------
+//! Destructor
+//------------------------------------------------------------------------------
+UnitTestsWithQDBFixture::~UnitTestsWithQDBFixture() {}
+
+//------------------------------------------------------------------------------
 //! Make QClient object
 //------------------------------------------------------------------------------
 std::unique_ptr<qclient::QClient> UnitTestsWithQDBFixture::makeQClient() const {
   return std::unique_ptr<qclient::QClient>(
            new qclient::QClient(mContactDetails.members, mContactDetails.constructOptions())
   );
+}
+
+//------------------------------------------------------------------------------
+// Get MessagingRealm object, lazy init
+//------------------------------------------------------------------------------
+mq::MessagingRealm* UnitTestsWithQDBFixture::getMessagingRealm() {
+  if(!mMessagingRealm) {
+    mMessagingRealm.reset(new mq::MessagingRealm(nullptr, nullptr,
+      nullptr, getSharedManager()));
+  }
+
+  return mMessagingRealm.get();
+}
+
+//------------------------------------------------------------------------------
+// Get SharedManager object, lazy init
+//------------------------------------------------------------------------------
+qclient::SharedManager* UnitTestsWithQDBFixture::getSharedManager() {
+  if(!mSharedManager) {
+    mSharedManager.reset(new qclient::SharedManager(mContactDetails.members,
+      mContactDetails.constructSubscriptionOptions()));
+  }
+
+  return mSharedManager.get();
 }
 
 //------------------------------------------------------------------------------

@@ -28,10 +28,15 @@
 
 namespace qclient {
   class QClient;
+  class SharedManager;
 }
 
 namespace eos
 {
+
+namespace mq {
+  class MessagingRealm;
+}
 
 //------------------------------------------------------------------------------
 //! Class FlushAllOnConstruction
@@ -58,9 +63,24 @@ public:
   UnitTestsWithQDBFixture();
 
   //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  ~UnitTestsWithQDBFixture();
+
+  //----------------------------------------------------------------------------
   //! Make QClient object
   //----------------------------------------------------------------------------
   std::unique_ptr<qclient::QClient> makeQClient() const;
+
+  //----------------------------------------------------------------------------
+  //! Get MessagingRealm object, lazy init
+  //----------------------------------------------------------------------------
+  mq::MessagingRealm* getMessagingRealm();
+
+  //----------------------------------------------------------------------------
+  //! Get SharedManager object, lazy init
+  //----------------------------------------------------------------------------
+  qclient::SharedManager* getSharedManager();
 
   //----------------------------------------------------------------------------
   //! Retrieve contact details
@@ -71,6 +91,9 @@ public:
 private:
   QdbContactDetails mContactDetails;
   std::unique_ptr<FlushAllOnConstruction> mFlushGuard;
+
+  std::unique_ptr<mq::MessagingRealm> mMessagingRealm;
+  std::unique_ptr<qclient::SharedManager> mSharedManager;
 };
 
 }
