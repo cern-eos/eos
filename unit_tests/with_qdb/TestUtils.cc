@@ -83,25 +83,33 @@ std::unique_ptr<qclient::QClient> UnitTestsWithQDBFixture::makeQClient() const {
 //------------------------------------------------------------------------------
 // Get MessagingRealm object, lazy init
 //------------------------------------------------------------------------------
-mq::MessagingRealm* UnitTestsWithQDBFixture::getMessagingRealm() {
-  if(!mMessagingRealm) {
-    mMessagingRealm.reset(new mq::MessagingRealm(nullptr, nullptr,
-      nullptr, getSharedManager()));
-  }
+mq::MessagingRealm* UnitTestsWithQDBFixture::getMessagingRealm(int tag) {
+  auto it = mMessagingRealms.find(tag);
 
-  return mMessagingRealm.get();
+  if(it == mMessagingRealms.end()) {
+    mMessagingRealms[tag].reset(new mq::MessagingRealm(nullptr, nullptr,
+      nullptr, getSharedManager(tag)));
+    return mMessagingRealms[tag].get();
+  }
+  else {
+    return it->second.get();
+  }
 }
 
 //------------------------------------------------------------------------------
 // Get SharedManager object, lazy init
 //------------------------------------------------------------------------------
-qclient::SharedManager* UnitTestsWithQDBFixture::getSharedManager() {
-  if(!mSharedManager) {
-    mSharedManager.reset(new qclient::SharedManager(mContactDetails.members,
-      mContactDetails.constructSubscriptionOptions()));
-  }
+qclient::SharedManager* UnitTestsWithQDBFixture::getSharedManager(int tag) {
+  auto it = mSharedManagers.find(tag);
 
-  return mSharedManager.get();
+  if(it == mSharedManagers.end()) {
+    mSharedManagers[tag].reset(new qclient::SharedManager(mContactDetails.members,
+      mContactDetails.constructSubscriptionOptions()));
+    return mSharedManagers[tag].get();
+  }
+  else {
+    return it->second.get();
+  }
 }
 
 //------------------------------------------------------------------------------

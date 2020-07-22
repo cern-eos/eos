@@ -75,12 +75,12 @@ public:
   //----------------------------------------------------------------------------
   //! Get MessagingRealm object, lazy init
   //----------------------------------------------------------------------------
-  mq::MessagingRealm* getMessagingRealm();
+  mq::MessagingRealm* getMessagingRealm(int tag = 0);
 
   //----------------------------------------------------------------------------
   //! Get SharedManager object, lazy init
   //----------------------------------------------------------------------------
-  qclient::SharedManager* getSharedManager();
+  qclient::SharedManager* getSharedManager(int tag = 0);
 
   //----------------------------------------------------------------------------
   //! Retrieve contact details
@@ -92,8 +92,9 @@ private:
   QdbContactDetails mContactDetails;
   std::unique_ptr<FlushAllOnConstruction> mFlushGuard;
 
-  std::unique_ptr<mq::MessagingRealm> mMessagingRealm;
-  std::unique_ptr<qclient::SharedManager> mSharedManager;
+  std::map<int, std::unique_ptr<mq::MessagingRealm>> mMessagingRealms;
+  std::map<int, std::unique_ptr<qclient::SharedManager>> mSharedManagers;
+
 };
 
 }
