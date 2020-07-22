@@ -477,6 +477,10 @@ public:
     proxy->WriteQueue().clear();
   }
 
+  void inherit_protocol(XrdCl::Proxy* proxy)
+  {
+    mProtocol = proxy->getProtocol();
+  }
 
   // ---------------------------------------------------------------------- //
 
@@ -509,6 +513,27 @@ public:
     FAILED = 5,
     CLOSEFAILED = 6,
   };
+
+  const char* state_string() {
+    switch (open_state) {
+    case CLOSED:
+      return "closed";
+    case OPENING:
+      return "opening";
+    case OPENED:
+      return "open";
+    case WAITWRITE:
+      return "waitwrite";
+    case CLOSING:
+      return "closing";
+    case FAILED:
+      return "failed";
+    case CLOSEFAILED:
+      return "closefailed";
+    default:
+      return "invalid";
+    }
+  }
 
   OPEN_STATE state()
   {
@@ -554,10 +579,34 @@ public:
     // lock XOpenAsyncCond from outside
     open_state = newstate;
     eos::common::Timing::GetTimeSpec(open_state_time);
+    mProtocol.Add(eos_static_silent("%s",state_string()));
 
     if (xs) {
       XOpenState = *xs;
     }
+  }
+
+
+  void set_lasturl() {
+    this->GetProperty("LastURL", mLastUrl);
+
+    XrdCl::URL newurl(mLastUrl);
+    XrdCl::URL::ParamsMap cgi = newurl.GetParams();
+
+    mProtocol.Add(eos_static_silent("host=%s:%d",newurl.GetHostName().c_str(), newurl.GetPort()));
+    mProtocol.Add(eos_static_silent("lfn='%s' app='%s'", cgi["eos.lfn"].c_str(), cgi["eos.app"].c_str()));
+    mProtocol.Add(eos_static_silent("logid=%s",cgi["mgm.logid"].c_str()));
+    mProtocol.Add(eos_static_silent("fuse=%s:%s:%s:%s:%s]",
+				    cgi["fuse.exe"].c_str(),
+				    cgi["fuse.uid"].c_str(),
+				    cgi["fuse.gid"].c_str(),
+				    cgi["fuse.pid"].c_str(),
+				    cgi["fuse.ver"].c_str()));
+    mProtocol.Add(eos_static_silent("xrd=%s:%s:%s:%s]",
+				    cgi["xrdcl.requuid"].c_str(),
+				    cgi["xrdcl.secuid"].c_str(),
+				    cgi["xrdcl.sccgid"].c_str(),
+				    cgi["xrdcl.wantprot"].c_str()));
   }
 
   // TS stands for "thread-safe"
@@ -1309,6 +1358,24 @@ public:
     return mFuzzing;
   }
 
+
+  const char* Dump(std::string& out);
+
+  class Protocol {
+  public:
+    Protocol(){}
+    virtual ~Protocol() {}
+    void Add(std::string);
+    const char* Dump(std::string& out);
+  private:
+    XrdSysMutex mMutex;
+    std::deque<std::string> mMessages;
+  };
+
+  Protocol& getProtocol() {
+    return mProtocol;
+  }
+
 private:
   OPEN_STATE open_state;
   struct timespec open_state_time;
@@ -1360,6 +1427,8 @@ private:
   uint64_t mIno;
 
   std::string mUrl;
+  std::string mLastUrl;
+
   OpenFlags::Flags mFlags;
   Access::Mode mMode;
   uint16_t mTimeout;
@@ -1367,6 +1436,7 @@ private:
   std::atomic<int> mRChunksInFlight;
   std::atomic<bool> mSelfDestruction;
 
+  Protocol mProtocol;
   bool mDeleted;
 };
 }

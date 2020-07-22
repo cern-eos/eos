@@ -1129,6 +1129,7 @@ data::datax::recover_ropen(fuse_req_t req)
     }
 
     newproxy->inherit_attached(proxy);
+    newproxy->inherit_protocol(proxy);
     // replace the proxy object
     mFile->set_xrdioro(req, newproxy);
     proxy->detach();
@@ -1286,6 +1287,7 @@ data::datax::try_ropen(fuse_req_t req, XrdCl::Proxy*& proxy,
     }
 
     newproxy->inherit_attached(proxy);
+    newproxy->inherit_protocol(proxy);
 
     // once all callbacks are there, this object can destroy itself since we don't track it anymore
     if (!proxy->IsWaitWrite() && !proxy->IsOpening() && !proxy->IsClosing()) {
@@ -1423,6 +1425,7 @@ data::datax::try_wopen(fuse_req_t req, XrdCl::Proxy*& proxy,
     }
 
     newproxy->inherit_attached(proxy);
+    newproxy->inherit_protocol(proxy);
     newproxy->inherit_writequeue(proxy);
     // once all callbacks are there, this object can destroy itself since we don't track it anymore
     proxy->flag_selfdestructionTS();
@@ -2786,6 +2789,21 @@ data::datax::dump_recovery_stack()
   }
 }
 
+/* -------------------------------------------------------------------------- */
+const char*
+data::datax::Dump(std::string& out)
+/* -------------------------------------------------------------------------- */
+{
+  for (auto fit = mFile->get_xrdioro().begin();
+       fit != mFile->get_xrdioro().end(); ++fit) {
+    fit->second->Dump(out);
+  }
+  for (auto fit = mFile->get_xrdiorw().begin();
+       fit != mFile->get_xrdiorw().end(); ++fit) {
+    fit->second->Dump(out);
+  }
+  return out.c_str();
+}
 
 
 /* -------------------------------------------------------------------------- */
@@ -2997,6 +3015,8 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                       newproxy->OpenAsync(fit->second->url(), fit->second->flags(),
                                           fit->second->mode(), 0);
                       newproxy->inherit_attached(fit->second);
+		      newproxy->inherit_protocol(fit->second);
+
                       delete(fit->second);
                       map[fit->first] = newproxy;
                       continue;

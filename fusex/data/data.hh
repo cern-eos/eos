@@ -255,6 +255,8 @@ public:
 
     void dump_recovery_stack();
 
+    const char* Dump(std::string& out);
+
   private:
     XrdSysMutex mLock;
     uint64_t mIno;

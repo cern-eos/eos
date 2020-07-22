@@ -437,6 +437,7 @@ XrdCl::Proxy::OpenAsyncHandler::HandleResponseWithHosts(
 
     if (status->IsOK()) {
       proxy()->set_state(OPENED);
+      proxy()->set_lasturl();
       openLock.UnLock();
       XrdSysCondVarHelper writeLock(proxy()->WriteCondVar());
 
@@ -1436,4 +1437,32 @@ XrdCl::Fuzzing::ReadAsyncResponseFuzz()
 
   eos_static_debug("fuzzing OK");
   return false;
+}
+
+
+/* -------------------------------------------------------------------------- */
+const char*
+/* -------------------------------------------------------------------------- */
+XrdCl::Proxy::Dump(std::string& out) {
+  mProtocol.Dump(out);
+  return out.c_str();
+}
+
+/* -------------------------------------------------------------------------- */
+void
+/* -------------------------------------------------------------------------- */
+XrdCl::Proxy::Protocol::Add(std::string s) {
+  XrdSysMutexHelper lock(mMutex);
+  mMessages.push_back(std::string("---- " + s + "\n"));
+}
+
+/* -------------------------------------------------------------------------- */
+const char*
+/* -------------------------------------------------------------------------- */
+XrdCl::Proxy::Protocol::Dump(std::string& out) {
+  XrdSysMutexHelper lock(mMutex);
+  for (auto item = mMessages.begin(); item != mMessages.end(); ++item) {
+    out += *item;
+  }
+  return out.c_str();
 }
