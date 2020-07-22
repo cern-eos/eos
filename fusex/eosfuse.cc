@@ -714,7 +714,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     }
 
     if (!root["options"].isMember("no-xattr")) {
-      root["options"]["no-xattr"] = 1;
+      root["options"]["no-xattr"] = 0;
     }
 
     if (!root["options"].isMember("no-link")) {
@@ -1961,6 +1961,8 @@ EosFuse::init(void* userdata, struct fuse_conn_info* conn)
 
 #ifdef _FUSE3
   conn->want |= FUSE_CAP_EXPORT_SUPPORT | FUSE_CAP_POSIX_LOCKS | FUSE_CAP_WRITEBACK_CACHE; // | FUSE_CAP_CACHE_SYMLINKS;
+  Instance().Config().options.writebackcache = true;
+  //  conn->want |= FUSE_CAP_EXPORT_SUPPORT | FUSE_CAP_POSIX_LOCKS ; // | FUSE_CAP_CACHE_SYMLINKS;
 #else
   conn->want |= FUSE_CAP_EXPORT_SUPPORT | FUSE_CAP_POSIX_LOCKS | FUSE_CAP_BIG_WRITES;
 #endif
@@ -2266,8 +2268,26 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
   cap::shared_cap pcap;
   metad::shared_md md;
   bool md_update_sync = false;     /* wait for MD update for return code */
-  md = Instance().mds.get(req, ino);
-  md->Locker().Lock();
+  bool md_update = true;
+
+
+  if ((Instance().Config().options.writebackcache) &&
+      (op==0x420) && // MTIME | CTIME coming from writebackcache
+      (id.uid==0) &&
+      (id.gid==0) &&
+      (!Instance().datas.has(ino,true))) {
+    // we have to suppress MTIME/CTIME changes coming from kernel workes, if files are already closed
+    fuse_reply_err(req, ENOTSUP);
+    return;
+  }
+
+  if (Instance().datas.has(ino,true) ) {    
+    md = Instance().mds.getlocal(req, ino);
+    md->Locker().Lock();
+  } else {
+    md = Instance().mds.get(req, ino);
+    md->Locker().Lock();
+  }
 
   if (op == 0) {
     rc = EINVAL;
@@ -2299,14 +2319,24 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
                || (op & FUSE_SET_ATTR_ATIME_NOW)
                || (op & FUSE_SET_ATTR_MTIME_NOW)
               ) {
-      // retrieve cap for write
-      pcap = Instance().caps.acquire(req, cap_ino,
-                                     W_OK);
 
-      if (pcap->errc()) {
-        // retrieve cap for set utime
-        pcap = Instance().caps.acquire(req, cap_ino,
-                                       SU_OK);
+
+
+      if ( Instance().Config().options.writebackcache && 
+	   (id.uid==0) && (id.gid==0) ) {
+	// there is an open file for that inode, we let this just pass
+	pcap = Instance().caps.dummy();
+
+	md_update = false; // but we don't want to create a flush entry because it comes from a kernel thread
+      } else {
+	// retrieve cap for write
+	pcap = Instance().caps.acquire(req, cap_ino,
+				       W_OK);
+	if (pcap->errc()) {
+	  // retrieve cap for set utime
+	  pcap = Instance().caps.acquire(req, cap_ino,
+					 SU_OK);
+	}
       }
     }
 
@@ -2441,6 +2471,9 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
       if (
         (op & FUSE_SET_ATTR_ATIME)
         || (op & FUSE_SET_ATTR_MTIME)
+#ifdef _FUSE3
+        || (op & FUSE_SET_ATTR_CTIME)
+#endif
         || (op & FUSE_SET_ATTR_ATIME_NOW)
         || (op & FUSE_SET_ATTR_MTIME_NOW)
       ) {
@@ -2481,6 +2514,13 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
           md->set_ctime(tsnow.tv_sec);
           md->set_ctime_ns(tsnow.tv_nsec);
         }
+	
+#ifdef _FUSE3
+	if (op & FUSE_SET_ATTR_CTIME) {
+          md->set_mtime(attr->CTIMESPEC.tv_sec);
+          md->set_mtime_ns(attr->CTIMESPEC.tv_nsec);
+	}
+#endif
 
         if ((op & FUSE_SET_ATTR_ATIME_NOW) ||
             (op & FUSE_SET_ATTR_MTIME_NOW)) {
@@ -2634,24 +2674,26 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
     }
   }
 
-  if (md_update_sync && rc == 0) {
-    if (Instance().mds.has_flush(md->id())) {
-      Instance().mds.wait_flush(req, md);
+  if (md_update) {
+    if (md_update_sync && rc == 0) {
+      if (Instance().mds.has_flush(md->id())) {
+	Instance().mds.wait_flush(req, md);
+      }
+      
+      md->setop_update();
+      Instance().mds.update(req, md, pcap->authid());
+      
+      if (Instance().mds.has_flush(md->id())) {
+	Instance().mds.wait_flush(req, md);
+      }
+      
+      if (EOS_LOGS_DEBUG) {
+	eos_static_debug("id %ld err %d op %d del %d", md->id(), md->err(), md->getop(),
+			 md->deleted());
+      }
+      
+      rc = md->deleted() ? ENOENT : md->err();
     }
-
-    md->setop_update();
-    Instance().mds.update(req, md, pcap->authid());
-
-    if (Instance().mds.has_flush(md->id())) {
-      Instance().mds.wait_flush(req, md);
-    }
-
-    if (EOS_LOGS_DEBUG) {
-      eos_static_debug("id %ld err %d op %d del %d", md->id(), md->err(), md->getop(),
-                       md->deleted());
-    }
-
-    rc = md->deleted() ? ENOENT : md->err();
   }
 
   if (rc) {
@@ -2673,8 +2715,8 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
 
   EXEC_TIMING_END(__func__);
   COMMONTIMING("_stop_", &timing);
-  eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
-                    dump(id, ino, fi, rc).c_str());
+  eos_static_notice("t(ms)=%.03f %s op=%x fh=%d", timing.RealTime(),
+                    dump(id, ino, fi, rc).c_str(),op, fi?fi->fh:-1);
 }
 
 void
@@ -4363,7 +4405,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
 
           md->set_err(0);
           md->set_mode(mode | (S_ISFIFO(mode) ? S_IFIFO : S_IFREG));
-          md->set_fullpath(pmd->fullpath() + "/" + name);
+          md->set_fullpath(pmd->fullpath() + (pmd->fullpath().back()=='/'?"":"/") + name);
 
           if (S_ISFIFO(mode)) {
             (*md->mutable_attr())[k_fifo] = "";
@@ -4782,6 +4824,7 @@ EosFuse::forget(fuse_req_t req, fuse_ino_t ino, unsigned long nlookup)
   fuse_reply_none(req);
 }
 
+#ifdef _FUSE3
 /* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
@@ -4801,6 +4844,7 @@ EosFuse::forget_multi(fuse_req_t req, size_t count, struct fuse_forget_data* for
   COMMONTIMING("_stop_", &timing);
   fuse_reply_none(req);
 }
+#endif
 
 /* -------------------------------------------------------------------------- */
 void
@@ -4927,7 +4971,6 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
                        timing.RealTime(),
 		       io->ioctx()->Dump(s));
   }
-
 
   eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
                     dump(id, ino, 0, rc).c_str());

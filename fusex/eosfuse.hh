@@ -259,6 +259,9 @@ public:
 
       int flush_wait_umount;
       int flush_wait_open;
+
+      bool writebackcache;
+
       enum eFLUSH_WAIT_OPEN
       {
         kWAIT_FLUSH_NEVER = 0, // if a file is updated/created - flush will not wait to open it
