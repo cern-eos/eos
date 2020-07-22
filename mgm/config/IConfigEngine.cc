@@ -220,7 +220,7 @@ void IConfigEngine::publishConfigChange(const std::string& key,
 
   while (repval.replace("&", " ")) {}
 
-  mq::SharedHashWrapper::makeGlobalMgmHash().set(key, repval.c_str());
+  mq::SharedHashWrapper::makeGlobalMgmHash(gOFS->mMessagingRealm.get()).set(key, repval.c_str());
 }
 
 //------------------------------------------------------------------------------
@@ -230,7 +230,7 @@ void IConfigEngine::publishConfigDeletion(const std::string& key)
 {
   eos_info("msg=\"publish deletion of configuration\" key=\"%s\"",
            key.c_str());
-  mq::SharedHashWrapper::makeGlobalMgmHash().del(key);
+  mq::SharedHashWrapper::makeGlobalMgmHash(gOFS->mMessagingRealm.get()).del(key);
 }
 
 //------------------------------------------------------------------------------

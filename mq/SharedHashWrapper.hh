@@ -94,7 +94,6 @@ public:
   //! "Constructor" for global MGM hash
   //----------------------------------------------------------------------------
   static SharedHashWrapper makeGlobalMgmHash(mq::MessagingRealm *realm);
-  static SharedHashWrapper makeGlobalMgmHash();
 
   //----------------------------------------------------------------------------
   //! Destructor

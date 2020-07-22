@@ -2287,9 +2287,9 @@ FsView::SetGlobalConfig(const std::string& key, const std::string& value)
                           << "#" << key);
 
   if (value.empty()) {
-    mq::SharedHashWrapper::makeGlobalMgmHash().del(key);
+    mq::SharedHashWrapper::makeGlobalMgmHash(gOFS->mMessagingRealm.get()).del(key);
   } else {
-    mq::SharedHashWrapper::makeGlobalMgmHash().set(key, value);
+    mq::SharedHashWrapper::makeGlobalMgmHash(gOFS->mMessagingRealm.get()).set(key, value);
   }
 
   if (FsView::gFsView.mConfigEngine) {
@@ -2310,7 +2310,7 @@ FsView::SetGlobalConfig(const std::string& key, const std::string& value)
 std::string
 FsView::GetGlobalConfig(const std::string& key)
 {
-  return mq::SharedHashWrapper::makeGlobalMgmHash().get(key);
+  return mq::SharedHashWrapper::makeGlobalMgmHash(gOFS->mMessagingRealm.get()).get(key);
 }
 
 //------------------------------------------------------------------------------

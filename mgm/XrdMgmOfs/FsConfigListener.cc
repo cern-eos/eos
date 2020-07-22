@@ -32,7 +32,7 @@
 //------------------------------------------------------------------------------
 bool XrdMgmOfs::getMGMConfigValue(const std::string& key, std::string& value)
 {
-  return eos::mq::SharedHashWrapper::makeGlobalMgmHash().get(key, value);
+  return eos::mq::SharedHashWrapper::makeGlobalMgmHash(mMessagingRealm.get()).get(key, value);
 }
 
 //------------------------------------------------------------------------------

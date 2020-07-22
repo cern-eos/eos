@@ -30,9 +30,9 @@ EOSMQNAMESPACE_BEGIN
 
 mq::MessagingRealm* SharedHashWrapper::gRealm;
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 //! Constructor
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 SharedHashWrapper::SharedHashWrapper(mq::MessagingRealm *realm, const common::SharedHashLocator& locator,
   bool takeLock, bool create)
   : mSom(realm->getSom()), mLocator(locator)
@@ -64,14 +64,6 @@ SharedHashWrapper::SharedHashWrapper(mq::MessagingRealm *realm, const common::Sh
 SharedHashWrapper::SharedHashWrapper(const common::SharedHashLocator& locator,
                                      bool takeLock, bool create)
 : SharedHashWrapper(gRealm, locator, takeLock, create) {}
-
-//------------------------------------------------------------------------------
-// "Constructor" for global MGM hash
-//------------------------------------------------------------------------------
-SharedHashWrapper SharedHashWrapper::makeGlobalMgmHash()
-{
-  return makeGlobalMgmHash(gRealm);
-}
 
 SharedHashWrapper SharedHashWrapper::makeGlobalMgmHash(mq::MessagingRealm *realm)
 {
@@ -109,18 +101,18 @@ bool SharedHashWrapper::set(const std::string& key, const std::string& value,
   return mHash->Set(key.c_str(), value.c_str(), broadcast);
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Set durable value
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void SharedHashWrapper::Batch::SetDurable(const std::string& key,
     const std::string& value)
 {
   mDurableUpdates[key] = value;
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Set transient value
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void SharedHashWrapper::Batch::SetTransient(const std::string& key,
     const std::string& value)
 {
