@@ -149,8 +149,11 @@ public:
 
   static void forget(fuse_req_t req, fuse_ino_t ino, unsigned long nlookup);
 
+
+#ifdef _FUSE3
   static void forget_multi(fuse_req_t req, size_t count, 
 			   struct fuse_forget_data *forgets);
+#endif
 
   static void flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi);
 
