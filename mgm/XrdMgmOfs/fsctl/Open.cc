@@ -51,13 +51,13 @@ XrdMgmOfs::Open(const char* path,
   if (file) {
     opaque += "&eos.cli.access=pio";
     int rc = file->open(path, SFS_O_RDONLY, 0, client, opaque.c_str());
-    error.setErrInfo(strlen(file->error.getErrText()) + 1,
-                     file->error.getErrText());
+    error = file->error;
 
     if (rc == SFS_REDIRECT) {
+      // When returning SFS_DATA the ecode represents the length of the data
+      // to be sent to the client.
+      error.setErrCode(strlen(error.getErrText()));
       retc = SFS_DATA;
-    } else {
-      error.setErrCode(file->error.getErrInfo());
     }
 
     delete file;
