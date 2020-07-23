@@ -34,6 +34,7 @@
 #include "fst/XrdFstOfsFile.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
+#include <algorithm>
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -330,6 +331,11 @@ HttpHandler::Get(eos::common::HttpRequest* request)
           auto it = hdrs.find("want-digest");
 
           if (it != hdrs.end()) {
+            // According to RFC 3230 the Digest reponse needs to have the
+            // following format:
+            // instance-digest = digest-algorithm "=" <encoded digest output>
+            std::replace(checksum_string.begin(), checksum_string.end(),
+                         ':', '=');
             response->AddHeader("Digest", checksum_string);
           }
         }
@@ -342,7 +348,6 @@ HttpHandler::Get(eos::common::HttpRequest* request)
         const char* etag = 0;
 
         if ((etag = queryenv.Get("mgm.etag"))) {
-          //
           response->AddHeader("ETag", etag);
         }
 
