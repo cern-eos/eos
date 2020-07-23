@@ -81,6 +81,10 @@ ReadaheadBlock::ReadaheadBlock(uint64_t blocksize, BufferManager* buf_mgr,
     mBuffer = std::make_shared<eos::fst::Buffer>(blocksize);
   }
 
+  if (mBuffer == nullptr) {
+    throw std::bad_alloc();
+  }
+
   if (hd) {
     mHandler.reset(hd);
   } else {
@@ -993,7 +997,12 @@ XrdIo::PrefetchBlock(int64_t offset, uint16_t timeout)
 
   if (mQueueBlocks.empty()) {
     if (mMapBlocks.size() < mNumRdAheadBlocks) {
-      block = new ReadaheadBlock(mBlocksize, &gBuffMgr);
+      try {
+        block = new ReadaheadBlock(mBlocksize, &gBuffMgr);
+      } catch (const std::bad_alloc& e) {
+        eos_static_err("%s", "msg=\"failed to allocate a prefetch block\"");
+        return false;
+      }
     } else {
       return false;
     }
