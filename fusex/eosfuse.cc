@@ -629,8 +629,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
             root["auth"]["oauth2"] = 0;
           }
         } else {
-	  config.ssskeytab = root["auth"]["ssskeytab"].asString();
-	}
+          config.ssskeytab = root["auth"]["ssskeytab"].asString();
+        }
       }
 
       if (!root["inline"].isMember("max-size")) {
@@ -1726,12 +1726,11 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       tMetaStackFree.join();
       tMetaCommunicate.join();
       tCapFlush.join();
-
       {
-	// rename the stats file
-	std::string laststat = config.statfilepath;
-	laststat += ".last";
-	::rename(config.statfilepath.c_str(), laststat.c_str());
+        // rename the stats file
+        std::string laststat = config.statfilepath;
+        laststat += ".last";
+        ::rename(config.statfilepath.c_str(), laststat.c_str());
       }
 
       if (Instance().Config().options.submounts) {
@@ -1996,17 +1995,16 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
                blocker.c_str()
               );
 
-
       if (blocker_inode != 1) {
-	if (blocker.length() && last_blocker.empty()) {
-	  eos_static_warning("IO blocked on ino=%#lx for op=%s since %.02f ms",
-			     blocker_inode, blocker.c_str(), blocked_ms);
-	}
+        if (blocker.length() && last_blocker.empty()) {
+          eos_static_warning("IO blocked on ino=%#lx for op=%s since %.02f ms",
+                             blocker_inode, blocker.c_str(), blocked_ms);
+        }
 
-	if (blocker.empty() && last_blocker.length()) {
-	  eos_static_warning("IO unblock on ino=%#lx for op=%s since %.02f ms",
-			     last_blocker_inode, last_blocker.c_str(), last_blocked_ms);
-	}
+        if (blocker.empty() && last_blocker.length()) {
+          eos_static_warning("IO unblock on ino=%#lx for op=%s since %.02f ms",
+                             last_blocker_inode, last_blocker.c_str(), last_blocked_ms);
+        }
       }
 
       last_blocker_inode = blocker_inode;
@@ -2435,6 +2433,8 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
                   eos::common::Timing::GetTimeSpec(tsnow);
                   md->set_mtime(tsnow.tv_sec);
                   md->set_mtime_ns(tsnow.tv_nsec);
+                  md->set_ctime(tsnow.tv_sec);
+                  md->set_ctime_ns(tsnow.tv_nsec);
                   rc |= io->ioctx()->flush(req);
                   rc = rc ? (errno ? errno : rc) : 0;
                 }
@@ -2461,6 +2461,8 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
                 eos::common::Timing::GetTimeSpec(tsnow);
                 md->set_mtime(tsnow.tv_sec);
                 md->set_mtime_ns(tsnow.tv_nsec);
+                md->set_ctime(tsnow.tv_sec);
+                md->set_ctime_ns(tsnow.tv_nsec);
               } else {
                 Instance().datas.release(req, md->id());
               }
@@ -2676,8 +2678,8 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
     Track::Monitor mon("opendir", Instance().Tracker(), ino);
 
     if (Instance().Config().options.rm_rf_protect_levels &&
-	Instance().Config().options.rm_rf_bulk &&
-	isRecursiveRm(req, true, true)) {
+        Instance().Config().options.rm_rf_bulk &&
+        isRecursiveRm(req, true, true)) {
       md = Instance().mds.get(req, ino);
 
       if (md && md->attr().count("sys.recycle")) {
@@ -2747,8 +2749,8 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
           eos_static_debug("%s", md->dump().c_str());
         }
 
-	if (Instance().Config().options.rm_rf_protect_levels &&
-	    isRecursiveRm(req) &&
+        if (Instance().Config().options.rm_rf_protect_levels &&
+            isRecursiveRm(req) &&
             Instance().mds.calculateDepth(md) <=
             Instance().Config().options.rm_rf_protect_levels) {
           eos_static_warning("Blocking recursive rm (pid = %d)", fuse_req_ctx(req)->pid);
@@ -3370,9 +3372,9 @@ EROFS  pathname refers to a file on a read-only filesystem.
 
       if (!rc) {
         if (Instance().Config().options.rm_rf_protect_levels &&
-	    isRecursiveRm(req) &&
-            ( Instance().mds.calculateDepth(md) <=
-	      Instance().Config().options.rm_rf_protect_levels ) ) {
+            isRecursiveRm(req) &&
+            (Instance().mds.calculateDepth(md) <=
+             Instance().Config().options.rm_rf_protect_levels)) {
           eos_static_warning("Blocking recursive rm (pid = %d )", fuse_req_ctx(req)->pid);
           rc = EPERM; // you shall not pass, muahahahahah
         } else {
@@ -4343,6 +4345,8 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char* buf, size_t size,
               eos::common::Timing::GetTimeSpec(tsnow);
               io->md->set_mtime(tsnow.tv_sec);
               io->md->set_mtime_ns(tsnow.tv_nsec);
+              io->md->set_ctime(tsnow.tv_sec);
+              io->md->set_ctime_ns(tsnow.tv_nsec);
             }
             io->set_update();
             // flush size updates every 5 seconds
@@ -4775,13 +4779,14 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
       } else if (key == "eos.reconnect") {
         Logbook logbook(true);
         const struct fuse_ctx* ctx = fuse_req_ctx(req);
-	ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
-									ctx->uid, ctx->gid, true, logbook);
-	value = logbook.toString();
-	if (size == 0) {
-	  // just make sure, the string does not get longer with the next call
-	  value+=value;
-	}
+        ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
+                                   ctx->uid, ctx->gid, true, logbook);
+        value = logbook.toString();
+
+        if (size == 0) {
+          // just make sure, the string does not get longer with the next call
+          value += value;
+        }
       } else if (key == "eos.reconnectparent") {
         const struct fuse_ctx* ctx = fuse_req_ctx(req);
         ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
@@ -4792,10 +4797,11 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
           fusexrdlogin::processCache->retrieve(ppid,
                                                ctx->uid, ctx->gid, true, logbook);
         value = logbook.toString();
-	if (size == 0) {
-	  // just make sure, the string does not get longer with the next call
-	  value += value;
-	}
+
+        if (size == 0) {
+          // just make sure, the string does not get longer with the next call
+          value += value;
+        }
       } else if (key == "eos.identity") {
         const struct fuse_ctx* ctx = fuse_req_ctx(req);
         ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
@@ -4938,6 +4944,7 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
               rc = pcap->errc();
             } else {
 #ifdef HAVE_RICHACL
+
               if (key == s_racl) {
                 struct richacl* a = NULL;
 
@@ -5279,12 +5286,11 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
                     Instance().mds.wait_flush(req, md); // wait for upstream flush
                   }
                 }
+
 #else /*HAVE_RICHACL*/
                 rc = EINVAL;                          // fail loudly if not supported
 #endif /*HAVE_RICHACL*/
-              }
-
-              else {
+              } else {
                 auto map = md->mutable_attr();
                 bool exists = false;
 
