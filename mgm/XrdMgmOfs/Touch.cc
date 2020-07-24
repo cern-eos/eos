@@ -33,8 +33,8 @@ XrdMgmOfs::_touch(const char* path,
                   XrdOucErrInfo& error,
                   eos::common::VirtualIdentity& vid,
                   const char* ininfo,
-		  bool doLock, 
-		  bool useLayout)
+                  bool doLock,
+                  bool useLayout)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief create(touch) a no-replica file in the namespace
@@ -65,6 +65,7 @@ XrdMgmOfs::_touch(const char* path,
 
   eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
   eos::common::RWMutexWriteLock lock;
+
   if (doLock) {
     lock.Grab(gOFS->eosViewRWMutex);
   }
@@ -82,35 +83,37 @@ XrdMgmOfs::_touch(const char* path,
   try {
     if (!fmd) {
       if (useLayout) {
-	lock.Release();
-	XrdMgmOfsFile* file = new XrdMgmOfsFile(const_cast<char*>(vid.tident.c_str()));
-	XrdOucString opaque = ininfo;
-	
-	if (file) {
-	  int rc = file->open(&vid, path, SFS_O_RDWR| SFS_O_CREAT, 0755, 0,  "eos.bookingsize=0&eos.app=fuse");
-	  error.setErrInfo(strlen(file->error.getErrText()) + 1,
-			   file->error.getErrText());
-	  
-	  if (rc != SFS_REDIRECT) {
-	    error.setErrCode(file->error.getErrInfo());
-	    errno = file->error.getErrInfo();
-	    eos_static_info("open failed");
-	    return SFS_ERROR;
-	  }
-	  
-	  delete file;
-	} else {
-	  const char* emsg = "allocate file object";
-	  error.setErrInfo(strlen(emsg) + 1, emsg);
-	  error.setErrCode(ENOMEM);
-	  return SFS_ERROR;
-	}
-	
-	lock.Grab(gOFS->eosViewRWMutex);
-	fmd = gOFS->eosView->getFile(path);
+        lock.Release();
+        XrdMgmOfsFile* file = new XrdMgmOfsFile(const_cast<char*>(vid.tident.c_str()));
+        XrdOucString opaque = ininfo;
+
+        if (file) {
+          int rc = file->open(&vid, path, SFS_O_RDWR | SFS_O_CREAT, 0755, 0,
+                              "eos.bookingsize=0&eos.app=fuse");
+          error.setErrInfo(strlen(file->error.getErrText()) + 1,
+                           file->error.getErrText());
+
+          if (rc != SFS_REDIRECT) {
+            error.setErrCode(file->error.getErrInfo());
+            errno = file->error.getErrInfo();
+            eos_static_info("open failed");
+            return SFS_ERROR;
+          }
+
+          delete file;
+        } else {
+          const char* emsg = "allocate file object";
+          error.setErrInfo(strlen(emsg) + 1, emsg);
+          error.setErrCode(ENOMEM);
+          return SFS_ERROR;
+        }
+
+        lock.Grab(gOFS->eosViewRWMutex);
+        fmd = gOFS->eosView->getFile(path);
       } else {
-	fmd = gOFS->eosView->createFile(path, vid.uid, vid.gid);
+        fmd = gOFS->eosView->createFile(path, vid.uid, vid.gid);
       }
+
       // get the file
       fmd->setCUid(vid.uid);
       fmd->setCGid(vid.gid);
@@ -121,22 +124,24 @@ XrdMgmOfs::_touch(const char* path,
     fmd->setMTimeNow();
     eos::IFileMD::ctime_t mtime;
     fmd->getMTime(mtime);
+    fmd->setCTime(mtime);
 
-    // store the birth time as an extended attribute                                                                           
-    char btime[256];
-    snprintf(btime, sizeof(btime), "%lu.%lu", mtime.tv_sec, mtime.tv_nsec);
-    fmd->setAttribute("sys.eos.btime", btime);
+    // Store the birth time as an extended attribute if this is a creation
+    if (!existedAlready) {
+      char btime[256];
+      snprintf(btime, sizeof(btime), "%lu.%lu", mtime.tv_sec, mtime.tv_nsec);
+      fmd->setAttribute("sys.eos.btime", btime);
+    }
 
     gOFS->eosView->updateFileStore(fmd.get());
     unsigned long long cid = fmd->getContainerId();
     std::shared_ptr<eos::IContainerMD> cmd =
       gOFS->eosDirectoryService->getContainerMD(cid);
     cmd->setMTime(mtime);
-   
     cmd->notifyMTimeChange(gOFS->eosDirectoryService);
 
     // Check if there is any quota node to be updated
-    if(!existedAlready) {
+    if (!existedAlready) {
       try {
         eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(cmd.get());
 
@@ -149,7 +154,6 @@ XrdMgmOfs::_touch(const char* path,
     }
 
     gOFS->eosView->updateContainerStore(cmd.get());
-
     FuseNotificationGuard fuseNotifier(gOFS);
     fuseNotifier.castFile(fmd->getIdentifier());
     fuseNotifier.castContainer(cmd->getIdentifier());
