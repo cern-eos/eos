@@ -18,13 +18,19 @@ This release is based on XRootD V4 and IPV6 enabled.
 ``v4.8.10 Citrine``
 ===================
 
-2020-07-22
+2020-07-24
+
+Bug
+----
+
+FUSEX: fix the real problem of EOS-4338 which is the destruction of the object before all read-ahead calls had been collected
 
 Improvement
 -----------
 
 FUSEX: add 'trace' option and enable all debug levels in the xattr interface
 FUSEX: trace 'slow' flush operations if they take more than 2000ms
+
 
 ``v4.8.9 Citrine``
 ==================
@@ -39,6 +45,7 @@ Bug
 * FUSEX: avoid SEGV when read-ahead callback comes and didn't get a buffer - fixes EOS-4338
 * FUSEX: fix repair when a write error occurs after the file is larger than the pre-fetch size and the first journal was not yet flushed
 * FUSEX: remove 'return' short cut to see timings of readlink
+
 
 ``v4.8.8 Citrine``
 ==================
@@ -55,6 +62,7 @@ Improvement
 -----------
 
 * FUSEX: close read-only files async in IO flush - fixes EOS-4328
+
 
 ``v4.8.7 Citrine``
 ===================
