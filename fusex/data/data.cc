@@ -2904,10 +2904,12 @@ data::dmap::ioflush(ThreadAssistant& assistant)
 		}
 
 		if (fit->second->IsClosed()) {
-		  delete fit->second;
-		  fit = (*it)->file()->get_xrdioro().erase(fit);
-		  eos_static_info("deleting reader");
-		  continue;
+		  if (fit->second->DoneReadAhead()) {
+		    delete fit->second;
+		    fit = (*it)->file()->get_xrdioro().erase(fit);
+		    eos_static_info("deleting reader");
+		    continue;
+		  }
 		}
 		fit++;
 	      }

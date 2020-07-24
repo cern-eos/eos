@@ -795,6 +795,22 @@ public:
     ChunkRMap().clear();
   }
 
+  bool DoneReadAhead()
+  {
+    XrdSysCondVarHelper lLock(ReadCondVar());
+
+    for (auto it = ChunkRMap().begin(); it != ChunkRMap().end(); ++it) {
+      XrdSysCondVarHelper llLock(it->second->ReadCondVar());
+
+      if (!it->second->done()) {
+	return false;
+      }
+    }
+
+    ChunkRMap().clear();
+    return true;
+  }
+
 
   // ---------------------------------------------------------------------- //
 
