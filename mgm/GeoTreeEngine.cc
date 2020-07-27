@@ -1838,6 +1838,8 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
         default:
           break;
         }
+      } else {
+        msg = "file system marked as unavailable";
       }
 
       if (isValid) {
@@ -1852,7 +1854,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
 
         // update the unavailable fs
         unavailableFs->push_back(*exrepIt);
-        eos_warning("msg=\"%s\" fsid=%%lu", msg.c_str(), *exrepIt);
+        eos_warning("msg=\"%s\" fsid=%lu", msg.c_str(), (unsigned long)*exrepIt);
       }
     }
   }
