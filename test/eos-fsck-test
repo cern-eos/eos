@@ -201,10 +201,14 @@ function corrupt_orphan() {
   # Extract the fxid and local path, trim the input
   local FSID=$(echo "${CMD_OUT}" | head -n1 | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
   local LPATH=$(echo "${CMD_OUT}" | tail -n1)
-  # Do it twice to force delete the filemd object
+  # Do it twice to force delete the filemd object and set the file system off
+  # so that the deletion message is not sent before we drop the list of
+  # deletions.
+  exec_cmd eos-mgm1 "eos fs config ${FSID} configstatus=off"
   exec_cmd eos-mgm1 "eos rm -F fxid:${FXID_ORPHAN}"
   exec_cmd eos-mgm1 "eos rm -F fxid:${FXID_ORPHAN}"
   exec_cmd eos-mgm1 "eos fs dropdeletion ${FSID}"
+  exec_cmd eos-mgm1 "eos fs config ${FSID} configstatus=rw"
 }
 
 # Configure fsck to run more often and reduce the scan times
