@@ -85,7 +85,6 @@ private:
 class GroupBalancer
 {
 public:
-
   //----------------------------------------------------------------------------
   //! Constructor (per space)
   //
@@ -124,7 +123,7 @@ private:
   double mAvgUsedSize;
   /// last time the groups' real used space was checked
   time_t mLastCheck;
-  /// transfers scheduled (maps files' ids with their path in proc)
+  //! Scheduled transfers (maps fid to path in proc)
   std::map<eos::common::FileId::fileid_t, std::string> mTransfers;
 
   //----------------------------------------------------------------------------
@@ -214,10 +213,10 @@ private:
   bool cacheExpired(void);
 
   //----------------------------------------------------------------------------
-  //! For each entry in mTransfers, checks if the files' paths exist, if they
-  //! don't, they are deleted from the mTransfers
+  //! For each entry in mTransfers, check if the file was transfered and remove
+  //! it from the list
   //----------------------------------------------------------------------------
-  void updateTransferList(void);
+  void UpdateTransferList(void);
 };
 
 EOSMGMNAMESPACE_END

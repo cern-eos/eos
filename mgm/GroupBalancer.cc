@@ -292,19 +292,26 @@ GroupBalancer::getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
 // don't, they are deleted from the mTransfers
 //------------------------------------------------------------------------------
 void
-GroupBalancer::updateTransferList()
-
+GroupBalancer::UpdateTransferList()
 {
   for (auto it = mTransfers.begin(); it != mTransfers.end();) {
-    eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
-    XrdOucErrInfo error;
-    const std::string& fileName = (*it).second;
-    struct stat buf;
-
-    if (gOFS->_stat(fileName.c_str(), &buf, error, rootvid, "")) {
-      mTransfers.erase(it++);
+    if (gOFS->mConverterDriver) {
+      if (!gOFS->mFidTracker.HasEntry(it->first)) {
+        mTransfers.erase(it++);
+      } else {
+        ++it;
+      }
     } else {
-      ++it;
+      struct stat buf;
+      XrdOucErrInfo error;
+      eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
+      const std::string& fileName = (*it).second;
+
+      if (gOFS->_stat(fileName.c_str(), &buf, error, rootvid, "")) {
+        mTransfers.erase(it++);
+      } else {
+        ++it;
+      }
     }
   }
 
@@ -346,7 +353,7 @@ GroupBalancer::scheduleTransfer(eos::common::FileId::fileid_t fid,
                       "src_grp=\"%s\" dst_grp=\"%s\"", conv_tag.c_str(),
                       sourceGroup->mName.c_str(), targetGroup->mName.c_str());
     } else {
-      eos_static_err("msg=\"grp_balance failed to schedule job\" "
+      eos_static_err("msg=\"grp_balance could not to schedule job\" "
                      "file=\"%s\" src_grp=\"%s\" dst_grp=\"%s\"",
                      conv_tag.c_str(), sourceGroup->mName.c_str(),
                      targetGroup->mName.c_str());
@@ -531,18 +538,21 @@ GroupBalancer::prepareTransfers(int nrTransfers)
 void
 GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
 {
+  int num_tx = 0;
+  bool is_enabled = true;
+  uint64_t timeout_ns = 100 * 1e6; // 100 ms
   gOFS->WaitUntilNamespaceIsBooted();
-  assistant.wait_for(std::chrono::seconds(10));
   eos_static_info("%s", "msg=\"starting group balancer thread\"");
 
   // Loop forever until cancelled
   while (!assistant.terminationRequested()) {
-    bool isSpaceGroupBalancer = true;
-    bool isMaster = true;
-    int nrTransfers = 0;
-    // Extract the current settings if conversion enabled and how many
-    // conversion jobs should run
-    uint64_t timeout_ns = 100 * 1e6; // 100 ms
+    assistant.wait_for(std::chrono::seconds(10));
+
+    if (!gOFS->mMaster->IsMaster()) {
+      assistant.wait_for(std::chrono::seconds(10));
+      eos_static_debug("%s", "msg=\"group balancer disabled for slave mode\"");
+      continue;
+    }
 
     // Try to read lock the mutex
     while (!FsView::gFsView.ViewMutex.TimedRdLock(timeout_ns)) {
@@ -553,53 +563,47 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
 
     if (!FsView::gFsView.mSpaceGroupView.count(mSpaceName.c_str())) {
       FsView::gFsView.ViewMutex.UnLockRead();
+      eos_static_warning("msg=\"no groups to balance\" space=\"%s\"",
+                         mSpaceName.c_str());
       break;
     }
 
     FsSpace* space = FsView::gFsView.mSpaceView[mSpaceName.c_str()];
+    is_enabled = space->GetConfigMember("groupbalancer") == "on";
+    num_tx = atoi(space->GetConfigMember("groupbalancer.ntx").c_str());
+    mThreshold = atof(space->GetConfigMember("groupbalancer.threshold").c_str()) /
+                 100.0;
+
+    if (!is_enabled) {
+      FsView::gFsView.ViewMutex.UnLockRead();
+      eos_static_debug("msg=\"group balancer disabled\" space=\"%s\"",
+                       mSpaceName.c_str());
+      continue;
+    }
 
     if (space->GetConfigMember("converter") != "on") {
-      eos_static_debug("Converter is off for! It needs to be on "
-                       "for the group balancer to work. space=%s",
-                       mSpaceName.c_str());
       FsView::gFsView.ViewMutex.UnLockRead();
-      goto wait;
+      eos_static_debug("msg=\"group balancer needs the converter to be enabled\""
+                       "space=\"%s\"", mSpaceName.c_str());
+      continue;
     }
 
-    isSpaceGroupBalancer = space->GetConfigMember("groupbalancer") == "on";
-    nrTransfers = atoi(space->GetConfigMember("groupbalancer.ntx").c_str());
-    mThreshold = atof(space->GetConfigMember("groupbalancer.threshold").c_str());
-    mThreshold /= 100.0;
     FsView::gFsView.ViewMutex.UnLockRead();
-    isMaster = gOFS->mMaster->IsMaster();
+    eos_static_info("msg=\"group balancer enabled\" ntx=%d ", num_tx);
+    UpdateTransferList();
 
-    if (isMaster && isSpaceGroupBalancer) {
-      eos_static_info("groupbalancer is enabled ntx=%d ", nrTransfers);
-      updateTransferList();
-
-      if ((int) mTransfers.size() >= nrTransfers) {
-        goto wait;
-      }
-
-      if (cacheExpired()) {
-        populateGroupsInfo();
-        printSizes(&mGroupSizes);
-      } else {
-        recalculateAvg();
-      }
-
-      prepareTransfers(nrTransfers);
-    } else {
-      if (isMaster) {
-        eos_static_debug("group balancer is disabled");
-      } else {
-        eos_static_debug("group balancer is in slave mode");
-      }
+    if ((int) mTransfers.size() >= num_tx) {
+      continue;
     }
 
-wait:
-    // Wait for a while ...
-    assistant.wait_for(std::chrono::seconds(10));
+    if (cacheExpired()) {
+      populateGroupsInfo();
+      printSizes(&mGroupSizes);
+    } else {
+      recalculateAvg();
+    }
+
+    prepareTransfers(num_tx);
   }
 }
 

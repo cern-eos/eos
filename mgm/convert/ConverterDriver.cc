@@ -75,17 +75,11 @@ ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
 
         if (conversion_info != nullptr) {
           auto job = std::make_shared<ConversionJob>(fid, *conversion_info.get());
-
-          if (!gOFS->mFidTracker.AddEntry(fid, TrackerType::Convert)) {
-            eos_static_debug("msg=\"skip recently scheduled file\" fxid=%08llx",
-                             it.getValue().c_str());
-          } else {
-            mThreadPool.PushTask<void>([job]() {
-              return job->DoIt();
-            });
-            eos::common::RWMutexWriteLock wlock(mJobsMutex);
-            mJobsRunning.push_back(job);
-          }
+          mThreadPool.PushTask<void>([job]() {
+            return job->DoIt();
+          });
+          eos::common::RWMutexWriteLock wlock(mJobsMutex);
+          mJobsRunning.push_back(job);
         } else {
           eos_err("msg=\"invalid conversion scheduled\" fxid=%08llx "
                   "conversion_id=%s", fid, it.getValue().c_str());
@@ -183,6 +177,11 @@ bool
 ConverterDriver::ScheduleJob(const eos::IFileMD::id_t& id,
                              const std::string& conversion_info)
 {
+  if (!gOFS->mFidTracker.AddEntry(id, TrackerType::Convert)) {
+    eos_static_debug("msg=\"skip recently scheduled file\" fxid=%08llx", id);
+    return false;
+  }
+
   return mQdbHelper.AddPendingJob(std::make_pair(id, conversion_info));
 }
 
