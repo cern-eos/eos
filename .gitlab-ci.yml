@@ -923,12 +923,9 @@ unit_test_asan:
 
 .publish_koji_template: &publish_koji_template_definition
   stage: publish
-  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  image: gitlab-registry.cern.ch/linuxsupport/rpmci/kojicli
   script:
     - yum install --nogpg -y sssd-client
-    - yum install -y koji
-    - mkdir ~/.koji
-    - echo -e '[koji]\nserver = https://kojihub.cern.ch/kojihub\nweburl = https://koji.cern.ch/\ntopurl = https://koji.cern.ch/kojifiles\nkrb_canon_host = no\nkrb_rdns = False\n' >> ~/.koji/config
     - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
     - koji build ${TARGET} ${BUILD_NAME}_artifacts/SRPMS/*.src.rpm
   only:
