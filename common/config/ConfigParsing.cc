@@ -53,6 +53,13 @@ bool ConfigParsing::parseFilesystemConfig(const std::string& config,
     std::vector<std::string> keyval;
     // Split based on "="
     eos::common::StringConversion::Tokenize(tokens[i], keyval, "=");
+
+    if (keyval.size() != 2) {
+      eos_static_error("msg=\"failed to parse expected key=val pair\" "
+                       "input=\"%s\"", tokens[i]);
+      continue;
+    }
+
     std::string sval = keyval[1];
 
     // Curl decode string literal value
@@ -85,22 +92,25 @@ bool ConfigParsing::parseFilesystemConfig(const std::string& config,
 //------------------------------------------------------------------------------
 // Relocate a filesystem to a different FST
 //------------------------------------------------------------------------------
-Status ConfigParsing::relocateFilesystem(const std::string &newFstHost, int newFstPort,
-   std::map<std::string, std::string> &configEntry) {
-
+Status ConfigParsing::relocateFilesystem(const std::string& newFstHost,
+    int newFstPort,
+    std::map<std::string, std::string>& configEntry)
+{
   eos::common::FileSystemLocator locator;
-  if(!common::FileSystemLocator::fromQueuePath(configEntry["queuepath"], locator)) {
-    return Status(EINVAL, SSTR("could not parse queuepath: " << configEntry["queuepath"]));
+
+  if (!common::FileSystemLocator::fromQueuePath(configEntry["queuepath"],
+      locator)) {
+    return Status(EINVAL, SSTR("could not parse queuepath: " <<
+                               configEntry["queuepath"]));
   }
 
-  locator = eos::common::FileSystemLocator(newFstHost, newFstPort, locator.getStoragePath());
-
+  locator = eos::common::FileSystemLocator(newFstHost, newFstPort,
+            locator.getStoragePath());
   configEntry["host"] = newFstHost;
   configEntry["port"] = SSTR(newFstPort);
   configEntry["hostport"] = SSTR(newFstHost << ":" << newFstPort);
   configEntry["queue"] = locator.getFSTQueue();
   configEntry["queuepath"] = locator.getQueuePath();
-
   return Status();
 }
 

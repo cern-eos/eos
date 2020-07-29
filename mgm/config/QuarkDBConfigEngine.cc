@@ -53,7 +53,7 @@ QuarkDBCfgEngineChangelog::QuarkDBCfgEngineChangelog(qclient::QClient* client)
 // Add entry to the changelog
 //------------------------------------------------------------------------------
 void QuarkDBCfgEngineChangelog::AddEntry(const std::string& action,
-    const std::string& key, const std::string& value, const std::string &comment)
+    const std::string& key, const std::string& value, const std::string& comment)
 {
   // Add entry to the set
   std::ostringstream oss;
@@ -63,7 +63,7 @@ void QuarkDBCfgEngineChangelog::AddEntry(const std::string& action,
     oss << " " << key.c_str() << " => " << value.c_str();
   }
 
-  if(!comment.empty()) {
+  if (!comment.empty()) {
     oss << " [" << comment << "]";
   }
 
@@ -154,9 +154,9 @@ QuarkDBConfigEngine::LoadConfig(const std::string& filename, XrdOucString& err,
   }
 
   ResetConfig(apply_stall_redirect);
-
   common::Status st = PullFromQuarkDB(filename);
-  if(!st) {
+
+  if (!st) {
     err = st.toString().c_str();
     return false;
   }
@@ -194,7 +194,8 @@ QuarkDBConfigEngine::SaveConfig(std::string filename, bool overwrite,
   if (!overwrite) {
     bool exists = true;
     common::Status st = mConfigHandler->checkExistence(filename, exists);
-    if(!st.ok() || exists) {
+
+    if (!st.ok() || exists) {
       errno = EEXIST;
       err = "error: a configuration with name \"";
       err += filename.c_str();
@@ -211,7 +212,6 @@ QuarkDBConfigEngine::SaveConfig(std::string filename, bool overwrite,
   }
 
   changeLogValue << " successfully";
-
   mChangelog->AddEntry("saved config", filename, changeLogValue.str(), comment);
   mConfigFile = filename.c_str();
   auto end = steady_clock::now();
@@ -229,10 +229,10 @@ bool
 QuarkDBConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
 
 {
-
   std::vector<std::string> configs, backups;
   common::Status status = mConfigHandler->listConfigurations(configs, backups);
-  if(!status) {
+
+  if (!status) {
     configlist += "error: ";
     configlist += status.toString().c_str();
     return false;
@@ -241,11 +241,11 @@ QuarkDBConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
   configlist = "Existing Configurations on QuarkDB\n";
   configlist += "================================\n";
 
-  for(auto it = configs.begin(); it != configs.end(); it++) {
+  for (auto it = configs.begin(); it != configs.end(); it++) {
     configlist += "name: ";
     configlist += it->c_str();
 
-    if(*it == mConfigFile.c_str()) {
+    if (*it == mConfigFile.c_str()) {
       configlist += " *";
     }
 
@@ -257,7 +257,7 @@ QuarkDBConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
     configlist += "Existing Backup Configurations on QuarkDB\n";
     configlist += "=======================================\n";
 
-    for(auto it = backups.begin(); it != backups.end(); it++) {
+    for (auto it = backups.begin(); it != backups.end(); it++) {
       configlist += "name: ";
       configlist += it->c_str();
       configlist += "\n";
@@ -270,17 +270,19 @@ QuarkDBConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
 //------------------------------------------------------------------------------
 // Cleanup thread
 //------------------------------------------------------------------------------
-void QuarkDBConfigEngine::cleanupThread(ThreadAssistant &assistant) {
-  while(!assistant.terminationRequested()) {
+void QuarkDBConfigEngine::cleanupThread(ThreadAssistant& assistant)
+{
+  while (!assistant.terminationRequested()) {
     assistant.wait_for(std::chrono::minutes(30));
 
-    if(!assistant.terminationRequested()) {
+    if (!assistant.terminationRequested()) {
       size_t deleted;
       common::Status st = mConfigHandler->trimBackups("default", 1000, deleted);
-      if(!st) {
-        eos_static_crit("unable to clean configuration backups: %s", st.toString().c_str());
-      }
-      else {
+
+      if (!st) {
+        eos_static_crit("unable to clean configuration backups: %s",
+                        st.toString().c_str());
+      } else {
         eos_static_info("deleted %d old configuration backups", deleted);
       }
     }
@@ -291,18 +293,22 @@ void QuarkDBConfigEngine::cleanupThread(ThreadAssistant &assistant) {
 // Pull the configuration from QuarkDB
 //------------------------------------------------------------------------------
 common::Status
-QuarkDBConfigEngine::PullFromQuarkDB(const std::string &configName)
+QuarkDBConfigEngine::PullFromQuarkDB(const std::string& configName)
 {
   std::lock_guard lock(mMutex);
-  common::Status st = mConfigHandler->fetchConfiguration(configName, sConfigDefinitions);
-  if(!st) {
+  common::Status st = mConfigHandler->fetchConfiguration(configName,
+                      sConfigDefinitions);
+
+  if (!st) {
     return st;
   }
 
   sConfigDefinitions.erase("timestamp");
 
-  for(auto it = sConfigDefinitions.begin(); it != sConfigDefinitions.end(); it++) {
-    eos_notice("setting config key=%s value=%s", it->first.c_str(), it->second.c_str());
+  for (auto it = sConfigDefinitions.begin(); it != sConfigDefinitions.end();
+       it++) {
+    eos_notice("setting config key=\"%s\" value=\"%s\"", it->first.c_str(),
+               it->second.c_str());
   }
 
   return common::Status();
@@ -312,17 +318,18 @@ QuarkDBConfigEngine::PullFromQuarkDB(const std::string &configName)
 // Filter the configuration and store in output string
 //------------------------------------------------------------------------------
 void
-QuarkDBConfigEngine::FilterConfig(std::ostream& out, const std::string &configName)
+QuarkDBConfigEngine::FilterConfig(std::ostream& out,
+                                  const std::string& configName)
 {
   std::map<std::string, std::string> config;
   common::Status st = mConfigHandler->fetchConfiguration(configName, config);
 
-  if(!st) {
+  if (!st) {
     out << st.toString();
     return;
   }
 
-  for(auto it = config.begin(); it != config.end(); it++) {
+  for (auto it = config.begin(); it != config.end(); it++) {
     out << it->first << " => " << it->second << "\n";
   }
 }
@@ -433,9 +440,11 @@ QuarkDBConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
 //------------------------------------------------------------------------------
 // Check write configuration result
 //------------------------------------------------------------------------------
-void checkWriteConfigurationResult(common::Status st) {
-  if(!st.ok()) {
-    eos_static_crit("Failed to save MGM configuration !!!! %s", st.toString().c_str());
+void checkWriteConfigurationResult(common::Status st)
+{
+  if (!st.ok()) {
+    eos_static_crit("Failed to save MGM configuration !!!! %s",
+                    st.toString().c_str());
   }
 }
 
@@ -446,10 +455,10 @@ void QuarkDBConfigEngine::storeIntoQuarkDB(const std::string& name)
 {
   std::lock_guard lock(mMutex);
   clearDeprecated(sConfigDefinitions);
-
-  mConfigHandler->writeConfiguration(name, sConfigDefinitions, true, formatBackupTime(time(NULL)))
-    .via(mExecutor.get())
-    .thenValue(std::bind(checkWriteConfigurationResult, _1));
+  mConfigHandler->writeConfiguration(name, sConfigDefinitions, true,
+                                     formatBackupTime(time(NULL)))
+  .via(mExecutor.get())
+  .thenValue(std::bind(checkWriteConfigurationResult, _1));
 }
 
 EOSMGMNAMESPACE_END
