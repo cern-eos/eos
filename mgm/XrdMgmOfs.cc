@@ -1446,7 +1446,10 @@ XrdMgmOfs::WriteRmRecord(const std::shared_ptr<eos::IFileMD>& fmd)
            ts_now.tv_sec, ts_now.tv_nsec, ctime.tv_sec, ctime.tv_nsec,
            mtime.tv_sec, mtime.tv_nsec, fmd->getSize());
   std::string record = report;
-  IoStats->WriteRecord(record);
+  
+  if (IoStats) {
+    IoStats->WriteRecord(record);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -1475,7 +1478,10 @@ XrdMgmOfs::WriteRecycleRecord(const std::shared_ptr<eos::IFileMD>& fmd)
            ts_now.tv_sec, ts_now.tv_nsec, ctime.tv_sec, ctime.tv_nsec,
            mtime.tv_sec, mtime.tv_nsec, fmd->getSize());
   std::string record = report;
-  IoStats->WriteRecord(record);
+  
+  if (IoStats) {
+    IoStats->WriteRecord(record);
+  }
 }
 
 //------------------------------------------------------------------------------
