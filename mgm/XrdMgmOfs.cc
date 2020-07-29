@@ -398,6 +398,8 @@ XrdMgmOfs::OrderlyShutdown()
     delete mZmqContext;
   }
 
+  eos_warning("%s", "msg=\"stopping and deleting the Converter engine\"");
+  mConverterDriver.reset();
   eos_warning("%s", "msg=\"stopping central drainning\"");
   mDrainEngine.Stop();
   eos_warning("%s", "msg=\"stopping geotree engine updater\"");
@@ -435,8 +437,6 @@ XrdMgmOfs::OrderlyShutdown()
     WFEPtr.reset();
   }
 
-  eos_warning("%s", "msg=\"stopping and deleting the Converter engine\"");
-  mConverterDriver.reset();
   eos_warning("%s", "msg=\"stopping and deleting the LRU engine\"");
   mLRUEngine.reset();
 
