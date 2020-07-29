@@ -55,8 +55,8 @@ bool ConfigParsing::parseFilesystemConfig(const std::string& config,
     eos::common::StringConversion::Tokenize(tokens[i], keyval, "=");
 
     if (keyval.size() != 2) {
-      eos_static_error("msg=\"failed to parse expected key=val pair\" "
-                       "input=\"%s\"", tokens[i]);
+      eos_static_err("msg=\"failed to parse expected key=val pair\" "
+                     "input=\"%s\"", tokens[i].c_str());
       continue;
     }
 
