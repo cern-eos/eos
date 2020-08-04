@@ -77,7 +77,22 @@ ProcCommand::Fileinfo()
     XrdOucString sfid = spath;
 
     if ((sfid.replace("inode:", ""))) {
-      fid = strtoull(sfid.c_str(), 0, 10);
+      size_t pos = 0;
+
+      try {
+        fid = std::stoull(sfid.c_str(), &pos, 10);
+      } catch (...) {
+        stdErr = "error: inode option takes a fuse inode decimal value";
+        retc = EINVAL;
+        return SFS_OK;
+      }
+
+      if (pos != sfid.length()) {
+        stdErr = "error: inode option takes a fuse inode decimal value - some "
+                 "characters were not converted";
+        retc = EINVAL;
+        return SFS_OK;
+      }
 
       if (eos::common::FileId::IsFileInode(fid)) {
         buf.st_mode = S_IFREG;
