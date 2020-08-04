@@ -139,7 +139,13 @@ ProcCommand::FileInfo(const char* path)
         nspath = gOFS->eosView->getUri(fmd.get());
 
         if (fmd->isLink()) {
-          spath = gOFS->eosView->getRealPath(nspath).c_str();
+          try {
+            spath = gOFS->eosView->getRealPath(nspath).c_str();
+          } catch (const eos::MDException& e) {
+            // The link points to a location outside the EOS namespace therefore
+            // we return info about the symlink object
+            spath = nspath.c_str();
+          }
         } else {
           spath = nspath.c_str();
         }
@@ -160,6 +166,20 @@ ProcCommand::FileInfo(const char* path)
 
       try {
         fmd = gOFS->eosView->getFile(spath.c_str());
+      } catch (eos::MDException& e) {
+        try {
+          // Maybe this is a symlink pointing outside the EOS namespace
+          fmd = gOFS->eosView->getFile(spath.c_str(), false);
+        } catch (eos::MDException& ee) {
+          errno = ee.getErrno();
+          stdErr = "error: cannot retrieve file meta data - ";
+          stdErr += ee.getMessage().str().c_str();
+          eos_debug("msg=\"exception retrieving file metadata\" ec=%d "
+                    "emsg=\"%s\"\n", ee.getErrno(), ee.getMessage().str().c_str());
+        }
+      }
+
+      if (fmd) {
         std::string nspath = gOFS->eosView->getUri(fmd.get());
 
         if (fmd->isLink()) {
@@ -167,12 +187,6 @@ ProcCommand::FileInfo(const char* path)
         } else {
           spath = nspath.c_str();
         }
-      } catch (eos::MDException& e) {
-        errno = e.getErrno();
-        stdErr = "error: cannot retrieve file meta data - ";
-        stdErr += e.getMessage().str().c_str();
-        eos_debug("msg=\"exception retrieving file metadata\" ec=%d "
-                  "emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
       }
     }
 
