@@ -41,9 +41,9 @@ public:
       case LayoutId::kNone:   cs->set_type(cta::common::ChecksumBlob::Checksum::NONE);    break;
       case LayoutId::kAdler:  cs->set_type(cta::common::ChecksumBlob::Checksum::ADLER32); break;
       case LayoutId::kCRC32:  cs->set_type(cta::common::ChecksumBlob::Checksum::CRC32);   break;
-      case LayoutId::kMD5:    cs->set_type(cta::common::ChecksumBlob::Checksum::CRC32C);  break;
-      case LayoutId::kSHA1:   cs->set_type(cta::common::ChecksumBlob::Checksum::MD5);     break;
-      case LayoutId::kCRC32C: cs->set_type(cta::common::ChecksumBlob::Checksum::SHA1);    break;
+      case LayoutId::kMD5:    cs->set_type(cta::common::ChecksumBlob::Checksum::MD5);     break;
+      case LayoutId::kSHA1:   cs->set_type(cta::common::ChecksumBlob::Checksum::SHA1);    break;
+      case LayoutId::kCRC32C: cs->set_type(cta::common::ChecksumBlob::Checksum::CRC32C);  break;
       // Follows the behaviour of LayoutId::GetChecksumString():
       // unknown enum values set checksum type to None rather than throwing an exception
       default:                cs->set_type(cta::common::ChecksumBlob::Checksum::NONE);
