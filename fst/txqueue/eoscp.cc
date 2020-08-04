@@ -1447,7 +1447,7 @@ main(int argc, char* argv[])
 
       while ((pos = file_path.find("/", pos + 1)) != STR_NPOS) {
         XrdOucString subpath = file_path;
-        subpath.erase(pos + 1);
+        subpath.erase(pos);
 
         switch (dst_type[i]) {
         case LOCAL_ACCESS: {
@@ -1494,7 +1494,7 @@ main(int argc, char* argv[])
               fprintf(stdout, "[eoscp]: doing XROOT mkdir on %s\n", subpath.c_str());
             }
 
-            status = fs.MkDir(subpath.c_str(), XrdCl::MkDirFlags::MakePath,
+            status = fs.MkDir(subpath.c_str(), XrdCl::MkDirFlags::None,
                               (XrdCl::Access::Mode)mode);
 
             if (!status.IsOK()) {
