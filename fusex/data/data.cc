@@ -109,11 +109,18 @@ data::get(fuse_req_t req,
       datamap.Lock();
     }
 
-    shared_data io = std::make_shared<datax>(md);
-    io->set_id(ino, req);
-    datamap[(fuse_ino_t) io->id()] = io;
-    io->attach();
-    return io;
+    if (datamap.count(ino)) {
+      // might have been created in the meanwhile
+      shared_data io = datamap[ino];
+      io->attach(); // client ref counting
+      return io;
+    } else {
+      shared_data io = std::make_shared<datax>(md);
+      io->set_id(ino, req);
+      datamap[(fuse_ino_t) io->id()] = io;
+      io->attach();
+      return io;
+    }
   }
 }
 
@@ -234,9 +241,11 @@ data::unlink(fuse_req_t req, fuse_ino_t ino)
     // put the unlinked inode in a high bucket, will be removed by the flush thread
     {
       XrdSysMutexHelper mLock(datamap);
-      datamap[ino + 0xffffffff] = datamap[ino];
-      datamap.erase(ino);
-      eos_static_info("datacache::unlink size=%lu", datamap.size());
+      if (datamap.count(ino)) {
+	datamap[ino + 0xffffffff] = datamap[ino];
+	datamap.erase(ino);
+	eos_static_info("datacache::unlink size=%lu", datamap.size());
+      }
     }
   } else {
     shared_data io = std::make_shared<datax>();
@@ -2847,7 +2856,9 @@ data::dmap::ioflush(ThreadAssistant& assistant)
         XrdSysMutexHelper mLock(this);
 
         for (auto it = this->begin(); it != this->end(); ++it) {
-          data.push_back(it->second);
+	  if (it->second) {
+	    data.push_back(it->second);
+	  }
         }
       }
 
