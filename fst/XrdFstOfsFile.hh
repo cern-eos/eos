@@ -256,6 +256,7 @@ public:
   bool mIsDevNull; ///< If true file act as a sink i.e. /dev/null
   bool isCreation; //! indicator that a new file is created
   bool isReplication; //! indicator that the opened file is a replica transfer
+  bool noAtomicVersioning; //! indicate to disable atomic/versioning during commit
   //! Indicate that the opened file is a file injection where the size and
   //! checksum must match
   bool mIsInjection;

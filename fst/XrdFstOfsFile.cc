@@ -56,7 +56,7 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   mFileId(0), mFsId(0), mLid(0), mCid(0), mForcedMtime(1), mForcedMtime_ms(0),
   mFusex(false), mFusexIsUnlinked(false), closed(false), mOpened(false),
   mHasWrite(false), hasWriteError(false), hasReadError(false), mIsRW(false),
-  mIsDevNull(false), isCreation(false), isReplication(false),
+  mIsDevNull(false), isCreation(false), isReplication(false), noAtomicVersioning(false),
   mIsInjection(false), mRainReconstruct(false), deleteOnClose(false),
   repairOnClose(false), mIsOCchunk(false), writeErrorFlag(false),
   mEventOnClose(false), mEventWorkflow(""),
@@ -250,6 +250,10 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     }
 
     if (mIsRW || (mCapOpaque->Get("mgm.zerosize"))) {
+      if (!mIsRW && mCapOpaque->Get("mgm.zerosize")) {
+	// this commit should not call the versioning/atomic functionality
+	noAtomicVersioning = true;
+      }
       // File does not exist, keep the create flag for writers and readers with 0-size at MGM
       mIsRW = true;
       isCreation = true;
@@ -1380,6 +1384,11 @@ XrdFstOfsFile::_close()
             if (mHasWrite) {
               capOpaqueFile += "&mgm.modified=1";
             }
+
+	    if (noAtomicVersioning) {
+	      // prevent atomic/versioning on commmit
+	      capOpaqueFile += "&mgm.commit.verify=1";
+	    }
 
             capOpaqueFile += "&mgm.add.fsid=";
             capOpaqueFile += (int) mFmd->mProtoFmd.fsid();

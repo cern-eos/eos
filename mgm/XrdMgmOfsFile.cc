@@ -390,6 +390,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   bool isFuse = false;
   // flag indiciating an atomic upload where a file get's a hidden unique name and is renamed when it is closed
   bool isAtomicUpload = false;
+  // flag indicationg an atomic file name
+  bool isAtomicName = false;
+
   // flag indicating a new injection - upload of a file into a stub without physical location
   bool isInjection = false;
   // flag indicating to drop the current disk replica in the policy space
@@ -509,6 +512,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   if (isRW && RedirectTpcAccess()) {
     return SFS_REDIRECT;
   }
+
 
   {
     // figure out if this is FUSE access
@@ -731,6 +735,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   eos::common::Path cPath(path);
   // indicate the scope for a possible token
   vid.scope = cPath.GetPath();
+
+  if (cPath.isAtomicFile()) {
+    isAtomicName = true;
+  }
 
   // prevent any access to a recycling bin for writes
   if (isRW && cPath.GetFullPath().beginswith(Recycle::gRecyclingPrefix.c_str())) {
@@ -1537,8 +1545,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
   }
 
-  // 0-size files can be read from the MGM if this is not FUSE access!
-  if (!isRW && !isFuse && !fmd->getSize()) {
+  // 0-size files can be read from the MGM if this is not FUSE access! Atomic files are only served from here!
+  if (!isRW && (!isFuse || isAtomicName) && !fmd->getSize()) {
     isZeroSizeFile = true;
     return SFS_OK;
   }
