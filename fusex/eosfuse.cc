@@ -3200,6 +3200,8 @@ EROFS  pathname refers to a file on a read-only filesystem.
       if (md->id() && !md->deleted()) {
         rc = EEXIST;
       } else {
+	md->set_id(0);
+	md->set_md_ino(0);
         md->set_err(0);
         md->set_mode(mode | S_IFDIR);
         struct timespec ts;
