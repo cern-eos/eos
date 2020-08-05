@@ -15,6 +15,38 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.8.11 Citrine``
+===================
+
+2020-08-05
+
+Bug
+----
+
+* [EOS-3711] - XrdMgmOfs::mkdir does not honor mode parameter
+* [EOS-3843] - Avoid to accept "unacceptable" block sizes (sys.forced.blocksize)
+* [EOS-3991] - Trying to stat symbolic links in Recycle bin
+* [EOS-4153] - Misleading error for lock order check when using timed locks
+* [EOS-4279] - MGM restart corrupts mtime in a directory after mkdir + quota node creation
+* [EOS-4319] - eos-ns-inspect reports wrong value for some extended attributes
+* [EOS-4367] - eoscp check if hierarchy exists before attempting to create it
+* [EOS-4369] - eos commands try to follow (non-EOS) symlinks
+
+Task
+-----
+
+* [EOS-3775] - Rename stat.drain.* and friends to local.drain.*
+* [EOS-4280] - User with no files and no quota limit should be removed from the list regardless of MGM restart?
+* [EOS-4293] - Add JSON format for `eos who`
+
+Improvement
+------------
+
+* [EOS-4308] - Update documentation for migrating to QDB config
+* [EOS-4318] - Include extended attributes in eos-ns-inspect print
+* [EOS-4371] - "eos file info inode": give error on "hex" input
+
+
 ``v4.8.10 Citrine``
 ===================
 
