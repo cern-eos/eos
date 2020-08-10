@@ -1110,8 +1110,8 @@ clean_k8s_cluster:
   stage: clean
   script:
     - set +o pipefail
-    - export KUBECONFIG=$K8S_CONFIG
-    - kubectl get pods --no-headers --all-namespaces |
+    - . /home/gitlab-runner/coe-cluster-config/st-gitlab-k8s-02/env_st-gitlab-k8s-02.sh # get access configs for the cluster
+    - kubectl get pods --no-headers --all-namespaces | 
       grep -E 'ImagePullBackOff|ErrImagePull|Evicted' | 
       awk '{print $2 " --namespace=" $1}' | 
       xargs --no-run-if-empty -n2 kubectl delete pods

@@ -1,6 +1,6 @@
 #!/bin/bash -ve
 
-export KUBECONFIG=$K8S_CONFIG # get access configs for the cluster
+source /home/gitlab-runner/coe-cluster-config/st-gitlab-k8s-02/env_st-gitlab-k8s-02.sh # get access configs for the cluster
 export K8S_NAMESPACE=$(echo ${CI_JOB_NAME}-${CI_JOB_ID}-${CI_PIPELINE_ID} | tr '_' '-' | tr '[:upper:]' '[:lower:]')
 ./eos-on-k8s/collect_logs.sh ${K8S_NAMESPACE} eos-logs-${CI_JOB_ID}/
 ./eos-on-k8s/delete-all.sh ${K8S_NAMESPACE}
