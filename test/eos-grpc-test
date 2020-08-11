@@ -9,6 +9,7 @@ test -z "$1" && exit -1
 
 authkey=12345678
 
+eos vid add gateway "127.0.0.1" grpc
 eos vid add gateway "[:1]" grpc
 eos vid set map -grpc key:$authkey vuid:11
 eos vid set map -grpc key:$authkey vgid:11
