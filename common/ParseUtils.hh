@@ -91,7 +91,7 @@ inline long long ParseLongLong(const std::string& str)
 //------------------------------------------------------------------------------
 //! Parse a long long - behave exactly the same as old XrdMq "GetDouble".
 //------------------------------------------------------------------------------
-inline long long ParseDouble(const std::string& str)
+inline double ParseDouble(const std::string& str)
 {
   if (str.length()) {
     return atof(str.c_str());
