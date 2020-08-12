@@ -7,6 +7,7 @@ fi
 
 EOS_VERSION=$1
 INSTALL_DIR=$2
+NORM_INSTALL_DIR="`cd "${INSTALL_DIR}";pwd`"
 
 create_dmg_with_icon() {
 set -e
@@ -41,22 +42,15 @@ mkdir -p /tmp/eos.dst/usr/local/bin/
 mkdir -p /tmp/eos.dst/usr/local/lib/
 make install DESTDIR=/tmp/eos.dst/
 
-# Copy non-XRootD dependencies e.g openssl, ncurses
-for NAME in `otool -L $INSTALL_DIR/usr/local/bin/eosd | grep -v rpath | grep /usr/local/ | awk '{print $1}' | grep -v ":" | grep -v libosxfuse | grep -v libXrd`; do
-echo $NAME
-if [ -n "$NAME" ];  then
-  sn=`echo $NAME | awk -F "/" '{print $NF}'`
-  cp -v $NAME /tmp/eos.dst/usr/local/lib/$sn
-fi
-done
-
-# Copy eosxd dependencies
-for NAME in `otool -L $INSTALL_DIR/usr/local/bin/eosxd | grep -v rpath | grep /usr/local/ | awk '{print $1}' | grep -v ":" | grep -v libosxfuse | grep -v libXrd`; do
-echo $NAME
-if [ -n "$NAME" ];  then
-  sn=`echo $NAME | awk -F "/" '{print $NF}'`
-  cp -v $NAME /tmp/eos.dst/usr/local/lib/$sn
-fi
+# Copy non-XRootD dependencies e.g openssl, ncurses for eos, eosd and eosxd
+for EOS_EXEC in "$INSTALL_DIR/bin/eosd" "$INSTALL_DIR/bin/eosxd" "$INSTALL_DIR/bin/eos"; do
+  for NAME in `otool -L $EOS_EXEC | grep -v rpath | grep /usr/local/ | awk '{print $1}' | grep -v ":" | grep -v libosxfuse | grep -v libXrd`; do
+    echo $NAME
+    if [ -n "$NAME" ];  then
+      sn=`echo $NAME | awk -F "/" '{print $NF}'`
+      cp -v $NAME /tmp/eos.dst/usr/local/lib/$sn
+    fi
+  done
 done
 
 # Copy XRootD dependencies
@@ -65,7 +59,7 @@ cp -v /usr/local/opt/xrootd/lib/libXrd* /tmp/eos.dst/usr/local/lib/
 cp -v /usr/local/opt/xrootd/bin/* /tmp/eos.dst/usr/local/bin/
 
 # exchange the eosx script with the eos binary
-mv /tmp/eos.dst/usr/local/bin/eos /tmp/eos.dst/usr/local/bin/eos.exe
+mv /tmp/eos.dst/$NORM_INSTALL_DIR/bin/eos /tmp/eos.dst/usr/local/bin/eos.exe
 cp -v ../utils/eosx /tmp/eos.dst/usr/local/bin/eos
 chmod ugo+rx /tmp/eos.dst/usr/local/bin/eos
 pkgbuild --install-location / --version $EOS_VERSION --identifier com.eos.pkg.app --root /tmp/eos.dst EOS.pkg
