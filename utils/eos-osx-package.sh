@@ -43,7 +43,7 @@ mkdir -p /tmp/eos.dst/usr/local/lib/
 make install DESTDIR=/tmp/eos.dst/
 
 # Copy non-XRootD dependencies e.g openssl, ncurses for eos, eosd and eosxd
-for EOS_EXEC in "$NORM_INSTALL_DIR/bin/eosd" "$NORM_INSTALL_DIR/bin/eosxd" "$NORM_INSTALL_DIR/bin/eos"; do
+for EOS_EXEC in "$DESTDIR/bin/eosd" "$DESTDIR/bin/eosxd" "$DESTDIR/bin/eos"; do
   for NAME in `otool -L $EOS_EXEC | grep -v rpath | grep /usr/local/ | awk '{print $1}' | grep -v ":" | grep -v libosxfuse | grep -v libXrd`; do
     echo $NAME
     if [ -n "$NAME" ];  then
