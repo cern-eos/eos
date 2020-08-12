@@ -20,7 +20,9 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
+if (NOT APPLE)
 add_subdirectory(etc)
 add_subdirectory(sbin)
 add_subdirectory(selinux)
 add_subdirectory(var)
+endif()
