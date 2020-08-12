@@ -36,14 +36,15 @@ if [ -n "$CODESIGN_IDENTITY" ]; then
 fi
 }
 
-rm -rf /tmp/eos.dst/
-mkdir -p /tmp/eos.dst/
-mkdir -p /tmp/eos.dst/usr/local/bin/
-mkdir -p /tmp/eos.dst/usr/local/lib/
-make install DESTDIR=/tmp/eos.dst/
+TMP_DEST=/tmp/eos.dst
+rm -rf ${TMP_DEST}
+mkdir -p ${TMP_DEST}
+mkdir -p ${TMP_DEST}/usr/local/bin/
+mkdir -p ${TMP_DEST}/usr/local/lib/
+make install DESTDIR=${TMP_DEST}/
 
 # Copy non-XRootD dependencies e.g openssl, ncurses for eos, eosd and eosxd
-for EOS_EXEC in "$DESTDIR/bin/eosd" "$DESTDIR/bin/eosxd" "$DESTDIR/bin/eos"; do
+for EOS_EXEC in "${TMP_DEST}/usr/local/bin/eosd" "${TMP_DEST}/usr/local/bin/eosxd" "${TMP_DEST}/usr/local/bin/eos"; do
   for NAME in `otool -L $EOS_EXEC | grep -v rpath | grep /usr/local/ | awk '{print $1}' | grep -v ":" | grep -v libosxfuse | grep -v libXrd`; do
     echo $NAME
     if [ -n "$NAME" ];  then
@@ -59,9 +60,9 @@ cp -v /usr/local/opt/xrootd/lib/libXrd* /tmp/eos.dst/usr/local/lib/
 cp -v /usr/local/opt/xrootd/bin/* /tmp/eos.dst/usr/local/bin/
 
 # exchange the eosx script with the eos binary
-mv /tmp/eos.dst/$NORM_INSTALL_DIR/bin/eos /tmp/eos.dst/usr/local/bin/eos.exe
-cp -v ../utils/eosx /tmp/eos.dst/usr/local/bin/eos
-chmod ugo+rx /tmp/eos.dst/usr/local/bin/eos
+mv ${TMP_DEST}/usr/local/bin/eos ${TMP_DEST}/usr/local/bin/eos.exe
+cp -v ../utils/eosx ${TMP_DEST}/usr/local/bin/eos
+chmod ugo+rx ${TMP_DEST}/usr/local/bin/eos
 pkgbuild --install-location / --version $EOS_VERSION --identifier com.eos.pkg.app --root /tmp/eos.dst EOS.pkg
 
 rm -rf dmg
