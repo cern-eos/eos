@@ -13,7 +13,7 @@
 
 find_program(PROTOBUF_PROTOC_EXECUTABLE
   NAMES protoc3
-  HINTS /opt/eos/bin /usr/bin/ /bin/ ${PROTOBUF_ROOT} NO_DEFAULT_PATH
+  HINTS /opt/eos/bin /usr/local/bin/ /usr/bin/ /bin/ ${PROTOBUF_ROOT} NO_DEFAULT_PATH
   PATH_SUFFIXES bin
   DOC "Version 3 of The Google Protocol Buffers Compiler")
 
