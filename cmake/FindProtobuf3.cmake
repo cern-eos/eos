@@ -31,14 +31,15 @@ endif()
 
 find_path(PROTOBUF_INCLUDE_DIR
   NAMES google/protobuf/message.h
-  HINTS /opt/eos/include/protobuf3 /usr/include/protobuf3
-        /usr/include ${PROTOBUF_ROOT} NO_DEFAULT_PATH
+  HINTS /opt/eos/include/protobuf3 /usr/include/protobuf3 /usr/local/include
+	/usr/include ${PROTOBUF_ROOT} NO_DEFAULT_PATH
   PATH_SUFFIXES include)
 
 find_library(PROTOBUF_LIBRARY
   NAME protobuf
   HINTS /opt/eos/lib64/protobuf3 /usr/lib64/protobuf3 /usr/lib/protobuf3
-        /usr/lib64 /usr/lib/x86_64-linux-gnu ${PROTOBUF_ROOT} NO_DEFAULT_PATH
+	/usr/loca/lib/ /usr/lib64 /usr/lib/x86_64-linux-gnu
+	${PROTOBUF_ROOT} NO_DEFAULT_PATH
   PATH_SUFFIXES lib)
 
 include(FindPackageHandleStandardArgs)
