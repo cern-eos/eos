@@ -92,6 +92,7 @@ target_link_libraries(EosCommon-Objects PUBLIC
   GLIBC::RT
   LIBBFD::LIBBFD
   LIBBFD::IBERTY
+  GOOGLE::SPARSEHASH
   ${CMAKE_THREAD_LIBS_INIT})
 
 set_target_properties(EosCommon-Objects PROPERTIES

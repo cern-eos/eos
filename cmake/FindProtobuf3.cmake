@@ -12,19 +12,22 @@
 # PROTOBUF_ROOT may be defined as a hint for where to look
 
 find_program(PROTOBUF_PROTOC_EXECUTABLE
-  NAMES protoc3
+  NAMES protoc
   HINTS /opt/eos/bin /usr/bin/ /bin/ ${PROTOBUF_ROOT} NO_DEFAULT_PATH
+  PATH_SUFFIXES bin
   DOC "Version 3 of The Google Protocol Buffers Compiler")
 
 find_path(PROTOBUF_INCLUDE_DIR
   NAMES google/protobuf/message.h
   HINTS /opt/eos/include/protobuf3 /usr/include/protobuf3
-        /usr/include ${PROTOBUF_ROOT} NO_DEFAULT_PATH)
+        /usr/include ${PROTOBUF_ROOT} NO_DEFAULT_PATH
+  PATH_SUFFIXES include)
 
 find_library(PROTOBUF_LIBRARY
   NAME protobuf
-  PATHS /opt/eos/lib64/protobuf3 /usr/lib64/protobuf3 /usr/lib/protobuf3
-        /usr/lib64 /usr/lib/x86_64-linux-gnu ${PROTOBUF_ROOT} NO_DEFAULT_PATH)
+  HINTS /opt/eos/lib64/protobuf3 /usr/lib64/protobuf3 /usr/lib/protobuf3
+        /usr/lib64 /usr/lib/x86_64-linux-gnu ${PROTOBUF_ROOT} NO_DEFAULT_PATH
+  PATH_SUFFIXES lib)
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(Protobuf3
