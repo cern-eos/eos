@@ -108,6 +108,7 @@ target_link_libraries(eosxd-objects PUBLIC
   XROOTD::PRIVATE
   XROOTD::UTILS
   RICHACL::RICHACL
+  GOOGLE::SPARSEHASH
   ZMQ::ZMQ)
 
 if (FUSE3_FOUND)

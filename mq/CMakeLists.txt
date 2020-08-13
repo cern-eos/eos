@@ -45,8 +45,8 @@ target_link_libraries(XrdMqClient-Objects PUBLIC
   XROOTD::UTILS
   PROTOBUF::PROTOBUF
   OPENSSL::OPENSSL
-  qclient
-)
+  GOOGLE::SPARSEHASH
+  qclient)
 
 set_target_properties(XrdMqClient-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)

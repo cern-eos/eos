@@ -81,15 +81,7 @@ if(NOT PACKAGEONLY)
     set(CMAKE_INSTALL_RPATH "${EOS_PROTOBUF_RPATH};${EOS_XROOTD_RPATH}")
     message(STATUS "Info CMAKE_INSTALL_RPATH=${CMAKE_INSTALL_RPATH}")
   else ()
-    find_package(Protobuf REQUIRED)
-
-    if (PROTOBUF_FOUND)
-      add_library(PROTOBUF::PROTOBUF UNKNOWN IMPORTED)
-      set_target_properties(PROTOBUF::PROTOBUF PROPERTIES
-        IMPORTED_LOCATION "${PROTOBUF_LIBRARY}"
-        INTERFACE_INCLUDE_DIRECTORIES "${PROTOBUF_INCLUDE_DIR}")
-    endif()
-
+    find_package(Protobuf3 REQUIRED)
     # Add dummy targets for APPLE to simplify the cmake file using these targets
     add_library(GLIBC::DL    INTERFACE IMPORTED)
     add_library(GLIBC::RT    INTERFACE IMPORTED)

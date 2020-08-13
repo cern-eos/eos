@@ -9,9 +9,8 @@
 # GOOGLE::SPARSEHASH
 
 find_path(SPARSEHASH_INCLUDE_DIR
-  NAMES sparsehashtable.h
-  HINTS ${SPARSEHASH_ROOT}
-  PATH_SUFFIXES google/sparsehash/)
+  NAMES google/sparsehash/sparsehashtable.h
+  HINTS ${SPARSEHASH_ROOT})
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(SparseHash
