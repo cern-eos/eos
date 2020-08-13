@@ -13,9 +13,10 @@
 
 find_program(PROTOBUF_PROTOC_EXECUTABLE
   NAMES protoc3
-  HINTS /opt/eos/bin /usr/local/bin/ /usr/bin/ /bin/ ${PROTOBUF_ROOT} NO_DEFAULT_PATH
-  PATH_SUFFIXES bin
-  DOC "Version 3 of The Google Protocol Buffers Compiler")
+  HINTS ${PROTOBUF_ROOT}/bin
+  PATHS /opt/eos/bin /usr/local/bin /usr/bin /bin
+  DOC "Version 3 of The Google Protocol Buffers Compiler"
+  NO_DEFAULT_PATH)
 
 if (PROTOBUF_PROTOC_EXECUTABLE)
   message(STATUS "Found protoc: ${PROTOBUF_PROTOC_EXECUTABLE}")
@@ -24,23 +25,27 @@ else()
   unset(PROTOBUF_PROTOC_EXECUTABLE)
   find_program(PROTOBUF_PROTOC_EXECUTABLE
     NAMES protoc
-    HINTS /opt/eos/bin /usr/bin/ /bin/ ${PROTOBUF_ROOT} NO_DEFAULT_PATH
-    PATH_SUFFIXES bin
-    DOC "Version 3 of The Google Protocol Buffers Compiler")
+    HINTS ${PROTOBUF_ROOT}/bin
+    PATHS /opt/eos/bin /usr/local/bin /usr/bin /bin
+    DOC "Version 3 of The Google Protocol Buffers Compiler"
+    NO_DEFAULT_PATH)
 endif()
 
 find_path(PROTOBUF_INCLUDE_DIR
   NAMES google/protobuf/message.h
-  HINTS /opt/eos/include/protobuf3 /usr/include/protobuf3 /usr/local/include
-	/usr/include ${PROTOBUF_ROOT} NO_DEFAULT_PATH
-  PATH_SUFFIXES include)
+  HINTS ${PROTOBUF_ROOT}
+  PATHS /opt/eos/include/protobuf3 /usr/include/protobuf3
+        /usr/local/include /usr/include
+  PATH_SUFFIXES include
+  NO_DEFAULT_PATH)
 
 find_library(PROTOBUF_LIBRARY
   NAME protobuf
-  HINTS /opt/eos/lib64/protobuf3 /usr/lib64/protobuf3 /usr/lib/protobuf3
-	/usr/loca/lib/ /usr/lib64 /usr/lib/x86_64-linux-gnu
-	${PROTOBUF_ROOT} NO_DEFAULT_PATH
-  PATH_SUFFIXES lib)
+  HINTS ${PROTOBUF_ROOT}
+  PATHS /opt/eos/lib64/protobuf3 /usr/lib64/protobuf3 /usr/lib/protobuf3
+	/usr/local/lib /usr/lib64 /usr/lib/x86_64-linux-gnu
+  PATH_SUFFIXES lib
+  NO_DEFAULT_PATH)
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(Protobuf3
