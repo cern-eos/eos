@@ -12,10 +12,22 @@
 # PROTOBUF_ROOT may be defined as a hint for where to look
 
 find_program(PROTOBUF_PROTOC_EXECUTABLE
-  NAMES protoc
+  NAMES protoc3
   HINTS /opt/eos/bin /usr/bin/ /bin/ ${PROTOBUF_ROOT} NO_DEFAULT_PATH
   PATH_SUFFIXES bin
   DOC "Version 3 of The Google Protocol Buffers Compiler")
+
+if (PROTOBUF_PROTOC_EXECUTABLE)
+  message(STATUS "Found protoc: ${PROTOBUF_PROTOC_EXECUTABLE}")
+else()
+  message(STATUS "Trying to search for protoc instead for protoc3")
+  unset(PROTOBUF_PROTOC_EXECUTABLE)
+  find_program(PROTOBUF_PROTOC_EXECUTABLE
+    NAMES protoc
+    HINTS /opt/eos/bin /usr/bin/ /bin/ ${PROTOBUF_ROOT} NO_DEFAULT_PATH
+    PATH_SUFFIXES bin
+    DOC "Version 3 of The Google Protocol Buffers Compiler")
+endif()
 
 find_path(PROTOBUF_INCLUDE_DIR
   NAMES google/protobuf/message.h
@@ -31,14 +43,9 @@ find_library(PROTOBUF_LIBRARY
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(Protobuf3
-  REQUIRED_VARS PROTOBUF_INCLUDE_DIR PROTOBUF_LIBRARY)
-mark_as_advanced(PROOBUF3_FOUND PROTOBUF_INCLUDE_DIR PROTOBUF_LIBRARY)
-
-if (PROTOBUF_PROTOC_EXECUTABLE)
-  message(STATUS "Found protoc: ${PROTOBUF_PROTOC_EXECUTABLE}")
-else()
-  message(STATUS "Could NOT find protoc (missing: PROTOBUF_PROTOC_EXECUTABLE)")
-endif()
+  REQUIRED_VARS PROTOBUF_INCLUDE_DIR PROTOBUF_LIBRARY PROTOBUF_PROTOC_EXECUTABLE)
+mark_as_advanced(PROOBUF3_FOUND PROTOBUF_INCLUDE_DIR PROTOBUF_LIBRARY
+  PROTOBUF_PROTOC_EXECUTABLE)
 
 if (PROTOBUF3_FOUND AND NOT TARGET PROTOBUF::PROTOBUF)
   add_library(PROTOBUF::PROTOBUF UNKNOWN IMPORTED)
