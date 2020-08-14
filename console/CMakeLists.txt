@@ -39,6 +39,7 @@ target_link_libraries(EosConsoleHelpers-Objects PUBLIC
   EosCliProto-Objects
   ZMQ::ZMQ
   OPENSSL::OPENSSL
+  GOOGLE::SPARSEHASH
   XROOTD::UTILS)
 
 set_target_properties(EosConsoleHelpers-Objects PROPERTIES
