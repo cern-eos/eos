@@ -96,7 +96,7 @@ build_cc7:
     - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | ts
     - ccache -s
     - if [[ -n "$CI_COMMIT_TAG" ]]; then gpg --import $STCI_REPO_KEY; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
-    - mkdir cc7_artifacts; cp -R build/SRPMS/ build/RPMS/ cc7_artifacts
+    - mkdir cc7_artifacts; cp -R build/SRPMS/ build/RPMS/ build/eos-*.tar.gz cc7_artifacts
   cache:
     key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
     paths:
