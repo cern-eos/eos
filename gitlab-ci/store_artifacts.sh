@@ -40,7 +40,6 @@ for artifacts_dir in *_artifacts; do
   if [ ${build} == "osx" ]; then
     mkdir -p ${path}/x86_64/
     cp ${build}_artifacts/* ${path}/x86_64/
-
     continue
   fi
 
@@ -53,6 +52,16 @@ for artifacts_dir in *_artifacts; do
   mkdir -p ${path}/SRPMS/
   cp ${build}_artifacts/SRPMS/* ${path}/SRPMS/
   createrepo --update -q ${path}/SRPMS/
+
+  # Upload the tarball if present
+  for tar_file in ${build}/eos-*-tar.gz; do
+   if [ -e ${tar_file} ]; then
+     tar_path = ${PATH_PREFIX}/${BRANCH}/tarball/
+     mkdir -p ${tar_path}
+     cp ${tar_file} ${tar_path}
+   fi
+   break
+  done
 done
 
 exit 0
