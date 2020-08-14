@@ -146,8 +146,8 @@ macosx_dmg:
   stage: build:rpm
   script:
     - git submodule update --init --recursive
-    - version=`../genversion.sh`
-    - ../utils/eos-osx-package.sh $version ../install/
+    - version=`./genversion.sh`
+    - ./utils/eos-osx-package.sh $version
     - ccache -s
     - mkdir osx_artifacts
     - cp build/*.dmg osx_artifacts
