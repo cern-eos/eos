@@ -392,7 +392,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   bool isAtomicUpload = false;
   // flag indicationg an atomic file name
   bool isAtomicName = false;
-
   // flag indicating a new injection - upload of a file into a stub without physical location
   bool isInjection = false;
   // flag indicating to drop the current disk replica in the policy space
@@ -512,7 +511,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   if (isRW && RedirectTpcAccess()) {
     return SFS_REDIRECT;
   }
-
 
   {
     // figure out if this is FUSE access
@@ -1207,8 +1205,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         // creation of a new file or isOcUpload
         {
           // -------------------------------------------------------------------
-          eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
           std::shared_ptr<eos::IFileMD> ref_fmd;
+          eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
           try {
             if (!fmd) {
