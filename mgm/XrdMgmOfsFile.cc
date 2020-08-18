@@ -1418,7 +1418,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   unsigned long long ext_ctime_sec = 0;
   unsigned long long ext_ctime_nsec = 0;
   std::string ext_etag;
-  std::map<std::string, std::string>  ext_xattr_map;
+  std::map<std::string, std::string> ext_xattr_map;
 
   if (openOpaque->Get("eos.ctime")) {
     std::string str_ctime = openOpaque->Get("eos.ctime");
@@ -1463,18 +1463,16 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   }
 
   if ((!isInjection) && (isCreation || (open_mode == SFS_O_TRUNC))) {
-    eos_info("blocksize=%llu lid=%x",
-             LayoutId::GetBlocksize(new_lid), new_lid);
+    eos_info("blocksize=%llu lid=%x", LayoutId::GetBlocksize(new_lid), new_lid);
     layoutId = new_lid;
     {
       std::shared_ptr<eos::IFileMD> fmdnew;
-      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+      eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
 
       if (!byfid) {
         try {
           fmdnew = gOFS->eosView->getFile(path);
         } catch (eos::MDException& e) {
-          // TODO: this should be review to see if it is possible
           if ((!isAtomicUpload) && (fmdnew != fmd)) {
             // file has been recreated in the meanwhile
             return Emsg(epname, error, EEXIST, "open file (file recreated)", path);
@@ -1539,7 +1537,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           }
         }
 
-        lock.Release();
+        nw_wr_lock.Release();
         gOFS->FuseXCastFile(fmd_id);
         gOFS->FuseXCastContainer(cmd_id);
         gOFS->FuseXCastContainer(pcmd_id);
