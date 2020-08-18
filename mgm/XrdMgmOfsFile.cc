@@ -747,7 +747,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   // check if we have to create the full path
   if (Mode & SFS_O_MKPTH) {
-    eos_debug("msg=\"SFS_O_MKPTH was requested\"");
+    eos_debug("%s", "msg=\"SFS_O_MKPTH was requested\"");
     XrdSfsFileExistence file_exists;
     int ec = gOFS->_exists(cPath.GetParentPath(), file_exists, error, vid, 0);
 
@@ -1169,7 +1169,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       if (!ocUploadUuid.length()) {
         fmd.reset();
       } else {
-        eos_info("keep attached to existing fmd in chunked upload");
+        eos_info("%s", "msg=\"keep attached to existing fmd in chunked upload\"");
       }
 
       gOFS->MgmStats.Add("OpenWriteTruncate", vid.uid, vid.gid, 1);
@@ -1197,9 +1197,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     // -------------------------------------------------------------------------
     // write case
     // -------------------------------------------------------------------------
-    if ((!fmd)) {
+    if (!fmd) {
       if (!(open_flag & O_CREAT)) {
-        // write open of not existing file without creation flag
+        // Open for write for non existing file without creation flag
         return Emsg(epname, error, errno, "open file without creation flag", path);
       } else {
         // creation of a new file or isOcUpload
@@ -1209,27 +1209,39 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
           try {
-            if (!fmd) {
-              // we create files with the uid/gid of the parent directory
-              if (isAtomicUpload) {
-                eos::common::Path cPath(path);
-                creation_path = cPath.GetAtomicPath(versioning, ocUploadUuid);
-                eos_info("atomic-path=%s", creation_path.c_str());
+            // we create files with the uid/gid of the parent directory
+            if (isAtomicUpload) {
+              eos::common::Path cPath(path);
+              creation_path = cPath.GetAtomicPath(versioning, ocUploadUuid);
+              eos_info("atomic-path=%s", creation_path.c_str());
 
-                try {
-                  ref_fmd = gOFS->eosView->getFile(path);
-                } catch (eos::MDException& e) {
-                  // empty
-                }
+              try {
+                ref_fmd = gOFS->eosView->getFile(path);
+              } catch (eos::MDException& e) {
+                // empty
+              }
+            }
+
+            // Avoid any race condition when opening for creation O_EXCL
+            if (open_flag & O_EXCL) {
+              try {
+                fmd = gOFS->eosView->getFile(creation_path);
+              } catch (eos::MDException& e1) {
+                // empty
               }
 
-              fmd = gOFS->eosView->createFile(creation_path, vid.uid, vid.gid);
-
-              if (ocUploadUuid.length()) {
-                fmd->setFlags(0);
-              } else {
-                fmd->setFlags(Mode & (S_IRWXU | S_IRWXG | S_IRWXO));
+              if (fmd) {
+                gOFS->MgmStats.Add("OpenFailedExists", vid.uid, vid.gid, 1);
+                return Emsg(epname, error, EEXIST, "create file - (O_EXCL)", path);
               }
+            }
+
+            fmd = gOFS->eosView->createFile(creation_path, vid.uid, vid.gid);
+
+            if (ocUploadUuid.length()) {
+              fmd->setFlags(0);
+            } else {
+              fmd->setFlags(Mode & (S_IRWXU | S_IRWXG | S_IRWXO));
             }
 
             fmd->setAttribute("sys.utrace", logId);
@@ -1281,7 +1293,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       // we attached to an existing file
       if (open_flag & O_EXCL) {
         gOFS->MgmStats.Add("OpenFailedExists", vid.uid, vid.gid, 1);
-        return Emsg(epname, error, EEXIST, "create file", path);
+        return Emsg(epname, error, EEXIST, "create file (O_EXCL)", path);
       }
     }
   } else {
