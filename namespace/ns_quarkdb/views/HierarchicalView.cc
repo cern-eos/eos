@@ -864,7 +864,7 @@ QuarkHierarchicalView::getUriInternalCid(std::deque<std::string> currentChunks,
 {
   folly::Future<IContainerMDPtr> pending = pContainerSvc->getContainerMDFut(cid.getUnderlyingUInt64());
 
-  if(pending.isReady()) {
+  if(pending.isReady() && !pending.hasException()) {
     //--------------------------------------------------------------------------
     // Cache hit
     //--------------------------------------------------------------------------
@@ -914,7 +914,7 @@ QuarkHierarchicalView::getUriInternalFid(FileIdentifier fid) const
 {
   folly::Future<IFileMDPtr> pending = pFileSvc->getFileMDFut(fid.getUnderlyingUInt64());
 
-  if(pending.isReady()) {
+  if(pending.isReady() && !pending.hasException()) {
     //--------------------------------------------------------------------------
     // Cache hit
     //--------------------------------------------------------------------------
