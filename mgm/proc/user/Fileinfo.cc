@@ -195,12 +195,22 @@ ProcCommand::FileInfo(const char* path)
       }
 
       if (fmd) {
-        std::string nspath = gOFS->eosView->getUri(fmd.get());
+        try {
+          std::string nspath = gOFS->eosView->getUri(fmd.get());
 
-        if (fmd->isLink()) {
-          spath = gOFS->eosView->getRealPath(nspath).c_str();
-        } else {
-          spath = nspath.c_str();
+          if (fmd->isLink()) {
+            spath = gOFS->eosView->getRealPath(nspath).c_str();
+          } else {
+            spath = nspath.c_str();
+          }
+        }
+        catch(eos::MDException& ee) {
+          fmd.reset();
+          errno = ee.getErrno();
+          stdErr = "error: cannot retrieve file meta data - ";
+          stdErr += ee.getMessage().str().c_str();
+          eos_debug("msg=\"exception retrieving file metadata\" ec=%d "
+                    "emsg=\"%s\"\n", ee.getErrno(), ee.getMessage().str().c_str());
         }
       }
     }
