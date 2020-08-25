@@ -15,6 +15,24 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.8.12 Citrine``
+===================
+
+2020-08-25
+
+Bug
+----
+
+* [EOS-4389] - EOS does not install on Macs
+* [EOS-4390] - EOS for Mac is missing libssl.1.0.0.dylib
+* [EOS-4391] - EOS for Mac is missing libXrdSecProt.so
+* [EOS-4400] - mgm crash in n __gnu_cxx::__verbose_terminate_handler()
+
+Task
+-----
+
+* [EOS-3998] - Modifying the content of a file only changes mtime (not ctime)
+
 ``v4.8.11 Citrine``
 ===================
 
