@@ -1632,6 +1632,57 @@ int Inspector::dropFromDeathrow(bool dryRun, uint64_t fid, std::ostream &out, st
 }
 
 //------------------------------------------------------------------------------
+// Drop empty container
+//------------------------------------------------------------------------------
+int Inspector::dropEmptyCid(bool dryRun, uint64_t cid) {
+  eos::ns::ContainerMdProto val;
+
+  try {
+    val = MetadataFetcher::getContainerFromId(mQcl, ContainerIdentifier(cid)).get();
+  } catch(const MDException& e) {
+    mOutputSink.err(SSTR("Error while fetching metadata for ContainerMD #" << cid << ": " << e.what()));
+    return 1;
+  }
+
+  mOutputSink.print(val, {} );
+
+  IContainerMD::ContainerMap parentContainermap = MetadataFetcher::getContainerMap(mQcl, ContainerIdentifier(val.parent_id())).get();
+  bool containermapEntryExists = parentContainermap.find(val.name()) != parentContainermap.cend();
+  bool containermapEntryValid = (parentContainermap[val.name()] == val.id());
+
+  mOutputSink.print(SSTR("ContainerMap entry exists? " << toYesOrNo(containermapEntryExists)));
+  mOutputSink.print(SSTR("ContainerMap entry valid? " << toYesOrNo(containermapEntryValid)));
+
+  IContainerMD::ContainerMap targetContainerMap = MetadataFetcher::getContainerMap(mQcl, ContainerIdentifier(val.id())).get();
+  IContainerMD::ContainerMap targetFileMap = MetadataFetcher::getFileMap(mQcl, ContainerIdentifier(val.id())).get();
+
+  mOutputSink.print(SSTR("Target has containers? " << toYesOrNo(!targetContainerMap.empty())));
+  mOutputSink.print(SSTR("Target has files? " << toYesOrNo(!targetFileMap.empty())));
+
+  if(!targetContainerMap.empty() || !targetFileMap.empty()) {
+    mOutputSink.err(SSTR("Target contains " << targetContainerMap.size() << " containers, and " << targetFileMap.size() << " files. Not empty, aborting operation."));
+    return 1;
+  }
+
+
+  std::vector<RedisRequest> requests;
+  CacheNotifications notifications;
+
+  requests.emplace_back(RequestBuilder::deleteFileProto(FileIdentifier(cid)));
+  if(containermapEntryValid) {
+    RedisRequest req { "HDEL", SSTR(val.parent_id() << constants::sMapDirsSuffix), val.name() };
+    requests.emplace_back(req);
+
+    notifications.cids.emplace_back(val.parent_id());
+  }
+
+  notifications.cids.emplace_back(val.id());
+
+  executeRequestBatch(requests, notifications, dryRun, std::cout, std::cerr);
+  return 0;
+}
+
+//------------------------------------------------------------------------------
 // Change the given fid - USE WITH CAUTION
 //------------------------------------------------------------------------------
 int Inspector::changeFid(bool dryRun, uint64_t fid, uint64_t newParent, const std::string &newChecksum, int64_t newSize, std::ostream &out, std::ostream &err) {

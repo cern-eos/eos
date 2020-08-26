@@ -343,6 +343,17 @@ int main(int argc, char* argv[])
                                "Specify which file to drop - it should currently be stuck on deathrow")
   ->required();
   //----------------------------------------------------------------------------
+  // Set-up drop-empty-cid subcommand..
+  //----------------------------------------------------------------------------
+  auto dropEmptyCid = app.add_subcommand("drop-empty-cid",
+                          "[CAUTION] Drop an empty container. The command will fail if it appears the directory is not empty.");
+  addClusterOptions(dropEmptyCid, membersStr, memberValidator, password,
+                    passwordFile);
+  addDryRun(dropEmptyCid, noDryRun);
+  dropEmptyCid->add_option("--cid", cid,
+                               "Specify which container ID to drop")
+  ->required();
+  //----------------------------------------------------------------------------
   // Change fid protobuf properties
   //----------------------------------------------------------------------------
   auto changeFidSubcommand = app.add_subcommand("change-fid",
@@ -563,6 +574,10 @@ int main(int argc, char* argv[])
 
   if (dropFromDeathrow->parsed()) {
     return inspector.dropFromDeathrow(dryRun, fid, std::cout, std::cerr);
+  }
+
+  if(dropEmptyCid->parsed()) {
+    return inspector.dropEmptyCid(dryRun, cid);
   }
 
   if (changeFidSubcommand->parsed()) {
