@@ -1668,7 +1668,7 @@ int Inspector::dropEmptyCid(bool dryRun, uint64_t cid) {
   std::vector<RedisRequest> requests;
   CacheNotifications notifications;
 
-  requests.emplace_back(RequestBuilder::deleteFileProto(FileIdentifier(cid)));
+  requests.emplace_back(RequestBuilder::deleteContainerProto(ContainerIdentifier(cid)));
   if(containermapEntryValid) {
     RedisRequest req { "HDEL", SSTR(val.parent_id() << constants::sMapDirsSuffix), val.name() };
     requests.emplace_back(req);
