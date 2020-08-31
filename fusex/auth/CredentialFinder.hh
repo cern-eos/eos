@@ -131,6 +131,13 @@ public:
     invalidated = false;
     mtime = mtime_;
     interceptedPath = intercepted;
+
+    if (uc.type == CredentialType::OAUTH2) {
+      eos::common::StringConversion::LoadFileIntoString(getFinalPath().c_str(), uc.endorsement);
+      if (!uc.endorsement.empty()) {
+	eos_static_warning("loaded OAUTH2 token file '%s'", getFinalPath().c_str());
+      }
+    }
   }
 
   //----------------------------------------------------------------------------

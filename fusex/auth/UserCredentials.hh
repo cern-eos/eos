@@ -148,10 +148,6 @@ struct UserCredentials {
     retval.uid = uid;
     retval.gid = gid;    
     std::string out;
-    eos::common::StringConversion::LoadFileIntoString(path.c_str(), retval.endorsement);
-    if (!retval.endorsement.empty()) {
-      fprintf(stderr,"loaded: %s\n", retval.endorsement.c_str());
-    }
     return retval;
   }
 
