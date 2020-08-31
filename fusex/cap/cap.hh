@@ -252,6 +252,16 @@ public:
     return 0;
   }
 
+  void set_volume_edquota(shared_cap cap)
+  {
+    shared_quota q = quotamap.get(cap);
+    XrdSysMutexHelper qLock(q->Locker());
+
+    if (q) {
+      q->set_volume_quota(0);
+    }
+  }
+
   void update_quota(shared_cap cap, const eos::fusex::quota& new_quota)
   {
     shared_quota q = quotamap.get(cap);

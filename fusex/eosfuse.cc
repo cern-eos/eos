@@ -4336,6 +4336,11 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char* buf, size_t size,
                          size,
                          off, buf, errno);
           rc = errno ? errno : EIO;
+
+	  if (rc == EDQUOT) {
+	    eos_static_err("quota-error: inode=%lld ran out of quota - setting cap to EDQUOT", ino);
+	    EosFuse::instance().getCap().set_volume_edquota(io->cap_);
+	  }
         } else {
           {
             XrdSysMutexHelper mLock(io->mdctx()->Locker());
