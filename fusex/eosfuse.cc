@@ -3168,17 +3168,20 @@ EROFS  pathname refers to a file on a read-only filesystem.
   fuse_id id(req);
   struct fuse_entry_param e;
   // do a parent check
-  cap::shared_cap pcap = Instance().caps.acquire(req, parent,
+  cap::shared_cap pcap1 = Instance().caps.acquire(req, parent,
+                         S_IFDIR | X_OK , true);
+
+  cap::shared_cap pcap2 = Instance().caps.acquire(req, parent,
                          S_IFDIR | X_OK | W_OK, true);
 
-  if (pcap->errc()) {
-    rc = pcap->errc();
+  if (pcap1->errc()) {
+    rc = pcap1->errc();
   } else {
     metad::shared_md md;
     metad::shared_md pmd;
     uint64_t del_ino = 0;
     md = Instance().mds.lookup(req, parent, name);
-    pmd = Instance().mds.get(req, parent, pcap->authid());
+    pmd = Instance().mds.get(req, parent, pcap2->authid());
     {
       std::string implied_cid;
       {
@@ -3202,58 +3205,62 @@ EROFS  pathname refers to a file on a read-only filesystem.
       if (md->id() && !md->deleted()) {
         rc = EEXIST;
       } else {
-	md->set_id(0);
-	md->set_md_ino(0);
-        md->set_err(0);
-        md->set_mode(mode | S_IFDIR);
-        struct timespec ts;
-        eos::common::Timing::GetTimeSpec(ts);
-        md->set_name(name);
-        md->set_atime(ts.tv_sec);
-        md->set_atime_ns(ts.tv_nsec);
-        md->set_mtime(ts.tv_sec);
-        md->set_mtime_ns(ts.tv_nsec);
-        md->set_ctime(ts.tv_sec);
-        md->set_ctime_ns(ts.tv_nsec);
-        md->set_btime(ts.tv_sec);
-        md->set_btime_ns(ts.tv_nsec);
-        // need to update the parent mtime
-        md->set_pmtime(ts.tv_sec);
-        md->set_pmtime_ns(ts.tv_nsec);
-        pmd->set_mtime(ts.tv_sec);
-        pmd->set_mtime_ns(ts.tv_nsec);
-        md->set_uid(pcap->uid());
-        md->set_gid(pcap->gid());
-        /* xattr inheritance */
-        auto attrMap = md->mutable_attr();
-        auto pattrMap = pmd->attr();
+	if (pcap2->errc()) {
+	  rc = pcap2->errc();
+	} else {
+	  md->set_id(0);
+	  md->set_md_ino(0);
+	  md->set_err(0);
+	  md->set_mode(mode | S_IFDIR);
+	  struct timespec ts;
+	  eos::common::Timing::GetTimeSpec(ts);
+	  md->set_name(name);
+	  md->set_atime(ts.tv_sec);
+	  md->set_atime_ns(ts.tv_nsec);
+	  md->set_mtime(ts.tv_sec);
+	  md->set_mtime_ns(ts.tv_nsec);
+	  md->set_ctime(ts.tv_sec);
+	  md->set_ctime_ns(ts.tv_nsec);
+	  md->set_btime(ts.tv_sec);
+	  md->set_btime_ns(ts.tv_nsec);
+	  // need to update the parent mtime
+	  md->set_pmtime(ts.tv_sec);
+	  md->set_pmtime_ns(ts.tv_nsec);
+	  pmd->set_mtime(ts.tv_sec);
+	  pmd->set_mtime_ns(ts.tv_nsec);
+	  md->set_uid(pcap2->uid());
+	  md->set_gid(pcap2->gid());
+	  /* xattr inheritance */
+	  auto attrMap = md->mutable_attr();
+	  auto pattrMap = pmd->attr();
 
-        for (auto const it : pattrMap) {
-          eos_static_debug("adding xattr[%s]=%s", it.first.c_str(), it.second.c_str());
-          (*attrMap)[it.first] = it.second;
-        }
+	  for (auto const it : pattrMap) {
+	    eos_static_debug("adding xattr[%s]=%s", it.first.c_str(), it.second.c_str());
+	    (*attrMap)[it.first] = it.second;
+	  }
 
-        md->set_nlink(2);
-        md->set_creator(true);
-        md->set_type(md->EXCL);
-        std::string imply_authid = eos::common::StringConversion::random_uuidstring();
-        eos_static_info("generating implied authid %s => %s", pcap->authid().c_str(),
-                        imply_authid.c_str());
-        implied_cid = Instance().caps.imply(pcap, imply_authid, mode,
-                                            (fuse_ino_t) md->id());
-        md->cap_inc();
-        md->set_implied_authid(imply_authid);
-        rc = Instance().mds.add_sync(req, pmd, md, pcap->authid());
-        md->set_type(md->MD);
+	  md->set_nlink(2);
+	  md->set_creator(true);
+	  md->set_type(md->EXCL);
+	  std::string imply_authid = eos::common::StringConversion::random_uuidstring();
+	  eos_static_info("generating implied authid %s => %s", pcap2->authid().c_str(),
+			  imply_authid.c_str());
+	  implied_cid = Instance().caps.imply(pcap2, imply_authid, mode,
+					      (fuse_ino_t) md->id());
+	  md->cap_inc();
+	  md->set_implied_authid(imply_authid);
+	  rc = Instance().mds.add_sync(req, pmd, md, pcap2->authid());
+	  md->set_type(md->MD);
 
-        if (!rc) {
-          Instance().mds.insert(req, md, pcap->authid());
-          memset(&e, 0, sizeof(e));
-          md->convert(e, pcap->lifetime());
-          md->lookup_inc();
-          pmd->local_enoent().erase(name);
-          eos_static_info("%s", md->dump(e).c_str());
-        }
+	  if (!rc) {
+	    Instance().mds.insert(req, md, pcap2->authid());
+	    memset(&e, 0, sizeof(e));
+	    md->convert(e, pcap2->lifetime());
+	    md->lookup_inc();
+	    pmd->local_enoent().erase(name);
+	    eos_static_info("%s", md->dump(e).c_str());
+	  }
+	}
       }
     }
   }
