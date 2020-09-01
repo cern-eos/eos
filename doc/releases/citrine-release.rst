@@ -15,6 +15,28 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.8.13 Citrine``
+===================
+
+2020-09-01
+
+Bug
+----
+* [EOS-4412] - reduce latency due to scheduling deletions (long lasting view read locking)
+* [EOS-4407] - block volume EDQUOT client-side with the first occurence of EDQUOT on a directory
+* [EOS-4364] - prefer EEXIST over EACCESS in eosxd mkdir
+* NS: fix command executed by drop-empty-cid
+
+
+Improvement
+-----------
+
+* [EOS-4408] - add option to hide 'eos.*' attributes in eosxd listxattr
+* FUSEX: load OAUTH ticket file when creating a trusted credential to have the proper jail prefixes used with containerizat
+* MGM: make LRU engine less chatty
+* NS: Implement ns-inspect command to drop empty directories
+
+
 ``v4.8.12 Citrine``
 ===================
 
@@ -73,13 +95,13 @@ Improvement
 Bug
 ----
 
-FUSEX: fix the real problem of EOS-4338 which is the destruction of the object before all read-ahead calls had been collected
+* FUSEX: fix the real problem of EOS-4338 which is the destruction of the object before all read-ahead calls had been collected
 
 Improvement
 -----------
 
-FUSEX: add 'trace' option and enable all debug levels in the xattr interface
-FUSEX: trace 'slow' flush operations if they take more than 2000ms
+* FUSEX: add 'trace' option and enable all debug levels in the xattr interface
+* FUSEX: trace 'slow' flush operations if they take more than 2000ms
 
 
 ``v4.8.9 Citrine``
