@@ -263,6 +263,7 @@ public:
       mode_t overlay_mode;
       mode_t x_ok;
       int no_xattr;
+      int no_eos_xattr_listing;
       int no_hardlinks;
       uint32_t nocache_graceperiod;
       int leasetime;

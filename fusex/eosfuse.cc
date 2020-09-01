@@ -849,6 +849,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       config.options.hide_versions = root["options"]["hide-versions"].asInt();
       config.options.cpu_core_affinity = root["options"]["cpu-core-affinity"].asInt();
       config.options.no_xattr = root["options"]["no-xattr"].asInt();
+      config.options.no_eos_xattr_listing = root["options"]["no-eos-xattr-listing"].asInt();
       config.options.no_hardlinks = root["options"]["no-link"].asInt();
       config.options.write_size_flush_interval =
         root["options"]["write-size-flush-interval"].asInt();
@@ -1601,7 +1602,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         eos_static_warning("sss-keytabfile         := %s", config.ssskeytab.c_str());
       }
 
-      eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d flush-w-open-sz:%ld flush-w-umount:%d locking:%d no-fsync:%s flush-nowait-exec:%s ol-mode:%03o show-tree-size:%d hide-versions:%d core-affinity:%d no-xattr:%d no-link:%d nocache-graceperiod:%d rm-rf-protect-level=%d rm-rf-bulk=%d t(lease)=%d t(size-flush)=%d submounts=%d ino(in-mem)=%d flock:%d",
+      eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d flush-w-open-sz:%ld flush-w-umount:%d locking:%d no-fsync:%s flush-nowait-exec:%s ol-mode:%03o show-tree-size:%d hide-versions:%d core-affinity:%d no-xattr:%d no-eos-xattr-listing: %d no-link:%d nocache-graceperiod:%d rm-rf-protect-level=%d rm-rf-bulk=%d t(lease)=%d t(size-flush)=%d submounts=%d ino(in-mem)=%d flock:%d",
                          config.options.enable_backtrace,
                          config.options.md_kernelcache,
                          config.options.md_kernelcache_enoent_timeout,
@@ -1622,6 +1623,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
                          config.options.hide_versions,
                          config.options.cpu_core_affinity,
                          config.options.no_xattr,
+                         config.options.no_eos_xattr_listing,
                          config.options.no_hardlinks,
                          config.options.nocache_graceperiod,
                          config.options.rm_rf_protect_levels,
@@ -5370,47 +5372,49 @@ EosFuse::listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
       auto map = md->attr();
       attrlist = "";
 
-      for (auto it = map.begin(); it != map.end(); ++it) {
-        attrlistsize += it->first.length() + 1;
+      if (!Instance().Config().options.no_eos_xattr_listing) {
+	for (auto it = map.begin(); it != map.end(); ++it) {
+	  attrlistsize += it->first.length() + 1;
 
-        if (it->first.substr(0, 4) == "sys.") {
-          attrlist += "eos.";
-          attrlistsize += strlen("eos.");
-        }
+	  if (it->first.substr(0, 4) == "sys.") {
+	    attrlist += "eos.";
+	    attrlistsize += strlen("eos.");
+	  }
 
-        attrlist += it->first;
-        attrlist += '\0';
-      }
+	  attrlist += it->first;
+	  attrlist += '\0';
+	}
 
-      {
-        // add 'eos.btime'
-        attrlist += "eos.btime";
-        attrlist += '\0';
-        attrlistsize += strlen("eos.btime") + 1;
-        // add 'eos.ttime'
-        attrlist += "eos.ttime";
-        attrlist += '\0';
-        attrlistsize += strlen("eos.ttime") + 1;
-        // add 'eos.tsize'
-        attrlist += "eos.tsize";
-        attrlist += '\0';
-        attrlistsize += strlen("eos.tszie") + 1;
-        // add "eos.url.xroot";
-        attrlist += "eos.url.xroot";
-        attrlist += '\0';
-        attrlistsize += strlen("eos.url.xroot") + 1;
-      }
+	{
+	  // add 'eos.btime'
+	  attrlist += "eos.btime";
+	  attrlist += '\0';
+	  attrlistsize += strlen("eos.btime") + 1;
+	  // add 'eos.ttime'
+	  attrlist += "eos.ttime";
+	  attrlist += '\0';
+	  attrlistsize += strlen("eos.ttime") + 1;
+	  // add 'eos.tsize'
+	  attrlist += "eos.tsize";
+	  attrlist += '\0';
+	  attrlistsize += strlen("eos.tszie") + 1;
+	  // add "eos.url.xroot";
+	  attrlist += "eos.url.xroot";
+	  attrlist += '\0';
+	  attrlistsize += strlen("eos.url.xroot") + 1;
+	}
 
-      {
-        // for files add 'eos.checksum'
-        if (S_ISREG(md->mode())) {
-          attrlist += "eos.checksum";
-          attrlist += '\0';
-          attrlistsize += strlen("eos.checksum") + 1;
-          attrlist += "eos.md_ino";
-          attrlist += '\0';
-          attrlistsize += strlen("eos.md_ino") + 1;
-        }
+	{
+	  // for files add 'eos.checksum'
+	  if (S_ISREG(md->mode())) {
+	    attrlist += "eos.checksum";
+	    attrlist += '\0';
+	    attrlistsize += strlen("eos.checksum") + 1;
+	    attrlist += "eos.md_ino";
+	    attrlist += '\0';
+	    attrlistsize += strlen("eos.md_ino") + 1;
+	  }
+	}
       }
 
       if (size != 0) {

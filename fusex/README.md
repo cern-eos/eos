@@ -53,6 +53,7 @@ This
     "show-tree-size" : 0,
     "cpu-core-affinity" : 1,
     "no-xattr" : 1,
+    "no-eos-xattr-listing" : 0,
     "no-link" : 0,
     "nocache-graceperiod" : 5,
     "leasetime" : 300,
