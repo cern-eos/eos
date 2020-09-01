@@ -39,6 +39,9 @@
 #include "namespace/ns_quarkdb/NamespaceGroup.hh"
 #include <qclient/QClient.hh>
 
+#define __PRI64_PREFIX "l"
+#define PRId64         __PRI64_PREFIX "d"
+
 //! Attribute name defining any LRU policy
 const char* LRU::gLRUPolicyPrefix = "sys.lru.*";
 
@@ -241,12 +244,20 @@ void LRU::performCycleQDB(ThreadAssistant& assistant) noexcept
   NamespaceExplorer explorer("/", opts, *(mQcl.get()),
                              static_cast<QuarkNamespaceGroup*>(gOFS->namespaceGroup.get())->getExecutor());
   NamespaceItem item;
+  int64_t processed = 0;
 
   while (explorer.fetch(item)) {
-    eos_static_info("lru-dir-qdb=\"%s\" attrs=%d", item.fullPath.c_str(),
+    eos_static_debug("lru-dir-qdb=\"%s\" attrs=%d", item.fullPath.c_str(),
                     item.attrs.size());
     processDirectory(item.fullPath, 0, item.attrs);
+    processed++;
+
+    if(processed % 1000 == 0) {
+      eos_static_info("LRU scan in progress, scanned %" PRId64 " directories so far", processed);
+    }
   }
+
+  eos_static_info("LRU scan done, scanned %" PRId64 " directories", processed);
 }
 
 //------------------------------------------------------------------------------
@@ -704,7 +715,7 @@ LRU::ConvertMatch(const char* dir,
       lock.Release();
 
       std::shared_ptr<eos::IFileMD> fmd;
-      
+
       for (auto fit = eos::FileMapIterator(cmd); fit.valid(); fit.next()) {
         fmd = cmd->findFile(fit.key());
         std::string fullpath = dir;
