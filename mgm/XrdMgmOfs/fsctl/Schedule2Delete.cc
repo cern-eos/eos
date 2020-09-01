@@ -157,11 +157,15 @@ XrdMgmOfs::Schedule2Delete(const char* path,
         set_fids.insert(it_fid->getElement());
       }
     }
+
+    lock.Release();
+
     eos::mgm::FileSystem* fs = 0;
     XrdOucString receiver = "";
     XrdOucString capability = "";
     XrdOucString idlist = "";
     int ndeleted = 0;
+
 
     for (auto fid : set_fids) {
       // Loop over all files and emit a deletion message
@@ -176,6 +180,7 @@ XrdMgmOfs::Schedule2Delete(const char* path,
           continue;
         }
 
+	lock.Grab(FsView::gFsView.ViewMutex);
         fs = FsView::gFsView.mIdView.lookupByID(fsid);
 
         if (fs) {
@@ -184,12 +189,13 @@ XrdMgmOfs::Schedule2Delete(const char* path,
               (fs->GetConfigStatus() <= eos::common::ConfigStatus::kOff) ||
               (fs->GetStatus() != eos::common::BootStatus::kBooted)) {
             // Don't send messages as filesystem is down, booting or offline
+	    lock.Release();
             break;
           }
-
           capability = constructCapability(fs->GetId(), fs->GetPath().c_str());
           receiver = fs->GetQueue().c_str();
         }
+	lock.Release();
       }
 
       ndeleted++;
