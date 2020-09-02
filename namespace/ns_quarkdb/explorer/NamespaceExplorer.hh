@@ -92,6 +92,11 @@ struct NamespaceItem {
   // Only one of these are actually filled out.
   eos::ns::FileMdProto fileMd;
   eos::ns::ContainerMdProto containerMd;
+
+  // Only in case of a container: Number of files and subcontainers contained
+  // directly within it (not recursively)
+  uint64_t numFiles = 0;
+  uint64_t numContainers = 0;
 };
 
 class NamespaceExplorer;
@@ -138,6 +143,9 @@ public:
   }
 
   eos::ns::ContainerMdProto& getContainerInfo();
+  uint64_t getNumFiles();
+  uint64_t getNumContainers();
+
   bool expansionFilteredOut = false;
 
 private:

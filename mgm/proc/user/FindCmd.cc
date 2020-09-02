@@ -526,6 +526,9 @@ struct FindResult {
   std::shared_ptr<eos::IContainerMD> containerMD;
   std::shared_ptr<eos::IFileMD> fileMD;
 
+  uint64_t numFiles = 0;
+  uint64_t numContainers = 0;
+
   std::shared_ptr<eos::IContainerMD> toContainerMD()
   {
     eos::common::RWMutexReadLock eosViewMutexGuard(gOFS->eosViewRWMutex);
@@ -710,10 +713,14 @@ public:
       eos::QuarkFileMD* fmd = new eos::QuarkFileMD();
       fmd->initialize(std::move(item.fileMd));
       res.fileMD.reset(fmd);
+      res.numFiles = 0;
+      res.numContainers = 0;
     } else {
       eos::QuarkContainerMD* cmd = new eos::QuarkContainerMD();
       cmd->initializeWithoutChildren(std::move(item.containerMd));
       res.containerMD.reset(cmd);
+      res.numFiles = item.numFiles;
+      res.numContainers = item.numContainers;
     }
 
     return true;
@@ -1048,12 +1055,14 @@ eos::mgm::FindCmd::ProcessRequest() noexcept
 
       // Just print child count?
       if (printchildcount) {
-        unsigned long long childfiles = 0;
-        unsigned long long childdirs = 0;
-        childfiles = mCmd->getNumFiles();
-        childdirs = mCmd->getNumContainers();
+        unsigned long long childfiles = findResult.numFiles;
+        unsigned long long childdirs = findResult.numContainers;
         ofstdoutStream << findResult.path << " ndir=" << childdirs <<
                        " nfiles=" << childfiles << std::endl;
+
+        eos_static_info("print childcount = yes");
+        eos_static_info("childfiles=%llu childdirs=%llu", childfiles, childdirs);
+        eos_static_info("name=%s", mCmd->getName());
         continue;
       }
 

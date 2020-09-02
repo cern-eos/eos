@@ -173,6 +173,17 @@ eos::ns::ContainerMdProto& SearchNode::getContainerInfo()
 }
 
 //------------------------------------------------------------------------------
+// Get file child count
+//------------------------------------------------------------------------------
+uint64_t SearchNode::getNumFiles() {
+  return pendingFileMds.size();
+}
+
+uint64_t SearchNode::getNumContainers() {
+  return containerMap->size();
+}
+
+//------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 NamespaceExplorer::NamespaceExplorer(const std::string& pth,
@@ -383,6 +394,8 @@ bool NamespaceExplorer::fetch(NamespaceItem& item)
       item.isFile = false;
       item.fullPath = buildDfsPath();
       item.containerMd = dfsPath.back()->getContainerInfo();
+      item.numFiles = dfsPath.back()->getNumFiles();
+      item.numContainers = dfsPath.back()->getNumContainers();
       handleLinkedAttrs(item);
 
       if(!options.expansionDecider) {
