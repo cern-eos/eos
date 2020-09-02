@@ -313,9 +313,16 @@ void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set, eos::cons
   std::string msg;
 
 
+  struct stat buf{};
   if (space.empty()) {
     reply.set_retc(EINVAL);
     reply.set_std_err("error: command not properly formatted");
+    return;
+  }
+
+  if (gOFS->_stat(space.c_str(), &buf, mError, mVid, nullptr)) {
+    reply.set_retc(ENOENT);
+    reply.set_std_err("error: quota directory does not exist");
     return;
   }
 
