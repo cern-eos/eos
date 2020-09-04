@@ -108,7 +108,7 @@ com_squash(char* arg1)
     mkpath += "/dummy";
     eos::common::Path mountpath(mkpath.c_str());
 
-    if (!mountpath.MakeParentPath(S_IRWXU)) {
+    if (!mountpath.MakeParentPath(S_IRWXU | S_IROTH | S_IXOTH | S_IRGRP | S_IXGRP)) {
       fprintf(stderr, "error: failed to create local mount point path='%s'\n",
               mountpath.GetParentPath());
       global_retc = errno;
@@ -366,7 +366,7 @@ com_squash(char* arg1)
     mkpath += "/dummy";
     eos::common::Path mountpath(mkpath.c_str());
 
-    if (!mountpath.MakeParentPath(S_IRWXU)) {
+    if (!mountpath.MakeParentPath(S_IRWXU | S_IROTH | S_IXOTH | S_IRGRP | S_IXGRP)) {
       fprintf(stderr, "error: failed to create local mount point path='%s'\n",
               mountpath.GetParentPath());
       global_retc = errno;
