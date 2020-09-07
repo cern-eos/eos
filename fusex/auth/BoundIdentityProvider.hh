@@ -62,7 +62,7 @@ public:
   //----------------------------------------------------------------------------
   std::shared_ptr<const BoundIdentity> environmentToBoundIdentity(
     const JailInformation& jail, const Environment& env, uid_t uid,
-    gid_t gid, bool reconnect, LogbookScope &scope);
+    gid_t gid, bool reconnect, LogbookScope &scope, bool skip_sss = false);
 
   //----------------------------------------------------------------------------
   // Attempt to produce a BoundIdentity object out of environment variables

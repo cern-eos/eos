@@ -164,7 +164,7 @@ BoundIdentityProvider::sssEnvToBoundIdentity(const JailInformation& jail,
 std::shared_ptr<const BoundIdentity>
 BoundIdentityProvider::environmentToBoundIdentity(const JailInformation& jail,
   const Environment& env, uid_t uid, gid_t gid, bool reconnect,
-  LogbookScope &scope)
+  LogbookScope &scope, bool skip_sss)
 {
   std::shared_ptr<const BoundIdentity> output;
 
@@ -205,7 +205,7 @@ BoundIdentityProvider::environmentToBoundIdentity(const JailInformation& jail,
     //----------------------------------------------------------------------------
     // Try to use SSS if available.
     //----------------------------------------------------------------------------
-    if (credConfig.use_user_sss) {
+    if (credConfig.use_user_sss && !skip_sss) {
       output = sssEnvToBoundIdentity(jail, env, uid, gid, reconnect, scope);
       
       if (output) {
@@ -256,7 +256,7 @@ BoundIdentityProvider::environmentToBoundIdentity(const JailInformation& jail,
   //----------------------------------------------------------------------------
   // Try to use SSS if available.
   //----------------------------------------------------------------------------
-  if (credConfig.use_user_sss) {
+  if (credConfig.use_user_sss && !skip_sss) {
     output = sssEnvToBoundIdentity(jail, env, uid, gid, reconnect, scope);
     
     if (output) {
@@ -412,7 +412,7 @@ BoundIdentityProvider::defaultPathsToBoundIdentity(const JailInformation& jail,
       << uid)));
 
   return environmentToBoundIdentity(jail, defaultEnv, uid, gid, reconnect,
-    subscope);
+    subscope, false);
 }
 
 //------------------------------------------------------------------------------
@@ -436,7 +436,7 @@ BoundIdentityProvider::globalBindingToBoundIdentity(const JailInformation& jail,
       "global binding for uid=" << uid)));
 
   return environmentToBoundIdentity(jail, defaultEnv, uid, gid, reconnect,
-    subscope);
+    subscope, true);
 }
 
 //------------------------------------------------------------------------------
@@ -468,7 +468,7 @@ BoundIdentityProvider::pidEnvironmentToBoundIdentity(
     "variables for pid=" << pid);
 
   return environmentToBoundIdentity(jail, response.get(), uid, gid,
-    reconnect, subscope);
+    reconnect, subscope, true);
 }
 
 //------------------------------------------------------------------------------
