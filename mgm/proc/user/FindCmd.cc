@@ -1059,10 +1059,6 @@ eos::mgm::FindCmd::ProcessRequest() noexcept
         unsigned long long childdirs = findResult.numContainers;
         ofstdoutStream << findResult.path << " ndir=" << childdirs <<
                        " nfiles=" << childfiles << std::endl;
-
-        eos_static_info("print childcount = yes");
-        eos_static_info("childfiles=%llu childdirs=%llu", childfiles, childdirs);
-        eos_static_info("name=%s", mCmd->getName());
         continue;
       }
 
