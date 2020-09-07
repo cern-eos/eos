@@ -814,7 +814,7 @@ runtest "### Find       " unix 0 "" eos find -d "/eos/$EOS_TEST_INSTANCE/test | 
 ###################################################A############################
 categorie="attr"
 runtest "### Attr Set  " unix 0 "" eos attr set default=replica "/eos/$EOS_TEST_INSTANCE/test"
-runtest "### Attr Ls   " unix 0 "" eos attr ls "/eos/$EOS_TEST_INSTANCE/test | grep sys | wc -l | grep -w 5"
+runtest "### Attr Ls   " unix 0 "" eos attr ls "/eos/$EOS_TEST_INSTANCE/test | grep sys | wc -l | grep -w 6"
 runtest "### Attr Get  " unix 0 "" eos attr get "sys.forced.space /eos/$EOS_TEST_INSTANCE/test  | grep default"
 runtest "### Attr Rm   " unix 0 "" eos attr rm  "sys.forced.blocksize /eos/$EOS_TEST_INSTANCE/test"
 runtest "### Attr Rm   " unix 0 "" eos attr rm  "sys.forced.checksum /eos/$EOS_TEST_INSTANCE/test"
