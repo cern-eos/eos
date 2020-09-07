@@ -1594,6 +1594,14 @@ int WFE::Job::HandleProtoMethodEvents(std::string& errorMsg,
   }
 
   {
+    std::string opaqueRequestIdStr;
+    if (nullptr != ininfo) {
+      XrdOucEnv opaque(ininfo);
+      const char* const opaqueRequestId = opaque.Get("mgm.reqid");
+      if (nullptr != opaqueRequestId) {
+        opaqueRequestIdStr = opaqueRequestId;
+      }
+    }
     auto eventUpperCase = event;
     std::transform(eventUpperCase.begin(), eventUpperCase.end(),
                    eventUpperCase.begin(),
@@ -1601,9 +1609,10 @@ int WFE::Job::HandleProtoMethodEvents(std::string& errorMsg,
       return std::toupper(c);
     }
                   );
-    eos_static_info("%s %s %s %s fxid=%08llx", mActions[0].mWorkflow.c_str(),
+    eos_static_info("%s %s %s %s fxid=%08llx mgm.reqid=\"%s\"", mActions[0].mWorkflow.c_str(),
                     eventUpperCase.c_str(),
-                    fullPath.c_str(), gOFS->ProtoWFEndPoint.c_str(), mFid);
+                    fullPath.c_str(), gOFS->ProtoWFEndPoint.c_str(), mFid,
+                    opaqueRequestIdStr.c_str());
   }
 
   if (event == "sync::prepare" || event == "prepare") {
@@ -1823,10 +1832,15 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string& fullPath,
       return EAGAIN;
     }
 
+    std::string opaqueRequestIdStr;
     try {
       // Remove the request ID from the list in the Xattr
       XrdOucEnv opaque(ininfo);
       const char* const opaqueRequestId = opaque.Get("mgm.reqid");
+
+      if (nullptr != opaqueRequestId) {
+        opaqueRequestIdStr = opaqueRequestId;
+      }
 
       if (opaqueRequestId == nullptr) {
         throw_mdexception(EINVAL, "mgm.reqid does not exist in opaque data.");
