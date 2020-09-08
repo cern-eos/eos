@@ -164,10 +164,12 @@ XrdMgmOfs::Commit(const char* path,
       }
 
 
-      // Check if we have this replica in the unlink list, if yes, the commit has to be suppressed
-      if (option["fusex"] && fmd->hasUnlinkedLocation((unsigned int) fsid)) {
+      // Check if we have this replica in the unlink list or not linked list, if yes, the commit has to be suppressed
+      if (option["fusex"] &&
+	  fmd->hasUnlinkedLocation((unsigned int) fsid) ||
+	  (!fmd->hasLocation((unsigned int) fsid)) ) {
 	eos_thread_err("suppressing possible recovery replica for fxid=%08llx "
-		       "on unlinked fsid=%llu - rejecting replica",
+		       "on unlinked/not linked fsid=%llu - rejecting replica",
 		       fmd->getId(), fsid);
 	// This happens when a FUSEX recovery has been triggered.
 	// To avoid to reattach replicas, we clean them up here
