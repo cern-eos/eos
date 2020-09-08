@@ -1537,7 +1537,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           }
         }
 
-        nw_wr_lock.Release();
+        ns_wr_lock.Release();
         gOFS->FuseXCastFile(fmd_id);
         gOFS->FuseXCastContainer(cmd_id);
         gOFS->FuseXCastContainer(pcmd_id);
