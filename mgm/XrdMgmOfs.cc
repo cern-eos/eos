@@ -980,6 +980,7 @@ XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 {
   EXEC_TIMING_BEGIN("QueryPrepare");
   ACCESSMODE_R;
+  eos_info("cmd=\"_prepare_query\"");
   eos::common::VirtualIdentity vid;
   {
     const char* tident = error.getErrUser();
