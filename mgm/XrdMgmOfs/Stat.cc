@@ -217,15 +217,28 @@ XrdMgmOfs::_stat(const char* path,
     memset(buf, 0, sizeof(struct stat));
     buf->st_dev = 0xcaff;
     buf->st_ino = eos::common::FileId::FidToInode(fmd->getId());
+    buf->st_mode = eos::modeFromMetadataEntry(fmd);
 
     if (fmd->isLink()) {
       buf->st_nlink = 1;
     } else {
-      buf->st_nlink = eos::common::LayoutId::GetRedundancy(fmd->getLayoutId(), fmd->getNumLocation());
+      // we have to pass only disk locations to GetRedundancy and correct
+
+      unsigned long disk_locations = fmd->getNumLocation();
+      if (buf->st_mode & EOS_TAPE_MODE_T) {
+	if (disk_locations>0) {
+	  disk_locations--;
+	}
+      }
+
+      buf->st_nlink = eos::common::LayoutId::GetRedundancy(fmd->getLayoutId(), disk_locations);
+      if ((buf->st_mode & EOS_TAPE_MODE_T)) {
+	// file is unavailable on disk, but available on tape e.g. redundancy from disk layout = 0
+	buf->st_nlink++;
+      }
     }
 
     buf->st_size = fmd->getSize();
-    buf->st_mode = eos::modeFromMetadataEntry(fmd);
     buf->st_uid = fmd->getCUid();
     buf->st_gid = fmd->getCGid();
     buf->st_rdev = 0; /* device type (if inode device) */
