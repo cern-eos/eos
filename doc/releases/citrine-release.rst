@@ -15,6 +15,19 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
+``v4.8.14 Citrine``
+===================
+
+2020-09-08
+
+Bug
+----
+
+* Release based on XRootD 4.12.4
+* [EOS-4399] - Fusex repair functionality corrupts files
+
+
 ``v4.8.13 Citrine``
 ===================
 
@@ -22,11 +35,11 @@ This release is based on XRootD V4 and IPV6 enabled.
 
 Bug
 ----
+
 * [EOS-4412] - reduce latency due to scheduling deletions (long lasting view read locking)
 * [EOS-4407] - block volume EDQUOT client-side with the first occurence of EDQUOT on a directory
 * [EOS-4364] - prefer EEXIST over EACCESS in eosxd mkdir
 * NS: fix command executed by drop-empty-cid
-
 
 Improvement
 -----------
