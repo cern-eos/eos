@@ -4,14 +4,14 @@ Section: misc
 Priority: optional
 Standards-Version: 3.9.3
 Build-Depends: debhelper (>= 10), cmake (>=3.3.0), git, libfuse-dev, libattr1-dev, libmicrohttpd-dev, xfslibs-dev, libcurl4-openssl-dev, libleveldb-dev, libzmq3-dev, libsparsehash-dev, libprotobuf-dev (>=3.0.0), protobuf-compiler (>=3.0.0), libsystemd-dev, libreadline-dev, ncurses-dev, libssl-dev, zlib1g-dev, libkrb5-dev, libevent-dev, libhiredis-dev, libjsoncpp-dev, libjemalloc-dev, libdw-dev, libbz2-dev, binutils-dev, libiberty-dev,
- xrootd-libs (= 4.12.3), xrootd-plugins (= 4.12.3),
- xrootd-clients (= 4.12.3), xrootd-client-libs (= 4.12.3), xrootd-client-plugins (= 4.12.3),
- xrootd-server (= 4.12.3), xrootd-server-libs (= 4.12.3), xrootd-server-plugins (= 4.12.3),
- libxrootd-dev (= 4.12.3), libxrootd-private-dev (= 4.12.3),
- libxrootd-client-dev (= 4.12.3), libxrootd-server-dev (= 4.12.3),
- libxrdapputils1 (= 4.12.3), libxrdcrypto1 (= 4.12.3), libxrdcryptolite1 (= 4.12.3), libxrdxml2 (= 4.12.3),
- libxrdutils2 (= 4.12.3), libxrdhttputils1 (= 4.12.3), libxrdserver2 (= 4.12.3), libxrdssilib1 (= 4.12.3),
- libxrdssishmap1 (= 4.12.3), libxrdcl2 (= 4.12.3), libxrdffs2 (= 4.12.3), libxrdposix2 (= 4.12.3),
+ xrootd-libs (= 4.12.4), xrootd-plugins (= 4.12.4),
+ xrootd-clients (= 4.12.4), xrootd-client-libs (= 4.12.4), xrootd-client-plugins (= 4.12.4),
+ xrootd-server (= 4.12.4), xrootd-server-libs (= 4.12.4), xrootd-server-plugins (= 4.12.4),
+ libxrootd-dev (= 4.12.4), libxrootd-private-dev (= 4.12.4),
+ libxrootd-client-dev (= 4.12.4), libxrootd-server-dev (= 4.12.4),
+ libxrdapputils1 (= 4.12.4), libxrdcrypto1 (= 4.12.4), libxrdcryptolite1 (= 4.12.4), libxrdxml2 (= 4.12.4),
+ libxrdutils2 (= 4.12.4), libxrdhttputils1 (= 4.12.4), libxrdserver2 (= 4.12.4), libxrdssilib1 (= 4.12.4),
+ libxrdssishmap1 (= 4.12.4), libxrdcl2 (= 4.12.4), libxrdffs2 (= 4.12.4), libxrdposix2 (= 4.12.4),
 Homepage: http://eos.web.cern.ch/
 Vcs-Git: https://gitlab.cern.ch/dss/eos.git
 Vcs-Browser: https://gitlab.cern.ch/dss/eos
