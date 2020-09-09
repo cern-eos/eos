@@ -10,7 +10,7 @@ yum install -y cmake3 sparsehash-devel \
     fuse-libs fuse fuse-devel libattr libattr-devel openldap openldap-devel \
     libmicrohttpd libmicrohttpd-devel zlib zlib-devel zlib-static \
     xfsprogs xfsprogs-devel e2fsprogs-devel perl-Time-HiRes json-c json-c-devel \
-    jsoncpp jsoncpp-devel libcurl libcurl-devel hiredis hiredis-devel \
+    jsoncpp jsoncpp-devel libcurl libcurl-devel \
     libevent libevent-devel bzip2-devel bzip2-libs jemalloc jemalloc-devel \
     eos-rocksdb devtoolset-8 gtest binutils-devel eos-folly
 
