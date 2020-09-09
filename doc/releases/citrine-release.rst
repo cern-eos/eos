@@ -19,12 +19,12 @@ This release is based on XRootD V4 and IPV6 enabled.
 ``v4.8.14 Citrine``
 ===================
 
-2020-09-08
+2020-09-09
 
 Bug
 ----
 
-* Release based on XRootD 4.12.4
+* Release based on XRootD 4.12.3
 * [EOS-4399] - Fusex repair functionality corrupts files
 
 
