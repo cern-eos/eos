@@ -71,7 +71,6 @@ extern "C" { /* this 'extern "C"' brace will eventually end up in the .h file, t
 #include <sys/resource.h>
 #endif
 
-#include <json/json.h>
 #include "common/Timing.hh"
 #include "common/Logging.hh"
 #include "common/Path.hh"
@@ -328,6 +327,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
   fuse_opt_add_arg(&args, "-obig_writes");
   std::string jsonconfig = "/etc/eos/fuse";
   std::string default_ssskeytab = "/etc/eos/fuse.sss.keytab";
+  std::string jsonconfiglocal;
 
   if (geteuid()) {
     jsonconfig = getenv("HOME");
@@ -344,6 +344,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     }
   }
 
+  jsonconfiglocal = jsonconfig;
+  jsonconfiglocal += ".local.conf";
   jsonconfig += ".conf";
 #ifndef __APPLE__
 
@@ -422,6 +424,23 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       }
     } else {
       fprintf(stderr, "# no config file - running on default values\n");
+    }
+
+    if (!::stat(jsonconfiglocal.c_str(), &configstat)) {
+      Json::Value localjson;
+      std::ifstream configfile(jsonconfiglocal, std::ifstream::binary);
+
+      if (reader.parse(configfile, localjson, false)) {
+        fprintf(stderr, "# JSON parsing successful\n");
+        has_config = true;
+      } else {
+        fprintf(stderr, "error: invalid configuration file %s - %s\n",
+                jsonconfiglocal.c_str(), reader.getFormattedErrorMessages().c_str());
+        exit(EINVAL);
+      }
+      Merge(root,localjson);
+    } else {
+      fprintf(stderr, "# no config file for local overwrites\n");
     }
 
     if (!root.isMember("hostport")) {

@@ -140,6 +140,10 @@ The recovery settings are defined in the following section:
    }
 ```
 
+It is possible to overwrite the settings of any standard config files using a second configuration file:
+```/etc/eos/fuse.local.conf``` or```/etc/eos/fuse.<name>.local.conf```. This is usefule to ship a standard configuration via a package and give users the opportunity to change individual parameters.
+
+
 Configuration default values and avoiding configuration files
 -------------------------------------------------------------
 

@@ -48,7 +48,7 @@
 #include <string.h>
 #include <string>
 #include <thread>
-
+#include <json/json.h>
 #include <google/dense_hash_set>
 #include <google/dense_hash_map>
 
@@ -468,6 +468,17 @@ private:
 
   static bool isRecursiveRm(fuse_req_t req, bool forced = false,
                             bool notverbose = false);
+
+  static void Merge(Json::Value& a, Json::Value& b) {
+    if (!a.isObject() || !b.isObject()) return;
+    for (const auto& key : b.getMemberNames()) {
+      if(a[key].type() == Json::objectValue && b[key].type() == Json::objectValue) {
+	Merge(a[key], b[key]);
+      } else {
+	a[key] = b[key];
+      }
+    }
+  }
 
   bool mTrace;
 
