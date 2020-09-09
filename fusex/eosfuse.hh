@@ -36,7 +36,7 @@
 #include "data/data.hh"
 #include "backend/backend.hh"
 #include "kv/kv.hh"
-#include "kv/RedisKV.hh"
+#include "kv/NoKV.hh"
 #include "llfusexx.hh"
 #include "auth/CredentialFinder.hh"
 #include "misc/Track.hh"

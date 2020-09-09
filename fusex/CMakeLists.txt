@@ -80,8 +80,8 @@ add_library(eosxd-objects OBJECT
   cap/cap.cc cap/cap.hh
   data/data.cc data/data.hh
   kv/RocksKV.cc kv/RocksKV.hh
-  kv/RedisKV.cc           kv/RedisKV.hh
-                          kv/kv.hh
+  kv/NoKV.cc    kv/NoKV.hh
+  kv/kv.hh
   misc/longstring.cc misc/longstring.hh
   misc/fusexrdlogin.cc misc/fusexrdlogin.hh
   misc/RunningPidScanner.cc misc/RunningPidScanner.hh
@@ -100,7 +100,6 @@ add_library(eosxd-objects OBJECT
 
 target_link_libraries(eosxd-objects PUBLIC
   ROCKSDB::ROCKSDB
-  HIREDIS::HIREDIS
   LIBEVENT::LIBEVENT
   OPENSSL::OPENSSL
   PROTOBUF::PROTOBUF

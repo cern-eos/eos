@@ -180,7 +180,6 @@ BuildRequires: leveldb-devel
 BuildRequires: libattr-devel, xfsprogs-devel
 BuildRequires: gcc gcc-c++
 BuildRequires: jsoncpp, jsoncpp-devel
-BuildRequires: hiredis, hiredis-devel
 BuildRequires: jemalloc, jemalloc-devel
 BuildRequires: glibc-headers
 BuildRequires: binutils-devel

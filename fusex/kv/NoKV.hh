@@ -22,8 +22,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef FUSE_REDIS_KV_HH_
-#define FUSE_REDIS_KV_HH_
+#ifndef FUSE_NO_KV_HH_
+#define FUSE_NO_KV_HH_
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -42,15 +42,15 @@
 // Implementation of the key value store interface based on redis
 //------------------------------------------------------------------------------
 
-class RedisKV : public kv
+class NoKV : public kv
 {
 public:
 
   //----------------------------------------------------------------------------
 
   //----------------------------------------------------------------------------
-  RedisKV();
-  virtual ~RedisKV();
+  NoKV();
+  virtual ~NoKV();
 
   int connect(const std::string& prefix, const std::string& connectionstring,
               int port);
@@ -82,7 +82,7 @@ public:
 
   std::string prefix(const std::string& key)
   {
-    return mPrefix + key;
+    return key;
   }
 
   std::string statistics() override
@@ -91,9 +91,5 @@ public:
   }
 
 private:
-  redisContext* mContext;
-  redisAsyncContext* mAsyncContext;
-  struct event_base* mEventBase;
-  std::string mPrefix;
 };
 #endif /* FUSE_KV_HH_ */

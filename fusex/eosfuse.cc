@@ -1497,7 +1497,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       eos::common::Logging::GetInstance().SetIndexSize(512);
       eos::common::Logging::GetInstance().EnableRateLimiter();
       // initialize mKV in case no cache is configured to act as no-op
-      mKV.reset(new RedisKV());
+      mKV.reset(new NoKV());
 #ifdef HAVE_ROCKSDB
 
       if (!config.mdcachedir.empty()) {
