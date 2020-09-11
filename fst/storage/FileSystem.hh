@@ -235,12 +235,6 @@ public:
       return false;
     }
 
-    // Avoid querying IO stats attributes for certain storage types
-    if (mFileIO->GetIoType() == "DavixIo" ||
-        mFileIO->GetIoType() == "XrdIo") {
-      return false;
-    }
-
     std::string iostats;
     mFileIO->attrGet("sys.iostats", iostats);
     return eos::common::StringConversion::GetKeyValueMap(iostats.c_str(),
