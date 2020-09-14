@@ -56,7 +56,7 @@ for artifacts_dir in *_artifacts; do
   # Upload the tarball if present
   for tar_file in ${build}_artifacts/eos-*.tar.gz; do
    if [ -e ${tar_file} ]; then
-     tar_path = ${PATH_PREFIX}/${BRANCH}/tarball/
+     tar_path="${PATH_PREFIX}/${BRANCH}/tarball/"
      mkdir -p ${tar_path}
      cp ${tar_file} ${tar_path}
    fi
