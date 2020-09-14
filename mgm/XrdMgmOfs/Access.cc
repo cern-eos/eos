@@ -104,7 +104,7 @@ XrdMgmOfs::_access(const char* path,
   eos::common::RWMutexReadLock viewReadLock;
 
   if (lock) {
-    viewReadLock.Grab(gOFS->eosViewRWMutex);
+    viewReadLock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
   }
 
   // check for existing file
@@ -228,7 +228,7 @@ XrdMgmOfs::acc_access(const char* path,
   bool d_ok = false;
   // ---------------------------------------------------------------------------
   eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, cPath.GetPath());
-  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
   // check for existing file
   try {

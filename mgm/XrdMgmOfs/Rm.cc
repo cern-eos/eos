@@ -132,7 +132,7 @@ XrdMgmOfs::_rem(const char* path,
   }
 
   // ---------------------------------------------------------------------------
-  gOFS->eosViewRWMutex.LockWrite();
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
   // free the booked quota
   std::shared_ptr<eos::IFileMD> fmd;
   std::shared_ptr<eos::IContainerMD> container;
@@ -169,13 +169,11 @@ XrdMgmOfs::_rem(const char* path,
 
     if (vid.uid && !acl.IsMutable()) {
       errno = EPERM;
-      gOFS->eosViewRWMutex.UnLockWrite();
       return Emsg(epname, error, errno, "remove file - immutable", path);
     }
 
     // check publicaccess level
     if (!gOFS->allow_public_access(aclpath.c_str(), vid)) {
-      gOFS->eosViewRWMutex.UnLockWrite();
       errno = EACCES;
       return Emsg(epname, error, EACCES, "access - public access level restriction",
                   aclpath.c_str());
@@ -199,7 +197,6 @@ XrdMgmOfs::_rem(const char* path,
     if (container) {
       if (stdpermcheck && (!container->access(vid.uid, vid.gid, W_OK | X_OK))) {
         errno = EPERM;
-        gOFS->eosViewRWMutex.UnLockWrite();
         std::ostringstream oss;
         oss << path << " by tident=" << vid.tident;
         return Emsg(epname, error, errno, "remove file", oss.str().c_str());
@@ -207,7 +204,6 @@ XrdMgmOfs::_rem(const char* path,
 
       // check if this directory is write-once for the mapped user
       if (acl.CanWriteOnce() && (fmd->getSize())) {
-        gOFS->eosViewRWMutex.UnLockWrite();
         errno = EPERM;
         // this is a write once user
         return Emsg(epname, error, EPERM,
@@ -217,7 +213,6 @@ XrdMgmOfs::_rem(const char* path,
       // if there is a !d policy we cannot delete files which we don't own
       if (((vid.uid) && (vid.uid != 3) && (vid.gid != 4) && (acl.CanNotDelete())) &&
           ((fmd->getCUid() != vid.uid))) {
-        gOFS->eosViewRWMutex.UnLockWrite();
         errno = EPERM;
         // deletion is forbidden for not-owner
         return Emsg(epname, error, EPERM,
@@ -225,7 +220,6 @@ XrdMgmOfs::_rem(const char* path,
       }
 
       if ((!stdpermcheck) && (!acl.CanWrite())) {
-        gOFS->eosViewRWMutex.UnLockWrite();
         errno = EPERM;
         // this user is not allowed to write
         return Emsg(epname, error, EPERM,
@@ -266,7 +260,6 @@ XrdMgmOfs::_rem(const char* path,
       }
     }
   } else {      /* file does not exist */
-    gOFS->eosViewRWMutex.UnLockWrite();
     errno = ENOENT;
     return Emsg(epname, error, errno, "remove", path);
   }
@@ -282,7 +275,7 @@ XrdMgmOfs::_rem(const char* path,
 	  // eventually trigger a workflow
 	  workflow.Init(&attrmap, path, fid);
 	  errno = 0;
-	  gOFS->eosViewRWMutex.UnLockWrite();
+	  lock.Release();
 	  auto ret_wfe = workflow.Trigger("sync::delete", "default", vid, ininfo, errMsg);
 
 	  if (ret_wfe < 0 && errno == ENOKEY) {
@@ -291,8 +284,7 @@ XrdMgmOfs::_rem(const char* path,
 	    eos_info("msg=\"workflow trigger returned\" retc=%d errno=%d", ret_wfe, errno);
 	  }
 
-	  gOFS->eosViewRWMutex.LockWrite();
-
+	  lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
 	  if (ret_wfe && errno != ENOKEY) {
 	    eos::MDException e(errno);
@@ -346,7 +338,7 @@ XrdMgmOfs::_rem(const char* path,
   if (doRecycle && (!simulate)) {
     // Two-step deletion recycle logic
     XrdOucString recyclePath;
-    gOFS->eosViewRWMutex.UnLockWrite();
+    lock.Release();
     // -------------------------------------------------------------------------
     std::string recycle_space = attrmap[Recycle::gRecyclingAttribute].c_str();
 
@@ -414,7 +406,7 @@ XrdMgmOfs::_rem(const char* path,
       errno = 0; // purge might return ENOENT if there was no version
     }
   } else {
-    gOFS->eosViewRWMutex.UnLockWrite();
+    lock.Release();
 
     if ((!errno) && (!keepversion)) {
       // call the version purge function in case there is a version (without gQuota locked)

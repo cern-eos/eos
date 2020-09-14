@@ -159,7 +159,7 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
       cPath.GetPath());
   //----------------------------------------------------------------------------
   std::shared_ptr<eos::IContainerMD> dh;
-  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
   std::string cacheentry;
 

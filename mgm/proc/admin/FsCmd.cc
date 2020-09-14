@@ -568,7 +568,7 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto)
         unsigned long long nfids_todelete = 0;
         eos::Prefetcher::prefetchFilesystemFileListWithFileMDsAndParentsAndWait(
           gOFS->eosView, gOFS->eosFsView, fsid);
-        eos::common::RWMutexReadLock viewLock(gOFS->eosViewRWMutex);
+        eos::common::RWMutexReadLock viewLock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
         try {
           nfids_todelete = gOFS->eosFsView->getNumUnlinkedFilesOnFs(fsid);
@@ -703,7 +703,7 @@ FsCmd::DropFiles(const eos::console::FsProto::DropFilesProto& dropfilesProto)
   // Create a snapshot to avoid deadlock with dropstripe
   std::vector<eos::common::FileId::fileid_t> fileids;
   {
-    eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
     for (auto it_fid = gOFS->eosFsView->getFileList(dropfilesProto.fsid());
          (it_fid && it_fid->valid()); it_fid->next()) {
@@ -745,7 +745,7 @@ FsCmd::Compare(const eos::console::FsProto::CompareProto& compareProto)
   std::unordered_set<std::string, Murmur3::MurmurHasher<std::string>>
       sourceHash, targetHash;
   {
-    eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
     for (auto it_fid = gOFS->eosFsView->getFileList(compareProto.sourceid());
          (it_fid && it_fid->valid()); it_fid->next()) {
@@ -794,7 +794,7 @@ FsCmd::Clone(const eos::console::FsProto::CloneProto& cloneProto)
   std::string filePath;
   XrdOucErrInfo errInfo;
   auto success = 0u;
-  eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
   for (auto it_fid = gOFS->eosFsView->getFileList(cloneProto.sourceid());
        (it_fid && it_fid->valid()); it_fid->next()) {

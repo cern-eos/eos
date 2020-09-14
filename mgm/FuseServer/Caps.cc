@@ -627,7 +627,7 @@ FuseServer::Caps::Print(std::string option, std::string filter)
   eos::common::RWMutexReadLock lock;
 
   if (option == "p") {
-    lock.Grab(gOFS->eosViewRWMutex);
+    lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
   }
 
   eos::common::RWMutexReadLock lLock(*this);

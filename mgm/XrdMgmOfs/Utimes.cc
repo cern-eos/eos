@@ -97,7 +97,7 @@ XrdMgmOfs::_utimes(const char* path,
   gOFS->MgmStats.Add("Utimes", vid.uid, vid.gid, 1);
   eos_info("calling utimes for path=%s, uid=%i, gid=%i", path, vid.uid, vid.gid);
   // ---------------------------------------------------------------------------
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
   if (gOFS->_access(path,
 		    W_OK,

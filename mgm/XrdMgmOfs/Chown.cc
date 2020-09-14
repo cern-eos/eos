@@ -61,7 +61,7 @@ XrdMgmOfs::_chown(const char* path,
   static const char* epname = "chown";
   EXEC_TIMING_BEGIN("Chown");
   // ---------------------------------------------------------------------------
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
   std::shared_ptr<eos::IContainerMD> cmd;
   std::shared_ptr<eos::IFileMD> fmd;
   errno = 0;

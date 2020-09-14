@@ -114,7 +114,7 @@ ProcCommand::UserQuota()
     canQuota = true;
   } else {
     // figure out if the authenticated user is a quota admin
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     eos::IContainerMD::XAttrMap attrmap;
 
     if (space[0] != '/') {

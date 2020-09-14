@@ -79,7 +79,7 @@ class GeoTag2NodeIdxMap : public SchedTreeBase
 
   static const size_t gMaxTagSize = 9; // 8+1
   struct Node {
-    char tag[gMaxTagSize];
+    char tag[gMaxTagSize+1];
     tFastTreeIdx fastTreeIndex;
     tFastTreeIdx firstBranch;
     tFastTreeIdx branchCount;

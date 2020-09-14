@@ -531,7 +531,7 @@ struct FindResult {
 
   std::shared_ptr<eos::IContainerMD> toContainerMD()
   {
-    eos::common::RWMutexReadLock eosViewMutexGuard(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock eosViewMutexGuard(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
     if (!containerMD) {
       try {
@@ -548,7 +548,7 @@ struct FindResult {
 
   std::shared_ptr<eos::IFileMD> toFileMD()
   {
-    eos::common::RWMutexReadLock eosViewMutexGuard(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock eosViewMutexGuard(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
     if (!fileMD) {
       try {

@@ -350,7 +350,7 @@ S3Store::ListBucket(const std::string& bucket, const std::string& query)
 
       {
         // attempt file metadata retrieval
-        eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+        eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
         std::shared_ptr<eos::IContainerMD> cmd;
         std::shared_ptr<eos::IFileMD> fmd;
         int errc = 0;

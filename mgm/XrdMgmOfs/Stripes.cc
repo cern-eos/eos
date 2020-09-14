@@ -64,7 +64,7 @@ XrdMgmOfs::_verifystripe(const char* path,
   eos::common::Path cPath(path);
   std::string attr_path;
   {
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
     try {
       dh = gOFS->eosView->getContainer(cPath.GetParentPath());
@@ -210,7 +210,7 @@ XrdMgmOfs::_dropstripe(const char* path,
   eos_debug("drop");
   eos::common::Path cPath(path);
   // ---------------------------------------------------------------------------
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
   try {
     dh = gOFS->eosView->getContainer(cPath.GetParentPath());
@@ -317,7 +317,7 @@ XrdMgmOfs::_dropallstripes(const char* path,
   auto parentPath = cPath.GetParentPath();
   // ---------------------------------------------------------------------------
   {
-    eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
     try {
       dh = gOFS->eosView->getContainer(parentPath);
@@ -358,7 +358,7 @@ XrdMgmOfs::_dropallstripes(const char* path,
 
   try {
     // only write lock at this point
-    eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
     for (auto location : fmd->getLocations()) {
       if (location == eos::common::TAPE_FS_ID) {
@@ -501,7 +501,7 @@ XrdMgmOfs::_replicatestripe(const char* path,
   eos_debug("replicating %s from %u=>%u [drop=%d]", path, sourcefsid, targetfsid,
             dropsource);
   // ---------------------------------------------------------------------------
-  eos::common::RWMutexReadLock viewReadLock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexReadLock viewReadLock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
   try {
     dh = gOFS->eosView->getContainer(cPath.GetParentPath());

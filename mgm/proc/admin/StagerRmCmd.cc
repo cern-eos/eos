@@ -136,7 +136,7 @@ eos::mgm::StagerRmCmd::ProcessRequest() noexcept
       ret_c = SFS_ERROR;
     } else {
       // reset the retrieves counter in case of success
-      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
       try {
         auto fmd = gOFS->eosView->getFile(path.c_str());

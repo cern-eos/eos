@@ -129,7 +129,7 @@ WFE::WFEr(ThreadAssistant& assistant) noexcept
     std::map<std::string, std::set<std::string> > wfedirs;
     XrdOucString stdErr;
     {
-      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex, __FUNCTION__, __LINE__, __FILE__);
 
       if (FsView::gFsView.mSpaceView.count("default") &&
           (FsView::gFsView.mSpaceView["default"]->GetConfigMember("wfe") == "on")) {
@@ -285,7 +285,7 @@ WFE::WFEr(ThreadAssistant& assistant) noexcept
       }
 
       // Check if the setting changed
-      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex, __FUNCTION__, __LINE__, __FILE__);
 
       if (FsView::gFsView.mSpaceView.count("default") &&
           (FsView::gFsView.mSpaceView["default"]->GetConfigMember("wfe") == "on")) {
@@ -429,7 +429,7 @@ WFE::Job::Save(std::string queue, time_t& when, int action, int retry)
     // The point of prefetching here is to get the chunks preceeding the final
     // one, so that createFile is guaranteed not to wait on network requests.
     eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, workflowpath);
-    eos::common::RWMutexWriteLock wLock {gOFS->eosViewRWMutex};
+    eos::common::RWMutexWriteLock wLock {gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__};
     auto fmd = gOFS->eosView->createFile(workflowpath, 0, 0);
     auto cid = fmd->getContainerId();
     auto cmd = gOFS->eosDirectoryService->getContainerMD(cid);
@@ -490,7 +490,7 @@ WFE::Job::Load(std::string path2entry)
     eos_static_info("workflow=\"%s\" fxid=%08llx", workflow.c_str(), mFid);
     {
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path2entry);
-      eos::common::RWMutexReadLock rLock {gOFS->eosViewRWMutex};
+      eos::common::RWMutexReadLock rLock (gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
       auto fmd = gOFS->eosView->getFile(path2entry);
 
       try {
@@ -791,7 +791,7 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg, const char* const ininfo)
           std::shared_ptr<eos::IContainerMD> cmd ;
           // do meta replacement
           eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, mFid);
-          eos::common::RWMutexReadLock viewReadLock(gOFS->eosViewRWMutex);
+          eos::common::RWMutexReadLock viewReadLock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
           try {
             fmd = gOFS->eosFileService->getFileMD(mFid);
@@ -1395,7 +1395,7 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg, const char* const ininfo)
                   }
 
                   eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, mFid);
-                  eos::common::RWMutexWriteLock nsLock(gOFS->eosViewRWMutex);
+                  eos::common::RWMutexWriteLock nsLock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
                   try {
                     fmd = gOFS->eosFileService->getFileMD(mFid);
@@ -1496,7 +1496,7 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg, const char* const ininfo)
                   }
 
                   eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, mWorkflowPath);
-                  eos::common::RWMutexWriteLock nsLock(gOFS->eosViewRWMutex);
+                  eos::common::RWMutexWriteLock nsLock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
                   try {
                     fmd = gOFS->eosView->getFile(mWorkflowPath);
@@ -1583,7 +1583,7 @@ int WFE::Job::HandleProtoMethodEvents(std::string& errorMsg,
 
   try {
     eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, mFid);
-    eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
     fullPath = gOFS->eosView->getUri(fmd.get());
   } catch (eos::MDException& e) {
@@ -1684,7 +1684,7 @@ WFE::Job::HandleProtoMethodPrepareEvent(const std::string& fullPath,
     return ENODATA;
   } else {
     eos::common::RWMutexWriteLock lock;
-    lock.Grab(gOFS->eosViewRWMutex);
+    lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
     // Get the list of in-flight Prepare requests for this file (if any)
     XattrSet prepareReqIds;
@@ -1775,7 +1775,7 @@ WFE::Job::HandleProtoMethodPrepareEvent(const std::string& fullPath,
 
   if (sendResult == 0) {
     // Update the timestamp of the last Prepare request that was successfully sent
-    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
 
     try {
@@ -1790,7 +1790,7 @@ WFE::Job::HandleProtoMethodPrepareEvent(const std::string& fullPath,
     }
 
     std::string errorMsgAttr = ctimestr + " -> " + errorMsg;
-    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
 
     try {
@@ -1817,7 +1817,7 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string& fullPath,
   XattrSet prepareReqIds;
   {
     eos::common::RWMutexWriteLock lock;
-    lock.Grab(gOFS->eosViewRWMutex);
+    lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
 
     try {
@@ -1886,7 +1886,7 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string& fullPath,
   uid_t cuid = 99;
   gid_t cgid = 99;
   {
-    eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
     cuid = fmd->getCUid();
     cgid = fmd->getCGid();
@@ -2003,7 +2003,7 @@ WFE::Job::HandleProtoMethodCreateEvent(const std::string& fullPath,
   uid_t cuid = 99;
   gid_t cgid = 99;
   {
-    eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
     cuid = fmd->getCUid();
     cgid = fmd->getCGid();
@@ -2055,7 +2055,7 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string& fullPath,
   bool tapeLocationWasRemoved = false;
   try {
     // remove tape location
-    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
     fmd->unlinkLocation(TAPE_FS_ID);
     fmd->removeLocation(TAPE_FS_ID);
@@ -2099,7 +2099,7 @@ WFE::Job::HandleProtoMethodCloseEvent(const std::string& event,
       
     if (archive_req_id != nullptr && *archive_req_id != '\0') {
       try {
-        eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+        eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
         auto fmd = gOFS->eosFileService->getFileMD(mFid);
         fmd->setAttribute(CTA_OBJECTSTORE_ARCHIVE_REQ_ID_NAME, archive_req_id);
         gOFS->eosView->updateFileStore(fmd.get());
@@ -2124,7 +2124,7 @@ WFE::Job::resetRetrieveIdListAndErrorMsg(const std::string& fullPath)
   std::string errorMsg;
 
   try {
-    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
     fmd->setAttribute(RETRIEVE_REQID_ATTR_NAME, "");
     fmd->setAttribute(RETRIEVE_REQTIME_ATTR_NAME, "");
@@ -2153,7 +2153,7 @@ WFE::Job::HandleProtoMethodArchivedEvent(const std::string& event,
   std::string xattrCtaArchiveFileId;
   bool hasXattrCtaArchiveFileId = false;
   {
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
     hasXattrCtaArchiveFileId = fmd->hasAttribute("sys.archive.file_id");
 
@@ -2163,7 +2163,7 @@ WFE::Job::HandleProtoMethodArchivedEvent(const std::string& event,
   }
   bool onlyTapeCopy = false;
   {
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
     onlyTapeCopy = fmd->hasLocation(TAPE_FS_ID) && fmd->getLocations().size() == 1;
   }
@@ -2193,7 +2193,7 @@ WFE::Job::HandleProtoMethodArchivedEvent(const std::string& event,
   } else {
     eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
     {
-      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
       auto fmd = gOFS->eosFileService->getFileMD(mFid);
       try {
 	fmd->addLocation(TAPE_FS_ID);
@@ -2246,7 +2246,7 @@ WFE::Job::GetFileArchivedGCEnabled(const std::string& space)
   std::string valueStr;
 
   try {
-    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex, __FUNCTION__, __LINE__, __FILE__);
     const auto spaceItor = FsView::gFsView.mSpaceView.find(space);
 
     if (FsView::gFsView.mSpaceView.end() == spaceItor) {
@@ -2277,7 +2277,7 @@ WFE::Job::HandleProtoMethodRetrieveFailedEvent(const std::string& fullPath)
   gOFS->MgmStats.Add("Proto::Retrieve::Failed", 0, 0, 1);
 
   try {
-    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
     fmd->setAttribute(RETRIEVE_REQID_ATTR_NAME, "");
     fmd->setAttribute(RETRIEVE_REQTIME_ATTR_NAME, "");
@@ -2302,7 +2302,7 @@ WFE::Job::HandleProtoMethodArchiveFailedEvent(const std::string& fullPath)
   gOFS->MgmStats.Add("Proto::Archive::Failed", 0, 0, 1);
 
   try {
-    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
     fmd->setAttribute(ARCHIVE_ERROR_ATTR_NAME, mErrorMesssage);
     gOFS->eosView->updateFileStore(fmd.get());
@@ -2495,7 +2495,7 @@ WFE::Job::MoveToRetry(const std::string& filePath)
       eos::common::Path cPath(filePath.c_str());
       auto parentPath = cPath.GetParentPath();
       eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, parentPath);
-      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
       auto cmd = gOFS->eosView->getContainer(parentPath);
 
       try {
@@ -2577,7 +2577,7 @@ WFE::PublishActiveJobs()
  */
 /*----------------------------------------------------------------------------*/
 {
-  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex, __FUNCTION__, __LINE__, __FILE__);
   char sactive[256];
   snprintf(sactive, sizeof(sactive) - 1, "%u", GetActiveJobs());
   FsView::gFsView.mSpaceView["default"]->SetConfigMember("stat.wfe.active", sactive, true);

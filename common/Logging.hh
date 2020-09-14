@@ -216,6 +216,13 @@ EOSCOMMONNAMESPACE_BEGIN
 #define EOSCOMMONLOGGING_CIRCULARINDEXSIZE 10000
 
 //------------------------------------------------------------------------------
+//! Log Macros providing a third party code location in static functions
+//------------------------------------------------------------------------------
+#define eos_third_party_warning(function,file,line,...)		\
+  eos::common::Logging::GetInstance().log((function),(file), (line), "static..............................", \
+                                          eos::common::gLogging.gZeroVid, "", (LOG_WARNING), __VA_ARGS__)
+
+//------------------------------------------------------------------------------
 //! Class implementing EOS logging
 //------------------------------------------------------------------------------
 class LogId

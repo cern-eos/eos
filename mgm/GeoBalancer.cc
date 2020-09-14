@@ -287,7 +287,7 @@ GeoBalancer::getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
   eos::common::FileId::fileid_t fileid = 0;
   {
     eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
     try {
       fmd = gOFS->eosFileService->getFileMD(fid);
@@ -418,7 +418,7 @@ GeoBalancer::chooseFidFromGeotag(const std::string& geotag)
   uint64_t fsid_size = 0ull;
   eos::common::FileSystem::fsid_t fsid = 0;
   eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
-  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
   std::vector<eos::common::FileSystem::fsid_t>& validFs = mGeotagFs[geotag];
   // TODO(gbitzes): Add prefetching here.
 

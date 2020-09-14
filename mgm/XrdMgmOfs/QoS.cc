@@ -416,7 +416,7 @@ XrdMgmOfs::_qos_ls(const char* path, XrdOucErrInfo& error,
   std::string cmd_retrieved_qos;
 
   try {
-    eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     eos::FileOrContainerMD md = gOFS->eosView->getItem(path).get();
 
     if (md.file) {
@@ -440,7 +440,7 @@ XrdMgmOfs::_qos_ls(const char* path, XrdOucErrInfo& error,
   // Check if identified QoS class needs to be updated
   // Note: applies only to containers
   if (!errno && cmd_retrieved_qos.length()) {
-    eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
     try {
       eos::IContainerMDPtr cmd = gOFS->eosView->getContainer(path);
@@ -501,7 +501,7 @@ XrdMgmOfs::_qos_get(const char* path, XrdOucErrInfo& error,
   std::string cmd_retrieved_qos;
 
   try {
-    eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     eos::FileOrContainerMD md = gOFS->eosView->getItem(path).get();
     value = QoSValueFromMd(md, key).c_str();
 
@@ -518,7 +518,7 @@ XrdMgmOfs::_qos_get(const char* path, XrdOucErrInfo& error,
   // Check if identified QoS class needs to be updated
   // Note: applies only to containers
   if (!errno && cmd_retrieved_qos.length()) {
-    eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
     try {
       eos::IContainerMDPtr cmd = gOFS->eosView->getContainer(path);
@@ -593,7 +593,7 @@ XrdMgmOfs::_qos_set(const char* path, XrdOucErrInfo& error,
   eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, path);
 
   try {
-    eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     md = gOFS->eosView->getItem(path).get();
     current_qos = QoSValueFromMd(md, "current_qos");
   } catch (eos::MDException& e) {
@@ -627,7 +627,7 @@ XrdMgmOfs::_qos_set(const char* path, XrdOucErrInfo& error,
     unsigned long current_nstripes = 0;
 
     try {
-      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
+      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
       fmd = gOFS->eosView->getFile(path);
       fileid = fmd->getId();
       layoutid = fmd->getLayoutId();
@@ -722,7 +722,7 @@ XrdMgmOfs::_qos_set(const char* path, XrdOucErrInfo& error,
 
     // Add the target QoS attribute
     try {
-      eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex);
+      eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
       fmd = gOFS->eosView->getFile(path);
       fmd->setAttribute("user.eos.qos.target", qos.name);
       eosView->updateFileStore(fmd.get());
@@ -735,7 +735,7 @@ XrdMgmOfs::_qos_set(const char* path, XrdOucErrInfo& error,
   } else {
     // For containers, only set the QoS target extended attribute
     try {
-      eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex);
+      eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
       eos::IContainerMDPtr cmd = gOFS->eosView->getContainer(path);
       cmd->setAttribute("user.eos.qos.target", qos.name);
       eosView->updateContainerStore(cmd.get());

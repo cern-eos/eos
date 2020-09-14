@@ -126,7 +126,7 @@ Workflow::getCGICloseW(std::string workflow,
 
     try {
       eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, mFid);
-      eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
+      eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
       auto fmd = gOFS->eosFileService->getFileMD(mFid);
       fullPath = gOFS->eosView->getUri(fmd.get());
       cuid = fmd->getCUid();

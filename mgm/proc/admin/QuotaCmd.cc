@@ -172,7 +172,7 @@ void QuotaCmd::LsSubcmd(const eos::console::QuotaProto_LsProto& ls, eos::console
     canQuota = true;
   } else {
     // figure out if the authenticated user is a quota admin
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     eos::IContainerMD::XAttrMap attrmap;
 
     if (space[0] != '/') {
@@ -276,7 +276,7 @@ void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set, eos::cons
     canQuota = true;
   } else {
     // figure out if the authenticated user is a quota admin
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     eos::IContainerMD::XAttrMap attrmap;
 
     if (space[0] != '/') {
@@ -434,7 +434,7 @@ void QuotaCmd::RmSubcmd(const eos::console::QuotaProto_RmProto& rm, eos::console
     canQuota = true;
   } else {
     // figure out if the authenticated user is a quota admin
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     eos::IContainerMD::XAttrMap attrmap;
 
     if (space[0] != '/') {

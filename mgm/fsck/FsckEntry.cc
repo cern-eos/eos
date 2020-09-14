@@ -272,7 +272,7 @@ FsckEntry::RepairMgmXsSzDiff()
       try {
         // Grab the file metadata object and update it
         eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, mFid);
-        eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+        eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
         auto fmd = gOFS->eosFileService->getFileMD(mFid);
         fmd->setChecksum(xs_buff);
         fmd->setSize(sz_val);
@@ -417,7 +417,7 @@ FsckEntry::RepairRainInconsistencies()
         try {
           // Grab the file metadata object and update it
           eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, mFid);
-          eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+          eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
           auto fmd = gOFS->eosFileService->getFileMD(mFid);
           fmd->addLocation(mFsidErr);
           gOFS->eosView->updateFileStore(fmd.get());
@@ -533,7 +533,7 @@ FsckEntry::RepairReplicaInconsistencies()
     if (gOFS) {
       try { // Update the MGM file md object
         eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, mFid);
-        eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+        eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
         auto fmd = gOFS->eosFileService->getFileMD(mFid);
         fmd->unlinkLocation(drop_fsid);
         fmd->removeLocation(drop_fsid);
@@ -590,7 +590,7 @@ FsckEntry::RepairReplicaInconsistencies()
         if (gOFS) {
           try {
             eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, mFid);
-            eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+            eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
             auto fmd = gOFS->eosFileService->getFileMD(mFid);
             fmd->addLocation(new_fsid);
             gOFS->eosView->updateFileStore(fmd.get());

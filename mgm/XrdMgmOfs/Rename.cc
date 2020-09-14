@@ -299,7 +299,7 @@ XrdMgmOfs::_rename(const char* old_name,
 
       // Check if old path is a quota node - this is forbidden
       try {
-        eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+        eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
         rdir = eosView->getContainer(oPath.GetPath());
 
         if (rdir->getFlags() & eos::QUOTA_NODE_FLAG) {
@@ -384,7 +384,7 @@ XrdMgmOfs::_rename(const char* old_name,
 
   if (renameDir) {
     {
-      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
       // figure out if this is a move within the same quota node
       eos::IContainerMD::id_t q1;
       eos::IContainerMD::id_t q2;
@@ -416,7 +416,7 @@ XrdMgmOfs::_rename(const char* old_name,
   }
 
   {
-    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
     try {
       dir = eosView->getContainer(oPath.GetParentPath());

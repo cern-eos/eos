@@ -103,7 +103,7 @@ XrdMgmOfs::_remdir(const char* path,
                 qpath.c_str());
   }
 
-  eos::common::RWMutexWriteLock viewLock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexWriteLock viewLock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
   std::string aclpath;
 
   try {

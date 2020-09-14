@@ -122,6 +122,13 @@ NsHelper::ParseCommand(const char* arg)
           mutex->set_sample_rate10(true);
         } else if (soption == "--smplrate100") {
           mutex->set_sample_rate100(true);
+	} else if (soption == "--setblockedtime") {
+	  option = tokenizer.GetToken();
+	  if (option) {
+	    mutex->set_blockedtime(std::stoul(option));
+	  } else {
+	    return false;
+	  }
         } else {
           return false;
         }
@@ -480,6 +487,8 @@ void com_ns_help()
       << std::endl
       << "    --smplrate100    : set timing sample rate at 100% (severe slow-down)"
       << std::endl
+      << "    --setblockedtime <ms>" << std::endl
+      << "                     : set minimum time when a mutex lock lasting longer than <ms> is reported in the log file [default=10000" << std::endl
       << std::endl
       << "  ns compact off|on <delay> [<interval>] [<type>]" << std::endl
       << "    enable online compaction after <delay> seconds" << std::endl

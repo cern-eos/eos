@@ -146,7 +146,7 @@ ProcCommand::FileInfo(const char* path)
                                  spath).getUnderlyingUInt64();
       // Reference by fid+fxid
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
-      viewReadLock.Grab(gOFS->eosViewRWMutex);
+      viewReadLock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
       std::string nspath;
 
       try {
@@ -177,7 +177,7 @@ ProcCommand::FileInfo(const char* path)
     } else {
       // Reference by path
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, spath.c_str());
-      viewReadLock.Grab(gOFS->eosViewRWMutex);
+      viewReadLock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
       try {
         fmd = gOFS->eosView->getFile(spath.c_str());
@@ -615,7 +615,7 @@ ProcCommand::DirInfo(const char* path)
 
       // reference by pid+pxid
       //-------------------------------------------
-      viewReadLock.Grab(gOFS->eosViewRWMutex);
+      viewReadLock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
       std::string nspath;
 
       try {
@@ -635,7 +635,7 @@ ProcCommand::DirInfo(const char* path)
     } else {
       // reference by path
       //-------------------------------------------
-      viewReadLock.Grab(gOFS->eosViewRWMutex);
+      viewReadLock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
       try {
         dmd = gOFS->eosView->getContainer(spath.c_str());
@@ -820,7 +820,7 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     bool detached;
 
     if (dolock) {
-      viewReadLock.Grab(gOFS->eosViewRWMutex);
+      viewReadLock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     }
 
     try {
@@ -983,7 +983,7 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     bool detached;
 
     if (dolock) {
-      viewReadLock.Grab(gOFS->eosViewRWMutex);
+      viewReadLock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     }
 
     try {

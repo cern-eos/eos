@@ -295,7 +295,7 @@ _cloneMD(std::shared_ptr<eos::IContainerMD>& cloneMd, char cFlag,
     if (cFlag == '+' || cFlag == '-') {
       /* for '-': the clone directory may have been incorrectly removed, this should
        * not prevent a cleanup */
-      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
       eos::common::Path mdPath(buff);
 
       try {
@@ -355,7 +355,7 @@ _clone(std::shared_ptr<eos::IContainerMD>& cmd,
      * "quickly" released and re-grabbed at each directory in lower levels. Hence at deeper
      * recursion levels the lock is already held on entry */
     if (cFlag == '+') {
-      rwlock.Grab(gOFS->eosViewRWMutex);
+      rwlock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     } else if (cFlag == '-' &&
                cloneMd->hasAttribute("sys.clone.root")) { /* reset start of purge */
       std::string rootDir = cloneMd->getAttribute("sys.clone.root");
@@ -468,12 +468,12 @@ _clone(std::shared_ptr<eos::IContainerMD>& cmd,
       }
 
       if (cFlag == '-' && cloneId > 9) {
-        gOFS->eosViewRWMutex.LockWrite();
+	eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
         std::string hex_fid = fmd->getCloneFST();
         fmd->setCloneId(0);         /* clear cloneId */
         fmd->setCloneFST("");       /* clean up clone fid */
         gOFS->eosFileService->updateStore(fmd.get());
-        gOFS->eosViewRWMutex.UnLockWrite();
+	lock.Release();
 
         if (hex_fid != "") {
           eos::common::FileId::fileid_t clFid = eos::common::FileId::Hex2Fid(
@@ -769,7 +769,7 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
       eos::common::RWMutexReadLock ns_rd_lock;
 
       if (take_lock) {
-        ns_rd_lock.Grab(gOFS->eosViewRWMutex);
+        ns_rd_lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
       }
 
       try {

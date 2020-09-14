@@ -496,8 +496,6 @@ public:
 #endif
 
 private:
-  std::atomic<uint64_t> mLastWriteLock;
-
   bool mBlocking;
   IRWMutex* mMutexImpl;
   struct timespec wlocktime;
@@ -584,20 +582,21 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   RWMutexWriteLock(): mWrMutex(nullptr) {};
+  RWMutexWriteLock(const char* function, int line, const char* file);
 
   //----------------------------------------------------------------------------
   //! Constructor
   //!
   //! @param mutex mutex to lock for write
   //----------------------------------------------------------------------------
-  RWMutexWriteLock(RWMutex& mutex);
+  RWMutexWriteLock(RWMutex& mutex, const char* function="unknown", int line=0, const char* file="unknown");
 
   //----------------------------------------------------------------------------
   //! Grab mutex and write lock it
   //!
   //! @param mutex mutex to lock for write
   //----------------------------------------------------------------------------
-  void Grab(RWMutex& mutex);
+  void Grab(RWMutex& mutex, const char* function="unknown", int line=0, const char* file="unknown");
 
   //----------------------------------------------------------------------------
   //! Release the write lock after grab
@@ -611,6 +610,10 @@ public:
 
 private:
   RWMutex* mWrMutex;
+  std::chrono::steady_clock::time_point mAcquiredAt;
+  const char* mFunction;
+  int mLine;
+  const char* mFile;
 };
 
 //------------------------------------------------------------------------------
@@ -623,20 +626,21 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   RWMutexReadLock(): mRdMutex(nullptr) {};
+  RWMutexReadLock(const char* function, int line, const char* file) : mRdMutex(nullptr), mFunction(""), mLine(0), mFile("") {};
 
   //----------------------------------------------------------------------------
   //! Constructor
   //!
   //! @param mutex mutex to handle
   //----------------------------------------------------------------------------
-  RWMutexReadLock(RWMutex& mutex);
+  RWMutexReadLock(RWMutex& mutex, const char* function="unknown", int line=0, const char* file="unknown");
 
   //----------------------------------------------------------------------------
   //! Grab mutex and read lock it
   //!
   //! @param mutex mutex to lock for read
   //----------------------------------------------------------------------------
-  void Grab(RWMutex& mutex);
+  void Grab(RWMutex& mutex, const char* function="unknown", int line=0, const char* file="unknown");
 
   //----------------------------------------------------------------------------
   //! Release the write lock after grab
@@ -651,6 +655,9 @@ public:
 private:
   std::chrono::steady_clock::time_point mAcquiredAt;
   RWMutex* mRdMutex = nullptr;
+  const char* mFunction;
+  int mLine;
+  const char* mFile;
 };
 
 //------------------------------------------------------------------------------

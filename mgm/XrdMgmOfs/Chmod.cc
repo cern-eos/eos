@@ -97,7 +97,7 @@ XrdMgmOfs::_chmod(const char* path,
   // ---------------------------------------------------------------------------
   eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, path);
   eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
   std::shared_ptr<eos::IContainerMD> cmd;
   std::shared_ptr<eos::IContainerMD> pcmd;
   std::shared_ptr<eos::IFileMD> fmd;

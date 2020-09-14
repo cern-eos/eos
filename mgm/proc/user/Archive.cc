@@ -651,7 +651,7 @@ ProcCommand::ArchiveGetDirs(const std::string& root) const
   std::shared_ptr<eos::IContainerMD> cmd;
   eos::IContainerMD::id_t id;
   {
-    eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
     for (auto fid = fids.begin(); fid != fids.end(); ++fid) {
       // Convert string id to ContainerMD:id_t

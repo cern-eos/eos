@@ -54,7 +54,7 @@ XrdMgmOfs::Getfmd(const char* path,
   if (fid) {
     std::string fullpath;
     std::shared_ptr<eos::IFileMD> fmd;
-    eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
     try {
       fmd = gOFS->eosFileService->getFileMD(fid);

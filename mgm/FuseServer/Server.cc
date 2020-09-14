@@ -338,7 +338,7 @@ Server::FillContainerMD(uint64_t id, eos::fusex::md& dir,
     eos_debug("container-id=%llx", id);
   }
 
-  eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
   try {
     cmd = gOFS->eosDirectoryService->getContainerMD(id, &clock);
@@ -452,7 +452,7 @@ Server::FillFileMD(uint64_t inode, eos::fusex::md& file,
   if (EOS_LOGS_DEBUG) eos_debug("file-inode=%llx file-id=%llx", inode,
                                   eos::common::FileId::InodeToFid(inode));
 
-  eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
   try {
     bool has_mdino = false;
@@ -972,7 +972,7 @@ Server::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
   eos::common::RWMutexReadLock rd_ns_lock;
 
   if (take_lock) {
-    rd_ns_lock.Grab(gOFS->eosViewRWMutex);
+    rd_ns_lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
   }
 
   try {
@@ -1407,12 +1407,14 @@ Server::OpSetDirectory(const std::string& id,
   eos_info("ino=%lx pin=%lx authid=%s set-dir", (long) md.md_ino(),
            (long) md.md_pino(),
            md.authid().c_str());
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+
   std::shared_ptr<eos::IContainerMD> cmd;
   std::shared_ptr<eos::IContainerMD> pcmd;
   std::shared_ptr<eos::IContainerMD> cpcmd;
   eos::fusex::md mv_md;
   mode_t sgid_mode = 0;
+
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
   try {
     if (md.md_ino() && exclusive) {
@@ -1734,7 +1736,7 @@ Server::OpSetFile(const std::string& id,
            (long) md.md_pino(),
            md.authid().c_str());
   eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
   std::shared_ptr<eos::IFileMD> fmd;
   std::shared_ptr<eos::IFileMD> ofmd;
   std::shared_ptr<eos::IContainerMD> pcmd;
@@ -1827,7 +1829,7 @@ Server::OpSetFile(const std::string& id,
 	    // create a version before replacing
 	    if (versioning && !hasVersion) {
 	      XrdOucErrInfo error;
-	      gOFS->eosViewRWMutex.UnLockWrite();
+	      lock.Release();
 	      eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
 
 	      if (gOFS->Version(ofmd->getId(), error, rootvid, versioning)) {
@@ -1837,7 +1839,7 @@ Server::OpSetFile(const std::string& id,
 		created_version = true;
 	      }
 
-	      gOFS->eosViewRWMutex.LockWrite();
+	      lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 	    } else {
 	      // recycle bin - not for hardlinked files or hardlinks!
 	      if ( (try_recycle &&
@@ -1847,11 +1849,11 @@ Server::OpSetFile(const std::string& id,
 		// this is vulnerable to a hard to trigger race conditions
 		std::string fullpath = gOFS->eosView->getUri(ofmd.get());
 		gOFS->WriteRecycleRecord(ofmd);
-		gOFS->eosViewRWMutex.UnLockWrite();
+		lock.Release();
 		XrdOucErrInfo error;
 		(void) gOFS->_rem(fullpath.c_str(), error, vid, "",
 				  false, false, false, true, false);
-		gOFS->eosViewRWMutex.LockWrite();
+		lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);;
 	      } else {
 		if (!created_version) {
 		  // no recycle bin, no version
@@ -1887,7 +1889,7 @@ Server::OpSetFile(const std::string& id,
 
 	  if (hasVersion) {
 	    eos::common::Path nPath(gOFS->eosView->getUri(fmd.get()).c_str());
-	    gOFS->eosViewRWMutex.UnLockWrite();
+	    lock.Release();
 	    XrdOucErrInfo error;
 
 	    if (gOFS->_rename(oPath.GetVersionDirectory(), nPath.GetVersionDirectory(),
@@ -1896,7 +1898,7 @@ Server::OpSetFile(const std::string& id,
 		      oPath.GetVersionDirectory(), nPath.GetVersionDirectory());
 	    }
 
-	    gOFS->eosViewRWMutex.LockWrite();
+	    lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 	  }
 	} else {
 	  if (fmd->getName() != md.name()) {
@@ -1948,7 +1950,7 @@ Server::OpSetFile(const std::string& id,
 	      // create a version before replacing
 	      if (versioning && !hasVersion) {
 		XrdOucErrInfo error;
-		gOFS->eosViewRWMutex.UnLockWrite();
+		lock.Release();
 		eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
 
 		if (gOFS->Version(ofmd->getId(), error, rootvid, versioning)) {
@@ -1962,7 +1964,7 @@ Server::OpSetFile(const std::string& id,
 		  eos_debug("tried versioning - try_recycle=%d", try_recycle);
 		}
 
-		gOFS->eosViewRWMutex.LockWrite();
+		lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 	      }
 
 	      // recycle bin - not for hardlinked files or hardlinks !
@@ -1973,11 +1975,11 @@ Server::OpSetFile(const std::string& id,
 		// this is vulnerable to a hard to trigger race conditions
 		std::string fullpath = gOFS->eosView->getUri(ofmd.get());
 		gOFS->WriteRecycleRecord(ofmd);
-		gOFS->eosViewRWMutex.UnLockWrite();
+		lock.Release();
 		XrdOucErrInfo error;
 		(void) gOFS->_rem(fullpath.c_str(), error, vid, "", false, false,
 				  false, true, false);
-		gOFS->eosViewRWMutex.LockWrite();
+		lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 	      } else {
 		if (!created_version) {
 		  try {
@@ -2009,7 +2011,7 @@ Server::OpSetFile(const std::string& id,
 
 	    if (hasVersion) {
 	      eos::common::Path nPath(gOFS->eosView->getUri(fmd.get()).c_str());
-	      gOFS->eosViewRWMutex.UnLockWrite();
+	      lock.Release();
 	      XrdOucErrInfo error;
 
 	      if (gOFS->_rename(oPath.GetVersionDirectory(), nPath.GetVersionDirectory(),
@@ -2018,7 +2020,7 @@ Server::OpSetFile(const std::string& id,
 			oPath.GetVersionDirectory(), nPath.GetVersionDirectory());
 	      }
 
-	      gOFS->eosViewRWMutex.LockWrite();
+	      lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 	    }
 	  }
 	}
@@ -2316,7 +2318,7 @@ Server::OpSetLink(const std::string& id,
 
   eos_info("ino=%#lx %s", (long) md.md_ino(),
            md.name().c_str());
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
   std::shared_ptr<eos::IFileMD> fmd;
   std::shared_ptr<eos::IFileMD> ofmd;
   std::shared_ptr<eos::IContainerMD> pcmd;
@@ -2606,7 +2608,7 @@ Server::OpDeleteDirectory(const std::string& id,
   eos::IFileMD::ctime_t mtime;
   mtime.tv_sec = md.mtime();
   mtime.tv_nsec = md.mtime_ns();
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
   try {
     pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
@@ -2703,7 +2705,7 @@ Server::OpDeleteFile(const std::string& id,
   eos::IFileMD::ctime_t mtime;
   mtime.tv_sec = md.mtime();
   mtime.tv_nsec = md.mtime_ns();
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
   try {
     pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
@@ -2736,7 +2738,7 @@ Server::OpDeleteFile(const std::string& id,
       // this is vulnerable to a hard to trigger race conditions
       std::string fullpath = gOFS->eosView->getUri(fmd.get());
       gOFS->WriteRecycleRecord(fmd);
-      gOFS->eosViewRWMutex.UnLockWrite();
+      lock.Release();
       XrdOucErrInfo error;
       (void) gOFS->_rem(fullpath.c_str(), error, vid, "",
 			false,  // not simulated
@@ -2745,7 +2747,7 @@ Server::OpDeleteFile(const std::string& id,
 			true,  // don't enforce quota
 			false // don't broadcast
 			);
-      gOFS->eosViewRWMutex.LockWrite();
+      lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     } else {
       try {
         // handle quota
@@ -2895,7 +2897,7 @@ Server::OpDeleteLink(const std::string& id,
   eos::IFileMD::ctime_t mtime;
   mtime.tv_sec = md.mtime();
   mtime.tv_nsec = md.mtime_ns();
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
   try {
     pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());

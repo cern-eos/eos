@@ -1415,7 +1415,7 @@ Quota::GetIndividualQuota(eos::common::VirtualIdentity& vid,
     }
   }
 
-  eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
   eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
   SpaceQuota* space = GetResponsibleSpaceQuota(path);
 
@@ -1673,7 +1673,7 @@ Quota::RmSpaceQuota(const std::string& qpath, std::string& msg, int& retc)
 {
   std::string path = NormalizePath(qpath);
   eos_static_debug("qpath=%s, path=%s", qpath.c_str(), path.c_str());
-  eos::common::RWMutexWriteLock wr_ns_lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexWriteLock wr_ns_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
   eos::common::RWMutexWriteLock wr_quota_lock(pMapMutex);
   std::unique_ptr<SpaceQuota> squota(GetSpaceQuota(path));
 
@@ -1758,7 +1758,7 @@ Quota::LoadNodes()
   {
     std::string quota_path;
     std::shared_ptr<eos::IContainerMD> container;
-    eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     auto set_ids = gOFS->eosView->getQuotaStats()->getAllIds();
 
     for (const auto elem : set_ids) {
@@ -1790,7 +1790,7 @@ Quota::LoadNodes()
 
   // Refresh the space quota objects
   {
-    eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
 
     for (auto it = pMapQuota.begin(); it != pMapQuota.end(); ++it) {
@@ -1812,7 +1812,7 @@ Quota::PrintOut(const std::string& path, XrdOucString& output,
   // the configuration file
   LoadNodes();
   eos::common::RWMutexReadLock rd_fs_lock(FsView::gFsView.ViewMutex);
-  eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
   eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
 
   if (path.empty()) {
@@ -1844,7 +1844,7 @@ Quota::GetGroupStatistics(const std::string& qpath, long id)
 {
   std::string path = NormalizePath(qpath);
   std::map<int, unsigned long long> map;
-  eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
   eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
   SpaceQuota* squota = GetResponsibleSpaceQuota(path);
 
@@ -1992,7 +1992,7 @@ Quota::Create(const std::string& path)
     return false;
   }
 
-  eos::common::RWMutexWriteLock wr_ns_lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexWriteLock wr_ns_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
   eos::common::RWMutexWriteLock wr_quota_lock(pMapMutex);
 
   if (pMapQuota.count(path) == 0) {
@@ -2034,7 +2034,7 @@ std::map<std::string, std::tuple<unsigned long long,
   // the configuration file
   LoadNodes();
   eos::common::RWMutexReadLock rd_fs_lock(FsView::gFsView.ViewMutex);
-  eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
   eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
 
   for (const auto& quotaNode : pMapQuota) {

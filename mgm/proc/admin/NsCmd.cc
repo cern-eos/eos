@@ -100,7 +100,7 @@ NsCmd::MutexSubcmd(const eos::console::NsProto_MutexProto& mutex,
 
     if (mutex.sample_rate1() || mutex.sample_rate10() ||
         mutex.sample_rate100() || mutex.toggle_timing() ||
-        mutex.toggle_order()) {
+        mutex.toggle_order() || mutex.blockedtime()) {
       no_option = false;
     }
 
@@ -144,8 +144,9 @@ NsCmd::MutexSubcmd(const eos::console::NsProto_MutexProto& mutex,
             << int((timinglatency * sr) / cycleperiod * 100)
             << "% of the mutex lock/unlock cycle duration)";
       }
-
       oss << std::endl;
+      oss << "blockedtiming  is : ";
+      oss << ns_mtx->BlockedForMsInterval() << " ms" << std::endl;
     }
 
     if (mutex.toggle_timing()) {
@@ -180,6 +181,11 @@ NsCmd::MutexSubcmd(const eos::console::NsProto_MutexProto& mutex,
         eos::common::RWMutex::SetDeadlockCheckingGlobal(true);
         oss << "mutex deadlock checking is on" << std::endl;
       }
+    }
+
+    if (mutex.blockedtime()) {
+      ns_mtx->SetBlockedForMsInterval(mutex.blockedtime());
+      oss << "blockedtiming set to " << ns_mtx->BlockedForMsInterval() << " ms" << std::endl;
     }
 
     if (mutex.sample_rate1() || mutex.sample_rate10() ||
@@ -791,7 +797,7 @@ void
 NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
                       eos::console::ReplyProto& reply)
 {
-  eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
   std::shared_ptr<IContainerMD> cont;
 
   try {
@@ -843,7 +849,7 @@ NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
   std::string cont_uri {""};
   eos::IContainerMD::id_t cont_id {0ull};
   {
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     std::shared_ptr<IContainerMD> cont {nullptr};
 
     try {
@@ -879,7 +885,7 @@ NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
 
   // Update the quota note
   try {
-    eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     auto cont = gOFS->eosDirectoryService->getContainerMD(cont_id);
 
     if ((cont->getFlags() & eos::QUOTA_NODE_FLAG) == 0) {

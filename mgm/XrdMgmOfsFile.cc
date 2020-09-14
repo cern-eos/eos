@@ -489,7 +489,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
     try {
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, byfid);
-      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
       fmd = gOFS->eosFileService->getFileMD(byfid);
       spath = gOFS->eosView->getUri(fmd.get()).c_str();
       bypid = fmd->getContainerId();
@@ -708,7 +708,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
     try {
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, byfid);
-      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
       fmd = gOFS->eosFileService->getFileMD(byfid);
       spath = gOFS->eosView->getUri(fmd.get()).c_str();
       bypid = fmd->getContainerId();
@@ -788,7 +788,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, cPath.GetPath());
     }
 
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
     try {
       if (byfid) {
@@ -1206,7 +1206,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         {
           // -------------------------------------------------------------------
           std::shared_ptr<eos::IFileMD> ref_fmd;
-          eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+          eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
           try {
             // we create files with the uid/gid of the parent directory
@@ -1467,7 +1467,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     layoutId = new_lid;
     {
       std::shared_ptr<eos::IFileMD> fmdnew;
-      eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+      eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
       if (!byfid) {
         try {
@@ -1972,7 +1972,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
         try {
           eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
-          eos::common::RWMutexReadLock rd_lock(gOFS->eosViewRWMutex);
+          eos::common::RWMutexReadLock rd_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
           auto tmp_fmd = gOFS->eosView->getFile(path);
 
           if (tmp_fmd->getNumLocation() == 0) {
@@ -2025,7 +2025,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, creation_path);
           }
 
-          eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+          eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
           // -------------------------------------------------------------------
 
           try {
@@ -2075,7 +2075,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           // the new FUSE client needs to have the replicas attached after the
           // first open call
           eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, byfid);
-          eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+          eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
           try {
             fmd = gOFS->eosFileService->getFileMD(byfid);
@@ -2760,7 +2760,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       if (ret_wfe != 0) {
         // Remove the file from the namespace in this case
         try {
-          eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+          eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
           gOFS->eosView->removeFile(fmd.get());
         } catch (eos::MDException& ex) {
           eos_err("Failed to remove file from namespace in case of create workflow error. Reason: %s",
@@ -2835,7 +2835,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       XrdOucString sage = attrmap["sys.force.atime"].c_str();
       time_t age = eos::common::StringConversion::GetSizeFromString(sage);
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
-      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
       try {
         fmd = gOFS->eosView->getFile(path);

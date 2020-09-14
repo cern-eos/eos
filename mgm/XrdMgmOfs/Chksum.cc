@@ -114,7 +114,7 @@ XrdMgmOfs::chksum(XrdSfsFileSystem::csFunc Func,
 
   // ---------------------------------------------------------------------------
   eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, cPath.GetPath());
-  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
   bool enonet = false;
 
   try {

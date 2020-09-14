@@ -460,7 +460,7 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
   break;
 
   case eos::console::SpaceProto_ResetProto::NSFILESISTEMVIEW: {
-    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     gOFS->eosFsView->shrink();
     std_out << "\ninfo: resized namespace filesystem view ...";
   }
@@ -471,7 +471,7 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
                               (gOFS->eosFileService);
 
     if (eos_chlog_filesvc) {
-      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
       eos_chlog_filesvc->resize();
       std_out << "\ninfo: resized namespace file map ...";
     } else {
@@ -485,7 +485,7 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
                              (gOFS->eosDirectoryService);
 
     if (eos_chlog_dirsvc) {
-      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
       eos_chlog_dirsvc->resize();
       std_out << "\ninfo: resized namespace directory map ...";
     } else {
@@ -495,7 +495,7 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
   break;
 
   case eos::console::SpaceProto_ResetProto::NS: {
-    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     gOFS->eosFsView->shrink();
     auto* eos_chlog_filesvc = dynamic_cast<eos::IChLogFileMDSvc*>
                               (gOFS->eosFileService);

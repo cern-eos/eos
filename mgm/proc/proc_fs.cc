@@ -182,7 +182,7 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
     }
 
     eos::common::RWMutexReadLock ns_rd_lock;
-    ns_rd_lock.Grab(gOFS->eosViewRWMutex);
+    ns_rd_lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
     for (auto it_fid = gOFS->eosFsView->getFileList(fsid);
          (it_fid && it_fid->valid()); it_fid->next()) {
@@ -1486,7 +1486,7 @@ proc_fs_dropdeletion(const eos::common::FileSystem::fsid_t& fsid,
     return EPERM;
   }
 
-  eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
   if (gOFS->eosFsView->clearUnlinkedFileList(fsid)) {
     out = SSTR("success: dropped deletions on fsid=" << fsid).c_str();
@@ -1520,7 +1520,7 @@ proc_fs_dropghosts(const eos::common::FileSystem::fsid_t& fsid,
 
   if (set_fids.empty()) {
     // We check all the files on that filesystem
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
     for (auto it_fid = gOFS->eosFsView->getFileList(fsid);
          (it_fid && it_fid->valid()); it_fid->next()) {
@@ -1534,7 +1534,7 @@ proc_fs_dropghosts(const eos::common::FileSystem::fsid_t& fsid,
       }
     }
   } else {
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
     for (const auto& fid : set_fids) {
       try {
@@ -1548,7 +1548,7 @@ proc_fs_dropghosts(const eos::common::FileSystem::fsid_t& fsid,
     }
   }
 
-  eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
   for (const auto& fid : to_delete) {
     gOFS->eosFsView->eraseEntry(fsid, fid);

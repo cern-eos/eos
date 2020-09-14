@@ -91,7 +91,7 @@ ProcCommand::FuseX()
     // translate spath into an inode number
     std::shared_ptr<eos::IFileMD> fmd;
     std::shared_ptr<eos::IContainerMD> cmd;
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     std::string emsg;
 
     try {
@@ -132,7 +132,7 @@ ProcCommand::FuseX()
     // decode escaped child name
     schild = eos::common::StringConversion::curl_unescaped(schild.c_str()).c_str();
     std::shared_ptr<eos::IContainerMD> cmd;
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     std::string emsg;
 
     // lookup by parent dir + name

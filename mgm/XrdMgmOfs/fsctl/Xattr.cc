@@ -150,7 +150,7 @@ XrdMgmOfs::Xattr(const char* path,
         XrdOucString value;
         std::shared_ptr<eos::IFileMD> fmd;
         {
-          eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
+          eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
           try {
             fmd = gOFS->eosView->getFile(path);

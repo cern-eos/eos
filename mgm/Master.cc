@@ -710,7 +710,7 @@ Master::Compacting()
         {
           MasterLog(eos_info("msg=\"compact prepare\""));
           // Require NS read lock
-          eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+          eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
           if (CompactFiles) {
             compData = eos_chlog_filesvc->compactPrepare(ocfile);
@@ -735,7 +735,7 @@ Master::Compacting()
         {
           // Requires namespace write lock
           MasterLog(eos_info("msg=\"compact commit\""));
-          eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+          eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
           if (CompactFiles) {
             eos_chlog_filesvc->compactCommit(compData);
@@ -1581,7 +1581,7 @@ Master::MasterRO2Slave()
   }
   {
     // Convert the namespace
-    eos::common::RWMutexWriteLock nsLock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexWriteLock nsLock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
     // Take the whole namespace down
     try {
@@ -2184,7 +2184,7 @@ Master::RebootSlaveNamespace()
   gOFS->mNamespaceState = NamespaceState::kBooting;
   {
     // now convert the namespace
-    eos::common::RWMutexWriteLock nsLock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexWriteLock nsLock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
     // Take the whole namespace down
     try {

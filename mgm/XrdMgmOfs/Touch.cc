@@ -67,7 +67,7 @@ XrdMgmOfs::_touch(const char* path,
   eos::common::RWMutexWriteLock lock;
 
   if (doLock) {
-    lock.Grab(gOFS->eosViewRWMutex);
+    lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
   }
 
   try {
@@ -108,7 +108,7 @@ XrdMgmOfs::_touch(const char* path,
           return SFS_ERROR;
         }
 
-        lock.Grab(gOFS->eosViewRWMutex);
+        lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
         fmd = gOFS->eosView->getFile(path);
       } else {
         fmd = gOFS->eosView->createFile(path, vid.uid, vid.gid);

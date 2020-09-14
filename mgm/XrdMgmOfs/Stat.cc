@@ -189,7 +189,7 @@ XrdMgmOfs::_stat(const char* path,
 
   // Prefetch path
   eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, cPath.GetPath(), follow);
-  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
   try {
     fmd = gOFS->eosView->getFile(cPath.GetPath(), follow);
@@ -367,7 +367,7 @@ XrdMgmOfs::_getchecksum(const char* Name,
   std::shared_ptr<eos::IFileMD> fmd;
   eos::common::Path cPath(Name);
   eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, cPath.GetPath(), follow);
-  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
   try {
     fmd = gOFS->eosView->getFile(cPath.GetPath(), follow);

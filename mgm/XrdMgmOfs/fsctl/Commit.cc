@@ -117,7 +117,7 @@ XrdMgmOfs::Commit(const char* path,
     std::string fmdname;
     {
       // Keep the lock order View => Namespace => Quota
-      eos::common::RWMutexWriteLock nslock(gOFS->eosViewRWMutex);
+      eos::common::RWMutexWriteLock nslock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
       errno = 0;
 
       try {

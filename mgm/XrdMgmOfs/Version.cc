@@ -59,7 +59,7 @@ XrdMgmOfs::Version(eos::common::FileId::fileid_t fid,
   eos::common::VirtualIdentity fidvid = vid;
   time_t filectime = 0;
   {
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
     try {
       fmd = gOFS->eosFileService->getFileMD(fid);

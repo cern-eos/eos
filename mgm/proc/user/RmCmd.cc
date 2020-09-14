@@ -391,7 +391,7 @@ RmCmd::RemoveDetached(uint64_t id, bool is_dir, bool force,
 
   if (is_dir) {
     try {
-      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
       std::shared_ptr<IContainerMD> cont  =
         gOFS->eosDirectoryService->getContainerMD(id);
       gOFS->eosDirectoryService->removeContainer(cont.get());
@@ -406,7 +406,7 @@ RmCmd::RemoveDetached(uint64_t id, bool is_dir, bool force,
   } else {
     try {
       eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-      eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+      eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
       std::shared_ptr<IFileMD> file = gOFS->eosFileService->getFileMD(id);
       // If any of the unlink locations is a file systems that doesn't exist
       // anymore then just remove it

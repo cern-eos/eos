@@ -353,7 +353,7 @@ XrdMgmOfs::Schedule2Balance(const char* path,
 
   eos::common::FileSystem::fsid_t src_fsid = src_snapshot.mId;
   // ------> NS read lock
-  eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
   uint64_t nfids = gOFS->eosFsView->getNumFilesOnFs(src_fsid);
   eos_thread_debug("group=%s src_fsid=%u tgt_fsid=%u n_source_fids=%llu",
                    src_snapshot.mGroup.c_str(), src_fsid, tgt_fsid, nfids);
@@ -368,7 +368,7 @@ XrdMgmOfs::Schedule2Balance(const char* path,
     if (!gOFS->eosView->inMemory()) {
       ns_rd_lock.Release();
       eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
-      ns_rd_lock.Grab(gOFS->eosViewRWMutex);
+      ns_rd_lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     }
 
     // Check that the target does not have this file

@@ -1032,7 +1032,7 @@ Iostat::PrintNs(XrdOucString& out, XrdOucString option)
         {
           unsigned long long fid = eos::common::FileId::Hex2Fid(val.c_str());
           eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
-          eos::common::RWMutexReadLock viewLock(gOFS->eosViewRWMutex);
+          eos::common::RWMutexReadLock viewLock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
           try {
             path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid).get());
@@ -1062,7 +1062,7 @@ Iostat::PrintNs(XrdOucString& out, XrdOucString option)
         {
           unsigned long long fid = eos::common::FileId::Hex2Fid(val.c_str());
           eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
-          eos::common::RWMutexReadLock viewLock(gOFS->eosViewRWMutex);
+          eos::common::RWMutexReadLock viewLock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
           try {
             path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid).get());

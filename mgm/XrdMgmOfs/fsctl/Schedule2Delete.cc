@@ -141,7 +141,7 @@ XrdMgmOfs::Schedule2Delete(const char* path,
     std::unordered_set<eos::IFileMD::id_t> set_fids;
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
     {
-      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
+      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
       uint64_t num_files = eosFsView->getNumUnlinkedFilesOnFs(fsid);
 
       if (num_files == 0) {

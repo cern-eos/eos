@@ -112,7 +112,7 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
   }
 
   std::list<std::string> paths;
-  eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
   if (acl.recursive()) {
     // @todo (esindril): get list of all directories recursively

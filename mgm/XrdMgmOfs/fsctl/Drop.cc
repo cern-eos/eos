@@ -63,7 +63,7 @@ XrdMgmOfs::Drop(const char* path,
     std::shared_ptr<eos::IContainerMD> container;
     std::shared_ptr<eos::IFileMD> fmd;
     eos::IQuotaNode* ns_quota = nullptr;
-    eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
     try {
       fmd = eosFileService->getFileMD(fid);
