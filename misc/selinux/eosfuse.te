@@ -37,6 +37,8 @@ allow mount_t var_log_t:dir add_name;
 allow mount_t var_log_t:file { create setattr };
 allow mount_t var_run_t:lnk_file { read getattr };
 allow mount_t domain:process getpgid;
+allow mount_t self:process signull;
+allow mount_t self:process ptrace;
 allow mount_t tmp_t:fifo_file { create unlink open };
 
 #============= sshd_t ==============
