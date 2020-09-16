@@ -16,6 +16,24 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.16 Citrine``
+===================
+
+2020-09-16
+
+Bug
+---
+
+MGM: fix bug where a FuseX broadcast is run while the namespace write lock is held
+SELINUX: add missing rules for 'mount' to work with default SE settings
+
+Improvement
+------------
+
+* [EOS-4424] - Parse a second local eosxd configuration file
+* [EOS-4427] - Show where in the code a mutex is held after exceeding a given threshold
+
+
 ``v4.8.15 Citrine``
 ===================
 
