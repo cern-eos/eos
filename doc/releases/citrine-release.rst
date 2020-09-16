@@ -15,6 +15,15 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.8.17 Citrine``
+===================
+
+2020-09-16
+
+Bug
+---
+
+COMMON: adapt to new * => _ mapping of xrootd connection names for FUSE ID mapping
 
 ``v4.8.16 Citrine``
 ===================
