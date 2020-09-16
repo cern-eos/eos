@@ -30,8 +30,6 @@
 #include "llfusexx.hh"
 #include "fusex/fusex.pb.h"
 #include "kv/kv.hh"
-#include "hiredis/hiredis.h"
-#include "hiredis/async.h"
 #include "XrdSys/XrdSysPthread.hh"
 #include <memory>
 #include <map>
