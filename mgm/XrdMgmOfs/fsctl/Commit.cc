@@ -256,10 +256,15 @@ XrdMgmOfs::Commit(const char* path,
         return Emsg(epname, error, errno, "commit filesize change", emsg.c_str());
       }
 
+      eos::FileIdentifier f_ident = fmd->getIdentifier();
+      eos::ContainerIdentifier c_ident = eos::ContainerIdentifier(fmd->getContainerId());
+
+      nslock.Release();
+
       if (option["update"]) {
         // broadcast file md
-        gOFS->FuseXCastRefresh(fmd->getIdentifier(),
-                               eos::ContainerIdentifier(fmd->getContainerId()));
+        gOFS->FuseXCastRefresh(f_ident,
+                               c_ident);
       }
     }
     {
