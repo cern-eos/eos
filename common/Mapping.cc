@@ -1324,7 +1324,7 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
     if (sname.length() == 8) {
       bool known_tident = false;
 
-      if (sname.beginswith("*") || sname.beginswith("~")) {
+      if (sname.beginswith("*") || sname.beginswith("~") || sname.beginswith("_")) {
         known_tident = true;
         // that is a new base-64 encoded id following the format '*1234567'
         // where 1234567 is the base64 encoded 42-bit value of 20-bit uid |
