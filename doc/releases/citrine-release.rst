@@ -23,13 +23,13 @@ This release is based on XRootD V4 and IPV6 enabled.
 Bug
 ---
 
-* add missing mutex in access rejection macros
+* MGM: add missing mutex in access rejection macros
 
 Improvement
 -----------
 
-* improve mutex contention in Access commmands (particular in combination with QDB Config)
-* improve mutex contention in FuseX command adding Prefetcher
+* MGM: improve mutex contention in Access commmands (particular in combination with QDB Config)
+* MGM: adding Prefetcher in various places
 
 ``v4.8.17 Citrine``
 ===================
