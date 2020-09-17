@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "common/Logging.hh"
+#include "namespace/Prefetcher.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IQuota.hh"
 #include "namespace/interface/IFileMD.hh"

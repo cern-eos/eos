@@ -29,6 +29,7 @@
 #include "common/LayoutId.hh"
 #include "namespace/interface/IQuota.hh"
 #include "namespace/interface/IView.hh"
+#include "namespace/Prefetcher.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

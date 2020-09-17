@@ -29,6 +29,7 @@
 #include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Macros.hh"
+#include "namespace/Prefetcher.hh"
 
 #include <XrdOuc/XrdOucEnv.hh>
 
