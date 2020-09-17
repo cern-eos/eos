@@ -30,6 +30,7 @@
 #include "mgm/Macros.hh"
 #include "mgm/Stat.hh"
 #include "namespace/interface/IView.hh"
+#include "namespace/Prefetcher.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -91,6 +92,9 @@ ProcCommand::FuseX()
     // translate spath into an inode number
     std::shared_ptr<eos::IFileMD> fmd;
     std::shared_ptr<eos::IContainerMD> cmd;
+
+    eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, spath.c_str());
+
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     std::string emsg;
 
@@ -104,6 +108,12 @@ ProcCommand::FuseX()
 
     if (!fmd) {
       errno = 0;
+
+      lock.Release();
+
+      eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, spath.c_str());
+
+      lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
       try {
         cmd = gOFS->eosView->getContainer(spath.c_str(), true);
