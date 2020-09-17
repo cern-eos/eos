@@ -38,7 +38,7 @@ Checkout the eos-on-k8s project:
    cd eos-on-k8s
 
 
-To start a small instance with 7 storage servers (**FST**), 1 namespace server (**MGM**), 1 messaging borker (**MQ**), 1 client and 1 Kerberos **KDC** Kubernetes Pod ready to use, all you have to do is to use the `create-all.sh <https://gitlab.cern.ch/faluchet/eos-on-k8s/blob/master/create-all.sh>`_ script. The only mandatory argument, to be provided with the -n flag, is a namespace of your choice representing the world where the resources will live in. The EOS entities ("roles") will reside on the same network knowing about each other and are configured to be working out-of-the-box.  
+To start a small instance with 8 storage servers (**FST**), 1 namespace server (**MGM**), 1 messaging borker (**MQ**), 1 client and 1 Kerberos **KDC** Kubernetes Pod ready to use, all you have to do is to use the `create-all.sh <https://gitlab.cern.ch/faluchet/eos-on-k8s/blob/master/create-all.sh>`_ script. It is recommended to provide a <namespace> argument, via the -n flag, representing the virtual cluster name the resources will live in. Each EOS entities ("roles") will reside on the same network knowing about each other and are configured to be working out-of-the-box.
 We refer the courious reader to the `official documentation <https://kubernetes.io/docs/home/>`_ to deepen his knowledge about Kubernetes concepts. 
 
 .. code-block:: bash

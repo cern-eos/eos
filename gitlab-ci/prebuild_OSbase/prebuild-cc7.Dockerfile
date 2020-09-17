@@ -10,7 +10,7 @@ RUN yum install --nogpg -y git && yum clean all \
     && if [[ $(git rev-parse --git-dir) != .git ]] || [[ $(git config --get remote.origin.url) != *gitlab.cern.ch/dss/eos.git ]]; \
         then git clone https://gitlab.cern.ch/dss/eos.git . ; fi
 
-RUN yum install --nogpg -y ccache cmake3 gcc-c++ git make rpm-build rpm-sign sl-release-scl tar which yum-plugin-priorities \
+RUN yum install --nogpg -y ccache cmake3 gcc-c++ git make rpm-build rpm-sign centos-release-scl tar which yum-plugin-priorities \
     && source gitlab-ci/export_branch.sh \
     && echo "Exporting BRANCH=${BRANCH}" \
     && git submodule update --init --recursive \

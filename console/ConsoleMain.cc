@@ -824,7 +824,7 @@ Run(int argc, char* argv[])
     }
 
     if ((in1 == "--version") || (in1 == "-v")) {
-      fprintf(stderr, "EOS %s (2019)\n\n", VERSION);
+      fprintf(stderr, "EOS %s (2020)\n\n", VERSION);
       fprintf(stderr, "Developed by the CERN IT storage group\n");
       exit(-1);
     }
@@ -1061,7 +1061,7 @@ Run(int argc, char* argv[])
   if (interactive) {
     fprintf(stderr,
             "# ---------------------------------------------------------------------------\n");
-    fprintf(stderr, "# EOS  Copyright (C) 2011-2019 CERN/Switzerland\n");
+    fprintf(stderr, "# EOS  Copyright (C) 2011-2020 CERN/Switzerland\n");
     fprintf(stderr,
             "# This program comes with ABSOLUTELY NO WARRANTY; for details type `license'.\n");
     fprintf(stderr,
