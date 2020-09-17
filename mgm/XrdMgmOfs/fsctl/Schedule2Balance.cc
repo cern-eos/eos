@@ -352,8 +352,6 @@ XrdMgmOfs::Schedule2Balance(const char* path,
   }
 
   eos::common::FileSystem::fsid_t src_fsid = src_snapshot.mId;
-  // ------> NS read lock
-  eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
   uint64_t nfids = gOFS->eosFsView->getNumFilesOnFs(src_fsid);
   eos_thread_debug("group=%s src_fsid=%u tgt_fsid=%u n_source_fids=%llu",
                    src_snapshot.mGroup.c_str(), src_fsid, tgt_fsid, nfids);
@@ -363,12 +361,6 @@ XrdMgmOfs::Schedule2Balance(const char* path,
 
     if (!gOFS->eosFsView->getApproximatelyRandomFileInFs(src_fsid, fid)) {
       break;
-    }
-
-    if (!gOFS->eosView->inMemory()) {
-      ns_rd_lock.Release();
-      eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
-      ns_rd_lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     }
 
     // Check that the target does not have this file
@@ -386,43 +378,47 @@ XrdMgmOfs::Schedule2Balance(const char* path,
     uid_t uid = 0;
     gid_t gid = 0;
     std::string fullpath = "";
+    {
+      if (!gOFS->eosView->inMemory()) {
+        eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
+      }
 
-    try {
-      fmd = gOFS->eosFileService->getFileMD(fid);
-      fullpath = gOFS->eosView->getUri(fmd.get());
-      XrdOucString savepath = fullpath.c_str();
+      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
+                                              __LINE__, __FILE__);
 
-      while (savepath.replace("&", "#AND#")) {}
+      try {
+        fmd = gOFS->eosFileService->getFileMD(fid);
+        fullpath = gOFS->eosView->getUri(fmd.get());
+        XrdOucString savepath = fullpath.c_str();
 
-      fullpath = savepath.c_str();
-      lid = fmd->getLayoutId();
-      cid = fmd->getContainerId();
-      size = fmd->getSize();
-      uid = fmd->getCUid();
-      gid = fmd->getCGid();
-    } catch (eos::MDException& e) {
-      fmd.reset();
+        while (savepath.replace("&", "#AND#")) {}
+
+        fullpath = savepath.c_str();
+        lid = fmd->getLayoutId();
+        cid = fmd->getContainerId();
+        size = fmd->getSize();
+        uid = fmd->getCUid();
+        gid = fmd->getCGid();
+      } catch (eos::MDException& e) {
+        fmd.reset();
+      }
+
+      if (!fmd) {
+        eos_thread_debug("msg=\"skip no fmd record found\"fxid=%08llx", fid);
+        continue;
+      }
+
+      if (size == 0) {
+        eos_thread_debug("msg=\"skip zero size file\" fxid=%08llx", fid);
+        continue;
+      }
+
+      if (size >= freebytes) {
+        eos_thread_warning("msg=\"skip file bigger than free bytes\" fxid=%08llx "
+                           "fsize=%llu free_bytes=%llu", fid, size, freebytes);
+        continue;
+      }
     }
-
-    if (!fmd) {
-      eos_thread_debug("msg=\"skip no fmd record found\"fxid=%08llx", fid);
-      continue;
-    }
-
-    if (size == 0) {
-      eos_thread_debug("msg=\"skip zero size file\" fxid=%08llx", fid);
-      continue;
-    }
-
-    if (size >= freebytes) {
-      eos_thread_warning("msg=\"skip file bigger than free bytes\" fxid=%08llx "
-                         "fsize=%llu free_bytes=%llu", fid, size, freebytes);
-      continue;
-    }
-
-    // We can release the NS lock since we will definetely return from this
-    // function and we have all the necessary info at the local scope
-    ns_rd_lock.Release();
     // Update tracker for scheduled fid balance jobs
     mFidTracker.DoCleanup(TrackerType::Balance);
 
