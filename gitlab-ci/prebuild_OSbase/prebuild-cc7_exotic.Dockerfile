@@ -12,7 +12,7 @@ RUN if [[ $PREBUILD_NAME == "cc7_xrd_testing" ]]; then \
       echo -e '[xrootd-testing]\nname=XRootD Testing repository\nbaseurl=http://xrootd.org/binaries/testing/slc/7/$basearch http://xrootd.cern.ch/sw/repos/testing/slc/7/$basearch\ngpgcheck=0\nenabled=1\npriority=1\nprotect=0\ngpgkey=http://xrootd.cern.ch/sw/releases/RPM-GPG-KEY.txt\nexclude=xrootd-*5.0.0*\n' >> /etc/yum.repos.d/xrootd-testing.repo; \
     fi
 
-RUN yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar ccache sl-release-scl rpm-sign \
+RUN yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar ccache centos-release-scl rpm-sign \
     && source gitlab-ci/export_branch.sh \
     && echo "Exporting BRANCH=${BRANCH}" \
     && git submodule update --init --recursive \

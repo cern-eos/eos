@@ -68,7 +68,7 @@ as seen in the [documentation][1].
 yum install -y git gcc cmake cmake3 readline readline-devel fuse fuse-devel \
 leveldb leveldb-devel binutils-devel zlib zlib-devel zlib-static \
 bzip2 bzip2-devel libattr libattr-devel libuuid libuuid-devel \
-xfsprogs xfsprogs-devel sparsehash sparsehash-devel e2fsprogs e2fsprogs-devel \
+xfsprogs xfsprogs-devel sparsehash-devel e2fsprogs e2fsprogs-devel \
 libmicrohttpd libmicrohttpd-devel openssl openssl-devel openssl-static \
 eos-folly eos-rocksdb ncurses ncurses-devel ncurses-static protobuf3-devel \
 cppunit-devel openldap-devel hiredis-devel zeromq-devel jsoncpp-devel \
@@ -82,7 +82,6 @@ To build **EOS**, you need **gcc (>=4.9)** with **C++14 features** and **CMake**
 installed on your system:
 
 ```bash
-# Note that you will also need to check out the fmd and qclient git submodules
 git submodule update --init --recursive
 # Create build workdir
 mkdir build
