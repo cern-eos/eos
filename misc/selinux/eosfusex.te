@@ -1,0 +1,75 @@
+policy_module(eosfusex, 1.7)
+
+gen_require(`
+        type mount_t, autofs_t, unconfined_t, krb5_conf_t, passwd_file_t, sysfs_t;
+        role system_r;
+')
+
+type eosxd_t;
+type eosxd_exec_t;
+domain_type(eosxd_t)
+domain_entry_file(eosxd_t,eosxd_exec_t)
+
+type eosxd_cache_t;
+files_type(eosxd_cache_t)
+
+type eosxd_tmp_t;
+files_tmp_file(eosxd_tmp_t)
+
+type eosxd_log_t;
+logging_log_file(eosxd_log_t)
+
+role system_r types eosxd_t;
+domtrans_pattern(mount_t, eosxd_exec_t, eosxd_t)
+dontaudit eosxd_t self:process { setrlimit };
+allow eosxd_t self:process { signal_perms setsched ptrace };
+allow eosxd_t self:capability { sys_admin setuid sys_nice sys_ptrace sys_resource setgid };
+
+dev_rw_zero(eosxd_t)
+dev_rw_null(eosxd_t)
+
+miscfiles_read_certs(eosxd_t)
+sysnet_dns_name_resolve(eosxd_t)
+mount_domtrans(eosxd_t)
+dev_read_urand(eosxd_t)
+dev_read_rand(eosxd_t)
+kernel_read_system_state(eosxd_t)
+fs_list_auto_mountpoints(eosxd_t)
+allow eosxd_t autofs_t:dir mounton;
+storage_rw_fuse(eosxd_t)
+fs_mount_fusefs(eosxd_t)
+fs_unmount_fusefs(eosxd_t)
+
+files_rw_etc_runtime_files(eosxd_t)
+fs_rw_anon_inodefs_files(eosxd_t)
+fs_getattr_xattr_fs(eosxd_t)
+
+corenet_tcp_connect_generic_port(eosxd_t)
+corenet_tcp_connect_kerberos_port(eosxd_t)
+
+read_files_pattern(eosxd_t, unconfined_t, unconfined_t)
+read_lnk_files_pattern(eosxd_t, unconfined_t, unconfined_t)
+
+manage_dirs_pattern(eosxd_t, eosxd_cache_t, eosxd_cache_t)
+manage_files_pattern(eosxd_t, eosxd_cache_t, eosxd_cache_t)
+files_var_filetrans(eosxd_t, eosxd_cache_t, dir)
+
+manage_fifo_files_pattern(eosxd_t, eosxd_tmp_t, eosxd_tmp_t)
+files_tmp_filetrans(eosxd_t, eosxd_tmp_t, fifo_file)
+
+manage_dirs_pattern(eosxd_t, eosxd_log_t, eosxd_log_t)
+manage_files_pattern(eosxd_t, eosxd_log_t, eosxd_log_t)
+logging_log_filetrans(eosxd_t, eosxd_log_t, dir)
+
+corecmd_exec_shell(eosxd_t)
+corecmd_exec_bin(eosxd_t)
+miscfiles_read_localization(eosxd_t)
+
+# files needed for authentication
+allow eosxd_t self:capability { dac_override dac_read_search };
+userdom_rw_user_tmp_files(eosxd_t)
+allow eosxd_t krb5_conf_t:file { getattr open read };
+allow eosxd_t passwd_file_t:file { getattr open read };
+allow eosxd_t sysfs_t:dir { getattr open read };
+allow eosxd_t sysfs_t:file { getattr open read };
+allow eosxd_t sysfs_t:lnk_file { getattr open read };
