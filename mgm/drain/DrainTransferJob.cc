@@ -192,12 +192,13 @@ DrainTransferJob::GetFileInfo() const
   FileDrainInfo fdrain;
 
   // Use prefetching for QDB namespace
-  if (!gOFS->mQdbCluster.empty()) {
+  if (!gOFS->eosView->inMemory()) {
     eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, mFileId);
   }
 
   try {
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
+                                            __LINE__, __FILE__);
     std::shared_ptr<eos::IFileMD> fmd = gOFS->eosFileService->getFileMD(mFileId);
     fdrain.mFullPath = gOFS->eosView->getUri(fmd.get());
     fdrain.mProto.set_id(fmd->getId());
@@ -570,7 +571,8 @@ DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain)
 DrainTransferJob::Status
 DrainTransferJob::DrainZeroSizeFile(const FileDrainInfo& fdrain)
 {
-  eos::common::RWMutexWriteLock wr_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+  eos::common::RWMutexWriteLock wr_lock(gOFS->eosViewRWMutex, __FUNCTION__,
+                                        __LINE__, __FILE__);
   std::shared_ptr<eos::IFileMD> file {nullptr};
 
   try {

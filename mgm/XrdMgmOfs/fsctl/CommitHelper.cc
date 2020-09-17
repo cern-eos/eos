@@ -633,8 +633,14 @@ CommitHelper::get_version_fid(eos::common::VirtualIdentity& vid,
                               CommitHelper::path_t& paths,
                               CommitHelper::option_t& option)
 {
-  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+  // Use prefetching for QDB namespace
+  if (!gOFS->eosView->inMemory()) {
+    eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
+  }
+
   std::shared_ptr<eos::IFileMD> versionfmd;
+  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                    __FILE__);
 
   try {
     auto fmd = gOFS->eosFileService->getFileMD(fid);
@@ -666,7 +672,8 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
                                 CommitHelper::option_t& option,
                                 std::string& delete_path)
 {
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                     __FILE__);
 
   // We have to de-atomize the fmd name here e.g. make the temporary
   // atomic name a persistent name

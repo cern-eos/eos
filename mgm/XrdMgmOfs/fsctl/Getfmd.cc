@@ -54,7 +54,14 @@ XrdMgmOfs::Getfmd(const char* path,
   if (fid) {
     std::string fullpath;
     std::shared_ptr<eos::IFileMD> fmd;
-    eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+
+    // Use prefetching for QDB namespace
+    if (!gOFS->eosView->inMemory()) {
+      eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
+    }
+
+    eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                       __FILE__);
 
     try {
       fmd = gOFS->eosFileService->getFileMD(fid);

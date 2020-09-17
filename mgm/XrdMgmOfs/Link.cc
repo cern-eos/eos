@@ -220,7 +220,8 @@ XrdMgmOfs::_symlink(const char* source_name,
   }
 
   {
-    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                       __FILE__);
 
     try {
       std::shared_ptr<eos::IContainerMD> dir = eosView->getContainer(
@@ -303,20 +304,26 @@ XrdMgmOfs::_readlink(const char* name,
   std::string linktarget;
   gOFS->MgmStats.Add("Symlink", vid.uid, vid.gid, 1);
   EXEC_TIMING_BEGIN("ReadLink");
-  {
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
-    try {
-      std::shared_ptr<eos::IFileMD> file = eosView->getFile(name, false);
-      std::string slink = file->getLink();
-      link = slink.c_str();
-    } catch (eos::MDException& e) {
-      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                e.getErrno(), e.getMessage().str().c_str());
-      errno = e.getErrno();
-      return Emsg(epname, error, errno, e.getMessage().str().c_str());
-    }
+  // Use prefetching for QDB namespace
+  if (!gOFS->eosView->inMemory()) {
+    eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, name, false);
   }
+
+  eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
+                                          __LINE__, __FILE__);
+
+  try {
+    std::shared_ptr<eos::IFileMD> file = eosView->getFile(name, false);
+    std::string slink = file->getLink();
+    link = slink.c_str();
+  } catch (eos::MDException& e) {
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+              e.getErrno(), e.getMessage().str().c_str());
+    errno = e.getErrno();
+    return Emsg(epname, error, errno, e.getMessage().str().c_str());
+  }
+
   EXEC_TIMING_END("ReadLink");
   return SFS_OK;
 }
