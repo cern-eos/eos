@@ -15,6 +15,22 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.8.18 Citrine``
+===================
+
+2020-09-17
+
+Bug
+---
+
+* add missing mutex in access rejection macros
+
+Improvement
+-----------
+
+* improve mutex contention in Access commmands (particular in combination with QDB Config)
+* improve mutex contention in FuseX command adding Prefetcher
+
 ``v4.8.17 Citrine``
 ===================
 
