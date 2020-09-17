@@ -118,11 +118,7 @@ XrdMgmOfs::Commit(const char* path,
     eos::IContainerMD::id_t cid = 0;
     std::string fmdname;
     {
-      // Use prefetching for QDB namespace
-      if (!gOFS->eosView->inMemory()) {
-        eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
-      }
-
+      eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
       // Keep the lock order View => Namespace => Quota
       eos::common::RWMutexWriteLock nslock(gOFS->eosViewRWMutex, __FUNCTION__,
                                            __LINE__, __FILE__);

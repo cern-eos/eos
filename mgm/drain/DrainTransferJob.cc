@@ -190,11 +190,7 @@ DrainTransferJob::GetFileInfo() const
 {
   std::ostringstream oss;
   FileDrainInfo fdrain;
-
-  // Use prefetching for QDB namespace
-  if (!gOFS->eosView->inMemory()) {
-    eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, mFileId);
-  }
+  eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, mFileId);
 
   try {
     eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,

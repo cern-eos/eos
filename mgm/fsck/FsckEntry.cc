@@ -270,11 +270,7 @@ FsckEntry::RepairMgmXsSzDiff()
 
     if (gOFS) {
       try {
-        // Use prefetching for QDB namespace
-        if (!gOFS->eosView->inMemory()) {
-          eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, mFid);
-        }
-
+        eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, mFid);
         // Grab the file metadata object and update it
         eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
                                                 __LINE__, __FILE__);

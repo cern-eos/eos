@@ -634,11 +634,7 @@ CommitHelper::get_version_fid(eos::common::VirtualIdentity& vid,
                               CommitHelper::path_t& paths,
                               CommitHelper::option_t& option)
 {
-  // Use prefetching for QDB namespace
-  if (!gOFS->eosView->inMemory()) {
-    eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
-  }
-
+  eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
   std::shared_ptr<eos::IFileMD> versionfmd;
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
                                     __FILE__);

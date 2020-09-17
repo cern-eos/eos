@@ -64,12 +64,7 @@ XrdMgmOfs::Drop(const char* path,
     std::shared_ptr<eos::IContainerMD> container;
     std::shared_ptr<eos::IFileMD> fmd;
     eos::IQuotaNode* ns_quota = nullptr;
-
-    // Use prefetching for QDB namespace
-    if (!gOFS->eosView->inMemory()) {
-      eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
-    }
-
+    eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
     eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex, __FUNCTION__,
                                         __LINE__, __FILE__);
 

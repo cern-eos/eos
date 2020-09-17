@@ -304,12 +304,7 @@ XrdMgmOfs::_readlink(const char* name,
   std::string linktarget;
   gOFS->MgmStats.Add("Symlink", vid.uid, vid.gid, 1);
   EXEC_TIMING_BEGIN("ReadLink");
-
-  // Use prefetching for QDB namespace
-  if (!gOFS->eosView->inMemory()) {
-    eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, name, false);
-  }
-
+  eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, name, false);
   eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
                                           __LINE__, __FILE__);
 

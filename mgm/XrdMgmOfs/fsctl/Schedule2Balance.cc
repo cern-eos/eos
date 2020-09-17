@@ -379,10 +379,7 @@ XrdMgmOfs::Schedule2Balance(const char* path,
     gid_t gid = 0;
     std::string fullpath = "";
     {
-      if (!gOFS->eosView->inMemory()) {
-        eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
-      }
-
+      eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
       eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
                                               __LINE__, __FILE__);
 
