@@ -1089,10 +1089,11 @@ Server::prefetchMD(const eos::fusex::md& md)
     Prefetcher::prefetchInodeWithChildrenAndWait(gOFS->eosView, md.md_ino());
   } else if (md.operation() == md.DELETE) {
     Prefetcher::prefetchInodeWithChildrenAndWait(gOFS->eosView, md.md_pino());
-
     if (S_ISDIR(md.mode())) {
       Prefetcher::prefetchInodeWithChildrenAndWait(gOFS->eosView, md.md_ino());
     }
+  } else if ( md.operation() == md.GETCAP) {
+    Prefetcher::prefetchInodeAndWait(gOFS->eosView, md.md_ino());
   }
 }
 
