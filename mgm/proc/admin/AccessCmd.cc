@@ -442,6 +442,8 @@ void AccessCmd::RmSubcmd(const eos::console::AccessProto_RmProto& rm,
         Access::gRedirectionRules.erase(rm.key() + ":*");
       }
 
+      lock.Release();
+      eos::common::RWMutexReadLock lock(Access::gAccessMutex);
       if (!Access::StoreAccessConfig()) {
         reply.set_std_err("error: unable to store access configuration");
         reply.set_retc(EIO);
@@ -490,6 +492,8 @@ void AccessCmd::RmSubcmd(const eos::console::AccessProto_RmProto& rm,
         Access::gStallComment.erase(rm.key() + ":*");
       }
 
+      lock.Release();
+      eos::common::RWMutexReadLock rlock(Access::gAccessMutex);
       if (!Access::StoreAccessConfig()) {
         reply.set_std_err("error: unable to store access configuration");
         reply.set_retc(EIO);
@@ -544,6 +548,8 @@ void AccessCmd::SetSubcmd(const eos::console::AccessProto_SetProto& set,
         Access::gRedirectionRules[set.key() + ":*"] = set.target();
       }
 
+      lock.Release();
+      eos::common::RWMutexReadLock rlock(Access::gAccessMutex);
       if (!Access::StoreAccessConfig()) {
         reply.set_std_err("error: unable to store access configuration");
         reply.set_retc(EIO);
@@ -603,6 +609,8 @@ void AccessCmd::SetSubcmd(const eos::console::AccessProto_SetProto& set,
       Access::gStallComment[set.key() + ":*"] = mReqProto.comment();
     }
 
+    lock.Release();
+    eos::common::RWMutexReadLock rlock(Access::gAccessMutex);
     if (!Access::StoreAccessConfig()) {
       reply.set_std_err("error: unable to store access configuration");
       reply.set_retc(EIO);
@@ -651,6 +659,7 @@ void AccessCmd::aux(const string& sid, std::ostringstream& std_out,
     ;
   }
 
+  eos::common::RWMutexReadLock rlock(Access::gAccessMutex);
   if (Access::StoreAccessConfig()) {
     std_out << "success: " << saction << " '" << sid << '\'';
     ret_c = 0;
@@ -680,6 +689,7 @@ void AccessCmd::BanSubcmd(const eos::console::AccessProto_BanProto& ban,
 
       if (!errc) {
         Access::gBannedUsers.insert(uid);
+	lock.Release();
         aux(ban.id(), std_out, std_err, ret_c);
       } else {
         std_err << "error: no such user - cannot ban '" << ban.id() << '\'';
@@ -694,6 +704,7 @@ void AccessCmd::BanSubcmd(const eos::console::AccessProto_BanProto& ban,
 
       if (!errc) {
         Access::gBannedGroups.insert(gid);
+	lock.Release();
         aux(ban.id(), std_out, std_err, ret_c);
       } else {
         std_err << "error: no such group - cannot ban '" << ban.id() << '\'';
@@ -705,6 +716,7 @@ void AccessCmd::BanSubcmd(const eos::console::AccessProto_BanProto& ban,
   case eos::console::AccessProto_BanProto::HOST
       : {
       Access::gBannedHosts.insert(ban.id());
+      lock.Release();
       aux(ban.id(), std_out, std_err, ret_c);
     }
     break;
@@ -712,6 +724,7 @@ void AccessCmd::BanSubcmd(const eos::console::AccessProto_BanProto& ban,
   case eos::console::AccessProto_BanProto::DOMAINNAME
       : {
       Access::gBannedDomains.insert(ban.id());
+      lock.Release();
       aux(ban.id(), std_out, std_err, ret_c);
     }
     break;
@@ -745,13 +758,9 @@ void AccessCmd::UnbanSubcmd(const eos::console::AccessProto_UnbanProto& unban,
 
       if (!errc) {
         if (Access::gBannedUsers.count(uid)) {
-          if (Access::StoreAccessConfig()) {
-            Access::gBannedUsers.erase(uid);
-            aux(unban.id(), std_out, std_err, ret_c);
-          } else {
-            std_err << "error: unable to store access configuration";
-            ret_c = EIO;
-          }
+	  Access::gBannedUsers.erase(uid);
+	  lock.Release();
+	  aux(unban.id(), std_out, std_err, ret_c);
         } else {
           std_err << "error: user '" << unban.id() << "' is not banned anyway";
           ret_c = ENOENT;
@@ -770,7 +779,8 @@ void AccessCmd::UnbanSubcmd(const eos::console::AccessProto_UnbanProto& unban,
       if (!errc) {
         if (Access::gBannedGroups.count(gid)) {
           Access::gBannedGroups.erase(gid);
-          aux(unban.id(), std_out, std_err, ret_c);
+	  lock.Release();
+	  aux(unban.id(), std_out, std_err, ret_c);
         } else {
           std_err << "error: group '" << unban.id() << "' is not banned anyway";
           ret_c = ENOENT;
@@ -786,7 +796,9 @@ void AccessCmd::UnbanSubcmd(const eos::console::AccessProto_UnbanProto& unban,
       : {
       if (Access::gBannedHosts.count(unban.id())) {
         Access::gBannedHosts.erase(unban.id());
+	lock.Release();
         aux(unban.id(), std_out, std_err, ret_c);
+	lock.Grab(Access::gAccessMutex);
       } else {
         std_err << "error: host '" << unban.id() << "' is not banned anyway";
         ret_c = ENOENT;
@@ -798,7 +810,9 @@ void AccessCmd::UnbanSubcmd(const eos::console::AccessProto_UnbanProto& unban,
       : {
       if (Access::gBannedDomains.count(unban.id())) {
         Access::gBannedDomains.erase(unban.id());
+	lock.Release();
         aux(unban.id(), std_out, std_err, ret_c);
+	lock.Grab(Access::gAccessMutex);
       } else {
         std_err << "error: domain '" << unban.id() << "' is not banned anyway";
         ret_c = ENOENT;
@@ -835,6 +849,7 @@ void AccessCmd::AllowSubcmd(const eos::console::AccessProto_AllowProto& allow,
 
       if (!errc) {
         Access::gAllowedUsers.insert(uid);
+	lock.Release();
         aux(allow.id(), std_out, std_err, ret_c);
       } else {
         std_err << "error: no such user - cannot allow '" << allow.id() << '\'';
@@ -849,6 +864,7 @@ void AccessCmd::AllowSubcmd(const eos::console::AccessProto_AllowProto& allow,
 
       if (!errc) {
         Access::gAllowedGroups.insert(gid);
+	lock.Release();
         aux(allow.id(), std_out, std_err, ret_c);
       } else {
         std_err << "error: no such group - cannot allow '" << allow.id() << '\'';
@@ -860,6 +876,7 @@ void AccessCmd::AllowSubcmd(const eos::console::AccessProto_AllowProto& allow,
   case eos::console::AccessProto_AllowProto::HOST
       : {
       Access::gAllowedHosts.insert(allow.id());
+      lock.Release();
       aux(allow.id(), std_out, std_err, ret_c);
     }
     break;
@@ -867,6 +884,7 @@ void AccessCmd::AllowSubcmd(const eos::console::AccessProto_AllowProto& allow,
   case eos::console::AccessProto_AllowProto::DOMAINNAME
       : {
       Access::gAllowedDomains.insert(allow.id());
+      lock.Release();
       aux(allow.id(), std_out, std_err, ret_c);
     }
     break;
@@ -901,13 +919,9 @@ AccessCmd::UnallowSubcmd(const eos::console::AccessProto_UnallowProto& unallow,
 
       if (!errc) {
         if (Access::gAllowedUsers.count(uid)) {
-          if (Access::StoreAccessConfig()) {
-            Access::gAllowedUsers.erase(uid);
-            aux(unallow.id(), std_out, std_err, ret_c);
-          } else {
-            std_err << "error: unable to store access configuration";
-            ret_c = EIO;
-          }
+	  Access::gAllowedUsers.erase(uid);
+	  lock.Release();
+	  aux(unallow.id(), std_out, std_err, ret_c);
         } else {
           std_err << "error: user '" << unallow.id() << "' is not allowed anyway";
           ret_c = ENOENT;
@@ -926,6 +940,7 @@ AccessCmd::UnallowSubcmd(const eos::console::AccessProto_UnallowProto& unallow,
       if (!errc) {
         if (Access::gAllowedGroups.count(gid)) {
           Access::gAllowedGroups.erase(gid);
+	  lock.Release();
           aux(unallow.id(), std_out, std_err, ret_c);
         } else {
           std_err << "error: group '" << unallow.id() << "' is not allowed anyway";
@@ -942,6 +957,7 @@ AccessCmd::UnallowSubcmd(const eos::console::AccessProto_UnallowProto& unallow,
       : {
       if (Access::gAllowedHosts.count(unallow.id())) {
         Access::gAllowedHosts.erase(unallow.id());
+	lock.Release();
         aux(unallow.id(), std_out, std_err, ret_c);
       } else {
         std_err << "error: host '" << unallow.id() << "' is not allowed anyway";
@@ -954,6 +970,7 @@ AccessCmd::UnallowSubcmd(const eos::console::AccessProto_UnallowProto& unallow,
       : {
       if (Access::gAllowedDomains.count(unallow.id())) {
         Access::gAllowedDomains.erase(unallow.id());
+	lock.Release();
         aux(unallow.id(), std_out, std_err, ret_c);
       } else {
         std_err << "error: domain '" << unallow.id() << "' is not allowed anyway";
