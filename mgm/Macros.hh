@@ -339,6 +339,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
   if (((vid.uid > 3) ||                                                       \
        ((vid.prot != "sss") && (vid.host != "localhost") &&                   \
         (vid.host != "localhost.localdomain")))) {                            \
+    eos::common::RWMutexReadLock lock(Access::gAccessMutex);                  \
     if (Access::gAllowedUsers.size() || Access::gAllowedGroups.size() ||      \
         Access::gAllowedHosts.size() || Access::gAllowedDomains.size())     { \
       if ((!Access::gAllowedGroups.count(vid.gid)) &&                         \
@@ -372,6 +373,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
 //! Bounce not-allowed-users in proc request Macro
 //------------------------------------------------------------------------------
 #define PROC_BOUNCE_NOT_ALLOWED                                               \
+  eos::common::RWMutexReadLock lock(Access::gAccessMutex);                    \
   if ((vid.uid > 3) &&                                                        \
       (Access::gAllowedUsers.size() ||                                        \
        Access::gAllowedGroups.size() ||                                       \
