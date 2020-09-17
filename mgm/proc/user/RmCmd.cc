@@ -199,8 +199,14 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
       std::set<std::string>::const_iterator fileit;
       errInfo.clear();
 
+      errInfo.setErrCode(E2BIG);// ask to fail E2BIG
+
       if (gOFS->_find(spath.c_str(), errInfo, m_err, mVid, found)) {
-        errStream << "error: unable to list directory '" << spath << "'";
+	if (errno == E2BIG) {
+	  errStream << "error: the directory tree exceeds the configured query limit for you - ask an administrator to increase your query limit or split the operation into several deletions";
+	} else {
+	  errStream << "error: unable to list directory '" << spath << "'";
+	}
         ret_c = errno;
       } else {
         XrdOucString recyclingAttribute = "";

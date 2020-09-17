@@ -698,6 +698,8 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
   uint64_t dirsfound = 0;
   bool limitresult = false;
   bool limited = false;
+  bool fail_if_limited = (out_error.getErrInfo() == E2BIG);
+
   bool sub_cmd_take_lock = false;
 
   if ((vid.uid != 0) && (!vid.hasUid(3)) && (!vid.hasGid(4)) && (!vid.sudoer)) {
@@ -965,5 +967,15 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
     EXEC_TIMING_END("Find");
   }
 
-  return SFS_OK;
+  stdErr += "fail:";
+  stdErr += std::to_string(fail_if_limited).c_str();
+  stdErr += " limited:";
+  stdErr += std::to_string(limited).c_str();
+
+  if (fail_if_limited && limited) {
+    errno = E2BIG;
+    return Emsg("_find", out_error, E2BIG, "query incomplete - too many files/dirs in tree", path);
+  } else {
+    return SFS_OK;
+  }
 }
