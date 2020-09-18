@@ -699,10 +699,10 @@ FmdDbMapHandler::UpdateWithScanInfo(eos::common::FileId::fileid_t fid,
 
   if (rd_rc) {
     if (rd_rc == ENOENT) {
-      // File no longer on disk - mark it as missing
+      // File no longer on disk - mark it as missing unless it's a 0-size file
       auto fmd = LocalGetFmd(fid, fsid, true);
 
-      if (fmd) {
+      if (fmd && fmd->mProtoFmd.mgmsize()) {
         fmd->mProtoFmd.set_layouterror(fmd->mProtoFmd.layouterror() |
                                        LayoutId::kMissing);
         Commit(fmd.get());
@@ -1012,7 +1012,8 @@ FmdDbMapHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
 
     if (fmd) {
       // Check if it exists on disk
-      if (fmd->mProtoFmd.disksize() == eos::common::FmdHelper::UNDEF) {
+      if ((fmd->mProtoFmd.disksize() == eos::common::FmdHelper::UNDEF) &&
+          (fMd.mProtoFmd.mgmsize())) {
         fMd.mProtoFmd.set_layouterror(fMd.mProtoFmd.layouterror() | LayoutId::kMissing);
         eos_warning("msg=\"mark missing replica\" fxid=%08llx on fsid=%u",
                     fid, fsid);
@@ -1092,7 +1093,8 @@ FmdDbMapHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
 
         if (fmd) {
           // Check if it exists on disk
-          if (fmd->mProtoFmd.disksize() == eos::common::FmdHelper::UNDEF) {
+          if ((fmd->mProtoFmd.disksize() == eos::common::FmdHelper::UNDEF) &&
+              (fmd->mProtoFmd.mgmsize())) {
             fMd.mProtoFmd.set_layouterror(fMd.mProtoFmd.layouterror() | LayoutId::kMissing);
             eos_warning("found missing replica for fxid=%08llx on fsid=%u",
                         fMd.mProtoFmd.fid(), (unsigned long) fsid);
@@ -1280,8 +1282,9 @@ FmdDbMapHandler::ResyncAllFromQdb(const QdbContactDetails& contact_details,
       }
     }
 
-    // If file does not exist on disk then mark as missing
-    if (local_fmd->mProtoFmd.disksize() == eos::common::FmdHelper::UNDEF) {
+    // If file does not exist on disk and is not 0-size then mark as missing
+    if ((local_fmd->mProtoFmd.disksize() == eos::common::FmdHelper::UNDEF) &&
+        (ns_fmd.mProtoFmd.mgmsize())) {
       ns_fmd.mProtoFmd.set_layouterror(ns_fmd.mProtoFmd.layouterror() |
                                        LayoutId::kMissing);
       eos_warning("msg=\"mark missing replica\" fxid=%08llx fsid=%u", fid, fsid);
