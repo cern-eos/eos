@@ -69,10 +69,10 @@ public:
     mPoolSize(0ul), mId(identifier)
   {
     auto threadPoolFunc = [this] {
-      std::pair<bool, std::shared_ptr<std::function<void(void)>>> task;
       bool toContinue = true;
 
       do {
+        std::pair<bool, std::shared_ptr<std::function<void(void)>>> task;
         mTasks.wait_pop(task);
         toContinue = task.first;
 

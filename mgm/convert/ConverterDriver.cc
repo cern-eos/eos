@@ -121,7 +121,6 @@ ConverterDriver::HandleRunningJobs()
       }
 
       if ((*it)->GetStatus() == ConversionJob::Status::FAILED) {
-        auto conversion_string = (*it)->GetConversionString();
         mQdbHelper.AddFailedJob(*it);
       }
 
