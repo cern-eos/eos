@@ -93,7 +93,7 @@ XrdMgmOfs::_mkdir(const char* path,
                   ino_t* outino)
 {
   static const char* epname = "_mkdir";
-  mode_t acc_mode = (Mode & S_IAMB) | S_IFDIR;
+  //mode_t acc_mode = (Mode & S_IAMB) | S_IFDIR;
   errno = 0;
   EXEC_TIMING_BEGIN("Mkdir");
   gOFS->MgmStats.Add("Mkdir", vid.uid, vid.gid, 1);
@@ -112,7 +112,8 @@ XrdMgmOfs::_mkdir(const char* path,
   std::shared_ptr<eos::IContainerMD> dir;
   eos::IContainerMD::XAttrMap attrmap;
   {
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                      __FILE__);
 
     // Check for the parent directory
     if (spath != "/") {
@@ -208,7 +209,8 @@ XrdMgmOfs::_mkdir(const char* path,
 
     if (dir) {
       std::shared_ptr<eos::IContainerMD> fulldir;
-      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                        __FILE__);
 
       // Only if the parent exists, can the full path exist!
       try {
@@ -241,7 +243,8 @@ XrdMgmOfs::_mkdir(const char* path,
       for (i = cPath.GetSubPathSize() - 1; i >= 0; i--) {
         eos_debug("testing path %s", cPath.GetSubPath(i));
         errno = 0;
-        eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+        eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                          __FILE__);
         attrmap.clear();
 
         try {
@@ -328,7 +331,8 @@ XrdMgmOfs::_mkdir(const char* path,
       eos::common::Path tmp_path("");
 
       for (j = i + 1; j < (int) cPath.GetSubPathSize(); ++j) {
-        eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+        eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                           __FILE__);
 
         try {
           errno = 0;
@@ -392,7 +396,8 @@ XrdMgmOfs::_mkdir(const char* path,
     return Emsg(epname, error, errno, "mkdir", path);
   }
 
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                     __FILE__);
 
   try {
     errno = 0;

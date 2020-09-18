@@ -87,7 +87,7 @@ ProcCommand::Fileinfo()
         return SFS_OK;
       }
 
-      if (pos != sfid.length()) {
+      if (pos != (size_t)sfid.length()) {
         stdErr = "error: inode option takes a fuse inode decimal value - some "
                  "characters were not converted";
         retc = EINVAL;
@@ -203,8 +203,7 @@ ProcCommand::FileInfo(const char* path)
           } else {
             spath = nspath.c_str();
           }
-        }
-        catch(eos::MDException& ee) {
+        } catch (eos::MDException& ee) {
           fmd.reset();
           errno = ee.getErrno();
           stdErr = "error: cannot retrieve file meta data - ";
