@@ -171,7 +171,7 @@ Fsck::Config(const std::string& key, const std::string& value, std::string& msg)
           if (fval < 1) {
             mCollectInterval = std::chrono::seconds((long)std::ceil(fval * 60));
           } else {
-            mCollectInterval = std::chrono::seconds((long)fval);
+            mCollectInterval = std::chrono::seconds((long)fval * 60);
           }
         } catch (...) {
           mCollectInterval = std::chrono::seconds(30 * 60);
@@ -527,7 +527,8 @@ Fsck::GetFidFormat(eos::IFileMD::id_t fid, bool display_fxid, bool
     return eos::common::FileId::Fid2Hex(fid);
   } else if (display_lfn) {
     eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                      __FILE__);
 
     try {
       auto fmd = gOFS->eosFileService->getFileMD(fid);
@@ -882,7 +883,8 @@ Fsck::AccountNoReplicaFiles()
   // Grab all files which have no replicas at all
   try {
     eos::common::RWMutexWriteLock wr_lock(mErrMutex);
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
+                                            __LINE__, __FILE__);
     // it_fid not invalidated when items are added or removed for QDB
     // namespace, safe to release lock after each item.
     bool needLockThroughout = !gOFS->NsInQDB;
@@ -983,7 +985,8 @@ Fsck::AccountOfflineFiles()
 
     try { // Check if locations are online
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, *it);
-      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
+                                              __LINE__, __FILE__);
       fmd = gOFS->eosFileService->getFileMD(*it);
       lid = fmd->getLayoutId();
       nlocations = fmd->getNumLocation();
@@ -1065,7 +1068,8 @@ Fsck::AccountDarkFiles()
 {
   eos::common::RWMutexWriteLock wr_lock(mErrMutex);
   eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-  eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+  eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
+                                          __LINE__, __FILE__);
 
   for (auto it = gOFS->eosFsView->getFileSystemIterator();
        it->valid(); it->next()) {
