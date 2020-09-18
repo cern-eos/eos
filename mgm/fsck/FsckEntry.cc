@@ -250,9 +250,12 @@ FsckEntry::RepairMgmXsSzDiff()
   if (mgm_xs_sz_match) {
     eos_warning("msg=\"mgm xs/size repair skip - found replica with matching "
                 "xs and size\" fxid=%08llx", mFid);
-    // The local info stored on of the the FSTs is wrong, trigger a resync
+    // The local info stored on of the the FSTs might be wrong, trigger a resync
     ResyncFstMd(false);
-    return true;
+    // Also trigger FstXsSzDiff repair as in this case the current broken
+    // replica needs to be repaired - we have another replica matching the
+    // MGM info!
+    return RepairFstXsSzDiff();
   }
 
   if (disk_xs_sz_match && sz_val) {
@@ -305,6 +308,7 @@ bool
 FsckEntry::RepairFstXsSzDiff()
 {
   std::set<eos::common::FileSystem::fsid_t> bad_fsids;
+  std::set<eos::common::FileSystem::fsid_t> good_fsids;
 
   if (LayoutId::IsRain(mMgmFmd.layout_id())) {
     bad_fsids.insert(mFsidErr);
@@ -316,7 +320,6 @@ FsckEntry::RepairFstXsSzDiff()
     // Make sure at least one disk xs and size match the MGM ones
     uint64_t sz_val {0ull};
     std::string xs_val;
-    std::set<eos::common::FileSystem::fsid_t> good_fsids;
 
     for (auto it = mFstFileInfo.cbegin(); it != mFstFileInfo.cend(); ++it) {
       auto& finfo = it->second;
@@ -357,6 +360,23 @@ FsckEntry::RepairFstXsSzDiff()
               mFid);
       return false;
     }
+  }
+
+  // Have more good stripes then layout requirements
+  size_t num_nominal_rep = LayoutId::GetStripeNumber(mMgmFmd.layout_id() + 1);
+
+  if (!good_fsids.empty() && (good_fsids.size() > num_nominal_rep)) {
+    while (good_fsids.size() > num_nominal_rep) {
+      bad_fsids.insert(*good_fsids.begin());
+      good_fsids.erase(good_fsids.begin());
+    }
+
+    for (auto bad_fsid : bad_fsids) {
+      // If we have enough stripes - just drop it
+      DropReplica(bad_fsid);
+    }
+
+    bad_fsids.clear();
   }
 
   bool all_repaired {true};
