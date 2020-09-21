@@ -2147,7 +2147,7 @@ XrdFstOfs::HandleFsck(XrdOucEnv& env, XrdOucErrInfo& err_obj)
   }
   // Use XrdOucBuffPool to manage XrdOucBuffer objects that can hold redirection
   // info >= 2kb but not bigger than MaxSize (64MB)
-  const std::string& data = oss.str();
+  std::string data = oss.str();
   XrdOucBuffer* buff = mXrdBuffPool.Alloc(data.length() + 1);
 
   if (buff == nullptr) {

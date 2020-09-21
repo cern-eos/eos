@@ -1083,8 +1083,8 @@ std::string Fsck::QueryFsck()
   int query_resp = 0;
 
   for (const auto& resp : responses) {
-    eos_static_info("endpoint=%s retc=%i resp=\"%s\"", resp.first.c_str(),
-                    resp.second.first, resp.second.second.c_str());
+    eos_static_debug("endpoint=%s retc=%i resp=\"%s\"", resp.first.c_str(),
+                     resp.second.first, resp.second.second.c_str());
     query_resp += resp.second.first;
   }
 
