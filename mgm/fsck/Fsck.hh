@@ -219,6 +219,14 @@ private:
   AssistedThread mCollectorThread; ///< Thread collecting errors
   std::shared_ptr<qclient::QClient> mQcl; ///< QClient object for metadata
 
+
+  //----------------------------------------------------------------------------
+  //! Query for fsck responses
+  //!
+  //! @return string with the fsck replied from all the FSTs
+  //----------------------------------------------------------------------------
+  std::string QueryFsck();
+
   //----------------------------------------------------------------------------
   //! Create report in JSON format
   //!

@@ -88,47 +88,12 @@ Messaging::Process(XrdMqMessage* newmessage)
     gOFS.SetDebug(action);
   }
 
-  if (cmd == "register") {
-    eos_notice("registering filesystems");
-    XrdOucString manager = action.Get("mgm.manager");
-    XrdOucString path2register = action.Get("mgm.path2register");
-    XrdOucString space2register = action.Get("mgm.space2register");
-    XrdOucString forceflag = action.Get("mgm.force");
-    XrdOucString rootflag = action.Get("mgm.root");
-
-    if (path2register.length() && space2register.length()) {
-      XrdOucString sysline = "eosfstregister";
-
-      if (rootflag == "true") {
-        sysline += " -r ";
-      }
-
-      if (forceflag == "true") {
-        sysline += " --force ";
-      }
-
-      sysline += manager;
-      sysline += " ";
-      sysline += path2register;
-      sysline += " ";
-      sysline += space2register;
-      sysline += " >& /tmp/eosfstregister.out &";
-      eos_notice("launched %s", sysline.c_str());
-      eos::common::ShellCmd registercmd(sysline.c_str());
-      eos::common::cmd_status rc = registercmd.wait(60);
-
-      if (rc.exit_code) {
-        eos_notice("cmd '%s' failed with rc=%d", sysline.c_str(), rc.exit_code);
-      }
-    }
+  if (cmd == "fsck") {
+    gOFS.SendFsck(newmessage);
   }
 
   if (cmd == "rtlog") {
     gOFS.SendRtLog(newmessage);
-  }
-
-  if (cmd == "fsck") {
-    gOFS.SendFsck(newmessage);
   }
 
   if (cmd == "drop") {

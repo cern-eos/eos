@@ -418,6 +418,8 @@ private:
 public:
 #endif
   std::string mGeoTag; ///< Node geotag
+  //! XrdOucBuffPool object for managing redirection buffers >= 2kb
+  XrdOucBuffPool mXrdBuffPool;
   //! Thread pool for async file close operations
   eos::common::ThreadPool mCloseThreadPool;
   //! Xrd connection pool for interaction with the MGM, used from CallManager
@@ -482,7 +484,7 @@ public:
                           mode_t mode) const;
 
   //----------------------------------------------------------------------------
-  //! Handle query debug
+  //! Handle debug query
   //!
   //! @param env ecoding of the query command
   //! @param err_obj object holding the response for the query
@@ -490,7 +492,18 @@ public:
   //! @param return SFS_ERROR if failed, otherwise SFS_OK or SFS_DATA and the
   //!        err_obj is populated with the response
   //----------------------------------------------------------------------------
-  int QueryDebug(XrdOucEnv& env, XrdOucErrInfo& err_obj);
+  int HandleDebug(XrdOucEnv& env, XrdOucErrInfo& err_obj);
+
+  //----------------------------------------------------------------------------
+  //! Handle fsck query
+  //!
+  //! @param env ecoding of the query command
+  //! @param err_obj object holding the response for the query
+  //!
+  //! @param return SFS_ERROR if failed, otherwise SFS_OK or SFS_DATA and the
+  //!        err_obj is populated with the response
+  //----------------------------------------------------------------------------
+  int HandleFsck(XrdOucEnv& env, XrdOucErrInfo& err_obj);
 };
 
 //------------------------------------------------------------------------------

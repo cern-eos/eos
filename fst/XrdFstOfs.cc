@@ -308,7 +308,9 @@ XrdFstOfs::xrdfstofs_graceful_shutdown(int sig)
 //------------------------------------------------------------------------------
 XrdFstOfs::XrdFstOfs() :
   eos::common::LogId(), mHostName(NULL), mMqOnQdb(false), mHttpd(nullptr),
-  mGeoTag("nogeotag"), mCloseThreadPool(8, 64, 5, 6, 5, "async_close"),
+  mGeoTag("nogeotag"),
+  mXrdBuffPool(eos::common::KB, 64 * eos::common::MB),
+  mCloseThreadPool(8, 64, 5, 6, 5, "async_close"),
   mMgmXrdPool(nullptr), mSimIoReadErr(false), mSimIoWriteErr(false),
   mSimXsReadErr(false), mSimXsWriteErr(false), mSimFmdOpenErr(false),
   mSimErrIoReadOff(0ull), mSimErrIoWriteOff(0ull)
@@ -1586,7 +1588,11 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
     XrdOucString execmd = scmd;
 
     if (execmd == "debug") {
-      return QueryDebug(env, error);
+      return HandleDebug(env, error);
+    }
+
+    if (execmd == "fsck") {
+      return HandleFsck(env, error);
     }
 
     if (execmd == "getfmd") {
@@ -2051,12 +2057,11 @@ XrdFstOfs::CreateDirHierarchy(const std::string& dir_hierarchy,
   return true;
 }
 
-
 //------------------------------------------------------------------------------
-// Handle query debug
+// Handle debug query
 //------------------------------------------------------------------------------
 int
-XrdFstOfs::QueryDebug(XrdOucEnv& env, XrdOucErrInfo& err_obj)
+XrdFstOfs::HandleDebug(XrdOucEnv& env, XrdOucErrInfo& err_obj)
 {
   std::string dbg_level = (env.Get("fst.debug.level") ?
                            env.Get("fst.debug.level") : "");
@@ -2092,6 +2097,70 @@ XrdFstOfs::QueryDebug(XrdOucEnv& env, XrdOucErrInfo& err_obj)
   // return SFS_OK;
   const char* done = "OK";
   err_obj.setErrInfo(strlen(done) + 1, done);
+  return SFS_DATA;
+}
+
+//------------------------------------------------------------------------------
+// Handle fsck query
+//------------------------------------------------------------------------------
+int
+XrdFstOfs::HandleFsck(XrdOucEnv& env, XrdOucErrInfo& err_obj)
+{
+  std::ostringstream oss;
+  size_t max_sz = mXrdBuffPool.MaxSize() - 2 * eos::common::MB;
+  {
+    eos::common::RWMutexReadLock fs_rd_lock(gOFS.Storage->mFsMutex);
+
+    for (const auto& elem : gOFS.Storage->mFsMap) {
+      auto fs = elem.second;
+
+      // Don't report filesystems which are not booted!
+      if (fs->GetStatus() != eos::common::BootStatus::kBooted) {
+        continue;
+      }
+
+      eos::common::FileSystem::fsid_t fsid = fs->GetLocalId();
+      eos::common::RWMutexReadLock rd_lock(fs->mInconsistencyMutex);
+      const auto& icset = fs->GetInconsistencySets();
+
+      for (auto icit = icset.cbegin(); icit != icset.cend(); ++icit) {
+        // Construct the tag
+        oss << icit->first << "@" << fsid;
+
+        for (auto fit = icit->second.cbegin(); fit != icit->second.cend(); ++fit) {
+          // Don't report files which are currently write-open
+          if (gOFS.openedForWriting.isOpen(fsid, *fit)) {
+            continue;
+          }
+
+          oss << ":" << *fit;
+        }
+
+        oss << std::endl;
+
+        if (oss.str().length() >= max_sz) {
+          eos_static_warning("%s", "msg=\"reached max fsck size limit\"");
+          break;
+        }
+      }
+    }
+  }
+  // Use XrdOucBuffPool to manage XrdOucBuffer objects that can hold redirection
+  // info >= 2kb but not bigger than MaxSize (64MB)
+  const std::string& data = oss.str();
+  XrdOucBuffer* buff = mXrdBuffPool.Alloc(data.length() + 1);
+
+  if (buff == nullptr) {
+    eos_static_err("msg=\"requested fsck result buffer too big\" req_sz=%llu "
+                   "max_sz=%i", oss.str().length(), mXrdBuffPool.MaxSize());
+    err_obj.setErrInfo(ENOMEM, "fsck result buffer too big (>64MB)");
+    return SFS_ERROR;
+  }
+
+  eos_static_debug("msg=\"fsck reply\" data=\"%s\"", data.c_str());
+  (void) strcpy(buff->Buffer(), data.c_str());
+  buff->SetLen(data.length() + 1);
+  err_obj.setErrInfo(buff->DataLen(), buff);
   return SFS_DATA;
 }
 

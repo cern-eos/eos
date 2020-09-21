@@ -1647,8 +1647,8 @@ XrdMgmOfs::SetRedirectionInfo(XrdOucErrInfo& err_obj,
     return true;
   }
 
-  // Otherwise use the XrdOucBuffPool to manage XrdOucBuffer object that can
-  // hold redirection info >= 2kb
+  // Otherwise use the XrdOucBuffPool to manage XrdOucBuffer objects that
+  // can hold redirection info >= 2kb
   XrdOucBuffer* buff = mRdrBuffPool.Alloc(rdr_info.length() + 1);
 
   if (buff == nullptr) {
@@ -1797,7 +1797,6 @@ XrdMgmOfs::BroadcastQuery(const std::string& request,
   for (const auto& ep : endpoints) {
     std::ostringstream oss;
     oss << "root://" << ep << "/?xrd.wantprot=sss";
-    eos_static_info("broadcast url: %s", oss.str().c_str());
     XrdCl::URL url(oss.str());
 
     if (!url.IsValid()) {

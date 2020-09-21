@@ -267,30 +267,11 @@ Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
 
     Log("Filesystems to check: %lu", FsView::gFsView.GetNumFileSystems());
     // Broadcast fsck request and collect responses
-    int bccount = 0;
-    XrdOucString broadcastresponsequeue = gOFS->MgmOfsBrokerUrl;
-    broadcastresponsequeue += "-fsck-";
-    broadcastresponsequeue += bccount;
-    XrdOucString broadcasttargetqueue = gOFS->MgmDefaultReceiverQueue;
-    XrdOucString msgbody;
-    // mgm.fsck.tags no longer necessary for newer versions, but keeping for
-    // compatibility
-    msgbody = "mgm.cmd=fsck&mgm.fsck.tags=*";
-    XrdOucString stdOut = "";
-    XrdOucString stdErr = "";
-
-    if (!gOFS->MgmOfsMessaging->BroadCastAndCollect(broadcastresponsequeue,
-        broadcasttargetqueue, msgbody, stdOut, 10, &assistant)) {
-      eos_err("msg=\"failed to broadcast and collect fsck from [%s]:[%s]\"",
-              broadcastresponsequeue.c_str(), broadcasttargetqueue.c_str());
-      stdErr = "error: broadcast failed\n";
-    }
-
-    eos_debug("msg=\"fsck response for broadcast\" out=\"%s\"", stdOut.c_str());
+    std::string response = QueryFsck();
     decltype(eFsMap) tmp_err_map;
     std::vector<std::string> lines;
     // Convert into a line-wise seperated array
-    eos::common::StringConversion::StringToLineVector((char*) stdOut.c_str(),
+    eos::common::StringConversion::StringToLineVector((char*) response.c_str(),
         lines);
 
     for (size_t nlines = 0; nlines < lines.size(); ++nlines) {
@@ -1085,5 +1066,60 @@ Fsck::AccountDarkFiles()
     }
   }
 }
+
+//----------------------------------------------------------------------------
+//! Query for fsck responses
+//!
+//! @return string with the fsck replied from all the FSTs
+//----------------------------------------------------------------------------
+std::string Fsck::QueryFsck()
+{
+  uint16_t timeout = 10;
+  std::string response;
+  std::string request = "/?fst.pcmd=fsck";
+  std::map<std::string, std::pair<int, std::string>> responses;
+  std::set<std::string> endpoints;
+  gOFS->BroadcastQuery(request, endpoints, responses, timeout);
+  int query_resp = 0;
+
+  for (const auto& resp : responses) {
+    eos_static_info("endpoint=%s retc=%i resp=\"%s\"", resp.first.c_str(),
+                    resp.second.first, resp.second.second.c_str());
+    query_resp += resp.second.first;
+  }
+
+  if (query_resp == 0) {
+    for (const auto& resp : responses) {
+      response += resp.second.second;
+    }
+
+    eos_static_debug("msg=\"fsck query response\" out=\"%s\"", response.c_str());
+    return response;
+  }
+
+  // Fallback to old mechanism if there was any error
+  int bccount = 0;
+  XrdOucString broadcastresponsequeue = gOFS->MgmOfsBrokerUrl;
+  broadcastresponsequeue += "-fsck-";
+  broadcastresponsequeue += bccount;
+  XrdOucString broadcasttargetqueue = gOFS->MgmDefaultReceiverQueue;
+  XrdOucString msgbody;
+  // mgm.fsck.tags no longer necessary for newer versions, but keeping for
+  // compatibility
+  msgbody = "mgm.cmd=fsck&mgm.fsck.tags=*";
+  XrdOucString stdOut = "";
+
+  if (!gOFS->MgmOfsMessaging->BroadCastAndCollect(broadcastresponsequeue,
+      broadcasttargetqueue, msgbody, stdOut, timeout)) {
+    eos_err("msg=\"failed to broadcast and collect fsck from [%s]:[%s]\"",
+            broadcastresponsequeue.c_str(), broadcasttargetqueue.c_str());
+  }
+
+  eos_static_debug("msg=\"fsck response for broadcast\" out=\"%s\"",
+                   stdOut.c_str());
+  response = stdOut.c_str();
+  return response;
+}
+
 
 EOSMGMNAMESPACE_END
