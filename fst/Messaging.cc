@@ -84,16 +84,23 @@ Messaging::Process(XrdMqMessage* newmessage)
     }
   }
 
+  // @note
+  // All of the commands below are going to be deprecated and replace by XRootD
+  // query commands which are handled in the FSctl method
   if (cmd == "debug") {
-    gOFS.SetDebug(action);
+    return gOFS.SetDebug(action);
   }
 
   if (cmd == "fsck") {
-    gOFS.SendFsck(newmessage);
+    return gOFS.SendFsck(newmessage);
+  }
+
+  if (cmd == "resync") {
+    return gOFS.DoResync(action);
   }
 
   if (cmd == "rtlog") {
-    gOFS.SendRtLog(newmessage);
+    return gOFS.SendRtLog(newmessage);
   }
 
   if (cmd == "drop") {
@@ -133,66 +140,6 @@ Messaging::Process(XrdMqMessage* newmessage)
       gOFS.Storage->PushVerification(new_verify);
     } else {
       eos_err("Cannot create a verify entry - illegal opaque information");
-    }
-  }
-
-  if (cmd == "resync") {
-    eos::common::FileId::fileid_t fid {0ull};
-    eos::common::FileSystem::fsid_t fsid =
-      (action.Get("mgm.fsid") ? strtoul(action.Get("mgm.fsid"), 0, 10) : 0);
-    bool force {false};
-    char* ptr = action.Get("mgm.resync_force");
-
-    if (ptr && (strncmp(ptr, "1", 1) == 0)) {
-      force = true;
-    }
-
-    if (action.Get("mgm.fxid")) {
-      fid = strtoull(action.Get("mgm.fxid"), 0, 16);  // transition
-    } else if (action.Get("mgm.fid")) {
-      fid = strtoull(action.Get("mgm.fid"), 0, 10);   // eventually should be HEX
-    }
-
-    if (!fsid) {
-      eos_err("msg=\"dropping resync\" fsid=%lu fxid=%08llx",
-              (unsigned long) fsid, fid);
-    } else {
-      if (!fid) {
-        eos_warning("msg=\"deleting fmd\" fsid=%lu fxid=%08llx",
-                    (unsigned long) fsid, fid);
-        gFmdDbMapHandler.LocalDeleteFmd(fid, fsid);
-      } else {
-        auto fMd = gFmdDbMapHandler.LocalGetFmd(fid, fsid, true, force);
-
-        if (fMd) {
-          if (force) {
-            eos_static_info("msg=\"force resync\" fid=%08llx fsid=%lu",
-                            fid, fsid);
-            std::string fpath = eos::common::FileId::FidPrefix2FullPath
-                                (eos::common::FileId::Fid2Hex(fid).c_str(),
-                                 gOFS.Storage->GetStoragePath(fsid).c_str());
-
-            if (gFmdDbMapHandler.ResyncDisk(fpath.c_str(), fsid, false) == 0) {
-              if (gFmdDbMapHandler.ResyncFileFromQdb(fid, fsid, fpath,
-                                                     gOFS.mFsckQcl) == 0) {
-                return;
-              } else {
-                eos_static_err("msg=\"resync qdb failed\" fid=%08llx fsid=%lu",
-                               fid, fsid);
-              }
-            } else {
-              eos_static_err("msg=\"resync disk failed\" fid=%08llx fsid=%lu",
-                             fid, fsid);
-            }
-          } else {
-            // force a resync of meta data from the MGM
-            // e.g. store in the WrittenFilesQueue to have it done asynchronous
-            gOFS.WrittenFilesQueueMutex.Lock();
-            gOFS.WrittenFilesQueue.push(*fMd.get());
-            gOFS.WrittenFilesQueueMutex.UnLock();
-          }
-        }
-      }
     }
   }
 }

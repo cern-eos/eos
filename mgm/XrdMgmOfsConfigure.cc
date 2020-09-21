@@ -2297,7 +2297,7 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("Scheduled2Drain", 0, 0, 0);
   MgmStats.Add("Schedule2Delete", 0, 0, 0);
   MgmStats.Add("Scheduled2Delete", 0, 0, 0);
-  MgmStats.Add("SendResync", 0, 0, 0);
+  MgmStats.Add("QueryResync", 0, 0, 0);
   MgmStats.Add("Stall", 0, 0, 0);
   MgmStats.Add("Stat", 0, 0, 0);
   MgmStats.Add("Symlink", 0, 0, 0);

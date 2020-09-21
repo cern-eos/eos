@@ -482,7 +482,7 @@ ConverterJob::Merge()
 
   // Trigger a resync of the local information for the new locations
   for (const auto& loc : conv_locations) {
-    if (gOFS->SendResync(orig_fid, loc, true)) {
+    if (gOFS->QueryResync(orig_fid, loc, true)) {
       eos_static_err("msg=\"failed to send resync\" fid=%08llx fsid=%u",
                      orig_fid, loc);
     }

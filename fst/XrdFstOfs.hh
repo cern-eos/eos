@@ -354,11 +354,6 @@ public:
     return mGeoTag;
   }
 
-  void SetDebug(XrdOucEnv& env);
-
-  void SendRtLog(XrdMqMessage* message);
-
-  void SendFsck(XrdMqMessage* message);
 
   int Stall(XrdOucErrInfo& error, int stime, const char* msg);
 
@@ -412,6 +407,17 @@ public:
   std::unique_ptr<eos::fst::HttpServer>
   mHttpd; ///< Embedded http server if available
   std::chrono::seconds mTpcKeyValidity {120}; ///< TPC key validity
+
+  // @note
+  // All of the commands below are going to be deprecated and replace by XRootD
+  // query commands which are handled in the FSctl method
+  void SetDebug(XrdOucEnv& env);
+
+  void SendFsck(XrdMqMessage* message);
+
+  void SendRtLog(XrdMqMessage* message);
+
+  void DoResync(XrdOucEnv& env);
 
 private:
 #ifdef IN_TEST_HARNESS
@@ -504,6 +510,17 @@ public:
   //!        err_obj is populated with the response
   //----------------------------------------------------------------------------
   int HandleFsck(XrdOucEnv& env, XrdOucErrInfo& err_obj);
+
+  //----------------------------------------------------------------------------
+  //! Handle resync query
+  //!
+  //! @param env ecoding of the query command
+  //! @param err_obj object holding the response for the query
+  //!
+  //! @param return SFS_ERROR if failed, otherwise SFS_OK or SFS_DATA and the
+  //!        err_obj is populated with the response
+  //----------------------------------------------------------------------------
+  int HandleResync(XrdOucEnv& env, XrdOucErrInfo& err_obj);
 };
 
 //------------------------------------------------------------------------------

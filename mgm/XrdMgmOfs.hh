@@ -1120,8 +1120,8 @@ public:
   //!
   //! @return true if successfully send otherwise false
   //----------------------------------------------------------------------------
-  int SendResync(eos::common::FileId::fileid_t fid,
-                 eos::common::FileSystem::fsid_t fsid, bool force = false);
+  int QueryResync(eos::common::FileId::fileid_t fid,
+                  eos::common::FileSystem::fsid_t fsid, bool force = false);
 
   // ---------------------------------------------------------------------------
   // static Mkpath is not supported

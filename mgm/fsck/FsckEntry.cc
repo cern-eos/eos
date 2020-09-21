@@ -687,7 +687,7 @@ FsckEntry::ResyncFstMd(bool refresh_mgm_md)
 
   for (const auto& fsid : mMgmFmd.locations()) {
     if (gOFS) {
-      (void) gOFS->SendResync(mFid, fsid);
+      (void) gOFS->QueryResync(mFid, fsid);
     }
   }
 }

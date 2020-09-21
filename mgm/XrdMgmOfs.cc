@@ -574,7 +574,6 @@ XrdMgmOfs::Disc(const XrdSecEntity* client)
 #include "XrdMgmOfs/Remdir.cc"
 #include "XrdMgmOfs/Rename.cc"
 #include "XrdMgmOfs/Rm.cc"
-#include "XrdMgmOfs/SendResync.cc"
 #include "XrdMgmOfs/SharedPath.cc"
 #include "XrdMgmOfs/ShouldRedirect.cc"
 #include "XrdMgmOfs/ShouldRoute.cc"
@@ -1848,4 +1847,60 @@ XrdMgmOfs::BroadcastQuery(const std::string& request,
     delete elem.first;
     delete elem.second;
   }
+}
+
+//------------------------------------------------------------------------------
+// Send a resync command for a file identified by id and filesystem
+//------------------------------------------------------------------------------
+int
+XrdMgmOfs::QueryResync(eos::common::FileId::fileid_t fid,
+                       eos::common::FileSystem::fsid_t fsid, bool force)
+{
+  int fst_port;
+  std::string fst_host;
+  std::string fst_queue;
+  {
+    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+    eos::mgm::FileSystem* fs = FsView::gFsView.mIdView.lookupByID(fsid);
+
+    if (!fs) {
+      eos_err("msg=\"no resync msg sent, no such file system\" fsid=%lu", fsid);
+      return -1;
+    }
+
+    fst_host = fs->GetHost();
+    fst_queue = fs->GetQueue();
+    fst_port = fs->getCoreParams().getLocator().getPort();
+  }
+  EXEC_TIMING_BEGIN("QueryResync");
+  gOFS->MgmStats.Add("QueryResync", vid.uid, vid.gid, 1);
+  std::string request =
+    SSTR("/?fst.pcmd=resync"
+         << "&fst.resync.fsid=" << fsid
+         << "&fst.resync.fxid=" << eos::common::FileId::Fid2Hex(fid)
+         << "&fst.resync.force=" << force);
+  std::string response;
+  int query_retc = gOFS->SendQuery(fst_host, fst_port, request, response);
+  (void) response;
+
+  if (query_retc) { // Fallback to old mechanism
+    XrdOucString msgbody = "mgm.cmd=resync";
+    char payload[4096];
+    // @todo(esindril) Transition, eventually send mgm.fid=HEX
+    snprintf(payload, sizeof(payload) - 1,
+             "&mgm.fsid=%lu&mgm.fid=%llu&mgm.fxid=%08llx&mgm.resync_force=%i",
+             (unsigned long) fsid, fid, fid, (int)force);
+    msgbody += payload;
+    eos::mq::MessagingRealm::Response response =
+      mMessagingRealm->sendMessage("resync", msgbody.c_str(), fst_queue);
+
+    if (!response.ok()) {
+      eos_err("msg=\"failed to send resync message\" dst=%s", fst_queue.c_str());
+      EXEC_TIMING_END("QueryResync");
+      return -1;
+    }
+  }
+
+  EXEC_TIMING_END("QueryResync");
+  return 0;
 }

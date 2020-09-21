@@ -1167,180 +1167,6 @@ again:
 }
 
 //------------------------------------------------------------------------------
-// Set debug level based on the env info
-//------------------------------------------------------------------------------
-void
-XrdFstOfs::SetDebug(XrdOucEnv& env)
-{
-  XrdOucString debuglevel = env.Get("mgm.debuglevel");
-  XrdOucString filterlist = env.Get("mgm.filter");
-  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
-  int debugval = g_logging.GetPriorityByString(debuglevel.c_str());
-
-  if (debugval < 0) {
-    eos_err("debug level %s is not known!", debuglevel.c_str());
-  } else {
-    // We set the shared hash debug for the lowest 'debug' level
-    if (debuglevel == "debug") {
-      //ObjectManager.SetDebug(true);
-    } else {
-      ObjectManager.SetDebug(false);
-    }
-
-    g_logging.SetLogPriority(debugval);
-    eos_notice("setting debug level to <%s>", debuglevel.c_str());
-
-    if (filterlist.length()) {
-      g_logging.SetFilter(filterlist.c_str());
-      eos_notice("setting message logid filter to <%s>", filterlist.c_str());
-    }
-  }
-}
-
-//------------------------------------------------------------------------------
-// Set real time log level
-//------------------------------------------------------------------------------
-void
-XrdFstOfs::SendRtLog(XrdMqMessage* message)
-{
-  XrdOucEnv opaque(message->GetBody());
-  XrdOucString queue = opaque.Get("mgm.rtlog.queue");
-  XrdOucString lines = opaque.Get("mgm.rtlog.lines");
-  XrdOucString tag = opaque.Get("mgm.rtlog.tag");
-  XrdOucString filter = opaque.Get("mgm.rtlog.filter");
-  XrdOucString stdOut = "";
-
-  if (!filter.length()) {
-    filter = " ";
-  }
-
-  if ((!queue.length()) || (!lines.length()) || (!tag.length())) {
-    eos_err("illegal parameter queue=%s lines=%s tag=%s", queue.c_str(),
-            lines.c_str(), tag.c_str());
-  } else {
-    eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
-
-    if ((g_logging.GetPriorityByString(tag.c_str())) == -1) {
-      eos_err("mgm.rtlog.tag must be info,debug,err,emerg,alert,crit,warning or notice");
-    } else {
-      int logtagindex = g_logging.GetPriorityByString(tag.c_str());
-
-      for (int j = 0; j <= logtagindex; j++) {
-        for (int i = 1; i <= atoi(lines.c_str()); i++) {
-          g_logging.gMutex.Lock();
-          XrdOucString logline = g_logging.gLogMemory[j][
-                                   (g_logging.gLogCircularIndex[j] - i +
-                                    g_logging.gCircularIndexSize) %
-                                   g_logging.gCircularIndexSize].c_str();
-          g_logging.gMutex.UnLock();
-
-          if (logline.length() && ((logline.find(filter.c_str())) != STR_NPOS)) {
-            stdOut += logline;
-            stdOut += "\n";
-          }
-
-          if (stdOut.length() > (4 * 1024)) {
-            XrdMqMessage repmessage("rtlog reply message");
-            repmessage.SetBody(stdOut.c_str());
-
-            if (!XrdMqMessaging::gMessageClient.ReplyMessage(repmessage, *message)) {
-              eos_err("unable to send rtlog reply message to %s",
-                      message->kMessageHeader.kSenderId.c_str());
-            }
-
-            stdOut = "";
-          }
-
-          if (!logline.length()) {
-            break;
-          }
-        }
-      }
-    }
-  }
-
-  if (stdOut.length()) {
-    XrdMqMessage repmessage("rtlog reply message");
-    repmessage.SetBody(stdOut.c_str());
-
-    if (!XrdMqMessaging::gMessageClient.ReplyMessage(repmessage, *message)) {
-      eos_err("unable to send rtlog reply message to %s",
-              message->kMessageHeader.kSenderId.c_str());
-    }
-  }
-}
-
-//------------------------------------------------------------------------------
-//
-//------------------------------------------------------------------------------
-void
-XrdFstOfs::SendFsck(XrdMqMessage* message)
-{
-  XrdOucString stdOut = "";
-  eos::common::RWMutexReadLock fs_rd_lock(gOFS.Storage->mFsMutex);
-
-  for (const auto& elem : gOFS.Storage->mFsMap) {
-    auto fs = elem.second;
-
-    // Don't report filesystems which are not booted!
-    if (fs->GetStatus() != eos::common::BootStatus::kBooted) {
-      continue;
-    }
-
-    eos::common::FileSystem::fsid_t fsid = fs->GetLocalId();
-    eos::common::RWMutexReadLock rd_lock(fs->mInconsistencyMutex);
-    const auto& icset = fs->GetInconsistencySets();
-
-    for (auto icit = icset.cbegin(); icit != icset.cend(); ++icit) {
-      char stag[4096];
-      snprintf(stag, sizeof(stag) - 1, "%s@%lu", icit->first.c_str(),
-               (unsigned long) fsid);
-      stdOut += stag;
-
-      for (auto fit = icit->second.cbegin(); fit != icit->second.cend(); ++fit) {
-        // Don't report files which are currently write-open
-        if (gOFS.openedForWriting.isOpen(fsid, *fit)) {
-          continue;
-        }
-
-        char sfid[4096];
-        snprintf(sfid, sizeof(sfid) - 1, ":%08llx", *fit);
-        stdOut += sfid;
-
-        if (stdOut.length() > (64 * 1024)) {
-          stdOut += "\n";
-          XrdMqMessage repmessage("fsck reply message");
-          repmessage.SetBody(stdOut.c_str());
-          repmessage.MarkAsMonitor();
-
-          if (!XrdMqMessaging::gMessageClient.ReplyMessage(repmessage, *message)) {
-            eos_static_err("msg=\"unable to send fsck reply message\" dst=%s",
-                           message->kMessageHeader.kSenderId.c_str());
-          }
-
-          stdOut = stag;
-        }
-      }
-
-      stdOut += "\n";
-    }
-  }
-
-  eos_static_debug("msg=\"fsck reply\" data=\"%s\"", stdOut.c_str());
-
-  if (stdOut.length()) {
-    XrdMqMessage repmessage("fsck reply message");
-    repmessage.SetBody(stdOut.c_str());
-    repmessage.MarkAsMonitor();
-
-    if (!XrdMqMessaging::gMessageClient.ReplyMessage(repmessage, *message)) {
-      eos_static_err("msg=\"unable to send fsck reply message\" dst=%s",
-                     message->kMessageHeader.kSenderId.c_str());
-    }
-  }
-}
-
-//------------------------------------------------------------------------------
 // Remove entry - interface function
 //------------------------------------------------------------------------------
 int
@@ -1593,6 +1419,10 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
 
     if (execmd == "fsck") {
       return HandleFsck(env, error);
+    }
+
+    if (execmd == "resync") {
+      return HandleResync(env, error);
     }
 
     if (execmd == "getfmd") {
@@ -2110,9 +1940,9 @@ XrdFstOfs::HandleFsck(XrdOucEnv& env, XrdOucErrInfo& err_obj)
   response.reserve(4 * eos::common::MB);
   size_t max_sz = mXrdBuffPool.MaxSize() - 2 * eos::common::MB;
   {
-    eos::common::RWMutexReadLock fs_rd_lock(gOFS.Storage->mFsMutex);
+    eos::common::RWMutexReadLock fs_rd_lock(Storage->mFsMutex);
 
-    for (const auto& elem : gOFS.Storage->mFsMap) {
+    for (const auto& elem : Storage->mFsMap) {
       auto fs = elem.second;
 
       // Don't report filesystems which are not booted!
@@ -2130,7 +1960,7 @@ XrdFstOfs::HandleFsck(XrdOucEnv& env, XrdOucErrInfo& err_obj)
 
         for (auto fit = icit->second.cbegin(); fit != icit->second.cend(); ++fit) {
           // Don't report files which are currently write-open
-          if (gOFS.openedForWriting.isOpen(fsid, *fit)) {
+          if (openedForWriting.isOpen(fsid, *fit)) {
             continue;
           }
 
@@ -2165,4 +1995,316 @@ XrdFstOfs::HandleFsck(XrdOucEnv& env, XrdOucErrInfo& err_obj)
   return SFS_DATA;
 }
 
+//------------------------------------------------------------------------------
+// Handle resync query
+//------------------------------------------------------------------------------
+int
+XrdFstOfs::HandleResync(XrdOucEnv& env, XrdOucErrInfo& err_obj)
+{
+  using eos::common::FileId;
+
+  if ((env.Get("fst.resync.fsid") == nullptr) ||
+      (env.Get("fst.resync.fxid") == nullptr) ||
+      (env.Get("fst.resync.force") == nullptr)) {
+    eos_static_err("%s", "msg=\"discard resync with missgin arguments\"");
+    err_obj.setErrInfo(EINVAL, "resync missing arguments");
+    return SFS_ERROR;
+  }
+
+  bool force {false};
+  FileId::fileid_t fid = FileId::Hex2Fid(env.Get("fst.resync.fxid"));
+  FileSystem::fsid_t fsid = strtoul(env.Get("fst.resync.fsid"), 0,
+                                    10);
+  char* ptr = env.Get("fst.resync.force");
+
+  if (ptr && (strncmp(ptr, "1", 1) == 0)) {
+    force = true;
+  }
+
+  if ((ptr == nullptr) || (fsid == 0ul)) {
+    eos_static_err("msg=\"resync with invalid args\" fsid=%lu fxid=%08llx",
+                   (unsigned long) fsid, fid);
+    err_obj.setErrInfo(EINVAL, "resync with invalid args");
+    return SFS_ERROR;
+  }
+
+  if (!fid) {
+    eos_static_warning("msg=\"deleting fmd\" fsid=%lu fxid=%08llx", fsid, fid);
+    gFmdDbMapHandler.LocalDeleteFmd(fid, fsid);
+  } else {
+    auto fmd = gFmdDbMapHandler.LocalGetFmd(fid, fsid, true, force);
+
+    if (fmd) {
+      if (force) {
+        eos_static_info("msg=\"force resync\" fxid=%08llx fsid=%lu", fid, fsid);
+        std::string fpath = eos::common::FileId::FidPrefix2FullPath
+                            (eos::common::FileId::Fid2Hex(fid).c_str(),
+                             gOFS.Storage->GetStoragePath(fsid).c_str());
+
+        if (gFmdDbMapHandler.ResyncDisk(fpath.c_str(), fsid, false) == 0) {
+          if (gFmdDbMapHandler.ResyncFileFromQdb(fid, fsid, fpath, gOFS.mFsckQcl)) {
+            eos_static_err("msg=\"resync qdb failed\" fid=%08llx fsid=%lu",
+                           fid, fsid);
+          }
+        } else {
+          eos_static_err("msg=\"resync disk failed\" fid=%08llx fsid=%lu",
+                         fid, fsid);
+        }
+      } else {
+        // Resync of meta data from the MGM by storing the FmdHelper in the
+        // WrittenFilesQueue to have it done asynchronously
+        gOFS.WrittenFilesQueueMutex.Lock();
+        gOFS.WrittenFilesQueue.push(*fmd.get());
+        gOFS.WrittenFilesQueueMutex.UnLock();
+      }
+    }
+  }
+
+  const char* done = "OK";
+  err_obj.setErrInfo(strlen(done) + 1, done);
+  return SFS_DATA;
+}
+
+//------------------------------------------------------------------------------
+// *********** NOTE: THE FOLLOWING METHODS ARE TO BE DEPRECATED ***************
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+// Set debug level based on the env info
+//------------------------------------------------------------------------------
+void
+XrdFstOfs::SetDebug(XrdOucEnv& env)
+{
+  XrdOucString debuglevel = env.Get("mgm.debuglevel");
+  XrdOucString filterlist = env.Get("mgm.filter");
+  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+  int debugval = g_logging.GetPriorityByString(debuglevel.c_str());
+
+  if (debugval < 0) {
+    eos_err("debug level %s is not known!", debuglevel.c_str());
+  } else {
+    // We set the shared hash debug for the lowest 'debug' level
+    if (debuglevel == "debug") {
+      //ObjectManager.SetDebug(true);
+    } else {
+      ObjectManager.SetDebug(false);
+    }
+
+    g_logging.SetLogPriority(debugval);
+    eos_notice("setting debug level to <%s>", debuglevel.c_str());
+
+    if (filterlist.length()) {
+      g_logging.SetFilter(filterlist.c_str());
+      eos_notice("setting message logid filter to <%s>", filterlist.c_str());
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+// Set real time log level
+//------------------------------------------------------------------------------
+void
+XrdFstOfs::SendRtLog(XrdMqMessage* message)
+{
+  XrdOucEnv opaque(message->GetBody());
+  XrdOucString queue = opaque.Get("mgm.rtlog.queue");
+  XrdOucString lines = opaque.Get("mgm.rtlog.lines");
+  XrdOucString tag = opaque.Get("mgm.rtlog.tag");
+  XrdOucString filter = opaque.Get("mgm.rtlog.filter");
+  XrdOucString stdOut = "";
+
+  if (!filter.length()) {
+    filter = " ";
+  }
+
+  if ((!queue.length()) || (!lines.length()) || (!tag.length())) {
+    eos_err("illegal parameter queue=%s lines=%s tag=%s", queue.c_str(),
+            lines.c_str(), tag.c_str());
+  } else {
+    eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+
+    if ((g_logging.GetPriorityByString(tag.c_str())) == -1) {
+      eos_err("mgm.rtlog.tag must be info,debug,err,emerg,alert,crit,warning or notice");
+    } else {
+      int logtagindex = g_logging.GetPriorityByString(tag.c_str());
+
+      for (int j = 0; j <= logtagindex; j++) {
+        for (int i = 1; i <= atoi(lines.c_str()); i++) {
+          g_logging.gMutex.Lock();
+          XrdOucString logline = g_logging.gLogMemory[j][
+                                   (g_logging.gLogCircularIndex[j] - i +
+                                    g_logging.gCircularIndexSize) %
+                                   g_logging.gCircularIndexSize].c_str();
+          g_logging.gMutex.UnLock();
+
+          if (logline.length() && ((logline.find(filter.c_str())) != STR_NPOS)) {
+            stdOut += logline;
+            stdOut += "\n";
+          }
+
+          if (stdOut.length() > (4 * 1024)) {
+            XrdMqMessage repmessage("rtlog reply message");
+            repmessage.SetBody(stdOut.c_str());
+
+            if (!XrdMqMessaging::gMessageClient.ReplyMessage(repmessage, *message)) {
+              eos_err("unable to send rtlog reply message to %s",
+                      message->kMessageHeader.kSenderId.c_str());
+            }
+
+            stdOut = "";
+          }
+
+          if (!logline.length()) {
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  if (stdOut.length()) {
+    XrdMqMessage repmessage("rtlog reply message");
+    repmessage.SetBody(stdOut.c_str());
+
+    if (!XrdMqMessaging::gMessageClient.ReplyMessage(repmessage, *message)) {
+      eos_err("unable to send rtlog reply message to %s",
+              message->kMessageHeader.kSenderId.c_str());
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+// Send reply to FSCK query through MQ
+//------------------------------------------------------------------------------
+void
+XrdFstOfs::SendFsck(XrdMqMessage* message)
+{
+  XrdOucString stdOut = "";
+  eos::common::RWMutexReadLock fs_rd_lock(gOFS.Storage->mFsMutex);
+
+  for (const auto& elem : gOFS.Storage->mFsMap) {
+    auto fs = elem.second;
+
+    // Don't report filesystems which are not booted!
+    if (fs->GetStatus() != eos::common::BootStatus::kBooted) {
+      continue;
+    }
+
+    eos::common::FileSystem::fsid_t fsid = fs->GetLocalId();
+    eos::common::RWMutexReadLock rd_lock(fs->mInconsistencyMutex);
+    const auto& icset = fs->GetInconsistencySets();
+
+    for (auto icit = icset.cbegin(); icit != icset.cend(); ++icit) {
+      char stag[4096];
+      snprintf(stag, sizeof(stag) - 1, "%s@%lu", icit->first.c_str(),
+               (unsigned long) fsid);
+      stdOut += stag;
+
+      for (auto fit = icit->second.cbegin(); fit != icit->second.cend(); ++fit) {
+        // Don't report files which are currently write-open
+        if (gOFS.openedForWriting.isOpen(fsid, *fit)) {
+          continue;
+        }
+
+        char sfid[4096];
+        snprintf(sfid, sizeof(sfid) - 1, ":%08llx", *fit);
+        stdOut += sfid;
+
+        if (stdOut.length() > (64 * 1024)) {
+          stdOut += "\n";
+          XrdMqMessage repmessage("fsck reply message");
+          repmessage.SetBody(stdOut.c_str());
+          repmessage.MarkAsMonitor();
+
+          if (!XrdMqMessaging::gMessageClient.ReplyMessage(repmessage, *message)) {
+            eos_static_err("msg=\"unable to send fsck reply message\" dst=%s",
+                           message->kMessageHeader.kSenderId.c_str());
+          }
+
+          stdOut = stag;
+        }
+      }
+
+      stdOut += "\n";
+    }
+  }
+
+  eos_static_debug("msg=\"fsck reply\" data=\"%s\"", stdOut.c_str());
+
+  if (stdOut.length()) {
+    XrdMqMessage repmessage("fsck reply message");
+    repmessage.SetBody(stdOut.c_str());
+    repmessage.MarkAsMonitor();
+
+    if (!XrdMqMessaging::gMessageClient.ReplyMessage(repmessage, *message)) {
+      eos_static_err("msg=\"unable to send fsck reply message\" dst=%s",
+                     message->kMessageHeader.kSenderId.c_str());
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+// Handle resync query coming through MQ
+//------------------------------------------------------------------------------
+void
+XrdFstOfs::DoResync(XrdOucEnv& env)
+{
+  eos::common::FileId::fileid_t fid {0ull};
+  eos::common::FileSystem::fsid_t fsid =
+    (env.Get("mgm.fsid") ? strtoul(env.Get("mgm.fsid"), 0, 10) : 0);
+  bool force {false};
+  char* ptr = env.Get("mgm.resync_force");
+
+  if (ptr && (strncmp(ptr, "1", 1) == 0)) {
+    force = true;
+  }
+
+  if (env.Get("mgm.fxid")) {
+    fid = strtoull(env.Get("mgm.fxid"), 0, 16);  // transition
+  } else if (env.Get("mgm.fid")) {
+    fid = strtoull(env.Get("mgm.fid"), 0, 10);   // eventually should be HEX
+  }
+
+  if (!fsid) {
+    eos_err("msg=\"dropping resync\" fsid=%lu fxid=%08llx",
+            (unsigned long) fsid, fid);
+  } else {
+    if (!fid) {
+      eos_warning("msg=\"deleting fmd\" fsid=%lu fxid=%08llx",
+                  (unsigned long) fsid, fid);
+      gFmdDbMapHandler.LocalDeleteFmd(fid, fsid);
+    } else {
+      auto fMd = gFmdDbMapHandler.LocalGetFmd(fid, fsid, true, force);
+
+      if (fMd) {
+        if (force) {
+          eos_static_info("msg=\"force resync\" fid=%08llx fsid=%lu",
+                          fid, fsid);
+          std::string fpath = eos::common::FileId::FidPrefix2FullPath
+                              (eos::common::FileId::Fid2Hex(fid).c_str(),
+                               gOFS.Storage->GetStoragePath(fsid).c_str());
+
+          if (gFmdDbMapHandler.ResyncDisk(fpath.c_str(), fsid, false) == 0) {
+            if (gFmdDbMapHandler.ResyncFileFromQdb(fid, fsid, fpath,
+                                                   gOFS.mFsckQcl) == 0) {
+              return;
+            } else {
+              eos_static_err("msg=\"resync qdb failed\" fid=%08llx fsid=%lu",
+                             fid, fsid);
+            }
+          } else {
+            eos_static_err("msg=\"resync disk failed\" fid=%08llx fsid=%lu",
+                           fid, fsid);
+          }
+        } else {
+          // force a resync of meta data from the MGM
+          // e.g. store in the WrittenFilesQueue to have it done asynchronous
+          gOFS.WrittenFilesQueueMutex.Lock();
+          gOFS.WrittenFilesQueue.push(*fMd.get());
+          gOFS.WrittenFilesQueueMutex.UnLock();
+        }
+      }
+    }
+  }
+}
 EOSFSTNAMESPACE_END
