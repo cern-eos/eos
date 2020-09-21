@@ -1081,6 +1081,35 @@ public:
                    int max_versions);
 
   //----------------------------------------------------------------------------
+  //! Send query (XrdFileSystem::Query) to the given endpoint and collect the
+  //! repsonse
+  //!
+  //! @param hostname endpoint hostname
+  //! @param port endpoint port
+  //! @param request string encoded request
+  //! @param response string encoded reponse
+  //!
+  //! @return 0 if successful, otherwise errno
+  //----------------------------------------------------------------------------
+  int SendQuery(const std::string& hostname, int port,
+                const std::string& request, std::string& response);
+
+  //----------------------------------------------------------------------------
+  //! Broadcast query (XrdFileSystem::Query) to the given endpoints and collect
+  //! the repsonses
+  //!
+  //! @param request string encoded request
+  //! @param set of endpoints, if empty then send to all registered FSTs
+  //! @param map of responses from each individual endpoint
+  //! @param timeout optional timeout value for the request, 0 no timeout
+  //----------------------------------------------------------------------------
+  void BroadcastQuery(const std::string& request,
+                      std::set<std::string>& endpoints,
+                      std::map<std::string, std::pair<int, std::string>>&
+                      reponses,
+                      uint16_t timeout = 0);
+
+  //----------------------------------------------------------------------------
   //! @brief Send a resync command for a file identified by id and filesystem.
   //! A resync synchronizes the cache DB on the FST with the meta data on disk
   //! and on the MGM and flags files accordingly with size/checksum errors.

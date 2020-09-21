@@ -373,7 +373,9 @@ XrdFstOfs::XrdFstOfs() :
 //------------------------------------------------------------------------------
 XrdFstOfs::~XrdFstOfs()
 {
-  if( mHostName ) free( const_cast<char*>( mHostName ) );
+  if (mHostName) {
+    free(const_cast<char*>(mHostName));
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -1168,7 +1170,6 @@ again:
 void
 XrdFstOfs::SetDebug(XrdOucEnv& env)
 {
-  XrdOucString debugnode = env.Get("mgm.nodename");
   XrdOucString debuglevel = env.Get("mgm.debuglevel");
   XrdOucString filterlist = env.Get("mgm.filter");
   eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
@@ -1576,12 +1577,17 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
   XrdOucString opaque = iopaque;
   XrdOucString result = "";
   XrdOucEnv env(opaque.c_str());
-  eos_debug("tident=%s path=%s opaque=%s prot=%s", tident, path.c_str(),
-            opaque.c_str(), client->prot);
+  eos_static_info("query tident=%s path=%s opaque=%s prot=%s", tident,
+                  path.c_str(),
+                  opaque.c_str(), client->prot);
   const char* scmd;
 
   if ((scmd = env.Get("fst.pcmd"))) {
     XrdOucString execmd = scmd;
+
+    if (execmd == "debug") {
+      return QueryDebug(env, error);
+    }
 
     if (execmd == "getfmd") {
       char* afid = env.Get("fst.getfmd.fid");
@@ -2043,6 +2049,50 @@ XrdFstOfs::CreateDirHierarchy(const std::string& dir_hierarchy,
   }
 
   return true;
+}
+
+
+//------------------------------------------------------------------------------
+// Handle query debug
+//------------------------------------------------------------------------------
+int
+XrdFstOfs::QueryDebug(XrdOucEnv& env, XrdOucErrInfo& err_obj)
+{
+  std::string dbg_level = (env.Get("fst.debug.level") ?
+                           env.Get("fst.debug.level") : "");
+  std::string dbg_filter = (env.Get("fst.debug.filter") ?
+                            env.Get("fst.debug.filter") : "");
+  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+  int dbg_val = g_logging.GetPriorityByString(dbg_level.c_str());
+
+  if (dbg_val < 0) {
+    std::string msg = SSTR("unknown debug level <" << dbg_level << ">");
+    eos_err("msg=\"%s\"", msg.c_str());
+    err_obj.setErrInfo(EINVAL, msg.c_str());
+    return SFS_ERROR;
+  }
+
+  // We set the shared hash debug for the lowest 'debug' level
+  if (dbg_level == "debug") {
+    //ObjectManager.SetDebug(true);
+  } else {
+    ObjectManager.SetDebug(false);
+  }
+
+  g_logging.SetLogPriority(dbg_val);
+  eos_notice("msg=\"setting debug level to <%s>\"", dbg_level.c_str());
+
+  if (dbg_filter.length()) {
+    g_logging.SetFilter(dbg_filter.c_str());
+    eos_notice("setting message logid filter to <%s>", dbg_filter.c_str());
+  }
+
+  // @todo(esindril) once xrootd bug regarding handling of SFS_OK response
+  // in XrdXrootdXeq is fixed we can just return SFS_OK (>= XRootD 5)
+  // return SFS_OK;
+  const char* done = "OK";
+  err_obj.setErrInfo(strlen(done) + 1, done);
+  return SFS_DATA;
 }
 
 EOSFSTNAMESPACE_END

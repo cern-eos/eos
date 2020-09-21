@@ -1447,7 +1447,7 @@ XrdMgmOfs::WriteRmRecord(const std::shared_ptr<eos::IFileMD>& fmd)
            ts_now.tv_sec, ts_now.tv_nsec, ctime.tv_sec, ctime.tv_nsec,
            mtime.tv_sec, mtime.tv_nsec, fmd->getSize());
   std::string record = report;
-  
+
   if (IoStats) {
     IoStats->WriteRecord(record);
   }
@@ -1479,7 +1479,7 @@ XrdMgmOfs::WriteRecycleRecord(const std::shared_ptr<eos::IFileMD>& fmd)
            ts_now.tv_sec, ts_now.tv_nsec, ctime.tv_sec, ctime.tv_nsec,
            mtime.tv_sec, mtime.tv_nsec, fmd->getSize());
   std::string record = report;
-  
+
   if (IoStats) {
     IoStats->WriteRecord(record);
   }
@@ -1663,4 +1663,190 @@ XrdMgmOfs::SetRedirectionInfo(XrdOucErrInfo& err_obj,
   buff->SetLen(rdr_info.length() + 1);
   err_obj.setErrInfo(rdr_port, buff);
   return true;
+}
+
+//------------------------------------------------------------------------------
+// Send query (XrdFileSystem::Query) to the given endpoint and collect the
+// repsonse
+//------------------------------------------------------------------------------
+int
+XrdMgmOfs::SendQuery(const std::string& hostname, int port,
+                     const std::string& request, std::string& response)
+{
+  std::ostringstream oss;
+  oss << "root://" << hostname << ":" << port << "/?xrd.wantprot=sss";
+  XrdCl::URL url(oss.str());
+
+  if (!url.IsValid()) {
+    eos_static_err("msg=\"invalid url\" url=\"%s\"", oss.str().c_str());
+    return EINVAL;
+  }
+
+  XrdCl::Buffer arg;
+  XrdCl::Buffer* raw_resp {nullptr};
+  XrdCl::FileSystem fs {url};
+  arg.FromString(request);
+  XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg,
+                                        raw_resp);
+  std::unique_ptr<XrdCl::Buffer> resp(raw_resp);
+
+  if (!status.IsOK()) {
+    eos_static_err("msg=\"failed query request\" request=\"%s\" status=\"%s\"",
+                   request.c_str(), status.ToString());
+    return -1;
+  }
+
+  if (resp) {
+    response = resp->GetBuffer();
+  }
+
+  return 0;
+}
+
+//----------------------------------------------------------------------------
+// Broadcast query (XrdFileSystem::Query) to the given endpoints and collect
+// the responses
+//----------------------------------------------------------------------------
+void
+XrdMgmOfs::BroadcastQuery(const std::string& request,
+                          std::set<std::string>& endpoints,
+                          std::map<std::string, std::pair<int, std::string>>&
+                          responses, uint16_t timeout)
+{
+  class QueryRespHandler: public XrdCl::ResponseHandler
+  {
+  public:
+    //------------------------------------------------------------------------
+    //! Constructor
+    //------------------------------------------------------------------------
+    QueryRespHandler(const std::string& endpoint,
+                     std::map<std::string, std::pair<int, std::string>>& responses,
+                     std::mutex& mutex, std::condition_variable& cv):
+      mEndpoint(endpoint), mRespMap(responses), mMutexMap(mutex), mCv(cv)
+    {}
+
+    //------------------------------------------------------------------------
+    //! Called when a response to associated request arrives or an error
+    //! occurs
+    //!
+    //! @param status   status of the request
+    //! @param response an object associated with the response
+    //------------------------------------------------------------------------
+    void HandleResponse(XrdCl::XRootDStatus* status, XrdCl::AnyObject* response)
+    {
+      int retc = 0;
+      std::string resp;
+
+      if (status->IsOK()) {
+        if (response) {
+          XrdCl::Buffer* buffer {nullptr};
+          response->Get(buffer);
+          resp = buffer->GetBuffer();
+        }
+      } else {
+        retc = (status->errNo ? status->errNo : -1);
+      }
+
+      if (response) {
+        delete response;
+      }
+
+      delete status;
+      {
+        // Add info to the global map and notify main thread
+        std::unique_lock<std::mutex> lock(mMutexMap);
+        mRespMap.emplace(mEndpoint, std::make_pair(retc, std::move(resp)));
+      }
+      mCv.notify_one();
+    }
+
+  private:
+    std::string mEndpoint;
+    std::map<std::string, std::pair<int, std::string>>& mRespMap;
+    std::mutex& mMutexMap;
+    std::condition_variable& mCv;
+  };
+
+  // Collect all the FST endpoints if nothing specified
+  if (endpoints.empty()) {
+    int fst_port;
+    std::string fst_host;
+    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+
+    for (const auto& elem : FsView::gFsView.mIdView) {
+      FileSystem* fs = elem.second;
+
+      if ((fs == nullptr) ||
+          (fs->GetActiveStatus() != eos::common::ActiveStatus::kOnline)) {
+        eos_static_err("msg=\"file system null or not online\" fsid=%u",
+                       elem.first);
+        continue;
+      }
+
+      fst_host = fs->GetHost();
+      fst_port = fs->getCoreParams().getLocator().getPort();
+      endpoints.insert(SSTR(fst_host << ":" << fst_port).c_str());
+    }
+  }
+
+  size_t num_resp = endpoints.size();
+  std::mutex mutex;
+  std::condition_variable cv;
+  std::map<XrdCl::FileSystem*, QueryRespHandler*> queries;
+
+  for (const auto& ep : endpoints) {
+    std::ostringstream oss;
+    oss << "root://" << ep << "/?xrd.wantprot=sss";
+    eos_static_info("broadcast url: %s", oss.str().c_str());
+    XrdCl::URL url(oss.str());
+
+    if (!url.IsValid()) {
+      eos_static_err("msg=\"invalid url\" url=\"%s\"", oss.str().c_str());
+      std::unique_lock<std::mutex> lock(mutex);
+      responses.emplace(ep, std::make_pair(EINVAL, "invalid url"));
+      --num_resp;
+      continue;
+    }
+
+    auto pair = queries.emplace(new XrdCl::FileSystem(url),
+                                new QueryRespHandler(ep, responses, mutex, cv));
+
+    if (!pair.second) {
+      eos_static_err("msg=\"failed to insert query\" endpoint=\"%s\"",
+                     ep.c_str());
+      std::unique_lock<std::mutex> lock(mutex);
+      responses.emplace(ep, std::make_pair(EINVAL, "failed query insert"));
+      --num_resp;
+      continue;
+    }
+
+    //! const_cast
+    auto* fs = pair.first->first;
+    auto* handler = pair.first->second;
+    XrdCl::Buffer arg;
+    arg.FromString(request);
+    XrdCl::XRootDStatus status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg,
+                                           handler, timeout);
+
+    if (!status.IsOK()) {
+      eos_static_err("msg=\"failed to send query\" endpoint=\"%s\"",
+                     ep.c_str());
+      std::unique_lock<std::mutex> lock(mutex);
+      responses.emplace(ep, std::make_pair(EINVAL, "failed query send"));
+      --num_resp;
+      continue;
+    }
+  }
+
+  {
+    // Wait for all the responses to be received
+    std::unique_lock<std::mutex> lock(mutex);
+    cv.wait(lock, [&] {return (num_resp == responses.size());});
+  }
+
+  // Clean up memory
+  for (const auto& elem : queries) {
+    delete elem.first;
+    delete elem.second;
+  }
 }

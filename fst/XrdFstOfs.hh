@@ -480,6 +480,17 @@ public:
   //----------------------------------------------------------------------------
   bool CreateDirHierarchy(const std::string& dir_hierarchy,
                           mode_t mode) const;
+
+  //----------------------------------------------------------------------------
+  //! Handle query debug
+  //!
+  //! @param env ecoding of the query command
+  //! @param err_obj object holding the response for the query
+  //!
+  //! @param return SFS_ERROR if failed, otherwise SFS_OK or SFS_DATA and the
+  //!        err_obj is populated with the response
+  //----------------------------------------------------------------------------
+  int QueryDebug(XrdOucEnv& env, XrdOucErrInfo& err_obj);
 };
 
 //------------------------------------------------------------------------------
