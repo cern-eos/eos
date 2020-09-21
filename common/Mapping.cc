@@ -1361,7 +1361,7 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
             delete id;
           }
 
-          if (sname.beginswith("*")) {
+	  if (sname.beginswith("*") || sname.beginswith("_")) {
             id = new id_pair((bituser >> 22) & 0xfffff, (bituser >> 6) & 0xffff);
           } else {
             // only user id got forwarded, we retrieve the corresponding group
