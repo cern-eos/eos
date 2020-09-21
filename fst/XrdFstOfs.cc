@@ -2106,7 +2106,8 @@ XrdFstOfs::HandleDebug(XrdOucEnv& env, XrdOucErrInfo& err_obj)
 int
 XrdFstOfs::HandleFsck(XrdOucEnv& env, XrdOucErrInfo& err_obj)
 {
-  std::ostringstream oss;
+  std::string response;
+  response.reserve(4 * eos::common::MB);
   size_t max_sz = mXrdBuffPool.MaxSize() - 2 * eos::common::MB;
   {
     eos::common::RWMutexReadLock fs_rd_lock(gOFS.Storage->mFsMutex);
@@ -2125,7 +2126,7 @@ XrdFstOfs::HandleFsck(XrdOucEnv& env, XrdOucErrInfo& err_obj)
 
       for (auto icit = icset.cbegin(); icit != icset.cend(); ++icit) {
         // Construct the tag
-        oss << icit->first << "@" << fsid;
+        response += SSTR(icit->first << "@" << fsid);
 
         for (auto fit = icit->second.cbegin(); fit != icit->second.cend(); ++fit) {
           // Don't report files which are currently write-open
@@ -2133,12 +2134,13 @@ XrdFstOfs::HandleFsck(XrdOucEnv& env, XrdOucErrInfo& err_obj)
             continue;
           }
 
-          oss << ":" << *fit;
+          response += ':';
+          response += eos::common::FileId::Fid2Hex(*fit);
         }
 
-        oss << std::endl;
+        response += '\n';
 
-        if (oss.str().length() >= max_sz) {
+        if (response.length() >= max_sz) {
           eos_static_warning("%s", "msg=\"reached max fsck size limit\"");
           break;
         }
@@ -2147,19 +2149,18 @@ XrdFstOfs::HandleFsck(XrdOucEnv& env, XrdOucErrInfo& err_obj)
   }
   // Use XrdOucBuffPool to manage XrdOucBuffer objects that can hold redirection
   // info >= 2kb but not bigger than MaxSize (64MB)
-  std::string data = oss.str();
-  XrdOucBuffer* buff = mXrdBuffPool.Alloc(data.length() + 1);
+  XrdOucBuffer* buff = mXrdBuffPool.Alloc(response.length() + 1);
 
   if (buff == nullptr) {
     eos_static_err("msg=\"requested fsck result buffer too big\" req_sz=%llu "
-                   "max_sz=%i", oss.str().length(), mXrdBuffPool.MaxSize());
+                   "max_sz=%i", response.length(), mXrdBuffPool.MaxSize());
     err_obj.setErrInfo(ENOMEM, "fsck result buffer too big (>64MB)");
     return SFS_ERROR;
   }
 
-  eos_static_debug("msg=\"fsck reply\" data=\"%s\"", data.c_str());
-  (void) strcpy(buff->Buffer(), data.c_str());
-  buff->SetLen(data.length() + 1);
+  eos_static_debug("msg=\"fsck reply\" data=\"%s\"", response.c_str());
+  (void) strcpy(buff->Buffer(), response.c_str());
+  buff->SetLen(response.length() + 1);
   err_obj.setErrInfo(buff->DataLen(), buff);
   return SFS_DATA;
 }
