@@ -15,6 +15,16 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.8.19 Citrine``
+===================
+
+2020-09-21
+
+Bug
+---
+
+* COMMON: fix XRootd 4.12.4 user name masking (WARNING: supports now uids only up to 1M)
+
 ``v4.8.18 Citrine``
 ===================
 
