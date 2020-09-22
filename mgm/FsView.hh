@@ -944,6 +944,14 @@ public:
   //----------------------------------------------------------------------------
   bool UnderNominalQuota(const std::string& space, bool isroot = false);
 
+  //----------------------------------------------------------------------------
+  //! Collect all endpoints (<hostname>:<port>) matching the given queue or
+  //! pattern
+  //!
+  //! @return set of matching endpoints
+  //----------------------------------------------------------------------------
+  std::set<std::string> CollectEndpoints(const std::string& queue) const;
+
 private:
   IConfigEngine* mConfigEngine;
   AssistedThread mHeartBeatThread; ///< Thread monitoring heart-beats

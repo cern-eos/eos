@@ -193,48 +193,8 @@ void DebugCmd::SetSubcmd(const eos::console::DebugProto_SetProto& set,
     }
   }
 
-  int fst_port;
-  int query_retc = 0;
-  std::string fst_host;
-  std::set<std::string> endpoints;
-  std::map<std::string, std::pair<int, std::string>> responses;
-
-  if (set.nodename() == "*") {
-    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-
-    for (const auto& elem : FsView::gFsView.mIdView) {
-      FileSystem* fs = elem.second;
-
-      if ((fs == nullptr) ||
-          (fs->GetActiveStatus() != eos::common::ActiveStatus::kOnline)) {
-        eos_static_err("msg=\"file system not online\" fsid=%u", elem.first);
-        continue;
-      }
-
-      fst_host = fs->GetHost();
-      fst_port = fs->getCoreParams().getLocator().getPort();
-      endpoints.insert(SSTR(fst_host << ":" << fst_port));
-    }
-  } else {
-    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-
-    for (const auto& elem : FsView::gFsView.mIdView) {
-      FileSystem* fs = elem.second;
-
-      if (fs && (fs->GetQueuePath() != set.nodename())) {
-        continue;
-      }
-
-      if (fs->GetActiveStatus() != eos::common::ActiveStatus::kOnline) {
-        eos_static_err("msg=\"file system not online\" fsid=%u", elem.first);
-        break;
-      }
-
-      fst_host = fs->GetHost();
-      fst_port = fs->getCoreParams().getLocator().getPort();
-      endpoints.insert(SSTR(fst_host << ":" << fst_port));
-    }
-  }
+  std::set<std::string> endpoints = FsView::gFsView.CollectEndpoints(
+                                      set.nodename());
 
   if (endpoints.empty()) {
     reply.set_std_err("error: requested endpoint(s) not existing or not online");
@@ -242,13 +202,8 @@ void DebugCmd::SetSubcmd(const eos::console::DebugProto_SetProto& set,
     return;
   }
 
-  gOFS->BroadcastQuery(query, endpoints, responses);
-
-  for (const auto& elem : responses) {
-    query_retc += elem.second.first;
-    eos_static_err("endpoint=%s retc=%i msg=%s", elem.first.c_str(),
-                   elem.second.first, elem.second.second.c_str());
-  }
+  std::map<std::string, std::pair<int, std::string>> responses;
+  int query_retc = gOFS->BroadcastQuery(query, endpoints, responses);
 
   if (query_retc == 0) {
     out << ("success: switched to mgm.debuglevel=" + set.debuglevel() +

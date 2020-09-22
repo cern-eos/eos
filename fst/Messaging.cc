@@ -85,7 +85,7 @@ Messaging::Process(XrdMqMessage* newmessage)
   }
 
   // @note
-  // All of the commands below are going to be deprecated and replace by XRootD
+  // All of the commands below are going to be deprecated and replaced by XRootD
   // query commands which are handled in the FSctl method
   if (cmd == "debug") {
     return gOFS.SetDebug(action);

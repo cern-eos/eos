@@ -1706,12 +1706,13 @@ XrdMgmOfs::SendQuery(const std::string& hostname, int port,
 // Broadcast query (XrdFileSystem::Query) to the given endpoints and collect
 // the responses
 //----------------------------------------------------------------------------
-void
+int
 XrdMgmOfs::BroadcastQuery(const std::string& request,
                           std::set<std::string>& endpoints,
                           std::map<std::string, std::pair<int, std::string>>&
                           responses, uint16_t timeout)
 {
+  std::atomic<int> g_retc = 0; // overall return code
   class QueryRespHandler: public XrdCl::ResponseHandler
   {
   public:
@@ -1720,8 +1721,10 @@ XrdMgmOfs::BroadcastQuery(const std::string& request,
     //------------------------------------------------------------------------
     QueryRespHandler(const std::string& endpoint,
                      std::map<std::string, std::pair<int, std::string>>& responses,
-                     std::mutex& mutex, std::condition_variable& cv):
-      mEndpoint(endpoint), mRespMap(responses), mMutexMap(mutex), mCv(cv)
+                     std::mutex& mutex, std::condition_variable& cv,
+                     std::atomic<int>& retc):
+      mEndpoint(endpoint), mRespMap(responses), mMutexMap(mutex), mCv(cv),
+      mRetc(retc)
     {}
 
     //------------------------------------------------------------------------
@@ -1743,7 +1746,8 @@ XrdMgmOfs::BroadcastQuery(const std::string& request,
           resp = buffer->GetBuffer();
         }
       } else {
-        retc = (status->errNo ? status->errNo : -1);
+        retc = (status->errNo ? status->errNo : ENOMSG);
+        mRetc = 1;
       }
 
       if (response) {
@@ -1764,28 +1768,12 @@ XrdMgmOfs::BroadcastQuery(const std::string& request,
     std::map<std::string, std::pair<int, std::string>>& mRespMap;
     std::mutex& mMutexMap;
     std::condition_variable& mCv;
+    std::atomic<int>& mRetc;
   };
 
   // Collect all the FST endpoints if nothing specified
   if (endpoints.empty()) {
-    int fst_port;
-    std::string fst_host;
-    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-
-    for (const auto& elem : FsView::gFsView.mIdView) {
-      FileSystem* fs = elem.second;
-
-      if ((fs == nullptr) ||
-          (fs->GetActiveStatus() != eos::common::ActiveStatus::kOnline)) {
-        eos_static_err("msg=\"file system null or not online\" fsid=%u",
-                       elem.first);
-        continue;
-      }
-
-      fst_host = fs->GetHost();
-      fst_port = fs->getCoreParams().getLocator().getPort();
-      endpoints.insert(SSTR(fst_host << ":" << fst_port).c_str());
-    }
+    endpoints = FsView::gFsView.CollectEndpoints("*");
   }
 
   size_t num_resp = endpoints.size();
@@ -1807,7 +1795,7 @@ XrdMgmOfs::BroadcastQuery(const std::string& request,
     }
 
     auto pair = queries.emplace(new XrdCl::FileSystem(url),
-                                new QueryRespHandler(ep, responses, mutex, cv));
+                                new QueryRespHandler(ep, responses, mutex, cv, g_retc));
 
     if (!pair.second) {
       eos_static_err("msg=\"failed to insert query\" endpoint=\"%s\"",
@@ -1847,6 +1835,8 @@ XrdMgmOfs::BroadcastQuery(const std::string& request,
     delete elem.first;
     delete elem.second;
   }
+
+  return g_retc;
 }
 
 //------------------------------------------------------------------------------

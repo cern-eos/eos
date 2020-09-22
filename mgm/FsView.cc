@@ -2289,7 +2289,8 @@ FsView::SetGlobalConfig(const std::string& key, const std::string& value)
   if (value.empty()) {
     mq::SharedHashWrapper::makeGlobalMgmHash(gOFS->mMessagingRealm.get()).del(key);
   } else {
-    mq::SharedHashWrapper::makeGlobalMgmHash(gOFS->mMessagingRealm.get()).set(key, value);
+    mq::SharedHashWrapper::makeGlobalMgmHash(gOFS->mMessagingRealm.get()).set(key,
+        value);
   }
 
   if (FsView::gFsView.mConfigEngine) {
@@ -2310,7 +2311,8 @@ FsView::SetGlobalConfig(const std::string& key, const std::string& value)
 std::string
 FsView::GetGlobalConfig(const std::string& key)
 {
-  return mq::SharedHashWrapper::makeGlobalMgmHash(gOFS->mMessagingRealm.get()).get(key);
+  return mq::SharedHashWrapper::makeGlobalMgmHash(
+           gOFS->mMessagingRealm.get()).get(key);
 }
 
 //------------------------------------------------------------------------------
@@ -2600,7 +2602,8 @@ bool
 BaseView::SetConfigMember(std::string key, std::string value,
                           bool isstatus)
 {
-  bool success = mq::SharedHashWrapper(gOFS->mMessagingRealm.get(), mLocator).set(key, value);
+  bool success = mq::SharedHashWrapper(gOFS->mMessagingRealm.get(),
+                                       mLocator).set(key, value);
 
   if (key == "txgw") {
     eos::common::RWMutexWriteLock gwlock(FsView::gFsView.GwMutex);
@@ -2645,7 +2648,8 @@ BaseView::GetConfigMember(std::string key) const
 bool
 BaseView::DeleteConfigMember(std::string key) const
 {
-  bool deleted = mq::SharedHashWrapper(gOFS->mMessagingRealm.get(), mLocator).del(key);
+  bool deleted = mq::SharedHashWrapper(gOFS->mMessagingRealm.get(),
+                                       mLocator).del(key);
 
   // Delete in the configuration engine
   if (FsView::gFsView.mConfigEngine) {
@@ -2665,7 +2669,8 @@ BaseView::DeleteConfigMember(std::string key) const
 bool
 BaseView::GetConfigKeys(std::vector<std::string>& keys)
 {
-  return mq::SharedHashWrapper(gOFS->mMessagingRealm.get(), mLocator).getKeys(keys);
+  return mq::SharedHashWrapper(gOFS->mMessagingRealm.get(),
+                               mLocator).getKeys(keys);
 }
 
 //------------------------------------------------------------------------------
@@ -2982,6 +2987,50 @@ FsView::BroadcastMasterId(const std::string master_id)
     it->second->SetConfigMember("manager", master_id, true);
   }
 }
+
+//------------------------------------------------------------------------------
+// Collect all endpoints (<hostname>:<port>) matching the given queue or pattern
+//------------------------------------------------------------------------------
+std::set<std::string>
+FsView::CollectEndpoints(const std::string& queue) const
+{
+  int fst_port;
+  std::string fst_host;
+  std::set<std::string> endpoints;
+  eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+
+  for (const auto& elem : FsView::gFsView.mIdView) {
+    FileSystem* fs = elem.second;
+
+    if (fs == nullptr) {
+      eos_static_err("msg=\"file system null\" fsid=%u", elem.first);
+      continue;
+    }
+
+    if (queue == "*") {
+      if (fs->GetActiveStatus() != eos::common::ActiveStatus::kOnline) {
+        eos_static_err("msg=\"file system not online\" fsid=%u", elem.first);
+        continue;
+      }
+    } else {
+      if (queue != fs->GetQueuePath()) {
+        continue;
+      } else {
+        if (fs->GetActiveStatus() != eos::common::ActiveStatus::kOnline) {
+          eos_static_err("msg=\"file system not online\" fsid=%u", elem.first);
+          break;
+        }
+      }
+    }
+
+    fst_host = fs->GetHost();
+    fst_port = fs->getCoreParams().getLocator().getPort();
+    endpoints.insert(SSTR(fst_host << ":" << fst_port));
+  }
+
+  return endpoints;
+}
+
 
 //------------------------------------------------------------------------------
 // Should the provided fsid participate in statistics calculations?

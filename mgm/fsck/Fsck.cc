@@ -1079,14 +1079,7 @@ std::string Fsck::QueryFsck()
   std::string request = "/?fst.pcmd=fsck";
   std::map<std::string, std::pair<int, std::string>> responses;
   std::set<std::string> endpoints;
-  gOFS->BroadcastQuery(request, endpoints, responses, timeout);
-  int query_resp = 0;
-
-  for (const auto& resp : responses) {
-    eos_static_debug("endpoint=%s retc=%i resp=\"%s\"", resp.first.c_str(),
-                     resp.second.first, resp.second.second.c_str());
-    query_resp += resp.second.first;
-  }
+  int query_resp = gOFS->BroadcastQuery(request, endpoints, responses, timeout);
 
   if (query_resp == 0) {
     for (const auto& resp : responses) {

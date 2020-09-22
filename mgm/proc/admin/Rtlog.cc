@@ -30,80 +30,114 @@ EOSMGMNAMESPACE_BEGIN
 int
 ProcCommand::Rtlog()
 {
-  if (pVid->uid == 0) {
-    mDoSort = 1;
-    // this is just to identify a new queue for reach request
-    static int bccount = 0;
-    bccount++;
-    XrdOucString queue = pOpaque->Get("mgm.rtlog.queue");
-    XrdOucString lines = pOpaque->Get("mgm.rtlog.lines");
-    XrdOucString tag = pOpaque->Get("mgm.rtlog.tag");
-    XrdOucString filter = pOpaque->Get("mgm.rtlog.filter");
-    eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+  if (pVid->uid) {
+    retc = EPERM;
+    stdErr = "error: you have to take role 'root' to execute this command";
+    return SFS_OK;
+  }
 
-    if (!filter.length()) {
-      filter = " ";
-    }
+  mDoSort = 1;
+  // this is just to identify a new queue for reach request
+  static int bccount = 0;
+  bccount++;
+  XrdOucString queue = pOpaque->Get("mgm.rtlog.queue");
+  XrdOucString lines = pOpaque->Get("mgm.rtlog.lines");
+  XrdOucString tag = pOpaque->Get("mgm.rtlog.tag");
+  XrdOucString filter = pOpaque->Get("mgm.rtlog.filter");
+  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
 
-    if ((!queue.length()) || (!lines.length()) || (!tag.length())) {
-      stdErr = "error: mgm.rtlog.queue, mgm.rtlog.lines, mgm.rtlog.tag have to be given as input paramters!";
-      retc = EINVAL;
-    } else {
-      if ((g_logging.GetPriorityByString(tag.c_str())) == -1) {
-        stdErr = "error: mgm.rtlog.tag must be info,debug,err,emerg,alert,crit,warning or notice";
-        retc = EINVAL;
-      } else {
-        if ((queue == ".") || (queue == "*") || (queue == gOFS->MgmOfsQueue)) {
-          int logtagindex = g_logging.GetPriorityByString(tag.c_str());
+  if (!filter.length()) {
+    filter = " ";
+  }
 
-          for (int j = 0; j <= logtagindex; j++) {
-            g_logging.gMutex.Lock();
+  if ((!queue.length()) || (!lines.length()) || (!tag.length())) {
+    stdErr = "error: mgm.rtlog.queue, mgm.rtlog.lines, mgm.rtlog.tag have to be given as input paramters!";
+    retc = EINVAL;
+    return SFS_OK;
+  }
 
-            for (int i = 1; i <= atoi(lines.c_str()); i++) {
-              XrdOucString logline = g_logging.gLogMemory[j][(g_logging.gLogCircularIndex[j] -
-                                     i + g_logging.gCircularIndexSize) % g_logging.gCircularIndexSize].c_str();
+  if ((g_logging.GetPriorityByString(tag.c_str())) == -1) {
+    stdErr = "error: mgm.rtlog.tag must be info, debug, err, emerg, alert, crit, warning or notice";
+    retc = EINVAL;
+    return SFS_OK;
+  }
 
-              if (logline.length() && ((logline.find(filter.c_str())) != STR_NPOS)) {
-                stdOut += logline;
-                stdOut += "\n";
-              }
+  // Grab the logs from the current MGM
+  if ((queue == ".") || (queue == "*") || (queue == gOFS->MgmOfsQueue)) {
+    int logtagindex = g_logging.GetPriorityByString(tag.c_str());
 
-              if (!logline.length()) {
-                break;
-              }
-            }
+    for (int j = 0; j <= logtagindex; j++) {
+      g_logging.gMutex.Lock();
 
-            g_logging.gMutex.UnLock();
-          }
+      for (int i = 1; i <= atoi(lines.c_str()); i++) {
+        XrdOucString logline = g_logging.gLogMemory[j][(g_logging.gLogCircularIndex[j] -
+                               i + g_logging.gCircularIndexSize) % g_logging.gCircularIndexSize].c_str();
+
+        if (logline.length() && ((logline.find(filter.c_str())) != STR_NPOS)) {
+          stdOut += logline;
+          stdOut += "\n";
         }
 
-        if ((queue == "*") || ((queue != gOFS->MgmOfsQueue) && (queue != "."))) {
-          XrdOucString broadcastresponsequeue = gOFS->MgmOfsBrokerUrl;
-          broadcastresponsequeue += "-rtlog-";
-          broadcastresponsequeue += bccount;
-          XrdOucString broadcasttargetqueue = gOFS->MgmDefaultReceiverQueue;
+        if (!logline.length()) {
+          break;
+        }
+      }
 
-          if (queue != "*") {
-            broadcasttargetqueue = queue;
-          }
+      g_logging.gMutex.UnLock();
+    }
+  }
 
-          int envlen;
-          XrdOucString msgbody;
-          msgbody = pOpaque->Env(envlen);
+  // Grab the logs from the FSTs
+  if ((queue == "*") || ((queue != gOFS->MgmOfsQueue) && (queue != "."))) {
+    std::set<std::string> endpoints = FsView::gFsView.CollectEndpoints(
+                                        queue.c_str());
 
-          if (!gOFS->MgmOfsMessaging->BroadCastAndCollect(broadcastresponsequeue,
-              broadcasttargetqueue, msgbody, stdOut, 2)) {
-            eos_err("failed to broad cast and collect rtlog from [%s]:[%s]",
-                    broadcastresponsequeue.c_str(), broadcasttargetqueue.c_str());
-            stdErr = "error: broadcast failed\n";
-            retc = EFAULT;
-          }
+    if (endpoints.empty()) {
+      eos_static_err("msg=\"no matching endpoints\" queue=\"%s\"", queue.c_str());
+      stdErr = "error: not matching endpoints for given queue";
+      retc = EINVAL;
+    } else {
+      std::ostringstream oss;
+      oss << "/?fst.pcmd=rtlog"
+          << "&mgm.rtlog.lines=" << lines
+          << "&mgm.rtlog.tag=" << tag;
+
+      if (filter != " ") {
+        oss << "&mgm.rtlog.filter=" << filter;
+      }
+
+      std::string request = oss.str();
+      std::map<std::string, std::pair<int, std::string>> responses;
+      int query_retc = gOFS->BroadcastQuery(request, endpoints, responses, 10);
+
+      if (query_retc == 0) {
+        for (const auto& resp : responses) {
+          stdOut += resp.second.second.c_str();
+        }
+      } else {
+        // Fallback to old method if we got any error
+        XrdOucString broadcastresponsequeue = gOFS->MgmOfsBrokerUrl;
+        broadcastresponsequeue += "-rtlog-";
+        broadcastresponsequeue += bccount;
+        XrdOucString broadcasttargetqueue = gOFS->MgmDefaultReceiverQueue;
+
+        if (queue != "*") {
+          broadcasttargetqueue = queue;
+        }
+
+        int envlen;
+        XrdOucString msgbody;
+        msgbody = pOpaque->Env(envlen);
+
+        if (!gOFS->MgmOfsMessaging->BroadCastAndCollect(broadcastresponsequeue,
+            broadcasttargetqueue, msgbody, stdOut, 2)) {
+          eos_err("failed to broad cast and collect rtlog from [%s]:[%s]",
+                  broadcastresponsequeue.c_str(), broadcasttargetqueue.c_str());
+          stdErr = "error: broadcast failed\n";
+          retc = EFAULT;
         }
       }
     }
-  } else {
-    retc = EPERM;
-    stdErr = "error: you have to take role 'root' to execute this command";
   }
 
   return SFS_OK;

@@ -521,6 +521,17 @@ public:
   //!        err_obj is populated with the response
   //----------------------------------------------------------------------------
   int HandleResync(XrdOucEnv& env, XrdOucErrInfo& err_obj);
+
+  //----------------------------------------------------------------------------
+  //! Handle rtlog query
+  //!
+  //! @param env ecoding of the query command
+  //! @param err_obj object holding the response for the query
+  //!
+  //! @param return SFS_ERROR if failed, otherwise SFS_DATA and the err_obj is
+  //!        populated with the response
+  //----------------------------------------------------------------------------
+  int HandleRtlog(XrdOucEnv& env, XrdOucErrInfo& err_obj);
 };
 
 //------------------------------------------------------------------------------

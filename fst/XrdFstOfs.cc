@@ -309,7 +309,7 @@ XrdFstOfs::xrdfstofs_graceful_shutdown(int sig)
 XrdFstOfs::XrdFstOfs() :
   eos::common::LogId(), mHostName(NULL), mMqOnQdb(false), mHttpd(nullptr),
   mGeoTag("nogeotag"),
-  mXrdBuffPool(eos::common::KB, 64 * eos::common::MB),
+  mXrdBuffPool(eos::common::KB, 32 * eos::common::MB),
   mCloseThreadPool(8, 64, 5, 6, 5, "async_close"),
   mMgmXrdPool(nullptr), mSimIoReadErr(false), mSimIoWriteErr(false),
   mSimXsReadErr(false), mSimXsWriteErr(false), mSimFmdOpenErr(false),
@@ -1425,6 +1425,10 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
       return HandleResync(env, error);
     }
 
+    if (execmd == "rtlog") {
+      return HandleRtlog(env, error);
+    }
+
     if (execmd == "getfmd") {
       char* afid = env.Get("fst.getfmd.fid");
       char* afsid = env.Get("fst.getfmd.fsid");
@@ -1978,13 +1982,13 @@ XrdFstOfs::HandleFsck(XrdOucEnv& env, XrdOucErrInfo& err_obj)
     }
   }
   // Use XrdOucBuffPool to manage XrdOucBuffer objects that can hold redirection
-  // info >= 2kb but not bigger than MaxSize (64MB)
+  // info >= 2kb but not bigger than MaxSize
   XrdOucBuffer* buff = mXrdBuffPool.Alloc(response.length() + 1);
 
   if (buff == nullptr) {
     eos_static_err("msg=\"requested fsck result buffer too big\" req_sz=%llu "
                    "max_sz=%i", response.length(), mXrdBuffPool.MaxSize());
-    err_obj.setErrInfo(ENOMEM, "fsck result buffer too big (>64MB)");
+    err_obj.setErrInfo(ENOMEM, "fsck result buffer too big");
     return SFS_ERROR;
   }
 
@@ -2062,6 +2066,76 @@ XrdFstOfs::HandleResync(XrdOucEnv& env, XrdOucErrInfo& err_obj)
 
   const char* done = "OK";
   err_obj.setErrInfo(strlen(done) + 1, done);
+  return SFS_DATA;
+}
+
+//------------------------------------------------------------------------------
+// Handle rtlog query
+//------------------------------------------------------------------------------
+int
+XrdFstOfs::HandleRtlog(XrdOucEnv& env, XrdOucErrInfo& err_obj)
+{
+  XrdOucString tag = env.Get("mgm.rtlog.tag");
+  XrdOucString lines = env.Get("mgm.rtlog.lines");
+  XrdOucString filter = env.Get("mgm.rtlog.filter");
+  XrdOucString response = "";
+
+  if (!filter.length()) {
+    filter = " ";
+  }
+
+  if ((!lines.length()) || (!tag.length())) {
+    eos_static_err("msg=\"rtlog illegal parameter\" lines=%s tag=%s",
+                   lines.c_str(), tag.c_str());
+    err_obj.setErrInfo(EINVAL, "rtlog illegal parameter");
+    return SFS_ERROR;
+  }
+
+  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+
+  if (g_logging.GetPriorityByString(tag.c_str()) == -1) {
+    eos_static_err("%s", "msg=\"unknown rtlog tag\"");
+    err_obj.setErrInfo(EINVAL, "rtlog unknown tag");
+    return SFS_ERROR;
+  }
+
+  int logtagindex = g_logging.GetPriorityByString(tag.c_str());
+
+  for (int j = 0; j <= logtagindex; j++) {
+    for (int i = 1; i <= atoi(lines.c_str()); i++) {
+      g_logging.gMutex.Lock();
+      XrdOucString logline = g_logging.gLogMemory[j][
+                               (g_logging.gLogCircularIndex[j] - i +
+                                g_logging.gCircularIndexSize) %
+                               g_logging.gCircularIndexSize].c_str();
+      g_logging.gMutex.UnLock();
+
+      if (logline.length() && ((logline.find(filter.c_str())) != STR_NPOS)) {
+        response += logline;
+        response += "\n";
+      }
+
+      if (!logline.length()) {
+        break;
+      }
+    }
+  }
+
+  // Use XrdOucBuffPool to manage XrdOucBuffer objects that can hold redirection
+  // info >= 2kb but not bigger than MaxSize
+  XrdOucBuffer* buff = mXrdBuffPool.Alloc(response.length() + 1);
+
+  if (buff == nullptr) {
+    eos_static_err("msg=\"requested rtlog result buffer too big\" req_sz=%llu "
+                   "max_sz=%i", response.length(), mXrdBuffPool.MaxSize());
+    err_obj.setErrInfo(ENOMEM, "rtlog result buffer too big");
+    return SFS_ERROR;
+  }
+
+  eos_static_debug("msg=\"rtlog reply\" data=\"%s\"", response.c_str());
+  (void) strcpy(buff->Buffer(), response.c_str());
+  buff->SetLen(response.length() + 1);
+  err_obj.setErrInfo(buff->DataLen(), buff);
   return SFS_DATA;
 }
 

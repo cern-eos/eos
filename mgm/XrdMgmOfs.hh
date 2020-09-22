@@ -1102,12 +1102,14 @@ public:
   //! @param set of endpoints, if empty then send to all registered FSTs
   //! @param map of responses from each individual endpoint
   //! @param timeout optional timeout value for the request, 0 no timeout
+  //!
+  //! @return 0 if successful, otherwise 1 if any reply had errors
   //----------------------------------------------------------------------------
-  void BroadcastQuery(const std::string& request,
-                      std::set<std::string>& endpoints,
-                      std::map<std::string, std::pair<int, std::string>>&
-                      reponses,
-                      uint16_t timeout = 0);
+  int BroadcastQuery(const std::string& request,
+                     std::set<std::string>& endpoints,
+                     std::map<std::string, std::pair<int, std::string>>&
+                     reponses,
+                     uint16_t timeout = 0);
 
   //----------------------------------------------------------------------------
   //! @brief Send a resync command for a file identified by id and filesystem.
