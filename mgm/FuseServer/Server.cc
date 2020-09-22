@@ -1414,8 +1414,7 @@ Server::OpSetDirectory(const std::string& id,
   std::shared_ptr<eos::IContainerMD> cpcmd;
   eos::fusex::md mv_md;
   mode_t sgid_mode = 0;
-
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex,__FUNCTION__, __LINE__, __FILE__);
 
   try {
     if (md.md_ino() && exclusive) {
