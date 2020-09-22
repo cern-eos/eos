@@ -15,6 +15,17 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
+``v4.8.20 Citrine``
+===================
+
+2020-09-22
+
+Bug
+---
+
+* MGM: unlimited scope of added missing Access mutex in PROC_BOUNCE_NOT_ALLOWED macro creates mutex inversions
+
 ``v4.8.19 Citrine``
 ===================
 
