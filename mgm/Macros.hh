@@ -372,8 +372,8 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
 //------------------------------------------------------------------------------
 //! Bounce not-allowed-users in proc request Macro
 //------------------------------------------------------------------------------
-#define PROC_BOUNCE_NOT_ALLOWED                                               \
-  { // reduce scope of this mutex                                             \
+#define PROC_BOUNCE_NOT_ALLOWED                                                 \
+  { /* reduce scope of this mutex */   					        \
     eos::common::RWMutexReadLock lock(Access::gAccessMutex);                    \
     if ((vid.uid > 3) &&                                                        \
         (Access::gAllowedUsers.size() ||                                        \
@@ -399,7 +399,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
       }                                                                         \
       if (Access::gAllowedDomains.size() &&                                     \
           (!Access::gAllowedDomains.count("-")) &&                              \
-          (!Access::gAllowedDomains.count(vid.domain))) {           \
+          (!Access::gAllowedDomains.count(vid.domain))) {                       \
         eos_err("domain access restricted - unauthorized identity "             \
                 "vid.domain=\"%s\"for "                                         \
                 "path=\"%s\"", vid.domain.c_str(),                              \
