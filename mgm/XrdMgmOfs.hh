@@ -164,6 +164,7 @@ class Stat;
 class WFE;
 class LRU;
 class Fsck;
+class FsckEntry;
 class IMaster;
 class Messaging;
 class PathRouting;
@@ -226,6 +227,7 @@ public:
   friend class eos::mgm::ConversionJob;
   friend class eos::mgm::ConverterDriver;
   friend class eos::mgm::SpaceCmd;
+  friend class eos::mgm::FsckEntry;
 
   //----------------------------------------------------------------------------
   //! Constructor

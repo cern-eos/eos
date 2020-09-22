@@ -56,7 +56,8 @@ enum class FstErr {
   None = 0x00,
   NoContact = 0x01,
   NotOnDisk = 0x02,
-  NoFmdInfo = 0x03
+  NoFmdInfo = 0x03,
+  NotExist  = 0x04
 };
 
 //------------------------------------------------------------------------------

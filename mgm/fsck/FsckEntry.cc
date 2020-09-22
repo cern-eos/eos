@@ -133,15 +133,13 @@ FsckEntry::CollectFstInfo(eos::common::FileSystem::fsid_t fsid)
     if (fs) {
       host_port = fs->GetString("hostport");
       fst_local_path = fs->GetPath();
-    } else {
-      return;
     }
   }
 
   if (host_port.empty() || fst_local_path.empty()) {
     eos_err("msg=\"missing or misconfigured file system\" fsid=%lu", fsid);
     mFstFileInfo.emplace(fsid, std::make_unique<FstFileInfoT>("",
-                         FstErr::NoContact));
+                         FstErr::NotExist));
     return;
   }
 
@@ -530,12 +528,17 @@ FsckEntry::RepairReplicaInconsistencies()
         to_drop.insert(elem.first);
       }
     } else {
-      // Make sure the FST size/xs match the MGM ones
-      if ((finfo->mFstFmd.mProtoFmd.disksize() != mMgmFmd.size()) ||
-          (finfo->mFstFmd.mProtoFmd.diskchecksum() != mgm_xs_val)) {
+      // The file system id does not exist
+      if (finfo->mFstErr == FstErr::NotExist) {
         to_drop.insert(elem.first);
       } else {
-        unreg_fsids.insert(elem.first);
+        // Make sure the FST size/xs match the MGM ones
+        if ((finfo->mFstFmd.mProtoFmd.disksize() != mMgmFmd.size()) ||
+            (finfo->mFstFmd.mProtoFmd.diskchecksum() != mgm_xs_val)) {
+          to_drop.insert(elem.first);
+        } else {
+          unreg_fsids.insert(elem.first);
+        }
       }
     }
   }
@@ -584,6 +587,19 @@ FsckEntry::RepairReplicaInconsistencies()
         break;
       }
     }
+  }
+
+  bool to_delete = (mMgmFmd.cont_id() == 0ull);
+
+  if (to_delete) {
+    XrdOucErrInfo err;
+    eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
+    XrdOucEnv env(SSTR("mgm.fid=" << eos::common::FileId::Fid2Hex(mFid)
+                       << "&mgm.fsid=" << 0
+                       << "&mgm.dropall=1").c_str());
+    gOFS->Drop("", nullptr, env, err, vid, nullptr);
+    eos_info("msg=\"deleted detached file md\" fxid=%08llx", mFid);
+    return true;
   }
 
   to_drop.clear();
