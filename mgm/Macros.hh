@@ -373,43 +373,44 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
 //! Bounce not-allowed-users in proc request Macro
 //------------------------------------------------------------------------------
 #define PROC_BOUNCE_NOT_ALLOWED                                               \
-  eos::common::RWMutexReadLock lock(Access::gAccessMutex);                    \
-  if ((vid.uid > 3) &&                                                        \
-      (Access::gAllowedUsers.size() ||                                        \
-       Access::gAllowedGroups.size() ||                                       \
-       Access::gAllowedDomains.size() ||                                      \
-       Access::gAllowedHosts.size()) ) {                                      \
-    if (Access::gAllowedUsers.size() || Access::gAllowedGroups.size() ||      \
-        Access::gAllowedHosts.size()) {                                       \
-      if ( (!Access::gAllowedGroups.count(vid.gid)) &&                        \
-           (!Access::gAllowedUsers.count(vid.uid)) &&                         \
-           (!Access::gAllowedHosts.count(vid.host)) &&                        \
-           (!Access::gAllowedDomains.count(vid.getUserAtDomain()))) {         \
-        eos_err("user access restricted - unauthorized identity vid.uid="     \
-                "%d, vid.gid=%d, vid.host=\"%s\", vid.tident=\"%s\" for "     \
-                "path=\"%s\" user@domain=\"%s\"", vid.uid, vid.gid, vid.host.c_str(),            \
-                (vid.tident.c_str() ? vid.tident.c_str() : ""), inpath,       \
-                vid.getUserAtDomain().c_str());                               \
-        retc = EACCES;                                                        \
-	gOFS->MgmStats.Add("EAccess", vid.uid, vid.gid, 1);                   \
-        stdErr += "error: user access restricted - unauthorized identity used";\
-        return SFS_OK;                                                        \
-      }                                                                       \
-    }                                                                         \
-    if (Access::gAllowedDomains.size() &&                                     \
-        (!Access::gAllowedDomains.count("-")) &&                              \
-        (!Access::gAllowedDomains.count(vid.domain))) {           \
-      eos_err("domain access restricted - unauthorized identity "             \
-              "vid.domain=\"%s\"for "                                         \
-              "path=\"%s\"", vid.domain.c_str(),                              \
-              inpath);                                                        \
-      retc = EACCES;                                                          \
-      gOFS->MgmStats.Add("EAccess", vid.uid, vid.gid, 1);                     \
-      stdErr += "error: domain access restricted - unauthorized identity used";\
-      return SFS_OK;                                                          \
-    }                                                                         \
+  { // reduce scope of this mutex                                             \
+    eos::common::RWMutexReadLock lock(Access::gAccessMutex);                    \
+    if ((vid.uid > 3) &&                                                        \
+        (Access::gAllowedUsers.size() ||                                        \
+         Access::gAllowedGroups.size() ||                                       \
+         Access::gAllowedDomains.size() ||                                      \
+         Access::gAllowedHosts.size()) ) {                                      \
+      if (Access::gAllowedUsers.size() || Access::gAllowedGroups.size() ||      \
+          Access::gAllowedHosts.size()) {                                       \
+        if ( (!Access::gAllowedGroups.count(vid.gid)) &&                        \
+             (!Access::gAllowedUsers.count(vid.uid)) &&                         \
+             (!Access::gAllowedHosts.count(vid.host)) &&                        \
+             (!Access::gAllowedDomains.count(vid.getUserAtDomain()))) {         \
+          eos_err("user access restricted - unauthorized identity vid.uid="     \
+                  "%d, vid.gid=%d, vid.host=\"%s\", vid.tident=\"%s\" for "     \
+                  "path=\"%s\" user@domain=\"%s\"", vid.uid, vid.gid, vid.host.c_str(),            \
+                  (vid.tident.c_str() ? vid.tident.c_str() : ""), inpath,       \
+                  vid.getUserAtDomain().c_str());                               \
+          retc = EACCES;                                                        \
+	  gOFS->MgmStats.Add("EAccess", vid.uid, vid.gid, 1);                   \
+          stdErr += "error: user access restricted - unauthorized identity used";\
+          return SFS_OK;                                                        \
+        }                                                                       \
+      }                                                                         \
+      if (Access::gAllowedDomains.size() &&                                     \
+          (!Access::gAllowedDomains.count("-")) &&                              \
+          (!Access::gAllowedDomains.count(vid.domain))) {           \
+        eos_err("domain access restricted - unauthorized identity "             \
+                "vid.domain=\"%s\"for "                                         \
+                "path=\"%s\"", vid.domain.c_str(),                              \
+                inpath);                                                        \
+        retc = EACCES;                                                          \
+        gOFS->MgmStats.Add("EAccess", vid.uid, vid.gid, 1);                     \
+        stdErr += "error: domain access restricted - unauthorized identity used";\
+        return SFS_OK;                                                          \
+      }                                                                         \
+    }                                                                           \
   }
-
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
