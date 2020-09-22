@@ -137,6 +137,7 @@ XrdMgmOfs::chksum(XrdSfsFileSystem::csFunc Func,
   if (enonet) {
     // File has no committed replicas, we might bounce to an alive remote master
     if (!gOFS->mMaster->IsMaster() && gOFS->mMaster->IsRemoteMasterOk()) {
+      lock.Release();
       // redirect ENONET to an alive remote master
       int port {0};
       std::string hostname;
