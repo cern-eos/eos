@@ -36,11 +36,6 @@ install(
 	xrd.cf.global-mq xrd.cf.auth xrd.cf.quarkdb fuse.conf fuse.conf.eos 
   DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/)
 
-install( 
-  FILES eos/fuse.home-i00.conf eos/fuse.home-i01.conf eos/fuse.home-i02.conf eos/fuse.home-i03.conf eos/fuse.home-i04.conf eos/fuse.project-a.conf eos/fuse.project-b.conf eos/fuse.project-c.conf eos/fuse.project-d.conf eos/fuse.project-e.conf eos/fuse.project-f.conf eos/fuse.project-g.conf eos/fuse.project-h.conf eos/fuse.project-i.conf eos/fuse.project-j.conf eos/fuse.project-k.conf eos/fuse.project-l.conf eos/fuse.project-m.conf eos/fuse.project-n.conf eos/fuse.project-o.conf eos/fuse.project-p.conf eos/fuse.project-q.conf eos/fuse.project-r.conf eos/fuse.project-s.conf eos/fuse.project-t.conf eos/fuse.project-u.conf eos/fuse.project-v.conf eos/fuse.project-w.conf eos/fuse.project-x.conf eos/fuse.project-y.conf eos/fuse.project-z.conf 
-  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/eos/
-  PERMISSIONS OWNER_READ OWNER_WRITE)
-
 install(
   FILES bash_completion.d/eos
   DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/bash_completion.d/)
