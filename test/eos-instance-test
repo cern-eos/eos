@@ -924,6 +924,7 @@ runtest "### Rmdir      " unix 0 "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/inst
 ################################################################################
 # FIND
 ################################################################################
+# @note recursive find missing
 #runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest"
 #runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/a"
 #runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/b"

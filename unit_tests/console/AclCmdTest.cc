@@ -213,4 +213,17 @@ TEST(AclCmd, AclRuleFromString)
   ASSERT_EQ(temp.second, 133);
 }
 
+TEST(AclHelper, TestParseCommand)
+{
+  AclHelper acl(opts);
+  ASSERT_EQ(acl.ParseCommand("--sys u:1001:-w /eos/test"), true);
+  ASSERT_EQ(acl.ParseCommand("--user u:1001:-w /eos/test"), true);
+  ASSERT_EQ(acl.ParseCommand("--sys -l /eos/test"), true);
+  ASSERT_EQ(acl.ParseCommand("--user -lR /eos/test"), true);
+  ASSERT_EQ(acl.ParseCommand("--sys u:1001:-w /eos/test"), true);
+  ASSERT_EQ(acl.ParseCommand("--user -R --recursive u:1001:-w /eos/test"), true);
+  ASSERT_EQ(acl.ParseCommand("-FD --recursive u:1001:-w /eos/test"), false);
+  ASSERT_EQ(acl.ParseCommand("-Rgg --recursive u:1001:-w /eos/test"), false);
+}
+
 EOSMGMNAMESPACE_END
