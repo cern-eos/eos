@@ -48,7 +48,7 @@ public:
   //! @param fsid filesystem id
   //! @param local_prerfix filesystem local prefix path
   //------------------------------------------------------------------------------
-  Deletion(std::vector<unsigned long long>& id_vect, unsigned long fsid,
+  Deletion(std::vector<unsigned long long> id_vect, unsigned long fsid,
            const char* local_prefix):
     mFidVect(id_vect), mFsid(fsid), mLocalPrefix(local_prefix)
   {}
@@ -101,7 +101,7 @@ public:
     }
 
     unsigned long fsid = atoi(sfsid);
-    return std::make_unique<Deletion>(idvector, fsid, localprefix);
+    return std::make_unique<Deletion>(std::move(idvector), fsid, localprefix);
   }
 };
 

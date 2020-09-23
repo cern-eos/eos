@@ -29,6 +29,7 @@
 #include "fst/storage/FileSystem.hh"
 #include "fst/storage/Storage.hh"
 #include "fst/Messaging.hh"
+#include "fst/Deletion.hh"
 #include "common/PasswordHandler.hh"
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
@@ -57,6 +58,7 @@
 #include "XrdVersion.hh"
 #include "qclient/Members.hh"
 #include "qclient/shared/SharedManager.hh"
+#include "proto/Delete.pb.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -1046,7 +1048,7 @@ XrdFstOfs::CallManager(XrdOucErrInfo* error, const char* path,
   }
 
   // Use xrd connection pool if is requested by the caller and this is
-  // is allowed globally.
+  // allowed globally.
   std::unique_ptr<eos::common::XrdConnIdHelper> conn_helper;
 
   if (use_xrd_conn_pool) {
@@ -1227,7 +1229,6 @@ XrdFstOfs::_rem(const char* path, XrdOucErrInfo& error,
   const char* localprefix = 0;
   const char* hexfid = 0;
   const char* sfsid = 0;
-  eos_debug("");
 
   if ((!fstpath) && (!fsid) && (!fid)) {
     // Standard deletion brings all information via the opaque info
@@ -2064,6 +2065,9 @@ XrdFstOfs::HandleResync(XrdOucEnv& env, XrdOucErrInfo& err_obj)
     }
   }
 
+  // @todo(esindril) once xrootd bug regarding handling of SFS_OK response
+  // in XrdXrootdXeq is fixed we can just return SFS_OK (>= XRootD 5)
+  // return SFS_OK;
   const char* done = "OK";
   err_obj.setErrInfo(strlen(done) + 1, done);
   return SFS_DATA;
@@ -2140,6 +2144,72 @@ XrdFstOfs::HandleRtlog(XrdOucEnv& env, XrdOucErrInfo& err_obj)
 }
 
 //------------------------------------------------------------------------------
+// Query MGM for the deletion list
+//------------------------------------------------------------------------------
+int
+XrdFstOfs::Query2Delete()
+{
+  const std::string mgm_endpoint = Config::gConfig.GetManager();
+
+  if (mgm_endpoint.empty()) {
+    eos_static_err("%s", "msg=\"no MGM endpoint available\"");
+    return SFS_ERROR;
+  }
+
+  std::ostringstream oss;
+  oss << "root://" << mgm_endpoint << "//dummy?xrd.wantprot=sss";
+  XrdCl::URL url(oss.str());
+
+  if (!url.IsValid()) {
+    eos_static_err("msg=\"invalid url\" url=\"%s\"", oss.str().c_str());
+    return SFS_ERROR;
+  }
+
+  std::string request = "/?mgm.pcmd=query2delete&mgm.target.nodename=";
+  request += Config::gConfig.FstQueue.c_str();
+  XrdCl::Buffer arg;
+  XrdCl::Buffer* raw_resp {nullptr};
+  XrdCl::FileSystem fs {url};
+  arg.FromString(request);
+  XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg,
+                                        raw_resp);
+  std::unique_ptr<XrdCl::Buffer> resp(raw_resp);
+  raw_resp = nullptr;
+
+  if (!status.IsOK()) {
+    eos_static_err("msg=\"failed query request\" request=\"%s\" status=\"%s\"",
+                   request.c_str(), status.ToStr().c_str());
+    return SFS_ERROR;
+  }
+
+  if (resp && resp->GetBuffer()) {
+    eos::fst::DeletionsProto del_fst;
+
+    if (!del_fst.ParseFromArray(resp->GetBuffer(), resp->GetSize())) {
+      eos_static_err("%s", "msg=\"query2delete failed to parse protobuf\"");
+      return SFS_ERROR;
+    }
+
+    // Submit deletions
+    for (const auto& del : del_fst.fs()) {
+      std::vector<unsigned long long> fids;
+      fids.reserve(del.fids().size());
+      fids.insert(fids.cend(), del.fids().cbegin(), del.fids().cend());
+
+      try {
+        gOFS.Storage->AddDeletion(std::make_unique<Deletion>
+                                  (std::move(fids), del.fsid(), del.path().c_str()));
+      } catch (const std::bad_alloc& e) {
+        eos_static_err("%s", "msg=\"failed to alloc deletion object\"");
+        continue;
+      }
+    }
+  }
+
+  return SFS_OK;
+}
+
+//------------------------------------------------------------------------------
 // *********** NOTE: THE FOLLOWING METHODS ARE TO BE DEPRECATED ***************
 //------------------------------------------------------------------------------
 
@@ -2175,7 +2245,7 @@ XrdFstOfs::SetDebug(XrdOucEnv& env)
 }
 
 //------------------------------------------------------------------------------
-// Set real time log level
+// Send real time log through MQ
 //------------------------------------------------------------------------------
 void
 XrdFstOfs::SendRtLog(XrdMqMessage* message)
@@ -2381,4 +2451,35 @@ XrdFstOfs::DoResync(XrdOucEnv& env)
     }
   }
 }
+
+//------------------------------------------------------------------------------
+// Handle drop query coming through MQ
+//------------------------------------------------------------------------------
+void
+XrdFstOfs::DoDrop(XrdOucEnv& env)
+{
+  int caprc = 0;
+  XrdOucEnv* capOpaque {nullptr};
+
+  if ((caprc = eos::common::SymKey::ExtractCapability(&env, capOpaque))) {
+    eos_static_err("msg=\"extract capability failed for deletion\" errno=%d",
+                   caprc);
+
+    if (capOpaque) {
+      delete capOpaque;
+    }
+  } else {
+    int envlen = 0;
+    eos_static_debug("opaque=\"%s\"", capOpaque->Env(envlen));
+    std::unique_ptr<Deletion> new_del = Deletion::Create(capOpaque);
+    delete capOpaque;
+
+    if (new_del) {
+      gOFS.Storage->AddDeletion(std::move(new_del));
+    } else {
+      eos_static_err("%s", "msg=\"illegal drop opaque information\"");
+    }
+  }
+}
+
 EOSFSTNAMESPACE_END

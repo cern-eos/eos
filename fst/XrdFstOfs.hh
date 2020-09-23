@@ -354,6 +354,12 @@ public:
     return mGeoTag;
   }
 
+  //----------------------------------------------------------------------------
+  //! Query MGM for the list of deletions
+  //!
+  //! @param return SFS_ERROR if failed, otherwise SFS_OK
+  //----------------------------------------------------------------------------
+  int Query2Delete();
 
   int Stall(XrdOucErrInfo& error, int stime, const char* msg);
 
@@ -409,7 +415,7 @@ public:
   std::chrono::seconds mTpcKeyValidity {120}; ///< TPC key validity
 
   // @note
-  // All of the commands below are going to be deprecated and replace by XRootD
+  // All of the commands below are going to be deprecated and replaced by XRootD
   // query commands which are handled in the FSctl method
   void SetDebug(XrdOucEnv& env);
 
@@ -418,6 +424,8 @@ public:
   void SendRtLog(XrdMqMessage* message);
 
   void DoResync(XrdOucEnv& env);
+
+  void DoDrop(XrdOucEnv& env);
 
 private:
 #ifdef IN_TEST_HARNESS

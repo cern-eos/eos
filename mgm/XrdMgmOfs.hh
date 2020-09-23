@@ -1879,8 +1879,8 @@ public:
   }
 
 private:
-  //! XrdOucBuffPool object for managing redirection buffers >= 2kb
-  XrdOucBuffPool mRdrBuffPool;
+  //! XrdOucBuffPool object for managing buffers >= 2kb
+  XrdOucBuffPool mXrdBuffPool;
   ///< uuid to directory obj. mapping
   std::map<std::string, XrdMgmOfsDirectory*> mMapDirs;
   std::map<std::string, XrdMgmOfsFile*> mMapFiles; ///< uuid to file obj. mapping

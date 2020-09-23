@@ -292,7 +292,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   mFstGwPort(0), mQdbCluster(""), mHttpdPort(8000),
   mFusexPort(1100), mGRPCPort(50051),
   mFidTracker(std::chrono::seconds(600), std::chrono::seconds(3600)),
-  mRdrBuffPool(2 * eos::common::KB, eos::common::MB, 8, 64),
+  mXrdBuffPool(2 * eos::common::KB, 2 * eos::common::MB, 8, 64),
   mJeMallocHandler(new eos::common::JeMallocHandler()),
   mDoneOrderlyShutdown(false)
 {
@@ -1648,13 +1648,13 @@ XrdMgmOfs::SetRedirectionInfo(XrdOucErrInfo& err_obj,
 
   // Otherwise use the XrdOucBuffPool to manage XrdOucBuffer objects that
   // can hold redirection info >= 2kb
-  XrdOucBuffer* buff = mRdrBuffPool.Alloc(rdr_info.length() + 1);
+  XrdOucBuffer* buff = mXrdBuffPool.Alloc(rdr_info.length() + 1);
 
   if (buff == nullptr) {
     eos_static_err("msg=\"requested redirection buffer allocation size too "
                    "big\" req_sz=%llu max_sz=%i", rdr_info.length(),
-                   mRdrBuffPool.MaxSize());
-    err_obj.setErrInfo(EINVAL, "redirection buffer too bid (>1MB)");
+                   mXrdBuffPool.MaxSize());
+    err_obj.setErrInfo(EINVAL, "redirection buffer too big");
     return false;
   }
 
@@ -1688,6 +1688,7 @@ XrdMgmOfs::SendQuery(const std::string& hostname, int port,
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg,
                                         raw_resp);
   std::unique_ptr<XrdCl::Buffer> resp(raw_resp);
+  raw_resp = nullptr;
 
   if (!status.IsOK()) {
     eos_static_err("msg=\"failed query request\" request=\"%s\" status=\"%s\"",

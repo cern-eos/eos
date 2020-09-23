@@ -23,6 +23,7 @@
 
 #include "mgm/fsck/Fsck.hh"
 #include "mgm/fsck/FsckEntry.hh"
+#include "common/Timing.hh"
 #include "common/LayoutId.hh"
 #include "common/Path.hh"
 #include "common/Mapping.hh"
@@ -1068,12 +1069,12 @@ Fsck::AccountDarkFiles()
 }
 
 //----------------------------------------------------------------------------
-//! Query for fsck responses
-//!
-//! @return string with the fsck replied from all the FSTs
+// Query for fsck responses
 //----------------------------------------------------------------------------
 std::string Fsck::QueryFsck()
 {
+  eos::common::Timing tm("FsckQuery");
+  COMMONTIMING("START", &tm);
   uint16_t timeout = 10;
   std::string response;
   std::string request = "/?fst.pcmd=fsck";
@@ -1087,6 +1088,12 @@ std::string Fsck::QueryFsck()
     }
 
     eos_static_debug("msg=\"fsck query response\" out=\"%s\"", response.c_str());
+    COMMONTIMING("QUERY_RESP", &tm);
+
+    if (EOS_LOGS_DEBUG) {
+      tm.Print();
+    }
+
     return response;
   }
 
@@ -1111,6 +1118,12 @@ std::string Fsck::QueryFsck()
   eos_static_debug("msg=\"fsck response for broadcast\" out=\"%s\"",
                    stdOut.c_str());
   response = stdOut.c_str();
+  COMMONTIMING("MSG_RESP", &tm);
+
+  if (EOS_LOGS_DEBUG) {
+    tm.Print();
+  }
+
   return response;
 }
 

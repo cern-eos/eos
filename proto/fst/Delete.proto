@@ -1,0 +1,13 @@
+syntax="proto3";
+package eos.fst;
+
+message DeletionsFsProto {
+  string path = 1;
+  uint64 fsid  = 2;
+  repeated uint64 fids = 3;
+}
+
+message DeletionsProto {
+  repeated DeletionsFsProto fs = 1;
+}
+

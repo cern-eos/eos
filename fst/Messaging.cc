@@ -104,29 +104,7 @@ Messaging::Process(XrdMqMessage* newmessage)
   }
 
   if (cmd == "drop") {
-    eos_info("drop");
-    XrdOucEnv* capOpaque = NULL;
-    int caprc = 0;
-
-    if ((caprc = eos::common::SymKey::ExtractCapability(&action, capOpaque))) {
-      // no capability - go away!
-      if (capOpaque) {
-        delete capOpaque;
-      }
-
-      eos_err("Cannot extract capability for deletion - errno=%d", caprc);
-    } else {
-      int envlen = 0;
-      eos_debug("opaque is %s", capOpaque->Env(envlen));
-      std::unique_ptr<Deletion> new_del = Deletion::Create(capOpaque);
-      delete capOpaque;
-
-      if (new_del) {
-        gOFS.Storage->AddDeletion(std::move(new_del));
-      } else {
-        eos_err("Cannot create a deletion entry - illegal opaque information");
-      }
-    }
+    return gOFS.DoDrop(action);
   }
 
   if (cmd == "verify") {

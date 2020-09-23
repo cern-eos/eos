@@ -27,31 +27,46 @@
 
 EOSFSTNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Thead requesting deletions from the MGM and unlinking the physical files
+//------------------------------------------------------------------------------
 void
 Storage::Remover()
 {
-  static time_t lastAskedForDeletions = 0;
-  static int deletionInterval = 300;
-  std::string nodeconfigqueue =
-    eos::fst::Config::gConfig.getFstNodeConfigQueue("Remover").c_str();
-  std::unique_ptr<Deletion> to_del {};
+  using namespace std::chrono;
+  static auto last_request_ts = system_clock::now();
+  static std::chrono::seconds request_interval(300);
+  // Used as barrier for FSTs proper config
+  (void)eos::fst::Config::gConfig.getFstNodeConfigQueue("Remover").c_str();
+  uint64_t num_deleted = 0ull;
+  const char* ptr = getenv("EOS_FST_DELETE_QUERY_INTERVAL");
 
-  if (getenv("EOS_FST_DELETE_QUERY_INTERVAL")) {
+  if (ptr) {
     try {
-      deletionInterval = stoi(getenv("EOS_FST_DELETE_QUERY_INTERVAL"));
+      request_interval = chrono::seconds(std::stoi(std::string(ptr)));
     } catch (...) {}
+  }
+
+  // Check if MGM supports query2delete
+  bool has_query2delete = (gOFS.Query2Delete() != SFS_ERROR);
+
+  if (has_query2delete) {
+    eos_static_info("%s", "msg=\"mgm supports query2delete\"");
+  } else {
+    eos_static_info("%s", "msg=\"mgm doesn't support query2delete\"");
   }
 
   // Thread that unlinks stored files
   while (true) {
-    while ((to_del = GetDeletion())) {
-      eos_static_debug("%u files to delete", GetNumDeletions());
+    num_deleted = 0ull;
+    std::unique_ptr<Deletion> to_del;
 
-      for (unsigned int j = 0; j < to_del->mFidVect.size(); ++j) {
-        eos_static_debug("Deleting file_id=%llu on fs_id=%u", to_del->mFidVect[j],
-                         to_del->mFsid);
-        const std::string hex_fid = eos::common::FileId::Fid2Hex(to_del->mFidVect[j]);
+    while ((to_del = GetDeletion())) {
+      for (unsigned int i = 0; i < to_del->mFidVect.size(); ++i) {
+        eos_static_debug("msg=\"delete file\" fxid=%08llx fsid=%u",
+                         to_del->mFidVect[i], to_del->mFsid);
+        ++num_deleted;
+        const std::string hex_fid = eos::common::FileId::Fid2Hex(to_del->mFidVect[i]);
         XrdOucErrInfo error;
         XrdOucString capOpaqueString = "/?mgm.pcmd=drop";
         XrdOucString OpaqueString = "";
@@ -64,52 +79,67 @@ Storage::Remover()
         XrdOucEnv Opaque(OpaqueString.c_str());
         capOpaqueString += OpaqueString;
 
+        // Delete local file
         if ((gOFS._rem("/DELETION", error, (const XrdSecEntity*) 0, &Opaque,
                        0, 0, 0, true) != SFS_OK)) {
-          eos_static_warning("unable to remove fid %s fsid %lu localprefix=%s",
-                             hex_fid.c_str(), to_del->mFsid, to_del->mLocalPrefix.c_str());
+          eos_static_warning("msg=\"unable to remove local file\" fxid=%s "
+                             "fsid=%lu localprefix=%s", hex_fid.c_str(),
+                             to_del->mFsid, to_del->mLocalPrefix.c_str());
         }
 
         // Update the manager
-        int rc = gOFS.CallManager(&error, 0, 0 , capOpaqueString);
-
-        if (rc) {
-          eos_static_err("unable to drop file id %s fsid %u", hex_fid.c_str(),
-                         to_del->mFsid);
+        if (gOFS.CallManager(&error, 0, 0 , capOpaqueString)) {
+          eos_static_err("msg=\"unable to drop file\" fxid=\"%s\" fsid=\"%u\"",
+                         hex_fid.c_str(), to_del->mFsid);
         }
       }
     }
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    time_t now = time(NULL);
+    auto now_ts = system_clock::now();
+    bool request_del = (duration_cast<chrono::seconds>(now_ts - last_request_ts) >
+                        request_interval);
 
-    // Ask to schedule deletions regularly (default is every 5 minutes)
-    if ((now - lastAskedForDeletions) > deletionInterval) {
-      lastAskedForDeletions = now;
-      eos_static_debug("asking for new deletions");
-      XrdOucString managerQuery = "/?";
-      managerQuery += "mgm.pcmd=schedule2delete";
-      managerQuery += "&mgm.target.nodename=";
-      managerQuery += Config::gConfig.FstQueue;
-      // the log ID to the schedule2delete call
-      managerQuery += "&mgm.logid=";
-      managerQuery += logId;
-      XrdOucErrInfo error;
-      XrdOucString response = "";
-      int rc = gOFS.CallManager(&error, "/", 0, managerQuery, &response);
-
-      if (rc) {
-        eos_static_err("manager returned errno=%d", rc);
+    if (has_query2delete) {
+      // Ask for more deletions if deleted something in last round or request
+      // interval expired
+      if (num_deleted || request_del) {
+        eos_static_debug("%s", "msg=\"query manager for deletions\"");
+        last_request_ts = now_ts;
+        (void) gOFS.Query2Delete();
       } else {
-        if (response == "submitted") {
-          eos_static_debug("manager scheduled deletions for us!");
-          // We wait to receive our deletions
-          std::this_thread::sleep_for(std::chrono::seconds
-                                      ((int)std::ceil(deletionInterval / 10.0)));
+        std::this_thread::sleep_for(std::chrono::seconds(10));
+      }
+    } else {
+      // Ask MGM to schedule deletions regularly (default is every 5 minutes)
+      if (request_del) {
+        last_request_ts = now_ts;
+        eos_static_debug("%s", "msg=\"ask manager for deletions\"");
+        XrdOucString managerQuery = "/?";
+        managerQuery += "mgm.pcmd=schedule2delete";
+        managerQuery += "&mgm.target.nodename=";
+        managerQuery += Config::gConfig.FstQueue;
+        // the log ID to the schedule2delete call
+        managerQuery += "&mgm.logid=";
+        managerQuery += logId;
+        XrdOucErrInfo error;
+        XrdOucString response = "";
+        int rc = gOFS.CallManager(&error, "/", 0, managerQuery, &response);
+
+        if (rc) {
+          eos_static_err("msg=\"error response from mgm\" errno=%d", rc);
         } else {
-          eos_static_debug("manager returned no deletion to schedule [ENODATA]");
+          if (response == "submitted") {
+            eos_static_debug("%s", "msg=\"manager scheduled deletions\"");
+          } else {
+            eos_static_debug("%s", "msg=\"manager returned no deletion to "
+                             "schedule [ENODATA]\"");
+          }
         }
       }
+
+      // We wait to receive our deletions or for new deletions
+      std::this_thread::sleep_for(std::chrono::seconds
+                                  ((int)std::ceil(request_interval.count() / 10.0)));
     }
   }
 }

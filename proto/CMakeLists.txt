@@ -52,10 +52,11 @@ set_target_properties(EosNsQuarkdbProto-Objects PROPERTIES
 # Generate protocol buffer object for FST
 #-------------------------------------------------------------------------------
 PROTOBUF_GENERATE_CPP(FMDBASE_SRCS FMDBASE_HDRS fst/FmdBase.proto)
+PROTOBUF_GENERATE_CPP(DELETE_SRCS DELETE_HDRS fst/Delete.proto)
 
 add_library(EosFstProto-Objects OBJECT
-  ${FMDBASE_SRCS}
-  ${FMDBASE_HDRS})
+  ${FMDBASE_SRCS} ${FMDBASE_HDRS}
+  ${DELETE_SRCS}  ${DELETE_HDRS})
 
 target_link_libraries(EosFstProto-Objects PUBLIC
   PROTOBUF::PROTOBUF)
