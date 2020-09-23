@@ -108,17 +108,7 @@ Messaging::Process(XrdMqMessage* newmessage)
   }
 
   if (cmd == "verify") {
-    eos_info("verify");
-    XrdOucEnv* capOpaque = &action;
-    int envlen = 0;
-    eos_debug("opaque is %s", capOpaque->Env(envlen));
-    Verify* new_verify = Verify::Create(capOpaque);
-
-    if (new_verify) {
-      gOFS.Storage->PushVerification(new_verify);
-    } else {
-      eos_err("Cannot create a verify entry - illegal opaque information");
-    }
+    return gOFS.DoVerify(action);
   }
 }
 

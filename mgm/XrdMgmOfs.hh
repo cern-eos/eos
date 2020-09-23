@@ -1090,11 +1090,13 @@ public:
   //! @param port endpoint port
   //! @param request string encoded request
   //! @param response string encoded reponse
+  //! @param timeout request timeout
   //!
   //! @return 0 if successful, otherwise errno
   //----------------------------------------------------------------------------
   int SendQuery(const std::string& hostname, int port,
-                const std::string& request, std::string& response);
+                const std::string& request, std::string& response,
+                uint16_t timeout = 5);
 
   //----------------------------------------------------------------------------
   //! Broadcast query (XrdFileSystem::Query) to the given endpoints and collect

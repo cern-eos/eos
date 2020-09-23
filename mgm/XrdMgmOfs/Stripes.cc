@@ -111,21 +111,29 @@ XrdMgmOfs::_verifystripe(const char* path,
                   "verify stripe - not file metadata", path);
     }
   }
-  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-  eos::mgm::FileSystem* verifyfilesystem = FsView::gFsView.mIdView.lookupByID(
-        fsid);
+  int fst_port;
+  std::string fst_path, fst_queue, fst_host;
+  {
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+    auto* verify_fs = FsView::gFsView.mIdView.lookupByID(fsid);
 
-  if (!verifyfilesystem) {
-    errno = EINVAL;
-    return Emsg(epname, error, ENOENT,
-                "verify stripe - filesystem does not exist", path);
+    if (!verify_fs) {
+      errno = EINVAL;
+      return Emsg(epname, error, ENOENT,
+                  "verify stripe - filesystem does not exist", path);
+    }
+
+    // @todo(esindril) only issue verify for booted filesystems
+    fst_path = verify_fs->GetPath();
+    fst_queue = verify_fs->GetQueue();
+    fst_host = verify_fs->GetHost();
+    fst_port = verify_fs->getCoreParams().getLocator().getPort();
   }
-
-  XrdOucString receiver = verifyfilesystem->GetQueue().c_str();
+  XrdOucString receiver = fst_queue.c_str();
   XrdOucString opaquestring = "";
   // build the opaquestring contents
   opaquestring += "&mgm.localprefix=";
-  opaquestring += verifyfilesystem->GetPath().c_str();
+  opaquestring += fst_path.c_str();
   opaquestring += "&mgm.fid=";
   const std::string hex_fid = eos::common::FileId::Fid2Hex(fid);
   opaquestring += hex_fid.c_str();
@@ -133,7 +141,7 @@ XrdMgmOfs::_verifystripe(const char* path,
   opaquestring += gOFS->ManagerId.c_str();
   opaquestring += "&mgm.access=verify";
   opaquestring += "&mgm.fsid=";
-  opaquestring += (int) verifyfilesystem->GetId();
+  opaquestring += std::to_string(fsid).c_str();
 
   if (attrmap.count("user.tag")) {
     opaquestring += "&mgm.container=";
@@ -156,18 +164,27 @@ XrdMgmOfs::_verifystripe(const char* path,
     opaquestring += option;
   }
 
-  XrdOucString msgbody = "mgm.cmd=verify";
-  msgbody += opaquestring;
-  eos::mq::MessagingRealm::Response response =
-    mMessagingRealm->sendMessage("verification", msgbody.c_str(), receiver.c_str());
+  std::string qreq = "/?fst.pcmd=verify";
+  qreq += opaquestring.c_str();
+  std::string qresp;
 
-  if (!response.ok()) {
-    eos_static_err("unable to send verification message to %s", receiver.c_str());
-    errno = ECOMM;
-  } else {
-    errno = 0;
+  if (gOFS->SendQuery(fst_host, fst_port, qreq, qresp)) {
+    // Fallback to old mechanism if any error encountered
+    XrdOucString msgbody = "mgm.cmd=verify";
+    msgbody += opaquestring;
+    eos_static_warning("%s", "msg=\"using verify fallback\"");
+    eos::mq::MessagingRealm::Response response =
+      mMessagingRealm->sendMessage("verification", msgbody.c_str(), receiver.c_str());
+
+    if (!response.ok()) {
+      eos_static_err("unable to send verification message to %s", receiver.c_str());
+      errno = ECOMM;
+    } else {
+      errno = 0;
+    }
   }
 
+  (void) qresp;
   EXEC_TIMING_END("VerifyStripe");
 
   if (errno) {

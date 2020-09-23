@@ -30,6 +30,7 @@
 #include "fst/storage/Storage.hh"
 #include "fst/Messaging.hh"
 #include "fst/Deletion.hh"
+#include "fst/Verify.hh"
 #include "common/PasswordHandler.hh"
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
@@ -1406,10 +1407,9 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
   XrdOucString opaque = iopaque;
   XrdOucString result = "";
   XrdOucEnv env(opaque.c_str());
-  eos_static_info("query tident=%s path=%s opaque=%s prot=%s", tident,
-                  path.c_str(),
-                  opaque.c_str(), client->prot);
-  const char* scmd;
+  eos_static_debug("msg=\"handle query\" tident=%s path=\"%s\" opaque=\"%s\" "
+                   "prot=\"%s\"", tident, path.c_str(), opaque.c_str(), client->prot);
+  const char* scmd {nullptr};
 
   if ((scmd = env.Get("fst.pcmd"))) {
     XrdOucString execmd = scmd;
@@ -1428,6 +1428,10 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
 
     if (execmd == "rtlog") {
       return HandleRtlog(env, error);
+    }
+
+    if (execmd == "verify") {
+      return HandleVerify(env, error);
     }
 
     if (execmd == "getfmd") {
@@ -2144,6 +2148,30 @@ XrdFstOfs::HandleRtlog(XrdOucEnv& env, XrdOucErrInfo& err_obj)
 }
 
 //------------------------------------------------------------------------------
+// Handle verify query
+//------------------------------------------------------------------------------
+int
+XrdFstOfs::HandleVerify(XrdOucEnv& env, XrdOucErrInfo& err_obj)
+{
+  int envlen = 0;
+  eos_static_info("ms=\"verify opaque\" data=\%s\"", env.Env(envlen));
+  Verify* new_verify = Verify::Create(&env);
+
+  if (new_verify) {
+    Storage->PushVerification(new_verify);
+  } else {
+    eos_static_err("%s", "msg=\"failed verify, illegal opaque info\"");
+  }
+
+  // @todo(esindril) once xrootd bug regarding handling of SFS_OK response
+  // in XrdXrootdXeq is fixed we can just return SFS_OK (>= XRootD 5)
+  // return SFS_OK;
+  const char* done = "OK";
+  err_obj.setErrInfo(strlen(done) + 1, done);
+  return SFS_DATA;
+}
+
+//------------------------------------------------------------------------------
 // Query MGM for the deletion list
 //------------------------------------------------------------------------------
 int
@@ -2479,6 +2507,23 @@ XrdFstOfs::DoDrop(XrdOucEnv& env)
     } else {
       eos_static_err("%s", "msg=\"illegal drop opaque information\"");
     }
+  }
+}
+
+//------------------------------------------------------------------------------
+// Handle verify query coming through MQ
+//------------------------------------------------------------------------------
+void
+XrdFstOfs::DoVerify(XrdOucEnv& env)
+{
+  int envlen = 0;
+  eos_static_debug("ms=\"verify opaque\" data=\"%s\"", env.Env(envlen));
+  Verify* new_verify = Verify::Create(&env);
+
+  if (new_verify) {
+    gOFS.Storage->PushVerification(new_verify);
+  } else {
+    eos_static_err("%s", "msg=\"failed verify, illegal opaque info\"");
   }
 }
 

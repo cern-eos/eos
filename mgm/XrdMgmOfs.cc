@@ -1670,7 +1670,8 @@ XrdMgmOfs::SetRedirectionInfo(XrdOucErrInfo& err_obj,
 //------------------------------------------------------------------------------
 int
 XrdMgmOfs::SendQuery(const std::string& hostname, int port,
-                     const std::string& request, std::string& response)
+                     const std::string& request, std::string& response,
+                     uint16_t timeout)
 {
   std::ostringstream oss;
   oss << "root://" << hostname << ":" << port << "/?xrd.wantprot=sss";
@@ -1686,17 +1687,17 @@ XrdMgmOfs::SendQuery(const std::string& hostname, int port,
   XrdCl::FileSystem fs {url};
   arg.FromString(request);
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg,
-                                        raw_resp);
+                                        raw_resp, timeout);
   std::unique_ptr<XrdCl::Buffer> resp(raw_resp);
   raw_resp = nullptr;
 
   if (!status.IsOK()) {
     eos_static_err("msg=\"failed query request\" request=\"%s\" status=\"%s\"",
-                   request.c_str(), status.ToString());
+                   request.c_str(), status.ToStr().c_str());
     return -1;
   }
 
-  if (resp) {
+  if (resp && resp->GetBuffer()) {
     response = resp->GetBuffer();
   }
 
