@@ -767,7 +767,8 @@ public:
              eos::common::VirtualIdentity& vid,
              const char* ininfo = 0,
              bool doLock = true,
-             bool useLayout = false);
+             bool useLayout = false,
+	     bool truncate = false);
 
   //----------------------------------------------------------------------------
   //! List extended attributes for a given file/directory - high-level API.

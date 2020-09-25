@@ -34,7 +34,8 @@ XrdMgmOfs::_touch(const char* path,
                   eos::common::VirtualIdentity& vid,
                   const char* ininfo,
                   bool doLock,
-                  bool useLayout)
+                  bool useLayout,
+		  bool truncate)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief create(touch) a no-replica file in the namespace
@@ -125,6 +126,10 @@ XrdMgmOfs::_touch(const char* path,
     eos::IFileMD::ctime_t mtime;
     fmd->getMTime(mtime);
     fmd->setCTime(mtime);
+
+    if (truncate) {
+      fmd->setSize(0);
+    }
 
     // Store the birth time as an extended attribute if this is a creation
     if (!existedAlready) {

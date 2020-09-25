@@ -1271,9 +1271,14 @@ ProcCommand::File()
     if (mSubCmd == "touch") {
       cmdok = true;
       bool useLayout = true;
+      bool truncate = false;
 
       if (pOpaque->Get("mgm.file.touch.nolayout")) {
         useLayout = false;
+      }
+
+      if (pOpaque->Get("mgm.file.touch.truncate")) {
+        truncate = true;
       }
 
       if (!spath.length()) {
@@ -1282,7 +1287,7 @@ ProcCommand::File()
         stdErr += "'";
         retc = ENOENT;
       } else {
-        if (gOFS->_touch(spath.c_str(), *mError, *pVid, 0, true, useLayout)) {
+        if (gOFS->_touch(spath.c_str(), *mError, *pVid, 0, true, useLayout, truncate)) {
           stdErr = "error: unable to touch '";
           stdErr += spath.c_str();
           stdErr += "'";
