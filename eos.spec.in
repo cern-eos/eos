@@ -180,7 +180,6 @@ BuildRequires: glibc-headers
 BuildRequires: binutils-devel
 BuildRequires: cppunit-devel
 BuildRequires: help2man
-BuildRequires: selinux-policy selinux-policy-devel
 
 %if 0%{distribution} != 8
 BuildRequires: openssl-static, ncurses-static
@@ -754,6 +753,9 @@ The EOS fuse core containing eosd and mount scripts.
 %{_bindir}/eosd
 %{_bindir}/eosfusebind
 /sbin/mount.eos
+%{_datarootdir}/selinux/targeted/eosfuse.pp
+%{_datarootdir}/selinux/mls/eosfuse.pp
+%{_datarootdir}/selinux/strict/eosfuse.pp
 %config %{_sysconfdir}/logrotate.d/eos-fuse-logs
 %dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos
 %dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos/fuse
@@ -766,8 +768,27 @@ The EOS fuse core containing eosd and mount scripts.
 %{_usr}/lib/tmpfiles.d/eosd.conf
 %endif
 
+%post -n eos-fuse-core
+if [ "$1" -le "1" ]; then # First install
+  # Note: don't push bash variables between {} since they will be empty!!!
+  for VARIANT in mls strict targeted
+  do
+    /usr/sbin/semodule -i %{_datarootdir}/selinux/$VARIANT/eosfuse.pp || :
+  done
+fi
+
+%preun -n eos-fuse-core
+if [ "$1" -eq  "0" ]; then # Final removal
+  /usr/sbin/semodule -r eosfuse || :
+fi
+
 %postun -n eos-fuse-core
 if [ "$1" -ge "1" ]; then # Upgrade
+  for VARIANT in mls strict targeted
+  do
+    /usr/sbin/semodule -i %{_datarootdir}/selinux/$VARIANT/eosfuse.pp || :
+  done
+
   # If the automount daemon catches a USR1 signal, it will umount all currently
   # unused autofs managed mounted filesystems and continue running (forced
   # expire).
@@ -911,38 +932,34 @@ The new EOS fuse core containing eosxd.
 Summary: The new EOS fuse client selinux configuration
 Group: Applications/File
 
-# core file has directories to label
-Requires: eos-fusex-core = @CPACK_PACKAGE_VERSION@
-
 %description -n eos-fusex-selinux
 The new EOS fuse core containing selinux definitions.
 
 %files -n eos-fusex-selinux
 %defattr(-, root, root, -)
-/usr/share/selinux/targeted/eosfusex.pp
-/usr/share/selinux/mls/eosfusex.pp
-/usr/share/selinux/strict/eosfusex.pp
+/usr/share/selinux/targeted/eosfuse.pp
+/usr/share/selinux/mls/eosfuse.pp
+/usr/share/selinux/strict/eosfuse.pp
 
 %post -n eos-fusex-selinux
 if [ "$1" -le "1" ]; then # First install
   # Note: don't push bash variables between {} since they will be empty!!!
   for VARIANT in mls strict targeted
   do
-    /usr/sbin/semodule -i %{_datarootdir}/selinux/$VARIANT/eosfusex.pp || :
+    /usr/sbin/semodule -i %{_datarootdir}/selinux/$VARIANT/eosfuse.pp || :
   done
-  restorecon -RvF /var/log/eos /var/cache/eos/ /usr/bin/eosxd
 fi
 
 %preun -n eos-fusex-selinux
 if [ "$1" -eq  "0" ]; then # Final removal
-  /usr/sbin/semodule -r eosfusex || :
+  /usr/sbin/semodule -r eosfuse || :
 fi
 
 %postun -n eos-fusex-selinux
 if [ "$1" -ge "1" ]; then # Upgrade
   for VARIANT in mls strict targeted
   do
-    /usr/sbin/semodule -i %{_datarootdir}/selinux/$VARIANT/eosfusex.pp || :
+    /usr/sbin/semodule -i %{_datarootdir}/selinux/$VARIANT/eosfuse.pp || :
   done
 fi
 

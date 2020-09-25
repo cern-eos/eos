@@ -1,3 +1,0 @@
-/usr/bin/eosxd          gen_context(system_u:object_r:eosxd_exec_t)
-/var/cache/eos(/.*)?    gen_context(system_u:object_r:eosxd_cache_t)
-/var/log/eos(/.*)?      gen_context(system_u:object_r:eosxd_log_t)
