@@ -26,7 +26,7 @@
 
 # Define required dependency for XRootD
 %define eos_xrootd_version_min 0:4.12.4
-%define xrootd_version_min 1:4.12.3
+%define xrootd_version_min 1:4.12.4
 %define major_version @CPACK_PACKAGE_VERSION_MAJOR@
 %define release_version @CPACK_PACKAGE_RELEASE@
 
