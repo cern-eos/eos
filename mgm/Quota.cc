@@ -1812,19 +1812,16 @@ Quota::PrintOut(const std::string& path, XrdOucString& output,
   // the configuration file
   LoadNodes();
   eos::common::RWMutexReadLock rd_fs_lock(FsView::gFsView.ViewMutex);
-  eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
   eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
 
   if (path.empty()) {
     for (auto it = pMapQuota.begin(); it != pMapQuota.end(); ++it) {
-      // it->second->Refresh();
       it->second->PrintOut(output, uid_sel, gid_sel, monitoring, translate_ids);
     }
   } else {
     SpaceQuota* squota = GetResponsibleSpaceQuota(path);
 
     if (squota) {
-      // squota->Refresh();
       squota->PrintOut(output, uid_sel, gid_sel, monitoring, translate_ids);
     } else {
       output = "error: no quota for path ";
