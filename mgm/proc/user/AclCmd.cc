@@ -25,6 +25,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "common/StringTokenizer.hh"
 #include "common/ErrnoToString.hh"
+#include "namespace/Prefetcher.hh"
 #include <unistd.h>
 #include <getopt.h>
 #include <functional>
@@ -112,6 +113,9 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
   }
 
   std::list<std::string> paths;
+
+  eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, acl.path(), false);
+
   eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
   if (acl.recursive()) {
