@@ -614,6 +614,8 @@ ProcCommand::DirInfo(const char* path)
 
       // reference by pid+pxid
       //-------------------------------------------
+
+      eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, fid);
       viewReadLock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
       std::string nspath;
 
@@ -632,6 +634,7 @@ ProcCommand::DirInfo(const char* path)
       // Detect detached state for pid/pxid reference
       detached = nspath.empty();
     } else {
+      eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, spath.c_str());
       // reference by path
       //-------------------------------------------
       viewReadLock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
@@ -980,6 +983,8 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     std::shared_ptr<eos::IContainerMD> cmd;
     std::string path;
     bool detached;
+
+    eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, fid);
 
     if (dolock) {
       viewReadLock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
