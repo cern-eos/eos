@@ -238,11 +238,14 @@ XrdMgmOfs::acc_access(const char* path,
               e.getMessage().str().c_str());
   }
 
-  try {
-    dh = gOFS->eosView->getContainer(cPath.GetPath());
-  } catch (eos::MDException& e) {
-    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
-              e.getMessage().str().c_str());
+  if (!fh) {
+    // check for existing dir if not a file
+    try {
+      dh = gOFS->eosView->getContainer(cPath.GetPath());
+    } catch (eos::MDException& e) {
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+		e.getMessage().str().c_str());
+    }
   }
 
   try {
@@ -275,6 +278,8 @@ XrdMgmOfs::acc_access(const char* path,
     if (dh->access(vid.uid, vid.gid, X_OK)) {
       x_ok = true;
     }
+
+    lock.Release();
 
     // ACL and permission check
     Acl acl(attr_path.c_str(), error, vid, attrmap, false);
