@@ -112,6 +112,7 @@ XrdMgmOfs::_mkdir(const char* path,
   std::shared_ptr<eos::IContainerMD> dir;
   eos::IContainerMD::XAttrMap attrmap;
   {
+    eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, cPath.GetParentPath());
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
                                       __FILE__);
 
@@ -209,6 +210,7 @@ XrdMgmOfs::_mkdir(const char* path,
 
     if (dir) {
       std::shared_ptr<eos::IContainerMD> fulldir;
+      eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, path);
       eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
                                         __FILE__);
 
@@ -243,6 +245,7 @@ XrdMgmOfs::_mkdir(const char* path,
       for (i = cPath.GetSubPathSize() - 1; i >= 0; i--) {
         eos_debug("testing path %s", cPath.GetSubPath(i));
         errno = 0;
+	eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, cPath.GetSubPath(i));
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
                                           __FILE__);
         attrmap.clear();
