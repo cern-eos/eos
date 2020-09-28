@@ -72,6 +72,9 @@ XrdMgmOfs::Getfmd(const char* path,
     eos::common::Path cPath(fullpath.c_str());
     std::string fmdEnv = "";
     fmd->getEnv(fmdEnv, true);
+
+    vlock.Release();
+
     fmdEnv += "&container=";
     // Patch parent name
     XrdOucString safepath = cPath.GetParentPath();
