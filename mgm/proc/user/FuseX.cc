@@ -111,7 +111,11 @@ ProcCommand::FuseX()
 
       lock.Release();
 
-      eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, spath.c_str());
+      if (schild.length()) {
+	eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView, spath.c_str());
+      } else {
+	eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, spath.c_str());
+      }
 
       lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
