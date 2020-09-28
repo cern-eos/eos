@@ -253,6 +253,11 @@ XrdMgmOfs::_rename(const char* old_name,
   
   std::string new_path = new_name;
 
+  eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, nPath.GetParentPath());
+  eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, oPath.GetParentPath());
+  eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, oPath.GetPath());
+  eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, nPath.GetPath());
+
   if (_exists(old_name, file_exists, error, vid, infoN)) {
     errno = ENOENT;
     return Emsg(epname, error, ENOENT, "rename - source does not exist");
@@ -384,7 +389,7 @@ XrdMgmOfs::_rename(const char* old_name,
 
   if (renameDir) {
     {
-      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
       // figure out if this is a move within the same quota node
       eos::IContainerMD::id_t q1;
       eos::IContainerMD::id_t q2;
