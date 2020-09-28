@@ -2098,6 +2098,7 @@ Server::OpSetFile(const std::string& id,
       eos::fusex::md g_md;
       uint64_t g_ino = eos::common::FileId::FidToInode(gmd->getId());
       lock.Release();
+      Prefetcher::prefetchInodeAndWait(gOFS->eosView, g_ino);
       FillFileMD(g_ino, g_md, vid);
       // release the namespace lock before serialization/broadcasting
       resp.SerializeToString(response);
