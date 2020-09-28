@@ -752,7 +752,6 @@ The EOS fuse core containing eosd and mount scripts.
 %defattr(-, root, root, -)
 %{_bindir}/eosd
 %{_bindir}/eosfusebind
-/sbin/mount.eos
 %{_datarootdir}/selinux/targeted/eosfuse.pp
 %{_datarootdir}/selinux/mls/eosfuse.pp
 %{_datarootdir}/selinux/strict/eosfuse.pp
@@ -918,7 +917,6 @@ The new EOS fuse core containing eosxd.
 %files -n eos-fusex-core
 %defattr(-, root, root, -)
 %{_bindir}/eosxd
-/sbin/mount.eosx
 %{_sysconfdir}/logrotate.d/eos-fusex-logs
 %dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos/
 %dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos/fusex/
