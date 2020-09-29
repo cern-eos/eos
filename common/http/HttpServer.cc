@@ -23,13 +23,11 @@
 
 #include "common/http/HttpServer.hh"
 #include "common/http/PlainHttpResponse.hh"
-#include "common/Logging.hh"
 #include "common/StringConversion.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdNet/XrdNet.hh"
-//#include "XrdNet/XrdNetPeer.hh"
 #include <string>
 #include <map>
 #include <sstream>
@@ -228,13 +226,13 @@ HttpServer::StaticHandler(void* cls,
   // The static handler function calls back the original http object
   if (gHttp) {
     return convertToMHD_RESULT(gHttp->Handler(cls,
-                          connection,
-                          url,
-                          method,
-                          version,
-                          upload_data,
-                          upload_data_size,
-                          ptr));
+                               connection,
+                               url,
+                               method,
+                               version,
+                               upload_data,
+                               upload_data_size,
+                               ptr));
   } else {
     return MHD_NO;
   }

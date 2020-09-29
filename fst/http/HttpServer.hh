@@ -51,7 +51,11 @@ public:
   /**
    * Destructor
    */
-  virtual ~HttpServer() = default;
+  virtual ~HttpServer()
+  {
+    eos_static_info("%s", "msg=\"FST HttpServer destructor\"");
+    mThreadId.join();
+  }
 
 #ifdef EOS_MICRO_HTTPD
   /**

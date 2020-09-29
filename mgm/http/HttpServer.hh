@@ -51,7 +51,11 @@ public:
   /**
    * Destructor
    */
-  virtual ~HttpServer() {};
+  virtual ~HttpServer()
+  {
+    eos_static_info("%s", "msg=\"MGM HttpServer destructor\"");
+    mThreadId.join();
+  }
 
 #ifdef EOS_MICRO_HTTPD
   /**
@@ -101,21 +105,21 @@ public:
   Authenticate(std::map<std::string, std::string>& headers);
 
   /**
-   * HTTP object handler function on MGM called by XrdHttp 
+   * HTTP object handler function on MGM called by XrdHttp
    *
    * @return see implementation
    */
-  
+
   virtual std::unique_ptr<eos::common::ProtocolHandler>
-  XrdHttpHandler(std::string& method, 
-		 std::string& uri,
-		 std::map<std::string,std::string>& headers, 
-		 std::string& query, 
-		 std::map<std::string,std::string>& cookies, 
-		 std::string& body,
-		 const XrdSecEntity& client
-		 );
-  
+  XrdHttpHandler(std::string& method,
+                 std::string& uri,
+                 std::map<std::string, std::string>& headers,
+                 std::string& query,
+                 std::map<std::string, std::string>& cookies,
+                 std::string& body,
+                 const XrdSecEntity& client
+                );
+
 private:
 #ifdef IN_TEST_HARNESS
 public:

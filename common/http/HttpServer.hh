@@ -32,6 +32,7 @@
 #include "common/http/HttpRequest.hh"
 #include "common/http/HttpResponse.hh"
 #include "common/AssistedThread.hh"
+#include "common/Logging.hh"
 #include "common/Namespace.hh"
 
 #ifdef EOS_MICRO_HTTPD
@@ -60,6 +61,7 @@ public:
    */
   virtual ~HttpServer()
   {
+    eos_static_info("%s", "msg=\"Common HttpServer destructor\"");
     mThreadId.join();
   }
 
@@ -167,17 +169,19 @@ public:
 #ifdef EOS_MICRO_HTTPD
 
 #if MHD_VERSION >= 0x00097002
-  #define MHD_RESULT enum MHD_Result
+#define MHD_RESULT enum MHD_Result
 #else
-  #define MHD_RESULT int
+#define MHD_RESULT int
 #endif
 
   /**
    * Compatibility hacks for MHD versions
    */
-  static MHD_RESULT convertToMHD_RESULT(int code) {
+  static MHD_RESULT convertToMHD_RESULT(int code)
+  {
 #if MHD_VERSION >= 0x00097002
-    if(code == 1) {
+
+    if (code == 1) {
       return MHD_YES;
     }
 
