@@ -169,7 +169,8 @@ void DebugCmd::SetSubcmd(const eos::console::DebugProto_SetProto& set,
   std::string query = PrepareQuery(set);
 
   if ((set.nodename() == "*") || (set.nodename().empty()) ||
-      (XrdOucString(set.nodename().c_str()) == gOFS->MgmOfsQueue)) {
+      (XrdOucString(set.nodename().c_str()) == gOFS->MgmOfsQueue) ||
+      (set.nodename() == "/eos/*/mgm")) {
     g_logging.SetLogPriority(debugval);
     out << "success: debug level is now <" + set.debuglevel() + '>';
     eos_static_notice("msg=\"setting debug level to <%s>\"",
@@ -191,6 +192,11 @@ void DebugCmd::SetSubcmd(const eos::console::DebugProto_SetProto& set,
     } else {
       gOFS->ObjectManager.SetDebug(false);
     }
+  }
+
+  if (set.nodename() == "/eos/*/mgm") {
+    reply.set_retc(ret_c);
+    return;
   }
 
   std::set<std::string> endpoints = FsView::gFsView.CollectEndpoints(
