@@ -216,29 +216,28 @@ PathRouting::GetListing(const std::string& path, std::string& out) const
 {
   std::ostringstream oss;
   eos::common::RWMutexReadLock route_rd_lock(mPathRouteMutex);
-
   auto printRoute =
-    [&oss](const std::pair<const std::string, std::list<RouteEndpoint>>& route) {
-      bool first = true;
-      oss << route.first << " => ";
+  [&oss](const std::pair<const std::string, std::list<RouteEndpoint>>& route) {
+    bool first = true;
+    oss << route.first << " => ";
 
-      for (const auto& endpoint: route.second) {
-        if (!first) {
-          oss << ",";
-        }
-
-        if (!endpoint.mIsOnline.load()) {
-          oss << "_";
-        } else if (endpoint.mIsMaster.load()) {
-          oss << "*";
-        }
-
-        oss << endpoint.ToString();
-        first = false;
+    for (const auto& endpoint : route.second) {
+      if (!first) {
+        oss << ",";
       }
 
-      oss << std::endl;
-    };
+      if (!endpoint.mIsOnline.load()) {
+        oss << "_";
+      } else if (endpoint.mIsMaster.load()) {
+        oss << "*";
+      }
+
+      oss << endpoint.ToString();
+      first = false;
+    }
+
+    oss << std::endl;
+  };
 
   // List all paths
   if (path.empty()) {
@@ -267,33 +266,35 @@ void
 PathRouting::UpdateEndpointsStatus(ThreadAssistant& assistant) noexcept
 {
   while (!assistant.terminationRequested()) {
-    std::this_thread::sleep_for(mTimeout);
-    eos::common::RWMutexReadLock route_rd_lock(mPathRouteMutex);
+    {
+      eos::common::RWMutexReadLock route_rd_lock(mPathRouteMutex);
 
-    for (auto& route : mPathRoute) {
-      int num_masters = 0;
-      eos_debug("checking route='%s'", route.first.c_str());
+      for (auto& route : mPathRoute) {
+        int num_masters = 0;
+        eos_debug("checking route='%s'", route.first.c_str());
 
-      for (auto& endpoint : route.second) {
-        endpoint.UpdateStatus();
-
-        if (endpoint.mIsOnline.load() && endpoint.mIsMaster.load()) {
-          ++num_masters;
-        }
-      }
-
-      // There is smth awfully wrong if we have more than two masters ...
-      if (num_masters >= 2) {
-        eos_warning("there is more than one master for route path=%s",
-                    route.first.c_str());
-
-        // Mark them all as offline so that we stall the clients
         for (auto& endpoint : route.second) {
-          endpoint.mIsOnline.store(false);
-          endpoint.mIsMaster.store(false);
+          endpoint.UpdateStatus();
+
+          if (endpoint.mIsOnline.load() && endpoint.mIsMaster.load()) {
+            ++num_masters;
+          }
+        }
+
+        // There is smth awfully wrong if we have more than two masters ...
+        if (num_masters >= 2) {
+          eos_warning("there is more than one master for route path=%s",
+                      route.first.c_str());
+
+          // Mark them all as offline so that we stall the clients
+          for (auto& endpoint : route.second) {
+            endpoint.mIsOnline.store(false);
+            endpoint.mIsMaster.store(false);
+          }
         }
       }
     }
+    assistant.wait_for(mTimeout);
   }
 }
 

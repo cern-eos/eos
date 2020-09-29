@@ -52,7 +52,7 @@
 // A common pattern for background threads is then:
 // while(!assistant.terminationRequested()) {
 //   doStuff();
-//   assistant.sleep_for(std::chrono::seconds(1));
+//   assistant.wait_for(std::chrono::seconds(1));
 // }
 //------------------------------------------------------------------------------
 class AssistedThread;
