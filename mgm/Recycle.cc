@@ -248,10 +248,10 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
                           } else {
 			    // Add to the garbage fifo deletion multimap
 			    if (!S_ISDIR(buf.st_mode)) {
-			      eos_static_info("adding %s to deletion map", l4.c_str());
+			      eos_static_debug("adding %s to deletion map", l4.c_str());
 			      lDeletionMap.insert(std::pair<time_t, std::string > (buf.st_ctime, l4));
 			    } else {
-			      eos_static_info("not adding %s to deletion map", l4.c_str());
+			      eos_static_debug("not adding %s to deletion map", l4.c_str());
 			    }
                           }
                         }
@@ -333,7 +333,7 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
 		    // Add to the garbage fifo deletion multimap
 		    lDeletionMap.insert(std::pair<time_t, std::string > (ctime_map[*fileit],
 									 fullpath.c_str()));
-		    eos_static_info("new-bin: adding to deletionmap : %s ctime: %u", fullpath.c_str(), ctime_map[*fileit]);
+		    eos_static_debug("new-bin: adding to deletionmap : %s ctime: %u", fullpath.c_str(), ctime_map[*fileit]);
                   }
                 }
               }
