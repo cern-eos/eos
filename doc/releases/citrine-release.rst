@@ -16,6 +16,39 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.21 Citrine``
+===================
+
+2020-09-29
+
+Bug
+---
+
+* COMMON: Fix bug in thread pool implementation
+
+
+Improvements
+------------
+
+* MGM/FUSEX: Add prefetching of namespace metadata where necessary
+* MGM: Fsck - don't mark 0-size files without replicas as rep_missing_n
+* MGM: Fsck - improve handling of m_mem_sz_diff errors
+* MGM/FST: Move debug command out of MQ and use XRootD query command to modify the log level
+* MGM: Move fsck command out of MQ and use XRootD query command to collect the fsck responses
+* MGM/FST: Move resync command out of MQ and use XRootD query to send such requests
+* MGM/FST: Move rtlog command out of MQ and use XRootD query to send such requests
+* MGM/FST: Move deletion scheduling out of MQ and implement it using XRootD query commands
+* MGM/FST: Move verify command out of MQ and use XRootD query command for such requests
+* BUILD: new way to build SELINUX policies
+
+New Feature
+------------
+
+* [EOS-4431] - 'rm -rf' return directory not empty if query exceeds default user limit of 100k files
+* [EOS-4442] - Add a '-0' option to file touch
+
+
+
 ``v4.8.20 Citrine``
 ===================
 
