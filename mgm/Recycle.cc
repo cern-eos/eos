@@ -53,7 +53,6 @@ EOSMGMNAMESPACE_BEGIN
 bool
 Recycle::Start()
 {
-  eos_static_info("constructor");
   mThread.reset(&Recycle::Recycler, this);
   return true;
 }
@@ -85,7 +84,7 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
   unsigned long long lLowInodesWatermark = 0;
   unsigned long long lLowSpaceWatermark = 0;
   bool show_attribute_missing = true;
-  eos_static_info("msg=\"async recycling thread started\"");
+  eos_static_info("%s", "\"msg = \"recycling thread started\"");
   gOFS->WaitUntilNamespaceIsBooted(assistant);
 
   if (assistant.terminationRequested()) {
@@ -100,11 +99,11 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
 
     for (int i = 0; i < snoozetime / 10; i++) {
       if (assistant.terminationRequested()) {
+        eos_static_info("%s", "msg=\"recycler thread exiting\"");
         return;
       }
 
       assistant.wait_for(std::chrono::seconds(10));
-      XrdSysMutexHelper lock(mWakeUpMutex);
 
       if (mWakeUp) {
         mWakeUp = false;
@@ -486,6 +485,8 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
       }
     }
   }
+
+  eos_static_info("%s", "msg=\"recycler thread exiting\"");
 }
 
 /*----------------------------------------------------------------------------*/

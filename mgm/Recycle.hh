@@ -61,8 +61,7 @@ private:
   uid_t mOwnerUid;
   gid_t mOwnerGid;
   unsigned long long mId;
-  bool mWakeUp;
-  XrdSysMutex mWakeUpMutex;
+  std::atomic<bool> mWakeUp;
 
 public:
   //----------------------------------------------------------------------------
@@ -157,8 +156,8 @@ public:
                     bool transalteids, bool details,
                     std::string date = "",
                     bool global = false,
-		    RecycleListing* rvec = 0
-		    );
+                    RecycleListing* rvec = 0
+                   );
 
   /**
    * print the recycle bin contents
@@ -185,7 +184,7 @@ public:
    */
   static int Restore(std::string& std_out, std::string& std_err,
                      eos::common::VirtualIdentity& vid, const char* key,
-                     bool force_orig_name, bool restore_versions, bool make_path=false);
+                     bool force_orig_name, bool restore_versions, bool make_path = false);
 
   static int PurgeOld(std::string& std_out, std::string& std_err,
                       eos::common::VirtualIdentity& vid);
@@ -202,8 +201,8 @@ public:
                    eos::common::VirtualIdentity& vid,
                    std::string date = "",
                    bool global = false,
-		   std::string pattern = ""
-		   );
+                   std::string pattern = ""
+                  );
 
   /**
    * configure the recycle bin
@@ -223,13 +222,13 @@ public:
    */
   void WakeUp()
   {
-    XrdSysMutexHelper lock(mWakeUpMutex);
     mWakeUp = true;
   }
 
   static bool InRecycleBin(std::string& path)
   {
-    return (path.substr(0,Recycle::gRecyclingPrefix.length()) == Recycle::gRecyclingPrefix);
+    return (path.substr(0, Recycle::gRecyclingPrefix.length()) ==
+            Recycle::gRecyclingPrefix);
   }
 
   static std::string gRecyclingPrefix; //< prefix for all recycle bins
