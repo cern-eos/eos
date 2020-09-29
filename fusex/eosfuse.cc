@@ -2953,7 +2953,7 @@ EBADF  Invalid directory stream descriptor fi->fh
     // ---------------------------------------------------------------------- //
     if (off == 1) {
       // at offset=1 add the '..' directory
-      metad::shared_md ppmd = Instance().mds.get(req, pmd->pid(), "", true, 0, 0,
+      metad::shared_md ppmd = Instance().mds.get(req, pmd->pid(), "", false, 0, 0,
                               true);
 
       // don't add a '..' at root
