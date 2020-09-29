@@ -1,6 +1,5 @@
 usr/bin/eosd
 usr/bin/eosfusebind
-sbin/mount.eos
 usr/lib/tmpfiles.d/eosd.conf
 etc/logrotate.d/eos-fuse-logs
 etc/sysconfig/eosd_env.example
