@@ -246,8 +246,13 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
                                            "recycle-path=%s l2-path=%s l3-path=%s",
                                            Recycle::gRecyclingPrefix.c_str(), l2.c_str(), l3.c_str());
                           } else {
-                            // Add to the garbage fifo deletion multimap
-                            lDeletionMap.insert(std::pair<time_t, std::string > (buf.st_ctime, l4));
+			    // Add to the garbage fifo deletion multimap
+			    if (!S_ISDIR(buf.st_mode)) {
+			      eos_static_info("adding %s to deletion map", l4.c_str());
+			      lDeletionMap.insert(std::pair<time_t, std::string > (buf.st_ctime, l4));
+			    } else {
+			      eos_static_info("not adding %s to deletion map", l4.c_str());
+			    }
                           }
                         }
 
@@ -270,8 +275,20 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
                 XrdOucErrInfo lError;
                 int depth = 6;
                 XrdOucString err_msg;
+		time_t now = time(NULL);
+
+		// a recycle bin directory has the ctime with the last entry added, to get
+		time_t max_ctime_dir = now - lKeepTime + (31*86400);
+		time_t max_ctime_file = now - lKeepTime;
+		std::map<std::string, time_t> ctime_map;
+
+		// send a restricted query
                 (void) gOFS->_find(sdir, lError, err_msg, rootvid, findmap,
-                                   0, 0, false, 0, true, depth);
+                                   0, 0, false, 0, true, depth,0, true, false, NULL,
+				   max_ctime_dir, max_ctime_file,
+				   &ctime_map);
+
+		eos_static_notice("time-limited query for ctime=%u:%u nfiles=%lu", max_ctime_dir, max_ctime_file, ctime_map.size());
 
                 for (auto dirit = findmap.begin(); dirit != findmap.end(); ++dirit) {
                   XrdOucString dirname = dirit->first.c_str();
@@ -313,16 +330,10 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
 
                     fullpath += fname;
 
-                    if (gOFS->_stat(fullpath.c_str(), &buf, lError, rootvid, "", nullptr, false)) {
-                      eos_static_err("msg=\"unable to stat a garbage directory entry\" "
-                                     "recycle-path=%s path=%s",
-                                     Recycle::gRecyclingPrefix.c_str(), fullpath.c_str());
-                    } else {
-                      // Add to the garbage fifo deletion multimap
-                      lDeletionMap.insert(std::pair<time_t, std::string > (buf.st_ctime,
-                                          fullpath.c_str()));
-                      eos_static_debug("new-bin: adding to deletionmap : %s", fullpath.c_str());
-                    }
+		    // Add to the garbage fifo deletion multimap
+		    lDeletionMap.insert(std::pair<time_t, std::string > (ctime_map[*fileit],
+									 fullpath.c_str()));
+		    eos_static_info("new-bin: adding to deletionmap : %s ctime: %u", fullpath.c_str(), ctime_map[*fileit]);
                   }
                 }
               }
@@ -392,9 +403,9 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
                         std::string fullpath = rfoundit->first;
                         fullpath += fname;
 
-                        if (gOFS->_rem(fullpath.c_str(), lError, rootvid, (const char*) 0)) {
-                          eos_static_err("msg=\"unable to remove file\" path=%s",
-                                         fullpath.c_str());
+			if (gOFS->_rem(fullpath.c_str(), lError, rootvid, (const char*) 0)) {
+			  eos_static_err("msg=\"unable to remove file\" path=%s",
+					 fullpath.c_str());
                         } else {
                           eos_static_info("msg=\"permanently deleted file from recycle bin\" "
                                           "path=%s keep-time=%llu", fullpath.c_str(), lKeepTime);
@@ -411,9 +422,9 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
                         continue;
                       }
 
-                      if (gOFS->_remdir(rfoundit->first.c_str(), lError, rootvid, (const char*) 0)) {
-                        eos_static_err("msg=\"unable to remove directory\" path=%s",
-                                       fspath.c_str());
+		      if (gOFS->_remdir(rfoundit->first.c_str(), lError, rootvid, (const char*) 0)) {
+			eos_static_err("msg=\"unable to remove directory\" path=%s",
+				       fspath.c_str());
                       } else {
                         eos_static_info("msg=\"permanently deleted directory from "
                                         "recycle bin\" path=%s keep-time=%llu",

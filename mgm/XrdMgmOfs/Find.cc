@@ -518,7 +518,7 @@ _clone(std::shared_ptr<eos::IContainerMD>& cmd,
     }
 
     eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView,
-        dit.value());
+							    dit.value(), false);
 
     if (cFlag == '+') {
       gOFS->eosViewRWMutex.LockWrite();
@@ -669,7 +669,10 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
                  std::map<std::string, std::set<std::string> >& found,
                  const char* key, const char* val, bool no_files,
                  time_t millisleep, bool nscounter, int maxdepth,
-                 const char* filematch, bool take_lock, bool json_output, FILE* fstdout)
+                 const char* filematch, bool take_lock, bool json_output, FILE* fstdout,
+		 time_t max_ctime_dir,
+		 time_t max_ctime_file,
+		 std::map<std::string, time_t>* found_ctime_sec)
 {
   std::vector< std::vector<std::string> > found_dirs;
   std::shared_ptr<eos::IContainerMD> cmd;
@@ -725,9 +728,13 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
       return SFS_ERROR;
     }
 
-    eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView,
-        Path.c_str(), true, no_files);
+    eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, Path.c_str(), false);
 
+    eos::common::RWMutexReadLock ns_rd_lock;
+
+    if (take_lock) {
+      ns_rd_lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    }
     try {
       cmd = gOFS->eosView->getContainer(Path.c_str(), false);
     } catch (eos::MDException& e) {
@@ -735,6 +742,10 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
       cmd.reset();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                 e.getErrno(), e.getMessage().str().c_str());
+    }
+
+    if (take_lock) {
+      ns_rd_lock.Release();
     }
 
     time_t newId = time(NULL);
@@ -767,7 +778,7 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
 
       // Held only for the current loop
       eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView,
-          Path.c_str(), true, no_files);
+          Path.c_str(), false, no_files);
       eos::common::RWMutexReadLock ns_rd_lock;
 
       if (take_lock) {
@@ -784,9 +795,19 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
                   e.getErrno(), e.getMessage().str().c_str());
       }
 
+      eos::IContainerMD::ctime_t ctime;
+      if (cmd) {
+	cmd->getCTime(ctime);
+      }
+
       if (take_lock) {
         ns_rd_lock.Release();
         sub_cmd_take_lock = true;
+      }
+
+      if (cmd && max_ctime_dir && (ctime.tv_sec > max_ctime_dir)) {
+	// skip directory entries which are newer than max_ctime
+	continue;
       }
 
       if (!gOFS->allow_public_access(Path.c_str(), vid)) {
@@ -884,6 +905,15 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
             }
 
             if (fmd) {
+	      // apply threadshold
+	      eos::IContainerMD::ctime_t ctime;
+	      fmd->getCTime(ctime);
+
+	      if ( max_ctime_file && (ctime.tv_sec > max_ctime_file) ) {
+		// skip file entries which are newer than max ctime
+		continue;
+	      }
+
               // Skip symbolic links
               if (fmd->isLink()) {
                 link = fmd->getLink();
@@ -912,12 +942,19 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
                   found[Path].insert(fname);
                 }
 
+		if (found_ctime_sec) {
+		  (*found_ctime_sec)[Path] = ctime.tv_sec;
+		}
+
                 filesfound++;
               } else {
                 XrdOucString name = fname.c_str();
 
                 if (name.matches(filematch)) {
                   found[Path].insert(fname);
+		  if (found_ctime_sec) {
+		    (*found_ctime_sec)[Path] = ctime.tv_sec;
+		  }
                   filesfound++;
                 }
               }
@@ -967,15 +1004,11 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
     EXEC_TIMING_END("Find");
   }
 
-  stdErr += "fail:";
-  stdErr += std::to_string(fail_if_limited).c_str();
-  stdErr += " limited:";
-  stdErr += std::to_string(limited).c_str();
-
   if (fail_if_limited && limited) {
     errno = E2BIG;
     return Emsg("_find", out_error, E2BIG, "query incomplete - too many files/dirs in tree", path);
   } else {
+    errno = 0;
     return SFS_OK;
   }
 }
