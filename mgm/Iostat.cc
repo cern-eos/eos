@@ -207,7 +207,6 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
 
       XrdOucEnv ioreport(body.c_str());
       std::unique_ptr<eos::common::Report> report(new eos::common::Report(ioreport));
-
       Add("bytes_read", report->uid, report->gid, report->rb, report->ots,
           report->cts);
       Add("bytes_read", report->uid, report->gid, report->rvb_sum, report->ots,
@@ -425,6 +424,8 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
 
     assistant.wait_for(std::chrono::seconds(1));
   }
+
+  eos_static_info("%s", "msg=\"stopping iostat receiver thread\"");
 }
 
 
@@ -1032,7 +1033,8 @@ Iostat::PrintNs(XrdOucString& out, XrdOucString option)
         {
           unsigned long long fid = eos::common::FileId::Hex2Fid(val.c_str());
           eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
-          eos::common::RWMutexReadLock viewLock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+          eos::common::RWMutexReadLock viewLock(gOFS->eosViewRWMutex, __FUNCTION__,
+                                                __LINE__, __FILE__);
 
           try {
             path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid).get());
@@ -1062,7 +1064,8 @@ Iostat::PrintNs(XrdOucString& out, XrdOucString option)
         {
           unsigned long long fid = eos::common::FileId::Hex2Fid(val.c_str());
           eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
-          eos::common::RWMutexReadLock viewLock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+          eos::common::RWMutexReadLock viewLock(gOFS->eosViewRWMutex, __FUNCTION__,
+                                                __LINE__, __FILE__);
 
           try {
             path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid).get());
@@ -1339,7 +1342,6 @@ Iostat::Restore()
   int item = 0;
   char line[16384];
 
-  // coverity[DC.STREAM_BUFFER]
   while ((item = fscanf(fin, "%16383s\n", line)) == 1) {
     XrdOucEnv env(line);
 
@@ -1443,7 +1445,6 @@ Iostat::Circulate(ThreadAssistant& assistant) noexcept
     google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, IostatAvg> >::iterator
     tit;
     google::sparse_hash_map<std::string, IostatAvg >::iterator dit;
-
     time_t now = time(NULL);
 
     // loop over tags
@@ -1498,6 +1499,8 @@ Iostat::Circulate(ThreadAssistant& assistant) noexcept
       PopularityMutex.UnLock();
     }
   }
+
+  eos_static_info("%s", "msg=\"stopping iostat circulate thread\"");
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1648,23 +1651,23 @@ Iostat::AddUdpTarget(const char* target, bool storeitandlock)
 
       port = atoi(a_port.c_str());
       mUdpSocket[starget] = udpsocket;
-
-      XrdNetAddr *addrs  = 0;
+      XrdNetAddr* addrs  = 0;
       int         nAddrs = 0;
-      const char* err    = XrdNetUtils::GetAddrs( a_host.c_str(), &addrs, nAddrs,
-                                                  XrdNetUtils::allIPv64,
-                                                  XrdNetUtils::NoPortRaw );
+      const char* err    = XrdNetUtils::GetAddrs(a_host.c_str(), &addrs, nAddrs,
+                           XrdNetUtils::allIPv64,
+                           XrdNetUtils::NoPortRaw);
 
-      if( err || nAddrs == 0 )
-      {
+      if (err || nAddrs == 0) {
         if (storeitandlock) {
           mBcastMutex.UnLock();
         }
+
         return false;
       }
-      memcpy( (struct sockaddr*) &mUdpSockAddr[starget], addrs[0].SockAddr(), sizeof( sockaddr ) );
-      delete [] addrs;
 
+      memcpy((struct sockaddr*) &mUdpSockAddr[starget], addrs[0].SockAddr(),
+             sizeof(sockaddr));
+      delete [] addrs;
       mUdpSockAddr[starget].sin_family = AF_INET;
       mUdpSockAddr[starget].sin_port = htons(port);
     }
