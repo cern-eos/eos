@@ -73,7 +73,7 @@ bool QuotaHelper::ParseCommand(const char* arg)
   std::string token;
   tokenizer.NextToken(token);
 
-  // quite ugly, but not to break the legacy syntax...
+// quite ugly, but not to break the legacy syntax...
   if ( token == "" || token == "-m" || token == "--path" || token == "-p" || (token.find('/') == 0) ) { // ... or begins with "/"
     // lsuser
     eos::console::QuotaProto_LsuserProto* lsuser = quota->mutable_lsuser();
@@ -84,9 +84,13 @@ bool QuotaHelper::ParseCommand(const char* arg)
         lsuser->set_space(aux_string);
       }
     } else {
-      while (tokenizer.NextToken(token)) {
+      do {
         if (token == "-m") {
           lsuser->set_format(true);
+          aux_string = DefaultRoute(false);
+          if (aux_string.find('/') == 0) {
+            lsuser->set_space(aux_string);
+          }
         } else if (token == "--path" || token == "-p" || (token.find('/') == 0)) {
           if (token == "--path" || token == "-p") {
             if (tokenizer.NextToken(token)) {
@@ -105,7 +109,7 @@ bool QuotaHelper::ParseCommand(const char* arg)
         } else { // no proper argument
           return false;
         }
-      }
+      } while (tokenizer.NextToken(token));
     }
   } else if (token == "ls") {
     eos::console::QuotaProto_LsProto* ls = quota->mutable_ls();
