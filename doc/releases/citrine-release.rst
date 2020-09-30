@@ -15,6 +15,26 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.8.22 Citrine``
+===================
+
+2020-09-30
+
+Bug
+---
+
+* SPEC: adding missing mount helper scripts (packaging issue)
+* SPEC: Avoid richacl for CentOS 8 until RPMs are provided"
+* MGM/FST: Stop the libmicrohttp daemon in the destuctor of the MGM/FST HttpServer
+  derived classes otherwise the Handler method might still be called after the
+  derived classes are destructed (but before MHD_stop_daemon is called in the
+  common HttpServer) causing a SEGV due to "pure virtual method called" EOS-4438
+
+Improvements
+------------
+
+*  MGM: Speed up the shutdown of the routing thread
+
 
 ``v4.8.21 Citrine``
 ===================
