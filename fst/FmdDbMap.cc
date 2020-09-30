@@ -1177,7 +1177,14 @@ FmdDbMapHandler::ResyncFileFromQdb(eos::common::FileId::fileid_t fid,
   // Orphan files get moved to a special directory .eosorphans
   if (ns_fmd.mProtoFmd.layouterror() & eos::common::LayoutId::kOrphan) {
     MoveToOrphans(fpath);
-    //gFmdDbMapHandler.LocalDeleteFmd(fid, fsid);
+    // Also mark it as orphan in leveldb
+    local_fmd.mProtoFmd.set_layouterror(LayoutId::kOrphan);
+
+    if (!Commit(local_fmd.get())) {
+      eos_static_err("msg=\"failed to mark orphan entry\" fxid=%08llx fsid=%u",
+                     fid, fsid);
+    }
+
     return ENOENT;
   }
 
