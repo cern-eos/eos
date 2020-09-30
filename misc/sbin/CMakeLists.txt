@@ -28,3 +28,19 @@ install(
   PERMISSIONS OWNER_READ OWNER_EXECUTE
 	      GROUP_READ GROUP_EXECUTE
 	      WORLD_READ WORLD_EXECUTE)
+
+if( MacOSX )
+  install(
+    FILES mount.eos mount.eosx
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/sbin/
+    PERMISSIONS OWNER_READ OWNER_EXECUTE
+               GROUP_READ GROUP_EXECUTE
+               WORLD_READ WORLD_EXECUTE)
+else()
+  install(
+    FILES mount.eos mount.eosx
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/../sbin/
+    PERMISSIONS OWNER_READ OWNER_EXECUTE
+               GROUP_READ GROUP_EXECUTE
+               WORLD_READ WORLD_EXECUTE)
+endif()
