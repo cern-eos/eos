@@ -188,7 +188,7 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
         long long content_left = content_length;
 
         do {
-          size_t content_read = std::min(1024 * 1024ll, content_left);
+          size_t content_read = std::min(256 * 1024ll, content_left);
           char* data = 0;
           size_t rbytes = req.BuffgetData(content_read, &data, true);
           // @TODO: improve me by avoiding to copy the buffer
@@ -201,8 +201,8 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
           }
 
           if (rbytes != content_read) {
-            eos_static_crit("short read during put - receveid %lu instead of %lu bytes",
-                            content_read, rbytes);
+            eos_static_crit("short read during put - received %lu instead of %lu bytes",
+                            rbytes, content_read);
             retc = -1;
           } else {
             retc |= OFS->mHttpd->FileWriter(handler.get(),
