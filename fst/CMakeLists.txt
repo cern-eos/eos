@@ -247,7 +247,7 @@ set(XRDEOSFST_SRCS
   XrdFstOfsFile.cc               XrdFstOfsFile.hh
   # Storage interface
   storage/Balancer.cc
-  storage/Cleaner.cc             storage/Communicator.cc
+  storage/Communicator.cc
   storage/ErrorReport.cc
   storage/FileSystem.cc          storage/MgmSyncer.cc
   storage/Publish.cc             storage/Remover.cc

@@ -105,28 +105,6 @@ public:
   }
 
   //-----------------------------------------------------------------------------
-  //! Set location of the transaction directory
-  //!
-  //! @param tx transaction directory path
-  //-----------------------------------------------------------------------------
-  inline void SetTransactionDirectory(const char* tx)
-  {
-    mTxDirectory = tx;
-  }
-
-  //-----------------------------------------------------------------------------
-  //! Get path for the transaction directory
-  //-----------------------------------------------------------------------------
-  inline const char* GetTransactionDirectory() const
-  {
-    return mTxDirectory.c_str();
-  }
-
-  void CleanTransactions();
-
-  bool SyncTransactions(const char* manager);
-
-  //-----------------------------------------------------------------------------
   //! Configure scanner thread - possibly start the scanner
   //!
   //! @param fst_load file system IO load monitoring object
@@ -179,9 +157,6 @@ public:
   void BroadcastError(const char* msg);
   void BroadcastError(int errc, const char* errmsg);
   void BroadcastStatus();
-
-  bool OpenTransaction(unsigned long long fid);
-  bool CloseTransaction(unsigned long long fid);
 
   void
   SetError(int errc, const char* errmsg)

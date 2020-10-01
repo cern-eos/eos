@@ -618,10 +618,6 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   if (mIsRW) {
     gOFS.openedForWriting.up(mFsId, mFileId);
 
-    if (!gOFS.Storage->OpenTransaction(mFsId, mFileId)) {
-      eos_crit("msg=\"cannot open transaction\" fsid=%lu fxid=%08llx",
-               mFsId, mFileId);
-    }
   } else {
     gOFS.openedForReading.up(mFsId, mFileId);
   }
@@ -1442,10 +1438,6 @@ XrdFstOfsFile::_close()
             if (rc) {
               if ((error.getErrInfo() == EIDRM) || (error.getErrInfo() == EBADE) ||
                   (error.getErrInfo() == EBADR) || (error.getErrInfo() == EREMCHG)) {
-                if (!gOFS.Storage->CloseTransaction(mFsId, mFileId)) {
-                  eos_crit("msg=\"failed to close transaction\" fxid=%08llx fsid=%lu",
-                           mFileId, mFsId);
-                }
 
                 if (error.getErrInfo() == EIDRM) {
                   // This file has been deleted in the meanwhile ... we can
@@ -1483,9 +1475,6 @@ XrdFstOfsFile::_close()
                          " - closing transaction to keep the file save - rc=%d",
                          error.getErrText(), rc);
 
-                if (mIsRW) {
-                  gOFS.Storage->CloseTransaction(mFsId, mFileId);
-                }
               }
             } else {
               commited_to_mgm = true;
@@ -1493,10 +1482,6 @@ XrdFstOfsFile::_close()
           }
         }
       }
-    }
-
-    if (mIsRW && (rc == SFS_OK)) {
-      gOFS.Storage->CloseTransaction(mFsId, mFileId);
     }
 
     // Recompute our ETag

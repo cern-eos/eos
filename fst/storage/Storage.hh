@@ -116,28 +116,6 @@ public:
   fst::FileSystem* GetFileSystemById(eos::common::FileSystem::fsid_t fsid);
 
   //----------------------------------------------------------------------------
-  //! Open transaction operation for file fid on filesystem fsid
-  //!
-  //! @param fsid filesystem id
-  //! @param fid file id
-  //!
-  //! @return true if transaction opened successfully, otherwise false
-  //----------------------------------------------------------------------------
-  bool OpenTransaction(eos::common::FileSystem::fsid_t fsid,
-                       unsigned long long fid);
-
-  //----------------------------------------------------------------------------
-  //! Close transaction operation for file fid on filesystem fsid
-  //!
-  //! @param fsid filesystem id
-  //! @param fid file id
-  //!
-  //! @return true if transaction closed successfully, otherwise false
-  //----------------------------------------------------------------------------
-  bool CloseTransaction(eos::common::FileSystem::fsid_t fsid,
-                        unsigned long long fid);
-
-  //----------------------------------------------------------------------------
   //! Push new verification job to the queue if the maximum number of pending
   //! verifications is not exceeded.
   //!
@@ -224,7 +202,6 @@ private:
   static void* StartFsErrorReport(void* pp);
   static void* StartFsVerify(void* pp);
   static void* StartFsBalancer(void* pp);
-  static void* StartFsCleaner(void* pp);
   static void* StartMgmSyncer(void* pp);
   static void* StartBoot(void* pp);
 
@@ -308,7 +285,6 @@ private:
     const QdbContactDetails& cd, ThreadAssistant& assistant);
 
   void Balancer();
-  void Cleaner();
   void MgmSyncer();
   void Boot(fst::FileSystem* fs);
 

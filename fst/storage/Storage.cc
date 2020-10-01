@@ -209,16 +209,7 @@ Storage::Storage(const char* meta_dir)
   }
 
   mThreadSet.insert(tid);
-  eos_info("starting filesystem transaction cleaner thread");
 
-  if ((rc = XrdSysThread::Run(&tid, Storage::StartFsCleaner,
-                              static_cast<void*>(this),
-                              0, "Cleaner Thread"))) {
-    eos_crit("cannot start cleaner thread");
-    mZombie = true;
-  }
-
-  mThreadSet.insert(tid);
   eos_info("starting mgm synchronization thread");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartMgmSyncer,
@@ -530,12 +521,6 @@ Storage::Boot(FileSystem* fs)
     return;
   }
 
-  fs->SetTransactionDirectory(transactionDirectory.c_str());
-
-  if (fs->SyncTransactions(manager.c_str())) {
-    fs->CleanTransactions();
-  }
-
   fs->SetLongLong("stat.bootdonetime", (unsigned long long) time(NULL));
   fs->IoPing();
   fs->SetStatus(eos::common::BootStatus::kBooted);
@@ -661,17 +646,6 @@ Storage::StartFsBalancer(void* pp)
 }
 
 //------------------------------------------------------------------------------
-// Start cleaner thread
-//------------------------------------------------------------------------------
-void*
-Storage::StartFsCleaner(void* pp)
-{
-  Storage* storage = (Storage*) pp;
-  storage->Cleaner();
-  return 0;
-}
-
-//------------------------------------------------------------------------------
 // Start mgm syncer thread
 //------------------------------------------------------------------------------
 void*
@@ -756,36 +730,6 @@ Storage::RunBootThread(FileSystem* fs)
   }
 
   return retc;
-}
-
-//------------------------------------------------------------------------------
-// Open transaction operation
-//------------------------------------------------------------------------------
-bool
-Storage::OpenTransaction(unsigned int fsid, unsigned long long fid)
-{
-  auto it = mFsMap.find(fsid);
-
-  if (it != mFsMap.end()) {
-    return it->second->OpenTransaction(fid);
-  }
-
-  return false;
-}
-
-//------------------------------------------------------------------------------
-// Close transaction operation
-//------------------------------------------------------------------------------
-bool
-Storage::CloseTransaction(unsigned int fsid, unsigned long long fid)
-{
-  auto it = mFsMap.find(fsid);
-
-  if (it != mFsMap.end()) {
-    return it->second->CloseTransaction(fid);
-  }
-
-  return false;
 }
 
 //------------------------------------------------------------------------------

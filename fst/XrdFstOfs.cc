@@ -1296,10 +1296,6 @@ XrdFstOfs::_rem(const char* path, XrdOucErrInfo& error,
     rc = io->fileRemove();
   }
 
-  // Cleanup possible transactions - there should be no open transaction for this
-  // file, in any case there is nothing to do here.
-  (void) gOFS.Storage->CloseTransaction(fsid, fid);
-
   if (rc) {
     if (errno == ENOENT) {
       // Ignore error if a file to be deleted doesn't exist
