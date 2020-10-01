@@ -22,6 +22,7 @@
 
 #include "common/StringConversion.hh"
 #include "common/StringTokenizer.hh"
+#include "common/ParseUtils.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/ICmdHelper.hh"
 
@@ -147,34 +148,36 @@ RouteHelper::ParseCommand(const char* arg)
       eos::console::RouteProto_LinkProto_Endpoint* ep = link->add_endpoints();
       std::vector<std::string> elems;
       eos::common::StringConversion::Tokenize(endpoint, elems, ":");
-      ep->set_fqdn(elems[0]);
-      uint32_t xrd_port, http_port;
+      const std::string fqdn = elems[0];
+
+      if (!eos::common::ValidHostnameOrIP(fqdn)) {
+        std::cerr << "error: invalid hostname specified" << std::endl;
+        return false;
+      }
+
+      uint32_t xrd_port = sDefaultXrdPort;
+      uint32_t http_port = sDefaultHttpPort;
 
       if (elems.size() == 3) {
         try {
           xrd_port = std::stoul(elems[1]);
           http_port = std::stoul(elems[2]);
         } catch (const std::exception& e) {
+          std::cerr << "error: failed to parse ports for route" << std::endl;
           return false;
         }
-
-        ep->set_xrd_port(xrd_port);
-        ep->set_http_port(http_port);
       } else if (elems.size() == 2) {
         try {
           xrd_port = std::stoi(elems[1]);
         } catch (const std::exception& e) {
+          std::cerr << "error: failed to parse xrd port for route" << std::endl;
           return false;
         }
-
-        ep->set_xrd_port(xrd_port);
-        ep->set_http_port(sDefaultHttpPort);
-      } else if (elems.size() == 1) {
-        ep->set_xrd_port(sDefaultXrdPort);
-        ep->set_http_port(sDefaultHttpPort);
-      } else {
-        return false;
       }
+
+      ep->set_fqdn(fqdn);
+      ep->set_xrd_port(xrd_port);
+      ep->set_http_port(http_port);
     }
   } else {
     return false;

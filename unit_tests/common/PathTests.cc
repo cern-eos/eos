@@ -137,4 +137,15 @@ TEST(ParseUtils, ParseHostNamePort)
   ASSERT_EQ(port, 2020);
 }
 
+TEST(ParseUtils, ValidHostnameOrIP)
+{
+  ASSERT_TRUE(eos::common::ValidHostnameOrIP("eos.cern.ch"));
+  ASSERT_TRUE(eos::common::ValidHostnameOrIP("eos1.cern.ch"));
+  ASSERT_TRUE(eos::common::ValidHostnameOrIP("eos-test1.cern.ch"));
+  ASSERT_TRUE(eos::common::ValidHostnameOrIP("128.141.194.200"));
+  ASSERT_TRUE(eos::common::ValidHostnameOrIP("2001:1458:202:229::100:3f"));
+  ASSERT_FALSE(eos::common::ValidHostnameOrIP("*eos.cern.ch"));
+  ASSERT_FALSE(eos::common::ValidHostnameOrIP("eos&.cern.ch"));
+}
+
 EOSCOMMONNAMESPACE_END

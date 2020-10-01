@@ -22,6 +22,7 @@
 
 #include "mgm/RouteEndpoint.hh"
 #include "common/StringConversion.hh"
+#include "common/ParseUtils.hh"
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include <sstream>
@@ -67,7 +68,7 @@ RouteEndpoint::ParseFromString(const std::string& input)
     return false;
   }
 
-  return true;
+  return eos::common::ValidHostnameOrIP(mFqdn);
 }
 
 //------------------------------------------------------------------------------

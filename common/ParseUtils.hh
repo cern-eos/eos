@@ -136,6 +136,23 @@ inline bool ParseHostNamePort(const std::string& input, std::string& host,
   return true;
 }
 
+
+//------------------------------------------------------------------------------
+//! Check that the given string is a valid hostname or IP specification
+//!
+//! @param input hostname host.cern.ch or IP address
+//------------------------------------------------------------------------------
+inline bool ValidHostnameOrIP(const std::string& input)
+{
+  for (const auto& c : input) {
+    if (!std::isalnum(c) && (c != '.') && (c != '-') && (c != ':')) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 EOSCOMMONNAMESPACE_END
 
 #endif
