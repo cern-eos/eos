@@ -823,57 +823,52 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
   out += table_all.GenerateTable(HEADER).c_str();
 
   if (details) {
-    google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, StatAvg > >::iterator
-    tuit;
-    google::sparse_hash_map<std::string, google::sparse_hash_map<gid_t, StatAvg > >::iterator
-    tgit;
-    google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, StatExt > >::iterator
-    tuit_ext;
-    google::sparse_hash_map<std::string, google::sparse_hash_map<gid_t, StatExt > >::iterator
-    tgit_ext;
+    // Collect uids and gids inside the lock and the do the translation outside
+    // the lock
+    std::set<uid_t> set_uids;
+    std::set<gid_t> set_gids;
+
+    for (auto tuit = StatAvgUid.begin(); tuit != StatAvgUid.end(); tuit++) {
+      for (auto it = tuit->second.begin(); it != tuit->second.end(); ++it) {
+        set_uids.insert(it->first);
+      }
+    }
+
+    for (auto tuit_ext = StatExtUid.begin(); tuit_ext != StatExtUid.end();
+         tuit_ext++) {
+      for (auto it = tuit_ext->second.begin(); it != tuit_ext->second.end(); ++it) {
+        set_uids.insert(it->first);
+      }
+    }
+
+    for (auto tgit = StatAvgGid.begin(); tgit != StatAvgGid.end(); tgit++) {
+      for (auto it = tgit->second.begin(); it != tgit->second.end(); ++it) {
+        set_gids.insert(it->first);
+      }
+    }
+
+    for (auto tgit_ext = StatExtGid.begin(); tgit_ext != StatExtGid.end();
+         tgit_ext++) {
+      for (auto it = tgit_ext->second.begin(); it != tgit_ext->second.end(); ++it) {
+        set_gids.insert(it->first);
+      }
+    }
+
     mMutex.UnLock();
-    // Don't translate names with a mutex lock
     std::map<uid_t, std::string> umap;
     std::map<gid_t, std::string> gmap;
 
-    for (tuit = StatAvgUid.begin(); tuit != StatAvgUid.end(); tuit++) {
-      google::sparse_hash_map<uid_t, StatAvg>::iterator it;
-
-      for (it = tuit->second.begin(); it != tuit->second.end(); ++it) {
-        int terrc = 0;
-        std::string username = eos::common::Mapping::UidToUserName(it->first, terrc);
-        umap[it->first] = username;
-      }
+    for (const auto numeric_uid : set_uids) {
+      int terrc = 0;
+      std::string username = eos::common::Mapping::UidToUserName(numeric_uid, terrc);
+      umap[numeric_uid] = username;
     }
 
-    for (tuit_ext = StatExtUid.begin(); tuit_ext != StatExtUid.end(); tuit_ext++) {
-      google::sparse_hash_map<uid_t, StatExt>::iterator it;
-
-      for (it = tuit_ext->second.begin(); it != tuit_ext->second.end(); ++it) {
-        int terrc = 0;
-        std::string username = eos::common::Mapping::UidToUserName(it->first, terrc);
-        umap[it->first] = username;
-      }
-    }
-
-    for (tgit = StatAvgGid.begin(); tgit != StatAvgGid.end(); tgit++) {
-      google::sparse_hash_map<gid_t, StatAvg>::iterator it;
-
-      for (it = tgit->second.begin(); it != tgit->second.end(); ++it) {
-        int terrc = 0;
-        std::string groupname = eos::common::Mapping::GidToGroupName(it->first, terrc);
-        gmap[it->first] = groupname;
-      }
-    }
-
-    for (tgit_ext = StatExtGid.begin(); tgit_ext != StatExtGid.end(); tgit_ext++) {
-      google::sparse_hash_map<gid_t, StatExt>::iterator it;
-
-      for (it = tgit_ext->second.begin(); it != tgit_ext->second.end(); ++it) {
-        int terrc = 0;
-        std::string groupname = eos::common::Mapping::GidToGroupName(it->first, terrc);
-        gmap[it->first] = groupname;
-      }
+    for (const auto numeric_gid : set_gids) {
+      int terrc = 0;
+      std::string groupname = eos::common::Mapping::GidToGroupName(numeric_gid,
+                              terrc);
+      gmap[numeric_gid] = groupname;
     }
 
     mMutex.Lock();
@@ -908,10 +903,8 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
         double, double, double, double, double, double, double, double,
         double, double, double, double, double, double>> table_data_ext;
 
-    for (tuit = StatAvgUid.begin(); tuit != StatAvgUid.end(); tuit++) {
-      google::sparse_hash_map<uid_t, StatAvg>::iterator it;
-
-      for (it = tuit->second.begin(); it != tuit->second.end(); ++it) {
+    for (auto tuit = StatAvgUid.begin(); tuit != StatAvgUid.end(); tuit++) {
+      for (auto it = tuit->second.begin(); it != tuit->second.end(); ++it) {
         std::string username;
 
         if (numerical) {
@@ -929,10 +922,9 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
       }
     }
 
-    for (tuit_ext = StatExtUid.begin(); tuit_ext != StatExtUid.end(); tuit_ext++) {
-      google::sparse_hash_map<uid_t, StatExt>::iterator it;
-
-      for (it = tuit_ext->second.begin(); it != tuit_ext->second.end(); ++it) {
+    for (auto tuit_ext = StatExtUid.begin(); tuit_ext != StatExtUid.end();
+         tuit_ext++) {
+      for (auto it = tuit_ext->second.begin(); it != tuit_ext->second.end(); ++it) {
         std::string username;
 
         if (numerical) {
@@ -981,10 +973,8 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
       });
     }
 
-    for (tgit = StatAvgGid.begin(); tgit != StatAvgGid.end(); tgit++) {
-      google::sparse_hash_map<gid_t, StatAvg>::iterator it;
-
-      for (it = tgit->second.begin(); it != tgit->second.end(); ++it) {
+    for (auto tgit = StatAvgGid.begin(); tgit != StatAvgGid.end(); tgit++) {
+      for (auto it = tgit->second.begin(); it != tgit->second.end(); ++it) {
         std::string groupname;
 
         if (numerical) {
@@ -1002,10 +992,9 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
       }
     }
 
-    for (tgit_ext = StatExtGid.begin(); tgit_ext != StatExtGid.end(); tgit_ext++) {
-      google::sparse_hash_map<gid_t, StatExt>::iterator it;
-
-      for (it = tgit_ext->second.begin(); it != tgit_ext->second.end(); ++it) {
+    for (auto tgit_ext = StatExtGid.begin(); tgit_ext != StatExtGid.end();
+         tgit_ext++) {
+      for (auto it = tgit_ext->second.begin(); it != tgit_ext->second.end(); ++it) {
         std::string groupname;
 
         if (numerical) {
