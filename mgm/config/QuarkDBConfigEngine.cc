@@ -305,10 +305,9 @@ QuarkDBConfigEngine::PullFromQuarkDB(const std::string& configName)
 
   sConfigDefinitions.erase("timestamp");
 
-  for (auto it = sConfigDefinitions.begin(); it != sConfigDefinitions.end();
-       it++) {
-    eos_notice("setting config key=\"%s\" value=\"%s\"", it->first.c_str(),
-               it->second.c_str());
+  for (const auto& elem :  sConfigDefinitions) {
+    eos_static_notice("msg=\"setting config\" key=\"%s\" value=\"%s\"",
+                      elem.first.c_str(), elem.second.c_str());
   }
 
   return common::Status();
@@ -329,8 +328,8 @@ QuarkDBConfigEngine::FilterConfig(std::ostream& out,
     return;
   }
 
-  for (auto it = config.begin(); it != config.end(); it++) {
-    out << it->first << " => " << it->second << "\n";
+  for (const auto& elem : config) {
+    out << elem.first << " => " << elem.second << "\n";
   }
 }
 
@@ -368,7 +367,7 @@ QuarkDBConfigEngine::SetConfigValue(const char* prefix, const char* key,
     return;
   }
 
-  eos_debug("msg=\"store config\" key=\"%s\" val=\"%s\"", key, val);
+  eos_static_info("msg=\"store config\" key=\"%s\" val=\"%s\"", key, val);
   std::string config_key = formFullKey(prefix, key);
   {
     std::lock_guard lock(mMutex);
@@ -454,7 +453,7 @@ void checkWriteConfigurationResult(common::Status st)
 void QuarkDBConfigEngine::storeIntoQuarkDB(const std::string& name)
 {
   std::lock_guard lock(mMutex);
-  clearDeprecated(sConfigDefinitions);
+  FilterDeprecated(sConfigDefinitions);
   mConfigHandler->writeConfiguration(name, sConfigDefinitions, true,
                                      formatBackupTime(time(NULL)))
   .via(mExecutor.get())

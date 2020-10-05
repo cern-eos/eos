@@ -37,6 +37,7 @@
 #include <sys/mount.h>
 #endif
 #include <atomic>
+#include <list>
 
 namespace eos
 {
@@ -597,6 +598,20 @@ public:
   //! Get the message string to register a filesystem
   //----------------------------------------------------------------------------
   static const char* GetRegisterRequestString();
+
+  //----------------------------------------------------------------------------
+  //! Serializes hash contents as follows 'key1=val1 key2=val2 ... keyn=valn'
+  //! but return only keys that don't start with filter_prefix. If specified,
+  //! the string values will be curl encoded
+  //!
+  //! @param contents key value pairs
+  //! @param filter_prefix prefix used for filtering keys
+  //!
+  //! @return string representation of the content for the hash
+  //----------------------------------------------------------------------------
+  static std::string
+  SerializeWithFilter(const std::map<std::string, std::string>& contents,
+                      std::list<std::string> filter_prefixes);
 
   //----------------------------------------------------------------------------
   //! Cache Members

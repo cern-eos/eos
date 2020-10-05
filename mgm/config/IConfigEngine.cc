@@ -40,6 +40,7 @@
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "common/StringUtils.hh"
+#include "common/StringTokenizer.hh"
 #include "mq/SharedHashWrapper.hh"
 #include <sstream>
 
@@ -66,7 +67,8 @@ IConfigEngine::IConfigEngine():
 // XrdOucHash callback function to apply a configuration value
 //------------------------------------------------------------------------------
 int
-IConfigEngine::ApplyEachConfig(const char* key, XrdOucString* val, XrdOucString* err)
+IConfigEngine::ApplyEachConfig(const char* key, XrdOucString* val,
+                               XrdOucString* err)
 {
   if (!key || !val) {
     return 0;
@@ -220,7 +222,8 @@ void IConfigEngine::publishConfigChange(const std::string& key,
 
   while (repval.replace("&", " ")) {}
 
-  mq::SharedHashWrapper::makeGlobalMgmHash(gOFS->mMessagingRealm.get()).set(key, repval.c_str());
+  mq::SharedHashWrapper::makeGlobalMgmHash(gOFS->mMessagingRealm.get()).set(key,
+      repval.c_str());
 }
 
 //------------------------------------------------------------------------------
@@ -464,7 +467,7 @@ IConfigEngine::IsDeprecated(const std::string& config_key) const
     }
   }
 
-  if(common::startsWith(config_key, "comment-")) {
+  if (common::startsWith(config_key, "comment-")) {
     return true;
   }
 
@@ -472,19 +475,46 @@ IConfigEngine::IsDeprecated(const std::string& config_key) const
 }
 
 //------------------------------------------------------------------------------
-// Clear deprecated entries from the map
+// Filter out deprecated entries from the map
 //------------------------------------------------------------------------------
 void
-IConfigEngine::clearDeprecated(std::map<std::string, std::string> &map) {
+IConfigEngine::FilterDeprecated(std::map<std::string, std::string>& map)
+{
+  using namespace eos::common;
   std::set<std::string> deprecated;
 
   for (auto it = map.begin(); it != map.end(); it++) {
-    if(IsDeprecated(it->first)) {
+    if (IsDeprecated(it->first)) {
       deprecated.insert(it->first);
+      continue;
+    }
+
+    // Filter out deprecated file system attributes
+    if (it->first.find("fs:/eos/") == 0) {
+      std::map<std::string, std::string> fs_map;
+      std::list<string> fs_attrs = StringTokenizer::split<std::list<std::string>>
+                                   (it->second, ' ');
+
+      for (const auto& elem : fs_attrs) {
+        std::string key, val;
+
+        if (StringConversion::SplitKeyValue(elem, key, val, "=")) {
+          fs_map[key] = val;
+        } else {
+          continue;
+        }
+      }
+
+      if (fs_map.empty()) {
+        continue;
+      }
+
+      std::string data = FileSystem::SerializeWithFilter(fs_map, {"stat.", "local."});
+      map[it->first] = data;
     }
   }
 
-  for(auto it = deprecated.begin(); it != deprecated.end(); it++) {
+  for (auto it = deprecated.begin(); it != deprecated.end(); it++) {
     map.erase(*it);
   }
 }

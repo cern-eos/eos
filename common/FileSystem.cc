@@ -931,46 +931,44 @@ FileSystem::GetSpace()
 
 //------------------------------------------------------------------------------
 // Serializes hash contents as follows 'key1=val1 key2=val2 ... keyn=valn'
-// but return only keys that don't start with filter_prefix. If specified,
-// the string values will be curl encoded
-//
-// @param filter_prefix prefix used for filtering keys
-// @param encode_strings curl encode string literal values
-//
-// @return string representation of the content for the hash
+// but return only keys that don't start with filter_prefix.
 //------------------------------------------------------------------------------
-static std::string serializeWithFilter(
-  const std::map<std::string, std::string>& contents,
-  std::list<std::string> filter_prefixes)
+std::string
+FileSystem::SerializeWithFilter(const std::map<std::string, std::string>&
+                                contents,
+                                std::list<std::string> filter_prefixes)
 {
   using eos::common::StringConversion;
   std::string key;
   std::string val;
   std::ostringstream oss;
+  bool filter_out;
+  filter_prefixes.push_back("drainstatus");
 
   for (auto it = contents.begin(); it != contents.end(); it++) {
     key = it->first.c_str();
+    filter_out = false;
 
-    // @todo(esindril): This should be removed in version 5.0.0. Exclude old
-    // drainstatus indicator which is not saved in the config anymore.
-    if (key == "drainstatus") {
-      continue;
+    for (const auto& prefix : filter_prefixes) {
+      if (prefix.length() && (key.find(prefix) == 0)) {
+        filter_out = true;
+        break;
+      }
     }
 
-    for (const auto& filter_prefix : filter_prefixes) {
-      if ((filter_prefix.length() == 0) ||
-          (key.find(filter_prefix) != 0)) {
-        val = it->second;
+    if (filter_out) {
+      eos_static_debug("msg=\"filter out\" key=\"%s\"", key.c_str());
+    } else {
+      val = it->second;
 
-        if ((val[0] == '"') && (val[val.length() - 1] == '"')) {
-          std::string to_encode = val.substr(1, val.length() - 2);
-          std::string encoded = StringConversion::curl_default_escaped(to_encode);
+      if ((val[0] == '"') && (val[val.length() - 1] == '"')) {
+        std::string to_encode = val.substr(1, val.length() - 2);
+        std::string encoded = StringConversion::curl_default_escaped(to_encode);
 
-          if (!encoded.empty()) {
-            val = '"';
-            val += encoded;
-            val += '"';
-          }
+        if (!encoded.empty()) {
+          val = '"';
+          val += encoded;
+          val += '"';
         }
       }
 
@@ -1120,7 +1118,7 @@ FileSystem::CreateConfig(std::string& key, std::string& val)
   val.clear();
   std::map<std::string, std::string> contents;
   mq::SharedHashWrapper(mRealm, mHashLocator).getContents(contents);
-  val = serializeWithFilter(contents, {"stat.", "local."});
+  val = SerializeWithFilter(contents, {"stat.", "local."});
 }
 
 //------------------------------------------------------------------------------

@@ -106,7 +106,8 @@ public:
   //!         = 0 - the next hash table item is processed
   //!         > 0 - processing stops and the hash table item is returned
   //----------------------------------------------------------------------------
-  static int ApplyEachConfig(const char* key, XrdOucString* val, XrdOucString* err);
+  static int ApplyEachConfig(const char* key, XrdOucString* val,
+                             XrdOucString* err);
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -159,7 +160,7 @@ public:
   //! @return true if saved successfully, otherwise false
   //----------------------------------------------------------------------------
   virtual bool SaveConfig(std::string filename, bool overwrite,
-    const std::string& comment, XrdOucString& err) = 0;
+                          const std::string& comment, XrdOucString& err) = 0;
 
   //----------------------------------------------------------------------------
   //! List all configurations
@@ -299,9 +300,9 @@ protected:
   bool IsDeprecated(const std::string& config_key) const;
 
   //----------------------------------------------------------------------------
-  //! Clear deprecated entries from the map
+  //! Filter out entries from the map
   //----------------------------------------------------------------------------
-  void clearDeprecated(std::map<std::string, std::string> &map);
+  void FilterDeprecated(std::map<std::string, std::string>& map);
 
 private:
 
@@ -311,7 +312,7 @@ private:
   //! @param out output representation of the configuration after filtering
   //! @param cfg_name configuration name
   //----------------------------------------------------------------------------
-  virtual void FilterConfig(std::ostream& out, const std::string &configName) = 0;
+  virtual void FilterConfig(std::ostream& out, const std::string& configName) = 0;
 };
 
 EOSMGMNAMESPACE_END
