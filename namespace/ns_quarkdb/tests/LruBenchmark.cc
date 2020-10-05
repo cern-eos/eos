@@ -28,7 +28,7 @@
 //! Global synchronization primitives
 std::mutex gMutex;
 std::condition_variable gCondVar;
-std::atomic<int> gDoneWork {0};
+std::atomic<unsigned long> gDoneWork {0};
 
 
 //------------------------------------------------------------------------------
@@ -101,7 +101,7 @@ int main(int argc, char* argv[])
   Populate(lru, max_size);
   std::list<std::thread> workers;
 
-  for (int i = 0; i < num_threads; ++i) {
+  for (auto i = 0ull; i < num_threads; ++i) {
     workers.emplace_back(WokerThread, std::ref(lru), num_requests, max_size);
   }
 
