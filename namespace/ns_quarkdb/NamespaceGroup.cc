@@ -60,6 +60,7 @@ QuarkNamespaceGroup::~QuarkNamespaceGroup()
   mQuotaFlusher.reset();
   mQClient.reset();
   mExecutor.reset();
+  mPerfMonitor.reset();
 }
 
 //------------------------------------------------------------------------------
@@ -121,8 +122,9 @@ bool QuarkNamespaceGroup::initialize(eos::common::RWMutex* nsMtx,
   }
 
   flusherQuotaTag = it->second;
+  mPerfMonitor = std::make_shared<eos::QClPerfMonitor>();
 
-  if(!enforceQuarkDBVersion(getQClient())) {
+  if (!enforceQuarkDBVersion(getQClient())) {
     err = "QuarkDB is either down, or running an outdated version.";
     return false;
   }
@@ -290,8 +292,10 @@ qclient::QClient* QuarkNamespaceGroup::getQClient()
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
   if (!mQClient) {
+    qclient::Options options = contactDetails.constructOptions();
+    options.mPerfCb = mPerfMonitor;
     mQClient = std::make_unique<qclient::QClient>(contactDetails.members,
-               contactDetails.constructOptions());
+               std::move(options));
   }
 
   return mQClient.get();
@@ -309,12 +313,23 @@ folly::Executor* QuarkNamespaceGroup::getExecutor()
 //------------------------------------------------------------------------------
 // Start cache refresh listener
 //------------------------------------------------------------------------------
-void QuarkNamespaceGroup::startCacheRefreshListener() {
+void QuarkNamespaceGroup::startCacheRefreshListener()
+{
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
-  if(!mCacheRefreshListener) {
-    mCacheRefreshListener.reset(new CacheRefreshListener(contactDetails, mFileService->getMetadataProvider()));
+  if (!mCacheRefreshListener) {
+    mCacheRefreshListener.reset(new CacheRefreshListener(contactDetails,
+                                mFileService->getMetadataProvider()));
   }
+}
+
+//------------------------------------------------------------------------------
+// Get qclient performance monitor
+//------------------------------------------------------------------------------
+std::shared_ptr<QClPerfMonitor>
+QuarkNamespaceGroup::getPerformanceMonitor()
+{
+  return mPerfMonitor;
 }
 
 EOSNSNAMESPACE_END

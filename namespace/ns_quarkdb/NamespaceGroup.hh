@@ -25,15 +25,18 @@
 #include "namespace/Namespace.hh"
 #include "namespace/interface/INamespaceGroup.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
+#include "namespace/ns_quarkdb/QClPerformance.hh"
 #include <mutex>
 #include <memory>
 
-namespace folly {
-  class Executor;
+namespace folly
+{
+class Executor;
 }
 
-namespace qclient {
-  class QClient;
+namespace qclient
+{
+class QClient;
 }
 
 EOSNSNAMESPACE_BEGIN
@@ -51,7 +54,8 @@ class CacheRefreshListener;
 //------------------------------------------------------------------------------
 //! Class to hold ownership of all QuarkDB-namespace objects.
 //------------------------------------------------------------------------------
-class QuarkNamespaceGroup : public INamespaceGroup {
+class QuarkNamespaceGroup : public INamespaceGroup
+{
 public:
   //----------------------------------------------------------------------------
   //! Constructor
@@ -71,7 +75,7 @@ public:
   //! "err" will be filled out.
   //----------------------------------------------------------------------------
   virtual bool initialize(eos::common::RWMutex* nsMtx, const
-    std::map<std::string, std::string> &config, std::string &err) override final;
+                          std::map<std::string, std::string>& config, std::string& err) override final;
 
   //----------------------------------------------------------------------------
   //! Provide file service
@@ -111,7 +115,8 @@ public:
   //----------------------------------------------------------------------------
   //! Is this in-memory namespace?
   //----------------------------------------------------------------------------
-  virtual bool isInMemory() override final {
+  virtual bool isInMemory() override final
+  {
     return false;
   }
 
@@ -124,6 +129,11 @@ public:
   //! Get quota flusher
   //----------------------------------------------------------------------------
   MetadataFlusher* getQuotaFlusher();
+
+  //----------------------------------------------------------------------------
+  //! Get quota flusher
+  //----------------------------------------------------------------------------
+  std::shared_ptr<QClPerfMonitor> getPerformanceMonitor();
 
   //----------------------------------------------------------------------------
   //! Get generic qclient object for light-weight tasks
@@ -171,7 +181,7 @@ private:
   std::unique_ptr<MetadataFlusher> mQuotaFlusher;     //< Flusher for quota
 
   std::unique_ptr<qclient::QClient> mQClient;         //< Main qclient object
-                                                      //< used for generic tasks
+  //< used for generic tasks
 
   std::unique_ptr<QuarkContainerMDSvc> mContainerService;
   std::unique_ptr<QuarkFileMDSvc> mFileService;
@@ -180,7 +190,7 @@ private:
   std::unique_ptr<QuarkContainerAccounting> mContainerAccounting;
   std::unique_ptr<QuarkSyncTimeAccounting> mSyncAccounting;
   std::unique_ptr<CacheRefreshListener> mCacheRefreshListener;
-
+  std::shared_ptr<QClPerfMonitor> mPerfMonitor; ///< QCl performance monitor
 };
 
 

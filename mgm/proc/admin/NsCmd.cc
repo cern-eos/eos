@@ -36,6 +36,7 @@
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/utils/QuotaRecomputer.hh"
 #include "namespace/ns_quarkdb/NamespaceGroup.hh"
+#include "namespace/ns_quarkdb/QClPerformance.hh"
 #include "namespace/Resolver.hh"
 #include "namespace/Constants.hh"
 #include "mgm/config/IConfigEngine.hh"
@@ -144,6 +145,7 @@ NsCmd::MutexSubcmd(const eos::console::NsProto_MutexProto& mutex,
             << int((timinglatency * sr) / cycleperiod * 100)
             << "% of the mutex lock/unlock cycle duration)";
       }
+
       oss << std::endl;
       oss << "blockedtiming  is : ";
       oss << ns_mtx->BlockedForMsInterval() << " ms" << std::endl;
@@ -185,7 +187,8 @@ NsCmd::MutexSubcmd(const eos::console::NsProto_MutexProto& mutex,
 
     if (mutex.blockedtime()) {
       ns_mtx->SetBlockedForMsInterval(mutex.blockedtime());
-      oss << "blockedtiming set to " << ns_mtx->BlockedForMsInterval() << " ms" << std::endl;
+      oss << "blockedtiming set to " << ns_mtx->BlockedForMsInterval() << " ms" <<
+          std::endl;
     }
 
     if (mutex.sample_rate1() || mutex.sample_rate10() ||
@@ -324,7 +327,8 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
   CacheStatistics fileCacheStats = gOFS->eosFileService->getCacheStatistics();
   CacheStatistics containerCacheStats =
     gOFS->eosDirectoryService->getCacheStatistics();
-  common::MutexLatencyWatcher::LatencySpikes viewLatency = gOFS->mViewMutexWatcher.getLatencySpikes();
+  common::MutexLatencyWatcher::LatencySpikes viewLatency =
+    gOFS->mViewMutexWatcher.getLatencySpikes();
 
   if (monitoring) {
     oss << "uid=all gid=all ns.total.files=" << f << std::endl
@@ -537,10 +541,28 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
           << line << std::endl;
     }
 
-    oss << "ALL      eosViewRWMutex peak-latency      " << viewLatency.last.count() << "ms (last) "
-      << viewLatency.lastMinute.count() << "ms (1 min) " << viewLatency.last2Minutes.count() << "ms (2 min) " <<
-      viewLatency.last5Minutes.count() << "ms (5 min)"
-      << std::endl << line << std::endl;
+    oss << "ALL      eosViewRWMutex peak-latency      " << viewLatency.last.count()
+        << "ms (last) "
+        << viewLatency.lastMinute.count() << "ms (1 min) " <<
+        viewLatency.last2Minutes.count() << "ms (2 min) " <<
+        viewLatency.last5Minutes.count() << "ms (5 min)"
+        << std::endl << line << std::endl;
+
+    if (!gOFS->namespaceGroup->isInMemory()) {
+      auto* qdb_group = dynamic_cast<eos::QuarkNamespaceGroup*>
+                        (gOFS->namespaceGroup.get());
+      auto* perf_monitor = dynamic_cast<eos::QClPerfMonitor*>
+                           (qdb_group->getPerformanceMonitor().get());
+      std::map<std::string, unsigned long long> info = perf_monitor->GetPerfMarkers();
+
+      if (info.find("rtt_min") != info.end()) {
+        oss << "ALL      QClient performance (RTT)        "
+            << info["rtt_min"] / 1000 << "ms (min)  "
+            << info["rtt_avg"] / 1000 << "ms (avg)  "
+            << info["rtt_max"] / 1000 << "ms (max)  "
+            << std::endl << line << std::endl;
+      }
+    }
 
     // Do them one at a time otherwise sizestring is saved only the first time
     oss << "ALL      memory virtual                   "
@@ -797,7 +819,8 @@ void
 NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
                       eos::console::ReplyProto& reply)
 {
-  eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+  eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex, __FUNCTION__,
+      __LINE__, __FILE__);
   std::shared_ptr<IContainerMD> cont;
 
   try {
@@ -849,7 +872,8 @@ NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
   std::string cont_uri {""};
   eos::IContainerMD::id_t cont_id {0ull};
   {
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
+                                            __LINE__, __FILE__);
     std::shared_ptr<IContainerMD> cont {nullptr};
 
     try {
@@ -885,7 +909,8 @@ NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
 
   // Update the quota note
   try {
-    eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex, __FUNCTION__,
+        __LINE__, __FILE__);
     auto cont = gOFS->eosDirectoryService->getContainerMD(cont_id);
 
     if ((cont->getFlags() & eos::QUOTA_NODE_FLAG) == 0) {
