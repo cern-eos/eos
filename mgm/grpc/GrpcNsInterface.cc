@@ -43,7 +43,7 @@
 #include "namespace/Prefetcher.hh"
 #include "namespace/MDException.hh"
 #include "namespace/interface/ContainerIterators.hh"
-
+#include "namespace/utils/Etag.hh"
 
 #include <regex.h>
 /*----------------------------------------------------------------------------*/
@@ -556,6 +556,15 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
 	(*gRPCResponse.mutable_fmd()->mutable_xattrs())[elem.first] = elem.second;
       }
 
+
+      std::string etag;
+      eos::calculateEtag(fmd.get(),etag);
+      if (fmd->hasAttribute("sys.eos.mdino")) {
+        etag = "hardlink";
+      }
+
+      gRPCResponse.mutable_fmd()->set_etag(etag);
+
       gRPCResponse.mutable_fmd()->set_path(path);
       writer->Write(gRPCResponse);
       return grpc::Status::OK;
@@ -649,6 +658,10 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
     gRPCResponse.mutable_cmd()->mutable_mtime()->set_n_sec(mtime.tv_nsec);
     gRPCResponse.mutable_cmd()->mutable_stime()->set_sec(stime.tv_sec);
     gRPCResponse.mutable_cmd()->mutable_stime()->set_n_sec(stime.tv_nsec);
+
+    std::string etag;
+    eos::calculateEtag(cmd.get(), etag);
+    gRPCResponse.mutable_cmd()->set_etag(etag);
 
     for (const auto& elem : cmd->getAttributes()) {
       (*gRPCResponse.mutable_cmd()->mutable_xattrs())[elem.first] = elem.second;
