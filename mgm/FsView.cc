@@ -1757,10 +1757,18 @@ FsView::StoreFsConfig(FileSystem* fs)
   if (fs) {
     std::string key, val;
     fs->CreateConfig(key, val);
+    return StoreFsConfig(key, val);
+  }
+}
 
-    if (FsView::gFsView.mConfigEngine && !key.empty() && !val.empty()) {
-      FsView::gFsView.mConfigEngine->SetConfigValue("fs", key.c_str(), val.c_str());
-    }
+//------------------------------------------------------------------------------
+// Store the filesystem configuration into the config engine.
+//------------------------------------------------------------------------------
+void
+FsView::StoreFsConfig(const std::string& key, const std::string& val)
+{
+  if (FsView::gFsView.mConfigEngine && !key.empty() && !val.empty()) {
+    FsView::gFsView.mConfigEngine->SetConfigValue("fs", key.c_str(), val.c_str());
   }
 }
 

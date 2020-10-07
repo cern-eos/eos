@@ -733,8 +733,18 @@ public:
   //! called whenever a filesystem wide parameters is changed.
   //!
   //! @param fs file system object
+  //! @note this requires at least the read lock on the gFsView.ViewMutex
   //----------------------------------------------------------------------------
   void StoreFsConfig(FileSystem* fs);
+
+  //----------------------------------------------------------------------------
+  //! Store the filesystem configuration into the config engine.
+  //! @note this no longer requires a lock on the gFsView.ViewMutex
+  //!
+  //! @param key file system key identifier
+  //! @param val file system configuration value
+  //----------------------------------------------------------------------------
+  void StoreFsConfig(const std::string& key, const std::string& val);
 
   //----------------------------------------------------------------------------
   //! Remove a filesystem

@@ -210,8 +210,11 @@ void NodeCmd::RmSubcmd(const eos::console::NodeProto_RmProto& rm,
     }
   }
 
-  common::SharedHashLocator nodeLocator = common::SharedHashLocator::makeForNode(nodename);
-  if (!mq::SharedHashWrapper::deleteHash(gOFS->mMessagingRealm.get(), nodeLocator)) {
+  common::SharedHashLocator nodeLocator = common::SharedHashLocator::makeForNode(
+      nodename);
+
+  if (!mq::SharedHashWrapper::deleteHash(gOFS->mMessagingRealm.get(),
+                                         nodeLocator)) {
     reply.set_std_err("error: unable to remove config of node '" + nodename + "'");
     reply.set_retc(EIO);
   } else {
@@ -225,7 +228,8 @@ void NodeCmd::RmSubcmd(const eos::console::NodeProto_RmProto& rm,
   // Delete also the entry from the configuration
   eos_info("msg=\"delete from configuration\" node_name=%s",
            nodeLocator.getConfigQueue().c_str());
-  gOFS->ConfEngine->DeleteConfigValueByMatch("global", nodeLocator.getConfigQueue().c_str());
+  gOFS->ConfEngine->DeleteConfigValueByMatch("global",
+      nodeLocator.getConfigQueue().c_str());
   gOFS->ConfEngine->AutoSave();
 }
 
@@ -304,69 +308,58 @@ void NodeCmd::ConfigSubcmd(const eos::console::NodeProto_ConfigProto& config,
     return;
   }
 
-  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-  std::vector<FsNode*> nodes;
-  FileSystem* fs = nullptr;
+  std::set<std::string> set_nodes;
+  {
+    // Collect the path of the nodes concerned
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
-  if ((config.node_name().find('*') != std::string::npos)) {
-    // apply this to all nodes !
-    for (auto& it : FsView::gFsView.mNodeView) {
-      nodes.push_back(it.second);
-    }
-  } else {
-    // by host:port name
-    std::string path = config.node_name();
+    if ((config.node_name().find('*') != std::string::npos)) {
+      for (auto& it : FsView::gFsView.mNodeView) {
+        set_nodes.insert(it.first);
+      }
+    } else {
+      // by host:port name
+      std::string path = config.node_name();
 
-    if ((path.find(':') == std::string::npos)) {
-      path += ":1095"; // default eos fst port
-    }
+      if ((path.find(':') == std::string::npos)) {
+        path += ":1095"; // default eos fst port
+      }
 
-    if ((path.find("/eos/") == std::string::npos)) {
-      path.insert(0, "/eos/");
-      path.append("/fst");
-    }
+      if ((path.find("/eos/") == std::string::npos)) {
+        path.insert(0, "/eos/");
+        path.append("/fst");
+      }
 
-    if (FsView::gFsView.mNodeView.count(path)) {
-      nodes.push_back(FsView::gFsView.mNodeView[path]);
+      if (FsView::gFsView.mNodeView.count(path)) {
+        set_nodes.insert(path);
+      }
     }
   }
 
-  if (nodes.empty()) {
+  if (set_nodes.empty()) {
     reply.set_retc(EINVAL);
     reply.set_std_err("error: cannot find node <" + config.node_name() + ">");
     return;
   }
 
-  for (auto& node : nodes) {
-    if (config.node_key() == "configstatus") {
-      for (eos::common::FileSystem::fsid_t it : *node) {
-        fs = FsView::gFsView.mIdView.lookupByID(it);
+  // Handle file system specific configurations
+  if (config.node_key() == "configstatus") {
+    return ConfigFsSpecific(set_nodes, config.node_key(), config.node_value(),
+                            reply);
+  }
 
-        if (fs) {
-          // Check the allowed strings
-          if ((eos::common::FileSystem::GetConfigStatusFromString(
-                 config.node_value().c_str()) != eos::common::ConfigStatus::kUnknown)) {
-            fs->SetString(config.node_key().c_str(), config.node_value().c_str());
+  // Handle note specific configurations
+  for (auto& node_path : set_nodes) {
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+    auto it = FsView::gFsView.mNodeView.find(node_path);
 
-            if (config.node_value() == "off") {
-              // We have to remove the errc here, otherwise we cannot terminate
-              // drainjobs on file systems with errc set
-              fs->SetString("errc", "0");
-            }
+    if (it == FsView::gFsView.mNodeView.end()) {
+      continue;
+    }
 
-            FsView::gFsView.StoreFsConfig(fs);
-          } else {
-            reply.set_std_err("error: not an allowed parameter <" +
-                              config.node_key() + ">");
-            reply.set_retc(EINVAL);
-          }
-        } else {
-          reply.set_std_err("error: cannot identify the filesystem by <" +
-                            config.node_name() + ">");
-          reply.set_retc(EINVAL);
-        }
-      }
-    } else if (config.node_key() == "gw.ntx") {
+    FsNode* node = it->second;
+
+    if (config.node_key() == "gw.ntx") {
       int slots = std::stoi(config.node_value());
 
       if ((slots < 1) || (slots > 100)) {
@@ -428,6 +421,63 @@ void NodeCmd::ConfigSubcmd(const eos::console::NodeProto_ConfigProto& config,
   }
 }
 
+//----------------------------------------------------------------------------
+// Execute config operation affecting the file system parameters
+//----------------------------------------------------------------------------
+void
+NodeCmd::ConfigFsSpecific(const std::set<std::string>& nodes,
+                          const std::string& key, const std::string& value,
+                          eos::console::ReplyProto& reply)
+{
+  using eos::common::FileSystem;
+
+  if ((FileSystem::GetConfigStatusFromString(value.c_str()) !=
+       eos::common::ConfigStatus::kUnknown)) {
+    reply.set_std_err("error: not an allowed parameter <" + value + ">");
+    reply.set_retc(EINVAL);
+    return;
+  }
+
+  for (const auto& node_path : nodes) {
+    std::set<eos::common::FileSystem::fsid_t> fsids;
+    {
+      // Collect the list of file systems concerned
+      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+      auto it = FsView::gFsView.mNodeView.find(node_path);
+
+      if (it == FsView::gFsView.mNodeView.end()) {
+        continue;
+      }
+
+      for (eos::common::FileSystem::fsid_t fsid : *it->second) {
+        fsids.insert(fsid);
+      }
+    }
+
+    for (auto fsid : fsids) {
+      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+      auto* fs = FsView::gFsView.mIdView.lookupByID(fsid);
+
+      if (!fs) {
+        continue;
+      }
+
+      fs->SetString(key.c_str(), value.c_str());
+
+      if (value == "off") {
+        // We have to remove the errc here, otherwise we cannot terminate
+        // drainjobs on file systems with errc set
+        fs->SetString("errc", "0");
+      }
+
+      std::string fs_key, fs_val;
+      fs->CreateConfig(fs_key, fs_val);
+      lock.Release();
+      FsView::gFsView.StoreFsConfig(fs_key, fs_val);
+    }
+  }
+}
+
 //------------------------------------------------------------------------------
 // Execute register subcommand
 //------------------------------------------------------------------------------
@@ -461,13 +511,13 @@ void NodeCmd::RegisterSubcmd(const eos::console::NodeProto_RegisterProto&
   }
 
   std::string nodequeue = "/eos/" + registerx.node_name() + "/fst";
+  mq::MessagingRealm::Response response =
+    gOFS->mMessagingRealm->sendMessage("msg", msgbody, nodequeue);
 
-  mq::MessagingRealm::Response response = gOFS->mMessagingRealm->sendMessage("msg", msgbody, nodequeue);
-  if(response.ok()) {
+  if (response.ok()) {
     reply.set_std_out("success: sent global register message to all fst nodes");
     reply.set_retc(0);
-  }
-  else {
+  } else {
     reply.set_std_err("error: could not send global fst register message!");
     reply.set_retc(EIO);
   }

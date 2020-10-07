@@ -41,7 +41,7 @@ public:
   //! @param vid client virtual identity
   //----------------------------------------------------------------------------
   explicit NodeCmd(eos::console::RequestProto&& req,
-                    eos::common::VirtualIdentity& vid):
+                   eos::common::VirtualIdentity& vid):
     IProcCommand(std::move(req), vid, false)
   {}
 
@@ -65,7 +65,7 @@ private:
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
   void LsSubcmd(const eos::console::NodeProto_LsProto& ls,
-               eos::console::ReplyProto& reply);
+                eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
   //! Execute rm subcommand
@@ -83,7 +83,7 @@ private:
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
   static void StatusSubcmd(const eos::console::NodeProto_StatusProto& status,
-                 eos::console::ReplyProto& reply);
+                           eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
   //! Execute config subcommand
@@ -93,6 +93,18 @@ private:
   //----------------------------------------------------------------------------
   void ConfigSubcmd(const eos::console::NodeProto_ConfigProto& config,
                     eos::console::ReplyProto& reply);
+
+  //----------------------------------------------------------------------------
+  //! Execute config operation affecting the file system parameters
+  //!
+  //! @param nodes set of nodes concerned
+  //! @param key configuration key
+  //! @param value configuation value
+  //! @param reply reply protobuf object
+  //----------------------------------------------------------------------------
+  void ConfigFsSpecific(const std::set<std::string>& nodes,
+                        const std::string& key, const std::string& value,
+                        eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
   //! Execute register subcommand
@@ -119,7 +131,7 @@ private:
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
   void TxgwSubcmd(const eos::console::NodeProto_TxgwProto& txgw,
-                 eos::console::ReplyProto& reply);
+                  eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
   //! Execute proxygroup subcommand
@@ -128,7 +140,7 @@ private:
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
   void ProxygroupSubcmd(const eos::console::NodeProto_ProxygroupProto& proxygroup,
-                 eos::console::ReplyProto& reply);
+                        eos::console::ReplyProto& reply);
 
 };
 
