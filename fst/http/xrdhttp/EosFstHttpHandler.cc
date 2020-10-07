@@ -192,7 +192,7 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
 
         do {
           long long content_read = std::min(eoshttp_sz, content_left);
-          body.resize(content_read + 1, '\0');
+          body.resize(content_read, '\0');
           char* ptr = body.data();
           long long read_len = 0;
 
