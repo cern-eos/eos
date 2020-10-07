@@ -358,6 +358,14 @@ static bool eliminateBasedOnAttr(const eos::console::FindProto& req,
   return (attr != req.attributevalue());
 }
 
+// @note I believe it can be improved by early filtering in the QDB search. Will have a look
+static bool eliminateBasedOnFileMatch(const eos::console::FindProto& req,
+                                 const std::shared_ptr<eos::IFileMD>& fmd)
+{
+  XrdOucString name = fmd->getName().c_str();
+  return name.matches(req.name().c_str()) == 0;
+}
+
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
@@ -931,6 +939,10 @@ eos::mgm::FindCmd::ProcessRequest() noexcept
         }
 
         // Selection
+        if (eliminateBasedOnFileMatch(findRequest, fmd)) {
+          selected = false;
+        }
+
         if (eliminateBasedOnTime(findRequest, fmd)) {
           selected = false;
         }
