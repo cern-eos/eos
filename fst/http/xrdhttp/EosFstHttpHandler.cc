@@ -186,23 +186,32 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
 
         int retc = 0;
         long long content_left = content_length;
+        const long long eoshttp_sz = 1024 * 1024;
+        const long long xrdhttp_sz = 256 * 1024;
+        std::string body(eoshttp_sz + 1, '\0');
 
         do {
-          size_t content_read = std::min(256 * 1024ll, content_left);
-          char* data = 0;
-          size_t rbytes = req.BuffgetData(content_read, &data, true);
-          // @TODO: improve me by avoiding to copy the buffer
-          body.reserve(content_read);
-          body.assign(data, rbytes);
+          long long content_read = std::min(eoshttp_sz, content_left);
+          body.resize(content_read + 1, '\0');
+          char* ptr = body.data();
+          long long read_len = 0;
 
-          if (EOS_LOGS_DEBUG) {
-            eos_static_info("content-read=%lli rbytes=%lu body=%u content_left=%lli",
-                            content_read, rbytes, body.size(), content_left);
-          }
+          do {
+            size_t chunk_len = std::min(xrdhttp_sz, content_read - read_len);
+            int rb = req.BuffgetData(chunk_len, &ptr, true);
+            read_len += rb;
+            ptr += rb;
+            eos_static_debug("content-read=%lli rb=%lu body=%u content_left=%lli",
+                             content_read, rb, body.size(), content_left);
 
-          if (rbytes != content_read) {
-            eos_static_crit("short read during put - received %lu instead of %lu bytes",
-                            rbytes, content_read);
+            if (!rb) {
+              break;
+            }
+          } while (read_len < content_read);
+
+          if (read_len != content_read) {
+            eos_static_crit("msg=\"short read during PUT, expected %lu bytes"
+                            " but got %lu bytes", content_read, read_len);
             retc = -1;
           } else {
             retc |= OFS->mHttpd->FileWriter(handler.get(),
