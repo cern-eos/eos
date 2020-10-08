@@ -24,6 +24,7 @@
 #pragma once
 #include "common/Namespace.hh"
 #include "common/SteadyClock.hh"
+#include "common/Logging.hh"
 #include <atomic>
 #include <thread>
 #include <set>
@@ -93,7 +94,7 @@ protected:
 //------------------------------------------------------------------------------
 //! Requests per second rate limiter
 //------------------------------------------------------------------------------
-class RequestRateLimit: public IRateLimit
+class RequestRateLimit: public IRateLimit, public LogId
 {
 public:
   //----------------------------------------------------------------------------
@@ -114,8 +115,9 @@ public:
   void SetRatePerSecond(unsigned long long rate)
   {
     if (rate > 1000000) {
-      throw std::runtime_error("error: RequestRateLimit works only for rates "
-                               "lower than 1MHz");
+      eos_static_err("msg=\"attempt to set very high rate discarded\""
+                     " current_rate=%llu failed_rate=%llu", mRate.load(), rate);
+      return;
     }
 
     if (rate < 1) {
