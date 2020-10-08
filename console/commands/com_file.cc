@@ -196,8 +196,14 @@ void com_fileinfo_help()
   std::ostringstream oss;
   oss << "Usage: fileinfo <identifier> [--path] [--fid] [--fxid] [--size] "
       << "[--checksum] [--fullpath] [--proxy] [-m] [--env] [-s|--silent]\n"
-      << "  Prints file information for specified <identifier>\n"
-      << "  <identifier> = <path>|fid:<fid-dec>|fxid:<fid-hex>|inode:<inode-dec>\n"
+      << "  Prints information for specified <identifier>\n"
+      << "  <identifier> = <path>|fid:<fid-dec>|fxid:<fid-hex>|"
+      << "pid:<contid-dec>|pxid:<contid-hex>|inode:<inode-dec>\n"
+      << "\n"
+      << "  fid/fxid - refers to a file identifier\n"
+      << "  pid/pxid - refers to a container identifier\n"
+      << "  inode    - refers to a fuse encoded inode value\n"
+      << "\n"
       << "Options:\n"
       << "  --path        : filters output to show path field\n"
       << "  --fid         : filters output to show fid field\n"
@@ -337,6 +343,7 @@ com_file(char* arg1)
     if (option.find("n") != STR_NPOS) {
       in += "&mgm.file.touch.nolayout=true";
     }
+
     if (option.find("0") != STR_NPOS) {
       in += "&mgm.file.touch.truncate=true";
     }
@@ -1035,13 +1042,14 @@ com_file_usage:
           "                                                  add/remove/unlink a filesystem location to/from a file in the location index - attention this does not move any data!\n");
   fprintf(stdout,
           "                                                  unlink keeps the location in the list of deleted files e.g. the location get's a deletion request\n");
-  fprintf(stdout, "file touch [-n] [-0] [<path>|fid:<fid-dec>|fxid:<fid-hex>] :\n");
+  fprintf(stdout,
+          "file touch [-n] [-0] [<path>|fid:<fid-dec>|fxid:<fid-hex>] :\n");
   fprintf(stdout,
           "                                                  create/touch a 0-size/0-replica file if <path> does not exist or update modification time of an existing file to the present time\n");
   fprintf(stdout,
           "                                          - by default it uses placement logic - use [-n] to disable placement\n");
   fprintf(stdout,
-	  "                                          - use 'file touch -0 myfile' to truncate a file\n");
+          "                                          - use 'file touch -0 myfile' to truncate a file\n");
   fprintf(stdout,
           "file verify <path>|fid:<fid-dec>|fxid:<fid-hex> [<fsid>] [-checksum] [-commitchecksum] [-commitsize] [-rate <rate>] : \n");
   fprintf(stdout,
