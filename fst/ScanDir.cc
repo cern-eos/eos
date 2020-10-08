@@ -408,13 +408,17 @@ ScanDir::CollectNsFids(const std::string& type) const
   const std::string key = oss.str();
   qclient::QSet qset(*gOFS.mFsckQcl.get(), key);
 
-  for (qclient::QSet::Iterator it = qset.getIterator(); it.valid(); it.next()) {
-    try {
-      queue.push_back(std::stoull(it.getElement()));
-    } catch (...) {
-      eos_err("msg=\"failed to convert fid entry\" data=\"%s\"",
-              it.getElement().c_str());
+  try {
+    for (qclient::QSet::Iterator it = qset.getIterator(); it.valid(); it.next()) {
+      try {
+        queue.push_back(std::stoull(it.getElement()));
+      } catch (...) {
+        eos_err("msg=\"failed to convert fid entry\" data=\"%s\"",
+                it.getElement().c_str());
+      }
     }
+  } catch (const std::runtime_error& e) {
+    // There is no such set in QDB
   }
 
   return queue;

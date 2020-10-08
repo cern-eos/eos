@@ -1235,17 +1235,21 @@ FmdDbMapHandler::ResyncAllFromQdb(const QdbContactDetails& contact_details,
   auto start = steady_clock::now();
   qclient::QClient qcl(contact_details.members,
                        contact_details.constructOptions());
-  qclient::QSet qset(qcl, eos::RequestBuilder::keyFilesystemFiles(fsid));
   std::unordered_set<eos::IFileMD::id_t> file_ids;
+  qclient::QSet qset(qcl, eos::RequestBuilder::keyFilesystemFiles(fsid));
 
-  for (qclient::QSet::Iterator its = qset.getIterator(); its.valid();
-       its.next()) {
-    try {
-      file_ids.insert(std::stoull(its.getElement()));
-    } catch (...) {
-      eos_err("msg=\"failed to convert fid entry\" data=\"%s\"",
-              its.getElement().c_str());
+  try {
+    for (qclient::QSet::Iterator its = qset.getIterator(); its.valid();
+         its.next()) {
+      try {
+        file_ids.insert(std::stoull(its.getElement()));
+      } catch (...) {
+        eos_err("msg=\"failed to convert fid entry\" data=\"%s\"",
+                its.getElement().c_str());
+      }
     }
+  } catch (const std::runtime_error& e) {
+    // There are no files on current filesystem
   }
 
   uint64_t total = file_ids.size();
