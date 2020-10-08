@@ -566,12 +566,18 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
                   } catch (...) {
                     Eroute.Emsg("Config", "ofs.tpc redirect failed to convert port,"
                                 "use default 1094");
+                    NoGo = 1;
                   }
                 }
 
                 Eroute.Say("=====> ofs.tpc redirect to: ", rdr_host.c_str(),
                            std::to_string(rdr_port).c_str());
                 mTpcRdrInfo.emplace(rdr_delegated, std::make_pair(rdr_host, rdr_port));
+
+                // We only accept forwarding credentials for gsi
+                if (rdr_delegated) {
+                  XrdOucEnv::Export("XRDTPCDLG", "gsi");
+                }
               }
             }
           }
