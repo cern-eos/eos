@@ -39,7 +39,8 @@ TEST(RequestRateLimit, BasicFunctionality)
   using namespace eos::common;
   int initial_delay = 5;
   RequestRateLimit rlimit(true);
-  ASSERT_THROW(rlimit.SetRatePerSecond(1000001), std::runtime_error);
+  rlimit.SetRatePerSecond(1000001);
+  ASSERT_EQ(0ull, rlimit.GetRatePerSecond());
   ASSERT_NO_THROW(rlimit.SetRatePerSecond(1));
   auto& clock = rlimit.GetClock();
   clock.advance(seconds(initial_delay)); // fake clock starts at 0
