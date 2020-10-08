@@ -68,6 +68,16 @@ static bool eliminateBasedOnUidGid(const eos::console::FindProto& req,
   return false;
 }
 
+// @note I believe it can be improved by early filtering in the QDB search. Will have a look
+template<typename T>
+static bool eliminateBasedOnFileMatch(const eos::console::FindProto& req,
+                                   const T& md)
+{
+  XrdOucString name = md->getName().c_str();
+  return name.matches(req.name().c_str()) == 0;
+
+}
+
 
 //------------------------------------------------------------------------------
 // Print hex checksum of given fmd, if requested by req.
@@ -358,13 +368,6 @@ static bool eliminateBasedOnAttr(const eos::console::FindProto& req,
   return (attr != req.attributevalue());
 }
 
-// @note I believe it can be improved by early filtering in the QDB search. Will have a look
-static bool eliminateBasedOnFileMatch(const eos::console::FindProto& req,
-                                 const std::shared_ptr<eos::IFileMD>& fmd)
-{
-  XrdOucString name = fmd->getName().c_str();
-  return name.matches(req.name().c_str()) == 0;
-}
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -911,6 +914,33 @@ eos::mgm::FindCmd::ProcessRequest() noexcept
 
         if (!findRequest.files() && !nodirs) {
           if (!printcounter) {
+
+            std::shared_ptr<eos::IContainerMD> mCmd = findResult.toContainerMD();
+            bool selected = true;
+
+            // Process next item if we don't have a cmd
+            if (!mCmd) {
+              continue;
+            }
+            // Selection
+            if (eliminateBasedOnFileMatch(findRequest, mCmd)) {
+              selected = false;
+            }
+            if (eliminateBasedOnUidGid(findRequest, mCmd)) {
+              selected = false;
+            }
+            if (eliminateBasedOnPermissions(findRequest, mCmd)) {
+              selected = false;
+            }
+            if (selectfaultyacl) {
+              if (!hasFaultyAcl(mCmd)) {
+                selected = false;
+              }
+            }
+            if (!selected) {
+              continue;
+            }
+
             printPath(ofstdoutStream, findResult.path, printxurl);
             ofstdoutStream << std::endl;
           }
@@ -1037,7 +1067,11 @@ eos::mgm::FindCmd::ProcessRequest() noexcept
         continue;
       }
 
-      // Selection.
+      // Selection
+      if (eliminateBasedOnFileMatch(findRequest, mCmd)) {
+        selected = false;
+      }
+
       if (eliminateBasedOnUidGid(findRequest, mCmd)) {
         selected = false;
       }
