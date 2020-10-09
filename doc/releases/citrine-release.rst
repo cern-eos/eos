@@ -15,6 +15,33 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
+``v4.8.23 Citrine``
+===================
+
+2020-10-09
+
+Bug
+----
+
+* [EOS-4405] - mgm crash on eos::mgm::Stat::PrintOutTotal ()
+* [EOS-4449] - Deadlock triggered when changing eos fs configstatus in a new machine
+* [EOS-4457] - FST: Crash when scanning list of unlinked files
+* [EOS-4460] - MGM does not correctly reply to Xrd config query for TPC delegation
+* [EOS-4461] - FST exception not caught in RequestRateLimit
+
+Improvement
+-----------
+
+* FST: Remove transaction directory/functionality
+* FST: Properly align XrdHttp and EosHtpp buffers during PUT requests
+
+New Feature
+-----------
+
+* MGM: Add QClient RTT statistics displayed in the "eos ns" command
+
+
 ``v4.8.22 Citrine``
 ===================
 
