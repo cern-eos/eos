@@ -114,12 +114,6 @@ public:
   //----------------------------------------------------------------------------
   bool isLocal() const;
 
-  //----------------------------------------------------------------------------
-  //! Get transient channel for this filesystem - that is, the channel through
-  //! which all transient, non-important information will be transmitted.
-  //----------------------------------------------------------------------------
-  std::string getTransientChannel() const;
-
 private:
   std::string host;
   int32_t port = 0;

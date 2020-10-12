@@ -55,8 +55,6 @@ TEST(FileSystemLocator, BasicSanity)
   ASSERT_EQ(locator.getHostPort(), "somehost.cern.ch:1095");
   ASSERT_EQ(locator.getQueuePath(), "/eos/somehost.cern.ch:1095/fst/data05");
   ASSERT_EQ(locator.getFSTQueue(), "/eos/somehost.cern.ch:1095/fst");
-  ASSERT_EQ(locator.getTransientChannel(),
-            "filesystem-transient||somehost.cern.ch:1095||/data05");
 }
 
 TEST(FileSystemLocator, ParseStorageType)
@@ -114,8 +112,6 @@ TEST(FileSystemLocator, RemoteFileSystem)
   ASSERT_EQ(locator.getQueuePath(),
             "/eos/example-host.cern.ch:1095/fsthttps://remote.example.cern.ch/path/");
   ASSERT_EQ(locator.getFSTQueue(), "/eos/example-host.cern.ch:1095/fst");
-  ASSERT_EQ(locator.getTransientChannel(),
-            "filesystem-transient||example-host.cern.ch:1095||https://remote.example.cern.ch/path/");
 }
 
 TEST(GroupLocator, BasicSanity)

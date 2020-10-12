@@ -200,16 +200,6 @@ bool FileSystemLocator::isLocal() const
 }
 
 //------------------------------------------------------------------------------
-// Get transient channel for this filesystem - that is, the channel through
-// which all transient, non-important information will be transmitted.
-//------------------------------------------------------------------------------
-std::string FileSystemLocator::getTransientChannel() const
-{
-  return SSTR("filesystem-transient||" << getHostPort() << "||" <<
-              getStoragePath());
-}
-
-//------------------------------------------------------------------------------
 // Empty constructor
 //------------------------------------------------------------------------------
 SharedHashLocator::SharedHashLocator()
