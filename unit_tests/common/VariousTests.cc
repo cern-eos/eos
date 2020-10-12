@@ -209,7 +209,7 @@ TEST(SharedHashLocator, BasicSanity)
   ASSERT_FALSE(locator.empty());
   ASSERT_EQ(locator.getConfigQueue(), "/config/eosdev/node/example.com:3003");
   ASSERT_EQ(locator.getBroadcastQueue(), "/eos/example.com:3003/fst");
-  // ASSERT_EQ(locator.getQDBKey(), "eos-hash||node||/eos/example.com:3003/fst");
+  ASSERT_EQ(locator.getQDBKey(), "eos-hash||node||example.com:3003");
 }
 
 TEST(SharedHashLocator, NodeWithHostport)
@@ -308,7 +308,6 @@ TEST(SharedHashLocator, Parsing)
   ASSERT_EQ(locator.getConfigQueue(), "/config/eosdev/mgm/");
   ASSERT_EQ(locator.getBroadcastQueue(), "/eos/*/mgm");
   ASSERT_EQ(locator.getQDBKey(), "eos-global-config-hash");
-
 }
 
 EOSCOMMONTESTING_END

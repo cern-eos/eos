@@ -234,6 +234,7 @@ SharedHashLocator::SharedHashLocator(const std::string& instanceName, Type type,
                              name.c_str()).c_str();
     mMqSharedHashPath = SSTR("/config/" << instanceName << "/node/" << hostPort);
     mBroadcastQueue = SSTR("/eos/" << hostPort << "/fst");
+    mName = hostPort;
     break;
   }
 
