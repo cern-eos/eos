@@ -34,7 +34,8 @@ MessagingRealm::MessagingRealm(XrdMqSharedObjectManager* som,
                                XrdMqSharedObjectChangeNotifier* notif, XrdMqClient* mqcl,
                                qclient::SharedManager* qsom)
 
-  : mSom(som), mNotifier(notif), mMessageClient(mqcl), mQSom(qsom) {}
+  : mSom(som), mNotifier(notif), mMessageClient(mqcl), mQSom(qsom),
+    mHashProvider(qsom) {}
 
 //------------------------------------------------------------------------------
 // Is this a QDB realm?

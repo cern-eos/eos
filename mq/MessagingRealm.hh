@@ -25,6 +25,7 @@
 #define EOS_MQ_MESSAGING_REALM_HH
 
 #include "mq/Namespace.hh"
+#include "mq/SharedHashProvider.hh"
 #include <string>
 
 class XrdMqSharedObjectManager;
@@ -96,6 +97,7 @@ private:
   XrdMqClient* mMessageClient;
 
   qclient::SharedManager* mQSom;
+  SharedHashProvider mHashProvider;
 };
 
 EOSMQNAMESPACE_END
