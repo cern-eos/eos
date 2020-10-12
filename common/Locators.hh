@@ -189,6 +189,11 @@ public:
   //----------------------------------------------------------------------------
   static bool fromConfigQueue(const std::string &configQueue, SharedHashLocator &out);
 
+  //----------------------------------------------------------------------------
+  //! Get QDB key for this queue
+  //----------------------------------------------------------------------------
+  std::string getQDBKey() const;
+
 private:
   bool mInitialized;
 
@@ -198,8 +203,8 @@ private:
 
   std::string mMqSharedHashPath;
   std::string mBroadcastQueue;
+  std::string mFilesystemChannel;
 
-  std::string mChannel;
 };
 
 //------------------------------------------------------------------------------

@@ -265,6 +265,7 @@ SharedHashLocator::SharedHashLocator(const FileSystemLocator& fsLocator,
 {
   mMqSharedHashPath = fsLocator.getQueuePath();
   mBroadcastQueue = fsLocator.getFSTQueue();
+  mFilesystemChannel = SSTR(fsLocator.getHostPort() << "||" << fsLocator.getStoragePath());
 
   if (bc2mgm) {
     mBroadcastQueue = "/eos/*/mgm";
@@ -377,6 +378,37 @@ bool SharedHashLocator::fromConfigQueue(const std::string& configQueue,
 
   out = SharedHashLocator(instanceName, type, name);
   return true;
+}
+
+//------------------------------------------------------------------------------
+// Get QDB key for this queue
+//------------------------------------------------------------------------------
+std::string SharedHashLocator::getQDBKey() const {
+  switch (mType) {
+    case Type::kSpace: {
+      return SSTR("eos-hash||space||" << mName);
+    }
+
+    case Type::kGroup: {
+      return SSTR("eos-hash||group||" << mName);
+    }
+
+    case Type::kNode: {
+      return SSTR("eos-hash||node||" << mName);
+    }
+
+    case Type::kGlobalConfigHash: {
+      return SSTR("eos-global-config-hash");
+    }
+
+    case Type::kFilesystem: {
+      return SSTR("eos-hash||fs||" << mFilesystemChannel);
+    }
+
+    default: {
+      eos_assert("should never reach here");
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
