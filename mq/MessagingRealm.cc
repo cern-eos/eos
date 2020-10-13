@@ -35,7 +35,7 @@ MessagingRealm::MessagingRealm(XrdMqSharedObjectManager* som,
                                qclient::SharedManager* qsom)
 
   : mSom(som), mNotifier(notif), mMessageClient(mqcl), mQSom(qsom),
-    mHashProvider(qsom) {}
+    mHashProvider(qsom), mDequeProvider(qsom) {}
 
 //------------------------------------------------------------------------------
 // Is this a QDB realm?
@@ -74,6 +74,13 @@ qclient::SharedManager* MessagingRealm::getQSom() const
 //------------------------------------------------------------------------------
 SharedHashProvider* MessagingRealm::getHashProvider() {
   return &mHashProvider;
+}
+
+//------------------------------------------------------------------------------
+// Get pointer to deque provider
+//------------------------------------------------------------------------------
+SharedDequeProvider* MessagingRealm::getDequeProvider() {
+  return &mDequeProvider;
 }
 
 //------------------------------------------------------------------------------

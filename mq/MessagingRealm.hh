@@ -26,6 +26,7 @@
 
 #include "mq/Namespace.hh"
 #include "mq/SharedHashProvider.hh"
+#include "mq/SharedDequeProvider.hh"
 #include <string>
 
 class XrdMqSharedObjectManager;
@@ -91,6 +92,11 @@ public:
   SharedHashProvider* getHashProvider();
 
   //----------------------------------------------------------------------------
+  //! Get pointer to deque provider
+  //----------------------------------------------------------------------------
+  SharedDequeProvider* getDequeProvider();
+
+  //----------------------------------------------------------------------------
   //! Send message to the given receiver queue
   //----------------------------------------------------------------------------
   Response sendMessage(const std::string& descr, const std::string& payload,
@@ -102,7 +108,9 @@ private:
   XrdMqClient* mMessageClient;
 
   qclient::SharedManager* mQSom;
+
   SharedHashProvider mHashProvider;
+  SharedDequeProvider mDequeProvider;
 };
 
 EOSMQNAMESPACE_END
