@@ -25,6 +25,8 @@
 #include "mq/XrdMqSharedObject.hh"
 #include "mq/MessagingRealm.hh"
 #include "common/ParseUtils.hh"
+#include "common/StringUtils.hh"
+#include <qclient/shared/SharedHash.hh>
 
 EOSMQNAMESPACE_BEGIN
 
@@ -35,6 +37,10 @@ SharedHashWrapper::SharedHashWrapper(mq::MessagingRealm *realm, const common::Sh
   bool takeLock, bool create)
   : mSom(realm->getSom()), mLocator(locator)
 {
+  if(realm->haveQDB()) {
+    mSharedHash = realm->getHashProvider()->get(locator.getQDBKey());
+  }
+
   if (takeLock) {
     mReadLock.Grab(mSom->HashMutex);
   }
@@ -90,6 +96,22 @@ bool SharedHashWrapper::set(const std::string& key, const std::string& value,
 
   std::unique_lock lock(mHash->mMutex);
   return mHash->Set(key.c_str(), value.c_str(), broadcast);
+}
+
+//------------------------------------------------------------------------------
+// Set value, detect based on prefix whether it should be durable,
+// transient, or local
+//------------------------------------------------------------------------------
+void SharedHashWrapper::Batch::Set(const std::string& key, const std::string& value) {
+  if(common::startsWith(key, "stat.")) {
+    SetTransient(key, value);
+  }
+  else if(common::startsWith(key, "local.")) {
+    SetLocal(key, value);
+  }
+  else {
+    SetDurable(key, value);
+  }
 }
 
 //------------------------------------------------------------------------------

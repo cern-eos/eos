@@ -33,6 +33,7 @@
 
 namespace qclient {
   class UpdateBatch;
+  class SharedHash;
 }
 
 class XrdMqSharedHash;
@@ -59,6 +60,12 @@ public:
     //! Constructor
     //--------------------------------------------------------------------------
     Batch() {}
+
+    //--------------------------------------------------------------------------
+    //! Set value, detect based on prefix whether it should be durable,
+    //! transient, or local
+    //--------------------------------------------------------------------------
+    void Set(const std::string& key, const std::string& value);
 
     //--------------------------------------------------------------------------
     //! Set durable value
@@ -165,6 +172,7 @@ private:
   common::SharedHashLocator mLocator;
   common::RWMutexReadLock mReadLock;
   XrdMqSharedHash* mHash;
+  std::shared_ptr<qclient::SharedHash> mSharedHash;
 };
 
 EOSMQNAMESPACE_END
