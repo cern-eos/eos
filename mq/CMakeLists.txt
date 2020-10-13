@@ -34,7 +34,8 @@ add_library(XrdMqClient-Objects OBJECT
   GlobalConfigChangeListener.cc  GlobalConfigChangeListener.hh
   MessagingRealm.cc              MessagingRealm.hh
   ReportListener.cc              ReportListener.hh
-  SharedHashProvider.cc           SharedHashProvider.hh
+  SharedDequeProvider.cc         SharedDequeProvider.hh
+  SharedHashProvider.cc          SharedHashProvider.hh
   SharedHashWrapper.cc           SharedHashWrapper.hh
   SharedQueueWrapper.cc          SharedQueueWrapper.hh
   XrdMqClient.cc                 XrdMqClient.hh
