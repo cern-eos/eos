@@ -90,12 +90,9 @@ void SharedHashWrapper::releaseLocks()
 bool SharedHashWrapper::set(const std::string& key, const std::string& value,
                             bool broadcast)
 {
-  if (!mHash) {
-    return false;
-  }
-
-  std::unique_lock lock(mHash->mMutex);
-  return mHash->Set(key.c_str(), value.c_str(), broadcast);
+  Batch batch;
+  batch.Set(key, value);
+  return set(batch);
 }
 
 //------------------------------------------------------------------------------
