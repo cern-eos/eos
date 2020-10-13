@@ -448,6 +448,8 @@ build_cc7_coverage:
     - export DESTINATION="gitlab-registry.cern.ch/dss/eos:${IMAGE_TAG}"
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(echo -n $CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD | base64)\"}}}" > /kaniko/.docker/config.json
     - /kaniko/executor --cache=$CACHE --destination $DESTINATION --dockerfile $DOCKERFILE --context $CI_PROJECT_DIR
+  needs:
+    - job: clone_docker
   retry: 1
 
 cc7_docker_image:
@@ -455,18 +457,16 @@ cc7_docker_image:
   variables:
     DOCKERFILE: eos-docker/Dockerfile
     BASETAG: ""
-  dependencies:
-    - build_cc7
-    - clone_docker
+  needs:
+    - job: build_cc7
 
 ubuntu_bionic_docker_image:
   <<: *build_dockerimage-template_definition
   variables:
     DOCKERFILE: eos-docker/Dockerfile_ubuntu_bionic
     BASETAG: "ubuntu_bionic_client_"
-  dependencies:
-    - build_ubuntu_bionic
-    - clone_docker
+  needs:
+    - job: build_ubuntu_bionic
   only:
     - schedules
     - tags
@@ -479,9 +479,8 @@ c8_docker_image:
   variables:
     DOCKERFILE: eos-docker/Dockerfile_c8
     BASETAG: "c8_"
-  dependencies:
-    - build_c8
-    - clone_docker
+  needs:
+    - job: build_c8
   only:
     - schedules
     - tags
@@ -492,9 +491,8 @@ cc7_asan_docker_image:
   variables:
     DOCKERFILE: eos-docker/Dockerfile_asan
     BASETAG: "asan_"
-  dependencies:
-    - build_cc7_asan
-    - clone_docker
+  needs:
+    - job: build_cc7_asan
   only:
     - schedules
   allow_failure: true
@@ -507,9 +505,8 @@ cc7_asan_docker_image:
   variables:
     DOCKERFILE: eos-docker/Dockerfile_xrd_testing
     BASETAG: "xrd_testing_"
-  dependencies:
-    - build_cc7_xrd_testing
-    - clone_docker
+  needs:
+    - job: build_cc7_xrd_testing
   only:
     - schedules
   allow_failure: true
@@ -519,9 +516,8 @@ cc7_asan_docker_image:
   variables:
     DOCKERFILE: eos-docker/Dockerfile_coverage
     BASETAG: "coverage_"
-  dependencies:
-    - build_cc7_coverage
-    - clone_docker
+  needs:
+    - job: build_cc7_coverage
   only:
     variables:
       - $COVERAGE_SCHEDULE
@@ -567,6 +563,9 @@ cc7_asan_docker_image:
     expire_in: 3 days
     paths:
       - eos-logs-${CI_JOB_ID}/
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
 
 .dock8s_cnvrt_fsck_template: &dock8s_cnvrt_fsck_template
   stage: test
@@ -657,21 +656,18 @@ cc7_asan_docker_image:
 
 k8s_system:
   <<: *dock8s_system_test_template
-  dependencies: []
   retry: 1
   tags:
     - shell-with-kubernetes
 
 k8s_cnvrt_fsck:
   <<: *dock8s_cnvrt_fsck_template
-  dependencies: []
   retry: 1
   tags:
     - shell-with-kubernetes
 
 k8s_fusex:
   <<: *dock8s_fusex_test_template
-  dependencies: []
   retry: 1
   allow_failure: true
   tags:
@@ -679,7 +675,6 @@ k8s_fusex:
 
 k8s_cbox:
   <<: *dock8s_cbox_test_template
-  dependencies: []
   retry: 1
   tags:
     - shell-with-kubernetes
@@ -691,15 +686,14 @@ k8s_stress:
     - TEST_URL="eos-mgm1.eos-mgm1.$K8S_NAMESPACE.svc.cluster.local"
     - exec_cmd eos-mgm1 "hammer-runner.py --strict-exit-code 1 --gitlab --url ${TEST_URL}//eos/dockertest/hammer/ --protocols xroot --threads 1 2 10 100 --operations write stat read delete --runs 3 --nfiles 10000"
   <<: *dock8s_after_script_template
-  dependencies: []
   retry: 1
   tags:
     - shell-with-kubernetes
 
 dock_system:
   <<: *dock8s_system_test_template
-  dependencies:
-    - clone_docker
+  needs:
+    - job: clone_docker
   retry: 1
   tags:
     - shell-with-docker
@@ -707,8 +701,8 @@ dock_system:
 
 dock_cnvrt_fsck:
   <<: *dock8s_system_test_template
-  dependencies:
-    - clone_docker
+  needs:
+    - job: clone_docker
   retry: 1
   tags:
     - shell-with-docker
@@ -716,8 +710,8 @@ dock_cnvrt_fsck:
 
 dock_fusex:
   <<: *dock8s_fusex_test_template
-  dependencies:
-    - clone_docker
+  needs:
+    - job: clone_docker
   retry: 1
   tags:
     - shell-with-docker
@@ -725,8 +719,8 @@ dock_fusex:
 
 dock_cbox:
   <<: *dock8s_fusex_test_template
-  dependencies:
-    - clone_docker
+  needs:
+    - job: clone_docker
   retry: 1
   tags:
     - shell-with-docker
@@ -739,8 +733,8 @@ dock_stress:
     - TEST_URL="eos-mgm1.eoscluster.cern.ch"
     - exec_cmd eos-mgm1 "hammer-runner.py --strict-exit-code 1 --gitlab --url ${TEST_URL}//eos/dockertest/hammer/ --protocols xroot --threads 1 2 10 100 --operations write stat read delete --runs 3 --nfiles 10000"
   <<: *dock8s_after_script_template
-  dependencies:
-    - clone_docker
+  needs:
+    - job: clone_docker
   retry: 1
   tags:
     - shell-with-docker
@@ -759,7 +753,9 @@ dock_stress:
     - chown -R daemon:daemon /var/quarkdb/node-0
     - /usr/bin/xrootd -n qdb -c /etc/xrd.cf.quarkdb -l /var/log/eos/xrdlog.qdb -b -Rdaemon
     - eos-ns-quarkdb-tests
-  dependencies: []
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
   retry: 1
   tags:
      - docker_node
@@ -787,7 +783,9 @@ k8s_system_c8:
   <<: *dock8s_system_test_template
   variables:
     BASETAG: "c8_"
-  dependencies: []
+  needs:
+    - job: c8_docker_image
+      artifacts: false
   retry: 1
   allow_failure: true
   only:
@@ -800,7 +798,9 @@ k8s_cbox_c8:
   <<: *dock8s_cbox_test_template
   variables:
     BASETAG: "c8_"
-  dependencies: []
+  needs:
+    - job: c8_docker_image
+      artifacts: false
   retry: 1
   allow_failure: true
   only:
@@ -813,7 +813,9 @@ k8s_fusex_ubuntu:
   <<: *dock8s_fusex_test_template
   variables:
     CLI_BASETAG: "ubuntu_bionic_client_"
-  dependencies: []
+  needs:
+    - job: ubuntu_bionic_docker_image
+      artifacts: false
   retry: 1
   allow_failure: true
   only:
@@ -828,7 +830,9 @@ k8s_fusex_ubuntu:
   <<: *dock8s_system_test_template
   variables:
     BASETAG: "xrd_testing_"
-  dependencies: []
+  needs:
+    - job: cc7_xrd_testing_docker_image
+      artifacts: false
   retry: 1
   allow_failure: true
   only:
@@ -840,8 +844,10 @@ dock_system_c8:
   <<: *dock8s_system_test_template
   variables:
     BASETAG: "c8_"
-  dependencies:
-    - clone_docker
+  needs:
+    - job: c8_docker_image
+      artifacts: false
+    - job: clone_docker
   allow_failure: true
   retry: 1
   only:
@@ -855,8 +861,10 @@ dock_cbox_c8:
   <<: *dock8s_cbox_test_template
   variables:
     BASETAG: "c8_"
-  dependencies:
-    - clone_docker
+  needs:
+    - job: c8_docker_image
+      artifacts: false
+    - job: clone_docker
   allow_failure: true
   retry: 1
   only:
@@ -870,8 +878,10 @@ dock_fusex_ubuntu:
   <<: *dock8s_fusex_test_template
   variables:
     CLI_BASETAG: "ubuntu_bionic_client_"
-  dependencies:
-    - clone_docker
+  needs:
+    - job: ubuntu_bionic_docker_image
+      artifacts: false
+    - job: clone_docker
   allow_failure: true
   retry: 1
   only:
@@ -887,8 +897,10 @@ dock_fusex_ubuntu:
   <<: *dock8s_system_test_template
   variables:
     BASETAG: "xrd_testing_"
-  dependencies:
-    - clone_docker
+  needs:
+    - job: cc7_xrd_testing_docker_image
+      artifacts: false
+    - job: clone_docker
   allow_failure: true
   retry: 1
   only:
@@ -905,6 +917,9 @@ unit_test_asan:
   variables:
     LSAN_OPTIONS: "suppressions=/var/eos/test/LeakSanitizer.supp"  # Suppress known memory leaks. For the generic tests
     ASAN_OPTIONS: "fast_unwind_on_malloc=0"  # Avoid indirect leaks from linked dependencies. For the namespace tests
+  needs:
+    - job: cc7_asan_docker_image
+      artifacts: false
   allow_failure: true
   only:
     - schedules
