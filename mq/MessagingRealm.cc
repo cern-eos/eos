@@ -70,6 +70,13 @@ qclient::SharedManager* MessagingRealm::getQSom() const
 }
 
 //------------------------------------------------------------------------------
+// Get pointer to hash provider
+//------------------------------------------------------------------------------
+SharedHashProvider* MessagingRealm::getHashProvider() {
+  return &mHashProvider;
+}
+
+//------------------------------------------------------------------------------
 //! Send message to the given receiver queue
 //------------------------------------------------------------------------------
 MessagingRealm::Response

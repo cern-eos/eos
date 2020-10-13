@@ -86,6 +86,11 @@ public:
   qclient::SharedManager* getQSom() const;
 
   //----------------------------------------------------------------------------
+  //! Get pointer to hash provider
+  //----------------------------------------------------------------------------
+  SharedHashProvider* getHashProvider();
+
+  //----------------------------------------------------------------------------
   //! Send message to the given receiver queue
   //----------------------------------------------------------------------------
   Response sendMessage(const std::string& descr, const std::string& payload,
