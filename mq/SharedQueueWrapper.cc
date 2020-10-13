@@ -47,7 +47,7 @@ SharedQueueWrapper::SharedQueueWrapper(mq::MessagingRealm* realm,
 
   qclient::SharedManager* qsom = mRealm->getQSom();
   if(qsom) {
-    mSharedDeque.reset(new qclient::SharedDeque(qsom, locator.getQDBKey()));
+    mSharedDeque = mRealm->getDequeProvider()->get(locator.getQDBKey());
   }
   else {
     eos::common::RWMutexReadLock lock(mSom->HashMutex);

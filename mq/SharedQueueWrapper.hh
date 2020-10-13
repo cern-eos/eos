@@ -84,7 +84,7 @@ private:
   std::string mFullQueue;
 
   XrdMqSharedObjectManager* mSom;
-  std::unique_ptr<qclient::SharedDeque> mSharedDeque;
+  std::shared_ptr<qclient::SharedDeque> mSharedDeque;
 
 };
 
