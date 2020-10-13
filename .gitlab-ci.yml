@@ -434,7 +434,7 @@ build_cc7_coverage:
 # Build docker images
 #-------------------------------------------------------------------------------
 
-.build_dockerimage-template: &build_dockerimage-template_definition
+.build_dockerimage-template:
   stage: build:dockerimage
   image:
     name: gcr.io/kaniko-project/executor:debug
@@ -448,24 +448,24 @@ build_cc7_coverage:
     - export DESTINATION="gitlab-registry.cern.ch/dss/eos:${IMAGE_TAG}"
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(echo -n $CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD | base64)\"}}}" > /kaniko/.docker/config.json
     - /kaniko/executor --cache=$CACHE --destination $DESTINATION --dockerfile $DOCKERFILE --context $CI_PROJECT_DIR
-  needs:
-    - job: clone_docker
   retry: 1
 
 cc7_docker_image:
-  <<: *build_dockerimage-template_definition
+  extends: .build_dockerimage-template
   variables:
     DOCKERFILE: eos-docker/Dockerfile
     BASETAG: ""
   needs:
+    - job: clone_docker
     - job: build_cc7
 
 ubuntu_bionic_docker_image:
-  <<: *build_dockerimage-template_definition
+  extends: .build_dockerimage-template
   variables:
     DOCKERFILE: eos-docker/Dockerfile_ubuntu_bionic
     BASETAG: "ubuntu_bionic_client_"
   needs:
+    - job: clone_docker
     - job: build_ubuntu_bionic
   only:
     - schedules
@@ -475,11 +475,12 @@ ubuntu_bionic_docker_image:
 # schedules ------------------------------
 
 c8_docker_image:
-  <<: *build_dockerimage-template_definition
+  extends: .build_dockerimage-template
   variables:
     DOCKERFILE: eos-docker/Dockerfile_c8
     BASETAG: "c8_"
   needs:
+    - job: clone_docker
     - job: build_c8
   only:
     - schedules
@@ -487,11 +488,12 @@ c8_docker_image:
   allow_failure: true
 
 cc7_asan_docker_image:
-  <<: *build_dockerimage-template_definition
+  extends: .build_dockerimage-template
   variables:
     DOCKERFILE: eos-docker/Dockerfile_asan
     BASETAG: "asan_"
   needs:
+    - job: clone_docker
     - job: build_cc7_asan
   only:
     - schedules
@@ -501,22 +503,24 @@ cc7_asan_docker_image:
 # @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
 # xt stands for xrd_testing. Must shorten to not hit HOST_NAME_MAX
 .cc7_xrd_testing_docker_image:
-  <<: *build_dockerimage-template_definition
+  extends: .build_dockerimage-template
   variables:
     DOCKERFILE: eos-docker/Dockerfile_xrd_testing
     BASETAG: "xrd_testing_"
   needs:
+    - job: clone_docker
     - job: build_cc7_xrd_testing
   only:
     - schedules
   allow_failure: true
 
 .cc7_coverage_docker_image:
-  <<: *build_dockerimage-template_definition
+  extends: .build_dockerimage-template
   variables:
     DOCKERFILE: eos-docker/Dockerfile_coverage
     BASETAG: "coverage_"
   needs:
+    - job: clone_docker
     - job: build_cc7_coverage
   only:
     variables:
@@ -546,7 +550,7 @@ cc7_asan_docker_image:
         ./gitlab-ci/after_script_docker_test.sh;
       fi
 
-.dock8s_system_test_template: &dock8s_system_test_template
+.dock8s_system_test_template:
   stage: test
   <<: *dock8s_before_script_template
   script:
@@ -563,11 +567,8 @@ cc7_asan_docker_image:
     expire_in: 3 days
     paths:
       - eos-logs-${CI_JOB_ID}/
-  needs:
-    - job: cc7_docker_image
-      artifacts: false
 
-.dock8s_cnvrt_fsck_template: &dock8s_cnvrt_fsck_template
+.dock8s_cnvrt_fsck_template:
   stage: test
   <<: *dock8s_before_script_template
   script:
@@ -596,7 +597,7 @@ cc7_asan_docker_image:
     paths:
       - eos-logs-${CI_JOB_ID}/
 
-.dock8s_fusex_test_template: &dock8s_fusex_test_template
+.dock8s_fusex_test_template:
   stage: test
   <<: *dock8s_before_script_template
   script:
@@ -630,7 +631,7 @@ cc7_asan_docker_image:
     paths:
       - eos-logs-${CI_JOB_ID}/
 
-.dock8s_cbox_test_template: &dock8s_cbox_test_template
+.dock8s_cbox_test_template:
   stage: test
   <<: *dock8s_before_script_template
   script:
@@ -655,26 +656,38 @@ cc7_asan_docker_image:
       - eos-logs-${CI_JOB_ID}/
 
 k8s_system:
-  <<: *dock8s_system_test_template
+  extends: .dock8s_system_test_template
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
   retry: 1
   tags:
     - shell-with-kubernetes
 
 k8s_cnvrt_fsck:
-  <<: *dock8s_cnvrt_fsck_template
+  extends: .dock8s_cnvrt_fsck_template
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
   retry: 1
   tags:
     - shell-with-kubernetes
 
 k8s_fusex:
-  <<: *dock8s_fusex_test_template
+  extends: .dock8s_fusex_test_template
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
   retry: 1
   allow_failure: true
   tags:
     - shell-with-kubernetes
 
 k8s_cbox:
-  <<: *dock8s_cbox_test_template
+  extends: .dock8s_cbox_test_template
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
   retry: 1
   tags:
     - shell-with-kubernetes
@@ -686,13 +699,18 @@ k8s_stress:
     - TEST_URL="eos-mgm1.eos-mgm1.$K8S_NAMESPACE.svc.cluster.local"
     - exec_cmd eos-mgm1 "hammer-runner.py --strict-exit-code 1 --gitlab --url ${TEST_URL}//eos/dockertest/hammer/ --protocols xroot --threads 1 2 10 100 --operations write stat read delete --runs 3 --nfiles 10000"
   <<: *dock8s_after_script_template
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
   retry: 1
   tags:
     - shell-with-kubernetes
 
 dock_system:
-  <<: *dock8s_system_test_template
+  extends: .dock8s_system_test_template
   needs:
+    - job: cc7_docker_image
+      artifacts: false
     - job: clone_docker
   retry: 1
   tags:
@@ -700,8 +718,10 @@ dock_system:
   when: manual
 
 dock_cnvrt_fsck:
-  <<: *dock8s_system_test_template
+  extends: .dock8s_cnvrt_fsck_template
   needs:
+    - job: cc7_docker_image
+      artifacts: false
     - job: clone_docker
   retry: 1
   tags:
@@ -709,8 +729,10 @@ dock_cnvrt_fsck:
   when: manual
 
 dock_fusex:
-  <<: *dock8s_fusex_test_template
+  extends: .dock8s_fusex_test_template
   needs:
+    - job: cc7_docker_image
+      artifacts: false
     - job: clone_docker
   retry: 1
   tags:
@@ -718,8 +740,10 @@ dock_fusex:
   when: manual
 
 dock_cbox:
-  <<: *dock8s_fusex_test_template
+  extends: .dock8s_cbox_test_template
   needs:
+    - job: cc7_docker_image
+      artifacts: false
     - job: clone_docker
   retry: 1
   tags:
@@ -734,6 +758,8 @@ dock_stress:
     - exec_cmd eos-mgm1 "hammer-runner.py --strict-exit-code 1 --gitlab --url ${TEST_URL}//eos/dockertest/hammer/ --protocols xroot --threads 1 2 10 100 --operations write stat read delete --runs 3 --nfiles 10000"
   <<: *dock8s_after_script_template
   needs:
+    - job: cc7_docker_image
+      artifacts: false
     - job: clone_docker
   retry: 1
   tags:
@@ -780,7 +806,7 @@ unit_test:
 # schedules ------------------------------
 
 k8s_system_c8:
-  <<: *dock8s_system_test_template
+  extends: .dock8s_system_test_template
   variables:
     BASETAG: "c8_"
   needs:
@@ -795,7 +821,7 @@ k8s_system_c8:
     - shell-with-kubernetes
 
 k8s_cbox_c8:
-  <<: *dock8s_cbox_test_template
+  extends: .dock8s_cbox_test_template
   variables:
     BASETAG: "c8_"
   needs:
@@ -810,10 +836,12 @@ k8s_cbox_c8:
     - shell-with-kubernetes
 
 k8s_fusex_ubuntu:
-  <<: *dock8s_fusex_test_template
+  extends: .dock8s_fusex_test_template
   variables:
     CLI_BASETAG: "ubuntu_bionic_client_"
   needs:
+    - job: cc7_docker_image
+      artifacts: false
     - job: ubuntu_bionic_docker_image
       artifacts: false
   retry: 1
@@ -827,7 +855,7 @@ k8s_fusex_ubuntu:
 # @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
 # xt stands for xrd_testing. Must shorten to not hit HOST_NAME_MAX
 .k8s_system_xt:
-  <<: *dock8s_system_test_template
+  extends: .dock8s_system_test_template
   variables:
     BASETAG: "xrd_testing_"
   needs:
@@ -841,7 +869,7 @@ k8s_fusex_ubuntu:
     - shell-with-kubernetes
 
 dock_system_c8:
-  <<: *dock8s_system_test_template
+  extends: .dock8s_system_test_template
   variables:
     BASETAG: "c8_"
   needs:
@@ -858,7 +886,7 @@ dock_system_c8:
   when: manual
 
 dock_cbox_c8:
-  <<: *dock8s_cbox_test_template
+  extends: .dock8s_cbox_test_template
   variables:
     BASETAG: "c8_"
   needs:
@@ -875,10 +903,12 @@ dock_cbox_c8:
   when: manual
 
 dock_fusex_ubuntu:
-  <<: *dock8s_fusex_test_template
+  extends: .dock8s_fusex_test_template
   variables:
     CLI_BASETAG: "ubuntu_bionic_client_"
   needs:
+    - job: cc7_docker_image
+      artifacts: false
     - job: ubuntu_bionic_docker_image
       artifacts: false
     - job: clone_docker
@@ -894,7 +924,7 @@ dock_fusex_ubuntu:
 # @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
 # xt stands for xrd_testing. Must shorten to not hit HOST_NAME_MAX
 .dock_system_xt:
-  <<: *dock8s_system_test_template
+  extends: .dock8s_system_test_template
   variables:
     BASETAG: "xrd_testing_"
   needs:
