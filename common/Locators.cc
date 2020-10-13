@@ -266,7 +266,8 @@ SharedHashLocator::SharedHashLocator(const FileSystemLocator& fsLocator,
 {
   mMqSharedHashPath = fsLocator.getQueuePath();
   mBroadcastQueue = fsLocator.getFSTQueue();
-  mFilesystemChannel = SSTR(fsLocator.getHostPort() << "||" << fsLocator.getStoragePath());
+  mFilesystemChannel = SSTR(fsLocator.getHostPort() << "||" <<
+                            fsLocator.getStoragePath());
 
   if (bc2mgm) {
     mBroadcastQueue = "/eos/*/mgm";
@@ -384,54 +385,58 @@ bool SharedHashLocator::fromConfigQueue(const std::string& configQueue,
 //------------------------------------------------------------------------------
 // Get QDB key for this queue
 //------------------------------------------------------------------------------
-std::string SharedHashLocator::getQDBKey() const {
+std::string SharedHashLocator::getQDBKey() const
+{
   switch (mType) {
-    case Type::kSpace: {
-      return SSTR("eos-hash||space||" << mName);
-    }
+  case Type::kSpace: {
+    return SSTR("eos-hash||space||" << mName);
+  }
 
-    case Type::kGroup: {
-      return SSTR("eos-hash||group||" << mName);
-    }
+  case Type::kGroup: {
+    return SSTR("eos-hash||group||" << mName);
+  }
 
-    case Type::kNode: {
-      return SSTR("eos-hash||node||" << mName);
-    }
+  case Type::kNode: {
+    return SSTR("eos-hash||node||" << mName);
+  }
 
-    case Type::kGlobalConfigHash: {
-      return SSTR("eos-global-config-hash");
-    }
+  case Type::kGlobalConfigHash: {
+    return SSTR("eos-global-config-hash");
+  }
 
-    case Type::kFilesystem: {
-      return SSTR("eos-hash||fs||" << mFilesystemChannel);
-    }
+  case Type::kFilesystem: {
+    return SSTR("eos-hash||fs||" << mFilesystemChannel);
+  }
 
-    default: {
-      eos_assert("should never reach here");
-    }
+  default: {
+    eos_assert("should never reach here");
+    return "";
+  }
   }
 }
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-TransferQueueLocator::TransferQueueLocator(const FileSystemLocator &fsLocator, const std::string &tag)
-: mLocator(fsLocator), mTag(tag) {}
+TransferQueueLocator::TransferQueueLocator(const FileSystemLocator& fsLocator,
+    const std::string& tag)
+  : mLocator(fsLocator), mTag(tag) {}
 
 //------------------------------------------------------------------------------
 // Constructor: Queue tied to an FST
 //------------------------------------------------------------------------------
-TransferQueueLocator::TransferQueueLocator(const std::string &fstQueue, const std::string &tag)
-: mFstQueue(fstQueue), mTag(tag) {}
+TransferQueueLocator::TransferQueueLocator(const std::string& fstQueue,
+    const std::string& tag)
+  : mFstQueue(fstQueue), mTag(tag) {}
 
 //------------------------------------------------------------------------------
 // Get "queue"
 //------------------------------------------------------------------------------
-std::string TransferQueueLocator::getQueue() const {
-  if(!mFstQueue.empty()) {
+std::string TransferQueueLocator::getQueue() const
+{
+  if (!mFstQueue.empty()) {
     return mFstQueue;
-  }
-  else {
+  } else {
     return mLocator.getFSTQueue();
   }
 }
@@ -439,11 +444,11 @@ std::string TransferQueueLocator::getQueue() const {
 //------------------------------------------------------------------------------
 // Get "queuepath"
 //------------------------------------------------------------------------------
-std::string TransferQueueLocator::getQueuePath() const {
-  if(!mFstQueue.empty()) {
+std::string TransferQueueLocator::getQueuePath() const
+{
+  if (!mFstQueue.empty()) {
     return SSTR(mFstQueue << "/gw/txqueue/" << mTag);
-  }
-  else {
+  } else {
     return SSTR(mLocator.getQueuePath() << "/txqueue/" << mTag);
   }
 }
@@ -451,14 +456,16 @@ std::string TransferQueueLocator::getQueuePath() const {
 //------------------------------------------------------------------------------
 // Get QDB key for this queue
 //------------------------------------------------------------------------------
-std::string TransferQueueLocator::getQDBKey() const {
-  if(!mFstQueue.empty()) {
+std::string TransferQueueLocator::getQDBKey() const
+{
+  if (!mFstQueue.empty()) {
     std::vector<std::string> parts;
-    parts = eos::common::StringTokenizer::split<std::vector<std::string>>(mFstQueue, '/');
+    parts = eos::common::StringTokenizer::split<std::vector<std::string>>(mFstQueue,
+            '/');
     return SSTR("txqueue-fst||" << parts[1] << "||" << mTag);
-  }
-  else {
-    return SSTR("txqueue-filesystem||" << mLocator.getHostPort() << "||" << mLocator.getStoragePath() << "||" << mTag);
+  } else {
+    return SSTR("txqueue-filesystem||" << mLocator.getHostPort() << "||" <<
+                mLocator.getStoragePath() << "||" << mTag);
   }
 }
 

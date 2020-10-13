@@ -369,7 +369,6 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
   XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"));
   {
     // borrowed from XrdOfs
-    unsigned int myIPaddr = 0;
     char buff[256], *bp;
     int i;
     // Obtain port number we will be using
@@ -382,24 +381,24 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
       return Eroute.Emsg("Config", errno, "cannot get hostname : %s", errtext);
     }
 
-    XrdNetAddr *addrs  = 0;
+    XrdNetAddr* addrs  = 0;
     int         nAddrs = 0;
-    const char* err    = XrdNetUtils::GetAddrs( HostName, &addrs, nAddrs,
-                                                XrdNetUtils::allIPv64,
-                                                XrdNetUtils::NoPortRaw );
+    const char* err    = XrdNetUtils::GetAddrs(HostName, &addrs, nAddrs,
+                         XrdNetUtils::allIPv64,
+                         XrdNetUtils::NoPortRaw);
 
-    if( err || nAddrs == 0 )
+    if (err || nAddrs == 0) {
       sprintf(buff, "[::127.0.0.1]:%d", myPort);
-    else
-    {
-      int len = XrdNetUtils::IPFormat( addrs[0].SockAddr(), buff, sizeof( buff ),
-                                       XrdNetUtils::noPort | XrdNetUtils::oldFmt );
+    } else {
+      int len = XrdNetUtils::IPFormat(addrs[0].SockAddr(), buff, sizeof(buff),
+                                      XrdNetUtils::noPort | XrdNetUtils::oldFmt);
       delete [] addrs;
 
-      if( len == 0 )
+      if (len == 0) {
         sprintf(buff, "[::127.0.0.1]:%d", myPort);
-      else
+      } else {
         sprintf(buff + len, ":%d", myPort);
+      }
     }
 
     for (i = 0; HostName[i] && HostName[i] != '.'; i++);
@@ -542,9 +541,10 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
     return rc;
   }
 
-  if(!mQdbContactDetails.members.empty() && mQdbContactDetails.password.empty()) {
+  if (!mQdbContactDetails.members.empty() &&
+      mQdbContactDetails.password.empty()) {
     Eroute.Say("=====> Configuration error: Found QDB cluster members, but no password."
-      " EOS will only connect to password-protected QDB instances. (mqofs.qdbpassword / mqofs.qdbpassword_file missing)");
+               " EOS will only connect to password-protected QDB instances. (mqofs.qdbpassword / mqofs.qdbpassword_file missing)");
     return 1;
   }
 

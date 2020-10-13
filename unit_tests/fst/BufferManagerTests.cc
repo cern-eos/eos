@@ -174,7 +174,7 @@ TEST(BufferManager, MultipleThreads)
     // Get the most used slot according to the distribution mean
     uint32_t slot {UINT32_MAX};
 
-    for (int i = 0; i <= buff_mgr.GetNumSlots(); ++i) {
+    for (auto i = 0ull; i <= buff_mgr.GetNumSlots(); ++i) {
       if (dis_params.first <= (1 << (i + 20))) {
         slot = i;
         break;
