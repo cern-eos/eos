@@ -1749,6 +1749,22 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     if (selectedfs.empty()) {
       // this file has not a single existing replica
       gOFS->MgmStats.Add("OpenFileOffline", vid.uid, vid.gid, 1);
+
+      // Fire and forget a sync::offline workflow event
+      errno = 0;
+      workflow.SetFile(path, fileId);
+      const auto workflowType = openOpaque->Get("eos.workflow") != nullptr ?
+                                openOpaque->Get("eos.workflow") : "default";
+      std::string workflowErrorMsg;
+      const auto ret_wfe = workflow.Trigger("sync::offline", std::string{workflowType}, vid,
+                                            ininfo, workflowErrorMsg);
+
+      if (ret_wfe < 0 && errno == ENOKEY) {
+        eos_debug("msg=\"no workflow defined for sync::offline\"");
+      } else {
+        eos_info("msg=\"workflow trigger returned\" retc=%d errno=%d event=\"sync::offline\"", ret_wfe, errno);
+      }
+
       return Emsg(epname, error, ENODEV, "open - no disk replica exists", path);
     }
 

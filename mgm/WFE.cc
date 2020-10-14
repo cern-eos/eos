@@ -1633,6 +1633,8 @@ int WFE::Job::HandleProtoMethodEvents(std::string& errorMsg,
     return HandleProtoMethodRetrieveFailedEvent(fullPath);
   } else if (event == ARCHIVE_FAILED_WORKFLOW_NAME) {
     return HandleProtoMethodArchiveFailedEvent(fullPath);
+  } else if (event == "sync::offline" || event == "offline") {
+    return HandleProtoMethodOfflineEvent(fullPath, ininfo, errorMsg);
   } else if (event == "sync::update_fid" || event == "update_fid") {
     return HandleProtoMethodUpdateFidEvent(fullPath, errorMsg);
   } else {
@@ -1648,13 +1650,42 @@ WFE::Job::HandleProtoMethodPrepareEvent(const std::string& fullPath,
                                         const char* const ininfo,
                                         std::string& errorMsg)
 {
+  EXEC_TIMING_BEGIN("Proto::Prepare");
+  gOFS->MgmStats.Add("Proto::Prepare", 0, 0, 1);
+
+  const std::string prepareRequestId = GetPrepareRequestIdFromOpaqueData(ininfo);
+  const int prepareRc = IdempotentPrepare(fullPath, prepareRequestId, errorMsg);
+
+  EXEC_TIMING_END("Proto::Prepare");
+  return prepareRc;
+}
+
+
+std::string
+WFE::Job::GetPrepareRequestIdFromOpaqueData(const char* const ininfo)
+{
+  // Get the new request ID from the opaque data and add it to the list
+  XrdOucEnv opaque(ininfo);
+  const char* const prepareRequestId = opaque.Get("mgm.reqid");
+
+  if(prepareRequestId == nullptr) {
+    throw_mdexception(EINVAL, "mgm.reqid does not exist in opaque data.");
+  } else if(*prepareRequestId == '\0') {
+    throw_mdexception(EINVAL, "mgm.reqid has no value set in opaque data.");
+  }
+
+  return prepareRequestId;
+}
+
+
+int
+WFE::Job::IdempotentPrepare(const std::string& fullPath, const std::string &prepareRequestId, std::string& errorMsg)
+{
   using namespace std::chrono;
   struct stat buf;
   XrdOucErrInfo errInfo;
   bool onDisk;
   bool onTape;
-  EXEC_TIMING_BEGIN("Proto::Prepare");
-  gOFS->MgmStats.Add("Proto::Prepare", 0, 0, 1);
 
   // Check if we have a disk replica and if not, whether it's on tape
   if (gOFS->_stat(fullPath.c_str(), &buf, errInfo, mVid, nullptr, nullptr,
@@ -1696,17 +1727,7 @@ WFE::Job::HandleProtoMethodPrepareEvent(const std::string& fullPath,
     bool isFirstPrepare = prepareReqIds.values.empty();
 
     try {
-      // Get the new request ID from the opaque data and add it to the list
-      XrdOucEnv opaque(ininfo);
-      const char* const opaqueRequestId = opaque.Get("mgm.reqid");
-
-      if(opaqueRequestId == nullptr) {
-        throw_mdexception(EINVAL, "mgm.reqid does not exist in opaque data.");
-      } else if(*opaqueRequestId == '\0') {
-        throw_mdexception(EINVAL, "mgm.reqid has no value set in opaque data.");
-      }
-
-      prepareReqIds.values.insert(opaqueRequestId);
+      prepareReqIds.values.insert(prepareRequestId.c_str());
       fmd->setAttribute(RETRIEVE_REQID_ATTR_NAME, prepareReqIds.serialize());
 
       // if we are the first to retrieve the file
@@ -1802,7 +1823,6 @@ WFE::Job::HandleProtoMethodPrepareEvent(const std::string& fullPath,
     } catch (eos::MDException& ex) {}
   }
 
-  EXEC_TIMING_END("Proto::Prepare");
   return sendResult;
 }
 
@@ -2316,6 +2336,19 @@ WFE::Job::HandleProtoMethodArchiveFailedEvent(const std::string& fullPath)
   MoveWithResults(SFS_OK);
   EXEC_TIMING_END("Proto::Archive::Failed");
   return SFS_OK;
+}
+
+int
+WFE::Job::HandleProtoMethodOfflineEvent(const std::string& fullPath, const char* const ininfo, std::string& errorMsg)
+{
+  EXEC_TIMING_BEGIN("Proto::Offline");
+  gOFS->MgmStats.Add("Proto::Offline", 0, 0, 1);
+
+  const std::string prepareRequestId = "eos:implicit-prepare";
+  const int prepareRc = IdempotentPrepare(fullPath, prepareRequestId, errorMsg);
+
+  EXEC_TIMING_END("Proto::Offline");
+  return prepareRc;
 }
 
 int

@@ -245,6 +245,12 @@ public:
     //! @param fullPath the full path of the file
     int HandleProtoMethodArchiveFailedEvent(const std::string &fullPath);
 
+    //! @brief Handles a "proto" method "offline" event
+    //! @param fullPath the full path of the file
+    //! @param ininfo original opaque information of the URL that triggered the event
+    //! @param errorMsg out parameter giving the text of any error response
+    int HandleProtoMethodOfflineEvent(const std::string &fullPath, const char * const ininfo, std::string& errorMsg);
+
     //! @brief Handles a "proto" method "update_fid" event
     //! @param fullPath the full path of the file
     //! @param errorMsg out parameter giving the text of any error response
@@ -352,6 +358,20 @@ public:
     //! @brief move to queues based on the results
     //! @param rcode the return code of the job
     void MoveWithResults(int rcode, std::string fromQueue = "r");
+
+    //! @brief get prepare request identifier from specified opaque information
+    //! @param ininfo opaque information
+    //! @return prepare request identifier
+    //! @throw if the prepare request identifier does not exist in the opaque
+    //! information or if it has no value
+    std::string GetPrepareRequestIdFromOpaqueData(const char* const ininfo);
+
+    //! @brief Queues a prepare request if necessary
+    //! @param fullPath the full path of the file
+    //! @param prepareRequestId prepare request identifier
+    //! @param errorMsg out parameter giving the text of any error response
+    int IdempotentPrepare(const std::string& fullPath, const std::string &prepareRequestId, std::string& errorMsg);
+
   };
 
   XrdSysCondVar* GetSignal()
