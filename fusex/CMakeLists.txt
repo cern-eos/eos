@@ -105,6 +105,15 @@ if (RICHACL_FOUND)
   LIST(APPEND EOSXD_COMMON_LINK_LIBRARIES "${RICHACL_LIBRARIES}")
 endif()
 
+if (AARCH64)
+  LIST(APPEND EOSXD_COMMON_LINK_LIBRARIES 
+  ${GRPC_CARES_LIBRARY}
+  ${GRPC_GPR_LIBRARY}
+  ${ROCKSDB_BZ2_LIBRARY}
+  ${ROCKSDB_ZSTD_LIBRARY}
+)
+endif()
+
 #-------------------------------------------------------------------------------
 # eosxd common objects, shared between tests and main code.
 # An object library prevents having to compile them twice.

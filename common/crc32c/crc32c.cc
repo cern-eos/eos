@@ -23,6 +23,9 @@ static uint32_t crc32c_CPUDetection(uint32_t crc, const void* data,
   return best(crc, data, length);
 }
 
+#ifdef __aarch64__
+CRC32CFunctionPtr crc32c = crc32cHardware64;
+#else
 CRC32CFunctionPtr crc32c = crc32c_CPUDetection;
 
 static uint32_t cpuid(uint32_t functionInput)
@@ -84,6 +87,8 @@ CRC32CFunctionPtr detectBestCRC32C()
     return crc32cSlicingBy8;
   }
 }
+
+#endif
 
 // Implementations adapted from Intel's Slicing By 8 Sourceforge Project
 // http://sourceforge.net/projects/slicing-by-8/

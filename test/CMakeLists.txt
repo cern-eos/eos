@@ -124,7 +124,11 @@ set_target_properties(xrdcppartial PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS
 set_target_properties(xrdcpupdate PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
 set_target_properties(xrdcpposixcache PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
 set_target_properties(eoshashbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
+if (AARCH64)
+set_target_properties(eoschecksumbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64 -march=armv8-a+crc+crypto")
+else()
 set_target_properties(eoschecksumbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64 -msse4.2")
+endif()
 set_target_properties(eos-open-trunc-update PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
 
 install(

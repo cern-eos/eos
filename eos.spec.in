@@ -288,6 +288,9 @@ The EOS software package.
 %global build_flags %{build_flags} -DCOVERAGE=1 -DCOV_CROSS_PROFILE=1
 %endif
 
+%ifarch aarch64
+%global build_flags %{build_flags} -DAARCH64=ON
+%endif
 
 %build
 # On SLC6 we install a custom version of cmake that supports all the required

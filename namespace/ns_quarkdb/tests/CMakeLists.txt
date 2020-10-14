@@ -49,6 +49,8 @@ target_link_libraries(
   eos-ns-quarkdb-tests
   gtest
   gmock_main
+  bz2
+  zstd
   EosNsCommon-Static
   ${CMAKE_THREAD_LIBS_INIT})
 

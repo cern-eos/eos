@@ -117,6 +117,9 @@ set(EOSCOMMON_LIBS
   ${CURL_LIBRARIES}
   ${GLIBC_DL_LIBRARY}
   ${GLIBC_RT_LIBRARY}
+  ${GRPC_LIBRARY}
+  ${GRPC_CARES_LIBRARY}
+  ${GRPC_GPR_LIBRARY}
   ${LIBBFD_LIBRARIES}
   ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}
@@ -140,7 +143,10 @@ if (GRPC_FOUND)
     $<TARGET_OBJECTS:EosGrpcProto-Objects>)
 
   target_link_libraries(EosCommon PUBLIC
-    ${GRPC_GRPC++_LIBRARY})
+    ${GRPC_GRPC++_LIBRARY}
+    ${GRPC_CARES_LIBRARY}
+    ${GRPC_GPR_LIBRARY}
+)
 else ()
   add_library(EosCommon SHARED
     $<TARGET_OBJECTS:EosCommon-Objects>
@@ -169,7 +175,11 @@ if (GRPC_FOUND)
     $<TARGET_OBJECTS:EosGrpcProto-Objects>)
 
   target_link_libraries(EosCommon-Static PRIVATE
-    ${GRPC_GRPC++_LIBRARY_STATIC})
+    ${GRPC_GRPC++_LIBRARY_STATIC}
+    ${GRPC_CARES_LIBRARY}
+    ${GRPC_GPR_LIBRARY}
+    ${GRPC_LIBRARY}
+)
 else ()
   add_library(EosCommon-Static STATIC
     $<TARGET_OBJECTS:EosCommon-Objects>

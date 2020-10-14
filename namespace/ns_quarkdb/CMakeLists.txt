@@ -75,6 +75,7 @@ add_executable(eos-ns-convert
 target_link_libraries(eos-ns-convert
   jemalloc
   qclient
+  bz2
   EosCommon
   EosCrc32c-Static
   EosNsInMemory-Static
@@ -84,12 +85,12 @@ add_executable(eos-ns-convert-to-locality-hashes tools/EosConvertToLocalityHashe
 
 target_link_libraries(eos-ns-convert-to-locality-hashes
   EosNsCommon-Static
-  ${PROTOBUF_LIBRARY})
+  ${PROTOBUF_LIBRARY} bz2)
 
 add_executable(eos-ns-inspect tools/InspectionTool.cc)
 
 target_link_libraries(eos-ns-inspect
-  EosNsCommon-Static)
+  EosNsCommon-Static bz2 zstd)
 
 install(TARGETS eos-ns-convert eos-ns-convert-to-locality-hashes eos-ns-inspect
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}

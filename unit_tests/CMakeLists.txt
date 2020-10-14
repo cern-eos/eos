@@ -123,6 +123,8 @@ add_executable(
 
 target_link_libraries(
   eos-unit-tests
+  bz2
+  zstd
   gtest_main
   gmock
   qclient

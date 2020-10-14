@@ -28,6 +28,9 @@ add_definitions(-DCOVERAGE_BUILD)
 
 set(GCOV_CFLAGS "-fprofile-arcs -ftest-coverage --coverage")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GCOV_CFLAGS}")
+if (AARCH64)
+    LIST(APPEND CMAKE_CXX_FLAGS "-march=armv8-a+crc")
+endif()
 
 #-------------------------------------------------------------------------------
 # Code coverage targets
