@@ -6,6 +6,15 @@
 %define devtoolset devtoolset-8
 %define cmake cmake3
 
+#-------------------------------------------------------------------------------
+# Custom strip command for SLC6, CC7
+#-------------------------------------------------------------------------------
+%if "%{compiler}" == "gcc"
+    %if 0%{distribution} == 6 || 0%{distribution} == 7
+        %global __strip /bin/true
+    %endif
+%endif
+
 # By default we build the eos client SRPMS, if the entire build is required
 # then pass the "--with server" flag to the rpmbuild command
 %bcond_without server
