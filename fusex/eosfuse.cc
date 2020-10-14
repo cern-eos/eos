@@ -5416,7 +5416,7 @@ EosFuse::listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
 	  // add 'eos.tsize'
 	  attrlist += "eos.tsize";
 	  attrlist += '\0';
-	  attrlistsize += strlen("eos.tszie") + 1;
+	  attrlistsize += strlen("eos.tsize") + 1;
 	  // add "eos.url.xroot";
 	  attrlist += "eos.url.xroot";
 	  attrlist += '\0';
