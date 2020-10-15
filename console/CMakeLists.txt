@@ -148,7 +148,10 @@ target_link_libraries(EosConsoleCommands-Objects PUBLIC
 set_target_properties(EosConsoleCommands-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
-add_executable(eos ConsoleMainExecutable.cc)
+add_executable(eos ConsoleMainExecutable.cc
+  ${CMAKE_SOURCE_DIR}/mq/XrdMqClient.cc
+  ${CMAKE_SOURCE_DIR}/mq/XrdMqMessage.cc
+  ${CMAKE_SOURCE_DIR}/mq/ErrorReportListener.cc)
 
 #-------------------------------------------------------------------------------
 # Add dependency which guarantees that the protocol buffer files are generated
@@ -160,7 +163,6 @@ target_link_libraries(
   EosConsoleHelpers-Objects
   ZMQ::ZMQ
   XROOTD::POSIX
-  XrdMqClient
   EosFstIo-Static)
 
 install(PROGRAMS eosadmin
