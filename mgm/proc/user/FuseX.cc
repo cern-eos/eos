@@ -111,11 +111,7 @@ ProcCommand::FuseX()
 
       lock.Release();
 
-      if (schild.length()) {
-	eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView, spath.c_str());
-      } else {
-	eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, spath.c_str());
-      }
+      eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, spath.c_str());
 
       lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
@@ -146,6 +142,9 @@ ProcCommand::FuseX()
     // decode escaped child name
     schild = eos::common::StringConversion::curl_unescaped(schild.c_str()).c_str();
     std::shared_ptr<eos::IContainerMD> cmd;
+
+    eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView, inode);
+
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     std::string emsg;
 
