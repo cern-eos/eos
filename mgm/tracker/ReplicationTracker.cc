@@ -94,7 +94,7 @@ std::string
 ReplicationTracker::ConversionPolicy(bool injection, int fsid)
 {
   std::string space = FsView::gFsView.mIdView.lookupSpaceByID(fsid);
-  eos_static_info("%s %d", space.c_str(), fsid);
+  eos_static_debug("%s %d", space.c_str(), fsid);
   if (space.length()) {
     eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
 
@@ -114,7 +114,7 @@ std::string
 ReplicationTracker::ConversionSizePolicy(bool injection, int fsid)
 {
   std::string space = FsView::gFsView.mIdView.lookupSpaceByID(fsid);
-  eos_static_info("%s %d", space.c_str(), fsid);
+  eos_static_debug("%s %d", space.c_str(), fsid);
   if (space.length()) {
     eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
 
