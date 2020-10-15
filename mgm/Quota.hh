@@ -185,7 +185,7 @@ private:
   //! @warning Caller needs to hold a read-lock on both eosViewRWMutex and
   //!          pMapMutex
   //----------------------------------------------------------------------------
-  void Refresh();
+  void Refresh(time_t age=0);
 
   //----------------------------------------------------------------------------
   //! Calculate the size factor used to estimate the logical available bytes
@@ -305,6 +305,7 @@ private:
   eos::IQuotaNode* mQuotaNode; ///< corresponding ns quota node
   XrdSysMutex mMutex; ///< mutex to protect access to mMapIdQuota
   time_t mLastEnableCheck; ///< timestamp of the last check
+  time_t mLastRefresh; ///< timestamp of last refresh call
   double mLayoutSizeFactor; ///< layout dependent size factor
   bool mDirtyTarget; ///< mark to recompute target values
 

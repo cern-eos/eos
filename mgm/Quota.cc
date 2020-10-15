@@ -442,8 +442,19 @@ SpaceQuota::UpdateFromQuotaNode(uid_t uid, gid_t gid, bool upd_proj_quota)
 // Refresh counters
 //------------------------------------------------------------------------------
 void
-SpaceQuota::Refresh()
+SpaceQuota::Refresh(time_t age)
 {
+  time_t now = time(NULL);
+
+  // since this loads all quota node info all the time, we don't do this for GetIndividualQuota in realtime all the time
+  if (age) {
+    if ( (now - age) < mLastRefresh) {
+      return;
+    }
+  }
+
+  mLastRefresh = now;
+
   AccountNsToSpace();
   UpdateLogicalSizeFactor();
   UpdateIsSums();
@@ -1420,7 +1431,7 @@ Quota::GetIndividualQuota(eos::common::VirtualIdentity& vid,
   SpaceQuota* space = GetResponsibleSpaceQuota(path);
 
   if (space) {
-    space->Refresh();
+    space->Refresh(60);
     long long max_bytes_usr, max_bytes_grp, max_bytes_prj;
     long long free_bytes_usr, free_bytes_grp, free_bytes_prj;
     long long max_files_usr, max_files_grp, max_files_prj;
@@ -1809,7 +1820,7 @@ Quota::LoadNodes()
 	break;
       }
 
-      it->second->Refresh();
+      it->second->Refresh(5);
       n++;
 
       rd_quota_lock.Release();
@@ -1868,7 +1879,7 @@ Quota::GetGroupStatistics(const std::string& qpath, long id)
     return map;
   }
 
-  squota->Refresh();
+  squota->Refresh(60);
   unsigned long long value;
   // Set of all group related quota keys
   std::set<int> set_keys = {SpaceQuota::kGroupBytesIs, SpaceQuota::kGroupBytesTarget,
@@ -2221,7 +2232,7 @@ Quota::GetStatfs(const std::string& path, unsigned long long& maxbytes,
   SpaceQuota* space = GetResponsibleSpaceQuota(path);
 
   if (space) {
-    space->Refresh();
+    space->Refresh(60);
     maxbytes = space->GetQuota(SpaceQuota::kAllGroupBytesTarget, 0);
     freebytes = maxbytes - space->GetQuota(SpaceQuota::kAllGroupBytesIs, 0);
     maxbytes /= space->GetLayoutSizeFactor();
