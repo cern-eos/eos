@@ -5391,48 +5391,49 @@ EosFuse::listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
       auto map = md->attr();
       attrlist = "";
 
-      if (!Instance().Config().options.no_eos_xattr_listing) {
-	for (auto it = map.begin(); it != map.end(); ++it) {
-	  attrlistsize += it->first.length() + 1;
+      for (auto it = map.begin(); it != map.end(); ++it) {
+	attrlistsize += it->first.length() + 1;
 
-	  if (it->first.substr(0, 4) == "sys.") {
-	    attrlist += "eos.";
-	    attrlistsize += strlen("eos.");
+	if (it->first.substr(0, 4) == "sys.") {
+	  if (!Instance().Config().options.no_eos_xattr_listing) {
+	    continue;
 	  }
-
-	  attrlist += it->first;
-	  attrlist += '\0';
+	  attrlist += "eos.";
+	  attrlistsize += strlen("eos.");
 	}
 
-	{
-	  // add 'eos.btime'
-	  attrlist += "eos.btime";
-	  attrlist += '\0';
-	  attrlistsize += strlen("eos.btime") + 1;
-	  // add 'eos.ttime'
-	  attrlist += "eos.ttime";
-	  attrlist += '\0';
-	  attrlistsize += strlen("eos.ttime") + 1;
-	  // add 'eos.tsize'
-	  attrlist += "eos.tsize";
-	  attrlist += '\0';
-	  attrlistsize += strlen("eos.tsize") + 1;
-	  // add "eos.url.xroot";
-	  attrlist += "eos.url.xroot";
-	  attrlist += '\0';
-	  attrlistsize += strlen("eos.url.xroot") + 1;
-	}
+	attrlist += it->first;
+	attrlist += '\0';
+      }
 
-	{
-	  // for files add 'eos.checksum'
-	  if (S_ISREG(md->mode())) {
-	    attrlist += "eos.checksum";
-	    attrlist += '\0';
-	    attrlistsize += strlen("eos.checksum") + 1;
+      if (!Instance().Config().options.no_eos_xattr_listing) {
+	// add 'eos.btime'
+	attrlist += "eos.btime";
+	attrlist += '\0';
+	attrlistsize += strlen("eos.btime") + 1;
+	// add 'eos.ttime'
+	attrlist += "eos.ttime";
+	attrlist += '\0';
+	attrlistsize += strlen("eos.ttime") + 1;
+	// add 'eos.tsize'
+	attrlist += "eos.tsize";
+	attrlist += '\0';
+	attrlistsize += strlen("eos.tsize") + 1;
+	// add "eos.url.xroot";
+	attrlist += "eos.url.xroot";
+	attrlist += '\0';
+	attrlistsize += strlen("eos.url.xroot") + 1;
+      }
+
+      if (!Instance().Config().options.no_eos_xattr_listing) {
+	// for files add 'eos.checksum'
+	if (S_ISREG(md->mode())) {
+	  attrlist += "eos.checksum";
+	  attrlist += '\0';
+	  attrlistsize += strlen("eos.checksum") + 1;
 	    attrlist += "eos.md_ino";
 	    attrlist += '\0';
 	    attrlistsize += strlen("eos.md_ino") + 1;
-	  }
 	}
       }
 
