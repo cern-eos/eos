@@ -1790,12 +1790,31 @@ Quota::LoadNodes()
 
   // Refresh the space quota objects
   {
+    // loop over pMapQuota releasing locks each time in the iteration
     eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
+    bool first = true;
+    size_t n=0;
 
-    for (auto it = pMapQuota.begin(); it != pMapQuota.end(); ++it) {
+    do {
+      auto it = pMapQuota.begin();
+      std::advance(it, n);
+      if (!first) {
+	rd_ns_lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+	rd_quota_lock.Grab(pMapMutex);
+	first = false;
+      }
+
+      if (it == pMapQuota.end()) {
+	break;
+      }
+
       it->second->Refresh();
-    }
+      n++;
+
+      rd_quota_lock.Release();
+      rd_ns_lock.Release();
+    } while (1);
   }
 }
 
