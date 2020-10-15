@@ -68,7 +68,7 @@ fi
 make -j 4 && make install
 
 if [ $? -ne 0 ]; then
-n    echo "error: build/install failed"
+    echo "error: build/install failed"
     exit 1
 fi
 
