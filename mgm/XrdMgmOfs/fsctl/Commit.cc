@@ -256,9 +256,12 @@ XrdMgmOfs::Commit(const char* path,
 
       eos_thread_debug("commit: setting size to %llu", fmd->getSize());
 
-      if (!CommitHelper::commit_fmd(vid, cid, fmd, size, option, emsg)) {
+      eos::ContainerIdentifier p_ident;
+
+      if (!CommitHelper::commit_fmd(vid, cid, fmd, size, option, emsg, p_ident)) {
         return Emsg(epname, error, errno, "commit filesize change", emsg.c_str());
       }
+
 
       eos::FileIdentifier f_ident = fmd->getIdentifier();
       eos::ContainerIdentifier c_ident = eos::ContainerIdentifier(
@@ -269,6 +272,12 @@ XrdMgmOfs::Commit(const char* path,
         // broadcast file md
         gOFS->FuseXCastRefresh(f_ident,
                                c_ident);
+	// Broadcast to the fusex network only if the change has been
+	// triggered outside the fusex client network e.g. xrdcp etc.
+	if (!option["fusex"]) {
+	  gOFS->FuseXCastContainer(c_ident);
+	  gOFS->FuseXCastRefresh(c_ident, p_ident);
+	}
       }
     }
     {

@@ -119,7 +119,9 @@ public:
                          std::shared_ptr<eos::IFileMD>fmd,
                          unsigned long long replica_size,
                          CommitHelper::option_t& option,
-                         std::string& errmsg);
+                         std::string& errmsg,
+			 eos::ContainerIdentifier& p_ident
+			 );
 
   static unsigned long long get_version_fid(
     eos::common::VirtualIdentity& vid,

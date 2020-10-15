@@ -341,8 +341,6 @@ CommitHelper::validate_size(eos::common::VirtualIdentity& vid,
 
         try {
           gOFS->eosView->updateFileStore(fmd.get());
-          // this call is not needed, since it is just a new replica location
-          // gOFS->FuseXCastFile(fmd->getIdentifier());
         } catch (eos::MDException& e) {
           errno = e.getErrno();
           std::string errmsg = e.getMessage().str();
@@ -572,7 +570,9 @@ CommitHelper::commit_fmd(eos::common::VirtualIdentity& vid,
                          std::shared_ptr<eos::IFileMD>fmd,
                          unsigned long long replica_size,
                          CommitHelper::option_t& option,
-                         std::string& errmsg)
+                         std::string& errmsg,
+			 eos::ContainerIdentifier& p_ident
+			 )
 {
   std::shared_ptr<eos::IContainerMD> cmd;
 
@@ -591,6 +591,8 @@ CommitHelper::commit_fmd(eos::common::VirtualIdentity& vid,
     gOFS->eosView->updateFileStore(fmd.get());
     cmd = gOFS->eosDirectoryService->getContainerMD(cid);
 
+    p_ident = cmd->getParentIdentifier();
+
     if (option["update"]) {
       if (cmd->hasAttribute(tmpEtag)) {
         // Drop the tmp etag only if this was not a creation of a 0-size file
@@ -602,14 +604,6 @@ CommitHelper::commit_fmd(eos::common::VirtualIdentity& vid,
       // update parent mtime
       cmd->setMTimeNow();
       gOFS->eosView->updateContainerStore(cmd.get());
-
-      // Broadcast to the fusex network only if the change has been
-      // triggered outside the fusex client network e.g. xrdcp etc.
-      if (!option["fusex"]) {
-        gOFS->FuseXCastContainer(cmd->getIdentifier());
-        gOFS->FuseXCastRefresh(cmd->getIdentifier(), cmd->getParentIdentifier());
-      }
-
       cmd->notifyMTimeChange(gOFS->eosDirectoryService);
     }
 
