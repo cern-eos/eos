@@ -74,12 +74,8 @@ void FuseNotificationGuard::castDeletion(eos::ContainerIdentifier id, const std:
 // Instead of casting during destruction, you can also do it manually
 //------------------------------------------------------------------------------
 void FuseNotificationGuard::perform() {
-  for(auto it = mScheduledFiles.begin(); it != mScheduledFiles.end(); it++) {
-    mOfs->FuseXCastFile(*it);
-  }
-
-  for(auto it = mScheduledContainers.begin(); it != mScheduledContainers.end(); it++) {
-    mOfs->FuseXCastContainer(*it);
+  for(auto it = mScheduledDeletions.begin(); it != mScheduledDeletions.end(); it++) {
+    mOfs->FuseXCastDeletion(it->first, it->second);
   }
 
   for(auto it = mScheduledContainersRefresh.begin(); it != mScheduledContainersRefresh.end(); it++) {
@@ -90,8 +86,12 @@ void FuseNotificationGuard::perform() {
     mOfs->FuseXCastRefresh(it->first, it->second);
   }
 
-  for(auto it = mScheduledDeletions.begin(); it != mScheduledDeletions.end(); it++) {
-    mOfs->FuseXCastDeletion(it->first, it->second);
+  for(auto it = mScheduledFiles.begin(); it != mScheduledFiles.end(); it++) {
+    mOfs->FuseXCastFile(*it);
+  }
+
+  for(auto it = mScheduledContainers.begin(); it != mScheduledContainers.end(); it++) {
+    mOfs->FuseXCastContainer(*it);
   }
 
   clear();

@@ -63,6 +63,11 @@ public:
   void castRefresh(eos::ContainerIdentifier id, eos::ContainerIdentifier pid);
 
   //----------------------------------------------------------------------------
+  //! Schedule a call to FuseXCastRefresh during this object's destruction
+  //----------------------------------------------------------------------------
+  void castRefresh(eos::FileIdentifier id, eos::ContainerIdentifier pid);
+
+  //----------------------------------------------------------------------------
   //! Schedule a call to FuseXCastDeletion during this object's destruction
   //----------------------------------------------------------------------------
   void castDeletion(eos::ContainerIdentifier id, const std::string &name);
@@ -97,7 +102,9 @@ private:
   //----------------------------------------------------------------------------
   //! Set of scheduled "cast refresh" pairs
   //----------------------------------------------------------------------------
-  std::set<std::pair<eos::ContainerIdentifier, eos::ContainerIdentifier>> mScheduledRefresh;
+  std::set<std::pair<eos::ContainerIdentifier, eos::ContainerIdentifier>> mScheduledContainersRefresh;
+
+  std::set<std::pair<eos::FileIdentifier, eos::ContainerIdentifier>> mScheduledFilesRefresh;
 
   //----------------------------------------------------------------------------
   //! Set of scheduled deletions
