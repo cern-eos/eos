@@ -59,8 +59,8 @@
 #include <stdint.h>
 #include <atomic>
 #include <chrono>
-#ifdef EOS_INSTRUMENTED_RWMUTEX
 #include <map>
+#ifdef EOS_INSTRUMENTED_RWMUTEX
 #include <vector>
 #include <ostream>
 #include <fstream>
