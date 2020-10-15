@@ -56,7 +56,11 @@ void FuseNotificationGuard::castContainer(eos::ContainerIdentifier id) {
 //! Schedule a call to FuseXCastRefresh during this object's destruction
 //----------------------------------------------------------------------------
 void FuseNotificationGuard::castRefresh(eos::ContainerIdentifier id, eos::ContainerIdentifier pid) {
-  mScheduledRefresh.emplace(id, pid);
+  mScheduledContainersRefresh.emplace(id, pid);
+}
+
+void FuseNotificationGuard::castRefresh(eos::FileIdentifier id, eos::ContainerIdentifier pid) {
+  mScheduledFilesRefresh.emplace(id, pid);
 }
 
 //------------------------------------------------------------------------------
@@ -78,7 +82,11 @@ void FuseNotificationGuard::perform() {
     mOfs->FuseXCastContainer(*it);
   }
 
-  for(auto it = mScheduledRefresh.begin(); it != mScheduledRefresh.end(); it++) {
+  for(auto it = mScheduledContainersRefresh.begin(); it != mScheduledContainersRefresh.end(); it++) {
+    mOfs->FuseXCastRefresh(it->first, it->second);
+  }
+
+  for(auto it = mScheduledFilesRefresh.begin(); it != mScheduledFilesRefresh.end(); it++) {
     mOfs->FuseXCastRefresh(it->first, it->second);
   }
 
@@ -95,7 +103,8 @@ void FuseNotificationGuard::perform() {
 void FuseNotificationGuard::clear() {
   mScheduledFiles.clear();
   mScheduledContainers.clear();
-  mScheduledRefresh.clear();
+  mScheduledContainersRefresh.clear();
+  mScheduledFilesRefresh.clear();
   mScheduledDeletions.clear();
 }
 

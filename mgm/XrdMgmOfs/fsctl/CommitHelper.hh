@@ -136,7 +136,6 @@ public:
                                 std::string& delete_path);
 
 
-
 };
 
 EOSMGMNAMESPACE_END

@@ -25,6 +25,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/FsView.hh"
 #include "mgm/Stat.hh"
+#include "mgm/FuseNotificationGuard.hh"
 #include "common/http/OwnCloud.hh"
 #include "common/LayoutId.hh"
 #include "namespace/interface/IQuota.hh"
@@ -661,8 +662,11 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
                                 unsigned long fid,
                                 CommitHelper::path_t& paths,
                                 CommitHelper::option_t& option,
-                                std::string& delete_path)
+                                std::string& delete_path
+				)
 {
+  FuseNotificationGuard notify(gOFS);
+
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
                                      __FILE__);
 
@@ -693,10 +697,11 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
         versiondir->addFile(versionfmd.get());
         versiondir->setMTimeNow();
         gOFS->eosView->updateFileStore(versionfmd.get());
-        gOFS->FuseXCastDeletion(dir->getIdentifier(), paths["atomic"].GetName());
-        gOFS->FuseXCastRefresh(versionfmd->getIdentifier(),
-                               versiondir->getIdentifier());
-        gOFS->FuseXCastContainer(versiondir->getIdentifier());
+
+	notify.castDeletion(dir->getIdentifier(), paths["atomic"].GetName());
+	notify.castRefresh(versionfmd->getIdentifier(),
+			   versiondir->getIdentifier());
+	notify.castContainer(versiondir->getIdentifier());
         // Update the ownership and mode of the new file to the original
         // one
         fmd->setCUid(versionfmd->getCUid());
@@ -753,6 +758,8 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
     eos_thread_err("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                    e.getErrno(), e.getMessage().str().c_str());
   }
+  lock.Release();
+  // the notify guard will run broadcasts here
 }
 
 EOSMGMNAMESPACE_END
