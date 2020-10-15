@@ -418,6 +418,7 @@ public:
   inline void SetDebugName(const std::string& name)
   {
     mDebugName = name;
+    tl_mutex_name[(uint64_t) GetRawPtr()] = name;
   }
 
   //----------------------------------------------------------------------------
@@ -494,6 +495,17 @@ public:
 #endif
 
 #endif
+
+  static const char* LOCK_STATE[];
+
+  enum LOCK_T { eNone, eWantLockRead, eWantUnLockRead, eLockRead, eWantLockWrite, eWantUnLockWrite, eLockWrite };
+
+  typedef std::map<uint64_t, std::string> mutex_name_t;
+  typedef std::map<uint64_t, LOCK_T> mutex_addr_t;
+
+  static mutex_name_t tl_mutex_name;
+  static thread_local mutex_addr_t tl_mutex;
+
 
 private:
   bool mBlocking;
