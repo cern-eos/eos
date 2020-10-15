@@ -503,9 +503,10 @@ public:
   typedef std::map<uint64_t, std::string> mutex_name_t;
   typedef std::map<uint64_t, LOCK_T> mutex_addr_t;
 
+#ifdef EOS_INSTRUMENTED_RWMUTEX
   static mutex_name_t tl_mutex_name;
   static thread_local mutex_addr_t tl_mutex;
-
+#endif
 
 private:
   bool mBlocking;

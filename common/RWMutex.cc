@@ -61,10 +61,10 @@ std::map<pthread_t, bool>* RWMutex::threadOrderCheckResetFlags_static =
   NULL;
 pthread_rwlock_t RWMutex::mOrderChkLock;
 
-const char* RWMutex::LOCK_STATE[] = {"N", "wLR","wULR","LR","wLW","wULW","LW", NULL};
-
 RWMutex::mutex_name_t RWMutex::tl_mutex_name;
 thread_local RWMutex::mutex_addr_t RWMutex::tl_mutex;
+
+const char* RWMutex::LOCK_STATE[] = {"N", "wLR","wULR","LR","wLW","wULW","LW", NULL};
 
 #define EOS_RWMUTEX_CHECKORDER_LOCK if(sEnableGlobalOrderCheck) CheckAndLockOrder();
 #define EOS_RWMUTEX_CHECKORDER_UNLOCK if(sEnableGlobalOrderCheck) CheckAndUnlockOrder();
@@ -1290,9 +1290,15 @@ RWMutexWriteLock::Grab(RWMutex& mutex, const char* function, int line, const cha
   }
 
   mWrMutex = &mutex;
+#ifdef EOS_INSTRUMENTED_RWMUTEX
   RWMutex::tl_mutex[(uint64_t)mWrMutex->GetRawPtr()] = RWMutex::eWantLockWrite;
+#endif
+
   mWrMutex->LockWrite();
+
+#ifdef EOS_INSTRUMENTED_RWMUTEX
   RWMutex::tl_mutex[(uint64_t)mWrMutex->GetRawPtr()] = RWMutex::eLockWrite;
+#endif
   mAcquiredAt = std::chrono::steady_clock::now();
 }
 
@@ -1304,9 +1310,16 @@ void
 RWMutexWriteLock::Release()
 {
   if (mWrMutex) {
+#ifdef EOS_INSTRUMENTED_RWMUTEX
     RWMutex::tl_mutex[(uint64_t)mWrMutex->GetRawPtr()] = RWMutex::eWantUnLockWrite;
+#endif
+
     mWrMutex->UnLockWrite();
+
+#ifdef EOS_INSTRUMENTED_RWMUTEX
     RWMutex::tl_mutex[(uint64_t)mWrMutex->GetRawPtr()] = RWMutex::eNone;
+#endif
+
     int64_t blockedinterval = mWrMutex->BlockedForMsInterval();
     bool blockedtracing = mWrMutex->BlockedStackTracing();
     mWrMutex = nullptr;
@@ -1365,9 +1378,16 @@ RWMutexReadLock::Grab(RWMutex& mutex, const char* function, int line, const char
   }
 
   mRdMutex = &mutex;
+#ifdef EOS_INSTRUMENTED_RWMUTEX
   RWMutex::tl_mutex[(uint64_t)mRdMutex->GetRawPtr()] = RWMutex::eWantLockRead;
+#endif
+
   mRdMutex->LockRead();
+
+#ifdef EOS_INSTRUMENTED_RWMUTEX
   RWMutex::tl_mutex[(uint64_t)mRdMutex->GetRawPtr()] = RWMutex::eLockRead;
+#endif
+
   // acquiredAt must be updated _after_ we get the lock, since LockRead
   // may take a long time to complete
   mAcquiredAt = std::chrono::steady_clock::now();
@@ -1377,9 +1397,16 @@ void
 RWMutexReadLock::Release()
 {
   if (mRdMutex) {
+#ifdef EOS_INSTRUMENTED_RWMUTEX
     RWMutex::tl_mutex[(uint64_t)mRdMutex->GetRawPtr()] = RWMutex::eWantUnLockRead;
+#endif
+
     mRdMutex->UnLockRead();
+
+#ifdef EOS_INSTRUMENTED_RWMUTEX
     RWMutex::tl_mutex[(uint64_t)mRdMutex->GetRawPtr()] = RWMutex::eNone;
+#endif
+
     int64_t blockedinterval = mRdMutex->BlockedForMsInterval();
     bool blockedtracing = mRdMutex->BlockedStackTracing();
     mRdMutex = nullptr;
