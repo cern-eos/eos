@@ -7,15 +7,15 @@ Debian/Ubuntu installation
 ==========================
 
 The EOS client gets automatically built for recent Ubuntu releases,
-currently "artful" and "bionic".
+currently "bionic".
 
 .. note::
    You need to add the XRootD and EOS repositories to your ``/etc/apt/sources.list``  (change release name as required)
 
 .. code-block:: text
 
-	deb [arch=amd64] http://storage-ci.web.cern.ch/storage-ci/debian/xrootd/ artful master
-	deb [arch=amd64] http://storage-ci.web.cern.ch/storage-ci/debian/eos/citrine/ artful tag
+	deb [arch=amd64] http://storage-ci.web.cern.ch/storage-ci/debian/xrootd/ bionic release
+	deb [arch=amd64] http://storage-ci.web.cern.ch/storage-ci/debian/eos/citrine/ bionic tag
 
 
 Install EOS client via apt
@@ -29,4 +29,4 @@ Install EOS client via apt
 
 In case EOS access as filesystem is wanted, EOS-FUSEX needs then to be
 configured as per
-https://gitlab.cern.ch/dss/eos/blob/dev/fusex/README.md
+https://gitlab.cern.ch/dss/eos/-/blob/master/fusex/README.md
