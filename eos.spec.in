@@ -5,6 +5,7 @@
 %define distribution %(/usr/lib/rpm/redhat/dist.sh --distnum)
 %define devtoolset devtoolset-8
 %define cmake cmake3
+%define debug_package %{nil}
 
 #-------------------------------------------------------------------------------
 # Custom strip command for SLC6, CC7
