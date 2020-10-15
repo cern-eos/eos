@@ -319,10 +319,15 @@ XrdMgmOfs::_rem(const char* path,
               container->setMTimeNow();
               container->notifyMTimeChange(gOFS->eosDirectoryService);
               eosView->updateContainerStore(container.get());
-              gOFS->FuseXCastContainer(container->getIdentifier());
-              gOFS->FuseXCastDeletion(container->getIdentifier(), fmd->getName());
-              gOFS->FuseXCastRefresh(container->getIdentifier(),
-                                     container->getParentIdentifier());
+
+	      std::string deletion_name = fmd->getName();
+	      eos::ContainerIdentifier c_ident = container->getIdentifier();
+	      eos::ContainerIdentifier p_ident = container->getParentIdentifier();
+	      lock.Release();
+
+              gOFS->FuseXCastContainer(c_ident);
+              gOFS->FuseXCastDeletion(c_ident, deletion_name);
+              gOFS->FuseXCastRefresh(c_ident, p_ident);
             }
         }
       }
