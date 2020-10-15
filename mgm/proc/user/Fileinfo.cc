@@ -815,7 +815,7 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
   const std::string hex_fid = eos::common::FileId::Fid2Hex(fid);
 
   try {
-    eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
+    eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
     eos::common::RWMutexReadLock viewReadLock;
     std::shared_ptr<eos::IFileMD> fmd;
     std::string path;
@@ -834,14 +834,19 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
                        e.getMessage().str().c_str());
 
       if (!fmd) {
-        viewReadLock.Release();
+	if (dolock) {
+	  viewReadLock.Release();
+	}
         std::rethrow_exception(std::current_exception());
       }
     }
 
     std::shared_ptr<eos::IFileMD> fmd_copy(fmd->clone());
     fmd.reset();
-    viewReadLock.Release();
+    if (dolock) {
+      viewReadLock.Release();
+    }
+
     // TODO (esindril): All this copying should be reviewed
     //--------------------------------------------------------------------------
     fmd_copy->getCTime(ctime);
@@ -984,7 +989,7 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     std::string path;
     bool detached;
 
-    eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, fid);
+    eos::Prefetcher::prefetchContainerMDWithParentsAndWait(gOFS->eosView, fid);
 
     if (dolock) {
       viewReadLock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
