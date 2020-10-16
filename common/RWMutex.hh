@@ -216,7 +216,24 @@ public:
     return mWrLockCounter.load();
   }
 
+  enum class LOCK_T { eNone, eWantLockRead, eWantUnLockRead, eLockRead, eWantLockWrite, eWantUnLockWrite, eLockWrite };
+
+  //----------------------------------------------------------------------------
+  //! Record mutex operation type
+  //!
+  //! @param ptr_val pointer value of the mutex concerned
+  //! @param op type of operation on the given mutex
+  //----------------------------------------------------------------------------
+  static void RecordMutexOp(uint64_t ptr_val, LOCK_T op);
+
+
 #ifdef EOS_INSTRUMENTED_RWMUTEX
+  static const char* LOCK_STATE[];
+
+  typedef std::map<uint64_t, std::string> mutex_name_t;
+  typedef std::map<uint64_t, LOCK_T> mutex_addr_t;
+  static mutex_name_t tl_mutex_name;
+  static thread_local std::unique_ptr<mutex_addr_t> tl_mutex;
 
   struct TimingStats {
     double averagewaitread;
@@ -496,17 +513,6 @@ public:
 
 #endif
 
-  static const char* LOCK_STATE[];
-
-  enum LOCK_T { eNone, eWantLockRead, eWantUnLockRead, eLockRead, eWantLockWrite, eWantUnLockWrite, eLockWrite };
-
-  typedef std::map<uint64_t, std::string> mutex_name_t;
-  typedef std::map<uint64_t, LOCK_T> mutex_addr_t;
-
-#ifdef EOS_INSTRUMENTED_RWMUTEX
-  static mutex_name_t tl_mutex_name;
-  static thread_local mutex_addr_t tl_mutex;
-#endif
 
 private:
   bool mBlocking;
@@ -602,14 +608,16 @@ public:
   //!
   //! @param mutex mutex to lock for write
   //----------------------------------------------------------------------------
-  RWMutexWriteLock(RWMutex& mutex, const char* function="unknown", int line=0, const char* file="unknown");
+  RWMutexWriteLock(RWMutex& mutex, const char* function = "unknown", int line = 0,
+                   const char* file = "unknown");
 
   //----------------------------------------------------------------------------
   //! Grab mutex and write lock it
   //!
   //! @param mutex mutex to lock for write
   //----------------------------------------------------------------------------
-  void Grab(RWMutex& mutex, const char* function="unknown", int line=0, const char* file="unknown");
+  void Grab(RWMutex& mutex, const char* function = "unknown", int line = 0,
+            const char* file = "unknown");
 
   //----------------------------------------------------------------------------
   //! Release the write lock after grab
@@ -639,21 +647,24 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   RWMutexReadLock(): mRdMutex(nullptr) {};
-  RWMutexReadLock(const char* function, int line, const char* file) : mRdMutex(nullptr), mFunction(""), mLine(0), mFile("") {};
+  RWMutexReadLock(const char* function, int line,
+                  const char* file) : mRdMutex(nullptr), mFunction(""), mLine(0), mFile("") {};
 
   //----------------------------------------------------------------------------
   //! Constructor
   //!
   //! @param mutex mutex to handle
   //----------------------------------------------------------------------------
-  RWMutexReadLock(RWMutex& mutex, const char* function="unknown", int line=0, const char* file="unknown");
+  RWMutexReadLock(RWMutex& mutex, const char* function = "unknown", int line = 0,
+                  const char* file = "unknown");
 
   //----------------------------------------------------------------------------
   //! Grab mutex and read lock it
   //!
   //! @param mutex mutex to lock for read
   //----------------------------------------------------------------------------
-  void Grab(RWMutex& mutex, const char* function="unknown", int line=0, const char* file="unknown");
+  void Grab(RWMutex& mutex, const char* function = "unknown", int line = 0,
+            const char* file = "unknown");
 
   //----------------------------------------------------------------------------
   //! Release the write lock after grab

@@ -90,15 +90,21 @@ USE_EOSMGMNAMESPACE
 
 void xrdmgmofs_stack(int sig)
 {
-  static time_t stacktime=0;
+  static time_t stacktime = 0;
   std::ostringstream out;
+
   if (sig == SIGUSR2) {
     out << "# ___ thread:" << syscall(SYS_gettid) << " ";
-    for (auto it = eos::common::RWMutex::tl_mutex_name.begin(); it!= eos::common::RWMutex::tl_mutex_name.end(); ++it) {
-      if (eos::common::RWMutex::tl_mutex.count(it->first)) {
-	out << it->second << ": " << eos::common::RWMutex::LOCK_STATE[eos::common::RWMutex::tl_mutex[it->first]] << " ";
+
+    for (auto it = eos::common::RWMutex::tl_mutex_name.begin();
+         it != eos::common::RWMutex::tl_mutex_name.end(); ++it) {
+      if (eos::common::RWMutex::tl_mutex &&
+          eos::common::RWMutex::tl_mutex->count(it->first)) {
+        out << it->second << ": " << eos::common::RWMutex::LOCK_STATE[(int)(
+              *eos::common::RWMutex::tl_mutex)[it->first]] << " ";
       }
     }
+
     out << std::endl;
     out << "# ................ " << eos::common::getStacktrace();
     std::string stackdump = "/var/eos/md/stacktrace.";
@@ -107,7 +113,6 @@ void xrdmgmofs_stack(int sig)
     outf << out.str() << std::endl;
     std::cerr << out.str() << std::endl;
     outf.close();
-
   }
 
   if (sig == SIGUSR1) {
@@ -119,6 +124,7 @@ void xrdmgmofs_stack(int sig)
     std::set<pthread_t> tosignal = gOFS->mTracker.getInFlightThreads();
     outf << "# " << tosignal.size() << " threads in tracking" << std::endl;
     outf.close();
+
     for (auto it = tosignal.begin(); it != tosignal.end(); ++it) {
       pthread_kill(*it, SIGUSR2);
     }
@@ -1686,7 +1692,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   order.push_back(fusex_client_mtx);
   order.push_back(fusex_cap_mtx);
   order.push_back(quota_mtx);
-
   eos::common::RWMutex::AddOrderRule("Eos Mgm Mutexes", order);
 #endif
 
