@@ -7,10 +7,10 @@ Debian/Ubuntu installation
 ==========================
 
 The EOS client gets automatically built for recent Ubuntu releases,
-currently "bionic".
+currently "bionic" and "focal"
 
 .. note::
-   You need to add the XRootD and EOS repositories to your ``/etc/apt/sources.list``  (change release name as required)
+   You need to add the XRootD and EOS repositories to your ``/etc/apt/sources.list`` (change distribution name as required)
 
 .. code-block:: text
 

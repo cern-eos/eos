@@ -209,11 +209,17 @@ build_c8:
 
 .build_ubuntu-template: &build_ubuntu-template_definition
   stage: build:rpm
+  before_script:
+    - apt-get update -y
+    - apt-get install -y apt-transport-https ca-certificates gnupg software-properties-common wget
+    - wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | apt-key add -
+    - apt-add-repository 'deb https://apt.kitware.com/ubuntu/ '${EOS_DIST}' main'
   script:
-    - apt-get update -y; apt-get install -y git cmake g++ debhelper devscripts equivs gdebi-core ccache gawk
+    - apt-get update -y
+    - apt-get install -y git cmake g++ debhelper devscripts equivs gdebi-core ccache gawk
     # @todo re-enable building against latest XRootD master commit when CMake allows using XRootD plugin version 5 libraries
-    #- echo -e '\ndeb http://storage-ci.web.cern.ch/storage-ci/debian/xrootd/ '${EOS_ARCH}' master' >> /etc/apt/sources.list
-    - echo -e '\ndeb http://storage-ci.web.cern.ch/storage-ci/debian/xrootd/ '${EOS_ARCH}' release' >> /etc/apt/sources.list
+    #- echo -e '\ndeb http://storage-ci.web.cern.ch/storage-ci/debian/xrootd/ '${EOS_DIST}' master' >> /etc/apt/sources.list
+    - echo -e '\ndeb http://storage-ci.web.cern.ch/storage-ci/debian/xrootd/ '${EOS_DIST}' release' >> /etc/apt/sources.list
     - wget -O - http://storage-ci.web.cern.ch/storage-ci/storageci.key 2>/dev/null | apt-key add -
     - apt-get update -y
     - git submodule update --init --recursive
@@ -224,11 +230,11 @@ build_c8:
     - echo -e "Package:"" xrootd* libxrd* libxrootd*\nPin:"" version $XROOTD_VERSION\nPin-Priority:"" 1000" > /etc/apt/preferences.d/xrootd.pref
     - mk-build-deps --build-dep debian/control
     - gdebi -n eos-build-deps-depends*.deb
-    - dch --create -v `./genversion.sh` --package eos --urgency low --distribution ${EOS_ARCH} -M "This package is built and released automatically. For important notices and releases subscribe to our mailing lists or visit our website."
+    - dch --create -v `./genversion.sh` --package eos --urgency low --distribution ${EOS_DIST} -M "This package is built and released automatically. For important notices and releases subscribe to our mailing lists or visit our website."
     - if [[ -n "$CI_COMMIT_TAG" ]]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache_deb.sh; fi
     - dpkg-buildpackage -b -us -uc -tc --buildinfo-option="-udeb_packages" --changes-option="-udeb_packages"
     - ccache -s
-    - mkdir ${EOS_ARCH}_artifacts/; cp deb_packages/*.deb ${EOS_ARCH}_artifacts
+    - mkdir ${EOS_DIST}_artifacts/; cp deb_packages/*.deb ${EOS_DIST}_artifacts
   cache:
     key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
     paths:
@@ -236,20 +242,15 @@ build_c8:
   artifacts:
     expire_in: 1 day
     paths:
-      - ${EOS_ARCH}_artifacts/
+      - ${EOS_DIST}_artifacts/
   dependencies: []
   allow_failure: true # @todo false for tags
 
 build_ubuntu_bionic:
   image: ubuntu:bionic
-  before_script:
-    - apt-get update
-    - apt-get install -y apt-transport-https ca-certificates gnupg software-properties-common wget
-    - wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | apt-key add -
-    - apt-add-repository 'deb https://apt.kitware.com/ubuntu/ '${EOS_ARCH}' main'
   <<: *build_ubuntu-template_definition
   variables:
-    EOS_ARCH: bionic
+    EOS_DIST: bionic
   only:
     - schedules
     - tags
@@ -259,14 +260,9 @@ build_ubuntu_bionic:
 
 build_ubuntu_focal:
   image: ubuntu:focal
-  before_script:
-    - apt-get update
-    - apt-get install -y apt-transport-https ca-certificates gnupg software-properties-common wget
-    - wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | apt-key add -
-    - apt-add-repository 'deb https://apt.kitware.com/ubuntu/ '${EOS_ARCH}' main'
   <<: *build_ubuntu-template_definition
   variables:
-    EOS_ARCH: focal
+    EOS_DIST: focal
   only:
     - schedules
     - tags
@@ -282,7 +278,7 @@ build_ubuntu_focal:
     - git submodule update --init --recursive
     - mkdir build; cd build
     - cmake3 .. -DPACKAGEONLY=1; make srpm; cd ..
-    - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/'${EOS_ARCH}'/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
+    - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/'${EOS_DIST}'/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
     - dnf builddep --nogpgcheck --allowerasing -y build/SRPMS/*
     - if [[ -n "$CI_COMMIT_TAG" ]]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache_fc.sh; fi
     # @todo: add this flag to have the build pass as it fails during boost header compilation - should be removed in the future ...
@@ -290,7 +286,7 @@ build_ubuntu_focal:
     - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
     - ccache -s
     - if [[ -n "$CI_COMMIT_TAG" ]]; then gpg2 --import $STCI_REPO_KEY; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
-    - mkdir ${EOS_ARCH}_artifacts; cp -R build/SRPMS build/RPMS ${EOS_ARCH}_artifacts
+    - mkdir ${EOS_DIST}_artifacts; cp -R build/SRPMS build/RPMS ${EOS_DIST}_artifacts
   cache:
     key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
     paths:
@@ -298,7 +294,7 @@ build_ubuntu_focal:
   artifacts:
     expire_in: 1 day
     paths:
-      - ${EOS_ARCH}_artifacts/
+      - ${EOS_DIST}_artifacts/
   dependencies: []
   allow_failure: true # @todo false for tags
 
@@ -306,7 +302,7 @@ build_fedora_stable:
   image: fedora:31
   <<: *build_fedora-template_definition
   variables:
-    EOS_ARCH: fc-31
+    EOS_DIST: fc-31
   only:
     - schedules
     - tags
@@ -318,7 +314,7 @@ build_fedora_rawhide:
   image: registry.fedoraproject.org/fedora:rawhide
   <<: *build_fedora-template_definition
   variables:
-    EOS_ARCH: fc-rawhide
+    EOS_DIST: fc-rawhide
   only:
     - schedules
   tags:
@@ -467,6 +463,19 @@ ubuntu_bionic_docker_image:
   needs:
     - job: clone_docker
     - job: build_ubuntu_bionic
+  only:
+    - schedules
+    - tags
+  allow_failure: true
+
+ubuntu_focal_docker_image:
+  extends: .build_dockerimage-template
+  variables:
+    DOCKERFILE: eos-docker/Dockerfile_ubuntu_focal
+    BASETAG: "ubuntu_focal_client_"
+  needs:
+    - job: clone_docker
+    - job: build_ubuntu_focal
   only:
     - schedules
     - tags
@@ -835,7 +844,7 @@ k8s_cbox_c8:
   tags:
     - shell-with-kubernetes
 
-k8s_fusex_ubuntu:
+k8s_fusex_ub_bionic:
   extends: .dock8s_fusex_test_template
   variables:
     CLI_BASETAG: "ubuntu_bionic_client_"
@@ -843,6 +852,23 @@ k8s_fusex_ubuntu:
     - job: cc7_docker_image
       artifacts: false
     - job: ubuntu_bionic_docker_image
+      artifacts: false
+  retry: 1
+  allow_failure: true
+  only:
+    - schedules
+    - tags
+  tags:
+    - shell-with-kubernetes
+
+k8s_fusex_ub_focal:
+  extends: .dock8s_fusex_test_template
+  variables:
+    CLI_BASETAG: "ubuntu_focal_client_"
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
+    - job: ubuntu_focal_docker_image
       artifacts: false
   retry: 1
   allow_failure: true
@@ -902,7 +928,7 @@ dock_cbox_c8:
     - shell-with-docker
   when: manual
 
-dock_fusex_ubuntu:
+dock_fusex_ub_bionic:
   extends: .dock8s_fusex_test_template
   variables:
     CLI_BASETAG: "ubuntu_bionic_client_"
@@ -910,6 +936,25 @@ dock_fusex_ubuntu:
     - job: cc7_docker_image
       artifacts: false
     - job: ubuntu_bionic_docker_image
+      artifacts: false
+    - job: clone_docker
+  allow_failure: true
+  retry: 1
+  only:
+    - schedules
+    - tags
+  tags:
+    - shell-with-docker
+  when: manual
+
+dock_fusex_ub_focal:
+  extends: .dock8s_fusex_test_template
+  variables:
+    CLI_BASETAG: "ubuntu_focal_client_"
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
+    - job: ubuntu_focal_docker_image
       artifacts: false
     - job: clone_docker
   allow_failure: true
@@ -1066,6 +1111,7 @@ debian_bionic_artifacts:
     - docker_node
     - publish
 
+# @todo are two debian_<dist>_artifacts even needed? Check
 debian_focal_artifacts:
   stage: publish
   image: ubuntu:focal
@@ -1100,6 +1146,7 @@ debian_artifacts_volume:
     - ./gitlab-ci/store_artifacts_debian.sh /mnt/eos_repositories/debian/eos/${BRANCH} tag
   dependencies:
     - build_ubuntu_bionic
+    - build_ubuntu_focal
   only:
     - tags
   tags:
