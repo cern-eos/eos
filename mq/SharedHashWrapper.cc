@@ -193,12 +193,14 @@ bool SharedHashWrapper::set(const Batch& batch)
 //------------------------------------------------------------------------------
 std::string SharedHashWrapper::get(const std::string& key)
 {
-  if (!mHash) {
+  std::string retval;
+  bool outcome = this->get(key, retval);
+
+  if(!outcome) {
     return "";
   }
 
-  std::unique_lock lock(mHash->mMutex);
-  return mHash->Get(key.c_str());
+  return retval;
 }
 
 //------------------------------------------------------------------------------
