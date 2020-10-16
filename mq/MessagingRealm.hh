@@ -102,6 +102,11 @@ public:
   Response sendMessage(const std::string& descr, const std::string& payload,
                        const std::string& receiver, bool is_monitor = false);
 
+  //----------------------------------------------------------------------------
+  //! Set instance name
+  //----------------------------------------------------------------------------
+  bool setInstanceName(const std::string &name);
+
 private:
   XrdMqSharedObjectManager* mSom;
   XrdMqSharedObjectChangeNotifier* mNotifier;

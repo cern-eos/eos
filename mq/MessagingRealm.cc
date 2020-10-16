@@ -21,6 +21,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include <qclient/QClient.hh>
+#include <qclient/shared/SharedManager.hh>
+#include <qclient/ResponseParsing.hh>
+
 #include "mq/MessagingRealm.hh"
 #include "mq/XrdMqMessage.hh"
 #include "mq/XrdMqClient.hh"
@@ -106,6 +110,32 @@ MessagingRealm::sendMessage(const std::string& descr,
   }
 
   return resp;
+}
+
+//------------------------------------------------------------------------------
+//! Set instance name
+//------------------------------------------------------------------------------
+bool MessagingRealm::setInstanceName(const std::string &name) {
+  if(!haveQDB()) {
+    return true;
+  }
+
+  qclient::QClient *qcl = mQSom->getQClient();
+
+  qclient::redisReplyPtr reply = qcl->exec("SET", "eos-instance-name", name).get();
+  qclient::StatusParser parser(reply);
+
+  if(!parser.ok()) {
+    eos_static_crit("error while setting instance name in QDB: %s", parser.err().c_str());
+    return false;
+  }
+
+  if(parser.value() != "OK") {
+    eos_static_crit("unexpected response while setting instance name in QDB: %s", parser.value().c_str());
+    return false;
+  }
+
+  return true;
 }
 
 EOSMQNAMESPACE_END

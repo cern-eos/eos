@@ -1577,6 +1577,12 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   mMessagingRealm.reset(new eos::mq::MessagingRealm(&ObjectManager,
                         &ObjectNotifier, &XrdMqMessaging::gMessageClient, qsm));
   eos::common::InstanceName::set(MgmOfsInstanceName.c_str());
+
+  if(!mMessagingRealm->setInstanceName(MgmOfsInstanceName.c_str())) {
+    eos_static_crit("unable to set instance name in QDB");
+    return 1;
+  }
+
   // set the object manager to listener only
   ObjectManager.EnableBroadCast(false);
   // setup the modifications which the fs listener thread is waiting for
