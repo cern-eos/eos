@@ -107,6 +107,11 @@ public:
   //----------------------------------------------------------------------------
   bool setInstanceName(const std::string &name);
 
+  //----------------------------------------------------------------------------
+  //! Get instance name
+  //----------------------------------------------------------------------------
+  bool getInstanceName(std::string &name);
+
 private:
   XrdMqSharedObjectManager* mSom;
   XrdMqSharedObjectChangeNotifier* mNotifier;

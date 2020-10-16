@@ -172,11 +172,8 @@ Storage::Storage(const char* meta_dir)
   mCommunicatorThread.reset(&Storage::Communicator, this);
   mCommunicatorThread.setName("Communicator Thread");
 
-  if (gOFS.mMqOnQdb) {
-    mQdbCommunicatorThread.reset(&Storage::QdbCommunicator,
-                                 this, gOFS.mQdbContactDetails);
-    mQdbCommunicatorThread.setName("QDB Communicator Thread");
-  }
+  mQdbCommunicatorThread.reset(&Storage::QdbCommunicator, this);
+  mQdbCommunicatorThread.setName("QDB Communicator Thread");
 
   eos_info("starting daemon supervisor thread");
 

@@ -86,7 +86,7 @@ public:
   common::SharedHashLocator getNodeHashLocator(const std::string& location = "",
                                      bool blocking = true);
 
-  void setFstNodeConfigQueue(const XrdOucString& value);
+  void setFstNodeConfigQueue(const std::string &value);
   std::chrono::seconds getPublishInterval();
 
   // Return a random number, uniformly distributed within
@@ -95,6 +95,7 @@ public:
 
 private:
   //! Queue holding this node's configuration settings
+  std::mutex mConfigQueueMtx;
   XrdOucString FstNodeConfigQueue;
   std::atomic<bool> configQueueInitialized {false};
   eos::common::SharedHashLocator mNodeHashLocator;

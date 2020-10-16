@@ -113,7 +113,7 @@ MessagingRealm::sendMessage(const std::string& descr,
 }
 
 //------------------------------------------------------------------------------
-//! Set instance name
+// Set instance name
 //------------------------------------------------------------------------------
 bool MessagingRealm::setInstanceName(const std::string &name) {
   if(!haveQDB()) {
@@ -132,6 +132,31 @@ bool MessagingRealm::setInstanceName(const std::string &name) {
 
   if(parser.value() != "OK") {
     eos_static_crit("unexpected response while setting instance name in QDB: %s", parser.value().c_str());
+    return false;
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Get instance name
+//------------------------------------------------------------------------------
+bool MessagingRealm::getInstanceName(std::string &name) {
+  if(!haveQDB()) {
+    return false;
+  }
+
+  qclient::QClient *qcl = mQSom->getQClient();
+
+  qclient::redisReplyPtr reply = qcl->exec("GET", "eos-instance-name").get();
+  qclient::StringParser parser(reply);
+
+  if(!parser.ok()) {
+    return false;
+  }
+
+  name = parser.value();
+  if(name.empty()) {
     return false;
   }
 

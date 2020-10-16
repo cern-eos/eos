@@ -45,12 +45,18 @@ XrdOucString Config::getFstNodeConfigQueue(const std::string& location,
     std::this_thread::sleep_for(std::chrono::seconds(2));
   }
 
+  std::unique_lock<std::mutex> lock(mConfigQueueMtx);
   return FstNodeConfigQueue;
 }
 
-void Config::setFstNodeConfigQueue(const XrdOucString& value)
+void Config::setFstNodeConfigQueue(const std::string &value)
 {
-  FstNodeConfigQueue = value;
+  std::unique_lock<std::mutex> lock(mConfigQueueMtx);
+  if(configQueueInitialized) {
+    return;
+  }
+
+  FstNodeConfigQueue = value.c_str();
   std::vector<std::string> parts =
     common::StringTokenizer::split<std::vector<std::string>>(value.c_str(), '/');
   common::InstanceName::set(parts[1]);

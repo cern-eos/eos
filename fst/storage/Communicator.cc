@@ -456,7 +456,7 @@ Storage::Communicator(ThreadAssistant& assistant)
             // This is the configuration entry and we should store it to have
             // access to it since it's name depends on the instance name and
             // we don't know (yet)
-            Config::gConfig.setFstNodeConfigQueue(queue);
+            Config::gConfig.setFstNodeConfigQueue(queue.c_str());
             eos_static_info("msg=\"storing config queue name\" qpath=\"%s\"",
                             queue.c_str());
           } else {
@@ -501,9 +501,31 @@ Storage::Communicator(ThreadAssistant& assistant)
 // QdbCommunicator
 //------------------------------------------------------------------------------
 void
-Storage::QdbCommunicator(QdbContactDetails contactDetails,
-                         ThreadAssistant& assistant)
+Storage::QdbCommunicator(ThreadAssistant& assistant)
 {
+  eos::mq::MessagingRealm *realm = gOFS.mMessagingRealm.get();
+  if(!realm->haveQDB()) {
+    return;
+  }
+
+  //----------------------------------------------------------------------------
+  // Process initial FST configuration..
+  //----------------------------------------------------------------------------
+  std::string instanceName;
+  for(size_t i = 0; i < 10; i++) {
+    if(realm->getInstanceName(instanceName)) {
+      break;
+    }
+  }
+
+  if(instanceName.empty()) {
+    eos_static_crit("unable to obtain instance name from QDB");
+    exit(1);
+  }
+
+  std::string configQueue = SSTR("/config/" << instanceName << "/node/" << eos::fst::Config::gConfig.FstHostPort);
+  Config::gConfig.setFstNodeConfigQueue(configQueue);
+
   while (!assistant.terminationRequested()) {
     assistant.wait_for(std::chrono::seconds(1));
   }

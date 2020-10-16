@@ -1344,14 +1344,6 @@ public:
                       unsigned long long fid);
 
   //----------------------------------------------------------------------------
-  //! Authentication master thread startup static function
-  //!
-  //! @param pp pointer to the XrdMgmOfs class
-  //!
-  //----------------------------------------------------------------------------
-  static void* StartAuthMasterThread(void* pp);
-
-  //----------------------------------------------------------------------------
   //! Authentication master thread function - accepts requests from EOS AUTH
   //! plugins which he then forwards to worker threads.
   //!

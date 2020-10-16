@@ -241,8 +241,7 @@ private:
   //----------------------------------------------------------------------------
   void Supervisor();
   void Communicator(ThreadAssistant& assistant);
-  void QdbCommunicator(QdbContactDetails contactDetails,
-                       ThreadAssistant& assistant);
+  void QdbCommunicator(ThreadAssistant& assistant);
 
   //------------------------------------------------------------------------------
   //! Get configuration value from global FST config
