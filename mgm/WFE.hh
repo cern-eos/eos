@@ -362,8 +362,8 @@ public:
     //! @brief get prepare request identifier from specified opaque information
     //! @param ininfo opaque information
     //! @return prepare request identifier
-    //! @throw if the prepare request identifier does not exist in the opaque
-    //! information or if it has no value
+    //! @throw MDException if the prepare request identifier does not exist in the
+    //! opaque information or if it has no value
     std::string GetPrepareRequestIdFromOpaqueData(const char* const ininfo);
 
     //! @brief Queues a prepare request if necessary
