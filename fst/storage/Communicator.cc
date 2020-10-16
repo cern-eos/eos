@@ -509,7 +509,7 @@ Storage::QdbCommunicator(ThreadAssistant& assistant)
   }
 
   //----------------------------------------------------------------------------
-  // Process initial FST configuration..
+  // Process initial FST configuration.. discover instance name..
   //----------------------------------------------------------------------------
   std::string instanceName;
   for(size_t i = 0; i < 10; i++) {
@@ -525,6 +525,42 @@ Storage::QdbCommunicator(ThreadAssistant& assistant)
 
   std::string configQueue = SSTR("/config/" << instanceName << "/node/" << eos::fst::Config::gConfig.FstHostPort);
   Config::gConfig.setFstNodeConfigQueue(configQueue);
+
+  //----------------------------------------------------------------------------
+  // Discover node-specific configuration..
+  //----------------------------------------------------------------------------
+  common::SharedHashLocator nodeLocator = Config::gConfig.getNodeHashLocator();
+  mq::SharedHashWrapper hash(gOFS.mMessagingRealm.get(), nodeLocator, true, false);
+
+  //----------------------------------------------------------------------------
+  // Discover MGM name..
+  //----------------------------------------------------------------------------
+  std::string mgmHost;
+  for(size_t i = 0; i < 10; i++) {
+    if(hash.get("manager", mgmHost)) {
+      break;
+    }
+
+    std::this_thread::sleep_for(std::chrono::seconds(5));
+  }
+
+  if(!mgmHost.empty()) {
+    ProcessFstConfigChange("manager", mgmHost);
+  }
+
+  //----------------------------------------------------------------------------
+  // Discover rest of FST configuration..
+  //----------------------------------------------------------------------------
+  std::vector<std::string> keys = { "symkey", "publish.interval",
+    "debug.level", "txgw", "gw.rate", "gw.ntx", "error.simulation"
+  };
+
+  for(size_t i = 0; i < keys.size(); i++) {
+    std::string value;
+    if(hash.get(keys[i], value)) {
+      ProcessFstConfigChange(keys[i], value);
+    }
+  }
 
   while (!assistant.terminationRequested()) {
     assistant.wait_for(std::chrono::seconds(1));
