@@ -1776,14 +1776,24 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath, const std::string &prep
   notification->mutable_file()->mutable_owner()->set_gid(cgid);
   auto fxidString = StringConversion::FastUnsignedToAsciiHex(mFid);
   std::ostringstream destStream;
-  destStream << "root://" << gOFS->HostName << "/" << fullPath << "?eos.lfn=fxid:"
+  std::string mgmHostName;
+  if (gOFS->MgmOfsAlias.length()) {
+    mgmHostName = gOFS->MgmOfsAlias.c_str();
+  } else if (gOFS->HostName != nullptr) {
+    mgmHostName = gOFS->HostName;
+  } else {
+    eos_static_err("IdempotentPrepare() failed: Could not determine the value of mgmHostName");
+    MoveWithResults(ENODATA);
+    return ENODATA;
+  }
+  destStream << "root://" << mgmHostName << "/" << fullPath << "?eos.lfn=fxid:"
              << fxidString;
   destStream << "&eos.ruid=0&eos.rgid=0&eos.injection=1&eos.workflow=" <<
              RETRIEVE_WRITTEN_WORKFLOW_NAME <<
              "&eos.space=" << gOFS->mPrepareDestSpace;
   notification->mutable_transport()->set_dst_url(destStream.str());
   std::ostringstream errorReportStream;
-  errorReportStream << "eosQuery://" << gOFS->HostName
+  errorReportStream << "eosQuery://" << mgmHostName
                     << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
                     << "&mgm.logid=cta&mgm.event=" << RETRIEVE_FAILED_WORKFLOW_NAME
                     << "&mgm.workflow=default&mgm.path=/dummy_path&mgm.ruid=0&mgm.rgid=0&mgm.errmsg=";
