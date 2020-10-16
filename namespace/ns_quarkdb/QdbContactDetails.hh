@@ -95,6 +95,9 @@ public:
       opts.handshake.reset(new qclient::HmacAuthHandshake(password));
     }
 
+    opts.retryStrategy = qclient::RetryStrategy::WithTimeout(
+                           std::chrono::minutes(2));
+    opts.usePushTypes = true;
     return opts;
   }
 
