@@ -95,16 +95,7 @@ void xrdmgmofs_stack(int sig)
 
   if (sig == SIGUSR2) {
     out << "# ___ thread:" << syscall(SYS_gettid) << " ";
-
-    for (auto it = eos::common::RWMutex::tl_mutex_name.begin();
-         it != eos::common::RWMutex::tl_mutex_name.end(); ++it) {
-      if (eos::common::RWMutex::tl_mutex &&
-          eos::common::RWMutex::tl_mutex->count(it->first)) {
-        out << it->second << ": " << eos::common::RWMutex::LOCK_STATE[(int)(
-              *eos::common::RWMutex::tl_mutex)[it->first]] << " ";
-      }
-    }
-
+    eos::common::RWMutex::PrintMutexOps(out);
     out << std::endl;
     out << "# ................ " << eos::common::getStacktrace();
     std::string stackdump = "/var/eos/md/stacktrace.";
@@ -1584,7 +1575,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
                         &ObjectNotifier, &XrdMqMessaging::gMessageClient, qsm));
   eos::common::InstanceName::set(MgmOfsInstanceName.c_str());
 
-  if(!mMessagingRealm->setInstanceName(MgmOfsInstanceName.c_str())) {
+  if (!mMessagingRealm->setInstanceName(MgmOfsInstanceName.c_str())) {
     eos_static_crit("unable to set instance name in QDB");
     return 1;
   }

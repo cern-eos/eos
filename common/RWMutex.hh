@@ -70,6 +70,7 @@
 #include <cmath>
 #include <set>
 #include <thread>
+#include <mutex>
 #endif
 
 #define _MULTI_THREADED
@@ -226,14 +227,21 @@ public:
   //----------------------------------------------------------------------------
   static void RecordMutexOp(uint64_t ptr_val, LOCK_T op);
 
+  //----------------------------------------------------------------------------
+  //! Print the status of the mutex locks for the calling thread id
+  //!
+  //! @param out output string
+  //----------------------------------------------------------------------------
+  static void PrintMutexOps(std::ostringstream& oss);
+
 
 #ifdef EOS_INSTRUMENTED_RWMUTEX
+  typedef std::map<uint64_t, std::string> MapMutexNameT;
+  typedef std::map<pid_t, std::map<uint64_t, LOCK_T>> MapMutexOpT;
   static const char* LOCK_STATE[];
-
-  typedef std::map<uint64_t, std::string> mutex_name_t;
-  typedef std::map<uint64_t, LOCK_T> mutex_addr_t;
-  static mutex_name_t tl_mutex_name;
-  static thread_local std::unique_ptr<mutex_addr_t> tl_mutex;
+  static std::mutex sOpMutex;
+  static MapMutexNameT sMtxNameMap;
+  static MapMutexOpT sTidMtxOpMap;
 
   struct TimingStats {
     double averagewaitread;
@@ -435,7 +443,8 @@ public:
   inline void SetDebugName(const std::string& name)
   {
     mDebugName = name;
-    tl_mutex_name[(uint64_t) GetRawPtr()] = name;
+    std::unique_lock lock(sOpMutex);
+    sMtxNameMap[(uint64_t) GetRawPtr()] = name;
   }
 
   //----------------------------------------------------------------------------

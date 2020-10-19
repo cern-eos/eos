@@ -26,6 +26,7 @@
 #include "common/RWMutex.hh"
 #include "common/PthreadRWMutex.hh"
 #include "common/SharedMutex.hh"
+#include <sys/syscall.h>
 #include <sstream>
 #include <exception>
 
@@ -61,9 +62,9 @@ std::map<pthread_t, bool>* RWMutex::threadOrderCheckResetFlags_static =
   NULL;
 pthread_rwlock_t RWMutex::mOrderChkLock;
 
-RWMutex::mutex_name_t RWMutex::tl_mutex_name;
-thread_local std::unique_ptr<RWMutex::mutex_addr_t> RWMutex::tl_mutex =
-  std::make_unique<RWMutex::mutex_addr_t>();
+std::mutex RWMutex::sOpMutex;
+RWMutex::MapMutexNameT RWMutex::sMtxNameMap;
+RWMutex::MapMutexOpT RWMutex::sTidMtxOpMap;
 
 const char* RWMutex::LOCK_STATE[] = {"N", "wLR", "wULR", "LR", "wLW", "wULW", "LW", NULL};
 
@@ -1272,8 +1273,37 @@ RWMutex::RecordMutexOp(uint64_t ptr_val, LOCK_T op)
 {
 #ifdef EOS_INSTRUMENTED_RWMUTEX
 
-  if (tl_mutex) {
-    (*tl_mutex)[ptr_val] = op;
+  // Only record info about the named mutexes
+  if (sMtxNameMap.find(ptr_val) == sMtxNameMap.end()) {
+    return;
+  }
+
+  pid_t tid = syscall(SYS_gettid);
+  std::unique_lock lock(sOpMutex);
+  auto& mtx_op_map = sTidMtxOpMap[tid];
+  mtx_op_map[ptr_val] = op;
+#endif // EOS_INSTRUMENTED_MUTEX
+}
+
+
+//------------------------------------------------------------------------------
+// Print the status of the mutex locks for the calling thread id
+//------------------------------------------------------------------------------
+void
+RWMutex::PrintMutexOps(std::ostringstream& oss)
+{
+#ifdef EOS_INSTRUMENTED_RWMUTEX
+  pid_t tid = syscall(SYS_gettid);
+  std::unique_lock lock(sOpMutex);
+  const auto it = sTidMtxOpMap.find(tid);
+
+  if (it == sTidMtxOpMap.end()) {
+    return;
+  }
+
+  for (const auto& elem : it->second) {
+    oss << elem.first << ": "
+        << eos::common::RWMutex::LOCK_STATE[(int)elem.second] << " ";
   }
 
 #endif // EOS_INSTRUMENTED_MUTEX
