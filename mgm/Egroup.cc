@@ -24,7 +24,6 @@
 #include "mgm/Egroup.hh"
 #include "common/Logging.hh"
 #include "common/StringUtils.hh"
-#include "common/DBG.hh"
 #include <ldap.h>
 #include <memory>
 
