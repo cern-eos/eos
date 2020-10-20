@@ -16,6 +16,26 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.24 Citrine``
+===================
+
+2020-10-20
+
+Note
+----
+
+* Release based on XRootD 4.12.5 which addresses a couple of issues in the XrdHttp component
+
+Improvement
+------------
+
+* [EOS-4464] - Latency Investigations on EOSHOME with v 4.8.22
+* [EOS-4468] - Allow open for read requests to trigger implicit prepare requests for offline files
+* [EOS-4470] - EOSCTA prepare logic within the MGM should use mgmofs.alias if set
+* Debug symbols are no longer stripped as this was leading to a crash in gdb and
+  consequently the eos-debuginfo package is no longer created.
+
+
 ``v4.8.23 Citrine``
 ===================
 
