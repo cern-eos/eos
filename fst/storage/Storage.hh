@@ -279,10 +279,6 @@ private:
   void ErrorReport();
   void Verify();
   void Publish(ThreadAssistant& assistant);
-
-  void QdbPublish(
-    const QdbContactDetails& cd, ThreadAssistant& assistant);
-
   void Balancer();
   void MgmSyncer();
   void Boot(fst::FileSystem* fs);
@@ -383,10 +379,12 @@ private:
   AssistedThread mCommunicatorThread;
   AssistedThread mQdbCommunicatorThread;
 
-  AssistedThread mPublisherThread;
+  //----------------------------------------------------------------------------
+  // Register which filesystems are in QDB config
+  //----------------------------------------------------------------------------
+  void updateFilesystemDefinitions();
 
-  AssistedThread mQdbFilesystemPublisherThread;
-  AssistedThread mQdbNodePublisherThread;
+  AssistedThread mPublisherThread;
 };
 
 EOSFSTNAMESPACE_END
