@@ -169,11 +169,15 @@ Storage::Storage(const char* meta_dir)
 
   mThreadSet.insert(tid);
   eos_info("starting filesystem communication thread");
-  mCommunicatorThread.reset(&Storage::Communicator, this);
-  mCommunicatorThread.setName("Communicator Thread");
 
-  mQdbCommunicatorThread.reset(&Storage::QdbCommunicator, this);
-  mQdbCommunicatorThread.setName("QDB Communicator Thread");
+  if(gOFS.mMessagingRealm->haveQDB()) {
+    mQdbCommunicatorThread.reset(&Storage::QdbCommunicator, this);
+    mQdbCommunicatorThread.setName("QDB Communicator Thread");
+  }
+  else {
+    mCommunicatorThread.reset(&Storage::Communicator, this);
+    mCommunicatorThread.setName("Communicator Thread");
+  }
 
   eos_info("starting daemon supervisor thread");
 
