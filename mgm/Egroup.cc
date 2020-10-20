@@ -145,8 +145,10 @@ Egroup::Status Egroup::isMemberUncached(const std::string& username,
       ldap_msgfree);
 
   if (res == nullptr || rc != LDAP_SUCCESS) {
-    eos_static_warning("Having trouble connecting to ldap server, user=%s, e-group=%s",
-                       username.c_str(), egroupname.c_str());
+    eos_static_warning("Having trouble connecting to ldap server, user=%s, "
+                       "e-group=%s ldap_rc=%i ldap_err_msg=\"%s\"",
+                       username.c_str(), egroupname.c_str(), rc,
+                       ldap_err2string(rc));
     return Status::kError;
   }
 
