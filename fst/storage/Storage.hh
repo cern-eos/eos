@@ -378,6 +378,7 @@ private:
 private:
   AssistedThread mCommunicatorThread;
   AssistedThread mQdbCommunicatorThread;
+  std::set<std::string> mLastRoundFilesystems;
 
   //----------------------------------------------------------------------------
   // Register which filesystems are in QDB config

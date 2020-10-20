@@ -26,8 +26,11 @@
 #include "fst/storage/FileSystem.hh"
 #include "common/SymKeys.hh"
 #include "common/Assert.hh"
+#include "common/StringTokenizer.hh"
 #include "mq/SharedHashWrapper.hh"
 #include "common/Constants.hh"
+
+#include <qclient/structures/QScanner.hh>
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -150,6 +153,14 @@ Storage::RegisterFileSystem(const std::string& queuepath)
   }
 
   mFsMap[fs->GetLocalId()] = fs;
+
+  if(gOFS.mMessagingRealm->haveQDB()) {
+    if (eos::fst::Config::gConfig.autoBoot &&
+          (fs->GetStatus() <= eos::common::BootStatus::kDown) &&
+          (fs->GetConfigStatus() > eos::common::ConfigStatus::kOff)) {
+      RunBootThread(fs);
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -498,11 +509,62 @@ Storage::Communicator(ThreadAssistant& assistant)
 }
 
 //------------------------------------------------------------------------------
+// Extract filesystem path from QDB hash key
+//------------------------------------------------------------------------------
+static std::string extractFilesystemPath(const std::string &key) {
+  std::vector<std::string> parts =
+    common::StringTokenizer::split<std::vector<std::string>>(key, '|');
+
+  return parts[parts.size()-1];
+}
+
+//------------------------------------------------------------------------------
+// Register which filesystems are in QDB config
+//------------------------------------------------------------------------------
+void Storage::updateFilesystemDefinitions() {
+  qclient::QScanner scanner(*gOFS.mMessagingRealm->getQSom()->getQClient(),
+    SSTR("eos-hash||fs||" << eos::fst::Config::gConfig.FstHostPort << "||*" ));
+
+  std::set<std::string> mNewFilesystems;
+
+  for(; scanner.valid(); scanner.next()) {
+    std::string queuePath = SSTR("/eos/" << eos::fst::Config::gConfig.FstHostPort << "/fst" <<
+      extractFilesystemPath(scanner.getValue()));
+    mNewFilesystems.insert(queuePath);
+  }
+
+  //----------------------------------------------------------------------------
+  // Filesystems added?
+  //----------------------------------------------------------------------------
+  for(auto it = mNewFilesystems.begin(); it != mNewFilesystems.end(); it++) {
+    if(mLastRoundFilesystems.find(*it) == mLastRoundFilesystems.end()) {
+      RegisterFileSystem(*it);
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  // Filesystems removed?
+  //----------------------------------------------------------------------------
+  for(auto it = mLastRoundFilesystems.begin(); it != mLastRoundFilesystems.end(); it++) {
+    if(mNewFilesystems.find(*it) == mNewFilesystems.end()) {
+      UnregisterFileSystem(*it);
+    }
+  }
+
+  mLastRoundFilesystems = std::move(mNewFilesystems);
+}
+
+//------------------------------------------------------------------------------
 // QdbCommunicator
 //------------------------------------------------------------------------------
 void
 Storage::QdbCommunicator(ThreadAssistant& assistant)
 {
+  //----------------------------------------------------------------------------
+  // Stupid delay to have legacy MQ up and running before we start
+  //----------------------------------------------------------------------------
+  std::this_thread::sleep_for(std::chrono::seconds(5));
+
   eos::mq::MessagingRealm *realm = gOFS.mMessagingRealm.get();
   if(!realm->haveQDB()) {
     return;
@@ -562,8 +624,13 @@ Storage::QdbCommunicator(ThreadAssistant& assistant)
     }
   }
 
+  //----------------------------------------------------------------------------
+  // Discover filesystem configuration
+  // TODO: Find a way to do this without polling?
+  //----------------------------------------------------------------------------
   while (!assistant.terminationRequested()) {
-    assistant.wait_for(std::chrono::seconds(1));
+    updateFilesystemDefinitions();
+    assistant.wait_for(std::chrono::seconds(30));
   }
 }
 
