@@ -26,7 +26,9 @@
 #include "mq/MessagingRealm.hh"
 #include "common/ParseUtils.hh"
 #include "common/StringUtils.hh"
+
 #include <qclient/shared/SharedHash.hh>
+#include <qclient/shared/UpdateBatch.hh>
 
 EOSMQNAMESPACE_BEGIN
 
@@ -143,8 +145,27 @@ void SharedHashWrapper::Batch::SetLocal(const std::string& key,
 //------------------------------------------------------------------------------
 bool SharedHashWrapper::set(const Batch& batch)
 {
-  if (!mHash) {
+  if (!mSharedHash && !mHash) {
     return false;
+  }
+
+  if(mSharedHash) {
+    qclient::UpdateBatch updateBatch;
+
+    for (auto it = batch.mDurableUpdates.begin(); it != batch.mDurableUpdates.end(); it++) {
+      updateBatch.setDurable(it->first, it->second);
+    }
+
+    for (auto it = batch.mTransientUpdates.begin(); it != batch.mTransientUpdates.end(); it++) {
+      updateBatch.setTransient(it->first, it->second);
+    }
+
+    for (auto it = batch.mLocalUpdates.begin(); it != batch.mLocalUpdates.end(); it++) {
+      updateBatch.setLocal(it->first, it->second);
+    }
+
+    std::future<qclient::redisReplyPtr> reply = mSharedHash->set(updateBatch);
+    reply.wait();
   }
 
   // @note this is a hack to avoid boot failures on the FST side when a new fs
@@ -224,6 +245,12 @@ double SharedHashWrapper::getDouble(const std::string& key)
 //------------------------------------------------------------------------------
 bool SharedHashWrapper::get(const std::string& key, std::string& value)
 {
+  if(mSharedHash) {
+    bool outcome = mSharedHash->get(key, value);
+    eos_static_info("shared hash wrapper get (%s): %s = %s", mLocator.getQDBKey().c_str(), key.c_str(), value.c_str());
+    return outcome;
+  }
+
   if (!mHash) {
     return false;
   }
@@ -238,6 +265,23 @@ bool SharedHashWrapper::get(const std::string& key, std::string& value)
 //------------------------------------------------------------------------------
 bool SharedHashWrapper::del(const std::string& key, bool broadcast)
 {
+  if(mSharedHash) {
+    qclient::UpdateBatch updateBatch;
+
+    if(common::startsWith(key, "stat.")) {
+      updateBatch.setTransient(key, "");
+    }
+    else if(common::startsWith(key, "local.")) {
+      updateBatch.setLocal(key, "");
+    }
+    else {
+      updateBatch.setDurable(key, "");
+    }
+
+    std::future<qclient::redisReplyPtr> reply = mSharedHash->set(updateBatch);
+    reply.wait();
+  }
+
   if (!mHash) {
     return false;
   }
