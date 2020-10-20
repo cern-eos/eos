@@ -269,7 +269,6 @@ build_ubuntu_focal:
   tags:
     - docker_node
     - ubuntu
-  when: manual
 
 .build_fedora-template: &build_fedora-template_definition
   stage: build:rpm
