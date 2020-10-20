@@ -26,6 +26,12 @@
 
 #include "mq/Namespace.hh"
 #include <string>
+#include <memory>
+
+namespace qclient {
+  class SharedHash;
+  class SharedHashSubscription;
+}
 
 class ThreadAssistant;
 class XrdMqSharedObjectChangeNotifier;
@@ -57,6 +63,11 @@ public:
   GlobalConfigChangeListener(mq::MessagingRealm *realm, const std::string &name, const std::string &configQueue);
 
   //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  ~GlobalConfigChangeListener();
+
+  //----------------------------------------------------------------------------
   //! Consume next event, block until there's one.
   //----------------------------------------------------------------------------
   bool fetch(Event &out, ThreadAssistant &assistant);
@@ -66,6 +77,9 @@ private:
   XrdMqSharedObjectChangeNotifier *mNotifier;
   std::string mListenerName;
   std::string mConfigQueue;
+
+  std::shared_ptr<qclient::SharedHash> mSharedHash;
+  std::unique_ptr<qclient::SharedHashSubscription> mSubscription;
 };
 
 EOSMQNAMESPACE_END

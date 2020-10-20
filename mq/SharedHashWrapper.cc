@@ -246,9 +246,7 @@ double SharedHashWrapper::getDouble(const std::string& key)
 bool SharedHashWrapper::get(const std::string& key, std::string& value)
 {
   if(mSharedHash) {
-    bool outcome = mSharedHash->get(key, value);
-    eos_static_info("shared hash wrapper get (%s): %s = %s", mLocator.getQDBKey().c_str(), key.c_str(), value.c_str());
-    return outcome;
+    return mSharedHash->get(key, value);
   }
 
   if (!mHash) {
