@@ -1030,6 +1030,9 @@ eos::mgm::FindCmd::ProcessRequest() noexcept
 
         // Print simple?
         if (printSimple) {
+          if ( fmd->isLink() ) {
+            fspath.append( " -> " ).append( fmd->getLink() );
+          }
           printPath(ofstdoutStream, fspath, printxurl);
           ofstdoutStream << std::endl;
           continue;
