@@ -74,8 +74,7 @@ static bool eliminateBasedOnFileMatch(const eos::console::FindProto& req,
                                    const T& md)
 {
   XrdOucString name = md->getName().c_str();
-  return name.matches(req.name().c_str()) == 0;
-
+  return (!req.name().empty()) && (name.matches(req.name().c_str()) == 0);
 }
 
 
