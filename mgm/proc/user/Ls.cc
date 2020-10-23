@@ -123,13 +123,17 @@ ProcCommand::Ls()
       cacheentry = cachedresult.getCacheName(buf.st_ino, buf.st_mtim.tv_sec, buf.st_mtim.tv_nsec, std::string(option.length()?option.c_str():""));
 
       if (use_cache && dirCache.tryGet(cacheentry, cachedresult)) {
-	// return from cache
-	retc = cachedresult.retc;
-	stdOut = cachedresult.out.c_str();
-	stdErr = cachedresult.err.c_str();
-	// reinsert LRU
-	dirCache.insert(cacheentry, cachedresult);
-	return SFS_OK;
+
+	if (!gOFS->_access(spath.c_str(), R_OK|X_OK, *mError, *pVid,0,true)) {
+	  // return from cache
+	  retc = cachedresult.retc;
+	  stdOut = cachedresult.out.c_str();
+	  stdErr = cachedresult.err.c_str();
+	  // reinsert LRU
+	  dirCache.insert(cacheentry, cachedresult);
+	  return SFS_OK;
+	}
+	// fall through to report permission errors
       }
 
       // if this is a directory open it and list
