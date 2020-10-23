@@ -298,7 +298,7 @@ where MGM will redirect incoming clients requesting HTTP(S) access to the data.
 This can easily be done by adding a systemd custom configuration file for the
 FST service in ``/usr/lib/systemd/system/eos@fst.service.d/custom.conf``.
 
-.. :caption: Contenst of the custom.conf file
+.. :caption: Contents of the custom.conf file
 
 .. code-block:: bash
 
@@ -312,6 +312,16 @@ port advertised by the individual FSTs by executing the following command:
 
    eos fs status 1 | grep http
    stat.http.port 9001
+
+In order to have the identity embedded in the tokens (macaroon/scitoken) properly
+mapped to the local identity used in EOS, one also needs to enable the **https vid**
+mapping:
+
+.. :caption: Enable vid https mapping
+
+.. code-bloc:: bash
+
+   eos vid enable https
 
 
 Practical examples for HTTP(S) transfers
