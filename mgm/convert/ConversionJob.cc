@@ -24,6 +24,7 @@
 #include "mgm/convert/ConversionJob.hh"
 #include "mgm/Stat.hh"
 #include "mgm/FsView.hh"
+#include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include "common/Constants.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/utils/Checksum.hh"
@@ -67,6 +68,39 @@ XrdCl::PropertyList TpcProperties(uint64_t size)
   }
 
   return properties;
+}
+
+//----------------------------------------------------------------------------
+//! Thrown if an EOS file system cannot determined
+//----------------------------------------------------------------------------
+struct FileSystemNotFound: public std::runtime_error {using std::runtime_error::runtime_error;};
+
+//----------------------------------------------------------------------------
+//! @return ID of disk file system as opposed to tape file system of specified
+//! EOS file
+//! @throw FileSystemNotFound if the disk location could not be determined
+//----------------------------------------------------------------------------
+eos::IFileMD::location_t
+getDiskFsIdOfFile(eos::IFileMD &fmd) {
+  const auto locations = fmd.getLocations();
+
+  if (locations.empty()) {
+    std::ostringstream msg;
+    msg << "Failed to find disk file system for fxid=" << std::hex << std::setfill('0') << std::setw(8) << fmd.getId()
+        << ": The file has no locations";
+    throw FileSystemNotFound(msg.str());
+  }
+
+  if (EOS_TAPE_FSID != locations.at(0)) return locations.at(0);
+
+  if (2 > locations.size()) {
+    std::ostringstream msg;
+    msg << "Failed to find disk file system for fxid=" << std::hex << std::setfill('0') << std::setw(8) << fmd.getId()
+        << ": The file only has a tape location";
+    throw FileSystemNotFound(msg.str());
+  }
+
+  return locations.at(1);
 }
 }
 
@@ -303,6 +337,22 @@ void ConversionJob::DoIt() noexcept
   eos_static_info("msg=\"conversion successful\" conversion_id=%s",
                   mConversionInfo.ToString().c_str());
   mStatus = Status::DONE;
+  // Notify the tape garbage collector if tape support is enabled
+  if (gOFS->mTapeEnabled) {
+    try {
+      eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex, __FUNCTION__, __LINE__, __FILE__);
+      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+
+      const auto fmd = gOFS->eosView->getFile(mSourcePath);
+      if (nullptr != fmd && fmd->hasAttribute("sys.archive.file_id")) {
+        const auto fsId = getDiskFsIdOfFile(*fmd);
+        const std::string tgcSpace = FsView::gFsView.mIdView.lookupSpaceByID(fsId);
+        gOFS->mTapeGc->fileConverted(tgcSpace, fmd->getId());
+      }
+    } catch (...) {
+      // Ignore any garbage collection exceptions
+    }
+  }
   return;
 }
 

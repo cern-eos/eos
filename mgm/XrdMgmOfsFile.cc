@@ -64,6 +64,26 @@
 #define S_IAMB  0x1FF
 #endif
 
+namespace {
+//----------------------------------------------------------------------------
+//! Thrown if a disk location could not be found
+//----------------------------------------------------------------------------
+struct DiskLocationNotFound: public std::runtime_error {using std::runtime_error::runtime_error;};
+
+//----------------------------------------------------------------------------
+//! @param locations locations to be searched
+//! @return first location that is a disk as opposed to tape
+//! @throw DiskLocationNotFound if a disk location could not be found
+//----------------------------------------------------------------------------
+eos::IFileMD::location_t
+getFirstDiskLocation(const eos::IFileMD::LocationVector &locations) {
+  if (locations.empty()) throw DiskLocationNotFound("Failed to find d isk location");
+  if (EOS_TAPE_FSID != locations.at(0)) return locations.at(0);
+  if (2 > locations.size()) throw DiskLocationNotFound("Failed to find d isk location");
+  return locations.at(1);
+}
+}
+
 
 /******************************************************************************/
 /* MGM File Interface                                                         */
@@ -2762,11 +2782,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
   }
 
-  if (nullptr != fmd && nullptr != space.c_str() &&
-      fmd->hasAttribute("sys.archive.file_id")) {
-    gOFS->mTapeGc->fileOpened(space.c_str(), fmd->getId());
-  }
-
   // Also trigger synchronous create workflow event if it's defined
   if (isCreation) {
     errno = 0;
@@ -2806,6 +2821,29 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     redirectionhost += workflow.getCGICloseW(currentWorkflow.c_str(), vid).c_str();
   } else {
     redirectionhost += workflow.getCGICloseR(currentWorkflow.c_str()).c_str();
+  }
+
+  // Notify tape garbage collector if tape support is enabled
+  if (gOFS->mTapeEnabled) {
+    try {
+      eos::common::RWMutexReadLock tgc_ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+      const auto tgcFmd = gOFS->eosFileService->getFileMD(fileId);
+      const bool isATapeFile = tgcFmd->hasAttribute("sys.archive.file_id");
+      tgc_ns_rd_lock.Release();
+
+      if (isATapeFile) {
+        if (isRW) {
+          const std::string tgcSpace = nullptr != space.c_str() ? space.c_str() : "";
+          gOFS->mTapeGc->fileOpenedForWrite(tgcSpace, fileId);
+        } else {
+          const auto fsId = getFirstDiskLocation(selectedfs);
+          const std::string tgcSpace = FsView::gFsView.mIdView.lookupSpaceByID(fsId);
+          gOFS->mTapeGc->fileOpenedForRead(tgcSpace, fileId);
+        }
+      }
+    } catch(...) {
+      // Ignore any garbage collection exceptions
+    }
   }
 
   // Always redirect

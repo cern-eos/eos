@@ -102,11 +102,11 @@ public:
   void startWorkerThread();
 
   //----------------------------------------------------------------------------
-  //! Notify GC the specified file has been opened
+  //! Notify GC the specified file has been accessed
   //!
   //! @param fid file identifier
   //----------------------------------------------------------------------------
-  void fileOpened(IFileMD::id_t fid) noexcept;
+  void fileAccessed(IFileMD::id_t fid) noexcept;
 
   //----------------------------------------------------------------------------
   //! @return statistics

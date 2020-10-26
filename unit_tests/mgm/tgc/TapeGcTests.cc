@@ -111,7 +111,7 @@ TEST_F(TgcTapeGcTest, tryToGarbageCollectASingleFile)
   ASSERT_EQ(0, mgm.getNbCallsToStagerrmAsRoot());
 
   eos::IFileMD::id_t fid = 1;
-  gc.fileOpened(fid);
+  gc.fileAccessed(fid);
 
   gc.tryToGarbageCollectASingleFile();
 
@@ -163,7 +163,7 @@ TEST_F(TgcTapeGcTest, toJson)
   TestingTapeGc gc(mgm, space, maxConfigCacheAgeSecs);
 
   for (eos::IFileMD::id_t fid = 1; fid <= 3; fid++) {
-    gc.fileOpened(fid);
+    gc.fileAccessed(fid);
   }
 
   const std::string expectedJson =

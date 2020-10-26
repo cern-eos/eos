@@ -129,13 +129,13 @@ TEST_F(TgcSpaceToTapeGcMapTest, toJson)
   {
     auto &gc = map.getGc("space1");
     for (eos::IFileMD::id_t fid = 1; fid <= 2; fid++) {
-      gc.fileOpened(fid);
+      gc.fileAccessed(fid);
     }
   }
   {
     auto &gc = map.getGc("space2");
     for (eos::IFileMD::id_t fid = 3; fid <= 4; fid++) {
-      gc.fileOpened(fid);
+      gc.fileAccessed(fid);
     }
   }
 

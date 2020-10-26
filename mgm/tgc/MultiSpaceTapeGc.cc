@@ -69,25 +69,74 @@ MultiSpaceTapeGc::~MultiSpaceTapeGc()
 }
 
 //------------------------------------------------------------------------------
-// Notify GC the specified file has been opened
+// Notify GC the specified file has been opened for write
 //------------------------------------------------------------------------------
 void
-MultiSpaceTapeGc::fileOpened(const std::string &space, const IFileMD::id_t fid)
+MultiSpaceTapeGc::fileOpenedForWrite(const std::string &space, const eos::IFileMD::id_t fid)
 {
   if (!m_tapeEnabled || !m_gcsPopulatedUsingQdb) return;
 
-  const char *const msgFormat =
-    "space=\"%s\" fxid=%08llx msg=\"Error handling 'file opened' event: %s\"";
-
   try {
-    auto &gc = m_gcs.getGc(space);
-    gc.fileOpened(fid);
+    dispatchFileAccessedToGc("file opened for write", space, fid);
   } catch (SpaceToTapeGcMap::UnknownEOSSpace&) {
     // Ignore events for EOS spaces that do not have a tape-aware GC
   } catch (std::exception &ex) {
-    eos_static_err(msgFormat, space.c_str(), fid, ex.what());
+    eos_static_err("%s failed: %s", __FUNCTION__, ex.what());
   } catch (...) {
-    eos_static_err(msgFormat, space.c_str(), fid, "Caught an unknown exception");
+    eos_static_err("%s failed: Caught an unknown exception", __FUNCTION__);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Notify GC the specified file has been opened for read
+//------------------------------------------------------------------------------
+void
+MultiSpaceTapeGc::fileOpenedForRead(const std::string &space, const eos::IFileMD::id_t fid)
+{
+  if (!m_tapeEnabled && !m_gcsPopulatedUsingQdb) return;
+
+  try {
+    dispatchFileAccessedToGc("file opened for read", space, fid);
+  } catch (std::exception &ex) {
+    eos_static_err("%s failed: %s", __FUNCTION__, ex.what());
+  } catch (...) {
+    eos_static_err("%s failed: Caught an unknown exception", __FUNCTION__);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Notify GC the specified file has been converted
+//------------------------------------------------------------------------------
+void
+MultiSpaceTapeGc::fileConverted(const std::string &space, const eos::IFileMD::id_t fid)
+{
+  if (!m_tapeEnabled && !m_gcsPopulatedUsingQdb) return;
+
+  try {
+    dispatchFileAccessedToGc("file converted", space, fid);
+  } catch (std::exception &ex) {
+    eos_static_err("%s failed: %s", __FUNCTION__, ex.what());
+  } catch (...) {
+    eos_static_err("%s failed: Caught an unknown exception", __FUNCTION__);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Dispatch file accessed event to the space specific tape garbage collector
+//------------------------------------------------------------------------------
+void
+MultiSpaceTapeGc::dispatchFileAccessedToGc(const std::string &event, const std::string &space,
+  const IFileMD::id_t fileId) {
+  const char *const msgFormat = "event=\"%s\" space=\"%s\" fxid=%08llx msg=\"%s failed: %s\"";
+  try {
+    auto &gc = m_gcs.getGc(space);
+    gc.fileAccessed(fileId);
+  } catch (SpaceToTapeGcMap::UnknownEOSSpace&) {
+    // Ignore events for EOS spaces that do not have a tape-aware GC
+  } catch (std::exception &ex) {
+    eos_static_err(msgFormat, event.c_str(), space.c_str(), fileId, __FUNCTION__, ex.what());
+  } catch (...) {
+    eos_static_err(msgFormat, event.c_str(), space.c_str(), fileId, __FUNCTION__, "Caught an unknown exception");
   }
 }
 
@@ -254,7 +303,7 @@ MultiSpaceTapeGc::populateGcsUsingQdb() {
         return;
       }
 
-      gc.fileOpened(fileItor->id);
+      gc.fileAccessed(fileItor->id);
       fileItor = files.erase(fileItor);
     }
   }

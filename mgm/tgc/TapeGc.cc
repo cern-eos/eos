@@ -105,10 +105,10 @@ TapeGc::workerThreadEntryPoint() noexcept
 }
 
 //------------------------------------------------------------------------------
-// Notify GC the specified file has been opened
+// Notify GC the specified file has been accessed
 //------------------------------------------------------------------------------
 void
-TapeGc::fileOpened(const IFileMD::id_t fid) noexcept
+TapeGc::fileAccessed(const IFileMD::id_t fid) noexcept
 {
   try {
     std::lock_guard<std::mutex> lruQueueLock(m_lruQueueMutex);

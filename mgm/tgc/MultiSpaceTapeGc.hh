@@ -79,9 +79,7 @@ public:
   //----------------------------------------------------------------------------
   //! Thrown if garbage collection has already started
   //----------------------------------------------------------------------------
-  struct GcAlreadyStarted: public std::runtime_error {
-    GcAlreadyStarted(const std::string &msg): std::runtime_error(msg) {}
-  };
+  struct GcAlreadyStarted: public std::runtime_error {using std::runtime_error::runtime_error;};
 
   //----------------------------------------------------------------------------
   //! Start garbage collection for the specified EOS spaces
@@ -95,14 +93,34 @@ public:
   void start(const std::set<std::string> spaces);
 
   //----------------------------------------------------------------------------
-  //! Notify GC the specified file has been opened
+  //! Notify GC the specified file has been opened for write
   //! @note This method does nothing and returns immediately if the GC has not
   //! been enabled
   //!
-  //! @param space the name of the EOS space where the file resides
+  //! @param space where the file will be written to
   //! @param fid file identifier
   //----------------------------------------------------------------------------
-  void fileOpened(const std::string &space, const IFileMD::id_t fid);
+  void fileOpenedForWrite(const std::string &space, const eos::IFileMD::id_t fid);
+
+  //----------------------------------------------------------------------------
+  //! Notify GC the specified file has been opened for read
+  //! @note This method does nothing and returns immediately if the GC has not
+  //! been enabled
+  //!
+  //! @param space where the file resides
+  //! @param fid file identifier
+  //----------------------------------------------------------------------------
+  void fileOpenedForRead(const std::string &space, const eos::IFileMD::id_t fid);
+
+  //----------------------------------------------------------------------------
+  //! Notify GC the specified file has been converted
+  //! @note This method does nothing and returns immediately if the GC has not
+  //! been enabled
+  //!
+  //! @param space where the destination converted file resides
+  //! @param fid file identifier
+  //----------------------------------------------------------------------------
+  void fileConverted(const std::string &space, const eos::IFileMD::id_t fid);
 
   //----------------------------------------------------------------------------
   //! @return map from EOS space name to tape-aware GC statistics
@@ -168,6 +186,20 @@ private:
   //! collectors using Quark DB
   //----------------------------------------------------------------------------
   void populateGcsUsingQdb();
+
+  //----------------------------------------------------------------------------
+  //! Thrown if an EOS file system cannot determined
+  //----------------------------------------------------------------------------
+  struct FileSystemNotFound: public std::runtime_error {using std::runtime_error::runtime_error;};
+
+  //----------------------------------------------------------------------------
+  //! Dispach file accessed event to the space specific tape garbage collector
+  // 
+  //! @param event human readable string describing the event
+  //! @param space the name of the EOS space where the file resides
+  //! @param fileId ID of the file
+  //----------------------------------------------------------------------------
+  void dispatchFileAccessedToGc(const std::string &event, const std::string &space, const IFileMD::id_t fileId);
 };
 
 EOSTGCNAMESPACE_END
