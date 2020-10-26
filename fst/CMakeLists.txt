@@ -412,6 +412,9 @@ target_link_libraries(eos-scan-fs PRIVATE
 target_link_libraries(eos-fsck-fs PRIVATE
   EosFstIo EosCommonServer EosNsCommon-Static XROOTD::SERVER)
 
+add_executable(eos-create-file-pattern
+  utils/CreateFileWithPattern.cc)
+
 install(PROGRAMS
   tools/eosfstregister
   tools/eosfstinfo
