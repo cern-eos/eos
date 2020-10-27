@@ -16,6 +16,26 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.25 Citrine``
+===================
+
+2020-10-27
+
+
+Bug
+----
+
+* MGM: Fix quota refresh initialization
+* [EOS-4466] - eos newfind still bogus with "-f/-d" filters
+* [EOS-4477] - 'eos ls' bypasses permission check when result is cached
+
+New feature
+-----------
+
+* FST: Tool to create readv pattern and check the result of readv requests done
+  against different endpoints. Used to check for RAIN readv correctness.
+
+
 ``v4.8.24 Citrine``
 ===================
 
