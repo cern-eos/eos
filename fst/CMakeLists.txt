@@ -415,6 +415,12 @@ target_link_libraries(eos-fsck-fs PRIVATE
 add_executable(eos-create-file-pattern
   utils/CreateFileWithPattern.cc)
 
+add_executable(eos-readv-pattern
+  utils/CheckFileReadWithPattern.cc)
+
+target_link_libraries(eos-readv-pattern
+  XROOTD::CL)
+
 install(PROGRAMS
   tools/eosfstregister
   tools/eosfstinfo
@@ -425,6 +431,7 @@ install(PROGRAMS
 install(TARGETS
   eos-ioping eos-adler32 eos-checksum eos-leveldb-inspect eos-rain-hd-dump
   eos-check-blockxs eos-compute-blockxs eos-scan-fs eos-fsck-fs
+  eos-create-file-pattern eos-readv-pattern
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
 endif()
