@@ -55,6 +55,7 @@ SpaceQuota::SpaceQuota(const char* path):
   mQuotaNode(nullptr),
   mLastEnableCheck(0),
   mLayoutSizeFactor(1.0),
+  mLastRefresh(0),
   mDirtyTarget(true)
 {
   std::shared_ptr<eos::IContainerMD> quotadir;
