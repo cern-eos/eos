@@ -2011,9 +2011,9 @@ FsView::ExistsQueue(std::string queue, std::string queuepath)
   if (mNodeView.count(queue)) {
     // Loop over all attached filesystems and compare the queue path
     for (auto it = mNodeView[queue]->begin(); it != mNodeView[queue]->end(); ++it) {
-      FileSystem* candidate = FsView::gFsView.mIdView.lookupByID(*it);
+      FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it);
 
-      if (candidate && (candidate->GetQueuePath() == queuepath)) {
+      if (fs && (fs->GetQueuePath() == queuepath)) {
         // This queuepath exists already, we cannot register
         return true;
       }
@@ -3256,6 +3256,10 @@ BaseView::MaxAbsDeviation(const char* param, bool lock,
     bool consider = true;
     FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it);
 
+    if (fs == nullptr) {
+      continue;
+    }
+
     if (mType == "groupview") {
       consider = ShouldConsiderForStatistics(fs);
     }
@@ -3297,6 +3301,10 @@ BaseView::MaxDeviation(const char* param, bool lock,
     bool consider = true;
     FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it);
 
+    if (fs == nullptr) {
+      continue;
+    }
+
     if (mType == "groupview") {
       consider = ShouldConsiderForStatistics(fs);
     }
@@ -3336,6 +3344,10 @@ BaseView::MinDeviation(const char* param, bool lock,
   for (; it.valid(); it.next()) {
     bool consider = true;
     FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it);
+
+    if (fs == nullptr) {
+      continue;
+    }
 
     if (mType == "groupview") {
       consider = ShouldConsiderForStatistics(fs);
@@ -3377,6 +3389,10 @@ BaseView::SigmaDouble(const char* param, bool lock,
     bool consider = true;
     FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it);
 
+    if (fs == nullptr) {
+      continue;
+    }
+
     if (mType == "groupview") {
       consider = ShouldConsiderForStatistics(fs);
     }
@@ -3413,6 +3429,10 @@ BaseView::ConsiderCount(bool lock,
   for (; it.valid(); it.next()) {
     bool consider = true;
     FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it);
+
+    if (fs == nullptr) {
+      continue;
+    }
 
     if (mType == "groupview") {
       consider = ShouldConsiderForStatistics(fs);
