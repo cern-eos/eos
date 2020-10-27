@@ -3214,6 +3214,10 @@ BaseView::AverageDouble(const char* param, bool lock,
   for (; it.valid(); it.next()) {
     bool consider = true;
     FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it);
+    
+    if (fs == nullptr) {
+      continue;
+    }
 
     if (mType == "groupview") {
       consider = ShouldConsiderForStatistics(fs);
