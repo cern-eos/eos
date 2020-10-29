@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: FindCmd.hh
+// File: NewfindCmd.hh
 // Author: Jozsef Makai - CERN
 //------------------------------------------------------------------------------
 
@@ -33,7 +33,7 @@ class IFileMD;
 
 EOSMGMNAMESPACE_BEGIN
 
-class FindCmd : public IProcCommand
+class NewfindCmd : public IProcCommand
 {
 public:
   //----------------------------------------------------------------------------
@@ -42,13 +42,13 @@ public:
   //! @param req client ProtocolBuffer request
   //! @param vid client virtual identity
   //----------------------------------------------------------------------------
-  explicit FindCmd(eos::console::RequestProto&& req,
+  explicit NewfindCmd(eos::console::RequestProto&& req,
                    eos::common::VirtualIdentity& vid);
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~FindCmd() = default;
+  virtual ~NewfindCmd() = default;
 
   eos::console::ReplyProto ProcessRequest() noexcept override;
   void PrintFileInfoMinusM(const std::string& path, XrdOucErrInfo& errInfo);

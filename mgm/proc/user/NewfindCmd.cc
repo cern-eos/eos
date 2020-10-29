@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: FindCmd.cc
+// File: NewfindCmd.cc
 // Author: Georgios Bitzes, Jozsef Makai - CERN
 //------------------------------------------------------------------------------
 
@@ -21,23 +21,23 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "FindCmd.hh"
-#include "common/Path.hh"
+#include "NewfindCmd.hh"
 #include "common/LayoutId.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "common/Path.hh"
 #include "mgm/Acl.hh"
-#include "mgm/Stat.hh"
 #include "mgm/FsView.hh"
+#include "mgm/Stat.hh"
+#include "mgm/XrdMgmOfs.hh"
 #include "mgm/auth/AccessChecker.hh"
 #include "namespace/interface/IView.hh"
-#include "namespace/utils/Stat.hh"
-#include "namespace/utils/BalanceCalculator.hh"
-#include "namespace/utils/Checksum.hh"
-#include "namespace/ns_quarkdb/explorer/NamespaceExplorer.hh"
+#include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/ContainerMD.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
-#include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/NamespaceGroup.hh"
+#include "namespace/ns_quarkdb/explorer/NamespaceExplorer.hh"
+#include "namespace/utils/BalanceCalculator.hh"
+#include "namespace/utils/Checksum.hh"
+#include "namespace/utils/Stat.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -187,7 +187,7 @@ static bool hasMixedSchedGroups(std::shared_ptr<eos::IFileMD>& fmd)
 
 //------------------------------------------------------------------------------
 // Check whether to eliminate depending on modification time and options passed
-// to FindCmd.
+// to NewfindCmd.
 //------------------------------------------------------------------------------
 static bool eliminateBasedOnTime(const eos::console::FindProto& req,
                                  const std::shared_ptr<eos::IFileMD>& fmd)
@@ -371,7 +371,7 @@ static bool eliminateBasedOnAttr(const eos::console::FindProto& req,
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-FindCmd::FindCmd(eos::console::RequestProto&& req,
+NewfindCmd::NewfindCmd(eos::console::RequestProto&& req,
                  eos::common::VirtualIdentity& vid) :
   IProcCommand(std::move(req), vid, true)
 {
@@ -380,7 +380,8 @@ FindCmd::FindCmd(eos::console::RequestProto&& req,
 //------------------------------------------------------------------------------
 // Purge atomic files
 //------------------------------------------------------------------------------
-void FindCmd::ProcessAtomicFilePurge(std::ofstream& ss,
+void
+NewfindCmd::ProcessAtomicFilePurge(std::ofstream& ss,
                                      const std::string& fspath,
                                      eos::IFileMD& fmd)
 {
@@ -425,7 +426,7 @@ void FindCmd::ProcessAtomicFilePurge(std::ofstream& ss,
 // Modify layout stripes
 //------------------------------------------------------------------------------
 void
-eos::mgm::FindCmd::ModifyLayoutStripes(std::ofstream& ss,
+eos::mgm::NewfindCmd::ModifyLayoutStripes(std::ofstream& ss,
                                        const eos::console::FindProto& req,
                                        const std::string& fspath)
 {
@@ -493,7 +494,7 @@ static bool hasFaultyAcl(std::shared_ptr<IContainerMD>& cmd)
 // Purge version directory.
 //------------------------------------------------------------------------------
 void
-eos::mgm::FindCmd::PurgeVersions(std::ofstream& ss, int64_t maxVersion,
+eos::mgm::NewfindCmd::PurgeVersions(std::ofstream& ss, int64_t maxVersion,
                                  const std::string& dirpath)
 {
   if (dirpath.find(EOS_COMMON_PATH_VERSION_PREFIX) == std::string::npos) {
@@ -515,7 +516,7 @@ eos::mgm::FindCmd::PurgeVersions(std::ofstream& ss, int64_t maxVersion,
 // Print path.
 //------------------------------------------------------------------------------
 void
-eos::mgm::FindCmd::printPath(std::ofstream& ss, const std::string& path,
+eos::mgm::NewfindCmd::printPath(std::ofstream& ss, const std::string& path,
                              bool url)
 {
   if (url) {
@@ -774,7 +775,7 @@ private:
 // asynchronous thread
 //------------------------------------------------------------------------------
 eos::console::ReplyProto
-eos::mgm::FindCmd::ProcessRequest() noexcept
+eos::mgm::NewfindCmd::ProcessRequest() noexcept
 {
   eos::console::ReplyProto reply;
   XrdOucString m_err {""};
@@ -1164,7 +1165,8 @@ eos::mgm::FindCmd::ProcessRequest() noexcept
 //------------------------------------------------------------------------------
 // Get fileinfo about path in monitoring format
 //------------------------------------------------------------------------------
-void FindCmd::PrintFileInfoMinusM(const std::string& path,
+void
+NewfindCmd::PrintFileInfoMinusM(const std::string& path,
                                   XrdOucErrInfo& errInfo)
 {
   // print fileinfo -m
