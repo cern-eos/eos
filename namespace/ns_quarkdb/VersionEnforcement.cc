@@ -31,21 +31,24 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Check if quarkdb version is good enough
 //------------------------------------------------------------------------------
-bool enforceQuarkDBVersion(qclient::QClient *qcl) {
+bool enforceQuarkDBVersion(qclient::QClient* qcl)
+{
   qclient::redisReplyPtr reply = qcl->exec("quarkdb-version").get();
-
-  eos_static_info("QuarkDB version: %s", qclient::describeRedisReply(reply).c_str());
+  eos_static_info("QuarkDB version: %s",
+                  qclient::describeRedisReply(reply).c_str());
   std::string str = std::string(reply->str, reply->len);
-
   qclient::QuarkDBVersion actual;
-  if(!qclient::QuarkDBVersion::fromString(str, actual)) {
+
+  if (!qclient::QuarkDBVersion::fromString(str, actual)) {
     eos_static_crit("Could not parse reply to quarkdb-version");
     return false;
   }
 
-  qclient::QuarkDBVersion target(0, 3, 8, "");
-  if(target > actual) {
-    eos_static_crit("Outdated QuarkDB version (%s), we need at least %s. Update!", actual.toString().c_str(), target.toString().c_str());
+  qclient::QuarkDBVersion target(0, 4, 2, "");
+
+  if (target > actual) {
+    eos_static_crit("Outdated QuarkDB version (%s), we need at least %s. Update!",
+                    actual.toString().c_str(), target.toString().c_str());
     return false;
   }
 
