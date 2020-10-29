@@ -26,6 +26,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include <new>
 #include <type_traits>
+#include <atomic>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -121,6 +122,328 @@ Logging::shouldlog(const char* func, int priority)
   return true;
 }
 
+
+#if LOG_BUFFER_DBG 
+
+static int cmpPtr(const void * a, const void * b) {
+    return ( *(intptr_t*)a - *(intptr_t*)b );
+}
+
+static void
+check_log_buffer_chain(Logging::log_buffer *chain, int maxSize, const char *name, const char *_FILE, const int _LINE) {
+    Logging::log_buffer *buff2, *buff3;
+    Logging::log_buffer **arrAct = (Logging::log_buffer **) malloc(maxSize * sizeof(void *));
+
+    int m;
+    for (m = 0, buff2 = chain; buff2 != NULL; buff2 = buff2->h.next, m++) {
+        if (m > 0) {
+            if (buff3 == buff2) {
+                fprintf(stderr,
+    "%s:%d log_buffer_prb buffer twice (in succesion) on %s chain after %u items, cut\n",
+                _FILE, _LINE, name, m);
+                fflush(stderr);
+                buff3->h.next = NULL;
+            }
+        };
+
+        buff3 = buff2;
+
+        if (m >= maxSize) {
+            fprintf(stderr,
+    "%s:%d log_buffer_prb more (%u) buffers on %s list than total (%u), cut\n",
+                _FILE, _LINE, m, name, maxSize);
+            fflush(stderr);
+            buff3->h.next = NULL;
+            break;
+        }
+
+        arrAct[m] = buff2;
+    }
+
+    if (m > 1) {
+        qsort(arrAct, m, sizeof(void *), cmpPtr); 
+        int i;
+        for (i=1; i < m; i++)
+            if (arrAct[i-1] == arrAct[i]) {
+                buff2 = arrAct[i-1];
+                fprintf(stderr,
+                "%s:%d log_buffer_prb buffer %p twice on chain %s, cut\n",  _FILE, _LINE,
+                        buff2, name);
+                fflush(stderr);
+                buff2->h.next = NULL;
+            }
+    }
+    free(arrAct);
+    fprintf(stderr, "%s:%d log_buffer chain %s verified %u elements\n",
+            _FILE, _LINE, name, m);
+}
+#endif
+
+
+Logging::log_buffer *
+Logging::log_alloc_buffer() {
+    Logging::log_buffer *buff = NULL;
+
+    std::lock_guard<std::mutex> guard(log_buffer_mutex);
+
+    /* log_buffer_balance is incorrect until we really allocated a buffer! */
+    Logging::log_buffer_balance++;
+
+    while (true) {
+        buff = free_buffers;
+        if (buff != NULL) {
+            free_buffers = buff->h.next;
+            log_buffer_free--;
+            break;
+        }
+
+        /* no free buffer, alloc new one if below budget, or wait */
+        if ( Logging::log_buffer_total < Logging::max_log_buffers ) {
+            buff = (struct log_buffer *) malloc(sizeof(struct log_buffer));
+
+            log_buffer_total++;
+            
+#if LOG_BUFFER_DBG
+            buff->h.debug1 = 7;
+            {
+                /* consistency checks, to be removed*/
+                int num_in_queue;
+                Logging::log_buffer *bx = active_head, *bbx;
+                for (num_in_queue=0; bx != NULL; num_in_queue++) {
+                    bbx = bx->h.next;
+                    if (bx == bbx) {
+                        fprintf(stderr, "%s:%d active log_buffer_prb!\n",
+                                __FILE__, __LINE__);
+                        bx->h.next = NULL;
+                        break;
+                    }
+                    bx = bbx;
+                }
+                if (num_in_queue != log_buffer_in_q)
+                    fprintf(stderr, "%s:%d wrong log_buffer_in_q: %d != %d\n",
+                            __FILE__, __LINE__,
+                            num_in_queue, log_buffer_in_q);
+            
+            
+                fprintf(stderr,
+    "\ntotal_log_buffers: %d balance %d in_q %d free %d waiters %d\n",
+                        log_buffer_total, log_buffer_balance,
+                        log_buffer_in_q,
+                        log_buffer_free,
+                        log_buffer_waiters);
+            }
+#else
+            if ((log_buffer_total & 0x1ff) == 0)
+                fprintf(stderr,
+    "\ntotal_log_buffers: %d balance %d in_q %d free %d waiters %d\n",
+                        log_buffer_total, log_buffer_balance,
+                        log_buffer_in_q, log_buffer_free, log_buffer_waiters);
+#endif
+            break;
+        }
+
+        /* wait for a free buffer */
+#if LOG_BUFFER_DBG
+        check_log_buffer_chain(active_head, log_buffer_total,
+                "active", __FILE__, __LINE__);
+#endif
+
+        if ((log_buffer_num_waits & 0xfff) == 0)
+            fprintf(stderr,
+    "log_buffer_shortage #%u with %u waiters, total_log_buffers %u balance %d in_q %u free %u\n",
+                log_buffer_num_waits, log_buffer_waiters,
+                Logging::log_buffer_total, Logging::log_buffer_balance,
+                log_buffer_in_q, log_buffer_free);
+
+        log_buffer_num_waits++;
+        Logging::log_buffer_waiters++;  /* this asks for a wake-up call when a buffer is freed */
+        log_buffer_shortage.wait(log_buffer_mutex);
+        Logging::log_buffer_waiters--;
+
+        /* retry... */
+        continue;
+
+    }
+
+    buff->h.next = NULL;
+    buff->h.fanOutBuffer = NULL;
+    
+#if LOG_BUFFER_DBG 
+    buff->h.debug1 = 42;;
+#endif
+
+    return buff;
+}
+
+void
+Logging::log_return_buffers(Logging::log_buffer *buff) {
+    Logging::log_buffer *buff2, *buff3;
+
+    /* count number of buffers returned, find last one (buff2) */
+    int n = 1;
+    for (buff2 = buff; (buff3 = buff2->h.next) != NULL; buff2 = buff3) {
+#if LOG_BUFFER_DBG
+        if (buff3->h.debug1 != 42) {
+            fprintf(stderr,
+        "%s:%d log_buffer_prb returning circular buffer list %p->%p code %d, cut\n",
+        __FILE__, __LINE__, buff2, buff3, buff3->h.debug1);
+            buff2->h.next = NULL;
+            break;
+        } else {        /*debug*/
+            buff2->h.debug1 = 52;          /* flag buffer as seen */
+        }
+#endif
+        n++;
+    }
+
+    std::lock_guard<std::mutex> guard(log_buffer_mutex);
+
+#if LOG_BUFFER_DBG
+    if (log_buffer_free + n > log_buffer_total) {   /* Something's wrong, check all chains thoroughly */
+        fprintf(stderr, "%s:%d log_buffer_prb log_buffer_free %d > log_buffer_total %d, %d buffers returned\n",
+                __FILE__, __LINE__, log_buffer_free, log_buffer_total, n);
+        fflush(stderr);
+
+        if (n > 1)
+            check_log_buffer_chain(buff, n+1, "2Bfreed", __FILE__, __LINE__);
+        
+        check_log_buffer_chain(active_head, log_buffer_total, "active", __FILE__, __LINE__);
+        return;         /* drop all these buffers */
+    }
+#endif
+
+
+    buff2->h.next = free_buffers;
+    free_buffers = buff;
+
+    log_buffer_free += n;
+
+    if (log_buffer_waiters > 0) {   /* This is the condition the CV protects */
+        if (n == 1)
+            log_buffer_shortage.notify_one();
+        else
+            log_buffer_shortage.notify_all();
+    }
+
+}
+
+void
+Logging::log_queue_buffer(Logging::log_buffer *buff) {
+    std::lock_guard<std::mutex> guard(log_buffer_mutex);
+
+    if (log_thread_p == NULL) {
+        char *s = getenv("EOS_MGM_LOG_BUFFERS");
+        if (s) {
+            int val = atoi(s);
+            if (val > 0) Logging::max_log_buffers = val;
+        }
+
+        log_thread_p = new std::thread([this] { log_thread(); });
+    }
+
+    Logging::log_buffer *prev;
+
+    if (active_tail == NULL) {
+        /* the following works because offset(next) == 0 */
+        prev = (Logging::log_buffer *) &active_tail;
+    } else 
+        prev = active_tail;
+
+    buff->h.next = NULL;
+    prev->h.next = buff;
+
+    active_tail = buff;
+    if (!active_head) active_head = buff;
+
+    log_buffer_in_q++;
+
+    /* log_buffer_balance designates buffers between intended allocation and print queueing */
+    log_buffer_balance--;
+
+    log_buffer_cond.notify_one();
+}
+
+
+void
+Logging::log_thread() {
+    Logging::log_buffer *buff = NULL, *buff_2b_returned=NULL;
+    unsigned int num_buff_2b_returned = 0;
+
+#if LOG_BUFFER_DBG
+    unsigned int notify_counter = 0;
+    unsigned int old_waits = 0;
+#endif
+
+    log_buffer_mutex.lock();
+    while(1) {
+        if ( active_head == NULL or num_buff_2b_returned > 15 or log_buffer_waiters > 0 ) {
+            if (buff_2b_returned != NULL) {
+                log_buffer_mutex.unlock();
+                log_return_buffers(buff_2b_returned);
+                log_buffer_mutex.lock();
+
+                num_buff_2b_returned = 0;
+                buff_2b_returned = NULL;
+                continue;
+            }
+
+            if (active_head == NULL) {
+#if LOG_BUFFER_DBG
+                if ((log_buffer_num_waits > old_waits) and ++notify_counter > 1000) {
+                    notify_counter = 0;
+                    old_waits = log_buffer_num_waits;
+
+                    fprintf(stderr, "\nlog_buffer queue empty, log_buffer_total: %d balance %d free %d waits %u waiters %d\n",
+                        log_buffer_total, log_buffer_balance, log_buffer_free,
+                        log_buffer_num_waits, log_buffer_waiters);
+                }
+#endif
+
+                log_buffer_cond.wait(log_buffer_mutex);
+            }
+        }
+
+        if (active_head) {
+
+            /* unchain */
+            buff = active_head;
+            active_head = active_head->h.next;
+            if (active_head == NULL) active_tail = NULL;
+            log_buffer_in_q--;
+
+            log_buffer_mutex.unlock();                      /* drop while buffer is printed */
+
+            fprintf(stderr, "%s\n", buff->buffer);
+            if (active_head == NULL) fflush(stderr);        /* only flush if there's no other */
+
+            if (gToSysLog) {
+              syslog(buff->h.priority, "%s", buff->h.ptr);
+            }
+
+            if (buff->h.fanOutBuffer != NULL) {
+                if (buff->h.fanOutS != NULL) {
+                    fputs(buff->h.fanOutBuffer, buff->h.fanOutS);
+                    fflush(buff->h.fanOutS);
+                }
+                if (buff->h.fanOut != NULL) {
+                    fputs(buff->h.fanOutBuffer, buff->h.fanOut);
+                    fflush(buff->h.fanOut);
+                }
+            }
+
+            if (buff_2b_returned != buff) {
+                buff->h.next = buff_2b_returned;
+                buff_2b_returned = buff;
+                num_buff_2b_returned++;
+            } else 
+                fprintf(stderr, "%s.%d log_buffer_prb returning returned log_buffer\n",
+                        __FILE__, __LINE__);
+            
+            log_buffer_mutex.lock();
+        }
+    }
+}
+
 //------------------------------------------------------------------------------
 // Logging function
 //------------------------------------------------------------------------------
@@ -129,8 +452,9 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
              const VirtualIdentity& vid, const char* cident, int priority,
              const char* msg, ...)
 {
-  static int logmsgbuffersize = 1024 * 1024;
+
   bool silent = (priority == LOG_SILENT);
+  int rc = 0;
 
   // short cut if log messages are masked
   if (!silent && !((LOG_MASK(priority) & gLogMask))) {
@@ -152,12 +476,8 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
     }
   }
 
-  static char* buffer = 0;
-
-  if (!buffer) {
-    // 1 M print buffer
-    buffer = (char*) malloc(logmsgbuffersize);
-  }
+  struct log_buffer *logBuffer = log_alloc_buffer();
+  char* buffer = logBuffer->buffer;
 
   XrdOucString File = file;
   // we show only one hierarchy directory like Acl (assuming that we have only
@@ -168,10 +488,8 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
   static struct timeval tv;
   static struct timezone tz;
   struct tm tm;
-  XrdSysMutexHelper scope_lock(gMutex);
   va_list args;
   va_start(args, msg);
-  gettimeofday(&tv, &tz);
   current_time = tv.tv_sec;
   static char linen[16];
   sprintf(linen, "%d", line);
@@ -185,6 +503,8 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
   }
 
   char sourceline[64];
+
+  gettimeofday(&tv, &tz);
 
   if (gShortFormat) {
     localtime_r(&current_time, &tm);
@@ -224,37 +544,51 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
   vsnprintf(ptr, logmsgbuffersize - (ptr - buffer + 1), msg, args);
 
   if (!silent && rate_limit(tv, priority, file, line)) {
+    log_return_buffers(logBuffer);
     return "";
   }
+  
 
-  if (!silent && gToSysLog) {
-    syslog(priority, "%s", ptr);
-  }
+  logBuffer->h.ptr = ptr;
 
   if (!silent) {
     if (gLogFanOut.size()) {
+      logBuffer->h.fanOutS = NULL;
+      logBuffer->h.fanOut = NULL;
+
+      logBuffer->h.fanOutBuffer = ptr + strlen(ptr) + 1;
+      logBuffer->h.fanOutBufLen = logmsgbuffersize - (logBuffer->h.fanOutBuffer-logBuffer->buffer);
+      
       // we do log-message fanout
       if (gLogFanOut.count("*")) {
-        fprintf(gLogFanOut["*"], "%s\n", buffer);
-        fflush(gLogFanOut["*"]);
+        logBuffer->h.fanOutS = gLogFanOut["*"];
+        if (snprintf(logBuffer->h.fanOutBuffer, logBuffer->h.fanOutBufLen, "%s\n", logBuffer->buffer) < 0) {
+            rc = 42;    /*truncated - results in a warning if not handled */
+        }
       }
 
       if (gLogFanOut.count(File.c_str())) {
-        buffer[15] = 0;
-        fprintf(gLogFanOut[File.c_str()], "%s %s%s%s %-30s %s \n",
-                buffer,
+        logBuffer->buffer[15] = 0;
+        logBuffer->h.fanOut = gLogFanOut[File.c_str()];
+        if (snprintf(logBuffer->h.fanOutBuffer, logBuffer->h.fanOutBufLen,
+                "%s %s%s%s %-30s %s \n",
+                logBuffer->buffer,
                 GetLogColour(GetPriorityString(priority)),
                 GetPriorityString(priority),
                 EOS_TEXTNORMAL,
                 sourceline,
-                ptr);
-        fflush(gLogFanOut[File.c_str()]);
-        buffer[15] = ' ';
+                logBuffer->h.ptr) < 0 ) {
+            /* has been truncated, not an issue */
+            rc = 43;
+        }
+        logBuffer->buffer[15] = ' ';
       } else {
         if (gLogFanOut.count("#")) {
-          buffer[15] = 0;
-          fprintf(gLogFanOut["#"], "%s %s%s%s [%05d/%05d] %16s ::%-16s %s \n",
-                  buffer,
+          logBuffer->buffer[15] = 0;
+          logBuffer->h.fanOut = gLogFanOut["#"];
+          if (snprintf(logBuffer->h.fanOutBuffer, logBuffer->h.fanOutBufLen,
+                  "%s %s%s%s [%05d/%05d] %16s ::%-16s %s \n",
+                  logBuffer->buffer,
                   GetLogColour(GetPriorityString(priority)),
                   GetPriorityString(priority),
                   EOS_TEXTNORMAL,
@@ -262,19 +596,16 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
                   vid.gid,
                   truncname.c_str(),
                   func,
-                  ptr
-                 );
-          fflush(gLogFanOut["#"]);
-          buffer[15] = ' ';
+                  logBuffer->h.ptr
+                 ) < 0 ) {
+              rc = 44;
+          }
+          logBuffer->buffer[15] = ' ';
         }
       }
 
-      fprintf(stderr, "%s\n", buffer);
-      fflush(stderr);
-    } else {
-      fprintf(stderr, "%s\n", buffer);
-      fflush(stderr);
     }
+
   }
 
   va_end(args);
@@ -285,11 +616,20 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
   }
 
   // store into global log memory
-  gLogMemory[priority][(gLogCircularIndex[priority]) % gCircularIndexSize] =
-    buffer;
-  rptr = gLogMemory[priority][(gLogCircularIndex[priority]) %
+  { 
+    XrdSysMutexHelper scope_lock(gMutex);         
+
+    /* the following copies the buffer, hence it can be queued and vanish anytime after */
+    gLogMemory[priority][(gLogCircularIndex[priority]) % gCircularIndexSize] =
+      buffer;
+    rptr = gLogMemory[priority][(gLogCircularIndex[priority]) %
                               gCircularIndexSize].c_str();
-  gLogCircularIndex[priority]++;
+    gLogCircularIndex[priority]++;
+  }
+
+  logBuffer->h.priority = priority;
+  log_queue_buffer(logBuffer);
+
   return rptr;
 }
 

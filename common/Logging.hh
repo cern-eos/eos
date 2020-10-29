@@ -58,6 +58,9 @@
 #include <string>
 #include <vector>
 #include <sstream>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
 
 #define SSTR(message) static_cast<std::ostringstream&>(std::ostringstream().flush() << message).str()
 
