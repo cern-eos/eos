@@ -71,7 +71,7 @@ extern int com_protodebug(char*);
 extern int com_file(char*);
 extern int com_fileinfo(char*);
 extern int com_find(char*);
-extern int com_find_new(char*);
+extern int com_protonewfind(char*);
 extern int com_protofs(char*);
 extern int com_proto_fsck(char*);
 extern int com_fuse(char*);
@@ -149,7 +149,7 @@ COMMAND commands[] = {
   { (char*) "file", com_file, (char*) "File Handling"},
   { (char*) "fileinfo", com_fileinfo, (char*) "File Information"},
   { (char*) "find", com_find, (char*) "Find files/directories"},
-  { (char*) "newfind", com_find_new, (char*) "Find files/directories (new implementation)"},
+  { (char*) "newfind", com_protonewfind, (char*) "Find files/directories (new implementation)"},
   { (char*) "fs", com_protofs, (char*) "File System configuration"},
   { (char*) "fsck", com_proto_fsck, (char*) "File System Consistency Checking"},
   { (char*) "fuse", com_fuse, (char*) "Fuse Mounting"},

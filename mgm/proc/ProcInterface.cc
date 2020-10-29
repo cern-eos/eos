@@ -22,13 +22,7 @@
  ************************************************************************/
 
 #include "ProcInterface.hh"
-#include "mgm/proc/user/AclCmd.hh"
-#include "mgm/proc/user/FindCmd.hh"
-#include "mgm/proc/user/QoSCmd.hh"
-#include "mgm/proc/user/RecycleCmd.hh"
-#include "mgm/proc/user/RmCmd.hh"
-#include "mgm/proc/user/RouteCmd.hh"
-#include "mgm/proc/user/TokenCmd.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "mgm/proc/admin/AccessCmd.hh"
 #include "mgm/proc/admin/ConfigCmd.hh"
 #include "mgm/proc/admin/ConvertCmd.hh"
@@ -42,8 +36,14 @@
 #include "mgm/proc/admin/QuotaCmd.hh"
 #include "mgm/proc/admin/SpaceCmd.hh"
 #include "mgm/proc/admin/StagerRmCmd.hh"
+#include "mgm/proc/user/AclCmd.hh"
+#include "mgm/proc/user/NewfindCmd.hh"
+#include "mgm/proc/user/QoSCmd.hh"
+#include "mgm/proc/user/RecycleCmd.hh"
+#include "mgm/proc/user/RmCmd.hh"
+#include "mgm/proc/user/RouteCmd.hh"
+#include "mgm/proc/user/TokenCmd.hh"
 #include <google/protobuf/util/json_util.h>
-#include "XrdOuc/XrdOucEnv.hh"
 
 EOSMGMNAMESPACE_BEGIN
 thread_local eos::common::LogId ProcInterface::tlLogId;
@@ -211,7 +211,7 @@ ProcInterface::HandleProtobufRequest(eos::console::RequestProto& req,
     break;
 
   case RequestProto::kFind:
-    cmd.reset(new FindCmd(std::move(req), vid));
+    cmd.reset(new NewfindCmd(std::move(req), vid));
     break;
 
   case RequestProto::kFs:
@@ -327,7 +327,7 @@ ProcInterface::ProtoIsWriteAccess(const char* opaque)
 
   // always false
   case RequestProto::kNs:
-  case RequestProto::kFind:
+  case RequestProto::kFind: // @todo could perhaps, check --purge
   case RequestProto::kIo:
   case RequestProto::kDebug:
   case RequestProto::kConfig:
