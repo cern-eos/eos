@@ -132,6 +132,39 @@ TEST_F(TgcLruTest, fids_1_2_3_4_5_2)
 //------------------------------------------------------------------------------
 // Test
 //------------------------------------------------------------------------------
+TEST_F(TgcLruTest, fileDeletedFromNamespace)
+{ 
+  using namespace eos;
+  using namespace eos::mgm::tgc;
+
+  // Emulate deleting the file with ID 4 from the EOS namespace
+  const std::list<IFileMD::id_t> fidsIn = {1, 2, 3, 4, 5};
+  const std::list<IFileMD::id_t> fidsOut = {1, 2, 3, 5};
+
+  const Lru::FidQueue::size_type maxQueueSize = fidsIn.size();
+  Lru lru(maxQueueSize);
+
+  for(const auto fid: fidsIn) {
+    lru.fileAccessed(fid);
+  }
+
+  ASSERT_EQ(fidsIn.size(), lru.size());
+
+  lru.fileDeletedFromNamespace(4);
+
+  ASSERT_EQ(fidsOut.size(), lru.size());
+
+  for(const auto fid: fidsOut) {
+    ASSERT_FALSE(lru.empty());
+    ASSERT_EQ(fid, lru.getAndPopFidOfLeastUsedFile());
+  }
+
+  ASSERT_TRUE(lru.empty());
+}
+
+//------------------------------------------------------------------------------
+// Test
+//------------------------------------------------------------------------------
 TEST_F(TgcLruTest, exceed_maxQueueSize_max_size_1)
 {
   using namespace eos;

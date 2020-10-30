@@ -79,6 +79,13 @@ public:
   void fileAccessed(const IFileMD::id_t fid);
 
   //----------------------------------------------------------------------------
+  //! Notify the queue a file has been deleted from the EOS namespace
+  //!
+  //! @param fid The file identifier
+  //----------------------------------------------------------------------------
+  void fileDeletedFromNamespace(const IFileMD::id_t fid);
+
+  //----------------------------------------------------------------------------
   //! @return true if the queue is empty
   //----------------------------------------------------------------------------
   bool empty() const;

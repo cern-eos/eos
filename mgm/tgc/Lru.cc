@@ -89,6 +89,20 @@ Lru::queuedFileHasBeenAccessed(const IFileMD::id_t fid,
 }
 
 //------------------------------------------------------------------------------
+//! Notify the queue a file has been deleted from the EOS namespace
+//------------------------------------------------------------------------------
+void
+Lru::fileDeletedFromNamespace(const IFileMD::id_t fid)
+{
+  const auto mapEntry = mFidToQueueEntry.find(fid);
+
+  if(mFidToQueueEntry.end() != mapEntry) {
+    mQueue.erase(mapEntry.value());
+    mFidToQueueEntry.erase(mapEntry);
+  }
+}
+
+//------------------------------------------------------------------------------
 // Return true if the queue is empty
 //------------------------------------------------------------------------------
 bool
