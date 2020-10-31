@@ -118,14 +118,14 @@ SmartSpaceStats::getQueryTimestamp()
 }
 
 //------------------------------------------------------------------------------
-// Notify this object that a file has been queued for deletion
+// Notify this object that a disk replica has been queued for deletion
 //------------------------------------------------------------------------------
 void
-SmartSpaceStats::fileQueuedForDeletion(const size_t deletedFileSizeBytes)
+SmartSpaceStats::diskReplicaQueuedForDeletion(const size_t fileSizeBytes)
 {
   std::lock_guard<std::mutex> lock(m_mutex);
 
-  m_freedBytesHistogram.bytesFreed(deletedFileSizeBytes);
+  m_freedBytesHistogram.bytesFreed(fileSizeBytes);
 }
 
 EOSTGCNAMESPACE_END

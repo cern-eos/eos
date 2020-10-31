@@ -62,11 +62,11 @@ public:
   SmartSpaceStats(const std::string &spaceName, ITapeGcMgm &mgm, CachedValue<SpaceConfig> &config);
 
   //----------------------------------------------------------------------------
-  //! Notify this object that a file has been queued for deletion
+  //! Notify this object that a disk replica has been queued for deletion
   //!
-  //! @param deletedFileSizeBytes The size of the deleted file in bytes
+  //! @param fileSizeBytes File size in bytes
   //----------------------------------------------------------------------------
-  void fileQueuedForDeletion(size_t deletedFileSizeBytes);
+  void diskReplicaQueuedForDeletion(size_t fileSizeBytes);
 
   //----------------------------------------------------------------------------
   //! @return statistics about the EOS space being managed

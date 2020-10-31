@@ -188,10 +188,13 @@ protected:
   std::atomic<std::uint64_t> m_nbStagerrms;
 
   //----------------------------------------------------------------------------
-  //! Take note of a file queued for deletion so that the amount of free space
-  //! can be updated without having to wait for the next query to the EOS MGM
+  //! Take note of a disk replica queued for deletion so that the amount of free
+  //! space can be updated without having to wait for the next query to the EOS
+  //! MGM
+  //!
+  //! @param fileSizeBytes File size in bytes
   //----------------------------------------------------------------------------
-  void fileQueuedForDeletion(size_t deletedFileSize);
+  void diskReplicaQueuedForDeletion(size_t fileSizeBytes);
 };
 
 EOSTGCNAMESPACE_END

@@ -161,9 +161,9 @@ TapeGc::tryToGarbageCollectASingleFile() noexcept
       fid = m_lruQueue.getAndPopFidOfLeastUsedFile();
     }
 
-    std::uint64_t fileToBeDeletedSizeBytes = 0;
+    std::uint64_t diskReplicaToBeDeletedSizeBytes = 0;
     try {
-      fileToBeDeletedSizeBytes = m_mgm.getFileSizeBytes(fid);
+      diskReplicaToBeDeletedSizeBytes = m_mgm.getFileSizeBytes(fid);
     } catch(std::exception &ex) {
       std::ostringstream msg;
       msg << "fxid=" << std::hex << fid << " msg=\"Unable to garbage collect disk replica: "
@@ -185,7 +185,7 @@ TapeGc::tryToGarbageCollectASingleFile() noexcept
 
     // The garbage collector should explicitly ignore zero length files by
     // returning success
-    if (0 == fileToBeDeletedSizeBytes) {
+    if (0 == diskReplicaToBeDeletedSizeBytes) {
       std::ostringstream msg;
       msg << "fxid=" << std::hex << fid << " msg=\"Garbage collector ignoring zero length file\"";
       eos_static_info(msg.str().c_str());
@@ -216,7 +216,7 @@ TapeGc::tryToGarbageCollectASingleFile() noexcept
     }
 
     m_nbStagerrms++;
-    fileQueuedForDeletion(fileToBeDeletedSizeBytes);
+    diskReplicaQueuedForDeletion(diskReplicaToBeDeletedSizeBytes);
     std::ostringstream msg;
     msg << "fxid=" << std::hex << fid << " msg=\"Garbage collected disk replica using stagerrm\"";
     eos_static_info(msg.str().c_str());
@@ -298,12 +298,12 @@ TapeGc::toJson(std::ostringstream &os, const std::uint64_t maxLen) const {
 }
 
 //------------------------------------------------------------------------------
-// Notify this object that a file has been queued for deletion
+// Notify this object that a disk replica has been queued for deletion
 //------------------------------------------------------------------------------
 void
-TapeGc::fileQueuedForDeletion(const size_t deletedFileSize)
+TapeGc::diskReplicaQueuedForDeletion(const size_t fileSizeBytes)
 {
-  m_spaceStats.fileQueuedForDeletion(deletedFileSize);
+  m_spaceStats.diskReplicaQueuedForDeletion(fileSizeBytes);
 }
 
 EOSTGCNAMESPACE_END
