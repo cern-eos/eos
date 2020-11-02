@@ -149,48 +149,6 @@ TestEnv::TestEnv(const std::string& endpoint)
   mMapParam.insert(std::make_pair("len3_stripe2", "1048576"));
   mMapParam.insert(std::make_pair("off3_stripe3", "0"));
   mMapParam.insert(std::make_pair("len3_stripe3", "17"));
-  // Test sequences for the AlingBuffer method
-  // Test set 1
-  mMapParam.insert(std::make_pair("align1_off", "4095"));
-  mMapParam.insert(std::make_pair("align1_len", "8194"));
-  mMapParam.insert(std::make_pair("align1_resp_off", "0, 4096, 12288"));
-  mMapParam.insert(std::make_pair("align1_resp_len", "4096, 8192, 4096"));
-  // Test set 2
-  mMapParam.insert(std::make_pair("align2_off", "4095"));
-  mMapParam.insert(std::make_pair("align2_len", "1048576"));
-  mMapParam.insert(std::make_pair("align2_resp_off", "0 4096 1048576"));
-  mMapParam.insert(std::make_pair("align2_resp_len", "4096 1044480 4096"));
-  // Test set 3
-  mMapParam.insert(std::make_pair("align3_off", "4096"));
-  mMapParam.insert(std::make_pair("align3_len", "1048576"));
-  mMapParam.insert(std::make_pair("align3_resp_off", "4096"));
-  mMapParam.insert(std::make_pair("align3_resp_len", "1048576"));
-  // Test set 4
-  mMapParam.insert(std::make_pair("align4_off", "20971520"));
-  mMapParam.insert(std::make_pair("align4_len", "2048"));
-  mMapParam.insert(std::make_pair("align4_resp_off", "20971520"));
-  mMapParam.insert(std::make_pair("align4_resp_len", "4096"));
-  // Test set 5
-  mMapParam.insert(std::make_pair("align5_off", "20972544"));
-  mMapParam.insert(std::make_pair("align5_len", "3072"));
-  mMapParam.insert(std::make_pair("align5_resp_off", "20971520"));
-  mMapParam.insert(std::make_pair("align5_resp_len", "4096"));
-  // Test set 6
-  mMapParam.insert(std::make_pair("align6_off", "20972544"));
-  mMapParam.insert(std::make_pair("align6_len", "4096"));
-  mMapParam.insert(std::make_pair("align6_resp_off", "20971520 20975616"));
-  mMapParam.insert(std::make_pair("align6_resp_len", "4096 4096"));
-  // Test set 7
-  mMapParam.insert(std::make_pair("align7_off", "20972544"));
-  mMapParam.insert(std::make_pair("align7_len", "9216"));
-  mMapParam.insert(std::make_pair("align7_resp_off",
-                                  "20971520 20975616 20979712"));
-  mMapParam.insert(std::make_pair("align7_resp_len", "4096 4096 4096"));
-  // Test set 8
-  mMapParam.insert(std::make_pair("align8_off", "10"));
-  mMapParam.insert(std::make_pair("align8_len", "1025"));
-  mMapParam.insert(std::make_pair("align8_resp_off", "0"));
-  mMapParam.insert(std::make_pair("align8_resp_len", "4096"));
 }
 
 //------------------------------------------------------------------------------
