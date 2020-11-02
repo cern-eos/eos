@@ -23,7 +23,7 @@
 
 #include "gtest/gtest.h"
 #define IN_TEST_HARNESS
-#include "fst/io/xrd/BufferManager.hh"
+#include "common/BufferManager.hh"
 #undef IN_TEST_HARNESS
 #include "common/StringConversion.hh"
 #include <random>
@@ -33,7 +33,7 @@
 TEST(BufferManager, MatchingSizes)
 {
   using namespace eos::common;
-  eos::fst::BufferManager buff_mgr(20 * MB);
+  eos::common::BufferManager buff_mgr(20 * MB);
   uint64_t buff_sz = 512 * KB;
   auto buffer = buff_mgr.GetBuffer(buff_sz);
   ASSERT_NE(buffer, nullptr);
@@ -71,7 +71,7 @@ TEST(BufferManager, MatchingSizes)
 TEST(BufferManager, RecycleSingleBuffer)
 {
   using namespace eos::common;
-  eos::fst::BufferManager buff_mgr(20 * MB);
+  eos::common::BufferManager buff_mgr(20 * MB);
 
   for (int i = 0; i < 100; ++i) {
     auto buffer = buff_mgr.GetBuffer(1 * MB);
@@ -86,8 +86,8 @@ TEST(BufferManager, RecycleSingleBuffer)
 TEST(BufferManager, AdjustCachedSizes)
 {
   using namespace eos::common;
-  eos::fst::BufferManager buff_mgr(20 * MB);
-  std::list<std::shared_ptr<eos::fst::Buffer>> lst_buffs;
+  eos::common::BufferManager buff_mgr(20 * MB);
+  std::list<std::shared_ptr<eos::common::Buffer>> lst_buffs;
 
   // Recycle a 1MB blocks in a loop
   for (int i = 0; i < 20; ++i) {
@@ -124,7 +124,7 @@ TEST(BufferManager, AdjustCachedSizes)
 TEST(BufferManager, MultipleThreads)
 {
   using namespace eos::common;
-  auto work = [](eos::fst::BufferManager & buff_mgr, int num_blocks,
+  auto work = [](eos::common::BufferManager & buff_mgr, int num_blocks,
   float mean, float stddev) {
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -156,7 +156,7 @@ TEST(BufferManager, MultipleThreads)
   uniform_dist_params.emplace_back(3500 * KB, 500 * KB);
 
   for (auto& dis_params : uniform_dist_params) {
-    eos::fst::BufferManager buff_mgr(100 * MB);
+    eos::common::BufferManager buff_mgr(100 * MB);
 
     for (int i = 0; i < num_threads; ++i) {
       lst_threads.emplace_back(work, std::ref(buff_mgr), num_blocks,

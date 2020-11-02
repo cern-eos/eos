@@ -32,12 +32,19 @@
 #include "XrdCl/XrdClFile.hh"
 #include <queue>
 
+namespace eos
+{
+namespace common
+{
+class BufferManager;
+class Buffer;
+}
+}
+
 EOSFSTNAMESPACE_BEGIN
 
 //! Forward declarations
 class XrdIo;
-class Buffer;
-class BufferManager;
 class AsyncMetaHandler;
 
 //------------------------------------------------------------------------------
@@ -52,7 +59,8 @@ struct ReadaheadBlock {
   //! @param buf_mgr buffer manager, if null buffers are allocated on demand
   //! @param handler pre-allocated handler
   //----------------------------------------------------------------------------
-  ReadaheadBlock(uint64_t blocksize, BufferManager* buf_mgr = nullptr,
+  ReadaheadBlock(uint64_t blocksize,
+                 eos::common::BufferManager* buf_mgr = nullptr,
                  SimpleHandler* hd = nullptr);
 
   //----------------------------------------------------------------------------
@@ -77,8 +85,8 @@ struct ReadaheadBlock {
   //----------------------------------------------------------------------------
   virtual ~ReadaheadBlock();
 
-  BufferManager* mBufMgr; ///< Buffer manager object
-  std::shared_ptr<Buffer> mBuffer; ///< Current data block
+  eos::common::BufferManager* mBufMgr; ///< Buffer manager object
+  std::shared_ptr<eos::common::Buffer> mBuffer; ///< Current data block
   std::unique_ptr<SimpleHandler> mHandler; ///< Async handler for the requests
 };
 
