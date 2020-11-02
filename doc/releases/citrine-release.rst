@@ -16,6 +16,24 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.26 Citrine``
+===================
+
+2020-11-02
+
+Bug
+----
+
+* MGM: Fix crash when accessing file system which is null when iterating over
+  file systems in a group/space.
+
+Improvement
+-----------
+
+* [EOS-4481] - Tape garbage collector should notice file conversion jobs and also open for read requests
+* Enforce check for QuarkDB 0.4.2 minimum version
+
+
 ``v4.8.25 Citrine``
 ===================
 
