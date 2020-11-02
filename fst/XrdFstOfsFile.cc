@@ -56,7 +56,8 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   mFileId(0), mFsId(0), mLid(0), mCid(0), mForcedMtime(1), mForcedMtime_ms(0),
   mFusex(false), mFusexIsUnlinked(false), closed(false), mOpened(false),
   mHasWrite(false), hasWriteError(false), hasReadError(false), mIsRW(false),
-  mIsDevNull(false), isCreation(false), isReplication(false), noAtomicVersioning(false),
+  mIsDevNull(false), isCreation(false), isReplication(false),
+  noAtomicVersioning(false),
   mIsInjection(false), mRainReconstruct(false), deleteOnClose(false),
   repairOnClose(false), mIsOCchunk(false), writeErrorFlag(false),
   mEventOnClose(false), mEventWorkflow(""),
@@ -251,9 +252,10 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
     if (mIsRW || (mCapOpaque->Get("mgm.zerosize"))) {
       if (!mIsRW && mCapOpaque->Get("mgm.zerosize")) {
-	// this commit should not call the versioning/atomic functionality
-	noAtomicVersioning = true;
+        // this commit should not call the versioning/atomic functionality
+        noAtomicVersioning = true;
       }
+
       // File does not exist, keep the create flag for writers and readers with 0-size at MGM
       mIsRW = true;
       isCreation = true;
@@ -617,7 +619,6 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
   if (mIsRW) {
     gOFS.openedForWriting.up(mFsId, mFileId);
-
   } else {
     gOFS.openedForReading.up(mFsId, mFileId);
   }
@@ -1381,10 +1382,10 @@ XrdFstOfsFile::_close()
               capOpaqueFile += "&mgm.modified=1";
             }
 
-	    if (noAtomicVersioning) {
-	      // prevent atomic/versioning on commmit
-	      capOpaqueFile += "&mgm.commit.verify=1";
-	    }
+            if (noAtomicVersioning) {
+              // prevent atomic/versioning on commmit
+              capOpaqueFile += "&mgm.commit.verify=1";
+            }
 
             capOpaqueFile += "&mgm.add.fsid=";
             capOpaqueFile += (int) mFmd->mProtoFmd.fsid();
@@ -1438,7 +1439,6 @@ XrdFstOfsFile::_close()
             if (rc) {
               if ((error.getErrInfo() == EIDRM) || (error.getErrInfo() == EBADE) ||
                   (error.getErrInfo() == EBADR) || (error.getErrInfo() == EREMCHG)) {
-
                 if (error.getErrInfo() == EIDRM) {
                   // This file has been deleted in the meanwhile ... we can
                   // unlink that immediately
@@ -1474,7 +1474,6 @@ XrdFstOfsFile::_close()
                 eos_crit("commit returned an uncatched error msg=%s [probably timeout]"
                          " - closing transaction to keep the file save - rc=%d",
                          error.getErrText(), rc);
-
               }
             } else {
               commited_to_mgm = true;
@@ -1669,8 +1668,8 @@ XrdFstOfsFile::_close()
         eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason="
                  "\"write IO error\"", mCapOpaque->Get("mgm.path"), mFstPath.c_str());
       } else if (writeErrorFlag == kOfsFsRemovedError) {
-	// Filesystem has been unregistered
-	gOFS.Emsg(epname, error, EIO, "store file - file has been cleaned because"
+        // Filesystem has been unregistered
+        gOFS.Emsg(epname, error, EIO, "store file - file has been cleaned because"
                   " the target filesystem has been unregistered", mNsPath.c_str());
         eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason="
                  "\"FS removed\"", mCapOpaque->Get("mgm.path"), mFstPath.c_str());
@@ -1879,7 +1878,8 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset fileOffset, char* buffer,
 
   if (mFsId) {
     if (!gOFS.Storage->mFsMap.count(mFsId)) {
-      return gOFS.Emsg("readeofs", error, EBADF, "read file - filesystem has been unregistered");
+      return gOFS.Emsg("readeofs", error, EBADF,
+                       "read file - filesystem has been unregistered");
     }
   }
 
@@ -1936,7 +1936,6 @@ XrdFstOfsFile::readvofs(XrdOucIOVec* readV, uint32_t readCount)
   {
     XrdSysMutexHelper scope_lock(vecMutex);
 
-    // If this is the last read of sequential reading, we can verify the checksum
     for (uint32_t i = 0; i < readCount; ++i) {
       monReadSingleBytes.push_back(readV[i].size);
     }
@@ -1989,7 +1988,8 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset fileOffset, const char* buffer,
 
     if (!gOFS.Storage->mFsMap.count(mFsId)) {
       writeErrorFlag = kOfsFsRemovedError;
-      return gOFS.Emsg("writeofs", error, EBADF, "write file - filesystem has been unregistered");
+      return gOFS.Emsg("writeofs", error, EBADF,
+                       "write file - filesystem has been unregistered");
     }
   }
 
