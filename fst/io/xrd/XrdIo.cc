@@ -24,12 +24,12 @@
 #include <stdint.h>
 #include <cstdlib>
 #include "fst/io/xrd/XrdIo.hh"
-#include "fst/io/xrd/BufferManager.hh"
 #include "fst/io/ChunkHandler.hh"
 #include "fst/io/VectChunkHandler.hh"
 #include "fst/io/AsyncMetaHandler.hh"
 #include "common/FileMap.hh"
 #include "common/Logging.hh"
+#include "common/BufferManager.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClBuffer.hh"
 #include "XrdCl/XrdClConstants.hh"
@@ -44,7 +44,7 @@
 
 namespace
 {
-eos::fst::BufferManager gBuffMgr;
+eos::common::BufferManager gBuffMgr;
 }
 
 EOSFSTNAMESPACE_BEGIN
@@ -71,14 +71,15 @@ std::string getAttrUrl(std::string path)
 //------------------------------------------------------------------------------
 // Constuctor for ReadaheadBlock
 //------------------------------------------------------------------------------
-ReadaheadBlock::ReadaheadBlock(uint64_t blocksize, BufferManager* buf_mgr,
+ReadaheadBlock::ReadaheadBlock(uint64_t blocksize,
+                               eos::common::BufferManager* buf_mgr,
                                SimpleHandler* hd):
   mBufMgr(buf_mgr)
 {
   if (mBufMgr) {
     mBuffer = mBufMgr->GetBuffer(blocksize);
   } else {
-    mBuffer = std::make_shared<eos::fst::Buffer>(blocksize);
+    mBuffer = std::make_shared<eos::common::Buffer>(blocksize);
   }
 
   if (mBuffer == nullptr) {

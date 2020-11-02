@@ -25,14 +25,20 @@
 #ifndef __EOSFST_FSTOSSFILE_HH__
 #define __EOSFST_FSTOSSFILE_HH__
 
-/*----------------------------------------------------------------------------*/
-#include <map>
-#include <string>
-/*----------------------------------------------------------------------------*/
 #include "fst/Namespace.hh"
 #include "common/Logging.hh"
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
+#include "XrdOss/XrdOss.hh"
+#include <map>
+#include <string>
+
+//! Forward declarations
+namespace eos
+{
+namespace common
+{
+class Buffer;
+}
+}
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -44,21 +50,17 @@ class CheckSum;
 class XrdFstOssFile : public XrdOssDF, public eos::common::LogId
 {
 public:
-
   //--------------------------------------------------------------------------
   //! Constuctor
   //!
   //! @param tid
-  //!
   //--------------------------------------------------------------------------
-  XrdFstOssFile (const char* tid);
-
+  XrdFstOssFile(const char* tid);
 
   //--------------------------------------------------------------------------
   //! Destructor
   //--------------------------------------------------------------------------
-  virtual ~XrdFstOssFile ();
-
+  virtual ~XrdFstOssFile();
 
   //--------------------------------------------------------------------------
   //! Open function
@@ -69,10 +71,8 @@ public:
   //! @param env env variables passed to the function
   //!
   //! @return XrdOssOK upon success, -errno otherwise
-  //!
   //--------------------------------------------------------------------------
-  virtual int Open (const char* path, int flags, mode_t mode, XrdOucEnv& env);
-
+  virtual int Open(const char* path, int flags, mode_t mode, XrdOucEnv& env);
 
   //--------------------------------------------------------------------------
   //! Read
@@ -82,10 +82,8 @@ public:
   //! @param length read length
   //!
   //! @return number of bytes read
-  //!
   //--------------------------------------------------------------------------
-  ssize_t Read (void* buffer, off_t offset, size_t length);
-
+  ssize_t Read(void* buffer, off_t offset, size_t length);
 
   //--------------------------------------------------------------------------
   //! Read raw
@@ -95,10 +93,8 @@ public:
   //! @param length read length
   //!
   //! @return number of bytes read
-  //!
   //--------------------------------------------------------------------------
-  ssize_t ReadRaw (void* buffer, off_t offset, size_t length);
-
+  ssize_t ReadRaw(void* buffer, off_t offset, size_t length);
 
   //--------------------------------------------------------------------------
   //! Vector read
@@ -107,10 +103,8 @@ public:
   //! @param n number of individual reads in the vector request
   //!
   //! @return is successful total number of bytes read, otherwise -ESPIPE
-  //!
   //--------------------------------------------------------------------------
-  ssize_t ReadV(XrdOucIOVec *readV, int n);
-
+  ssize_t ReadV(XrdOucIOVec* readV, int n);
 
   //--------------------------------------------------------------------------
   //! Vector write
@@ -119,10 +113,8 @@ public:
   //! @param n number of individual reads in the vector request
   //!
   //! @return is successful total number of bytes written, otherwise -ESPIPE
-  //!
   //--------------------------------------------------------------------------
-  ssize_t WriteV(XrdOucIOVec *writeV, int n);
-
+  ssize_t WriteV(XrdOucIOVec* writeV, int n);
 
   //--------------------------------------------------------------------------
   //! Write
@@ -132,10 +124,8 @@ public:
   //! @param length write length
   //!
   //! @return number of byes written
-  //!
   //--------------------------------------------------------------------------
-  ssize_t Write (const void* buffer, off_t offset, size_t length);
-
+  ssize_t Write(const void* buffer, off_t offset, size_t length);
 
   //--------------------------------------------------------------------------
   //! Chmod function
@@ -143,10 +133,8 @@ public:
   //! @param mode the mode to set
   //!
   //! @return XrdOssOK upon success, (-errno) upon failure
-  //!
   //--------------------------------------------------------------------------
-  int Fchmod (mode_t mode);
-
+  int Fchmod(mode_t mode);
 
   //--------------------------------------------------------------------------
   //! Get file status
@@ -154,16 +142,13 @@ public:
   //! @param statinfo stat info structure
   //!
   //! @return XrdOssOK upon success, (-errno) upon failure
-  //!
   //--------------------------------------------------------------------------
-  int Fstat (struct stat* statinfo);
-
+  int Fstat(struct stat* statinfo);
 
   //--------------------------------------------------------------------------
   //! Sync file to local disk
   //--------------------------------------------------------------------------
-  int Fsync ();
-
+  int Fsync();
 
   //--------------------------------------------------------------------------
   //! Truncate the file
@@ -171,16 +156,13 @@ public:
   //! @param offset truncate offset
   //!
   //! @return XrdOssOK upon success, -1 upon failure
-  //!
   //--------------------------------------------------------------------------
-  int Ftruncate (unsigned long long offset);
-
+  int Ftruncate(unsigned long long offset);
 
   //--------------------------------------------------------------------------
   //! Get file descriptor
   //--------------------------------------------------------------------------
-  int getFD ();
-
+  int getFD();
 
   //--------------------------------------------------------------------------
   //! Close function
@@ -188,22 +170,17 @@ public:
   //! @param retsz
   //!
   //! @return XrdOssOK upon success, -1 otherwise
-  //!
   //--------------------------------------------------------------------------
-  virtual int Close (long long* retsz = 0);
+  virtual int Close(long long* retsz = 0);
 
 private:
   XrdOucString mPath; ///< path of the file
   bool mIsRW; ///< mark if opened for rw operations
   XrdSysRWLock* mRWLockXs; ///< rw lock for the block xs
   CheckSum* mBlockXs; ///< block xs object
-  char* mPieceStart; ///< start piece aligned to the blockxs offset
-  char* mPieceEnd; ///< end piece aligned to the blockxs offset
-
 #ifdef IN_TEST_HARNESS
 public:
 #endif
-
   //--------------------------------------------------------------------------
   //! Align request to the blockchecksum offset so that the whole request is
   //! checksummed
@@ -211,12 +188,18 @@ public:
   //! @param buffer buffer holding the data
   //! @param offset request offset
   //! @param lenght request length
+  //! @param start_piece extra piece of buffer used to align at the
+  //!        beginning to the blockxs boundary for the given read request
+  //! @param end_piece extrace piece of buffer used to align at the end to
+  //!        the blockxs boundary for the given read request
   //!
   //! @return vector of aligned requests. There should never be more than 3
-  //!         requests since at most both end are unaligned
-  //!
+  //!         requests since in worst case both ends are unaligned
   //--------------------------------------------------------------------------
-  std::vector<XrdOucIOVec> AlignBuffer(void* buffer, off_t offset, size_t length);
+  std::vector<XrdOucIOVec>
+  AlignBuffer(void* buffer, off_t offset, size_t length,
+              std::shared_ptr<eos::common::Buffer>& start_piece,
+              std::shared_ptr<eos::common::Buffer>& end_piece);
 };
 
 EOSFSTNAMESPACE_END

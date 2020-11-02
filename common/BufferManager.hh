@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #pragma once
-#include "fst/Namespace.hh"
+#include "common/Namespace.hh"
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
 #include <memory>
@@ -31,7 +31,7 @@
 #include <list>
 #include <atomic>
 
-EOSFSTNAMESPACE_BEGIN
+EOSCOMMONNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 //! Class Buffer
@@ -180,16 +180,18 @@ public:
   //!
   //! @param max_size maximum total size of allocated buffers
   //! @param slots number of slots for different buffer sizes which are power
-  //!        of 2 and multiple of MB e.g.
+  //!        of 2 and multiple of slot_base_size e.g. 1MB
   //!        slot 0 -> 1MB
   //!        slot 1 -> 2MB
   //!        slot 2 -> 4MB
+  //! @param slot_base_sz size of the blocks in the first slot
   //----------------------------------------------------------------------------
-  BufferManager(uint64_t max_size = 256 * 1024 * 1024 , uint32_t slots = 2):
+  BufferManager(uint64_t max_size = 256 * 1024 * 1024 , uint32_t slots = 2,
+                uint64_t slot_base_sz = 1024 * 1024):
     mMaxSize(max_size), mNumSlots(slots)
   {
     for (uint32_t i = 0u; i <= mNumSlots; ++i) {
-      mSlots.emplace_back((1 << i) * 1024 * 1024ull);
+      mSlots.emplace_back((1 << i) * slot_base_sz);
     }
   }
 
@@ -232,6 +234,10 @@ public:
   //----------------------------------------------------------------------------
   void Recycle(std::shared_ptr<Buffer> buffer)
   {
+    if (buffer == nullptr) {
+      return;
+    }
+
     uint32_t slot {UINT32_MAX};
 
     // Find appropriate slot for given buffer
@@ -329,4 +335,4 @@ private:
   std::vector<BufferSlot> mSlots;
 };
 
-EOSFSTNAMESPACE_END
+EOSCOMMONNAMESPACE_END

@@ -21,13 +21,20 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "fst/XrdFstOss.hh"
+#include "fst/XrdFstOssFile.hh"
+#include "fst/checksum/ChecksumPlugins.hh"
+#include "common/BufferManager.hh"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <algorithm>
-#include "fst/XrdFstOss.hh"
-#include "fst/XrdFstOssFile.hh"
-#include "fst/checksum/ChecksumPlugins.hh"
+
+namespace
+{
+eos::common::BufferManager gOssBuffMgr(16 * eos::common::MB, 1,
+                                       4  * eos::common::KB);
+}
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -35,8 +42,7 @@ EOSFSTNAMESPACE_BEGIN
 #define O_LARGEFILE 0
 #endif
 
-//! pointer to the current OSS implementation to be used by the oss files
-//! pointer to the current OSS implementation to be used by the oss files
+//! Pointer to the current OSS implementation to be used by the oss files
 extern XrdFstOss* XrdFstSS;
 
 //------------------------------------------------------------------------------
@@ -48,11 +54,7 @@ XrdFstOssFile::XrdFstOssFile(const char* tid) :
   mIsRW(false),
   mRWLockXs(0),
   mBlockXs(0)
-{
-  mPieceStart = new char[eos::common::LayoutId::OssXsBlockSize];
-  mPieceEnd = new char[eos::common::LayoutId::OssXsBlockSize];
-}
-
+{}
 
 //------------------------------------------------------------------------------
 // Destructor
@@ -64,20 +66,11 @@ XrdFstOssFile::~XrdFstOssFile()
   }
 
   fd = -1;
-
-  if (mPieceStart) {
-    delete[] mPieceStart;
-  }
-
-  if (mPieceEnd) {
-    delete[] mPieceEnd;
-  }
 }
 
 //------------------------------------------------------------------------------
 // Open function
 //------------------------------------------------------------------------------
-
 int
 XrdFstOssFile::Open(const char* path, int flags, mode_t mode, XrdOucEnv& env)
 {
@@ -111,18 +104,18 @@ XrdFstOssFile::Open(const char* path, int flags, mode_t mode, XrdOucEnv& env)
       flags |= O_DIRECT;
     } else {
       if (!strcmp(val, "sync")) {
-	// data + meta data
-	flags |= O_DSYNC | O_SYNC;
+        // data + meta data
+        flags |= O_DSYNC | O_SYNC;
       } else {
-	if (!strcmp(val, "msync")) {
-	  // meta data
-	  flags |= O_SYNC;
-	} else {
-	  // data
-	  if (!strcmp(val, "dsync")) {
-	    flags |= O_DSYNC;
-	  }
-	}
+        if (!strcmp(val, "msync")) {
+          // meta data
+          flags |= O_SYNC;
+        } else {
+          // data
+          if (!strcmp(val, "dsync")) {
+            flags |= O_DSYNC;
+          }
+        }
       }
     }
   }
@@ -198,7 +191,6 @@ XrdFstOssFile::Open(const char* path, int flags, mode_t mode, XrdOucEnv& env)
   return (fd < 0 ? fd : XrdOssOK);
 }
 
-
 //------------------------------------------------------------------------------
 // Read
 //------------------------------------------------------------------------------
@@ -207,11 +199,8 @@ XrdFstOssFile::Read(void* buffer, off_t offset, size_t length)
 {
   ssize_t retval = 0;
   ssize_t nread;
-  off_t off_copy;
-  size_t len_copy;
-  char* ptr_piece;
-  char* ptr_buff;
   std::vector<XrdOucIOVec> pieces;
+  std::shared_ptr<eos::common::Buffer> start_piece, end_piece;
   eos_debug("off=%ji len=%ji", offset, length);
 
   if (fd < 0) {
@@ -225,7 +214,7 @@ XrdFstOssFile::Read(void* buffer, off_t offset, size_t length)
   } else {
     // Align to the block checksum offset by possibly reading two extra
     // pieces in the beginning and/or at the end of the requested piece
-    pieces = AlignBuffer(buffer, offset, length);
+    pieces = AlignBuffer(buffer, offset, length, start_piece, end_piece);
   }
 
   // Loop through all the pieces and read them in
@@ -241,11 +230,23 @@ XrdFstOssFile::Read(void* buffer, off_t offset, size_t length)
           (!mBlockXs->CheckBlockSum(piece->offset, piece->data, nread))) {
         eos_err("error=read block-xs error offset=%zu, length=%zu",
                 piece->offset, piece->size);
-        return -EIO;
+        retval = -EIO;
+        break;
       }
     }
 
-    if (nread >= 0) {
+    if (nread < 0) {
+      eos_err("msg=\"failed read\" offset=%zu length=%zu", piece->offset,
+              piece->size);
+      retval = -EIO;
+      break;
+    }
+
+    if (nread > 0) {
+      char* ptr_buff, *ptr_piece;
+      off_t off_copy;
+      size_t len_copy;
+
       if (piece->offset < offset) {
         // Copy back begin edge
         ptr_buff = (char*)buffer;
@@ -268,27 +269,29 @@ XrdFstOssFile::Read(void* buffer, off_t offset, size_t length)
       } else {
         retval += nread;
       }
-    } else {
-      eos_err("error=failed read offset=%zu, length=%zu", piece->offset, piece->size);
-      return -EIO;
     }
   }
 
+  // Recycle any buffer used for the blockxs alignment
+  gOssBuffMgr.Recycle(start_piece);
+  gOssBuffMgr.Recycle(end_piece);
+
   if (retval > (ssize_t)length) {
-    eos_err("read ret=%ji more than requested length=%ju", retval, length);
+    eos_err("msg=\"read more than requested\" ret=%ji length=%ju", retval, length);
     return -EIO;
   }
 
-  return (retval >= 0 ? retval : static_cast<ssize_t>(-errno));
+  return retval;
 }
-
 
 //------------------------------------------------------------------------------
 // Align request to the blockchecksum offset so that the whole request is
 // checksummed
 //------------------------------------------------------------------------------
 std::vector<XrdOucIOVec>
-XrdFstOssFile::AlignBuffer(void* buffer, off_t offset, size_t length)
+XrdFstOssFile::AlignBuffer(void* buffer, off_t offset, size_t length,
+                           std::shared_ptr<eos::common::Buffer>& start_piece,
+                           std::shared_ptr<eos::common::Buffer>& end_piece)
 {
   XrdOucIOVec piece;
   std::vector<XrdOucIOVec> resp;
@@ -300,9 +303,14 @@ XrdFstOssFile::AlignBuffer(void* buffer, off_t offset, size_t length)
 
   if (align_start < offset) {
     // Extra piece at the beginning
-    piece = {(long long) align_start,
-             (int) blk_size, 0,
-             mPieceStart
+    start_piece = gOssBuffMgr.GetBuffer(eos::common::LayoutId::OssXsBlockSize);
+
+    if (start_piece == nullptr) {
+      throw std::bad_alloc();
+    }
+
+    piece = {(long long) align_start, (int) blk_size, 0,
+             start_piece->GetDataPtr()
             };
     resp.push_back(piece);
     align_start += blk_size;
@@ -313,9 +321,8 @@ XrdFstOssFile::AlignBuffer(void* buffer, off_t offset, size_t length)
     if (align_start != align_end) {
       // Add the main piece
       char* ptr_buff = (char*)buffer + (align_start - offset);
-      piece = {(long long) align_start,
-               (int)(align_end - align_start), 0,
-               ptr_buff
+      piece = {(long long) align_start, (int)(align_end - align_start),
+               0,  ptr_buff
               };
       resp.push_back(piece);
     }
@@ -323,9 +330,14 @@ XrdFstOssFile::AlignBuffer(void* buffer, off_t offset, size_t length)
     if (((off_t)align_end < chunk_end) &&
         ((off_t)(align_end + blk_size) > chunk_end)) {
       // Extra piece at the end
-      piece = {(long long) align_end,
-               (int) blk_size, 0,
-               mPieceEnd
+      end_piece = gOssBuffMgr.GetBuffer(eos::common::LayoutId::OssXsBlockSize);
+
+      if (end_piece == nullptr) {
+        throw std::bad_alloc();
+      }
+
+      piece = {(long long) align_end, (int) blk_size, 0,
+               end_piece->GetDataPtr()
               };
       resp.push_back(piece);
     }
@@ -337,13 +349,11 @@ XrdFstOssFile::AlignBuffer(void* buffer, off_t offset, size_t length)
 //------------------------------------------------------------------------------
 // Read raw
 //------------------------------------------------------------------------------
-
 ssize_t
 XrdFstOssFile::ReadRaw(void* buffer, off_t offset, size_t length)
 {
   return Read(buffer, offset, length);
 }
-
 
 //------------------------------------------------------------------------------
 // Write

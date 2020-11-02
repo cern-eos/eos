@@ -232,6 +232,19 @@ target_link_libraries(EosFstOss PRIVATE
   ISAL::ISAL_CRYPTO
   XXHASH::XXHASH)
 
+add_library(EosFstOss-Static STATIC
+  XrdFstOss.cc XrdFstOss.hh
+  XrdFstOssFile.cc XrdFstOssFile.hh
+  checksum/CheckSum.cc checksum/CheckSum.hh
+  checksum/Adler.cc checksum/Adler.hh
+  $<TARGET_OBJECTS:EosCrc32c-Objects>)
+
+target_link_libraries(EosFstOss-Static PRIVATE
+  EosCommon
+  ISAL::ISAL
+  ISAL::ISAL_CRYPTO
+  XXHASH::XXHASH)
+
 #-------------------------------------------------------------------------------
 # XrdEosFst library
 #-------------------------------------------------------------------------------
@@ -312,8 +325,6 @@ target_link_libraries(XrdEosFst-Static PUBLIC
   EosConsoleHelpers-Objects
   EosCommonServer
   EosFstIo
-  # @todo(gbitzes) move calculateEtag to common so that we don't have to couple
-  # the fst lib with the ns one
   EosNsCommon
   XROOTD::SSI)
 
