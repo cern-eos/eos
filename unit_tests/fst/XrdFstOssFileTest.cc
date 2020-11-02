@@ -26,7 +26,7 @@
 #undef IN_TEST_HARNESS
 
 #include "gtest/gtest.h"
-#include "fst/tests/TestEnv.hh"
+#include "unit_tests/fst/TestEnv.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 
 using namespace eos::fst;
@@ -36,11 +36,52 @@ class XrdFstOssFileTest : public ::testing::Test
 {
 public:
   XrdFstOssFile* ossfile = nullptr;
-  TestEnv* mEnv = nullptr;
+  std::map<std::string, std::string> mMapParam;
 
   virtual void SetUp() override
   {
-    mEnv = new eos::fst::test::TestEnv();
+    // Test sequences for the AlingBuffer method
+    // Test set 1
+    mMapParam.insert(std::make_pair("align1_off", "4095"));
+    mMapParam.insert(std::make_pair("align1_len", "8194"));
+    mMapParam.insert(std::make_pair("align1_resp_off", "0, 4096, 12288"));
+    mMapParam.insert(std::make_pair("align1_resp_len", "4096, 8192, 4096"));
+    // Test set 2
+    mMapParam.insert(std::make_pair("align2_off", "4095"));
+    mMapParam.insert(std::make_pair("align2_len", "1048576"));
+    mMapParam.insert(std::make_pair("align2_resp_off", "0 4096 1048576"));
+    mMapParam.insert(std::make_pair("align2_resp_len", "4096 1044480 4096"));
+    // Test set 3
+    mMapParam.insert(std::make_pair("align3_off", "4096"));
+    mMapParam.insert(std::make_pair("align3_len", "1048576"));
+    mMapParam.insert(std::make_pair("align3_resp_off", "4096"));
+    mMapParam.insert(std::make_pair("align3_resp_len", "1048576"));
+    // Test set 4
+    mMapParam.insert(std::make_pair("align4_off", "20971520"));
+    mMapParam.insert(std::make_pair("align4_len", "2048"));
+    mMapParam.insert(std::make_pair("align4_resp_off", "20971520"));
+    mMapParam.insert(std::make_pair("align4_resp_len", "4096"));
+    // Test set 5
+    mMapParam.insert(std::make_pair("align5_off", "20972544"));
+    mMapParam.insert(std::make_pair("align5_len", "3072"));
+    mMapParam.insert(std::make_pair("align5_resp_off", "20971520"));
+    mMapParam.insert(std::make_pair("align5_resp_len", "4096"));
+    // Test set 6
+    mMapParam.insert(std::make_pair("align6_off", "20972544"));
+    mMapParam.insert(std::make_pair("align6_len", "4096"));
+    mMapParam.insert(std::make_pair("align6_resp_off", "20971520 20975616"));
+    mMapParam.insert(std::make_pair("align6_resp_len", "4096 4096"));
+    // Test set 7
+    mMapParam.insert(std::make_pair("align7_off", "20972544"));
+    mMapParam.insert(std::make_pair("align7_len", "9216"));
+    mMapParam.insert(std::make_pair("align7_resp_off",
+                                    "20971520 20975616 20979712"));
+    mMapParam.insert(std::make_pair("align7_resp_len", "4096 4096 4096"));
+    // Test set 8
+    mMapParam.insert(std::make_pair("align8_off", "10"));
+    mMapParam.insert(std::make_pair("align8_len", "1025"));
+    mMapParam.insert(std::make_pair("align8_resp_off", "0"));
+    mMapParam.insert(std::make_pair("align8_resp_len", "4096"));
     ossfile = new XrdFstOssFile("test_id");
   }
 
@@ -48,8 +89,6 @@ public:
   {
     delete ossfile;
     ossfile = nullptr;
-    delete mEnv;
-    mEnv = nullptr;
   }
 };
 
@@ -63,24 +102,25 @@ TEST_F(XrdFstOssFileTest, AlignBufferTest)
   std::string str_len;
   std::stringstream sstr;
   std::vector<XrdOucIOVec> expect_resp;
+  std::shared_ptr<eos::common::Buffer> start_piece, end_piece;
 
   for (int set = 1; set < num_datasets; ++set) {
     // Read in the offset and length of the request
     sstr.str("");
     sstr << "align" << set << "_off";
-    off_req = (off_t) atoi(mEnv->GetMapping(sstr.str()).c_str());
+    off_req = (off_t) atoi(mMapParam[sstr.str()].c_str());
     sstr.str("");
     sstr << "align" << set << "_len";
-    len_req = (size_t) atoi(mEnv->GetMapping(sstr.str()).c_str());
+    len_req = (size_t) atoi(mMapParam[sstr.str()].c_str());
     char* buffer = new char[len_req];
     // Read the correct answer to compare with
     sstr.str("");
     sstr << "align" << set << "_resp_off";
-    str_off = mEnv->GetMapping(sstr.str());
+    str_off = mMapParam[sstr.str()];
     XrdOucTokenizer tok_off = XrdOucTokenizer((char*) str_off.c_str());
     sstr.str("");
     sstr << "align" << set << "_resp_len";
-    str_len = mEnv->GetMapping(sstr.str());
+    str_len = mMapParam[sstr.str()];
     XrdOucTokenizer tok_len = XrdOucTokenizer((char*) str_len.c_str());
     ptr_off = tok_off.GetLine();
     ptr_len = tok_len.GetLine();
@@ -92,7 +132,8 @@ TEST_F(XrdFstOssFileTest, AlignBufferTest)
     }
 
     // Compute the alignment
-    std::vector<XrdOucIOVec> resp = ossfile->AlignBuffer(buffer, off_req, len_req);
+    std::vector<XrdOucIOVec> resp =
+      ossfile->AlignBuffer(buffer, off_req, len_req, start_piece, end_piece);
     EXPECT_EQ(expect_resp.size(), resp.size());
 
     for (uint32_t indx = 0; indx < resp.size(); ++indx) {

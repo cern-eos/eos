@@ -86,16 +86,16 @@ set(COMMON_UT_SRCS
   common/VariousTests.cc
   common/XrdConnPoolTests.cc
   common/RateLimitTests.cc
-  common/EosTokenTests.cc)
+  common/EosTokenTests.cc
+  common/BufferManagerTests.cc)
 
 set(FST_UT_SRCS
-  #fst/XrdFstOssFileTest.cc
   fst/XrdFstOfsTests.cc
+  fst/XrdFstOssFileTest.cc
   fst/HealthTest.cc
   fst/UtilsTest.cc
   fst/XrdFstOfsFileInternalTest.cc
   fst/ScanDirTests.cc
-  fst/BufferManagerTests.cc
   fst/MonitorVarPartitionTest.cc)
 
 #-------------------------------------------------------------------------------
@@ -133,12 +133,13 @@ add_executable(eos-unit-tests-fst ${UT_FST_SRCS})
 target_link_libraries(eos-unit-tests-fst PRIVATE
   gtest_main
   gmock
+  EosFstOss-Static
   XrdEosFst-Static)
 
 #-------------------------------------------------------------------------------
 # eos-unit-tests-with-instance executable
 #-------------------------------------------------------------------------------
-add_executable(eos-unit-tests-with-instance 
+add_executable(eos-unit-tests-with-instance
   fst/main_fst.cc
   fst/TestEnv.cc
   fst/XrdFstOfsFileTest.cc
@@ -146,7 +147,7 @@ add_executable(eos-unit-tests-with-instance
 
 target_link_libraries(eos-unit-tests-with-instance PRIVATE
   gtest
-  XrdEosFst-Static) 
+  XrdEosFst-Static)
 
 #-------------------------------------------------------------------------------
 # eos-unit-tests-with-qdb executable
