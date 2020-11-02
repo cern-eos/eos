@@ -591,12 +591,10 @@ RaidMetaLayout::Read(XrdSfsFileOffset offset, char* buffer,
   XrdSysMutexHelper scope_lock(mExclAccess);
   eos::common::Timing rt("read");
   COMMONTIMING("start", &rt);
-  unsigned int stripe_id;
   unsigned int physical_id;
   int64_t read_length = 0;
   uint64_t off_local = 0;
   uint64_t end_raw_offset = (uint64_t)(offset + length);
-  AsyncMetaHandler* phandler = 0;
   XrdCl::ChunkList all_errs;
 
   if (!mIsEntryServer) {
@@ -607,12 +605,15 @@ RaidMetaLayout::Read(XrdSfsFileOffset offset, char* buffer,
   } else {
     // Only entry server does this
     if ((uint64_t)offset > mFileSize) {
-      eos_warning("offset:%lld larger then file size:%lld", offset, mFileSize);
+      eos_warning("msg=\"read past end-of-file\" offset=%lld file_size=%llu",
+                  offset, mFileSize);
       return 0;
     }
 
-    if (end_raw_offset > (uint64_t)mFileSize) {
-      eos_warning("read to big, resizing the read length");
+    if (end_raw_offset > mFileSize) {
+      eos_warning("msg=\"read to big resizing the read length\" "
+                  "end_offset=%lli file_size=%llu", end_raw_offset,
+                  mFileSize);
       length = static_cast<int>(mFileSize - offset);
     }
 
@@ -650,25 +651,13 @@ RaidMetaLayout::Read(XrdSfsFileOffset offset, char* buffer,
       delete[] recover_block;
       read_length = length;
     } else {
-      // Reset all the async handlers
-      for (unsigned int i = 0; i < mStripe.size(); i++) {
-        if (mStripe[i]) {
-          phandler = static_cast<AsyncMetaHandler*>(mStripe[i]->fileGetAsyncHandler());
-
-          if (phandler) {
-            phandler->Reset();
-          }
-        }
-      }
-
       // Split original read in chunks which can be read from one stripe and return
       // their relative offsets in the original file
       int64_t nbytes = 0;
       bool do_recovery = false;
       bool got_error = false;
       std::vector<XrdCl::ChunkInfo> split_chunk = SplitRead((uint64_t)offset,
-          (uint32_t)length,
-          buffer);
+          (uint32_t)length, buffer);
 
       for (auto chunk = split_chunk.begin(); chunk != split_chunk.end(); ++chunk) {
         COMMONTIMING("read remote in", &rt);
@@ -694,44 +683,10 @@ RaidMetaLayout::Read(XrdSfsFileOffset offset, char* buffer,
 
         // Save errors in the map to be recovered
         if (got_error) {
+          eos_err("msg=\"read error\" off=%llu len=%d msg=\"%s\"", chunk->offset,
+                  chunk->length, mStripe[physical_id]->GetLastErrMsg().c_str());
           all_errs.push_back(*chunk);
           do_recovery = true;
-        }
-      }
-
-      // Collect errros
-      XrdCl::ChunkList local_errs;
-
-      for (unsigned int j = 0; j < mStripe.size(); j++) {
-        if (mStripe[j]) {
-          phandler = static_cast<AsyncMetaHandler*>(mStripe[j]->fileGetAsyncHandler());
-
-          if (phandler) {
-            uint16_t error_type = phandler->WaitOK();
-
-            if (error_type != XrdCl::errNone) {
-              local_errs = phandler->GetErrors();
-              stripe_id = mapPL[j];
-
-              // Translate local to global errors
-              for (auto err = local_errs.begin(); err != local_errs.end(); err++) {
-                err->offset = GetGlobalOff(stripe_id, (err->offset - mSizeHeader));
-                all_errs.push_back(*err);
-              }
-
-              local_errs.clear();
-              do_recovery = true;
-
-              // If timeout error, then disable current file as we assume that
-              // the server is down
-              if (error_type == XrdCl::errOperationExpired) {
-                eos_debug("debug=calling close on the file after a timeout error");
-                mStripe[j]->fileClose(mTimeout);
-                delete mStripe[j];
-                mStripe[j] = NULL;
-              }
-            }
-          }
         }
       }
 
@@ -766,7 +721,7 @@ RaidMetaLayout::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
       nread = mStripe[0]->fileReadV(chunkList);
 
       if (nread != len) {
-        eos_err("error local vector read");
+        eos_err("%s", "msg=\"error local vector read\"");
         return SFS_ERROR;
       }
     }
@@ -792,6 +747,10 @@ RaidMetaLayout::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
         mSizeHeader);
 
     for (stripe_id = 0; stripe_id < stripe_chunks.size(); ++stripe_id) {
+      if (stripe_chunks[stripe_id].size() == 0) {
+        continue;
+      }
+
       physical_id = mapLP[stripe_id];
 
       if (mStripe[physical_id]) {
@@ -801,6 +760,8 @@ RaidMetaLayout::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
                 mTimeout);
 
         if (nread == SFS_ERROR) {
+          eos_err("msg=\"readv error\" msg=\"%s\"",
+                  mStripe[physical_id]->GetLastErrMsg().c_str());
           got_error = true;
         }
       } else {
@@ -815,6 +776,8 @@ RaidMetaLayout::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
         for (auto chunk = stripe_chunks[stripe_id].begin();
              chunk != stripe_chunks[stripe_id].end(); ++chunk) {
           chunk->offset = GetGlobalOff(stripe_id, chunk->offset - mSizeHeader);
+          eos_err("msg=\"vector read error\" off=%llu, len=%d",
+                  chunk->offset, chunk->length);
           all_errs.push_back(*chunk);
         }
       }
@@ -837,6 +800,8 @@ RaidMetaLayout::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
 
             for (auto chunk = local_errs.begin(); chunk != local_errs.end(); chunk++) {
               chunk->offset = GetGlobalOff(stripe_id, chunk->offset - mSizeHeader);
+              eos_err("msg=\"vector read error\" off=%llu, len=%d",
+                      chunk->offset, chunk->length);
               all_errs.push_back(*chunk);
             }
 
@@ -845,7 +810,7 @@ RaidMetaLayout::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
             // If timeout error, then disable current file as we asume that
             // the server is down
             if (error_type == XrdCl::errOperationExpired) {
-              eos_debug("debug=calling close on the file after a timeout error");
+              eos_debug("%s", "msg=\"calling close after timeout error\"");
               mStripe[j]->fileClose(mTimeout);
               delete mStripe[j];
               mStripe[j] = NULL;
@@ -949,7 +914,8 @@ RaidMetaLayout::Write(XrdSfsFileOffset offset,
     }
 
     if (offset_end > mFileSize) {
-      eos_debug("setting mFileSize=%llu to offset_end=%llu", mFileSize, offset_end);
+      eos_debug("msg=\"update file size\" mFileSize=%llu offset_end=%llu",
+                mFileSize, offset_end);
       mFileSize = offset_end;
       mDoTruncate = true;
     }
