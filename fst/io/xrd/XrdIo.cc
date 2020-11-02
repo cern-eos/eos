@@ -435,6 +435,11 @@ XrdIo::fileReadPrefetch(XrdSfsFileOffset offset, char* buffer,
       // Read directly the current block and prefetch the next one
       fread = fileRead(offset, ptr_buff, length);
 
+      if (offset) {
+        eos_info("msg=\"disable readahead\" offset=%lli", offset);
+        mDoReadahead = false;
+      }
+
       if ((fread == length) && mDoReadahead) {
         if (!PrefetchBlock(offset + length, timeout)) {
           eos_err("msg=\"failed to send prefetch request\" offset=%lli",
