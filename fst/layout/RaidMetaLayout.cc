@@ -683,8 +683,11 @@ RaidMetaLayout::Read(XrdSfsFileOffset offset, char* buffer,
 
         // Save errors in the map to be recovered
         if (got_error) {
-          eos_err("msg=\"read error\" off=%llu len=%d msg=\"%s\"", chunk->offset,
-                  chunk->length, mStripe[physical_id]->GetLastErrMsg().c_str());
+          eos_err("msg=\"read error\" off=%llu len=%d msg=\"%s\"",
+                  chunk->offset, chunk->length,
+                  (mStripe[physical_id] ?
+                   mStripe[physical_id]->GetLastErrMsg().c_str() :
+                   "file is null"));
           all_errs.push_back(*chunk);
           do_recovery = true;
         }
