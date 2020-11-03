@@ -27,13 +27,12 @@
 #include "common/ErrnoToString.hh"
 #include "namespace/Prefetcher.hh"
 #include <unistd.h>
-#include <getopt.h>
 #include <functional>
-#include <algorithm>
 #include <queue>
-#include <sstream>
-
-extern XrdMgmOfs* gOFS;
+//#include <getopt.h>
+//#include <algorithm>
+//#include <sstream>
+//extern XrdMgmOfs* gOFS;
 
 EOSMGMNAMESPACE_BEGIN
 

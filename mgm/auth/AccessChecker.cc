@@ -26,6 +26,8 @@
 #include "namespace/interface/IFileMD.hh"
 #include <sys/stat.h>
 
+#include <mgm/XrdMgmOfs.hh>
+
 EOSMGMNAMESPACE_BEGIN
 
 //----------------------------------------------------------------------------
@@ -38,6 +40,9 @@ bool AccessChecker::checkContainer(IContainerMD *cont,
   const eos::IContainerMD::XAttrMap &linkedAttrs, int mode,
   const eos::common::VirtualIdentity &vid)
 {
+  if (!gOFS->allow_public_access(cont->getName().c_str(),const_cast<common::VirtualIdentity&>(vid))) {
+    return false;
+  }
   //----------------------------------------------------------------------------
   // Construct Acl object
   //----------------------------------------------------------------------------
