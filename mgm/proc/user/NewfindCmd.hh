@@ -43,14 +43,22 @@ public:
   //! @param vid client virtual identity
   //----------------------------------------------------------------------------
   explicit NewfindCmd(eos::console::RequestProto&& req,
-                   eos::common::VirtualIdentity& vid);
-
+                   eos::common::VirtualIdentity& vid):
+  IProcCommand(std::move(req), vid, false)
+  {}
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~NewfindCmd() = default;
+  ~NewfindCmd() override = default;
 
+
+  //----------------------------------------------------------------------------
+  //! Method implementing the specific behaviour of the command executed by the
+  //! asynchronous thread
+  //----------------------------------------------------------------------------
   eos::console::ReplyProto ProcessRequest() noexcept override;
+
+private:
   void PrintFileInfoMinusM(const std::string& path, XrdOucErrInfo& errInfo);
   void ProcessAtomicFilePurge(std::ofstream& ss, const std::string& fspath,
                               eos::IFileMD& fmd);
@@ -61,7 +69,6 @@ public:
   void PurgeVersions(std::ofstream& ss, int64_t maxVersion,
                      const std::string& dirpath);
 
-  void printPath(std::ofstream& ss, const std::string& path, bool url);
 };
 
 EOSMGMNAMESPACE_END
