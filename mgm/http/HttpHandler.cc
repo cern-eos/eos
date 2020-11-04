@@ -296,8 +296,7 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
 
         if (request->GetHeaders().count("want-digest")) {
           std::string type = request->GetHeaders()["want-digest"];
-	  type = LC_STRING(type);
-	  
+          type = LC_STRING(type);
           XrdOucString digest = "";
           eos_static_debug("method=HEAD, path=%s, checksum requested=%s",
                            url.c_str(), type.c_str());
@@ -798,10 +797,10 @@ HttpHandler::Put(eos::common::HttpRequest* request)
 
       open_mode |= SFS_O_RDWR;
       create_mode |= (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-      std::string query;
+      std::string query = request->GetQuery();
 
       if (request->GetHeaders().count("content-length")) {
-        query += "eos.bookingsize=";
+        query += "&eos.bookingsize=";
         //or OC chunked uploads we book the full size
         const char* oclength = eos::common::OwnCloud::getContentSize(request);
 
