@@ -233,7 +233,8 @@ NewfindHelper::ParseCommand(const char* arg)
       } else {
         return false;
       }
-    } else if (s1 == "--name") {
+    // @todo drop "-name" sometime later
+    } else if (s1 == "--name" || s1 == "-name") {
       std::string filematch = subtokenizer.GetToken();
 
       if (filematch.length() > 0) {

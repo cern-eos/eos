@@ -636,7 +636,8 @@ public:
     eos::QuarkContainerMD cmd;
     cmd.initializeWithoutChildren(eos::ns::ContainerMdProto(proto));
 
-    return AccessChecker::checkContainer(&cmd, attrs, R_OK | X_OK, vid);
+    return AccessChecker::checkContainer(&cmd, attrs, R_OK | X_OK, vid)
+        && AccessChecker::checkPublicAccess(gOFS->eosView->getUri(cmd.getId()),vid).first;
   }
 
 private:
@@ -910,28 +911,10 @@ NewfindCmd::ProcessRequest() noexcept
   FindResult findResult;
   while (findResultProvider->next(findResult)) {
 
-    // @todo this is ugly, and btw the logic can be moved
-    // this is (yet another) hardcoded commodity filter, but note that
-    // we can (should) exploit the namespace explorer beforehand.
-    // The problem here is that the NamespaceExplorer provides results
-    // with a DFS traversal, so that we are bound to check every
-    // findResult instead of stepping over once reached the "stopper" depth.
-    // The DFS assumption must hold for this to work.
-    // A BFS-ordered result would avoid so many useless cycles.
-    if (!findResult.publicAccessAllowed.first) {
-      if (findResult.publicAccessAllowed.second == 0) {
-        ofstderrStream << "error(" << EACCES << "): public access level restriction - no access in ";
-        ofstderrStream << findResult.path << std::endl;
-        reply.set_retc(EACCES);
-      } else if (findResult.publicAccessAllowed.second >= 1) {
-        continue;
-      }
-    }
-
     if (findResult.isdir) {
       if (!findRequest.directories() && findRequest.files()) { continue;}
       if (findResult.expansionFilteredOut) {
-        ofstderrStream << "error: no permissions to read directory ";
+        ofstderrStream << "error(" << EACCES << "): no permissions to read directory ";
         ofstderrStream << findResult.path << std::endl;
         reply.set_retc(EACCES);
         continue;
