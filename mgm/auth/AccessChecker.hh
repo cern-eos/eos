@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------
-// File: AccessChecker.hh
-// Author: Georgios Bitzes - CERN
+// @file: AccessChecker.hh
+// @author: Fabio Luchetti, Georgios Bitzes - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -65,6 +65,12 @@ public:
   static bool checkFile(IFileMD *file, int mode,
     const eos::common::VirtualIdentity &vid);
 
+  //---------------------------------------------------------------------------------------------------
+  //! Test if public access is allowed for a given path
+  //---------------------------------------------------------------------------------------------------
+  static std::pair<bool, uint32_t>
+  checkPublicAccess(const std::string &fullpath,
+                         const common::VirtualIdentity& vid);
 };
 
 EOSMGMNAMESPACE_END

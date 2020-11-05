@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 //! @file AccessChecker.cc
-//! @author Georgios Bitzes - CERN
+//! @author Fabio Luchetti, Georgios Bitzes - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -24,9 +24,9 @@
 #include "mgm/auth/AccessChecker.hh"
 #include "mgm/Acl.hh"
 #include "namespace/interface/IFileMD.hh"
+//#include <mgm/XrdMgmOfs.hh>
+#include <common/Path.hh>
 #include <sys/stat.h>
-
-#include <mgm/XrdMgmOfs.hh>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -40,9 +40,6 @@ bool AccessChecker::checkContainer(IContainerMD *cont,
   const eos::IContainerMD::XAttrMap &linkedAttrs, int mode,
   const eos::common::VirtualIdentity &vid)
 {
-  if (!gOFS->allow_public_access(cont->getName().c_str(),const_cast<common::VirtualIdentity&>(vid))) {
-    return false;
-  }
   //----------------------------------------------------------------------------
   // Construct Acl object
   //----------------------------------------------------------------------------
@@ -193,6 +190,38 @@ bool AccessChecker::checkFile(IFileMD *file, int mode,
 
   // other check
   return (flags & S_IXOTH);
+}
+
+//---------------------------------------------------------------------------------------------------
+// Test if public access is allowed for a given path
+//
+// @note This method may take a (likely unnecessary) lock or not. How will this be used?
+//       e.g. a big "DFS-find" looping on a path tree...
+//---------------------------------------------------------------------------------------------------
+std::pair<bool, uint32_t>
+AccessChecker::checkPublicAccess(const std::string& fullpath,
+                                 const common::VirtualIdentity& vid)
+{
+  /* check only for anonymous access */
+
+  if (vid.uid != 99) {
+    return make_pair(true, std::numeric_limits<uint32_t>::max()) ;
+  } else {
+
+    const uint32_t level = eos::common::Mapping::GetPublicAccessLevel();
+//  const int level = eos::common::Mapping::gNobodyAccessTreeDeepness;
+
+    if (level >= 1024) { return make_pair(true, 1024); } // short cut
+
+    eos::common::Path cPath {fullpath};
+    if (static_cast<uint32_t>(cPath.GetSubPathSize()) < level) {
+      return make_pair(true,level - static_cast<uint32_t>(cPath.GetSubPathSize()));
+    } else {
+      return make_pair(false,static_cast<uint32_t>(cPath.GetSubPathSize()) - level);
+    }
+//    return make_pair(static_cast<uint32_t>(cPath.GetSubPathSize()) < level,abs(static_cast<uint32_t>(cPath.GetSubPathSize()) - level) );
+  }
+
 }
 
 EOSMGMNAMESPACE_END
