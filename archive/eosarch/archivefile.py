@@ -573,9 +573,10 @@ class ArchiveFile(object):
                         mask_mode = int("02000", base=8)
                         val_mode = int(entry[4], base=8)
                         val_mode |= mask_mode
-                        entry[4] = "{0:o}".format(val_mode)
+                        compat_entry = list(entry)
+                        compat_entry[4] = "{0:o}".format(val_mode)
 
-                    if not meta_info == entry:
+                    if not meta_info == entry and not compat_entry == entry:
                         err_msg = ("Verify failed for entry={0} expect={1} got={2}"
                                    "").format(dst, entry, meta_info)
                         self.logger.error(err_msg)
