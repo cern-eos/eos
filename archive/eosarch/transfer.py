@@ -985,6 +985,29 @@ class Transfer(object):
             self.logger.error(err_msg)
             raise IOError(err_msg)
 
+        # Wait for all the files to be on disk
+        for fentry in self.archive.files():
+            surl, __ = self.archive.get_endpoints(fentry[1])
+            url = client.URL(surl.encode("utf-8"))
+
+            while True:
+                st_stat, resp_stat = self.archive.fs_src.stat(url.path.encode("utf-8"))
+
+                if not st_stat.ok:
+                    err_msg = "Error stat entry={0}".format(surl)
+                    self.logger.err(err_msg)
+                    raise IOError()
+
+                # Check if file is on disk
+                if resp_stat.flags & StatInfoFlags.OFFLINE:
+                    self.logger.info("Sleep 5 seconds, file not on disk entry={0}".format(surl))
+                    sleep(5)
+                else:
+                    break
+
+        self.logger.info("Finished prepare2get, all files are on disk")
+
+
     def wait_on_tape(self):
         """ Check and wait that all the files are on tape, which in our case
         means checking the "m" bit. If file is not on tape then suspend the
