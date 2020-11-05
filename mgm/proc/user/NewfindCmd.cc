@@ -42,6 +42,14 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+static bool eliminateBasedOnMaxDepth(const eos::console::FindProto& req,
+                                      const std::string& fullpath)
+{
+  eos::common::Path cpath {fullpath};
+  return (req.maxdepth()>0 && cpath.GetSubPathSize()>req.maxdepth()+1);
+  // not using File/ContainerMD->getTreeSize() to avoid taking a lock
+}
+
 template<typename T>
 static bool eliminateBasedOnFileMatch(const eos::console::FindProto& req,
                                       const T& md)
@@ -571,6 +579,7 @@ struct FindResult {
   std::string path;
   bool isdir;
   bool expansionFilteredOut;
+  std::pair<bool, uint32_t> publicAccessAllowed; // second
 
   std::shared_ptr<eos::IContainerMD> containerMD;
   std::shared_ptr<eos::IFileMD> fileMD;
@@ -627,9 +636,7 @@ public:
     eos::QuarkContainerMD cmd;
     cmd.initializeWithoutChildren(eos::ns::ContainerMdProto(proto));
 
-    //    return AccessChecker::checkContainer(&cmd, attrs, R_OK | X_OK, vid);
-    return (gOFS->allow_public_access(cmd.getName().c_str(),
-               const_cast<common::VirtualIdentity&>(vid))) && (AccessChecker::checkContainer(&cmd, attrs, R_OK | X_OK, vid));
+    return AccessChecker::checkContainer(&cmd, attrs, R_OK | X_OK, vid);
   }
 
 private:
@@ -759,8 +766,9 @@ public:
 
     res.path = item.fullPath;
     res.isdir = !item.isFile;
-    res.expansionFilteredOut = item.expansionFilteredOut && (gOFS->allow_public_access(item.fullPath.c_str(),
-                                                                                       const_cast<common::VirtualIdentity&>(vid)));
+    res.expansionFilteredOut = item.expansionFilteredOut;
+    res.publicAccessAllowed = AccessChecker::checkPublicAccess(item.fullPath,
+                                                               const_cast<common::VirtualIdentity&>(vid));
 
     if (item.isFile) {
       eos::QuarkFileMD* fmd = new eos::QuarkFileMD();
@@ -902,11 +910,22 @@ NewfindCmd::ProcessRequest() noexcept
   FindResult findResult;
   while (findResultProvider->next(findResult)) {
 
-    // commodity filter for maxdepth, but
-    // we can (should) exploit the namespace explorer beforehand
-    eos::common::Path cpath {findResult.path};
-    if (findRequest.maxdepth()>0 && cpath.GetSubPathSize()>findRequest.maxdepth()+2) {
-      continue;
+    // @todo this is ugly, and btw the logic can be moved
+    // this is (yet another) hardcoded commodity filter, but note that
+    // we can (should) exploit the namespace explorer beforehand.
+    // The problem here is that the NamespaceExplorer provides results
+    // with a DFS traversal, so that we are bound to check every
+    // findResult instead of stepping over once reached the "stopper" depth.
+    // The DFS assumption must hold for this to work.
+    // A BFS-ordered result would avoid so many useless cycles.
+    if (!findResult.publicAccessAllowed.first) {
+      if (findResult.publicAccessAllowed.second == 0) {
+        ofstderrStream << "error(" << EACCES << "): public access level restriction - no access in ";
+        ofstderrStream << findResult.path << std::endl;
+        reply.set_retc(EACCES);
+      } else if (findResult.publicAccessAllowed.second >= 1) {
+        continue;
+      }
     }
 
     if (findResult.isdir) {
@@ -915,6 +934,7 @@ NewfindCmd::ProcessRequest() noexcept
         ofstderrStream << "error: no permissions to read directory ";
         ofstderrStream << findResult.path << std::endl;
         reply.set_retc(EACCES);
+        continue;
       }
 
       std::shared_ptr<eos::IContainerMD> cMD = findResult.toContainerMD();
@@ -922,6 +942,7 @@ NewfindCmd::ProcessRequest() noexcept
       if (!cMD) { continue; }
 
       // Selection
+      if (eliminateBasedOnMaxDepth(findRequest, findResult.path)) { continue; }
       if (FilterOut(findRequest, cMD)) { continue; }
 
       dircounter++;
@@ -950,7 +971,6 @@ NewfindCmd::ProcessRequest() noexcept
         continue;
       }
 
-
       printPath(ofstdoutStream, findResult.path, findRequest.xurl());
       printUidGid(ofstdoutStream, findRequest, cMD);
       printAttributes(ofstdoutStream, findRequest, cMD);
@@ -973,6 +993,7 @@ NewfindCmd::ProcessRequest() noexcept
       }
 
       // Selection
+      if (eliminateBasedOnMaxDepth(findRequest, findResult.path)) { continue; }
       if (FilterOut(findRequest, fMD)) { continue; }
       if (findRequest.zerosizefiles() && !hasSizeZero(fMD)) { continue; }
       if (findRequest.mixedgroups() && !hasMixedSchedGroups(fMD)) { continue; }
@@ -1057,6 +1078,5 @@ NewfindCmd::PrintFileInfoMinusM(const std::string& path,
   Cmd.close();
 }
 
-// @todo @note check redundant usage of gOFS->allow_public_access (which is now included in AccessChecker too)
 
 EOSMGMNAMESPACE_END

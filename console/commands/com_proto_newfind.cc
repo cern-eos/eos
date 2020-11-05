@@ -634,7 +634,9 @@ com_protonewfind(char* arg)
 void com_newfind_help()
 {
   std::ostringstream oss;
-  oss << "Usage: newfind [--name <pattern>] [--xurl] [--childcount] [--purge <n> ] [--count] [-s] [-d] [-f] [-0] [-1] [-g] [-uid <n>] [-nuid <n>] [-gid <n>] [-ngid <n>] [-flag <n>] [-nflag <n>] [-ctime +<n>|-<n>] [-x <key>=<val>] [-p <key>] [-b] [--layoutstripes <n>] <path>"
+  oss
+      << " usage:\n"
+      << "newfind [--name <pattern>] [--xurl] [--childcount] [--purge <n> ] [--count] [-s] [-d] [-f] [-0] [-1] [-g] [-uid <n>] [-nuid <n>] [-gid <n>] [-ngid <n>] [-flag <n>] [-nflag <n>] [-ctime +<n>|-<n>] [-x <key>=<val>] [-p <key>] [-b] [--layoutstripes <n>] <path>"
       << std::endl;
   oss << "                -f -d :  find files(-f) or directories (-d) in <path>"
       << std::endl;
@@ -686,7 +688,7 @@ void com_newfind_help()
   oss << "                         To remove all atomic upload left-overs older than a day user --purge atomic"
       << std::endl;
   oss << "              default :  find files and directories" << std::endl;
-  oss << "       find [--nrep] [--nunlink] [--size] [--fileinfo] [--online] [--hosts] [--partition] [--fid] [--fs] [--checksum] [--ctime] [--mtime] [--uid] [--gid] <path>"
+  oss << "newfind [--nrep] [--nunlink] [--size] [--fileinfo] [--online] [--hosts] [--partition] [--fid] [--fs] [--checksum] [--ctime] [--mtime] [--uid] [--gid] <path>"
       << std::endl;
   oss << "                      :  find files and print out the requested meta data as key value pairs"
       << std::endl;
