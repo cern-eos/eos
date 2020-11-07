@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
-// File: LRU.hh
-// Author: Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
+//! @file LRU.hh
+//! @author Andreas-Joachim Peters - CERN
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -21,9 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSMGM_LRU__HH__
-#define __EOSMGM_LRU__HH__
-
+#pragma once
 #include "mgm/Namespace.hh"
 #include "common/Mapping.hh"
 #include "common/AssistedThread.hh"
@@ -32,27 +30,20 @@
 #include <sys/types.h>
 #include <memory>
 
-namespace qclient {
-  class QClient;
+namespace qclient
+{
+class QClient;
 }
 
 EOSMGMNAMESPACE_BEGIN
 
-/**
- * @file   LRU.hh
- *
- * @brief  This class implements an LRU engine to apply policies based on atime
- *
- */
-
+//------------------------------------------------------------------------------
+// @brief  This class implements an LRU engine
+//------------------------------------------------------------------------------
 class LRU
 {
-private:
-  AssistedThread mThread; ///< thread id of the LRU thread
-  eos::common::VirtualIdentity mRootVid;//< we operate with the root vid
-  XrdOucErrInfo mError; //< XRootD error object
-
 public:
+  static const char* gLRUPolicyPrefix;
 
   //----------------------------------------------------------------------------
   //! Simple struct describing LRU options
@@ -64,10 +55,11 @@ public:
 
   //----------------------------------------------------------------------------
   //! Parse an "sys.lru.expire.match" policy
-  //! Return true if parsing succeeded, false otherwise
+  //!
+  //! @return true if parsing succeeded, false otherwise
   //----------------------------------------------------------------------------
-  static bool parseExpireMatchPolicy(const std::string &policy,
-    std::map<std::string, time_t> &matchAgeMap);
+  static bool parseExpireMatchPolicy(const std::string& policy,
+                                     std::map<std::string, time_t>& matchAgeMap);
 
   //----------------------------------------------------------------------------
   //! Retrieve current LRU configuration options
@@ -86,6 +78,11 @@ public:
   LRU();
 
   //----------------------------------------------------------------------------
+  //! Destructor - stop the background thread, if running
+  //----------------------------------------------------------------------------
+  ~LRU();
+
+  //----------------------------------------------------------------------------
   //! Start the LRU thread
   //----------------------------------------------------------------------------
   void Start();
@@ -96,56 +93,64 @@ public:
   void Stop();
 
   //----------------------------------------------------------------------------
-  //! Destructor - stop the background thread, if running
+  //!  @brief Remove empty directories if they are older than age given in
+  //!         policy
+  //! @param dir directory to proces
+  //! @param policy minimum age to expire
   //----------------------------------------------------------------------------
-  ~LRU();
-
-  /* expire by age if empty
-   */
   void AgeExpireEmpty(const char* dir, const std::string& policy);
 
-  /* expire by age
-   */
+  //----------------------------------------------------------------------------
+  //! @brief Remove all files older than the policy defines
+  //! @param dir directory to process
+  //! @param policy minimum age to expire
+  //----------------------------------------------------------------------------
   void AgeExpire(const char* dir, const std::string& policy);
 
-  /* expire by volume
-   */
+  //----------------------------------------------------------------------------
+  //! Expire the oldest files to go under the low watermark
+  //!
+  //! @param dir directory to process
+  //! @param policy high water mark when to start expiration
+  //----------------------------------------------------------------------------
   void CacheExpire(const char* dir, std::string& low, std::string& high);
 
-  /* convert by match
-   */
+  //----------------------------------------------------------------------------
+  //! Convert all files matching
+  //!
+  //! @param dir directory to process
+  //! @param map storing all the 'sys.conversion.<match>' policies
+  //----------------------------------------------------------------------------
   void ConvertMatch(const char* dir, eos::IContainerMD::XAttrMap& map);
 
-  static const char* gLRUPolicyPrefix;
+  //----------------------------------------------------------------------------
+  //! Signal the LRU stat it shoudl refresh it's options
+  //----------------------------------------------------------------------------
+  inline void RefreshOptions()
+  {
+    mRefresh = true;
+  }
 
+  //----------------------------------------------------------------------------
+  //! Struct representing LRU entry
+  //----------------------------------------------------------------------------
   struct lru_entry {
-    // compare operator to use struct in a map
+    //! Compare operator to use struct in a map
     bool operator< (lru_entry const& lhs) const
     {
-      if (lhs.getCTime() == getCTime()) {
-        return (getPath() < lhs.getPath());
+      if (lhs.ctime == ctime) {
+        return (path < lhs.path);
       }
 
-      return getCTime() < lhs.getCTime();
+      return (ctime < lhs.ctime);
     }
+
     std::string path;
     time_t ctime;
     unsigned long long size;
+  };
 
-    // ctime getter
-    time_t getCTime() const
-    {
-      return ctime;
-    }
-
-    // path getter
-    std::string getPath() const
-    {
-      return path;
-    }
-  } ;
-
-  // entry in an lru queue having path name,mtime,size
+  //! Entry in an lru queue having path name, mtime, size
   typedef struct lru_entry lru_entry_t;
 
 private:
@@ -160,8 +165,8 @@ private:
   //----------------------------------------------------------------------------
   // Process the given directory, apply all policies
   //----------------------------------------------------------------------------
-  void processDirectory(const std::string &dir, size_t contentSize,
-    eos::IContainerMD::XAttrMap &map);
+  void processDirectory(const std::string& dir, size_t contentSize,
+                        eos::IContainerMD::XAttrMap& map);
 
   //----------------------------------------------------------------------------
   // Perform a single LRU cycle, in-memory namespace
@@ -173,13 +178,11 @@ private:
   //----------------------------------------------------------------------------
   void performCycleQDB(ThreadAssistant& assistant) noexcept;
 
-  //----------------------------------------------------------------------------
-  // Internal qclient object
-  //----------------------------------------------------------------------------
-  std::unique_ptr<qclient::QClient> mQcl;
-
+  std::unique_ptr<qclient::QClient> mQcl; ///< Internal QCl object
+  AssistedThread mThread; ///< thread id of the LRU thread
+  eos::common::VirtualIdentity mRootVid; ///< Uses the root vid
+  XrdOucErrInfo mError; ///< XRootD error object
+  std::atomic<bool> mRefresh; ///< Flag to mark option refresh
 };
 
 EOSMGMNAMESPACE_END
-
-#endif

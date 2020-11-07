@@ -25,7 +25,7 @@
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/tgc/Constants.hh"
 #include "mgm/XrdMgmOfs.hh"
-
+#include "mgm/LRU.hh"
 #include "common/Path.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
 #include "mgm/inspector/FileInspector.hh"
@@ -460,7 +460,8 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
   break;
 
   case eos::console::SpaceProto_ResetProto::NSFILESISTEMVIEW: {
-    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                       __FILE__);
     gOFS->eosFsView->shrink();
     std_out << "\ninfo: resized namespace filesystem view ...";
   }
@@ -471,7 +472,8 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
                               (gOFS->eosFileService);
 
     if (eos_chlog_filesvc) {
-      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                         __FILE__);
       eos_chlog_filesvc->resize();
       std_out << "\ninfo: resized namespace file map ...";
     } else {
@@ -485,7 +487,8 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
                              (gOFS->eosDirectoryService);
 
     if (eos_chlog_dirsvc) {
-      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                         __FILE__);
       eos_chlog_dirsvc->resize();
       std_out << "\ninfo: resized namespace directory map ...";
     } else {
@@ -495,7 +498,8 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
   break;
 
   case eos::console::SpaceProto_ResetProto::NS: {
-    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                       __FILE__);
     gOFS->eosFsView->shrink();
     auto* eos_chlog_filesvc = dynamic_cast<eos::IChLogFileMDSvc*>
                               (gOFS->eosFileService);
@@ -880,6 +884,10 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                 if ((key == "token.generation")) {
                   eos::common::EosTok::sTokenGeneration = strtoull(value.c_str(), 0, 0);
                 }
+
+                if ((key == "lru") || (key == "lru.interval")) {
+                  gOFS->mLRUEngine->RefreshOptions();
+                }
               }
             } else {
               ret_c = EINVAL;
@@ -1066,7 +1074,8 @@ void SpaceCmd::RmSubcmd(const eos::console::SpaceProto_RmProto& rm,
   common::SharedHashLocator spaceLocator =
     common::SharedHashLocator::makeForSpace(rm.mgmspace());
 
-  if (!mq::SharedHashWrapper::deleteHash(gOFS->mMessagingRealm.get(), spaceLocator)) {
+  if (!mq::SharedHashWrapper::deleteHash(gOFS->mMessagingRealm.get(),
+                                         spaceLocator)) {
     reply.set_std_err("error: unable to remove config of space '" + rm.mgmspace() +
                       "'");
     reply.set_retc(EIO);
