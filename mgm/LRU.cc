@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // File: LRU.cc
 // Author: Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -38,9 +38,6 @@
 #include "namespace/ns_quarkdb/explorer/NamespaceExplorer.hh"
 #include "namespace/ns_quarkdb/NamespaceGroup.hh"
 #include <qclient/QClient.hh>
-
-#define __PRI64_PREFIX "l"
-#define PRId64         __PRI64_PREFIX "d"
 
 //! Attribute name defining any LRU policy
 const char* LRU::gLRUPolicyPrefix = "sys.lru.*";
@@ -83,11 +80,11 @@ std::string LRU::getLRUIntervalConfig() const
 //------------------------------------------------------------------------------
 LRU::Options LRU::getOptions()
 {
-  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
   LRU::Options opts;
   // Default options
   opts.enabled = false;
   opts.interval = std::chrono::minutes(30);
+  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
   if (FsView::gFsView.mSpaceView.count("default") &&
       (FsView::gFsView.mSpaceView["default"]->GetConfigMember("lru") == "on")) {
@@ -98,20 +95,19 @@ LRU::Options LRU::getOptions()
   int64_t intv = 0;
 
   if (opts.enabled && (interval.empty() || !common::ParseInt64(interval, intv))) {
-    eos_static_crit("Unable to parse space config lru.interval option, disabling LRU!");
+    eos_static_crit("%s", "msg=\"unable to parse space config lru.interval "
+                    "option, disabling LRU!\"");
     opts.enabled = false;
   } else {
     opts.interval = std::chrono::seconds(intv);
   }
 
   if (opts.enabled) {
-    eos_static_info("lru is enabled, interval=%ds", opts.interval.count());
+    eos_static_info("msg=\"lru is enabled\" interval=%ds", opts.interval.count());
   }
 
-  //----------------------------------------------------------------------------
   // Set long interval in case LRU is de-activated, prevent the background
   // thread from spinning
-  //----------------------------------------------------------------------------
   if (!opts.enabled || opts.interval == std::chrono::seconds(0)) {
     opts.interval = std::chrono::minutes(30);
   }
@@ -122,7 +118,9 @@ LRU::Options LRU::getOptions()
 //------------------------------------------------------------------------------
 // Constructor. To run the LRU thread, call Start
 //------------------------------------------------------------------------------
-LRU::LRU() : mRootVid(eos::common::VirtualIdentity::Root())
+LRU::LRU() :
+  mQcl(nullptr), mRootVid(eos::common::VirtualIdentity::Root()),
+  mRefresh(false)
 {
 }
 
@@ -136,7 +134,6 @@ LRU::~LRU()
 
 //------------------------------------------------------------------------------
 // Parse an "sys.lru.expire.match" policy
-// Return true if parsing succeeded, false otherwise
 //------------------------------------------------------------------------------
 bool LRU::parseExpireMatchPolicy(const std::string& policy,
                                  std::map<std::string, time_t>& matchAgeMap)
@@ -145,9 +142,7 @@ bool LRU::parseExpireMatchPolicy(const std::string& policy,
   std::map<std::string, std::string> tmpMap;
 
   if (!StringConversion::GetKeyValueMap(policy.c_str(), tmpMap, ":")) {
-    //--------------------------------------------------------------------------
     // Failed splitting on ":", cannot parse further
-    //--------------------------------------------------------------------------
     return false;
   }
 
@@ -161,7 +156,8 @@ bool LRU::parseExpireMatchPolicy(const std::string& policy,
                      it->second.c_str());
     } else {
       matchAgeMap[it->first] = out;
-      eos_static_info("rule=\"%s %llu\"", it->first.c_str(), out);
+      eos_static_info("msg=\"add expire policy\" rule=\"%s %llu\"",
+                      it->first.c_str(), out);
     }
   }
 
@@ -221,26 +217,20 @@ void LRU::performCycleInMem(ThreadAssistant& assistant) noexcept
 //------------------------------------------------------------------------------
 void LRU::performCycleQDB(ThreadAssistant& assistant) noexcept
 {
-  eos_static_info("msg=\"start LRU scan on QDB\"");
-  //----------------------------------------------------------------------------
+  eos_static_info("%s", "msg=\"start LRU scan on QDB\"");
   // Build exploration options..
-  //----------------------------------------------------------------------------
   ExplorationOptions opts;
   opts.populateLinkedAttributes = true;
   opts.view = gOFS->eosView;
   opts.ignoreFiles = true;
 
-  //----------------------------------------------------------------------------
   // Initialize qclient..
-  //----------------------------------------------------------------------------
   if (!mQcl) {
     mQcl.reset(new qclient::QClient(gOFS->mQdbContactDetails.members,
                                     gOFS->mQdbContactDetails.constructOptions()));
   }
 
-  //----------------------------------------------------------------------------
   // Start exploring
-  //----------------------------------------------------------------------------
   NamespaceExplorer explorer("/", opts, *(mQcl.get()),
                              static_cast<QuarkNamespaceGroup*>(gOFS->namespaceGroup.get())->getExecutor());
   NamespaceItem item;
@@ -248,16 +238,17 @@ void LRU::performCycleQDB(ThreadAssistant& assistant) noexcept
 
   while (explorer.fetch(item)) {
     eos_static_debug("lru-dir-qdb=\"%s\" attrs=%d", item.fullPath.c_str(),
-                    item.attrs.size());
+                     item.attrs.size());
     processDirectory(item.fullPath, 0, item.attrs);
     processed++;
 
-    if(processed % 1000 == 0) {
-      eos_static_info("LRU scan in progress, scanned %" PRId64 " directories so far", processed);
+    if (processed % 1000 == 0) {
+      eos_static_info("msg=\"LRU scan in progress\" num_scanned_dirs=%lli",
+                      processed);
     }
   }
 
-  eos_static_info("LRU scan done, scanned %" PRId64 " directories", processed);
+  eos_static_info("msg=\"LRU scan done\" num_scanned_dirs=%lli", processed);
 }
 
 //------------------------------------------------------------------------------
@@ -271,7 +262,7 @@ void LRU::backgroundThread(ThreadAssistant& assistant) noexcept
   // Eternal thread doing LRU scans
   gOFS->WaitUntilNamespaceIsBooted(assistant);
   assistant.wait_for(std::chrono::seconds(10));
-  eos_static_info("msg=\"async LRU thread started\"");
+  eos_static_info("%s", "msg=\"async LRU thread started\"");
 
   while (!assistant.terminationRequested()) {
     // every now and then we wake up
@@ -287,7 +278,14 @@ void LRU::backgroundThread(ThreadAssistant& assistant) noexcept
       }
     }
 
-    assistant.wait_for(stopwatch.timeRemainingInCycle());
+    while (stopwatch.timeRemainingInCycle() >= std::chrono::seconds(5)) {
+      assistant.wait_for(std::chrono::seconds(5));
+
+      if (assistant.terminationRequested() || mRefresh) {
+        mRefresh = false;
+        break;
+      }
+    }
   }
 }
 
@@ -297,57 +295,41 @@ void LRU::backgroundThread(ThreadAssistant& assistant) noexcept
 void LRU::processDirectory(const std::string& dir, size_t contentSize,
                            eos::IContainerMD::XAttrMap& map)
 {
-  //----------------------------------------------------------------------------
   // No LRU on "/"
-  //----------------------------------------------------------------------------
   if (dir == "/" || dir == "") {
     return;
   }
 
-  //----------------------------------------------------------------------------
-  // sort out the individual LRU policies
-  //----------------------------------------------------------------------------
+  // Sort out the individual LRU policies
   if (map.count("sys.lru.expire.empty") && contentSize == 0) {
-    //--------------------------------------------------------------------------
-    // remove empty directories older than <age>
-    //--------------------------------------------------------------------------
+    // Remove empty directories older than <age>
     AgeExpireEmpty(dir.c_str(), map["sys.lru.expire.empty"]);
   }
 
   if (map.count("sys.lru.expire.match")) {
-    //--------------------------------------------------------------------------
-    // files with a given match will be removed after expiration time
-    //--------------------------------------------------------------------------
+    // Files with a given match will be removed after expiration time
     AgeExpire(dir.c_str(), map["sys.lru.expire.match"]);
   }
 
   if (map.count("sys.lru.lowwatermark") && map.count("sys.lru.highwatermark")) {
-    //--------------------------------------------------------------------------
-    // if the space in this directory reaches highwatermark, files are
+    // If the space in this directory reaches highwatermark, files are
     // cleaned up according to the LRU policy
-    //--------------------------------------------------------------------------
     CacheExpire(dir.c_str(), map["sys.lru.lowwatermark"],
                 map["sys.lru.highwatermark"]);
   }
 
   if (map.count("sys.lru.convert.match")) {
-    //--------------------------------------------------------------------------
-    // files with a given match/age will be automatically converted
-    //--------------------------------------------------------------------------
+    // Files with a given match/age will be automatically converted
     ConvertMatch(dir.c_str(), map);
   }
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Remove empty directories if they are older than age given in policy
+//------------------------------------------------------------------------------
 void
 LRU::AgeExpireEmpty(const char* dir, const std::string& policy)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief remove empty directories if they are older than age given in policy
- * @param dir directory to proces
- * @param policy minimum age to expire
- */
-/*----------------------------------------------------------------------------*/
+
 {
   struct stat buf;
   eos_static_debug("dir=%s", dir);
@@ -375,20 +357,14 @@ LRU::AgeExpireEmpty(const char* dir, const std::string& policy)
   }
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Remove all files in the directory older than the policy defines
+//------------------------------------------------------------------------------
 void
 LRU::AgeExpire(const char* dir, const std::string& policy)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief remove all files older than the policy defines
- * @param dir directory to process
- * @param policy minimum age to expire
- */
-/*----------------------------------------------------------------------------*/
 {
   eos_static_info("msg=\"applying age deletion policy\" dir=\"%s\" age=\"%s\"",
-                  dir,
-                  policy.c_str());
+                  dir, policy.c_str());
   std::map<std::string, time_t> lMatchAgeMap;
 
   if (!parseExpireMatchPolicy(policy, lMatchAgeMap)) {
@@ -407,9 +383,8 @@ LRU::AgeExpire(const char* dir, const std::string& policy)
 
     try {
       cmd = gOFS->eosView->getContainer(dir);
-
+      // @todo(esindril): review this unlock - looks wrong
       lock.Release();
-
       std::shared_ptr<eos::IFileMD> fmd;
 
       // Loop through all file names
@@ -417,12 +392,12 @@ LRU::AgeExpire(const char* dir, const std::string& policy)
         fmd = cmd->findFile(it.key());
         std::string fullpath = dir;
         fullpath += fmd->getName();
-        eos_static_debug("%s", fullpath.c_str());
+        eos_static_debug("check_file=\"%s\"", fullpath.c_str());
 
         // Loop over the match map
         for (auto mit = lMatchAgeMap.begin(); mit != lMatchAgeMap.end(); mit++) {
           XrdOucString fname = fmd->getName().c_str();
-          eos_static_debug("%s %d", mit->first.c_str(),
+          eos_static_debug("check_rule=\"%s\" maches=%d", mit->first.c_str(),
                            fname.matches(mit->first.c_str()));
 
           if (fname.matches(mit->first.c_str())) {
@@ -459,15 +434,10 @@ LRU::AgeExpire(const char* dir, const std::string& policy)
 }
 
 //------------------------------------------------------------------------------
-//! Expire the oldest files to go under the low watermark
-//!
-//! @param dir directory to process
-//! @param policy high water mark when to start expiration
+// Expire the oldest files to go under the low watermark
 //------------------------------------------------------------------------------
 void
-LRU::CacheExpire(const char* dir,
-                 std::string& lowmark,
-                 std::string& highmark)
+LRU::CacheExpire(const char* dir, std::string& lowmark, std::string& highmark)
 
 {
   eos_static_info("msg=\"applying volume deletion policy\" "
@@ -605,20 +575,15 @@ LRU::CacheExpire(const char* dir,
   }
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+//! Convert all files matching
+//------------------------------------------------------------------------------
 void
 LRU::ConvertMatch(const char* dir,
                   eos::IContainerMD::XAttrMap& map)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief convert all files matching
- * @param dir directory to process
- * @param map storing all the 'sys.conversion.<match>' policies
- */
 {
   eos_static_info("msg=\"applying match policy\" dir=\"%s\" match=\"%s\"",
-                  dir,
-                  map["sys.lru.convert.match"].c_str());
+                  dir, map["sys.lru.convert.match"].c_str());
   std::map < std::string, std::string> lMatchMap;
   std::map < std::string, time_t> lMatchAgeMap;
   std::map < std::string, ssize_t> lMatchSizeMap;
@@ -673,8 +638,7 @@ LRU::ConvertMatch(const char* dir,
 
     if (errno) {
       eos_static_err("msg=\"LRU match attribute has illegal age\" "
-                     "match=\"%s\", age=\"%s\"",
-                     it->first.c_str(),
+                     "match=\"%s\", age=\"%s\"", it->first.c_str(),
                      time_tag.c_str());
     } else {
       std::string conv_attr = "sys.conversion.";
@@ -694,38 +658,34 @@ LRU::ConvertMatch(const char* dir,
         eos_static_info("rule=\"%s %u\"", it->first.c_str(), t);
       } else {
         eos_static_err("msg=\"LRU match attribute has no conversion "
-                       "attribute defined\" "
-                       " attr-missing=\"%s\"", conv_attr.c_str());
+                       "attribute defined\" attr-missing=\"%s\"",
+                       conv_attr.c_str());
       }
     }
   }
 
   std::vector < std::pair<FileId::fileid_t, std::string> > lConversionList;
   {
-    // -------------------------------------------------------------------------
-    // check the directory contents
-    // -------------------------------------------------------------------------
+    // Check the directory contents
     std::shared_ptr<eos::IContainerMD> cmd;
     eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, dir);
     RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
     try {
       cmd = gOFS->eosView->getContainer(dir);
-
       lock.Release();
-
       std::shared_ptr<eos::IFileMD> fmd;
 
       for (auto fit = eos::FileMapIterator(cmd); fit.valid(); fit.next()) {
         fmd = cmd->findFile(fit.key());
         std::string fullpath = dir;
         fullpath += fmd->getName();
-        eos_static_debug("%s", fullpath.c_str());
+        eos_static_debug("check_file=\"%s\"", fullpath.c_str());
 
         // Loop over the match map
         for (auto mit = lMatchAgeMap.begin(); mit != lMatchAgeMap.end(); mit++) {
           XrdOucString fname = fmd->getName().c_str();
-          eos_static_debug("%s %d", mit->first.c_str(),
+          eos_static_debug("check_rule=\"%s\" matched=%d", mit->first.c_str(),
                            fname.matches(mit->first.c_str()));
 
           if (fname.matches(mit->first.c_str())) {
@@ -749,7 +709,7 @@ LRU::ConvertMatch(const char* dir,
               unsigned long long lid = strtoll(map[conv_attr].c_str(), 0, 16);
 
               if (fmd->getLayoutId() == lid) {
-                eos_static_debug("msg=\"skipping conversion - file has already"
+                eos_static_debug("msg=\"skipping conversion - file has already "
                                  "the desired target layout\" fxid=%08llx", fmd->getId());
                 continue;
               }
@@ -841,14 +801,10 @@ LRU::ConvertMatch(const char* dir,
       space = cenv.Get("eos.space");
     }
 
-    snprintf(conversiontagfile,
-             sizeof(conversiontagfile) - 1,
+    snprintf(conversiontagfile, sizeof(conversiontagfile) - 1,
              "%s/%016llx:%s#%s%s",
-             gOFS->MgmProcConversionPath.c_str(),
-             it->first,
-             space.c_str(),
-             conversion.c_str(),
-             plctplcy.c_str());
+             gOFS->MgmProcConversionPath.c_str(), it->first, space.c_str(),
+             conversion.c_str(), plctplcy.c_str());
     eos_static_notice("msg=\"creating conversion tag file\" tag-file=%s",
                       conversiontagfile);
 
