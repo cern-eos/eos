@@ -836,8 +836,13 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                     std_out << "success: 'file archived' garbage collector is enabled";
                   } else {
                     std_out << "success: 'file archived' garbage collector is disabled";
-                    std_out << "success: 'file archived' garbage collector is disabled";
                   }
+                }
+
+                if (key == "lru") {
+                  std_out << ((value == "on") ? "success: LRU is enabled" :
+                              "success: LRU is disabled");
+                  gOFS->mLRUEngine->RefreshOptions();
                 }
               }
             }
@@ -885,7 +890,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                   eos::common::EosTok::sTokenGeneration = strtoull(value.c_str(), 0, 0);
                 }
 
-                if ((key == "lru") || (key == "lru.interval")) {
+                if (key == "lru.interval") {
                   gOFS->mLRUEngine->RefreshOptions();
                 }
               }
