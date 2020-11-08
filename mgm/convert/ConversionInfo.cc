@@ -73,6 +73,7 @@ std::shared_ptr<ConversionInfo> ConversionInfo::parseConversionString(
   GroupLocator location;
   std::string policy;
   bool update_ctime {false};
+  std::size_t conv_pos = 0;
 
   if (sconversion.empty()) {
     eos_static_err("%s", "msg=\"conversion string is empty\"");
@@ -96,8 +97,12 @@ std::shared_ptr<ConversionInfo> ConversionInfo::parseConversionString(
     std::string hexfid = sconversion.substr(0, pos).c_str();
 
     try {
-      fid = std::stoull(hexfid, 0, 16);
-    } catch (...) {}
+      fid = std::stoull(hexfid, &conv_pos, 16);
+    } catch (...) { }
+
+    if (conv_pos != hexfid.length()) {
+      fid = 0;
+    }
   }
 
   // Parse space/group location
@@ -127,8 +132,12 @@ std::shared_ptr<ConversionInfo> ConversionInfo::parseConversionString(
   }
 
   try {
-    lid = std::stoll(hexlid, 0, 16);
+    lid = std::stoll(hexlid, &conv_pos, 16);
   } catch (...) {}
+
+  if (conv_pos != hexlid.length()) {
+    lid = 0;
+  }
 
   // Parse placement policy
   if (pos != std::string::npos) {
