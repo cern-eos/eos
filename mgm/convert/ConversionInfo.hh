@@ -24,7 +24,6 @@
 #pragma once
 #include "mgm/Namespace.hh"
 #include "common/FileId.hh"
-#include "common/Logging.hh"
 #include "common/LayoutId.hh"
 #include "common/FileSystem.hh"
 
@@ -34,13 +33,17 @@ EOSMGMNAMESPACE_BEGIN
 //! @brief Structure holding conversion details
 //------------------------------------------------------------------------------
 struct ConversionInfo {
+  ///! Marker for ctime updae of the converted file
+  static constexpr char UPDATE_CTIME = '!';
+
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
   ConversionInfo(const eos::common::FileId::fileid_t fid,
                  const eos::common::LayoutId::layoutid_t lid,
                  const eos::common::GroupLocator& location,
-                 const std::string& plct_policy);
+                 const std::string& plct_policy,
+                 const bool update_ctime);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -59,7 +62,7 @@ struct ConversionInfo {
   //! Parse a conversion string representation into a conversion info object.
   //!
   //! A conversion string has the following format:
-  //! <fid(016hex)>:<space[.group]>#<layoutid(08hex)>[~<placement_policy>]
+  //! <fid(016hex)>:<space[.group]>#<layoutid(08hex)>[~<placement_policy>][!]
   //!
   //! @param sconversion the conversion string representation
   //! @param conversion the conversion info object to fill
@@ -73,6 +76,7 @@ struct ConversionInfo {
   const eos::common::LayoutId::layoutid_t mLid; ///< Target layout id
   const eos::common::GroupLocator mLocation; ///< Target space/group placement
   const std::string mPlctPolicy; ///< Placement policy
+  const bool mUpdateCtime; ///< Update ctime of converted file
 
 private:
   std::string mConversionString; ///< Conversion string representation

@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "mgm/convert/ConversionInfo.hh"
+#include "common/Logging.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -31,18 +32,24 @@ EOSMGMNAMESPACE_BEGIN
 ConversionInfo::ConversionInfo(const eos::common::FileId::fileid_t fid,
                                const eos::common::LayoutId::layoutid_t lid,
                                const eos::common::GroupLocator& location,
-                               const std::string& plct_policy) :
-  mFid(fid), mLid(lid), mLocation(location), mPlctPolicy(plct_policy)
+                               const std::string& plct_policy,
+                               const bool update_ctime) :
+  mFid(fid), mLid(lid), mLocation(location), mPlctPolicy(plct_policy),
+  mUpdateCtime(update_ctime)
 {
   std::ostringstream conversion;
   conversion << std::hex << std::setfill('0')
              << std::setw(16) << mFid           // <fid(016hex)>
              << ":" << mLocation.getSpace()     // :<space>
              << "." << mLocation.getIndex()     // .<group>
-             << "#" << std::setw(8) << mLid;    // #<layoutid(08hex)>
+             << "#" << std::setw(8) << mLid;     // #<layoutid(08hex)>
 
   if (!mPlctPolicy.empty()) {
     conversion << "~" << mPlctPolicy;          // ~<placement_policy>
+  }
+
+  if (mUpdateCtime) {
+    conversion << UPDATE_CTIME;
   }
 
   mConversionString = conversion.str();
@@ -52,7 +59,7 @@ ConversionInfo::ConversionInfo(const eos::common::FileId::fileid_t fid,
 // Parse a conversion string representation into a conversion info object
 //
 // A conversion string has the following format:
-// <fid(016hex)>:<space.group>#<layoutid(08hex)>[~<placement_policy>]
+// <fid(016hex)>:<space.group>#<layoutid(08hex)>[~<placement_policy>][!]
 //----------------------------------------------------------------------------
 std::shared_ptr<ConversionInfo> ConversionInfo::parseConversionString(
   std::string sconversion)
@@ -65,6 +72,19 @@ std::shared_ptr<ConversionInfo> ConversionInfo::parseConversionString(
   LayoutId::layoutid_t lid = 0;
   GroupLocator location;
   std::string policy;
+  bool update_ctime {false};
+
+  if (sconversion.empty()) {
+    eos_static_err("%s", "msg=\"conversion string is empty\"");
+    return nullptr;
+  }
+
+  // Check if ctime needs to be updated
+  if (*sconversion.rbegin() == UPDATE_CTIME) {
+    update_ctime = true;
+    sconversion.erase(sconversion.end() - 1);
+  }
+
   // Parse file id
   size_t pos = sconversion.find(":");
 
@@ -121,7 +141,8 @@ std::shared_ptr<ConversionInfo> ConversionInfo::parseConversionString(
     return nullptr;
   }
 
-  return std::make_shared<ConversionInfo>(fid, lid, location, policy);
+  return std::make_shared<ConversionInfo>(fid, lid, location, policy,
+                                          update_ctime);
 }
 
 EOSMGMNAMESPACE_END

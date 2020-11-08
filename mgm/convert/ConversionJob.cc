@@ -73,7 +73,9 @@ XrdCl::PropertyList TpcProperties(uint64_t size)
 //----------------------------------------------------------------------------
 //! Thrown if an EOS file system cannot determined
 //----------------------------------------------------------------------------
-struct FileSystemNotFound: public std::runtime_error {using std::runtime_error::runtime_error;};
+struct FileSystemNotFound: public std::runtime_error {
+  using std::runtime_error::runtime_error;
+};
 
 //----------------------------------------------------------------------------
 //! @return ID of disk file system as opposed to tape file system of specified
@@ -81,21 +83,26 @@ struct FileSystemNotFound: public std::runtime_error {using std::runtime_error::
 //! @throw FileSystemNotFound if the disk location could not be determined
 //----------------------------------------------------------------------------
 eos::IFileMD::location_t
-getDiskFsIdOfFile(eos::IFileMD &fmd) {
+getDiskFsIdOfFile(eos::IFileMD& fmd)
+{
   const auto locations = fmd.getLocations();
 
   if (locations.empty()) {
     std::ostringstream msg;
-    msg << "Failed to find disk file system for fxid=" << std::hex << std::setfill('0') << std::setw(8) << fmd.getId()
+    msg << "Failed to find disk file system for fxid=" << std::hex <<
+        std::setfill('0') << std::setw(8) << fmd.getId()
         << ": The file has no locations";
     throw FileSystemNotFound(msg.str());
   }
 
-  if (EOS_TAPE_FSID != locations.at(0)) return locations.at(0);
+  if (EOS_TAPE_FSID != locations.at(0)) {
+    return locations.at(0);
+  }
 
   if (2 > locations.size()) {
     std::ostringstream msg;
-    msg << "Failed to find disk file system for fxid=" << std::hex << std::setfill('0') << std::setw(8) << fmd.getId()
+    msg << "Failed to find disk file system for fxid=" << std::hex <<
+        std::setfill('0') << std::setw(8) << fmd.getId()
         << ": The file only has a tape location";
     throw FileSystemNotFound(msg.str());
   }
@@ -337,13 +344,16 @@ void ConversionJob::DoIt() noexcept
   eos_static_info("msg=\"conversion successful\" conversion_id=%s",
                   mConversionInfo.ToString().c_str());
   mStatus = Status::DONE;
+
   // Notify the tape garbage collector if tape support is enabled
   if (gOFS->mTapeEnabled) {
     try {
-      eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex, __FUNCTION__, __LINE__, __FILE__);
-      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
-
+      eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex, __FUNCTION__,
+                                              __LINE__, __FILE__);
+      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
+                                              __LINE__, __FILE__);
       const auto fmd = gOFS->eosView->getFile(mSourcePath);
+
       if (nullptr != fmd && fmd->hasAttribute("sys.archive.file_id")) {
         const auto fsId = getDiskFsIdOfFile(*fmd);
         const std::string tgcSpace = FsView::gFsView.mIdView.lookupSpaceByID(fsId);
@@ -353,6 +363,7 @@ void ConversionJob::DoIt() noexcept
       // Ignore any garbage collection exceptions
     }
   }
+
   return;
 }
 
@@ -408,7 +419,6 @@ ConversionJob::Merge()
   std::list<eos::IFileMD::location_t> conv_locations;
   eos::IFileMD::id_t orig_fid {0ull}, conv_fid {0ull};
   std::shared_ptr<eos::IFileMD> orig_fmd, conv_fmd;
-  unsigned long conv_lid = mConversionInfo.mLid;
   {
     eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
                                             __LINE__, __FILE__);
@@ -547,7 +557,13 @@ ConversionJob::Merge()
     }
 
     // Update the new layout id
-    orig_fmd->setLayoutId(conv_lid);
+    orig_fmd->setLayoutId(mConversionInfo.mLid);
+
+    // If requested then also update the ctime of the original file
+    if (mConversionInfo.mUpdateCtime) {
+      orig_fmd->setCTimeNow();
+    }
+
     gOFS->eosView->updateFileStore(orig_fmd.get());
   }
 
