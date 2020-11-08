@@ -368,12 +368,14 @@ class Transfer(object):
         self.set_status("verifying")
         check_ok, __ = self.archive.verify(False)
 
-        # For PUT operations wait that all the files are on tape
-        # TODO: enable this when we run with XRootD 4.* and have the
-        # BACKUP_EXISTS flag
-        # if self.archive.d2t:
-        #    self.set_status("wait_on_tape")
-        #    self.wait_on_tape()
+        # For PUT operations wait that all the files are on tape and for GET
+        # send a "prepare evict" request to CTA to clear the disk cache
+        if self.archive.d2t:
+            self.set_status("wait_on_tape")
+            self.wait_on_tape()
+        else:
+            self.set_status("evict_disk_cache")
+            self.evict_disk_cache()
 
         self.set_status("cleaning")
         self.logger.info("TIMING_transfer={0} sec".format(time.time() - t0))
@@ -432,11 +434,9 @@ class Transfer(object):
         check_ok, __ = self.archive.verify(False)
 
         # For PUT operations what that all the files are on tape
-        # TODO: enable this when we run with XRootD 4.* and have the
-        # BACKUP_EXISTS flag
-        # if self.archive.d2t:
-        #    self.set_status("wait_on_tape")
-        #    self.wait_on_tape()
+        if self.archive.d2t:
+           self.set_status("wait_on_tape")
+           self.wait_on_tape()
 
         self.set_status("cleaning")
         self.logger.info("TIMING_transfer={0} sec".format(time.time() - t0))
@@ -991,11 +991,11 @@ class Transfer(object):
             url = client.URL(surl.encode("utf-8"))
 
             while True:
-                st_stat, resp_stat = self.archive.fs_src.stat(url.path.encode("utf-8"))
+                st_stat, resp_stat = self.archive.fs_dst.stat(url.path.encode("utf-8"))
 
                 if not st_stat.ok:
                     err_msg = "Error stat entry={0}".format(surl)
-                    self.logger.err(err_msg)
+                    self.logger.error(err_msg)
                     raise IOError()
 
                 # Check if file is on disk
@@ -1006,6 +1006,41 @@ class Transfer(object):
                     break
 
         self.logger.info("Finished prepare2get, all files are on disk")
+
+
+    def evict_disk_cache(self):
+        """ Send a prepare eviect request to the CTA so that the files are
+        removed from the disk cached of the tape system.
+        """
+        batch_size = 100
+        timeout = 10
+        batch = []
+        # @todo(esindril) use the XRootD proived flag once this is
+        # available in the Python interface
+        xrd_prepare_evict_flag = 0x000100000000
+
+        for fentry in self.archive.files():
+            __, dst = self.archive.get_endpoints(fentry[1])
+            url = client.URL(dst.encode("utf-8"))
+            batch.append(url.path.encode("utf-8"))
+
+            if batch.size() == batch_sz:
+                fs = self.archive.get_fs(dst)
+                prep_stat, __ = fs.prepare(batch, xrd_prepare_evict_flag, 0, timeout)
+                batch.clear()
+
+                if not prep_stat.ok:
+                    self.logger.warning("Failed prepare evit for batch")
+
+        if batch.size() != 0:
+            fs = self.archive.get_fs(dst)
+            prep_stat, __ = fs.prepare(batch, xrd_prepare_evict_flag, 0, timeout)
+            batch.clear()
+
+            if not prep_stat.ok:
+                self.logger.warning("Failed prepare evit for batch")
+
+        self.logger.info("Finished sending all the prepare evict requests")
 
 
     def wait_on_tape(self):
