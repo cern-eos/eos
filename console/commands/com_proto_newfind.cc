@@ -78,6 +78,7 @@ NewfindHelper::ParseCommand(const char* arg)
 {
   auto* find = mReq.mutable_find();
   XrdOucString s1;
+  std::string token;
   eos::common::StringTokenizer subtokenizer(arg);
   subtokenizer.GetLine();
 
@@ -129,88 +130,92 @@ NewfindHelper::ParseCommand(const char* arg)
       find->set_childcount(true);
     } else if (s1 == "--xurl") {
       find->set_xurl(true);
-    } else if (s1 == "-1") {
-      find->set_onehourold(true);
+//    } else if (s1 == "-1") {
+//      find->set_onehourold(true);
     } else if (s1 == "-b") {
       find->set_balance(true);
     } else if (s1 == "-g") {
       find->set_mixedgroups(true);
     } else if (s1 == "-uid") {
       find->set_searchuid(true);
-      std::string uid = subtokenizer.GetToken();
-
+      if (!subtokenizer.NextToken(token)) {
+        return false;
+      }
       try {
-        find->set_uid(std::stoul(uid));
+        find->set_uid(std::stoul(token));
       } catch (std::invalid_argument& error) {
         return false;
       }
     } else if (s1 == "-nuid") {
       find->set_searchnotuid(true);
-      std::string uid = subtokenizer.GetToken();
-
+      if (!subtokenizer.NextToken(token)) {
+        return false;
+      }
       try {
-        find->set_notuid(std::stoul(uid));
+        find->set_notuid(std::stoul(token));
       } catch (std::invalid_argument& error) {
         return false;
       }
     } else if (s1 == "-gid") {
       find->set_searchgid(true);
-      std::string gid = subtokenizer.GetToken();
-
+      if (!subtokenizer.NextToken(token)) {
+        return false;
+      }
       try {
-        find->set_gid(std::stoul(gid));
+        find->set_gid(std::stoul(token));
       } catch (std::invalid_argument& error) {
         return false;
       }
     } else if (s1 == "-ngid") {
       find->set_searchnotgid(true);
-      std::string gid = subtokenizer.GetToken();
-
+      if (!subtokenizer.NextToken(token)) {
+        return false;
+      }
       try {
-        find->set_notgid(std::stoul(gid));
+        find->set_notgid(std::stoul(token));
       } catch (std::invalid_argument& error) {
         return false;
       }
     } else if (s1 == "-flag") {
       find->set_searchpermission(true);
-      std::string permission = subtokenizer.GetToken();
-
-      if (permission.length() != 3 ||
-          permission.find_first_not_of("01234567") != std::string::npos) {
+      if (!subtokenizer.NextToken(token)) {
         return false;
       }
-
-      find->set_permission(permission);
+      if (token.length() != 3 || token.find_first_not_of("01234567") != std::string::npos) {
+        return false;
+      }
+      find->set_permission(token);
     } else if (s1 == "-nflag") {
       find->set_searchnotpermission(true);
-      std::string permission = subtokenizer.GetToken();
-
-      if (permission.length() != 3 ||
-          permission.find_first_not_of("01234567") != std::string::npos) {
+      if (!subtokenizer.NextToken(token)) {
         return false;
       }
-
-      find->set_notpermission(permission);
+      if (token.length() != 3 || token.find_first_not_of("01234567") != std::string::npos) {
+        return false;
+      }
+      find->set_notpermission(token);
     } else if (s1 == "-x") {
-      std::string attribute = subtokenizer.GetToken();
-
-      if (attribute.length() > 0 && attribute.find('=') != std::string::npos &&
-          attribute.find('&') == std::string::npos) {
-        auto key = attribute;
-        auto value = attribute;
-        key.erase(attribute.find('='));
-        value.erase(0, attribute.find('=') + 1);
+      if (!subtokenizer.NextToken(token)) {
+        return false;
+      }
+      if (token.length() > 0 && token.find('=') != std::string::npos &&
+          token.find('&') == std::string::npos) {
+        auto key = token;
+        auto value = token;
+        key.erase(token.find('='));
+        value.erase(0, token.find('=') + 1);
         find->set_attributekey(std::move(key));
         find->set_attributevalue(std::move(value));
       } else {
         return false;
       }
     } else if (s1 == "--maxdepth") {
-      std::string maxdepth = subtokenizer.GetToken();
-
-      if (maxdepth.length() > 0) {
+      if (!subtokenizer.NextToken(token)) {
+        return false;
+      }
+      if (token.length() > 0) {
         try {
-          find->set_maxdepth(std::stoul(maxdepth));
+          find->set_maxdepth(std::stoul(token));
         } catch (std::invalid_argument& error) {
           return false;
         }
@@ -669,8 +674,8 @@ void com_newfind_help()
   oss << "  --layoutstripes <n> :  apply new layout with <n> stripes to all files found"
       << std::endl;
   oss << "       --maxdepth <n> :  descend only <n> levels" << std::endl;
-  oss << "                   -1 :  find files which are at least 1 hour old" <<
-      std::endl;
+//  oss << "                   -1 :  find files which are at least 1 hour old" <<
+//      std::endl;
   oss << "         --stripediff :  find files which have not the nominal number of stripes(replicas)"
       << std::endl;
   oss << "          --faultyacl :  find files and directories with illegal ACLs" <<

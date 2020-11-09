@@ -78,7 +78,7 @@ static bool eliminateBasedOnUidGid(const eos::console::FindProto& req,
     return true;
   }
 
-  if (req.searchnotgid() && md->getCGid() == req.gid()) {
+  if (req.searchnotgid() && md->getCGid() == req.notgid()) {
     return true;
   }
 
