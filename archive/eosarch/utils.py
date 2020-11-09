@@ -199,6 +199,9 @@ def get_entry_info(url, rel_path, tags, is_dir):
 
     # Parse output of fileinfo -m keeping only the required keys
     for elem in it_list:
+        if '=' not in elem:
+            continue
+
         key, value = elem.split('=', 1)
 
         if key in tags:

@@ -375,7 +375,11 @@ class Transfer(object):
             self.wait_on_tape()
         else:
             self.set_status("evict_disk_cache")
-            self.evict_disk_cache()
+            try:
+                self.evict_disk_cache()
+            except OverflowError as __:
+                self.logger.warning("The XRootD Python bindings do not support "
+                                    "the evict flag yet!")
 
         self.set_status("cleaning")
         self.logger.info("TIMING_transfer={0} sec".format(time.time() - t0))
@@ -437,6 +441,13 @@ class Transfer(object):
         if self.archive.d2t:
            self.set_status("wait_on_tape")
            self.wait_on_tape()
+        else:
+            self.set_status("evict_disk_cache")
+            try:
+                self.evict_disk_cache()
+            except OverflowError as __:
+                self.logger.warning("The XRootD Python bindings do not support "
+                                    "the evict flag yet!")
 
         self.set_status("cleaning")
         self.logger.info("TIMING_transfer={0} sec".format(time.time() - t0))
