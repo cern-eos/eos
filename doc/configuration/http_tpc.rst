@@ -247,6 +247,15 @@ contains a description of the functionality provided.
    # embedded in the macaroons attributes
    all.sitename eosdev
 
+A simple method of generating a valid ``/etc/eos.macaroon.secret`` file is:
+
+.. :caption: Generating an /etc/eos.macaroon.secret file
+
+.. code-block:: bash
+
+   openssl rand -base64 -out /etc/eos.macaroon.secret 64
+
+
 The **XrdAccSciTokens** library relies on the default **XRootD Authorization**
 plugin to be loaded, which in turn checks that the file ``/opt/xrd/etc/Authfile``
 file exists. Therefore, one needs to ensure the path exists and that the file is
