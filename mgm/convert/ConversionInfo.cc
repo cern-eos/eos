@@ -115,7 +115,7 @@ std::shared_ptr<ConversionInfo> ConversionInfo::parseConversionString(
     return nullptr;
   } else {
     std::string spacegroup = sconversion.substr(0, pos);
-    GroupLocator::parseGroup(spacegroup, location);
+    (void) GroupLocator::parseGroup(spacegroup, location);
 
     if (location.getSpace().empty()) {
       return nullptr;
