@@ -391,9 +391,13 @@ std::string ConversionJob::ConversionCGI(const ConversionInfo& info) const
       << "&eos.layout.nstripes=" << LayoutId::GetStripeNumberString(info.mLid)
       << "&eos.layout.blockchecksum=" << LayoutId::GetBlockChecksumString(info.mLid)
       << "&eos.layout.checksum=" << LayoutId::GetChecksumString(info.mLid)
-      << "&eos.layout.blocksize=" << LayoutId::GetBlockSizeString(info.mLid);
-  cgi << "&eos.space=" << info.mLocation.getSpace()
-      << "&eos.group=" << info.mLocation.getIndex();
+      << "&eos.layout.blocksize=" << LayoutId::GetBlockSizeString(info.mLid)
+      << "&eos.space=" << info.mLocation.getSpace();
+
+  // Apend scheduling group only if present explicitly
+  if (info.mLocation.getSpace() != info.mLocation.getGroup()) {
+    cgi << "&eos.group=" << info.mLocation.getIndex();
+  }
 
   if (!info.mPlctPolicy.empty()) {
     cgi << "&eos.placementpolicy=" << info.mPlctPolicy;
