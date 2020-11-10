@@ -1075,7 +1075,10 @@ XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       }
 
       xattr_it = xattrs.find(eos::common::RETRIEVE_ERROR_ATTR_NAME);
-
+      if(xattr_it == xattrs.end()) {
+        // If there is no retrieve error, check for an archive error
+        xattr_it = xattrs.find(eos::common::ARCHIVE_ERROR_ATTR_NAME);
+      }
       if (xattr_it != xattrs.end()) {
         rsp.error_text = xattr_it->second;
       }
