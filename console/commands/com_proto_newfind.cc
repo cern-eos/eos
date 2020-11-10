@@ -673,7 +673,7 @@ void com_newfind_help()
   oss << "          -ctime -<n> :  find files younger than <n> days" << std::endl;
   oss << "  --layoutstripes <n> :  apply new layout with <n> stripes to all files found"
       << std::endl;
-  oss << "       --maxdepth <n> :  descend only <n> levels" << std::endl;
+  oss << "       --maxdepth <n> :  descend only <n> levels (note that level refers to absolute paths, '/eos' being the 1st level and 0 canceling the limit)" << std::endl;
 //  oss << "                   -1 :  find files which are at least 1 hour old" <<
 //      std::endl;
   oss << "         --stripediff :  find files which have not the nominal number of stripes(replicas)"

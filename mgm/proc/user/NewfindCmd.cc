@@ -38,7 +38,7 @@
 #include "namespace/utils/BalanceCalculator.hh"
 #include "namespace/utils/Checksum.hh"
 #include "namespace/utils/Stat.hh"
-
+#include <mgm/Access.hh>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -300,14 +300,26 @@ template<typename T>
 static void printAttributes(std::ofstream& ss,
                 const eos::console::FindProto& req, const T& md) {
 
-  ss << "\t";
-
   if (!req.printkey().empty()) {
     std::string attr;
     if (!gOFS->_attr_get(*md.get(), req.printkey(), attr)) {
       attr = "undef";
     }
-    ss << req.printkey() << "=" << attr;
+    ss << "\t" << req.printkey() << "=" << attr;
+  }
+
+}
+
+//------------------------------------------------------------------------------
+// Print directories and files count of a ContainerMD, if requested by req.
+//------------------------------------------------------------------------------
+static void printChildCount(std::ofstream& ss, const eos::console::FindProto& req,
+                            const std::shared_ptr<eos::IContainerMD>& cmd)
+{
+  if (req.childcount()) {
+    ss << "\t"
+       <<" ndirs=" << cmd->getNumContainers()
+       << " nfiles=" << cmd->getNumFiles();
   }
 
 }
@@ -581,9 +593,6 @@ struct FindResult {
   bool expansionFilteredOut;
   std::pair<bool, uint32_t> publicAccessAllowed; // second
 
-  std::shared_ptr<eos::IContainerMD> containerMD;
-  std::shared_ptr<eos::IFileMD> fileMD;
-
   uint64_t numFiles = 0;
   uint64_t numContainers = 0;
 
@@ -591,34 +600,28 @@ struct FindResult {
   {
     eos::common::RWMutexReadLock eosViewMutexGuard(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
-    if (!containerMD) {
-      try {
-        containerMD = gOFS->eosView->getContainer(path);
-      } catch (eos::MDException& e) {
-        eos_static_err("caught exception %d %s\n", e.getErrno(),
-                       e.getMessage().str().c_str());
-        return {};
-      }
+    try {
+      return gOFS->eosView->getContainer(path);
+    } catch (eos::MDException& e) {
+      eos_static_err("caught exception %d %s\n", e.getErrno(),
+                     e.getMessage().str().c_str());
+      return {};
     }
 
-    return containerMD;
   }
 
   std::shared_ptr<eos::IFileMD> toFileMD()
   {
     eos::common::RWMutexReadLock eosViewMutexGuard(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
-    if (!fileMD) {
-      try {
-        fileMD = gOFS->eosView->getFile(path);
-      } catch (eos::MDException& e) {
-        eos_static_err("caught exception %d %s\n", e.getErrno(),
-                       e.getMessage().str().c_str());
-        return {};
-      }
+    try {
+      return gOFS->eosView->getFile(path);
+    } catch (eos::MDException& e) {
+      eos_static_err("caught exception %d %s\n", e.getErrno(),
+                     e.getMessage().str().c_str());
+      return {};
     }
 
-    return fileMD;
   }
 };
 
@@ -653,9 +656,9 @@ public:
   //----------------------------------------------------------------------------
   // QDB: Initialize NamespaceExplorer
   //----------------------------------------------------------------------------
-  FindResultProvider(qclient::QClient* qc, const std::string& target, const uint32_t maxdepth,
+  FindResultProvider(qclient::QClient* qc, const std::string& target, const uint32_t maxdepth, const bool ignore_files,
                      const eos::common::VirtualIdentity& v)
-    : qcl(qc), path(target), maxdepth(maxdepth), vid(v)
+    : qcl(qc), path(target), maxdepth(maxdepth), ignore_files(ignore_files), vid(v)
   {
     restart();
   }
@@ -670,6 +673,7 @@ public:
       options.expansionDecider.reset(new PermissionFilter(vid));
       options.view = gOFS->eosView;
       options.depthLimit = maxdepth;
+      options.ignoreFiles = ignore_files;
       explorer.reset(new NamespaceExplorer(path, options, *qcl,
                                            static_cast<QuarkNamespaceGroup*>(gOFS->namespaceGroup.get())->getExecutor()));
     }
@@ -724,8 +728,6 @@ public:
       inMemStarted = true;
       res.path = dirIterator->first;
       res.isdir = true;
-      res.containerMD = {};
-      res.fileMD = {};
       return true;
     }
 
@@ -742,16 +744,12 @@ public:
       fileIterator = targetFileSet->begin();
       res.path = dirIterator->first;
       res.isdir = true;
-      res.containerMD = {};
-      res.fileMD = {};
       return true;
     }
 
     // Nope, just give out another file.
     res.path = dirIterator->first + *fileIterator;
     res.isdir = false;
-    res.containerMD = {};
-    res.fileMD = {};
     fileIterator++;
     return true;
   }
@@ -772,15 +770,9 @@ public:
                                                                const_cast<common::VirtualIdentity&>(vid));
 
     if (item.isFile) {
-      eos::QuarkFileMD* fmd = new eos::QuarkFileMD();
-      fmd->initialize(std::move(item.fileMd));
-      res.fileMD.reset(fmd);
       res.numFiles = 0;
       res.numContainers = 0;
     } else {
-      eos::QuarkContainerMD* cmd = new eos::QuarkContainerMD();
-      cmd->initializeWithoutChildren(std::move(item.containerMd));
-      res.containerMD.reset(cmd);
       res.numFiles = item.numFiles;
       res.numContainers = item.numContainers;
     }
@@ -817,7 +809,8 @@ private:
   //----------------------------------------------------------------------------
   qclient::QClient* qcl = nullptr;
   std::string path;
-  uint32_t maxdepth; // @todo not working as expected, investigate
+  uint32_t maxdepth;
+  bool ignore_files;
   std::unique_ptr<NamespaceExplorer> explorer;
   eos::common::VirtualIdentity vid;
 };
@@ -898,18 +891,36 @@ NewfindCmd::ProcessRequest() noexcept
       }
     }
   } else {
+    // @note when findRequest.childcount() is true, the namespace explorer will skip the files during the namespace traversal.
+    // This way we can have a fast aggregate sum of the file/container count for each directory
     findResultProvider.reset(new FindResultProvider(
                                eos::BackendClient::getInstance(gOFS->mQdbContactDetails, "find"),
-                               findRequest.path(), findRequest.maxdepth(), mVid));
+                               findRequest.path(), findRequest.maxdepth(), findRequest.childcount(), mVid));
   }
 
-  unsigned long long filecounter = 0;
-  unsigned long long dircounter = 0;
+  uint64_t dircounter = 0;
+  uint64_t filecounter = 0;
+  // Users cannot return more than 50k dirs and 100k files with one find,
+  // unless there is an access rule allowing deeper queries
+  static uint64_t dir_limit = 50000;
+  static uint64_t file_limit = 100000;
+  Access::GetFindLimits(mVid, dir_limit, file_limit);
 
 
   // @note assume that findResultProvider will serve results DFS-ordered
   FindResult findResult;
+  std::shared_ptr<eos::IContainerMD> cMD;
+  std::shared_ptr<eos::IFileMD> fMD;
   while (findResultProvider->next(findResult)) {
+
+    if (dircounter>=dir_limit || filecounter>=file_limit) {
+      ofstderrStream << "warning(" << E2BIG << "): find results are limited for you to "
+          << dir_limit << " directories and " << file_limit << " files.\n"
+          << "Result is truncated! (found "
+          << dircounter << " directories and " << filecounter << " files so far)\n";
+      reply.set_retc(E2BIG);
+      break;
+    }
 
     if (findResult.isdir) {
       if (!findRequest.directories() && findRequest.files()) { continue;}
@@ -920,7 +931,7 @@ NewfindCmd::ProcessRequest() noexcept
         continue;
       }
 
-      std::shared_ptr<eos::IContainerMD> cMD = findResult.toContainerMD();
+      cMD = findResult.toContainerMD();
       // Process next item if we don't have a cMD
       if (!cMD) { continue; }
 
@@ -931,14 +942,6 @@ NewfindCmd::ProcessRequest() noexcept
       dircounter++;
 
       if (findRequest.count()) { continue; }
-
-      // Are we printing --childcount? Then, that's it
-      if (findRequest.childcount()) {
-        ofstdoutStream << findResult.path <<
-            " ndir=" << findResult.numContainers <<
-            " nfiles=" << findResult.numFiles << std::endl;
-        continue;
-      }
 
       // Purge version directory?
       if (purge) {
@@ -956,6 +959,7 @@ NewfindCmd::ProcessRequest() noexcept
 
       printPath(ofstdoutStream, findResult.path, findRequest.xurl());
       printUidGid(ofstdoutStream, findRequest, cMD);
+      printChildCount(ofstdoutStream,findRequest,cMD);
       printAttributes(ofstdoutStream, findRequest, cMD);
       ofstdoutStream << std::endl;
 
@@ -963,7 +967,7 @@ NewfindCmd::ProcessRequest() noexcept
     } else if (!findResult.isdir) { // redundant, no problem
       if (!findRequest.files() && findRequest.directories()) { continue;}
 
-      std::shared_ptr<eos::IFileMD> fMD = findResult.toFileMD();
+      fMD = findResult.toFileMD();
       // Process next item if we don't have a fMD
       if (!fMD) { continue; }
 
