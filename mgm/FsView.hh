@@ -413,7 +413,7 @@ public:
   //! Set the status
   //! @param status status to set
   //----------------------------------------------------------------------------
-  void SetStatus(const char* status)
+  void SetStatus(const std::string& status)
   {
     mStatus = status;
   }
@@ -421,9 +421,9 @@ public:
   //----------------------------------------------------------------------------
   //! Return the status
   //----------------------------------------------------------------------------
-  const char* GetStatus()
+  const std::string GetStatus() const
   {
-    return mStatus.c_str();
+    return mStatus;
   }
 
   //----------------------------------------------------------------------------

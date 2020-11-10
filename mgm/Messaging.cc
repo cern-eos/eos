@@ -35,7 +35,7 @@ EOSMGMNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 Messaging::Messaging(const char* url, const char* defaultreceiverqueue,
-                     mq::MessagingRealm *realm)
+                     mq::MessagingRealm* realm)
 {
   mSom = realm->getSom();
 
@@ -105,33 +105,33 @@ Messaging::ProcessIncomingHeartbeat(const std::string& nodequeue, bool online,
                                     time_t senderTimeSec)
 {
   if (FsView::gFsView.mNodeView.count(nodequeue)) {
+    auto* node = FsView::gFsView.mNodeView.find(nodequeue)->second;
+
     if (online) {
-      FsView::gFsView.mNodeView[nodequeue]->SetStatus("online");
-      FsView::gFsView.mNodeView[nodequeue]->SetActiveStatus(
-        eos::common::ActiveStatus::kOnline);
+      if (node->GetActiveStatus() != eos::common::ActiveStatus::kOnline) {
+        node->SetActiveStatus(eos::common::ActiveStatus::kOnline);
+      }
     } else {
-      FsView::gFsView.mNodeView[nodequeue]->SetStatus("offline");
-      FsView::gFsView.mNodeView[nodequeue]->SetActiveStatus(
-        eos::common::ActiveStatus::kOffline);
+      if (node->GetActiveStatus() != eos::common::ActiveStatus::kOffline) {
+        node->SetActiveStatus(eos::common::ActiveStatus::kOffline);
 
-      // Propagate into filesystem states
-      for (auto it = FsView::gFsView.mNodeView[nodequeue]->begin();
-           it != FsView::gFsView.mNodeView[nodequeue]->end(); ++it) {
-        FileSystem* entry = FsView::gFsView.mIdView.lookupByID(*it);
+        // Propagate into filesystem states
+        for (auto it = node->begin(); it != node->end(); ++it) {
+          FileSystem* entry = FsView::gFsView.mIdView.lookupByID(*it);
 
-        if (entry) {
-          entry->SetStatus(eos::common::BootStatus::kDown, false);
+          if (entry) {
+            entry->SetStatus(eos::common::BootStatus::kDown, false);
+          }
         }
       }
     }
 
     // eos_debug("msg=\"setting heart beat to %llu for node queue=%s\"",
     //         (unsigned long long) senderTimeSec, nodequeue.c_str());
-    FsView::gFsView.mNodeView[nodequeue]->SetHeartBeat(senderTimeSec);
+    node->SetHeartBeat(senderTimeSec);
 
     // Propagate into filesystems
-    for (auto it = FsView::gFsView.mNodeView[nodequeue]->begin();
-         it != FsView::gFsView.mNodeView[nodequeue]->end(); ++it) {
+    for (auto it = node->begin(); it != node->end(); ++it) {
       FileSystem* entry = FsView::gFsView.mIdView.lookupByID(*it);
 
       if (entry) {
@@ -164,7 +164,8 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
 
     if (FsView::gFsView.RegisterNode(nodequeue.c_str())) {
       // Just initialize config queue, taken care by constructor
-      mq::SharedHashWrapper(gOFS->mMessagingRealm.get(), common::SharedHashLocator::makeForNode(nodequeue));
+      mq::SharedHashWrapper(gOFS->mMessagingRealm.get(),
+                            common::SharedHashLocator::makeForNode(nodequeue));
     }
 
     ProcessIncomingHeartbeat(nodequeue, advmsg->kOnline,

@@ -2578,9 +2578,7 @@ FsNode::GetMember(const std::string& member) const
 eos::common::ActiveStatus
 FsNode::GetActiveStatus()
 {
-  std::string active = GetMember("stat.active");
-
-  if (active == "online") {
+  if (GetStatus() == "online") {
     return eos::common::ActiveStatus::kOnline;
   } else {
     return eos::common::ActiveStatus::kOffline;
@@ -2594,8 +2592,10 @@ bool
 FsNode::SetActiveStatus(eos::common::ActiveStatus active)
 {
   if (active == eos::common::ActiveStatus::kOnline) {
+    SetStatus("online");
     return SetConfigMember("stat.active", "online", true);
   } else {
+    SetStatus("offline");
     return SetConfigMember("stat.active", "offline", true);
   }
 }
