@@ -136,8 +136,8 @@ Storage::RegisterFileSystem(const std::string& queuepath)
   fs->SetLocalUuid();
   mFsVect.push_back(fs);
   eos_static_info("msg=\"attempt file system registration\" qpath=\"%s\" "
-                  "fsid=%lu uuid=\"%s\"", queuepath.c_str(), fs->GetLocalId(),
-                  fs->GetLocalUuid().c_str());
+                  "fsid=%u uuid=\"%s\"", queuepath.c_str(),
+                  fs->GetLocalId(), fs->GetLocalUuid().c_str());
 
   if ((fs->GetLocalId() == 0ul) || fs->GetLocalUuid().empty()) {
     eos_static_info("msg=\"partially register file system\" qpath=\"%s\"",
@@ -147,17 +147,17 @@ Storage::RegisterFileSystem(const std::string& queuepath)
 
   if (mFsMap.find(fs->GetLocalId()) != mFsMap.end()) {
     eos_static_crit("msg=\"trying to register an already existing file system\" "
-                    "fsid=%lu uuid=\"%s\"", fs->GetLocalId(),
+                    "fsid=%u uuid=\"%s\"", fs->GetLocalId(),
                     fs->GetLocalUuid().c_str());
     std::abort();
   }
 
   mFsMap[fs->GetLocalId()] = fs;
 
-  if(gOFS.mMessagingRealm->haveQDB()) {
+  if (gOFS.mMessagingRealm->haveQDB()) {
     if (eos::fst::Config::gConfig.autoBoot &&
-          (fs->GetStatus() <= eos::common::BootStatus::kDown) &&
-          (fs->GetConfigStatus() > eos::common::ConfigStatus::kOff)) {
+        (fs->GetStatus() <= eos::common::BootStatus::kDown) &&
+        (fs->GetConfigStatus() > eos::common::ConfigStatus::kOff)) {
       RunBootThread(fs);
     }
   }
@@ -280,7 +280,7 @@ Storage::ProcessFsConfigChange(fst::FileSystem* targetFs,
                                const std::string& queue,
                                const std::string& key, const std::string& value)
 {
-  if (key == "id") {
+  if ((key == "id") || (key == "uuid")) {
     // Check if we are autobooting
     if (eos::fst::Config::gConfig.autoBoot &&
         (targetFs->GetStatus() <= eos::common::BootStatus::kDown) &&
@@ -338,7 +338,7 @@ Storage::ProcessFsConfigChange(const std::string& queuepath,
   if (it == mFsMap.end()) {
     // If file system does not exist in the map and this an "id" info then
     // it could be that we have a partially registered file system
-    if (key == "id") {
+    if ((key == "id") || (key == "uuid")) {
       auto itv = std::find_if(mFsVect.begin(), mFsVect.end(),
       [&](fst::FileSystem * fs) {
         return (fs->GetQueuePath() == queuepath);
@@ -355,7 +355,7 @@ Storage::ProcessFsConfigChange(const std::string& queuepath,
       fs->SetLocalId();
       fs->SetLocalUuid();
       eos_static_info("msg=\"attempt file system registration\" qpath=\"%s\" "
-                      "fsid=%lu uuid=\"%s\"", queuepath.c_str(), fs->GetLocalId(),
+                      "fsid=%u uuid=\"%s\"", queuepath.c_str(), fs->GetLocalId(),
                       fs->GetLocalUuid().c_str());
 
       if ((fs->GetLocalId() == 0ul) || fs->GetLocalUuid().empty()) {
@@ -365,7 +365,7 @@ Storage::ProcessFsConfigChange(const std::string& queuepath,
       }
 
       it = mFsMap.emplace(fs->GetLocalId(), fs).first;
-      eos_static_info("msg=\"fully register file system\" qpath=%s fsid=%lu "
+      eos_static_info("msg=\"fully register file system\" qpath=%s fsid=%u "
                       "uuid=\"%s\"", queuepath.c_str(), fs->GetLocalId(),
                       fs->GetLocalUuid().c_str());
     } else {
@@ -398,7 +398,7 @@ void
 Storage::Communicator(ThreadAssistant& assistant)
 {
   eos_static_info("%s", "msg=\"starting communicator thread\"");
-  std::set<std::string> watch_modification_keys { "id", "bootsenttime",
+  std::set<std::string> watch_modification_keys { "id", "uuid", "bootsenttime",
       eos::common::SCAN_IO_RATE_NAME, eos::common::SCAN_ENTRY_INTERVAL_NAME,
       eos::common::SCAN_DISK_INTERVAL_NAME, eos::common::SCAN_NS_INTERVAL_NAME,
       eos::common::SCAN_NS_RATE_NAME, "symkey", "manager", "publish.interval",
@@ -511,33 +511,34 @@ Storage::Communicator(ThreadAssistant& assistant)
 //------------------------------------------------------------------------------
 // Extract filesystem path from QDB hash key
 //------------------------------------------------------------------------------
-static std::string extractFilesystemPath(const std::string &key) {
+static std::string extractFilesystemPath(const std::string& key)
+{
   std::vector<std::string> parts =
     common::StringTokenizer::split<std::vector<std::string>>(key, '|');
-
-  return parts[parts.size()-1];
+  return parts[parts.size() - 1];
 }
 
 //------------------------------------------------------------------------------
 // Register which filesystems are in QDB config
 //------------------------------------------------------------------------------
-void Storage::updateFilesystemDefinitions() {
+void Storage::updateFilesystemDefinitions()
+{
   qclient::QScanner scanner(*gOFS.mMessagingRealm->getQSom()->getQClient(),
-    SSTR("eos-hash||fs||" << eos::fst::Config::gConfig.FstHostPort << "||*" ));
-
+                            SSTR("eos-hash||fs||" << eos::fst::Config::gConfig.FstHostPort << "||*"));
   std::set<std::string> mNewFilesystems;
 
-  for(; scanner.valid(); scanner.next()) {
-    std::string queuePath = SSTR("/eos/" << eos::fst::Config::gConfig.FstHostPort << "/fst" <<
-      extractFilesystemPath(scanner.getValue()));
+  for (; scanner.valid(); scanner.next()) {
+    std::string queuePath = SSTR("/eos/" << eos::fst::Config::gConfig.FstHostPort <<
+                                 "/fst" <<
+                                 extractFilesystemPath(scanner.getValue()));
     mNewFilesystems.insert(queuePath);
   }
 
   //----------------------------------------------------------------------------
   // Filesystems added?
   //----------------------------------------------------------------------------
-  for(auto it = mNewFilesystems.begin(); it != mNewFilesystems.end(); it++) {
-    if(mLastRoundFilesystems.find(*it) == mLastRoundFilesystems.end()) {
+  for (auto it = mNewFilesystems.begin(); it != mNewFilesystems.end(); it++) {
+    if (mLastRoundFilesystems.find(*it) == mLastRoundFilesystems.end()) {
       RegisterFileSystem(*it);
     }
   }
@@ -545,8 +546,9 @@ void Storage::updateFilesystemDefinitions() {
   //----------------------------------------------------------------------------
   // Filesystems removed?
   //----------------------------------------------------------------------------
-  for(auto it = mLastRoundFilesystems.begin(); it != mLastRoundFilesystems.end(); it++) {
-    if(mNewFilesystems.find(*it) == mNewFilesystems.end()) {
+  for (auto it = mLastRoundFilesystems.begin(); it != mLastRoundFilesystems.end();
+       it++) {
+    if (mNewFilesystems.find(*it) == mNewFilesystems.end()) {
       UnregisterFileSystem(*it);
     }
   }
@@ -564,9 +566,9 @@ Storage::QdbCommunicator(ThreadAssistant& assistant)
   // Stupid delay to have legacy MQ up and running before we start
   //----------------------------------------------------------------------------
   std::this_thread::sleep_for(std::chrono::seconds(5));
+  eos::mq::MessagingRealm* realm = gOFS.mMessagingRealm.get();
 
-  eos::mq::MessagingRealm *realm = gOFS.mMessagingRealm.get();
-  if(!realm->haveQDB()) {
+  if (!realm->haveQDB()) {
     return;
   }
 
@@ -574,39 +576,41 @@ Storage::QdbCommunicator(ThreadAssistant& assistant)
   // Process initial FST configuration.. discover instance name..
   //----------------------------------------------------------------------------
   std::string instanceName;
-  for(size_t i = 0; i < 10; i++) {
-    if(realm->getInstanceName(instanceName)) {
+
+  for (size_t i = 0; i < 10; i++) {
+    if (realm->getInstanceName(instanceName)) {
       break;
     }
   }
 
-  if(instanceName.empty()) {
+  if (instanceName.empty()) {
     eos_static_crit("unable to obtain instance name from QDB");
     exit(1);
   }
 
-  std::string configQueue = SSTR("/config/" << instanceName << "/node/" << eos::fst::Config::gConfig.FstHostPort);
+  std::string configQueue = SSTR("/config/" << instanceName << "/node/" <<
+                                 eos::fst::Config::gConfig.FstHostPort);
   Config::gConfig.setFstNodeConfigQueue(configQueue);
-
   //----------------------------------------------------------------------------
   // Discover node-specific configuration..
   //----------------------------------------------------------------------------
   common::SharedHashLocator nodeLocator = Config::gConfig.getNodeHashLocator();
-  mq::SharedHashWrapper hash(gOFS.mMessagingRealm.get(), nodeLocator, true, false);
-
+  mq::SharedHashWrapper hash(gOFS.mMessagingRealm.get(), nodeLocator, true,
+                             false);
   //----------------------------------------------------------------------------
   // Discover MGM name..
   //----------------------------------------------------------------------------
   std::string mgmHost;
-  for(size_t i = 0; i < 10; i++) {
-    if(hash.get("manager", mgmHost)) {
+
+  for (size_t i = 0; i < 10; i++) {
+    if (hash.get("manager", mgmHost)) {
       break;
     }
 
     std::this_thread::sleep_for(std::chrono::seconds(5));
   }
 
-  if(!mgmHost.empty()) {
+  if (!mgmHost.empty()) {
     ProcessFstConfigChange("manager", mgmHost);
   }
 
@@ -614,12 +618,13 @@ Storage::QdbCommunicator(ThreadAssistant& assistant)
   // Discover rest of FST configuration..
   //----------------------------------------------------------------------------
   std::vector<std::string> keys = { "symkey", "publish.interval",
-    "debug.level", "txgw", "gw.rate", "gw.ntx", "error.simulation"
-  };
+                                    "debug.level", "txgw", "gw.rate", "gw.ntx", "error.simulation"
+                                  };
 
-  for(size_t i = 0; i < keys.size(); i++) {
+  for (size_t i = 0; i < keys.size(); i++) {
     std::string value;
-    if(hash.get(keys[i], value)) {
+
+    if (hash.get(keys[i], value)) {
       ProcessFstConfigChange(keys[i], value);
     }
   }
