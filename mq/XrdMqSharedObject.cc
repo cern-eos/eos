@@ -496,6 +496,11 @@ XrdMqSharedHash::BroadCastEnvString(const char* receiver)
       RWMutexReadLock rd_lock(*mStoreMutex);
 
       for (auto it = mStore.begin(); it != mStore.end(); ++it) {
+        // Skip broadcasting transient values
+        if (strncmp(it->first.c_str(), "stat.", 5) == 0) {
+          continue;
+        }
+
         mTransactions.insert(it->first);
       }
     }
@@ -511,8 +516,9 @@ XrdMqSharedHash::BroadCastEnvString(const char* receiver)
     message.MarkAsMonitor();
 
     if (XrdMqSharedObjectManager::sDebug) {
-      fprintf(stderr, "XrdMqSharedObjectManager::BroadCastEnvString=>[%s]=>%s \n",
-              mSubject.c_str(), receiver);
+      fprintf(stderr,
+              "XrdMqSharedObjectManager::BroadCastEnvString=>[%s]=>%s msg=%s\n",
+              mSubject.c_str(), receiver, txmessage.c_str());
     }
 
     return XrdMqMessaging::gMessageClient.SendMessage(message, receiver, false,
@@ -2887,8 +2893,8 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message,
               cid.assign(val, cidstart[i] + 1, keystart[i + 1] - 1 - (cidstart[i]));
             }
 
-            // eos_debug("subject=%s, key=%s, val=%s", subject.c_str(),
-            //           key.c_str(), value.c_str());
+            // eos_info("got bcreply subject=%s, key=%s, val=%s obj_ptr=%p",
+            //          subject.c_str(), key.c_str(), value.c_str(), (void *)sh);
 
             if (subjectlist.size() > 1) {
               // This is a multiplexed update, where we have to remove the
