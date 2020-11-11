@@ -152,8 +152,22 @@ RealTapeGcMgm::getSpaceStats(const std::string &space) const
         const uint64_t diskBlocks = (std::uint64_t)fs->GetLongLong("stat.statfs.blocks");
         const uint64_t diskBavail = (std::uint64_t)fs->GetLongLong("stat.statfs.bavail");
 
-        stats.totalBytes += diskBlocks * diskBsize;
-        stats.availBytes += diskBavail * diskBsize;
+        const auto headroomBytes = fs->GetLongLong("headroom");
+        const uint64_t bytesBeforeSubHeadroom = diskBlocks * diskBsize;
+        const uint64_t availBytesBeforeSubHeadroom = diskBavail * diskBsize;
+        if (0 > headroomBytes) {
+          // Ignore headroom if it is negative
+          stats.totalBytes += bytesBeforeSubHeadroom;
+          stats.availBytes += availBytesBeforeSubHeadroom;
+        } else {
+          // Avoid going negative when subtracting headroom
+          if (bytesBeforeSubHeadroom > (uint64_t)headroomBytes) {
+            stats.totalBytes += bytesBeforeSubHeadroom - (uint64_t)headroomBytes;
+          }
+          if (availBytesBeforeSubHeadroom > (uint64_t )headroomBytes) {
+            stats.availBytes += availBytesBeforeSubHeadroom - (uint64_t)headroomBytes;
+          }
+        }
       }
     }
   }
