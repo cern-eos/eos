@@ -115,7 +115,7 @@ RealTapeGcMgm::getSpaceStats(const std::string &space) const
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
     if (FsView::gFsView.mSpaceView.count(space.c_str())) {
       stats.availBytes =
-        FsView::gFsView.mSpaceView[space.c_str()]->SumLongLong("stat.statfs.freebytes", false);
+        FsView::gFsView.mSpaceView[space.c_str()]->SumLongLong("stat.statfs.freebytes?configstatus@rw", false);
       stats.totalBytes =
         FsView::gFsView.mSpaceView[space.c_str()]->SumLongLong("stat.statfs.capacity", false);
     }
