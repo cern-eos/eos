@@ -5,7 +5,7 @@
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2020 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -641,69 +641,39 @@ void com_newfind_help()
 {
   std::ostringstream oss;
   oss
-      << " usage:\n"
-      << "newfind [--name <pattern>] [--xurl] [--childcount] [--purge <n> ] [--count] [-s] [-d] [-f] [-0] [-1] [-g] [-uid <n>] [-nuid <n>] [-gid <n>] [-ngid <n>] [-flag <n>] [-nflag <n>] [-ctime +<n>|-<n>] [-x <key>=<val>] [-p <key>] [-b] [--layoutstripes <n>] <path>"
-      << std::endl;
-  oss << "                -f -d :  find files(-f) or directories (-d) in <path>"
-      << std::endl;
-  oss << "     --name <pattern> :  find by name or wildcard match" << std::endl;
-  oss << "       -x <key>=<val> :  find entries with <key>=<val>" << std::endl;
-  oss << "                   -0 :  find 0-size files only" << std::endl;
-  oss << "                   -g :  find files with mixed scheduling groups" <<
-      std::endl;
-  oss << "             -p <key> :  additionally print the value of <key> for each entry"
-      << std::endl;
-  oss << "                   -b :  query the server balance of the files found" <<
-      std::endl;
-  oss << "                   -s :  run as a subcommand (in silent mode)" <<
-      std::endl;
-  oss << "             -uid <n> :  entries owned by given user id number" <<
-      std::endl;
-  oss << "            -nuid <n> :  entries not owned by given user id number" <<
-      std::endl;
-  oss << "             -gid <n> :  entries owned by given group id number" <<
-      std::endl;
-  oss << "            -ngid <n> :  entries not owned by given group id number" <<
-      std::endl;
-  oss << "            -flag <n> :  directories with specified UNIX access flag, e.g. 755"
-      << std::endl;
-  oss << "           -nflag <n> :  directories not with specified UNIX access flag, e.g. 755"
-      << std::endl;
-  oss << "          -ctime +<n> :  find files older than <n> days" << std::endl;
-  oss << "          -ctime -<n> :  find files younger than <n> days" << std::endl;
-  oss << "  --layoutstripes <n> :  apply new layout with <n> stripes to all files found"
-      << std::endl;
-  oss << "       --maxdepth <n> :  descend only <n> levels (note that level refers to absolute paths, '/eos' being the 1st level and 0 canceling the limit)" << std::endl;
-//  oss << "                   -1 :  find files which are at least 1 hour old" <<
-//      std::endl;
-  oss << "         --stripediff :  find files which have not the nominal number of stripes(replicas)"
-      << std::endl;
-  oss << "          --faultyacl :  find files and directories with illegal ACLs" <<
-      std::endl;
-  oss << "              --count :  just print global counters for files/dirs found"
-      << std::endl;
-  oss << "               --xurl :  print the XRootD URL instead of the path name"
-      << std::endl;
-  oss << "         --childcount :  print the number of children in each directory"
-      << std::endl;
-  oss << "          --purge <n> | atomic" << std::endl;
-  oss << "                      :  remove versioned files keeping <n> versions - to remove all old versions use --purge 0"
-      << std::endl;
-  oss << "                         To apply the settings of the extended attribute definition use <n>=-1"
-      << std::endl;
-  oss << "                         To remove all atomic upload left-overs older than a day user --purge atomic"
-      << std::endl;
-  oss << "              default :  find files and directories" << std::endl;
-  oss << "newfind [--nrep] [--nunlink] [--size] [--fileinfo] [--online] [--hosts] [--partition] [--fid] [--fs] [--checksum] [--ctime] [--mtime] [--uid] [--gid] <path>"
-      << std::endl;
-  oss << "                      :  find files and print out the requested meta data as key value pairs"
-      << std::endl;
-  oss << "       path=file:...  :  do a find in the local file system (options ignored) - 'file:' is the current working directory"
-      << std::endl;
-  oss << "       path=root:...  :  do a find on a plain XRootD server (options ignored) - does not work on native XRootD clusters"
-      << std::endl;
-  oss << "       path=as3:...   :  do a find on an S3 bucket" << std::endl;
-  oss << "       path=...       :  all other paths are considered to be EOS paths!"
-      << std::endl;
+      << " usage\n"
+      << "newfind [OPTIONS] <path> : find files and directories\n"
+      << "OPTIONS can be filters, actions to perform, or output integrations/modifiers for the found items\n"
+      << "Filters: [--maxdepth <n>] [--name <pattern>] [-d] [-f] [-0] [-g] [-uid <n>] [-nuid <n>] [-gid <n>] [-ngid <n>] [-flag <n>] [-nflag <n>] [-ctime +<n>|-<n>] [-x <key>=<val>]\n"
+//      << "\t                   -1 : \n"
+      << "\t       --maxdepth <n> : descend only <n> levels (note that level refers to absolute paths, '/eos' being the 1st level and 0 resetting the limit)\n"
+      << "\t     --name <pattern> : find by name or wildcard match\n"
+      << "\t                -f,-d : find only files(-f) or directories (-d) in <path>\n"
+      << "\t       -x <key>=<val> : find entries with <key>=<val>\n"
+      << "\t   -uid <n>,-nuid <n> : find entries owned / not owned by a given user id number\n"
+      << "\t   -gid <n>,-ngid <n> : find entries owned / not owned by a given group id number\n"
+      << "\t -flag <n>,-nflag <n> : find entries with / without specified UNIX access flag, e.g. 755\n"
+      << "\t    -ctime <+n>, <-n> : find files older (+n) or younger (-n) than <n> days\n"
+      << "\t          --faultyacl : find files and directories with illegal ACLs\n"
+      << "\t                   -0 : find 0-size files only\n"
+      << "\t                   -g : find files with mixed scheduling groups\n"
+      << "\t         --stripediff : find files that do not have the nominal number of stripes(replicas)\n"
+      << "Actions: [-b] [--layoutstripes <n>] [--purge <n> ] [--fileinfo]"
+      << "\t                   -b : query the server balance of the files found\n"
+      << "\t  --layoutstripes <n> : apply new layout with <n> stripes to the files found\n"
+      << "\t --purge <n> | atomic : remove versioned files keeping <n> versions (use --purge 0 to remove all old versions)\n"
+      << "\t                        To apply the settings of the extended attribute definition use --purge -1\n"
+      << "\t                        To remove all atomic upload left-overs older than a day use --purge atomic\n"
+      << "\t         [--fileinfo] : invoke `eos fileinfo` on the entry\n"
+      << "\t              --count : just print global counters for files/dirs found\n"
+      << "\t         --childcount : print the number of children in each directory\n"
+      << "Output Mod: [--xurl] [-p <key>] [--nrep] [--nunlink] [--size] [--online] [--hosts] [--partition] [--fid] [--fs] [--checksum] [--ctime] [--mtime] [--uid] [--gid]\n"
+//      << "                   -s :  run in silent mode"
+      << "\t                      : print out the requested meta data as key value pairs\n"
+      << " <path> :\n"
+      << "\t path=file:...  :  do a find in the local file system (options ignored) - 'file:' is the current working directory\n"
+      << "\t path=root:...  :  do a find on a plain XRootD server (options ignored) - does not work on native XRootD clusters\n"
+      << "\t path=as3:...   :  do a find on an S3 bucket\n"
+      << "\t path=...       :  all other paths are considered to be EOS paths!\n";
   std::cerr << oss.str() << std::endl;
 }
