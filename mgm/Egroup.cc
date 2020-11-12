@@ -100,7 +100,7 @@ Egroup::Status Egroup::isMemberUncached(const std::string& username,
     ld, ldap_uninitialize);
 
   if (ld == nullptr) {
-    eos_static_crit("Could not initialize ldap context");
+    eos_static_crit("%s", "msg=\"could not initialize ldap context\"");
     return Status::kError;
   }
 
@@ -108,7 +108,7 @@ Egroup::Status Egroup::isMemberUncached(const std::string& username,
 
   if (ldap_set_option(ld, LDAP_OPT_PROTOCOL_VERSION, &version) !=
       LDAP_OPT_SUCCESS) {
-    eos_static_crit("Failure when calling ldap_set_option");
+    eos_static_crit("%s", "msg=\"failure when calling ldap_set_option\"");
     return Status::kError;
   }
 
@@ -170,7 +170,7 @@ Egroup::Status Egroup::isMemberUncached(const std::string& username,
 
       for (j = 0; j < n; j++) {
         std::string result = v[ j ]->bv_val;
-        eos_static_info("result=%d %s\n", n, result.c_str());
+        eos_static_info("result=%d %s", n, result.c_str());
 
         if ((result.find(match)) != std::string::npos) {
           isMember = true;
@@ -295,7 +295,7 @@ Egroup::CachedEntry Egroup::query(const std::string& username,
 //------------------------------------------------------------------------------
 void Egroup::Refresh(ThreadAssistant& assistant) noexcept
 {
-  eos_static_info("msg=\"async egroup fetch thread started\"");
+  eos_static_info("%s", "msg=\"async egroup fetch thread started\"");
   auto iterator = PendingQueue.begin();
 
   while (!assistant.terminationRequested()) {

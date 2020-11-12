@@ -205,9 +205,6 @@ private:
   //----------------------------------------------------------------------------
   Status isMemberUncached(const std::string& username,
                           const std::string& egroupname);
-
-public:
-
 };
 
 EOSMGMNAMESPACE_END
