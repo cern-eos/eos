@@ -16,6 +16,30 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.27 Citrine``
+===================
+
+2020-11-12
+
+Bug
+----
+
+* [EOS-4410] - intermittent mgm failover and offline FST
+* [EOS-4482] - Converter always uses default.0 as scheduling group
+* [EOS-4484] - Http in/out traffic accounting is broken
+* [EOS-4487] - LRU add switch for the new converter
+* [EOS-4488] - LRU requires the converter to update ctime of converted files
+* [EOS-4492] - Fix ns locking used in the LRU
+* [EOS-4494] - New converter uses only default.0 as scheduling group
+
+Improvement
+-----------
+
+* [EOS-4486] - LRU refresh once the interval is changed
+* [EOS-4489] - Add basic unit tests for the ConvertInfo class
+* [EOS-4490] - Archive should evict files from disk cached after a successful recall
+
+
 ``v4.8.26 Citrine``
 ===================
 
