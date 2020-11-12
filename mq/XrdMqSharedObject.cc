@@ -497,7 +497,8 @@ XrdMqSharedHash::BroadCastEnvString(const char* receiver)
 
       for (auto it = mStore.begin(); it != mStore.end(); ++it) {
         // Skip broadcasting transient values
-        if (strncmp(it->first.c_str(), "stat.", 5) == 0) {
+        if ((strncmp(it->first.c_str(), "stat.", 5) == 0) &&
+            (it->first != "stat.active")) {
           continue;
         }
 
