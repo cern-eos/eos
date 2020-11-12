@@ -113,71 +113,20 @@ RealTapeGcMgm::getSpaceStats(const std::string &space) const
 
   {
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-    const auto spaceItor = FsView::gFsView.mSpaceView.find(space);
-
-    if(FsView::gFsView.mSpaceView.end() == spaceItor) {
-      throw SpaceNotFound(std::string(__FUNCTION__) + ": Cannot find space " +
-                          space + ": FsView does not know the space name");
-    }
-
-    if(nullptr == spaceItor->second) {
-      throw SpaceNotFound(std::string(__FUNCTION__) + ": Cannot find space " +
-                          space + ": Pointer to FsSpace is nullptr");
-    }
-
-    const FsSpace &fsSpace = *(spaceItor->second);
-
-    for(const auto fsid: fsSpace) {
-      FileSystem * const fs = FsView::gFsView.mIdView.lookupByID(fsid);
-
-      // Skip this file system if it cannot be found
-      if(nullptr == fs) {
-        std::ostringstream msg;
-        msg << "Unable to find file system: space=" << space << " fsid=" << fsid;
-        eos_static_warning(msg.str().c_str());
-        continue;
-      }
-
-      const common::BootStatus fsStatus = FileSystem::GetStatusFromString(fs->GetString("stat.boot").c_str());
-      const common::ActiveStatus fsActiveStatus =
-        FileSystem::GetActiveStatusFromString(fs->GetString("stat.active").c_str());
-      const common::ConfigStatus fsConfigStatus =
-        FileSystem::GetConfigStatusFromString(fs->GetString("configstatus").c_str());
-
-      // Only consider file systems that are booted, on-line and read/write
-      if(common::BootStatus::kBooted == fsStatus &&
-         common::ActiveStatus::kOnline == fsActiveStatus &&
-         common::ConfigStatus::kRW == fsConfigStatus) {
-        const uint64_t diskBsize = (std::uint64_t)fs->GetLongLong("stat.statfs.bsize");
-        const uint64_t diskBlocks = (std::uint64_t)fs->GetLongLong("stat.statfs.blocks");
-        const uint64_t diskBavail = (std::uint64_t)fs->GetLongLong("stat.statfs.bavail");
-
-        const auto headroomBytes = fs->GetLongLong("headroom");
-        const uint64_t bytesBeforeSubHeadroom = diskBlocks * diskBsize;
-        const uint64_t availBytesBeforeSubHeadroom = diskBavail * diskBsize;
-        if (0 > headroomBytes) {
-          // Ignore headroom if it is negative
-          stats.totalBytes += bytesBeforeSubHeadroom;
-          stats.availBytes += availBytesBeforeSubHeadroom;
-        } else {
-          // Avoid going negative when subtracting headroom
-          if (bytesBeforeSubHeadroom > (uint64_t)headroomBytes) {
-            stats.totalBytes += bytesBeforeSubHeadroom - (uint64_t)headroomBytes;
-          }
-          if (availBytesBeforeSubHeadroom > (uint64_t )headroomBytes) {
-            stats.availBytes += availBytesBeforeSubHeadroom - (uint64_t)headroomBytes;
-          }
-        }
-      }
+    if (FsView::gFsView.mSpaceView.count(space.c_str())) {
+      stats.availBytes =
+        FsView::gFsView.mSpaceView[space.c_str()]->SumLongLong("stat.statfs.freebytes", false);
+      stats.totalBytes =
+        FsView::gFsView.mSpaceView[space.c_str()]->SumLongLong("stat.statfs.capacity", false);
     }
   }
 
-  // Scale stats if there is a space policy layout
-  if (0 != layoutId) {
-    const float scaleFactor = eos::common::LayoutId::GetSizeFactor(layoutId);
-    if (1.0 < scaleFactor) {
-      stats.totalBytes /= scaleFactor;
-      stats.availBytes /= scaleFactor;
+  // if there is a space policy layout defined we scale values to logical bytes
+  if (layoutId) {
+    const auto scalefactor = eos::common::LayoutId::GetSizeFactor(layoutId);
+    if (scalefactor) {
+      stats.availBytes /= scalefactor;
+      stats.totalBytes /= scalefactor;
     }
   }
 
