@@ -667,6 +667,7 @@ void com_newfind_help()
       << "\t         [--fileinfo] : invoke `eos fileinfo` on the entry\n"
       << "\t              --count : just print global counters for files/dirs found\n"
       << "\t         --childcount : print the number of children in each directory\n"
+      << "\t                        The research is way faster than with `--count`, but will only apply the `--maxdepth` filter\n"
       << "Output Mod: [--xurl] [-p <key>] [--nrep] [--nunlink] [--size] [--online] [--hosts] [--partition] [--fid] [--fs] [--checksum] [--ctime] [--mtime] [--uid] [--gid]\n"
 //      << "                   -s :  run in silent mode"
       << "\t                      : print out the requested meta data as key value pairs\n"

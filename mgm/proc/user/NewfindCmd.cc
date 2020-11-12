@@ -898,6 +898,10 @@ NewfindCmd::ProcessRequest() noexcept
                                findRequest.path(), findRequest.maxdepth(), findRequest.childcount(), mVid));
   }
 
+  uint64_t childcount_aggregate_dircounter = 0;
+  uint64_t childcount_aggregate_filecounter = 0;
+
+
   uint64_t dircounter = 0;
   uint64_t filecounter = 0;
   // Users cannot return more than 50k dirs and 100k files with one find,
@@ -937,8 +941,14 @@ NewfindCmd::ProcessRequest() noexcept
 
       // Selection
       if (eliminateBasedOnMaxDepth(findRequest, findResult.path)) { continue; }
-      if (FilterOut(findRequest, cMD)) { continue; }
-
+      // --childcount nullify the filters, we don't want to bias the count because of intermediate filtered-out result
+      // Alse, take the chance to update the total counter while traversing
+      if (!findRequest.childcount()) {
+        if (FilterOut(findRequest, cMD)) { continue; }
+      } else{
+        childcount_aggregate_dircounter+=cMD->getNumContainers();
+        childcount_aggregate_filecounter+=cMD->getNumFiles();
+      }
       dircounter++;
 
       if (findRequest.count()) { continue; }
@@ -958,8 +968,8 @@ NewfindCmd::ProcessRequest() noexcept
       }
 
       printPath(ofstdoutStream, findResult.path, findRequest.xurl());
-      printUidGid(ofstdoutStream, findRequest, cMD);
       printChildCount(ofstdoutStream,findRequest,cMD);
+      printUidGid(ofstdoutStream, findRequest, cMD);
       printAttributes(ofstdoutStream, findRequest, cMD);
       ofstdoutStream << std::endl;
 
@@ -1020,7 +1030,13 @@ NewfindCmd::ProcessRequest() noexcept
 
   }
 
-  if (findRequest.count()) {
+  if (findRequest.childcount()) {
+    ofstdoutStream << "Aggregate results for the path " << findRequest.path() << ": "
+        << " Files=" << childcount_aggregate_filecounter
+        << " Directories=" << childcount_aggregate_dircounter <<
+        std::endl;
+  }
+    if (findRequest.count()) {
     ofstdoutStream << "nfiles=" << filecounter << " ndirectories=" << dircounter <<
                    std::endl;
   }
