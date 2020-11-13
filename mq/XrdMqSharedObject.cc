@@ -496,12 +496,13 @@ XrdMqSharedHash::BroadCastEnvString(const char* receiver)
       RWMutexReadLock rd_lock(*mStoreMutex);
 
       for (auto it = mStore.begin(); it != mStore.end(); ++it) {
-        // Skip broadcasting transient values
-        if ((strncmp(it->first.c_str(), "stat.", 5) == 0) &&
-            (it->first != "stat.active")) {
-          continue;
-        }
-
+        // @todo(esindril) needs review as there is no clear difference as some
+        // stat. parameters do need to be broadcasted!
+        // // Skip broadcasting transient values
+        // if ((strncmp(it->first.c_str(), "stat.", 5) == 0) &&
+        //     (it->first != "stat.active")) {
+        //   continue;
+        // }
         mTransactions.insert(it->first);
       }
     }
