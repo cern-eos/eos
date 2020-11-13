@@ -1936,9 +1936,30 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
     static uint64_t last_blocker_inode = 0;
     static double last_blocked_ms = 0;
     {
-      std::lock_guard<std::mutex> lock(meminfo.mutex());
-      XrdSysMutexHelper sLock(getFuseStat().Mutex);
+      unsigned long long rbytes,wbytes = 0;
+      unsigned long nops = 0;
+      float total_rbytes, total_wbytes = 0;
+      int sum = 0;
+      unsigned long totalram, freeram,loads0 = 0;
+      {
+	XrdSysMutexHelper sLock(getFuseStat().Mutex);
+	rbytes = this->getFuseStat().GetTotal("rbytes");
+	wbytes = this->getFuseStat().GetTotal("wbytes");
+	nops = this->getFuseStat().GetOps();
+	total_rbytes = this->getFuseStat().GetTotalAvg5("rbytes") / 1000.0 / 1000.0;
+	total_wbytes = this->getFuseStat().GetTotalAvg5("wbytes") / 1000.0 / 1000.0;
+	sum = (int) this->getFuseStat().GetTotalAvg5(":sum");
+      }
+
+      {
+	std::lock_guard<std::mutex> lock(meminfo.mutex());
+	totalram = meminfo.getref().totalram;
+	freeram = meminfo.getref().freeram;
+	loads0 = meminfo.getref().loads[0];
+      }
+
       double blocked_ms = this->Tracker().blocked_ms(blocker, blocker_inode);
+
       snprintf(ino_stat, sizeof(ino_stat),
                "ALL        threads             := %llu\n"
                "ALL        visze               := %s\n"
@@ -1998,15 +2019,15 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
                FUSE_USE_VERSION,
                start_time,
                now - start_time,
-               meminfo.getref().totalram,
-               meminfo.getref().freeram,
-               meminfo.getref().loads[0],
-               this->getFuseStat().GetTotal("rbytes"),
-               this->getFuseStat().GetTotal("wbytes"),
-               this->getFuseStat().GetOps(),
-               this->getFuseStat().GetTotalAvg5("rbytes") / 1000.0 / 1000.0,
-               this->getFuseStat().GetTotalAvg5("wbytes") / 1000.0 / 1000.0,
-               (int) this->getFuseStat().GetTotalAvg5(":sum"),
+	       totalram,
+	       freeram,
+	       loads0,
+	       rbytes,
+	       wbytes,
+	       nops,
+	       total_rbytes,
+	       total_wbytes,
+	       sum,
                Instance().datas.get_xoff(),
                EosFuse::Instance().config.hostport.c_str(),
                EosFuse::Instance().config.clientuuid.c_str(),
