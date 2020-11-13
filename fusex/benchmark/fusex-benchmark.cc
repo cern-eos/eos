@@ -877,7 +877,7 @@ int main(int argc, char* argv[])
 	exit(testno);
       }
       if (strncmp(buffer, rbuffer, strlen(buffer)+1)) {
-	fprintf(stderr,"[test=%3d] file read wrong contents - read %lu/%lu", testno, read, strlen(buffer)+1);
+	fprintf(stderr,"[test=%3d] file read wrong contents - read %lu/%lu", testno, nread, strlen(buffer)+1);
 	fprintf(stderr,"[test=%3d] iteration=%lu\n", testno, i);
 	exit(testno);
       }
