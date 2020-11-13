@@ -16,6 +16,19 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.28 Citrine``
+===================
+
+2020-11-13
+
+Improvements
+------------
+
+* MGM: Modified RealTapeGcMgm::getSpaceStats() to give the exact same result as `eos space ls spinner -m`
+* FUSEX: decouple stat mutex from disk activiy - reduce mutex scopres in .stats file thread producing statistics output
+* MQ: Do broadcast all stat.* params as some are needed back on the FST side
+
+
 ``v4.8.27 Citrine``
 ===================
 
