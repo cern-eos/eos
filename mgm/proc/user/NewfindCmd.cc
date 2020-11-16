@@ -906,8 +906,10 @@ NewfindCmd::ProcessRequest() noexcept
 
   uint64_t dircounter = 0;
   uint64_t filecounter = 0;
-  // Users cannot return more than 50k dirs and 100k files with one find,
-  // unless there is an access rule allowing deeper queries
+  // For general users, cannot return more than 50k dirs and 100k files with one find,
+  // unless there is an access rule allowing deeper queries.
+  // Special users (like root) have the limit lifted by default.
+  const static bool limit_result=((mVid.uid != 0) && (!mVid.hasUid(3)) && (!mVid.hasGid(4)) && (!mVid.sudoer));
   static uint64_t dir_limit = 50000;
   static uint64_t file_limit = 100000;
   Access::GetFindLimits(mVid, dir_limit, file_limit);
@@ -919,13 +921,17 @@ NewfindCmd::ProcessRequest() noexcept
   std::shared_ptr<eos::IFileMD> fMD;
   while (findResultProvider->next(findResult)) {
 
-    if (dircounter>=dir_limit || filecounter>=file_limit) {
-      ofstderrStream << "warning(" << E2BIG << "): find results are limited for you to "
-          << dir_limit << " directories and " << file_limit << " files.\n"
-          << "Result is truncated! (found "
-          << dircounter << " directories and " << filecounter << " files so far)\n";
-      reply.set_retc(E2BIG);
-      break;
+    if (limit_result) {
+      if (dircounter >= dir_limit || filecounter >= file_limit) {
+        ofstderrStream << "warning(" << E2BIG
+                       << "): find results are limited for you to " << dir_limit
+                       << " directories and " << file_limit << " files.\n"
+                       << "Result is truncated! (found " << dircounter
+                       << " directories and " << filecounter
+                       << " files so far)\n";
+        reply.set_retc(E2BIG);
+        break;
+      }
     }
 
     if (findResult.isdir) {
