@@ -4601,18 +4601,24 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
 
   if (io) {
     if (io->has_update()) {
-      auto map = io->md->attr();
+
       cap::shared_cap pcap;
 
-      if (map.count("user.acl") > 0) { /* file has it's own ACL */
-        cap::shared_cap ccap = Instance().caps.acquire(req, io->md->id(), W_OK, true);
-        rc = ccap->errc();
+      {
+        XrdSysMutexHelper mLock(io->md->Locker());
+	auto map = io->md->attr();
+	if (map.count("user.acl") > 0) { /* file has it's own ACL */
+	  mLock.UnLock();
+	  cap::shared_cap ccap = Instance().caps.acquire(req, io->md->id(), W_OK, true);
+	  rc = ccap->errc();
 
-        if (rc == 0) {
-          pcap = Instance().caps.acquire(req, io->md->pid(), S_IFDIR | X_OK, true);
-        }
-      } else {
-        pcap = Instance().caps.acquire(req, io->md->pid(), S_IFDIR | W_OK, true);
+	  if (rc == 0) {
+	    pcap = Instance().caps.acquire(req, io->md->pid(), S_IFDIR | X_OK, true);
+	  }
+	} else {
+	  mLock.UnLock();
+	  pcap = Instance().caps.acquire(req, io->md->pid(), S_IFDIR | W_OK, true);
+	}
       }
 
       XrdSysMutexHelper capLock(pcap->Locker());
@@ -4645,6 +4651,7 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
         }
 
         XrdSysMutexHelper mLock(io->md->Locker());
+	auto map = io->md->attr();
 
         // actually do the flush
         if ((rc = io->ioctx()->flush(req))) {
