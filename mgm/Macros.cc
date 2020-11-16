@@ -44,8 +44,8 @@ void NamespaceMap(std::string& path, const char* ininfo,
   if (vid.token) {
     if (vid.token->Valid()) {
       // replace path from a token
-      if (path.substr(0,9),"/zteos64:") {
-	store_path = vid.token->Path().c_str();
+      if (path.substr(0, 9), "/zteos64:") {
+        store_path = vid.token->Path().c_str();
       }
     }
   }
@@ -137,6 +137,8 @@ ProcBounceNotAllowed(const std::string& path,
                      const eos::common::VirtualIdentity& vid,
                      std::string& err_check, int& errno_check)
 {
+  eos::common::RWMutexReadLock lock(Access::gAccessMutex);
+
   if ((vid.uid > 3) &&
       (Access::gAllowedUsers.size() ||
        Access::gAllowedGroups.size() ||
