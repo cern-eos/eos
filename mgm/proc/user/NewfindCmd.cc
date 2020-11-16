@@ -45,8 +45,10 @@ EOSMGMNAMESPACE_BEGIN
 static bool eliminateBasedOnMaxDepth(const eos::console::FindProto& req,
                                       const std::string& fullpath)
 {
-  eos::common::Path cpath {fullpath};
-  return (req.maxdepth()>0 && cpath.GetSubPathSize()>req.maxdepth()+1);
+  eos::common::Path req_cpath {req.path()};
+  eos::common::Path res_cpath {fullpath};
+  return ( req.maxdepth()>0 &&
+              ( (res_cpath.GetSubPathSize() - req_cpath.GetSubPathSize()) > req.maxdepth() ) );
   // not using File/ContainerMD->getTreeSize() to avoid taking a lock
 }
 

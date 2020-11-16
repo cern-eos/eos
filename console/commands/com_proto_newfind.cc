@@ -646,7 +646,7 @@ void com_newfind_help()
       << "OPTIONS can be filters, actions to perform, or output integrations/modifiers for the found items\n"
       << "Filters: [--maxdepth <n>] [--name <pattern>] [-d] [-f] [-0] [-g] [-uid <n>] [-nuid <n>] [-gid <n>] [-ngid <n>] [-flag <n>] [-nflag <n>] [-ctime +<n>|-<n>] [-x <key>=<val>]\n"
 //      << "\t                   -1 : \n"
-      << "\t       --maxdepth <n> : descend only <n> levels (note that level refers to absolute paths, '/eos' being the 1st level and 0 resetting the limit)\n"
+      << "\t       --maxdepth <n> : descend only <n> levels (note that 0 reset the limit)\n"
       << "\t     --name <pattern> : find by name or wildcard match\n"
       << "\t                -f,-d : find only files(-f) or directories (-d) in <path>\n"
       << "\t       -x <key>=<val> : find entries with <key>=<val>\n"
