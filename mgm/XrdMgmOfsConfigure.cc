@@ -1329,6 +1329,9 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     g_logging.AddFanOutAlias("DrainFs", "DrainJob");
     g_logging.AddFanOutAlias("Drainer", "DrainJob");
     g_logging.AddFanOutAlias("Clients", "Mounts");
+    g_logging.AddFanOutAlias("ConversionInfo", "Converter");
+    g_logging.AddFanOutAlias("ConversionJob", "Converter");
+    g_logging.AddFanOutAlias("ConverterDriver", "Converter");
   }
 
   Eroute.Say("=====> mgmofs.broker : ", MgmOfsBrokerUrl.c_str(), "");
