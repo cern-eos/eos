@@ -64,11 +64,14 @@
 #define S_IAMB  0x1FF
 #endif
 
-namespace {
+namespace
+{
 //----------------------------------------------------------------------------
 //! Thrown if a disk location could not be found
 //----------------------------------------------------------------------------
-struct DiskLocationNotFound: public std::runtime_error {using std::runtime_error::runtime_error;};
+struct DiskLocationNotFound: public std::runtime_error {
+  using std::runtime_error::runtime_error;
+};
 
 //----------------------------------------------------------------------------
 //! @param locations locations to be searched
@@ -76,10 +79,20 @@ struct DiskLocationNotFound: public std::runtime_error {using std::runtime_error
 //! @throw DiskLocationNotFound if a disk location could not be found
 //----------------------------------------------------------------------------
 eos::IFileMD::location_t
-getFirstDiskLocation(const eos::IFileMD::LocationVector &locations) {
-  if (locations.empty()) throw DiskLocationNotFound("Failed to find d isk location");
-  if (EOS_TAPE_FSID != locations.at(0)) return locations.at(0);
-  if (2 > locations.size()) throw DiskLocationNotFound("Failed to find d isk location");
+getFirstDiskLocation(const eos::IFileMD::LocationVector& locations)
+{
+  if (locations.empty()) {
+    throw DiskLocationNotFound("Failed to find d isk location");
+  }
+
+  if (EOS_TAPE_FSID != locations.at(0)) {
+    return locations.at(0);
+  }
+
+  if (2 > locations.size()) {
+    throw DiskLocationNotFound("Failed to find d isk location");
+  }
+
   return locations.at(1);
 }
 }
@@ -1450,7 +1463,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   unsigned long new_lid = 0;
   eos::mgm::Scheduler::tPlctPolicy plctplcy;
   std::string targetgeotag;
-  eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+  eos::common::RWMutexReadLock
+  fs_rd_lock(FsView::gFsView.ViewMutex, __FUNCTION__, __LINE__, __FILE__);
   // select space and layout according to policies
   Policy::GetLayoutAndSpace(path, attrmap, vid, new_lid, space, *openOpaque,
                             forcedFsId, forced_group);
@@ -2845,7 +2859,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   // Notify tape garbage collector if tape support is enabled
   if (gOFS->mTapeEnabled) {
     try {
-      eos::common::RWMutexReadLock tgc_ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+      eos::common::RWMutexReadLock tgc_ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
+          __LINE__, __FILE__);
       const auto tgcFmd = gOFS->eosFileService->getFileMD(fileId);
       const bool isATapeFile = tgcFmd->hasAttribute("sys.archive.file_id");
       tgc_ns_rd_lock.Release();
@@ -2860,7 +2875,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           gOFS->mTapeGc->fileOpenedForRead(tgcSpace, fileId);
         }
       }
-    } catch(...) {
+    } catch (...) {
       // Ignore any garbage collection exceptions
     }
   }
