@@ -3256,7 +3256,6 @@ XrdFstOfsFile::DoTpcTransfer()
 
     // Write the buffer out through the local object
     wbytes = write(offset, &((*buffer)[0]), rbytes);
-    eos_debug("msg=\"tpc write\" wbytes=%llu", wbytes);
 
     if (offset / eight_gb != (offset + rbytes) /  eight_gb) {
       eos_info("msg=\"tcp write\" offset=%llu", offset);
