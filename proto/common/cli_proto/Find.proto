@@ -37,7 +37,7 @@ message FindProto {
     bool DoLayoutstripes = 33;
 
     uint64 Layoutstripes = 34;
-    uint64 Maxdepth = 35;
+    oneof Maxdepth_ { uint64 Maxdepth = 35; } // (faluchet) allow to distinguish defaults from explicitly set values; ensure backward compatibility
     uint64 Youngerthan = 36;
     uint64 Olderthan = 37;
     uint64 Uid = 38;

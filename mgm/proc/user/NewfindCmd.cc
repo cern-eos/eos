@@ -42,15 +42,6 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-static bool eliminateBasedOnMaxDepth(const eos::console::FindProto& req,
-                                      const std::string& fullpath)
-{
-  eos::common::Path req_cpath {req.path()};
-  eos::common::Path res_cpath {fullpath};
-  return ( req.maxdepth()>0 &&
-              ( (res_cpath.GetSubPathSize() - req_cpath.GetSubPathSize()) > req.maxdepth() ) );
-  // not using File/ContainerMD->getTreeSize() to avoid taking a lock
-}
 
 template<typename T>
 static bool eliminateBasedOnFileMatch(const eos::console::FindProto& req,
@@ -593,8 +584,7 @@ struct FindResult {
   std::string path;
   bool isdir;
   bool expansionFilteredOut;
-  std::pair<bool, uint32_t> publicAccessAllowed; // second
-
+  eos::IContainerMD::XAttrMap attrs; // Filled out as long as populateLinkedAttributes set
   uint64_t numFiles = 0;
   uint64_t numContainers = 0;
 
@@ -629,24 +619,28 @@ struct FindResult {
 
 //------------------------------------------------------------------------------
 // Filter-out directories which we have no permission to access
+// or whose path-depth is greater than depthlimit
 //------------------------------------------------------------------------------
-class PermissionFilter : public ExpansionDecider
+class TraversalFilter : public ExpansionDecider
 {
 public:
-  PermissionFilter(const eos::common::VirtualIdentity& v) : vid(v) {}
+  TraversalFilter(const eos::common::VirtualIdentity& v, const uint32_t d) : vid(v), depthlimit(d) {}
 
   virtual bool shouldExpandContainer(const eos::ns::ContainerMdProto& proto,
                                      const eos::IContainerMD::XAttrMap& attrs) override
   {
     eos::QuarkContainerMD cmd;
     cmd.initializeWithoutChildren(eos::ns::ContainerMdProto(proto));
+    eos::common::Path cpath {gOFS->eosView->getUri(cmd.getId())};
 
     return AccessChecker::checkContainer(&cmd, attrs, R_OK | X_OK, vid)
-        && AccessChecker::checkPublicAccess(gOFS->eosView->getUri(cmd.getId()),vid).first;
+        && AccessChecker::checkPublicAccess(cpath.GetPath(),vid).first
+        && cpath.GetSubPathSize() < depthlimit;
   }
 
 private:
   const eos::common::VirtualIdentity& vid;
+  const uint32_t depthlimit;
 };
 
 //------------------------------------------------------------------------------
@@ -658,9 +652,9 @@ public:
   //----------------------------------------------------------------------------
   // QDB: Initialize NamespaceExplorer
   //----------------------------------------------------------------------------
-  FindResultProvider(qclient::QClient* qc, const std::string& target, const uint32_t maxdepth, const bool ignore_files,
+  FindResultProvider(qclient::QClient* qc, const std::string& target, const uint32_t depthlimit, const bool ignore_files,
                      const eos::common::VirtualIdentity& v)
-    : qcl(qc), path(target), maxdepth(maxdepth), ignore_files(ignore_files), vid(v)
+    : qcl(qc), path(target), depthlimit(depthlimit), ignore_files(ignore_files), vid(v)
   {
     restart();
   }
@@ -672,9 +666,9 @@ public:
     if(!found) {
       ExplorationOptions options;
       options.populateLinkedAttributes = true;
-      options.expansionDecider.reset(new PermissionFilter(vid));
+      options.expansionDecider.reset(new TraversalFilter(vid,depthlimit));
       options.view = gOFS->eosView;
-      options.depthLimit = maxdepth;
+      options.depthLimit = depthlimit;
       options.ignoreFiles = ignore_files;
       explorer.reset(new NamespaceExplorer(path, options, *qcl,
                                            static_cast<QuarkNamespaceGroup*>(gOFS->namespaceGroup.get())->getExecutor()));
@@ -768,8 +762,7 @@ public:
     res.path = item.fullPath;
     res.isdir = !item.isFile;
     res.expansionFilteredOut = item.expansionFilteredOut;
-    res.publicAccessAllowed = AccessChecker::checkPublicAccess(item.fullPath,
-                                                               const_cast<common::VirtualIdentity&>(vid));
+    res.attrs = item.attrs;
 
     if (item.isFile) {
       res.numFiles = 0;
@@ -811,7 +804,7 @@ private:
   //----------------------------------------------------------------------------
   qclient::QClient* qcl = nullptr;
   std::string path;
-  uint32_t maxdepth;
+  uint32_t depthlimit;
   bool ignore_files;
   std::unique_ptr<NamespaceExplorer> explorer;
   eos::common::VirtualIdentity vid;
@@ -882,7 +875,7 @@ NewfindCmd::ProcessRequest() noexcept
                     findRequest.attributekey().length() ? findRequest.attributekey().c_str() : nullptr,
                     findRequest.attributevalue().length() ? findRequest.attributevalue().c_str() : nullptr,
                     findRequest.directories(), 0, true, findRequest.maxdepth(),
-                    findRequest.name().length() ? findRequest.name().c_str() : nullptr)) {
+                    findRequest.name().empty() ? nullptr : findRequest.name().c_str())) {
       ofstderrStream << "error: unable to run find in directory" << std::endl;
       reply.set_retc(errno);
       return reply;
@@ -895,9 +888,11 @@ NewfindCmd::ProcessRequest() noexcept
   } else {
     // @note when findRequest.childcount() is true, the namespace explorer will skip the files during the namespace traversal.
     // This way we can have a fast aggregate sum of the file/container count for each directory
+    int depthlimit = findRequest.Maxdepth__case() == eos::console::FindProto::MAXDEPTH__NOT_SET ?
+                        eos::common::Path::MAX_LEVELS : cPath.GetSubPathSize() + findRequest.maxdepth();
     findResultProvider.reset(new FindResultProvider(
                                eos::BackendClient::getInstance(gOFS->mQdbContactDetails, "find"),
-                               findRequest.path(), findRequest.maxdepth(), findRequest.childcount(), mVid));
+                               findRequest.path(), depthlimit, findRequest.childcount(), mVid));
   }
 
   uint64_t childcount_aggregate_dircounter = 0;
@@ -937,18 +932,29 @@ NewfindCmd::ProcessRequest() noexcept
     if (findResult.isdir) {
       if (!findRequest.directories() && findRequest.files()) { continue;}
       if (findResult.expansionFilteredOut) {
-        ofstderrStream << "error(" << EACCES << "): no permissions to read directory ";
-        ofstderrStream << findResult.path << std::endl;
-        reply.set_retc(EACCES);
-        continue;
+        // Returns a meaningful error message. Mirrors the checks in shouldExpandContainer
+        if (!AccessChecker::checkContainer(findResult.toContainerMD().get(), findResult.attrs, R_OK | X_OK, mVid)) {
+          ofstderrStream << "error(" << EACCES << "): no permissions to read directory ";
+          ofstderrStream << findResult.path << std::endl;
+          reply.set_retc(EACCES);
+          continue;
+        } else if (!AccessChecker::checkPublicAccess(findResult.path,const_cast<common::VirtualIdentity&>(mVid)).first) {
+          ofstderrStream << "error(" << EACCES << "): public access level restriction on directory ";
+          ofstderrStream << findResult.path << std::endl;
+          reply.set_retc(EACCES);
+          continue;
+//        } else {
+          // @note Empty branch, will be cut out from the compiler anyway.
+          // Either the findResult container can't be expanded further as it reaches maxdepth
+          // (this is not an error), either there is something fundamentally wrong. Should never happen.
+        }
       }
 
-      cMD = findResult.toContainerMD();
-      // Process next item if we don't have a cMD
-      if (!cMD) { continue; }
-
       // Selection
-      if (eliminateBasedOnMaxDepth(findRequest, findResult.path)) { continue; }
+
+      cMD = findResult.toContainerMD();
+      if (!cMD) { continue; } // Process next item if we don't have a cMD
+
       // --childcount nullify the filters, we don't want to bias the count because of intermediate filtered-out result
       // Alse, take the chance to update the total counter while traversing
       if (!findRequest.childcount()) {
@@ -985,9 +991,10 @@ NewfindCmd::ProcessRequest() noexcept
     } else if (!findResult.isdir) { // redundant, no problem
       if (!findRequest.files() && findRequest.directories()) { continue;}
 
+      // Selection
+
       fMD = findResult.toFileMD();
-      // Process next item if we don't have a fMD
-      if (!fMD) { continue; }
+      if (!fMD) { continue; } // Process next item if we don't have a fMD
 
       // Balance calculation? If yes,
       // ignore selection criteria (TODO: Change this?)
@@ -997,8 +1004,6 @@ NewfindCmd::ProcessRequest() noexcept
         continue;
       }
 
-      // Selection
-      if (eliminateBasedOnMaxDepth(findRequest, findResult.path)) { continue; }
       if (FilterOut(findRequest, fMD)) { continue; }
       if (findRequest.zerosizefiles() && !hasSizeZero(fMD)) { continue; }
       if (findRequest.mixedgroups() && !hasMixedSchedGroups(fMD)) { continue; }
