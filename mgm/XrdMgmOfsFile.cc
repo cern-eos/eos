@@ -426,6 +426,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   std::vector<unsigned int> pio_replacement_fs;
   // tried hosts CGI
   std::string tried_cgi;
+  // versioning CGI
+  std::string versioning_cgi;
+
   // file size
   uint64_t fmdsize = 0;
   int crOpts = (Mode & SFS_O_MKPTH) ? XRDOSS_mkpath : 0;
@@ -585,6 +588,16 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       currentWorkflow = val;
     }
   }
+
+  {
+    // populate versioning cgi from the CGI
+    const char* val = 0;
+
+    if ((val = openOpaque->Get("eos.versioning"))) {
+      versioning_cgi = val;
+    }
+  }
+
 
   if (!isFuse && isRW) {
     // resolve symbolic links
@@ -1105,6 +1118,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       versioning = atoi(attrmap["user.versioning"].c_str());
     }
   }
+
+  // get user desired versioning
+  if (versioning_cgi.length()) {
+    versioning = atoi(versioning_cgi.c_str());
+  }
+
 
   if (attrmap.count("sys.forced.atomic")) {
     isAtomicUpload = atoi(attrmap["sys.forced.atomic"].c_str());
