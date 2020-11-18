@@ -59,6 +59,15 @@ BoundIdentityProvider::krb5EnvToBoundIdentity(const JailInformation& jail,
   }
 
   //----------------------------------------------------------------------------
+  // Kerberos KCM?
+  //----------------------------------------------------------------------------
+  if(startswith(path, "KCM")) {
+    LOGBOOK_INSERT(scope, "Found kerberos kcm: " << path << ", need to validate");
+    return userCredsToBoundIdentity(jail,
+      UserCredentials::MakeKrk5(path, uid, gid), reconnect, scope);
+  }
+
+  //----------------------------------------------------------------------------
   // Drop FILE:, if exists
   //----------------------------------------------------------------------------
   const std::string prefix = "FILE:";
