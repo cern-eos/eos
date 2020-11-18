@@ -281,6 +281,7 @@ data::datax::flush(fuse_req_t req)
     flush_wait_open = (EosFuse::Instance().Config().options.flush_wait_open !=
                        EosFuse::Instance().Config().options.kWAIT_FLUSH_NEVER) ? true : false;
   }
+
   if (EOS_LOGS_DEBUG) {
     eos_notice("flush-wait-open: %d size=%lu exec=%s\n", flush_wait_open, mMd->size(), fusexrdlogin::executable(req).c_str());
   }
