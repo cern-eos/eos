@@ -23,7 +23,9 @@
 
 #pragma once
 #include "common/Namespace.hh"
+#include <sstream>
 #include <string>
+#include <map>
 #include <algorithm>
 
 EOSCOMMONNAMESPACE_BEGIN
