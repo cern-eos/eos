@@ -879,7 +879,7 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     }
 
     // check that we have write permission on path
-    if (gOFS->_access(prep_path.c_str(), W_OK | P_OK, error, vid, "")) {
+    if (gOFS->_access(prep_path.c_str(), P_OK, error, vid, "")) {
       return Emsg(epname, error, EPERM,
                   "prepare - you don't have write and workflow permission",
                   prep_path.c_str());
@@ -1075,10 +1075,12 @@ XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       }
 
       xattr_it = xattrs.find(eos::common::RETRIEVE_ERROR_ATTR_NAME);
-      if(xattr_it == xattrs.end()) {
+
+      if (xattr_it == xattrs.end()) {
         // If there is no retrieve error, check for an archive error
         xattr_it = xattrs.find(eos::common::ARCHIVE_ERROR_ATTR_NAME);
       }
+
       if (xattr_it != xattrs.end()) {
         rsp.error_text = xattr_it->second;
       }
