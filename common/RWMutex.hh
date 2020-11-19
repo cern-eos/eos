@@ -523,8 +523,10 @@ public:
 #endif
 
 
-private:
+protected:
   bool mBlocking;
+
+private:
   IRWMutex* mMutexImpl;
   struct timespec wlocktime;
   std::atomic<uint64_t> mRdLockCounter;

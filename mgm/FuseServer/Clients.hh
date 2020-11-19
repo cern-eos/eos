@@ -38,244 +38,257 @@
 
 EOSFUSESERVERNAMESPACE_BEGIN
 
-  //----------------------------------------------------------------------------
-  //! Class Clients
-  //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+//! Class Clients
+//----------------------------------------------------------------------------
 
-  class Clients : public eos::common::RWMutex
+class Clients : public eos::common::RWMutex
+{
+public:
+  Clients(): eos::common::RWMutex(),
+    mHeartBeatWindow(15), mHeartBeatOfflineWindow(30),
+    mHeartBeatRemoveWindow(120), mHeartBeatInterval(10),
+    mQuotaCheckInterval(10)
+  {
+    mBlocking = true;
+  }
+
+  virtual ~Clients() = default;
+
+  void ClientStats(size_t& nclients, size_t& active_clients,
+                   size_t& locked_clients);
+
+  bool
+  Dispatch(const std::string identity, eos::fusex::heartbeat& hb);
+  void Print(std::string& out, std::string options = "");
+  std::string Info(const std::string& identity);
+
+  void HandleStatistics(const std::string identity,
+                        const eos::fusex::statistics& stats);
+
+  class Client
   {
   public:
-    Clients():
-      mHeartBeatWindow(15), mHeartBeatOfflineWindow(30),
-      mHeartBeatRemoveWindow(120), mHeartBeatInterval(10),
-      mQuotaCheckInterval(10)
-    {}
 
-    virtual ~Clients() = default;
+    Client() : mState(PENDING) {}
 
-    void ClientStats(size_t& nclients, size_t& active_clients, size_t& locked_clients );
+    virtual ~Client() = default;
 
-    bool
-    Dispatch(const std::string identity, eos::fusex::heartbeat& hb);
-    void Print(std::string& out, std::string options = "");
-    std::string Info(const std::string& identity);
-
-    void HandleStatistics(const std::string identity,
-                          const eos::fusex::statistics& stats);
-
-    class Client
+    eos::fusex::heartbeat& heartbeat()
     {
-    public:
-
-      Client() : mState(PENDING) {}
-
-      virtual ~Client() = default;
-
-      eos::fusex::heartbeat& heartbeat()
-      {
-        return heartbeat_;
-      }
-
-      eos::fusex::statistics& statistics()
-      {
-        return statistics_;
-      }
-
-      enum status_t {
-        PENDING, EVICTED, OFFLINE, VOLATILE, ONLINE
-      };
-
-      const char* const status [6] {
-        "pending",
-        "evicted",
-        "offline",
-        "volatile",
-        "online",
-        0
-      };
-
-      void set_state(status_t s)
-      {
-        mState = s;
-      }
-
-      void tag_opstime() {
-	eos::common::Timing::GetTimeSpec(ops_time, true);
-      }
-
-      bool validate_opstime ( const struct timespec &ref_time, uint64_t age ) const {
-	// return true if the last operations time is older than age compared to ref_time
-	if (eos::common::Timing::GetCoarseAgeInNs(&ops_time, &ref_time) / 1000000000.0 > age) {
-	  return true;
-	} else {
-	  return false;
-	}
-      }
-
-      uint64_t get_opstime_sec() const { return ops_time.tv_sec; }
-      uint64_t get_opstime_nsec() const { return ops_time.tv_nsec; }
-
-      inline status_t state() const
-      {
-        return mState;
-      }
-
-    private:
-      eos::fusex::heartbeat heartbeat_;
-      eos::fusex::statistics statistics_;
-      struct timespec ops_time;
-
-      status_t mState;
-
-      // inode, pid lock map
-      std::map<uint64_t, std::set < pid_t>> mLockPidMap;
-    } ;
-
-    typedef std::map<std::string, Client> client_map_t;
-    typedef std::map<std::string, std::string> client_uuid_t;
-
-
-    ssize_t nclients()
-    {
-      eos::common::RWMutexReadLock lock(*this);
-      return mMap.size();
+      return heartbeat_;
     }
 
-    client_map_t& map()
+    eos::fusex::statistics& statistics()
     {
-      return mMap;
+      return statistics_;
     }
 
-    client_uuid_t& uuidview()
+    enum status_t {
+      PENDING, EVICTED, OFFLINE, VOLATILE, ONLINE
+    };
+
+    const char* const status [6] {
+      "pending",
+      "evicted",
+      "offline",
+      "volatile",
+      "online",
+      0
+    };
+
+    void set_state(status_t s)
     {
-      return mUUIDView;
+      mState = s;
     }
 
-    size_t leasetime(const std::string& uuid);
-
-    void
-    MonitorHeartBeat();
-
-    // check if threads should terminate
-    bool should_terminate()
+    void tag_opstime()
     {
-      return terminate_.load();
+      eos::common::Timing::GetTimeSpec(ops_time, true);
     }
 
-    // indicate to terminate
-    void terminate()
+    bool validate_opstime(const struct timespec& ref_time, uint64_t age) const
     {
-      terminate_.store(true, std::memory_order_seq_cst);
+      // return true if the last operations time is older than age compared to ref_time
+      if (eos::common::Timing::GetCoarseAgeInNs(&ops_time,
+          &ref_time) / 1000000000.0 > age) {
+        return true;
+      } else {
+        return false;
+      }
     }
 
-    // evict a client by force
-    int Evict(std::string& uuid, std::string reason, std::vector<std::string>* evicted_out=0);
+    uint64_t get_opstime_sec() const
+    {
+      return ops_time.tv_sec;
+    }
+    uint64_t get_opstime_nsec() const
+    {
+      return ops_time.tv_nsec;
+    }
 
-    // release CAPs
-    int ReleaseCAP(uint64_t id,
+    inline status_t state() const
+    {
+      return mState;
+    }
+
+  private:
+    eos::fusex::heartbeat heartbeat_;
+    eos::fusex::statistics statistics_;
+    struct timespec ops_time;
+
+    status_t mState;
+
+    // inode, pid lock map
+    std::map<uint64_t, std::set < pid_t>> mLockPidMap;
+  } ;
+
+  typedef std::map<std::string, Client> client_map_t;
+  typedef std::map<std::string, std::string> client_uuid_t;
+
+
+  ssize_t nclients()
+  {
+    eos::common::RWMutexReadLock lock(*this);
+    return mMap.size();
+  }
+
+  client_map_t& map()
+  {
+    return mMap;
+  }
+
+  client_uuid_t& uuidview()
+  {
+    return mUUIDView;
+  }
+
+  size_t leasetime(const std::string& uuid);
+
+  void
+  MonitorHeartBeat();
+
+  // check if threads should terminate
+  bool should_terminate()
+  {
+    return terminate_.load();
+  }
+
+  // indicate to terminate
+  void terminate()
+  {
+    terminate_.store(true, std::memory_order_seq_cst);
+  }
+
+  // evict a client by force
+  int Evict(std::string& uuid, std::string reason,
+            std::vector<std::string>* evicted_out = 0);
+
+  // release CAPs
+  int ReleaseCAP(uint64_t id,
+                 const std::string& uuid,
+                 const std::string& clientid);
+
+  // delete entry
+  int DeleteEntry(uint64_t id,
+                  const std::string& uuid,
+                  const std::string& clientid,
+                  const std::string& name);
+
+  // refresh entry
+  int RefreshEntry(uint64_t id,
                    const std::string& uuid,
                    const std::string& clientid);
 
-    // delete entry
-    int DeleteEntry(uint64_t id,
-                    const std::string& uuid,
-                    const std::string& clientid,
-                    const std::string& name);
+  // send MD after update
+  int SendMD(const eos::fusex::md& md,
+             const std::string& uuid,
+             const std::string& clientid,
+             uint64_t md_ino,
+             uint64_t md_pino,
+             uint64_t clock,
+             struct timespec& p_mtime
+            );
 
-    // refresh entry
-    int RefreshEntry(uint64_t id,
-                     const std::string& uuid,
-                     const std::string& clientid);
+  // broadcast a new cap
+  int SendCAP(FuseServer::Caps::shared_cap cap);
 
-    // send MD after update
-    int SendMD(const eos::fusex::md& md,
-               const std::string& uuid,
-               const std::string& clientid,
-               uint64_t md_ino,
-               uint64_t md_pino,
-               uint64_t clock,
-               struct timespec& p_mtime
-              );
+  // drop caps of a given client
+  int Dropcaps(const std::string& uuid, std::string& out);
 
-    // broadcast a new cap
-    int SendCAP(FuseServer::Caps::shared_cap cap);
+  // broad cast triggered by heartbeat function
+  int BroadcastDropAllCaps(const std::string& identity,
+                           eos::fusex::heartbeat& hb);
 
-    // drop caps of a given client
-    int Dropcaps(const std::string& uuid, std::string& out);
+  // broad cast new heartbeat interval
+  int BroadcastConfig(const std::string& identity, eos::fusex::config& cfg);
 
-    // broad cast triggered by heartbeat function
-    int BroadcastDropAllCaps(const std::string& identity,
-                             eos::fusex::heartbeat& hb);
+  // change the clients heartbeat interval
+  int SetHeartbeatInterval(int interval);
 
-    // broad cast new heartbeat interval
-    int BroadcastConfig(const std::string& identity, eos::fusex::config& cfg);
+  // change the quote node check interval
+  int SetQuotaCheckInterval(int interval);
 
-    // change the clients heartbeat interval
-    int SetHeartbeatInterval(int interval);
+  // get heartbeat interval setting
+  int HeartbeatInterval() const
+  {
+    return mHeartBeatInterval;
+  }
 
-    // change the quote node check interval
-    int SetQuotaCheckInterval(int interval);
+  // get quota check interval setting
+  int QuotaCheckInterval() const
+  {
+    return mQuotaCheckInterval;
+  }
 
-    // get heartbeat interval setting
-    int HeartbeatInterval() const
-    {
-      return mHeartBeatInterval;
-    }
+  // get broadcast max audience
+  int BroadCastMaxAudience() const
+  {
+    return mMaxBroadCastAudience;
+  }
 
-    // get quota check interval setting
-    int QuotaCheckInterval() const
-    {
-      return mQuotaCheckInterval;
-    }
+  // get broadcast audience match
+  std::string BroadCastAudienceSuppressMatch() const
+  {
+    return mMaxbroadCastAudienceMatch;
+  }
 
-    // get broadcast max audience
-    int BroadCastMaxAudience() const 
-    {
-      return mMaxBroadCastAudience;
-    }
+  // to defer an operation based on client versions
+  bool DeferClient(std::string clienversion, std::string minimum_allowed_version);
 
-    // get broadcast audience match
-    std::string BroadCastAudienceSuppressMatch() const
-    {
-      return mMaxbroadCastAudienceMatch;
-    }
+  // set max audience before suppression
+  void SetBroadCastMaxAudience(int size);
 
-    // to defer an operation based on client versions
-    bool DeferClient(std::string clienversion, std::string minimum_allowed_version);
+  // set max audience client match to be suppressed
+  void SetBroadCastAudienceSuppressMatch(const std::string& match);
 
-    // set max audience before suppression
-    void SetBroadCastMaxAudience(int size);
+private:
+  // lookup client full id to heart beat
+  client_map_t mMap;
+  // lookup client uuid to full id
+  client_uuid_t mUUIDView;
+  // heartbeat window in seconds
+  float mHeartBeatWindow;
+  // heartbeat window when to remove entries
+  float mHeartBeatOfflineWindow;
 
-    // set max audience client match to be suppressed
-    void SetBroadCastAudienceSuppressMatch(const std::string& match);
+  // heartbeat window when client entries get removed
+  float mHeartBeatRemoveWindow;
 
-  private:
-    // lookup client full id to heart beat
-    client_map_t mMap;
-    // lookup client uuid to full id
-    client_uuid_t mUUIDView;
-    // heartbeat window in seconds
-    float mHeartBeatWindow;
-    // heartbeat window when to remove entries
-    float mHeartBeatOfflineWindow;
+  // client heartbeat interval
+  int mHeartBeatInterval;
 
-    // heartbeat window when client entries get removed
-    float mHeartBeatRemoveWindow;
+  // quota check interval
+  int mQuotaCheckInterval;
 
-    // client heartbeat interval
-    int mHeartBeatInterval;
+  // max audience before suppression
+  int mMaxBroadCastAudience;
 
-    // quota check interval
-    int mQuotaCheckInterval;
+  // match string for hosts which get suppressed
+  std::string mMaxbroadCastAudienceMatch;
 
-    // max audience before suppression
-    int mMaxBroadCastAudience;
-
-    // match string for hosts which get suppressed
-    std::string mMaxbroadCastAudienceMatch;
-
-    std::atomic<bool> terminate_;
-  };
+  std::atomic<bool> terminate_;
+};
 
 
 EOSFUSESERVERNAMESPACE_END
