@@ -136,8 +136,7 @@ public:
     eos::fusex::heartbeat heartbeat_;
     eos::fusex::statistics statistics_;
     struct timespec ops_time;
-
-    status_t mState;
+    std::atomic<status_t> mState;
 
     // inode, pid lock map
     std::map<uint64_t, std::set < pid_t>> mLockPidMap;
