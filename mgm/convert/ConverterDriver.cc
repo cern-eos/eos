@@ -67,11 +67,12 @@ ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
       continue;
     }
 
-    for (auto it = mQdbHelper.PendingJobsIterator();
-         it.valid() && !assistant.terminationRequested(); /**/) {
+    auto lst_pending = mQdbHelper.GetPendingJobs();
+
+    for (const auto& info : lst_pending) {
       if (NumRunningJobs() < GetMaxThreadPoolSize()) {
-        auto fid = std::strtoull(it.getKey().c_str(), 0, 10);
-        auto conversion_info = ConversionInfo::parseConversionString(it.getValue());
+        auto fid = info.first;
+        auto conversion_info = ConversionInfo::parseConversionString(info.second);
 
         if (conversion_info != nullptr) {
           auto job = std::make_shared<ConversionJob>(fid, *conversion_info.get());
@@ -82,16 +83,18 @@ ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
           mJobsRunning.push_back(job);
         } else {
           eos_err("msg=\"invalid conversion scheduled\" fxid=%08llx "
-                  "conversion_id=%s", fid, it.getValue().c_str());
+                  "conversion_id=%s", fid, info.second.c_str());
           mQdbHelper.RemovePendingJob(fid);
         }
-
-        it.next();
       } else {
         assistant.wait_for(std::chrono::seconds(5));
       }
 
       HandleRunningJobs();
+
+      if (assistant.terminationRequested()) {
+        break;
+      }
     }
 
     RemoveInflightJobs();
