@@ -67,7 +67,7 @@ ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
       continue;
     }
 
-    auto lst_pending = mQdbHelper.GetPendingJobs();
+    const auto lst_pending = mQdbHelper.GetPendingJobs();
 
     for (const auto& info : lst_pending) {
       if (NumRunningJobs() < GetMaxThreadPoolSize()) {
