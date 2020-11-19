@@ -1006,8 +1006,6 @@ runtest "### Prepare   " unix 0 "" meta prepare "/eos/$EOS_TEST_INSTANCE/test/in
 runtest "### Chmod     " unix 0 "" eos chmod "755" "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
 runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:99:p "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
 runtest "### Attr      " unix 0 "" eos attr set sys.workflow.sync::prepare.default=test "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
-runtest "### Prepare   " unix 0 "" meta prepare "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat\?eos.ruid=99\&eos.rgid=99 2>&1 | grep permission"
-runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:99:pw "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
 runtest "### Prepare   " unix 0 "" meta prepare "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat\?eos.ruid=99\&eos.rgid=99"
 runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
 runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:99:p "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
