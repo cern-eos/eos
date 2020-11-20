@@ -306,16 +306,16 @@ static void printAttributes(std::ofstream& ss,
 //------------------------------------------------------------------------------
 // Print directories and files count of a ContainerMD, if requested by req.
 //------------------------------------------------------------------------------
-static void printChildCount(std::ofstream& ss, const eos::console::FindProto& req,
-                            const std::shared_ptr<eos::IContainerMD>& cmd)
-{
-  if (req.childcount()) {
-    ss << "\t"
-       <<" ndirs=" << cmd->getNumContainers()
-       << " nfiles=" << cmd->getNumFiles();
-  }
-
-}
+//static void printChildCount(std::ofstream& ss, const eos::console::FindProto& req,
+//                            const std::shared_ptr<eos::IContainerMD>& cmd)
+//{
+//  if (req.childcount()) {
+//    ss << "\t"
+//       <<" ndirs=" << cmd->getNumContainers()
+//       << " nfiles=" << cmd->getNumFiles();
+//  }
+//
+//}
 
 
 //------------------------------------------------------------------------------
@@ -965,7 +965,7 @@ NewfindCmd::ProcessRequest() noexcept
       }
       dircounter++;
 
-      if (findRequest.count()) { continue; }
+      if (findRequest.count() || findRequest.childcount()) { continue; }
 
       // Purge version directory?
       if (purge) {
@@ -982,7 +982,6 @@ NewfindCmd::ProcessRequest() noexcept
       }
 
       printPath(ofstdoutStream, findResult.path, findRequest.xurl());
-      printChildCount(ofstdoutStream,findRequest,cMD);
       printUidGid(ofstdoutStream, findRequest, cMD);
       printAttributes(ofstdoutStream, findRequest, cMD);
       ofstdoutStream << std::endl;
@@ -1011,7 +1010,7 @@ NewfindCmd::ProcessRequest() noexcept
 
       filecounter++;
 
-      if (findRequest.count()) { continue; }
+      if (findRequest.count() || findRequest.childcount() ) { continue; }
 
       // Purge atomic files?
       if (purge_atomic) {
