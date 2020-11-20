@@ -73,6 +73,7 @@
 #include "mgm/WFE.hh"
 #include "mgm/fsck/Fsck.hh"
 #include "mgm/Master.hh"
+#include "mgm/FuseServer/FusexCastBatch.hh"
 #include "mgm/tgc/RealTapeGcMgm.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include "mgm/tracker/ReplicationTracker.hh"

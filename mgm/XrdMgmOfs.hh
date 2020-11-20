@@ -502,9 +502,9 @@ public:
             time_t millisleep = 0, bool nscounter = true, int maxdepth = 0,
             const char* filematch = 0, bool take_lock = true, bool json_output = false,
             FILE* fstdout = NULL,
-	    time_t max_ctime_dir = 0,
-	    time_t max_ctime_file = 0,
-	    std::map<std::string, time_t>* found_ctime_sec = 0);
+            time_t max_ctime_dir = 0,
+            time_t max_ctime_file = 0,
+            std::map<std::string, time_t>* found_ctime_sec = 0);
 
   // ---------------------------------------------------------------------------
   // delete dir
@@ -771,7 +771,7 @@ public:
              const char* ininfo = 0,
              bool doLock = true,
              bool useLayout = false,
-	     bool truncate = false);
+             bool truncate = false);
 
   //----------------------------------------------------------------------------
   //! List extended attributes for a given file/directory - high-level API.
@@ -1690,27 +1690,22 @@ public:
   //!
   //! @param id container identifier
   //! @param name directory/file name to delete
-  //!
   //----------------------------------------------------------------------------
   void FuseXCastDeletion(eos::ContainerIdentifier id,
                          const std::string& name);
-
 
   //----------------------------------------------------------------------------
   //! Cast a refresh message to all fusex clients regarding a meta data refresh
   //!
   //! @param id container identifier
-  //!
   //----------------------------------------------------------------------------
   void FuseXCastRefresh(eos::ContainerIdentifier id,
                         eos::ContainerIdentifier parentid);
-
 
   //----------------------------------------------------------------------------
   //! Cast a refresh message to all fusex clients regarding a meta data refresh
   //!
   //! @param id file identifier
-  //!
   //----------------------------------------------------------------------------
   void FuseXCastRefresh(eos::FileIdentifier id,
                         eos::ContainerIdentifier parentid);
@@ -1884,8 +1879,8 @@ private:
   //! Map for delegated/undelegated TPC redirection info
   std::map<bool, std::pair<std::string, int>> mTpcRdrInfo;
   static thread_local eos::common::LogId tlLogId;
-
-  uint64_t mFusePlacementBooking; ///< space/quota which is requested when placing a file via FUSE(x)
+  //! Space/quota which is requested when placing a file via FUSE(x)
+  uint64_t mFusePlacementBooking;
 
   //----------------------------------------------------------------------------
   //! Check that the auth ProtocolBuffer request has not been tampered with

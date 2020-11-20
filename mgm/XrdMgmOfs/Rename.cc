@@ -217,14 +217,11 @@ XrdMgmOfs::_rename(const char* old_name,
                    bool fusexcast)
 {
   static const char* epname = "_rename";
-
   eos_info("source=%s target=%s overwrite=%d", old_name, new_name, overwrite);
   errno = 0;
   EXEC_TIMING_BEGIN("Rename");
-
   eos::common::Path nPath(new_name);
   eos::common::Path oPath(old_name);
-
   std::string oP = oPath.GetParentPath();
   std::string nP = nPath.GetParentPath();
 
@@ -243,18 +240,17 @@ XrdMgmOfs::_rename(const char* old_name,
   std::shared_ptr<eos::IContainerMD> newdir;
   std::shared_ptr<eos::IContainerMD> rdir;
   std::shared_ptr<eos::IFileMD> file;
-
   bool renameFile = false;
   bool renameDir = false;
   bool renameVersion = false;
   bool findOk = false;
   bool quotaMove = false;
   XrdSfsFileExistence file_exists;
-  
   std::string new_path = new_name;
-
-  eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, nPath.GetParentPath());
-  eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, oPath.GetParentPath());
+  eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView,
+      nPath.GetParentPath());
+  eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView,
+      oPath.GetParentPath());
   eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, oPath.GetPath());
   eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, nPath.GetPath());
 
@@ -304,7 +300,8 @@ XrdMgmOfs::_rename(const char* old_name,
 
       // Check if old path is a quota node - this is forbidden
       try {
-        eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+        eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                          __FILE__);
         rdir = eosView->getContainer(oPath.GetPath());
 
         if (rdir->getFlags() & eos::QUOTA_NODE_FLAG) {
@@ -321,8 +318,8 @@ XrdMgmOfs::_rename(const char* old_name,
   if (!_exists(new_name, file_exists, error, vid, infoN)) {
     if (file_exists == XrdSfsFileExistIsFile) {
       if (new_path.back() == '/') {
-	errno = ENOTDIR;
-	return Emsg(epname, error, ENOTDIR,"rename - target is a not directory");
+        errno = ENOTDIR;
+        return Emsg(epname, error, ENOTDIR, "rename - target is a not directory");
       }
 
       if (overwrite && renameFile) {
@@ -350,8 +347,9 @@ XrdMgmOfs::_rename(const char* old_name,
     if (file_exists == XrdSfsFileExistIsDirectory) {
       // append the previous last name to the target path
       if (new_path.back() != '/') {
-	new_path += "/";
+        new_path += "/";
       }
+
       new_path += oPath.GetName();
       new_name = new_path.c_str();
       nPath = new_path;
@@ -359,27 +357,28 @@ XrdMgmOfs::_rename(const char* old_name,
 
       // check if this directory exists already
       if (!_exists(new_name, file_exists, error, vid, infoN)) {
-	if (file_exists == XrdSfsFileExistIsFile) {
-	  errno = EEXIST;
-	  return Emsg(epname, error, EEXIST, "rename - target directory is an existing file");
-	}
+        if (file_exists == XrdSfsFileExistIsFile) {
+          errno = EEXIST;
+          return Emsg(epname, error, EEXIST,
+                      "rename - target directory is an existing file");
+        }
 
-	if (file_exists == XrdSfsFileExistIsDirectory) {
-	  // Delete the existing target, if it empty it will work, otherwise it will fail
-	  if (gOFS->_remdir(new_name, error, vid, infoN)) {
-	    return SFS_ERROR;
-	  }
-	}
+        if (file_exists == XrdSfsFileExistIsDirectory) {
+          // Delete the existing target, if it empty it will work, otherwise it will fail
+          if (gOFS->_remdir(new_name, error, vid, infoN)) {
+            return SFS_ERROR;
+          }
+        }
       }
     }
   } else {
     if (!renameDir) {
       if (new_path.back() == '/') {
-	// append the previous last name to the target path - nevertheless the parent won't exist
-	new_path += oPath.GetName();
-	new_name = new_path.c_str();
-	nPath = new_path;
-	nP = nPath.GetParentPath();
+        // append the previous last name to the target path - nevertheless the parent won't exist
+        new_path += oPath.GetName();
+        new_name = new_path.c_str();
+        nPath = new_path;
+        nP = nPath.GetParentPath();
       }
     }
   }
@@ -389,7 +388,8 @@ XrdMgmOfs::_rename(const char* old_name,
 
   if (renameDir) {
     {
-      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                        __FILE__);
       // figure out if this is a move within the same quota node
       eos::IContainerMD::id_t q1;
       eos::IContainerMD::id_t q2;
@@ -421,7 +421,9 @@ XrdMgmOfs::_rename(const char* old_name,
   }
 
   {
-    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    eos::mgm::FusexCastBatch fuse_batch;
+    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                       __FILE__);
 
     try {
       dir = eosView->getContainer(oPath.GetParentPath());
@@ -432,6 +434,10 @@ XrdMgmOfs::_rename(const char* old_name,
       // Get symlink-free dir's
       dir = eosView->getContainer(duri);
       newdir = eosView->getContainer(newduri);
+      const eos::ContainerIdentifier did = dir->getIdentifier();
+      const eos::ContainerIdentifier pdid = dir->getParentIdentifier();
+      const eos::ContainerIdentifier ndid = newdir->getIdentifier();
+      const eos::ContainerIdentifier pndid = newdir->getParentIdentifier();
 
       if (renameFile) {
         if (oP == nP) {
@@ -444,9 +450,12 @@ XrdMgmOfs::_rename(const char* old_name,
             eosView->updateContainerStore(dir.get());
 
             if (fusexcast) {
-              gOFS->FuseXCastContainer(dir->getIdentifier());
-              gOFS->FuseXCastRefresh(dir->getIdentifier(), dir->getParentIdentifier());
-	      gOFS->FuseXCastRefresh(file->getIdentifier(), dir->getIdentifier());
+              const eos::FileIdentifier fid = file->getIdentifier();
+              fuse_batch.Register([&, did, pdid, fid]() {
+                gOFS->FuseXCastContainer(did);
+                gOFS->FuseXCastRefresh(did, pdid);
+                gOFS->FuseXCastRefresh(fid, did);
+              });
             }
           }
         } else {
@@ -465,12 +474,16 @@ XrdMgmOfs::_rename(const char* old_name,
             eosView->updateContainerStore(newdir.get());
 
             if (fusexcast) {
-              gOFS->FuseXCastContainer(dir->getIdentifier());
-              gOFS->FuseXCastContainer(newdir->getIdentifier());
-              gOFS->FuseXCastRefresh(dir->getIdentifier(), dir->getParentIdentifier());
-              gOFS->FuseXCastRefresh(newdir->getIdentifier(), newdir->getParentIdentifier());
-	      gOFS->FuseXCastDeletion(dir->getIdentifier(), oPath.GetName());
-	      gOFS->FuseXCastRefresh(file->getIdentifier(), newdir->getIdentifier());
+              const eos::FileIdentifier fid = file->getIdentifier();
+              const std::string old_name = oPath.GetName();
+              fuse_batch.Register([&, did, pdid, ndid, pndid, fid, old_name]() {
+                gOFS->FuseXCastContainer(did);
+                gOFS->FuseXCastContainer(ndid);
+                gOFS->FuseXCastRefresh(did, pdid);
+                gOFS->FuseXCastRefresh(ndid, pndid);
+                gOFS->FuseXCastDeletion(did, old_name);
+                gOFS->FuseXCastRefresh(fid, ndid);
+              });
             }
 
             file->setName(nPath.GetName());
@@ -658,9 +671,13 @@ XrdMgmOfs::_rename(const char* old_name,
             dir->notifyMTimeChange(gOFS->eosDirectoryService);
             eosView->updateContainerStore(rdir.get());
             eosView->updateContainerStore(dir.get());
-            gOFS->FuseXCastContainer(rdir->getIdentifier());
-            gOFS->FuseXCastContainer(rdir->getParentIdentifier());
-            gOFS->FuseXCastRefresh(dir->getIdentifier(), dir->getParentIdentifier());
+            const eos::ContainerIdentifier rdid = rdir->getIdentifier();
+            const eos::ContainerIdentifier prdid = rdir->getParentIdentifier();
+            fuse_batch.Register([&, rdid, prdid, did, pdid]() {
+              gOFS->FuseXCastContainer(rdid);
+              gOFS->FuseXCastContainer(prdid);
+              gOFS->FuseXCastRefresh(did, pdid);
+            });
           } else {
             // Do the check once again, because we're paranoid
             if (!eos::isSafeToRename(gOFS->eosView, rdir.get(), newdir.get())) {
@@ -686,8 +703,10 @@ XrdMgmOfs::_rename(const char* old_name,
               }
 
               eosView->updateContainerStore(dir.get());
-              gOFS->FuseXCastContainer(dir->getIdentifier());
-              gOFS->FuseXCastRefresh(dir->getIdentifier(), dir->getParentIdentifier());
+              fuse_batch.Register([&, did, pdid]() {
+                gOFS->FuseXCastContainer(did);
+                gOFS->FuseXCastRefresh(did, pdid);
+              });
             }
             {
               // rename the moved directory and udpate it's parent ID
@@ -699,8 +718,12 @@ XrdMgmOfs::_rename(const char* old_name,
               }
 
               eosView->updateContainerStore(rdir.get());
-              gOFS->FuseXCastContainer(rdir->getIdentifier());
-              gOFS->FuseXCastRefresh(rdir->getIdentifier(), rdir->getParentIdentifier());
+              const eos::ContainerIdentifier rdid = rdir->getIdentifier();
+              const eos::ContainerIdentifier prdid = rdir->getParentIdentifier();
+              fuse_batch.Register([&, rdid, prdid]() {
+                gOFS->FuseXCastContainer(rdid);
+                gOFS->FuseXCastRefresh(rdid, prdid);
+              });
             }
             {
               // update the target directory - add the directory
@@ -713,8 +736,10 @@ XrdMgmOfs::_rename(const char* old_name,
 
               newdir->notifyMTimeChange(gOFS->eosDirectoryService);
               eosView->updateContainerStore(newdir.get());
-              gOFS->FuseXCastContainer(newdir->getIdentifier());
-              gOFS->FuseXCastRefresh(newdir->getIdentifier(), newdir->getParentIdentifier());
+              fuse_batch.Register([&, ndid, pndid]() {
+                gOFS->FuseXCastContainer(ndid);
+                gOFS->FuseXCastRefresh(ndid, pndid);
+              });
             }
           }
         }
