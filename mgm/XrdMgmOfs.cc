@@ -881,7 +881,7 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     // check that we have write permission on path
     if (gOFS->_access(prep_path.c_str(), P_OK, error, vid, "")) {
       return Emsg(epname, error, EPERM,
-                  "prepare - you don't have write and workflow permission",
+                  "prepare - you don't have workflow permission",
                   prep_path.c_str());
     }
 
