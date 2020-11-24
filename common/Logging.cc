@@ -26,7 +26,6 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include <new>
 #include <type_traits>
-#include <atomic>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -122,137 +121,6 @@ Logging::shouldlog(const char* func, int priority)
   return true;
 }
 
-
-Logging::log_buffer *
-Logging::log_alloc_buffer() {
-    Logging::log_buffer *buff = NULL;
-    int balance, balance1;
-
-    while (true) {
-        if ((buff=free_buffers) == NULL) break;
-        if (free_buffers.compare_exchange_weak(buff, buff->h.next)) break;
-    }
-
-    if (!buff) {
-        buff = (struct log_buffer *) malloc(sizeof(struct log_buffer));
-    }
-
-    buff->h.next = NULL;
-    buff->h.fanOutBuff = NULL;
-
-    /* In this small window the log_buffer_balance is incorrect! */
-    do {
-        balance = log_buffer_balance;
-        balance1 = balance+1;
-    } while(!Logging::log_buffer_balance.compare_exchange_weak(balance, balance1));
-
-    return buff;
-}
-
-
-void
-Logging::log_return_buffers(Logging::log_buffer *buff) {
-    Logging::log_buffer *buff2 = buff, *buff3;
-    int balance, balance1;
-
-    int n = 1;
-    for (buff2 = buff; (buff3 = buff2->h.next) != NULL; buff2 = buff3) n++;
-
-    while (true) {
-        buff2->h.next = free_buffers;
-        if (free_buffers.compare_exchange_weak(buff2->h.next, buff)) break;
-    }
-
-    /* In this small window the log_buffer_balance is incorrect! */
-    do {
-        balance = log_buffer_balance;
-        balance1 = balance-n;
-    } while(!Logging::log_buffer_balance.compare_exchange_weak(balance, balance1));
-}
-
-void
-Logging::log_queue_buffer(Logging::log_buffer *buff) {
-    std::lock_guard<std::mutex> guard(log_mutex);
-
-    if (log_thread_p == NULL) {
-        log_thread_p = new std::thread([this] { log_thread(); });
-    }
-
-    Logging::log_buffer *prev;
-
-    if (active_tail == NULL) {
-        /* the following works because offset(next) == 0 */
-        prev = (Logging::log_buffer *) &active_tail;
-    } else 
-        prev = active_tail;
-
-    buff->h.next = NULL;
-    prev->h.next = buff;
-
-    active_tail = buff;
-    if (!active_head) active_head = buff;
-
-    log_cond.notify_one();
-}
-
-
-void
-Logging::log_thread() {
-    Logging::log_buffer *buff = NULL, *buff_2b_returned=NULL;
-
-    log_mutex.lock();
-    while(1) {
-        if (active_head == NULL || Logging::log_buffer_balance > 100) {
-            if (buff_2b_returned != NULL) {
-                log_mutex.unlock();
-                log_return_buffers(buff_2b_returned);
-                log_mutex.lock();
-
-                buff_2b_returned = NULL;
-                continue;
-            }
-
-            if (active_head == NULL) {
-                log_cond.wait(log_mutex);
-            }
-        }
-
-        if (active_head) {
-            buff = active_head;
-            active_head = active_head->h.next;
-            if (active_head == NULL) active_tail = NULL;
-
-            log_mutex.unlock();
-
-            fprintf(stderr, "%s\n", buff->buffer);
-            if (active_head == NULL) fflush(stderr);        /* don't flush if there's yet another buffer */
-
-            if (gToSysLog) {
-              syslog(buff->h.priority, "%s", buff->h.ptr);
-            }
-
-            if (buff->h.fanOutBuff != NULL) {
-                if (buff->h.fanOutS != NULL) {
-                    fputs(buff->h.fanOutBuff->buffer, buff->h.fanOutS);
-                    fflush(buff->h.fanOutS);
-                }
-                if (buff->h.fanOut != NULL) {
-                    fputs(buff->h.fanOutBuff->buffer, buff->h.fanOut);
-                    fflush(buff->h.fanOut);
-                }
-
-                (buff->h.fanOutBuff)->h.next = buff_2b_returned;
-                buff_2b_returned = buff->h.fanOutBuff;
-            }
-                        
-            buff->h.next = buff_2b_returned;
-            buff_2b_returned = buff;
-
-            log_mutex.lock();
-        }
-    }
-}
-
 //------------------------------------------------------------------------------
 // Logging function
 //------------------------------------------------------------------------------
@@ -261,9 +129,8 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
              const VirtualIdentity& vid, const char* cident, int priority,
              const char* msg, ...)
 {
-
+  static int logmsgbuffersize = 1024 * 1024;
   bool silent = (priority == LOG_SILENT);
-  int rc = 0;
 
   // short cut if log messages are masked
   if (!silent && !((LOG_MASK(priority) & gLogMask))) {
@@ -285,10 +152,12 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
     }
   }
 
-  struct log_buffer *logBuffer = log_alloc_buffer();
-  assert(logBuffer->h.fanOutBuff == NULL);
+  static char* buffer = 0;
 
-  char* buffer = logBuffer->buffer;
+  if (!buffer) {
+    // 1 M print buffer
+    buffer = (char*) malloc(logmsgbuffersize);
+  }
 
   XrdOucString File = file;
   // we show only one hierarchy directory like Acl (assuming that we have only
@@ -355,49 +224,37 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
   vsnprintf(ptr, logmsgbuffersize - (ptr - buffer + 1), msg, args);
 
   if (!silent && rate_limit(tv, priority, file, line)) {
-    log_return_buffers(logBuffer);
     return "";
   }
-  
 
-  logBuffer->h.ptr = ptr;
+  if (!silent && gToSysLog) {
+    syslog(priority, "%s", ptr);
+  }
 
   if (!silent) {
     if (gLogFanOut.size()) {
-      logBuffer->h.fanOutBuff = log_alloc_buffer();
-assert(logBuffer->h.fanOutBuff->h.fanOutBuff == NULL);
-      logBuffer->h.fanOutS = NULL;
-      logBuffer->h.fanOut = NULL;
-      
       // we do log-message fanout
       if (gLogFanOut.count("*")) {
-        logBuffer->h.fanOutS = gLogFanOut["*"];
-        if (snprintf(logBuffer->h.fanOutBuff->buffer, logmsgbuffersize, "%s\n", logBuffer->buffer) < 0) {
-            rc = 42;    /*truncated - results in a warning if not handled */
-        }
-        //fflush(gLogFanOut["*"]);
+        fprintf(gLogFanOut["*"], "%s\n", buffer);
+        fflush(gLogFanOut["*"]);
       }
 
       if (gLogFanOut.count(File.c_str())) {
-        logBuffer->buffer[15] = 0;
-        logBuffer->h.fanOut = gLogFanOut[File.c_str()];
-        if (snprintf(logBuffer->h.fanOutBuff->buffer, logmsgbuffersize, "%s %s%s%s %-30s %s \n",
-                logBuffer->buffer,
+        buffer[15] = 0;
+        fprintf(gLogFanOut[File.c_str()], "%s %s%s%s %-30s %s \n",
+                buffer,
                 GetLogColour(GetPriorityString(priority)),
                 GetPriorityString(priority),
                 EOS_TEXTNORMAL,
                 sourceline,
-                logBuffer->h.ptr) < 0 ) {
-            /* has been truncated, not an issue */
-            rc = 43;
-        }
-        logBuffer->buffer[15] = ' ';
+                ptr);
+        fflush(gLogFanOut[File.c_str()]);
+        buffer[15] = ' ';
       } else {
         if (gLogFanOut.count("#")) {
-          logBuffer->buffer[15] = 0;
-          logBuffer->h.fanOut = gLogFanOut["#"];
-          if (snprintf(logBuffer->h.fanOutBuff->buffer, logmsgbuffersize, "%s %s%s%s [%05d/%05d] %16s ::%-16s %s \n",
-                  logBuffer->buffer,
+          buffer[15] = 0;
+          fprintf(gLogFanOut["#"], "%s %s%s%s [%05d/%05d] %16s ::%-16s %s \n",
+                  buffer,
                   GetLogColour(GetPriorityString(priority)),
                   GetPriorityString(priority),
                   EOS_TEXTNORMAL,
@@ -405,16 +262,19 @@ assert(logBuffer->h.fanOutBuff->h.fanOutBuff == NULL);
                   vid.gid,
                   truncname.c_str(),
                   func,
-                  logBuffer->h.ptr
-                 ) < 0 ) {
-              rc = 44;
-          }
-          logBuffer->buffer[15] = ' ';
+                  ptr
+                 );
+          fflush(gLogFanOut["#"]);
+          buffer[15] = ' ';
         }
       }
 
+      fprintf(stderr, "%s\n", buffer);
+      fflush(stderr);
+    } else {
+      fprintf(stderr, "%s\n", buffer);
+      fflush(stderr);
     }
-
   }
 
   va_end(args);
@@ -430,9 +290,6 @@ assert(logBuffer->h.fanOutBuff->h.fanOutBuff == NULL);
   rptr = gLogMemory[priority][(gLogCircularIndex[priority]) %
                               gCircularIndexSize].c_str();
   gLogCircularIndex[priority]++;
-
-    logBuffer->h.priority = priority;
-    log_queue_buffer(logBuffer);
   return rptr;
 }
 

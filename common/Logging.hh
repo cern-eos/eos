@@ -58,9 +58,6 @@
 #include <string>
 #include <vector>
 #include <sstream>
-#include <thread>
-#include <mutex>
-#include <condition_variable>
 
 #define SSTR(message) static_cast<std::ostringstream&>(std::ostringstream().flush() << message).str()
 
@@ -674,37 +671,6 @@ public:
   //---------------------------------------------------------------------------
 
   bool rate_limit(struct timeval& tv, int priority, const char* file, int line);
-
-    struct log_buffer;
-    struct log_buffer_hdr {
-        struct log_buffer *next;
-        char *ptr;
-        FILE *fanOutS;
-        FILE *fanOut;
-        struct log_buffer *fanOutBuff;
-        int priority;
-    };
-
-#define logmsgbuffersize (16*1024-sizeof(struct log_buffer_hdr))
-    struct log_buffer {
-        struct log_buffer_hdr h;
-        char buffer[logmsgbuffersize];
-    };
-
-    std::atomic<struct log_buffer *> free_buffers = NULL;
-    struct log_buffer *active_head = NULL;
-    struct log_buffer *active_tail = NULL;
-    std::atomic<int> log_buffer_balance = 0;
-
-    std::thread *log_thread_p = NULL;
-    std::mutex log_mutex;
-    std::condition_variable_any log_cond;
-
-    struct log_buffer *log_alloc_buffer();
-    void log_return_buffers(struct log_buffer *buff);
-    void log_queue_buffer(struct log_buffer *buff);
-    void log_thread();
-
 };
 
 extern Logging& gLogging; ///< Global logging object
