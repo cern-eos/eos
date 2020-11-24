@@ -25,7 +25,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/FsView.hh"
 #include "mgm/Stat.hh"
-#include "mgm/FuseNotificationGuard.hh"
+#include "mgm/FuseServer/FusexCastBatch.hh"
 #include "common/http/OwnCloud.hh"
 #include "common/LayoutId.hh"
 #include "namespace/interface/IQuota.hh"
@@ -572,8 +572,8 @@ CommitHelper::commit_fmd(eos::common::VirtualIdentity& vid,
                          unsigned long long replica_size,
                          CommitHelper::option_t& option,
                          std::string& errmsg,
-			 eos::ContainerIdentifier& p_ident
-			 )
+                         eos::ContainerIdentifier& p_ident
+                        )
 {
   std::shared_ptr<eos::IContainerMD> cmd;
 
@@ -591,7 +591,6 @@ CommitHelper::commit_fmd(eos::common::VirtualIdentity& vid,
 
     gOFS->eosView->updateFileStore(fmd.get());
     cmd = gOFS->eosDirectoryService->getContainerMD(cid);
-
     p_ident = cmd->getParentIdentifier();
 
     if (option["update"]) {
@@ -663,12 +662,11 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
                                 CommitHelper::path_t& paths,
                                 CommitHelper::option_t& option,
                                 std::string& delete_path
-				)
+                               )
 {
-  FuseNotificationGuard notify(gOFS);
-
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                     __FILE__);
+  eos::mgm::FusexCastBatch fuse_batch;
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__,
+                                     __LINE__, __FILE__);
 
   // We have to de-atomize the fmd name here e.g. make the temporary
   // atomic name a persistent name
@@ -681,7 +679,8 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
     fmd = gOFS->eosFileService->getFileMD(fid);
 
     if (fmd->getName() == paths["atomic"].GetName()) {
-      // defere version handling for an overlapping secondary commit due to lock-release during commit
+      // defere version handling for an overlapping secondary commit
+      // due to lock-release during commit
       return;
     }
 
@@ -697,11 +696,15 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
         versiondir->addFile(versionfmd.get());
         versiondir->setMTimeNow();
         gOFS->eosView->updateFileStore(versionfmd.get());
-
-	notify.castDeletion(dir->getIdentifier(), paths["atomic"].GetName());
-	notify.castRefresh(versionfmd->getIdentifier(),
-			   versiondir->getIdentifier());
-	notify.castContainer(versiondir->getIdentifier());
+        const eos::FileIdentifier vfid = versionfmd->getIdentifier();
+        const eos::ContainerIdentifier did = dir->getIdentifier();
+        const eos::ContainerIdentifier vdid = versiondir->getIdentifier();
+        const std::string atomic_name = paths["atomi"].GetName();
+        fuse_batch.Register([&, vfid, did, vdid, atomic_name]() {
+          gOFS->FuseXCastDeletion(did, atomic_name);
+          gOFS->FuseXCastRefresh(vfid, vdid);
+          gOFS->FuseXCastContainer(vdid);
+        });
         // Update the ownership and mode of the new file to the original
         // one
         fmd->setCUid(versionfmd->getCUid());
@@ -758,8 +761,9 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
     eos_thread_err("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                    e.getErrno(), e.getMessage().str().c_str());
   }
+
   lock.Release();
-  // the notify guard will run broadcasts here
+  // the fuse_batch guard will run broadcasts here
 }
 
 EOSMGMNAMESPACE_END

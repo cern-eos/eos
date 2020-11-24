@@ -35,7 +35,7 @@ XrdMgmOfs::_touch(const char* path,
                   const char* ininfo,
                   bool doLock,
                   bool useLayout,
-		  bool truncate)
+                  bool truncate)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief create(touch) a no-replica file in the namespace
@@ -159,15 +159,17 @@ XrdMgmOfs::_touch(const char* path,
     }
 
     gOFS->eosView->updateContainerStore(cmd.get());
-    FuseNotificationGuard fuseNotifier(gOFS);
-    fuseNotifier.castFile(fmd->getIdentifier());
-    fuseNotifier.castContainer(cmd->getIdentifier());
-    fuseNotifier.castRefresh(cmd->getIdentifier(), cmd->getParentIdentifier());
+    const eos::FileIdentifier fid = fmd->getIdentifier();
+    const eos::ContainerIdentifier did = cmd->getIdentifier();
+    const eos::ContainerIdentifier pdid = cmd->getParentIdentifier();
 
     if (doLock) {
       lock.Release();
     }
 
+    gOFS->FuseXCastFile(fid);
+    gOFS->FuseXCastContainer(did);
+    gOFS->FuseXCastRefresh(did, pdid);
     errno = 0;
   } catch (eos::MDException& e) {
     errno = e.getErrno();

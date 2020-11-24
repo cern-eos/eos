@@ -118,7 +118,6 @@
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/INamespaceGroup.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
-#include "mgm/FuseNotificationGuard.hh"
 #include "mgm/InFlightTracker.hh"
 #include "XrdAcc/XrdAccPrivs.hh"
 #include <google/sparse_hash_map>
