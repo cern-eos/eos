@@ -193,18 +193,20 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
         do {
           long long content_read = std::min(eoshttp_sz, content_left);
           body.resize(content_read, '\0');
-          char* ptr = body.data();
+          char* ptr = nullptr;
           long long read_len = 0;
 
           do {
             size_t chunk_len = std::min(xrdhttp_sz, content_read - read_len);
             int rb = req.BuffgetData(chunk_len, &ptr, true);
-            read_len += rb;
-            ptr += rb;
-            eos_static_debug("content-read=%lli rb=%lu body=%u content_left=%lli",
+            eos_static_debug("content-read=%lli rb=%i body=%u content_left=%lli",
                              content_read, rb, body.size(), content_left);
 
-            if (!rb) {
+            if (rb > 0) {
+              body.assign(ptr, rb);
+              read_len += rb;
+              ptr += rb;
+            } else {
               break;
             }
           } while (read_len < content_read);
