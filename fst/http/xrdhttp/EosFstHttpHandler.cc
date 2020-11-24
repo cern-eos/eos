@@ -205,7 +205,6 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
             if (rb > 0) {
               body.assign(ptr, rb);
               read_len += rb;
-              ptr += rb;
             } else {
               break;
             }
