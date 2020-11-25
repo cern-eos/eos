@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: TapeAwareLruTests.cc
+// File: SpaceToTapeGcMapTests.cc
 // Author: Steven Murray <smurray at cern dot ch>
 //------------------------------------------------------------------------------
 
