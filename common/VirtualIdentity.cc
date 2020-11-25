@@ -42,6 +42,7 @@ VirtualIdentity VirtualIdentity::Root()
   vid.prot = "local";
   vid.tident = "service@localhost";
   vid.sudoer = false;
+  vid.host = "localhost";
   return vid;
 }
 
