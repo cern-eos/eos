@@ -98,20 +98,20 @@ std::string getStacktrace()
       if (status == 0) {
         o << "[bt]: (" << i << ") " << messages[i] << " : "
           << real_name << "+" << offset_begin << offset_end
-          << " ";
+          << " " << std::endl;
       }
       // otherwise, output the mangled function name
       else {
         o << "[bt]: (" << i << ") " << messages[i] << " : "
           << mangled_name << "+" << offset_begin << offset_end
-          << " ";
+          << " " << std::endl;
       }
 
       free(real_name);
     }
     // otherwise, print the whole line
     else {
-      o << "[bt]: (" << i << ") " << messages[i] << " ";
+      o << "[bt]: (" << i << ") " << messages[i] << " " << std::endl;
     }
   }
 
