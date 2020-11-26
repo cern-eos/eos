@@ -764,8 +764,11 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       // Note: To use the default request ID supplied in pargs.reqid, return SFS_OK instead of SFS_DATA.
       //       Overriding is only possible in the case of PREPARE. In the case of ABORT and QUERY requests,
       //       pargs.reqid should contain the request ID that was returned by the corresponding PREPARE.
-      // This is a placeholder. To use this feature, EOS should generate a unique ID here.
-      reqid = "eos:" + reqid;
+
+      // Request ID = XRootD-generated request ID + timestamp
+      ostringstream ss;
+      ss << ':' << time(0); 
+      reqid.append(ss.str().c_str());
     }
 
     break;
