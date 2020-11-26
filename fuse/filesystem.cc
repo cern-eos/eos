@@ -3262,7 +3262,7 @@ fuse_filesystem::open(const char* path,
           stripeUrls.push_back(stripePath.c_str());
         }
 
-        eos::fst::RaidMetaLayout* file;
+        eos::fst::RainMetaLayout* file;
 
         if (LayoutId::GetLayoutType(layout) == LayoutId::kRaidDP) {
           file = new eos::fst::RaidDpLayout(NULL, layout, NULL, NULL, "root://dummy");

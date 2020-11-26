@@ -23,7 +23,7 @@
 
 #include "gtest/gtest.h"
 #include "TestEnv.hh"
-#include "fst/layout/RaidMetaLayout.hh"
+#include "fst/layout/RainMetaLayout.hh"
 #include "fst/checksum/CRC32C.hh"
 #include "fst/layout/RaidDpLayout.hh"
 #include "fst/io/xrd/XrdIo.hh"
@@ -222,7 +222,7 @@ TEST(FstFileTest, SplitReadVTest)
     }
 
     int indx = 0;
-    std::vector<XrdCl::ChunkList> result = ((RaidMetaLayout*)
+    std::vector<XrdCl::ChunkList> result = ((RainMetaLayout*)
                                             file.get())->SplitReadV(readV);
 
     // Loop through the answers for each stripe and compare with the correct values

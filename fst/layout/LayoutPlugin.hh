@@ -22,14 +22,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_LAYOUTPLUGIN_HH__
-#define __EOSFST_LAYOUTPLUGIN_HH__
-
-/*----------------------------------------------------------------------------*/
+#pragma once
 #include "common/LayoutId.hh"
 #include "fst/Namespace.hh"
 #include "XrdSec/XrdSecEntity.hh"
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -48,14 +44,12 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  LayoutPlugin();
-
+  LayoutPlugin() = default;
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~LayoutPlugin();
-
+  ~LayoutPlugin() = default;
 
   //----------------------------------------------------------------------------
   //! Get layout object
@@ -81,5 +75,3 @@ public:
 };
 
 EOSFSTNAMESPACE_END
-
-#endif  // __EOSFST_LAYOUTPLUGIN_HH__

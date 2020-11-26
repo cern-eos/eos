@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file RaidMetaLayout.hh
+//! @file RainMetaLayout.hh
 //! @author Elvin-Alin Sindrilaru <esindril@cern.ch>
 //! @brief Generic class to read/write RAID-like layout files using a gateway
 //------------------------------------------------------------------------------
@@ -22,9 +22,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_RAIDMETALAYOUT_HH__
-#define __EOSFST_RAIDMETALAYOUT_HH__
-
+#pragma once
 #include <vector>
 #include <string>
 #include <list>
@@ -34,12 +32,12 @@ class XrdFstOfsFile;
 
 EOSFSTNAMESPACE_BEGIN
 
- class HeaderCRC;
+class HeaderCRC;
 
 //------------------------------------------------------------------------------
 //! Generic class to read/write different RAID-like layout files
 //------------------------------------------------------------------------------
-class RaidMetaLayout : public Layout
+class RainMetaLayout : public Layout
 {
 public:
 
@@ -57,7 +55,7 @@ public:
   //! @param bookingOpaque opaque information
   //!
   //----------------------------------------------------------------------------
-  RaidMetaLayout(XrdFstOfsFile* file,
+  RainMetaLayout(XrdFstOfsFile* file,
                  unsigned long lid,
                  const XrdSecEntity* client,
                  XrdOucErrInfo* outError,
@@ -71,7 +69,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~RaidMetaLayout();
+  virtual ~RainMetaLayout();
 
   //--------------------------------------------------------------------------
   //! Redirect to new target
@@ -263,7 +261,7 @@ public:
   //!
   //----------------------------------------------------------------------------
   std::vector<XrdCl::ChunkList> SplitReadV(XrdCl::ChunkList& chunkList,
-                                           uint32_t sizeHdr = 0);
+      uint32_t sizeHdr = 0);
 
 protected:
 
@@ -498,20 +496,15 @@ private:
   //----------------------------------------------------------------------------
   XrdCl::ChunkList SplitRead(uint64_t off, uint32_t len, char* buff);
 
-
   //----------------------------------------------------------------------------
   //! Disable copy constructor
   //----------------------------------------------------------------------------
-  RaidMetaLayout(const RaidMetaLayout&) = delete;
-
+  RainMetaLayout(const RainMetaLayout&) = delete;
 
   //----------------------------------------------------------------------------
   //! Disable assign operator
   //----------------------------------------------------------------------------
-  RaidMetaLayout& operator = (const RaidMetaLayout&) = delete;
-
+  RainMetaLayout& operator = (const RainMetaLayout&) = delete;
 };
 
 EOSFSTNAMESPACE_END
-
-#endif  // __EOSFST_RAIDMETALAYOUT_HH__

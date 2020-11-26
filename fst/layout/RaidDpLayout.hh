@@ -26,7 +26,7 @@
 #define __EOSFST_RAIDDPLAYOUT_HH__
 
 /*----------------------------------------------------------------------------*/
-#include "fst/layout/RaidMetaLayout.hh"
+#include "fst/layout/RainMetaLayout.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -38,7 +38,7 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Implementation of the RAID-double parity layout
 //------------------------------------------------------------------------------
-class RaidDpLayout : public RaidMetaLayout
+class RaidDpLayout : public RainMetaLayout
 {
 public:
 

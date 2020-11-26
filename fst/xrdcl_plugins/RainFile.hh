@@ -35,10 +35,10 @@ using namespace XrdCl;
 // Forward declaration
 namespace eos
 {
-  namespace fst
-  {
-    class RaidMetaLayout;
-  }
+namespace fst
+{
+class RainMetaLayout;
+}
 }
 
 EOSFSTNAMESPACE_BEGIN
@@ -48,141 +48,141 @@ EOSFSTNAMESPACE_BEGIN
 //----------------------------------------------------------------------------
 class RainFile: public XrdCl::FilePlugIn, eos::common::LogId
 {
- public:
-  
+public:
+
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
   RainFile();
-  
-  
+
+
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
   virtual ~RainFile();
-  
-  
+
+
   //----------------------------------------------------------------------------
   //! Open
   //----------------------------------------------------------------------------
-  virtual XRootDStatus Open( const std::string& url,
-                             OpenFlags::Flags flags,
-                             Access::Mode mode,
-                             ResponseHandler* handler,
-                             uint16_t timeout );
-  
+  virtual XRootDStatus Open(const std::string& url,
+                            OpenFlags::Flags flags,
+                            Access::Mode mode,
+                            ResponseHandler* handler,
+                            uint16_t timeout);
+
 
   //----------------------------------------------------------------------------
   //! Close
   //----------------------------------------------------------------------------
-  virtual XRootDStatus Close( ResponseHandler* handler,
-                              uint16_t timeout );
-  
-  
+  virtual XRootDStatus Close(ResponseHandler* handler,
+                             uint16_t timeout);
+
+
   //----------------------------------------------------------------------------
   //! Stat
   //----------------------------------------------------------------------------
-  virtual XRootDStatus Stat( bool force,
-                             ResponseHandler* handler,
-                             uint16_t timeout );
-  
+  virtual XRootDStatus Stat(bool force,
+                            ResponseHandler* handler,
+                            uint16_t timeout);
+
 
   //----------------------------------------------------------------------------
   //! Read
   //----------------------------------------------------------------------------
-  virtual XRootDStatus Read( uint64_t offset,
-                             uint32_t size,
-                             void* buffer,
-                             ResponseHandler* handler,
-                             uint16_t timeout );
-  
+  virtual XRootDStatus Read(uint64_t offset,
+                            uint32_t size,
+                            void* buffer,
+                            ResponseHandler* handler,
+                            uint16_t timeout);
+
 
   //----------------------------------------------------------------------------
   //! Write
   //----------------------------------------------------------------------------
-  virtual XRootDStatus Write( uint64_t offset,
-                              uint32_t size,
-                              const void* buffer,
-                              ResponseHandler* handler,
-                              uint16_t timeout );
-  
-  
+  virtual XRootDStatus Write(uint64_t offset,
+                             uint32_t size,
+                             const void* buffer,
+                             ResponseHandler* handler,
+                             uint16_t timeout);
+
+
   //----------------------------------------------------------------------------
   //! Sync
   //----------------------------------------------------------------------------
-  virtual XRootDStatus Sync( ResponseHandler* handler,
-                             uint16_t timeout );
-  
+  virtual XRootDStatus Sync(ResponseHandler* handler,
+                            uint16_t timeout);
+
 
   //----------------------------------------------------------------------------
   //! Truncate
   //----------------------------------------------------------------------------
-  virtual XRootDStatus Truncate( uint64_t size,
-                                 ResponseHandler* handler,
-                                 uint16_t timeout );
-  
+  virtual XRootDStatus Truncate(uint64_t size,
+                                ResponseHandler* handler,
+                                uint16_t timeout);
+
 
   //----------------------------------------------------------------------------
   //! VectorRead
   //----------------------------------------------------------------------------
-  virtual XRootDStatus VectorRead( const ChunkList& chunks,
-                                   void* buffer,
-                                   ResponseHandler* handler,
-                                   uint16_t timeout );
+  virtual XRootDStatus VectorRead(const ChunkList& chunks,
+                                  void* buffer,
+                                  ResponseHandler* handler,
+                                  uint16_t timeout);
 
 
   //------------------------------------------------------------------------
   //! Fcntl
   //------------------------------------------------------------------------
-  virtual XRootDStatus Fcntl( const Buffer& arg,
-                              ResponseHandler* handler,
-                              uint16_t timeout );
+  virtual XRootDStatus Fcntl(const Buffer& arg,
+                             ResponseHandler* handler,
+                             uint16_t timeout);
 
 
   //----------------------------------------------------------------------------
   //! Visa
   //----------------------------------------------------------------------------
-  virtual XRootDStatus Visa( ResponseHandler* handler,
-                             uint16_t timeout );
+  virtual XRootDStatus Visa(ResponseHandler* handler,
+                            uint16_t timeout);
 
 
   //----------------------------------------------------------------------------
   //! IsOpen
   //----------------------------------------------------------------------------
   virtual bool IsOpen() const;
-  
+
 
   //----------------------------------------------------------------------------
   //! @see XrdCl::File::SetProperty
   //----------------------------------------------------------------------------
-  virtual bool SetProperty( const std::string &name,
-                            const std::string &value );
+  virtual bool SetProperty(const std::string& name,
+                           const std::string& value);
 
-  
+
   //----------------------------------------------------------------------------
   //! @see XrdCl::File::GetProperty
   //----------------------------------------------------------------------------
-  virtual bool GetProperty( const std::string &name,
-                            std::string &value ) const;
- 
-  
+  virtual bool GetProperty(const std::string& name,
+                           std::string& value) const;
+
+
   //----------------------------------------------------------------------------
   //! @see XrdCl::File::GetDataServer
   //----------------------------------------------------------------------------
   virtual std::string GetDataServer() const;
-  
+
 
   //----------------------------------------------------------------------------
   //! @see XrdCl::File::GetLastURL
   //----------------------------------------------------------------------------
   virtual URL GetLastURL() const;
-  
- private:
 
-  bool mIsOpen; 
+private:
+
+  bool mIsOpen;
   XrdCl::File* pFile;
-  eos::fst::RaidMetaLayout *pRainFile;
-  
+  eos::fst::RainMetaLayout* pRainFile;
+
 };
 
 EOSFSTNAMESPACE_END

@@ -23,7 +23,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "RainFile.hh"
-#include "fst/layout/RaidMetaLayout.hh"
+#include "fst/layout/RainMetaLayout.hh"
 #include "fst/layout/RaidDpLayout.hh"
 #include "fst/layout/ReedSLayout.hh"
 /*----------------------------------------------------------------------------*/

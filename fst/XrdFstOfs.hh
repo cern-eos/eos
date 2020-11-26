@@ -69,7 +69,7 @@ EOSFSTNAMESPACE_BEGIN
 
 // Forward declarations
 class ReplicaParLayout;
-class RaidMetaLayout;
+class RainMetaLayout;
 class HttpServer;
 class Storage;
 class Messaging;
@@ -82,7 +82,7 @@ class XrdFstOfs : public XrdOfs, public eos::common::LogId
 {
   friend class XrdFstOfsFile;
   friend class ReplicaParLayout;
-  friend class RaidMetaLayout;
+  friend class RainMetaLayout;
 
 public:
   std::atomic<bool> sShutdown; ///< True if shutdown procedure is running

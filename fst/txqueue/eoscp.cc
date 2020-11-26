@@ -136,7 +136,7 @@ std::string opaqueInfo; ///< opaque info containing the capabilities
 
 std::string replicationType = "";
 //TODO: deal with the case when both the source and the destination are RAIN files
-eos::fst::RaidMetaLayout* redundancyObj = NULL;
+eos::fst::RainMetaLayout* redundancyObj = NULL;
 
 //..............................................................................
 // Checksum variables

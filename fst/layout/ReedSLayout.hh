@@ -26,7 +26,7 @@
 #define __EOSFST_REEDSFILE_HH__
 
 /*----------------------------------------------------------------------------*/
-#include "fst/layout/RaidMetaLayout.hh"
+#include "fst/layout/RainMetaLayout.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -35,7 +35,7 @@ EOSFSTNAMESPACE_BEGIN
 //! Implementation of the Reed-Solomon layout - this uses the Jerasure code
 //! for implementing Cauchy Reed-Solomon
 //------------------------------------------------------------------------------
-class ReedSLayout : public RaidMetaLayout
+class ReedSLayout : public RainMetaLayout
 {
 public:
 

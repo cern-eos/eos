@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: RaidMetaLayout.cc
+// File: RainMetaLayout.cc
 // Author Elvin-Alin Sindrilaru <esindril@cern.ch>
 //------------------------------------------------------------------------------
 
@@ -26,7 +26,7 @@
 #include <utility>
 #include <stdint.h>
 #include "common/Timing.hh"
-#include "fst/layout/RaidMetaLayout.hh"
+#include "fst/layout/RainMetaLayout.hh"
 #include "fst/io/AsyncMetaHandler.hh"
 #include "fst/layout/HeaderCRC.hh"
 
@@ -42,7 +42,7 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-RaidMetaLayout::RaidMetaLayout(XrdFstOfsFile* file,
+RainMetaLayout::RainMetaLayout(XrdFstOfsFile* file,
                                unsigned long lid,
                                const XrdSecEntity* client,
                                XrdOucErrInfo* outError,
@@ -85,7 +85,7 @@ RaidMetaLayout::RaidMetaLayout(XrdFstOfsFile* file,
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-RaidMetaLayout::~RaidMetaLayout()
+RainMetaLayout::~RainMetaLayout()
 {
   while (!mHdrInfo.empty()) {
     HeaderCRC* hd = mHdrInfo.back();
@@ -114,7 +114,7 @@ RaidMetaLayout::~RaidMetaLayout()
 //------------------------------------------------------------------------------
 // Redirect to new target
 //------------------------------------------------------------------------------
-void RaidMetaLayout::Redirect(const char* path)
+void RainMetaLayout::Redirect(const char* path)
 {
   mFileIO.reset(FileIoPlugin::GetIoObject(path, mOfsFile, mSecEntity));
 }
@@ -123,7 +123,7 @@ void RaidMetaLayout::Redirect(const char* path)
 // Open file layout
 //------------------------------------------------------------------------------
 int
-RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
+RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
 {
   // Do some minimal checkups
   if (mNbTotalFiles < 6) {
@@ -255,7 +255,7 @@ RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
     // For read we tolerate at most mNbParityFiles missing, for write none
     if ((!mIsRw && (nmissing > mNbParityFiles)) ||
         (mIsRw && nmissing)) {
-      eos_err("msg=\"failed to open RaidMetaLayout - %i stripes are missing and "
+      eos_err("msg=\"failed to open RainMetaLayout - %i stripes are missing and "
               "parity is %i\"", nmissing, mNbParityFiles);
       errno = EREMOTEIO;
       return SFS_ERROR;
@@ -382,7 +382,7 @@ RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
 // Open file using paralled IO
 //------------------------------------------------------------------------------
 int
-RaidMetaLayout::OpenPio(std::vector<std::string> stripeUrls,
+RainMetaLayout::OpenPio(std::vector<std::string> stripeUrls,
                         XrdSfsFileOpenMode flags,
                         mode_t mode,
                         const char* opaque)
@@ -492,7 +492,7 @@ RaidMetaLayout::OpenPio(std::vector<std::string> stripeUrls,
 // Test and recover if headers are corrupted
 //------------------------------------------------------------------------------
 bool
-RaidMetaLayout::ValidateHeader()
+RainMetaLayout::ValidateHeader()
 {
   bool new_file = true;
   bool all_hd_valid = true;
@@ -584,7 +584,7 @@ RaidMetaLayout::ValidateHeader()
 // Read from file
 //------------------------------------------------------------------------------
 int64_t
-RaidMetaLayout::Read(XrdSfsFileOffset offset, char* buffer,
+RainMetaLayout::Read(XrdSfsFileOffset offset, char* buffer,
                      XrdSfsXferSize length, bool readahead)
 {
   eos_debug("offset=%llu, length=%i", offset, length);
@@ -712,7 +712,7 @@ RaidMetaLayout::Read(XrdSfsFileOffset offset, char* buffer,
 // Vector read
 //------------------------------------------------------------------------------
 int64_t
-RaidMetaLayout::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
+RainMetaLayout::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
 {
   int64_t nread = 0;
   AsyncMetaHandler* phandler = 0;
@@ -837,7 +837,7 @@ RaidMetaLayout::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
 // Write to file
 //------------------------------------------------------------------------------
 int64_t
-RaidMetaLayout::Write(XrdSfsFileOffset offset,
+RainMetaLayout::Write(XrdSfsFileOffset offset,
                       const char* buffer,
                       XrdSfsXferSize length)
 {
@@ -860,13 +860,12 @@ RaidMetaLayout::Write(XrdSfsFileOffset offset,
   } else {
     // Detect if this is a non-streaming write
     if (mIsStreaming && ((uint64_t)offset != mLastWriteOffset)) {
-      eos_debug("enable non-streaming mode");
+      eos_debug("%s", "msg=\"enable non-streaming mode\"");
       mIsStreaming = false;
     }
 
     mLastWriteOffset += length;
 
-    // Only entry server does this
     while (length) {
       auto pos = GetLocalPos(offset);
       physical_id = mapLP[pos.first];
@@ -934,7 +933,7 @@ RaidMetaLayout::Write(XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 
 bool
-RaidMetaLayout::DoBlockParity(uint64_t offGroup)
+RainMetaLayout::DoBlockParity(uint64_t offGroup)
 {
   bool done;
   eos::common::Timing up("parity");
@@ -962,7 +961,7 @@ RaidMetaLayout::DoBlockParity(uint64_t offGroup)
 // the corrupted pieces in the initial file.
 //------------------------------------------------------------------------------
 bool
-RaidMetaLayout::RecoverPieces(XrdCl::ChunkList& errs)
+RainMetaLayout::RecoverPieces(XrdCl::ChunkList& errs)
 {
   bool success = true;
   XrdCl::ChunkList grp_errs;
@@ -996,7 +995,7 @@ RaidMetaLayout::RecoverPieces(XrdCl::ChunkList& errs)
 // Add a new piece to the map of pieces written to the file
 //------------------------------------------------------------------------------
 void
-RaidMetaLayout::AddPiece(uint64_t offset, uint32_t length)
+RainMetaLayout::AddPiece(uint64_t offset, uint32_t length)
 {
   auto it = mMapPieces.find(offset);
 
@@ -1013,7 +1012,7 @@ RaidMetaLayout::AddPiece(uint64_t offset, uint32_t length)
 // Merge pieces in the map
 //------------------------------------------------------------------------------
 void
-RaidMetaLayout::MergePieces()
+RainMetaLayout::MergePieces()
 {
   uint64_t off_end;
   auto it1 = mMapPieces.begin();
@@ -1041,7 +1040,7 @@ RaidMetaLayout::MergePieces()
 // Read data from the current group for parity computation
 //------------------------------------------------------------------------------
 bool
-RaidMetaLayout::ReadGroup(uint64_t offGroup)
+RainMetaLayout::ReadGroup(uint64_t offGroup)
 {
   unsigned int physical_id;
   uint64_t off_local;
@@ -1114,7 +1113,7 @@ RaidMetaLayout::ReadGroup(uint64_t offGroup)
 // Get a list of the group offsets for which we can compute the parity info
 //------------------------------------------------------------------------------
 void
-RaidMetaLayout::GetOffsetGroups(std::set<uint64_t>& offGroups, bool forceAll)
+RainMetaLayout::GetOffsetGroups(std::set<uint64_t>& offGroups, bool forceAll)
 {
   size_t length;
   uint64_t offset;
@@ -1181,7 +1180,7 @@ RaidMetaLayout::GetOffsetGroups(std::set<uint64_t>& offGroups, bool forceAll)
 // Compute parity for the non-streaming case and write it to files
 //------------------------------------------------------------------------------
 bool
-RaidMetaLayout::SparseParityComputation(bool force)
+RainMetaLayout::SparseParityComputation(bool force)
 {
   bool done = true;
   std::set<uint64_t> off_grps;
@@ -1213,7 +1212,7 @@ RaidMetaLayout::SparseParityComputation(bool force)
 // Sync files to disk
 //------------------------------------------------------------------------------
 int
-RaidMetaLayout::Sync()
+RainMetaLayout::Sync()
 {
   int ret = SFS_OK;
 
@@ -1253,9 +1252,9 @@ RaidMetaLayout::Sync()
 // Unlink all connected pieces
 //------------------------------------------------------------------------------
 int
-RaidMetaLayout::Remove()
+RainMetaLayout::Remove()
 {
-  eos_debug("Calling RaidMetaLayout::Remove");
+  eos_debug("Calling RainMetaLayout::Remove");
   int ret = SFS_OK;
 
   if (mIsEntryServer) {
@@ -1289,7 +1288,7 @@ RaidMetaLayout::Remove()
 // Get stat about file
 //------------------------------------------------------------------------------
 int
-RaidMetaLayout::Stat(struct stat* buf)
+RainMetaLayout::Stat(struct stat* buf)
 {
   eos_debug("Calling Stat");
   int rc = SFS_OK;
@@ -1336,7 +1335,7 @@ RaidMetaLayout::Stat(struct stat* buf)
 // Close file
 //------------------------------------------------------------------------------
 int
-RaidMetaLayout::Close()
+RainMetaLayout::Close()
 {
   XrdSysMutexHelper scope_lock(mExclAccess);
   eos::common::Timing ct("close");
@@ -1464,7 +1463,7 @@ RaidMetaLayout::Close()
 // Execute implementation dependant command
 //----------------------------------------------------------------------------
 int
-RaidMetaLayout::Fctl(const std::string& cmd, const XrdSecEntity* client)
+RainMetaLayout::Fctl(const std::string& cmd, const XrdSecEntity* client)
 {
   int retc = SFS_OK;
 
@@ -1487,7 +1486,7 @@ RaidMetaLayout::Fctl(const std::string& cmd, const XrdSecEntity* client)
 // one is read from its corresponding stripe file
 //------------------------------------------------------------------------------
 XrdCl::ChunkList
-RaidMetaLayout::SplitRead(uint64_t off, uint32_t len, char* buff)
+RainMetaLayout::SplitRead(uint64_t off, uint32_t len, char* buff)
 {
   uint32_t sz;
   uint64_t block_end;
@@ -1518,7 +1517,7 @@ RaidMetaLayout::SplitRead(uint64_t off, uint32_t len, char* buff)
 // Split vector read request into LOCAL request for each of the data stripes
 //------------------------------------------------------------------------------
 std::vector<XrdCl::ChunkList>
-RaidMetaLayout::SplitReadV(XrdCl::ChunkList& chunkList, uint32_t sizeHdr)
+RainMetaLayout::SplitReadV(XrdCl::ChunkList& chunkList, uint32_t sizeHdr)
 {
   std::vector<XrdCl::ChunkList> stripe_readv; ///< readV request per stripe files
   stripe_readv.reserve(mNbDataFiles);

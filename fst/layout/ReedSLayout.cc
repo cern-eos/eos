@@ -48,7 +48,7 @@ ReedSLayout::ReedSLayout(XrdFstOfsFile* file,
                          bool storeRecovery,
                          off_t targetSize,
                          std::string bookingOpaque) :
-  RaidMetaLayout(file, lid, client, outError, path, timeout,
+  RainMetaLayout(file, lid, client, outError, path, timeout,
                  storeRecovery, targetSize, bookingOpaque),
   mDoneInitialisation(false),
   mPacketSize(0), matrix(0), bitmatrix(0), schedule(0)

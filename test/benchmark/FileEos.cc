@@ -29,7 +29,7 @@
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "fst/io/FileIoPlugin.hh"
 #include "fst/io/AsyncMetaHandler.hh"
-#include "fst/layout/RaidMetaLayout.hh"
+#include "fst/layout/RainMetaLayout.hh"
 #include "fst/layout/RaidDpLayout.hh"
 #include "fst/layout/ReedSLayout.hh"
 #include "common/Timing.hh"
@@ -264,7 +264,7 @@ FileEos::ReadPio(Result*& result)
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
   XrdCl::XRootDStatus status;
-  eos::fst::RaidMetaLayout* file = 0;
+  eos::fst::RainMetaLayout* file = 0;
   XrdSfsFileOpenMode flags_sfs = SFS_O_RDONLY; // open for read by default
 
   // Allocate a pool of read buffers and then do round-robin for reading in them

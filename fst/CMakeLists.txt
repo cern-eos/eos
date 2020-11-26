@@ -132,7 +132,7 @@ add_library(EosFstIo-Objects OBJECT
   layout/PlainLayout.cc          layout/PlainLayout.hh
   layout/HeaderCRC.cc            layout/HeaderCRC.hh
   layout/ReplicaParLayout.cc     layout/ReplicaParLayout.hh
-  layout/RaidMetaLayout.cc       layout/RaidMetaLayout.hh
+  layout/RainMetaLayout.cc       layout/RainMetaLayout.hh
   layout/RaidDpLayout.cc         layout/RaidDpLayout.hh
   layout/ReedSLayout.cc          layout/ReedSLayout.hh)
 

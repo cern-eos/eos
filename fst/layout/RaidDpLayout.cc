@@ -46,7 +46,7 @@ RaidDpLayout::RaidDpLayout(XrdFstOfsFile* file,
                            bool storeRecovery,
                            off_t targetSize,
                            std::string bookingOpaque) :
-  RaidMetaLayout(file, lid, client, outError, path, timeout,
+  RainMetaLayout(file, lid, client, outError, path, timeout,
                  storeRecovery, targetSize, bookingOpaque)
 {
   mNbDataBlocks = static_cast<int>(pow((double) mNbDataFiles, 2));
