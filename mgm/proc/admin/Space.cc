@@ -550,6 +550,7 @@ ProcCommand::Space()
                   (key == "filearchivedgc") ||
                   (key == eos::mgm::tgc::TGC_NAME_QRY_PERIOD_SECS) ||
                   (key == eos::mgm::tgc::TGC_NAME_AVAIL_BYTES) ||
+                  (key == eos::mgm::tgc::TGC_NAME_FREE_BYTES_SCRIPT) ||
                   (key == eos::mgm::tgc::TGC_NAME_TOTAL_BYTES) ||
                   (key == "balancer.threshold") ||
                   (key == "token.generation") ||

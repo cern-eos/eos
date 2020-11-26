@@ -122,10 +122,29 @@ public:
   std::map<std::string, std::set<FileIdAndCtime> > getSpaceToDiskReplicasMap(
     const std::set<std::string> &spacesToMap, std::atomic<bool> &stop, uint64_t &nbFilesScanned) override;
 
+  //----------------------------------------------------------------------------
+  //! @return The stdout of the specified shell cmd as a string
+  //! @param cmdStr The shell command string to be executed
+  //! @param maxLen The maximum length of the result
+  //----------------------------------------------------------------------------
+  std::string getStdoutFromShellCmd(const std::string &cmdStr, const ssize_t maxLen) const override;
+
 private:
 
   /// The XRootD OFS plugin implementing the metadata handling of EOS
   XrdMgmOfs &m_ofs;
+
+  //----------------------------------------------------------------------------
+  //! @return The string value of the specified space configuration variable.
+  //! If the value cannot be determined for whatever reason then the specified
+  //! default is returned.
+  //!
+  //! @param spaceName The name of the space
+  //! @param memberName The name of the space configuration member.
+  //! @param defaultValue The default value of the space configuration member.
+  //----------------------------------------------------------------------------
+  static std::string getSpaceConfigMemberString(const std::string &spaceName, const std::string &memberName,
+                                                std::string defaultValue) noexcept;
 
   //----------------------------------------------------------------------------
   //! @return The unit64_t value of the specified space configuration variable.

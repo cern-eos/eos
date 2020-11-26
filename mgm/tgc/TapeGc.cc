@@ -139,7 +139,7 @@ TapeGc::tryToGarbageCollectASingleFile() noexcept
     const auto config = m_config.get();
 
     try {
-      const auto spaceStats = m_spaceStats.get();
+      const auto spaceStats = m_spaceStats.get().stats;
 
       // Return no file was garbage collected if there is still enough available
       // space or if the total amount of space is not enough (not all disk
@@ -242,7 +242,7 @@ TapeGc::getStats() noexcept
 
     tgcStats.nbStagerrms = m_nbStagerrms;
     tgcStats.lruQueueSize = getLruQueueSize();
-    tgcStats.spaceStats = m_spaceStats.get();
+    tgcStats.spaceStats = m_spaceStats.get().stats;
     tgcStats.queryTimestamp = m_spaceStats.getQueryTimestamp();
 
     return tgcStats;

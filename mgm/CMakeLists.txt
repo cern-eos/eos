@@ -67,18 +67,19 @@ install(
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 
 set (MGM_TGC_SRC_FILES
-  tgc/MultiSpaceTapeGc.cc
-  tgc/SpaceToTapeGcMap.cc
+  tgc/AsyncUint64ShellCmd.cc
   tgc/DummyTapeGcMgm.cc
   tgc/FreedBytesHistogram.cc
   tgc/IClock.cc
   tgc/ITapeGcMgm.cc
   tgc/Lru.cc
   tgc/MaxLenExceeded.cc
+  tgc/MultiSpaceTapeGc.cc
   tgc/RealClock.cc
   tgc/RealTapeGcMgm.cc
   tgc/SmartSpaceStats.cc
   tgc/SpaceNotFound.cc
+  tgc/SpaceToTapeGcMap.cc
   tgc/TapeGc.cc
   tgc/Utils.cc)
 

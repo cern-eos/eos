@@ -22,6 +22,8 @@
  ************************************************************************/
 
 #include "common/Logging.hh"
+#include "common/ShellCmd.hh"
+#include "common/StringUtils.hh"
 #include "mgm/tgc/SmartSpaceStats.hh"
 #include "mgm/tgc/Utils.hh"
 
@@ -33,6 +35,7 @@ EOSTGCNAMESPACE_BEGIN
 //! Constructor
 //------------------------------------------------------------------------------
 SmartSpaceStats::SmartSpaceStats(const std::string &spaceName, ITapeGcMgm &mgm, CachedValue<SpaceConfig> &config):
+  m_asyncUint64ShellCmd(mgm),
   m_spaceName(spaceName),
   m_mgm(mgm),
   m_queryMgmTimestamp(0),
@@ -44,7 +47,7 @@ SmartSpaceStats::SmartSpaceStats(const std::string &spaceName, ITapeGcMgm &mgm, 
 //------------------------------------------------------------------------------
 // Return statistics about the EOS space being managed
 //------------------------------------------------------------------------------
-SpaceStats
+SmartSpaceStats::SpaceStatsAndAvailBytesSrc
 SmartSpaceStats::get()
 {
   const std::time_t now = time(nullptr);
@@ -55,11 +58,67 @@ SmartSpaceStats::get()
   const std::time_t secsSinceLastQuery = now - m_queryMgmTimestamp;
 
   if(secsSinceLastQuery >= spaceConfig.queryPeriodSecs) {
+    m_mgmStats = SpaceStatsAndAvailBytesSrc();
+
     try {
-      m_mgmStats = m_mgm.getSpaceStats(m_spaceName);
+      m_mgmStats.stats = m_mgm.getSpaceStats(m_spaceName);
+
+      if (spaceConfig.freeBytesScript.empty()) {
+        m_mgmStats.availBytesSrc = Src::INTERNAL_BECAUSE_SCRIPT_PATH_EMPTY;
+      } else {
+        // Try to overwrite m_mgmStats.availBytes if tgc.freebytesscript is set
+        if (!spaceConfig.freeBytesScript.empty()) {
+          try {
+            std::ostringstream cmd;
+            cmd << spaceConfig.freeBytesScript << " " << m_spaceName;
+            const auto asyncResult = m_asyncUint64ShellCmd.getUint64FromShellCmdStdOut(cmd.str());
+            switch (asyncResult.getState()) {
+            case AsyncResult<std::uint64_t>::State::PENDING_AND_NO_PREVIOUS_VALUE:
+              // Don't overwrite m_mgmStats.availBytes
+              m_mgmStats.availBytesSrc = Src::INTERNAL_BECAUSE_SCRIPT_PENDING_AND_NO_PREVIOUS_VALUE;
+              break;
+            case AsyncResult<std::uint64_t>::State::PENDING_AND_PREVIOUS_VALUE:
+              if (asyncResult.getPreviousValue()) {
+                // Use the previous value for now
+                m_mgmStats.stats.availBytes = asyncResult.getPreviousValue().value();
+                m_mgmStats.availBytesSrc = Src::SCRIPT_PREVIOUS_VALUE_BECAUSE_SCRIPT_PENDING;
+              } else {
+                throw std::runtime_error(
+                  "State of AsyncResult is PENDING_AND_PREVIOUS_VALUE but it does not contain a previous value");
+              }
+            case AsyncResult<std::uint64_t>::State::VALUE:
+              if (asyncResult.getValue()) {
+                m_mgmStats.stats.availBytes = asyncResult.getValue().value();
+                m_mgmStats.availBytesSrc = Src::SCRIPT_VALUE_BECAUSE_SCRIPT_JUST_FINISHED;
+              }
+              break;
+            case AsyncResult<std::uint64_t>::State::ERROR:
+              if (asyncResult.getError()) {
+                std::stringstream msg;
+                msg << "Execution of script failed with an error: " << asyncResult.getError().value();
+                throw std::runtime_error(msg.str());
+              } else {
+                throw std::runtime_error("State of AsyncResult is EXCEPTION but it does not contain an exception");
+              }
+            default:
+              throw std::runtime_error("Unknown AsyncResult::State");
+            }
+          } catch (std::exception &ex) {
+            m_mgmStats.availBytesSrc = Src::INTERNAL_BECAUSE_SCRIPT_ERROR;
+            eos_static_err(
+              "msg=\"Failed to get and parse output of tgc.freebytesscript. Falling back to internal filesystem stats\""
+              " space=\"%s\" tgc.freebytesscript=\"%s\" error=\"%s\"", m_spaceName.c_str(),
+              spaceConfig.freeBytesScript.c_str(), ex.what());
+          }
+        }
+      }
+    } catch (std::exception &se) {
+      eos_static_err("spaceName=\"%s\" msg=\"Failed to get space stats\" error=\"%s\"", m_spaceName.c_str(), se.what());
     } catch(...) {
-      m_mgmStats = SpaceStats();
+      eos_static_err("spaceName=\"%s\" msg=\"Failed to get space stats\" error=\"Caught unknown exception\"",
+        m_spaceName.c_str());
     }
+
     m_queryMgmTimestamp = now;
   }
 
@@ -102,7 +161,7 @@ SmartSpaceStats::get()
     msg << "msg=\"" << ex.what() << "\"";
     eos_static_err(msg.str().c_str());
   }
-  m_mgmStats.availBytes += nbBytesFreed;
+  m_mgmStats.stats.availBytes += nbBytesFreed;
 
   return m_mgmStats;
 }

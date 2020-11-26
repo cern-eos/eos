@@ -64,6 +64,7 @@ set(MGM_UT_SRCS
   mgm/tgc/FreedBytesHistogramTests.cc
   mgm/tgc/LruTests.cc
   mgm/tgc/MultiSpaceTapeGcTests.cc
+  mgm/tgc/SmartSpaceStatsTests.cc
   mgm/tgc/SpaceToTapeGcMapTests.cc
   mgm/tgc/TapeGcTests.cc
   mgm/tgc/UtilsTests.cc

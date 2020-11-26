@@ -25,6 +25,7 @@
 #define __EOSMGMSMARTSPACESTATS_HH__
 
 #include "mgm/Namespace.hh"
+#include "mgm/tgc/AsyncUint64ShellCmd.hh"
 #include "mgm/tgc/CachedValue.hh"
 #include "mgm/tgc/FreedBytesHistogram.hh"
 #include "mgm/tgc/ITapeGcMgm.hh"
@@ -68,10 +69,37 @@ public:
   //----------------------------------------------------------------------------
   void diskReplicaQueuedForDeletion(size_t fileSizeBytes);
 
+  enum class Src {
+    NONE,
+    INTERNAL_BECAUSE_SCRIPT_PATH_EMPTY,
+    INTERNAL_BECAUSE_SCRIPT_PENDING_AND_NO_PREVIOUS_VALUE,
+    INTERNAL_BECAUSE_SCRIPT_ERROR,
+    SCRIPT_VALUE_BECAUSE_SCRIPT_JUST_FINISHED,
+    SCRIPT_PREVIOUS_VALUE_BECAUSE_SCRIPT_PENDING
+  };
+
+  static const char *srcToStr(const Src src) {
+    switch(src) {
+    case Src::NONE: return "NONE";
+    case Src::INTERNAL_BECAUSE_SCRIPT_PATH_EMPTY: return "INTERNAL_BECAUSE_SCRIPT_PATH_EMPTY";
+    case Src::INTERNAL_BECAUSE_SCRIPT_PENDING_AND_NO_PREVIOUS_VALUE:
+      return "INTERNAL_BECAUSE_SCRIPT_PENDING_AND_NO_PREVIOUS_VALUE";
+    case Src::INTERNAL_BECAUSE_SCRIPT_ERROR: return "INTERNAL_BECAUSE_SCRIPT_ERROR";
+    case Src::SCRIPT_VALUE_BECAUSE_SCRIPT_JUST_FINISHED: return "SCRIPT_VALUE_BECAUSE_SCRIPT_JUST_FINISHED";
+    case Src::SCRIPT_PREVIOUS_VALUE_BECAUSE_SCRIPT_PENDING: return "SCRIPT_PREVIOUS_VALUE_BECAUSE_SCRIPT_PENDING";
+    default: return "UNKNOWN";
+    }
+  }
+
+  struct SpaceStatsAndAvailBytesSrc {
+    SpaceStats stats;
+    Src availBytesSrc = Src::NONE;
+  };
+
   //----------------------------------------------------------------------------
   //! @return statistics about the EOS space being managed
   //----------------------------------------------------------------------------
-  SpaceStats get();
+  SpaceStatsAndAvailBytesSrc get();
 
   //----------------------------------------------------------------------------
   //! @return timestamp at which the last query was made
@@ -79,6 +107,12 @@ public:
   std::time_t getQueryTimestamp();
 
 private:
+
+  //----------------------------------------------------------------------------
+  //! Object used to asynchronously run no more than one shell command at a time
+  //! and allow the uint64 result printed on its standard out to be polled.
+  //----------------------------------------------------------------------------
+  AsyncUint64ShellCmd m_asyncUint64ShellCmd;
 
   //----------------------------------------------------------------------------
   //! Name of the EOS space being managed
@@ -103,7 +137,7 @@ private:
   //----------------------------------------------------------------------------
   //! MGM statistics about the EOS space being managed
   //----------------------------------------------------------------------------
-  SpaceStats m_mgmStats;
+  SpaceStatsAndAvailBytesSrc m_mgmStats;
 
   //----------------------------------------------------------------------------
   //! Object responsible for providing the current time

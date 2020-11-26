@@ -682,6 +682,17 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             }
           }
         }
+      } else if (key == eos::mgm::tgc::TGC_NAME_FREE_BYTES_SCRIPT) {
+        applied = true;
+
+        if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key, value)) {
+          std_err.str("error: cannot set space config value");
+          ret_c = EIO;
+        } else {
+          std_out.str("success: configured policy in space='" + config.mgmspace_name() +
+                      "' as " + key + "='" + value + "'\n");
+          ret_c = 0;
+        }
       } else {
         if ((key == "nominalsize") ||
             (key == "headroom") ||

@@ -24,6 +24,8 @@
 #include "mgm/tgc/Utils.hh"
 
 #include <gtest/gtest.h>
+#include <limits>
+#include <unistd.h>
 
 class TgcUtilsTest : public ::testing::Test {
 protected:
@@ -38,68 +40,56 @@ protected:
 //------------------------------------------------------------------------------
 // Test
 //------------------------------------------------------------------------------
-TEST_F(TgcUtilsTest, isValidUInt_unsigned_int) {
+TEST_F(TgcUtilsTest, toUint64) {
   using namespace eos::mgm::tgc;
 
-  ASSERT_TRUE(Utils::isValidUInt("12345"));
+  const std::string str = "12345";
+
+  ASSERT_EQ(12345, Utils::toUint64(str));
 }
 
 //------------------------------------------------------------------------------
 // Test
 //------------------------------------------------------------------------------
-TEST_F(TgcUtilsTest, isValidUInt_empty_string) {
-  using namespace eos::mgm::tgc;
-
-  ASSERT_FALSE(Utils::isValidUInt(""));
-}
-
-//------------------------------------------------------------------------------
-// Test
-//------------------------------------------------------------------------------
-TEST_F(TgcUtilsTest, isValidUInt_signed_int) {
-  using namespace eos::mgm::tgc;
-
-  ASSERT_FALSE(Utils::isValidUInt("-12345"));
-}
-
-//------------------------------------------------------------------------------
-// Test
-//------------------------------------------------------------------------------
-TEST_F(TgcUtilsTest, isValidUInt_not_a_number) {
-  using namespace eos::mgm::tgc;
-
-  ASSERT_FALSE(Utils::isValidUInt("one"));
-}
-
-TEST_F(TgcUtilsTest, toUint64_unsigned_int) {
-  using namespace eos::mgm::tgc;
-
-  ASSERT_EQ((uint64_t)12345, Utils::toUint64("12345"));
-  ASSERT_EQ((uint64_t)18446744073709551615ULL, Utils::toUint64("18446744073709551615"));
-}
-
-TEST_F(TgcUtilsTest, toUint64_out_of_range) {
-  using namespace eos::mgm::tgc;
-
-  ASSERT_THROW(Utils::toUint64("18446744073709551616"), Utils::OutOfRangeUint64);
-}
-
-TEST_F(TgcUtilsTest, toUint64_empty_string) {
-  using namespace eos::mgm::tgc;
-
-  ASSERT_THROW(Utils::toUint64(""), Utils::InvalidUint64);
-}
-
 TEST_F(TgcUtilsTest, toUint64_max) {
   using namespace eos::mgm::tgc;
 
-  ASSERT_EQ((uint64_t)18446744073709551615UL, Utils::toUint64("18446744073709551615"));
+  const std::string str = "18446744073709551615";
+
+  ASSERT_EQ(std::numeric_limits<std::uint64_t>::max(), Utils::toUint64(str));
 }
 
-TEST_F(TgcUtilsTest, toUint64_not_a_number) {
+//------------------------------------------------------------------------------
+// Test
+//------------------------------------------------------------------------------
+TEST_F(TgcUtilsTest, toUint64_empty_string) {
   using namespace eos::mgm::tgc;
 
-  ASSERT_THROW(Utils::toUint64("one"), Utils::InvalidUint64);
+  const std::string str;
+
+  ASSERT_THROW(Utils::toUint64(str), Utils::EmptyString);
+}
+
+//------------------------------------------------------------------------------
+// Test
+//------------------------------------------------------------------------------
+TEST_F(TgcUtilsTest, toUint64_non_numerioc) {
+  using namespace eos::mgm::tgc;
+
+  const std::string str = "12345a";
+
+  ASSERT_THROW(Utils::toUint64(str), Utils::NonNumericChar);
+}
+
+//------------------------------------------------------------------------------
+// Test
+//------------------------------------------------------------------------------
+TEST_F(TgcUtilsTest, toUint64_out_of_range) {
+  using namespace eos::mgm::tgc;
+
+  const std::string str = "18446744073709551616";
+
+  ASSERT_THROW(Utils::toUint64(str), Utils::ParsedValueOutOfRange);
 }
 
 //------------------------------------------------------------------------------
@@ -219,4 +209,68 @@ TEST_F(TgcUtilsTest, bufToTimespec_BufSizeMismatch) {
   std::string buf((char *)&src, sizeof(src) - 1);
 
   ASSERT_THROW(Utils::bufToTimespec(buf), Utils::BufSizeMismatch);
+}
+
+//------------------------------------------------------------------------------
+// Test
+//------------------------------------------------------------------------------
+TEST_F(TgcUtilsTest, readFdIntoStr) {
+  using namespace eos::mgm::tgc;
+
+  int pipeFds[2] = {0, 0};
+
+  ASSERT_NE(-1, pipe(pipeFds));
+
+  const char msg[] = "1234";
+  const std::string msgStr = msg;
+
+  ASSERT_EQ(sizeof(msg), ::write(pipeFds[1], msg, sizeof(msg)));
+
+  const ssize_t maxStrLen = sizeof(msg) - 1;
+  const std::string resultStr = Utils::readFdIntoStr(pipeFds[0], maxStrLen);
+
+  ASSERT_EQ(msgStr, resultStr);
+}
+
+//------------------------------------------------------------------------------
+// Test
+//------------------------------------------------------------------------------
+TEST_F(TgcUtilsTest, readFdIntoStr_write_gt_maxStrLen) {
+  using namespace eos::mgm::tgc;
+
+  int pipeFds[2] = {0, 0};
+
+  ASSERT_NE(-1, pipe(pipeFds));
+
+  const char msg[] = "1234";
+  ASSERT_GE(sizeof(msg), 2);
+
+  ASSERT_EQ(sizeof(msg), ::write(pipeFds[1], msg, sizeof(msg)));
+
+  const ssize_t maxStrLen = sizeof(msg) - 2; // Drop one char off the end
+  const std::string resultStr = Utils::readFdIntoStr(pipeFds[0], maxStrLen);
+
+  const std::string expectedStr = "123";
+  ASSERT_EQ(expectedStr, resultStr);
+}
+
+//------------------------------------------------------------------------------
+// Test
+//------------------------------------------------------------------------------
+TEST_F(TgcUtilsTest, readFdIntoStr_write_lt_maxStrLen) {
+  using namespace eos::mgm::tgc;
+
+  int pipeFds[2] = {0, 0};
+
+  ASSERT_NE(-1, pipe(pipeFds));
+
+  const char msg[] = "1234";
+  const std::string msgStr = msg;
+
+  ASSERT_EQ(sizeof(msg), ::write(pipeFds[1], msg, sizeof(msg)));
+
+  const ssize_t maxStrLen = sizeof(msg) + 1;
+  const std::string resultStr = Utils::readFdIntoStr(pipeFds[0], maxStrLen);
+
+  ASSERT_EQ(msgStr, resultStr);
 }

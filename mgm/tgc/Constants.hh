@@ -71,6 +71,12 @@ constexpr const char * TGC_NAME_AVAIL_BYTES = "tgc.availbytes";
 const std::uint64_t TGC_DEFAULT_AVAIL_BYTES = 0;
 
 /// Name of a space configuration member
+constexpr const char * TGC_NAME_FREE_BYTES_SCRIPT = "tgc.freebytesscript";
+
+/// Default path of optional script used to determine the number of free bytes in a given EOS space
+constexpr const char * TGC_DEFAULT_FREE_BYTES_SCRIPT = "";
+
+/// Name of a space configuration member
 constexpr const char * TGC_NAME_TOTAL_BYTES = "tgc.totalbytes";
 
 /// Default total number of bytes before garbage collection can begin

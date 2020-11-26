@@ -1003,6 +1003,12 @@ FsSpace::FsSpace(const char* name)
                       std::to_string(tgc::TGC_DEFAULT_AVAIL_BYTES));
     }
 
+    // Set the default of the script used to determine the number of free bytes in a given EOS space
+    if (GetConfigMember(tgc::TGC_NAME_FREE_BYTES_SCRIPT).empty()) {
+      SetConfigMember(tgc::TGC_NAME_FREE_BYTES_SCRIPT,
+                      tgc::TGC_DEFAULT_FREE_BYTES_SCRIPT);
+    }
+
     // Set the default total number of bytes that must be available before
     // garbage collection can start
     if (GetConfigMember(tgc::TGC_NAME_TOTAL_BYTES).empty()) {

@@ -165,6 +165,13 @@ public:
   //----------------------------------------------------------------------------
   virtual std::map<std::string, std::set<FileIdAndCtime> > getSpaceToDiskReplicasMap(
     const std::set<std::string> &spacesToMap, std::atomic<bool> &stop, uint64_t &nbFilesScanned) = 0;
+
+  //----------------------------------------------------------------------------
+  //! @return The stdout of the specified shell cmd as a string
+  //! @param cmdStr The shell command string to be executed
+  //! @param maxLen The maximum length of the result
+  //----------------------------------------------------------------------------
+  virtual std::string getStdoutFromShellCmd(const std::string &cmdStr, const ssize_t maxLen) const = 0;
 };
 
 EOSTGCNAMESPACE_END

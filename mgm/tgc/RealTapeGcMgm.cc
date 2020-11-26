@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/ShellCmd.hh"
 #include "mgm/proc/admin/StagerRmCmd.hh"
 #include "mgm/FsView.hh"
 #include "mgm/Policy.hh"
@@ -53,8 +54,38 @@ RealTapeGcMgm::getTapeGcSpaceConfig(const std::string &spaceName) {
 
   config.queryPeriodSecs = getSpaceConfigMemberUint64(spaceName, TGC_NAME_QRY_PERIOD_SECS, TGC_DEFAULT_QRY_PERIOD_SECS);
   config.availBytes = getSpaceConfigMemberUint64(spaceName, TGC_NAME_AVAIL_BYTES, TGC_DEFAULT_AVAIL_BYTES);
+  config.freeBytesScript = getSpaceConfigMemberString(spaceName, TGC_NAME_FREE_BYTES_SCRIPT, TGC_DEFAULT_FREE_BYTES_SCRIPT);
   config.totalBytes = getSpaceConfigMemberUint64(spaceName, TGC_NAME_TOTAL_BYTES, TGC_DEFAULT_TOTAL_BYTES);
   return config;
+}
+
+//----------------------------------------------------------------------------
+// Return the value of the specified space configuration variable
+//----------------------------------------------------------------------------
+std::string
+  RealTapeGcMgm::getSpaceConfigMemberString(
+  const std::string &spaceName,
+  const std::string &memberName,
+  const std::string defaultValue) noexcept {
+  try {
+    std::string valueStr;
+    {
+      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+      const auto spaceItor = FsView::gFsView.mSpaceView.find(spaceName);
+      if (FsView::gFsView.mSpaceView.end() == spaceItor) throw std::exception();
+      if (nullptr == spaceItor->second) throw std::exception();
+      const auto &space = *(spaceItor->second);
+      valueStr = space.GetConfigMember(memberName);
+    }
+
+    if (valueStr.empty()) {
+      throw std::exception();
+    } else {
+      return valueStr;
+    }
+  } catch (...) {
+    return defaultValue;
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -363,6 +394,42 @@ RealTapeGcMgm::getSpaceToDiskReplicasMap(const std::set<std::string> &spacesToMa
   }
 
   return spaceToReplicas;
+}
+
+//----------------------------------------------------------------------------
+// Get the stdout of the specified shell cmd as a string
+//----------------------------------------------------------------------------
+std::string
+RealTapeGcMgm::getStdoutFromShellCmd(const std::string &cmdStr, const ssize_t maxLen) const
+{
+  common::ShellCmd cmd(cmdStr);
+  const size_t timeoutSecs = 5;
+  const auto cmdRc = cmd.wait(timeoutSecs);
+  if (cmdRc.timed_out) {
+    std::ostringstream msg;
+    msg << "Execution of shell command timed out after " << timeoutSecs << " seconds";
+    throw std::runtime_error(msg.str());
+  } else if (cmdRc.signaled) {
+    std::ostringstream msg;
+    msg << "Shell command received signal " << cmdRc.signo;
+    throw std::runtime_error(msg.str());
+  } else if (cmdRc.exited && cmdRc.exit_code) {
+    std::ostringstream msg;
+    msg << "Shell command exited with non-zero exit code " << cmdRc.exit_code;
+    throw std::runtime_error(msg.str());
+  } else if (cmdRc.exited && 0 == cmdRc.exit_code){
+    try {
+      return Utils::readFdIntoStr(cmd.outfd, maxLen);
+    } catch(std::exception &ex) {
+      std::ostringstream msg;
+      msg << "Failed to read stdout from shell command: " << ex.what();
+      throw std::runtime_error(msg.str());
+    }
+  } else {
+    std::ostringstream msg;
+    msg << "Shell command failed for unknown reason";
+    throw std::runtime_error(msg.str());
+  }
 }
 
 EOSTGCNAMESPACE_END

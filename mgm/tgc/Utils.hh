@@ -35,6 +35,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <cstdint>
+#include <exception>
 #include <mutex>
 #include <stdexcept>
 #include <thread>
@@ -55,30 +56,22 @@ EOSTGCNAMESPACE_BEGIN
 class Utils
 {
 public:
-  /// Thrown when a string is not a valid unsigned 64-bit integer
-  struct InvalidUint64: public std::runtime_error {
-    InvalidUint64(const std::string &msg): std::runtime_error(msg) {}
-  };
-
-  /// Thrown when a string representing a 64-bit integer is out of range
-  struct OutOfRangeUint64: public InvalidUint64 {
-    OutOfRangeUint64(const std::string &msg): InvalidUint64(msg) {}
-  };
+  struct EmptyString : public std::runtime_error {using std::runtime_error::runtime_error;};
+  struct NonNumericChar : public std::runtime_error {using std::runtime_error::runtime_error;};
+  struct ParseError: public std::runtime_error {using std::runtime_error::runtime_error;};
+  struct ParsedValueOutOfRange : public std::runtime_error {using std::runtime_error::runtime_error;};
 
   //----------------------------------------------------------------------------
+  //! @return the result of parsing the specified string as a uint64_t
+  //! @param str The string to be parsed
+  //! @note whitespace is ignored
+  //! @throw EmptyString if the specified string is empty
+  //! @throw NonNumericChar if the specified string contains one or more
+  //! non-numeric characters.
+  //! @throw ParseValueOutOfRange if the parsed value is out of range.
   //! Returns the integer representation of the specified string
-  //!
-  //! @param str string to be parsed
-  //! @return the integer representation of the specified string
-  //! @throw InvalidUint64 if the specified string is not a valid unsigned
-  //! 64-bit integer
   //----------------------------------------------------------------------------
-  static std::uint64_t toUint64(const std::string &str);
-
-  //----------------------------------------------------------------------------
-  //! Return true if the specified string is a valid unsigned integer
-  //------------------------------------------------------------------------------
-  static bool isValidUInt(std::string str);
+  static std::uint64_t toUint64(std::string str);
 
   //----------------------------------------------------------------------------
   //! @return x divided by y rounded to the neareset integer
@@ -109,6 +102,15 @@ public:
   //! exactly match the size of a timespec structure
   //----------------------------------------------------------------------------
   static timespec bufToTimespec(const std::string &buf);
+
+  //----------------------------------------------------------------------------
+  //! @return the result of reading from the specified file descriptor into a
+  //! string of the specified maximum size.
+  //! @param fd The file descriptor to be read from.
+  //! @param maxStrLen The maximum length of the string not including the
+  //! terminal null character.
+  //----------------------------------------------------------------------------
+  static std::string readFdIntoStr(const int fd, const ssize_t maxStrLen);
 };
 
 EOSTGCNAMESPACE_END

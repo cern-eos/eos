@@ -137,6 +137,17 @@ DummyTapeGcMgm::getSpaceToDiskReplicasMap(const std::set<std::string> &spacesToM
 }
 
 //----------------------------------------------------------------------------
+// Get the stdout of the specified shell cmd as a string
+//----------------------------------------------------------------------------
+std::string
+DummyTapeGcMgm::getStdoutFromShellCmd(const std::string &cmdStr, const ssize_t maxLen) const
+{
+  std::lock_guard<std::mutex> lock(m_mutex);
+
+  return m_stdoutFromShellCmd;
+}
+
+//----------------------------------------------------------------------------
 // Set the configuration of the tape-aware garbage collector
 //----------------------------------------------------------------------------
 void
@@ -169,6 +180,16 @@ DummyTapeGcMgm::getNbCallsToGetTapeGcSpaceConfig() const {
 }
 
 //------------------------------------------------------------------------------
+// Return number of times getSpaceStats() has been called
+//------------------------------------------------------------------------------
+uint64_t
+DummyTapeGcMgm::getNbCallsToGetSpaceStats() const {
+  std::lock_guard<std::mutex> lock(m_mutex);
+
+  return m_nbCallsToGetSpaceStats;
+}
+
+//------------------------------------------------------------------------------
 // Return number of times fileInNamespaceAndNotScheduledForDeletion() has been
 // called
 //------------------------------------------------------------------------------
@@ -197,6 +218,17 @@ DummyTapeGcMgm::getNbCallsToStagerrmAsRoot() const {
   std::lock_guard<std::mutex> lock(m_mutex);
 
   return m_nbCallsToStagerrmAsRoot;
+}
+
+//----------------------------------------------------------------------------
+// Set the stdout of the specified shell cmd as a string
+//----------------------------------------------------------------------------
+void
+DummyTapeGcMgm::setStdoutFromShellCmd(const std::string &stdoutFromShellCmd)
+{
+  std::lock_guard<std::mutex> lock(m_mutex);
+
+  m_stdoutFromShellCmd = stdoutFromShellCmd;
 }
 
 EOSTGCNAMESPACE_END

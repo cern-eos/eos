@@ -29,6 +29,7 @@
 
 #include <cstdint>
 #include <ctime>
+#include <string>
 
 /*----------------------------------------------------------------------------*/
 /**
@@ -47,11 +48,13 @@ EOSTGCNAMESPACE_BEGIN
 struct SpaceConfig {
   std::time_t queryPeriodSecs;
   std::uint64_t availBytes;
+  std::string freeBytesScript;
   std::uint64_t totalBytes;
 
   SpaceConfig():
     queryPeriodSecs(TGC_DEFAULT_QRY_PERIOD_SECS),
     availBytes(TGC_DEFAULT_AVAIL_BYTES),
+    freeBytesScript(TGC_DEFAULT_FREE_BYTES_SCRIPT),
     totalBytes(TGC_DEFAULT_TOTAL_BYTES)
   {
   }

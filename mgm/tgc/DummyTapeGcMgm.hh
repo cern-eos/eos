@@ -123,6 +123,13 @@ public:
     const std::set<std::string> &spacesToMap, std::atomic<bool> &stop, uint64_t &nbFilesScanned) override;
 
   //----------------------------------------------------------------------------
+  //! @return The stdout of the specified shell cmd as a string
+  //! @param cmdStr The shell command string to be executed
+  //! @param maxLen The maximum length of the result
+  //----------------------------------------------------------------------------
+  std::string getStdoutFromShellCmd(const std::string &cmdStr, const ssize_t maxLen) const override;
+
+  //----------------------------------------------------------------------------
   //! Set the tape-aware garbage collector configuration for the specified EOS
   //! space
   //!
@@ -145,6 +152,11 @@ public:
   std::uint64_t getNbCallsToGetTapeGcSpaceConfig() const;
 
   //----------------------------------------------------------------------------
+  //! @return number of times getSpaceStats() has been called
+  //----------------------------------------------------------------------------
+  std::uint64_t getNbCallsToGetSpaceStats() const;
+
+  //----------------------------------------------------------------------------
   //! @return number of times fileInNamespaceAndNotScheduledForDeletion() has
   //! been called
   //----------------------------------------------------------------------------
@@ -159,6 +171,12 @@ public:
   //! @return number of times stagerrmAsRoot() has been called
   //------------------------------------------------------------------------------
   std::uint64_t getNbCallsToStagerrmAsRoot() const;
+
+  //----------------------------------------------------------------------------
+  //! Set the standard out from the shell command
+  //! @param stdoutFromShellCmd Standard out from the shell command as a string
+  //----------------------------------------------------------------------------
+  void setStdoutFromShellCmd(const std::string &stdoutFromShellCmd);
 
 private:
 
@@ -202,6 +220,11 @@ private:
   //! Number of times stagerrmAsRoot() has been called
   //----------------------------------------------------------------------------
   std::uint64_t m_nbCallsToStagerrmAsRoot;
+
+  //----------------------------------------------------------------------------
+  //! Standard out from the shel command as a string.
+  //----------------------------------------------------------------------------
+  std::string m_stdoutFromShellCmd;
 };
 
 EOSTGCNAMESPACE_END

@@ -47,6 +47,10 @@ struct SpaceStats {
   std::uint64_t availBytes;
 
   SpaceStats(): totalBytes(0), availBytes(0) {}
+
+  bool operator==(const SpaceStats &rhs) const {
+    return totalBytes == rhs.totalBytes && availBytes == rhs.availBytes;
+  }
 };
 
 EOSTGCNAMESPACE_END
