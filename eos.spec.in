@@ -258,13 +258,15 @@ BuildRequires: centos-release-scl
 %endif
 
 %if "%{compiler}" == "gcc"
-%if 0%{distribution} == 6 || 0%{distribution} == 7 || 0%{distribution} == 8
+%if 0%{distribution} == 6 || 0%{distribution} == 7
 BuildRequires: %{devtoolset}
 BuildRequires: %{devtoolset}-binutils-devel
-# We want swap-support on eosxd - requires rocksdb KV
-BuildRequires: eos-rocksdb = 5.7.3-1%{rocksdb_dist}
 %else
 BuildRequires: binutils-devel
+%endif
+%if 0%{distribution} == 6 || 0%{distribution} == 7 || 0%{distribution} == 8
+# We want swap-support on eosxd - requires rocksdb KV
+BuildRequires: eos-rocksdb = 5.7.3-1%{rocksdb_dist}
 %endif
 %endif
 
