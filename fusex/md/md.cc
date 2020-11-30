@@ -2627,7 +2627,6 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 
           do {
             int size = zmq_msg_recv(&message, static_cast<void*>(*z_socket), 0);
-            size = size;
             zmq_getsockopt(static_cast<void*>(*z_socket), ZMQ_RCVMORE, &more, &more_size);
           } while (more);
 
@@ -3102,7 +3101,10 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 
       std::string hbstream;
       hb.SerializeToString(&hbstream);
-      z_socket->send(hbstream.c_str(), hbstream.length());
+      std::size_t rc = z_socket->send(hbstream.c_str(), hbstream.length());
+      if ( rc != hbstream.length()) {
+        eos_static_err("sending heartbeat: rc=%d, but message length was %d", rc, hbstream.length());
+      }
 
       if (!is_visible()) {
         set_is_visible(1);
