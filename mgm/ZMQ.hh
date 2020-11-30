@@ -27,6 +27,7 @@
 #include "mgm/Namespace.hh"
 #include "mgm/FuseServer/Server.hh"
 #include <thread>
+#include <utility>
 #include <vector>
 #include <zmq.hpp>
 #include <unistd.h>
@@ -53,7 +54,7 @@ public:
   //----------------------------------------------------------------------------
   ~ZMQ()
   {
-    std::cerr << __FUNCTION__ << ":: end of destructor" << std::endl;
+    std::cerr << __FUNCTION__ << ":: end of destructor\n";
   }
 
   //----------------------------------------------------------------------------
@@ -85,15 +86,15 @@ public:
   class Task
   {
   public:
-    static int sMaxThreads; ///< Max number of worker threads
+    const static int sMaxThreads = 16; ///< Max number of worker threads
 
     //----------------------------------------------------------------------------
     //! Constructor
     //----------------------------------------------------------------------------
-    Task(const std::string& url)
+    explicit Task(std::string  url)
       : mZmqCtx(1), mFrontend(mZmqCtx, ZMQ_ROUTER),
         mBackend(mZmqCtx, ZMQ_DEALER), mInjector(mZmqCtx, ZMQ_DEALER),
-        mBindUrl(url)
+        mBindUrl(std::move(url))
     {}
 
     //----------------------------------------------------------------------------
@@ -104,7 +105,8 @@ public:
     //----------------------------------------------------------------------------
     //! Start proxy service
     //----------------------------------------------------------------------------
-    void run() noexcept;
+//    void run() noexcept;
+    void run();
 
     //----------------------------------------------------------------------------
     //! Reply to a client identifier which a pice of data

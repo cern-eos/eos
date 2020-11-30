@@ -29,7 +29,7 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-int ZMQ::Task::sMaxThreads = 16;
+//int ZMQ::Task::sMaxThreads = 16;
 FuseServer::Server ZMQ::gFuseServer;
 
 //------------------------------------------------------------------------------
@@ -63,7 +63,8 @@ ZMQ::Task::~Task()
 // Start proxy service
 //------------------------------------------------------------------------------
 void
-ZMQ::Task::run() noexcept
+//ZMQ::Task::run() noexcept
+ZMQ::Task::run()
 {
   int enable_ipv6 = 1;
 #if ZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 1, 0)
@@ -84,7 +85,7 @@ ZMQ::Task::run() noexcept
 
   try {
     zmq::proxy(static_cast<void*>(mFrontend), static_cast<void*>(mBackend),
-               (void*)nullptr);
+               nullptr);
   } catch (const zmq::error_t& e) {
     if (e.num() == ETERM) {
       // Shutdown
@@ -129,32 +130,35 @@ ZMQ::Worker::work()
       zmq::message_t msg;
       zmq::message_t copied_id;
       zmq::message_t copied_msg;
-      worker_.recv(&identity);
-      worker_.recv(&msg);
-      std::string id((const char*) identity.data(), identity.size());
-      std::string s((const char*) msg.data(), msg.size());
+      worker_.recv(&identity,0);
+      worker_.recv(&msg,0);
+      std::string id(static_cast<const char*>(identity.data()), identity.size());
+      std::string s(static_cast<const char*>(msg.data()), msg.size());
       hb.Clear();
 
       if (hb.ParseFromString(s)) {
         switch (hb.type()) {
-        case hb.HEARTBEAT: {
-          struct timespec tsnow;
+        case eos::fusex::container::HEARTBEAT: {
+          struct timespec tsnow {};
           eos::common::Timing::GetTimeSpec(tsnow);
           hb.mutable_heartbeat_()->set_delta(tsnow.tv_sec - hb.heartbeat_().clock() +
                                              (((int64_t) tsnow.tv_nsec - (int64_t) hb.heartbeat_().clock_ns()) * 1.0 /
                                               1000000000.0));
 
           if (gFuseServer.Client().Dispatch(id, *(hb.mutable_heartbeat_()))) {
-            if (EOS_LOGS_DEBUG)
+            if (EOS_LOGS_DEBUG) {
               eos_static_debug("msg=\"received new heartbeat\" identity=%s type=%d",
                                (id.length() < 256) ? id.c_str() : "-illegal-", hb.type());
+            }
           } else {
-            if (EOS_LOGS_DEBUG)
+            if (EOS_LOGS_DEBUG) {
               eos_static_debug("msg=\"received heartbeat\" identity=%s type=%d",
-                               (id.length() < 256) ? id.c_str() : "-illegal-", hb.type());
+                               (id.length() < 256) ? id.c_str() : "-illegal-",
+                               hb.type());
+            }
           }
 
-          if (hb.statistics_().vsize_mb()) {
+          if (hb.statistics_().vsize_mb() != 0.0f) {
             gFuseServer.Client().HandleStatistics(id, hb.statistics_());
           }
         }
