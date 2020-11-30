@@ -414,7 +414,6 @@ private:
   eos::QdbContactDetails mQdbContactDetails; ///< QuarkDB contact details
   std::unique_ptr<qclient::QClient>
   mQcl; ///< qclient for talking to the QDB cluster
-  std::string mMasterId; ///< Current master id in <fqdn>:<port> format
   std::string mMgmId; ///< MGM id <host>:1094 format
 
   //----------------------------------------------------------------------------

@@ -330,7 +330,7 @@ XrdMqOfs::XrdMqOfs(XrdSysError* ep):
   myPort(1097), mDeliveredMessages(0ull), mFanOutMessages(0ull),
   mMaxQueueBacklog(MQOFSMAXQUEUEBACKLOG),
   mRejectQueueBacklog(MQOFSREJECTQUEUEBACKLOG), mQdbCluster(), mQdbPassword(),
-  mQdbContactDetails(), mQcl(nullptr), mMasterId(), mMgmId()
+  mQdbContactDetails(), mQcl(nullptr), mMgmId()
 {
   ConfigFN  = 0;
   StartupTime = time(0);
@@ -882,25 +882,26 @@ bool XrdMqOfs::ShouldRedirectQdb(XrdOucString& host, int& port)
   using namespace std::chrono;
   static time_t last_check = 0;
   time_t now = time(nullptr);
+  std::string master_id;
 
   // The master lease is taken for 10 seconds so we can check every 5 seconds
   if (now - last_check > 5) {
     last_check = now;
-    mMasterId = GetLeaseHolder();
+    master_id = GetLeaseHolder();
   }
 
   // If we are the current master or there is no master then don't redirect
-  if ((mMasterId == mMgmId) || mMasterId.empty()) {
+  if ((master_id == mMgmId) || master_id.empty()) {
     return false;
   } else {
-    size_t pos = mMasterId.find(':');
+    size_t pos = master_id.find(':');
 
     try {
-      host = mMasterId.substr(0, pos).c_str();
+      host = master_id.substr(0, pos).c_str();
       port = myPort; // 1097
     } catch (const std::exception& e) {
       eos_notice("msg=\"unset or unexpected master identity format\" "
-                 "mMasterId=\"%s\"", mMasterId.c_str());
+                 "master_id=\"%s\"", master_id.c_str());
       return false;
     }
 
