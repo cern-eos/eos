@@ -16,6 +16,26 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.29 Citrine``
+===================
+
+2020-12-01
+
+Bug
+----
+
+* [EOS-4505] - Cannot xrdfs prepare -s in EOS with no write access`
+* [EOS-4515] - HTTP PUT stores corrupted file
+* [EOS-4521] - MQ: Crash in the XrdMqOfs::stat method
+
+Improvements
+-------------
+
+* MGM: Improve FuseXCast notifications sent during the rename operation
+* MGM/FUSE: Make the mutex for Caps and Client objects blocking
+* MGM: TGC now uses tgc.freebytesscript if set and not empty
+
+
 ``v4.8.28 Citrine``
 ===================
 
