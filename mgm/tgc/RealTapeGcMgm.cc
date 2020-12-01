@@ -425,11 +425,11 @@ RealTapeGcMgm::getStdoutFromShellCmd(const std::string &cmdStr, const ssize_t ma
       msg << "Failed to read stdout from shell command: " << ex.what();
       throw std::runtime_error(msg.str());
     }
-  } else {
-    std::ostringstream msg;
-    msg << "Shell command failed for unknown reason";
-    throw std::runtime_error(msg.str());
   }
+
+  std::ostringstream msg;
+  msg << "Shell command failed for unknown reason";
+  throw std::runtime_error(msg.str());
 }
 
 EOSTGCNAMESPACE_END
