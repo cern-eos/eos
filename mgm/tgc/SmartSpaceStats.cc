@@ -35,7 +35,7 @@ EOSTGCNAMESPACE_BEGIN
 //! Constructor
 //------------------------------------------------------------------------------
 SmartSpaceStats::SmartSpaceStats(const std::string &spaceName, ITapeGcMgm &mgm, CachedValue<SpaceConfig> &config):
-  m_asyncUint64ShellCmd(mgm),
+  m_singleAsyncFreeBytesScript(mgm),
   m_spaceName(spaceName),
   m_mgm(mgm),
   m_queryMgmTimestamp(0),
@@ -71,7 +71,7 @@ SmartSpaceStats::get()
           try {
             std::ostringstream cmd;
             cmd << spaceConfig.freeBytesScript << " " << m_spaceName;
-            const auto asyncResult = m_asyncUint64ShellCmd.getUint64FromShellCmdStdOut(cmd.str());
+            const auto asyncResult = m_singleAsyncFreeBytesScript.getUint64FromShellCmdStdOut(cmd.str());
             switch (asyncResult.getState()) {
             case AsyncResult<std::uint64_t>::State::PENDING_AND_NO_PREVIOUS_VALUE:
               // Don't overwrite m_mgmStats.availBytes

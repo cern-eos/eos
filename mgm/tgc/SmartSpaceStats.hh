@@ -109,10 +109,23 @@ public:
 private:
 
   //----------------------------------------------------------------------------
-  //! Object used to asynchronously run no more than one shell command at a time
-  //! and allow the uint64 result printed on its standard out to be polled.
+  //! Object used to asynchronously run no more than one tgc.freebytesscript at
+  //! a time.
+  //!
+  //! When the tgc.freebytesscript configuration variable is set there are
+  //! effectively two sources from which the total number of free bytes can be
+  //! obtained.  The internal filesystem statistics of the MGM that it receives
+  //! from its FSTs and the external script whose path is stored in the
+  //! tgc.freebytesscript parameter.  There are two cases in which the MGM TGC
+  //! will fall back to using its internal statistics.  The MGM will use its
+  //! internal statistics until the script has been successfully executed for
+  //! the very first time.  The MGM will use its internal statistics if the
+  //! script fails where failure can include timing out.  Once the script has
+  //! been executed successfully the MGM will cache the returned value until the
+  //! next time the script successfully completes.  If at any point the script
+  //! fails then the MGM will revert back to using its internal statistics.
   //----------------------------------------------------------------------------
-  AsyncUint64ShellCmd m_asyncUint64ShellCmd;
+  AsyncUint64ShellCmd m_singleAsyncFreeBytesScript;
 
   //----------------------------------------------------------------------------
   //! Name of the EOS space being managed
