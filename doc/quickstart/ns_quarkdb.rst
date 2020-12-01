@@ -193,8 +193,8 @@ To integrate the MGM service with the **QuarkDB** cluster we need to make severa
 
     .. code-block:: bash
 
-       mqofs.qdbcluster localhost:7001 localhost:7002 localhost:7003
-       mqofs.qdbpassword_file /etc/eos.keytab
+       mq.qdbcluster localhost:7001 localhost:7002 localhost:7003
+       mq.qdbpassword_file /etc/eos.keytab
 
 Start the MGM daemon as a master:
 
