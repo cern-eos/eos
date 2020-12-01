@@ -881,14 +881,24 @@ bool XrdMqOfs::ShouldRedirectQdb(XrdOucString& host, int& port)
 {
   using namespace std::chrono;
   static time_t last_check = 0;
+  static std::string s_master_id;
+  static std::mutex mutex;
   time_t now = time(nullptr);
   std::string master_id;
 
   // The master lease is taken for 10 seconds so we can check every 5 seconds
   if (now - last_check > 5) {
     last_check = now;
-    master_id = GetLeaseHolder();
+    std::unique_lock<std::mutex> lock(mutex);
+    s_master_id = GetLeaseHolder();
+    master_id = s_master_id;
+  } else {
+    std::unique_lock<std::mutex> lock(mutex);
+    master_id = s_master_id;
   }
+
+  eos_static_debug("master_id=\"%s\", current_mq_id=\"%s\"", master_id.c_str(),
+                   mMgmId.c_str());
 
   // If we are the current master or there is no master then don't redirect
   if ((master_id == mMgmId) || master_id.empty()) {
@@ -900,8 +910,8 @@ bool XrdMqOfs::ShouldRedirectQdb(XrdOucString& host, int& port)
       host = master_id.substr(0, pos).c_str();
       port = myPort; // 1097
     } catch (const std::exception& e) {
-      eos_notice("msg=\"unset or unexpected master identity format\" "
-                 "master_id=\"%s\"", master_id.c_str());
+      eos_static_notice("msg=\"unset or unexpected master identity format\" "
+                        "master_id=\"%s\"", master_id.c_str());
       return false;
     }
 
