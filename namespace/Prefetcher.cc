@@ -247,7 +247,7 @@ void Prefetcher::prefetchItemAndWait(IView* view, const std::string& path,
 // Prefetch ContainerMD, along with all its children, and wait
 //------------------------------------------------------------------------------
 void Prefetcher::prefetchContainerMDWithChildrenAndWait(IView* view,
-    const std::string& path, bool follow, bool onlyDirs)
+    const std::string& path, bool follow, bool onlyDirs, bool limitresult, uint64_t dir_limit, uint64_t file_limit)
 {
   if (view->inMemory()) {
     return;
@@ -269,8 +269,15 @@ void Prefetcher::prefetchContainerMDWithChildrenAndWait(IView* view,
   Prefetcher prefetcher(view);
   std::vector<std::string> paths;
 
-  for (auto dit = eos::ContainerMapIterator(cmd); dit.valid(); dit.next()) {
-    paths.emplace_back(SSTR(path << "/" << dit.key()));
+  if (limitresult) {
+    uint64_t dirsfound=0;
+    for (auto dit = eos::ContainerMapIterator(cmd); dit.valid() && dirsfound<dir_limit; dit.next(),dirsfound++) {
+      paths.emplace_back(SSTR(path << "/" << dit.key()));
+    }
+  } else {
+    for (auto dit = eos::ContainerMapIterator(cmd); dit.valid(); dit.next()) {
+      paths.emplace_back(SSTR(path << "/" << dit.key()));
+    }
   }
 
   for (size_t i = 0; i < paths.size(); i++) {
@@ -280,8 +287,16 @@ void Prefetcher::prefetchContainerMDWithChildrenAndWait(IView* view,
   paths.clear();
 
   if(!onlyDirs) {
-    for (auto dit = eos::FileMapIterator(cmd); dit.valid(); dit.next()) {
-      paths.emplace_back(SSTR(path << "/" << dit.key()));
+
+    if (limitresult) {
+      uint64_t filesfound = 0;
+      for (auto dit = eos::FileMapIterator(cmd); dit.valid() && filesfound<file_limit; dit.next(),filesfound++) {
+        paths.emplace_back(SSTR(path << "/" << dit.key()));
+      }
+    } else {
+      for (auto dit = eos::FileMapIterator(cmd); dit.valid(); dit.next()) {
+        paths.emplace_back(SSTR(path << "/" << dit.key()));
+      }
     }
 
     for (size_t i = 0; i < paths.size(); i++) {
@@ -332,7 +347,7 @@ void Prefetcher::prefetchInodeWithChildrenAndWait(IView* view, uint64_t ino)
 // Prefetch ContainerMD, along with all its children, and wait
 //------------------------------------------------------------------------------
 void Prefetcher::prefetchContainerMDWithChildrenAndWait(IView* view,
-    IContainerMD::id_t id, bool onlyDirs)
+    IContainerMD::id_t id, bool onlyDirs, bool limitresults, uint64_t dir_limit, uint64_t file_limit)
 {
   if (view->inMemory()) {
     return;
@@ -355,13 +370,27 @@ void Prefetcher::prefetchContainerMDWithChildrenAndWait(IView* view,
   Prefetcher prefetcher(view);
   std::vector<std::string> paths;
 
-  for (auto dit = eos::ContainerMapIterator(cmd); dit.valid(); dit.next()) {
-    prefetcher.stageContainerMD(dit.value());
+  if (limitresults) {
+    uint64_t dirsfound=0;
+    for (auto dit = eos::ContainerMapIterator(cmd); dit.valid() && dirsfound<dir_limit; dit.next(),dirsfound++) {
+      prefetcher.stageContainerMD(dit.value());
+    }
+  } else {
+    for (auto dit = eos::ContainerMapIterator(cmd); dit.valid(); dit.next()) {
+      prefetcher.stageContainerMD(dit.value());
+    }
   }
 
   if(!onlyDirs) {
-    for (auto dit = eos::FileMapIterator(cmd); dit.valid(); dit.next()) {
-      prefetcher.stageFileMD(dit.value());
+    if (limitresults) {
+      uint64_t filesfound=0;
+      for (auto dit = eos::FileMapIterator(cmd); dit.valid() && filesfound<file_limit; dit.next(),filesfound++) {
+        prefetcher.stageFileMD(dit.value());
+      }
+    } else {
+      for (auto dit = eos::FileMapIterator(cmd); dit.valid(); dit.next()) {
+        prefetcher.stageFileMD(dit.value());
+      }
     }
   }
 

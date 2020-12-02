@@ -778,7 +778,7 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
 
       // Held only for the current loop
       eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView,
-          Path.c_str(), false, no_files);
+          Path.c_str(), false, no_files, limitresult, dir_limit, file_limit);
       eos::common::RWMutexReadLock ns_rd_lock;
 
       if (take_lock) {
