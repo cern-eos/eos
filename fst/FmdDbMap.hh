@@ -512,6 +512,7 @@ private:
         auto pair = mFsMtxMap.insert(std::make_pair(fsid,
                                      new eos::common::RWMutex()));
         it = pair.first;
+        it->second->SetBlocking(true);
       }
 
       if (write) {
