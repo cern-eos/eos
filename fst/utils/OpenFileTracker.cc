@@ -30,7 +30,10 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-OpenFileTracker::OpenFileTracker() {}
+OpenFileTracker::OpenFileTracker()
+{
+  mMutex.SetBlocking(true);
+}
 
 //------------------------------------------------------------------------------
 // Mark that the given file ID, on the given filesystem ID, was just opened
@@ -51,7 +54,7 @@ void OpenFileTracker::waitExclOpen(eos::common::FileSystem::fsid_t fsid,
     bool busy = false;
     {
       eos::common::RWMutexWriteLock wr_lock(mMutex);
-      busy = mContents[fsid][fid];
+      busy = (mContents[fsid].find(fid) != mContents[fsid].end());
 
       if (!busy) {
         mContents[fsid][fid]++;
