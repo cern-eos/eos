@@ -63,8 +63,7 @@ ZMQ::Task::~Task()
 // Start proxy service
 //------------------------------------------------------------------------------
 void
-//ZMQ::Task::run() noexcept
-ZMQ::Task::run()
+ZMQ::Task::run() noexcept
 {
   int enable_ipv6 = 1;
 #if ZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 1, 0)

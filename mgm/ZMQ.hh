@@ -27,7 +27,6 @@
 #include "mgm/Namespace.hh"
 #include "mgm/FuseServer/Server.hh"
 #include <thread>
-#include <utility>
 #include <vector>
 #include <zmq.hpp>
 #include <unistd.h>
@@ -46,7 +45,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  ZMQ(const char* URL): mBindUrl(URL)
+  explicit ZMQ(const char* URL): mBindUrl(URL)
   {}
 
   //----------------------------------------------------------------------------
@@ -91,10 +90,10 @@ public:
     //----------------------------------------------------------------------------
     //! Constructor
     //----------------------------------------------------------------------------
-    explicit Task(std::string  url)
+    explicit Task(std::string& url)
       : mZmqCtx(1), mFrontend(mZmqCtx, ZMQ_ROUTER),
         mBackend(mZmqCtx, ZMQ_DEALER), mInjector(mZmqCtx, ZMQ_DEALER),
-        mBindUrl(std::move(url))
+        mBindUrl(url)
     {}
 
     //----------------------------------------------------------------------------
@@ -105,8 +104,7 @@ public:
     //----------------------------------------------------------------------------
     //! Start proxy service
     //----------------------------------------------------------------------------
-//    void run() noexcept;
-    void run();
+    void run() noexcept;
 
     //----------------------------------------------------------------------------
     //! Reply to a client identifier which a pice of data
