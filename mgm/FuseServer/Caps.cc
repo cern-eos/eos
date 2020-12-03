@@ -795,32 +795,41 @@ int
 FuseServer::Caps::Delete(uint64_t md_ino)
 {
   eos::common::RWMutexWriteLock lLock(*this);
+  const auto it_inode_caps = mInodeCaps.find(md_ino);
 
-  if (!mInodeCaps.count(md_ino)) {
-    return ENOENT;
+  if (it_inode_caps == mInodeCaps.end()) {
+    return ENONET;
   }
 
-  for (auto sit = mInodeCaps[md_ino].begin() ;
-       sit != mInodeCaps[md_ino].end();
-       ++sit) {
-    for (auto it = mClientCaps.begin(); it != mClientCaps.end(); it++) {
+  bool done_once = false;
+  const authid_set_t& set_authid = it_inode_caps->second;
+
+  for (auto it_client_caps = mClientCaps.begin();
+       it_client_caps != mClientCaps.end(); ++it_client_caps) {
+    for (const auto& authid : set_authid) {
       // erase authid from the client set
-      it->second.erase(*sit);
-    }
+      it_client_caps->second.erase(authid);
 
-    if (mCaps.count(*sit)) {
-      shared_cap cap = mCaps[*sit];
+      if (!done_once) {
+        const auto it_caps = mCaps.find(authid);
 
-      if (mClientInoCaps.count(cap->clientid())) {
-        mClientInoCaps[cap->clientid()].erase(md_ino);
+        if (it_caps != mCaps.end()) {
+          const std::string client_id = it_caps->second->clientid();
+          auto it_cli_inocaps = mClientInoCaps.find(client_id);
+
+          if (it_cli_inocaps != mClientInoCaps.end()) {
+            it_cli_inocaps->second.erase(md_ino);
+          }
+
+          mCaps.erase(it_caps);
+        }
       }
-
-      mCaps.erase(*sit);
     }
+
+    done_once = true;
   }
 
-  // erase inode from the inode caps
-  mInodeCaps.erase(md_ino);
+  mInodeCaps.erase(it_inode_caps);
   return 0;
 }
 
