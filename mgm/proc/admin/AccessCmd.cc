@@ -40,6 +40,15 @@ AccessCmd::ProcessRequest() noexcept
   eos::console::ReplyProto reply;
   eos::console::AccessProto access = mReqProto.access();
 
+
+   if ((mVid.uid != 0) && (!mVid.hasUid(3)) && (!mVid.hasGid(4)) && (!mVid.sudoer)) {
+     // root and admins only
+     reply.set_std_out("");
+     reply.set_std_err("error: you are not an access administrator!\"");
+     reply.set_retc(EPERM);
+     return reply;
+   }
+
   switch (access.subcmd_case()) {
   case eos::console::AccessProto::kLs :
     LsSubcmd(access.ls(), reply);
