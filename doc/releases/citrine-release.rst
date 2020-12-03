@@ -16,6 +16,23 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.30 Citrine``
+===================
+
+2020-12-03
+
+Bug
+----
+
+* [EOS-4498] - MGM slowness in eoshome-i02
+* [EOS-4500] - EOSHOME-i01 (Apparently - Deadlock)
+* [EOS-4519] - Namespace deadlock (EOSPUBLIC)
+* [EOS-4524] - EOSCMS unresponsive
+* MGM: Prevent the prefetcher from bypassing the limits on the number of results
+ returned when using by the find functionality
+* MGM: enforce eos access interface being only for admins
+
+
 ``v4.8.29 Citrine``
 ===================
 
