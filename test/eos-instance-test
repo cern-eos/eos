@@ -723,6 +723,10 @@ runtest "### Access    " unix 0 "" eos "access ls"
 runtest "### Access    " unix 0 "" eos "access unallow user bin"
 runtest "### Access    " unix 0 "" eos "access unallow domain -"
 runtest "### Access    " unix 0 "" eos "access unallow domain nobody@localdomain"
+# root, admins and sudoers only can `eos access`
+runtest "### Access    " unix 0 "" eos "access allow user nobody"
+runtest "### Access    " unix 1 shell runuser -u nobody eos access ls
+runtest "### Access    " unix 0 "" eos "access unallow user nobody"
 
 ################################################################################
 # Quota Tests
