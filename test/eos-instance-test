@@ -684,9 +684,7 @@ runtest "### Comment Proto   " unix 0 "" shell grep $EOSLOGBOOK -e \"Hello Proto
 ################################################################################
 # ACCESS
 ################################################################################
-#-----------------------------
 # Access ban
-#-----------------------------
 runtest "### Access    " unix 0 "" eos "access ban user nobody"
 # takes long
 #runtest "### Download  " unix 0 "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd"
@@ -694,27 +692,21 @@ runtest "### Access    " unix 0 "" eos "access ban user nobody"
 runtest "### Access    " unix 0 "" eos "access ls | grep nobody"
 runtest "### Access    " unix 0 "" eos "access unban user nobody"
 runtest "### Access    " unix 1 "" eos "access ls | grep nobody"
-#-----------------------------
 # Access stall
-#-----------------------------
 runtest "### Access    " unix 0 "" eos "access set stall 1 r"
 runtest "### Download  " unix 0 "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd"
 runtest "### Download  " unix 1 "" eosssh-timeout -t 3 download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" "-OSeos.ruid=99"
 runtest "### Access    " unix 0 "" eos "access ls | grep \"r:\* => 1\""
 runtest "### Access    " unix 0 "" eos "access rm stall r"
 runtest "### Access    " unix 1 "" eos "access ls | grep \"r:\* => 1\""
-#-----------------------------
 # Access redirect
-#-----------------------------
 runtest "### Access    " unix 0 "" eos "access set redirect foo.senf"
 runtest "### Download  " unix 1 "" downloadh  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" "-DIFirstConnectTimeout 2 -DIConnectTimeout 2 -DIReconnectWait 1 -DIMaxRedirectCnt 1"
 runtest "### Access    " unix 0 "" eos "access ls | grep foo"
 runtest "### Access    " unix 0 "" eos "access rm redirect"
 runtest "### Access    " unix 1 "" eos "access ls | grep foo"
 runtest "### Rm        " unix 0 "" eos "rm /eos/$EOS_TEST_INSTANCE/test/instancetest/passwd"
-#-----------------------------
 # Access whitelist domain
-#-----------------------------
 runtest "### Access    " unix 0 "" eos "access allow user bin"
 runtest "### Ls        " unix 0 "EOSROLE='-r 1 1'" eos ls /eos/$EOS_TEST_INSTANCE/
 runtest "### Ls        " unix 1 "EOSROLE='-r 99 99'" eos ls /eos/$EOS_TEST_INSTANCE/

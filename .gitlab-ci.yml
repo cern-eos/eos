@@ -34,7 +34,7 @@ default:
     variables:
       - $PREBUILD_TRIGGER
 
-prebuid-slc6:
+.prebuid-slc6:
   <<: *prebuild-template_definition
   variables:
     PREBUILD_NAME: slc6
@@ -109,7 +109,7 @@ build_cc7:
     - docker_node
     - cc7
 
-build_slc6:
+.build_slc6:
   stage: build:rpm
   image: gitlab-registry.cern.ch/dss/eos/prebuild-slc6
   script:
@@ -1037,7 +1037,7 @@ publish_koji_cc7:
   dependencies:
     - build_cc7
 
-publish_koji_slc6:
+.publish_koji_slc6:
   <<: *publish_koji_template_definition
   variables:
     TARGET: "eos6"
@@ -1220,7 +1220,7 @@ clean_k8s_cluster:
 # Manually triggered builds
 #-------------------------------------------------------------------------------
 
-eos_nginx_slc6:
+.eos_nginx_slc6:
   stage: build:manual
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
@@ -1264,7 +1264,7 @@ eos_nginx_cc7:
   environment:
     name: nginx-cc7-prod
 
-eos_apmon_slc6:
+.eos_apmon_slc6:
   stage: build:manual
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
@@ -1331,7 +1331,7 @@ eos_apmon_c8:
   environment:
     name: apmon-c8-prod
 
-eos_microhttpd_slc6:
+.eos_microhttpd_slc6:
   stage: build:manual
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
