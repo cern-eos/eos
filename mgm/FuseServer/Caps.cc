@@ -803,12 +803,17 @@ FuseServer::Caps::Delete(uint64_t md_ino)
 
   bool done_once = false;
   const authid_set_t& set_authid = it_inode_caps->second;
+  std::list<client_set_t::iterator> to_del_client_caps;
 
   for (auto it_client_caps = mClientCaps.begin();
        it_client_caps != mClientCaps.end(); ++it_client_caps) {
     for (const auto& authid : set_authid) {
       // erase authid from the client set
       it_client_caps->second.erase(authid);
+
+      if (it_client_caps->second.empty()) {
+        to_del_client_caps.push_back(it_client_caps);
+      }
 
       if (!done_once) {
         const auto it_caps = mCaps.find(authid);
@@ -831,6 +836,10 @@ FuseServer::Caps::Delete(uint64_t md_ino)
     }
 
     done_once = true;
+  }
+
+  for (auto& it_elem : to_del_client_caps) {
+    mClientCaps.erase(it_elem);
   }
 
   mInodeCaps.erase(it_inode_caps);

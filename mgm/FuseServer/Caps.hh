@@ -125,14 +125,7 @@ public:
       uint64_t now = (uint64_t) time(NULL);
 
       if ((cap->vtime() + 10) <= now) {
-        mCaps.erase(id);
-        mInodeCaps[cap->id()].erase(id);
-
-        if (!mInodeCaps[cap->id()].size()) {
-          mInodeCaps.erase(cap->id());
-        }
-
-        return true;
+        return Remove(cap);
       } else {
         if ((idtime + 10) <= now) {
           return true;
@@ -172,6 +165,12 @@ public:
         if (!mClientInoCaps[cap->clientid()].size()) {
           mClientInoCaps.erase(cap->clientid());
         }
+      }
+
+      mClientCaps[cap->clientid()].erase(cap->authid());
+
+      if (mClientCaps[cap->clientid()].size() == 0) {
+        mClientCaps.erase(cap->clientid());
       }
 
       return true;
