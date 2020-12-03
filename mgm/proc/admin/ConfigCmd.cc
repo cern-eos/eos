@@ -41,6 +41,13 @@ eos::console::ReplyProto
 ConfigCmd::ProcessRequest() noexcept
 {
   eos::console::ReplyProto reply;
+
+  if ((mVid.uid != 0)) {
+    reply.set_std_err("error: you have to take role 'root' to execute this command");
+    reply.set_retc(EPERM);
+    return reply;
+  }
+
   eos::console::ConfigProto config = mReqProto.config();
 
   switch (mReqProto.config().subcmd_case()) {
@@ -119,12 +126,6 @@ void ConfigCmd::DumpSubcmd(const eos::console::ConfigProto_DumpProto& dump,
 //----------------------------------------------------------------------------
 void ConfigCmd::ResetSubcmd(eos::console::ReplyProto& reply)
 {
-  if (mVid.uid != 0) {
-    reply.set_std_err("error: you have to take role 'root' to execute this command");
-    reply.set_retc(EPERM);
-    return;
-  }
-
   eos_notice("config reset");
   gOFS->ConfEngine->ResetConfig();
   reply.set_std_out("success: configuration has been reset(cleaned)!");
@@ -146,12 +147,6 @@ void ConfigCmd::ExportSubcmd(const eos::console::ConfigProto_ExportProto& exp,
 void ConfigCmd::SaveSubcmd(const eos::console::ConfigProto_SaveProto& save,
                            eos::console::ReplyProto& reply)
 {
-  if ((mVid.uid != 0)) {
-    reply.set_std_err("error: you have to take role 'root' to execute this command");
-    reply.set_retc(EPERM);
-    return;
-  }
-
   eos_notice("config save: %s", save.ShortDebugString().c_str());
   XrdOucString std_err;
 
@@ -169,12 +164,6 @@ void ConfigCmd::SaveSubcmd(const eos::console::ConfigProto_SaveProto& save,
 void ConfigCmd::LoadSubcmd(const eos::console::ConfigProto_LoadProto& load,
                            eos::console::ReplyProto& reply)
 {
-  if ((mVid.uid != 0)) {
-    reply.set_std_err("error: you have to take role 'root' to execute this command");
-    reply.set_retc(EPERM);
-    return;
-  }
-
   eos_notice("config load: %s", load.ShortDebugString().c_str());
   eos::mgm::ConfigResetMonitor fsview_cfg_reset_monitor;
   XrdOucString std_err;
