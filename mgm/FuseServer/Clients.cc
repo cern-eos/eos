@@ -815,9 +815,6 @@ FuseServer::Clients::Dropcaps(const std::string& uuid, std::string& out)
       if (!gOFS->zMQ->gFuseServer.Cap().ClientCaps()[(*scap)->clientid()].size()) {
         gOFS->zMQ->gFuseServer.Cap().ClientCaps().erase((*scap)->clientid());
       }
-
-      gOFS->zMQ->gFuseServer.Cap().ClientCaps()[(*scap)->clientid()].insert((
-            *scap)->authid());
     }
   }
 

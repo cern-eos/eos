@@ -819,6 +819,10 @@ FuseServer::Caps::Delete(uint64_t md_ino)
 
           if (it_cli_inocaps != mClientInoCaps.end()) {
             it_cli_inocaps->second.erase(md_ino);
+
+            if (it_cli_inocaps->second.size() == 0) {
+              mClientInoCaps.erase(it_cli_inocaps);
+            }
           }
 
           mCaps.erase(it_caps);
