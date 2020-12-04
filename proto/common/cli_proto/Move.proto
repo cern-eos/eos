@@ -1,0 +1,14 @@
+// ----------------------------------------------------------------------------
+// File: Move.proto
+// Author: Branko Blagojevic <branko.blagojevic@comtrade.com>
+// ----------------------------------------------------------------------------
+syntax="proto3";
+
+package eos.console;
+
+import "Metadata.proto";
+
+message MoveProto {
+  Metadata md = 1;
+  bytes target = 2;
+}

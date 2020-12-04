@@ -1,0 +1,16 @@
+// ----------------------------------------------------------------------------
+// File: ChangeMode.proto
+// Author: Branko Blagojevic <branko.blagojevic@comtrade.com>
+// Author: Ivan Arizanovic <ivan.arizanovic@comtrade.com>
+// ----------------------------------------------------------------------------
+syntax="proto3";
+
+package eos.console;
+
+import "Metadata.proto";
+
+message ChmodProto {
+  Metadata md    = 1;
+  int64 mode     = 2;
+  bool recursive = 3;
+}

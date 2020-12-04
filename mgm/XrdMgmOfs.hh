@@ -154,6 +154,7 @@ class AdminSocket;
 class IConfigEngine;
 class HttpServer;
 class GrpcServer;
+class GrpcWncServer;
 class Egroup;
 class GeoTreeEngine;
 class ZMQ;
@@ -1827,6 +1828,7 @@ public:
   std::unique_ptr<HttpServer> mHttpd; ///<  Http daemon if available
 
   std::unique_ptr<GrpcServer> GRPCd; ///< GRPC server
+  std::unique_ptr<GrpcWncServer> WNCd; ///< GRPC server for EOS Wnc
 
   //! LRU object running the LRU policy engine
   std::unique_ptr<LRU> mLRUEngine;
@@ -1857,6 +1859,7 @@ public:
   int mHttpdPort; ///< port of the http server, default 8000
   int mFusexPort; ///< port of the FUSEX broadcast MQZ, default 1100
   int mGRPCPort; ///< port of the GRPC server, default 50051
+  int mWncPort; ///< port of the GRPC server for EOS Wnc, default 50052
   eos::common::XrdConnPool mXrdConnPool; ///< XRD connection pool
   //! Tracker for requests which are currently executing MGM code
   eos::mgm::InFlightTracker mTracker;

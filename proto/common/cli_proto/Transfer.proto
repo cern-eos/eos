@@ -1,0 +1,53 @@
+// ----------------------------------------------------------------------------
+// File: Transfer.proto
+// Author: Ivan Arizanovic <ivan.arizanovic@comtrade.com>
+// ----------------------------------------------------------------------------
+
+syntax="proto3";
+package eos.console;
+
+message TransferProto {
+  enum SubCommand {
+    CANCEL   = 0;
+    CLEAR    = 1;
+    DISABLE  = 2;
+    ENABLE   = 3;
+    KILL     = 4;
+    LOG      = 5;
+    LS       = 6;
+    PURGE    = 7;
+    RESET    = 8;
+    RESUBMIT = 9;
+    SUBMIT   = 10;
+  }
+
+  message Common {
+    uint32 id        = 1;
+    string groupname = 2;
+  }
+
+  message Ls {
+    bool all        = 1; // -a
+    bool monitoring = 2; // -m
+    bool progress   = 3; // -p
+    bool summary    = 4; // -s
+    bool is_id      = 5; // true if id is set, false if is not
+  }
+
+  message Submit {
+    bytes url1      = 1;
+    bytes url2      = 2;
+    uint32 rate     = 3;
+    uint32 streams  = 4;
+    string group    = 5;
+    bool sync       = 6;
+    bool noauth     = 7;
+    bool silent     = 8;
+    bool noprogress = 9;
+  }
+
+  SubCommand subcommand = 1;
+  Common common         = 2;
+  Ls ls                 = 3;
+  Submit submit         = 4;
+}

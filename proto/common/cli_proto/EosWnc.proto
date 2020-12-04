@@ -1,0 +1,23 @@
+// ----------------------------------------------------------------------------
+// File: EosWnc.proto
+// Author: Branko Blagojevic <branko.blagojevic@comtrade.com>
+// Author: Ivan Arizanovic <ivan.arizanovic@comtrade.com>
+// ----------------------------------------------------------------------------
+syntax="proto3";
+
+package eos.console;
+
+import "ConsoleRequest.proto";
+import "ConsoleReply.proto";
+import "ConsoleStreamReply.proto";
+
+option java_multiple_files = true;
+option java_package = "io.grpc.eos.wnc";
+option java_outer_classname = "EosWncProto";
+option objc_class_prefix = "EOS";
+
+service EosWnc {
+  // Process requests from the EOS Windows native client
+  rpc ProcessSingle (RequestProto) returns (ReplyProto) {}
+  rpc ProcessStream (RequestProto) returns (stream StreamReplyProto) {}
+}

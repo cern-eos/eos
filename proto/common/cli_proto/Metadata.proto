@@ -1,0 +1,20 @@
+// ----------------------------------------------------------------------------
+// File: Metadata.proto
+// Author: Branko Blagojevic <branko.blagojevic@comtrade.com>
+// ----------------------------------------------------------------------------
+syntax="proto3";
+
+package eos.console;
+
+enum TYPE {
+  FILE = 0;
+  CONTAINER = 1;
+  LISTING = 2;
+}
+
+message Metadata {
+  bytes path = 1;
+  fixed64 id = 2;
+  fixed64 ino = 3;
+  TYPE type = 4;
+}

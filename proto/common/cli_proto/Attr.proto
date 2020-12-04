@@ -1,0 +1,28 @@
+// ----------------------------------------------------------------------------
+// File: Attr.proto
+// Author: Ivan Arizanovic <ivan.arizanovic@comtrade.com>
+// ----------------------------------------------------------------------------
+syntax="proto3";
+
+package eos.console;
+
+import "Metadata.proto";
+
+enum AttrCmd {
+  ATTR_LS     = 0;
+  ATTR_SET    = 1;
+  ATTR_GET    = 2;
+  ATTR_RM     = 3;
+  ATTR_LINK   = 4;
+  ATTR_UNLINK = 5;
+  ATTR_FOLD   = 6;
+}
+
+message AttrProto {
+  AttrCmd cmd    = 1;
+  Metadata md    = 2;
+  string key     = 3;
+  bytes value    = 4;
+  bool recursive = 5;
+  bytes link     = 6;
+}
