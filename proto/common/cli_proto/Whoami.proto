@@ -1,0 +1,11 @@
+// ----------------------------------------------------------------------------
+// File: Whoami.proto
+// Author: Ivan Arizanovic <ivan.arizanovic@comtrade.com>
+// ----------------------------------------------------------------------------
+syntax="proto3";
+
+package eos.console;
+
+message WhoamiProto {
+  bool whoami = 1;
+}

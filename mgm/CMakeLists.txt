@@ -245,6 +245,8 @@ add_library(
   grpc/GrpcServer.cc   grpc/GrpcServer.hh
   grpc/GrpcNsInterface.cc   grpc/GrpcNsInterface.hh
   grpc/GrpcManilaInterface.cc   grpc/GrpcManilaInterface.hh
+  grpc/GrpcWncServer.cc      grpc/GrpcWncServer.hh
+  grpc/GrpcWncInterface.cc      grpc/GrpcWncInterface.hh
   http/HttpServer.cc
   http/HttpHandler.cc
   http/s3/S3Handler.cc
@@ -266,11 +268,14 @@ target_link_libraries(XrdEosMgm-Objects PUBLIC
   EosAuthProto-Objects
   XrdSsiPbEosCta-Objects
   EosGrpcProto-Objects
+  EosCliGrpc-Objects
+  EosWncGrpcProto-Objects
   EosCommonServer
   LIBMICROHTTPD::LIBMICROHTTPD
   GOOGLE::SPARSEHASH
   JSONCPP::JSONCPP
   XROOTD::PRIVATE
+  XROOTD::POSIX
   LDAP::LDAP
   ZMQ::ZMQ)
 
@@ -290,10 +295,14 @@ target_link_libraries(XrdEosMgm-${XRDPLUGIN_SOVERSION} PUBLIC
   XrdEosMgm-Objects
   EosAuthProto-Objects
   EosGrpcProto-Objects
+  EosCliProto-Objects
+  EosCliGrpc-Objects
+  EosWncGrpcProto-Objects
   ZLIB::ZLIB
   XROOTD::CL
   XROOTD::SSI
   XROOTD::PRIVATE
+  XROOTD::POSIX
   EosCommon
   EosNsCommon)
 
@@ -348,9 +357,13 @@ if(Linux)
     XrdEosMgm-Objects
     EosAuthProto-Objects
     EosGrpcProto-Objects
+    EosCliProto-Objects
+    EosCliGrpc-Objects
+    EosWncGrpcProto-Objects
     ZLIB::ZLIB
     XROOTD::SSI
     XROOTD::PRIVATE
+    XROOTD::POSIX
     EosNsCommon-Static
     EosCommonServer-Static)
 

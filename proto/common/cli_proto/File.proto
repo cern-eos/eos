@@ -1,0 +1,123 @@
+// ----------------------------------------------------------------------------
+// File: File.proto
+// Author: Ivan Arizanovic <ivan.arizanovic@comtrade.com>
+// ----------------------------------------------------------------------------
+syntax="proto3";
+
+package eos.console;
+
+import "Metadata.proto";
+
+message FileProto {
+  Metadata md            = 1;
+  oneof FileCommand {
+    FileAdjustreplicaProto adjustreplica = 2;
+    FileCheckProto check                 = 3;
+    FileConvertProto convert             = 4;
+    FileCopyProto copy                   = 5;
+    FileDropProto drop                   = 6;
+    FileLayoutProto layout               = 7;
+    FileMoveProto move                   = 8;
+    FilePurgeProto purge                 = 9;
+    FileReplicateProto replicate         = 10;
+    FileResyncProto resync               = 11;
+    FileSymlinkProto symlink             = 12;
+    FileTagProto tag                     = 13;
+    FileVerifyProto verify               = 14;
+    FileVersionProto version             = 15;
+    FileVersionsProto versions           = 16;
+    FileShareProto share                 = 17;
+    FileWorkflowProto workflow           = 18;
+  }
+}
+
+message FileAdjustreplicaProto {
+  bool nodrop     = 1;
+  string space    = 2;
+  string subgroup = 3;
+}
+
+message FileCheckProto {
+  string options = 1;
+}
+
+message FileConvertProto {
+  string layout           = 1;
+  string target_space     = 2;
+  string placement_policy = 3;
+  bool sync               = 4;
+  bool rewrite            = 5;
+}
+
+message FileCopyProto {
+  string dst  = 1;
+  bool force  = 2;
+  bool clone  = 3;
+  bool silent = 4;
+}
+
+message FileDropProto {
+  uint32 fsid = 1;
+  bool force  = 2;
+}
+
+message FileLayoutProto {
+  uint32 stripes  = 1;
+  string checksum = 2;
+}
+
+message FileMoveProto {
+  uint32 fsid1 = 1;
+  uint32 fsid2 = 2;
+}
+
+message FilePurgeProto {
+  int32 purge_version = 1;
+}
+
+message FileReplicateProto {
+  uint32 fsid1 = 1;
+  uint32 fsid2 = 2;
+}
+
+message FileResyncProto {
+  uint32 fsid = 1;
+}
+
+message FileSymlinkProto {
+  bytes target_path = 1;
+}
+
+message FileTagProto {
+  bool add    = 1;
+  bool remove = 2;
+  bool unlink = 3;
+  uint32 fsid = 4;
+}
+
+message FileVerifyProto {
+  uint32 fsid         = 1;
+  bool checksum       = 2;
+  bool commitchecksum = 3;
+  bool commitsize     = 4;
+  bool commitfmd      = 5;
+  uint32 rate         = 6;
+  bool resync         = 7;
+}
+
+message FileVersionProto {
+  int32 purge_version = 1;
+}
+
+message FileVersionsProto {
+  string grab_version = 1;
+}
+
+message FileShareProto {
+  uint32 expires = 1;
+}
+
+message FileWorkflowProto {
+  string workflow = 1;
+  string event    = 2;
+}

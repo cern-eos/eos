@@ -1,0 +1,13 @@
+// ----------------------------------------------------------------------------
+// File: Rmdir.proto
+// Author: Branko Blagojevic <branko.blagojevic@comtrade.com>
+// ----------------------------------------------------------------------------
+syntax="proto3";
+
+package eos.console;
+
+import "Metadata.proto";
+
+message RmdirProto {
+  Metadata md = 1;
+}
