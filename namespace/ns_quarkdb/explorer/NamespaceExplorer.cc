@@ -138,13 +138,18 @@ void SearchNode::stageChildren()
   childrenLoaded = true;
   // containerMap is hashmap, thus unsorted... must sort first by filename.. sigh.
   // storing into a vector and calling std::sort might be faster, TODO
-  std::map<std::string, IContainerMD::id_t, FilesystemEntryComparator> sortedContainerMap;
 
+//  std::map<std::string, IContainerMD::id_t, FilesystemEntryComparator> sortedContainerMap; // Why not the std::less<string> comparator?
+//  for (auto it = containerMap->cbegin(); it != containerMap->cend(); ++it) {
+//    sortedContainerMap[it->first] = it->second;
+//  }
+  std::vector<std::pair<std::string, IContainerMD::id_t>> v;
   for (auto it = containerMap->cbegin(); it != containerMap->cend(); ++it) {
-    sortedContainerMap[it->first] = it->second;
+    v.emplace_back(std::pair<std::string, IContainerMD::id_t>{it->first,it->second});
   }
+  std::sort(v.begin(),v.end());
 
-  for (auto it = sortedContainerMap.begin(); it != sortedContainerMap.end(); ++it) {
+  for (auto it = v.begin(); it != v.end(); ++it) {
     children.emplace_back(new SearchNode(explorer, id, ContainerIdentifier(it->second), this, executor, ignoreFiles));
   }
 }
@@ -208,12 +213,13 @@ NamespaceExplorer::NamespaceExplorer(const std::string& pth,
 
   // TODO: This for loop looks like a useful primitive for MetadataFetcher,
   // maybe move there?
+  ContainerIdentifier parentID {};
+  ContainerIdentifier nextId {};
   for (size_t i = 0; i < pathParts.size(); i++) {
     // We don't know if the last chunk of pathParts is supposed to be a container
     // or name..
-    ContainerIdentifier parentID = ContainerIdentifier(staticPath.back().id());
+    parentID = ContainerIdentifier(staticPath.back().id());
     bool threw = false;
-    ContainerIdentifier nextId;
 
     try {
       nextId = MetadataFetcher::getContainerIDFromName(qcl, parentID,

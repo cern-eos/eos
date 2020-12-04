@@ -39,6 +39,7 @@
 #include "namespace/utils/Checksum.hh"
 #include "namespace/utils/Stat.hh"
 #include <mgm/Access.hh>
+#include <namespace/Prefetcher.hh>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -914,6 +915,10 @@ NewfindCmd::ProcessRequest() noexcept
   FindResult findResult;
   std::shared_ptr<eos::IContainerMD> cMD;
   std::shared_ptr<eos::IFileMD> fMD;
+
+//  EXEC_TIMING_BEGIN("Newfind");
+  std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+
   while (findResultProvider->next(findResult)) {
 
     if (limit_result) {
@@ -930,6 +935,7 @@ NewfindCmd::ProcessRequest() noexcept
     }
 
     if (findResult.isdir) {
+      eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView, findResult.path, false, findRequest.childcount(), limit_result, dir_limit, file_limit);
       if (!findRequest.directories() && findRequest.files()) { continue;}
       if (findResult.expansionFilteredOut) {
         // Returns a meaningful error message. Mirrors the checks in shouldExpandContainer
@@ -943,7 +949,7 @@ NewfindCmd::ProcessRequest() noexcept
           ofstderrStream << findResult.path << std::endl;
           reply.set_retc(EACCES);
           continue;
-//        } else {
+        } else {
           // @note Empty branch, will be cut out from the compiler anyway.
           // Either the findResult container can't be expanded further as it reaches maxdepth
           // (this is not an error), either there is something fundamentally wrong. Should never happen.
@@ -1042,13 +1048,20 @@ NewfindCmd::ProcessRequest() noexcept
 
   }
 
+//  EXEC_TIMING_END("Newfind");
+  std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+  gOFS->MgmStats.AddExec("Newfind", std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() );
+
+  gOFS->MgmStats.Add("Newfind", mVid.uid, mVid.gid, 1);
+  gOFS->MgmStats.Add("NewfindEntries", mVid.uid, mVid.gid, filecounter);
+
   if (findRequest.childcount()) {
     ofstdoutStream << "Aggregate results for the path " << findRequest.path() << ": "
         << " Files=" << childcount_aggregate_filecounter
         << " Directories=" << childcount_aggregate_dircounter <<
         std::endl;
   }
-    if (findRequest.count()) {
+  if (findRequest.count()) {
     ofstdoutStream << "nfiles=" << filecounter << " ndirectories=" << dircounter <<
                    std::endl;
   }

@@ -502,7 +502,7 @@ MetadataFetcher::getContainersFromContainerMapV(qclient::QClient& qcl,
 }
 
 //------------------------------------------------------------------------------
-// Fetch all subcontaniers for current id
+// Fetch all subcontainers for current id
 //------------------------------------------------------------------------------
 folly::Future<IContainerMD::ContainerMap>
 MetadataFetcher::getContainerMap(qclient::QClient& qcl,
