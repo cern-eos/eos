@@ -44,6 +44,7 @@
 #include "namespace/utils/RenameSafetyCheck.hh"
 #include "namespace/utils/Attributes.hh"
 #include "grpc/GrpcServer.hh"
+#include "grpc/GrpcWncServer.hh"
 #include "mgm/AdminSocket.hh"
 #include "mgm/Stat.hh"
 #include "mgm/Access.hh"
@@ -291,7 +292,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   mLRUEngine(new eos::mgm::LRU()),
   WFEPtr(new eos::mgm::WFE()), WFEd(*WFEPtr), UTF8(false), mFstGwHost(""),
   mFstGwPort(0), mQdbCluster(""), mHttpdPort(8000),
-  mFusexPort(1100), mGRPCPort(50051),
+  mFusexPort(1100), mGRPCPort(50051), mWncPort(50052),
   mFidTracker(std::chrono::seconds(600), std::chrono::seconds(3600)),
   mXrdBuffPool(2 * eos::common::KB, 2 * eos::common::MB, 8, 64),
   mJeMallocHandler(new eos::common::JeMallocHandler()),
@@ -313,6 +314,10 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
     mGRPCPort = strtol(getenv("EOS_MGM_GRPC_PORT"), 0, 10);
   }
 
+  if (getenv("EOS_MGM_WNC_PORT")) {
+    mWncPort = strtol(getenv("EOS_MGM_WNC_PORT"), 0, 10);
+  }
+
   if (getenv("EOS_MGM_FUSE_BOOKING_SIZE")) {
     mFusePlacementBooking = strtol(getenv("EOS_MGM_FUSE_BOOKING_SIZE"), 0, 10);
   } else {
@@ -329,6 +334,10 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
 
   if (mGRPCPort) {
     GRPCd.reset(new eos::mgm::GrpcServer(mGRPCPort));
+  }
+
+  if (mWncPort) {
+    WNCd.reset(new eos::mgm::GrpcWncServer(mWncPort));
   }
 
   EgroupRefresh.reset(new eos::mgm::Egroup());

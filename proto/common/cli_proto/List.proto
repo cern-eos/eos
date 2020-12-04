@@ -1,0 +1,60 @@
+// ----------------------------------------------------------------------------
+// File: List.proto
+// Author: Ivan Arizanovic <ivan.arizanovic@comtrade.com>
+// ----------------------------------------------------------------------------
+syntax="proto3";
+
+package eos.console;
+
+import "Metadata.proto";
+
+enum LIST_CMD {
+  LS    = 0;
+  FIND  = 1;
+}
+
+message MdChecksum {
+  bytes value = 1;
+  string type = 2;
+}
+
+message Limit {
+  bool zero = 1;
+  uint64 min = 2;
+  uint64 max = 3;
+}
+
+message MDSelection {
+  bool select              = 1;
+  Limit ctime              = 2;
+  Limit mtime              = 3;
+  Limit stime              = 4;
+  Limit size               = 5;
+  Limit treesize           = 6;
+  Limit children           = 7;
+  Limit locations          = 8;
+  Limit unlinked_locations = 9;
+  uint64 layoutid          = 10;
+  uint64 flags             = 11;
+  bool symlink             = 12;
+  MdChecksum checksum      = 13;
+  uint32 owner             = 14;
+  uint32 group             = 15;
+  bool owner_root          = 16;
+  bool group_root          = 17;
+  bytes regexp_filename    = 18;
+  bytes regexp_dirname     = 19;
+  map<string, bytes> xattr = 20;
+  bool mixed_group         = 21;
+  bool balance             = 22;
+  bool stripediff          = 23;
+  bool faultyacl           = 24;
+}
+
+message ListProto {
+  TYPE type   = 1;
+  Metadata md = 2;
+  MDSelection selection = 3;
+  LIST_CMD cmd = 4;
+  uint64 maxdepth = 5;
+}

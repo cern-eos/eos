@@ -1,0 +1,22 @@
+// ----------------------------------------------------------------------------
+// File: Fileinfo.proto
+// Author: Ivan Arizanovic <ivan.arizanovic@comtrade.com>
+// ----------------------------------------------------------------------------
+syntax="proto3";
+
+package eos.console;
+
+import "Metadata.proto";
+
+message FileinfoProto {
+  Metadata md     = 1;
+  bool path       = 2;
+  bool fid        = 3;
+  bool fxid       = 4;
+  bool size       = 5;
+  bool checksum   = 6;
+  bool fullpath   = 7;
+  bool proxy      = 8;
+  bool monitoring = 9;
+  bool env        = 10;
+}

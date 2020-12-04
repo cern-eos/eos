@@ -1,0 +1,115 @@
+// ----------------------------------------------------------------------------
+// File: Vid.proto
+// Author: Ivan Arizanovic <ivan.arizanovic@comtrade.com>
+// ----------------------------------------------------------------------------
+
+syntax="proto3";
+package eos.console;
+
+message VidProto {
+
+  message GatewayProto {
+    enum Option {
+      ADD    = 0;
+      REMOVE = 1;
+    }
+    enum Protocol {
+      ALL   = 0;
+      KRB5  = 1;
+      GSI   = 2;
+      SSS   = 3;
+      UNIX  = 4;
+      HTTPS = 5;
+      GRPC  = 6;
+    }
+    Option option     = 1;
+    string hostname   = 2;
+    Protocol protocol = 3;
+  }
+
+  message DefaultMappingProto {
+    enum Option {
+      ENABLE  = 0;
+      DISABLE = 1;
+    }
+    enum Type {
+      KRB5   = 0;
+      GSI    = 1;
+      SSS    = 2;
+      UNIX   = 3;
+      HTTPS  = 4;
+      TIDENT = 5;
+    }
+    Option option = 1;
+    Type type     = 2;
+  }
+
+  message LsProto {
+    bool user_role    = 1; // [-u]
+    bool group_role   = 2; // [-g]
+    bool sudoers      = 3; // [-s]
+    bool user_alias   = 4; // [-U]
+    bool group_alias  = 5; // [-G]
+    bool gateway      = 6; // [-y]
+    bool auth         = 7; // [-a]
+    bool deepness     = 8; // [-N]
+    bool geo_location = 9; // [-l]
+    bool num_ids      = 10; // [-n]
+  }
+
+  message PublicAccessLevelProto {
+    uint32 level = 1;
+  }
+
+  message RmProto {
+    bool membership = 1;
+    string key      = 2;
+  }
+
+  message SetGeotagProto {
+    string prefix = 1;
+    string geotag = 2;
+  }
+
+  message SetMembershipProto {
+    enum Option {
+      USER        = 0;
+      GROUP       = 1;
+      ADD_SUDO    = 2;
+      REMOVE_SUDO = 3;
+    }
+    Option option  = 1;
+    string user    = 2;
+    string members = 3;
+  }
+
+  message SetMapProto {
+    enum Type {
+      KRB5   = 0;
+      GSI    = 1;
+      HTTPS  = 2;
+      SSS    = 3;
+      UNIX   = 4;
+      TIDENT = 5;
+      VOMS   = 6;
+      GRPC   = 7;
+    }
+    Type type      = 1;
+    string pattern = 2;
+    uint64 vuid    = 3;
+    uint64 vgid    = 4;
+    bool vuid_only = 5;
+    bool vgid_only = 6;
+  }
+
+  oneof subcmd {
+    GatewayProto gateway                     = 1;
+    DefaultMappingProto defaultmapping       = 2;
+    LsProto ls                               = 3;
+    PublicAccessLevelProto publicaccesslevel = 4;
+    RmProto rm                               = 5;
+    SetGeotagProto setgeotag                 = 6;
+    SetMembershipProto setmembership         = 7;
+    SetMapProto setmap                       = 8;
+  }
+}
