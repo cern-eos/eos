@@ -1,6 +1,7 @@
 #-------------------------------------------------------------------------------
 # File: eos_env.example
-# Authors: Ivan Arizanovic - ComTrade Solutions Engineering
+# Author: Ivan Arizanovic <ivan.arizanovic@comtrade.com>
+# Author: Branko Blagojevic <branko.blagojevic@comtrade.com>
 #-------------------------------------------------------------------------------
 
 # ************************************************************************
@@ -198,6 +199,18 @@ EOS_HTTP_CONNECTION_MEMORY_LIMIT=4194304
 # EOS_MGM_GRPC_SSL_CERT
 # EOS_MGM_GRPC_SSL_KEY
 # EOS_MGM_GRPC_SSL_CA
+
+#-------------------------------------------------------------------------------
+# Configure GRPC server dedicated for access via Windows native client (EOS-wnc)
+#-------------------------------------------------------------------------------
+
+# GRPC Wnc port - set to 0 to disable EOS-wnc server
+# EOS_MGM_WNC_PORT=50052
+
+# Define to enable SSL authentication on EOS-wnc server
+# EOS_MGM_WNC_SSL_CERT
+# EOS_MGM_WNC_SSL_KEY
+# EOS_MGM_WNC_SSL_CA
 
 #-------------------------------------------------------------------------------
 # FUSEX Configuration

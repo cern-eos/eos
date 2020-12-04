@@ -28,6 +28,7 @@
 #include <cstring>
 #include <sstream>
 #include "grpc/GrpcServer.hh"
+#include "grpc/GrpcWncServer.hh"
 #include "mgm/AdminSocket.hh"
 #include "mgm/Stat.hh"
 #include "mgm/FsView.hh"
@@ -1285,7 +1286,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
   // Configure log-file fan out
   std::vector<std::string> lFanOutTags {
-    "Grpc", "Balancer", "Converter", "DrainJob", "ZMQ", "MetadataFlusher", "Http",
+    "Grpc", "Wnc", "Balancer", "Converter", "DrainJob", "ZMQ", "MetadataFlusher", "Http",
     "Master", "Recycle", "LRU", "WFE", "WFE::Job", "GroupBalancer",
     "GeoBalancer", "GeoTreeEngine", "ReplicationTracker", "FileInspector", "Mounts", "#"};
   // Get the XRootD log directory
@@ -1317,6 +1318,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     g_logging.AddFanOutAlias("HttpHandler", "Http");
     g_logging.AddFanOutAlias("HttpServer", "Http");
     g_logging.AddFanOutAlias("GrpcServer", "Grpc");
+    g_logging.AddFanOutAlias("GrpcWncServer", "Wnc");
     g_logging.AddFanOutAlias("ProtocolHandler", "Http");
     g_logging.AddFanOutAlias("PropFindResponse", "Http");
     g_logging.AddFanOutAlias("WebDAV", "Http");
@@ -2029,6 +2031,11 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
   if (GRPCd) {
     GRPCd->Start();
+  }
+
+  // Start gRPC server for EOS Windows native client
+  if (WNCd) {
+    WNCd->StartWnc();
   }
 
 #endif

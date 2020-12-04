@@ -1,0 +1,16 @@
+// ----------------------------------------------------------------------------
+// File: Who.proto
+// Author: Ivan Arizanovic <ivan.arizanovic@comtrade.com>
+// ----------------------------------------------------------------------------
+
+syntax="proto3";
+
+package eos.console;
+
+message WhoProto {
+  bool showclients = 1;
+  bool showauth    = 2;
+  bool showall     = 3;
+  bool showsummary = 4;
+  bool monitoring  = 5;
+}

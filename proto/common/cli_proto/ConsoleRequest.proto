@@ -1,5 +1,7 @@
 syntax="proto3";
+
 package eos.console;
+
 import "Acl.proto";
 import "Ns.proto";
 import "Drain.proto";
@@ -21,6 +23,23 @@ import "Fsck.proto";
 import "Token.proto";
 import "QoS.proto";
 import "Convert.proto";
+import "Authentication.proto";
+import "Attr.proto";
+import "ChangeMode.proto";
+import "Chown.proto";
+import "File.proto";
+import "Fileinfo.proto";
+import "List.proto";
+import "MakeDirectory.proto";
+import "Move.proto";
+import "Rmdir.proto";
+import "Status.proto";
+import "Touch.proto";
+import "Transfer.proto";
+import "Version.proto";
+import "Vid.proto";
+import "Who.proto";
+import "Whoami.proto";
 
 //------------------------------------------------------------------------------
 // Request message sent to the server
@@ -59,8 +78,25 @@ message RequestProto {
     TokenProto token       = 20;
     QoSProto qos           = 21;
     ConvertProto convert   = 22;
+    ListProto list         = 23;
+    MoveProto mv           = 24;
+    RmdirProto rmdir       = 25;
+    TouchProto touch       = 26;
+    FileinfoProto fileinfo = 27;
+    AttrProto attr         = 28;
+    FileProto file         = 29;
+    WhoamiProto whoami     = 33;
+    WhoProto who           = 34;
+    MkdirProto mkdir       = 35;
+    StatProto stat         = 36;
+    VidProto vid           = 37;
+    TransferProto transfer = 38;
+    VersionProto version   = 39;
+    ChmodProto chmod       = 40;
+    ChownProto chown       = 41;
   }
 
   string Comment = 30;
   bool DontColor = 31; // True if the output fd is not a tty.
+  AuthProto auth = 32;
 }

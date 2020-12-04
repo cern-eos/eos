@@ -1,0 +1,20 @@
+// ----------------------------------------------------------------------------
+// File: Chown.proto
+// Author: Branko Blagojevic <branko.blagojevic@comtrade.com>
+// Author: Ivan Arizanovic <ivan.arizanovic@comtrade.com>
+// ----------------------------------------------------------------------------
+syntax="proto3";
+
+package eos.console;
+
+import "Metadata.proto";
+import "Authentication.proto";
+
+message ChownProto {
+  Metadata md        = 1;
+  RoleId owner       = 2;
+  bool user_only     = 3;
+  bool group_only    = 4;
+  bool recursive     = 5;
+  bool nodereference = 6;
+}
