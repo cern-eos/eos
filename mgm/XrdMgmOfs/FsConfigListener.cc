@@ -32,7 +32,8 @@
 //------------------------------------------------------------------------------
 bool XrdMgmOfs::getMGMConfigValue(const std::string& key, std::string& value)
 {
-  return eos::mq::SharedHashWrapper::makeGlobalMgmHash(mMessagingRealm.get()).get(key, value);
+  return eos::mq::SharedHashWrapper::makeGlobalMgmHash(mMessagingRealm.get()).get(
+           key, value);
 }
 
 //------------------------------------------------------------------------------
@@ -75,11 +76,15 @@ XrdMgmOfs::processIncomingMgmConfigurationChange(const std::string& key)
                value.c_str());
       gOFS->ConfEngine->SetConfigValue(0, key.c_str(), value.c_str(), false);
 
-      // For file system modification we need to take the
-      // FsView::ViewMutex for write
+      // For fs modification we need to lock for write the FsView::ViewMutex
       if (key.find("fs:") == 0) {
         eos::common::RWMutexWriteLock wr_view_lock(FsView::gFsView.ViewMutex);
         gOFS->ConfEngine->ApplyEachConfig(key.c_str(), &value, &err);
+      }
+
+      if (key.find("quota:") == 0) {
+        eos_info("%s", "msg=\"skip quota update as it might mess with "
+                 "the namespace, will reload once we become master\"");
       } else {
         gOFS->ConfEngine->ApplyEachConfig(key.c_str(), &value, &err);
       }
@@ -184,24 +189,25 @@ XrdMgmOfs::ProcessGeotagChange(const std::string& queue)
 //------------------------------------------------------------------------------
 // A thread monitoring for important key-value changes in filesystems
 //------------------------------------------------------------------------------
-void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept {
-  eos::mq::FileSystemChangeListener changeListener("filesystem-listener-thread", ObjectNotifier);
-
+void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept
+{
+  eos::mq::FileSystemChangeListener changeListener("filesystem-listener-thread",
+      ObjectNotifier);
   bool ok = changeListener.subscribe("stat.errc");
   ok &= changeListener.subscribe("stat.geotag");
   ok &= changeListener.startListening();
 
-  if(!ok) {
+  if (!ok) {
     eos_static_crit("Unspecified problem when attempting to subscribe to filesystem key changes");
   }
 
-  while(!assistant.terminationRequested()) {
+  while (!assistant.terminationRequested()) {
     eos::mq::FileSystemChangeListener::Event event;
-    if(changeListener.fetch(event, assistant) && !event.isDeletion()) {
-      if(event.key == "stat.geotag") {
+
+    if (changeListener.fetch(event, assistant) && !event.isDeletion()) {
+      if (event.key == "stat.geotag") {
         ProcessGeotagChange(event.fileSystemQueue);
-      }
-      else {
+      } else {
         // This is a filesystem status error
         if (gOFS->mMaster->IsMaster()) {
           // only an MGM master needs to initiate draining
@@ -213,20 +219,22 @@ void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept {
           eos::common::BootStatus bstatus = eos::common::BootStatus::kDown;
           // read the id from the hash and the current error value
           eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-          FileSystem* fs = FsView::gFsView.mIdView.lookupByQueuePath(event.fileSystemQueue);
+          FileSystem* fs = FsView::gFsView.mIdView.lookupByQueuePath(
+                             event.fileSystemQueue);
 
           if (fs) {
             fsid = (eos::common::FileSystem::fsid_t) fs->GetLongLong("id");
             errc = (int) fs->GetLongLong("stat.errc");
             configstatus = fs->GetString("configstatus");
             bootstatus = fs->GetString("stat.boot");
-            cfgstatus = eos::common::FileSystem::GetConfigStatusFromString(configstatus.c_str());
+            cfgstatus = eos::common::FileSystem::GetConfigStatusFromString(
+                          configstatus.c_str());
             bstatus = eos::common::FileSystem::GetStatusFromString(bootstatus.c_str());
           }
 
           if (fs && fsid && errc &&
-             (cfgstatus >= eos::common::ConfigStatus::kRO) &&
-             (bstatus == eos::common::BootStatus::kOpsError)) {
+              (cfgstatus >= eos::common::ConfigStatus::kRO) &&
+              (bstatus == eos::common::BootStatus::kOpsError)) {
             // Case when we take action and explicitly ask to start a drain job
             fs->SetConfigStatus(eos::common::ConfigStatus::kDrain);
           }
@@ -253,19 +261,18 @@ void
 XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
 {
   eos::mq::GlobalConfigChangeListener changeListener(mMessagingRealm.get(),
-    "fs-config-listener-thread", MgmConfigQueue.c_str());
+      "fs-config-listener-thread", MgmConfigQueue.c_str());
 
   // Thread listening on filesystem errors and configuration changes
   while (!assistant.terminationRequested()) {
     eos::mq::GlobalConfigChangeListener::Event event;
-    if(changeListener.fetch(event, assistant)) {
 
-      if(!event.isDeletion() && !gOFS->mMaster->IsMaster()) {
+    if (changeListener.fetch(event, assistant)) {
+      if (!event.isDeletion() && !gOFS->mMaster->IsMaster()) {
         // This is an MGM configuration modification - only an MGM
         // slave needs to apply this.
         processIncomingMgmConfigurationChange(event.key);
-      }
-      else if(event.isDeletion()) {
+      } else if (event.isDeletion()) {
         gOFS->ConfEngine->DeleteConfigValue(0, event.key.c_str(), false);
         gOFS->ConfEngine->ApplyKeyDeletion(event.key.c_str());
       }
