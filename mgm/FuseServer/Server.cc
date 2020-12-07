@@ -1466,6 +1466,9 @@ Server::OpSetDirectory(const std::string& id,
         std::shared_ptr<eos::IContainerMD> exist_target_cmd = pcmd->findContainer(
               md.name());
 
+
+	unsigned long long tree_size = cmd->getTreeSize();
+
         if (exist_target_cmd) {
           if (exist_target_cmd->getNumFiles() + exist_target_cmd->getNumContainers()) {
             // Fatal error we have to fail that rename
@@ -1491,9 +1494,17 @@ Server::OpSetDirectory(const std::string& id,
                  cmd->getParentId(), md.md_pino());
         cpcmd = gOFS->eosDirectoryService->getContainerMD(cmd->getParentId());
         cpcmd->removeContainer(cmd->getName());
+
+	if (gOFS->eosContainerAccounting) {
+	  gOFS->eosContainerAccounting->RemoveTree(cpcmd.get(), tree_size);
+	}
+
         gOFS->eosView->updateContainerStore(cpcmd.get());
         cmd->setName(md.name());
         pcmd->addContainer(cmd.get());
+	if (gOFS->eosContainerAccounting) {
+	  gOFS->eosContainerAccounting->AddTree(pcmd.get(), tree_size);
+	}
         gOFS->eosView->updateContainerStore(pcmd.get());
       }
 
