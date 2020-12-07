@@ -141,13 +141,12 @@ FuseServer::Clients::MonitorHeartBeat()
 
     // Delete client ot be evicted because of a version mismatch
     if (!evictversionmap.empty()) {
-      eos::common::RWMutexWriteLock lLock(*this);
-
       for (auto it = evictversionmap.begin(); it != evictversionmap.end(); ++it) {
         std::string versionerror =
           "Server supports PROTOCOLV4 and requires atleast PROTOCOLV2";
         std::string uuid = it->first;
         Evict(uuid, versionerror);
+        eos::common::RWMutexWriteLock lLock(*this);
         mMap.erase(it->second);
         mUUIDView.erase(it->first);
       }
