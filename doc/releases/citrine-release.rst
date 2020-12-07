@@ -16,6 +16,24 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.31 Citrine``
+===================
+
+2020-12-07
+
+Bug
+---
+
+* MGM: Reduce scope of eos::mgm::FuseServer::Client write lock to avoid deadlock
+* MGM: Skip quota updates on the slaves as this might corrupt the ns
+* EOS-4520 MGM: fix treesize changes when moving directory trees via FUSE
+
+Improvements
+------------
+
+* MGM: Add namespace stats entry for newfind
+
+
 ``v4.8.30 Citrine``
 ===================
 
