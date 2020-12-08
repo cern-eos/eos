@@ -115,7 +115,7 @@ XrdMgmOfs::Schedule2Delete(const char* path,
   // <fsid, fs_path, fs_queue> in the tuple below
   std::list<std::tuple<unsigned long, std::string, std::string>> fs_info;
   {
-    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex, __FUNCTION__, __LINE__, __FILE__);
 
     if (!FsView::gFsView.mNodeView.count(nodename)) {
       eos_static_warning("msg=\"node is not configured\" name=%s",
@@ -156,7 +156,7 @@ XrdMgmOfs::Schedule2Delete(const char* path,
 
       // This look is only needed for the in-memory namespace implementation
       if (gOFS->eosView->inMemory()) {
-        ns_rd_lock.Grab(gOFS->eosViewRWMutex);
+        ns_rd_lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
       }
 
       // Collect all the file ids to be deleted from the current filesystem

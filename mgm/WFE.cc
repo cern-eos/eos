@@ -1931,7 +1931,7 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string& fullPath,
   auto s_ret = SendProtoWFRequest(this, fullPath, request, errorMsg);
 
   if (s_ret == 0) {
-    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
 
     try {
