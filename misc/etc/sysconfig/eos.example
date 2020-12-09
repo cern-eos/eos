@@ -139,9 +139,6 @@ export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # specify in MBit/s
 #export EOS_FST_NETWORK_SPEED=1000
 
-# Stream timeout for operations
-#export EOS_FST_STREAM_TIMEOUT=300
-
 # Disable fast boot and always do a full resync when a fs is booting
 # export EOS_FST_NO_FAST_BOOT=0 (default off)
 

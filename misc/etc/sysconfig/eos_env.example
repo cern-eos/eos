@@ -133,9 +133,6 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # Network interface to monitor (default eth0)
 #EOS_FST_NETWORK_INTERFACE="eth0"
 
-# Stream timeout for operations
-#EOS_FST_STREAM_TIMEOUT=300
-
 # Specify in seconds how often FSTs should query for new delete operations
 # EOS_FST_DELETE_QUERY_INTERVAL=300
 
@@ -161,6 +158,10 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 
 # Store FMD database on the same partition as the data disk
 # EOS_FST_FMD_ON_DATA_DISK=0
+
+# Control the asynchronous callback on close, if undefined or 0 then disabled,
+# else if 1 then enabled.
+# EOS_FST_ASYNC_CLOSE=0
 
 #-------------------------------------------------------------------------------
 # HTTPD Configuration

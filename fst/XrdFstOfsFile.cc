@@ -1042,8 +1042,11 @@ XrdFstOfsFile::close()
   // the current object. This was confusing when logging the error.getErrInfo()
   // value at the end of the close.
   error.setErrCode(0);
-  //@todo(esindril): disable close async until xrootd bug is fixed
-  return _close();
+  const char* ptr = getenv("EOS_FST_ASYNC_CLOSE");
+
+  if (ptr && (strncmp(ptr, "1", 1) == 0)) {
+    return _close();
+  }
 
   // Close happening the in the same XRootD thread
   if (viaDelete || mWrDelete || mIsDevNull || (mIsRW == false) ||
