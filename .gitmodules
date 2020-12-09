@@ -26,3 +26,6 @@
 [submodule "eos-scitokens"]
 	path = eos-scitokens
 	url = https://gitlab.cern.ch/eos/eos-scitokens.git
+[submodule "common/jwt-cpp"]
+	path = common/jwt-cpp
+	url = https://github.com/Thalhammer/jwt-cpp.git
