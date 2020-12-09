@@ -240,7 +240,9 @@ ContainerMD::removeFile(const std::string& name)
     std::shared_ptr<IFileMD> file = pFileSvc->getFileMD(it->second);
     IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::SizeChange,
                                    0, -file->getSize());
+    lock.unlock();
     file->getFileMDSvc()->notifyListeners(&e);
+    lock.lock();
     mFiles.erase(name);
     // mFiles.resize(0);
   }
