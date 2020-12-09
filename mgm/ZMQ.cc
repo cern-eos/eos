@@ -59,6 +59,7 @@ ZMQ::Task::~Task()
   mWorkerThreads.clear();
 }
 
+
 //------------------------------------------------------------------------------
 // Start proxy service
 //------------------------------------------------------------------------------
@@ -72,6 +73,20 @@ ZMQ::Task::run() noexcept
   enable_ipv6 = 0;
   mFrontend.setsockopt(ZMQ_IPV4ONLY, &enable_ipv6, sizeof(enable_ipv6));
 #endif
+
+  {
+    // set keepalive options
+    int32_t keep_alive = 1;
+    int32_t keep_alive_idle = 30;
+    int32_t keep_alive_cnt = 2;
+    int32_t keep_alive_intvl = 30;
+
+    mFrontend.setsockopt(ZMQ_TCP_KEEPALIVE, &keep_alive, sizeof (keep_alive));
+    mFrontend.setsockopt(ZMQ_TCP_KEEPALIVE_IDLE, &keep_alive_idle, sizeof (keep_alive_idle));
+    mFrontend.setsockopt(ZMQ_TCP_KEEPALIVE_CNT, &keep_alive_cnt, sizeof (keep_alive_cnt));
+    mFrontend.setsockopt(ZMQ_TCP_KEEPALIVE_INTVL, &keep_alive_intvl, sizeof (keep_alive_intvl));
+  }
+
   mFrontend.bind(mBindUrl.c_str());
   mBackend.bind("inproc://backend");
   mInjector.connect("inproc://backend");
