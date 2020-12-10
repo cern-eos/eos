@@ -781,13 +781,18 @@ GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
 
   bool first = true;
 
+  auto itf = eos::FileMapIterator(cmd);
+  auto itc = eos::ContainerMapIterator(cmd);
+
+  viewReadLock.Release();
+
   // stream for listing and file type
   if (request->type() != eos::rpc::CONTAINER) {
     // stream all the children files
-    for (auto it = eos::FileMapIterator(cmd); it.valid(); it.next()) {
+    for (; itf.valid(); itf.next()) {
       eos::rpc::MDRequest c_file;
       c_file.mutable_selection()->CopyFrom(request->selection());
-      c_file.mutable_id()->set_id(it.value());
+      c_file.mutable_id()->set_id(itf.value());
       c_file.set_type(eos::rpc::FILE);
       status = GetMD(vid, writer, &c_file, first);
 
@@ -800,11 +805,11 @@ GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
   }
 
   // stream all the children container
-  for (auto it = eos::ContainerMapIterator(cmd); it.valid(); it.next()) {
+  for (; itc.valid(); itc.next()) {
     if (request->type() != eos::rpc::FILE) {
       // stream for listing and container type
       eos::rpc::MDRequest c_dir;
-      c_dir.mutable_id()->set_id(it.value());
+      c_dir.mutable_id()->set_id(itc.value());
       c_dir.mutable_selection()->CopyFrom(request->selection());
       c_dir.set_type(eos::rpc::CONTAINER);
       status = GetMD(vid, writer, &c_dir, first);
@@ -815,7 +820,7 @@ GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
     }
 
     if (childdirs) {
-      childdirs->push_back(it.value());
+      childdirs->push_back(itc.value());
     }
 
     first = false;
