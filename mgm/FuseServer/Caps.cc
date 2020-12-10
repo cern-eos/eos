@@ -117,7 +117,7 @@ FuseServer::Caps::Imply(uint64_t md_ino,
 }
 
 //------------------------------------------------------------------------------
-//
+// Get shared capability - one needs to hold (at least) the read lock
 //------------------------------------------------------------------------------
 FuseServer::Caps::shared_cap
 FuseServer::Caps::Get(FuseServer::Caps::authid_t id)
@@ -129,6 +129,9 @@ FuseServer::Caps::Get(FuseServer::Caps::authid_t id)
   }
 }
 
+//------------------------------------------------------------------------------
+// Get shared capability - thread safe
+//------------------------------------------------------------------------------
 FuseServer::Caps::shared_cap
 FuseServer::Caps::GetTS(FuseServer::Caps::authid_t id)
 {
@@ -141,12 +144,12 @@ FuseServer::Caps::GetTS(FuseServer::Caps::authid_t id)
   }
 }
 
-
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Broadcast release for id from external
+//----------------------------------------------------------------------------
 int
 FuseServer::Caps::BroadcastReleaseFromExternal(uint64_t id)
-/*----------------------------------------------------------------------------*/
+
 {
   gOFS->MgmStats.Add("Eosxd::int::BcReleaseExt", 0, 0, 1);
   EXEC_TIMING_BEGIN("Eosxd::int::BcReleaseExt");
@@ -196,11 +199,9 @@ FuseServer::Caps::BroadcastRefreshFromExternal(uint64_t id, uint64_t pid)
   gOFS->MgmStats.Add("Eosxd::int::BcRefreshExt", 0, 0, 1);
   EXEC_TIMING_BEGIN("Eosxd::int::BcRefreshExt");
   // broad-cast refresh for a given inode
-  eos::common::RWMutexReadLock lLock(*this);
-  eos_static_info("id=%lx pid=%lx",
-                  id,
-                  pid);
+  eos_static_info("id=%lx pid=%lx", id, pid);
   std::vector<shared_cap> bccaps;
+  eos::common::RWMutexReadLock lLock(*this);
 
   if (mInodeCaps.count(pid)) {
     for (auto it = mInodeCaps[pid].begin();
@@ -238,15 +239,15 @@ FuseServer::Caps::BroadcastRelease(const eos::fusex::md& md)
 {
   gOFS->MgmStats.Add("Eosxd::int::BcRelease", 0, 0, 1);
   EXEC_TIMING_BEGIN("Eosxd::int::BcRelease");
-  FuseServer::Caps::shared_cap refcap = Get(md.authid());
+  std::vector<shared_cap> bccaps;
   eos::common::RWMutexReadLock lLock(*this);
+  FuseServer::Caps::shared_cap refcap = Get(md.authid());
   eos_static_info("id=%lx/%lx clientid=%s clientuuid=%s authid=%s",
                   refcap->id(),
                   md.md_pino(),
                   refcap->clientid().c_str(),
                   refcap->clientuuid().c_str(),
                   refcap->authid().c_str());
-  std::vector<shared_cap> bccaps;
   uint64_t md_pino = refcap->id();
 
   if (!md_pino) {
@@ -307,12 +308,10 @@ FuseServer::Caps::BroadcastDeletionFromExternal(uint64_t id,
 {
   gOFS->MgmStats.Add("Eosxd::int::BcDeletionExt", 0, 0, 1);
   EXEC_TIMING_BEGIN("Eosxd::int::BcDeletionExt");
+  eos_static_info("id=%lx name=%s", id, name.c_str());
+  std::vector<shared_cap> bccaps;
   // broad-cast deletion for a given name in a container
   eos::common::RWMutexReadLock lLock(*this);
-  eos_static_info("id=%lx name=%s",
-                  id,
-                  name.c_str());
-  std::vector<shared_cap> bccaps;
 
   if (mInodeCaps.count(id)) {
     for (auto it = mInodeCaps[id].begin();
@@ -354,12 +353,10 @@ FuseServer::Caps::BroadcastDeletion(uint64_t id, const eos::fusex::md& md,
 {
   gOFS->MgmStats.Add("Eosxd::int::BcDeletion", 0, 0, 1);
   EXEC_TIMING_BEGIN("Eosxd::int::BcDeletion");
-  FuseServer::Caps::shared_cap refcap = Get(md.authid());
-  eos::common::RWMutexReadLock lLock(*this);
-  eos_static_info("id=%lx name=%s",
-                  id,
-                  name.c_str());
+  eos_static_info("id=%lx name=%s", id, name.c_str());
   std::vector<shared_cap> bccaps;
+  eos::common::RWMutexReadLock lLock(*this);
+  FuseServer::Caps::shared_cap refcap = Get(md.authid());
 
   if (mInodeCaps.count(refcap->id())) {
     for (auto it = mInodeCaps[refcap->id()].begin();
@@ -417,13 +414,11 @@ FuseServer::Caps::BroadcastRefresh(uint64_t inode,
 {
   gOFS->MgmStats.Add("Eosxd::int::BcRefresh", 0, 0, 1);
   EXEC_TIMING_BEGIN("Eosxd::int::BcRefresh");
-  FuseServer::Caps::shared_cap refcap = Get(md.authid());
-  eos::common::RWMutexReadLock lLock(*this);
-  eos_static_info("id=%lx parent=%lx",
-                  inode,
-                  parent_inode);
-  std::vector<shared_cap> bccaps;
+  eos_static_info("id=%lx parent=%lx", inode, parent_inode);
   size_t n_suppressed = 0;
+  std::vector<shared_cap> bccaps;
+  eos::common::RWMutexReadLock lLock(*this);
+  FuseServer::Caps::shared_cap refcap = Get(md.authid());
 
   if (mInodeCaps.count(parent_inode)) {
     bool suppress_audience = false;
@@ -515,17 +510,14 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
 {
   gOFS->MgmStats.Add("Eosxd::int::BcMD", 0, 0, 1);
   EXEC_TIMING_BEGIN("Eosxd::int::BcMD");
-  FuseServer::Caps::shared_cap refcap = Get(md.authid());
-  eos::common::RWMutexReadLock lLock(*this);
-  eos_static_info("id=%lx/%lx clientid=%s clientuuid=%s authid=%s",
-                  refcap->id(),
-                  md_pino,
-                  refcap->clientid().c_str(),
-                  refcap->clientuuid().c_str(),
-                  refcap->authid().c_str());
-  std::set<std::string> clients_sent;
-  std::vector<shared_cap> bccaps;
   size_t n_suppressed = 0;
+  std::vector<shared_cap> bccaps;
+  std::set<std::string> clients_sent;
+  eos::common::RWMutexReadLock lLock(*this);
+  FuseServer::Caps::shared_cap refcap = Get(md.authid());
+  eos_static_info("id=%lx/%lx clientid=%s clientuuid=%s authid=%s",
+                  refcap->id(), md_pino, refcap->clientid().c_str(),
+                  refcap->clientuuid().c_str(), refcap->authid().c_str());
 
   if (mInodeCaps.count(md_pino)) {
     bool suppress_audience = false;
