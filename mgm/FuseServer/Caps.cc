@@ -781,11 +781,21 @@ FuseServer::Caps::Print(std::string option, std::string filter)
 }
 
 //------------------------------------------------------------------------------
-//
+// Delete capabilities corresponding to an inode
 //------------------------------------------------------------------------------
 int
 FuseServer::Caps::Delete(uint64_t md_ino)
 {
+  // Hash functor used for storing client_set_t::iterator objects in an
+  // unordered set
+  struct iter_client_set_hash {
+    size_t operator()(client_set_t::iterator it) const
+    {
+      return std::hash<std::string>()(it->first);
+    }
+  };
+  std::unordered_set<client_set_t::iterator, iter_client_set_hash>
+  to_del_client_caps;
   eos::common::RWMutexWriteLock lLock(*this);
   const auto it_inode_caps = mInodeCaps.find(md_ino);
 
@@ -794,7 +804,6 @@ FuseServer::Caps::Delete(uint64_t md_ino)
   }
 
   const authid_set_t& set_authid = it_inode_caps->second;
-  std::list<client_set_t::iterator> to_del_client_caps;
 
   for (auto it_client_caps = mClientCaps.begin();
        it_client_caps != mClientCaps.end(); ++it_client_caps) {
@@ -803,7 +812,7 @@ FuseServer::Caps::Delete(uint64_t md_ino)
       it_client_caps->second.erase(authid);
 
       if (it_client_caps->second.empty()) {
-        to_del_client_caps.push_back(it_client_caps);
+        to_del_client_caps.insert(it_client_caps);
       }
     }
   }
