@@ -958,8 +958,8 @@ FuseServer::Clients::SendMD(const eos::fusex::md& md,
     return ENOENT;
   }
 
-  lLock.Release();
   std::string id = mUUIDView[uuid];
+  lLock.Release();
   eos_static_info("msg=\"sending md update\" uuid=%s clientid=%s id=%lx",
                   uuid.c_str(), clientid.c_str(), md_ino);
   gOFS->zMQ->mTask->reply(id, rspstream);
@@ -989,7 +989,7 @@ FuseServer::Clients::SendCAP(FuseServer::Caps::shared_cap cap)
     return ENOENT;
   }
 
-  const std::string& clientid = mUUIDView[uuid];
+  std::string clientid = mUUIDView[uuid];
   lLock.Release();
   eos_static_info("msg=\"sending cap update\" uuid=%s clientid=%s cap-id=%lx",
                   uuid.c_str(), clientid.c_str(), cap->id());
