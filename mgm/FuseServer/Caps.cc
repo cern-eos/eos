@@ -793,7 +793,6 @@ FuseServer::Caps::Delete(uint64_t md_ino)
     return ENONET;
   }
 
-  bool done_once = false;
   const authid_set_t& set_authid = it_inode_caps->second;
   std::list<client_set_t::iterator> to_del_client_caps;
 
@@ -806,32 +805,30 @@ FuseServer::Caps::Delete(uint64_t md_ino)
       if (it_client_caps->second.empty()) {
         to_del_client_caps.push_back(it_client_caps);
       }
-
-      if (!done_once) {
-        const auto it_caps = mCaps.find(authid);
-
-        if (it_caps != mCaps.end()) {
-          const std::string client_id = it_caps->second->clientid();
-          auto it_cli_inocaps = mClientInoCaps.find(client_id);
-
-          if (it_cli_inocaps != mClientInoCaps.end()) {
-            it_cli_inocaps->second.erase(md_ino);
-
-            if (it_cli_inocaps->second.size() == 0) {
-              mClientInoCaps.erase(it_cli_inocaps);
-            }
-          }
-
-          mCaps.erase(it_caps);
-        }
-      }
     }
-
-    done_once = true;
   }
 
   for (auto& it_elem : to_del_client_caps) {
     mClientCaps.erase(it_elem);
+  }
+
+  for (const auto& authid : set_authid) {
+    const auto it_caps = mCaps.find(authid);
+
+    if (it_caps != mCaps.end()) {
+      const std::string client_id = it_caps->second->clientid();
+      auto it_cli_inocaps = mClientInoCaps.find(client_id);
+
+      if (it_cli_inocaps != mClientInoCaps.end()) {
+        it_cli_inocaps->second.erase(md_ino);
+
+        if (it_cli_inocaps->second.size() == 0) {
+          mClientInoCaps.erase(it_cli_inocaps);
+        }
+      }
+
+      mCaps.erase(it_caps);
+    }
   }
 
   mInodeCaps.erase(it_inode_caps);
