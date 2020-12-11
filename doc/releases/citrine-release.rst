@@ -16,6 +16,20 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.32 Citrine``
+===================
+
+2020-12-11
+
+
+Bug
+----
+
+* [EOS-4499] - EOSHOME-i04 crash in eos::fusex::cap::clientuuid ()
+* [EOS-4504] - Persistent ESTAB connections on the FUSEX port from 'bogus' clients
+* [EOS-4536] - SIGSEGV around eos::mgm::FuseServer::Caps::Store
+
+
 ``v4.8.31 Citrine``
 ===================
 
