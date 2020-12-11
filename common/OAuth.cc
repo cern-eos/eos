@@ -30,6 +30,8 @@
 #include <curl/curl.h>
 #include <curl/easy.h>
 #include <json/json.h>
+#include <jwt-cpp/jwt.h>
+
 #include "common/Murmur3.hh"
 
 EOSCOMMONNAMESPACE_BEGIN;
@@ -78,18 +80,51 @@ OAuth::PurgeCache(time_t& now)
 
 int
 OAuth::Validate(OAuth::AuthInfo& info, const std::string& accesstoken,
-                const std::string& resource, const std::string& refreshtoken, time_t expires)
+                const std::string& resource, const std::string& refreshtoken, time_t& expires)
 {
-  if (!Mapping::IsOAuth2Resource(resource)) {
-    eos_static_err("'%s' is not an allowed resource",
-                   resource.c_str());
-    return false;
-  }
-
   time_t now = time(NULL);
 
   if (expires && (expires < now)) {
     return ETIME;
+  }
+
+  // screen the audience
+  auto decoded = jwt::decode(accesstoken);
+
+  auto audiences = decoded.get_audience();
+
+  auto exp = decoded.get_expires_at();
+
+  expires = std::chrono::system_clock::to_time_t(exp);
+
+  bool audience_match = false;
+
+  std::stringstream s;
+  for(auto& e : decoded.get_payload_claims()) {
+    s << e.first << "=" << e.second << " ";
+  }
+
+  eos_static_info("token='%s...' claims=[ %s ]",
+		  accesstoken.substr(0,20).c_str(),
+		  s.str().c_str());
+
+  if (Mapping::IsOAuth2Resource(resource)) {
+    // no audience require
+    audience_match = true;
+  } else {
+    for ( auto it = audiences.begin(); it != audiences.end(); ++it) {
+      std::string audience_resource = resource + "@";
+      audience_resource += *it;
+      if (Mapping::IsOAuth2Resource(audience_resource)) {
+	audience_match = true;
+	break;
+	}
+    }
+  }
+
+  if (!audience_match) {
+    eos_static_err("msg=\"rejecing - no audience matches\"");
+    return EPERM;
   }
 
   // get the hash

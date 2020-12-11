@@ -1286,8 +1286,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // Configure log-file fan out
   std::vector<std::string> lFanOutTags {
     "Grpc", "Balancer", "Converter", "DrainJob", "ZMQ", "MetadataFlusher", "Http",
-    "Master", "Recycle", "LRU", "WFE", "WFE::Job", "GroupBalancer",
-    "GeoBalancer", "GeoTreeEngine", "ReplicationTracker", "FileInspector", "Mounts", "#"};
+      "Master", "Recycle", "LRU", "WFE", "WFE::Job", "GroupBalancer",
+      "GeoBalancer", "GeoTreeEngine", "ReplicationTracker", "FileInspector", "Mounts", "OAuth","#"};
   // Get the XRootD log directory
   char* logdir = 0;
   XrdOucEnv::Import("XRDLOGDIR", logdir);

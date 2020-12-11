@@ -49,7 +49,7 @@ public:
   void Init();
   virtual ~OAuth() {}
 
-  int Validate(AuthInfo& info, const std::string& accesstoken, const std::string& resource, const std::string& refreshtoken, time_t expires);
+  int Validate(AuthInfo& info, const std::string& accesstoken, const std::string& resource, const std::string& refreshtoken, time_t& expires);
   std::string Handle(const std::string& info, eos::common::VirtualIdentity& vid);
 
   void PurgeCache(time_t& now);

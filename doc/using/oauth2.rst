@@ -16,6 +16,13 @@ To enable OAUTH2 token translation, one has to configure the resource endpoint a
    # allow an oauth2 resource in requests (OIDC infrastructure)
    eos vid set map -oauth2 key:auth.cern.ch/auth/realms/cern/protocol/openid-connect/userinfo vuid:0
 
+If you want to check the audience claim in the ticket, you can add the audience to screen to each oauth2 resource:
+
+.. code-block:: bash
+
+   # allow on oauth2 resource in request for the audience 'eosoauth'
+   eos vid set map -oauth2 key:auth.cern.ch/auth/realms/cern/protocol/openid-connect/userinfo@eosatuch vuid:0
+
    
 All XRootD based clients can add the oauth2 token in the endorsement environment variable for sss authentication.
    
