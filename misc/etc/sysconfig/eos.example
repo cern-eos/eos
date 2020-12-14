@@ -135,7 +135,7 @@ export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # Network interface to monitor (default eth0)
 #export EOS_FST_NETWORK_INTERFACE="eth0"
 
-# Network interface speed (automatic detection works only on SLC6)
+# Network interface speed (automatic detection worked only on SLC6)
 # specify in MBit/s
 #export EOS_FST_NETWORK_SPEED=1000
 

@@ -24,7 +24,8 @@ rm -rf man1 >& /dev/null
 mkdir man1
 
 ########################################################################
-# On the SLC6 help2man version there is no "--no-discard-stderr" option.
+# @todo review, slc6 has no support anymore
+# On the SLC6 help2man version there was no "--no-discard-stderr" option.
 #
 # Since the output of most eos help commands is sent to stderr,
 # it will be missed by help2man.

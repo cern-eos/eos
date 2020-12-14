@@ -81,11 +81,6 @@ struct FSInfo {
 //------------------------------------------------------------------------------
 class HealthCommand : public ICommand
 {
-# ifdef BUILD_TESTS
-  // Ugly hack to allow test class to access private members
-  // due missing friend directive support in gcc 4.4.7 (support for SLC6)
-public:
-# endif
 
   //------------------------------------------------------------------------------
   //! Class GetValueWrapper

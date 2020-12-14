@@ -2,7 +2,7 @@ eosfuse SELinux
 ===============
 
 The eosfuse SELinux policy is built via the following steps:
-1. Establish the platform distribution `dist` (e.g.: CC7, SLC6)
+1. Establish the platform distribution `dist` (e.g.: CC7)
 2. Write the new `eosfuse.te` file -- Remember to increase the version!
 2. Run `checkmodule -M -m -o eosfuse.mod eosfuse.te`
 3. Run `semodule_package -o eosfuse-${dist}.pp -m eosfuse.mod`
@@ -21,7 +21,6 @@ In the end, the chosen file will be installed as `eosfuse.pp`.
 
 ```bash
 # Choosing the version
-SLC6 --> eosfuse-6.pp
 CC7  --> eosfuse-7.pp
 rest --> eosfuse-7.pp 
 

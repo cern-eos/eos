@@ -20,10 +20,10 @@
 %endif
 
 #-------------------------------------------------------------------------------
-# Custom strip command for SLC6, CC7
+# Custom strip command for CC7 @todo review devtoolset-6, could likely use 8
 #-------------------------------------------------------------------------------
 %define distribution %(/usr/lib/rpm/redhat/dist.sh --distnum)
-%if 0%{distribution} == 6 || 0%{distribution} == 7
+%if 0%{distribution} == 7
 %global __strip /opt/rh/devtoolset-6/root/usr/bin/strip
 %endif
 
@@ -82,13 +82,7 @@ cd grpc
 export CPPFLAGS="-Wno-error=class-memaccess -Wno-error=tautological-compare -Wno-error=ignored-qualifiers -Wno-error=stringop-truncation"
 export HAS_SYSTEM_PROTOBUF=false
 %endif
-%if 0%{?rhel} == 6
-# Fix for SLC6 compilation and autotools
-mkdir third_party/protobuf/third_party/googletest/m4
-make -j 4
-%else
 %make_build
-%endif
 
 %check
 

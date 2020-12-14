@@ -1340,7 +1340,7 @@ XrdMgmOfs::DiscoverPlatformServices(const char* svc_name, void* opaque)
 
   if (sname == "NsViewMutex") {
     PF_Discovery_Service* ns_lock = (PF_Discovery_Service*)(opaque);
-    // TODO (esindril): Use this code when we drop SLC6 support
+    // TODO (esindril): Use this code when we drop SLC6 support @todo
     //std::string htype = std::to_string(typeid(&gOFS->eosViewRWMutex).hash_code());
     std::string htype = "eos::common::RWMutex*";
     ns_lock->objType = (char*)calloc(htype.length() + 1, sizeof(char));

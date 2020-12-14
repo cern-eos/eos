@@ -1,9 +1,0 @@
-[eos-citrine]
-name=EOS 4.0 Version
-baseurl=https://storage-ci.web.cern.ch/storage-ci/eos/citrine/tag/el-6/$basearch/
-gpgcheck=0
-
-[eos-citrine-dep]
-name=EOS Citrine Dependencies
-baseurl=http://storage-ci.web.cern.ch/storage-ci/eos/citrine-depend/el-6/$basearch/
-gpgcheck=0

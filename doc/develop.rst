@@ -31,13 +31,7 @@ Dependencies
 ----------------
 .. warning:: Before compilation of the master branch you have to make sure that you installed all required dependencies.
 
-There are two convenience scripts to install all dependencies in the EOS source tree:
-
-SLC6
-++++
-.. code-block:: bash
-  
-   utils/sl6-packages.sh
+There is a convenience scripts to install all dependencies in the EOS source tree:
 
 EL7
 +++
