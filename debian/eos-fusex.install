@@ -1,4 +1,5 @@
 usr/bin/eosxd
+sbin/mount.eosx
 etc/logrotate.d/eos-fusex-logs
 var/log/eos/
 var/log/eos/fusex/
