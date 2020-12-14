@@ -16,6 +16,18 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.33 Citrine``
+===================
+
+2020-12-14
+
+Note
+----
+
+* This version is built aginst XRootD-4.12.6 which contains some important fixes for
+  HTTP TPC transfers.
+
+
 ``v4.8.32 Citrine``
 ===================
 
