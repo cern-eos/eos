@@ -11,7 +11,7 @@
 # Custom strip command for SLC6, CC7
 #-------------------------------------------------------------------------------
 %if "%{compiler}" == "gcc"
-    %if 0%{distribution} == 6 || 0%{distribution} == 7
+    %if 0%{distribution} == 7
         %global __strip /bin/true
     %endif
 %endif
@@ -41,7 +41,7 @@
 %define release_version @CPACK_PACKAGE_RELEASE@
 
 # release tags like x.y.z-1 enable automatically to build with eos-xrootd
-%if "%release_version" == "1"
+%if "%{release_version}" == "1"
 %define _with_eos_xrootd_rh 1
 %endif
 
@@ -61,10 +61,10 @@
 %endif
 
 #-------------------------------------------------------------------------------
-# Custom strip command for SLC6, CC7
+# Custom strip command for CC7
 #-------------------------------------------------------------------------------
 %if "%{compiler}" == "gcc"
-    %if 0%{distribution} == 6 || 0%{distribution} == 7
+    %if 0%{distribution} == 7
         %global __strip /opt/rh/%{devtoolset}/root/usr/bin/strip
         %global __objdump /opt/rh/%{devtoolset}/root/usr/bin/objdump
     %endif
@@ -112,14 +112,9 @@ Source: %{name}-%{version}-@CPACK_PACKAGE_RELEASE@.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 
 # Add EPEL repository explicitly which holds many of the other dependencies
-%if 0%{?distribution} == 6
-BuildRequires: sl-release-scl
-Requires: sl-release-scl
-%else
 %if 0%{?distribution} == 7
 BuildRequires: epel-release
 Requires: epel-release
-%endif
 %endif
 
 BuildRequires: %{cmake} >= 3.3
@@ -226,15 +221,10 @@ Requires: elfutils-devel
 BuildRequires: zlib-static,
 BuildRequires: libcurl, libcurl-devel
 BuildRequires: libuuid-devel, sparsehash-devel
-%if 0%{?rhel} == 6 || 0%{?el6} == 1
-BuildRequires: zeromq3, zeromq3-devel
-BuildRequires: libevent2, libevent2-devel
-%else
 BuildRequires: zeromq, zeromq-devel, cppzmq-devel
 BuildRequires: libevent, libevent-devel
 BuildRequires: bzip2-devel
 Requires: bzip2
-%endif
 
 %if %{use_richacl}
 BuildRequires: librichacl-devel, richacl >= 1.12
@@ -252,19 +242,19 @@ Requires: libisa-l libisa-l_crypto
 %endif
 %endif
 
-# Install newer gcc on SLC6 + CC7
+# Install newer gcc on CC7
 %if 0%{distribution} == 7
 BuildRequires: centos-release-scl
 %endif
 
 %if "%{compiler}" == "gcc"
-%if 0%{distribution} == 6 || 0%{distribution} == 7
+%if 0%{distribution} == 7
 BuildRequires: %{devtoolset}
 BuildRequires: %{devtoolset}-binutils-devel
 %else
 BuildRequires: binutils-devel
 %endif
-%if 0%{distribution} == 6 || 0%{distribution} == 7 || 0%{distribution} == 8
+%if 0%{distribution} == 7 || 0%{distribution} == 8
 # We want swap-support on eosxd - requires rocksdb KV
 BuildRequires: eos-rocksdb = 5.7.3-1%{rocksdb_dist}
 %endif
@@ -280,7 +270,7 @@ BuildRequires: llvm-toolset-7
 %endif
 
 %if %{?_with_asan:1}%{!?_with_asan:0}
-%if 0%{distribution} == 6 || 0%{distribution} == 7
+%if 0%{distribution} == 7
 BuildRequires: %{devtoolset}-libasan-devel
 %else
 BuildRequires: libasan
@@ -310,34 +300,26 @@ The EOS software package.
 
 
 %build
-# On SLC6 and CC8 we install a custom version of cmake that supports all the required
+# On C8 we install a custom version of cmake that supports all the required
 # features needed by EOS i.e. >= 3.14.
-%if 0%{distribution} == 6
-  %define cmake cmake
-%endif
 test -e $RPM_BUILD_ROOT && rm -r $RPM_BUILD_ROOT
 mkdir -p build
 cd build
 
 %if "%{?compiler}" == "gcc"
 
-  %if 0%{distribution} == 6 || 0%{distribution} == 7
+  %if 0%{distribution} == 7
     source /opt/rh/%{devtoolset}/enable
   %endif
 
-  %if 0%{distribution} == 6 || 0%{distribution} == 7 || 0%{distribution} == 8
-    %if 0%{distribution} == 6 || 0%{distribution} == 8
+  %if 0%{distribution} == 7 || 0%{distribution} == 8
+    %if 0%{distribution} == 8
       echo "Install custom cmake 3.15.5 required by EOS"
       mkdir ./cmake_install/
       ../misc/cmake/cmake-3.15.5-Linux-x86_64.sh --prefix=./cmake_install/ --skip-license
       %define cmake ./cmake_install/bin/cmake
     %endif
-
-    %if 0%{distribution} == 6
-      %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=%{build_type} %{build_flags}
-    %else
-      %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=%{build_type} -DXROOTD_ROOT=/opt/eos/xrootd/ %{build_flags}
-    %endif
+    %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=%{build_type} -DXROOTD_ROOT=/opt/eos/xrootd/ %{build_flags}
   %else
     %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=%{build_type} %{build_flags}
   %endif
@@ -359,7 +341,7 @@ cd build
 # and may cause GDB to crash.
 
 %if "%{?compiler}" == "gcc"
-  %if 0%{distribution} == 6 || 0%{distribution} == 7
+  %if 0%{distribution} == 7
     source /opt/rh/%{devtoolset}/enable
   %endif
 %endif
@@ -437,13 +419,8 @@ Requires: chkconfig
 Requires: initscripts
 Requires: sysvinit-tools
 %endif
-%if 0%{?rhel} == 6 || 0%{?el6} == 1
-BuildRequires: zeromq3, zeromq3-devel
-Requires: zeromq3
-%else
 BuildRequires: zeromq, zeromq-devel, cppzmq-devel
 Requires: zeromq
-%endif
 BuildRequires: eos-folly = 2019.11.11.00-1%{folly_dist}
 Requires: eos-folly = 2019.11.11.00-1%{folly_dist}
 
@@ -641,11 +618,7 @@ EOS namespace inspection tool for instance administrators
 Summary: The EOS shell client
 Group: Applications/File
 
-%if 0%{?rhel} == 6 || 0%{?el6} == 1
-Requires: zeromq3
-%else
 Requires: zeromq
-%endif
 
 Requires: squashfs-tools
 
@@ -706,12 +679,7 @@ The EOS shell client.
 
 # This file is required by both the eos-fuse and eos-fusex package, therefore
 # to avoid any conflicts we distribute it with eos-client.
-%if 0%{distribution} == 6
-%config(noreplace) %{_sysconfdir}/fuse.conf
 %{_sysconfdir}/fuse.conf.eos
-%else
-%{_sysconfdir}/fuse.conf.eos
-%endif
 
 # Documentation
 %doc %{_mandir}/man1/
@@ -926,11 +894,7 @@ Requires: attr
 %if %{use_richacl}
 Requires: librichacl, richacl >= 1.12
 %endif
-%if 0%{?rhel} == 6 || 0%{?el6} == 1
-Requires: zeromq3
-%else
 Requires: zeromq
-%endif
 
 %description -n eos-fusex-core
 The new EOS fuse core containing eosxd.
@@ -1016,9 +980,9 @@ Contains an example keytab file.
 %config(noreplace) %attr(-, daemon, daemon) %{_sysconfdir}/eos.keytab
 
 #-------------------------------------------------------------------------------
-# Package eos-archive only for >= SLC6
+# Package eos-archive only for >= CC7
 #-------------------------------------------------------------------------------
-%if 0%{?rhel} >= 6
+%if 0%{?rhel} >= 7
 %package -n eos-archive
 Summary: The EOS archive daemon
 Group: Applications/File
@@ -1229,25 +1193,6 @@ Contains an clean-up scripts to remove 'left-overs' of an EOS instance for FST/M
 
 %if %{?yumrpm:1}%{!?yumrpm:0} == 1
 #-------------------------------------------------------------------------------
-# Package eos-repo-el6
-#-------------------------------------------------------------------------------
-%package -n eos-repo-el6
-
-Version: generic
-Release: 1
-BuildArch: noarch
-
-Summary: The EOS YUM repo configuration for EL6
-Group: Applications/File
-
-%description -n eos-repo-el6
-Contains a yum configuration file for the production EOS EL6 repo
-
-%files -n eos-repo-el6
-%defattr(-, root, root, -)
-%{_sysconfdir}/yum.repos.d/eos-el6.repo
-
-#-------------------------------------------------------------------------------
 # Package eos-repo-el7
 #-------------------------------------------------------------------------------
 %package -n eos-repo-el7
@@ -1265,26 +1210,6 @@ Contains a yum configuration file for the production EOS EL7 repo
 %files -n eos-repo-el7
 %defattr(-, root, root, -)
 %{_sysconfdir}/yum.repos.d/eos-el7.repo
-
-#-------------------------------------------------------------------------------
-# Package eos-repo-el6-dev
-#-------------------------------------------------------------------------------
-%package -n eos-repo-el6-dev
-
-Version: generic
-Release: 1
-BuildArch: noarch
-
-Summary: The EOS developement YUM repo configuration for EL6
-Group: Applications/File
-
-%description -n eos-repo-el6-dev
-Contains a yum configuration file for the development EOS EL6 repo
-
-%files -n eos-repo-el6-dev
-%defattr(-, root, root, -)
-%{_sysconfdir}/yum.repos.d/eos-el6-dev.repo
-
 #-------------------------------------------------------------------------------
 # Package eos-repo-el7-dev
 #-------------------------------------------------------------------------------
