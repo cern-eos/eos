@@ -34,11 +34,6 @@ default:
     variables:
       - $PREBUILD_TRIGGER
 
-.prebuid-slc6:
-  <<: *prebuild-template_definition
-  variables:
-    PREBUILD_NAME: slc6
-
 prebuild-cc7:
   <<: *prebuild-template_definition
   variables:
@@ -108,39 +103,6 @@ build_cc7:
   tags:
     - docker_node
     - cc7
-
-.build_slc6:
-  stage: build:rpm
-  image: gitlab-registry.cern.ch/dss/eos/prebuild-slc6
-  script:
-    # Install custom cmake version that has minimal support for features needed
-    # by EOS i.e. anything >= 3.12 works fine. To be dropped together with SLC6
-    # support.
-    - ./misc/cmake/cmake-3.15.5-Linux-x86_64.sh --prefix=/usr/ --skip-license
-    - git submodule update --init --recursive
-    - mkdir build
-    - cd build
-    - cmake .. -DPACKAGEONLY=1
-    - make srpm
-    - cd ..
-    - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-6/x86_64/\ngpgcheck=0\nenabled=1\npriority=1\n' >> /etc/yum.repos.d/eos-depend.repo
-    - yum-builddep --nogpgcheck --setopt="cern*.exclude=xrootd*" -y build/SRPMS/*
-    - if [[ -n "$CI_COMMIT_TAG" ]]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache_slc6.sh; fi
-    - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | ts
-    - ccache -s
-    - if [[ -n "$CI_COMMIT_TAG" ]]; then gpg --import $STCI_REPO_KEY; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
-    - mkdir slc6_artifacts; cp -R build/SRPMS build/RPMS slc6_artifacts
-  cache:
-    key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
-    paths:
-      - ccache/
-  artifacts:
-    expire_in: 1 day
-    paths:
-      - slc6_artifacts/
-  tags:
-    - docker_node
-    - slc6
 
 macosx_dmg:
   stage: build:rpm
@@ -1037,14 +999,6 @@ publish_koji_cc7:
   dependencies:
     - build_cc7
 
-.publish_koji_slc6:
-  <<: *publish_koji_template_definition
-  variables:
-    TARGET: "eos6"
-    BUILD_NAME: "slc6"
-  dependencies:
-    - build_slc6
-
 rpm_commit_artifacts:
   stage: publish
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
@@ -1220,29 +1174,6 @@ clean_k8s_cluster:
 # Manually triggered builds
 #-------------------------------------------------------------------------------
 
-.eos_nginx_slc6:
-  stage: build:manual
-  image: gitlab-registry.cern.ch/linuxsupport/slc6-base
-  script:
-    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git tar sudo createrepo
-    - cd nginx
-    - ./makesrpm.sh
-    - yum-builddep --nogpgcheck -y *.src.rpm
-    - mkdir RPMS
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
-    - groupadd --gid 2766 def-cg
-    - useradd -u 102230 -g def-cg stci
-    - STORAGE_PATH=/eos/project/s/storage-ci/www/eos/${BRANCH}-depend/el-6/x86_64
-    - sudo -u stci -H mkdir -p $STORAGE_PATH
-    - sudo -u stci -H cp -f RPMS/*.rpm $STORAGE_PATH
-    - sudo -u stci -H createrepo --update -q $STORAGE_PATH
-  tags:
-    - docker_node
-    - slc6
-  when: manual
-  environment:
-    name: nginx-slc6-prod
-
 eos_nginx_cc7:
   stage: build:manual
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
@@ -1263,33 +1194,6 @@ eos_nginx_cc7:
   when: manual
   environment:
     name: nginx-cc7-prod
-
-.eos_apmon_slc6:
-  stage: build:manual
-  image: gitlab-registry.cern.ch/linuxsupport/slc6-base
-  script:
-    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git tar sudo createrepo
-    - cd ApMon
-    - ./maketar.sh
-    - mkdir -p rpmbuild/{BUILD,BUILDROT,RPMS,SOURCES,SPECS,SRPMS}
-    - cp eos-apmon-*.tar.gz rpmbuild/SOURCES
-    - rpmbuild --define "_source_filedigest_algorithm md5" --define "_binary_filedigest_algorithm md5" --define "_topdir ./rpmbuild" -bs eos-apmon.spec
-    - yum-builddep --nogpgcheck -y rpmbuild/SRPMS/eos-apmon-*.src.rpm
-    - rpmbuild --rebuild --define "_rpmdir rpmbuild/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" rpmbuild/SRPMS/eos-apmon-*.src.rpm
-    - groupadd --gid 2766 def-cg
-    - useradd -u 102230 -g def-cg stci
-    - STORAGE_PATH=/eos/project/s/storage-ci/www/eos/${BRANCH}-depend/el-6/x86_64
-    - sudo -u stci -H mkdir -p $STORAGE_PATH
-    - sudo -u stci -H cp -f rpmbuild/RPMS/*.rpm $STORAGE_PATH
-    - sudo -u stci -H createrepo --update -q $STORAGE_PATH
-    - STORAGE_PATH=/eos/project/s/storage-ci/www/eos/${BRANCH}-depend/el-6/SRPM
-    - sudo -u stci -H mkdir -p $STORAGE_PATH
-    - sudo -u stci -H cp -f rpmbuild/SRPMS/*.src.rpm $STORAGE_PATH
-  tags:
-    - docker_node
-  when: manual
-  environment:
-    name: apmon-slc6-prod
 
 eos_apmon_cc7:
   stage: build:manual
@@ -1330,26 +1234,6 @@ eos_apmon_c8:
   when: manual
   environment:
     name: apmon-c8-prod
-
-.eos_microhttpd_slc6:
-  stage: build:manual
-  image: gitlab-registry.cern.ch/linuxsupport/slc6-base
-  script:
-    - yum install --nogpg -y gcc-c++ make rpm-build which git tar sudo createrepo
-    - cd microhttpd
-    - ./makesrpm.sh
-    - yum-builddep --nogpgcheck -y *.src.rpm
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
-    - STORAGE_PATH=/eos/project/s/storage-ci/www/eos/${BRANCH}-depend/el-6/x86_64
-    - groupadd --gid 2766 def-cg
-    - useradd -u 102230 -g def-cg stci
-    - sudo -u stci -H mkdir -p $STORAGE_PATH
-    - sudo -u stci -H cp -f RPMS/*.rpm $STORAGE_PATH
-    - sudo -u stci -H createrepo --update -q $STORAGE_PATH
-  tags:
-    - docker_node
-    - slc6
-  when: manual
 
 eos_microhttpd_cc7:
   stage: build:manual
@@ -1393,10 +1277,6 @@ eos_repopackage:
     - cd build
     - rpmbuild --bb --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" ../elrepopackage.spec
     - STORAGE_PATH=/eos/project/s/storage-ci/www/eos/${BRANCH}/tag/el-7/x86_64
-    - sudo -u stci -H mkdir -p $STORAGE_PATH
-    - sudo -u stci -H cp -f RPMS/*.rpm $STORAGE_PATH
-    - sudo -u stci -H createrepo --update -q $STORAGE_PATH
-    - STORAGE_PATH=/eos/project/s/storage-ci/www/eos/${BRANCH}/tag/el-6/x86_64
     - sudo -u stci -H mkdir -p $STORAGE_PATH
     - sudo -u stci -H cp -f RPMS/*.rpm $STORAGE_PATH
     - sudo -u stci -H createrepo --update -q $STORAGE_PATH

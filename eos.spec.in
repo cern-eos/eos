@@ -8,7 +8,7 @@
 %define debug_package %{nil}
 
 #-------------------------------------------------------------------------------
-# Custom strip command for SLC6, CC7
+# Custom strip command for CC7
 #-------------------------------------------------------------------------------
 %if "%{compiler}" == "gcc"
     %if 0%{distribution} == 7
