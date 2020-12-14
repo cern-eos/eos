@@ -173,7 +173,7 @@ bool
 CheckMatch(const std::string& fref, const std::string fcheck,
            const std::map<uint64_t, uint32_t> chunks, uint32_t block_sz)
 {
-  int readv_sz = 5;
+  size_t readv_sz = 5;
   std::string ref_buff;
   std::string check_buff;
   ref_buff.reserve(2 * block_sz * readv_sz);
