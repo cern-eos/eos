@@ -1448,11 +1448,11 @@ Quota::GetIndividualQuota(eos::common::VirtualIdentity& vid,
     max_bytes_prj = space->GetQuota(SpaceQuota::kGroupBytesTarget,
                                     Quota::gProjectId);
     free_bytes_usr = max_bytes_usr - space->GetQuota(
-                       SpaceQuota::kUserLogicalBytesIs, m_vid.uid);
+                       SpaceQuota::kUserBytesIs, m_vid.uid);
     free_bytes_grp = max_bytes_grp - space->GetQuota(
-                       SpaceQuota::kGroupLogicalBytesIs, m_vid.gid);
+                       SpaceQuota::kGroupBytesIs, m_vid.gid);
     free_bytes_prj = max_bytes_prj - space->GetQuota(
-                       SpaceQuota::kGroupLogicalBytesIs, Quota::gProjectId);
+                       SpaceQuota::kGroupBytesIs, Quota::gProjectId);
 
     if (free_bytes_usr > free_bytes) {
       free_bytes = free_bytes_usr;
