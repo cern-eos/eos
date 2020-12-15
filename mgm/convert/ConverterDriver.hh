@@ -53,8 +53,7 @@ public:
     mQdbHelper(qdb_details), mIsRunning(false),
     mThreadPool(std::thread::hardware_concurrency(), cDefaultMaxThreadPoolSize,
                 10, 5, 3, "converter"),
-    mMaxThreadPoolSize(cDefaultMaxThreadPoolSize),
-    mRequestIntervalSec(cDefaultRequestIntervalSec), mTimestamp()
+    mMaxThreadPoolSize(cDefaultMaxThreadPoolSize), mTimestamp()
   {}
 
   //----------------------------------------------------------------------------
@@ -110,14 +109,6 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Get request interval time
-  //----------------------------------------------------------------------------
-  inline uint32_t GetRequestIntervalSec() const
-  {
-    return mRequestIntervalSec.load();
-  }
-
-  //----------------------------------------------------------------------------
   //! Get number of running jobs
   //----------------------------------------------------------------------------
   inline uint64_t NumRunningJobs() const
@@ -129,9 +120,9 @@ public:
   //----------------------------------------------------------------------------
   //! Get number of pending jobs stored in QuarkDB
   //----------------------------------------------------------------------------
-  inline uint64_t NumQdbPendingJobs()
+  inline uint64_t NumPendingJobs()
   {
-    return mQdbHelper.NumPendingJobs();
+    return mPendingJobs.size();
   }
 
   //----------------------------------------------------------------------------
@@ -151,16 +142,6 @@ public:
   {
     mThreadPool.SetMaxThreads(max);
     mMaxThreadPoolSize = max;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Set the jobs request interval time in seconds
-  //!
-  //! @param time interval time in seconds
-  //----------------------------------------------------------------------------
-  inline void SetRequestIntervalSec(uint32_t time)
-  {
-    mRequestIntervalSec = time;
   }
 
   //----------------------------------------------------------------------------
@@ -271,16 +252,11 @@ private:
     bool RemovePendingJob(const eos::IFileMD::id_t& id);
 
     //--------------------------------------------------------------------------
-    //! Returns the number of pending jobs or -1 in case of failed operation
-    //--------------------------------------------------------------------------
-    int64_t NumPendingJobs();
-
-    //--------------------------------------------------------------------------
     //! Returns the number of failed jobs or -1 in case of failed operation
     //--------------------------------------------------------------------------
     int64_t NumFailedJobs();
 
-    ///< QDB conversion hash keys
+    //! QDB conversion hash keys
     const std::string kConversionPendingHashKey = "eos-conversion-jobs-pending";
     const std::string kConversionFailedHashKey = "eos-conversion-jobs-failed";
     static constexpr unsigned int cBatchSize{1000}; ///< Batch size constant
@@ -304,51 +280,34 @@ private:
   void HandleRunningJobs();
 
   //----------------------------------------------------------------------------
-  //! Remove finished inflight jobs
-  //----------------------------------------------------------------------------
-  void RemoveInflightJobs();
-
-  //----------------------------------------------------------------------------
   //! Signal all conversion jobs to stop
   //----------------------------------------------------------------------------
   void JoinAllConversionJobs();
 
-  //--------------------------------------------------------------------------
-  //! Returns true if a wait is needed before retrieving more jobs.
-  //!
-  //! @return true if client should wait, false otherwise
-  //--------------------------------------------------------------------------
-  inline bool ShouldWait()
-  {
-    auto elapsed = std::chrono::steady_clock::now() - mTimestamp;
+  //----------------------------------------------------------------------------
+  //! Submit pending jobs from QDB
+  //----------------------------------------------------------------------------
+  void SubmitQdbPending(ThreadAssistant& assistant);
 
-    if (elapsed <= std::chrono::seconds(mRequestIntervalSec)) {
-      return true;
-    }
-
-    mTimestamp = std::chrono::steady_clock::now();
-    return false;
-  }
-
-  ///< Wait-time between jobs requests constant
+  //! Wait-time between jobs requests constant
   static constexpr unsigned int cDefaultRequestIntervalSec{60};
-  ///< Default maximum thread pool size constant
+  //! Default maximum thread pool size constant
   static constexpr unsigned int cDefaultMaxThreadPoolSize{100};
+  //! Max queue size from the thread pool when we delay new jobs
+  static constexpr unsigned int cDefaultMaxQueueSize{1000};
   AssistedThread mThread; ///< Thread controller object
   QdbHelper mQdbHelper; ///< QuarkDB helper object
   std::atomic<bool> mIsRunning; ///< Mark if converter is running
   eos::common::ThreadPool mThreadPool; ///< Thread pool for conversion jobs
   std::atomic<unsigned int> mMaxThreadPoolSize; ///< Max threadpool size
-  ///< Request interval time in seconds
-  std::atomic<unsigned int> mRequestIntervalSec;
-  ///< Timestamp of last jobs request
+  //! Timestamp of last jobs request
   std::chrono::steady_clock::time_point mTimestamp;
-  ///< Collection of running conversion jobs
+  //! Collection of running conversion jobs
   std::list<std::shared_ptr<ConversionJob>> mJobsRunning;
-  ///< Collection of in-flight jobs marked as finished
-  std::set<eos::IFileMD::id_t> mJobsInflightDone;
-  ///< RWMutex protecting the jobs collections
+  //! RWMutex protecting the jobs collections
   mutable eos::common::RWMutex mJobsMutex;
+  ///! Pending jobs in memory
+  eos::common::ConcurrentQueue<JobInfoT> mPendingJobs;
 };
 
 EOSMGMNAMESPACE_END

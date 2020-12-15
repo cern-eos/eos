@@ -120,29 +120,6 @@ ConvertHelper::ParseCommand(const char* arg)
 
         config->set_maxthreads(maxthreads);
         option = true;
-      } else if (token.beginswith("--interval")) {
-        uint32_t interval = 0;
-
-        if (token.beginswith("--interval=")) {
-          token.replace("--interval=", "");
-        } else {
-          tokenizer.NextToken(token);
-        }
-
-        try {
-          interval = std::stoul(token.c_str());
-
-          if (interval == 0) {
-            throw std::invalid_argument("value zero not allowed");
-          }
-        } catch (...) {
-          std::cerr << "error: invalid value for <interval>='"
-                    << token << "'" << std::endl;
-          return false;
-        }
-
-        config->set_interval(interval);
-        option = true;
       } else {
         std::cerr << "warning: unknown config option '"
                   << token << "'" << std::endl;
@@ -374,7 +351,6 @@ void com_convert_help()
       << "  convert config <option> [<option>]               " << std::endl
       << "    set converter engine configuration option      " << std::endl
       << "    --maxthreads=<#> : max threadpool size         " << std::endl
-      << "    --interval=<#>   : jobs request interval       " << std::endl
       << std::endl
       << "  convert list [<option>]                          " << std::endl
       << "    list conversion jobs where <option> is:        " << std::endl

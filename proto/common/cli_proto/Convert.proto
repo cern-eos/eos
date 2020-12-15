@@ -42,7 +42,6 @@ message ConvertProto {
 
   message ConfigProto {
     uint32 maxthreads = 1;
-    uint32 interval = 2;
   }
 
   message ListProto {

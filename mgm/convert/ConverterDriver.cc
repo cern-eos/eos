@@ -28,9 +28,9 @@ EOSMGMNAMESPACE_BEGIN
 constexpr unsigned int ConverterDriver::cDefaultRequestIntervalSec;
 constexpr unsigned int ConverterDriver::QdbHelper::cBatchSize;
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Start converter thread
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void
 ConverterDriver::Start()
 {
@@ -40,9 +40,9 @@ ConverterDriver::Start()
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Stop converter thread and all running conversion jobs
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void
 ConverterDriver::Stop()
 {
@@ -50,62 +50,92 @@ ConverterDriver::Stop()
   mIsRunning = false;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Converter engine thread monitoring
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void
 ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
 {
+  JobInfoT info;
   gOFS->WaitUntilNamespaceIsBooted(assistant);
-  eos_notice("%s", "msg=\"starting converter engine\"");
+  eos_static_notice("%s", "msg=\"starting converter engine\"");
+  SubmitQdbPending(assistant);
 
   while (!assistant.terminationRequested()) {
-    if (ShouldWait()) {
+    while (!mPendingJobs.try_pop(info) && !assistant.terminationRequested()) {
       HandleRunningJobs();
-      RemoveInflightJobs();
       assistant.wait_for(std::chrono::seconds(5));
-      continue;
     }
 
-    const auto lst_pending = mQdbHelper.GetPendingJobs();
-
-    for (const auto& info : lst_pending) {
-      if (NumRunningJobs() < GetMaxThreadPoolSize()) {
-        auto fid = info.first;
-        auto conversion_info = ConversionInfo::parseConversionString(info.second);
-
-        if (conversion_info != nullptr) {
-          auto job = std::make_shared<ConversionJob>(fid, *conversion_info.get());
-          mThreadPool.PushTask<void>([job]() {
-            return job->DoIt();
-          });
-          eos::common::RWMutexWriteLock wlock(mJobsMutex);
-          mJobsRunning.push_back(job);
-        } else {
-          eos_err("msg=\"invalid conversion scheduled\" fxid=%08llx "
-                  "conversion_id=%s", fid, info.second.c_str());
-          mQdbHelper.RemovePendingJob(fid);
-        }
-      } else {
-        assistant.wait_for(std::chrono::seconds(5));
-      }
-
-      HandleRunningJobs();
-
-      if (assistant.terminationRequested()) {
-        break;
-      }
+    while ((mThreadPool.GetQueueSize() > cDefaultMaxQueueSize) &&
+           !assistant.terminationRequested()) {
+      eos_static_notice("%s", "msg=\"convert thread pool queue full, delay "
+                        "pending jobs");
+      assistant.wait_for(std::chrono::seconds(5));
     }
 
-    RemoveInflightJobs();
+    auto fid = info.first;
+    auto conversion_info = ConversionInfo::parseConversionString(info.second);
+
+    if (conversion_info != nullptr) {
+      auto job = std::make_shared<ConversionJob>(fid, *conversion_info.get());
+      mThreadPool.PushTask<void>([ = ]() {
+        return job->DoIt();
+      });
+      eos::common::RWMutexWriteLock wlock(mJobsMutex);
+      mJobsRunning.push_back(job);
+    } else {
+      eos_static_err("msg=\"invalid conversion scheduled\" fxid=%08llx "
+                     "conversion_id=%s", fid, info.second.c_str());
+      mQdbHelper.RemovePendingJob(fid);
+    }
+
+    HandleRunningJobs();
   }
 
   JoinAllConversionJobs();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Submit pending jobs from QDB
+//------------------------------------------------------------------------------
+void
+ConverterDriver::SubmitQdbPending(ThreadAssistant& assistant)
+{
+  const auto lst_pending = mQdbHelper.GetPendingJobs();
+
+  for (const auto& info : lst_pending) {
+    auto id = info.first;
+    auto conversion_info = ConversionInfo::parseConversionString(info.second);
+
+    if (!gOFS->mFidTracker.AddEntry(id, TrackerType::Convert)) {
+      eos_static_debug("msg=\"skip recently scheduled file\" fxid=%08llx", id);
+      continue;
+    }
+
+    if (conversion_info != nullptr) {
+      auto job = std::make_shared<ConversionJob>(id, *conversion_info.get());
+      mThreadPool.PushTask<void>([ = ]() {
+        return job->DoIt();
+      });
+      eos::common::RWMutexWriteLock wlock(mJobsMutex);
+      mJobsRunning.push_back(job);
+    }
+
+    while ((mThreadPool.GetQueueSize() > cDefaultMaxQueueSize) &&
+           !assistant.terminationRequested()) {
+      assistant.wait_for(std::chrono::seconds(5));
+    }
+
+    if (assistant.terminationRequested()) {
+      break;
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
 // Handle jobs based on status
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void
 ConverterDriver::HandleRunningJobs()
 {
@@ -116,9 +146,7 @@ ConverterDriver::HandleRunningJobs()
         ((*it)->GetStatus() == ConversionJob::Status::FAILED)) {
       auto fid = (*it)->GetFid();
 
-      if (mQdbHelper.RemovePendingJob(fid)) {
-        mJobsInflightDone.insert(fid);
-      } else {
+      if (!mQdbHelper.RemovePendingJob(fid)) {
         eos_static_err("msg=\"Failed to remove conversion job from QuarkDB\" "
                        "fid=%llu", fid);
       }
@@ -134,19 +162,9 @@ ConverterDriver::HandleRunningJobs()
   }
 }
 
-//----------------------------------------------------------------------------
-// Remove finished inflight jobs
-//----------------------------------------------------------------------------
-void
-ConverterDriver::RemoveInflightJobs()
-{
-  eos::common::RWMutexWriteLock wlock(mJobsMutex);
-  mJobsInflightDone.clear();
-}
-
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Signal all conversion jobs to stop
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void
 ConverterDriver::JoinAllConversionJobs()
 {
@@ -172,9 +190,9 @@ ConverterDriver::JoinAllConversionJobs()
   mJobsRunning.clear();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Schedule a conversion job with the given ID and conversion string
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool
 ConverterDriver::ScheduleJob(const eos::IFileMD::id_t& id,
                              const std::string& conversion_info)
@@ -184,16 +202,24 @@ ConverterDriver::ScheduleJob(const eos::IFileMD::id_t& id,
     return false;
   }
 
-  return mQdbHelper.AddPendingJob(std::make_pair(id, conversion_info));
+  if (mPendingJobs.size() > 1000000) {
+    eos_static_err("%s", "msg=\"forbid conversion as there are more than 1M "
+                   "jobs pending");
+    return false;
+  }
+
+  JobInfoT info = std::make_pair(id, conversion_info);
+  mPendingJobs.push(info);
+  return mQdbHelper.AddPendingJob(info);
 }
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // QdbHelper class implementation
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Add conversion job to the queue of pending jobs in QuarkDB
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool
 ConverterDriver::QdbHelper::AddPendingJob(const JobInfoT& jobinfo)
 {
@@ -274,22 +300,6 @@ ConverterDriver::QdbHelper::RemovePendingJob(const eos::IFileMD::id_t& id)
   }
 
   return false;
-}
-
-//--------------------------------------------------------------------------
-// Returns the number of pending jobs or -1 in case of failed operation
-//--------------------------------------------------------------------------
-int64_t
-ConverterDriver::QdbHelper::NumPendingJobs()
-{
-  try {
-    return mQHashPending.hlen();
-  } catch (const std::exception& e) {
-    eos_static_crit("msg=\"Error encountered while retrieving size of "
-                    "pending conversion jobs set\" emsg=\"%s\"", e.what());
-  }
-
-  return -1;
 }
 
 //--------------------------------------------------------------------------

@@ -133,11 +133,10 @@ void ConvertCmd::StatusSubcmd(
   // Extract Converter Driver parameters
   std::string threadpool = gOFS->mConverterDriver->GetThreadPoolInfo();
   std::string config =
-    SSTR("maxthreads=" << gOFS->mConverterDriver->GetMaxThreadPoolSize() <<
-         " poll_interval=" << gOFS->mConverterDriver->GetRequestIntervalSec());
+    SSTR("maxthreads=" << gOFS->mConverterDriver->GetMaxThreadPoolSize());
   uint64_t running = gOFS->mConverterDriver->NumRunningJobs();
   uint64_t failed = gOFS->mConverterDriver->NumQdbFailedJobs();
-  int64_t pending = gOFS->mConverterDriver->NumQdbPendingJobs();
+  int64_t pending = gOFS->mConverterDriver->NumPendingJobs();
   auto state = gOFS->mConverterDriver->IsRunning() ? "enabled" : "disabled";
 
   if (jsonOutput) {
@@ -183,17 +182,6 @@ void ConvertCmd::ConfigSubcmd(
     } else {
       gOFS->mConverterDriver->SetMaxThreadPoolSize(config.maxthreads());
       output["maxthreads"] = std::to_string(config.maxthreads());
-    }
-  }
-
-  if (config.interval() != 0) {
-    if (config.interval() > 3600 * 24) {
-      err << "error: interval value " << config.interval()
-          << " above 1 day limit" << std::endl;
-      retc = EINVAL;
-    } else {
-      gOFS->mConverterDriver->SetRequestIntervalSec(config.interval());
-      output["interval"] = std::to_string(config.interval());
     }
   }
 
@@ -262,7 +250,8 @@ void ConvertCmd::FileSubcmd(const eos::console::ConvertProto_FileProto& file,
   eos::IFileMD::location_t replica_location = 0;
 
   try {
-    eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                       __FILE__);
     auto fmd = gOFS->eosView->getFile(path).get();
     file_id = fmd->getId();
     file_layoutid = fmd->getLayoutId();
