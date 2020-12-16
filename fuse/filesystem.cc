@@ -3613,12 +3613,11 @@ fuse_filesystem::close(int fildes, unsigned long long inode, uid_t uid,
 
   if (XFC) {
     LayoutWrapper* file = fabst->GetRawFileRW();
-    error_type error;
     fabst->mMutexRW.WriteLock();
     XFC->ForceAllWrites(fabst.get());
-    eos::common::ConcurrentQueue<error_type> err_queue = fabst->GetErrorQueue();
+    auto err_queue = fabst->GetErrorQueue();
 
-    if (file && (err_queue.try_pop(error))) {
+    if (file && err_queue.size()) {
       eos_static_warning("write error found in err queue for inode=%llu - enabling restore",
                          inode);
       file->SetRestore();
@@ -3684,10 +3683,10 @@ fuse_filesystem::flush(int fd, uid_t uid, gid_t gid, pid_t pid)
     }
 
     XFC->ForceAllWrites(fabst.get(), wait_async);
-    eos::common::ConcurrentQueue<error_type> err_queue = fabst->GetErrorQueue();
-    error_type error;
+    auto err_queue = fabst->GetErrorQueue();
 
-    if (err_queue.try_pop(error)) {
+    if (err_queue.size()) {
+      const error_type& error = err_queue.front();
       eos_static_info("Extract error from queue");
       retc = error.first;
 
@@ -3936,10 +3935,10 @@ fuse_filesystem::pwrite(int fildes, const void* buf, size_t nbyte, off_t offset)
     FileAbstraction* fab = fabst.get();
     XFC->SubmitWrite(fab, const_cast<void*>(buf), offset, nbyte);
     ret = nbyte;
-    eos::common::ConcurrentQueue<error_type> err_queue = fabst->GetErrorQueue();
-    error_type error;
+    auto err_queue = fabst->GetErrorQueue();
 
-    if (err_queue.try_pop(error)) {
+    if (err_queue.size()) {
+      const error_type& error = err_queue.front();
       eos_static_info("Extract error from queue");
       ret = error.first;
     }

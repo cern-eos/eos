@@ -368,10 +368,17 @@ FileAbstraction::IsInUse()
 //------------------------------------------------------------------------------
 // Get handler to the queue of errors
 //------------------------------------------------------------------------------
-eos::common::ConcurrentQueue<error_type>&
-FileAbstraction::GetErrorQueue() const
+std::queue<error_type>
+FileAbstraction::GetErrorQueue()
 {
-  return *errorsQueue;
+  error_type err;
+  std::queue<error_type> qerrs;
+
+  while (errorsQueue->try_pop(err)) {
+    qerrs.push(err);
+  }
+
+  return qerrs;
 }
 
 //--------------------------------------------------------------------------

@@ -90,7 +90,8 @@ set(COMMON_UT_SRCS
   common/XrdConnPoolTests.cc
   common/RateLimitTests.cc
   common/EosTokenTests.cc
-  common/BufferManagerTests.cc)
+  common/BufferManagerTests.cc
+  common/ConcurrentQueueTests.cc)
 
 set(FST_UT_SRCS
   fst/XrdFstOfsTests.cc

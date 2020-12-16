@@ -249,7 +249,7 @@ public:
   //--------------------------------------------------------------------------
   //! Get the queue of errros
   //--------------------------------------------------------------------------
-  eos::common::ConcurrentQueue<error_type>& GetErrorQueue() const;
+  std::queue<error_type> GetErrorQueue();
 
   //--------------------------------------------------------------------------
   //! Set a new utime on a file
@@ -280,7 +280,8 @@ public:
   //--------------------------------------------------------------------------
   off_t GetMaxWriteOffset();
 
-  eos::common::RWMutexR  mInUse; ///< we use this look to indicate that someone has a reference to it
+  eos::common::RWMutexR
+  mInUse; ///< we use this look to indicate that someone has a reference to it
 
 private:
   int mFd; ///< file descriptor used for the block key range
