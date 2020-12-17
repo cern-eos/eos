@@ -95,8 +95,10 @@ ProcCommand::FuseX()
 
     eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, spath.c_str());
 
+    errno = 0;
+
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
-    std::string emsg;
+    std::string emsg="none";
 
     try {
       fmd = gOFS->eosView->getFile(spath.c_str(), true);
@@ -107,11 +109,11 @@ ProcCommand::FuseX()
     }
 
     if (!fmd) {
-      errno = 0;
-
       lock.Release();
 
       eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, spath.c_str());
+
+      errno = 0 ;
 
       lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
@@ -145,8 +147,10 @@ ProcCommand::FuseX()
 
     eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView, inode);
 
+    errno = 0;
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
-    std::string emsg;
+    std::string emsg="none";
+
 
     // lookup by parent dir + name
     try {
@@ -174,6 +178,8 @@ ProcCommand::FuseX()
         errno = ENOENT;
         emsg = schild.c_str();
         emsg += " - no such file or directory";
+      } else {
+	errno = 0;
       }
     } catch (eos::MDException& e) {
       errno = e.getErrno();
