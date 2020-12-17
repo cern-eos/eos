@@ -76,7 +76,15 @@ public:
     std::string s = "sec.prot=";
 
     if (entity) {
-      s += entity->prot;
+      // @todo(esindril) Yet another workaround for XrdTpc in pull mode which
+      // does not populate the "prot" field of the XrdSecEntity object - to be
+      // reviewed in XRootD5
+      if (strlen(entity->prot) == 0) {
+        s += "https";
+      } else {
+        s += entity->prot;
+      }
+
       s += " sec.name=\"";
       s += (entity->name) ? entity->name : "";
       s += "\" sec.host=\"";

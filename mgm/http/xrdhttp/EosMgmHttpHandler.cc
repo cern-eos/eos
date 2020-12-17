@@ -441,8 +441,9 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
                                 errmsg.length());
     }
 
-    eos_static_info("msg=\"(token) authorization done\" client_name=%s",
-                    client.GetObj()->name);
+    eos_static_info("msg=\"(token) authorization done\" client_name=%s "
+                    " client_prot=%s", client.GetObj()->name,
+                    client.GetObj()->prot);
     query = (normalized_headers.count("xrd-http-query") ?
              normalized_headers["xrd-http-query"] : "");
   }
