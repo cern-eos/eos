@@ -1044,7 +1044,7 @@ XrdFstOfsFile::close()
   error.setErrCode(0);
   const char* ptr = getenv("EOS_FST_ASYNC_CLOSE");
 
-  if (ptr && (strncmp(ptr, "1", 1) == 0)) {
+  if (!ptr || (strncmp(ptr, "1", 1) != 0)) {
     return _close();
   }
 
