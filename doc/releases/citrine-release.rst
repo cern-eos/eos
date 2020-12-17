@@ -16,6 +16,17 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.34 Citrine``
+===================
+
+2020-12-17
+
+Note
+----
+
+* Fix spurius errno triggering an exception in proc/mgm/Fusex
+
+
 ``v4.8.33 Citrine``
 ===================
 
