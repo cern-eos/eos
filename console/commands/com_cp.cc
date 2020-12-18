@@ -145,7 +145,7 @@ int parse_debug_level(XrdOucString option);
 int
 com_cp(char* argin)
 {
-  XrdOucString rate="";
+  XrdOucString rate = "";
   XrdOucString streams = "0";
   XrdOucString atomic = "";
   std::vector<XrdOucString> source_find_list;
@@ -311,7 +311,9 @@ com_cp(char* argin)
     }
 
     // Convert local to absolute path
-    source = absolute_path(source.c_str());
+    const char* abs_path = absolute_path(source.c_str());
+    source = abs_path;
+    free((char*)abs_path);
 
     // Check if source is a directory
     if (!source.endswith("/") && is_dir(source.c_str(), protocol, NULL)) {
@@ -507,7 +509,9 @@ com_cp(char* argin)
   }
 
   // Detect whether target is stdout
-  target.name = absolute_path(target.name.c_str());
+  const char* abs_path = absolute_path(target.name.c_str());
+  target.name = abs_path;
+  free((char*)abs_path);
   target_is_stdout = (target.name == "-");
 
   if (!target_is_stdout) {
@@ -994,14 +998,14 @@ com_cp(char* argin)
                         sprot, hostport);
 
       if (url) {
-        safename = url;
+        std::string surl = url;
+        safename = surl.c_str();
       }
     }
 
     safename = eos::common::Path(safename.c_str()).GetName();;
     safename.replace("&", "#AND#");
     safename.replace("'", "\\'");
-
     //------------------------------------
     // Construct 'eoscp' command
     //------------------------------------
@@ -1042,7 +1046,7 @@ com_cp(char* argin)
       cmdtext += rate.c_str();
       cmdtext += " ";
     }
-      
+
     cmdtext += "-N $'";
     cmdtext += safename.c_str();
     cmdtext += "' ";
@@ -1052,7 +1056,6 @@ com_cp(char* argin)
     } else {
       XrdOucString safesource = source.name.c_str();
       safesource.replace("'", "\\'");
-
       cmdtext += "$'";
       cmdtext += safesource;
       cmdtext += "' ";
@@ -1063,7 +1066,6 @@ com_cp(char* argin)
     } else {
       XrdOucString safedest = dest.c_str();
       safedest.replace("'", "\\'");
-
       cmdtext += "$'";
       cmdtext += safedest;
       cmdtext += "'";
@@ -1370,11 +1372,11 @@ const char* absolute_path(const char* path)
   Protocol protocol = get_protocol(path);
 
   if (protocol != Protocol::EOS && protocol != Protocol::LOCAL) {
-    return path;
+    return strdup(path);
   }
 
   if (strcmp(path, "-") == 0) {
-    return path;
+    return strdup(path);
   }
 
   XrdOucString spath = path;
@@ -1452,7 +1454,9 @@ bool is_dir(const char* path, Protocol protocol, struct stat* buf)
   if (buf == NULL) {
     struct stat tmpbuf;
     buf = &tmpbuf;
-    rc = do_stat(absolute_path(path), protocol, *buf);
+    const char* abs_path = absolute_path(path);
+    rc = do_stat(abs_path, protocol, *buf);
+    free((char*)abs_path);
   }
 
   return (rc == 0)  ?  S_ISDIR(buf->st_mode)  :  false;
@@ -1485,19 +1489,19 @@ const char* eos_roles_opaque()
  */
 int do_stat(const char* path, Protocol protocol, struct stat& buf)
 {
-  path = absolute_path(path);
+  const char* abs_path = absolute_path(path);
   int rc = -1;
 
   if (protocol == Protocol::EOS || protocol == Protocol::XROOT) {
     // Stat EOS file
-    XrdOucString url = path;
+    XrdOucString url = abs_path;
     const char* roles = eos_roles_opaque();
 
     // Expand '/eos/' shortcut for EOS protocol
     if (url.beginswith("/eos/")) {
       url = serveruri.c_str();
       url += (!url.endswith("/"))  ?  "/"  :  "";
-      url += path;
+      url += abs_path;
     }
 
     if (roles) {
@@ -1508,9 +1512,10 @@ int do_stat(const char* path, Protocol protocol, struct stat& buf)
     rc = XrdPosixXrootd::Stat(url.c_str(), &buf);
   } else if (protocol == Protocol::LOCAL) {
     // Stat local file
-    rc = stat(path, &buf);
+    rc = stat(abs_path, &buf);
   }
 
+  free((char*)abs_path);
   return rc;
 }
 
@@ -1689,6 +1694,7 @@ int parse_debug_level(XrdOucString option)
   }
 
   int level = 0;
+
   try {
     level = std::stoul(option.c_str());
   } catch (...) { }

@@ -970,8 +970,8 @@ main(int argc, char* argv[])
 
             XrdOucString tag;
             XrdOucString stripe_path;
-            XrdOucString origResponse = response->GetBuffer();
-            XrdOucString stringOpaque = response->GetBuffer();
+            std::string origResponse(response->GetBuffer(), response->GetSize());
+            XrdOucString stringOpaque = origResponse.c_str();
 
             while (stringOpaque.replace("?", "&")) {
             }
