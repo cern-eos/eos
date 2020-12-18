@@ -188,11 +188,12 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
         long long content_left = content_length;
         const long long eoshttp_sz = 1024 * 1024;
         const long long xrdhttp_sz = 256 * 1024;
-        std::string body(eoshttp_sz + 1, '\0');
+        std::string body;
 
         do {
           long long content_read = std::min(eoshttp_sz, content_left);
-          body.resize(content_read, '\0');
+          body.clear();
+          body.reserve(content_read);
           char* ptr = nullptr;
           long long read_len = 0;
 
@@ -203,7 +204,7 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
                              content_read, rb, body.size(), content_left);
 
             if (rb > 0) {
-              body.assign(ptr, rb);
+              body.append(ptr, rb);
               read_len += rb;
             } else {
               break;
