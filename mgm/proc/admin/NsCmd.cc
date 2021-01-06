@@ -373,8 +373,7 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << "uid=all gid=all ns.memory.share=" << mem.share << std::endl
         << "uid=all gid=all ns.stat.threads=" << pstat.threads << std::endl
         << "uid=all gid=all ns.fds.all=" << fds.all << std::endl
-        << "uid=all gid=all ns.fusex.caps=" << gOFS->zMQ->gFuseServer.Cap().ncaps() <<
-        std::endl
+        << "uid=all gid=all ns.fusex.caps=" << gOFS->zMQ->gFuseServer.Cap().ncaps() << std::endl
         << "uid=all gid=all ns.fusex.clients=" <<
         eosxd_nclients << std::endl
         << "uid=all gid=all ns.fusex.activeclients=" <<
@@ -515,8 +514,8 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << "ALL      current container id             " << cid_now
         << std::endl
         << line << std::endl
-        << "ALL      eosxd caps                       " <<
-        gOFS->zMQ->gFuseServer.Cap().ncaps() << std::endl
+        << "ALL      eosxd caps                       "
+        << gOFS->zMQ->gFuseServer.Cap().Dump() << std::endl
         << "ALL      eosxd clients                    " <<
         eosxd_nclients << std::endl
         << "ALL      eosxd active clients             " <<

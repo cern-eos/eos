@@ -130,12 +130,21 @@ FuseServer::Clients::MonitorHeartBeat()
 
     // Delete clients to be evicted
     if (!evictmap.empty()) {
-      eos::common::RWMutexWriteLock lLock(*this);
+      {
+	std::set<string> uuids;
+	{
+	  eos::common::RWMutexWriteLock lLock(*this);
+	  for (auto it = evictmap.begin(); it != evictmap.end(); ++it) {
+	    uuids.insert(it->first);
 
-      for (auto it = evictmap.begin(); it != evictmap.end(); ++it) {
-        mMap.erase(it->second);
-        mUUIDView.erase(it->first);
-        gOFS->zMQ->gFuseServer.Locks().dropLocks(it->first);
+	    mMap.erase(it->second);
+	    mUUIDView.erase(it->first);
+	    gOFS->zMQ->gFuseServer.Locks().dropLocks(it->first);
+	  }
+	}
+	for (auto it = uuids.begin(); it != uuids.end(); ++it) {
+	  gOFS->zMQ->gFuseServer.Cap().dropCaps(*it);
+	}
       }
     }
 

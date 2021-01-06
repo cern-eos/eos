@@ -54,11 +54,24 @@ FuseServer::Caps::Store(const eos::fusex::cap& ecap,
                   ecap.clientid().c_str(),
                   ecap.authid().c_str());
 
+  // register this clientid to a given client uuid
+  ClientIds()[ecap.clientuuid()].insert(ecap.clientid());
+
   // avoid to have multiple time entries for the same cap
   if (!mCaps.count(ecap.authid())) {
     // fill the three views on caps
     mTimeOrderedCap.insert(std::pair<time_t, authid_t>(ecap.vtime(),
                            ecap.authid()));
+  } else {
+    shared_cap cap = mCaps[ecap.authid()];
+    if (cap->id() != ecap.id()) {
+      eos_static_info("got inode change for %s from %x to %x",
+		      ecap.authid().c_str(), cap->id(), ecap.id());
+      Remove(cap);
+      // fill the three views on caps
+      mTimeOrderedCap.insert(std::pair<time_t, authid_t>(ecap.vtime(),
+							 ecap.authid()));
+    }
   }
 
   mClientCaps[ecap.clientid()].insert(ecap.authid());

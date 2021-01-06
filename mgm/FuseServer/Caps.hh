@@ -83,6 +83,9 @@ public:
 
   typedef std::string authid_t;
   typedef std::string clientid_t;
+  typedef std::string client_uuid_t;
+  typedef std::set<clientid_t> clientid_set_t;
+  typedef std::map<client_uuid_t, clientid_set_t> client_ids_t;
   typedef std::pair<uint64_t, authid_t> ino_authid_t;
   typedef std::set<authid_t> authid_set_t;
   typedef std::map<uint64_t, authid_set_t> ino_map_t;
@@ -146,37 +149,73 @@ public:
              authid_t authid,
              authid_t implied_authid);
 
-  bool Remove(shared_cap cap)
+  void dropCaps(const std::string& uuid)
   {
-    // you have to have a write lock for the caps
-    if (mCaps.count(cap->authid())) {
-      mCaps.erase(cap->authid());
-      mInodeCaps[cap->id()].erase(cap->authid());
+    eos_static_info("drop client caps: %s", uuid.c_str());
 
-      if (!mInodeCaps[cap->id()].size()) {
-        mInodeCaps.erase(cap->id());
-      }
+    std::set<shared_cap> deleteme;
+    {
+      eos::common::RWMutexReadLock lock(*this);
 
-      mClientInoCaps[cap->clientid()][cap->id()].erase(cap->authid());
-
-      if (!mClientInoCaps[cap->clientid()][cap->id()].size()) {
-        mClientInoCaps[cap->clientid()].erase(cap->id());
-
-        if (!mClientInoCaps[cap->clientid()].size()) {
-          mClientInoCaps.erase(cap->clientid());
+      for (auto it=mCaps.begin(); it!=mCaps.end(); ++it) {
+        if (it->second->clientuuid() == uuid) {
+          deleteme.insert(it->second);
         }
       }
-
-      mClientCaps[cap->clientid()].erase(cap->authid());
-
-      if (mClientCaps[cap->clientid()].size() == 0) {
-        mClientCaps.erase(cap->clientid());
-      }
-
-      return true;
-    } else {
-      return false;
     }
+    {
+      for (auto it=deleteme.begin(); it!=deleteme.end(); ++it) {
+	eos::common::RWMutexWriteLock lock(*this);
+        shared_cap cap = *it;
+        Remove(*it);
+      }
+    }
+
+    // cleanup by client ids
+    {
+      eos::common::RWMutexWriteLock lock(*this);
+      if (mClientIds.count(uuid)) {
+	for (auto it = mClientIds[uuid].begin(); it != mClientIds[uuid].end(); ++it) {
+	  mClientCaps.erase(*it);
+	  mClientInoCaps.erase(*it);
+	}
+      }
+      mClientIds.erase(uuid);
+    }
+  }
+
+  bool Remove(shared_cap cap)
+  {
+    bool rc = false;
+
+    // you have to have a write lock for the caps
+    if (mCaps.count(cap->authid())) {
+      rc = true;
+      mCaps.erase(cap->authid());
+    }
+
+    mInodeCaps[cap->id()].erase(cap->authid());
+
+    if (!mInodeCaps[cap->id()].size()) {
+      mInodeCaps.erase(cap->id());
+    }
+
+    mClientInoCaps[cap->clientid()][cap->id()].erase(cap->authid());
+
+    if (!mClientInoCaps[cap->clientid()][cap->id()].size()) {
+      mClientInoCaps[cap->clientid()].erase(cap->id());
+
+      if (!mClientInoCaps[cap->clientid()].size()) {
+	mClientInoCaps.erase(cap->clientid());
+      }
+    }
+
+    mClientCaps[cap->clientid()].erase(cap->authid());
+
+    if (mClientCaps[cap->clientid()].size() == 0) {
+      mClientCaps.erase(cap->clientid());
+    }
+    return rc;
   }
 
   int Delete(uint64_t id);
@@ -244,6 +283,20 @@ public:
     return mClientInoCaps;
   }
 
+  client_ids_t& ClientIds()
+  {
+    return mClientIds;
+  }
+
+  std::string Dump() {
+    std::string s;
+    eos::common::RWMutexReadLock lock(*this);
+    s = std::to_string(mTimeOrderedCap.size()) + " c: " + std::to_string(mCaps.size()) + " cc: "
+      + std::to_string(mClientCaps.size()) + " cic: " + std::to_string(mClientInoCaps.size()) + " ic: "
+      + std::to_string(mInodeCaps.size());
+    return s;
+  }
+
 protected:
   // a time ordered multimap pointing to caps
   std::multimap< time_t, authid_t > mTimeOrderedCap;
@@ -255,6 +308,8 @@ protected:
   client_ino_map_t mClientInoCaps;
   // inode=>authid_t
   notify_set_t mInodeCaps;
+  // uuid=>set of clientid
+  client_ids_t mClientIds;
 };
 
 EOSFUSESERVERNAMESPACE_END
