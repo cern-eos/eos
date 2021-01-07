@@ -274,6 +274,7 @@ public:
       bool hide_versions;
       std::vector<std::string> no_fsync_suffixes;
       std::vector<std::string> nowait_flush_executables;
+      bool protect_directory_symlink_loops;
     } options_t;
 
     typedef struct recovery

@@ -32,6 +32,7 @@ This
     "backtrace" : 1,
     "libfusethreads" : 0,
     "hide-versions" : 1,
+    "protect-directory-symlink-loops" : 0,
     "md-kernelcache" : 1,
     "md-kernelcache.enoent.timeout" : 0,
     "md-backend.timeout" : 86400,

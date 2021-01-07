@@ -866,6 +866,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         root["options"]["rm-rf-bulk"].asInt();
       config.options.show_tree_size = root["options"]["show-tree-size"].asInt();
       config.options.hide_versions = root["options"]["hide-versions"].asInt();
+      config.options.protect_directory_symlink_loops = root["options"]["protect-directory-symlink-loops"].asInt();
       config.options.cpu_core_affinity = root["options"]["cpu-core-affinity"].asInt();
       config.options.no_xattr = root["options"]["no-xattr"].asInt();
       config.options.no_eos_xattr_listing = root["options"]["no-eos-xattr-listing"].asInt();
@@ -1621,7 +1622,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         eos_static_warning("sss-keytabfile         := %s", config.ssskeytab.c_str());
       }
 
-      eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d flush-w-open-sz:%ld flush-w-umount:%d locking:%d no-fsync:%s flush-nowait-exec:%s ol-mode:%03o show-tree-size:%d hide-versions:%d core-affinity:%d no-xattr:%d no-eos-xattr-listing: %d no-link:%d nocache-graceperiod:%d rm-rf-protect-level=%d rm-rf-bulk=%d t(lease)=%d t(size-flush)=%d submounts=%d ino(in-mem)=%d flock:%d",
+      eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d flush-w-open-sz:%ld flush-w-umount:%d locking:%d no-fsync:%s flush-nowait-exec:%s ol-mode:%03o show-tree-size:%d hide-versions:%d protect-symlink-loops:%d core-affinity:%d no-xattr:%d no-eos-xattr-listing: %d no-link:%d nocache-graceperiod:%d rm-rf-protect-level=%d rm-rf-bulk=%d t(lease)=%d t(size-flush)=%d submounts=%d ino(in-mem)=%d flock:%d",
                          config.options.enable_backtrace,
                          config.options.md_kernelcache,
                          config.options.md_kernelcache_enoent_timeout,
@@ -1640,6 +1641,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
                          config.options.overlay_mode,
                          config.options.show_tree_size,
                          config.options.hide_versions,
+			 config.options.protect_directory_symlink_loops,
                          config.options.cpu_core_affinity,
                          config.options.no_xattr,
                          config.options.no_eos_xattr_listing,
@@ -5641,6 +5643,26 @@ EosFuse::readlink(fuse_req_t req, fuse_ino_t ino)
         } else {
           target = md->target();
         }
+      }
+    }
+
+    if (Instance().Config().options.protect_directory_symlink_loops) {
+      std::string localpath = Instance().Prefix(Instance().mds.calculateLocalPath(
+										  md));
+
+      if ( (target.front() == '/') ){
+	if (localpath.substr(0, target.size()) == target) {
+	  target = "/#_invalidated_link";
+	}
+      } else {
+	std::string targetpath = localpath;
+        targetpath += "/";
+	targetpath += target;
+	eos::common::Path tPath(targetpath);
+	targetpath = tPath.GetPath();
+	if (localpath.substr(0, targetpath.size()) == targetpath) {
+	  target = "#_invalidated_link";
+	}
       }
     }
 
