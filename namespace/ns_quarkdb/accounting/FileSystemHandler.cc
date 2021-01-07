@@ -30,7 +30,7 @@ EOSNSNAMESPACE_BEGIN
 FileSystemHandler::FileSystemHandler(IFileMD::location_t loc,
                                      folly::Executor* executor,
                                      qclient::QClient* qcl,
-                                     MetadataFlusher *flusher,
+                                     MetadataFlusher* flusher,
                                      bool unlinked)
   : location(loc), pExecutor(executor), pQcl(qcl), pFlusher(flusher)
 {
@@ -127,6 +127,7 @@ FileSystemHandler* FileSystemHandler::triggerCacheLoad()
   mChangeList.apply(mContents);
   mChangeList.clear();
   mCacheStatus = CacheStatus::kLoaded;
+  mContents.resize(0);
   return this;
 }
 
@@ -172,6 +173,7 @@ void FileSystemHandler::erase(FileIdentifier identifier)
     eos_assert(mCacheStatus == CacheStatus::kLoaded);
     // Write directly into mContents
     mContents.erase(identifier.getUnderlyingUInt64());
+    mContents.resize(0);
   }
 
   lock.unlock();
