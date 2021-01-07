@@ -78,7 +78,7 @@ public:
     // If setAcceptingRequests takes effect here, no problem:
     // mInFlight can NOT be zero at this point, and the spinner will wait.
     std::unique_lock<std::mutex> scope_lock(mInFlightPidMutex);
-    mInFlightPids.insert(pthread_self());
+    mInFlightPids[pthread_self()]++;
     return true;
   }
 
@@ -90,7 +90,9 @@ public:
     --mInFlight;
     assert(mInFlight >= 0);
     std::unique_lock<std::mutex> scope_lock(mInFlightPidMutex);
-    mInFlightPids.erase(pthread_self());
+    if (!(--mInFlightPids[pthread_self()])) {
+      mInFlightPids.erase(pthread_self());
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -144,13 +146,17 @@ public:
 
   std::set<pthread_t> getInFlightThreads() {
     std::unique_lock<std::mutex> scope_lock(mInFlightPidMutex);
-    return mInFlightPids;
+    std::set<pthread_t> inflight_threads;
+    for ( auto it : mInFlightPids ) {
+      inflight_threads.insert(it.first);
+    }
+    return inflight_threads;
   }
 
 private:
   std::atomic<bool> mAcceptingRequests {true};
   std::atomic<int64_t> mInFlight {0};
-  std::set<pthread_t> mInFlightPids;
+  std::map<pthread_t, size_t> mInFlightPids;
   std::mutex mInFlightPidMutex;
 
 };

@@ -1302,8 +1302,15 @@ RWMutex::PrintMutexOps(std::ostringstream& oss)
   }
 
   for (const auto& elem : it->second) {
-    oss << elem.first << ": "
-        << eos::common::RWMutex::LOCK_STATE[(int)elem.second] << " ";
+    std::string name;
+    if (RWMutex::sMtxNameMap.count(elem.first)) {
+      oss << RWMutex::sMtxNameMap[elem.first] << ": "
+	  << eos::common::RWMutex::LOCK_STATE[(int)elem.second] << " ";
+
+    } else {
+      oss << elem.first << ": "
+	  << eos::common::RWMutex::LOCK_STATE[(int)elem.second] << " ";
+    }
   }
 
 #endif // EOS_INSTRUMENTED_MUTEX
