@@ -16,6 +16,25 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.35 Citrine``
+===================
+
+2021-01-07
+
+Bug
+----
+
+* FST: Fix logic when enabling/disabling async close
+* FST: Properly align the writes for PUT requests
+* CONSOLE: Fix memory corruption issues with eos cp
+* MGM: fix webdav free quota bytes computation
+
+New Feature
+------------
+
+* [EOS-4545] - Option for eosxd mounts to block symlinks walking up the hierarchie
+
+
 ``v4.8.34 Citrine``
 ===================
 
