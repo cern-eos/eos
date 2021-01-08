@@ -277,6 +277,23 @@ public:         // [+] prevents '+' interpreted as "one or more"
 
   inline std::string TokenAcl(const eos::common::VirtualIdentity& vid) const;
 
+  //----------------------------------------------------------------------------
+  //! Return attr for sysacl
+  //----------------------------------------------------------------------------
+
+  inline const std::string SysAttr() { return sysattr; }
+
+  //----------------------------------------------------------------------------
+  //! Return attr for useracl
+  //----------------------------------------------------------------------------
+
+  inline const std::string UserAttr() { return userattr; }
+
+  //----------------------------------------------------------------------------
+  //! Return if enabled to evaluate user acls
+  //----------------------------------------------------------------------------
+
+  inline const bool EvalUserAttr() { return evaluserattr; }
 
 private:
   bool mCanRead; ///< acl allows read access
@@ -299,6 +316,10 @@ private:
   bool mIsMutable; ///< acl does not contain the immutable flag
   bool mCanArchive; ///< acl which allows archiving
   bool mCanPrepare; ///< acl which allows triggering workflows
+
+  std::string sysattr;
+  std::string userattr;
+  bool evaluserattr;
 };
 
 EOSMGMNAMESPACE_END

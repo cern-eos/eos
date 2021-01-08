@@ -128,18 +128,24 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
          const eos::common::VirtualIdentity& vid, bool allowUserAcl)
 {
   std::string acl = "";
+  sysattr = "";
+  userattr = "";
+  evaluserattr = false;
 
   if (sysacl.length()) {
     acl += sysacl;
+    sysattr = sysacl;
   }
 
   if (allowUserAcl) {
+    evaluserattr = true;
     if (useracl.length()) {
       if (sysacl.length()) {
         acl += ",";
       }
 
       acl += useracl;
+      userattr = useracl;
     }
   }
 

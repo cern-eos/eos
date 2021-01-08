@@ -1232,6 +1232,25 @@ runtest H "### Chown     " sss  0 "EOSROLE='-r 99 99'" eos chown 98 /eos/$EOS_TE
 runtest   "### Attr      " unix 0 "" eos attr set sys.acl= /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl                # rm sys.acl, user.acl remains
 runtest H "### Chown     " sss  0 "EOSROLE='-r 99 99'" eos chown 99 /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl       # chown to self should work in user.acl
 
+# test inheritance of file acls
+
+runtest H "### Upload    " sss  0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1" "-ODeos.ruid=99\&eos.rgid=99"
+runtest   "### Attr      " unix 0 "" eos attr set sys.acl=g:99:rwx /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1
+runtest   "### Attr      " unix 0 "" eos attr rm sys.eval.useracl /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1
+runtest H "### Upload    " sss  0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1" "-ODeos.ruid=99\&eos.rgid=99"  # should have now sys.acl
+runtest   "### Attr      " unix 0 "" eos attr ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1 | grep sys.acl | wc -l | grep -w 0 "
+runtest H "### Upload    " sss  0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.2" "-ODeos.ruid=99\&eos.rgid=99"
+runtest   "### Attr      " unix 0 "" eos attr rm sys.eval.useracl /eos/$EOS_TEST_INSTANCE/test/instancetest/file.2
+runtest   "### Attr      " unix 0 "" eos attr set user.acl=g:99:rwx /eos/$EOS_TEST_INSTANCE/test/instancetest/file.2
+runtest H "### Upload    " sss  0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.2" "-ODeos.ruid=99\&eos.rgid=99"  # should have no user.acl
+runtest   "### Attr      " unix 0 "" eos attr ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.2 | grep user.acl | wc -l | grep -w 0 "
+runtest H "### Upload    " sss  0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.3" "-ODeos.ruid=99\&eos.rgid=99"
+runtest   "### Attr      " unix 0 "" eos attr set user.acl=g:99:rwx /eos/$EOS_TEST_INSTANCE/test/instancetest/file.3
+runtest   "### Attr      " unix 0 "" eos attr set sys.eval.useracl=1 /eos/$EOS_TEST_INSTANCE/test/instancetest/file.3
+runtest H "### Upload    " sss  0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.3" "-ODeos.ruid=99\&eos.rgid=99"  # should have user.acl and sys.eval.useracl
+runtest   "### Attr      " unix 0 "" eos attr ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.3 | grep user.acl | wc -l | grep -w 1 "
+runtest   "### Attr      " unix 0 "" eos attr ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.3 | grep sys.eval.useracl | wc -l | grep -w 1 "
+
 # date +%s.%N;exit
 
 #cleanup

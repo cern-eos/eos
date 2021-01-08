@@ -1030,9 +1030,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
 
     acl.SetFromAttrMap(attrmap, vid, &attrmapF);
-    eos_info("acl=%d r=%d w=%d wo=%d egroup=%d shared=%d mutable=%d",
+
+    eos_info("acl=%d r=%d w=%d wo=%d egroup=%d shared=%d mutable=%d facl=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
-             acl.HasEgroup(), isSharedFile, acl.IsMutable());
+             acl.HasEgroup(), isSharedFile, acl.IsMutable(),
+	     acl.EvalUserAttr());
 
     if (acl.HasAcl()) {
       if ((vid.uid != 0) && (!vid.sudoer) &&
@@ -1307,6 +1309,14 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
               // If we have a target file we tag the latest atomic upload name
               // on a temporary attribute
               ref_fmd->setAttribute("sys.tmp.atomic", fmd->getName());
+
+	      if (acl.EvalUserAttr()) {
+		// we inherit existing ACLs during (atomic) versioning
+		ref_fmd->setAttribute("user.acl", acl.UserAttr());
+		ref_fmd->setAttribute("sys.eval.useracl", "1");
+	      }
+
+
               gOFS->eosView->updateFileStore(ref_fmd.get());
             }
 
@@ -1572,8 +1582,16 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         fmd->setAttribute("sys.tmp.etag", ext_etag);
       }
 
+
+
       for (auto it = ext_xattr_map.begin(); it != ext_xattr_map.end(); ++it) {
         fmd->setAttribute(it->first, it->second);
+      }
+
+      if (acl.EvalUserAttr()) {
+	// we inherit existing ACLs during (atomic) versioning
+	fmd->setAttribute("user.acl", acl.UserAttr());
+	fmd->setAttribute("sys.eval.useracl", "1");
       }
 
       try {
