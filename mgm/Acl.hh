@@ -289,11 +289,14 @@ public:         // [+] prevents '+' interpreted as "one or more"
 
   inline const std::string UserAttr() { return userattr; }
 
+  inline const std::string UserAttrFile() { return userattrF; }
+
   //----------------------------------------------------------------------------
   //! Return if enabled to evaluate user acls
   //----------------------------------------------------------------------------
 
   inline const bool EvalUserAttr() { return evaluserattr; }
+  inline const bool EvalUserAttrFile() { return evaluserattrF; }
 
 private:
   bool mCanRead; ///< acl allows read access
@@ -320,6 +323,8 @@ private:
   std::string sysattr;
   std::string userattr;
   bool evaluserattr;
+  std::string userattrF;
+  bool evaluserattrF;
 };
 
 EOSMGMNAMESPACE_END

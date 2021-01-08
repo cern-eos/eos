@@ -84,6 +84,7 @@ Acl::SetFromAttrMap(const eos::IContainerMD::XAttrMap& attrmap,
                     bool sysaclOnly)
 {
   bool evalUseracl = false;
+  evaluserattrF = false;
   std::string useracl;
   std::string tokenacl;
 
@@ -93,6 +94,8 @@ Acl::SetFromAttrMap(const eos::IContainerMD::XAttrMap& attrmap,
 
       if (evalUseracl) {
         useracl = (*attrmapF)["user.acl"];
+	userattrF = useracl;
+	evaluserattrF = true;
       }
     } else {
       evalUseracl = attrmap.count("sys.eval.useracl") > 0;

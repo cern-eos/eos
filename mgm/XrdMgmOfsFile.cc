@@ -1034,7 +1034,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     eos_info("acl=%d r=%d w=%d wo=%d egroup=%d shared=%d mutable=%d facl=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
              acl.HasEgroup(), isSharedFile, acl.IsMutable(),
-	     acl.EvalUserAttr());
+	     acl.EvalUserAttrFile());
 
     if (acl.HasAcl()) {
       if ((vid.uid != 0) && (!vid.sudoer) &&
@@ -1310,9 +1310,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
               // on a temporary attribute
               ref_fmd->setAttribute("sys.tmp.atomic", fmd->getName());
 
-	      if (acl.EvalUserAttr()) {
+	      if (acl.EvalUserAttrFile()) {
 		// we inherit existing ACLs during (atomic) versioning
-		ref_fmd->setAttribute("user.acl", acl.UserAttr());
+		ref_fmd->setAttribute("user.acl", acl.UserAttrFile());
 		ref_fmd->setAttribute("sys.eval.useracl", "1");
 	      }
 
@@ -1588,9 +1588,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         fmd->setAttribute(it->first, it->second);
       }
 
-      if (acl.EvalUserAttr()) {
+      if (acl.EvalUserAttrFile()) {
 	// we inherit existing ACLs during (atomic) versioning
-	fmd->setAttribute("user.acl", acl.UserAttr());
+	fmd->setAttribute("user.acl", acl.UserAttrFile());
 	fmd->setAttribute("sys.eval.useracl", "1");
       }
 
