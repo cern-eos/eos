@@ -37,11 +37,11 @@ TEST(Egroup, Functional) {
   // Feel free to delete the entire test if it creates problems.
   //----------------------------------------------------------------------------
   Egroup egroup;
-  ASSERT_TRUE(egroup.Member("gbitzes", "it-dep"));
-  ASSERT_FALSE(egroup.Member("gbitzes", "be-dep"));
+  ASSERT_TRUE(egroup.Member("esindril", "it-dep"));
+  ASSERT_FALSE(egroup.Member("esindril", "be-dep"));
   ASSERT_FALSE(egroup.Member("this-user-does-not-exist", "it-dep"));
-  ASSERT_FALSE(egroup.Member("gbitzes", "this-group-does-not-exist"));
-  ASSERT_TRUE(egroup.Member("gbitzes", "cern-accounts-primary"));
+  ASSERT_FALSE(egroup.Member("esindril", "this-group-does-not-exist"));
+  ASSERT_TRUE(egroup.Member("esindril", "cern-accounts-primary"));
 }
 
 TEST(Egroup, BasicSanity) {
