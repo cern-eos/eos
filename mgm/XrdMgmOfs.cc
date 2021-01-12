@@ -753,7 +753,13 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 
   // The XRootD prepare actions are mutually exclusive
   switch (pargsOptsAction) {
-  case 0: // No flags means stage file in from tape
+  case 0:
+    if(mTapeEnabled) {
+      Emsg(epname, error, EINVAL, "prepare with empty pargs.opts on tape-enabled back-end");
+      return SFS_ERROR;
+    }
+    break;
+
   case Prep_STAGE:
     event = "sync::prepare";
 
@@ -792,7 +798,13 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 
   // The XRootD prepare flags are mutually exclusive
   switch (pargs.opts) {
-  case 0: // No flags means stage file in from tape
+  case 0:
+    if(mTapeEnabled) {
+      Emsg(epname, error, EINVAL, "prepare with empty pargs.opts on tape-enabled back-end");
+      return SFS_ERROR;
+    }
+    break;
+
   case Prep_STAGE:
     event = "sync::prepare";
     break;
