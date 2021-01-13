@@ -488,6 +488,12 @@ The EOS server installation containing MGM, FST & MQ service.
 %config(noreplace) %{_sysconfdir}/xrd.cf.fed
 %config(noreplace) %{_sysconfdir}/xrd.cf.prefix
 %config(noreplace) %{_sysconfdir}/xrd.cf.quarkdb
+%config(noreplace) %{_sysconfdir}/config/mgm/mgm
+%config(noreplace) %{_sysconfdir}/config/mq/mq
+%config(noreplace) %{_sysconfdir}/config/fst/fst
+%config(noreplace) %{_sysconfdir}/config/generic/all
+%config(noreplace) %{_sysconfdir}/config/qdb/qdb
+
 %if %{use_systemd}
     %config %{_sysconfdir}/sysconfig/eos_env.example
     %{_prefix}/lib/systemd/system/eos.target
@@ -500,6 +506,11 @@ The EOS server installation containing MGM, FST & MQ service.
     %{_prefix}/lib/systemd/system/eossync.service
     %{_prefix}/lib/systemd/system/eossync@.service
     %{_prefix}/lib/systemd/system/eossync@config.service
+    %{_prefix}/lib/systemd/system/eos5-fst@.service
+    %{_prefix}/lib/systemd/system/eos5-mgm@.service
+    %{_prefix}/lib/systemd/system/eos5-mq@.service
+    %{_prefix}/lib/systemd/system/eos5-qdb@.service
+    %{_prefix}/lib/systemd/system/eos5.service
     %{_sbindir}/eos_start_pre.sh
     %{_sbindir}/eos_start.sh
 %else

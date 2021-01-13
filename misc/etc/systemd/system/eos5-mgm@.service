@@ -1,0 +1,16 @@
+[Unit]
+Description=%I EOS5 MGM service instance
+# When systemd stops or restarts the app.service, the action is propagated to this unit
+PartOf=eos5.service
+# Start this unit after the app.service start
+After=eos5-mq.service
+
+[Service]
+# Pretend that the component is running
+ExecStart=eos daemon mgm run %i
+# Restart the service on non-zero exit code when terminated by a signal other than SIGHUP, SIGINT, SIGTERM or SIGPIPE
+Restart=on-failure
+
+[Install]
+# This unit should start when app.service is starting
+WantedBy=eos5.service

@@ -126,6 +126,8 @@ extern int com_whoami(char*);
 extern int com_who(char*);
 extern int com_accounting(char*);
 extern int com_quota(char*);
+extern int com_daemon(char*);
+
 
 //------------------------------------------------------------------------------
 // Command mapping array
@@ -145,6 +147,7 @@ COMMAND commands[] = {
   { (char*) "console", com_console, (char*) "Run Error Console"},
   { (char*) "convert", com_convert, (char*) "Convert Interface"},
   { (char*) "cp", com_cp, (char*) "Cp command"},
+  { (char*) "daemon", com_daemon, (char*) "Handle service daemon"},
   { (char*) "debug", com_protodebug, (char*) "Set debug level"},
   { (char*) "exit", com_quit, (char*) "Exit from EOS console"},
   { (char*) "file", com_file, (char*) "File Handling"},
@@ -1450,7 +1453,7 @@ bool RequiresMgm(const std::string& name, const std::string& args)
       (name == "exit") || (name == "help") || (name == "json") ||
       (name == "pwd") || (name == "quit") || (name == "role") ||
       (name == "silent") || (name == "timing") || (name == "?") ||
-      (name == ".q")) {
+      (name == ".q") || (name == "daemon")) {
     return false;
   }
 

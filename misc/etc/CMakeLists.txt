@@ -26,6 +26,14 @@ if(EXISTS "/etc/debian_version")
   set ( DEBIAN 1 )
 endif()
 
+install(DIRECTORY DESTINATION /etc/eos/)
+install(DIRECTORY DESTINATION /etc/eos/config)
+install(DIRECTORY DESTINATION /etc/eos/config/mgm)
+install(DIRECTORY DESTINATION /etc/eos/config/mq)
+install(DIRECTORY DESTINATION /etc/eos/config/fst)
+install(DIRECTORY DESTINATION /etc/eos/config/qdb)
+install(DIRECTORY DESTINATION /etc/eos/config/generic)
+
 install(
   FILES eos.keytab eos.client.keytab
   DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/
@@ -35,6 +43,28 @@ install(
   FILES xrd.cf.fst xrd.cf.mgm xrd.cf.mq xrd.cf.sync xrd.cf.fed xrd.cf.prefix
 	xrd.cf.global-mq xrd.cf.auth xrd.cf.quarkdb fuse.conf fuse.conf.eos 
   DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/)
+
+
+install(
+  FILES config/mgm/mgm
+  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/config/mgm/)
+
+
+install(
+  FILES config/fst/fst
+  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/config/fst/)
+
+install(
+  FILES config/mq/mq
+  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/config/mq/)
+
+install(
+  FILES config/generic/all
+  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/config/generic/)
+
+install(
+  FILES config/qdb/qdb
+  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/config/qdb/)
 
 install(
   FILES bash_completion.d/eos
@@ -81,6 +111,12 @@ if(EXISTS ${SYSTEMD_DIR})
  	systemd/system/eossync.service
  	systemd/system/eossync@.service
  	systemd/system/eossync@config.service
+	systemd/system/eos5.service
+	systemd/system/eos5-mgm@.service
+	systemd/system/eos5-mq@.service
+	systemd/system/eos5-fst@.service
+	systemd/system/eos5-qdb@.service
+
    DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/systemd/system/)
 
 #We keep for the moment the SysV scripts for eosd
