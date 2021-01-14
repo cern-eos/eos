@@ -15,12 +15,12 @@ set(LIBMICROHTTPD_VERSION ${PC_libmicrohttpd_VERSION})
 
 find_path(LIBMICROHTTPD_INCLUDE_DIR
   NAMES microhttpd.h
-  HINTS ${LIBMICROHTTPD_ROOT} ${PC_libmicrohttpd_INCLUDEDIR} ${PC_libmicrohttpd_INCLUDE_DIRS}
+  HINTS ${LIBMICROHTTPD_ROOT} /opt/eos/microhttpd/ ${PC_libmicrohttpd_INCLUDEDIR} ${PC_libmicrohttpd_INCLUDE_DIRS}
   PATH_SUFFIXES include)
 
 find_library(LIBMICROHTTPD_LIBRARY
   NAMES microhttpd
-  HINTS ${MICROHTTPD_ROOT} ${PC_libmicrohttpd_LIBDIR} ${PC_libmicrohttpd_LIBRARY_DIRS}
+  HINTS ${MICROHTTPD_ROOT} /opt/eos/microhttpd/ ${PC_libmicrohttpd_LIBDIR} ${PC_libmicrohttpd_LIBRARY_DIRS}
   PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR})
 
 include(FindPackageHandleStandardArgs)
