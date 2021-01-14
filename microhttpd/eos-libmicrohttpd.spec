@@ -1,4 +1,5 @@
 %define _unpackaged_files_terminate_build 0
+%global debug_package %{nil}
 %define _prefix /opt/eos/microhttpd/
 Summary: Lightweight library for embedding a webserver in applications
 Name: eos-libmicrohttpd
@@ -71,9 +72,9 @@ Doxygen documentation for libmicrohttpd and some example source code
 # Required because patches modify .am files
 # autoreconf --force
 %if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0} >= 18
-export CFLAGS="-D MAGIC_MIME_TYPE=1 "
+export CFLAGS="-D MAGIC_MIME_TYPE=1 -fPIC"
 %else
-export CFLAGS="-D MAGIC_MIME_TYPE=1 -DONLY_EPOLL_CREATE=1 "
+export CFLAGS="-D MAGIC_MIME_TYPE=1 -DONLY_EPOLL_CREATE=1 -fPIC"
 %endif
 %configure --disable-static --with-gnutls --disable-examples --disable-spdy
 make %{?_smp_mflags}
