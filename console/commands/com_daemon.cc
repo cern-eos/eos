@@ -34,6 +34,14 @@
 #include <sys/ptrace.h>
 /*----------------------------------------------------------------------------*/
 
+#ifdef __APPLE__
+#define EOS_PTRACE_TRACEME PT_TRACEME
+#define EOS_PTRACE_ATTACH   PT_ATTACH
+#else
+#define EOS_PTRACE_TRACEME PTRACE_TRACEME
+#define EOS_PTRACE_ATTACH   PTRACE_ATTACH
+#endif //__APPLE__
+
 /* Steer a service */
 int
 com_daemon(char* arg)
@@ -245,7 +253,7 @@ com_daemon(char* arg)
 	}
 
 	if (!(pid=fork())) {
-	  if (ptrace(PTRACE_TRACEME, 0, 0, 0)) {
+	  if (ptrace(EOS_PTRACE_TRACEME, 0, 0, 0)) {
 	    fprintf(stderr,"error: failed to trace-me %d\n", errno);
 	    exit(0);
 	  } else {
@@ -256,7 +264,7 @@ com_daemon(char* arg)
 	  fprintf(stderr,"rc=%d\n", rc);
 	  exit(0);
 	} else {
-	  if (ptrace(PTRACE_ATTACH, pid, 0, 0)) {
+	  if (ptrace(EOS_PTRACE_ATTACH, pid, 0, 0)) {
 	    fprintf(stderr,"error: failed to attach to forked process pid=%d errno=%d\n", pid, errno);
 	    if (exit_on_failure) {
 	      exit(-1);
