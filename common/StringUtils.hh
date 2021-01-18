@@ -22,11 +22,14 @@
  ************************************************************************/
 
 #pragma once
-#include "common/Namespace.hh"
+
+#include <algorithm>
+#include <iomanip>
+#include <map>
 #include <sstream>
 #include <string>
-#include <map>
-#include <algorithm>
+
+#include "common/Namespace.hh"
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -102,6 +105,15 @@ static inline std::string joinMap(const std::map<std::string, std::string> &m, c
     }
   }
 
+  return ss.str();
+}
+
+static inline std::string stringToHex(const std::string& in, const char filler = '0', int width = 2, const std::string& delimiter = "") {
+  std::ostringstream ss;
+  ss << std::hex << std::setfill(filler);
+  for (size_t i = 0; in.length() > i; ++i) {
+    ss << std::setw(width > 0 ? width : 2) << static_cast<unsigned int>(static_cast<unsigned char>(in[i])) << delimiter;
+  }
   return ss.str();
 }
 

@@ -21,27 +21,24 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-#include "eosfuse.hh"
-#include "md/md.hh"
-#include "kv/kv.hh"
+#include <assert.h>
+#include <iostream>
+#include <memory>
+#include <thread>
+#include <vector>
+#include <google/protobuf/util/json_util.h>
 #include "cap/cap.hh"
-#include "md/kernelcache.hh"
-#include "misc/MacOSXHelper.hh"
-#include "misc/longstring.hh"
 #include "common/Logging.hh"
 #include "common/Path.hh"
 #include "common/StackTrace.hh"
 #include "common/StringConversion.hh"
-#include "common/Path.hh"
-#include <iostream>
-#include <sstream>
-#include <vector>
-#include <thread>
-#include <memory>
-#include <functional>
-#include <assert.h>
-#include <google/protobuf/util/json_util.h>
+#include <common/StringUtils.hh>
+#include "eosfuse.hh"
+#include "kv/kv.hh"
+#include "md/md.hh"
+#include "md/kernelcache.hh"
+#include "misc/MacOSXHelper.hh"
+#include "misc/longstring.hh"
 
 /* -------------------------------------------------------------------------- */
 metad::metad() : mdflush(0), mdqueue_max_backlog(1000),
@@ -3100,10 +3097,14 @@ metad::mdcommunicate(ThreadAssistant& assistant)
       }
 
       std::string hbstream;
+      zmq::message_t hb_msg;
       hb.SerializeToString(&hbstream);
-      std::size_t rc = z_socket->send(hbstream.c_str(), hbstream.length());
-      if ( rc != hbstream.length()) {
-        eos_static_err("sending heartbeat: rc=%d, but message length was %d", rc, hbstream.length());
+      hb_msg.rebuild(hbstream.c_str(),hbstream.length());
+      if ( !z_socket->send(hb_msg)) {
+        eos_static_err("err sending heartbeat: hbstream.c_str()=%s, hbstream.length()=%d, hbstream:hex=%s",
+                       hbstream.c_str(), hbstream.length(), eos::common::stringToHex(hbstream).c_str());
+//      } else {
+//        eos_static_debug("debug sending heartbeat: hbstream.c_str()=%s, hbstream.length()=%d, hbstream:hex=0x%08x", hbstream.c_str(), hbstream.length(), hbstream.c_str());
       }
 
       if (!is_visible()) {

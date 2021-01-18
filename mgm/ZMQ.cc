@@ -21,11 +21,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/ZMQ.hh"
+#include <thread>
+#include "common/Logging.hh"
+#include <common/StringUtils.hh>
 #include "mgm/fusex.pb.h"
 #include "mgm/FuseServer/Server.hh"
-#include "common/Logging.hh"
-#include <thread>
+#include "mgm/ZMQ.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -151,6 +152,9 @@ ZMQ::Worker::work()
       hb.Clear();
 
       if (hb.ParseFromString(s)) {
+//        eos_static_debug("msg=\"able to parse message\": "
+//                       "id.c_str()=%s, id.length()=%d, id:hex=%s, s.c_str()=%s, s.length()=%d, s:hex=%s",
+//                       id.c_str(), id.length(), eos::common::stringToHex(id).c_str(), s.c_str(), s.length(), eos::common::stringToHex(s).c_str());
         switch (hb.type()) {
         case eos::fusex::container::HEARTBEAT: {
           struct timespec tsnow {};
@@ -182,7 +186,10 @@ ZMQ::Worker::work()
           eos_static_err("%s", "msg=\"message type unknown");
         }
       } else {
-        eos_static_err("%s", "msg=\"unable to parse message\"");
+        eos_static_debug("msg=\"unable to parse message\": "
+                       "id.c_str()=%s, id.length()=%d, id:hex=%s, s.c_str()=%s, s.length()=%d, s:hex=%s",
+                       id.c_str(), id.length(), eos::common::stringToHex(id).c_str(), s.c_str(), s.length(), eos::common::stringToHex(s).c_str());
+
       }
     }
   } catch (const zmq::error_t& e) {
