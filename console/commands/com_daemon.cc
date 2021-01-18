@@ -26,10 +26,12 @@
 #include "common/StringTokenizer.hh"
 #include "common/Config.hh"
 #include "common/Path.hh"
+#include "common/SymKeys.hh"
 /*----------------------------------------------------------------------------*/
 #include <sys/wait.h>
 #include <sched.h>
 #include <sys/mount.h>
+#include <sys/ptrace.h>
 /*----------------------------------------------------------------------------*/
 
 /* Steer a service */
@@ -60,6 +62,30 @@ com_daemon(char* arg)
 
   if (!option.length()) {
     goto com_daemon_usage;
+  }
+
+  if (option == "seal") {
+    XrdOucString toseal = subtokenizer.GetToken();
+    XrdOucString sealed;
+    std::string key;
+
+    if (!toseal.length()) {
+      return (0);
+    }
+
+    const char* pkey = subtokenizer.GetToken();
+
+
+    if (!pkey) {
+      key = eos::common::StringConversion::StringFromShellCmd("cat /etc/eos.keytab | grep u:daemon | md5sum");
+    } else {
+      key = pkey;
+    }
+
+    std::string shakey = eos::common::SymKey::Sha256(key);
+    eos::common::SymKey::SymmetricStringEncrypt(toseal, sealed, (char*)shakey.c_str());
+    fprintf(stderr,"enc:%s\n", sealed.c_str());
+    return (0);
   }
 
   if ( (option != "run") &&
@@ -193,13 +219,49 @@ com_daemon(char* arg)
       }
 
       for ( auto it : cfg["init"] ) {
+	bool exit_on_failure = false;
 	fprintf(stderr,"# run: %s\n", it.c_str());
 	pid_t pid;
+	std::string cline = it;
+	if (cline.substr(0,4) == "enc:") {
+	  std::string key;
+	  const char* pkey = subtokenizer.GetToken();
+	  if (!pkey) {
+	    key = eos::common::StringConversion::StringFromShellCmd("cat /etc/eos.keytab | grep u:daemon | md5sum");
+	  } else {
+	    key = pkey;
+	  }
+
+	  std::string shakey = eos::common::SymKey::Sha256(key);
+	  XrdOucString in = cline.substr(4).c_str();;
+	  XrdOucString out;
+	  eos::common::SymKey::SymmetricStringDecrypt(in, out, (char*)shakey.c_str());
+	  if (!out.c_str()) {
+	    fprintf(stderr,"error: encoded init line '%s' cannot be decoded\n", in.c_str());
+	    continue;
+	  }
+	  cline = out.c_str();
+	  exit_on_failure = true;
+	}
+
 	if (!(pid=fork())) {
-	  int rc = execle("/bin/bash", "eos-bash", "-c", it.c_str(), NULL, envv);
-	  fprintf(stderr,"rc=%d errno=%d\n", rc, errno);
+	  if (ptrace(PTRACE_TRACEME, 0, 0, 0)) {
+	    fprintf(stderr,"error: failed to trace-me %d\n", errno);
+	    exit(0);
+	  } else {
+	    fprintf(stderr,"info: tracing myself\n");
+	  }
+	  raise(SIGSTOP);
+	  int rc = execle("/bin/bash", "eos-bash", "-c", cline.c_str(), NULL, envv);
+	  fprintf(stderr,"rc=%d\n", rc);
 	  exit(0);
 	} else {
+	  if (ptrace(PTRACE_ATTACH, pid, 0, 0)) {
+	    fprintf(stderr,"error: failed to attach to forked process pid=%d errno=%d\n", pid, errno);
+	    if (exit_on_failure) {
+	      exit(-1);
+	    }
+	  }
 	  waitpid(pid, 0, 0);
 	}
       }
