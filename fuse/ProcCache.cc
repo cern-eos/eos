@@ -283,7 +283,7 @@ int ProcReaderPsStat::ReadContent(long long unsigned& startTime, pid_t& ppid,
 krb5_context ProcReaderKrb5UserName::sKcontext;
 bool ProcReaderKrb5UserName::sKcontextOk = (!krb5_init_context(
       &ProcReaderKrb5UserName::sKcontext)) ||
-    (!eos_static_crit("%s", "error initializing Krb5"));;
+    (!eos_static_log(LOG_CRIT, "%s", "error initializing Krb5"));;
 eos::common::RWMutex ProcReaderKrb5UserName::sMutex;
 bool ProcReaderKrb5UserName::sMutexOk = false;
 

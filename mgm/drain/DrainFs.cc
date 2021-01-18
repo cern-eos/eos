@@ -55,7 +55,7 @@ DrainFs::DrainFs(eos::common::ThreadPool& thread_pool, eos::IFsView* fs_view,
 //------------------------------------------------------------------------------
 DrainFs::~DrainFs()
 {
-  eos_debug_lite("msg=\"fsid=%u destroying fs drain object", mFsId);
+  eos_static_debug("msg=\"fsid=%u destroying fs drain object", mFsId);
   ResetCounters();
 }
 
@@ -71,7 +71,7 @@ DrainFs::GetSpaceConfiguration(const std::string& space_name)
     if (space) {
       if (space->GetConfigMember("drainer.fs.ntx") != "") {
         mMaxJobs.store(std::stoul(space->GetConfigMember("drainer.fs.ntx")));
-        eos_debug_lite("msg=\"per fs max parallel jobs=%u\"", mMaxJobs.load());
+        eos_static_debug("msg=\"per fs max parallel jobs=%u\"", mMaxJobs.load());
       }
     } else {
       eos_warning("msg=\"space %s not yet initialized\"", space_name.c_str());
@@ -225,7 +225,7 @@ DrainFs::SuccessfulDrain()
       batch.setStringDurable("configstatus", "empty");
       FsView::gFsView.StoreFsConfig(fs);
     }
-    
+
     fs->applyBatch(batch);
   }
 }
@@ -380,13 +380,13 @@ DrainFs::UpdateProgress()
   auto duration = now - mLastProgressTime;
   bool is_stalled = (duration_cast<seconds>(duration).count() >
                      sStallTimeout.count());
-  eos_debug_lite("msg=\"fsid=%d, timestamp=%llu, last_progress=%llu, is_stalled=%i, "
-                 "total_files=%llu, last_pending=%llu, pending=%llu, running=%llu, "
-                 "failed=%llu\"", mFsId,
-                 duration_cast<milliseconds>(now.time_since_epoch()).count(),
-                 duration_cast<milliseconds>(mLastProgressTime.time_since_epoch()).count(),
-                 is_stalled, mTotalFiles, mLastPending, mPending, NumRunningJobs(),
-                 NumFailedJobs());
+  eos_static_debug("msg=\"fsid=%d, timestamp=%llu, last_progress=%llu, is_stalled=%i, "
+                   "total_files=%llu, last_pending=%llu, pending=%llu, running=%llu, "
+                   "failed=%llu\"", mFsId,
+                   duration_cast<milliseconds>(now.time_since_epoch()).count(),
+                   duration_cast<milliseconds>(mLastProgressTime.time_since_epoch()).count(),
+                   is_stalled, mTotalFiles, mLastPending, mPending, NumRunningJobs(),
+                   NumFailedJobs());
 
   // Check if drain expired
   if (mDrainPeriod.count() && (mDrainEnd < now)) {
@@ -447,7 +447,7 @@ DrainFs::UpdateProgress()
     batch.setLongLongLocal("local.drain.bytesleft",
                            fs->GetLongLong("stat.statfs.usedbytes"));
     fs->applyBatch(batch);
-    eos_debug_lite("msg=\"fsid=%d, update progress", mFsId);
+    eos_static_debug("msg=\"fsid=%d, update progress", mFsId);
   }
 
   // Sleep for a longer period since nothing moved in the last 10 min
@@ -553,8 +553,8 @@ DrainFs::WaitUntilNamespaceIsBooted() const
 {
   while ((gOFS->mNamespaceState != NamespaceState::kBooted) && (!mDrainStop)) {
     std::this_thread::sleep_for(std::chrono::seconds(1));
-    eos_debug_lite("msg=\"delay drain start until namespace is booted\" fsid=%u",
-                   mFsId);
+    eos_static_debug("msg=\"delay drain start until namespace is booted\" fsid=%u",
+                     mFsId);
   }
 }
 

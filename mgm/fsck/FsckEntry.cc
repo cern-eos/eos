@@ -331,11 +331,11 @@ FsckEntry::RepairFstXsSzDiff()
 
       xs_val = finfo->mFstFmd.mProtoFmd.diskchecksum();
       sz_val = finfo->mFstFmd.mProtoFmd.disksize();
-      eos_debug_lite("mgm_sz=%llu mgm_xs=%s fst_sz_sz=%llu fst_sz_disk=%llu, "
-                     "fst_xs=%s", mMgmFmd.size(), mgm_xs_val.c_str(),
-                     finfo->mFstFmd.mProtoFmd.size(),
-                     finfo->mFstFmd.mProtoFmd.disksize(),
-                     finfo->mFstFmd.mProtoFmd.checksum().c_str());
+      eos_static_debug("mgm_sz=%llu mgm_xs=%s fst_sz_sz=%llu fst_sz_disk=%llu, "
+                       "fst_xs=%s", mMgmFmd.size(), mgm_xs_val.c_str(),
+                       finfo->mFstFmd.mProtoFmd.size(),
+                       finfo->mFstFmd.mProtoFmd.disksize(),
+                       finfo->mFstFmd.mProtoFmd.checksum().c_str());
 
       // The disksize/xs must also match the original reference size/xs
       if ((mgm_xs_val == xs_val) && (mMgmFmd.size() == sz_val) &&

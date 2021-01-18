@@ -212,7 +212,7 @@ public:
     max_inflight_size = _max_inflight_size;
   }
 
-  void reset() 
+  void reset()
   {
     XrdSysMutexHelper lLock(this);
     inflight_size = 0;
@@ -223,27 +223,27 @@ public:
   {
     struct timespec ts;
     eos::common::Timing::GetTimeSpec(ts, true);
-    
+
     // make sure, we don't have more buffers in flight than max_inflight_size
     do {
       size_t cnt = 0;
       {
         XrdSysMutexHelper lLock(this);
-	static time_t grace_buffer_time = 0;
+        static time_t grace_buffer_time = 0;
 
         if ((inflight_size < max_inflight_size) &&
             (inflight_buffers < 16384)) { // avoid to trigger XRootD SID exhaustion
           break;
         }
 
-	// a grace buffer period allows to unstuck a getbuffer dead-lock where buffers are referenced by a failing fd
-	if ( ts.tv_sec < grace_buffer_time ) {
-	  if ((inflight_size < (2*max_inflight_size) &&
-	       (inflight_buffers < 16384))) {
-	    break;
-	  }
-	}
-	
+        // a grace buffer period allows to unstuck a getbuffer dead-lock where buffers are referenced by a failing fd
+        if (ts.tv_sec < grace_buffer_time) {
+          if ((inflight_size < (2 * max_inflight_size) &&
+               (inflight_buffers < 16384))) {
+            break;
+          }
+        }
+
         if (!(cnt % 1000)) {
           if (inflight_size >= max_inflight_size) {
             eos_static_info("inflight-buffer exceeds maximum number of bytes [%ld/%ld]",
@@ -261,19 +261,19 @@ public:
           // we don't wait for free buffers
           return nullptr;
         }
-	xoff_cnt++;
 
-	double exec_time_sec = 1.0 * eos::common::Timing::GetCoarseAgeInNs(&ts,
-									   0) / 1000000000.0;
-	
-	if (exec_time_sec > 200 ) {
-	  // temporarily increase the buffer size to unlock a buffer starvation dead-lock
-	  grace_buffer_time = time(NULL) + 60; 
-	    // exceptionally grant more buffers to recover from a dead-lock situation
-	  eos_static_warning("granting grace buffers now=%u until then=%u", 
-			     ts.tv_sec, 
-			     grace_buffer_time );
-	}
+        xoff_cnt++;
+        double exec_time_sec = 1.0 * eos::common::Timing::GetCoarseAgeInNs(&ts,
+                               0) / 1000000000.0;
+
+        if (exec_time_sec > 200) {
+          // temporarily increase the buffer size to unlock a buffer starvation dead-lock
+          grace_buffer_time = time(NULL) + 60;
+          // exceptionally grant more buffers to recover from a dead-lock situation
+          eos_static_warning("granting grace buffers now=%u until then=%u",
+                             ts.tv_sec,
+                             grace_buffer_time);
+        }
       }
       cnt++;
       // we wait that the situation relaxes
@@ -487,10 +487,11 @@ public:
   static int status2errno(const XRootDStatus& status)
   {
     if (!status.errNo) {
-      if (status.IsOK())
-	return 0;
-      else
-	return EPROTO;
+      if (status.IsOK()) {
+        return 0;
+      } else {
+        return EPROTO;
+      }
     }
 
     if (status.errNo < kXR_ArgInvalid) {
@@ -514,22 +515,30 @@ public:
     CLOSEFAILED = 6,
   };
 
-  const char* state_string() {
+  const char* state_string()
+  {
     switch (open_state) {
     case CLOSED:
       return "closed";
+
     case OPENING:
       return "opening";
+
     case OPENED:
       return "open";
+
     case WAITWRITE:
       return "waitwrite";
+
     case CLOSING:
       return "closing";
+
     case FAILED:
       return "failed";
+
     case CLOSEFAILED:
       return "closefailed";
+
     default:
       return "invalid";
     }
@@ -562,15 +571,18 @@ public:
     return XOpenState;
   }
 
-  bool opening_state_should_retry() {
-    if ( (opening_state().code != XrdCl::errConnectionError) &&
-	 (opening_state().code != XrdCl::errSocketTimeout) &&
-	 (opening_state().code != XrdCl::errOperationExpired) &&
-	 (opening_state().code != XrdCl::errSocketDisconnected) &&
-	 (opening_state().errNo != kXR_noserver) && 
-	 (opening_state().errNo != kXR_FSError) &&
-	 (opening_state().errNo != kXR_IOError) )
+  bool opening_state_should_retry()
+  {
+    if ((opening_state().code != XrdCl::errConnectionError) &&
+        (opening_state().code != XrdCl::errSocketTimeout) &&
+        (opening_state().code != XrdCl::errOperationExpired) &&
+        (opening_state().code != XrdCl::errSocketDisconnected) &&
+        (opening_state().errNo != kXR_noserver) &&
+        (opening_state().errNo != kXR_FSError) &&
+        (opening_state().errNo != kXR_IOError)) {
       return false;
+    }
+
     return true;
   }
 
@@ -579,7 +591,7 @@ public:
     // lock XOpenAsyncCond from outside
     open_state = newstate;
     eos::common::Timing::GetTimeSpec(open_state_time);
-    mProtocol.Add(eos_static_silent("%s",state_string()));
+    mProtocol.Add(eos_static_log(LOG_SILENT, "%s", state_string()));
 
     if (xs) {
       XOpenState = *xs;
@@ -587,26 +599,27 @@ public:
   }
 
 
-  void set_lasturl() {
+  void set_lasturl()
+  {
     this->GetProperty("LastURL", mLastUrl);
-
     XrdCl::URL newurl(mLastUrl);
     XrdCl::URL::ParamsMap cgi = newurl.GetParams();
-
-    mProtocol.Add(eos_static_silent("host=%s:%d",newurl.GetHostName().c_str(), newurl.GetPort()));
-    mProtocol.Add(eos_static_silent("lfn='%s' app='%s'", cgi["eos.lfn"].c_str(), cgi["eos.app"].c_str()));
-    mProtocol.Add(eos_static_silent("logid=%s",cgi["mgm.logid"].c_str()));
-    mProtocol.Add(eos_static_silent("fuse=%s:%s:%s:%s:%s]",
-				    cgi["fuse.exe"].c_str(),
-				    cgi["fuse.uid"].c_str(),
-				    cgi["fuse.gid"].c_str(),
-				    cgi["fuse.pid"].c_str(),
-				    cgi["fuse.ver"].c_str()));
-    mProtocol.Add(eos_static_silent("xrd=%s:%s:%s:%s]",
-				    cgi["xrdcl.requuid"].c_str(),
-				    cgi["xrdcl.secuid"].c_str(),
-				    cgi["xrdcl.sccgid"].c_str(),
-				    cgi["xrdcl.wantprot"].c_str()));
+    mProtocol.Add(eos_static_log(LOG_SILENT, "host=%s:%d",
+                                 newurl.GetHostName().c_str(), newurl.GetPort()));
+    mProtocol.Add(eos_static_log(LOG_SILENT, "lfn='%s' app='%s'",
+                                 cgi["eos.lfn"].c_str(), cgi["eos.app"].c_str()));
+    mProtocol.Add(eos_static_log(LOG_SILENT, "logid=%s", cgi["mgm.logid"].c_str()));
+    mProtocol.Add(eos_static_log(LOG_SILENT, "fuse=%s:%s:%s:%s:%s]",
+                                 cgi["fuse.exe"].c_str(),
+                                 cgi["fuse.uid"].c_str(),
+                                 cgi["fuse.gid"].c_str(),
+                                 cgi["fuse.pid"].c_str(),
+                                 cgi["fuse.ver"].c_str()));
+    mProtocol.Add(eos_static_log(LOG_SILENT, "xrd=%s:%s:%s:%s]",
+                                 cgi["xrdcl.requuid"].c_str(),
+                                 cgi["xrdcl.secuid"].c_str(),
+                                 cgi["xrdcl.sccgid"].c_str(),
+                                 cgi["xrdcl.wantprot"].c_str()));
   }
 
   // TS stands for "thread-safe"
@@ -803,7 +816,7 @@ public:
       XrdSysCondVarHelper llLock(it->second->ReadCondVar());
 
       if (!it->second->done()) {
-	return false;
+        return false;
       }
     }
 
@@ -908,16 +921,17 @@ public:
     {
       mBuffer = sWrBufferManager.get_buffer(size);
       mBuffer->resize(size);
-      if (file)
-      {
-	std::lock_guard<std::mutex> lock(gBuffReferenceMutex);
-	mId = std::to_string( (uint64_t) file);
-	mId += ":open=";
-	mId += std::to_string(file->state());
-	mId += ":";
-	mId += file->url();
-	gBufferReference[mId] = size;
+
+      if (file) {
+        std::lock_guard<std::mutex> lock(gBuffReferenceMutex);
+        mId = std::to_string((uint64_t) file);
+        mId += ":open=";
+        mId += std::to_string(file->state());
+        mId += ":";
+        mId += file->url();
+        gBufferReference[mId] = size;
       }
+
       XrdSysCondVarHelper lLock(mProxy->WriteCondVar());
       mProxy->WriteCondVar().Signal();
     }
@@ -1031,13 +1045,15 @@ public:
         eos_static_debug("----: releasing chunk offset=%d size=%u addr=%lx", roffset,
                          mBuffer->size(), this);
       }
+
       release_buffer();
     }
 
-    void release_buffer() {
+    void release_buffer()
+    {
       if (valid()) {
         sRaBufferManager.put_buffer(mBuffer);
-	mBuffer = 0;
+        mBuffer = 0;
       }
     }
 
@@ -1074,8 +1090,9 @@ public:
     bool matches(off_t off, uint32_t size,
                  off_t& match_offset, uint32_t& match_size)
     {
-      if (!mBuffer)
-	return false;
+      if (!mBuffer) {
+        return false;
+      }
 
       if ((off >= roffset) &&
           (off < ((off_t)(roffset + mBuffer->size())))) {
@@ -1222,9 +1239,10 @@ public:
     return XWriteQueue;
   }
 
-  void CleanWriteQueue() {
-    XWriteQueueDirectSubmission=0;
-    XWriteQueueScheduledSubmission=0;
+  void CleanWriteQueue()
+  {
+    XWriteQueueDirectSubmission = 0;
+    XWriteQueueScheduledSubmission = 0;
 
     for (auto it = WriteQueue().begin(); it != WriteQueue().end(); ++it) {
       ChunkMap().erase((uint64_t)it->get());
@@ -1330,9 +1348,11 @@ public:
   bool should_selfdestroy()
   {
     bool destroy = mSelfDestruction.load();
+
     if (destroy) {
       mSelfDestruction.store(false, std::memory_order_seq_cst);
     }
+
     return destroy;;
   }
 
@@ -1377,9 +1397,10 @@ public:
 
   const char* Dump(std::string& out);
 
-  class Protocol {
+  class Protocol
+  {
   public:
-    Protocol(){}
+    Protocol() {}
     virtual ~Protocol() {}
     void Add(std::string);
     const char* Dump(std::string& out);
@@ -1388,7 +1409,8 @@ public:
     std::deque<std::string> mMessages;
   };
 
-  Protocol& getProtocol() {
+  Protocol& getProtocol()
+  {
     return mProtocol;
   }
 

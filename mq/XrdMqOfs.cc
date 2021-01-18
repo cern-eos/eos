@@ -91,7 +91,7 @@ XrdMqOfsFile::open(const char* queuename, XrdSfsFileOpenMode openMode,
   EPNAME("open");
   tident = error.getErrUser();
   SetLogId(nullptr, tident);
-  eos_info_lite("connecting queue: %s", queuename);
+  eos_info("connecting queue: %s", queuename);
   MAYREDIRECT;
   mQueueName = queuename;
   XrdSysMutexHelper scope_lock(gMqFS->mQueueOutMutex);
@@ -136,7 +136,7 @@ XrdMqOfsFile::open(const char* queuename, XrdSfsFileOpenMode openMode,
   mMsgOut->AdvisoryFlushBackLog = advisoryflushbacklog;
   mMsgOut->BrokenByFlush = false;
   gMqFS->mQueueOut.insert(std::make_pair(mQueueName, mMsgOut));
-  eos_info_lite("connected queue: %s", mQueueName.c_str());
+  eos_info("connected queue: %s", mQueueName.c_str());
   mIsOpen = true;
   return SFS_OK;
 }
@@ -253,7 +253,7 @@ XrdMqOfsFile::close()
   }
 
   mIsOpen = false;
-  eos_info_lite("disconnecting queue: %s", mQueueName.c_str());
+  eos_info("disconnecting queue: %s", mQueueName.c_str());
   {
     XrdSysMutexHelper scope_lock(gMqFS->mQueueOutMutex);
 
@@ -289,7 +289,7 @@ XrdMqOfsFile::close()
       delete env;
     }
   }
-  eos_info_lite("disconnected queue: %s", mQueueName.c_str());
+  eos_info("disconnected queue: %s", mQueueName.c_str());
   return SFS_OK;
 }
 
@@ -349,8 +349,8 @@ XrdMqOfs::XrdMqOfs(XrdSysError* ep):
 
   HostName = 0;
   HostPref = 0;
-  eos_info_lite("Addr:mQueueOutMutex: 0x%llx", &mQueueOutMutex);
-  eos_info_lite("Addr:MessageMutex:   0x%llx", &mMsgsMutex);
+  eos_info("Addr:mQueueOutMutex: 0x%llx", &mQueueOutMutex);
+  eos_info("Addr:MessageMutex:   0x%llx", &mMsgsMutex);
 }
 
 //------------------------------------------------------------------------------
@@ -916,8 +916,8 @@ bool XrdMqOfs::ShouldRedirectQdb(XrdOucString& host, int& port)
     }
 
     if (now - last_check > 10) {
-      eos_info_lite("msg=\"redirect to new master mq\" id=%s:%i", host.c_str(),
-                    port);
+      eos_info("msg=\"redirect to new master mq\" id=%s:%i", host.c_str(),
+               port);
     }
 
     return true;

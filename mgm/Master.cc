@@ -233,7 +233,7 @@ bool
 Master::EnableRemoteCheck()
 {
   if (!fCheckRemote) {
-    MasterLog(eos_info("remotecheck=enabled"));
+    MasterLog(eos_log(LOG_INFO, "%s", "remotecheck=enabled"));
     fCheckRemote = true;
     return true;
   }
@@ -248,7 +248,7 @@ bool
 Master::DisableRemoteCheck()
 {
   if (fCheckRemote) {
-    MasterLog(eos_info("remotecheck=disabled"));
+    MasterLog(eos_log(LOG_INFO, "%s", "remotecheck=disabled"));
     fCheckRemote = false;
     return true;
   }
@@ -293,14 +293,14 @@ Master::Supervisor()
   XrdCl::URL remoteMqUrl(remoteMqUrlString);
 
   if (!remoteMgmUrl.IsValid()) {
-    MasterLog(eos_static_crit("remote manager URL <%s> is not valid",
-                              remoteMgmUrlString.c_str()));
+    MasterLog(eos_static_log(LOG_CRIT, "remote manager URL <%s> is not valid",
+                             remoteMgmUrlString.c_str()));
     fRemoteMasterOk = false;
   }
 
   if (!remoteMqUrl.IsValid()) {
-    MasterLog(eos_static_crit("remote mq URL <%s> is not valid",
-                              remoteMqUrlString.c_str()));
+    MasterLog(eos_static_log(LOG_CRIT, "remote mq URL <%s> is not valid",
+                             remoteMqUrlString.c_str()));
     fRemoteMqOk = false;
   }
 
@@ -373,11 +373,11 @@ Master::Supervisor()
       }
 
       if (!lDiskFull) {
-        MasterLog(eos_static_debug("ismaster=%d remote-ok=%d remote-wr=%d "
-                                   "thishost=%s remotehost=%s masterhost=%s ",
-                                   IsMaster(), fRemoteMasterOk, fRemoteMasterRW,
-                                   fThisHost.c_str(), fRemoteHost.c_str(),
-                                   fMasterHost.c_str()));
+        MasterLog(eos_static_log(LOG_DEBUG, "ismaster=%d remote-ok=%d remote-wr=%d "
+                                 "thishost=%s remotehost=%s masterhost=%s ",
+                                 IsMaster(), fRemoteMasterOk, fRemoteMasterRW,
+                                 fThisHost.c_str(), fRemoteHost.c_str(),
+                                 fMasterHost.c_str()));
         eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
 
         if (!IsMaster()) {
@@ -413,7 +413,7 @@ Master::Supervisor()
         } else {
           // Check if we have two master-rw
           if (fRemoteMasterOk && fRemoteMasterRW && (fThisHost != fRemoteHost)) {
-            MasterLog(eos_crit("msg=\"dual RW master setup detected\""));
+            MasterLog(eos_log(LOG_CRIT, "msg=\"dual RW master setup detected\""));
             Access::gStallRules[std::string("w:*")] = "60";
             Access::gStallWrite = true;
           } else {
@@ -446,7 +446,8 @@ Master::Supervisor()
       eos::common::Statfs::DoStatfs(gOFS->MgmMetaLogDir.c_str());
 
     if (!statfs) {
-      MasterLog(eos_err("path=%s statfs=failed", gOFS->MgmMetaLogDir.c_str()));
+      MasterLog(eos_log(LOG_ERR, "path=%s statfs=failed",
+                        gOFS->MgmMetaLogDir.c_str()));
       // uups ... statfs failed
       lDiskFull = true;
     } else {
@@ -465,17 +466,17 @@ Master::Supervisor()
     if (lDiskFull != pDiskFull) {
       // This is a state change and we have to configure the redirection settings
       if (lDiskFull) {
-        MasterLog(eos_warning("status=\"disk space warning - stalling\" "
-                              "path=%s freebytes=%s", gOFS->MgmMetaLogDir.c_str(),
-                              sizestring.c_str()));
+        MasterLog(eos_log(LOG_WARNING, "status=\"disk space warning - stalling\" "
+                          "path=%s freebytes=%s", gOFS->MgmMetaLogDir.c_str(),
+                          sizestring.c_str()));
         eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
         pStallSetting = Access::gStallRules[std::string("w:*")];
         Access::gStallRules[std::string("w:*")] = "60";
         Access::gStallWrite = true;
       } else {
-        MasterLog(eos_notice("status=\"disk space ok - removed stall\" "
-                             "path=%s freebyte=%s", gOFS->MgmMetaLogDir.c_str(),
-                             sizestring.c_str()));
+        MasterLog(eos_log(LOG_NOTICE, "status=\"disk space ok - removed stall\" "
+                          "path=%s freebyte=%s", gOFS->MgmMetaLogDir.c_str(),
+                          sizestring.c_str()));
 
         if (pStallSetting.length()) {
           // Put back the original stall setting
@@ -586,8 +587,9 @@ Master::WaitCompactingFinished()
 bool
 Master::ScheduleOnlineCompacting(time_t starttime, time_t repetitioninterval)
 {
-  MasterLog(eos_static_info("msg=\"scheduling online compacting\" starttime=%u "
-                            "interval=%u", starttime, repetitioninterval));
+  MasterLog(eos_static_log(LOG_INFO,
+                           "msg=\"scheduling online compacting\" starttime=%u "
+                           "interval=%u", starttime, repetitioninterval));
   fCompactingStart = starttime;
   fCompactingInterval = repetitioninterval;
   return true;
@@ -666,8 +668,8 @@ Master::Compacting()
       std::string archivefile = archiveFileLogName;
 
       if (fCompactFiles)
-        MasterLog(eos_info("archive(file)=%s oc=%s", archivefile.c_str(),
-                           ocfile.c_str()));
+        MasterLog(eos_log(LOG_INFO, "archive(file)=%s oc=%s", archivefile.c_str(),
+                          ocfile.c_str()));
 
       // Directory compacting
       std::string ocdir = gOFS->MgmNsDirChangeLogFile.c_str();
@@ -678,8 +680,8 @@ Master::Compacting()
       std::string archivedirfile = archiveDirLogName;
 
       if (fCompactDirectories)
-        MasterLog(eos_info("archive(dir)=%s oc=%s", archivedirfile.c_str(),
-                           ocdir.c_str()));
+        MasterLog(eos_log(LOG_INFO, "archive(dir)=%s oc=%s", archivedirfile.c_str(),
+                          ocdir.c_str()));
 
       int rc = 0;
       bool CompactFiles = fCompactFiles;
@@ -690,7 +692,8 @@ Master::Compacting()
         rc = unlink(ocfile.c_str());
 
         if (!rc) {
-          MasterLog(eos_info("oc=%s msg=\"old online compacting file(file) unlinked\""));
+          MasterLog(eos_log(LOG_INFO,
+                            "oc=%s msg=\"old online compacting file(file) unlinked\""));
         }
       }
 
@@ -698,7 +701,8 @@ Master::Compacting()
         rc = unlink(ocdir.c_str());
 
         if (!rc) {
-          MasterLog(eos_info("oc=%s msg=\"old online compacting file(dir) unlinked\""));
+          MasterLog(eos_log(LOG_INFO,
+                            "oc=%s msg=\"old online compacting file(dir) unlinked\""));
         }
       }
 
@@ -708,9 +712,10 @@ Master::Compacting()
         void* compData = nullptr;
         void* compDirData = nullptr;
         {
-          MasterLog(eos_info("msg=\"compact prepare\""));
+          MasterLog(eos_log(LOG_INFO, "%s", "msg=\"compact prepare\""));
           // Require NS read lock
-          eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+          eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                            __FILE__);
 
           if (CompactFiles) {
             compData = eos_chlog_filesvc->compactPrepare(ocfile);
@@ -721,7 +726,7 @@ Master::Compacting()
           }
         }
         {
-          MasterLog(eos_info("msg=\"compacting\""));
+          MasterLog(eos_log(LOG_INFO, "%s", "msg=\"compacting\""));
 
           // Does not require namespace lock
           if (CompactFiles) {
@@ -734,8 +739,9 @@ Master::Compacting()
         }
         {
           // Requires namespace write lock
-          MasterLog(eos_info("msg=\"compact commit\""));
-          eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+          MasterLog(eos_log(LOG_INFO, "%s", "msg=\"compact commit\""));
+          eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                             __FILE__);
 
           if (CompactFiles) {
             eos_chlog_filesvc->compactCommit(compData);
@@ -767,13 +773,13 @@ Master::Compacting()
         if (CompactFiles) {
           // File compaction archiving
           if (::rename(gOFS->MgmNsFileChangeLogFile.c_str(), archivefile.c_str())) {
-            MasterLog(eos_crit("failed to rename %s=>%s errno=%d",
-                               gOFS->MgmNsFileChangeLogFile.c_str(),
-                               archivefile.c_str(), errno));
+            MasterLog(eos_log(LOG_CRIT, "failed to rename %s=>%s errno=%d",
+                              gOFS->MgmNsFileChangeLogFile.c_str(),
+                              archivefile.c_str(), errno));
           } else {
             if (::rename(ocfile.c_str(), gOFS->MgmNsFileChangeLogFile.c_str())) {
-              MasterLog(eos_crit("failed to rename %s=>%s errno=%d", ocfile.c_str(),
-                                 gOFS->MgmNsFileChangeLogFile.c_str(), errno));
+              MasterLog(eos_log(LOG_CRIT, "failed to rename %s=>%s errno=%d", ocfile.c_str(),
+                                gOFS->MgmNsFileChangeLogFile.c_str(), errno));
             } else {
               // Stat the sizes and set the compacting factor
               struct stat before_compacting;
@@ -795,13 +801,13 @@ Master::Compacting()
         if (CompactDirectories) {
           // Dir compaction archiving
           if (::rename(gOFS->MgmNsDirChangeLogFile.c_str(), archivedirfile.c_str())) {
-            MasterLog(eos_crit("failed to rename %s=>%s errno=%d",
-                               gOFS->MgmNsDirChangeLogFile.c_str(),
-                               archivedirfile.c_str(), errno));
+            MasterLog(eos_log(LOG_CRIT, "failed to rename %s=>%s errno=%d",
+                              gOFS->MgmNsDirChangeLogFile.c_str(),
+                              archivedirfile.c_str(), errno));
           } else {
             if (::rename(ocdir.c_str(), gOFS->MgmNsDirChangeLogFile.c_str())) {
-              MasterLog(eos_crit("failed to rename %s=>%s errno=%d", ocdir.c_str(),
-                                 gOFS->MgmNsDirChangeLogFile.c_str(), errno));
+              MasterLog(eos_log(LOG_CRIT, "failed to rename %s=>%s errno=%d", ocdir.c_str(),
+                                gOFS->MgmNsDirChangeLogFile.c_str(), errno));
             } else {
               // Stat the sizes and set the compacting factor
               struct stat before_compacting;
@@ -821,15 +827,16 @@ Master::Compacting()
         }
       } catch (eos::MDException& e) {
         errno = e.getErrno();
-        MasterLog(eos_crit("online-compacting returned ec=%d %s", e.getErrno(),
-                           e.getMessage().str().c_str()));
+        MasterLog(eos_log(LOG_CRIT, "online-compacting returned ec=%d %s", e.getErrno(),
+                          e.getMessage().str().c_str()));
       }
 
       std::this_thread::sleep_for(std::chrono::seconds(1));
 
       if (compacted) {
         eos_alert("msg=\"compact done\"");
-        MasterLog(eos_info("msg=\"compact done\" elapsed=%lu", time(nullptr) - now));
+        MasterLog(eos_log(LOG_INFO, "msg=\"compact done\" elapsed=%lu",
+                          time(nullptr) - now));
 
         if (fRemoteMasterOk && (fThisHost != fRemoteHost)) {
           // if we have a remote master we have to signal it to bounce to us
@@ -857,12 +864,12 @@ Master::Compacting()
           gOFS->eosDirectoryService->configure(contSettings);
         } catch (eos::MDException& e) {
           errno = e.getErrno();
-          MasterLog(eos_crit("reconfiguration returned ec=%d %s", e.getErrno(),
-                             e.getMessage().str().c_str()));
+          MasterLog(eos_log(LOG_CRIT, "reconfiguration returned ec=%d %s", e.getErrno(),
+                            e.getMessage().str().c_str()));
           exit(-1);
         }
       } else {
-        MasterLog(eos_crit("failed online compactification"));
+        MasterLog(eos_log(LOG_CRIT, "%s", "failed online compactification"));
         exit(-1);
       }
 
@@ -1052,7 +1059,7 @@ Master::Activate(std::string& stdOut, std::string& stdErr, int transitiontype)
     stdOut += fRemoteHost.c_str();
   }
 
-  MasterLog(eos_static_notice(stdOut.c_str()));
+  MasterLog(eos_static_log(LOG_NOTICE, "%s", stdOut.c_str()));
   gOFS->ConfEngine->SetConfigDir(gOFS->MgmConfigDir.c_str());
 
   if (transitiontype != Transition::Type::kSlaveToMaster) {
@@ -1060,8 +1067,8 @@ Master::Activate(std::string& stdOut, std::string& stdErr, int transitiontype)
     if ((transitiontype != Transition::Type::kMasterToMasterRO)
         && (transitiontype != Transition::Type::kMasterROToSlave)) {
       if (gOFS->MgmConfigAutoLoad.length()) {
-        MasterLog(eos_static_info("autoload config=%s",
-                                  gOFS->MgmConfigAutoLoad.c_str()));
+        MasterLog(eos_static_log(LOG_INFO, "autoload config=%s",
+                                 gOFS->MgmConfigAutoLoad.c_str()));
         std::string configenv = gOFS->MgmConfigAutoLoad.c_str();
         XrdOucString stdErr = "";
         // Take care of setting the config engine for FsView to null while
@@ -1070,20 +1077,21 @@ Master::Activate(std::string& stdOut, std::string& stdErr, int transitiontype)
         eos::mgm::ConfigResetMonitor fsview_cfg_reset_monitor;
 
         if (!gOFS->ConfEngine->LoadConfig(configenv, stdErr)) {
-          MasterLog(eos_static_crit("Unable to auto-load config %s - fix your "
-                                    "configuration file!", gOFS->MgmConfigAutoLoad.c_str()));
-          MasterLog(eos_static_crit("%s", stdErr.c_str()));
+          MasterLog(eos_static_log(LOG_CRIT, "Unable to auto-load config %s - fix your "
+                                   "configuration file!", gOFS->MgmConfigAutoLoad.c_str()));
+          MasterLog(eos_static_log(LOG_CRIT, "%s", stdErr.c_str()));
           return false;
         } else {
-          MasterLog(eos_static_info("Successful auto-load config %s",
-                                    gOFS->MgmConfigAutoLoad.c_str()));
+          MasterLog(eos_static_log(LOG_INFO, "Successful auto-load config %s",
+                                   gOFS->MgmConfigAutoLoad.c_str()));
         }
       }
     }
 
     // Invoke master to ro-master transition
     if (transitiontype == Transition::Type::kMasterToMasterRO) {
-      MasterLog(eos_static_notice("Doing Master=>Master-RO transition"));
+      MasterLog(eos_static_log(LOG_NOTICE, "%s",
+                               "Doing Master=>Master-RO transition"));
 
       if (!Master2MasterRO()) {
         return false;
@@ -1092,7 +1100,8 @@ Master::Activate(std::string& stdOut, std::string& stdErr, int transitiontype)
 
     // Invoke ro-master to slave transition
     if (transitiontype == Transition::Type::kMasterROToSlave) {
-      MasterLog(eos_static_notice("Doing Master-RO=>Slave transition"));
+      MasterLog(eos_static_log(LOG_NOTICE, "%s",
+                               "Doing Master-RO=>Slave transition"));
 
       if (!MasterRO2Slave()) {
         return false;
@@ -1105,7 +1114,7 @@ Master::Activate(std::string& stdOut, std::string& stdErr, int transitiontype)
     }
 
     // Invoke a slave to master transition
-    MasterLog(eos_static_notice("Doing Slave=>Master transition"));
+    MasterLog(eos_static_log(LOG_NOTICE, "%s", "Doing Slave=>Master transition"));
 
     if (!Slave2Master()) {
       return false;
@@ -1125,7 +1134,8 @@ Master::SetMasterId(const std::string& hostname, int port,
   Transition::Type transitiontype = Transition::Type::kMasterToMaster;
 
   if (fRunningState == Run::State::kIsNothing) {
-    MasterLog(eos_static_err("unable to change master/slave configuration - "
+    MasterLog(eos_static_log(LOG_ERR, "%s",
+                             "unable to change master/slave configuration - "
                              "node is in invalid state after a failed transition"));
     err_msg += "error: unable to change master/slave configuration - node is "
                "in invalid state after a failed transition";
@@ -1144,16 +1154,16 @@ Master::SetMasterId(const std::string& hostname, int port,
       if (fRunningState == Run::State::kIsRunningMaster) {
         transitiontype = Transition::Type::kMasterToMasterRO;
       } else {
-        MasterLog(eos_static_err("invalid master/slave transition requested - "
-                                 "we are not a running master"));
+        MasterLog(eos_static_log(LOG_ERR, "%s", "invalid master/slave transition "
+                                 "requested - we are not a running master"));
         err_msg += "invalid master/slave transition requested - "
                    "we are not a running master\n";
         return false;
       }
     } else {
       transitiontype = Transition::Type::kMasterToMaster;
-      MasterLog(eos_static_err("invalid master/master transition requested - "
-                               "we are  a running master"));
+      MasterLog(eos_static_log(LOG_ERR, "%s", "invalid master/master transition "
+                               "requested - we are  a running master"));
       err_msg +=
         "invalid master/master transition requested - we are a running master\n";
       return false;
@@ -1163,7 +1173,8 @@ Master::SetMasterId(const std::string& hostname, int port,
       transitiontype = Transition::Type::kMasterROToSlave;
     } else {
       if (fRunningState != Run::State::kIsRunningSlave) {
-        MasterLog(eos_static_err("invalid master/slave transition requested - "
+        MasterLog(eos_static_log(LOG_ERR, "%s",
+                                 "invalid master/slave transition requested - "
                                  "we are not a running ro-master or we are already a slave"));
         err_msg += "invalid master/slave transition requested - we are not a "
                    "running ro-master or we are already a slave\n";
@@ -1261,19 +1272,20 @@ Master::Slave2Master()
 
   if (rc.exit_code) {
     if (rc.exit_code == -1) {
-      MasterLog(
-        eos_warning("system command failed due to memory pressure - cannot check the sync service"));
+      MasterLog(eos_log(LOG_WARNING, "%s", "system command failed due to memory "
+                        "pressure - cannot check the sync service"));
     }
 
     if (rc.exit_code == 2) {
-      MasterLog(eos_warning("sync service was already stopped"));
+      MasterLog(eos_log(LOG_WARNING, "%s", "sync service was already stopped"));
     }
 
     if (rc.exit_code == 1) {
-      MasterLog(eos_warning("sync service was dead"));
+      MasterLog(eos_log(LOG_WARNING, "%s", "sync service was dead"));
     }
 
-    MasterLog(eos_crit("slave=>master transition aborted since sync was down"));
+    MasterLog(eos_log(LOG_CRIT, "%s",
+                      "slave=>master transition aborted since sync was down"));
     fRunningState = Run::State::kIsNothing;
     eos::common::ShellCmd
     scmd2(fHasSystemd ?
@@ -1283,7 +1295,7 @@ Master::Slave2Master()
     rc = scmd2.wait(30);
 
     if (rc.exit_code) {
-      MasterLog(eos_warning("failed to start sync service"));
+      MasterLog(eos_log(LOG_WARNING, "%s", "failed to start sync service"));
     }
 
     fRunningState = Run::State::kIsRunningSlave;
@@ -1306,8 +1318,8 @@ Master::Slave2Master()
   if (!stat(gOFS->MgmNsFileChangeLogFile.c_str(), &buf)) {
     size_local_file_changelog = buf.st_size;
   } else {
-    MasterLog(eos_crit("slave=>master transition aborted since we cannot stat "
-                       "our own slave file-changelog-file"));
+    MasterLog(eos_log(LOG_CRIT, "%s", "slave=>master transition aborted since "
+                      "we cannot stat our own slave file-changelog-file"));
     fRunningState = Run::State::kIsRunningSlave;
     return false;
   }
@@ -1315,8 +1327,8 @@ Master::Slave2Master()
   if (!stat(gOFS->MgmNsDirChangeLogFile.c_str(), &buf)) {
     size_local_dir_changelog = buf.st_size;
   } else {
-    MasterLog(eos_crit("slave=>master transition aborted since we cannot stat "
-                       "our own slave dir-changelog-file"));
+    MasterLog(eos_log(LOG_CRIT, "slave=>master transition aborted since we "
+                      "cannot stat our own slave dir-changelog-file"));
     fRunningState = Run::State::kIsRunningSlave;
     return false;
   }
@@ -1335,8 +1347,8 @@ Master::Slave2Master()
                       (uint64_t) size_local_file_changelog);
 
       if (n_wait > 12) {
-        MasterLog(eos_crit("slave=>master transition aborted since we didn't "
-                           "reach the follow point in 60 seconds - you may retry"));
+        MasterLog(eos_log(LOG_CRIT, "slave=>master transition aborted since we didn't "
+                          "reach the follow point in 60 seconds - you may retry"));
         fRunningState = Run::State::kIsRunningSlave;
         return false;
       }
@@ -1348,11 +1360,12 @@ Master::Slave2Master()
   bool syncok = false;
 
   if (HostCheck(fRemoteHost.c_str(), 1096)) {
-    MasterLog(eos_info("remote-sync host=%s:1096 is reachable",
-                       fRemoteHost.c_str()));
+    MasterLog(eos_log(LOG_INFO, "remote-sync host=%s:1096 is reachable",
+                      fRemoteHost.c_str()));
     syncok = true;
   } else {
-    MasterLog(eos_info("remote-sync host=%s:1096 is down", fRemoteHost.c_str()));
+    MasterLog(eos_log(LOG_INFO, "remote-sync host=%s:1096 is down",
+                      fRemoteHost.c_str()));
   }
 
   if (syncok) {
@@ -1384,19 +1397,19 @@ Master::Slave2Master()
     }
 
     if (size_remote_file_changelog != size_local_file_changelog) {
-      MasterLog(eos_crit("slave=>master transition aborted - file changelog "
-                         "synchronization problem found - path=%s "
-                         "remote-size=%llu local-size=%llu", rfclf.c_str(),
-                         size_remote_file_changelog, size_local_file_changelog));
+      MasterLog(eos_log(LOG_CRIT, "slave=>master transition aborted - file changelog "
+                        "synchronization problem found - path=%s "
+                        "remote-size=%llu local-size=%llu", rfclf.c_str(),
+                        size_remote_file_changelog, size_local_file_changelog));
       fRunningState = Run::State::kIsRunningSlave;
       return false;
     }
 
     if (size_remote_dir_changelog != size_local_dir_changelog) {
-      MasterLog(eos_crit("slave=>master transition aborted - dir changelog "
-                         "synchronization problem found - path=%s "
-                         "remote-size=%llu local-size=%llu", rdclf.c_str(),
-                         size_remote_dir_changelog, size_local_dir_changelog));
+      MasterLog(eos_log(LOG_CRIT, "slave=>master transition aborted - dir changelog "
+                        "synchronization problem found - path=%s "
+                        "remote-size=%llu local-size=%llu", rdclf.c_str(),
+                        size_remote_dir_changelog, size_local_dir_changelog));
       fRunningState = Run::State::kIsRunningSlave;
       return false;
     }
@@ -1413,9 +1426,9 @@ Master::Slave2Master()
   if (!::stat(fileSettings["changelog_path"].c_str(), &buf)) {
     if (::rename(fileSettings["changelog_path"].c_str(),
                  NsFileChangeLogFileCopy.c_str())) {
-      MasterLog(eos_crit("failed to rename %s=>%s errno=%d",
-                         gOFS->MgmNsFileChangeLogFile.c_str(),
-                         NsFileChangeLogFileCopy.c_str(), errno));
+      MasterLog(eos_log(LOG_CRIT, "failed to rename %s=>%s errno=%d",
+                        gOFS->MgmNsFileChangeLogFile.c_str(),
+                        NsFileChangeLogFileCopy.c_str(), errno));
       fRunningState = Run::State::kIsNothing;
       return false;
     }
@@ -1424,9 +1437,9 @@ Master::Slave2Master()
   if (!::stat(contSettings["changelog_path"].c_str(), &buf)) {
     if (::rename(contSettings["changelog_path"].c_str(),
                  NsDirChangeLogFileCopy.c_str())) {
-      MasterLog(eos_crit("failed to rename %s=>%s errno=%d",
-                         gOFS->MgmNsDirChangeLogFile.c_str(),
-                         NsDirChangeLogFileCopy.c_str(), errno));
+      MasterLog(eos_log(LOG_CRIT, "failed to rename %s=>%s errno=%d",
+                        gOFS->MgmNsDirChangeLogFile.c_str(),
+                        NsDirChangeLogFileCopy.c_str(), errno));
       fRunningState = Run::State::kIsNothing;
       return false;
     }
@@ -1436,7 +1449,7 @@ Master::Slave2Master()
   gOFS->MgmNsDirChangeLogFile = contSettings["changelog_path"].c_str();
 
   try {
-    MasterLog(eos_info("msg=\"invoking slave=>master transition\""));
+    MasterLog(eos_log(LOG_INFO, "msg=\"invoking slave=>master transition\""));
     auto* eos_chlog_dirsvc =
       dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
 
@@ -1452,8 +1465,8 @@ Master::Slave2Master()
     }
   } catch (eos::MDException& e) {
     errno = e.getErrno();
-    MasterLog(eos_crit("slave=>master transition returned ec=%d %s",
-                       e.getErrno(), e.getMessage().str().c_str()));
+    MasterLog(eos_log(LOG_CRIT, "slave=>master transition returned ec=%d %s",
+                      e.getErrno(), e.getMessage().str().c_str()));
     fRunningState = Run::State::kIsNothing;
     eos::common::ShellCmd
     scmd3(fHasSystemd ? "systemctl start eos@sync" :
@@ -1461,7 +1474,8 @@ Master::Slave2Master()
     rc = scmd3.wait(30);
 
     if (rc.exit_code) {
-      MasterLog(eos_warning("slave=>master transition - sync didnt' start"));
+      MasterLog(eos_log(LOG_WARNING, "%s",
+                        "slave=>master transition - sync didnt' start"));
     }
 
     return false;
@@ -1474,16 +1488,18 @@ Master::Slave2Master()
   rc = scmd3.wait(30);
 
   if (rc.exit_code) {
-    MasterLog(eos_warning("failed to start sync service - %d", rc.exit_code));
-    MasterLog(eos_crit("slave=>master transition aborted since sync didn't start"));
+    MasterLog(eos_log(LOG_WARNING, "failed to start sync service - %d",
+                      rc.exit_code));
+    MasterLog(eos_log(LOG_CRIT, "%s",
+                      "slave=>master transition aborted since sync didn't start"));
 
     try {
       gOFS->eosDirectoryService->finalize();
       gOFS->eosFileService->finalize();
     } catch (eos::MDException& e) {
       errno = e.getErrno();
-      MasterLog(eos_crit("slave=>master finalize returned ec=%d %s",
-                         e.getErrno(), e.getMessage().str().c_str()));
+      MasterLog(eos_log(LOG_CRIT, "slave=>master finalize returned ec=%d %s",
+                        e.getErrno(), e.getMessage().str().c_str()));
     }
 
     fRunningState = Run::State::kIsNothing;
@@ -1496,17 +1512,18 @@ Master::Slave2Master()
   rc = scmd4.wait(30);
 
   if (rc.exit_code) {
-    MasterLog(eos_warning("failed to start eossync services - %d", rc.exit_code));
+    MasterLog(eos_log(LOG_WARNING, "failed to start eossync services - %d",
+                      rc.exit_code));
   }
 
   UnBlockCompacting();
   // Broadcast the new manager node variable
-  MasterLog(eos_info("msg=\"registering new manager to nodes\""));
+  MasterLog(eos_log(LOG_INFO, "%s", "msg=\"registering new manager to nodes\""));
   FsView::gFsView.BroadcastMasterId(GetMasterId());
   // Re-start the recycler thread
   gOFS->Recycler->Start();
   eos_alert("msg=\"running as master-rw\"");
-  MasterLog(eos_notice("running in master mode"));
+  MasterLog(eos_log(LOG_NOTICE, "%s", "running in master mode"));
   return true;
 }
 
@@ -1532,8 +1549,8 @@ Master::Master2MasterRO()
       eos_chlog_filesvc->makeReadOnly();
     } catch (eos::MDException& e) {
       errno = e.getErrno();
-      MasterLog(eos_crit("master=>slave transition returned ec=%d %s",
-                         e.getErrno(), e.getMessage().str().c_str()));
+      MasterLog(eos_log(LOG_CRIT, "master=>slave transition returned ec=%d %s",
+                        e.getErrno(), e.getMessage().str().c_str()));
       fRunningState = Run::State::kIsNothing;
       return false;
     }
@@ -1544,7 +1561,7 @@ Master::Master2MasterRO()
   eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
   fRunningState = Run::State::kIsReadOnlyMaster;
   eos_alert("msg=\"running as master-ro\"");
-  MasterLog(eos_notice("running in RO master mode"));
+  MasterLog(eos_log(LOG_NOTICE, "%s", "running in RO master mode"));
   return true;
 }
 
@@ -1581,7 +1598,8 @@ Master::MasterRO2Slave()
   }
   {
     // Convert the namespace
-    eos::common::RWMutexWriteLock nsLock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    eos::common::RWMutexWriteLock nsLock(gOFS->eosViewRWMutex, __FUNCTION__,
+                                         __LINE__, __FILE__);
 
     // Take the whole namespace down
     try {
@@ -1604,8 +1622,9 @@ Master::MasterRO2Slave()
       }
     } catch (eos::MDException& e) {
       errno = e.getErrno();
-      MasterLog(eos_crit("master-ro=>slave namespace shutdown returned ec=%d %s",
-                         e.getErrno(), e.getMessage().str().c_str()));
+      MasterLog(eos_log(LOG_CRIT,
+                        "master-ro=>slave namespace shutdown returned ec=%d %s",
+                        e.getErrno(), e.getMessage().str().c_str()));
     };
 
     // Boot it from scratch
@@ -1617,43 +1636,43 @@ Master::MasterRO2Slave()
 
   // Reload the configuration to get the proper quota nodes
   if (gOFS->MgmConfigAutoLoad.length()) {
-    MasterLog(eos_static_info("autoload config=%s",
-                              gOFS->MgmConfigAutoLoad.c_str()));
+    MasterLog(eos_static_log(LOG_INFO, "autoload config=%s",
+                             gOFS->MgmConfigAutoLoad.c_str()));
     std::string configenv = gOFS->MgmConfigAutoLoad.c_str();
     XrdOucString stdErr = "";
 
     if (!gOFS->ConfEngine->LoadConfig(configenv, stdErr)) {
-      MasterLog(eos_static_crit("Unable to auto-load config %s - fix your "
-                                "configuration file!", gOFS->MgmConfigAutoLoad.c_str()));
-      MasterLog(eos_static_crit("%s", stdErr.c_str()));
+      MasterLog(eos_static_log(LOG_CRIT, "Unable to auto-load config %s - fix your "
+                               "configuration file!", gOFS->MgmConfigAutoLoad.c_str()));
+      MasterLog(eos_static_log(LOG_CRIT, "%s", stdErr.c_str()));
       return false;
     } else {
-      MasterLog(eos_static_info("Successful auto-load config %s",
-                                gOFS->MgmConfigAutoLoad.c_str()));
+      MasterLog(eos_static_log(LOG_INFO, "Successful auto-load config %s",
+                               gOFS->MgmConfigAutoLoad.c_str()));
     }
   }
 
   if (gOFS->mNamespaceState == NamespaceState::kBooted) {
     // Start the file view loader thread
-    MasterLog(eos_info("msg=\"starting file view loader thread\""));
+    MasterLog(eos_log(LOG_INFO, "%s", "msg=\"starting file view loader thread\""));
     pthread_t tid;
 
     if ((XrdSysThread::Run(&tid, XrdMgmOfs::StaticInitializeFileView,
                            static_cast<void*>(gOFS), 0, "File View Loader"))) {
-      MasterLog(eos_crit("cannot start file view loader"));
+      MasterLog(eos_log(LOG_CRIT, "%s", "cannot start file view loader"));
       fRunningState = Run::State::kIsNothing;
       return false;
     }
   } else {
-    MasterLog(eos_crit("msg=\"don't want to start file view loader for a "
-                       "namespace in bootfailure state\""));
+    MasterLog(eos_log(LOG_CRIT, "%s", "msg=\"don't want to start file view "
+                      "loader for a namespace in bootfailure state\""));
     fRunningState = Run::State::kIsNothing;
     return false;
   }
 
   fRunningState = Run::State::kIsRunningSlave;
   eos_alert("msg=\"running as slave\"");
-  MasterLog(eos_notice("running in slave mode"));
+  MasterLog(eos_log(LOG_NOTICE, "%s", "running in slave mode"));
   return true;
 }
 
@@ -1751,8 +1770,8 @@ Master::BootNamespace()
 
   if (!gOFS->eosDirectoryService || ! gOFS->eosFileService ||
       !gOFS->eosView || !gOFS->eosFsView) {
-    MasterLog(eos_err("namespace implementation could not be loaded using "
-                      "the provided library plugin"));
+    MasterLog(eos_log(LOG_ERR, "%s", "namespace implementation could not be "
+                      "loaded using the provided library plugin"));
     return false;
   }
 
@@ -1816,7 +1835,8 @@ Master::BootNamespace()
   } else {
     if (gOFS->mQdbCluster.empty()) {
       eos_alert("msg=\"mgmofs.qdbcluster configuration is missing\"");
-      MasterLog(eos_err("msg=\"mgmofs.qdbcluster configuration is missing\""));
+      MasterLog(eos_log(LOG_ERR, "%s",
+                        "msg=\"mgmofs.qdbcluster configuration is missing\""));
       return false;
     } else {
       contSettings = namespaceConfig;
@@ -1833,9 +1853,11 @@ Master::BootNamespace()
     gOFS->eosView->configure(contSettings);
 
     if (IsMaster()) {
-      MasterLog(eos_notice("eos directory view configure started as master"));
+      MasterLog(eos_log(LOG_NOTICE, "%s",
+                        "eos directory view configure started as master"));
     } else {
-      MasterLog(eos_notice("eos directory view configure started as slave"));
+      MasterLog(eos_log(LOG_NOTICE, "%s",
+                        "eos directory view configure started as slave"));
     }
 
     // This is only done for the ChangeLog implementation
@@ -1864,16 +1886,17 @@ Master::BootNamespace()
     std::string out;
     GetLog(out);
     gOFS->mBootContainerId = gOFS->eosDirectoryService->getFirstFreeId();
-    MasterLog(eos_notice("eos directory view configure stopped after %d seconds",
-                         (tstop - tstart)));
+    MasterLog(eos_log(LOG_NOTICE,
+                      "eos directory view configure stopped after %d seconds",
+                      (tstop - tstart)));
     gOFS->namespaceGroup->startCacheRefreshListener();
 
     if (!IsMaster()) {
       fRunningState = Run::State::kIsRunningSlave;
-      MasterLog(eos_notice("running in slave mode"));
+      MasterLog(eos_log(LOG_NOTICE, "%s", "running in slave mode"));
     } else {
       fRunningState = Run::State::kIsRunningMaster;
-      MasterLog(eos_notice("running in master mode"));
+      MasterLog(eos_log(LOG_NOTICE, "%s", "running in master mode"));
     }
 
     return true;
@@ -1882,15 +1905,16 @@ Master::BootNamespace()
     // Add boot errors to the master log
     std::string out;
     GetLog(out);
-    MasterLog(eos_crit("eos view initialization failed after %d seconds",
-                       (tstop - tstart)));
+    MasterLog(eos_log(LOG_CRIT, "eos view initialization failed after %d seconds",
+                      (tstop - tstart)));
     errno = e.getErrno();
-    MasterLog(eos_crit("initialization returned ec=%d %s", e.getErrno(),
-                       e.getMessage().str().c_str()));
+    MasterLog(eos_log(LOG_CRIT, "initialization returned ec=%d %s", e.getErrno(),
+                      e.getMessage().str().c_str()));
     return false;
   } catch (const std::runtime_error& qdb_err) {
-    MasterLog(eos_crit("eos view initialization failed, unable to connect to "
-                       "QuarkDB cluster, reason: %s", qdb_err.what()));
+    MasterLog(eos_log(LOG_CRIT,
+                      "eos view initialization failed, unable to connect to "
+                      "QuarkDB cluster, reason: %s", qdb_err.what()));
     return false;
   }
 }
@@ -1916,11 +1940,11 @@ Master::SignalRemoteBounceToMaster()
   XrdCl::Buffer* rbuffer = nullptr;
 
   if (FsMgm.Query(XrdCl::QueryCode::OpaqueFile, qbuffer, rbuffer).IsOK()) {
-    MasterLog(
-      eos_info("msg=\"signalled successfully remote master to redirect\""));
+    MasterLog(eos_log(LOG_INFO, "%s",
+                      "msg=\"signalled successfully remote master to redirect\""));
   } else
-    MasterLog(eos_warning("failed to signal remote redirect to %s",
-                          remoteMgmUrlString.c_str()));
+    MasterLog(eos_log(LOG_WARNING, "failed to signal remote redirect to %s",
+                      remoteMgmUrlString.c_str()));
 
   if (rbuffer) {
     delete rbuffer;
@@ -1956,10 +1980,10 @@ Master::SignalRemoteReload(bool compact_files, bool compact_directories)
   XrdCl::Buffer* rbuffer = nullptr;
 
   if (FsMgm.Query(XrdCl::QueryCode::OpaqueFile, qbuffer, rbuffer).IsOK()) {
-    MasterLog(eos_info("msg=\"signalled remote master to reload\""));
+    MasterLog(eos_log(LOG_INFO, "%s", "msg=\"signalled remote master to reload\""));
   } else
-    MasterLog(eos_warning("failed to signal remote reload to %s",
-                          remoteMgmUrlString.c_str()));
+    MasterLog(eos_log(LOG_WARNING, "failed to signal remote reload to %s",
+                      remoteMgmUrlString.c_str()));
 
   if (rbuffer) {
     delete rbuffer;
@@ -1975,14 +1999,15 @@ Master::TagNamespaceInodes()
 {
   struct stat statf;
   struct stat statd;
-  MasterLog(eos_info("msg=\"tag namespace inodes\""));
+  MasterLog(eos_log(LOG_INFO, "%s", "msg=\"tag namespace inodes\""));
 
   if ((!::stat(gOFS->MgmNsFileChangeLogFile.c_str(), &statf)) &&
       (!::stat(gOFS->MgmNsDirChangeLogFile.c_str(), &statd))) {
     fFileNamespaceInode = statf.st_ino;
     fDirNamespaceInode = statd.st_ino;
   } else {
-    MasterLog(eos_warning("stat of namespace files failed with errno=%d", errno));
+    MasterLog(eos_log(LOG_WARNING, "%s",
+                      "stat of namespace files failed with errno=%d", errno));
   }
 }
 
@@ -1996,7 +2021,7 @@ Master::WaitNamespaceFilesInSync(bool wait_files, bool wait_directories,
 {
   time_t starttime = time(nullptr);
   // If possible evaluate if local and remote master files are in sync ...
-  MasterLog(eos_info("msg=\"check ns file synchronization\""));
+  MasterLog(eos_log(LOG_INFO, "%s", "msg=\"check ns file synchronization\""));
   off_t size_local_file_changelog = 0;
   off_t size_local_dir_changelog = 0;
   off_t size_remote_file_changelog = 0;
@@ -2022,10 +2047,11 @@ Master::WaitNamespaceFilesInSync(bool wait_files, bool wait_directories,
 
   if (HostCheck(fRemoteHost.c_str(), 1096)) {
     syncok = true;
-    MasterLog(eos_info("remote-sync host=%s:1096 is reachable",
-                       fRemoteHost.c_str()));
+    MasterLog(eos_log(LOG_INFO, "remote-sync host=%s:1096 is reachable",
+                      fRemoteHost.c_str()));
   } else {
-    MasterLog(eos_info("remote-sync host=%s:1096 is down", fRemoteHost.c_str()));
+    MasterLog(eos_log(LOG_INFO, "remote-sync host=%s:1096 is down",
+                      fRemoteHost.c_str()));
   }
 
   if (syncok) {
@@ -2047,7 +2073,7 @@ Master::WaitNamespaceFilesInSync(bool wait_files, bool wait_directories,
         sinfo = nullptr;
       }
 
-      MasterLog(eos_crit("remote stat failed for %s", rfclf.c_str()));
+      MasterLog(eos_log(LOG_CRIT, "remote stat failed for %s", rfclf.c_str()));
       return false;
     }
 
@@ -2063,13 +2089,12 @@ Master::WaitNamespaceFilesInSync(bool wait_files, bool wait_directories,
         sinfo = nullptr;
       }
 
-      MasterLog(eos_crit("remote stat failed for %s", rdclf.c_str()));
+      MasterLog(eos_log(LOG_CRIT, "remote stat failed for %s", rdclf.c_str()));
       return false;
     }
 
-    MasterLog(eos_info("remote files file=%llu dir=%llu",
-                       size_remote_file_changelog,
-                       size_remote_dir_changelog));
+    MasterLog(eos_log(LOG_INFO, "remote files file=%llu dir=%llu",
+                      size_remote_file_changelog, size_remote_dir_changelog));
 
     do {
       // Wait that the inode changed and then check the local size and wait,
@@ -2078,8 +2103,8 @@ Master::WaitNamespaceFilesInSync(bool wait_files, bool wait_directories,
         size_local_file_changelog = buf.st_size;
         lFileNamespaceInode = buf.st_ino;
       } else {
-        MasterLog(eos_crit("local stat failed for %s",
-                           gOFS->MgmNsFileChangeLogFile.c_str()));
+        MasterLog(eos_log(LOG_CRIT, "local stat failed for %s",
+                          gOFS->MgmNsFileChangeLogFile.c_str()));
         return false;
       }
 
@@ -2087,20 +2112,21 @@ Master::WaitNamespaceFilesInSync(bool wait_files, bool wait_directories,
         size_local_dir_changelog = buf.st_size;
         lDirNamespaceInode = buf.st_ino;
       } else {
-        MasterLog(eos_crit("local stat failed for %s",
-                           gOFS->MgmNsDirChangeLogFile.c_str()));
+        MasterLog(eos_log(LOG_CRIT, "local stat failed for %s",
+                          gOFS->MgmNsDirChangeLogFile.c_str()));
         return false;
       }
 
       if ((wait_directories) && (lDirNamespaceInode == fDirNamespaceInode)) {
         // the inode didn't change yet
         if (time(nullptr) > (starttime + timeout)) {
-          MasterLog(eos_warning("timeout occured after %u seconds", timeout));
+          MasterLog(eos_log(LOG_WARNING, "timeout occured after %u seconds", timeout));
           return false;
         }
 
-        MasterLog(eos_info("waiting for 'directories' inode change %llu=>%llu ",
-                           fDirNamespaceInode, lDirNamespaceInode));
+        MasterLog(eos_log(LOG_INFO,
+                          "waiting for 'directories' inode change %llu=>%llu ",
+                          fDirNamespaceInode, lDirNamespaceInode));
         std::this_thread::sleep_for(std::chrono::seconds(10));
         continue;
       }
@@ -2108,19 +2134,19 @@ Master::WaitNamespaceFilesInSync(bool wait_files, bool wait_directories,
       if ((wait_files) && (lFileNamespaceInode == fFileNamespaceInode)) {
         // the inode didn't change yet
         if (time(nullptr) > (starttime + timeout)) {
-          MasterLog(eos_warning("timeout occured after %u seconds", timeout));
+          MasterLog(eos_log(LOG_WARNING, "timeout occured after %u seconds", timeout));
           return false;
         }
 
-        MasterLog(eos_info("waiting for 'files' inode change %llu=>%llu ",
-                           fFileNamespaceInode, lFileNamespaceInode));
+        MasterLog(eos_log(LOG_INFO, "waiting for 'files' inode change %llu=>%llu ",
+                          fFileNamespaceInode, lFileNamespaceInode));
         std::this_thread::sleep_for(std::chrono::seconds(10));
         continue;
       }
 
       if (size_remote_file_changelog > size_local_file_changelog) {
         if (time(nullptr) > (starttime + timeout)) {
-          MasterLog(eos_warning("timeout occured after %u seconds", timeout));
+          MasterLog(eos_log(LOG_WARNING, "timeout occured after %u seconds", timeout));
           return false;
         }
 
@@ -2130,7 +2156,7 @@ Master::WaitNamespaceFilesInSync(bool wait_files, bool wait_directories,
 
       if (size_remote_dir_changelog > size_local_dir_changelog) {
         if (time(nullptr) > (starttime + timeout)) {
-          MasterLog(eos_warning("timeout occured after %u seconds", timeout));
+          MasterLog(eos_log(LOG_WARNING, "timeout occured after %u seconds", timeout));
           return false;
         }
 
@@ -2138,11 +2164,11 @@ Master::WaitNamespaceFilesInSync(bool wait_files, bool wait_directories,
         continue;
       }
 
-      MasterLog(eos_info("msg=\"ns files  synchronized\""));
+      MasterLog(eos_log(LOG_INFO, "%s", "msg=\"ns files  synchronized\""));
       return true;
     } while (true);
   } else {
-    MasterLog(eos_warning("msg=\"remote sync service is not ok\""));
+    MasterLog(eos_log(LOG_WARNING, "%s", "msg=\"remote sync service is not ok\""));
     return false;
   }
 }
@@ -2153,7 +2179,7 @@ Master::WaitNamespaceFilesInSync(bool wait_files, bool wait_directories,
 void
 Master::RedirectToRemoteMaster()
 {
-  MasterLog(eos_info("msg=\"redirect to remote master\""));
+  MasterLog(eos_log(LOG_INFO, "%s", "msg=\"redirect to remote master\""));
   Access::gRedirectionRules[std::string("*")] = fRemoteHost.c_str();
   auto* eos_chlog_dirsvc =
     dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
@@ -2162,14 +2188,14 @@ Master::RedirectToRemoteMaster()
 
   if (eos_chlog_dirsvc && eos_chlog_filesvc) {
     try {
-      MasterLog(eos_info("msg=\"invoking slave shutdown\""));
+      MasterLog(eos_log(LOG_INFO, "%s", "msg=\"invoking slave shutdown\""));
       eos_chlog_dirsvc->stopSlave();
       eos_chlog_filesvc->stopSlave();
-      MasterLog(eos_info("msg=\"stopped namespace following\""));
+      MasterLog(eos_log(LOG_INFO, "%s", "msg=\"stopped namespace following\""));
     } catch (eos::MDException& e) {
       errno = e.getErrno();
-      MasterLog(eos_crit("slave shutdown returned ec=%d %s", e.getErrno(),
-                         e.getMessage().str().c_str()));
+      MasterLog(eos_log(LOG_CRIT, "slave shutdown returned ec=%d %s", e.getErrno(),
+                        e.getMessage().str().c_str()));
     }
   }
 }
@@ -2184,7 +2210,8 @@ Master::RebootSlaveNamespace()
   gOFS->mNamespaceState = NamespaceState::kBooting;
   {
     // now convert the namespace
-    eos::common::RWMutexWriteLock nsLock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    eos::common::RWMutexWriteLock nsLock(gOFS->eosViewRWMutex, __FUNCTION__,
+                                         __LINE__, __FILE__);
 
     // Take the whole namespace down
     try {
@@ -2207,8 +2234,9 @@ Master::RebootSlaveNamespace()
       }
     } catch (eos::MDException& e) {
       errno = e.getErrno();
-      MasterLog(eos_crit("master-ro=>slave namespace shutdown returned ec=%d %s",
-                         e.getErrno(), e.getMessage().str().c_str()));
+      MasterLog(eos_log(LOG_CRIT,
+                        "master-ro=>slave namespace shutdown returned ec=%d %s",
+                        e.getErrno(), e.getMessage().str().c_str()));
     }
 
     // Boot it from scratch
@@ -2223,18 +2251,19 @@ Master::RebootSlaveNamespace()
 
   if (gOFS->mNamespaceState == NamespaceState::kBooted) {
     // Start the file view loader thread
-    MasterLog(eos_info("msg=\"starting file view loader thread\""));
+    MasterLog(eos_log(LOG_INFO, "%s", "msg=\"starting file view loader thread\""));
     pthread_t tid;
 
     if ((XrdSysThread::Run(&tid, XrdMgmOfs::StaticInitializeFileView,
                            static_cast<void*>(gOFS), 0, "File View Loader"))) {
-      MasterLog(eos_crit("cannot start file view loader"));
+      MasterLog(eos_log(LOG_CRIT, "%s", "cannot start file view loader"));
       fRunningState = Run::State::kIsNothing;
       return false;
     }
   } else {
-    MasterLog(eos_crit("msg=\"don't want to start file view loader for a "
-                       "namespace in bootfailure state\""));
+    MasterLog(eos_log(LOG_CRIT, "%s",
+                      "msg=\"don't want to start file view loader for a "
+                      "namespace in bootfailure state\""));
     fRunningState = Run::State::kIsNothing;
     return false;
   }
@@ -2247,7 +2276,7 @@ Master::RebootSlaveNamespace()
   }
 
   fRunningState = Run::State::kIsRunningSlave;
-  MasterLog(eos_notice("running in slave mode"));
+  MasterLog(eos_log(LOG_NOTICE, "%s", "running in slave mode"));
   return true;
 }
 
@@ -2330,11 +2359,11 @@ Master::GetLog(std::string& stdOut)
       eos_chlog_dirsvc->getWarningMessages();
 
     for (const auto& fw : file_warn) {
-      MasterLog(eos_err(fw.c_str()));
+      MasterLog(eos_log(LOG_ERR, "%s", fw.c_str()));
     }
 
     for (const auto& dw : directory_warn) {
-      MasterLog(eos_err(dw.c_str()));
+      MasterLog(eos_log(LOG_ERR, "%s", dw.c_str()));
     }
 
     eos_chlog_filesvc->clearWarningMessages();

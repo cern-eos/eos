@@ -169,7 +169,7 @@ public:
       int fd = 0;
 
       if ((fd = ::creat(path, S_IRWXU | S_IRGRP | S_IROTH)) == -1) {
-        MasterLog(eos_static_err("msg=\"failed to create %s\" errno=%d", path,
+        MasterLog(eos_static_log(LOG_ERR, "msg=\"failed to create %s\" errno=%d", path,
                                  errno));
         return false;
       }
@@ -191,8 +191,8 @@ public:
 
     if (!::stat(path, &buf)) {
       if (::unlink(path)) {
-        MasterLog(eos_static_err("msg=\"failed to unlink %s\" errno=%d", path,
-                                 errno));
+        MasterLog(eos_static_log(LOG_ERR, "msg=\"failed to unlink %s\" errno=%d",
+                                 path, errno));
         return false;
       }
     }
@@ -210,8 +210,8 @@ public:
   //----------------------------------------------------------------------------
   //! Populate namespace cache configuration
   //----------------------------------------------------------------------------
-  void fillNamespaceCacheConfig(IConfigEngine *configEngine,
-    std::map<std::string, std::string> &namespaceConfig) const;
+  void fillNamespaceCacheConfig(IConfigEngine* configEngine,
+                                std::map<std::string, std::string>& namespaceConfig) const;
 
 
 protected:

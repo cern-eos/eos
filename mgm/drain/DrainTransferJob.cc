@@ -55,8 +55,8 @@ DrainTransferJob::DoIt() noexcept
 {
   using eos::common::LayoutId;
   UpdateMgmStats();
-  eos_debug_lite("msg=\"running job\" fsid_src=%i fsid_dst=%i fxid=%08llx",
-                 mFsIdSource.load(), mFsIdTarget.load(), mFileId);
+  eos_static_debug("msg=\"running job\" fsid_src=%i fsid_dst=%i fxid=%08llx",
+                   mFsIdSource.load(), mFsIdTarget.load(), mFileId);
 
   if (mProgressHandler.ShouldCancel(0)) {
     ReportError(SSTR("msg=\"job cancelled before starting\" fxid="

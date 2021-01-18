@@ -121,7 +121,7 @@ QdbMaster::BootNamespace()
   if (!gOFS->eosDirectoryService || !gOFS->eosFileService || !gOFS->eosView ||
       !gOFS->eosFsView || !gOFS->eosContainerAccounting ||
       !gOFS->eosSyncTimeAccounting) {
-    MasterLog(eos_err("namespace implementation could not be loaded using "
+    MasterLog(eos_log(LOG_ERR, "namespace implementation could not be loaded using "
                       "the provided library plugin - one of the required "
                       "namespace views could not be created"));
     gOFS->mNamespaceState = NamespaceState::kFailed;
@@ -140,17 +140,20 @@ QdbMaster::BootNamespace()
     gOFS->eosView->getQuotaStats()->registerSizeMapper(Quota::MapSizeCB);
     gOFS->eosView->initialize1();
     gOFS->mBootContainerId = gOFS->eosDirectoryService->getFirstFreeId();
-    MasterLog(eos_notice("msg=\"container initialization done\" duration=%ds",
-                         (time(nullptr) - tstart)));
+    MasterLog(eos_log(LOG_NOTICE,
+                      "msg=\"container initialization done\" duration=%ds",
+                      (time(nullptr) - tstart)));
   } catch (eos::MDException& e) {
-    MasterLog(eos_crit("msg=\"container initialization failed\" duration=%ds, "
-                       "errc=%d, reason=\"%s\"", (time(nullptr) - tstart),
-                       e.getErrno(), e.getMessage().str().c_str()));
+    MasterLog(eos_log(LOG_NOTICE,
+                      "msg=\"container initialization failed\" duration=%ds, "
+                      "errc=%d, reason=\"%s\"", (time(nullptr) - tstart),
+                      e.getErrno(), e.getMessage().str().c_str()));
     gOFS->mNamespaceState = NamespaceState::kFailed;
     return false;
   } catch (const std::runtime_error& qdb_err) {
-    MasterLog(eos_crit("msg=\"container initialization failed unable to connect to "
-                       "QuarkDB cluster\" reason=\"%s\"", qdb_err.what()));
+    MasterLog(eos_log(LOG_NOTICE,
+                      "msg=\"container initialization failed unable to connect to "
+                      "QuarkDB cluster\" reason=\"%s\"", qdb_err.what()));
     gOFS->mNamespaceState = NamespaceState::kFailed;
     return false;
   }
@@ -160,7 +163,8 @@ QdbMaster::BootNamespace()
 
   try {
     eos_notice("%s", "msg=\"eos file view initialize2 starting ...\"");
-    eos::common::RWMutexWriteLock wr_view_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    eos::common::RWMutexWriteLock wr_view_lock(gOFS->eosViewRWMutex, __FUNCTION__,
+        __LINE__, __FILE__);
     gOFS->eosView->initialize2();
     eos_notice("msg=\"file view initialize2 done\" duration=%ds",
                time(nullptr) - gOFS->mFileInitTime);

@@ -208,10 +208,8 @@ EOSCOMMONNAMESPACE_BEGIN
                                             eos::common::gLogging.gZeroVid,"", (LOG_EMERG)  , __VA_ARGS__); \
   }
 #define eos_static_silent(...) \
-  if ((LOG_MASK(LOG_SILENT) & eos::common::Logging::GetInstance().GetLogMask()) != 0) { \
-    eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, "static..............................", \
-                                            eos::common::gLogging.gZeroVid,"", (LOG_SILENT)  , __VA_ARGS__); \
-  }
+  eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, "static..............................", \
+                                            eos::common::gLogging.gZeroVid,"", (LOG_SILENT)  , __VA_ARGS__)
 
 //------------------------------------------------------------------------------
 //! Log Macros to check if a function would log in a certain log level

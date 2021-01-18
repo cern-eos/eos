@@ -220,8 +220,9 @@ XrdMgmOfs::InitializeFileView()
     }
 
     time_t tstop = time(nullptr);
-    mMaster->MasterLog(eos_notice("eos namespace file loading stopped after %d "
-                                  "seconds", (tstop - tstart)));
+    mMaster->MasterLog(eos_log(LOG_NOTICE,
+                               "eos namespace file loading stopped after %d seconds",
+                               (tstop - tstart)));
     Access::SetStallRule(old_stall, new_stall);
   } catch (const eos::MDException& e) {
     mNamespaceState = NamespaceState::kFailed;
@@ -1286,8 +1287,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // Configure log-file fan out
   std::vector<std::string> lFanOutTags {
     "Grpc", "Balancer", "Converter", "DrainJob", "ZMQ", "MetadataFlusher", "Http",
-      "Master", "Recycle", "LRU", "WFE", "WFE::Job", "GroupBalancer",
-      "GeoBalancer", "GeoTreeEngine", "ReplicationTracker", "FileInspector", "Mounts", "OAuth","#"};
+    "Master", "Recycle", "LRU", "WFE", "WFE::Job", "GroupBalancer",
+    "GeoBalancer", "GeoTreeEngine", "ReplicationTracker", "FileInspector", "Mounts", "OAuth", "#"};
   // Get the XRootD log directory
   char* logdir = 0;
   XrdOucEnv::Import("XRDLOGDIR", logdir);
