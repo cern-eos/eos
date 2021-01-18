@@ -46,6 +46,11 @@
 int
 com_daemon(char* arg)
 {
+#ifdef __APPLE__
+  fprintf(stderr,"error: daemon command is not support on OSX\n");
+  global_retc = EINVAL;
+  return (0);
+#else
   eos::common::StringTokenizer subtokenizer(arg);
   eos::common::Config cfg;
   XrdOucString option = "";
@@ -346,4 +351,5 @@ com_daemon_usage:
 	  "                eos daemon run fst fst.1                              -  run the fst.1 subservice FST\n");
   global_retc = EINVAL;
   return (0);
+#endif
 }
