@@ -178,7 +178,7 @@ BuildRequires: git, readline-devel
 BuildRequires: openssl, openssl-devel
 BuildRequires: ncurses, ncurses-devel
 BuildRequires: zlib, zlib-devel
-BuildRequires: fuse3-devel, fuse3 >= 3.0
+BuildRequires: fuse3-devel, fuse3 >= 3.10
 BuildRequires: fuse-devel, fuse >= 2.5
 BuildRequires: krb5-devel
 BuildRequires: redhat-rpm-config
@@ -889,7 +889,7 @@ Requires: xrootd-client >= %{xrootd_version_min}
 %endif
 
 Requires: eos-client = @CPACK_PACKAGE_VERSION@
-Requires: fuse3
+Requires: fuse3 >= 3.10
 Requires: jemalloc
 Requires: attr
 %if %{use_richacl}

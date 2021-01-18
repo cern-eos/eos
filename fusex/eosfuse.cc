@@ -98,6 +98,7 @@ EosFuse::EosFuse()
   fusesession = 0;
 #ifndef _FUSE3
   fusechan = 0;
+#endif
   SetTrace(false);
 }
 
