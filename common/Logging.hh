@@ -102,27 +102,27 @@ EOSCOMMONNAMESPACE_BEGIN
                                             vid, this->cident, (LOG_WARNING), __VA_ARGS__); \
   }
 #define eos_err(...)                                                    \
-  if ((LOG_MASK(LOG_ERR)) & eos::common::Logging::GetInstance().GetLogMask()) != 0) { \
+  if ((LOG_MASK(LOG_ERR) & eos::common::Logging::GetInstance().GetLogMask()) != 0) { \
     eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, this->logId, \
                                             vid, this->cident, (LOG_ERR) , __VA_ARGS__); \
   }
 #define eos_crit(...) \
-  if ((LOG_MASK(LOG_CRIT)) & eos::common::Logging::GetInstance().GetLogMask()) != 0) { \
+  if ((LOG_MASK(LOG_CRIT) & eos::common::Logging::GetInstance().GetLogMask()) != 0) { \
     eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, this->logId, \
                                             vid, this->cident, (LOG_CRIT), __VA_ARGS__); \
   }
 #define eos_alert(...) \
-  if ((LOG_MASK(LOG_ALERT)) & eos::common::Logging::GetInstance().GetLogMask()) != 0) { \
+  if ((LOG_MASK(LOG_ALERT) & eos::common::Logging::GetInstance().GetLogMask()) != 0) { \
     eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, this->logId, \
                                             vid, this->cident, (LOG_ALERT)  , __VA_ARGS__); \
   }
 #define eos_emerg(...) \
-  if ((LOG_MASK(LOG_EMERG)) & eos::common::Logging::GetInstance().GetLogMask()) != 0) { \
+  if ((LOG_MASK(LOG_EMERG) & eos::common::Logging::GetInstance().GetLogMask()) != 0) { \
     eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, this->logId, \
                                             vid, this->cident, (LOG_EMERG)  , __VA_ARGS__); \
   }
 #define eos_silent(...) \
-  if ((LOG_MASK(LOG_SILENT)) & eos::common::Logging::GetInstance().GetLogMask()) != 0) { \
+  if ((LOG_MASK(LOG_SILENT) & eos::common::Logging::GetInstance().GetLogMask()) != 0) { \
     eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, this->logId, \
                                             vid, this->cident, (LOG_SILENT)  , __VA_ARGS__); \
   }
@@ -166,49 +166,49 @@ EOSCOMMONNAMESPACE_BEGIN
                                           (__EOSCOMMON_LOG_PRIORITY__) , \
                                           __VA_ARGS__)
 #define eos_static_debug(...)                                           \
-  if ((LOG_MASK(LOG_DEBUG)) & eos::common::Logging::GetInstance().GetLogMask()) != 0) { \
+  if ((LOG_MASK(LOG_DEBUG) & eos::common::Logging::GetInstance().GetLogMask()) != 0) { \
     eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, \
                                             "static..............................", \
                                             eos::common::gLogging.gZeroVid, "", \
-                                            (LOG_DEBUG), __VA_ARGS__); \
+                                            (LOG_DEBUG), __VA_ARGS__);  \
   }
 #define eos_static_info(...) \
-  if ((LOG_MASK(LOG_INFO)) & eos::common::Logging::GetInstance().GetLogMask()) != 0) { \
+  if ((LOG_MASK(LOG_INFO) & eos::common::Logging::GetInstance().GetLogMask()) != 0) { \
     eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, "static..............................", \
                                             eos::common::gLogging.gZeroVid, "", (LOG_INFO), __VA_ARGS__); \
   }
 #define eos_static_notice(...) \
-  if ((LOG_MASK(LOG_NOTICE)) & eos::common::Logging::GetInstance().GetLogMask()) != 0) { \
+  if ((LOG_MASK(LOG_NOTICE) & eos::common::Logging::GetInstance().GetLogMask()) != 0) { \
     eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, "static..............................", \
                                             eos::common::gLogging.gZeroVid, "", (LOG_NOTICE), __VA_ARGS__); \
   }
 #define eos_static_warning(...) \
-  if ((LOG_MASK(LOG_WARNING)) & eos::common::Logging::GetInstance().GetLogMask()) != 0) { \
+  if ((LOG_MASK(LOG_WARNING) & eos::common::Logging::GetInstance().GetLogMask()) != 0) { \
     eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, "static..............................", \
                                             eos::common::gLogging.gZeroVid, "", (LOG_WARNING), __VA_ARGS__); \
   }
 #define eos_static_err(...) \
-   if ((LOG_MASK(LOG_ERR)) & eos::common::Logging::GetInstance().GetLogMask()) != 0) { \
+   if ((LOG_MASK(LOG_ERR) & eos::common::Logging::GetInstance().GetLogMask()) != 0) { \
      eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, "static..............................", \
                                              eos::common::gLogging.gZeroVid, "", (LOG_ERR), __VA_ARGS__); \
    }
 #define eos_static_crit(...)                                            \
-  if ((LOG_MASK(LOG_CRIT)) & eos::common::Logging::GetInstance().GetLogMask()) != 0) { \
+  if ((LOG_MASK(LOG_CRIT) & eos::common::Logging::GetInstance().GetLogMask()) != 0) { \
     eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, "static..............................", \
                                             eos::common::gLogging.gZeroVid, "", (LOG_CRIT), __VA_ARGS__); \
   }
 #define eos_static_alert(...)                                           \
-  if ((LOG_MASK(LOG_ALERT)) & eos::common::Logging::GetInstance().GetLogMask()) != 0) { \
+  if ((LOG_MASK(LOG_ALERT) & eos::common::Logging::GetInstance().GetLogMask()) != 0) { \
     eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, "static..............................", \
                                             eos::common::gLogging.gZeroVid, "", (LOG_ALERT)  , __VA_ARGS__); \
   }
 #define eos_static_emerg(...) \
-  if ((LOG_MASK(LOG_EMERG)) & eos::common::Logging::GetInstance().GetLogMask()) != 0) { \
+  if ((LOG_MASK(LOG_EMERG) & eos::common::Logging::GetInstance().GetLogMask()) != 0) { \
     eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, "static..............................", \
                                             eos::common::gLogging.gZeroVid,"", (LOG_EMERG)  , __VA_ARGS__); \
   }
 #define eos_static_silent(...) \
-  if ((LOG_MASK(LOG_SILENT)) & eos::common::Logging::GetInstance().GetLogMask()) != 0) { \
+  if ((LOG_MASK(LOG_SILENT) & eos::common::Logging::GetInstance().GetLogMask()) != 0) { \
     eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, "static..............................", \
                                             eos::common::gLogging.gZeroVid,"", (LOG_SILENT)  , __VA_ARGS__); \
   }
