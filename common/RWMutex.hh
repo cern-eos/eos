@@ -443,7 +443,7 @@ public:
   inline void SetDebugName(const std::string& name)
   {
     mDebugName = name;
-    std::unique_lock lock(sOpMutex);
+    std::unique_lock<std::mutex> lock(sOpMutex);
     sMtxNameMap[(uint64_t) GetRawPtr()] = name;
   }
 
