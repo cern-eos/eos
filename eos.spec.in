@@ -158,7 +158,6 @@ BuildRequires: fuse3-devel, fuse3 >= 3.10
 %endif
 %endif
 
-%description -n eos-archive
 # -----------------------
 # select protobuf package
 # -----------------------
