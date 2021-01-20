@@ -1085,15 +1085,9 @@ EosFuse::rmdir(fuse_req_t req, fuse_ino_t parent, const char* name)
   eos_static_notice("RT %-16s %.04f", __FUNCTION__, timing.RealTime());
 }
 
-#ifdef _FUSE3
-void
-EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char* name,
-                fuse_ino_t newparent, const char* newname, unsigned int flags)
-#else
 void
 EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char* name,
                 fuse_ino_t newparent, const char* newname)
-#endif
 {
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);

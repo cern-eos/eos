@@ -67,30 +67,3 @@ install(FILES eosfusebind
   PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ
               GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ )
 
-#-------------------------------------------------------------------------------
-# eosd3 if fuse3 is available
-#-------------------------------------------------------------------------------
-if(FUSE3_FOUND)
-add_executable(
-  eosd3
-  ProcCache.cc ProcCache.hh
-  main.cc eosfuse.cc eosfuse.hh
-  filesystem.cc      filesystem.hh
-  FuseCacheEntry.cc  FuseCacheEntry.hh
-  AuthIdManager.cc xrdutils.cc )
-
-  target_link_libraries(eosd3 PRIVATE
-    FUSE3::FUSE3
-    XROOTD::CL
-    XROOTD::UTILS
-    KRB5::KRB5
-    FuseCache-Static
-    ${CMAKE_THREAD_LIBS_INIT})
-
-  target_compile_definitions(eosd3 PRIVATE
-    -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64
-    -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DVERSION=\\\"${VERSION}\\\")
-
-install(TARGETS eosd3
-  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
-endif()

@@ -32,13 +32,7 @@
 #ifdef __APPLE__
 #define FUSE_USE_VERSION 27
 #else
-
-#ifdef _FUSE3
-#define FUSE_USE_VERSION 30
-#else
 #define FUSE_USE_VERSION 26
-#endif
-
 
 //#pragma message("FUSE VERSION 26")
 #endif
@@ -46,11 +40,7 @@
 
 extern "C"
 {
-#ifdef _FUSE3
-#include <fuse3/fuse_lowlevel.h>
-#else
 #include <fuse/fuse_lowlevel.h>
-#endif
 }
 
 #include <cstdlib>
