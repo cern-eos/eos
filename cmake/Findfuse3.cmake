@@ -9,11 +9,11 @@
 
 find_path(FUSE3_INCLUDE_DIR
   NAMES fuse3/fuse_lowlevel.h
-  HINTS ${FUSE3_ROOT})
+  HINTS ${FUSE3_ROOT} /opt/eos/fuse3/ )
 
 find_library(FUSE3_LIBRARY
   NAMES fuse3
-  HINTS ${FUSE3_ROOT}
+  HINTS ${FUSE3_ROOT} /opt/eos/fuse3/
   PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR})
 
 include(FindPackageHandleStandardArgs)

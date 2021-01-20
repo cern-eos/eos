@@ -28,11 +28,14 @@
 # pass the "--with coverage" flag to the rpmbuild command
 %bcond_without coverage
 
-# By default we use eosprotobuf3 for EL7
+# By default we use eos-protobuf3 for EL7,8
 %bcond_without eos_protobuf3_rh
 
-# By default we don't use eosxrootd for EL7
+# By default we don't use eos-xrootd for EL7,8
 %bcond_without eos_xrootd_rh
+
+# By default we use eos-libfuse3 for EL7,8
+%bcond_without eos_fuse3_rh
 
 # Define required dependency for XRootD
 %define eos_xrootd_version_min 0:4.12.6
@@ -144,6 +147,19 @@ BuildRequires: xrootd-private-devel >= %{xrootd_version_min}
 %endif
 
 # -----------------------
+# select fuse3 package
+# -----------------------
+%if ! %{without eos_fuse3_rh}
+%if 0%{?distribution} == 7 || 0%{?distribution} == 8
+BuildRequires: eos-fuse3-devel, eos-fuse3 >= 3.10
+%global __requires_exclude ^libfuse3*
+%else
+BuildRequires: fuse3-devel, fuse3 >= 3.10
+%endif
+%endif
+
+%description -n eos-archive
+# -----------------------
 # select protobuf package
 # -----------------------
 %if ! %{without eos_protobuf3_rh}
@@ -178,7 +194,6 @@ BuildRequires: git, readline-devel
 BuildRequires: openssl, openssl-devel
 BuildRequires: ncurses, ncurses-devel
 BuildRequires: zlib, zlib-devel
-BuildRequires: fuse3-devel, fuse3 >= 3.10
 BuildRequires: fuse-devel, fuse >= 2.5
 BuildRequires: krb5-devel
 BuildRequires: redhat-rpm-config
@@ -379,6 +394,16 @@ Requires: xrootd >= %{xrootd_version_min}
 Requires: xrootd-client >= %{xrootd_version_min}
 %endif
 
+# ----------------------
+# select fuse3 package
+# ----------------------
+%if ! %{without eos_fuse3_rh}
+%if 0%{?distribution} == 7 || 0%{?distribution} == 8
+Requires: eos-fuse3 >= 3.10
+%else
+BuildRequires: fuse3 >= 3.10
+%endif
+%endif
 
 Requires: eos-client = @CPACK_PACKAGE_VERSION@
 Requires: libmicrohttpd >= 0.9.38
