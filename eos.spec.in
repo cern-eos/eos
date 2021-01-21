@@ -913,7 +913,6 @@ Requires: xrootd-client >= %{xrootd_version_min}
 %endif
 
 Requires: eos-client = @CPACK_PACKAGE_VERSION@
-Requires: fuse3 >= 3.10
 Requires: jemalloc
 Requires: attr
 %if %{use_richacl}
