@@ -151,7 +151,7 @@ BuildRequires: xrootd-private-devel >= %{xrootd_version_min}
 # -----------------------
 %if ! %{without eos_fuse3_rh}
 %if 0%{?distribution} == 7 || 0%{?distribution} == 8
-BuildRequires: eos-fuse3-devel, eos-fuse3 >= 3.10
+BuildRequires: eos-fuse3-libs, eos-fuse3-devel, eos-fuse3 >= 3.10
 %global __requires_exclude ^libfuse3*
 %else
 BuildRequires: fuse3-devel, fuse3 >= 3.10
@@ -398,9 +398,9 @@ Requires: xrootd-client >= %{xrootd_version_min}
 # ----------------------
 %if ! %{without eos_fuse3_rh}
 %if 0%{?distribution} == 7 || 0%{?distribution} == 8
-Requires: eos-fuse3 >= 3.10
+Requires: eos-fuse3, eos-fuse3-libs >= 3.10
 %else
-BuildRequires: fuse3 >= 3.10
+Requires: fuse3 >= 3.10
 %endif
 %endif
 
