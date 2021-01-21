@@ -907,6 +907,7 @@ Requires: xrootd-client >= %{xrootd_version_min}
 %if ! %{without eos_fuse3_rh}
 %if 0%{?distribution} == 7 || 0%{?distribution} == 8
 Requires: eos-fuse3, eos-fuse3-libs >= 3.10
+Requires: fuse3 >= 3.0
 %else
 Requires: fuse3 >= 3.10
 %endif
