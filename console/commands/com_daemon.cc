@@ -37,9 +37,11 @@
 #ifdef __APPLE__
 #define EOS_PTRACE_TRACEME PT_TRACEME
 #define EOS_PTRACE_ATTACH   PT_ATTACH
+#define EOS_PTRACE_DETACH   PT_DETACH
 #else
 #define EOS_PTRACE_TRACEME PTRACE_TRACEME
 #define EOS_PTRACE_ATTACH   PTRACE_ATTACH
+#define EOS_PTRACE_DETACH   PTRACE_DETACH
 #endif //__APPLE__
 
 /* Steer a service */
@@ -257,24 +259,29 @@ com_daemon(char* arg)
 	  exit_on_failure = true;
 	}
 
-	if (!(pid=fork())) {
-	  if (ptrace(EOS_PTRACE_TRACEME, 0, 0, 0)) {
-	    fprintf(stderr,"error: failed to trace-me %d\n", errno);
+	if (exit_on_failure) {
+	  // test that nobody traces us ..
+	  if (!(pid=fork())) {
+	    pause();
 	    exit(0);
 	  } else {
-	    fprintf(stderr,"info: tracing myself\n");
-	  }
-	  raise(SIGSTOP);
-	  int rc = execle("/bin/bash", "eos-bash", "-c", cline.c_str(), NULL, envv);
-	  fprintf(stderr,"rc=%d\n", rc);
-	  exit(0);
-	} else {
-	  if (ptrace(EOS_PTRACE_ATTACH, pid, 0, 0)) {
-	    fprintf(stderr,"error: failed to attach to forked process pid=%d errno=%d\n", pid, errno);
-	    if (exit_on_failure) {
-	      exit(-1);
+	    if (ptrace(EOS_PTRACE_ATTACH, pid, 0, 0)) {
+	      kill(pid,SIGKILL);
+	      fprintf(stderr,"error: failed to attach to forked process pid=%d errno=%d - we are untraceable\n", pid, errno);
+	      if (exit_on_failure) {
+		exit(-1);
+	      }
+	    } else {
+	      ptrace(EOS_PTRACE_DETACH, pid, 0, 0);
+	      kill(pid,9);
+	      waitpid(pid, 0, 0);
 	    }
 	  }
+	}
+	if (!(pid=fork())) {
+	  int rc = execle("/bin/bash", "eos-bash", "-c", cline.c_str(), NULL, envv);
+	  exit(0);
+	} else {
 	  waitpid(pid, 0, 0);
 	}
       }
@@ -333,7 +340,7 @@ com_daemon_usage:
   fprintf(stdout,
 	  "                stack                                                 -  print an 'eu-stack'\n");
   fprintf(stdout,
-	  "                stack                                                 -  kill -15 a given service\n");
+	  "                stop                                                  -  kill -15 a given service\n");
   fprintf(stdout,"\n");
   fprintf(stdout,
 	  "      examples: eos daemon config qdb qdb coup                        -  try to make instance [qdb] a leader of QDB\n");
