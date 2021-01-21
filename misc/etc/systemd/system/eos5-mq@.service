@@ -7,7 +7,7 @@ After=eos5.service
 
 [Service]
 # Pretend that the component is running
-ExecStart=/usr/bin/eos daemon mq run %i
+ExecStart=/usr/bin/eos daemon run mq %i
 # Restart the service on non-zero exit code when terminated by a signal other than SIGHUP, SIGINT, SIGTERM or SIGPIPE
 Restart=on-failure
 
