@@ -141,7 +141,7 @@ KRB5RCACHETYPE=none
 EOS_MGM_HOST=${SERVER_HOST}
 
 # The fully qualified hostname of target MGM
-EOS_MGM_HOST_TARGET=${MGM_HOST}
+EOS_MGM_HOST_TARGET=${SERVER_HOST}
 
 # Don't manage sync service
 EOS_START_SYNC_SEPARATELY=1
@@ -159,13 +159,13 @@ EOS_BROKER_URL=root://localhost:1097//eos/
 EOS_GEOTAG=${GEO_TAG}
 
 # The fully qualified hostname of MGM master1
-EOS_MGM_MASTER1=${MGM_HOST}
+EOS_MGM_MASTER1=${SERVER_HOST}
 
 # The fully qualified hostname of MGM master2
-EOS_MGM_MASTER2=${MGM_HOST}
+EOS_MGM_MASTER2=${SERVER_HOST}
 
 # The alias which selects master 1 or 2
-EOS_MGM_ALIAS=${MGM_HOST}
+EOS_MGM_ALIAS=${SERVER_HOST}
 
 # Disable stack trace via GDB
 EOS_NO_STACKTRACE=1
