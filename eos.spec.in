@@ -393,17 +393,6 @@ Requires: xrootd >= %{xrootd_version_min}
 Requires: xrootd-client >= %{xrootd_version_min}
 %endif
 
-# ----------------------
-# select fuse3 package
-# ----------------------
-%if ! %{without eos_fuse3_rh}
-%if 0%{?distribution} == 7 || 0%{?distribution} == 8
-Requires: eos-fuse3, eos-fuse3-libs >= 3.10
-%else
-Requires: fuse3 >= 3.10
-%endif
-%endif
-
 Requires: eos-client = @CPACK_PACKAGE_VERSION@
 Requires: libmicrohttpd >= 0.9.38
 Requires: acl
@@ -910,6 +899,17 @@ Requires: xrootd-client >= %{xrootd_version_min}
 %endif
 %else
 Requires: xrootd-client >= %{xrootd_version_min}
+%endif
+
+# ----------------------
+# select fuse3 package
+# ----------------------
+%if ! %{without eos_fuse3_rh}
+%if 0%{?distribution} == 7 || 0%{?distribution} == 8
+Requires: eos-fuse3, eos-fuse3-libs >= 3.10
+%else
+Requires: fuse3 >= 3.10
+%endif
 %endif
 
 Requires: eos-client = @CPACK_PACKAGE_VERSION@
