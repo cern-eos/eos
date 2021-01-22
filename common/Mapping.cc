@@ -57,7 +57,6 @@ Mapping::AllowedTidentMatches_t Mapping::gAllowedTidentMatches;
 XrdSysMutex Mapping::ActiveLock;
 
 google::dense_hash_map<std::string, time_t> Mapping::ActiveTidents;
-google::dense_hash_map<uid_t,size_t> Mapping::ActiveUids;
 
 XrdOucHash<Mapping::id_pair> Mapping::gPhysicalUidCache;
 XrdOucHash<Mapping::gid_set> Mapping::gPhysicalGidCache;
@@ -87,8 +86,6 @@ Mapping::Init()
   ActiveTidents.set_empty_key("#__EMPTY__#");
   ActiveTidents.set_deleted_key("#__DELETED__#");
 
-  ActiveUids.set_empty_key(2147483646);
-  ActiveUids.set_deleted_key(2147483647);
   // allow FUSE client access as root via env variable
   if (getenv("EOS_FUSE_NO_ROOT_SQUASH") &&
       !strcmp("1", getenv("EOS_FUSE_NO_ROOT_SQUASH"))) {
@@ -120,7 +117,6 @@ Mapping::Reset()
   {
     XrdSysMutexHelper mLock(ActiveLock);
     ActiveTidents.clear();
-    ActiveUids.clear();
   }
 }
 
@@ -150,7 +146,6 @@ Mapping::ActiveExpire(int interval, bool force)
       if ((now - it1->second) > interval) {
         it2 = it1;
         ++it1;
-	Mapping::ActiveUids.erase(Mapping::UidFromTident(it2->first));
         Mapping::ActiveTidents.erase(it2);
       } else {
         ++it1;
@@ -158,7 +153,6 @@ Mapping::ActiveExpire(int interval, bool force)
     }
 
     Mapping::ActiveTidents.resize(0);
-    Mapping::ActiveUids.resize(0);
     expire = now + 1800;
   }
 }
@@ -986,11 +980,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     snprintf(actident, sizeof(actident) - 1, "%d^%s^%s^%s^%s", vid.uid,
              mytident.c_str(), vid.prot.c_str(), vid.host.c_str(), vid.app.c_str());
     std::string intident = actident;
-    if (!ActiveTidents.count(intident)) {
-      ActiveUids[vid.uid]++;
-    }
     ActiveTidents[intident] = now;
-
   }
 
   ActiveLock.UnLock();
@@ -1016,28 +1006,23 @@ Mapping::HandleVOMS(const XrdSecEntity* client, VirtualIdentity& vid)
   }
 
   std::string group = client->grps;
-  size_t g_pos = group.find(" ");
+  std::string role = client->role;
 
-  if (g_pos != std::string::npos) {
-    group.erase(g_pos);
-  }
+  size_t g_pos = group.find(" ");
+  size_t r_pos = role.find(" ");
+
+  if (g_pos != std::string::npos) {group.erase(g_pos);}
+  if (r_pos != std::string::npos) {role.erase(r_pos);}
 
   // VOMS mapping
   std::string vomsstring = "voms:\"";
   vomsstring += group;
   vomsstring += ":";
+
   vid.grps = group;
 
-  if (client->role && strlen(client->role) &&
-      (strncmp(client->role, "NULL", 4) != 0)) {
+  if (client->role) {
     // the role might be NULL
-    std::string role = client->role;
-    size_t r_pos = role.find(" ");
-
-    if (r_pos != std::string::npos) {
-      role.erase(r_pos);
-    }
-
     vomsstring += role;
     vid.role = role;
   }
@@ -1386,7 +1371,7 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
             delete id;
           }
 
-          if (sname.beginswith("*") || sname.beginswith("_")) {
+	  if (sname.beginswith("*") || sname.beginswith("_")) {
             id = new id_pair((bituser >> 22) & 0xfffff, (bituser >> 6) & 0xffff);
           } else {
             // only user id got forwarded, we retrieve the corresponding group
@@ -1632,6 +1617,7 @@ Mapping::UserNameToUid(const std::string& username, int& errc)
     XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
 
     if (gPhysicalUserIdCache.count(username)) {
+      fprintf(stderr, "returning from cache: %d\n", gPhysicalUserIdCache[username]);
       return gPhysicalUserIdCache[username];
     }
   }
@@ -1769,25 +1755,21 @@ Mapping::ip_cache::GetIp(const char* hostname)
   }
   {
     // refresh an entry
-    XrdNetAddr* addrs  = 0;
+    XrdNetAddr *addrs  = 0;
     int         nAddrs = 0;
-    const char* err    = XrdNetUtils::GetAddrs(hostname, &addrs, nAddrs,
-                         XrdNetUtils::allIPv64,
-                         XrdNetUtils::NoPortRaw);
-
-    if (err || nAddrs == 0) {
-      return "";
-    }
-
+    const char* err    = XrdNetUtils::GetAddrs( hostname, &addrs, nAddrs,
+                                                XrdNetUtils::allIPv64,
+                                                XrdNetUtils::NoPortRaw );
+    if( err || nAddrs == 0 ) return "";
     char buffer[64];
-    int hostlen = addrs[0].Format(buffer, sizeof(buffer),
-                                  XrdNetAddrInfo::fmtAddr,
-                                  XrdNetAddrInfo::noPortRaw);
+    int hostlen = addrs[0].Format( buffer, sizeof( buffer ),
+                                   XrdNetAddrInfo::fmtAddr,
+                                   XrdNetAddrInfo::noPortRaw );
     delete [] addrs;
 
     if (hostlen > 0) {
       RWMutexWriteLock guard(mLocker);
-      std::string sip(buffer, hostlen);
+      std::string sip( buffer, hostlen );
       mIp2HostMap[hostname] = std::make_pair(now + mLifeTime, sip);
       eos_static_debug("status=refresh host=%s ip=%s", hostname,
                        mIp2HostMap[hostname].second.c_str());
@@ -2066,47 +2048,6 @@ Mapping::IsOAuth2Resource(const std::string& resource)
   uidkey += resource;
   uidkey += "\":uid";
   return gVirtualUidMap.count(uidkey.c_str());
-}
-
-
-//------------------------------------------------------------------------------
-//! Decode the uid from a trace ID string
-//------------------------------------------------------------------------------
-uid_t
-Mapping::UidFromTident(const std::string& tident)
-{
-  std::vector<std::string> tokens;
-  std::string delimiter = "^";
-  eos::common::StringConversion::Tokenize(tident, tokens, delimiter);
-  if (tokens.size()) {
-    return atoi(tokens[0].c_str());
-  }
-  return 0;
-}
-
-
-//------------------------------------------------------------------------------
-//! Return number of active sessions for a given uid
-//------------------------------------------------------------------------------
-size_t
-Mapping::ActiveSessions(uid_t uid)
-{
-  XrdSysMutexHelper mLock(ActiveLock);
-  size_t ActiveSession(uid_t uid);
-  auto n = ActiveUids.find(uid);
-  if (n != ActiveUids.end()) {
-    return n->second;
-  } else {
-    return 0;
-  }
-}
-
-
-size_t
-Mapping::ActiveSessions()
-{
-  XrdSysMutexHelper mLock(ActiveLock);
-  return ActiveTidents.size();
 }
 
 /*----------------------------------------------------------------------------*/
