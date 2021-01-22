@@ -1005,16 +1005,26 @@ Mapping::HandleVOMS(const XrdSecEntity* client, VirtualIdentity& vid)
     return;
   }
 
+  std::string group = client->grps;
+  std::string role = client->role;
+
+  size_t g_pos = group.find(" ");
+  size_t r_pos = role.find(" ");
+
+  if (g_pos != std::string::npos) {group.erase(g_pos);}
+  if (r_pos != std::string::npos) {role.erase(r_pos);}
+
   // VOMS mapping
   std::string vomsstring = "voms:\"";
-  vomsstring += client->grps;
+  vomsstring += group;
   vomsstring += ":";
-  vid.grps = client->grps;
+
+  vid.grps = group;
 
   if (client->role) {
     // the role might be NULL
-    vomsstring += client->role;
-    vid.role = client->role;
+    vomsstring += role;
+    vid.role = role;
   }
 
   vomsstring += "\"";
