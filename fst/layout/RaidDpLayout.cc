@@ -21,14 +21,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
+#include "fst/layout/RaidDpLayout.hh"
+#include "fst/io/AsyncMetaHandler.hh"
 #include <cmath>
 #include <map>
 #include <sys/types.h>
-/*----------------------------------------------------------------------------*/
-#include "fst/layout/RaidDpLayout.hh"
-#include "fst/io/AsyncMetaHandler.hh"
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -55,36 +52,28 @@ RaidDpLayout::RaidDpLayout(XrdFstOfsFile* file,
   mSizeLine = mNbDataFiles * mStripeWidth;
 }
 
-
-//------------------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------------------
-RaidDpLayout::~RaidDpLayout()
-{
-  // empty
-}
-
-
 //------------------------------------------------------------------------------
 // Compute simple and double parity blocks
 //------------------------------------------------------------------------------
 bool
-RaidDpLayout::ComputeParity()
+RaidDpLayout::ComputeParity(std::shared_ptr<eos::fst::RainGroup>& grp)
 {
+  eos::fst::RainGroup& data_blocks = *grp.get();
+
   // Compute simple parity
   for (unsigned int i = 0; i < mNbDataFiles; i++) {
     int index_pblock = (i + 1) * mNbDataFiles + 2 * i;
     int current_block = i * (mNbDataFiles + 2); //beginning of current line
-    OperationXOR(mDataBlocks[current_block],
-                 mDataBlocks[current_block + 1],
-                 mDataBlocks[index_pblock],
+    OperationXOR(data_blocks[current_block](),
+                 data_blocks[current_block + 1](),
+                 data_blocks[index_pblock](),
                  mStripeWidth);
     current_block += 2;
 
     while (current_block < index_pblock) {
-      OperationXOR(mDataBlocks[index_pblock],
-                   mDataBlocks[current_block],
-                   mDataBlocks[index_pblock],
+      OperationXOR(data_blocks[index_pblock](),
+                   data_blocks[current_block](),
+                   data_blocks[index_pblock](),
                    mStripeWidth);
       current_block++;
     }
@@ -102,9 +91,9 @@ RaidDpLayout::ComputeParity()
   for (unsigned int i = 0; i < mNbDataFiles; i++) {
     unsigned int index_dpblock = (i + 1) * (mNbDataFiles + 1) + i;
     unsigned int next_block = i + jump_blocks;
-    OperationXOR(mDataBlocks[i],
-                 mDataBlocks[next_block],
-                 mDataBlocks[index_dpblock],
+    OperationXOR(data_blocks[i](),
+                 data_blocks[next_block](),
+                 data_blocks[index_dpblock](),
                  mStripeWidth);
     used_blocks.push_back(i);
     used_blocks.push_back(next_block);
@@ -125,9 +114,9 @@ RaidDpLayout::ComputeParity()
         }
       }
 
-      OperationXOR(mDataBlocks[index_dpblock],
-                   mDataBlocks[next_block],
-                   mDataBlocks[index_dpblock],
+      OperationXOR(data_blocks[index_dpblock](),
+                   data_blocks[next_block](),
+                   data_blocks[index_dpblock](),
                    mStripeWidth);
       used_blocks.push_back(next_block);
     }
@@ -185,7 +174,6 @@ RaidDpLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
   // Obs: RecoverPiecesInGroup also checks the simple and double parity blocks
   int64_t nread = 0;
   bool ret = true;
-  bool* status_blocks;
   uint64_t offset_local;
   unsigned int stripe_id;
   unsigned int physical_id;
@@ -197,7 +185,9 @@ RaidDpLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
   XrdCl::ChunkList found_errs;
   vector<unsigned int> simple_parity = GetSimpleParityIndices();
   vector<unsigned int> double_parity = GetDoubleParityIndices();
-  status_blocks = static_cast<bool*>(calloc(mNbTotalBlocks, sizeof(bool)));
+  std::vector<bool> status_blocks(mNbTotalBlocks, false);
+  std::shared_ptr<eos::fst::RainGroup> grp = GetGroup(offset_group);
+  eos::fst::RainGroup& data_blocks = *grp.get();
 
   // Reset all the async handlers
   for (unsigned int i = 0; i < mStripe.size(); i++) {
@@ -212,7 +202,6 @@ RaidDpLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
 
   // Read the current group of blocks
   for (unsigned int i = 0; i < mNbTotalBlocks; i++) {
-    memset(mDataBlocks[i], 0, mStripeWidth);
     status_blocks[i] = true;
     stripe_id = i % mNbTotalFiles;
     physical_id = mapLP[stripe_id];
@@ -223,7 +212,7 @@ RaidDpLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
     // Read data from stripe
     if (mStripe[physical_id]) {
       // Enable readahead
-      nread = mStripe[physical_id]->fileReadPrefetch(offset_local, mDataBlocks[i],
+      nread = mStripe[physical_id]->fileReadPrefetch(offset_local, data_blocks[i](),
               mStripeWidth, mTimeout);
 
       if (nread != (int64_t)mStripeWidth) {
@@ -274,8 +263,8 @@ RaidDpLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
   }
 
   if (corrupt_ids.empty()) {
-    free(status_blocks);
     eos_warning("warning=no corrupted blocks, although we saw some before");
+    RecycleGroup(grp);
     return true;
   }
 
@@ -291,14 +280,13 @@ RaidDpLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
     corrupt_ids.erase(iter);
 
     if (ValidHorizStripe(horizontal_stripe, status_blocks, id_corrupted)) {
-      // Try to recover using simple parity
-      memset(mDataBlocks[id_corrupted], 0, mStripeWidth);
+      data_blocks[id_corrupted].FillWithZeros(true);
 
       for (unsigned int ind = 0; ind < horizontal_stripe.size(); ind++) {
         if (horizontal_stripe[ind] != id_corrupted) {
-          OperationXOR(mDataBlocks[id_corrupted],
-                       mDataBlocks[horizontal_stripe[ind]],
-                       mDataBlocks[id_corrupted],
+          OperationXOR(data_blocks[id_corrupted](),
+                       data_blocks[horizontal_stripe[ind]](),
+                       data_blocks[id_corrupted](),
                        mStripeWidth);
         }
       }
@@ -312,7 +300,7 @@ RaidDpLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
 
       if (mStoreRecovery && mStripe[physical_id]) {
         nwrite = mStripe[physical_id]->fileWriteAsync(offset_local,
-                 mDataBlocks[id_corrupted],
+                 data_blocks[id_corrupted](),
                  mStripeWidth,
                  mTimeout);
 
@@ -335,7 +323,7 @@ RaidDpLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
           if ((offset >= (offset_group + MapBigToSmall(id_corrupted) * mStripeWidth)) &&
               (offset < (offset_group + (MapBigToSmall(id_corrupted) + 1) * mStripeWidth))) {
             chunk->buffer = static_cast<char*>
-                            (memcpy(chunk->buffer, mDataBlocks[id_corrupted] + (offset % mStripeWidth),
+                            (memcpy(chunk->buffer, data_blocks[id_corrupted]() + (offset % mStripeWidth),
                                     chunk->length));
           }
         }
@@ -351,13 +339,13 @@ RaidDpLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
     } else {
       // Try to recover using double parity
       if (ValidDiagStripe(diagonal_stripe, status_blocks, id_corrupted)) {
-        memset(mDataBlocks[id_corrupted], 0, mStripeWidth);
+        data_blocks[id_corrupted].FillWithZeros(true);
 
         for (unsigned int ind = 0; ind < diagonal_stripe.size(); ind++) {
           if (diagonal_stripe[ind] != id_corrupted) {
-            OperationXOR(mDataBlocks[id_corrupted],
-                         mDataBlocks[diagonal_stripe[ind]],
-                         mDataBlocks[id_corrupted],
+            OperationXOR(data_blocks[id_corrupted](),
+                         data_blocks[diagonal_stripe[ind]](),
+                         data_blocks[id_corrupted](),
                          mStripeWidth);
           }
         }
@@ -371,7 +359,7 @@ RaidDpLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
 
         if (mStoreRecovery && mStripe[physical_id]) {
           nwrite = mStripe[physical_id]->fileWriteAsync(offset_local,
-                   mDataBlocks[id_corrupted],
+                   data_blocks[id_corrupted](),
                    mStripeWidth,
                    mTimeout);
 
@@ -394,7 +382,7 @@ RaidDpLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
             if ((offset >= (offset_group + MapBigToSmall(id_corrupted) * mStripeWidth)) &&
                 (offset < (offset_group + (MapBigToSmall(id_corrupted) + 1) * mStripeWidth))) {
               chunk->buffer = static_cast<char*>
-                              (memcpy(chunk->buffer, mDataBlocks[id_corrupted] + (offset % mStripeWidth),
+                              (memcpy(chunk->buffer, data_blocks[id_corrupted]() + (offset % mStripeWidth),
                                       chunk->length));
             }
           }
@@ -441,74 +429,16 @@ RaidDpLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
     ret = false;
   }
 
-  free(status_blocks);
+  RecycleGroup(grp);
   return ret;
 }
-
-
-//------------------------------------------------------------------------------
-// Add a new data used to compute parity block
-//------------------------------------------------------------------------------
-void
-RaidDpLayout::AddDataBlock(uint64_t offset,
-                           const char* buffer,
-                           uint32_t length)
-{
-  int indx_block;
-  uint32_t nwrite;
-  uint64_t offset_in_block;
-  uint64_t offset_in_group = offset % mSizeGroup;
-
-  if ((mOffGroupParity == -1) && (offset < mSizeGroup)) {
-    mOffGroupParity = 0;
-  }
-
-  if (offset_in_group == 0) {
-    mFullDataBlocks = false;
-
-    for (unsigned int i = 0; i < mNbTotalBlocks; i++) {
-      mDataBlocks[i] = static_cast<char*>(memset(mDataBlocks[i], 0, mStripeWidth));
-    }
-  }
-
-  char* ptr;
-  uint32_t available_len;
-
-  while (length) {
-    offset_in_block = offset_in_group % mStripeWidth;
-    available_len = mStripeWidth - offset_in_block;
-    indx_block = MapSmallToBig(offset_in_group / mStripeWidth);
-    nwrite = (length > available_len) ? available_len : length;
-    ptr = mDataBlocks[indx_block];
-    ptr += offset_in_block;
-    ptr = static_cast<char*>(memcpy(ptr, buffer, nwrite));
-    offset += nwrite;
-    length -= nwrite;
-    buffer += nwrite;
-    offset_in_group = offset % mSizeGroup;
-
-    if (offset_in_group == 0) {
-      // We completed a group, we can compute parity
-      mOffGroupParity = ((offset - 1) / mSizeGroup) * mSizeGroup;
-      mFullDataBlocks = true;
-      DoBlockParity(mOffGroupParity);
-      mOffGroupParity += mSizeGroup;
-
-      for (unsigned int i = 0; i < mNbTotalBlocks; i++) {
-        mDataBlocks[i] = static_cast<char*>(memset(mDataBlocks[i], 0, mStripeWidth));
-      }
-    }
-  }
-}
-
 
 //------------------------------------------------------------------------------
 // Write the parity blocks from mDataBlocks to the corresponding file stripes
 //------------------------------------------------------------------------------
 int
-RaidDpLayout::WriteParityToFiles(uint64_t offGroup)
+RaidDpLayout::WriteParityToFiles(std::shared_ptr<eos::fst::RainGroup>& grp)
 {
-  eos_debug("offGroup = %zu", offGroup);
   int ret = SFS_OK;
   int64_t nwrite = 0;
   uint64_t off_parity_local;
@@ -516,6 +446,8 @@ RaidDpLayout::WriteParityToFiles(uint64_t offGroup)
   unsigned int index_dpblock;
   unsigned int physical_pindex = mapLP[mNbTotalFiles - 2];
   unsigned int physical_dpindex = mapLP[mNbTotalFiles - 1];
+  eos::fst::RainGroup& data_blocks = *grp.get();
+  uint64_t offGroup = grp->GetGroupOffset();
 
   for (unsigned int i = 0; i < mNbDataFiles; i++) {
     index_pblock = (i + 1) * mNbDataFiles + 2 * i;
@@ -526,17 +458,17 @@ RaidDpLayout::WriteParityToFiles(uint64_t offGroup)
     // Writing simple parity
     if (mStripe[physical_pindex]) {
       nwrite = mStripe[physical_pindex]->fileWriteAsync(off_parity_local,
-               mDataBlocks[index_pblock],
-               mStripeWidth,
-               mTimeout);
+               data_blocks[index_pblock](),
+               mStripeWidth, mTimeout);
 
       if (nwrite != (int64_t)mStripeWidth) {
-        eos_err("error while writing simple parity information");
+        eos_static_err("msg=\"failed write operation simple parity\" "
+                       "stripe=%u local_offset=%llu", i, off_parity_local);
         ret = SFS_ERROR;
         break;
       }
     } else {
-      eos_err("file not opened for simple parity write");
+      eos_static_err("%s", "msg=\"file not opened for simple parity write\"");
       ret = SFS_ERROR;
       break;
     }
@@ -544,17 +476,17 @@ RaidDpLayout::WriteParityToFiles(uint64_t offGroup)
     // Writing double parity
     if (mStripe[physical_dpindex]) {
       nwrite = mStripe[physical_dpindex]->fileWriteAsync(off_parity_local,
-               mDataBlocks[index_dpblock],
-               mStripeWidth,
-               mTimeout);
+               data_blocks[index_dpblock](),
+               mStripeWidth, mTimeout);
 
       if (nwrite != (int64_t)mStripeWidth) {
-        eos_err("error while writing double parity information");
+        eos_static_err("msg=\"failed write operation double parity\" "
+                       "stripe=%u local_offset=%llu", i, off_parity_local);
         ret = SFS_ERROR;
         break;
       }
     } else {
-      eos_err("file not opened for double parity write");
+      eos_static_err("%s", "msg=\"file not opened for double parity write\"");
       ret = SFS_ERROR;
       break;
     }
@@ -614,7 +546,7 @@ RaidDpLayout::GetDoubleParityIndices()
 //------------------------------------------------------------------------------
 bool
 RaidDpLayout::ValidDiagStripe(std::vector<unsigned int>& rStripes,
-                              bool* pStatusBlocks,
+                              const std::vector<bool>& pStatusBlocks,
                               unsigned int blockId)
 {
   int corrupted = 0;
@@ -650,7 +582,7 @@ RaidDpLayout::ValidDiagStripe(std::vector<unsigned int>& rStripes,
 //------------------------------------------------------------------------------
 bool
 RaidDpLayout::ValidHorizStripe(std::vector<unsigned int>& rStripes,
-                               bool* pStatusBlock,
+                               const std::vector<bool>& pStatusBlock,
                                unsigned int blockId)
 {
   int corrupted = 0;

@@ -132,6 +132,8 @@ add_library(EosFstIo-Objects OBJECT
   layout/PlainLayout.cc          layout/PlainLayout.hh
   layout/HeaderCRC.cc            layout/HeaderCRC.hh
   layout/ReplicaParLayout.cc     layout/ReplicaParLayout.hh
+  layout/RainBlock.cc            layout/RainBlock.hh
+  layout/RainGroup.cc            layout/RainGroup.hh
   layout/RainMetaLayout.cc       layout/RainMetaLayout.hh
   layout/RaidDpLayout.cc         layout/RaidDpLayout.hh
   layout/ReedSLayout.cc          layout/ReedSLayout.hh)

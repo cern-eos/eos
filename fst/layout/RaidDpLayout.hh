@@ -104,42 +104,27 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~RaidDpLayout();
+  virtual ~RaidDpLayout() = default;
 
 
 private:
-
-  //----------------------------------------------------------------------------
-  //! Add data block to compute parity stripes for current group of blocks
-  //! - used for the streaming mode
+  //------------------------------------------------------------------------------
+  //! Compute error correction blocks
   //!
-  //! @param offset block offset
-  //! @param buffer data buffer
-  //! @param length data length
-  //!
-  //----------------------------------------------------------------------------
-  virtual void AddDataBlock(uint64_t offset, const char* buffer, uint32_t length);
-
-
-  //----------------------------------------------------------------------------
-  //! Compute parity information
+  //! @param grp group object for parity computation
   //!
   //! @return true if parity info computed successfully, otherwise false
-  //!
   //------------------------------------------------------------------------------
-  virtual bool ComputeParity();
-
+  virtual bool ComputeParity(std::shared_ptr<eos::fst::RainGroup>& grp);
 
   //----------------------------------------------------------------------------
   //! Write parity information corresponding to a group to files
   //!
-  //! @param offsetGroup offset of the group of blocks
+  //! @param grp group object
   //!
   //! @return 0 if successful, otherwise error
-  //!
   //----------------------------------------------------------------------------
-  virtual int WriteParityToFiles(uint64_t offsetGroup);
-
+  virtual int WriteParityToFiles(std::shared_ptr<eos::fst::RainGroup>& grp);
 
   //----------------------------------------------------------------------------
   //! Compute XOR operation for two blocks of any size
@@ -148,13 +133,9 @@ private:
   //! @param pBlock2 second input block
   //! @param pResult result of XOR operation
   //! @param totalBytes size of input blocks
-  //!
   //----------------------------------------------------------------------------
-  void OperationXOR(char* pBlock1,
-                    char* pBlock2,
-                    char* pResult,
+  void OperationXOR(char* pBlock1, char* pBlock2, char* pResult,
                     size_t totalBytes);
-
 
   //----------------------------------------------------------------------------
   //! Recover corrupted chunks from the current group
@@ -162,10 +143,8 @@ private:
   //! @param grp_errs chunks to be recovered
   //!
   //! @return true if recovery successful, false otherwise
-  //!
   //----------------------------------------------------------------------------
   virtual bool RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs);
-
 
   //----------------------------------------------------------------------------
   //! Return diagonal stripe corresponding to current block
@@ -173,10 +152,8 @@ private:
   //! @param blockId block id
   //!
   //! @return vector containing the blocks on the diagonal stripe
-  //!
   //----------------------------------------------------------------------------
   std::vector<unsigned int> GetDiagonalStripe(unsigned int blockId);
-
 
   //----------------------------------------------------------------------------
   //! Validate horizontal stripe for a block index
@@ -186,12 +163,10 @@ private:
   //! @param blockId current block index
   //!
   //! @return true if successful, otherwise false
-  //!
   //----------------------------------------------------------------------------
   bool ValidHorizStripe(std::vector<unsigned int>& rStripes,
-                        bool* pStatusBlock,
+                        const std::vector<bool>& pStatusBlock,
                         unsigned int blockId);
-
 
   //----------------------------------------------------------------------------
   //! Validate diagonal stripe for a block index
@@ -204,7 +179,7 @@ private:
   //!
   //----------------------------------------------------------------------------
   bool ValidDiagStripe(std::vector<unsigned int>& rStripes,
-                       bool* pStatusBlock,
+                       const std::vector<bool>& pStatusBlock,
                        unsigned int blockId);
 
 

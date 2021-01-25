@@ -27,6 +27,7 @@
 #include <string>
 #include <list>
 #include "fst/layout/Layout.hh"
+#include "fst/layout/RainGroup.hh"
 
 class XrdFstOfsFile;
 
@@ -271,7 +272,6 @@ protected:
   bool mDoTruncate; ///< mark if there is a need to truncate
   bool mUpdateHeader; ///< mark if header updated
   bool mDoneRecovery; ///< mark if recovery done
-  bool mFullDataBlocks; ///< mark if we have all data blocks to compute parity
   bool mIsStreaming; ///< file is written in streaming mode
   bool mStoreRecovery; ///< set if recovery also triggers writing back to the
   ///< files, this also means that all files must be available
@@ -290,26 +290,65 @@ protected:
   uint64_t mFileSize; ///< total size of current file
   uint64_t mTargetSize; ///< expected final size (?!)
   uint64_t mSizeLine; ///< size of a line in a group
-  int64_t mOffGroupParity; ///< offset of the last group for which we
   ///< computed the parity blocks
   uint64_t mSizeGroup; ///< size of a group of blocks
   ///< eg. RAIDDP: group = noDataStr^2 blocks
 
   std::string mBookingOpaque; ///< opaque information
-  std::vector<char*> mDataBlocks; ///< vector containing the data in a group
   std::vector<FileIo*> mStripe; ///< file IO layout obj for each stripe
   std::vector<HeaderCRC*> mHdrInfo; ///< headers of the stripe files
   std::map<unsigned int, unsigned int> mapLP; ///< map of url to stripes
   std::map<unsigned int, unsigned int> mapPL; ///< map of stripes to url
   std::map<uint64_t, uint32_t> mMapPieces; ///< map of pieces written for which
   ///< parity computation has not been done yet
-  std::string mLastErrMsg; ///< last error messages ssen
+  std::string mLastErrMsg; ///< last error messages seen
+  uint8_t mMaxGroups {2};
+  std::mutex mMutexGroups;
+  std::condition_variable mCvGroups;
+  std::map<uint64_t, std::shared_ptr<eos::fst::RainGroup>> mMapGroups;
+
+  //----------------------------------------------------------------------------
+  //! Get group corresponding to the given offset or create one if it doesn't
+  //! exist. Also if there are already mMaxGroups in the map this will block
+  //! waiting for a slot to be freed.
+  //!
+  //! @param offset given offset
+  //----------------------------------------------------------------------------
+  std::shared_ptr<eos::fst::RainGroup> GetGroup(uint64_t offset);
+
+  //----------------------------------------------------------------------------
+  //! Get a list of all the groups in the map
+  //----------------------------------------------------------------------------
+  std::list<std::shared_ptr<eos::fst::RainGroup>> GetAllGroups();
+
+  //----------------------------------------------------------------------------
+  //! Add new data block to the current group for parity computation. The pice
+  //! must already be aligned so that it fits in one block of the group. This
+  //! is specially used when writing in streaming mode.
+  //!
+  //! @param offset offset of the block added
+  //! @param buffer data contained in the block
+  //! @param length length of the data
+  //! @param file file where this piece should be written
+  //! @param file_off offset in file
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool AddDataBlock(uint64_t offset, const char* buffer, uint32_t length,
+                    eos::fst::FileIo* file, uint64_t file_offset);
+
+  //----------------------------------------------------------------------------
+  //! Recycle given group by destroying the group object if there are no more
+  //! reffeence to it.
+  //!
+  //! @param group shared object referring to the group
+  //----------------------------------------------------------------------------
+  void RecycleGroup(std::shared_ptr<eos::fst::RainGroup>& group);
 
   //----------------------------------------------------------------------------
   //! Test and recover any corrupted headers in the stripe files
   //----------------------------------------------------------------------------
   virtual bool ValidateHeader();
-
 
   //----------------------------------------------------------------------------
   //! Recover corrupted chunks for the whole file
@@ -317,22 +356,18 @@ protected:
   //! @param errs list of chunks for which recovery is to be done
   //!
   //! @return true if recovery successful, false otherwise
-  //!
   //----------------------------------------------------------------------------
   virtual bool RecoverPieces(XrdCl::ChunkList& errs);
-
 
   //----------------------------------------------------------------------------
   //! Compute and write parity blocks corresponding to a group of blocks
   //!
-  //! @param offsetGroup offset of group of blocks
+  //! @param grp_off group offset
   //!
   //! @return true if successfully computed the parity and wrote it to the
   //!         corresponding files, otherwise false
-  //!
   //----------------------------------------------------------------------------
-  virtual bool DoBlockParity(uint64_t offGroup);
-
+  virtual bool DoBlockParity(uint64_t grp_off);
 
   //----------------------------------------------------------------------------
   //! Recover corrupted chunks from the current group
@@ -340,44 +375,26 @@ protected:
   //! @param grp_errs chunks to be recovered
   //!
   //! @return true if recovery successful, false otherwise
-  //!
   //----------------------------------------------------------------------------
   virtual bool RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs) = 0;
-
-
-  //----------------------------------------------------------------------------
-  //! Add new data block to the current group for parity computation, used
-  //! when writing a file in streaming mode
-  //!
-  //! @param offset offset of the block added
-  //! @param buffer data contained in the block
-  //! @param length length of the data
-  //!
-  //----------------------------------------------------------------------------
-  virtual void AddDataBlock(uint64_t offset,
-                            const char* buffer,
-                            uint32_t length) = 0;
-
 
   //------------------------------------------------------------------------------
   //! Compute error correction blocks
   //!
-  //! @return true if parity info computed successfully, otherwise false
+  //! @param grp group object for parity computation
   //!
+  //! @return true if parity info computed successfully, otherwise false
   //------------------------------------------------------------------------------
-  virtual bool ComputeParity() = 0;
-
+  virtual bool ComputeParity(std::shared_ptr<eos::fst::RainGroup>& grp) = 0;
 
   //----------------------------------------------------------------------------
   //! Write parity information corresponding to a group to files
   //!
-  //! @param offsetGroup offset of the group of blocks
+  //! @param grp group object
   //!
   //! @return 0 if successful, otherwise error
-  //!
   //----------------------------------------------------------------------------
-  virtual int WriteParityToFiles(uint64_t offsetGroup) = 0;
-
+  virtual int WriteParityToFiles(std::shared_ptr<eos::fst::RainGroup>& grp) = 0;
 
   //----------------------------------------------------------------------------
   //! Map index from mNbDataBlocks representation to mNbTotalBlocks
@@ -385,10 +402,8 @@ protected:
   //! @param idSmall with values between 0 and 15, for exmaple in RAID-DP
   //!
   //! @return index with values between 0 and 23, -1 if error
-  //!
   //----------------------------------------------------------------------------
   virtual unsigned int MapSmallToBig(unsigned int idSmall) = 0;
-
 
   //----------------------------------------------------------------------------
   //! Non-streaming operation
@@ -400,24 +415,18 @@ protected:
   //!              a write operation when closing the file
   //!
   //! @return true if successful, otherwise error
-  //!
   //----------------------------------------------------------------------------
   bool SparseParityComputation(bool force);
 
-
-
 private:
-
   //----------------------------------------------------------------------------
   //! Non-streaming operation
   //! Add a new piece to the map of pieces written to the file
   //!
   //! @param offset offset of the new piece added
   //! @param length length of the new piece added
-  //!
   //----------------------------------------------------------------------------
   void AddPiece(uint64_t offset, uint32_t length);
-
 
   //----------------------------------------------------------------------------
   //! Non-streaming operation
@@ -425,17 +434,14 @@ private:
   //----------------------------------------------------------------------------
   void MergePieces();
 
-
   //----------------------------------------------------------------------------
   //! Non-streaming operation
   //! Get a list of the group offsets for which we can compute the parity info
   //!
   //! @param offsetGroups set of group offsets
   //! @param forceAll if true return also offsets of incomplete groups
-  //!
   //----------------------------------------------------------------------------
   void GetOffsetGroups(std::set<uint64_t>& offsetGroups, bool forceAll);
-
 
   //----------------------------------------------------------------------------
   //! Non-streaming operation
@@ -444,10 +450,8 @@ private:
   //! @param offsetGroup offset of the group about to be read
   //!
   //! @return true if operation successful, otherwise error
-  //!
   //----------------------------------------------------------------------------
   bool ReadGroup(uint64_t offsetGroup);
-
 
   //----------------------------------------------------------------------------
   //! Convert a global offset (from the inital file) to a local offset within
@@ -459,11 +463,9 @@ private:
   //!
   //! @return tuple made up of the logical index of the stripe data file the
   //!         piece belongs to and the local offset within that file.
-  //!
   //----------------------------------------------------------------------------
   virtual std::pair<int, uint64_t>
   GetLocalPos(uint64_t global_off) = 0;
-
 
   //----------------------------------------------------------------------------
   //! Convert a local position (from a stripe data file) to a global position
@@ -475,11 +477,9 @@ private:
   //! @param local_off local offset
   //!
   //! @return offset in the initial file of the local given piece
-  //!
   //----------------------------------------------------------------------------
   virtual uint64_t
   GetGlobalOff(int stripe_id, uint64_t local_off) = 0;
-
 
   //----------------------------------------------------------------------------
   //! Split read request into requests spanning just one chunk so that each
@@ -492,7 +492,6 @@ private:
   //!
   //! @return vector of ChunkInfo structures containing the read requests
   //!         corresponding to each of the chunks making up the original file
-  //!
   //----------------------------------------------------------------------------
   XrdCl::ChunkList SplitRead(uint64_t off, uint32_t len, char* buff);
 

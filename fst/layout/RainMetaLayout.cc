@@ -58,7 +58,6 @@ RainMetaLayout::RainMetaLayout(XrdFstOfsFile* file,
   mDoTruncate(false),
   mUpdateHeader(false),
   mDoneRecovery(false),
-  mFullDataBlocks(false),
   mIsStreaming(true),
   mStoreRecovery(storeRecovery),
   mStripeHead(-1),
@@ -77,7 +76,6 @@ RainMetaLayout::RainMetaLayout(XrdFstOfsFile* file,
   mNbParityFiles = eos::common::LayoutId::GetRedundancyStripeNumber(lid);
   mNbDataFiles = mNbTotalFiles - mNbParityFiles;
   mSizeHeader = eos::common::LayoutId::OssXsBlockSize;
-  mOffGroupParity = -1;
   mPhysicalStripeIndex = -1;
   mIsEntryServer = false;
 }
@@ -102,12 +100,6 @@ RainMetaLayout::~RainMetaLayout()
     }
 
     delete file;
-  }
-
-  while (!mDataBlocks.empty()) {
-    char* ptr_char = mDataBlocks.back();
-    mDataBlocks.pop_back();
-    delete[] ptr_char;
   }
 }
 
@@ -226,11 +218,6 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
     uint32_t nmissing = 0;
     std::vector<std::string> stripe_urls;
     mIsEntryServer = true;
-
-    // Allocate memory for blocks - used only by the entry server
-    for (unsigned int i = 0; i < mNbTotalBlocks; i++) {
-      mDataBlocks.push_back(new char[mStripeWidth]);
-    }
 
     // Assign stripe urls and check minimal requirements
     for (unsigned int i = 0; i < mNbTotalFiles; i++) {
@@ -399,11 +386,6 @@ RainMetaLayout::OpenPio(std::vector<std::string> stripeUrls,
   if (mStripeWidth < 64) {
     eos_err("failed open layout - stripe width at least 64");
     return SFS_ERROR;
-  }
-
-  // Allocate memory for blocks - done only once
-  for (unsigned int i = 0; i < mNbTotalBlocks; i++) {
-    mDataBlocks.push_back(new char[mStripeWidth]);
   }
 
   //!!!!
@@ -882,24 +864,28 @@ RainMetaLayout::Write(XrdSfsFileOffset offset,
 
       COMMONTIMING("write remote", &wt);
 
-      // Write to stripe
-      if (mStripe[physical_id]) {
-        nbytes = mStripe[physical_id]->fileWriteAsync(off_local, buffer,
-                 nwrite, mTimeout);
-
-        if (nbytes != nwrite) {
-          eos_err("failed while write operation");
-          write_length = SFS_ERROR;
-          break;
-        }
-      }
-
       // By default we assume the file is written in streaming mode but we also
       // save the pieces in the map in case the write turns out not to be in
       // streaming mode. In this way, we can recompute the parity at any later
       // point in time by using the map of pieces written.
       if (mIsStreaming) {
-        AddDataBlock(offset, buffer, nwrite);
+        if (!AddDataBlock(offset, buffer, nwrite, mStripe[physical_id], off_local)) {
+          write_length = SFS_ERROR;
+          break;
+        }
+      } else {
+        // Write to stripe
+        if (mStripe[physical_id]) {
+          nbytes = mStripe[physical_id]->fileWriteAsync(off_local, buffer,
+                   nwrite, mTimeout);
+
+          if (nbytes != nwrite) {
+            eos_static_err("msg=\"failed write operation\" off=%llu len=%lu",
+                           offset, length);
+            write_length = SFS_ERROR;
+            break;
+          }
+        }
       }
 
       AddPiece(offset, nwrite);
@@ -928,30 +914,78 @@ RainMetaLayout::Write(XrdSfsFileOffset offset,
   return write_length;
 }
 
+
+//------------------------------------------------------------------------------
+// Add a new data used to compute parity block
+//------------------------------------------------------------------------------
+bool
+RainMetaLayout::AddDataBlock(uint64_t offset, const char* buffer,
+                             uint32_t length,
+                             eos::fst::FileIo* file, uint64_t file_offset)
+{
+  uint64_t offset_in_group = offset % mSizeGroup;
+  uint64_t offset_in_block = offset_in_group % mStripeWidth;
+  int indx_block = MapSmallToBig(offset_in_group / mStripeWidth);
+  char* ptr {nullptr};
+  {
+    std::shared_ptr<eos::fst::RainGroup> grp = GetGroup(offset);
+    eos::fst::RainGroup& data_blocks = *grp.get();
+    ptr = data_blocks[indx_block].Write(buffer, offset_in_block, length);
+  }
+  offset_in_group = (offset + length) % mSizeGroup;
+
+  if (ptr == nullptr) {
+    eos_static_err("msg=\"failed to store data in group\" off=%llu len=%li",
+                   offset, length);
+    return false;
+  }
+
+  if (file) {
+    int64_t nbytes = file->fileWriteAsync(file_offset, ptr, length);
+
+    if (nbytes != length) {
+      eos_static_err("msg=\"failed write operation\" off=%llu len=%lu",
+                     offset, length);
+      return false;
+    }
+  }
+
+  if (offset_in_group == 0) {
+    // We completed a group, we can compute parity
+    DoBlockParity(offset);
+  }
+
+  return true;
+}
+
 //------------------------------------------------------------------------------
 // Compute and write parity blocks to files
 //------------------------------------------------------------------------------
-
 bool
-RainMetaLayout::DoBlockParity(uint64_t offGroup)
+RainMetaLayout::DoBlockParity(uint64_t grp_off)
 {
   bool done;
   eos::common::Timing up("parity");
   COMMONTIMING("Compute-In", &up);
+  eos_static_debug("msg=\"group parity\" grp_off=%llu", grp_off);
+  std::shared_ptr<eos::fst::RainGroup> grp = GetGroup(grp_off);
+  grp->Lock();
+  grp->FillWithZeros();
 
   // Compute parity blocks
-  if ((done = ComputeParity())) {
+  if ((done = ComputeParity(grp))) {
     COMMONTIMING("Compute-Out", &up);
 
     // Write parity blocks to files
-    if (WriteParityToFiles(offGroup) == SFS_ERROR) {
+    if (WriteParityToFiles(grp) == SFS_ERROR) {
       done = false;
     }
 
     COMMONTIMING("WriteParity", &up);
-    mFullDataBlocks = false;
   }
 
+  grp->Unlock();
+  RecycleGroup(grp);
   //  up.Print();
   return done;
 }
@@ -1040,7 +1074,7 @@ RainMetaLayout::MergePieces()
 // Read data from the current group for parity computation
 //------------------------------------------------------------------------------
 bool
-RainMetaLayout::ReadGroup(uint64_t offGroup)
+RainMetaLayout::ReadGroup(uint64_t grp_off)
 {
   unsigned int physical_id;
   uint64_t off_local;
@@ -1048,8 +1082,9 @@ RainMetaLayout::ReadGroup(uint64_t offGroup)
   unsigned int id_stripe;
   int64_t nread = 0;
   AsyncMetaHandler* phandler = 0;
+  std::shared_ptr<RainGroup> grp = GetGroup(grp_off);
 
-// Collect all the write the responses and reset all the handlers
+  // Collect all the write the responses and reset all the handlers
   for (unsigned int i = 0; i < mStripe.size(); i++) {
     if (mStripe[i]) {
       phandler = static_cast<AsyncMetaHandler*>(mStripe[i]->fileGetAsyncHandler());
@@ -1068,7 +1103,7 @@ RainMetaLayout::ReadGroup(uint64_t offGroup)
   for (unsigned int i = 0; i < mNbDataBlocks; i++) {
     id_stripe = i % mNbDataFiles;
     physical_id = mapLP[id_stripe];
-    off_local = ((offGroup / mSizeLine) + (i / mNbDataFiles)) * mStripeWidth;
+    off_local = ((grp_off / mSizeLine) + (i / mNbDataFiles)) * mStripeWidth;
     off_local += mSizeHeader;
 
     if (mStripe[physical_id]) {
@@ -1076,7 +1111,7 @@ RainMetaLayout::ReadGroup(uint64_t offGroup)
       // !!!Here we can only do normal async requests without readahead as this
       // would lead to corruptions in the parity information computed!!!
       nread = mStripe[physical_id]->fileReadAsync(off_local,
-              mDataBlocks[MapSmallToBig(i)],
+              (*grp.get())[MapSmallToBig(i)](),
               mStripeWidth, mTimeout);
 
       if (nread != (int64_t)mStripeWidth) {
@@ -1091,7 +1126,7 @@ RainMetaLayout::ReadGroup(uint64_t offGroup)
     }
   }
 
-// Collect read responses only for the data files as we only read from these
+  // Collect read responses only for the data files as we only read from these
   for (unsigned int i = 0; i < mNbDataFiles; i++) {
     physical_id = mapLP[i];
 
@@ -1113,7 +1148,7 @@ RainMetaLayout::ReadGroup(uint64_t offGroup)
 // Get a list of the group offsets for which we can compute the parity info
 //------------------------------------------------------------------------------
 void
-RainMetaLayout::GetOffsetGroups(std::set<uint64_t>& offGroups, bool forceAll)
+RainMetaLayout::GetOffsetGroups(std::set<uint64_t>& grps_off, bool forceAll)
 {
   size_t length;
   uint64_t offset;
@@ -1133,7 +1168,7 @@ RainMetaLayout::GetOffsetGroups(std::set<uint64_t>& offGroups, bool forceAll)
       mMapPieces.erase(it++);
 
       while (off_group < off_piece_end) {
-        offGroups.insert(off_group);
+        grps_off.insert(off_group);
         off_group += mSizeGroup;
       }
     } else {
@@ -1157,7 +1192,7 @@ RainMetaLayout::GetOffsetGroups(std::set<uint64_t>& offGroups, bool forceAll)
         }
 
         // Save group offset in the list
-        offGroups.insert(off_group);
+        grps_off.insert(off_group);
         off_group += mSizeGroup;
       }
 
@@ -1346,22 +1381,25 @@ RainMetaLayout::Close()
     if (mIsEntryServer) {
       if (mStoreRecovery) {
         if (mDoneRecovery || mDoTruncate) {
-          eos_debug("truncating after done a recovery or at end of write");
+          eos_static_debug("%s", "msg=\"truncating after done a recovery "
+                           "or at end of write\"");
           mDoTruncate = false;
           mDoneRecovery = false;
 
           if (Truncate(mFileSize)) {
-            eos_err("Error while doing truncate");
+            eos_static_err("msg=\"failed to truncate\" off=%llu", mFileSize);
             rc = SFS_ERROR;
           }
         }
 
         // Check if we still have to compute parity for the last group of blocks
         if (mIsStreaming) {
-          if ((mOffGroupParity != -1) &&
-              (mOffGroupParity < (int64_t)mFileSize)) {
-            if (!DoBlockParity(mOffGroupParity)) {
-              eos_err("failed to do last group parity");
+          auto lst_grps = GetAllGroups();
+
+          for (auto& grp : lst_grps) {
+            if (!DoBlockParity(grp->GetGroupOffset())) {
+              eos_static_err("msg=\"failed group parity computaion\" grp_off=%llu",
+                             grp->GetGroupOffset());
               rc = SFS_ERROR;
             }
           }
@@ -1377,7 +1415,7 @@ RainMetaLayout::Close()
 
             if (phandler) {
               if (phandler->WaitOK() != XrdCl::errNone) {
-                eos_err("write failed in previous requests.");
+                eos_static_err("%s", "msg=\"previous write request failed\"");
                 rc = SFS_ERROR;
               }
 
@@ -1542,6 +1580,85 @@ RainMetaLayout::SplitReadV(XrdCl::ChunkList& chunkList, uint32_t sizeHdr)
   }
 
   return stripe_readv;
+}
+
+//------------------------------------------------------------------------------
+// Get group corresponding to the given offset or create one if it doesn't
+// exist. Also if there are already mMaxGroups in the map this will block
+// waiting for a slot to be freed.
+//------------------------------------------------------------------------------
+std::shared_ptr<eos::fst::RainGroup>
+RainMetaLayout::GetGroup(uint64_t offset)
+{
+  uint64_t grp_off = (offset / mSizeGroup) * mSizeGroup;
+  std::unique_lock<std::mutex> lock(mMutexGroups);
+
+  if (mMapGroups.size() > mMaxGroups) {
+    eos_static_debug("%s", "msg=\"waiting for available slot group");
+    mCvGroups.wait(lock, [&]() {
+      return (mMapGroups.size() < mMaxGroups);
+    });
+  }
+
+  auto it = mMapGroups.find(grp_off);
+
+  if (it != mMapGroups.end()) {
+    return it->second;
+  }
+
+  std::shared_ptr<eos::fst::RainGroup> grp
+  (new eos::fst::RainGroup(grp_off, mNbTotalBlocks, mStripeWidth));
+  auto pair = mMapGroups.emplace(grp_off, grp);
+  return (pair.first)->second;
+}
+
+//------------------------------------------------------------------------------
+// Get a list of all the groups in the map
+//------------------------------------------------------------------------------
+std::list<std::shared_ptr<eos::fst::RainGroup>>
+    RainMetaLayout::GetAllGroups()
+{
+  std::list<std::shared_ptr<eos::fst::RainGroup>> lst_grps;
+  std::unique_lock<std::mutex> lock(mMutexGroups);
+
+  for (auto& elem : mMapGroups) {
+    lst_grps.push_back(elem.second);
+  }
+
+  return lst_grps;
+}
+
+//------------------------------------------------------------------------------
+// Recycle given group by removing the group object from the map if there are
+// no more references to it. I will eventually be deleted and the RainBlocks
+// will also be recycled.
+//------------------------------------------------------------------------------
+void
+RainMetaLayout::RecycleGroup(std::shared_ptr<eos::fst::RainGroup>& group)
+{
+  {
+    std::unique_lock<std::mutex> lock(mMutexGroups);
+
+    if (group.use_count() > 2) {
+      eos_static_info("msg=\"skip group recycle\" grp_off=%llu",
+                      group->GetGroupOffset());
+      return;
+    }
+
+    auto it = mMapGroups.find(group->GetGroupOffset());
+
+    if (it == mMapGroups.end()) {
+      eos_static_crit("msg=\"trying to recycle a group which does not "
+                      "exist in the map\" grp_off=%llu",
+                      group->GetGroupOffset());
+      return;
+    } else {
+      eos_static_debug("msg=\"do group recycle\" grp_off=%llu",
+                       group->GetGroupOffset());
+      mMapGroups.erase(it);
+    }
+  }
+  mCvGroups.notify_all();
 }
 
 EOSFSTNAMESPACE_END
