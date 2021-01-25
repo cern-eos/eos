@@ -1941,11 +1941,11 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
               md->get_todelete() = todelete;
               md->set_type(md->MD);
               md->set_nchildren(md->local_children().size());
+
 	      if (!md->get_todelete().size()) {
 		// if there are no local deletions anymore, we can trust the remote value of nchildren
 		md->clear_refresh();
 	      }
-
             }
           }
 
