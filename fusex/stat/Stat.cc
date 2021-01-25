@@ -58,7 +58,10 @@ Stat::AddExec(const char* tag, float exectime)
   Mutex.Lock();
   StatExec[tag].push_back(exectime);
   
-  TotalExec += exectime;
+  // skip asynchronous calls release / releasedir
+  if (std::string(tag).substr(0,7) != "release") {
+    TotalExec += exectime;
+  }
 
   // we average over 1000 entries
   if (StatExec[tag].size() > 1000) {
