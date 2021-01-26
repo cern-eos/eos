@@ -503,6 +503,11 @@ private:
   XrdCl::ChunkList SplitRead(uint64_t off, uint32_t len, char* buff);
 
   //----------------------------------------------------------------------------
+  //! Stop parity thread
+  //----------------------------------------------------------------------------
+  void StopParityThread();
+
+  //----------------------------------------------------------------------------
   //! Disable copy constructor
   //----------------------------------------------------------------------------
   RainMetaLayout(const RainMetaLayout&) = delete;
@@ -516,6 +521,7 @@ private:
   //! Queue holding group offsets to be used for parity computatio
   eos::common::ConcurrentQueue<uint64_t> mQueueGrps;
   std::atomic<bool> mHasParityErr {false};
+  std::atomic<bool> mHasParityThread {false};
 };
 
 EOSFSTNAMESPACE_END

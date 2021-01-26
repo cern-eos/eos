@@ -101,6 +101,8 @@ RainMetaLayout::~RainMetaLayout()
 
     delete file;
   }
+
+  StopParityThread();
 }
 
 //------------------------------------------------------------------------------
@@ -336,6 +338,11 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
         return SFS_ERROR;
       }
     }
+
+    if (mIsRw) {
+      mHasParityThread = true;
+      mParityThread.reset(&RainMetaLayout::HandleParityWork, this);
+    }
   }
 
   // Get file size based on the data stored in the local stripe header
@@ -358,10 +365,6 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
         return SFS_ERROR;
       }
     }
-  }
-
-  if (mIsRw) {
-    //mParityThread.reset(&RainMetaLayout::HandleParityWork, this);
   }
 
   eos_debug("Finished open with size: %llu", mFileSize);
@@ -465,10 +468,6 @@ RainMetaLayout::OpenPio(std::vector<std::string> stripeUrls,
       mFileSize = mHdrInfo[i]->GetSizeFile();
       break;
     }
-  }
-
-  if (mIsRw) {
-    //mParityThread.reset(&RainMetaLayout::HandleParityWork, this);
   }
 
   eos_static_debug("msg=\"pio open done\" open_size=%llu", mFileSize);
@@ -852,6 +851,8 @@ RainMetaLayout::Write(XrdSfsFileOffset offset,
     if (mIsStreaming && ((uint64_t)offset != mLastWriteOffset)) {
       eos_debug("%s", "msg=\"enable non-streaming mode\"");
       mIsStreaming = false;
+      // @todo(esindril) check the return value of any flushed writes from
+      // the groups pending parity computation
     }
 
     if (mHasParityErr) {
@@ -958,6 +959,8 @@ RainMetaLayout::AddDataBlock(uint64_t offset, const char* buffer,
   }
 
   if (file) {
+    // @todo(esindril) this must be done using futures and the async thread
+    // will handle the errors
     int64_t nbytes = file->fileWriteAsync(file_offset, ptr, length);
 
     if (nbytes != length) {
@@ -967,10 +970,13 @@ RainMetaLayout::AddDataBlock(uint64_t offset, const char* buffer,
     }
   }
 
+  // Group completed - compute and write parity info
   if (offset_in_group == 0) {
-    // Group completed, signal async thread to handle the parity
-    //mQueueGrps.push(grp_off);
-    DoBlockParity(grp_off);
+    if (mHasParityThread) {
+      mQueueGrps.push(grp_off);
+    } else {
+      return DoBlockParity(grp_off);
+    }
   }
 
   return true;
@@ -1410,15 +1416,13 @@ RainMetaLayout::Close()
           }
         }
 
+        StopParityThread();
+
         // Check if we still have to compute parity for the last group of blocks
         if (mIsStreaming) {
           if (mHasParityErr) {
             rc = SFS_ERROR;
           } else {
-            // Make sure the parity async thread is joined
-            //uint64_t sentinel = std::numeric_limits<unsigned long long>::max();
-            //mQueueGrps.push(sentinel);
-            //mParityThread.join();
             // Handle any group left to compute the parity information
             auto lst_grps = GetAllGroupOffsets();
 
@@ -1718,5 +1722,15 @@ RainMetaLayout::HandleParityWork(ThreadAssistant& assistant) noexcept
   }
 }
 
+//------------------------------------------------------------------------------
+// Stop parity thread
+//------------------------------------------------------------------------------
+void
+RainMetaLayout::StopParityThread()
+{
+  uint64_t sentinel = std::numeric_limits<unsigned long long>::max();
+  mQueueGrps.push(sentinel);
+  mParityThread.join();
+}
 
 EOSFSTNAMESPACE_END

@@ -440,7 +440,6 @@ int
 RaidDpLayout::WriteParityToFiles(std::shared_ptr<eos::fst::RainGroup>& grp)
 {
   int ret = SFS_OK;
-  int64_t nwrite = 0;
   uint64_t off_parity_local;
   unsigned int index_pblock;
   unsigned int index_dpblock;
@@ -461,57 +460,26 @@ RaidDpLayout::WriteParityToFiles(std::shared_ptr<eos::fst::RainGroup>& grp)
     index_dpblock = (i + 1) * (mNbDataFiles + 1) + i;
     off_parity_local = (offGroup / mNbDataFiles) + (i * mStripeWidth);
     off_parity_local += mSizeHeader;
-
     // Writing simple and double parity
-    // mReplies.push_back(mStripe[physical_pindex]->fileWriteAsync(data_blocks[index_pblock](),
-    //                                                             off_parity_local,
-    //                                                             mStripeWidth));
-    // mReplies.push_back(mStripe[physical_dpindex]->fileWriteAsync(data_blocks[index_dpblock](),
-    //                                                              off_parity_local,
-    //                                                              mStripeWidth));
-    // Writing simple parity
-    if (mStripe[physical_pindex]) {
-      nwrite = mStripe[physical_pindex]->fileWriteAsync(off_parity_local,
-               data_blocks[index_pblock](),
-               mStripeWidth, mTimeout);
+    mReplies.push_back(mStripe[physical_pindex]->fileWriteAsync(
+                         data_blocks[index_pblock](),
+                         off_parity_local,
+                         mStripeWidth));
+    mReplies.push_back(mStripe[physical_dpindex]->fileWriteAsync(
+                         data_blocks[index_dpblock](),
+                         off_parity_local,
+                         mStripeWidth));
+  }
 
-      if (nwrite != (int64_t)mStripeWidth) {
-        eos_static_err("msg=\"failed write operation simple parity\" "
-                       "stripe=%u local_offset=%llu", i, off_parity_local);
-        ret = SFS_ERROR;
-        break;
-      }
-    } else {
-      eos_static_err("%s", "msg=\"file not opened for simple parity write\"");
+  for (auto& fut : mReplies) {
+    auto status = fut.get();
+
+    if (!status.IsOK()) {
+      eos_static_err("%s", "msg=\"failed write operation for parity\"");
       ret = SFS_ERROR;
-      break;
-    }
-
-    // Writing double parity
-    if (mStripe[physical_dpindex]) {
-      nwrite = mStripe[physical_dpindex]->fileWriteAsync(off_parity_local,
-               data_blocks[index_dpblock](),
-               mStripeWidth, mTimeout);
-
-      if (nwrite != (int64_t)mStripeWidth) {
-        eos_static_err("msg=\"failed write operation double parity\" "
-                       "stripe=%u local_offset=%llu", i, off_parity_local);
-        ret = SFS_ERROR;
-        break;
-      }
-    } else {
-      eos_static_err("%s", "msg=\"file not opened for double parity write\"");
-      break;
     }
   }
 
-  // for (auto& fut: mReplies) {
-  //   auto status = fut.get();
-  //   if (!status.IsOK()) {
-  //     eos_static_err("%s", "msg=\"failed write operation for parity\"");
-  //     ret = SFS_ERROR;
-  //   }
-  // }
   return ret;
 }
 
