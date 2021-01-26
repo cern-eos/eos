@@ -42,9 +42,9 @@ EntityType get_entity_type(const std::string& input, XrdOucString& stdOut,
 {
   std::ostringstream oss;
   EntityType ret = EntityType::UNKNOWN;
-
   // check for nodes
   size_t ppos = input.find(":");
+
   if (ppos != std::string::npos) {
     // this is a node with port
     ret = EntityType::NODE;
@@ -61,7 +61,6 @@ EntityType get_entity_type(const std::string& input, XrdOucString& stdOut,
       (void) strtol(input.c_str(), nullptr, 10);
 
       if (errno) {
-
         eos_static_err("input fsid: %s must be a numeric value", input.c_str());
         oss << "fsid: " << input << " must be a numeric value";
         stdErr = oss.str().c_str();
@@ -819,8 +818,10 @@ proc_fs_mv(std::string& src, std::string& dst, XrdOucString& stdOut,
     break;
 
   case MvOpType::FS_2_NODE:
-    retc = proc_mv_fs_node(FsView::gFsView, src, dst, stdOut, stdErr, force, vid_in, realm);
+    retc = proc_mv_fs_node(FsView::gFsView, src, dst, stdOut, stdErr, force, vid_in,
+                           realm);
     break;
+
   default:
     stdErr = "error: operation not supported";
     retc = EINVAL;
@@ -1285,15 +1286,15 @@ int proc_mv_space_space(FsView& fs_view, const std::string& src,
 //------------------------------------------------------------------------------
 int
 proc_mv_fs_node(FsView& fs_view, const std::string& src,
-		    const std::string& dst, XrdOucString& stdOut,
-		    XrdOucString& stdErr, bool force,
-		    eos::common::VirtualIdentity& vid_in,
-		    mq::MessagingRealm* realm)
+                const std::string& dst, XrdOucString& stdOut,
+                XrdOucString& stdErr, bool force,
+                eos::common::VirtualIdentity& vid_in,
+                mq::MessagingRealm* realm)
 {
   std::ostringstream oss;
   eos::common::FileSystem::fsid_t fsid = stoi(src.c_str());
-
   FileSystem* fs = fs_view.mIdView.lookupByID(fsid);
+
   if (fs) {
     FileSystem::fs_snapshot_t snapshot;
 
@@ -1308,41 +1309,36 @@ proc_mv_fs_node(FsView& fs_view, const std::string& src,
       std::string path = snapshot.mPath;
       std::string space = snapshot.mSpace;
       std::string group = snapshot.mGroup;
-      std::string configstatus= eos::common::FileSystem::GetConfigStatusAsString(snapshot.mConfigStatus);
-
-      int rc = proc_fs_rm(a,b,
-			  id,
-			  stdOut,
-			  stdErr,
-			  vid_in);
+      std::string configstatus = eos::common::FileSystem::GetConfigStatusAsString(
+                                   snapshot.mConfigStatus);
+      int rc = proc_fs_rm(a , b, id, stdOut, stdErr, vid_in);
       FsView::gFsView.ViewMutex.UnLockWrite();
+
       if (!rc) {
-	std::string nodename = "/eos/";
-	nodename += dst;
-	nodename += "/fst";
-	int rc = proc_fs_add(realm,
-			     id,
-			     uuid,
-			     nodename,
-			     path,
-			     getenv("EOS_ALLOW_SAME_HOST_IN_GROUP")?group:space,
-			     configstatus,
-			     stdOut,
-			     stdErr,
-			     vid_in
-			     );
-	if (rc) {
-	  oss << "error: failed to reinsert filesystem with id='" << fsid << "' - this is really really bad!!!" << std::endl;
-	  stdErr += oss.str().c_str();
-	  stdOut.erase();
-	}
+        std::string nodename = "/eos/";
+        nodename += dst;
+        nodename += "/fst";
+        int rc = proc_fs_add(realm, id, uuid, nodename, path,
+                             getenv("EOS_ALLOW_SAME_HOST_IN_GROUP") ? group : space,
+                             configstatus, stdOut, stdErr, vid_in);
+
+        if (rc) {
+          oss << "error: failed to reinsert filesystem with id='" << fsid <<
+              "' - this is really really bad!!!" << std::endl;
+          stdErr += oss.str().c_str();
+          stdOut.erase();
+        }
       } else {
-	oss << "error: failed ot snapshot filesystem with id='" << fsid << "'" << std::endl;
-	stdErr = oss.str().c_str();
-	stdOut.erase();
+        oss << "error: failed ot snapshot filesystem with id='" << fsid << "'" <<
+            std::endl;
+        stdErr = oss.str().c_str();
+        stdOut.erase();
       }
+
+      FsView::gFsView.ViewMutex.LockWrite();
     } else {
-      oss << "error: failed ot snapshot filesystem with id='" << fsid << "'" << std::endl;
+      oss << "error: failed ot snapshot filesystem with id='" << fsid << "'" <<
+          std::endl;
       stdErr = oss.str().c_str();
       stdOut.erase();
     }
@@ -1351,7 +1347,7 @@ proc_mv_fs_node(FsView& fs_view, const std::string& src,
     stdErr = oss.str().c_str();
     stdOut.erase();
   }
-  FsView::gFsView.ViewMutex.LockWrite();
+
   return 0;
 }
 
@@ -1486,7 +1482,8 @@ proc_fs_dropdeletion(const eos::common::FileSystem::fsid_t& fsid,
     return EPERM;
   }
 
-  eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+  eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex, __FUNCTION__,
+      __LINE__, __FILE__);
 
   if (gOFS->eosFsView->clearUnlinkedFileList(fsid)) {
     out = SSTR("success: dropped deletions on fsid=" << fsid).c_str();
@@ -1520,7 +1517,8 @@ proc_fs_dropghosts(const eos::common::FileSystem::fsid_t& fsid,
 
   if (set_fids.empty()) {
     // We check all the files on that filesystem
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
+                                            __LINE__, __FILE__);
 
     for (auto it_fid = gOFS->eosFsView->getFileList(fsid);
          (it_fid && it_fid->valid()); it_fid->next()) {
@@ -1534,7 +1532,8 @@ proc_fs_dropghosts(const eos::common::FileSystem::fsid_t& fsid,
       }
     }
   } else {
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
+                                            __LINE__, __FILE__);
 
     for (const auto& fid : set_fids) {
       try {
@@ -1548,7 +1547,8 @@ proc_fs_dropghosts(const eos::common::FileSystem::fsid_t& fsid,
     }
   }
 
-  eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+  eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex, __FUNCTION__,
+      __LINE__, __FILE__);
 
   for (const auto& fid : to_delete) {
     gOFS->eosFsView->eraseEntry(fsid, fid);
