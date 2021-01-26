@@ -615,7 +615,7 @@ int64_t
 XrdIo::fileWriteAsync(XrdSfsFileOffset offset, const char* buffer,
                       XrdSfsXferSize length, uint16_t timeout)
 {
-  eos_debug("offset=%llu length=%i", static_cast<uint64_t>(offset), length);
+  eos_static_debug("offset=%llu length=%i", offset, length);
 
   if (!mXrdFile) {
     errno = EIO;
@@ -650,6 +650,28 @@ XrdIo::fileWriteAsync(XrdSfsFileOffset offset, const char* buffer,
   }
 
   return length;
+}
+
+//----------------------------------------------------------------------------
+// Write to file - async
+//--------------------------------------------------------------------------
+std::future<XrdCl::XRootDStatus>
+XrdIo::fileWriteAsync(const char* buffer, XrdSfsFileOffset offset,
+                      XrdSfsXferSize length)
+{
+  eos_static_debug("offset=%llu length=%i", offset, length);
+  std::promise<XrdCl::XRootDStatus> wr_promise;
+  std::future<XrdCl::XRootDStatus> wr_future = wr_promise.get_future();
+  WriteHandler* wr_handler = new WriteHandler(std::move(wr_promise));
+  XrdCl::XRootDStatus status = mXrdFile->Write(static_cast<uint64_t>(offset),
+                               static_cast<uint32_t>(length),
+                               buffer, wr_handler);
+
+  if (!status.IsOK()) {
+    wr_handler->HandleResponse(new XrdCl::XRootDStatus(status), nullptr);
+  }
+
+  return wr_future;
 }
 
 //------------------------------------------------------------------------------

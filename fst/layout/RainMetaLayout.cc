@@ -361,7 +361,7 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
   }
 
   if (mIsRw) {
-    mParityThread.reset(&RainMetaLayout::HandleParityWork, this);
+    //mParityThread.reset(&RainMetaLayout::HandleParityWork, this);
   }
 
   eos_debug("Finished open with size: %llu", mFileSize);
@@ -468,7 +468,7 @@ RainMetaLayout::OpenPio(std::vector<std::string> stripeUrls,
   }
 
   if (mIsRw) {
-    mParityThread.reset(&RainMetaLayout::HandleParityWork, this);
+    //mParityThread.reset(&RainMetaLayout::HandleParityWork, this);
   }
 
   eos_static_debug("msg=\"pio open done\" open_size=%llu", mFileSize);
@@ -880,8 +880,8 @@ RainMetaLayout::Write(XrdSfsFileOffset offset,
 
       // By default we assume the file is written in streaming mode but we also
       // save the pieces in the map in case the write turns out not to be in
-      // streaming mode. In this way, we can recompute the parity at any later
-      // point in time by using the map of pieces written.
+      // streaming mode. In this way, we can recompute the parity later on by
+      // using the map of pieces written.
       if (mIsStreaming) {
         if (!AddDataBlock(offset, buffer, nwrite, mStripe[physical_id], off_local)) {
           write_length = SFS_ERROR;
@@ -937,9 +937,12 @@ RainMetaLayout::AddDataBlock(uint64_t offset, const char* buffer,
                              uint32_t length,
                              eos::fst::FileIo* file, uint64_t file_offset)
 {
+  uint64_t grp_off = (offset / mSizeGroup) * mSizeGroup;
   uint64_t offset_in_group = offset % mSizeGroup;
   uint64_t offset_in_block = offset_in_group % mStripeWidth;
   int indx_block = MapSmallToBig(offset_in_group / mStripeWidth);
+  eos_static_info("offset=%llu length=%lu, grp_offset=%llu",
+                  offset, length, grp_off);
   char* ptr {nullptr};
   {
     std::shared_ptr<eos::fst::RainGroup> grp = GetGroup(offset);
@@ -964,13 +967,10 @@ RainMetaLayout::AddDataBlock(uint64_t offset, const char* buffer,
     }
   }
 
-  eos_static_info("offset=%llu length=%lu, offset_in_group=%llu",
-                  offset, length, offset_in_group);
-
   if (offset_in_group == 0) {
     // Group completed, signal async thread to handle the parity
-    uint64_t grp_off = (offset / mSizeGroup) * mSizeGroup;
-    mQueueGrps.push(grp_off);
+    //mQueueGrps.push(grp_off);
+    DoBlockParity(grp_off);
   }
 
   return true;
@@ -1416,9 +1416,9 @@ RainMetaLayout::Close()
             rc = SFS_ERROR;
           } else {
             // Make sure the parity async thread is joined
-            uint64_t sentinel = std::numeric_limits<unsigned long long>::max();
-            mQueueGrps.push(sentinel);
-            mParityThread.join();
+            //uint64_t sentinel = std::numeric_limits<unsigned long long>::max();
+            //mQueueGrps.push(sentinel);
+            //mParityThread.join();
             // Handle any group left to compute the parity information
             auto lst_grps = GetAllGroupOffsets();
 
@@ -1427,6 +1427,8 @@ RainMetaLayout::Close()
                 eos_static_err("msg=\"failed group parity computaion\" grp_off=%llu",
                                grp_off);
                 rc = SFS_ERROR;
+              } else {
+                eos_static_info("msg=\"successful parity computation\" grp_off=%llu", grp_off);
               }
             }
           }
@@ -1497,11 +1499,12 @@ RainMetaLayout::Close()
       for (unsigned int i = 1; i < mStripe.size(); i++) {
         if (mStripe[i]) {
           if (mStripe[i]->fileClose(mTimeout)) {
-            eos_err("error=failed to close remote file %i", i);
+            eos_static_err("msg=\"failed to close remote file %i\"", i);
             rc = SFS_ERROR;
           }
         } else {
-          eos_warning("remote stripe could not be closed as the file is NULL");
+          eos_static_warning("msg=\"remote stripe could not be closed as the "
+                             "file is NULL\"");
         }
       }
     }
@@ -1509,14 +1512,15 @@ RainMetaLayout::Close()
     // Close local file
     if (mStripe[0]) {
       if (mStripe[0]->fileClose(mTimeout)) {
-        eos_err("failed to close local file");
+        eos_static_err("%s", "msg=\"failed to close local file\"");
         rc = SFS_ERROR;
       }
     } else {
-      eos_warning("local stripe could not be closed as the file is NULL");
+      eos_static_warning("%s", "msg=\"local stripe could not be closed as "
+                         "the file is NULL");
     }
   } else {
-    eos_err("file is not opened");
+    eos_static_err("%s", "msg=\"file is not opened\"");
     rc = SFS_ERROR;
   }
 

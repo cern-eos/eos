@@ -301,6 +301,19 @@ public:
   int64_t fileWriteAsync(XrdSfsFileOffset offset, const char* buffer,
                          XrdSfsXferSize length, uint16_t timeout = 0);
 
+  //----------------------------------------------------------------------------
+  //! Write to file - async
+  //!
+  //! @param offset offset
+  //! @param buffer data to be written
+  //! @param length length
+  //!
+  //! @return future holding the status response
+  //--------------------------------------------------------------------------
+  std::future<XrdCl::XRootDStatus>
+  fileWriteAsync(const char* buffer, XrdSfsFileOffset offset,
+                 XrdSfsXferSize length);
+
   //--------------------------------------------------------------------------
   //! Wait for all async IO
   //!
@@ -653,6 +666,46 @@ private:
   //! Disable assign operator
   //----------------------------------------------------------------------------
   XrdIo& operator = (const XrdIo&) = delete;
+};
+
+//------------------------------------------------------------------------------
+//! Class WriteHandler
+//------------------------------------------------------------------------------
+class WriteHandler: public XrdCl::ResponseHandler
+{
+public:
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //!
+  //! @param wr_promise write promise used to notify when the answer arrives
+  //----------------------------------------------------------------------------
+  WriteHandler(std::promise<XrdCl::XRootDStatus>&& wr_promise):
+    mWrPromise(std::move(wr_promise))
+  {}
+
+  //----------------------------------------------------------------------------
+  //! Handle response
+  //!
+  //! @param pStatus status of the response
+  //! @param pResponse object containing extra info about the response
+  //----------------------------------------------------------------------------
+  virtual void HandleResponse(XrdCl::XRootDStatus* pStatus,
+                              XrdCl::AnyObject* pResponse)
+  {
+    if (pStatus) {
+      mWrPromise.set_value(*pStatus);
+      delete pStatus;
+    }
+
+    if (pResponse) {
+      delete pResponse;
+    }
+
+    delete this;
+  }
+
+private:
+  std::promise<XrdCl::XRootDStatus> mWrPromise;
 };
 
 EOSFSTNAMESPACE_END

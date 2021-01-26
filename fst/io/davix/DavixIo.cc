@@ -407,6 +407,27 @@ DavixIo::fileWriteAsync(XrdSfsFileOffset offset,
   return fileWrite(offset, buffer, length, timeout);
 }
 
+//----------------------------------------------------------------------------
+// Write to file - async
+//--------------------------------------------------------------------------
+std::future<XrdCl::XRootDStatus>
+DavixIo::fileWriteAsync(const char* buffer, XrdSfsFileOffset offset,
+                        XrdSfsXferSize length)
+{
+  std::promise<XrdCl::XRootDStatus> wr_promise;
+  std::future<XrdCl::XRootDStatus> wr_future = wr_promise.get_future();
+  int64_t nwrite = fileWrite(offset, buffer, length);
+
+  if (nwrite != length) {
+    wr_promise.set_value(XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errUnknown,
+                         EIO, "failed write"));
+  } else {
+    wr_promise.set_value(XrdCl::XRootDStatus(XrdCl::stOK, ""));
+  }
+
+  return wr_future;
+}
+
 //--------------------------------------------------------------------------
 //! Close file
 //--------------------------------------------------------------------------

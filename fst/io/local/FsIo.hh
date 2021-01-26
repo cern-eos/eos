@@ -171,6 +171,19 @@ public:
                                  uint16_t timeout = 0);
 
   //----------------------------------------------------------------------------
+  //! Write to file - async
+  //!
+  //! @param offset offset
+  //! @param buffer data to be written
+  //! @param length length
+  //!
+  //! @return future holding the status response
+  //--------------------------------------------------------------------------
+  std::future<XrdCl::XRootDStatus>
+  fileWriteAsync(const char* buffer, XrdSfsFileOffset offset,
+                 XrdSfsXferSize length);
+
+  //----------------------------------------------------------------------------
   //! Truncate
   //!
   //! @param offset truncate file to this value
