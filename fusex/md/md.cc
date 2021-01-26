@@ -3104,7 +3104,8 @@ metad::mdcommunicate(ThreadAssistant& assistant)
         eos_static_err("err sending heartbeat: hbstream.c_str()=%s, hbstream.length()=%d, hbstream:hex=%s",
                        hbstream.c_str(), hbstream.length(), eos::common::stringToHex(hbstream).c_str());
 //      } else {
-//        eos_static_debug("debug sending heartbeat: hbstream.c_str()=%s, hbstream.length()=%d, hbstream:hex=0x%08x", hbstream.c_str(), hbstream.length(), hbstream.c_str());
+//        eos_static_debug("debug sending heartbeat: hbstream.c_str()=%s, hbstream.length()=%d, hbstream:hex=%s",
+//                       hbstream.c_str(), hbstream.length(), eos::common::stringToHex(hbstream).c_str());
       }
 
       if (!is_visible()) {
