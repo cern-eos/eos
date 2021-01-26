@@ -2217,7 +2217,7 @@ FsView::Reset()
   {
     eos::common::RWMutexReadLock viewlock(ViewMutex);
 
-    // stop all the threads having only a read-lock
+    // Stop all the threads while taking only the read lock
     for (auto it = mSpaceView.begin(); it != mSpaceView.end(); ++it) {
       it->second->Stop();
     }
@@ -2252,7 +2252,7 @@ FsView::Clear()
   {
     eos::common::RWMutexReadLock rd_view_lock(ViewMutex);
 
-    // stop all the threads having only a read-lock
+    // Stop all the threads while taking only thre read lock
     for (auto it = mSpaceView.begin(); it != mSpaceView.end(); it++) {
       it->second->Stop();
     }
@@ -3083,8 +3083,10 @@ long long
 BaseView::SumLongLong(const char* param, bool lock,
                       const std::set<eos::common::FileSystem::fsid_t>* subset)
 {
+  eos::common::RWMutexReadLock fs_rd_lock;
+
   if (lock) {
-    FsView::gFsView.ViewMutex.LockRead();
+    fs_rd_lock.Grab(FsView::gFsView.ViewMutex);
   }
 
   long long sum = 0;
@@ -3164,10 +3166,6 @@ BaseView::SumLongLong(const char* param, bool lock,
     }
   }
 
-  if (lock) {
-    FsView::gFsView.ViewMutex.UnLockRead();
-  }
-
   return sum;
 }
 
@@ -3178,8 +3176,10 @@ double
 BaseView::SumDouble(const char* param, bool lock,
                     const std::set<eos::common::FileSystem::fsid_t>* subset)
 {
+  eos::common::RWMutexReadLock fs_rd_lock;
+
   if (lock) {
-    FsView::gFsView.ViewMutex.LockRead();
+    fs_rd_lock.Grab(FsView::gFsView.ViewMutex);
   }
 
   double sum = 0;
@@ -3191,10 +3191,6 @@ BaseView::SumDouble(const char* param, bool lock,
     if (fs) {
       sum += fs->GetDouble(param);
     }
-  }
-
-  if (lock) {
-    FsView::gFsView.ViewMutex.UnLockRead();
   }
 
   return sum;
@@ -3209,8 +3205,10 @@ double
 BaseView::AverageDouble(const char* param, bool lock,
                         const std::set<eos::common::FileSystem::fsid_t>* subset)
 {
+  eos::common::RWMutexReadLock fs_rd_lock;
+
   if (lock) {
-    FsView::gFsView.ViewMutex.LockRead();
+    fs_rd_lock.Grab(FsView::gFsView.ViewMutex);
   }
 
   double sum = 0;
@@ -3220,7 +3218,7 @@ BaseView::AverageDouble(const char* param, bool lock,
   for (; it.valid(); it.next()) {
     bool consider = true;
     FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it);
-    
+
     if (fs == nullptr) {
       continue;
     }
@@ -3235,10 +3233,6 @@ BaseView::AverageDouble(const char* param, bool lock,
     }
   }
 
-  if (lock) {
-    FsView::gFsView.ViewMutex.UnLockRead();
-  }
-
   return (cnt) ? (double)(1.0 * sum / cnt) : 0;
 }
 
@@ -3249,8 +3243,10 @@ double
 BaseView::MaxAbsDeviation(const char* param, bool lock,
                           const std::set<eos::common::FileSystem::fsid_t>* subset)
 {
+  eos::common::RWMutexReadLock fs_rd_lock;
+
   if (lock) {
-    FsView::gFsView.ViewMutex.LockRead();
+    fs_rd_lock.Grab(FsView::gFsView.ViewMutex);
   }
 
   double avg = AverageDouble(param, false);
@@ -3279,10 +3275,6 @@ BaseView::MaxAbsDeviation(const char* param, bool lock,
     }
   }
 
-  if (lock) {
-    FsView::gFsView.ViewMutex.UnLockRead();
-  }
-
   return maxabsdev;
 }
 
@@ -3294,8 +3286,10 @@ double
 BaseView::MaxDeviation(const char* param, bool lock,
                        const std::set<eos::common::FileSystem::fsid_t>* subset)
 {
+  eos::common::RWMutexReadLock fs_rd_lock;
+
   if (lock) {
-    FsView::gFsView.ViewMutex.LockRead();
+    fs_rd_lock.Grab(FsView::gFsView.ViewMutex);
   }
 
   double avg = AverageDouble(param, false);
@@ -3324,10 +3318,6 @@ BaseView::MaxDeviation(const char* param, bool lock,
     }
   }
 
-  if (lock) {
-    FsView::gFsView.ViewMutex.UnLockRead();
-  }
-
   return maxdev;
 }
 
@@ -3338,8 +3328,10 @@ double
 BaseView::MinDeviation(const char* param, bool lock,
                        const std::set<eos::common::FileSystem::fsid_t>* subset)
 {
+  eos::common::RWMutexReadLock fs_rd_lock;
+
   if (lock) {
-    FsView::gFsView.ViewMutex.LockRead();
+    fs_rd_lock.Grab(FsView::gFsView.ViewMutex);
   }
 
   double avg = AverageDouble(param, false);
@@ -3368,10 +3360,6 @@ BaseView::MinDeviation(const char* param, bool lock,
     }
   }
 
-  if (lock) {
-    FsView::gFsView.ViewMutex.UnLockRead();
-  }
-
   return mindev;
 }
 
@@ -3382,8 +3370,10 @@ double
 BaseView::SigmaDouble(const char* param, bool lock,
                       const std::set<eos::common::FileSystem::fsid_t>* subset)
 {
+  eos::common::RWMutexReadLock fs_rd_lock;
+
   if (lock) {
-    FsView::gFsView.ViewMutex.LockRead();
+    fs_rd_lock.Grab(FsView::gFsView.ViewMutex);
   }
 
   double avg = AverageDouble(param, false);
@@ -3410,11 +3400,6 @@ BaseView::SigmaDouble(const char* param, bool lock,
   }
 
   sumsquare = (cnt) ? sqrt(sumsquare / cnt) : 0;
-
-  if (lock) {
-    FsView::gFsView.ViewMutex.UnLockRead();
-  }
-
   return sumsquare;
 }
 
@@ -3425,8 +3410,10 @@ long long
 BaseView::ConsiderCount(bool lock,
                         const std::set<eos::common::FileSystem::fsid_t>* subset)
 {
+  eos::common::RWMutexReadLock fs_rd_lock;
+
   if (lock) {
-    FsView::gFsView.ViewMutex.LockRead();
+    fs_rd_lock.Grab(FsView::gFsView.ViewMutex);
   }
 
   long long cnt = 0;
@@ -3447,10 +3434,6 @@ BaseView::ConsiderCount(bool lock,
     if (consider) {
       cnt++;
     }
-  }
-
-  if (lock) {
-    FsView::gFsView.ViewMutex.UnLockRead();
   }
 
   return cnt;
