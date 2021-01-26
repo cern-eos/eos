@@ -17,12 +17,11 @@ declare -A BUILDMAP
 
 BUILDMAP[cc7]=el-7
 BUILDMAP[c8]=el-8
-BUILDMAP[cs8]=el-8s
 BUILDMAP[fc-32]=fc-32
 BUILDMAP[fc-rawhide]=fc-rawhide
 BUILDMAP[osx]=osx
 
-CODENAME=$1
+BRANCH=$1
 BUILD_TYPE=$2
 PATH_PREFIX=$3
 
@@ -33,7 +32,7 @@ for artifacts_dir in *_artifacts; do
   # Handle only builds registered in the build map
   [ -z ${repo} ] && continue
 
-  path=${PATH_PREFIX}/${CODENAME}/${BUILD_TYPE}/${repo}
+  path=${PATH_PREFIX}/${BRANCH}/${BUILD_TYPE}/${repo}
 
   # Treat OSX artifacts separately
   if [ ${build} == "osx" ]; then
@@ -55,7 +54,7 @@ for artifacts_dir in *_artifacts; do
   # Upload the tarball if present
   for tar_file in ${build}_artifacts/eos-*.tar.gz; do
    if [ -e ${tar_file} ]; then
-     tar_path="${PATH_PREFIX}/${CODENAME}/tarball/"
+     tar_path="${PATH_PREFIX}/${BRANCH}/tarball/"
      mkdir -p ${tar_path}
      cp ${tar_file} ${tar_path}
    fi
