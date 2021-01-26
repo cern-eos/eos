@@ -117,4 +117,25 @@ static inline std::string stringToHex(const std::string& in, const char filler =
   return ss.str();
 }
 
+static inline std::string hexToString(const std::string& in) {
+  std::string output;
+
+  // The caller must be aware and check the pair ( output, in.lenght() )
+  if ((in.length() % 2) != 0) {
+    return "";
+  }
+
+  size_t cnt = in.length() / 2;
+
+  for (size_t i = 0; cnt > i; ++i) {
+    uint32_t s = 0;
+    std::stringstream ss;
+    ss << std::hex << in.substr(i * 2, 2);
+    ss >> s;
+    output.push_back(static_cast<unsigned char>(s));
+  }
+
+  return output;
+}
+
 EOSCOMMONNAMESPACE_END
