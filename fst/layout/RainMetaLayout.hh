@@ -23,11 +23,13 @@
  ************************************************************************/
 
 #pragma once
+#include "fst/layout/Layout.hh"
+#include "fst/layout/RainGroup.hh"
+#include "common/AssistedThread.hh"
+#include "common/ConcurrentQueue.hh"
 #include <vector>
 #include <string>
 #include <list>
-#include "fst/layout/Layout.hh"
-#include "fst/layout/RainGroup.hh"
 
 class XrdFstOfsFile;
 
@@ -303,7 +305,7 @@ protected:
   ///< parity computation has not been done yet
   std::string mLastErrMsg; ///< last error messages seen
   uint8_t mMaxGroups {2};
-  std::mutex mMutexGroups;
+  mutable std::mutex mMutexGroups;
   std::condition_variable mCvGroups;
   std::map<uint64_t, std::shared_ptr<eos::fst::RainGroup>> mMapGroups;
 
@@ -319,7 +321,7 @@ protected:
   //----------------------------------------------------------------------------
   //! Get a list of all the groups in the map
   //----------------------------------------------------------------------------
-  std::list<std::shared_ptr<eos::fst::RainGroup>> GetAllGroups();
+  std::list<uint64_t> GetAllGroupOffsets() const;
 
   //----------------------------------------------------------------------------
   //! Add new data block to the current group for parity computation. The pice
@@ -420,6 +422,11 @@ protected:
 
 private:
   //----------------------------------------------------------------------------
+  //! Thread handling parity information
+  //----------------------------------------------------------------------------
+  void HandleParityWork(ThreadAssistant& assistant) noexcept;
+
+  //----------------------------------------------------------------------------
   //! Non-streaming operation
   //! Add a new piece to the map of pieces written to the file
   //!
@@ -504,6 +511,11 @@ private:
   //! Disable assign operator
   //----------------------------------------------------------------------------
   RainMetaLayout& operator = (const RainMetaLayout&) = delete;
+
+  AssistedThread mParityThread; ///< Thread computing and wrintg parity
+  //! Queue holding group offsets to be used for parity computatio
+  eos::common::ConcurrentQueue<uint64_t> mQueueGrps;
+  std::atomic<bool> mHasParityErr {false};
 };
 
 EOSFSTNAMESPACE_END

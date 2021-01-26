@@ -199,7 +199,7 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
 
   // Local stripe is always on the first position
   if (!mStripe.empty()) {
-    eos_err("vector of stripe files is not empty ");
+    eos_static_err("%s", "msg=\"vector of stripe files is not empty\"");
     errno = EIO;
     return SFS_ERROR;
   }
@@ -360,6 +360,10 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
     }
   }
 
+  if (mIsRw) {
+    mParityThread.reset(&RainMetaLayout::HandleParityWork, this);
+  }
+
   eos_debug("Finished open with size: %llu", mFileSize);
   mIsOpen = true;
   return SFS_OK;
@@ -463,7 +467,11 @@ RainMetaLayout::OpenPio(std::vector<std::string> stripeUrls,
     }
   }
 
-  eos_debug("Finished open with size: %lli.", (long long int) mFileSize);
+  if (mIsRw) {
+    mParityThread.reset(&RainMetaLayout::HandleParityWork, this);
+  }
+
+  eos_static_debug("msg=\"pio open done\" open_size=%llu", mFileSize);
   mIsPio = true;
   mIsOpen = true;
   mIsEntryServer = true;
@@ -832,7 +840,7 @@ RainMetaLayout::Write(XrdSfsFileOffset offset,
   uint64_t off_local;
   uint64_t offset_end = offset + length;
   unsigned int physical_id;
-  eos_debug("off=%ji, len=%i", offset, length);
+  eos_static_debug("off=%ji, len=%i", offset, length);
 
   if (!mIsEntryServer) {
     // Non-entry server doing only local operations
@@ -844,6 +852,12 @@ RainMetaLayout::Write(XrdSfsFileOffset offset,
     if (mIsStreaming && ((uint64_t)offset != mLastWriteOffset)) {
       eos_debug("%s", "msg=\"enable non-streaming mode\"");
       mIsStreaming = false;
+    }
+
+    if (mHasParityErr) {
+      eos_static_err("msg=\"failed due to previous parity computation error\" "
+                     "off=%llu len=%li", offset, length);
+      return SFS_ERROR;
     }
 
     mLastWriteOffset += length;
@@ -897,7 +911,7 @@ RainMetaLayout::Write(XrdSfsFileOffset offset,
 
     // Non-streaming mode - try to compute parity if enough data
     if (!mIsStreaming && !SparseParityComputation(false)) {
-      eos_err("failed while doing SparseParityComputation");
+      eos_static_err("%s", "msg=\"failed while doing SparseParityComputation\"");
       return SFS_ERROR;
     }
 
@@ -950,9 +964,13 @@ RainMetaLayout::AddDataBlock(uint64_t offset, const char* buffer,
     }
   }
 
+  eos_static_info("offset=%llu length=%lu, offset_in_group=%llu",
+                  offset, length, offset_in_group);
+
   if (offset_in_group == 0) {
-    // We completed a group, we can compute parity
-    DoBlockParity(offset);
+    // Group completed, signal async thread to handle the parity
+    uint64_t grp_off = (offset / mSizeGroup) * mSizeGroup;
+    mQueueGrps.push(grp_off);
   }
 
   return true;
@@ -1394,13 +1412,22 @@ RainMetaLayout::Close()
 
         // Check if we still have to compute parity for the last group of blocks
         if (mIsStreaming) {
-          auto lst_grps = GetAllGroups();
+          if (mHasParityErr) {
+            rc = SFS_ERROR;
+          } else {
+            // Make sure the parity async thread is joined
+            uint64_t sentinel = std::numeric_limits<unsigned long long>::max();
+            mQueueGrps.push(sentinel);
+            mParityThread.join();
+            // Handle any group left to compute the parity information
+            auto lst_grps = GetAllGroupOffsets();
 
-          for (auto& grp : lst_grps) {
-            if (!DoBlockParity(grp->GetGroupOffset())) {
-              eos_static_err("msg=\"failed group parity computaion\" grp_off=%llu",
-                             grp->GetGroupOffset());
-              rc = SFS_ERROR;
+            for (auto grp_off : lst_grps) {
+              if (!DoBlockParity(grp_off)) {
+                eos_static_err("msg=\"failed group parity computaion\" grp_off=%llu",
+                               grp_off);
+                rc = SFS_ERROR;
+              }
             }
           }
         } else {
@@ -1615,22 +1642,22 @@ RainMetaLayout::GetGroup(uint64_t offset)
 //------------------------------------------------------------------------------
 // Get a list of all the groups in the map
 //------------------------------------------------------------------------------
-std::list<std::shared_ptr<eos::fst::RainGroup>>
-    RainMetaLayout::GetAllGroups()
+std::list<uint64_t>
+RainMetaLayout::GetAllGroupOffsets() const
 {
-  std::list<std::shared_ptr<eos::fst::RainGroup>> lst_grps;
+  std::list<uint64_t> lst;
   std::unique_lock<std::mutex> lock(mMutexGroups);
 
   for (auto& elem : mMapGroups) {
-    lst_grps.push_back(elem.second);
+    lst.push_back(elem.first);
   }
 
-  return lst_grps;
+  return lst;
 }
 
 //------------------------------------------------------------------------------
 // Recycle given group by removing the group object from the map if there are
-// no more references to it. I will eventually be deleted and the RainBlocks
+// no more references to it. It will eventually be deleted and the RainBlocks
 // will also be recycled.
 //------------------------------------------------------------------------------
 void
@@ -1660,5 +1687,32 @@ RainMetaLayout::RecycleGroup(std::shared_ptr<eos::fst::RainGroup>& group)
   }
   mCvGroups.notify_all();
 }
+
+//------------------------------------------------------------------------------
+// Thread handling parity information
+//------------------------------------------------------------------------------
+void
+RainMetaLayout::HandleParityWork(ThreadAssistant& assistant) noexcept
+{
+  uint64_t grp_off = 0ull;
+
+  while (true) {
+    mQueueGrps.wait_pop(grp_off);
+
+    if (grp_off == std::numeric_limits<unsigned long long>::max()) {
+      eos_static_info("%s", "msg=\"parity thread exiting\"");
+      break;
+    }
+
+    if (!DoBlockParity(grp_off)) {
+      eos_static_err("msg=\"failed parity computation\" grp_off=%llu", grp_off);
+      mHasParityErr = true;
+      break;
+    } else {
+      eos_static_info("msg=\"successful parity computation\" grp_off=%llu", grp_off);
+    }
+  }
+}
+
 
 EOSFSTNAMESPACE_END
