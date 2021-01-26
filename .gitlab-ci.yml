@@ -260,10 +260,10 @@ build_ubuntu_focal:
   allow_failure: true # @todo false for tags
 
 build_fedora_stable:
-  image: fedora:31
+  image: fedora:32
   <<: *build_fedora-template_definition
   variables:
-    EOS_DIST: fc-31
+    EOS_DIST: fc-32
   only:
     - schedules
     - tags
