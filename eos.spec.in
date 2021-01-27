@@ -6,15 +6,26 @@
 %define devtoolset devtoolset-8
 %define cmake cmake3
 %define debug_package %{nil}
+%global __oss_install_post %{nil}
 
-#-------------------------------------------------------------------------------
-# Custom strip command for CC7
-#-------------------------------------------------------------------------------
-%if "%{compiler}" == "gcc"
-    %if 0%{distribution} == 7
-        %global __strip /bin/true
-    %endif
-%endif
+# #-------------------------------------------------------------------------------
+# # Custom strip command for CC7
+# #-------------------------------------------------------------------------------
+# %if "%{compiler}" == "gcc"
+#     %if 0%{distribution} == 7
+#         %global __strip /bin/true
+#     %endif
+# %endif
+
+# #-------------------------------------------------------------------------------
+# # Custom strip command for CC7
+# #-------------------------------------------------------------------------------
+# %if "%{compiler}" == "gcc"
+#     %if 0%{distribution} == 7
+#         %global __strip /opt/rh/%{devtoolset}/root/usr/bin/strip
+#         %global __objdump /opt/rh/%{devtoolset}/root/usr/bin/objdump
+#     %endif
+# %endif
 
 # By default we build the eos client SRPMS, if the entire build is required
 # then pass the "--with server" flag to the rpmbuild command
@@ -58,16 +69,6 @@
 
 %if %{?_with_clang:1}%{!?_with_clang:0}
   %define compiler clang
-%endif
-
-#-------------------------------------------------------------------------------
-# Custom strip command for CC7
-#-------------------------------------------------------------------------------
-%if "%{compiler}" == "gcc"
-    %if 0%{distribution} == 7
-        %global __strip /opt/rh/%{devtoolset}/root/usr/bin/strip
-        %global __objdump /opt/rh/%{devtoolset}/root/usr/bin/objdump
-    %endif
 %endif
 
 %if %{?fedora:1}%{!?fedora:0}
