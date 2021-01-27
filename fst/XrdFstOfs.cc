@@ -31,6 +31,7 @@
 #include "fst/Messaging.hh"
 #include "fst/Deletion.hh"
 #include "fst/Verify.hh"
+#include "fst/grpc/server/GrpcServer.hh"
 #include "common/PasswordHandler.hh"
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
@@ -863,6 +864,18 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
 
   if (mHttpdPort && mHttpd) {
     mHttpd->Start();
+  }
+
+  mGRPCPort=50052;
+
+  if (getenv("EOS_FST_GRPC_PORT")) {
+    mGRPCPort = strtol(getenv("EOS_FST_GRPC_PORT"), 0, 10);
+  }
+
+  GRPCd.reset(new eos::fst::GrpcServer(mGRPCPort));
+
+  if (mGRPCPort && GRPCd) {
+    GRPCd->Start();
   }
 
   eos_notice("FST_HOST=%s FST_PORT=%ld FST_HTTP_PORT=%d VERSION=%s RELEASE=%s "

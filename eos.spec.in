@@ -211,6 +211,7 @@ BuildRequires: openldap-devel
 BuildRequires: e2fsprogs-devel
 BuildRequires: libmicrohttpd, libmicrohttpd-devel >= 0.9.38
 BuildRequires: grpc, grpc-devel, grpc-plugins
+BuildRequires: flatbuffers, flatbuffers-devel >= 1.12.0
 %endif
 
 BuildRequires: bzip2-devel

@@ -74,6 +74,7 @@ class HttpServer;
 class Storage;
 class Messaging;
 class XrdFstOfsFile;
+class GrpcServer;
 
 //------------------------------------------------------------------------------
 //! Class XrdFstOfs
@@ -413,6 +414,9 @@ public:
   std::unique_ptr<eos::fst::HttpServer>
   mHttpd; ///< Embedded http server if available
   std::chrono::seconds mTpcKeyValidity {120}; ///< TPC key validity
+
+  std::unique_ptr<GrpcServer> GRPCd; ///< GRPC server
+  int mGRPCPort; ///< port of the GRPC server, default 50051
 
   // @note
   // All of the commands below are going to be deprecated and replaced by XRootD

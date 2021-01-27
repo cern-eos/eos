@@ -23,7 +23,9 @@
 
 include_directories(
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
-  ${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/include)
+  ${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/include
+  ${PROTOBUF_INCLUDE_DIRS}
+  )
 
 #-------------------------------------------------------------------------------
 # Add XrdCl RAIN plugin library only if explicitly requested by using the
@@ -279,13 +281,16 @@ set(XRDEOSFST_SRCS
   http/HttpServer.cc    http/HttpServer.hh
   http/HttpHandler.cc   http/HttpHandler.hh
   http/s3/S3Handler.cc  http/s3/S3Handler.hh
+  # GRPC interface
+  grpc/server/GrpcServer.cc    grpc/server/GrpcServer.hh
   # EosFstIo interface
-  io/local/LocalIo.cc  io/local/LocalIo.hh)
+  io/local/LocalIo.cc   io/local/LocalIo.hh)
 
 add_library(XrdEosFst-Objects OBJECT ${XRDEOSFST_SRCS})
 
 target_link_libraries(XrdEosFst-Objects PUBLIC
   EosFstProto-Objects
+  EosFstFlatb-Objects
   EosCliProto-Objects
   EosNsQuarkdbProto-Objects
   XrdSsiPbEosCta-Objects
@@ -296,6 +301,7 @@ target_link_libraries(XrdEosFst-Objects PUBLIC
   XROOTD::UTILS
   XROOTD::PRIVATE
   XROOTD::SERVER
+  GRPC::grpc++
   XFS::XFS)
 
 set_target_properties(XrdEosFst-Objects PROPERTIES
@@ -309,6 +315,7 @@ add_library(XrdEosFst-${XRDPLUGIN_SOVERSION} MODULE
 
 target_link_libraries(XrdEosFst-${XRDPLUGIN_SOVERSION} PRIVATE
   XrdEosFst-Objects
+  EosFstFlatb-Objects
   EosConsoleHelpers-Objects
   XROOTD::SSI)
 
@@ -325,6 +332,7 @@ target_link_libraries(XrdEosFst-Static PUBLIC
   EosConsoleHelpers-Objects
   EosCommonServer
   EosFstIo
+  EosFstFlatb-Objects
   EosNsCommon
   XROOTD::SSI)
 
@@ -332,6 +340,31 @@ install(TARGETS EosFstOss XrdEosFst-${XRDPLUGIN_SOVERSION}
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
+
+
+#-------------------------------------------------------------------------------
+#  EoFstGrpcClient
+#-------------------------------------------------------------------------------
+
+add_library(EosFstGrpcClient-Objects OBJECT
+  grpc/client/GrpcClient.cc grpc/client/GrpcClient.hh)
+
+target_link_libraries(EosFstGrpcClient-Objects PUBLIC
+  GRPC::grpc++
+  XROOTD::UTILS)
+
+target_compile_definitions(EosFstGrpcClient-Objects PUBLIC
+  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DHAVE_ATOMICS=1)
+
+set_target_properties(EosFstGrpcClient-Objects
+  PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+
+add_executable(eos-flatb-ping grpc/client/Ping.cc)
+
+target_link_libraries(eos-flatb-ping PUBLIC
+  EosFstFlatb-Objects
+  EosFstGrpcClient-Objects
+  EosCommon )
 
 #-------------------------------------------------------------------------------
 # EosFstHttp library
@@ -442,7 +475,7 @@ install(PROGRAMS
 install(TARGETS
   eos-ioping eos-adler32 eos-checksum eos-leveldb-inspect eos-rain-hd-dump
   eos-check-blockxs eos-compute-blockxs eos-scan-fs eos-fsck-fs
-  eos-create-file-pattern eos-readv-pattern
+  eos-create-file-pattern eos-readv-pattern eos-flatb-ping
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
 endif()

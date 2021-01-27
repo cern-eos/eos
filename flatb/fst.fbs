@@ -1,0 +1,13 @@
+namespace eos;
+
+table PingReply {
+  message:string;
+}
+table PingRequest {
+  authkey:string;
+  message:string;
+}
+
+rpc_service Eos {
+  Ping(PingRequest):PingReply;
+}
