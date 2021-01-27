@@ -50,7 +50,6 @@ ReedSLayout::ReedSLayout(XrdFstOfsFile* file,
                          std::string bookingOpaque) :
   RainMetaLayout(file, lid, client, outError, path, timeout,
                  storeRecovery, targetSize, bookingOpaque),
-  mDoneInitialisation(false),
   mPacketSize(0), matrix(0), bitmatrix(0), schedule(0)
 {
   mNbDataBlocks = mNbDataFiles;
@@ -59,22 +58,13 @@ ReedSLayout::ReedSLayout(XrdFstOfsFile* file,
   mSizeLine = mSizeGroup;
   // Set the parameters for the Jerasure codes
   w = 8;      // "word size" this can be adjusted between 4..32
+  InitialiseJerasure();
 }
-
-
-//------------------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------------------
-ReedSLayout::~ReedSLayout()
-{
-  // empty
-}
-
 
 //------------------------------------------------------------------------------
 // Initialise the Jerasure data structures
 //------------------------------------------------------------------------------
-bool
+void
 ReedSLayout::InitialiseJerasure()
 {
   mPacketSize = mSizeLine / (mNbDataBlocks * w * sizeof(int));
@@ -83,8 +73,8 @@ ReedSLayout::InitialiseJerasure()
             mNbParityFiles, w, mPacketSize);
 
   if (mSizeLine % mPacketSize != 0) {
-    eos_err("packet size could not be computed correctly");
-    return false;
+    eos_err("%s", "msg=\"packet size could not be computed correctly\"");
+    throw std::runtime_error("Jerasure initialization failed");
   }
 
   // Initialise Jerasure data structures
@@ -95,9 +85,7 @@ ReedSLayout::InitialiseJerasure()
               matrix);
   schedule = jerasure_smart_bitmatrix_to_schedule(mNbDataBlocks, mNbParityFiles,
              w, bitmatrix);
-  return true;
 }
-
 
 //------------------------------------------------------------------------------
 // Compute the error correction blocks
@@ -105,16 +93,6 @@ ReedSLayout::InitialiseJerasure()
 bool
 ReedSLayout::ComputeParity(std::shared_ptr<eos::fst::RainGroup>& grp)
 {
-  // Initialise Jerasure structures if not done already
-  if (!mDoneInitialisation) {
-    if (!InitialiseJerasure()) {
-      eos_err("failed to initialise Jerasure");
-      return false;
-    }
-
-    mDoneInitialisation = true;
-  }
-
   // Get pointers to data and parity informatio
   char* data[mNbDataFiles];
   char* coding[mNbParityFiles];
@@ -134,7 +112,6 @@ ReedSLayout::ComputeParity(std::shared_ptr<eos::fst::RainGroup>& grp)
   return true;
 }
 
-
 //------------------------------------------------------------------------------
 // Recover corrupted pieces in the current group, all errors in the map
 // belonging to the same group
@@ -142,17 +119,6 @@ ReedSLayout::ComputeParity(std::shared_ptr<eos::fst::RainGroup>& grp)
 bool
 ReedSLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
 {
-  // Initialise Jerasure structures if not done already
-  if (!mDoneInitialisation) {
-    if (!InitialiseJerasure()) {
-      eos_err("failed to initialise Jerasure library");
-      return false;
-    }
-
-    mDoneInitialisation = true;
-  }
-
-  // Obs: RecoverPiecesInGroup also checks the parity blocks
   bool ret = true;
   int64_t nread = 0;
   int64_t nwrite = 0;
@@ -365,7 +331,6 @@ ReedSLayout::WriteParityToFiles(std::shared_ptr<eos::fst::RainGroup>& grp)
   return SFS_OK;
 }
 
-
 //------------------------------------------------------------------------------
 // Truncate file
 //------------------------------------------------------------------------------
@@ -412,7 +377,6 @@ ReedSLayout::Truncate(XrdSfsFileOffset offset)
   return rc;
 }
 
-
 //------------------------------------------------------------------------------
 // Return the same index in the Reed-Solomon case
 //------------------------------------------------------------------------------
@@ -427,9 +391,8 @@ ReedSLayout::MapSmallToBig(unsigned int idSmall)
   return idSmall;
 }
 
-
 //------------------------------------------------------------------------------
-// Allocate file space ( reserve )
+// Allocate file space (reserve)
 //------------------------------------------------------------------------------
 int
 ReedSLayout::Fallocate(XrdSfsFileOffset length)
@@ -437,7 +400,6 @@ ReedSLayout::Fallocate(XrdSfsFileOffset length)
   int64_t size = ceil((1.0 * length) / mSizeGroup) * mStripeWidth + mSizeHeader;
   return mStripe[0]->fileFallocate(size);
 }
-
 
 //------------------------------------------------------------------------------
 // Deallocate file space
@@ -453,32 +415,6 @@ ReedSLayout::Fdeallocate(XrdSfsFileOffset fromOffset,
   return mStripe[0]->fileFdeallocate(from_size, to_size);
 }
 
-
-//------------------------------------------------------------------------------
-// Check if a number is prime
-//------------------------------------------------------------------------------
-bool
-ReedSLayout::IsPrime(int w)
-{
-  int prime55[] = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79,
-                   83, 89, 97, 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167,
-                   173, 179, 181, 191, 193, 197, 199, 211, 223, 227, 229, 233, 239, 241, 251, 257
-                  };
-
-  for (int i = 0; i < 55; i++) {
-    if (w % prime55[i] == 0) {
-      if (w == prime55[i]) {
-        return true;
-      } else {
-        return false;
-      }
-    }
-  }
-
-  return false;;
-}
-
-
 //------------------------------------------------------------------------------
 // Convert a global offset (from the inital file) to a local offset within
 // a stripe file. The initial block does *NOT* span multiple chunks (stripes)
@@ -493,7 +429,6 @@ ReedSLayout::GetLocalPos(uint64_t global_off)
   int stripe_id = (global_off / mStripeWidth) % mNbDataFiles;
   return std::make_pair(stripe_id, local_off);
 }
-
 
 //------------------------------------------------------------------------------
 // Convert a local position (from a stripe file) to a global position

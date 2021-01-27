@@ -22,9 +22,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_REEDSFILE_HH__
-#define __EOSFST_REEDSFILE_HH__
-
+#pragma once
 #include "fst/layout/RainMetaLayout.hh"
 
 EOSFSTNAMESPACE_BEGIN
@@ -51,15 +49,16 @@ public:
   //! @param bookingOpaque opaque information
   //!
   //----------------------------------------------------------------------------
-  ReedSLayout(XrdFstOfsFile* file,
-              unsigned long lid,
-              const XrdSecEntity* client,
-              XrdOucErrInfo* outError,
-              const char* path,
-              uint16_t timeout = 0,
-              bool storeRecovery = false,
-              off_t targetSize = 0,
+  ReedSLayout(XrdFstOfsFile* file, unsigned long lid,
+              const XrdSecEntity* client, XrdOucErrInfo* outError,
+              const char* path, uint16_t timeout = 0,
+              bool storeRecovery = false, off_t targetSize = 0,
               std::string bookingOpaque = "oss.size");
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~ReedSLayout() = default;
 
   //----------------------------------------------------------------------------
   //! Truncate file
@@ -67,10 +66,8 @@ public:
   //! @param offset truncate size value
   //!
   //! @return 0 if successful, otherwise error
-  //!
   //----------------------------------------------------------------------------
   virtual int Truncate(XrdSfsFileOffset offset);
-
 
   //----------------------------------------------------------------------------
   //! Allocate file space
@@ -78,10 +75,8 @@ public:
   //! @param length space to be allocated
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //----------------------------------------------------------------------------
   virtual int Fallocate(XrdSfsFileOffset lenght);
-
 
   //----------------------------------------------------------------------------
   //! Deallocate file space
@@ -90,43 +85,29 @@ public:
   //! @param toOffset offset end
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //----------------------------------------------------------------------------
-  virtual int Fdeallocate(XrdSfsFileOffset fromOffset,
-                          XrdSfsFileOffset toOffset);
-
-
-  //----------------------------------------------------------------------------
-  //! Destructor
-  //----------------------------------------------------------------------------
-  virtual ~ReedSLayout();
+  virtual int Fdeallocate(XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffset);
 
 private:
+  //----------------------------------------------------------------------------
+  //! Disable copy/move assign/constructor operators
+  //----------------------------------------------------------------------------
+  ReedSLayout& operator = (const ReedSLayout&) = delete;
+  ReedSLayout(const ReedSLayout&) = delete;
+  ReedSLayout& operator = (ReedSLayout&&) = delete;
+  ReedSLayout(ReedSLayout&&) = delete;
 
   //! Values use by Jerasure codes
-  bool mDoneInitialisation; ///< Jerasure codes initialisation status
   unsigned int w;           ///< word size for Jerasure
   unsigned int mPacketSize; ///< packet size for Jerasure
   int* matrix;
   int* bitmatrix;
   int** schedule;
 
-
   //----------------------------------------------------------------------------
   //! Initialise the Jerasure structures used for encoding and decoding
-  //!
-  //! @return true if initalisation successful, otherwise false
   //----------------------------------------------------------------------------
-  bool InitialiseJerasure();
-
-  //----------------------------------------------------------------------------
-  //! Check if a number is prime
-  //!
-  //! @param w number to be checked
-  //!
-  //! @return true if number is prime, otherwise false
-  //----------------------------------------------------------------------------
-  bool IsPrime(int w);
+  void InitialiseJerasure();
 
   //------------------------------------------------------------------------------
   //! Compute error correction blocks
@@ -145,7 +126,6 @@ private:
   //! @return 0 if successful, otherwise error
   //----------------------------------------------------------------------------
   virtual int WriteParityToFiles(std::shared_ptr<eos::fst::RainGroup>& grp);
-
 
   //--------------------------------------------------------------------------
   //! Recover corrupted chunks from the current group
@@ -192,18 +172,6 @@ private:
   //--------------------------------------------------------------------------
   virtual uint64_t
   GetGlobalOff(int stripe_id, uint64_t local_off);
-
-  //--------------------------------------------------------------------------
-  //! Disable copy constructor
-  //--------------------------------------------------------------------------
-  ReedSLayout(const ReedSLayout&) = delete;
-
-  //--------------------------------------------------------------------------
-  //! Disable assign operator
-  //--------------------------------------------------------------------------
-  ReedSLayout& operator = (const ReedSLayout&) = delete;
 };
 
 EOSFSTNAMESPACE_END
-
-#endif  // __EOSFST_REEDSLAYOUT_HH__

@@ -22,12 +22,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_RAIDDPLAYOUT_HH__
-#define __EOSFST_RAIDDPLAYOUT_HH__
 
-/*----------------------------------------------------------------------------*/
+#pragma once
 #include "fst/layout/RainMetaLayout.hh"
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -41,7 +38,6 @@ EOSFSTNAMESPACE_BEGIN
 class RaidDpLayout : public RainMetaLayout
 {
 public:
-
   //----------------------------------------------------------------------------
   //! Constructor
   //!
@@ -54,7 +50,6 @@ public:
   //! @param storeRecovery if true write back the recovered blocks to file
   //! @param targetSize expected final size
   //! @param bookingOpaque opaque information
-  //!
   //----------------------------------------------------------------------------
   RaidDpLayout(XrdFstOfsFile* file,
                unsigned long lid,
@@ -73,10 +68,8 @@ public:
   //! @param offset truncate value
   //!
   //! @return 0 if successful, otherwise error
-  //!
   //----------------------------------------------------------------------------
   virtual int Truncate(XrdSfsFileOffset offset);
-
 
   //----------------------------------------------------------------------------
   //! Allocate file space
@@ -84,10 +77,8 @@ public:
   //! @param length space to be allocated
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //----------------------------------------------------------------------------
   virtual int Fallocate(XrdSfsFileOffset lenght);
-
 
   //----------------------------------------------------------------------------
   //! Deallocate file space
@@ -96,7 +87,6 @@ public:
   //! @param toOffset offset end
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //----------------------------------------------------------------------------
   virtual int Fdeallocate(XrdSfsFileOffset fromOffset,
                           XrdSfsFileOffset toOffset);
@@ -106,8 +96,15 @@ public:
   //----------------------------------------------------------------------------
   virtual ~RaidDpLayout() = default;
 
-
 private:
+  //----------------------------------------------------------------------------
+  //! Disable copy/move assign/constructor operators
+  //----------------------------------------------------------------------------
+  RaidDpLayout& operator = (const RaidDpLayout&) = delete;
+  RaidDpLayout(const RaidDpLayout&) = delete;
+  RaidDpLayout& operator = (RaidDpLayout&&) = delete;
+  RaidDpLayout(RaidDpLayout&&) = delete;
+
   //------------------------------------------------------------------------------
   //! Compute error correction blocks
   //!
@@ -176,30 +173,24 @@ private:
   //! @param blockId current block index
   //!
   //! @return true if successful, otherwise false
-  //!
   //----------------------------------------------------------------------------
   bool ValidDiagStripe(std::vector<unsigned int>& rStripes,
                        const std::vector<bool>& pStatusBlock,
                        unsigned int blockId);
 
-
   //----------------------------------------------------------------------------
   //! Get indices of the simple parity blocks
   //!
   //! @return vecttor containing the values of the simple parity indices
-  //!
   //----------------------------------------------------------------------------
   std::vector<unsigned int> GetSimpleParityIndices();
-
 
   //----------------------------------------------------------------------------
   //! Get indices of the double parity blocks
   //!
   //! @return vector containing the values of the double parity indices
-  //!
   //----------------------------------------------------------------------------
   std::vector<unsigned int> GetDoubleParityIndices();
-
 
   //----------------------------------------------------------------------------
   //! Get simple parity block corresponding to current block
@@ -207,10 +198,8 @@ private:
   //! @param elemFromStripe any element from the current stripe
   //!
   //! @return value of the simple parity index
-  //!
   //----------------------------------------------------------------------------
   unsigned int GetSParityBlock(unsigned int elemFromStripe);
-
 
   //----------------------------------------------------------------------------
   //! Get double parity blocks corresponding to current stripe
@@ -218,10 +207,8 @@ private:
   //! @param rStripe elements from the current stripe
   //!
   //! @return value of the double parity block
-  //!
   //----------------------------------------------------------------------------
   unsigned int GetDParityBlock(std::vector<unsigned int>& rStripe);
-
 
   //----------------------------------------------------------------------------
   //! Map index from nTotalBlocks representation to nDataBlocks
@@ -229,10 +216,8 @@ private:
   //! @param idBig with values between 0 ans 23
   //!
   //! @return index with values between 0 and 15, -1 if error
-  //!
   //----------------------------------------------------------------------------
   unsigned int MapBigToSmall(unsigned int idBig);
-
 
   //----------------------------------------------------------------------------
   //! Map index from nDataBlocks representation to nTotalBlocks
@@ -240,10 +225,8 @@ private:
   //! @param idSmall with values between 0 and 15
   //!
   //! @return index with values between 0 and 23, -1 if error
-  //!
   //----------------------------------------------------------------------------
   virtual unsigned int MapSmallToBig(unsigned int idSmall);
-
 
   //----------------------------------------------------------------------------
   //! Convert a global offset (from the inital file) to a local offset within
@@ -255,11 +238,9 @@ private:
   //!
   //! @return tuple made up of the logical index of the stripe data file the
   //!         piece belongs to and the local offset within that file.
-  //!
   //----------------------------------------------------------------------------
   virtual std::pair<int, uint64_t>
   GetLocalPos(uint64_t global_off);
-
 
   //----------------------------------------------------------------------------
   //! Convert a local position (from a stripe data file) to a global position
@@ -271,26 +252,9 @@ private:
   //! @param local_off local offset
   //!
   //! @return offset in the initial file of the local given piece
-  //!
   //----------------------------------------------------------------------------
   virtual uint64_t
   GetGlobalOff(int stripe_id, uint64_t local_off);
-
-
-  //----------------------------------------------------------------------------
-  //! Disable copy constructor
-  //----------------------------------------------------------------------------
-  RaidDpLayout(const RaidDpLayout&) = delete;
-
-
-  //----------------------------------------------------------------------------
-  //! Disable assign operator
-  //----------------------------------------------------------------------------
-  RaidDpLayout& operator = (const RaidDpLayout&) = delete;
-
 };
 
 EOSFSTNAMESPACE_END
-
-#endif  // __EOSFST_RAIDDPLAYOUT_HH__
-

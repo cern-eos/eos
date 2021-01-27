@@ -125,7 +125,6 @@ RaidDpLayout::ComputeParity(std::shared_ptr<eos::fst::RainGroup>& grp)
   return true;
 }
 
-
 //------------------------------------------------------------------------------
 // XOR the two blocks using 128 bits and return the result
 //------------------------------------------------------------------------------
@@ -163,7 +162,6 @@ RaidDpLayout::OperationXOR(char* pBlock1, char* pBlock2, char* pResult,
   }
 }
 
-
 //------------------------------------------------------------------------------
 // Use simple and double parity to recover corrupted pieces in the curerent
 // group, all errors in the map belong to the same group
@@ -171,7 +169,6 @@ RaidDpLayout::OperationXOR(char* pBlock1, char* pBlock2, char* pResult,
 bool
 RaidDpLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
 {
-  // Obs: RecoverPiecesInGroup also checks the simple and double parity blocks
   int64_t nread = 0;
   bool ret = true;
   uint64_t offset_local;
@@ -263,7 +260,7 @@ RaidDpLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
   }
 
   if (corrupt_ids.empty()) {
-    eos_warning("warning=no corrupted blocks, although we saw some before");
+    eos_warning("%s", "msg=\"no corrupted blocks, although we saw some before\"");
     RecycleGroup(grp);
     return true;
   }
@@ -305,8 +302,8 @@ RaidDpLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
                  mTimeout);
 
         if (nwrite != (int64_t)mStripeWidth) {
-          eos_err("while doing write operation stripe=%u, offset=%lli",
-                  stripe_id, offset_local);
+          eos_err("msg=\"failed write operation\" offset=%llu stripe_id=%i",
+                  offset_local, stripe_id);
           ret = false;
         }
       }
@@ -364,8 +361,8 @@ RaidDpLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
                    mTimeout);
 
           if (nwrite != (int64_t)mStripeWidth) {
-            eos_err("while doing write operation stripe=%u, offset=%lli",
-                    stripe_id, (offset_local + mSizeHeader));
+            eos_err("msg=\"failed write operation\" offset=%llu stripe=%u",
+                    offset_local, stripe_id);
             ret = false;
           }
         }
@@ -425,7 +422,7 @@ RaidDpLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
   }
 
   if (corrupt_ids.empty() && !exclude_ids.empty()) {
-    eos_err("exclude ids not empty, has size=%zu", exclude_ids.size());
+    eos_err("msg=\"exclude ids not empty\" size=%d", exclude_ids.size());
     ret = false;
   }
 
@@ -488,7 +485,6 @@ RaidDpLayout::GetSimpleParityIndices()
   return values;
 }
 
-
 //------------------------------------------------------------------------------
 // Return the indices of the double parity blocks from a group
 //------------------------------------------------------------------------------
@@ -508,7 +504,6 @@ RaidDpLayout::GetDoubleParityIndices()
 
   return values;
 }
-
 
 //------------------------------------------------------------------------------
 // Check if the diagonal stripe is valid in the sense that there is at most one
@@ -544,7 +539,6 @@ RaidDpLayout::ValidDiagStripe(std::vector<unsigned int>& rStripes,
 
   return true;
 }
-
 
 //------------------------------------------------------------------------------
 // Check if the HORIZONTAL stripe is valid in the sense that there is at
@@ -583,7 +577,6 @@ RaidDpLayout::ValidHorizStripe(std::vector<unsigned int>& rStripes,
 
   return true;
 }
-
 
 //------------------------------------------------------------------------------
 // Return the blocks corrsponding to the diagonal stripe of blockId
@@ -638,7 +631,6 @@ RaidDpLayout::GetDiagonalStripe(unsigned int blockId)
 
     // If on the ommited diagonal return
     if (next_block == mNbDataFiles) {
-      eos_debug("Return empty vector - ommited diagonal");
       stripe.clear();
       return stripe;
     }
@@ -652,7 +644,6 @@ RaidDpLayout::GetDiagonalStripe(unsigned int blockId)
 
   return stripe;
 }
-
 
 //------------------------------------------------------------------------------
 // Return the id of stripe from a mNbTotalBlocks representation to a mNbDataBlocks
@@ -669,7 +660,6 @@ RaidDpLayout::MapBigToSmall(unsigned int idBig)
             (idBig % (mNbDataFiles + 2)));
 }
 
-
 //------------------------------------------------------------------------------
 // Return the id of stripe from a mNbDataBlocks representation in a mNbTotalBlocks
 // representation
@@ -678,13 +668,12 @@ unsigned int
 RaidDpLayout::MapSmallToBig(unsigned int idSmall)
 {
   if (idSmall >= mNbDataBlocks) {
-    eos_err("idSmall bugger than expected");
+    eos_err("%s", "msg=\"idSmall bigger than expected\"");
     return -1;
   }
 
   return (idSmall / mNbDataFiles) * (mNbDataFiles + 2) + idSmall % mNbDataFiles;
 }
-
 
 //------------------------------------------------------------------------------
 // Return the id (out of mNbTotalBlocks) for the parity block corresponding to
@@ -697,7 +686,6 @@ RaidDpLayout::GetSParityBlock(unsigned int elemFromStripe)
           * (mNbDataFiles + 2));
 }
 
-
 //------------------------------------------------------------------------------
 // Return the id (out of mNbTotalBlocks) for the double parity block corresponding
 // to the current block
@@ -709,14 +697,13 @@ RaidDpLayout::GetDParityBlock(std::vector<unsigned int>& rStripe)
   return ((min + 1) * (mNbDataFiles + 1) + min);
 }
 
-
 //------------------------------------------------------------------------------
 // Truncate file
 //------------------------------------------------------------------------------
 int
 RaidDpLayout::Truncate(XrdSfsFileOffset offset)
 {
-  eos_debug("offset = %lli", offset);
+  eos_debug("offset=%llu", offset);
   int rc = SFS_OK;
   uint64_t truncate_offset = 0;
   truncate_offset = ceil((offset * 1.0) / mSizeGroup) * mSizeLine;
@@ -726,7 +713,7 @@ RaidDpLayout::Truncate(XrdSfsFileOffset offset)
     mStripe[0]->fileTruncate(truncate_offset, mTimeout);
   }
 
-  eos_debug("Truncate local stripe to file_offset = %lli, stripe_offset = %zu",
+  eos_debug("msg=\"truncate local stripe\"file_offset=%llu stripe_offset=%llu",
             offset, truncate_offset);
 
   if (mIsEntryServer) {
@@ -736,12 +723,12 @@ RaidDpLayout::Truncate(XrdSfsFileOffset offset)
     }
 
     for (unsigned int i = 1; i < mStripe.size(); i++) {
-      eos_debug("Truncate stripe %i, to file_offset = %lli, stripe_offset = %zu",
-                i, offset, truncate_offset);
+      eos_debug("msg=\"truncate stripe\" stripe_id=%i file_offset=%llu "
+                " stripe_offset=%llu", i, offset, truncate_offset);
 
       if (mStripe[i]) {
         if (mStripe[i]->fileTruncate(truncate_offset, mTimeout)) {
-          eos_err("error while truncating");
+          eos_err("%s", "msg=\"error while truncating\"");
           return SFS_ERROR;
         }
       }
@@ -796,7 +783,6 @@ RaidDpLayout::GetLocalPos(uint64_t global_off)
   int stripe_id = (global_off / mStripeWidth) % mNbDataFiles;
   return std::make_pair(stripe_id, local_off);
 }
-
 
 //------------------------------------------------------------------------------
 // Convert a local position (from a stripe file) to a global position
