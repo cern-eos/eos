@@ -212,7 +212,7 @@ MultiSpaceTapeGc::handleFSCTL_PLUGIO_tgc(XrdOucErrInfo& error,
       error.setErrInfo(ERANGE, ml.what());
       return SFS_ERROR;
     }
-    std::strncpy(reply, json.str().c_str(), replySize);
+    std::strncpy(reply, json.str().c_str(), replySize-1);
     reply[replySize - 1] = '\0';
 
     // Ownership of reply is taken by the xrd_buff object.
