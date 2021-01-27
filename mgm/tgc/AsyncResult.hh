@@ -26,6 +26,7 @@
 
 #include "mgm/Namespace.hh"
 
+#include <string>
 #include <optional>
 
 /**

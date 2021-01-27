@@ -25,7 +25,9 @@
 #include "namespace/Namespace.hh"
 #include "qclient/QCallback.hh"
 #include <atomic>
+#include <limits>
 #include <map>
+#include <string>
 
 EOSNSNAMESPACE_BEGIN
 
