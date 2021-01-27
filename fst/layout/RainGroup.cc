@@ -60,4 +60,34 @@ RainGroup::FillWithZeros()
   return ret;
 }
 
+//------------------------------------------------------------------------------
+// Save future of async requests
+//------------------------------------------------------------------------------
+void
+RainGroup::StoreFuture(std::future<XrdCl::XRootDStatus>&& future)
+{
+  mFutures.push_back(std::move(future));
+}
+
+//----------------------------------------------------------------------------
+// Wait for completion of all registered futures and check if they were all
+// successful.
+//----------------------------------------------------------------------------
+bool
+RainGroup::WaitAsyncOK()
+{
+  bool all_ok = true;
+
+  for (auto& fut : mFutures) {
+    XrdCl::XRootDStatus status = fut.get();
+
+    if (!status.IsOK()) {
+      all_ok = false;
+    }
+  }
+
+  mFutures.clear();
+  return all_ok;
+}
+
 EOSFSTNAMESPACE_END

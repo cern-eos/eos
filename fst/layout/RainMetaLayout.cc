@@ -870,6 +870,13 @@ RainMetaLayout::Write(XrdSfsFileOffset offset,
       off_local += mSizeHeader;
       nwrite = (length < (int64_t)mStripeWidth) ? length : mStripeWidth;
 
+      if (!mStripe[physical_id]) {
+        eos_static_err("msg=\"failed write, stripe file is null\" off=%llu "
+                       "len=%li physical_id=%i", offset, length, physical_id);
+        write_length = SFS_ERROR;
+        break;
+      }
+
       // Deal with the case when offset is not aligned (sparse writing) and the
       // length goes beyond the current stripe that we are writing to
       if ((offset % mStripeWidth != 0) &&
@@ -946,28 +953,20 @@ RainMetaLayout::AddDataBlock(uint64_t offset, const char* buffer,
                   offset, length, grp_off);
   char* ptr {nullptr};
   {
+    // Reduce the scope for the eos::fst::RainGroup object to properly account
+    // the number of references and trigger the Recycle procedure.
     std::shared_ptr<eos::fst::RainGroup> grp = GetGroup(offset);
     eos::fst::RainGroup& data_blocks = *grp.get();
     ptr = data_blocks[indx_block].Write(buffer, offset_in_block, length);
-  }
-  offset_in_group = (offset + length) % mSizeGroup;
+    offset_in_group = (offset + length) % mSizeGroup;
 
-  if (ptr == nullptr) {
-    eos_static_err("msg=\"failed to store data in group\" off=%llu len=%li",
-                   offset, length);
-    return false;
-  }
-
-  if (file) {
-    // @todo(esindril) this must be done using futures and the async thread
-    // will handle the errors
-    int64_t nbytes = file->fileWriteAsync(file_offset, ptr, length);
-
-    if (nbytes != length) {
-      eos_static_err("msg=\"failed write operation\" off=%llu len=%lu",
+    if (ptr == nullptr) {
+      eos_static_err("msg=\"failed to store data in group\" off=%llu len=%li",
                      offset, length);
       return false;
     }
+
+    grp->StoreFuture(file->fileWriteAsync(ptr, file_offset, length));
   }
 
   // Group completed - compute and write parity info
@@ -975,7 +974,10 @@ RainMetaLayout::AddDataBlock(uint64_t offset, const char* buffer,
     if (mHasParityThread) {
       mQueueGrps.push(grp_off);
     } else {
-      return DoBlockParity(grp_off);
+      if (!DoBlockParity(grp_off)) {
+        mHasParityErr = true;
+        return false;
+      }
     }
   }
 
@@ -988,7 +990,7 @@ RainMetaLayout::AddDataBlock(uint64_t offset, const char* buffer,
 bool
 RainMetaLayout::DoBlockParity(uint64_t grp_off)
 {
-  bool done;
+  bool done = false;
   eos::common::Timing up("parity");
   COMMONTIMING("Compute-In", &up);
   eos_static_debug("msg=\"group parity\" grp_off=%llu", grp_off);
@@ -1000,12 +1002,17 @@ RainMetaLayout::DoBlockParity(uint64_t grp_off)
   if ((done = ComputeParity(grp))) {
     COMMONTIMING("Compute-Out", &up);
 
-    // Write parity blocks to files
     if (WriteParityToFiles(grp) == SFS_ERROR) {
       done = false;
     }
 
     COMMONTIMING("WriteParity", &up);
+  }
+
+  if (!grp->WaitAsyncOK()) {
+    eos_static_err("msg=\"some async operations failed\" grp_off=%llu",
+                   grp->GetGroupOffset());
+    done = false;
   }
 
   grp->Unlock();
@@ -1428,11 +1435,12 @@ RainMetaLayout::Close()
 
             for (auto grp_off : lst_grps) {
               if (!DoBlockParity(grp_off)) {
-                eos_static_err("msg=\"failed group parity computaion\" grp_off=%llu",
+                eos_static_err("msg=\"failed parity computation\" grp_off=%llu",
                                grp_off);
                 rc = SFS_ERROR;
               } else {
-                eos_static_info("msg=\"successful parity computation\" grp_off=%llu", grp_off);
+                eos_static_info("msg=\"successful parity computation\" "
+                                "grp_off=%llu", grp_off);
               }
             }
           }

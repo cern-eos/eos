@@ -23,6 +23,9 @@
 
 #pragma once
 #include "fst/layout/RainBlock.hh"
+#include "XrdCl/XrdClXRootDResponses.hh"
+#include <future>
+#include <list>
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -76,9 +79,26 @@ public:
   //----------------------------------------------------------------------------
   bool FillWithZeros();
 
+  //----------------------------------------------------------------------------
+  //! Save future of async requests
+  //!
+  //! @param future future object
+  //----------------------------------------------------------------------------
+  void StoreFuture(std::future<XrdCl::XRootDStatus>&& future);
+
+  //----------------------------------------------------------------------------
+  //! Wait for completion of all registered futures and check if they were all
+  //! successful.
+  //!
+  //! @return true if all successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool WaitAsyncOK();
+
 private:
   uint64_t mOffset; ///< Group offset of the current object
   std::vector<eos::fst::RainBlock> mBlocks;
+  //! List of futures for async requests
+  std::list<std::future<XrdCl::XRootDStatus>> mFutures;
   mutable std::mutex mMutex;
 };
 

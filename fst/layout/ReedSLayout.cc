@@ -224,7 +224,8 @@ ReedSLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
     RecycleGroup(grp);
     return true;
   } else if (invalid_ids.size() > mNbParityFiles) {
-    eos_err("msg=\"more blocks corrupted than the maximum number supported\"");
+    eos_static_err("%s", "msg=\"more blocks corrupted than the maximum "
+                   "number supported\"");
     RecycleGroup(grp);
     return false;
   }
@@ -344,34 +345,24 @@ ReedSLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
 int
 ReedSLayout::WriteParityToFiles(std::shared_ptr<eos::fst::RainGroup>& grp)
 {
-  int ret = SFS_OK;
-  int64_t nwrite = 0;
-  unsigned int physical_id;
   uint64_t offset_local = (grp->GetGroupOffset() / mNbDataFiles);
   eos::fst::RainGroup& data_blocks = *grp.get();
   offset_local += mSizeHeader;
 
   for (unsigned int i = mNbDataFiles; i < mNbTotalFiles; i++) {
-    physical_id = mapLP[i];
+    unsigned int physical_id = mapLP[i];
 
     // Write parity block
     if (mStripe[physical_id]) {
-      nwrite = mStripe[physical_id]->fileWriteAsync(offset_local,
-               data_blocks[i](),
-               mStripeWidth, mTimeout);
-
-      if (nwrite != (int64_t)mStripeWidth) {
-        eos_static_err("msg=\"failed write operation on parity stripe\" "
-                       "stripe=%u local_offset=%lli", i, offset_local);
-        ret = SFS_ERROR;
-        break;
-      }
+      grp->StoreFuture(mStripe[physical_id]->fileWriteAsync(data_blocks[i](),
+                       offset_local,
+                       mStripeWidth));
+    } else {
+      return SFS_ERROR;
     }
   }
 
-  // We collect the write responses either the next time we do a read like in
-  // ReadGroups or in the Close method for the whole file.
-  return ret;
+  return SFS_OK;
 }
 
 

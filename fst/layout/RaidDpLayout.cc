@@ -439,10 +439,7 @@ RaidDpLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
 int
 RaidDpLayout::WriteParityToFiles(std::shared_ptr<eos::fst::RainGroup>& grp)
 {
-  int ret = SFS_OK;
   uint64_t off_parity_local;
-  unsigned int index_pblock;
-  unsigned int index_dpblock;
   unsigned int physical_pindex = mapLP[mNbTotalFiles - 2];
   unsigned int physical_dpindex = mapLP[mNbTotalFiles - 1];
 
@@ -452,35 +449,23 @@ RaidDpLayout::WriteParityToFiles(std::shared_ptr<eos::fst::RainGroup>& grp)
   }
 
   eos::fst::RainGroup& data_blocks = *grp.get();
-  uint64_t offGroup = grp->GetGroupOffset();
-  std::list<std::future<XrdCl::XRootDStatus>> mReplies;
+  uint64_t grp_off = grp->GetGroupOffset();
 
   for (unsigned int i = 0; i < mNbDataFiles; i++) {
-    index_pblock = (i + 1) * mNbDataFiles + 2 * i;
-    index_dpblock = (i + 1) * (mNbDataFiles + 1) + i;
-    off_parity_local = (offGroup / mNbDataFiles) + (i * mStripeWidth);
+    unsigned int index_pblock = (i + 1) * mNbDataFiles + 2 * i;
+    unsigned int index_dpblock = (i + 1) * (mNbDataFiles + 1) + i;
+    off_parity_local = (grp_off / mNbDataFiles) + (i * mStripeWidth);
     off_parity_local += mSizeHeader;
     // Writing simple and double parity
-    mReplies.push_back(mStripe[physical_pindex]->fileWriteAsync(
-                         data_blocks[index_pblock](),
-                         off_parity_local,
-                         mStripeWidth));
-    mReplies.push_back(mStripe[physical_dpindex]->fileWriteAsync(
-                         data_blocks[index_dpblock](),
-                         off_parity_local,
-                         mStripeWidth));
+    grp->StoreFuture(mStripe[physical_pindex]->
+                     fileWriteAsync(data_blocks[index_pblock](),
+                                    off_parity_local, mStripeWidth));
+    grp->StoreFuture(mStripe[physical_dpindex]
+                     ->fileWriteAsync(data_blocks[index_dpblock](),
+                                      off_parity_local, mStripeWidth));
   }
 
-  for (auto& fut : mReplies) {
-    auto status = fut.get();
-
-    if (!status.IsOK()) {
-      eos_static_err("%s", "msg=\"failed write operation for parity\"");
-      ret = SFS_ERROR;
-    }
-  }
-
-  return ret;
+  return SFS_OK;
 }
 
 //------------------------------------------------------------------------------
