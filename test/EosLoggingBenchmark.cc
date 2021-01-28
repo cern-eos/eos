@@ -133,6 +133,8 @@ int main(int argc, char* argv[])
   COMMONTIMING("STOP", &tm);
 
   fprintf(stdout,"duration: %.02f [s] min: %.04f [ms] max: %.04f [ms] avg: %.04f [ms] nmsg: %d rate: %.02f [Hz] \n", tm.RealTime()/1000.0, min, max, avg, NTHREADS*NMESSAGES, NTHREADS*NMESSAGES / tm.RealTime()*1000);
+
+  g_logging.shutDown(true);        /* gracefully, while files are still open */
   fclose(fstderr);
   fclose(fp);
 }

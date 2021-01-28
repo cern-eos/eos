@@ -232,6 +232,7 @@ int
 EosFuse::run(int argc, char* argv[], void* userdata)
 /* -------------------------------------------------------------------------- */
 {
+  eos::common::Logging::GetInstance().LB->suspend();      /* no log thread yet */
   eos_static_debug("");
   XrdCl::Env* env = XrdCl::DefaultEnv::GetEnv();
   env->PutInt("RunForkHandler", 1);
@@ -1516,6 +1517,18 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
       eos::common::Logging::GetInstance().SetIndexSize(512);
       eos::common::Logging::GetInstance().EnableRateLimiter();
+
+fprintf(stderr, "Logging: suspended %d running %d in q %d\n",
+        eos::common::Logging::GetInstance().LB->log_suspended,
+        eos::common::Logging::GetInstance().LB->log_thread_started,
+        eos::common::Logging::GetInstance().LB->log_buffer_in_q);
+      eos::common::Logging::GetInstance().LB->resume();
+eos_static_debug("");
+fprintf(stderr, "Logging: suspended %d running %d in q %d\n",
+        eos::common::Logging::GetInstance().LB->log_suspended,
+        eos::common::Logging::GetInstance().LB->log_thread_started,
+        eos::common::Logging::GetInstance().LB->log_buffer_in_q);
+
       // initialize mKV in case no cache is configured to act as no-op
       mKV.reset(new NoKV());
 #ifdef HAVE_ROCKSDB
@@ -1791,6 +1804,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     fprintf(stderr, "error: catched json config exception");
     exit(-1);
   }
+
+  eos::common::Logging::GetInstance().shutDown(true);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1807,7 +1822,7 @@ EosFuse::umounthandler(int sig, siginfo_t* si, void* ctx)
   std::string systemline = "fusermount -u -z ";
   systemline += EosFuse::Instance().Config().localmountdir;
   system(systemline.c_str());
-  fprintf(stderr, "# umounthandler: executing %s", systemline.c_str());
+  fprintf(stderr, "# umounthandler: executing %s\n", systemline.c_str());
   fprintf(stderr,
           "# umounthandler: sighandler received signal %d - emitting signal %d again\n",
           sig, sig);
