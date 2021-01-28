@@ -73,6 +73,8 @@
 #include <stdlib.h>
 #include <sstream>
 #include <thread>
+#include <cctype>
+#include <algorithm>
 
 // The global OFS handle
 eos::fst::XrdFstOfs eos::fst::gOFS;
@@ -480,13 +482,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   eos::fst::Config::gConfig.FstMetaLogDir = "/var/tmp/eos/md/";
   eos::fst::Config::gConfig.FstAuthDir = "/var/eos/auth/";
   setenv("XrdClientEUSER", "daemon", 1);
-  // Set short timeout resolution, connection window, connection retry and
-  // stream error window
-  XrdCl::DefaultEnv::GetEnv()->PutInt("TimeoutResolution", 1);
-  XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionWindow", 5);
-  XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionRetry", 1);
-  XrdCl::DefaultEnv::GetEnv()->PutInt("StreamErrorWindow", 0);
-  XrdCl::DefaultEnv::GetEnv()->PutInt("MetalinkProcessing", 0);
+  SetXrdClTimeouts();
   // Extract the manager from the config file
   XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"));
 
@@ -2520,6 +2516,42 @@ XrdFstOfs::DoVerify(XrdOucEnv& env)
     gOFS.Storage->PushVerification(new_verify);
   } else {
     eos_static_err("%s", "msg=\"failed verify, illegal opaque info\"");
+  }
+}
+
+//------------------------------------------------------------------------------
+// Set various XrdCl timeouts more appropriate for the EOS use-case but still
+// allow the env variables to override them
+//------------------------------------------------------------------------------
+void
+XrdFstOfs::SetXrdClTimeouts()
+{
+  char* ptr {nullptr};
+  int env_value {0};
+  std::map<std::string, int> map_timeouts {
+    {"TimeoutResolution", 1}, {"ConnectionWindow", 5}, {"ConnectionRetry", 1},
+    {"StreamErrorWindow", 0}, {"MetalinkProcessing", 0}};
+
+  for (auto& elem : map_timeouts) {
+    std::string env_name = "XRD_" + elem.first;
+    std::transform(env_name.begin(), env_name.end(), env_name.begin(),
+                   ::toupper);
+    ptr = getenv(env_name.c_str());
+    env_value = elem.second;
+
+    // Env variable overrides default values
+    if (ptr) {
+      try {
+        env_value = std::stoi(std::string(ptr));
+      } catch (...) {
+        eos_static_err("msg=\"invalid value for env var %s keeping the defaule\" "
+                       "default_value=1", env_value);
+      }
+    }
+
+    XrdCl::DefaultEnv::GetEnv()->PutInt(elem.first, env_value);
+    eos_static_info("msg=\"update xrootd client timeouts\" name=%s value=%i",
+                    elem.first.c_str(), env_value);
   }
 }
 
