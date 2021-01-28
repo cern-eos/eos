@@ -553,6 +553,12 @@ public:
   //!        populated with the response
   //----------------------------------------------------------------------------
   int HandleVerify(XrdOucEnv& env, XrdOucErrInfo& err_obj);
+
+  //----------------------------------------------------------------------------
+  //! Set various XrdCl timeouts more appropriate for the EOS use-case but still
+  //! allow the env variables to override them
+  //----------------------------------------------------------------------------
+  static void SetXrdClTimeouts();
 };
 
 //------------------------------------------------------------------------------
