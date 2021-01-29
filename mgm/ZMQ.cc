@@ -74,20 +74,20 @@ ZMQ::Task::run() noexcept
   enable_ipv6 = 0;
   mFrontend.setsockopt(ZMQ_IPV4ONLY, &enable_ipv6, sizeof(enable_ipv6));
 #endif
-
   {
     // set keepalive options
     int32_t keep_alive = 1;
     int32_t keep_alive_idle = 30;
     int32_t keep_alive_cnt = 2;
     int32_t keep_alive_intvl = 30;
-
-    mFrontend.setsockopt(ZMQ_TCP_KEEPALIVE, &keep_alive, sizeof (keep_alive));
-    mFrontend.setsockopt(ZMQ_TCP_KEEPALIVE_IDLE, &keep_alive_idle, sizeof (keep_alive_idle));
-    mFrontend.setsockopt(ZMQ_TCP_KEEPALIVE_CNT, &keep_alive_cnt, sizeof (keep_alive_cnt));
-    mFrontend.setsockopt(ZMQ_TCP_KEEPALIVE_INTVL, &keep_alive_intvl, sizeof (keep_alive_intvl));
+    mFrontend.setsockopt(ZMQ_TCP_KEEPALIVE, &keep_alive, sizeof(keep_alive));
+    mFrontend.setsockopt(ZMQ_TCP_KEEPALIVE_IDLE, &keep_alive_idle,
+                         sizeof(keep_alive_idle));
+    mFrontend.setsockopt(ZMQ_TCP_KEEPALIVE_CNT, &keep_alive_cnt,
+                         sizeof(keep_alive_cnt));
+    mFrontend.setsockopt(ZMQ_TCP_KEEPALIVE_INTVL, &keep_alive_intvl,
+                         sizeof(keep_alive_intvl));
   }
-
   mFrontend.bind(mBindUrl.c_str());
   mBackend.bind("inproc://backend");
   mInjector.connect("inproc://backend");
@@ -141,20 +141,26 @@ ZMQ::Worker::work()
 
   try {
     while (true) {
+      int more = 0;
+      size_t size = sizeof(int);
       zmq::message_t identity;
       zmq::message_t msg;
       zmq::message_t copied_id;
       zmq::message_t copied_msg;
-      worker_.recv(&identity,0);
-      worker_.recv(&msg,0);
+      worker_.recv(&identity, 0);
+      worker_.getsockopt(ZMQ_RCVMORE, &more, &size);
+
+      if (!more) {
+        eos_static_warning("discarding illegal message");
+        continue;
+      }
+
+      worker_.recv(&msg, 0);
       std::string id(static_cast<const char*>(identity.data()), identity.size());
       std::string s(static_cast<const char*>(msg.data()), msg.size());
       hb.Clear();
 
       if (hb.ParseFromString(s)) {
-//        eos_static_debug("msg=\"able to parse message\": "
-//                       "id.c_str()=%s, id.length()=%d, id:hex=%s, s.c_str()=%s, s.length()=%d, s:hex=%s",
-//                       id.c_str(), id.length(), eos::common::stringToHex(id).c_str(), s.c_str(), s.length(), eos::common::stringToHex(s).c_str());
         switch (hb.type()) {
         case eos::fusex::container::HEARTBEAT: {
           struct timespec tsnow {};
@@ -187,9 +193,9 @@ ZMQ::Worker::work()
         }
       } else {
         eos_static_debug("msg=\"unable to parse message\": "
-                       "id.c_str()=%s, id.length()=%d, id:hex=%s, s.c_str()=%s, s.length()=%d, s:hex=%s",
-                       id.c_str(), id.length(), eos::common::stringToHex(id).c_str(), s.c_str(), s.length(), eos::common::stringToHex(s).c_str());
-
+                         "id.c_str()=%s, id.length()=%d, id:hex=%s, s.c_str()=%s, s.length()=%d, s:hex=%s",
+                         id.c_str(), id.length(), eos::common::stringToHex(id).c_str(), s.c_str(),
+                         s.length(), eos::common::stringToHex(s).c_str());
       }
     }
   } catch (const zmq::error_t& e) {
