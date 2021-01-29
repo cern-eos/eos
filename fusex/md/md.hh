@@ -473,8 +473,8 @@ public:
              fuse_ino_t ino,
              int nlookup);
 
-  void wait_deleted(fuse_req_t req,
-                    fuse_ino_t ino);
+  void wait_upstream(fuse_req_t req,
+		     fuse_ino_t ino);
 
   shared_md getlocal(fuse_req_t req,
                      fuse_ino_t ino);

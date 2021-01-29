@@ -3241,7 +3241,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
         }
 
         if (del_ino) {
-          Instance().mds.wait_deleted(req, del_ino);
+          Instance().mds.wait_upstream(req, del_ino);
         }
       }
       XrdSysMutexHelper mLock(md->Locker());
@@ -3487,7 +3487,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
         eos_static_warning("waiting for flush of ino=%#lx", del_ino);
 
         if (del_ino) {
-          Instance().mds.wait_deleted(req, del_ino);
+          Instance().mds.wait_upstream(req, del_ino);
 
           if (hardlink_target_ino) {
             // refetch a possible shadow inode and unmask the local deletion
@@ -3614,8 +3614,23 @@ EROFS  pathname refers to a directory on a read-only filesystem.
 
       eos_static_info("link=%d", md->nlink());
 
-      if ((!rc) && (md->local_children().size() || md->nchildren())) {
+      if ((!rc) && (md->local_children().size())) {
+	eos_static_warning("not empty local children");
         rc = ENOTEMPTY;
+      }
+
+      if ((!rc && md->nchildren())) {
+	// if we still see children, we wait that we have sent all our MD updates upstream and refetch it
+	md->Locker().UnLock();
+	Instance().mds.wait_upstream(req, md->id());
+	md->force_refresh();
+	// if we still see children, we wait that we have sent all our MD updates upstream and refetch it
+	md = Instance().mds.lookup(req, parent, name);
+	md->Locker().Lock();
+	if (md->nchildren()) {
+	  eos_static_warning("not empty children after refresh");
+	  rc = ENOTEMPTY;
+	}
       }
 
       if (!rc) {
@@ -3627,7 +3642,7 @@ EROFS  pathname refers to a directory on a read-only filesystem.
 
     if (!rc) {
       if (Instance().Config().options.rmdir_is_sync) {
-        Instance().mds.wait_deleted(req, del_ino);
+        Instance().mds.wait_upstream(req, del_ino);
       }
     }
   }
@@ -3718,7 +3733,7 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char* name,
       }
 
       if (del_ino) {
-        Instance().mds.wait_deleted(req, del_ino);
+        Instance().mds.wait_upstream(req, del_ino);
       }
 
       XrdSysMutexHelper mLock(md->Locker());
@@ -4150,7 +4165,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
           }
 
           if (del_ino) {
-            Instance().mds.wait_deleted(req, del_ino);
+            Instance().mds.wait_upstream(req, del_ino);
           }
         }
         XrdSysMutexHelper mLock(md->Locker());
@@ -5777,7 +5792,7 @@ EosFuse::symlink(fuse_req_t req, const char* link, fuse_ino_t parent,
         }
 
         if (del_ino) {
-          Instance().mds.wait_deleted(req, del_ino);
+          Instance().mds.wait_upstream(req, del_ino);
         }
       }
       md->set_mode(S_IRWXU | S_IRWXG | S_IRWXO | S_IFLNK);
@@ -5873,7 +5888,7 @@ EosFuse::link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
         }
 
         if (del_ino) {
-          Instance().mds.wait_deleted(req, del_ino);
+          Instance().mds.wait_upstream(req, del_ino);
         }
       }
       tmd = Instance().mds.get(req, ino, pcap->authid()); /* link target */

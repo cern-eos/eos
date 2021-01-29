@@ -555,8 +555,8 @@ metad::map_children_to_local(shared_md pmd)
 /* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
-metad::wait_deleted(fuse_req_t req,
-                    fuse_ino_t ino)
+metad::wait_upstream(fuse_req_t req,
+		     fuse_ino_t ino)
 /* -------------------------------------------------------------------------- */
 {
   shared_md md;
@@ -564,12 +564,12 @@ metad::wait_deleted(fuse_req_t req,
   if (mdmap.retrieveTS(ino, md)) {
     if (md && md->id()) {
       while (1) {
-        // wait that the deletion entry is leaving the flush queue
+        // wait that the entry is leaving the flush queue
         mdflush.Lock();
 
         if (mdqueue.count(md->id())) {
           mdflush.UnLock();
-          eos_static_notice("waiting for deletion entry to be synced upstream ino=%#lx",
+          eos_static_notice("waiting for entry to be synced upstream ino=%#lx",
                             md->id());
           std::this_thread::sleep_for(std::chrono::microseconds(500));
         } else {
@@ -648,7 +648,7 @@ metad::get(fuse_req_t req,
       return md;
     }
 
-    if (pmd && (pmd->cap_count() || pmd->creator()) && !pmd->needs_refresh()) {
+    if (pmd && (pmd->cap_count() || pmd->creator()) && !pmd->needs_refresh() && !md->needs_refresh()) {
       eos_static_info("returning cap entry");
       return md;
     } else {
@@ -1240,9 +1240,9 @@ metad::remove(fuse_req_t req, metad::shared_md pmd, metad::shared_md md,
   }
 
   mdqueue[pmd->id()]++;
-  mdflushqueue.push_back(fep);
   mdqueue[md->id()]++;
   mdflushqueue.push_back(fe);
+  mdflushqueue.push_back(fep);
   stat.inodes_backlog_store(mdqueue.size());
   mdflush.Signal();
   mdflush.UnLock();
