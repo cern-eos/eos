@@ -462,6 +462,7 @@ FsckEntry::RepairRainInconsistencies()
     }
   }
 
+  bool drop_src_fsid = false;
   // Trigger a fsck repair job to make sure all the remaining stripes are
   // recovered and and new ones are created if need be. By default pick the
   // first stripe as "source" unless we have a better candidate
@@ -469,9 +470,11 @@ FsckEntry::RepairRainInconsistencies()
 
   if (mReportedErr == FsckErr::MissRepl) {
     src_fsid = mFsidErr;
+    drop_src_fsid = true;
   }
 
-  auto repair_job = mRepairFactory(mFid, src_fsid, 0, {}, {}, true, "fsck");
+  auto repair_job = mRepairFactory(mFid, src_fsid, 0, {}, {},
+                                   drop_src_fsid, "fsck");
   repair_job->DoIt();
 
   if (repair_job->GetStatus() != FsckRepairJob::Status::OK) {
