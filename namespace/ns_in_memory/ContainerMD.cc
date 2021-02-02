@@ -40,6 +40,10 @@ ContainerMD::ContainerMD(ContainerMD::id_t id, IFileMDSvc* file_svc,
   pCGid(0), pMode(040755), pACLId(0), pFileSvc(file_svc),
   pContSvc(cont_svc)
 {
+  mSubcontainers.set_deleted_key("");
+  mFiles.set_deleted_key("");
+  mSubcontainers.set_empty_key("##_EMPTY_##");
+  mFiles.set_empty_key("##_EMPTY_##");
   pCTime.tv_sec = 0;
   pCTime.tv_nsec = 0;
   pMTime.tv_sec = 0;
@@ -444,8 +448,10 @@ ContainerMD::getAttributes() const
 IContainerMD::ContainerMap
 ContainerMD::copyContainerMap() const
 {
-  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   IContainerMD::ContainerMap retval;
+  retval.set_deleted_key("");
+  retval.set_empty_key("##_EMPTY_##");
+  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
 
   for (auto it = mSubcontainers.begin(); it != mSubcontainers.end(); ++it) {
     retval.insert(std::make_pair(it->first, it->second));
@@ -460,8 +466,10 @@ ContainerMD::copyContainerMap() const
 IContainerMD::FileMap
 ContainerMD::copyFileMap() const
 {
-  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   IContainerMD::FileMap retval;
+  retval.set_deleted_key("");
+  retval.set_empty_key("##_EMPTY_##");
+  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
 
   for (auto it = mFiles.begin(); it != mFiles.end(); ++it) {
     retval.insert(std::make_pair(it->first, it->second));

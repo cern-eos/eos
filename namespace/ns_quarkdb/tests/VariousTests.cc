@@ -799,7 +799,7 @@ TEST_F(FileMDFetching, FilemapToFutureVector)
     {"f1", 1}, {"f2", 2}, {"f3", 3}, {"f4", 4}, {"f5", 5}
   };
 
-  for (auto it = filemap.cbegin(); it != filemap.cend(); ++it) {
+  for (auto it = filemap.begin(); it != filemap.end(); ++it) {
     sorted[it->first] = it->second;
   }
 
