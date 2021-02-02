@@ -16,6 +16,26 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.38 Citrine``
+===================
+
+2021-02-02
+
+Bug
+----
+
+* [EOS-4573] - ZMQ threads jump into eternal parsing error state
+* COMMON: Compensate for the missing protocol info for HTTP transfers also in the SecEntity::ToKey method
+* SPEC: Make sure the debug info is not stripped from the binaries
+* MGM: Avoid to refresh directory MD all the time after a deletion
+
+Improvements
+------------
+
+* FST: Allow XRootD env variables to override default XrdCl timeouts in EOS
+* Deal with a list of VOMS roles/groups
+
+
 ``v4.8.37 Citrine``
 ===================
 
