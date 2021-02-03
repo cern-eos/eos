@@ -1006,23 +1006,27 @@ Mapping::HandleVOMS(const XrdSecEntity* client, VirtualIdentity& vid)
   }
 
   std::string group = client->grps;
-  std::string role = client->role;
-
   size_t g_pos = group.find(" ");
-  size_t r_pos = role.find(" ");
 
-  if (g_pos != std::string::npos) {group.erase(g_pos);}
-  if (r_pos != std::string::npos) {role.erase(r_pos);}
+  if (g_pos != std::string::npos) {
+    group.erase(g_pos);
+  }
 
   // VOMS mapping
   std::string vomsstring = "voms:\"";
   vomsstring += group;
   vomsstring += ":";
-
   vid.grps = group;
 
-  if (client->role) {
+  if (client->role && strlen(client->role)) {
     // the role might be NULL
+    std::string role = client->role;
+    size_t r_pos = role.find(" ");
+
+    if (r_pos != std::string::npos) {
+      role.erase(r_pos);
+    }
+
     vomsstring += role;
     vid.role = role;
   }
@@ -1371,7 +1375,7 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
             delete id;
           }
 
-	  if (sname.beginswith("*") || sname.beginswith("_")) {
+          if (sname.beginswith("*") || sname.beginswith("_")) {
             id = new id_pair((bituser >> 22) & 0xfffff, (bituser >> 6) & 0xffff);
           } else {
             // only user id got forwarded, we retrieve the corresponding group
@@ -1755,21 +1759,25 @@ Mapping::ip_cache::GetIp(const char* hostname)
   }
   {
     // refresh an entry
-    XrdNetAddr *addrs  = 0;
+    XrdNetAddr* addrs  = 0;
     int         nAddrs = 0;
-    const char* err    = XrdNetUtils::GetAddrs( hostname, &addrs, nAddrs,
-                                                XrdNetUtils::allIPv64,
-                                                XrdNetUtils::NoPortRaw );
-    if( err || nAddrs == 0 ) return "";
+    const char* err    = XrdNetUtils::GetAddrs(hostname, &addrs, nAddrs,
+                         XrdNetUtils::allIPv64,
+                         XrdNetUtils::NoPortRaw);
+
+    if (err || nAddrs == 0) {
+      return "";
+    }
+
     char buffer[64];
-    int hostlen = addrs[0].Format( buffer, sizeof( buffer ),
-                                   XrdNetAddrInfo::fmtAddr,
-                                   XrdNetAddrInfo::noPortRaw );
+    int hostlen = addrs[0].Format(buffer, sizeof(buffer),
+                                  XrdNetAddrInfo::fmtAddr,
+                                  XrdNetAddrInfo::noPortRaw);
     delete [] addrs;
 
     if (hostlen > 0) {
       RWMutexWriteLock guard(mLocker);
-      std::string sip( buffer, hostlen );
+      std::string sip(buffer, hostlen);
       mIp2HostMap[hostname] = std::make_pair(now + mLifeTime, sip);
       eos_static_debug("status=refresh host=%s ip=%s", hostname,
                        mIp2HostMap[hostname].second.c_str());
