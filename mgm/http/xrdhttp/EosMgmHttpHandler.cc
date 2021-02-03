@@ -74,7 +74,7 @@ extern "C" XrdHttpExtHandler* XrdHttpGetExtHandler(XrdHttpExtHandlerArgs)
   }
 
   if (handler->Config(eDest, confg, parms, myEnv)) {
-    eDest->Emsg("EosMgmHttpHandler", EINVAL, "Faile config of EosMgmHttpHandler");
+    eDest->Emsg("EosMgmHttpHandler", EINVAL, "Failed config of EosMgmHttpHandler");
     delete handler;
     return nullptr;
   }
