@@ -37,7 +37,7 @@ EOSFSTNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 FileSystem::FileSystem(const common::FileSystemLocator& locator,
-  mq::MessagingRealm *realm) :
+                       mq::MessagingRealm* realm) :
   eos::common::FileSystem(locator, realm, true),
   mLocalId(0ul), mLocalUuid(""),  mScanDir(nullptr), mFileIO(nullptr),
   mTxDirectory("")
@@ -62,7 +62,7 @@ FileSystem::~FileSystem()
 {
   mScanDir.release();
   mFileIO.release();
-  gFmdDbMapHandler.ShutdownDB(mLocalId);
+  gFmdDbMapHandler.ShutdownDB(mLocalId, true);
   mTxMultiplexer.reset();
 
   if (mTxBalanceQueue) {
