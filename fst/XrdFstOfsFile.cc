@@ -1312,6 +1312,9 @@ XrdFstOfsFile::_close()
             closeSize = statinfo.st_size;
             mFmd->mProtoFmd.set_size(statinfo.st_size);
             mFmd->mProtoFmd.set_disksize(statinfo.st_size);
+            // Reset the diskchecksum after an update otherwise we might falsely report
+            // a checksum error. The diskchecksum will be updated by the scanner.
+            mFmd->mProtoFmd.set_diskchecksum("");
             mFmd->mProtoFmd.set_mgmsize(
               eos::common::FmdHelper::UNDEF); // now again undefined
             mFmd->mProtoFmd.set_mgmchecksum(""); // now again empty
