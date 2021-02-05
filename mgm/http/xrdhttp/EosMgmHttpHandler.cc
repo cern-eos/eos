@@ -389,6 +389,13 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
   // @todo(esindril): handle redirection to new MGM master if the
   // current one is a slave
 
+  // Stop accepting requests if the MGM started the shutdown procedure
+  if (mMgmOfsHandler->Shutdown) {
+    std::string errmsg = "MGM daemon is shutting down";
+    return req.SendSimpleResp(500, errmsg.c_str(), "", errmsg.c_str(),
+                              errmsg.length());
+  }
+
   if (req.verb == "POST") {
     // Delegate request to the XrdMacaroons library
     eos_info("%s", "msg=\"delegate request to XrdMacaroons library\"");

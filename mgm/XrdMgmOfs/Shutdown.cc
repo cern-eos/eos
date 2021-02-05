@@ -56,6 +56,6 @@ xrdmgmofs_shutdown(int sig)
 
   gOFS->Shutdown = true;
   gOFS->OrderlyShutdown();
-  eos_static_alert("msg=\"shutdown complete\"");
+  eos_static_alert("%s", "msg=\"shutdown complete\"");
   std::quick_exit(0);
 }
