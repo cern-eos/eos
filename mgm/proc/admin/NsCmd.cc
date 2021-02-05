@@ -373,7 +373,8 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << "uid=all gid=all ns.memory.share=" << mem.share << std::endl
         << "uid=all gid=all ns.stat.threads=" << pstat.threads << std::endl
         << "uid=all gid=all ns.fds.all=" << fds.all << std::endl
-        << "uid=all gid=all ns.fusex.caps=" << gOFS->zMQ->gFuseServer.Cap().ncaps() << std::endl
+        << "uid=all gid=all ns.fusex.caps=" << gOFS->zMQ->gFuseServer.Cap().ncaps() <<
+        std::endl
         << "uid=all gid=all ns.fusex.clients=" <<
         eosxd_nclients << std::endl
         << "uid=all gid=all ns.fusex.activeclients=" <<
@@ -913,6 +914,8 @@ NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
     auto cont = gOFS->eosDirectoryService->getContainerMD(cont_id);
 
     if ((cont->getFlags() & eos::QUOTA_NODE_FLAG) == 0) {
+      eos_err("msg=\"quota recomputation failed, directory is not (anymore) a "
+              "quota node\" cxid=%08llx path=\"%s\"", cont_id, cont_uri.c_str());
       reply.set_std_err("error: directory is not a quota node (anymore)");
       reply.set_retc(EINVAL);
       return;
@@ -920,7 +923,11 @@ NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
 
     eos::IQuotaNode* quotaNode = gOFS->eosView->getQuotaNode(cont.get());
     quotaNode->replaceCore(qnc);
+    eos_info("msg=\"quota recomputation successful\" cxid=%08llx path=\"%s\"",
+             cont_id, cont_uri.c_str());
   } catch (const eos::MDException& e) {
+    eos_err("msg=\"quota recomputation failed, directory removed\" "
+            "cxid=%08llx path=\"%s\"", cont_id, cont_uri.c_str());
     reply.set_std_err(SSTR(e.what()));
     reply.set_retc(e.getErrno());
     return;
