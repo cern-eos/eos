@@ -270,11 +270,6 @@ eos() {
     echo eos -b $EOSROLE root://$EOS_TEST_REDIRECTOR $* >& $EOSLASTLOG; eval $XROOTSYS/bin/eos -b $EOSROLE root://$EOS_TEST_REDIRECTOR $* >> $EOSCERTLOG 2>&1
 }
 
-
-eosr() {
-    echo eos -b $EOSROLE root://$EOS_TEST_FULL_REDIRECTOR $* >& $EOSLASTLOG; eval $XROOTSYS/bin/eos -b $EOSROLE root://$EOS_TEST_FULL_REDIRECTOR $* >> $EOSCERTLOG 2>&1
-}
-
 eosj() {
     echo eos -j -b $EOSROLE root://$EOS_TEST_REDIRECTOR $* >& $EOSLASTLOG; eval $XROOTSYS/bin/eos -j -b $EOSROLE root://$EOS_TEST_REDIRECTOR $* >> $EOSCERTLOG 2>&1
 }
@@ -345,19 +340,6 @@ eos_rain() {
     echo eos-rain-test $1 $2 root://$EOS_TEST_REDIRECTOR/$3 >& $EOSLASTLOG; eval eos-rain-test $1 $2 root://$EOS_TEST_REDIRECTOR/$3 >> $EOSCERTLOG 2>&1
 }
 
-eos_quota() {
-    echo eos-quota-test $1 $2 root://$EOS_TEST_REDIRECTOR/$3 >& $EOSLASTLOG; eval eos-quota-test $1 $2 root://$EOS_TEST_REDIRECTOR/$3 >> $EOSCERTLOG 2>&1
-}
-
-
-eos_defaultcc() {
-    echo eos-defaultcc-test $1 $2 root://$EOS_TEST_REDIRECTOR/$3 >& $EOSLASTLOG; eval eos-defaultcc-test $1 $2 root://$EOS_TEST_REDIRECTOR/$3 >> $EOSCERTLOG 2>&1
-}
-
-eos_synctime() {
-    echo eos-synctime-test $1 $2 root://$EOS_TEST_REDIRECTOR/$3 >& $EOSLASTLOG; eval eos-synctime-test $1 $2 root://$EOS_TEST_REDIRECTOR/$3 >> $EOSCERTLOG 2>&1
-}
-
 eoscp_rain() {
     echo eoscp-rain-test $1 root://$EOS_TEST_REDIRECTOR/$2 >& $EOSLASTLOG; eval eoscp-rain-test $1 root://$EOS_TEST_REDIRECTOR/$2 >> $EOSCERTLOG 2>&1
 }
@@ -376,10 +358,6 @@ eos_grpc() {
 
 eos_token() {
    echo eos-token-test $1 ; eval eos-token-test $1 >> $EOSCERTLOG 2>&1
-}
-
-eos_squash() {
-   echo eos-squash-test $1 ; eval eos-squash-test $1 ${EOS_TEST_FULL_REDIRECTOR} >> $EOSCERTLOG 2>&1
 }
 
 shell() {
@@ -771,11 +749,6 @@ runtest "### Upload    " unix 1 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE
 runtest "### Rem       " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.quota"
 runtest "### Quota     " unix 0 "" eos quota set -u 99 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
 runtest "### Quota     " unix 1 "" eos quota set -u 99 -p /doesnotexist -v 1T -i 1M
-runtest "### Quota     " unix 0 "" eos quota set -u 3 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
-runtest "### Upload    " unix 0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/1k" "-ODeos.ruid=3" "-DITransactionTimeout 30"
-runtest "### QUpdate   " unix 0 "" eos_quota "/eos/$EOS_TEST_INSTANCE/test/"
-runtest "### Rem       " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/1k"
-
 fi
 ################################################################################
 # RECYCLE BIN TEST
@@ -1092,28 +1065,6 @@ runtest "### Newfind    " unix 0 "EOSROLE='-r 99 99'" eos newfind "/eos/$EOS_TES
 runtest "### Rmdir   " unix 0 "" eos rmdir /eos/$EOS_TEST_INSTANCE/test/instancetest/public
 
 ################################################################################
-# eosnobody
-###################################################A############################
-categorie="eosnobody"
-SERVERKEY=$(grep "sec.protocol sss" /etc/xrd.cf.mgm | grep -o '\-s.*' | cut -d' ' -f2)
-grep eosnobody $SERVERKEY > /tmp/eos.nobody.keytab
-if [ $? -eq 0 ]; then
-    chmod 400 /tmp/eos.nobody.keytab
-    runtest "### Mkdir     " unix 0 "" eos mkdir -p /eos/$EOS_TEST_INSTANCE/test/instancetest/eosnobody
-    runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest/eosnobody/"
-    runtest "### Upload    " unix 0 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/eosnobody/p1"
-    runtest "### Upload    " unix 0 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/eosnobody/.p1.sqsh"
-    runtest "### Chmod     " unix 0 "" eos chmod "700" "/eos/$EOS_TEST_INSTANCE/test/instancetest/eosnobody/"
-    runtest "### Ls        " unix 1 "XrdSecSSSKT='/tmp/eos.nobody.keytab'" eosr ls -la /eos/$EOS_TEST_INSTANCE/test/instancetest/eosnobody/
-    runtest "### Ls        " sss  1 "XrdSecSSSKT='/tmp/eos.nobody.keytab'" eosr ls -la /eos/$EOS_TEST_INSTANCE/test/instancetest/eosnobody/
-    runtest "### Download  " sss  1 "XrdSecSSSKT='/tmp/eos.nobody.keytab'" downloadh  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/eosnobody/p1"
-    runtest "### Download  " sss  0 "XrdSecSSSKT='/tmp/eos.nobody.keytab'" eos_squash /eos/$EOS_TEST_INSTANCE/test/instancetest/eosnobody/.p1.sqsh
-    runtest "### Rm        " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/eosnobody/
-    chmod 700 /tmp/eos.nobody.keytab
-    unlink /tmp/eos.nobody.keytab
-fi
-
-################################################################################
 # POLICIES
 ###################################################A############################
 categorie="policy"
@@ -1257,7 +1208,7 @@ runtest H "### Upload    " sss  0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INS
 runtest H "### Update    " sss  0 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"   # dir owned
 runtest H "### Upload    " sss  0 "EOSROLE='-r 99 99'" eos cp -a "$TESTSYSFILE1K" /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k # dir owned
 runtest   "### Attr      " unix 0 "" eos attr set user.acl=u:nobody:r!wx /eos/$EOS_TEST_INSTANCE/test/instancetest
-runtest H "### Update    " sss  1 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"     # writes are denied, and updates are note allowed explicitly
+runtest H "### Update    " sss  1 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"     # writes are 
 runtest H "### Upload    " sss  1 "EOSROLE='-r 99 99'" eos cp -a "$TESTSYSFILE1K" /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k  # writes are denied, and updates are not allowed explicitly
 runtest   "### Attr      " unix 0 "" eos attr set user.acl=u:99:rwx!d /eos/$EOS_TEST_INSTANCE/test/instancetest
 runtest   "### Chown     " unix 0 "" eos chown 99:99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k"                    # make sure file owned
@@ -1605,66 +1556,10 @@ runtest "### stat l1   " unix 1 "" eos stat "/eos/$EOS_TEST_INSTANCE/test/instan
 runtest "### stat l2   " unix 1 "" eos stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/symlink.2"
 runtest "### stat l1   " unix 0 "" eos stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/symlink.3"
 runtest "### stat l2   " unix 0 "" eos stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/symdir/symlink.4"
-runtest "### defaultcc " unix 0 "" eos_defaultcc "/test-fusex/"
-runtest "### sycntime  " unix 0 "" eos_synctime "/test-fusex/" "$EOS_TEST_INSTANCE/test/instancetest/fusex/"
 runtest "### Cleanup"    unix 2 "" eos rm  "-r /eos/$EOS_TEST_INSTANCE/test/instancetest/fusex"
 test -d /test-fusex/ && umount -fl /test-fusex/
 test -d /test-fusex/ && rmdir /test-fusex/
 fi
-
-################################################################################
-# eos squashfs tests
-################################################################################
-# ------------------------------------------------------------------------------
-categorie="squashfs"
-# ------------------------------------------------------------------------------
-
-export X509_USER_PROXY=/tmp/invalid
-export KRB5CCNAME=/tmp/invalid
-
-
-test -d /eos/ && umount -fl /eos/
-test -d /eos/ || mkdir /eos/
-
-eosxd -ofsname=localhost.localdomain:/eos /eos/
-
-if [ -e "/eos/$EOS_TEST_INSTANCE" ]; then
-# simple sqash packages
-runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash"
-runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash"
-runtest "### New SQFS  " unix 0 "" eos squash new "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/package1"
-runtest "### cp        " unix 0 "" shell cp /etc/passwd /eos/$EOS_TEST_INSTANCE/test/instancetest/squash/package1
-runtest "### Pack SQFS " unix 0 "" eos squash pack "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/package1"
-runtest "### Pack SQFS " unix 1 "" eos squash pack "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/package1"
-runtest "### Pack SQFS " unix 1 "" eos squash pack "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/package2"
-runtest "### info SQFS " unix 0 "" eos squash info "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/package1"
-runtest "### rm label  " unix 0 "" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/squash/package1
-runtest "### label SQFS" unix 0 "" eos squash relabel /eos/$EOS_TEST_INSTANCE/test/instancetest/squash/package1
-runtest "### label SQFS" unix 1 "" eos squash relabel /eos/$EOS_TEST_INSTANCE/test/instancetest/squash/package2
-runtest "### rm SQFS   " unix 0 "" eos squash rm /eos/$EOS_TEST_INSTANCE/test/instancetest/squash/package1
-runtest "### stat SQFS " unix 1 "" eos stat /eos/$EOS_TEST_INSTANCE/test/instancetest/squash/package1
-runtest "### stat SQFS " unix 1 "" eos stat /eos/$EOS_TEST_INSTANCE/test/instancetest/squash/.package1.sqsh
-
-# squash releases
-runtest "### New SQFSR " unix 0 "" eos squash new-release "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/release1"
-runtest "### cp        " unix 0 "" shell cp /etc/passwd /eos/$EOS_TEST_INSTANCE/test/instancetest/squash/release1/next
-runtest "### Pack SQFSR" unix 0 "" eos squash pack-release "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/release1"
-sleep 1
-runtest "### New SQFSR " unix 0 "" eos squash new-release "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/release1 1.0.1"
-runtest "### cp        " unix 0 "" shell cp /etc/passwd /eos/$EOS_TEST_INSTANCE/test/instancetest/squash/release1/next
-runtest "### Pack SQFSR" unix 0 "" eos squash pack-release "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/release1"
-runtest "### info SQFSR" unix 0 "" eos squash info-release "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/release1"
-runtest "### info SQFSR" unix 1 "" eos squash info-release "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/release2"
-runtest "### trim SQFSR" unix 0 "" eos squash trim-release "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/release1 1 1 "
-runtest "### trim SQFSR" unix 1 "" eos squash trim-release "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/release1 0 0 "
-runtest "### rm SQFSR"   unix 0 "" eos squash rm-release "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/release1"
-runtest "### rm SQFSR"   unix 1 "" eos squash rm-release "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/release1"
-runtest "### Rm        " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/squash/
-fi
-
-test -d /eos/ && umount -fl /eos/
-test -d /eos/ && rmdir /eos/
-
 
 ################################################################################
 # Third party copy tests
@@ -1973,6 +1868,30 @@ runtest "### Upload    " unix 0 "" upload "$EOS_TEST_RAIN_DIR/file3.rain" "/eos/
 runtest "### EoscpRaiddp " unix 0 "" eoscp_rain "raiddp" "/eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp_rain_dir/file.dat"
 runtest "### EoscpRaid6  " unix 0 "" eoscp_rain "reeds" "/eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp_rain_dir/file.dat"
 runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/eoscp_rain_dir"
+
+################################################################################
+# categorie = "dynamicec"
+################################################################################
+#runtest "### Mkdir      " unix 0 "" eos mkdir "eos/$EOS_TEST_INSTANCE/test/instancetest/dynamicec"
+#runtest "### Chmod      " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/dynamicec"
+#runtest "### Attr       " unix 0 "" eos attr set sys.forced.blocksize=1M "/eos/$EOS_TEST_INSTANCE/test/instancetest/dynamicec"
+#runtest "### Attr       " unix 0 "" eos attr set sys.forced.layout=raid6 "/eos/$EOS_TEST_INSTANCE/test/instancetest/dynamicec"
+#runtest "### Attr       " unix 0 "" eos attr set sys.forced.nstripes=6 "/eos/$EOS_TEST_INSTANCE/test/instancetest/dynamicec"
+#runtest "### Attr       " unix 0 "" eos attr set sys.forced.nexcess=2 "/eos/$EOS_TEST_INSTANCE/test/instancetest/dynamicec"
+
+#Test in generel from another test script.
+#runtest "### Test       " unix 0 "" bash eos-dynamicec-test
+
+#this will be on for the real test
+#runtest "### Cleanup    " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test2/*"
+
+
+#runtest "### Cleanup    " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instacetest/dynamicec"
+#runtest "### Rmdir      " unix 0 "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/dynamicec"
+
+#runtest "### testforstuf" unix 0 "" bash eos-dynamicec-test
+
+#runtest "### Rmdir      " unix 0 "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/instancetest"
 
 ################################################################################
 # OTHER TESTS

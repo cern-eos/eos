@@ -32,54 +32,65 @@ EOSCOMMONNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Base Statistics Functions
 //------------------------------------------------------------------------------
-class Statistics {
+class Statistics
+{
 public:
   static double max(std::multiset<float>& s)
   {
-    double lmax=0;
+    double lmax = 0;
+
     for (auto it : s) {
       if (it > lmax) {
-	lmax = it;
+        lmax = it;
       }
     }
+
     return lmax;
   }
 
   static double avg(std::multiset<float>& s)
   {
-    double sum=0;
-    if (!s.size())
+    double sum = 0;
+
+    if (!s.size()) {
       return 0;
+    }
 
     for (auto it : s) {
       sum += it;
     }
-    return sum/s.size();
+
+    return sum / s.size();
   }
 
   static double sig(std::multiset<float>& s)
   {
     double average = avg(s);
-    double sum=0;
+    double sum = 0;
+
     for (auto it : s) {
       sum += (it - average) * (it - average);
     }
-    return sqrt( sum / s.size());
+
+    return sqrt(sum / s.size());
   }
 
-  static double nperc(std::multiset<float>& s, double perc=99.0)
+  static double nperc(std::multiset<float>& s, double perc = 99.0)
   {
     size_t n = s.size();
     size_t n_perc = (size_t)(n * perc / 100.0);
-    size_t i=0;
-    double nperc=0;
+    size_t i = 0;
+    double nperc = 0;
+
     for (auto it : s) {
       i++;
-      if ( i >= n_perc ) {
-	nperc = it;
-	break;
+
+      if (i >= n_perc) {
+        nperc = it;
+        break;
       }
     }
+
     return nperc;
   }
 };

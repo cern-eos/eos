@@ -71,6 +71,7 @@
 #include "mgm/Iostat.hh"
 #include "mgm/LRU.hh"
 #include "mgm/WFE.hh"
+#include "mgm/dynamicec/DynamicEC.hh"
 #include "mgm/fsck/Fsck.hh"
 #include "mgm/Master.hh"
 #include "mgm/FuseServer/FusexCastBatch.hh"

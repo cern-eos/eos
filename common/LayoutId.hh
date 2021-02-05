@@ -33,6 +33,8 @@
 #include <fcntl.h>
 #include <string>
 
+
+
 EOSCOMMONNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
@@ -586,11 +588,19 @@ public:
   }
 
   static std::string
-  GetRedundancySymbol(bool has_tape, int redundancy)
+  GetRedundancySymbol(bool has_tape, int redundancy, int excess = 0)
   {
     char sbst[256];
-    snprintf(sbst, sizeof(sbst), "d%lu::t%i ", has_tape ?
-             ((redundancy > 0) ? (redundancy - 1) : 0) : redundancy, (has_tape ? 1 : 0));
+
+    if (excess) {
+      snprintf(sbst, sizeof(sbst), "d%lu+%lu::t%i ", has_tape ?
+               ((redundancy > 0) ? (redundancy - 1) : 0) : redundancy, excess,
+               (has_tape ? 1 : 0));
+    } else {
+      snprintf(sbst, sizeof(sbst), "d%lu::t%i ", has_tape ?
+               ((redundancy > 0) ? (redundancy - 1) : 0) : redundancy, (has_tape ? 1 : 0));
+    }
+
     return std::string(sbst);
   }
 
@@ -658,24 +668,30 @@ public:
     }
 
     if (GetLayoutType(layout) == kReplica) {
-      return 1.0 * (GetStripeNumber(layout) + 1 + GetExcessStripeNumber(layout));
+      return 1.0 * (GetStripeNumber(layout) + 1);
     }
 
     if (GetLayoutType(layout) == kRaidDP)
       return 1.0 * (((1.0 * (GetStripeNumber(layout) + 1)) /
                      (GetStripeNumber(layout) + 1 - GetRedundancyStripeNumber(
-                        layout))) + GetExcessStripeNumber(layout));
+                        layout))));
 
     if (GetLayoutType(layout) == kRaid6)
       return 1.0 * (((1.0 * (GetStripeNumber(layout) + 1)) /
                      (GetStripeNumber(layout) + 1 - GetRedundancyStripeNumber(
-                        layout))) + GetExcessStripeNumber(layout));
+                        layout))));
 
     if (GetLayoutType(layout) == kArchive)
       return 1.0 * (((1.0 * (GetStripeNumber(layout) + 1)) /
                      (GetStripeNumber(layout) + 1 - GetRedundancyStripeNumber(
-                        layout))) + GetExcessStripeNumber(layout));
+                        layout))));
 
+    /// add for kQrain support
+
+    if (GetLayoutType(layout) == kQrain)
+      return 1.0 * (((1.0 * (GetStripeNumber(layout) + 1)) /
+                     (GetStripeNumber(layout) + 1 - GetRedundancyStripeNumber(
+                        layout))));
     return 1.0;
   }
 
@@ -694,7 +710,7 @@ public:
       return 1;
     }
 
-    return (1 + GetStripeNumber(layout) - GetRedundancyStripeNumber(layout));
+    return (GetStripeNumber(layout) - GetRedundancyStripeNumber(layout));
   }
 
   //--------------------------------------------------------------------------
@@ -1207,6 +1223,26 @@ public:
     }
 
     return (1);
+  }
+
+
+  //----------------------------------------------------------------------------
+  //! Return number of excess stripes from env definition
+  //----------------------------------------------------------------------------
+  static unsigned long
+  GetExcessNumberFromEnv(XrdOucEnv& env)
+  {
+    const char* val = 0;
+
+    if ((val = env.Get("eos.layout.nexcess"))) {
+      int n = atoi(val);
+
+      if (((n - 1) >= 0) && ((n - 1) <= 255)) {
+        return n;
+      }
+    }
+
+    return (0);
   }
 
   //----------------------------------------------------------------------------
