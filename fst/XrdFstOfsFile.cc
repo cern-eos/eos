@@ -1269,6 +1269,7 @@ XrdFstOfsFile::_close()
       closeSize = openSize;
 
       if ((!checksumerror) && (!minimumsizeerror) &&
+          (!targetsizeerror) &&
           (mHasWrite || isCreation) &&
           (!mRainReconstruct || !hasReadError)) {
         // Commit meta data
