@@ -14,7 +14,6 @@ public:
 
 private:
 
-
 };
 
 EOSFSTNAMESPACE_END
