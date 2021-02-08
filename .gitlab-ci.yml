@@ -165,7 +165,6 @@ build_c8:
   only:
     - schedules
     - tags
-    - wip_new
   tags:
     - docker_node
     - c8
