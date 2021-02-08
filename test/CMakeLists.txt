@@ -98,7 +98,7 @@ target_compile_definitions(xrdcpposixcache PUBLIC -D_FILE_OFFSET_BITS=64)
 target_compile_definitions(eoshashbench PUBLIC -D_FILE_OFFSET_BITS=64)
 target_compile_definitions(eoslogbench PUBLIC -D_FILE_OFFSET_BITS=64)
 target_compile_definitions(eos-checksum-benchmark PUBLIC -D_FILE_OFFSET_BITS=64)
-target_compile_options(eos-checksum-benchmark PRIVATE -msse4.2)
+target_compile_options(eos-checksum-benchmark PRIVATE ${CPU_ARCH_FLAGS})
 target_compile_definitions(eos-open-trunc-update PUBLIC -D_FILE_OFFSET_BITS=64)
 
 add_executable(threadpooltest ThreadPoolTest.cc)

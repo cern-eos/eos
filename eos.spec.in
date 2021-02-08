@@ -293,6 +293,9 @@ The EOS software package.
 %global build_type Debug
 %global build_flags %{build_flags} -DCOVERAGE=1 -DCOV_CROSS_PROFILE=1
 %endif
+%if %{?_with_no_sse:1}%{!?_with_no_sse:0}
+%global build_flags %{build_flags} -DNO_SSE=1
+%endif
 
 
 %build
