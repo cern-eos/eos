@@ -16,6 +16,31 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.39 Citrine``
+===================
+
+2021-02-08
+
+Bug
+----
+
+* [EOS-4539] - FST crash on shutdown in eos::common::DbMapT::iterate()
+* [EOS-4574] - Crash in HandleVOMS when role is not present
+
+Improvement
+------------
+
+* Improve buffering and memory operations for RAIN layouts
+* [EOS-4525] - Include in acl man page the difference between sys.acl and user.acl
+* [EOS-4534] - Check compatibility of libXrdVoms.so with the HTTP interface
+* [EOS-4541] - Add a log message when a `ns recompute_quotanode` finishes
+
+Note
+----
+
+* Update to XRootD-4.12.7
+
+
 ``v4.8.38 Citrine``
 ===================
 
