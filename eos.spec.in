@@ -45,6 +45,9 @@
 # By default we don't use eosxrootd for EL7
 %bcond_without eos_xrootd_rh
 
+# By default we allow sse instruction set
+%bcond_without no_sse
+
 # Define required dependency for XRootD
 %define eos_xrootd_version_min 0:4.12.7
 %define xrootd_version_min 1:4.12.7
