@@ -375,6 +375,22 @@ build_cc7_opt_xrootd: # @note please contact CTA team / jleduc if you want to ch
     - cc7_opt_xrootd
   when: manual
 
+
+build_cc7_no_sse:
+  <<: *build_cc7_exotic-template_definition
+  variables:
+    BUILD_NAME: cc7_no_sse
+    CMAKE_OPTIONS: "-DNO_SSE=1"
+    RPMBUILD_OPTIONS: "--with no_sse"
+# @todo always for the moment, then just schedules and tags
+#  only:
+#    - schedules
+#    - tags
+  tags:
+    - docker_node
+    - cc7
+  when: manual
+
 build_cc7_coverage:
   <<: *build_cc7_exotic-template_definition
   variables:
