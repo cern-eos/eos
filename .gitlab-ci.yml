@@ -1043,7 +1043,7 @@ rpm_testing_artifacts:
   only:
     - master
     - tags
-  retry: 2
+  retry: 1
 
 rpm_stable_artifacts:
   stage: publish
@@ -1060,6 +1060,34 @@ rpm_stable_artifacts:
   only:
     - tags
   dependencies: []
+  when: manual
+
+rpm_no_sse_commit_artifacts:
+  stage: publish
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  script:
+    - yum install --nogpg -y sudo sssd-client createrepo
+    - sudo -u stci -H ./gitlab-ci/store_artifacts.sh "citrine-no_sse" "commit" /eos/project/s/storage-ci/www/eos
+  tags:
+    - docker_node
+    - publish
+  except:
+    - tags
+  allow_failure: true
+  when: manual
+
+rpm_no_sse_tag_artifacts:
+  stage: publish
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  script:
+    - yum install --nogpg -y sudo sssd-client createrepo
+    - sudo -u stci -H ./gitlab-ci/store_artifacts.sh "citrine-no_sse" "tag" /eos/project/s/storage-ci/www/eos
+  tags:
+    - docker_node
+    - publish
+  only:
+    - tags
+  allow_failure: true
   when: manual
 
 # @todo rework on the entanglement between the sign, the publish and the removal of the old artifacts
