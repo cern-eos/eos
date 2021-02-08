@@ -33,8 +33,12 @@ class MultiReplicaParLayout : public Layout
 {
 public:
 
+	virtual int CalculateSpace();
 private:
-
+	  int mNumPossibleReplicas; ///< number of possible replicas for the current space, calculate
+	  int mNumReplicas; ///< number of replicas for current file
+	  bool ioLocal; ///< mark if we are to do local IO
+	  bool hasWriteError;
 };
 
 EOSFSTNAMESPACE_END
