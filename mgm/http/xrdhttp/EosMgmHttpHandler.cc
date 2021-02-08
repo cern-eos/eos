@@ -341,7 +341,7 @@ EosMgmHttpHandler::Config(XrdSysError* eDest, const char* confg,
 
   if (!scitokens_lib_path.empty()) {
     std::ostringstream oss;
-    oss <<  scitokens_lib_path << " " << authz_parms;;
+    oss <<  scitokens_lib_path << " " << authz_parms;
     authz_parms = oss.str();
   }
 
