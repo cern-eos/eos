@@ -58,38 +58,23 @@ function getLocalBranchAndDistTag()
   local BRANCH_OR_TAG=${1}
   local PLATORM=${2}
   local TAG_REGEX="^[04]+\..*$"
-  local TAG_REGEX_AQUAMARINE="^0.3.*$"
   local TAG_REGEX_CITRINE="^4.*$"
 
   # If this is a tag get the branch it belogs to
   if [[ "${BRANCH_OR_TAG}" =~ ${TAG_REGEX} ]]; then
-      if [[ "${BRANCH_OR_TAG}" =~ ${TAG_REGEX_AQUAMARINE} ]]; then
-	  BRANCH="aquamarine"
-      elif [[ "${BRANCH_OR_TAG}" =~ ${TAG_REGEX_CITRINE} ]]; then
-	  BRANCH="citrine"
-      fi
+    if [[ "${BRANCH_OR_TAG}" =~ ${TAG_REGEX_CITRINE} ]]; then
+	    BRANCH="citrine"
+    fi
   else
-      BRANCH=$(basename ${BRANCH_OR_TAG})
-      # For beryl_aquamarine use aquamarine as release
-      if [[ "${BRANCH}" == "beryl_aquamarine" ]]; then
-	  BRANCH="aquamarine"
-      elif [[ "${BRANCH}"  == "master" ]]; then
-	  BRANCH="citrine"
-      fi
+    BRANCH=$(basename ${BRANCH_OR_TAG})
+    if [[ "${BRANCH}"  == "master" ]]; then
+	    BRANCH="citrine"
+    fi
   fi
 
-  # For aquamarine still use the old ".slc-*" dist tag for SLC5/6
-  if [[ "${BRANCH}" == "aquamarine" ]] ; then
-      if [[ "${PLATFORM}" == "el-5" ]] || [[ "${PLATFORM}" == "el-6" ]]; then
-	  DIST=".slc${PLATFORM: -1}"
-      else
-	  DIST=".${PLATFORM}"
-      fi
-  else
-      # For any other branch use the latest XRootD release
-      XROOTD_TAG="v4.3.0"
-      DIST=".${PLATFORM}"
-  fi
+  # For any other branch use the latest XRootD release
+  XROOTD_TAG="v4.3.0"
+  DIST=".${PLATFORM}"
 
   # Remove any "-" from the dist tag
   DIST="${DIST//-}"
@@ -134,7 +119,7 @@ cat ../dss-ci-mock/eos-templates/${PLATFORM}-${ARCHITECTURE}.cfg.in | sed "s/__X
 # Build the RPMs
 mock --yum --init --uniqueext="eos-nginx01" -r ./eos.cfg --rebuild ./eos-nginx*.src.rpm --resultdir ../rpms -D "dist ${DIST}"
 # List of branches for CI YUM repo
-BRANCH_LIST=('aquamarine' 'citrine')
+BRANCH_LIST=('citrine')
 
 # If building one of the production branches then push rpms to YUM repo
 if [[ ${BRANCH_LIST[*]} =~ ${BRANCH} ]]; then

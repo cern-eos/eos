@@ -9,8 +9,6 @@ stages:
 
 default:
   before_script:
-    - source gitlab-ci/export_branch.sh
-    - echo "Exporting BRANCH=${BRANCH}"
     - source gitlab-ci/export_commit-type.sh
     - echo "Exporting COMMIT_TYPE=${COMMIT_TYPE}"
 
@@ -85,7 +83,7 @@ build_cc7:
     - cmake3 ../ -DPACKAGEONLY=1
     - make srpm
     - cd ../
-    - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n' >> /etc/yum.repos.d/eos-depend.repo
+    - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/citrine-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n' >> /etc/yum.repos.d/eos-depend.repo
     - yum-builddep --nogpgcheck --setopt="cern*.exclude=xrootd*" -y build/SRPMS/*
     - if [[ -n "$CI_COMMIT_TAG" ]]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache.sh; fi
     - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | ts
@@ -147,7 +145,7 @@ build_c8:
     - cmake ../ -DPACKAGEONLY=1
     - make srpm
     - cd ../
-    - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-8/x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
+    - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/citrine-depend/el-8/x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
     - dnf builddep --nogpgcheck --allowerasing -y build/SRPMS/*
     - if [[ -n "$CI_COMMIT_TAG" ]]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache.sh; fi
     - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | ts
@@ -239,7 +237,7 @@ build_ubuntu_focal:
     - git submodule update --init --recursive
     - mkdir build; cd build
     - cmake3 .. -DPACKAGEONLY=1; make srpm; cd ..
-    - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/'${EOS_DIST}'/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
+    - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/citrine-depend/'${EOS_DIST}'/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
     - dnf builddep --nogpgcheck --allowerasing -y build/SRPMS/*
     - if [[ -n "$CI_COMMIT_TAG" ]]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache_fc.sh; fi
     # @todo: add this flag to have the build pass as it fails during boost header compilation - should be removed in the future ...
@@ -293,7 +291,7 @@ build_fedora_rawhide:
     - cmake3 ../ -DPACKAGEONLY=1 ${CMAKE_OPTIONS}
     - make srpm
     - cd ../
-    - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n' >> /etc/yum.repos.d/eos-depend.repo
+    - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/citrine-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n' >> /etc/yum.repos.d/eos-depend.repo
     - yum-builddep --nogpgcheck --setopt="cern*.exclude=xrootd*" -y build/SRPMS/*
     - if [[ -n "$CI_COMMIT_TAG" ]]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache.sh; fi
     - rpmbuild --rebuild --with server ${RPMBUILD_OPTIONS} --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | ts
@@ -338,8 +336,6 @@ build_cc7_clang:
 
 build_cc7_xrd_testing: # @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
   before_script:
-    - source gitlab-ci/export_branch.sh
-    - echo "Exporting BRANCH=${BRANCH}"
     - source gitlab-ci/export_commit-type.sh
     - echo "Exporting COMMIT_TYPE=${COMMIT_TYPE}"
     - echo -e '[xrootd-testing]\nname=XRootD Testing repository\nbaseurl=http://xrootd.cern.ch/sw/repos/testing/slc/7/$basearch\ngpgcheck=0\nenabled=1\npriority=5\nprotect=0\n' >> /etc/yum.repos.d/xrootd-testing.repo
@@ -355,8 +351,6 @@ build_cc7_xrd_testing: # @todo Re-enable xrd_testing jobs once project ugprades 
 
 build_cc7_opt_xrootd: # @note please contact CTA team / jleduc if you want to change this job
   before_script:
-    - source gitlab-ci/export_branch.sh
-    - echo "Exporting BRANCH=${BRANCH}"
     - source gitlab-ci/export_commit-type.sh
     - echo "Exporting COMMIT_TYPE=${COMMIT_TYPE}"
     - sed -i "s/pgm \/usr\/bin\/xrdcp/pgm \/bin\/true/g" misc/etc/xrd.cf.fst
@@ -1021,7 +1015,7 @@ rpm_commit_artifacts:
   script:
     - yum install --nogpg -y sudo sssd-client createrepo
     - if [[ -n "$CI_COMMIT_TAG" ]]; then echo "This only works for commits"; exit 0; else BUILD_TYPE="commit"; fi
-    - sudo -u stci -H ./gitlab-ci/store_artifacts.sh ${BRANCH} ${BUILD_TYPE} /eos/project/s/storage-ci/www/eos
+    - sudo -u stci -H ./gitlab-ci/store_artifacts.sh citrine ${BUILD_TYPE} /eos/project/s/storage-ci/www/eos
   tags:
     - docker_node
     - publish
@@ -1036,7 +1030,7 @@ rpm_testing_artifacts:
   script:
     - yum install --nogpg -y sudo sssd-client createrepo
     - if [[ -n "$CI_COMMIT_TAG" ]]; then BUILD_TYPE="tag/testing"; else BUILD_TYPE="commit"; fi
-    - sudo -u stci -H ./gitlab-ci/store_artifacts.sh ${BRANCH} ${BUILD_TYPE} /eos/project/s/storage-ci/www/eos
+    - sudo -u stci -H ./gitlab-ci/store_artifacts.sh citrine ${BUILD_TYPE} /eos/project/s/storage-ci/www/eos
   tags:
     - docker_node
     - publish
@@ -1051,9 +1045,9 @@ rpm_stable_artifacts:
   script:
     - yum install --nogpg -y sudo sssd-client createrepo
     - if [[ -n "$CI_COMMIT_TAG" ]]; then BUILD_TYPE="tag"; else echo "This only works for tags"; exit 0; fi
-    - ./gitlab-ci/store_artifacts.sh ${BRANCH} ${BUILD_TYPE} /mnt/eos_repositories/eos
-    - sudo -u stci -H ./gitlab-ci/store_stable_artifacts.sh ${BRANCH} /eos/project/s/storage-ci/www/eos ${CI_COMMIT_TAG}
-    - echo ${CI_COMMIT_TAG} | sudo -u stci tee /eos/project/s/storage-ci/www/eos/${BRANCH}/tag/latest_version
+    - ./gitlab-ci/store_artifacts.sh citrine ${BUILD_TYPE} /mnt/eos_repositories/eos
+    - sudo -u stci -H ./gitlab-ci/store_stable_artifacts.sh citrine /eos/project/s/storage-ci/www/eos ${CI_COMMIT_TAG}
+    - echo ${CI_COMMIT_TAG} | sudo -u stci tee /eos/project/s/storage-ci/www/eos/citrine/tag/latest_version
   tags:
     - docker_node
     - publish
@@ -1074,6 +1068,8 @@ rpm_no_sse_commit_artifacts:
   except:
     - tags
   allow_failure: true
+  dependencies:
+    - build_cc7_no_sse
   when: manual
 
 rpm_no_sse_tag_artifacts:
@@ -1088,6 +1084,8 @@ rpm_no_sse_tag_artifacts:
   only:
     - tags
   allow_failure: true
+  dependencies:
+    - build_cc7_no_sse
   when: manual
 
 # @todo rework on the entanglement between the sign, the publish and the removal of the old artifacts
@@ -1102,7 +1100,7 @@ debian_bionic_artifacts:
     - chmod -R 700 /home/stci
     - if [[ -n "$CI_COMMIT_TAG" ]]; then sudo -u stci -H gpg --homedir /home/stci/ --import $STCI_REPO_KEY; fi
     - if [[ -n "$CI_COMMIT_TAG" ]]; then BUILD_TYPE=tag; else BUILD_TYPE=commit; fi
-    - sudo -u stci -H -E ./gitlab-ci/store_artifacts_debian.sh /eos/project/s/storage-ci/www/debian/eos/${BRANCH} ${BUILD_TYPE}
+    - sudo -u stci -H -E ./gitlab-ci/store_artifacts_debian.sh /eos/project/s/storage-ci/www/debian/eos/citrine ${BUILD_TYPE}
   dependencies:
     - build_ubuntu_bionic
   only:
@@ -1125,7 +1123,7 @@ debian_focal_artifacts:
     - chmod -R 700 /home/stci
     - if [[ -n "$CI_COMMIT_TAG" ]]; then sudo -u stci -H gpg --homedir /home/stci/ --import $STCI_REPO_KEY; fi
     - if [[ -n "$CI_COMMIT_TAG" ]]; then BUILD_TYPE=tag; else BUILD_TYPE=commit; fi
-    - sudo -u stci -H -E ./gitlab-ci/store_artifacts_debian.sh /eos/project/s/storage-ci/www/debian/eos/${BRANCH} ${BUILD_TYPE}
+    - sudo -u stci -H -E ./gitlab-ci/store_artifacts_debian.sh /eos/project/s/storage-ci/www/debian/eos/citrine ${BUILD_TYPE}
   dependencies:
     - build_ubuntu_focal
   only:
@@ -1145,7 +1143,7 @@ debian_artifacts_volume:
     - apt-get install -y sudo apt-utils sssd gpg
     - mkdir /home/stci
     - if [[ -n "$CI_COMMIT_TAG" ]]; then gpg --homedir /home/stci/ --import $STCI_REPO_KEY; fi
-    - ./gitlab-ci/store_artifacts_debian.sh /mnt/eos_repositories/debian/eos/${BRANCH} tag
+    - ./gitlab-ci/store_artifacts_debian.sh /mnt/eos_repositories/debian/eos/citrine tag
   dependencies:
     - build_ubuntu_bionic
     - build_ubuntu_focal
@@ -1228,7 +1226,7 @@ eos_nginx_cc7:
     - yum-builddep --nogpgcheck -y *.src.rpm
     - mkdir RPMS
     - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
-    - STORAGE_PATH=/eos/project/s/storage-ci/www/eos/${BRANCH}-depend/el-7/x86_64
+    - STORAGE_PATH=/eos/project/s/storage-ci/www/eos/citrine-depend/el-7/x86_64
     - sudo -u stci -H mkdir -p $STORAGE_PATH
     - sudo -u stci -H cp -f RPMS/*.rpm $STORAGE_PATH
     - sudo -u stci -H createrepo --update -q $STORAGE_PATH
@@ -1249,7 +1247,7 @@ eos_apmon_cc7:
     - rpmbuild --define "_source_filedigest_algorithm md5" --define "_binary_filedigest_algorithm md5" --define "_topdir ./rpmbuild" -ts eos-apmon-*.tar.gz
     - yum-builddep --nogpgcheck -y rpmbuild/SRPMS/eos-apmon-*.src.rpm
     - rpmbuild --rebuild --define "_rpmdir rpmbuild/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" rpmbuild/SRPMS/eos-apmon-*.src.rpm
-    - STORAGE_PATH=/eos/project/s/storage-ci/www/eos/${BRANCH}-depend/el-7/x86_64
+    - STORAGE_PATH=/eos/project/s/storage-ci/www/eos/citrine-depend/el-7/x86_64
     - sudo -u stci -H mkdir -p $STORAGE_PATH
     - sudo -u stci -H cp -f rpmbuild/RPMS/*.rpm $STORAGE_PATH
     - sudo -u stci -H createrepo --update -q $STORAGE_PATH
@@ -1269,7 +1267,7 @@ eos_apmon_c8:
     - rpmbuild --define "_source_filedigest_algorithm md5" --define "_binary_filedigest_algorithm md5" --define "_topdir ./rpmbuild" -ts eos-apmon-*.tar.gz
     - yum-builddep --nogpgcheck -y rpmbuild/SRPMS/eos-apmon-*.src.rpm
     - rpmbuild --rebuild --define "_rpmdir rpmbuild/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" rpmbuild/SRPMS/eos-apmon-*.src.rpm
-    - STORAGE_PATH=/eos/project/s/storage-ci/www/eos/${BRANCH}-depend/el-8/x86_64
+    - STORAGE_PATH=/eos/project/s/storage-ci/www/eos/citrine-depend/el-8/x86_64
     - sudo -u stci -H mkdir -p $STORAGE_PATH
     - sudo -u stci -H cp -f rpmbuild/RPMS/*.rpm $STORAGE_PATH
     - sudo -u stci -H createrepo --update -q $STORAGE_PATH
@@ -1289,7 +1287,7 @@ eos_microhttpd_cc7:
     - yum-builddep --nogpgcheck -y *.src.rpm
     - mkdir RPMS
     - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
-    - STORAGE_PATH=/eos/project/s/storage-ci/www/eos/${BRANCH}-depend/el-7/x86_64
+    - STORAGE_PATH=/eos/project/s/storage-ci/www/eos/citrine-depend/el-7/x86_64
     - sudo -u stci -H mkdir -p $STORAGE_PATH
     - sudo -u stci -H cp -f RPMS/*.rpm $STORAGE_PATH
     - sudo -u stci -H createrepo --update -q $STORAGE_PATH
@@ -1320,7 +1318,7 @@ eos_repopackage:
     - mkdir build
     - cd build
     - rpmbuild --bb --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" ../elrepopackage.spec
-    - STORAGE_PATH=/eos/project/s/storage-ci/www/eos/${BRANCH}/tag/el-7/x86_64
+    - STORAGE_PATH=/eos/project/s/storage-ci/www/eos/citrine/tag/el-7/x86_64
     - sudo -u stci -H mkdir -p $STORAGE_PATH
     - sudo -u stci -H cp -f RPMS/*.rpm $STORAGE_PATH
     - sudo -u stci -H createrepo --update -q $STORAGE_PATH

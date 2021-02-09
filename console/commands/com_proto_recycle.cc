@@ -48,14 +48,8 @@ int com_protorecycle(char* arg)
 
   global_retc = recycle.Execute(false, true);
 
-  // Fallback for aquamarine server when dealing with new proto commands
   if (global_retc != 0) {
-    if ((recycle.GetError().find("no such user command") != std::string::npos) ||
-        (global_retc == EIO)) {
-      global_retc = com_recycle(arg);
-    } else {
-      std::cerr << recycle.GetError();
-    }
+    std::cerr << recycle.GetError();
   }
 
   return global_retc;

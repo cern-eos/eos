@@ -26,7 +26,7 @@ BUILD_TYPE=$2
 PATH_PREFIX=$3
 
 for artifacts_dir in *_artifacts; do
-  build=${artifacts_dir%%_*}
+  build=${artifacts_dir%_*}
   repo=${BUILDMAP[${build}]}
 
   # Handle only builds registered in the build map
