@@ -49,6 +49,10 @@ int com_acl(char* arg)
   }
 
   global_retc = acl.Execute(true, true);
+  if (global_retc) {
+    std::cerr << acl.GetError();
+  }
+
   return global_retc;
 }
 

@@ -458,6 +458,11 @@ int com_ns(char* arg)
   }
 
   global_retc = ns.Execute();
+
+  if (global_retc) {
+    std::cerr << ns.GetError();
+  }
+
   return global_retc;
 }
 

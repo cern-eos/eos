@@ -320,14 +320,8 @@ int com_protoquota(char* arg)
 
   global_retc = quota.Execute(false, true);
 
-  // Provide compatibility in case the server does not support the protobuf
-  // implementation ie. < 4.5.0
   if (global_retc) {
-    if (quota.GetError().find("Cannot allocate memory") != std::string::npos) {
-      global_retc = com_quota(arg);
-    } else {
-      std::cerr << quota.GetError();
-    }
+    std::cerr << quota.GetError();
   }
 
   return global_retc;

@@ -52,6 +52,11 @@ int com_protofs(char* arg)
   }
 
   global_retc = fs.Execute();
+
+  if (global_retc) {
+    std::cerr << fs.GetError();
+  }
+
   return global_retc;
 }
 

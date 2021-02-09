@@ -48,7 +48,7 @@ int com_protorecycle(char* arg)
 
   global_retc = recycle.Execute(false, true);
 
-  if (global_retc != 0) {
+  if (global_retc) {
     std::cerr << recycle.GetError();
   }
 

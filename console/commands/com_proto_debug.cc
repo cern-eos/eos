@@ -136,14 +136,8 @@ com_protodebug(char* arg)
 
   global_retc = debug.Execute(false);
 
-  // Provide compatibility in case the server does not support the protobuf
-  // implementation ie. < 4.5.0
   if (global_retc) {
-    if (debug.GetError().find("Cannot allocate memory") != std::string::npos) {
-      global_retc = com_debug(arg);
-    } else {
-      std::cerr << debug.GetError();
-    }
+    std::cerr << debug.GetError();
   }
 
   return global_retc;

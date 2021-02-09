@@ -46,6 +46,11 @@ int com_proto_fsck(char* arg)
   }
 
   global_retc = fsck.Execute();
+
+  if (global_retc) {
+    std::cerr << fsck.GetError();
+  }
+
   return global_retc;
 }
 

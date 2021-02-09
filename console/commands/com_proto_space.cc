@@ -363,14 +363,8 @@ int com_protospace(char* arg)
 
   global_retc = space.Execute(false);
 
-  // Provide compatibility in case the server does not support the protobuf
-  // implementation ie. < 4.5.0
   if (global_retc) {
-    if (space.GetError().find("Cannot allocate memory") != std::string::npos) {
-      global_retc = com_space(arg);
-    } else {
-      std::cerr << space.GetError();
-    }
+    std::cerr << space.GetError();
   }
 
   return global_retc;

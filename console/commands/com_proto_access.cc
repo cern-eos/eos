@@ -316,14 +316,8 @@ int com_protoaccess(char* arg)
 
   global_retc = access.Execute(false);
 
-  // Provide compatibility in case the server does not support the protobuf
-  // implementation ie. < 4.5.0
   if (global_retc) {
-    if (access.GetError().find("Cannot allocate memory") != std::string::npos) {
-      global_retc = com_access(arg);
-    } else {
-      std::cerr << access.GetError();
-    }
+    std::cerr << access.GetError();
   }
 
   return global_retc;

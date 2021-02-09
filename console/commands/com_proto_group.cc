@@ -162,14 +162,8 @@ int com_protogroup(char* arg)
 
   global_retc = group.Execute(false);
 
-  // Provide compatibility in case the server does not support the protobuf
-  // implementation ie. < 4.5.0
   if (global_retc) {
-    if (group.GetError().find("Cannot allocate memory") != std::string::npos) {
-      global_retc = com_group(arg);
-    } else {
-      std::cerr << group.GetError();
-    }
+    std::cerr << group.GetError();
   }
 
   return global_retc;

@@ -236,6 +236,11 @@ int com_route(char* arg)
   }
 
   global_retc = route.Execute();
+
+  if (global_retc) {
+    std::cerr << route.GetError();
+  }
+
   return global_retc;
 }
 
