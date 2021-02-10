@@ -65,7 +65,7 @@ XrdMgmOfs::processIncomingMgmConfigurationChange(const std::string& key)
       Access::ApplyAccessConfig(false);
 
       if (skey.beginswith("iostat:")) {
-        gOFS->IoStats->ApplyIostatConfig<FsView>(&FsView::gFsView);
+        gOFS->IoStats->ApplyIostatConfig(&FsView::gFsView);
       }
 
       if (skey.beginswith("fsck")) {

@@ -944,12 +944,12 @@ public:
   //----------------------------------------------------------------------------
   //! Set a global configuration key-val pair
   //----------------------------------------------------------------------------
-  bool SetGlobalConfig(const std::string& key, const std::string& value);
+  virtual bool SetGlobalConfig(const std::string& key, const std::string& value);
 
   //----------------------------------------------------------------------------
   //! Get a global configuration value
   //----------------------------------------------------------------------------
-  std::string GetGlobalConfig(const std::string& key);
+  virtual std::string GetGlobalConfig(const std::string& key);
 
   //----------------------------------------------------------------------------
   //! Broadcast new manager id to all the FST nodes
