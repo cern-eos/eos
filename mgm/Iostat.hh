@@ -188,22 +188,19 @@ public:
 
   Iostat();
   ~Iostat();
-  
-  // the ApplyIostatConfig and StoreIostatConfig 
-  // are templatized to facilitate unit testing of Iostat  
-  template <typename FsViewClass>
+
   void
-  ApplyIostatConfig(FsViewClass* FsVClass)
+  ApplyIostatConfig(FsView* fsview)
   {
-    std::string iocollect = FsVClass->GetGlobalConfig(Iostat::gIostatCollect);
-    std::string ioreport = FsVClass->GetGlobalConfig(Iostat::gIostatReport);
-    std::string ioreportns = FsVClass->GetGlobalConfig(
+    std::string iocollect = fsview->GetGlobalConfig(Iostat::gIostatCollect);
+    std::string ioreport = fsview->GetGlobalConfig(Iostat::gIostatReport);
+    std::string ioreportns = fsview->GetGlobalConfig(
                                Iostat::gIostatReportNamespace);
-    std::string iopopularity = FsVClass->GetGlobalConfig(
+    std::string iopopularity = fsview->GetGlobalConfig(
                                  Iostat::gIostatPopularity);
-    std::string udplist = FsVClass->GetGlobalConfig(
+    std::string udplist = fsview->GetGlobalConfig(
                             Iostat::gIostatUdpTargetList);
-  
+
     if ((iocollect == "true") || (iocollect.empty())) {
       // by default enable
       StartCollection();
@@ -222,31 +219,30 @@ public:
       AddUdpTarget(hostlist[i].c_str(), false);
     }
   }
-  
+
   /* ------------------------------------------------------------------------- */
-  template <typename FsViewClass>
   bool
-  StoreIostatConfig(FsViewClass* FsVClass)
+  StoreIostatConfig(FsView* fsview)
   {
     bool ok = true;
-    ok &= FsVClass->SetGlobalConfig(Iostat::gIostatPopularity,
-                                          mReportPopularity ? "true" : "false");
-    ok &= FsVClass->SetGlobalConfig(Iostat::gIostatReport,
-                                          mReport ? "true" : "false");
-    ok &= FsVClass->SetGlobalConfig(Iostat::gIostatReportNamespace,
-                                          mReportNamespace ? "true" : "false");
-    ok &= FsVClass->SetGlobalConfig(Iostat::gIostatCollect,
-                                          mRunning ? "true" : "false");
+    ok &= fsview->SetGlobalConfig(Iostat::gIostatPopularity,
+                                  mReportPopularity ? "true" : "false");
+    ok &= fsview->SetGlobalConfig(Iostat::gIostatReport,
+                                  mReport ? "true" : "false");
+    ok &= fsview->SetGlobalConfig(Iostat::gIostatReportNamespace,
+                                  mReportNamespace ? "true" : "false");
+    ok &= fsview->SetGlobalConfig(Iostat::gIostatCollect,
+                                  mRunning ? "true" : "false");
     std::string udp_popularity_targets = EncodeUdpPopularityTargets();
-    
+
     if (!udp_popularity_targets.empty()) {
-      ok &= FsVClass->SetGlobalConfig(Iostat::gIostatUdpTargetList,
-                                            udp_popularity_targets);
+      ok &= fsview->SetGlobalConfig(Iostat::gIostatUdpTargetList,
+                                    udp_popularity_targets);
     }
-    
+
     return ok;
   }
-  
+
   bool
   SetStoreFileName(const char* storefilename)
   {
