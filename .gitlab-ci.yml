@@ -588,6 +588,28 @@ cc7_asan_docker_image:
     paths:
       - eos-logs-${CI_JOB_ID}/
 
+.dock8s_rtb_clone_template:
+  stage: test
+  <<: *dock8s_before_script_template
+  script:
+    # prepare mountpoints
+    - exec_cmd eos-cli1 'atd; at now <<< "mkdir -p /eos1/ && mount -t fuse eosxd -ofsname=mount-1 /eos1/; mkdir -p /eos2/ && mount -t fuse eosxd -ofsname=mount-2 /eos2/;"'
+    - exec_cmd eos-cli1 'count=0; while [[ $count -le 10 ]] && ( [[ ! -d /eos1/dockertest/ ]] || [[ ! -d /eos2/dockertest/ ]] ); do echo "Wait for mount... $count"; (( count++ )); sleep 1; done;'
+    # fusex benchmark
+    - exec_cmd eos-cli1 'su eos-user -c "mkdir -p /eos1/dockertest/fusex_tests/ && cd /eos1/dockertest/fusex_tests/ && fusex-benchmark"'
+    # download tests repo
+    - exec_cmd eos-cli1 'git clone https://gitlab.cern.ch/dss/eosclient-tests.git'
+    # ubuntu releases do not support 'clone' yet, skip its test
+    - if [[ ! $CI_JOB_NAME =~ "ub_bionic" ]] && [[ ! $CI_JOB_NAME =~ "ub_focal" ]]; then
+      exec_cmd eos-cli1 'cd /eosclient-tests; git checkout rtb_clone; prepare/clone_test.sh prepare; rc=$?; git checkout master; exit $rc';
+      fi
+  <<: *dock8s_after_script_template
+  artifacts:
+    when: on_failure
+    expire_in: 3 days
+    paths:
+      - eos-logs-${CI_JOB_ID}/
+
 .dock8s_fusex_test_template:
   stage: test
   <<: *dock8s_before_script_template
@@ -601,10 +623,6 @@ cc7_asan_docker_image:
     - exec_cmd eos-mgm1 'grep "RWMutex. Order Checking Error in thread" /var/log/eos/mgm/xrdlog.mgm && exit 1 || exit 0'
     # download tests repo
     - exec_cmd eos-cli1 'git clone https://gitlab.cern.ch/dss/eosclient-tests.git'
-    # ubuntu releases do not support 'clone' yet, skip its test
-    - if [[ ! $CI_JOB_NAME =~ "ub_bionic" ]] && [[ ! $CI_JOB_NAME =~ "ub_focal" ]]; then
-        exec_cmd eos-cli1 'cd /eosclient-tests; git checkout rtb_clone; prepare/clone_test.sh prepare; rc=$?; git checkout master; exit $rc';
-      fi
     # @todo(esindril): run "all" tests in schedule mode once these are properly supported
     # if [[ "$CI_PIPELINE_SOURCE" == "schedule" ]];
     # then
@@ -664,6 +682,16 @@ k8s_cnvrt_fsck:
   tags:
     - shell-with-kubernetes
 
+k8s_rtb_clone:
+  extends: .dock8s_rtb_clone_template
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
+  retry: 1
+  allow_failure: true
+  tags:
+    - shell-with-kubernetes
+
 k8s_fusex:
   extends: .dock8s_fusex_test_template
   needs:
@@ -710,6 +738,17 @@ dock_system:
 
 dock_cnvrt_fsck:
   extends: .dock8s_cnvrt_fsck_template
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
+    - job: clone_docker
+  retry: 1
+  tags:
+    - shell-with-docker
+  when: manual
+
+dock_rtb_clone:
+  extends: .dock8s_fusex_test_template
   needs:
     - job: cc7_docker_image
       artifacts: false
