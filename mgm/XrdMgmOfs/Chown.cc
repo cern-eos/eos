@@ -85,7 +85,7 @@ XrdMgmOfs::_chown(const char* path,
 
     eos_static_debug("sys.acl %s acl.CanChown() %d", attrmap["sys.acl"].c_str(), acl.CanChown());
 
-    if (((vid.uid) && (!vid.hasUid(3) && !vid.hasGid(4) ) &&
+    if (((vid.uid) && (!vid.sudoer) && (!vid.hasUid(3) && !vid.hasGid(4) ) &&
          !acl.CanChown()) ||
         ((vid.uid) && !acl.IsMutable())) {
       errno = EPERM;
