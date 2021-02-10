@@ -65,7 +65,11 @@ XrdMgmOfs::processIncomingMgmConfigurationChange(const std::string& key)
       Access::ApplyAccessConfig(false);
 
       if (skey.beginswith("iostat:")) {
-        gOFS->IoStats->ApplyIostatConfig(&FsView::gFsView);
+        gOFS->IoStats->ApplyIostatConfig<FsView>(&FsView::gFsView);
+      }
+
+      if (skey.beginswith("fsck")) {
+        gOFS->mFsckEngine->ApplyFsckConfig();
       }
     } else {
       eos_info("msg=\"set config value\" key=\"%s\" val=\"%s\"", key.c_str(),

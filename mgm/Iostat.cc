@@ -133,23 +133,24 @@ Iostat::~Iostat()
 /* ------------------------------------------------------------------------- */
 void
 Iostat::Receive(ThreadAssistant& assistant) noexcept
-{
+{ 
   if (gOFS != NULL) {
+    
     mq::ReportListener listener(gOFS->MgmOfsBroker.c_str(), gOFS->HostName);
-
+  
     while (!assistant.terminationRequested()) {
       std::string newmessage;
-
+  
       while (listener.fetch(newmessage, assistant)) {
         if (assistant.terminationRequested()) {
           break;
         }
-
+  
         XrdOucString body = newmessage.c_str();
-
+  
         while (body.replace("&&", "&")) {
         }
-
+  
         XrdOucEnv ioreport(body.c_str());
         std::unique_ptr<eos::common::Report> report(new eos::common::Report(ioreport));
         Add("bytes_read", report->uid, report->gid, report->rb, report->ots,
@@ -193,114 +194,113 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
         {
           // Do the UDP broadcasting here
           XrdSysMutexHelper mLock(mBcastMutex);
-
+  
           if (mUdpPopularityTarget.size()) {
             UdpBroadCast(report.get());
           }
         }
-
+  
         // do the domain accounting here
         if (report->path.substr(0, 11) == "/replicate:") {
           // check if this is a replication path
           // push into the 'eos' domain
           Mutex.Lock();
-
+  
           if (report->rb) {
             IostatAvgDomainIOrb["eos"].Add(report->rb, report->ots, report->cts);
           }
-
+  
           if (report->wb) {
             IostatAvgDomainIOwb["eos"].Add(report->wb, report->ots, report->cts);
           }
-
+  
           Mutex.UnLock();
         } else {
           bool dfound = false;
-
+  
           if (mReportPopularity) {
             // do the popularity accounting here for everything which is not replication!
             AddToPopularity(report->path, report->rb, report->ots, report->cts);
           }
-
+  
           size_t pos = 0;
-
+  
           if ((pos = report->sec_domain.rfind(".")) != std::string::npos) {
             // we can sort in by domain
             std::string sdomain = report->sec_domain.substr(pos);
-
+  
             if (IoDomains.find(sdomain) != IoDomains.end()) {
               Mutex.Lock();
-
+  
               if (report->rb) {
                 IostatAvgDomainIOrb[sdomain].Add(report->rb, report->ots, report->cts);
               }
-
+  
               if (report->wb) {
                 IostatAvgDomainIOwb[sdomain].Add(report->wb, report->ots, report->cts);
               }
-
+  
               Mutex.UnLock();
               dfound = true;
             }
           }
-
+  
           // do the node accounting here - keep the node list small !!!
           std::set<std::string>::const_iterator nit;
-
+  
           for (nit = IoNodes.begin(); nit != IoNodes.end(); nit++) {
             if (*nit == report->sec_host.substr(0, nit->length())) {
               Mutex.Lock();
-
+  
               if (report->rb) {
                 IostatAvgDomainIOrb[*nit].Add(report->rb, report->ots, report->cts);
               }
-
+  
               if (report->wb) {
                 IostatAvgDomainIOwb[*nit].Add(report->wb, report->ots, report->cts);
               }
-
+  
               Mutex.UnLock();
               dfound = true;
             }
           }
-
           if (!dfound) {
             // push into the 'other' domain
             Mutex.Lock();
-
+  
             if (report->rb) {
               IostatAvgDomainIOrb["other"].Add(report->rb, report->ots, report->cts);
             }
-
+  
             if (report->wb) {
               IostatAvgDomainIOwb["other"].Add(report->wb, report->ots, report->cts);
             }
-
+  
             Mutex.UnLock();
           }
         }
-
+  
         // do the application accounting here
         std::string apptag = "other";
-
+  
         if (report->sec_app.length()) {
           apptag = report->sec_app;
         }
-
+  
         // Push into app accounting
         Mutex.Lock();
-
+  
         if (report->rb) {
           IostatAvgAppIOrb[apptag].Add(report->rb, report->ots, report->cts);
         }
-
+  
         if (report->wb) {
           IostatAvgAppIOwb[apptag].Add(report->wb, report->ots, report->cts);
         }
-
+  
         Mutex.UnLock();
-
-        if (mReport && gOFS->mMaster->IsMaster()) {
+  
+        if (mReport) {
           // add the record to a daily report log file
           static XrdOucString openreportfile = "";
           time_t now = time(NULL);
@@ -326,24 +326,24 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
               }
             } else {
               Mutex.Lock();
-
+  
               if (gOpenReportFD) {
                 fclose(gOpenReportFD);
               }
-
+  
               eos::common::Path cPath(reportfile.c_str());
-
+  
               if (cPath.MakeParentPath(S_IRWXU | S_IRGRP | S_IXGRP)) {
                 gOpenReportFD = fopen(reportfile.c_str(), "a+");
-
+  
                 if (gOpenReportFD) {
                   fprintf(gOpenReportFD, "%s\n", body.c_str());
                   fflush(gOpenReportFD);
                 }
-
+  
                 openreportfile = reportfile;
               }
-
+  
               Mutex.UnLock();
             }
           }
@@ -355,10 +355,10 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
           snprintf(path, sizeof(path) - 1, "%s/%s", gOFS->IoReportStorePath.c_str(),
                    report->path.c_str());
           eos::common::Path cPath(path);
-
+  
           if (cPath.MakeParentPath(S_IRWXU | S_IRGRP | S_IXGRP)) {
             FILE* freport = fopen(path, "a+");
-
+  
             if (freport) {
               fprintf(freport, "%s\n", body.c_str());
               fclose(freport);
@@ -370,7 +370,6 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
       assistant.wait_for(std::chrono::seconds(1));
     }
   }
-
   eos_static_info("%s", "msg=\"stopping iostat receiver thread\"");
 }
 
@@ -1463,7 +1462,7 @@ Iostat::StartPopularity()
   }
 
   mReportPopularity = true;
-  StoreIostatConfig(&FsView::gFsView);
+  StoreIostatConfig<FsView>(&FsView::gFsView);
   return true;
 }
 
@@ -1476,7 +1475,7 @@ Iostat::StopPopularity()
   }
 
   mReportPopularity = false;
-  StoreIostatConfig(&FsView::gFsView);
+  StoreIostatConfig<FsView>(&FsView::gFsView);
   return true;
 }
 
@@ -1489,7 +1488,7 @@ Iostat::StartReport()
   }
 
   mReport = true;
-  StoreIostatConfig(&FsView::gFsView);
+  StoreIostatConfig<FsView>(&FsView::gFsView);
   return true;
 }
 
@@ -1502,7 +1501,7 @@ Iostat::StopReport()
   }
 
   mReport = false;
-  StoreIostatConfig(&FsView::gFsView);
+  StoreIostatConfig<FsView>(&FsView::gFsView);
   return true;
 }
 
@@ -1517,7 +1516,7 @@ Iostat::StartCollection()
   }
 
   if (retc) {
-    StoreIostatConfig(&FsView::gFsView);
+    StoreIostatConfig<FsView>(&FsView::gFsView);
   }
 
   return retc;
@@ -1534,7 +1533,7 @@ Iostat::StopCollection()
   }
 
   if (retc) {
-    StoreIostatConfig(&FsView::gFsView);
+    StoreIostatConfig<FsView>(&FsView::gFsView);
   }
 
   return retc;
@@ -1549,7 +1548,7 @@ Iostat::StartReportNamespace()
   }
 
   mReportNamespace = true;
-  StoreIostatConfig(&FsView::gFsView);
+  StoreIostatConfig<FsView>(&FsView::gFsView);
   return true;
 }
 
@@ -1562,7 +1561,7 @@ Iostat::StopReportNamespace()
   }
 
   mReportNamespace = false;
-  StoreIostatConfig(&FsView::gFsView);
+  StoreIostatConfig<FsView>(&FsView::gFsView);
   return true;
 }
 
@@ -1627,7 +1626,7 @@ Iostat::AddUdpTarget(const char* target, bool storeitandlock)
   // store the configuration
   if (storeitandlock) {
     mBcastMutex.UnLock();
-    return StoreIostatConfig(&FsView::gFsView);
+    return StoreIostatConfig<FsView>(&FsView::gFsView);
   }
 
   if (storeitandlock) {
@@ -1646,7 +1645,7 @@ Iostat::RemoveUdpTarget(const char* target)
   {
     std::string starget = target;
     XrdSysMutexHelper mLock(mBcastMutex);
-
+    
     if (mUdpPopularityTarget.count(starget)) {
       mUdpPopularityTarget.erase(starget);
 
@@ -1664,10 +1663,9 @@ Iostat::RemoveUdpTarget(const char* target)
       store = true;
     }
   }
-
   if (store) {
-    retc &= StoreIostatConfig(&FsView::gFsView);
-  }
+    retc &= StoreIostatConfig<FsView>(&FsView::gFsView);
+  }  
 
   return retc;
 }
@@ -1961,7 +1959,7 @@ IostatAvg::Add(unsigned long long val, time_t starttime, time_t stoptime)
   time_t now = time(0);
   size_t tdiff = stoptime - starttime;
   size_t toff = now - stoptime;
-
+  
   if (toff < 86400) {
     // if the measurements was done in the last 86400 seconds
     unsigned int mbins = tdiff / 1440; // number of bins the measurement was hitting
@@ -1970,10 +1968,7 @@ IostatAvg::Add(unsigned long long val, time_t starttime, time_t stoptime)
       mbins = 1;
     }
 
-    // we partially mitigate the precision loss in integer division
-    // when getting norm_val below by redistribution of reminder into bins
-    unsigned long long remainder = val % mbins;
-    unsigned long long norm_val = val / mbins;
+    unsigned long long norm_val = (1.0 * val / mbins);
 
     for (size_t bins = 0; bins < mbins; bins++) {
       unsigned int bin86400 = (((stoptime - (bins * 1440)) / 1440) % 60);
@@ -1984,6 +1979,7 @@ IostatAvg::Add(unsigned long long val, time_t starttime, time_t stoptime)
         avg86400[bin86400] += norm_val;
       }
     }
+    
   }
 
   if (toff < 3600) {
@@ -1994,9 +1990,8 @@ IostatAvg::Add(unsigned long long val, time_t starttime, time_t stoptime)
       mbins = 1;
     }
 
-    unsigned long long remainder = val % mbins;
-    unsigned long long norm_val = val / mbins;
-
+    unsigned long long norm_val = 1.0 * val / mbins;
+    
     for (size_t bins = 0; bins < mbins; bins++) {
       unsigned int bin3600 = (((stoptime - (bins * 60)) / 60) % 60);
 
@@ -2016,9 +2011,8 @@ IostatAvg::Add(unsigned long long val, time_t starttime, time_t stoptime)
       mbins = 1;
     }
 
-    unsigned long long remainder = val % mbins;
-    unsigned long long norm_val = val / mbins;
-
+    unsigned long long norm_val = 1.0 * val / mbins;
+    
     for (size_t bins = 0; bins < mbins; bins++) {
       unsigned int bin300 = (((stoptime - (bins * 5)) / 5) % 60);
 
@@ -2038,9 +2032,8 @@ IostatAvg::Add(unsigned long long val, time_t starttime, time_t stoptime)
       mbins = 1;
     }
 
-    unsigned long long remainder = val % mbins;
-    unsigned long long norm_val = val / mbins;
-
+    unsigned long long norm_val = 1.0 * val / mbins;
+    
     for (size_t bins = 0; bins < mbins; ++bins) {
       unsigned int bin60 = (((stoptime - (bins * 1)) / 1) % 60);
 

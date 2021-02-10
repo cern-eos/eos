@@ -267,7 +267,7 @@ IConfigEngine::ApplyConfig(XrdOucString& err, bool apply_stall_redirect)
   }
   Access::ApplyAccessConfig(apply_stall_redirect);
   gOFS->mFsckEngine->ApplyFsckConfig();
-  gOFS->IoStats->ApplyIostatConfig(&FsView::gFsView);
+  gOFS->IoStats->ApplyIostatConfig<FsView>(&FsView::gFsView);
   gTransferEngine.ApplyTransferEngineConfig();
 
   if (err.length()) {
