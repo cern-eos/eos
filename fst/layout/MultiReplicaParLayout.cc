@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file MultiReplicaParLayout.hh
+//! @file MultiReplicaParLayout.cc
 //! @author Andreas Støve - CERN
 //! @brief Physical layout of a file with multireplicas
 //------------------------------------------------------------------------------
@@ -22,25 +22,46 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_MultiReplicaParLayout_HH__
-#define __EOSFST_MultiReplicaParLayout_HH__
-
-#include "fst/layout/Layout.hh"
+#include "fst/layout/MultiReplicaParLayout.hh"
+#include "fst/XrdFstOfs.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
-class MultiReplicaParLayout : public Layout
+MultiReplicaParLayout::MultiReplicaParLayout(XrdFstOfsFile* file,
+											unsigned long lid,
+											const XrdSecEntity* client,
+											XrdOucErrInfo* outError,
+											const char* path,
+											uint16_t timeout) :
+  Layout(file, lid, client, outError, path, timeout)
 {
-public:
+	mNumReplicas = eos::common::LayoutId::GetStripNumber(lid) + 1;
 
-	virtual int CalculateSpace();
-private:
-	  int mNumPossibleReplicas; ///< number of possible replicas for the current space, calculate
-	  int mNumReplicas; ///< number of replicas for current file
-	  bool ioLocal; ///< mark if we are to do local IO
-	  bool hasWriteError;
-};
+	ioLocal = false;
+	hasWriteErros = false;
+}
+
+int MultiReplicaParLayout::CalculateSpace()
+{
+	int possibleReplicas;
+	//Space in total in petabyte
+	//Get the space in petabytes from somewhere
+	double spaceTotal;
+	//Space used in petabytes
+	//Get space in petabytes from somewhere
+	double spaceUnused;
+	//Ratio of used space, for calculating how many replicas there will be
+	double ratioOfUsed = spaceUnused/spaceTotal;
+
+
+
+	return 0;
+
+}
+
+
+
+
+
 
 EOSFSTNAMESPACE_END
-
-#endif // __EOSFST_MULTIREPLICAPARLAYOUT_HH__
