@@ -2286,26 +2286,28 @@ FsView::FindByQueuePath(std::string& queuepath)
 //------------------------------------------------------------------------------
 bool
 FsView::SetGlobalConfig(const std::string& key, const std::string& value)
-{
-  std::string ckey = SSTR(common::InstanceName::getGlobalMgmConfigQueue()
+{  
+  if (gOFS != NULL)
+  { 
+    std::string ckey = SSTR(common::InstanceName::getGlobalMgmConfigQueue()
                           << "#" << key);
 
-  if (value.empty()) {
-    mq::SharedHashWrapper::makeGlobalMgmHash(gOFS->mMessagingRealm.get()).del(key);
-  } else {
-    mq::SharedHashWrapper::makeGlobalMgmHash(gOFS->mMessagingRealm.get()).set(key,
-        value);
-  }
-
-  if (FsView::gFsView.mConfigEngine) {
     if (value.empty()) {
-      FsView::gFsView.mConfigEngine->DeleteConfigValue("global", ckey.c_str());
+      mq::SharedHashWrapper::makeGlobalMgmHash(gOFS->mMessagingRealm.get()).del(key);
     } else {
-      FsView::gFsView.mConfigEngine->SetConfigValue("global", ckey.c_str(),
-          value.c_str());
+      mq::SharedHashWrapper::makeGlobalMgmHash(gOFS->mMessagingRealm.get()).set(key,
+          value);
+    }
+  
+    if (FsView::gFsView.mConfigEngine) {
+      if (value.empty()) {
+        FsView::gFsView.mConfigEngine->DeleteConfigValue("global", ckey.c_str());
+      } else {
+        FsView::gFsView.mConfigEngine->SetConfigValue("global", ckey.c_str(),
+            value.c_str());
+      }
     }
   }
-
   return true;
 }
 
@@ -2315,8 +2317,11 @@ FsView::SetGlobalConfig(const std::string& key, const std::string& value)
 std::string
 FsView::GetGlobalConfig(const std::string& key)
 {
-  return mq::SharedHashWrapper::makeGlobalMgmHash(
+  if (gOFS != NULL){
+    return mq::SharedHashWrapper::makeGlobalMgmHash(
            gOFS->mMessagingRealm.get()).get(key);
+  }
+  return "";
 }
 
 //------------------------------------------------------------------------------
