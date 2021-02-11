@@ -601,7 +601,7 @@ cc7_asan_docker_image:
     - exec_cmd eos-cli1 'git clone https://gitlab.cern.ch/dss/eosclient-tests.git'
     # ubuntu releases do not support 'clone' yet, skip its test
     - if [[ ! $CI_JOB_NAME =~ "ub_bionic" ]] && [[ ! $CI_JOB_NAME =~ "ub_focal" ]]; then
-      exec_cmd eos-cli1 'cd /eosclient-tests; git checkout rtb_clone; prepare/clone_test.sh prepare; rc=$?; git checkout master; exit $rc';
+      exec_cmd eos-cli1 'cd /eosclient-tests; prepare/clone_test.sh prepare; rc=$?; exit $rc';
       fi
   <<: *dock8s_after_script_template
   artifacts:
