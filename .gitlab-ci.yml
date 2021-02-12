@@ -642,7 +642,6 @@ cc7_asan_docker_image:
 
 .dock8s_cbox_test_template:
   stage: test
-  image: alpine/k8s:1.18.2
   <<: *dock8s_before_script_template
   script:
     # enable converter and prepare eoshome folder, cernbox alike
@@ -665,56 +664,66 @@ cc7_asan_docker_image:
     paths:
       - eos-logs-${CI_JOB_ID}/
   retry: 1
+
+k8s_system:
+  extends: .dock8s_system_test_template
+  image: alpine/k8s:1.18.2
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
+  retry: 1
   tags:
     - docker_node
     - k8s
 
-k8s_system:
-  extends: .dock8s_system_test_template
-  needs:
-    - job: cc7_docker_image
-      artifacts: false
-  retry: 1
-  tags:
-    - shell-with-kubernetes
-
 k8s_cnvrt_fsck:
   extends: .dock8s_cnvrt_fsck_template
+  image: alpine/k8s:1.18.2
   needs:
     - job: cc7_docker_image
       artifacts: false
   retry: 1
   tags:
-    - shell-with-kubernetes
+    - docker_node
+    - k8s
 
 k8s_rtb_clone:
   extends: .dock8s_rtb_clone_template
+  image: alpine/k8s:1.18.2
   needs:
     - job: cc7_docker_image
       artifacts: false
   retry: 1
   allow_failure: true
   tags:
-    - shell-with-kubernetes
+    - docker_node
+    - k8s
 
 k8s_fusex:
   extends: .dock8s_fusex_test_template
+  image: alpine/k8s:1.18.2
   needs:
     - job: cc7_docker_image
       artifacts: false
   retry: 1
   allow_failure: true
   tags:
-    - shell-with-kubernetes
+    - docker_node
+    - k8s
 
 k8s_cbox:
   extends: .dock8s_cbox_test_template
+  image: alpine/k8s:1.18.2
   needs:
     - job: cc7_docker_image
       artifacts: false
+  tags:
+    - docker_node
+    - k8s
 
 k8s_stress:
   stage: test
+  image: alpine/k8s:1.18.2
   <<: *dock8s_before_script_template
   script:
     - TEST_URL="eos-mgm1.eos-mgm1.$K8S_NAMESPACE.svc.cluster.local"
@@ -725,62 +734,76 @@ k8s_stress:
       artifacts: false
   retry: 1
   tags:
-    - shell-with-kubernetes
+    - docker_node
+    - k8s
 
 dock_system:
   extends: .dock8s_system_test_template
+  image: alpinelinux/docker-cli
   needs:
     - job: cc7_docker_image
       artifacts: false
     - job: clone_docker
   retry: 1
   tags:
-    - shell-with-docker
+    - docker_node
+    - dock
   when: manual
 
 dock_cnvrt_fsck:
   extends: .dock8s_cnvrt_fsck_template
+  image: alpinelinux/docker-cli
   needs:
     - job: cc7_docker_image
       artifacts: false
     - job: clone_docker
   retry: 1
   tags:
-    - shell-with-docker
+    - docker_node
+    - dock
   when: manual
 
 dock_rtb_clone:
   extends: .dock8s_fusex_test_template
+  image: alpinelinux/docker-cli
   needs:
     - job: cc7_docker_image
       artifacts: false
     - job: clone_docker
   retry: 1
   tags:
-    - shell-with-docker
+    - docker_node
+    - dock
   when: manual
 
 dock_fusex:
   extends: .dock8s_fusex_test_template
+  image: alpinelinux/docker-cli
   needs:
     - job: cc7_docker_image
       artifacts: false
     - job: clone_docker
   retry: 1
   tags:
-    - shell-with-docker
+    - docker_node
+    - dock
   when: manual
 
 dock_cbox:
   extends: .dock8s_cbox_test_template
+  image: alpinelinux/docker-cli
   needs:
     - job: cc7_docker_image
       artifacts: false
     - job: clone_docker
+  tags:
+    - docker_node
+    - dock
   when: manual
 
 dock_stress:
   stage: test
+  image: alpinelinux/docker-cli
   <<: *dock8s_before_script_template
   script:
     - TEST_URL="eos-mgm1.eoscluster.cern.ch"
@@ -792,7 +815,8 @@ dock_stress:
     - job: clone_docker
   retry: 1
   tags:
-    - shell-with-docker
+    - docker_node
+    - dock
   when: manual
 
 .unit_test_template: &unit_test_template_definition
@@ -836,6 +860,7 @@ unit_test:
 
 k8s_system_c8:
   extends: .dock8s_system_test_template
+  image: alpine/k8s:1.18.2
   variables:
     BASETAG: "c8_"
   needs:
@@ -847,10 +872,12 @@ k8s_system_c8:
     - schedules
     - tags
   tags:
-    - shell-with-kubernetes
+    - docker_node
+    - k8s
 
 k8s_cbox_c8:
   extends: .dock8s_cbox_test_template
+  image: alpine/k8s:1.18.2
   variables:
     BASETAG: "c8_"
   needs:
@@ -860,9 +887,13 @@ k8s_cbox_c8:
   only:
     - schedules
     - tags
+  tags:
+    - docker_node
+    - k8s
 
 k8s_fusex_ub_bionic:
   extends: .dock8s_fusex_test_template
+  image: alpine/k8s:1.18.2
   variables:
     CLI_BASETAG: "ubuntu_bionic_client_"
   needs:
@@ -876,10 +907,12 @@ k8s_fusex_ub_bionic:
     - schedules
     - tags
   tags:
-    - shell-with-kubernetes
+    - docker_node
+    - k8s
 
 k8s_fusex_ub_focal:
   extends: .dock8s_fusex_test_template
+  image: alpine/k8s:1.18.2
   variables:
     CLI_BASETAG: "ubuntu_focal_client_"
   needs:
@@ -893,12 +926,14 @@ k8s_fusex_ub_focal:
     - schedules
     - tags
   tags:
-    - shell-with-kubernetes
+    - docker_node
+    - k8s
 
 # @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
 # xt stands for xrd_testing. Must shorten to not hit HOST_NAME_MAX
 .k8s_system_xt:
   extends: .dock8s_system_test_template
+  image: alpine/k8s:1.18.2
   variables:
     BASETAG: "xrd_testing_"
   needs:
@@ -909,10 +944,12 @@ k8s_fusex_ub_focal:
   only:
     - schedules
   tags:
-    - shell-with-kubernetes
+    - docker_node
+    - k8s
 
 dock_system_c8:
   extends: .dock8s_system_test_template
+  image: alpinelinux/docker-cli
   variables:
     BASETAG: "c8_"
   needs:
@@ -925,11 +962,13 @@ dock_system_c8:
     - schedules
     - tags
   tags:
-    - shell-with-docker
+    - docker_node
+    - dock
   when: manual
 
 dock_cbox_c8:
   extends: .dock8s_cbox_test_template
+  image: alpinelinux/docker-cli
   variables:
     BASETAG: "c8_"
   needs:
@@ -940,10 +979,14 @@ dock_cbox_c8:
   only:
     - schedules
     - tags
+  tags:
+    - docker_node
+    - dock
   when: manual
 
 dock_fusex_ub_bionic:
   extends: .dock8s_fusex_test_template
+  image: alpinelinux/docker-cli
   variables:
     CLI_BASETAG: "ubuntu_bionic_client_"
   needs:
@@ -958,11 +1001,13 @@ dock_fusex_ub_bionic:
     - schedules
     - tags
   tags:
-    - shell-with-docker
+    - docker_node
+    - dock
   when: manual
 
 dock_fusex_ub_focal:
   extends: .dock8s_fusex_test_template
+  image: alpinelinux/docker-cli
   variables:
     CLI_BASETAG: "ubuntu_focal_client_"
   needs:
@@ -977,13 +1022,15 @@ dock_fusex_ub_focal:
     - schedules
     - tags
   tags:
-    - shell-with-docker
+    - docker_node
+    - dock
   when: manual
 
 # @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
 # xt stands for xrd_testing. Must shorten to not hit HOST_NAME_MAX
 .dock_system_xt:
   extends: .dock8s_system_test_template
+  image: alpinelinux/docker-cli
   variables:
     BASETAG: "xrd_testing_"
   needs:
@@ -995,7 +1042,8 @@ dock_fusex_ub_focal:
   only:
     - schedules
   tags:
-    - shell-with-docker
+    - docker_node
+    - dock
   when: manual
 
 unit_test_asan:
