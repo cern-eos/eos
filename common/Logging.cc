@@ -568,11 +568,13 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
   // limit the length of the output to buffer-1 length
   vsnprintf(ptr, sizeof(logBuffer->buffer) - (ptr - buffer + 1), msg, args);
 
-  if (!silent && rate_limit(tv, priority, file, line)) {
-    LB->log_return_buffers(logBuffer);
-    return "";
+  if (!silent) {
+    XrdSysMutexHelper scope_lock(gMutex);         
+    if (rate_limit(tv, priority, file, line)) {
+        LB->log_return_buffers(logBuffer);
+        return "";
+      }
   }
-  
 
   logBuffer->h.ptr = ptr;
 
