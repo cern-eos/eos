@@ -642,6 +642,7 @@ cc7_asan_docker_image:
 
 .dock8s_cbox_test_template:
   stage: test
+  image: alpine/k8s:1.18.2
   <<: *dock8s_before_script_template
   script:
     # enable converter and prepare eoshome folder, cernbox alike
@@ -657,12 +658,16 @@ cc7_asan_docker_image:
     - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && python2 ./eosclient-tests/run.py --workdir=/eos/user/e/eos-user ci-eosfuse_release"'
     - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && python2 ./eosclient-tests/run.py --workdir=/eos/user/e/eos-user regression"'
   <<: *dock8s_after_script_template
-  allow_failure: true # @note remove soon, once stable
+  allow_failure: true # @todo remove soon, once stable
   artifacts:
     when: on_failure
     expire_in: 3 days
     paths:
       - eos-logs-${CI_JOB_ID}/
+  retry: 1
+  tags:
+    - docker_node
+    - k8s
 
 k8s_system:
   extends: .dock8s_system_test_template
@@ -707,9 +712,6 @@ k8s_cbox:
   needs:
     - job: cc7_docker_image
       artifacts: false
-  retry: 1
-  tags:
-    - shell-with-kubernetes
 
 k8s_stress:
   stage: test
@@ -775,9 +777,6 @@ dock_cbox:
     - job: cc7_docker_image
       artifacts: false
     - job: clone_docker
-  retry: 1
-  tags:
-    - shell-with-docker
   when: manual
 
 dock_stress:
@@ -857,13 +856,10 @@ k8s_cbox_c8:
   needs:
     - job: c8_docker_image
       artifacts: false
-  retry: 1
   allow_failure: true
   only:
     - schedules
     - tags
-  tags:
-    - shell-with-kubernetes
 
 k8s_fusex_ub_bionic:
   extends: .dock8s_fusex_test_template
@@ -941,12 +937,9 @@ dock_cbox_c8:
       artifacts: false
     - job: clone_docker
   allow_failure: true
-  retry: 1
   only:
     - schedules
     - tags
-  tags:
-    - shell-with-docker
   when: manual
 
 dock_fusex_ub_bionic:
