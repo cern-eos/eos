@@ -2329,70 +2329,60 @@ void
 FsView::HeartBeatCheck(ThreadAssistant& assistant) noexcept
 {
   while (!assistant.terminationRequested()) {
-    {
-      eos::common::RWMutexReadLock lock(ViewMutex);
+    assistant.wait_for(std::chrono::seconds(10));
+    eos::common::RWMutexReadLock lock(ViewMutex, __FUNCTION__, __LINE__, __FILE__);
 
-      for (auto it = mIdView.begin(); it != mIdView.end(); ++it) {
-        if (it->second == nullptr) {
-          continue;
-        }
-
-        if (!it->second->hasHeartbeat()) {
-          // mark as offline
-          if (it->second->GetActiveStatus() != eos::common::ActiveStatus::kOffline) {
-            it->second->SetActiveStatus(eos::common::ActiveStatus::kOffline);
-          }
-        } else {
-          std::string queue = it->second->GetString("queue");
-          std::string group = it->second->GetString("schedgroup");
-
-          if ((FsView::gFsView.mNodeView.count(queue)) &&
-              (FsView::gFsView.mGroupView.count(group)) &&
-              (FsView::gFsView.mNodeView[queue]->GetConfigMember("status") == "on") &&
-              (FsView::gFsView.mGroupView[group]->GetConfigMember("status") == "on")) {
-            if (it->second->GetActiveStatus() != eos::common::ActiveStatus::kOnline) {
-              it->second->SetActiveStatus(eos::common::ActiveStatus::kOnline);
-            }
-          } else {
-            if (it->second->GetActiveStatus() != eos::common::ActiveStatus::kOffline) {
-              it->second->SetActiveStatus(eos::common::ActiveStatus::kOffline);
-            }
-          }
-        }
+    // Loop over all the nodes and update their status
+    for (auto it_node = mNodeView.begin();
+         it_node != mNodeView.end(); ++it_node) {
+      if (it_node->second == nullptr) {
+        continue;
       }
 
-      // Iterate over all filesystems
-      for (auto it = mNodeView.begin(); it != mNodeView.end(); it++) {
-        if (!it->second) {
-          continue;
+      auto* node = it_node->second;
+
+      if (node->HasHeartbeat()) {
+        if (node->GetActiveStatus() != eos::common::ActiveStatus::kOnline) {
+          node->SetActiveStatus(eos::common::ActiveStatus::kOnline);
         }
 
-        eos::common::FileSystem::host_snapshot_t snapshot;
-        auto shbt = it->second->GetMember("heartbeat");
-        snapshot.mHeartBeatTime = (time_t) strtoll(shbt.c_str(), NULL, 10);
+        // Loop over all files sysytems in the current node and update status
+        for (auto it_fsid = node->begin(); it_fsid != node->end(); ++it_fsid) {
+          FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it_fsid);
 
-        if (!snapshot.hasHeartbeat()) {
-          // mark as offline
-          if (it->second->GetActiveStatus() != eos::common::ActiveStatus::kOffline) {
-            it->second->SetActiveStatus(eos::common::ActiveStatus::kOffline);
+          if (fs == nullptr) {
+            continue;
           }
-        } else {
-          std::string queue = it->second->mName;
 
-          if ((FsView::gFsView.mNodeView.count(queue)) &&
-              (FsView::gFsView.mNodeView[queue]->GetConfigMember("status") == "on")) {
-            if (it->second->GetActiveStatus() != eos::common::ActiveStatus::kOnline) {
-              it->second->SetActiveStatus(eos::common::ActiveStatus::kOnline);
+          std::string group = fs->GetString("schedgroup");
+
+          if ((node->GetConfigMember("status") == "on") &&
+              FsView::gFsView.mGroupView.count(group) &&
+              (FsView::gFsView.mGroupView[group]->GetConfigMember("status") == "on")) {
+            if (fs->GetActiveStatus() != eos::common::ActiveStatus::kOnline) {
+              fs->SetActiveStatus(eos::common::ActiveStatus::kOnline);
             }
           } else {
-            if (it->second->GetActiveStatus() != eos::common::ActiveStatus::kOffline) {
-              it->second->SetActiveStatus(eos::common::ActiveStatus::kOffline);
+            if (fs->GetActiveStatus() != eos::common::ActiveStatus::kOffline) {
+              fs->SetActiveStatus(eos::common::ActiveStatus::kOffline);
             }
+          }
+        }
+      } else {
+        // Loop over all files sysytems in the current node and update status
+        for (auto it_fsid = node->begin(); it_fsid != node->end(); ++it_fsid) {
+          FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it_fsid);
+
+          if (fs == nullptr) {
+            continue;
+          }
+
+          if (fs->GetActiveStatus() != eos::common::ActiveStatus::kOffline) {
+            fs->SetActiveStatus(eos::common::ActiveStatus::kOffline);
           }
         }
       }
     }
-    assistant.wait_for(std::chrono::seconds(10));
   }
 }
 
@@ -2597,6 +2587,18 @@ FsNode::SetActiveStatus(eos::common::ActiveStatus active)
     SetStatus("offline");
     return SetConfigMember("stat.active", "offline", true);
   }
+}
+
+//------------------------------------------------------------------------------
+// Check if node has a recent enough heartbeat ie. less then 60 seconds
+//------------------------------------------------------------------------------
+bool FsNode::HasHeartbeat() const
+{
+  if (mHeartBeat == 0) {
+    return false;
+  }
+
+  return isHeartbeatRecent(mHeartBeat.load());
 }
 
 //------------------------------------------------------------------------------

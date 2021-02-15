@@ -97,9 +97,9 @@ Messaging::Listen(ThreadAssistant& assistant) noexcept
   }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Process heartbeat information based on the given advisory message
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void
 Messaging::ProcessIncomingHeartbeat(const std::string& nodequeue, bool online,
                                     time_t senderTimeSec)
@@ -126,18 +126,9 @@ Messaging::ProcessIncomingHeartbeat(const std::string& nodequeue, bool online,
       }
     }
 
-    // eos_debug("msg=\"setting heart beat to %llu for node queue=%s\"",
-    //         (unsigned long long) senderTimeSec, nodequeue.c_str());
+    eos_static_debug("msg=\"setting heart beat to %llu for node queue=%s\"",
+                     (unsigned long long) senderTimeSec, nodequeue.c_str());
     node->SetHeartBeat(senderTimeSec);
-
-    // Propagate into filesystems
-    for (auto it = node->begin(); it != node->end(); ++it) {
-      FileSystem* entry = FsView::gFsView.mIdView.lookupByID(*it);
-
-      if (entry) {
-        entry->setLocalHeartbeatTime(senderTimeSec);
-      }
-    }
   }
 }
 
@@ -152,15 +143,16 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
   }
 
   std::string nodequeue = advmsg->kQueue.c_str();
-  FsView::gFsView.ViewMutex.LockRead(); // =========| LockRead
+  eos::common::RWMutexReadLock
+  rd_fs_lock(FsView::gFsView.ViewMutex, __FUNCTION__, __LINE__, __FILE__);
 
   if (FsView::gFsView.mNodeView.count(nodequeue) == 0) {
     // Rare case where a node is not yet known
-    FsView::gFsView.ViewMutex.UnLockRead(); // |========= UnLockRead
-    // register the node to the global view and config
-    // =========| LockWrite
-    eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
+    rd_fs_lock.Release();
+    // Register the node to the global view and config
     eos_static_info("Registering node queue %s ..", nodequeue.c_str());
+    eos::common::RWMutexWriteLock
+    wr_fs_lock(FsView::gFsView.ViewMutex, __FUNCTION__, __LINE__, __FILE__);
 
     if (FsView::gFsView.RegisterNode(nodequeue.c_str())) {
       // Just initialize config queue, taken care by constructor
@@ -170,13 +162,11 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
 
     ProcessIncomingHeartbeat(nodequeue, advmsg->kOnline,
                              advmsg->kMessageHeader.kSenderTime_sec);
-    // =========| UnLockWrite
     return true;
   } else {
-    // here we can go just with a read lock
+    // Here we can go just with a read lock
     ProcessIncomingHeartbeat(nodequeue, advmsg->kOnline,
                              advmsg->kMessageHeader.kSenderTime_sec);
-    FsView::gFsView.ViewMutex.UnLockRead(); // |========= UnLockRead
     return true;
   }
 }

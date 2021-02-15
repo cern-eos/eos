@@ -63,6 +63,20 @@ class Converter;
 class IConfigEngine;
 
 //------------------------------------------------------------------------------
+//! Check if given heartbeat timestamp is recent enough
+//------------------------------------------------------------------------------
+inline bool isHeartbeatRecent(time_t heartbeatTime)
+{
+  time_t now = time(NULL);
+
+  if ((now - heartbeatTime) < 60) {
+    return true;
+  }
+
+  return false;
+}
+
+//------------------------------------------------------------------------------
 //! Base class representing any element in a GeoTree
 //------------------------------------------------------------------------------
 struct GeoTreeElement {
@@ -505,9 +519,9 @@ public:
 protected:
 
   common::SharedHashLocator mLocator; ///< Locator for shared hash
+  std::atomic<time_t> mHeartBeat; ///< Last heartbeat time
 
 private:
-  std::atomic<time_t> mHeartBeat; ///< Last heartbeat time
   std::string mStatus; ///< Status (meaning depends on inheritor)
   std::string mSize; ///< Size of base object (meaning depends on inheritor)
   size_t mInQueue; ///< Number of items in queue(meaning depends on inheritor)
@@ -632,6 +646,11 @@ public:
   //! Set the configuration default values for a node
   //----------------------------------------------------------------------------
   void SetNodeConfigDefault();
+
+  //----------------------------------------------------------------------------
+  //! Check if node has a recent enough heartbeat
+  //----------------------------------------------------------------------------
+  bool HasHeartbeat() const;
 };
 
 

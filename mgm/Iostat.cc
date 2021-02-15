@@ -992,14 +992,19 @@ Iostat::PrintNs(XrdOucString& out, XrdOucString option)
 
       std::string r_open_hotfiles = fs->GetString("stat.ropen.hotfiles");
       std::string w_open_hotfiles = fs->GetString("stat.wopen.hotfiles");
-      bool hasHeartbeat = fs->hasHeartbeat();
+      std::string node_queue = fs->GetString("queue");
+      auto it_node = FsView::gFsView.mNodeView.find(node_queue);
+
+      if (it_node == FsView::gFsView.mNodeView.end()) {
+        continue;
+      }
+
+      // Check if the corresponding node has a heartbeat
+      bool hasHeartbeat = it_node->second->HasHeartbeat();
 
       // we only show the reports from the last minute, there could be pending values
       if (!hasHeartbeat) {
         r_open_hotfiles = "";
-      }
-
-      if (!hasHeartbeat) {
         w_open_hotfiles = "";
       }
 
