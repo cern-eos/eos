@@ -206,7 +206,7 @@ include(CPack)
 set(EOS_ARCHIVE "${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}.tar.gz")
 set(SRPM_DEFINE --define "_source_filedigest_algorithm md5" --define "_binary_filedigest_algorithm md5")
 
-if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CLANG_BUILD)
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   LIST(APPEND RPM_OPTIONS --with clang)
 endif()
 
