@@ -57,7 +57,7 @@ public:
   //! @param comment  entry value
   //----------------------------------------------------------------------------
   void AddEntry(const std::string& action, const std::string& key,
-                const std::string& value, const std::string &comment = "");
+                const std::string& value, const std::string& comment = "");
 
   //----------------------------------------------------------------------------
   //! Get tail of the changelog
@@ -131,7 +131,8 @@ public:
   //!
   //! @return true if saved successfully, otherwise false
   //----------------------------------------------------------------------------
-  bool SaveConfig(std::string filename, bool overwrite, const std::string& comment, XrdOucString& err) override;
+  bool SaveConfig(std::string filename, bool overwrite,
+                  const std::string& comment, XrdOucString& err) override;
 
   //----------------------------------------------------------------------------
   //! List all configurations
@@ -154,20 +155,21 @@ public:
   //! @param prefix identifies the type of configuration parameter
   //! @param key key of the configuration to set
   //! @param val value of the configuration
-  //! @param tochangelog if true add entry also to the changelog
+  //! @param from_local mark if change comes from local MGM or remote one
+  //! @param save_config mark if configuration should also be saved or not
   //----------------------------------------------------------------------------
   void SetConfigValue(const char* prefix, const char* key, const char* val,
-                      bool tochangelog = true) override;
+                      bool from_local = true, bool save_config = true) override;
 
   //----------------------------------------------------------------------------
   //! Delete a configuration value
   //!
   //! @param prefix identifies the type of configuration parameter
   //! @param key key of the configuration to delete
-  //! @param tochangelog if true add entry also to the changelog
+  //! @param from_local mark if change comes from local MGM or remote one
   //----------------------------------------------------------------------------
   void DeleteConfigValue(const char* prefix, const char* key,
-                         bool tochangelog = true) override;
+                         bool from_local = true) override;
 
   //----------------------------------------------------------------------------
   //! Set configuration directory
@@ -211,7 +213,8 @@ private:
   //!
   //! @return true if saved successfully, otherwise false
   //----------------------------------------------------------------------------
-  bool SaveConfigNoLock(std::string filename, bool overwrite, const std::string& comment, XrdOucString& err);
+  bool SaveConfigNoLock(std::string filename, bool overwrite,
+                        const std::string& comment, XrdOucString& err);
 
   //----------------------------------------------------------------------------
   //! Parse configuration from the input given as a string and add it to the

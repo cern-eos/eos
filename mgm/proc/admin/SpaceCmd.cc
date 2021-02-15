@@ -685,7 +685,8 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
       } else if (key == eos::mgm::tgc::TGC_NAME_FREE_BYTES_SCRIPT) {
         applied = true;
 
-        if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key, value)) {
+        if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key,
+            value)) {
           std_err.str("error: cannot set space config value");
           ret_c = EIO;
         } else {
@@ -965,7 +966,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
               fs->SetString("errc", "0");
             }
 
-            FsView::gFsView.StoreFsConfig(fs);
+            FsView::gFsView.StoreFsConfig(fs, false);
           } else {
             errno = 0;
             eos::common::StringConversion::GetSizeFromString(value.c_str());
@@ -978,7 +979,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                  (key == eos::common::SCAN_NS_RATE_NAME)) && (!errno)) {
               fs->SetLongLong(key.c_str(),
                               eos::common::StringConversion::GetSizeFromString(value.c_str()));
-              FsView::gFsView.StoreFsConfig(fs);
+              FsView::gFsView.StoreFsConfig(fs, false);
             } else {
               std_err << "error: not an allowed parameter <" + key + ">\n";
               ret_c = EINVAL;

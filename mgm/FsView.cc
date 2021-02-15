@@ -1758,23 +1758,16 @@ FsView::Register(FileSystem* fs, const common::FileSystemCoreParams& coreParams,
 // Store the filesystem configuration in the configuration engine
 //------------------------------------------------------------------------------
 void
-FsView::StoreFsConfig(FileSystem* fs)
+FsView::StoreFsConfig(FileSystem* fs, bool save_config)
 {
   if (fs) {
     std::string key, val;
     fs->CreateConfig(key, val);
-    return StoreFsConfig(key, val);
-  }
-}
 
-//------------------------------------------------------------------------------
-// Store the filesystem configuration into the config engine.
-//------------------------------------------------------------------------------
-void
-FsView::StoreFsConfig(const std::string& key, const std::string& val)
-{
-  if (FsView::gFsView.mConfigEngine && !key.empty() && !val.empty()) {
-    FsView::gFsView.mConfigEngine->SetConfigValue("fs", key.c_str(), val.c_str());
+    if (FsView::gFsView.mConfigEngine && !key.empty() && !val.empty()) {
+      FsView::gFsView.mConfigEngine->SetConfigValue("fs", key.c_str(), val.c_str(),
+          true, save_config);
+    }
   }
 }
 

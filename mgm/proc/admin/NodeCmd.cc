@@ -470,11 +470,10 @@ NodeCmd::ConfigFsSpecific(const std::set<std::string>& nodes,
         fs->SetString("errc", "0");
       }
 
-      std::string fs_key, fs_val;
-      fs->CreateConfig(fs_key, fs_val);
-      lock.Release();
-      FsView::gFsView.StoreFsConfig(fs_key, fs_val);
+      FsView::gFsView.StoreFsConfig(fs, false);
     }
+
+    gOFS->ConfEngine->AutoSave();
   }
 }
 

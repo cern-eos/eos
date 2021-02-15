@@ -146,20 +146,22 @@ public:
   //! @param prefix identifies the type of configuration parameter
   //! @param key key of the configuration to set
   //! @param val value of the configuration
-  //! @param not_bcast mark if change comes from a broadcast or not
+  //! @param from_local mark if change comes from local MGM or remote one
+  //! @param save_config mark if configuration should also be saved or not
   //----------------------------------------------------------------------------
   void SetConfigValue(const char* prefix, const char* key, const char* val,
-                      bool not_bcast = true) override;
+                      bool from_local = true, bool save_config = true) override;
 
   //----------------------------------------------------------------------------
   //! Delete a configuration value
   //!
   //! @param prefix identifies the type of configuration parameter
   //! @param key key of the configuration to delete
-  //! @param not_bcast mark if change comes from a broadcast or not
+  //! @param from_local mark if change comes from local MGM or remote one
+  //! @param save_config mark if configuration should also be saved or not
   //----------------------------------------------------------------------------
   void DeleteConfigValue(const char* prefix, const char* key,
-                         bool not_bcast = true) override;
+                         bool from_local = true) override;
 
   //----------------------------------------------------------------------------
   //         QuarkDB configuration specific functions
@@ -195,12 +197,12 @@ private:
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  common::Status PullFromQuarkDB(const std::string &configName);
+  common::Status PullFromQuarkDB(const std::string& configName);
 
   //----------------------------------------------------------------------------
   //! Cleanup thread
   //----------------------------------------------------------------------------
-  void cleanupThread(ThreadAssistant &assistant);
+  void cleanupThread(ThreadAssistant& assistant);
 
   QdbContactDetails mQdbContactDetails;
   std::unique_ptr<qclient::QClient> mQcl;
@@ -212,7 +214,8 @@ private:
   //----------------------------------------------------------------------------
   //! Format time
   //----------------------------------------------------------------------------
-  static std::string formatBackupTime(time_t timestamp) {
+  static std::string formatBackupTime(time_t timestamp)
+  {
     char buff[128];
     strftime(buff, 127, "%Y%m%d%H%M%S", localtime(&timestamp));
     return SSTR(buff);
