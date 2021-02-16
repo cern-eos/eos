@@ -35,7 +35,7 @@ ProcCommand::Motd()
                             "";
   gOFS->MgmStats.Add("Motd", pVid->uid, pVid->gid, 1);
   eos_info("motd");
-  XrdOucString motdfile = gOFS->MgmConfigDir;
+  XrdOucString motdfile = gOFS->MgmMetaLogDir;
   motdfile += "/motd";
 
   if (motdupload.length() &&

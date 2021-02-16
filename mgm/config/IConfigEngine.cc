@@ -209,7 +209,7 @@ IConfigEngine::ApplyEachConfig(const char* key, XrdOucString* val,
 //------------------------------------------------------------------------------
 // Publish the given configuration change
 //------------------------------------------------------------------------------
-void IConfigEngine::publishConfigChange(const std::string& key,
+void IConfigEngine::PublishConfigChange(const std::string& key,
                                         const std::string& value)
 {
   eos_info("msg=\"publish configuration change\" key=\"%s\" val=\"%s\"",
@@ -225,7 +225,7 @@ void IConfigEngine::publishConfigChange(const std::string& key,
 //------------------------------------------------------------------------------
 // Publish the deletion of the given configuration key
 //------------------------------------------------------------------------------
-void IConfigEngine::publishConfigDeletion(const std::string& key)
+void IConfigEngine::PublishConfigDeletion(const std::string& key)
 {
   eos_info("msg=\"publish deletion of configuration\" key=\"%s\"",
            key.c_str());
@@ -407,11 +407,11 @@ IConfigEngine::DumpConfig(XrdOucString& out, const std::string& filename)
 // Get a configuration value
 //------------------------------------------------------------------------------
 bool
-IConfigEngine::get(const std::string& prefix, const std::string& key,
+IConfigEngine::Get(const std::string& prefix, const std::string& key,
                    std::string& out)
 {
   std::lock_guard lock(mMutex);
-  std::string config_key = formFullKey(prefix.c_str(), key.c_str());
+  std::string config_key = FormFullKey(prefix.c_str(), key.c_str());
   auto it = sConfigDefinitions.find(config_key);
 
   if (it == sConfigDefinitions.end()) {

@@ -29,9 +29,7 @@
 #include <qclient/ResponseParsing.hh>
 #include <qclient/MultiBuilder.hh>
 #include "qclient/structures/QScanner.hh"
-
 #include <folly/executors/IOThreadPoolExecutor.h>
-
 #include <ctime>
 #include <functional>
 using std::placeholders::_1;
@@ -135,7 +133,7 @@ QuarkDBConfigEngine::QuarkDBConfigEngine(const QdbContactDetails&
   mConfigHandler = std::make_unique<QuarkConfigHandler>(mQdbContactDetails);
   mChangelog.reset(new QuarkDBCfgEngineChangelog(mQcl.get()));
   mExecutor.reset(new folly::IOThreadPoolExecutor(2));
-  mCleanupThread.reset(&QuarkDBConfigEngine::cleanupThread, this);
+  mCleanupThread.reset(&QuarkDBConfigEngine::CleanupThread, this);
 }
 
 //------------------------------------------------------------------------------
@@ -145,7 +143,7 @@ bool
 QuarkDBConfigEngine::LoadConfig(const std::string& filename, XrdOucString& err,
                                 bool apply_stall_redirect)
 {
-  eos_notice("loading name=%s ", filename.c_str());
+  eos_notice("msg=\"loading configuration\" name=%s ", filename.c_str());
 
   if (filename.empty()) {
     err = "error: you have to specify a configuration name";
@@ -203,7 +201,7 @@ QuarkDBConfigEngine::SaveConfig(std::string filename, bool overwrite,
     }
   }
 
-  storeIntoQuarkDB(filename);
+  StoreIntoQuarkDB(filename);
   std::ostringstream changeLogValue;
 
   if (overwrite) {
@@ -267,9 +265,9 @@ QuarkDBConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
 }
 
 //------------------------------------------------------------------------------
-// Cleanup thread
+// Cleanup thread trimming the number of backups
 //------------------------------------------------------------------------------
-void QuarkDBConfigEngine::cleanupThread(ThreadAssistant& assistant)
+void QuarkDBConfigEngine::CleanupThread(ThreadAssistant& assistant)
 {
   while (!assistant.terminationRequested()) {
     assistant.wait_for(std::chrono::minutes(30));
@@ -368,7 +366,7 @@ QuarkDBConfigEngine::SetConfigValue(const char* prefix, const char* key,
   }
 
   eos_static_info("msg=\"store config\" key=\"%s\" val=\"%s\"", key, val);
-  std::string config_key = formFullKey(prefix, key);
+  std::string config_key = FormFullKey(prefix, key);
   {
     std::lock_guard lock(mMutex);
     sConfigDefinitions[config_key] = val;
@@ -378,8 +376,8 @@ QuarkDBConfigEngine::SetConfigValue(const char* prefix, const char* key,
   // and add it to the changelog
   if (from_local) {
     // Make this value visible between MGM's
-    publishConfigChange(config_key.c_str(), val);
-    mChangelog->AddEntry("set config", formFullKey(prefix, key), val);
+    PublishConfigChange(config_key.c_str(), val);
+    mChangelog->AddEntry("set config", FormFullKey(prefix, key), val);
   }
 
   // If the change is not coming from a broacast we can can save it
@@ -401,12 +399,12 @@ void
 QuarkDBConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
                                        bool from_local)
 {
-  std::string config_key = formFullKey(prefix, key);
+  std::string config_key = FormFullKey(prefix, key);
 
   // In case the change is not coming from a broacast we can can broadcast it
   if (from_local) {
     // Make this value visible between MGM's
-    publishConfigDeletion(config_key.c_str());
+    PublishConfigDeletion(config_key.c_str());
   }
 
   {
@@ -416,7 +414,7 @@ QuarkDBConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
 
   // If it's not coming from a broadcast we can add it to the changelog
   if (from_local) {
-    mChangelog->AddEntry("del config", formFullKey(prefix, key), "");
+    mChangelog->AddEntry("del config", FormFullKey(prefix, key), "");
   }
 
   // If the change is not coming from a broacast we can can save it
@@ -447,12 +445,12 @@ void checkWriteConfigurationResult(common::Status st)
 //------------------------------------------------------------------------------
 // Store configuration into given keyname
 //------------------------------------------------------------------------------
-void QuarkDBConfigEngine::storeIntoQuarkDB(const std::string& name)
+void QuarkDBConfigEngine::StoreIntoQuarkDB(const std::string& name)
 {
   std::lock_guard lock(mMutex);
   FilterDeprecated(sConfigDefinitions);
   mConfigHandler->writeConfiguration(name, sConfigDefinitions, true,
-                                     formatBackupTime(time(NULL)))
+                                     FormatBackupTime(time(NULL)))
   .via(mExecutor.get())
   .thenValue(std::bind(checkWriteConfigurationResult, _1));
 }
