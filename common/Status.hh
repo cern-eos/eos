@@ -21,9 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOSCOMMON_STATUS_HH
-#define EOSCOMMON_STATUS_HH
-
+#pragma once
 #include "common/Namespace.hh"
 #include <sstream>
 
@@ -32,7 +30,8 @@ EOSCOMMONNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Status object for operations which may fail
 //------------------------------------------------------------------------------
-class Status {
+class Status
+{
 public:
   //----------------------------------------------------------------------------
   // Default constructor - status is OK, no error message.
@@ -42,33 +41,37 @@ public:
   //----------------------------------------------------------------------------
   // Constructor with an error
   //----------------------------------------------------------------------------
-  Status(int err, const std::string &msg) : errcode(err), errorMessage(msg) {}
+  Status(int err, const std::string& msg) : errcode(err), errorMessage(msg) {}
 
   //----------------------------------------------------------------------------
   // Is status ok?
   //----------------------------------------------------------------------------
-  bool ok() const {
+  bool ok() const
+  {
     return (errcode == 0);
   }
 
   //----------------------------------------------------------------------------
   // Get errorcode
   //----------------------------------------------------------------------------
-  int getErrc() const {
+  int getErrc() const
+  {
     return errcode;
   }
 
   //----------------------------------------------------------------------------
   // Get error message
   //----------------------------------------------------------------------------
-  std::string getMsg() const {
+  std::string getMsg() const
+  {
     return errorMessage;
   }
 
   //----------------------------------------------------------------------------
   // To string, including error code
   //----------------------------------------------------------------------------
-  std::string toString() const {
+  std::string toString() const
+  {
     std::ostringstream ss;
     ss << "(" << errcode << "): " << errorMessage;
     return ss.str();
@@ -77,7 +80,8 @@ public:
   //----------------------------------------------------------------------------
   // Implicit conversion to boolean: Same value as ok()
   //----------------------------------------------------------------------------
-  operator bool() const {
+  operator bool() const
+  {
     return ok();
   }
 
@@ -87,5 +91,3 @@ private:
 };
 
 EOSCOMMONNAMESPACE_END
-
-#endif

@@ -1518,7 +1518,6 @@ public:
   XrdOucString MgmOfsTargetPort;
   XrdOucString MgmOfsQueue; ///< our mgm queue name
   XrdOucString MgmOfsInstanceName; ///< name of the EOS instance
-  XrdOucString MgmConfigDir; ///< Directory where config files are stored
   ///< Name of the automatically loaded configuration file
   XrdOucString MgmConfigAutoLoad;
   //! Directory where tmp. archive transfer files are saved
@@ -1549,7 +1548,6 @@ public:
   XrdOucString ManagerId; ///< manager id in <host>:<port> format
   XrdOucString ManagerIp; ///< manager ip in <xxx.yyy.zzz.vvv> format
   int ManagerPort; ///< manager port as number e.g. 1094
-  XrdOucString MgmOfsConfigEngineType; //type of ConfigEngine ( file or quarkdb)
   std::string
   ProtoWFEndPoint; ///< host and port of service to communicate with in case of proto workflows (typically CTA frontend)
   std::string
@@ -1921,13 +1919,6 @@ private:
   //! @param arg mgm object
   //----------------------------------------------------------------------------
   void StartArchiveSubmitter(ThreadAssistant& assistant) noexcept;
-
-  //----------------------------------------------------------------------------
-  //! Setup MGM configuration directory
-  //!
-  //! @return true if successful, otherwise false
-  //----------------------------------------------------------------------------
-  bool SetupConfigDir();
 
   static std::string MacroStringError(int errcode);
 

@@ -30,8 +30,9 @@
 
 class XrdMqSharedObjectManager;
 
-namespace eos::mq {
-  class MessagingRealm;
+namespace eos::mq
+{
+class MessagingRealm;
 }
 
 EOSMGMNAMESPACE_BEGIN
@@ -46,12 +47,15 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   Messaging(const char* url, const char* defaultreceiverqueue,
-            mq::MessagingRealm *realm);
+            mq::MessagingRealm* realm);
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~Messaging() = default;
+  virtual ~Messaging()
+  {
+    mThread.join();
+  }
 
   virtual void Listen(ThreadAssistant& assistant) noexcept override;
 
@@ -62,8 +66,8 @@ private:
   //----------------------------------------------------------------------------
   // Process heartbeat information based on the given advisory message
   //----------------------------------------------------------------------------
-  void ProcessIncomingHeartbeat(const std::string &nodequeue, bool online,
-    time_t senderTimeSec);
+  void ProcessIncomingHeartbeat(const std::string& nodequeue, bool online,
+                                time_t senderTimeSec);
 
 };
 

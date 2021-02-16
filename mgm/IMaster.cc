@@ -86,7 +86,7 @@ void IMaster::FillNsCacheConfig(IConfigEngine* configEngine,
   std::string nfilesStr;
   uint64_t nfiles = 40'000'000;
 
-  if (configEngine->get("ns", "cache-size-nfiles", nfilesStr)) {
+  if (configEngine->Get("ns", "cache-size-nfiles", nfilesStr)) {
     if (!common::ParseUInt64(nfilesStr, nfiles)) {
       eos_static_crit("Could not parse 'cache-size-nfiles' configuration value");
     }
@@ -95,7 +95,7 @@ void IMaster::FillNsCacheConfig(IConfigEngine* configEngine,
   std::string ndirsStr;
   uint64_t ndirs = 5'000'000;
 
-  if (configEngine->get("ns", "cache-size-ndirs", ndirsStr)) {
+  if (configEngine->Get("ns", "cache-size-ndirs", ndirsStr)) {
     if (!common::ParseUInt64(ndirsStr, ndirs)) {
       eos_static_crit("Could not parse 'cache-size-ndirs' configuration value");
     }

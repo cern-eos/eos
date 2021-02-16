@@ -93,7 +93,6 @@ endforeach(MGM_TGC_SRC_FILE_SRC)
 add_library(
   XrdEosMgm-Objects OBJECT
   auth/AccessChecker.cc                             auth/AccessChecker.hh
-  config/FileConfigEngine.cc                        config/FileConfigEngine.hh
   config/IConfigEngine.cc                           config/IConfigEngine.hh
   config/QuarkConfigHandler.cc                      config/QuarkConfigHandler.hh
   config/QuarkDBConfigEngine.cc                     config/QuarkDBConfigEngine.hh

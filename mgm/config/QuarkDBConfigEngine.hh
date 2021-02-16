@@ -163,58 +163,11 @@ public:
   void DeleteConfigValue(const char* prefix, const char* key,
                          bool from_local = true) override;
 
-  //----------------------------------------------------------------------------
-  //         QuarkDB configuration specific functions
-  //----------------------------------------------------------------------------
-
-  //----------------------------------------------------------------------------
-  //! Set configuration folder
-  //!
-  //! @param configdir path of the new configuration folder
-  //----------------------------------------------------------------------------
-  void
-  SetConfigDir(const char* configdir) override
-  {
-    // noop
-    mConfigFile = "default";
-  }
-
 private:
-  //----------------------------------------------------------------------------
-  //! Process async reply
-  //----------------------------------------------------------------------------
-  void processAsyncReply(common::Status status);
-
-  //----------------------------------------------------------------------------
-  //! Store configuration into given name
-  //----------------------------------------------------------------------------
-  void storeIntoQuarkDB(const std::string& name);
-
-  //----------------------------------------------------------------------------
-  //! Load a configuration from QuarkDB
-  //!
-  //! @param hash
-  //!
-  //! @return true if successful, otherwise false
-  //----------------------------------------------------------------------------
-  common::Status PullFromQuarkDB(const std::string& configName);
-
-  //----------------------------------------------------------------------------
-  //! Cleanup thread
-  //----------------------------------------------------------------------------
-  void cleanupThread(ThreadAssistant& assistant);
-
-  QdbContactDetails mQdbContactDetails;
-  std::unique_ptr<qclient::QClient> mQcl;
-  std::unique_ptr<QuarkConfigHandler> mConfigHandler;
-
-  std::unique_ptr<folly::Executor> mExecutor;
-  AssistedThread mCleanupThread;
-
   //----------------------------------------------------------------------------
   //! Format time
   //----------------------------------------------------------------------------
-  static std::string formatBackupTime(time_t timestamp)
+  static std::string FormatBackupTime(time_t timestamp)
   {
     char buff[128];
     strftime(buff, 127, "%Y%m%d%H%M%S", localtime(&timestamp));
@@ -228,6 +181,27 @@ private:
   //! @param cfg_name
   //----------------------------------------------------------------------------
   void FilterConfig(std::ostream& out, const std::string& configName) override;
+
+  //----------------------------------------------------------------------------
+  //! Store configuration into given name
+  //----------------------------------------------------------------------------
+  void StoreIntoQuarkDB(const std::string& name);
+
+  //----------------------------------------------------------------------------
+  //! Load a configuration from QuarkDB
+  //----------------------------------------------------------------------------
+  common::Status PullFromQuarkDB(const std::string& configName);
+
+  //----------------------------------------------------------------------------
+  //! Cleanup thread trimming the number of backups
+  //----------------------------------------------------------------------------
+  void CleanupThread(ThreadAssistant& assistant);
+
+  QdbContactDetails mQdbContactDetails;
+  std::unique_ptr<qclient::QClient> mQcl;
+  std::unique_ptr<QuarkConfigHandler> mConfigHandler;
+  std::unique_ptr<folly::Executor> mExecutor;
+  AssistedThread mCleanupThread;
 };
 
 EOSMGMNAMESPACE_END

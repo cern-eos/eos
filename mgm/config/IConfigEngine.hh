@@ -21,9 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSMGM_ICONFIGENGINE__HH__
-#define __EOSMGM_ICONFIGENGINE__HH__
-
+#pragma once
 #include "mgm/Namespace.hh"
 #include "common/Logging.hh"
 #include "XrdOuc/XrdOucString.hh"
@@ -38,10 +36,6 @@
 //! The XrdMgmOfs class runs an asynchronous thread which applies configuration
 //! changes from a remote master MGM on the configuration object.
 //------------------------------------------------------------------------------
-
-#define EOSMGMCONFIGENGINE_EOS_SUFFIX ".eoscf"
-
-class XrdOucEnv;
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -110,6 +104,18 @@ public:
                              XrdOucString* err);
 
   //----------------------------------------------------------------------------
+  //! Construct key given prefix and input
+  //----------------------------------------------------------------------------
+  static std::string FormFullKey(const char* prefix, const char* key)
+  {
+    if (prefix) {
+      return SSTR(prefix << ":" << key);
+    }
+
+    return SSTR(key);
+  }
+
+  //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
   IConfigEngine();
@@ -117,7 +123,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~IConfigEngine() {};
+  virtual ~IConfigEngine() = default;
 
   //----------------------------------------------------------------------------
   //! Get tail of the changelog
@@ -181,7 +187,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get a configuration value
   //----------------------------------------------------------------------------
-  bool get(const std::string& prefix, const std::string& key,
+  bool Get(const std::string& prefix, const std::string& key,
            std::string& out);
 
   //----------------------------------------------------------------------------
@@ -206,13 +212,6 @@ public:
   //----------------------------------------------------------------------------
   virtual void DeleteConfigValue(const char* prefix, const char* key,
                                  bool tochangelog = true) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Set configuration folder
-  //!
-  //! @param configdir path of the new configuration folder
-  //----------------------------------------------------------------------------
-  virtual void SetConfigDir(const char* configdir) = 0;
 
   //----------------------------------------------------------------------------
   //! Delete a configuration key from the responsible object
@@ -261,40 +260,37 @@ public:
   //----------------------------------------------------------------------------
   //! Set the autosave mode
   //----------------------------------------------------------------------------
-  void SetAutoSave(bool val)
+  inline void SetAutoSave(bool val)
   {
     mAutosave = val;
   }
 
-  static std::string formFullKey(const char* prefix, const char* key)
-  {
-    if (prefix) {
-      return SSTR(prefix << ":" << key);
-    }
-
-    return SSTR(key);
-  }
-
-
   //----------------------------------------------------------------------------
   //! Publish the given configuration change
   //----------------------------------------------------------------------------
-  void publishConfigChange(const std::string& key, const std::string& value);
+  void PublishConfigChange(const std::string& key, const std::string& value);
 
   //----------------------------------------------------------------------------
   //! Publish the deletion of the given configuration key
   //----------------------------------------------------------------------------
-  void publishConfigDeletion(const std::string& key);
+  void PublishConfigDeletion(const std::string& key);
 
 protected:
   std::unique_ptr<ICfgEngineChangelog> mChangelog; ///< Changelog object
-  std::recursive_mutex
-  mMutex; ///< Protect the static configuration definitions hash
+  //! Protect the static configuration definitions hash
+  std::recursive_mutex mMutex;
   bool mAutosave; ///< Create autosave file for each change
-  XrdOucString mConfigFile; ///< Currently loaded configuration
-
+  XrdOucString mConfigFile = "default"; ///< Currently loaded configuration
   //! Configuration definitions currently in memory
   std::map<std::string, std::string> sConfigDefinitions;
+
+  //----------------------------------------------------------------------------
+  //! Filter configuration
+  //!
+  //! @param out output representation of the configuration after filtering
+  //! @param cfg_name configuration name
+  //----------------------------------------------------------------------------
+  virtual void FilterConfig(std::ostream& out, const std::string& configName) = 0;
 
   //----------------------------------------------------------------------------
   //! Check if configuration key is deprecated
@@ -305,18 +301,6 @@ protected:
   //! Filter out entries from the map
   //----------------------------------------------------------------------------
   void FilterDeprecated(std::map<std::string, std::string>& map);
-
-private:
-
-  //----------------------------------------------------------------------------
-  //! Filter configuration
-  //!
-  //! @param out output representation of the configuration after filtering
-  //! @param cfg_name configuration name
-  //----------------------------------------------------------------------------
-  virtual void FilterConfig(std::ostream& out, const std::string& configName) = 0;
 };
 
 EOSMGMNAMESPACE_END
-
-#endif

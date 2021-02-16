@@ -38,7 +38,6 @@
 #include "mgm/Access.hh"
 #include "mgm/Recycle.hh"
 #include "mgm/drain/Drainer.hh"
-#include "mgm/config/FileConfigEngine.hh"
 #include "mgm/config/QuarkDBConfigEngine.hh"
 #include "mgm/Egroup.hh"
 #include "mgm/GeoTreeEngine.hh"
@@ -203,8 +202,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   MgmOfsAlias = "";
   MgmOfsBrokerUrl = "root://localhost:1097//eos/";
   MgmOfsInstanceName = "testinstance";
-  MgmOfsConfigEngineType = "file";
-  MgmConfigDir = "";
   MgmMetaLogDir = "";
   MgmTxDir = "";
   MgmAuthDir = "";
@@ -510,17 +507,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           }
         }
 
-        //added conf for ConfigEngine
-        if (!strcmp("cfgtype", var)) {
-          if (!(val = Config.GetWord())) {
-            Eroute.Emsg("Config", "argument for cfgtype invalid.");
-            NoGo = 1;
-          } else {
-            Eroute.Say("=====> mgmofs.cfgtype: ", val, "");
-            MgmOfsConfigEngineType = val;
-          }
-        }
-
         if (!strcmp("targetport", var)) {
           if (!(val = Config.GetWord())) {
             Eroute.Emsg("Config", "argument for fs invalid.");
@@ -719,19 +705,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
             Eroute.Say("=====> mgmofs.redirector : true");
           } else {
             Eroute.Say("=====> mgmofs.redirector : false");
-          }
-        }
-
-        if (!strcmp("configdir", var)) {
-          if (!(val = Config.GetWord())) {
-            Eroute.Emsg("Config", "argument for configdir invalid.");
-            NoGo = 1;
-          } else {
-            MgmConfigDir = val;
-
-            if (!MgmConfigDir.endswith("/")) {
-              MgmConfigDir += "/";
-            }
           }
         }
 
@@ -1297,25 +1270,11 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   Eroute.Say("=====> setting message filter: Process,AddQuota,Update,UpdateHint,"
              "Deletion,PrintOut,SharedHash,work");
 
-  // Setup configuration directory and start the config engine
-  if (MgmOfsConfigEngineType == "file" && !SetupConfigDir()) {
+  if (gOFS->mQdbCluster.empty()) {
+    Eroute.Emsg("Config", "The QuarkDB configuration is empty!");
     NoGo = 1;
-    return NoGo;
-  }
-
-  if (MgmOfsConfigEngineType == "file") {
-    ConfEngine = new FileConfigEngine(MgmConfigDir.c_str());
-  } else if (MgmOfsConfigEngineType == "quarkdb") {
-    if (gOFS->mQdbCluster.empty()) {
-      Eroute.Emsg("Config", "The QuarkDB configuration is empty!");
-      NoGo = 1;
-    } else {
-      ConfEngine = new QuarkDBConfigEngine(gOFS->mQdbContactDetails);
-    }
   } else {
-    Eroute.Emsg("Config", "Unknown configuration engine type!",
-                MgmOfsConfigEngineType.c_str());
-    NoGo = 1;
+    ConfEngine = new QuarkDBConfigEngine(gOFS->mQdbContactDetails);
   }
 
   ConfEngine->SetAutoSave(true);
@@ -2199,42 +2158,6 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("Version", 0, 0, 0);
   MgmStats.Add("Versioning", 0, 0, 0);
   MgmStats.Add("WhoAmI", 0, 0, 0);
-}
-
-//--------------------------------------------------------------------------------
-// Setup MGM configuration directory
-//--------------------------------------------------------------------------------
-bool
-XrdMgmOfs::SetupConfigDir()
-{
-  if (!MgmConfigDir.length()) {
-    eos_err("configuration directory is not defined, e.g mgm.configdir="
-            "</var/eos/config/>");
-    return false;
-  }
-
-  // Check if config path (only with hostname) exists
-  struct stat buf;
-  std::string dir_path = SSTR(MgmConfigDir << HostName << "/");
-  MgmConfigDir = dir_path.c_str();
-
-  if (::stat(dir_path.c_str(), &buf) != 0) {
-    eos::common::ShellCmd scmd1(SSTR("mkdir -p " << dir_path).c_str());
-
-    if (scmd1.wait(10).exit_code) {
-      eos_err("msg=\"failed to create directory %s\"", MgmConfigDir.c_str());
-      return false;
-    }
-  }
-
-  eos::common::ShellCmd scmd2(SSTR("chown -R daemon " << dir_path).c_str());
-
-  if (scmd2.wait(10).exit_code) {
-    eos_err("msg=\"failed to chown directory %s\"", MgmConfigDir.c_str());
-    return false;
-  }
-
-  return true;
 }
 
 //------------------------------------------------------------------------------
