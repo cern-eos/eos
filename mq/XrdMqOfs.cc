@@ -1141,6 +1141,7 @@ XrdMqOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
   if ((long long)Messages.size() > MaxMessageBacklog) {
     // this is not absolutely threadsafe .... better would lock
     BacklogDeferred++;
+    eos_static_err("%s", "msg=\"too many pending messages, reject message\"");
     gMqFS->Emsg(epname, error, ENOMEM, "accept message - too many pending messages",
                 "");
     return SFS_ERROR;
