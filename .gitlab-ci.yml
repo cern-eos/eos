@@ -525,21 +525,23 @@ cc7_asan_docker_image:
 
 .dock8s_before_script_template: &dock8s_before_script_template
   before_script:
-    - if [[ $CI_JOB_NAME =~ "k8s" ]]; then
+    - case $CI_JOB_NAME in
+      "k8s"*  )
         source ./gitlab-ci/before_script_k8s_test.sh;
-        source ./gitlab-ci/utilities_func_for_tests.sh --type k8s $K8S_NAMESPACE;
-      elif [[ $CI_JOB_NAME =~ "dock" ]]; then
+        source ./gitlab-ci/utilities_func_for_tests.sh --type k8s $K8S_NAMESPACE ;;
+      "dock"* )
         source ./gitlab-ci/before_script_docker_test.sh;
-        source ./gitlab-ci/utilities_func_for_tests.sh --type docker;
-      fi
+        source ./gitlab-ci/utilities_func_for_tests.sh --type docker; ;;
+      esac
 
 .dock8s_after_script_template: &dock8s_after_script_template
   after_script:
-    - if [[ $CI_JOB_NAME =~ "k8s" ]]; then
-        ./gitlab-ci/after_script_k8s_test.sh;
-      elif [[ $CI_JOB_NAME =~ "dock" ]]; then
-        ./gitlab-ci/after_script_docker_test.sh;
-      fi
+    - case $CI_JOB_NAME in
+      "k8s"*  )
+        source ./gitlab-ci/after_script_k8s_test.sh ;;
+      "dock"* )
+        source ./gitlab-ci/after_script_docker_test.sh ;;
+      esac
 
 .dock8s_system_test_template:
   stage: test
@@ -566,19 +568,22 @@ cc7_asan_docker_image:
     - cp_to_local_cmd eos-cli1:/usr/sbin/eos-test-utils ./eos-test-utils
     # converter
     - cp_to_local_cmd eos-cli1:/usr/sbin/eos-converter-test ./eos-converter-test; chmod +x eos-converter-test
-    - if [[ $CI_JOB_NAME =~ "k8s" ]]; then
-        ./eos-converter-test --type k8s $K8S_NAMESPACE;
-      elif [[ $CI_JOB_NAME =~ "dock" ]]; then
-        ./eos-converter-test --type docker;
-      fi
+    - case $CI_JOB_NAME in
+      "k8s"*  )
+        ./eos-converter-test --type k8s $K8S_NAMESPACE ;;
+      "dock"* )
+        ./eos-converter-test --type docker ;;
+      esac
     - rm -rf eos-converter-test
     # fsck
     - cp_to_local_cmd eos-cli1:/usr/sbin/eos-fsck-test ./eos-fsck-test; chmod +x eos-fsck-test
-    - if [[ $CI_JOB_NAME =~ "k8s" ]]; then
-        ./eos-fsck-test --max-delay 600 --type k8s $K8S_NAMESPACE;
-      elif [[ $CI_JOB_NAME =~ "dock" ]]; then
-        ./eos-fsck-test --max-delay 600 --type docker;
-      fi
+    - case $CI_JOB_NAME in
+      "k8s"*  )
+        ./eos-fsck-test --max-delay 600 --type k8s $K8S_NAMESPACE ;;
+      "dock"* )
+        ./eos-fsck-test --max-delay 600 --type docker ;;
+      esac
+    - rm -rf eos-converter-test
     - rm -rf eos-fsck-test
     - rm -rf eos-test-utils
   <<: *dock8s_after_script_template
@@ -600,9 +605,10 @@ cc7_asan_docker_image:
     # download tests repo
     - exec_cmd eos-cli1 'git clone https://gitlab.cern.ch/dss/eosclient-tests.git'
     # ubuntu releases do not support 'clone' yet, skip its test
-    - if [[ ! $CI_JOB_NAME =~ "ub_bionic" ]] && [[ ! $CI_JOB_NAME =~ "ub_focal" ]]; then
-      exec_cmd eos-cli1 'cd /eosclient-tests; prepare/clone_test.sh prepare; rc=$?; exit $rc';
-      fi
+    - case $CI_JOB_NAME in
+      "ub_bionic"* | "ub_focal"* ) ;;
+      *                          ) exec_cmd eos-cli1 'cd /eosclient-tests; prepare/clone_test.sh prepare; rc=$?; exit $rc' ;;
+      esac
   <<: *dock8s_after_script_template
   artifacts:
     when: on_failure
@@ -739,7 +745,11 @@ k8s_stress:
 
 dock_system:
   extends: .dock8s_system_test_template
-  image: alpinelinux/docker-cli
+  image: docker
+  services:
+    - docker:dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
   needs:
     - job: cc7_docker_image
       artifacts: false
@@ -752,7 +762,11 @@ dock_system:
 
 dock_cnvrt_fsck:
   extends: .dock8s_cnvrt_fsck_template
-  image: alpinelinux/docker-cli
+  image: docker
+  services:
+    - docker:dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
   needs:
     - job: cc7_docker_image
       artifacts: false
@@ -765,7 +779,11 @@ dock_cnvrt_fsck:
 
 dock_rtb_clone:
   extends: .dock8s_fusex_test_template
-  image: alpinelinux/docker-cli
+  image: docker
+  services:
+    - docker:dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
   needs:
     - job: cc7_docker_image
       artifacts: false
@@ -778,7 +796,11 @@ dock_rtb_clone:
 
 dock_fusex:
   extends: .dock8s_fusex_test_template
-  image: alpinelinux/docker-cli
+  image: docker
+  services:
+    - docker:dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
   needs:
     - job: cc7_docker_image
       artifacts: false
@@ -791,7 +813,11 @@ dock_fusex:
 
 dock_cbox:
   extends: .dock8s_cbox_test_template
-  image: alpinelinux/docker-cli
+  image: docker
+  services:
+    - docker:dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
   needs:
     - job: cc7_docker_image
       artifacts: false
@@ -803,7 +829,11 @@ dock_cbox:
 
 dock_stress:
   stage: test
-  image: alpinelinux/docker-cli
+  image: docker
+  services:
+    - docker:dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
   <<: *dock8s_before_script_template
   script:
     - TEST_URL="eos-mgm1.eoscluster.cern.ch"
@@ -949,8 +979,11 @@ k8s_fusex_ub_focal:
 
 dock_system_c8:
   extends: .dock8s_system_test_template
-  image: alpinelinux/docker-cli
+  image: docker
+  services:
+    - docker:dind
   variables:
+    DOCKER_TLS_CERTDIR: "/certs"
     BASETAG: "c8_"
   needs:
     - job: c8_docker_image
@@ -968,8 +1001,11 @@ dock_system_c8:
 
 dock_cbox_c8:
   extends: .dock8s_cbox_test_template
-  image: alpinelinux/docker-cli
+  image: docker
+  services:
+    - docker:dind
   variables:
+    DOCKER_TLS_CERTDIR: "/certs"
     BASETAG: "c8_"
   needs:
     - job: c8_docker_image
@@ -986,8 +1022,11 @@ dock_cbox_c8:
 
 dock_fusex_ub_bionic:
   extends: .dock8s_fusex_test_template
-  image: alpinelinux/docker-cli
+  image: docker
+  services:
+    - docker:dind
   variables:
+    DOCKER_TLS_CERTDIR: "/certs"
     CLI_BASETAG: "ubuntu_bionic_client_"
   needs:
     - job: cc7_docker_image
@@ -1007,8 +1046,11 @@ dock_fusex_ub_bionic:
 
 dock_fusex_ub_focal:
   extends: .dock8s_fusex_test_template
-  image: alpinelinux/docker-cli
+  image: docker
+  services:
+    - docker:dind
   variables:
+    DOCKER_TLS_CERTDIR: "/certs"
     CLI_BASETAG: "ubuntu_focal_client_"
   needs:
     - job: cc7_docker_image
@@ -1030,8 +1072,11 @@ dock_fusex_ub_focal:
 # xt stands for xrd_testing. Must shorten to not hit HOST_NAME_MAX
 .dock_system_xt:
   extends: .dock8s_system_test_template
-  image: alpinelinux/docker-cli
+  image: docker
+  services:
+    - docker:dind
   variables:
+    DOCKER_TLS_CERTDIR: "/certs"
     BASETAG: "xrd_testing_"
   needs:
     - job: cc7_xrd_testing_docker_image
