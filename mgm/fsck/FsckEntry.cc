@@ -772,8 +772,7 @@ FsckEntry::Repair()
     }
 
     if (mMgmFmd.cont_id() == 0ull) {
-      eos_info("msg=\"no repair action, file is being deleted\" fxid=%08llx",
-               mFid);
+      eos_info("msg=\"no repair, file is being deleted\" fxid=%08llx", mFid);
       UpdateMgmStats(true);
       return true;
     }
@@ -791,6 +790,8 @@ FsckEntry::Repair()
       return success;
     }
 
+    eos_static_info("msg=\"fsck repair\" fxid=%08llx err_type=%i",
+                    mFid, mReportedErr);
     auto fn_with_obj = std::bind(it->second, this);
     success = fn_with_obj();
     UpdateMgmStats(success);
