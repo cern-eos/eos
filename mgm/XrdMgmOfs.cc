@@ -72,7 +72,7 @@
 #include "mgm/LRU.hh"
 #include "mgm/WFE.hh"
 #include "mgm/fsck/Fsck.hh"
-#include "mgm/Master.hh"
+#include "mgm/IMaster.hh"
 #include "mgm/FuseServer/FusexCastBatch.hh"
 #include "mgm/tgc/RealTapeGcMgm.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
@@ -2017,4 +2017,29 @@ XrdMgmOfs::RemoveDetached(uint64_t id, bool is_dir, bool force,
       return false;
     }
   }
+}
+
+//----------------------------------------------------------------------------
+// Query to determine if current node is acting as master
+//----------------------------------------------------------------------------
+int
+XrdMgmOfs::IsMaster(const char* path,
+                    const char* ininfo,
+                    XrdOucEnv& env,
+                    XrdOucErrInfo& error,
+                    eos::common::VirtualIdentity& vid,
+                    const XrdSecEntity* client)
+{
+  static const char* epname = "IsMaster";
+
+  // TODO (esindril): maybe enable SSS at some point
+  // REQUIRE_SSS_OR_LOCAL_AUTH;
+
+  if (!gOFS->mMaster->IsMaster()) {
+    return Emsg(epname, error, ENOENT, "find master file [ENOENT]", "");
+  }
+
+  const char* ok = "OK";
+  error.setErrInfo(strlen(ok) + 1, ok);
+  return SFS_DATA;
 }

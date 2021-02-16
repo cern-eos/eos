@@ -1,3 +1,8 @@
+//------------------------------------------------------------------------------
+//! @file QdbMaster.cc
+//! @author Elvin Sindrilaru - CERN
+//------------------------------------------------------------------------------
+
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
  * Copyright (C) 2018 CERN/Switzerland                                  *
@@ -66,7 +71,6 @@ QdbMaster::~QdbMaster()
 bool
 QdbMaster::Init()
 {
-  gOFS->NsInQDB = true;
   gOFS->mNamespaceState = NamespaceState::kBooting;
   mThread.reset(&QdbMaster::Supervisor, this);
   return true;
@@ -102,7 +106,7 @@ QdbMaster::BootNamespace()
   namespaceConfig["qdb_password"] = gOFS->mQdbPassword;
   namespaceConfig["qdb_flusher_md"] = SSTR(instance_id << "_md");
   namespaceConfig["qdb_flusher_quota"] = SSTR(instance_id << "_quota");
-  fillNamespaceCacheConfig(gOFS->ConfEngine, namespaceConfig);
+  FillNsCacheConfig(gOFS->ConfEngine, namespaceConfig);
 
   if (!gOFS->namespaceGroup->initialize(&gOFS->eosViewRWMutex, namespaceConfig,
                                         err)) {
@@ -388,7 +392,6 @@ QdbMaster::MasterToSlave()
       std::chrono::milliseconds(100));
   // We are the slave, we just listen and don't broadcast anything
   gOFS->ObjectManager.EnableBroadCast(false);
-  DisableNsCaching();
 
   // When we boot the first time also load the config
   if (mOneOff) {
@@ -400,6 +403,7 @@ QdbMaster::MasterToSlave()
     }
   }
 
+  DisableNsCaching();
   gOFS->mTracker.SetAcceptingRequests(true);
 }
 
@@ -634,7 +638,7 @@ void
 QdbMaster::EnableNsCaching()
 {
   std::map<std::string, std::string> map_cfg;
-  fillNamespaceCacheConfig(gOFS->ConfEngine, map_cfg);
+  FillNsCacheConfig(gOFS->ConfEngine, map_cfg);
   gOFS->eosFileService->configure(map_cfg);
   gOFS->eosDirectoryService->configure(map_cfg);
 }

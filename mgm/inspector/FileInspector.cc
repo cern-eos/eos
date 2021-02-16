@@ -27,7 +27,6 @@
 #include "common/LayoutId.hh"
 #include "common/Timing.hh"
 #include "common/ParseUtils.hh"
-#include "mgm/Master.hh"
 #include "mgm/FsView.hh"
 #include "mgm/inspector/FileInspector.hh"
 #include "mgm/proc/ProcCommand.hh"
@@ -166,7 +165,8 @@ void FileInspector::performCycleInMem(ThreadAssistant& assistant) noexcept
   nfiles = ndirs = nfiles_processed = 0;
   time_t s_time = time(NULL);
   {
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
+                                            __LINE__, __FILE__);
     nfiles = (unsigned long long) gOFS->eosFileService->getNumFiles();
     ndirs = (unsigned long long) gOFS->eosDirectoryService->getNumContainers();
   }
@@ -288,7 +288,8 @@ void FileInspector::performCycleQDB(ThreadAssistant& assistant) noexcept
   nfiles = ndirs = nfiles_processed = 0;
   time_t s_time = time(NULL);
   {
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
+                                            __LINE__, __FILE__);
     nfiles = (unsigned long long) gOFS->eosFileService->getNumFiles();
     ndirs = (unsigned long long) gOFS->eosDirectoryService->getNumContainers();
   }
@@ -439,7 +440,8 @@ FileInspector::Process(std::string& filepath)
 {
   eos_static_debug("inspector-file=\"%s\"", filepath.c_str());
   eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-  eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+  eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
+                                          __LINE__, __FILE__);
   std::shared_ptr<eos::IFileMD> fmd;
 
   try {

@@ -1,3 +1,8 @@
+//------------------------------------------------------------------------------
+//! @file IMaster.hh
+//! @author Elvin Sindrilaru - CERN
+//------------------------------------------------------------------------------
+
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
  * Copyright (C) 2018 CERN/Switzerland                                  *
@@ -148,57 +153,27 @@ public:
   //----------------------------------------------------------------------------
   //! Add to master Log
   //----------------------------------------------------------------------------
-  inline void MasterLog(const char* log)
-  {
-    if (log && strlen(log)) {
-      mLog += log;
-      mLog += '\n';
-    }
-  }
+  inline void MasterLog(const char* log);
+
+  //----------------------------------------------------------------------------
+  //! Populate namespace cache configuration
+  //----------------------------------------------------------------------------
+  void FillNsCacheConfig(IConfigEngine* configEngine,
+                         std::map<std::string, std::string>& namespaceConfig) const;
 
   //------------------------------------------------------------------------------
   //! Create status file
   //!
   //! @param path path to file to be created if it doesn't exist already
   //------------------------------------------------------------------------------
-  bool CreateStatusFile(const char* path)
-  {
-    struct stat buf;
-
-    if (::stat(path, &buf)) {
-      int fd = 0;
-
-      if ((fd = ::creat(path, S_IRWXU | S_IRGRP | S_IROTH)) == -1) {
-        MasterLog(eos_static_log(LOG_ERR, "msg=\"failed to create %s\" errno=%d", path,
-                                 errno));
-        return false;
-      }
-
-      close(fd);
-    }
-
-    return true;
-  }
+  bool CreateStatusFile(const char* path);
 
   //------------------------------------------------------------------------------
   //! Remove status file
   //!
   //! @param path path to file to be unlinked
   //------------------------------------------------------------------------------
-  bool RemoveStatusFile(const char* path)
-  {
-    struct stat buf;
-
-    if (!::stat(path, &buf)) {
-      if (::unlink(path)) {
-        MasterLog(eos_static_log(LOG_ERR, "msg=\"failed to unlink %s\" errno=%d",
-                                 path, errno));
-        return false;
-      }
-    }
-
-    return true;
-  }
+  bool RemoveStatusFile(const char* path);
 
   //----------------------------------------------------------------------------
   //! Show the current master/slave run configuration (used by ns stat)
@@ -206,13 +181,6 @@ public:
   //! @return string describing the status
   //----------------------------------------------------------------------------
   virtual std::string PrintOut() = 0;
-
-  //----------------------------------------------------------------------------
-  //! Populate namespace cache configuration
-  //----------------------------------------------------------------------------
-  void fillNamespaceCacheConfig(IConfigEngine* configEngine,
-                                std::map<std::string, std::string>& namespaceConfig) const;
-
 
 protected:
   std::string mLog; ///< Master logs

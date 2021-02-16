@@ -30,7 +30,6 @@
 #include "common/StringConversion.hh"
 #include "common/StringTokenizer.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/Master.hh"
 #include "mgm/Messaging.hh"
 #include "mgm/FsView.hh"
 #include "namespace/interface/IView.hh"
@@ -855,18 +854,13 @@ Fsck::AccountNoReplicaFiles()
     eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
                                             __LINE__, __FILE__);
     // it_fid not invalidated when items are added or removed for QDB
-    // namespace, safe to release lock after each item.
-    bool needLockThroughout = !gOFS->NsInQDB;
 
     for (auto it_fid = gOFS->eosFsView->getStreamingNoReplicasFileList();
          (it_fid && it_fid->valid()); it_fid->next()) {
-      if (!needLockThroughout) {
-        ns_rd_lock.Release();
-        eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView,
-            it_fid->getElement());
-        ns_rd_lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
-      }
-
+      ns_rd_lock.Release();
+      eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView,
+          it_fid->getElement());
+      ns_rd_lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
       auto fmd = gOFS->eosFileService->getFileMD(it_fid->getElement());
       std::string path = gOFS->eosView->getUri(fmd.get());
       XrdOucString fullpath = path.c_str();
@@ -878,11 +872,6 @@ Fsck::AccountNoReplicaFiles()
 
       if (fmd && (!fmd->isLink())) {
         eFsMap["zero_replica"][0].insert(it_fid->getElement());
-      }
-
-      if (!needLockThroughout) {
-        ns_rd_lock.Release();
-        ns_rd_lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
       }
     }
   } catch (eos::MDException& e) {

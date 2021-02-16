@@ -44,7 +44,6 @@
 #include "mgm/fsck/Fsck.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Stat.hh"
-#include "mgm/Master.hh"
 #include "mgm/ZMQ.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include <sstream>
@@ -306,25 +305,8 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
     retc = errno;
   }
 
-  int64_t latencyf = 0, latencyd = 0, latencyp = 0;
-  auto chlog_file_svc = dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
-  auto chlog_dir_svc = dynamic_cast<eos::IChLogContainerMDSvc*>
-                       (gOFS->eosDirectoryService);
-
-  if (chlog_file_svc && chlog_dir_svc) {
-    latencyf = statf.st_size - chlog_file_svc->getFollowOffset();
-    latencyd = statd.st_size - chlog_dir_svc->getFollowOffset();
-    latencyp = chlog_file_svc->getFollowPending();
-  }
-
   std::string master_status = gOFS->mMaster->PrintOut();
   XrdOucString compact_status = "";
-  eos::mgm::Master* master = dynamic_cast<eos::mgm::Master*>(gOFS->mMaster.get());
-
-  if (master) {
-    master->PrintOutCompacting(compact_status);
-  }
-
   size_t eosxd_nclients = 0;
   size_t eosxd_active_clients = 0;
   size_t eosxd_locked_clients = 0;
@@ -371,9 +353,6 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << "uid=all gid=all ns.boot.status=" << bootstring << std::endl
         << "uid=all gid=all ns.boot.time=" << boot_time << std::endl
         << "uid=all gid=all ns.boot.file.time=" << fboot_time << std::endl
-        << "uid=all gid=all ns.latency.files=" << latencyf << std::endl
-        << "uid=all gid=all ns.latency.dirs=" << latencyd << std::endl
-        << "uid=all gid=all ns.latency.pending.updates=" << latencyp << std::endl
         << "uid=all gid=all " << master_status.c_str() << std::endl
         << "uid=all gid=all ns.memory.virtual=" << mem.vmsize << std::endl
         << "uid=all gid=all ns.memory.resident=" << mem.resident << std::endl
@@ -494,13 +473,6 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
 
     oss << "ALL      Replication                      "
         << master_status.c_str() << std::endl;
-
-    if (!gOFS->NsInQDB && !gOFS->mMaster->IsMaster()) {
-      oss << "ALL      Namespace Latency Files          " << latencyf << std::endl
-          << "ALL      Namespace Latency Directories    " << latencyd << std::endl
-          << "ALL      Namespace Pending Updates        " << latencyp << std::endl;
-    }
-
     oss << line << std::endl;
 
     if (clfsize.length() && cldsize.length()) {
@@ -712,35 +684,11 @@ NsCmd::MasterSubcmd(const eos::console::NsProto_MasterProto& master,
   using eos::console::NsProto_MasterProto;
 
   if (master.op() == NsProto_MasterProto::DISABLE) {
-    // Disable the master heart beat thread to do remote checks
-    eos::mgm::Master* master = dynamic_cast<eos::mgm::Master*>(gOFS->mMaster.get());
-
-    if (master) {
-      if (!master->DisableRemoteCheck()) {
-        reply.set_std_err("warning: master heartbeat was already disabled!");
-        reply.set_retc(EINVAL);
-      } else {
-        reply.set_std_out("success: disabled master heartbeat check");
-      }
-    } else {
-      reply.set_std_err("error: operation supported by master object");
-      reply.set_retc(ENOTSUP);
-    }
+    reply.set_std_err("error: operation deprecated");
+    reply.set_retc(ENOTSUP);
   } else if (master.op() == NsProto_MasterProto::ENABLE) {
-    // Enable the master heart beat thread to do remote checks
-    eos::mgm::Master* master = dynamic_cast<eos::mgm::Master*>(gOFS->mMaster.get());
-
-    if (master) {
-      if (!master->EnableRemoteCheck()) {
-        reply.set_std_err("warning: master heartbeat was already enabled!");
-        reply.set_retc(EINVAL);
-      } else {
-        reply.set_std_out("success: enabled master heartbeat check");
-      }
-    } else {
-      reply.set_std_err("error: operation supported by master object");
-      reply.set_retc(ENOTSUP);
-    }
+    reply.set_std_err("error: operation deprecated");
+    reply.set_retc(ENOTSUP);
   } else if (master.op() == NsProto_MasterProto::LOG) {
     std::string out;
     gOFS->mMaster->GetLog(out);
@@ -768,55 +716,9 @@ void
 NsCmd::CompactSubcmd(const eos::console::NsProto_CompactProto& compact,
                      eos::console::ReplyProto& reply)
 {
-  using eos::console::NsProto_CompactProto;
-  eos::mgm::Master* master = dynamic_cast<eos::mgm::Master*>(gOFS->mMaster.get());
-
-  if (master == nullptr) {
-    reply.set_std_err("error: operation supported by master object");
-    reply.set_retc(ENOTSUP);
-    return;
-  }
-
-  if (mVid.uid == 0) {
-    if (compact.on()) {
-      master->ScheduleOnlineCompacting((time(NULL) + compact.delay()),
-                                       compact.interval());
-
-      if (compact.type() == NsProto_CompactProto::FILES) {
-        master->SetCompactingType(true, false, false);
-      } else if (compact.type() == NsProto_CompactProto::DIRS) {
-        master->SetCompactingType(false, true, false);
-      } else if (compact.type() == NsProto_CompactProto::ALL) {
-        master->SetCompactingType(true, true, false);
-      } else if (compact.type() == NsProto_CompactProto::FILES_REPAIR) {
-        master->SetCompactingType(true, false, true);
-      } else if (compact.type() == NsProto_CompactProto::DIRS_REPAIR) {
-        master->SetCompactingType(false, true, true);
-      } else if (compact.type() == NsProto_CompactProto::ALL_REPAIR) {
-        master->SetCompactingType(true, true, true);
-      }
-
-      std::ostringstream oss;
-      oss << "success: configured online compacting to run in "
-          << compact.delay()
-          << " seconds from now (might be delayed up to 60 seconds)";
-
-      if (compact.interval()) {
-        oss << " (re-compact every " << compact.interval() << " seconds)"
-            << std::endl;
-      } else {
-        oss << std::endl;
-      }
-
-      reply.set_std_out(oss.str());
-    } else {
-      master->ScheduleOnlineCompacting(0, 0);
-      reply.set_std_out("success: disabled online compacting\n");
-    }
-  } else {
-    reply.set_std_err("error: you have to take role 'root' to execute this command");
-    reply.set_retc(EPERM);
-  }
+  reply.set_std_err("error: operation supported by master object");
+  reply.set_retc(ENOTSUP);
+  return;
 }
 
 //------------------------------------------------------------------------------

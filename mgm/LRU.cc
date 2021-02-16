@@ -30,7 +30,6 @@
 #include "mgm/Quota.hh"
 #include "mgm/LRU.hh"
 #include "mgm/Stat.hh"
-#include "mgm/Master.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/ContainerIterators.hh"

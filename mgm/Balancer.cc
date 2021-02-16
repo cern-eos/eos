@@ -24,7 +24,6 @@
 #include "mgm/Balancer.hh"
 #include "mgm/FsView.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/Master.hh"
 #include "common/StringConversion.hh"
 
 EOSMGMNAMESPACE_BEGIN

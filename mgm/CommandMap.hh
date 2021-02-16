@@ -43,8 +43,6 @@ enum class FsctlCommand {
   getfmd,
   getfusex,
   is_master,
-  mastersignalbounce,
-  mastersignalreload,
   mkdir,
   open,
   readlink,

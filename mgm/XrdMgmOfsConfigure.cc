@@ -47,7 +47,6 @@
 #include "mgm/Iostat.hh"
 #include "mgm/LRU.hh"
 #include "mgm/WFE.hh"
-#include "mgm/Master.hh"
 #include "mgm/QdbMaster.hh"
 #include "mgm/Messaging.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
@@ -122,137 +121,6 @@ void xrdmgmofs_stack(int sig)
   }
 }
 
-
-
-//------------------------------------------------------------------------------
-// Static method used to start the FileView initialization thread
-//------------------------------------------------------------------------------
-void*
-XrdMgmOfs::StaticInitializeFileView(void* arg)
-{
-  return reinterpret_cast<XrdMgmOfs*>(arg)->InitializeFileView();
-}
-
-//------------------------------------------------------------------------------
-// Method ran by the FileView initialization thread
-//------------------------------------------------------------------------------
-void*
-XrdMgmOfs::InitializeFileView()
-{
-  // For the namespace in QDB all the initialization is done in QdbMaster
-  if ((getenv("EOS_USE_QDB_MASTER") != 0) && NsInQDB) {
-    return nullptr;
-  }
-
-  mNamespaceState = NamespaceState::kBooting;
-  mFileInitTime = time(0);
-  time_t tstart = time(0);
-  Access::StallInfo old_stall;
-  Access::StallInfo new_stall("*", "100", "namespace is booting", true);
-  Access::SetStallRule(new_stall, old_stall);
-  eos_notice("starting eos file view initialize2");
-
-  try {
-    time_t t1 = time(nullptr);
-    eosView->initialize2();
-    time_t t2 = time(nullptr);
-    {
-      eos_notice("eos file view after initialize2");
-      eos::common::RWMutexWriteLock view_lock(eosViewRWMutex);
-      eos_notice("starting eos file view initialize3");
-      eosView->initialize3();
-      time_t t3 = time(nullptr);
-      eos_notice("eos file view initialize2: %d seconds", t2 - t1);
-      eos_notice("eos file view initialize3: %d seconds", t3 - t2);
-      mBootFileId = gOFS->eosFileService->getFirstFreeId();
-
-      if (mMaster->IsMaster()) {
-        SetupProcFiles();
-        mNamespaceState = NamespaceState::kBooted;
-        eos_static_alert("msg=\"namespace booted (as master)\"");
-      }
-    }
-
-    if (!mMaster->IsMaster()) {
-      eos_static_info("msg=\"starting slave listener\"");
-      struct stat f_buf;
-      struct stat c_buf;
-      f_buf.st_size = 0;
-      c_buf.st_size = 0;
-
-      if (::stat(gOFS->MgmNsFileChangeLogFile.c_str(), &f_buf) == -1) {
-        eos_static_alert("msg=\"failed to stat the file changelog\"");
-        mNamespaceState = NamespaceState::kFailed;
-        return nullptr;
-      }
-
-      if (::stat(gOFS->MgmNsDirChangeLogFile.c_str(), &c_buf) == -1) {
-        eos_static_alert("msg=\"failed to stat the container changelog\"");
-        mNamespaceState = NamespaceState::kFailed;
-        return nullptr;
-      }
-
-      auto* eos_chlog_dirsvc =
-        dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
-      auto* eos_chlog_filesvc =
-        dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
-
-      if (eos_chlog_dirsvc && eos_chlog_filesvc) {
-        eos_chlog_filesvc->startSlave();
-        eos_chlog_dirsvc->startSlave();
-
-        // Wait that the follower reaches the offset seen now
-        while ((eos_chlog_filesvc->getFollowOffset() < (uint64_t) f_buf.st_size) ||
-               (eos_chlog_dirsvc->getFollowOffset() < (uint64_t) c_buf.st_size) ||
-               (eos_chlog_filesvc->getFollowPending())) {
-          std::this_thread::sleep_for(std::chrono::seconds(5));
-          eos_static_info("msg=\"waiting for the namespace to reach the follow "
-                          "point\" is-file-offset=%llu, target-file-offset=%llu, "
-                          "is-dir-offset=%llu, target-dir-offset=%llu, files-pending=%llu",
-                          eos_chlog_filesvc->getFollowOffset(), (uint64_t) f_buf.st_size,
-                          eos_chlog_dirsvc->getFollowOffset(), (uint64_t) c_buf.st_size,
-                          eos_chlog_filesvc->getFollowPending());
-        }
-      }
-
-      mNamespaceState = NamespaceState::kBooted;
-      eos_static_alert("msg=\"namespace booted (as slave)\"");
-    }
-
-    time_t tstop = time(nullptr);
-    mMaster->MasterLog(eos_log(LOG_NOTICE,
-                               "eos namespace file loading stopped after %d seconds",
-                               (tstop - tstart)));
-    Access::SetStallRule(old_stall, new_stall);
-  } catch (const eos::MDException& e) {
-    mNamespaceState = NamespaceState::kFailed;
-    time_t tstop = time(nullptr);
-    errno = e.getErrno();
-    eos_crit("namespace file loading initialization failed after %d seconds",
-             (tstop - tstart));
-    eos_crit("initialization returned ec=%d %s\n", e.getErrno(),
-             e.what());
-    std::abort();
-  }
-
-  mFileInitTime = time(nullptr) - mFileInitTime;
-  mTotalInitTime = time(nullptr) - mTotalInitTime;
-
-  // Get process status after boot
-  if (!eos::common::LinuxStat::GetStat(LinuxStatsStartup)) {
-    eos_crit("failed to grab /proc/self/stat information");
-  }
-
-  // Load all the quota nodes from the namespace
-  Quota::LoadNodes();
-
-  if (mMaster->IsMaster() && mNamespaceState == NamespaceState::kBooted) {
-    WFE::MoveFromRBackToQ();
-  }
-
-  return nullptr;
-}
-
 //------------------------------------------------------------------------------
 // Start jemalloc heap profiling
 //------------------------------------------------------------------------------
@@ -316,7 +184,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   int cfgFD, retc, NoGo = 0;
   XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"));
   XrdOucString role = "server";
-  pthread_t tid = 0;
   MgmRedirector = false;
   // set short timeouts in the new XrdCl class
   XrdCl::DefaultEnv::GetEnv()->PutInt("TimeoutResolution", 1);
@@ -1544,22 +1411,9 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     return 1;
   }
 
-  // Create different type of master object depending on the ns implementation
-  // and environment options
-  if (ns_lib_path.find("EosNsQuarkdb") != std::string::npos) {
-    NsInQDB = true;
-  }
+  // Initialize the HA setup
+  mMaster.reset(new eos::mgm::QdbMaster(mQdbContactDetails, ManagerId.c_str()));
 
-  bool use_qdb_master = false;
-
-  if (NsInQDB && getenv("EOS_USE_QDB_MASTER")) {
-    use_qdb_master = true;
-    mMaster.reset(new eos::mgm::QdbMaster(mQdbContactDetails, ManagerId.c_str()));
-  } else {
-    mMaster.reset(new eos::mgm::Master());
-  }
-
-  // Initialize the master/slave class
   if (!mMaster->Init()) {
     return 1;
   }
@@ -1938,9 +1792,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       }
     }
 
-    if (NsInQDB) {
-      SetupProcFiles();
-    }
+    SetupProcFiles();
   }
 
   // Initialize the replication tracker
@@ -1955,14 +1807,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // Hook to the appropriate config file
   std::string stdOut;
   std::string stdErr;
-
-  if (use_qdb_master == false) {
-    if (!mMaster->ApplyMasterConfig(stdOut, stdErr,
-                                    Master::Transition::Type::kMasterToMaster)) {
-      Eroute.Emsg("Config", "failed to apply master configuration");
-      return 1;
-    }
-  }
 
   if (!MgmRedirector) {
     if (ErrorLog) {
@@ -1981,26 +1825,9 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         eos_info("%s returned %d", errorlogline.c_str(), rrc);
       }
     }
-
-    eos_info("starting file view loader thread");
-
-    if ((XrdSysThread::Run(&tid, XrdMgmOfs::StaticInitializeFileView,
-                           static_cast<void*>(this), 0, "File View Loader"))) {
-      eos_crit("cannot start file view loader");
-      NoGo = 1;
-    }
   }
 
-  // For the legacy master-slave setup:
-  // It's safe to set the config engine for the FsView after the
-  // ApplyMasterConfig otherwise any update that comes will be the only one
-  // recorded in the config file. This leads to a corruption of the
-  // default.eoscf in which it only holds a few entries.
-  if (getenv("EOS_USE_QDB_MASTER") == 0) {
-    FsView::gFsView.SetConfigEngine(ConfEngine);
-  }
-
-  eos_info("starting statistics thread");
+  eos_info("%s", "msg=\"starting statistics thread\"");
   mStatsTid.reset(&Stat::Circulate, &MgmStats);
   eos_info("%s", "msg=\"starting archive submitter thread\"");
   mSubmitterTid.reset(&XrdMgmOfs::StartArchiveSubmitter, this);

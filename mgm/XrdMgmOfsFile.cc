@@ -46,7 +46,6 @@
 #include "mgm/Recycle.hh"
 #include "mgm/Macros.hh"
 #include "mgm/ZMQ.hh"
-#include "mgm/Master.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include "namespace/utils/Attributes.hh"
 #include "namespace/Prefetcher.hh"

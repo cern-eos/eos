@@ -114,6 +114,7 @@
 #include "mgm/IdTrackerWithValidity.hh"
 #include "mgm/qos/QoSConfig.hh"
 #include "mgm/qos/QoSClass.hh"
+#include "mgm/IMaster.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/INamespaceGroup.hh"
@@ -1201,16 +1202,6 @@ public:
   // ---------------------------------------------------------------------------
   virtual int Configure(XrdSysError&);
 
-  // ---------------------------------------------------------------------------
-  // Namespace file view initialization thread start function
-  // ---------------------------------------------------------------------------
-  static void* StaticInitializeFileView(void* arg);
-
-  // ---------------------------------------------------------------------------
-  // Namespace file view boot function
-  // ---------------------------------------------------------------------------
-  void* InitializeFileView();
-
   //----------------------------------------------------------------------------
   //! Init function
   //!
@@ -1601,7 +1592,6 @@ public:
   //! Mgm writes error log with cluster collected file into
   //! /var/log/eos/error.log if <true>
   bool ErrorLog;
-  bool NsInQDB = true; ///< True if we're using the QDB namespace.
   bool MgmQoSEnabled; ///< True if QoS support is enabled
 
   //----------------------------------------------------------------------------
@@ -2091,26 +2081,6 @@ private:
                XrdOucErrInfo& error,
                eos::common::VirtualIdentity& vid,
                const XrdSecEntity* client);
-
-  //----------------------------------------------------------------------------
-  //! Received signal to bounce everything to the remote master
-  //----------------------------------------------------------------------------
-  int MasterSignalBounce(const char* path,
-                         const char* ininfo,
-                         XrdOucEnv& env,
-                         XrdOucErrInfo& error,
-                         eos::common::VirtualIdentity& vid,
-                         const XrdSecEntity* client);
-
-  //----------------------------------------------------------------------------
-  //! Received signal from remote master to reload namespace
-  //----------------------------------------------------------------------------
-  int MasterSignalReload(const char* path,
-                         const char* ininfo,
-                         XrdOucEnv& env,
-                         XrdOucErrInfo& error,
-                         eos::common::VirtualIdentity& vid,
-                         const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
   //! Make a directory and return its inode
