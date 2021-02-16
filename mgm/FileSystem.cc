@@ -24,7 +24,6 @@
 #include "mgm/FileSystem.hh"
 #include "mgm/FsView.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/Master.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

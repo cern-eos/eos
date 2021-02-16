@@ -25,7 +25,6 @@
 #include <curl/curl.h>
 #include "common/config/ConfigParsing.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/IMaster.hh"
 #include "mgm/FsView.hh"
 #include "mgm/GeoBalancer.hh"
 #include "mgm/Balancer.hh"
@@ -827,9 +826,8 @@ FsSpace::FsSpace(const char* name)
   mGroupBalancer = new GroupBalancer(name);
   mGeoBalancer = new GeoBalancer(name);
 
-  // Start old converter if we're using the in-memory NS or if the new one
-  // is disabled on purpose
-  if (!gOFS->NsInQDB || getenv("EOS_FORCE_DISABLE_NEW_CONVERTER")) {
+  // Start old converter if the new one is disabled on purpose
+  if (getenv("EOS_FORCE_DISABLE_NEW_CONVERTER")) {
     eos_static_info("%s", "msg=\"start the old converter\"");
     mConverter = new Converter(name);
   } else {

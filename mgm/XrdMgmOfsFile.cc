@@ -46,7 +46,6 @@
 #include "mgm/Recycle.hh"
 #include "mgm/Macros.hh"
 #include "mgm/ZMQ.hh"
-#include "mgm/Master.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include "namespace/utils/Attributes.hh"
 #include "namespace/Prefetcher.hh"
@@ -441,7 +440,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   std::string tried_cgi;
   // versioning CGI
   std::string versioning_cgi;
-
   // file size
   uint64_t fmdsize = 0;
   int crOpts = (Mode & SFS_O_MKPTH) ? XRDOSS_mkpath : 0;
@@ -610,7 +608,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       versioning_cgi = val;
     }
   }
-
 
   if (!isFuse && isRW) {
     // resolve symbolic links
@@ -1030,11 +1027,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
 
     acl.SetFromAttrMap(attrmap, vid, &attrmapF);
-
     eos_info("acl=%d r=%d w=%d wo=%d egroup=%d shared=%d mutable=%d facl=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
              acl.HasEgroup(), isSharedFile, acl.IsMutable(),
-	     acl.EvalUserAttrFile());
+             acl.EvalUserAttrFile());
 
     if (acl.HasAcl()) {
       if ((vid.uid != 0) && (!vid.sudoer) &&
@@ -1138,7 +1134,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   if (versioning_cgi.length()) {
     versioning = atoi(versioning_cgi.c_str());
   }
-
 
   if (attrmap.count("sys.forced.atomic")) {
     isAtomicUpload = atoi(attrmap["sys.forced.atomic"].c_str());
@@ -1310,12 +1305,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
               // on a temporary attribute
               ref_fmd->setAttribute("sys.tmp.atomic", fmd->getName());
 
-	      if (acl.EvalUserAttrFile()) {
-		// we inherit existing ACLs during (atomic) versioning
-		ref_fmd->setAttribute("user.acl", acl.UserAttrFile());
-		ref_fmd->setAttribute("sys.eval.useracl", "1");
-	      }
-
+              if (acl.EvalUserAttrFile()) {
+                // we inherit existing ACLs during (atomic) versioning
+                ref_fmd->setAttribute("user.acl", acl.UserAttrFile());
+                ref_fmd->setAttribute("sys.eval.useracl", "1");
+              }
 
               gOFS->eosView->updateFileStore(ref_fmd.get());
             }
@@ -1582,16 +1576,14 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         fmd->setAttribute("sys.tmp.etag", ext_etag);
       }
 
-
-
       for (auto it = ext_xattr_map.begin(); it != ext_xattr_map.end(); ++it) {
         fmd->setAttribute(it->first, it->second);
       }
 
       if (acl.EvalUserAttrFile()) {
-	// we inherit existing ACLs during (atomic) versioning
-	fmd->setAttribute("user.acl", acl.UserAttrFile());
-	fmd->setAttribute("sys.eval.useracl", "1");
+        // we inherit existing ACLs during (atomic) versioning
+        fmd->setAttribute("user.acl", acl.UserAttrFile());
+        fmd->setAttribute("sys.eval.useracl", "1");
       }
 
       try {

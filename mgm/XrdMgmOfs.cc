@@ -72,7 +72,7 @@
 #include "mgm/LRU.hh"
 #include "mgm/WFE.hh"
 #include "mgm/fsck/Fsck.hh"
-#include "mgm/Master.hh"
+#include "mgm/IMaster.hh"
 #include "mgm/FuseServer/FusexCastBatch.hh"
 #include "mgm/tgc/RealTapeGcMgm.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
@@ -754,10 +754,12 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   // The XRootD prepare actions are mutually exclusive
   switch (pargsOptsAction) {
   case 0:
-    if(mTapeEnabled) {
-      Emsg(epname, error, EINVAL, "prepare with empty pargs.opts on tape-enabled back-end");
+    if (mTapeEnabled) {
+      Emsg(epname, error, EINVAL,
+           "prepare with empty pargs.opts on tape-enabled back-end");
       return SFS_ERROR;
     }
+
     break;
 
   case Prep_STAGE:
@@ -770,10 +772,9 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       // Note: To use the default request ID supplied in pargs.reqid, return SFS_OK instead of SFS_DATA.
       //       Overriding is only possible in the case of PREPARE. In the case of ABORT and QUERY requests,
       //       pargs.reqid should contain the request ID that was returned by the corresponding PREPARE.
-
       // Request ID = XRootD-generated request ID + timestamp
       ostringstream ss;
-      ss << ':' << time(0); 
+      ss << ':' << time(0);
       reqid.append(ss.str().c_str());
     }
 
@@ -799,10 +800,12 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   // The XRootD prepare flags are mutually exclusive
   switch (pargs.opts) {
   case 0:
-    if(mTapeEnabled) {
-      Emsg(epname, error, EINVAL, "prepare with empty pargs.opts on tape-enabled back-end");
+    if (mTapeEnabled) {
+      Emsg(epname, error, EINVAL,
+           "prepare with empty pargs.opts on tape-enabled back-end");
       return SFS_ERROR;
     }
+
     break;
 
   case Prep_STAGE:
@@ -1916,4 +1919,29 @@ XrdMgmOfs::QueryResync(eos::common::FileId::fileid_t fid,
 
   EXEC_TIMING_END("QueryResync");
   return 0;
+}
+
+//----------------------------------------------------------------------------
+// Query to determine if current node is acting as master
+//----------------------------------------------------------------------------
+int
+XrdMgmOfs::IsMaster(const char* path,
+                    const char* ininfo,
+                    XrdOucEnv& env,
+                    XrdOucErrInfo& error,
+                    eos::common::VirtualIdentity& vid,
+                    const XrdSecEntity* client)
+{
+  static const char* epname = "IsMaster";
+
+  // TODO (esindril): maybe enable SSS at some point
+  // REQUIRE_SSS_OR_LOCAL_AUTH;
+
+  if (!gOFS->mMaster->IsMaster()) {
+    return Emsg(epname, error, ENOENT, "find master file [ENOENT]", "");
+  }
+
+  const char* ok = "OK";
+  error.setErrInfo(strlen(ok) + 1, ok);
+  return SFS_DATA;
 }

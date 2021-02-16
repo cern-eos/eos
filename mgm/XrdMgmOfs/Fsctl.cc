@@ -59,17 +59,19 @@ XrdMgmOfs::fsctl(const int cmd,
     rType[1] = 'r'; //(fstat.st_mode & S_IWUSR            ? 'w' : 'r');
     rType[2] = '\0';
 
-    if( cmd & SFS_O_HNAME )
+    if (cmd & SFS_O_HNAME) {
       sprintf(locResp, "%s", (char*) gOFS->ManagerId.c_str());
-    else
-    {
+    } else {
       struct sockaddr_in sa;
-      int is_ipv4 = inet_pton( AF_INET, ManagerIp.c_str(), &(sa.sin_addr) );
-      if( is_ipv4 )
+      int is_ipv4 = inet_pton(AF_INET, ManagerIp.c_str(), &(sa.sin_addr));
+
+      if (is_ipv4) {
         sprintf(locResp, "[::%s]:%d", (char*)ManagerIp.c_str(), gOFS->ManagerPort);
-      else
+      } else {
         sprintf(locResp, "[%s]:%d", (char*)ManagerIp.c_str(), gOFS->ManagerPort);
+      }
     }
+
     error.setErrInfo(strlen(locResp) + 3, (const char**) Resp, 2);
     return SFS_DATA;
   }
@@ -81,64 +83,67 @@ XrdMgmOfs::fsctl(const int cmd,
     unsigned long long freebytes = 0;
     unsigned long long maxbytes = 0;
     eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
-
     // Take the sum's from all file systems in 'default'
     std::string path = args;
     std::string opaque = args;
+
     if (path.find("?") != std::string::npos) {
       path.erase(path.find("?"));
-      opaque.erase(0,opaque.find("?")+1);
+      opaque.erase(0, opaque.find("?") + 1);
     }
-    
+
     XrdOucEnv env(opaque.c_str());
     bool query_space = false;
-    
+
     if (env.Get("eos.space")) {
       query_space = true;
       space = env.Get("eos.space");
     } else {
-      const char *const defaultSpaceOverride = getenv("EOS_MGM_STATVFS_DEFAULT_SPACE");
+      const char* const defaultSpaceOverride =
+        getenv("EOS_MGM_STATVFS_DEFAULT_SPACE");
+
       if (nullptr != defaultSpaceOverride && *defaultSpaceOverride != '\0') {
         query_space = true;
         space = defaultSpaceOverride;
       }
     }
-    
+
     eos_thread_info("path=%s cgi=%s", path.c_str(), opaque.c_str());
 
-    if (query_space || 
-	(!getenv("EOS_MGM_STATVFS_ONLY_QUOTA") && ((path == "/") || (path == "")))) {
+    if (query_space ||
+        (!getenv("EOS_MGM_STATVFS_ONLY_QUOTA") && ((path == "/") || (path == "")))) {
       if (FsView::gFsView.mSpaceView.count(space.c_str())) {
-	freebytes =
-	  FsView::gFsView.mSpaceView[space.c_str()]->SumLongLong("stat.statfs.freebytes",
-								 false);
-	maxbytes =
-	  FsView::gFsView.mSpaceView[space.c_str()]->SumLongLong("stat.statfs.capacity",
-							       false);
+        freebytes =
+          FsView::gFsView.mSpaceView[space.c_str()]->SumLongLong("stat.statfs.freebytes",
+              false);
+        maxbytes =
+          FsView::gFsView.mSpaceView[space.c_str()]->SumLongLong("stat.statfs.capacity",
+              false);
       }
 
       unsigned long layoutid = Policy::GetSpacePolicyLayout(space.c_str());
+
       if (layoutid) {
-	// if there is a space policy layout defined we scale values to logical bytes
-	float scalefactor = eos::common::LayoutId::GetSizeFactor(layoutid);
-	if (scalefactor) {
-	  freebytes /= scalefactor;
-	  maxbytes /= scalefactor;
-	}
+        // if there is a space policy layout defined we scale values to logical bytes
+        float scalefactor = eos::common::LayoutId::GetSizeFactor(layoutid);
+
+        if (scalefactor) {
+          freebytes /= scalefactor;
+          maxbytes /= scalefactor;
+        }
       }
     } else {
       if (path[path.length() - 1] != '/') {
-	path += '/';
+        path += '/';
       }
-      
-        // Get quota group values for path and id 0
+
+      // Get quota group values for path and id 0
       auto map_quotas = Quota::GetGroupStatistics(path, 0);
-      
+
       if (!map_quotas.empty()) {
-	Quota::GetStatfs(path, maxbytes, freebytes);
+        Quota::GetStatfs(path, maxbytes, freebytes);
       }
     }
-
 
     static const char* Resp = "oss.cgroup=%s&oss.space=%lld&oss.free=%lld"
                               "&oss.maxf=%lld&oss.used=%lld&oss.quota=%lld";
@@ -340,14 +345,6 @@ XrdMgmOfs::FSctl(const int cmd,
       return XrdMgmOfs::IsMaster(path, ininfo, env, error, vid, client);
     }
 
-    case FsctlCommand::mastersignalbounce: {
-      return XrdMgmOfs::MasterSignalBounce(path, ininfo, env, error, vid, client);
-    }
-
-    case FsctlCommand::mastersignalreload: {
-      return XrdMgmOfs::MasterSignalReload(path, ininfo, env, error, vid, client);
-    }
-
     case FsctlCommand::mkdir: {
       return XrdMgmOfs::Mkdir(path, ininfo, env, error, vid, client);
     }
@@ -422,18 +419,18 @@ XrdMgmOfs::dispatchSFS_FSCTL_PLUGIO(XrdSfsFSctl& args,
                                     const XrdSecEntity* client)
 {
   // args.Arg2 is always set to 0 by XrdXrootdProtocol::do_Qopaque(short qopt)
-
   if (0 > args.Arg1Len) {
     error.setErrInfo(EINVAL, "Arg1Len of SFS_FSCTL_PLUGIO command is negative");
     return SFS_ERROR;
   }
 
   if (strnlen(args.Arg1, args.Arg1Len) == (unsigned int)(args.Arg1Len)) {
-    error.setErrInfo(EINVAL, "Arg1 of SFS_FSCTL_PLUGIO command is not NULL terminated");
+    error.setErrInfo(EINVAL,
+                     "Arg1 of SFS_FSCTL_PLUGIO command is not NULL terminated");
     return SFS_ERROR;
   }
 
-  if(!strcmp("tgc", args.Arg1)) {
+  if (!strcmp("tgc", args.Arg1)) {
     return mTapeGc->handleFSCTL_PLUGIO_tgc(error, vid, client);
   }
 
@@ -442,15 +439,15 @@ XrdMgmOfs::dispatchSFS_FSCTL_PLUGIO(XrdSfsFSctl& args,
   static const int maxArgLen = 1024;
   std::ostringstream errMsg;
   errMsg << "Unable to execute cmd=SFS_FSCTL_PLUGIO Arg1=";
+
   if (args.Arg1Len > maxArgLen) {
     errMsg << "\"LARGER THAN " << maxArgLen << " BYTES INCLUDING NULL TERMINATOR\"";
   } else {
     errMsg << "\"" << args.Arg1 << "\"";
   }
+
   errMsg << " [EOPNOTSUPP]";
-
   eos_err(errMsg.str().c_str());
-
   error.setErrInfo(EOPNOTSUPP, errMsg.str().c_str());
   return SFS_ERROR;
 }

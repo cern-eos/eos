@@ -187,7 +187,6 @@ add_library(
   XrdMgmOfs/fsctl/Fusex.cc
   XrdMgmOfs/fsctl/Getfmd.cc
   XrdMgmOfs/fsctl/GetFusex.cc
-  XrdMgmOfs/fsctl/MasterSignal.cc
   XrdMgmOfs/fsctl/Mkdir.cc
   XrdMgmOfs/fsctl/Open.cc
   XrdMgmOfs/fsctl/Readlink.cc
@@ -233,7 +232,6 @@ add_library(
   FuseServer/Flush.cc FuseServer/Flush.hh
   fuse-locks/LockTracker.cc   fuse-locks/LockTracker.hh
   IMaster.cc                  IMaster.hh
-  Master.cc
   QdbMaster.cc
   Recycle.cc
   PathRouting.cc

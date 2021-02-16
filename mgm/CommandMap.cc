@@ -44,8 +44,6 @@ struct fsctlMapInit {
     fsctlCommandMap["getfmd"] = FsctlCommand::getfmd;
     fsctlCommandMap["getfusex"] = FsctlCommand::getfusex;
     fsctlCommandMap["is_master"] = FsctlCommand::is_master;
-    fsctlCommandMap["mastersignalbounce"] = FsctlCommand::mastersignalbounce;
-    fsctlCommandMap["mastersignalreload"] = FsctlCommand::mastersignalreload;
     fsctlCommandMap["mkdir"] = FsctlCommand::mkdir;
     fsctlCommandMap["open"] = FsctlCommand::open;
     fsctlCommandMap["readlink"] = FsctlCommand::readlink;

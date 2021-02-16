@@ -21,11 +21,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "mgm/config/FileConfigEngine.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/Master.hh"
 #include "mgm/FsView.hh"
+#include "mgm/IMaster.hh"
 #include "common/config/ConfigParsing.hh"
 #include "common/LinuxStat.hh"
 #include <sstream>

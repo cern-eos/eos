@@ -16,7 +16,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/Namespace.hh"
 #include "mgm/IMaster.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
@@ -25,16 +24,70 @@
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Populate namespace cache configuration
+// Add to master Log
 //------------------------------------------------------------------------------
-void IMaster::fillNamespaceCacheConfig(IConfigEngine *configEngine,
-  std::map<std::string, std::string> &namespaceConfig) const {
+void
+IMaster::MasterLog(const char* log)
+{
+  if (log && strlen(log)) {
+    mLog += log;
+    mLog += '\n';
+  }
+}
 
+//------------------------------------------------------------------------------
+// Create status file
+//------------------------------------------------------------------------------
+bool
+IMaster:: CreateStatusFile(const char* path)
+{
+  struct stat buf;
+
+  if (::stat(path, &buf)) {
+    int fd = 0;
+
+    if ((fd = ::creat(path, S_IRWXU | S_IRGRP | S_IROTH)) == -1) {
+      MasterLog(eos_static_log(LOG_ERR, "msg=\"failed to create %s\" errno=%d", path,
+                               errno));
+      return false;
+    }
+
+    close(fd);
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Remove status file
+//------------------------------------------------------------------------------
+bool
+IMaster::RemoveStatusFile(const char* path)
+{
+  struct stat buf;
+
+  if (!::stat(path, &buf)) {
+    if (::unlink(path)) {
+      MasterLog(eos_static_log(LOG_ERR, "msg=\"failed to unlink %s\" errno=%d",
+                               path, errno));
+      return false;
+    }
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Populate namespace cache configuration
+//------------------------------------------------------------------------------
+void IMaster::FillNsCacheConfig(IConfigEngine* configEngine,
+                                std::map<std::string, std::string>& namespaceConfig) const
+{
   std::string nfilesStr;
   uint64_t nfiles = 40'000'000;
 
-  if(configEngine->get("ns", "cache-size-nfiles", nfilesStr)) {
-    if(!common::ParseUInt64(nfilesStr, nfiles)) {
+  if (configEngine->get("ns", "cache-size-nfiles", nfilesStr)) {
+    if (!common::ParseUInt64(nfilesStr, nfiles)) {
       eos_static_crit("Could not parse 'cache-size-nfiles' configuration value");
     }
   }
@@ -42,8 +95,8 @@ void IMaster::fillNamespaceCacheConfig(IConfigEngine *configEngine,
   std::string ndirsStr;
   uint64_t ndirs = 5'000'000;
 
-  if(configEngine->get("ns", "cache-size-ndirs", ndirsStr)) {
-    if(!common::ParseUInt64(ndirsStr, ndirs)) {
+  if (configEngine->get("ns", "cache-size-ndirs", ndirsStr)) {
+    if (!common::ParseUInt64(ndirsStr, ndirs)) {
       eos_static_crit("Could not parse 'cache-size-ndirs' configuration value");
     }
   }
