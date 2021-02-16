@@ -745,7 +745,7 @@ k8s_stress:
 
 dock_system:
   extends: .dock8s_system_test_template
-  image: docker
+  image: gitlab-registry.cern.ch/dss/docker-enhanced
   services:
     - docker:dind
   variables:
@@ -762,7 +762,7 @@ dock_system:
 
 dock_cnvrt_fsck:
   extends: .dock8s_cnvrt_fsck_template
-  image: docker
+  image: gitlab-registry.cern.ch/dss/docker-enhanced
   services:
     - docker:dind
   variables:
@@ -779,7 +779,7 @@ dock_cnvrt_fsck:
 
 dock_rtb_clone:
   extends: .dock8s_fusex_test_template
-  image: docker
+  image: gitlab-registry.cern.ch/dss/docker-enhanced
   services:
     - docker:dind
   variables:
@@ -796,7 +796,7 @@ dock_rtb_clone:
 
 dock_fusex:
   extends: .dock8s_fusex_test_template
-  image: docker
+  image: gitlab-registry.cern.ch/dss/docker-enhanced
   services:
     - docker:dind
   variables:
@@ -813,7 +813,7 @@ dock_fusex:
 
 dock_cbox:
   extends: .dock8s_cbox_test_template
-  image: docker
+  image: gitlab-registry.cern.ch/dss/docker-enhanced
   services:
     - docker:dind
   variables:
@@ -829,7 +829,7 @@ dock_cbox:
 
 dock_stress:
   stage: test
-  image: docker
+  image: gitlab-registry.cern.ch/dss/docker-enhanced
   services:
     - docker:dind
   variables:
@@ -979,7 +979,7 @@ k8s_fusex_ub_focal:
 
 dock_system_c8:
   extends: .dock8s_system_test_template
-  image: docker
+  image: gitlab-registry.cern.ch/dss/docker-enhanced
   services:
     - docker:dind
   variables:
@@ -1001,7 +1001,7 @@ dock_system_c8:
 
 dock_cbox_c8:
   extends: .dock8s_cbox_test_template
-  image: docker
+  image: gitlab-registry.cern.ch/dss/docker-enhanced
   services:
     - docker:dind
   variables:
@@ -1022,7 +1022,7 @@ dock_cbox_c8:
 
 dock_fusex_ub_bionic:
   extends: .dock8s_fusex_test_template
-  image: docker
+  image: gitlab-registry.cern.ch/dss/docker-enhanced
   services:
     - docker:dind
   variables:
@@ -1046,7 +1046,7 @@ dock_fusex_ub_bionic:
 
 dock_fusex_ub_focal:
   extends: .dock8s_fusex_test_template
-  image: docker
+  image: gitlab-registry.cern.ch/dss/docker-enhanced
   services:
     - docker:dind
   variables:
@@ -1072,7 +1072,7 @@ dock_fusex_ub_focal:
 # xt stands for xrd_testing. Must shorten to not hit HOST_NAME_MAX
 .dock_system_xt:
   extends: .dock8s_system_test_template
-  image: docker
+  image: gitlab-registry.cern.ch/dss/docker-enhanced
   services:
     - docker:dind
   variables:
