@@ -56,12 +56,10 @@ if [ "$1" = "eos-start-pre" ]; then
       chown daemon /etc/eos.keytab
       chmod 400 /etc/eos.keytab
     fi
-    mkdir -p /var/eos/md /var/eos/config /var/eos/report
-    chmod 700 /var/eos/md /var/eos/config
+    mkdir -p /var/eos/md /var/eos/report
     chmod 755 /var/eos /var/eos/report
     mkdir -p /var/spool/eos/core/${2} /var/spool/eos/admin
-    mkdir -p /var/log/eos /var/eos/config/${EOS_MGM_HOST}
-    touch /var/eos/config/${EOS_MGM_HOST}/default.eoscf
+    mkdir -p /var/log/eos
     chown -R daemon /var/spool/eos
     find /var/log/eos -maxdepth 1 -type d -exec chown daemon {} \;
     find /var/eos/ -maxdepth 1 -mindepth 1 -not -path "/var/eos/fs" -not -path "/var/eos/fusex" -type d -exec chown -R daemon {} \;
@@ -119,16 +117,4 @@ fi
 # Stop EOS fuse daemons
 if [ "$1" = "eosd-stop" ]; then
   umount -f ${EOS_FUSE_MOUNTDIR}
-fi
-
-# Start EOS High Availability
-if [ "$1" = "eosha-start" ]; then
-  systemctl start eossync
-  mkdir -p /var/log/eos/eosha
-  chown daemon:daemon /var/log/eos/eosha
-fi
-
-# Stop EOS High Availability
-if [ "$1" = "eosha-stop" ]; then
-  systemctl stop eossync@*
 fi

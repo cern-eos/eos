@@ -71,10 +71,6 @@ install(
   DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/bash_completion.d/)
 
 install(
-  FILES cron.d/eos-logs cron.d/eos-reports cron.d/eos-config
-  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/cron.d/)
-
-install(
   FILES logrotate.d/eos-logs logrotate.d/eos-fuse-logs logrotate.d/eos-fusex-logs
   DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/logrotate.d/)
 
@@ -106,11 +102,7 @@ if(EXISTS ${SYSTEMD_DIR})
  	systemd/system/eos@master.service
  	systemd/system/eos@slave.service
  	systemd/system/eosfstdb@.service
- 	systemd/system/eosha.service
  	systemd/system/eosslave.service
- 	systemd/system/eossync.service
- 	systemd/system/eossync@.service
- 	systemd/system/eossync@config.service
 	systemd/system/eos5.service
 	systemd/system/eos5-mgm@.service
 	systemd/system/eos5-mq@.service
@@ -136,8 +128,7 @@ install(
   DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/sysconfig/)
 
 install(
- FILES rc.d/init.d/eos rc.d/init.d/eosha rc.d/init.d/eosslave
-	rc.d/init.d/eossync rc.d/init.d/eosd
+ FILES rc.d/init.d/eos rc.d/init.d/eosslave rc.d/init.d/eosd
  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/rc.d/init.d
  PERMISSIONS OWNER_READ OWNER_EXECUTE
 	     GROUP_READ GROUP_EXECUTE

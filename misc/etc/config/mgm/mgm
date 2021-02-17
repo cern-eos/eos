@@ -46,8 +46,7 @@ mgmofs.broker ${EOS_BROKER_URL}
 # this name can be overwritten by EOS_INSTANCE_NAME defined in [sysconfig]
 mgmofs.instance ${EOS_INSTANCE_NAME}
 
-# configuration, namespace , transfer and authentication export directory
-mgmofs.configdir /var/eos/config
+# namespace, transfer and authentication export directory
 mgmofs.metalog /var/eos/md
 mgmofs.txdir /var/eos/tx
 mgmofs.authdir /var/eos/auth
