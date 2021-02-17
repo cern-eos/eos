@@ -5452,8 +5452,6 @@ EosFuse::listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
       attrlist = "";
 
       for (auto it = map.begin(); it != map.end(); ++it) {
-	attrlistsize += it->first.length() + 1;
-
 	if (it->first.substr(0, 4) == "sys.") {
 	  if (!Instance().Config().options.no_eos_xattr_listing) {
 	    continue;
@@ -5462,6 +5460,7 @@ EosFuse::listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
 	  attrlistsize += strlen("eos.");
 	}
 
+	attrlistsize += it->first.length() + 1;
 	attrlist += it->first;
 	attrlist += '\0';
       }
