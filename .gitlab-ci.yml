@@ -776,7 +776,7 @@ dock_cnvrt_fsck:
   when: manual
 
 dock_rtb_clone:
-  extends: .dock8s_fusex_test_template
+  extends: .dock8s_rtb_clone_template
   image: gitlab-registry.cern.ch/dss/docker-enhanced:19.03.12
   services:
     - docker:19.03.12-dind
