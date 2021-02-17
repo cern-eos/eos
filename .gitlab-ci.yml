@@ -600,14 +600,12 @@ cc7_asan_docker_image:
     # prepare mountpoints
     - exec_cmd eos-cli1 'atd; at now <<< "mkdir -p /eos1/ && mount -t fuse eosxd -ofsname=mount-1 /eos1/; mkdir -p /eos2/ && mount -t fuse eosxd -ofsname=mount-2 /eos2/;"'
     - exec_cmd eos-cli1 'count=0; while [[ $count -le 10 ]] && ( [[ ! -d /eos1/dockertest/ ]] || [[ ! -d /eos2/dockertest/ ]] ); do echo "Wait for mount... $count"; (( count++ )); sleep 1; done;'
-    # fusex benchmark
-    - exec_cmd eos-cli1 'su eos-user -c "mkdir -p /eos1/dockertest/fusex_tests/ && cd /eos1/dockertest/fusex_tests/ && fusex-benchmark"'
     # download tests repo
     - exec_cmd eos-cli1 'git clone https://gitlab.cern.ch/dss/eosclient-tests.git'
     # ubuntu releases do not support 'clone' yet, skip its test
     - case $CI_JOB_NAME in
       "ub_bionic"* | "ub_focal"* ) ;;
-      *                          ) exec_cmd eos-cli1 'cd /eosclient-tests; prepare/clone_test.sh prepare; rc=$?; exit $rc' ;;
+      *                          ) exec_cmd eos-cli1 'cd /eosclient-tests; clone_tests/clone_test.sh prepare; rc=$?; exit $rc' ;;
       esac
   <<: *dock8s_after_script_template
   artifacts:
@@ -1340,7 +1338,8 @@ clean_k8s_cluster:
   only:
     - schedules
   tags:
-    - shell-with-kubernetes
+    - docker_node
+    - k8s
 
 
 #-------------------------------------------------------------------------------
