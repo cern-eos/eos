@@ -436,8 +436,6 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_sbindir}/eosfilesync
 %{_sbindir}/eosdirsync
 %{_sbindir}/eos-tty-broadcast
-%{_sbindir}/eos-log-compact
-%{_sbindir}/eos-log-repair
 %{_sbindir}/eossh-timeout
 %{_sbindir}/eosfstregister
 %{_sbindir}/eosfstinfo

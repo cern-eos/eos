@@ -71,6 +71,10 @@ install(
   DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/bash_completion.d/)
 
 install(
+  FILES cron.d/eos-logs cron.d/eos-reports
+  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/cron.d/)
+
+install(
   FILES logrotate.d/eos-logs logrotate.d/eos-fuse-logs logrotate.d/eos-fusex-logs
   DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/logrotate.d/)
 
