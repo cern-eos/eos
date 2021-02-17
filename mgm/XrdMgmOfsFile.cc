@@ -423,7 +423,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   bool isFuse = false;
   // flag indiciating an atomic upload where a file get's a hidden unique name and is renamed when it is closed
   bool isAtomicUpload = false;
-  // flag indicationg an atomic file name
+  // flag indicating an atomic file name
   bool isAtomicName = false;
   // flag indicating a new injection - upload of a file into a stub without physical location
   bool isInjection = false;
@@ -1629,10 +1629,14 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
   }
 
-  // 0-size files can be read from the MGM if this is not FUSE access! Atomic files are only served from here!
-  if (!isRW && (!isFuse || isAtomicName) && !fmd->getSize()) {
-    isZeroSizeFile = true;
-    return SFS_OK;
+  // 0-size files can be read from the MGM if this is not FUSE access
+  // atomic files are only served from here and also rain files are skipped
+  if (!isRW && !fmd->getSize() && (!isFuse || isAtomicName)) {
+    if (isAtomicName || (!LayoutId::IsRain(layoutId))) {
+      eos_info("msg=\"0-size file read from the MGM\" path=%s", path);
+      isZeroSizeFile = true;
+      return SFS_OK;
+    }
   }
 
   // @todo(esindril) the tag is wrong should actually be mgm.uid
@@ -2245,10 +2249,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       }
     } else {
       if (!fmd->getSize()) {
-        // 0-size files can be read from the MGM if this is not FUSE access!
-        isZeroSizeFile = true;
-
-        if (!isFuse) {
+        // 0-size files can be read from the MGM if this is not FUSE access and
+        // also if this is not a rain file
+        if (!isFuse && !LayoutId::IsRain(layoutId)) {
+          isZeroSizeFile = true;
           return SFS_OK;
         }
       }
