@@ -26,7 +26,6 @@
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "namespace/ns_quarkdb/LRU.hh"
 #include "namespace/utils/PathProcessor.hh"
-#include "namespace/utils/TestHelpers.hh"
 #include <gtest/gtest.h>
 #include <sstream>
 
@@ -157,14 +156,15 @@ TEST(QdbContactDetails, BasicSanity)
 {
   std::map<std::string, std::string> configuration;
   ASSERT_THROW(eos::ConfigurationParser::parse(configuration), eos::MDException);
-
-  configuration["qdb_cluster"] = "example1.cern.ch:1234 example2.cern.ch:2345 example3.cern.ch:3456";
+  configuration["qdb_cluster"] =
+    "example1.cern.ch:1234 example2.cern.ch:2345 example3.cern.ch:3456";
   eos::QdbContactDetails cd = eos::ConfigurationParser::parse(configuration);
-  ASSERT_EQ(cd.members.toString(), "example1.cern.ch:1234,example2.cern.ch:2345,example3.cern.ch:3456");
+  ASSERT_EQ(cd.members.toString(),
+            "example1.cern.ch:1234,example2.cern.ch:2345,example3.cern.ch:3456");
   ASSERT_TRUE(cd.password.empty());
-
   configuration["qdb_password"] = "turtles_turtles_etc";
   cd = eos::ConfigurationParser::parse(configuration);
-  ASSERT_EQ(cd.members.toString(), "example1.cern.ch:1234,example2.cern.ch:2345,example3.cern.ch:3456");
+  ASSERT_EQ(cd.members.toString(),
+            "example1.cern.ch:1234,example2.cern.ch:2345,example3.cern.ch:3456");
   ASSERT_EQ(cd.password, "turtles_turtles_etc");
 }

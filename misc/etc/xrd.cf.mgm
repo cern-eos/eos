@@ -92,8 +92,7 @@ mgmofs.fstgw someproxy.cern.ch:3001
 #-------------------------------------------------------------------------------
 # Set the namespace plugin implementation
 #-------------------------------------------------------------------------------
-mgmofs.nslib /usr/lib64/libEosNsInMemory.so
-#mgmofs.nslib /usr/lib64/libEosNsQuarkdb.so
+mgmofs.nslib /usr/lib64/libEosNsQuarkdb.so
 
 # Quarkdb custer configuration used for the namespace
 #mgmofs.qdbcluster localhost:7777

@@ -27,7 +27,6 @@
 #include "namespace/ns_quarkdb/FileMD.hh"
 #include "namespace/ns_quarkdb/ContainerMD.hh"
 #include "namespace/MDException.hh"
-#include "namespace/ns_quarkdb/BackendClient.hh"
 #include "common/Assert.hh"
 #include <functional>
 
@@ -38,9 +37,10 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-MetadataProviderShard::MetadataProviderShard(qclient::QClient *qcl,
-  IContainerMDSvc* contsvc, IFileMDSvc* filesvc, folly::Executor *exec)
-  : mContSvc(contsvc), mFileSvc(filesvc), mContainerCache(312500), mFileCache(2500000)
+MetadataProviderShard::MetadataProviderShard(qclient::QClient* qcl,
+    IContainerMDSvc* contsvc, IFileMDSvc* filesvc, folly::Executor* exec)
+  : mContSvc(contsvc), mFileSvc(filesvc), mContainerCache(312500),
+    mFileCache(2500000)
 {
   mExecutor = exec;
   mQcl = qcl;
@@ -108,7 +108,8 @@ MetadataProviderShard::retrieveContainerMD(ContainerIdentifier id)
   folly::Future<IContainerMDPtr> fut =
     folly::collect(protoFut, fileMapFut, containerMapFut)
     .via(mExecutor)
-    .thenValue(std::bind(&MetadataProviderShard::processIncomingContainerMD, this, id, _1))
+    .thenValue(std::bind(&MetadataProviderShard::processIncomingContainerMD, this,
+                         id, _1))
   .thenError([this, id](const folly::exception_wrapper & e) {
     // If the operation failed, clear the in-flight cache.
     std::lock_guard<std::mutex> lock(mMutex);
@@ -130,7 +131,6 @@ MetadataProviderShard::retrieveFileMD(FileIdentifier id)
   // so this is thread-safe.
   //
   // If we get no hit, we have to check again under lock.
-
   // Nope.. is it inside the long-lived cache?
   IFileMDPtr result = mFileCache.get(id);
 
@@ -149,11 +149,11 @@ MetadataProviderShard::retrieveFileMD(FileIdentifier id)
 
   // Are we asking for fid=0? Illegal, short-circuit without even contacting
   // QDB. Indicates possible bug elsewhere in the MGM.
-  if(id == FileIdentifier(0)) {
+  if (id == FileIdentifier(0)) {
     eos_static_warning("Attempted to retrieve fid=0!");
     return folly::makeFuture<IFileMDPtr>
-            (make_mdexception(ENOENT, "File #" << id.getUnderlyingUInt64()
-            << " does not exist (fid=0 is illegal)"));
+           (make_mdexception(ENOENT, "File #" << id.getUnderlyingUInt64()
+                             << " does not exist (fid=0 is illegal)"));
   }
 
   // A FileMD can be in three states: Not in cache, inside in-flight cache,
@@ -186,7 +186,8 @@ MetadataProviderShard::retrieveFileMD(FileIdentifier id)
   // Nope, need to fetch, and insert into the in-flight staging area.
   folly::Future<IFileMDPtr> fut = MetadataFetcher::getFileFromId(*mQcl, id)
                                   .via(mExecutor)
-                                  .thenValue(std::bind(&MetadataProviderShard::processIncomingFileMdProto, this, id, _1))
+                                  .thenValue(std::bind(&MetadataProviderShard::processIncomingFileMdProto, this,
+                                      id, _1))
   .thenError([this, id](const folly::exception_wrapper & e) {
     // If the operation failed, clear the in-flight cache.
     std::lock_guard<std::mutex> lock(mMutex);
@@ -241,7 +242,7 @@ MetadataProviderShard::insertFileMD(FileIdentifier id, IFileMDPtr item)
 //------------------------------------------------------------------------------
 void
 MetadataProviderShard::insertContainerMD(ContainerIdentifier id,
-                                    IContainerMDPtr item)
+    IContainerMDPtr item)
 {
   std::lock_guard<std::mutex> lock(mMutex);
   mContainerCache.put(id, item);
@@ -331,7 +332,6 @@ CacheStatistics MetadataProviderShard::getFileMDCacheStats()
   stats.enabled = true;
   stats.occupancy = mFileCache.size();
   stats.maxNum = mFileCache.get_max_num();
-
   std::lock_guard<std::mutex> lock(mMutex);
   stats.inFlight = mInFlightFiles.size();
   return stats;
@@ -346,7 +346,6 @@ CacheStatistics MetadataProviderShard::getContainerMDCacheStats()
   stats.enabled = true;
   stats.occupancy = mContainerCache.size();
   stats.maxNum = mContainerCache.get_max_num();
-
   std::lock_guard<std::mutex> lock(mMutex);
   stats.inFlight = mInFlightContainers.size();
   return stats;

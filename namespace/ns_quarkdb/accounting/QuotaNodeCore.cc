@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "namespace/common/QuotaNodeCore.hh"
+#include "namespace/ns_quarkdb/accounting/QuotaNodeCore.hh"
 #include <mutex>
 
 EOSNSNAMESPACE_BEGIN
@@ -215,14 +215,10 @@ QuotaNodeCore& QuotaNodeCore::operator=(const QuotaNodeCore& other)
 bool QuotaNodeCore::operator==(const QuotaNodeCore& other) const
 {
   std::lock(mtx, other.mtx);
-
   bool result = mUserInfo == other.mUserInfo && mGroupInfo == other.mGroupInfo;
-
   mtx.unlock();
   other.mtx.unlock();
-
   return result;
 }
-
 
 EOSNSNAMESPACE_END

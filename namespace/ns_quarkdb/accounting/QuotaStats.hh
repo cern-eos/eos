@@ -18,7 +18,7 @@
 
 //------------------------------------------------------------------------------
 //! @author Elvin-Alin Sindrilaru <esindril@cern.ch.
-//! @brief Quota accounting on top of Redis
+//! @brief Quota accounting
 //------------------------------------------------------------------------------
 
 #pragma once
@@ -63,9 +63,6 @@ class MetadataFlusher;
 //------------------------------------------------------------------------------
 class QuarkQuotaNode : public IQuotaNode
 {
-  friend class ConvertContainerMDSvc;
-  friend class ConvertFileMDSvc;
-
 public:
   //----------------------------------------------------------------------------
   //! Constructor
@@ -115,14 +112,12 @@ private:
 class QuarkQuotaStats : public IQuotaStats
 {
   friend class QuarkQuotaNode;
-  friend class ConvertContainerMDSvc;
-  friend class ConvertFileMDSvc;
 
 public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  QuarkQuotaStats(qclient::QClient *qcl, MetadataFlusher *flusher);
+  QuarkQuotaStats(qclient::QClient* qcl, MetadataFlusher* flusher);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -187,7 +182,8 @@ private:
   //----------------------------------------------------------------------------
   static bool ParseQuotaId(const std::string& input, IContainerMD::id_t& id);
 
-  std::map<IContainerMD::id_t, std::unique_ptr<IQuotaNode>> pNodeMap; ///< Map of quota nodes
+  std::map<IContainerMD::id_t, std::unique_ptr<IQuotaNode>>
+      pNodeMap; ///< Map of quota nodes
   qclient::QClient* pQcl; ///< Backend client
   MetadataFlusher* pFlusher; ///< Metadata flusher object
 };

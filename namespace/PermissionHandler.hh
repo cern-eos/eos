@@ -21,6 +21,7 @@
 //! @brief  Collection of functions to do permission checking
 //------------------------------------------------------------------------------
 
+#pragma once
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IFileMD.hh"
 
@@ -30,7 +31,8 @@ EOSNSNAMESPACE_BEGIN
 #define CANWRITE 0x02
 #define CANENTER 0x04
 
-class PermissionHandler {
+class PermissionHandler
+{
 public:
 
   //----------------------------------------------------------------------------
@@ -62,21 +64,23 @@ public:
   //----------------------------------------------------------------------------
   //! Parse octal mask
   //----------------------------------------------------------------------------
-  static bool parseOctalMask(const std::string &str, mode_t &out);
+  static bool parseOctalMask(const std::string& str, mode_t& out);
 
   //----------------------------------------------------------------------------
   //! Filter mode based a given mask, passed as string
   //----------------------------------------------------------------------------
-  static mode_t filterWithSysMask(const std::string &sysmask, mode_t mode);
+  static mode_t filterWithSysMask(const std::string& sysmask, mode_t mode);
 
   //------------------------------------------------------------------------------
   //! Filter mode based on sys.mask, as given in xattrs.
   //! Template, so we can handle both std::map and protobuf map.
   //------------------------------------------------------------------------------
   template<typename MapType>
-  static mode_t filterWithSysMask(const MapType &xattr, mode_t mode) {
+  static mode_t filterWithSysMask(const MapType& xattr, mode_t mode)
+  {
     auto it = xattr.find("sys.mask");
-    if(it == xattr.end()) {
+
+    if (it == xattr.end()) {
       return mode;
     }
 

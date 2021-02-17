@@ -46,20 +46,6 @@ install(TARGETS EosNsQuarkdb
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 
-#-------------------------------------------------------------------------------
-# eos_convert_mem_to_kv executable
-#-------------------------------------------------------------------------------
-add_executable(eos-ns-convert
-  tools/ConvertMemToKV.cc
-  persistency/RequestBuilder.cc      persistency/RequestBuilder.hh
-  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/BackendClient.cc)
-
-target_link_libraries(eos-ns-convert PRIVATE
-  jemalloc
-  qclient
-  EosCommon
-  EosNsInMemory-Static)
-
 add_executable(eos-ns-convert-to-locality-hashes tools/EosConvertToLocalityHashes.cc)
 
 target_link_libraries(eos-ns-convert-to-locality-hashes PRIVATE
@@ -79,7 +65,7 @@ add_executable(eos-inode-to-fid tools/InodeToFidTool.cc)
 target_link_libraries(eos-inode-to-fid
   EosNsCommon-Static)
 
-install(TARGETS eos-ns-convert eos-ns-convert-to-locality-hashes eos-ns-inspect eos-fid-to-path eos-inode-to-fid
+install(TARGETS eos-ns-convert-to-locality-hashes eos-ns-inspect eos-fid-to-path eos-inode-to-fid
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

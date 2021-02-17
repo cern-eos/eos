@@ -30,7 +30,6 @@
 #include "common/SecEntity.hh"
 #include "common/LayoutId.hh"
 #include "namespace/interface/IView.hh"
-#include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "namespace/Prefetcher.hh"
 #include "fmt/format.h"

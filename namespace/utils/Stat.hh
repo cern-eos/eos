@@ -21,59 +21,53 @@
 // desc:   Namespace stat utilities
 //------------------------------------------------------------------------------
 
-#ifndef EOS_NS_STAT_HH
-#define EOS_NS_STAT_HH
-
+#pragma once
 #include "namespace/interface/IContainerMD.hh"
 
 namespace eos
 {
+//----------------------------------------------------------------------------
+//! Helper function for deriving the mode_t from a ContainerMD.
+//----------------------------------------------------------------------------
+inline mode_t modeFromMetadataEntry(const std::shared_ptr<eos::IContainerMD>&
+                                    cmd)
+{
+  mode_t retval = cmd->getMode();
 
-  //----------------------------------------------------------------------------
-  //! Helper function for deriving the mode_t from a ContainerMD.
-  //----------------------------------------------------------------------------
-  inline mode_t modeFromMetadataEntry(const std::shared_ptr<eos::IContainerMD> &cmd)
-  {
-    mode_t retval = cmd->getMode();
-
-    if (cmd->numAttributes()) {
-      retval |= S_ISVTX;
-    }
-
-    return retval;
+  if (cmd->numAttributes()) {
+    retval |= S_ISVTX;
   }
 
-  //----------------------------------------------------------------------------
-  //! Helper function for deriving the mode_t from a FileMD.
-  //----------------------------------------------------------------------------
-  inline mode_t modeFromMetadataEntry(const std::shared_ptr<eos::IFileMD> &fmd)
-  {
-    mode_t retval;
-
-    // Symbolic link?
-    if(fmd->isLink()) {
-      retval = (S_IFLNK | S_IRWXU | S_IRWXG | S_IRWXO);
-      return retval;
-    }
-
-    // Not a symbolic link
-    retval = S_IFREG;
-
-    uint16_t flags = fmd->getFlags();
-    if(!flags) {
-      retval |= (S_IRUSR | S_IRGRP | S_IROTH | S_IWUSR);
-    }
-    else {
-      retval |= flags;
-    }
-
-    if (fmd->hasLocation(EOS_TAPE_FSID)) {
-      retval |= EOS_TAPE_MODE_T;
-    }
-
-    return retval;
-  }
-
+  return retval;
 }
 
-#endif
+//----------------------------------------------------------------------------
+//! Helper function for deriving the mode_t from a FileMD.
+//----------------------------------------------------------------------------
+inline mode_t modeFromMetadataEntry(const std::shared_ptr<eos::IFileMD>& fmd)
+{
+  mode_t retval;
+
+  // Symbolic link?
+  if (fmd->isLink()) {
+    retval = (S_IFLNK | S_IRWXU | S_IRWXG | S_IRWXO);
+    return retval;
+  }
+
+  // Not a symbolic link
+  retval = S_IFREG;
+  uint16_t flags = fmd->getFlags();
+
+  if (!flags) {
+    retval |= (S_IRUSR | S_IRGRP | S_IROTH | S_IWUSR);
+  } else {
+    retval |= flags;
+  }
+
+  if (fmd->hasLocation(EOS_TAPE_FSID)) {
+    retval |= EOS_TAPE_MODE_T;
+  }
+
+  return retval;
+}
+}

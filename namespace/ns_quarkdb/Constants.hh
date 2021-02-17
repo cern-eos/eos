@@ -21,9 +21,7 @@
 //! @brief Constants used for the namespace implementation on top of quarkdb
 //------------------------------------------------------------------------------
 
-#ifndef __EOS_NS_REDIS_CONSTANTS_HH__
-#define __EOS_NS_REDIS_CONSTANTS_HH__
-
+#pragma once
 #include "namespace/Namespace.hh"
 #include <string>
 
@@ -108,5 +106,3 @@ static const std::string sNoReplicaPrefix = "fsview_noreplicas";
 }
 
 EOSNSNAMESPACE_END
-
-#endif // __EOS_NS_REDIS_CONSTANTS_HH__

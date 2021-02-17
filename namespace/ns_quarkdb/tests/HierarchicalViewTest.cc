@@ -27,7 +27,6 @@
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
 #include "namespace/ns_quarkdb/tests/TestUtils.hh"
 #include "namespace/ns_quarkdb/utils/QuotaRecomputer.hh"
-#include "namespace/utils/TestHelpers.hh"
 #include "namespace/utils/RmrfHelper.hh"
 #include "namespace/Resolver.hh"
 #include "namespace/utils/RenameSafetyCheck.hh"

@@ -21,48 +21,47 @@
 // desc:   Namespace etag utilities
 //------------------------------------------------------------------------------
 
+#pragma once
 #include <string>
 #include "proto/FileMd.pb.h"
 
-#ifndef EOS_NS_ETAG_HH
-#define EOS_NS_ETAG_HH
-
 namespace eos
 {
-  namespace fst {
-    class FmdBase;
-  }
-
-  class IFileMD;
-  class IContainerMD;
-
-  //----------------------------------------------------------------------------
-  //! Calculate etag for the given FileMD.
-  //----------------------------------------------------------------------------
-  void calculateEtag(const IFileMD *const fmd, std::string &out);
-  void calculateEtag(const eos::ns::FileMdProto &proto, std::string &out);
-
-  //----------------------------------------------------------------------------
-  //! Calculate etag for the given ContainerMD.
-  //! TODO(gbitzes): Make cmd const?
-  //----------------------------------------------------------------------------
-  void calculateEtag(IContainerMD *cmd, std::string &out);
-
-  //----------------------------------------------------------------------------
-  //! Calculate etag - supply flag to indicate whether to use checksum or not.
-  //----------------------------------------------------------------------------
-  void calculateEtag(bool useChecksum, const fst::FmdBase &fmdBase, std::string &out);
-
-  //----------------------------------------------------------------------------
-  //! Calculate etag based on fst fmdproto - assume checksum exists.
-  //----------------------------------------------------------------------------
-  void calculateEtagInodeAndChecksum(const fst::FmdBase &fmdBase, std::string &out);
-
-  //----------------------------------------------------------------------------
-  //! Calculate etag based on inode + mtime.
-  //----------------------------------------------------------------------------
-  void calculateEtagInodeAndMtime(uint64_t fid, uint64_t mtimeSec, std::string &out);
-
+namespace fst
+{
+class FmdBase;
 }
 
-#endif
+class IFileMD;
+class IContainerMD;
+
+//----------------------------------------------------------------------------
+//! Calculate etag for the given FileMD.
+//----------------------------------------------------------------------------
+void calculateEtag(const IFileMD* const fmd, std::string& out);
+void calculateEtag(const eos::ns::FileMdProto& proto, std::string& out);
+
+//----------------------------------------------------------------------------
+//! Calculate etag for the given ContainerMD.
+//! TODO(gbitzes): Make cmd const?
+//----------------------------------------------------------------------------
+void calculateEtag(IContainerMD* cmd, std::string& out);
+
+//----------------------------------------------------------------------------
+//! Calculate etag - supply flag to indicate whether to use checksum or not.
+//----------------------------------------------------------------------------
+void calculateEtag(bool useChecksum, const fst::FmdBase& fmdBase,
+                   std::string& out);
+
+//----------------------------------------------------------------------------
+//! Calculate etag based on fst fmdproto - assume checksum exists.
+//----------------------------------------------------------------------------
+void calculateEtagInodeAndChecksum(const fst::FmdBase& fmdBase,
+                                   std::string& out);
+
+//----------------------------------------------------------------------------
+//! Calculate etag based on inode + mtime.
+//----------------------------------------------------------------------------
+void calculateEtagInodeAndMtime(uint64_t fid, uint64_t mtimeSec,
+                                std::string& out);
+}

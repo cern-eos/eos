@@ -25,15 +25,12 @@
 #include "common/LinuxMemConsumption.hh"
 #include "common/LinuxStat.hh"
 #include "common/LinuxFds.hh"
-#include "namespace/interface/IChLogFileMDSvc.hh"
-#include "namespace/interface/IChLogContainerMDSvc.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/ContainerIterators.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/ns_quarkdb/explorer/NamespaceExplorer.hh"
-#include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/utils/QuotaRecomputer.hh"
 #include "namespace/ns_quarkdb/NamespaceGroup.hh"
 #include "namespace/ns_quarkdb/QClPerformance.hh"
@@ -797,9 +794,10 @@ NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
   }
   // Recompute the quota node
   QuotaNodeCore qnc;
-  eos::QuotaRecomputer recomputer(eos::BackendClient::getInstance(
-                                    gOFS->mQdbContactDetails,
-                                    "quota-recomputation"),
+  std::unique_ptr<qclient::QClient> qcl =
+    std::make_unique<qclient::QClient>(gOFS->mQdbContactDetails.members,
+                                       gOFS->mQdbContactDetails.constructOptions());
+  eos::QuotaRecomputer recomputer(qcl.get(),
                                   static_cast<QuarkNamespaceGroup*>(gOFS->namespaceGroup.get())->getExecutor());
   eos::MDStatus status = recomputer.recompute(cont_uri, cont_id, qnc);
 

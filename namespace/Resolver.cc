@@ -63,8 +63,8 @@ IContainerMDPtr Resolver::resolveContainer(IView* view,
   }
 
   default: {
-    throw_mdexception(EINVAL,
-                      "Provided protobuf message is empty, unable to resolve container");
+    throw_mdexception(EINVAL, "Provided protobuf message is empty, "
+                      "unable to resolve container");
   }
   }
 }
