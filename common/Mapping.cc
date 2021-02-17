@@ -1018,7 +1018,8 @@ Mapping::HandleVOMS(const XrdSecEntity* client, VirtualIdentity& vid)
   vomsstring += ":";
   vid.grps = group;
 
-  if (client->role && strlen(client->role)) {
+  if (client->role && strlen(client->role) &&
+      (strncmp(client->role, "NULL", 4) != 0)) {
     // the role might be NULL
     std::string role = client->role;
     size_t r_pos = role.find(" ");

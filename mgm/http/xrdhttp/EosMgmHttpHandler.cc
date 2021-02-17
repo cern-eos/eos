@@ -182,50 +182,6 @@ OwningXrdSecEntity::CreateFrom(const XrdSecEntity& other)
   *mSecEntity;
 }
 
-//------------------------------------------------------------------------------
-// Standardise VOMS info so that HTTP and XRootD populate the XrdSecEntity in
-// a similar way
-//------------------------------------------------------------------------------
-void
-OwningXrdSecEntity::StandardiseVOMS()
-{
-  // No voms info
-  if ((mSecEntity->grps == nullptr) || (strlen(mSecEntity->grps) == 0)) {
-    return;
-  }
-
-  // The vorg is properly populated we just need to tweak the grps and
-  // endorsements fields. The grps info provided by the secxtractor is in the
-  // form: '/dteam /dteam/Role=NULL /dteam/Role=NULL/Capability=NULL'
-  std::string voms_info {mSecEntity->grps};
-  auto tokens = eos::common::StringTokenizer::split<std::vector<std::string>>
-                (voms_info, ' ');
-
-  if (tokens.size() <= 1) {
-    return;
-  }
-
-  voms_info = *tokens.rbegin();
-  free(mSecEntity->endorsements);
-  mSecEntity->endorsements = strdup(voms_info.c_str());
-  // Extract the group info
-  size_t pos = voms_info.find("/Role=");
-  free(mSecEntity->grps);
-  mSecEntity->grps = strdup(voms_info.substr(0, pos).c_str());
-
-  // Extract the role info
-  if (pos != std::string::npos) {
-    voms_info.erase(0, pos + strlen("/Role="));
-    pos = voms_info.find("/Capability=");
-    free(mSecEntity->role);
-    mSecEntity->role = nullptr;
-
-    if (voms_info.substr(0, pos) != "NULL") {
-      mSecEntity->role = strdup(voms_info.substr(0, pos).c_str());
-    }
-  }
-}
-
 //----------------------------------------------------------------------------
 //! Destructor
 //----------------------------------------------------------------------------
@@ -421,7 +377,6 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
 
   std::string query;
   OwningXrdSecEntity client(req.GetSecEntity());
-  client.StandardiseVOMS();
 
   // Native XrdHttp access
   if (normalized_headers.find("x-forwarded-for") == normalized_headers.end()) {
