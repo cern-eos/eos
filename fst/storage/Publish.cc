@@ -434,7 +434,8 @@ Storage::Publish(ThreadAssistant& assistant)
     common::IntervalStopwatch stopwatch(randomizedReportInterval);
     {
       // Publish with a MuxTransaction all file system changes
-      eos::common::RWMutexReadLock fs_rd_lock(mFsMutex);
+      eos::common::RWMutexReadLock fs_rd_lock(mFsMutex, __FUNCTION__, __LINE__,
+                                              __FILE__);
 
       if (!gOFS.ObjectManager.OpenMuxTransaction()) {
         eos_static_err("%s", "msg=\"cannot open mux transaction\"");
