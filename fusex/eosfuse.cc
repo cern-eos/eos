@@ -85,7 +85,7 @@ extern "C" { /* this 'extern "C"' brace will eventually end up in the .h file, t
 #include "data/cachehandler.hh"
 
 #if ( FUSE_USE_VERSION > 28 )
-#include "EosFuseSessionLoop.hh"
+#include "misc/EosFuseSessionLoop.hh"
 #endif
 
 #define _FILE_OFFSET_BITS 64
@@ -5466,6 +5466,7 @@ EosFuse::listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
 	attrlist += '\0';
       }
 
+      fprintf(stderr,"attr: %s\n", attrlist.c_str());
       if (!Instance().Config().options.no_eos_xattr_listing) {
 	// add 'eos.btime'
 	attrlist += "eos.btime";
