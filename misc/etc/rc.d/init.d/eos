@@ -86,8 +86,6 @@ fi
 # make /var/eos/ readable but hide /var/eos/md/ /var/eos/cofnig/
 mkdir -p /var/eos/md/
 chmod 700 /var/eos/md/
-mkdir -p /var/eos/config/
-chmod 700 /var/eos/config/
 chmod 755 /var/eos/
 mkdir -p /var/eos/report/
 chmod 755 /var/eos/report/

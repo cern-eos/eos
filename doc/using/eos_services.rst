@@ -8,7 +8,6 @@ Control individual daemons
 --------------------------
 
 systemctl start eos@mq   # for starting MQ service
-systemctl start eos@sync # for starting SYNC service
 systemctl start eos@mgm  # for starting MGM service
 systemctl start eos@fst  # for starting FST service
 systemctl start eos@fed  # for starting FED service
@@ -51,19 +50,6 @@ Control FST database
 
    systemctl start eosfstdb@clean  # cleaning FST db for fast restart
    systemctl start eosfstdb@resync # forcing FST db resync for restart
-
-
-Synchronize files between two MGM machines
-------------------------------------------
-
-.. code-block:: bash
-
-   systemctl start eossync     # for starting
-   systemctl stop eossync@*    # for stopping
-   systemctl status eossync@*  # for status
-   systemctl restart eossync@* # for restarting
-
-
 
 EOS FUSE service
 ----------------

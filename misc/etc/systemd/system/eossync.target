@@ -1,5 +1,0 @@
-[Unit]
-Description=eossync target allowing to start/stop all eossync@*.service at once
-PartOf=eos.target
-[Install]
-WantedBy=eos.target

@@ -43,8 +43,7 @@ mgmofs.broker root://localhost:1097//eos/
 
 mgmofs.instance eosdev
 
-# configuration, namespace , transfer and authentication export directory
-mgmofs.configdir /var/eos/config
+# namespace, transfer and authentication export directory
 mgmofs.metalog /var/eos/md
 mgmofs.txdir /var/eos/tx
 mgmofs.authdir /var/eos/auth

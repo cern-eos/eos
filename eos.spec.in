@@ -503,9 +503,6 @@ The EOS server installation containing MGM, FST & MQ service.
     %{_prefix}/lib/systemd/system/eos@slave.service
     %{_prefix}/lib/systemd/system/eosfstdb@.service
     %{_prefix}/lib/systemd/system/eosslave.service
-    %{_prefix}/lib/systemd/system/eossync.service
-    %{_prefix}/lib/systemd/system/eossync@.service
-    %{_prefix}/lib/systemd/system/eossync@config.service
     %{_prefix}/lib/systemd/system/eos5-fst@.service
     %{_prefix}/lib/systemd/system/eos5-mgm@.service
     %{_prefix}/lib/systemd/system/eos5-mq@.service
@@ -516,7 +513,6 @@ The EOS server installation containing MGM, FST & MQ service.
 %else
     %config %{_sysconfdir}/sysconfig/eos.example
     %{_sysconfdir}/rc.d/init.d/eos
-    %{_sysconfdir}/rc.d/init.d/eossync
     %{_sysconfdir}/rc.d/init.d/eosslave
 %endif
 %{_sysconfdir}/cron.d/eos-logs
@@ -559,12 +555,10 @@ if [ $1 = 0 ]; then
   %if %{use_systemd}
     systemctl stop eosd@* > /dev/null 2>&1
     systemctl stop eos@* > /dev/null 2>&1 || :
-    systemctl stop eossync@* > /dev/null 2>&1
     systemctl stop eosslave > /dev/null 2>&1
   %else
     /sbin/service eosd stop > /dev/null 2>&1
     /sbin/service eos stop > /dev/null 2>&1 || :
-    /sbin/service eossync stop > /dev/null 2>&1
     /sbin/service eosslave stop > /dev/null 2>&1
     /sbin/chkconfig --del eos
     /sbin/chkconfig --del eosslave

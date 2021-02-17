@@ -583,7 +583,6 @@ if ($mgm2 ne "") {
     system("eos-log-compact /var/eos/md/files.$thishost.mdlog /var/eos/md/files.$thishost.mdlog.compact; mv /var/eos/md/files.$thishost.mdlog.compact /var/eos/md/files.$thishost.mdlog");
     system("eos-log-compact /var/eos/md/directories.$thishost.mdlog /var/eos/md/directories.$thishost.mdlog.compact; mv /var/eos/md/directories.$thishost.mdlog.compact /var/eos/md/directories.$thishost.mdlog;");
     system("service eos start mgm");
-    system("service eossync restart ");
     system("ssh $mgm2 service eos start mgm");
     printf "# Starting FUSE mount on slave $mgm2 (MGM) ...\n";
     system("ssh $mgm2 service eosd start");
