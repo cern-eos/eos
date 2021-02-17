@@ -36,7 +36,7 @@
 #include "mq/XrdMqOfsTrace.hh"
 #include "common/PasswordHandler.hh"
 #include "common/Strerror_r_wrapper.hh"
-#include "namespace/ns_quarkdb/BackendClient.hh"
+#include "namespace/ns_quarkdb/qclient/include/qclient/QClient.hh"
 #include <pwd.h>
 #include <grp.h>
 #include <signal.h>
@@ -44,6 +44,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <future>
 
 #define XRDMQOFS_FSCTLPATHLEN 1024
 

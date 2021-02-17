@@ -31,8 +31,6 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Egroup.hh"
 #include "mgm/config/IConfigEngine.hh"
-#include "namespace/interface/IChLogFileMDSvc.hh"
-#include "namespace/interface/IChLogContainerMDSvc.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IView.hh"
@@ -334,52 +332,25 @@ ProcCommand::Space()
     }
 
     if ((option == "nsfilesystemview")) {
-      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                         __FILE__);
       gOFS->eosFsView->shrink();
       stdOut += "\ninfo: resized namespace filesystem view ...";
     }
 
     if ((option == "nsfilemap")) {
-      auto* eos_chlog_filesvc =
-        dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
-
-      if (eos_chlog_filesvc) {
-        eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
-        eos_chlog_filesvc->resize();
-        stdOut += "\ninfo: resized namespace file map ...";
-      } else {
-        stdOut += "\n info: ns does not support file map resizing";
-      }
+      stdOut += "\n info: ns does not support file map resizing";
     }
 
     if ((option == "nsdirectorymap")) {
-      auto* eos_chlog_dirsvc =
-        dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
-
-      if (eos_chlog_dirsvc) {
-        eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
-        eos_chlog_dirsvc->resize();
-        stdOut += "\ninfo: resized namespace directory map ...";
-      } else {
-        stdOut += "\ninfo: ns does not support directory map resizing";
-      }
+      stdOut += "\ninfo: ns does not support directory map resizing";
     }
 
     if ((option == "ns")) {
-      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                         __FILE__);
       gOFS->eosFsView->shrink();
-      auto* eos_chlog_filesvc =
-        dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
-      auto* eos_chlog_dirsvc =
-        dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
-
-      if (eos_chlog_filesvc && eos_chlog_dirsvc) {
-        eos_chlog_filesvc->resize();
-        eos_chlog_dirsvc->resize();
-        stdOut += "\ninfo: resized all namespace map ...";
-      } else {
-        stdOut += "\ninfo: ns does not support map resizing";
-      }
+      stdOut += "\ninfo: ns does not support map resizing";
     }
 
     if ((!option.length()) || (option == "mapping")) {
@@ -888,7 +859,8 @@ ProcCommand::Space()
           common::SharedHashLocator spaceLocator =
             common::SharedHashLocator::makeForSpace(spacename);
 
-          if (!mq::SharedHashWrapper::deleteHash(gOFS->mMessagingRealm.get(), spaceLocator)) {
+          if (!mq::SharedHashWrapper::deleteHash(gOFS->mMessagingRealm.get(),
+                                                 spaceLocator)) {
             stdErr = "error: unable to remove config of space '";
             stdErr += spacename.c_str();
             stdErr += "'";

@@ -26,7 +26,6 @@
 
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMD.hh"
-#include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "proto/ContainerMd.pb.h"
 #include "common/FutureWrapper.hh"

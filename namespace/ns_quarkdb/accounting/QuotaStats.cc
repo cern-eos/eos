@@ -25,7 +25,6 @@
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "namespace/ns_quarkdb/ConfigurationParser.hh"
-#include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "qclient/structures/QScanner.hh"
 #include "qclient/structures/QHash.hh"

@@ -25,7 +25,7 @@
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMD.hh"
-#include "namespace/common/QuotaNodeCore.hh"
+#include "namespace/ns_quarkdb/accounting/QuotaNodeCore.hh"
 #include <iostream>
 #include <memory>
 #include <map>
@@ -43,7 +43,6 @@ class IQuotaStats;
 class IQuotaNode
 {
 public:
-
   typedef std::map<uid_t, QuotaNodeCore::UsageInfo> UserMap;
   typedef std::map<gid_t, QuotaNodeCore::UsageInfo> GroupMap;
 
@@ -154,14 +153,15 @@ public:
   //----------------------------------------------------------------------------
   //! Get underlying QuotaNodeCore object.
   //----------------------------------------------------------------------------
-  const QuotaNodeCore& getCore() const {
+  const QuotaNodeCore& getCore() const
+  {
     return pCore;
   }
 
   //----------------------------------------------------------------------------
   //! Replace underlying QuotaNodeCore obejct.
   //----------------------------------------------------------------------------
-  virtual void replaceCore(const QuotaNodeCore &updated) = 0;
+  virtual void replaceCore(const QuotaNodeCore& updated) = 0;
 
 
   //----------------------------------------------------------------------------

@@ -424,9 +424,7 @@ Also, activate QuarkDB namespace plugin usage and set other parameters as desire
 
 .. code-block:: bash
 
-    #mgmofs.nslib /usr/lib64/libEosNsInMemory.so
     mgmofs.nslib /usr/lib64/libEosNsQuarkdb.so
-
     mgmofs.instance eostest
     mgmofs.qdbcluster localhost:7777
     mgmofs.qdbpassword_file /etc/eos.keytab

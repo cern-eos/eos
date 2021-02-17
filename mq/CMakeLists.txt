@@ -85,8 +85,7 @@ set_target_properties(XrdMqClient-Static PROPERTIES
 if (NOT CLIENT)
 add_library(XrdMqOfs-${XRDPLUGIN_SOVERSION} MODULE
   XrdMqOfs.cc       XrdMqOfs.hh
-  XrdMqMessage.cc   XrdMqMessage.hh
-  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/BackendClient.cc)
+  XrdMqMessage.cc   XrdMqMessage.hh)
 
 target_link_libraries(XrdMqOfs-${XRDPLUGIN_SOVERSION} PRIVATE
   EosCommon

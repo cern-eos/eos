@@ -107,11 +107,19 @@ public:
   //----------------------------------------------------------------------------
   //! Prefetch ContainerMD with children and wait
   //----------------------------------------------------------------------------
-  static void prefetchContainerMDWithChildrenAndWait(
-      IView* view, const std::string& path, bool follow = true, bool onlyDirs = false, bool limitresult = false, uint64_t dir_limit = -1, uint64_t file_limit = -1);
-  static void prefetchContainerMDWithChildrenAndWait(
-      IView* view, IContainerMD::id_t id, bool onlyDirs = false, bool limitresult = false, uint64_t dir_limit = -1, uint64_t file_limit = -1);
+  static void
+  prefetchContainerMDWithChildrenAndWait(IView* view, const std::string& path,
+                                         bool follow = true, bool onlyDirs = false,
+                                         bool limitresult = false,
+                                         uint64_t dir_limit = -1,
+                                         uint64_t file_limit = -1);
 
+  static void
+  prefetchContainerMDWithChildrenAndWait(IView* view, IContainerMD::id_t id,
+                                         bool onlyDirs = false,
+                                         bool limitresult = false,
+                                         uint64_t dir_limit = -1,
+                                         uint64_t file_limit = -1);
 
   //----------------------------------------------------------------------------
   //! Prefetch FileMD inode, along with all its parents, and wait

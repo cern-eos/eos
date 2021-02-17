@@ -38,10 +38,6 @@ add_library(
   PermissionHandler.cc                PermissionHandler.hh
   Prefetcher.cc                       Prefetcher.hh
   Resolver.cc                         Resolver.hh
-
-  # Common helper classes, common to both namespaces
-  common/QuotaNodeCore.cc             common/QuotaNodeCore.hh
-
   # Namespace interface
   interface/IView.hh
   interface/IFsView.hh
@@ -50,15 +46,11 @@ add_library(
   interface/Identifiers.hh
   interface/IFileMD.hh
   interface/IContainerMD.hh
-  interface/IChLogContainerMDSvc.hh
-  interface/IChLogFileMDSvc.hh
 
   # Namespace utils
   utils/DataHelper.cc
   utils/Descriptor.cc
   utils/FileListRandomPicker.cc
-  utils/ThreadUtils.cc
-  utils/TestHelpers.cc
   utils/Buffer.hh
   utils/Etag.cc                       utils/Etag.hh
 
@@ -68,6 +60,7 @@ add_library(
   ns_quarkdb/accounting/FileSystemHandler.cc              ns_quarkdb/accounting/FileSystemHandler.hh
   ns_quarkdb/accounting/FileSystemView.cc                 ns_quarkdb/accounting/FileSystemView.hh
   ns_quarkdb/accounting/QuotaStats.cc                     ns_quarkdb/accounting/QuotaStats.hh
+  ns_quarkdb/accounting/QuotaNodeCore.cc                  ns_quarkdb/accounting/QuotaNodeCore.hh
                                                           ns_quarkdb/accounting/SetChangeList.hh
 
   ns_quarkdb/explorer/NamespaceExplorer.cc                ns_quarkdb/explorer/NamespaceExplorer.hh
@@ -96,7 +89,6 @@ add_library(
 
   ns_quarkdb/views/HierarchicalView.cc                    ns_quarkdb/views/HierarchicalView.hh
 
-  ns_quarkdb/BackendClient.cc                             ns_quarkdb/BackendClient.hh
   ns_quarkdb/CacheRefreshListener.cc                      ns_quarkdb/CacheRefreshListener.hh
   ns_quarkdb/ContainerMD.cc                               ns_quarkdb/ContainerMD.hh
   ns_quarkdb/FileMD.cc                                    ns_quarkdb/FileMD.hh
@@ -163,26 +155,4 @@ if (Linux)
     POSITION_INDEPENDENT_CODE True)
 endif ()
 
-#-------------------------------------------------------------------------------
-# text-runner used for running CPPUnit tests
-#-------------------------------------------------------------------------------
-if (CPPUNIT_FOUND)
-  add_executable(
-    text-runner
-    utils/TextRunner.cc)
-
-  target_include_directories(
-    text-runner PUBLIC
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
-    $<BUILD_INTERFACE:${CPPUNIT_INCLUDE_DIRS}>
-    $<INSTALL_INTERFACE:include>)
-
-  target_link_libraries(
-    text-runner PUBLIC
-    GLIBC::DL
-    ${CPPUNIT_LIBRARIES}
-    ${CMAKE_THREAD_LIBS_INIT})
-endif()
-
-add_subdirectory(ns_in_memory)
 add_subdirectory(ns_quarkdb)

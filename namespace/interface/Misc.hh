@@ -21,9 +21,7 @@
 // desc:   Misc
 //------------------------------------------------------------------------------
 
-#ifndef EOS_NS_MISC_H
-#define EOS_NS_MISC_H
-
+#pragma once
 #include "namespace/Namespace.hh"
 
 EOSNSNAMESPACE_BEGIN
@@ -39,5 +37,3 @@ struct CacheStatistics {
 };
 
 EOSNSNAMESPACE_END
-
-#endif

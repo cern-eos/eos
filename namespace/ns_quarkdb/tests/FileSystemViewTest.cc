@@ -29,7 +29,6 @@
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
 #include "namespace/ns_quarkdb/tests/TestUtils.hh"
 #include "namespace/interface/ContainerIterators.hh"
-#include "namespace/utils/TestHelpers.hh"
 #include "namespace/utils/RmrfHelper.hh"
 #include <gtest/gtest.h>
 #include <cstdlib>
@@ -86,7 +85,8 @@ TEST(FileSystemView, FileSetKey)
   ASSERT_EQ(eos::RequestBuilder::keyFilesystemFiles(50), "fsview:50:files");
   ASSERT_EQ(eos::RequestBuilder::keyFilesystemFiles(123), "fsview:123:files");
   ASSERT_EQ(eos::RequestBuilder::keyFilesystemUnlinked(10), "fsview:10:unlinked");
-  ASSERT_EQ(eos::RequestBuilder::keyFilesystemUnlinked(999), "fsview:999:unlinked");
+  ASSERT_EQ(eos::RequestBuilder::keyFilesystemUnlinked(999),
+            "fsview:999:unlinked");
 }
 
 TEST(FileSystemView, ParseFsId)
@@ -112,7 +112,6 @@ class FileSystemViewF : public eos::ns::testing::NsTestsFixture {};
 TEST_F(FileSystemViewF, BasicSanity)
 {
   srandom(time(nullptr));
-
   view()->createContainer("/test/embed/embed1", true);
   std::shared_ptr<eos::IContainerMD> c =
     view()->createContainer("/test/embed/embed2", true);
@@ -187,10 +186,8 @@ TEST_F(FileSystemViewF, BasicSanity)
   ASSERT_EQ(numReplicas, 17200);
   numUnlinked = countUnlinked(fsview());
   ASSERT_EQ(numUnlinked, 2800);
-
   // Restart
   shut_down_everything();
-
   numReplicas = countReplicas(fsview());
   ASSERT_EQ(numReplicas, 17200);
   numUnlinked = countUnlinked(fsview());
@@ -199,7 +196,6 @@ TEST_F(FileSystemViewF, BasicSanity)
   std::shared_ptr<eos::IFileMD> f{
     view()->getFile(std::string("/test/embed/embed1/file1"))};
   ASSERT_EQ(view()->getUri(f.get()), "/test/embed/embed1/file1");
-
   f->unlinkAllLocations();
   numReplicas = countReplicas(fsview());
   ASSERT_EQ(numReplicas, 17195);
@@ -212,7 +208,6 @@ TEST_F(FileSystemViewF, BasicSanity)
   ASSERT_EQ(fsview()->getNumNoReplicasFiles(), 501);
   view()->removeFile(f.get());
   ASSERT_EQ(fsview()->getNumNoReplicasFiles(), 500);
-
   shut_down_everything();
 
   // Cleanup - remove all files
@@ -270,16 +265,16 @@ TEST_F(FileSystemViewF, BasicSanity)
 TEST_F(FileSystemViewF, RandomFilePicking)
 {
   view()->createContainer("/test/", true);
-  for(size_t i = 1; i < 200; i++) {
+
+  for (size_t i = 1; i < 200; i++) {
     std::shared_ptr<eos::IFileMD> file = view()->createFile(SSTR("/test/" << i));
     ASSERT_EQ(view()->getUri(file.get()), SSTR("/test/" << i));
     ASSERT_EQ(view()->getUriFut(file->getIdentifier()).get(), SSTR("/test/" << i));
 
     // Even files go to fs #1, odd go to #2
-    if(i % 2 == 0) {
+    if (i % 2 == 0) {
       file->addLocation(1);
-    }
-    else {
+    } else {
       file->addLocation(2);
     }
 
@@ -287,19 +282,20 @@ TEST_F(FileSystemViewF, RandomFilePicking)
   }
 
   mdFlusher()->synchronize();
-  for(size_t i = 0; i < 1000; i++) {
+
+  for (size_t i = 0; i < 1000; i++) {
     eos::IFileMD::id_t randomPick;
     ASSERT_TRUE(fsview()->getApproximatelyRandomFileInFs(1, randomPick));
     ASSERT_TRUE(randomPick % 2 == 0);
 
-    if(i < 10) {
+    if (i < 10) {
       std::cout << "Random file in fs #1: " << randomPick << std::endl;
     }
 
     ASSERT_TRUE(fsview()->getApproximatelyRandomFileInFs(2, randomPick));
     ASSERT_TRUE(randomPick % 2 == 1);
 
-    if(i < 10) {
+    if (i < 10) {
       std::cout << "Random file in fs #2: " << randomPick << std::endl;
     }
   }
@@ -353,27 +349,24 @@ TEST_F(FileSystemViewF, FileIterator)
 //------------------------------------------------------------------------------
 // Test file list iterator
 //------------------------------------------------------------------------------
-TEST_F(FileSystemViewF, FileListIterator) {
+TEST_F(FileSystemViewF, FileListIterator)
+{
   view()->createContainer("/test/", true);
   eos::IFileMDPtr f1 = view()->createFile("/test/f1");
   ASSERT_EQ(f1->getIdentifier(), eos::FileIdentifier(1));
   f1->addLocation(1);
   f1->addLocation(2);
   f1->addLocation(3);
-
   eos::IFileMDPtr f2 = view()->createFile("/test/f2");
   ASSERT_EQ(f2->getIdentifier(), eos::FileIdentifier(2));
   f2->addLocation(2);
-
   eos::IFileMDPtr f3 = view()->createFile("/test/f3");
   ASSERT_EQ(f3->getIdentifier(), eos::FileIdentifier(3));
   f3->addLocation(2);
   f3->addLocation(3);
-
   eos::IFileMDPtr f4 = view()->createFile("/test/f4");
   ASSERT_EQ(f4->getIdentifier(), eos::FileIdentifier(4));
   f4->addLocation(4);
-
   {
     auto it = fsview()->getFileList(1);
     ASSERT_TRUE(it->valid());
@@ -381,35 +374,42 @@ TEST_F(FileSystemViewF, FileListIterator) {
     it->next();
     ASSERT_FALSE(it->valid());
   }
-
-  ASSERT_TRUE(eos::ns::testing::verifyContents(fsview()->getFileList(2), std::set<eos::IFileMD::id_t> { 1, 2, 3 } ));
-  ASSERT_TRUE(eos::ns::testing::verifyContents(fsview()->getFileList(3), std::set<eos::IFileMD::id_t> { 1, 3 } ));
-  ASSERT_FALSE(eos::ns::testing::verifyContents(fsview()->getFileList(3), std::set<eos::IFileMD::id_t> { 1, 2, 3 } ));
-  ASSERT_TRUE(eos::ns::testing::verifyContents(fsview()->getFileList(4), std::set<eos::IFileMD::id_t> { 4 } ));
-
+  ASSERT_TRUE(eos::ns::testing::verifyContents(fsview()->getFileList(2),
+              std::set<eos::IFileMD::id_t> { 1, 2, 3 }));
+  ASSERT_TRUE(eos::ns::testing::verifyContents(fsview()->getFileList(3),
+              std::set<eos::IFileMD::id_t> { 1, 3 }));
+  ASSERT_FALSE(eos::ns::testing::verifyContents(fsview()->getFileList(3),
+               std::set<eos::IFileMD::id_t> { 1, 2, 3 }));
+  ASSERT_TRUE(eos::ns::testing::verifyContents(fsview()->getFileList(4),
+              std::set<eos::IFileMD::id_t> { 4 }));
   shut_down_everything();
-
-  ASSERT_TRUE(eos::ns::testing::verifyContents(fsview()->getFileList(2), std::set<eos::IFileMD::id_t> { 1, 2, 3 } ));
-  ASSERT_TRUE(eos::ns::testing::verifyContents(fsview()->getFileList(3), std::set<eos::IFileMD::id_t> { 1, 3 } ));
-  ASSERT_FALSE(eos::ns::testing::verifyContents(fsview()->getFileList(3), std::set<eos::IFileMD::id_t> { 1, 2, 3 } ));
-  ASSERT_TRUE(eos::ns::testing::verifyContents(fsview()->getFileList(4), std::set<eos::IFileMD::id_t> { 4 } ));
-
-  ASSERT_TRUE(eos::ns::testing::verifyContents(fsview()->getStreamingFileList(2), std::set<eos::IFileMD::id_t> { 1, 2, 3 } ));
-  ASSERT_TRUE(eos::ns::testing::verifyContents(fsview()->getStreamingFileList(3), std::set<eos::IFileMD::id_t> { 1, 3 } ));
-  ASSERT_FALSE(eos::ns::testing::verifyContents(fsview()->getStreamingFileList(3), std::set<eos::IFileMD::id_t> { 1, 2, 3 } ));
-  ASSERT_TRUE(eos::ns::testing::verifyContents(fsview()->getStreamingFileList(4), std::set<eos::IFileMD::id_t> { 4 } ));
+  ASSERT_TRUE(eos::ns::testing::verifyContents(fsview()->getFileList(2),
+              std::set<eos::IFileMD::id_t> { 1, 2, 3 }));
+  ASSERT_TRUE(eos::ns::testing::verifyContents(fsview()->getFileList(3),
+              std::set<eos::IFileMD::id_t> { 1, 3 }));
+  ASSERT_FALSE(eos::ns::testing::verifyContents(fsview()->getFileList(3),
+               std::set<eos::IFileMD::id_t> { 1, 2, 3 }));
+  ASSERT_TRUE(eos::ns::testing::verifyContents(fsview()->getFileList(4),
+              std::set<eos::IFileMD::id_t> { 4 }));
+  ASSERT_TRUE(eos::ns::testing::verifyContents(fsview()->getStreamingFileList(2),
+              std::set<eos::IFileMD::id_t> { 1, 2, 3 }));
+  ASSERT_TRUE(eos::ns::testing::verifyContents(fsview()->getStreamingFileList(3),
+              std::set<eos::IFileMD::id_t> { 1, 3 }));
+  ASSERT_FALSE(eos::ns::testing::verifyContents(fsview()->getStreamingFileList(3),
+               std::set<eos::IFileMD::id_t> { 1, 2, 3 }));
+  ASSERT_TRUE(eos::ns::testing::verifyContents(fsview()->getStreamingFileList(4),
+              std::set<eos::IFileMD::id_t> { 4 }));
 }
 
 //------------------------------------------------------------------------------
 // Tests targetting FileSystemHandler
 //------------------------------------------------------------------------------
-TEST_F(FileSystemViewF, FileSystemHandler) {
+TEST_F(FileSystemViewF, FileSystemHandler)
+{
   // We're only using FileSystemHandler on its own in this test, don't spin
   // up the rest of the namespace..
-
   std::unique_ptr<folly::Executor> executor;
-  executor.reset( new folly::IOThreadPoolExecutor(16) );
-
+  executor.reset(new folly::IOThreadPoolExecutor(16));
   {
     eos::FileSystemHandler fs1(1, executor.get(), &qcl(), mdFlusher(), false);
     ASSERT_EQ(fs1.getRedisKey(), "fsview:1:files");
@@ -417,135 +417,123 @@ TEST_F(FileSystemViewF, FileSystemHandler) {
     fs1.insert(eos::FileIdentifier(8));
     fs1.insert(eos::FileIdentifier(10));
     fs1.insert(eos::FileIdentifier(20));
-
-    ASSERT_TRUE(eos::ns::testing::verifyContents(fs1.getFileList(), std::set<eos::IFileMD::id_t> {1, 8, 10, 20} ));
-    ASSERT_FALSE(eos::ns::testing::verifyContents(fs1.getFileList(), std::set<eos::IFileMD::id_t> {1, 8, 20} ));
-    ASSERT_FALSE(eos::ns::testing::verifyContents(fs1.getFileList(), std::set<eos::IFileMD::id_t> {1, 8, 10, 20, 30} ));
-
+    ASSERT_TRUE(eos::ns::testing::verifyContents(fs1.getFileList(),
+                std::set<eos::IFileMD::id_t> {1, 8, 10, 20}));
+    ASSERT_FALSE(eos::ns::testing::verifyContents(fs1.getFileList(),
+                 std::set<eos::IFileMD::id_t> {1, 8, 20}));
+    ASSERT_FALSE(eos::ns::testing::verifyContents(fs1.getFileList(),
+                 std::set<eos::IFileMD::id_t> {1, 8, 10, 20, 30}));
     fs1.erase(eos::FileIdentifier(30));
-    ASSERT_TRUE(eos::ns::testing::verifyContents(fs1.getFileList(), std::set<eos::IFileMD::id_t> {1, 8, 10, 20} ));
-
+    ASSERT_TRUE(eos::ns::testing::verifyContents(fs1.getFileList(),
+                std::set<eos::IFileMD::id_t> {1, 8, 10, 20}));
     fs1.erase(eos::FileIdentifier(20));
-    ASSERT_TRUE(eos::ns::testing::verifyContents(fs1.getFileList(), std::set<eos::IFileMD::id_t> {1, 8, 10} ));
-
+    ASSERT_TRUE(eos::ns::testing::verifyContents(fs1.getFileList(),
+                std::set<eos::IFileMD::id_t> {1, 8, 10}));
     fs1.insert(eos::FileIdentifier(20));
-    ASSERT_TRUE(eos::ns::testing::verifyContents(fs1.getFileList(), std::set<eos::IFileMD::id_t> {1, 8, 10, 20} ));
+    ASSERT_TRUE(eos::ns::testing::verifyContents(fs1.getFileList(),
+                std::set<eos::IFileMD::id_t> {1, 8, 10, 20}));
   }
-
   shut_down_everything();
 
   // Make sure we pick up on any changes.
-  for(int i = 0; i < 3; i++) {
+  for (int i = 0; i < 3; i++) {
     eos::FileSystemHandler fs1(1, executor.get(), &qcl(), mdFlusher(), false);
-
-    ASSERT_TRUE(eos::ns::testing::verifyContents(fs1.getFileList(), std::set<eos::IFileMD::id_t> {1, 8, 10, 20} ));
-    ASSERT_FALSE(eos::ns::testing::verifyContents(fs1.getFileList(), std::set<eos::IFileMD::id_t> {1, 8, 20} ));
-    ASSERT_FALSE(eos::ns::testing::verifyContents(fs1.getFileList(), std::set<eos::IFileMD::id_t> {1, 8, 10, 20, 30} ));
+    ASSERT_TRUE(eos::ns::testing::verifyContents(fs1.getFileList(),
+                std::set<eos::IFileMD::id_t> {1, 8, 10, 20}));
+    ASSERT_FALSE(eos::ns::testing::verifyContents(fs1.getFileList(),
+                 std::set<eos::IFileMD::id_t> {1, 8, 20}));
+    ASSERT_FALSE(eos::ns::testing::verifyContents(fs1.getFileList(),
+                 std::set<eos::IFileMD::id_t> {1, 8, 10, 20, 30}));
   }
 
   // Re-iterate just in case, this time verify contents directly from QDB.
   qclient::QSet qset(qcl(), eos::RequestBuilder::keyFilesystemFiles(1));
-
   {
     auto it = qset.getIterator();
-    ASSERT_TRUE(eos::ns::testing::verifyContents(&it, std::set<std::string> { "1", "8", "10", "20" } ));
+    ASSERT_TRUE(eos::ns::testing::verifyContents(&it, std::set<std::string> { "1", "8", "10", "20" }));
   }
-
   {
     auto it = qset.getIterator();
-    ASSERT_FALSE(eos::ns::testing::verifyContents(&it, std::set<std::string> { "1", "8", "10" } ));
+    ASSERT_FALSE(eos::ns::testing::verifyContents(&it, std::set<std::string> { "1", "8", "10" }));
   }
-
   {
     auto it = qset.getIterator();
-    ASSERT_FALSE(eos::ns::testing::verifyContents(&it, std::set<std::string> { "1", "8", "10", "20", "30" } ));
+    ASSERT_FALSE(eos::ns::testing::verifyContents(&it, std::set<std::string> { "1", "8", "10", "20", "30" }));
   }
-
   shut_down_everything();
-
   // Add item, make sure change is reflected in QDB.
   {
     eos::FileSystemHandler fs1(1, executor.get(), &qcl(), mdFlusher(), false);
-    ASSERT_TRUE(eos::ns::testing::verifyContents(fs1.getFileList(), std::set<eos::IFileMD::id_t> {1, 8, 10, 20} ));
-
+    ASSERT_TRUE(eos::ns::testing::verifyContents(fs1.getFileList(),
+                std::set<eos::IFileMD::id_t> {1, 8, 10, 20}));
     fs1.insert(eos::FileIdentifier(99));
-    ASSERT_TRUE(eos::ns::testing::verifyContents(fs1.getFileList(), std::set<eos::IFileMD::id_t> {1, 8, 10, 20, 99} ));
-
+    ASSERT_TRUE(eos::ns::testing::verifyContents(fs1.getFileList(),
+                std::set<eos::IFileMD::id_t> {1, 8, 10, 20, 99}));
     mdFlusher()->synchronize();
-
     // Try streaming iterator
-    ASSERT_TRUE(eos::ns::testing::verifyContents(fs1.getStreamingFileList(), std::set<eos::IFileMD::id_t> {1, 8, 10, 20, 99} ));
+    ASSERT_TRUE(eos::ns::testing::verifyContents(fs1.getStreamingFileList(),
+                std::set<eos::IFileMD::id_t> {1, 8, 10, 20, 99}));
   }
-
   shut_down_everything();
-
   {
     qclient::QSet qset2(qcl(), eos::RequestBuilder::keyFilesystemFiles(1));
     auto it = qset2.getIterator();
-    ASSERT_TRUE(eos::ns::testing::verifyContents(&it, std::set<std::string> { "1", "8", "10", "20", "99" } ));
+    ASSERT_TRUE(eos::ns::testing::verifyContents(&it, std::set<std::string> { "1", "8", "10", "20", "99" }));
   }
-
   // Nuke filelist
   {
     eos::FileSystemHandler fs1(1, executor.get(), &qcl(), mdFlusher(), false);
-    ASSERT_TRUE(eos::ns::testing::verifyContents(fs1.getFileList(), std::set<eos::IFileMD::id_t> {1, 8, 10, 20, 99} ));
-
-
+    ASSERT_TRUE(eos::ns::testing::verifyContents(fs1.getFileList(),
+                std::set<eos::IFileMD::id_t> {1, 8, 10, 20, 99}));
     fs1.nuke();
-    ASSERT_TRUE(eos::ns::testing::verifyContents(fs1.getFileList(), std::set<eos::IFileMD::id_t> { } ));
+    ASSERT_TRUE(eos::ns::testing::verifyContents(fs1.getFileList(),
+                std::set<eos::IFileMD::id_t> { }));
   }
-
   mdFlusher()->synchronize();
-
   // Ensure it's empty in the backend as well
   {
     qclient::QSet qset2(qcl(), eos::RequestBuilder::keyFilesystemFiles(1));
     auto it = qset2.getIterator();
-    ASSERT_TRUE(eos::ns::testing::verifyContents(&it, std::set<std::string> { } ));
+    ASSERT_TRUE(eos::ns::testing::verifyContents(&it, std::set<std::string> { }));
   }
-
 }
 
-TEST(SetChangeList, BasicSanity) {
+TEST(SetChangeList, BasicSanity)
+{
   eos::IFsView::FileList contents;
   contents.set_deleted_key(0);
   contents.set_empty_key(0xffffffffffffffffll);
-
   eos::SetChangeList<eos::IFileMD::id_t> changeList;
   contents.insert(5);
   contents.insert(9);
-
-  ASSERT_TRUE(eos::ns::testing::verifyContents(contents.begin(), contents.end(), std::set<eos::IFileMD::id_t> { 5, 9 } ));
+  ASSERT_TRUE(eos::ns::testing::verifyContents(contents.begin(), contents.end(),
+              std::set<eos::IFileMD::id_t> { 5, 9 }));
   changeList.push_back(10);
   changeList.erase(5);
-
   changeList.apply(contents);
-  ASSERT_TRUE(eos::ns::testing::verifyContents(contents.begin(), contents.end(), std::set<eos::IFileMD::id_t> { 9, 10 } ));
-
+  ASSERT_TRUE(eos::ns::testing::verifyContents(contents.begin(), contents.end(),
+              std::set<eos::IFileMD::id_t> { 9, 10 }));
   changeList.clear();
   changeList.push_back(20);
   changeList.clear();
   changeList.apply(contents);
-
-  ASSERT_TRUE(eos::ns::testing::verifyContents(contents.begin(), contents.end(), std::set<eos::IFileMD::id_t> { 9, 10 } ));
-
+  ASSERT_TRUE(eos::ns::testing::verifyContents(contents.begin(), contents.end(),
+              std::set<eos::IFileMD::id_t> { 9, 10 }));
   changeList.push_back(99);
   changeList.push_back(99);
   changeList.push_back(12);
   changeList.push_back(13);
   changeList.erase(12);
   changeList.apply(contents);
-
-  ASSERT_TRUE(eos::ns::testing::verifyContents(contents.begin(), contents.end(), std::set<eos::IFileMD::id_t> { 9, 10, 13, 99 } ));
-
+  ASSERT_TRUE(eos::ns::testing::verifyContents(contents.begin(), contents.end(),
+              std::set<eos::IFileMD::id_t> { 9, 10, 13, 99 }));
   changeList.clear();
   changeList.push_back(15);
   changeList.push_back(16);
   changeList.erase(10);
   changeList.apply(contents);
-
-  ASSERT_TRUE(eos::ns::testing::verifyContents(contents.begin(), contents.end(), std::set<eos::IFileMD::id_t> { 9, 13, 15, 16, 99 } ));
-
+  ASSERT_TRUE(eos::ns::testing::verifyContents(contents.begin(), contents.end(),
+              std::set<eos::IFileMD::id_t> { 9, 13, 15, 16, 99 }));
   changeList.clear();
   changeList.push_back(17);
   changeList.push_back(17);
@@ -553,6 +541,6 @@ TEST(SetChangeList, BasicSanity) {
   changeList.erase(17);
   changeList.apply(contents);
   ASSERT_EQ(changeList.size(), 4u);
-
-  ASSERT_TRUE(eos::ns::testing::verifyContents(contents.begin(), contents.end(), std::set<eos::IFileMD::id_t> { 9, 13, 15, 16, 99 } ));
+  ASSERT_TRUE(eos::ns::testing::verifyContents(contents.begin(), contents.end(),
+              std::set<eos::IFileMD::id_t> { 9, 13, 15, 16, 99 }));
 }

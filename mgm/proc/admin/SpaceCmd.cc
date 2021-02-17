@@ -31,8 +31,6 @@
 #include "mgm/inspector/FileInspector.hh"
 #include "mgm/Egroup.hh"
 #include "mgm/config/IConfigEngine.hh"
-#include "namespace/interface/IChLogFileMDSvc.hh"
-#include "namespace/interface/IChLogContainerMDSvc.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IView.hh"
@@ -448,49 +446,18 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
   }
   break;
   case eos::console::SpaceProto_ResetProto::NSFILEMAP: {
-    auto* eos_chlog_filesvc = dynamic_cast<eos::IChLogFileMDSvc*>
-                              (gOFS->eosFileService);
-
-    if (eos_chlog_filesvc) {
-      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                         __FILE__);
-      eos_chlog_filesvc->resize();
-      std_out << "\ninfo: resized namespace file map ...";
-    } else {
-      std_out << "\n info: ns does not support file map resizing";
-    }
+    std_out << "\n info: ns does not support file map resizing";
   }
   break;
   case eos::console::SpaceProto_ResetProto::NSDIRECTORYMAP: {
-    auto* eos_chlog_dirsvc = dynamic_cast<eos::IChLogContainerMDSvc*>
-                             (gOFS->eosDirectoryService);
-
-    if (eos_chlog_dirsvc) {
-      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                         __FILE__);
-      eos_chlog_dirsvc->resize();
-      std_out << "\ninfo: resized namespace directory map ...";
-    } else {
-      std_out << "\ninfo: ns does not support directory map resizing";
-    }
+    std_out << "\ninfo: ns does not support directory map resizing";
   }
   break;
   case eos::console::SpaceProto_ResetProto::NS: {
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
                                        __FILE__);
     gOFS->eosFsView->shrink();
-    auto* eos_chlog_filesvc = dynamic_cast<eos::IChLogFileMDSvc*>
-                              (gOFS->eosFileService);
-    auto* eos_chlog_dirsvc = dynamic_cast<eos::IChLogContainerMDSvc*>
-                             (gOFS->eosDirectoryService);
-
-    if (eos_chlog_filesvc && eos_chlog_dirsvc) {
-      eos_chlog_filesvc->resize();
-      eos_chlog_dirsvc->resize();
-      std_out << "\ninfo: resized all namespace map ...";
-    } else {
-      std_out << "\ninfo: ns does not support map resizing";
-    }
+    std_out << "\ninfo: ns does not support map resizing";
   }
   break;
   case eos::console::SpaceProto_ResetProto::MAPPING: {

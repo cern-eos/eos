@@ -64,8 +64,6 @@
 #include "common/InstanceName.hh"
 #include "common/StringTokenizer.hh"
 #include "common/StringUtils.hh"
-#include "namespace/interface/IChLogFileMDSvc.hh"
-#include "namespace/interface/IChLogContainerMDSvc.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "mq/SharedHashWrapper.hh"

@@ -40,7 +40,7 @@
 #include "namespace/ns_quarkdb/persistency/FileSystemIterator.hh"
 #include "namespace/ns_quarkdb/inspector/AttributeExtraction.hh"
 #include "namespace/ns_quarkdb/inspector/FileMetadataFilter.hh"
-#include "namespace/common/QuotaNodeCore.hh"
+#include "namespace/ns_quarkdb/accounting/QuotaNodeCore.hh"
 #include "namespace/utils/Checksum.hh"
 #include "namespace/utils/Etag.hh"
 #include "namespace/utils/Attributes.hh"

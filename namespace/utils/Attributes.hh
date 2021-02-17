@@ -21,9 +21,7 @@
 //! @brief Attribute utilities
 //------------------------------------------------------------------------------
 
-#ifndef EOS_NS_ATTRIBUTES_HH
-#define EOS_NS_ATTRIBUTES_HH
-
+#pragma once
 #include "namespace/interface/IView.hh"
 #include "common/StringUtils.hh"
 #include "common/Logging.hh"
@@ -37,19 +35,20 @@ auto constexpr kAttrLinkKey = "sys.attr.link";
 // Populate 'out' map with attributes found in linkedAttrs. Do not override
 // existing values.
 //------------------------------------------------------------------------------
-inline void populateLinkedAttributes(const eos::IContainerMD::XAttrMap& linkedAttrs,
- eos::IContainerMD::XAttrMap& out, bool prefixLinks) {
-
-  for(auto it = linkedAttrs.begin(); it != linkedAttrs.end(); it++) {
+inline void populateLinkedAttributes(const eos::IContainerMD::XAttrMap&
+                                     linkedAttrs,
+                                     eos::IContainerMD::XAttrMap& out, bool prefixLinks)
+{
+  for (auto it = linkedAttrs.begin(); it != linkedAttrs.end(); it++) {
     //------------------------------------------------------------------------
     // Populate any linked extended attributes which don't exist yet
     //------------------------------------------------------------------------
-    if(out.find(it->first) == out.end()) {
+    if (out.find(it->first) == out.end()) {
       std::string key;
-      if(prefixLinks && common::startsWith(it->first, "sys.")) {
+
+      if (prefixLinks && common::startsWith(it->first, "sys.")) {
         key = SSTR("sys.link." << it->first.substr(4));
-      }
-      else {
+      } else {
         key = it->first;
       }
 
@@ -62,13 +61,23 @@ inline void populateLinkedAttributes(const eos::IContainerMD::XAttrMap& linkedAt
 // Fill out the given map with any extended attributes found in given container,
 // but DO NOT override existing values.
 //------------------------------------------------------------------------------
-inline void populateLinkedAttributes(IView *view, eos::IContainerMD::XAttrMap& out, bool prefixLinks) {
+inline void
+populateLinkedAttributes(IView* view, eos::IContainerMD::XAttrMap& out,
+                         bool prefixLinks)
+{
   try {
     auto linkedPath = out.find(kAttrLinkKey);
-    if(linkedPath == out.end() || linkedPath->second.empty()) return;
+
+    if (linkedPath == out.end() || linkedPath->second.empty()) {
+      return;
+    }
 
     IContainerMDPtr dh = view->getContainer(linkedPath->second);
-    if(!dh) return;
+
+    if (!dh) {
+      return;
+    }
+
     populateLinkedAttributes(dh->getAttributes(), out, prefixLinks);
   } catch (eos::MDException& e) {
     //--------------------------------------------------------------------------
@@ -76,7 +85,7 @@ inline void populateLinkedAttributes(IView *view, eos::IContainerMD::XAttrMap& o
     //--------------------------------------------------------------------------
     out["sys.attr.link"] = SSTR(out["sys.attr.link"] << " - not found");
     eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
-      e.getMessage().str().c_str());
+                     e.getMessage().str().c_str());
   }
 }
 
@@ -88,7 +97,10 @@ inline void populateLinkedAttributes(IView *view, eos::IContainerMD::XAttrMap& o
 //
 // Target is specified as IContainerMD.
 //------------------------------------------------------------------------------
-inline void listAttributes(IView *view, IContainerMD *target, eos::IContainerMD::XAttrMap& out, bool prefixLinks = false) {
+inline void
+listAttributes(IView* view, IContainerMD* target,
+               eos::IContainerMD::XAttrMap& out, bool prefixLinks = false)
+{
   out.clear();
   out = target->getAttributes();
   populateLinkedAttributes(view, out, prefixLinks);
@@ -102,7 +114,10 @@ inline void listAttributes(IView *view, IContainerMD *target, eos::IContainerMD:
 //
 // Target is specified as IFileMD.
 //------------------------------------------------------------------------------
-inline void listAttributes(IView *view, IFileMD *target, eos::IContainerMD::XAttrMap& out, bool prefixLinks = false) {
+inline void
+listAttributes(IView* view, IFileMD* target,
+               eos::IContainerMD::XAttrMap& out, bool prefixLinks = false)
+{
   out.clear();
   out = target->getAttributes();
   populateLinkedAttributes(view, out, prefixLinks);
@@ -116,17 +131,17 @@ inline void listAttributes(IView *view, IFileMD *target, eos::IContainerMD::XAtt
 //
 // Target is specified as FileOrContainerMD.
 //------------------------------------------------------------------------------
-inline void listAttributes(IView *view, FileOrContainerMD target, eos::IContainerMD::XAttrMap& out, bool prefixLinks = false) {
+inline void
+listAttributes(IView* view, FileOrContainerMD target,
+               eos::IContainerMD::XAttrMap& out, bool prefixLinks = false)
+{
   out.clear();
 
-  if(target.file) {
+  if (target.file) {
     listAttributes(view, target.file.get(), out, prefixLinks);
-  }
-  else if(target.container) {
+  } else if (target.container) {
     listAttributes(view, target.container.get(), out, prefixLinks);
   }
 }
 
 EOSNSNAMESPACE_END
-
-#endif

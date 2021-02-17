@@ -32,7 +32,6 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/auth/AccessChecker.hh"
 #include "namespace/interface/IView.hh"
-#include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/ContainerMD.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
 #include "namespace/ns_quarkdb/NamespaceGroup.hh"
@@ -877,16 +876,18 @@ NewfindCmd::ProcessRequest() noexcept
   }
 
   errInfo.clear();
+  std::unique_ptr<qclient::QClient> qcl =
+    std::make_unique<qclient::QClient>(gOFS->mQdbContactDetails.members,
+                                       gOFS->mQdbContactDetails.constructOptions());
   std::unique_ptr<FindResultProvider> findResultProvider;
   // @note when findRequest.childcount() is true, the namespace explorer will skip the files during the namespace traversal.
   // This way we can have a fast aggregate sum of the file/container count for each directory
   int depthlimit = findRequest.Maxdepth__case() ==
                    eos::console::FindProto::MAXDEPTH__NOT_SET ?
                    eos::common::Path::MAX_LEVELS : cPath.GetSubPathSize() + findRequest.maxdepth();
-  findResultProvider.reset
-  (new FindResultProvider(eos::BackendClient::getInstance(
-                            gOFS->mQdbContactDetails, "find"),
-                          findRequest.path(), depthlimit, findRequest.childcount(), mVid));
+  findResultProvider.reset(new FindResultProvider(qcl.get(),
+                           findRequest.path(), depthlimit,
+                           findRequest.childcount(), mVid));
   uint64_t childcount_aggregate_dircounter = 0;
   uint64_t childcount_aggregate_filecounter = 0;
   uint64_t dircounter = 0;

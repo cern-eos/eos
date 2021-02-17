@@ -21,14 +21,11 @@
 // desc:   Data Buffer
 //------------------------------------------------------------------------------
 
-#ifndef EOS_NS_BUFFER_HH
-#define EOS_NS_BUFFER_HH
-
+#pragma once
 #include <cstring>
 #include <vector>
 #include <stdint.h>
 #include <zlib.h>
-
 #include "namespace/MDException.hh"
 
 namespace eos
@@ -198,5 +195,3 @@ protected:
   size_t len;
 };
 }
-
-#endif // EOS_NS_BUFFER_HH

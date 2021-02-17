@@ -1,6 +1,6 @@
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2018 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -17,159 +17,161 @@
  ************************************************************************/
 
 //------------------------------------------------------------------------------
-// author: Lukasz Janyst <ljanyst@cern.ch>
-// desc:   User quota accounting
+//! @author Georgios Bitzes <georgios.bitzes@cern.ch>
+//! @brief  Quota node core logic
 //------------------------------------------------------------------------------
 
 #pragma once
+#include "common/SharedMutexWrapper.hh"
 #include "namespace/Namespace.hh"
-#include "namespace/interface/IQuota.hh"
+#include "namespace/interface/Identifiers.hh"
 #include <map>
+#include <unordered_set>
 
 EOSNSNAMESPACE_BEGIN
 
-//! Forward declration
-class QuotaStats;
+class IQuotaNode;
+class QuotaNode;
 
 //------------------------------------------------------------------------------
-//! Placeholder for space occupancy statistics of an accounting node
+//! QuotaNode core logic, which keeps track of user/group volume/inode use for
+//! a single quotanode.
 //------------------------------------------------------------------------------
-class QuotaNode: public IQuotaNode
+class QuotaNodeCore
 {
 public:
+  // UsageInfo struct holding various counters
+  struct UsageInfo {
+    UsageInfo(): space(0), physicalSpace(0), files(0) {}
+    UsageInfo& operator += (const UsageInfo& other)
+    {
+      space         += other.space;
+      physicalSpace += other.physicalSpace;
+      files         += other.files;
+      return *this;
+    }
+
+    bool operator==(const UsageInfo& other) const
+    {
+      return (space == other.space) &&
+             (physicalSpace == other.physicalSpace) &&
+             (files == other.files);
+    }
+
+    uint64_t space;
+    uint64_t physicalSpace;
+    uint64_t files;
+  };
 
   //----------------------------------------------------------------------------
-  //! Constructor
+  //! Constructor. The object is initially empty, no files whatsoever are being
+  //! accounted.
   //----------------------------------------------------------------------------
-  QuotaNode(IQuotaStats* quotaStats, IContainerMD::id_t id):
-    IQuotaNode(quotaStats, id)
-  {}
+  QuotaNodeCore() {}
 
   //----------------------------------------------------------------------------
-  //! Change the amount of space occupied by the given user
+  //! Get the amount of space occupied by the given user
   //----------------------------------------------------------------------------
-  void changeSpaceUser(uid_t uid, int64_t delta)
-  {
-    pCore.mUserInfo[uid].space += delta;
-  }
+  uint64_t getUsedSpaceByUser(uid_t uid) const;
 
   //----------------------------------------------------------------------------
-  //! Change the amount of space occpied by the given group
+  //! Get the amount of space occupied by the given group
   //----------------------------------------------------------------------------
-  void changeSpaceGroup(gid_t gid, int64_t delta)
-  {
-    pCore.mGroupInfo[gid].space += delta;
-  }
+  uint64_t getUsedSpaceByGroup(gid_t gid) const;
 
   //----------------------------------------------------------------------------
-  //! Change the amount of space occupied by the given user
+  //! Get the amount of space occupied by the given user
   //----------------------------------------------------------------------------
-  void changePhysicalSpaceUser(uid_t uid, int64_t delta)
-  {
-    pCore.mUserInfo[uid].physicalSpace += delta;
-  }
+  uint64_t getPhysicalSpaceByUser(uid_t uid) const;
 
   //----------------------------------------------------------------------------
-  //! Change the amount of space occpied by the given group
+  //! Get the amount of space occupied by the given group
   //----------------------------------------------------------------------------
-  void changePhysicalSpaceGroup(gid_t gid, int64_t delta)
-  {
-    pCore.mGroupInfo[gid].physicalSpace += delta;
-  }
+  uint64_t getPhysicalSpaceByGroup(gid_t gid) const;
 
   //----------------------------------------------------------------------------
-  //! Change the number of files owned by the given user
+  //! Get the amount of space occupied by the given user
   //----------------------------------------------------------------------------
-  uint64_t changeNumFilesUser(uid_t uid, uint64_t delta)
-  {
-    return pCore.mUserInfo[uid].files += delta;
-  }
+  uint64_t getNumFilesByUser(uid_t uid) const;
 
   //----------------------------------------------------------------------------
-  //! Change the number of files owned by the given group
+  //! Get the amount of space occupied by the given group
   //----------------------------------------------------------------------------
-  uint64_t changeNumFilesGroup(gid_t gid, uint64_t delta)
-  {
-    return pCore.mGroupInfo[gid].files += delta;
-  }
+  uint64_t getNumFilesByGroup(gid_t gid) const;
 
   //----------------------------------------------------------------------------
-  //! Account a new file, adjust the size using the size mapping function
+  //! Account a new file.
   //----------------------------------------------------------------------------
-  void addFile(const IFileMD* file) override;
+  void addFile(uid_t uid, gid_t gid, uint64_t size, uint64_t physicalSize);
 
   //----------------------------------------------------------------------------
-  //! Remove a file, adjust the size using the size mapping function
+  //! Remove a file.
   //----------------------------------------------------------------------------
-  void removeFile(const IFileMD* file) override;
+  void removeFile(uid_t uid, gid_t gid, uint64_t size, uint64_t physicalSize);
 
   //----------------------------------------------------------------------------
-  //! Meld in another quota node
+  //! Meld in another quota node core
   //----------------------------------------------------------------------------
-  void meld(const IQuotaNode* node) override;
+  void meld(const QuotaNodeCore& other);
 
   //----------------------------------------------------------------------------
-  //! Replace underlying QuotaNodeCore object.
-  //----------------------------------------------------------------------------
-  void replaceCore(const QuotaNodeCore &updated) override;
-
-  //----------------------------------------------------------------------------
-  //! Partial update of underlying QuotaNodeCore object.
-  //----------------------------------------------------------------------------
-  void updateCore(const QuotaNodeCore &updated) override;
-};
-
-//------------------------------------------------------------------------------
-//! Manager of the quota nodes
-//------------------------------------------------------------------------------
-class QuotaStats: public IQuotaStats
-{
-public:
-  //----------------------------------------------------------------------------
-  //! Constructor
-  //----------------------------------------------------------------------------
-  QuotaStats() = default;
-
-  //----------------------------------------------------------------------------
-  //! Destructor
-  //----------------------------------------------------------------------------
-  virtual ~QuotaStats();
-
-  //----------------------------------------------------------------------------
-  //! Configure the quota service
-  //----------------------------------------------------------------------------
-  virtual void configure(const std::map<std::string, std::string>& config)
-  override
-  {
-    // noting to do for this implementation
-    return;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get the set of all quota node ids. The quota node id corresponds to the
-  //! container id.
+  //! Get the set of uids for which information is stored in the current quota
+  //! node.
   //!
-  //! @return set of quota node ids
+  //! @return set of uids
   //----------------------------------------------------------------------------
-  std::unordered_set<IContainerMD::id_t> getAllIds() override;
+  std::unordered_set<uint64_t> getUids() const;
 
   //----------------------------------------------------------------------------
-  //! Get a quota node associated to the container id
+  //! Get the set of gids for which information is stored in the current quota
+  //! node.
+  //!
+  //! @return set of gids
   //----------------------------------------------------------------------------
-  IQuotaNode* getQuotaNode(IContainerMD::id_t nodeId) override;
+  std::unordered_set<uint64_t> getGids() const;
 
   //----------------------------------------------------------------------------
-  //! Register a new quota node
+  //! operator=
   //----------------------------------------------------------------------------
-  IQuotaNode* registerNewNode(IContainerMD::id_t nodeId) override;
+  QuotaNodeCore& operator=(const QuotaNodeCore&);
 
   //----------------------------------------------------------------------------
-  //! Remove quota node
+  //! operator<< (replacing all entries from update in core)
   //----------------------------------------------------------------------------
-  void removeNode(IContainerMD::id_t nodeId) override;
+  QuotaNodeCore& operator<< (const QuotaNodeCore &update);
+
+  //----------------------------------------------------------------------------
+  //! equality operator==
+  //----------------------------------------------------------------------------
+  bool operator==(const QuotaNodeCore& other) const;
+
+  //----------------------------------------------------------------------------
+  //! set usage info by uid
+  //----------------------------------------------------------------------------
+  void setByUid(uid_t uid, const UsageInfo& info);
+
+  //----------------------------------------------------------------------------
+  //! set usage info by gid
+  //----------------------------------------------------------------------------
+  void setByGid(gid_t gid, const UsageInfo& info);
+
+  //----------------------------------------------------------------------------
+  //! filter usage info by uid
+  //----------------------------------------------------------------------------
+  void filterByUid(uid_t uid);
+
+  //----------------------------------------------------------------------------
+  //! filter usage info by gid
+  //----------------------------------------------------------------------------
+  void filterByGid(gid_t gid);
 
 private:
-  std::map<IContainerMD::id_t, IQuotaNode*> pNodeMap; ///< Map of quota nodes
+  friend class IQuotaNode;
+  friend class QuotaNode;
+  friend class QuarkQuotaNode;
+  mutable std::shared_timed_mutex mtx;
+  std::map<uid_t, UsageInfo> mUserInfo;
+  std::map<gid_t, UsageInfo> mGroupInfo;
 };
 
 EOSNSNAMESPACE_END

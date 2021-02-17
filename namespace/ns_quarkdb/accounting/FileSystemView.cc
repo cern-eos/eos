@@ -21,7 +21,6 @@
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
 #include "namespace/ns_quarkdb/ConfigurationParser.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
-#include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
 #include "common/StringTokenizer.hh"
@@ -36,9 +35,9 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-QuarkFileSystemView::QuarkFileSystemView(qclient::QClient *qcl,
-  MetadataFlusher *flusher)
- : pFlusher(flusher), pQcl(qcl), mExecutor(new folly::IOThreadPoolExecutor(8))
+QuarkFileSystemView::QuarkFileSystemView(qclient::QClient* qcl,
+    MetadataFlusher* flusher)
+  : pFlusher(flusher), pQcl(qcl), mExecutor(new folly::IOThreadPoolExecutor(8))
 { }
 
 //------------------------------------------------------------------------------
@@ -49,7 +48,6 @@ QuarkFileSystemView::configure(const std::map<std::string, std::string>& config)
 {
   // No configuration to read, everything we need has been passed to the
   // constructor already.
-
   auto start = std::time(nullptr);
   loadFromBackend();
   auto end = std::time(nullptr);

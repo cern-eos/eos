@@ -21,7 +21,6 @@
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/ContainerMD.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
-#include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataProvider.hh"
 #include "namespace/utils/StringConvertion.hh"
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"

@@ -83,7 +83,7 @@ public:
   //----------------------------------------------------------------------------
   //! Boot namespace
   //!
-  //1 @return true if successful, otherwise false
+  //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   virtual bool BootNamespace() = 0;
 
@@ -153,7 +153,7 @@ public:
   //----------------------------------------------------------------------------
   //! Add to master Log
   //----------------------------------------------------------------------------
-  inline void MasterLog(const char* log);
+  void MasterLog(const char* log);
 
   //----------------------------------------------------------------------------
   //! Populate namespace cache configuration

@@ -21,9 +21,7 @@
 // desc:   A helper function to run non-atomic "rm -rf" on a path
 //------------------------------------------------------------------------------
 
-#ifndef EOS_NS_RMRF_HELPER_HH
-#define EOS_NS_RMRF_HELPER_HH
-
+#pragma once
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/ContainerIterators.hh"
@@ -31,46 +29,47 @@
 
 EOSNSNAMESPACE_BEGIN
 
-class RmrfHelper {
+class RmrfHelper
+{
 public:
 
 //------------------------------------------------------------------------------
 // Run rm -rf on a given directory path.
 //------------------------------------------------------------------------------
-static void nukeDirectory(eos::IView *view, const std::string &path) {
-  IFileMDSvc* fileSvc = view->getFileMDSvc();
+  static void nukeDirectory(eos::IView* view, const std::string& path)
+  {
+    IFileMDSvc* fileSvc = view->getFileMDSvc();
+    std::shared_ptr<eos::IContainerMD> cont = view->getContainer(path);
+    std::shared_ptr<eos::IFileMD> file;
 
-  std::shared_ptr<eos::IContainerMD> cont = view->getContainer(path);
-  std::shared_ptr<eos::IFileMD> file;
+    for (auto itf = eos::FileMapIterator(cont); itf.valid(); itf.next()) {
+      file = fileSvc->getFileMD(itf.value());
 
-  for (auto itf = eos::FileMapIterator(cont); itf.valid(); itf.next()) {
-    file = fileSvc->getFileMD(itf.value());
-
-    if (file) {
-      fileSvc->removeFile(file.get());
+      if (file) {
+        fileSvc->removeFile(file.get());
+      }
     }
+
+    std::vector<std::string> subcontainers;
+
+    for (auto itc = eos::ContainerMapIterator(cont); itc.valid(); itc.next()) {
+      std::ostringstream newpath;
+      newpath << path;
+
+      if (path[path.size() - 1] != '/') {
+        newpath << "/";
+      }
+
+      newpath << itc.key();
+      subcontainers.emplace_back(newpath.str());
+    }
+
+    for (size_t i = 0; i < subcontainers.size(); i++) {
+      nukeDirectory(view, subcontainers[i]);
+    }
+
+    view->removeContainer(path);
   }
-
-  std::vector<std::string> subcontainers;
-  for (auto itc = eos::ContainerMapIterator(cont); itc.valid(); itc.next()) {
-    std::ostringstream newpath;
-    newpath << path;
-    if(path[path.size()-1] != '/') newpath << "/";
-    newpath << itc.key();
-
-    subcontainers.emplace_back(newpath.str());
-  }
-
-  for(size_t i = 0; i < subcontainers.size(); i++) {
-    nukeDirectory(view, subcontainers[i]);
-  }
-
-  view->removeContainer(path);
-}
-
 };
 
-
 EOSNSNAMESPACE_END
-
-#endif

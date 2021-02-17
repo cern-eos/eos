@@ -22,7 +22,6 @@
 //------------------------------------------------------------------------------
 
 #pragma once
-
 #include <chrono>
 #include "namespace/Namespace.hh"
 #include "namespace/MDException.hh"
@@ -34,22 +33,25 @@ class XrdOucString;
 
 EOSNSNAMESPACE_BEGIN
 
-using ContainerSpecificationProto = eos::console::NsProto_ContainerSpecificationProto;
+using ContainerSpecificationProto =
+  eos::console::NsProto_ContainerSpecificationProto;
 
-class Resolver {
+class Resolver
+{
 public:
 
   //----------------------------------------------------------------------------
   //! Resolve a container specification message to a ContainerMD.
   //! Assumes caller holds eosViewRWMutex.
   //----------------------------------------------------------------------------
-  static IContainerMDPtr resolveContainer(IView *view, const ContainerSpecificationProto &proto);
+  static IContainerMDPtr resolveContainer(IView* view,
+                                          const ContainerSpecificationProto& proto);
 
   //----------------------------------------------------------------------------
   //! Parse FileIdentifier based on an string.
   //! Recognizes "fid:", "fxid:", "ino:"
   //----------------------------------------------------------------------------
-  static FileIdentifier retrieveFileIdentifier(XrdOucString &str);
+  static FileIdentifier retrieveFileIdentifier(XrdOucString& str);
 
 };
 

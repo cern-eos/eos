@@ -432,7 +432,6 @@ The EOS server installation containing MGM, FST & MQ service.
 
 %files -n eos-server
 %defattr(-, root, root, -)
-%{_bindir}/eos-ns-convert
 %{_bindir}/eos-ns-convert-to-locality-hashes
 %{_sbindir}/eosfilesync
 %{_sbindir}/eosdirsync
@@ -472,7 +471,6 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_libdir}/libEosFstOss.so
 %{_libdir}/libEosFstHttp.so
 %{_libdir}/libXrdEosFst-*.so
-%{_libdir}/libEosNsInMemory.so
 %{_libdir}/libXrdEosMgm-*.so
 %{_libdir}/libEosMgmHttp-*.so
 %{_libdir}/libXrdMqOfs-*.so
