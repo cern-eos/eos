@@ -287,9 +287,6 @@ ProcCommand::FileInfo(const char* path)
           eos::IFileMD::XAttrMap xattrs = fmd_copy->getAttributes();
           bool showFullpath = (option.find("-fullpath") != STR_NPOS);
           bool showProxygroup = (option.find("-proxy") != STR_NPOS);
-          char ctimestring[4096];
-          char mtimestring[4096];
-          char btimestring[4096];
           eos::IFileMD::ctime_t mtime;
           eos::IFileMD::ctime_t ctime;
           eos::IFileMD::ctime_t btime {0, 0};
@@ -320,19 +317,15 @@ ProcCommand::FileInfo(const char* path)
             }
 
             out << std::endl;
-            out << "  Size: " << fmd_copy->getSize()
+            out << "  Size: " << fmd_copy->getSize() << std::endl
+                << "Modify: " << eos::common::Timing::ltime(filemtime)
+                << " Timestamp: " << eos::common::Timing::TimespecToString(mtime)
                 << std::endl
-                << "Modify: " << ctime_r(&filemtime, mtimestring);
-            out.seekp(-1, std::ios_base::end);
-            out << " Timestamp: " << eos::common::Timing::TimespecToString(mtime)
+                << "Change: " << eos::common::Timing::ltime(filectime)
+                << " Timestamp: " << eos::common::Timing::TimespecToString(ctime)
                 << std::endl
-                << "Change: " << ctime_r(&filectime, ctimestring);
-            out.seekp(-1, std::ios_base::end);
-            out << " Timestamp: " << eos::common::Timing::TimespecToString(ctime)
-                << std::endl
-                << " Birth: " << ctime_r(&filebtime, btimestring);
-            out.seekp(-1, std::ios_base::end);
-            out << " Timestamp: " << eos::common::Timing::TimespecToString(btime)
+                << " Birth: " << eos::common::Timing::ltime(filebtime)
+                << " Timestamp: " << eos::common::Timing::TimespecToString(btime)
                 << std::endl
                 << "  CUid: " << fmd_copy->getCUid()
                 << " CGid: " << fmd_copy->getCGid()
@@ -614,7 +607,6 @@ ProcCommand::DirInfo(const char* path)
 
       // reference by pid+pxid
       //-------------------------------------------
-
       eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, fid);
       viewReadLock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
       std::string nspath;
@@ -702,10 +694,6 @@ ProcCommand::DirInfo(const char* path)
 
       if (Monitoring || !outputFilter) {
         eos::IFileMD::XAttrMap xattrs = dmd_copy->getAttributes();
-        char ctimestring[4096];
-        char mtimestring[4096];
-        char tmtimestring[4096];
-        char btimestring[4096];
         eos::IContainerMD::ctime_t ctime;
         eos::IContainerMD::mtime_t mtime;
         eos::IContainerMD::tmtime_t tmtime;
@@ -739,23 +727,19 @@ ProcCommand::DirInfo(const char* path)
           }
 
           out << std::endl;
-          out << "Modify: " << ctime_r(&filemtime, mtimestring);
-          out.seekp(-1, std::ios_base::end);
-          out << " Timestamp: " << eos::common::Timing::TimespecToString(mtime)
+          out << "Modify: " << eos::common::Timing::ltime(filemtime)
+              << " Timestamp: " << eos::common::Timing::TimespecToString(mtime)
               << std::endl
-              << "Change: " << ctime_r(&filectime, ctimestring);
-          out.seekp(-1, std::ios_base::end);
-          out << " Timestamp: " << eos::common::Timing::TimespecToString(ctime)
+              << "Change: " << eos::common::Timing::ltime(filectime)
+              << " Timestamp: " << eos::common::Timing::TimespecToString(ctime)
               << std::endl
-              << "Sync  : " << ctime_r(&filetmtime, tmtimestring);
-          out.seekp(-1, std::ios_base::end);
-          out << " Timestamp: " << eos::common::Timing::TimespecToString(tmtime)
+              << "Sync  : " << eos::common::Timing::ltime(filetmtime)
+              << " Timestamp: " << eos::common::Timing::TimespecToString(tmtime)
               << std::endl
-              << "Birth : " << ctime_r(&filebtime, btimestring);
-          out.seekp(-1, std::ios_base::end);
-          out << " Timestamp: " << eos::common::Timing::TimespecToString(btime)
-              << std::endl;
-          out << "  CUid: " << dmd_copy->getCUid()
+              << "Birth : " << eos::common::Timing::ltime(filebtime)
+              << " Timestamp: " << eos::common::Timing::TimespecToString(btime)
+              << std::endl
+              << "  CUid: " << dmd_copy->getCUid()
               << " CGid: " << dmd_copy->getCGid()
               << " Fxid: " << hex_fid
               << " Fid: " << dmd_copy->getId()
@@ -834,15 +818,17 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
                        e.getMessage().str().c_str());
 
       if (!fmd) {
-	if (dolock) {
-	  viewReadLock.Release();
-	}
+        if (dolock) {
+          viewReadLock.Release();
+        }
+
         std::rethrow_exception(std::current_exception());
       }
     }
 
     std::shared_ptr<eos::IFileMD> fmd_copy(fmd->clone());
     fmd.reset();
+
     if (dolock) {
       viewReadLock.Release();
     }
@@ -988,7 +974,6 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     std::shared_ptr<eos::IContainerMD> cmd;
     std::string path;
     bool detached;
-
     eos::Prefetcher::prefetchContainerMDWithParentsAndWait(gOFS->eosView, fid);
 
     if (dolock) {
