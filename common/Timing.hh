@@ -489,16 +489,18 @@ public:
   {
     struct tm* timeinfo;
     timeinfo = localtime(&t);
-    char a_time[4096];
+    char a_time[32];
     a_time[0] = 0;
-    asctime_r(timeinfo, a_time);
-    std::string s_atime = a_time;
 
-    if (s_atime.length()) {
-      s_atime.erase(s_atime.length() - 1);
+    if (asctime_r(timeinfo, a_time) == nullptr) {
+      return "N/A";
     }
 
-    return s_atime;
+    if (strlen(a_time) > 2) {
+      a_time[strlen(a_time) - 1] = '\0';
+    }
+
+    return a_time;
   }
 
   //----------------------------------------------------------------------------
