@@ -7,6 +7,9 @@ stages:
   - publish
   - clean
 
+include:
+  - template: Code-Quality.gitlab-ci.yml
+
 default:
   before_script:
     - source gitlab-ci/export_codename.sh
@@ -518,6 +521,26 @@ cc7_asan_docker_image:
       - $COVERAGE_SCHEDULE
   allow_failure: true
 
+
+#-------------------------------------------------------------------------------
+# Code quality, from codeclimate plugins
+#-------------------------------------------------------------------------------
+
+code_quality:
+  artifacts:
+    paths: [gl-code-quality-report.json]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      allow_failure: true
+  tags:
+    - docker-privileged
+
+code_quality_html:
+  extends: code_quality
+  variables:
+    REPORT_FORMAT: html
+  artifacts:
+    paths: [gl-code-quality-report.html]
 
 #-------------------------------------------------------------------------------
 # Dock8rnetes testing framework (exec_cmd wraps both docker and k8s!)
