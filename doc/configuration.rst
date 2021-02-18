@@ -1,26 +1,26 @@
 .. _configuration:
 
 .. index::
-   single: Configuring EOS 
+   single: Configuring EOS
 
 
 Configuration
 =============
 
 .. image:: configuration.jpg
-   :width: 530px	  
+   :width: 530px
    :align: left
 
-This chapter discusses several components of EOS and how they are configured. 
+This chapter discusses several components of EOS and how they are configured.
 
 .. toctree::
    :maxdepth: 1
 
    configuration/archive
-   configuration/autorepair    
+   configuration/fsck
    configuration/balancing
-   configuration/converter	
-   configuration/draining      
+   configuration/converter
+   configuration/draining
    configuration/fuse
    configuration/fusex
    configuration/geobalancer
@@ -47,5 +47,3 @@ This chapter discusses several components of EOS and how they are configured.
    configuration/transfer
    configuration/tty
    configuration/wfe
-
-
