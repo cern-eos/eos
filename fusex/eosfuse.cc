@@ -5453,7 +5453,7 @@ EosFuse::listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
 
       for (auto it = map.begin(); it != map.end(); ++it) {
 	if (it->first.substr(0, 4) == "sys.") {
-	  if (!Instance().Config().options.no_eos_xattr_listing) {
+	  if (Instance().Config().options.no_eos_xattr_listing) {
 	    continue;
 	  }
 	  attrlist += "eos.";
