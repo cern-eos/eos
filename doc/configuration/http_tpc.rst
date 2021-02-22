@@ -219,9 +219,8 @@ contains a description of the functionality provided.
    http.key /etc/grid-security/daemon/hostkey.pem
    # Path to the "grid map file" to be used for mapping users to specific identities
    http.gridmap /etc/grid-security/grid-mapfile
-   # Load the XrdHttpVOMS security extractor plugin that is able to deal with
-   # proxy certificats and VOMS credentials
-   http.secxtractor libXrdHttpVOMS.so
+   # Load security extractor plugin able to deal with proxy certificates and VOMS credentials
+   http.secxtractor libXrdVoms.so
    # Optionally enable tracing on the HTTP plugin
    http.trace all
    # Load the XrdTpc external handler which deals only with COPY and OPTIONS http
