@@ -29,6 +29,8 @@
 
 /*----------------------------------------------------------------------------*/
 
+#include "namespace/Resolver.hh"
+
 int
 XrdMgmOfs::stat(const char* inpath,
                 struct stat* buf,
@@ -192,12 +194,21 @@ XrdMgmOfs::_stat(const char* path,
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
   try {
-    fmd = gOFS->eosView->getFile(cPath.GetPath(), follow);
+    if (strncmp(cPath.GetPath(), "/.fxid:", 7) == 0) {
+      XrdOucString spath = cPath.GetPath();
+      unsigned long long byfid = eos::Resolver::retrieveFileIdentifier(spath).getUnderlyingUInt64();
 
-    // if a stat comes with file/ return an error
-    if ( std::string(path).back() == '/' ) {
-      errno = EISDIR;
-      return Emsg(epname, error, errno, "stat", cPath.GetPath());
+      fmd = gOFS->eosFileService->getFileMD(byfid);
+      eos_info("msg=\"access by inode\" ino=%s", cPath.GetPath());
+
+    } else {
+      fmd = gOFS->eosView->getFile(cPath.GetPath(), follow);
+
+      // if a stat comes with file/ return an error
+      if ( std::string(path).back() == '/' ) {
+        errno = EISDIR;
+        return Emsg(epname, error, errno, "stat", cPath.GetPath());
+      }
     }
 
     if (uri) {
