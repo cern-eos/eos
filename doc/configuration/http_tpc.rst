@@ -451,6 +451,58 @@ To configure the **oidc-agent**, you can follow these steps:
    curl -v -L -H "Authorization: Bearer $SCI_TOKEN" https://esdss000.cern.ch:9000/eos/dev/replica/file1.dat
 
 
+To inspect the contents of a SciToken, one can use the following commands:
+
+.. code-block:: bash
+
+    echo $SCI_TOKEN | cut -d. -f2 | base64 --decode | jq .
+    {
+      "wlcg.ver": "1.0",
+      "sub": "faded49c-e1bc-4208-9634-682b2b8d16e5",
+      "aud": "https://wlcg.cern.ch/jwt/v1/any",
+      "nbf": 1613993622,
+      "scope": "address storage.create:/ phone openid offline_access profile storage.read:/ storage.modify:/ email wlcg wlcg.groups",
+      "iss": "https://wlcg.cloud.cnaf.infn.it/",
+      "exp": 1613997222,
+      "iat": 1613993622,
+      "jti": "ea07cad1-f504-4c16-9e22-da5de2876ca7",
+      "client_id": "710b4313-5ff7-4992-a59d-d404ea9d4ac5",
+      "wlcg.groups": [
+                "/wlcg",
+                "/wlcg/xfers"
+       ]
+    }
+
+HTTP TPC PULL transfers with CURL
+----------------------------------
+
+The following snippet provides the steps necessary for obtaining the necessary tokens for doing a HTTP TPC PULL transfer.
+
+.. code-block:: bash
+
+   export SRC=https://esdss000.cern.ch//eos/opstest/esindril/file.dat
+   export DST=https://esdss000.cern.ch//eos/opstest/esindril/file1.dat
+   # Get macaroon for source
+   export TSRC=$(curl --silent --cert /tmp/x509up_u$(id -u) --key /tmp/x509up_u$(id -u) --cacert /tmp/x509up_u$(id -u) --capath /etc/grid-security/certificates -X POST -H 'Content-Type: application/macaroon-request' -d '{"caveats": ["activity:DOWNLOAD"], "validity": "PT3000M"}' "$SRC" | jq -r '.macaroon')
+   # Get macaroon for destination
+   export TDST=$(curl --silent --cert /tmp/x509up_u$(id -u) --key /tmp/x509up_u$(id -u) --cacert /tmp/x509up_u$(id -u) --capath /etc/grid-security/certificates -X POST -H 'Content-Type: application/macaroon-request' -d '{"caveats": ["activity:UPLOAD,DELETE,LIST"], "validity": "PT3000M"}' "$DST" | jq -r '.macaroon')
+   # Trigger HTTP TPC PULL
+   curl -v --capath /etc/grid-security/certificates -L -X COPY -H 'Secure-Redirection: 1' -H 'X-No-Delegate: 1' -H 'Credentials: none' -H "Authorization: Bearer $TDST" -H "TransferHeaderAuthorization: Bearer $TSRC" -H "TransferHeaderTest: Test" -H "Source: $SRC" "$DST"
+
+The same thing now but for a HTTP TPC PUSH transfer.
+
+.. code-block:: bash
+
+   export SRC=https://esdss000.cern.ch//eos/opstest/esindril/xfile.dat
+   export DST=https://esdss000.cern.ch//eos/opstest/esindril/xfile1.dat
+   # Get macaroon for source
+   export TSRC=$(curl --silent --cert /tmp/x509up_u$(id -u) --key /tmp/x509up_u$(id -u) --cacert /tmp/x509up_u$(id -u) --capath /etc/grid-security/certificates -X POST -H 'Content-Type: application/macaroon-request' -d '{"caveats": ["activity:DOWNLOAD"], "validity": "PT3000M"}' "$SRC" | jq -r '.macaroon')
+   # Get macaroon for destination
+   export TDST=$(curl --silent --cert /tmp/x509up_u$(id -u) --key /tmp/x509up_u$(id -u) --cacert /tmp/x509up_u$(id -u) --capath /etc/grid-security/certificates -X POST -H 'Content-Type: application/macaroon-request' -d '{"caveats": ["activity:UPLOAD,DELETE,LIST"], "validity": "PT3000M"}' "$DST" | jq -r '.macaroon')
+   # Trigger HTTP TPC PUSH
+   curl -v --capath /etc/grid-security/certificates -L -X COPY -H 'Secure-Redirection: 1' -H 'X-No-Delegate: 1' -H 'Credentials: none' -H "Authorization: Bearer $TSRC" -H "TransferHeaderAuthorization: Bearer $TDST" -H "Destination: $DST" "$SRC"
+
+
 .. only:: adminmode
 
    HTTP TPC transfer triggered by FTS
