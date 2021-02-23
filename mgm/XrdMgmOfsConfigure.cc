@@ -346,7 +346,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   MgmQoSDir = "";
   MgmQoSConfigFile = "";
   IoReportStorePath = "/var/tmp/eos/report";
-  TmpStorePath = "/var/tmp/eos/mgm";
   MgmArchiveDstUrl = "";
   MgmArchiveSvcClass = "default";
   mPrepareDestSpace = "default";
@@ -404,24 +403,20 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // or archive
   struct stat dir_stat;
 
-  if (!::stat(TmpStorePath.c_str(), &dir_stat) && S_ISDIR(dir_stat.st_mode)) {
-    XrdOucString systemline = "rm -rf ";
-    systemline += TmpStorePath.c_str();
-    systemline += "/* >& /dev/null &";
+  if (!::stat("/tmp/eos.mgm/", &dir_stat) && S_ISDIR(dir_stat.st_mode)) {
+    XrdOucString systemline = "rm -rf /tmp/eos.mgm/* >& /dev/null &";
     int rrc = system(systemline.c_str());
 
     if (WEXITSTATUS(rrc)) {
       eos_err("%s returned %d", systemline.c_str(), rrc);
     }
   } else {
-    eos::common::Path out_dir(std::string(std::string(TmpStorePath.c_str()) +
-                                          "/dummy").c_str());
+    eos::common::Path out_dir("/tmp/eos.mgm/empty");
 
     if (!out_dir.MakeParentPath(S_IRWXU)) {
-      eos_err("Unable to create temporary output file directory %s",
-              TmpStorePath.c_str());
+      eos_err("Unable to create temporary output file directory /tmp/eos.mgm/");
       Eroute.Emsg("Config", errno, "create temporary output file"
-                  " directory", TmpStorePath.c_str());
+                  " directory /tmp/eos.mgm/");
       NoGo = 1;
       return NoGo;
     }
@@ -430,8 +425,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     if (::chown(out_dir.GetParentPath(), 2, 2)) {
       eos_err("Unable to own temporary output file directory %s",
               out_dir.GetParentPath());
-      Eroute.Emsg("Config", errno, "own output file directory",
-                  out_dir.GetParentPath());
+      Eroute.Emsg("Config", errno, "own output file directory /tmp/eos.mgm/");
       NoGo = 1;
       return NoGo;
     }
@@ -1295,7 +1289,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   std::vector<std::string> lFanOutTags {
     "Grpc", "Balancer", "Converter", "DrainJob", "ZMQ", "MetadataFlusher", "Http",
     "Master", "Recycle", "LRU", "WFE", "WFE::Job", "GroupBalancer",
-    "GeoBalancer", "GeoTreeEngine", "ReplicationTracker", "FileInspector", "Mounts", "OAuth", "DynamicEC", "#"};
+    "GeoBalancer", "GeoTreeEngine", "ReplicationTracker", "FileInspector", "Mounts", "OAuth", "DyanmicEC", "#"};
   // Get the XRootD log directory
   char* logdir = 0;
   XrdOucEnv::Import("XRDLOGDIR", logdir);
@@ -1674,7 +1668,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   eos::common::RWMutex* quota_mtx = &Quota::pMapMutex;
   eos::common::RWMutex* ns_mtx = &eosViewRWMutex;
   eos::common::RWMutex* fusex_client_mtx = &gOFS->zMQ->gFuseServer.Client();
-  //eos::common::RWMutex* fusex_cap_mtx = &gOFS->zMQ->gFuseServer.Cap();
+  eos::common::RWMutex* fusex_cap_mtx = &gOFS->zMQ->gFuseServer.Cap();
   // eos::common::RWMutex::EstimateLatenciesAndCompensation();
   fs_mtx->SetBlocking(true);
   fs_mtx->SetDebugName("FsView");
@@ -1687,12 +1681,12 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   ns_mtx->SetTiming(false);
   ns_mtx->SetSampling(true, 0.01);
   fusex_client_mtx->SetDebugName("FusexClient");
-  //fusex_cap_mtx->SetDebugName("FusexCap");
+  fusex_cap_mtx->SetDebugName("FusexCap");
   std::vector<eos::common::RWMutex*> order;
   order.push_back(fs_mtx);
   order.push_back(ns_mtx);
   order.push_back(fusex_client_mtx);
-  //order.push_back(fusex_cap_mtx);
+  order.push_back(fusex_cap_mtx);
   order.push_back(quota_mtx);
   eos::common::RWMutex::AddOrderRule("Eos Mgm Mutexes", order);
 #endif
@@ -1949,8 +1943,10 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
                               MgmProcTrackerPath.c_str()));
   // Initialize the file inspector
   mFileInspector.reset(FileInspector::Create());
+
   // Initialize DynamicEC
-  mDynamicEC.reset(new eos::mgm::DynamicEC());
+  //mDynamicEC.reset(new eos::mgm::DynamicEC());
+
   // Set also the archiver ZMQ endpoint were client requests are sent
   std::ostringstream oss;
   oss << "ipc://" << MgmArchiveDir.c_str() << "archive_frontend.ipc";

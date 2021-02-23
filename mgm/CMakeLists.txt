@@ -225,10 +225,8 @@ add_library(
   GroupBalancer.cc
   GeoBalancer.cc
   DynamicEC.cc
-  DynamicScanner.cc
   DynamicEC.hh
   DynamicECFile.cc
-  DynamicCreator.cc
   
   Features.cc
   ZMQ.cc
@@ -247,7 +245,6 @@ add_library(
   LRU.cc
   WFE.cc
   Workflow.cc
-  InFlightTracker.cc
   grpc/GrpcServer.cc   grpc/GrpcServer.hh
   grpc/GrpcNsInterface.cc   grpc/GrpcNsInterface.hh
   grpc/GrpcManilaInterface.cc   grpc/GrpcManilaInterface.hh

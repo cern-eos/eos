@@ -60,7 +60,6 @@ set(MGM_UT_SRCS
   mgm/IdTrackerTests.cc
   mgm/FsckEntryTests.cc
   mgm/FusexCastBatchTests.cc
-  mgm/CapsTests.cc
   mgm/tgc/CachedValueTests.cc
   mgm/tgc/FreedBytesHistogramTests.cc
   mgm/tgc/LruTests.cc
@@ -72,7 +71,6 @@ set(MGM_UT_SRCS
   mgm/XrdMgmOfsTests.cc
   mgm/XrdMgmOfsFileTests.cc
   mgm/DynamicECTests.cc
-  mgm/DynamicECProductionTest.cc
   mgm/DynamicECExtraTest.cc)
 
 set(COMMON_UT_SRCS
@@ -94,8 +92,7 @@ set(COMMON_UT_SRCS
   common/XrdConnPoolTests.cc
   common/RateLimitTests.cc
   common/EosTokenTests.cc
-  common/BufferManagerTests.cc
-  common/ConcurrentQueueTests.cc)
+  common/BufferManagerTests.cc)
 
 set(FST_UT_SRCS
   fst/XrdFstOfsTests.cc
@@ -104,7 +101,6 @@ set(FST_UT_SRCS
   fst/UtilsTest.cc
   fst/XrdFstOfsFileInternalTest.cc
   fst/ScanDirTests.cc
-  fst/LoadTests.cc
   fst/MonitorVarPartitionTest.cc)
   
   
@@ -120,7 +116,7 @@ set(UT_SRCS
 
 set(UT_FST_SRCS
   ${FST_UT_SRCS})
- 
+
 #-------------------------------------------------------------------------------
 # eos-unit-tests executable
 #-------------------------------------------------------------------------------
@@ -135,7 +131,7 @@ target_link_libraries(eos-unit-tests PRIVATE
   gmock
   qclient
   XROOTD::POSIX
-  XROOTD::SERVER 
+  XROOTD::SERVER
   XrdEosMgm-Static)
 
 #-------------------------------------------------------------------------------
