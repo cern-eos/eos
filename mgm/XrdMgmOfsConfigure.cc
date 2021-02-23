@@ -55,6 +55,7 @@
 #include "mgm/inspector/FileInspector.hh"
 #include "mgm/qos/QoSClass.hh"
 #include "mgm/qos/QoSConfig.hh"
+#include "mgm/DynamicEC.hh"
 #include "common/RWMutex.hh"
 #include "common/StacktraceHere.hh"
 #include "common/plugin_manager/PluginManager.hh"
@@ -1288,7 +1289,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   std::vector<std::string> lFanOutTags {
     "Grpc", "Balancer", "Converter", "DrainJob", "ZMQ", "MetadataFlusher", "Http",
     "Master", "Recycle", "LRU", "WFE", "WFE::Job", "GroupBalancer",
-    "GeoBalancer", "GeoTreeEngine", "ReplicationTracker", "FileInspector", "Mounts", "OAuth", "#"};
+    "GeoBalancer", "GeoTreeEngine", "ReplicationTracker", "FileInspector", "Mounts", "OAuth", "DyanmicEC", "#"};
   // Get the XRootD log directory
   char* logdir = 0;
   XrdOucEnv::Import("XRDLOGDIR", logdir);
@@ -1942,6 +1943,10 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
                               MgmProcTrackerPath.c_str()));
   // Initialize the file inspector
   mFileInspector.reset(FileInspector::Create());
+
+  // Initialize DynamicEC
+  //mDynamicEC.reset(new eos::mgm::DynamicEC());
+
   // Set also the archiver ZMQ endpoint were client requests are sent
   std::ostringstream oss;
   oss << "ipc://" << MgmArchiveDir.c_str() << "archive_frontend.ipc";

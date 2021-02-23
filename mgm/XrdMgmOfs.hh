@@ -172,6 +172,7 @@ class ReplicationTracker;
 class FileInspector;
 class ConversionJob;
 class ConverterDriver;
+class DynamicEC;
 }
 
 namespace eos::mgm::tgc
@@ -1817,6 +1818,9 @@ public:
   //! WFE object running the WFE engine
   std::unique_ptr<WFE> WFEPtr;
   WFE& WFEd;
+
+  //! DynamicEC object
+  std::unique_ptr<DynamicEC> mDynamicEC;
 
   //!  Admin socket
   std::unique_ptr<AdminSocket> AdminSocketServer;
