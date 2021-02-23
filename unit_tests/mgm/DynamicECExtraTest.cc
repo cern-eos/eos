@@ -20,7 +20,7 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-///test
+
 #include "gtest/gtest.h"
 #include "mgm/dynamicec/DynamicEC.hh"
 #include "common/LayoutId.hh"
@@ -32,6 +32,7 @@
 /*
 TEST(DynamicECTest, LookInMap)
 {
+
   eos::mgm::DynamicEC UUT(11556926,10000000,1,1);
   UUT.fillFiles();
   //This is for 100000 files in the system
