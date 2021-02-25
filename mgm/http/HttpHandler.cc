@@ -21,17 +21,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "mgm/http/HttpServer.hh"
 #include "mgm/http/HttpHandler.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Stat.hh"
 #include "common/Timing.hh"
+#include "common/ErrnoToString.hh"
 #include "common/http/PlainHttpResponse.hh"
 #include "common/http/OwnCloud.hh"
 #include "namespace/utils/Mode.hh"
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -149,6 +148,7 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
 eos::common::HttpResponse*
 HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
 {
+  using eos::common::ErrnoToString;
   XrdSecEntity client(mVirtualIdentity->prot.c_str());
   client.name = const_cast<char*>(mVirtualIdentity->uid_string.c_str());
   client.host = const_cast<char*>(mVirtualIdentity->host.c_str());
@@ -185,21 +185,16 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
       // check if this is a symlink
       XrdOucString link;
 
-      if ((!gOFS->_readlink(url.c_str(),
-                            error,
-                            *mVirtualIdentity,
-                            link)) && (link != "") &&
-          (link.beginswith("http://") ||
-           link.beginswith("https://"))) {
-        if (gOFS->access(url.c_str(),
-                         R_OK,
-                         error,
-                         &client,
-                         "")) {
-          // no permission
-          eos_static_info("method=GET error=EPERM path=%s",
+      if ((!gOFS->_readlink(url.c_str(), error, *mVirtualIdentity, link)) &&
+          (link != "") && (link.beginswith("http://") ||
+                           link.beginswith("https://"))) {
+        if (gOFS->access(url.c_str(), R_OK, error, &client, "")) {
+          // no permission or entry doesn't exist
+          eos_static_info("method=GET error=%i path=%s", error.getErrInfo(),
                           url.c_str());
-          response = HttpServer::HttpError("Permission Denied",
+          response = HttpServer::HttpError(ErrnoToString(error.getErrInfo()).c_str(),
+                                           (error.getErrInfo() == ENOENT) ?
+                                           response->NOT_FOUND :
                                            response->FORBIDDEN);
           return response;
         }
@@ -213,15 +208,13 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
         response->AddHeader("X-Sendfile", link.c_str());
         return response;
       } else {
-        if (gOFS->access(url.c_str(),
-                         R_OK,
-                         error,
-                         &client,
-                         "")) {
-          // no permission
-          eos_static_info("method=GET error=EPERM path=%s",
+        if (gOFS->access(url.c_str(), R_OK, error, &client, "")) {
+          // no permission or entry doesn't exist
+          eos_static_info("method=GET error=%i path=%s", error.getErrInfo(),
                           url.c_str());
-          response = HttpServer::HttpError("Permission Denied",
+          response = HttpServer::HttpError(ErrnoToString(error.getErrInfo()).c_str(),
+                                           (error.getErrInfo() == ENOENT) ?
+                                           response->NOT_FOUND :
                                            response->FORBIDDEN);
           return response;
         }
@@ -332,27 +325,19 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
                     url.c_str());
     errno = 0;
     {
-      // -----------------------------------------------------------------------
-      // check if there is an index attribute
-      // -----------------------------------------------------------------------
-      XrdOucErrInfo error(mVirtualIdentity->tident.c_str());
+      // Check if there is an index attribute
       XrdOucString index;
+      XrdOucErrInfo error(mVirtualIdentity->tident.c_str());
 
-      if (!gOFS->_attr_get(url.c_str(),
-                           error,
-                           *mVirtualIdentity,
-                           "",
-                           "sys.http.index",
-                           index)) {
-        if (gOFS->access(url.c_str(),
-                         R_OK,
-                         error,
-                         &client,
-                         "")) {
-          // no permission
-          eos_static_info("method=GET error=EPERM path=%s",
+      if (!gOFS->_attr_get(url.c_str(), error, *mVirtualIdentity, "",
+                           "sys.http.index", index)) {
+        if (gOFS->access(url.c_str(), R_OK, error, &client, "")) {
+          // no permission or entry doesn't exist
+          eos_static_info("method=GET error=%i path=%s", error.getErrInfo(),
                           url.c_str());
-          response = HttpServer::HttpError("No such file or directory",
+          response = HttpServer::HttpError(ErrnoToString(error.getErrInfo()).c_str(),
+                                           (error.getErrInfo() == ENOENT) ?
+                                           response->NOT_FOUND :
                                            response->FORBIDDEN);
           return response;
         }
