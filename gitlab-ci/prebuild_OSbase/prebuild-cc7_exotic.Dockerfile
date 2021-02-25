@@ -13,14 +13,14 @@ RUN if [[ $PREBUILD_NAME == "cc7_xrd_testing" ]]; then \
     fi
 
 RUN yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar ccache centos-release-scl rpm-sign \
-    && source gitlab-ci/export_branch.sh \
-    && echo "Exporting BRANCH=${BRANCH}" \
+    && source gitlab-ci/export_codename.sh \
+    && echo "Exporting CODENAME=${CODENAME}" \
     && git submodule update --init --recursive \
     && mkdir build \
     && cd build/ \
     && cmake3 ../ -DPACKAGEONLY=1 ${CMAKE_OPTIONS} && make srpm \
     && cd ../ \
-    && echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n' >> /etc/yum.repos.d/eos-depend.repo \
+    && echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${CODENAME}'-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n' >> /etc/yum.repos.d/eos-depend.repo \
     && yum-builddep --nogpgcheck --setopt="cern*.exclude=xrootd*" -y build/SRPMS/* \
     && yum install -y moreutils \
     && yum clean all
