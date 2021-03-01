@@ -4,6 +4,7 @@
 
 EOS_XRDCP=/opt/eos/xrootd/bin/xrdcp
 EOS_MGM_ALIAS=${SERVER_HOST}
+EOS_GEOTAG=local::geo
 
 # ------------------------------------------------------------ #
 # create a private mount namespace for the process
