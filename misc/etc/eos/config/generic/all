@@ -1,0 +1,33 @@
+# ------------------------------------------------------------ #
+[init]
+# ------------------------------------------------------------ #
+
+mkdir -p /var/run/eos/
+chown daemon:root /var/run/eos/
+if [ -e /etc/eos.keytab ]; then chown daemon /etc/eos.keytab ; chmod 400 /etc/eos.keytab ; fi
+mkdir -p /var/eos/md /var/eos/report
+chmod 755 /var/eos /var/eos/report
+mkdir -p /var/spool/eos/core/mgm /var/spool/eos/core/mq /var/spool/eos/core/fst /var/spool/eos/core/qdb /var/spool/eos/admin
+mkdir -p /var/log/eos
+chown -R daemon /var/spool/eos
+find /var/log/eos -maxdepth 1 -type d -exec chown daemon {} \;
+find /var/eos/ -maxdepth 1 -mindepth 1 -not -path "/var/eos/fs" -not -path "/var/eos/fusex" -type d -exec chown -R daemon {} \;
+chmod -R 775 /var/spool/eos
+mkdir -p /var/eos/auth /var/eos/stage
+chown daemon /var/eos/auth /var/eos/stage
+setfacl -m default:u:daemon:r /var/eos/auth/
+
+
+# ------------------------------------------------------------ #
+[sysconfig]
+# ------------------------------------------------------------ #
+
+# EOSHOST is replaced by the eos CLI with the current hostname
+SERVER_HOST=${EOSHOST}
+INSTANCE_NAME=eosdev
+GEO_TAG=local
+
+
+EOS_XROOTD=/opt/eos/xrootd/
+LD_LIBRARY_PATH=${EOS_XROOTD}/lib64
+LD_PRELOAD=/usr/lib64/libjemalloc.so.1
