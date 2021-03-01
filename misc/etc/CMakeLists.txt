@@ -46,25 +46,25 @@ install(
 
 
 install(
-  FILES config/mgm/mgm
-  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/config/mgm/)
+  FILES eos/config/mgm/mgm
+  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/eos/config/mgm/)
 
 
 install(
-  FILES config/fst/fst
-  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/config/fst/)
+  FILES eos/config/fst/fst
+  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/eos/config/fst/)
 
 install(
-  FILES config/mq/mq
-  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/config/mq/)
+  FILES eos/config/mq/mq
+  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/eos/config/mq/)
 
 install(
   FILES config/generic/all
-  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/config/generic/)
+  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/eos/config/generic/)
 
 install(
   FILES config/qdb/qdb
-  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/config/qdb/)
+  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/eos/config/qdb/)
 
 install(
   FILES bash_completion.d/eos
