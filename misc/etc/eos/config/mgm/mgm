@@ -1,0 +1,256 @@
+# ------------------------------------------------------------ #
+[mgm:xrootd:mgm]
+# ------------------------------------------------------------ #
+
+###########################################################
+xrootd.fslib libXrdEosMgm.so
+xrootd.seclib libXrdSec.so
+xrootd.async off nosf
+xrootd.chksum adler32
+###########################################################
+xrd.sched mint 8 maxt 256 idle 64
+###########################################################
+all.export / nolock
+all.role manager
+###########################################################
+oss.fdlimit 16384 32768
+###########################################################
+# UNIX authentication
+sec.protocol unix
+
+# SSS authentication
+sec.protocol sss -c /etc/eos.keytab -s /etc/eos.keytab
+
+# KRB  authentication
+#sec.protocol krb5 -exptkn:/var/eos/auth/krb5#<uid> host/<host>@CERN.CH
+#sec.protocol krb5 host/<host>@CERN.CH
+
+# GSI authentication
+#sec.protocol gsi -crl:0 -cert:/etc/grid-security/daemon/hostcert.pem -key:/etc/grid-security/daemon/hostkey.pem -gridmap:/etc/grid-security/grid-mapfile -d:0 -gmapopt:2 -vomsat:1 -moninfo:1 -exppxy:/var/eos/auth/gsi#<uid>
+
+#sec.protocol gsi -crl:0 -cert:/etc/grid-security/daemon/hostcert.pem -key:/etc/grid-security/daemon/hostkey.pem -gridmap:/etc/grid-security/grid-mapfile -d:0 -gmapopt:2 -vomsat:1 -moninfo:1
+
+###########################################################
+sec.protbind localhost.localdomain unix sss
+sec.protbind localhost unix sss
+sec.protbind * only sss unix
+###########################################################
+mgmofs.fs /
+mgmofs.targetport 1095
+#mgmofs.authlib libXrdAliceTokenAcc.so
+#mgmofs.authorize 1
+###########################################################
+#mgmofs.trace all debug
+# this URL can be overwritten by EOS_BROKER_URL in [sysconfig]
+mgmofs.broker ${EOS_BROKER_URL}
+# this name can be overwritten by EOS_INSTANCE_NAME defined in [sysconfig]
+mgmofs.instance ${EOS_INSTANCE_NAME}
+
+# namespace, transfer and authentication export directory
+mgmofs.metalog /var/eos/md
+mgmofs.txdir /var/eos/tx
+mgmofs.authdir /var/eos/auth
+mgmofs.archivedir /var/eos/archive
+mgmofs.qosdir /var/eos/qos
+
+# report store path
+mgmofs.reportstorepath /var/eos/report
+
+# this defines the default config to load
+mgmofs.autoloadconfig default
+
+# QoS configuration file
+mgmofs.qoscfg /var/eos/qos/qos.conf
+
+#-------------------------------------------------------------------------------
+# Config Engine Configuration
+#-------------------------------------------------------------------------------
+mgmofs.cfgtype file
+
+#-------------------------------------------------------------------------------
+# Configuration for the authentication plugin EosAuth
+#-------------------------------------------------------------------------------
+# Set the number of authentication worker threads running on the MGM
+#mgmofs.auththreads 10
+
+# Set the front end port number for incoming authentication requests
+#mgmofs.authport 15555
+
+###########################################################
+# Set the FST gateway host and port
+mgmofs.fstgw someproxy.cern.ch:3001
+
+#-------------------------------------------------------------------------------
+# Configuration for the authentication plugin EosAuth
+#-------------------------------------------------------------------------------
+# Set the number of authentication worker threads running on the MGM
+#mgmofs.auththreads 10
+
+# Set the front end port number for incoming authentication requests
+#mgmofs.authport 15555
+
+#-------------------------------------------------------------------------------
+# Set the namespace plugin implementation
+#-------------------------------------------------------------------------------
+#mgmofs.nslib /usr/lib64/libEosNsQuarkdb.so
+
+# Quarkdb custer configuration used for the namespace
+#mgmofs.qdbcluster localhost:7777
+#mgmofs.qdbpassword_file /etc/eos.keytab
+
+#-------------------------------------------------------------------------------
+# Configuration for the MGM workflow engine
+#-------------------------------------------------------------------------------
+
+# The SSI protocol buffer endpoint for notification messages from "proto" workflow actions
+#mgmofs.protowfendpoint HOSTNAME.2NDLEVEL.TOPLEVEL:10955
+#mgmofs.protowfresource /SSI_RESOURCE
+
+#-------------------------------------------------------------------------------
+# Confguration parameters for tape
+#-------------------------------------------------------------------------------
+
+#mgmofs.tapeenabled false
+#mgmofs.prepare.dest.space default
+
+#-------------------------------------------------------------------------------
+# Configuration for the tape aware garbage collector
+#-------------------------------------------------------------------------------
+
+# EOS spaces for which the tape aware garbage collector should be enabled
+#mgmofs.tgc.enablespace space1 space2 ...
+
+
+[sysconfig]
+# Should we run with another limit on the core file size other than the default
+DAEMON_COREFILE_LIMIT=unlimited
+
+# Preload jemalloc
+LD_PRELOAD=/usr/lib64/libjemalloc.so.1
+
+# Disable the KRB5 replay cache
+KRB5RCACHETYPE=none
+
+#-------------------------------------------------------------------------------
+# EOS MGM Configuration
+#-------------------------------------------------------------------------------
+
+# The fully qualified hostname of current MGM
+EOS_MGM_HOST=${SERVER_HOST}
+
+# The fully qualified hostname of target MGM
+EOS_MGM_HOST_TARGET=${SERVER_HOST}
+
+# Don't manage sync service
+EOS_START_SYNC_SEPARATELY=1
+
+# The EOS instance name
+EOS_INSTANCE_NAME=${INSTANCE_NAME}
+
+# The EOS configuration to load after daemon start
+EOS_AUTOLOAD_CONFIG=default
+
+# The EOS broker URL
+EOS_BROKER_URL=root://localhost:1097//eos/
+
+# The EOS host geo location tag used to sort hosts into geographical (rack) locations
+EOS_GEOTAG=${GEO_TAG}
+
+# The fully qualified hostname of MGM master1
+EOS_MGM_MASTER1=${SERVER_HOST}
+
+# The fully qualified hostname of MGM master2
+EOS_MGM_MASTER2=${SERVER_HOST}
+
+# The alias which selects master 1 or 2
+EOS_MGM_ALIAS=${SERVER_HOST}
+
+# Disable stack trace via GDB
+EOS_NO_STACKTRACE=1
+
+# Enable core dumps initiated internally
+#EOS_CORE_DUMP
+
+# Disable shutdown/signal handlers for debugging
+#EOS_NO_SHUTDOWN
+
+# Allow UTF-8 path names excluding only CR,LF
+EOS_UTF8=""
+
+# Add secondary group information from database/LDAP (set to 1 to enable)
+#EOS_SECONDARY_GROUPS=0
+
+# Do subtree accounting on directories (set to 1 to enable)
+EOS_NS_ACCOUNTING=1
+
+# Do sync time propagation (set to 1 to enable)
+EOS_SYNCTIME_ACCOUNTING=1
+
+# Use std::shared_timed_mutex for the RWMutex implementation - uncomment to
+# enable.
+# EOS_USE_SHARED_MUTEX=1
+
+# By default statvfs reports the total space if the path deepness is < 4
+# If you want to report only quota accouting you can define
+# EOS_MGM_STATVFS_ONLY_QUOTA=1
+
+# GRPC PORT (set to 0 to disable)
+# EOS_MGM_GRPC_PORT=50051
+
+# directories stored in the listing cache used by 'eos ls' and 'xrd ls'
+EOS_MGM_LISTING_CACHE=0
+
+# allow to have two FSTs on the same physical node in the ame group
+EOS_ALLOW_SAME_HOST_IN_GROUP=1
+
+#-------------------------------------------------------------------------------
+# HTTPD Configuration
+#-------------------------------------------------------------------------------
+# HTTP server ports
+
+# MGM
+EOS_MGM_HTTP_PORT=8000
+
+# HTTP uses by default one thread per connection
+# EOS_HTTP_THREADPOOL=threads
+
+# Use EPOLL and 16 threads
+EOS_HTTP_THREADPOOL=epoll
+EOS_HTTP_THREADPOOL_SIZE=16
+
+# Memory buffer size per connection
+# EOS_HTTP_CONNECTION_MEMORY_LIMIT=134217728 (default 128M)
+EOS_HTTP_CONNECTION_MEMORY_LIMIT=4194304
+
+# Timeout after which an idle connection is considered to be closed (default 2 min)
+# EOS_HTTP_CONNECTION_TIMEOUT=120
+
+#-------------------------------------------------------------------------------
+# FUSEX Configuration
+#-------------------------------------------------------------------------------
+
+# Listener port of the ZMQ server used by FUSEx)
+# EOS_MGM_FUSEX_PORT=1100
+
+# max number of children listed via FUSEX
+EOS_MGM_FUSEX_MAX_CHILDREN=262144
+
+#-------------------------------------------------------------------------------
+# Archive configuration
+#-------------------------------------------------------------------------------
+
+# Set the root destination for all archives beloging to this instance
+# EOS_ARCHIVE_URL=root://castorpps.cern.ch//user/cern.ch/c3/archive/
+
+# Set the CASTOR service class (svcClass) for all file transfers to CASTOR
+# EOS_ARCHIVE_SVCCLASS=default
+
+#-------------------------------------------------------------------------------
+# MGM TTY Console Broadcast Configuration
+#-------------------------------------------------------------------------------
+
+# define the log file where you want to grep
+# EOS_TTY_BROADCAST_LISTEN_LOGFILE="/var/log/eos/mgm/xrdlog.mgm"
+
+# define the log file regex you want to broad cast to all consoles
+# EOS_TTY_BROACAST_EGREP="\"CRIT|ALERT|EMERG|PROGRESS\""
