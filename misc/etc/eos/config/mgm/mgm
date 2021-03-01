@@ -63,11 +63,6 @@ mgmofs.autoloadconfig default
 mgmofs.qoscfg /var/eos/qos/qos.conf
 
 #-------------------------------------------------------------------------------
-# Config Engine Configuration
-#-------------------------------------------------------------------------------
-mgmofs.cfgtype quarkdb
-
-#-------------------------------------------------------------------------------
 # Configuration for the authentication plugin EosAuth
 #-------------------------------------------------------------------------------
 # Set the number of authentication worker threads running on the MGM
