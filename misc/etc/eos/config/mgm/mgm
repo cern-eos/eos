@@ -65,7 +65,7 @@ mgmofs.qoscfg /var/eos/qos/qos.conf
 #-------------------------------------------------------------------------------
 # Config Engine Configuration
 #-------------------------------------------------------------------------------
-mgmofs.cfgtype file
+mgmofs.cfgtype quarkdb
 
 #-------------------------------------------------------------------------------
 # Configuration for the authentication plugin EosAuth
@@ -92,11 +92,11 @@ mgmofs.fstgw someproxy.cern.ch:3001
 #-------------------------------------------------------------------------------
 # Set the namespace plugin implementation
 #-------------------------------------------------------------------------------
-#mgmofs.nslib /usr/lib64/libEosNsQuarkdb.so
+mgmofs.nslib /usr/lib64/libEosNsQuarkdb.so
 
 # Quarkdb custer configuration used for the namespace
-#mgmofs.qdbcluster localhost:7777
-#mgmofs.qdbpassword_file /etc/eos.keytab
+mgmofs.qdbcluster localhost:7777
+mgmofs.qdbpassword_file /etc/eos.keytab
 
 #-------------------------------------------------------------------------------
 # Configuration for the MGM workflow engine
