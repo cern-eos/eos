@@ -59,11 +59,11 @@ install(
   DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/eos/config/mq/)
 
 install(
-  FILES config/generic/all
+  FILES eos/config/generic/all
   DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/eos/config/generic/)
 
 install(
-  FILES config/qdb/qdb
+  FILES eos/config/qdb/qdb
   DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/eos/config/qdb/)
 
 install(
