@@ -626,6 +626,8 @@ ExclusiveArch: x86_64
 Requires: zeromq
 Requires: squashfs-tools
 
+Requires: elfutils
+
 # Select xrootd package
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
