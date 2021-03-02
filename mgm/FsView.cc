@@ -3022,7 +3022,7 @@ FsView::CollectEndpoints(const std::string& queue) const
         continue;
       }
     } else {
-      if (queue != fs->GetQueuePath()) {
+      if (queue != fs->GetQueue()) {
         continue;
       } else {
         if (fs->GetActiveStatus() != eos::common::ActiveStatus::kOnline) {
