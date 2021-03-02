@@ -15,6 +15,30 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.8.40 Citrine``
+===================
+
+2021-02-03
+
+Bug
+----
+
+* [EOS-4506] - Slowness when changing fs configurations when using eos space
+* [EOS-4540] - FST flips status from online to offline and back when cfg.status=off
+* [EOS-4582] - investigate far-in-the-future mtime, robustify "eos fileinfo"
+* MGM: Fix drain for RAIN 0-size files
+
+Improvements
+-------------
+
+* MGM/HTTP: Allow running XrdHttp without the need for token authentication
+* ALL: Improve logging functionality to avoid the long tail of performance
+
+Note
+----
+
+* Upgrade to XRootD-4.12.8
+
 
 ``v4.8.39 Citrine``
 ===================
