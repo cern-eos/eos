@@ -431,7 +431,7 @@ NodeCmd::ConfigFsSpecific(const std::set<std::string>& nodes,
 {
   using eos::common::FileSystem;
 
-  if ((FileSystem::GetConfigStatusFromString(value.c_str()) !=
+  if ((FileSystem::GetConfigStatusFromString(value.c_str()) ==
        eos::common::ConfigStatus::kUnknown)) {
     reply.set_std_err("error: not an allowed parameter <" + value + ">");
     reply.set_retc(EINVAL);
