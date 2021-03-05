@@ -71,11 +71,7 @@
 #include "mgm/Iostat.hh"
 #include "mgm/LRU.hh"
 #include "mgm/WFE.hh"
-<<<<<<< HEAD
 #include "mgm/dynamicec/DynamicEC.hh"
-=======
-#include "mgm/DynamicEC.hh"
->>>>>>> 3100629... Update files
 #include "mgm/fsck/Fsck.hh"
 #include "mgm/Master.hh"
 #include "mgm/FuseServer/FusexCastBatch.hh"

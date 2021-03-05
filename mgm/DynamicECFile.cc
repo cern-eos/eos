@@ -98,7 +98,7 @@ void DynamicECFile::addLocation(location_t location)
   /*IFileMDChangeListener::Event e(this,
                                  IFileMDChangeListener::LocationAdded,
                                  location);
-	*/
+  */
 }
 
 //------------------------------------------------------------------------------
@@ -120,10 +120,10 @@ void DynamicECFile::removeLocation(location_t location)
 
   if (removed) {
     lock.unlock();
-   /* IFileMDChangeListener::Event e(this,
-                                   IFileMDChangeListener::LocationRemoved,
-                                   location);
-  */
+    /* IFileMDChangeListener::Event e(this,
+                                    IFileMDChangeListener::LocationRemoved,
+                                    location);
+    */
   }
 }
 
@@ -144,10 +144,10 @@ void DynamicECFile::removeAllLocations()
   lock.unlock();
 
   for (auto const& loc : remove_loc) {
-   /* IFileMDChangeListener::Event e(this,
-                                   IFileMDChangeListener::LocationRemoved,
-                                   loc);
-  */
+    /* IFileMDChangeListener::Event e(this,
+                                    IFileMDChangeListener::LocationRemoved,
+                                    loc);
+    */
   }
 }
 
@@ -171,10 +171,10 @@ void DynamicECFile::unlinkLocation(location_t location)
 
   if (unlinked) {
     lock.unlock();
-  /*  IFileMDChangeListener::Event e(this,
-                                   IFileMDChangeListener::LocationUnlinked,
-                                   location);
-  */
+    /*  IFileMDChangeListener::Event e(this,
+                                     IFileMDChangeListener::LocationUnlinked,
+                                     location);
+    */
   }
 }
 
@@ -202,10 +202,10 @@ void DynamicECFile::unlinkAllLocations()
   std::shared_lock<std::shared_timed_mutex> slock(mMutex);
 
   for (auto const& loc : unlink_loc) {
-  /*  IFileMDChangeListener::Event e(this,
-                                   IFileMDChangeListener::LocationUnlinked,
-                                   loc);
-  */
+    /*  IFileMDChangeListener::Event e(this,
+                                     IFileMDChangeListener::LocationUnlinked,
+                                     loc);
+    */
   }
 }
 
@@ -266,15 +266,13 @@ void DynamicECFile::getEnv(std::string& env, bool escapeAnd)
   }
 }
 
-
+//test
 //------------------------------------------------------------------------------
 // Serialize the object to a buffer
 //------------------------------------------------------------------------------
 void DynamicECFile::serialize(Buffer& buffer)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-
-
   buffer.putData(&pId,          sizeof(pId));
   buffer.putData(&pCTime,       sizeof(pCTime));
   buffer.putData(&pMTime,       sizeof(pMTime));
