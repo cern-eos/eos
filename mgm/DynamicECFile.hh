@@ -29,12 +29,12 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   DynamicECFile(IFileMD::id_t id);
-/*
-  //----------------------------------------------------------------------------
-  //! Constructor
-  //----------------------------------------------------------------------------
-  virtual ~DynamicECFile() {};
-*/
+  /*
+    //----------------------------------------------------------------------------
+    //! Constructor
+    //----------------------------------------------------------------------------
+    virtual ~DynamicECFile() {};
+  */
   //----------------------------------------------------------------------------
   //! Virtual copy constructor
   //----------------------------------------------------------------------------
@@ -203,19 +203,19 @@ public:
 
   double getActualSizeFactor()
   {
+    //return eos::common::LayoutId::GetStripeNumber(this->getLayoutId()) ;
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
 
-	  //return eos::common::LayoutId::GetStripeNumber(this->getLayoutId()) ;
-	std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-	if(eos::common::LayoutId::GetLayoutType(this->getLayoutId()) == 5)
-		return ((1.0 * this-> getLocations().size()) /
-				(eos::common::LayoutId::GetStripeNumber(this->getLayoutId()) + 1 -
-						eos::common::LayoutId::GetRedundancyStripeNumber(this->getLayoutId())));
+    if (eos::common::LayoutId::GetLayoutType(this->getLayoutId()) == 5)
+      return ((1.0 * this-> getLocations().size()) /
+              (eos::common::LayoutId::GetStripeNumber(this->getLayoutId()) + 1 -
+               eos::common::LayoutId::GetRedundancyStripeNumber(this->getLayoutId())));
 
-		//return pSize * ((1.0 * eos::common::LayoutId::GetStripeNumber(this->getLayoutId())) /
-			//	(eos::common::LayoutId::GetStripeNumber(this->getLayoutId() + 1 -
-				//		(eos::common::LayoutId::GetStripeNumber(this->getLayoutId())-this->getLocations().size()))));
-	//eos::common::LayoutId::GetStripeNumber(this->getLayoutId()eos::common::LayoutId::GetStripeNumber(this->getLayeos::common::LayoutId::GetStripeNumber(this->getLayoutId()outId();
-	return 1.0;
+    //return pSize * ((1.0 * eos::common::LayoutId::GetStripeNumber(this->getLayoutId())) /
+    //  (eos::common::LayoutId::GetStripeNumber(this->getLayoutId() + 1 -
+    //    (eos::common::LayoutId::GetStripeNumber(this->getLayoutId())-this->getLocations().size()))));
+    //eos::common::LayoutId::GetStripeNumber(this->getLayoutId()eos::common::LayoutId::GetStripeNumber(this->getLayeos::common::LayoutId::GetStripeNumber(this->getLayoutId()outId();
+    return 1.0;
   }
 
   //----------------------------------------------------------------------------
@@ -319,6 +319,7 @@ public:
   location_t getLocation(unsigned int index) override
   {
     std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+
     if (index < pLocation.size()) {
       return pLocation[index];
     }
@@ -510,43 +511,44 @@ public:
     pFlags = flags;
   }
 
-  //----------------------------------------------------------------------------
+  //-------------------------------- --------------------------------------------
   //! Set the n-th flag
   //----------------------------------------------------------------------------
   void setFlag(uint8_t n, bool flag) override
   {
     std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+
     if (flag) {
       pFlags |= (1 << n);
     } else {
       pFlags &= (~(1 << n));
     }
   }
-
-  //----------------------------------------------------------------------------
+//test
+  //---------------- ------------------------------------------------------------
   //! Env Representation
   //----------------------------------------------------------------------------
   void getEnv(std::string& env, bool escapeAnd = false) override;
 
 
   // this is out while it is only for fileMD
-				  //----------------------------------------------------------------------------
-				  //! Set the FileMDSvc object
-				  //----------------------------------------------------------------------------
-				  void setFileMDSvc(IFileMDSvc* fileMDSvc) override
-				  {
-					std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-					pFileMDSvc = fileMDSvc;
-				  }
+  //----------------------------------------------------------------------------
+  //! Set the FileMDSvc object
+  //----------------------------------------------------------------------------
+  void setFileMDSvc(IFileMDSvc* fileMDSvc) override
+  {
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+    pFileMDSvc = fileMDSvc;
+  }
 
-				  //----------------------------------------------------------------------------
-				  //! Get the FileMDSvc object
-				  //----------------------------------------------------------------------------
-				  virtual IFileMDSvc* getFileMDSvc() override
-				  {
-					std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-					return pFileMDSvc;
-				  }
+  //----------------------------------------------------------------------------
+  //! Get the FileMDSvc object
+  //----------------------------------------------------------------------------
+  virtual IFileMDSvc* getFileMDSvc() override
+  {
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+    return pFileMDSvc;
+  }
 
 
 
