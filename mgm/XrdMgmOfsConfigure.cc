@@ -55,11 +55,7 @@
 #include "mgm/inspector/FileInspector.hh"
 #include "mgm/qos/QoSClass.hh"
 #include "mgm/qos/QoSConfig.hh"
-<<<<<<< HEAD
 #include "mgm/dynamicec/DynamicEC.hh"
-=======
-#include "mgm/DynamicEC.hh"
->>>>>>> 373ffe0... Update files
 #include "common/RWMutex.hh"
 #include "common/StacktraceHere.hh"
 #include "common/plugin_manager/PluginManager.hh"
@@ -1947,6 +1943,9 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
                               MgmProcTrackerPath.c_str()));
   // Initialize the file inspector
   mFileInspector.reset(FileInspector::Create());
+
+  // Initialize DynamicEC
+  mDynamicEC.reset(new eos::mgm::DynamicEC());
 
   // Set also the archiver ZMQ endpoint were client requests are sent
   std::ostringstream oss;
