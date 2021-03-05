@@ -69,7 +69,9 @@ set(MGM_UT_SRCS
   mgm/tgc/TapeGcTests.cc
   mgm/tgc/UtilsTests.cc
   mgm/XrdMgmOfsTests.cc
-  mgm/XrdMgmOfsFileTests.cc)
+  mgm/XrdMgmOfsFileTests.cc
+  mgm/DynamicECTests.cc
+  mgm/DynamicECExtraTest.cc)
 
 set(COMMON_UT_SRCS
   common/FileIdTests.cc
@@ -100,6 +102,8 @@ set(FST_UT_SRCS
   fst/XrdFstOfsFileInternalTest.cc
   fst/ScanDirTests.cc
   fst/MonitorVarPartitionTest.cc)
+  
+  
 
 #-------------------------------------------------------------------------------
 # unit tests source files
@@ -112,11 +116,13 @@ set(UT_SRCS
 
 set(UT_FST_SRCS
   ${FST_UT_SRCS})
-
+ 
 #-------------------------------------------------------------------------------
 # eos-unit-tests executable
 #-------------------------------------------------------------------------------
 add_executable(eos-unit-tests ${UT_SRCS})
+
+set_target_properties(eos-unit-tests PROPERTIES COMPILE_FLAGS -DGTEST=1)
 
 target_link_libraries(eos-unit-tests PRIVATE
   EosConsoleHelpers-Objects
@@ -125,7 +131,7 @@ target_link_libraries(eos-unit-tests PRIVATE
   gmock
   qclient
   XROOTD::POSIX
-  XROOTD::SERVER
+  XROOTD::SERVER 
   XrdEosMgm-Static)
 
 #-------------------------------------------------------------------------------

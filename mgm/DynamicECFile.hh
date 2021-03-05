@@ -1,189 +1,276 @@
-/************************************************************************
- * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2015 CERN/Switzerland                                  *
- *                                                                      *
- * This program is free software: you can redistribute it and/or modify *
- * it under the terms of the GNU General Public License as published by *
- * the Free Software Foundation, either version 3 of the License, or    *
- * (at your option) any later version.                                  *
- *                                                                      *
- * This program is distributed in the hope that it will be useful,      *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
- * GNU General Public License for more details.                         *
- *                                                                      *
- * You should have received a copy of the GNU General Public License    *
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
- ************************************************************************/
+#ifndef __EOS_NS_FILE_MD_HH__
+#define __EOS_NS_FILE_MD_HH__
 
-//------------------------------------------------------------------------------
-//! @author Elvin Sindrilaru <esindril@cern.ch>
-//! @brief Class representing the file metadata interface
-//------------------------------------------------------------------------------
+#include "namespace/interface/IFileMD.hh"
+#include "namespace/interface/IFileMDSvc.hh"
+#include "common/LayoutId.hh"
+#include "mgm/Namespace.hh"
 
-#ifndef EOS_NS_IFILE_MD_HH
-#define EOS_NS_IFILE_MD_HH
-
-#include "namespace/Namespace.hh"
-#include "namespace/utils/Buffer.hh"
-#include "namespace/utils/LocalityHint.hh"
-#include "namespace/interface/IContainerMD.hh"
-#include "namespace/interface/Identifiers.hh"
 #include <stdint.h>
+#include <cstring>
 #include <string>
+#include <vector>
 #include <sys/time.h>
-#include <memory>
+#include <cmath>
 
 EOSNSNAMESPACE_BEGIN
 
+//! Forward declaration
 class IFileMDSvc;
+class IContainerMD;
 
 //------------------------------------------------------------------------------
-//! Interface to file metadata
+//! Class holding the metadata information concerning a single file
 //------------------------------------------------------------------------------
-class IFileMD
+class DynamicECFile: public IFileMD
 {
 public:
   //----------------------------------------------------------------------------
-  //! Type definitions
-  //----------------------------------------------------------------------------
-  typedef uint64_t id_t;
-  typedef uint32_t location_t;
-  typedef uint32_t layoutId_t;
-  typedef struct timespec ctime_t;
-  typedef std::vector<location_t> LocationVector;
-  typedef std::map<std::string, std::string> XAttrMap;
-  typedef std::map<std::string, std::string> QoSAttrMap;
-
-  //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  IFileMD(): mIsDeleted(false) {};
-
-  //----------------------------------------------------------------------------
-  //! Destructor
-  //----------------------------------------------------------------------------
-  virtual ~IFileMD() {};
-
+  DynamicECFile(IFileMD::id_t id);
+  /*
+    //----------------------------------------------------------------------------
+    //! Constructor
+    //----------------------------------------------------------------------------
+    virtual ~DynamicECFile() {};
+  */
   //----------------------------------------------------------------------------
   //! Virtual copy constructor
   //----------------------------------------------------------------------------
-  virtual IFileMD* clone() const = 0;
+  virtual DynamicECFile* clone() const override;
+
+  //----------------------------------------------------------------------------
+  //! Copy constructor
+  //----------------------------------------------------------------------------
+  DynamicECFile(const DynamicECFile& other);
+
+  //----------------------------------------------------------------------------
+  //! Assignment operator
+  //----------------------------------------------------------------------------
+  DynamicECFile& operator = (const DynamicECFile& other);
 
   //----------------------------------------------------------------------------
   //! Get file id
   //----------------------------------------------------------------------------
-  virtual IFileMD::id_t getId() const = 0;
+  IFileMD::id_t getId() const override
+  {
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+    return pId;
+  }
 
   //----------------------------------------------------------------------------
   //! Get file identifier
   //----------------------------------------------------------------------------
-  virtual FileIdentifier getIdentifier() const = 0;
+  FileIdentifier getIdentifier() const override
+  {
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+    return FileIdentifier(pId);
+  }
 
   //----------------------------------------------------------------------------
   //! Get creation time
   //----------------------------------------------------------------------------
-  virtual void getCTime(ctime_t& ctime) const = 0;
+  void getCTime(ctime_t& ctime) const override
+  {
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+    ctime.tv_sec = pCTime.tv_sec;
+    ctime.tv_nsec = pCTime.tv_nsec;
+  }
 
   //----------------------------------------------------------------------------
   //! Set creation time
   //----------------------------------------------------------------------------
-  virtual void setCTime(ctime_t ctime) = 0;
+  void setCTime(ctime_t ctime) override
+  {
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+    pCTime.tv_sec = ctime.tv_sec;
+    pCTime.tv_nsec = ctime.tv_nsec;
+  }
 
   //----------------------------------------------------------------------------
   //! Set creation time to now
   //----------------------------------------------------------------------------
-  virtual void setCTimeNow() = 0;
+  void setCTimeNow() override
+  {
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+#ifdef __APPLE__
+    struct timeval tv;
+    gettimeofday(&tv, 0);
+    pCTime.tv_sec = tv.tv_sec;
+    pCTime.tv_nsec = tv.tv_usec * 1000;
+#else
+    clock_gettime(CLOCK_REALTIME, &pCTime);
+#endif
+  }
 
   //----------------------------------------------------------------------------
   //! Get modification time
   //----------------------------------------------------------------------------
-  virtual void getMTime(ctime_t& mtime) const = 0;
+  void getMTime(ctime_t& mtime) const override
+  {
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+    mtime.tv_sec = pMTime.tv_sec;
+    mtime.tv_nsec = pMTime.tv_nsec;
+  }
 
   //----------------------------------------------------------------------------
   //! Set modification time
   //----------------------------------------------------------------------------
-  virtual void setMTime(ctime_t mtime) = 0;
+  void setMTime(ctime_t mtime) override
+  {
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+    pMTime.tv_sec = mtime.tv_sec;
+    pMTime.tv_nsec = mtime.tv_nsec;
+  }
 
   //----------------------------------------------------------------------------
   //! Set modification time to now
   //----------------------------------------------------------------------------
-  virtual void setMTimeNow() = 0;
+  void setMTimeNow() override
+  {
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+#ifdef __APPLE__
+    struct timeval tv;
+    gettimeofday(&tv, 0);
+    pMTime.tv_sec = tv.tv_sec;
+    pMTime.tv_nsec = tv.tv_usec * 1000;
+#else
+    clock_gettime(CLOCK_REALTIME, &pMTime);
+#endif
+  }
 
   //----------------------------------------------------------------------------
-  //! get sync time
+  //! Get sync time
   //----------------------------------------------------------------------------
-  virtual void getSyncTime(ctime_t& stime) const = 0;
+  void getSyncTime(ctime_t& mtime) const override
+  {
+    getMTime(mtime);
+  }
 
   //----------------------------------------------------------------------------
   //! Set sync time
   //----------------------------------------------------------------------------
-  virtual void setSyncTime(ctime_t stime) = 0;
+  void setSyncTime(ctime_t mtime) override
+  {
+  }
 
   //----------------------------------------------------------------------------
   //! Set sync time
   //----------------------------------------------------------------------------
-  virtual void setSyncTimeNow() = 0;
+  void setSyncTimeNow() override
+  {
+  }
 
   //----------------------------------------------------------------------------
-  //! Get clone id
+  //! Get cloneId (dummy)
   //----------------------------------------------------------------------------
-  virtual uint64_t getCloneId() const = 0;
+  uint64_t getCloneId() const override
+  {
+    return 0;
+  }
 
   //----------------------------------------------------------------------------
-  //! Set clone id
+  //! Set cloneId (dummy)
   //----------------------------------------------------------------------------
-  virtual void setCloneId(uint64_t id) = 0;
+  void setCloneId(uint64_t id) override
+  {
+  }
 
   //----------------------------------------------------------------------------
-  //! Get cloneFST
+  //! Get cloneFST (dummy)
   //----------------------------------------------------------------------------
-  virtual const std::string getCloneFST() const = 0;
+  const std::string getCloneFST() const override
+  {
+    return std::string("");
+  }
 
   //----------------------------------------------------------------------------
-  //! Set cloneFST
+  //! Set cloneFST (dummy)
   //----------------------------------------------------------------------------
-  virtual void setCloneFST(const std::string& data) = 0;
+  void setCloneFST(const std::string& data) override
+  {
+  }
 
   //----------------------------------------------------------------------------
   //! Get size
   //----------------------------------------------------------------------------
-  virtual uint64_t getSize() const = 0;
+  uint64_t getSize() const override
+  {
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+    return pSize;
+  }
 
-  //----------------------------------------------------------------------------
-  //! Gives the actualsize of the file in the system.
-  //! Implementet by Andreas for the purpose of knowing the size of the file in the system
-  //uint64_t getActualSize(); // const = 0;
+  double getActualSizeFactor()
+  {
+    //return eos::common::LayoutId::GetStripeNumber(this->getLayoutId()) ;
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+
+    if (eos::common::LayoutId::GetLayoutType(this->getLayoutId()) == 5)
+      return ((1.0 * this-> getLocations().size()) /
+              (eos::common::LayoutId::GetStripeNumber(this->getLayoutId()) + 1 -
+               eos::common::LayoutId::GetRedundancyStripeNumber(this->getLayoutId())));
+
+    //return pSize * ((1.0 * eos::common::LayoutId::GetStripeNumber(this->getLayoutId())) /
+    //  (eos::common::LayoutId::GetStripeNumber(this->getLayoutId() + 1 -
+    //    (eos::common::LayoutId::GetStripeNumber(this->getLayoutId())-this->getLocations().size()))));
+    //eos::common::LayoutId::GetStripeNumber(this->getLayoutId()eos::common::LayoutId::GetStripeNumber(this->getLayeos::common::LayoutId::GetStripeNumber(this->getLayoutId()outId();
+    return 1.0;
+  }
 
   //----------------------------------------------------------------------------
   //! Set size - 48 bytes will be used
   //----------------------------------------------------------------------------
-  virtual void setSize(uint64_t size) = 0;
+  void setSize(uint64_t size) override;
 
   //----------------------------------------------------------------------------
   //! Get tag
   //----------------------------------------------------------------------------
-  virtual IContainerMD::id_t getContainerId() const = 0;
+  IContainerMD::id_t getContainerId() const override
+  {
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+    return pContainerId;
+  }
 
   //----------------------------------------------------------------------------
   //! Set tag
   //----------------------------------------------------------------------------
-  virtual void setContainerId(IContainerMD::id_t containerId) = 0;
+  void setContainerId(IContainerMD::id_t containerId) override
+  {
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+    pContainerId = containerId;
+  }
 
   //----------------------------------------------------------------------------
   //! Get checksum
   //----------------------------------------------------------------------------
-  virtual const Buffer getChecksum() const = 0;
+  const Buffer getChecksum() const override
+  {
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+    return pChecksum;
+  }
 
   //----------------------------------------------------------------------------
   //! Set checksum
   //----------------------------------------------------------------------------
-  virtual void setChecksum(const Buffer& checksum) = 0;
+  void setChecksum(const Buffer& checksum) override
+  {
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+    pChecksum = checksum;
+  }
 
   //----------------------------------------------------------------------------
   //! Clear checksum
   //----------------------------------------------------------------------------
-  virtual void clearChecksum(uint8_t size = 20) = 0;
+  void clearChecksum(uint8_t size = 20) override
+  {
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+    char zero = 0;
+
+    for (uint8_t i = 0; i < size; i++) {
+      pChecksum.putData(&zero, 1);
+    }
+  }
 
   //----------------------------------------------------------------------------
   //! Set checksum
@@ -191,266 +278,412 @@ public:
   //! @param checksum address of a memory location string the checksum
   //! @param size     size of the checksum in bytes
   //----------------------------------------------------------------------------
-  virtual void setChecksum(const void* checksum, uint8_t size) = 0;
+  void setChecksum(const void* checksum, uint8_t size) override
+  {
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+    pChecksum.clear();
+    pChecksum.putData(checksum, size);
+  }
 
   //----------------------------------------------------------------------------
   //! Get name
   //----------------------------------------------------------------------------
-  virtual const std::string getName() const = 0;
+  const std::string getName() const override
+  {
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+    return pName;
+  }
 
   //----------------------------------------------------------------------------
   //! Set name
   //----------------------------------------------------------------------------
-  virtual void setName(const std::string& name) = 0;
+  void setName(const std::string& name) override
+  {
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+    pName = name;
+  }
 
   //----------------------------------------------------------------------------
   //! Add location
   //----------------------------------------------------------------------------
-  virtual void addLocation(location_t location) = 0;
+  void addLocation(location_t location) override;
 
   //----------------------------------------------------------------------------
   //! Get vector with all the locations
   //----------------------------------------------------------------------------
-  virtual LocationVector getLocations() const = 0;
+  LocationVector getLocations() const override;
 
   //----------------------------------------------------------------------------
   //! Get location
   //----------------------------------------------------------------------------
-  virtual location_t getLocation(unsigned int index) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Remove location that was previously unlinked
-  //----------------------------------------------------------------------------
-  virtual void removeLocation(location_t location) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Remove all locations that were previously unlinked
-  //----------------------------------------------------------------------------
-  virtual void removeAllLocations() = 0;
-
-  //----------------------------------------------------------------------------
-  //! Get vector with all unlinked locations
-  //----------------------------------------------------------------------------
-  virtual LocationVector getUnlinkedLocations() const = 0;
-
-  //----------------------------------------------------------------------------
-  //! Unlink location
-  //----------------------------------------------------------------------------
-  virtual void unlinkLocation(location_t location) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Unlink all locations
-  //----------------------------------------------------------------------------
-  virtual void unlinkAllLocations() = 0;
-
-  //----------------------------------------------------------------------------
-  //! Clear unlinked locations without notifying the listeners
-  //----------------------------------------------------------------------------
-  virtual void clearUnlinkedLocations() = 0;
-
-  //----------------------------------------------------------------------------
-  //! Test the unlinked location
-  //----------------------------------------------------------------------------
-  virtual bool hasUnlinkedLocation(location_t location) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Get number of unlinked locations
-  //----------------------------------------------------------------------------
-  virtual size_t getNumUnlinkedLocation() const = 0;
-
-  //----------------------------------------------------------------------------
-  //! Clear locations without notifying the listeners
-  //----------------------------------------------------------------------------
-  virtual void clearLocations() = 0;
-
-  //----------------------------------------------------------------------------
-  //! Test the location
-  //----------------------------------------------------------------------------
-  virtual bool hasLocation(location_t location) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Get number of location
-  //----------------------------------------------------------------------------
-  virtual size_t getNumLocation() const = 0;
-
-  //----------------------------------------------------------------------------
-  //! Get uid
-  //----------------------------------------------------------------------------
-  virtual uid_t getCUid() const = 0;
-
-  //----------------------------------------------------------------------------
-  //! Set uid
-  //----------------------------------------------------------------------------
-  virtual void setCUid(uid_t uid) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Get gid
-  //----------------------------------------------------------------------------
-  virtual gid_t getCGid() const = 0;
-
-  //----------------------------------------------------------------------------
-  //! Set gid
-  //----------------------------------------------------------------------------
-  virtual void setCGid(gid_t gid) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Get layout
-  //----------------------------------------------------------------------------
-  virtual layoutId_t getLayoutId() const = 0;
-
-  //----------------------------------------------------------------------------
-  //! Set layout
-  //----------------------------------------------------------------------------
-  virtual void setLayoutId(layoutId_t layoutId) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Get flags
-  //----------------------------------------------------------------------------
-  virtual uint16_t getFlags() const = 0;
-
-  //----------------------------------------------------------------------------
-  //! Get the n-th flag
-  //----------------------------------------------------------------------------
-  virtual bool getFlag(uint8_t n) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Set flags
-  //----------------------------------------------------------------------------
-  virtual void setFlags(uint16_t flags) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Set the n-th flag
-  //----------------------------------------------------------------------------
-  virtual void setFlag(uint8_t n, bool flag) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Set the FileMDSvc object
-  //----------------------------------------------------------------------------
-  virtual void setFileMDSvc(IFileMDSvc* fileMDSvc) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Get the FileMDSvc object
-  //----------------------------------------------------------------------------
-  virtual IFileMDSvc* getFileMDSvc() = 0;
-
-  //----------------------------------------------------------------------------
-  //! Get symbolic link
-  //----------------------------------------------------------------------------
-  virtual std::string getLink() const = 0;
-
-  //----------------------------------------------------------------------------
-  //! Set symbolic link
-  //----------------------------------------------------------------------------
-  virtual void setLink(std::string link) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Check if symbolic link
-  //----------------------------------------------------------------------------
-  virtual bool isLink() const = 0;
-
-  //----------------------------------------------------------------------------
-  //! Add extended attribute
-  //----------------------------------------------------------------------------
-  virtual void setAttribute(const std::string& name,
-                            const std::string& value) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Remove attribute
-  //----------------------------------------------------------------------------
-  virtual void removeAttribute(const std::string& name) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Remove all attributes
-  //----------------------------------------------------------------------------
-  virtual void clearAttributes() = 0;
-
-  //----------------------------------------------------------------------------
-  //! Check if the attribute exist
-  //----------------------------------------------------------------------------
-  virtual bool hasAttribute(const std::string& name) const = 0;
-
-  //----------------------------------------------------------------------------
-  //! Return number of attributes
-  //----------------------------------------------------------------------------
-  virtual size_t numAttributes() const = 0;
-
-  //----------------------------------------------------------------------------
-  //! Get the attribute
-  //----------------------------------------------------------------------------
-  virtual std::string getAttribute(const std::string& name) const = 0;
-
-  //----------------------------------------------------------------------------
-  //! Get map copy of the extended attributes
-  //----------------------------------------------------------------------------
-  virtual XAttrMap getAttributes() const = 0;
-
-  //----------------------------------------------------------------------------
-  //! Serialize the object to a buffer
-  //----------------------------------------------------------------------------
-  virtual void serialize(Buffer& buffer) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Deserialize the class to a buffer
-  //----------------------------------------------------------------------------
-  virtual void deserialize(const Buffer& buffer) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Get value tracking changes to the metadata object
-  //----------------------------------------------------------------------------
-  virtual uint64_t getClock() const
+  location_t getLocation(unsigned int index) override
   {
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+
+    if (index < pLocation.size()) {
+      return pLocation[index];
+    }
+
     return 0;
   }
 
   //----------------------------------------------------------------------------
-  //! Check if object is "deleted" - in the sense that it's not valid anymore
+  //! Remove location that was previously unlinked
   //----------------------------------------------------------------------------
-  virtual bool isDeleted() const
+  void removeLocation(location_t location) override;
+
+  //----------------------------------------------------------------------------
+  //! Remove all locations that were previously unlinked
+  //----------------------------------------------------------------------------
+  void removeAllLocations() override;
+
+  //----------------------------------------------------------------------------
+  //! Get vector with all unlinked locations
+  //----------------------------------------------------------------------------
+  LocationVector getUnlinkedLocations() const override;
+
+  //----------------------------------------------------------------------------
+  //! Unlink location
+  //----------------------------------------------------------------------------
+  void unlinkLocation(location_t location) override;
+
+  //----------------------------------------------------------------------------
+  //! Unlink all locations
+  //----------------------------------------------------------------------------
+  void unlinkAllLocations() override;
+
+  //----------------------------------------------------------------------------
+  //! Clear unlinked locations without notifying the listeners
+  //----------------------------------------------------------------------------
+  void clearUnlinkedLocations() override
   {
-    return mIsDeleted;
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+    pUnlinkedLocation.clear();
   }
 
   //----------------------------------------------------------------------------
-  //! Set file as "deleted" - in the sense that it's not valid anymore
+  //! Test the unlinkedlocation
   //----------------------------------------------------------------------------
-  virtual void setDeleted()
+  bool hasUnlinkedLocation(location_t location) override
   {
-    mIsDeleted = true;
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+    return hasUnlinkedLocationLocked(location);
+  }
+
+  bool hasUnlinkedLocationLocked(location_t location)
+  {
+    for (unsigned int i = 0; i < pUnlinkedLocation.size(); i++) {
+      if (pUnlinkedLocation[i] == location) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+
+  //----------------------------------------------------------------------------
+  //! Get number of unlinked locations
+  //----------------------------------------------------------------------------
+  size_t getNumUnlinkedLocation() const override
+  {
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+    return pUnlinkedLocation.size();
   }
 
   //----------------------------------------------------------------------------
-  //! Get locality hint for this file.
+  //! Clear locations without notifying the listeners
   //----------------------------------------------------------------------------
-  virtual std::string getLocalityHint() const {
-    return LocalityHint::build(ContainerIdentifier(getContainerId()), getName());
+  void clearLocations() override
+  {
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+    pLocation.clear();
   }
 
   //----------------------------------------------------------------------------
-  //! Get env representation of the file object
+  //! Test the location
+  //----------------------------------------------------------------------------
+  bool hasLocation(location_t location) override
+  {
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+    return hasLocationLocked(location);
+  }
+
+  bool hasLocationLocked(location_t location)
+  {
+    for (unsigned int i = 0; i < pLocation.size(); i++) {
+      if (pLocation[i] == location) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+
+  //----------------------------------------------------------------------------
+  //! Get number of location
+  //----------------------------------------------------------------------------
+  size_t getNumLocation() const override
+  {
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+    return pLocation.size();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get uid
+  //----------------------------------------------------------------------------
+  uid_t getCUid() const override
+  {
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+    return pCUid;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set uid
+  //----------------------------------------------------------------------------
+  void setCUid(uid_t uid) override
+  {
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+    pCUid = uid;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get gid
+  //----------------------------------------------------------------------------
+  gid_t getCGid() const override
+  {
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+    return pCGid;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set gid
+  //----------------------------------------------------------------------------
+  void setCGid(gid_t gid) override
+  {
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+    pCGid = gid;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get layout
+  //----------------------------------------------------------------------------
+  layoutId_t getLayoutId() const override
+  {
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+    return pLayoutId;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set layout
+  //----------------------------------------------------------------------------
+  void setLayoutId(layoutId_t layoutId) override
+  {
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+    pLayoutId = layoutId;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get flags
+  //----------------------------------------------------------------------------
+  uint16_t getFlags() const override
+  {
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+    return pFlags;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get the n-th flag
+  //----------------------------------------------------------------------------
+  bool getFlag(uint8_t n) override
+  {
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+    return pFlags & (0x0001 << n);
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set flags
+  //----------------------------------------------------------------------------
+  void setFlags(uint16_t flags) override
+  {
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+    pFlags = flags;
+  }
+
+  //-------------------------------- --------------------------------------------
+  //! Set the n-th flag
+  //----------------------------------------------------------------------------
+  void setFlag(uint8_t n, bool flag) override
+  {
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+
+    if (flag) {
+      pFlags |= (1 << n);
+    } else {
+      pFlags &= (~(1 << n));
+    }
+  }
+//test
+  //---------------- ------------------------------------------------------------
+  //! Env Representation
+  //----------------------------------------------------------------------------
+  void getEnv(std::string& env, bool escapeAnd = false) override;
+
+
+  // this is out while it is only for fileMD
+  //----------------------------------------------------------------------------
+  //! Set the FileMDSvc object
+  //----------------------------------------------------------------------------
+  void setFileMDSvc(IFileMDSvc* fileMDSvc) override
+  {
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+    pFileMDSvc = fileMDSvc;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get the FileMDSvc object
+  //----------------------------------------------------------------------------
+  virtual IFileMDSvc* getFileMDSvc() override
+  {
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+    return pFileMDSvc;
+  }
+
+
+
+  //----------------------------------------------------------------------------
+  //! Serialize the object to a buffer
+  //----------------------------------------------------------------------------
+  void serialize(Buffer& buffer) override;
+
+  //----------------------------------------------------------------------------
+  //! Deserialize the class to a buffer
+  //----------------------------------------------------------------------------
+  void deserialize(const Buffer& buffer) override;
+
+  //----------------------------------------------------------------------------
+  //! Get symbolic link
+  //----------------------------------------------------------------------------
+  std::string getLink() const override
+  {
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+    return pLinkName;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set symbolic link
+  //----------------------------------------------------------------------------
+  void setLink(std::string link_name) override
+  {
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+    pLinkName = link_name;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Check if symbolic link
+  //----------------------------------------------------------------------------
+  bool isLink() const override
+  {
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+    return pLinkName.length() ? true : false;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Add extended attribute
+  //----------------------------------------------------------------------------
+  void setAttribute(const std::string& name, const std::string& value) override
+  {
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+    pXAttrs[name] = value;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Remove attribute
+  //----------------------------------------------------------------------------
+  void removeAttribute(const std::string& name) override
+  {
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+    XAttrMap::iterator it = pXAttrs.find(name);
+
+    if (it != pXAttrs.end()) {
+      pXAttrs.erase(it);
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  //! Remove all attributes
+  //----------------------------------------------------------------------------
+  void clearAttributes() override
+  {
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+    pXAttrs.clear();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Check if the attribute exist
+  //----------------------------------------------------------------------------
+  bool hasAttribute(const std::string& name) const override
+  {
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+    return pXAttrs.find(name) != pXAttrs.end();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Return number of attributes
+  //----------------------------------------------------------------------------
+  size_t numAttributes() const override
+  {
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+    return pXAttrs.size();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get the attribute
+  //----------------------------------------------------------------------------
+  std::string getAttribute(const std::string& name) const override
+  {
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+    XAttrMap::const_iterator it = pXAttrs.find(name);
+
+    if (it == pXAttrs.end()) {
+      MDException e(ENOENT);
+      e.getMessage() << "Attribute: " << name << " not found";
+      throw e;
+    }
+
+    return it->second;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get map copy of the extended attributes
   //!
-  //! @param env string where representation is stored
-  //! @param escapeAnd if true escape & with #AND# ...
+  //! @return std::map containing all the extended attributes
   //----------------------------------------------------------------------------
-  virtual void getEnv(std::string& env, bool escapeAnd = false) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Delete copy constructor and assignment operator to avoid "slicing"
-  //! when dealing with derived classes.
-  //----------------------------------------------------------------------------
-  IFileMD(const IFileMD& other) = delete;
-
-  IFileMD& operator=(const IFileMD& other) = delete;
+  eos::IFileMD::XAttrMap getAttributes() const override;
 
 protected:
-  mutable std::shared_timed_mutex mMutex;
-
-private:
-
-  std::atomic<bool> mIsDeleted; ///< Mark if object is still in cache but it was deleted
+  //----------------------------------------------------------------------------
+  // Data members
+  //----------------------------------------------------------------------------
+  IFileMD::id_t       pId;
+  ctime_t             pCTime;
+  ctime_t             pMTime;
+  uint64_t            pSize;
+  IContainerMD::id_t  pContainerId;
+  uid_t               pCUid;
+  gid_t               pCGid;
+  layoutId_t          pLayoutId;
+  uint16_t            pFlags;
+  std::string         pName;
+  std::string         pLinkName;
+  LocationVector      pLocation;
+  LocationVector      pUnlinkedLocation;
+  Buffer              pChecksum;
+  XAttrMap            pXAttrs;
+  IFileMDSvc*         pFileMDSvc;
 };
-
-using IFileMDPtr = std::shared_ptr<IFileMD>;
 
 EOSNSNAMESPACE_END
 
-#endif // EOS_NS_IFILE_MD_HH
+#endif // __EOS_NS_FILE_MD_HH__
