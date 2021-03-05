@@ -157,21 +157,21 @@ public:
   //DynamicEC();
 //test
   //---------------------------------------------------------------------------------------------------
-  //! Gets the time from now and how far back it will have to delete files from in seconds.
+  //! Gets the age from now and how far back it will have to delete files from in seconds.
   //! Takes the size that will be the minimum for deletion as bytes.
   //! The theshold to start the thread for the system, as percentage of full storage
   //! The low threshold to stop the system as percentage of full storage
   //---------------------------------------------------------------------------------------------------
 
-  DynamicEC(uint64_t time, uint64_t size, double maxThres, double minThres);
+  DynamicEC(const char* spacename="default", uint64_t age=3600, uint64_t minsize=1024*1024, double maxThres=95.0, double minThres=90.0);
 
   ~DynamicEC();
 
   void Stop();
 
-  void CleanUp() noexcept;
+  void Cleanup() noexcept;
 
-  void CleanUp(ThreadAssistant& assistant)
+  void Run(ThreadAssistant& assistant)
   noexcept; /// no exceptions aloud, have to check for all the output combinations to return.
 };
 
