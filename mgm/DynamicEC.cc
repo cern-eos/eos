@@ -52,19 +52,19 @@ extern XrdOucTrace gMgmOfsTrace;
 /*----------------------------------------------------------------------------*/
 EOSMGMNAMESPACE_BEGIN
 
-DynamicEC::DynamicEC(uint64_t timeOld, uint64_t size, double maxThres,
-                     double minThres)
+DynamicEC::DynamicEC(const char* spacename, uint64_t age, uint64_t minsize, double maxThres,
+                     double minThres) : mSpaceName(spacename)
 {
-  fprintf(stderr, "constructor\n");
-  eos_static_info("%s", "Constructor");
-  //Thread need to be activated
-  //mThread.reset(&DynamicEC::CleanUp, this);
-  mSpaceName = "";
+  eos_static_info("Initialization");
+
+#ifndef GTEST
+  mThread.reset(&DynamicEC::Run, this);
+#endif
   simulatedFiles.clear();
   deletedFileSize = 0;
   //time_t seconds;
-  timeFromWhenToDelete =  time(0) - timeOld;
-  sizeMinForDeletion = size;
+  timeFromWhenToDelete =  time(0) - age;
+  sizeMinForDeletion = minsize;
   maxThresHold = maxThres;
   minThresHold = minThres;
   createdFileSize = 0;
@@ -77,7 +77,7 @@ DynamicEC::DynamicEC()
 {
   fprintf(stderr,"constructor\n");
   eos_static_info("%s","Constructor");
-  mThread.reset(&DynamicEC::CleanUp, this);
+  mThread.reset(&DynamicEC::Run, this);
   mSpaceName = "";
   simulatedFiles.clear();
 
@@ -402,20 +402,22 @@ DynamicEC::kQrainReduction(std::shared_ptr<DynamicECFile> file)
 }
 
 void
-DynamicEC::CleanUp()
+DynamicEC::Cleanup()
 {
-  fprintf(stderr, "CleanUp started \n");
+  //  fprintf(stderr, "Cleanup started \n");
   statusForSystem status;
   status = SpaceStatus();
   sizeToBeDeleted = status.undeletedSize;
 
-  //fprintf(stderr, " what has to be deleted %" PRId64 "\n", sizeToBeDeleted );
+  std::string sizestring;
+  eos_static_info("space=%s volume-to-delete := %s",
+		  mSpaceName.c_str(),
+		  eos::common::StringConversion::GetReadableSizeString(sizestring,
+								       sizeToBeDeleted,
+								       "B"));
   if (sizeToBeDeleted > 0) {
-    fprintf(stderr, "There will be deleted files \n");
-
     for (int i = 0;  i < simulatedFiles.size(); i++) {
       auto file = simulatedFiles[i];
-
       if (DeletionOfFileID(simulatedFiles[i])) {
         if (eos::common::LayoutId::GetLayoutType(simulatedFiles[i]->getLayoutId()) ==
             5) {
@@ -428,20 +430,21 @@ DynamicEC::CleanUp()
       }
     }
   }
-
   //This have to do something if it deletes and there is more filesize to be deleted
 }
 
 void
-DynamicEC::CleanUp(ThreadAssistant& assistant) noexcept
+DynamicEC::Run(ThreadAssistant& assistant) noexcept
 {
   //gOFS->WaitUntilNamespaceIsBooted(assistant);
   //assistant.wait_for(std::chrono::seconds(10));
-  eos_static_info("starting");
+  eos_static_info("space=%s starting clean-up thread ...", mSpaceName.c_str());
 
   while (!assistant.terminationRequested())
     ///Assisting variables can be written here
   {
+    eos_static_info("space=%s doing clean-up round ...", mSpaceName.c_str());
+    Cleanup();
     /// What to do when it runs
     ///can have a lock for a timeout, then needs to know where it started.
     // somehow taking different files, and go though them, whis is where the deletion of file id is running
