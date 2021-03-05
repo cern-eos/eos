@@ -116,7 +116,7 @@ set(UT_SRCS
 
 set(UT_FST_SRCS
   ${FST_UT_SRCS})
-
+ 
 #-------------------------------------------------------------------------------
 # eos-unit-tests executable
 #-------------------------------------------------------------------------------
@@ -131,7 +131,7 @@ target_link_libraries(eos-unit-tests PRIVATE
   gmock
   qclient
   XROOTD::POSIX
-  XROOTD::SERVER
+  XROOTD::SERVER 
   XrdEosMgm-Static)
 
 #-------------------------------------------------------------------------------
