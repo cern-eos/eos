@@ -1295,7 +1295,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   std::vector<std::string> lFanOutTags {
     "Grpc", "Balancer", "Converter", "DrainJob", "ZMQ", "MetadataFlusher", "Http",
     "Master", "Recycle", "LRU", "WFE", "WFE::Job", "GroupBalancer",
-    "GeoBalancer", "GeoTreeEngine", "ReplicationTracker", "FileInspector", "Mounts", "OAuth", "DyanmicEC", "#"};
+    "GeoBalancer", "GeoTreeEngine", "ReplicationTracker", "FileInspector", "Mounts", "OAuth", "DynamicEC", "#"};
   // Get the XRootD log directory
   char* logdir = 0;
   XrdOucEnv::Import("XRDLOGDIR", logdir);
@@ -1951,7 +1951,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   mFileInspector.reset(FileInspector::Create());
 
   // Initialize DynamicEC
-  //mDynamicEC.reset(new eos::mgm::DynamicEC());
+  mDynamicEC.reset(new eos::mgm::DynamicEC());
 
   // Set also the archiver ZMQ endpoint were client requests are sent
   std::ostringstream oss;
