@@ -37,8 +37,8 @@ ReplicaParLayout::ReplicaParLayout(XrdFstOfsFile* file,
                                    uint16_t timeout) :
   Layout(file, lid, client, outError, path, timeout)
 {
-  mNumReplicas = eos::common::LayoutId::GetStripeNumber(lid) +
-                 1; // this 1=0x0 16=0xf :-)
+  mNumReplicas = eos::common::LayoutId::GetStripeNumber(lid) + 1 +
+    eos::common::LayoutId::GetExcessStripeNumber(lid) ; // this 1=0x0 16=0xf :-)
   ioLocal = false;
   hasWriteError = false;
 }
