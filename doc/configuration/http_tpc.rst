@@ -104,7 +104,7 @@ changes to the **sec.protocol** directive that are clearly explained in the
 XRootD documentation and already present in the provided example.
 
 .. The :ref:`helper script <xrootd-third-party-copy>` refereced in the configuration
-The ``xrootd-third-party-copy.sh`` refereced in the configuration
+The ``xrootd-third-party-copy.sh`` referenced in the configuration
 makes use of specific environment variables exported by the XRootD PSS service
 in the context of the TPC process doing the transfer.
 
@@ -119,7 +119,7 @@ in the context of the TPC process doing the transfer.
 
 
 Once the XRootD gateway is setup, the EOS MGM configuration needs to be updated
-so that any incoming TPC trasnfers with delegated credentials where EOS is the
+so that any incoming TPC transfers with delegated credentials where EOS is the
 destination endpoint are redirected to the gateway node. This is done by adding
 the following directive to the default EOS MGM configuration file located in
 ``/etc/xrd.cf.mgm``:
@@ -146,7 +146,7 @@ package.
 
 .. code-block:: bash
 
-   voms-client-init
+   voms-proxy-init
    voms-proxy-info
    subject   : /DC=ch/DC=cern/OU=Organic Units/OU=Users/CN=foo/CN=007/CN=Foo Bar/CN=220482279
    issuer    : /DC=ch/DC=cern/OU=Organic Units/OU=Users/CN=foo/CN=007/CN=Foo Bar
@@ -194,7 +194,7 @@ for testing the token support against the EOS instance:
 
   - **x509-scitokens-issuer** and **x509-scitokens-issuer-client** that provide
     tools like **macaroon-init** useful when trying to acquire a macaroons for
-    testing purposes
+    testing purposes. They can be found here: http://koji.chtc.wisc.edu/kojifiles/packages/
 
 Support for HTTP(S) access in EOS is provided through an HTTP external handler
 plug-in library which is distributed by default with any EOS version called
@@ -214,7 +214,7 @@ contains a description of the functionality provided.
    # Directory containing CA certificates to be used by the server
    http.cadir /etc/grid-security/certificates/
    # File containing the x509 server certificate
-   http.cert /etc/grid-security/daemon//hostcert.pem
+   http.cert /etc/grid-security/daemon/hostcert.pem
    # File containing the x509 server private key
    http.key /etc/grid-security/daemon/hostkey.pem
    # Path to the "grid map file" to be used for mapping users to specific identities
@@ -279,10 +279,10 @@ file is provided below:
    default_user = dteam001
 
 An important configuration option is the **default_user** field which specifies
-the local username (i.e. known to the MGM) that any token issed by the given IAM
+the local username (i.e. known to the MGM) that any token issued by the given IAM
 is mapped to.
 
-Apart from the **MGM**, the **FST** configuration also needs to be updated in
+Apart from the **MGM**, all the **FST** configurations also need to be updated in
 order to support HTTP(XrdHttp) and HTTP TPC access.
 
 .. :caption: Contents of the /etc/xrd.cf.fst file relevant for HTTP config
