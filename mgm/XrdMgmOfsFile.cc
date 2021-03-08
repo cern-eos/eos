@@ -2390,14 +2390,15 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   std::set<unsigned int> ufs(selectedfs.begin(), selectedfs.end());
   ufs.insert(pio_reconstruct_fs.begin(), pio_reconstruct_fs.end());
   new_lid = LayoutId::GetId(
-              isPio ? LayoutId::kPlain :
-              LayoutId::GetLayoutType(layoutId),
-              (isPio ? LayoutId::kNone :
-               LayoutId::GetChecksum(layoutId)),
-              isPioReconstruct ? static_cast<int>(ufs.size()) : static_cast<int>
-              (selectedfs.size()),
-              LayoutId::GetBlocksizeType(layoutId),
-              LayoutId::GetBlockChecksum(layoutId));
+			    isPio ? LayoutId::kPlain :
+			    LayoutId::GetLayoutType(layoutId),
+			    (isPio ? LayoutId::kNone :
+			     LayoutId::GetChecksum(layoutId)),
+			    isPioReconstruct ? static_cast<int>(ufs.size()) : static_cast<int>
+			    (selectedfs.size()),
+			    LayoutId::GetBlocksizeType(layoutId),
+			    LayoutId::GetBlockChecksum(layoutId),
+			    LayoutId::GetExcessStripeNumber(layoutId));
 
   // For RAIN layouts we need to keep the original number of stripes since this
   // is used to compute the different groups and block sizes in the FSTs

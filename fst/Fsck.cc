@@ -639,8 +639,14 @@ Fsck::ReportFiles()
 
     auto location_set = it->second.GetLocations();
     size_t nstripes = eos::common::LayoutId::GetStripeNumber(proto_fmd.lid()) + 1;
+    size_t nexcess = eos::common::LayoutId::GetExcessStripeNumber(proto_fmd.lid());
 
-    if (nstripes != location_set.size()) {
+    // we don't have locations as defined in the layout with no excess stripes
+    // or we have less than the minimum or the maximum allowed stripes defined by excess
+    if ( (nstripes != location_set.size() &&
+	  (!nexcess || ((location_set.size() < nstripes)  ||
+			(location_set.size() > (nstripes+nexcess))) )
+	  )) {
       if (proto_fmd.mgmsize() != 0) {
         // suppress 0 size files in the mgm
         fprintf(stderr,
