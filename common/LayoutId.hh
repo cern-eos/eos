@@ -588,6 +588,7 @@ public:
   }
 
   static std::string
+
   GetRedundancySymbol(bool has_tape, int redundancy, int excess = 0)
   {
     char sbst[256];
@@ -600,7 +601,6 @@ public:
       snprintf(sbst, sizeof(sbst), "d%lu::t%i ", has_tape ?
                ((redundancy > 0) ? (redundancy - 1) : 0) : redundancy, (has_tape ? 1 : 0));
     }
-
     return std::string(sbst);
   }
 
