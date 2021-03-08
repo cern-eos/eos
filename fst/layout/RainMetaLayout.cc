@@ -73,13 +73,14 @@ RainMetaLayout::RainMetaLayout(XrdFstOfsFile* file,
   mBookingOpaque(bookingOpaque)
 {
   mStripeWidth = eos::common::LayoutId::GetBlocksize(lid);
-  mNbTotalFiles = eos::common::LayoutId::GetStripeNumber(lid) + 1;
-  mNbParityFiles = eos::common::LayoutId::GetRedundancyStripeNumber(lid);
+  mNbTotalFiles = eos::common::LayoutId::GetStripeNumber(lid) + 1 + eos::common::LayoutId::GetExcessStripeNumber(lid);
+  mNbParityFiles = eos::common::LayoutId::GetRedundancyStripeNumber(lid) + eos::common::LayoutId::GetExcessStripeNumber(lid);
   mNbDataFiles = mNbTotalFiles - mNbParityFiles;
   mSizeHeader = eos::common::LayoutId::OssXsBlockSize;
   mOffGroupParity = -1;
   mPhysicalStripeIndex = -1;
   mIsEntryServer = false;
+  fprintf(stderr,"#### setting params %u/%u/%u\n", mNbTotalFiles, mNbParityFiles, mNbDataFiles);
 }
 
 //------------------------------------------------------------------------------

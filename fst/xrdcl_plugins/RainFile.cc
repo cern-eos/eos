@@ -121,7 +121,7 @@ RainFile::Open(const std::string& url,
         opaqueInfo += 1;
         LayoutId::layoutid_t layout = openOpaque->GetInt("mgm.lid");
 
-        for (unsigned int i = 0; i <= eos::common::LayoutId::GetStripeNumber(layout);
+        for (unsigned int i = 0; i <= (eos::common::LayoutId::GetStripeNumber(layout) + eos::common::LayoutId::GetExcessStripeNumber(layout));
              i++) {
           tag = "pio.";
           tag += static_cast<int>(i);
