@@ -52,23 +52,31 @@ extern XrdOucTrace gMgmOfsTrace;
 /*----------------------------------------------------------------------------*/
 EOSMGMNAMESPACE_BEGIN
 
-DynamicEC::DynamicEC(const char* spacename, uint64_t age, uint64_t minsize, double maxThres,
-                     double minThres) : mSpaceName(spacename)
+DynamicEC::DynamicEC(const char* spacename, uint64_t ageNew,  uint64_t size,
+                     double maxThres,
+                     double minThres, bool OnWork)//bool OnWork
 {
-  eos_static_info("Initialization");
+  fprintf(stderr, "Constructor \n");
+  eos_static_info("%s", "Constructor \n");
+  //Thread need to be activated
+  age = ageNew;
 
-#ifndef GTEST
-  mThread.reset(&DynamicEC::Run, this);
-#endif
+  if (OnWork) {
+    mThread.reset(&DynamicEC::Run, this);
+  }
+
+  mThread.stop();
+  mSpaceName = "";
   simulatedFiles.clear();
   deletedFileSize = 0;
   //time_t seconds;
-  timeFromWhenToDelete =  time(0) - age;
-  sizeMinForDeletion = minsize;
+  //timeFromWhenToDelete =  time(0) - age;
+  sizeMinForDeletion = size;
   maxThresHold = maxThres;
   minThresHold = minThres;
   createdFileSize = 0;
   sizeToBeDeleted = 0;
+  waitTime = 10;
 }
 
 //old constructor
@@ -77,7 +85,7 @@ DynamicEC::DynamicEC()
 {
   fprintf(stderr,"constructor\n");
   eos_static_info("%s","Constructor");
-  mThread.reset(&DynamicEC::Run, this);
+  mThread.reset(&DynamicEC::CleanUp, this);
   mSpaceName = "";
   simulatedFiles.clear();
 
@@ -99,6 +107,20 @@ DynamicEC::Stop()
 DynamicEC::~DynamicEC()
 {
   Stop();
+}
+
+void
+DynamicEC::setWaitTime(int wait)
+{
+  if (wait >= 0) {
+    waitTime = wait;
+  }
+}
+
+int
+DynamicEC::getWaitTime()
+{
+  return waitTime;
 }
 
 int
@@ -147,17 +169,19 @@ DynamicEC::getMaxThresHold()
   return maxThresHold;
 }
 
+
 void
-DynamicEC::setTimeFromWhenToDelete(uint64_t timeFrom)
+DynamicEC::setAgeFromWhenToDelete(uint64_t timeFrom)
 {
-  timeFromWhenToDelete = time(0) - timeFrom;
+  age = timeFrom;
 }
 
 uint64_t
-DynamicEC::getTimeFromWhenToDelete()
+DynamicEC::getAgeFromWhenToDelete()
 {
-  return timeFromWhenToDelete;
+  return age;
 }
+
 
 void
 DynamicEC::setMinForDeletion(uint64_t size)
@@ -176,7 +200,8 @@ DynamicEC::getMinForDeletion()
 void
 DynamicEC::fillFiles()
 {
-  fprintf(stderr, "filled 100,000 files");
+  fprintf(stderr, "Filled 100,000 files \n");
+  eos_static_info("%s", "Filled 100,000 files \n");
   //fprintf(stderr,"testing for error");
   //This is for some rear logging
   //eos_static_info("Stop");
@@ -220,7 +245,9 @@ void
 DynamicEC::fillFiles(int newFiles)
 {
   //fprintf(stderr,"filled 100,000 files");
-  srand(1);
+  fprintf(stderr, "Filled %d files up \n", newFiles);
+  eos_static_info("%s", "Filled %d files up \n", newFiles);
+  srand(0);
 
   for (int i = 0;  i <  newFiles; i++) {
     auto file = std::make_shared<DynamicECFile>(i + newFiles);
@@ -263,18 +290,18 @@ DynamicEC::fillSingleSmallFile(uint64_t time, uint64_t size, int partitions)
   file->setSize(size);
   createdFileSize += GetSizeOfFile(file);
   simulatedFiles[file->getId()] = file;
-#ifdef GTEST
+  fprintf(stderr, "Constructor \n");
+  eos_static_info("%s", "Constructor \n");
   fprintf(stderr,
           "There is a file with %d: time in seconds, %d: as size in bytes and %d: partitions.\n",
           time, size, partitions);
-#else
-  eos_static_info("There is a file with %d: time in seconds, %d: as size in bytes and %d: partitions.\n",
+  eos_static_info("%s",
+                  "There is a file with %d: time in seconds, %d: as size in bytes and %d: partitions.\n",
                   time, size, partitions);
-#endif
 }
 
 
-
+//Look up what timestamp is needed for.
 std::string
 DynamicEC::TimeStampCheck(std::string file)
 {
@@ -305,11 +332,16 @@ DynamicEC::SpaceStatus()
   fprintf(stderr, "Status:\i %" PRId64 ": total size, %" PRId64 ": used size, %"
           PRId64 ": deleted size, %" PRId64 ": undeleted size.\n", status.totalSize,
           status.usedSize, status.deletedSize, status.undeletedSize);
+  eos_static_info("%s", "Status:\i %" PRId64 ": total size, %" PRId64
+                  ": used size, %"
+                  PRId64 ": deleted size, %" PRId64 ": undeleted size.\n", status.totalSize,
+                  status.usedSize, status.deletedSize, status.undeletedSize);
   return status;
 }
 
 bool
-DynamicEC::DeletionOfFileID(std::shared_ptr<DynamicECFile> file)
+DynamicEC::DeletionOfFileID(std::shared_ptr<DynamicECFile> file,
+                            uint64_t ageOld)
 {
   //Something with relative timing, for a dynamic time frame.
   //This can depend on the current time minus a year or two years.
@@ -318,7 +350,7 @@ DynamicEC::DeletionOfFileID(std::shared_ptr<DynamicECFile> file)
   file->getCTime(time);
 
   //if(time.tv_sec < 161500000000)
-  if (time.tv_sec < timeFromWhenToDelete) {
+  if (time.tv_sec < ageOld) {
     //change this to something with the new function to get the actual and the one for the old one
     // this will have to give the right time for the file.
     if (GetSizeOfFile(file) > sizeMinForDeletion) {
@@ -404,32 +436,42 @@ DynamicEC::kQrainReduction(std::shared_ptr<DynamicECFile> file)
 void
 DynamicEC::Cleanup()
 {
-  //  fprintf(stderr, "Cleanup started \n");
+  fprintf(stderr, "CleanUp started \n");
+  eos_static_info("%s", "CleanUp started \n");
   statusForSystem status;
   status = SpaceStatus();
   sizeToBeDeleted = status.undeletedSize;
+  timeFromWhenToDelete =  time(0) - age;
 
-  std::string sizestring;
-  eos_static_info("space=%s volume-to-delete := %s",
-		  mSpaceName.c_str(),
-		  eos::common::StringConversion::GetReadableSizeString(sizestring,
-								       sizeToBeDeleted,
-								       "B"));
+  //fprintf(stderr, " what has to be deleted %" PRId64 "\n", sizeToBeDeleted );
   if (sizeToBeDeleted > 0) {
+    //fprintf(stderr, "There will be deleted files \n");
     for (int i = 0;  i < simulatedFiles.size(); i++) {
       auto file = simulatedFiles[i];
-      if (DeletionOfFileID(simulatedFiles[i])) {
+
+      if (DeletionOfFileID(simulatedFiles[i], timeFromWhenToDelete)) {
         if (eos::common::LayoutId::GetLayoutType(simulatedFiles[i]->getLayoutId()) ==
-            5) {
+            eos::common::LayoutId::kQrain) {
           kQrainReduction(simulatedFiles[i]);
         }
       }
 
       if (deletedFileSize > sizeToBeDeleted) {
+        fprintf(stderr, "CleanUp ended with success there was deleted:  %" PRId64
+                "  \n", deletedFileSize);
+        eos_static_info("%s", "CleanUp ended with success there was deleted:  %" PRId64
+                        "  \n", deletedFileSize);
         return;
       }
     }
   }
+
+  fprintf(stderr, "CleanUp ended without success there was deleted:  %" PRId64
+          " bytes, but there should have been deleted :  %" PRId64 " bytes  \n",
+          deletedFileSize, sizeToBeDeleted);
+  eos_static_info("%s", "CleanUp ended without success there was deleted:  %"
+                  PRId64 " bytes, but there should have been deleted :  %" PRId64 " bytes  \n",
+                  deletedFileSize, sizeToBeDeleted);
   //This have to do something if it deletes and there is more filesize to be deleted
 }
 
@@ -438,12 +480,11 @@ DynamicEC::Run(ThreadAssistant& assistant) noexcept
 {
   //gOFS->WaitUntilNamespaceIsBooted(assistant);
   //assistant.wait_for(std::chrono::seconds(10));
-  eos_static_info("space=%s starting clean-up thread ...", mSpaceName.c_str());
+  eos_static_info("starting");
 
   while (!assistant.terminationRequested())
     ///Assisting variables can be written here
   {
-    eos_static_info("space=%s doing clean-up round ...", mSpaceName.c_str());
     Cleanup();
     /// What to do when it runs
     ///can have a lock for a timeout, then needs to know where it started.
@@ -451,7 +492,7 @@ DynamicEC::Run(ThreadAssistant& assistant) noexcept
     // if it is need to be deleted, there can be the single deletion, or other deletions depending on the way this file saved, wich can be predicted from the layout
 wait:
     //let time pass for a notification
-    assistant.wait_for(std::chrono::seconds(10));
+    assistant.wait_for(std::chrono::seconds(waitTime));
 
     if (assistant.terminationRequested()) {
       return;

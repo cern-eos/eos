@@ -94,7 +94,10 @@ private:
   std::atomic<uint64_t>
   sizeMinForDeletion; /// the minimum size, that the file in the system will have to be in order to get deleted.
 
+  std::atomic<uint64_t>
+  age;
 
+  int waitTime;
 
   uint64_t sizeToBeDeleted; /// the size that the system will have to delete in order to get under the minimum threshold.
 
@@ -102,11 +105,15 @@ public:
 
   uint64_t createdFileSize; /// the size of the created files in bytes
 
-  uint64_t deletedFileSize; /// The deletion of files for this secion;
+  uint64_t deletedFileSize; /// The deletion of files for this section;
 
   //std::map<eos::IFileMD::id_t,std::shared_ptr<eos::IFileMD>> simulatedFiles;
 
   std::map<IFileMD::id_t, std::shared_ptr<DynamicECFile>> simulatedFiles;
+
+  void setWaitTime(int wait);
+
+  int getWaitTime();
 
   void setMinThresHold(double thres);
 
@@ -116,9 +123,9 @@ public:
 
   double getMaxThresHold();
 
-  void setTimeFromWhenToDelete(uint64_t timeFrom);
+  void setAgeFromWhenToDelete(uint64_t timeFrom);
 
-  uint64_t getTimeFromWhenToDelete();
+  uint64_t getAgeFromWhenToDelete();
 
   void setMinForDeletion(uint64_t size);
 
@@ -136,7 +143,7 @@ public:
   statusForSystem SpaceStatus();
 
   ///might be bool too tell if the file was deleted, or int is on how many copies were deleted.
-  bool DeletionOfFileID(std::shared_ptr<DynamicECFile> file);
+  bool DeletionOfFileID(std::shared_ptr<DynamicECFile> file, uint64_t ageOld);
 
 
 
@@ -162,8 +169,10 @@ public:
   //! The theshold to start the thread for the system, as percentage of full storage
   //! The low threshold to stop the system as percentage of full storage
   //---------------------------------------------------------------------------------------------------
-
-  DynamicEC(const char* spacename="default", uint64_t age=3600, uint64_t minsize=1024*1024, double maxThres=95.0, double minThres=90.0);
+  //DynamicEC(const char* spacename="default", uint64_t age=3600, uint64_t minsize=1024*1024, double maxThres=95.0, double minThres=90.0);
+  DynamicEC(const char* spacename = "default", uint64_t age = 3600,
+            uint64_t minsize = 1024 * 1024,
+            double maxThres = 95.0, double minThres = 90.0, bool OnWork = true);
 
   ~DynamicEC();
 

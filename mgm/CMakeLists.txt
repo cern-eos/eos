@@ -225,6 +225,7 @@ add_library(
   GroupBalancer.cc
   GeoBalancer.cc
   DynamicEC.cc
+  DynamicScanner.cc
   DynamicEC.hh
   DynamicECFile.cc
   
