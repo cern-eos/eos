@@ -109,6 +109,7 @@ DynamicScanner::Options DynamicScanner::getOptions()
   return opts;
 }
 
+<<<<<<< HEAD
 /////This is for compilng this will have  to be build up later on.
 
 void
@@ -123,6 +124,8 @@ DynamicScanner::Process(std::shared_ptr<eos::IFileMD> fmd)
 
 
 
+=======
+>>>>>>> 92b93cc... Git commit in order to get new layout from other branch
 //------------------------------------------------------------------------------
 // Perform a single inspector cycle, QDB namespace
 //------------------------------------------------------------------------------
