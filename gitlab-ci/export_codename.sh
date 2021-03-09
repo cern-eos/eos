@@ -2,8 +2,8 @@
 
 #Gitlab CI enabled branches should be listed here
 
-if [[ "${CI_COMMIT_REF_NAME}" == "beryl_aquamarine" ]] || [[ ${CI_COMMIT_REF_NAME} == 0.3* ]] ; then
-  export CODENAME="aquamarine" # @note not supported anymore
+if [[ "${CI_COMMIT_REF_NAME}" == "citrine" ]] || [[ ${CI_COMMIT_REF_NAME} == 4.* ]] ; then
+  export CODENAME="citrine" # @note not supported anymore
 else
-  export CODENAME="citrine"
+  export CODENAME="diopside"
 fi
