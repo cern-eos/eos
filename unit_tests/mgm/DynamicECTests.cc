@@ -40,6 +40,8 @@ TEST(DynamicEC, LookInMap)
   ASSERT_FALSE(UUT.mSimulatedFiles.empty());
 }
 
+
+
 TEST(DynamicEC, CheckingForAnythingInTheFile)
 {
   const char* str = "DynamicTest";
@@ -98,6 +100,7 @@ TEST(DynamicEC, TestForGetSmallSizedFillAtTheEdge)
   UUT.fillSingleSmallFile(time(0) - 21556926, 5000000, 8);
   ASSERT_FALSE(UUT.DeletionOfFileID(UUT.mSimulatedFiles[0], time(0) - 11556926));
 }
+
 
 TEST(DynamicEC, TestForSpaceStatus)
 {
