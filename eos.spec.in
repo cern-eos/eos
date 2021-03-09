@@ -38,9 +38,6 @@
 # pass the "--with coverage" flag to the rpmbuild command
 %bcond_without coverage
 
-# By default we use eosprotobuf3 for EL7
-%bcond_without eos_protobuf3_rh
-
 # By default we don't use eosxrootd for EL7
 %bcond_without eos_xrootd_rh
 
@@ -148,35 +145,11 @@ BuildRequires: xrootd-server-devel >= %{xrootd_version_min}
 BuildRequires: xrootd-private-devel >= %{xrootd_version_min}
 %endif
 
-# -----------------------
-# select protobuf package
-# -----------------------
-%if ! %{without eos_protobuf3_rh}
-# Install eos-protobuf3
-%if 0%{?rhel} == 7
-BuildRequires: eos-protobuf3 = 3.5.1-5.el7.cern.eos
-BuildRequires: eos-protobuf3-compiler = 3.5.1-5.el7.cern.eos
-BuildRequires: eos-protobuf3-devel = 3.5.1-5.el7.cern.eos
-
-# don't put an explicit dependency on protobuf because eos-protobuf3 hides shared libraries from provide
-%if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
-%global __requires_exclude ^(libprotobuf.so.*$|libXrd*)
+# Select protobuf package
+%if 0%{?rhel} == 7 || 0%{?rhel} == 8
+BuildRequires: eos-protobuf3 >= 3.3, eos-protobuf3-devel >= 3.3, eos-protobuf3-compiler >= 3.3
 %else
-%global __requires_exclude ^libprotobuf.so.*$
-%endif
-%else
-%if %{?fedora}%{!?fedora:0} >= 27 || 0%{?rhel} == 8
 BuildRequires: protobuf >= 3.3, protobuf-devel >= 3.3, protobuf-compiler >= 3.3
-%else
-BuildRequires: protobuf3 >= 3.3, protobuf3-devel >= 3.3, protobuf3-compiler >= 3.3
-%endif
-%endif
-%else
-%if %{?fedora}%{!?fedora:0} >= 27  || 0%{?rhel} == 8
-BuildRequires: protobuf >= 3.3, protobuf-devel >= 3.3, protobuf-compiler >= 3.3
-%else
-BuildRequires: protobuf3 >= 3.3, protobuf3-devel >= 3.3, protobuf3-compiler >= 3.3
-%endif
 %endif
 
 BuildRequires: git, readline-devel
@@ -392,28 +365,11 @@ Requires: psmisc
 Requires: libcurl
 Requires: logrotate
 
-# -----------------------
-# select protobuf package
-# -----------------------
-%if ! %{without eos_protobuf3_rh}
-# Install eos-protobuf3
-%if 0%{?rhel} == 7
-Requires: eos-protobuf3 = 3.5.1-5.el7.cern.eos
+%if 0%{?rhel} == 7 || 0%{?rhel} == 8
+Requires: eos-protobuf3 >= 3.3
 %else
-%if %{?fedora}%{!?fedora:0} >= 27 || 0%{?rhel} == 8
 Requires: protobuf >= 3.3
-%else
-Requires: protobuf3 >= 3.3
 %endif
-%endif
-%else
-%if %{?fedora}%{!?fedora:0} >= 27 || 0%{?rhel} == 8
-Requires: protobuf >= 3.3
-%else
-Requires: protobuf3 >= 3.3
-%endif
-%endif
-
 
 %if %{use_systemd}
 Requires: systemd
@@ -583,23 +539,10 @@ Requires: xrootd-client >= %{xrootd_version_min}
 %endif
 
 # Select protobuf package
-%if ! %{without eos_protobuf3_rh}
-# Install eos-protobuf3
-%if 0%{?rhel} == 7
-Requires: eos-protobuf3 = 3.5.1-5.el7.cern.eos
+%if 0%{?rhel} == 7 || 0%{?rhel} == 8
+Requires: eos-protobuf3 >= 3.3
 %else
-%if %{?fedora}%{!?fedora:0} >= 27 || 0%{?rhel} == 8
 Requires: protobuf >= 3.3
-%else
-Requires: protobuf3 >= 3.3
-%endif
-%endif
-%else
-%if %{?fedora}%{!?fedora:0} >= 27 || 0%{?rhel} == 8
-Requires: protobuf >= 3.3
-%else
-Requires: protobuf3 >= 3.3
-%endif
 %endif
 
 BuildRequires: eos-folly = 2019.11.11.00-1%{dist}
@@ -641,23 +584,10 @@ Requires: xrootd-client >= %{xrootd_version_min}
 %endif
 
 # Select protobuf package
-%if ! %{without eos_protobuf3_rh}
-# Install eos-protobuf3
-%if 0%{?rhel} == 7
-Requires: eos-protobuf3
+%if 0%{?rhel} == 7 || 0%{?rhel} == 8
+Requires: eos-protobuf3 >= 3.3
 %else
-%if %{?fedora}%{!?fedora:0} >= 27 || 0%{?rhel} == 8
 Requires: protobuf >= 3.3
-%else
-Requires: protobuf3 >= 3.3
-%endif
-%endif
-%else
-%if %{?fedora}%{!?fedora:0} >= 27 || 0%{?rhel} == 8
-Requires: protobuf >= 3.3
-%else
-Requires: protobuf3 >= 3.3
-%endif
 %endif
 
 %if %{use_systemd}
