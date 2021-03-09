@@ -110,7 +110,8 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
         } catch (...) {}
       }
 
-      if (response->GetResponseCode() != 200) {
+      if ((response->GetResponseCode() != response->OK) &&
+          (response->GetResponseCode() != response->PARTIAL_CONTENT)) {
         return req.SendSimpleResp(response->GetResponseCode(),
                                   response->GetResponseCodeDescription().c_str(),
                                   header.c_str(), response->GetBody().c_str(),
