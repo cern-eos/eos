@@ -2156,19 +2156,21 @@ Server::OpSetFile(const std::string& id,
         try {
           eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
 
-          if (!Quota::QuotaBySpace(quotanode->getId(),
-                                   vid.uid,
-                                   vid.gid,
-                                   avail_files,
-                                   avail_bytes)) {
-            if (!avail_files) {
-              eos_err("name=%s out-of-inode-quota uid=%u gid=%u",
-                      md.name().c_str(),
-                      vid.uid,
-                      vid.gid);
-              return EDQUOT;
-            }
-          }
+	  if (quotanode) {
+	    if (!Quota::QuotaBySpace(quotanode->getId(),
+				     vid.uid,
+				     vid.gid,
+				     avail_files,
+				     avail_bytes)) {
+	      if (!avail_files) {
+		eos_err("name=%s out-of-inode-quota uid=%u gid=%u",
+			md.name().c_str(),
+			vid.uid,
+			vid.gid);
+		return EDQUOT;
+	      }
+	    }
+	  }
         } catch (eos::MDException& e) {
         }
       }
