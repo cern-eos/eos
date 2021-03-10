@@ -428,7 +428,7 @@ build_cc7_coverage:
     - echo "$CACHE - $IMAGE_TAG"
     - export DESTINATION="gitlab-registry.cern.ch/dss/eos:${IMAGE_TAG}"
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(echo -n $CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD | base64)\"}}}" > /kaniko/.docker/config.json
-    - /kaniko/executor --cache=$CACHE --destination $DESTINATION --dockerfile $DOCKERFILE --context $CI_PROJECT_DIR
+    - /kaniko/executor --cache=$CACHE --destination $DESTINATION --dockerfile $DOCKERFILE --context $CI_PROJECT_DIR --build-arg=EOS_CODENAME="${CODENAME}"
   retry: 1
 
 cc7_docker_image:
