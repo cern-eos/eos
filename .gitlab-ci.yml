@@ -32,7 +32,7 @@ default:
     - export DOCKERFILE="$CI_PROJECT_DIR/gitlab-ci/prebuild_OSbase/prebuild-${PREBUILD_NAME}.Dockerfile"
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(echo -n $CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD | base64)\"}}}" > /kaniko/.docker/config.json
     # no need yet for --build-arg PREBUILD_NAME="$PREBUILD_NAME" --build-arg CMAKE_OPTIONS="$CMAKE_OPTIONS" --build-arg CXXFLAGS="$CXXFLAGS"
-    - /kaniko/executor --cache="false" --destination $DESTINATION --dockerfile $DOCKERFILE --context $CI_PROJECT_DIR
+    - /kaniko/executor --cache="false" --destination $DESTINATION --dockerfile $DOCKERFILE --context $CI_PROJECT_DIR --build-arg=EOS_CODENAME="${CODENAME}"
   only:
     variables:
       - $PREBUILD_TRIGGER
