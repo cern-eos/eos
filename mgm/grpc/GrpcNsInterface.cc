@@ -2322,10 +2322,14 @@ GrpcNsInterface::Quota(eos::common::VirtualIdentity& vid,
   // filter by username
   if (request->id().username().length()) {
     ls->set_uid(request->id().username());
+  } else {
+    ls->set_uid(std::to_string(request->id().uid()));
   }
 
   if (request->id().groupname().length()) {
     ls->set_gid(request->id().groupname());
+  } else {
+    ls->set_gid(std::to_string(request->id().gid()));
   }
 
   if (request->path().length()) {
