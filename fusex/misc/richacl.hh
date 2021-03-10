@@ -79,11 +79,11 @@ static racl2eos(struct richacl* acl, char* buf, int bufsz, metad::shared_md md)
         who = "";
         ug = "z";
       } else if (ace->e_id == RICHACE_OWNER_SPECIAL_ID) {   /* owner@ */
-        who = eos::common::Mapping::UidToUserName(md->uid(), rc2);
+        who = eos::common::Mapping::UidToUserName((*md)()->uid(), rc2);
         if (EOS_LOGS_DEBUG)
             eos_static_debug("racl2eos special user id %d '%s' ug '%s'", ace->e_id, who.c_str(), ug);
       } else if (ace->e_id == RICHACE_GROUP_SPECIAL_ID) {   /* group@ */
-        who = eos::common::Mapping::GidToGroupName(md->gid(), rc2);
+        who = eos::common::Mapping::GidToGroupName((*md)()->gid(), rc2);
         ug = "g"; /* RICHACE_IDENTIFIER_GROUP not necessarily set */
         if (EOS_LOGS_DEBUG)
             eos_static_debug("racl2eos special group id %d '%s' ug '%s'", ace->e_id, who.c_str(), ug);
@@ -180,7 +180,7 @@ eos2racl(const char* eosacl, metad::shared_md md)
   curr = strtok_r(tacl, ",", &lasts);
 
   if (curr == NULL) {
-    return richacl_from_mode(md->mode());  /* return ACL from mode bits, NULL means invalid ACL */
+    return richacl_from_mode((*md)()->mode());  /* return ACL from mode bits, NULL means invalid ACL */
   }
 
   struct richacl* acl = richacl_alloc(numace);
@@ -264,7 +264,7 @@ eos2racl(const char* eosacl, metad::shared_md md)
 
       if (EOS_LOGS_DEBUG) eos_static_debug("qge=%s qlf=%s qlf_num=%d rc=%d e_id=%d", uge, qlf, qlf_num,
                        rc, ace->e_id);
-      if (ace->e_id == (id_t) md->uid()) { /* owner */
+      if (ace->e_id == (id_t) (*md)()->uid()) { /* owner */
         if (idx_owner >= 0) { /* already have an entry */
           acl->a_owner_mask = ace->e_mask;
           ace = &acl->a_entries[idx_owner];
@@ -286,7 +286,7 @@ eos2racl(const char* eosacl, metad::shared_md md)
       if (EOS_LOGS_DEBUG) eos_static_debug("qge=%s qlf=%s qlf_num=%d rc=%d e_id=%d", uge, qlf, qlf_num,
                        rc, ace->e_id);
 
-      if (ace->e_id != (id_t) md->gid()) { /*  group other than file's group*/
+      if (ace->e_id != (id_t) (*md)()->gid()) { /*  group other than file's group*/
         ace->e_flags |= RICHACE_IDENTIFIER_GROUP;
         // I had assumed that setting RICHACE_IDENTIFIER_GROUP also in the case e_id == gid below would be appropriate,
         // however that causes problems with "setrichacl -m" finding the right entry. Response from 
@@ -415,9 +415,9 @@ richacl_normalize_id(const struct richace *ace, metad::shared_md md, int *idType
     *idType = (int) ace->e_id;          /* one of owner, group, everyone */
 
     if (*idType == RICHACE_OWNER_SPECIAL_ID) {
-      id = md->uid();
+      id = (*md)()->uid();
     } else if (*idType == RICHACE_GROUP_SPECIAL_ID) {
-      id = md->gid();
+      id = (*md)()->gid();
     }
   } else {
     id = ace->e_id;
@@ -461,7 +461,7 @@ richacl_find_matching_ace(struct richace *e, metad::shared_md pmd,
 struct richacl *
 richacl_merge_parent(struct richacl *acl, metad::shared_md md,  /* subject */
                      struct richacl *pacl, metad::shared_md pmd /* parent */) {
-  bool isDir = S_ISDIR(md->mode());         /* non-Dir inherits from parent if acl == NULL */
+  bool isDir = S_ISDIR((*md)()->mode());         /* non-Dir inherits from parent if acl == NULL */
   struct richace *ace, *pace;
 
   if (acl == NULL && !isDir) {              /* inherits ACL from parent */
@@ -475,7 +475,7 @@ richacl_merge_parent(struct richacl *acl, metad::shared_md md,  /* subject */
     }
   } else {                                  /* inherits only RICHACL_DELETE_CHILD */
     if (acl == NULL)                        /* Container without ACL, use mode bits, no inheritance */
-      acl = richacl_from_mode(md->mode());
+      acl = richacl_from_mode((*md)()->mode());
 
     /* Loop over all entries in parent ACL and merge into child */
     richacl_for_each_entry(pace, pacl) {
