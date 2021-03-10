@@ -1009,8 +1009,8 @@ main(int argc, char* argv[])
                 src_location.clear();
                 replicationType = "raiddp";
               } else if (eos::common::LayoutId::IsRain(layout)) {
-                nsrc = eos::common::LayoutId::GetStripeNumber(layout) + 1 + eos::common::LayoutId::GetExcessStripeNumber(layout);
-                nparitystripes = eos::common::LayoutId::GetRedundancyStripeNumber(layout) + eos::common::LayoutId::GetExcessStripeNumber(layout);
+                nsrc = eos::common::LayoutId::GetStripeNumber(layout) + 1;
+                nparitystripes = eos::common::LayoutId::GetRedundancyStripeNumber(layout);
                 isRaidTransfer = true;
                 isSrcRaid = true;
                 src_location.clear();

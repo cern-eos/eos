@@ -57,7 +57,8 @@ Scheduler::FilePlacement(PlacementArguments* args)
   std::map<eos::common::FileSystem::fsid_t, std::string> availablefsgeolocation;
   std::list<eos::common::FileSystem::fsid_t> availablevector;
   // fill the avoid list from the selected_filesystems input vector
-  unsigned int nfilesystems = eos::common::LayoutId::GetStripeNumber(args->lid) + 1 + eos::common::LayoutId::GetExcessStripeNumber(args->lid);
+  unsigned int nfilesystems = eos::common::LayoutId::GetStripeNumber(
+                                args->lid) + 1;
   unsigned int ncollocatedfs = 0;
 
   switch (args->plctpolicy) {
@@ -81,7 +82,8 @@ Scheduler::FilePlacement(PlacementArguments* args)
       break;
 
     default:
-      ncollocatedfs = nfilesystems - eos::common::LayoutId::GetRedundancyStripeNumber(args->lid) - eos::common::LayoutId::GetExcessStripeNumber(args->lid);
+      ncollocatedfs = nfilesystems - eos::common::LayoutId::GetRedundancyStripeNumber(
+                        args->lid);
       break;
     }
 
