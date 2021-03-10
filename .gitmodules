@@ -29,3 +29,6 @@
 [submodule "common/jwt-cpp"]
 	path = common/jwt-cpp
 	url = https://github.com/Thalhammer/jwt-cpp.git
+[submodule "quarkdb"]
+	path = quarkdb
+	url = https://gitlab.cern.ch/eos/quarkdb.git
