@@ -273,7 +273,7 @@ data::datax::flush(fuse_req_t req)
                        EosFuse::Instance().Config().options.kWAIT_FLUSH_ON_CREATE) ? true : false;
 
     if ((!flush_wait_open) &&
-        (mMd->size() >= EosFuse::Instance().Config().options.flush_wait_open_size)) {
+        ((*mMd)()->size() >= EosFuse::Instance().Config().options.flush_wait_open_size)) {
       flush_wait_open = true;
     }
 
@@ -292,7 +292,7 @@ data::datax::flush(fuse_req_t req)
 
   if (EOS_LOGS_DEBUG) {
     eos_notice("flush-wait-open: %d size=%lu exec=%s\n", flush_wait_open,
-               mMd->size(), fusexrdlogin::executable(req).c_str());
+               (*mMd)()->size(), fusexrdlogin::executable(req).c_str());
   }
 
   return flush_nolock(req, flush_wait_open, false);
@@ -609,7 +609,7 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
       mInlineMaxSize = EosFuse::Instance().Config().inliner.max_size;
     }
 
-    auto attrMap = mMd->attr();
+    auto attrMap = (*mMd)()->attr();
 
     if (attrMap.count(kInlineMaxSize)) {
       mInlineMaxSize = strtoull(attrMap[kInlineMaxSize].c_str(), 0, 10);
@@ -647,17 +647,17 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
         inline_buffer->writeData(raw_string.c_str(), 0, raw_string.size());
 
         // in case there is any inconsistency between size and attribute buffer, just ignore this one
-        if (raw_string.size() != mMd->size()) {
+        if (raw_string.size() != (*mMd)()->size()) {
           inline_buffer = 0;
           // delete the inline buffer
-          (mMd->mutable_attr())->erase(kInlineAttribute);
+          ((*mMd)()->mutable_attr())->erase(kInlineAttribute);
           mIsInlined = false;
         }
       } else {
         mIsInlined = false;
       }
     } else {
-      if (mMd->size()) {
+      if ((*mMd)()->size()) {
         mIsInlined = false;
       }
     }
@@ -668,22 +668,22 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
   }
 
   eos_info("cookie=%s flags=%o isrw=%d md-size=%d %s", cookie.c_str(), flags,
-           isRW, mMd->size(),
+           isRW, (*mMd)()->size(),
            isRW ? mRemoteUrlRW.c_str() : mRemoteUrlRO.c_str());
   // store the currently known size here
-  mSize = mMd->size();
+  mSize = (*mMd)()->size();
 
   // set write error simulation flags
-  if (mMd->name().find("#err_sim_flush#") != std::string::npos) {
+  if ((*mMd)()->name().find("#err_sim_flush#") != std::string::npos) {
     eos_crit("enabling error simulation on flush");
     mSimulateWriteErrorInFlush = true;
-  } else if (mMd->name().find("#err_sim_flusher#") != std::string::npos) {
+  } else if ((*mMd)()->name().find("#err_sim_flusher#") != std::string::npos) {
     eos_crit("enabling error simulation on flusher");
     mSimulateWriteErrorInFlusher = true;
   }
 
   if ((flags & O_SYNC) ||
-      ((time(NULL) - mMd->bc_time()) <
+      ((time(NULL) - (*mMd)()->bc_time()) <
        EosFuse::Instance().Config().options.nocache_graceperiod)) {
     mFile->disable_caches();
   }
@@ -800,7 +800,7 @@ data::datax::inline_file(ssize_t size)
   XrdSysMutexHelper lLock(mLock);
 
   if (size == -1) {
-    size = mMd->size();
+    size = (*mMd)()->size();
   }
 
   if (inlined() && inline_buffer) {
@@ -815,13 +815,13 @@ data::datax::inline_file(ssize_t size)
         SymKey::Base64(raw_string, base64_string);
       }
 
-      (*(mMd->mutable_attr()))[kInlineAttribute] = base64_string;
-      (*(mMd->mutable_attr()))[kInlineMaxSize] = std::to_string(mInlineMaxSize);
-      (*(mMd->mutable_attr()))[kInlineCompressor] = mInlineCompressor;
+      (*((*mMd)()->mutable_attr()))[kInlineAttribute] = base64_string;
+      (*((*mMd)()->mutable_attr()))[kInlineMaxSize] = std::to_string(mInlineMaxSize);
+      (*((*mMd)()->mutable_attr()))[kInlineCompressor] = mInlineCompressor;
       return true;
     } else {
       // remove the extended attribute
-      (mMd->mutable_attr())->erase(kInlineAttribute);
+      ((*mMd)()->mutable_attr())->erase(kInlineAttribute);
       mIsInlined = false;
       return false;
     }
@@ -836,7 +836,7 @@ bool
 data::datax::prefetch(fuse_req_t req, bool lock)
 /* -------------------------------------------------------------------------- */
 {
-  size_t file_size = mMd->size();
+  size_t file_size = (*mMd)()->size();
   eos_info("handler=%d file=%lx size=%lu md-size=%lu", mPrefetchHandler ? 1 : 0,
            mFile ? mFile->file() : 0,
            mFile ? mFile->file() ? mFile->file()->size() : 0 : 0,
@@ -913,7 +913,7 @@ data::datax::WaitPrefetch(fuse_req_t req, bool lock)
     mLock.Lock();
   }
 
-  size_t file_size = mMd->size();
+  size_t file_size = (*mMd)()->size();
 
   if (mPrefetchHandler && mFile->file()) {
     XrdCl::Proxy* proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(
@@ -1959,9 +1959,9 @@ data::datax::pread(fuse_req_t req, void* buf, size_t count, off_t offset)
     // possibly return data from an inlined buffer
     ssize_t avail_bytes = 0;
 
-    if (((size_t) offset < mMd->size())) {
-      if ((offset + count) > mMd->size()) {
-        avail_bytes = mMd->size() - offset;
+    if (((size_t) offset < (*mMd)()->size())) {
+      if ((offset + count) > (*mMd)()->size()) {
+        avail_bytes = (*mMd)()->size() - offset;
       } else {
         avail_bytes = count;
       }
@@ -2309,7 +2309,7 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
 /* -------------------------------------------------------------------------- */
 {
   mLock.Lock();
-  eos_info("offset=%llu count=%lu size=%lu", offset, count, mMd->size());
+  eos_info("offset=%llu count=%lu size=%lu", offset, count, (*mMd)()->size());
 
   if (mFile->journal()) {
     ssize_t jts = ((mFile->journal()))->get_truncatesize();
@@ -2334,9 +2334,9 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
     // possibly return data from an inlined buffer
     ssize_t avail_bytes = 0;
 
-    if (((size_t) offset < mMd->size())) {
-      if ((offset + count) > mMd->size()) {
-        avail_bytes = mMd->size() - offset;
+    if (((size_t) offset < (*mMd)()->size())) {
+      if ((offset + count) > (*mMd)()->size()) {
+        avail_bytes = (*mMd)()->size() - offset;
       } else {
         avail_bytes = count;
       }
@@ -2344,7 +2344,7 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
       avail_bytes = 0;
     }
 
-    if (mMd->size() <= (unsigned long long) inline_buffer->getSize()) {
+    if ((*mMd)()->size() <= (unsigned long long) inline_buffer->getSize()) {
       memcpy(buf, inline_buffer->ptr() + offset, avail_bytes);
       eos_debug("inline-read byte=%lld inline-buffer-size=%lld", avail_bytes,
                 inline_buffer->getSize());
@@ -2365,7 +2365,7 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
       return br;
     }
 
-    if ((br == (ssize_t) count) || (br == (ssize_t) mMd->size())) {
+    if ((br == (ssize_t) count) || (br == (ssize_t) (*mMd)()->size())) {
       return br;
     }
   }

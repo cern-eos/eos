@@ -240,12 +240,12 @@ public:
 
     std::string fullpath()
     {
-      return mMd->fullpath();
+      return (*md())()->fullpath();
     }
 
     std::string fid()
     {
-      return std::to_string(eos::common::FileId::InodeToFid(mMd->md_ino()));
+      return std::to_string(eos::common::FileId::InodeToFid((*mMd)()->md_ino()));
     }
 
     std::deque<std::string> recoverystack()
@@ -309,7 +309,7 @@ public:
       update_mtime_on_flush.store(false, std::memory_order_seq_cst);
       next_size_flush.store(0, std::memory_order_seq_cst);
       _maxfilesize = 0;
-      _opensize = md->size();
+      _opensize = (*md)()->size();
     }
 
     ~_data_fh() { }

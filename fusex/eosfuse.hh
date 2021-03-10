@@ -327,6 +327,11 @@ public:
     return mounter;
   }
 
+
+  const char* umountcall() {
+    return umount_system_line.c_str();
+  }
+
   static std::string dump(fuse_id id,
                           fuse_ino_t ino,
                           struct fuse_file_info* fi,
@@ -523,6 +528,8 @@ private:
   AssistedThread tMetaStackFree;
   AssistedThread tMetaCommunicate;
   AssistedThread tCapFlush;
+
+  std::string umount_system_line;
 
   void DumpStatistic(ThreadAssistant& assistant);
   void StatCirculate(ThreadAssistant& assistant);
