@@ -306,8 +306,7 @@ ProcCommand::FileInfo(const char* path)
           std::string redundancy = eos::common::LayoutId::GetRedundancySymbol(
                                      fmd_copy->hasLocation(EOS_TAPE_FSID),
                                      eos::common::LayoutId::GetRedundancy(fmd_copy->getLayoutId(),
-									  fmd_copy->getNumLocation()),
-				     eos::common::LayoutId::GetExcessStripeNumber(fmd_copy->getLayoutId()));
+                                         fmd_copy->getNumLocation()));
 
           if (!Monitoring) {
             out << "  File: '" << spath << "'"

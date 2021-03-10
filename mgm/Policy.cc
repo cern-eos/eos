@@ -78,7 +78,6 @@ Policy::GetLayoutAndSpace(const char* path,
   unsigned long xsum = eos::common::LayoutId::GetChecksumFromEnv(env);
   unsigned long bxsum = eos::common::LayoutId::GetBlockChecksumFromEnv(env);
   unsigned long stripes = eos::common::LayoutId::GetStripeNumberFromEnv(env);
-  unsigned long excess = eos::common::LayoutId::GetExcessNumberFromEnv(env);
   unsigned long blocksize = eos::common::LayoutId::GetBlocksizeFromEnv(env);
   bool noforcedchecksum = false;
   const char* val = 0;
@@ -94,7 +93,6 @@ Policy::GetLayoutAndSpace(const char* path,
     spacepolicies["space"]     = it->second->GetConfigMember("policy.space");
     spacepolicies["layout"]    = it->second->GetConfigMember("policy.layout");
     spacepolicies["nstripes"]  = it->second->GetConfigMember("policy.nstripes");
-    spacepolicies["nexcess"]  = it->second->GetConfigMember("policy.nexcess");
     spacepolicies["checksum"]  = it->second->GetConfigMember("policy.checksum");
     spacepolicies["blocksize"] = it->second->GetConfigMember("policy.blocksize");
     spacepolicies["blockchecksum"] = it->second->GetConfigMember("policy.blockchecksum");
@@ -116,7 +114,6 @@ Policy::GetLayoutAndSpace(const char* path,
     // overwrite the defaults if they are defined in the target space
     std::string space_layout   = it->second->GetConfigMember("policy.layout");
     std::string space_nstripes = it->second->GetConfigMember("policy.nstripes");
-    std::string space_nexcess = it->second->GetConfigMember("policy.nexcess");
     std::string space_checksum = it->second->GetConfigMember("policy.checksum");
     std::string space_blocksize= it->second->GetConfigMember("policy.blocksize");
     std::string space_blockxs  = it->second->GetConfigMember("policy.blockchecksum");
@@ -126,9 +123,6 @@ Policy::GetLayoutAndSpace(const char* path,
     }
     if (space_nstripes.length()) {
       spacepolicies["nstripes"] = space_nstripes;
-    }
-    if (space_nexcess.length()) {
-      spacepolicies["nexcess"] = space_nexcess;
     }
     if (space_checksum.length()) {
       spacepolicies["checksum"] = space_checksum;
@@ -225,15 +219,6 @@ Policy::GetLayoutAndSpace(const char* path,
       eos_static_debug("sys.forced.nstripes in %s", path);
     }
 
-    if (attrmap.count("sys.forced.nexcess")) {
-      XrdOucString layoutstring = "eos.layout.nexcess=";
-      layoutstring += attrmap["sys.forced.nexcess"].c_str();
-      XrdOucEnv layoutenv(layoutstring.c_str());
-      // we force to use a specified stripe number in this directory even if the user wants something else
-      excess = eos::common::LayoutId::GetExcessNumberFromEnv(layoutenv);
-      eos_static_debug("sys.forced.nexcess in %s", path);
-    }
-
     if (attrmap.count("sys.forced.blocksize")) {
       XrdOucString layoutstring = "eos.layout.blocksize=";
       layoutstring += attrmap["sys.forced.blocksize"].c_str();
@@ -289,15 +274,6 @@ Policy::GetLayoutAndSpace(const char* path,
         eos_static_debug("user.forced.nstripes in %s", path);
       }
 
-      if (attrmap.count("user.forced.nexcess")) {
-        XrdOucString layoutstring = "eos.layout.nexcess=";
-        layoutstring += attrmap["user.forced.nexcess"].c_str();
-        XrdOucEnv layoutenv(layoutstring.c_str());
-        // we force to use a specified stripe number in this directory even if the user wants something else
-        excess = eos::common::LayoutId::GetExcessNumberFromEnv(layoutenv);
-        eos_static_debug("user.forced.nexcess in %s", path);
-      }
-
       if (attrmap.count("user.forced.blocksize")) {
         XrdOucString layoutstring = "eos.layout.blocksize=";
         layoutstring += attrmap["user.forced.blocksize"].c_str();
@@ -324,7 +300,7 @@ Policy::GetLayoutAndSpace(const char* path,
   }
 
   layoutId = eos::common::LayoutId::GetId(layout, xsum, stripes, blocksize,
-                                          bxsum, excess);
+                                          bxsum);
   return;
 }
 
