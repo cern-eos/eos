@@ -4,9 +4,6 @@
 [submodule "namespace/ns_quarkdb/qclient"]
 	path = namespace/ns_quarkdb/qclient
 	url = https://gitlab.cern.ch/eos/qclient.git
-[submodule "fusex/deps/backward-cpp"]
-	path = fusex/deps/backward-cpp
-	url = https://github.com/bombela/backward-cpp
 [submodule "mgm/cta_interface"]
 	path = mgm/cta_interface
 	url = https://gitlab.cern.ch/eos/xrootd-ssi-protobuf-interface.git
