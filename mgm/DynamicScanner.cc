@@ -109,6 +109,20 @@ DynamicScanner::Options DynamicScanner::getOptions()
   return opts;
 }
 
+/////This is for compilng this will have  to be build up later on.
+
+void
+DynamicScanner::Process(std::string& filepath)
+{
+}
+
+void
+DynamicScanner::Process(std::shared_ptr<eos::IFileMD> fmd)
+{
+}
+
+
+
 //------------------------------------------------------------------------------
 // Perform a single inspector cycle, QDB namespace
 //------------------------------------------------------------------------------
