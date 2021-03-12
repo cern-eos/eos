@@ -99,6 +99,7 @@ add_library(eosxd-objects OBJECT
   ${PROTO_SRC} ${PROTO_HEADER})
 
 target_link_libraries(eosxd-objects PUBLIC
+  ZSTD::ZSTD
   ROCKSDB::ROCKSDB
   LIBEVENT::LIBEVENT
   OPENSSL::OPENSSL

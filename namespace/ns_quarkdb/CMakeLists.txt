@@ -37,7 +37,8 @@ add_dependencies(EosNsQuarkdb EosNsQuarkdbProto-Objects)
 target_link_libraries(EosNsQuarkdb PUBLIC
   EosNsCommon
   qclient
-  rocksdb
+  ZSTD::ZSTD
+  ROCKSDB::ROCKSDB
   BZ2::BZ2
   ${CMAKE_THREAD_LIBS_INIT})
 
