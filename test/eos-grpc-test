@@ -113,6 +113,22 @@ eos rmdir $prefix/t_grpc/
 eos-grpc-ns --token false quota | grep "you are not a quota administrator"  || exit -12
 eos-grpc-ns --token $authkey quota | grep "you are not a quota administrator"  && exit -12
 
+#user quota
+eos-grpc-ns --token $authkey -p $prefix --inodes 123 --volume 456 --username nobody quota set | grep error && exit -13
+eos-grpc-ns --token $authkey -p $prefix --username nobody --quota inode quota rm | grep error && exit -13
+eos-grpc-ns --token $authkey -p $prefix --username nobody --quota volume quota rm | grep error && exit -13
+
+#project quota
+eos-grpc-ns --token $authkey -p $prefix --inodes 321 --volume 654 --groupname nobody quota set | grep error && exit -14
+eos-grpc-ns --token $authkey -p $prefix --groupname nobody --quota inode quota rm | grep error && exit -14
+eos-grpc-ns --token $authkey -p $prefix --groupname nobody --quota volume quota rm | grep error && exit -14
+
+#quota node deletion
+eos vid set map -grpc key:$authkey vuid:0
+eos vid set map -grpc key:$authkey vgid:0
+eos-grpc-ns --uid 0 --gid 0 --token $authkey -p $prefix quota rmnode | grep error && exit -15
+eos vid set map -grpc key:$authkey vuid:11
+eos vid set map -grpc key:$authkey vgid:11
 #recycle
 eos-grpc-ns --token $authkey --uid 99 recycle | grep recycles || exit -13
 eos-grpc-ns --token $authkey --uid 99 recycle ls | grep recycles ||  exit -13
@@ -126,14 +142,10 @@ eos-grpc-ns --token $authkey --uid 99 --year 2020 recycle purge | grep "\"code\"
 eos-grpc-ns --token $authkey --uid 99 --year 2020 --month 5 recycle purge | grep "\"code\": \"0\"" || exit -13
 eos-grpc-ns --token $authkey --uid 99 --year 2020 --month 1 --day 1 recycle purge | grep "\"code\": \"0\"" || exit -13
 
+
 eos vid rm vid:grpc:\"key:12345678\":gid
 eos vid rm vid:grpc:\"key:12345678\":uid
 eos vid set membership 11 -sudo
 eos vid rm membership 11
-exit 0
-
-
-#token
-eos-grpc-ns --token --acl rwx $authkey -p $prefix/t_grpc/ || exit -12
 
 

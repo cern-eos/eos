@@ -10,7 +10,7 @@ int usage(const char* prog)
   fprintf(stderr, "usage: %s [--key <ssl-key-file> "
           "--cert <ssl-cert-file> "
           "--ca <ca-cert-file>] "
-          "[--endpoint <host:port>] [--token <auth-token>] [--xattr <key:val>] [--mode <mode>] [--username <username>] [ [--groupname <groupname>] [--uid <uid>] [--gid <gid>] [--owner-uid <uid>] [--owner-gid <gid>] [--acl <acl>] [--sysacl] [--norecycle] [-r] [--max-version <max-version>] [--target <target>] [--year <year>] [--month <month>] [--day <day>] -p <path> <command>\n", prog);
+          "[--endpoint <host:port>] [--token <auth-token>] [--xattr <key:val>] [--mode <mode>] [--username <username>] [ [--groupname <groupname>] [--uid <uid>] [--gid <gid>] [--owner-uid <uid>] [--owner-gid <gid>] [--acl <acl>] [--sysacl] [--norecycle] [-r] [--max-version <max-version>] [--target <target>] [--year <year>] [--month <month>] [--day <day>] [--inodes <#>] [--volume <#>] [--quota volume|inode] -p <path> <command>\n", prog);
 
   fprintf(stderr,
 	  "                                     -p <path> mkdir \n"
@@ -32,7 +32,11 @@ int usage(const char* prog)
 	  "                                     -p <key>  recycle restore\n"
           " --year <year> [--month <month> [--day <day>]] recycle purge\n"
           "                                     -p <key>  recycle purge\n"
-	  "[--username <u> | --groupname <g>] [-p <path>] quota \n \n");
+	  "[--username <u> | --groupname <g>] [-p <path>] quota get\n"
+	  "[--username <u> | --groupname <g>] [-p <path>] --inodes <#> --volume <#> --quota user|group|project \\"
+	                                                 "quota set\n"
+	  "[--username <u> | --groupname <g>] [-p <path>] quota rm\n"
+	  "                                   [-p <path>] quota rmnode\n");
 	  
   return -1;
 }
@@ -60,6 +64,10 @@ int main(int argc, const char* argv[])
   uint32_t day = 0;
   uint32_t month = 0;
   uint32_t year = 0;
+
+  uint64_t inodes = 0;
+  uint64_t volume = 0;
+  std::string qtype;
 
   std::string username;
   std::string groupname;
@@ -137,6 +145,36 @@ int main(int argc, const char* argv[])
     if (option == "--gid") {
       if (argc > i + 1) {
 	gid = strtoul(argv[i + 1],0,10);
+	++i;
+	continue;
+      } else {
+	return usage(argv[0]);
+      }
+    }
+
+    if (option == "--inodes") {
+      if (argc > i + 1) {
+	inodes = strtoul(argv[i + 1],0,10);
+	++i;
+	continue;
+      } else {
+	return usage(argv[0]);
+      }
+    }
+
+    if (option == "--volume") {
+      if (argc > i + 1) {
+	volume = strtoul(argv[i + 1],0,10);
+	++i;
+	continue;
+      } else {
+	return usage(argv[0]);
+      }
+    }
+
+    if (option == "--quota") {
+      if (argc > i + 1) {
+	qtype = argv[i + 1];
 	++i;
 	continue;
       } else {
@@ -310,9 +348,18 @@ int main(int argc, const char* argv[])
 	  return usage(argv[0]);
 	}
 	break;
-      } else {
-	return usage(argv[0]);
       }
+      if ( cmd == "quota" ) {
+	subcmd = argv[i+1];
+	if ( (subcmd != "get") &&
+	     (subcmd != "set") &&
+	     (subcmd != "rm") &&
+	     (subcmd != "rmnode")) {
+	  return usage(argv[0]);
+	}
+	break;
+      }
+      return usage(argv[0]);
     }
   }
 
@@ -460,8 +507,28 @@ int main(int argc, const char* argv[])
       request.mutable_quota()->mutable_id()->set_groupname(groupname);
     }
     request.mutable_quota()->set_path(path);
+    if (subcmd == "get")  {
+      request.mutable_quota()->set_op(eos::rpc::GET);
+    }
+    if (subcmd == "set") {
+      request.mutable_quota()->set_op(eos::rpc::SET);
+      request.mutable_quota()->set_maxfiles(inodes);
+      request.mutable_quota()->set_maxbytes(volume);
+    }
+    if (subcmd == "rm") {
+      request.mutable_quota()->set_op(eos::rpc::RM);
+      request.mutable_quota()->set_entry(eos::rpc::NONE);
+      if (qtype == "volume") {
+	request.mutable_quota()->set_entry(eos::rpc::VOLUME);
+      }
+      if (qtype == "inode") {
+	request.mutable_quota()->set_entry(eos::rpc::INODE);
+      }
+    }
+    if (subcmd == "rmnode") {
+      request.mutable_quota()->set_op(eos::rpc::RMNODE);
+    }
   } else if (cmd == "recycle") {
-
     if ( (subcmd == "")  ||
 	 (subcmd == "ls") ) {
       request.mutable_recycle()->set_cmd(eos::rpc::NSRequest::RecycleRequest::LIST);
