@@ -21,6 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include <regex>
+
 #include "NewfindCmd.hh"
 #include "common/LayoutId.hh"
 #include "common/Path.hh"
@@ -48,8 +50,10 @@ template<typename T>
 static bool eliminateBasedOnFileMatch(const eos::console::FindProto& req,
                                       const T& md)
 {
-  XrdOucString name = md->getName().c_str();
-  return (!req.name().empty()) && (name.matches(req.name().c_str()) == 0);
+  std::string toFilter = md->getName();
+  std::regex filter(req.name(), std::regex_constants::egrep);
+
+  return (!req.name().empty()) && (!std::regex_search(toFilter, filter));
 }
 
 //------------------------------------------------------------------------------

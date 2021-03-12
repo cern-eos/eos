@@ -647,7 +647,7 @@ void com_newfind_help()
       << "Filters: [--maxdepth <n>] [--name <pattern>] [-d] [-f] [-0] [-g] [-uid <n>] [-nuid <n>] [-gid <n>] [-ngid <n>] [-flag <n>] [-nflag <n>] [-ctime +<n>|-<n>] [-x <key>=<val>]\n"
 //      << "\t                   -1 : \n"
       << "\t       --maxdepth <n> : descend only <n> levels\n"
-      << "\t     --name <pattern> : find by name or wildcard match\n"
+      << "\t     --name <pattern> : find by name, filtering by 'egrep' style regex match\n"
       << "\t                -f,-d : find only files(-f) or directories (-d) in <path>\n"
       << "\t       -x <key>=<val> : find entries with <key>=<val>\n"
       << "\t   -uid <n>,-nuid <n> : find entries owned / not owned by a given user id number\n"
