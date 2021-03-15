@@ -86,7 +86,7 @@ void com_fsck_help()
       << "    -i         : display file identifiers" << std::endl
       << "    -l         : display logical file name" << std::endl
       << "    -j|--json  : display in JSON output format" << std::endl
-      << "    --error    : dispaly information about the following error tags"
+      << "    --error    : display information about the following error tags"
       << std::endl
       << std::endl
       << "  fsck repair --fxid <val> [--fsid <val>] [--error <err_type>] [--async]\n"

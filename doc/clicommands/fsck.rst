@@ -24,7 +24,7 @@ fsck
     -i         : display file identifiers
     -l         : display logical file name
     -j|--json  : display in JSON output format
-    --error    : dispaly information about the following error tags
+    --error    : display information about the following error tags
     fsck repair --fxid <val> [--async]
     repair the given file if there are any errors
     --fxid  : hexadecimal file identifier

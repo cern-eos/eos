@@ -76,7 +76,7 @@ void com_recycle_help()
       << std::endl
       << "             e.g.: recycle ls 2018/08/12" << std::endl
       << "    -m     : display info in monitoring format" << std::endl
-      << "    -n     : dispaly numeric uid/gid(s) instead of names" << std::endl
+      << "    -n     : display numeric uid/gid(s) instead of names" << std::endl
       << std::endl
       << "  recycle purge [-g|<date>] [-k <key>]" << std::endl
       << "    purge files in the recycle bin" << std::endl
