@@ -129,7 +129,7 @@ target_link_libraries(eosxd PRIVATE
   ${EOSXD_COMMON_LINK_LIBRARIES})
 
 if(Linux)
-  target_link_libraries(eosxd PRIVATE jemalloc)
+  target_link_libraries(eosxd PRIVATE JEMALLOC::JEMALLOC)
 endif()
 
 set_target_properties(eosxd
@@ -143,7 +143,7 @@ if (FUSE3_FOUND)
 
   target_link_libraries(eosxd3 PUBLIC
     eosxd-objects
-    jemalloc
+    JEMALLOC::JEMALLOC
     ${EOSXD_COMMON_LINK_LIBRARIES})
 
   set_target_properties(eosxd3
