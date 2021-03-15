@@ -168,6 +168,9 @@ BuildRequires: glibc-headers
 BuildRequires: binutils-devel
 BuildRequires: cppunit-devel
 BuildRequires: help2man
+BuildRequires: zstd, zstd-devel
+BuildRequired: lz4, lz4-devel
+Requires: zstd, lz4
 
 %if 0%{?rhel} != 8
 BuildRequires: openssl-static, ncurses-static
