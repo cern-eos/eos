@@ -46,9 +46,9 @@ if(NOT PACKAGEONLY)
   find_package(jsoncpp REQUIRED)
   find_package(Libevent REQUIRED)
   find_package(bz2 REQUIRED)
-  find_package(jemalloc REQUIRED)
+  find_package(jemalloc)
   find_package(RocksDB)
-
+  # Add extra requirements that come from RocksDB
   if (ROCKSDB_FOUND)
     find_package(zstd REQUIRED)
     find_package(lz4 REQUIRED)
