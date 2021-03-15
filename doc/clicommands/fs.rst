@@ -107,10 +107,10 @@ fs
     -d|--drain : display filesystems in drain or draindead status
     along with drain progress and statistics
     -D|--drain_jobs :
-    dispaly ongoing drain transfers, matchlist needs to be an integer
+    display ongoing drain transfers, matchlist needs to be an integer
     representing the drain file system id
     -F|--failed_drain_jobs :
-    dispaly failed drain transfers, matchlist needs to be an integer
+    display failed drain transfers, matchlist needs to be an integer
     representing the drain file system id. This will only display
     information while the draining is ongoing
     -s         : silent mode
