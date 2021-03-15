@@ -168,8 +168,8 @@ BuildRequires: glibc-headers
 BuildRequires: binutils-devel
 BuildRequires: cppunit-devel
 BuildRequires: help2man
-BuildRequires: zstd, zstd-devel
-BuildRequires: lz4, lz4-devel
+BuildRequires: libzstd, libzstd-devel
+BuildRequires: lz4
 Requires: zstd, lz4
 
 %if 0%{?rhel} != 8
