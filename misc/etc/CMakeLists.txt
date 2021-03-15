@@ -37,7 +37,7 @@ install(DIRECTORY DESTINATION /etc/eos/config/generic)
 install(
   FILES eos.keytab eos.client.keytab
   DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/
-  PERMISSIONS OWNER_READ OWNER_WRITE)
+  PERMISSIONS OWNER_READ)
 
 install(
   FILES xrd.cf.fst xrd.cf.mgm xrd.cf.mq xrd.cf.sync xrd.cf.fed xrd.cf.prefix
