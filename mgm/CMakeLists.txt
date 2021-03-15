@@ -321,7 +321,6 @@ target_link_libraries(
 add_executable(eos-config-inspect
   config/eos-config-inspect.cc
   config/QuarkConfigHandler.cc
-
   ../common/config/ConfigParsing.cc
 )
 

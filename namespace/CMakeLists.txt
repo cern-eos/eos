@@ -118,7 +118,6 @@ target_include_directories(
 target_link_libraries(EosNsCommon PUBLIC
   EosNsCommon-Objects
   EosCrc32c-Objects
-  ZSTD::ZSTD
   ROCKSDB::ROCKSDB
   fmt)
 
@@ -150,7 +149,6 @@ if (Linux)
     EosCommon-Static
     fmt
     qclient
-    ZSTD::ZSTD
     ROCKSDB::ROCKSDB)
 
   set_target_properties(EosNsCommon-Static PROPERTIES
