@@ -186,7 +186,7 @@ BuildRequires: openssl-static, ncurses-static
 %endif
 
 %if %{?_with_server:1}%{!?_with_server:0}
-BuildRequires: eos-rocksdb = 5.7.3-1%{rocksdb_dist}
+BuildRequires: eos-rocksdb = 6.2.4-1%{rocksdb_dist}
 BuildRequires: openldap-devel
 BuildRequires: e2fsprogs-devel
 BuildRequires: eos-libmicrohttpd, eos-libmicrohttpd-devel >= 0.9.38
@@ -237,7 +237,7 @@ BuildRequires: binutils-devel
 %endif
 %if 0%{?rhel} == 7 || 0%{?rhel} == 8
 # We want swap-support on eosxd - requires rocksdb KV
-BuildRequires: eos-rocksdb = 5.7.3-1%{rocksdb_dist}
+BuildRequires: eos-rocksdb = 6.2.4-1%{rocksdb_dist}
 %endif
 %endif
 
