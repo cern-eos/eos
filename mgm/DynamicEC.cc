@@ -2,7 +2,7 @@
 // File: DynamicEC.cc
 // Author: Andreas Stoeve - CERN
 // ----------------------------------------------------------------------
-
+/////
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
  * Copyright (C) 2013 CERN/Switzerland                                  *
@@ -37,6 +37,7 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "Xrd/XrdScheduler.hh"
+#include "mgm/DynamicCreator.hh"
 #include <random>
 #include <cmath>
 #include <map>
@@ -65,6 +66,10 @@ DynamicEC::DynamicEC(const char* spacename, uint64_t ageNew,  uint64_t size,
     mThread.reset(&DynamicEC::Run, this);
   }
 
+  if (OnWork) {
+    //mThread2.reset(&DynamicCreator::Run, this);
+  }
+
   mThread.stop();
   mSpaceName = "";
   simulatedFiles.clear();
@@ -77,6 +82,10 @@ DynamicEC::DynamicEC(const char* spacename, uint64_t ageNew,  uint64_t size,
   createdFileSize = 0;
   sizeToBeDeleted = 0;
   waitTime = 10;
+//mCreator.createFiles();
+// DynamicCreator CreateTus();
+  //CreateTus.createFiles();
+  //mThread2.reset(&CreateTus::Run, this);
 }
 
 //old constructor
@@ -102,6 +111,62 @@ DynamicEC::Stop()
   mThread.join();
 }
 
+void
+DynamicEC::createFiles()
+{
+  // switch timeout resolution to 1s                                                               \
+  \
+  XrdCl::DefaultEnv::GetEnv()->PutInt("TimeoutResolution", 1);
+  XrdCl::File file;
+  // replace existing file                                                                         \
+  \
+  XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update |
+                                        XrdCl::OpenFlags::Delete;
+  // default modes - user can rwx                                                                  \
+  \
+  XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW |
+                             XrdCl::Access::UX;
+  //std::string url="root://home/rawfile.xrdcl" ;
+  //std::string url="root://eoshome-a.cern.ch//eos/user/a/astoeve/rawfile.xrdcl" ;
+  std::string url = "root://localhost//eos/testarea/dynec/rawfile1.xrdcl" ;
+  //[root://localhost] |/eos/testarea/dynec/                                                       \
+  \
+  // timeout 5s                                                                                    \
+  \
+  XrdCl::XRootDStatus status = file.Open(url, targetFlags, mode, 5);
+
+  if (!status.IsOK()) {
+    // too bad                                                                                     \
+    \
+    exit(-1);
+  } else {
+    std::string diskserverurl;
+    file.GetProperty("LastURL", diskserverurl);
+    std::cout << "[ diskserver ] : " << diskserverurl << std::endl;
+    char buffer[2];
+    buffer[0] = 1;
+    buffer[1] = 2;
+    off_t offset = 0;
+    size_t length = 2;
+    // write 2 bytes with 5s timeout - synchronous !!!
+    status = file.Write(offset, length, buffer, 5);
+
+    if (!status.IsOK()) {
+      // too bad again                                                                             \
+      \
+      exit(-2);
+    }
+
+    // give 5s to close the file                                                                   \
+    \
+    status = file.Close(5);
+
+    if (!status.IsOK()) {
+      // too bad again
+      exit(-3);
+    }
+  }
+}
 
 
 DynamicEC::~DynamicEC()
@@ -436,6 +501,7 @@ DynamicEC::kQrainReduction(std::shared_ptr<DynamicECFile> file)
 void
 DynamicEC::Cleanup()
 {
+  //mCreator.createFiles();
   fprintf(stderr, "CleanUp started \n");
   eos_static_info("%s", "CleanUp started \n");
   statusForSystem status;
@@ -486,6 +552,7 @@ DynamicEC::Run(ThreadAssistant& assistant) noexcept
     ///Assisting variables can be written here
   {
     Cleanup();
+    createFiles();
     /// What to do when it runs
     ///can have a lock for a timeout, then needs to know where it started.
     // somehow taking different files, and go though them, whis is where the deletion of file id is running
