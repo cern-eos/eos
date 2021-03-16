@@ -228,6 +228,7 @@ add_library(
   DynamicScanner.cc
   DynamicEC.hh
   DynamicECFile.cc
+  DynamicCreator.cc
   
   Features.cc
   ZMQ.cc
