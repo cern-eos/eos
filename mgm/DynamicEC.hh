@@ -29,8 +29,8 @@
 
 
 
-#ifndef __EOSMGM_GEOBALANCER__
-#define __EOSMGM_GEOBALANCER__
+#ifndef __EOSMGM_DYNAMICEC__
+#define __EOSMGM_DYNAMICEC__
 
 /* -------------------------------------------------------------------------- */
 #include "mgm/DynamicECFile.hh"
@@ -40,6 +40,7 @@
 #include "common/FileSystem.hh"
 #include "common/AssistedThread.hh"
 #include "namespace/interface/IFileMD.hh"
+#include "mgm/DynamicCreator.hh"
 /* -------------------------------------------------------------------------- */
 #include "XrdSys/XrdSysPthread.hh"
 /* -------------------------------------------------------------------------- */
@@ -50,6 +51,7 @@
 #include <ctime>
 #include <map>
 #include <atomic>
+
 
 
 //! Forward declaration
@@ -76,6 +78,10 @@ class DynamicEC
 private:
   AssistedThread mThread; /// thread for doing the clean up
 
+  AssistedThread mThread2; /// thread for doing the clean up
+
+
+
   std::string
   mSpaceName; /// the space that the thread is running on // this have to be cheked on how it will have to run over
 
@@ -101,6 +107,8 @@ private:
 
   uint64_t sizeToBeDeleted; /// the size that the system will have to delete in order to get under the minimum threshold.
 
+  DynamicCreator mCreator;
+
 public:
 
   uint64_t createdFileSize; /// the size of the created files in bytes
@@ -112,6 +120,8 @@ public:
   std::map<IFileMD::id_t, std::shared_ptr<DynamicECFile>> simulatedFiles;
 
   void setWaitTime(int wait);
+
+  void createFiles();
 
   int getWaitTime();
 
