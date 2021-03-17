@@ -20,7 +20,7 @@ gpgkey=http://xrootd.cern.ch/sw/releases/RPM-GPG-KEY.txt
 EOF
 }
 
-createEosAndEosCitrinRepo() {
+createEosAndEosCitrineRepo() {
 echo "Creating the eos.repo and adding it to the yum repository directory"
 sudo cat > /etc/yum.repos.d/eos.repo <<'EOF'
 [eos-citrine]
@@ -70,7 +70,7 @@ cmake3 ../ -DPACKAGEONLY=1 && make srpm || die "Unable to make the srpm"
 
 createXrootdRepo
 
-createEosAndEosCitrinRepo
+createEosAndEosCitrineRepo
 
 createQuarkDbRepo
 
@@ -80,12 +80,6 @@ echo "Installing libmicrohttpd-devel"
 sudo yum install -y libmicrohttpd-devel --disablerepo="*" --enablerepo=eos-citrine-dep || die 'ERROR while installing libmicrohttp packages'
 echo "Running yum-builddep to build the dependencies of EOS"
 sudo yum-builddep --nogpgcheck --setopt="cern*.exclude=xrootd*,libmicrohttp*" -y SRPMS/* || die 'ERROR while building the dependencies'
-
-echo "Removing the xrootd-5 installed packages"
-sudo yum remove -y xrootd-*
-
-echo "Installing the xrootd-4 packages"
-sudo yum install -y xrootd xrootd-client xrootd-server-devel xrootd-private-devel --disablerepo="*" --enablerepo=eos-citrine-dep || die "ERROR while trying to install xrootd xrootd-client xrootd-server-devel xrootd-private-devel"
 
 echo "Installing quarkdb"
 sudo yum install -y quarkdb quarkdb-debuginfo redis || die 'ERROR while installing quarkdb packages'
