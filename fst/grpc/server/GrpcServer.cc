@@ -40,6 +40,9 @@ using grpc::Status;
 using eos::PingRequest;
 using eos::PingReply;
 
+using eos::GetRequest;
+using eos::GetReply;
+
 #endif
 
 EOSFSTNAMESPACE_BEGIN
@@ -64,6 +67,29 @@ class RequestServiceImpl final : public Eos::Service
     auto resp = CreatePingReplyDirect(mb, request->GetRoot()->message()->str().c_str());
     mb.Finish(resp);
     *response = mb.ReleaseMessage<PingReply>();
+    return Status::OK;
+  }
+
+  Status Get(ServerContext* context,
+	      const flatbuffers::grpc::Message<GetRequest>* request,
+	      flatbuffers::grpc::Message<GetReply>* response) override
+  {
+    eos_static_info("grpc::ping from client peer=%s ip=%s DN=%s token=%s name=%s offset=%lu size=%lu",
+                    context->peer().c_str(), GrpcServer::IP(context).c_str(),
+                    GrpcServer::DN(context).c_str(), request->GetRoot()->authkey()->str().c_str(),
+                    request->GetRoot()->name()->str().c_str(),
+		    request->GetRoot()->offset(),
+		    request->GetRoot()->len());
+    // this is really aweful to say the least ...
+    flatbuffers::grpc::MessageBuilder mb;
+    std::vector<int8_t> buffer;
+    // create requested buffer
+    //    buffer.resize(request->GetRoot()->len(),0);
+    buffer.resize(request->GetRoot()->len(),0);
+    fprintf(stderr,"answering %lu\n", request->GetRoot()->len());
+    auto resp = CreateGetReplyDirect(mb, &buffer);
+    mb.Finish(resp);
+    *response = mb.ReleaseMessage<GetReply>();
     return Status::OK;
   }
 };

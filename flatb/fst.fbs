@@ -8,6 +8,26 @@ table PingRequest {
   message:string;
 }
 
+table GetReply {
+  buffer:[byte];
+}
+
+table GetRequest{
+  authkey:string;
+  name:string;
+  offset:uint64;
+  len:uint64;
+}
+
+
+table GetFullRequest{
+  authkey:string;
+  name:string;
+}
+
+
 rpc_service Eos {
   Ping(PingRequest):PingReply;
+  Get(GetRequest):GetReply;
+  Download(GetRequest):GetReply (streaming: "server");
 }

@@ -366,6 +366,13 @@ target_link_libraries(eos-flatb-ping PUBLIC
   EosFstGrpcClient-Objects
   EosCommon )
 
+add_executable(eos-flatb-get grpc/client/Get.cc)
+
+target_link_libraries(eos-flatb-get PUBLIC
+  EosFstFlatb-Objects
+  EosFstGrpcClient-Objects
+  EosCommon )
+
 #-------------------------------------------------------------------------------
 # EosFstHttp library
 #-------------------------------------------------------------------------------

@@ -148,6 +148,50 @@ std::string GrpcClient::Ping(const std::string& payload)
   }
 }
 
+ssize_t GrpcClient::Get(const std::string& name, off_t offset, size_t len)
+{
+  flatbuffers::grpc::MessageBuilder mb;
+  auto inrequest = CreateGetRequestDirect(mb, token().c_str(), name.c_str(), offset, len);
+  mb.Finish(inrequest);
+  auto request = mb.ReleaseMessage<GetRequest>();
+  flatbuffers::grpc::Message<GetReply> reply;
+
+  ClientContext context;
+  // The producer-consumer queue we use to communicate asynchronously with the
+  // gRPC runtime.
+  CompletionQueue cq;
+  Status status;
+  // stub_->AsyncPing() performs the RPC call, returning an instance we
+  // store in "rpc". Because we are using the asynchronous API, we need to
+  // hold on to the "rpc" instance in order to get updates on the ongoing RPC.
+  auto rpc(stub_->AsyncGet(&context, request, &cq));
+
+  // Request that, upon completion of the RPC, "reply" be updated with the
+  // server's response; "status" with the indication of whether the operation
+  // was successful. Tag the request with the integer 1.
+  rpc->Finish(&reply, &status, (void*) 1);
+  void* got_tag;
+  bool ok = false;
+  // Block until the next result is available in the completion queue "cq".
+  // The return value of Next should always be checked. This return value
+  // tells us whether there is any kind of event or the cq_ is shutting down.
+  GPR_ASSERT(cq.Next(&got_tag, &ok));
+  // Verify that the result from "cq" corresponds, by its tag, our previous
+  // request.
+  GPR_ASSERT(got_tag == (void*) 1);
+  // ... and that the request was completed successfully. Note that "ok"
+  // corresponds solely to the request for updates introduced by Finish().
+  GPR_ASSERT(ok);
+
+  // Act upon the status of the actual RPC.
+  if (status.ok()) {
+    const eos::GetReply *response = reply.GetRoot();
+    return response->buffer()->size();
+  } else {
+    return -1;
+  }
+}
+
 //#endif
 
 

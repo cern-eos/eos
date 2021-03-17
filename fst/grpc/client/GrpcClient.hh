@@ -61,6 +61,8 @@ public:
 
   std::string Ping(const std::string& payload);
 
+  ssize_t Get(const std::string& name, off_t offset, size_t len);
+
   void set_ssl(bool onoff)
   {
     mSSL = onoff;
