@@ -51,8 +51,8 @@ extern XrdOucTrace gMgmOfsTrace;
 
 
 /*----------------------------------------------------------------------------*/
+//EOSMGMNAMESPACE_BEGIN
 EOSMGMNAMESPACE_BEGIN
-
 DynamicEC::DynamicEC(const char* spacename, uint64_t ageNew,  uint64_t size,
                      double maxThres,
                      double minThres, bool OnWork)//bool OnWork
@@ -70,7 +70,7 @@ DynamicEC::DynamicEC(const char* spacename, uint64_t ageNew,  uint64_t size,
     //mThread2.reset(&DynamicCreator::Run, this);
   }
 
-  mThread.stop();
+  //mThread.stop();
   mSpaceName = "";
   simulatedFiles.clear();
   deletedFileSize = 0;
@@ -114,31 +114,43 @@ DynamicEC::Stop()
 void
 DynamicEC::createFiles()
 {
-  // switch timeout resolution to 1s                                                               \
-  \
+  // switch timeout resolution to 1s
+  eos_static_info("start creating the file");
+  //might be put out
   XrdCl::DefaultEnv::GetEnv()->PutInt("TimeoutResolution", 1);
   XrdCl::File file;
-  // replace existing file                                                                         \
-  \
+  // replace existing file
+  //might be put out
   XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Update |
                                         XrdCl::OpenFlags::Delete;
-  // default modes - user can rwx                                                                  \
-  \
+  // default modes - user can rwx
+  //might be put out
   XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UW |
                              XrdCl::Access::UX;
   //std::string url="root://home/rawfile.xrdcl" ;
   //std::string url="root://eoshome-a.cern.ch//eos/user/a/astoeve/rawfile.xrdcl" ;
   std::string url = "root://localhost//eos/testarea/dynec/rawfile1.xrdcl" ;
-  //[root://localhost] |/eos/testarea/dynec/                                                       \
-  \
-  // timeout 5s                                                                                    \
-  \
+  //std::string url = "root://"
+  //[root://localhost] |/eos/testarea/dynec/
+  // timeout 5s
+  //might be put out
   XrdCl::XRootDStatus status = file.Open(url, targetFlags, mode, 5);
 
   if (!status.IsOK()) {
-    // too bad                                                                                     \
-    \
-    exit(-1);
+    // too bad
+    //exit(-1);
+    eos_static_info("error=%s", status.ToStr().c_str());
+    eos_static_info("exit 1");
+    eos_static_info("%d this is true", true);
+    eos_static_info("Here it is %d", status.IsOK());
+    /*
+     *
+     *   eos_static_info("%s",
+                      "There is a file with %d: time in seconds, %d: as size in bytes and %d: partitions.\n",
+                      time, size, partitions);
+     *
+     *
+     */
   } else {
     std::string diskserverurl;
     file.GetProperty("LastURL", diskserverurl);
@@ -152,21 +164,22 @@ DynamicEC::createFiles()
     status = file.Write(offset, length, buffer, 5);
 
     if (!status.IsOK()) {
-      // too bad again                                                                             \
-      \
-      exit(-2);
+      // too bad again
+      //exit(-2);
+      eos_static_info("exit 2");
     }
 
-    // give 5s to close the file                                                                   \
-    \
+    // give 5s to close the file
     status = file.Close(5);
 
     if (!status.IsOK()) {
       // too bad again
-      exit(-3);
+      //exit(-3);
+      eos_static_info("exit 3");
     }
   }
 }
+
 
 
 DynamicEC::~DynamicEC()
@@ -547,12 +560,18 @@ DynamicEC::Run(ThreadAssistant& assistant) noexcept
   //gOFS->WaitUntilNamespaceIsBooted(assistant);
   //assistant.wait_for(std::chrono::seconds(10));
   eos_static_info("starting");
+  //assistant.wait_for(std::chrono::seconds(30));
+  //eos_static_info("Runs the create files again \n");
+  //createFiles();
+  //eos_static_info("%d this is true",!assistant.terminationRequested());
+  eos_static_info("before while loop");
 
-  while (!assistant.terminationRequested())
-    ///Assisting variables can be written here
-  {
-    Cleanup();
+  while (!assistant.terminationRequested())  {
+    eos_static_info("will wait 30 seconds");
+    assistant.wait_for(std::chrono::seconds(30));
+    eos_static_info("Runs the create files again \n");
     createFiles();
+    Cleanup();
     /// What to do when it runs
     ///can have a lock for a timeout, then needs to know where it started.
     // somehow taking different files, and go though them, whis is where the deletion of file id is running
@@ -565,9 +584,13 @@ wait:
       return;
     }
   }
+
+  eos_static_info("closing the thread");
 }
 
-
-
-
 EOSMGMNAMESPACE_END
+//EOSMGMNAMESPACE_END
+
+
+
+
