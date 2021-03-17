@@ -20,18 +20,20 @@ hasMinRequiredVersion() {
 }
 
 installCMake() {
-  sudo yum install cmake --disablerepo=* --enablerepo=eos-citrine-dep
-  sudo ln -s /usr/local/bin/cmake /usr/local/bin/cmake3
+  sudo yum install -y cmake --disablerepo=* --enablerepo=eos-citrine-dep
+  sudo ln -fs /usr/local/bin/cmake /usr/local/bin/cmake3
 }
 
 installCMakeIfNecessary() {
   # We will install cmake if it does not exist or if the installed
   # version is not above the 3.14 (see CMakeLists.txt)
+  hash -r
+  necessaryCMakeVersion=3.14
   cmakeExists=$(command -v cmake)
   if [ ! -z $cmakeExists ]; then
     # CMake exists, check its version
     cmakeVersion=$(cmake --version | awk 'NR==1{print $3}')
-    if hasMinRequiredVersion $cmakeVersion $necessaryCMake3Version; then
+    if hasMinRequiredVersion $cmakeVersion $necessaryCMakeVersion; then
       echo "CMake has the good version, no need to install another one"
     else
       echo "Installing cmake"
@@ -107,8 +109,8 @@ sudo yum clean all
 echo "Installing libmicrohttpd-devel"
 sudo yum install -y libmicrohttpd-devel || die 'ERROR while installing libmicrohttp packages'
 echo "Running yum-builddep to build the EOS dependencies"
-sudo yum-builddep --nogpgcheck -y SRPMS/* || die 'ERROR while building the dependencies'
+sudo yum-builddep --nogpgcheck --allowerasing --enablerepo=eos-citrine-dep -y SRPMS/* || die 'ERROR while building the dependencies'
 
 sudo yum install -y quarkdb quarkdb-debuginfo redis || die 'ERROR while installing quarkdb packages'
 
-installCMakeIfNecessary
+hash -r
