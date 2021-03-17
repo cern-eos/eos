@@ -88,6 +88,12 @@ EOF
 echo "Installing necessary utilities"
 sudo yum install --nogpg -y python3 wget ccache gcc-c++ gdb make rpm-build rpm-sign gnutls && yum clean all || die "Error while installing necessary utilities"
 
+createXrootdRepo
+
+createEosAndEosCitrineRepo
+
+createQuarkdbRepo
+
 installCMakeIfNecessary
 
 EOS_PROJECT_ROOT_DIR="$(git rev-parse --show-toplevel)"
@@ -95,12 +101,6 @@ cd $EOS_PROJECT_ROOT_DIR
 mkdir -p build
 cd build
 cmake ../ -DPACKAGEONLY=1 && make srpm || die "Unable to create the SRPMS."
-
-createXrootdRepo
-
-createEosAndEosCitrineRepo
-
-createQuarkdbRepo
 
 sudo yum clean all
 
