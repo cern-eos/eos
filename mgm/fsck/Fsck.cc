@@ -126,9 +126,11 @@ Fsck::ApplyFsckConfig()
 bool
 Fsck::StoreFsckConfig()
 {
+  using namespace std::chrono;
   std::ostringstream oss;
   oss << sCollectKey << "=" << mCollectEnabled << " "
-      << sCollectIntervalKey << "=" << mCollectInterval.count() << " "
+      << sCollectIntervalKey << "="
+      << duration_cast<minutes>(mCollectInterval).count() << " "
       << sRepairKey << "=" << mRepairEnabled;
   return FsView::gFsView.SetGlobalConfig(sFsckKey, oss.str());
 }
