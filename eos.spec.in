@@ -74,7 +74,7 @@
   %define compiler clang
 %endif
 
-%if %{?fedora:1}%{!?fedora:0}
+%if %{?fedora:1}%{!?fedora:0} || 0%{?distribution} == 8
   %define cmake cmake
 %endif
 
@@ -116,7 +116,7 @@ BuildRequires: epel-release
 Requires: epel-release
 %endif
 
-BuildRequires: %{cmake} >= 3.3
+BuildRequires: %{cmake} >= 3.14
 
 # ----------------------
 # select xrootd package
