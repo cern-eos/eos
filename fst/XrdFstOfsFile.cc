@@ -62,7 +62,7 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   repairOnClose(false), mIsOCchunk(false), writeErrorFlag(false),
   mEventOnClose(false), mEventWorkflow(""),
   mSyncEventOnClose(false), mFmd(nullptr), mCheckSum(nullptr),
-  mLayout(nullptr), mCloseCb(nullptr), mMaxOffsetWritten(0ull), openSize(0),
+  mLayout(nullptr), mCloseCb(nullptr), mMaxOffsetWritten(0ull), mWritePosition(0ull), openSize(0),
   closeSize(0), mTpcThreadStatus(EINVAL), mTpcState(kTpcIdle),
   mTpcFlag(kTpcNone), mTpcKey(""), mIsTpcDst(false), mTpcRetc(0),
   mTpcCancel(false)
@@ -260,6 +260,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
       mIsRW = true;
       isCreation = true;
       openSize = 0;
+      mWritePosition = 0;
       // Used to indicate if a file was written in the meanwhile by someone else
       updateStat.st_mtime = 0;
       open_mode |= SFS_O_CREAT;
@@ -555,6 +556,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     eos_info("msg=\"layout size\" disk_size=%zu db_size= %llu",
              statinfo.st_size, mFmd->mProtoFmd.size());
     openSize = mFmd->mProtoFmd.size();
+    mWritePosition = openSize;
 
     if (!eos::common::LayoutId::IsRain(mLayout->GetLayoutId())) {
       // If replica layout and physical size of replica difference from the
@@ -562,6 +564,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
       // size from disk.
       if ((off_t) statinfo.st_size != (off_t) mFmd->mProtoFmd.size()) {
         openSize = statinfo.st_size;
+	mWritePosition = openSize;
       }
     }
 
@@ -756,6 +759,16 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
               buffer_size);
     mMaxOffsetWritten = fileOffset + buffer_size;
     return buffer_size;
+  }
+
+  // if the write position moves before the end of a file, he checksum is dirty
+  if (mCheckSum) {
+    if (mWritePosition < fileOffset) {
+      mCheckSum->Reset();
+      mCheckSum->SetDirty();
+    }
+    // store next write position
+    mWritePosition += fileOffset + buffer_size;
   }
 
   int rc = mLayout->Write(fileOffset, const_cast<char*>(buffer), buffer_size);
@@ -1013,7 +1026,7 @@ XrdFstOfsFile::truncate(XrdSfsFileOffset fsize)
 
   if (fsize != openSize) {
     if (mCheckSum) {
-      if (fsize != mCheckSum->GetMaxOffset()) {
+      if (fsize != mWritePosition) {
         mCheckSum->Reset();
         mCheckSum->SetDirty();
       }
@@ -1026,6 +1039,7 @@ XrdFstOfsFile::truncate(XrdSfsFileOffset fsize)
     if (fsize != openSize) {
       mHasWrite = true;
     }
+    mWritePosition = fsize;
   }
 
   return rc;
@@ -2963,13 +2977,6 @@ XrdFstOfsFile::VerifyChecksum()
         mCheckSum.reset(nullptr);
         return false;
       }
-
-      if ((mIsRW) && mCheckSum->GetMaxOffset() &&
-          (mCheckSum->GetMaxOffset() < openSize)) {
-        // If there was a write which was not extending the file the checksum
-        // is dirty!
-        mCheckSum->SetDirty();
-      }
     }
 
     // If checksum is not completely computed
@@ -3003,7 +3010,8 @@ XrdFstOfsFile::VerifyChecksum()
       }
     } else {
       // This was prefect streaming I/O
-      if ((!mIsRW) && (mCheckSum->GetMaxOffset() != openSize)) {
+      if ((!mIsRW) && ((sFwdBytes + sBwdBytes) ||
+		       (mCheckSum->GetMaxOffset() != openSize)) ) {
         eos_info("info=\"skipping checksum (re-scan) since file was not read "
                  "completely %llu %llu...\"", mCheckSum->GetMaxOffset(), openSize);
         mCheckSum.reset(nullptr);

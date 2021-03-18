@@ -295,6 +295,7 @@ public:
   // File statistics for monitoring purposes
   //! Largest byte position written of a newly created file
   unsigned long long mMaxOffsetWritten;
+  unsigned long long mWritePosition;
   off_t openSize; //! file size when the file was opened
   off_t closeSize; //! file size when the file was closed
   struct timeval openTime; //! time when a file was opened
