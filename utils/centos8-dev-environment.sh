@@ -1,5 +1,7 @@
 #!/bin/bash
 
+PATH_CMAKE_DIR='/opt/eos/cmake/bin'
+
 die() {
   echo "$@" 1>&2
   test -z $TAILPID || kill ${TAILPID} &>/dev/null
@@ -19,9 +21,28 @@ hasMinRequiredVersion() {
   fi
 }
 
-installCMake() {
-  sudo yum install -y cmake --disablerepo=* --enablerepo=eos-citrine-dep
-  sudo ln -fs /usr/local/bin/cmake /usr/local/bin/cmake3
+addEOSCmakeDirToPATHBashrc() {
+  pathCMakeDir=$PATH_CMAKE_DIR
+  pathCopy=$PATH
+  echo $pathCopy | grep -q "$pathCMakeDir"
+  if [[ $? -ne 0 ]]; then
+    # The path of cmake is not in $PATH, we add it
+    pathCopy="$pathCopy:$pathCMakeDir"
+  fi
+  #Check if there is a PATH configuration with the pathCMakeDir setup in the .bashrc file
+  cat ~/.bashrc | egrep -q 'PATH=.*'"$pathCMakeDir"'.*'
+  if [[ $? -ne 0 ]]; then
+    # No PATH configuration, add it to persist the PATH change
+    echo "Adding CMake from the eos-cmake package to the PATH in the .bashrc file"
+    echo 'export PATH=$PATH:'"$pathCMakeDir" >> ~/.bashrc
+  fi
+  export PATH=$pathCopy
+}
+
+installEosCMake() {
+  echo "Installing EOS CMake"
+  sudo yum install -y eos-cmake --disablerepo=* --enablerepo=eos-citrine-dep
+  sudo ln -fs $PATH_CMAKE_DIR/cmake $PATH_CMAKE_DIR/cmake3
 }
 
 installCMakeIfNecessary() {
@@ -36,12 +57,11 @@ installCMakeIfNecessary() {
     if hasMinRequiredVersion $cmakeVersion $necessaryCMakeVersion; then
       echo "CMake has the good version, no need to install another one"
     else
-      echo "Installing cmake"
       sudo yum remove -y cmake
-      installCMake || die "Unable to install CMake"
+      installEosCMake || die "Unable to install CMake"
     fi
   else
-    installCMake || die "Unable to install CMake"
+    installEosCMake || die "Unable to install CMake"
   fi
 }
 
@@ -96,21 +116,22 @@ createEosAndEosCitrineRepo
 
 createQuarkdbRepo
 
-installCMakeIfNecessary
+installCMakeIfNecessary || die "Unable to install CMake"
+addEOSCmakeDirToPATHBashrc
 
 EOS_PROJECT_ROOT_DIR="$(git rev-parse --show-toplevel)"
 cd $EOS_PROJECT_ROOT_DIR
 mkdir -p build
 cd build
-cmake ../ -DPACKAGEONLY=1 && make srpm || die "Unable to create the SRPMS."
+cmake ../ -DPACKAGEONLY=1 -Wno-dev && make srpm || die "Unable to create the SRPMS."
+cd $EOS_PROJECT_ROOT_DIR
 
 sudo yum clean all
 
 echo "Installing libmicrohttpd-devel"
 sudo yum install -y libmicrohttpd-devel || die 'ERROR while installing libmicrohttp packages'
 echo "Running yum-builddep to build the EOS dependencies"
-sudo yum-builddep --nogpgcheck --allowerasing --enablerepo=eos-citrine-dep -y SRPMS/* || die 'ERROR while building the dependencies'
+sudo yum-builddep --nogpgcheck --allowerasing --enablerepo=eos-citrine-dep -y ./build/SRPMS/* || die 'ERROR while building the dependencies'
 
 sudo yum install -y quarkdb quarkdb-debuginfo redis || die 'ERROR while installing quarkdb packages'
-
 hash -r
