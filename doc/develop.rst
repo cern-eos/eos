@@ -50,6 +50,44 @@ Create a build directory ...
    mkdir build
    cd build
 
+Create your dev environment using utils scripts (Recommended)
+============================================================
+
+Two utility scripts have been created to ease the setup of the development environment necessary to build and install EOS on a bare Centos VM.
+These scripts are located in the :code:`utils` directory. Feel free to modify them as they could be outdated. These scripts automate what is documented in
+the `Dependencies`_ part of this documentation.
+
+EL7
+----------------
+
+Just run the :code:`./utils/centos7-dev-environment.sh` script.
+
+Go to your :code:`eos` directory and type:
+
+.. code-block:: bash
+
+    sudo ./utils/centos7-dev-environment.sh
+
+If everything went well, your VM should reboot.
+
+EL8
+----------------
+
+Just **source** the :code:`./utils/centos7-dev-environment.sh` script.
+
+Go to your :code:`eos` directory and type:
+
+.. code-block:: bash
+
+    source ./utils/centos8-dev-environment.sh
+
+If you haven't used **source**, source your :code:`.bashrc` file. Indeed the :code:`centos8-dev-environment.sh` script script modifies your .bashrc to update your :code:`PATH` variable.
+If you don't source it, you will not be able to use the good cmake version that has been installed to create the configuration for building EOS.
+
+You are ready to compile
+------------------------
+
+You can skip the next parts and go directly to the `Compilation`_ part of this documentation. Though you can also read them if you need to troubleshoot future problems.
 
 Dependencies
 =================================================
