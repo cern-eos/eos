@@ -131,7 +131,7 @@ sudo yum clean all
 echo "Installing libmicrohttpd-devel"
 sudo yum install -y libmicrohttpd-devel || die 'ERROR while installing libmicrohttp packages'
 echo "Running yum-builddep to build the EOS dependencies"
-sudo yum-builddep --nogpgcheck --allowerasing --enablerepo=eos-citrine-dep -y ./build/SRPMS/* || die 'ERROR while building the dependencies'
+sudo yum-builddep --nogpgcheck --allowerasing -y ./build/SRPMS/* || die 'ERROR while building the dependencies'
 
 sudo yum install -y quarkdb quarkdb-debuginfo redis || die 'ERROR while installing quarkdb packages'
 hash -r
