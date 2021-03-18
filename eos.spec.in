@@ -116,7 +116,11 @@ BuildRequires: epel-release
 Requires: epel-release
 %endif
 
+%if 0%{?distribution} == 8
+BuildRequires: eos-cmake
+%else
 BuildRequires: %{cmake} >= 3.14
+%endif
 
 # ----------------------
 # select xrootd package
