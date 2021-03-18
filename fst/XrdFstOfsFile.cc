@@ -761,14 +761,14 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
     return buffer_size;
   }
 
-  // if the write position moves before the end of a file, he checksum is dirty
+  // if the write position moves the checksum is dirty
   if (mCheckSum) {
-    if (mWritePosition < fileOffset) {
+    if (mWritePosition != fileOffset) {
       mCheckSum->Reset();
       mCheckSum->SetDirty();
     }
     // store next write position
-    mWritePosition += fileOffset + buffer_size;
+    mWritePosition = fileOffset + buffer_size;
   }
 
   int rc = mLayout->Write(fileOffset, const_cast<char*>(buffer), buffer_size);
