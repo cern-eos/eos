@@ -1013,8 +1013,7 @@ XrdFstOfsFile::truncate(XrdSfsFileOffset fsize)
 
   if (fsize != openSize) {
     if (mCheckSum) {
-      if ( (fsize != mCheckSum->GetMaxOffset()) ||
-	   (fsize < openSize) ) {
+      if (fsize != mCheckSum->GetMaxOffset()) {
         mCheckSum->Reset();
         mCheckSum->SetDirty();
       }
