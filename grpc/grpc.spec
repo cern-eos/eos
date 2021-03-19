@@ -97,16 +97,16 @@ cd build
 %{cmake} ../ -DgRPC_INSTALL=ON                \
              -DCMAKE_BUILD_TYPE=Release       \
              -DgRPC_SSL_PROVIDER=package      \
-             -DgRPC_ZLIB_PROVIDER=package
+             -DgRPC_ZLIB_PROVIDER=package     \
+             -DCMAKE_INSTALL_PREFIX=/usr
 %make_build
 
 %check
 
 %install
-cd grpc
+cd grpc/build
 rm -rf %{buildroot}; mkdir %{buildroot}
-cd build
-make install prefix="%{buildroot}/usr"
+make DESTDIR=%{buildroot} install
 %ifarch x86_64
 mkdir -p %{buildroot}/usr/lib64
 mv %{buildroot}/usr/lib/* %{buildroot}/usr/lib64/
