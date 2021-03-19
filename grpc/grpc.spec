@@ -20,11 +20,11 @@
 %endif
 
 #-------------------------------------------------------------------------------
-# Custom strip command for CC7 @todo review devtoolset-6, could likely use 8
+# Custom strip command for CC7
 #-------------------------------------------------------------------------------
 %define distribution %(/usr/lib/rpm/redhat/dist.sh --distnum)
 %if 0%{distribution} == 7
-%global __strip /opt/rh/devtoolset-6/root/usr/bin/strip
+%global __strip /opt/rh/devtoolset-8/root/usr/bin/strip
 %endif
 
 #-------------------------------------------------------------------------------
@@ -38,8 +38,18 @@ License: BSD
 URL: http://www.grpc.io/
 Source0: https://github.com/grpc/grpc/archive/v%{version}.tar.gz
 
+# Handle different names for the cmake package depending on the OS
+%define cmake cmake
+
+%if 0%{distribution} == 7
+BuildRequires: cmake3
+%define cmake cmake3
+%else
+BuildRequires: cmake
+%endif
+
 BuildRequires: pkgconfig gcc-c++
-BuildRequires: protobuf-devel protobuf-compiler openssl-devel c-ares-devel
+BuildRequires: protobuf-devel protobuf-compiler openssl-devel
 
 %description
 Remote Procedure Calls (RPCs) provide a useful abstraction for
@@ -79,9 +89,16 @@ git submodule update --init --recursive
 %build
 cd grpc
 %if %{?fedora}%{!?fedora:0} >= 19 || 0%{distribution} == 8
-export CPPFLAGS="-Wno-error=class-memaccess -Wno-error=tautological-compare -Wno-error=ignored-qualifiers -Wno-error=stringop-truncation -Wno-error=unused-function"
+export CPPFLAGS="-Wno-error=class-memaccess -Wno-error=tautological-compare -Wno-error=ignored-qualifiers -Wno-error=stringop-truncation"
 export HAS_SYSTEM_PROTOBUF=false
 %endif
+mkdir build
+cd build
+%{cmake} ../ -DgRPC_INSTALL=ON                \
+             -DCMAKE_BUILD_TYPE=Release       \
+             -DgRPC_PROTOBUF_PROVIDER=package \
+             -DgRPC_SSL_PROVIDER=package      \
+             -DgRPC_ZLIB_PROVIDER=package
 %make_build
 
 %check
@@ -89,6 +106,7 @@ export HAS_SYSTEM_PROTOBUF=false
 %install
 cd grpc
 rm -rf %{buildroot}; mkdir %{buildroot}
+cd build
 make install prefix="%{buildroot}/usr"
 %ifarch x86_64
 mkdir -p %{buildroot}/usr/lib64
