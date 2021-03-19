@@ -79,7 +79,7 @@ git submodule update --init --recursive
 %build
 cd grpc
 %if %{?fedora}%{!?fedora:0} >= 19 || 0%{distribution} == 8
-export CPPFLAGS="-Wno-error=class-memaccess -Wno-error=tautological-compare -Wno-error=ignored-qualifiers -Wno-error=stringop-truncation"
+export CPPFLAGS="-Wno-error=class-memaccess -Wno-error=tautological-compare -Wno-error=ignored-qualifiers -Wno-error=stringop-truncation -Wno-error=unused-function"
 export HAS_SYSTEM_PROTOBUF=false
 %endif
 %make_build
