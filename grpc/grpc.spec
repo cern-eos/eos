@@ -96,7 +96,6 @@ mkdir build
 cd build
 %{cmake} ../ -DgRPC_INSTALL=ON                \
              -DCMAKE_BUILD_TYPE=Release       \
-             -DgRPC_PROTOBUF_PROVIDER=package \
              -DgRPC_SSL_PROVIDER=package      \
              -DgRPC_ZLIB_PROVIDER=package
 %make_build
