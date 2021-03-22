@@ -98,7 +98,8 @@ cd build
              -DCMAKE_BUILD_TYPE=Release       \
              -DgRPC_SSL_PROVIDER=package      \
              -DgRPC_ZLIB_PROVIDER=package     \
-             -DCMAKE_INSTALL_PREFIX=/usr
+             -DCMAKE_INSTALL_PREFIX=/usr      \
+             -DBUILD_SHARED_LIBS=ON
 %make_build
 
 %check
