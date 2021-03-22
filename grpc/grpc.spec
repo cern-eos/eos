@@ -51,6 +51,7 @@ BuildRequires: eos-cmake
 BuildRequires: cmake
 %define cmake cmake
 %endif
+%endif
 
 BuildRequires: pkgconfig gcc-c++
 BuildRequires: protobuf-devel protobuf-compiler openssl-devel
