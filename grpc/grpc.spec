@@ -11,6 +11,7 @@
 # Issue tracked at:
 # https://github.com/grpc/grpc/pull/14844
 #-------------------------------------------------------------------------------
+%define _unpackaged_files_terminate_build 0
 
 %if 0%{?rhel} == 7
   # CentOS 7 can use ".el7.centos" or ".el7.cern". However, we want to avoid that
@@ -38,14 +39,17 @@ License: BSD
 URL: http://www.grpc.io/
 Source0: https://github.com/grpc/grpc/archive/v%{version}.tar.gz
 
-# Handle different names for the cmake package depending on the OS
-%define cmake cmake
-
+# Handle the different paths for the cmake package depending on the OS
 %if 0%{distribution} == 7
 BuildRequires: cmake3
 %define cmake cmake3
 %else
+%if 0%{distribution} == 8
+BuildRequires: eos-cmake
+%define cmake /opt/eos/cmake/bin/cmake
+%else
 BuildRequires: cmake
+%define cmake cmake
 %endif
 
 BuildRequires: pkgconfig gcc-c++
