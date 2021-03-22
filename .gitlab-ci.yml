@@ -754,13 +754,15 @@ k8s_stress:
   <<: *dock8s_before_script_template
   script:
     - TEST_URL="eos-mgm1.eos-mgm1.$K8S_NAMESPACE.svc.cluster.local"
-    - yum install -y grid-hammer
+    - exec_cmd eos-mgm1 "yum install -y grid-hammer"
     - exec_cmd eos-mgm1 "hammer-runner.py --strict-exit-code 1 --gitlab --url ${TEST_URL}//eos/dockertest/hammer/ --protocols xroot --threads 1 2 10 100 --operations write stat read delete --runs 3 --nfiles 10000"
   <<: *dock8s_after_script_template
   needs:
     - job: cc7_docker_image
       artifacts: false
   retry: 1
+  # @todo(esindril) remove once we have grid-hammer built with XRootD5
+  allow_failure: true
   tags:
     - docker_node
     - k8s
@@ -867,6 +869,8 @@ dock_stress:
       artifacts: false
     - job: clone_docker
   retry: 1
+  # @todo(esindril) remove once we have grid-hammer built with XRootD5
+  allow_failure: true
   tags:
     - docker_node
     - dock
