@@ -105,7 +105,6 @@ build_cc7:
       - cc7_artifacts/
   tags:
     - docker_node
-    - cc7
 
 macosx_dmg:
   stage: build:rpm
@@ -170,7 +169,6 @@ build_c8:
     - tags
   tags:
     - docker_node
-    - c8
 
 .build_ubuntu-template: &build_ubuntu-template_definition
   stage: build:rpm
@@ -221,7 +219,6 @@ build_ubuntu_bionic:
     - tags
   tags:
     - docker_node
-    - ubuntu
 
 build_ubuntu_focal:
   image: ubuntu:focal
@@ -233,7 +230,6 @@ build_ubuntu_focal:
     - tags
   tags:
     - docker_node
-    - ubuntu
 
 .build_fedora-template: &build_fedora-template_definition
   stage: build:rpm
@@ -272,7 +268,6 @@ build_fedora_stable:
     - tags
   tags:
     - docker_node
-    - fedora_stable
 
 build_fedora_rawhide:
   image: registry.fedoraproject.org/fedora:rawhide
@@ -283,7 +278,6 @@ build_fedora_rawhide:
     - schedules
   tags:
     - docker_node
-    - fedora_rawhide
 
 # @note Using "normal" cc7 image as it doesn't actually need an exotic one, yet
 .build_cc7_exotic-template: &build_cc7_exotic-template_definition
@@ -325,7 +319,6 @@ build_cc7_asan:
     - schedules
   tags:
     - docker_node
-    - cc7_asan
 
 build_cc7_clang:
   <<: *build_cc7_exotic-template_definition
@@ -337,7 +330,6 @@ build_cc7_clang:
     - schedules
   tags:
     - docker_node
-    - cc7_clang
 
 build_cc7_xrd_testing: # @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
   before_script:
@@ -353,7 +345,6 @@ build_cc7_xrd_testing: # @todo Re-enable xrd_testing jobs once project ugprades 
     - schedules
   tags:
     - docker_node
-    - cc7_xrd_testing
   allow_failure: true
 
 build_cc7_opt_xrootd: # @note please contact CTA team / jleduc if you want to change this job
@@ -374,7 +365,6 @@ build_cc7_opt_xrootd: # @note please contact CTA team / jleduc if you want to ch
     - tags
   tags:
     - docker_node
-    - cc7_opt_xrootd
   when: manual
 
 
@@ -384,13 +374,10 @@ build_cc7_no_sse:
     BUILD_NAME: cc7_no_sse
     CMAKE_OPTIONS: "-DNO_SSE=1"
     RPMBUILD_OPTIONS: "--with no_sse"
-# @todo always for the moment, then just schedules and tags
-#  only:
-#    - schedules
-#    - tags
+  only:
+    - tags
   tags:
     - docker_node
-    - cc7
   when: manual
 
 build_cc7_coverage:
@@ -403,7 +390,6 @@ build_cc7_coverage:
       - $COVERAGE_SCHEDULE
   tags:
     - docker_node
-    - cc7
 
 
 #-------------------------------------------------------------------------------
@@ -895,7 +881,7 @@ dock_stress:
   retry: 1
   tags:
      - docker_node
-     - unit_tests
+     - dock
 
 unit_test:tag:
   image:
