@@ -130,7 +130,7 @@ rm -rf %{buildroot}
 %{_datadir}/grpc
 
 %files plugins
-%{_bindir}/*
+%{_bindir}/grpc_*
 
 %files devel
 %{_libdir}/*.so
