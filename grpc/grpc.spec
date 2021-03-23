@@ -114,9 +114,9 @@ cd grpc/build
 rm -rf %{buildroot}; mkdir %{buildroot}
 make DESTDIR=%{buildroot} install
 %ifarch x86_64
-mkdir -p %{buildroot}/usr/lib64
+mkdir -p %{buildroot}/%{_prefix}/lib64
 shopt -s extglob
-mv %{buildroot}/usr/lib/!(cmake|pkgconfig) %{buildroot}/usr/lib64/
+mv %{buildroot}/%{_prefix}/lib/!(cmake|pkgconfig) %{buildroot}/%{_prefix}/lib64/
 %endif
 
 %clean
