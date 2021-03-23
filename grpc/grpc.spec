@@ -11,6 +11,7 @@
 # Issue tracked at:
 # https://github.com/grpc/grpc/pull/14844
 #-------------------------------------------------------------------------------
+%define _prefix /opt/eos/grpc/
 %define _unpackaged_files_terminate_build 0
 
 %if 0%{?rhel} == 7
@@ -54,7 +55,7 @@ BuildRequires: cmake
 %endif
 
 BuildRequires: pkgconfig gcc-c++
-BuildRequires: protobuf-devel protobuf-compiler openssl-devel
+BuildRequires: openssl-devel
 
 %description
 Remote Procedure Calls (RPCs) provide a useful abstraction for
@@ -66,7 +67,6 @@ clients and servers using any combination of the supported languages.
 %package plugins
 Summary: gRPC protocol buffers compiler plugins
 Requires: %{name}%{?_isa} = %{version}-%{release}
-Requires: protobuf-compiler
 
 %description plugins
 Plugins to the protocol buffers compiler to generate gRPC sources.
@@ -99,11 +99,11 @@ export HAS_SYSTEM_PROTOBUF=false
 %endif
 mkdir build
 cd build
-%{cmake} ../ -DgRPC_INSTALL=ON                \
-             -DCMAKE_BUILD_TYPE=Release       \
-             -DgRPC_SSL_PROVIDER=package      \
-             -DgRPC_ZLIB_PROVIDER=package     \
-             -DCMAKE_INSTALL_PREFIX=/usr      \
+%{cmake} ../ -DgRPC_INSTALL=ON                  \
+             -DCMAKE_BUILD_TYPE=Release         \
+             -DgRPC_SSL_PROVIDER=package        \
+              -DgRPC_ZLIB_PROVIDER=package      \
+             -DCMAKE_INSTALL_PREFIX=%{_prefix}  \
              -DBUILD_SHARED_LIBS=ON
 %make_build
 
@@ -130,7 +130,7 @@ rm -rf %{buildroot}
 %{_datadir}/grpc
 
 %files plugins
-%{_bindir}/grpc_*
+%{_bindir}/*
 
 %files devel
 %{_libdir}/*.so
