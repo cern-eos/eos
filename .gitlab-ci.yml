@@ -41,17 +41,20 @@ prebuild-cc7:
   <<: *prebuild-template_definition
   variables:
     PREBUILD_NAME: cc7
+    CODENAME: ${CODENAME}
 
 prebuild-c8:
   <<: *prebuild-template_definition
   variables:
     PREBUILD_NAME: c8
+    CODENAME: ${CODENAME}
 
 # @note Consider deletion
 .prebuild-cc7_asan:
   <<: *prebuild-template_definition
   variables:
     PREBUILD_NAME: cc7_asan
+    CODENAME: ${CODENAME}
     CMAKE_OPTIONS: "-DASAN=1"
     CXXFLAGS: "-Wno-parentheses"  # Avoid boost header compilation errors
 
@@ -59,17 +62,20 @@ prebuild-c8:
   <<: *prebuild-template_definition
   variables:
     PREBUILD_NAME: cc7_clang
+    CODENAME: ${CODENAME}
     CMAKE_OPTIONS: "-DCLANG_BUILD=1"
 
 .prebuild-cc7_xrd_testing:
   <<: *prebuild-template_definition
   variables:
     PREBUILD_NAME: cc7_xrd_testing
+    CODENAME: ${CODENAME}
 
 .prebuild-cc7_coverage:
   <<: *prebuild-template_definition
   variables:
     PREBUILD_NAME: cc7_coverage
+    CODENAME: ${CODENAME}
   only:
     variables:
       - $COVERAGE_SCHEDULE
