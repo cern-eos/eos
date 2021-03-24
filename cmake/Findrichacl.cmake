@@ -13,12 +13,12 @@ set(RICHACL_VERSION ${PC_richacl_VERSION})
 
 find_path(RICHACL_INCLUDE_DIR
   NAMES sys/richacl.h
-  HINTS ${RICHACL_ROOT}
+  HINTS /opt/eos/richacl/ ${RICHACL_ROOT}
   PATH_SUFFIXES include)
 
 find_library(RICHACL_LIBRARY
   NAMES richacl
-  HINTS ${RICHACL_ROOT}
+  HINTS /opt/eos/richacl/ ${RICHACL_ROOT}
   PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR})
 
 include(FindPackageHandleStandardArgs)
