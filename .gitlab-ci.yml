@@ -109,6 +109,8 @@ build_cc7:
     expire_in: 1 day
     paths:
       - cc7_artifacts/
+  variables:
+    CODENAME: ${CODENAME}
   tags:
     - docker_node
     - build
@@ -210,6 +212,8 @@ build_c8:
     expire_in: 1 day
     paths:
       - c8_artifacts/
+  variables:
+    CODENAME: ${CODENAME}
   only:
     - schedules
     - tags
@@ -253,6 +257,8 @@ build_c8:
     expire_in: 1 day
     paths:
       - ${EOS_DIST}_artifacts/
+  variables:
+    CODENAME: ${CODENAME}
   dependencies: []
   allow_failure: true # @todo false for tags
 
@@ -356,6 +362,8 @@ build_fedora_rawhide:
     expire_in: 1 day
     paths:
       - ${BUILD_NAME}_artifacts/
+  variables:
+    CODENAME: ${CODENAME}
   dependencies: []
   allow_failure: true
 
@@ -411,6 +419,7 @@ build_cc7_opt_xrootd: # @note please contact CTA team / jleduc if you want to ch
   <<: *build_cc7_exotic-template_definition
   image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7-${CODENAME}
   variables:
+    CODENAME: ${CODENAME}
     BUILD_NAME: cc7_opt_xrootd
     CMAKE_OPTIONS: "-DEOS_XROOTD=1"
     RPMBUILD_OPTIONS: "--with eos_xrootd_rh"
