@@ -75,7 +75,7 @@ void QuotaCmd::LsuserSubcmd(const eos::console::QuotaProto_LsuserProto& lsuser, 
 
   gOFS->MgmStats.Add("Quota", mVid.uid, mVid.gid, 1);
   std::string space = lsuser.space();
-
+  bool exists = false;
   if (!space.empty()) {
     XrdOucErrInfo mError;
     // evt. correct the space variable to be a directory path (+/)
@@ -86,6 +86,7 @@ void QuotaCmd::LsuserSubcmd(const eos::console::QuotaProto_LsuserProto& lsuser, 
     }
     if (!gOFS->_stat(sspace.c_str(), &buf, mError, mVid, nullptr)) { // @note no.01 Where is the info in mError is going?
       space = sspace;
+      exists = true;
     }
   }
 
@@ -94,6 +95,26 @@ void QuotaCmd::LsuserSubcmd(const eos::console::QuotaProto_LsuserProto& lsuser, 
   // Early return if routing should happen
   if (ShouldRoute(space, reply)) {
     return;
+  }
+
+  if (!exists && lsuser.exists()) {
+    reply.set_retc(ENOENT);
+    reply.set_std_err("error: the given path does not exist!");
+    return;
+  }
+
+  if (lsuser.quotanode()) {
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    // check if this is a quotanode
+    std::string quota_node_path = Quota::GetResponsibleSpaceQuotaPath(space);
+
+    eos::common::Path qPath(quota_node_path.c_str());
+    eos::common::Path sPath(space.c_str());
+    if ( std::string(qPath.GetPath()) != std::string(sPath.GetPath()) ) {
+      reply.set_retc(ENOENT);
+      reply.set_std_err("error: the given path is not a quotanode!");
+      return;
+    }
   }
 
   XrdOucString out {""};
