@@ -226,7 +226,7 @@ bool
 IProcCommand::OpenTemporaryOutputFiles()
 {
   ostringstream tmpdir;
-  tmpdir << "/tmp/eos.mgm/";
+  tmpdir << "/var/tmp/eos/mgm/";
   tmpdir << uuid++;
   ofstdoutStreamFilename = tmpdir.str();
   ofstdoutStreamFilename += ".stdout";
