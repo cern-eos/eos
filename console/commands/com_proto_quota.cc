@@ -131,8 +131,20 @@ bool QuotaHelper::ParseCommand(const char* arg)
         ls->set_format(true);
       } else if (token == "-n") {
         ls->set_printid(true);
-      } else if (token == "--path" || token == "-p" || (token.find('/') == 0)) {
-        if (token == "--path" || token == "-p") {
+      } else if (token == "--path" ||
+		 token == "-p" ||
+		 token == "-x" ||
+		 token == "-q" ||
+		 (token.find('/') == 0)) {
+        if (token == "--path" || token == "-p" || token == "-q" || token == "-x") {
+	  if (token == "-x") {
+	    fprintf(stderr,"setting exist=true\n");
+	    ls->set_exists(true);
+	  }
+	  if (token == "-q") {
+	    fprintf(stderr,"setting quotanode=true\n");
+	    ls->set_quotanode(true);
+	  }
           if (tokenizer.NextToken(token)) {
             ls->set_space(token);
           } else {
@@ -340,8 +352,11 @@ void com_quota_help()
       ": show personal quota for all or only the quota node responsible for <path>"
     },
     {
-      "quota ls [-n] [-m] [-u <uid>] [-g <gid>] [[-p] <path>]",
+      "quota ls [-n] [-m] [-u <uid>] [-g <gid>] [[-p|x|q] <path>]",
       ": list configured quota and quota node(s)"
+      "\n                                                                       -p : find closest matching quotanode"
+      "\n                                                                       -x : as -p but <path> has to exist"
+      "\n                                                                       -q : as -p but <path> has to be a quotanode"
     },
     {
       "quota set -u <uid>|-g <gid> [-v <bytes>] [-i <inodes>] [[-p] <path>]",
