@@ -41,99 +41,6 @@
 #include <atomic>
 #include <mutex>
 
-// need some redefines for XRootD v3
-#ifndef EOSCITRINE
-
-#define kXR_overQuota (kXR_inProgress+1)
-#define kXR_SigVerErr (kXR_inProgress+2)
-#define kXR_DecryptErr (kXR_inProgress+3)
-#define kXR_Overloaded (kXR_inProgress+4)
-
-static int XtoErrno(int xerr)
-{
-  switch (xerr) {
-  case kXR_ArgInvalid:
-    return EINVAL;
-
-  case kXR_ArgMissing:
-    return EINVAL;
-
-  case kXR_ArgTooLong:
-    return ENAMETOOLONG;
-
-  case kXR_FileLocked:
-    return EDEADLK;
-
-  case kXR_FileNotOpen:
-    return EBADF;
-
-  case kXR_FSError:
-    return EIO;
-
-  case kXR_InvalidRequest:
-    return EEXIST;
-
-  case kXR_IOError:
-    return EIO;
-
-  case kXR_NoMemory:
-    return ENOMEM;
-
-  case kXR_NoSpace:
-    return ENOSPC;
-
-  case kXR_NotAuthorized:
-    return EACCES;
-
-  case kXR_NotFound:
-    return ENOENT;
-
-  case kXR_ServerError:
-    return ENOMSG;
-
-  case kXR_Unsupported:
-    return ENOSYS;
-
-  case kXR_noserver:
-    return EHOSTUNREACH;
-
-  case kXR_NotFile:
-    return ENOTBLK;
-
-  case kXR_isDirectory:
-    return EISDIR;
-
-  case kXR_Cancelled:
-    return ECANCELED;
-
-  case kXR_ChkLenErr:
-    return EDOM;
-
-  case kXR_ChkSumErr:
-    return EDOM;
-
-  case kXR_inProgress:
-    return EINPROGRESS;
-
-  case kXR_overQuota:
-    return EDQUOT;
-
-  case kXR_SigVerErr:
-    return EILSEQ;
-
-  case kXR_DecryptErr:
-    return ERANGE;
-
-  case kXR_Overloaded:
-    return EUSERS;
-
-  default:
-    return ENOMSG;
-  }
-}
-
-#endif
-
 namespace XrdCl
 {
 
@@ -497,11 +404,7 @@ public:
     if (status.errNo < kXR_ArgInvalid) {
       return status.errNo;
     } else {
-#ifndef EOSCITRINE
-      return XtoErrno(status.errNo);
-#else
       return XProtocol::toErrno(status.errNo);
-#endif
     }
   }
 

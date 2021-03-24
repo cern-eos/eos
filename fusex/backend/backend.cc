@@ -32,10 +32,6 @@
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClURL.hh"
 
-#ifndef EOSCITRINE
-#include "fuse/SyncResponseHandler.hh"
-#endif
-
 /* -------------------------------------------------------------------------- */
 backend::backend()
 /* -------------------------------------------------------------------------- */
@@ -1167,13 +1163,7 @@ backend::Query(XrdCl::URL& url, XrdCl::QueryCode::Code query_code,
     struct timespec ts;
     eos::common::Timing::GetTimeSpec(ts, true);
     XrdCl::XRootDStatus status;
-#ifdef EOSCITRINE
     status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, response, rtimeout);
-#else
-    SyncResponseHandler handler;
-    fs->Query(XrdCl::QueryCode::OpaqueFile, arg, &handler);
-    status = handler.Sync(response);
-#endif
 
     // we can't do anything if we cannot authenticate
     if (status.code == XrdCl::errAuthFailed) {

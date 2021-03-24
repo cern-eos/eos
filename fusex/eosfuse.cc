@@ -5179,8 +5179,6 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
 
       if (fuse_req_ctx(req)->uid == 0) {
         rc = EINVAL;
-#ifdef EOSCITRINE
-
         if (value == "crit") {
           eos::common::Logging::GetInstance().SetLogPriority(LOG_CRIT);
 	  Instance().SetTrace(false);
@@ -5213,6 +5211,7 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
 
         if (value == "debug") {
           eos::common::Logging::GetInstance().SetLogPriority(LOG_DEBUG);
+	  Instance().SetTrace(false);
           rc = 0;
         }
 
@@ -5220,24 +5219,6 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
 	  Instance().SetTrace(true);
 	  rc = 0;
 	}
-#else
-
-        if (value == "notice") {
-          eos::common::Logging::SetLogPriority(LOG_NOTICE);
-          rc = 0;
-        }
-
-        if (value == "info") {
-          eos::common::Logging::SetLogPriority(LOG_INFO);
-          rc = 0;
-        }
-
-        if (value == "debug") {
-          eos::common::Logging::SetLogPriority(LOG_DEBUG);
-          rc = 0;
-        }
-
-#endif
       } else {
         rc = EPERM;
       }
