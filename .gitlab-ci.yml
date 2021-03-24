@@ -28,7 +28,7 @@ default:
     name: gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
   script:
-    - export DESTINATION="gitlab-registry.cern.ch/dss/eos/prebuild-${PREBUILD_NAME}"
+    - export DESTINATION="gitlab-registry.cern.ch/dss/eos/prebuild-${PREBUILD_NAME}-${CODENAME}"
     - export DOCKERFILE="$CI_PROJECT_DIR/gitlab-ci/prebuild_OSbase/prebuild-${PREBUILD_NAME}.Dockerfile"
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(echo -n $CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD | base64)\"}}}" > /kaniko/.docker/config.json
     # no need yet for --build-arg PREBUILD_NAME="$PREBUILD_NAME" --build-arg CMAKE_OPTIONS="$CMAKE_OPTIONS" --build-arg CXXFLAGS="$CXXFLAGS"
@@ -40,36 +40,36 @@ default:
 prebuild-cc7:
   <<: *prebuild-template_definition
   variables:
-    PREBUILD_NAME: cc7-${CODENAME}
+    PREBUILD_NAME: cc7
 
 prebuild-c8:
   <<: *prebuild-template_definition
   variables:
-    PREBUILD_NAME: c8-${CODENAME}
+    PREBUILD_NAME: c8
 
 # @note Consider deletion
 .prebuild-cc7_asan:
   <<: *prebuild-template_definition
   variables:
-    PREBUILD_NAME: cc7_asan-${CODENAME}
+    PREBUILD_NAME: cc7_asan
     CMAKE_OPTIONS: "-DASAN=1"
     CXXFLAGS: "-Wno-parentheses"  # Avoid boost header compilation errors
 
 .prebuild-cc7_clang:
   <<: *prebuild-template_definition
   variables:
-    PREBUILD_NAME: cc7_clang-${CODENAME}
+    PREBUILD_NAME: cc7_clang
     CMAKE_OPTIONS: "-DCLANG_BUILD=1"
 
 .prebuild-cc7_xrd_testing:
   <<: *prebuild-template_definition
   variables:
-    PREBUILD_NAME: cc7_xrd_testing-${CODENAME}
+    PREBUILD_NAME: cc7_xrd_testing
 
 .prebuild-cc7_coverage:
   <<: *prebuild-template_definition
   variables:
-    PREBUILD_NAME: cc7_coverage-${CODENAME}
+    PREBUILD_NAME: cc7_coverage
   only:
     variables:
       - $COVERAGE_SCHEDULE
