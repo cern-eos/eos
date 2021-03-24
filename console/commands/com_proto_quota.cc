@@ -74,7 +74,7 @@ bool QuotaHelper::ParseCommand(const char* arg)
   tokenizer.NextToken(token);
 
 // quite ugly, but not to break the legacy syntax...
-  if ( token == "" || token == "-m" || token == "--path" || token == "-p" || (token.find('/') == 0) ) { // ... or begins with "/"
+  if ( token == "" || token == "-m" || token == "--path" || token == "-p" || token == "-x" || token == "-q" || (token.find('/') == 0) ) { // ... or begins with "/"
     // lsuser
     eos::console::QuotaProto_LsuserProto* lsuser = quota->mutable_lsuser();
     std::string aux_string;
@@ -91,8 +91,14 @@ bool QuotaHelper::ParseCommand(const char* arg)
           if (aux_string.find('/') == 0) {
             lsuser->set_space(aux_string);
           }
-        } else if (token == "--path" || token == "-p" || (token.find('/') == 0)) {
-          if (token == "--path" || token == "-p") {
+        } else if (token == "--path" || token == "-p" || token == "-x" || token == "-q" || (token.find('/') == 0)) {
+          if (token == "--path" || token == "-p" || token == "-x" || token == "-q") {
+	    if (token == "-x") {
+	      lsuser->set_exists(true);
+	    }
+	    if (token == "-q") {
+	      lsuser->set_quotanode(true);
+	    }
             if (tokenizer.NextToken(token)) {
               lsuser->set_space(token);
             } else {
@@ -138,11 +144,9 @@ bool QuotaHelper::ParseCommand(const char* arg)
 		 (token.find('/') == 0)) {
         if (token == "--path" || token == "-p" || token == "-q" || token == "-x") {
 	  if (token == "-x") {
-	    fprintf(stderr,"setting exist=true\n");
 	    ls->set_exists(true);
 	  }
 	  if (token == "-q") {
-	    fprintf(stderr,"setting quotanode=true\n");
 	    ls->set_quotanode(true);
 	  }
           if (tokenizer.NextToken(token)) {

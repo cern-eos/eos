@@ -11,6 +11,9 @@ message QuotaProto {
   message LsuserProto {
     string space = 1;
     bool format = 2;
+    bool exists = 3;
+    bool quotanode = 4;
+
   }
 
   message LsProto {
