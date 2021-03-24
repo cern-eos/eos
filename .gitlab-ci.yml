@@ -10,8 +10,8 @@ stages:
 include:
   - template: Code-Quality.gitlab-ci.yml
 
-variable:
-  - CODENAME: "diopside"
+variables:
+  CODENAME: "diopside"
 
 default:
   before_script:

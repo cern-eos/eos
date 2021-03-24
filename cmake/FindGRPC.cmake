@@ -80,24 +80,34 @@ if(NOT DEFINED GRPC_GENERATE_CPP_APPEND_PATH)
 endif()
 
 # Find GRPC include directory
-find_path(GRPC_INCLUDE_DIR grpc/grpc.h)
+find_path(GRPC_INCLUDE_DIR
+  NAMES grpc/grpc.h
+  PATHS /opt/eos/grpc/ ${GRPC_ROOT})
+
 mark_as_advanced(GRPC_INCLUDE_DIR)
 
 # Find GRPC library
 find_library(GRPC_LIBRARY
-  NAMES grpc)
+  NAMES grpc
+  HINTS /opt/eos/grpc/ ${GRPC_ROOT}
+  PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR})
 
 # Find GRPC C++ library
 find_library(GRPC_GRPC++_LIBRARY
-  NAMES grpc++)
+  NAMES grpc++
+  HINTS /opt/eos/grpc/ ${GRPC_ROOT}
+  PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR})
 
 # Find GRPC C++ reflection library
 find_library(GRPC_GRPC++_REFLECTION_LIBRARY
-  NAMES grpc++_reflection)
+  NAMES grpc++_reflection
+  HINTS /opt/eos/grpc/ ${GRPC_ROOT}
+  PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR})
 
 # Find GRPC CPP generator
 find_program(GRPC_CPP_PLUGIN
-  NAMES grpc_cpp_plugin)
+  NAMES grpc_cpp_plugin
+  HINTS /opt/eos/grpc/ ${GRPC_ROOT})
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(GRPC
