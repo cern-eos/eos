@@ -1763,6 +1763,9 @@ public:
   //! Mgm IO Report store path by default is /var/tmp/eos/report
   XrdOucString IoReportStorePath;
 
+  //! Mgm tmp find output path by default is /var/tmp/eos/mgm/
+  XrdOucString TmpStorePath;
+
   //! Class implementing comment log: mgm writes all proc commands with a
   //! comment into /var/log/eos/comments.log
   std::unique_ptr<eos::common::CommentLog> mCommentLog;

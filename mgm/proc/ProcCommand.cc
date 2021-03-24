@@ -89,7 +89,8 @@ bool
 ProcCommand::OpenTemporaryOutputFiles()
 {
   char tmpdir [4096];
-  snprintf(tmpdir, sizeof(tmpdir) - 1, "/tmp/eos.mgm/%llu",
+  snprintf(tmpdir, sizeof(tmpdir) - 1, "%s/%llu",
+	   gOFS->TmpStorePath.c_str(),
            (unsigned long long) XrdSysThread::ID());
   fstdoutfilename = tmpdir;
   fstdoutfilename += ".stdout";

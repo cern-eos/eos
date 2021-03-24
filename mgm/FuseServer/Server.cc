@@ -3162,8 +3162,23 @@ Server::HandleMD(const std::string& id,
     ops = "UNKNOWN";
   }
 
-  eos_info("ino=%016lx operation=%s cid=%s cuuid=%s", (long) md.md_ino(),
+  std::string op_class="none";
+  if (S_ISDIR(md.mode())) {
+    op_class = "dir";
+  } else if (S_ISREG(md.mode())) {
+    op_class = "file";
+  } else if (S_ISFIFO(md.mode())) {
+    op_class = "fifo";
+  } else if (S_ISLNK(md.mode())) {
+    op_class = "link";
+  }
+
+
+  eos_info("ino=%016lx operation=%s type=%s name=%s pino=%016lx cid=%s cuuid=%s", (long) md.md_ino(),
            ops.c_str(),
+	   op_class.c_str(),
+	   md.name(),
+	   md.md_pino(),
            md.clientid().c_str(), md.clientuuid().c_str());
 
   if (EOS_LOGS_DEBUG) {
