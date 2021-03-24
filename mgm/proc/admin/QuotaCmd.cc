@@ -27,6 +27,7 @@
 #include "mgm/Acl.hh"
 #include "mgm/Stat.hh"
 #include "mgm/Quota.hh"
+#include "common/Path.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -157,13 +158,19 @@ void QuotaCmd::LsSubcmd(const eos::console::QuotaProto_LsProto& ls, eos::console
 
   if (!space.empty()) {
     // evt. correct the space variable to be a directory path (+/)
-    struct stat buf{};
     std::string sspace = space;
+    struct stat buf{};
     if (sspace[sspace.length() - 1] != '/') {
       sspace += '/';
     }
     if (!gOFS->_stat(sspace.c_str(), &buf, mError, mVid, nullptr)) { // @note no.01
       space = sspace;
+    } else {
+      if (ls.exists()) {
+	reply.set_retc(ENOENT);
+	reply.set_std_err("error: the given path does not exist!");
+	return;
+      }
     }
   }
 
@@ -182,7 +189,7 @@ void QuotaCmd::LsSubcmd(const eos::console::QuotaProto_LsProto& ls, eos::console
       // effectively check ACLs on the quota node directory if it can be retrieved
       std::string quota_node_path = Quota::GetResponsibleSpaceQuotaPath(space);
       if (quota_node_path.length()) {
-        space = quota_node_path;
+	space = quota_node_path;
       }
     }
 
@@ -192,6 +199,19 @@ void QuotaCmd::LsSubcmd(const eos::console::QuotaProto_LsProto& ls, eos::console
   }
 
 
+  if (ls.quotanode()) {
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    // check if this is a quotanode
+    std::string quota_node_path = Quota::GetResponsibleSpaceQuotaPath(space);
+
+    eos::common::Path qPath(quota_node_path.c_str());
+    eos::common::Path sPath(space.c_str());
+    if ( std::string(qPath.GetPath()) != std::string(sPath.GetPath()) ) {
+      reply.set_retc(ENOENT);
+      reply.set_std_err("error: the given path is not a quotanode!");
+      return;
+    }
+  }
   if (!canQuota) {
     reply.set_retc(EPERM);
     reply.set_std_err("error: you are not a quota administrator!\"");
