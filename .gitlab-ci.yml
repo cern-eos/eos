@@ -10,10 +10,11 @@ stages:
 include:
   - template: Code-Quality.gitlab-ci.yml
 
+variable:
+  - CODENAME: "diopside"
+
 default:
   before_script:
-    - source gitlab-ci/export_codename.sh
-    - echo "Exporting CODENAME=${CODENAME}"
     - source gitlab-ci/export_commit-type.sh
     - echo "Exporting COMMIT_TYPE=${COMMIT_TYPE}"
 
@@ -80,7 +81,7 @@ prebuild-c8:
 
 build_cc7:
   stage: build:rpm
-  image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7-diopside
+  image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7-${CODENAME}
   script:
     - git submodule update --init --recursive
     - mkdir build
@@ -180,7 +181,7 @@ build_cs8:
 
 build_c8:
   stage: build:rpm
-  image: gitlab-registry.cern.ch/dss/eos/prebuild-c8-diopside
+  image: gitlab-registry.cern.ch/dss/eos/prebuild-c8-${CODENAME}
   script:
     - git submodule update --init --recursive
     - ./misc/cmake/cmake-3.15.5-Linux-x86_64.sh --prefix=/usr/ --skip-license
@@ -329,7 +330,7 @@ build_fedora_rawhide:
 # @note Using "normal" cc7 image as it doesn't actually need an exotic one, yet
 .build_cc7_exotic-template: &build_cc7_exotic-template_definition
   stage: build:rpm
-  image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7-diopside
+  image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7-${CODENAME}
   script:
     - git submodule update --init --recursive
     - mkdir build
@@ -382,8 +383,6 @@ build_cc7_clang:
 
 build_cc7_xrd_testing: # @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
   before_script:
-    - source gitlab-ci/export_codename.sh
-    - echo "Exporting CODENAME=${CODENAME}"
     - source gitlab-ci/export_commit-type.sh
     - echo "Exporting COMMIT_TYPE=${COMMIT_TYPE}"
     - echo -e '[xrootd-testing]\nname=XRootD Testing repository\nbaseurl=http://xrootd.cern.ch/sw/repos/testing/slc/7/$basearch\ngpgcheck=0\nenabled=1\npriority=5\nprotect=0\n' >> /etc/yum.repos.d/xrootd-testing.repo
@@ -399,13 +398,11 @@ build_cc7_xrd_testing: # @todo Re-enable xrd_testing jobs once project ugprades 
 
 build_cc7_opt_xrootd: # @note please contact CTA team / jleduc if you want to change this job
   before_script:
-    - source gitlab-ci/export_codename.sh
-    - echo "Exporting CODENAME=${CODENAME}"
     - source gitlab-ci/export_commit-type.sh
     - echo "Exporting COMMIT_TYPE=${COMMIT_TYPE}"
     - sed -i "s/pgm \/usr\/bin\/xrdcp/pgm \/bin\/true/g" misc/etc/xrd.cf.fst
   <<: *build_cc7_exotic-template_definition
-  image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7-diopside
+  image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7-${CODENAME}
   variables:
     BUILD_NAME: cc7_opt_xrootd
     CMAKE_OPTIONS: "-DEOS_XROOTD=1"
