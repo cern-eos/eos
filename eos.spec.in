@@ -208,7 +208,7 @@ BuildRequires: bzip2-devel
 Requires: bzip2
 
 %if %{use_richacl}
-BuildRequires: librichacl-devel, richacl >= 1.12
+BuildRequires: eos-librichacl-devel, eos-richacl >= 1.12
 %endif
 
 # ISA-L[_crypto], XXHash and scitokens dependencies for CC7 and C8
@@ -835,7 +835,7 @@ Requires: fuse
 Requires: jemalloc
 Requires: attr
 %if %{use_richacl}
-Requires: librichacl, richacl >= 1.12
+Requires: eos-librichacl, eos-richacl >= 1.12
 %endif
 Requires: zeromq
 
