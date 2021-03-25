@@ -412,7 +412,7 @@ BoundIdentityProvider::defaultPathsToBoundIdentity(const JailInformation& jail,
   // Pretend as if the environment of the process simply contained the default values,
   // and follow the usual code path.
   Environment defaultEnv;
-  defaultEnv.push_back("KRB5CCNAME=FILE:/tmp/krb5cc_" + std::to_string(uid));
+  defaultEnv.push_back("KRB5CCNAME=KEYRING:persistent:"+ std::to_string(uid));
   defaultEnv.push_back("X509_USER_PROXY=/tmp/x509up_u" + std::to_string(uid));
   defaultEnv.push_back("OAUTH2_TOKEN=FILE:/tmp/oauthtk_" + std::to_string(uid));
 
