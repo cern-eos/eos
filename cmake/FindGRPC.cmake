@@ -82,7 +82,8 @@ endif()
 # Find GRPC include directory
 find_path(GRPC_INCLUDE_DIR
   NAMES grpc/grpc.h
-  PATHS /opt/eos/grpc/ ${GRPC_ROOT})
+  HINTS /opt/eos/grpc/ ${GRPC_ROOT}
+  PATH_SUFFIXES include)
 
 mark_as_advanced(GRPC_INCLUDE_DIR)
 
@@ -107,7 +108,8 @@ find_library(GRPC_GRPC++_REFLECTION_LIBRARY
 # Find GRPC CPP generator
 find_program(GRPC_CPP_PLUGIN
   NAMES grpc_cpp_plugin
-  HINTS /opt/eos/grpc/ ${GRPC_ROOT})
+  HINTS /opt/eos/grpc/ ${GRPC_ROOT}
+  PATH_SUFFIXES bin)
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(GRPC
