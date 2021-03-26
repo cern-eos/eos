@@ -33,6 +33,7 @@
 // Designates what kind of user credentials we're dealing with:
 // - KRB5: Kerberos file-based ticket cache
 // - KRK5: Kerberos kernel-keyring-based ticket cache
+// - KCM:  Kerberos KCM daemon ticket cache
 // - X509: GSI user certificates
 // - SSS: SSS ticket delegation
 // - NOBODY: Identify as nobody, no user credentails whatsoever
@@ -40,6 +41,7 @@
 enum class CredentialType : std::uint32_t {
   KRB5 = 0,
   KRK5,
+  KCM,
   X509,
   SSS,
   NOBODY,
@@ -57,6 +59,9 @@ inline std::string credentialTypeAsString(CredentialType type) {
     }
     case CredentialType::KRK5: {
       return "krk5";
+    }
+    case CredentialType::KCM: {
+      return "kcm";
     }
     case CredentialType::X509: {
       return "x509";
@@ -129,6 +134,20 @@ struct UserCredentials {
     UserCredentials retval;
     retval.type = CredentialType::KRK5;
     retval.keyring = keyring;
+    retval.uid = uid;
+    retval.gid = gid;
+    return retval;
+  }
+
+
+  //----------------------------------------------------------------------------
+  // Constructor: Make a KCM object.
+  // TODO(gbitzes): Actually test this...
+  //----------------------------------------------------------------------------
+  static UserCredentials MakeKcm(const std::string &kcm, uid_t uid, gid_t gid) {
+    UserCredentials retval;
+    retval.type = CredentialType::KCM;
+    retval.kcm = kcm;
     retval.uid = uid;
     retval.gid = gid;
     return retval;
@@ -217,6 +236,7 @@ struct UserCredentials {
   JailIdentifier jail;     // jail identifier for krb5, x509
   std::string fname;       // credential filename for krb5, x509
   std::string keyring;     // kernel keyring for krk5
+  std::string kcm;         // kcm for kcm
   std::string endorsement; // endorsement for sss
   uid_t uid;               // uid for krb5, x509, sss, unix
   gid_t gid;               // gid for krb5, x509, sss, unix
@@ -280,6 +300,10 @@ struct UserCredentials {
       }
       case CredentialType::KRK5: {
         ss << ": " << keyring << " for uid=" << uid << ", gid=" << gid;
+        break;
+      }
+      case CredentialType::KCM: {
+        ss << ": " << kcm << " for uid=" << uid << ", gid=" << gid;
         break;
       }
       case CredentialType::SSS: {

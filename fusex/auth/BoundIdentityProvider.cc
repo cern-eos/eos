@@ -64,7 +64,7 @@ BoundIdentityProvider::krb5EnvToBoundIdentity(const JailInformation& jail,
   if(startswith(path, "KCM")) {
     LOGBOOK_INSERT(scope, "Found kerberos kcm: " << path << ", need to validate");
     return userCredsToBoundIdentity(jail,
-      UserCredentials::MakeKrk5(path, uid, gid), reconnect, scope);
+      UserCredentials::MakeKcm(path, uid, gid), reconnect, scope);
   }
 
   //----------------------------------------------------------------------------

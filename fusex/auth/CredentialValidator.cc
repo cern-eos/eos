@@ -54,6 +54,26 @@ bool CredentialValidator::checkKeyringUID(const std::string &keyring,
 }
 
 //----------------------------------------------------------------------------
+// Should the given kcm be usable by this uid?
+//----------------------------------------------------------------------------
+bool CredentialValidator::checkKcmUID(const std::string &kcm,
+  uid_t uid) {
+
+  std::string uidless = SSTR("KCM:");
+  if(uidless == kcm) {
+    return true;
+  }
+
+  std::string nameless = SSTR("KCM:" << uid);
+  if(nameless == kcm) {
+    return true;
+  }
+
+  std::string prefix = SSTR("KCM:" << uid << ":");
+  return startswith(kcm, prefix);
+}
+
+//----------------------------------------------------------------------------
 // Some data comparison and conversion functions.
 //----------------------------------------------------------------------------
 static int data_eq(krb5_data d1, krb5_data d2) {
