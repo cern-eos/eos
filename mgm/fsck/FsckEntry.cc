@@ -773,6 +773,7 @@ FsckEntry::Repair()
 
     if (mMgmFmd.cont_id() == 0ull) {
       eos_info("msg=\"no repair, file is being deleted\" fxid=%08llx", mFid);
+      //@todo(esindril) call RmCmd::RemoveDetached
       UpdateMgmStats(true);
       return true;
     }
