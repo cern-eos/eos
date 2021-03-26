@@ -235,7 +235,7 @@ FuseServer::Clients::Dispatch(const std::string identity,
         caps_to_revoke.insert(cap);
         eos_static_debug("cap-revocation: authid=%s vtime:= %u",
                          it->first.c_str(),
-                         cap->vtime());
+                         (*cap)()->vtime());
       }
     }
   }
@@ -330,8 +330,8 @@ FuseServer::Clients::Print(std::string& out, std::string options)
     for (const auto& it : gOFS->zMQ->gFuseServer.Cap().InodeCaps()) {
       for (const auto& sit : it.second) {
         if (auto cap = gOFS->zMQ->gFuseServer.Cap().Get(sit);
-            cap->id()) {
-          clientcaps[cap->clientuuid()]++;
+            (*cap)()->id()) {
+          clientcaps[(*cap)()->clientuuid()]++;
         }
       }
     }
@@ -784,16 +784,16 @@ FuseServer::Clients::Dropcaps(const std::string& uuid, std::string& out)
       if (auto cap = gOFS->zMQ->gFuseServer.Cap().Get(*sit);
           cap->id()) {
 
-        if (cap->clientuuid() == uuid) {
+        if ((*cap)()->clientuuid() == uuid) {
           cap2delete.insert(cap);
           out += "\n ";
           char ahex[20];
-          snprintf(ahex, sizeof(ahex), "%016lx", (unsigned long) cap->id());
+          snprintf(ahex, sizeof(ahex), "%016lx", (unsigned long) (*cap)()->id());
           std::string match = "";
           match += "# i:";
           match += ahex;
           match += " a:";
-          match += cap->authid();
+          match += (*cap)()->authid();
           out += match;
         }
       }
@@ -801,11 +801,11 @@ FuseServer::Clients::Dropcaps(const std::string& uuid, std::string& out)
   }
 
   for (auto scap = cap2delete.begin(); scap != cap2delete.end(); ++scap) {
-    gOFS->zMQ->gFuseServer.Client().ReleaseCAP((uint64_t)(*scap)->id(),
-        (*scap)->clientuuid(),
-        (*scap)->clientid());
-    eos_static_info("erasing %llx %s %s", (*scap)->id(),
-                    (*scap)->clientid().c_str(), (*scap)->authid().c_str());
+    gOFS->zMQ->gFuseServer.Client().ReleaseCAP((uint64_t)(*(*scap))()->id(),
+					       (*(*scap))()->clientuuid(),
+					       (*(*scap))()->clientid());
+    eos_static_info("erasing %llx %s %s", (*(*scap))()->id(),
+                    (*(*scap))()->clientid().c_str(), (*(*scap))()->authid().c_str());
     gOFS->zMQ->gFuseServer.Cap().Remove(*scap);
   }
 
@@ -987,8 +987,8 @@ FuseServer::Clients::SendCAP(FuseServer::Caps::shared_cap cap)
   // prepare update message
   eos::fusex::response rsp;
   rsp.set_type(rsp.CAP);
-  *(rsp.mutable_cap_()) = *cap;
-  const std::string& uuid = cap->clientuuid();
+  *(rsp.mutable_cap_()) = *(*cap)();
+  const std::string& uuid = (*cap)()->clientuuid();
   std::string rspstream;
   rsp.SerializeToString(&rspstream);
   eos::common::RWMutexReadLock lLock(*this);
@@ -1000,7 +1000,7 @@ FuseServer::Clients::SendCAP(FuseServer::Caps::shared_cap cap)
   std::string clientid = mUUIDView[uuid];
   lLock.Release();
   eos_static_info("msg=\"sending cap update\" uuid=%s clientid=%s cap-id=%lx",
-                  uuid.c_str(), clientid.c_str(), cap->id());
+                  uuid.c_str(), clientid.c_str(), (*cap)()->id());
   gOFS->zMQ->mTask->reply(clientid, rspstream);
   EXEC_TIMING_END("Eosxd::int::SendCAP");
   return 0;

@@ -61,9 +61,10 @@ FuseServer::Caps::Store(const eos::fusex::cap& ecap,
   if (auto kv = mCaps.find(ecap.authid());
       kv != mCaps.end()) {
     shared_cap cap = kv->second;
-    if (cap->id() != ecap.id()) {
+   
+    if ((*cap)()->id() != ecap.id()) {
       eos_static_info("got inode change for %s from %x to %x",
-                      ecap.authid().c_str(), cap->id(), ecap.id());
+                      ecap.authid().c_str(), (*cap)()->id(), ecap.id());
       Remove(cap);
     }
   }
@@ -95,13 +96,13 @@ FuseServer::Caps::Imply(uint64_t md_ino,
   shared_cap implied_cap = std::make_shared<capx>();
   shared_cap cap = Get(authid);
 
-  if (!cap->id() || !implied_authid.length()) {
+  if (!(*cap)()->id() || !implied_authid.length()) {
     return false;
   }
 
   *implied_cap = *cap;
-  implied_cap->set_authid(implied_authid);
-  implied_cap->set_id(md_ino);
+  (*implied_cap)()->set_authid(implied_authid);
+  (*implied_cap)()->set_id(md_ino);
   implied_cap->set_vid(cap->vid());
   struct timespec ts;
   eos::common::Timing::GetTimeSpec(ts, true);
@@ -109,16 +110,16 @@ FuseServer::Caps::Imply(uint64_t md_ino,
     size_t leasetime = 0;
     {
       eos::common::RWMutexReadLock lLock(gOFS->zMQ->gFuseServer.Client());
-      leasetime = gOFS->zMQ->gFuseServer.Client().leasetime(cap->clientuuid());
+      leasetime = gOFS->zMQ->gFuseServer.Client().leasetime((*cap)()->clientuuid());
     }
     eos::common::RWMutexWriteLock lock(*this);
-    implied_cap->set_vtime(ts.tv_sec + (leasetime ? leasetime : 300));
-    implied_cap->set_vtime_ns(ts.tv_nsec);
+    (*implied_cap)()->set_vtime(ts.tv_sec + (leasetime ? leasetime : 300));
+    (*implied_cap)()->set_vtime_ns(ts.tv_nsec);
     // fill the three views on caps
-    mTimeOrderedCap.insert(std::pair<time_t, authid_t>(implied_cap->vtime(),
+    mTimeOrderedCap.insert(std::pair<time_t, authid_t>((*implied_cap)()->vtime(),
                            implied_authid));
-    mClientCaps[cap->clientid()].insert(implied_authid);
-    mClientInoCaps[cap->clientid()][cap->id()].insert(implied_authid);
+    mClientCaps[(*cap)()->clientid()].insert(implied_authid);
+    mClientInoCaps[(*cap)()->clientid()][(*cap)()->id()].insert(implied_authid);
     mCaps[implied_authid] = implied_cap;
     mInodeCaps[md_ino].insert(implied_authid);
   }
@@ -215,7 +216,7 @@ FuseServer::Caps::GetBroadcastCapsTS(uint64_t id,
       }
 
       // skip same source
-      if (cap->clientuuid() == mdptr->clientuuid()) {
+      if ((*cap)()->clientuuid() == mdptr->clientuuid()) {
         continue;
       }
     }
@@ -250,10 +251,10 @@ FuseServer::Caps::BroadcastReleaseFromExternal(uint64_t id)
   auto bccaps = GetBroadcastCapsTS(id);
 
   for (auto it : bccaps) {
-    eos_static_debug("ReleaseCAP id %#lx clientid %s", it->clientid().c_str());
-    gOFS->zMQ->gFuseServer.Client().ReleaseCAP((uint64_t) it->id(),
-        it->clientuuid(),
-        it->clientid());
+    eos_static_debug("ReleaseCAP id %#lx clientid %s", (*it)()->clientid().c_str());
+    gOFS->zMQ->gFuseServer.Client().ReleaseCAP((uint64_t)(*it)()->id(),
+                                               (*it)()->clientuuid(),
+                                               (*it)()->clientid());
     errno = 0 ; // seems that ZMQ function might set errno
   }
 
@@ -274,8 +275,8 @@ FuseServer::Caps::BroadcastRefreshFromExternal(uint64_t id, uint64_t pid)
 
   for (auto it : bccaps) {
     gOFS->zMQ->gFuseServer.Client().RefreshEntry((uint64_t) id,
-        it->clientuuid(),
-        it->clientid());
+                                                 (*it)()->clientuuid(),
+                                                 (*it)()->clientid());
     errno = 0 ; // seems that ZMQ function might set errno
   }
 
@@ -290,12 +291,12 @@ FuseServer::Caps::BroadcastRelease(const eos::fusex::md& md)
   EXEC_TIMING_BEGIN("Eosxd::int::BcRelease");
   FuseServer::Caps::shared_cap refcap = GetTS(md.authid());
   eos_static_info("id=%lx/%lx clientid=%s clientuuid=%s authid=%s",
-                  refcap->id(),
+                  (*refcap)()->id(),
                   md.md_pino(),
-                  refcap->clientid().c_str(),
-                  refcap->clientuuid().c_str(),
-                  refcap->authid().c_str());
-  uint64_t md_pino = refcap->id();
+                  (*refcap)()->clientid().c_str(),
+                  (*refcap)()->clientuuid().c_str(),
+                  (*refcap)()->authid().c_str());
+  uint64_t md_pino = (*refcap)()->id();
 
   if (!md_pino) {
     md_pino = md.md_pino();
@@ -304,9 +305,9 @@ FuseServer::Caps::BroadcastRelease(const eos::fusex::md& md)
   auto bccaps = GetBroadcastCapsTS(md_pino, refcap, &md);
 
   for (auto it : bccaps) {
-    gOFS->zMQ->gFuseServer.Client().ReleaseCAP((uint64_t) it->id(),
-        it->clientuuid(),
-        it->clientid());
+    gOFS->zMQ->gFuseServer.Client().ReleaseCAP((uint64_t) (*it)()->id(),
+                                               (*it)()->clientuuid(),
+                                               (*it)()->clientid());
     errno = 0 ;
   }
 
@@ -327,9 +328,9 @@ FuseServer::Caps::BroadcastDeletionFromExternal(uint64_t id,
   auto bccaps = GetBroadcastCapsTS(id);
 
   for (auto it : bccaps) {
-    gOFS->zMQ->gFuseServer.Client().DeleteEntry((uint64_t) it->id(),
-        it->clientuuid(),
-        it->clientid(),
+    gOFS->zMQ->gFuseServer.Client().DeleteEntry((uint64_t) (*it)()->id(),
+                                                (*it)()->clientuuid(),
+                                                (*it)()->clientid(),
         name);
     errno = 0 ; // seems that ZMQ function might set errno
   }
@@ -351,10 +352,10 @@ FuseServer::Caps::BroadcastDeletion(uint64_t id, const eos::fusex::md& md,
   auto bccaps = GetBroadcastCapsTS(refcap->id(), refcap, &md);
 
   for (auto it : bccaps) {
-    gOFS->zMQ->gFuseServer.Client().DeleteEntry((uint64_t) it->id(),
-        it->clientuuid(),
-        it->clientid(),
-        name);
+    gOFS->zMQ->gFuseServer.Client().DeleteEntry((uint64_t) (*it)()->id(),
+                                                (*it)()->clientuuid(),
+                                                (*it)()->clientid(),
+                                                name);
     errno = 0;
   }
 
@@ -392,8 +393,6 @@ FuseServer::Caps::BroadcastRefresh(uint64_t inode,
               std::back_inserter(auth_ids));
   }
 
-
-
   bool suppress_audience = false;
   regex_t regex;
   // audience check
@@ -414,31 +413,30 @@ FuseServer::Caps::BroadcastRefresh(uint64_t inode,
   for (const auto& it: auth_ids) {
     shared_cap cap = GetTS(it);
     // avoid processing if the cap doesn't exist
-    if (!cap->id()) {
+    if (!(*cap)()->id()) {
       continue;
     }
 
     // skip identical client mounts!
-    if (refcap && cap->clientuuid() == refcap->clientuuid()) {
+    if (refcap && (*cap)()->clientuuid() == (*refcap)()->clientuuid()) {
       continue;
     }
 
     // skip same source
-    if (cap->clientuuid() == md.clientuuid()) {
+    if ((*cap)()->clientuuid() == md.clientuuid()) {
       continue;
     }
 
     if (suppress_audience) {
-      if (regexec(&regex, cap->clientid().c_str(), 0, NULL, 0) != REG_NOMATCH) {
+      if (regexec(&regex, (*cap)()->clientid().c_str(), 0, NULL, 0) != REG_NOMATCH) {
         n_suppressed++;
         continue;
       }
     }
 
     gOFS->zMQ->gFuseServer.Client().RefreshEntry((uint64_t) inode,
-                                                 cap->clientuuid(),
-                                                 cap->clientid()
-                                                 );
+                                                 (*it)()->clientuuid(),
+                                                 (*it)()->clientid());
     errno = 0;
   }
 
@@ -454,7 +452,7 @@ FuseServer::Caps::BroadcastRefresh(uint64_t inode,
 int
 FuseServer::Caps::BroadcastCap(shared_cap cap)
 {
-  if (cap && cap->id()) {
+  if (cap && (*cap)()->id()) {
     (void) gOFS->zMQ->gFuseServer.Client().SendCAP(cap);
   }
 
@@ -492,8 +490,8 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
               std::back_inserter(auth_ids));
   }
   eos_static_info("id=%lx/%lx clientid=%s clientuuid=%s authid=%s",
-                  refcap->id(), md_pino, refcap->clientid().c_str(),
-                  refcap->clientuuid().c_str(), refcap->authid().c_str());
+                  (*refcap)()->id(), md_pino, (*refcap)()->clientid().c_str(),
+                  (*refcap)()->clientuuid().c_str(), (*refcap)()->authid().c_str());
 
   bool suppress_audience = false;
   regex_t regex;
@@ -515,40 +513,45 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
   for (const auto& it: auth_ids) {
     shared_cap cap = GetTS(it);
     // avoid processing if the cap doesn't exist
-    if (!cap->id()) {
+    if (!(*cap)()->id()) {
       continue;
     }
 
-    // skip identical client mounts!
-    if (refcap && cap->clientuuid() == refcap->clientuuid()) {
+    // skip our own cap!
+    if ((*cap)()->authid() == md.authid()) {
+      continue;
+    }
+
+    // skip identical client mounts, the have it anyway!
+    if (refcap && (*cap)()->clientuuid() == (*refcap)()->clientuuid()) {
       continue;
     }
 
     // skip same source
-    if (cap->clientuuid() == md.clientuuid()) {
+    if ((*cap)()->clientuuid() == md.clientuuid()) {
       continue;
     }
 
     if (suppress_audience) {
-      if (regexec(&regex, cap->clientid().c_str(), 0, NULL, 0) != REG_NOMATCH) {
+      if (regexec(&regex, (*cap)()->clientid().c_str(), 0, NULL, 0) != REG_NOMATCH) {
         n_suppressed++;
         continue;
       }
     }
 
     eos_static_debug("id=%lx clientid=%s clientuuid=%s authid=%s",
-                     cap->id(),
-                     cap->clientid().c_str(),
-                     cap->clientuuid().c_str(),
-                     cap->authid().c_str());
+                    (*cap)()->id(),
+                    (*cap)()->clientid().c_str(),
+                    (*cap)()->clientuuid().c_str(),
+                    (*cap)()->authid().c_str());
 
-    if (!clients_sent.count(cap->clientuuid())) {
-      // make sure we sent the update only once to each client, even if this
+    if ((*cap)()->id() && !clients_sent.count((*cap)()->clientuuid())) {
+      // make sure we sent the update only once to each client, eveh if this
       // one has many caps
-      clients_sent.insert(cap->clientuuid());
+      clients_sent.insert((*cap)()->clientuuid());
       gOFS->zMQ->gFuseServer.Client().SendMD(md,
-                                             cap->clientuuid(),
-                                             cap->clientid(),
+                                             (*it)()->clientuuid(),
+                                             (*it)()->clientid(),
                                              md_ino,
                                              md_pino,
                                              clock,
@@ -606,27 +609,27 @@ FuseServer::Caps::Print(const std::string& option,
 
       char ahex[256];
       shared_cap cap = mCaps[it->second];
-      snprintf(ahex, sizeof(ahex), "%016lx", (unsigned long) cap->id());
+      snprintf(ahex, sizeof(ahex), "%016lx", (unsigned long) (*cap)()->id());
       std::string match = "";
       match += "# i:";
       match += ahex;
       match += " a:";
-      match += cap->authid();
+      match += (*cap)()->authid();
       match += " c:";
-      match += cap->clientid();
+      match += (*cap)()->clientid();
       match += " u:";
-      match += cap->clientuuid();
+      match += (*cap)()->clientuuid();
       match += " m:";
-      snprintf(ahex, sizeof(ahex), "%08lx", (unsigned long) cap->mode());
+      snprintf(ahex, sizeof(ahex), "%08lx", (unsigned long) (*cap)()->mode());
       match += ahex;
       match += " v:";
 
-      if ((cap->vtime() - now) >  0) {
+      if (((*cap)()->vtime() - now) >  0) {
         match += eos::common::StringConversion::GetSizeString(astring,
-                 (unsigned long long) cap->vtime() - now);
+                                                              (unsigned long long) (*cap)()->vtime() - now);
       } else {
         match += eos::common::StringConversion::GetSizeString(astring,
-                 (unsigned long long) 0);
+                                                              (unsigned long long) 0);
       }
 
       match += "\n";
@@ -665,15 +668,15 @@ FuseServer::Caps::Print(const std::string& option,
         } else {
           shared_cap cap = mCaps[*sit];
           out += " c:";
-          out += cap->clientid();
+          out += (*cap)()->clientid();
           out += " u:";
-          out += cap->clientuuid();
+          out += (*cap)()->clientuuid();
           out += " m:";
-          snprintf(ahex, sizeof(ahex), "%016lx", (unsigned long) cap->mode());
+          snprintf(ahex, sizeof(ahex), "%016lx", (unsigned long) (*cap)()->mode());
           out += ahex;
           out += " v:";
           out += eos::common::StringConversion::GetSizeString(astring,
-                 (unsigned long long) cap->vtime() - now);
+                                                              (unsigned long long) (*cap)()->vtime() - now);
           out += "\n";
         }
       }
@@ -721,16 +724,16 @@ FuseServer::Caps::Print(const std::string& option,
         } else {
           shared_cap cap = mCaps[*sit];
           out += " c:";
-          out += cap->clientid();
+          out += (*cap)()->clientid();
           out += " u:";
-          out += cap->clientuuid();
+          out += (*cap)()->clientuuid();
           out += " m:";
           char ahex[20];
-          snprintf(ahex, sizeof(ahex), "%016lx", (unsigned long) cap->mode());
+          snprintf(ahex, sizeof(ahex), "%016lx", (unsigned long) (*cap)()->mode());
           out += ahex;
           out += " v:";
           out += eos::common::StringConversion::GetSizeString(astring,
-                 (unsigned long long) cap->vtime() - now);
+                                                              (unsigned long long) (*cap)()->vtime() - now);
           out += "\n";
         }
       }
@@ -785,7 +788,7 @@ FuseServer::Caps::Delete(uint64_t md_ino)
     const auto it_caps = mCaps.find(authid);
 
     if (it_caps != mCaps.end()) {
-      const std::string client_id = it_caps->second->clientid();
+      const std::string client_id = (*it_caps->second)()->clientid();
       auto it_cli_inocaps = mClientInoCaps.find(client_id);
 
       if (it_cli_inocaps != mClientInoCaps.end()) {
