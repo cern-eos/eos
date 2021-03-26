@@ -71,6 +71,11 @@ public:
   //----------------------------------------------------------------------------
   bool checkKeyringUID(const std::string& keyring, uid_t uid);
 
+  //----------------------------------------------------------------------------
+  // Should the given KCM user be usable by this uid?
+  //----------------------------------------------------------------------------
+  bool checkKcmUID(const std::string& kcm, uid_t uid);
+
 private:
   SecurityChecker& checker;
   UuidStore& credentialStore;

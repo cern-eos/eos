@@ -74,6 +74,14 @@ void UserCredentialFactory::addKrb5(const JailIdentifier &id, std::string path,
   }
 
   //----------------------------------------------------------------------------
+  // Kerberos kcm?
+  //----------------------------------------------------------------------------
+  if(startswith(path, "KCM")) {
+    out.emplace_back(UserCredentials::MakeKcm(path, uid, gid));
+    return;
+  }
+
+  //----------------------------------------------------------------------------
   // Drop FILE:, if exists
   //----------------------------------------------------------------------------
   const std::string prefix = "FILE:";

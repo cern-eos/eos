@@ -187,6 +187,9 @@ public:
     } else if (uc.type == CredentialType::KRK5) {
       paramsMap["xrd.wantprot"] = "krb5,unix";
       paramsMap["xrd.k5ccname"] = uc.keyring;
+    } else if (uc.type == CredentialType::KCM) {
+      paramsMap["xrd.wantprot"] = "krb5,unix";
+      paramsMap["xrd.k5ccname"] = uc.kcm;
     } else if (uc.type == CredentialType::X509) {
       paramsMap["xrd.wantprot"] = "gsi,unix";
       paramsMap["xrd.gsiusrpxy"] = getFinalPath();
