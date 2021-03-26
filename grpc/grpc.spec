@@ -102,7 +102,7 @@ cd build
 %{cmake} ../ -DgRPC_INSTALL=ON                  \
              -DCMAKE_BUILD_TYPE=Release         \
              -DgRPC_SSL_PROVIDER=package        \
-              -DgRPC_ZLIB_PROVIDER=package      \
+             -DgRPC_ZLIB_PROVIDER=package       \
              -DCMAKE_INSTALL_PREFIX=%{_prefix}  \
              -DBUILD_SHARED_LIBS=ON
 %make_build
