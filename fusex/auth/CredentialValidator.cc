@@ -243,7 +243,7 @@ bool CredentialValidator::validate(const JailInformation &jail,
   }
 
   //----------------------------------------------------------------------------
-  // KRK5: Block everything other than persistent keyrings, ensure uid matches
+  // KCM: Make sure the possible uid reference is for the calling uid
   //----------------------------------------------------------------------------
   if(uc.type == CredentialType::KCM) {
     if(!checkKcmUID(uc.kcm, uc.uid)) {
