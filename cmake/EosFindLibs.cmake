@@ -102,6 +102,13 @@ if(NOT PACKAGEONLY)
     # @TODO (esindril): Completely drop cppunit once everything is moved to gtest
     find_package(CPPUnit REQUIRED)
     find_package(GRPC)
+
+    if (GRPC_FOUND)
+      get_filename_component(EOS_GRPC_RPATH ${GRPC_GRPC++_LIBRARY} DIRECTORY)
+      set(CMAKE_INSTALL_RPATH "${EOS_GRPC_RPATH};${CMAKE_INSTALL_RPATH}")
+      message(STATUS "Info CMAKE_INSTALL_RPATH=${CMAKE_INSTALL_RPATH}")
+    endif()
+
   endif()
 else()
   message(STATUS "Running CMake in package only mode.")
