@@ -243,6 +243,57 @@ bool CredentialValidator::validate(const JailInformation &jail,
   }
 
   //----------------------------------------------------------------------------
+  // KRK5: Block everything other than persistent keyrings, ensure uid matches
+  //----------------------------------------------------------------------------
+  if(uc.type == CredentialType::KCM) {
+    if(!checkKcmUID(uc.kcm, uc.uid)) {
+      eos_static_alert("Refusing to use kcm %s by uid %d", uc.kcm.c_str(), uc.uid);
+      LOGBOOK_INSERT(scope, "Refusing to use " << uc.kcm << " from uid " << uc.uid << ". Only KCM set to the proper uid are allowed.");
+      return false;
+    }
+
+#ifdef __linux__
+    ScopedFsUidSetter uidSetter(uc.uid, uc.gid);
+    if(!uidSetter.IsOk()) {
+      eos_static_crit("Could not set fsuid,fsgid to %d, %d", uc.uid, uc.gid);
+      LOGBOOK_INSERT(scope, "Could not set fsuid, fsgid to " << uc.uid << ", " << uc.gid);
+      return false;
+    }
+#endif
+
+    //--------------------------------------------------------------------------
+    // Looks good. Does the KCM cache actually exist?
+    //--------------------------------------------------------------------------
+    krb5_context krb_ctx;
+    krb5_error_code ret = krb5_init_context(&krb_ctx);
+    if(ret != 0) {
+      eos_static_crit("Could not allocate krb5_init_context");
+      LOGBOOK_INSERT(scope, "Could not allocate krb5_init_context");
+      return false;
+    }
+
+    krb5_ccache ccache;
+    if(krb5_cc_resolve(krb_ctx, uc.kcm.c_str(), &ccache) != 0) {
+      LOGBOOK_INSERT(scope, "Could not resolve " << uc.kcm);
+      krb5_free_context(krb_ctx);
+      return false;
+    }
+
+    //--------------------------------------------------------------------------
+    // Go through whatever klist does to check ccache validity.
+    //--------------------------------------------------------------------------
+    if(check_ccache(krb_ctx, ccache, time(0)) != 0) {
+      krb5_free_context(krb_ctx);
+      LOGBOOK_INSERT(scope, "provided ccache appears invalid: " << uc.kcm);
+      return false;
+    }
+
+    krb5_free_context(krb_ctx);
+    out.initialize(uc, {0, 0}, "");
+    return true;
+  }
+
+  //----------------------------------------------------------------------------
   // Only KRB5, X509, OAUTH2 remaining. Test credential file permissions.
   //----------------------------------------------------------------------------
   SecurityChecker::Info info = checker.lookup(jail, uc.fname, uc.uid, uc.gid);
