@@ -48,14 +48,16 @@
 class cap
 {
 public:
-
   //----------------------------------------------------------------------------
-
-  class quotax : public eos::fusex::quota
-  {
+  // Class quotax
+  //----------------------------------------------------------------------------
+  class quotax {
   public:
+    virtual ~quotax() = default;
 
-    virtual ~quotax() { }
+    eos::fusex::quota* operator()() {
+      return &mQuotaProto;
+    }
 
     XrdSysMutex& Locker()
     {
@@ -64,28 +66,47 @@ public:
 
     quotax& operator=(eos::fusex::quota other)
     {
-      (*((eos::fusex::quota*)(this))) = other;
+      mQuotaProto = other;
       return *this;
     }
 
-
-    int& writer() {return writer_cnt;}
+    inline int& writer() {return writer_cnt;}
 
   private:
     XrdSysMutex mLock;
     int writer_cnt;
+    eos::fusex::quota mQuotaProto;
   };
 
-  class capx : public eos::fusex::cap
   //----------------------------------------------------------------------------
+  //! Class capx
+  //----------------------------------------------------------------------------
+  class capx
   {
   public:
+    static std::string capid(fuse_req_t req, fuse_ino_t ino);
+    static std::string capid(fuse_ino_t ino, std::string clientid);
+    static std::string getclientid(fuse_req_t req);
 
-    virtual ~capx() { }
+    capx() : lastusage(0) { }
+
+    capx(fuse_req_t req, fuse_ino_t ino)
+    {
+      mCapProto.set_id(ino);
+      std::string cid = getclientid(req);
+      mCapProto.set_clientid(cid);
+      mCapProto.set_authid("");
+    }
+
+    virtual ~capx() = default;
+
+    eos::fusex::cap* operator()() {
+      return &mCapProto;
+    }
 
     capx& operator=(eos::fusex::cap other)
     {
-      (*((eos::fusex::cap*)(this))) = other;
+      mCapProto = other;
       return *this;
     }
 
@@ -94,22 +115,7 @@ public:
       return mLock;
     }
 
-    static std::string capid(fuse_req_t req, fuse_ino_t ino);
-    static std::string capid(fuse_ino_t ino, std::string clientid);
-    static std::string getclientid(fuse_req_t req);
-
-
     std::string dump(bool dense = false);
-
-    capx() : lastusage(0) { }
-
-    capx(fuse_req_t req, fuse_ino_t ino)
-    {
-      set_id(ino);
-      std::string cid = getclientid(req);
-      set_clientid(cid);
-      set_authid("");
-    }
 
     bool satisfy(mode_t mode);
 
@@ -132,6 +138,7 @@ public:
   private:
     XrdSysMutex mLock;
     time_t lastusage;
+    eos::fusex::cap mCapProto;
   };
 
   typedef std::shared_ptr<capx> shared_cap;
@@ -183,9 +190,9 @@ public:
                      bool lock = false
                     );
 
-  bool share_quotanode(shared_cap cap1, shared_cap cap2) 
+  bool share_quotanode(shared_cap cap1, shared_cap cap2)
   {
-    return ( cap1->_quota().quota_inode() == cap2->_quota().quota_inode() );
+    return ( (*cap1)()->_quota().quota_inode() == (*cap2)()->_quota().quota_inode() );
   }
 
 
@@ -207,14 +214,14 @@ public:
   {
     shared_quota q = quotamap.get(cap);
     XrdSysMutexHelper qLock(q->Locker());
-    q->set_inode_quota(q->inode_quota() - 1);
+    (*q)()->set_inode_quota((*q)()->inode_quota() - 1);
   }
 
   void free_inode(shared_cap cap)
   {
     shared_quota q = quotamap.get(cap);
     XrdSysMutexHelper qLock(q->Locker());
-    q->set_inode_quota(q->inode_quota() + 1);
+    (*q)()->set_inode_quota((*q)()->inode_quota() + 1);
   }
 
   void book_volume(shared_cap cap, uint64_t size)
@@ -222,20 +229,20 @@ public:
     shared_quota q = quotamap.get(cap);
     XrdSysMutexHelper qLock(q->Locker());
 
-    if (size < q->volume_quota()) {
-      q->set_volume_quota(q->volume_quota() - size);
+    if (size < (*q)()->volume_quota()) {
+      (*q)()->set_volume_quota((*q)()->volume_quota() - size);
     } else {
-      q->set_volume_quota(0);
+      (*q)()->set_volume_quota(0);
     }
 
-    eos_static_debug("volume=%llu", q->volume_quota());
+    eos_static_debug("volume=%llu", (*q)()->volume_quota());
   }
 
   void free_volume(shared_cap cap, uint64_t size)
   {
     shared_quota q = quotamap.get(cap);
     XrdSysMutexHelper qLock(q->Locker());
-    q->set_volume_quota(q->volume_quota() + size);
+    (*q)()->set_volume_quota((*q)()->volume_quota() + size);
   }
 
   uint64_t has_quota(shared_cap cap, uint64_t size)
@@ -243,10 +250,10 @@ public:
     shared_quota q = quotamap.get(cap);
     XrdSysMutexHelper qLock(q->Locker());
 
-    if ((q->volume_quota() > size) &&
-        ((q->inode_quota() > 0) || (!size))) {
+    if (((*q)()->volume_quota() > size) &&
+        (((*q)()->inode_quota() > 0) || (!size))) {
       // it size is 0, we should not check for inodes
-      return q->volume_quota();
+      return (*q)()->volume_quota();
     }
 
     return 0;
@@ -258,7 +265,7 @@ public:
     XrdSysMutexHelper qLock(q->Locker());
 
     if (q) {
-      q->set_volume_quota(0);
+      (*q)()->set_volume_quota(0);
     }
   }
 
@@ -291,7 +298,7 @@ public:
   void clear() {
     capmap.clear();
     capextionsmap.clear();
-    quotamap.clear();  
+    quotamap.clear();
   }
 
   std::string ls();

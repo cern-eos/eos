@@ -2888,7 +2888,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
               eos_static_notice("cap-update: cap-id=%#lx %s", rsp.cap_().id(),
                                 cap->dump().c_str());
 
-              if (cap->id()) {
+              if ((*cap)()->id()) {
                 EosFuse::Instance().caps.update_quota(cap, rsp.cap_()._quota());
                 eos_static_notice("cap-update: cap-id=%#lx %s", rsp.cap_().id(),
                                   cap->dump().c_str());
@@ -2960,7 +2960,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                 // adjust local quota
                 cap::shared_cap cap = EosFuse::Instance().caps.get(pino, md_clientid);
 
-                if (cap->id()) {
+                if ((*cap)()->id()) {
                   if (bookingsize >= 0) {
                     EosFuse::Instance().caps.book_volume(cap, (uint64_t) bookingsize);
                   } else {
@@ -3021,7 +3021,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                   // adjust local quota
                   cap::shared_cap cap = EosFuse::Instance().caps.get(pino, md_clientid);
 
-                  if (cap->id()) {
+                  if ((*cap)()->id()) {
                     EosFuse::Instance().caps.book_volume(cap, md_size);
                     EosFuse::instance().caps.book_inode(cap);
                   } else {
