@@ -61,7 +61,9 @@ function(GRPC_GENERATE_CPP SRCS HDRS DEST)
     add_custom_command(
       OUTPUT "${DEST}/${FIL_WE}.grpc.pb.cc"
              "${DEST}/${FIL_WE}.grpc.pb.h"
-      COMMAND ${PROTOBUF_PROTOC_EXECUTABLE}
+      COMMAND ${CMAKE_COMMAND} -E env
+      "LD_LIBRARY_PATH=/opt/eos/grpc/lib64:$LD_LIBRARY_PATH"
+      ${PROTOBUF_PROTOC_EXECUTABLE}
       ARGS --grpc_out ${DEST} ${_protobuf_include_path} --plugin=protoc-gen-grpc=${GRPC_CPP_PLUGIN} ${ABS_FIL}
       DEPENDS ${ABS_FIL} ${PROTOBUF_PROTOC_EXECUTABLE} GRPC::grpc_cpp_plugin
       COMMENT "Running C++ GRPC compiler on ${FIL}"
