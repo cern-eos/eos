@@ -599,8 +599,14 @@ private:
   {
     std::string sval;
     fmd.mProtoFmd.SerializePartialToString(&sval);
-    return mDbMap[fsid]->set(eos::common::Slice((const char*)&fid, sizeof(fid)),
-                             sval, "") == 0;
+    auto it_db = mDbMap.find(fsid);
+
+    if (it_db != mDbMap.end()) {
+      return it_db->second->set(eos::common::Slice((const char*)&fid, sizeof(fid)),
+                                sval, "") == 0;
+    } else {
+      return false;
+    }
   }
 };
 
