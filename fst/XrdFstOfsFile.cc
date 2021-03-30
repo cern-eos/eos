@@ -62,7 +62,8 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   repairOnClose(false), mIsOCchunk(false), writeErrorFlag(false),
   mEventOnClose(false), mEventWorkflow(""),
   mSyncEventOnClose(false), mFmd(nullptr), mCheckSum(nullptr),
-  mLayout(nullptr), mCloseCb(nullptr), mMaxOffsetWritten(0ull), mWritePosition(0ull), openSize(0),
+  mLayout(nullptr), mCloseCb(nullptr), mMaxOffsetWritten(0ull),
+  mWritePosition(0ull), openSize(0),
   closeSize(0), mTpcThreadStatus(EINVAL), mTpcState(kTpcIdle),
   mTpcFlag(kTpcNone), mTpcKey(""), mIsTpcDst(false), mTpcRetc(0),
   mTpcCancel(false)
@@ -564,7 +565,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
       // size from disk.
       if ((off_t) statinfo.st_size != (off_t) mFmd->mProtoFmd.size()) {
         openSize = statinfo.st_size;
-	mWritePosition = openSize;
+        mWritePosition = openSize;
       }
     }
 
@@ -763,10 +764,11 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
 
   // if the write position moves the checksum is dirty
   if (mCheckSum) {
-    if (mWritePosition != fileOffset) {
+    if (mWritePosition != (unsigned long long)fileOffset) {
       mCheckSum->Reset();
       mCheckSum->SetDirty();
     }
+
     // store next write position
     mWritePosition = fileOffset + buffer_size;
   }
@@ -1026,7 +1028,7 @@ XrdFstOfsFile::truncate(XrdSfsFileOffset fsize)
 
   if (fsize != openSize) {
     if (mCheckSum) {
-      if (fsize != mWritePosition) {
+      if (mWritePosition != (unsigned long long)fsize) {
         mCheckSum->Reset();
         mCheckSum->SetDirty();
       }
@@ -1039,6 +1041,7 @@ XrdFstOfsFile::truncate(XrdSfsFileOffset fsize)
     if (fsize != openSize) {
       mHasWrite = true;
     }
+
     mWritePosition = fsize;
   }
 
@@ -3011,7 +3014,7 @@ XrdFstOfsFile::VerifyChecksum()
     } else {
       // This was prefect streaming I/O
       if ((!mIsRW) && ((sFwdBytes + sBwdBytes) ||
-		       (mCheckSum->GetMaxOffset() != openSize)) ) {
+                       (mCheckSum->GetMaxOffset() != openSize))) {
         eos_info("info=\"skipping checksum (re-scan) since file was not read "
                  "completely %llu %llu...\"", mCheckSum->GetMaxOffset(), openSize);
         mCheckSum.reset(nullptr);
