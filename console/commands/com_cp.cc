@@ -1451,12 +1451,12 @@ bool is_dir(const char* path, Protocol protocol, struct stat* buf)
 
   int rc = 0;
 
-  if (buf == NULL) {
-    struct stat tmpbuf;
+  struct stat tmpbuf{};
+  if (buf == nullptr) {
     buf = &tmpbuf;
     const char* abs_path = absolute_path(path);
     rc = do_stat(abs_path, protocol, *buf);
-    free((char*)abs_path);
+    free(const_cast<char*>(abs_path));
   }
 
   return (rc == 0)  ?  S_ISDIR(buf->st_mode)  :  false;
