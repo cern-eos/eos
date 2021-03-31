@@ -35,7 +35,7 @@ std::string ErrnoToString(int errnum)
   char buf[128];
 
   if (!strerror_r(errnum, buf, sizeof(buf))) {
-    return buf;
+    return std::string{buf};
   } else {
     const int errno_wrapper = errno;
     std::ostringstream oss;
