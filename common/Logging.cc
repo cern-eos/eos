@@ -572,6 +572,7 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
     XrdSysMutexHelper scope_lock(gMutex);         
     if (rate_limit(tv, priority, file, line)) {
         LB->log_return_buffers(logBuffer);
+        va_end(args);
         return "";
       }
   }
