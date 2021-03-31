@@ -246,10 +246,10 @@ HttpHandler::Initialize(eos::common::HttpRequest* request)
 eos::common::HttpResponse*
 HttpHandler::Get(eos::common::HttpRequest* request)
 {
-  eos::common::HttpResponse* response = 0;
+  eos::common::HttpResponse* response = nullptr;
 
   if (mRangeDecodingError) {
-    mErrCode = response->REQUESTED_RANGE_NOT_SATISFIABLE;
+    mErrCode = eos::common::HttpResponse::REQUESTED_RANGE_NOT_SATISFIABLE;
     mErrText = "Illegal Range request";
     response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
   } else {
@@ -262,7 +262,7 @@ HttpHandler::Get(eos::common::HttpRequest* request)
 
     if (mRc != SFS_OK) {
       if (mRc == SFS_REDIRECT) {
-        mErrCode = response->INTERNAL_SERVER_ERROR;
+        mErrCode = eos::common::HttpResponse::INTERNAL_SERVER_ERROR;
         mErrText = mFile->error.getErrText();
         response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
       } else if (mRc == SFS_ERROR) {
@@ -303,7 +303,7 @@ HttpHandler::Get(eos::common::HttpRequest* request)
 
         response->AddHeader("Content-Length", clength);
         response->mResponseLength = mRequestSize;
-        response->SetResponseCode(response->PARTIAL_CONTENT);
+        response->SetResponseCode(eos::common::HttpResponse::PARTIAL_CONTENT);
       } else {
         // successful http open
         char clength[16];
@@ -352,9 +352,9 @@ HttpHandler::Get(eos::common::HttpRequest* request)
         }
 
         if (mRangeRequest) {
-          response->SetResponseCode(response->PARTIAL_CONTENT);
+          response->SetResponseCode(eos::common::HttpResponse::PARTIAL_CONTENT);
         } else {
-          response->SetResponseCode(response->OK);
+          response->SetResponseCode(eos::common::HttpResponse::OK);
         }
       }
     }
@@ -395,12 +395,12 @@ HttpHandler::Put(eos::common::HttpRequest* request)
                   request->GetBodySize() ? *request->GetBodySize() : 0,
                   request->GetBodySize(),
                   mOffsetMap.size());
-  eos::common::HttpResponse* response = 0;
+  eos::common::HttpResponse* response = nullptr;
   bool checksumError = false;
   bool checksumMatch = false;
 
   if (mRangeDecodingError) {
-    mErrCode = response->REQUESTED_RANGE_NOT_SATISFIABLE;
+    mErrCode = eos::common::HttpResponse::REQUESTED_RANGE_NOT_SATISFIABLE;
     mErrText = "Illegal Range request";
   } else {
     if (mRangeRequest) {
@@ -408,7 +408,7 @@ HttpHandler::Put(eos::common::HttpRequest* request)
 
       if ((it->second) != (off_t)std::stoul(
             request->GetHeaders()["content-length"])) {
-        mErrCode = response->REQUESTED_RANGE_NOT_SATISFIABLE;
+        mErrCode = eos::common::HttpResponse::REQUESTED_RANGE_NOT_SATISFIABLE;
         mErrText = "Illegal Range request - not matching content length";
         eos_static_err("range: [%lu:%lu] content-length: %lu", it->first, it->second,
                        std::stoul(request->GetHeaders()["content-length"]));
@@ -429,7 +429,7 @@ HttpHandler::Put(eos::common::HttpRequest* request)
     if (mRc != SFS_OK) {
       if (mRc == SFS_REDIRECT) {
         // we cannot redirect the PUT at this point, just send an error back
-        mErrCode = response->INTERNAL_SERVER_ERROR;
+        mErrCode = eos::common::HttpResponse::INTERNAL_SERVER_ERROR;
         mErrText = mFile->error.getErrText();
         response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
       } else if (mRc == SFS_ERROR) {
@@ -466,7 +466,7 @@ HttpHandler::Put(eos::common::HttpRequest* request)
         // but we let it pass if a special cbox header allows a
         // bypass
         // -------------------------------------------------------
-        mErrCode = response->BAD_REQUEST;
+        mErrCode = eos::common::HttpResponse::BAD_REQUEST;
         mErrText = "Missing total length in OC request";
         response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
         delete mFile;
@@ -480,7 +480,7 @@ HttpHandler::Put(eos::common::HttpRequest* request)
       if (chunk_n >= chunk_max) {
         // there is something inconsistent here
         // HTTP write error
-        mErrCode = response->BAD_REQUEST;
+        mErrCode = eos::common::HttpResponse::BAD_REQUEST;
         mErrText = "Illegal chunks specified in OC request";
         response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
         delete mFile;
@@ -562,7 +562,7 @@ HttpHandler::Put(eos::common::HttpRequest* request)
       if (stored != *request->GetBodySize()) {
         eos_static_err("stored %lu of %lu bytes", stored, *request->GetBodySize());
         // HTTP write error
-        mErrCode = response->INTERNAL_SERVER_ERROR;
+        mErrCode = eos::common::HttpResponse::INTERNAL_SERVER_ERROR;
         mErrText = "Write error occured";
         response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
         delete mFile;
@@ -609,7 +609,7 @@ HttpHandler::Put(eos::common::HttpRequest* request)
         std::string cmd = "nochecksum";
 
         if (mFile->fctl(SFS_FCTL_SPEC1, cmd.length(), cmd.c_str(), 0)) {
-          mErrCode = response->INTERNAL_SERVER_ERROR;
+          mErrCode = eos::common::HttpResponse::INTERNAL_SERVER_ERROR;
           mErrText = "Failed to disable checksum";
           response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
           delete mFile;
@@ -685,7 +685,7 @@ HttpHandler::Put(eos::common::HttpRequest* request)
       mCloseCode = mFile->close();
 
       if (mCloseCode) {
-        mErrCode = response->INTERNAL_SERVER_ERROR;
+        mErrCode = eos::common::HttpResponse::INTERNAL_SERVER_ERROR;
         mErrText = "File close failed";
         response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
         delete mFile;
@@ -733,7 +733,7 @@ HttpHandler::Put(eos::common::HttpRequest* request)
   }
 
   // Should never get here
-  mErrCode = response->INTERNAL_SERVER_ERROR;
+  mErrCode = eos::common::HttpResponse::INTERNAL_SERVER_ERROR;
   mErrText = "Internal Server Error";
   response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
   return response;
