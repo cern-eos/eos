@@ -1092,7 +1092,7 @@ backend::getChecksum(fuse_req_t req,
       std::string checksum_response;
       checksum_response.assign(response->GetBuffer(), response->GetSize());
       eos_static_debug("response=%s", checksum_response.c_str());
-      char checksum[1023];
+      char checksum[1024]; // there should be no checksum with length 1024 bytes... unless you have corruption
       int retc = 0;
       size_t items = sscanf(checksum_response.c_str(), "checksum: %1023s retc=%i",
                             checksum, &retc);
