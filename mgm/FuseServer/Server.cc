@@ -1416,7 +1416,8 @@ Server::OpSetDirectory(const std::string& id,
   std::shared_ptr<eos::IContainerMD> cpcmd;
   eos::fusex::md mv_md;
   mode_t sgid_mode = 0;
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex,__FUNCTION__, __LINE__, __FILE__);
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                     __FILE__);
 
   try {
     if (md.md_ino() && exclusive) {
@@ -1465,9 +1466,7 @@ Server::OpSetDirectory(const std::string& id,
         // If the destination exists, we have to remove it if it's empty
         std::shared_ptr<eos::IContainerMD> exist_target_cmd = pcmd->findContainer(
               md.name());
-
-
-	unsigned long long tree_size = cmd->getTreeSize();
+        unsigned long long tree_size = cmd->getTreeSize();
 
         if (exist_target_cmd) {
           if (exist_target_cmd->getNumFiles() + exist_target_cmd->getNumContainers()) {
@@ -1495,16 +1494,18 @@ Server::OpSetDirectory(const std::string& id,
         cpcmd = gOFS->eosDirectoryService->getContainerMD(cmd->getParentId());
         cpcmd->removeContainer(cmd->getName());
 
-	if (gOFS->eosContainerAccounting) {
-	  gOFS->eosContainerAccounting->RemoveTree(cpcmd.get(), tree_size);
-	}
+        if (gOFS->eosContainerAccounting) {
+          gOFS->eosContainerAccounting->RemoveTree(cpcmd.get(), tree_size);
+        }
 
         gOFS->eosView->updateContainerStore(cpcmd.get());
         cmd->setName(md.name());
         pcmd->addContainer(cmd.get());
-	if (gOFS->eosContainerAccounting) {
-	  gOFS->eosContainerAccounting->AddTree(pcmd.get(), tree_size);
-	}
+
+        if (gOFS->eosContainerAccounting) {
+          gOFS->eosContainerAccounting->AddTree(pcmd.get(), tree_size);
+        }
+
         gOFS->eosView->updateContainerStore(pcmd.get());
       }
 
@@ -2156,21 +2157,21 @@ Server::OpSetFile(const std::string& id,
         try {
           eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
 
-	  if (quotanode) {
-	    if (!Quota::QuotaBySpace(quotanode->getId(),
-				     vid.uid,
-				     vid.gid,
-				     avail_files,
-				     avail_bytes)) {
-	      if (!avail_files) {
-		eos_err("name=%s out-of-inode-quota uid=%u gid=%u",
-			md.name().c_str(),
-			vid.uid,
-			vid.gid);
-		return EDQUOT;
-	      }
-	    }
-	  }
+          if (quotanode) {
+            if (!Quota::QuotaBySpace(quotanode->getId(),
+                                     vid.uid,
+                                     vid.gid,
+                                     avail_files,
+                                     avail_bytes)) {
+              if (!avail_files) {
+                eos_err("name=%s out-of-inode-quota uid=%u gid=%u",
+                        md.name().c_str(),
+                        vid.uid,
+                        vid.gid);
+                return EDQUOT;
+              }
+            }
+          }
         } catch (eos::MDException& e) {
         }
       }
@@ -3162,7 +3163,8 @@ Server::HandleMD(const std::string& id,
     ops = "UNKNOWN";
   }
 
-  std::string op_class="none";
+  std::string op_class = "none";
+
   if (S_ISDIR(md.mode())) {
     op_class = "dir";
   } else if (S_ISREG(md.mode())) {
@@ -3173,12 +3175,12 @@ Server::HandleMD(const std::string& id,
     op_class = "link";
   }
 
-
-  eos_info("ino=%016lx operation=%s type=%s name=%s pino=%016lx cid=%s cuuid=%s", (long) md.md_ino(),
+  eos_info("ino=%016lx operation=%s type=%s name=%s pino=%016lx cid=%s cuuid=%s",
+           (long) md.md_ino(),
            ops.c_str(),
-	   op_class.c_str(),
-	   md.name(),
-	   md.md_pino(),
+           op_class.c_str(),
+           md.name().c_str(),
+           md.md_pino(),
            md.clientid().c_str(), md.clientuuid().c_str());
 
   if (EOS_LOGS_DEBUG) {
