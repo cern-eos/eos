@@ -4846,7 +4846,7 @@ fuse_filesystem::init(int argc, char* argv[], void* userdata,
   if (getenv("EOS_FUSE_PROCPATH")) {
     std::string pp(getenv("EOS_FUSE_PROCPATH"));
 
-    if (pp[pp.size()] != '/') {
+    if (pp[pp.size()-1] != '/') {
       pp.append("/");
     }
 
