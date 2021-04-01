@@ -60,6 +60,8 @@
 #include "namespace/Prefetcher.hh"
 #include <qclient/QClient.hh>
 
+#include "namespace/Prefetcher.hh"
+
 extern XrdSysError gMgmOfsEroute;
 extern XrdOucTrace gMgmOfsTrace;
 
@@ -84,7 +86,7 @@ DynamicEC::DynamicEC(const char* spacename, uint64_t ageNew,  uint64_t size,
   }
 
   if (OnWork) {
-    mThread2.reset(&DynamicEC::createFilesOneTime, this);
+    //mThread2.reset(&DynamicEC::createFilesOneTime, this);
   }
 
   //mThread.stop();
@@ -114,6 +116,23 @@ DynamicEC::DynamicEC(const char* spacename, uint64_t ageNew,  uint64_t size,
   if (OnWork) {
     mThread3.reset(&DynamicEC::RunScan, this);
   }
+
+  // 0 eos_static_info("And gate %d", (true && false));
+  // 0 eos_static_info("And gate %d", (false && true));
+  // 1 eos_static_info("And gate %d", (true && true));
+  // 0 eos_static_info("And gate %d", (false && false));
+  // 1 eos_static_info("And gate %d", (true || false));
+  // 1 eos_static_info("And gate %d", (false || true));
+  // 1 eos_static_info("And gate %d", (true || true));
+  // 0 eos_static_info("And gate %d", (false || false));
+  // 1 eos_static_info("And gate %d", (true));
+  // 0 eos_static_info("And gate %d", (false));
+}
+
+
+
+void DynamicEC::TestThreadFunction(ThreadAssistant& assistant) noexcept
+{
 }
 
 //old constructor
@@ -148,7 +167,7 @@ DynamicEC::createFilesOneTime(ThreadAssistant& assistant)
   //This is for creating a few files in the eos system and it can be used for what ever number if it is changed, but this is
   //It will be run in a seperated thread for the system in order to make this work fast for the start purpose of the system.
   assistant.wait_for(std::chrono::seconds(waitTime));
-  eos_static_info("starting the creation of files.");
+  eos_static_debug("starting the creation of files.");
 
   for (int i = 0; i < 10; i++) {
     XrdCl::DefaultEnv::GetEnv()->PutInt("TimeoutResolution", 1);
@@ -164,7 +183,6 @@ DynamicEC::createFilesOneTime(ThreadAssistant& assistant)
     if (!status.IsOK()) {
       eos_static_info("error=%s", status.ToStr().c_str());
       eos_static_info("exit 1");
-      eos_static_info("%d this is true", true);
       eos_static_info("Here it is %d", status.IsOK());
       /*
        *
@@ -229,7 +247,6 @@ DynamicEC::createFiles()
     //exit(-1);
     eos_static_info("error=%s", status.ToStr().c_str());
     eos_static_info("exit 1");
-    eos_static_info("%d this is true", true);
     eos_static_info("Here it is %d", status.IsOK());
     /*
      *
@@ -578,6 +595,33 @@ DynamicEC::DeletionOfFileID(std::shared_ptr<DynamicECFile> file,
   */
 }
 
+bool
+DynamicEC::DeletionOfFileIDForGenerelFile(std::shared_ptr<eos::QuarkFileMD>
+    file, uint64_t ageOld)
+{
+  eos::IFileMD::ctime_t time;
+  file->getCTime(time);
+  eos_static_info("This is the time %lld", ageOld);
+  eos_static_info("This is the other time %lld", time.tv_sec);
+
+  if (time.tv_sec < ageOld) {
+    ///will have to be put in anyway ----------------------------------------------------------
+    //if(GetSizeOfFileForGenerelFile(file) > sizeMinForDeletion)
+    {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+uint64_t
+DynamicEC::GetSizeOfFileForGenerelFile(std::shared_ptr<eos::QuarkFileMD> file)
+{
+  //this is done but it can be in order to have the size and partisions as well
+  return file->getSize();
+}
+
 uint64_t
 DynamicEC::GetSizeOfFile(std::shared_ptr<DynamicECFile> file)
 {
@@ -593,6 +637,44 @@ DynamicEC::GetSizeFactor1(std::shared_ptr<DynamicECFile> file)
   ///file->
 }
 
+long double
+DynamicEC::TotalSizeInSystem(std::shared_ptr<eos::QuarkFileMD> file)
+{
+  return (file->getSize() * eos::common::LayoutId::GetSizeFactor(
+            file->getLayoutId()));
+}
+
+static double
+DynamicEC::GetRealSizeFactor(std::shared_ptr<eos::QuarkFileMD> file)
+{
+  if (eos::common::LayoutId::GetExcessStripeNumber(file->getLayoutId()) ==
+      (file->getLocations().size() - (eos::common::LayoutId::GetStripeNumber(
+                                        file->getLayoutId()) + 1 - eos::common::LayoutId::GetRedundancyStripeNumber(
+                                        file->getLayoutId())))) {
+    return 1.0 * (((1.0 * (eos::common::LayoutId::GetStripeNumber(
+                             file->getLayoutId()) + 1)) /
+                   (eos::common::LayoutId::GetStripeNumber(file->getLayoutId()) + 1 -
+                    eos::common::LayoutId::GetRedundancyStripeNumber(
+                      file->getLayoutId()))) + eos::common::LayoutId::GetExcessStripeNumber(
+                    file->getLayoutId()));
+  } else if (eos::common::LayoutId::GetExcessStripeNumber(
+               file->getLayoutId()) >= (file->getLocations().size() -
+                                        (eos::common::LayoutId::GetStripeNumber(file->getLayoutId() + 1 -
+                                            eos::common::LayoutId::GetRedundancyStripeNumber(file->getLayoutId())))) &&
+             (file->getLocation.size() - (eos::common::LayoutId::GetStripeNumber(
+                 file->getLayoutId() + 1 - eos::common::LayoutId::GetRedundancyStripeNumber(
+                   file->getLayoutId())))) != 0) {
+    return 5.0;
+  } else if ((file->getLocations().size() -
+              (eos::common::LayoutId::GetStripeNumber(file->getLayoutId() + 1 -
+                  eos::common::LayoutId::GetRedundancyStripeNumber(file->getLayoutId())))) >= 0) {
+    return 10.0;
+  } else {
+    //crap something is wrong :(
+    return 0.0;
+  }
+}
+
 void
 DynamicEC::SingleDeletion(std::shared_ptr<DynamicECFile> file)
 {
@@ -601,43 +683,188 @@ DynamicEC::SingleDeletion(std::shared_ptr<DynamicECFile> file)
 }
 
 void
+DynamicEC::kRaid6(std::shared_ptr<eos::QuarkFileMD>file)
+{
+  //eos_static_info("This is from the deletion of the kRaid6");
+  uint64_t beforeSize = TotalSizeInSystem(file);
+  //eos_static_info("This is the size before %lf", (file->getSize() * eos::common::LayoutId::GetSizeFactor(
+  //         file->getLayoutId())));
+  eos_static_info("The file id %x", file->getLayoutId());
+  eos_static_info("This is data for the file");
+  eos_static_info("this is the stripenumber %lld",
+                  eos::common::LayoutId::GetStripeNumber(file->getLayoutId()));
+  eos_static_info("This is the redundancynumber %lld",
+                  eos::common::LayoutId::GetRedundancyStripeNumber(file->getLayoutId()));
+  eos_static_info("This is the excessStripeNumber %lld",
+                  eos::common::LayoutId::GetExcessStripeNumber(file->getLayoutId()));
+
+  //eos_static_info("This is another strope %lld", eos::common::LayoutId::get)
+  if (file->getLocations().size() > ((eos::common::LayoutId::GetStripeNumber(
+                                        file->getLayoutId()) + 1) - eos::common::LayoutId::GetRedundancyStripeNumber(
+                                       file->getLayoutId()) + 2)) {
+    ///For the final test removing of unlinked locations is needed.
+    eos_static_info("This is the sizefactor before: %f",
+                    eos::common::LayoutId::GetSizeFactor(file->getLayoutId()));
+    eos_static_info("This is the size %lld", file->getSize());
+    eos_static_info("Locatgion before unlinking %lld", file->getLocations().size());
+    file->unlinkLocation(file->getLocations().back());
+    eos_static_info("Locatgion after unlinking %lld", file->getLocations().size());
+    //remove is not for production
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    //look this up for test
+    //eos_static_info("Locatgion before unlinking %lld", file->getLocations().size());
+    //file->removeLocation(file->getLocations().back());
+    //eos_static_info("Locatgion before unlinking %lld", file->getLocations().size());
+    if (gOFS) {
+      //eos_static_info("\n \n \n This is from the gofs");
+      gOFS->eosView->updateFileStore(file.get());
+    }
+
+    eos_static_info("This is the sizefactor after: %lf",
+                    eos::common::LayoutId::GetSizeFactor(file->getLayoutId()))
+  } else {
+    eos_static_info("Too few locations %ldd", file->getLocations().size());
+  }
+
+  eos_static_info("The file id %x", file->getLayoutId());
+  //eos_static_info("This is the size after %lf", (file->getSize() * eos::common::LayoutId::GetSizeFactor(
+  //         file->getLayoutId())));
+  eos_static_info("This is the amount of locations %lld",
+                  file->getLocations().size());
+  //file->unlinkLocation(file->getLocations().back());
+  //eos_static_info("This is the amount of locations %lld", file->getLocations().size());
+  //file->removeLocation(file->getLocations().back());
+  //eos_static_info("This is the amount of locations %lld", file->getLocations().size());
+  eos_static_info("This is the sizefactor before: %f",
+                  eos::common::LayoutId::GetSizeFactor(file->getLayoutId()));
+  eos_static_info("This is the size %lld", file->getSize());
+  eos_static_info("This is the size before %lld", beforeSize);
+  eos_static_info("This is the size after %llf", TotalSizeInSystem(file));
+  deletedFileSize += (beforeSize - TotalSizeInSystem(file));
+  eos_static_info("\n \n Deleted file size: %lld", deletedFileSize);
+  //eos_static_info("This is the amount of locations %lld", file->getLocations().size());
+}
+
+
+void
 DynamicEC::kQrainReduction(std::shared_ptr<DynamicECFile> file)
 {
   uint64_t beforeSize = GetSizeOfFile(file);
-
   //int size = file->getLocations().size();
-
   //Something about stride and RedundancyStripe numbers.
-
   // delete pari from back.
-
   //this 7 will have to be something like one less than what there is.
   // This will give you only two redundancystripes left out of four originally.
   //(eos::common::LayoutId::GetStripeNumber(file->getLayoutId()) + 1) - eos::common::LayoutId::GetRedundancyStripeNumber(file->getLayoutId()) + 2;
   //eos_static_debug("Couldn't choose any FID to schedule: failedgeotag=%s",
   //               (*over_it).c_str());
-
   //eos_static_debug("sdf", (*over_it).c_str());
-
   //try for logging
-
   //eos_err("Stop");
-  while (file->getLocations().size() > ((eos::common::LayoutId::GetStripeNumber(
-      file->getLayoutId()) + 1) - eos::common::LayoutId::GetRedundancyStripeNumber(
-                                          file->getLayoutId()) + 2)) {
-    ///For the final test removing of unlinked locations is needed.
-    file->unlinkLocation(file->getLocations().back());
-    //remove is not for production
-    //look this up for test
-    file->removeLocation(file->getLocations().back());
+  {
+    eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex, __FUNCTION__,
+                                        __LINE__, __FILE__);
 
-    //rem
-    if (gOFS) {
-      gOFS->eosView->updateFileStore(file.get());
+    while (file->getLocations().size() > ((eos::common::LayoutId::GetStripeNumber(
+        file->getLayoutId()) + 1) - eos::common::LayoutId::GetRedundancyStripeNumber(
+                                            file->getLayoutId()) + 2)) {
+      ///For the final test removing of unlinked locations is needed.
+      file->unlinkLocation(file->getLocations().back());
+      //remove is not for production
+      //look this up for test
+      //file->removeLocation(file->getLocations().back());
+
+      //rem
+      if (gOFS) {
+        gOFS->eosView->updateFileStore(file.get());
+      }
     }
   }
-
   deletedFileSize += (beforeSize - GetSizeOfFile(file));
+  eos_static_info("\n \n Deleted file size: %lld", deletedFileSize);
+}
+
+std::uint64_t
+DynamicEC::getFileSizeBytes(const IFileMD::id_t fid)
+{
+  try {
+    // Prefetch before taking lock because metadata may not be in memory
+    Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
+  } catch (std::exception& ex) {
+    std::ostringstream msg;
+    msg << __FUNCTION__ << ": fid=" << fid << ": prefetchFileMDAndWait() failed: "
+        << ex.what();
+    throw FailedToGetFileSize(msg.str());
+  } catch (...) {
+    std::ostringstream msg;
+    msg << __FUNCTION__ << ": fid=" << fid <<
+        ": prefetchFileMDAndWait() failed: Unknown exception";
+    throw FailedToGetFileSize(msg.str());
+  }
+
+  common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+  std::shared_ptr<eos::IFileMD> fmd;
+
+  try {
+    fmd = gOFS->eosFileService->getFileMD(fid);
+  } catch (std::exception& ex) {
+    std::ostringstream msg;
+    msg << __FUNCTION__ << ": fid=" << fid << ": getFileMD() failed: " << ex.what();
+    throw FailedToGetFileSize(msg.str());
+  } catch (...) {
+    std::ostringstream msg;
+    msg << __FUNCTION__ << ": fid=" << fid <<
+        ": getFileMD() failed: Unknown exception";
+    throw FailedToGetFileSize(msg.str());
+  }
+
+  if (nullptr == fmd) {
+    std::ostringstream msg;
+    msg << __FUNCTION__ << ": fid=" << fid << ": getFileMD() returned nullptr";
+    throw FailedToGetFileSize(msg.str());
+  }
+
+  std::uint64_t fileSizeBytes = 0;
+
+  try {
+    fileSizeBytes = fmd->getSize();
+  } catch (std::exception& ex) {
+    std::ostringstream msg;
+    msg << __FUNCTION__ << ": fid=" << fid << ": getSize() failed: " << ex.what();
+    throw FailedToGetFileSize(msg.str());
+  } catch (...) {
+    std::ostringstream msg;
+    msg << __FUNCTION__ << ": fid=" << fid <<
+        ": getSize() failed: Unknown exception";
+    throw FailedToGetFileSize(msg.str());
+  }
+
+  IContainerMD::id_t containerId = 0;
+
+  try {
+    containerId = fmd->getContainerId();
+  } catch (std::exception& ex) {
+    std::ostringstream msg;
+    msg << __FUNCTION__ << ": fid=" << fid << ": getContainerId() failed: " <<
+        ex.what();
+    throw FailedToGetFileSize(msg.str());
+  } catch (...) {
+    std::ostringstream msg;
+    msg << __FUNCTION__ << ": fid=" << fid <<
+        ": getContainerId() failed: Unknown exception";
+    throw FailedToGetFileSize(msg.str());
+  }
+
+  // A file scheduled for deletion has a container ID of 0
+  if (0 == containerId) {
+    std::ostringstream msg;
+    msg << __FUNCTION__ << ": fid=" << fid <<
+        ": File has been scheduled for deletion";
+    throw FailedToGetFileSize(msg.str());
+  }
+
+  return fileSizeBytes;
 }
 
 void
@@ -648,7 +875,9 @@ DynamicEC::Cleanup()
     statusForSystem status;
     status = SpaceStatus();
     sizeToBeDeleted = status.undeletedSize;
-    timeFromWhenToDelete =  time(0) - age;
+    //this is for some part of testing change it change it to timeFromWhenToDelete = time(0) - age, this is because we look at some of the test.
+    //timeFromWhenToDelete =  time(0) - age;
+    timeFromWhenToDelete = time(0);
     eos_static_info(
       "This is where the status have been ran delete to be size is : %lld ",
       status.undeletedSize);
@@ -662,13 +891,45 @@ DynamicEC::Cleanup()
     {
       eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
                                               __LINE__, __FILE__);
-      eos_static_info("this is the number of files in the system: %lld",
-                      gOFS->eosFileService->getNumFiles());
+      eos_static_debug("\n this is the number of files in the system: %lld \n",
+                       gOFS->eosFileService->getNumFiles());
     }
+    //this will have to be turned on to see if there have to be deleted anything
+    //if (sizeToBeDeleted > 0)
+    {
+      for (std::map<uint64_t, std::shared_ptr<eos::QuarkFileMD>>::iterator it =
+             statusFiles.begin(); it != statusFiles.end(); ++it) {
+        //eos_static_info("this is for the fileId %lld", it->second->getId());
+        //eos_static_info("this is the deletion of file id: %d", DeletionOfFileIDForGenerelFile(it->second, timeFromWhenToDelete));
+        //eos_static_info("\n \n This is the size for the new file %lld", getFileSizeBytes(it->second->getId()));
+        //eos_static_info("this is the other file for the size %lld", it->second->getSize());
+        //eos_static_info("Test for true %d", DeletionOfFileIDForGenerelFile(it->second, timeFromWhenToDelete));
+        //eos_static_info("Test for true %d", true);
+        //eos_static_info("Test for false %d", false);
+        if (DeletionOfFileIDForGenerelFile(it->second, timeFromWhenToDelete)) {
+          if (eos::common::LayoutId::GetLayoutType(it->second->getLayoutId()) ==
+              eos::common::LayoutId::kRaid6) {
+            //eos_static_info("This is where we have to reduce the file");
+            kRaid6(it->second);
+          }
+        }
+      }
 
-    if (sizeToBeDeleted > 0) {
+      /*
+      for(int i = 0; statusFiles.size(); i++)
+      {
+        //auto file = statusFiles.begin();
+            if (DeletionOfFileID(simulatedFiles[i], timeFromWhenToDelete)) {
+              if (eos::common::LayoutId::GetLayoutType(simulatedFiles[i]->getLayoutId()) ==
+                  eos::common::LayoutId::kQrain) {
+                kQrainReduction(simulatedFiles[i]);
+              }
+            }
+
+
+      }
+      */
     }
-
     eos_static_info("CleanUp ended without success there was deleted:  %lld bytes, but there should have been deleted :  %llu bytes  \n",
                     deletedFileSize, sizeToBeDeleted);
   } else {
@@ -677,6 +938,8 @@ DynamicEC::Cleanup()
     //eos_static_info("%s", "CleanUp started \n");
     statusForSystem status;
     status = SpaceStatus();
+    eos_static_info("\n \n This is from the broken constructer \n \n ");
+    //file->
     sizeToBeDeleted = status.undeletedSize;
     timeFromWhenToDelete =  time(0) - age;
     eos_static_info(
@@ -734,7 +997,7 @@ DynamicEC::Run(ThreadAssistant& assistant) noexcept
   gOFS->WaitUntilNamespaceIsBooted(assistant);
   assistant.wait_for(std::chrono::seconds(waitTime));
   //assistant.wait_for(std::chrono::seconds(10));
-  eos_static_info("starting");
+  eos_static_debug("starting");
   //assistant.wait_for(std::chrono::seconds(30));
   //eos_static_info("Runs the create files again \n");
   //createFiles();
@@ -821,8 +1084,8 @@ DynamicEC::Options DynamicEC::getOptions()
 
 void DynamicEC::performCycleQDB(ThreadAssistant& assistant) noexcept
 {
-  eos_static_info("msg=\"start FileInspector scan on QDB\"");
-  eos_static_info("The start of performCycleQDB");
+  //eos_static_info("msg=\"start FileInspector scan on QDB\"");
+  //eos_static_info("The start of performCycleQDB");
 
   //----------------------------------------------------------------------------
   // Initialize qclient..
@@ -832,8 +1095,11 @@ void DynamicEC::performCycleQDB(ThreadAssistant& assistant) noexcept
                                     gOFS->mQdbContactDetails.constructOptions()));
   }
 
-  std::string win = gOFS->mQdbContactDetails.members.toString();
-  eos_static_info("This is member %s", win);
+  std::string member = gOFS->mQdbContactDetails.members.toString();
+  //eos_static_info(member.c_str());
+  eos_static_info("member:=%s", member.c_str());
+  //eos_static_info("member:=%s",gOFS->mQdbContactDetails.members.toString());
+  //eos_static_info("member:=%s",gOFS->mQdbContactDetails.members.toString().c_str());
   //----------------------------------------------------------------------------
   // Start scanning files
   //----------------------------------------------------------------------------
@@ -850,34 +1116,95 @@ void DynamicEC::performCycleQDB(ThreadAssistant& assistant) noexcept
   uint64_t interval = opts.interval.count();
   FileScanner scanner(*(mQcl.get()));
   time_t c_time = s_time;
-  eos_static_info("This is the scanner before validation");
-  eos_static_info("Test for true %d", true);
-  eos_static_info("Test for false %d", false);
-  eos_static_info("This is the scanner valid %d", scanner.valid());
+  //eos_static_info("This is the scanner before validation");
+  //eos_static_info("Test for true %d", true);
+  //eos_static_info("Test for false %d", false);
+  eos_static_debug("This is the scanner valid %d", scanner.valid());
 
   while (scanner.valid()) {
-    eos_static_info("\n \n runs the scan \n \n");
+    eos_static_debug("runs the scan");
     scanner.next();
     std::string err;
     eos::ns::FileMdProto item;
+    //eos::common::namespace::FileMD item;
+    //FileMD item
 
+    //eos::ns::FileMD item;
     if (scanner.getItem(item)) {
       std::shared_ptr<eos::QuarkFileMD> fmd = std::make_shared<eos::QuarkFileMD>();
       fmd->initialize(std::move(item));
+      fmd->setFileMDSvc(gOFS->eosFileService);
       Process(fmd);
       nfiles_processed++;
-      //fmd->getSize();
       scanned_percent.store(100.0 * nfiles_processed / nfiles,
                             std::memory_order_seq_cst);
       time_t target_time = (1.0 * nfiles_processed / nfiles) * interval;
       time_t is_time = time(NULL) - s_time;
+      //eos_static_info("This works for the layout %lu",eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()));
+      //--eos_static_info("This works for locations %lu",fmd->getLocations().size());
+      //--eos_static_info("This works in redundancy %lu", eos::common::LayoutId::GetRedundancy(eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()), fmd->getLocations().size()));
+      //--eos_static_info("This is reduncancyStripenumber %lu", eos::common::LayoutId::GetRedundancyStripeNumber(fmd->getLayoutId()));
+      //--eos_static_info("This is excessStripeNumber %lu", eos::common::LayoutId::GetExcessStripeNumber(fmd->getLayoutId()));
+      //eos_static_info("This is numlocation, %lu", fmd->getNumLocation());
+      //auto stripenumber = eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId());
+      /*
+      signed long numbers = eos::common::LayoutId::GetRedundancy(eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()), fmd->getLocations().size()) - fmd->getLocations().size();
+      eos_static_info("This is number for stripenumber %lu", eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()));
+      */
+      //eos_static_info("This is the extra stribes for security %lu", eos::common::LayoutId::GetRedundancy(eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()), (fmd->getLocations().size()) +1) - eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()));
+      auto hasTape = fmd->hasLocation(EOS_TAPE_FSID);
+      //eos_static_info("this is test2");
+      //still just test to look at it and how to compile a system for the calculation on how to move the see if the file can be reduced.
+      //--eos_static_info("This is the location %d", hasTape);
+      //eos_static_info("This is a test for the location %d true", true);
+      //eos_static_info("This is a test for the location %d false", false);
+      //eos_static_info("This is the next stripenumber for extra is %lu", fmd->getNumLocation() - hasTape - eos::common::LayoutId::GetExcessStripeNumber(fmd->getLayoutId()));
+      //long numberfortest2 = fmd->getNumLocation();
+      //eos_static_info("This is the start of number for test %ld", numberfortest2);
+      //numberfortest2 =- hasTape;
+      //eos_static_info("This is the start of number for test %ld", numberfortest2);
+      //numberfortest2 =- eos::common::LayoutId::GetExcessStripeNumber(fmd->getLayoutId());
+      //eos_static_info("This is the start of number for test %ld", numberfortest2);
+      //auto numberfortest = fmd->getNumLocation() - hasTape - eos::common::LayoutId::GetExcessStripeNumber(fmd->getLayoutId());
+      //eos_static_info("This is the next stripenumber for extra is %lu", numberfortest);
+      //eos_static_info("This is a test for numlocation %lu", fmd->getNumLocation());
+      //eos_static_info("This is excessstripenumber %lu",eos::common::LayoutId::GetExcessStripeNumber(fmd->getLayoutId()));
+      //test for the right one
+      //long num = fmd->getNumLocation() - hasTape - eos::common::LayoutId::GetExcessStripeNumber(fmd->getLayoutId());
+      //eos_static_info("This is the number for locations at final test %ld", num);
+      //eos_static_info("this is test3");
+      //eos_static_info("This is the size before %lf", GetSizeOfFileForGenerelFile(fmd));
+      long num2 = fmd->getNumLocation();
+      num2 -= hasTape;
+      num2 -= (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1);
+
+      //--eos_static_info("Stipe number %ld", eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()));
+      //    eos_static_info("this is test3");
+      if (num2 > 0) {
+        statusFiles[fmd->getId()] = fmd;
+        eos_static_debug("this is the layoutid %ld", fmd->getId());
+        //test += 1;
+        eos_static_debug("this is the map %ld", statusFiles.size());
+      }
+
+      //eos_static_info("this is the map %ld", statusFiles.size());
 
       /*
       //here we have the difference
+      eos_static_info("Got an  item");
+      eos_static_info("Layout number: %i", eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()));
+      if (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) ==
+          eos::common::LayoutId::kRaid6) {
+        statusFiles[fmd->getId()] = fmd;
+        eos_static_info("Hello from kRaid6");
+        //kQrain is the one prepared for
+      }
+
       if (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) ==
           eos::common::LayoutId::kQrain) {
         statusFiles[fmd->getId()] = fmd;
-        eos_static_info("Hello from");
+        eos_static_info("Hello from kQrain in the system");
+        //kQrain is the one prepared for
       }
       */
 
@@ -890,6 +1217,8 @@ void DynamicEC::performCycleQDB(ThreadAssistant& assistant) noexcept
 
         eos_static_debug("is:%lu target:%lu is_t:%lu target_t:%lu interval:%lu - pausing for %lu seconds\n",
                          nfiles_processed, nfiles, is_time, target_time, interval, p_time);
+        // eos_static_info("is:%lu target:%lu is_t:%lu target_t:%lu interval:%lu - pausing for %lu seconds\n",
+        //                nfiles_processed, nfiles, is_time, target_time, interval, p_time);
         // pause for the diff ...
         std::this_thread::sleep_for(std::chrono::seconds(p_time));
       }
