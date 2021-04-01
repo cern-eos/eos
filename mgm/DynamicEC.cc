@@ -644,7 +644,7 @@ DynamicEC::TotalSizeInSystem(std::shared_ptr<eos::QuarkFileMD> file)
             file->getLayoutId()));
 }
 
-static double
+double
 DynamicEC::GetRealSizeFactor(std::shared_ptr<eos::QuarkFileMD> file)
 {
   if (eos::common::LayoutId::GetExcessStripeNumber(file->getLayoutId()) ==
@@ -661,9 +661,9 @@ DynamicEC::GetRealSizeFactor(std::shared_ptr<eos::QuarkFileMD> file)
                file->getLayoutId()) >= (file->getLocations().size() -
                                         (eos::common::LayoutId::GetStripeNumber(file->getLayoutId() + 1 -
                                             eos::common::LayoutId::GetRedundancyStripeNumber(file->getLayoutId())))) &&
-             (file->getLocation.size() - (eos::common::LayoutId::GetStripeNumber(
-                 file->getLayoutId() + 1 - eos::common::LayoutId::GetRedundancyStripeNumber(
-                   file->getLayoutId())))) != 0) {
+             (file->getLocations().size() - (eos::common::LayoutId::GetStripeNumber(
+                   file->getLayoutId() + 1 - eos::common::LayoutId::GetRedundancyStripeNumber(
+                     file->getLayoutId())))) != 0) {
     return 5.0;
   } else if ((file->getLocations().size() -
               (eos::common::LayoutId::GetStripeNumber(file->getLayoutId() + 1 -
