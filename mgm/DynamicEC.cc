@@ -82,7 +82,7 @@ DynamicEC::DynamicEC(const char* spacename, uint64_t ageNew,  uint64_t size,
   mOnWork = OnWork;
 
   if (OnWork) {
-    //mThread.reset(&DynamicEC::Run, this);
+    mThread.reset(&DynamicEC::Run, this);
   }
 
   if (OnWork) {
@@ -698,14 +698,14 @@ DynamicEC::kRaid6(std::shared_ptr<eos::QuarkFileMD>file)
   uint64_t beforeSize = TotalSizeInSystem(file);
   //eos_static_info("This is the size before %lf", (file->getSize() * eos::common::LayoutId::GetSizeFactor(
   //         file->getLayoutId())));
-  eos_static_info("The file id %x", file->getLayoutId());
-  eos_static_info("This is data for the file");
-  eos_static_info("this is the stripenumber %lld",
-                  eos::common::LayoutId::GetStripeNumber(file->getLayoutId()));
-  eos_static_info("This is the redundancynumber %lld",
-                  eos::common::LayoutId::GetRedundancyStripeNumber(file->getLayoutId()));
-  eos_static_info("This is the excessStripeNumber %lld",
-                  eos::common::LayoutId::GetExcessStripeNumber(file->getLayoutId()));
+  //eos_static_info("The file id %x", file->getLayoutId());
+  //eos_static_info("This is data for the file");
+  //eos_static_info("this is the stripenumber %lld",
+  //                eos::common::LayoutId::GetStripeNumber(file->getLayoutId()));
+  //eos_static_info("This is the redundancynumber %lld",
+  //                eos::common::LayoutId::GetRedundancyStripeNumber(file->getLayoutId()));
+  //eos_static_info("This is the excessStripeNumber %lld",
+  //                eos::common::LayoutId::GetExcessStripeNumber(file->getLayoutId()));
 
   //eos_static_info("This is another strope %lld", eos::common::LayoutId::get)
   if (file->getLocations().size() > ((eos::common::LayoutId::GetStripeNumber(
@@ -713,7 +713,7 @@ DynamicEC::kRaid6(std::shared_ptr<eos::QuarkFileMD>file)
                                        file->getLayoutId()) + 2)) {
     ///For the final test removing of unlinked locations is needed.
     eos_static_info("This is the sizefactor before: %f",
-                    eos::common::LayoutId::GetSizeFactor(file->getLayoutId()));
+                    GetRealSizeFactor(file));
     eos_static_info("This is the size %lld", file->getSize());
     eos_static_info("Locatgion before unlinking %lld", file->getLocations().size());
     file->unlinkLocation(file->getLocations().back());
@@ -730,26 +730,26 @@ DynamicEC::kRaid6(std::shared_ptr<eos::QuarkFileMD>file)
       gOFS->eosView->updateFileStore(file.get());
     }
 
-    eos_static_info("This is the sizefactor after: %lf",
-                    eos::common::LayoutId::GetSizeFactor(file->getLayoutId()))
+    //eos_static_info("This is the sizefactor after: %lf",
+    //              GetRealSizeFactor(file))
   } else {
     eos_static_info("Too few locations %ldd", file->getLocations().size());
   }
 
-  eos_static_info("The file id %x", file->getLayoutId());
+  //eos_static_info("The file id %x", file->getLayoutId());
   //eos_static_info("This is the size after %lf", (file->getSize() * eos::common::LayoutId::GetSizeFactor(
   //         file->getLayoutId())));
-  eos_static_info("This is the amount of locations %lld",
-                  file->getLocations().size());
+  //eos_static_info("This is the amount of locations %lld",
+  //          file->getLocations().size());
   //file->unlinkLocation(file->getLocations().back());
   //eos_static_info("This is the amount of locations %lld", file->getLocations().size());
   //file->removeLocation(file->getLocations().back());
   //eos_static_info("This is the amount of locations %lld", file->getLocations().size());
-  eos_static_info("This is the sizefactor before: %f",
-                  eos::common::LayoutId::GetSizeFactor(file->getLayoutId()));
-  eos_static_info("This is the size %lld", file->getSize());
-  eos_static_info("This is the size before %lld", beforeSize);
-  eos_static_info("This is the size after %llf", TotalSizeInSystem(file));
+  //eos_static_info("This is the sizefactor before: %f",
+  //          GetRealSizeFactor(file));
+  //eos_static_info("This is the size %lld", file->getSize());
+  //eos_static_info("This is the size before %lld", beforeSize);
+  //eos_static_info("This is the size after %llf", TotalSizeInSystem(file));
   deletedFileSize += (beforeSize - TotalSizeInSystem(file));
   eos_static_info("\n \n Deleted file size: %lld", deletedFileSize);
   //eos_static_info("This is the amount of locations %lld", file->getLocations().size());
