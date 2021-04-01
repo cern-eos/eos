@@ -82,7 +82,7 @@ DynamicEC::DynamicEC(const char* spacename, uint64_t ageNew,  uint64_t size,
   mOnWork = OnWork;
 
   if (OnWork) {
-    mThread.reset(&DynamicEC::Run, this);
+    //mThread.reset(&DynamicEC::Run, this);
   }
 
   if (OnWork) {
@@ -647,6 +647,7 @@ DynamicEC::TotalSizeInSystem(std::shared_ptr<eos::QuarkFileMD> file)
 double
 DynamicEC::GetRealSizeFactor(std::shared_ptr<eos::QuarkFileMD> file)
 {
+  /* this is for another type of memory with excess stripes being something else.
   if (eos::common::LayoutId::GetExcessStripeNumber(file->getLayoutId()) ==
       (file->getLocations().size() - (eos::common::LayoutId::GetStripeNumber(
                                         file->getLayoutId()) + 1 - eos::common::LayoutId::GetRedundancyStripeNumber(
@@ -673,6 +674,14 @@ DynamicEC::GetRealSizeFactor(std::shared_ptr<eos::QuarkFileMD> file)
     //crap something is wrong :(
     return 0.0;
   }
+  */
+  return 1.0 * ((eos::common::LayoutId::GetStripeNumber(file->getLayoutId()) + 1 -
+                 eos::common::LayoutId::GetRedundancyStripeNumber(file->getLayoutId())) +
+                (file->getLocations().size() - (eos::common::LayoutId::GetStripeNumber(
+                      file->getLayoutId()) + 1 - eos::common::LayoutId::GetRedundancyStripeNumber(
+                      file->getLayoutId()))) / (eos::common::LayoutId::GetStripeNumber(
+                            file->getLayoutId()) + 1 - eos::common::LayoutId::GetRedundancyStripeNumber(
+                            file->getLayoutId())));
 }
 
 void
