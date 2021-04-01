@@ -41,9 +41,22 @@
 #include "common/AssistedThread.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "mgm/DynamicCreator.hh"
+#include "mgm/DynamicScanner.hh"
 /* -------------------------------------------------------------------------- */
 #include "XrdSys/XrdSysPthread.hh"
 /* -------------------------------------------------------------------------- */
+
+#include "common/VirtualIdentity.hh"
+#include "XrdOuc/XrdOucErrInfo.hh"
+#include "XrdOuc/XrdOucString.hh"
+#include "namespace/ns_quarkdb/inspector/FileScanner.hh"
+#include "namespace/ns_quarkdb/FileMD.hh"
+
+#include "mgm/XrdMgmOfs.hh"
+
+#include <memory>
+#include <mutex>
+
 #include <vector>
 #include <string>
 #include <deque>
@@ -51,6 +64,7 @@
 #include <ctime>
 #include <map>
 #include <atomic>
+
 
 
 
@@ -67,10 +81,10 @@ EOSMGMNAMESPACE_BEGIN
 /// might be in the system in order to look for the constant update on this, bur for this it will be easy for the rest of the system to get the status of the thread.
 /// other stuff for the status of the thread can be put in as well.
 struct statusForSystem {
-  uint64_t totalSize;
-  uint64_t usedSize;
-  uint64_t deletedSize;
-  uint64_t undeletedSize; /// bytes that will have to be deleted.
+  int64_t totalSize;
+  int64_t usedSize;
+  int64_t deletedSize;
+  int64_t undeletedSize; /// bytes that will have to be deleted.
 };
 
 class DynamicEC
@@ -80,7 +94,11 @@ private:
 
   AssistedThread mThread2; /// thread for doing the clean up
 
+  AssistedThread mThread3; /// thread for doing the checking for the files
 
+  AssistedThread TestThread; ///Thread for testign stuff.
+
+  DynamicScanner mScanner;
 
   std::string
   mSpaceName; /// the space that the thread is running on // this have to be cheked on how it will have to run over
@@ -103,13 +121,74 @@ private:
   std::atomic<uint64_t>
   age;
 
+  std::atomic<bool>
+  mOnWork;
+
   int waitTime;
 
   uint64_t sizeToBeDeleted; /// the size that the system will have to delete in order to get under the minimum threshold.
 
-  DynamicCreator mCreator;
+
+
+  //DynamicCreator mCreator;
+
+  ////////This is for the scanner
+  bool enabled()
+  {
+    return (mEnabled.load()) ? true : false;
+  }
+  bool disable()
+  {
+    if (!enabled()) {
+      return false;
+    } else {
+      mEnabled.store(0, std::memory_order_seq_cst);
+      return true;
+    }
+  }
+  bool enable()
+  {
+    if (enabled()) {
+      return false;
+    } else {
+      mEnabled.store(1, std::memory_order_seq_cst);
+      return true;
+    }
+  }
+
+  std::map<uint64_t, std::map<std::string, uint64_t>> lastScanStats;
+  std::map<uint64_t, std::map<std::string, uint64_t>> currentScanStats;
+  std::map<std::string, std::set<uint64_t>> lastFaultyFiles;
+  std::map<std::string, std::set<uint64_t>> currentFaultyFiles;
+
+  std::atomic<double> scanned_percent;
+
+  std::atomic<int> mEnabled;
+
+  //uint64_t test;
+
+  std::map<uint64_t, std::shared_ptr<eos::QuarkFileMD>> statusFiles;
+  time_t timeCurrentScan;
+  time_t timeLastScan;
+  void Process(std::string& filepath);
+  void Process(std::shared_ptr<eos::IFileMD> fmd);
+  //AssistedThread mThread; ///< thread id of the creation background tracker
+  std::unique_ptr<qclient::QClient> mQcl;
+  uint64_t nfiles;
+  uint64_t ndirs;
+
+  std::mutex mutexScanStats;
+
+
+  /// The XRootD OFS plugin implementing the metadata handling of EOS
+  // use gOFS it is the same here
+  //XrdMgmOfs &m_ofs;
 
 public:
+
+  struct FailedToGetFileSize: public std::runtime_error {
+    FailedToGetFileSize(const std::string& msg): std::runtime_error(msg) {}
+  };
 
   uint64_t createdFileSize; /// the size of the created files in bytes
 
@@ -119,11 +198,13 @@ public:
 
   std::map<IFileMD::id_t, std::shared_ptr<DynamicECFile>> simulatedFiles;
 
-
+  //void performCycleQDB(ThreadAssistant& assistant) noexcept;
 
   void setWaitTime(int wait);
 
   void createFiles();
+
+  void createFilesOneTime(ThreadAssistant& assistant);
 
   int getWaitTime();
 
@@ -157,21 +238,34 @@ public:
   ///might be bool too tell if the file was deleted, or int is on how many copies were deleted.
   bool DeletionOfFileID(std::shared_ptr<DynamicECFile> file, uint64_t ageOld);
 
+  //This is for the system in order to make it for alle the files and not only for the special file made for this purpose
+  bool DeletionOfFileIDForGenerelFile(std::shared_ptr<eos::QuarkFileMD> file,
+                                      uint64_t ageOld);
 
+  //this is for the system in order to make it for all the files
+  uint64_t GetSizeOfFileForGenerelFile(std::shared_ptr<eos::QuarkFileMD> file);
 
   //This is for a not modified file
   uint64_t GetSizeOfFile(std::shared_ptr<DynamicECFile> file);
 
   uint64_t GetSizeFactor1(std::shared_ptr<DynamicECFile> file);
 
+  long double TotalSizeInSystem(std::shared_ptr<eos::QuarkFileMD> file);
+
+  static double GetRealSizeFactor(std::shared_ptr<eos::QuarkFileMD> file);
+
   //Bool to check it is done or failed.
   void SingleDeletion(std::shared_ptr<DynamicECFile> file);
 
   void kQrainReduction(std::shared_ptr<DynamicECFile> file);
 
+  void kRaid6(std::shared_ptr<eos::QuarkFileMD> file);
+
   int DummyFunction(int number);
 
   bool TrueForAllRequest();
+
+  std::uint64_t getFileSizeBytes(const IFileMD::id_t fid);
 
   //DynamicEC();
 //test
@@ -182,9 +276,11 @@ public:
   //! The low threshold to stop the system as percentage of full storage
   //---------------------------------------------------------------------------------------------------
   //DynamicEC(const char* spacename="default", uint64_t age=3600, uint64_t minsize=1024*1024, double maxThres=95.0, double minThres=90.0);
+
   DynamicEC(const char* spacename = "default", uint64_t age = 3600,
             uint64_t minsize = 1024 * 1024,
-            double maxThres = 95.0, double minThres = 90.0, bool OnWork = true);
+            double maxThres = 95.0, double minThres = 90.0, bool OnWork = true,
+            int wait = 30);
 
   ~DynamicEC();
 
@@ -194,6 +290,22 @@ public:
 
   void Run(ThreadAssistant& assistant)
   noexcept; /// no exceptions aloud, have to check for all the output combinations to return.
+
+  struct Options {
+    bool enabled;                  //< Is FileInspector even enabled?
+    std::chrono::seconds
+    interval; //< Run FileInsepctor cleanup every this many seconds
+  };
+
+  Options getOptions();
+
+  void performCycleQDB(ThreadAssistant& assistant) noexcept;
+
+  void RunScan(ThreadAssistant& assistant) noexcept;
+
+  void TestThreadFunction(ThreadAssistant& assistant) noexcept;
+
+
 };
 
 
