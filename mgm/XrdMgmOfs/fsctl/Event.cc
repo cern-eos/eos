@@ -91,7 +91,7 @@ XrdMgmOfs::Event(const char* path,
   // Check that we have write permission on path
   bool isPrepare = (aevent != nullptr
                     && std::string(aevent).find("prepare") != std::string::npos);
-  int mode = isPrepare  ?  W_OK | P_OK  :  W_OK;
+  const int mode = isPrepare  ?  P_OK  :  0;
 
   if (vid.prot != "sss" && gOFS->_access(spath, mode, error, localVid, "")) {
     const char* emsg =
