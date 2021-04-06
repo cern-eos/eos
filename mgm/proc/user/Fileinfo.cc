@@ -653,8 +653,9 @@ ProcCommand::DirInfo(const char* path)
       using eos::common::StringConversion;
       size_t num_containers = dmd->getNumContainers();
       size_t num_files = dmd->getNumFiles();
+      size_t tree_size = dmd->getTreeSize();
+
       std::shared_ptr<eos::IContainerMD> dmd_copy(dmd->clone());
-      dmd_copy->InheritChildren(*(dmd.get()));
       dmd.reset();
       viewReadLock.Release();
       //-------------------------------------------
@@ -717,7 +718,7 @@ ProcCommand::DirInfo(const char* path)
 
         if (!Monitoring) {
           out << "  Directory: '" << spath << "'"
-              << "  Treesize: " << dmd_copy->getTreeSize() << std::endl;
+              << "  Treesize: " << tree_size << std::endl;
           out << "  Container: " << num_containers
               << "  Files: " << num_files
               << "  Flags: " << StringConversion::IntToOctal(dmd_copy->getMode(), 4);
@@ -751,7 +752,7 @@ ProcCommand::DirInfo(const char* path)
         } else {
           out << "keylength.file=" << spath.length()
               << " file=" << spath
-              << " treesize=" << dmd_copy->getTreeSize()
+              << " treesize=" << tree_size
               << " container=" << num_containers
               << " files=" << num_files
               << " mtime=" << mtime.tv_sec << "." << mtime.tv_nsec
