@@ -2103,8 +2103,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
   } else {
     if (isRW) {
-      if (isCreation && hasClientBookingSize && ((bookingsize == 0) ||
-          ocUploadUuid.length())) {
+      // we want to define the order of chunks during creation, so we attach also rain layouts
+      if (isCreation && hasClientBookingSize && ((bookingsize == 0) || ocUploadUuid.length() || (LayoutId::IsRain(layoutId))) ) {
         // ---------------------------------------------------------------------
         // if this is a creation we commit the scheduled replicas NOW
         // we do the same for chunked/parallel uploads
