@@ -49,6 +49,7 @@ QuarkContainerMD::QuarkContainerMD(IContainerMD::id_t id, IFileMDSvc* file_svc,
   mCont.set_id(id);
   mCont.set_mode(040755);
   mClock = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+
   if (!cont_svc && !file_svc) {
     // "Standalone" ContainerMD, without associated container service.
     // Don't call functions which might modify metadata..
@@ -567,10 +568,11 @@ QuarkContainerMD::setTMTime(tmtime_t tmtime)
   tmtime_t tmt;
   getTMTimeNoLock(tmt);
   tmtime_t now;
-
   clock_gettime(CLOCK_REALTIME, &now);
 
-  if (tmtime.tv_sec == 0 || tmtime.tv_sec > now.tv_sec) tmtime = now;
+  if ((tmtime.tv_sec == 0) || (tmtime.tv_sec > now.tv_sec)) {
+    tmtime = now;
+  }
 
   if (((tmt.tv_sec == 0) && (tmt.tv_nsec == 0)) ||
       (tmtime.tv_sec > tmt.tv_sec) ||
@@ -599,9 +601,13 @@ QuarkContainerMD::setTMTimeNow()
 void
 QuarkContainerMD::getTMTimeNoLock(tmtime_t& tmtime)
 {
-  (void) memcpy(&tmtime, mCont.stime().data(), sizeof(tmtime));
-  if (tmtime.tv_sec == 0)
-      (void) memcpy(&tmtime, mCont.mtime().data(), sizeof(tmtime));
+  tmtime = {};
+  
+  if (mCont.stime().length()) {
+    (void) memcpy(&tmtime, mCont.stime().data(), sizeof(tmtime));
+  } else {
+    (void) memcpy(&tmtime, mCont.mtime().data(), sizeof(tmtime));
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -724,7 +730,7 @@ QuarkContainerMD::loadChildren()
 
   if (pQcl) {
     mFiles = MetadataFetcher::getFileMap(*pQcl,
-             ContainerIdentifier(mCont.id()));
+                                         ContainerIdentifier(mCont.id()));
     mSubcontainers = MetadataFetcher::getContainerMap(*pQcl,
                      ContainerIdentifier(mCont.id()));
   } else {
@@ -843,9 +849,9 @@ IContainerMD::ContainerMap
 QuarkContainerMD::copyContainerMap() const
 {
   // std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-
   IContainerMD::ContainerMap retval;
-  for(auto it = mSubcontainers->cbegin(); it != mSubcontainers->cend(); ++it) {
+
+  for (auto it = mSubcontainers->cbegin(); it != mSubcontainers->cend(); ++it) {
     retval.insert_or_assign(it->first, it->second);
   }
 
@@ -859,9 +865,9 @@ IContainerMD::FileMap
 QuarkContainerMD::copyFileMap() const
 {
   // std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-
   IContainerMD::FileMap retval;
-  for(auto it = mFiles->cbegin(); it != mFiles->cend(); ++it) {
+
+  for (auto it = mFiles->cbegin(); it != mFiles->cend(); ++it) {
     retval.insert_or_assign(it->first, it->second);
   }
 
