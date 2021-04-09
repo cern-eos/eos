@@ -483,6 +483,11 @@ ProcCommand::MakeResult()
         mResultStream +=
           "<TITLE>EOS-HTTP</TITLE> <link rel=\"stylesheet\" href=\"http://www.w3.org/StyleSheets/Core/Midnight\"> \n";
         mResultStream += "<meta charset=\"utf-8\"> \n";
+	// block cross-site scripting in responses
+	if (stdErr.length()) {
+	  mResultStream += "<meta http-equiv=\"Content-Security-Policy\" content=\"script-src https://code.jquery.com 'self';\">\n";
+	}
+
         mResultStream += "<div class=\"httptable\" id=\"";
         mResultStream += mCmd.c_str();
         mResultStream += "_";
