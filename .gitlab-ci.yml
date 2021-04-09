@@ -1337,6 +1337,7 @@ clean_debian_artifacts:
 
 clean_k8s_cluster:
   stage: clean
+  image: alpine/k8s:1.18.2
   script:
     - set +o pipefail
     - export KUBECONFIG=$K8S_CONFIG
