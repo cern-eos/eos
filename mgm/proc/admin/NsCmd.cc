@@ -108,6 +108,9 @@ NsCmd::MutexSubcmd(const eos::console::NsProto_MutexProto& mutex,
     eos::common::RWMutex* fs_mtx = &FsView::gFsView.ViewMutex;
     eos::common::RWMutex* quota_mtx = &Quota::pMapMutex;
     eos::common::RWMutex* ns_mtx = &gOFS->eosViewRWMutex;
+    eos::common::RWMutex* fusex_client_mtx = &gOFS->zMQ->gFuseServer.Client();
+    eos::common::RWMutex* fusex_cap_mtx = &gOFS->zMQ->gFuseServer.Cap();
+
 
     if (no_option) {
       size_t cycleperiod = eos::common::RWMutex::GetLockUnlockDuration();
@@ -186,7 +189,11 @@ NsCmd::MutexSubcmd(const eos::console::NsProto_MutexProto& mutex,
     }
 
     if (mutex.blockedtime()) {
+      fs_mtx->SetBlockedForMsInterval(mutex.blockedtime());
       ns_mtx->SetBlockedForMsInterval(mutex.blockedtime());
+      quota_mtx->SetBlockedForMsInterval(mutex.blockedtime());
+      fusex_client_mtx->SetBlockedForMsInterval(mutex.blockedtime());
+      fusex_cap_mtx->SetBlockedForMsInterval(mutex.blockedtime());
       oss << "blockedtiming set to " << ns_mtx->BlockedForMsInterval() << " ms" <<
           std::endl;
     }
