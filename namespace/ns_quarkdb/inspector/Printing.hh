@@ -108,10 +108,12 @@ public:
   template<typename T>
   static struct timespec parseTimespec(const T& bytes)
   {
-    struct timespec spec {
-      0
-    };
-    (void) memcpy(&spec, bytes.data(), sizeof(struct timespec));
+    struct timespec spec = {};
+
+    if (bytes.length()) {
+      (void) memcpy(&spec, bytes.data(), sizeof(struct timespec));
+    }
+
     return spec;
   }
 
