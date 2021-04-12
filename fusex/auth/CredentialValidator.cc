@@ -285,11 +285,13 @@ bool CredentialValidator::validate(const JailInformation &jail,
     // Go through whatever klist does to check ccache validity.
     //--------------------------------------------------------------------------
     if(check_ccache(krb_ctx, ccache, time(0)) != 0) {
+      krb5_cc_close(krb_ctx, ccache);
       krb5_free_context(krb_ctx);
       LOGBOOK_INSERT(scope, "provided ccache appears invalid: " << uc.kcm);
       return false;
     }
 
+    krb5_cc_close(krb_ctx, ccache);
     krb5_free_context(krb_ctx);
     out.initialize(uc, {0, 0}, "");
     return true;
