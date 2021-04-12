@@ -142,6 +142,7 @@ build_cs8:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cs8-base
   script:
+    - dnf install --nogpg -y epel-release git moreutils ccache dnf-plugins-core gcc-c++ git make python2 python3 python3-setuptools rpm-build rpm-sign tar which
     - git submodule update --init --recursive
     - ./misc/cmake/cmake-3.15.5-Linux-x86_64.sh --prefix=/usr/ --skip-license
     - mkdir build
