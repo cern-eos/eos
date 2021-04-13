@@ -93,7 +93,7 @@ public:         // [+] prevents '+' interpreted as "one or more"
     mCanNotBrowse(false),
     mCanChmod(false), mCanChown(false), mCanNotDelete(false),
     mCanNotChmod(false), mCanDelete(false), mCanSetQuota(false), mHasAcl(false),
-    mHasEgroup(false), mIsMutable(false), mCanArchive(false), mCanPrepare(false)
+    mHasEgroup(false), mIsMutable(false), mCanArchive(false), mCanPrepare(false), mOwner(0), mGowner(0)
   {}
 
   //----------------------------------------------------------------------------
@@ -107,15 +107,18 @@ public:         // [+] prevents '+' interpreted as "one or more"
   //! |z:{rw[o]xmc(!u)(+u)(!d)(+d)q}'
   //! @param vid virtual id to match ACL
   //! @param allowUserAcl if true evaluate also the user acl for the permissions
+  //! @param owner/gowner - uid/gid of the entry owner
   //----------------------------------------------------------------------------
   Acl(std::string sysacl, std::string useracl,
-      const eos::common::VirtualIdentity& vid, bool allowUserAcl = false);
+      const eos::common::VirtualIdentity& vid, bool allowUserAcl = false, uid_t owner=0, gid_t gowner=0);
 
   /*---------------------------------------------------------------------------*/
   //! Constructor from XAttrMap
   /*---------------------------------------------------------------------------*/
   Acl(const eos::IContainerMD::XAttrMap& xattrmap,
-      const eos::common::VirtualIdentity& vid);
+      const eos::common::VirtualIdentity& vid,
+      uid_t owner=0,
+      gid_t gowner=0);
 
   //----------------------------------------------------------------------------
   //! Constructor by path
@@ -128,7 +131,9 @@ public:         // [+] prevents '+' interpreted as "one or more"
   //----------------------------------------------------------------------------
   Acl(const char* path, XrdOucErrInfo& error,
       const eos::common::VirtualIdentity& vid,
-      eos::IContainerMD::XAttrMap& attrmap, bool lockNs);
+      eos::IContainerMD::XAttrMap& attrmap, bool lockNs,
+      uid_t owner=0,
+      gid_t gowner=0);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -141,7 +146,8 @@ public:         // [+] prevents '+' interpreted as "one or more"
   //----------------------------------------------------------------------------
   void SetFromAttrMap(const eos::IContainerMD::XAttrMap& attrmap,
                       const eos::common::VirtualIdentity& vid,
-                      eos::IFileMD::XAttrMap* attrmapF = NULL, bool sysaclOnly = false);
+                      eos::IFileMD::XAttrMap* attrmapF = NULL, bool sysaclOnly = false,
+		      uid_t owner=0, gid_t gowner=0);
 
   //----------------------------------------------------------------------------
   //! Enter system and user definition + identity used for ACL interpretation
@@ -157,7 +163,8 @@ public:         // [+] prevents '+' interpreted as "one or more"
   //----------------------------------------------------------------------------
   void Set(std::string sysacl, std::string useracl, std::string tokenacl,
            const eos::common::VirtualIdentity& vid,
-           bool allowUserAcl = false);
+           bool allowUserAcl = false,
+	   uid_t owner=0, gid_t gowner=0);
 
   //----------------------------------------------------------------------------
   // Getter Functions for ACL booleans
@@ -325,6 +332,9 @@ private:
   bool evaluserattr;
   std::string userattrF;
   bool evaluserattrF;
+
+  uid_t mOwner;
+  gid_t mGowner;
 };
 
 EOSMGMNAMESPACE_END

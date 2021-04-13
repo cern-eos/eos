@@ -112,7 +112,7 @@ XrdMgmOfs::_rem(const char* path,
   }
 
   std::string errMsg = "remote";
-  // Perform the actual deletion
+  // Perform the actual deletions
   errno = 0;
   XrdSfsFileExistence file_exists;
   vid.scope = path;
@@ -144,8 +144,7 @@ XrdMgmOfs::_rem(const char* path,
   std::string aclpath;
 
   try {
-    fmd = gOFS->eosView->getFile(path, false);
-  } catch (eos::MDException& e) {
+    fmd = gOFS->eosView->getFile(path, false);  } catch (eos::MDException& e) {
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
               e.getMessage().str().c_str());
@@ -164,7 +163,7 @@ XrdMgmOfs::_rem(const char* path,
     }
 
     // ACL and permission check
-    Acl acl(aclpath.c_str(), error, vid, attrmap, false);
+    Acl acl(aclpath.c_str(), error, vid, attrmap, false, container->getCUid(), container->getCGid());
     eos_info("acl=%s mutable=%d", attrmap["sys.acl"].c_str(), acl.IsMutable());
 
     if (vid.uid && !acl.IsMutable()) {

@@ -137,7 +137,7 @@ XrdMgmOfs::_chmod(const char* path,
       eos::common::Path pPath(uri.c_str());
       pcmd = gOFS->eosView->getContainer(pPath.GetParentPath());
       // ACL and permission check
-      Acl acl(pPath.GetParentPath(), error, vid, attrmap, false);
+      Acl acl(pPath.GetParentPath(), error, vid, attrmap, false, pcmd->getCUid(), pcmd->getCGid());
 
       if (vid.uid && !acl.IsMutable()) {
         // immutable directory

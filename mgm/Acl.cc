@@ -32,10 +32,10 @@ EOSMGMNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 Acl::Acl(std::string sysacl, std::string useracl,
-         const eos::common::VirtualIdentity& vid, bool allowUserAcl)
+         const eos::common::VirtualIdentity& vid, bool allowUserAcl, uid_t owner, gid_t gowner)
 {
   std::string tokenacl = TokenAcl(vid);
-  Set(sysacl, useracl, tokenacl, vid, allowUserAcl);
+  Set(sysacl, useracl, tokenacl, vid, allowUserAcl, owner, gowner);
 }
 
 
@@ -50,10 +50,11 @@ Acl::Acl(std::string sysacl, std::string useracl,
 //------------------------------------------------------------------------------
 
 Acl::Acl(const eos::IContainerMD::XAttrMap& attrmap,
-         const eos::common::VirtualIdentity& vid)
+         const eos::common::VirtualIdentity& vid,
+	 uid_t owner, gid_t gowner)
 {
   // define the acl rules from the attributes
-  SetFromAttrMap(attrmap, vid);
+  SetFromAttrMap(attrmap, vid, NULL, false, owner, gowner);
 }
 
 //------------------------------------------------------------------------------
@@ -61,7 +62,8 @@ Acl::Acl(const eos::IContainerMD::XAttrMap& attrmap,
 //------------------------------------------------------------------------------
 Acl::Acl(const char* path, XrdOucErrInfo& error,
          const eos::common::VirtualIdentity& vid,
-         eos::IContainerMD::XAttrMap& attrmap, bool lockNs)
+         eos::IContainerMD::XAttrMap& attrmap, bool lockNs,
+	 uid_t owner, gid_t gowner)
 {
   if (path && strlen(path)) {
     int rc = gOFS->_attr_ls(path, error, vid, 0, attrmap, lockNs);
@@ -72,7 +74,7 @@ Acl::Acl(const char* path, XrdOucErrInfo& error,
   }
 
   // Set the acl rules from the attributes
-  SetFromAttrMap(attrmap, vid);
+  SetFromAttrMap(attrmap, vid, NULL, false, owner, gowner);
 }
 
 //------------------------------------------------------------------------------
@@ -81,7 +83,7 @@ Acl::Acl(const char* path, XrdOucErrInfo& error,
 void
 Acl::SetFromAttrMap(const eos::IContainerMD::XAttrMap& attrmap,
                     const eos::common::VirtualIdentity& vid, eos::IFileMD::XAttrMap* attrmapF,
-                    bool sysaclOnly)
+                    bool sysaclOnly, uid_t owner, gid_t gowner)
 {
   bool evalUseracl = false;
   evaluserattrF = false;
@@ -120,7 +122,7 @@ Acl::SetFromAttrMap(const eos::IContainerMD::XAttrMap& attrmap,
                      sysAcl.c_str(), useracl.c_str(), tokenacl.c_str(), evalUseracl);
   }
 
-  Set(sysAcl, useracl, tokenacl, vid, evalUseracl);
+  Set(sysAcl, useracl, tokenacl, vid, evalUseracl, owner, gowner);
 }
 
 //------------------------------------------------------------------------------
@@ -128,12 +130,15 @@ Acl::SetFromAttrMap(const eos::IContainerMD::XAttrMap& attrmap,
 //------------------------------------------------------------------------------
 void
 Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
-         const eos::common::VirtualIdentity& vid, bool allowUserAcl)
+         const eos::common::VirtualIdentity& vid, bool allowUserAcl, uid_t owner, gid_t gowner)
 {
   std::string acl = "";
   sysattr = "";
   userattr = "";
   evaluserattr = false;
+
+  mOwner = owner;
+  mGowner = gowner;
 
   if (sysacl.length()) {
     acl += sysacl;
@@ -254,6 +259,9 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
     keytag += vid.key;
     keytag += ":";;
 
+    bool is_owner = (vid.uid == mOwner);
+    bool is_gowner = (vid.gid == mGowner);
+
     if (EOS_LOGS_DEBUG) eos_static_debug("%s %s %s %s %s", usertag.c_str(),
                                            grouptag.c_str(),
                                            usr_name_tag.c_str(), grp_name_tag.c_str(), keytag.c_str());
@@ -280,17 +288,20 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
         mHasEgroup = egroupmatch;
       }
 
+      std::vector<std::string> entry;
+      std::string delimiter = ":";
+      eos::common::StringConversion::Tokenize(*it, entry, delimiter);
+
       // Match 'our' rule
       if ((!it->compare(0, usertag.length(), usertag)) ||
           (!it->compare(0, grouptag.length(), grouptag)) ||
           (!it->compare(0, ztag.length(), ztag)) ||
           (egroupmatch) ||
+	  ( (is_owner)  && (entry[0] == "u") && (entry.size()>2) && (entry[1] == "owner") ) ||
+	  ( (is_gowner) && (entry[0] == "g") && (entry.size()>2) && (entry[1] == "owner") ) ||
           (!it->compare(0, keytag.length(), keytag)) ||
           (!it->compare(0, usr_name_tag.length(), usr_name_tag)) ||
           (!it->compare(0, grp_name_tag.length(), grp_name_tag))) {
-        std::vector<std::string> entry;
-        std::string delimiter = ":";
-        eos::common::StringConversion::Tokenize(*it, entry, delimiter);
 
         if (entry.size() < 3) {
           // z tag entries have only two fields
@@ -620,20 +631,25 @@ Acl::ConvertIds(std::string& acl_val, bool to_string)
     sid = tokens[1];
     bool needs_conversion = false;
 
-    if (to_string) {
-      // Convert to string representation if needed
-      needs_conversion =
-        (std::find_if(sid.begin(), sid.end(),
-      [](const char& c) {
-        return std::isalpha(c);
-      }) == sid.end());
+    if (sid == "owner") {
+      // keep owner entries as they are
+      needs_conversion = false;
     } else {
-      // Convert to numeric representation if needed
-      needs_conversion =
-        (std::find_if(sid.begin(), sid.end(),
-      [](const char& c) {
-        return std::isalpha(c);
-      }) != sid.end());
+      if (to_string) {
+	// Convert to string representation if needed
+	needs_conversion =
+	  (std::find_if(sid.begin(), sid.end(),
+			[](const char& c) {
+			  return std::isalpha(c);
+			}) == sid.end());
+      } else {
+	// Convert to numeric representation if needed
+	needs_conversion =
+	  (std::find_if(sid.begin(), sid.end(),
+			[](const char& c) {
+			  return std::isalpha(c);
+			}) != sid.end());
+      }
     }
 
     if (needs_conversion) {
@@ -642,38 +658,37 @@ Acl::ConvertIds(std::string& acl_val, bool to_string)
       std::string string_id {""};
 
       if (is_uid) {
-        if (!to_string) {
-          numeric_id = eos::common::Mapping::UserNameToUid(sid, errc);
-          string_id = std::to_string(numeric_id);
-        } else {
-          numeric_id = atoi(sid.c_str());
-          string_id = eos::common::Mapping::UidToUserName(numeric_id, errc);
-        }
+	  if (!to_string) {
+	    numeric_id = eos::common::Mapping::UserNameToUid(sid, errc);
+	    string_id = std::to_string(numeric_id);
+	  } else {
+	    numeric_id = atoi(sid.c_str());
+	    string_id = eos::common::Mapping::UidToUserName(numeric_id, errc);
+	  }
       } else {
-        if (!to_string) {
-          numeric_id = eos::common::Mapping::GroupNameToGid(sid, errc);
-          string_id = std::to_string(numeric_id);
-        } else {
-          numeric_id = atoi(sid.c_str());
-          string_id = eos::common::Mapping::GidToGroupName(numeric_id, errc);
-        }
+	if (!to_string) {
+	  numeric_id = eos::common::Mapping::GroupNameToGid(sid, errc);
+	  string_id = std::to_string(numeric_id);
+	} else {
+	  numeric_id = atoi(sid.c_str());
+	  string_id = eos::common::Mapping::GidToGroupName(numeric_id, errc);
+	}
       }
 
       if (errc) {
-        oss.str("");
+	oss.str("");
 
-        if (to_string) {
-          oss << "failed to convert id: \"" << sid << "\" to string format";
-        } else {
-          oss << "failed to convert id: \"" << sid << "\" to numeric format";
-        }
+	if (to_string) {
+	  oss << "failed to convert id: \"" << sid << "\" to string format";
+	} else {
+	  oss << "failed to convert id: \"" << sid << "\" to numeric format";
+	}
 
-        // Print error message but still return the original value that we have
-        eos_static_err(oss.str().c_str());
-        string_id = sid;
-        return 1;
+	// Print error message but still return the original value that we have
+	eos_static_err(oss.str().c_str());
+	string_id = sid;
+	return 1;
       }
-
       oss << tokens[0] << ':' << string_id << ':' << tokens[2] << ',';
     } else {
       oss << rule << ',';
