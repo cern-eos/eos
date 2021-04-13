@@ -676,7 +676,9 @@ Server::FillContainerCAP(uint64_t id,
               useracl,
 	      shareacl,
               vid,
-              evaluseracl);
+              evaluseracl,
+	      dir.uid(),
+	      dir.gid());
 
       if (EOS_LOGS_DEBUG)
         eos_debug("cap id=%lld name %s evaluseracl %d CanRead %d CanWrite %d CanChmod %d CanChown %d CanUpdate %d CanNotDelete %d",
@@ -978,7 +980,7 @@ Server::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
     }
 
     // ACL and permission check
-    Acl acl(attrmap, vid);
+    Acl acl(attrmap, vid, cmd->getCUid(), cmd->getCGid());
     eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d mutable=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
@@ -1504,7 +1506,7 @@ Server::OpSetDirectory(const std::string& id,
                     attrmap.count("sys.eval.useracl"));
         }
 
-        acl.SetFromAttrMap(attrmap, vid, NULL, true /* sysacl-only */);
+        acl.SetFromAttrMap(attrmap, vid, NULL, true /* sysacl-only */, cmd->getCUid(), cmd->getCGid());
 
         if (!acl.CanChown()) {
           return EPERM;
@@ -2031,7 +2033,7 @@ Server::OpSetFile(const std::string& id,
                     attrmap.count("sys.eval.useracl"));
         }
 
-        acl.SetFromAttrMap(attrmap, vid, NULL, true /* sysacl-only */);
+        acl.SetFromAttrMap(attrmap, vid, NULL, true /* sysacl-only */, fmd->getCUid(), fmd->getCGid());
 
         if (!acl.CanChown()) {
           return EPERM;

@@ -125,7 +125,7 @@ XrdMgmOfs::_remdir(const char* path,
   }
 
   // ACL and permission check
-  Acl acl(aclpath.c_str(), error, vid, attrmap, false);
+  Acl acl(aclpath.c_str(), error, vid, attrmap, false, dh->getCUid(), dh->getCGid());
 
   if (vid.uid && !acl.IsMutable()) {
     errno = EPERM;

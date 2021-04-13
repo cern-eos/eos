@@ -143,7 +143,7 @@ XrdMgmOfs::_access(const char* path,
     }
 
     // ACL and permission check
-    Acl acl(attr_path.c_str(), error, vid, attrmap, false);
+    Acl acl(attr_path.c_str(), error, vid, attrmap, false, dh->getCUid(), dh->getCGid());
     eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d mutable=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
              acl.CanBrowse(), acl.HasEgroup(), acl.IsMutable());
@@ -282,7 +282,7 @@ XrdMgmOfs::acc_access(const char* path,
 
     lock.Release();
     // ACL and permission check
-    Acl acl(attr_path.c_str(), error, vid, attrmap, false);
+    Acl acl(attr_path.c_str(), error, vid, attrmap, false, dh->getCUid(), dh->getCGid());
     eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d mutable=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
              acl.CanBrowse(), acl.HasEgroup(), acl.IsMutable());

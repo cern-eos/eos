@@ -81,7 +81,7 @@ XrdMgmOfs::_chown(const char* path,
       // if the user is not the owner, user acls are removed
       attrmap["user.acl"] = "";
     }
-    acl.SetFromAttrMap(attrmap, vid);  /* also takes care of eval.useracl */
+    acl.SetFromAttrMap(attrmap, vid, NULL, false, cmd->getCUid(), cmd->getCGid());  /* also takes care of eval.useracl */
 
     eos_static_debug("sys.acl %s acl.CanChown() %d", attrmap["sys.acl"].c_str(), acl.CanChown());
 
@@ -137,7 +137,7 @@ XrdMgmOfs::_chown(const char* path,
 	attrmap["user.acl"] = "";
       }
 
-      acl.SetFromAttrMap(attrmap, vid);   /* also takes care of eval.useracl */
+      acl.SetFromAttrMap(attrmap, vid, NULL, false, cmd->getCUid(), cmd->getCGid());   /* also takes care of eval.useracl */
 
       eos_static_debug("sys.acl %s acl.CanChown() %d", attrmap["sys.acl"].c_str(), acl.CanChown());
 

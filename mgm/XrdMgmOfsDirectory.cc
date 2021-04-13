@@ -181,7 +181,7 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
 
     eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
       // ACL and permission check
-    Acl acl(cPath.GetPath(), error, vid, attrmap, false);
+    Acl acl(cPath.GetPath(), error, vid, attrmap, false, dh->getCUid(), dh->getCGid());
     eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d", acl.HasAcl(),
              acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
              acl.CanBrowse(), acl.HasEgroup());
