@@ -1132,6 +1132,21 @@ public:
   int QueryResync(eos::common::FileId::fileid_t fid,
                   eos::common::FileSystem::fsid_t fsid, bool force = false);
 
+  //----------------------------------------------------------------------------
+  //! Remove file/container metadata object that was already deleted before
+  //! but it's still in the namespace detached from any parent
+  //!
+  //! @param id file/container id
+  //! @param is_dir if true id refers to a container, otherwise a file object
+  //! @param force if set then force remove unlinked locations even if they
+  //!        were not properly deleted from the diskserver
+  //! @param msg outcome information forwarded to the client
+  //!
+  //! @return true if deletion successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool RemoveDetached(uint64_t id, bool is_dir, bool force,
+                      std::string& msg) const;
+
   // ---------------------------------------------------------------------------
   // static Mkpath is not supported
   // ---------------------------------------------------------------------------
@@ -1547,7 +1562,7 @@ public:
   //----------------------------------------------------------------------------
   // Namespace specific variables
   //----------------------------------------------------------------------------
-//! Initialization state of the namespace
+  //! Initialization state of the namespace
   std::atomic<NamespaceState> mNamespaceState;
   std::atomic<time_t> mFileInitTime; ///< Time for the file initialization
   std::atomic<time_t> mTotalInitTime; ///< Time for entire initialization
@@ -1651,7 +1666,6 @@ public:
   //----------------------------------------------------------------------------
   AuthStats AuthComputeStats(const std::list<std::int64_t>&
                              lst_samples) const;
-
 
   //----------------------------------------------------------------------------
   //! Update aggregate info with the latest samples

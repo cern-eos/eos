@@ -754,10 +754,12 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   // The XRootD prepare actions are mutually exclusive
   switch (pargsOptsAction) {
   case 0:
-    if(mTapeEnabled) {
-      Emsg(epname, error, EINVAL, "prepare with empty pargs.opts on tape-enabled back-end");
+    if (mTapeEnabled) {
+      Emsg(epname, error, EINVAL,
+           "prepare with empty pargs.opts on tape-enabled back-end");
       return SFS_ERROR;
     }
+
     break;
 
   case Prep_STAGE:
@@ -770,10 +772,9 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       // Note: To use the default request ID supplied in pargs.reqid, return SFS_OK instead of SFS_DATA.
       //       Overriding is only possible in the case of PREPARE. In the case of ABORT and QUERY requests,
       //       pargs.reqid should contain the request ID that was returned by the corresponding PREPARE.
-
       // Request ID = XRootD-generated request ID + timestamp
       ostringstream ss;
-      ss << ':' << time(0); 
+      ss << ':' << time(0);
       reqid.append(ss.str().c_str());
     }
 
@@ -799,10 +800,12 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   // The XRootD prepare flags are mutually exclusive
   switch (pargs.opts) {
   case 0:
-    if(mTapeEnabled) {
-      Emsg(epname, error, EINVAL, "prepare with empty pargs.opts on tape-enabled back-end");
+    if (mTapeEnabled) {
+      Emsg(epname, error, EINVAL,
+           "prepare with empty pargs.opts on tape-enabled back-end");
       return SFS_ERROR;
     }
+
     break;
 
   case Prep_STAGE:
@@ -1916,4 +1919,92 @@ XrdMgmOfs::QueryResync(eos::common::FileId::fileid_t fid,
 
   EXEC_TIMING_END("QueryResync");
   return 0;
+}
+
+//------------------------------------------------------------------------------
+// Remove file/container metadata object that was already deleted before
+// but now it's still in the namespace detached from any parent
+//------------------------------------------------------------------------------
+bool
+XrdMgmOfs::RemoveDetached(uint64_t id, bool is_dir, bool force,
+                          std::string& msg) const
+{
+  errno = 0;
+
+  if (is_dir) {
+    try {
+      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
+                                              __LINE__, __FILE__);
+      std::shared_ptr<eos::IContainerMD> cont  =
+        gOFS->eosDirectoryService->getContainerMD(id);
+
+      if (cont->getParentId()) {
+        gOFS->eosDirectoryService->removeContainer(cont.get());
+        return true;
+      } else {
+        msg = "error: container is attached id=" + std::to_string(id);
+        return false;
+      }
+    } catch (eos::MDException& e) {
+      errno = e.getErrno();
+      eos_debug("msg=\"caught exception\" errno=%d msg=\"%s\"",
+                e.getErrno(), e.getMessage().str().c_str());
+      msg = "error: " + e.getMessage().str() + '\n';
+      return false;
+    }
+  } else {
+    try {
+      eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+      eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex, __FUNCTION__,
+          __LINE__, __FILE__);
+      std::shared_ptr<eos::IFileMD> file = gOFS->eosFileService->getFileMD(id);
+
+      if (file->getContainerId()) {
+        msg = "error: file is attached id=" + std::to_string(id);
+        return false;
+      }
+
+      // If any of the unlink locations is a file systems that doesn't exist
+      // anymore then just remove it
+      auto unlink_locs = file->getUnlinkedLocations();
+
+      for (const auto& uloc : unlink_locs) {
+        if (FsView::gFsView.mIdView.lookupByID(uloc) == nullptr) {
+          file->removeLocation(uloc);
+        }
+      }
+
+      // If there are no more locations we can also delete the file object
+      if (file->getUnlinkedLocations().empty()) {
+        gOFS->eosFileService->removeFile(file.get());
+        msg = "info: file object removed from namespace";
+      } else {
+        // Move the unlinked locations to the locations list and back so
+        // that we notify the listener for disk deletion
+        unlink_locs = file->getUnlinkedLocations();
+
+        for (const auto& uloc : unlink_locs) {
+          file->addLocation(uloc);
+        }
+
+        file->unlinkAllLocations();
+
+        if (force) {
+          gOFS->eosFileService->removeFile(file.get());
+          msg = "info: file force removed from namespace, best-effort disk "
+                "deletion(s)";
+        } else {
+          msg = "info: file locations unlinked, waiting for disk deletion(s)";
+        }
+      }
+
+      return true;
+    } catch (eos::MDException& e) {
+      errno = e.getErrno();
+      eos_debug("msg=\"caught exception\" errno=%d msg=\"%s\"",
+                e.getErrno(), e.getMessage().str().c_str());
+      msg = "error: " + e.getMessage().str() + '\n';
+      return false;
+    }
+  }
 }
