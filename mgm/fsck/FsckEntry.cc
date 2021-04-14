@@ -250,10 +250,7 @@ FsckEntry::RepairMgmXsSzDiff()
                 "xs and size\" fxid=%08llx", mFid);
     // The local info stored on of the the FSTs might be wrong, trigger a resync
     ResyncFstMd(false);
-    // Also trigger FstXsSzDiff repair as in this case the current broken
-    // replica needs to be repaired - we have another replica matching the
-    // MGM info!
-    return RepairFstXsSzDiff();
+    return true;
   }
 
   if (disk_xs_sz_match && sz_val) {
@@ -772,8 +769,13 @@ FsckEntry::Repair()
     }
 
     if (mMgmFmd.cont_id() == 0ull) {
-      eos_info("msg=\"no repair, file is being deleted\" fxid=%08llx", mFid);
-      //@todo(esindril) call RmCmd::RemoveDetached
+      eos_info("msg=\"force remove detached file\" fxid=%08llx", mFid);
+      std::string err_msg;
+
+      if (!gOFS->RemoveDetached(mFid, false, true, err_msg)) {
+        eos_err("msg=\"operation failed due to: %s\"", err_msg.c_str());
+      }
+
       UpdateMgmStats(true);
       return true;
     }
