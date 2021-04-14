@@ -18,7 +18,7 @@ The most up to date documentation can be found at:
 http://eos-docs.web.cern.ch/eos-docs/
 
 
-**Doxygent** documentation of the API is available in the ``./doc`` directory
+**Doxygen** documentation of the API is available in the ``./doc`` directory
  and can be generated using the following command:
 
 ```bash
@@ -28,6 +28,16 @@ doxygen
 ....
 # Documentation generated in the ./html directory which can be accessed using any browser
 # file:///eos_git_clone_dir/doc/html/index.html
+```
+
+**Sphinx** documentation of installation and application is also in the ``./doc'' directory
+This is what is published in https://eos-docs.web.cern.ch
+Documentation can be generated using the following command
+```bash
+cd doc
+make html
+# Documentation can be found in build/html/index.html
+
 ```
 
 ## Project Directory Structure

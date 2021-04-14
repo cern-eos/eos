@@ -46,3 +46,6 @@ nbproject
 my_clang_cache.cmake
 # ccache specific configs
 /ccache/
+# documentation artifacts
+doc/_build/
+doc/html/
