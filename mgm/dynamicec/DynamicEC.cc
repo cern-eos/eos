@@ -1209,7 +1209,6 @@ DynamicEC::performCycleQDBMD(ThreadAssistant& assistant) noexcept
     eos::ns::FileMdProto item;
 
     if (scanner.getItem(item)) {
-      //eos_static_info("This is the map that scans");
       if (mTestEnabel) {
         interval = 1;
       }

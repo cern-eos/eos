@@ -981,7 +981,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
               std_out << " is not a valid command.";
             }
           } else if (key == "dynamicec.maxthreshold") {
-            if (value.find_first_not_of("0123456789.") == std::string::npos) {
+            if (value.find_first_not_of("0123456789.-") == std::string::npos) {
               if (gOFS->mDynamicEC->getMinThresHold() <= std::stod(value)) {
                 gOFS->mDynamicEC->setMaxThresHold(std::stod(value));
                 std_out << "The max threshold is now:";

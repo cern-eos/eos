@@ -101,7 +101,6 @@ TEST(DynamicEC, TestForGetSmallSizedFillAtTheEdge)
   ASSERT_FALSE(UUT.DeletionOfFileID(UUT.mSimulatedFiles[0], time(0) - 11556926));
 }
 
-
 TEST(DynamicEC, TestForSpaceStatus)
 {
   const char* str = "DynamicTest1";
@@ -180,6 +179,7 @@ TEST(DynamicEC, TestForWaitTime)
   UUT.setWaitTime(2);
   ASSERT_EQ(UUT.getWaitTime(), 2);
 }
+
 
 TEST(DynamicEC, TestForFailToDeleteAll)
 {

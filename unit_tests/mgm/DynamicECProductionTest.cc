@@ -525,4 +525,3 @@ TEST(DynamicECProduction, TestForOtherLayoutkRaid5)
     EXPECT_EQ(it->second->getLocations().size(), 8);
   }
 }
-
