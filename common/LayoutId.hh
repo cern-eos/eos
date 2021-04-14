@@ -600,6 +600,7 @@ public:
       snprintf(sbst, sizeof(sbst), "d%lu::t%i ", has_tape ?
                ((redundancy > 0) ? (redundancy - 1) : 0) : redundancy, (has_tape ? 1 : 0));
     }
+
     return std::string(sbst);
   }
 
@@ -691,14 +692,6 @@ public:
       return 1.0 * (((1.0 * (GetStripeNumber(layout) + 1)) /
                      (GetStripeNumber(layout) + 1 - GetRedundancyStripeNumber(
                         layout))));
-
-    /// add for kQrain support
-
-    if (GetLayoutType(layout) == kQrain)
-    	return 1.0 * (((1.0 * (GetStripeNumber(layout) + 1)) /
-                (GetStripeNumber(layout) + 1 - GetRedundancyStripeNumber(
-                   layout))) + GetExcessStripeNumber(layout));
-
 
     return 1.0;
   }
