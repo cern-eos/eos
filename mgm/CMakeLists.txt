@@ -262,6 +262,7 @@ add_library(
   geotree/SchedulingTreeCommon.cc
   tracker/ReplicationTracker.cc
   inspector/FileInspector.cc
+  prepare/PrepareManager.cc
   ${FUSEX_SRCS})
 
 target_link_libraries(XrdEosMgm-Objects PUBLIC
