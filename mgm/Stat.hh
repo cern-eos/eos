@@ -32,6 +32,7 @@
 #include <string>
 #include <deque>
 #include <math.h>
+#include <sys/time.h>
 
 EOSMGMNAMESPACE_BEGIN
 
