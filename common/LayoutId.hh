@@ -588,7 +588,10 @@ public:
   }
 
   static std::string
+<<<<<<< HEAD
 
+=======
+>>>>>>> 874ac79... This is the status for the file, it will be rewritten in order to make the test for the system.
   GetRedundancySymbol(bool has_tape, int redundancy, int excess = 0)
   {
     char sbst[256];
@@ -601,6 +604,7 @@ public:
       snprintf(sbst, sizeof(sbst), "d%lu::t%i ", has_tape ?
                ((redundancy > 0) ? (redundancy - 1) : 0) : redundancy, (has_tape ? 1 : 0));
     }
+
     return std::string(sbst);
   }
 
@@ -685,6 +689,16 @@ public:
       return 1.0 * (((1.0 * (GetStripeNumber(layout) + 1)) /
                      (GetStripeNumber(layout) + 1 - GetRedundancyStripeNumber(
                         layout))));
+<<<<<<< HEAD
+
+    /// add for kQrain support
+
+    if (GetLayoutType(layout) == kQrain)
+      return 1.0 * (((1.0 * (GetStripeNumber(layout) + 1)) /
+                     (GetStripeNumber(layout) + 1 - GetRedundancyStripeNumber(
+                        layout))));
+=======
+>>>>>>> 874ac79... This is the status for the file, it will be rewritten in order to make the test for the system.
 
     /// add for kQrain support
 
@@ -693,48 +707,40 @@ public:
                      (GetStripeNumber(layout) + 1 - GetRedundancyStripeNumber(
                         layout))));
 
-    /// add for kQrain support
-
-    if (GetLayoutType(layout) == kQrain)
-    	return 1.0 * (((1.0 * (GetStripeNumber(layout) + 1)) /
-                (GetStripeNumber(layout) + 1 - GetRedundancyStripeNumber(
-                   layout))) + GetExcessStripeNumber(layout));
-
-
     return 1.0;
   }
 
 
-/*
-  static double
-  GetActualSizeFactor(std::shared_ptr<FileMD> file)
-  {
-	  auto layout = file->getLayoutId();
+  /*
+    static double
+    GetActualSizeFactor(std::shared_ptr<FileMD> file)
+    {
+      auto layout = file->getLayoutId();
 
-	  if (GetLayoutType(layout) == kQrain)
-		  return 1.0 * file->getLocations().size();
-
-
-	  		  //return 1.0 *((1.0 * file->getLocations().size()) /
-	  		//		  (GetStripeNumber(layout) + 1 - (GetStripeNumber(layout) - file->getLocations().size() )) );
-
-	  return 1.0;
+      if (GetLayoutType(layout) == kQrain)
+        return 1.0 * file->getLocations().size();
 
 
-  }
-*/
+            //return 1.0 *((1.0 * file->getLocations().size()) /
+          //      (GetStripeNumber(layout) + 1 - (GetStripeNumber(layout) - file->getLocations().size() )) );
 
-/*
-  static double
-  GetActualSizeFactor(unsigned long layout, std::shared_ptr<DynamicECFile> file)
-  {
-	  if (GetLayoutType(layout) == kQrain)
-		  return 1.0 *((1.0 * file->getLocations().size()) /
-				  (GetStripeNumber(layout) + 1 - (GetStripeNumber(layout) - file->getLocations().size() )) );
+      return 1.0;
 
-	  return 1.0;
-  }
-*/
+
+    }
+  */
+
+  /*
+    static double
+    GetActualSizeFactor(unsigned long layout, std::shared_ptr<DynamicECFile> file)
+    {
+      if (GetLayoutType(layout) == kQrain)
+        return 1.0 *((1.0 * file->getLocations().size()) /
+            (GetStripeNumber(layout) + 1 - (GetStripeNumber(layout) - file->getLocations().size() )) );
+
+      return 1.0;
+    }
+  */
 
 
 
