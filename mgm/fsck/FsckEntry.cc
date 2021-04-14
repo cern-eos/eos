@@ -98,6 +98,19 @@ FsckEntry::CollectMgmInfo()
     return false;
   }
 
+  if (mMgmFmd.cont_id()) {
+    // Double check that the parent exists, if not, this is a detached entry and
+    // we need to clean it up and mark the parentId with 0 otherwise the fsck
+    // mechanism gets confused.
+    try {
+      eos::common::RWMutexWriteLock ns_rd_lock(gOFS->eosViewRWMutex,
+          __FUNCTION__, __LINE__, __FILE__);
+      (void) gOFS->eosDirectoryService->getContainerMD(mMgmFmd.cont_id());
+    } catch (const eos::MDException& e) {
+      mMgmFmd.set_cont_id(0ull);
+    }
+  }
+
   return true;
 }
 
