@@ -65,7 +65,8 @@ TEST(DynamicEC, CheckingForAnythingInTheFile)
 
 TEST(DynamicEC, CheckOnWhatTheTimeIsIn)
 {
-  eos::mgm::DynamicEC UUT;
+  const char* str = "DynamicTest";
+  eos::mgm::DynamicEC UUT(str, 11556926, 10000000, 1, 1, false);
   UUT.fillFiles();
   eos::IFileMD::ctime_t time;
   UUT.simulatedFiles[1].get()->getCTime(time);
@@ -140,13 +141,15 @@ TEST(DynamicEC, TestForASingleFileWithMultiplePartisionsForTheSizeFactor)
   const char* str = "DynamicTest";
   eos::mgm::DynamicEC UUT(str, 11556926, 10000000, 1, 1, false);
   UUT.fillSingleSmallFile(time(0) - 21556926, 49000000000, 10);
-
+  //ASSERT_EQ(UUT.simulatedFiles[0]->getActualSizeFactor(), 8.0);
   //auto ii = eos::common::LayoutId::GetSizeFactor(UUT.simulatedFiles[0]->getLayoutId());
-  if (UUT.DeletionOfFileID(UUT.simulatedFiles[0], time(0) - 11556926)) {
-    UUT.kQrainReduction(UUT.simulatedFiles[0]);
-  }
-
+  //if (UUT.DeletionOfFileID(UUT.simulatedFiles[0], time(0) - 11556926)) {
+  UUT.kQrainReduction(UUT.simulatedFiles[0]);
+  //}
+  ASSERT_EQ(UUT.simulatedFiles[0]->getLocations().size(), 0);
+  //ASSERT_EQ(UUT.simulatedFiles[0]->getLocations().size() - eos::common::LayoutId::GetRedundancy(eos::common::LayoutId::GetLayoutType(UUT.simulatedFiles[0]->getLayoutId()), UUT.simulatedFiles[0]->getLocations().size()),111);
   ASSERT_EQ(UUT.simulatedFiles[0]->getActualSizeFactor(), 8.0 / 6.0);
+  ASSERT_EQ(UUT.simulatedFiles[0]->getActualSizeFactor(), 8.0);
   //ASSERT_EQ(UUT.GetSizeFactor1(UUT.simulatedFiles[0]), 9);
   //ASSERT_EQ(UUT.simulatedFiles[0]->getLocations().size(), 7);
   //ASSERT_NE(eos::common::LayoutId::GetActualSizeFactor(UUT.simulatedFiles[0].get()),ii);
@@ -271,7 +274,7 @@ TEST(DynamicEC, TestForSpaceStatus)
 TEST(DynamicEC, TestForSpaceStatusWithDeletionOfFiles)
 {
   const char* str = "DynamicTest";
-  eos::mgm::DynamicEC UUT(str, 11556926, 1000000, 95, 92);
+  eos::mgm::DynamicEC UUT(str, 11556926, 1000000, 95, 92, false);
   UUT.fillFiles();
   eos::mgm::statusForSystem status;
   status = UUT.SpaceStatus();
@@ -321,7 +324,7 @@ TEST(DynamicEC, TestForSpaceStatusWithDeletionOfFiles)
 TEST(DynamicEC, TestForTest)
 {
   const char* str = "DynamicTest";
-  eos::mgm::DynamicEC UUT(str, 11556926, 1000000, 95, 92);
+  eos::mgm::DynamicEC UUT(str, 11556926, 1000000, 95, 92, false);
   UUT.fillSingleSmallFile(time(0) - 21556926, 5000000, 8);
   //ASSERT_EQ(eos::common::LayoutId::GetStripeNumber(UUT.simulatedFiles[0]->getLayoutId()),12);
   ASSERT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
@@ -334,31 +337,31 @@ TEST(DynamicEC, TestForTest)
 TEST(DynamicEC, TestForkQrainReductionForDifferentRainStripes)
 {
   const char* str = "DynamicTest";
-  eos::mgm::DynamicEC UUT1(str, 11556926, 1000000, 95, 92);
+  eos::mgm::DynamicEC UUT1(str, 11556926, 1000000, 95, 92, false);
   UUT1.fillSingleSmallFile(time(0) - 21556926, 5000000, 8);
   UUT1.kQrainReduction(UUT1.simulatedFiles[0]);
   ASSERT_EQ(UUT1.simulatedFiles[0]->getLocations().size(), 6);
-  eos::mgm::DynamicEC UUT2(str, 11556926, 1000000, 95, 92);
+  eos::mgm::DynamicEC UUT2(str, 11556926, 1000000, 95, 92, false);
   UUT2.fillSingleSmallFile(time(0) - 21556926, 5000000, 7);
   UUT2.kQrainReduction(UUT2.simulatedFiles[0]);
   ASSERT_EQ(UUT2.simulatedFiles[0]->getLocations().size(), 5);
-  eos::mgm::DynamicEC UUT3(str, 11556926, 1000000, 95, 92);
+  eos::mgm::DynamicEC UUT3(str, 11556926, 1000000, 95, 92, false);
   UUT3.fillSingleSmallFile(time(0) - 21556926, 5000000, 6);
   UUT3.kQrainReduction(UUT3.simulatedFiles[0]);
   ASSERT_EQ(UUT3.simulatedFiles[0]->getLocations().size(), 4);
-  eos::mgm::DynamicEC UUT4(str, 11556926, 1000000, 95, 92);
+  eos::mgm::DynamicEC UUT4(str, 11556926, 1000000, 95, 92, false);
   UUT4.fillSingleSmallFile(time(0) - 21556926, 5000000, 5);
   UUT4.kQrainReduction(UUT4.simulatedFiles[0]);
   ASSERT_EQ(UUT4.simulatedFiles[0]->getLocations().size(), 3);
-  eos::mgm::DynamicEC UUT5(str, 11556926, 1000000, 95, 92);
+  eos::mgm::DynamicEC UUT5(str, 11556926, 1000000, 95, 92, false);
   UUT5.fillSingleSmallFile(time(0) - 21556926, 5000000, 9);
   UUT5.kQrainReduction(UUT5.simulatedFiles[0]);
   ASSERT_EQ(UUT5.simulatedFiles[0]->getLocations().size(), 7);
-  eos::mgm::DynamicEC UUT6(str, 11556926, 1000000, 95, 92);
+  eos::mgm::DynamicEC UUT6(str, 11556926, 1000000, 95, 92, false);
   UUT6.fillSingleSmallFile(time(0) - 21556926, 5000000, 10);
   UUT6.kQrainReduction(UUT6.simulatedFiles[0]);
   ASSERT_EQ(UUT6.simulatedFiles[0]->getLocations().size(), 8);
-  eos::mgm::DynamicEC UUT7(str, 11556926, 1000000, 95, 92);
+  eos::mgm::DynamicEC UUT7(str, 11556926, 1000000, 95, 92, false);
   UUT7.fillSingleSmallFile(time(0) - 21556926, 5000000, 11);
   UUT7.kQrainReduction(UUT7.simulatedFiles[0]);
   ASSERT_EQ(UUT7.simulatedFiles[0]->getLocations().size(), 9);
@@ -367,7 +370,7 @@ TEST(DynamicEC, TestForkQrainReductionForDifferentRainStripes)
 TEST(DynamicEC, TestForFillingInMoreFiles)
 {
   const char* str = "DynamicTest";
-  eos::mgm::DynamicEC UUT(str, 11556926, 1000000, 95, 92);
+  eos::mgm::DynamicEC UUT(str, 11556926, 1000000, 95, 92, false);
   UUT.fillFiles();
   ASSERT_EQ(UUT.simulatedFiles.size(), 100000);
   int a = UUT.simulatedFiles.size();
@@ -379,7 +382,7 @@ TEST(DynamicEC, TestForFillingInMoreFiles)
 TEST(DynamicEC, TestForMultiDeletion)
 {
   const char* str = "DynamicTest";
-  eos::mgm::DynamicEC UUT(str, 11556926, 1000000, 95, 92);
+  eos::mgm::DynamicEC UUT(str, 11556926, 1000000, 95, 92, false);
   UUT.fillFiles();
   eos::mgm::statusForSystem status;
   status = UUT.SpaceStatus();
@@ -410,7 +413,7 @@ TEST(DynamicEC, TestForMultiDeletion)
 TEST(DynamicEC, TestGetAndSetFunction)
 {
   const char* str = "DynamicTest";
-  eos::mgm::DynamicEC UUT(str, 11556926, 10000000, 95, 92);
+  eos::mgm::DynamicEC UUT(str, 11556926, 10000000, 95, 92, false);
   uint64_t before = time(0) - 11556926;
   ASSERT_EQ(UUT.getMaxThresHold(), 95);
   ASSERT_EQ(UUT.getMinThresHold(), 92);
@@ -455,7 +458,7 @@ TEST(DynamicEC, TestGetAndSetFunction)
 TEST(DynamicEC, TestForWaitTime)
 {
   const char* str = "DynamicTest";
-  eos::mgm::DynamicEC UUT(str, 11556926, 10000000, 95, 92);
+  eos::mgm::DynamicEC UUT(str, 11556926, 10000000, 95, 92, false);
   ASSERT_EQ(UUT.getWaitTime(), 10);
   UUT.setWaitTime(-2);
   ASSERT_EQ(UUT.getWaitTime(), 10);
@@ -466,7 +469,7 @@ TEST(DynamicEC, TestForWaitTime)
 TEST(DynamicEC, TestForFailToDeleteAll)
 {
   const char* str = "DynamicTest";
-  eos::mgm::DynamicEC UUT(str, 11556926, 10000000, 80, 40);
+  eos::mgm::DynamicEC UUT(str, 11556926, 10000000, 80, 40, false);
   UUT.fillFiles();
   UUT.Cleanup();
   eos::mgm::statusForSystem status;
@@ -474,13 +477,21 @@ TEST(DynamicEC, TestForFailToDeleteAll)
   ASSERT_TRUE(status.undeletedSize > 10000);
 }
 
-//Test for what did this come from
-/*
 TEST(DynamicEC, TestForLayout)
 {
-  ASSERT_EQ(eos::common::LayoutId::kQrain,0);
+  std::string url2 = "root://localhost//eos/testarea/dynec/rawfile";
+  std::string url1 = url2 + "1" + ".xrdcl";
+  std::string url = "root://localhost//eos/testarea/dynec/rawfile1.xrdcl" ;
+  ASSERT_EQ(url, url1);
 }
-*/
+
+//Test for what did this come from
+
+TEST(DynamicEC, TestForLayout2)
+{
+  ASSERT_EQ(eos::common::LayoutId::kRaid6, 1);
+}
+
 
 //43647012370960
 //301830635816071
