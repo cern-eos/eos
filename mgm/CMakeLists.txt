@@ -224,12 +224,8 @@ add_library(
   convert/old/Converter.cc
   GroupBalancer.cc
   GeoBalancer.cc
-  DynamicEC.cc
-  DynamicScanner.cc
-  DynamicEC.hh
-  DynamicECFile.cc
-  DynamicCreator.cc
-  
+  dynamicec/DynamicEC.cc
+  dynamicec/DynamicECFile.cc
   Features.cc
   ZMQ.cc
   FuseServer/Server.cc FuseServer/Server.hh

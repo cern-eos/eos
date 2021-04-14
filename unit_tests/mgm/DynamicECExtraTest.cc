@@ -22,7 +22,7 @@
  ************************************************************************/
 ///test
 #include "gtest/gtest.h"
-#include "mgm/DynamicEC.hh"
+#include "mgm/dynamicec/DynamicEC.hh"
 #include "common/LayoutId.hh"
 #include "time.h"
 
