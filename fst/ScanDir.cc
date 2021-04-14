@@ -467,6 +467,18 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
 #endif
 
   if (mBgThread) {
+    // Make sure we update the inconsistencies once before the initial sleep
+#ifndef _NOOFS
+    auto fs = gOFS.Storage->GetFileSystemById(mFsId);
+
+    if (fs == nullptr) {
+      eos_notice("msg=\"file system (being) deleted, abort any further scanning\""
+                 " fsid=%lu", mFsId);
+      return;
+    }
+
+    fs->UpdateInconsistencyInfo();
+#endif
     // Get a random smearing and avoid that all start at the same time! 0-4 hours
     size_t sleeper = (1.0 * mDiskIntervalSec * random() / RAND_MAX);
     assistant.wait_for(seconds(sleeper));
