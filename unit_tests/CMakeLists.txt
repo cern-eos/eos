@@ -72,6 +72,7 @@ set(MGM_UT_SRCS
   mgm/XrdMgmOfsTests.cc
   mgm/XrdMgmOfsFileTests.cc
   mgm/DynamicECTests.cc
+  mgm/DynamicECProductionTest.cc
   mgm/DynamicECExtraTest.cc)
 
 set(COMMON_UT_SRCS

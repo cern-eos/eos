@@ -121,6 +121,9 @@ private:
   std::atomic<uint64_t>
   age;
 
+  std::atomic<int>
+  security;
+
   std::atomic<bool>
   mOnWork;
 
@@ -166,7 +169,9 @@ private:
   std::atomic<int> mEnabled;
 
   //uint64_t test;
+  //std::atomic<std::map<uint64_t, std::shared_ptr<eos::QuarkFileMD>>> statusFiles2;
 
+  std::mutex mMutexForStatusFiles;
   std::map<uint64_t, std::shared_ptr<eos::QuarkFileMD>> statusFiles;
   time_t timeCurrentScan;
   time_t timeLastScan;
@@ -179,6 +184,9 @@ private:
 
   std::mutex mutexScanStats;
 
+  int mTestNumber;
+
+  //bool mOnTest;
 
   /// The XRootD OFS plugin implementing the metadata handling of EOS
   // use gOFS it is the same here
@@ -190,9 +198,13 @@ public:
     FailedToGetFileSize(const std::string& msg): std::runtime_error(msg) {}
   };
 
+  void TestFunction();
+
   uint64_t createdFileSize; /// the size of the created files in bytes
 
   uint64_t deletedFileSize; /// The deletion of files for this section;
+
+  uint64_t deletedFileSizeInTotal; /// The size that have been deletede though out the whole time of the systems time.
 
   //std::map<eos::IFileMD::id_t,std::shared_ptr<eos::IFileMD>> simulatedFiles;
 
@@ -224,6 +236,10 @@ public:
 
   uint64_t getMinForDeletion();
 
+  void setSecurity(int security);
+
+  int getSecutiry();
+
   void fillFiles();
 
   void fillFiles(int newFiles);
@@ -242,13 +258,8 @@ public:
   bool DeletionOfFileIDForGenerelFile(std::shared_ptr<eos::QuarkFileMD> file,
                                       uint64_t ageOld);
 
-  //this is for the system in order to make it for all the files
-  uint64_t GetSizeOfFileForGenerelFile(std::shared_ptr<eos::QuarkFileMD> file);
-
   //This is for a not modified file
   uint64_t GetSizeOfFile(std::shared_ptr<DynamicECFile> file);
-
-  uint64_t GetSizeFactor1(std::shared_ptr<DynamicECFile> file);
 
   long double TotalSizeInSystem(std::shared_ptr<eos::QuarkFileMD> file);
 
@@ -261,13 +272,10 @@ public:
 
   void kRaid6(std::shared_ptr<eos::QuarkFileMD> file);
 
-  int DummyFunction(int number);
-
-  bool TrueForAllRequest();
-
   std::uint64_t getFileSizeBytes(const IFileMD::id_t fid);
 
-  //DynamicEC();
+  void printAll();
+
 //test
   //---------------------------------------------------------------------------------------------------
   //! Gets the age from now and how far back it will have to delete files from in seconds.
@@ -279,8 +287,8 @@ public:
 
   DynamicEC(const char* spacename = "default", uint64_t age = 3600,
             uint64_t minsize = 1024 * 1024,
-            double maxThres = 95.0, double minThres = 90.0, bool OnWork = true,
-            int wait = 30);
+            double maxThres = 66.0, double minThres = 65.9, bool OnWork = true,
+            int wait = 30, int securityNew = 1);
 
   ~DynamicEC();
 
@@ -303,7 +311,7 @@ public:
 
   void RunScan(ThreadAssistant& assistant) noexcept;
 
-  void TestThreadFunction(ThreadAssistant& assistant) noexcept;
+
 
 
 };
