@@ -15,6 +15,44 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
+``v4.8.41 Citrine``
+===================
+
+2021-04-14
+
+
+Bug
+----
+
+* [EOS-4607] - The commad eos node config does not accept 'off' when using configstatus
+* [EOS-4627] - FSCK collected time changed after restart
+* [EOS-4629] - Checksum not recomputed after certain truncation operations
+* [EOS-4657] - File in draining with both FST checksums to 0x00
+* [EOS-4659] - Debug command broken
+* [EOS-4653] - Krb5 memory leak in CredentialValidator
+* [EOS-4660] - Potential cross-site scripting vulnerability in the EOS-HTTP
+* [EOS-4639] - Fix possible memory leak when using dense_hash_set objects
+* [EOS-4635] - Failure to share with egroups containing underscore
+* FST: Avoid early return in case of HTTP partial content like for example for range requests
+
+New Feature
+-----------
+
+* [EOS-4623] - Create an utils script to setup a development environment on CentOS7/8
+* [EOS-4062] - Centos8: support "KCM" Kerberos cache
+* [EOS-4609] - Support for excess replicas/stripes
+
+Improvements
+------------
+
+* [EOS-4575] - Error on eos find command when tmp file cannot be created
+* [EOS-4617] - Quota option to provide only the quota of the specified quota node
+* [EOS-4658] - EOS workflow engine should not insist on the W_OK mode bit
+* Fsck improvements when dealing with detached files in general and also hadling
+  wired cases where a file is detached but its parent id is not properly marked as 0
+
+
 ``v4.8.40 Citrine``
 ===================
 
