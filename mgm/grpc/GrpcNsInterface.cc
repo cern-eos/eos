@@ -780,10 +780,8 @@ GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
   }
 
   bool first = true;
-
   auto itf = eos::FileMapIterator(cmd);
   auto itc = eos::ContainerMapIterator(cmd);
-
   viewReadLock.Release();
 
   // stream for listing and file type
@@ -2356,61 +2354,63 @@ GrpcNsInterface::Quota(eos::common::VirtualIdentity& vid,
 
     while (std::getline(f, line)) {
       std::map<std::string, std::string> info;
+
       if (eos::common::StringConversion::GetKeyValueMap(line.c_str(),
-							info,
-							"=",
-							" ")) {
-	auto node = reply->add_quotanode();
-	node->set_path(info["space"]);
+          info,
+          "=",
+          " ")) {
+        auto node = reply->add_quotanode();
+        node->set_path(info["space"]);
 
-	if (info.count("uid")) {
-	  node->set_name(info["uid"]);
-	  node->set_type(eos::rpc::QUOTATYPE::USER);
-	}
+        if (info.count("uid")) {
+          node->set_name(info["uid"]);
+          node->set_type(eos::rpc::QUOTATYPE::USER);
+        }
 
-	if (info.count("gid")) {
-	  node->set_name(info["gid"]);
+        if (info.count("gid")) {
+          node->set_name(info["gid"]);
 
-	  if (info["gid"] == "project") {
-	    node->set_type(eos::rpc::QUOTATYPE::PROJECT);
-	  } else {
-	    node->set_type(eos::rpc::QUOTATYPE::GROUP);
-	  }
-	}
+          if (info["gid"] == "project") {
+            node->set_type(eos::rpc::QUOTATYPE::PROJECT);
+          } else {
+            node->set_type(eos::rpc::QUOTATYPE::GROUP);
+          }
+        }
 
-	node->set_usedbytes(strtoull(info["usedbytes"].c_str(), 0, 10));
-	node->set_usedlogicalbytes(strtoull(info["usedlogicalbytes"].c_str(), 0, 10));
-	node->set_usedfiles(strtoull(info["usedfiles"].c_str(), 0, 10));
-	node->set_maxbytes(strtoull(info["maxbytes"].c_str(), 0, 10));
-	node->set_maxlogicalbytes(strtoull(info["maxlogicalbytes"].c_str(), 0, 10));
-	node->set_maxfiles(strtoull(info["maxfiles"].c_str(), 0, 10));
+        node->set_usedbytes(strtoull(info["usedbytes"].c_str(), 0, 10));
+        node->set_usedlogicalbytes(strtoull(info["usedlogicalbytes"].c_str(), 0, 10));
+        node->set_usedfiles(strtoull(info["usedfiles"].c_str(), 0, 10));
+        node->set_maxbytes(strtoull(info["maxbytes"].c_str(), 0, 10));
+        node->set_maxlogicalbytes(strtoull(info["maxlogicalbytes"].c_str(), 0, 10));
+        node->set_maxfiles(strtoull(info["maxfiles"].c_str(), 0, 10));
 
-	if (node->maxbytes() > 0) {
-	  node->set_percentageusedbytes(100.0 * node->usedbytes() / node->maxbytes());
-	} else {
-	  node->set_percentageusedbytes(0);
-	}
+        if (node->maxbytes() > 0) {
+          node->set_percentageusedbytes(100.0 * node->usedbytes() / node->maxbytes());
+        } else {
+          node->set_percentageusedbytes(0);
+        }
 
-	if (node->maxfiles() > 0) {
-	  node->set_percentageusedfiles(100.0 * node->usedfiles() / node->maxfiles());
-	} else {
-	  node->set_percentageusedfiles(0);
-	}
+        if (node->maxfiles() > 0) {
+          node->set_percentageusedfiles(100.0 * node->usedfiles() / node->maxfiles());
+        } else {
+          node->set_percentageusedfiles(0);
+        }
 
-	node->set_statusbytes(info["statusbytes"]);
-	node->set_statusfiles(info["statusfiles"]);
+        node->set_statusbytes(info["statusbytes"]);
+        node->set_statusfiles(info["statusfiles"]);
       }
     }
   } else if (request->op() == eos::rpc::QUOTAOP::SET) {
     // set quota request
     eos::console::QuotaProto_SetProto* sp = req.mutable_quota()->mutable_set();
     int rc = 0;
+
     // filter by username
     if (request->id().username().length()) {
       sp->set_uid(request->id().username());
     } else {
       if (request->id().uid()) {
-	sp->set_uid(std::to_string(request->id().uid()));
+        sp->set_uid(std::to_string(request->id().uid()));
       }
     }
 
@@ -2418,7 +2418,7 @@ GrpcNsInterface::Quota(eos::common::VirtualIdentity& vid,
       sp->set_gid(request->id().groupname());
     } else {
       if (request->id().gid()) {
-	sp->set_gid(std::to_string(request->id().gid()));
+        sp->set_gid(std::to_string(request->id().gid()));
       }
     }
 
@@ -2428,7 +2428,6 @@ GrpcNsInterface::Quota(eos::common::VirtualIdentity& vid,
 
     sp->set_maxbytes(std::to_string(request->maxbytes()));
     sp->set_maxinodes(std::to_string(request->maxfiles()));
-
     eos::mgm::QuotaCmd cmd(std::move(req), vid);
     eos::console::ReplyProto preply = cmd.ProcessRequest();
 
@@ -2443,12 +2442,13 @@ GrpcNsInterface::Quota(eos::common::VirtualIdentity& vid,
     // delete quota entry
     eos::console::QuotaProto_RmProto* sp = req.mutable_quota()->mutable_rm();
     int rc = 0;
+
     // select uid/gid
     if (request->id().username().length()) {
       sp->set_uid(request->id().username());
     } else {
       if (request->id().uid()) {
-	sp->set_uid(std::to_string(request->id().uid()));
+        sp->set_uid(std::to_string(request->id().uid()));
       }
     }
 
@@ -2456,7 +2456,7 @@ GrpcNsInterface::Quota(eos::common::VirtualIdentity& vid,
       sp->set_gid(request->id().groupname());
     } else {
       if (request->id().gid()) {
-	sp->set_gid(std::to_string(request->id().gid()));
+        sp->set_gid(std::to_string(request->id().gid()));
       }
     }
 
@@ -2468,11 +2468,17 @@ GrpcNsInterface::Quota(eos::common::VirtualIdentity& vid,
     case eos::rpc::QUOTAENTRY::NONE :
       sp->set_type(eos::console::QuotaProto_RmProto::NONE);
       break;
+
     case eos::rpc::QUOTAENTRY::VOLUME :
       sp->set_type(eos::console::QuotaProto_RmProto::VOLUME);
       break;
+
     case eos::rpc::QUOTAENTRY::INODE :
       sp->set_type(eos::console::QuotaProto_RmProto::INODE);
+      break;
+
+    default:
+      sp->set_type(eos::console::QuotaProto_RmProto::NONE);
       break;
     }
 
@@ -2486,10 +2492,10 @@ GrpcNsInterface::Quota(eos::common::VirtualIdentity& vid,
       reply->set_msg(msg);
       return grpc::Status::OK;
     }
-
   } else if (request->op() == eos::rpc::QUOTAOP::RMNODE) {
     // delete quota node
-    eos::console::QuotaProto_RmnodeProto* sp = req.mutable_quota()->mutable_rmnode();
+    eos::console::QuotaProto_RmnodeProto* sp =
+      req.mutable_quota()->mutable_rmnode();
     int rc = 0;
 
     if (request->path().length()) {
@@ -2507,6 +2513,7 @@ GrpcNsInterface::Quota(eos::common::VirtualIdentity& vid,
       return grpc::Status::OK;
     }
   }
+
   reply->set_code(0);
   return grpc::Status::OK;
 }
