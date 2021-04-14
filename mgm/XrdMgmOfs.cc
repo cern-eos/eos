@@ -82,6 +82,7 @@
 #include "mgm/QueryPrepareResponse.hh"
 #include "mgm/auth/AccessChecker.hh"
 #include "mgm/config/IConfigEngine.hh"
+#include "mgm/prepare/PrepareManager.hh"
 #include "mq/SharedHashWrapper.hh"
 #include "mq/FileSystemChangeListener.hh"
 #include "mq/GlobalConfigChangeListener.hh"
@@ -684,6 +685,10 @@ XrdMgmOfs::getVersion()
   return FullVersion.c_str();
 }
 
+//Temporary preprocessor flag to enable the old way to do prepares if necessary
+#define OLD_PREPARE 0
+
+#if OLD_PREPARE
 //------------------------------------------------------------------------------
 // Returns the number of elements within the specified XrdOucTList
 //------------------------------------------------------------------------------
@@ -698,7 +703,7 @@ static unsigned int countNbElementsInXrdOucTList(const XrdOucTList* listPtr)
 
   return count;
 }
-
+#endif
 //-------------------------------------------------------------------------------------
 // Prepare a file or query the status of a previous prepare request
 //-------------------------------------------------------------------------------------
@@ -723,6 +728,10 @@ int
 XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
                     const XrdSecEntity* client)
 {
+#if !OLD_PREPARE
+  PrepareManager pm;
+  return pm.prepare(pargs,error,client);
+#else
   EXEC_TIMING_BEGIN("Prepare");
   eos_info("prepareOpts=\"%s\"", prepareOptsToString(pargs.opts).c_str());
   static const char* epname = "prepare";
@@ -993,6 +1002,7 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 #endif
   EXEC_TIMING_END("Prepare");
   return retc;
+#endif
 }
 
 

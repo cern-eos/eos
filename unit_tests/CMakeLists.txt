@@ -71,7 +71,8 @@ set(MGM_UT_SRCS
   mgm/tgc/TapeGcTests.cc
   mgm/tgc/UtilsTests.cc
   mgm/XrdMgmOfsTests.cc
-  mgm/XrdMgmOfsFileTests.cc)
+  mgm/XrdMgmOfsFileTests.cc
+  mgm/PrepareManagerTest.cc)
 
 set(COMMON_UT_SRCS
   common/FileIdTests.cc
