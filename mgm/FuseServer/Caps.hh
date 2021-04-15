@@ -123,8 +123,10 @@ public:
       return false;
     }
 
-    if (mCaps.count(id)) {
-      shared_cap cap = mCaps[id];
+    // TODO: C++17 - move initialization inside if
+    auto it = mCaps.find(id);
+    if (it != mCaps.end()) {
+      shared_cap cap = it->second;
       uint64_t now = (uint64_t) time(NULL);
 
       if ((cap->vtime() + 10) <= now) {
@@ -174,25 +176,21 @@ public:
     // cleanup by client ids
     {
       eos::common::RWMutexWriteLock lock(*this);
-      if (mClientIds.count(uuid)) {
-	for (auto it = mClientIds[uuid].begin(); it != mClientIds[uuid].end(); ++it) {
-	  mClientCaps.erase(*it);
-	  mClientInoCaps.erase(*it);
-	}
+      auto uuid_iter = mClientIds.find(uuid);
+      if (uuid_iter != mClientIds.end()) {
+        for (auto it = uuid_iter->second.begin(); it != uuid_iter->second.end(); ++it) {
+          mClientCaps.erase(*it);
+          mClientInoCaps.erase(*it);
+        }
+        mClientIds.erase(uuid_iter);
       }
-      mClientIds.erase(uuid);
     }
   }
 
   bool Remove(shared_cap cap)
   {
-    bool rc = false;
-
     // you have to have a write lock for the caps
-    if (mCaps.count(cap->authid())) {
-      rc = true;
-      mCaps.erase(cap->authid());
-    }
+    bool rc = mCaps.erase(cap->authid());
 
     mInodeCaps[cap->id()].erase(cap->authid());
 
