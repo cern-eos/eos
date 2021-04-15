@@ -16,6 +16,19 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.42 Citrine``
+===================
+
+2021-04-14
+
+
+Improvements
+------------
+
+* Drop the use of folly concurrent map and use internal implementation
+* Add job for CentOS8 Stream packages
+
+
 ``v4.8.41 Citrine``
 ===================
 
