@@ -182,6 +182,8 @@ XrdMgmOfs::_verifystripe(const char* path,
     } else {
       errno = 0;
     }
+  } else {
+    errno = 0;
   }
 
   (void) qresp;
