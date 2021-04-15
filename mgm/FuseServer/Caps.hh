@@ -155,13 +155,13 @@ public:
   {
     eos_static_info("drop client caps: %s", uuid.c_str());
 
-    std::set<shared_cap> deleteme;
+    std::vector<shared_cap> deleteme;
     {
       eos::common::RWMutexReadLock lock(*this);
 
       for (auto it=mCaps.begin(); it!=mCaps.end(); ++it) {
         if (it->second->clientuuid() == uuid) {
-          deleteme.insert(it->second);
+          deleteme.push_back(it->second);
         }
       }
     }
