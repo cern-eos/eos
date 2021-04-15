@@ -852,10 +852,6 @@ QuarkContainerMD::getEnv(std::string& env, bool escapeAnd)
 IContainerMD::ContainerMap
 QuarkContainerMD::copyContainerMap() const
 {
-<<<<<<< HEAD
-  //std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-=======
->>>>>>> NS: Add empty/deleted keys for the dense hash maps
   IContainerMD::ContainerMap retval;
   retval.set_deleted_key("");
   retval.set_empty_key("##_EMPTY_##");
