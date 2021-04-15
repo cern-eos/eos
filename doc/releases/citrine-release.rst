@@ -22,6 +22,11 @@ This release is based on XRootD V4 and IPV6 enabled.
 2021-04-14
 
 
+Bug
+----
+
+* [EOS-4545] Option for eosxd mounts to block symlinks walking up the hierarchie
+
 Improvements
 ------------
 
