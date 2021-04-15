@@ -5635,9 +5635,12 @@ EosFuse::readlink(fuse_req_t req, fuse_ino_t ino)
 
   if (!md->id() || md->deleted()) {
     rc = md->deleted() ? ENOENT : md->err();
+    if ( rc == EPERM) {
+      rc = EACCES;
+    }
   } else {
     pcap = Instance().caps.acquire(req, md->pid(),
-                                   X_OK, true);
+                                   Instance().Config().options.x_ok), true);
 
     if (pcap->errc()) {
       rc = pcap->errc();
