@@ -5640,7 +5640,7 @@ EosFuse::readlink(fuse_req_t req, fuse_ino_t ino)
     }
   } else {
     pcap = Instance().caps.acquire(req, md->pid(),
-                                   Instance().Config().options.x_ok), true);
+                                   Instance().Config().options.x_ok, true);
 
     if (pcap->errc()) {
       rc = pcap->errc();
