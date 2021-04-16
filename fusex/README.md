@@ -507,3 +507,44 @@ Allow traversing of directories without 'x' mode
 
 To allow on a mount to cd into directories without 'x' mode bit for the user you can define 'overlay-mode' to allow the access & stat function to work for directories without 'x' bit.
 This is necessary e.g. on a Samba mount to reach a subfolder, which you made accessibla to another person without granting 'x' mode on all parent folders. It is enough to use "1" as overlay mode.
+
+
+File Obfuscation
+----------------
+
+It is possible to obfuscate files inside the mount client using random per file 256-bit key. The original contents of the files is only
+visible using the mount client, all other protocols see obfuscated contents. Obfuscation is enabled per directory defining an extended attribute:
+
+```
+attr set sys.file.obfuscate="1" <mydir>
+```
+
+The obfuscation key is stored on each file as an extended user argument:
+```
+user.obfuscate.key=
+```
+
+
+File Encryption
+---------------
+
+It is possible to combine obfuscation with encryption. To encrypt files using a 256-bit key you just do:
+
+```
+# set the encryption key in your shell environment
+export EOS_FUSE_SECRET=e117c22d-a844-4f53-89d3-43a21e9cdaea
+
+# define a directory to be obfuscated
+attr set sys.file.obfuscate="1" <mydir>
+
+# copy a file into an obfuscating directory
+cp <myfile> <mydir>
+# the file contents is now obfuscate using an hmac mechanism
+
+# the file can be read not obfuscated if the correct secret is set in the process environment
+cp <mydir>/<myfile> /tmp/
+```
+
+If you have read a file and change the key to re-read the file, you might need to drop the buffer cache contents to force a re-read.
+
+If you lose EOS_FUSE_SECRET for a given directory, there is no way to decrypt the contents since the key is stored nowhereelse.
