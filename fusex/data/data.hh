@@ -248,6 +248,15 @@ public:
       return std::to_string(eos::common::FileId::InodeToFid((*mMd)()->md_ino()));
     }
 
+    std::string obfuscate() {
+      auto attrMap = mMd->attr();
+      if (attrMap.count("sys.obfuscate.key")) {
+	return attrMap["sys.obfuscate.key"];
+      } else {
+	return "";
+      }
+    }
+
     std::deque<std::string> recoverystack()
     {
       return mRecoveryStack;

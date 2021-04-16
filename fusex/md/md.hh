@@ -34,6 +34,7 @@
 #include "common/Logging.hh"
 #include "common/RWMutex.hh"
 #include "common/AssistedThread.hh"
+#include "common/SymKeys.hh"
 #include "kv/kv.hh"
 #include "misc/FuseId.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -283,6 +284,68 @@ public:
       return inline_size;
     }
 
+    const bool obfuscate() {
+      auto xattr = attr();
+      if (xattr.count("sys.file.obfuscate")) {
+	return (xattr["sys.file.obfuscate"] == "1");
+      } else {
+	return false;
+      }
+    }
+
+    void set_obfuscate_key (const std::string& key) {
+      (*this->mutable_attr())["user.obfuscate.key"] = key;
+    }
+
+
+    std::string obfuscate_key() {
+      auto xattr = attr();
+      if (xattr.count("user.obfuscate.key")) {
+	return xattr["user.obfuscate.key"];
+      } else {
+	return "";
+      }
+    }
+
+    const char obfuscate_cipher(const std::string& key, off_t offset) {
+      return key.at(offset%key.length());
+    }
+
+    void obfuscate_buffer(char* dst, const char* src, size_t size, off_t offset, std::string secret) {
+      auto key = obfuscate_key();
+      if (secret.length()) {
+	if (hmac.hmac.empty() || (hmac.key != secret)) {
+	  // recompute new hmac
+	  hmac.hmac = eos::common::SymKey::HmacSha256(secret, key);
+	  hmac.key  = secret;
+	}
+	key = hmac.hmac;
+      }
+      for (size_t i = 0; i< size; ++i) {
+	*dst = *src ^ obfuscate_cipher(key, offset+i);
+	src++;
+	dst++;
+      }
+    }
+
+
+    void unobfuscate_buffer(char* buf, size_t size, off_t offset, std::string secret) {
+      auto key = obfuscate_key();
+      if (secret.length()) {
+	if (hmac.hmac.empty() || (hmac.key != secret)) {
+	  // recompute new hmac
+	  hmac.hmac = eos::common::SymKey::HmacSha256(secret, key);
+	  hmac.key  = secret;
+	}
+	key = hmac.hmac;
+      }
+      char* pbuf = buf;
+      for (size_t i = 0; i< size; ++i) {
+	*pbuf++ ^= obfuscate_cipher(key,offset+i);
+
+      }
+    }
+
     void set_inlinesize(uint64_t inlinesize)
     {
       inline_size = inlinesize;
@@ -307,6 +370,7 @@ public:
     {
       _lru_prev.store(prev, std::memory_order_seq_cst);
     }
+
     void set_lru_next(uint64_t next)
     {
       _lru_next.store(next, std::memory_order_seq_cst);
@@ -361,8 +425,14 @@ public:
 
     std::atomic<uint64_t> _lru_prev;
     std::atomic<uint64_t> _lru_next;
-
     eos::fusex::md proto;
+
+    struct hmac_t {
+      std::string key;
+      std::string hmac;
+    };
+
+    hmac_t hmac;
   };
 
   typedef std::shared_ptr<mdx> shared_md;

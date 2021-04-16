@@ -59,7 +59,7 @@ SearchOrder UserCredentialFactory::parse(LogbookScope &scope,
 // Append krb5 UserCredentials built from KRB5CCNAME-equivalent string.
 //------------------------------------------------------------------------------
 void UserCredentialFactory::addKrb5(const JailIdentifier &id, std::string path,
-  uid_t uid, gid_t gid, SearchOrder &out)
+				    uid_t uid, gid_t gid, SearchOrder &out, const std::string& key)
 {
   if(!config.use_user_krb5cc || path.empty()) {
     return;
@@ -68,16 +68,16 @@ void UserCredentialFactory::addKrb5(const JailIdentifier &id, std::string path,
   //----------------------------------------------------------------------------
   // Kerberos keyring?
   //----------------------------------------------------------------------------
-  if(startsWith(path, "KEYRING")) {
-    out.emplace_back(UserCredentials::MakeKrk5(path, uid, gid));
+  if(startswith(path, "KEYRING")) {
+    out.emplace_back(UserCredentials::MakeKrk5(path, uid, gid, key));
     return;
   }
 
   //----------------------------------------------------------------------------
   // Kerberos kcm?
   //----------------------------------------------------------------------------
-  if(startsWith(path, "KCM")) {
-    out.emplace_back(UserCredentials::MakeKcm(path, uid, gid));
+  if(startswith(path, "KCM")) {
+    out.emplace_back(UserCredentials::MakeKcm(path, uid, gid, key));
     return;
   }
 
@@ -96,7 +96,7 @@ void UserCredentialFactory::addKrb5(const JailIdentifier &id, std::string path,
     return;
   }
 
-  out.emplace_back(UserCredentials::MakeKrb5(id, path, uid, gid));
+  out.emplace_back(UserCredentials::MakeKrb5(id, path, uid, gid, key));
   return;
 }
 
@@ -104,7 +104,7 @@ void UserCredentialFactory::addKrb5(const JailIdentifier &id, std::string path,
 // Append OAUTH2 UserCredentials built from KRB5CCNAME-equivalent string.
 //------------------------------------------------------------------------------
 void UserCredentialFactory::addOAUTH2(const JailIdentifier &id, std::string path,
-  uid_t uid, gid_t gid, SearchOrder &out)
+				      uid_t uid, gid_t gid, SearchOrder &out, const std::string& key)
 {
   if(!config.use_user_oauth2 || path.empty()) {
     return;
@@ -125,7 +125,7 @@ void UserCredentialFactory::addOAUTH2(const JailIdentifier &id, std::string path
     return;
   }
 
-  out.emplace_back(UserCredentials::MakeOAUTH2(id, path, uid, gid));
+  out.emplace_back(UserCredentials::MakeOAUTH2(id, path, uid, gid, key));
   return;
 }
 
@@ -134,9 +134,10 @@ void UserCredentialFactory::addOAUTH2(const JailIdentifier &id, std::string path
 // is defined.
 //------------------------------------------------------------------------------
 void UserCredentialFactory::addKrb5FromEnv(const JailIdentifier &id,
-  const Environment& env, uid_t uid, gid_t gid, SearchOrder &out)
+					   const Environment& env, uid_t uid, gid_t gid, SearchOrder &out)
 {
-  return addKrb5(id, env.get("KRB5CCNAME"), uid, gid, out);
+  std::string key = env.get("EOS_FUSE_SECRET");
+  return addKrb5(id, env.get("KRB5CCNAME"), uid, gid, out, key);
 }
 
 //------------------------------------------------------------------------------
@@ -144,9 +145,10 @@ void UserCredentialFactory::addKrb5FromEnv(const JailIdentifier &id,
 // is defined.
 //------------------------------------------------------------------------------
 void UserCredentialFactory::addOAUTH2FromEnv(const JailIdentifier &id,
-  const Environment& env, uid_t uid, gid_t gid, SearchOrder &out)
+					     const Environment& env, uid_t uid, gid_t gid, SearchOrder &out)
 {
-  return addOAUTH2(id, env.get("OAUTH2_TOKEN"), uid, gid, out);
+  std::string key = env.get("EOS_FUSE_SECRET");
+  return addOAUTH2(id, env.get("OAUTH2_TOKEN"), uid, gid, out, key);
 }
 
 
@@ -154,13 +156,13 @@ void UserCredentialFactory::addOAUTH2FromEnv(const JailIdentifier &id,
 // Append krb5 UserCredentials built from X509_USER_PROXY-equivalent string.
 //------------------------------------------------------------------------------
 void UserCredentialFactory::addx509(const JailIdentifier &id, const
-  std::string &path, uid_t uid, gid_t gid, SearchOrder &out)
+				    std::string &path, uid_t uid, gid_t gid, SearchOrder &out, const std::string& key)
 {
   if(!config.use_user_gsiproxy || path.empty()) {
     return;
   }
 
-  out.emplace_back(UserCredentials::MakeX509(id, path, uid, gid));
+  out.emplace_back(UserCredentials::MakeX509(id, path, uid, gid, key));
   return;
 }
 
@@ -168,24 +170,27 @@ void UserCredentialFactory::addx509(const JailIdentifier &id, const
 // Append UserCredentials object built from X509_USER_PROXY
 //------------------------------------------------------------------------------
 void UserCredentialFactory::addx509FromEnv(const JailIdentifier &id,
-  const Environment& env, uid_t uid, gid_t gid, SearchOrder &out)
+					   const Environment& env, uid_t uid, gid_t gid, SearchOrder &out)
 {
-  return addx509(id, env.get("X509_USER_PROXY"), uid, gid, out);
+  std::string key = env.get("EOS_FUSE_SECRET");
+  return addx509(id, env.get("X509_USER_PROXY"), uid, gid, out, key);
 }
 
 //------------------------------------------------------------------------------
 // Populate SearchOrder with entries given in environment variables.
 //------------------------------------------------------------------------------
 void UserCredentialFactory::addDefaultsFromEnv(const JailIdentifier &id,
-  const Environment& env, uid_t uid, gid_t gid, SearchOrder &searchOrder)
+					       const Environment& env, uid_t uid, gid_t gid, SearchOrder &searchOrder)
 {
+  std::string key = env.get("EOS_FUSE_SECRET");
+
   //----------------------------------------------------------------------------
   // Using SSS? If so, add first.
   //----------------------------------------------------------------------------
   if(config.use_user_sss) {
     std::string endorsement = env.get("XrdSecsssENDORSEMENT");
     searchOrder.emplace_back(
-      UserCredentials::MakeSSS(endorsement, uid, gid));
+			     UserCredentials::MakeSSS(endorsement, uid, gid, key));
   }
 
   //----------------------------------------------------------------------------
@@ -225,6 +230,7 @@ bool UserCredentialFactory::parseSingle(LogbookScope &scope,
   const std::string &str, const JailIdentifier &id, const Environment& env,
   uid_t uid, gid_t gid, SearchOrder &out)
 {
+  std::string key = env.get("EOS_FUSE_SECRET");
   //----------------------------------------------------------------------------
   // Defaults?
   //----------------------------------------------------------------------------
@@ -237,8 +243,8 @@ bool UserCredentialFactory::parseSingle(LogbookScope &scope,
   // KRB?
   //----------------------------------------------------------------------------
   const std::string krbPrefix = "krb:";
-  if(startsWith(str, krbPrefix)) {
-    addKrb5(id, str.substr(krbPrefix.size()), uid, gid, out);
+  if(startswith(str, krbPrefix)) {
+    addKrb5(id, str.substr(krbPrefix.size()), uid, gid, out, key);
     return true;
   }
 
@@ -246,8 +252,8 @@ bool UserCredentialFactory::parseSingle(LogbookScope &scope,
   // X509?
   //----------------------------------------------------------------------------
   const std::string x509Prefix = "x509:";
-  if(startsWith(str, x509Prefix)) {
-    addx509(id, str.substr(x509Prefix.size()), uid, gid, out);
+  if(startswith(str, x509Prefix)) {
+    addx509(id, str.substr(x509Prefix.size()), uid, gid, out, key);
     return true;
   }
 

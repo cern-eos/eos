@@ -4206,6 +4206,8 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
       if (!rc) {
         metad::shared_md md;
         metad::shared_md pmd;
+	bool obfuscate = false;
+
         md = Instance().mds.lookup(req, parent, name);
         pmd = Instance().mds.get(req, parent, (*pcap)()->authid());
         {
@@ -4219,12 +4221,15 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
             if ((it != pmd->get_todelete().end()) && it->second) {
               del_ino = it->second;
             }
+
+	    obfuscate = pmd->obfuscate();
           }
 
           if (del_ino) {
             Instance().mds.wait_upstream(req, del_ino);
           }
         }
+
         XrdSysMutexHelper mLock(md->Locker());
 
         if ((*md)()->id() && !md->deleted()) {
@@ -4275,6 +4280,17 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
           (*md)()->set_gid((*pcap)()->gid());
 
           (*md)()->set_type((*md)()->EXCL);
+
+	  if (obfuscate) {
+	    // create a random uuid
+	    char suuid[40];
+	    uuid_t uuid;
+	    uuid_generate_random(uuid);
+	    uuid_unparse(uuid, suuid);
+
+	    (*md)()->set_obfuscate_key(std::string(suuid));
+	    eos_static_err("obfuscating with key='%s'\n", suuid);
+	  }
 
           rc = Instance().mds.add_sync(req, pmd, md, (*pcap)()->authid());
 
@@ -4402,6 +4418,10 @@ EosFuse::read(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
       rc = errno ? errno : EIO;
     } else {
       eos_static_debug("reply res=%lu", res);
+      if (io->md->obfuscate_key().length()) {
+	// un-obfuscate
+	io->md->unobfuscate_buffer(buf, res, off, fusexrdlogin::secret(req));
+      }
       fuse_reply_buf(req, buf, res);
     }
 
@@ -4440,6 +4460,23 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char* buf, size_t size,
   EXEC_TIMING_BEGIN(__func__);
   data::data_fh* io = (data::data_fh*) fi->fh;
   int rc = 0;
+
+  char* obuf = 0;
+
+  if (io->md->obfuscate_key().length()) {
+    // duplicate buffer
+    obuf = (char*) malloc(size);
+    if (!obuf) {
+      // EOM
+      io = nullptr;
+    } else {
+      memcpy(obuf, buf, size);
+      // obfuscate
+      io->md->obfuscate_buffer(obuf, buf, size, off, fusexrdlogin::secret(req));
+      // make the data object read from the obfuscated buffer
+      buf = obuf;
+    }
+  }
 
   if (io) {
     eos_static_debug("max-file-size=%llu", io->maxfilesize());
@@ -4514,6 +4551,10 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char* buf, size_t size,
     fuse_reply_err(req, rc);
   } else {
     ADD_IO_STAT("wbytes", size);
+  }
+
+  if (obuf) {
+    free (obuf);
   }
 
   eos_static_debug("t(ms)=%.03f %s", timing.RealTime(),
