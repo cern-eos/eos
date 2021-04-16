@@ -73,19 +73,19 @@ private:
   //! Append krb5 UserCredentials built from X509_USER_PROXY-equivalent string.
   //----------------------------------------------------------------------------
   void addx509(const JailIdentifier& id, const std::string& path, uid_t uid,
-               gid_t gid, SearchOrder& out);
+               gid_t gid, SearchOrder& out, const std::string& key);
 
   //----------------------------------------------------------------------------
   //! Append krb5 UserCredentials built from KRB5CCNAME-equivalent string.
   //----------------------------------------------------------------------------
   void addKrb5(const JailIdentifier& id, std::string path, uid_t uid,
-               gid_t gid, SearchOrder& out);
+               gid_t gid, SearchOrder& out, const std::string& key);
 
   //----------------------------------------------------------------------------
   //! Append oauth2 UserCredentials built from OAUTH2_TOKEN_FILE-equivalent string.
   //----------------------------------------------------------------------------
   void addOAUTH2(const JailIdentifier& id, std::string path, uid_t uid,
-               gid_t gid, SearchOrder& out);
+		 gid_t gid, SearchOrder& out, const std::string& key);
 
   //----------------------------------------------------------------------------
   //! Append UserCredentials object built from KRB5CCNAME

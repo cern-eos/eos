@@ -154,6 +154,17 @@ std::string fusexrdlogin::xrd_login(fuse_req_t req)
   return login;
 }
 
+std::string fusexrdlogin::secret(fuse_req_t req)
+{
+  fuse_id id(req);
+  ProcessSnapshot snapshot = processCache->retrieve(id.pid, id.uid, id.gid,
+                             false);
+  if (snapshot) {
+    return snapshot->getBoundIdentity()->getCreds()->getKey();
+  }
+  return "";
+}
+
 std::string fusexrdlogin::environment(fuse_req_t req)
 {
   fuse_id id(req);
