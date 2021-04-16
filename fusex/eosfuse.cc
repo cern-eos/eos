@@ -5670,12 +5670,6 @@ EosFuse::readlink(fuse_req_t req, fuse_ino_t ino)
       } else {
         std::string targetpath = localpath;
         targetpath += "/";
-
-        // handle weird '' symlink targets
-        if (target == "''") {
-          target = ".";
-        }
-
         targetpath += target;
         eos::common::Path tPath(targetpath);
         targetpath = tPath.GetPath();
