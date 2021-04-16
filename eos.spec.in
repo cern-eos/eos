@@ -908,7 +908,7 @@ Requires: xrootd-server >= %{xrootd_version_min}
 %description -n eos-quarkdb
 EOS Quarkdb package
 
-%files
+%files -n eos-quarkdb
 %defattr(-, root, root, -)
 %{_libdir}/libXrdQuarkDB.so
 %{_bindir}/quarkdb-tests
