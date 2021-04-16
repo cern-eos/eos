@@ -319,9 +319,9 @@ cd build
 # and may cause GDB to crash.
 
 %if "%{?compiler}" == "gcc"
-  %if 0%{?rhel} == 7
-    source /opt/rh/%{devtoolset}/enable
-  %endif
+%if 0%{?rhel} == 7
+  source /opt/rh/%{devtoolset}/enable
+%endif
 %endif
 
 cd build
@@ -432,9 +432,11 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_libdir}/libEosMgmHttp-*.so
 %{_libdir}/libXrdMqOfs-*.so
 %{_libdir}/libEosNsQuarkdb.so
+
 %if 0%{?rhel} == 7 || 0%{?rhel} == 8
 %{_libdir}/libEosAccSciTokens.so
 %endif
+
 %config(noreplace) %{_sysconfdir}/xrd.cf.fst
 %config(noreplace) %{_sysconfdir}/xrd.cf.mgm
 %config(noreplace) %{_sysconfdir}/xrd.cf.mq
