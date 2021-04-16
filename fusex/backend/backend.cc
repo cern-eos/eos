@@ -1045,7 +1045,7 @@ backend::statvfs(fuse_req_t req,
     stbuf->f_namemax = 1024;
     eos_static_debug("vol=%lu ino=%lu", a1, a4);
   } else {
-    errno = ETIMEDOUT;
+    errno = EACCES;
     ;
   }
 
