@@ -84,12 +84,13 @@ TEST(UserCredentialFactory, BothKrb5AndX509) {
 
   LogbookScope empty;
   SearchOrder searchOrder;
+  std::string key;
   ASSERT_TRUE(factory.parseSingle(empty, "defaults", id, env, 9, 8, searchOrder));
 
   ASSERT_EQ(searchOrder.size(), 3u);
-  ASSERT_EQ(searchOrder[0], UserCredentials::MakeSSS("", 9, 8));
-  ASSERT_EQ(searchOrder[1], UserCredentials::MakeKrb5(id, "/tmp/my-krb5-creds", 9, 8));
-  ASSERT_EQ(searchOrder[2], UserCredentials::MakeX509(id, "/tmp/my-x509-creds", 9, 8));
+  ASSERT_EQ(searchOrder[0], UserCredentials::MakeSSS("", 9, 8, key));
+  ASSERT_EQ(searchOrder[1], UserCredentials::MakeKrb5(id, "/tmp/my-krb5-creds", 9, 8, key));
+  ASSERT_EQ(searchOrder[2], UserCredentials::MakeX509(id, "/tmp/my-x509-creds", 9, 8, key));
 
   // Now swap krb5 <-> x509 order
   config.tryKrb5First = false;
@@ -100,9 +101,9 @@ TEST(UserCredentialFactory, BothKrb5AndX509) {
   // factory.addDefaultsFromEnv(id, env, 8, 9, searchOrder);
 
   ASSERT_EQ(searchOrder.size(), 3u);
-  ASSERT_EQ(searchOrder[0], UserCredentials::MakeSSS("", 8, 9));
-  ASSERT_EQ(searchOrder[1], UserCredentials::MakeX509(id, "/tmp/my-x509-creds", 8, 9));
-  ASSERT_EQ(searchOrder[2], UserCredentials::MakeKrb5(id, "/tmp/my-krb5-creds", 8, 9));
+  ASSERT_EQ(searchOrder[0], UserCredentials::MakeSSS("", 8, 9, key));
+  ASSERT_EQ(searchOrder[1], UserCredentials::MakeX509(id, "/tmp/my-x509-creds", 8, 9, key));
+  ASSERT_EQ(searchOrder[2], UserCredentials::MakeKrb5(id, "/tmp/my-krb5-creds", 8, 9, key));
 }
 
 TEST(UserCredentialFactory, JustKrb5) {
@@ -120,10 +121,12 @@ TEST(UserCredentialFactory, JustKrb5) {
 
   LogbookScope empty;
   SearchOrder searchOrder;
+  std::string key;
+
   ASSERT_TRUE(factory.parseSingle(empty, "defaults", id, env, 12, 14, searchOrder));
 
   ASSERT_EQ(searchOrder.size(), 1u);
-  ASSERT_EQ(searchOrder[0], UserCredentials::MakeKrb5(id, "/tmp/my-krb5-creds", 12, 14));
+  ASSERT_EQ(searchOrder[0], UserCredentials::MakeKrb5(id, "/tmp/my-krb5-creds", 12, 14, key));
 }
 
 TEST(UserCredentialFactory, JustKrk5) {
@@ -141,10 +144,11 @@ TEST(UserCredentialFactory, JustKrk5) {
 
   LogbookScope empty;
   SearchOrder searchOrder;
+  std::string key;
   ASSERT_TRUE(factory.parseSingle(empty, "defaults", id, env, 19, 15, searchOrder));
 
   ASSERT_EQ(searchOrder.size(), 1u);
-  ASSERT_EQ(searchOrder[0], UserCredentials::MakeKrk5("KEYRING:my-keyring", 19, 15));
+  ASSERT_EQ(searchOrder[0], UserCredentials::MakeKrk5("KEYRING:my-keyring", 19, 15, key));
 }
 
 TEST(UserCredentialFactory, ParseSingleKrb5) {
@@ -157,15 +161,16 @@ TEST(UserCredentialFactory, ParseSingleKrb5) {
   Environment env;
   LogbookScope empty;
   SearchOrder searchOrder;
+  std::string key;
 
   ASSERT_TRUE(factory.parseSingle(empty, "krb:FILE:/some-file", id, env, 100, 101, searchOrder));
   ASSERT_EQ(searchOrder.size(), 1u);
-  ASSERT_EQ(searchOrder[0], UserCredentials::MakeKrb5(id, "/some-file", 100, 101));
+  ASSERT_EQ(searchOrder[0], UserCredentials::MakeKrb5(id, "/some-file", 100, 101, key));
 
   searchOrder.clear();
   ASSERT_TRUE(factory.parseSingle(empty, "krb:/some-file-2", id, env, 100, 101, searchOrder));
   ASSERT_EQ(searchOrder.size(), 1u);
-  ASSERT_EQ(searchOrder[0], UserCredentials::MakeKrb5(id, "/some-file-2", 100, 101));
+  ASSERT_EQ(searchOrder[0], UserCredentials::MakeKrb5(id, "/some-file-2", 100, 101, key));
 
   config.use_user_krb5cc = false;
   factory = UserCredentialFactory(config);
@@ -185,10 +190,11 @@ TEST(UserCredentialFactory, ParseSingleKrk5) {
   Environment env;
   LogbookScope empty;
   SearchOrder searchOrder;
+  std::string key;
   ASSERT_TRUE(factory.parseSingle(empty, "krb:KEYRING:my-keyring", id, env, 100, 100, searchOrder));
 
   ASSERT_EQ(searchOrder.size(), 1u);
-  ASSERT_EQ(searchOrder[0], UserCredentials::MakeKrk5("KEYRING:my-keyring", 100, 100));
+  ASSERT_EQ(searchOrder[0], UserCredentials::MakeKrk5("KEYRING:my-keyring", 100, 100, key));
 }
 
 TEST(UserCredentialFactory, ParseSingleX509) {
@@ -201,10 +207,12 @@ TEST(UserCredentialFactory, ParseSingleX509) {
   Environment env;
   LogbookScope empty;
   SearchOrder searchOrder;
+  std::string key;
+
   ASSERT_TRUE(factory.parseSingle(empty, "x509:/tmp/my-gsi-creds", id, env, 200, 201, searchOrder));
 
   ASSERT_EQ(searchOrder.size(), 1u);
-  ASSERT_EQ(searchOrder[0], UserCredentials::MakeX509(id, "/tmp/my-gsi-creds", 200, 201));
+  ASSERT_EQ(searchOrder[0], UserCredentials::MakeX509(id, "/tmp/my-gsi-creds", 200, 201, key));
 }
 
 TEST(UserCredentialFactory, ParseEnv) {
@@ -220,11 +228,12 @@ TEST(UserCredentialFactory, ParseEnv) {
 
   LogbookScope empty;
   SearchOrder searchOrder = factory.parse(empty, id, env, 100, 100);
+  std::string key;
 
   ASSERT_EQ(searchOrder.size(), 3u);
-  ASSERT_EQ(searchOrder[0], UserCredentials::MakeKrb5(id, "/tmp/first", 100, 100));
-  ASSERT_EQ(searchOrder[1], UserCredentials::MakeKrb5(id, "/tmp/second", 100, 100));
-  ASSERT_EQ(searchOrder[2], UserCredentials::MakeKrb5(id, "/tmp-krbccname", 100, 100));
+  ASSERT_EQ(searchOrder[0], UserCredentials::MakeKrb5(id, "/tmp/first", 100, 100, key));
+  ASSERT_EQ(searchOrder[1], UserCredentials::MakeKrb5(id, "/tmp/second", 100, 100, key));
+  ASSERT_EQ(searchOrder[2], UserCredentials::MakeKrb5(id, "/tmp-krbccname", 100, 100, key));
 
   env = {};
   env.push_back("KRB5CCNAME=/tmp-krbccname");
@@ -232,6 +241,6 @@ TEST(UserCredentialFactory, ParseEnv) {
   searchOrder = factory.parse(empty, id, env, 100, 100);
 
   ASSERT_EQ(searchOrder.size(), 2u);
-  ASSERT_EQ(searchOrder[0], UserCredentials::MakeKrb5(id, "/tmp/first", 100, 100));
-  ASSERT_EQ(searchOrder[1], UserCredentials::MakeKrb5(id, "/tmp/second", 100, 100));
+  ASSERT_EQ(searchOrder[0], UserCredentials::MakeKrb5(id, "/tmp/first", 100, 100, key));
+  ASSERT_EQ(searchOrder[1], UserCredentials::MakeKrb5(id, "/tmp/second", 100, 100, key));
 }

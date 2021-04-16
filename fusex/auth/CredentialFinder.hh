@@ -152,6 +152,13 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  // Get the key secret retrieved from the environment
+  //----------------------------------------------------------------------------
+  std::string getKey() const {
+    return uc.secretkey;
+  }
+
+  //----------------------------------------------------------------------------
   // Generate parameters for this TrustedCredential as ParamsMap
   //----------------------------------------------------------------------------
   void toXrdParams(XrdCl::URL::ParamsMap& paramsMap) const

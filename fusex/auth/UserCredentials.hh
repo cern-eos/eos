@@ -115,7 +115,7 @@ struct UserCredentials {
   // resides in, and the uid to validate file permissions.
   //----------------------------------------------------------------------------
   static UserCredentials MakeKrb5(const JailIdentifier& jail,
-    const std::string& path, uid_t uid, gid_t gid) {
+				  const std::string& path, uid_t uid, gid_t gid, const std::string& key) {
 
     UserCredentials retval;
     retval.type = CredentialType::KRB5;
@@ -123,6 +123,7 @@ struct UserCredentials {
     retval.fname = path;
     retval.uid = uid;
     retval.gid = gid;
+    retval.secretkey = key;
     return retval;
   }
 
@@ -130,12 +131,13 @@ struct UserCredentials {
   // Constructor: Make a KRK5 object.
   // TODO(gbitzes): Actually test this...
   //----------------------------------------------------------------------------
-  static UserCredentials MakeKrk5(const std::string &keyring, uid_t uid, gid_t gid) {
+  static UserCredentials MakeKrk5(const std::string &keyring, uid_t uid, gid_t gid, const std::string& key) {
     UserCredentials retval;
     retval.type = CredentialType::KRK5;
     retval.keyring = keyring;
     retval.uid = uid;
     retval.gid = gid;
+    retval.secretkey = key;
     return retval;
   }
 
@@ -144,12 +146,13 @@ struct UserCredentials {
   // Constructor: Make a KCM object.
   // TODO(gbitzes): Actually test this...
   //----------------------------------------------------------------------------
-  static UserCredentials MakeKcm(const std::string &kcm, uid_t uid, gid_t gid) {
+  static UserCredentials MakeKcm(const std::string &kcm, uid_t uid, gid_t gid, const std::string& key) {
     UserCredentials retval;
     retval.type = CredentialType::KCM;
     retval.kcm = kcm;
     retval.uid = uid;
     retval.gid = gid;
+    retval.secretkey = key;
     return retval;
   }
 
@@ -158,7 +161,7 @@ struct UserCredentials {
   // TODO(gbitzes): Actually test this...
   //----------------------------------------------------------------------------
   static UserCredentials MakeOAUTH2(const JailIdentifier& jail,
-    const std::string& path, uid_t uid, gid_t gid) {
+				    const std::string& path, uid_t uid, gid_t gid, const std::string& key) {
 
     UserCredentials retval;
     retval.type = CredentialType::OAUTH2;
@@ -166,6 +169,7 @@ struct UserCredentials {
     retval.fname = path;
     retval.uid = uid;
     retval.gid = gid;    
+    retval.secretkey = key;
     std::string out;
     return retval;
   }
@@ -176,7 +180,7 @@ struct UserCredentials {
   // resides in, and the uid to validate file permissions.
   //----------------------------------------------------------------------------
   static UserCredentials MakeX509(const JailIdentifier& jail,
-    const std::string &path, uid_t uid, gid_t gid) {
+				  const std::string &path, uid_t uid, gid_t gid, const std::string& key) {
 
     UserCredentials retval;
     retval.type = CredentialType::X509;
@@ -184,6 +188,7 @@ struct UserCredentials {
     retval.fname = path;
     retval.uid = uid;
     retval.gid = gid;
+    retval.secretkey = key;
     return retval;
   }
 
@@ -205,13 +210,14 @@ struct UserCredentials {
   // persisting uid/gid here is pointless.
   //----------------------------------------------------------------------------
   static UserCredentials MakeSSS(const std::string &endorsement, uid_t uid,
-    gid_t gid) {
+				 gid_t gid, const std::string& key) {
 
     UserCredentials retval;
     retval.type = CredentialType::SSS;
     retval.endorsement = endorsement;
     retval.uid = uid;
     retval.gid = gid;
+    retval.secretkey = key;
     return retval;
   }
 
@@ -238,6 +244,7 @@ struct UserCredentials {
   std::string keyring;     // kernel keyring for krk5
   std::string kcm;         // kcm for kcm
   std::string endorsement; // endorsement for sss
+  std::string secretkey;   // secret key for encryptions
   uid_t uid;               // uid for krb5, x509, sss, unix
   gid_t gid;               // gid for krb5, x509, sss, unix
 
@@ -256,6 +263,10 @@ struct UserCredentials {
 
     if (keyring != src.keyring) {
       return keyring < src.keyring;
+    }
+
+    if (secretkey != src.secretkey) {
+      return secretkey < src.secretkey;
     }
 
     if (endorsement != src.endorsement) {
@@ -278,6 +289,7 @@ struct UserCredentials {
            jail        ==   src.jail        &&
            fname       ==   src.fname       &&
            keyring     ==   src.keyring     &&
+           secretkey   ==   src.secretkey   &&
            endorsement ==   src.endorsement &&
            uid         ==   src.uid         &&
            gid         ==   src.gid;
@@ -294,21 +306,21 @@ struct UserCredentials {
       case CredentialType::KRB5:
       case CredentialType::OAUTH2:
       case CredentialType::X509: {
-        ss << ": " << fname << " for uid=" << uid << ", gid=" << gid <<
+        ss << ": " << fname << " for uid=" << uid << ", gid=" << gid << ", secret=" << secretkey <<
           ", under " << jail.describe();
         break;
       }
       case CredentialType::KRK5: {
-        ss << ": " << keyring << " for uid=" << uid << ", gid=" << gid;
+        ss << ": " << keyring << " for uid=" << uid << ", gid=" << gid << ", secret=" << secretkey;
         break;
       }
       case CredentialType::KCM: {
-        ss << ": " << kcm << " for uid=" << uid << ", gid=" << gid;
+        ss << ": " << kcm << " for uid=" << uid << ", gid=" << gid << ", secret=" << secretkey;
         break;
       }
       case CredentialType::SSS: {
         ss << " with endorsement of size " << endorsement.size() <<
-          ", for uid=" << uid << ", gid=" << gid;
+          ", for uid=" << uid << ", gid=" << gid << ", secret=" << secretkey;
         break;
       }
       case CredentialType::NOBODY:
