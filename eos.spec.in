@@ -892,6 +892,34 @@ if [ "$1" -ge "1" ]; then # Upgrade
 fi
 
 %if %{?_with_server:1}%{!?_with_server:0}
+
+#-------------------------------------------------------------------------------
+# Package eos-quarkdb
+#-------------------------------------------------------------------------------
+%package -n eos-quarkdb
+Summary: EOS QuarkDB package
+Group: Applications/File
+
+Requires: lz4-devel, lz4, elfutils-devel, jemalloc
+Requires: xrootd-server >= %{xrootd_version_min}
+
+%description -n eos-quarkdb
+EOS Quarkdb package
+
+%files
+%defattr(-, root, root, -)
+%{_libdir}/libXrdQuarkDB.so
+%{_bindir}/quarkdb-tests
+%{_bindir}/quarkdb-stress-tests
+%{_bindir}/quarkdb-sudo-tests
+%{_bindir}/quarkdb-bench
+%{_bindir}/quarkdb-create
+%{_bindir}/quarkdb-ldb
+%{_bindir}/quarkdb-recovery
+%{_bindir}/quarkdb-server
+%{_bindir}/quarkdb-sst-inspect
+%{_bindir}/quarkdb-validate-checkpoint
+
 #-------------------------------------------------------------------------------
 # Package eos-srm
 #-------------------------------------------------------------------------------
