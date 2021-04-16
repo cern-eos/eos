@@ -4251,6 +4251,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
             Instance().mds.wait_upstream(req, del_ino);
           }
         }
+
         XrdSysMutexHelper mLock(md->Locker());
 
         if ((*md)()->id() && !md->deleted()) {
@@ -4496,6 +4497,23 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char* buf, size_t size,
     } else {
       memcpy(obuf, buf, size);
       eos_static_debug("secret=%s", fusexrdlogin::secret(req).c_str());
+      // obfuscate
+      io->md->obfuscate_buffer(obuf, buf, size, off, fusexrdlogin::secret(req));
+      // make the data object read from the obfuscated buffer
+      buf = obuf;
+    }
+  }
+
+  char* obuf = 0;
+
+  if (io->md->obfuscate_key().length()) {
+    // duplicate buffer
+    obuf = (char*) malloc(size);
+    if (!obuf) {
+      // EOM
+      io = nullptr;
+    } else {
+      memcpy(obuf, buf, size);
       // obfuscate
       io->md->obfuscate_buffer(obuf, buf, size, off, fusexrdlogin::secret(req));
       // make the data object read from the obfuscated buffer

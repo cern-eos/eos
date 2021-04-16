@@ -340,7 +340,6 @@ public:
       }
     }
 
-
     void unobfuscate_buffer(char* buf, size_t size, off_t offset,
                             std::string secret)
     {
