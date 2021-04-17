@@ -171,8 +171,8 @@ build_cs8:
     paths:
       - cs8_artifacts/
   only:
-#    - schedules
-#    - tags
+    - schedules
+    - tags
   allow_failure: true # @todo dont
   tags:
     - docker_node
