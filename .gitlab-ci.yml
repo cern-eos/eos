@@ -1343,20 +1343,14 @@ clean_debian_artifacts:
     - docker_node
     - clean
 
+# get all the namespaces, filter out the "mgmt" ones, delete if older than 30h
 clean_k8s_cluster:
   stage: clean
   image: alpine/k8s:1.18.2
   script:
-    - set +o pipefail
     - export KUBECONFIG=$K8S_CONFIG
-    - kubectl get pods --no-headers --all-namespaces | 
-      grep -E 'ImagePullBackOff|ErrImagePull|Evicted' | 
-      awk '{print $2 " --namespace=" $1}' | 
-      xargs --no-run-if-empty -n2 kubectl delete pods
-    - kubectl get namespaces --no-headers -o custom-columns=":metadata.name,:.metadata.creationTimestamp" | 
-      grep -v 'default\|kube-node-lease\|kube-public\|kube-system\|magnum-tiller' |
-      awk '$2 <= "'$( date --utc -d "1 day ago" +"%Y-%m-%dT%H:%M:%SZ" )'" { print $1 }' |
-      xargs --no-run-if-empty kubectl delete namespaces
+    - kubectl get namespaces | grep -v 'default\|kube-node-lease\|kube-public\|kube-system\|magnum-tiller' |
+        awk 'match($3,/[3-9][0-9]+h||[[:alnum:]]+d/) {print $1}' | xargs --no-run-if-empty kubectl delete namespaces
   dependencies: []
   allow_failure: true
   only:
