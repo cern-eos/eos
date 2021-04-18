@@ -2,7 +2,7 @@
 
 .. _tokens:
 
-Using Eos Tokens for Authorization
+Using EOS Tokens for Authorization
 ==================================
 
 We provide a generic EOS mechanism to delegate permissions to a token bearer with s.c. EOS tokens. 
