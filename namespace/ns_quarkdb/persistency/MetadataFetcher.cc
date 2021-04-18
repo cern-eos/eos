@@ -68,8 +68,9 @@ MDStatus ensureStringReply(redisReplyPtr& reply)
 //------------------------------------------------------------------------------
 // Helper method to check that a redis reply is 0/1
 //------------------------------------------------------------------------------
-MDStatus ensureBoolReply(redisReplyPtr& reply) {
-  if(!reply) {
+MDStatus ensureBoolReply(redisReplyPtr& reply)
+{
+  if (!reply) {
     return MDStatus(EFAULT, "QuarkDB backend not available!");
   }
 
@@ -79,7 +80,7 @@ MDStatus ensureBoolReply(redisReplyPtr& reply) {
                          << qclient::describeRedisReply(reply)));
   }
 
-  if(reply->integer != 0 && reply->integer != 1) {
+  if (reply->integer != 0 && reply->integer != 1) {
     return MDStatus(EFAULT,
                     SSTR("Received unexpected integer, was expecting {0,1}: "
                          << qclient::describeRedisReply(reply)));
@@ -91,8 +92,9 @@ MDStatus ensureBoolReply(redisReplyPtr& reply) {
 //------------------------------------------------------------------------------
 // Helper method to check that a redis reply is uint64_t
 //------------------------------------------------------------------------------
-MDStatus ensureUInt64Reply(redisReplyPtr& reply) {
-  if(!reply) {
+MDStatus ensureUInt64Reply(redisReplyPtr& reply)
+{
+  if (!reply) {
     return MDStatus(EFAULT, "QuarkDB backend not available!");
   }
 
@@ -102,7 +104,7 @@ MDStatus ensureUInt64Reply(redisReplyPtr& reply) {
                          << qclient::describeRedisReply(reply)));
   }
 
-  if(reply->integer < 0) {
+  if (reply->integer < 0) {
     return MDStatus(EFAULT,
                     SSTR("Received unexpected value, was expecting a uint64_t: "
                          << qclient::describeRedisReply(reply)));
@@ -149,7 +151,11 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  MapFetcher() = default;
+  MapFetcher()
+  {
+    mContents.set_deleted_key("");
+    mContents.set_empty_key("##_EMPTY_##");
+  }
 
   //----------------------------------------------------------------------------
   //! Initialize
@@ -219,7 +225,7 @@ public:
         return set_exception(st);
       }
 
-      mContents.insert_or_assign(filename, value);
+      mContents.insert(std::make_pair(filename, value));
     }
 
     // Fire off next request?
@@ -299,14 +305,14 @@ static bool
 checkFileMdProtoExistence(redisReplyPtr reply, FileIdentifier id)
 {
   MDStatus st = ensureStringReply(reply);
-  if(st.getErrno() == ENOENT) {
+
+  if (st.getErrno() == ENOENT) {
     return false;
   }
 
   st.throwIfNotOk(SSTR("Error while fetching FileMD #"
                        << id.getUnderlyingUInt64()
                        << " protobuf from QDB: "));
-
   return true;
 }
 
@@ -317,7 +323,8 @@ static bool
 checkContainerMdProtoExistence(redisReplyPtr reply, ContainerIdentifier id)
 {
   MDStatus st = ensureStringReply(reply);
-  if(st.getErrno() == ENOENT) {
+
+  if (st.getErrno() == ENOENT) {
     return false;
   }
 
@@ -331,7 +338,8 @@ checkContainerMdProtoExistence(redisReplyPtr reply, ContainerIdentifier id)
 // Check if given container id exists on the namespace
 //----------------------------------------------------------------------------
 folly::Future<bool>
-MetadataFetcher::doesContainerMdExist(qclient::QClient& qcl, ContainerIdentifier id)
+MetadataFetcher::doesContainerMdExist(qclient::QClient& qcl,
+                                      ContainerIdentifier id)
 {
   return qcl.follyExec(RequestBuilder::readContainerProto(id))
          .thenValue(std::bind(checkContainerMdProtoExistence, _1, id));
@@ -400,7 +408,7 @@ std::string MetadataFetcher::keySubFiles(IContainerMD::id_t id)
 //------------------------------------------------------------------------------
 folly::Future<IContainerMD::FileMap>
 MetadataFetcher::getFileMap(qclient::QClient& qcl,
-                                     ContainerIdentifier container)
+                            ContainerIdentifier container)
 {
   MapFetcher<MapFetcherFileTrait>* fetcher = new
   MapFetcher<MapFetcherFileTrait>();
@@ -412,11 +420,11 @@ MetadataFetcher::getFileMap(qclient::QClient& qcl,
 //------------------------------------------------------------------------------
 folly::Future<std::vector<folly::Future<eos::ns::FileMdProto>>>
 MetadataFetcher::getFileMDsInContainer(qclient::QClient& qcl,
-  ContainerIdentifier container, folly::Executor *executor)
+                                       ContainerIdentifier container, folly::Executor* executor)
 {
   folly::Future<IContainerMD::FileMap> filemap = getFileMap(qcl, container);
   return filemap.via(executor)
-    .thenValue(std::bind(MetadataFetcher::getFilesFromFilemapV, std::ref(qcl), _1));
+         .thenValue(std::bind(MetadataFetcher::getFilesFromFilemapV, std::ref(qcl), _1));
 }
 
 //----------------------------------------------------------------------------
@@ -424,13 +432,13 @@ MetadataFetcher::getFileMDsInContainer(qclient::QClient& qcl,
 //----------------------------------------------------------------------------
 folly::Future<std::vector<folly::Future<eos::ns::ContainerMdProto>>>
 MetadataFetcher::getContainerMDsInContainer(qclient::QClient& qcl,
-  ContainerIdentifier container, folly::Executor *executor)
+    ContainerIdentifier container, folly::Executor* executor)
 {
   folly::Future<IContainerMD::ContainerMap> containerMap =
     getContainerMap(qcl, container);
-
   return containerMap.via(executor)
-    .thenValue(std::bind(MetadataFetcher::getContainersFromContainerMapV, std::ref(qcl), _1));
+         .thenValue(std::bind(MetadataFetcher::getContainersFromContainerMapV,
+                              std::ref(qcl), _1));
 }
 
 //------------------------------------------------------------------------------
@@ -438,19 +446,20 @@ MetadataFetcher::getContainerMDsInContainer(qclient::QClient& qcl,
 // filename.
 //------------------------------------------------------------------------------
 std::vector<folly::Future<eos::ns::FileMdProto>>
-MetadataFetcher::getFilesFromFilemap(qclient::QClient& qcl, const IContainerMD::FileMap &fileMap) {
-
+    MetadataFetcher::getFilesFromFilemap(qclient::QClient& qcl,
+        const IContainerMD::FileMap& fileMap)
+{
   // FileMap is a hashmap, thus unsorted.. We want the results to be sorted
   // based on filename, though.
   std::map<std::string, IFileMD::id_t> sortedFileMap;
 
-  for (auto it = fileMap.cbegin(); it != fileMap.cend(); ++it) {
+  for (auto it = fileMap.begin(); it != fileMap.end(); ++it) {
     sortedFileMap[it->first] = it->second;
   }
 
   std::vector<folly::Future<eos::ns::FileMdProto>> retval;
 
-  for(auto it = sortedFileMap.begin(); it != sortedFileMap.end(); it++) {
+  for (auto it = sortedFileMap.begin(); it != sortedFileMap.end(); it++) {
     retval.emplace_back(getFileFromId(qcl, FileIdentifier(it->second)));
   }
 
@@ -461,8 +470,9 @@ MetadataFetcher::getFilesFromFilemap(qclient::QClient& qcl, const IContainerMD::
 // Same as above, but fileMap is passed as a value.
 //------------------------------------------------------------------------------
 std::vector<folly::Future<eos::ns::FileMdProto>>
-MetadataFetcher::getFilesFromFilemapV(qclient::QClient& qcl,
-  IContainerMD::FileMap fileMap) {
+    MetadataFetcher::getFilesFromFilemapV(qclient::QClient& qcl,
+        IContainerMD::FileMap fileMap)
+{
   return getFilesFromFilemap(qcl, fileMap);
 }
 
@@ -471,20 +481,21 @@ MetadataFetcher::getFilesFromFilemapV(qclient::QClient& qcl,
 // Vector is sorted by filename.
 //------------------------------------------------------------------------------
 std::vector<folly::Future<eos::ns::ContainerMdProto>>
-MetadataFetcher::getContainersFromContainerMap(qclient::QClient& qcl,
-  const IContainerMD::ContainerMap &containerMap) {
-
+    MetadataFetcher::getContainersFromContainerMap(qclient::QClient& qcl,
+        const IContainerMD::ContainerMap& containerMap)
+{
   // ContainerMap is a hashmap, thus unsorted.. We want the results to be
   // sorted based on filename, though.
-  std::map<std::string ,IContainerMD::id_t> sortedContainerMap;
+  std::map<std::string , IContainerMD::id_t> sortedContainerMap;
 
-  for(auto it = containerMap.cbegin(); it != containerMap.cend(); ++it) {
+  for (auto it = containerMap.begin(); it != containerMap.end(); ++it) {
     sortedContainerMap[it->first] = it->second;
   }
 
   std::vector<folly::Future<eos::ns::ContainerMdProto>> retval;
 
-  for(auto it = sortedContainerMap.cbegin(); it != sortedContainerMap.cend(); it++) {
+  for (auto it = sortedContainerMap.cbegin(); it != sortedContainerMap.cend();
+       it++) {
     retval.emplace_back(getContainerFromId(qcl, ContainerIdentifier(it->second)));
   }
 
@@ -495,8 +506,8 @@ MetadataFetcher::getContainersFromContainerMap(qclient::QClient& qcl,
 // Same as above, but containerMap is passed as a value.
 //------------------------------------------------------------------------------
 std::vector<folly::Future<eos::ns::ContainerMdProto>>
-MetadataFetcher::getContainersFromContainerMapV(qclient::QClient& qcl,
-  IContainerMD::ContainerMap containerMap)
+    MetadataFetcher::getContainersFromContainerMapV(qclient::QClient& qcl,
+        IContainerMD::ContainerMap containerMap)
 {
   return getContainersFromContainerMap(qcl, containerMap);
 }
@@ -506,7 +517,7 @@ MetadataFetcher::getContainersFromContainerMapV(qclient::QClient& qcl,
 //------------------------------------------------------------------------------
 folly::Future<IContainerMD::ContainerMap>
 MetadataFetcher::getContainerMap(qclient::QClient& qcl,
-                                  ContainerIdentifier container)
+                                 ContainerIdentifier container)
 {
   MapFetcher<MapFetcherContainerTrait>* fetcher =
     new MapFetcher<MapFetcherContainerTrait>();
@@ -577,8 +588,10 @@ MetadataFetcher::getContainerIDFromName(qclient::QClient& qcl,
 // Resolve FileMdProto from parent ID + name
 //------------------------------------------------------------------------------
 folly::Future<eos::ns::FileMdProto>
-MetadataFetcher::getFileFromName(qclient::QClient& qcl, ContainerIdentifier parent_id,
-                                 const std::string& name) {
+MetadataFetcher::getFileFromName(qclient::QClient& qcl,
+                                 ContainerIdentifier parent_id,
+                                 const std::string& name)
+{
   return getFileIDFromName(qcl, parent_id, name)
          .thenValue(std::bind(getFileFromId, std::ref(qcl), _1));
 }
@@ -587,8 +600,10 @@ MetadataFetcher::getFileFromName(qclient::QClient& qcl, ContainerIdentifier pare
 //! Resolve ContainerMdProto from parent ID + name
 //----------------------------------------------------------------------------
 folly::Future<eos::ns::ContainerMdProto>
-MetadataFetcher::getContainerFromName(qclient::QClient& qcl, ContainerIdentifier parent_id,
-                                      const std::string& name) {
+MetadataFetcher::getContainerFromName(qclient::QClient& qcl,
+                                      ContainerIdentifier parent_id,
+                                      const std::string& name)
+{
   return getContainerIDFromName(qcl, parent_id, name)
          .thenValue(std::bind(getContainerFromId, std::ref(qcl), _1));
 }
@@ -596,17 +611,22 @@ MetadataFetcher::getContainerFromName(qclient::QClient& qcl, ContainerIdentifier
 //------------------------------------------------------------------------------
 // Parse bool response
 //------------------------------------------------------------------------------
-bool parseBoolResponse(redisReplyPtr reply) {
+bool parseBoolResponse(redisReplyPtr reply)
+{
   ensureBoolReply(reply).throwIfNotOk("");
 
-  if(reply->integer == 0) return false;
+  if (reply->integer == 0) {
+    return false;
+  }
+
   return true;
 }
 
 //------------------------------------------------------------------------------
 // Parse uint64_t response
 //------------------------------------------------------------------------------
-uint64_t parseUInt64Response(redisReplyPtr reply) {
+uint64_t parseUInt64Response(redisReplyPtr reply)
+{
   ensureUInt64Reply(reply).throwIfNotOk("");
   return reply->integer;
 }
@@ -615,19 +635,20 @@ uint64_t parseUInt64Response(redisReplyPtr reply) {
 // Is the given location of a FileID contained in the FsView?
 //------------------------------------------------------------------------------
 folly::Future<bool>
-MetadataFetcher::locationExistsInFsView(qclient::QClient& qcl, FileIdentifier id,
-  int64_t location, bool unlinked)
+MetadataFetcher::locationExistsInFsView(qclient::QClient& qcl,
+                                        FileIdentifier id,
+                                        int64_t location, bool unlinked)
 {
   std::string key;
-  if(!unlinked) {
+
+  if (!unlinked) {
     key = SSTR("fsview:" << location << ":files");
-  }
-  else {
+  } else {
     key = SSTR("fsview:" << location << ":unlinked");
   }
 
   return qcl.follyExec("SISMEMBER",
-    key, SSTR(id.getUnderlyingUInt64())).thenValue(parseBoolResponse);
+                       key, SSTR(id.getUnderlyingUInt64())).thenValue(parseBoolResponse);
 }
 
 //------------------------------------------------------------------------------
@@ -639,16 +660,17 @@ public:
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  FullPathResolver(qclient::QClient &qcl, ContainerIdentifier cont)
-  : mQcl(qcl), mContainerID(cont) {}
+  FullPathResolver(qclient::QClient& qcl, ContainerIdentifier cont)
+    : mQcl(qcl), mContainerID(cont) {}
 
   //----------------------------------------------------------------------------
   // Initialize, fire off first request
   //----------------------------------------------------------------------------
-  folly::Future<std::string> initialize() {
+  folly::Future<std::string> initialize()
+  {
     folly::Future<std::string> fut = mPromise.getFuture();
 
-    if(mContainerID == ContainerIdentifier(1)) {
+    if (mContainerID == ContainerIdentifier(1)) {
       // Short-circuit lookup, return "/"
       set_value();
       return fut;
@@ -661,12 +683,13 @@ public:
   //----------------------------------------------------------------------------
   //! Handle response
   //----------------------------------------------------------------------------
-  virtual void handleResponse(redisReplyPtr&& reply) override {
+  virtual void handleResponse(redisReplyPtr&& reply) override
+  {
     if (!reply) {
       return set_exception(EFAULT, "QuarkDB backend not available!");
     }
 
-    if(reply->type != REDIS_REPLY_STRING) {
+    if (reply->type != REDIS_REPLY_STRING) {
       return set_exception(EFAULT, SSTR("Received unexpected response: "
                                         << qclient::describeRedisReply(reply)));
     }
@@ -674,34 +697,38 @@ public:
     eos::ns::ContainerMdProto proto;
     MDStatus status = Serialization::deserialize(reply->str, reply->len, proto);
 
-    if(!status.ok()) {
+    if (!status.ok()) {
       return set_exception(status);
     }
 
     mPathStack.emplace_front(proto.name());
 
-    if(proto.parent_id() == 1) {
+    if (proto.parent_id() == 1) {
       // We're done
       return set_value();
     }
 
     // Lookup next chunk
-    mQcl.execCB(this, RequestBuilder::readContainerProto(ContainerIdentifier(proto.parent_id())));
+    mQcl.execCB(this, RequestBuilder::readContainerProto(ContainerIdentifier(
+                  proto.parent_id())));
   }
 
   //----------------------------------------------------------------------------
   // Return exception by passing it to the promise
   //----------------------------------------------------------------------------
-  void set_exception(const MDStatus& status) {
+  void set_exception(const MDStatus& status)
+  {
     return set_exception(status.getErrno(), status.getError());
   }
 
   //----------------------------------------------------------------------------
   // Return exception by passing it to the promise
   //----------------------------------------------------------------------------
-  void set_exception(int err, const std::string& msg) {
+  void set_exception(int err, const std::string& msg)
+  {
     mPromise.setException(
-      make_mdexception(err, SSTR("Error while reconstructing full path of container #" << mContainerID.getUnderlyingUInt64()
+      make_mdexception(err, SSTR("Error while reconstructing full path of container #"
+                                 << mContainerID.getUnderlyingUInt64()
                                  << " from QDB: " << msg)));
     delete this; // harakiri
   }
@@ -709,11 +736,12 @@ public:
   //----------------------------------------------------------------------------
   // Set value, we're done
   //----------------------------------------------------------------------------
-  void set_value() {
+  void set_value()
+  {
     std::ostringstream ss;
     ss << "/";
 
-    for(size_t i = 0; i < mPathStack.size(); i++) {
+    for (size_t i = 0; i < mPathStack.size(); i++) {
       ss << mPathStack[i] << "/";
     }
 
@@ -735,61 +763,70 @@ private:
 // detached from "/".
 //------------------------------------------------------------------------------
 folly::Future<std::string>
-MetadataFetcher::resolveFullPath(qclient::QClient& qcl, ContainerIdentifier containerID) {
-  FullPathResolver *resolver = new FullPathResolver(qcl, containerID);
+MetadataFetcher::resolveFullPath(qclient::QClient& qcl,
+                                 ContainerIdentifier containerID)
+{
+  FullPathResolver* resolver = new FullPathResolver(qcl, containerID);
   return resolver->initialize();
 }
 
 //------------------------------------------------------------------------------
 // Helper class to resolve a path to an ID - no symlink support yet.
 //------------------------------------------------------------------------------
-class ReversePathResolver {
+class ReversePathResolver
+{
 public:
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  ReversePathResolver(qclient::QClient &qcl, const std::string &path)
-  : mQcl(qcl), mPath(path) {
+  ReversePathResolver(qclient::QClient& qcl, const std::string& path)
+    : mQcl(qcl), mPath(path)
+  {
     eos::PathProcessor::insertChunksIntoDeque(mPathStack, path);
   }
 
   //----------------------------------------------------------------------------
   // Initialize, fire off first request
   //----------------------------------------------------------------------------
-  folly::Future<FileOrContainerIdentifier> initialize() {
+  folly::Future<FileOrContainerIdentifier> initialize()
+  {
     folly::Future<FileOrContainerIdentifier> fut = mPromise.getFuture();
 
-    if(mPathStack.size() == 0) {
+    if (mPathStack.size() == 0) {
       set_value(ContainerIdentifier(1));
-    }
-    else {
+    } else {
       startNextRound(ContainerIdentifier(1));
     }
 
     return fut;
   }
 
-  void handleIncomingFile(eos::ns::FileMdProto proto) {
+  void handleIncomingFile(eos::ns::FileMdProto proto)
+  {
     return set_value(FileIdentifier(proto.id()));
   }
 
-  void handleIncomingContainer(eos::ns::ContainerMdProto proto) {
+  void handleIncomingContainer(eos::ns::ContainerMdProto proto)
+  {
     mPathStack.pop_front();
 
-    if(mPathStack.empty()) {
+    if (mPathStack.empty()) {
       return set_value(ContainerIdentifier(proto.id()));
     }
 
     startNextRound(ContainerIdentifier(proto.id()));
   }
 
-  void handleIncomingFileError(const folly::exception_wrapper &e) {
+  void handleIncomingFileError(const folly::exception_wrapper& e)
+  {
     mPromise.setException(e);
     delete this; // harakiri
   }
 
-  void handleIncomingContainerError(ContainerIdentifier parent, const folly::exception_wrapper &e) {
-    if(mPathStack.size() == 1) {
+  void handleIncomingContainerError(ContainerIdentifier parent,
+                                    const folly::exception_wrapper& e)
+  {
+    if (mPathStack.size() == 1) {
       MetadataFetcher::getFileFromName(mQcl, parent, mPathStack.front())
       .thenValue(std::bind(&ReversePathResolver::handleIncomingFile, this, _1))
       .thenError([this](const folly::exception_wrapper & e) {
@@ -805,7 +842,8 @@ public:
   //----------------------------------------------------------------------------
   // Return exception by passing it to the promise
   //----------------------------------------------------------------------------
-  void set_exception(int err, const std::string& msg) {
+  void set_exception(int err, const std::string& msg)
+  {
     mPromise.setException(
       make_mdexception(err, SSTR("Error while resolving path " << mPath <<
                                  " from QDB: " << msg)));
@@ -815,7 +853,8 @@ public:
   //----------------------------------------------------------------------------
   // Set value, we're done
   //----------------------------------------------------------------------------
-  void set_value(FileOrContainerIdentifier outcome) {
+  void set_value(FileOrContainerIdentifier outcome)
+  {
     mPromise.setValue(outcome);
     delete this;
   }
@@ -824,7 +863,8 @@ private:
   //----------------------------------------------------------------------------
   // Start next asynchronous round
   //----------------------------------------------------------------------------
-  void startNextRound(ContainerIdentifier parent) {
+  void startNextRound(ContainerIdentifier parent)
+  {
     MetadataFetcher::getContainerFromName(mQcl, parent, mPathStack.front())
     .thenValue(std::bind(&ReversePathResolver::handleIncomingContainer, this, _1))
     .thenError([this, parent](const folly::exception_wrapper & e) {
@@ -842,8 +882,10 @@ private:
 // Resolve a path to an ID.
 //------------------------------------------------------------------------------
 folly::Future<FileOrContainerIdentifier>
-MetadataFetcher::resolvePathToID(qclient::QClient& qcl, const std::string &path) {
-  ReversePathResolver *resolver = new ReversePathResolver(qcl, path);
+MetadataFetcher::resolvePathToID(qclient::QClient& qcl,
+                                 const std::string& path)
+{
+  ReversePathResolver* resolver = new ReversePathResolver(qcl, path);
   return resolver->initialize();
 }
 
@@ -851,15 +893,15 @@ MetadataFetcher::resolvePathToID(qclient::QClient& qcl, const std::string &path)
 // Count how many files and containers are in the given directory
 //------------------------------------------------------------------------------
 std::pair<folly::Future<uint64_t>, folly::Future<uint64_t>>
-MetadataFetcher::countContents(qclient::QClient& qcl, ContainerIdentifier containerID) {
+    MetadataFetcher::countContents(qclient::QClient& qcl,
+                                   ContainerIdentifier containerID)
+{
   return std::make_pair<folly::Future<uint64_t>, folly::Future<uint64_t>>(
-    qcl.follyExec("HLEN", keySubFiles(containerID.getUnderlyingUInt64()))
-         .thenValue(parseUInt64Response),
-
-    qcl.follyExec("HLEN", keySubContainers(containerID.getUnderlyingUInt64()))
-         .thenValue(parseUInt64Response)
-
-  );
+           qcl.follyExec("HLEN", keySubFiles(containerID.getUnderlyingUInt64()))
+           .thenValue(parseUInt64Response),
+           qcl.follyExec("HLEN", keySubContainers(containerID.getUnderlyingUInt64()))
+           .thenValue(parseUInt64Response)
+         );
 }
 
 EOSNSNAMESPACE_END

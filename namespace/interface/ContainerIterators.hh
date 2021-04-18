@@ -60,6 +60,10 @@ public:
   }
 
 private:
+  uint64_t generation()
+  {
+    return container->getFileMapGeneration();
+  }
   IContainerMDPtr container;
   eos::IContainerMD::FileMap::const_iterator iter;
 };
@@ -94,6 +98,11 @@ public:
   }
 
 private:
+  uint64_t generation()
+  {
+    return container->getContainerMapGeneration();
+  }
+
   IContainerMDPtr container;
   eos::IContainerMD::ContainerMap::const_iterator iter;
 };
