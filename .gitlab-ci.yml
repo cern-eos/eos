@@ -806,6 +806,7 @@ k8s_stress:
   <<: *dock8s_before_script_template
   script:
     - TEST_URL="eos-mgm1.eos-mgm1.$K8S_NAMESPACE.svc.cluster.local"
+    - echo -e "[grid-hammer]\nname=grid-hammer continuous builds for master\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/grid-hammer/xrootd5/master/el7/x86_64/\ngpgcheck=0\nenabled=1\nprotect=1\npriority=20\n" >> /etc/yum.repos.d/grid-hammer.repo
     - exec_cmd eos-mgm1 "yum install -y grid-hammer"
     - exec_cmd eos-mgm1 "hammer-runner.py --strict-exit-code 1 --gitlab --url ${TEST_URL}//eos/dockertest/hammer/ --protocols xroot --threads 1 2 10 100 --operations write stat read delete --runs 3 --nfiles 10000"
   <<: *dock8s_after_script_template
@@ -915,6 +916,7 @@ dock_stress:
   <<: *dock8s_before_script_template
   script:
     - TEST_URL="eos-mgm1.eoscluster.cern.ch"
+    - echo -e "[grid-hammer]\nname=grid-hammer continuous builds for master\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/grid-hammer/xrootd5/master/el7/x86_64/\ngpgcheck=0\nenabled=1\nprotect=1\npriority=20\n" >> /etc/yum.repos.d/grid-hammer.repo
     - exec_cmd eos-mgm1 "yum install -y grid-hammer"
     - exec_cmd eos-mgm1 "hammer-runner.py --strict-exit-code 1 --gitlab --url ${TEST_URL}//eos/dockertest/hammer/ --protocols xroot --threads 1 2 10 100 --operations write stat read delete --runs 3 --nfiles 10000"
   <<: *dock8s_after_script_template
