@@ -475,9 +475,11 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
       eos_notice("msg=\"file system (being) deleted, abort any further scanning\""
                  " fsid=%lu", mFsId);
       return;
+    } else {
+      eos_info("msg=\"initial collection of inconsistency stats\" fsid=%lu", mFsId);
+      fs->UpdateInconsistencyInfo();
     }
 
-    fs->UpdateInconsistencyInfo();
 #endif
     // Get a random smearing and avoid that all start at the same time! 0-4 hours
     size_t sleeper = (1.0 * mDiskIntervalSec * random() / RAND_MAX);
