@@ -26,8 +26,8 @@
 
 namespace
 {
-// Max 1GB of memory with blocks of at most 64MB each
-eos::common::BufferManager gRainBuffMgr(1 * eos::common::GB, 6);
+// Max 2GB of memory with blocks of at most 64MB each
+eos::common::BufferManager gRainBuffMgr(2 * eos::common::GB, 6);
 }
 
 EOSFSTNAMESPACE_BEGIN

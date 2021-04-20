@@ -257,7 +257,7 @@ protected:
   ///< Map of pieces written for which parity has not been done yet
   std::map<uint64_t, uint32_t> mMapPieces;
   std::string mLastErrMsg; ///< last error messages seen
-  uint8_t mMaxGroups {2};
+  uint8_t mMaxGroups {32};
   mutable std::mutex mMutexGroups;
   std::condition_variable mCvGroups;
   std::map<uint64_t, std::shared_ptr<eos::fst::RainGroup>> mMapGroups;
