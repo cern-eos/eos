@@ -6218,7 +6218,7 @@ EosFuse::isRecursiveRm(fuse_req_t req, bool forced, bool notverbose)
   ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
                              ctx->uid, ctx->gid, false);
 
-  if (snapshot->getProcessInfo().getRmInfo().isRm() &&
+  if (snapshot && snapshot->getProcessInfo().getRmInfo().isRm() &&
       snapshot->getProcessInfo().getRmInfo().isRecursive()) {
     bool result = true;
 
