@@ -463,8 +463,6 @@ Server::FillFileMD(uint64_t inode, eos::fusex::md& file,
     gmd = fmd;
     rd_ns_lock.Release();
 
-    rd_ns_lock.Release();
-
     if (fmd->hasAttribute(k_mdino)) {
       has_mdino = true;
       uint64_t mdino = std::stoull(fmd->getAttribute(k_mdino));
