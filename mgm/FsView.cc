@@ -2108,8 +2108,7 @@ FsView::UnRegisterSpace(const char* spacename)
   bool has_fs = false;
 
   if (mSpaceView.count(spacename)) {
-    while (mSpaceView.count(spacename) &&
-           (mSpaceView[spacename]->begin() != mSpaceView[spacename]->end())) {
+    while (mSpaceView.count(spacename) && mSpaceView[spacename]->size()) {
       eos::common::FileSystem::fsid_t fsid = *(mSpaceView[spacename]->begin());
       FileSystem* fs = mIdView.lookupByID(fsid);
 
@@ -2128,8 +2127,10 @@ FsView::UnRegisterSpace(const char* spacename)
     if (!has_fs) {
       // We have to explicitly remove the space from the view here because no
       // fs was removed
-      delete mSpaceView[spacename];
-      retc = (mSpaceView.erase(spacename) ? true : false);
+      if (mSpaceView.count(spacename)) {
+        delete mSpaceView[spacename];
+        retc = (mSpaceView.erase(spacename) ? true : false);
+      }
     }
   }
 
