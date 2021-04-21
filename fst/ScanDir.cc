@@ -791,9 +791,9 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
 
   // Get checksum type and value
   std::string xs_type;
-  char xs_val[SHA_DIGEST_LENGTH];
+  char xs_val[SHA256_DIGEST_LENGTH];
   memset(xs_val, 0, sizeof(xs_val));
-  size_t xs_len = SHA_DIGEST_LENGTH;
+  size_t xs_len = SHA256_DIGEST_LENGTH;
   io->attrGet("user.eos.checksumtype", xs_type);
   io->attrGet("user.eos.checksum", xs_val, xs_len);
   auto comp_file_xs = eos::fst::ChecksumPlugins::GetXsObj(xs_type);

@@ -39,6 +39,19 @@ set_target_properties(EosCrc32c-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 #-------------------------------------------------------------------------------
+# EosBlake3-Objects library
+#-------------------------------------------------------------------------------
+set_property(SOURCE blake3/blake3_sse2_x86-64_unix.S blake3/blake3_sse41_x86-64_unix.S blake3/blake3_avx2_x86-64_unix.S blake3/blake3_avx512_x86-64_unix.S PROPERTY LANGUAGE C)
+
+add_library(EosBlake3-Objects OBJECT
+    blake3/blake3.c blake3/blake3_dispatch.c blake3/blake3_portable.c
+    blake3/blake3_sse2_x86-64_unix.S blake3/blake3_sse41_x86-64_unix.S blake3/blake3_avx2_x86-64_unix.S
+    blake3/blake3_avx512_x86-64_unix.S)
+
+set_target_properties(EosBlake3-Objects PROPERTIES
+  POSITION_INDEPENDENT_CODE TRUE)
+
+#-------------------------------------------------------------------------------
 # EosCommon-Objects
 #-------------------------------------------------------------------------------
 add_library(EosCommon-Objects OBJECT

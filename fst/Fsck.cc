@@ -193,7 +193,7 @@ Fsck::CheckFile(const char* filepath)
 {
   std::string filePath, checksumType, checksumStamp, logicalFileName,
       previousFileCxError, previousBlockCxError;
-  char checksumVal[SHA_DIGEST_LENGTH];
+  char checksumVal[SHA256_DIGEST_LENGTH];
   size_t checksumLen;
   bool has_filecxerror = false;
   bool has_blockcxerror = false;
@@ -210,7 +210,7 @@ Fsck::CheckFile(const char* filepath)
 
   io->attrGet("user.eos.checksumtype", checksumType);
   memset(checksumVal, 0, sizeof(checksumVal));
-  checksumLen = SHA_DIGEST_LENGTH;
+  checksumLen = SHA256_DIGEST_LENGTH;
 
   if (io->attrGet("user.eos.checksum", checksumVal, checksumLen)) {
     checksumLen = 0;

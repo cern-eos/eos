@@ -54,7 +54,7 @@ XrdMgmOfs::Commit(const char* path,
   MAYREDIRECT;
   EXEC_TIMING_BEGIN("Commit");
   // Checksum string
-  char binchecksum[SHA_DIGEST_LENGTH];
+  char binchecksum[SHA256_DIGEST_LENGTH];
   // Process CGI parameters
   CommitHelper::cgi_t cgi;
   CommitHelper::grab_cgi(env, cgi);
@@ -112,7 +112,7 @@ XrdMgmOfs::Commit(const char* path,
 
     // Create a checksum buffer object
     eos::Buffer checksumbuffer;
-    checksumbuffer.putData(binchecksum, SHA_DIGEST_LENGTH);
+    checksumbuffer.putData(binchecksum, SHA256_DIGEST_LENGTH);
     // Attempt file meta data retrieval
     std::shared_ptr<eos::IFileMD> fmd;
     eos::IContainerMD::id_t cid = 0;

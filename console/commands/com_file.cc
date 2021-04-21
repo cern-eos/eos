@@ -820,13 +820,13 @@ com_file(char* arg1)
         const auto& proto_fmd = fmd.mProtoFmd;
         XrdOucString cx = proto_fmd.checksum().c_str();
 
-        for (unsigned int k = (cx.length() / 2); k < SHA_DIGEST_LENGTH; ++k) {
+        for (unsigned int k = (cx.length() / 2); k < SHA256_DIGEST_LENGTH; ++k) {
           cx += "00";
         }
 
         XrdOucString disk_cx = proto_fmd.diskchecksum().c_str();
 
-        for (unsigned int k = (disk_cx.length() / 2); k < SHA_DIGEST_LENGTH; ++k) {
+        for (unsigned int k = (disk_cx.length() / 2); k < SHA256_DIGEST_LENGTH; ++k) {
           disk_cx += "00";
         }
 

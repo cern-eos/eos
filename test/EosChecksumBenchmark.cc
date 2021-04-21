@@ -54,11 +54,15 @@ int main(int argc, char* argv[])
   checksumnames.push_back("md5");
   checksumnames.push_back("crc32c");
   checksumnames.push_back("sha1");
+  checksumnames.push_back("xxhash64");
+  checksumnames.push_back("blake3");
   checksumids.push_back(eos::common::LayoutId::kAdler);
   checksumids.push_back(eos::common::LayoutId::kCRC32);
   checksumids.push_back(eos::common::LayoutId::kMD5);
   checksumids.push_back(eos::common::LayoutId::kCRC32C);
   checksumids.push_back(eos::common::LayoutId::kSHA1);
+  checksumids.push_back(eos::common::LayoutId::kXXHASH64);
+  checksumids.push_back(eos::common::LayoutId::kBLAKE3);
   size_t nforks = 1;
 
   if (argc == 2) {
@@ -108,7 +112,7 @@ int main(int argc, char* argv[])
 
       for (size_t bs = 0; bs < blocksize.size(); bs++) {
         for (size_t i = 0; i < checksumnames.size(); i++) {
-          eos_static_info("benchmarking checksum algorithm %s", checksumnames[i].c_str());
+          eos_static_info("benchmarking checksum algorithm %s [%d]", checksumnames[i].c_str(), checksumids[i]);
           std::unique_ptr<eos::fst::CheckSum> checksum =
             eos::fst::ChecksumPlugins::GetChecksumObject(checksumids[i]);
 

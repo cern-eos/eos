@@ -1830,7 +1830,7 @@ ProcCommand::File()
                 (unsigned long long) fmd->getSize());
           stdOut += "&";
           stdOut += "mgm.checksum=";
-          eos::appendChecksumOnStringAsHex(fmd.get(), stdOut, 0x00, SHA_DIGEST_LENGTH);
+          eos::appendChecksumOnStringAsHex(fmd.get(), stdOut, 0x00, SHA256_DIGEST_LENGTH);
           stdOut += "&";
           stdOut += "mgm.stripes=";
           stdOut += (int)(eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1);
