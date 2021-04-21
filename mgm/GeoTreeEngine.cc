@@ -460,29 +460,32 @@ bool GeoTreeEngine::removeFsFromGroup(FileSystem* fs, FsGroup* group,
   // ==== clean the notifications buffer
   gNotificationsBufferFs.erase(fs->GetQueuePath());
   // ==== update the entry
-  SchedTreeBase::TreeNodeInfo info;
   const SlowTreeNode* intree = mapEntry->fs2SlowTreeNode[fsid];
-  info = intree->pNodeInfo;
-  info.geotag = intree->pNodeInfo.fullGeotag;
-  eos_debug("msg=\"remove from SlowNodeTree\" fsid=%lu host=\"%s\" "
-            "geotag=\"%s\" fullgeotag=\"%s\"",
-            (unsigned long)intree->pNodeInfo.fsId,
-            intree->pNodeInfo.host.c_str(),
-            intree->pNodeInfo.geotag.c_str(),
-            intree->pNodeInfo.fullGeotag.c_str());
-  // try to update the SlowTree
-  info.fsId = 0;
 
-  if (!mapEntry->slowTree->remove(&info)) {
-    mapEntry->slowTreeMutex.UnLockWrite();
-    eos_err("error removing fs %lu from group %s : removing the slow tree node "
-            "failed. geotag is %s and geotag in tree is %s and %s",
-            (unsigned long)fsid, group->mName.c_str(), info.geotag.c_str(),
-            intree->pNodeInfo.fullGeotag.c_str(), intree->pNodeInfo.geotag.c_str());
-    return false;
+  // Double check that the SlowTreeNode exists EOS-4678
+  if (intree) {
+    SchedTreeBase::TreeNodeInfo info = intree->pNodeInfo;
+    info.geotag = intree->pNodeInfo.fullGeotag;
+    eos_debug("msg=\"remove from SlowNodeTree\" fsid=%lu host=\"%s\" "
+              "geotag=\"%s\" fullgeotag=\"%s\"",
+              (unsigned long)intree->pNodeInfo.fsId,
+              intree->pNodeInfo.host.c_str(),
+              intree->pNodeInfo.geotag.c_str(),
+              intree->pNodeInfo.fullGeotag.c_str());
+    // try to update the SlowTree
+    info.fsId = 0;
+
+    if (!mapEntry->slowTree->remove(&info)) {
+      mapEntry->slowTreeMutex.UnLockWrite();
+      eos_err("error removing fs %lu from group %s : removing the slow tree node "
+              "failed. geotag is %s and geotag in tree is %s and %s",
+              (unsigned long)fsid, group->mName.c_str(), info.geotag.c_str(),
+              intree->pNodeInfo.fullGeotag.c_str(), intree->pNodeInfo.geotag.c_str());
+      return false;
+    }
+
+    mapEntry->fs2SlowTreeNode.erase(fsid);
   }
-
-  mapEntry->fs2SlowTreeNode.erase(fsid);
 
   // if the tree is empty, remove the entry from the map
   if (!mapEntry->fs2SlowTreeNode.empty()) { // if the tree is getting empty, no need to update it
