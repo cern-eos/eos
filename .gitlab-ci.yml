@@ -493,6 +493,19 @@ ubuntu_focal_docker_image:
 
 # schedules ------------------------------
 
+cs8_docker_image:
+  extends: .build_dockerimage-template
+  variables:
+    DOCKERFILE: eos-docker/Dockerfile_cs8
+    BASETAG: "cs8_"
+  needs:
+    - job: clone_docker
+    - job: build_cs8
+  only:
+    - schedules
+    - tags
+  allow_failure: true
+
 c8_docker_image:
   extends: .build_dockerimage-template
   variables:
@@ -1176,6 +1189,14 @@ unit_test_asan:
   tags:
     - docker_node
     - publish
+
+publish_koji_cs8:
+  <<: *publish_koji_template_definition
+  variables:
+    TARGET: "eos8s"
+    BUILD_NAME: "cs8"
+  dependencies:
+    - build_cs8
 
 publish_koji_c8:
   <<: *publish_koji_template_definition
