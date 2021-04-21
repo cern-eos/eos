@@ -1807,6 +1807,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
   }
 
   eos::common::Logging::GetInstance().shutDown(true);
+  return 0;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -5635,7 +5636,8 @@ EosFuse::readlink(fuse_req_t req, fuse_ino_t ino)
 
   if (!md->id() || md->deleted()) {
     rc = md->deleted() ? ENOENT : md->err();
-    if ( rc == EPERM) {
+
+    if (rc == EPERM) {
       rc = EACCES;
     }
   } else {
