@@ -189,14 +189,14 @@ TEST_F(FsckEntryTest, MgmXsDiff)
   ASSERT_STRNE(kChecksum.c_str(),
                StringConversion::BinData2HexString
                (mgm_fmd.checksum().c_str(),
-                SHA_DIGEST_LENGTH,
+                SHA256_DIGEST_LENGTH,
                 LayoutId::GetChecksumLen(mgm_fmd.layout_id())).c_str());
   ASSERT_TRUE(mFsckEntry->Repair());
   // After a successful repair the checksum should match the original one
   ASSERT_STREQ(kChecksum.c_str(),
                StringConversion::BinData2HexString
                (mgm_fmd.checksum().c_str(),
-                SHA_DIGEST_LENGTH,
+                SHA256_DIGEST_LENGTH,
                 LayoutId::GetChecksumLen(mgm_fmd.layout_id())).c_str());
 }
 
@@ -216,7 +216,7 @@ TEST_F(FsckEntryTest, MgmXsDiffFstNoContact)
   ASSERT_STRNE(kChecksum.c_str(),
                StringConversion::BinData2HexString
                (mgm_fmd.checksum().c_str(),
-                SHA_DIGEST_LENGTH,
+                SHA256_DIGEST_LENGTH,
                 LayoutId::GetChecksumLen(mgm_fmd.layout_id())).c_str());
   // Mark one of the FST replicas as NoContact
   auto& finfo = mFsckEntry->mFstFileInfo.begin()->second;

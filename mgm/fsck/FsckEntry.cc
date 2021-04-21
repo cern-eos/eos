@@ -215,7 +215,7 @@ FsckEntry::RepairMgmXsSzDiff()
 
   std::string mgm_xs_val =
     StringConversion::BinData2HexString(mMgmFmd.checksum().c_str(),
-                                        SHA_DIGEST_LENGTH,
+                                        SHA256_DIGEST_LENGTH,
                                         LayoutId::GetChecksumLen(mMgmFmd.layout_id()));
   // Make sure the disk xs and size values match between all the replicas
   uint64_t sz_val {0ull};
@@ -277,7 +277,7 @@ FsckEntry::RepairMgmXsSzDiff()
     }
 
     eos::Buffer xs_buff;
-    xs_buff.putData(xs_binary.get(), SHA_DIGEST_LENGTH);
+    xs_buff.putData(xs_binary.get(), SHA256_DIGEST_LENGTH);
 
     if (gOFS) {
       try {
@@ -326,7 +326,7 @@ FsckEntry::RepairFstXsSzDiff()
   } else { // for replica layouts
     std::string mgm_xs_val =
       StringConversion::BinData2HexString(mMgmFmd.checksum().c_str(),
-                                          SHA_DIGEST_LENGTH,
+                                          SHA256_DIGEST_LENGTH,
                                           LayoutId::GetChecksumLen(mMgmFmd.layout_id()));
     // Make sure at least one disk xs and size match the MGM ones
     uint64_t sz_val {0ull};
@@ -520,7 +520,7 @@ FsckEntry::RepairReplicaInconsistencies()
 {
   std::string mgm_xs_val =
     StringConversion::BinData2HexString(mMgmFmd.checksum().c_str(),
-                                        SHA_DIGEST_LENGTH,
+                                        SHA256_DIGEST_LENGTH,
                                         LayoutId::GetChecksumLen(mMgmFmd.layout_id()));
   std::set<eos::common::FileSystem::fsid_t> to_drop;
   std::set<eos::common::FileSystem::fsid_t> unreg_fsids;

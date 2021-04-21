@@ -71,7 +71,8 @@ public:
     kCRC64  = 0x7,
     kSHA256 = 0x8,
     kXXHASH64 = 0x9,
-    kXSmax = kXXHASH64
+    kBLAKE3 = 0xa,
+    kXSmax = kBLAKE3
   };
 
 
@@ -346,6 +347,10 @@ public:
       return 8;
     }
 
+    if ((layout & 0xf) == kBLAKE3) {
+      return 32;
+    }
+
     return 0;
   }
 
@@ -357,6 +362,8 @@ public:
   {
     if (xs_type == "adler") {
       return 4;
+    } else if (xs_type == "blake3") {
+      return 32;
     } else if (xs_type == "crc32") {
       return 4;
     } else if (xs_type == "crc32c") {
@@ -402,6 +409,10 @@ public:
 
     case kSHA1:
       hexchecksum = "da39a3ee5e6b4b0d3255bfef95601890afd80709";
+      break;
+
+    case kBLAKE3:
+      hexchecksum = "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262";
       break;
     }
 
@@ -721,6 +732,10 @@ public:
       return "adler";
     }
 
+    if (GetChecksum(layout) == kBLAKE3) {
+      return "blake3";
+    }
+
     if (GetChecksum(layout) == kCRC32) {
       return "crc32";
     }
@@ -758,8 +773,11 @@ public:
   static int
   GetChecksumFromString(const std::string& checksum)
   {
+    fprintf(stderr,"# string=%s\n", checksum.c_str());
     if ((checksum == "adler") || (checksum == "adler32")) {
       return kAdler;
+    } else if (checksum == "blake3") {
+      return kBLAKE3;
     } else if (checksum == "crc32") {
       return kCRC32;
     } else if (checksum == "crc32c") {
@@ -793,6 +811,10 @@ public:
 
     if (GetChecksum(layout) == kAdler) {
       return "adler32";
+    }
+
+    if (GetChecksum(layout) == kBLAKE3) {
+      return "blake3";
     }
 
     if (GetChecksum(layout) == kCRC32) {
@@ -838,6 +860,10 @@ public:
 
     if (GetBlockChecksum(layout) == kAdler) {
       return "adler";
+    }
+
+    if (GetBlockChecksum(layout) == kBLAKE3) {
+      return "blake3";
     }
 
     if (GetBlockChecksum(layout) == kCRC32) {
@@ -1051,6 +1077,10 @@ public:
 
       if (xsum == "adler") {
         return kAdler;
+      }
+
+      if (xsum == "blake3") {
+        return kBLAKE3;
       }
 
       if (xsum == "crc32") {

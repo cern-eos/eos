@@ -831,8 +831,8 @@ FmdDbMapHandler::ResyncDisk(const char* path,
 
   if ((!io->fileStat(&buf)) && S_ISREG(buf.st_mode)) {
     std::string sxs_type, scheck_stamp, filexs_err, blockxs_err;
-    char xs_val[SHA_DIGEST_LENGTH];
-    size_t xs_len = SHA_DIGEST_LENGTH;
+    char xs_val[SHA256_DIGEST_LENGTH];
+    size_t xs_len = SHA256_DIGEST_LENGTH;
     memset(xs_val, 0, sizeof(xs_val));
     io->attrGet("user.eos.checksumtype", sxs_type);
     io->attrGet("user.eos.filecxerror", filexs_err);

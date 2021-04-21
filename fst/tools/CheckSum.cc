@@ -29,7 +29,7 @@
 
 void usage() 
 {
-  fprintf(stderr,"usage: eos-checksum adler|crc32|crc32c|crc64|md5|sha|sha256|xxhash64 <path>|/dev/stdin\n");
+  fprintf(stderr,"usage: eos-checksum adler|blake7|crc32|crc32c|crc64|md5|sha|sha256|xxhash64 <path>|/dev/stdin\n");
 }
 
 int
