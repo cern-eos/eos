@@ -23,6 +23,7 @@
 
 #include "fst/checksum/CheckSum.hh"
 #include "fst/checksum/Adler.hh"
+#include "fst/checksum/BLAKE3.hh"
 #include "fst/checksum/CRC32.hh"
 #include "fst/checksum/CRC32C.hh"
 #include "fst/checksum/CheckSum.hh"

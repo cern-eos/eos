@@ -26,6 +26,7 @@
 #include "common/LayoutId.hh"
 #include "fst/checksum/CheckSum.hh"
 #include "fst/checksum/Adler.hh"
+#include "fst/checksum/BLAKE3.hh"
 #include "fst/checksum/CRC32.hh"
 #include "fst/checksum/CRC32C.hh"
 #include "fst/checksum/MD5.hh"
@@ -55,8 +56,11 @@ public:
   static CheckSum*
   GetXsObj(unsigned long xs_type)
   {
+    fprintf(stderr,"#  type=%d\n",xs_type);
     if (xs_type == eos::common::LayoutId::kAdler) {
       return static_cast<CheckSum*>(new Adler());
+    } else if (xs_type == eos::common::LayoutId::kBLAKE3) {
+      return static_cast<CheckSum*>(new BLAKE3());
     } else if (xs_type == eos::common::LayoutId::kCRC32) {
       return static_cast<CheckSum*>(new CRC32());
     } else if (xs_type == eos::common::LayoutId::kCRC32C) {

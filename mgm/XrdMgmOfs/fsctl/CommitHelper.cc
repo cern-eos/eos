@@ -44,7 +44,7 @@ void
 CommitHelper::hex2bin_checksum(std::string& checksum, char* binchecksum)
 {
   // hex2binary conversion
-  memset(binchecksum, 0, SHA_DIGEST_LENGTH);
+  memset(binchecksum, 0, 32);
 
   for (unsigned int i = 0; i < checksum.length(); i += 2) {
     char hex[3];
@@ -549,7 +549,7 @@ CommitHelper::handle_checksum(eos::common::VirtualIdentity& vid,
 {
   if (option["commitchecksum"]) {
     if (!option["update"]) {
-      for (int i = 0; i < SHA_DIGEST_LENGTH; i++) {
+      for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
         if (fmd->getChecksum().getDataPadded(i) != checksumbuffer.getDataPadded(i)) {
           eos_thread_debug("checksum difference forces mtime");
           option["update"] = true;

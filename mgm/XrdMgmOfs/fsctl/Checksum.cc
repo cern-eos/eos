@@ -66,7 +66,7 @@ XrdMgmOfs::Checksum(const char* path,
       fmd = gOFS->eosView->getFile(path);
     }
 
-    size_t xs_length = SHA_DIGEST_LENGTH;
+    size_t xs_length = SHA256_DIGEST_LENGTH;
 
     if (fuse_readable) {
       xs_length = eos::common::LayoutId:: GetChecksumLen(fmd->getLayoutId());
