@@ -111,32 +111,22 @@ BENCHMARK_DEFINE_F(CMFixture, BM_ReadTS)(benchmark::State& state) {
   }
 }
 
-static void BM_SingleRWTest(benchmark::State& state) {
-  SimpleConcMap cmap;
-  const int map_count = 10000;
-  const int delay = 10;
+// prepopulate some keys so that initial reads have some hit rate
+BENCHMARK_DEFINE_F(CMFixture, BM_ReadWriteTS)(benchmark::State& state) {
+  const int64_t sz = static_cast<int64_t>(state.range(0));
 
-  std::thread writer([&cmap]() {
-    for (int i =0; i< map_count; i++) {
-      cmap.addTS(std::to_string(i));
-    }
-  });
-  std::thread reader([&cmap]() {
-    size_t sz = 0;
-    while(sz < map_count)
-      {
-        cmap.copy_allTS(delay);
+  for (auto _:state) {
+    std::thread writer([&cm]() {
+      for (int i =0; i< sz; i++) {
+        cm.addTS(std::to_string(i));
       }
-  });
-
-  if (state.thread_index == 0) {
-  }
-
-  for (auto _: state) {
+    });
+    std::thread reader([&cm]() {
+      cm.readTS(std::to_string(std::rand() % sz));
+    });
     reader.join();
     writer.join();
   }
-
 }
 
 uint64_t start = 1<<7;
@@ -144,4 +134,5 @@ uint64_t end = 1<<24ULL;
 BENCHMARK(BM_KeyWrite)->Range(start,end)->Unit(benchmark::kMillisecond);
 BENCHMARK(BM_KeyWriteTS)->Range(start,end)->ThreadRange(1,8)->Unit(benchmark::kMillisecond);
 BENCHMARK_REGISTER_F(CMFixture, BM_ReadTS)->Range(start,end)->ThreadRange(1,8)->Unit(benchmark::kMillisecond);
+BENCHMARK_REGISTER_F(CMFixture, BM_ReadWriteTS)->Range(start,1<<20)->Unit(benchmark::kMillisecond);
 BENCHMARK_MAIN();
