@@ -259,7 +259,7 @@ add_library(
   geotree/SchedulingTreeCommon.cc
   tracker/ReplicationTracker.cc
   inspector/FileInspector.cc
-  prepare/PrepareManager.cc
+  bulk-request/prepare/PrepareManager.cc
   bulk-request/BulkRequest.cc
   ${FUSEX_SRCS})
 
