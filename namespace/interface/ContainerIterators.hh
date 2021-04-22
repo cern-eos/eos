@@ -41,7 +41,7 @@ public:
     std::shared_lock<std::shared_timed_mutex> lock (mLock);
     iter = cont->filesBegin();
     iGeneration = generation();
-    if (iterEnd()) {
+    if (!iterEnd()) {
       iValid = true;
       iKey = iter->first;
       iValue = iter->second;
@@ -54,7 +54,7 @@ public:
   }
 
   bool iterEnd() const {
-    return iter != container->filesEnd();
+    return (iter == container->filesEnd());
   }
 
   void next() {
@@ -65,7 +65,7 @@ public:
       iResized = true;
       // the hash_map has been re-organized
       iter = container->filesBegin();
-      if (!iterEnd()) {
+      if (iterEnd()) {
 	iValid = false;
 	return;
       }
@@ -75,7 +75,7 @@ public:
 	  break;
 	} else {
 	  iter++;
-	  if (!iterEnd()) {
+	  if (iterEnd()) {
 	    iValid = false;
 	    return;
 	  }
@@ -88,19 +88,20 @@ public:
       if (iResized) {
 	// in this case we always have to check if a value was already shown
 	iter++;
-	if (iterEnd()) {
+	if (!iterEnd()) {
 	  do {
 	    if (!iShown.count(iter->first)) {
 	      break;
 	    } else {
 	      iter++;
-	      if (!iterEnd()) {
+	      if (iterEnd()) {
 		iValid = false;
 		return;
 	      }
 	    }
 	  } while (1);
 	} else {
+	  iValid = false;
 	  return;
 	}
       } else {
@@ -108,7 +109,7 @@ public:
       }
     }
 
-    if (iterEnd()) {
+    if (!iterEnd()) {
       iKey = iter->first;
       iValue = iter->second;
       iShown.insert(iKey);
@@ -125,11 +126,12 @@ public:
     return iValue;
   }
 
-private:
-
   uint64_t generation() {
     return container->getFileMapGeneration();
   }
+
+private:
+
 
   IContainerMDPtr container;
   std::shared_timed_mutex &mLock;
@@ -152,7 +154,7 @@ public:
     : container(cont), mLock(cont->mMutex), iResized(false), iValid(false) {
     iter = cont->subcontainersBegin();
     iGeneration = generation();
-    if (iterNotEnd()) {
+    if (!iterEnd()) {
       iValid = true;
       iKey = iter->first;
       iValue = iter->second;
@@ -164,8 +166,8 @@ public:
     return iValid;
   }
 
-  bool iterNotEnd() const {
-    return iter != container->subcontainersEnd();
+  bool iterEnd() const {
+    return (iter == container->subcontainersEnd());
   }
 
   void next() {
@@ -176,7 +178,7 @@ public:
       iResized = true;
       // the hash_map has been re-organized
       iter = container->subcontainersBegin();
-      if (!iterNotEnd()) {
+      if (iterEnd()) {
 	iValid = false;
 	return;
       }
@@ -186,7 +188,7 @@ public:
 	  break;
 	} else {
 	  iter++;
-	  if (!iterNotEnd()) {
+	  if (iterEnd()) {
 	    iValid = false;
 	    return;
 	  }
@@ -199,19 +201,20 @@ public:
       if (iResized) {
 	// in this case we always have to check if a value was already shown
 	iter++;
-	if (iterNotEnd()) {
+	if (!iterEnd()) {
 	  do {
 	    if (!iShown.count(iter->first)) {
 	      break;
 	    } else {
 	      iter++;
-	      if (!iterNotEnd()) {
+	      if (iterEnd()) {
 		iValid = false;
 		return;
 	      }
 	    }
 	  } while (1);
 	} else {
+	  iValid = false;
 	  return;
 	}
       } else {
@@ -219,7 +222,7 @@ public:
       }
     }
 
-    if (iterNotEnd()) {
+    if (!iterEnd()) {
       iKey = iter->first;
       iValue = iter->second;
       iShown.insert(iKey);
@@ -236,11 +239,11 @@ public:
     return iValue;
   }
 
-private:
-
   uint64_t generation() {
     return container->getContainerMapGeneration();
   }
+
+private:
 
   IContainerMDPtr container;
   std::shared_timed_mutex &mLock;
