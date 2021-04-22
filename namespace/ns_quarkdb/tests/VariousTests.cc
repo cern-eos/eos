@@ -24,6 +24,7 @@
 #include <memory>
 #include <gtest/gtest.h>
 
+#include "namespace/interface/ContainerIterators.hh"
 #include "namespace/ns_quarkdb/explorer/NamespaceExplorer.hh"
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
@@ -1421,6 +1422,119 @@ TEST_F(VariousTests, CountContents)
   ASSERT_EQ(std::move(counts.first).get(), 0u);
   ASSERT_EQ(std::move(counts.second).get(), 0u);
 }
+
+TEST_F(VariousTests, ContainerIterator)
+{
+  eos::IContainerMDPtr cont1 = view()->createContainer("/dir-1/");
+  ASSERT_EQ(cont1->getId(), 2);
+
+  eos::IFileMDPtr file1 = view()->createFile("/dir-1/file-1");
+  eos::IFileMDPtr file2 = view()->createFile("/dir-1/file-2");
+  eos::IFileMDPtr file3 = view()->createFile("/dir-1/file-3");
+  eos::IFileMDPtr file4 = view()->createFile("/dir-1/file-4");
+  eos::IContainerMDPtr subcont1 = view()->createContainer("/dir-1/dir-1/");
+  eos::IContainerMDPtr subcont2 = view()->createContainer("/dir-1/dir-2/");
+  eos::IContainerMDPtr subcont3 = view()->createContainer("/dir-1/dir-3/");
+  eos::IContainerMDPtr subcont4 = view()->createContainer("/dir-1/dir-4/");
+
+  ASSERT_EQ(cont1->getNumFiles(), 4);
+  ASSERT_EQ(cont1->getNumContainers(), 4);
+
+  eos::ContainerMapIterator cit(cont1);
+  eos::FileMapIterator fit(cont1);
+  ASSERT_EQ(cit.generation(), 32);
+  ASSERT_EQ(fit.generation(), 32);
+
+  // file iterator test
+  {
+    std::vector<eos::IFileMDPtr> fv;
+
+    for (auto i = 5 ; i<= 1024; ++i) {
+      std::string f = "/dir-1/file-" + std::to_string(i);
+      fv.push_back(view()->createFile(f));
+    }
+    
+    size_t iterations=1;
+    
+    do {
+      fit.next();
+      if (fit.valid()) {
+	iterations++;
+      }
+    } while (fit.valid());
+    
+    ASSERT_EQ(iterations, 1024);
+    
+    eos::FileMapIterator fit1(cont1);
+    std::string f = "/dir-1/" + fit1.key();
+    view()->unlinkFile(f);
+    
+    // delete one more file during iteration, diffrent from the 1st one
+    if (f != "/dir-1/file-1024") {
+      std::string f = "/dir-1/file-1024";
+      view()->unlinkFile(f);
+    } else {
+    std::string f = "/dir-1/file-512";
+    view()->unlinkFile(f);
+    }
+    
+    iterations=1;
+    do {
+      fit1.next();
+      if (fit1.valid()) {
+	iterations++;
+      }
+    } while (fit1.valid());
+    
+    ASSERT_EQ(iterations, 1023);
+  }
+
+    // container iterator test
+  {
+    std::vector<eos::IContainerMDPtr> cv;   
+
+    for (auto i = 5 ; i<= 1024; ++i) {
+      std::string f = "/dir-1/dir-" + std::to_string(i);
+      cv.push_back(view()->createContainer(f));
+    }
+    
+    size_t iterations=1;
+    
+    do {
+      cit.next();
+      if (cit.valid()) {
+	iterations++;
+      }
+    } while (cit.valid());
+    
+    ASSERT_EQ(iterations, 1024);
+    
+    eos::ContainerMapIterator cit1(cont1);
+    std::string f = "/dir-1/" + cit1.key();
+    view()->removeContainer(f);
+    
+    // delete one more file during iteration, diffrent from the 1st one
+    if (f != "/dir-1/dir-1024") {
+      std::string f = "/dir-1/dir-1024";
+      view()->removeContainer(f);
+    } else {
+    std::string f = "/dir-1/dir-512";
+    view()->removeContainer(f);
+    }
+    
+    iterations=1;
+    do {
+      cit1.next();
+      if (cit1.valid()) {
+	iterations++;
+      }
+    } while (cit1.valid());
+    
+    ASSERT_EQ(iterations, 1023);
+  }
+}
+
+
 
 TEST_F(NamespaceExplorerF, MissingFile)
 {
