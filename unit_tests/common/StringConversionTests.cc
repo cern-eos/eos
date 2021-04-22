@@ -23,6 +23,7 @@
 #include "gtest/gtest.h"
 #include "Namespace.hh"
 #include "common/StringConversion.hh"
+#include <regex>
 
 EOSCOMMONTESTING_BEGIN
 
@@ -82,6 +83,13 @@ TEST(StringConversion, ChecksumTranslations)
 
   ASSERT_FALSE(StringConversion::BinData2HexString(&buff[0], 4, 4) == wrong_xs);
   ASSERT_TRUE(StringConversion::BinData2HexString(&buff[0], 4, 4) == "2a38174b");
+}
+
+TEST(StringConversion, timebased_uuidstring){
+  std::string uuid;
+  uuid = eos::common::StringConversion::timebased_uuidstring();
+  std::regex regexUuid("[0-9a-fA-F]{8}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{12}");
+  ASSERT_TRUE(std::regex_match(uuid,regexUuid));
 }
 
 TEST(GetSizeFromString, BasicSanity)

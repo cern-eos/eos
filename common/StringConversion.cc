@@ -1283,6 +1283,18 @@ StringConversion::random_uuidstring()
 }
 
 //------------------------------------------------------------------------------
+// Create time-based uuid string
+//------------------------------------------------------------------------------
+std::string StringConversion::timebased_uuidstring() {
+  uuid_t uuid;
+  //The uuid_unparse function converts the supplied UUID from the binary representation into a 36-byte string + '\0' trailing
+  char uuid_str[37];
+  uuid_generate_time(uuid);
+  uuid_unparse(uuid,uuid_str);
+  return std::string(uuid_str);
+}
+
+//------------------------------------------------------------------------------
 // Sort lines alphabetically in-place
 //------------------------------------------------------------------------------
 void
