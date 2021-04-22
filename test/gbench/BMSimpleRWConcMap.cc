@@ -57,6 +57,7 @@ public:
     return cmap.size();
   }
 
+  void clear() { cmap.clear(); }
 private:
   cmap_t cmap;
 };
@@ -84,11 +85,31 @@ static void BM_KeyWriteTS(benchmark::State& state) {
   for (auto _: state) {
     SimpleConcMap cm;
     for(int64_t i = state.range(0); --i;) {
-      cm.add(std::to_string(i));
+      cm.addTS(std::to_string(i));
     }
   }
 }
 
+struct CMFixture: public ::benchmark::Fixture {
+  SimpleConcMap cm;
+  void Setup(benchmark::State& state) {
+    for(int64_t i = state.range(0); --i;) {
+      cm.add(std::to_string(i));
+    }
+  }
+  void TearDown(benchmark::State&) {
+    cm.clear();
+  }
+};
+
+BENCHMARK_DEFINE_F(CMFixture, BM_ReadTS)(benchmark::State& state) {
+  const int64_t sz = static_cast<int64_t>(state.range(0));
+  for (auto _: state) {
+    for (int i=0; i < sz; i++) {
+      cm.readTS(std::to_string(std::rand() % sz));
+    }
+  }
+}
 
 static void BM_SingleRWTest(benchmark::State& state) {
   SimpleConcMap cmap;
@@ -122,4 +143,5 @@ uint64_t start = 1<<7;
 uint64_t end = 1<<24ULL;
 BENCHMARK(BM_KeyWrite)->Range(start,end)->Unit(benchmark::kMillisecond);
 BENCHMARK(BM_KeyWriteTS)->Range(start,end)->ThreadRange(1,8)->Unit(benchmark::kMillisecond);
+BENCHMARK_REGISTER_F(CMFixture, BM_ReadTS)->Range(start,end)->ThreadRange(1,8)->Unit(benchmark::kMillisecond);
 BENCHMARK_MAIN();
