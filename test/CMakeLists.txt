@@ -118,3 +118,7 @@ install(PROGRAMS xrdstress eos-instance-test eos-instance-test-ci fuse/eos-fuse-
   PERMISSIONS OWNER_READ OWNER_EXECUTE
   GROUP_READ GROUP_EXECUTE
   WORLD_READ WORLD_EXECUTE)
+
+if (ENABLE_GBENCH)
+  add_subdirectory(gbench)
+endif()

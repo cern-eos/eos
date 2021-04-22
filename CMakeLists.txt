@@ -227,6 +227,8 @@ if (NO_SSE)
   LIST(APPEND RPM_OPTIONS --with no_sse)
 endif()
 
+option(ENABLE_GBENCH "Build the google benchmark tests" OFF)
+
 add_custom_target(
   srpm
   COMMAND rpmbuild -ts ${EOS_ARCHIVE} --define "_topdir ${CMAKE_BINARY_DIR}" ${SRPM_DEFINE} ${RPM_OPTIONS})
