@@ -767,6 +767,15 @@ public:
   static std::string
   random_uuidstring();
 
+  //----------------------------------------------------------------------------
+  /**
+   * Returns a time-based generated uuid
+   *
+   * @return uuid string
+   */
+  //----------------------------------------------------------------------------
+  static std::string timebased_uuidstring();
+
   // ---------------------------------------------------------------------------
   /**
    * Sort lines alphabetically in-place
