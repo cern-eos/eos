@@ -31,6 +31,8 @@
 #include <mgm/Acl.hh>
 #include <mgm/Macros.hh>
 #include <mgm/XrdMgmOfs.hh>
+#include <uuid/uuid.h>
+#include <mgm/bulk-request/BulkRequestHelper.hh>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -330,9 +332,10 @@ void PrepareManager::generatePrepareStageRequestId(XrdOucString& requestId){
     //       Overriding is only possible in the case of PREPARE. In the case of ABORT and QUERY requests, pargs.reqid should contain the request ID that was returned by the corresponding PREPARE.
 
     // Request ID = XRootD-generated request ID + timestamp
-    ostringstream ss;
+    /*ostringstream ss;
     ss << ':' << time(0);
-    requestId.append(ss.str().c_str());
+    requestId.append(ss.str().c_str());*/
+    requestId = BulkRequestHelper::generateBulkRequestId();
     mGeneratedStageRequestId = true;
   }
 }
@@ -409,6 +412,10 @@ void PrepareManager::triggerPrepareWorkflow(const std::list<std::pair<char**, ch
               prep_path.c_str(), error.getErrText());
     }
   }
+}
+
+std::shared_ptr<BulkRequest> PrepareManager::getPrepareBulkRequest() const {
+  return mBulkRequest;
 }
 
 EOSMGMNAMESPACE_END
