@@ -95,7 +95,8 @@ set(COMMON_UT_SRCS
   common/RateLimitTests.cc
   common/EosTokenTests.cc
   common/BufferManagerTests.cc
-  common/ConcurrentQueueTests.cc)
+  common/ConcurrentQueueTests.cc
+  common/UtilsTest.cc)
 
 set(FST_UT_SRCS
   fst/XrdFstOfsTests.cc
