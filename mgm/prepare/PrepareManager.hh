@@ -23,11 +23,12 @@
 #ifndef EOS_PREPAREMANAGER_HH
 #define EOS_PREPAREMANAGER_HH
 
+#include "common/Logging.hh"
 #include "mgm/Namespace.hh"
 #include <XrdSfs/XrdSfsInterface.hh>
-#include <string>
-#include "common/Logging.hh"
 #include <list>
+#include <mgm/bulk-request/BulkRequest.hh>
+#include <string>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -53,6 +54,8 @@ public:
    * @returns the status code of the issued prepare request
    */
   int prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client);
+
+  std::shared_ptr<BulkRequest> getPrepareBulkRequest() const;
 private:
 
   /**
@@ -91,9 +94,12 @@ private:
    */
   void triggerPrepareWorkflow(const std::list<std::pair<char**, char**>> & pathsToPrepare, const std::string & cmd, const std::string &event, const XrdOucString & reqid, XrdOucErrInfo & error, const eos::common::VirtualIdentity& vid);
 
+  void createRequestDirectory(const std::list<std::pair<char**, char**>> & pathsToPrepare, const XrdOucString & reqid);
+
   bool mIsStagePrepare = false;
   bool mGeneratedStageRequestId = false;
   const std::string mEpname="prepare";
+  std::shared_ptr<BulkRequest> mBulkRequest;
 };
 
 EOSMGMNAMESPACE_END

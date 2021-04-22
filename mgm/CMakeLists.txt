@@ -263,6 +263,7 @@ add_library(
   tracker/ReplicationTracker.cc
   inspector/FileInspector.cc
   prepare/PrepareManager.cc
+  bulk-request/BulkRequest.cc
   ${FUSEX_SRCS})
 
 target_link_libraries(XrdEosMgm-Objects PUBLIC
