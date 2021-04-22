@@ -25,14 +25,14 @@
 #define EOS_BULKREQUESTHELPER_HH
 
 #include "mgm/Namespace.hh"
-#include "common/utils/Utils.hh"
+#include "common/StringConversion.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
 class BulkRequestHelper {
 public:
   static const char * generateBulkRequestId () {
-    return common::Utils::generateTimeBasedUuid().c_str();
+    return common::StringConversion::timebased_uuidstring().c_str();
   }
 };
 
