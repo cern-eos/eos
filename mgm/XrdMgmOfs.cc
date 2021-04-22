@@ -82,7 +82,7 @@
 #include "mgm/QueryPrepareResponse.hh"
 #include "mgm/auth/AccessChecker.hh"
 #include "mgm/config/IConfigEngine.hh"
-#include "mgm/prepare/PrepareManager.hh"
+#include "mgm/bulk-request/prepare/PrepareManager.hh"
 #include "mq/SharedHashWrapper.hh"
 #include "mq/FileSystemChangeListener.hh"
 #include "mq/GlobalConfigChangeListener.hh"
