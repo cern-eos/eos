@@ -955,8 +955,8 @@ RainMetaLayout::AddDataBlock(uint64_t offset, const char* buffer,
   uint64_t offset_in_group = offset % mSizeGroup;
   uint64_t offset_in_block = offset_in_group % mStripeWidth;
   int indx_block = MapSmallToBig(offset_in_group / mStripeWidth);
-  eos_info("offset=%llu length=%lu, grp_offset=%llu",
-           offset, length, grp_off);
+  eos_debug("offset=%llu length=%lu, grp_offset=%llu",
+            offset, length, grp_off);
   char* ptr {nullptr};
   {
     // Reduce the scope for the eos::fst::RainGroup object to properly account

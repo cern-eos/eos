@@ -652,9 +652,9 @@ XrdIo::fileWriteAsync(XrdSfsFileOffset offset, const char* buffer,
   return length;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Write to file - async
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 std::future<XrdCl::XRootDStatus>
 XrdIo::fileWriteAsync(const char* buffer, XrdSfsFileOffset offset,
                       XrdSfsXferSize length)
@@ -662,7 +662,16 @@ XrdIo::fileWriteAsync(const char* buffer, XrdSfsFileOffset offset,
   eos_static_debug("offset=%llu length=%i", offset, length);
   std::promise<XrdCl::XRootDStatus> wr_promise;
   std::future<XrdCl::XRootDStatus> wr_future = wr_promise.get_future();
-  WriteHandler* wr_handler = new WriteHandler(std::move(wr_promise));
+
+  if (!mXrdFile) {
+    errno = EIO;
+    wr_promise.set_value(XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errOSError,
+                         EIO));
+    return wr_future;
+  }
+
+  XrdIoHandler* wr_handler = new XrdIoHandler(std::move(wr_promise),
+      XrdIoHandler::OpType::Write);
   XrdCl::XRootDStatus status = mXrdFile->Write(static_cast<uint64_t>(offset),
                                static_cast<uint32_t>(length),
                                buffer, wr_handler);
@@ -736,6 +745,36 @@ XrdIo::fileTruncate(XrdSfsFileOffset offset, uint16_t timeout)
   }
 
   return SFS_OK;
+}
+
+//------------------------------------------------------------------------------
+// Truncate asynchronous
+//------------------------------------------------------------------------------
+std::future<XrdCl::XRootDStatus>
+XrdIo::fileTruncateAsync(XrdSfsFileOffset offset, uint16_t timeout)
+{
+  eos_static_debug("offset=%llu", offset);
+  std::promise<XrdCl::XRootDStatus> tr_promise;
+  std::future<XrdCl::XRootDStatus> tr_future = tr_promise.get_future();
+
+  if (!mXrdFile) {
+    errno = EIO;
+    tr_promise.set_value(XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errUnknown,
+                         EIO));
+    return tr_future;
+  }
+
+  XrdIoHandler* tr_handler = new XrdIoHandler(std::move(tr_promise),
+      XrdIoHandler::OpType::Truncate);
+  XrdCl::XRootDStatus status = mXrdFile->Truncate(static_cast<uint64_t>(offset),
+                               tr_handler, timeout);
+
+  if (!status.IsOK()) {
+    errno = status.errNo;
+    tr_handler->HandleResponse(new XrdCl::XRootDStatus(status), nullptr);
+  }
+
+  return tr_future;
 }
 
 //------------------------------------------------------------------------------
