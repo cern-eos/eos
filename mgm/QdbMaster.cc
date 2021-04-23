@@ -22,6 +22,7 @@
 #include "mgm/Access.hh"
 #include "mgm/WFE.hh"
 #include "mgm/fsck/Fsck.hh"
+#include "mgm/LRU.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
@@ -348,6 +349,12 @@ QdbMaster::SlaveToMaster()
   // Notify all the nodes about the new master identity
   FsView::gFsView.BroadcastMasterId(GetMasterId());
   mIsMaster = true;
+
+  if (gOFS->mConverterDriver) {
+    gOFS->mConverterDriver->Start();
+  }
+
+  gOFS->mLRUEngine->Start();
   Access::RemoveStallRule("*");
   Access::SetSlaveToMasterRules();
   gOFS->mTracker.SetAcceptingRequests(true);
@@ -367,6 +374,12 @@ QdbMaster::MasterToSlave()
   UpdateMasterId("");
   gOFS->mDrainEngine.Stop();
   gOFS->mFsckEngine->Stop();
+  gOFS->mLRUEngine->Stop();
+
+  if (gOFS->mConverterDriver) {
+    gOFS->mConverterDriver->Stop();
+  }
+
   Access::StallInfo old_stall; // to be discarded
   Access::StallInfo new_stall("*", "5", "master->slave transition", true);
   Access::SetStallRule(new_stall, old_stall);

@@ -231,8 +231,9 @@ void LRU::performCycleQDB(ThreadAssistant& assistant) noexcept
   }
 
   // Start exploring
-  NamespaceExplorer explorer("/", opts, *(mQcl.get()),
-                             static_cast<QuarkNamespaceGroup*>(gOFS->namespaceGroup.get())->getExecutor());
+  NamespaceExplorer
+  explorer("/", opts, *(mQcl.get()),
+           static_cast<QuarkNamespaceGroup*>(gOFS->namespaceGroup.get())->getExecutor());
   NamespaceItem item;
   int64_t processed = 0;
 
@@ -245,6 +246,11 @@ void LRU::performCycleQDB(ThreadAssistant& assistant) noexcept
     if (processed % 1000 == 0) {
       eos_static_info("msg=\"LRU scan in progress\" num_scanned_dirs=%lli",
                       processed);
+
+      if (assistant.terminationRequested()) {
+        eos_static_info("%s", "msg=\"termination requested, quit LRU\"");
+        break;
+      }
     }
   }
 
@@ -260,9 +266,14 @@ void LRU::performCycleQDB(ThreadAssistant& assistant) noexcept
 void LRU::backgroundThread(ThreadAssistant& assistant) noexcept
 {
   // Eternal thread doing LRU scans
+  eos_static_notice("%s", "msg=\"starting LRU thread\"");
   gOFS->WaitUntilNamespaceIsBooted(assistant);
-  assistant.wait_for(std::chrono::seconds(10));
-  eos_static_info("%s", "msg=\"async LRU thread started\"");
+
+  // Wait that current MGM becomes a master
+  do {
+    eos_static_debug("%s", "msg=\"LRU waiting for master MGM\"");
+    assistant.wait_for(std::chrono::seconds(10));
+  } while (!assistant.terminationRequested() && !gOFS->mMaster->IsMaster());
 
   while (!assistant.terminationRequested()) {
     // every now and then we wake up
@@ -287,6 +298,8 @@ void LRU::backgroundThread(ThreadAssistant& assistant) noexcept
       }
     }
   }
+
+  eos_static_notice("%s", "msg=\"stopped LRU thread\"");
 }
 
 //------------------------------------------------------------------------------
