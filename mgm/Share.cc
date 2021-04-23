@@ -334,6 +334,7 @@ Share::Proc::List(eos::common::VirtualIdentity& vid, const std::string& name)
     const char* val;
 
     while ((val = directory.nextEntry())) {
+<<<<<<< HEAD
       if (std::string(val) == ".") continue;
       if (std::string(val) == "..") continue;
       std::string entry = procpath + val;
@@ -353,6 +354,11 @@ Share::Proc::List(eos::common::VirtualIdentity& vid, const std::string& name)
 int
 Share::Proc::Delete(eos::common::VirtualIdentity& vid, const std::string& name)
 {
+
+  // check if exists
+  if (Get(vid, name)) {
+    return ENOENT;
+  }
   std::string procpath = GetEntry(vid, name);
 
   XrdOucErrInfo error;
@@ -364,6 +370,12 @@ Share::Proc::Delete(eos::common::VirtualIdentity& vid, const std::string& name)
 		      false);
 }
 
+/* ------------------------------------------------------------------------- */
+int
+Share::Proc::Get(eos::common::VirtualIdentity& vid, const std::string& name)
+{
+  return 0;
+}
 
 /* ------------------------------------------------------------------------- */
 int
