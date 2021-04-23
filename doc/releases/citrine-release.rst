@@ -29,6 +29,13 @@ Bug
 * [EOS-4676] - Crash when checking for recursive deletion
 * [EOS-4677] - FST deadlock when updating the scanner config
 * [EOS-4678] - MGM crash when removing a file system
+* Fix interference between master-slave setup and various internal services
+  like LRU, drainer and converter that should only run in a master MGM.
+
+Improvements
+------------
+
+* Add fileTruncateAsync API to the file IO interface
 
 
 ``v4.8.42 Citrine``
