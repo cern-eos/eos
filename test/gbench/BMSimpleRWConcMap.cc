@@ -167,5 +167,5 @@ BENCHMARK(BM_KeyWrite)->Range(start,end)->Unit(benchmark::kMillisecond);
 BENCHMARK(BM_KeyWriteTS)->Range(start,end)->ThreadRange(1,8)->Unit(benchmark::kMillisecond);
 BENCHMARK_REGISTER_F(CMFixture, BM_ReadTS)->Range(start,end)->ThreadRange(1,8)->Unit(benchmark::kMillisecond);
 BENCHMARK_REGISTER_F(CMFixture, BM_ReadWriteTS)->Range(start,end)->Unit(benchmark::kMillisecond)->UseRealTime();
-BENCHMARK_REGISTER_F(CMFixture, BM_ReadWriteMultiTS)->Ranges({{start,end},{1,4},{1,16}})->Unit(benchmark::kMillisecond)->UseRealTime();
+BENCHMARK_REGISTER_F(CMFixture, BM_ReadWriteMultiTS)->Ranges({{start,end},{1,4},{1,8}})->Unit(benchmark::kMillisecond)->UseRealTime();
 BENCHMARK_MAIN();
