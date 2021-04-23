@@ -189,12 +189,12 @@ static bool eliminateBasedOnFaultyAcl(const eos::console::FindProto& req, const 
 
     // return jumps makes it convoluted, sight...
     if (gOFS->_attr_get(*md.get(), "sys.acl", sysacl)) {
-      if (!Acl::IsValid(sysacl.c_str(), errInfo)) {
+      if (!Acl::IsValid(sysacl.c_str(), errInfo, Acl::eSysAcl)) {
         return false;
       }
     }
     if (gOFS->_attr_get(*md.get(), "user.acl", useracl)) {
-      if (!Acl::IsValid(useracl.c_str(), errInfo)) {
+      if (!Acl::IsValid(useracl.c_str(), errInfo, Acl::eUserAcl)) {
         return false;
       }
     }

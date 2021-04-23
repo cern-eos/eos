@@ -209,6 +209,15 @@ public:
 
   virtual void SetError(XrdOucErrInfo* error) {};
 
+
+  // static public functions of id to path converter
+  static int GetPathFromFid(std::string& path, unsigned long long fid,
+			    std::string& err_msg, bool takeLock = true);
+
+  static int GetPathFromCid(std::string& path, unsigned long long cid,
+			    std::string& err_msg, bool takeLock = true);
+
+
 protected:
   virtual bool OpenTemporaryOutputFiles();
   virtual bool CloseTemporaryOutputFiles();
@@ -226,9 +235,6 @@ protected:
                       const std::string&
                       err_msg_prefix); // drop when we drop non-proto commands using it
 
-  int GetPathFromFid(std::string& path, unsigned long long fid,
-                     std::string& err_msg);
-
   //----------------------------------------------------------------------------
   //! Retrieve the container's full path given its numeric id.
   //! This method executes under the NamespaceView lock.
@@ -240,9 +246,6 @@ protected:
   void GetPathFromCid(XrdOucString& path, unsigned long long cid,
                       const std::string&
                       err_msg_prefix); // drop when we drop non-proto commands using it
-
-  int GetPathFromCid(std::string& path, unsigned long long cid,
-                     std::string& err_msg);
 
   //----------------------------------------------------------------------------
   //! Format console output string as json.

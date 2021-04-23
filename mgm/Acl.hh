@@ -43,33 +43,46 @@ EOSMGMNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 class Acl
 {
-public:         // [+] prevents '+' interpreted as "one or more"
+public:
+  enum AclType {eUserAcl, eSysAcl, eShareAcl, eNoAcl};
+
+  // [+] prevents '+' interpreted as "one or more"
   static constexpr auto sRegexUsrGenericAcl =
     "^(((((u|g|k):(([0-9]+)|([\\.[:alnum:]_-]+)))|(egroup:([\\.[:alnum:]_-]+))|(z)):"
-    "(!?(a|r|w|wo|x|i|m|[+]?d|[+]?u|q|c))+)[,]?)*$";
+    "(!?(a|r|w|wo|x|i|m|e|s|[+]?d|[+]?u|q|c))+)[,]?)*$";
   static constexpr auto sRegexSysGenericAcl =
     "^(((((u|g|k):(([0-9]+)|([\\.[:alnum:]_-]+)))|(egroup:([\\.[:alnum:]_-]+))|(z)):"
-    "(!?(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c|p))+)[,]?)*$";
+    "(!?(a|r|w|wo|x|i|m|e|s|!m|!d|[+]d|!u|[+]u|q|c|p))+)[,]?)*$";
   static constexpr auto sRegexUsrNumericAcl =
     "^(((((u|g):(([0-9]+)))|(egroup:([\\.[:alnum:]_-]+))|(z)):"
     "(!?(a|r|w|wo|x|i|m|[+]?d|[+]?u|q|c))+)[,]?)*$";
   static constexpr auto sRegexSysNumericAcl =
     "^(((((u|g):(([0-9]+)))|(egroup:([\\.[:alnum:]_-]+))|(z)):"
     "(!?(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c|p))+)[,]?)*$";
+  static constexpr auto sRegexShareAcl =
+    "^(((pid:([0-9]+)|pxid:([0123456789abcdef]+)))[,]?)*$";
+
+
+  //----------------------------------------------------------------------------
+  //! Get ACL Type from attribute name
+  //! @param attr name of the extended attribute
+  //!
+  //! return AclType
+  //----------------------------------------------------------------------------
+  static AclType GetType(const std::string& value);
 
   //----------------------------------------------------------------------------
   //! Use regex to check ACL format / syntax
   //!
   //! @param value value to check
   //! @param error error datastructure
-  //! @param is_sys_acl boolean indicating a sys acl entry which might have a
-  //!        p: rule
+  //! @param type is defining the ACL type to check
   //! @param check_numeric if true use numeric format of the regex
   //!
   //! return boolean indicating validity
   //----------------------------------------------------------------------------
   static bool IsValid(const std::string& value, XrdOucErrInfo& error,
-                      bool is_sys_acl = false, bool check_numeric = false);
+                      AclType type = eUserAcl, bool check_numeric = false);
 
   //----------------------------------------------------------------------------
   //! By default convert the uid/gid(s) to numeric representation. If to_string
@@ -93,7 +106,7 @@ public:         // [+] prevents '+' interpreted as "one or more"
     mCanNotBrowse(false),
     mCanChmod(false), mCanChown(false), mCanNotDelete(false),
     mCanNotChmod(false), mCanDelete(false), mCanSetQuota(false), mHasAcl(false),
-    mHasEgroup(false), mIsMutable(false), mCanArchive(false), mCanPrepare(false)
+    mHasEgroup(false), mIsMutable(false), mCanArchive(false), mCanPrepare(false), mCanShare(false), mCanSetAcl(false)
   {}
 
   //----------------------------------------------------------------------------
@@ -105,10 +118,11 @@ public:         // [+] prevents '+' interpreted as "one or more"
   //! @param useracl user acl definition string
   //! 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)(+u)}
   //! |z:{rw[o]xmc(!u)(+u)(!d)(+d)q}'
+  //! @param shareacl share acl definition string
   //! @param vid virtual id to match ACL
   //! @param allowUserAcl if true evaluate also the user acl for the permissions
   //----------------------------------------------------------------------------
-  Acl(std::string sysacl, std::string useracl,
+  Acl(std::string sysacl, std::string useracl, std::string shareacl,
       const eos::common::VirtualIdentity& vid, bool allowUserAcl = false);
 
   /*---------------------------------------------------------------------------*/
@@ -125,10 +139,11 @@ public:         // [+] prevents '+' interpreted as "one or more"
   //! @param vid virtual id to match ACL
   //! @param attr map returns all the attributes from path
   //! @param lockNs should we lock the namespace when retrieveng the attribute map
+  //! @param asShare indicates to apply share.sys.acl as sys.acl
   //----------------------------------------------------------------------------
   Acl(const char* path, XrdOucErrInfo& error,
       const eos::common::VirtualIdentity& vid,
-      eos::IContainerMD::XAttrMap& attrmap, bool lockNs);
+      eos::IContainerMD::XAttrMap& attrmap, bool lockNs, bool asShare = false);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -141,7 +156,7 @@ public:         // [+] prevents '+' interpreted as "one or more"
   //----------------------------------------------------------------------------
   void SetFromAttrMap(const eos::IContainerMD::XAttrMap& attrmap,
                       const eos::common::VirtualIdentity& vid,
-                      eos::IFileMD::XAttrMap* attrmapF = NULL, bool sysaclOnly = false);
+                      eos::IFileMD::XAttrMap* attrmapF = NULL, bool sysaclOnly = false, bool asShare = false);
 
   //----------------------------------------------------------------------------
   //! Enter system and user definition + identity used for ACL interpretation
@@ -152,12 +167,20 @@ public:         // [+] prevents '+' interpreted as "one or more"
   //! @param useracl user acl definition string
   //! 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)}
   //! |z:{rw[o]xmc(!u)(+u)(!d)(+d)q}'
+  //! @param shareacl share acl definition string
+  //! @param tokenacl acl defined in a token
   //! @param vid virtual id to match ACL
   //! @param allowUserAcl if true evaluate the user acl for permissions
   //----------------------------------------------------------------------------
-  void Set(std::string sysacl, std::string useracl, std::string tokenacl,
+  void Set(std::string sysacl, std::string useracl, std::string shareacl, std::string tokenacl,
            const eos::common::VirtualIdentity& vid,
            bool allowUserAcl = false);
+
+
+  //----------------------------------------------------------------------------
+  //! Apply rules from a share acl
+  //----------------------------------------------------------------------------
+  void ApplyShare(Acl& acl);
 
   //----------------------------------------------------------------------------
   // Getter Functions for ACL booleans
@@ -237,6 +260,16 @@ public:         // [+] prevents '+' interpreted as "one or more"
     return mCanSetQuota;
   }
 
+  inline bool CanShare() const
+  {
+    return mCanShare;
+  }
+
+  inline bool CanSetAcl() const
+  {
+    return mCanSetAcl;
+  }
+
   inline bool HasAcl() const
   {
     return mHasAcl;
@@ -314,14 +347,17 @@ private:
   bool mCanNotChmod; ///< acl forbids chmod
   bool mCanDelete; ///< acl allows deletion
   bool mCanSetQuota; ///< acl allows to set quota
+  bool mCanArchive; ///< acl which allows archiving
+  bool mCanPrepare; ///< acl which allows triggering workflows
+  bool mCanShare; ///< acl allows to share
+  bool mCanSetAcl; ///< acl allows to set acls
   bool mHasAcl; ///< acl is valid
   bool mHasEgroup; ///< acl contains egroup rule
   bool mIsMutable; ///< acl does not contain the immutable flag
-  bool mCanArchive; ///< acl which allows archiving
-  bool mCanPrepare; ///< acl which allows triggering workflows
 
   std::string sysattr;
   std::string userattr;
+  std::string shareattr;
   bool evaluserattr;
   std::string userattrF;
   bool evaluserattrF;

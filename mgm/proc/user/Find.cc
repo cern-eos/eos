@@ -839,13 +839,13 @@ ProcCommand::Find()
              ) {
             if ((map.count("sys.acl") || map.count("user.acl"))) {
               if (map.count("sys.acl")) {
-                if (Acl::IsValid(map["sys.acl"].c_str(), *mError)) {
+                if (Acl::IsValid(map["sys.acl"].c_str(), *mError, Acl::eSysAcl)) {
                   continue;
                 }
               }
 
               if (map.count("user.acl")) {
-                if (Acl::IsValid(map["user.acl"].c_str(), *mError)) {
+                if (Acl::IsValid(map["user.acl"].c_str(), *mError, Acl::eUserAcl)) {
                   continue;
                 }
               }

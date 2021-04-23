@@ -23,6 +23,7 @@
 #include "mgm/Acl.hh"
 #include "mgm/Egroup.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/Share.hh"
 #include "common/StringConversion.hh"
 #include <regex.h>
 
@@ -31,11 +32,11 @@ EOSMGMNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-Acl::Acl(std::string sysacl, std::string useracl,
+Acl::Acl(std::string sysacl, std::string useracl, std::string shareacl,
          const eos::common::VirtualIdentity& vid, bool allowUserAcl)
 {
   std::string tokenacl = TokenAcl(vid);
-  Set(sysacl, useracl, tokenacl, vid, allowUserAcl);
+  Set(sysacl, useracl, shareacl, tokenacl, vid, allowUserAcl);
 }
 
 
@@ -61,7 +62,7 @@ Acl::Acl(const eos::IContainerMD::XAttrMap& attrmap,
 //------------------------------------------------------------------------------
 Acl::Acl(const char* path, XrdOucErrInfo& error,
          const eos::common::VirtualIdentity& vid,
-         eos::IContainerMD::XAttrMap& attrmap, bool lockNs)
+         eos::IContainerMD::XAttrMap& attrmap, bool lockNs, bool asShare)
 {
   if (path && strlen(path)) {
     int rc = gOFS->_attr_ls(path, error, vid, 0, attrmap, lockNs);
@@ -72,7 +73,7 @@ Acl::Acl(const char* path, XrdOucErrInfo& error,
   }
 
   // Set the acl rules from the attributes
-  SetFromAttrMap(attrmap, vid);
+  SetFromAttrMap(attrmap, vid, NULL, false, asShare);
 }
 
 //------------------------------------------------------------------------------
@@ -81,53 +82,119 @@ Acl::Acl(const char* path, XrdOucErrInfo& error,
 void
 Acl::SetFromAttrMap(const eos::IContainerMD::XAttrMap& attrmap,
                     const eos::common::VirtualIdentity& vid, eos::IFileMD::XAttrMap* attrmapF,
-                    bool sysaclOnly)
+                    bool sysaclOnly, bool asShare)
 {
   bool evalUseracl = false;
   evaluserattrF = false;
+  std::string sysacl;
   std::string useracl;
+  std::string shareacl;
   std::string tokenacl;
 
-  if (!sysaclOnly) {
-    if (attrmapF != NULL && attrmapF->count("user.acl") > 0) {
-      evalUseracl = attrmapF->count("sys.eval.useracl") > 0;
-
-      if (evalUseracl) {
-        useracl = (*attrmapF)["user.acl"];
-	userattrF = useracl;
-	evaluserattrF = true;
+  if (asShare) {
+    auto it = attrmap.find("sys.share.acl");
+    if (it != attrmap.end()) {
+      sysacl = it->second;
+    }
+  } else {
+    if (!sysaclOnly) {
+      if (attrmapF != NULL && attrmapF->count("user.acl") > 0) {
+	evalUseracl = attrmapF->count("sys.eval.useracl") > 0;
+	if (evalUseracl) {
+	  useracl = (*attrmapF)["user.acl"];
+	  userattrF = useracl;
+	  evaluserattrF = true;
+	}
+      } else {
+	evalUseracl = attrmap.count("sys.eval.useracl") > 0;
+	auto it = attrmap.find("user.acl");
+	if (it != attrmap.end()) {
+	  useracl = it->second;
+	}
       }
-    } else {
-      evalUseracl = attrmap.count("sys.eval.useracl") > 0;
-      auto it = attrmap.find("user.acl");
+    }
 
-      if (it != attrmap.end()) {
-        useracl = it->second;
-      }
+    tokenacl = TokenAcl(vid);
+    auto it = attrmap.find("sys.acl");
+
+    if (it != attrmap.end()) {
+      sysacl = it->second;
+    }
+
+    it = attrmap.find("sys.acl.share");
+    if (it != attrmap.end()) {
+      shareacl = it->second;
     }
   }
 
-  tokenacl = TokenAcl(vid);
-  std::string sysAcl;
-  auto it = attrmap.find("sys.acl");
-
-  if (it != attrmap.end()) {
-    sysAcl = it->second;
-  }
-
   if (EOS_LOGS_DEBUG) {
-    eos_static_debug("sysacl='%s' useracl='%s' tokenacl='%s' evalUseracl=%d",
-                     sysAcl.c_str(), useracl.c_str(), tokenacl.c_str(), evalUseracl);
+    eos_static_debug("sysacl='%s' useracl='%s' shareacl='%s' tokenacl='%s' evalUseracl=%d asShare=%d",
+                     sysacl.c_str(), useracl.c_str(), shareacl.c_str(), tokenacl.c_str(), evalUseracl, asShare);
   }
 
-  Set(sysAcl, useracl, tokenacl, vid, evalUseracl);
+  Set(sysacl, useracl, shareacl, tokenacl, vid, evalUseracl);
+}
+
+//------------------------------------------------------------------------------
+// Apply rules from a share ACL
+//------------------------------------------------------------------------------
+
+void
+Acl::ApplyShare(Acl& acl)
+{
+  mHasAcl |= acl.HasAcl();
+  mCanRead |= acl.CanRead();
+  if (mCanRead) {
+    mCanNotRead = false;
+  }
+  mCanWrite |= acl.CanWrite();
+  if (mCanWrite) {
+    mCanNotWrite = false;
+  } else {
+    mCanNotWrite |= acl.CanNotWrite();
+  }
+  mCanWriteOnce |= acl.CanWriteOnce();
+  if (mCanWrite) {
+    mCanWriteOnce = false;
+  }
+  mCanUpdate |= acl.CanUpdate();
+  if (mCanUpdate) {
+    mCanNotUpdate = false;
+  } else {
+    mCanNotUpdate |= acl.CanNotUpdate();
+  }
+  mCanBrowse |= acl.CanBrowse();
+  if (mCanBrowse) {
+    mCanNotBrowse = false;
+  } else {
+    mCanNotBrowse |= acl.CanNotBrowse();
+  }
+
+  mCanChmod |= acl.CanChmod();
+  if (mCanChmod) {
+    mCanNotChmod = false;
+  } else {
+    mCanNotChmod |= acl.CanNotChmod();
+  }
+  mCanChown |= acl.CanChown();
+  mCanDelete |= acl.CanDelete();
+  if (mCanDelete) {
+    mCanNotDelete = false;
+  }
+  mCanSetQuota |= acl.CanSetQuota();
+  mHasEgroup |= acl.HasEgroup();
+  mIsMutable |= acl.IsMutable();
+  mCanArchive |= acl.CanArchive();
+  mCanPrepare |= acl.CanPrepare();
+  mCanSetAcl |= acl.CanSetAcl();
+  mCanShare |= acl.CanShare();
 }
 
 //------------------------------------------------------------------------------
 // Set the contents of an ACL and compute the canXX and hasXX booleans.
 //------------------------------------------------------------------------------
 void
-Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
+Acl::Set(std::string sysacl, std::string useracl, std::string shareacl, std::string tokenacl,
          const eos::common::VirtualIdentity& vid, bool allowUserAcl)
 {
   std::string acl = "";
@@ -138,6 +205,10 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
   if (sysacl.length()) {
     acl += sysacl;
     sysattr = sysacl;
+  }
+
+  if (shareacl.length()) {
+    shareattr = shareacl;
   }
 
   if (allowUserAcl) {
@@ -176,13 +247,15 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
   mCanNotDelete = false;
   mCanDelete = false;
   mCanSetQuota = false;
-  mHasEgroup = false;
-  mIsMutable = true;
   mCanArchive = false;
   mCanPrepare = false;
+  mCanShare = false;
+  mCanSetAcl = false;
+  mHasEgroup = false;
+  mIsMutable = true;
 
   // no acl definition
-  if (!acl.length()) {
+  if (!acl.length() && shareacl.empty()) {
     return;
   }
 
@@ -333,9 +406,17 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
             mCanArchive = !deny;
             break;
 
+	  case 'e': // 'e' defines set acl permission
+	    mCanSetAcl = !deny;
+	    break;
+
           case 'r': // 'r' defines read permission
             mCanRead = !deny;
             break;
+
+	  case 's': // 's' defines sharing permission
+	    mCanShare = !deny;
+	    break;
 
           case 'x': // 'x' defines browsing permission
             mCanBrowse = !deny;
@@ -453,6 +534,14 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
       mCanArchive = is_allowed;
       break;
 
+    case 'e':
+      mCanSetAcl = is_allowed;
+      break;
+
+    case 's':
+      mCanShare = is_allowed;
+      break;
+
     case 'r':
       mCanRead = is_allowed;
       mCanNotRead = !is_allowed;
@@ -506,24 +595,62 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
     }
   }
 
+  if (shareacl.length()) {
+    // now get all the shares
+    std::vector<std::string> rules;
+    std::string delimiter = ",";
+
+    eos::common::StringConversion::Tokenize(shareacl, rules, delimiter);
+    eos_static_debug("to parse %s\n", shareacl.c_str());
+    for ( auto i : rules ) {
+      eos_static_debug("parsing rule %s\n", i.c_str());
+      eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
+      std::shared_ptr<eos::mgm::Acl> s_acl = Share::getShareAcl(vid, i);
+      if (s_acl) {
+	ApplyShare(*s_acl);
+      }
+    }
+  }
+
   if (EOS_LOGS_DEBUG) {
     eos_static_debug(
       "mCanRead %d mCanNotRead %d mCanWrite %d mCanNotWrite %d mCanWriteOnce %d mCanUpdate %d mCanNotUpdate %d "
       "mCanBrowse %d mCanNotBrowse %d mCanChmod %d mCanChown %d mCanNotDelete %d mCanNotChmod %d "
-      "mCanDelete %d mCanSetQuota %d mHasAcl %d mHasEgroup %d mIsMutable %d mCanArchive %d mCanPrepare %d",
+      "mCanDelete %d mCanSetQuota %d mHasAcl %d mHasEgroup %d mIsMutable %d mCanArchive %d mCanPrepare %d mCanSetAcl %d mCanShare %d",
       mCanRead, mCanNotRead, mCanWrite, mCanNotWrite, mCanWriteOnce, mCanUpdate,
       mCanNotUpdate,
       mCanBrowse, mCanNotBrowse, mCanChmod, mCanChown, mCanNotDelete, mCanNotChmod,
       mCanDelete, mCanSetQuota, mHasAcl, mHasEgroup, mIsMutable, mCanArchive,
-      mCanPrepare);
+      mCanPrepare, mCanSetAcl, mCanShare);
   }
+}
+
+//------------------------------------------------------------------------------
+// Return AclType for a given extended attribute name
+//------------------------------------------------------------------------------
+Acl::AclType
+Acl::GetType(const std::string& value)
+{
+  if (value == "sys.acl") {
+    return Acl::eSysAcl;
+  }
+  if (value == "user.acl") {
+    return Acl::eUserAcl;
+  }
+  if (value == "sys.acl.share") {
+    return Acl::eShareAcl;
+  }
+  if (value == "sys.share.acl") {
+    return Acl::eSysAcl;
+  }
+  return Acl::eNoAcl;
 }
 
 //------------------------------------------------------------------------------
 // Check whether ACL has a valid format / syntax.
 //------------------------------------------------------------------------------
 bool
-Acl::IsValid(const std::string& value, XrdOucErrInfo& error, bool is_sys_acl,
+Acl::IsValid(const std::string& value, XrdOucErrInfo& error, Acl::AclType type,
              bool check_numeric)
 {
   // Empty is valid
@@ -536,18 +663,26 @@ Acl::IsValid(const std::string& value, XrdOucErrInfo& error, bool is_sys_acl,
   regex_t regex;
   std::string regexString;
 
-  if (is_sys_acl) {
+  switch (type) {
+  case eSysAcl:
     if (check_numeric) {
       regexString = sRegexSysNumericAcl;
     } else {
       regexString = sRegexSysGenericAcl;
     }
-  } else {
+    break;
+  case eUserAcl:
     if (check_numeric) {
       regexString = sRegexUsrNumericAcl;
     } else {
       regexString = sRegexUsrGenericAcl;
     }
+  case eShareAcl:
+    regexString = sRegexShareAcl;
+    break;
+  case eNoAcl:
+    error.setErrInfo(2, "invalid extended attribute");
+    return false;
   }
 
   // Compile regex

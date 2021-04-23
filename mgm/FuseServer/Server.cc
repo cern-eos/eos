@@ -685,18 +685,20 @@ Server::FillContainerCAP(uint64_t id,
     // look at ACLs
     std::string sysacl = (*(dir.mutable_attr()))["sys.acl"];
     std::string useracl = (*(dir.mutable_attr()))["user.acl"];
+    std::string shareacl = (*(dir.mutable_attr()))["share.acl"];
 
     if (EOS_LOGS_DEBUG) {
-      eos_debug("name='%s' sysacl='%s' useracl='%s' count(sys.eval.useracl)=%d",
-                dir.name().c_str(), sysacl.c_str(), useracl.c_str(),
+      eos_debug("name='%s' sysacl='%s' useracl='%s' shareacl='%s' count(sys.eval.useracl)=%d",
+                dir.name().c_str(), sysacl.c_str(), useracl.c_str(), shareacl.c_str(),
                 dir.attr().count("sys.eval.useracl"));
     }
 
-    if (sysacl.length() || useracl.length()) {
+    if (sysacl.length() || useracl.length(), shareacl.length()) {
       bool evaluseracl = (!S_ISDIR(dir.mode())) ||
                          dir.attr().count("sys.eval.useracl") > 0;
       Acl acl(sysacl,
               useracl,
+	      shareacl,
               vid,
               evaluseracl);
 

@@ -421,7 +421,7 @@ IProcCommand::GetPathFromFid(XrdOucString& path, unsigned long long fid,
 
 int
 IProcCommand::GetPathFromFid(std::string& path, unsigned long long fid,
-                             std::string& err_msg)
+                             std::string& err_msg, bool takeLock)
 {
   if (path.empty()) {
     if (fid == 0ULL) {
@@ -430,14 +430,17 @@ IProcCommand::GetPathFromFid(std::string& path, unsigned long long fid,
     }
 
     try {
-      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+      eos::common::RWMutexReadLock ns_rd_lock;
+      if (takeLock) {
+	ns_rd_lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+      }
       std::string temp = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(
                            fid).get());
       path = temp;
       return 0;
     } catch (eos::MDException& e) {
       errno = e.getErrno();
-      eos_debug("caught exception %d %s\n", e.getErrno(),
+      eos_static_debug("caught exception %d %s\n", e.getErrno(),
                 e.getMessage().str().c_str());
       err_msg = "error: " + e.getMessage().str() + '\n';
       return errno;
@@ -464,7 +467,7 @@ IProcCommand::GetPathFromCid(XrdOucString& path, unsigned long long cid,
 
 int
 IProcCommand::GetPathFromCid(std::string& path, unsigned long long cid,
-                             std::string& err_msg)
+                             std::string& err_msg, bool takeLock)
 {
   if (path.empty()) {
     if (cid == 0ULL) {
@@ -473,14 +476,18 @@ IProcCommand::GetPathFromCid(std::string& path, unsigned long long cid,
     }
 
     try {
-      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+
+      eos::common::RWMutexReadLock ns_rd_lock;
+      if (takeLock){
+	ns_rd_lock.Grab(gOFS->eosViewRWMutex);
+      }
       std::string temp = gOFS->eosView->getUri
                          (gOFS->eosDirectoryService->getContainerMD(cid).get());
       path = temp;
       return 0;
     } catch (eos::MDException& e) {
       errno = e.getErrno();
-      eos_debug("caught exception %d %s\n", e.getErrno(),
+      eos_static_debug("caught exception %d %s\n", e.getErrno(),
                 e.getMessage().str().c_str());
       err_msg = "error: " + e.getMessage().str() + '\n';
       return errno;

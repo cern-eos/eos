@@ -167,6 +167,7 @@ add_library(
   qos/QoSConfig.cc                                  qos/QoSConfig.hh
   qos/QoSClass.hh
   Quota.cc
+  Share.cc
   Scheduler.cc
   Vid.cc
   FsView.cc

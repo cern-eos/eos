@@ -138,11 +138,6 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
 
   XrdOucString Key = key;
 
-  if (Key.beginswith("sys.") && ((!vid.sudoer) && (vid.uid))) {
-    errno = EPERM;
-    return Emsg(epname, error, errno, "set attribute", path);
-  }
-
   // Never put any attribute on version directories
   if (strstr(path, EOS_COMMON_PATH_VERSION_PREFIX) != 0) {
     return SFS_OK;
@@ -158,29 +153,35 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
 
   try {
     dh = gOFS->eosView->getContainer(path);
+    eos::IContainerMD::XAttrMap xattrmap = dh->getAttributes();
+
+    // get the ACL for this directory
+    Acl acl(xattrmap, vid);
 
     // Check permissions in case of user attributes
-    if (dh && !Key.beginswith("sys.") && (vid.uid != dh->getCUid())
-        && (!vid.sudoer && vid.uid)) {
+    if (dh &&
+	// any attribute not if not the owner and not a sudoer and not root
+	(vid.uid != dh->getCUid()) && (!vid.sudoer && vid.uid) ||
+	// sys.acl only by non sudoer/root if ACL allows
+	((Key == "sys.acl") && (!vid.sudoer) && (vid.uid) && (!acl.CanSetAcl()))) {
       errno = EPERM;
     } else {
       XrdOucString val64 = value;
       XrdOucString ouc_val;
       eos::common::SymKey::DeBase64(val64, ouc_val);
       std::string val = ouc_val.c_str();
-
-      if (Key.beginswith("sys.acl") || Key.beginswith("user.acl")) {
-        bool is_sys_acl = Key.beginswith("sys.acl");
+      Acl::AclType aclType;
+      if ( (aclType = Acl::GetType(std::string(Key.c_str()))) != Acl::eNoAcl) {
 
         // Check format of acl
-        if (!Acl::IsValid(val, error, is_sys_acl) &&
-            !Acl::IsValid(val, error, is_sys_acl, true)) {
+        if (!Acl::IsValid(val, error, aclType) &&
+            !Acl::IsValid(val, error, aclType, true)) {
           errno = EINVAL;
           return Emsg(epname, error, errno, "set attribute", path);
         }
 
         // Convert to numeric representation
-        if (Acl::ConvertIds(val)) {
+        if ( (aclType != Acl::eShareAcl) && Acl::ConvertIds(val)) {
           errno = EINVAL;
           return Emsg(epname, error, errno, "set attribute (failed id conver)", path);
         }
@@ -212,14 +213,33 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
   }
 
   if (!dh) {
+    if (take_lock) {
+      ns_wr_lock.Release();
+    }
+
+    // pre-fetch file and parent
+    eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
+
+    if (take_lock) {
+      ns_wr_lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    }
+
     std::shared_ptr<eos::IFileMD> fmd;
 
     try {
       fmd = gOFS->eosView->getFile(path);
+      eos::common::Path pPath(path);
+      dh = gOFS->eosView->getContainer(pPath.GetParentPath());
 
-      // Check permissions in case of user attributes
-      if (fmd && !Key.beginswith("sys.") && (vid.uid != fmd->getCUid())
-          && (!vid.sudoer && vid.uid)) {
+      eos::IContainerMD::XAttrMap xattrmap = dh->getAttributes();
+
+      Acl acl(xattrmap, vid);
+
+      if (fmd &&
+	  // any attribute not if not the owner and not a sudoer and not root
+	  (vid.uid != fmd->getCUid()) && (!vid.sudoer && vid.uid) ||
+	  // sys.acl only by non sudoer/root if ACL allows
+	  ((Key == "sys.acl") && (!vid.sudoer) && (vid.uid) && (!acl.CanSetAcl()))) {
         errno = EPERM;
       } else {
         XrdOucString val64 = value;
