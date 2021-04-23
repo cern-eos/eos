@@ -138,7 +138,7 @@ BENCHMARK_DEFINE_F(CMFixture, BM_ReadWriteMultiTS)(benchmark::State& state) {
   std::vector<std::thread> reader_threads;
   std::vector<std::thread> writer_threads;
 
-  for (auto _:state) {
+  if (state.thread_index == 0) {
     for (int i=0; i< w_thread_sz; i++) {
       writer_threads.emplace_back(std::thread([&]() {
         for (int i =0; i < sz; i++) {
@@ -153,7 +153,9 @@ BENCHMARK_DEFINE_F(CMFixture, BM_ReadWriteMultiTS)(benchmark::State& state) {
         }
       }));
     }
+  }
 
+  for (auto _:state) {
     for (int i=0; i < r_thread_sz; i++) reader_threads[i].join();
     for (int i=0; i < w_thread_sz; i++) writer_threads[i].join();
   }
