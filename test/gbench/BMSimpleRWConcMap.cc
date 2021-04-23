@@ -102,6 +102,18 @@ struct CMFixture: public ::benchmark::Fixture {
   }
 };
 
+struct CMFixedFixture: public ::benchmark::Fixture {
+  SimpleConcMap cm;
+  void Setup(benchmark::State& state) {
+    for(int64_t i = state.range(1)*1000; --i;) {
+      cm.add(std::to_string(i));
+    }
+  };
+  void TearDown(benchmark::State&) {
+    cm.clear();
+  }
+};
+
 BENCHMARK_DEFINE_F(CMFixture, BM_ReadTS)(benchmark::State& state) {
   const int64_t sz = static_cast<int64_t>(state.range(0));
   for (auto _: state) {
@@ -131,7 +143,7 @@ BENCHMARK_DEFINE_F(CMFixture, BM_ReadWriteTS)(benchmark::State& state) {
   }
 }
 
-BENCHMARK_DEFINE_F(CMFixture, BM_ReadWriteMultiTS)(benchmark::State& state) {
+BENCHMARK_DEFINE_F(CMFixedFixture, BM_ReadWriteMultiTS)(benchmark::State& state) {
   const int64_t sz = static_cast<int64_t>(state.range(0));
   const int64_t w_thread_sz = static_cast<int64_t>(state.range(1));
   const int64_t r_thread_sz = static_cast<int64_t>(state.range(2));
@@ -166,5 +178,5 @@ BENCHMARK(BM_KeyWrite)->Range(start,end)->Unit(benchmark::kMillisecond);
 BENCHMARK(BM_KeyWriteTS)->Range(start,end)->ThreadRange(1,8)->Unit(benchmark::kMillisecond);
 BENCHMARK_REGISTER_F(CMFixture, BM_ReadTS)->Range(start,end)->ThreadRange(1,8)->Unit(benchmark::kMillisecond);
 BENCHMARK_REGISTER_F(CMFixture, BM_ReadWriteTS)->Range(start,end)->Unit(benchmark::kMillisecond)->UseRealTime();
-BENCHMARK_REGISTER_F(CMFixture, BM_ReadWriteMultiTS)->Ranges({{start,end},{1,2},{1,2}})->Unit(benchmark::kMillisecond)->UseRealTime();
+BENCHMARK_REGISTER_F(CMFixedFixture, BM_ReadWriteMultiTS)->Ranges({{start,end},{1,2},{1,2}})->Unit(benchmark::kMillisecond)->UseRealTime();
 BENCHMARK_MAIN();
