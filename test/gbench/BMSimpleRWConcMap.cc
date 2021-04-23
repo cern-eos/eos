@@ -137,24 +137,22 @@ BENCHMARK_DEFINE_F(CMFixture, BM_ReadWriteMultiTS)(benchmark::State& state) {
   const int64_t r_thread_sz = static_cast<int64_t>(state.range(2));
 
   for (auto _:state) {
-    std::vector<std::thread> reader_threads(r_thread_sz);
-    std::vector<std::thread> writer_threads(w_thread_sz);
+    std::vector<std::thread> reader_threads;
+    std::vector<std::thread> writer_threads;
 
-    if (state.thread_index == 0) {
-      for (int i=0; i< w_thread_sz; i++) {
-        writer_threads.emplace_back(std::thread([&]() {
-          for (int i =0; i < sz; i++) {
-            cm.addTS(std::to_string(i));
-          }
-        }));
-      }
-      for (int i=0; i < r_thread_sz; i++) {
-        reader_threads.emplace_back(std::thread([&]() {
-          for (int i=0; i < sz; i++) {
-            cm.readTS(std::to_string(std::rand() % sz));
-          }
-        }));
-      }
+    for (int i=0; i< w_thread_sz; i++) {
+      writer_threads.emplace_back(std::thread([&]() {
+        for (int i =0; i < sz; i++) {
+          cm.addTS(std::to_string(i));
+        }
+      }));
+    }
+    for (int i=0; i < r_thread_sz; i++) {
+      reader_threads.emplace_back(std::thread([&]() {
+        for (int i=0; i < sz; i++) {
+          cm.readTS(std::to_string(std::rand() % sz));
+        }
+      }));
     }
 
     for (auto& rth: reader_threads) rth.join();
