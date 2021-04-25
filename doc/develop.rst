@@ -414,10 +414,10 @@ There is yet another configuration file you will have to modify e.g. :code:`/etc
     # Example disable krb5 and gsi
     #sec.protocol krb5
     #sec.protocol gsi
-
-    sec.protbind * only sss unix
-    sec.protbind localhost unix sss
+    
     sec.protbind localhost.localdomain unix sss
+    sec.protbind localhost unix sss
+    sec.protbind * only sss unix
 
 
 Note: that the order of sec.protbind matters for host maching (matches from "bottom up", i.e. in reverse order of specification, from most specific to least specific).
