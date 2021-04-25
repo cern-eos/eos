@@ -397,12 +397,14 @@ Inside you need to fill in various pices of information:
     EOS_USE_SHARED_MUTEX=1`
 
 
-Then you need security keys on your machine:
+Then you need Kerberos security keys on your machine:
 
 .. code-block:: bash
 
     cp /etc/krb5.keytab /etc/eos.krb5.keytab
 
+.. warning:: Kerberos and SSS keytab files are different and use different formats.  Read the documentation for the :code:`xrdsssadmin` command or XRootD sss protocol at https://xrootd.slac.stanford.edu/doc/dev49/sec_config.htm#_Toc517294117
+    
 There is yet another configuration file you will have to modify e.g. :code:`/etc/xrd.cf.mgm` (note aside: These are configuring the xroot daemons that will be running as a service, this has nothing to do with the config of eos itself which is being saved in QuarkDB.). In this file you can change the security settings as needed, e.g.:
 
 .. code-block:: bash
