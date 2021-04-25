@@ -11,7 +11,7 @@ EOS distinguished two type of nodes:
 * the MGM node (namespace node)
 * the FST nodes (storage nodes)
 
-Warning:  This quickstart skips installing a QuarkDB instance for brevity.  In EOS5+, QuarkDB is required and it is highly suggested for most deployments in EOS4.  See the conventional deployment for details at https://eos-docs.web.cern.ch/develop.html#deployment.
+.. warning:: This quickstart skips installing a QuarkDB instance for brevity.  In EOS5+, QuarkDB is required and it is highly suggested for most deployments in EOS4 due to the memory and time requirements for large namespaces.  See the conventional deployment for details at https://eos-docs.web.cern.ch/develop.html#deployment.
   
 Copy an example config file to /etc/sysconfig/eos
 
