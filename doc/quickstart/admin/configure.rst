@@ -12,7 +12,7 @@ EOS distinguished two type of nodes:
 * the FST nodes (storage nodes)
 
 .. warning:: This quickstart skips installing a QuarkDB instance for brevity.  In EOS5+, QuarkDB is required and it is highly suggested for most deployments in EOS4 due to the memory and time requirements for large namespaces.  See the conventional deployment for details at https://eos-docs.web.cern.ch/develop.html#deployment.
-  
+
 Copy an example config file to /etc/sysconfig/eos
 
 .. code-block:: bash
@@ -67,7 +67,7 @@ Let's start EOS
 
 .. code-block:: bash
 
-   // SysV flavour		
+   // SysV flavour
    bash> service eos start
 
    // systemd flavour
@@ -91,9 +91,9 @@ The `default` space name is **default**. Groups in the **default** space are num
 
 .. note::
 
-   You should have atleast as many scheduling groups as the number of filesystems per storage node. The maximum number of 
+   You should have atleast as many scheduling groups as the number of filesystems per storage node. The maximum number of
    filesystems in one EOS instance is limited to 64k.
-   
+
 If you have 20 disks on storage nodes you create 20 groups in space **default**
 
 .. code-block:: bash
@@ -106,7 +106,7 @@ You can list your single storage node and your group configuration doing
 
    eos node ls
    eos group ls
-   
+
 .. note::
 
    We see also our MGM node because we added "fst" in XRD_ROLES. You can remove if you don't want to use your MGM machine as a storage srever.
@@ -152,27 +152,27 @@ Now on the MGM node we should see a new FST running
    #-----------------------------------------------------------------------------------------------------------------------------
    nodesview                      eosfoo.ch:1095   online           on    off          0       10      120                1     1
    nodesview                      eosfst.ch:1095   online           on    off          0       10      120                1     1
-   
+
 Now we are going to add filesystems (partitions) to the storage node
 
 .. note::
 
    Make sure that your data partition is having "user_xattr" option on, when you are mounting. Here is example in /etc/fstab
-   
+
    /dev/sdb1 /data01  ext4    defaults,user_xattr        0 0
-   
+
 Let's assume that you have four partitions ``/data01 /data02 /data03 /data04``. You have to change the ownership of all storage directories to daemon:daemon because all EOS daemons run under the ``daemon`` account.
 
 .. code-block:: bash
 
    chown -R daemon:daemon /data*
-   
+
 Register them towards the MGM via
 
 .. code-block:: bash
 
    eosfstregister /data default:4
-   
+
 .. note::
 
    If you want to remove filesystems, they have to be in state ``empty`` (see :ref:`draining`) and then can be deleted via `eos fs rm <fsid>`
@@ -192,7 +192,7 @@ You can check the status of your space with
 
    eos space ls
    eos space status default
-   
+
 If ``space ls`` shows non zero as **rw** space, you have successfully configured your EOS instance to store data.
 
 Configure MGM space
@@ -204,19 +204,19 @@ There are some space related parameters to modify the behaviour of EOS
 
    # disable quota for first tests
    eos space quota default off
-   
+
    # disable balancer
    eos space config default space.balancer=off
-   
+
    # set balancer threshold to 5%
    eos space config default space.balancer.threshold=5
-   
+
    # set checksum scan interval to 1 week
    eos space config default space.scaninterval=604800
-   
+
    # set drain delay for IO errors to 1 hours
    eos space config default space.graceperiod=3600
-   
+
    # set max drain time to 1 day
    eos space config default space.drainperiod=86400
 
@@ -246,31 +246,31 @@ Enable kerberos security
 
 .. toctree::
    :maxdepth: 1
-   
+
    krb5
 
 
 Setup AUTH service
 ------------------
 
-If an MGM has to handle more than 32k clients it is recommended to deploy a scalable front-end 
-service called AUTH. 
+If an MGM has to handle more than 32k clients it is recommended to deploy a scalable front-end
+service called AUTH.
 
 Setup AUTH plugin
 *****************
 
-The authentication plugin is intended to be used as an OFS library with a 
-vanilla XRootD server. What it does is to connect using ZMQ sockets to the 
-real MGM nodes (in general it should connect to a master and a slave MGM). 
-It does this by reading out the endpoints it needs to connect to from the 
-configuration file (/etc/xrd.cf.auth). These need to follow the format: 
-"host:port" and the first one should be the endpoint corresponding to the 
-master MGM and the second one to the slave MGM. The EosAuthOfs plugin then 
-tries to replay all the requests it receives from the clients to the master 
-MGM node. It does this by marshalling the request and identity of the client 
-using ProtocolBuffers and sends this request using ZMQ to the master MGM 
+The authentication plugin is intended to be used as an OFS library with a
+vanilla XRootD server. What it does is to connect using ZMQ sockets to the
+real MGM nodes (in general it should connect to a master and a slave MGM).
+It does this by reading out the endpoints it needs to connect to from the
+configuration file (/etc/xrd.cf.auth). These need to follow the format:
+"host:port" and the first one should be the endpoint corresponding to the
+master MGM and the second one to the slave MGM. The EosAuthOfs plugin then
+tries to replay all the requests it receives from the clients to the master
+MGM node. It does this by marshalling the request and identity of the client
+using ProtocolBuffers and sends this request using ZMQ to the master MGM
 node. The authentication plugin can run on the same machine as an MGM node or
-on a different machine. Once can use several such authentication services 
+on a different machine. Once can use several such authentication services
 at the same time.
 
 There are several tunable parameters for this configuration (auth + MGMs):
@@ -289,7 +289,7 @@ AUTH - configuration
     The default size is 10 sockets.
 
 MGM - configuration
-******************* 
+*******************
 
 - **mgmofs.auththreads** - since we now receive requests using ZMQ, we no longer
     use the default thread pool from XRootD and we need threads for dealing
@@ -305,6 +305,5 @@ should redirect all clients with write requests to the master node. Care
 should be taken when specifying the two endpoints since the switch is done
 ONLY IF the redirection HOST matches one of the two endpoints specified in
 the configuration  of the authentication plugin (namely eosauth.instance).
-Once the switch is done all requests be them read or write are sent to the 
+Once the switch is done all requests be them read or write are sent to the
 new master MGM node.
-   
