@@ -251,7 +251,7 @@ The following dependencies might not be required (you should be able to ignore t
 
 .. warning:: yum can automatically update your packages (in yum history you can see:  "-y --skip-broken update" in such a case) you can remove this package :code:`yum remove yum-autoupdate` to make sure it does not screw up EOS rpms installed.
 
-If when executing the unit tests you have errors about the linker that could not find .so files, you can update your :code:`LD_LIBRARY_PATH` to add to it the :code:`common` and the :code:`mq` directory of your EOS build directory. 
+If when executing the unit tests you have errors about the linker that could not find .so files, you can update your :code:`LD_LIBRARY_PATH` to add to it the :code:`common` and the :code:`mq` directory of your EOS build directory.
 
 Deployment
 =================================================
@@ -377,11 +377,15 @@ The environment configuration will be loaded from :code:`/etc/sysconfig/eos_env`
     mv /etc/sysconfig/eos_env.example /etc/sysconfig/eos_env
 
 Inside you need to fill in various pieces of information:
-- :code:`XRD_ROLES="mq mgm fst1 fst2 fst3"`, here depending on how many fst daemons you plan (here 3) to run, you need to specify them here. Drop :code:`fed` and :code:`sync` as they are not used anymore. Also, HOST_TARGET was used for the sync; not needed anymore
+
+* :code:`XRD_ROLES="mq mgm fst1 fst2 fst3"`, depending on how many fst daemons you plan (here 3) to run, you need to specify them here. Drop :code:`fed` and :code:`sync` as they are not used anymore.
+* HOST_TARGET was used for the :code:`sync` and is not needed anymore.
+* EL8 systems will need :code:`LD_PRELOAD=/usr/lib64/libjemalloc.so.2`
 
 .. code-block:: bash
 
-    # XRD_ROLES depends on what you wish to run, each separate mgm, mq or fst needs to be specified, e.g. for 3 fsts daemons we put fst1 fst2 fst3. Drop :code:`fed` and :code:`sync` if they are present, they are not used anymore.
+    # XRD_ROLES depends on what you wish to run, each separate mgm, mq or fst needs to be specified, e.g. for 3 fsts daemons we put fst1 fst2 fst3.
+    # Delete "fed" and "sync" if present as they are not used anymore.
     XRD_ROLES="mq mgm fst1 fst2 fst3"
     EOS_MGM_HOST=<myhostname>.cern.ch`
     EOS_MGM_HOST_TARGET` # was used for the sync and can be commented out
@@ -403,7 +407,7 @@ Then you need Kerberos security keys on your machine:
     cp /etc/krb5.keytab /etc/eos.krb5.keytab
 
 .. warning:: Kerberos and SSS keytab files are different and use different formats.  Read the documentation for the :code:`xrdsssadmin` command or XRootD SSS protocol at https://xrootd.slac.stanford.edu/doc/dev49/sec_config.htm#_Toc517294117
-    
+
 There is yet another configuration file you will have to modify e.g. :code:`/etc/xrd.cf.mgm` (note aside: These are configuring the xroot daemons that will be running as a service, this has nothing to do with the config of eos itself which is being saved in QuarkDB.). In this file you can change the security settings as needed, e.g.:
 
 .. code-block:: bash
@@ -413,7 +417,7 @@ There is yet another configuration file you will have to modify e.g. :code:`/etc
     # Example disable krb5 and gsi
     #sec.protocol krb5
     #sec.protocol gsi
-    
+
     sec.protbind localhost.localdomain unix sss
     sec.protbind localhost unix sss
     sec.protbind * only sss unix
@@ -465,11 +469,12 @@ If by looking at the :code:`/var/log/eos/mgm/xrdlog.mgm` log file, you see the f
 
     Seckrb5: Unable to start sequence on the keytab file FILE:/etc/krb5.keytab; Permission denied
 
-Then do 
+Then do
 
 .. code-block:: bash
-    
+
     chmod a+r /etc/krb5.keytab
+
 
 MQ
 ------------------------------------
@@ -529,7 +534,7 @@ For our dev purposes, it is usually enough to just create a directory per fst on
     for i in {1..3}; do
         mkdir data$i
         echo $i >  data$i/.eosfsid
-        echo fst$i > data$i/.eosfsuuid; 
+        echo fst$i > data$i/.eosfsuuid;
     done
     chown daemon:daemon -R /fst
 
