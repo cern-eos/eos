@@ -377,11 +377,15 @@ The environment configuration will be loaded from :code:`/etc/sysconfig/eos_env`
     mv /etc/sysconfig/eos_env.example /etc/sysconfig/eos_env
 
 Inside you need to fill in various pieces of information:
-- :code:`XRD_ROLES="mq mgm fst1 fst2 fst3"`, here depending on how many fst daemons you plan (here 3) to run, you need to specify them here. Drop :code:`fed` and :code:`sync` as they are not used anymore. Also, HOST_TARGET was used for the sync; not needed anymore
+
+* :code:`XRD_ROLES="mq mgm fst1 fst2 fst3"`, depending on how many fst daemons you plan (here 3) to run, you need to specify them here. Drop :code:`fed` and :code:`sync` as they are not used anymore.
+* HOST_TARGET was used for the :code:`sync` and is not needed anymore.
+* EL8 systems will need :code:`LD_PRELOAD=/usr/lib64/libjemalloc.so.2`
 
 .. code-block:: bash
 
-    # XRD_ROLES depends on what you wish to run, each separate mgm, mq or fst needs to be specified, e.g. for 3 fsts daemons we put fst1 fst2 fst3. Drop :code:`fed` and :code:`sync` if they are present, they are not used anymore.
+    # XRD_ROLES depends on what you wish to run, each separate mgm, mq or fst needs to be specified, e.g. for 3 fsts daemons we put fst1 fst2 fst3.
+    # Delete "fed" and "sync" if present as they are not used anymore.
     XRD_ROLES="mq mgm fst1 fst2 fst3"
     EOS_MGM_HOST=<myhostname>.cern.ch`
     EOS_MGM_HOST_TARGET` # was used for the sync and can be commented out
@@ -471,6 +475,7 @@ Then do
     
     chmod a+r /etc/krb5.keytab
 
+    
 MQ
 ------------------------------------
 
