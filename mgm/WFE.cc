@@ -2237,7 +2237,28 @@ WFE::Job::HandleProtoMethodArchivedEvent(const std::string& event,
       }
     }
 
-    if (GetFileArchivedGCEnabled("default")) {
+    std::string tgcSpace = "default";
+    {
+      eos::common::RWMutexReadLock fsLock(FsView::gFsView.ViewMutex, __FUNCTION__, __LINE__, __FILE__);
+      eos::common::RWMutexReadLock eosLock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+      auto fmd = gOFS->eosFileService->getFileMD(mFid);
+      
+      unsigned int firstDiskLocation = 0;
+      for (unsigned int i = 0; i < fmd->getNumLocation(); i++) {
+        const auto loc = fmd->getLocation(i);
+
+        if (loc != 0 && loc != eos::common::TAPE_FS_ID) {
+          firstDiskLocation = loc;
+          break;
+        }
+      }
+
+      if (0 != firstDiskLocation) {
+        tgcSpace = FsView::gFsView.mIdView.lookupSpaceByID(firstDiskLocation);
+      }
+    }
+
+    if (GetFileArchivedGCEnabled(tgcSpace)) {
       bool dropAllStripes = true;
       IContainerMD::XAttrMap parentDirAttributes;
       XrdOucErrInfo errInfo;

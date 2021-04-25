@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "mgm/convert/ConverterDriver.hh"
+#include "mgm/IMaster.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -47,7 +48,6 @@ void
 ConverterDriver::Stop()
 {
   mThread.join();
-  mIsRunning = false;
 }
 
 //------------------------------------------------------------------------------
@@ -57,8 +57,15 @@ void
 ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
 {
   JobInfoT info;
+  eos_static_notice("%s", "msg=\"starting converter engine\"");;
   gOFS->WaitUntilNamespaceIsBooted(assistant);
-  eos_static_notice("%s", "msg=\"starting converter engine\"");
+
+  // Wait that current MGM becomes a master
+  do {
+    eos_debug("%s", "msg=\"converter waiting for master MGM\"");
+    assistant.wait_for(std::chrono::seconds(10));
+  } while (!assistant.terminationRequested() && !gOFS->mMaster->IsMaster());
+
   SubmitQdbPending(assistant);
 
   while (!assistant.terminationRequested()) {
@@ -94,6 +101,8 @@ ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
   }
 
   JoinAllConversionJobs();
+  mIsRunning = false;
+  eos_static_notice("%s", "msg=\"stopped converter engine\"");;
 }
 
 //------------------------------------------------------------------------------

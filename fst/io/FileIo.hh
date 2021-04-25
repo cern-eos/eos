@@ -228,6 +228,17 @@ public:
   virtual int fileTruncate(XrdSfsFileOffset offset, uint16_t timeout = 0) = 0;
 
   //----------------------------------------------------------------------------
+  //! Truncate asynchronous
+  //!
+  //! @param offset truncate file to this value
+  //! @param timeout timeout value
+  //!
+  //! @return future holding the status response
+  //----------------------------------------------------------------------------
+  virtual std::future<XrdCl::XRootDStatus>
+  fileTruncateAsync(XrdSfsFileOffset offset, uint16_t timeout = 0) = 0;
+
+  //----------------------------------------------------------------------------
   //! Allocate file space
   //!
   //! @param length space to be allocated

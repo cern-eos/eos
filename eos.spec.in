@@ -993,7 +993,11 @@ Contains an example keytab file.
 Summary: The EOS archive daemon
 Group: Applications/File
 
+%if 0%{?rhel} == 7
 Requires: python-daemon python-zmq python3-fusepy
+%else
+Requires: python3-daemon python3-zmq python3-fusepy
+%endif
 
 # ----------------------
 # select xrootd package

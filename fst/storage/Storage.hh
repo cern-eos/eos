@@ -106,16 +106,6 @@ public:
   size_t GetNumDeletions();
 
   //----------------------------------------------------------------------------
-  //! Get the filesystem associated with the given filesystem id
-  //! or NULL if none could be found
-  //!
-  //! @param fsid filesystem id
-  //!
-  //! @return associated filesystem object or NULL
-  //----------------------------------------------------------------------------
-  fst::FileSystem* GetFileSystemById(eos::common::FileSystem::fsid_t fsid);
-
-  //----------------------------------------------------------------------------
   //! Push new verification job to the queue if the maximum number of pending
   //! verifications is not exceeded.
   //!
@@ -144,6 +134,26 @@ public:
   //! @return stoage path or empty string if unkown file system id
   //----------------------------------------------------------------------------
   std::string GetStoragePath(eos::common::FileSystem::fsid_t fsid) const;
+
+  //----------------------------------------------------------------------------
+  //! Get configuration associated with the given file system id
+  //!
+  //! @param fsid file system id
+  //! @param key configuration key
+  //!
+  //! @return associated configuration value or empty string if nothing found
+  //----------------------------------------------------------------------------
+  std::string GetFileSystemConfig(eos::common::FileSystem::fsid_t fsid,
+                                  const std::string& key) const;
+
+  //----------------------------------------------------------------------------
+  //! Update inconsistency info for the given file system id
+  //!
+  //! @param fsid file system id
+  //!
+  //! return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool UpdateInconsistencyInfo(eos::common::FileSystem::fsid_t fsid);
 
 protected:
   mutable eos::common::RWMutex mFsMutex; ///< Mutex protecting the fs map
@@ -366,14 +376,23 @@ private:
 
   //----------------------------------------------------------------------------
   //! Check if the selected FST needs to be registered as "full" or "warning"
-  //! CAUTION: mFsMutex must be at-least-read locked before calling
-  //! this function.
+  //! @note  Needs to be called with at least a read lock on the mFsMutex.
   //!
   //! Parameter i is the index into mFsVect.
   //----------------------------------------------------------------------------
   void CheckFilesystemFullness(fst::FileSystem* fs,
                                eos::common::FileSystem::fsid_t fsid);
 
+  //----------------------------------------------------------------------------
+  //! Get the filesystem associated with the given filesystem id
+  //! or NULL if none could be found.
+  //! @note  Needs to be called with at least a read lock on the mFsMutex.
+  //!
+  //! @param fsid filesystem id
+  //!
+  //! @return associated filesystem object or NULL
+  //----------------------------------------------------------------------------
+  fst::FileSystem* GetFileSystemById(eos::common::FileSystem::fsid_t fsid) const;
 
 private:
   AssistedThread mCommunicatorThread;

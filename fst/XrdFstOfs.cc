@@ -1272,8 +1272,8 @@ XrdFstOfs::_rem(const char* path, XrdOucErrInfo& error,
   } else {
     // Check for additional opaque info to create remote IO object
     std::string sFstPath = fstPath.c_str();
-    std::string s3credentials =
-      gOFS.Storage->GetFileSystemById(fsid)->GetString("s3credentials");
+    std::string s3credentials = gOFS.Storage->GetFileSystemConfig(fsid,
+                                "s3credentials");
 
     if (!s3credentials.empty()) {
       sFstPath += "?s3credentials=" + s3credentials;

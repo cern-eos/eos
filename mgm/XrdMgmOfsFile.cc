@@ -82,7 +82,7 @@ eos::IFileMD::location_t
 getFirstDiskLocation(const eos::IFileMD::LocationVector& locations)
 {
   if (locations.empty()) {
-    throw DiskLocationNotFound("Failed to find d isk location");
+    throw DiskLocationNotFound("Failed to find disk location");
   }
 
   if (EOS_TAPE_FSID != locations.at(0)) {
@@ -90,7 +90,7 @@ getFirstDiskLocation(const eos::IFileMD::LocationVector& locations)
   }
 
   if (2 > locations.size()) {
-    throw DiskLocationNotFound("Failed to find d isk location");
+    throw DiskLocationNotFound("Failed to find disk location");
   }
 
   return locations.at(1);

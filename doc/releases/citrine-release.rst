@@ -16,11 +16,31 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.43 Citrine``
+===================
+
+2021-04-21
+
+Bug
+---
+   
+* [EOS-4669] - eos file verify need to be triggered twice in order to work
+* [EOS-4674] - Empty FSCK report seemingly after FST slow upgrade
+* [EOS-4676] - Crash when checking for recursive deletion
+* [EOS-4677] - FST deadlock when updating the scanner config
+* [EOS-4678] - MGM crash when removing a file system
+
+
 ``v4.8.42 Citrine``
 ===================
 
 2021-04-14
 
+
+Bug
+----
+
+* [EOS-4545] Option for eosxd mounts to block symlinks walking up the hierarchie
 
 Improvements
 ------------
