@@ -1060,13 +1060,15 @@ FmdDbMapHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
                               const char* manager)
 {
   if (!ResetMgmInformation(fsid)) {
-    eos_err("failed to reset the mgm information before resyncing");
+    eos_err("%s", "msg=\"failed to reset the mgm information before resyncing\"");
+    mIsSyncing[fsid] = false;
     return false;
   }
 
   std::string tmpfile;
 
   if (!ExecuteDumpmd(manager, fsid, tmpfile)) {
+    mIsSyncing[fsid] = false;
     return false;
   }
 
@@ -1228,6 +1230,7 @@ FmdDbMapHandler::ResyncAllFromQdb(const QdbContactDetails& contact_details,
 
   if (!ResetMgmInformation(fsid)) {
     eos_err("%s", "msg=\"failed to reset the mgm info before resyncing\"");
+    mIsSyncing[fsid] = false;
     return false;
   }
 
@@ -1341,7 +1344,8 @@ FmdDbMapHandler::ResyncAllFromQdb(const QdbContactDetails& contact_details,
     rate = (num_files * 1000.0) / (double)ms.count();
   }
 
-  eos_info("fsid=%u resynced %llu/%llu files at a rate of %.2f Hz",
+  mIsSyncing[fsid] = false;
+  eos_info("msg=\"fsid=%u resynced %llu/%llu files at a rate of %.2f Hz\"",
            fsid, num_files, total, rate);
   return true;
 }

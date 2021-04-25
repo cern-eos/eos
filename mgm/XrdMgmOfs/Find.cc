@@ -677,6 +677,7 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
   std::vector< std::vector<std::string> > found_dirs;
   std::shared_ptr<eos::IContainerMD> cmd;
   std::string Path = path;
+
   EXEC_TIMING_BEGIN("Find");
 
   if (nscounter) {
@@ -702,7 +703,6 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
   bool limitresult = false;
   bool limited = false;
   bool fail_if_limited = (out_error.getErrInfo() == E2BIG);
-
   bool sub_cmd_take_lock = false;
 
   if ((vid.uid != 0) && (!vid.hasUid(3)) && (!vid.hasGid(4)) && (!vid.sudoer)) {

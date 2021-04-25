@@ -37,35 +37,111 @@ class FileMapIterator
 {
 public:
   FileMapIterator(IContainerMDPtr cont)
-    : container(cont), iter(cont->filesBegin()) {}
-
-  bool valid() const
-  {
-    return iter != container->filesEnd();
+    : container(cont), mLock(cont->mMutex), iResized(false), iValid(false) {
+    std::shared_lock<std::shared_timed_mutex> lock (mLock);
+    iter = cont->filesBegin();
+    iGeneration = generation();
+    if (!iterEnd()) {
+      iValid = true;
+      iKey = iter->first;
+      iValue = iter->second;
+      iShown.insert(iKey);
+    }
   }
 
-  void next()
-  {
-    ++iter;
+  bool valid() const {
+    return iValid;
   }
 
-  std::string key() const
-  {
-    return iter->first;
+  bool iterEnd() const {
+    return (iter == container->filesEnd());
   }
 
-  IFileMD::id_t value() const
-  {
-    return iter->second;
+  void next() {
+    std::shared_lock<std::shared_timed_mutex> lock (mLock);
+
+    // check for a re-sized map
+    if (generation() != iGeneration) {
+      iResized = true;
+      // the hash_map has been re-organized
+      iter = container->filesBegin();
+      if (iterEnd()) {
+	iValid = false;
+	return;
+      }
+
+      do {
+	if (!iShown.count(iter->first)) {
+	  break;
+	} else {
+	  iter++;
+	  if (iterEnd()) {
+	    iValid = false;
+	    return;
+	  }
+	}
+      } while (1);
+
+      iGeneration = generation();
+    } else {
+      // check for a re-sized map
+      if (iResized) {
+	// in this case we always have to check if a value was already shown
+	iter++;
+	if (!iterEnd()) {
+	  do {
+	    if (!iShown.count(iter->first)) {
+	      break;
+	    } else {
+	      iter++;
+	      if (iterEnd()) {
+		iValid = false;
+		return;
+	      }
+	    }
+	  } while (1);
+	} else {
+	  iValid = false;
+	  return;
+	}
+      } else {
+	iter++;
+      }
+    }
+
+    if (!iterEnd()) {
+      iKey = iter->first;
+      iValue = iter->second;
+      iShown.insert(iKey);
+    } else {
+      iValid = false;
+    }
+  }
+
+  std::string key() const {
+    return iKey;
+  }
+
+  IFileMD::id_t value() const {
+    return iValue;
+  }
+
+  uint64_t generation() {
+    return container->getFileMapGeneration();
   }
 
 private:
-  uint64_t generation()
-  {
-    return container->getFileMapGeneration();
-  }
+
+
   IContainerMDPtr container;
+  std::shared_timed_mutex &mLock;
   eos::IContainerMD::FileMap::const_iterator iter;
+  std::set<std::string> iShown;
+  std::string iKey;
+  uint64_t iValue;
+  uint64_t iGeneration;
+  bool iResized;
+  bool iValid;
 };
 
 //------------------------------------------------------------------------------
@@ -75,36 +151,109 @@ class ContainerMapIterator
 {
 public:
   ContainerMapIterator(IContainerMDPtr cont)
-    : container(cont), iter(container->subcontainersBegin()) {}
-
-  bool valid() const
-  {
-    return iter != container->subcontainersEnd();
+    : container(cont), mLock(cont->mMutex), iResized(false), iValid(false) {
+    iter = cont->subcontainersBegin();
+    iGeneration = generation();
+    if (!iterEnd()) {
+      iValid = true;
+      iKey = iter->first;
+      iValue = iter->second;
+      iShown.insert(iKey);
+    }
   }
 
-  void next()
-  {
-    ++iter;
+  bool valid() const {
+    return iValid;
   }
 
-  std::string key() const
-  {
-    return iter->first;
+  bool iterEnd() const {
+    return (iter == container->subcontainersEnd());
   }
 
-  IFileMD::id_t value() const
-  {
-    return iter->second;
+  void next() {
+    std::shared_lock<std::shared_timed_mutex> lock (mLock);
+
+    // check for a re-sized map
+    if (generation() != iGeneration) {
+      iResized = true;
+      // the hash_map has been re-organized
+      iter = container->subcontainersBegin();
+      if (iterEnd()) {
+	iValid = false;
+	return;
+      }
+
+      do {
+	if (!iShown.count(iter->first)) {
+	  break;
+	} else {
+	  iter++;
+	  if (iterEnd()) {
+	    iValid = false;
+	    return;
+	  }
+	}
+      } while (1);
+
+      iGeneration = generation();
+    } else {
+      // check for a re-sized map
+      if (iResized) {
+	// in this case we always have to check if a value was already shown
+	iter++;
+	if (!iterEnd()) {
+	  do {
+	    if (!iShown.count(iter->first)) {
+	      break;
+	    } else {
+	      iter++;
+	      if (iterEnd()) {
+		iValid = false;
+		return;
+	      }
+	    }
+	  } while (1);
+	} else {
+	  iValid = false;
+	  return;
+	}
+      } else {
+	iter++;
+      }
+    }
+
+    if (!iterEnd()) {
+      iKey = iter->first;
+      iValue = iter->second;
+      iShown.insert(iKey);
+    } else {
+      iValid = false;
+    }
   }
 
-private:
-  uint64_t generation()
-  {
+  std::string key() const {
+    return iKey;
+  }
+
+  IFileMD::id_t value() const {
+    return iValue;
+  }
+
+  uint64_t generation() {
     return container->getContainerMapGeneration();
   }
 
+private:
+
   IContainerMDPtr container;
+  std::shared_timed_mutex &mLock;
   eos::IContainerMD::ContainerMap::const_iterator iter;
+  std::set<std::string> iShown;
+  std::string iKey;
+  uint64_t iValue;
+  uint64_t iGeneration;
+  bool iResized;
+  bool iValid;
 };
 
 EOSNSNAMESPACE_END

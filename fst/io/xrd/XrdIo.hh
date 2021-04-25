@@ -332,6 +332,17 @@ public:
   int fileTruncate(XrdSfsFileOffset offset, uint16_t timeout = 0);
 
   //----------------------------------------------------------------------------
+  //! Truncate asynchronous
+  //!
+  //! @param offset truncate file to this value
+  //! @param timeout timeout value
+  //!
+  //! @return future holding the status response
+  //----------------------------------------------------------------------------
+  std::future<XrdCl::XRootDStatus>
+  fileTruncateAsync(XrdSfsFileOffset offset, uint16_t timeout = 0);
+
+  //----------------------------------------------------------------------------
   //! Allocate file space
   //!
   //! @param length space to be allocated
@@ -669,18 +680,25 @@ private:
 };
 
 //------------------------------------------------------------------------------
-//! Class WriteHandler
+//! Class XrdIoHandler
 //------------------------------------------------------------------------------
-class WriteHandler: public XrdCl::ResponseHandler
+class XrdIoHandler: public XrdCl::ResponseHandler
 {
 public:
+  enum class OpType {
+    None,
+    Write,
+    Truncate
+  };
+
   //----------------------------------------------------------------------------
   //! Constructor
   //!
   //! @param wr_promise write promise used to notify when the answer arrives
   //----------------------------------------------------------------------------
-  WriteHandler(std::promise<XrdCl::XRootDStatus>&& wr_promise):
-    mWrPromise(std::move(wr_promise))
+  XrdIoHandler(std::promise<XrdCl::XRootDStatus>&& wr_promise,
+               OpType op):
+    mPromise(std::move(wr_promise)), mOperationType(op)
   {}
 
   //----------------------------------------------------------------------------
@@ -693,7 +711,7 @@ public:
                               XrdCl::AnyObject* pResponse)
   {
     if (pStatus) {
-      mWrPromise.set_value(*pStatus);
+      mPromise.set_value(*pStatus);
       delete pStatus;
     }
 
@@ -705,7 +723,8 @@ public:
   }
 
 private:
-  std::promise<XrdCl::XRootDStatus> mWrPromise;
+  std::promise<XrdCl::XRootDStatus> mPromise;
+  OpType mOperationType;
 };
 
 EOSFSTNAMESPACE_END

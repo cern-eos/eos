@@ -222,7 +222,9 @@ void DumpFsckStats(eos::common::DbMap& db, bool verbose = false)
       statistics["m_sync_n"]++;
 
       if (f.mProtoFmd.size() != eos::common::FmdHelper::UNDEF) {
-        if (f.mProtoFmd.size() != f.mProtoFmd.mgmsize()) {
+        // Report missmatch only for non-rain layout files
+        if (!LayoutId::IsRain(f.mProtoFmd.lid()) &&
+            f.mProtoFmd.size() != f.mProtoFmd.mgmsize()) {
           statistics["m_mem_sz_diff"]++;
           fid_set["m_mem_sz_diff"].insert(f.mProtoFmd.fid());
         }

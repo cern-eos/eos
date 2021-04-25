@@ -247,8 +247,7 @@ ScanDir::AccountMissing()
     eos::IFileMD::id_t fid = fids.front();
     fids.pop_front();
     std::string fpath =
-      FileId::FidPrefix2FullPath(FileId::Fid2Hex(fid).c_str(),
-                                 gOFS.Storage->GetStoragePath(mFsId).c_str());
+      FileId::FidPrefix2FullPath(FileId::Fid2Hex(fid).c_str(), mDirPath.c_str());
 
     if (stat(fpath.c_str(), &info)) {
       // Double check that this not a file which was deleted in the meantime
@@ -318,7 +317,7 @@ ScanDir::CleanupUnlinked()
                  fid, mFsId);
         std::vector<unsigned long long> id_vect {fid};
         auto deletion = std::make_unique<Deletion>
-                        (id_vect, mFsId, gOFS.Storage->GetStoragePath(mFsId).c_str());
+                        (id_vect, mFsId, mDirPath.c_str());
         gOFS.Storage->AddDeletion(std::move(deletion));
       }
     } catch (eos::MDException& e) {
@@ -327,8 +326,7 @@ ScanDir::CleanupUnlinked()
       eos_info("msg=\"cleanup ghost unlinked file\" fxid=%08llx fsid=%lu",
                fid, mFsId);
       std::string fpath =
-        FileId::FidPrefix2FullPath(FileId::Fid2Hex(fid).c_str(),
-                                   gOFS.Storage->GetStoragePath(mFsId).c_str());
+        FileId::FidPrefix2FullPath(FileId::Fid2Hex(fid).c_str(), mDirPath.c_str());
       // Drop the file from disk and local DB
       XrdOucErrInfo tmp_err;
 
@@ -469,15 +467,15 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
   if (mBgThread) {
     // Make sure we update the inconsistencies once before the initial sleep
 #ifndef _NOOFS
-    auto fs = gOFS.Storage->GetFileSystemById(mFsId);
-
-    if (fs == nullptr) {
+    if (!gOFS.Storage->UpdateInconsistencyInfo(mFsId)) {
       eos_notice("msg=\"file system (being) deleted, abort any further scanning\""
                  " fsid=%lu", mFsId);
       return;
+    } else {
+      eos_info("msg=\"done initial collection of inconsistency stats\" "
+               "fsid=%lu", mFsId);
     }
 
-    fs->UpdateInconsistencyInfo();
 #endif
     // Get a random smearing and avoid that all start at the same time! 0-4 hours
     size_t sleeper = (1.0 * mDiskIntervalSec * random() / RAND_MAX);
@@ -486,15 +484,13 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
 
   while (!assistant.terminationRequested()) {
 #ifndef _NOOFS
-    auto fs = gOFS.Storage->GetFileSystemById(mFsId);
 
-    if (fs == nullptr) {
-      eos_notice("msg=\"file system being deleted, abort any further scanning\""
+    if (!gOFS.Storage->UpdateInconsistencyInfo(mFsId)) {
+      eos_notice("msg=\"file system (being) deleted, abort any further scanning\""
                  " fsid=%lu", mFsId);
       return;
     }
 
-    fs->UpdateInconsistencyInfo();
 #endif
     mNumScannedFiles =  mTotalScanSize =  mNumCorruptedFiles = 0;
     mNumHWCorruptedFiles =  mNumTotalFiles = mNumSkippedFiles = 0;

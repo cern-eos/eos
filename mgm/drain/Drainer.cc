@@ -25,6 +25,7 @@
 #include "mgm/drain/DrainFs.hh"
 #include "mgm/drain/DrainTransferJob.hh"
 #include "mgm/FsView.hh"
+#include "mgm/IMaster.hh"
 #include "common/table_formatter/TableFormatterBase.hh"
 
 EOSMGMNAMESPACE_BEGIN
@@ -33,7 +34,6 @@ EOSMGMNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 Drainer::Drainer():
-  mIsRunning(false),
   mThreadPool(10, 100, 10, 6, 5, "central_drain")
 {}
 
@@ -42,10 +42,7 @@ Drainer::Drainer():
 //------------------------------------------------------------------------------
 void Drainer::Start()
 {
-  if (!mIsRunning)  {
-    mIsRunning = true;
-    mThread.reset(&Drainer::Drain, this);
-  }
+  mThread.reset(&Drainer::Drain, this);
 }
 
 //------------------------------------------------------------------------------
@@ -54,11 +51,8 @@ void Drainer::Start()
 void
 Drainer::Stop()
 {
-  if (mIsRunning) {
-    mIsRunning = false;
-    mThread.join();
-    gOFS->mFidTracker.Clear(TrackerType::Drain);
-  }
+  mThread.join();
+  gOFS->mFidTracker.Clear(TrackerType::Drain);
 }
 
 //------------------------------------------------------------------------------
@@ -267,8 +261,14 @@ Drainer::GetJobsInfo(std::string& out, const DrainHdrInfo& hdr_info,
 void
 Drainer::Drain(ThreadAssistant& assistant) noexcept
 {
-  eos_static_debug("%s", "msg=\"starting central drainer\"");
+  eos_static_notice("%s", "msg=\"starting central drainer\"");
   gOFS->WaitUntilNamespaceIsBooted(assistant);
+
+  // Wait that current MGM becomes a master
+  do {
+    eos_debug("%s", "msg=\"drain waiting for master MGM\"");
+    assistant.wait_for(std::chrono::seconds(10));
+  } while (!assistant.terminationRequested() && !gOFS->mMaster->IsMaster());
 
   while (!assistant.terminationRequested()) {
     UpdateFromSpaceConfig();
@@ -292,6 +292,7 @@ Drainer::Drain(ThreadAssistant& assistant) noexcept
   }
 
   WaitForAllDrainToStop();
+  eos_static_notice("%s", "msg=\"stopped central drainer\"");
 }
 
 //------------------------------------------------------------------------------

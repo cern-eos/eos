@@ -170,11 +170,10 @@ Storage::Storage(const char* meta_dir)
   mThreadSet.insert(tid);
   eos_info("starting filesystem communication thread");
 
-  if(gOFS.mMessagingRealm->haveQDB()) {
+  if (gOFS.mMessagingRealm->haveQDB()) {
     mQdbCommunicatorThread.reset(&Storage::QdbCommunicator, this);
     mQdbCommunicatorThread.setName("QDB Communicator Thread");
-  }
-  else {
+  } else {
     mCommunicatorThread.reset(&Storage::Communicator, this);
     mCommunicatorThread.setName("Communicator Thread");
   }
@@ -192,7 +191,6 @@ Storage::Storage(const char* meta_dir)
   eos_info("starting filesystem publishing thread");
   mPublisherThread.reset(&Storage::Publish, this);
   mPublisherThread.setName("Publisher Thread");
-
   eos_info("starting filesystem balancer thread");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsBalancer,
@@ -203,7 +201,6 @@ Storage::Storage(const char* meta_dir)
   }
 
   mThreadSet.insert(tid);
-
   eos_info("starting mgm synchronization thread");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartMgmSyncer,
@@ -386,18 +383,18 @@ Storage::Boot(FileSystem* fs)
     gOFS.WNoDeleteOnCloseFid[fsid].set_deleted_key(0);
   }
 
+  std::string fmd_on_disk = getenv("EOS_FST_FMD_ON_DATA_DISK") ?
+                            getenv("EOS_FST_FMD_ON_DATA_DISK") : "";
+  std::string metadir = (fmd_on_disk == "1") ? fs->GetPath() : mMetaDir.c_str();
 
-  std::string fmd_on_disk = getenv("EOS_FST_FMD_ON_DATA_DISK")?getenv("EOS_FST_FMD_ON_DATA_DISK"):"";
-
-  std::string metadir = (fmd_on_disk=="1")? fs->GetPath() : mMetaDir.c_str();
-
-  if ( fmd_on_disk == "1") {
+  if (fmd_on_disk == "1") {
     // e.g. we store on /data01/.eosmd/<leveldb>
     if (metadir.back() != '/') {
-      metadir+="/";
+      metadir += "/";
     }
+
     metadir += ".eosmd/";
-    eos::common::Path cPath( std::string(metadir + "dummy").c_str());
+    eos::common::Path cPath(std::string(metadir + "dummy").c_str());
     cPath.MakeParentPath(S_IRWXU | S_IRGRP | S_IXGRP);
   }
 
@@ -773,7 +770,7 @@ Storage::GetNumDeletions()
 // Get the filesystem associated with the given filesystem id
 //------------------------------------------------------------------------------
 FileSystem*
-Storage::GetFileSystemById(eos::common::FileSystem::fsid_t fsid)
+Storage::GetFileSystemById(eos::common::FileSystem::fsid_t fsid) const
 {
   auto it = mFsMap.find(fsid);
 
@@ -782,6 +779,41 @@ Storage::GetFileSystemById(eos::common::FileSystem::fsid_t fsid)
   }
 
   return nullptr;
+}
+
+//------------------------------------------------------------------------------
+// Get configuration associated with the given file system id
+//------------------------------------------------------------------------------
+std::string
+Storage::GetFileSystemConfig(eos::common::FileSystem::fsid_t fsid,
+                             const std::string& key) const
+{
+  std::string value;
+  eos::common::RWMutexReadLock fs_rd_lock(mFsMutex);
+  FileSystem* fs = GetFileSystemById(fsid);
+
+  if (fs) {
+    value = fs->GetString(key.c_str());
+  }
+
+  return value;
+}
+
+//------------------------------------------------------------------------------
+// Update inconsistency info for the given file system id
+//------------------------------------------------------------------------------
+bool
+Storage::UpdateInconsistencyInfo(eos::common::FileSystem::fsid_t fsid)
+{
+  eos::common::RWMutexReadLock fs_rd_lock(mFsMutex);
+  FileSystem* fs = GetFileSystemById(fsid);
+
+  if (fs) {
+    fs->UpdateInconsistencyInfo();
+    return true;
+  }
+
+  return false;
 }
 
 //------------------------------------------------------------------------------

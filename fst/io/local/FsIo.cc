@@ -157,6 +157,26 @@ FsIo::fileTruncate(XrdSfsFileOffset offset, uint16_t timeout)
 }
 
 //------------------------------------------------------------------------------
+// Truncate asynchronous
+//------------------------------------------------------------------------------
+std::future<XrdCl::XRootDStatus>
+FsIo::fileTruncateAsync(XrdSfsFileOffset offset, uint16_t timeout)
+{
+  std::promise<XrdCl::XRootDStatus> tr_promise;
+  std::future<XrdCl::XRootDStatus> tr_future = tr_promise.get_future();
+  int retc  = fileTruncate(offset, timeout);
+
+  if (retc) {
+    tr_promise.set_value(XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errUnknown,
+                         EIO, "failed truncate"));
+  } else {
+    tr_promise.set_value(XrdCl::XRootDStatus(XrdCl::stOK, ""));
+  }
+
+  return tr_future;
+}
+
+//------------------------------------------------------------------------------
 // Allocate space for file
 //------------------------------------------------------------------------------
 int
