@@ -247,8 +247,9 @@ Server::MonitorCaps() noexcept
               {
                 eos::common::RWMutexReadLock lLock(Cap());
 
-                if (Cap().GetCaps().count(*auit)) {
-                  cap = Cap().GetCaps()[*auit];
+                if (auto kv = Cap().GetCaps().find(*auit);
+                    kv != Cap().GetCaps().end()) {
+                  cap = kv->second;
                 }
               }
 
