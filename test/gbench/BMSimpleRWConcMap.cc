@@ -31,6 +31,16 @@ public:
     return it != cmap.end() ? it->second : val_type {};
   }
 
+  std::vector<key_type> get_all_keys() {
+    eos::common::RWMutexReadLock rLock(*this);
+    std::vector<key_type> result;
+    for (const auto& kv: cmap) {
+      result.push_back(kv);
+    }
+    return result;
+  }
+
+
   bool remove(key_type key) {
     return cmap.erase(key);
   }
@@ -172,6 +182,38 @@ BENCHMARK_DEFINE_F(CMFixedFixture, BM_ReadWriteMultiTS)(benchmark::State& state)
   }
 }
 
+
+BENCHMARK_DEFINE_F(CMFixedFixture, BM_ReadVectorTS)(benchmark::State& state) {
+  const int64_t sz = static_cast<int64_t>(state.range(0));
+  const int64_t w_thread_sz = static_cast<int64_t>(state.range(1));
+  const int64_t r_thread_sz = static_cast<int64_t>(state.range(2));
+  size_t count;
+  for (auto _:state) {
+    std::vector<std::thread> reader_threads;
+    std::vector<std::thread> writer_threads;
+
+    for (int i=0; i< w_thread_sz; i++) {
+      writer_threads.emplace_back(std::thread([&]() {
+        for (int i =0; i < sz; i++) {
+          cm.addTS(std::to_string(i));
+        }
+      }));
+    }
+    for (int i=0; i < r_thread_sz; i++) {
+      reader_threads.emplace_back(std::thread([&]() {
+        auto keys = cm.get_all_keys();
+        for (int i=0; i < sz; i++) {
+          auto it = keys.find(std::to_string(std::rand() % sz));
+          if (it != keys.end()) { count++; }
+        }
+      }));
+    }
+
+    for (auto& rth: reader_threads) rth.join();
+    for (auto& wth: writer_threads) wth.join();
+  }
+}
+
 uint64_t start = 1<<7;
 uint64_t end = 4<<20UL;
 BENCHMARK(BM_KeyWrite)->Range(start,end)->Unit(benchmark::kMillisecond);
@@ -179,4 +221,5 @@ BENCHMARK(BM_KeyWriteTS)->Range(start,end)->ThreadRange(1,8)->Unit(benchmark::kM
 BENCHMARK_REGISTER_F(CMFixture, BM_ReadTS)->Range(start,end)->ThreadRange(1,8)->Unit(benchmark::kMillisecond);
 BENCHMARK_REGISTER_F(CMFixture, BM_ReadWriteTS)->Range(start,end)->Unit(benchmark::kMillisecond)->UseRealTime();
 BENCHMARK_REGISTER_F(CMFixedFixture, BM_ReadWriteMultiTS)->Ranges({{start,end},{1,2},{1,2}})->Unit(benchmark::kMillisecond)->UseRealTime();
+BENCHMARK_REGISTER_F(CMFixedFixture, BM_ReadVectorTS)->Ranges({{start,end},{1,2},{1,2}})->Unit(benchmark::kMillisecond)->UseRealTime();
 BENCHMARK_MAIN();
