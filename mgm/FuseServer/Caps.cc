@@ -213,28 +213,10 @@ FuseServer::Caps::BroadcastReleaseFromExternal(uint64_t id)
   EXEC_TIMING_BEGIN("Eosxd::int::BcReleaseExt");
   // broad-cast release for a given inode
   eos::common::RWMutexReadLock lLock(*this);
+  // FIXME: if this static info isn't needed the whole locking code can be dropped in
+  // favour of TS version
   eos_static_info("id=%lx mInodeCaps.count=%d", id, mInodeCaps.count(id));
-  std::vector<shared_cap> bccaps;
-
-  if (mInodeCaps.count(id)) {
-    for (auto it = mInodeCaps[id].begin();
-         it != mInodeCaps[id].end(); ++it) {
-      shared_cap cap;
-      // loop over all caps for that inode
-      eos_static_debug("mCaps.count=%d", mCaps.count(*it));
-
-      if (auto kv = mCaps.find(*it);
-          kv != mCaps.end()) {
-        cap = kv->second;
-      } else {
-        continue;
-      }
-
-      if (cap->id()) {
-        bccaps.push_back(cap);
-      }
-    }
-  }
+  auto bccaps = GetBroadcastCaps(id);
 
   lLock.Release();
 
