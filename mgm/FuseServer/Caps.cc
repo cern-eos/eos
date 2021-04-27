@@ -203,8 +203,9 @@ FuseServer::Caps::BroadcastReleaseFromExternal(uint64_t id)
       // loop over all caps for that inode
       eos_static_debug("mCaps.count=%d", mCaps.count(*it));
 
-      if (mCaps.count(*it)) {
-        cap = mCaps[*it];
+      if (auto kv = mCaps.find(*it);
+          kv != mCaps.end()) {
+        cap = kv->second;
       } else {
         continue;
       }
@@ -271,14 +272,15 @@ FuseServer::Caps::BroadcastRelease(const eos::fusex::md& md)
     md_pino = md.md_pino();
   }
 
-  if (mInodeCaps.count(md_pino)) {
-    for (auto it = mInodeCaps[md_pino].begin();
-         it != mInodeCaps[md_pino].end(); ++it) {
+  if (auto pinos = mInodeCaps.find(md_pino);
+      pinos != mInodeCaps.end()) {
+    for (auto it: pinos) {
       shared_cap cap;
 
       // loop over all caps for that inode
-      if (mCaps.count(*it)) {
-        cap = mCaps[*it];
+      if (auto kv = mCaps.find(*it);
+          kv != mCaps.end()) {
+        cap = kv->second;
       } else {
         continue;
       }
