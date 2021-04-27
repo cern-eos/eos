@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file BulkRequest.cc
+//! @file ProcDirectoryBulkRequestDAO.hh
 //! @author Cedric Caffy - CERN
 //------------------------------------------------------------------------------
 
@@ -21,23 +21,32 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "BulkRequest.hh"
+#ifndef EOS_PROCDIRECTORYBULKREQUESTDAO_HH
+#define EOS_PROCDIRECTORYBULKREQUESTDAO_HH
+
+#include "mgm/Namespace.hh"
+#include "mgm/bulk-request/dao/IBulkRequestDAO.hh"
+#include <common/Logging.hh>
 
 EOSMGMNAMESPACE_BEGIN
 
-BulkRequest::BulkRequest(const std::string & id):mId(id){
-}
+/**
+ * This class is the bulk request persistency layer using the eos proc directory
+ *
+ * The bulk request persistence will be ensured by creating and listing a directory in a the /eos/.../proc/bulkrequest.
+ */
+class ProcDirectoryBulkRequestDAO : public IBulkRequestDAO, eos::common::LogId {
+public:
+  ProcDirectoryBulkRequestDAO(const XrdOucString & bulkRequestProcDirectoryPath);
+  /**
+   * Save the Stage bulk request by creating a directory in the /eos/.../proc/ directory and creating one file
+   * per path. The paths of the files will be modified in the format like the one in the EOS recycle-bin
+   * @param bulkRequest the StageBulkRequest to save
+   */
+  void saveBulkRequest(const std::shared_ptr<StageBulkRequest> bulkRequest) override;
+private:
+  XrdOucString mBulkRequestDirectoryPath;
+};
 
-const std::string BulkRequest::getId() const {
-  return mId;
-}
-
-void BulkRequest::addPath(const std::string& path) {
-  mPaths.insert(path);
-}
-
-const std::set<std::string>& BulkRequest::getPaths() const
-{
-  return mPaths;
-}
 EOSMGMNAMESPACE_END
+#endif // EOS_PROCDIRECTORYBULKREQUESTDAO_HH

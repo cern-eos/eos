@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file BulkRequest.cc
+//! @file ProcDirectoryDAOFactory.hh
 //! @author Cedric Caffy - CERN
 //------------------------------------------------------------------------------
 
@@ -21,23 +21,36 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "BulkRequest.hh"
+#ifndef EOS_PROCDIRECTORYDAOFACTORY_HH
+#define EOS_PROCDIRECTORYDAOFACTORY_HH
+#include "mgm/Namespace.hh"
+#include "mgm/bulk-request/dao/factories/AbstractDAOFactory.hh"
+#include <xrootd/XrdOuc/XrdOucString.hh>
 
 EOSMGMNAMESPACE_BEGIN
 
-BulkRequest::BulkRequest(const std::string & id):mId(id){
-}
+/**
+ * Factory of Data Access Object that will rely on
+ * the /eos/.../proc directory
+ */
+class ProcDirectoryDAOFactory : public AbstractDAOFactory{
+public:
+  /**
+   * Factory of ProcDirectoryDAO objects
+   * @param mgmBulkRequestDirectoryPath
+   */
+  ProcDirectoryDAOFactory(const XrdOucString & mgmBulkRequestDirectoryPath);
+  /**
+   * Returns the ProcDirectory bulk request DAO object to allow the persistence/access of the
+   * bulk-requests metada via the /eos/.../proc directory
+   * @return the BulkRequestDAO obje
+   */
+  std::unique_ptr<IBulkRequestDAO> getBulkRequestDAO() const;
+private:
+  //The path of the proc directory to be used by the DAO returned by this factory
+  XrdOucString mBulkRequestProcDirectoryPath;
+};
 
-const std::string BulkRequest::getId() const {
-  return mId;
-}
-
-void BulkRequest::addPath(const std::string& path) {
-  mPaths.insert(path);
-}
-
-const std::set<std::string>& BulkRequest::getPaths() const
-{
-  return mPaths;
-}
 EOSMGMNAMESPACE_END
+
+#endif // EOS_PROCDIRECTORYDAOFACTORY_HH

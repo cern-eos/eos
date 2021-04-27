@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file BulkRequest.cc
+//! @file ProcDirectoryBulkRequestDAO.hh
 //! @author Cedric Caffy - CERN
 //------------------------------------------------------------------------------
 
@@ -21,23 +21,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "BulkRequest.hh"
+#include "ProcDirectoryBulkRequestDAO.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
-BulkRequest::BulkRequest(const std::string & id):mId(id){
+ProcDirectoryBulkRequestDAO::ProcDirectoryBulkRequestDAO(const XrdOucString & bulkRequestProcDirectoryPath):mBulkRequestDirectoryPath(bulkRequestProcDirectoryPath){
+
 }
 
-const std::string BulkRequest::getId() const {
-  return mId;
+void ProcDirectoryBulkRequestDAO::saveBulkRequest(const std::shared_ptr<StageBulkRequest> bulkRequest) {
+  XrdOucString dirPathToCreateInProcPrepare = mBulkRequestDirectoryPath + bulkRequest->getId().c_str();
+  eos_info("msg=\"About to create the %s directory\"",
+           dirPathToCreateInProcPrepare.c_str());
 }
 
-void BulkRequest::addPath(const std::string& path) {
-  mPaths.insert(path);
-}
-
-const std::set<std::string>& BulkRequest::getPaths() const
-{
-  return mPaths;
-}
 EOSMGMNAMESPACE_END
