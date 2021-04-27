@@ -159,7 +159,9 @@ FuseServer::Caps::GetTS(FuseServer::Caps::authid_t id)
 // Get Broadcast Caps
 //----------------------------------------------------------------------------
 std::vector<std::shared_ptr<eos::mgm::FuseServer::Caps::capx>>
-FuseServer::Caps::GetBroadcastCaps(uint64_t id)
+FuseServer::Caps::GetBroadcastCaps(uint64_t id,
+                                   shared_cap refcap,
+                                   const eos::fusex::md* mdptr)
 {
   std::vector<shared_cap> bccaps;
 
@@ -175,6 +177,23 @@ FuseServer::Caps::GetBroadcastCaps(uint64_t id)
       }
 
       shared_cap cap = kv->second;
+      if (refcap && mdptr) {
+        // skip our own cap!
+        if (cap->authid() == mdptr->authid()) {
+          continue;
+        }
+
+        // skip identical client mounts!
+        if (cap->clientuuid() == refcap->clientuuid()) {
+          continue;
+        }
+
+        // skip same source
+        if (cap->clientuuid() == mdptr->clientuuid()) {
+          continue;
+        }
+      }
+
       if (cap->id()) {
         bccaps.emplace_back(std::move(cap));
       }
