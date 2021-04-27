@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file BulkRequest.cc
+//! @file BulkRequestBusiness.hh
 //! @author Cedric Caffy - CERN
 //------------------------------------------------------------------------------
 
@@ -21,23 +21,42 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "BulkRequest.hh"
+#ifndef EOS_BULKREQUESTBUSINESS_HH
+#define EOS_BULKREQUESTBUSINESS_HH
+
+#include "mgm/Namespace.hh"
+#include "mgm/bulk-request/BulkRequest.hh"
+#include "mgm/bulk-request/dao/factories/AbstractDAOFactory.hh"
+#include <common/Logging.hh>
+#include <memory>
 
 EOSMGMNAMESPACE_BEGIN
 
-BulkRequest::BulkRequest(const std::string & id):mId(id){
-}
+/**
+ * This class contains the business logic linked to the bulk requests
+ * It basically allows to get a bulk request, persist it, ... from the DAOs returned
+ * by the AbstractDAOFactory given when constructing this object.
+ */
+class BulkRequestBusiness : public eos::common::LogId {
+public:
+  /**
+   * Constructor of the BulkRequestBusiness object
+   * The daoFactory that is passed in parameter will be used by the different methods
+   * of this class so that it instanciate the correct Data Access Object. Depending on the
+   * implementation of the AbstractDAOFactory, the underlying persistency layer of the DAO will change
+   * @param daoFactory the factory of DAO
+   */
+  BulkRequestBusiness(std::unique_ptr<AbstractDAOFactory> && daoFactory);
+  /**
+   * Allows to persist the bulk-request
+   * @param req the bulk-request to persist
+   */
+  void saveBulkRequest(const std::shared_ptr<BulkRequest> req);
+private:
+  std::unique_ptr<AbstractDAOFactory> mAbstractDaoFactory;
+  void dispatchBulkRequestSave(const std::shared_ptr<BulkRequest> req);
+};
 
-const std::string BulkRequest::getId() const {
-  return mId;
-}
-
-void BulkRequest::addPath(const std::string& path) {
-  mPaths.insert(path);
-}
-
-const std::set<std::string>& BulkRequest::getPaths() const
-{
-  return mPaths;
-}
 EOSMGMNAMESPACE_END
+
+#endif // EOS_BULKREQUESTBUSINESS_HH

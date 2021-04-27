@@ -31,8 +31,7 @@
 #include <mgm/Acl.hh>
 #include <mgm/Macros.hh>
 #include <mgm/XrdMgmOfs.hh>
-#include <uuid/uuid.h>
-#include <mgm/bulk-request/BulkRequestHelper.hh>
+#include "mgm/bulk-request/BulkRequestFactory.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -85,8 +84,8 @@ int PrepareManager::prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdS
 
   case Prep_STAGE:
     event = "sync::prepare";
-    generatePrepareStageRequestId(reqid);
-    mIsStagePrepare = true;
+    mBulkRequest.reset(BulkRequestFactory::createStageBulkRequest());
+    reqid = mBulkRequest->getId().c_str();
     break;
 
   case Prep_CANCEL:
@@ -218,11 +217,11 @@ int PrepareManager::prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdS
     }
   }
   if(!pathsWithPrepare.empty() && isStagePrepare()) {
-    // Files have to be prepared, create the directory in the MgmProcPreparePath directory
-    XrdOucString dirPathToCreateInProcPrepare =
-        gOFS->MgmProcPreparePath + "/" + reqid;
-    eos_info("msg=\"About to create the %s directory\"",
-             dirPathToCreateInProcPrepare.c_str());
+    if(mBulkRequestBusiness != nullptr){
+      eos_info("msg =\"Persisting stage prepare bulk request\"");
+      mBulkRequestBusiness->saveBulkRequest(mBulkRequest);
+      eos_info("msg =\"Stage prepare bulk request persisted\"");
+    }
   }
   //Trigger the prepare workflow
   triggerPrepareWorkflow(pathsWithPrepare,cmd,event,reqid,error,vid);
@@ -231,7 +230,7 @@ int PrepareManager::prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdS
 #if (XrdMajorVNUM(XrdVNUMBER) == 4 && XrdMinorVNUM(XrdVNUMBER) >= 10) || XrdMajorVNUM(XrdVNUMBER) >= 5
 
   // If we generated our own request ID, return it to the client
-  if (mGeneratedStageRequestId) {
+  if (isStagePrepare()) {
     // If we return SFS_DATA, the first parameter is the length of the buffer, not the error code
     error.setErrInfo(reqid.length() + 1, reqid.c_str());
     retc = SFS_DATA;
@@ -240,6 +239,10 @@ int PrepareManager::prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdS
 #endif
   EXEC_TIMING_END("Prepare");
   return retc;
+}
+
+void PrepareManager::setBulkRequestBusiness(std::shared_ptr<BulkRequestBusiness> bulkRequestBusiness) {
+  mBulkRequestBusiness = bulkRequestBusiness;
 }
 
 std::string PrepareManager::prepareOptsToString(const int opts) const{
@@ -324,22 +327,6 @@ std::string PrepareManager::prepareOptsToString(const int opts) const{
   return result.str();
 }
 
-void PrepareManager::generatePrepareStageRequestId(XrdOucString& requestId){
-  if (gOFS->IsFileSystem2) {
-    // Override the XRootD-supplied request ID. The request ID can be any arbitrary string, so long as it is guaranteed to be unique for each request.
-    //
-    // Note: To use the default request ID supplied in pargs.reqid, return SFS_OK instead of SFS_DATA.
-    //       Overriding is only possible in the case of PREPARE. In the case of ABORT and QUERY requests, pargs.reqid should contain the request ID that was returned by the corresponding PREPARE.
-
-    // Request ID = XRootD-generated request ID + timestamp
-    /*ostringstream ss;
-    ss << ':' << time(0);
-    requestId.append(ss.str().c_str());*/
-    requestId = BulkRequestHelper::generateBulkRequestId();
-    mGeneratedStageRequestId = true;
-  }
-}
-
 const int PrepareManager::getPrepareActionsFromOpts(const int pargsOpts) const {
   const int pargsOptsQoS = Prep_PMASK | Prep_SENDAOK | Prep_SENDERR | Prep_SENDACK
                            | Prep_WMODE | Prep_COLOC | Prep_FRESH;
@@ -347,7 +334,8 @@ const int PrepareManager::getPrepareActionsFromOpts(const int pargsOpts) const {
 }
 
 const bool PrepareManager::isStagePrepare() const {
-  return mIsStagePrepare;
+  return mBulkRequest != nullptr &&
+         mBulkRequest->getType() == eos::mgm::BulkRequest::PREPARE_STAGE;
 }
 
 void PrepareManager::triggerPrepareWorkflow(const std::list<std::pair<char**, char**>> & pathsToPrepare, const std::string & cmd, const std::string &event, const XrdOucString & reqid, XrdOucErrInfo & error, const eos::common::VirtualIdentity& vid) {
@@ -414,7 +402,7 @@ void PrepareManager::triggerPrepareWorkflow(const std::list<std::pair<char**, ch
   }
 }
 
-std::shared_ptr<BulkRequest> PrepareManager::getPrepareBulkRequest() const {
+std::shared_ptr<BulkRequest> PrepareManager::getBulkRequest() const {
   return mBulkRequest;
 }
 
