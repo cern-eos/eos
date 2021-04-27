@@ -156,6 +156,33 @@ FuseServer::Caps::GetTS(FuseServer::Caps::authid_t id)
 }
 
 //------------------------------------------------------------------------------
+// Get Broadcast Caps
+//----------------------------------------------------------------------------
+std::vector<shared_cap>
+FuseServer::Caps::GetBroadcastCaps(uint64_t id)
+{
+  std::vector<shared_cap> bccaps;
+
+  if (const auto& ids = mInodeCaps.find(id);
+      ids != mInodeCaps.end()) {
+    for (const auto& it: ids) {
+      shared_cap cap;
+      // loop over all caps for that inode
+      auto kv = mCaps.find(it);
+      if (kv == mCaps.end()) {
+        continue;
+      }
+
+      cap = kv.second;
+      if (cap->id()) {
+        bccaps.emplace_back(std::move(cap));
+      }
+    }
+  }
+    return bccaps;
+}
+
+//------------------------------------------------------------------------------
 // Broadcast release for id from external
 //----------------------------------------------------------------------------
 int
