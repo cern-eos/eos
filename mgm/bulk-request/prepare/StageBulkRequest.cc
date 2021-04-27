@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file BulkRequest.cc
+//! @file StageBulkRequest.cc
 //! @author Cedric Caffy - CERN
 //------------------------------------------------------------------------------
 
@@ -21,23 +21,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "BulkRequest.hh"
+#include "StageBulkRequest.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
-BulkRequest::BulkRequest(const std::string & id):mId(id){
-}
-
-const std::string BulkRequest::getId() const {
-  return mId;
-}
-
-void BulkRequest::addPath(const std::string& path) {
-  mPaths.insert(path);
-}
-
-const std::set<std::string>& BulkRequest::getPaths() const
+StageBulkRequest::StageBulkRequest(const std::string& id): BulkRequest(id)
 {
-  return mPaths;
 }
+
+const BulkRequest::Type
+StageBulkRequest::getType() const
+{
+  return BulkRequest::Type::PREPARE_STAGE;
+}
+
 EOSMGMNAMESPACE_END
