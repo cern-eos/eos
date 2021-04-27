@@ -261,6 +261,11 @@ add_library(
   inspector/FileInspector.cc
   bulk-request/prepare/PrepareManager.cc
   bulk-request/BulkRequest.cc
+  bulk-request/prepare/StageBulkRequest.cc
+  bulk-request/business/BulkRequestBusiness.cc
+  bulk-request/BulkRequestFactory.cc
+  bulk-request/dao/factories/ProcDirectoryDAOFactory.cc
+  bulk-request/dao/ProcDirectoryBulkRequestDAO.cc
   ${FUSEX_SRCS})
 
 target_link_libraries(XrdEosMgm-Objects PUBLIC

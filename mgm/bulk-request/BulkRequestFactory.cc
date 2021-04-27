@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file BulkRequest.cc
+//! @file BulkRequestFactory.cc
 //! @author Cedric Caffy - CERN
 //------------------------------------------------------------------------------
 
@@ -21,23 +21,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "BulkRequest.hh"
+#include "BulkRequestFactory.hh"
+#include "common/StringConversion.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
-BulkRequest::BulkRequest(const std::string & id):mId(id){
+StageBulkRequest * BulkRequestFactory::createStageBulkRequest() {
+  std::string bulkRequestId = eos::common::StringConversion::timebased_uuidstring();
+  return new StageBulkRequest(bulkRequestId);
 }
 
-const std::string BulkRequest::getId() const {
-  return mId;
-}
-
-void BulkRequest::addPath(const std::string& path) {
-  mPaths.insert(path);
-}
-
-const std::set<std::string>& BulkRequest::getPaths() const
-{
-  return mPaths;
-}
 EOSMGMNAMESPACE_END

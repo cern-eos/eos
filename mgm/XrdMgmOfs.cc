@@ -107,6 +107,10 @@
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSfs/XrdSfsFlags.hh"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
+#include "mgm/bulk-request/prepare/PrepareManager.hh"
+#include "mgm/bulk-request/dao/factories/AbstractDAOFactory.hh"
+#include "mgm/bulk-request/dao/factories/ProcDirectoryDAOFactory.hh"
+#include "mgm/bulk-request/business/BulkRequestBusiness.hh"
 
 #ifdef __APPLE__
 #define ECOMM 70
@@ -729,7 +733,10 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
                     const XrdSecEntity* client)
 {
 #if !OLD_PREPARE
+  std::unique_ptr<AbstractDAOFactory> daoFactory(new ProcDirectoryDAOFactory(gOFS->MgmProcBulkRequestPath));
+  std::shared_ptr<BulkRequestBusiness> bulkRequestBusiness(new BulkRequestBusiness(std::move(daoFactory)));
   PrepareManager pm;
+  pm.setBulkRequestBusiness(bulkRequestBusiness);
   return pm.prepare(pargs,error,client);
 #else
   EXEC_TIMING_BEGIN("Prepare");

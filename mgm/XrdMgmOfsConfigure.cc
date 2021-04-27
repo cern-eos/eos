@@ -1692,6 +1692,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   MgmProcTrackerPath += "/tracker";
   MgmProcTokenPath = MgmProcPath;
   MgmProcTokenPath += "/token";
+  MgmProcBulkRequestPath = MgmProcPath;
+  MgmProcBulkRequestPath += "/bulkrequests";
   Recycle::gRecyclingPrefix.insert(0, MgmProcPath.c_str());
   instancepath += subpath;
   // Initialize user mapping
@@ -1971,22 +1973,22 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
     // Create prepare directory
     try {
-      eosmd = gOFS->eosView->getContainer(MgmProcPreparePath.c_str());
+      eosmd = gOFS->eosView->getContainer(MgmProcBulkRequestPath.c_str());
     } catch (const eos::MDException& e) {
       eosmd = nullptr;
     }
 
     if (!eosmd) {
       try {
-        eosmd = gOFS->eosView->createContainer(MgmProcPreparePath.c_str(), true);
+        eosmd = gOFS->eosView->createContainer(MgmProcBulkRequestPath.c_str(), true);
         eosmd->setMode(S_IFDIR | S_IRWXU);
         eosmd->setCUid(2); // prepare directory is owned by daemon
         eosmd->setCGid(2);
         gOFS->eosView->updateContainerStore(eosmd.get());
       } catch (const eos::MDException& e) {
-        Eroute.Emsg("Config", "cannot set the /eos/../proc/prepare directory mode "
+        Eroute.Emsg("Config", "cannot set the /eos/../proc/bulkrequests directory mode "
                               "to initial mode");
-        eos_crit("cannot set the /eos/../proc/prepare directory mode to 700");
+        eos_crit("cannot set the /eos/../proc/bulkrequests directory mode to 700");
         return 1;
       }
     }

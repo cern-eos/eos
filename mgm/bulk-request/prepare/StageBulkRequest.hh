@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file BulkRequest.cc
+//! @file StageBulkRequest.hh
 //! @author Cedric Caffy - CERN
 //------------------------------------------------------------------------------
 
@@ -20,24 +20,24 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
+#ifndef EOS_STAGEBULKREQUEST_HH
+#define EOS_STAGEBULKREQUEST_HH
 
-#include "BulkRequest.hh"
+#include "mgm/Namespace.hh"
+#include "mgm/bulk-request/BulkRequest.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
-BulkRequest::BulkRequest(const std::string & id):mId(id){
-}
+/**
+ * This class represents a bulk request containing files that
+ * have to be prepared
+ */
+class StageBulkRequest : public BulkRequest {
+public:
+  StageBulkRequest(const std::string & id);
+  const BulkRequest::Type getType() const override;
+private:
+};
 
-const std::string BulkRequest::getId() const {
-  return mId;
-}
-
-void BulkRequest::addPath(const std::string& path) {
-  mPaths.insert(path);
-}
-
-const std::set<std::string>& BulkRequest::getPaths() const
-{
-  return mPaths;
-}
 EOSMGMNAMESPACE_END
+#endif // EOS_STAGEBULKREQUEST_HH
