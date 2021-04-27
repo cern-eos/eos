@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file BulkRequest.cc
+//! @file BulkRequestBusiness.cc
 //! @author Cedric Caffy - CERN
 //------------------------------------------------------------------------------
 
@@ -21,23 +21,24 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "BulkRequest.hh"
+#include "BulkRequestBusiness.hh"
+#include <mgm/bulk-request/dao/ProcDirectoryBulkRequestDAO.hh>
 
 EOSMGMNAMESPACE_BEGIN
 
-BulkRequest::BulkRequest(const std::string & id):mId(id){
+BulkRequestBusiness::BulkRequestBusiness(std::unique_ptr<AbstractDAOFactory> && daoFactory) : mAbstractDaoFactory(std::move(daoFactory)){
 }
 
-const std::string BulkRequest::getId() const {
-  return mId;
+void BulkRequestBusiness::saveBulkRequest(const std::shared_ptr<BulkRequest> req){
+  dispatchBulkRequestSave(req);
 }
 
-void BulkRequest::addPath(const std::string& path) {
-  mPaths.insert(path);
+void BulkRequestBusiness::dispatchBulkRequestSave(const std::shared_ptr<BulkRequest> req) {
+  switch(req->getType()) {
+  case BulkRequest::PREPARE_STAGE:
+    mAbstractDaoFactory->getBulkRequestDAO()->saveBulkRequest(static_pointer_cast<StageBulkRequest>(req));
+    break;
+  }
 }
 
-const std::set<std::string>& BulkRequest::getPaths() const
-{
-  return mPaths;
-}
 EOSMGMNAMESPACE_END
