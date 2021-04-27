@@ -137,8 +137,9 @@ FuseServer::Caps::Imply(uint64_t md_ino,
 FuseServer::Caps::shared_cap
 FuseServer::Caps::Get(FuseServer::Caps::authid_t id)
 {
-  if (mCaps.count(id)) {
-    return mCaps[id];
+  if (auto kv = mCaps.find(id);
+      kv != mCaps.end()) {
+    return kv->second;
   } else {
     return std::make_shared<capx>();
   }
@@ -151,12 +152,7 @@ FuseServer::Caps::shared_cap
 FuseServer::Caps::GetTS(FuseServer::Caps::authid_t id)
 {
   eos::common::RWMutexReadLock lLock(*this);
-
-  if (mCaps.count(id)) {
-    return mCaps[id];
-  } else {
-    return std::make_shared<capx>();
-  }
+  return Get(id);
 }
 
 //------------------------------------------------------------------------------
