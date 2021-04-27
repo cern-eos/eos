@@ -277,7 +277,6 @@ FuseServer::Caps::BroadcastRelease(const eos::fusex::md& md)
 {
   gOFS->MgmStats.Add("Eosxd::int::BcRelease", 0, 0, 1);
   EXEC_TIMING_BEGIN("Eosxd::int::BcRelease");
-  std::vector<shared_cap> bccaps;
   eos::common::RWMutexReadLock lLock(*this);
   FuseServer::Caps::shared_cap refcap = Get(md.authid());
   eos_static_info("id=%lx/%lx clientid=%s clientuuid=%s authid=%s",
@@ -292,39 +291,7 @@ FuseServer::Caps::BroadcastRelease(const eos::fusex::md& md)
     md_pino = md.md_pino();
   }
 
-  if (auto pinos = mInodeCaps.find(md_pino);
-      pinos != mInodeCaps.end()) {
-    for (const auto& it: pinos->second) {
-      shared_cap cap;
-
-      // loop over all caps for that inode
-      if (auto kv = mCaps.find(it);
-          kv != mCaps.end()) {
-        cap = kv->second;
-      } else {
-        continue;
-      }
-
-      // skip our own cap!
-      if (cap->authid() == md.authid()) {
-        continue;
-      }
-
-      // skip identical client mounts!
-      if (cap->clientuuid() == refcap->clientuuid()) {
-        continue;
-      }
-
-      // skip same source
-      if (cap->clientuuid() == md.clientuuid()) {
-        continue;
-      }
-
-      if (cap->id()) {
-        bccaps.push_back(cap);
-      }
-    }
-  }
+  auto bccaps = GetBroadcastCaps(md_pino, refcap, &md);
 
   lLock.Release();
 
@@ -372,42 +339,10 @@ FuseServer::Caps::BroadcastDeletion(uint64_t id, const eos::fusex::md& md,
   gOFS->MgmStats.Add("Eosxd::int::BcDeletion", 0, 0, 1);
   EXEC_TIMING_BEGIN("Eosxd::int::BcDeletion");
   eos_static_info("id=%lx name=%s", id, name.c_str());
-  std::vector<shared_cap> bccaps;
   eos::common::RWMutexReadLock lLock(*this);
   FuseServer::Caps::shared_cap refcap = Get(md.authid());
 
-  if (mInodeCaps.count(refcap->id())) {
-    for (auto it = mInodeCaps[refcap->id()].begin();
-         it != mInodeCaps[refcap->id()].end(); ++it) {
-      shared_cap cap;
-
-      // loop over all caps for that inode
-      if (mCaps.count(*it)) {
-        cap = mCaps[*it];
-      } else {
-        continue;
-      }
-
-      // skip our own cap!
-      if (cap->authid() == refcap->authid()) {
-        continue;
-      }
-
-      // skip identical client mounts!
-      if (cap->clientuuid() == refcap->clientuuid()) {
-        continue;
-      }
-
-      // skip same source
-      if (cap->clientuuid() == md.clientuuid()) {
-        continue;
-      }
-
-      if (cap->id()) {
-        bccaps.push_back(cap);
-      }
-    }
-  }
+  auto bccaps = GetBroadcastCaps(refcap->id(), refcap, &md);
 
   lLock.Release();
 
