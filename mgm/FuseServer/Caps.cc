@@ -158,28 +158,29 @@ FuseServer::Caps::GetTS(FuseServer::Caps::authid_t id)
 //------------------------------------------------------------------------------
 // Get Broadcast Caps
 //----------------------------------------------------------------------------
-std::vector<shared_cap>
+std::vector<std::shared_ptr<eos::mgm::FuseServer::Caps::capx>>
 FuseServer::Caps::GetBroadcastCaps(uint64_t id)
 {
   std::vector<shared_cap> bccaps;
 
-  if (const auto& ids = mInodeCaps.find(id);
+  if (auto ids = mInodeCaps.find(id);
       ids != mInodeCaps.end()) {
-    for (const auto& it: ids) {
-      shared_cap cap;
+    for (const auto& it: ids->second) {
       // loop over all caps for that inode
       auto kv = mCaps.find(it);
+      // TODO do we need debug logging on caps found like
+      // BroadcastReleaseFromExternal uses?
       if (kv == mCaps.end()) {
         continue;
       }
 
-      cap = kv.second;
+      shared_cap cap = kv->second;
       if (cap->id()) {
         bccaps.emplace_back(std::move(cap));
       }
     }
   }
-    return bccaps;
+  return bccaps;
 }
 
 //------------------------------------------------------------------------------
@@ -274,11 +275,11 @@ FuseServer::Caps::BroadcastRelease(const eos::fusex::md& md)
 
   if (auto pinos = mInodeCaps.find(md_pino);
       pinos != mInodeCaps.end()) {
-    for (auto it: pinos) {
+    for (const auto& it: pinos->second) {
       shared_cap cap;
 
       // loop over all caps for that inode
-      if (auto kv = mCaps.find(*it);
+      if (auto kv = mCaps.find(it);
           kv != mCaps.end()) {
         cap = kv->second;
       } else {
