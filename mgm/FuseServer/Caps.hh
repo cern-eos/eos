@@ -295,6 +295,16 @@ public:
     return s;
   }
 
+  // Given a pid, return a vector of shared caps matching this
+  // Not thread safe! the caller must hold a lock
+  std::vector<shared_cap> GetBroadcastCaps(uint64_t pid);
+
+  // The threadsafe version of the Broadcastcaps function
+  auto GetBroadcastCapsTS(uint64_t pid) {
+    eos::common::RWMutexReadLock lock(*this);
+    return GetBroadcastCaps(pid);
+  }
+
 protected:
   // a time ordered multimap pointing to caps
   std::multimap< time_t, authid_t > mTimeOrderedCap;
