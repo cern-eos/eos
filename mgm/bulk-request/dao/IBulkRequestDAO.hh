@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file BulkRequest.cc
+//! @file IBulkRequestPersist.hh
 //! @author Cedric Caffy - CERN
 //------------------------------------------------------------------------------
 
@@ -21,23 +21,28 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "BulkRequest.hh"
+#ifndef EOS_IBULKREQUESTDAO_HH
+#define EOS_IBULKREQUESTDAO_HH
+
+#include "mgm/Namespace.hh"
+#include "mgm/bulk-request/prepare/StageBulkRequest.hh"
+#include <memory>
 
 EOSMGMNAMESPACE_BEGIN
 
-BulkRequest::BulkRequest(const std::string & id):mId(id){
-}
+/**
+ * Interface to the bulk request Data Access Object
+ * It allows to access the persistency layer of the bulk requests
+ */
+class IBulkRequestDAO {
+public:
+  /**
+   * This method allows to persist a StageBulkRequest
+   * @param bulkRequest the Stage bulk request to save
+   */
+  virtual void saveBulkRequest(const std::shared_ptr<StageBulkRequest> bulkRequest) = 0;
+};
 
-const std::string BulkRequest::getId() const {
-  return mId;
-}
-
-void BulkRequest::addPath(const std::string& path) {
-  mPaths.insert(path);
-}
-
-const std::set<std::string>& BulkRequest::getPaths() const
-{
-  return mPaths;
-}
 EOSMGMNAMESPACE_END
+
+#endif // EOS_IBULKREQUESTDAO_HH

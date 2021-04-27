@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file BulkRequest.cc
+//! @file ProcDirectoryDAOFactory.cc
 //! @author Cedric Caffy - CERN
 //------------------------------------------------------------------------------
 
@@ -21,23 +21,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "BulkRequest.hh"
+#include "ProcDirectoryDAOFactory.hh"
+#include "mgm/bulk-request/dao/ProcDirectoryBulkRequestDAO.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
-BulkRequest::BulkRequest(const std::string & id):mId(id){
-}
-
-const std::string BulkRequest::getId() const {
-  return mId;
-}
-
-void BulkRequest::addPath(const std::string& path) {
-  mPaths.insert(path);
-}
-
-const std::set<std::string>& BulkRequest::getPaths() const
+ProcDirectoryDAOFactory::ProcDirectoryDAOFactory(const XrdOucString& mgmBulkRequestDirectoryPath): mBulkRequestProcDirectoryPath(mgmBulkRequestDirectoryPath)
 {
-  return mPaths;
 }
+
+std::unique_ptr<IBulkRequestDAO> ProcDirectoryDAOFactory::getBulkRequestDAO() const {
+  std::unique_ptr<IBulkRequestDAO> ret(new ProcDirectoryBulkRequestDAO(mBulkRequestProcDirectoryPath));
+  return ret;
+}
+
 EOSMGMNAMESPACE_END

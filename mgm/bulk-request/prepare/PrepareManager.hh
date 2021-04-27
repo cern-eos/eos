@@ -27,7 +27,8 @@
 #include "mgm/Namespace.hh"
 #include <XrdSfs/XrdSfsInterface.hh>
 #include <list>
-#include <mgm/bulk-request/BulkRequest.hh>
+#include <mgm/bulk-request/business/BulkRequestBusiness.hh>
+#include <mgm/bulk-request/prepare/StageBulkRequest.hh>
 #include <string>
 
 EOSMGMNAMESPACE_BEGIN
@@ -46,6 +47,13 @@ public:
    * @param client the client who issued the prepare
    */
   PrepareManager();
+
+  /**
+   * Allows to enable the bulk-request management linked to the prepare logic
+   * @param bulkRequestBusiness the class that allows to manage operations linked to bulk-requests
+   */
+  void setBulkRequestBusiness(std::shared_ptr<BulkRequestBusiness> bulkRequestBusiness);
+
   /**
    * Allows to prepare the file
    * @param pargs Xrootd prepare arguments
@@ -55,7 +63,7 @@ public:
    */
   int prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client);
 
-  std::shared_ptr<BulkRequest> getPrepareBulkRequest() const;
+  std::shared_ptr<BulkRequest> getBulkRequest() const;
 private:
 
   /**
@@ -64,12 +72,6 @@ private:
    * @return the prepare options in the string format
    */
   std::string prepareOptsToString(const int opts) const;
-
-  /**
-   * Generate a stage prepare request id
-   * @param requestId the variable where the requestId will be put after generation
-   */
-  void generatePrepareStageRequestId(XrdOucString & requestId);
 
   /**
    * Returns the Prepare actions to perform from the options given by Xrootd (XrdSfsPrep.opts)
@@ -94,12 +96,9 @@ private:
    */
   void triggerPrepareWorkflow(const std::list<std::pair<char**, char**>> & pathsToPrepare, const std::string & cmd, const std::string &event, const XrdOucString & reqid, XrdOucErrInfo & error, const eos::common::VirtualIdentity& vid);
 
-  void createRequestDirectory(const std::list<std::pair<char**, char**>> & pathsToPrepare, const XrdOucString & reqid);
-
-  bool mIsStagePrepare = false;
-  bool mGeneratedStageRequestId = false;
   const std::string mEpname="prepare";
   std::shared_ptr<BulkRequest> mBulkRequest;
+  std::shared_ptr<BulkRequestBusiness> mBulkRequestBusiness;
 };
 
 EOSMGMNAMESPACE_END

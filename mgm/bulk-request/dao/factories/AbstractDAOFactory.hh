@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file BulkRequest.cc
+//! @file AbstractDAOFactory.hh
 //! @author Cedric Caffy - CERN
 //------------------------------------------------------------------------------
 
@@ -21,23 +21,27 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "BulkRequest.hh"
+#ifndef EOS_ABSTRACTDAOFACTORY_HH
+#define EOS_ABSTRACTDAOFACTORY_HH
+
+#include "mgm/Namespace.hh"
+#include <memory>
+#include "mgm/bulk-request/dao/IBulkRequestDAO.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
-BulkRequest::BulkRequest(const std::string & id):mId(id){
-}
+/**
+ * AbstractFactory of DAO (Data Access Object) linked to bulk-requests
+ */
+class AbstractDAOFactory {
+public:
+  /**
+   * Returns a BulkRequestDAO object that will allow to access the persistency layer that will be used to store/access bulk requests metadata
+   * @return a BulkRequestDAO object that will allow to access the persistency layer that will be used to store/access bulk requests metadata
+   */
+  virtual std::unique_ptr<IBulkRequestDAO> getBulkRequestDAO() const = 0;
+};
 
-const std::string BulkRequest::getId() const {
-  return mId;
-}
-
-void BulkRequest::addPath(const std::string& path) {
-  mPaths.insert(path);
-}
-
-const std::set<std::string>& BulkRequest::getPaths() const
-{
-  return mPaths;
-}
 EOSMGMNAMESPACE_END
+
+#endif // EOS_ABSTRACTDAOFACTORY_HH

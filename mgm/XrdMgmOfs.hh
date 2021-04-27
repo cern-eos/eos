@@ -1554,6 +1554,7 @@ public:
   MgmProcTrackerPath; ///< Directory with file creations which are not consistent (yet)
   XrdOucString
   MgmProcTokenPath; ///< Directory storing the token generation as ext attribute and vouchers
+  XrdOucString MgmProcBulkRequestPath; ///< Directory storing the bulk requests
   //! Full path to the master indication proc file
   XrdOucString MgmProcMasterPath;
   XrdOucString MgmProcArchivePath; ///< EOS directory where archive dir inodes
