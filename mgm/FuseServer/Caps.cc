@@ -238,28 +238,7 @@ FuseServer::Caps::BroadcastRefreshFromExternal(uint64_t id, uint64_t pid)
   EXEC_TIMING_BEGIN("Eosxd::int::BcRefreshExt");
   // broad-cast refresh for a given inode
   eos_static_info("id=%lx pid=%lx", id, pid);
-  std::vector<shared_cap> bccaps;
-  eos::common::RWMutexReadLock lLock(*this);
-
-  if (mInodeCaps.count(pid)) {
-    for (auto it = mInodeCaps[pid].begin();
-         it != mInodeCaps[pid].end(); ++it) {
-      shared_cap cap;
-
-      // loop over all caps for that inode
-      if (mCaps.count(*it)) {
-        cap = mCaps[*it];
-      } else {
-        continue;
-      }
-
-      if (cap->id()) {
-        bccaps.push_back(cap);
-      }
-    }
-  }
-
-  lLock.Release();
+  auto bccaps = GetBroadcastCapsTS(pid);
 
   for (auto it : bccaps) {
     gOFS->zMQ->gFuseServer.Client().RefreshEntry((uint64_t) id,
@@ -347,29 +326,8 @@ FuseServer::Caps::BroadcastDeletionFromExternal(uint64_t id,
   gOFS->MgmStats.Add("Eosxd::int::BcDeletionExt", 0, 0, 1);
   EXEC_TIMING_BEGIN("Eosxd::int::BcDeletionExt");
   eos_static_info("id=%lx name=%s", id, name.c_str());
-  std::vector<shared_cap> bccaps;
   // broad-cast deletion for a given name in a container
-  eos::common::RWMutexReadLock lLock(*this);
-
-  if (mInodeCaps.count(id)) {
-    for (auto it = mInodeCaps[id].begin();
-         it != mInodeCaps[id].end(); ++it) {
-      shared_cap cap;
-
-      // loop over all caps for that inode
-      if (mCaps.count(*it)) {
-        cap = mCaps[*it];
-      } else {
-        continue;
-      }
-
-      if (cap->id()) {
-        bccaps.push_back(cap);
-      }
-    }
-  }
-
-  lLock.Release();
+  auto bccaps = GetBroadcastCapsTS(id);
 
   for (auto it : bccaps) {
     gOFS->zMQ->gFuseServer.Client().DeleteEntry((uint64_t) it->id(),
