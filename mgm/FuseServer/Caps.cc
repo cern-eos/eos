@@ -167,14 +167,15 @@ FuseServer::Caps::GetBroadcastCaps(uint64_t id,
 
   if (auto ids = mInodeCaps.find(id);
       ids != mInodeCaps.end()) {
+    eos_static_debug("id=%lx mInodeCaps.count=1", id);
     for (const auto& it: ids->second) {
       // loop over all caps for that inode
       auto kv = mCaps.find(it);
-      // TODO do we need debug logging on caps found like
-      // BroadcastReleaseFromExternal uses?
       if (kv == mCaps.end()) {
         continue;
       }
+      // TODO: do we need to debug log mCaps.found
+      // eos_static_debug("mCaps.found=1")
 
       shared_cap cap = kv->second;
       if (refcap && mdptr) {
@@ -211,14 +212,8 @@ FuseServer::Caps::BroadcastReleaseFromExternal(uint64_t id)
 {
   gOFS->MgmStats.Add("Eosxd::int::BcReleaseExt", 0, 0, 1);
   EXEC_TIMING_BEGIN("Eosxd::int::BcReleaseExt");
-  // broad-cast release for a given inode
-  eos::common::RWMutexReadLock lLock(*this);
-  // FIXME: if this static info isn't needed the whole locking code can be dropped in
-  // favour of TS version
-  eos_static_info("id=%lx mInodeCaps.count=%d", id, mInodeCaps.count(id));
-  auto bccaps = GetBroadcastCaps(id);
 
-  lLock.Release();
+  auto bccaps = GetBroadcastCapsTS(id);
 
   for (auto it : bccaps) {
     eos_static_debug("ReleaseCAP id %#lx clientid %s", it->clientid().c_str());
