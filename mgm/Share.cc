@@ -163,6 +163,17 @@ Share::Proc::Create(eos::common::VirtualIdentity& vid, const std::string& name, 
   return rc;
 }
 
+
+void
+Share::AclList::Dump(std::string& out)
+{
+  for (auto it : mListing) {
+    char format[1024];
+    snprintf(format, sizeof(format),"uid:%06d %32s %s\n", it->get_uid(), it->get_name().c_str(), it->get_rule().c_str());
+    out += format;
+  }
+}
+
 /* ------------------------------------------------------------------------- */
 Share::AclList
 Share::Proc::List(eos::common::VirtualIdentity& vid, const std::string& name)
@@ -178,7 +189,16 @@ Share::Proc::List(eos::common::VirtualIdentity& vid, const std::string& name)
     const char* val;
 
     while ((val = directory.nextEntry())) {
-      acllist.Add(vid.uid, val, "");
+      if (std::string(val) == ".") continue;
+      if (std::string(val) == "..") continue;
+      std::string entry = procpath + val;
+      XrdOucString acl;
+      XrdOucErrInfo error;
+      if (!gOFS->_attr_get(entry.c_str(), error,
+			   vid, "", "sys.share.acl", acl, true)) {
+	std::string sacl = acl.c_str();
+	acllist.Add(vid.uid, val, sacl);
+      }
     }
   }
   return acllist;

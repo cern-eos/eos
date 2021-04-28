@@ -32,7 +32,9 @@ add_library(EosConsoleHelpers-Objects OBJECT
   commands/helpers/RecycleHelper.cc commands/helpers/RecycleHelper.hh
   commands/helpers/FsckHelper.cc    commands/helpers/FsckHelper.hh
   commands/helpers/NodeHelper.cc    commands/helpers/NodeHelper.hh
-  commands/helpers/TokenHelper.cc   commands/helpers/TokenHelper.hh)
+  commands/helpers/TokenHelper.cc   commands/helpers/TokenHelper.hh
+  commands/helpers/ShareHelper.cc   commands/helpers/ShareHelper.hh
+)
 
 target_link_libraries(EosConsoleHelpers-Objects PUBLIC
   EosFstProto-Objects
@@ -96,6 +98,7 @@ add_library(EosConsoleCommands-Objects OBJECT
   commands/com_timing.cc
   commands/com_touch.cc
   commands/com_proto_token.cc
+  commands/com_proto_share.cc
   commands/com_tracker.cc
   commands/com_transfer.cc
   commands/com_version.cc

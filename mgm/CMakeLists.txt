@@ -160,6 +160,7 @@ add_library(
   proc/user/RmCmd.cc
   proc/user/Rmdir.cc
   proc/user/RouteCmd.cc
+  proc/user/ShareCmd.cc
   proc/user/TokenCmd.cc
   proc/user/Version.cc
   proc/user/Who.cc

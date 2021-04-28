@@ -42,6 +42,7 @@
 #include "mgm/proc/user/RecycleCmd.hh"
 #include "mgm/proc/user/RmCmd.hh"
 #include "mgm/proc/user/RouteCmd.hh"
+#include "mgm/proc/user/ShareCmd.hh"
 #include "mgm/proc/user/TokenCmd.hh"
 #include <google/protobuf/util/json_util.h>
 
@@ -226,6 +227,10 @@ ProcInterface::HandleProtobufRequest(eos::console::RequestProto& req,
     cmd.reset(new TokenCmd(std::move(req), vid));
     break;
 
+  case RequestProto::kShare:
+    cmd.reset(new ShareCmd(std::move(req), vid));
+    break;
+
   case RequestProto::kStagerRm:
     cmd.reset(new StagerRmCmd(std::move(req), vid));
     break;
@@ -331,8 +336,6 @@ ProcInterface::ProtoIsWriteAccess(const char* opaque)
   case RequestProto::kIo:
   case RequestProto::kDebug:
   case RequestProto::kConfig:
-  case RequestProto::kToken:
-
     return false;
 
   // conditional on the subcommand
@@ -413,6 +416,8 @@ ProcInterface::ProtoIsWriteAccess(const char* opaque)
   case RequestProto::kRm:
   case RequestProto::kStagerRm:
   case RequestProto::kDrain: // @note where is it?
+  case RequestProto::kToken:
+  case RequestProto::kShare:
   default:
     return true;
   }

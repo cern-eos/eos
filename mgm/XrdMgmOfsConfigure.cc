@@ -55,6 +55,7 @@
 #include "mgm/inspector/FileInspector.hh"
 #include "mgm/qos/QoSClass.hh"
 #include "mgm/qos/QoSConfig.hh"
+#include "mgm/Share.hh"
 #include "common/RWMutex.hh"
 #include "common/StacktraceHere.hh"
 #include "common/plugin_manager/PluginManager.hh"
@@ -1945,6 +1946,11 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
                               MgmProcTrackerPath.c_str()));
   // Initialize the file inspector
   mFileInspector.reset(FileInspector::Create());
+
+  // INitialize the share module
+  std::string shareProc = std::string(MgmProcPath.c_str()) + "/";
+  mShare.reset(new Share(shareProc.c_str()));
+
   // Set also the archiver ZMQ endpoint were client requests are sent
   std::ostringstream oss;
   oss << "ipc://" << MgmArchiveDir.c_str() << "archive_frontend.ipc";

@@ -172,6 +172,8 @@ class ReplicationTracker;
 class FileInspector;
 class ConversionJob;
 class ConverterDriver;
+class Acl;
+class Share;
 }
 
 namespace eos::mgm::tgc
@@ -1796,6 +1798,8 @@ public:
   //! Class inspecting files in the namespace for statistics
   std::unique_ptr<eos::mgm::FileInspector> mFileInspector;
 
+  //! Class dealing with shares
+  std::unique_ptr<eos::mgm::Share> mShare;
   std::unique_ptr<Fsck> mFsckEngine; ///< Fsck functionality
 
   //! Master/Slave configuration/failover class

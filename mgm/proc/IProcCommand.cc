@@ -566,6 +566,7 @@ IProcCommand::HasSlot()
         eos::console::RequestProto::kConfig,
         eos::console::RequestProto::kAccess,
         eos::console::RequestProto::kToken,
+        eos::console::RequestProto::kShare,
         eos::console::RequestProto::kQos,
         eos::console::RequestProto::kConvert
   }) {

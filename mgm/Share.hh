@@ -23,6 +23,7 @@
 
 #pragma once
 #include "mgm/Namespace.hh"
+#include "mgm/XrdMgmOfs.hh"
 #include "common/VirtualIdentity.hh"
 #include <string>
 
@@ -43,6 +44,9 @@ public:
     Acl();
     Acl(uid_t _uid, const std::string& _name, const std::string& _rule) : uid(_uid), name(_name), rule(_rule) {}
     virtual ~Acl();
+    uid_t get_uid() { return uid; }
+    std::string get_name() { return name; }
+    std::string get_rule() { return rule; }
   private:
     uid_t uid;
     std::string name;
@@ -56,6 +60,8 @@ public:
     void Add(uid_t uid, const std::string& name, const std::string& acl) {
       mListing.push_back( std::make_shared<Acl>(uid,name,acl) );
     }
+    void Dump(std::string& out);
+    size_t Size() { return mListing.size(); }
   private:
     std::vector<std::shared_ptr<Acl>> mListing;
   };
@@ -76,7 +82,7 @@ public:
     int Create(eos::common::VirtualIdentity& vid, const std::string& name, const std::string& share_root);
     int Get(eos::common::VirtualIdentity& vid, const std::string& name);
     std::string GetEntry(eos::common::VirtualIdentity& vid, const std::string& name) {
-      return mProcPrefix + std::to_string(vid.uid) + std::string("/") + name;
+      return mProcPrefix + "uid:" + std::to_string(vid.uid) + std::string("/") + name;
     }
 
     int Delete(eos::common::VirtualIdentity& vid, const std::string& name);
@@ -93,6 +99,9 @@ public:
 
   // return an ACL object for a given share_acl entry
   static std::shared_ptr<eos::mgm::Acl> getShareAcl(const eos::common::VirtualIdentity& vid, const std::string& s_id);
+
+  // return Proc object
+  Proc& getProc() { return mProc; }
 private:
   Proc mProc;
 };

@@ -164,7 +164,7 @@ TEST(AccessChecker, WithAclUserRWX)
   // .. unless we have an acl
   eos::common::VirtualIdentity vid1 = makeIdentity(1234, 8888);
   vid1.allowed_gids = { 8888 };
-  eos::mgm::Acl acl("u:1234:rwx", "", vid1, true);
+  eos::mgm::Acl acl("u:1234:rwx", "", "", vid1, true);
   ASSERT_TRUE(acl.HasAcl());
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(
                 cont.get(), acl, R_OK, makeIdentity(1234, 8888)));
@@ -187,7 +187,7 @@ TEST(AccessChecker, WithAclUserRWX)
                 cont.get(), xattrmap, R_OK | W_OK | X_OK, vid1));
   // try a group acl ...
   vid1.allowed_gids = { 8888 };
-  eos::mgm::Acl acl2("g:8888:rwx", "", vid1, true);
+  eos::mgm::Acl acl2("g:8888:rwx", "", "", vid1, true);
   ASSERT_TRUE(acl.HasAcl());
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(
                 cont.get(), acl, R_OK, makeIdentity(1234, 8888)));
@@ -205,13 +205,13 @@ TEST(AccessChecker, WithPrepare)
                                        S_IFDIR | S_IRWXU);
   eos::common::VirtualIdentity vid1 = makeIdentity(19229, 1489);
   vid1.allowed_gids = {1489};
-  eos::mgm::Acl acl("u:19227:rwx+d,u:19229:rwx+dp,u:19230:rwx+dp", "", vid1,
+  eos::mgm::Acl acl("u:19227:rwx+d,u:19229:rwx+dp,u:19230:rwx+dp", "", "", vid1,
                     true);
   ASSERT_TRUE(acl.HasAcl());
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(
                 cont.get(), acl, P_OK, vid1));
   // no prepare flag for uid 19229
-  acl = eos::mgm::Acl("u:19227:rwx+d,u:19229:rwx+d,u:19230:rwx+dp", "", vid1,
+  acl = eos::mgm::Acl("u:19227:rwx+d,u:19229:rwx+d,u:19230:rwx+dp", "", "", vid1,
                       true);
   ASSERT_TRUE(acl.HasAcl());
   ASSERT_FALSE(mgm::AccessChecker::checkContainer(

@@ -118,7 +118,7 @@ extern int com_tracker(char*);
 extern int com_transfer(char*);
 extern int com_touch(char*);
 extern int com_proto_token(char*);
-extern int com_prot_token(char*);
+extern int com_proto_share(char*);
 extern int com_version(char*);
 extern int com_vid(char*);
 extern int com_whoami(char*);
@@ -183,11 +183,12 @@ COMMAND commands[] = {
   { (char*) "role", com_role, (char*) "Set the client role"},
   { (char*) "route", com_route, (char*) "Routing interface"},
   { (char*) "rtlog", com_rtlog, (char*) "Get realtime log output from mgm & fst servers"},
+  { (char*) "share", com_proto_share, (char*) "Share interface"},
   { (char*) "silent", com_silent, (char*) "Toggle silent flag for stdout"},
-  { (char*) "status", com_status, (char*) "Display status information on an MGM"},
   { (char*) "space", com_protospace, (char*) "Space configuration"},
   { (char*) "stagerrm", com_stagerrm, (char*) "Remove disk replicas of a file if it has tape replicas"},
   { (char*) "stat", com_stat, (char*) "Run 'stat' on a file or directory"},
+  { (char*) "status", com_status, (char*) "Display status information on an MGM"},
   { (char*) "squash", com_squash, (char*) "Run 'squashfs' utility function"},
   { (char*) "test", com_test, (char*) "Run performance test"},
   { (char*) "timing", com_timing, (char*) "Toggle timing flag for execution time measurement"},
