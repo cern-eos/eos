@@ -79,8 +79,7 @@ public:
     virtual ~Proc();
 
     int Init(const char* prefix);
-    int Create(eos::common::VirtualIdentity& vid, const std::string& name, const std::string& share_root);
-    int Get(eos::common::VirtualIdentity& vid, const std::string& name);
+    int Create(eos::common::VirtualIdentity& vid, const std::string& name, const std::string& share_root, const std::string& share_acl);
     std::string GetEntry(eos::common::VirtualIdentity& vid, const std::string& name) {
       return mProcPrefix + "uid:" + std::to_string(vid.uid) + std::string("/") + name;
     }
@@ -93,6 +92,7 @@ public:
   private:
     int CreateDir(const std::string& path);
     int SetShareRoot(const std::string& path, const std::string& share_root);
+    int SetShareAcl(const std::string& path, const std::string& share_acl);
     std::string mProcPrefix;
     bool mValid;
   };

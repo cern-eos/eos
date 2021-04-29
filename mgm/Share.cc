@@ -124,6 +124,9 @@ Share::Proc::CreateDir(const std::string& path)
       eos_static_crit("msg=\"failed to create proc directory\" path=\"%s\" errc=%d errmsg=\"\"", path.c_str(), e.getErrno(), e.getMessage().str().c_str());
       return -1;
     }
+  } else {
+    errno = EEXIST;
+    return -1;
   }
   return 0;
 }
@@ -145,21 +148,49 @@ Share::Proc::SetShareRoot(const std::string& path, const std::string& share_root
 }
 
 
+/* ------------------------------------------------------------------------- */
+int
+Share::Proc::SetShareAcl(const std::string& path, const std::string& share_acl)
+{
+  XrdOucErrInfo error;
+  eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
+
+  return gOFS->_attr_set(path.c_str(),
+		   error,
+		   root_vid,
+		   "",
+		   "sys.share.acl",
+		   share_acl.c_str(),
+		   true);
+}
+
+
 
 /* ------------------------------------------------------------------------- */
 int
-Share::Proc::Create(eos::common::VirtualIdentity& vid, const std::string& name, const std::string& share_root)
+Share::Proc::Create(eos::common::VirtualIdentity& vid,
+		    const std::string& name,
+		    const std::string& share_root,
+		    const std::string& share_acl
+		    )
 {
-  // check if exists
-  if (!Get(vid, name)) {
-    return EEXIST;
-  }
+  errno = 0 ;
   // create path
   std::string procpath = GetEntry(vid, name);
   // create share entry
   int rc = CreateDir(procpath);
+  if (rc) {
+    return rc;
+  }
+
   // add share root
-  rc |= SetShareRoot(procpath, share_root);
+  if (!share_root.empty()) {
+    rc |= SetShareRoot(procpath, share_root);
+  }
+  if (!share_acl.empty()) {
+    rc |= SetShareAcl(procpath, share_acl);
+  }
+
   return rc;
 }
 
