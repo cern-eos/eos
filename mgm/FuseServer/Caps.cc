@@ -159,47 +159,53 @@ FuseServer::Caps::GetTS(FuseServer::Caps::authid_t id)
 // Get Broadcast Caps
 //----------------------------------------------------------------------------
 std::vector<std::shared_ptr<eos::mgm::FuseServer::Caps::capx>>
-FuseServer::Caps::GetBroadcastCaps(uint64_t id,
-                                   shared_cap refcap,
-                                   const eos::fusex::md* mdptr)
+FuseServer::Caps::GetBroadcastCapsTS(uint64_t id,
+                                     shared_cap refcap,
+                                     const eos::fusex::md* mdptr)
 {
   std::vector<shared_cap> bccaps;
+  std::vector<authid_t> auth_ids;
 
-  if (auto ids = mInodeCaps.find(id);
-      ids != mInodeCaps.end()) {
-    eos_static_debug("id=%lx mInodeCaps.count=1", id);
-    for (const auto& it: ids->second) {
-      // loop over all caps for that inode
-      auto kv = mCaps.find(it);
-      if (kv == mCaps.end()) {
+  {
+    eos::common::RWMutexReadLock rlock(*this);
+    auto ids = mInodeCaps.find(id);
+    if (ids == mInodeCaps.end()) {
+      return bccaps;
+    }
+
+    std::copy(ids->second.begin(),
+              ids->second.end(),
+              std::back_inserter(auth_ids));
+  }
+
+
+  eos_static_debug("id=%lx mInodeCaps.count=1", id);
+  for (const auto& it: auth_ids) {
+    // TODO: do we need to debug log mCaps.found
+    // eos_static_debug("mCaps.found=1")
+    shared_cap cap = GetTS(it);
+    if (refcap && mdptr) {
+      // skip our own cap!
+      if (cap->authid() == mdptr->authid()) {
         continue;
       }
-      // TODO: do we need to debug log mCaps.found
-      // eos_static_debug("mCaps.found=1")
 
-      shared_cap cap = kv->second;
-      if (refcap && mdptr) {
-        // skip our own cap!
-        if (cap->authid() == mdptr->authid()) {
-          continue;
-        }
-
-        // skip identical client mounts!
-        if (cap->clientuuid() == refcap->clientuuid()) {
-          continue;
-        }
-
-        // skip same source
-        if (cap->clientuuid() == mdptr->clientuuid()) {
-          continue;
-        }
+      // skip identical client mounts!
+      if (cap->clientuuid() == refcap->clientuuid()) {
+        continue;
       }
 
-      if (cap->id()) {
-        bccaps.emplace_back(std::move(cap));
+      // skip same source
+      if (cap->clientuuid() == mdptr->clientuuid()) {
+        continue;
       }
     }
+
+    if (cap->id()) {
+      bccaps.emplace_back(std::move(cap));
+    }
   }
+
   return bccaps;
 }
 
@@ -254,8 +260,7 @@ FuseServer::Caps::BroadcastRelease(const eos::fusex::md& md)
 {
   gOFS->MgmStats.Add("Eosxd::int::BcRelease", 0, 0, 1);
   EXEC_TIMING_BEGIN("Eosxd::int::BcRelease");
-  eos::common::RWMutexReadLock lLock(*this);
-  FuseServer::Caps::shared_cap refcap = Get(md.authid());
+  FuseServer::Caps::shared_cap refcap = GetTS(md.authid());
   eos_static_info("id=%lx/%lx clientid=%s clientuuid=%s authid=%s",
                   refcap->id(),
                   md.md_pino(),
@@ -268,9 +273,7 @@ FuseServer::Caps::BroadcastRelease(const eos::fusex::md& md)
     md_pino = md.md_pino();
   }
 
-  auto bccaps = GetBroadcastCaps(md_pino, refcap, &md);
-
-  lLock.Release();
+  auto bccaps = GetBroadcastCapsTS(md_pino, refcap, &md);
 
   for (auto it : bccaps) {
     gOFS->zMQ->gFuseServer.Client().ReleaseCAP((uint64_t) it->id(),
@@ -316,12 +319,8 @@ FuseServer::Caps::BroadcastDeletion(uint64_t id, const eos::fusex::md& md,
   gOFS->MgmStats.Add("Eosxd::int::BcDeletion", 0, 0, 1);
   EXEC_TIMING_BEGIN("Eosxd::int::BcDeletion");
   eos_static_info("id=%lx name=%s", id, name.c_str());
-  eos::common::RWMutexReadLock lLock(*this);
-  FuseServer::Caps::shared_cap refcap = Get(md.authid());
-
-  auto bccaps = GetBroadcastCaps(refcap->id(), refcap, &md);
-
-  lLock.Release();
+  FuseServer::Caps::shared_cap refcap = GetTS(md.authid());
+  auto bccaps = GetBroadcastCapsTS(refcap->id(), refcap, &md);
 
   for (auto it : bccaps) {
     gOFS->zMQ->gFuseServer.Client().DeleteEntry((uint64_t) it->id(),

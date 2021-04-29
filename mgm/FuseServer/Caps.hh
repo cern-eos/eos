@@ -296,19 +296,12 @@ public:
   }
 
   // Given a pid, return a vector of shared caps matching this
-  // Not thread safe! the caller must hold a lock
-  std::vector<shared_cap> GetBroadcastCaps(uint64_t pid,
-                                           shared_cap refcap = nullptr,
-                                           const eos::fusex::md* mdptr = nullptr);
+  // if a reference cap and mdptr are given, these ids are excluded
+  std::vector<shared_cap> GetBroadcastCapsTS(uint64_t pid,
+                                             shared_cap refcap = nullptr,
+                                             const eos::fusex::md* mdptr = nullptr);
 
-  // The threadsafe version of the Broadcastcaps function
-  // TODO: with some template foo, this can be used to make a generic getter taking a fn
-  // argument and returning the ret type of fn(args...)
-  template <typename... Args>
-  auto GetBroadcastCapsTS(Args&&... args) {
-    eos::common::RWMutexReadLock lock(*this);
-    return GetBroadcastCaps(std::forward<Args>(args)...);
-  }
+
 
 protected:
   // a time ordered multimap pointing to caps
