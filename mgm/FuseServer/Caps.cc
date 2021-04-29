@@ -173,6 +173,7 @@ FuseServer::Caps::GetBroadcastCapsTS(uint64_t id,
       return bccaps;
     }
 
+    auth_ids.reserve(ids->second.size());
     std::copy(ids->second.begin(),
               ids->second.end(),
               std::back_inserter(auth_ids));
@@ -358,7 +359,7 @@ FuseServer::Caps::BroadcastRefresh(uint64_t inode,
       return 0; // nothing to process here
     }
 
-    auth_ids.resize(kv->second.size());
+    auth_ids.reserve(kv->second.size());
     std::copy(kv->second.begin(),
               kv->second.end(),
               std::back_inserter(auth_ids));
@@ -462,7 +463,7 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
       return 0; // nothing to process here
     }
 
-    auth_ids.resize(kv->second.size());
+    auth_ids.reserve(kv->second.size());
     std::copy(kv->second.begin(),
               kv->second.end(),
               std::back_inserter(auth_ids));
