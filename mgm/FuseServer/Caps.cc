@@ -446,89 +446,89 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
   size_t n_suppressed = 0;
   std::vector<shared_cap> bccaps;
   std::set<std::string> clients_sent;
-  eos::common::RWMutexReadLock lLock(*this);
-  FuseServer::Caps::shared_cap refcap = Get(md.authid());
+  std::vector<authid_t> auth_ids;
+  FuseServer::Caps::shared_cap refcap {nullptr};
+
   eos_static_info("id=%lx/%lx clientid=%s clientuuid=%s authid=%s",
                   refcap->id(), md_pino, refcap->clientid().c_str(),
                   refcap->clientuuid().c_str(), refcap->authid().c_str());
 
-  if (mInodeCaps.count(md_pino)) {
-    bool suppress_audience = false;
-    regex_t regex;
-    // audience check
-    int audience = gOFS->zMQ->gFuseServer.Client().BroadCastMaxAudience();
-    std::string match =
-      gOFS->zMQ->gFuseServer.Client().BroadCastAudienceSuppressMatch();
+  {
+    eos::common::RWMutexReadLock lLock(*this);
+    refcap = Get(md.authid());
 
-    if (audience && (mInodeCaps[md_pino].size() > (size_t) audience)) {
-      suppress_audience = true;
-
-      if (regcomp(&regex, match.c_str(), REG_ICASE | REG_EXTENDED | REG_NOSUB)) {
-        suppress_audience = false;
-        eos_static_err("msg=\"broadcast audience suppress match not valid regex\" regex=\"%s\"",
-                       match.c_str());
-      }
+    auto kv = mInodeCaps.find(md_pino);
+    if (kv == mInodeCaps.end()) {
+      EXEC_TIMING_END("Eosxd::int::BcRefresh");
+      return 0; // nothing to process here
     }
 
-    for (auto it = mInodeCaps[md_pino].begin();
-         it != mInodeCaps[md_pino].end(); ++it) {
-      shared_cap cap;
+    auth_ids.resize(kv->second.size());
+    std::copy(kv->second.begin(),
+              kv->second.end(),
+              std::back_inserter(auth_ids));
+  }
 
-      // loop over all caps for that inode
-      if (mCaps.count(*it)) {
-        cap = mCaps[*it];
-      } else {
-        continue;
-      }
+  bool suppress_audience = false;
+  regex_t regex;
+  // audience check
+  int audience = gOFS->zMQ->gFuseServer.Client().BroadCastMaxAudience();
+  std::string match =
+    gOFS->zMQ->gFuseServer.Client().BroadCastAudienceSuppressMatch();
 
-      // skip our own cap!
-      if (cap->authid() == md.authid()) {
-        continue;
-      }
+  if (audience && (auth_ids.size() > (size_t) audience)) {
+    suppress_audience = true;
 
-      // skip identical client mounts, the have it anyway!
-      if (cap->clientuuid() == refcap->clientuuid()) {
-        continue;
-      }
-
-      // skip same source
-      if (cap->clientuuid() == md.clientuuid()) {
-        continue;
-      }
-
-      if (suppress_audience) {
-        if (regexec(&regex, cap->clientid().c_str(), 0, NULL, 0) != REG_NOMATCH) {
-          n_suppressed++;
-          continue;
-        }
-      }
-
-      eos_static_info("id=%lx clientid=%s clientuuid=%s authid=%s",
-                      cap->id(),
-                      cap->clientid().c_str(),
-                      cap->clientuuid().c_str(),
-                      cap->authid().c_str());
-
-      if (cap->id() && !clients_sent.count(cap->clientuuid())) {
-        bccaps.push_back(cap);
-        // make sure we sent the update only once to each client, eveh if this
-        // one has many caps
-        clients_sent.insert(cap->clientuuid());
-      }
+    if (regcomp(&regex, match.c_str(), REG_ICASE | REG_EXTENDED | REG_NOSUB)) {
+      suppress_audience = false;
+      eos_static_err("msg=\"broadcast audience suppress match not valid regex\" regex=\"%s\"",
+                     match.c_str());
     }
   }
 
-  lLock.Release();
+  for (const auto& it: auth_ids) {
+    shared_cap cap = GetTS(it);
+    // avoid processing if the cap doesn't exist
+    if (!cap->id()) {
+      continue;
+    }
 
-  for (auto it : bccaps) {
-    gOFS->zMQ->gFuseServer.Client().SendMD(md,
-                                           it->clientuuid(),
-                                           it->clientid(),
-                                           md_ino,
-                                           md_pino,
-                                           clock,
-                                           p_mtime);
-    errno = 0;
+    // skip identical client mounts!
+    if (refcap && cap->clientuuid() == refcap->clientuuid()) {
+      continue;
+    }
+
+    // skip same source
+    if (cap->clientuuid() == md.clientuuid()) {
+      continue;
+    }
+
+    if (suppress_audience) {
+      if (regexec(&regex, cap->clientid().c_str(), 0, NULL, 0) != REG_NOMATCH) {
+        n_suppressed++;
+        continue;
+      }
+    }
+
+    eos_static_info("id=%lx clientid=%s clientuuid=%s authid=%s",
+                    cap->id(),
+                    cap->clientid().c_str(),
+                    cap->clientuuid().c_str(),
+                    cap->authid().c_str());
+
+    if (!clients_sent.count(cap->clientuuid())) {
+      // make sure we sent the update only once to each client, even if this
+      // one has many caps
+      clients_sent.insert(cap->clientuuid());
+      gOFS->zMQ->gFuseServer.Client().SendMD(md,
+                                             cap->clientuuid(),
+                                             cap->clientid(),
+                                             md_ino,
+                                             md_pino,
+                                             clock,
+                                             p_mtime);
+      errno = 0; // avoid errno clobbering from ZMQ
+    }
   }
 
   if (n_suppressed) {
