@@ -1864,7 +1864,8 @@ int Inspector::dropEmptyCid(bool dryRun, uint64_t cid)
 // Change the given fid - USE WITH CAUTION
 //------------------------------------------------------------------------------
 int Inspector::changeFid(bool dryRun, uint64_t fid, uint64_t newParent,
-                         const std::string& newChecksum, int64_t newSize, std::ostream& out,
+                         const std::string& newChecksum, int64_t newSize,
+                         uint64_t newLayoutId, std::ostream& out,
                          std::ostream& err)
 {
   eos::ns::FileMdProto val;
@@ -1912,6 +1913,13 @@ int Inspector::changeFid(bool dryRun, uint64_t fid, uint64_t newParent,
     val.set_size(newSize);
   }
 
+  if (newLayoutId) {
+    ok = true;
+    err << "    Layout id: " << val.layout_id() << " --> " << newLayoutId <<
+        std::endl;
+    val.set_layout_id(newLayoutId);
+  }
+
   if (!ok) {
     err << "Error: No attributes specified to update." << std::endl;
     return 1;
@@ -1922,6 +1930,9 @@ int Inspector::changeFid(bool dryRun, uint64_t fid, uint64_t newParent,
   std::vector<RedisRequest> requests;
   requests.emplace_back(RequestBuilder::writeFileProto(&fileMD));
   executeRequestBatch(requests, {}, dryRun, out, err);
+  CacheNotifications notifications;
+  notifications.fids.emplace_back(fid);
+  executeRequestBatch(requests, notifications, dryRun, out, err);
   return 0;
 }
 

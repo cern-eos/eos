@@ -95,7 +95,6 @@ int main(int argc, char* argv[])
 {
   CLI::App app("Tool to inspect contents of the QuarkDB-based EOS namespace.");
   app.require_subcommand();
-
   //----------------------------------------------------------------------------
   // Basic parameters, common to all subcommands
   //----------------------------------------------------------------------------
@@ -104,10 +103,8 @@ int main(int argc, char* argv[])
   std::string password;
   std::string passwordFile;
   bool noDryRun = false;
-
   std::unique_ptr<FileMetadataFilter> metadataFilter;
   std::string filterExpression;
-
   //----------------------------------------------------------------------------
   // Set-up dump subcommand..
   //----------------------------------------------------------------------------
@@ -228,7 +225,6 @@ int main(int argc, char* argv[])
                     passwordFile);
   bool onlySizes = false;
   bool findUnknownFsids = false;
-
   scanFilesSubcommand->add_flag("--only-sizes", onlySizes,
                                 "Only print file sizes, one per line.");
   scanFilesSubcommand->add_flag("--full-paths", fullPaths,
@@ -236,8 +232,8 @@ int main(int argc, char* argv[])
   scanFilesSubcommand->add_flag("--find-unknown-fsids", findUnknownFsids,
                                 "Only print files for which there is one or more unrecognized fsids in location vector.");
   scanFilesSubcommand->add_flag("--json", json, "Use json output");
-  scanFilesSubcommand->add_option("--where", filterExpression, "Filter results using the given expression.\nNOTE: Filtering is done client side! All results still have to be streamed -- performance is the same.");
-
+  scanFilesSubcommand->add_option("--where", filterExpression,
+                                  "Filter results using the given expression.\nNOTE: Filtering is done client side! All results still have to be streamed -- performance is the same.");
   //----------------------------------------------------------------------------
   // Set-up scan-deathrow subcommand..
   //----------------------------------------------------------------------------
@@ -346,12 +342,12 @@ int main(int argc, char* argv[])
   // Set-up drop-empty-cid subcommand..
   //----------------------------------------------------------------------------
   auto dropEmptyCid = app.add_subcommand("drop-empty-cid",
-                          "[CAUTION] Drop an empty container. The command will fail if it appears the directory is not empty.");
+                                         "[CAUTION] Drop an empty container. The command will fail if it appears the directory is not empty.");
   addClusterOptions(dropEmptyCid, membersStr, memberValidator, password,
                     passwordFile);
   addDryRun(dropEmptyCid, noDryRun);
   dropEmptyCid->add_option("--cid", cid,
-                               "Specify which container ID to drop")
+                           "Specify which container ID to drop")
   ->required();
   //----------------------------------------------------------------------------
   // Change fid protobuf properties
@@ -361,18 +357,23 @@ int main(int argc, char* argv[])
   addClusterOptions(changeFidSubcommand, membersStr, memberValidator, password,
                     passwordFile);
   addDryRun(changeFidSubcommand, noDryRun);
-  uint64_t newParent = 0;
+  uint64_t newParent = 0ull;
   std::string newChecksum;
   int64_t newSize = -1;
+  uint64_t newLayoutId = 0ull;
   changeFidSubcommand->add_option("--fid", fid,
                                   "Specify the FileMD to print, through its ID (decimal form)")
   ->required();
   changeFidSubcommand->add_option("--new-parent", newParent,
-                                  "Change the parent container of the specified fid. This _DOES NOT_ modify the respective container maps, only the protobuf FMD!");
+                                  "Change the parent container of the specified fid. "
+                                  "This _DOES NOT_ modify the respective container maps, "
+                                  "only the protobuf FMD!");
   changeFidSubcommand->add_option("--new-checksum", newChecksum,
                                   "Change the checksum of the specified fid.");
   changeFidSubcommand->add_option("--new-size", newSize,
                                   "Change the size of the specified fid.");
+  changeFidSubcommand->add_option("--new-layout-id", newLayoutId,
+                                  "Change the layout id of the specified fid.");
   //----------------------------------------------------------------------------
   // Rename a fid from its current location
   //----------------------------------------------------------------------------
@@ -449,10 +450,10 @@ int main(int argc, char* argv[])
   //----------------------------------------------------------------------------
   // Parse any filter expressions
   //----------------------------------------------------------------------------
-  if(!filterExpression.empty()) {
+  if (!filterExpression.empty()) {
     FilterExpressionParser parser(filterExpression, false);
 
-    if(!parser.getStatus()) {
+    if (!parser.getStatus()) {
       std::cerr << parser.getStatus().toString() << std::endl;
       return 1;
     }
@@ -576,13 +577,13 @@ int main(int argc, char* argv[])
     return inspector.dropFromDeathrow(dryRun, fid, std::cout, std::cerr);
   }
 
-  if(dropEmptyCid->parsed()) {
+  if (dropEmptyCid->parsed()) {
     return inspector.dropEmptyCid(dryRun, cid);
   }
 
   if (changeFidSubcommand->parsed()) {
     return inspector.changeFid(dryRun, fid, newParent, newChecksum, newSize,
-                               std::cout, std::cerr);
+                               newLayoutId, std::cout, std::cerr);
   }
 
   if (renameFidSubcommand->parsed()) {
