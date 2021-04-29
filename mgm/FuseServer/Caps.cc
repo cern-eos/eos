@@ -346,69 +346,72 @@ FuseServer::Caps::BroadcastRefresh(uint64_t inode,
   EXEC_TIMING_BEGIN("Eosxd::int::BcRefresh");
   eos_static_info("id=%lx parent=%lx", inode, parent_inode);
   size_t n_suppressed = 0;
-  std::vector<shared_cap> bccaps;
-  eos::common::RWMutexReadLock lLock(*this);
-  FuseServer::Caps::shared_cap refcap = Get(md.authid());
+  std::vector<authid_t> auth_ids;
+  FuseServer::Caps::shared_cap refcap {nullptr};
 
-  if (mInodeCaps.count(parent_inode)) {
-    bool suppress_audience = false;
-    regex_t regex;
-    // audience check
-    int audience = gOFS->zMQ->gFuseServer.Client().BroadCastMaxAudience();
-    std::string match =
-      gOFS->zMQ->gFuseServer.Client().BroadCastAudienceSuppressMatch();
+  {
+    eos::common::RWMutexReadLock lLock(*this);
+    refcap = Get(md.authid());
 
-    if (audience && ((mInodeCaps[parent_inode].size() > (size_t)audience))) {
-      suppress_audience = true;
-
-      if (regcomp(&regex, match.c_str(), REG_ICASE | REG_EXTENDED | REG_NOSUB)) {
-        suppress_audience = false;
-        eos_static_err("msg=\"broadcast audience suppress match not valid regex\" regex=\"%s\"",
-                       match.c_str());
-      }
+    auto kv = mInodeCaps.find(parent_inode);
+    if (kv == mInodeCaps.end()) {
+      EXEC_TIMING_END("Eosxd::int::BcRefresh");
+      return 0; // nothing to process here
     }
 
-    for (auto it = mInodeCaps[parent_inode].begin();
-         it != mInodeCaps[parent_inode].end(); ++it) {
-      shared_cap cap;
+    auth_ids.resize(kv->second.size());
+    std::copy(kv->second.begin(),
+              kv->second.end(),
+              std::back_inserter(auth_ids));
+  }
 
-      // loop over all caps for that inode
-      if (mCaps.count(*it)) {
-        cap = mCaps[*it];
-      } else {
-        continue;
-      }
 
-      // skip identical client mounts!
-      if (cap->clientuuid() == refcap->clientuuid()) {
-        continue;
-      }
 
-      // skip same source
-      if (cap->clientuuid() == md.clientuuid()) {
-        continue;
-      }
+  bool suppress_audience = false;
+  regex_t regex;
+  // audience check
+  int audience = gOFS->zMQ->gFuseServer.Client().BroadCastMaxAudience();
+  std::string match =
+    gOFS->zMQ->gFuseServer.Client().BroadCastAudienceSuppressMatch();
 
-      if (suppress_audience) {
-        if (regexec(&regex, cap->clientid().c_str(), 0, NULL, 0) != REG_NOMATCH) {
-          n_suppressed++;
-          continue;
-        }
-      }
+  if (audience && ((auth_ids.size() > (size_t)audience))) {
+    suppress_audience = true;
 
-      if (cap->id()) {
-        bccaps.push_back(cap);
-      }
+    if (regcomp(&regex, match.c_str(), REG_ICASE | REG_EXTENDED | REG_NOSUB)) {
+      suppress_audience = false;
+      eos_static_err("msg=\"broadcast audience suppress match not valid regex\" regex=\"%s\"",
+                     match.c_str());
     }
   }
 
-  lLock.Release();
+  for (const auto& it: auth_ids) {
+    shared_cap cap = GetTS(it);
+    // avoid processing if the cap doesn't exist
+    if (!cap->id()) {
+      continue;
+    }
 
-  for (auto it : bccaps) {
+    // skip identical client mounts!
+    if (refcap && cap->clientuuid() == refcap->clientuuid()) {
+      continue;
+    }
+
+    // skip same source
+    if (cap->clientuuid() == md.clientuuid()) {
+      continue;
+    }
+
+    if (suppress_audience) {
+      if (regexec(&regex, cap->clientid().c_str(), 0, NULL, 0) != REG_NOMATCH) {
+        n_suppressed++;
+        continue;
+      }
+    }
+
     gOFS->zMQ->gFuseServer.Client().RefreshEntry((uint64_t) inode,
-        it->clientuuid(),
-        it->clientid()
-                                                );
+                                                 cap->clientuuid(),
+                                                 cap->clientid()
+                                                 );
     errno = 0;
   }
 
