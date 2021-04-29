@@ -573,6 +573,7 @@ XrdMqSharedHash::AddDeletionsToEnvString(XrdOucString& out)
   out += "&";
   out += XRDMQSHAREDHASH_KEYS;
   out += "=";
+  RWMutexWriteLock wr_lock(*mStoreMutex);
 
   for (auto it = mDeletions.begin(); it != mDeletions.end(); ++it) {
     out += "|";
