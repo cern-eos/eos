@@ -765,7 +765,6 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
   // if the write position moves the checksum is dirty
   if (mCheckSum) {
     if (mWritePosition != (unsigned long long)fileOffset) {
-      mCheckSum->Reset();
       mCheckSum->SetDirty();
     }
 
@@ -1029,7 +1028,6 @@ XrdFstOfsFile::truncate(XrdSfsFileOffset fsize)
   if (fsize != openSize) {
     if (mCheckSum) {
       if (mWritePosition != (unsigned long long)fsize) {
-        mCheckSum->Reset();
         mCheckSum->SetDirty();
       }
     }
@@ -2981,6 +2979,20 @@ XrdFstOfsFile::VerifyChecksum()
         return false;
       }
     }
+
+    // -------------------------------------------------------------------------------------------------------------------
+    // !!! CAUTION !!!
+    // be carefule with adler checksum - finalize can remove the dirty flag if all pieces of a file until the max checksum
+    // offset were written - however if the file size is diffrent from the max checksum offset, the checksum is dirty
+    // because the ending part of a file was not written
+    // -------------------------------------------------------------------------------------------------------------------
+    if ((mIsRW) && mCheckSum->GetMaxOffset() &&
+	(mCheckSum->GetMaxOffset() != (off_t)mMaxOffsetWritten)) {
+      // If there was a write which was not extending the file the checksum
+      // is dirty!
+      mCheckSum->SetDirty();
+    }
+
 
     // If checksum is not completely computed
     if (mCheckSum->NeedsRecalculation()) {
