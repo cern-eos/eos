@@ -25,7 +25,7 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-BulkRequest::BulkRequest(const std::string & id):mId(id){
+BulkRequest::BulkRequest(const std::string & id, const common::VirtualIdentity & clientVid):mId(id),mClientVid(clientVid){
 }
 
 const std::string BulkRequest::getId() const {
@@ -40,4 +40,22 @@ const std::set<std::string>& BulkRequest::getPaths() const
 {
   return mPaths;
 }
+
+const common::VirtualIdentity & BulkRequest::getClientVirtualIdentity() const {
+  return mClientVid;
+}
+
+const std::string BulkRequest::bulkRequestTypeToString(const BulkRequest::Type & bulkRequestType){
+  return BulkRequest::BULK_REQ_TYPE_TO_STRING_MAP.at(bulkRequestType);
+}
+
+const std::map<BulkRequest::Type,std::string> BulkRequest::createTypeToStringMap() {
+  std::map<BulkRequest::Type,std::string> ret = {
+      {BulkRequest::PREPARE_STAGE,"PREPARE_STAGE"}
+  };
+  return ret;
+}
+
+const std::map<BulkRequest::Type,std::string> BulkRequest::BULK_REQ_TYPE_TO_STRING_MAP = BulkRequest::createTypeToStringMap();
+
 EOSMGMNAMESPACE_END
