@@ -28,6 +28,10 @@
 #include "Logbook.hh"
 #include <sys/stat.h>
 
+extern "C" {
+#include "krb5.h"
+}
+
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
@@ -412,7 +416,16 @@ BoundIdentityProvider::defaultPathsToBoundIdentity(const JailInformation& jail,
   // Pretend as if the environment of the process simply contained the default values,
   // and follow the usual code path.
   Environment defaultEnv;
-  defaultEnv.push_back("KRB5CCNAME=KEYRING:persistent:"+ std::to_string(uid));
+
+  {
+    // get the default cache from KRB5
+    krb5_context krb_ctx;
+    krb5_error_code ret = krb5_init_context(&krb_ctx);
+    if(ret == 0) {
+      defaultEnv.push_back("KRB5CCNAME="+std::string(krb5_cc_default_name(krb_ctx)));
+      krb5_free_context(krb_ctx);
+    }
+  }
   defaultEnv.push_back("X509_USER_PROXY=/tmp/x509up_u" + std::to_string(uid));
   defaultEnv.push_back("OAUTH2_TOKEN=FILE:/tmp/oauthtk_" + std::to_string(uid));
 
