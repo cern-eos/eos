@@ -97,7 +97,9 @@ private:
   void triggerPrepareWorkflow(const std::list<std::pair<char**, char**>> & pathsToPrepare, const std::string & cmd, const std::string &event, const XrdOucString & reqid, XrdOucErrInfo & error, const eos::common::VirtualIdentity& vid);
 
   const std::string mEpname="prepare";
+  //The bulk request that possibly got created depending on the prepare command triggered
   std::shared_ptr<BulkRequest> mBulkRequest;
+  //Business logic to manage bulkRequest actions (persistency for example)
   std::shared_ptr<BulkRequestBusiness> mBulkRequestBusiness;
 };
 

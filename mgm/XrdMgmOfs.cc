@@ -733,7 +733,7 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
                     const XrdSecEntity* client)
 {
 #if !OLD_PREPARE
-  std::unique_ptr<AbstractDAOFactory> daoFactory(new ProcDirectoryDAOFactory(gOFS->MgmProcBulkRequestPath));
+  std::unique_ptr<AbstractDAOFactory> daoFactory(new ProcDirectoryDAOFactory(gOFS->MgmProcBulkRequestPath,gOFS->eosView));
   std::shared_ptr<BulkRequestBusiness> bulkRequestBusiness(new BulkRequestBusiness(std::move(daoFactory)));
   PrepareManager pm;
   pm.setBulkRequestBusiness(bulkRequestBusiness);

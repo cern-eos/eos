@@ -22,17 +22,32 @@
  ************************************************************************/
 
 #include "ProcDirectoryBulkRequestDAO.hh"
+#include <fcntl.h>
 
 EOSMGMNAMESPACE_BEGIN
 
-ProcDirectoryBulkRequestDAO::ProcDirectoryBulkRequestDAO(const XrdOucString & bulkRequestProcDirectoryPath):mBulkRequestDirectoryPath(bulkRequestProcDirectoryPath){
+ProcDirectoryBulkRequestDAO::ProcDirectoryBulkRequestDAO(const XrdOucString & bulkRequestProcDirectoryPath,eos::IView * namespaceView):mBulkRequestDirectoryPath(bulkRequestProcDirectoryPath),mNamespaceView(namespaceView){
 
 }
 
 void ProcDirectoryBulkRequestDAO::saveBulkRequest(const std::shared_ptr<StageBulkRequest> bulkRequest) {
-  XrdOucString dirPathToCreateInProcPrepare = mBulkRequestDirectoryPath + bulkRequest->getId().c_str();
-  eos_info("msg=\"About to create the %s directory\"",
-           dirPathToCreateInProcPrepare.c_str());
+  createBulkRequestDirectory(bulkRequest);
+}
+
+void ProcDirectoryBulkRequestDAO::createBulkRequestDirectory(const std::shared_ptr<BulkRequest> bulkRequest) {
+  XrdOucString directoryBulkRequest = generateBulkRequestProcPath(bulkRequest);
+  eos_info("msg=\"Persistence of the bulk request %s : creating the directory %s\"", directoryBulkRequest.c_str());
+  std::shared_ptr<IContainerMD> bulkReqDirectory = mNamespaceView->createContainer(directoryBulkRequest.c_str());
+  bulkReqDirectory->setAttribute("bulk_request_type",BulkRequest::bulkRequestTypeToString(bulkRequest->getType()));
+  bulkReqDirectory->setMode(S_IFDIR | S_IRWXU);
+  bulkReqDirectory->setCUid(2); // bulk-request directory is owned by daemon
+  bulkReqDirectory->setCGid(2);
+  mNamespaceView->updateContainerStore(bulkReqDirectory.get());
+}
+
+XrdOucString ProcDirectoryBulkRequestDAO::generateBulkRequestProcPath(const std::shared_ptr<BulkRequest> bulkRequest) {
+  XrdOucString directoryBulkRequest = mBulkRequestDirectoryPath + "/" + bulkRequest->getId().c_str();
+  return directoryBulkRequest;
 }
 
 EOSMGMNAMESPACE_END

@@ -25,8 +25,10 @@
 #define EOS_BULKREQUEST_HH
 
 #include "mgm/Namespace.hh"
+#include "common/VirtualIdentity.hh"
 #include <string>
 #include <set>
+#include <map>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -41,11 +43,13 @@ public:
   enum Type {
     PREPARE_STAGE
   };
+
   /**
    * Initializes the bulk request with the id passed in parameter
-   * @param id
+   * @param id the unique identifier of the bulk request
+   * @param clientVid the virtual identity of the client who submitted the bulk request
    */
-  BulkRequest(const std::string & id);
+  BulkRequest(const std::string & id, const common::VirtualIdentity & clientVid);
   /**
    * Returns the id of this bulk request
    * @return the id of this bulk request
@@ -69,13 +73,32 @@ public:
    */
   void addPath(const std::string & path);
 
+  /**
+   * Get the virtual identity of the client who created / submitted the bulk request
+   * @return the virtual identity of the client who created / submitted the bulk request
+   */
+  const common::VirtualIdentity & getClientVirtualIdentity() const;
+
   virtual ~BulkRequest(){}
+
+  /**
+   * Return the string representation of the bulk request type passed in parameter
+   * @param type the type of the bulk request
+   * @return the string representation of the bulk request type passed in parameter
+   */
+  static const std::string bulkRequestTypeToString(const Type & bulkRequestType);
 
 private:
   //Id of the bulk request
   std::string mId;
   //Paths of the files contained in the bulk request
   std::set<std::string> mPaths;
+  // Virtual identity of the client who created/submitted the bulk request
+  eos::common::VirtualIdentity mClientVid;
+  //Initialize the map containing the string representation of each bulk-request type
+  static const std::map<Type,std::string> createTypeToStringMap();
+  //Map containing the string representation of each bulk-request type
+  static const std::map<Type,std::string> BULK_REQ_TYPE_TO_STRING_MAP;
 };
 
 EOSMGMNAMESPACE_END
