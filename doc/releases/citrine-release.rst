@@ -16,6 +16,17 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.44 Citrine``
+===================
+
+2021-04-30
+
+Bug
+---
+
+* FST: fix bug introduced with a checksum reset in case of non-sequential writing
+
+
 ``v4.8.43 Citrine``
 ===================
 
