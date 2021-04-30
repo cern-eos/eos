@@ -160,10 +160,11 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
 
     // Check permissions in case of user attributes
     if (dh &&
-	// any attribute not if not the owner and not a sudoer and not root
-	(vid.uid != dh->getCUid()) && (!vid.sudoer && vid.uid) ||
-	// sys.acl only by non sudoer/root if ACL allows
-	((Key == "sys.acl") && (!vid.sudoer) && (vid.uid) && (!acl.CanSetAcl()))) {
+	(
+	 // any attribute not if not the owner and not a sudoer and not root
+	 ((vid.uid != dh->getCUid()) && (!vid.sudoer && vid.uid)) ||
+	 // sys.acl only by non sudoer/root if ACL allows
+	 ((Key == "sys.acl") && (!vid.sudoer) && (vid.uid) && (!acl.CanSetAcl())))) {
       errno = EPERM;
     } else {
       XrdOucString val64 = value;
@@ -235,11 +236,11 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
 
       Acl acl(xattrmap, vid);
 
-      if (fmd &&
+      if (fmd && (
 	  // any attribute not if not the owner and not a sudoer and not root
-	  (vid.uid != fmd->getCUid()) && (!vid.sudoer && vid.uid) ||
-	  // sys.acl only by non sudoer/root if ACL allows
-	  ((Key == "sys.acl") && (!vid.sudoer) && (vid.uid) && (!acl.CanSetAcl()))) {
+		  ((vid.uid != fmd->getCUid()) && (!vid.sudoer && vid.uid)) ||
+		  // sys.acl only by non sudoer/root if ACL allows
+		  ((Key == "sys.acl") && (!vid.sudoer) && (vid.uid) && (!acl.CanSetAcl())))) {
         errno = EPERM;
       } else {
         XrdOucString val64 = value;

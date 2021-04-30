@@ -165,7 +165,23 @@ Share::Proc::SetShareAcl(const std::string& path, const std::string& share_acl)
 }
 
 
-
+std::string
+Share::Proc::GetShareReference(const char* path)z
+{
+  std::string shareattr;
+  std::shared_ptr<eos::IContainerMD> dmd;
+  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+  try {
+    dmd = gOFS->eosView->getContainer(path);
+    eos::ContainerIdentifier cmd_id = dmd->getIdentifier();
+    shareattr = "pxid:";
+    shareattr += std::to_string(cmd_id.getUnderlyingUInt64());
+  } catch (eos::MDException& e) {
+    errno = e.getErrno();
+    return "";
+  }
+  return shareattr;
+}
 /* ------------------------------------------------------------------------- */
 int
 Share::Proc::Create(eos::common::VirtualIdentity& vid,
@@ -183,6 +199,25 @@ Share::Proc::Create(eos::common::VirtualIdentity& vid,
     return rc;
   }
 
+  std::string shareattr;
+
+  if (share_root.length()) {
+    XrdOucErrInfo error;
+    eos::IContainerMD::XAttrMap attrmap;
+    eos::mgm::Acl acl (share_root.c_str(), error, vid, attrmap, true, true);
+    if (!acl.CanShare()) {
+      errno = EACCES;
+      return -1;
+    } else {
+      errno = 0;
+      // retrieve shareattr like pxis:<cid>
+      shareattr = GetShareReference(share_root.c_str());
+      if (errno) {
+	return -1;
+      }
+    }
+  }
+
   // add share root
   if (!share_root.empty()) {
     rc |= SetShareRoot(procpath, share_root);
@@ -191,9 +226,88 @@ Share::Proc::Create(eos::common::VirtualIdentity& vid,
     rc |= SetShareAcl(procpath, share_acl);
   }
 
+  if (share_root.length()) {
+    // apply the new share
+    rc |= ModifyShare(vid, shareattr, share_root, false);
+  }
   return rc;
 }
 
+
+/* ------------------------------------------------------------------------- */
+int
+Share::Proc::ModifyShare(const eos::common::VirtualIdentity& vid, std::string shareattr, const std::string& share_root, bool remove)
+{
+  // recursively add this share
+  XrdMgmOfsDirectory subtree;
+  eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
+  int rc = subtree._open(share_root.c_str(),
+			 root_vid,
+			 "ls.skip.files=1");
+  if (!rc) {
+    // modify the sharing on this directory
+    rc |= ModifyShareAttr(share_root, shareattr,  remove);
+    const char* item;
+    while ( ( item = subtree.nextEntry() ) ) {
+      std::string child = share_root;
+      child += "/";
+      child += item;
+      // propagate to children
+      rc |= ModifyShare(vid,shareattr, child, remove);
+    }
+    subtree.close();
+  }
+
+  return rc;
+}
+
+int
+Share::Proc::ModifyShareAttr(const std::string& path, const std::string& shareattr, bool remove)
+{
+  eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
+  XrdOucErrInfo error;
+  XrdOucString value;
+  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+  int rc = gOFS->_attr_get(path.c_str(), error, root_vid, "", "sys.acl.share", value, false);
+  if (rc) {
+    return rc;
+  }
+
+  std::vector<std::string> rules;
+  std::string delimiter = ",";
+  std::string shareacl = value.c_str();
+
+  eos::common::StringConversion::Tokenize(shareacl, rules, delimiter);
+  std::string new_shareacl;
+  bool add = true;
+  for ( auto i : rules ) {
+    if (remove) {
+      add = false;
+      if ( i == shareattr ) {
+	continue;
+      } else {
+	new_shareacl += i;
+	new_shareacl += ",";
+      }
+    } else {
+      if ( i == shareattr ) {
+	add = false;
+      } else {
+	new_shareacl += i;
+	new_shareacl += ",";
+      }
+    }
+  }
+  if (add) {
+    new_shareacl += shareattr;
+  }
+  if (new_shareacl.length()) {
+    new_shareacl.pop_back();
+  }
+
+  rc = gOFS->_attr_set(path.c_str(), error, root_vid, "", "sys.acl.share", new_shareacl.c_str(), false);
+  return rc;
+}
 
 void
 Share::AclList::Dump(std::string& out)
@@ -239,11 +353,6 @@ Share::Proc::List(eos::common::VirtualIdentity& vid, const std::string& name)
 int
 Share::Proc::Delete(eos::common::VirtualIdentity& vid, const std::string& name)
 {
-  // check if exists
-  if (Get(vid, name)) {
-    return ENOENT;
-  }
-
   std::string procpath = GetEntry(vid, name);
 
   XrdOucErrInfo error;
@@ -254,14 +363,6 @@ Share::Proc::Delete(eos::common::VirtualIdentity& vid, const std::string& name)
 		      "",
 		      false);
 }
-
-/* ------------------------------------------------------------------------- */
-int
-Share::Proc::Get(eos::common::VirtualIdentity& vid, const std::string& name)
-{
-  return 0;
-}
-
 
 
 /* ------------------------------------------------------------------------- */

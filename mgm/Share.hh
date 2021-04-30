@@ -80,6 +80,9 @@ public:
 
     int Init(const char* prefix);
     int Create(eos::common::VirtualIdentity& vid, const std::string& name, const std::string& share_root, const std::string& share_acl);
+    int ModifyShare(const eos::common::VirtualIdentity& vid, std::string shareattr, const std::string& share_root, bool remove=false);
+    int ModifyShareAttr(const std::string& path, const std::string& shareattr, bool remove=false);
+
     std::string GetEntry(eos::common::VirtualIdentity& vid, const std::string& name) {
       return mProcPrefix + "uid:" + std::to_string(vid.uid) + std::string("/") + name;
     }
@@ -93,6 +96,7 @@ public:
     int CreateDir(const std::string& path);
     int SetShareRoot(const std::string& path, const std::string& share_root);
     int SetShareAcl(const std::string& path, const std::string& share_acl);
+    std::string GetShareReference(const char* path);
     std::string mProcPrefix;
     bool mValid;
   };
