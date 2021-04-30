@@ -27,6 +27,7 @@
 #include "mgm/Namespace.hh"
 #include "mgm/bulk-request/dao/IBulkRequestDAO.hh"
 #include <common/Logging.hh>
+#include "namespace/interface/IView.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -37,7 +38,7 @@ EOSMGMNAMESPACE_BEGIN
  */
 class ProcDirectoryBulkRequestDAO : public IBulkRequestDAO, eos::common::LogId {
 public:
-  ProcDirectoryBulkRequestDAO(const XrdOucString & bulkRequestProcDirectoryPath);
+  ProcDirectoryBulkRequestDAO(const XrdOucString & bulkRequestProcDirectoryPath,eos::IView * namespaceView);
   /**
    * Save the Stage bulk request by creating a directory in the /eos/.../proc/ directory and creating one file
    * per path. The paths of the files will be modified in the format like the one in the EOS recycle-bin
@@ -45,7 +46,23 @@ public:
    */
   void saveBulkRequest(const std::shared_ptr<StageBulkRequest> bulkRequest) override;
 private:
+  //bulk-request directory path on the /eos/.../proc directory
   XrdOucString mBulkRequestDirectoryPath;
+  //Interface to the namespace to allow the creation of files and directories
+  IView * mNamespaceView;
+  /**
+   * Creates a directory to store the bulk-request files within it
+   * @param bulkRequest the bulkRequest to get the id from
+   */
+  void createBulkRequestDirectory(const std::shared_ptr<BulkRequest> bulkRequest);
+  /**
+   * Generate the bulk-request directory path within the /eos/.../proc/ directory
+   * It is generated according to the id of the bulk-request
+   * @param bulkRequest the bulk-request to generate the path from
+   * @return the string containing the path of the directory used to store the bulk-request
+   */
+  XrdOucString generateBulkRequestProcPath(const std::shared_ptr<BulkRequest> bulkRequest);
+
 };
 
 EOSMGMNAMESPACE_END
