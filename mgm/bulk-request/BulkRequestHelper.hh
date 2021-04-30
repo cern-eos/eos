@@ -31,6 +31,10 @@ EOSMGMNAMESPACE_BEGIN
 
 class BulkRequestHelper {
 public:
+  /**
+   * Allows to generate a bulk-request ID
+   * @return the id for a new BulkRequest
+   */
   static const char * generateBulkRequestId () {
     return common::StringConversion::timebased_uuidstring().c_str();
   }
