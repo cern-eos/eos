@@ -34,7 +34,7 @@ EOSMGMNAMESPACE_BEGIN
  */
 class StageBulkRequest : public BulkRequest {
 public:
-  StageBulkRequest(const std::string & id);
+  StageBulkRequest(const std::string & id, const common::VirtualIdentity & clientVid);
   const BulkRequest::Type getType() const override;
 private:
 };
