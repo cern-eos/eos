@@ -25,7 +25,7 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-StageBulkRequest::StageBulkRequest(const std::string& id): BulkRequest(id)
+StageBulkRequest::StageBulkRequest(const std::string& id, const common::VirtualIdentity & clientVid): BulkRequest(id,clientVid)
 {
 }
 

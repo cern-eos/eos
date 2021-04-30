@@ -84,7 +84,7 @@ int PrepareManager::prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdS
 
   case Prep_STAGE:
     event = "sync::prepare";
-    mBulkRequest.reset(BulkRequestFactory::createStageBulkRequest());
+    mBulkRequest.reset(BulkRequestFactory::createStageBulkRequest(vid));
     reqid = mBulkRequest->getId().c_str();
     break;
 
