@@ -26,7 +26,7 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-BulkRequestBusiness::BulkRequestBusiness(std::unique_ptr<AbstractDAOFactory> && daoFactory) : mAbstractDaoFactory(std::move(daoFactory)){
+BulkRequestBusiness::BulkRequestBusiness(std::unique_ptr<AbstractDAOFactory> && daoFactory) : mDaoFactory(std::move(daoFactory)){
 }
 
 void BulkRequestBusiness::saveBulkRequest(const std::shared_ptr<BulkRequest> req){
@@ -36,7 +36,7 @@ void BulkRequestBusiness::saveBulkRequest(const std::shared_ptr<BulkRequest> req
 void BulkRequestBusiness::dispatchBulkRequestSave(const std::shared_ptr<BulkRequest> req) {
   switch(req->getType()) {
   case BulkRequest::PREPARE_STAGE:
-    mAbstractDaoFactory->getBulkRequestDAO()->saveBulkRequest(static_pointer_cast<StageBulkRequest>(req));
+    mDaoFactory->getBulkRequestDAO()->saveBulkRequest(static_pointer_cast<StageBulkRequest>(req));
     break;
   }
 }
