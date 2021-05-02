@@ -1400,7 +1400,7 @@ clean_k8s_cluster:
   image: alpine/k8s:1.18.2
   script:
     - export KUBECONFIG=$K8S_CONFIG
-    - kubectl get namespaces | grep -v 'default\|kube-node-lease\|kube-public\|kube-system\|magnum-tiller' |
+    - kubectl get namespaces --no-headers | grep -v 'default\|kube-node-lease\|kube-public\|kube-system\|magnum-tiller' |
         awk 'match($3,/[3-9][0-9]+h||[[:alnum:]]+d/) {print $1}' | xargs --no-run-if-empty kubectl delete namespaces
   dependencies: []
   allow_failure: true
