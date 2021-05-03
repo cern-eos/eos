@@ -276,7 +276,7 @@ FuseServer::Caps::BroadcastRefreshFromExternal(uint64_t id, uint64_t pid)
   EXEC_TIMING_BEGIN("Eosxd::int::BcRefreshExt");
   // broad-cast refresh for a given inode
   eos_static_info("id=%lx pid=%lx", id, pid);
-  auto bccaps = GetBroadcastCapsTS(pid);
+  auto bccaps = GetBroadcastCapsTS(pid, nullptr, nullptr, true, "Eosxd::int::BcRefreshExtSup");
 
   for (auto it : bccaps) {
     gOFS->zMQ->gFuseServer.Client().RefreshEntry((uint64_t) id,
