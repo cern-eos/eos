@@ -200,6 +200,29 @@ Vid::Set(const char* value, bool storeConfig)
     XrdOucString newuid = env.Get("mgm.vid.uid");
     XrdOucString newgid = env.Get("mgm.vid.gid");
 
+    // check for valid arguments first before setting any config
+    if (newuid.length()) {
+      uid_t muid = (uid_t) atoi(newuid.c_str());
+      XrdOucString cx = "";
+      cx += (int) muid;
+
+      if (cx != newuid) {
+        eos_static_err("strings differ %s %s", cx.c_str(), newuid.c_str());
+        return false;
+      }
+    }
+
+    if (newgid.length()) {
+      gid_t mgid = (gid_t) atoi(newgid.c_str());
+      XrdOucString cx = "";
+      cx += (int) mgid;
+
+      if (cx != newgid) {
+        eos_static_err("strings differ %s %s", cx.c_str(), newgid.c_str());
+        return false;
+      }
+    }
+
     if (newuid.length()) {
       uid_t muid = (uid_t) atoi(newuid.c_str());
       XrdOucString cx = "";
