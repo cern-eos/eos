@@ -909,7 +909,7 @@ NewfindCmd::ProcessRequest() noexcept
   // For general users, cannot return more than 50k dirs and 100k files with one find,
   // unless there is an access rule allowing deeper queries.
   // Special users (like root) have the limit lifted by default.
-  const static bool limit_result=((mVid.uid != 0) && (!mVid.hasUid(3)) && (!mVid.hasGid(4)) && (!mVid.sudoer));
+  const bool limit_result=((mVid.uid != 0) && (!mVid.hasUid(3)) && (!mVid.hasGid(4)) && (!mVid.sudoer));
   static uint64_t dir_limit = 50000;
   static uint64_t file_limit = 100000;
   Access::GetFindLimits(mVid, dir_limit, file_limit);
