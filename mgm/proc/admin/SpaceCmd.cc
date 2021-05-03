@@ -424,23 +424,6 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
   int ret_c = 0;
   eos::common::RWMutexReadLock fsViewLock(FsView::gFsView.ViewMutex);
 
-  if (reset.option() == eos::console::SpaceProto_ResetProto::DRAIN ||
-      reset.option() == eos::console::SpaceProto_ResetProto::NONE) {
-    if (FsView::gFsView.mSpaceView.count(reset.mgmspace())) {
-      FsView::gFsView.mSpaceView[reset.mgmspace()]->ResetDraining();
-      std_out << "info: reset draining in space '" + reset.mgmspace() + "'";
-    } else {
-      std_err << "error: illegal space name";
-      ret_c = EINVAL;
-    }
-  }
-
-  if (reset.option() == eos::console::SpaceProto_ResetProto::EGROUP ||
-      reset.option() == eos::console::SpaceProto_ResetProto::NONE) {
-    gOFS->EgroupRefresh->Reset();
-    std_out << "\ninfo: clear cached EGroup information ...";
-  }
-
   switch (reset.option()) {
   case eos::console::SpaceProto_ResetProto::DRAIN: {
     if (FsView::gFsView.mSpaceView.count(reset.mgmspace())) {
@@ -452,13 +435,11 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
     }
   }
   break;
-
   case eos::console::SpaceProto_ResetProto::EGROUP: {
     gOFS->EgroupRefresh->Reset();
     std_out << "\ninfo: clear cached EGroup information ...";
   }
   break;
-
   case eos::console::SpaceProto_ResetProto::NSFILESISTEMVIEW: {
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
                                        __FILE__);
@@ -466,7 +447,6 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
     std_out << "\ninfo: resized namespace filesystem view ...";
   }
   break;
-
   case eos::console::SpaceProto_ResetProto::NSFILEMAP: {
     auto* eos_chlog_filesvc = dynamic_cast<eos::IChLogFileMDSvc*>
                               (gOFS->eosFileService);
@@ -481,7 +461,6 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
     }
   }
   break;
-
   case eos::console::SpaceProto_ResetProto::NSDIRECTORYMAP: {
     auto* eos_chlog_dirsvc = dynamic_cast<eos::IChLogContainerMDSvc*>
                              (gOFS->eosDirectoryService);
@@ -496,7 +475,6 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
     }
   }
   break;
-
   case eos::console::SpaceProto_ResetProto::NS: {
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
                                        __FILE__);
@@ -515,28 +493,24 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
     }
   }
   break;
-
   case eos::console::SpaceProto_ResetProto::MAPPING: {
     eos::common::Mapping::Reset();
     std_out << "\ninfo: clear all user/group uid/gid caches ...\n";
   }
   break;
-
   case eos::console::SpaceProto_ResetProto::SCHEDULEDRAIN: {
     gOFS->mFidTracker.Clear(eos::mgm::TrackerType::Drain);
     std_out.str("info: reset drain scheduling map in space '" + reset.mgmspace() +
                 '\'');
   }
   break;
-
   case eos::console::SpaceProto_ResetProto::SCHEDULEBALANCE: {
     gOFS->mFidTracker.Clear(eos::mgm::TrackerType::Balance);
     std_out.str("info: reset balance scheduling map in space '" + reset.mgmspace() +
                 '\'');
   }
   break;
-
-  default: { // NONE - when NONE does cases DRAIN and EGROUP and MAPPING
+  default: { // NONE - when NONE, do cases DRAIN and EGROUP and MAPPING
     if (FsView::gFsView.mSpaceView.count(reset.mgmspace())) {
       FsView::gFsView.mSpaceView[reset.mgmspace()]->ResetDraining();
       std_out << "info: reset draining in space '" + reset.mgmspace() + "'";
@@ -544,7 +518,6 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
       std_err << "error: illegal space name";
       ret_c = EINVAL;
     }
-
     gOFS->EgroupRefresh->Reset();
     std_out << "\ninfo: clear cached EGroup information ...";
     eos::common::Mapping::Reset();
