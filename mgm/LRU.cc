@@ -391,7 +391,7 @@ LRU::AgeExpire(const char* dir, const std::string& policy)
   {
     // Check the directory contents
     std::shared_ptr<eos::IContainerMD> cmd;
-    eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, dir);
+    eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView, dir);
     RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
     try {
@@ -682,7 +682,7 @@ LRU::ConvertMatch(const char* dir,
   {
     // Check the directory contents
     std::shared_ptr<eos::IContainerMD> cmd;
-    eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, dir);
+    eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView, dir);
     RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
     try {
