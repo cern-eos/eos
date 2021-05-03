@@ -1821,10 +1821,10 @@ EosFuse::umounthandler(int sig, siginfo_t* si, void* ctx)
   }
 
   eos::common::handleSignal(sig, si, ctx);
-  std::string systemline = "fusermount -u -z ";
-  systemline += EosFuse::Instance().Config().localmountdir;
-  system(systemline.c_str());
-  fprintf(stderr, "# umounthandler: executing %s\n", systemline.c_str());
+  static char systemline[4096];
+  snprintf(systemline,sizeof(systemline),"fusermount -u -z %s",EosFuse::Instance().Config().localmountdir);
+  system(systemline);
+  fprintf(stderr, "# umounthandler: executing %s\n", systemline);
   fprintf(stderr,
           "# umounthandler: sighandler received signal %d - emitting signal %d again\n",
           sig, sig);
