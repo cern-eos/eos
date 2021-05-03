@@ -161,10 +161,14 @@ FuseServer::Caps::GetTS(FuseServer::Caps::authid_t id)
 std::vector<std::shared_ptr<eos::mgm::FuseServer::Caps::capx>>
 FuseServer::Caps::GetBroadcastCapsTS(uint64_t id,
                                      shared_cap refcap,
-                                     const eos::fusex::md* mdptr)
+                                     const eos::fusex::md* mdptr,
+                                     bool suppress,
+                                     std::string suppress_stat_tag)
 {
   std::vector<shared_cap> bccaps;
   std::vector<authid_t> auth_ids;
+  size_t n_suppressed {0};
+  regex_t regex;
 
   {
     eos::common::RWMutexReadLock rlock(*this);
@@ -179,12 +183,32 @@ FuseServer::Caps::GetBroadcastCapsTS(uint64_t id,
               std::back_inserter(auth_ids));
   }
 
+  if (suppress) {
+    // audience check
+    int audience = gOFS->zMQ->gFuseServer.Client().BroadCastMaxAudience();
+    std::string match =
+      gOFS->zMQ->gFuseServer.Client().BroadCastAudienceSuppressMatch();
+
+    if (audience && ((auth_ids.size() > (size_t)audience))) {
+      if (regcomp(&regex, match.c_str(), REG_ICASE | REG_EXTENDED | REG_NOSUB)) {
+        suppress = false;
+        eos_static_err("msg=\"broadcast audience suppress match not valid regex\" regex=\"%s\"",
+                       match.c_str());
+      }
+    } else {
+      suppress = false;
+    }
+  }
 
   eos_static_debug("id=%lx mInodeCaps.count=1", id);
   for (const auto& it: auth_ids) {
     // TODO: do we need to debug log mCaps.found
     // eos_static_debug("mCaps.found=1")
     shared_cap cap = GetTS(it);
+    if (!cap->id()) {
+      continue;
+    }
+
     if (refcap && mdptr) {
       // skip our own cap!
       if (cap->authid() == mdptr->authid()) {
@@ -202,9 +226,18 @@ FuseServer::Caps::GetBroadcastCapsTS(uint64_t id,
       }
     }
 
-    if (cap->id()) {
-      bccaps.emplace_back(std::move(cap));
+    if (suppress) {
+        if (regexec(&regex, cap->clientid().c_str(), 0, NULL, 0) != REG_NOMATCH) {
+          n_suppressed++;
+          continue;
+        }
     }
+
+    bccaps.emplace_back(std::move(cap));
+  }
+
+  if (n_suppressed && !suppress_stat_tag.empty()) {
+    gOFS->MgmStats.Add(suppress_stat_tag.c_str(), 0, 0, n_suppressed);
   }
 
   return bccaps;

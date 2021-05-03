@@ -299,7 +299,9 @@ public:
   // if a reference cap and mdptr are given, these ids are excluded
   std::vector<shared_cap> GetBroadcastCapsTS(uint64_t pid,
                                              shared_cap refcap = nullptr,
-                                             const eos::fusex::md* mdptr = nullptr);
+                                             const eos::fusex::md* mdptr = nullptr,
+                                             bool suppress=false,
+                                             std::string suppress_stat_tag="");
 
 
 
