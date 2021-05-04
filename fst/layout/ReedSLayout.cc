@@ -67,24 +67,88 @@ ReedSLayout::ReedSLayout(XrdFstOfsFile* file,
 void
 ReedSLayout::InitialiseJerasure()
 {
+  if (mDoneInit) {
+    return;
+  }
+
+  // Initialise Jerasure data structures
+  static std::mutex jerasure_init_mutex;
+  std::lock_guard<std::mutex> lock(jerasure_init_mutex);
+
+  // Avoid any possible race condition
+  if (mDoneInit) {
+    return;
+  }
+
+  mDoneInit = true;
   mPacketSize = mSizeLine / (mNbDataBlocks * w * sizeof(int));
   eos_debug("mStripeWidth=%zu, mSizeLine=%zu, mNbDataBlocks=%u, mNbParityFiles=%u,"
             " w=%u, mPacketSize=%u", mStripeWidth, mSizeLine, mNbDataBlocks,
             mNbParityFiles, w, mPacketSize);
 
   if (mSizeLine % mPacketSize != 0) {
-    eos_err("%s", "msg=\"packet size could not be computed correctly\"");
+    eos_crit("%s", "msg=\"packet size could not be computed correctly\"");
     throw std::runtime_error("Jerasure initialization failed");
   }
 
-  // Initialise Jerasure data structures
-  static std::mutex jerasure_init_mutex;
-  std::lock_guard<std::mutex> lock(jerasure_init_mutex);
   matrix = cauchy_good_general_coding_matrix(mNbDataBlocks, mNbParityFiles, w);
   bitmatrix = jerasure_matrix_to_bitmatrix(mNbDataBlocks, mNbParityFiles, w,
               matrix);
   schedule = jerasure_smart_bitmatrix_to_schedule(mNbDataBlocks, mNbParityFiles,
              w, bitmatrix);
+
+  if ((matrix == nullptr) || (bitmatrix == nullptr) ||
+      (schedule == nullptr)) {
+    eos_crit("%s", "msg=\"Jerasure initialization failed\"");
+    throw std::runtime_error("Jerasure initialization failed");
+  }
+}
+
+//------------------------------------------------------------------------------
+// Deallocated any Jerasure structures used for encoding and decoding
+//------------------------------------------------------------------------------
+void
+ReedSLayout::FreeJerasure()
+{
+  if (!mDoneInit) {
+    return;
+  }
+
+  /*
+   * jerasure allocates some internal data structures for caching
+   * fields. It will allocate one for w, and if we do anything that
+   * needs to xor a region >= 16 bytes, it will also allocate one
+   * for 32. Fortunately we can safely uninit any value; if it
+   * wasn't inited it will be ignored.
+   */
+  galois_uninit_field(w);
+  galois_uninit_field(32);
+  free(matrix);
+  free(bitmatrix);
+  matrix = bitmatrix = nullptr;
+  // NOTE, based on an inspection of the jerasure code used to build the
+  // the schedule array, it appears that the sentinal used to signal the end
+  // of the array is a value of -1 in the first int field in the dereferenced
+  // value. We use this to determine when to stop free-ing elements. See the
+  // jerasure_smart_bitmatrix_to_schedule and
+  // jerasure_dumb_bitmatrix_to_schedule functions in jerasure.c for the
+  // details.
+  int i = 0;
+  bool end_of_array = false;
+
+  if (schedule != NULL) {
+    while (!end_of_array) {
+      if (schedule[i] == NULL || schedule[i][0] == -1) {
+        end_of_array = true;
+      }
+
+      free(schedule[i]);
+      i++;
+    }
+  }
+
+  free(schedule);
+  schedule = nullptr;
 }
 
 //------------------------------------------------------------------------------
@@ -93,6 +157,7 @@ ReedSLayout::InitialiseJerasure()
 bool
 ReedSLayout::ComputeParity(std::shared_ptr<eos::fst::RainGroup>& grp)
 {
+  InitialiseJerasure();
   // Get pointers to data and parity informatio
   char* data[mNbDataFiles];
   char* coding[mNbParityFiles];
@@ -119,6 +184,7 @@ ReedSLayout::ComputeParity(std::shared_ptr<eos::fst::RainGroup>& grp)
 bool
 ReedSLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
 {
+  InitialiseJerasure();
   bool ret = true;
   int64_t nread = 0;
   int64_t nwrite = 0;
