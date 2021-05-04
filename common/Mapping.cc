@@ -1622,7 +1622,6 @@ Mapping::UserNameToUid(const std::string& username, int& errc)
     XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
 
     if (gPhysicalUserIdCache.count(username)) {
-      fprintf(stderr, "returning from cache: %d\n", gPhysicalUserIdCache[username]);
       return gPhysicalUserIdCache[username];
     }
   }
