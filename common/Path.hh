@@ -40,6 +40,7 @@
 #define EOS_COMMON_PATH_ATOMIC_FILE_PREFIX ".sys.a#."
 #define EOS_COMMON_PATH_ATOMIC_FILE_VERSION_PREFIX ".sys.a#.v#"
 #define EOS_COMMON_PATH_BACKUP_FILE_PREFIX ".sys.b#."
+#define EOS_COMMON_PATH_SQUASH_SUFFIX ".sqsh"
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -93,6 +94,14 @@ public:
   bool
   isAtomicFile() {
     return lastPath.beginswith(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX);
+  }
+
+  //----------------------------------------------------------------------------
+  //! Return if file is a sqaush package file
+  //----------------------------------------------------------------------------
+  bool
+  isSquashFile() {
+    return (lastPath.beginswith(".") && lastPath.endswith(EOS_COMMON_PATH_SQUASH_SUFFIX));
   }
 
   //----------------------------------------------------------------------------
