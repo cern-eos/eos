@@ -353,28 +353,39 @@ bool
 XrdMgmOfs::allow_public_access(const char* path,
                                eos::common::VirtualIdentity& vid)
 {
-  // check only for anonymous access
-  if (vid.uid != 99) {
+  int errc;
+  if ( (eos::common::Mapping::UserNameToUid(std::string("eosnobody"),errc) == vid.uid ) && (vid.prot == "sss") ) {
+    // eosnobody can access all squash files
+    eos::common::Path cPath(path);
+    if (!cPath.isSquashFile()) {
+      errno = EACCES;
+      return false;
+    }
+    return true;
+  } else {
+    // check only for anonymous access
+    if (vid.uid != 99) {
+      return true;
+    }
+
+    // check publicaccess level
+    int level = eos::common::Mapping::GetPublicAccessLevel();
+
+    if (level >= 1024) {
+      // short cut
+      return true;
+    }
+
+    eos::common::Path cPath(path);
+
+    if ((int)cPath.GetSubPathSize() >= level) {
+      // forbid everything to nobody in that case
+      errno = EACCES;
+      return false;
+    }
+
     return true;
   }
-
-  // check publicaccess level
-  int level = eos::common::Mapping::GetPublicAccessLevel();
-
-  if (level >= 1024) {
-    // short cut
-    return true;
-  }
-
-  eos::common::Path cPath(path);
-
-  if ((int)cPath.GetSubPathSize() >= level) {
-    // forbid everything to nobody in that case
-    errno = EACCES;
-    return false;
-  }
-
-  return true;
 }
 
 //------------------------------------------------------------------------------
