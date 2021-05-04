@@ -735,11 +735,13 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
                     const XrdSecEntity* client)
 {
 #if !OLD_PREPARE
-  std::unique_ptr<AbstractDAOFactory> daoFactory(new ProcDirectoryDAOFactory(gOFS->MgmProcBulkRequestPath,gOFS->eosView));
+  std::unique_ptr<AbstractDAOFactory> daoFactory(new ProcDirectoryDAOFactory(gOFS));
   std::shared_ptr<BulkRequestBusiness> bulkRequestBusiness(new BulkRequestBusiness(std::move(daoFactory)));
   PrepareManager pm;
+  //We want the bulk request to be persisted, set the bulkRequestBusiness to the prepare manager
   pm.setBulkRequestBusiness(bulkRequestBusiness);
-  return pm.prepare(pargs,error,client);
+  int prepareRetCode = pm.prepare(pargs,error,client);
+  return prepareRetCode;
 #else
   EXEC_TIMING_BEGIN("Prepare");
   eos_info("prepareOpts=\"%s\"", prepareOptsToString(pargs.opts).c_str());
