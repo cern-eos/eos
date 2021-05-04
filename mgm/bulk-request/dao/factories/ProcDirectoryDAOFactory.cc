@@ -26,12 +26,12 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-ProcDirectoryDAOFactory::ProcDirectoryDAOFactory(const XrdOucString& mgmBulkRequestDirectoryPath, IView * namespaceView): mBulkRequestProcDirectoryPath(mgmBulkRequestDirectoryPath),mNamespaceView(namespaceView)
+ProcDirectoryDAOFactory::ProcDirectoryDAOFactory(XrdMgmOfs * fileSystem): mFileSystem(fileSystem)
 {
 }
 
 std::unique_ptr<IBulkRequestDAO> ProcDirectoryDAOFactory::getBulkRequestDAO() const {
-  std::unique_ptr<IBulkRequestDAO> ret(new ProcDirectoryBulkRequestDAO(mBulkRequestProcDirectoryPath,mNamespaceView));
+  std::unique_ptr<IBulkRequestDAO> ret(new ProcDirectoryBulkRequestDAO(mFileSystem));
   return ret;
 }
 

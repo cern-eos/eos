@@ -29,8 +29,7 @@ StageBulkRequest::StageBulkRequest(const std::string& id, const common::VirtualI
 {
 }
 
-const BulkRequest::Type
-StageBulkRequest::getType() const
+const BulkRequest::Type StageBulkRequest::getType() const
 {
   return BulkRequest::Type::PREPARE_STAGE;
 }

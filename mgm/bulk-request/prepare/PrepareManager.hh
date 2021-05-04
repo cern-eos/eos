@@ -55,14 +55,19 @@ public:
   void setBulkRequestBusiness(std::shared_ptr<BulkRequestBusiness> bulkRequestBusiness);
 
   /**
-   * Allows to prepare the file
-   * @param pargs Xrootd prepare arguments
+   * Allows to launch a prepare logic on the files passed in parameter
+   * @param pargs Xrootd prepare arguments (containing the path of the files)
    * @param error Xrootd error information to fill if there are any errors
    * @param client the client who issued the prepare
    * @returns the status code of the issued prepare request
    */
   int prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client);
 
+  /**
+   * Returns the pointer to the bulk-request associated to the operation that occured or nullptr if the
+   * prepare operation did not create a BulkRequest
+   * @return the bulk-request pointer or nullptr
+   */
   std::shared_ptr<BulkRequest> getBulkRequest() const;
 private:
 
@@ -96,6 +101,19 @@ private:
    */
   void triggerPrepareWorkflow(const std::list<std::pair<char**, char**>> & pathsToPrepare, const std::string & cmd, const std::string &event, const XrdOucString & reqid, XrdOucErrInfo & error, const eos::common::VirtualIdentity& vid);
 
+  /**
+   * Will call the business layer to persist the bulk request
+   */
+  void saveBulkRequest();
+
+  /**
+   * Perform the prepare logic
+   * @param pargs Xrootd prepare arguments
+   * @param error Xrootd error information to fill if there are any errors
+   * @param client the client who issued the prepare
+   * @returns the status code of the issued prepare request
+   */
+  int doPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client);
   const std::string mEpname="prepare";
   //The bulk request that possibly got created depending on the prepare command triggered
   std::shared_ptr<BulkRequest> mBulkRequest;

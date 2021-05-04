@@ -23,6 +23,7 @@
 
 #include "PrepareManager.hh"
 #include "mgm/Stat.hh"
+#include "mgm/bulk-request/BulkRequestFactory.hh"
 #include <XrdOuc/XrdOucTList.hh>
 #include <XrdVersion.hh>
 #include <common/Path.hh>
@@ -31,7 +32,7 @@
 #include <mgm/Acl.hh>
 #include <mgm/Macros.hh>
 #include <mgm/XrdMgmOfs.hh>
-#include "mgm/bulk-request/BulkRequestFactory.hh"
+#include <mgm/bulk-request/exception/PersistencyException.hh>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -40,6 +41,10 @@ PrepareManager::PrepareManager()
 }
 
 int PrepareManager::prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client) {
+  return doPrepare(pargs,error,client);
+}
+
+int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecEntity* client) {
   EXEC_TIMING_BEGIN("Prepare");
   eos_info("prepareOpts=\"%s\"", prepareOptsToString(pargs.opts).c_str());
   static const char* epname = mEpname.c_str();
@@ -99,7 +104,7 @@ int PrepareManager::prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdS
   default:
     // More than one flag was set or there is an unknown flag
     gOFS->Emsg(epname, error, EINVAL, "prepare - invalid value for pargs.opts =",
-         std::to_string(pargs.opts).c_str());
+               std::to_string(pargs.opts).c_str());
     return SFS_ERROR;
   }
 
@@ -151,8 +156,8 @@ int PrepareManager::prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdS
 
     if (prep_path.length() == 0) {
       gOFS->Emsg(epname, error, ENOENT,
-           "prepare - path empty or uses forbidden characters:",
-           orig_path.c_str());
+                 "prepare - path empty or uses forbidden characters:",
+                 orig_path.c_str());
       return SFS_ERROR;
     }
 
@@ -160,8 +165,8 @@ int PrepareManager::prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdS
         (check != XrdSfsFileExistIsFile)) {
       if (check != XrdSfsFileExistIsFile) {
         gOFS->Emsg(epname, error, ENOENT,
-             "prepare - file does not exist or is not accessible to you",
-             prep_path.c_str());
+                   "prepare - file does not exist or is not accessible to you",
+                   prep_path.c_str());
       }
 
       return SFS_ERROR;
@@ -171,7 +176,7 @@ int PrepareManager::prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdS
 
     if (!event.empty() &&
         gOFS->_attr_ls(eos::common::Path(prep_path.c_str()).GetParentPath(), error, vid,
-                 nullptr, attributes) == 0) {
+                       nullptr, attributes) == 0) {
       bool foundPrepareTag = false;
       std::string eventAttr = "sys.workflow." + event;
 
@@ -182,6 +187,10 @@ int PrepareManager::prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdS
       if (foundPrepareTag) {
         pathsWithPrepare.emplace_back(&(pptr->text),
                                       optr != nullptr ? & (optr->text) : nullptr);
+        if(isStagePrepare()) {
+          //For now, only a stage prepare will create a bulk-request
+          mBulkRequest->addPath(pptr->text);
+        }
       } else {
         // don't do workflow if no such tag
         pptr = pptr->next;
@@ -206,8 +215,8 @@ int PrepareManager::prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdS
     // check that we have write permission on path
     if (gOFS->_access(prep_path.c_str(), P_OK, error, vid, "")) {
       return gOFS->Emsg(epname, error, EPERM,
-                  "prepare - you don't have workflow permission",
-                  prep_path.c_str());
+                        "prepare - you don't have workflow permission",
+                        prep_path.c_str());
     }
 
     pptr = pptr->next;
@@ -217,10 +226,10 @@ int PrepareManager::prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdS
     }
   }
   if(!pathsWithPrepare.empty() && isStagePrepare()) {
-    if(mBulkRequestBusiness != nullptr){
-      eos_info("msg =\"Persisting stage prepare bulk request\"");
-      mBulkRequestBusiness->saveBulkRequest(mBulkRequest);
-      eos_info("msg =\"Stage prepare bulk request persisted\"");
+    try {
+      saveBulkRequest();
+    } catch(const PersistencyException &ex){
+      return gOFS->Emsg(epname,error,EIO,ex.what());
     }
   }
   //Trigger the prepare workflow
@@ -239,6 +248,12 @@ int PrepareManager::prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdS
 #endif
   EXEC_TIMING_END("Prepare");
   return retc;
+}
+
+void PrepareManager::saveBulkRequest() {
+  if(mBulkRequestBusiness != nullptr){
+    mBulkRequestBusiness->saveBulkRequest(mBulkRequest);
+  }
 }
 
 void PrepareManager::setBulkRequestBusiness(std::shared_ptr<BulkRequestBusiness> bulkRequestBusiness) {
@@ -405,5 +420,6 @@ void PrepareManager::triggerPrepareWorkflow(const std::list<std::pair<char**, ch
 std::shared_ptr<BulkRequest> PrepareManager::getBulkRequest() const {
   return mBulkRequest;
 }
+
 
 EOSMGMNAMESPACE_END
