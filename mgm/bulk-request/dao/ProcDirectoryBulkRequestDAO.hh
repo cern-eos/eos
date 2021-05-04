@@ -27,7 +27,7 @@
 #include "mgm/Namespace.hh"
 #include "mgm/bulk-request/dao/IBulkRequestDAO.hh"
 #include <common/Logging.hh>
-#include "namespace/interface/IView.hh"
+#include <mgm/XrdMgmOfs.hh>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -38,7 +38,7 @@ EOSMGMNAMESPACE_BEGIN
  */
 class ProcDirectoryBulkRequestDAO : public IBulkRequestDAO, eos::common::LogId {
 public:
-  ProcDirectoryBulkRequestDAO(const XrdOucString & bulkRequestProcDirectoryPath,eos::IView * namespaceView);
+  ProcDirectoryBulkRequestDAO(XrdMgmOfs * fileSystem);
   /**
    * Save the Stage bulk request by creating a directory in the /eos/.../proc/ directory and creating one file
    * per path. The paths of the files will be modified in the format like the one in the EOS recycle-bin
@@ -46,23 +46,36 @@ public:
    */
   void saveBulkRequest(const std::shared_ptr<StageBulkRequest> bulkRequest) override;
 private:
-  //bulk-request directory path on the /eos/.../proc directory
-  XrdOucString mBulkRequestDirectoryPath;
-  //Interface to the namespace to allow the creation of files and directories
-  IView * mNamespaceView;
+  //Interface to the EOS filesystem to allow the creation of files and directories
+  XrdMgmOfs * mFileSystem;
   /**
    * Creates a directory to store the bulk-request files within it
    * @param bulkRequest the bulkRequest to get the id from
+   * @param bulkReqProcPath the directory in /proc/ where the files contained in the bulk-request will be saved
    */
-  void createBulkRequestDirectory(const std::shared_ptr<BulkRequest> bulkRequest);
+  void createBulkRequestDirectory(const std::shared_ptr<BulkRequest> bulkRequest, const std::string & bulkReqProcPath);
   /**
    * Generate the bulk-request directory path within the /eos/.../proc/ directory
    * It is generated according to the id of the bulk-request
    * @param bulkRequest the bulk-request to generate the path from
    * @return the string containing the path of the directory used to store the bulk-request
    */
-  XrdOucString generateBulkRequestProcPath(const std::shared_ptr<BulkRequest> bulkRequest);
+  std::string generateBulkRequestProcPath(const std::shared_ptr<BulkRequest> bulkRequest);
 
+  /**
+   * Insert the files contained in the bulk request into the directory created by createBulkRequestDirectory()
+   * @param bulkRequest the bulk-request containing the files to insert in the directory
+   * @param bulkReqProcPath the he directory in /proc/ where the files contained in the bulk-request will be saved
+   */
+  void insertBulkRequestFilesToBulkRequestDirectory(const std::shared_ptr<BulkRequest> bulkRequest, const std::string & bulkReqProcPath);
+
+  /**
+   * As we cannot create and put in the proc directory a file that is named e.g /eos/test/file.txt
+   * we need to transform this path to another format (e.g replace '/' by #@#: #@#eos#@#test#@#file.txt)
+   * @param path the path to transform for future directory insertion
+   * @return the modified path
+   */
+  static std::string transformPathForInsertionInDirectory(const std::string &path);
 };
 
 EOSMGMNAMESPACE_END

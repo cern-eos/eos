@@ -25,8 +25,7 @@
 #define EOS_PROCDIRECTORYDAOFACTORY_HH
 #include "mgm/Namespace.hh"
 #include "mgm/bulk-request/dao/factories/AbstractDAOFactory.hh"
-#include <xrootd/XrdOuc/XrdOucString.hh>
-#include "namespace/interface/IView.hh"
+#include "mgm/XrdMgmOfs.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -39,9 +38,9 @@ public:
   /**
    * Factory of ProcDirectoryDAO objects
    * @param mgmBulkRequestDirectoryPath
-   * @param namespaceView that will allow to interact with the /proc/ directory
+   * @param fileSystem that will allow to interact with the /proc/ directory
    */
-  ProcDirectoryDAOFactory(const XrdOucString & mgmBulkRequestDirectoryPath, IView * namespaceView);
+  ProcDirectoryDAOFactory(XrdMgmOfs * fileSystem);
   /**
    * Returns the ProcDirectory bulk request DAO object to allow the persistence/access of the
    * bulk-requests metada via the /eos/.../proc directory
@@ -49,9 +48,7 @@ public:
    */
   std::unique_ptr<IBulkRequestDAO> getBulkRequestDAO() const;
 private:
-  //The path of the proc directory to be used by the DAO returned by this factory
-  XrdOucString mBulkRequestProcDirectoryPath;
-  IView * mNamespaceView;
+  XrdMgmOfs * mFileSystem;
 };
 
 EOSMGMNAMESPACE_END
