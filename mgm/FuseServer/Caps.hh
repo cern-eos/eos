@@ -307,6 +307,9 @@ public:
   std::vector<authid_t> GetAuthIDsTS(uint64_t id);
 
 protected:
+  std::pair<bool,regex_t> GetSuppressRE(size_t auth_id_sz);
+
+
   // a time ordered multimap pointing to caps
   std::multimap< time_t, authid_t > mTimeOrderedCap;
   // authid=>cap lookup map

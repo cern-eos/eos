@@ -489,6 +489,29 @@ FuseServer::Caps::BroadcastCap(shared_cap cap)
   return -1;
 }
 
+std::pair<bool,regex_t>
+FuseServer::Caps::GetSuppressRE(size_t auth_id_sz)
+{
+  bool suppress_audience = false;
+  regex_t regex;
+  // audience check
+  int audience = gOFS->zMQ->gFuseServer.Client().BroadCastMaxAudience();
+  std::string match =
+    gOFS->zMQ->gFuseServer.Client().BroadCastAudienceSuppressMatch();
+
+  if (audience && (auth_id_sz > (size_t) audience)) {
+    suppress_audience = true;
+
+    if (regcomp(&regex, match.c_str(), REG_ICASE | REG_EXTENDED | REG_NOSUB)) {
+      suppress_audience = false;
+      eos_static_err("msg=\"broadcast audience suppress match not valid regex\" regex=\"%s\"",
+                     match.c_str());
+    }
+  }
+
+  return std::make_pair(suppress_audience, regex);
+}
+
 int
 FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
                               uint64_t md_ino,
