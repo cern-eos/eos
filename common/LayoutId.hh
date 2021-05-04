@@ -694,7 +694,7 @@ public:
       return 1;
     }
 
-    return (GetStripeNumber(layout) - GetRedundancyStripeNumber(layout));
+    return (1 + GetStripeNumber(layout) - GetRedundancyStripeNumber(layout));
   }
 
   //--------------------------------------------------------------------------
