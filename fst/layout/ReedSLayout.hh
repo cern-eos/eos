@@ -58,7 +58,10 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~ReedSLayout() = default;
+  virtual ~ReedSLayout()
+  {
+    FreeJerasure();
+  }
 
   //----------------------------------------------------------------------------
   //! Truncate file
@@ -103,11 +106,17 @@ private:
   int* matrix;
   int* bitmatrix;
   int** schedule;
+  std::atomic<bool> mDoneInit {false}; ///< Mark Jerasure initialization
 
   //----------------------------------------------------------------------------
   //! Initialise the Jerasure structures used for encoding and decoding
   //----------------------------------------------------------------------------
   void InitialiseJerasure();
+
+  //----------------------------------------------------------------------------
+  //! Deallocated any Jerasure structures used for encoding and decoding
+  //----------------------------------------------------------------------------
+  void FreeJerasure();
 
   //------------------------------------------------------------------------------
   //! Compute error correction blocks
