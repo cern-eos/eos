@@ -72,6 +72,9 @@ public:
   static void Ls (XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr);
   static bool Rm (XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr);
 
+
+  static bool IsProcConversion(const char* path);
+
   static const char* Get (const char* key);
 };
 
