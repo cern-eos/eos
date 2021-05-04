@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file BulkRequestBusiness.cc
+//! @file PersistenceException.cc
 //! @author Cedric Caffy - CERN
 //------------------------------------------------------------------------------
 
@@ -21,29 +21,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "BulkRequestBusiness.hh"
-#include <mgm/bulk-request/dao/ProcDirectoryBulkRequestDAO.hh>
-#include "mgm/Stat.hh"
+#include "PersistencyException.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
-BulkRequestBusiness::BulkRequestBusiness(std::unique_ptr<AbstractDAOFactory> && daoFactory) : mDaoFactory(std::move(daoFactory)){
+PersistencyException::PersistencyException(const std::string& exceptionMsg):std::exception(),mErrorMsg(exceptionMsg){
 }
 
-void BulkRequestBusiness::saveBulkRequest(const std::shared_ptr<BulkRequest> req){
-  eos_info("msg =\"Persisting bulk request id=%s nbFiles=%ld\"",req->getId().c_str(),req->getPaths().size());
-  EXEC_TIMING_BEGIN("BulkRequestBusiness::saveBulkRequest");
-  dispatchBulkRequestSave(req);
-  EXEC_TIMING_END("BulkRequestBusiness::saveBulkRequest");
-  eos_info("msg =\"Persisted bulk request id=%s\"",req->getId().c_str());
-}
-
-void BulkRequestBusiness::dispatchBulkRequestSave(const std::shared_ptr<BulkRequest> req) {
-  switch(req->getType()) {
-  case BulkRequest::PREPARE_STAGE:
-    mDaoFactory->getBulkRequestDAO()->saveBulkRequest(static_pointer_cast<StageBulkRequest>(req));
-    break;
-  }
+const char * PersistencyException::what() const noexcept {
+  return mErrorMsg.c_str();
 }
 
 EOSMGMNAMESPACE_END
+
+
