@@ -304,7 +304,7 @@ public:
                                              bool suppress=false,
                                              std::string suppress_stat_tag="");
 
-
+  std::vector<authid_t> GetAuthIDsTS(uint64_t id);
 
 protected:
   // a time ordered multimap pointing to caps

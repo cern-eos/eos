@@ -155,6 +155,28 @@ FuseServer::Caps::GetTS(const FuseServer::Caps::authid_t& id)
   return Get(id);
 }
 
+//----------------------------------------------------------------------------
+// Get all the auth_ids given an id
+// This function is threadsafe
+//----------------------------------------------------------------------------
+std::vector<eos::mgm::FuseServer::Caps::authid_t>
+FuseServer::Caps::GetAuthIDsTS(uint64_t id)
+{
+  std::vector<authid_t> auth_ids;
+
+  eos::common::RWMutexReadLock rlock(*this);
+  auto ids = mInodeCaps.find(id);
+  if (ids == mInodeCaps.end()) {
+    return bccaps;
+  }
+  auth_ids.reserve(ids->second.size());
+  std::copy(ids->second.begin(),
+            ids->second.end(),
+            std::back_inserter(auth_ids));
+
+  return auth_ids;
+}
+
 //------------------------------------------------------------------------------
 // Get Broadcast Caps
 //----------------------------------------------------------------------------
