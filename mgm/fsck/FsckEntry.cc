@@ -55,9 +55,9 @@ FsckEntry::FsckEntry(eos::IFileMD::id_t fid,
     {FsckErr::FstXsDiff,  &FsckEntry::RepairFstXsSzDiff},
     {FsckErr::FstSzDiff,  &FsckEntry::RepairFstXsSzDiff},
     {FsckErr::BlockxsErr, &FsckEntry::RepairFstXsSzDiff},
-    {FsckErr::UnregRepl,  &FsckEntry::RepairReplicaInconsistencies},
-    {FsckErr::DiffRepl,   &FsckEntry::RepairReplicaInconsistencies},
-    {FsckErr::MissRepl,   &FsckEntry::RepairReplicaInconsistencies}
+    {FsckErr::UnregRepl,  &FsckEntry::RepairInconsistencies},
+    {FsckErr::DiffRepl,   &FsckEntry::RepairInconsistencies},
+    {FsckErr::MissRepl,   &FsckEntry::RepairInconsistencies}
   };
   mRepairFactory = [](eos::common::FileId::fileid_t fid,
                       eos::common::FileSystem::fsid_t fsid_src,
@@ -819,7 +819,7 @@ FsckEntry::Repair()
   std::list<RepairFnT> repair_ops {
     &FsckEntry::RepairMgmXsSzDiff,
     &FsckEntry::RepairFstXsSzDiff,
-    &FsckEntry::RepairReplicaInconsistencies};
+    &FsckEntry::RepairInconsistencies};
 
   for (const auto& op : repair_ops) {
     auto fn_with_obj = std::bind(op, this);
