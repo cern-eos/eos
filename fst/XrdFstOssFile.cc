@@ -484,9 +484,9 @@ XrdFstOssFile::Write(const void* buffer, off_t offset, size_t length)
     retval = pwrite(fd, buffer, length, offset);
   } while ((retval < 0) && (errno == EINTR));
 
-  if ((retval >= 0) && mBlockXs) {
+  if ((retval > 0) && mBlockXs) {
     XrdSysRWLockHelper wr_lock(mRWLockXs, 0);
-    mBlockXs->AddBlockSum(offset, static_cast<const char*>(buffer), length);
+    mBlockXs->AddBlockSum(offset, static_cast<const char*>(buffer), retval);
   }
 
   return (retval >= 0 ? retval : static_cast<ssize_t>(-errno));
