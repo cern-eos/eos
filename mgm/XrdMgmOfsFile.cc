@@ -441,7 +441,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   std::string tried_cgi;
   // versioning CGI
   std::string versioning_cgi;
-
   // file size
   uint64_t fmdsize = 0;
   int crOpts = (Mode & SFS_O_MKPTH) ? XRDOSS_mkpath : 0;
@@ -610,7 +609,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       versioning_cgi = val;
     }
   }
-
 
   if (!isFuse && isRW) {
     // resolve symbolic links
@@ -1030,11 +1028,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
 
     acl.SetFromAttrMap(attrmap, vid, &attrmapF);
-
     eos_info("acl=%d r=%d w=%d wo=%d egroup=%d shared=%d mutable=%d facl=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
              acl.HasEgroup(), isSharedFile, acl.IsMutable(),
-	     acl.EvalUserAttrFile());
+             acl.EvalUserAttrFile());
 
     if (acl.HasAcl()) {
       if ((vid.uid != 0) && (!vid.sudoer) &&
@@ -1139,7 +1136,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     versioning = atoi(versioning_cgi.c_str());
   }
 
-
   if (attrmap.count("sys.forced.atomic")) {
     isAtomicUpload = atoi(attrmap["sys.forced.atomic"].c_str());
   } else {
@@ -1177,10 +1173,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   // short cut to block multi-source access to EC files
   if (!isRW && LayoutId::IsRain(fmdlid)) {
     char* triedrc = openOpaque->Get("triedrc");
+
     if (triedrc) {
       int errno_tried = GetTriedrcErrno(triedrc);
+
       if (!errno_tried) {
-	return Emsg(epname, error, ENETUNREACH, "open file - multi-source reading on EC file blocked for ", path);
+        return Emsg(epname, error, ENETUNREACH,
+                    "open file - multi-source reading on EC file blocked for ", path);
       }
     }
   }
@@ -1268,7 +1267,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     if (!fmd) {
       if (!(open_flag & O_CREAT)) {
         // Open for write for non existing file without creation flag
-        return Emsg(epname, error, errno, "open file without creation flag", path);
+        return Emsg(epname, error, ENOENT, "open file without creation flag", path);
       } else {
         // creation of a new file or isOcUpload
         {
@@ -1321,12 +1320,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
               // on a temporary attribute
               ref_fmd->setAttribute("sys.tmp.atomic", fmd->getName());
 
-	      if (acl.EvalUserAttrFile()) {
-		// we inherit existing ACLs during (atomic) versioning
-		ref_fmd->setAttribute("user.acl", acl.UserAttrFile());
-		ref_fmd->setAttribute("sys.eval.useracl", "1");
-	      }
-
+              if (acl.EvalUserAttrFile()) {
+                // we inherit existing ACLs during (atomic) versioning
+                ref_fmd->setAttribute("user.acl", acl.UserAttrFile());
+                ref_fmd->setAttribute("sys.eval.useracl", "1");
+              }
 
               gOFS->eosView->updateFileStore(ref_fmd.get());
             }
@@ -1593,16 +1591,14 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         fmd->setAttribute("sys.tmp.etag", ext_etag);
       }
 
-
-
       for (auto it = ext_xattr_map.begin(); it != ext_xattr_map.end(); ++it) {
         fmd->setAttribute(it->first, it->second);
       }
 
       if (acl.EvalUserAttrFile()) {
-	// we inherit existing ACLs during (atomic) versioning
-	fmd->setAttribute("user.acl", acl.UserAttrFile());
-	fmd->setAttribute("sys.eval.useracl", "1");
+        // we inherit existing ACLs during (atomic) versioning
+        fmd->setAttribute("user.acl", acl.UserAttrFile());
+        fmd->setAttribute("sys.eval.useracl", "1");
       }
 
       try {
@@ -2115,7 +2111,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   } else {
     if (isRW) {
       // we want to define the order of chunks during creation, so we attach also rain layouts
-      if (isCreation && hasClientBookingSize && ((bookingsize == 0) || ocUploadUuid.length() || (LayoutId::IsRain(layoutId))) ) {
+      if (isCreation && hasClientBookingSize && ((bookingsize == 0) ||
+          ocUploadUuid.length() || (LayoutId::IsRain(layoutId)))) {
         // ---------------------------------------------------------------------
         // if this is a creation we commit the scheduled replicas NOW
         // we do the same for chunked/parallel uploads
