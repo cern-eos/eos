@@ -15,6 +15,25 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.8.45 Citrine``
+===================
+
+2021-04-30
+
+Bug
+----
+
+* [EOS-4695] - Select default KRB5 token location
+* [EOS-4697] - LRU uses wrong prefetch type
+* [EOS-4699] - Screen both mappings (uid,gid) in vid set before setting any config value
+* [EOS-4700] - Space policies interfere with conversion jobs
+* [EOS-4702] - Don't redirect to FSTs if not enough locations are available in EC layouts
+* [EOS-4704] - Memory leak when using the jerasure library
+
+Task
+----
+* [EOS-4684] - Make the "file archived" GC aware of different EOS spaces
+
 
 ``v4.8.44 Citrine``
 ===================
@@ -34,7 +53,7 @@ Bug
 
 Bug
 ---
-   
+
 * [EOS-4669] - eos file verify need to be triggered twice in order to work
 * [EOS-4674] - Empty FSCK report seemingly after FST slow upgrade
 * [EOS-4676] - Crash when checking for recursive deletion
