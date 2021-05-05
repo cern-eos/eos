@@ -2,3 +2,5 @@
 
 chown daemon:daemon /etc/eos.keytab
 chmod 400 /etc/eos.keytab
+chown daemon:daemon /etc/eos.keytab.fw
+chmod 400 /etc/eos.keytab.fw

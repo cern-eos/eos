@@ -984,6 +984,7 @@ Contains an example keytab file.
 
 %files -n eos-testkeytab
 %config(noreplace) %attr(-, daemon, daemon) %{_sysconfdir}/eos.keytab
+%config(noreplace) %attr(-, daemon, daemon) %{_sysconfdir}/eos.keytab.fw
 
 #-------------------------------------------------------------------------------
 # Package eos-archive only for >= CC7
