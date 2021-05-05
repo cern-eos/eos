@@ -1174,6 +1174,17 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     isInjection = false;
   }
 
+  // short cut to block multi-source access to EC files
+  if (!isRW && LayoutId::IsRain(fmdlid)) {
+    char* triedrc = openOpaque->Get("triedrc");
+    if (triedrc) {
+      int errno_tried = GetTriedrcErrno(triedrc);
+      if (!errno_tried) {
+	return Emsg(epname, error, ENETUNREACH, "open file - multi-source reading on EC file blocked for ", path);
+      }
+    }
+  }
+
   if (isRW) {
     // Allow updates of 0-size RAIN files so that we are able to write from the
     // FUSE mount with lazy-open mode enabled.
