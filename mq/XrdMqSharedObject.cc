@@ -653,6 +653,7 @@ XrdMqSharedHash::Delete(const std::string& key, bool broadcast)
 
       // Emulate transaction for single shot deletions
       if (!mIsTransaction) {
+        wr_lock.Release();
         CloseTransaction();
       }
     }
