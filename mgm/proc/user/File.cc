@@ -373,7 +373,7 @@ ProcCommand::File()
             }
 
             if (doresync) {
-              int lretc = gOFS->QueryResync(fileid, (int) * it);
+              int lretc = gOFS->QueryResync(fileid, (int) * it, true);
 
               if (!lretc) {
                 stdOut += "success: sending FMD resync to fsid=";
