@@ -229,7 +229,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
     try {
       saveBulkRequest();
     } catch(const PersistencyException &ex){
-      return gOFS->Emsg(epname,error,EIO,ex.what());
+      return ex.setXrdErrInfo(error,EIO);
     }
   }
   //Trigger the prepare workflow
