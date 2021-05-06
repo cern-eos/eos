@@ -68,9 +68,9 @@ public:
   //---------------------------------------------------------------------------------------------------
   //! Test if public access is allowed for a given path
   //---------------------------------------------------------------------------------------------------
-  static std::pair<bool, uint32_t>
+  static bool
   checkPublicAccess(const std::string &fullpath,
-                         const common::VirtualIdentity& vid);
+                    const common::VirtualIdentity& vid);
 };
 
 EOSMGMNAMESPACE_END
