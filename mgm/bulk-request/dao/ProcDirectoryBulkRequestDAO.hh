@@ -48,6 +48,7 @@ public:
 private:
   //Interface to the EOS filesystem to allow the creation of files and directories
   XrdMgmOfs * mFileSystem;
+  eos::common::VirtualIdentity mVid;
   /**
    * Creates a directory to store the bulk-request files within it
    * @param bulkRequest the bulkRequest to get the id from
@@ -70,12 +71,11 @@ private:
   void insertBulkRequestFilesToBulkRequestDirectory(const std::shared_ptr<BulkRequest> bulkRequest, const std::string & bulkReqProcPath);
 
   /**
-   * As we cannot create and put in the proc directory a file that is named e.g /eos/test/file.txt
-   * we need to transform this path to another format (e.g replace '/' by #@#: #@#eos#@#test#@#file.txt)
-   * @param path the path to transform for future directory insertion
-   * @return the modified path
+   * Performs the cleaning of the bulk-request directory if an exception happens during the persistency of the bulk-request
+   * @param bulkRequest the bulk-request that failed to be persisted
+   * @param bulkReqProcPath the directory where this bulk-request should have been stored
    */
-  static std::string transformPathForInsertionInDirectory(const std::string &path);
+  void cleanAfterExceptionHappenedDuringBulkRequestSave(const std::shared_ptr<BulkRequest> bulkRequest, const std::string & bulkReqProcPath);
 };
 
 EOSMGMNAMESPACE_END
