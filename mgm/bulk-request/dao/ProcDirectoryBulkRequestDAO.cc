@@ -27,6 +27,7 @@
 #include <common/StringConversion.hh>
 #include <namespace/Prefetcher.hh>
 #include "namespace/interface/IView.hh"
+#include "mgm/proc/ProcCommand.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -35,9 +36,15 @@ ProcDirectoryBulkRequestDAO::ProcDirectoryBulkRequestDAO(XrdMgmOfs * fileSystem)
 }
 
 void ProcDirectoryBulkRequestDAO::saveBulkRequest(const std::shared_ptr<StageBulkRequest> bulkRequest) {
+  mVid = eos::common::VirtualIdentity::Root();
   std::string directoryBulkReqPath = generateBulkRequestProcPath(bulkRequest);
-  createBulkRequestDirectory(bulkRequest,directoryBulkReqPath);
-  insertBulkRequestFilesToBulkRequestDirectory(bulkRequest,directoryBulkReqPath);
+  try {
+    createBulkRequestDirectory(bulkRequest,directoryBulkReqPath);
+    insertBulkRequestFilesToBulkRequestDirectory(bulkRequest,directoryBulkReqPath);
+  } catch (const PersistencyException &ex){
+    cleanAfterExceptionHappenedDuringBulkRequestSave(bulkRequest,directoryBulkReqPath);
+    throw ex;
+  }
 }
 
 void ProcDirectoryBulkRequestDAO::createBulkRequestDirectory(const std::shared_ptr<BulkRequest> bulkRequest,const std::string & bulkReqProcPath) {
@@ -45,8 +52,7 @@ void ProcDirectoryBulkRequestDAO::createBulkRequestDirectory(const std::shared_p
            bulkReqProcPath.c_str());
   EXEC_TIMING_BEGIN("ProcDirectoryBulkRequestDAO::createBulkRequestDirectory");
   XrdOucErrInfo error;
-  eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
-  int directoryCreationRetCode = mFileSystem->_mkdir(bulkReqProcPath.c_str(),S_IFDIR | S_IRWXU,error,rootvid);
+  int directoryCreationRetCode = mFileSystem->_mkdir(bulkReqProcPath.c_str(),S_IFDIR | S_IRWXU,error, mVid);
   if(directoryCreationRetCode != SFS_OK){
     std::ostringstream errMsg;
     errMsg << "In ProcDirectoryBulkRequestDAO::createBulkRequestDirectory(), could not create the directory to save the bulk-request id=" << bulkRequest->getId() <<" ErrorMsg=" << error.getErrText();
@@ -84,10 +90,9 @@ void ProcDirectoryBulkRequestDAO::insertBulkRequestFilesToBulkRequestDirectory(c
     }
     std::ostringstream fullPath;
     fullPath << bulkReqProcPath << "/" << file->getId();
-    eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
     XrdOucErrInfo error;
     int retTouch =
-        mFileSystem->_touch(fullPath.str().c_str(), error, rootvid);
+        mFileSystem->_touch(fullPath.str().c_str(), error, mVid);
     if (retTouch != SFS_OK) {
       std::ostringstream errMsg;
       errMsg << "In ProcDirectoryBulkRequestDAO::insertBulkRequestFilesToBulkRequestDirectory(), could not create the file to save the file "
@@ -99,10 +104,39 @@ void ProcDirectoryBulkRequestDAO::insertBulkRequestFilesToBulkRequestDirectory(c
   EXEC_TIMING_END("ProcDirectoryBulkRequestDAO::insertBulkRequestFilesToBulkRequestDirectory");
 }
 
-std::string ProcDirectoryBulkRequestDAO::transformPathForInsertionInDirectory(const std::string& path){
-  std::string ret(path);
-  eos::common::StringConversion::ReplaceStringInPlace(ret,"/","#:#");
-  return ret;
+void ProcDirectoryBulkRequestDAO::cleanAfterExceptionHappenedDuringBulkRequestSave(const std::shared_ptr<BulkRequest> bulkRequest, const std::string& bulkReqProcPath) {
+  //Check first if the directory has been created
+  struct stat buf;
+
+  XrdOucErrInfo lError;
+
+  if (gOFS->_stat(bulkReqProcPath.c_str(), &buf, lError, mVid, "", nullptr, false)) {
+    //If we cannot find the directory, there's nothing we can do.
+    std::ostringstream debugMsg;
+    debugMsg << "In ProcDirectoryBulkRequestDAO::cleanAfterExceptionHappenedDuringBulkRequestSave() "
+        << "the directory " << bulkReqProcPath << " does not exist. Nothing to clean";
+    eos_debug(debugMsg.str().c_str());
+    return;
+  }
+
+    // execute a proc command
+    ProcCommand Cmd;
+    XrdOucString info;
+
+    // we do a recursive deletion
+    info = "mgm.cmd=rm&mgm.option=r&mgm.retc=1&mgm.path=";
+
+    info += bulkReqProcPath.c_str();
+    int result = Cmd.open("/proc/user", info.c_str(), mVid, &lError);
+
+    Cmd.close();
+
+    if(result == SFS_ERROR){
+      std::ostringstream debugMsg;
+      debugMsg << "In ProcDirectoryBulkRequestDAO::cleanAfterExceptionHappenedDuringBulkRequestSave() "
+               << "unable to clean the directory " << bulkReqProcPath << "ErrorMsg=" << lError.getErrText();
+      eos_debug(debugMsg.str().c_str());
+    }
 }
 
 EOSMGMNAMESPACE_END
