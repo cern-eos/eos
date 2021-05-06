@@ -601,8 +601,11 @@ CommitHelper::commit_fmd(eos::common::VirtualIdentity& vid,
         }
       }
 
-      // update parent mtime
+      // update parent mtime and ctime
       cmd->setMTimeNow();
+      eos::IContainerMD::mtime_t new_mtime;
+      cmd->getMTime(new_mtime);
+      cmd->setCTime(new_mtime);
       gOFS->eosView->updateContainerStore(cmd.get());
       cmd->notifyMTimeChange(gOFS->eosDirectoryService);
     }
