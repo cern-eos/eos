@@ -27,6 +27,7 @@
 #include "mgm/Namespace.hh"
 #include <exception>
 #include <string>
+#include <xrootd/XrdOuc/XrdOucErrInfo.hh>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -45,6 +46,14 @@ public:
    * @return the message of this exception
    */
   virtual const char*  what() const noexcept;
+
+  /**
+   * Assign the exception message to the Xrd error information passed in parameter
+   * @param error the Xrd error info object to assign the exception message
+   * @param errorCode the Xrd error code assocaited to the exception message
+   * @return the error code linked to this exception
+   */
+  virtual int setXrdErrInfo(XrdOucErrInfo & error,int errorCode) const;
 private:
   std::string mErrorMsg;
 };
