@@ -25,6 +25,8 @@
 #include "mgm/Stat.hh"
 #include "mgm/bulk-request/exception/PersistencyException.hh"
 #include <common/StringConversion.hh>
+#include <namespace/Prefetcher.hh>
+#include "namespace/interface/IView.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -60,17 +62,37 @@ std::string ProcDirectoryBulkRequestDAO::generateBulkRequestProcPath(const std::
 
 void ProcDirectoryBulkRequestDAO::insertBulkRequestFilesToBulkRequestDirectory(const std::shared_ptr<BulkRequest> bulkRequest, const std::string & bulkReqProcPath) {
   EXEC_TIMING_BEGIN("ProcDirectoryBulkRequestDAO::insertBulkRequestFilesToBulkRequestDirectory");
-  for(auto & path : bulkRequest->getPaths()){
-    eos_info("msg=\"Persistence of the bulk request file=%s\"", path.c_str());
-    std::string transformedPath = transformPathForInsertionInDirectory(path);
-    eos_info("msg=\"Persistence of the bulk request file transformed=%s\"", transformedPath.c_str());
+  const std::set<std::string> & paths = bulkRequest->getPaths();
+  eos::Prefetcher prefetcher(mFileSystem->eosView);
+  for(auto & path : paths){
+    prefetcher.stageFileMD(path,false);
+  }
+  prefetcher.wait();
+  for(auto & path: paths){
+    std::shared_ptr<IFileMD> file;
+    {
+      try {
+        eos::common::RWMutexReadLock nsLock(mFileSystem->eosViewRWMutex,
+                                            __FUNCTION__, __LINE__, __FILE__);
+        file = mFileSystem->eosView->getFile(path);
+      } catch(const std::exception &ex){
+        std::ostringstream errMsg;
+        errMsg << "In ProcDirectoryBulkRequestDAO::insertBulkRequestFilesToBulkRequestDirectory(), got an exception trying to get informations about the file "
+               << path << " ErrorMsg=" << ex.what();
+        throw PersistencyException(ex.what());
+      }
+    }
+    std::ostringstream fullPath;
+    fullPath << bulkReqProcPath << "/" << file->getId();
     eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
     XrdOucErrInfo error;
-    std::string fullPath = bulkReqProcPath + "/" + transformedPath;
-    int retTouch = mFileSystem->_touch(fullPath.c_str(),error,rootvid);
-    if(retTouch != SFS_OK){
+    int retTouch =
+        mFileSystem->_touch(fullPath.str().c_str(), error, rootvid);
+    if (retTouch != SFS_OK) {
       std::ostringstream errMsg;
-      errMsg << "In ProcDirectoryBulkRequestDAO::insertBulkRequestFilesToBulkRequestDirectory(), could not create the directory to save the bulk-request id=" << bulkRequest->getId() <<" ErrorMsg=" << error.getErrText();
+      errMsg << "In ProcDirectoryBulkRequestDAO::insertBulkRequestFilesToBulkRequestDirectory(), could not create the file to save the file "
+             << path << " that belongs to the bulk-request id="
+             << bulkRequest->getId() << " ErrorMsg=" << error.getErrText();
       throw PersistencyException(errMsg.str());
     }
   }
