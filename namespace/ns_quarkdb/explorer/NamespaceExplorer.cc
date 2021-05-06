@@ -21,6 +21,7 @@
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "namespace/utils/Attributes.hh"
 #include "common/Assert.hh"
+#include "common/Path.hh"
 #include <memory>
 #include <numeric>
 #include <folly/executors/IOThreadPoolExecutor.h>
@@ -91,7 +92,8 @@ std::unique_ptr<SearchNode> SearchNode::expand()
   ExpansionDecider* decider = explorer.options.expansionDecider.get();
 
   if (decider &&
-      !decider->shouldExpandContainer(getContainerInfo(), nodeItem.attrs)) {
+      !decider->shouldExpandContainer(getContainerInfo(), nodeItem.attrs,
+                                      nodeItem.fullPath)) {
     return {}; // nope, this node is being filtered out
   }
 
@@ -421,12 +423,17 @@ bool NamespaceExplorer::fetch(NamespaceItem& item)
       item.numFiles = dfsPath.back()->getNumFiles();
       item.numContainers = dfsPath.back()->getNumContainers();
       handleLinkedAttrs(item);
+      item.expansionFilteredOut = false;
 
-      if (!options.expansionDecider) {
-        item.expansionFilteredOut = false;
-      } else {
+      if (options.expansionDecider) {
         item.expansionFilteredOut = !options.expansionDecider->shouldExpandContainer(
-                                      item.containerMd, item.attrs);
+                                      item.containerMd, item.attrs, item.fullPath);
+      }
+
+      if (options.depthLimit > 0) {
+        eos::common::Path cpath{item.fullPath};
+        item.expansionFilteredOut = (item.expansionFilteredOut
+                                     || (cpath.GetSubPathSize() > options.depthLimit));
       }
 
       dfsPath.back()->expansionFilteredOut = item.expansionFilteredOut;

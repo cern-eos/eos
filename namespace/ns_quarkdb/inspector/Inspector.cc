@@ -165,21 +165,22 @@ static std::string constructPath(const std::string& rootPath, const std::string
 // Scan contents of the given path.
 //------------------------------------------------------------------------------
 int Inspector::scan(const std::string& rootPath, bool relative, bool rawPaths,
-                    bool noDirs, bool noFiles)
+                    bool noDirs, bool noFiles, uint32_t maxDepth)
 {
   FilePrintingOptions filePrintingOpts;
   ContainerPrintingOptions containerPrintingOpts;
   ExplorationOptions explorerOpts;
   explorerOpts.ignoreFiles = noFiles;
+  explorerOpts.depthLimit = maxDepth;
+  NamespaceItem item;
   std::unique_ptr<folly::Executor> executor(new folly::IOThreadPoolExecutor(4));
   NamespaceExplorer explorer(rootPath, explorerOpts, mQcl, executor.get());
-  NamespaceItem item;
 
   while (explorer.fetch(item)) {
+
     if (noDirs && !item.isFile) {
       continue;
     }
-
     std::string outputPath = constructPath(rootPath, item.fullPath, relative);
 
     if (rawPaths) {
@@ -2164,3 +2165,4 @@ void Inspector::executeRequestBatch(const std::vector<RedisRequest>& requests,
 }
 
 EOSNSNAMESPACE_END
+

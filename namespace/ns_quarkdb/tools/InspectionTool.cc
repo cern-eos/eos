@@ -121,6 +121,7 @@ int main(int argc, char* argv[])
   bool showSize = false;
   bool showMtime = false;
   bool withParents = false;
+  uint32_t maxDepth = 0;
   bool json = false;
   dumpSubcommand->add_option("--path", dumpPath, "The target path to dump")
   ->required();
@@ -154,6 +155,8 @@ int main(int argc, char* argv[])
                            "Don't print directories, only files");
   scanSubcommand->add_flag("--no-files", noFiles,
                            "Don't print files, only directories");
+  scanSubcommand->add_option("--maxdepth", maxDepth,
+                           "Descend only <maxdepth> levels.");
   scanSubcommand->add_flag("--json", json, "Use json output");
   //----------------------------------------------------------------------------
   // Set-up print subcommand..
@@ -497,7 +500,7 @@ int main(int argc, char* argv[])
   }
 
   if (scanSubcommand->parsed()) {
-    return inspector.scan(dumpPath, relativePaths, rawPaths, noDirs, noFiles);
+    return inspector.scan(dumpPath, relativePaths, rawPaths, noDirs, noFiles, maxDepth);
   }
 
   if (namingConflictsSubcommand->parsed()) {

@@ -624,28 +624,24 @@ struct FindResult {
 
 //------------------------------------------------------------------------------
 // Filter-out directories which we have no permission to access
-// or whose path-depth is greater than depthlimit
 //------------------------------------------------------------------------------
 class TraversalFilter : public ExpansionDecider
 {
 public:
-  TraversalFilter(const eos::common::VirtualIdentity& v, const uint32_t d) : vid(v), depthlimit(d) {}
-
+  TraversalFilter(const eos::common::VirtualIdentity& v) : vid(v) {}
+  
   virtual bool shouldExpandContainer(const eos::ns::ContainerMdProto& proto,
-                                     const eos::IContainerMD::XAttrMap& attrs) override
-  {
+                                     const eos::IContainerMD::XAttrMap& attrs, 
+                                     const std::string& fullPath) override
+  { 
     eos::QuarkContainerMD cmd;
     cmd.initializeWithoutChildren(eos::ns::ContainerMdProto(proto));
-    eos::common::Path cpath {gOFS->eosView->getUri(cmd.getId())};
 
     return AccessChecker::checkContainer(&cmd, attrs, R_OK | X_OK, vid)
-        && AccessChecker::checkPublicAccess(cpath.GetPath(), vid)
-        && cpath.GetSubPathSize() < depthlimit;
+        && AccessChecker::checkPublicAccess(fullPath, vid);
   }
-
 private:
   const eos::common::VirtualIdentity& vid;
-  const uint32_t depthlimit;
 };
 
 //------------------------------------------------------------------------------
@@ -671,9 +667,9 @@ public:
     if(!found) {
       ExplorationOptions options;
       options.populateLinkedAttributes = true;
-      options.expansionDecider.reset(new TraversalFilter(vid,depthlimit));
       options.view = gOFS->eosView;
       options.depthLimit = depthlimit;
+      options.expansionDecider.reset(new TraversalFilter(vid));
       options.ignoreFiles = ignore_files;
       explorer.reset(new NamespaceExplorer(path, options, *qcl,
                                            static_cast<QuarkNamespaceGroup*>(gOFS->namespaceGroup.get())->getExecutor()));
