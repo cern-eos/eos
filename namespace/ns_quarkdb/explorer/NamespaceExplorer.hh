@@ -56,12 +56,12 @@ public:
   //----------------------------------------------------------------------------
   virtual bool shouldExpandContainer(
     const eos::ns::ContainerMdProto &containerMd,
-    const eos::IContainerMD::XAttrMap &linkedAttrs) = 0;
-
+    const eos::IContainerMD::XAttrMap &linkedAttrs,
+    const std::string& fullPath) = 0;
 };
 
 struct ExplorationOptions {
-  int depthLimit;
+  unsigned int depthLimit = 0;
   std::shared_ptr<ExpansionDecider> expansionDecider;
   bool populateLinkedAttributes = false;
   bool prefixLinks = false; // only relevant if populateLinkedAttributes is true
@@ -184,6 +184,7 @@ private:
 class NamespaceExplorer
 {
 public:
+  
   //----------------------------------------------------------------------------
   //! Inject the QClient to use directly in the constructor. No ownership of
   //! underlying object.
@@ -200,12 +201,12 @@ private:
   friend class SearchNode;
   std::string buildStaticPath();
   std::string buildDfsPath();
-
+  
   //----------------------------------------------------------------------------
   // Handle linked attributes
   //----------------------------------------------------------------------------
   void handleLinkedAttrs(NamespaceItem& result);
-
+  
   //----------------------------------------------------------------------------
   // Retrieve linked container for  Handle linked attributes
   //----------------------------------------------------------------------------
