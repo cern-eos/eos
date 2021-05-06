@@ -15,10 +15,11 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
 ``v4.8.45 Citrine``
 ===================
 
-2021-04-30
+2021-05-06
 
 Bug
 ----
@@ -30,9 +31,20 @@ Bug
 * [EOS-4702] - Don't redirect to FSTs if not enough locations are available in EC layouts
 * [EOS-4704] - Memory leak when using the jerasure library
 
+New Feature
+------------
+
+* [EOS-4705] - Block multi-source reading for EC files
+
 Task
-----
+-----
+
 * [EOS-4684] - Make the "file archived" GC aware of different EOS spaces
+
+Improvement
+-----------
+
+* [EOS-4691] - Improve the locking primitives in FuseServer caps
 
 
 ``v4.8.44 Citrine``
