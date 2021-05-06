@@ -1069,7 +1069,8 @@ class ContainerFilter : public eos::ExpansionDecider
 public:
 
   virtual bool shouldExpandContainer(const eos::ns::ContainerMdProto& proto,
-                                     const eos::IContainerMD::XAttrMap& attrs) override
+                                     const eos::IContainerMD::XAttrMap& attrs, 
+                                     const std::string& fullPath) override
   {
     if (proto.name() == "d4") {
       std::cerr << "INFO: Filtering out encountered container with name d4." <<
