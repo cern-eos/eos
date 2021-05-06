@@ -639,7 +639,7 @@ public:
     eos::common::Path cpath {gOFS->eosView->getUri(cmd.getId())};
 
     return AccessChecker::checkContainer(&cmd, attrs, R_OK | X_OK, vid)
-        && AccessChecker::checkPublicAccess(cpath.GetPath(),vid).first
+        && AccessChecker::checkPublicAccess(cpath.GetPath(), vid)
         && cpath.GetSubPathSize() < depthlimit;
   }
 
@@ -948,7 +948,7 @@ NewfindCmd::ProcessRequest() noexcept
           ofstderrStream << findResult.path << std::endl;
           reply.set_retc(EACCES);
           continue;
-        } else if (!AccessChecker::checkPublicAccess(findResult.path,const_cast<common::VirtualIdentity&>(mVid)).first) {
+        } else if (!AccessChecker::checkPublicAccess(findResult.path,const_cast<common::VirtualIdentity&>(mVid))) {
           ofstderrStream << "error(" << EACCES << "): public access level restriction on directory ";
           ofstderrStream << findResult.path << std::endl;
           reply.set_retc(EACCES);

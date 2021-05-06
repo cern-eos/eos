@@ -37,8 +37,8 @@ EOSMGMNAMESPACE_BEGIN
 // All information required to make a decision are passed to this function.
 //----------------------------------------------------------------------------
 bool AccessChecker::checkContainer(IContainerMD *cont,
-  const eos::IContainerMD::XAttrMap &linkedAttrs, int mode,
-  const eos::common::VirtualIdentity &vid)
+                                   const eos::IContainerMD::XAttrMap &linkedAttrs, int mode,
+                                   const eos::common::VirtualIdentity &vid)
 {
   //----------------------------------------------------------------------------
   // Construct Acl object
@@ -57,34 +57,34 @@ bool AccessChecker::checkContainer(IContainerMD *cont,
 // be needed.
 //------------------------------------------------------------------------------
 bool AccessChecker::checkContainer(IContainerMD *cont, const Acl &acl,
-	int mode, const eos::common::VirtualIdentity &vid)
+                                   int mode, const eos::common::VirtualIdentity &vid)
 {
   //----------------------------------------------------------------------------
   // Allow root to do anything
   //----------------------------------------------------------------------------
   if(vid.uid == 0) {
-  	return true;
+    return true;
   }
 
   //----------------------------------------------------------------------------
   // Always allow daemon to read / browse
   //----------------------------------------------------------------------------
   if(vid.uid == DAEMONUID && (!(mode & W_OK)) ) {
-  	return true;
+    return true;
   }
 
   //----------------------------------------------------------------------------
   // A non-root attempting to write an immutable directory?
   //----------------------------------------------------------------------------
   if(acl.HasAcl() && (!acl.IsMutable() && (mode & W_OK))) {
-  	return false;
+    return false;
   }
 
   //----------------------------------------------------------------------------
   // A non-root attempting to prepare, but no explicit Acl allowing prepare?
   //----------------------------------------------------------------------------
   if( (mode & P_OK) && (!acl.HasAcl() || !acl.CanPrepare()) ) {
-  	return false;
+    return false;
   }
 
   //----------------------------------------------------------------------------
@@ -96,7 +96,7 @@ bool AccessChecker::checkContainer(IContainerMD *cont, const Acl &acl,
   // Access granted, or we have no Acls? We're done.
   //----------------------------------------------------------------------------
   if(basicCheck || !acl.HasAcl()) {
-  	return basicCheck;
+    return basicCheck;
   }
 
   //----------------------------------------------------------------------------
@@ -108,12 +108,12 @@ bool AccessChecker::checkContainer(IContainerMD *cont, const Acl &acl,
        ( acl.CanNotWrite() ||
          ( !acl.CanWrite() && !cont->access(vid.uid, vid.gid, W_OK) )
        )
-     ) {
+      ) {
     //--------------------------------------------------------------------------
     // Asking for write permission, and neither basic check, nor Acls grant us
     // write. Deny.
     //--------------------------------------------------------------------------
-  	return false;
+    return false;
   }
 
   // if ((mode & R_OK) && (!acl.CanRead() && !cont->access(vid.uid, vid.gid, R_OK) ))
@@ -121,25 +121,25 @@ bool AccessChecker::checkContainer(IContainerMD *cont, const Acl &acl,
        ( acl.CanNotRead() ||
          ( !acl.CanRead() && !cont->access(vid.uid, vid.gid, R_OK) )
        )
-     ) {
+      ) {
     //--------------------------------------------------------------------------
     // Asking for read permission, and neither basic check, nor Acls grant us
     // read. Deny.
     //--------------------------------------------------------------------------
-  	return false;
+    return false;
   }
 
   // if ((mode & X_OK) && (!acl.CanBrowse() && !cont->access(vid.uid, vid.gid, X_OK) ))
   if ( (mode & X_OK) &&
        ( acl.CanNotBrowse() ||
          ( !acl.CanBrowse() && !cont->access(vid.uid, vid.gid, X_OK) )
-        )
-     ) {
+       )
+      ) {
     //--------------------------------------------------------------------------
     // Asking for browse permission, and neither basic check, nor Acls grant us
     // browse. Deny.
     //--------------------------------------------------------------------------
-  	return false;
+    return false;
   }
 
   //----------------------------------------------------------------------------
@@ -153,7 +153,7 @@ bool AccessChecker::checkContainer(IContainerMD *cont, const Acl &acl,
 // needs to be checked separately!
 //------------------------------------------------------------------------------
 bool AccessChecker::checkFile(IFileMD *file, int mode,
-  const eos::common::VirtualIdentity &vid)
+                              const eos::common::VirtualIdentity &vid)
 {
   //----------------------------------------------------------------------------
   // We only check browse permissions for files, for now.
@@ -195,32 +195,43 @@ bool AccessChecker::checkFile(IFileMD *file, int mode,
 //---------------------------------------------------------------------------------------------------
 // Test if public access is allowed for a given path
 //
-// @note This method may take a (likely unnecessary) lock or not. How will this be used?
-//       e.g. a big "DFS-find" looping on a path tree...
 //---------------------------------------------------------------------------------------------------
-std::pair<bool, uint32_t>
+bool
 AccessChecker::checkPublicAccess(const std::string& fullpath,
                                  const common::VirtualIdentity& vid)
 {
-  /* check only for anonymous access */
 
+  int errc = 0;
+
+  if ((eos::common::Mapping::UserNameToUid(std::string("eosnobody"),errc) == vid.uid) && !errc && (strcmp(vid.prot.c_str(),"sss")==0)) {
+    // eosnobody can access all squash files
+    eos::common::Path cPath(fullpath);
+
+    if (!cPath.isSquashFile()) {
+      errno = EACCES;
+      return false;
+    }
+
+    return true;
+  }
+  /* check only for anonymous access */
   if (vid.uid != 99) {
-    return make_pair(true, std::numeric_limits<uint32_t>::max()) ;
+    return true;
   } else {
 
-    const uint32_t level = eos::common::Mapping::GetPublicAccessLevel();
-//  const int level = eos::common::Mapping::gNobodyAccessTreeDeepness;
 
-    if (level >= 1024) { return make_pair(true, 1024); } // short cut
+    uint32_t level = eos::common::Mapping::GetPublicAccessLevel();
 
-    eos::common::Path cPath {fullpath};
-    if (static_cast<uint32_t>(cPath.GetSubPathSize()) < level) {
-      return make_pair(true,level - static_cast<uint32_t>(cPath.GetSubPathSize()));
-    } else {
-      return make_pair(false,static_cast<uint32_t>(cPath.GetSubPathSize()) - level);
-    }
-//    return make_pair(static_cast<uint32_t>(cPath.GetSubPathSize()) < level,abs(static_cast<uint32_t>(cPath.GetSubPathSize()) - level) );
+
+    if (level >= 1024) {
+      return true;
+    } // short cut
+
+
+    eos::common::Path cPath{fullpath};
+    return cPath.GetSubPathSize() < level ? true : false;
   }
+
 
 }
 
