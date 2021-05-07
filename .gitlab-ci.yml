@@ -22,6 +22,7 @@ build_cs8:
     - cd build/
     - cmake ../ -DPACKAGEONLY=1
     - make srpm
+    - cd ../
     - mkdir cs8_artifacts; cp -R build/SRPMS/ cs8_artifacts
   artifacts:
     expire_in: 1 day
