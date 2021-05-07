@@ -2,7 +2,7 @@
 # Helper macros and variables
 #-------------------------------------------------------------------------------
 %define _unpackaged_files_terminate_build 0
-%define distribution %(/usr/lib/rpm/redhat/dist.sh --distnum)
+%define distnum %(/usr/lib/rpm/redhat/dist.sh --distnum)
 %define devtoolset devtoolset-8
 %define cmake cmake3
 %define debug_package %{nil}
@@ -12,7 +12,7 @@
 # # Custom strip command for CC7
 # #-------------------------------------------------------------------------------
 # %if "%{compiler}" == "gcc"
-#     %if 0%{distribution} == 7
+#     %if 0%{distnum} == 7
 #         %global __strip /bin/true
 #     %endif
 # %endif
@@ -21,7 +21,7 @@
 # # Custom strip command for CC7
 # #-------------------------------------------------------------------------------
 # %if "%{compiler}" == "gcc"
-#     %if 0%{distribution} == 7
+#     %if 0%{distnum} == 7
 #         %global __strip /opt/rh/%{devtoolset}/root/usr/bin/strip
 #         %global __objdump /opt/rh/%{devtoolset}/root/usr/bin/objdump
 #     %endif
@@ -61,7 +61,7 @@
 
 # Explicit python macro for CentOS 8
 # Note: RHEL8 does not provide a default python anymore
-%if 0%{distribution} == 8
+%if 0%{distnum} == 8
 %define __python /usr/bin/python3
 %endif
 
@@ -74,7 +74,7 @@
   %define compiler clang
 %endif
 
-%if %{?fedora:1}%{!?fedora:0} || 0%{?distribution} == 8
+%if %{?fedora:1}%{!?fedora:0} || 0%{?distnum} == 8
   %define cmake cmake
 %endif
 
@@ -111,12 +111,12 @@ Source: %{name}-%{version}-@CPACK_PACKAGE_RELEASE@.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 
 # Add EPEL repository explicitly which holds many of the other dependencies
-%if 0%{?distribution} == 7
+%if 0%{?distnum} == 7
 BuildRequires: epel-release
 Requires: epel-release
 %endif
 
-%if 0%{?distribution} == 8
+%if 0%{?distnum} == 8
 BuildRequires: eos-cmake
 %else
 BuildRequires: %{cmake} >= 3.14
@@ -127,7 +127,7 @@ BuildRequires: %{cmake} >= 3.14
 # ----------------------
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
-%if 0%{?distribution} == 7 || 0%{?distribution} == 8
+%if 0%{?distnum} == 7 || 0%{?distnum} == 8
 BuildRequires: eos-xrootd == %{eos_xrootd_version_min}
 # dont' put an explicit dependency on xrootd because eos-xrootd hides the shared libraries from provide
 %global __requires_exclude ^libXrd*
@@ -151,7 +151,7 @@ BuildRequires: xrootd-private-devel >= %{xrootd_version_min}
 # -----------------------
 %if ! %{without eos_protobuf3_rh}
 # Install eos-protobuf3
-%if 0%{?distribution} == 7
+%if 0%{?distnum} == 7
 BuildRequires: eos-protobuf3 = 3.5.1-5.el7.cern.eos
 BuildRequires: eos-protobuf3-compiler = 3.5.1-5.el7.cern.eos
 BuildRequires: eos-protobuf3-devel = 3.5.1-5.el7.cern.eos
@@ -163,14 +163,14 @@ BuildRequires: eos-protobuf3-devel = 3.5.1-5.el7.cern.eos
 %global __requires_exclude ^libprotobuf.so.*$
 %endif
 %else
-%if %{?fedora}%{!?fedora:0} >= 27 || 0%{distribution} == 8
+%if %{?fedora}%{!?fedora:0} >= 27 || 0%{distnum} == 8
 BuildRequires: protobuf >= 3.3, protobuf-devel >= 3.3, protobuf-compiler >= 3.3
 %else
 BuildRequires: protobuf3 >= 3.3, protobuf3-devel >= 3.3, protobuf3-compiler >= 3.3
 %endif
 %endif
 %else
-%if %{?fedora}%{!?fedora:0} >= 27  || 0%{distribution} == 8
+%if %{?fedora}%{!?fedora:0} >= 27  || 0%{distnum} == 8
 BuildRequires: protobuf >= 3.3, protobuf-devel >= 3.3, protobuf-compiler >= 3.3
 %else
 BuildRequires: protobuf3 >= 3.3, protobuf3-devel >= 3.3, protobuf3-compiler >= 3.3
@@ -194,21 +194,19 @@ BuildRequires: binutils-devel
 BuildRequires: cppunit-devel
 BuildRequires: help2man
 
-%if 0%{distribution} != 8
+%if 0%{distnum} != 8
 BuildRequires: openssl-static, ncurses-static
 %endif
 
 # Consider to merge
-%if "%{dist}" == ".el7.x86_64"
-%define folly_dist .el7.cern.x86_64
-%define rocksdb_dist .el7.cern.x86_64
+%if "%{dist}" == ".el7"
+%define folly_dist .el7.cern
 %else
 %define folly_dist %{dist}
-%define rocksdb_dist %{dist}
 %endif
 
 %if %{?_with_server:1}%{!?_with_server:0}
-BuildRequires: eos-rocksdb = 5.7.3-1%{rocksdb_dist}
+BuildRequires: eos-rocksdb = 5.7.3
 BuildRequires: openldap-devel
 BuildRequires: e2fsprogs-devel
 BuildRequires: libmicrohttpd, libmicrohttpd-devel >= 0.9.38
@@ -235,10 +233,10 @@ BuildRequires: librichacl-devel, richacl >= 1.12
 
 # ISA-L[_crypto], XXHash and scitokens dependencies for CC7 and C8
 %if %{?_with_server:1}%{!?_with_server:0}
-%if 0%{distribution} == 7 || 0%{distribution} == 8
+%if 0%{distnum} == 7 || 0%{distnum} == 8
 BuildRequires: scitokens-cpp, scitokens-cpp-devel
 BuildRequires: xxhash-devel
-%if 0%{distribution} == 7
+%if 0%{distnum} == 7
 BuildRequires: libisa-l-devel libisa-l_crypto-devel
 Requires: libisa-l libisa-l_crypto
 %endif
@@ -246,20 +244,20 @@ Requires: libisa-l libisa-l_crypto
 %endif
 
 # Install newer gcc on CC7
-%if 0%{distribution} == 7
+%if 0%{distnum} == 7
 BuildRequires: centos-release-scl
 %endif
 
 %if "%{compiler}" == "gcc"
-%if 0%{distribution} == 7
+%if 0%{distnum} == 7
 BuildRequires: %{devtoolset}
 BuildRequires: %{devtoolset}-binutils-devel
 %else
 BuildRequires: binutils-devel
 %endif
-%if 0%{distribution} == 7 || 0%{distribution} == 8
+%if 0%{distnum} == 7 || 0%{distnum} == 8
 # We want swap-support on eosxd - requires rocksdb KV
-BuildRequires: eos-rocksdb = 5.7.3-1%{rocksdb_dist}
+BuildRequires: eos-rocksdb = 5.7.3
 %endif
 %endif
 
@@ -267,13 +265,13 @@ BuildRequires: eos-rocksdb = 5.7.3-1%{rocksdb_dist}
 BuildRequires: clang
 BuildRequires: libatomic
 Requires: libatomic
-%if 0%{distribution} == 7
+%if 0%{distnum} == 7
 BuildRequires: llvm-toolset-7
 %endif
 %endif
 
 %if %{?_with_asan:1}%{!?_with_asan:0}
-%if 0%{distribution} == 7
+%if 0%{distnum} == 7
 BuildRequires: %{devtoolset}-libasan-devel
 %else
 BuildRequires: libasan
@@ -314,12 +312,12 @@ cd build
 
 %if "%{?compiler}" == "gcc"
 
-  %if 0%{distribution} == 7
+  %if 0%{distnum} == 7
     source /opt/rh/%{devtoolset}/enable
   %endif
 
-  %if 0%{distribution} == 7 || 0%{distribution} == 8
-    %if 0%{distribution} == 8
+  %if 0%{distnum} == 7 || 0%{distnum} == 8
+    %if 0%{distnum} == 8
       echo "Install custom cmake 3.15.5 required by EOS"
       mkdir ./cmake_install/
       ../misc/cmake/cmake-3.15.5-Linux-x86_64.sh --prefix=./cmake_install/ --skip-license
@@ -330,7 +328,7 @@ cd build
     %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=%{build_type} %{build_flags}
   %endif
 %else
-  %if 0%{distribution} == 7
+  %if 0%{distnum} == 7
     source  /opt/rh/llvm-toolset-7/enable
     env QA_RPATHS=3 CC=clang CXX=clang++ %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_RPATH=/lib64/:/usr/lib64/ -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=true -DXROOTD_ROOT=/opt/eos/xrootd/ %{build_flags}
   %else
@@ -347,7 +345,7 @@ cd build
 # and may cause GDB to crash.
 
 %if "%{?compiler}" == "gcc"
-  %if 0%{distribution} == 7
+  %if 0%{distnum} == 7
     source /opt/rh/%{devtoolset}/enable
   %endif
 %endif
@@ -373,7 +371,7 @@ Group: Applications/File
 # ----------------------
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
-%if 0%{?distribution} == 7 || 0%{?distribution} == 8
+%if 0%{?distnum} == 7 || 0%{?distnum} == 8
 Requires: eos-xrootd == %{eos_xrootd_version_min}
 %else
 Requires: xrootd >= %{xrootd_version_min}
@@ -400,17 +398,17 @@ Requires: logrotate
 # -----------------------
 %if ! %{without eos_protobuf3_rh}
 # Install eos-protobuf3
-%if 0%{?distribution} == 7
+%if 0%{?distnum} == 7
 Requires: eos-protobuf3 = 3.5.1-5.el7.cern.eos
 %else
-%if %{?fedora}%{!?fedora:0} >= 27 || 0%{distribution} == 8
+%if %{?fedora}%{!?fedora:0} >= 27 || 0%{distnum} == 8
 Requires: protobuf >= 3.3
 %else
 Requires: protobuf3 >= 3.3
 %endif
 %endif
 %else
-%if %{?fedora}%{!?fedora:0} >= 27 || 0%{distribution} == 8
+%if %{?fedora}%{!?fedora:0} >= 27 || 0%{distnum} == 8
 Requires: protobuf >= 3.3
 %else
 Requires: protobuf3 >= 3.3
@@ -480,7 +478,7 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_libdir}/libEosMgmHttp-*.so
 %{_libdir}/libXrdMqOfs-*.so
 %{_libdir}/libEosNsQuarkdb.so
-%if 0%{distribution} == 7 || 0%{distribution} == 8
+%if 0%{distnum} == 7 || 0%{distnum} == 8
 %{_libdir}/libEosAccSciTokens.so
 %endif
 %config(noreplace) %{_sysconfdir}/xrd.cf.fst
@@ -574,7 +572,7 @@ Group: Applications/File
 # Select xrootd package
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
-%if 0%{?distribution} == 7 || 0%{?distribution} == 8
+%if 0%{?distnum} == 7 || 0%{?distnum} == 8
 Requires: eos-xrootd == %{eos_xrootd_version_min}
 %else
 Requires: xrootd-client >= %{xrootd_version_min}
@@ -586,17 +584,17 @@ Requires: xrootd-client >= %{xrootd_version_min}
 # Select protobuf package
 %if ! %{without eos_protobuf3_rh}
 # Install eos-protobuf3
-%if 0%{?distribution} == 7
+%if 0%{?distnum} == 7
 Requires: eos-protobuf3 = 3.5.1-5.el7.cern.eos
 %else
-%if %{?fedora}%{!?fedora:0} >= 27 || 0%{distribution} == 8
+%if %{?fedora}%{!?fedora:0} >= 27 || 0%{distnum} == 8
 Requires: protobuf >= 3.3
 %else
 Requires: protobuf3 >= 3.3
 %endif
 %endif
 %else
-%if %{?fedora}%{!?fedora:0} >= 27 || 0%{distribution} == 8
+%if %{?fedora}%{!?fedora:0} >= 27 || 0%{distnum} == 8
 Requires: protobuf >= 3.3
 %else
 Requires: protobuf3 >= 3.3
@@ -631,7 +629,7 @@ Requires: squashfs-tools
 # Select xrootd package
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
-%if 0%{?distribution} == 7 || 0%{?distribution} == 8
+%if 0%{?distnum} == 7 || 0%{?distnum} == 8
 Requires: eos-xrootd == %{eos_xrootd_version_min}
 %else
 Requires: xrootd-client >= %{xrootd_version_min}
@@ -643,17 +641,17 @@ Requires: xrootd-client >= %{xrootd_version_min}
 # Select protobuf package
 %if ! %{without eos_protobuf3_rh}
 # Install eos-protobuf3
-%if 0%{?distribution} == 7
+%if 0%{?distnum} == 7
 Requires: eos-protobuf3
 %else
-%if %{?fedora}%{!?fedora:0} >= 27 || 0%{distribution} == 8
+%if %{?fedora}%{!?fedora:0} >= 27 || 0%{distnum} == 8
 Requires: protobuf >= 3.3
 %else
 Requires: protobuf3 >= 3.3
 %endif
 %endif
 %else
-%if %{?fedora}%{!?fedora:0} >= 27 || 0%{distribution} == 8
+%if %{?fedora}%{!?fedora:0} >= 27 || 0%{distnum} == 8
 Requires: protobuf >= 3.3
 %else
 Requires: protobuf3 >= 3.3
@@ -725,7 +723,7 @@ Group: Applications/File
 # ----------------------
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
-%if 0%{?distribution} == 7 || 0%{?distribution} == 8
+%if 0%{?distnum} == 7 || 0%{?distnum} == 8
 Requires: eos-xrootd == %{eos_xrootd_version_min}
 %else
 Requires: xrootd-client >= %{xrootd_version_min}
@@ -884,7 +882,7 @@ Group: Applications/File
 # ----------------------
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
-%if 0%{?distribution} == 7 || 0%{?distribution} == 8
+%if 0%{?distnum} == 7 || 0%{?distnum} == 8
 Requires: eos-xrootd == %{eos_xrootd_version_min}
 %else
 Requires: xrootd-client >= %{xrootd_version_min}
@@ -1005,7 +1003,7 @@ Requires: python3-daemon python3-zmq python3-fusepy
 # ----------------------
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
-%if 0%{?distribution} == 7 || 0%{?distribution} == 8
+%if 0%{?distnum} == 7 || 0%{?distnum} == 8
 Requires: eos-xrootd == %{eos_xrootd_version_min}
 %else
 Requires: xrootd-python >= %{xrootd_version_min}
