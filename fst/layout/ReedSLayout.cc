@@ -121,8 +121,6 @@ ReedSLayout::FreeJerasure()
    * for 32. Fortunately we can safely uninit any value; if it
    * wasn't inited it will be ignored.
    */
-  galois_uninit_field(w);
-  galois_uninit_field(32);
   free(matrix);
   free(bitmatrix);
   matrix = bitmatrix = nullptr;
