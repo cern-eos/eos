@@ -16,6 +16,17 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.46 Citrine``
+===================
+
+2021-05-07
+
+Bug
+----
+
+* FST: Don't free internal jerasure structs, these will be cleaned up when the FST is shutdown
+
+
 ``v4.8.45 Citrine``
 ===================
 
