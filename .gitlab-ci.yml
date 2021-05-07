@@ -39,8 +39,6 @@ build_cs8:
     - yum install --nogpg -y sssd-client
     - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
     - koji build --scratch ${TARGET} ${BUILD_NAME}_artifacts/SRPMS/*.src.rpm
-  only:
-    - tags
   tags:
     - docker_node
     - publish
