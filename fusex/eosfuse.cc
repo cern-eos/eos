@@ -5445,8 +5445,6 @@ EosFuse::listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
         attrlist += '\0';
       }
 
-      fprintf(stderr, "attr: %s\n", attrlist.c_str());
-
       if (!Instance().Config().options.no_eos_xattr_listing) {
         // add 'eos.btime'
         attrlist += "eos.btime";
