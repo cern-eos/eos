@@ -51,7 +51,7 @@ DynamicScanner::DynamicScanner()
   statusFiles.clear();
   timeCurrentScan = 0;
   timeLastScan = 0;
-  mThread.reset(&DynamicScanner::performCycleQDB, this);
+  //mThread.reset(&DynamicScanner::performCycleQDB, this);
   ndirs = 0;
   nfiles = 0;
 }
@@ -174,6 +174,7 @@ void DynamicScanner::performCycleQDB(ThreadAssistant& assistant) noexcept
       if (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) ==
           eos::common::LayoutId::kQrain) {
         statusFiles[fmd->getId()] = fmd;
+        eos_static_info("Hello from");
       }
 
       /*
