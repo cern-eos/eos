@@ -1,0 +1,110 @@
+#!/bin/bash
+
+
+#--------------------------------------------------------------------------------------
+#
+#
+#
+#
+#
+#
+#--------------------------------------------------------------------------------------
+
+#eos cp /etc/group /eos/dev/test2/file
+
+#eos mkdir /eos/dev/test/instancetest/dynamicec
+
+#eos mkdir /eos/dev/test2
+#eos mkdir /eos/dev/test3
+#eos mkdir /eos/dev/test4/
+
+#eos mkdir /eos/dev/test/dynectest
+#eos mkdir /eos/testarea/dynec/dynamicectest
+
+#export PATH=/op/eos/xrootd/bin/:$PATH
+#export LD_LIBRARY_PATH=/opt/eos/xrootd/lib64
+
+#PATH=/opt/eos/xrootd/bin:$PATH
+
+echo ""
+val=`eos file info /eos/dev/test2/filetest1 | grep Layout | awk '{print $10}'` 
+echo $val
+val=2
+echo $val
+
+
+#if [[ 10 -eq 10 ]];
+ #then
+#    exit 0
+#fi
+
+
+#exit 1 
+
+#if [[ $# -eq 0 || $# -gt 2 ]]; then
+ #     echo "Usage: $0 <eos_mgm_hostname>"
+  #    exit 1
+#fi
+
+
+#eos chmod 777 /eos/dev/test2
+
+#eos chmod 777 /eos/dev/test5
+
+
+#This is used for setting the systems different parameters in the directory
+#eos attr set sys.forced.blocksize=1M /eos/dev/test2
+#eos attr set sys.forced.layout=raid6 /eos/dev/test2
+#eos attr set sys.forced.nstripes=6 /eos/dev/test2
+#eos attr set sys.forced.nexcess=2 /eos/dev/test2
+
+#eos attr set sys.forced.blocksize=1M /eos/testarea/dynec/dynamicectest
+
+#eos cp /etc/group /eos/dev/test2/g.17
+#eos xrdcp /etc/group /eos/dev/test2/g.16
+
+# Create dummy test files                                                                                                                                                                                                                                                                 
+TEST_FN1=/tmp/5mbfile.dat
+TEST_FN2=/tmp/1mbfile.dat
+
+#for name in 'seq 1 100'; 
+
+#for name in {}
+
+#for name in {1..5}
+#do eos cp ${TEST_FN3} /eos/testarea/dynec/filefromtest$name; done
+for name in {1..10}
+do eos cp ${TEST_FN1} /eos/dev/test2/filetest$name; done
+#do eos cp ${TEST_FN1} /eos/dev/test/instancetest/file$name; done
+
+#This is in order to set the different settings to true in order to use it in the system for testing
+val20=`eos space config default space.dynamicec.minthreshold=show`
+val21=`eos space config default space.dynamicec.maxthreshold=show`
+echo "val of the thres"
+echo $val20
+echo $val21
+var
+
+eos space config default space.dynamicec.minthreshold=20
+eos space config default space.dynamicec.maxthreshold=21
+eos space config default space.dynamicec.test=on
+
+sleep 330
+
+val=`eos file info /eos/dev/test2/filetest1 | grep Layout | awk '{print $10}'`
+echo $val
+
+if [ $val != "d3+2::t0" ];
+then
+exit 1
+fi
+
+eos rm /eos/dev/test2/*
+eos space config default space.dynamicec.maxthreshold=$val21
+eos space config default space.dynamicec.minthreshold=$val20
+eos space config default space.dynamicec.test=off
+exit 0
+#root://localhost//eos/dev/test2/file.$name; done
+
+#eos cp /etc/group /eos/dev/test2/file
+#eos rm -r /eos/dev/test2/*

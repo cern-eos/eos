@@ -1257,7 +1257,7 @@ runtest H "### Upload    " sss  0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INS
 runtest H "### Update    " sss  0 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"   # dir owned
 runtest H "### Upload    " sss  0 "EOSROLE='-r 99 99'" eos cp -a "$TESTSYSFILE1K" /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k # dir owned
 runtest   "### Attr      " unix 0 "" eos attr set user.acl=u:nobody:r!wx /eos/$EOS_TEST_INSTANCE/test/instancetest
-runtest H "### Update    " sss  1 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"     # writes are denied, and updates are note allowed explicitly
+runtest H "### Update    " sss  1 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"     # writes are 
 runtest H "### Upload    " sss  1 "EOSROLE='-r 99 99'" eos cp -a "$TESTSYSFILE1K" /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k  # writes are denied, and updates are not allowed explicitly
 runtest   "### Attr      " unix 0 "" eos attr set user.acl=u:99:rwx!d /eos/$EOS_TEST_INSTANCE/test/instancetest
 runtest   "### Chown     " unix 0 "" eos chown 99:99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k"                    # make sure file owned
@@ -1973,6 +1973,30 @@ runtest "### Upload    " unix 0 "" upload "$EOS_TEST_RAIN_DIR/file3.rain" "/eos/
 runtest "### EoscpRaiddp " unix 0 "" eoscp_rain "raiddp" "/eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp_rain_dir/file.dat"
 runtest "### EoscpRaid6  " unix 0 "" eoscp_rain "reeds" "/eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp_rain_dir/file.dat"
 runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/eoscp_rain_dir"
+
+################################################################################
+# categorie = "dynamicec"
+################################################################################
+runtest "### Mkdir      " unix 0 "" eos mkdir "eos/$EOS_TEST_INSTANCE/test/instancetest/dynamicec"
+runtest "### Chmod      " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/dynamicec"
+runtest "### Attr       " unix 0 "" eos attr set sys.forced.blocksize=1M "/eos/$EOS_TEST_INSTANCE/test/instancetest/dynamicec"
+runtest "### Attr       " unix 0 "" eos attr set sys.forced.layout=raid6 "/eos/$EOS_TEST_INSTANCE/test/instancetest/dynamicec"
+runtest "### Attr       " unix 0 "" eos attr set sys.forced.nstripes=6 "/eos/$EOS_TEST_INSTANCE/test/instancetest/dynamicec"
+runtest "### Attr       " unix 0 "" eos attr set sys.forced.nexcess=2 "/eos/$EOS_TEST_INSTANCE/test/instancetest/dynamicec"
+
+#Test in generel from another test script.
+runtest "### Test       " unix 0 "" bash eos-dynamicec-test
+
+#this will be on for the real test
+#runtest "### Cleanup    " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test2/*"
+
+
+#runtest "### Cleanup    " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instacetest/dynamicec"
+runtest "### Rmdir      " unix 0 "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/dynamicec"
+
+#runtest "### testforstuf" unix 0 "" bash eos-dynamicec-test
+
+#runtest "### Rmdir      " unix 0 "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/instancetest"
 
 ################################################################################
 # OTHER TESTS

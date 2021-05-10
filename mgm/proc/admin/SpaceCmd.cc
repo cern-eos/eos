@@ -29,6 +29,7 @@
 #include "common/Path.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
 #include "mgm/inspector/FileInspector.hh"
+#include "mgm/DynamicEC.hh"
 #include "mgm/Egroup.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "namespace/interface/IChLogFileMDSvc.hh"
@@ -683,7 +684,14 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             (key == "converter") ||
             (key == "tracker") ||
             (key == "inspector") ||
-            (key == "inspector.interval") ||
+            (key == "dynamicEC") ||
+            (key == "dynamicec.minsize") ||
+            (key == "dynamicec.test") ||
+            (key == "dynamicec.waittime") ||
+            (key == "dynamicec.minthreshold") ||
+            (key == "dynamicec.maxthreshold") ||
+            (key == "dynamicec.agefromwhentodelete") ||
+            (key == "dynamicec.security") ||
             (key == "lru") ||
             (key == "lru.interval") ||
             (key == "wfe") ||
@@ -712,6 +720,8 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             (key == eos::common::SCAN_NS_RATE_NAME)) {
           if ((key == "balancer") || (key == "converter") || (key == "tracker") ||
               (key == "inspector") ||
+              (key == "dynamicEC") ||
+              (key == "dynamicec.test") ||
               (key == "autorepair") || (key == "lru") ||
               (key == "groupbalancer") || (key == "geobalancer") ||
               (key == "geo.access.policy.read.exact") ||
@@ -757,10 +767,32 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                 if (key == "inspector") {
                   if (value == "on") {
                     gOFS->mFileInspector->enable();
-                    std_out << "success: file inspector is enabled!";
+                    std_out << "success: file inspector is enabled! this is new";
                   } else {
                     gOFS->mFileInspector->disable();
                     std_out << "success: file inspector is disabled!";
+                  }
+                }
+
+                if (key == "dynamicEC") {
+                  if (value == "on") {
+                    gOFS->mDynamicEC->testForSpaceCmd();
+                    std_out << "success: dynamicEC is enabled! This is wild";
+                  } else {
+                    gOFS->mDynamicEC->testForSpaceCmd2();
+                    std_out << "success: dynamicEC is disabled!";
+                  }
+                }
+
+                if (key == "dynamicec.test") {
+                  if (value == "on") {
+                    gOFS->mDynamicEC->setTestOn();
+                    std_out << "this is the test bool:";
+                    std_out << gOFS->mDynamicEC->getTest();
+                  } else if (value == "off") {
+                    gOFS->mDynamicEC->setTestOff();
+                    std_out << "this is the test bool:";
+                    std_out << gOFS->mDynamicEC->getTest();
                   }
                 }
 
@@ -830,6 +862,87 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                   gOFS->mLRUEngine->RefreshOptions();
                 }
               }
+            }
+          } else if (key == "dynamicec.minsize") {
+            if (std::all_of(value.begin(), value.end(), ::isdigit)) {
+              //std_out << "This is for it \n";
+              //std_out << std::stoi(value) * 2;
+              gOFS->mDynamicEC->setMinForDeletion(std::stoi(value));
+              std_out << "The minimum size for the files are now: ";
+              //std_out << "The minimum size for the files are now:" + std::stoi(value);
+              std_out << std::stoi(value);
+            } else if (value == "show") {
+              std_out << gOFS->mDynamicEC->getMinForDeletion();
+            }
+          }
+          //else if (key == "dynamicec.test")
+          //{
+          //}
+          else if (key == "dynamicec.waittime") {
+            if (std::all_of(value.begin(), value.end(), ::isdigit)) {
+              gOFS->mDynamicEC->setWaitTime(std::stoi(value));
+              std_out << "The wait time are now: ";
+              //std_out << "The minimum size for the files are now:" + std::stoi(value);
+              std_out << std::stoi(value);
+            } else if (value == "show") {
+              std_out << gOFS->mDynamicEC->getWaitTime();
+            }
+          } else if (key == "dynamicec.minthreshold") {
+            if (value.find_first_not_of("0123456789.") == std::string::npos) {
+              if (gOFS->mDynamicEC->getMaxThresHold() >= std::stod(value)) {
+                gOFS->mDynamicEC->setMinThresHold(std::stod(value));
+                std_out << "The min threshold is now:";
+                std_out << std::stod(value);
+              } else {
+                std_out << "The value: ";
+                std_out << std::stod(value);
+                std_out << " is more than the maximum threshold. \n";
+              }
+            } else if (value == "show") {
+              std_out << gOFS->mDynamicEC->getMinThresHold();
+            } else {
+              std_out << value;
+              std_out << " is not a valid command.";
+            }
+          } else if (key == "dynamicec.maxthreshold") {
+            if (value.find_first_not_of("0123456789.") == std::string::npos) {
+              if (gOFS->mDynamicEC->getMinThresHold() <= std::stod(value)) {
+                gOFS->mDynamicEC->setMaxThresHold(std::stod(value));
+                std_out << "The max threshold is now:";
+                std_out << std::stod(value);
+              } else {
+                std_out << "The value: ";
+                std_out << std::stod(value);
+                std_out << " is less than the minimum threshold. \n";
+              }
+            } else if (value == "show") {
+              std_out << gOFS->mDynamicEC->getMaxThresHold();
+            } else {
+              std_out << value;
+              std_out << " is not a valid command.";
+            }
+          } else if (key == "dynamicec.agefromwhentodelete") {
+            if (value.find_first_not_of("0123456789") == std::string::npos) {
+              gOFS->mDynamicEC->setAgeFromWhenToDelete(std::stoull(value));
+              std_out << "The age from when to delete is new set to: ";
+              std_out << std::stoull(value);
+            } else if (value == "show") {
+              std_out << gOFS->mDynamicEC->getAgeFromWhenToDelete();
+            } else {
+              std_out << value;
+              std_out << " is not a valid command.";
+            }
+          } else if (key == "dynamicec.security") {
+            if (std::all_of(value.begin(), value.end(), ::isdigit)) {
+              gOFS->mDynamicEC->setSecurity(std::stoi(value));
+              std_out << "The security is now: ";
+              //std_out << "The minimum size for the files are now:" + std::stoi(value);
+              std_out << std::stoi(value);
+            } else if (value == "show") {
+              std_out << gOFS->mDynamicEC->getSecurity();
+            } else {
+              std_out << value;
+              std_out << " is not a valid command.";
             }
           } else if (key == "wfe") {
             applied = true;

@@ -33,6 +33,7 @@
 #define __EOSMGM_DYNAMICEC__
 
 /* -------------------------------------------------------------------------- */
+#include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "mgm/DynamicECFile.hh"
 #include "mgm/Namespace.hh"
 #include "common/Logging.hh"
@@ -77,6 +78,7 @@ class IFileMD;
 EOSMGMNAMESPACE_BEGIN
 //thread for dynamic cleaning the system for old and not used files.
 
+//check for different nameing conventions
 
 /// might be in the system in order to look for the constant update on this, bur for this it will be easy for the rest of the system to get the status of the thread.
 /// other stuff for the status of the thread can be put in as well.
@@ -105,6 +107,9 @@ private:
 
   std::string
   timeStore; /// some variable to store the time, to compare with the new time, can also be done dynamic from a function and like five years from now;
+
+  std::atomic<bool>
+  testEnabel; /// test needs this to speed up different productionscycles
 
   std::atomic<double>
   minThresHold; /// Threshold on when to stop the deletion of files
@@ -173,6 +178,10 @@ private:
 
   std::mutex mMutexForStatusFiles;
   std::map<uint64_t, std::shared_ptr<eos::QuarkFileMD>> statusFiles;
+  std::mutex mMutexForStatusFilesMD;
+  //std::map<uint64_t, std::shared_ptr<eos::IFileMD>> statusFilesMD;
+//std::shared_ptr<eos::IFileMD>
+
   time_t timeCurrentScan;
   time_t timeLastScan;
   void Process(std::string& filepath);
@@ -186,6 +195,8 @@ private:
 
   int mTestNumber;
 
+  std::atomic<bool> mDynamicOn;
+
   //bool mOnTest;
 
   /// The XRootD OFS plugin implementing the metadata handling of EOS
@@ -193,6 +204,10 @@ private:
   //XrdMgmOfs &m_ofs;
 
 public:
+
+  std::map<uint64_t, std::shared_ptr<eos::IFileMD>> GetMap();
+
+  std::map<uint64_t, std::shared_ptr<eos::IFileMD>> statusFilesMD;
 
   struct FailedToGetFileSize: public std::runtime_error {
     FailedToGetFileSize(const std::string& msg): std::runtime_error(msg) {}
@@ -212,11 +227,52 @@ public:
 
   //void performCycleQDB(ThreadAssistant& assistant) noexcept;
 
+  void testForSpaceCmd2();
+
+  void testForSpaceCmd();
+
   void setWaitTime(int wait);
+
+  void createFileForTest();
 
   void createFiles();
 
-  void createFilesOneTime(ThreadAssistant& assistant);
+  void createFilesOneTime();
+
+  void createFilesOneTimeThread(ThreadAssistant& assistant);
+
+  void testForSingleFileWithkRaid5(int stripes, int redundancy, int excessstripes,
+                                   uint64_t size);
+
+  void testForSingleFileWithkRaidDP(int stripes, int redundancy,
+                                    int excessstripes, uint64_t size);
+
+  void testForSingleFileWithkArchive(int stripes, int redundancy,
+                                     int excessstripes, uint64_t size);
+
+  void testForSingleFileWithkReplica(int stripes, int redundancy,
+                                     int excessstripes, uint64_t size);
+
+  void testForSingleFileWithkPlain(int stripes, int redundancy, int excessstripes,
+                                   uint64_t size);
+
+  void testForSingleFileWithkQrain(int stripes, int redundancy, int excessstripes,
+                                   uint64_t size);
+
+  void testFilesBeignFilled(int stripes, int redundency, int excessstripes,
+                            int number);
+
+  void testFilesBeignFilledCompiledSize(int stripes, int redundancy,
+                                        int excessstripes, int number, uint64_t size);
+
+  void testForSingleFile(int stripes, int redundancy, int excessstripes,
+                         uint64_t size);
+
+  bool getTest();
+
+  void setTestOn();
+
+  void setTestOff();
 
   int getWaitTime();
 
@@ -238,7 +294,9 @@ public:
 
   void setSecurity(int security);
 
-  int getSecutiry();
+  int getSecurity();
+
+  void fillSingleFile();
 
   void fillFiles();
 
@@ -258,12 +316,19 @@ public:
   bool DeletionOfFileIDForGenerelFile(std::shared_ptr<eos::QuarkFileMD> file,
                                       uint64_t ageOld);
 
+  //This is the new one for the fileMD
+  bool DeletionOfFileIDMD(std::shared_ptr<eos::IFileMD>, uint64_t ageOld);
+
   //This is for a not modified file
   uint64_t GetSizeOfFile(std::shared_ptr<DynamicECFile> file);
 
   long double TotalSizeInSystem(std::shared_ptr<eos::QuarkFileMD> file);
 
+  long double TotalSizeInSystemMD(std::shared_ptr<eos::IFileMD> file);
+
   static double GetRealSizeFactor(std::shared_ptr<eos::QuarkFileMD> file);
+
+  static double GetRealSizeFactorMD(std::shared_ptr<eos::IFileMD> file);
 
   //Bool to check it is done or failed.
   void SingleDeletion(std::shared_ptr<DynamicECFile> file);
@@ -271,6 +336,12 @@ public:
   void kQrainReduction(std::shared_ptr<DynamicECFile> file);
 
   void kRaid6(std::shared_ptr<eos::QuarkFileMD> file);
+
+  void kRaid6T(std::shared_ptr<eos::DynamicECFile> file);
+
+  void kReduce(std::shared_ptr<eos::QuarkFileMD> file);
+
+  void kReduceMD(std::shared_ptr<eos::IFileMD> file);
 
   std::uint64_t getFileSizeBytes(const IFileMD::id_t fid);
 
@@ -287,7 +358,7 @@ public:
 
   DynamicEC(const char* spacename = "default", uint64_t age = 3600,
             uint64_t minsize = 1024 * 1024,
-            double maxThres = 66.0, double minThres = 65.9, bool OnWork = true,
+            double maxThres = 98.0, double minThres = 95.0, bool OnWork = true,
             int wait = 30, int securityNew = 1);
 
   ~DynamicEC();
@@ -295,6 +366,8 @@ public:
   void Stop();
 
   void Cleanup() noexcept;
+
+  void CleanupMD() noexcept;
 
   void Run(ThreadAssistant& assistant)
   noexcept; /// no exceptions aloud, have to check for all the output combinations to return.
@@ -308,6 +381,8 @@ public:
   Options getOptions();
 
   void performCycleQDB(ThreadAssistant& assistant) noexcept;
+
+  void performCycleQDBMD(ThreadAssistant& assistant) noexcept;
 
   void RunScan(ThreadAssistant& assistant) noexcept;
 
