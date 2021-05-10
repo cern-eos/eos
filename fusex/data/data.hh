@@ -305,6 +305,7 @@ public:
       data = _data;
       md = _md;
       rw = _rw;
+      flocked = false;
       update_mtime_on_flush.store(false, std::memory_order_seq_cst);
       next_size_flush.store(0, std::memory_order_seq_cst);
       _maxfilesize = 0;
