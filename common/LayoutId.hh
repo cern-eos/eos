@@ -588,10 +588,6 @@ public:
   }
 
   static std::string
-<<<<<<< HEAD
-
-=======
->>>>>>> 874ac79... This is the status for the file, it will be rewritten in order to make the test for the system.
   GetRedundancySymbol(bool has_tape, int redundancy, int excess = 0)
   {
     char sbst[256];
@@ -689,7 +685,6 @@ public:
       return 1.0 * (((1.0 * (GetStripeNumber(layout) + 1)) /
                      (GetStripeNumber(layout) + 1 - GetRedundancyStripeNumber(
                         layout))));
-<<<<<<< HEAD
 
     /// add for kQrain support
 
@@ -697,24 +692,8 @@ public:
       return 1.0 * (((1.0 * (GetStripeNumber(layout) + 1)) /
                      (GetStripeNumber(layout) + 1 - GetRedundancyStripeNumber(
                         layout))));
-=======
->>>>>>> 874ac79... This is the status for the file, it will be rewritten in order to make the test for the system.
-
-    /// add for kQrain support
-
-    if (GetLayoutType(layout) == kQrain)
-      return 1.0 * (((1.0 * (GetStripeNumber(layout) + 1)) /
-                     (GetStripeNumber(layout) + 1 - GetRedundancyStripeNumber(
-                        layout))));
-
     return 1.0;
   }
-
-
-
-
-
-
 
   //--------------------------------------------------------------------------
   //! Return minimum number of replicas which have to be online for a layout

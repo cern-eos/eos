@@ -160,6 +160,7 @@ TEST(DynamicECProduction, TestForSmallFileDeletion)
   UUT.testForSingleFile(6, 2, 2, 1000000);
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
+
          UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
                 it->second->getLayoutId()), 2);
@@ -221,7 +222,6 @@ TEST(DynamicECProduction, TestForSmallFileDeletionComeTrue)
   }
 }
 
-
 TEST(DynamicECProduction, TestForMultiDeletionComeTrue)
 {
   const char* str = "DynamicTest";
@@ -231,10 +231,6 @@ TEST(DynamicECProduction, TestForMultiDeletionComeTrue)
   UUT.CleanupMD();
   EXPECT_EQ(UUT.mStatusFilesMD.size(), 90);
 }
-
-
-
-
 
 TEST(DynamicECProduction, TestForThisWithThekReduceMD)
 {

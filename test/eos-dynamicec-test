@@ -1,10 +1,4 @@
 #!/bin/bash
-<<<<<<< HEAD
- 
-=======
-
->>>>>>> d448ade... The new test file
-
 #--------------------------------------------------------------------------------------
 #
 #
@@ -107,6 +101,7 @@ do eos cp ${TEST_FN1} /eos/testarea/test2/filetest$name; done
 sleep 390
 
 val=`eos file info /eos/testarea/test2/filetest11 | grep Layout | awk '{print $10}'`
+
 echo $val
 
 if [ $val != "d3+2::t0" ];

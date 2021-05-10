@@ -180,7 +180,6 @@ TEST(DynamicEC, TestForWaitTime)
   ASSERT_EQ(UUT.getWaitTime(), 2);
 }
 
-
 TEST(DynamicEC, TestForFailToDeleteAll)
 {
   const char* str = "DynamicTest";

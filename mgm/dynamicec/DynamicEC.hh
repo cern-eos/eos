@@ -114,6 +114,9 @@ private:
 
 
 
+  std::atomic<bool>
+  testEnabel; /// test needs this to speed up different productionscycles
+
   std::atomic<double>
   mMinThresHold; ///< Threshold on when to stop the deletion of files
 
@@ -165,7 +168,7 @@ private:
   mMutexForStatusFilesMD; ///< mutex for the status files that can be removed
   std::map<uint64_t, std::shared_ptr<eos::QuarkFileMD>> statusFiles;
   std::mutex mMutexForStatusFiles;
-
+  
   time_t timeCurrentScan;
   time_t timeLastScan;
   void Process(std::string& filepath);
@@ -227,6 +230,10 @@ public:
   bool getTest();
 
   void setDynamicEC(bool onOff);
+
+  void testForSpaceCmd2();
+
+  void testForSpaceCmd();
 
   void setWaitTime(int wait);
 
@@ -323,6 +330,8 @@ public:
 
   void CleanupMD() noexcept;
 
+  void CleanupMD() noexcept;
+
   void Run(ThreadAssistant& assistant)
   noexcept; ///< no exceptions aloud, have to check for all the output combinations to return.
 
@@ -333,6 +342,8 @@ public:
   };
 
   Options getOptions();
+
+  void performCycleQDBMD(ThreadAssistant& assistant) noexcept;
 
   void performCycleQDBMD(ThreadAssistant& assistant) noexcept;
 
