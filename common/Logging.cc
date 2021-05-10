@@ -648,8 +648,12 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
     gLogCircularIndex[priority]++;
   }
 
-  logBuffer->h.priority = priority;
-  LB->log_queue_buffer(logBuffer);
+  if (!silent) {
+    logBuffer->h.priority = priority;
+    LB->log_queue_buffer(logBuffer);
+  } else {
+    LB->log_return_buffers(logBuffer);
+  }
 
   return rptr;
 }
