@@ -233,6 +233,10 @@ backend::fetchQueryResponse(std::string& requestURL,
       return 0;
     }
 
+    if (bresponse) {
+      delete bresponse;
+    }
+
     eos_static_debug("");
   } else {
     if (status.errNo == XErrorCode::kXR_NotFound) {
