@@ -218,8 +218,8 @@ public:
 
   int Delete(uint64_t id);
 
-  shared_cap GetTS(authid_t id);
-  shared_cap Get(authid_t id);
+  shared_cap GetTS(const authid_t& id);
+  shared_cap Get(const authid_t& id);
 
   int BroadcastCap(shared_cap cap);
   int BroadcastRelease(const eos::fusex::md&
