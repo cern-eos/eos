@@ -34,7 +34,11 @@
 
 /* -------------------------------------------------------------------------- */
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
+<<<<<<< HEAD:mgm/dynamicec/DynamicEC.hh
 #include "mgm/dynamicec/DynamicECFile.hh"
+=======
+#include "mgm/DynamicECFile.hh"
+>>>>>>> 29f5f43... Udate for test:mgm/DynamicEC.hh
 #include "mgm/Namespace.hh"
 #include "common/Logging.hh"
 #include "common/FileId.hh"
@@ -75,6 +79,12 @@ class IFileMD;
 }
 
 EOSMGMNAMESPACE_BEGIN
+<<<<<<< HEAD:mgm/dynamicec/DynamicEC.hh
+=======
+//thread for dynamic cleaning the system for old and not used files.
+
+//check for different nameing conventions
+>>>>>>> 29f5f43... Udate for test:mgm/DynamicEC.hh
 
 struct statusForSystem {
   int64_t totalSize;
@@ -113,6 +123,9 @@ private:
   mTimeStore; ///< some variable to store the time, to compare with the new time, can also be done dynamic from a function and like five years from now;
 
 
+
+  std::atomic<bool>
+  testEnabel; /// test needs this to speed up different productionscycles
 
   std::atomic<double>
   mMinThresHold; ///< Threshold on when to stop the deletion of files
@@ -164,7 +177,13 @@ private:
   std::mutex
   mMutexForStatusFilesMD; ///< mutex for the status files that can be removed
   std::map<uint64_t, std::shared_ptr<eos::QuarkFileMD>> statusFiles;
+<<<<<<< HEAD:mgm/dynamicec/DynamicEC.hh
   std::mutex mMutexForStatusFiles;
+=======
+  std::mutex mMutexForStatusFilesMD;
+  //std::map<uint64_t, std::shared_ptr<eos::IFileMD>> statusFilesMD;
+//std::shared_ptr<eos::IFileMD>
+>>>>>>> 29f5f43... Udate for test:mgm/DynamicEC.hh
 
   time_t timeCurrentScan;
   time_t timeLastScan;
@@ -178,12 +197,19 @@ private:
 
   int mTestNumber;
 
+<<<<<<< HEAD:mgm/dynamicec/DynamicEC.hh
   std::atomic<bool> mDynamicOn; ///< the bool to set the dynamicec on or off
+=======
+  std::atomic<bool> mDynamicOn;
+
+  //bool mOnTest;
+>>>>>>> 29f5f43... Udate for test:mgm/DynamicEC.hh
 
   bool isIdInMap(uint64_t id);
 
 public:
 
+<<<<<<< HEAD:mgm/dynamicec/DynamicEC.hh
   std::mutex mtx;
 
   std::condition_variable cv;
@@ -193,6 +219,11 @@ public:
   std::map<uint64_t, std::shared_ptr<eos::IFileMD>> GetMap();
 
   std::map<uint64_t, std::shared_ptr<eos::IFileMD>> mStatusFilesMD; ///<
+=======
+  std::map<uint64_t, std::shared_ptr<eos::IFileMD>> GetMap();
+
+  std::map<uint64_t, std::shared_ptr<eos::IFileMD>> statusFilesMD;
+>>>>>>> 29f5f43... Udate for test:mgm/DynamicEC.hh
 
   struct FailedToGetFileSize: public std::runtime_error {
     FailedToGetFileSize(const std::string& msg): std::runtime_error(msg) {}
@@ -228,12 +259,27 @@ public:
 
   void setDynamicEC(bool onOff);
 
+  void testForSpaceCmd2();
+
+  void testForSpaceCmd();
+
   void setWaitTime(int wait);
+
+<<<<<<< HEAD:mgm/dynamicec/DynamicEC.hh
+  void createFilesOneTime();
+
+  void createFilesOneTimeThread(ThreadAssistant& assistant);
+
+=======
+  void createFileForTest();
+
+  void createFiles();
 
   void createFilesOneTime();
 
   void createFilesOneTimeThread(ThreadAssistant& assistant);
 
+>>>>>>> 29f5f43... Udate for test:mgm/DynamicEC.hh
   void testForSingleFileWithkRaid5(int stripes, int redundancy, int excessstripes,
                                    uint64_t size);
 
@@ -260,6 +306,15 @@ public:
 
   void testForSingleFile(int stripes, int redundancy, int excessstripes,
                          uint64_t size);
+<<<<<<< HEAD:mgm/dynamicec/DynamicEC.hh
+=======
+
+  bool getTest();
+
+  void setTestOn();
+
+  void setTestOff();
+>>>>>>> 29f5f43... Udate for test:mgm/DynamicEC.hh
 
   int getWaitTime();
 
@@ -279,6 +334,15 @@ public:
 
   uint64_t getMinForDeletion();
 
+<<<<<<< HEAD:mgm/dynamicec/DynamicEC.hh
+=======
+  void setSecurity(int security);
+
+  int getSecurity();
+
+  void fillSingleFile();
+
+>>>>>>> 29f5f43... Udate for test:mgm/DynamicEC.hh
   void fillFiles();
 
   void fillFiles(int newFiles);
@@ -293,13 +357,44 @@ public:
 
   bool DeletionOfFileIDMD(std::shared_ptr<eos::IFileMD>, uint64_t ageOld);
 
+<<<<<<< HEAD:mgm/dynamicec/DynamicEC.hh
   uint64_t GetSizeOfFile(std::shared_ptr<DynamicECFile> file);
 
   long double TotalSizeInSystemMD(std::shared_ptr<eos::IFileMD> file);
+=======
+  //This is the new one for the fileMD
+  bool DeletionOfFileIDMD(std::shared_ptr<eos::IFileMD>, uint64_t ageOld);
+
+  //This is for a not modified file
+  uint64_t GetSizeOfFile(std::shared_ptr<DynamicECFile> file);
+
+  long double TotalSizeInSystem(std::shared_ptr<eos::QuarkFileMD> file);
+
+  long double TotalSizeInSystemMD(std::shared_ptr<eos::IFileMD> file);
+
+  static double GetRealSizeFactor(std::shared_ptr<eos::QuarkFileMD> file);
 
   static double GetRealSizeFactorMD(std::shared_ptr<eos::IFileMD> file);
 
+  //Bool to check it is done or failed.
+  void SingleDeletion(std::shared_ptr<DynamicECFile> file);
+
+  void kQrainReduction(std::shared_ptr<DynamicECFile> file);
+>>>>>>> 29f5f43... Udate for test:mgm/DynamicEC.hh
+
+  static double GetRealSizeFactorMD(std::shared_ptr<eos::IFileMD> file);
+
+<<<<<<< HEAD:mgm/dynamicec/DynamicEC.hh
   void kReduceMD(std::shared_ptr<eos::IFileMD> file);
+=======
+  void kRaid6T(std::shared_ptr<eos::DynamicECFile> file);
+
+  void kReduce(std::shared_ptr<eos::QuarkFileMD> file);
+
+  void kReduceMD(std::shared_ptr<eos::IFileMD> file);
+
+  std::uint64_t getFileSizeBytes(const IFileMD::id_t fid);
+>>>>>>> 29f5f43... Udate for test:mgm/DynamicEC.hh
 
   void printAll();
 
@@ -315,12 +410,18 @@ public:
   DynamicEC(const char* spacename = "default", uint64_t age = 3600,
             uint64_t minsize = 1024 * 1024,
             double maxThres = 98.0, double minThres = 95.0, bool OnWork = true,
+<<<<<<< HEAD:mgm/dynamicec/DynamicEC.hh
             int wait = 30, uint64_t mapMaxSize = 10000000000000,
             uint64_t sleepWhenDone = 28800, uint64_t sleepWhenFull = 600);
+=======
+            int wait = 30, int securityNew = 1);
+>>>>>>> 29f5f43... Udate for test:mgm/DynamicEC.hh
 
   ~DynamicEC();
 
   void Stop();
+
+  void CleanupMD() noexcept;
 
   void CleanupMD() noexcept;
 
@@ -334,6 +435,8 @@ public:
   };
 
   Options getOptions();
+
+  void performCycleQDBMD(ThreadAssistant& assistant) noexcept;
 
   void performCycleQDBMD(ThreadAssistant& assistant) noexcept;
 
