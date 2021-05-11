@@ -411,7 +411,7 @@ int main(int argc, char** argv)
     }
 
     if (t == 3) {
-      results["008 Read no-lock STL Umap"] = rate;
+      results["008 Read no-lock STL Umap Hash"] = rate;
     }
     PrintStatus(st[0], st[1], mem[0], mem[1], rate);
   }
