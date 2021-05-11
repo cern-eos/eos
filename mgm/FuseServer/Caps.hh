@@ -254,7 +254,8 @@ public:
                   uint64_t clock,
                   struct timespec& p_mtime
                  ); // broad cast changed md around
-  std::string Print(std::string option, std::string filter);
+  std::string Print(const std::string& option,
+                    const std::string& filter);
 
   std::map<authid_t, shared_cap>& GetCaps()
   {

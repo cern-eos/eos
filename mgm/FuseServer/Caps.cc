@@ -575,7 +575,8 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
 //
 //------------------------------------------------------------------------------
 std::string
-FuseServer::Caps::Print(std::string option, std::string filter)
+FuseServer::Caps::Print(const std::string& option,
+                        const std::string& filter)
 {
   std::string out;
   std::string astring;
