@@ -29,11 +29,7 @@
 #include "common/Path.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
 #include "mgm/inspector/FileInspector.hh"
-<<<<<<< HEAD
-#include "mgm/dynamicec/DynamicEC.hh"
-=======
 #include "mgm/DynamicEC.hh"
->>>>>>> 29f5f43... Udate for test
 #include "mgm/Egroup.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "namespace/interface/IChLogFileMDSvc.hh"
@@ -429,6 +425,23 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
   int ret_c = 0;
   eos::common::RWMutexReadLock fsViewLock(FsView::gFsView.ViewMutex);
 
+  if (reset.option() == eos::console::SpaceProto_ResetProto::DRAIN ||
+      reset.option() == eos::console::SpaceProto_ResetProto::NONE) {
+    if (FsView::gFsView.mSpaceView.count(reset.mgmspace())) {
+      FsView::gFsView.mSpaceView[reset.mgmspace()]->ResetDraining();
+      std_out << "info: reset draining in space '" + reset.mgmspace() + "'";
+    } else {
+      std_err << "error: illegal space name";
+      ret_c = EINVAL;
+    }
+  }
+
+  if (reset.option() == eos::console::SpaceProto_ResetProto::EGROUP ||
+      reset.option() == eos::console::SpaceProto_ResetProto::NONE) {
+    gOFS->EgroupRefresh->Reset();
+    std_out << "\ninfo: clear cached EGroup information ...";
+  }
+
   switch (reset.option()) {
   case eos::console::SpaceProto_ResetProto::DRAIN: {
     if (FsView::gFsView.mSpaceView.count(reset.mgmspace())) {
@@ -440,11 +453,13 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
     }
   }
   break;
+
   case eos::console::SpaceProto_ResetProto::EGROUP: {
     gOFS->EgroupRefresh->Reset();
     std_out << "\ninfo: clear cached EGroup information ...";
   }
   break;
+
   case eos::console::SpaceProto_ResetProto::NSFILESISTEMVIEW: {
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
                                        __FILE__);
@@ -452,6 +467,7 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
     std_out << "\ninfo: resized namespace filesystem view ...";
   }
   break;
+
   case eos::console::SpaceProto_ResetProto::NSFILEMAP: {
     auto* eos_chlog_filesvc = dynamic_cast<eos::IChLogFileMDSvc*>
                               (gOFS->eosFileService);
@@ -466,6 +482,7 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
     }
   }
   break;
+
   case eos::console::SpaceProto_ResetProto::NSDIRECTORYMAP: {
     auto* eos_chlog_dirsvc = dynamic_cast<eos::IChLogContainerMDSvc*>
                              (gOFS->eosDirectoryService);
@@ -480,6 +497,7 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
     }
   }
   break;
+
   case eos::console::SpaceProto_ResetProto::NS: {
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
                                        __FILE__);
@@ -498,24 +516,28 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
     }
   }
   break;
+
   case eos::console::SpaceProto_ResetProto::MAPPING: {
     eos::common::Mapping::Reset();
     std_out << "\ninfo: clear all user/group uid/gid caches ...\n";
   }
   break;
+
   case eos::console::SpaceProto_ResetProto::SCHEDULEDRAIN: {
     gOFS->mFidTracker.Clear(eos::mgm::TrackerType::Drain);
     std_out.str("info: reset drain scheduling map in space '" + reset.mgmspace() +
                 '\'');
   }
   break;
+
   case eos::console::SpaceProto_ResetProto::SCHEDULEBALANCE: {
     gOFS->mFidTracker.Clear(eos::mgm::TrackerType::Balance);
     std_out.str("info: reset balance scheduling map in space '" + reset.mgmspace() +
                 '\'');
   }
   break;
-  default: { // NONE - when NONE, do cases DRAIN and EGROUP and MAPPING
+
+  default: { // NONE - when NONE does cases DRAIN and EGROUP and MAPPING
     if (FsView::gFsView.mSpaceView.count(reset.mgmspace())) {
       FsView::gFsView.mSpaceView[reset.mgmspace()]->ResetDraining();
       std_out << "info: reset draining in space '" + reset.mgmspace() + "'";
@@ -523,6 +545,7 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
       std_err << "error: illegal space name";
       ret_c = EINVAL;
     }
+
     gOFS->EgroupRefresh->Reset();
     std_out << "\ninfo: clear cached EGroup information ...";
     eos::common::Mapping::Reset();
@@ -695,15 +718,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             (key == "dynamicec.minthreshold") ||
             (key == "dynamicec.maxthreshold") ||
             (key == "dynamicec.agefromwhentodelete") ||
-<<<<<<< HEAD
-            (key == "dynamicec.sleepwhendone") ||
-            (key == "dynamicec.sleepwhenfull") ||
-            (key == "dynamicec.sizeformapmax") ||
-            (key == "dynamicec.restartscan") ||
-            (key == "dynamicec.printall") ||
-=======
             (key == "dynamicec.security") ||
->>>>>>> 29f5f43... Udate for test
             (key == "lru") ||
             (key == "lru.interval") ||
             (key == "wfe") ||
@@ -734,11 +749,6 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
               (key == "inspector") ||
               (key == "dynamicEC") ||
               (key == "dynamicec.test") ||
-<<<<<<< HEAD
-              (key == "dynamicec.restartscan") ||
-              (key == "dynamicec.printall") ||
-=======
->>>>>>> 29f5f43... Udate for test
               (key == "autorepair") || (key == "lru") ||
               (key == "groupbalancer") || (key == "geobalancer") ||
               (key == "geo.access.policy.read.exact") ||
@@ -793,67 +803,26 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
 
                 if (key == "dynamicEC") {
                   if (value == "on") {
-<<<<<<< HEAD
-                    gOFS->mDynamicEC->setDynamicEC(true);
+                    gOFS->mDynamicEC->turnDynamicECOn();
                     std_out << "success: dynamicEC is enabled!";
                   } else {
-                    gOFS->mDynamicEC->setDynamicEC(false);
-=======
-                    gOFS->mDynamicEC->testForSpaceCmd();
-                    std_out << "success: dynamicEC is enabled! This is wild";
-                  } else {
-                    gOFS->mDynamicEC->testForSpaceCmd2();
->>>>>>> 29f5f43... Udate for test
+                    gOFS->mDynamicEC->turnDynamicECOff();
                     std_out << "success: dynamicEC is disabled!";
                   }
                 }
 
                 if (key == "dynamicec.test") {
                   if (value == "on") {
-<<<<<<< HEAD
-                    gOFS->mDynamicEC->setTest(true);
-                    std_out << "this is the test bool:";
-                    std_out << gOFS->mDynamicEC->getTest();
-                  } else if (value == "off") {
-                    gOFS->mDynamicEC->setTest(false);
-=======
                     gOFS->mDynamicEC->setTestOn();
                     std_out << "this is the test bool:";
                     std_out << gOFS->mDynamicEC->getTest();
                   } else if (value == "off") {
                     gOFS->mDynamicEC->setTestOff();
->>>>>>> 29f5f43... Udate for test
                     std_out << "this is the test bool:";
                     std_out << gOFS->mDynamicEC->getTest();
                   }
                 }
 
-<<<<<<< HEAD
-                if (key == "dynamicec.restartscan") {
-                  if (value == "on") {
-                    eos_static_info("test restart scan");
-                    gOFS->mDynamicEC->restartScan();
-                    std_out << "test";
-                    std_out << "this is the test for the sys";
-                  } else if (value == "off") {
-                    //gOFS->mDynamicEC->setTest(false);
-                    //std_out << "this is the test bool:";
-                    //std_out << gOFS->mDynamicEC->getTest();
-                  }
-                }
-
-                if (key == "dynamicec.printall") {
-                  if (value == "on") {
-                    eos_static_info("print all in log");
-                    gOFS->mDynamicEC->printAll();
-                  } else if (value == "off") {
-                  }
-                }
-
-                // (key == "dynamicec.printall") ||
-
-=======
->>>>>>> 29f5f43... Udate for test
                 if (key == "autorepair") {
                   if (value == "on") {
                     std_out << "success: auto-repair is enabled!";
@@ -921,33 +890,6 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                 }
               }
             }
-<<<<<<< HEAD
-          } else if (key == "dynamicec.sizeformapmax") {
-            if (std::all_of(value.begin(), value.end(), ::isdigit)) {
-              gOFS->mDynamicEC->setSizeForMap(std::stoull(value));
-              std_out << "The size for the map to be full: ";
-              std_out << std::stoull(value);
-            } else if (value == "show") {
-              std_out << gOFS->mDynamicEC->getSizeForMap();
-            }
-          } else if (key == "dynamicec.sleepwhenfull") {
-            if (std::all_of(value.begin(), value.end(), ::isdigit)) {
-              gOFS->mDynamicEC->setSleepWhenFull(std::stoi(value));
-              std_out << "The sleep when the size of the files in the map is full: ";
-              std_out << std::stoi(value);
-            } else if (value == "show") {
-              std_out << gOFS->mDynamicEC->getSleepWhenFull();
-            }
-          } else if (key == "dynamicec.sleepwhendone") {
-            if (std::all_of(value.begin(), value.end(), ::isdigit)) {
-              gOFS->mDynamicEC->setSleepWhenDone(std::stoi(value));
-              std_out << "The sleep when the all files have been scanned";
-              std_out << std::stoi(value);
-            } else if (value == "show") {
-              std_out << gOFS->mDynamicEC->getSleepWhenDone();
-            }
-=======
->>>>>>> 29f5f43... Udate for test
           } else if (key == "dynamicec.minsize") {
             if (std::all_of(value.begin(), value.end(), ::isdigit)) {
               //std_out << "This is for it \n";
@@ -955,23 +897,11 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
               gOFS->mDynamicEC->setMinForDeletion(std::stoi(value));
               std_out << "The minimum size for the files are now: ";
               //std_out << "The minimum size for the files are now:" + std::stoi(value);
-<<<<<<< HEAD
-              std_out << gOFS->mDynamicEC->getMinForDeletion();
-            } else if (value == "show") {
-              std_out << gOFS->mDynamicEC->getMinForDeletion();
-            }
-          } else if (key == "dynamicec.waittime") {
-=======
               std_out << std::stoi(value);
             } else if (value == "show") {
               std_out << gOFS->mDynamicEC->getMinForDeletion();
             }
-          }
-          //else if (key == "dynamicec.test")
-          //{
-          //}
-          else if (key == "dynamicec.waittime") {
->>>>>>> 29f5f43... Udate for test
+          } else if (key == "dynamicec.waittime") {
             if (std::all_of(value.begin(), value.end(), ::isdigit)) {
               gOFS->mDynamicEC->setWaitTime(std::stoi(value));
               std_out << "The wait time are now: ";
@@ -998,11 +928,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
               std_out << " is not a valid command.";
             }
           } else if (key == "dynamicec.maxthreshold") {
-<<<<<<< HEAD
-            if (value.find_first_not_of("0123456789.-") == std::string::npos) {
-=======
             if (value.find_first_not_of("0123456789.") == std::string::npos) {
->>>>>>> 29f5f43... Udate for test
               if (gOFS->mDynamicEC->getMinThresHold() <= std::stod(value)) {
                 gOFS->mDynamicEC->setMaxThresHold(std::stod(value));
                 std_out << "The max threshold is now:";
@@ -1029,8 +955,6 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
               std_out << value;
               std_out << " is not a valid command.";
             }
-<<<<<<< HEAD
-=======
           } else if (key == "dynamicec.security") {
             if (std::all_of(value.begin(), value.end(), ::isdigit)) {
               gOFS->mDynamicEC->setSecurity(std::stoi(value));
@@ -1043,7 +967,6 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
               std_out << value;
               std_out << " is not a valid command.";
             }
->>>>>>> 29f5f43... Udate for test
           } else if (key == "wfe") {
             applied = true;
 
@@ -1152,7 +1075,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
               fs->SetString("errc", "0");
             }
 
-            FsView::gFsView.StoreFsConfig(fs, false);
+            FsView::gFsView.StoreFsConfig(fs);
           } else {
             errno = 0;
             eos::common::StringConversion::GetSizeFromString(value.c_str());
@@ -1165,7 +1088,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                  (key == eos::common::SCAN_NS_RATE_NAME)) && (!errno)) {
               fs->SetLongLong(key.c_str(),
                               eos::common::StringConversion::GetSizeFromString(value.c_str()));
-              FsView::gFsView.StoreFsConfig(fs, false);
+              FsView::gFsView.StoreFsConfig(fs);
             } else {
               std_err << "error: not an allowed parameter <" + key + ">\n";
               ret_c = EINVAL;
