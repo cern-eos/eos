@@ -1,0 +1,21 @@
+// ----------------------------------------------------------------------------
+// File: Ls.proto
+// Author: Ivan Arizanovic <ivan.arizanovic@comtrade.com>
+// ----------------------------------------------------------------------------
+syntax="proto3";
+
+package eos.console;
+
+import "Metadata.proto";
+
+message LsProto {
+  Metadata md         = 1;
+  bool long_list      = 2; // -l
+  bool tape           = 3; // -y
+  bool readable_sizes = 4; // -h
+  bool show_hidden    = 5; // -a
+  bool inode_info     = 6; // -i
+  bool num_ids        = 7; // -n
+  bool append_dir_ind = 8; // -F
+  bool silent         = 9; // -s
+}

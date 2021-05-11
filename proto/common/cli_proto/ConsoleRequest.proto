@@ -27,9 +27,11 @@ import "Authentication.proto";
 import "Attr.proto";
 import "ChangeMode.proto";
 import "Chown.proto";
+import "Cp.proto";
 import "File.proto";
 import "Fileinfo.proto";
 import "List.proto";
+import "Ls.proto";
 import "MakeDirectory.proto";
 import "Move.proto";
 import "Rmdir.proto";
@@ -94,6 +96,8 @@ message RequestProto {
     VersionProto version   = 39;
     ChmodProto chmod       = 40;
     ChownProto chown       = 41;
+    LsProto ls             = 42;
+    CpProto cp             = 43;
   }
 
   string Comment = 30;

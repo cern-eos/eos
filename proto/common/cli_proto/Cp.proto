@@ -1,0 +1,31 @@
+// ----------------------------------------------------------------------------
+// File: Cp.proto
+// Author: Branko Blagojevic <branko.blagojevic@comtrade.com>
+// ----------------------------------------------------------------------------
+syntax="proto3";
+
+package eos.console;
+
+message CpProto {
+  message ChecksumProto {
+    string path = 1;
+  }
+
+  // Refer google/protobuf/timestamp.proto for details
+  message Timestamp {
+    int64 seconds = 1;
+    int32 nanos = 2;
+  }
+
+  message PreserveProto {
+    bool set     = 1;
+    string path  = 2;
+    Timestamp atime = 3;
+    Timestamp mtime = 4;
+  }
+
+  oneof subcmd {
+    ChecksumProto cksum    = 1;
+    PreserveProto keeptime = 2;
+  }
+}

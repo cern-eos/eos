@@ -64,6 +64,9 @@ GrpcWncInterface::ExecCmd(eos::common::VirtualIdentity& vid,
     case eos::console::RequestProto::kConfig:
       return Config(vid, request, reply);
       break;
+    case eos::console::RequestProto::kCp:
+      return Cp(vid, request, reply);
+      break;
     case eos::console::RequestProto::kDebug:
       return Debug(vid, request, reply);
       break;
@@ -81,6 +84,9 @@ GrpcWncInterface::ExecCmd(eos::common::VirtualIdentity& vid,
       break;
     case eos::console::RequestProto::kIo:
       return Io(vid, request, reply);
+      break;
+    case eos::console::RequestProto::kLs:
+      return Ls(vid, request, reply);
       break;
     case eos::console::RequestProto::kMkdir:
       return Mkdir(vid, request, reply);
@@ -164,16 +170,11 @@ GrpcWncInterface::ExecStreamCmd(eos::common::VirtualIdentity& vid,
 
   switch(request->command_case()) {
     case eos::console::RequestProto::kList: {
-      std::vector<eos::console::StreamReplyProto> stream_reply;
 
       if (request->list().cmd() == eos::console::LIST_CMD::LS)
-        retc = List(vid, request, stream_reply);
+        retc = List(vid, request, writer);
       else if (request->list().cmd() == eos::console::LIST_CMD::FIND)
-        retc = Find(vid, request, stream_reply);
-
-      // Fill the writer
-      for (auto it : stream_reply)
-        writer->Write(it);
+        retc = Find(vid, request, writer);
 
       break;
     }
@@ -564,6 +565,132 @@ GrpcWncInterface::Config(eos::common::VirtualIdentity& vid,
   eos::mgm::ConfigCmd configcmd(std::move(req), vid);
 
   *reply = configcmd.ProcessRequest();
+
+  return grpc::Status::OK;
+}
+
+grpc::Status
+GrpcWncInterface::Cp(eos::common::VirtualIdentity& vid,
+                     const eos::console::RequestProto* request,
+                     eos::console::ReplyProto* reply)
+{
+  switch (request->cp().subcmd_case()) {
+    case eos::console::CpProto::kCksum: {
+      XrdCl::URL url("root://localhost//dummy");
+
+      auto* fs = new XrdCl::FileSystem(url);
+
+      if (!fs) {
+        reply->set_std_err("Warning: failed to get new FS object [attempting checksum]\n");
+        return grpc::Status::OK;
+      }
+
+      std::string path = request->cp().cksum().path();
+      size_t pos = path.rfind("//");
+
+      if (pos != std::string::npos)
+        path.erase(0, pos + 1);
+
+      XrdCl::Buffer arg;
+      XrdCl::XRootDStatus status;
+      XrdCl::Buffer* response = nullptr;
+
+      arg.FromString(path);
+
+      status = fs->Query(XrdCl::QueryCode::Checksum, arg, response);
+
+      if (status.IsOK()) {
+        XrdOucString xsum = response->GetBuffer();
+        xsum.replace("eos ", "");
+        std::string msg = "checksum=";
+        msg += xsum.c_str();
+        reply->set_std_out(msg);
+      }
+      else {
+        std::string msg = "Warning: failed getting checksum for ";
+        msg += path;
+        reply->set_std_err(msg);
+      }
+
+      delete response;
+      delete fs;
+
+      break;
+    }
+    case eos::console::CpProto::kKeeptime: {
+      if (request->cp().keeptime().set()) {
+        // Set atime and mtime
+        std::string path = request->cp().keeptime().path();
+
+        char update[1024];
+        sprintf(update,
+                "?eos.app=eoscp&mgm.pcmd=utimes&tv1_sec=%llu&tv1_nsec=%llu&tv2_sec=%llu&tv2_nsec=%llu",
+                (unsigned long long) request->cp().keeptime().atime().seconds(),
+                (unsigned long long) request->cp().keeptime().atime().nanos(),
+                (unsigned long long) request->cp().keeptime().mtime().seconds(),
+                (unsigned long long) request->cp().keeptime().mtime().nanos()
+               );
+
+        XrdOucString query = "root://localhost/";
+        query += path.c_str();
+        query += update;
+
+        char value[4096];
+        value[0] = 0;
+
+        long long update_rc = XrdPosixXrootd::QueryOpaque(query.c_str(),
+                                                          value, 4096);
+        bool updateok = (update_rc >= 0);
+
+        if (updateok) {
+          // Parse the stat output
+          char tag[1024];
+          int tmp_retc;
+          int items = sscanf(value, "%1023s retc=%d", tag, &tmp_retc);
+
+          updateok = ((items == 2) && (strcmp(tag, "utimes:") == 0));
+        }
+
+        if (!updateok) {
+          std::string msg;
+          msg += "Warning: access and modification time could not be preserved for ";
+          msg += path;
+          msg += "\nQuery: ";
+          msg += query.c_str();
+          reply->set_std_err(msg);
+        }
+      }
+      else {
+        // Get atime and mtime
+        std::string path = request->cp().keeptime().path();
+
+        XrdOucString url = "root://localhost/";
+        url += path.c_str();
+
+        // Stat EOS file
+        struct stat buf;
+        if (XrdPosixXrootd::Stat(url.c_str(), &buf) == 0) {
+          std::string msg;
+          msg += "atime:";
+          msg += std::to_string(buf.st_atime);
+          msg += "mtime:";
+          msg += std::to_string(buf.st_mtime);
+          reply->set_std_out(msg);
+        }
+        else {
+          std::string msg = "Warning: failed getting stat information for ";
+          msg += path;
+          reply->set_std_err(msg);
+        }
+      }
+
+      break;
+    }
+    default: {
+      reply->set_retc(EINVAL);
+      reply->set_std_err("Error: subcommand is not supported");
+    }
+  }
 
   return grpc::Status::OK;
 }
@@ -1519,7 +1646,7 @@ GrpcWncInterface::Fileinfo(eos::common::VirtualIdentity& vid,
 grpc::Status
 GrpcWncInterface::Find(eos::common::VirtualIdentity& vid,
                        const eos::console::RequestProto* request,
-                       std::vector<eos::console::StreamReplyProto>& reply)
+                       ServerWriter<eos::console::StreamReplyProto>* reply)
 {
   uint64_t deepness = 0;
   std::vector< std::vector<uint64_t> > found_dirs;
@@ -1639,7 +1766,7 @@ GrpcWncInterface::Io(eos::common::VirtualIdentity& vid,
 grpc::Status
 GrpcWncInterface::List(eos::common::VirtualIdentity& vid,
                        const eos::console::RequestProto* request,
-                       std::vector<eos::console::StreamReplyProto>& reply)
+                       ServerWriter<eos::console::StreamReplyProto>* reply)
 {
   switch (request->list().type()) {
     case eos::console::FILE:
@@ -1662,45 +1789,121 @@ GrpcWncInterface::List(eos::common::VirtualIdentity& vid,
 }
 
 grpc::Status
+GrpcWncInterface::Ls(eos::common::VirtualIdentity& vid,
+                     const eos::console::RequestProto* request,
+                     eos::console::ReplyProto* reply)
+{
+  std::string path = request->ls().md().path();
+  errno = 0;
+  if (path.empty()) {
+    if (request->ls().md().type() == eos::console::FILE) {
+      try {
+        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
+        path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(request->ls().md().id()).get());
+      } catch (eos::MDException& e) {
+        errno = e.getErrno();
+      }
+    } else {
+      try {
+        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
+        path = gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(request->ls().md().id()).get());
+      } catch (eos::MDException& e) {
+        errno = e.getErrno();
+      }
+    }
+
+    if (errno) {
+      reply->set_retc(EINVAL);
+      reply->set_std_err("Error: Path is empty");
+      return grpc::Status::OK;
+    }
+  }
+
+  // initialization
+  std::string stdOut, stdErr;
+  ProcCommand cmd;
+  XrdOucErrInfo error;
+  std::string in = "mgm.cmd=ls";
+
+  // set the path
+  in += "&mgm.path=" + path;
+
+  // set the options
+  if (request->ls().long_list() || request->ls().tape() ||
+      request->ls().readable_sizes() || request->ls().show_hidden() ||
+      request->ls().inode_info() || request->ls().num_ids() ||
+      request->ls().append_dir_ind() || request->ls().silent()) {
+    in += "&mgm.option=";
+    if (request->ls().long_list())
+      in += "l";
+    if (request->ls().tape())
+      in += "y";
+    if (request->ls().readable_sizes())
+      in += "h";
+    if (request->ls().show_hidden())
+      in += "a";
+    if (request->ls().inode_info())
+      in += "i";
+    if (request->ls().num_ids())
+      in += "n";
+    if (request->ls().append_dir_ind())
+      in += "F";
+    if (request->ls().silent())
+      in += "s";
+  }
+
+  // running the command
+  cmd.open("/proc/user", in.c_str(), vid, &error);
+  cmd.AddOutput(stdOut, stdErr);
+  cmd.close();
+
+  reply->set_retc(cmd.GetRetc());
+  reply->set_std_err(stdErr);
+  reply->set_std_out(stdOut);
+
+  return grpc::Status::OK;
+}
+
+grpc::Status
 GrpcWncInterface::Mkdir(eos::common::VirtualIdentity& vid,
                         const eos::console::RequestProto* request,
                         eos::console::ReplyProto* reply)
 {
-  mode_t mode = request->mkdir().mode();
-
-  if (request->mkdir().recursive()){
-    mode |= SFS_O_MKPTH;
-  }
-
-  std::string path = request->mkdir().md().path();
+  // initialization
+  std::string stdOut, stdErr;
+  ProcCommand cmd;
   XrdOucErrInfo error;
-  errno = 0;
+  std::string in = "mgm.cmd=mkdir";
 
-  // Make directory
-  if (gOFS->_mkdir(path.c_str(), mode, error, vid, (const char*) 0)) {
-    reply->set_retc(errno);
-    reply->set_std_err(error.getErrText());
+  // set the path
+  std::string path = request->mkdir().md().path();
+  in += "&mgm.path=" + path;
 
-    return grpc::Status::OK;
+  // set the options
+  if (request->mkdir().parents())
+    in += "&mgm.option=p";
+
+  // running the command
+  cmd.open("/proc/user", in.c_str(), vid, &error);
+  cmd.AddOutput(stdOut, stdErr);
+  cmd.close();
+
+  reply->set_retc(cmd.GetRetc());
+  reply->set_std_err(stdErr);
+  reply->set_std_out(stdOut);
+
+  // Set the change mode
+  if (request->mkdir().mode() != 0 && cmd.GetRetc() == 0) {
+    eos::console::RequestProto chmod_request;
+    eos::console::ReplyProto chmod_reply;
+    chmod_request.mutable_chmod()->mutable_md()->set_path(path);
+    chmod_request.mutable_chmod()->set_mode(request->mkdir().mode());
+    Chmod(vid, &chmod_request, &chmod_reply);
+    if (chmod_reply.retc() != 0) {
+      reply->set_retc(chmod_reply.retc());
+      reply->set_std_err(chmod_reply.std_err());
+    }
   }
-
-  XrdSfsMode sfsmode = mode;
-
-  // The mkdir command always inherits the parent mode setting
-  // and ignores the mode parameter,
-  // so we must set mode for directory afterwards
-  if (gOFS->_chmod(path.c_str(), sfsmode, error, vid, (const char*) 0)) {
-    reply->set_retc(errno);
-    reply->set_std_err(error.getErrText());
-
-    return grpc::Status::OK;
-  }
-
-  reply->set_retc(0);
-  std::string msg = "info: created directory '";
-  msg += path.c_str();
-  msg += "'";
-  reply->set_std_out(msg);
 
   return grpc::Status::OK;
 }
@@ -1712,47 +1915,52 @@ GrpcWncInterface::Mv(eos::common::VirtualIdentity& vid,
 {
   std::string path = request->mv().md().path();
   std::string target = request->mv().target();
-  XrdOucErrInfo error;
   errno = 0;
   if (path.empty()) {
     if (request->mv().md().type() == eos::console::FILE) {
       try {
         eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
-        path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(
-          request->mv().md().id()
-        ).get());
+        path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(request->mv().md().id()).get());
       } catch (eos::MDException& e) {
-        path = "";
         errno = e.getErrno();
       }
     } else {
       try {
         eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
-        path = gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(
-          request->mv().md().id()
-        ).get());
+        path = gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(request->mv().md().id()).get());
       } catch (eos::MDException& e) {
-        path = "";
         errno = e.getErrno();
       }
     }
 
-    if (path.empty()) {
+    if (errno) {
       reply->set_retc(EINVAL);
       reply->set_std_err("Error: Path is empty");
       return grpc::Status::OK;
     }
   }
 
-  // command execution
-  if (gOFS->_rename(path.c_str(), target.c_str(), error, vid)) {
-    reply->set_retc(errno);
-    reply->set_std_err(error.getErrText());
-  }
-  else {
-    reply->set_retc(0);
-    reply->set_std_out("Info: Moved '" + path + "' to '" + target + "'");
-  }
+  // initialization
+  std::string stdOut, stdErr;
+  ProcCommand cmd;
+  XrdOucErrInfo error;
+  std::string in = "mgm.cmd=file";
+  in += "&mgm.subcmd=rename";
+
+  // set source path
+  in += "&mgm.path=" + path;
+
+  // set target path
+  in += "&mgm.file.target=" + target;
+
+  // running the command
+  cmd.open("/proc/user", in.c_str(), vid, &error);
+  cmd.AddOutput(stdOut, stdErr);
+  cmd.close();
+
+  reply->set_retc(cmd.GetRetc());
+  reply->set_std_err(stdErr);
+  reply->set_std_out(stdOut);
 
   return grpc::Status::OK;
 }
@@ -1828,24 +2036,42 @@ GrpcWncInterface::Rmdir(eos::common::VirtualIdentity& vid,
                         eos::console::ReplyProto* reply)
 {
   std::string path = request->rmdir().md().path();
-  XrdOucErrInfo error;
   errno = 0;
+  if (path.empty()) {
+    try {
+      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
+      path = gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(request->rmdir().md().id()).get());
+    } catch (eos::MDException& e) {
+      errno = e.getErrno();
+    }
 
-  if (gOFS->_remdir(path.c_str(), error, vid)) {
-    reply->set_retc(errno);
-    reply->set_std_err(error.getErrText());
-
-    return grpc::Status::OK;
+    if (errno) {
+      reply->set_retc(EINVAL);
+      reply->set_std_err("Error: Path is empty");
+      return grpc::Status::OK;
+    }
   }
 
-  reply->set_retc(0);
+  // initialization
+  std::string stdOut, stdErr;
+  ProcCommand cmd;
+  XrdOucErrInfo error;
+  std::string in = "mgm.cmd=rmdir";
 
-  std::string msg = "info: deleted directory '";
-  msg += path.c_str();
-  msg += "'";
-  reply->set_std_out(msg);
+  // set the path
+  in += "&mgm.path=" + path;
+
+  // running the command
+  cmd.open("/proc/user", in.c_str(), vid, &error);
+  cmd.AddOutput(stdOut, stdErr);
+  cmd.close();
+
+  reply->set_retc(cmd.GetRetc());
+  reply->set_std_err(stdErr);
+  reply->set_std_out(stdOut);
 
   return grpc::Status::OK;
+
 }
 
 grpc::Status
@@ -1956,23 +2182,31 @@ GrpcWncInterface::Touch(eos::common::VirtualIdentity& vid,
                         const eos::console::RequestProto* request,
                         eos::console::ReplyProto* reply)
 {
-  std::string path = request->touch().md().path();
+  // initialization
+  std::string stdOut, stdErr;
+  ProcCommand cmd;
   XrdOucErrInfo error;
-  errno = 0;
+  std::string in = "mgm.cmd=file";
+  in += "&mgm.subcmd=touch";
 
-  if (gOFS->_touch(path.c_str(), error, vid)) {
-    reply->set_retc(errno);
-    reply->set_std_err(error.getErrText());
+  // set the path
+  in += "&mgm.path=" + request->touch().md().path();
 
-    return grpc::Status::OK;
-  }
+  // set the options
+  if (request->touch().nolayout())
+    in += "&mgm.file.touch.nolayout=true";
 
-  reply->set_retc(0);
+  if (request->touch().truncate())
+    in += "&mgm.file.touch.truncate=true";
 
-  std::string msg = "info: touched file '";
-  msg += path.c_str();
-  msg += "'";
-  reply->set_std_out(msg);
+  // running the command
+  cmd.open("/proc/user", in.c_str(), vid, &error);
+  cmd.AddOutput(stdOut, stdErr);
+  cmd.close();
+
+  reply->set_retc(cmd.GetRetc());
+  reply->set_std_err(stdErr);
+  reply->set_std_out(stdOut);
 
   return grpc::Status::OK;
 }
@@ -3008,7 +3242,7 @@ GrpcWncInterface::MdFilterFile(std::shared_ptr<eos::IFileMD> md,
 grpc::Status
 GrpcWncInterface::MdGet(eos::common::VirtualIdentity& vid,
                         const eos::console::RequestProto* request,
-                        std::vector<eos::console::StreamReplyProto>& reply,
+                        ServerWriter<eos::console::StreamReplyProto>* reply,
                         bool check_perms,
                         bool lock)
 {
@@ -3158,7 +3392,7 @@ GrpcWncInterface::MdGet(eos::common::VirtualIdentity& vid,
     }
 
     gRPCResponse.mutable_fmd()->set_path(path);
-    reply.push_back(gRPCResponse);
+    reply->Write(gRPCResponse);
     return grpc::Status::OK;
   }
   else if (request->list().type() == eos::console::CONTAINER) {
@@ -3273,7 +3507,7 @@ GrpcWncInterface::MdGet(eos::common::VirtualIdentity& vid,
 
     gRPCResponse.mutable_cmd()->set_path(path);
 
-    reply.push_back(gRPCResponse);
+    reply->Write(gRPCResponse);
     return grpc::Status::OK;
   }
 
@@ -3283,7 +3517,7 @@ GrpcWncInterface::MdGet(eos::common::VirtualIdentity& vid,
 grpc::Status
 GrpcWncInterface::MdStream(eos::common::VirtualIdentity& vid,
                            const eos::console::RequestProto* request,
-                           std::vector<eos::console::StreamReplyProto>& reply,
+                           ServerWriter<eos::console::StreamReplyProto>* reply,
                            bool streamparent,
                            std::vector<uint64_t>* childdirs)
 {
