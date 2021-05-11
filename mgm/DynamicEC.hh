@@ -108,9 +108,6 @@ private:
   std::string
   timeStore; /// some variable to store the time, to compare with the new time, can also be done dynamic from a function and like five years from now;
 
-  std::atomic<bool>
-  testEnabel; /// test needs this to speed up different productionscycles
-
   std::atomic<double>
   minThresHold; /// Threshold on when to stop the deletion of files
 
@@ -131,6 +128,9 @@ private:
 
   std::atomic<bool>
   mOnWork;
+
+  std::atomic<bool>
+  mTestEnabel;
 
   int waitTime;
 
@@ -227,6 +227,16 @@ public:
 
   //void performCycleQDB(ThreadAssistant& assistant) noexcept;
 
+  void setTestOn();
+
+  void setTestOff();
+
+  bool getTest();
+
+  void turnDynamicECOn();
+
+  void turnDynamicECOff();
+
   void testForSpaceCmd2();
 
   void testForSpaceCmd();
@@ -267,12 +277,6 @@ public:
 
   void testForSingleFile(int stripes, int redundancy, int excessstripes,
                          uint64_t size);
-
-  bool getTest();
-
-  void setTestOn();
-
-  void setTestOff();
 
   int getWaitTime();
 

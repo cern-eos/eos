@@ -803,10 +803,10 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
 
                 if (key == "dynamicEC") {
                   if (value == "on") {
-                    gOFS->mDynamicEC->testForSpaceCmd();
-                    std_out << "success: dynamicEC is enabled! This is wild";
+                    gOFS->mDynamicEC->turnDynamicECOn();
+                    std_out << "success: dynamicEC is enabled!";
                   } else {
-                    gOFS->mDynamicEC->testForSpaceCmd2();
+                    gOFS->mDynamicEC->turnDynamicECOff();
                     std_out << "success: dynamicEC is disabled!";
                   }
                 }
@@ -901,11 +901,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             } else if (value == "show") {
               std_out << gOFS->mDynamicEC->getMinForDeletion();
             }
-          }
-          //else if (key == "dynamicec.test")
-          //{
-          //}
-          else if (key == "dynamicec.waittime") {
+          } else if (key == "dynamicec.waittime") {
             if (std::all_of(value.begin(), value.end(), ::isdigit)) {
               gOFS->mDynamicEC->setWaitTime(std::stoi(value));
               std_out << "The wait time are now: ";

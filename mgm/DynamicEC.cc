@@ -100,7 +100,7 @@ DynamicEC::DynamicEC(const char* spacename, uint64_t ageNew,  uint64_t size,
   minThresHold = minThres;
   createdFileSize = 0;
   sizeToBeDeleted = 0;
-  testEnabel = false;
+  mTestEnabel = false;
   waitTime = wait;
   mMutexForStatusFiles.lock();
   statusFiles.clear();
@@ -268,19 +268,19 @@ DynamicEC::~DynamicEC()
 void
 DynamicEC::setTestOn()
 {
-  testEnabel = true;
+  mTestEnabel = true;
 }
 
 void
 DynamicEC::setTestOff()
 {
-  testEnabel = false;
+  mTestEnabel = false;
 }
 
 bool
 DynamicEC::getTest()
 {
-  return testEnabel;
+  return mTestEnabel;
 }
 
 void
@@ -419,6 +419,20 @@ DynamicEC::fillFiles(int newFiles)
     createdFileSize += GetSizeOfFile(file);
     simulatedFiles[file->getId()] = file;
   }
+}
+
+void
+DynamicEC::turnDynamicECOn()
+{
+  mDynamicOn = true;
+  eos_static_info("DynamicEC turned on");
+}
+
+void
+DynamicEC::turnDynamicECOff()
+{
+  mDynamicOn = false;
+  eos_static_info("DynamicEC turned off");
 }
 
 void
@@ -750,7 +764,7 @@ DynamicEC::SpaceStatus()
     status.deletedSize = deletedFileSize;
     //fprintf(stderr,"this is createdFileSize %"PRId64" deletedFileSize %"PRId64" ", createdFileSize, deletedFileSize);
 
-    if ((createdFileSize - deletedFileSizeInTotal) > ((createdFileSize *
+    if ((createdFileSize - deletedFileSizeInTotal) > ((createdFileSize*
         maxThresHold) /
         100)) {
       status.undeletedSize = ((createdFileSize - deletedFileSizeInTotal) - ((((
@@ -1643,7 +1657,7 @@ DynamicEC::performCycleQDBMD(ThreadAssistant& assistant) noexcept
 
     if (scanner.getItem(item)) {
       //test in order to speed the scan up in the live tests.
-      if (testEnabel) {
+      if (mTestEnabel) {
         interval = 1;
       }
 
