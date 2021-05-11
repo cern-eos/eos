@@ -33,6 +33,7 @@
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include <google/dense_hash_map>
+#include "absl/container/flat_hash_map.h"
 #include <string>
 #include <map>
 
@@ -46,7 +47,7 @@ std::map<KeyType, ValueType> stdmap;
 google::dense_hash_map<KeyType, ValueType> googlemap;
 ulib::align_hash_map<KeyType, ValueType> ulibmap;
 std::unordered_map<KeyType, ValueType> stdumap;
-
+absl::flat_hash_map<KeyType, ValueType> abslmap;
 
 std::map<std::string, double> results;
 std::map<std::string, long long> results_mem;
@@ -156,6 +157,15 @@ static void* RunReader(void* tconf)
         v = 1;
       }
     }
+
+    if (r->type == 4) {
+      long long v = abslmap[n];
+
+      if (v) {
+        v = 1;
+      }
+    }
+
     // if (dolock)nsmutex.UnLock();
     if (dolock) {
       nslock.UnLockRead();
@@ -342,10 +352,47 @@ int main(int argc, char** argv)
     PrintStatus(st[0], st[1], mem[0], mem[1], rate);
   }
 
+  {
+    std::cerr <<
+              "# **********************************************************************************"
+              << std::endl;
+    std::cerr << "[i] Initialize Hash Abseil flat map ..." << std::endl;
+    std::cerr <<
+              "# **********************************************************************************"
+              << std::endl;
+    eos::common::LinuxStat::linux_stat_t st[10];;
+    eos::common::LinuxMemConsumption::linux_mem_t mem[10];
+    eos::common::LinuxStat::GetStat(st[0]);
+    eos::common::LinuxMemConsumption::GetMemoryFootprint(mem[0]);
+    eos::common::Timing tm("directories");
+    COMMONTIMING("hash-start", &tm);
+
+    abslmap.reserve(n_files);
+    size_t i = 0;
+    for (const auto& key : keys) {
+      if (!(i % 1000000)) {
+        XrdOucString l = "level-";
+        l += (int)i;
+        COMMONTIMING(l.c_str(), &tm);
+      }
+
+      abslmap.emplace(key,i++);
+    }
+
+    eos::common::LinuxStat::GetStat(st[1]);
+    eos::common::LinuxMemConsumption::GetMemoryFootprint(mem[1]);
+    COMMONTIMING("dir-stop", &tm);
+    tm.Print();
+    double rate = (n_files) / tm.RealTime() * 1000.0;
+    results["005 Fill Abseil flat map  Hash"] = rate;
+    results_mem["005 Fill Abseil flat map  Hash"] = st[1].vsize - st[0].vsize;
+    PrintStatus(st[0], st[1], mem[0], mem[1], rate);
+  }
+
   //----------------------------------------------------------------------------
   // Run a parallel consumer thread benchmark without locking
   //----------------------------------------------------------------------------
-  for (size_t t = 0; t < 4; t++) {
+  for (size_t t = 0; t < 5; t++) {
     eos::common::LinuxStat::linux_stat_t st[10];;
     eos::common::LinuxMemConsumption::linux_mem_t mem[10];
     std::cerr <<
@@ -369,6 +416,9 @@ int main(int argc, char** argv)
       std::cerr << "STL-UMAP";
     }
 
+    if (t == 4) {
+      std::cerr << "ABSEIL-FMAP";
+    }
     std::cerr <<  std::endl;
     std::cerr <<
               "# **********************************************************************************"
@@ -399,19 +449,23 @@ int main(int argc, char** argv)
     double rate = (n_files) / tm.RealTime() * 1000.0;
 
     if (t == 0) {
-      results["005 Read no-lock STL    Hash"] = rate;
+      results["006 Read no-lock STL    Hash"] = rate;
     }
 
     if (t == 1) {
-      results["006 Read no-lock Google Hash"] = rate;
+      results["007 Read no-lock Google Hash"] = rate;
     }
 
     if (t == 2) {
-      results["007 Read no-lock Ulib   Hash"] = rate;
+      results["008 Read no-lock Ulib   Hash"] = rate;
     }
 
     if (t == 3) {
-      results["008 Read no-lock STL Umap Hash"] = rate;
+      results["009 Read no-lock STL Umap Hash"] = rate;
+    }
+
+    if (t == 4) {
+      results["010 Read no-lock Abseil fmap Hash"] = rate;
     }
     PrintStatus(st[0], st[1], mem[0], mem[1], rate);
   }
@@ -443,6 +497,9 @@ int main(int argc, char** argv)
       std::cerr << "STL-UMAP";
     }
 
+    if (t == 4) {
+      std::cerr << "ABSEIL-FMAP";
+    }
     std::cerr <<  std::endl;
     std::cerr <<
               "# **********************************************************************************"
@@ -473,20 +530,25 @@ int main(int argc, char** argv)
     double rate = (n_files) / tm.RealTime() * 1000.0;
 
     if (t == 0) {
-      results["009 Read lock    STL    Hash"] = rate;
+      results["011 Read lock    STL    Hash"] = rate;
     }
 
     if (t == 1) {
-      results["010 Read lock    Google Hash"] = rate;
+      results["012 Read lock    Google Hash"] = rate;
     }
 
     if (t == 2) {
-      results["011 Read lock    Ulib   Hash"] = rate ;
+      results["013 Read lock    Ulib   Hash"] = rate ;
     }
 
     if (t == 3) {
-      results["012 Read lock  STL Umap Hash"] = rate;
+      results["014 Read lock  STL Umap Hash"] = rate;
     }
+
+    if (t == 4) {
+      results["015 Read lock Abseil flat map Hash"] = rate;
+    }
+
     PrintStatus(st[0], st[1], mem[0], mem[1], rate);
   }
 
@@ -499,11 +561,11 @@ int main(int argc, char** argv)
   int i = 0;
 
   for (auto it = results.begin(); it != results.end(); it++) {
-    if (!(i % 4)) {
+    if (!(i % 5)) {
       fprintf(stdout, "----------------------------------------------------\n");
     }
 
-    if (i < 4) {
+    if (i < 5) {
       fprintf(stdout, "%s rate: %.02f MHz mem-overhead: %.02f %%\n",
               it->first.c_str(), it->second / 1000000.0,
               1.0 * results_mem[it->first] / (n_files * 16));

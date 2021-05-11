@@ -28,6 +28,7 @@ include_directories(
   ${CMAKE_BINARY_DIR}/namespace/ns_quarkdb)  # for the generated protobuf
 
 add_subdirectory(benchmark)
+add_subdirectory(abseil-cpp)
 
 add_executable(xrdstress.exe XrdStress.cc XrdStress.hh)
 add_executable(xrdcpabort XrdCpAbort.cc)
@@ -72,7 +73,7 @@ target_link_libraries(xrdcpposixcache PRIVATE XROOTD::POSIX XROOTD::UTILS)
 target_link_libraries(xrdcppartial PRIVATE XROOTD::POSIX XROOTD::UTILS)
 target_link_libraries(xrdcpupdate PRIVATE XROOTD::POSIX XROOTD::UTILS)
 target_link_libraries(xrdcpslowwriter PRIVATE XROOTD::CL)
-target_link_libraries(eoshashbench PRIVATE EosCommon)
+target_link_libraries(eoshashbench PRIVATE EosCommon absl::flat_hash_map)
 target_link_libraries(eoslogbench PRIVATE EosCommon)
 target_link_libraries(eos-crypto-timing-test PRIVATE EosCommon)
 target_link_libraries(testhmacsha256 PRIVATE EosCommon)
