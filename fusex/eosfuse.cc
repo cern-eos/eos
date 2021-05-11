@@ -6118,10 +6118,10 @@ EosFuse::flock(fuse_req_t req, fuse_ino_t ino,
 	  lock.l_type = F_RDLCK;
 	} else if (op & LOCK_WRITE) {
 	  // 1st approximation
-	  lock.l_type = F_WRLCK;
+	  lock.l_type = F_RDLCK;
 	} else if (op & LOCK_RW) {
 	  // 1st approximation
-	  lock.l_type = F_WRLCK;
+	  lock.l_type = F_RDLCK;
 	} else {
 	  // 1st approximation
 	  lock.l_type = F_WRLCK;
