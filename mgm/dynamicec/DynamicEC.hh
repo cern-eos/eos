@@ -114,9 +114,6 @@ private:
 
 
 
-  std::atomic<bool>
-  testEnabel; /// test needs this to speed up different productionscycles
-
   std::atomic<double>
   mMinThresHold; ///< Threshold on when to stop the deletion of files
 
@@ -230,6 +227,16 @@ public:
   bool getTest();
 
   void setDynamicEC(bool onOff);
+
+  void setTestOn();
+
+  void setTestOff();
+
+  bool getTest();
+
+  void turnDynamicECOn();
+
+  void turnDynamicECOff();
 
   void testForSpaceCmd2();
 
