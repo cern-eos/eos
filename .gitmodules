@@ -29,3 +29,6 @@
 [submodule "common/jwt-cpp"]
 	path = common/jwt-cpp
 	url = https://github.com/Thalhammer/jwt-cpp.git
+[submodule "test/abseil-cpp"]
+	path = test/abseil-cpp
+	url = git://github.com/abseil/abseil-cpp
