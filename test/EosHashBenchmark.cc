@@ -39,9 +39,14 @@
 eos::common::RWMutex nslock;
 XrdSysMutex nsmutex;
 
-std::map<long long , long long> stdmap;
-google::dense_hash_map<long long, long long> googlemap;
-ulib::align_hash_map<long long, long long> ulibmap;
+using KeyType = long long;
+using ValueType = long long;
+
+std::map<KeyType, ValueType> stdmap;
+google::dense_hash_map<KeyType, ValueType> googlemap;
+ulib::align_hash_map<KeyType, ValueType> ulibmap;
+std::unordered_map<KeyType, ValueType> stdumap;
+
 
 std::map<std::string, double> results;
 std::map<std::string, long long> results_mem;
@@ -144,6 +149,13 @@ static void* RunReader(void* tconf)
       }
     }
 
+    if (r->type == 3) {
+      long long v = stdumap[n];
+
+      if (v) {
+        v = 1;
+      }
+    }
     // if (dolock)nsmutex.UnLock();
     if (dolock) {
       nslock.UnLockRead();
@@ -294,10 +306,46 @@ int main(int argc, char** argv)
     PrintStatus(st[0], st[1], mem[0], mem[1], rate);
   }
 
+  {
+    std::cerr <<
+              "# **********************************************************************************"
+              << std::endl;
+    std::cerr << "[i] Initialize Hash STL Unordered map..." << std::endl;
+    std::cerr <<
+              "# **********************************************************************************"
+              << std::endl;
+    eos::common::LinuxStat::linux_stat_t st[10];;
+    eos::common::LinuxMemConsumption::linux_mem_t mem[10];
+    eos::common::LinuxStat::GetStat(st[0]);
+    eos::common::LinuxMemConsumption::GetMemoryFootprint(mem[0]);
+    eos::common::Timing tm("directories");
+    COMMONTIMING("hash-start", &tm);
+
+    for (size_t i = 1; i <= n_files; i++) {
+      if (!(i % 1000000)) {
+        XrdOucString l = "level-";
+        l += (int)i;
+        COMMONTIMING(l.c_str(), &tm);
+      }
+
+      // fill the hash
+      stdumap[i] = i;
+    }
+
+    eos::common::LinuxStat::GetStat(st[1]);
+    eos::common::LinuxMemConsumption::GetMemoryFootprint(mem[1]);
+    COMMONTIMING("dir-stop", &tm);
+    tm.Print();
+    double rate = (n_files) / tm.RealTime() * 1000.0;
+    results["004 Fill STL Umap       Hash"] = rate;
+    results_mem["004 Fill STL Umap       Hash"] = st[1].vsize - st[0].vsize;
+    PrintStatus(st[0], st[1], mem[0], mem[1], rate);
+  }
+
   //----------------------------------------------------------------------------
   // Run a parallel consumer thread benchmark without locking
   //----------------------------------------------------------------------------
-  for (size_t t = 0; t < 3; t++) {
+  for (size_t t = 0; t < 4; t++) {
     eos::common::LinuxStat::linux_stat_t st[10];;
     eos::common::LinuxMemConsumption::linux_mem_t mem[10];
     std::cerr <<
@@ -315,6 +363,10 @@ int main(int argc, char** argv)
 
     if (t == 2) {
       std::cerr << "ULIB-MAP";
+    }
+
+    if (t == 3) {
+      std::cerr << "STL-UMAP";
     }
 
     std::cerr <<  std::endl;
@@ -347,24 +399,27 @@ int main(int argc, char** argv)
     double rate = (n_files) / tm.RealTime() * 1000.0;
 
     if (t == 0) {
-      results["003 Read no-lock STL    Hash"] = rate;
+      results["005 Read no-lock STL    Hash"] = rate;
     }
 
     if (t == 1) {
-      results["004 Read no-lock Google Hash"] = rate;
+      results["006 Read no-lock Google Hash"] = rate;
     }
 
     if (t == 2) {
-      results["005 Read no-lock Ulib   Hash"] = rate;
+      results["007 Read no-lock Ulib   Hash"] = rate;
     }
 
+    if (t == 3) {
+      results["008 Read no-lock STL Umap"] = rate;
+    }
     PrintStatus(st[0], st[1], mem[0], mem[1], rate);
   }
 
   //----------------------------------------------------------------------------
   // Run a parallel consumer thread benchmark with namespace locking
   //----------------------------------------------------------------------------
-  for (size_t t = 0; t < 3; t++) {
+  for (size_t t = 0; t < 4; t++) {
     eos::common::LinuxStat::linux_stat_t st[10];;
     eos::common::LinuxMemConsumption::linux_mem_t mem[10];
     std::cerr <<
@@ -382,6 +437,10 @@ int main(int argc, char** argv)
 
     if (t == 2) {
       std::cerr << "ULIB-MAP";
+    }
+
+    if (t == 3) {
+      std::cerr << "STL-UMAP";
     }
 
     std::cerr <<  std::endl;
@@ -414,17 +473,20 @@ int main(int argc, char** argv)
     double rate = (n_files) / tm.RealTime() * 1000.0;
 
     if (t == 0) {
-      results["006 Read lock    STL    Hash"] = rate;
+      results["009 Read lock    STL    Hash"] = rate;
     }
 
     if (t == 1) {
-      results["007 Read lock    Google Hash"] = rate;
+      results["010 Read lock    Google Hash"] = rate;
     }
 
     if (t == 2) {
-      results["008 Read lock    Ulib   Hash"] = rate ;
+      results["011 Read lock    Ulib   Hash"] = rate ;
     }
 
+    if (t == 3) {
+      results["012 Read lock  STL Umap Hash"] = rate;
+    }
     PrintStatus(st[0], st[1], mem[0], mem[1], rate);
   }
 
@@ -437,11 +499,11 @@ int main(int argc, char** argv)
   int i = 0;
 
   for (auto it = results.begin(); it != results.end(); it++) {
-    if (!(i % 3)) {
+    if (!(i % 4)) {
       fprintf(stdout, "----------------------------------------------------\n");
     }
 
-    if (i < 3) {
+    if (i < 4) {
       fprintf(stdout, "%s rate: %.02f MHz mem-overhead: %.02f %%\n",
               it->first.c_str(), it->second / 1000000.0,
               1.0 * results_mem[it->first] / (n_files * 16));
