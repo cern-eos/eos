@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------------
 // File: MakeDirectory.proto
 // Author: Branko Blagojevic <branko.blagojevic@comtrade.com>
+//         Ivan Arizanovic <ivan.arizanovic@comtrade.com>
 // ----------------------------------------------------------------------------
 syntax="proto3";
 
@@ -9,7 +10,7 @@ package eos.console;
 import "Metadata.proto";
 
 message MkdirProto {
-  Metadata md = 1;
-  bool recursive = 2;
-  int64 mode = 3;
+  Metadata md  = 1;
+  bool parents = 2;
+  int64 mode   = 3;
 }
