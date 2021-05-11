@@ -72,6 +72,10 @@ private:
                              const eos::console::RequestProto* request,
                              eos::console::ReplyProto* reply);
 
+  static grpc::Status Cp(eos::common::VirtualIdentity& vid,
+                         const eos::console::RequestProto* request,
+                         eos::console::ReplyProto* reply);
+
   static grpc::Status Debug(eos::common::VirtualIdentity& vid,
                             const eos::console::RequestProto* request,
                             eos::console::ReplyProto* reply);
@@ -86,7 +90,7 @@ private:
 
   static grpc::Status Find(eos::common::VirtualIdentity& vid,
                            const eos::console::RequestProto* request,
-                           std::vector<eos::console::StreamReplyProto>& reply);
+                           ServerWriter<eos::console::StreamReplyProto>* reply);
 
   static grpc::Status Fs(eos::common::VirtualIdentity& vid,
                          const eos::console::RequestProto* request,
@@ -102,7 +106,11 @@ private:
 
   static grpc::Status List(eos::common::VirtualIdentity& vid,
                            const eos::console::RequestProto* request,
-                           std::vector<eos::console::StreamReplyProto>& reply);
+                           ServerWriter<eos::console::StreamReplyProto>* reply);
+
+  static grpc::Status Ls(eos::common::VirtualIdentity& vid,
+                         const eos::console::RequestProto* request,
+                         eos::console::ReplyProto* reply);
 
   static grpc::Status Mkdir(eos::common::VirtualIdentity& vid,
                             const eos::console::RequestProto* request,
@@ -189,13 +197,13 @@ private:
 
   static grpc::Status MdGet(eos::common::VirtualIdentity& vid,
                             const eos::console::RequestProto* request,
-                            std::vector<eos::console::StreamReplyProto>& reply,
+                            ServerWriter<eos::console::StreamReplyProto>* reply,
                             bool check_perms = true,
                             bool lock = true);
 
   static grpc::Status MdStream(eos::common::VirtualIdentity& ivid,
                                const eos::console::RequestProto* request,
-                               std::vector<eos::console::StreamReplyProto>& reply,
+                               ServerWriter<eos::console::StreamReplyProto>* reply,
                                bool streamparent = true,
                                std::vector<uint64_t>* childdirs = 0);
 //-----------------------------------------------------------------------------

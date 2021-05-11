@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------------
 // File: Touch.proto
 // Author: Branko Blagojevic <branko.blagojevic@comtrade.com>
+// Author: Ivan Arizanovic <ivan.arizanovic@comtrade.com>
 // ----------------------------------------------------------------------------
 syntax="proto3";
 
@@ -9,5 +10,7 @@ package eos.console;
 import "Metadata.proto";
 
 message TouchProto {
-  Metadata md = 1;
+  Metadata md   = 1;
+  bool nolayout = 2;
+  bool truncate = 3;
 }
