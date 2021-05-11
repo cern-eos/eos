@@ -53,7 +53,7 @@ public:
    * @param errorCode the Xrd error code assocaited to the exception message
    * @return the error code linked to this exception
    */
-  virtual int setXrdErrInfo(XrdOucErrInfo & error,int errorCode) const;
+  virtual int fillXrdErrInfo(XrdOucErrInfo & error,int errorCode) const;
 private:
   std::string mErrorMsg;
 };
