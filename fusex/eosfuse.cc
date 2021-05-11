@@ -6111,6 +6111,21 @@ EosFuse::flock(fuse_req_t req, fuse_ino_t ino,
         lock.l_type = F_WRLCK;
       } else if (op & LOCK_UN) {
         lock.l_type = F_UNLCK;
+      } else if (op & LOCK_MAND) {
+	// mandatory locking used by samba
+	if ( op & LOCK_READ) {
+	  // 1st approximation
+	  lock.l_type = F_RDLCK;
+	} else if (op & LOCK_WRITE) {
+	  // 1st approximation
+	  lock.l_type = F_WRLCK;
+	} else if (op & LOCK_RW) {
+	  // 1st approximation
+	  lock.l_type = F_WRLCK;
+	} else {
+	  // 1st approximation
+	  lock.l_type = F_WRLCK;
+	}
       } else {
         rc = EINVAL;
       }
