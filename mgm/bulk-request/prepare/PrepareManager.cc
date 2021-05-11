@@ -230,7 +230,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
       saveBulkRequest();
     } catch(const PersistencyException &ex){
       eos_err("msg=Unable to persist the bulk request %s, ErrorMsg=%s",mBulkRequest->getId().c_str(),ex.what());
-      return ex.setXrdErrInfo(error,EIO);
+      return ex.fillXrdErrInfo(error, EIO);
     }
   }
   //Trigger the prepare workflow
