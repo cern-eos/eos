@@ -1,4 +1,4 @@
-1;95;0cio->maxfiles//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 //! @file eosfuse.cc
 //! @author Andreas-Joachim Peters CERN
 //! @brief EOS C++ Fuse low-level implementation (3rd generation)
