@@ -594,6 +594,9 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
 
   if (add_O_CREAT) {
     mFlags |= O_CREAT;
+  }
+
+  if (mFlags & O_CREAT) {
     mFlags |= O_RDWR;
   }
 
@@ -660,7 +663,7 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
     }
   }
 
-  if (flags & (O_RDWR | O_WRONLY)) {
+  if (flags & (O_CREAT | O_RDWR | O_WRONLY)) {
     isRW = true;
   }
 
