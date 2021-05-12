@@ -36,6 +36,7 @@
 #include "absl/container/flat_hash_map.h"
 #include <string>
 #include <map>
+#include <random>
 
 eos::common::RWMutex nslock;
 XrdSysMutex nsmutex;
@@ -120,7 +121,7 @@ static void* RunReader(void* tconf)
   size_t n_files = r->n_files;
   bool dolock = r->dolock;
 
-  for (size_t n = 1 + i; n <= n_files; n += r->threads) {
+  for (size_t n = n_files; n > 0; n -= r->threads) {
     // if (dolock)nsmutex.Lock();
     if (dolock) {
       nslock.LockRead();
@@ -183,19 +184,29 @@ int main(int argc, char** argv)
   //----------------------------------------------------------------------------
   // Check up the commandline params
   //----------------------------------------------------------------------------
-  if (argc != 3) {
+  if (argc < 3) {
     std::cerr << "Usage:"                                << std::endl;
-    std::cerr << "  eos-has-benchmark <entries> <threads>" << std::endl;
+    std::cerr << "  eos-hash-benchmark <entries> <threads> [r]" << std::endl;
     return 1;
   };
 
   size_t n_files = atoi(argv[1]);
 
   size_t n_i = atoi(argv[2]);
-
+  bool randomize = false;
+  if (argc == 4) {
+    randomize = true;
+  }
   if (n_files <= 0) {
     std::cerr << "Error: number of entries has to be > 0" << std::endl;
     return 1;
+  }
+  std::vector<KeyType> keys(n_files);
+  std::iota(keys.begin(), keys.end(), 1);
+
+  if (randomize) {
+    std::shuffle(keys.begin(), keys.end(),
+                 std::mt19937{std::random_device{}()});
   }
 
   {
@@ -212,16 +223,15 @@ int main(int argc, char** argv)
     eos::common::LinuxMemConsumption::GetMemoryFootprint(mem[0]);
     eos::common::Timing tm("directories");
     COMMONTIMING("hash-start", &tm);
-
-    for (size_t i = 1; i <= n_files; i++) {
-      if (!(i % 1000000)) {
+    size_t i = 1;
+    for (const auto& key : keys) {
+      if (!(i++ % 1000000)) {
         XrdOucString l = "level-";
         l += (int)i;
         COMMONTIMING(l.c_str(), &tm);
       }
-
       // fill the hash
-      stdmap[i] = i;
+      stdmap[key] = key;
     }
 
     eos::common::LinuxStat::GetStat(st[1]);
@@ -249,16 +259,16 @@ int main(int argc, char** argv)
     eos::common::Timing tm("directories");
     COMMONTIMING("hash-start", &tm);
 
-    for (size_t i = 1; i <= n_files; i++) {
-      if (!(i % 1000000)) {
+    size_t i = 1;
+    for (const auto& key : keys) {
+      if (!(i++ % 1000000)) {
         XrdOucString l = "level-";
         l += (int)i;
         COMMONTIMING(l.c_str(), &tm);
       }
-
       // fill the hash
       try {
-        googlemap[i] = i;
+        googlemap[key] = key;
       } catch (std::length_error& len_excp) {
         std::cerr << "Resize overflow exeception in google map" << std::endl;
         exit(-1);
@@ -289,9 +299,9 @@ int main(int argc, char** argv)
     eos::common::LinuxMemConsumption::GetMemoryFootprint(mem[0]);
     eos::common::Timing tm("directories");
     COMMONTIMING("hash-start", &tm);
-
-    for (size_t i = 1; i <= n_files; i++) {
-      if (!(i % 1000000)) {
+    size_t i = 1;
+    for (const auto& key : keys) {
+      if (!(i++ % 1000000)) {
         XrdOucString l = "level-";
         l += (int)i;
         COMMONTIMING(l.c_str(), &tm);
@@ -299,7 +309,7 @@ int main(int argc, char** argv)
 
       // fill the hash
       try {
-        ulibmap[i] = i;
+        ulibmap[key] = key;
       } catch (const ulib::ulib_except& e) {
         std::cerr << "Exception while inserting into ulib map" << std::endl;
         exit(-1);
@@ -331,15 +341,16 @@ int main(int argc, char** argv)
     eos::common::Timing tm("directories");
     COMMONTIMING("hash-start", &tm);
 
-    for (size_t i = 1; i <= n_files; i++) {
-      if (!(i % 1000000)) {
+    size_t i = 1;
+    for (const auto& key : keys) {
+      if (!(i++ % 1000000)) {
         XrdOucString l = "level-";
         l += (int)i;
         COMMONTIMING(l.c_str(), &tm);
       }
 
       // fill the hash
-      stdumap[i] = i;
+      stdumap[key] = key;
     }
 
     eos::common::LinuxStat::GetStat(st[1]);
@@ -368,15 +379,15 @@ int main(int argc, char** argv)
     COMMONTIMING("hash-start", &tm);
 
     abslmap.reserve(n_files);
-    size_t i = 0;
+    size_t i = 1;
     for (const auto& key : keys) {
-      if (!(i % 1000000)) {
+      if (!(i++ % 1000000)) {
         XrdOucString l = "level-";
         l += (int)i;
         COMMONTIMING(l.c_str(), &tm);
       }
-
-      abslmap.emplace(key,i++);
+      abslmap.emplace(key, key);
+      //abslmap[i]=i;
     }
 
     eos::common::LinuxStat::GetStat(st[1]);
@@ -473,7 +484,7 @@ int main(int argc, char** argv)
   //----------------------------------------------------------------------------
   // Run a parallel consumer thread benchmark with namespace locking
   //----------------------------------------------------------------------------
-  for (size_t t = 0; t < 4; t++) {
+  for (size_t t = 0; t < 5; t++) {
     eos::common::LinuxStat::linux_stat_t st[10];;
     eos::common::LinuxMemConsumption::linux_mem_t mem[10];
     std::cerr <<
