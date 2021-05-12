@@ -1,4 +1,4 @@
-//------------------------------------------------------------------------------
+1;95;0cio->maxfiles//------------------------------------------------------------------------------
 //! @file eosfuse.cc
 //! @author Andreas-Joachim Peters CERN
 //! @brief EOS C++ Fuse low-level implementation (3rd generation)
@@ -6090,82 +6090,88 @@ EosFuse::flock(fuse_req_t req, fuse_ino_t ino,
     // use default local locking
     rc = EOPNOTSUPP;
   } else {
-    // use global locking
-    data::data_fh* io = (data::data_fh*) fi->fh;
-
-    if (io) {
-      metad::shared_md md = io->mdctx();
-      size_t w_ms = 10;
-      int sleep = 1;
-      struct flock lock;
-      lock.l_len = 0;
-      lock.l_start = 0;
-
-      if (op & LOCK_NB) {
-        sleep = 0;
-      }
-
-      if (op & LOCK_SH) {
-        lock.l_type = F_RDLCK;
-      } else if (op & LOCK_EX) {
-        lock.l_type = F_WRLCK;
-      } else if (op & LOCK_UN) {
-        lock.l_type = F_UNLCK;
-      } else if (op & LOCK_MAND) {
-	// mandatory locking used by samba
-	if ( op & LOCK_READ) {
-	  // 1st approximation
+    if (op) {
+      // use global locking
+      data::data_fh* io = (data::data_fh*) fi->fh;
+      
+      if (io) {
+	metad::shared_md md = io->mdctx();
+	size_t w_ms = 10;
+	int sleep = 1;
+	struct flock lock;
+	lock.l_len = 0;
+	lock.l_start = 0;
+	
+	if (op & LOCK_NB) {
+	  sleep = 0;
+	}
+	
+	if (op & LOCK_SH) {
 	  lock.l_type = F_RDLCK;
-	} else if (op & LOCK_WRITE) {
-	  // 1st approximation
-	  lock.l_type = F_RDLCK;
-	} else if (op & LOCK_RW) {
-	  // 1st approximation
-	  lock.l_type = F_RDLCK;
-	} else {
-	  // 1st approximation
+	} else if (op & LOCK_EX) {
 	  lock.l_type = F_WRLCK;
+	} else if (op & LOCK_UN) {
+	  lock.l_type = F_UNLCK;
+      } else if (op & LOCK_MAND) {
+	  // mandatory locking used by samba
+	  if ( op & LOCK_READ) {
+	    // 1st approximation
+	    lock.l_type = F_RDLCK;
+	  } else if (op & LOCK_WRITE) {
+	    // 1st approximation
+	    lock.l_type = F_RDLCK;
+	  } else if (op & LOCK_RW) {
+	    // 1st approximation
+	    lock.l_type = F_RDLCK;
+	  } else {
+	    // 1st approximation
+	    lock.l_type = F_WRLCK;
+	  }
+	} else {
+	  eos_static_notice("unsupported lock operation op:=%x", op);
+	  rc = EINVAL;
+	}
+	
+	lock.l_pid = fuse_req_ctx(req)->pid;
+	
+	if (!rc) {
+	  do {
+	    // we currently implement the polling lock on client side due to the
+	    // thread-per-link model of XRootD
+	    rc = Instance().mds.setlk(req, md, &lock, sleep);
+	    
+	    if (rc && sleep) {
+	      std::this_thread::sleep_for(std::chrono::milliseconds(w_ms));
+	      // do exponential back-off with a hard limit at 1s
+	      w_ms *= 2;
+	      
+	      if (w_ms > 1000) {
+		w_ms = 1000;
+	      }
+	      
+	      continue;
+	    }
+	    
+	    break;
+	  } while (rc);
+	}
+	
+	if (!rc) {
+	  io->flocked = true;
 	}
       } else {
-        rc = EINVAL;
-      }
-
-      lock.l_pid = fuse_req_ctx(req)->pid;
-
-      if (!rc) {
-        do {
-          // we currently implement the polling lock on client side due to the
-          // thread-per-link model of XRootD
-          rc = Instance().mds.setlk(req, md, &lock, sleep);
-
-          if (rc && sleep) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(w_ms));
-            // do exponential back-off with a hard limit at 1s
-            w_ms *= 2;
-
-            if (w_ms > 1000) {
-              w_ms = 1000;
-            }
-
-            continue;
-          }
-
-          break;
-        } while (rc);
-      }
-
-      if (!rc) {
-        io->flocked = true;
+	rc = ENXIO;
       }
     } else {
-      rc = ENXIO;
+      // consider a no-op
+      rc = 0;
     }
   }
-
+  
   fuse_reply_err(req, rc);
   EXEC_TIMING_END(__func__);
   COMMONTIMING("_stop_", &timing);
-  eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
+  eos_static_notice("t(ms)=%.03f op=%x %s", timing.RealTime(),op,
                     dump(id, ino, 0, rc).c_str());
 }
 #endif
