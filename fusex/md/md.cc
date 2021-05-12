@@ -1580,6 +1580,7 @@ metad::setlk(fuse_req_t req, shared_md md, struct flock* lock, int sleep)
     break;
 
   default:
+    eos_static_notice("unsupported lock operation op:%x", lock->l_type);
     return EINVAL;
   }
 

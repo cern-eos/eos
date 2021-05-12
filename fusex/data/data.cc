@@ -594,6 +594,7 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
 
   if (add_O_CREAT) {
     mFlags |= O_CREAT;
+    mFlags |= O_RDWR;
   }
 
   // check for file inlining only for the first attach call
