@@ -31,6 +31,9 @@ fstofs.metalog /var/eos/md/
 #fstofs.authdir /var/eos/auth/
 #fstofs.trace client
 ###########################################################
+# QuarkDB cluster info needed by FSCK to perform the namespace scan
+#fstofs.qdbcluster localhost:777
+#fstofs.qdbpassword_file /etc/eos.keytab
 
 #-------------------------------------------------------------------------------
 # Configuration for XrdHttp http(s) service on port 11000
