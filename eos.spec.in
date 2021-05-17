@@ -319,12 +319,6 @@ cd build
   %endif
 
   %if 0%{distribution} == 7 || 0%{distribution} == 8
-    %if 0%{distribution} == 8
-      echo "Install custom cmake 3.15.5 required by EOS"
-      mkdir ./cmake_install/
-      ../misc/cmake/cmake-3.15.5-Linux-x86_64.sh --prefix=./cmake_install/ --skip-license
-      %define cmake ./cmake_install/bin/cmake
-    %endif
     %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=%{build_type} -DXROOTD_ROOT=/opt/eos/xrootd/ %{build_flags}
   %else
     %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=%{build_type} %{build_flags}
