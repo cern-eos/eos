@@ -15,6 +15,25 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.8.47 Citrine``
+===================
+
+2021-05-17
+
+Bug
+----
+
+Bug
+---
+
+* [EOS-4716] - quota zeroes the counters of used bytes/files from the quota node
+
+
+New Feature
+------------
+
+* [EOS-4712] - Support LOCK_MAND in eosxd
+
 
 ``v4.8.46 Citrine``
 ===================
