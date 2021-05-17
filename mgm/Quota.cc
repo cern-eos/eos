@@ -344,12 +344,6 @@ SpaceQuota::UpdateIsSums()
   mMapIdQuota[Index(kAllGroupBytesIs, 0)] = 0;
   mMapIdQuota[Index(kAllGroupFilesIs, 0)] = 0;
   mMapIdQuota[Index(kAllGroupLogicalBytesIs, 0)] = 0;
-  mMapIdQuota[Index(kAllUserBytesIs, 0)] = 0;
-  mMapIdQuota[Index(kAllUserLogicalBytesIs, 0)] = 0;
-  mMapIdQuota[Index(kAllUserFilesIs, 0)] = 0;
-  mMapIdQuota[Index(kAllGroupBytesIs, 0)] = 0;
-  mMapIdQuota[Index(kAllGroupFilesIs, 0)] = 0;
-  mMapIdQuota[Index(kAllGroupLogicalBytesIs, 0)] = 0;
 
   for (auto it = mMapIdQuota.begin(); it != mMapIdQuota.end(); it++) {
     if ((UnIndex(it->first) == kUserBytesIs)) {
@@ -420,7 +414,7 @@ SpaceQuota::UpdateFromQuotaNode(uid_t uid, gid_t gid, bool upd_proj_quota)
         }
       }
 
-      if (docalc) {
+      if (docalc || (gid == Quota::gProjectId)) {
         mMapIdQuota[Index(kGroupBytesIs, Quota::gProjectId)] = 0;
         mMapIdQuota[Index(kGroupFilesIs, Quota::gProjectId)] = 0;
         mMapIdQuota[Index(kGroupLogicalBytesIs, Quota::gProjectId)] = 0;
