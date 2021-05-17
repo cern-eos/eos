@@ -95,7 +95,7 @@ Using this as a reference, we start customizing the configuration files for our 
      # Customize the storage location
      sed -i 's/\/var\/quarkdb/\/var\/lib\/quarkdb\/qdb'"${i}"'/g' /etc/xrootd/xrootd-quarkdb${i}.cfg
      # Add myself entry to the config
-     sed -i 's/fi/  redis.myself localhost:700'"${i}"'\n&/' /etc/xrootd/xrootd-quarkdb${i}.cfg
+     sed -i 's/^fi/  redis.myself localhost:700'"${i}"'\n&/' /etc/xrootd/xrootd-quarkdb${i}.cfg
      # Prepare the log and working directories for the instances
      mkdir -p /var/log/quarkdb/
      mkdir -p /var/spool/quarkdb/
