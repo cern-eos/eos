@@ -116,19 +116,22 @@ PathRouting::Reroute(const char* inpath, const char* ininfo,
 
   XrdCl::URL url(surl);
   XrdCl::URL::ParamsMap param = url.GetParams();
+  // If there is a routing tag in the CGI, we use that one to map. Also note the
+  // tags have priorities.
+  std::list<std::string> tags {"eos.route", "mgm.path", "mgm.quota.space"};
 
-  // If there is a routing tag in the CGI, we use that one to map
-  if (param["eos.route"].length()) {
-    path = param["eos.route"];
-  } else if (param["mgm.path"].length()) {
-    path = param["mgm.path"];
-  } else if (param["mgm.quota.space"].length()) {
-    path = param["mgm.quota.space"];
+  for (const auto tag : tags) {
+    auto it = param.find(tag);
+
+    if (it != param.end() && it->second.length()) {
+      path = it->second;
+      break;
+    }
   }
 
   // Make sure path is not empty and is '/' terminated
   if (path.empty()) {
-    eos_debug("input path is empty");
+    eos_debug("%s", "msg=\"input path is empty\"");
     return Status::NOROUTING;
   }
 
@@ -136,6 +139,7 @@ PathRouting::Reroute(const char* inpath, const char* ininfo,
   eos::common::Path cPath(path.c_str());
   path = cPath.GetPath();
 
+  // Make sure path is / terminated
   if (path.back() != '/') {
     path += '/';
   }
@@ -144,7 +148,7 @@ PathRouting::Reroute(const char* inpath, const char* ininfo,
   eos::common::RWMutexReadLock route_rd_lock(mPathRouteMutex);
 
   if (mPathRoute.empty()) {
-    eos_debug("no routes defined");
+    eos_debug("%s", "msg=\"no routes defined\"");
     return Status::NOROUTING;
   }
 
@@ -186,7 +190,7 @@ PathRouting::Reroute(const char* inpath, const char* ininfo,
   }
 
   if (!master_ep->mIsOnline.load()) {
-    eos_warning("no online endpoints for route path=%s", it->first.c_str());
+    eos_warning("msg=\"no online endpoints for route\" path=%s", it->first.c_str());
     return Status::STALL;
   }
 
