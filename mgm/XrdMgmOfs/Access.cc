@@ -346,17 +346,18 @@ XrdMgmOfs::acc_access(const char* path,
   return SFS_OK;
 }
 
+
+
 //------------------------------------------------------------------------------
-// Test if public access is allowed for a given path
+// Test if this is eosnobody accessing a squashfs file
 //------------------------------------------------------------------------------
 bool
-XrdMgmOfs::allow_public_access(const char* path,
-                               eos::common::VirtualIdentity& vid)
+XrdMgmOfs::is_squashfs_access(const char* path,
+			    eos::common::VirtualIdentity& vid)
 {
   int errc = 0;
-
   if ((eos::common::Mapping::UserNameToUid(std::string("eosnobody"),
-       errc) == vid.uid) &&
+					   errc) == vid.uid) &&
       !errc && (vid.prot == "sss")) {
     // eosnobody can access all squash files
     eos::common::Path cPath(path);
@@ -365,7 +366,20 @@ XrdMgmOfs::allow_public_access(const char* path,
       errno = EACCES;
       return false;
     }
+    return true;
+  }
+  return false;
+}
 
+//------------------------------------------------------------------------------
+// Test if public access is allowed for a given path
+//------------------------------------------------------------------------------
+bool
+XrdMgmOfs::allow_public_access(const char* path,
+                               eos::common::VirtualIdentity& vid)
+{
+
+  if (is_squashfs_access(path, vid)) {
     return true;
   } else {
     // check only for anonymous access
