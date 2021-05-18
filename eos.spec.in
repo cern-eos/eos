@@ -76,6 +76,9 @@
 
 %if %{?fedora:1}%{!?fedora:0} || 0%{?distribution} == 8
   %define cmake cmake
+%if 0%{?distribution} == 8
+  %define cmake /opt/eos/cmake/bin/cmake
+%endif
 %endif
 
 %if %{?rhel:1}%{!?rhel:0}
