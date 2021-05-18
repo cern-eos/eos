@@ -35,16 +35,17 @@ EOSMQNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Constructor
 //------------------------------------------------------------------------------
-SharedHashWrapper::SharedHashWrapper(mq::MessagingRealm *realm, const common::SharedHashLocator& locator,
-  bool takeLock, bool create)
+SharedHashWrapper::SharedHashWrapper(mq::MessagingRealm* realm,
+                                     const common::SharedHashLocator& locator,
+                                     bool takeLock, bool create)
   : mSom(realm->getSom()), mLocator(locator)
 {
-  if(realm->haveQDB()) {
+  if (realm->haveQDB()) {
     mSharedHash = realm->getHashProvider()->get(locator.getQDBKey());
   }
 
   if (takeLock) {
-    mReadLock.Grab(mSom->HashMutex);
+    mReadLock.Grab(mSom->HashMutex, __FUNCTION__, __LINE__, __FILE__);
   }
 
   mHash = mSom->GetObject(mLocator.getConfigQueue().c_str(), "hash");
@@ -56,7 +57,7 @@ SharedHashWrapper::SharedHashWrapper(mq::MessagingRealm *realm, const common::Sh
     mReadLock.Release();
     mSom->CreateSharedHash(mLocator.getConfigQueue().c_str(),
                            mLocator.getBroadcastQueue().c_str(), mSom);
-    mReadLock.Grab(mSom->HashMutex);
+    mReadLock.Grab(mSom->HashMutex, __FUNCTION__, __LINE__, __FILE__);
     mHash = mSom->GetObject(mLocator.getConfigQueue().c_str(), "hash");
   } else if (mHash) {
     std::unique_lock lock(mHash->mMutex);
@@ -64,7 +65,8 @@ SharedHashWrapper::SharedHashWrapper(mq::MessagingRealm *realm, const common::Sh
   }
 }
 
-SharedHashWrapper SharedHashWrapper::makeGlobalMgmHash(mq::MessagingRealm *realm)
+SharedHashWrapper SharedHashWrapper::makeGlobalMgmHash(mq::MessagingRealm*
+    realm)
 {
   return SharedHashWrapper(realm, common::SharedHashLocator::makeForGlobalHash());
 }
@@ -101,14 +103,14 @@ bool SharedHashWrapper::set(const std::string& key, const std::string& value,
 // Set value, detect based on prefix whether it should be durable,
 // transient, or local
 //------------------------------------------------------------------------------
-void SharedHashWrapper::Batch::Set(const std::string& key, const std::string& value) {
-  if(common::startsWith(key, "stat.")) {
+void SharedHashWrapper::Batch::Set(const std::string& key,
+                                   const std::string& value)
+{
+  if (common::startsWith(key, "stat.")) {
     SetTransient(key, value);
-  }
-  else if(common::startsWith(key, "local.")) {
+  } else if (common::startsWith(key, "local.")) {
     SetLocal(key, value);
-  }
-  else {
+  } else {
     SetDurable(key, value);
   }
 }
@@ -149,18 +151,21 @@ bool SharedHashWrapper::set(const Batch& batch)
     return false;
   }
 
-  if(mSharedHash) {
+  if (mSharedHash) {
     qclient::UpdateBatch updateBatch;
 
-    for (auto it = batch.mDurableUpdates.begin(); it != batch.mDurableUpdates.end(); it++) {
+    for (auto it = batch.mDurableUpdates.begin(); it != batch.mDurableUpdates.end();
+         it++) {
       updateBatch.setDurable(it->first, it->second);
     }
 
-    for (auto it = batch.mTransientUpdates.begin(); it != batch.mTransientUpdates.end(); it++) {
+    for (auto it = batch.mTransientUpdates.begin();
+         it != batch.mTransientUpdates.end(); it++) {
       updateBatch.setTransient(it->first, it->second);
     }
 
-    for (auto it = batch.mLocalUpdates.begin(); it != batch.mLocalUpdates.end(); it++) {
+    for (auto it = batch.mLocalUpdates.begin(); it != batch.mLocalUpdates.end();
+         it++) {
       updateBatch.setLocal(it->first, it->second);
     }
 
@@ -173,7 +178,6 @@ bool SharedHashWrapper::set(const Batch& batch)
   // to be available in the shared hash onec it receives an update for the fs id
   // This can only be achieved if we make sure the "id" is the last update the
   // FST receives after applying all the rest from the current batch.
-
   std::unique_lock lock(mHash->mMutex);
   std::map<std::string, std::string>::const_iterator it_id;
   bool has_id_update = false;
@@ -217,7 +221,7 @@ std::string SharedHashWrapper::get(const std::string& key)
   std::string retval;
   bool outcome = this->get(key, retval);
 
-  if(!outcome) {
+  if (!outcome) {
     return "";
   }
 
@@ -245,7 +249,7 @@ double SharedHashWrapper::getDouble(const std::string& key)
 //------------------------------------------------------------------------------
 bool SharedHashWrapper::get(const std::string& key, std::string& value)
 {
-  if(mSharedHash) {
+  if (mSharedHash) {
     return mSharedHash->get(key, value);
   }
 
@@ -263,16 +267,14 @@ bool SharedHashWrapper::get(const std::string& key, std::string& value)
 //------------------------------------------------------------------------------
 bool SharedHashWrapper::del(const std::string& key, bool broadcast)
 {
-  if(mSharedHash) {
+  if (mSharedHash) {
     qclient::UpdateBatch updateBatch;
 
-    if(common::startsWith(key, "stat.")) {
+    if (common::startsWith(key, "stat.")) {
       updateBatch.setTransient(key, "");
-    }
-    else if(common::startsWith(key, "local.")) {
+    } else if (common::startsWith(key, "local.")) {
       updateBatch.setLocal(key, "");
-    }
-    else {
+    } else {
       updateBatch.setDurable(key, "");
     }
 
@@ -319,15 +321,19 @@ bool SharedHashWrapper::getContents(std::map<std::string, std::string>& out)
 //------------------------------------------------------------------------------
 // Delete a shared hash, without creating an object first
 //------------------------------------------------------------------------------
-bool SharedHashWrapper::deleteHash(mq::MessagingRealm* realm, const common::SharedHashLocator &locator) {
-  return realm->getSom()->DeleteSharedHash(locator.getConfigQueue().c_str(), true);
+bool SharedHashWrapper::deleteHash(mq::MessagingRealm* realm,
+                                   const common::SharedHashLocator& locator)
+{
+  return realm->getSom()->DeleteSharedHash(locator.getConfigQueue().c_str(),
+         true);
 }
 
 //------------------------------------------------------------------------------
 // Entirely clear contents. For old MQ implementation, call
 // DeleteSharedHash too.
 //------------------------------------------------------------------------------
-bool SharedHashWrapper::deleteHash() {
+bool SharedHashWrapper::deleteHash()
+{
   return mSom->DeleteSharedHash(mLocator.getConfigQueue().c_str(), true);
 }
 
