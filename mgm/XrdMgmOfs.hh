@@ -734,10 +734,10 @@ public:
   //! @param path path to access
   //! @param vid virtual identity of the user
   //!
-  //! @return true if this is the case, otherwise false
+  //! @return 0 if no squashfs access, 1 if squashfs but not allowed 2 if squashfs and allowed
   //---------------------------------------------------------------------------
-  bool is_squashfs_access(const char* path,
-			  eos::common::VirtualIdentity& vid);
+  int is_squashfs_access(const char* path,
+			 eos::common::VirtualIdentity& vid);
 
   //----------------------------------------------------------------------------
   //! Test if public access is allowed in a given path
