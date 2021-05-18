@@ -1065,6 +1065,27 @@ runtest "### Newfind    " unix 0 "EOSROLE='-r 99 99'" eos newfind "/eos/$EOS_TES
 runtest "### Rmdir   " unix 0 "" eos rmdir /eos/$EOS_TEST_INSTANCE/test/instancetest/public
 
 ################################################################################
+# eosnobody
+###################################################A############################
+categorie="eosnobody"
+cat /etc/eos.keytab | grep eosnobody > /tmp/eos.nobody.keytab
+if [ $? -eq 0 ]; then
+    chmod 400 /tmp/eos.nobody.keytab
+    runtest "### Mkdir     " unix 0 "" eos mkdir -p /eos/$EOS_TEST_INSTANCE/test/instancetest/eosnobody
+    runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest/eosnobody/"
+    runtest "### Upload    " unix 0 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/eosnobody/p1"
+    runtest "### Upload    " unix 0 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/eosnobody/.p1.sqsh"
+    runtest "### Chmod     " unix 0 "" eos chmod "700" "/eos/$EOS_TEST_INSTANCE/test/instancetest/eosnobody/"
+    runtest "### Ls        " unix 1 "XrdSecSSSKT='/tmp/eos.nobody.keytab'" eos ls -la /eos/$EOS_TEST_INSTANCE/test/instancetest/eosnobody/
+    runtest "### Ls        " sss  1 "XrdSecSSSKT='/tmp/eos.nobody.keytab'" eos ls -la /eos/$EOS_TEST_INSTANCE/test/instancetest/eosnobody/
+    runtest "### Download  " sss  1 "XrdSecSSSKT='/tmp/eos.nobody.keytab'" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/eosnobody/p1"
+    runtest "### Download  " sss  0 "XrdSecSSSKT='/tmp/eos.nobody.keytab'" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/eosnobody/.p1.sqsh"
+    runtest "### Rm        " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/eosnobody/
+    chnmod 700 /tmp/eos.nobody.keytab
+    unlink /tmp/eos.nobody.keytab
+fi
+
+################################################################################
 # POLICIES
 ###################################################A############################
 categorie="policy"
