@@ -166,7 +166,7 @@ Share::Proc::SetShareAcl(const std::string& path, const std::string& share_acl)
 
 
 std::string
-Share::Proc::GetShareReference(const char* path)z
+Share::Proc::GetShareReference(const char* path)
 {
   std::string shareattr;
   std::shared_ptr<eos::IContainerMD> dmd;
