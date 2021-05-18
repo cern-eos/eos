@@ -752,7 +752,8 @@ Server::FillContainerCAP(uint64_t id,
     }
 
     if (!gOFS->allow_public_access(dir.fullpath().c_str(), vid)) {
-      mode = X_OK;
+      mode = dir.mode() & S_IFDIR;
+      mode |= X_OK;
     }
 
     dir.mutable_capability()->set_mode(mode);
