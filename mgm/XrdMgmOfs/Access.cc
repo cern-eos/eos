@@ -351,7 +351,7 @@ XrdMgmOfs::acc_access(const char* path,
 //------------------------------------------------------------------------------
 // Test if this is eosnobody accessing a squashfs file
 //------------------------------------------------------------------------------
-bool
+int
 XrdMgmOfs::is_squashfs_access(const char* path,
 			    eos::common::VirtualIdentity& vid)
 {
@@ -364,11 +364,11 @@ XrdMgmOfs::is_squashfs_access(const char* path,
 
     if (!cPath.isSquashFile()) {
       errno = EACCES;
-      return false;
+      return 1;
     }
-    return true;
+    return 2;
   }
-  return false;
+  return 0;
 }
 
 //------------------------------------------------------------------------------
@@ -378,33 +378,40 @@ bool
 XrdMgmOfs::allow_public_access(const char* path,
                                eos::common::VirtualIdentity& vid)
 {
+  int sq = is_squashfs_access(path,vid);
 
-  if (is_squashfs_access(path, vid)) {
-    return true;
-  } else {
-    // check only for anonymous access
-    if (vid.uid != 99) {
-      return true;
-    }
-
-    // check publicaccess level
-    int level = eos::common::Mapping::GetPublicAccessLevel();
-
-    if (level >= 1024) {
-      // short cut
-      return true;
-    }
-
-    eos::common::Path cPath(path);
-
-    if ((int)cPath.GetSubPathSize() >= level) {
-      // forbid everything to nobody in that case
-      errno = EACCES;
-      return false;
-    }
-
+  if (sq == 2) {
+    // eosnobody squashfs file access is allowed
     return true;
   }
+
+  if (sq == 1) {
+    // eosnobody access is not allowed in general
+    return false;
+  }
+
+  // check only for anonymous access
+  if (vid.uid != 99) {
+    return true;
+  }
+  
+  // check publicaccess level
+  int level = eos::common::Mapping::GetPublicAccessLevel();
+  
+  if (level >= 1024) {
+    // short cut
+    return true;
+  }
+  
+  eos::common::Path cPath(path);
+  
+  if ((int)cPath.GetSubPathSize() >= level) {
+    // forbid everything to nobody in that case
+    errno = EACCES;
+    return false;
+  }
+  
+  return true;
 }
 
 //------------------------------------------------------------------------------
