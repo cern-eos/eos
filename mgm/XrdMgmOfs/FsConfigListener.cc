@@ -100,7 +100,8 @@ XrdMgmOfs::ProcessGeotagChange(const std::string& queue)
 {
   std::string newgeotag;
   eos::common::FileSystem::fsid_t fsid = 0;
-  eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+  eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex, __FUNCTION__,
+                                          __LINE__, __FILE__);
   FileSystem* fs = FsView::gFsView.mIdView.lookupByQueuePath(queue);
 
   if (fs == nullptr) {
