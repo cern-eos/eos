@@ -3930,6 +3930,12 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
 
       if (md->attr().count("user.acl")) { /* file with own ACL */
         cap_ino = md->id();
+      } else {
+	// screen for sqash image access, they only retrieve X_OK on the parent directories
+	eos::common::Path cPath(md->name());
+	if ( ( mode == R_OK ) && (cPath.isSquashFile()) ) {
+	  mode = X_OK;
+	}
       }
 
       cap::shared_cap pcap = Instance().caps.acquire(req, cap_ino, mode);
