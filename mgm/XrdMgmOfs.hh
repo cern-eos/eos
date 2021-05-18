@@ -729,6 +729,17 @@ public:
                  eos::common::VirtualIdentity& vid, std::string& accperm);
 
   //----------------------------------------------------------------------------
+  //! Test if this is eosnobody accessing a squashfs file
+  //!
+  //! @param path path to access
+  //! @param vid virtual identity of the user
+  //!
+  //! @return true if this is the case, otherwise false
+  //---------------------------------------------------------------------------
+  bool is_squashfs_access(const char* path,
+			  eos::common::VirtualIdentity& vid);
+
+  //----------------------------------------------------------------------------
   //! Test if public access is allowed in a given path
   //!
   //! @param path path to access

@@ -817,6 +817,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   }
 
   bool isSharedFile = gOFS->VerifySharePath(path, openOpaque);
+
+  if (gOFS->is_squashfs_access(path, vid)) {
+    isSharedFile = true;
+  }
+
   // Get the directory meta data if it exists
   std::shared_ptr<eos::IContainerMD> dmd = nullptr;
   eos::IContainerMD::XAttrMap attrmap;
