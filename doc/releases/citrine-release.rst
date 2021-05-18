@@ -15,13 +15,24 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
+``v4.8.48 Citrine``
+===================
+
+2021-05-18
+
+Bug
+----
+
+* [EOS-4715] - Segv in jemalloc during PathRouting
+* MGM: add by-pass for squashfs sss 'eosnobody' file access without ACL entries
+* FUSEX: allow to open a squashfs image file client side even if we don't have R mode on the parent directory
+
+
 ``v4.8.47 Citrine``
 ===================
 
 2021-05-17
-
-Bug
-----
 
 Bug
 ---
