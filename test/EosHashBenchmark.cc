@@ -52,6 +52,20 @@ absl::flat_hash_map<KeyType, ValueType> abslmap;
 
 std::map<std::string, double> results;
 std::map<std::string, long long> results_mem;
+int counter{0};
+
+template <typename M,
+          typename val_type = typename M::mapped_type>
+void add_result_entry(M& results,
+                      int& counter,
+                      std::string&& entry, val_type val)
+{
+  std::ostringstream oss;
+  oss << std::setw(3) << std::setfill('0') << counter++ << " "
+      << entry;
+  results.emplace(oss.str(),
+                  val);
+}
 
 //------------------------------------------------------------------------------
 // Print current status
@@ -239,8 +253,9 @@ int main(int argc, char** argv)
     COMMONTIMING("dir-stop", &tm);
     tm.Print();
     double rate = (n_files) / tm.RealTime() * 1000.0;
-    results["001 Fill STL            Hash"] = rate;
-    results_mem["001 Fill STL            Hash"] = st[1].vsize - st[0].vsize;
+    add_result_entry(results, counter, "Fill STL ", rate);
+    counter--;
+    add_result_entry(results_mem, counter, "Fill STL", st[1].vsize - st[0].vsize);
     PrintStatus(st[0], st[1], mem[0], mem[1], rate);
   }
 
@@ -280,8 +295,10 @@ int main(int argc, char** argv)
     COMMONTIMING("dir-stop", &tm);
     tm.Print();
     double rate = (n_files) / tm.RealTime() * 1000.0;
-    results["002 Fill Google         Hash"] = rate;
-    results_mem["002 Fill Google         Hash"] = st[1].vsize - st[0].vsize;
+    add_result_entry(results, counter, "Fill Google ", rate);
+    counter--;
+    add_result_entry(results_mem, counter, "Fill Google ", st[1].vsize - st[0].vsize);
+
     PrintStatus(st[0], st[1], mem[0], mem[1], rate);
   }
 
@@ -358,8 +375,9 @@ int main(int argc, char** argv)
     COMMONTIMING("dir-stop", &tm);
     tm.Print();
     double rate = (n_files) / tm.RealTime() * 1000.0;
-    results["004 Fill STL Umap       Hash"] = rate;
-    results_mem["004 Fill STL Umap       Hash"] = st[1].vsize - st[0].vsize;
+    add_result_entry(results, counter, "Fill STL Umap ", rate);
+    counter--;
+    add_result_entry(results_mem, counter, "Fill STL Umap ", st[1].vsize - st[0].vsize);
     PrintStatus(st[0], st[1], mem[0], mem[1], rate);
   }
 
@@ -397,6 +415,10 @@ int main(int argc, char** argv)
     double rate = (n_files) / tm.RealTime() * 1000.0;
     results["005 Fill Abseil flat map  Hash"] = rate;
     results_mem["005 Fill Abseil flat map  Hash"] = st[1].vsize - st[0].vsize;
+    add_result_entry(results, counter, "Fill Abseil flat map ", rate);
+    counter--;
+    add_result_entry(results_mem, counter, "Fill Abseil flat map ", st[1].vsize - st[0].vsize);
+    PrintStatus(st[0], st[1], mem[0], mem[1], rate);
     PrintStatus(st[0], st[1], mem[0], mem[1], rate);
   }
 
