@@ -65,8 +65,8 @@ XrdMgmOfs::Drop(const char* path,
     std::shared_ptr<eos::IFileMD> fmd;
     eos::IQuotaNode* ns_quota = nullptr;
     eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
-    eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex, __FUNCTION__,
-                                        __LINE__, __FILE__);
+    eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex, __FUNCTION__,
+        __LINE__, __FILE__);
 
     try {
       fmd = eosFileService->getFileMD(fid);
@@ -124,6 +124,11 @@ XrdMgmOfs::Drop(const char* path,
             gOFS->eosView->updateFileStore(fmd.get());
             // After update we might have to get the new address
             fmd = eosFileService->getFileMD(eos::common::FileId::Hex2Fid(afid));
+          } else {
+            // The FileSystem view has a reference for this file but the file
+            // has no replicas registered on the current file system - we need
+            // to force delete the entry from the FileSystem view
+            gOFS->eosFsView->eraseEntry(id, fid);
           }
         }
 
@@ -148,7 +153,7 @@ XrdMgmOfs::Drop(const char* path,
             container->notifyMTimeChange(gOFS->eosDirectoryService);
             eos::ContainerIdentifier container_id = container->getIdentifier();
             eos::ContainerIdentifier container_pid = container->getParentIdentifier();
-            wlock.Release();
+            ns_wr_lock.Release();
             gOFS->FuseXCastContainer(container_id);
             gOFS->FuseXCastRefresh(container_id, container_pid);
           }
