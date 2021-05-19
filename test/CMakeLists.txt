@@ -29,7 +29,7 @@ include_directories(
 
 add_subdirectory(benchmark)
 add_subdirectory(abseil-cpp)
-
+add_subdirectory(robin-map)
 add_executable(xrdstress.exe XrdStress.cc XrdStress.hh)
 add_executable(xrdcpabort XrdCpAbort.cc)
 add_executable(xrdcprandom XrdCpRandom.cc)
@@ -60,6 +60,9 @@ add_executable(eos-checksum-benchmark
   ${CMAKE_SOURCE_DIR}/fst/checksum/Adler.cc
   ${CMAKE_SOURCE_DIR}/fst/checksum/CheckSum.cc)
 
+target_include_directories(eoshashbench PRIVATE
+   ${CMAKE_SOURCE_DIR}/common/robin-hood-hashing/src/include)
+
 target_link_libraries(xrdcpabort PRIVATE XROOTD::POSIX XROOTD::UTILS)
 target_link_libraries(xrdcprandom PRIVATE XROOTD::POSIX XROOTD::UTILS)
 target_link_libraries(xrdcpextend PRIVATE XROOTD::POSIX XROOTD::UTILS)
@@ -73,7 +76,7 @@ target_link_libraries(xrdcpposixcache PRIVATE XROOTD::POSIX XROOTD::UTILS)
 target_link_libraries(xrdcppartial PRIVATE XROOTD::POSIX XROOTD::UTILS)
 target_link_libraries(xrdcpupdate PRIVATE XROOTD::POSIX XROOTD::UTILS)
 target_link_libraries(xrdcpslowwriter PRIVATE XROOTD::CL)
-target_link_libraries(eoshashbench PRIVATE EosCommon absl::flat_hash_map)
+target_link_libraries(eoshashbench PRIVATE EosCommon absl::flat_hash_map tsl::robin_map)
 target_link_libraries(eoslogbench PRIVATE EosCommon)
 target_link_libraries(eos-crypto-timing-test PRIVATE EosCommon)
 target_link_libraries(testhmacsha256 PRIVATE EosCommon)

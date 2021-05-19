@@ -32,3 +32,9 @@
 [submodule "test/abseil-cpp"]
 	path = test/abseil-cpp
 	url = git://github.com/abseil/abseil-cpp
+[submodule "common/robin-hood-hashing"]
+	path = common/robin-hood-hashing
+	url = https://github.com/martinus/robin-hood-hashing
+[submodule "test/robin-map"]
+	path = test/robin-map
+	url = https://github.com/Tessil/robin-map

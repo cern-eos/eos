@@ -34,6 +34,8 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include <google/dense_hash_map>
 #include "absl/container/flat_hash_map.h"
+#include "robin_hood.h"
+#include "tsl/robin_map.h"
 #include <string>
 #include <map>
 #include <random>
@@ -47,8 +49,12 @@ using ValueType = long long;
 std::map<KeyType, ValueType> stdmap;
 google::dense_hash_map<KeyType, ValueType> googlemap;
 ulib::align_hash_map<KeyType, ValueType> ulibmap;
+//ulib::align_hash_map<KeyType, ValueType> ulibmap;
+robin_hood::unordered_map<KeyType, ValueType> ulibmap;
+//using ulibmap = rh_2_map;
 std::unordered_map<KeyType, ValueType> stdumap;
 absl::flat_hash_map<KeyType, ValueType> abslmap;
+tsl::robin_map<KeyType, ValueType> rhmap;
 
 std::map<std::string, double> results;
 std::map<std::string, long long> results_mem;
@@ -181,6 +187,12 @@ static void* RunReader(void* tconf)
       }
     }
 
+    if (r->type == 5) {
+      long long v = rhmap[n];
+      if (v) {
+        v = 1;
+      }
+    }
     // if (dolock)nsmutex.UnLock();
     if (dolock) {
       nslock.UnLockRead();
@@ -306,7 +318,7 @@ int main(int argc, char** argv)
     std::cerr <<
               "# **********************************************************************************"
               << std::endl;
-    std::cerr << "[i] Initialize Hash ULIB..." << std::endl;
+    std::cerr << "[i] Initialize Hash MARTINUS/ROBIN..." << std::endl;
     std::cerr <<
               "# **********************************************************************************"
               << std::endl;
@@ -338,8 +350,9 @@ int main(int argc, char** argv)
     COMMONTIMING("dir-stop", &tm);
     tm.Print();
     double rate = (n_files) / tm.RealTime() * 1000.0;
-    results["003 Fill Ulib           Hash"] = rate;
-    results_mem["003 Fill Ulib           Hash"] = st[1].vsize - st[0].vsize;
+    add_result_entry(results, counter, "Fill M Robin", rate);
+    counter--;
+    add_result_entry(results_mem, counter, "Fill M Robin ", st[1].vsize - st[0].vsize);
     PrintStatus(st[0], st[1], mem[0], mem[1], rate);
   }
 
@@ -413,19 +426,52 @@ int main(int argc, char** argv)
     COMMONTIMING("dir-stop", &tm);
     tm.Print();
     double rate = (n_files) / tm.RealTime() * 1000.0;
-    results["005 Fill Abseil flat map  Hash"] = rate;
-    results_mem["005 Fill Abseil flat map  Hash"] = st[1].vsize - st[0].vsize;
     add_result_entry(results, counter, "Fill Abseil flat map ", rate);
     counter--;
     add_result_entry(results_mem, counter, "Fill Abseil flat map ", st[1].vsize - st[0].vsize);
     PrintStatus(st[0], st[1], mem[0], mem[1], rate);
+  }
+
+  {
+    std::cerr <<
+              "# **********************************************************************************"
+              << std::endl;
+    std::cerr << "[i] Initialize Robin hood hash map ..." << std::endl;
+    std::cerr <<
+              "# **********************************************************************************"
+              << std::endl;
+    eos::common::LinuxStat::linux_stat_t st[10];;
+    eos::common::LinuxMemConsumption::linux_mem_t mem[10];
+    eos::common::LinuxStat::GetStat(st[0]);
+    eos::common::LinuxMemConsumption::GetMemoryFootprint(mem[0]);
+    eos::common::Timing tm("directories");
+    COMMONTIMING("hash-start", &tm);
+
+    size_t i = 1;
+    for (const auto& key : keys) {
+      if (!(i++ % 1000000)) {
+        XrdOucString l = "level-";
+        l += (int)i;
+        COMMONTIMING(l.c_str(), &tm);
+      }
+      rhmap.emplace(key, key);
+    }
+
+    eos::common::LinuxStat::GetStat(st[1]);
+    eos::common::LinuxMemConsumption::GetMemoryFootprint(mem[1]);
+    COMMONTIMING("dir-stop", &tm);
+    tm.Print();
+    double rate = (n_files) / tm.RealTime() * 1000.0;
+    add_result_entry(results, counter, "Fill Robin hood ", rate);
+    counter--;
+    add_result_entry(results_mem, counter, "Fill Robin hood  ", st[1].vsize - st[0].vsize);
     PrintStatus(st[0], st[1], mem[0], mem[1], rate);
   }
 
   //----------------------------------------------------------------------------
   // Run a parallel consumer thread benchmark without locking
   //----------------------------------------------------------------------------
-  for (size_t t = 0; t < 5; t++) {
+  for (size_t t = 0; t < 6; t++) {
     eos::common::LinuxStat::linux_stat_t st[10];;
     eos::common::LinuxMemConsumption::linux_mem_t mem[10];
     std::cerr <<
@@ -451,6 +497,10 @@ int main(int argc, char** argv)
 
     if (t == 4) {
       std::cerr << "ABSEIL-FMAP";
+    }
+
+    if (t == 5) {
+      std::cerr << "ROBIN HOOD";
     }
     std::cerr <<  std::endl;
     std::cerr <<
@@ -482,23 +532,27 @@ int main(int argc, char** argv)
     double rate = (n_files) / tm.RealTime() * 1000.0;
 
     if (t == 0) {
-      results["006 Read no-lock STL    Hash"] = rate;
+      add_result_entry(results, counter, "Read no-lock STL ", rate);
     }
 
     if (t == 1) {
-      results["007 Read no-lock Google Hash"] = rate;
+      add_result_entry(results, counter, "Read no-lock Google ", rate);
     }
 
     if (t == 2) {
-      results["008 Read no-lock Ulib   Hash"] = rate;
+      add_result_entry(results, counter, "Read no-lock MRobin ", rate);
     }
 
     if (t == 3) {
-      results["009 Read no-lock STL Umap Hash"] = rate;
+      add_result_entry(results, counter, "Read no-lock STL Umap ", rate);
     }
 
     if (t == 4) {
-      results["010 Read no-lock Abseil fmap Hash"] = rate;
+      add_result_entry(results, counter, "Read no-lock Abseil fmap ", rate);
+    }
+
+    if (t == 5) {
+      add_result_entry(results, counter, "Read no-lock Robin Hood ", rate);
     }
     PrintStatus(st[0], st[1], mem[0], mem[1], rate);
   }
@@ -506,7 +560,7 @@ int main(int argc, char** argv)
   //----------------------------------------------------------------------------
   // Run a parallel consumer thread benchmark with namespace locking
   //----------------------------------------------------------------------------
-  for (size_t t = 0; t < 5; t++) {
+  for (size_t t = 0; t < 6; t++) {
     eos::common::LinuxStat::linux_stat_t st[10];;
     eos::common::LinuxMemConsumption::linux_mem_t mem[10];
     std::cerr <<
@@ -523,7 +577,7 @@ int main(int argc, char** argv)
     }
 
     if (t == 2) {
-      std::cerr << "ULIB-MAP";
+      std::cerr << "ROBIN-M-MAP";
     }
 
     if (t == 3) {
@@ -532,6 +586,10 @@ int main(int argc, char** argv)
 
     if (t == 4) {
       std::cerr << "ABSEIL-FMAP";
+    }
+
+    if (t == 5) {
+      std::cerr << "ROBIN-HOOD";
     }
     std::cerr <<  std::endl;
     std::cerr <<
@@ -563,25 +621,28 @@ int main(int argc, char** argv)
     double rate = (n_files) / tm.RealTime() * 1000.0;
 
     if (t == 0) {
-      results["011 Read lock    STL    Hash"] = rate;
+      add_result_entry(results, counter, "Read lock STL ", rate);
     }
 
     if (t == 1) {
-      results["012 Read lock    Google Hash"] = rate;
+      add_result_entry(results, counter, "Read lock Google ", rate);
     }
 
     if (t == 2) {
-      results["013 Read lock    Ulib   Hash"] = rate ;
+      add_result_entry(results, counter, "Read lock Robin M ", rate);
     }
 
     if (t == 3) {
-      results["014 Read lock  STL Umap Hash"] = rate;
+      add_result_entry(results, counter, "Read lock STL Umap ", rate);
     }
 
     if (t == 4) {
-      results["015 Read lock Abseil flat map Hash"] = rate;
+      add_result_entry(results, counter, "Read lock Abseil flat map ", rate);
     }
 
+    if (t == 5) {
+      add_result_entry(results, counter, "Read lock Robin Hood", rate);
+    }
     PrintStatus(st[0], st[1], mem[0], mem[1], rate);
   }
 
@@ -594,11 +655,11 @@ int main(int argc, char** argv)
   int i = 0;
 
   for (auto it = results.begin(); it != results.end(); it++) {
-    if (!(i % 5)) {
+    if (!(i % 6)) {
       fprintf(stdout, "----------------------------------------------------\n");
     }
 
-    if (i < 5) {
+    if (i < 6) {
       fprintf(stdout, "%s rate: %.02f MHz mem-overhead: %.02f %%\n",
               it->first.c_str(), it->second / 1000000.0,
               1.0 * results_mem[it->first] / (n_files * 16));
