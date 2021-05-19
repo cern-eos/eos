@@ -270,6 +270,11 @@ eos() {
     echo eos -b $EOSROLE root://$EOS_TEST_REDIRECTOR $* >& $EOSLASTLOG; eval $XROOTSYS/bin/eos -b $EOSROLE root://$EOS_TEST_REDIRECTOR $* >> $EOSCERTLOG 2>&1
 }
 
+
+eosr() {
+    echo eos -b $EOSROLE root://$EOS_TEST_FULL_REDIRECTOR $* >& $EOSLASTLOG; eval $XROOTSYS/bin/eos -b $EOSROLE root://$EOS_TEST_FULL_REDIRECTOR $* >> $EOSCERTLOG 2>&1
+}
+
 eosj() {
     echo eos -j -b $EOSROLE root://$EOS_TEST_REDIRECTOR $* >& $EOSLASTLOG; eval $XROOTSYS/bin/eos -j -b $EOSROLE root://$EOS_TEST_REDIRECTOR $* >> $EOSCERTLOG 2>&1
 }
@@ -358,6 +363,10 @@ eos_grpc() {
 
 eos_token() {
    echo eos-token-test $1 ; eval eos-token-test $1 >> $EOSCERTLOG 2>&1
+}
+
+eos_squash() {
+   echo eos-squash-test $1 ; eval eos-squash-test $1 ${EOS_TEST_FULL_REDIRECTOR} >> $EOSCERTLOG 2>&1
 }
 
 shell() {
@@ -1068,7 +1077,7 @@ runtest "### Rmdir   " unix 0 "" eos rmdir /eos/$EOS_TEST_INSTANCE/test/instance
 # eosnobody
 ###################################################A############################
 categorie="eosnobody"
-cat /etc/eos.keytab | grep eosnobody > /tmp/eos.nobody.keytab
+cat /etc/eos*.keytab | grep eosnobody > /tmp/eos.nobody.keytab
 if [ $? -eq 0 ]; then
     chmod 400 /tmp/eos.nobody.keytab
     runtest "### Mkdir     " unix 0 "" eos mkdir -p /eos/$EOS_TEST_INSTANCE/test/instancetest/eosnobody
@@ -1076,10 +1085,10 @@ if [ $? -eq 0 ]; then
     runtest "### Upload    " unix 0 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/eosnobody/p1"
     runtest "### Upload    " unix 0 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/eosnobody/.p1.sqsh"
     runtest "### Chmod     " unix 0 "" eos chmod "700" "/eos/$EOS_TEST_INSTANCE/test/instancetest/eosnobody/"
-    runtest "### Ls        " unix 1 "XrdSecSSSKT='/tmp/eos.nobody.keytab'" eos ls -la /eos/$EOS_TEST_INSTANCE/test/instancetest/eosnobody/
-    runtest "### Ls        " sss  1 "XrdSecSSSKT='/tmp/eos.nobody.keytab'" eos ls -la /eos/$EOS_TEST_INSTANCE/test/instancetest/eosnobody/
-    runtest "### Download  " sss  1 "XrdSecSSSKT='/tmp/eos.nobody.keytab'" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/eosnobody/p1"
-    runtest "### Download  " sss  0 "XrdSecSSSKT='/tmp/eos.nobody.keytab'" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/eosnobody/.p1.sqsh"
+    runtest "### Ls        " unix 1 "XrdSecSSSKT='/tmp/eos.nobody.keytab'" eosr ls -la /eos/$EOS_TEST_INSTANCE/test/instancetest/eosnobody/
+    runtest "### Ls        " sss  1 "XrdSecSSSKT='/tmp/eos.nobody.keytab'" eosr ls -la /eos/$EOS_TEST_INSTANCE/test/instancetest/eosnobody/
+    runtest "### Download  " sss  1 "XrdSecSSSKT='/tmp/eos.nobody.keytab'" downloadh  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/eosnobody/p1"
+    runtest "### Download  " sss  0 "XrdSecSSSKT='/tmp/eos.nobody.keytab'" eos_squash /eos/$EOS_TEST_INSTANCE/test/instancetest/eosnobody/.p1.sqsh
     runtest "### Rm        " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/eosnobody/
     chnmod 700 /tmp/eos.nobody.keytab
     unlink /tmp/eos.nobody.keytab
