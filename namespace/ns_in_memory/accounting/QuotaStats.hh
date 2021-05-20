@@ -112,6 +112,11 @@ public:
   //! Replace underlying QuotaNodeCore object.
   //----------------------------------------------------------------------------
   void replaceCore(const QuotaNodeCore &updated) override;
+
+  //----------------------------------------------------------------------------
+  //! Partial update of underlying QuotaNodeCore object.
+  //----------------------------------------------------------------------------
+  void updateCore(const QuotaNodeCore &updated) override;
 };
 
 //------------------------------------------------------------------------------
