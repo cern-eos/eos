@@ -828,11 +828,11 @@ NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
       return;
     }
 
-    eos::QuotaRecomputer recomputer(eos::BackendClient::getInstance(
-								    gOFS->mQdbContactDetails,
-								    "quota-recomputation"),
+    std::unique_ptr<qclient::QClient> qcl =
+      std::make_unique<qclient::QClient>(gOFS->mQdbContactDetails.members,
+                                         gOFS->mQdbContactDetails.constructOptions());
+    eos::QuotaRecomputer recomputer(qcl.get(),
 				    static_cast<QuarkNamespaceGroup*>(gOFS->namespaceGroup.get())->getExecutor());
-
     eos::MDStatus status = recomputer.recompute(cont_uri, cont_id, qnc);
 
     if (!status.ok()) {

@@ -200,18 +200,18 @@ FuseServer::Caps::GetBroadcastCapsTS(uint64_t id,
     // TODO: do we need to debug log mCaps.found
     // eos_static_debug("mCaps.found=1")
     shared_cap cap = GetTS(it);
-    if (!cap->id()) {
+    if (!(*cap)()->id()) {
       continue;
     }
 
-    if (refcap && mdptr) {
+    if ((*refcap)() && mdptr) {
       // skip our own cap!
-      if (cap->authid() == mdptr->authid()) {
+      if ((*cap)()->authid() == mdptr->authid()) {
         continue;
       }
 
       // skip identical client mounts!
-      if (cap->clientuuid() == refcap->clientuuid()) {
+      if ((*cap)()->clientuuid() == (*refcap)()->clientuuid()) {
         continue;
       }
 
@@ -222,10 +222,10 @@ FuseServer::Caps::GetBroadcastCapsTS(uint64_t id,
     }
 
     if (suppress) {
-        if (regexec(&regex, cap->clientid().c_str(), 0, NULL, 0) != REG_NOMATCH) {
-          n_suppressed++;
-          continue;
-        }
+      if (regexec(&regex, (*cap)()->clientid().c_str(), 0, NULL, 0) != REG_NOMATCH) {
+        n_suppressed++;
+        continue;
+      }
     }
 
     bccaps.emplace_back(std::move(cap));
@@ -349,7 +349,7 @@ FuseServer::Caps::BroadcastDeletion(uint64_t id, const eos::fusex::md& md,
   EXEC_TIMING_BEGIN("Eosxd::int::BcDeletion");
   eos_static_info("id=%lx name=%s", id, name.c_str());
   FuseServer::Caps::shared_cap refcap = GetTS(md.authid());
-  auto bccaps = GetBroadcastCapsTS(refcap->id(), refcap, &md);
+  auto bccaps = GetBroadcastCapsTS((*refcap)()->id(), refcap, &md);
 
   for (auto it : bccaps) {
     gOFS->zMQ->gFuseServer.Client().DeleteEntry((uint64_t) (*it)()->id(),
@@ -435,8 +435,8 @@ FuseServer::Caps::BroadcastRefresh(uint64_t inode,
     }
 
     gOFS->zMQ->gFuseServer.Client().RefreshEntry((uint64_t) inode,
-                                                 (*it)()->clientuuid(),
-                                                 (*it)()->clientid());
+                                                 (*cap)()->clientuuid(),
+                                                 (*cap)()->clientid());
     errno = 0;
   }
 
@@ -550,8 +550,8 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
       // one has many caps
       clients_sent.insert((*cap)()->clientuuid());
       gOFS->zMQ->gFuseServer.Client().SendMD(md,
-                                             (*it)()->clientuuid(),
-                                             (*it)()->clientid(),
+                                             (*cap)()->clientuuid(),
+                                             (*cap)()->clientid(),
                                              md_ino,
                                              md_pino,
                                              clock,

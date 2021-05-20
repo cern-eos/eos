@@ -782,7 +782,7 @@ FuseServer::Clients::Dropcaps(const std::string& uuid, std::string& out)
        it != gOFS->zMQ->gFuseServer.Cap().InodeCaps().end(); ++it) {
     for (auto sit = it->second.begin(); sit != it->second.end(); ++sit) {
       if (auto cap = gOFS->zMQ->gFuseServer.Cap().Get(*sit);
-          cap->id()) {
+          (*cap)()->id()) {
 
         if ((*cap)()->clientuuid() == uuid) {
           cap2delete.insert(cap);
