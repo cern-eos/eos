@@ -18,6 +18,7 @@
 
 #include "namespace/common/QuotaNodeCore.hh"
 #include <mutex>
+#include <set>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -209,6 +210,27 @@ QuotaNodeCore& QuotaNodeCore::operator=(const QuotaNodeCore& other)
   return *this;
 }
 
+
+//------------------------------------------------------------------------------
+// operator<< (replacing all entries from update in core)
+//------------------------------------------------------------------------------
+QuotaNodeCore& QuotaNodeCore::operator<< (const QuotaNodeCore &other)
+{
+  std::lock(mtx, other.mtx);
+
+  for (auto it = other.mUserInfo.begin(); it != other.mUserInfo.end(); it++) {
+    mUserInfo[it->first] = it->second;
+  }
+
+  for (auto it = other.mGroupInfo.begin(); it != other.mGroupInfo.end(); it++) {
+    mGroupInfo[it->first] = it->second;
+  }
+
+  mtx.unlock();
+  other.mtx.unlock();
+  return *this;
+}
+
 //------------------------------------------------------------------------------
 // equality operator==
 //------------------------------------------------------------------------------
@@ -222,6 +244,62 @@ bool QuotaNodeCore::operator==(const QuotaNodeCore& other) const
   other.mtx.unlock();
 
   return result;
+}
+
+//----------------------------------------------------------------------------
+//! set usage info by uid
+//----------------------------------------------------------------------------
+void QuotaNodeCore::setByUid(uid_t uid, const UsageInfo& info)
+{
+  std::unique_lock<std::shared_timed_mutex> lock(mtx);
+  mUserInfo[uid] = info;
+  mtx.unlock();
+}
+
+//----------------------------------------------------------------------------
+//! set usage info by gid
+//----------------------------------------------------------------------------
+void QuotaNodeCore::setByGid(gid_t gid, const UsageInfo& info)\
+{
+  std::unique_lock<std::shared_timed_mutex> lock(mtx);
+  mGroupInfo[gid] = info;
+  mtx.unlock();
+}
+
+//----------------------------------------------------------------------------
+//! filter usage info by uid
+//----------------------------------------------------------------------------
+void QuotaNodeCore::filterByUid(uid_t uid)
+{
+  std::unique_lock<std::shared_timed_mutex> lock(mtx);
+  std::set<uid_t> uidv;
+  for ( auto it : mUserInfo ) {
+    uidv.insert(it.first);
+  }
+  for ( auto it : uidv ) {
+    if ( it != uid ) {
+      mUserInfo.erase(it);
+    }
+  }
+  mtx.unlock();
+}
+
+//----------------------------------------------------------------------------
+//! filter usage info by gid
+//----------------------------------------------------------------------------
+void QuotaNodeCore::filterByGid(gid_t gid)
+{
+  std::unique_lock<std::shared_timed_mutex> lock(mtx);
+  std::set<gid_t> gidv;
+  for ( auto it : mGroupInfo ) {
+    gidv.insert(it.first);
+  }
+  for ( auto it : gidv ) {
+    if ( it != gid ) {
+      mGroupInfo.erase(it);
+    }
+  }
+  mtx.unlock();
 }
 
 

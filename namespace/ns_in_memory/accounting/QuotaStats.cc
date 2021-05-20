@@ -69,6 +69,15 @@ void QuotaNode::replaceCore(const QuotaNodeCore &updated)
   pCore = updated;
 }
 
+
+//------------------------------------------------------------------------------
+// Update underlying QuotaNodeCore object.
+//------------------------------------------------------------------------------
+void QuotaNode::updateCore(const QuotaNodeCore &updated)
+{
+  pCore << updated;
+}
+
 //------------------------------------------------------------------------------
 // Get a quota node associated to the container id
 //------------------------------------------------------------------------------

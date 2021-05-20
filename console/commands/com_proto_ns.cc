@@ -286,6 +286,53 @@ NsHelper::ParseCommand(const char* arg)
         }
       }
     }
+  } else if (cmd == "update_quotanode") {
+    using eos::console::NsProto_QuotaSizeProto;
+    NsProto_QuotaSizeProto* quota = ns->mutable_quota();
+
+    if (!(option = tokenizer.GetToken())) {
+      return false;
+    } else {
+      int npar = 0;
+      while (true) {
+        int pos = 0;
+        soption = option;
+        if ((soption.find("cid:") == 0)) {
+          pos = soption.find(':') + 1;
+          quota->mutable_container()->set_cid(soption.substr(pos));
+        } else if (soption.find("cxid:") == 0) {
+          pos = soption.find(':') + 1;
+          quota->mutable_container()->set_cxid(soption.substr(pos));
+	} else if (soption.find("uid:") == 0) {
+          pos = soption.find(':') + 1;
+          quota->set_uid(soption.substr(pos));
+	} else if (soption.find("gid:") == 0) {
+          pos = soption.find(':') + 1;
+          quota->set_gid(soption.substr(pos));
+	} else if (soption.find("bytes:") == 0) {
+          pos = soption.find(':') + 1;
+	  quota->set_used_bytes(strtoul(soption.substr(pos).c_str(),0,10));
+	  npar++;
+	} else if (soption.find("physicalbytes:") == 0) {
+          pos = soption.find(':') + 1;
+	  quota->set_physical_bytes(strtoul(soption.substr(pos).c_str(),0,10));
+	  npar++;
+	} else if (soption.find("inodes:") == 0) {
+          pos = soption.find(':') + 1;
+	  quota->set_used_inodes(strtoul(soption.substr(pos).c_str(),0,10));
+	  npar++;
+        } else { // this should be a plain path
+          quota->mutable_container()->set_path(soption);
+        }
+
+        if (!(option = tokenizer.GetToken())) {
+          break;
+        }
+      }
+      if (npar != 3) {
+	return false;
+      }
+    }
   } else if (cmd == "cache") {
     eos::console::NsProto_CacheProto* cache = ns->mutable_cache();
 
@@ -526,6 +573,11 @@ void com_ns_help()
       << std::endl
       << std::endl
       << "  ns recompute_quotanode <path>|cid:<decimal_id>|cxid:<hex_id>"
+      << std::endl
+      << "    recompute the specified quotanode"
+      << std::endl
+      << std::endl
+      << "  ns update_quotanode <path>|cid:<decimal_id>|cxid:<hex_id> uid:<uid>|gid:<gid> bytes:<bytes> physicalbytes:<bytes> inodes:<inodes>"
       << std::endl
       << "    recompute the specified quotanode"
       << std::endl
