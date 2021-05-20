@@ -253,7 +253,6 @@ void QuotaNodeCore::setByUid(uid_t uid, const UsageInfo& info)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mtx);
   mUserInfo[uid] = info;
-  mtx.unlock();
 }
 
 //----------------------------------------------------------------------------
@@ -263,7 +262,6 @@ void QuotaNodeCore::setByGid(gid_t gid, const UsageInfo& info)\
 {
   std::unique_lock<std::shared_timed_mutex> lock(mtx);
   mGroupInfo[gid] = info;
-  mtx.unlock();
 }
 
 //----------------------------------------------------------------------------
@@ -281,7 +279,6 @@ void QuotaNodeCore::filterByUid(uid_t uid)
       mUserInfo.erase(it);
     }
   }
-  mtx.unlock();
 }
 
 //----------------------------------------------------------------------------
@@ -299,7 +296,6 @@ void QuotaNodeCore::filterByGid(gid_t gid)
       mGroupInfo.erase(it);
     }
   }
-  mtx.unlock();
 }
 
 
