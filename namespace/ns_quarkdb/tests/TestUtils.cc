@@ -64,6 +64,8 @@ NsTestsFixture::NsTestsFixture()
     std::stringstream buff;
     buff << f.rdbuf();
     qdb_passwd = buff.str();
+    // Right trim password, remove whitespace
+    qdb_passwd.erase(qdb_passwd.find_last_not_of(" \t\n\r\f\v") + 1);
   }
 
   testconfig = {
