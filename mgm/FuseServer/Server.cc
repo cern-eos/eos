@@ -192,29 +192,26 @@ Server::MonitorCaps() noexcept
           eos_static_debug("looping over caps n=%d", Cap().GetCaps().size());
         }
 
-        std::map<FuseServer::Caps::authid_t, FuseServer::Caps::shared_cap>& allcaps =
-          Cap().GetCaps();
-
-        for (auto it = allcaps.begin(); it != allcaps.end(); ++it) {
+        for (const auto& it: Cap().GetCaps()) {
           if (EOS_LOGS_DEBUG) {
-            eos_static_debug("cap q-node %lx", it->second->_quota().quota_inode());
+            eos_static_debug("cap q-node %lx", it.second->_quota().quota_inode());
           }
 
           // if we find a cap with 'noquota' contents, we just ignore this one
-          if (it->second->_quota().inode_quota() == noquota) {
+          if (it.second->_quota().inode_quota() == noquota) {
             continue;
           }
 
-          if (it->second->_quota().quota_inode()) {
-            quotainfo_t qi(it->second->uid(), it->second->gid(),
-                           it->second->_quota().quota_inode());
+          if (it.second->_quota().quota_inode()) {
+            quotainfo_t qi(it.second->uid(), it.second->gid(),
+                           it.second->_quota().quota_inode());
 
             // skip if we did this already ...
             if (qmap.count(qi.id())) {
-              qmap[qi.id()].authids.push_back(it->second->authid());
+              qmap[qi.id()].authids.push_back(it.second->authid());
             } else {
               qmap[qi.id()] = qi;
-              qmap[qi.id()].authids.push_back(it->second->authid());
+              qmap[qi.id()].authids.push_back(it.second->authid());
             }
           }
         }
