@@ -10,7 +10,7 @@ xrootd.redirect $(MGM):1094 chksum
 ###########################################################
 xrootd.seclib libXrdSec.so
 sec.protocol unix
-sec.protocol sss -c /etc/eos.client.keytab -s /etc/eos.keytab
+sec.protocol sss -c /etc/eos.client.keytab -s /etc/eos.client.keytab
 sec.protbind * only unix sss
 ###########################################################
 all.export / nolock
