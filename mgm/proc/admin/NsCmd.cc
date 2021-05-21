@@ -907,7 +907,7 @@ NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
       qnc.setByUid(strtoul(tree.uid().c_str(),0,10), usage);
     } else if (tree.gid().size() && !tree.uid().size())  {
       // set by group
-      qnc.setByGid(strtoul(tree.uid().c_str(),0,10), usage);
+      qnc.setByGid(strtoul(tree.gid().c_str(),0,10), usage);
     } else {
       reply.set_std_err("error: to overwrite quota you have to set a user or group id - never both");
       reply.set_retc(EINVAL);

@@ -329,7 +329,7 @@ NsHelper::ParseCommand(const char* arg)
           break;
         }
       }
-      if (npar != 3) {
+      if (npar && (npar != 3)) {
 	return false;
       }
     }
