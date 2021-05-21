@@ -84,15 +84,15 @@ public:
   typedef std::string authid_t;
   typedef std::string clientid_t;
   typedef std::string client_uuid_t;
-  typedef std::set<clientid_t> clientid_set_t;
-  typedef std::map<client_uuid_t, clientid_set_t> client_ids_t;
+  typedef std::unordered_set<clientid_t> clientid_set_t;
+  typedef std::unordered_map<client_uuid_t, clientid_set_t> client_ids_t;
   typedef std::pair<uint64_t, authid_t> ino_authid_t;
-  typedef std::set<authid_t> authid_set_t;
-  typedef std::map<uint64_t, authid_set_t> ino_map_t;
-  typedef std::set<uint64_t> ino_set_t;
-  typedef std::map<uint64_t, authid_set_t> notify_set_t; // inode=>set(authid_t)
-  typedef std::map<clientid_t, authid_set_t> client_set_t;
-  typedef std::map<clientid_t, ino_map_t> client_ino_map_t;
+  typedef std::unordered_set<authid_t> authid_set_t;
+  typedef std::unordered_map<uint64_t, authid_set_t> ino_map_t;
+  typedef std::unordered_set<uint64_t> ino_set_t;
+  typedef std::unordered_map<uint64_t, authid_set_t> notify_set_t; // inode=>set(authid_t)
+  typedef std::unordered_map<clientid_t, authid_set_t> client_set_t;
+  typedef std::unordered_map<clientid_t, ino_map_t> client_ino_map_t;
 
 
   ssize_t ncaps()
@@ -257,7 +257,7 @@ public:
   std::string Print(const std::string& option,
                     const std::string& filter);
 
-  std::map<authid_t, shared_cap>& GetCaps()
+  const auto& GetCaps() const
   {
     return mCaps;
   }
@@ -310,7 +310,7 @@ protected:
   // a time ordered multimap pointing to caps
   std::multimap< time_t, authid_t > mTimeOrderedCap;
   // authid=>cap lookup map
-  std::map<authid_t, shared_cap> mCaps;
+  std::unordered_map<authid_t, shared_cap> mCaps;
   // clientid=>list of authid
   client_set_t mClientCaps;
   // clientid=>list of inodes
