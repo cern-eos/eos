@@ -1,0 +1,35 @@
+
+#!/bin/bash
+# the sleep statemens are required because quota ls caching ...
+echo path=$1
+sleep 6
+a=`eos quota ls -m $1 | grep uid=adm`
+eos ns update_quotanode $1 uid:3 inodes:1000 bytes:2000 physicalbytes:3000
+sleep 6
+c=`eos quota ls -m $1 | grep uid=adm`
+echo $c
+eos ns update_quotanode $1 uid:3
+sleep 6
+d=`eos quota ls -m $1 | grep uid=adm`
+echo $d
+
+if [ "$a" != "$d" ]; then
+  exit -1
+fi
+
+echo $d | grep "usedbytes=1024 usedlogicalbytes=1024 usedfiles=1"
+if [ $? -eq 0 ]; then
+  echo result: $?
+else
+  echo $d
+  exit -2
+fi
+
+
+echo $c | grep "usedbytes=3000 usedlogicalbytes=2000 usedfiles=1000"
+if [ $? -eq 0 ]; then
+  exit 0
+else
+  echo $c
+  exit -2
+fi

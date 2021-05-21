@@ -345,6 +345,15 @@ eos_rain() {
     echo eos-rain-test $1 $2 root://$EOS_TEST_REDIRECTOR/$3 >& $EOSLASTLOG; eval eos-rain-test $1 $2 root://$EOS_TEST_REDIRECTOR/$3 >> $EOSCERTLOG 2>&1
 }
 
+eos_quota() {
+    echo eos-quota-test $1 $2 root://$EOS_TEST_REDIRECTOR/$3 >& $EOSLASTLOG; eval eos-quota-test $1 $2 root://$EOS_TEST_REDIRECTOR/$3 >> $EOSCERTLOG 2>&1
+}
+
+
+eos_defaultcc() {
+    echo eos-defaultcc-test $1 $2 root://$EOS_TEST_REDIRECTOR/$3 >& $EOSLASTLOG; eval eos-defaultcc-test $1 $2 root://$EOS_TEST_REDIRECTOR/$3 >> $EOSCERTLOG 2>&1
+}
+
 eoscp_rain() {
     echo eoscp-rain-test $1 root://$EOS_TEST_REDIRECTOR/$2 >& $EOSLASTLOG; eval eoscp-rain-test $1 root://$EOS_TEST_REDIRECTOR/$2 >> $EOSCERTLOG 2>&1
 }
@@ -758,6 +767,11 @@ runtest "### Upload    " unix 1 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE
 runtest "### Rem       " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.quota"
 runtest "### Quota     " unix 0 "" eos quota set -u 99 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
 runtest "### Quota     " unix 1 "" eos quota set -u 99 -p /doesnotexist -v 1T -i 1M
+runtest "### Quota     " unix 0 "" eos quota set -u 3 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
+runtest "### Upload    " unix 0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/1k" "-ODeos.ruid=3" "-DITransactionTimeout 30"
+runtest "### QUpdate   " unix 0 "" eos_quota "/eos/$EOS_TEST_INSTANCE/test/"
+runtest "### Rem       " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/1k"
+
 fi
 ################################################################################
 # RECYCLE BIN TEST
@@ -1586,6 +1600,7 @@ runtest "### stat l1   " unix 1 "" eos stat "/eos/$EOS_TEST_INSTANCE/test/instan
 runtest "### stat l2   " unix 1 "" eos stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/symlink.2"
 runtest "### stat l1   " unix 0 "" eos stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/symlink.3"
 runtest "### stat l2   " unix 0 "" eos stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/symdir/symlink.4"
+runtest "### defaultcc " unix 0 "" eos_defaultcc "/test-fusex/"
 runtest "### Cleanup"    unix 2 "" eos rm  "-r /eos/$EOS_TEST_INSTANCE/test/instancetest/fusex"
 test -d /test-fusex/ && umount -fl /test-fusex/
 test -d /test-fusex/ && rmdir /test-fusex/
