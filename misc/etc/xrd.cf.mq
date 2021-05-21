@@ -6,7 +6,7 @@ xrootd.async off nosf
 #############################################################
 # SSS authentication
 xrootd.seclib libXrdSec.so
-sec.protocol sss -c /etc/eos.keytab -s /etc/eos.keytab
+sec.protocol sss -c /etc/eos.client.keytab -s /etc/eos.keytab
 sec.protbind * only sss
 
 #############################################################
