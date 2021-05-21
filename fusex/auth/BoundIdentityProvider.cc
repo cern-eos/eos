@@ -422,7 +422,13 @@ BoundIdentityProvider::defaultPathsToBoundIdentity(const JailInformation& jail,
     krb5_context krb_ctx;
     krb5_error_code ret = krb5_init_context(&krb_ctx);
     if(ret == 0) {
-      defaultEnv.push_back("KRB5CCNAME="+std::string(krb5_cc_default_name(krb_ctx)));
+      std::string default_name = krb5_cc_default_name(krb_ctx);
+      if ( (default_name.substr(0,5) == "FILE:") ||
+	   (default_name.substr(0,5) == "/tmp/") ) {
+	defaultEnv.push_back("KRB5CCNAME=FILE:/tmp/krb5cc_" + std::to_string(uid));
+      } else {
+	defaultEnv.push_back("KRB5CCNAME=" + default_name);
+      }
       krb5_free_context(krb_ctx);
     }
   }
