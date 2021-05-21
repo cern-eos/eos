@@ -166,13 +166,12 @@ FuseServer::Caps::GetAuthIDsTS(uint64_t id)
 
   eos::common::RWMutexReadLock rlock(*this);
   auto ids = mInodeCaps.find(id);
-  if (ids == mInodeCaps.end()) {
-    return bccaps;
+  if (ids != mInodeCaps.end()) {
+    auth_ids.reserve(ids->second.size());
+    std::copy(ids->second.begin(),
+              ids->second.end(),
+              std::back_inserter(auth_ids));
   }
-  auth_ids.reserve(ids->second.size());
-  std::copy(ids->second.begin(),
-            ids->second.end(),
-            std::back_inserter(auth_ids));
 
   return auth_ids;
 }
