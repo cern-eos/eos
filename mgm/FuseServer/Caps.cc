@@ -460,7 +460,7 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
   EXEC_TIMING_BEGIN("Eosxd::int::BcMD");
   size_t n_suppressed = 0;
   std::vector<shared_cap> bccaps;
-  std::set<std::string> clients_sent;
+  std::unordered_set<std::string> clients_sent;
 
   auto refcap = GetTS(md.authid());
   auto auth_ids = GetAuthIDsTS(id);
