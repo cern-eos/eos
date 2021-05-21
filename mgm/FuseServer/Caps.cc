@@ -176,6 +176,34 @@ FuseServer::Caps::GetAuthIDsTS(uint64_t id)
   return auth_ids;
 }
 
+static auto
+GetBroadcastAudienceMatch()
+{
+  return std::make_pair(gOFS->zMQ->gFuseServer.Client().BroadCastMaxAudience(),
+                        gOFS->zMQ->gFuseServer.Client().BroadCastAudienceSuppressMatch());
+}
+
+static std::pair<bool,regex_t>
+GetSuppressRE(size_t auth_id_sz)
+{
+  bool suppress_audience = false;
+  regex_t regex;
+  // audience check
+  auto [audience, match] = GetBroadcastAudienceMatch();
+
+  if (audience && (auth_id_sz > (size_t) audience)) {
+    suppress_audience = true;
+
+    if (regcomp(&regex, match.c_str(), REG_ICASE | REG_EXTENDED | REG_NOSUB)) {
+      suppress_audience = false;
+      eos_static_err("msg=\"broadcast audience suppress match not valid regex\" regex=\"%s\"",
+                     match.c_str());
+    }
+  }
+
+  return std::make_pair(suppress_audience, regex);
+}
+
 //------------------------------------------------------------------------------
 // Get Broadcast Caps
 //----------------------------------------------------------------------------
@@ -188,7 +216,6 @@ FuseServer::Caps::GetBroadcastCapsTS(uint64_t id,
 {
   std::vector<shared_cap> bccaps;
   size_t n_suppressed {0};
-  regex_t regex;
   auto auth_ids = GetAuthIDsTS(id);
   auto [suppress_audience, regex] = GetSuppressRE(auth_ids.size());
 
@@ -373,7 +400,7 @@ FuseServer::Caps::BroadcastRefresh(uint64_t inode,
   size_t n_suppressed = 0;
 
   auto refcap = GetTS(md.authid());
-  auto auth_ids = GetAuthIDsTS(id);
+  auto auth_ids = GetAuthIDsTS(inode);
   auto [suppress_audience, regex] = GetSuppressRE(auth_ids.size());
 
   for (const auto& it: auth_ids) {
@@ -426,29 +453,6 @@ FuseServer::Caps::BroadcastCap(shared_cap cap)
   return -1;
 }
 
-std::pair<bool,regex_t>
-FuseServer::Caps::GetSuppressRE(size_t auth_id_sz)
-{
-  bool suppress_audience = false;
-  regex_t regex;
-  // audience check
-  int audience = gOFS->zMQ->gFuseServer.Client().BroadCastMaxAudience();
-  std::string match =
-    gOFS->zMQ->gFuseServer.Client().BroadCastAudienceSuppressMatch();
-
-  if (audience && (auth_id_sz > (size_t) audience)) {
-    suppress_audience = true;
-
-    if (regcomp(&regex, match.c_str(), REG_ICASE | REG_EXTENDED | REG_NOSUB)) {
-      suppress_audience = false;
-      eos_static_err("msg=\"broadcast audience suppress match not valid regex\" regex=\"%s\"",
-                     match.c_str());
-    }
-  }
-
-  return std::make_pair(suppress_audience, regex);
-}
-
 int
 FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
                               uint64_t md_ino,
@@ -463,7 +467,7 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
   std::unordered_set<std::string> clients_sent;
 
   auto refcap = GetTS(md.authid());
-  auto auth_ids = GetAuthIDsTS(id);
+  auto auth_ids = GetAuthIDsTS(md_pino);
   auto [suppress_audience, regex] = GetSuppressRE(auth_ids.size());
 
   eos_static_info("id=%lx/%lx clientid=%s clientuuid=%s authid=%s",
