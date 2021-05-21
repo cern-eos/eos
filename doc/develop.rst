@@ -408,7 +408,7 @@ There is yet another configuration file you will have to modify e.g. :code:`/etc
 .. code-block:: bash
 
     sec.protocol unix
-    sec.protocol sss -c /etc/eos.keytab -s /etc/eos.keytab
+    sec.protocol sss -c /etc/eos.client.keytab -s /etc/eos.keytab
     # Example disable krb5 and gsi
     #sec.protocol krb5
     #sec.protocol gsi

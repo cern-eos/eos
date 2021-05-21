@@ -1,2 +1,1 @@
-etc/eos.keytab
-etc/eos.keytab.fw
+etc/eos.client.keytab

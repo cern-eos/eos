@@ -15,7 +15,7 @@ oss.fdlimit 16384 32768
 # UNIX authentication
 sec.protocol unix
 # SSS authentication
-sec.protocol sss -c /etc/eos.keytab -s /etc/eos.keytab
+sec.protocol sss -c /etc/eos.client.keytab -s /etc/eos.keytab
 # KRB  authentication
 #sec.protocol krb5 -exptkn:/var/eos/auth/krb5#<uid> host/<host>@CERN.CH
 sec.protocol krb5 host/<host>@CERN.CH
