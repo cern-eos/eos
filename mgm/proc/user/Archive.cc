@@ -651,7 +651,8 @@ ProcCommand::ArchiveGetDirs(const std::string& root) const
   std::shared_ptr<eos::IContainerMD> cmd;
   eos::IContainerMD::id_t id;
   {
-    eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex, __FUNCTION__,
+                                        __LINE__, __FILE__);
 
     for (auto fid = fids.begin(); fid != fids.end(); ++fid) {
       // Convert string id to ContainerMD:id_t
@@ -786,7 +787,7 @@ ProcCommand::ArchiveCreate(const std::string& arch_dir,
   // Create the output directory if necessary and open the temporary file in
   // which we construct the archive file
   std::ostringstream oss;
-  oss << "/tmp/eos.mgm/archive." << XrdSysThread::ID();
+  oss << gOFS->TmpStorePath << "/archive." << XrdSysThread::ID();
   std::string arch_fn = oss.str();
   std::fstream arch_ofs(arch_fn.c_str(), std::fstream::out);
 

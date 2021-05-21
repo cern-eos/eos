@@ -414,10 +414,12 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       eos_err("%s returned %d", systemline.c_str(), rrc);
     }
   } else {
-    eos::common::Path out_dir(std::string(std::string(TmpStorePath.c_str()) + "/dummy").c_str());
+    eos::common::Path out_dir(std::string(std::string(TmpStorePath.c_str()) +
+                                          "/dummy").c_str());
 
     if (!out_dir.MakeParentPath(S_IRWXU)) {
-      eos_err("Unable to create temporary output file directory %s",TmpStorePath.c_str());
+      eos_err("Unable to create temporary output file directory %s",
+              TmpStorePath.c_str());
       Eroute.Emsg("Config", errno, "create temporary output file"
                   " directory", TmpStorePath.c_str());
       NoGo = 1;
@@ -428,7 +430,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     if (::chown(out_dir.GetParentPath(), 2, 2)) {
       eos_err("Unable to own temporary output file directory %s",
               out_dir.GetParentPath());
-      Eroute.Emsg("Config", errno, "own output file directory /tmp/eos.mgm/");
+      Eroute.Emsg("Config", errno, "own output file directory",
+                  out_dir.GetParentPath());
       NoGo = 1;
       return NoGo;
     }
