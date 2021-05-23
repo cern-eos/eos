@@ -28,7 +28,6 @@ include(CheckCXXCompilerFlag)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 17)
 set(EOS_CXX_DEFINE "-DEOSCITRINE -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\"")
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EOS_CXX_DEFINE} ${CPP_VERSION} -msse4.2 -Wall -Wno-error=parentheses")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EOS_CXX_DEFINE} ${CPP_VERSION} -Wall -Wno-error=parentheses")
 
 check_cxx_compiler_flag(-std=c++17 HAVE_FLAG_STD_CXX17)
@@ -39,10 +38,15 @@ endif()
 #-------------------------------------------------------------------------------
 # CPU architecture flags
 #-------------------------------------------------------------------------------
-set(CPU_ARCH_FLAGS "-msse4.2")
-if (NO_SSE)
-  message(NOTICE "SSE extensions not enabled")
-  set(CPU_ARCH_FLAGS "-mcrc32")
+# Don't add specific arch flags unless x86_64, or may cause troubles.
+# Consider to extend in the future, e.g., for aarch64.
+if (CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "x86_64")
+  set(CPU_ARCH_FLAGS "-msse4.2")
+  if (NO_SSE)
+    # Some old hardware does not have sse instructions support, allow switch-off.
+    message(NOTICE "SSE extensions not enabled")
+    set(CPU_ARCH_FLAGS "-mcrc32")
+  endif()
 endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CPU_ARCH_FLAGS}")
