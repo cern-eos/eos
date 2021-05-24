@@ -16,6 +16,27 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.49 Citrine``
+===================
+
+2021-05-24
+
+Bug
+----
+
+* FUSEX: properly support also KERYRING:persisten:%{UID} as default krb5 CCCAHCE
+
+
+Improvement
+-----------
+
+* [EOS-4709] - [eos-ns-inspect] adding --maxdepth to scanning functionality
+* MGM/CONSOLE: allow to scan quota in a subtree for a given uid or gid using
+  e.g. 'eos update_quotanode /eos/tree uid:123'
+* MGM: enhance eosnobody squashfs check to distinguish three instead of two cases:
+  result eosnobody can only stat via eosxd and access squashfs image files, nothing else
+
+
 ``v4.8.48 Citrine``
 ===================
 
