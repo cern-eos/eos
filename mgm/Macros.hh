@@ -82,23 +82,26 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
 //------------------------------------------------------------------------------
 //! Stall Macro
 //------------------------------------------------------------------------------
-#define MAYSTALL eos::mgm::InFlightRegistration tracker_helper(gOFS->mTracker, vid); \
-  if (gOFS->IsStall) {                                                  \
-    XrdOucString stallmsg="";                                           \
-    int stalltime=0;                                                    \
-    if (gOFS->ShouldStall(__FUNCTION__,__AccessMode__, vid, stalltime, stallmsg)) { \
-      if (stalltime) {                                                  \
-        return gOFS->Stall(error,stalltime, stallmsg.c_str());          \
-      } else {                                                          \
-        return gOFS->Emsg("maystall", error, EPERM, stallmsg.c_str(), ""); \
-      }                                                                 \
-    } else {                                                            \
-      if (!tracker_helper.IsOK()) {                                     \
-        stallmsg="track request, stall the client 5 seconds";           \
-        stalltime = 5;                                                  \
-        return gOFS->Stall(error,stalltime, stallmsg.c_str());          \
-      }                                                                 \
-    }                                                                   \
+#define MAYSTALL \
+  if(gOFS != nullptr){ \
+    eos::mgm::InFlightRegistration tracker_helper(gOFS->mTracker, vid); \
+    if (gOFS->IsStall) {                                                  \
+      XrdOucString stallmsg="";                                           \
+      int stalltime=0;                                                    \
+      if (gOFS->ShouldStall(__FUNCTION__,__AccessMode__, vid, stalltime, stallmsg)) { \
+        if (stalltime) {                                                  \
+          return gOFS->Stall(error,stalltime, stallmsg.c_str());          \
+        } else {                                                          \
+          return gOFS->Emsg("maystall", error, EPERM, stallmsg.c_str(), ""); \
+        }                                                                 \
+      } else {                                                            \
+        if (!tracker_helper.IsOK()) {                                     \
+          stallmsg="track request, stall the client 5 seconds";           \
+          stalltime = 5;                                                  \
+          return gOFS->Stall(error,stalltime, stallmsg.c_str());          \
+        }                                                                 \
+      }                                                                   \
+    }                                                                     \
   }
 
 #define RECURSIVE_STALL(FUNCTION, VID) {        \
@@ -138,26 +141,29 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
 //------------------------------------------------------------------------------
 //! Redirect Macro
 //------------------------------------------------------------------------------
-#define MAYREDIRECT { if (gOFS->IsRedirect) {                                 \
-    int port {0};                                                             \
-    std::string host {""};                                                    \
-    int stall_timeout {0};                                                    \
-    std::string stall_msg {"No master MGM available"};                        \
-    if (gOFS->ShouldRedirect(__FUNCTION__,__AccessMode__,vid, host, port)) {  \
-      return gOFS->Redirect(error, host.c_str(), port);                       \
-    }                                                                         \
-    if (gOFS->ShouldRoute(__FUNCTION__,__AccessMode__, vid, path, ininfo,     \
-                          host, port, stall_timeout)) {                       \
-      if (stall_timeout) {                                                    \
-        return gOFS->Stall(error, stall_timeout, stall_msg.c_str());          \
-      } else {                                                                \
-        XrdCl::URL url; url.SetParams(ininfo?ininfo:"");                      \
-        if (gOFS->Tried(url, host, "enoent"))                                 \
-          return gOFS->Emsg("redirect", error, ENOENT, "no such file or directory", path); \
-        return gOFS->Redirect(error, host.c_str(), port);                     \
-      }                                                                       \
-    }                                                                         \
-  }                                                                           \
+#define MAYREDIRECT { \
+    if (gOFS != nullptr) {\
+      if (gOFS->IsRedirect) {                                 \
+        int port{0};                                                             \
+        std::string host{""};                                                    \
+        int stall_timeout{0};                                                    \
+        std::string stall_msg{"No master MGM available"};                        \
+        if (gOFS->ShouldRedirect(__FUNCTION__, __AccessMode__, vid, host, port)) {  \
+          return gOFS->Redirect(error, host.c_str(), port);                       \
+        }                                                                         \
+        if (gOFS->ShouldRoute(__FUNCTION__, __AccessMode__, vid, path, ininfo,     \
+                              host, port, stall_timeout)) {                       \
+          if (stall_timeout) {                                                    \
+            return gOFS->Stall(error, stall_timeout, stall_msg.c_str());          \
+          } else {                                                                \
+            XrdCl::URL url; url.SetParams(ininfo ? ininfo : "");                  \
+            if (gOFS->Tried(url, host, "enoent"))                                 \
+              return gOFS->Emsg("redirect", error, ENOENT, "no such file or directory", path); \
+            return gOFS->Redirect(error, host.c_str(), port);                     \
+          }                                                                       \
+        }                                                                         \
+      }                                                                           \
+    }                                                                             \
 }
 
 //------------------------------------------------------------------------------
@@ -244,76 +250,77 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
 #define NAMESPACEMAP                                                    \
   const char* path = inpath;                                            \
   XrdOucString store_path=path;                                         \
-  if(inpath && ininfo && strstr(ininfo,"eos.encodepath")) {             \
-    store_path = eos::common::StringConversion::curl_unescaped(inpath).c_str(); \
-  } else {                                                              \
-    eos::common::StringConversion::UnsealXrdPath(store_path);           \
-  }                                                                     \
-  if (vid.token && vid.token->Valid()) {        \
-    if (!strncmp(path,"/zteos64:",9)) {         \
-      store_path = vid.token->Path().c_str();       \
+  if(gOFS != nullptr) {                                                  \
+    if(inpath && ininfo && strstr(ininfo,"eos.encodepath")) {             \
+      store_path = eos::common::StringConversion::curl_unescaped(inpath).c_str(); \
+    } else {                                                              \
+      eos::common::StringConversion::UnsealXrdPath(store_path);           \
+    }                                                                     \
+    if (vid.token && vid.token->Valid()) {        \
+      if (!strncmp(path,"/zteos64:",9)) {         \
+        store_path = vid.token->Path().c_str();       \
+      }                 \
     }                 \
-  }                 \
-  if ( inpath && ( !(ininfo) || (ininfo && (!strstr(ininfo,"eos.prefix"))))) { \
-    XrdOucString iinpath=store_path;                                    \
-    gOFS->PathRemap(iinpath.c_str(),store_path);                        \
-  }                                                                     \
-  size_t __i=0;                                                         \
-  size_t __n = store_path.length();                                     \
-  if (gOFS->UTF8) {                                                     \
-    for (__i=0;__i<__n;__i++) {                                         \
-      if (((store_path[__i] != 0xa) && (store_path[__i] != 0xd )) /* CR,LF*/) { \
-        continue;                                                       \
-      } else {                                                          \
-        break;                                                          \
-      }                                                                 \
-    }                                                                   \
-  }                                                                     \
-  else                                                                  \
-    {                                                                   \
-      for (__i=0;__i<__n;__i++) {                                       \
-        if ( ((store_path[__i] >= 97) && (store_path[__i] <= 122 )) || /* a-z */ \
-             ((store_path[__i] >= 64) && (store_path[__i] <= 90 ))  || /* @,A-Z */ \
-             ((store_path[__i] >= 48) && (store_path[__i] <= 57 ))  || /* 0-9   */ \
-             (store_path[__i] == 47) || /* / */                         \
-             (store_path[__i] == 46) || /* . */                         \
-             (store_path[__i] == 32) || /* SPACE */                     \
-             (store_path[__i] == 45) || /* - */                         \
-             (store_path[__i] == 95) || /* _ */                         \
-             (store_path[__i] == 126)|| /* ~ */                         \
-             (store_path[__i] == 35) || /* # */                         \
-             (store_path[__i] == 58) || /* : */                         \
-             (store_path[__i] == 43) || /* + */                         \
-             (store_path[__i] == 94)    /* ^ */                         \
-             ) {                                                        \
-          continue;                                                     \
-        } else {                                                        \
-          break;                                                        \
-        }                                                               \
-      }                                                                 \
-    }                                                                   \
-  /* root can use all letters */                                        \
-  if ( (vid.uid != 0) && (__i != (__n) ) ) {                            \
-    path = 0;                                                           \
-  } else {                                                              \
-    const char* pf=0;                                                   \
-    /* check for redirection with prefixes */                           \
-    if ( ininfo && (pf=strstr(ininfo,"eos.prefix=")) ) {                \
-      if (!store_path.beginswith("/proc")) {                            \
-        XrdOucEnv env(pf);                                              \
-        /* check for redirection with LFN rewrite */                    \
-        store_path.insert(env.Get("eos.prefix"),0);                     \
-      }                                                                 \
-    }                                                                   \
-    if ( ininfo && (pf=strstr(ininfo,"eos.lfn=")) ) {                   \
-      if ((!store_path.beginswith("/proc"))) {                          \
-        XrdOucEnv env(pf);                                              \
-        store_path = env.Get("eos.lfn");                                \
-      }                                                                 \
-    }                                                                   \
-    path = store_path.c_str();                                          \
+    if ( inpath && ( !(ininfo) || (ininfo && (!strstr(ininfo,"eos.prefix"))))) { \
+      XrdOucString iinpath=store_path;                                    \
+      gOFS->PathRemap(iinpath.c_str(),store_path);                        \
+    }                                                                     \
+    size_t __i=0;                                                         \
+    size_t __n = store_path.length();                                     \
+    if (gOFS->UTF8) {                                                     \
+      for (__i=0;__i<__n;__i++) {                                         \
+        if (((store_path[__i] != 0xa) && (store_path[__i] != 0xd )) /* CR,LF*/) { \
+          continue;                                                       \
+        } else {                                                          \
+          break;                                                          \
+        }                                                                 \
+      }                                                                   \
+    }                                                                     \
+    else                                                                  \
+      {                                                                   \
+        for (__i=0;__i<__n;__i++) {                                       \
+          if ( ((store_path[__i] >= 97) && (store_path[__i] <= 122 )) || /* a-z */ \
+               ((store_path[__i] >= 64) && (store_path[__i] <= 90 ))  || /* @,A-Z */ \
+               ((store_path[__i] >= 48) && (store_path[__i] <= 57 ))  || /* 0-9   */ \
+               (store_path[__i] == 47) || /* / */                         \
+               (store_path[__i] == 46) || /* . */                         \
+               (store_path[__i] == 32) || /* SPACE */                     \
+               (store_path[__i] == 45) || /* - */                         \
+               (store_path[__i] == 95) || /* _ */                         \
+               (store_path[__i] == 126)|| /* ~ */                         \
+               (store_path[__i] == 35) || /* # */                         \
+               (store_path[__i] == 58) || /* : */                         \
+               (store_path[__i] == 43) || /* + */                         \
+               (store_path[__i] == 94)    /* ^ */                         \
+               ) {                                                        \
+            continue;                                                     \
+          } else {                                                        \
+            break;                                                        \
+          }                                                               \
+        }                                                                 \
+      }                                                                   \
+    /* root can use all letters */                                        \
+    if ( (vid.uid != 0) && (__i != (__n) ) ) {                            \
+      path = 0;                                                           \
+    } else {                                                              \
+      const char* pf = 0;                                                   \
+      /* check for redirection with prefixes */                           \
+      if (ininfo && (pf = strstr(ininfo, "eos.prefix="))) {                \
+        if (!store_path.beginswith("/proc")) {                            \
+          XrdOucEnv env(pf);                                              \
+          /* check for redirection with LFN rewrite */                    \
+          store_path.insert(env.Get("eos.prefix"), 0);                     \
+        }                                                                 \
+      }                                                                   \
+      if (ininfo && (pf = strstr(ininfo, "eos.lfn="))) {                   \
+        if ((!store_path.beginswith("/proc"))) {                          \
+          XrdOucEnv env(pf);                                              \
+          store_path = env.Get("eos.lfn");                                \
+        }                                                                 \
+      }                                                                   \
+      path = store_path.c_str();                                        \
+    }                                                                    \
   }
-
 
 //------------------------------------------------------------------------------
 //! Define scope for tokens
