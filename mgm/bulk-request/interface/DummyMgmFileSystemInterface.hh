@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file BulkRequestBusiness.cc
+//! @file DummyMgmFileSystemInterface.hh
 //! @author Cedric Caffy - CERN
 //------------------------------------------------------------------------------
 
@@ -21,29 +21,28 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "BulkRequestBusiness.hh"
-#include <mgm/bulk-request/dao/ProcDirectoryBulkRequestDAO.hh>
-#include "mgm/Stat.hh"
+#ifndef EOS_DUMMYMGMFILESYSTEMINTERFACE_HH
+#define EOS_DUMMYMGMFILESYSTEMINTERFACE_HH
+
+#include "mgm/Namespace.hh"
+#include "mgm/bulk-request/interface/IMgmFileSystemInterface.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
-BulkRequestBusiness::BulkRequestBusiness(std::unique_ptr<AbstractDAOFactory> && daoFactory) : mDaoFactory(std::move(daoFactory)){
-}
-
-void BulkRequestBusiness::saveBulkRequest(const std::shared_ptr<BulkRequest> req){
-  eos_info("msg=\"Persisting bulk request id=%s nbFiles=%ld type=%s\"",req->getId().c_str(),req->getPaths().size(),BulkRequest::bulkRequestTypeToString(req->getType()).c_str());
-  EXEC_TIMING_BEGIN("BulkRequestBusiness::saveBulkRequest");
-  dispatchBulkRequestSave(req);
-  EXEC_TIMING_END("BulkRequestBusiness::saveBulkRequest");
-  eos_info("msg=\"Persisted bulk request id=%s\"",req->getId().c_str());
-}
-
-void BulkRequestBusiness::dispatchBulkRequestSave(const std::shared_ptr<BulkRequest> req) {
-  switch(req->getType()) {
-  case BulkRequest::PREPARE_STAGE:
-    mDaoFactory->getBulkRequestDAO()->saveBulkRequest(static_pointer_cast<StageBulkRequest>(req));
-    break;
-  }
-}
+/**
+ * Implementation of the MGM File system interface
+ */
+class DummyMgmFileSystemInterface : public IMgmFileSystemInterface {
+public:
+  void addStats(const char* tag, uid_t uid, gid_t gid, unsigned long val) override;
+  bool isTapeEnabled() override;
+  int Emsg(const char* pfx, XrdOucErrInfo& einfo, int ecode, const char* op, const char* target = "") override;
+  int _exists(const char* path, XrdSfsFileExistence& file_exists, XrdOucErrInfo& error, const XrdSecEntity* client = 0, const char* ininfo = 0) override;
+  int _attr_ls(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock = true, bool links = false) override;
+  int _access(const char* path, int mode,XrdOucErrInfo& error, eos::common::VirtualIdentity& vid, const char* info, bool lock = true) override;
+  int FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error, const XrdSecEntity* client) override;
+};
 
 EOSMGMNAMESPACE_END
+
+#endif // EOS_DUMMYMGMFILESYSTEMINTERFACE_HH
