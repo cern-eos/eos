@@ -36,7 +36,7 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-PrepareManager::PrepareManager()
+PrepareManager::PrepareManager(IMgmFileSystemInterface & mgmFsInterface):mMgmFsInterface(mgmFsInterface)
 {
 }
 
@@ -55,7 +55,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
   std::string info;
   info = (optr ? (optr->text ? optr->text : "") : "");
   eos::common::Mapping::IdMap(client, info.c_str(), tident, vid);
-  gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
+  mMgmFsInterface.addStats("IdMap", vid.uid, vid.gid, 1);
   ACCESSMODE_W;
   MAYSTALL;
   {
@@ -65,7 +65,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
   }
   {
     const int nbFilesInPrepareRequest = eos::common::XrdUtils::countNbElementsInXrdOucTList(pargs.paths);
-    gOFS->MgmStats.Add("Prepare", vid.uid, vid.gid, nbFilesInPrepareRequest);
+    mMgmFsInterface.addStats("Prepare",vid.uid, vid.gid, nbFilesInPrepareRequest);
   }
   std::string cmd = "mgm.pcmd=event";
   std::list<std::pair<char**, char**>> pathsWithPrepare;
@@ -81,8 +81,8 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
   // The XRootD prepare actions are mutually exclusive
   switch (pargsOptsAction) {
   case 0:
-    if(gOFS->mTapeEnabled) {
-      gOFS->Emsg(epname, error, EINVAL, "prepare with empty pargs.opts on tape-enabled back-end");
+    if(mMgmFsInterface.isTapeEnabled()) {
+      mMgmFsInterface.Emsg(epname, error, EINVAL, "prepare with empty pargs.opts on tape-enabled back-end");
       return SFS_ERROR;
     }
     break;
@@ -103,8 +103,8 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
 
   default:
     // More than one flag was set or there is an unknown flag
-    gOFS->Emsg(epname, error, EINVAL, "prepare - invalid value for pargs.opts =",
-               std::to_string(pargs.opts).c_str());
+    mMgmFsInterface.Emsg(epname, error, EINVAL, "prepare - invalid value for pargs.opts =",
+                         std::to_string(pargs.opts).c_str());
     return SFS_ERROR;
   }
 
@@ -113,8 +113,8 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
   // The XRootD prepare flags are mutually exclusive
   switch (pargs.opts) {
   case 0:
-    if(mTapeEnabled) {
-      gOFS->Emsg(epname, error, EINVAL, "prepare with empty pargs.opts on tape-enabled back-end");
+    if(mMgmFsInterface.isTapeEnabled()) {
+      mMgmFsInterface.Emsg(epname, error, EINVAL, "prepare with empty pargs.opts on tape-enabled back-end");
       return SFS_ERROR;
     }
     break;
@@ -129,7 +129,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
 
   default:
     // More than one flag was set or there is an unknown flag
-    gOFS->Emsg(epname, error, EINVAL, "prepare - invalid value for pargs.opts =",
+   mMgmFsInterface.Emsg(epname, error, EINVAL, "prepare - invalid value for pargs.opts =",
          std::to_string(pargs.opts).c_str());
     return SFS_ERROR;
   }
@@ -155,16 +155,16 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
     XrdSfsFileExistence check;
 
     if (prep_path.length() == 0) {
-      gOFS->Emsg(epname, error, ENOENT,
+      mMgmFsInterface.Emsg(epname, error, ENOENT,
                  "prepare - path empty or uses forbidden characters:",
                  orig_path.c_str());
       return SFS_ERROR;
     }
 
-    if (gOFS->_exists(prep_path.c_str(), check, error, client, "") ||
+    if (mMgmFsInterface._exists(prep_path.c_str(), check, error, client, "") ||
         (check != XrdSfsFileExistIsFile)) {
       if (check != XrdSfsFileExistIsFile) {
-        gOFS->Emsg(epname, error, ENOENT,
+        mMgmFsInterface.Emsg(epname, error, ENOENT,
                    "prepare - file does not exist or is not accessible to you",
                    prep_path.c_str());
       }
@@ -175,7 +175,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
     eos::IContainerMD::XAttrMap attributes;
 
     if (!event.empty() &&
-        gOFS->_attr_ls(eos::common::Path(prep_path.c_str()).GetParentPath(), error, vid,
+        mMgmFsInterface._attr_ls(eos::common::Path(prep_path.c_str()).GetParentPath(), error, vid,
                        nullptr, attributes) == 0) {
       bool foundPrepareTag = false;
       std::string eventAttr = "sys.workflow." + event;
@@ -213,8 +213,8 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
     }
 
     // check that we have write permission on path
-    if (gOFS->_access(prep_path.c_str(), P_OK, error, vid, "")) {
-      return gOFS->Emsg(epname, error, EPERM,
+    if (mMgmFsInterface._access(prep_path.c_str(), P_OK, error, vid, "")) {
+      return mMgmFsInterface.Emsg(epname, error, EPERM,
                         "prepare - you don't have workflow permission",
                         prep_path.c_str());
     }
@@ -408,7 +408,7 @@ void PrepareManager::triggerPrepareWorkflow(const std::list<std::pair<char**, ch
     args.Arg1Len = prep_path.length();
     args.Arg2 = prep_info.c_str();
     args.Arg2Len = prep_info.length();
-    auto ret_wfe = gOFS->FSctl(SFS_FSCTL_PLUGIN, args, error, &lClient);
+    auto ret_wfe = mMgmFsInterface.FSctl(SFS_FSCTL_PLUGIN, args, error, &lClient);
 
     // Log errors but continue to process the rest of the files in the list
     if (ret_wfe != SFS_DATA) {
