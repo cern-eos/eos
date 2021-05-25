@@ -111,6 +111,7 @@
 #include "mgm/bulk-request/dao/factories/AbstractDAOFactory.hh"
 #include "mgm/bulk-request/dao/factories/ProcDirectoryDAOFactory.hh"
 #include "mgm/bulk-request/business/BulkRequestBusiness.hh"
+#include "mgm/bulk-request/interface/RealMgmFileSystemInterface.hh"
 
 #ifdef __APPLE__
 #define ECOMM 70
@@ -737,7 +738,8 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 #if !OLD_PREPARE
   std::unique_ptr<AbstractDAOFactory> daoFactory(new ProcDirectoryDAOFactory(gOFS));
   std::shared_ptr<BulkRequestBusiness> bulkRequestBusiness(new BulkRequestBusiness(std::move(daoFactory)));
-  PrepareManager pm;
+  RealMgmFileSystemInterface mgmFsInterface(gOFS);
+  PrepareManager pm(mgmFsInterface);
   //We want the bulk request to be persisted, set the bulkRequestBusiness to the prepare manager
   pm.setBulkRequestBusiness(bulkRequestBusiness);
   int prepareRetCode = pm.prepare(pargs,error,client);

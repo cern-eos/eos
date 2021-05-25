@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file BulkRequestBusiness.cc
+//! @file RealMgmFileSystemInterface.cc
 //! @author Cedric Caffy - CERN
 //------------------------------------------------------------------------------
 
@@ -21,29 +21,38 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "BulkRequestBusiness.hh"
-#include <mgm/bulk-request/dao/ProcDirectoryBulkRequestDAO.hh>
+#include "RealMgmFileSystemInterface.hh"
 #include "mgm/Stat.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
-BulkRequestBusiness::BulkRequestBusiness(std::unique_ptr<AbstractDAOFactory> && daoFactory) : mDaoFactory(std::move(daoFactory)){
+RealMgmFileSystemInterface::RealMgmFileSystemInterface(XrdMgmOfs * mgmOfs):mMgmOfs(mgmOfs){}
+
+void RealMgmFileSystemInterface::addStats(const char* tag, uid_t uid, gid_t gid, unsigned long val){
+  mMgmOfs->MgmStats.Add(tag, uid, gid, val);
 }
 
-void BulkRequestBusiness::saveBulkRequest(const std::shared_ptr<BulkRequest> req){
-  eos_info("msg=\"Persisting bulk request id=%s nbFiles=%ld type=%s\"",req->getId().c_str(),req->getPaths().size(),BulkRequest::bulkRequestTypeToString(req->getType()).c_str());
-  EXEC_TIMING_BEGIN("BulkRequestBusiness::saveBulkRequest");
-  dispatchBulkRequestSave(req);
-  EXEC_TIMING_END("BulkRequestBusiness::saveBulkRequest");
-  eos_info("msg=\"Persisted bulk request id=%s\"",req->getId().c_str());
+bool RealMgmFileSystemInterface::isTapeEnabled()
+{
+  return mMgmOfs->mTapeEnabled;
 }
 
-void BulkRequestBusiness::dispatchBulkRequestSave(const std::shared_ptr<BulkRequest> req) {
-  switch(req->getType()) {
-  case BulkRequest::PREPARE_STAGE:
-    mDaoFactory->getBulkRequestDAO()->saveBulkRequest(static_pointer_cast<StageBulkRequest>(req));
-    break;
-  }
+int RealMgmFileSystemInterface::Emsg(const char* pfx, XrdOucErrInfo& einfo, int ecode, const char* op, const char* target){
+  return mMgmOfs->Emsg(pfx,einfo,ecode,op,target);
+}
+int RealMgmFileSystemInterface::_exists(const char* path, XrdSfsFileExistence& file_exists, XrdOucErrInfo& error, const XrdSecEntity* client, const char* ininfo){
+  return mMgmOfs->_exists(path,file_exists,error,client,ininfo);
 }
 
+int RealMgmFileSystemInterface::_attr_ls(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links){
+  return mMgmOfs->_attr_ls(path,out_error,vid,opaque,map,take_lock,links);
+}
+
+int RealMgmFileSystemInterface::_access(const char* path, int mode,XrdOucErrInfo& error, eos::common::VirtualIdentity& vid, const char* info, bool lock) {
+  return mMgmOfs->_access(path,mode,error,vid,info,lock);
+}
+
+int RealMgmFileSystemInterface::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error, const XrdSecEntity* client){
+  return mMgmOfs->FSctl(cmd, args, error, client);
+}
 EOSMGMNAMESPACE_END
