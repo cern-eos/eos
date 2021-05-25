@@ -602,7 +602,10 @@ class ArchiveFile(object):
         st, __ = fs.stat((url.path + "?eos.ruid=0&eos.rgid=0").encode("utf-8"))
 
         if not st.ok:
-            st, __ = fs.mkdir((url.path + "?eos.ruid=0&eos.rgid=0").encode("utf-8"))
+            if not self.d2t:
+                st, __ = fs.mkdir((url.path + "?eos.ruid=0&eos.rgid=0").encode("utf-8"))
+            else:
+                st, __ = fs.mkdir((url.path).encode("utf-8"))
 
             if not st.ok:
                 err_msg = ("Dir={0} failed mkdir errmsg={1}, errno={2}, code={3}"
