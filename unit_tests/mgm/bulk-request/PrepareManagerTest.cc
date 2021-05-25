@@ -23,16 +23,29 @@
 
 #include "mgm/XrdMgmOfs.hh"
 
-#include <gtest/gtest.h>
 #include <XrdVersion.hh>
+#include <xrootd/XrdOuc/XrdOucErrInfo.hh>
+#include <xrootd/XrdSfs/XrdSfsInterface.hh>
+#include <xrootd/XrdSec/XrdSecEntity.hh>
+#include <gtest/gtest.h>
+#include <mgm/bulk-request/prepare/PrepareManager.hh>
+#include "unit_tests/mgm/bulk-request/MockPrepareMgmFSInterface.hh"
+#include "xrootd/XrdOuc/XrdOucTList.hh"
+#include "common/utils/XrdUtils.hh"
+#include "auth_plugin/ProtoUtils.hh"
 
 class PrepareManagerTest : public ::testing::Test {
 protected:
 
   virtual void SetUp() {
+    eos::common::Mapping::Init();
   }
 
   virtual void TearDown() {
+  }
+
+  static XrdOucTList * generateListOfPaths(){
+    return new XrdOucTList();
   }
 };
 
@@ -103,4 +116,48 @@ TEST_F(PrepareManagerTest, prepareOptsToString)
     ASSERT_EQ("PRTY0,EVICT", XrdMgmOfs::prepareOptsToString(opts));
   }
 #endif
+}
+
+TEST_F(PrepareManagerTest,prepareStageWorkflow){
+  eos::auth::XrdSecEntityProto clientProto;
+  clientProto.set_prot("krb5");
+  clientProto.set_name("clientName");
+  clientProto.set_host("localhost");
+
+  clientProto.set_tident("clientTident");
+
+  XrdSecEntity * client = eos::auth::utils::GetXrdSecEntity(clientProto);
+
+  eos::auth::XrdSfsPrepProto pargsProto;
+  pargsProto.add_paths("testPath");
+  pargsProto.set_reqid("testReqid");
+  pargsProto.set_opts(32);
+  pargsProto.add_oinfo("");
+
+  XrdSfsPrep * pargs = eos::auth::utils::GetXrdSfsPrep(pargsProto);
+
+  eos::auth::XrdOucErrInfoProto errorProto;
+  XrdOucErrInfo * error = eos::auth::utils::GetXrdOucErrInfo(errorProto);
+
+  MockPrepareMgmFSInterface mgmOfs;
+  eos::mgm::PrepareManager pm(mgmOfs);
+  pm.prepare(*pargs,*error,client);
+
+  eos::auth::utils::DeleteXrdSecEntity(client);
+  //TODO: do the eos::auth::utils::DeleteXrdSfsPrep(XrdSfsPrep *& pargs);
+
+  /*XrdSfsPrep pargs;
+  pargs.paths = new XrdOucTList("Test");
+  pargs.oinfo = nullptr;
+  std::string reqid = "coucou";
+  pargs.reqid = strdup(reqid.c_str());
+  pargs.opts = 32;
+  std::string clientHost = "localhost";
+  std::string clientName = "clientName";
+
+  ASSERT_EQ(1,eos::common::XrdUtils::countNbElementsInXrdOucTList(pargs.paths));
+  delete pargs.paths;*/
+  //XrdOucErrInfo error;
+  //XrdSecEntity client;
+  //pm.prepare(pargs,error,&client);
 }
