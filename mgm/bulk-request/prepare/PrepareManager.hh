@@ -30,6 +30,8 @@
 #include <mgm/bulk-request/business/BulkRequestBusiness.hh>
 #include <mgm/bulk-request/prepare/StageBulkRequest.hh>
 #include <string>
+#include "mgm/XrdMgmOfs.hh"
+#include "mgm/bulk-request/interface/IMgmFileSystemInterface.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -46,7 +48,7 @@ public:
    * @param error Xrootd error information to fill if there are any errors
    * @param client the client who issued the prepare
    */
-  PrepareManager();
+  PrepareManager(IMgmFileSystemInterface & mgmFsInterface);
 
   /**
    * Allows to enable the bulk-request management linked to the prepare logic
@@ -119,6 +121,8 @@ private:
   std::shared_ptr<BulkRequest> mBulkRequest;
   //Business logic to manage bulkRequest actions (persistency for example)
   std::shared_ptr<BulkRequestBusiness> mBulkRequestBusiness;
+
+  IMgmFileSystemInterface & mMgmFsInterface;
 };
 
 EOSMGMNAMESPACE_END

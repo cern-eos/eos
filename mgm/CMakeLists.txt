@@ -267,6 +267,8 @@ add_library(
   bulk-request/dao/factories/ProcDirectoryDAOFactory.cc
   bulk-request/dao/ProcDirectoryBulkRequestDAO.cc
   bulk-request/exception/PersistencyException.cc
+  bulk-request/interface/RealMgmFileSystemInterface.cc
+  bulk-request/interface/DummyMgmFileSystemInterface.cc
   ${FUSEX_SRCS})
 
 target_link_libraries(XrdEosMgm-Objects PUBLIC
