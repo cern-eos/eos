@@ -2272,6 +2272,11 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
          */
         ADD_FUSE_STAT("setattr:chmod", req);
         EXEC_TIMING_BEGIN("setattr:chmod");
+
+        struct timespec tsnow;
+        eos::common::Timing::GetTimeSpec(tsnow);
+	md->set_ctime(tsnow.tv_sec);
+	md->set_ctime_ns(tsnow.tv_nsec);
         md->set_mode(attr->st_mode);
 
         if (S_ISDIR(md->mode())) {
@@ -2333,6 +2338,11 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
         if (op & FUSE_SET_ATTR_GID) {
           md->set_gid(attr->st_gid);
         }
+
+	struct timespec tsnow;
+        eos::common::Timing::GetTimeSpec(tsnow);
+	md->set_ctime(tsnow.tv_sec);
+	md->set_ctime_ns(tsnow.tv_nsec);
 
         if (S_ISDIR(md->mode())) {
           // if this is a directory we have to revoke a potential existing cap for that directory
