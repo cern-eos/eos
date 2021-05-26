@@ -160,7 +160,6 @@ TEST(DynamicECProduction, TestForSmallFileDeletion)
   UUT.testForSingleFile(6, 2, 2, 1000000);
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-
          UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
                 it->second->getLayoutId()), 2);

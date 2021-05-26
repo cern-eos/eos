@@ -97,6 +97,18 @@ struct Config {
   uint64_t sleepWhenFull;
 };
 
+struct Config {
+  double min_threshold;
+  double max_threshold;
+  uint64_t min_age_for_deletion;
+  uint64_t min_size_for_deletion;
+  std::string spacename;
+  bool onWork;
+  int wait_time;
+  int new_security_stripes;
+  bool test_enable;
+};
+
 class DynamicEC
 {
 private:
@@ -228,19 +240,11 @@ public:
 
   void setDynamicEC(bool onOff);
 
-  void setTestOn();
-
-  void setTestOff();
+  void setTest(bool onOff);
 
   bool getTest();
 
-  void turnDynamicECOn();
-
-  void turnDynamicECOff();
-
-  void testForSpaceCmd2();
-
-  void testForSpaceCmd();
+  void setDynamicEC(bool onOff);
 
   void setWaitTime(int wait);
 
