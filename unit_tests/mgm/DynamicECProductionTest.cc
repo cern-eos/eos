@@ -49,7 +49,6 @@ TEST(DynamicECProduction, TestForSetterAndGetter)
   EXPECT_EQ(UUT.getAgeFromWhenToDelete(), 40000);
   UUT.setSecurity(3);
   EXPECT_EQ(UUT.getSecurity(), 3);
-  UUT.TestFunction();
 }
 
 TEST(DynamicECProduction, TestForSetterAndGetter2)
@@ -74,10 +73,10 @@ TEST(DynamicECProduction, TestForFillingInFilesIfFail)
   const char* str = "DynamicTest";
   eos::mgm::DynamicEC UUT(str, 11556926, 10000000, 1, 1, false);
   UUT.testFilesBeignFilled(6, 2, 2, 1);
-  EXPECT_EQ(UUT.statusFilesMD.size(), 1);
+  EXPECT_EQ(UUT.mStatusFilesMD.size(), 1);
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
                 it->second->getLayoutId()), 2);
     EXPECT_EQ(eos::common::LayoutId::GetStripeNumber(it->second->getLayoutId()), 5);
@@ -91,10 +90,10 @@ TEST(DynamicECProduction, TestForThis)
   const char* str = "DynamicTest";
   eos::mgm::DynamicEC UUT(str, 3600, 1024 * 1024, 98, 95, false, 30, 1);
   UUT.testFilesBeignFilled(6, 2, 2, 1);
-  EXPECT_EQ(UUT.statusFilesMD.size(), 1);
+  EXPECT_EQ(UUT.mStatusFilesMD.size(), 1);
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     fprintf(stderr, "This is for locations: %i \n",
             it->second->getLocations().size());
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
@@ -108,12 +107,12 @@ TEST(DynamicECProduction, TestForThis)
   }
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     UUT.kReduceMD(it->second);
   }
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     fprintf(stderr, "This is for locations: %i \n",
             it->second->getLocations().size());
     //The test would work if the ID was updated reguarly.
@@ -131,10 +130,10 @@ TEST(DynamicECProduction, TestForCleanup)
   const char* str = "DynamicTest";
   eos::mgm::DynamicEC UUT(str, 3600, 1024 * 1024, 98, 95, false, 30, 1);
   UUT.testFilesBeignFilled(6, 2, 2, 1);
-  EXPECT_EQ(UUT.statusFilesMD.size(), 1);
+  EXPECT_EQ(UUT.mStatusFilesMD.size(), 1);
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
                 it->second->getLayoutId()), 2);
     EXPECT_EQ(eos::common::LayoutId::GetStripeNumber(it->second->getLayoutId()) + 1,
@@ -155,7 +154,7 @@ TEST(DynamicECProduction, TestForCleanup)
   */
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     //The test would work if the ID was updated reguarly.
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
                 it->second->getLayoutId()), 2);
@@ -173,7 +172,7 @@ TEST(DynamicECProduction, TestForSmallFileDeletion)
   UUT.testForSingleFile(6, 2, 2, 1000000);
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
                 it->second->getLayoutId()), 2);
     EXPECT_EQ(eos::common::LayoutId::GetStripeNumber(it->second->getLayoutId()) + 1,
@@ -187,7 +186,7 @@ TEST(DynamicECProduction, TestForSmallFileDeletion)
   UUT.CleanupMD();
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     //The test would work if the ID was updated reguarly.
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
                 it->second->getLayoutId()), 2);
@@ -207,7 +206,7 @@ TEST(DynamicECProduction, TestForSmallFileDeletionComeTrue)
   UUT.testForSingleFile(6, 2, 2, 1050000);
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
                 it->second->getLayoutId()), 2);
     EXPECT_EQ(eos::common::LayoutId::GetStripeNumber(it->second->getLayoutId()) + 1,
@@ -221,7 +220,7 @@ TEST(DynamicECProduction, TestForSmallFileDeletionComeTrue)
   UUT.CleanupMD();
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     //The test would work if the ID was updated reguarly.
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
                 it->second->getLayoutId()), 2);
@@ -274,9 +273,9 @@ TEST(DynamicECProduction, TestForMultiDeletionComeTrue)
   const char* str = "DynamicTest";
   eos::mgm::DynamicEC UUT(str, 3600, 500000, 98, 95, false, 30, 1);
   UUT.testFilesBeignFilledCompiledSize(6, 2, 2, 100, 1000000);
-  EXPECT_EQ(UUT.statusFilesMD.size(), 100);
+  EXPECT_EQ(UUT.mStatusFilesMD.size(), 100);
   UUT.CleanupMD();
-  EXPECT_EQ(UUT.statusFilesMD.size(), 90);
+  EXPECT_EQ(UUT.mStatusFilesMD.size(), 90);
 }
 
 /*
@@ -320,10 +319,10 @@ TEST(DynamicECProduction, TestForThisWithThekReduceMD)
   const char* str = "DynamicTest";
   eos::mgm::DynamicEC UUT(str, 3600, 1024 * 1024, 98, 95, false, 30, 1);
   UUT.testFilesBeignFilled(6, 2, 2, 100);
-  EXPECT_EQ(UUT.statusFilesMD.size(), 100);
+  EXPECT_EQ(UUT.mStatusFilesMD.size(), 100);
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     //fprintf(stderr,"This is for locations: %i \n", it->second->getLocations().size());
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
                 it->second->getLayoutId()), 2);
@@ -336,12 +335,12 @@ TEST(DynamicECProduction, TestForThisWithThekReduceMD)
   }
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     UUT.kReduceMD(it->second);
   }
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     //fprintf(stderr,"This is for locations: %i \n", it->second->getLocations().size());
     //The test would work if the ID was updated reguarly.
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
@@ -360,12 +359,12 @@ TEST(DynamicECProduction, TestForCleanUp)
   UUT.testForSingleFile(6, 2, 2, 10000000);
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     UUT.kReduceMD(it->second);
   }
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
                 it->second->getLayoutId()), 2);
     EXPECT_EQ(it->second->getLocations().size(), 6);
@@ -379,7 +378,7 @@ TEST(DynamicECProduction, TestForOtherLayoutskQrain)
   UUT.testForSingleFileWithkQrain(6, 4, 2, 1500000);
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
                 it->second->getLayoutId()), 4);
     EXPECT_EQ(eos::common::LayoutId::GetStripeNumber(it->second->getLayoutId()) + 1,
@@ -390,12 +389,12 @@ TEST(DynamicECProduction, TestForOtherLayoutskQrain)
   }
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     UUT.kReduceMD(it->second);
   }
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
                 it->second->getLayoutId()), 4);
     EXPECT_EQ(eos::common::LayoutId::GetStripeNumber(it->second->getLayoutId()) + 1,
@@ -412,7 +411,7 @@ TEST(DynamicECProduction, TestForOtherLayoutskQrainNoExcessstripes)
   UUT.testForSingleFileWithkQrain(6, 4, 0, 1500000);
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
                 it->second->getLayoutId()), 4);
     EXPECT_EQ(eos::common::LayoutId::GetStripeNumber(it->second->getLayoutId()) + 1,
@@ -423,12 +422,12 @@ TEST(DynamicECProduction, TestForOtherLayoutskQrainNoExcessstripes)
   }
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     UUT.kReduceMD(it->second);
   }
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
                 it->second->getLayoutId()), 4);
     EXPECT_EQ(eos::common::LayoutId::GetStripeNumber(it->second->getLayoutId()) + 1,
@@ -456,7 +455,7 @@ TEST(DynamicECProduction, TestForOtherLayoutkPlain)
   UUT.testForSingleFileWithkPlain(1, 0, 0, 1500000);
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
                 it->second->getLayoutId()), 0);
     EXPECT_EQ(eos::common::LayoutId::GetStripeNumber(it->second->getLayoutId()) + 1,
@@ -467,12 +466,12 @@ TEST(DynamicECProduction, TestForOtherLayoutkPlain)
   }
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     UUT.kReduceMD(it->second);
   }
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
                 it->second->getLayoutId()), 0);
     EXPECT_EQ(eos::common::LayoutId::GetStripeNumber(it->second->getLayoutId()) + 1,
@@ -490,7 +489,7 @@ TEST(DynamicECProduction, TestForOtherLayoutkReplica)
   UUT.testForSingleFileWithkReplica(4, 3, 2, 1500000);
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
                 it->second->getLayoutId()), 3);
     EXPECT_EQ(eos::common::LayoutId::GetStripeNumber(it->second->getLayoutId()) + 1,
@@ -501,12 +500,12 @@ TEST(DynamicECProduction, TestForOtherLayoutkReplica)
   }
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     UUT.kReduceMD(it->second);
   }
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
                 it->second->getLayoutId()), 3);
     EXPECT_EQ(eos::common::LayoutId::GetStripeNumber(it->second->getLayoutId()) + 1,
@@ -524,7 +523,7 @@ TEST(DynamicECProduction, TestForOtherLayoutkArchive)
   UUT.testForSingleFileWithkArchive(4, 3, 2, 1500000);
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
                 it->second->getLayoutId()), 3);
     EXPECT_EQ(eos::common::LayoutId::GetStripeNumber(it->second->getLayoutId()) + 1,
@@ -535,12 +534,12 @@ TEST(DynamicECProduction, TestForOtherLayoutkArchive)
   }
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     UUT.kReduceMD(it->second);
   }
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
                 it->second->getLayoutId()), 3);
     EXPECT_EQ(eos::common::LayoutId::GetStripeNumber(it->second->getLayoutId()) + 1,
@@ -558,7 +557,7 @@ TEST(DynamicECProduction, TestForOtherLayoutkRaidDP)
   UUT.testForSingleFileWithkRaidDP(8, 2, 2, 1500000);
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
                 it->second->getLayoutId()), 2);
     EXPECT_EQ(eos::common::LayoutId::GetStripeNumber(it->second->getLayoutId()) + 1,
@@ -569,12 +568,12 @@ TEST(DynamicECProduction, TestForOtherLayoutkRaidDP)
   }
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     UUT.kReduceMD(it->second);
   }
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
                 it->second->getLayoutId()), 2);
     EXPECT_EQ(eos::common::LayoutId::GetStripeNumber(it->second->getLayoutId()) + 1,
@@ -591,7 +590,7 @@ TEST(DynamicECProduction, TestForOtherLayoutkRaid5)
   UUT.testForSingleFileWithkRaid5(8, 2, 2, 1500000);
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
                 it->second->getLayoutId()), 2);
     EXPECT_EQ(eos::common::LayoutId::GetStripeNumber(it->second->getLayoutId()) + 1,
@@ -602,12 +601,12 @@ TEST(DynamicECProduction, TestForOtherLayoutkRaid5)
   }
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     UUT.kReduceMD(it->second);
   }
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
+         UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
                 it->second->getLayoutId()), 2);
     EXPECT_EQ(eos::common::LayoutId::GetStripeNumber(it->second->getLayoutId()) + 1,

@@ -9,6 +9,17 @@
 #
 #
 #--------------------------------------------------------------------------------------
+NORMAL=$(tput sgr0)
+GREEN=$(tput setaf 2; tput bold)
+RED=$(tput setaf 1)
+
+function green() {
+    echo -e "$GREEN$*$NORMAL"
+}
+
+function red() {
+    echo -e "$RED$*$NORMAL"
+}
 
 #eos cp /etc/group /eos/dev/test2/file
 
@@ -26,11 +37,13 @@
 
 #PATH=/opt/eos/xrootd/bin:$PATH
 
-echo ""
-val=`eos file info /eos/dev/test2/filetest1 | grep Layout | awk '{print $10}'` 
-echo $val
-val=2
-echo $val
+fallocate -l 5000000 /tmp/5mbfile.dat
+
+#echo ""
+#val=`eos file info /eos/dev/test2/filetest1 | grep Layout | awk '{print $10}'` 
+#echo $val
+#val=2
+#echo $val
 
 
 #if [[ 10 -eq 10 ]];
@@ -96,15 +109,32 @@ echo $val
 
 if [ $val != "d3+2::t0" ];
 then
-exit 1
-fi
+red "This has a faliure for the system wich did fail."
 
 eos rm /eos/dev/test2/*
+
 eos space config default space.dynamicec.maxthreshold=$val21
 eos space config default space.dynamicec.minthreshold=$val20
 eos space config default space.dynamicec.test=off
+
+rm -i /tmp/5mbfile.dat
+
+exit 1
+fi
+
+green "Succes for the test."
+eos rm /eos/dev/test2/*
+
+eos space config default space.dynamicec.maxthreshold=$val21
+eos space config default space.dynamicec.minthreshold=$val20
+eos space config default space.dynamicec.test=off
+
+rm -f /tmp/5mbfile.dat
+
 exit 0
 #root://localhost//eos/dev/test2/file.$name; done
 
 #eos cp /etc/group /eos/dev/test2/file
 #eos rm -r /eos/dev/test2/*
+
+

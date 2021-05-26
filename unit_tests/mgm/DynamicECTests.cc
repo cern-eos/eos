@@ -40,8 +40,8 @@ TEST(DynamicEC, LookInMap)
   eos::mgm::DynamicEC UUT(str, 11556926, 10000000, 1, 1, false);
   UUT.fillFiles();
   //This is for 100000 files in the system
-  ASSERT_EQ(UUT.simulatedFiles.size(), 100000);
-  ASSERT_FALSE(UUT.simulatedFiles.empty());
+  ASSERT_EQ(UUT.mSimulatedFiles.size(), 100000);
+  ASSERT_FALSE(UUT.mSimulatedFiles.empty());
   //ASSERT_EQ(UUT.simulatedFiles.max_size(),100000);
 }
 
@@ -53,8 +53,8 @@ TEST(DynamicEC, CheckingForAnythingInTheFile)
   eos::mgm::DynamicEC UUT(str, 11556926, 10000000, 1, 1, false);
   UUT.fillFiles();
 
-  for (int i = 0;  i < UUT.simulatedFiles.size(); i++) {
-    if (UUT.simulatedFiles[i]->getSize() <= 0) {
+  for (int i = 0;  i < UUT.mSimulatedFiles.size(); i++) {
+    if (UUT.mSimulatedFiles[i]->getSize() <= 0) {
       std::cerr << "Loop number" << i << std::endl;
       ASSERT_TRUE(false);
     }
@@ -69,7 +69,7 @@ TEST(DynamicEC, CheckOnWhatTheTimeIsIn)
   eos::mgm::DynamicEC UUT(str, 11556926, 10000000, 1, 1, false);
   UUT.fillFiles();
   eos::IFileMD::ctime_t time;
-  UUT.simulatedFiles[1].get()->getCTime(time);
+  UUT.mSimulatedFiles[1].get()->getCTime(time);
   std::cerr << time.tv_sec << " seconds " << " nano seconds " << time.tv_nsec <<
             std::endl;
 }
@@ -84,9 +84,9 @@ TEST(DynamicEC, TestForIfAnyWillHaveToBeDeleted)
   int number = 0;
 
   for (int i = 0;  i < 100000; i++) {
-    auto file = UUT.simulatedFiles[i];
+    auto file = UUT.mSimulatedFiles[i];
 
-    if (UUT.DeletionOfFileID(UUT.simulatedFiles[i], time(0) - 11556926)) {
+    if (UUT.DeletionOfFileID(UUT.mSimulatedFiles[i], time(0) - 11556926)) {
       number++;
     }
   }
@@ -105,14 +105,14 @@ TEST(DynamicEC, TestForErasingFiles)
 
   //int number = 0;
   for (int i = 0;  i < 100000; i++) {
-    auto file = UUT.simulatedFiles[i];
+    auto file = UUT.mSimulatedFiles[i];
 
-    if (UUT.DeletionOfFileID(UUT.simulatedFiles[i], time(0) - 11556926)) {
-      UUT.SingleDeletion(UUT.simulatedFiles[i]);
+    if (UUT.DeletionOfFileID(UUT.mSimulatedFiles[i], time(0) - 11556926)) {
+      UUT.SingleDeletion(UUT.mSimulatedFiles[i]);
     }
   }
 
-  ASSERT_TRUE(UUT.simulatedFiles.size() < 50000);
+  ASSERT_TRUE(UUT.mSimulatedFiles.size() < 50000);
 }
 
 /*
@@ -183,7 +183,7 @@ TEST(DynamicEC, TestForGetSmallSizedFill)
   const char* str = "DynamicTest";
   eos::mgm::DynamicEC UUT(str, 11556926, 10000000, 1, 1, false);
   UUT.fillSingleSmallFile(time(0) - 21556926, 5000000, 10);
-  ASSERT_FALSE(UUT.DeletionOfFileID(UUT.simulatedFiles[0], time(0) - 11556926));
+  ASSERT_FALSE(UUT.DeletionOfFileID(UUT.mSimulatedFiles[0], time(0) - 11556926));
 }
 
 TEST(DynamicEC, TestForGetSmallSizedFillAtTheEdge)
@@ -192,7 +192,7 @@ TEST(DynamicEC, TestForGetSmallSizedFillAtTheEdge)
   eos::mgm::DynamicEC UUT(str, 11556926, 10000000, 1, 1, false);
   UUT.fillSingleSmallFile(time(0) - 21556926, 5000000, 8);
   //ASSERT_EQ(UUT.GetSizeOfFile(UUT.simulatedFiles[0]),2);
-  ASSERT_FALSE(UUT.DeletionOfFileID(UUT.simulatedFiles[0], time(0) - 11556926));
+  ASSERT_FALSE(UUT.DeletionOfFileID(UUT.mSimulatedFiles[0], time(0) - 11556926));
 }
 
 /*
@@ -266,12 +266,12 @@ TEST(DynamicEC, TestForSpaceStatus)
   eos::mgm::statusForSystem status {0, 0, 0, 0};
   status = UUT.SpaceStatus();
   //EXPECT_EQ(1,0);
-  EXPECT_EQ(status.totalSize, UUT.createdFileSize);
+  EXPECT_EQ(status.totalSize, UUT.mCreatedFileSize);
   EXPECT_EQ(status.deletedSize, 0);
-  ASSERT_EQ(status.usedSize, UUT.createdFileSize);
-  ASSERT_EQ(status.deletedSize, UUT.deletedFileSize);
-  ASSERT_TRUE(status.undeletedSize > UUT.createdFileSize * 0.079);
-  ASSERT_TRUE(status.undeletedSize < UUT.createdFileSize * 0.081);
+  ASSERT_EQ(status.usedSize, UUT.mCreatedFileSize);
+  ASSERT_EQ(status.deletedSize, UUT.mDeletedFileSize);
+  ASSERT_TRUE(status.undeletedSize > UUT.mCreatedFileSize * 0.079);
+  ASSERT_TRUE(status.undeletedSize < UUT.mCreatedFileSize * 0.081);
   //EXPECT_THAT(2, IsBetween(1,3));
   //EXPECT_
   //EXPECT_THAT(status.undeletedSize, AllOf(Ge(UUT.createdFileSize*0.919),Le(UUT.createdFileSize*0.921)));
@@ -385,11 +385,11 @@ TEST(DynamicEC, TestForFillingInMoreFiles)
   const char* str = "DynamicTest";
   eos::mgm::DynamicEC UUT(str, 11556926, 1000000, 95, 92, false);
   UUT.fillFiles();
-  ASSERT_EQ(UUT.simulatedFiles.size(), 100000);
-  int a = UUT.simulatedFiles.size();
+  ASSERT_EQ(UUT.mSimulatedFiles.size(), 100000);
+  int a = UUT.mSimulatedFiles.size();
   //std::cerr << a << " seconds " << " nano seconds " << std::endl;
   UUT.fillFiles(100000);
-  ASSERT_EQ(UUT.simulatedFiles.size(), 200000);
+  ASSERT_EQ(UUT.mSimulatedFiles.size(), 200000);
 }
 
 /*
