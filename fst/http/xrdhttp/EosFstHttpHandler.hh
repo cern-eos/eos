@@ -1,42 +1,80 @@
-#pragma once
+//------------------------------------------------------------------------------
+//! @file EosFstHttpHandler.cc
+//! @author Andreas-Joachim Peters & Elvin Sindrilaru - CERN
+//------------------------------------------------------------------------------
 
+/************************************************************************
+ * EOS - the CERN Disk Storage System                                   *
+ * Copyright (C) 2021 CERN/Switzerland                                  *
+ *                                                                      *
+ * This program is free software: you can redistribute it and/or modify *
+ * it under the terms of the GNU General Public License as published by *
+ * the Free Software Foundation, either version 3 of the License, or    *
+ * (at your option) any later version.                                  *
+ *                                                                      *
+ * This program is distributed in the hope that it will be useful,      *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+ * GNU General Public License for more details.                         *
+ *                                                                      *
+ * You should have received a copy of the GNU General Public License    *
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+ ************************************************************************/
+
+#pragma once
 #include <map>
 #include <string>
 #include "XrdHttp/XrdHttpExtHandler.hh"
 #include "XrdVersion.hh"
 
-XrdVERSIONINFO(XrdHttpGetExtHandler, EOSFSTHTTP );
-
+XrdVERSIONINFO(XrdHttpGetExtHandler, EOSFSTHTTP);
 
 class XrdLink;
 class XrdSecEntity;
 class XrdHttpReq;
 class XrdHttpProtocol;
 
-class EosFstHttpHandler : public XrdHttpExtHandler {
-  
+//------------------------------------------------------------------------------
+//! Class EosFstHttpHandler
+//------------------------------------------------------------------------------
+class EosFstHttpHandler : public XrdHttpExtHandler
+{
 public:
-  
-  bool MatchesPath(const char *verb, const char *path);
-  
-  int ProcessReq(XrdHttpExtReq &);
-  
-  int Init(const char *cfgfile);
-  
-  //------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Constructor
-  //------------------------------------------------------------------------------
-  
-  EosFstHttpHandler() {}
-  
-  //------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  EosFstHttpHandler() = default;
+
+  //----------------------------------------------------------------------------
   //! Destructor
-  //------------------------------------------------------------------------------
-  
-  virtual     ~EosFstHttpHandler() {}
+  //----------------------------------------------------------------------------
+  virtual ~EosFstHttpHandler() = default;
+
+  bool MatchesPath(const char* verb, const char* path);
+
+  int ProcessReq(XrdHttpExtReq&);
+
+  int Init(const char* cfgfile);
 
 private:
   eos::fst::XrdFstOfs* OFS;
+
+  //----------------------------------------------------------------------------
+  //! Handle chunk upload operation
+  //!
+  //! @param req http external request object
+  //! @param handler eos protocol handler object for file operations
+  //! @param norm_hdrs normalized headers
+  //! @param cookies cookies
+  //! @param query query string
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool HandleChunkUpload(XrdHttpExtReq& req,
+                         eos::common::ProtocolHandler* handler,
+                         std::map<std::string, std::string>& norm_hdrs,
+                         std::map<std::string, std::string>& cookies,
+                         std::string& query);
 };
 
 /******************************************************************************/
@@ -73,7 +111,8 @@ class XrdOucEnv;
                               const char        *parms, \
                               XrdOucEnv         *myEnv
 
-extern "C" XrdHttpExtHandler *XrdHttpGetExtHandler(XrdHttpExtHandlerArgs) {
+extern "C" XrdHttpExtHandler* XrdHttpGetExtHandler(XrdHttpExtHandlerArgs)
+{
   XrdHttpExtHandler* handler = new EosFstHttpHandler();
   handler->Init(confg);
   return handler;
@@ -86,5 +125,3 @@ extern "C" XrdHttpExtHandler *XrdHttpGetExtHandler(XrdHttpExtHandlerArgs) {
 //! your plug-in. While not currently required, it is highly recommended to
 //! avoid execution issues should the class definition change. Declare it as:
 //------------------------------------------------------------------------------
-
-
