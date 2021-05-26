@@ -26,6 +26,7 @@
 
 #include <thread>
 #include <map>
+#include <unordered_map>
 
 #include "mgm/Namespace.hh"
 #include "mgm/fusex.pb.h"
