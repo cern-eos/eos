@@ -2247,6 +2247,7 @@ Server::OpSetFile(const std::string& id,
     if (op != UPDATE) {
       // update the mtime
       gOFS->eosDirectoryService->updateStore(pcmd.get());
+      pcmd->notifyMTimeChange(gOFS->eosDirectoryService);
     }
 
     // retrieve the clock
