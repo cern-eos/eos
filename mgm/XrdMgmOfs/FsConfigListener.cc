@@ -78,7 +78,8 @@ XrdMgmOfs::processIncomingMgmConfigurationChange(const std::string& key)
 
       // For fs modification we need to lock for write the FsView::ViewMutex
       if (key.find("fs:") == 0) {
-        eos::common::RWMutexWriteLock wr_view_lock(FsView::gFsView.ViewMutex);
+        eos::common::RWMutexWriteLock
+        wr_view_lock(FsView::gFsView.ViewMutex, __FUNCTION__, __LINE__, __FILE__);
         gOFS->ConfEngine->ApplyEachConfig(key.c_str(), &value, &err);
       }
 
@@ -100,8 +101,8 @@ XrdMgmOfs::ProcessGeotagChange(const std::string& queue)
 {
   std::string newgeotag;
   eos::common::FileSystem::fsid_t fsid = 0;
-  eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex, __FUNCTION__,
-                                          __LINE__, __FILE__);
+  eos::common::RWMutexReadLock
+  fs_rd_lock(FsView::gFsView.ViewMutex, __FUNCTION__, __LINE__, __FILE__);
   FileSystem* fs = FsView::gFsView.mIdView.lookupByQueuePath(queue);
 
   if (fs == nullptr) {
@@ -130,7 +131,8 @@ XrdMgmOfs::ProcessGeotagChange(const std::string& queue)
                 oldgeotag.c_str(), newgeotag.c_str());
     // Release read lock and take write lock
     fs_rd_lock.Release();
-    eos::common::RWMutexWriteLock fs_rw_lock(FsView::gFsView.ViewMutex);
+    eos::common::RWMutexWriteLock
+    fs_rw_lock(FsView::gFsView.ViewMutex, __FUNCTION__, __LINE__, __FILE__);
     eos::common::FileSystem::fs_snapshot_t snapshot;
     fs->SnapShotFileSystem(snapshot);
 
@@ -219,7 +221,8 @@ void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept
           eos::common::ConfigStatus cfgstatus = eos::common::ConfigStatus::kOff;
           eos::common::BootStatus bstatus = eos::common::BootStatus::kDown;
           // read the id from the hash and the current error value
-          eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+          eos::common::RWMutexReadLock
+          fs_rd_lock(FsView::gFsView.ViewMutex, __FUNCTION__, __LINE__, __FILE__);
           FileSystem* fs = FsView::gFsView.mIdView.lookupByQueuePath(
                              event.fileSystemQueue);
 
