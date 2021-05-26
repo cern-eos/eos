@@ -41,8 +41,7 @@
 #include "common/FileSystem.hh"
 #include "common/AssistedThread.hh"
 #include "namespace/interface/IFileMD.hh"
-#include "mgm/DynamicCreator.hh"
-#include "mgm/DynamicScanner.hh"
+
 /* -------------------------------------------------------------------------- */
 #include "XrdSys/XrdSysPthread.hh"
 /* -------------------------------------------------------------------------- */
