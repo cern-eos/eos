@@ -1599,7 +1599,6 @@ Server::OpSetDirectory(const std::string& id,
     ctime.tv_nsec = md.ctime_ns();
     mtime.tv_sec = md.mtime();
     mtime.tv_nsec = md.mtime_ns();
-    eos_static_info("setting mtime %ld.%ld\n", mtime.tv_sec, mtime.tv_nsec);
     pmtime.tv_sec = mtime.tv_sec;
     pmtime.tv_nsec = mtime.tv_nsec;
     cmd->setCTime(ctime);
