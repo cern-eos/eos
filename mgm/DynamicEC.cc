@@ -20,7 +20,7 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-//test
+
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "mgm/DynamicECFile.hh"
 #include "mgm/DynamicEC.hh"
@@ -37,8 +37,8 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "Xrd/XrdScheduler.hh"
-#include "mgm/DynamicCreator.hh"
-//#include "mgm/DynamicScanner.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
+
 #include <random>
 #include <cmath>
 #include <map>
