@@ -89,104 +89,79 @@ struct statusForSystem {
   int64_t undeletedSize; /// bytes that will have to be deleted.
 };
 
+struct Config {
+  double min_threshold;
+  double max_threshold;
+  uint64_t min_age_for_deletion;
+  uint64_t min_size_for_deletion;
+  std::string spacename;
+  bool onWork;
+  int wait_time;
+  int new_security_stripes;
+  bool test_enable;
+};
+
 class DynamicEC
 {
 private:
-  AssistedThread mThread; /// thread for doing the clean up
+  AssistedThread mThread; ///< thread for doing the clean up
 
-  AssistedThread mThread2; /// thread for doing the clean up
+  AssistedThread mThread2; ///< thread for creating files in the system for test
 
-  AssistedThread mThread3; /// thread for doing the checking for the files
-
-  AssistedThread TestThread; ///Thread for testign stuff.
-
-  DynamicScanner mScanner;
+  AssistedThread mThread3; ///< thread for doing the checking for the files
 
   std::string
-  mSpaceName; /// the space that the thread is running on // this have to be cheked on how it will have to run over
+  mSpaceName; ///< the space that the thread is running on
 
   std::string
-  timeStore; /// some variable to store the time, to compare with the new time, can also be done dynamic from a function and like five years from now;
+  mTimeStore; ///< some variable to store the time, to compare with the new time, can also be done dynamic from a function and like five years from now;
+
+
 
   std::atomic<double>
-  minThresHold; /// Threshold on when to stop the deletion of files
+  mMinThresHold; ///< Threshold on when to stop the deletion of files
 
   std::atomic<double>
-  maxThresHold; /// ThresHold on when to delete part of different files
+  mMaxThresHold; ///< ThresHold on when to delete part of different files
 
   std::atomic<uint64_t>
-  timeFromWhenToDelete; /// time for how old the file have to be in order to be deleted.
+  mTimeFromWhenToDelete; ///< time for how old the file have to be in order to be deleted.
 
   std::atomic<uint64_t>
-  sizeMinForDeletion; /// the minimum size, that the file in the system will have to be in order to get deleted.
+  mSizeMinForDeletion; ///< the minimum size, that the file in the system will have to be in order to get deleted.
 
   std::atomic<uint64_t>
-  age;
+  mAge; ///< the age for old the files can be in order to be reduced.
 
   std::atomic<int>
-  security;
+  mSecurity; ///< security for how it is going to put in to how many excessstripes needed - currently not in use
 
   std::atomic<bool>
-  mOnWork;
+  mTestEnabel; ///< set the test to be online wich makes the system run faster but also use more resources.
 
-  std::atomic<bool>
-  mTestEnabel;
+  std::atomic<int>
+  mWaitTime; ///< the time to wait between cycles in seconds.
 
-  int waitTime;
+  std::atomic<uint64_t>
+  mSizeToBeDeleted; ///< the size that the system will have to delete in order to get under the minimum threshold.
 
-  uint64_t sizeToBeDeleted; /// the size that the system will have to delete in order to get under the minimum threshold.
-
-
-
-  //DynamicCreator mCreator;
-
-  ////////This is for the scanner
-  bool enabled()
-  {
-    return (mEnabled.load()) ? true : false;
-  }
-  bool disable()
-  {
-    if (!enabled()) {
-      return false;
-    } else {
-      mEnabled.store(0, std::memory_order_seq_cst);
-      return true;
-    }
-  }
-  bool enable()
-  {
-    if (enabled()) {
-      return false;
-    } else {
-      mEnabled.store(1, std::memory_order_seq_cst);
-      return true;
-    }
-  }
-
-  std::map<uint64_t, std::map<std::string, uint64_t>> lastScanStats;
-  std::map<uint64_t, std::map<std::string, uint64_t>> currentScanStats;
+  std::map<uint64_t, std::map<std::string, uint64_t>>
+      lastScanStats; ///< map for the last scan
+  std::map<uint64_t, std::map<std::string, uint64_t>> currentScanStats; ///<
   std::map<std::string, std::set<uint64_t>> lastFaultyFiles;
   std::map<std::string, std::set<uint64_t>> currentFaultyFiles;
 
-  std::atomic<double> scanned_percent;
+  std::atomic<double> scanned_percent; ///< scanned file percent
 
-  std::atomic<int> mEnabled;
-
-  //uint64_t test;
-  //std::atomic<std::map<uint64_t, std::shared_ptr<eos::QuarkFileMD>>> statusFiles2;
-
-  std::mutex mMutexForStatusFiles;
+  std::mutex
+  mMutexForStatusFilesMD; ///< mutex for the status files that can be removed
   std::map<uint64_t, std::shared_ptr<eos::QuarkFileMD>> statusFiles;
-  std::mutex mMutexForStatusFilesMD;
-  //std::map<uint64_t, std::shared_ptr<eos::IFileMD>> statusFilesMD;
-//std::shared_ptr<eos::IFileMD>
+  std::mutex mMutexForStatusFiles;
 
   time_t timeCurrentScan;
   time_t timeLastScan;
   void Process(std::string& filepath);
   void Process(std::shared_ptr<eos::IFileMD> fmd);
-  //AssistedThread mThread; ///< thread id of the creation background tracker
   std::unique_ptr<qclient::QClient> mQcl;
   uint64_t nfiles;
   uint64_t ndirs;
@@ -195,57 +170,36 @@ private:
 
   int mTestNumber;
 
-  std::atomic<bool> mDynamicOn;
-
-  //bool mOnTest;
-
-  /// The XRootD OFS plugin implementing the metadata handling of EOS
-  // use gOFS it is the same here
-  //XrdMgmOfs &m_ofs;
+  std::atomic<bool> mDynamicOn; ///< the bool to set the dynamicec on or off
 
 public:
 
   std::map<uint64_t, std::shared_ptr<eos::IFileMD>> GetMap();
 
-  std::map<uint64_t, std::shared_ptr<eos::IFileMD>> statusFilesMD;
+  std::map<uint64_t, std::shared_ptr<eos::IFileMD>> mStatusFilesMD; ///<
 
   struct FailedToGetFileSize: public std::runtime_error {
     FailedToGetFileSize(const std::string& msg): std::runtime_error(msg) {}
   };
 
-  void TestFunction();
+  uint64_t mCreatedFileSize; ///< the size of the created files in bytes this is used for testing
 
-  uint64_t createdFileSize; /// the size of the created files in bytes
+  uint64_t mDeletedFileSize; ///< The deletion of files for this section;
 
-  uint64_t deletedFileSize; /// The deletion of files for this section;
+  uint64_t mDeletedFileSizeInTotal; ///< The size that have been deletede though out the whole time of the systems time.
 
-  uint64_t deletedFileSizeInTotal; /// The size that have been deletede though out the whole time of the systems time.
+  std::map<IFileMD::id_t, std::shared_ptr<DynamicECFile>>
+      mSimulatedFiles; ///< file for running tests in gtest
 
-  //std::map<eos::IFileMD::id_t,std::shared_ptr<eos::IFileMD>> simulatedFiles;
+  Config getConfiguration();
 
-  std::map<IFileMD::id_t, std::shared_ptr<DynamicECFile>> simulatedFiles;
-
-  //void performCycleQDB(ThreadAssistant& assistant) noexcept;
-
-  void setTestOn();
-
-  void setTestOff();
+  void setTest(bool onOff);
 
   bool getTest();
 
-  void turnDynamicECOn();
-
-  void turnDynamicECOff();
-
-  void testForSpaceCmd2();
-
-  void testForSpaceCmd();
+  void setDynamicEC(bool onOff);
 
   void setWaitTime(int wait);
-
-  void createFileForTest();
-
-  void createFiles();
 
   void createFilesOneTime();
 
@@ -300,8 +254,6 @@ public:
 
   int getSecurity();
 
-  void fillSingleFile();
-
   void fillFiles();
 
   void fillFiles(int newFiles);
@@ -315,10 +267,6 @@ public:
 
   ///might be bool too tell if the file was deleted, or int is on how many copies were deleted.
   bool DeletionOfFileID(std::shared_ptr<DynamicECFile> file, uint64_t ageOld);
-
-  //This is for the system in order to make it for alle the files and not only for the special file made for this purpose
-  bool DeletionOfFileIDForGenerelFile(std::shared_ptr<eos::QuarkFileMD> file,
-                                      uint64_t ageOld);
 
   //This is the new one for the fileMD
   bool DeletionOfFileIDMD(std::shared_ptr<eos::IFileMD>, uint64_t ageOld);
@@ -343,11 +291,7 @@ public:
 
   void kRaid6T(std::shared_ptr<eos::DynamicECFile> file);
 
-  void kReduce(std::shared_ptr<eos::QuarkFileMD> file);
-
   void kReduceMD(std::shared_ptr<eos::IFileMD> file);
-
-  std::uint64_t getFileSizeBytes(const IFileMD::id_t fid);
 
   void printAll();
 
@@ -369,7 +313,7 @@ public:
 
   void Stop();
 
-  void Cleanup() noexcept;
+  //void Cleanup() noexcept;
 
   void CleanupMD() noexcept;
 
@@ -383,8 +327,6 @@ public:
   };
 
   Options getOptions();
-
-  void performCycleQDB(ThreadAssistant& assistant) noexcept;
 
   void performCycleQDBMD(ThreadAssistant& assistant) noexcept;
 
