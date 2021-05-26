@@ -1597,6 +1597,7 @@ Server::OpSetDirectory(const std::string& id,
     ctime.tv_nsec = md.ctime_ns();
     mtime.tv_sec = md.mtime();
     mtime.tv_nsec = md.mtime_ns();
+    eos_static_info("setting mtime %ld.%ld\n", mtime.tv_sec, mtime.tv_nsec);
     pmtime.tv_sec = mtime.tv_sec;
     pmtime.tv_nsec = mtime.tv_nsec;
     cmd->setCTime(ctime);
@@ -2227,9 +2228,15 @@ Server::OpSetFile(const std::string& id,
 
     if (op != UPDATE) {
       // update the mtime
-      pcmd->setMTime(mtime);
-      pt_mtime.tv_sec = mtime.tv_sec;
-      pt_mtime.tv_nsec = mtime.tv_nsec;
+      if (op == RENAME) {
+	pcmd->setMTime(ctime);
+	pt_mtime.tv_sec = ctime.tv_sec;
+	pt_mtime.tv_nsec = ctime.tv_nsec;
+      } else {
+	pcmd->setMTime(mtime);
+	pt_mtime.tv_sec = mtime.tv_sec;
+	pt_mtime.tv_nsec = mtime.tv_nsec;
+      }
     } else {
       pt_mtime.tv_sec = pt_mtime.tv_nsec = 0;
     }
