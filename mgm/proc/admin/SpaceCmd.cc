@@ -803,21 +803,21 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
 
                 if (key == "dynamicEC") {
                   if (value == "on") {
-                    gOFS->mDynamicEC->turnDynamicECOn();
+                    gOFS->mDynamicEC->setDynamicEC(true);
                     std_out << "success: dynamicEC is enabled!";
                   } else {
-                    gOFS->mDynamicEC->turnDynamicECOff();
+                    gOFS->mDynamicEC->setDynamicEC(false);
                     std_out << "success: dynamicEC is disabled!";
                   }
                 }
 
                 if (key == "dynamicec.test") {
                   if (value == "on") {
-                    gOFS->mDynamicEC->setTestOn();
+                    gOFS->mDynamicEC->setTest(true);
                     std_out << "this is the test bool:";
                     std_out << gOFS->mDynamicEC->getTest();
                   } else if (value == "off") {
-                    gOFS->mDynamicEC->setTestOff();
+                    gOFS->mDynamicEC->setTest(false);
                     std_out << "this is the test bool:";
                     std_out << gOFS->mDynamicEC->getTest();
                   }
