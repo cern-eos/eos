@@ -1,0 +1,60 @@
+#!/bin/bash
+set -e
+fusedir=$1
+eosdir=$2
+
+# this test script creates a file/direcotry, chmod, rename's it and verifies that the sync times are updated accordingly
+
+eos mkdir -p /eos/$eosdir/synctime/
+eos attr set sys.mtime.propagation=1 /eos/$eosdir/synctime/
+eos chmod 777 /eos/$eosdir/synctime/
+
+# SYNC TIME PROPAGATION FOR FILES
+stime0=`eos file info /eos/$eosdir/synctime/ -m | grep -o 'stime=[^ ]\+' | cut -d "=" -f 2`
+
+touch $fusedir/$eosdir/synctime/f.1
+
+sleep 2
+
+stime1=`eos file info /eos/$eosdir/synctime/ -m | grep -o 'stime=[^ ]\+' | cut -d "=" -f 2`
+
+chmod 700 $fusedir/$eosdir/synctime/f.1
+
+sleep 2
+
+stime2=`eos file info /eos/$eosdir/synctime/ -m | grep -o 'stime=[^ ]\+' | cut -d "=" -f 2`
+
+mv $fusedir/$eosdir/synctime/f.1 $fusedir/$eosdir/synctime/f.2
+
+sleep 2
+
+stime3=`eos file info /eos/$eosdir/synctime/ -m | grep -o 'stime=[^ ]\+' | cut -d "=" -f 2`
+
+# SYNC TIME PROPAGATION FOR DIRECTORIES
+mkdir -p $fusedir/$eosdir/synctime/d.1
+
+sleep 2
+
+stime4=`eos file info /eos/$eosdir/synctime/ -m | grep -o 'stime=[^ ]\+' | cut -d "=" -f 2`
+
+chmod 777 $fusedir/$eosdir/synctime/d.1
+
+sleep 2
+
+stime5=`eos file info /eos/$eosdir/synctime/ -m | grep -o 'stime=[^ ]\+' | cut -d "=" -f 2`
+
+mv $fusedir/$eosdir/synctime/d.1 $fusedir/$eosdir/synctime/d.2
+
+sleep 2
+
+stime6=`eos file info /eos/$eosdir/synctime/ -m | grep -o 'stime=[^ ]\+' | cut -d "=" -f 2`
+
+
+echo $stime0 $stime1 $stime2 $stime3 $stime4 $stime5 $stime6
+
+test "1" = $(  printf '%F < %F\n' "$stime0" "$stime1" | bc -l  )
+test "1" = $(  printf '%F == %F\n' "$stime1" "$stime2" | bc -l  )
+test "1" = $(  printf '%F < %F\n' "$stime2" "$stime3" | bc -l  )
+test "1" = $(  printf '%F < %F\n' "$stime3" "$stime4" | bc -l  )
+test "1" = $(  printf '%F == %F\n' "$stime4" "$stime5" | bc -l  )
+test "1" = $(  printf '%F < %F\n' "$stime5" "$stime6" | bc -l  )
