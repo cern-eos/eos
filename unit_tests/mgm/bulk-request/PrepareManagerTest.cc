@@ -32,6 +32,11 @@
 #include "auth_plugin/ProtoUtils.hh"
 #include "mgm/bulk-request/prepare/PrepareUtils.hh"
 
+using ::testing::Return;
+using ::testing::_;
+using ::testing::Invoke;
+using ::testing::NiceMock;
+
 /**
  * RAII class to hold the XrdSecEntity client pointer
  * Avoids memory leaks for valgrind
@@ -118,6 +123,7 @@ protected:
   }
 
   virtual void TearDown() {
+    eos::common::Mapping::Reset();
   }
 
   static ClientWrapper getDefaultClient() {
@@ -199,10 +205,6 @@ TEST_F(PrepareManagerTest, PrepareUtilsPrepareOptsToString)
 }
 
 TEST_F(PrepareManagerTest,stagePrepareThreeFilesWorkflow){
-  using ::testing::Return;
-  using ::testing::_;
-  using ::testing::Invoke;
-
   int nbFiles = 3;
   std::vector<std::string> paths;
   for(int i = 0; i < nbFiles; i++){
@@ -243,7 +245,7 @@ TEST_F(PrepareManagerTest,stagePrepareThreeFilesWorkflow){
           [](const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)
           {
             map["sys.workflow.sync::prepare"] = "";
-            return 0;
+            return SFS_OK;
           }));
   EXPECT_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_)).Times(nbFiles);
   EXPECT_CALL(mgmOfs,Emsg).Times(0);
@@ -256,11 +258,38 @@ TEST_F(PrepareManagerTest,stagePrepareThreeFilesWorkflow){
   ASSERT_EQ(SFS_DATA,retPrepare);
 }
 
-/*TEST_F(PrepareManagerTest,stagePrepareAllFilesDoNotExist){
-  using ::testing::Return;
-  using ::testing::_;
-  using ::testing::Invoke;
+TEST_F(PrepareManagerTest,stagePrepareFileWithNoPath){
+  ClientWrapper client = PrepareManagerTest::getDefaultClient();
+  PrepareArgumentsWrapper pargs("testReqId",Prep_STAGE, {""},{""});
 
+  ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
+  XrdOucErrInfo * error = errorWrapper.getError();
+
+  NiceMock<MockPrepareMgmFSInterface> mgmOfs;
+  //As no path exists, Emsg should be called one time
+  EXPECT_CALL(mgmOfs,Emsg).Times(1);
+  //No path are set, no mgmOfs method should be called
+  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_)).Times(0);
+  EXPECT_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_)).Times(0);
+  EXPECT_CALL(mgmOfs,_access).Times(0);
+  EXPECT_CALL(mgmOfs,FSctl).Times(0);
+
+  eos::mgm::PrepareManager pm(mgmOfs);
+  int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
+
+  //The bulk-request is created, but no file is put in it
+  ASSERT_EQ(0,pm.getBulkRequest()->getPaths().size());
+  //The prepare manager returns SFS_ERROR
+  ASSERT_EQ(SFS_ERROR,retPrepare);
+}
+
+TEST_F(PrepareManagerTest,stagePrepareAllFilesDoNotExist){
+  /**
+   *  The current behaviour is that if at least one file does not exist,
+   *  an error will be returned to the client without queueing any Retrieve request on CTA
+   *  Here we test that if all files do not exist, it will return an error to the client and the code -1
+   *  https://its.cern.ch/jira/projects/EOS/issues/EOS-4722
+   */
   int nbFiles = 3;
   std::vector<std::string> paths;
   for(int i = 0; i < nbFiles; i++){
@@ -279,4 +308,85 @@ TEST_F(PrepareManagerTest,stagePrepareThreeFilesWorkflow){
 
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
-}*/
+
+  NiceMock<MockPrepareMgmFSInterface> mgmOfs;
+  //No file exist, Emsg should be called once
+  EXPECT_CALL(mgmOfs,Emsg).Times(1);
+  ON_CALL(mgmOfs,_exists(_,_,_,_,_)).WillByDefault(Invoke(
+      [](const char* path, XrdSfsFileExistence& file_exists, XrdOucErrInfo& error, const XrdSecEntity* client, const char* ininfo){
+        file_exists = XrdSfsFileExistNo;
+        return SFS_ERROR;
+      }
+  ));
+  //The current behaviour is that the prepare logic returns an error if at least one file does not exist.
+  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_)).Times(1);
+  EXPECT_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_)).Times(0);
+  EXPECT_CALL(mgmOfs,_access).Times(0);
+  EXPECT_CALL(mgmOfs,FSctl).Times(0);
+  eos::mgm::PrepareManager pm(mgmOfs);
+  int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
+
+  ASSERT_EQ(0,pm.getBulkRequest()->getPaths().size());
+  ASSERT_EQ(SFS_ERROR,retPrepare);
+}
+
+TEST_F(PrepareManagerTest,stagePrepareOneFileDoNotExistReturnsSfsError){
+  /**
+   *  The current behaviour is that if at least one file does not exist,
+   *  an error will be returned to the client without queueing any Retrieve request on CTA
+   *  Here we test that if the first file exists and the second does not, it will return an error to the client and the code -1
+   *  https://its.cern.ch/jira/projects/EOS/issues/EOS-4722
+   */
+  int nbFiles = 3;
+  std::vector<std::string> paths;
+  for(int i = 0; i < nbFiles; i++){
+    std::stringstream ss;
+    ss << "path" << i + 1;
+    paths.push_back(ss.str());
+  }
+
+  std::vector<std::string> oinfos;
+  for(int i = 0; i < nbFiles; i++){
+    oinfos.push_back("");
+  }
+
+  ClientWrapper client = PrepareManagerTest::getDefaultClient();
+  PrepareArgumentsWrapper pargs("testReqId",Prep_STAGE,oinfos,paths);
+
+  ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
+  XrdOucErrInfo * error = errorWrapper.getError();
+
+  NiceMock<MockPrepareMgmFSInterface> mgmOfs;
+  //isTapeEnabled should not be called
+  EXPECT_CALL(mgmOfs,isTapeEnabled).Times(0);
+  //One file does not exist, Emsg should be called once
+  EXPECT_CALL(mgmOfs,Emsg).Times(1);
+  //Exist will first return true for the existing file, then return false
+  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_)).Times(2).WillOnce(Invoke(
+      [](const char* path, XrdSfsFileExistence& file_exists, XrdOucErrInfo& error, const XrdSecEntity* client, const char* ininfo){
+        file_exists = XrdSfsFileExistIsFile;
+        return SFS_OK;
+      }
+  )).WillOnce(Invoke(
+      [](const char* path, XrdSfsFileExistence& file_exists, XrdOucErrInfo& error, const XrdSecEntity* client, const char* ininfo){
+        file_exists = XrdSfsFileExistNo;
+        return SFS_ERROR;
+      }
+  ));
+  //Attr ls should work for the file that exists
+  EXPECT_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_)).Times(1)
+      .WillRepeatedly(Invoke(
+          [](const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)
+          {
+            map["sys.workflow.sync::prepare"] = "";
+            return SFS_OK;
+          }));
+  EXPECT_CALL(mgmOfs,_access).Times(1);
+  EXPECT_CALL(mgmOfs,FSctl).Times(0);
+  eos::mgm::PrepareManager pm(mgmOfs);
+  int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
+
+  //One file could have been prepared, but it did not. Still, it is in the bulk-request
+  ASSERT_EQ(1,pm.getBulkRequest()->getPaths().size());
+  ASSERT_EQ(SFS_ERROR,retPrepare);
+}
