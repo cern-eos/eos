@@ -37,9 +37,7 @@
 #include "MonitorVarPartition.hh"
 #include <google/dense_hash_map>
 #include <math.h>
-// @note (esindril)use this when Clang (>= 6.0.0) supports it
-//#include <filesystem>
-
+#include <filesystem>
 extern eos::fst::XrdFstOss* XrdOfsOss;
 
 EOSFSTNAMESPACE_BEGIN

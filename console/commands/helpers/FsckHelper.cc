@@ -48,7 +48,7 @@ FsckHelper::ParseCommand(const char* arg)
     }
 
     std::string key = option;
-    std::string value {};
+    std::string value {""};
 
     if ((option = tokenizer.GetToken()) != nullptr) {
       value = option;
@@ -91,21 +91,21 @@ FsckHelper::ParseCommand(const char* arg)
     while (tokenizer.NextToken(soption)) {
       if (soption == "--fxid") {
         if ((option = tokenizer.GetToken()) == nullptr) {
-          std::cerr << "error: fxid option needs a value\n\n";
+          std::cerr << "error: fxid option needs a value\n";
           return false;
         }
 
         uint64_t fid = eos::common::FileId::Hex2Fid(option);
 
         if (fid == 0ull) {
-          std::cerr << "error: fid option needs to be non-zero\n\n";
+          std::cerr << "error: fid option needs to be non-zero\n";
           return false;
         }
 
         repair->set_fid(fid);
       } else if (soption == "--fsid") {
         if ((option = tokenizer.GetToken()) == nullptr) {
-          std::cerr << "error: fsid option needs a value\n\n";
+          std::cerr << "error: fsid option needs a value\n";
           return false;
         }
 
@@ -115,7 +115,7 @@ FsckHelper::ParseCommand(const char* arg)
         try {
           fsid = std::stoull(soption);
         } catch (...) {
-          std::cerr << "error: fsid option needs to be numeric\n\n";
+          std::cerr << "error: fsid option needs to be numeric\n";
           return false;
         }
 
@@ -127,7 +127,7 @@ FsckHelper::ParseCommand(const char* arg)
         repair->set_fsid_err(fsid);
       } else if (soption == "--error") {
         if ((option = tokenizer.GetToken()) == nullptr) {
-          std::cerr << "error: the error flag needs an option\n\n";
+          std::cerr << "error: the error flag needs an option\n";
           return false;
         }
 
