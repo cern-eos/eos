@@ -172,7 +172,6 @@ utils::GetXrdSecEntity(const XrdSecEntityProto& proto_obj)
   obj->prot[XrdSecPROTOIDSIZE - 1] = '\0';
   obj->name = strdup(proto_obj.name().c_str());
   obj->host = strdup(proto_obj.host().c_str());
-  obj->host = strdup(proto_obj.host().c_str());
   obj->vorg = strdup(proto_obj.vorg().c_str());
   obj->role = strdup(proto_obj.role().c_str());
   obj->grps = strdup(proto_obj.grps().c_str());
@@ -204,7 +203,6 @@ utils::DeleteXrdSecEntity(XrdSecEntity*& obj)
   obj = 0;
 }
 
-
 //------------------------------------------------------------------------------
 // Get XrdSfsPrep object from protocol buffer object
 //------------------------------------------------------------------------------
@@ -225,31 +223,52 @@ utils::GetXrdSfsPrep(const eos::auth::XrdSfsPrepProto& proto_obj)
   if (proto_obj.paths_size() != proto_obj.oinfo_size()) {
     return obj;
   }
-
+  XrdOucTList * previousPath = obj->paths;
+  XrdOucTList * previousOinfo = obj->oinfo;
   for (int i = 0; i < proto_obj.paths_size(); i++) {
-    auto tmp_path = new XrdOucTList(proto_obj.paths(i).c_str());
+    auto currentPath = new XrdOucTList(proto_obj.paths(i).c_str());
 
     if (next_paths) {
-      next_paths->next = tmp_path;
-      next_paths = next_paths->next;
+      previousPath->next = currentPath;
     } else {
-      next_paths = tmp_path;
+      next_paths = currentPath;
     }
-
-    tmp_path = 0;
-    auto tmp_oinfo = new XrdOucTList(proto_obj.oinfo(i).c_str());
-
+    previousPath = currentPath;
+    currentPath = 0;
+    auto currentOinfo = new XrdOucTList(proto_obj.oinfo(i).c_str());
     if (next_oinfo) {
-      next_oinfo->next = tmp_oinfo;
-      next_oinfo = next_oinfo->next;
+      previousOinfo->next = currentOinfo;
     } else {
-      next_oinfo = tmp_oinfo;
+      next_oinfo = currentOinfo;
     }
-
-    tmp_oinfo = 0;
+    previousOinfo = currentOinfo;
+    currentOinfo = 0;
   }
 
   return obj;
+}
+
+//------------------------------------------------------------------------------
+// Delete DeleteXrdSfsPrep object
+//------------------------------------------------------------------------------
+void utils::DeleteXrdSfsPrep(XrdSfsPrep *& obj){
+    if(obj->reqid)
+        free(obj->reqid);
+    if(obj->notify != nullptr)
+        free(obj->notify);
+    XrdOucTList * currentPath = obj->paths;
+    while(currentPath != nullptr){
+        XrdOucTList * nextPath = currentPath->next;
+        delete currentPath;
+        currentPath = nextPath;
+    }
+    XrdOucTList * currentOinfo = obj->oinfo;
+    while(currentOinfo != nullptr){
+        XrdOucTList * nextOinfo = currentOinfo->next;
+        delete currentOinfo;
+        currentOinfo = nextOinfo;
+    }
+    delete obj;
 }
 
 

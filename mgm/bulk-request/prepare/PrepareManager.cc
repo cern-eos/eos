@@ -33,6 +33,7 @@
 #include <mgm/Macros.hh>
 #include <mgm/XrdMgmOfs.hh>
 #include <mgm/bulk-request/exception/PersistencyException.hh>
+#include <mgm/bulk-request/prepare/PrepareUtils.hh>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -46,7 +47,7 @@ int PrepareManager::prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdS
 
 int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecEntity* client) {
   EXEC_TIMING_BEGIN("Prepare");
-  eos_info("prepareOpts=\"%s\"", prepareOptsToString(pargs.opts).c_str());
+  eos_info("prepareOpts=\"%s\"", PrepareUtils::prepareOptsToString(pargs.opts).c_str());
   static const char* epname = mEpname.c_str();
   const char* tident = error.getErrUser();
   eos::common::VirtualIdentity vid;
@@ -145,7 +146,10 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
       const char* inpath = prep_path.c_str();
       const char* ininfo = "";
       NAMESPACEMAP;
-      prep_path = path;
+      //Valgrind Source and destination overlap in strncpy(...)
+      if(prep_path.c_str() != path) {
+        prep_path = path;
+      }
     }
     {
       const char* path = prep_path.c_str();
@@ -261,88 +265,6 @@ void PrepareManager::setBulkRequestBusiness(std::shared_ptr<BulkRequestBusiness>
   mBulkRequestBusiness = bulkRequestBusiness;
 }
 
-std::string PrepareManager::prepareOptsToString(const int opts) const{
-  std::ostringstream result;
-  const int priority = opts & Prep_PMASK;
-
-  switch (priority) {
-  case Prep_PRTY0:
-    result << "PRTY0";
-    break;
-
-  case Prep_PRTY1:
-    result << "PRTY1";
-    break;
-
-  case Prep_PRTY2:
-    result << "PRTY2";
-    break;
-
-  case Prep_PRTY3:
-    result << "PRTY3";
-    break;
-
-  default:
-    result << "PRTYUNKNOWN";
-  }
-
-  const int send_mask = 12;
-  const int send = opts & send_mask;
-
-  switch (send) {
-  case 0:
-    break;
-
-  case Prep_SENDAOK:
-    result << ",SENDAOK";
-    break;
-
-  case Prep_SENDERR:
-    result << ",SENDERR";
-    break;
-
-  case Prep_SENDACK:
-    result << ",SENDACK";
-    break;
-
-  default:
-    result << ",SENDUNKNOWN";
-  }
-
-  if (opts & Prep_WMODE) {
-    result << ",WMODE";
-  }
-
-  if (opts & Prep_STAGE) {
-    result << ",STAGE";
-  }
-
-  if (opts & Prep_COLOC) {
-    result << ",COLOC";
-  }
-
-  if (opts & Prep_FRESH) {
-    result << ",FRESH";
-  }
-
-#if (XrdMajorVNUM(XrdVNUMBER) == 4 && XrdMinorVNUM(XrdVNUMBER) >= 10) || XrdMajorVNUM(XrdVNUMBER) >= 5
-
-  if (opts & Prep_CANCEL) {
-    result << ",CANCEL";
-  }
-
-  if (opts & Prep_QUERY) {
-    result << ",QUERY";
-  }
-
-  if (opts & Prep_EVICT) {
-    result << ",EVICT";
-  }
-
-#endif
-  return result.str();
-}
-
 const int PrepareManager::getPrepareActionsFromOpts(const int pargsOpts) const {
   const int pargsOptsQoS = Prep_PMASK | Prep_SENDAOK | Prep_SENDERR | Prep_SENDACK
                            | Prep_WMODE | Prep_COLOC | Prep_FRESH;
@@ -361,7 +283,10 @@ void PrepareManager::triggerPrepareWorkflow(const std::list<std::pair<char**, ch
       const char* inpath = prep_path.c_str();
       const char* ininfo = "";
       NAMESPACEMAP;
-      prep_path = path;
+      //Valgrind Source and destination overlap in strncpy(...)
+      if(prep_path.c_str() != path) {
+        prep_path = path;
+      }
     }
     XrdOucString prep_info = pathPair.second != nullptr ? (*pathPair.second ?
                                                            *pathPair.second : "") : "";
