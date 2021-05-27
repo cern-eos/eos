@@ -1613,6 +1613,60 @@ test -d /test-fusex/ && rmdir /test-fusex/
 fi
 
 ################################################################################
+# eos squashfs tests
+################################################################################
+# ------------------------------------------------------------------------------
+categorie="squashfs"
+# ------------------------------------------------------------------------------
+
+export X509_USER_PROXY=/tmp/invalid
+export KRB5CCNAME=/tmp/invalid
+
+
+test -d /eos/ && umount -fl /eos/
+test -d /eos/ || mkdir /eos/
+
+eosxd -ofsname=localhost.localdomain:/eos /eos/
+
+if [ -e "/eos/$EOS_TEST_INSTANCE" ]; then
+# simple sqash packages
+runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash"
+runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash"
+runtest "### New SQFS  " unix 0 "" eos squash new "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/package1"
+runtest "### cp        " unix 0 "" shell cp /etc/passwd /eos/$EOS_TEST_INSTANCE/test/instancetest/squash/package1
+runtest "### Pack SQFS " unix 0 "" eos squash pack "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/package1"
+runtest "### Pack SQFS " unix 1 "" eos squash pack "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/package1"
+runtest "### Pack SQFS " unix 1 "" eos squash pack "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/package2"
+runtest "### info SQFS " unix 0 "" eos squash info "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/package1"
+runtest "### rm label  " unix 0 "" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/squash/package1
+runtest "### label SQFS" unix 0 "" eos squash relabel /eos/$EOS_TEST_INSTANCE/test/instancetest/squash/package1
+runtest "### label SQFS" unix 1 "" eos squash relabel /eos/$EOS_TEST_INSTANCE/test/instancetest/squash/package2
+runtest "### rm SQFS   " unix 0 "" eos squash rm /eos/$EOS_TEST_INSTANCE/test/instancetest/squash/package1
+runtest "### stat SQFS " unix 1 "" eos stat /eos/$EOS_TEST_INSTANCE/test/instancetest/squash/package1
+runtest "### stat SQFS " unix 1 "" eos stat /eos/$EOS_TEST_INSTANCE/test/instancetest/squash/.package1.sqsh
+
+# squash releases
+runtest "### New SQFSR " unix 0 "" eos squash new-release "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/release1"
+runtest "### cp        " unix 0 "" shell cp /etc/passwd /eos/$EOS_TEST_INSTANCE/test/instancetest/squash/release1/next
+runtest "### Pack SQFSR" unix 0 "" eos squash pack-release "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/release1"
+sleep 1
+runtest "### New SQFSR " unix 0 "" eos squash new-release "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/release1 1.0.1"
+runtest "### cp        " unix 0 "" shell cp /etc/passwd /eos/$EOS_TEST_INSTANCE/test/instancetest/squash/release1/next
+runtest "### Pack SQFSR" unix 0 "" eos squash pack-release "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/release1"
+runtest "### info SQFSR" unix 0 "" eos squash info-release "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/release1"
+runtest "### info SQFSR" unix 1 "" eos squash info-release "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/release2"
+runtest "### trim SQFSR" unix 0 "" eos squash trim-release "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/release1 1 1 "
+runtest "### trim SQFSR" unix 1 "" eos squash trim-release "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/release1 0 0 "
+runtest "### rm SQFSR"   unix 0 "" eos squash rm-release "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/release1"
+runtest "### rm SQFSR"   unix 1 "" eos squash rm-release "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/release1"
+runtest "### Rm        " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/squash/
+fi
+
+test -d /eos/ && umount -fl /eos/
+test -d /eos/ && rmdir /eos/
+
+
+################################################################################
 # Third party copy tests
 ################################################################################
 # ------------------------------------------------------------------------------
