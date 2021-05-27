@@ -74,13 +74,6 @@ public:
 private:
 
   /**
-   * Utility method to convert the prepare options to string options
-   * @param opts the prepare options to convert to string
-   * @return the prepare options in the string format
-   */
-  std::string prepareOptsToString(const int opts) const;
-
-  /**
    * Returns the Prepare actions to perform from the options given by Xrootd (XrdSfsPrep.opts)
    * @param pargsOpts the prepare options given by Xrootd (XrdSfsPrep.opts)
    * @return the Prepare actions to perform from the options given by Xrootd (XrdSfsPrep.opts)

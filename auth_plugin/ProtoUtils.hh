@@ -99,6 +99,13 @@ XrdSecEntity* GetXrdSecEntity(const eos::auth::XrdSecEntityProto& proto_obj);
 void DeleteXrdSecEntity(XrdSecEntity*& obj);
 
 //----------------------------------------------------------------------------
+//! Delete XrdSfsPrep object
+//!
+//! @param obj object to be deleted
+//----------------------------------------------------------------------------
+void DeleteXrdSfsPrep(XrdSfsPrep *& obj);
+
+//----------------------------------------------------------------------------
 //! Get XrdOucErrInfo object from protocol buffer object
 //!
 //! @param proto_obj protocol buffer object
