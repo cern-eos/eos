@@ -40,18 +40,11 @@ int com_proto_fsck(char* arg)
   FsckHelper fsck(gGlobalOpts);
 
   if (!fsck.ParseCommand(arg)) {
-    com_fsck_help();
     global_retc = EINVAL;
     return EINVAL;
   }
 
-  global_retc = fsck.Execute();
-
-  if (global_retc) {
-    std::cerr << fsck.GetError();
-  }
-
-  return global_retc;
+  return fsck.Execute();
 }
 
 //------------------------------------------------------------------------------
@@ -86,15 +79,20 @@ void com_fsck_help()
       << "    -i         : display file identifiers" << std::endl
       << "    -l         : display logical file name" << std::endl
       << "    -j|--json  : display in JSON output format" << std::endl
-      << "    --error    : display information about the following error tags"
-      << std::endl
+      << "    --error    : display information about the following error tags\n"
       << std::endl
       << "  fsck repair --fxid <val> [--fsid <val>] [--error <err_type>] [--async]\n"
       << "    repair the given file if there are any errors\n"
       << "    --fxid  : hexadecimal file identifier\n"
-      << "    --fsid  : explicit file system id used for collecting info\n"
+      << "    --fsid  : file system id used for collecting info\n"
       << "    --error : error type for given file system id e.g. m_cx_diff unreg_n etc\n"
       << "    --async : job queued and ran by the repair thread if enabled\n"
+      << std::endl
+      << "  fsck clean_orphans [--fsid <val>]\n"
+      << "     clean orphans by removing the entries from disk and local\n "
+      << "     database for all file systems or only for the given fsid.\n"
+      << "     This operation is synchronous but the fsck output will be\n"
+      << "     updated once the inconsistencies are refreshed.\n"
       << std::endl;
   std::cerr << oss.str() << std::endl;
 }

@@ -106,8 +106,8 @@ IProcCommand::open(const char* path, const char* info,
         //       and the NS will be queried directly
         oss << reply.std_out();
       } else {
-        oss << "mgm.proc.stdout=" << reply.std_out()
-            << "&mgm.proc.stderr=" << reply.std_err()
+        oss << "mgm.proc.stdout=" << reply.std_out().c_str()
+            << "&mgm.proc.stderr=" << reply.std_err().c_str()
             << "&mgm.proc.retc=" << reply.retc();
       }
 

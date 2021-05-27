@@ -251,6 +251,13 @@ public:
   CollectInconsistencyStats(const std::string prefix = "") const;
 
   //----------------------------------------------------------------------------
+  //! Collect orphans registered in the db for the current file system
+  //!
+  //! @return set of orphan file ids
+  //----------------------------------------------------------------------------
+  std::set<eos::common::FileId::fileid_t> CollectOrphans() const;
+
+  //----------------------------------------------------------------------------
   //! Update inconsistency info about the current file system
   //----------------------------------------------------------------------------
   void UpdateInconsistencyInfo();
