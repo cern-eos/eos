@@ -1962,8 +1962,17 @@ XrdMgmOfs::RemoveDetached(uint64_t id, bool is_dir, bool force,
       std::shared_ptr<eos::IFileMD> file = gOFS->eosFileService->getFileMD(id);
 
       if (file->getContainerId()) {
-        msg = "error: file is attached id=" + std::to_string(id);
-        return false;
+        // Double check if the parent container really exists. It could be
+        // that the file is attached to a container which is already deleted.
+        try {
+          (void) gOFS->eosDirectoryService->getContainerMD(file->getContainerId());
+          msg = "error: file fxid=" + eos::common::FileId::Fid2Hex(id) +
+                " is attached to cid=" + std::to_string(file->getContainerId());
+          return false;
+        } catch (const eos::MDException& e) {
+          // This means the parent container does not exist so we can safely
+          // remove this file entry.
+        }
       }
 
       // If any of the unlink locations is a file systems that doesn't exist
