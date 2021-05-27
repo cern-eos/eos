@@ -483,15 +483,6 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
   }
 
   while (!assistant.terminationRequested()) {
-#ifndef _NOOFS
-
-    if (!gOFS.Storage->UpdateInconsistencyInfo(mFsId)) {
-      eos_notice("msg=\"file system (being) deleted, abort any further scanning\""
-                 " fsid=%lu", mFsId);
-      return;
-    }
-
-#endif
     mNumScannedFiles =  mTotalScanSize =  mNumCorruptedFiles = 0;
     mNumHWCorruptedFiles =  mNumTotalFiles = mNumSkippedFiles = 0;
     auto start_ts = mClock.getTime();
@@ -515,8 +506,35 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
     }
 
     if (mBgThread) {
-      // Run again after (default) 4 hours
-      assistant.wait_for(std::chrono::seconds(mDiskIntervalSec));
+      // Run again after (default) 4 hours. In the meantime update the
+      // inconsistencies at most once every 10 minutes. If mDiskIntervalSec
+      // is less then 20 minutes then the inconsistencies are updated every
+      // mDiskIntervalSec.
+      auto deadline = std::chrono::system_clock::now() +
+                      std::chrono::seconds(mDiskIntervalSec - 1);
+
+      do {
+#ifndef _NOOFS
+
+        if (!gOFS.Storage->UpdateInconsistencyInfo(mFsId)) {
+          eos_notice("msg=\"file system (being) deleted, abort any further scanning\""
+                     " fsid=%lu", mFsId);
+          return;
+        }
+
+#endif
+
+        if (std::chrono::seconds(mDiskIntervalSec) < std::chrono::minutes(20)) {
+          assistant.wait_for(std::chrono::seconds(mDiskIntervalSec));
+        } else {
+          assistant.wait_for(std::chrono::minutes(10));
+        }
+
+        if (assistant.terminationRequested()) {
+          break;
+        }
+      } while (deadline > std::chrono::system_clock::now());
+
       // @todo(esindril): this will not be needed anymore once we drop the
       // local db. If needed we could add it as an individual command
       // Call the ghost entry clean-up function
