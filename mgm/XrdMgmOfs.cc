@@ -1773,6 +1773,7 @@ XrdMgmOfs::BroadcastQuery(const std::string& request,
         }
       } else {
         retc = (status->errNo ? status->errNo : ENOMSG);
+        resp = status->GetErrorMessage();
         mRetc = 1;
       }
 

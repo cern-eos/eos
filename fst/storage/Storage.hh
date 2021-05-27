@@ -155,6 +155,36 @@ public:
   //----------------------------------------------------------------------------
   bool UpdateInconsistencyInfo(eos::common::FileSystem::fsid_t fsid);
 
+  //----------------------------------------------------------------------------
+  //! Cleanup orphans
+  //!
+  //! @param fsid file system id or 0 if cleanup is to be performed for all
+  //!             file systems
+  //! @param err_msg error message
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool CleanupOrphans(eos::common::FileSystem::fsid_t fsid,
+                      std::ostringstream& err_msg);
+
+  //----------------------------------------------------------------------------
+  //! Cleanup orphans on disk
+  //!
+  //! @param mount file system mount path
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool CleanupOrphansDisk(const std::string& mount);
+
+  //----------------------------------------------------------------------------
+  //! Cleanup orphans from local DB
+  //!
+  //! @param fsid file system id
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool CleanupOrphansDb(eos::common::FileSystem::fsid_t fsid);
+
 protected:
   mutable eos::common::RWMutex mFsMutex; ///< Mutex protecting the fs map
   std::vector <fst::FileSystem*> mFsVect; ///< Vector of filesystems

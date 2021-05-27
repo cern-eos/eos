@@ -106,8 +106,8 @@ IProcCommand::open(const char* path, const char* info,
         //       and the NS will be queried directly
         oss << reply.std_out();
       } else {
-        oss << "mgm.proc.stdout=" << reply.std_out()
-            << "&mgm.proc.stderr=" << reply.std_err()
+        oss << "mgm.proc.stdout=" << reply.std_out().c_str()
+            << "&mgm.proc.stderr=" << reply.std_err().c_str()
             << "&mgm.proc.retc=" << reply.retc();
       }
 
@@ -430,7 +430,8 @@ IProcCommand::GetPathFromFid(std::string& path, unsigned long long fid,
     }
 
     try {
-      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
+                                              __LINE__, __FILE__);
       std::string temp = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(
                            fid).get());
       path = temp;

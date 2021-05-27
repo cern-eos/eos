@@ -1426,6 +1426,10 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
       return HandleVerify(env, error);
     }
 
+    if (execmd == "clean_orphans") {
+      return HandleCleanOrphans(env, error);
+    }
+
     if (execmd == "getfmd") {
       char* afid = env.Get("fst.getfmd.fid");
       char* afsid = env.Get("fst.getfmd.fsid");
@@ -2153,6 +2157,49 @@ XrdFstOfs::HandleVerify(XrdOucEnv& env, XrdOucErrInfo& err_obj)
     Storage->PushVerification(new_verify);
   } else {
     eos_static_err("%s", "msg=\"failed verify, illegal opaque info\"");
+  }
+
+  // @todo(esindril) once xrootd bug regarding handling of SFS_OK response
+  // in XrdXrootdXeq is fixed we can just return SFS_OK (>= XRootD 5)
+  // return SFS_OK;
+  const char* done = "OK";
+  err_obj.setErrInfo(strlen(done) + 1, done);
+  return SFS_DATA;
+}
+
+//------------------------------------------------------------------------------
+// Handle clean orphans query
+//------------------------------------------------------------------------------
+int
+XrdFstOfs::HandleCleanOrphans(XrdOucEnv& env, XrdOucErrInfo& err_obj)
+{
+  const char* ptr = env.Get("fst.fsid");
+  eos::common::FileSystem::fsid_t fsid = 0ul;
+
+  if (ptr) {
+    std::string sfsid {ptr};
+
+    try {
+      size_t pos = 0;
+      fsid = std::stoul(sfsid, &pos);
+
+      if (pos != sfsid.length()) {
+        throw std::invalid_argument("fsid conversion failed");
+      }
+    } catch (...) {
+      err_obj.setErrInfo(EINVAL, "fsid is not numeric");
+      return SFS_ERROR;
+    }
+  } else {
+    err_obj.setErrInfo(EINVAL, "query missing fst.fsid key ");
+    return SFS_ERROR;
+  }
+
+  std::ostringstream err_msg;
+
+  if (!Storage->CleanupOrphans(fsid, err_msg)) {
+    err_obj.setErrInfo(EINVAL, err_msg.str().c_str());
+    return SFS_ERROR;
   }
 
   // @todo(esindril) once xrootd bug regarding handling of SFS_OK response

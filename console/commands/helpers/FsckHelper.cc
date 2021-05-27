@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "console/commands/helpers/FsckHelper.hh"
+#include "common/FileSystem.hh"
 #include "common/StringTokenizer.hh"
 #include "common/FileId.hh"
 
@@ -134,9 +135,43 @@ FsckHelper::ParseCommand(const char* arg)
       } else if (soption == "--async") {
         repair->set_async(true);
       } else {
-        std::cerr << "error: unknown option \"" << soption << "\n";
+        std::cerr << "error: unknown option \"" << soption << "\"\n";
         return false;
       }
+    }
+  } else if (cmd == "clean_orphans") {
+    eos::console::FsckProto::CleanOrphansProto* clean =
+      fsck->mutable_clean_orphans();
+
+    if (tokenizer.NextToken(soption)) {
+      if (soption != "--fsid") {
+        std::cerr << "error: unknown option \"" << soption << "\"\n";
+        return false;
+      }
+
+      if (!tokenizer.NextToken(soption)) {
+        std::cerr << "error: missing file system id value\n";
+        return false;
+      }
+
+      eos::common::FileSystem::fsid_t fsid = 0ul;
+
+      try {
+        size_t pos = 0;
+        fsid = std::stoul(soption.c_str(), &pos);
+
+        if (pos != soption.length()) {
+          throw std::invalid_argument("fsid not numeric");
+        }
+      } catch (...) {
+        std::cerr << "error: file system id must be numeric\n";
+        return false;
+      }
+
+      clean->set_fsid(fsid);
+    } else {
+      // Clean orphans for all file systems i.e. fsid=0;
+      clean->set_fsid(0ull);
     }
   } else {
     return false;
