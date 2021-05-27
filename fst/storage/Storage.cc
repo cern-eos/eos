@@ -28,6 +28,7 @@
 #include "fst/Verify.hh"
 #include "fst/Deletion.hh"
 #include "fst/txqueue/TransferQueue.hh"
+#include "fst/XrdFstOss.hh"
 #include "common/FileSystem.hh"
 #include "common/Path.hh"
 #include "common/StringConversion.hh"
@@ -36,7 +37,7 @@
 #include "MonitorVarPartition.hh"
 #include <google/dense_hash_map>
 #include <math.h>
-#include "fst/XrdFstOss.hh"
+#include <filesystem>
 
 extern eos::fst::XrdFstOss* XrdOfsOss;
 
@@ -1040,6 +1041,121 @@ Storage::GetStoragePath(eos::common::FileSystem::fsid_t fsid) const
   }
 
   return path;
+}
+
+
+//------------------------------------------------------------------------------
+// Cleanup orphans
+//------------------------------------------------------------------------------
+bool
+Storage::CleanupOrphans(eos::common::FileSystem::fsid_t fsid,
+                        std::ostringstream& err_msg)
+{
+  bool success = true;
+  std::map<eos::common::FileSystem::fsid_t, std::string> map;
+  {
+    eos::common::RWMutexReadLock rd_lock(mFsMutex);
+
+    for (const auto& elem : mFsMap) {
+      if (elem.second->GetStatus() != eos::common::BootStatus::kBooted) {
+        err_msg << "skip orphans clean up for not-booted file system fsid="
+                << elem.first << std::endl;
+        eos_static_warning("msg=\"skip orphans clean up for not-booted file "
+                           "system\" fsid=%lu", elem.first);
+        success = false;
+
+        if (fsid == 0ul) {
+          continue; // best-effort for general cleanup
+        } else {
+          break;
+        }
+      }
+
+      if (fsid == 0ul) {
+        map.emplace(elem.first, elem.second->GetPath());
+      } else {
+        if (fsid == elem.first) {
+          map.emplace(elem.first, elem.second->GetPath());
+          break;
+        }
+      }
+    }
+  }
+
+  // Perform the actual cleanup for the selected file systems
+  for (const auto& elem : map) {
+    if (!CleanupOrphansDisk(elem.second)) {
+      err_msg << "error: failed orphans cleanup on disk fsid="
+              << elem.first << std::endl;
+      eos_static_err("msg=\"failed orphans cleanup on disk\" fsid=%lu",
+                     elem.first);
+      success = false;
+    }
+
+    if (!CleanupOrphansDb(elem.first)) {
+      err_msg << "error: failed orphans cleanup in db fsid="
+              << elem.first << std::endl;
+      eos_static_err("msg=\"failed orphans cleanup in db\" fsid=%lu",
+                     elem.first);
+      success = false;
+    }
+  }
+
+  return success;
+}
+
+//------------------------------------------------------------------------------
+// Cleanup orphans on disk
+//------------------------------------------------------------------------------
+bool
+Storage::CleanupOrphansDisk(const std::string& mount)
+{
+  bool success = true;
+  eos_static_info("msg=\"doing orphans cleanup on disk\" path=\"%s\"",
+                  mount.c_str());
+  std::string path_orphans = mount + "/.eosorphans/";
+
+  for (auto& entry : std::filesystem::directory_iterator(path_orphans)) {
+    if (std::filesystem::is_regular_file(entry.status())) {
+      eos_static_info("msg=\"delete orphan entry\" path=\"%s\"",
+                      entry.path().c_str());
+
+      if (!std::filesystem::remove(entry.path())) {
+        eos_static_info("msg=\"delete failed\" path=\"%s\"",
+                        entry.path().c_str());
+        success = false;
+      }
+    }
+  }
+
+  return success;
+}
+
+//------------------------------------------------------------------------------
+// Cleanup orphans from local DB
+//------------------------------------------------------------------------------
+bool
+Storage::CleanupOrphansDb(eos::common::FileSystem::fsid_t fsid)
+{
+  eos_static_info("msg=\"doing orphans cleanup in db\" fsid=%lu", fsid);
+  std::set<eos::common::FileId::fileid_t> set_orphans;
+  {
+    eos::common::RWMutexReadLock rd_lock(mFsMutex);
+    auto it_fs = mFsMap.find(fsid);
+
+    if (it_fs == mFsMap.end()) {
+      eos_static_err("msg=\"unknown file system id\" fsid=%lu", fsid);
+      return false;
+    }
+
+    set_orphans = it_fs->second->CollectOrphans();
+  }
+
+  for (const auto& fid : set_orphans) {
+    gFmdDbMapHandler.LocalDeleteFmd(fid, fsid);
+  }
+
+  return true;
 }
 
 EOSFSTNAMESPACE_END

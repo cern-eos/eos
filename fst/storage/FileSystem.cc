@@ -195,6 +195,22 @@ FileSystem::IoPing()
 }
 
 //------------------------------------------------------------------------------
+// Collect orphans registered in the db for the current file system
+//------------------------------------------------------------------------------
+std::set<eos::common::FileId::fileid_t>
+FileSystem::CollectOrphans() const
+{
+  eos::common::RWMutexReadLock rd_lock(mInconsistencyMutex);
+  auto it = mInconsistencySets.find("orphans_n");
+
+  if (it != mInconsistencySets.end()) {
+    return it->second;
+  }
+
+  return std::set<eos::common::FileId::fileid_t>();
+}
+
+//------------------------------------------------------------------------------
 // Collect inconsistency statistics about the current file system
 //------------------------------------------------------------------------------
 std::map<std::string, std::string>

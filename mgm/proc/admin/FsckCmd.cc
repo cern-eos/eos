@@ -23,6 +23,7 @@
 
 #include "FsckCmd.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/FsView.hh"
 #include "mgm/fsck/Fsck.hh"
 
 EOSMGMNAMESPACE_BEGIN
@@ -91,6 +92,61 @@ FsckCmd::ProcessRequest() noexcept
     } else {
       reply.set_std_err(out);
       reply.set_retc(EINVAL);
+    }
+  } else if (subcmd == eos::console::FsckProto::kCleanOrphans) {
+    const eos::console::FsckProto::CleanOrphansProto& clean = fsck.clean_orphans();
+    eos::common::FileSystem::fsid_t fsid = clean.fsid();
+    std::string query = "/?fst.pcmd=clean_orphans&fst.fsid=" + std::to_string(fsid);
+    std::set<std::string> endpoints;
+
+    if (fsid == 0ul) {
+      // Send command to all FSTs (nodes)
+      eos::common::RWMutexReadLock
+      fs_rd_lock(FsView::gFsView.ViewMutex, __FUNCTION__, __LINE__, __FILE__);
+
+      for (const auto& elem : FsView::gFsView.mNodeView) {
+        if (elem.second->GetActiveStatus() == eos::common::ActiveStatus::kOnline) {
+          eos_static_debug("msg=\"fsck clean_orphans\" hostport=\"%s\"",
+                           elem.second->GetMember("hostport").c_str());
+          endpoints.insert(elem.second->GetMember("hostport"));
+        }
+      }
+    } else {
+      // Send command only to the corresponding FST (node)
+      eos::common::RWMutexReadLock
+      fs_rd_lock(FsView::gFsView.ViewMutex, __FUNCTION__, __LINE__, __FILE__);
+      auto* fs = FsView::gFsView.mIdView.lookupByID(fsid);
+
+      if (!fs) {
+        reply.set_retc(EINVAL);
+        reply.set_std_err("error: given file system does not exist");
+        return reply;
+      }
+
+      std::ostringstream endpoint;
+      endpoint << fs->GetHost() << ":" << fs->getCoreParams().getLocator().getPort();
+      endpoints.insert(endpoint.str());
+    }
+
+    // Map of responses from each individual endpoint
+    std::map<std::string, std::pair<int, std::string>> responses;
+
+    if (gOFS->BroadcastQuery(query, endpoints, responses)) {
+      std::ostringstream err_msg;
+      err_msg << "error: failed orphans clean for the following endpoints\n";
+
+      for (const auto& elem : responses) {
+        if (elem.second.first) {
+          err_msg << "node: " << elem.first
+                  << " errc: " << elem.second.first
+                  << " msg: " << elem.second.second;
+        }
+      }
+
+      reply.set_std_err(err_msg.str());
+      reply.set_retc(EINVAL);
+    } else {
+      reply.set_std_out("info: orphans successfully cleaned");
     }
   } else {
     reply.set_retc(EINVAL);

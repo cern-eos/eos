@@ -355,7 +355,7 @@ public:
                         eos::common::FileSystem::fsid_t fsid);
 
   //----------------------------------------------------------------------------
-  //! Remove ghost entries - entries which are neither on disk nor ath the MGM
+  //! Remove ghost entries - entries which are neither on disk nor at the MGM
   //!
   //! @param path mount prefix of the filesystem
   //! @param fsid filesystem id

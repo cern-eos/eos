@@ -20,7 +20,10 @@ message FsckProto {
     uint64 fid = 2;
     uint64 fsid_err = 3;
     string error = 4;
+  }
 
+  message CleanOrphansProto {
+    uint64 fsid = 1;
   }
 
   oneof subcmd {
@@ -28,5 +31,6 @@ message FsckProto {
     ConfigProto config = 2;
     ReportProto report = 3;
     RepairProto repair = 4;
+    CleanOrphansProto clean_orphans = 5;
   }
 }
