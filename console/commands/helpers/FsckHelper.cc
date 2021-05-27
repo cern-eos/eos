@@ -135,7 +135,7 @@ FsckHelper::ParseCommand(const char* arg)
       } else if (soption == "--async") {
         repair->set_async(true);
       } else {
-        std::cerr << "error: unknown option \"" << soption << "\"\n\n";
+        std::cerr << "error: unknown option \"" << soption << "\"\n";
         return false;
       }
     }
@@ -145,12 +145,12 @@ FsckHelper::ParseCommand(const char* arg)
 
     if (tokenizer.NextToken(soption)) {
       if (soption != "--fsid") {
-        std::cerr << "error: unknown option \"" << soption << "\"\n\n";
+        std::cerr << "error: unknown option \"" << soption << "\"\n";
         return false;
       }
 
       if (!tokenizer.NextToken(soption)) {
-        std::cerr << "error: missing file system id value\n\n";
+        std::cerr << "error: missing file system id value\n";
         return false;
       }
 
@@ -164,7 +164,7 @@ FsckHelper::ParseCommand(const char* arg)
           throw std::invalid_argument("fsid not numeric");
         }
       } catch (...) {
-        std::cerr << "error: file system id must be numeric\n\n";
+        std::cerr << "error: file system id must be numeric\n";
         return false;
       }
 
