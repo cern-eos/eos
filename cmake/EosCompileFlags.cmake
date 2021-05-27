@@ -71,25 +71,39 @@ endif()
 # Sanitizer flags
 #-------------------------------------------------------------------------------
 if (ASAN)
+  # Copy CMAKE_CXX_FLAGS and unset them to avoid false negatives when checking
+  # for support of the various flags
+  set(SAVE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+  unset(CMAKE_CXX_FLAGS)
   set(CMAKE_REQUIRED_FLAGS "-fsanitize=address")
   check_cxx_compiler_flag(-fsanitize=address HAVE_FLAG_ASAN)
   unset(CMAKE_REQUIRED_FLAGS)
+  set(CMAKE_CXX_FLAGS "${SAVE_CXX_FLAGS}")
 
   if (NOT HAVE_FLAG_ASAN)
     message(FATAL_ERROR "A compiler with '-fsanitize=address' support is required.")
   endif()
 
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fsanitize=address")
 endif()
 
 if (TSAN)
+  # Copy CMAKE_CXX_FLAGS and unset them to avoid false negatives when checking
+  # for support of the various flags
+  set(SAVE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+  unset(CMAKE_CXX_FLAGS)
   set(CMAKE_REQUIRED_FLAGS "-fsanitize=thread")
   check_cxx_compiler_flag(-fsanitize=thread HAVE_FLAG_TSAN)
   unset(CMAKE_REQUIRED_FLAGS)
+  set(CMAKE_CXX_FLAGS "${SAVE_CXX_FLAGS}")
 
   if (NOT HAVE_FLAG_TSAN)
     message(FATAL_ERROR "A compiler with '-fsanitize=thread' support is required.")
   endif()
 
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=thread")
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fsanitize=thread")
 endif()
