@@ -1887,6 +1887,8 @@ public:
   {
     return mFusePlacementBooking;
   }
+protected:
+  std::atomic<bool> mDoneOrderlyShutdown; ///< Mark for orderly shutdown
 
 private:
   //! XrdOucBuffPool object for managing buffers >= 2kb
@@ -1901,7 +1903,6 @@ private:
   std::list<std::string> mPendingBkps; ///< Backup jobs queueRequest
   //! Manage heap profiling
   std::unique_ptr<eos::common::JeMallocHandler> mJeMallocHandler;
-  std::atomic<bool> mDoneOrderlyShutdown; ///< Mark for orderly shutdown
   bool mTpcRedirect {false}; ///< Mark if tpc rdr enabled
   //! Map for delegated/undelegated TPC redirection info
   std::map<bool, std::pair<std::string, int>> mTpcRdrInfo;
