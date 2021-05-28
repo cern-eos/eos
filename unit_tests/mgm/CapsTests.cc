@@ -48,6 +48,36 @@ public:
   FakeStats MgmStats;
 };
 
+class EnvMgr {
+  std::unordered_map<std::string, char*> env;
+  std::vector<std::string> keys;
+public:
+  void save_env(const char* key) {
+    env[key]=getenv(key);
+  }
+
+  void load_env(const char* key) {
+    if(auto kv = env.find(key);
+       kv != env.end()) {
+      kv->second ? setenv(key, kv->second, 1) : unsetenv(key);
+    }
+  }
+
+  void modify_env(const char* key, const char* val = "0", int force = 1)
+  {
+    setenv(key, val, force);
+  }
+
+  EnvMgr(std::vector<std::string>&& _keys) : keys(std::move(_keys)) {
+    std::for_each(keys.begin(), keys.end(), [this](const std::string& key) { save_env(key.c_str()); });
+    std::for_each(keys.begin(), keys.end(), [this](const std::string& key) { modify_env(key.c_str()); });
+  }
+
+  ~EnvMgr() {
+    std::for_each(keys.begin(), keys.end(), [this](const std::string& key) { load_env(key.c_str()); });
+  }
+};
+
 // use a fixture, we'll retain the same Caps across the various tests
 class CapsTest : public ::testing::Test
 {
@@ -55,10 +85,11 @@ protected:
   // TODO: When you update gtest remember to change this to SetUpTestSuite
   // We need these resources shared across all the test suites!
   static void SetUpTestCase() {
-    // TODO: delegate this to a helper class that sets up and tearsdown the env
-    // saving any vars and resetting them.
-    setenv("EOS_MGM_HTTP_PORT", "0", 1);
-    setenv("EOS_MGM_GRPC_PORT", "0", 1);
+    // We're doing this because initializing the public vars like the http port
+    // won't yet help our case because the base class constructor is passed which already
+    // sets defaults for these. We want to avoid construction of the service objects which
+    // happens for 0 values.
+    test_env = new EnvMgr({"EOS_MGM_HTTP_PORT", "EOS_MGM_GRPC_PORT"});
     fake_sys_error = new XrdSysError(nullptr, "fake");
     fake_ofs = new FakeXrdMgmOFS(fake_sys_error);
     gOFS = fake_ofs;
@@ -67,16 +98,18 @@ protected:
   static void TearDownTestCase() {
     delete fake_sys_error;
     delete fake_ofs;
+    delete test_env;
   }
 
   static XrdSysError* fake_sys_error;
   static XrdMgmOfs* fake_ofs;
-
+  static EnvMgr* test_env;
   Caps mCaps;
 };
 
 XrdSysError* CapsTest::fake_sys_error = nullptr;
 XrdMgmOfs* CapsTest::fake_ofs = nullptr;
+EnvMgr* CapsTest::test_env = nullptr;
 
 TEST_F(CapsTest, EmptyCapsInit) {
   EXPECT_EQ(mCaps.ncaps(), 0);
