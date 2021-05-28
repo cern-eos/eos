@@ -5,7 +5,7 @@
 Using SquashFS images for software distribution
 ===============================================
 
-EOS provides support for SquashFS image files, which can be automatically mounted when the image path is traversed. This functioality requires an automount configuration.
+EOS provides support for SquashFS image files, which can be automatically mounted when the image path is traversed. This functioality requires an appropriate automount configuration.
 
 To create SquashFS images a client needs the EOS shell and a local mount with an identical path prefix as inside the client shell.
 This means e.g. both commands as shown here point to the same directory:
@@ -18,9 +18,9 @@ This means e.g. both commands as shown here point to the same directory:
    ls -la /eos/foo/bar
 
 
-To really use the contents of SquashFS images, clients have to install the package **cern-eos-autofs-squashfs**.
+To really have read-only access to the  contents of SquashFS images, clients have to install the package **cern-eos-autofs-squashfs**.
 
-All functionality is summarized using the CLI command:
+All functionality of the SqashFS CLI is displays using the help option:
 
 .. code-block:: bash
 
@@ -29,8 +29,8 @@ All functionality is summarized using the CLI command:
 
 The functionality can be grouped into two categories:
 
-* simple squashfs packages
-* release squashfs packages
+* Simple SquashFS packages
+* Release SquashFS packages
 
 
 Simple SquashFS Packages
@@ -38,11 +38,12 @@ Simple SquashFS Packages
 
 A simple SquashFS package consists of a symbolic link under the package path and a hidden package file in the same directory as the symbolic link.
 
-The workflow to create a package is shown here:
+The workflow to create a SquashFS package is shown here:
 
+Create a new package
+++++++++++++++++++++
 .. code-block:: bash
 
-   # create a new package
    [root@dev ]# eos mkdir -p /eos/dev/squash/
    [root@dev ]# eos squash new /eos/dev/squash/mypackage
    info: ready to install your software under '/eos/dev/squash/mypackage'
@@ -55,9 +56,19 @@ The workflow to create a package is shown here:
    lrwxrwxrwx   1 nobody   nobody             59 May 27 13:32 mypackage -> /var/tmp/root/eosxd/mksquash/..eos..dev..squash..mypackage/
 
 
+Install software into a package
++++++++++++++++++++++++++++++++
+
+.. code-block:: bash
+
    # install software into the package, de facto we work on the local disk under /var/tmp/...
    [root@dev ]# cd /eos/dev/squash/mypackage/
    [root@dev ]# touch HelloWorld
+
+Pack a new package
+++++++++++++++++++
+
+.. code-block:: bash
 
    # pack the new package
    [root@dev ]# eos squash pack /eos/dev/squash/mypackage
@@ -72,7 +83,12 @@ The workflow to create a package is shown here:
 
 If you try to use or access a package on a diffrent client machine before you call **eos squash pack** you will get errors on clients, because the symbolic link points to a non-existing local directory as long as a package is not closed.
 
-In general you have to treat SquashFS packages a write-once archives. There is the possiblity to unpack a packed archive, modify and re-pack, however this is problematic if a package is already accessed on other clients using the automount mechanism. They won't remount your updated package until the mount is removed by idle timeouts.
+In general you have to treat SquashFS packages as write-once archives. There is the possiblity to unpack a packed archive, modify and re-pack, however this is problematic if a package is already accessed on other clients using the automount mechanism. They won't remount an updated package automatically unless the mount is removed by idle timeouts and re-mounted later.
+
+
+Package information
+++++++++++++++++++
+
 
 For completeness here are the commands to get information about a package:
 
@@ -81,6 +97,10 @@ For completeness here are the commands to get information about a package:
    [root@dev ]# eos squash info /eos/dev/squash/mypackage
    info: '/eos/dev/squash/.mypackage.sqsh' has a squashfs image with size=4096 bytes
    info: squashfs image is currently packed - use 'eos squash unpack /eos/dev/squash/mypackage' to open image locally
+
+
+Unpackaging
++++++++++++
 
 As mentioned you can unpack an existing package:
 
@@ -100,6 +120,8 @@ And pack it again:
    # pack the new package
    [root@dev ]# eos squash pack /eos/dev/squash/mypackage
 
+Deleting a package
+++++++++++++++++++
 
 To delete a SquashFS package you run:
 
@@ -108,6 +130,9 @@ To delete a SquashFS package you run:
    # delete a package
    [root@dev ]# eos squash rm /eos/dev/squash/mypackage
 
+
+Relabeling a package
+++++++++++++++++++++
 
 If a SquashFS package and/or package files has been moved around in the namespace e.g. by doing this ...
 
@@ -122,13 +147,16 @@ the package links are broken. In this case one has to relabel the package doing:
    [root@dev ]# eos squash relabel /eos/dev/newsquash/mypackage
 
 
+Remote web installation of packages
+++++++++++++++++++++++++++++++++++++
+
 The CLI provides a convenience function to install a .tar.gz package from a web URL:
 
 .. code-block:: bash
 
    [roo@dev ]# eos squash install --curl=https://root.cern/download/root_v6.24.00.Linux-centos7-x86_64-gcc4.8.tar.gz /eos/dev/newsquash/root
 
-After successful execution the software package is ready for use and no packing is necessary.
+After successful execution the software package is ready for use and no further packaging commands are required.
 
 If you have the automounter RPM installed on your client you are ready to use the software:
 
@@ -141,7 +169,10 @@ If you have the automounter RPM installed on your client you are ready to use th
 Release SquashFS Packages
 -------------------------
 
-The simple functionality is sufficient, if properly used. Many times you want to deal with updates and new release/versions of software. In this case the release functionality is preferable.
+The **simple** package functionality is sufficient, if properly used. Many times you want to deal with updates and new release/versions of software. In this case the **release** functionality is preferable.
+
+Creating a new release package
+++++++++++++++++++++++++++++++
 
 Release package management is illustrated in the following:
 
@@ -155,6 +186,8 @@ Release package management is illustrated in the following:
 
 This new release is now locally available under **/eos/dev/release/mypackage/next**. You can install your software to this location and then call
 
+Packing a new release package
++++++++++++++++++++++++++++++++
 
 .. code-block:: bash
 
@@ -175,6 +208,9 @@ By default a release is created with the unix timestamp during **new-release**. 
    ...
    [root@dev ]# eos squash pack-release /eos/dev/release/mypackage
 
+Release Package Information
++++++++++++++++++++++++++++
+
 You can obtain information about all available versions/releases doing:
 
 .. code-block:: bash
@@ -190,6 +226,8 @@ You can obtain information about all available versions/releases doing:
 
 The output shows two versions in the **archive** and the **current** link.
 
+Trimming Release Packages
++++++++++++++++++++++++++++
 
 If you regulary build software releases, you want to limit the number of versions, which are kept.
 
@@ -209,7 +247,10 @@ Additionally you can specifiy the maximum number of versions to keep:
 
 In this case we don't want to keep more than the 10 most recents versions, not older than 100 days.
 
-For completeness, there is a command to cleanup a release packge (be careful, it will delete all your releases!) :
+Deleting Release Packages
++++++++++++++++++++++++++
+
+For completeness, there is a command to cleanup a release packge. Be aware, that this will deleted all your release versions!
 
 .. code-block:: bash
 
