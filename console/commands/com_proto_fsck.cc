@@ -40,6 +40,7 @@ int com_proto_fsck(char* arg)
   FsckHelper fsck(gGlobalOpts);
 
   if (!fsck.ParseCommand(arg)) {
+    com_fsck_help();
     global_retc = EINVAL;
     return EINVAL;
   }
