@@ -363,7 +363,7 @@ check_all_errors_collected $MAX_DELAY
 exec_cmd eos-cli1 "eos -r 0 0 fsck config toggle-repair"
 
 # Cleanup the orphan entries
-exec_cmd eos-cli1 "eos -r 0 0 fsck cleanup_orphans"
+exec_cmd eos-cli1 "eos -r 0 0 fsck clean_orphans"
 
 # Wait for all the errors to be repaired
 START_TIME=$(date +%s)
