@@ -111,6 +111,26 @@ XrdSysError* CapsTest::fake_sys_error = nullptr;
 XrdMgmOfs* CapsTest::fake_ofs = nullptr;
 EnvMgr* CapsTest::test_env = nullptr;
 
+
+eos::fusex::cap make_cap(int id,
+                         std::string&& clientid,
+                         std::string&& authid)
+{
+  eos::fusex::cap c;
+  c.set_id(id);
+  c.set_clientid(std::move(clientid));
+  c.set_authid(std::move(authid));
+  return c;
+}
+
+eos::common::VirtualIdentity make_vid(uid_t uid, gid_t gid)
+{
+  eos::common::VirtualIdentity vid;
+  vid.uid = uid;
+  vid.gid = gid;
+  return vid;
+}
+
 TEST_F(CapsTest, EmptyCapsInit) {
   EXPECT_EQ(mCaps.ncaps(), 0);
 }
@@ -120,4 +140,11 @@ TEST_F(CapsTest, StoreCaps) {
   eos::fusex::cap c;
   mCaps.Store(c,&vid);
   EXPECT_EQ(mCaps.ncaps(), 1);
+  auto vid1 = make_vid(1234, 1234);
+  auto c1 = make_cap(123,"cid1","authid1");
+  mCaps.Store(c1,&vid1);
+  EXPECT_EQ(mCaps.ncaps(), 2);
+  std::string authid {"authid1"};
+  auto k = mCaps.Get(authid);
+  EXPECT_EQ(k->id(),123);
 }
