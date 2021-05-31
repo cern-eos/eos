@@ -67,8 +67,8 @@ class PrepareArgumentsWrapper{
 public:
   PrepareArgumentsWrapper(const std::string & reqid, const int opts, const std::vector<std::string> & oinfos, const std::vector<std::string> & paths){
     eos::auth::XrdSfsPrepProto pargsProto;
-    pargsProto.set_reqid("testReqid");
-    pargsProto.set_opts(Prep_STAGE);
+    pargsProto.set_reqid(reqid);
+    pargsProto.set_opts(opts);
     for(auto & oinfo: oinfos){
       pargsProto.add_oinfo(oinfo);
     }
@@ -132,6 +132,24 @@ protected:
 
   static ErrorWrapper getDefaultError() {
     return ErrorWrapper("",0,"");
+  }
+
+  static std::vector<std::string> generateDefaultPaths(const uint64_t nbFiles){
+    std::vector<std::string> paths;
+    for(uint64_t i = 0; i < nbFiles; ++i){
+      std::stringstream ss;
+      ss << "path" << i + 1;
+      paths.push_back(ss.str());
+    }
+    return paths;
+  }
+
+  static std::vector<std::string> generateEmptyOinfos(const uint64_t nbFiles){
+    std::vector<std::string> oinfos;
+    for(uint64_t i = 0; i < nbFiles; ++i){
+      oinfos.push_back("");
+    }
+    return oinfos;
   }
 };
 
@@ -204,25 +222,10 @@ TEST_F(PrepareManagerTest, PrepareUtilsPrepareOptsToString)
 #endif
 }
 
-TEST_F(PrepareManagerTest,stagePrepareThreeFilesWorkflow){
+TEST_F(PrepareManagerTest,stagePrepareFilesWorkflow){
   int nbFiles = 3;
-  std::vector<std::string> paths;
-  for(int i = 0; i < nbFiles; i++){
-    std::stringstream ss;
-    ss << "path" << i + 1;
-    paths.push_back(ss.str());
-  }
-
-  std::vector<std::string> oinfos;
-  for(int i = 0; i < nbFiles; i++){
-    oinfos.push_back("");
-  }
-
-  ClientWrapper client = PrepareManagerTest::getDefaultClient();
-  PrepareArgumentsWrapper pargs("testReqId",Prep_STAGE,oinfos,paths);
-
-  ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
-  XrdOucErrInfo * error = errorWrapper.getError();
+  std::vector<std::string> paths = PrepareManagerTest::generateDefaultPaths(nbFiles);
+  std::vector<std::string> oinfos = PrepareManagerTest::generateEmptyOinfos(nbFiles);
 
   MockPrepareMgmFSInterface mgmOfs;
   //addStats should be called only two times
@@ -233,24 +236,23 @@ TEST_F(PrepareManagerTest,stagePrepareThreeFilesWorkflow){
   EXPECT_CALL(mgmOfs,Emsg).Times(0);
   //Everything is fine, all the files exist
   ON_CALL(mgmOfs,_exists(_,_,_,_,_)).WillByDefault(Invoke(
-    [](const char* path, XrdSfsFileExistence& file_exists, XrdOucErrInfo& error, const XrdSecEntity* client, const char* ininfo){
-      file_exists = XrdSfsFileExistIsFile;
-      return SFS_OK;
-    }
-  ));
-  //the _exists method should be called 3 times as we have three paths
+      MockPrepareMgmFSInterface::_EXISTS_FILE_EXISTS_LAMBDA));
+  //the _exists method should be called for all files
   EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_)).Times(nbFiles);
   ON_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_))
       .WillByDefault(Invoke(
-          [](const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)
-          {
-            map["sys.workflow.sync::prepare"] = "";
-            return SFS_OK;
-          }));
+          MockPrepareMgmFSInterface::_ATTR_LS_STAGE_PREPARE_LAMBDA
+      ));
   EXPECT_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_)).Times(nbFiles);
   EXPECT_CALL(mgmOfs,Emsg).Times(0);
   EXPECT_CALL(mgmOfs,_access).Times(nbFiles);
   EXPECT_CALL(mgmOfs,FSctl).Times(nbFiles);
+
+  ClientWrapper client = PrepareManagerTest::getDefaultClient();
+  PrepareArgumentsWrapper pargs("testReqId",Prep_STAGE,oinfos,paths);
+  ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
+  XrdOucErrInfo * error = errorWrapper.getError();
+
   eos::mgm::PrepareManager pm(mgmOfs);
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
 
@@ -259,11 +261,6 @@ TEST_F(PrepareManagerTest,stagePrepareThreeFilesWorkflow){
 }
 
 TEST_F(PrepareManagerTest,stagePrepareFileWithNoPath){
-  ClientWrapper client = PrepareManagerTest::getDefaultClient();
-  PrepareArgumentsWrapper pargs("testReqId",Prep_STAGE, {""},{""});
-
-  ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
-  XrdOucErrInfo * error = errorWrapper.getError();
 
   NiceMock<MockPrepareMgmFSInterface> mgmOfs;
   //As no path exists, Emsg should be called one time
@@ -273,6 +270,11 @@ TEST_F(PrepareManagerTest,stagePrepareFileWithNoPath){
   EXPECT_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_)).Times(0);
   EXPECT_CALL(mgmOfs,_access).Times(0);
   EXPECT_CALL(mgmOfs,FSctl).Times(0);
+
+  ClientWrapper client = PrepareManagerTest::getDefaultClient();
+  PrepareArgumentsWrapper pargs("testReqId",Prep_STAGE, {""},{""});
+  ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
+  XrdOucErrInfo * error = errorWrapper.getError();
 
   eos::mgm::PrepareManager pm(mgmOfs);
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
@@ -291,38 +293,25 @@ TEST_F(PrepareManagerTest,stagePrepareAllFilesDoNotExist){
    *  https://its.cern.ch/jira/projects/EOS/issues/EOS-4722
    */
   int nbFiles = 3;
-  std::vector<std::string> paths;
-  for(int i = 0; i < nbFiles; i++){
-    std::stringstream ss;
-    ss << "path" << i + 1;
-    paths.push_back(ss.str());
-  }
-
-  std::vector<std::string> oinfos;
-  for(int i = 0; i < nbFiles; i++){
-    oinfos.push_back("");
-  }
-
-  ClientWrapper client = PrepareManagerTest::getDefaultClient();
-  PrepareArgumentsWrapper pargs("testReqId",Prep_STAGE,oinfos,paths);
-
-  ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
-  XrdOucErrInfo * error = errorWrapper.getError();
+  std::vector<std::string> paths = PrepareManagerTest::generateDefaultPaths(nbFiles);
+  std::vector<std::string> oinfos = PrepareManagerTest::generateEmptyOinfos(nbFiles);
 
   NiceMock<MockPrepareMgmFSInterface> mgmOfs;
-  //No file exist, Emsg should be called once
+  //One file does not exist, Emsg should be called once
   EXPECT_CALL(mgmOfs,Emsg).Times(1);
   ON_CALL(mgmOfs,_exists(_,_,_,_,_)).WillByDefault(Invoke(
-      [](const char* path, XrdSfsFileExistence& file_exists, XrdOucErrInfo& error, const XrdSecEntity* client, const char* ininfo){
-        file_exists = XrdSfsFileExistNo;
-        return SFS_ERROR;
-      }
-  ));
+      MockPrepareMgmFSInterface::_EXISTS_FILE_DOES_NOT_EXIST_LAMBDA));
   //The current behaviour is that the prepare logic returns an error if at least one file does not exist.
-  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_)).Times(1);
+  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_)).Times(3);
   EXPECT_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_)).Times(0);
   EXPECT_CALL(mgmOfs,_access).Times(0);
   EXPECT_CALL(mgmOfs,FSctl).Times(0);
+
+  ClientWrapper client = PrepareManagerTest::getDefaultClient();
+  PrepareArgumentsWrapper pargs("testReqId",Prep_STAGE,oinfos,paths);
+  ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
+  XrdOucErrInfo * error = errorWrapper.getError();
+
   eos::mgm::PrepareManager pm(mgmOfs);
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
 
@@ -330,31 +319,107 @@ TEST_F(PrepareManagerTest,stagePrepareAllFilesDoNotExist){
   ASSERT_EQ(SFS_ERROR,retPrepare);
 }
 
-TEST_F(PrepareManagerTest,stagePrepareOneFileDoNotExistReturnsSfsError){
+TEST_F(PrepareManagerTest,stagePrepareOneFileDoNotExistReturnsSfsData){
   /**
    *  The current behaviour is that if at least one file does not exist,
    *  an error will be returned to the client without queueing any Retrieve request on CTA
-   *  Here we test that if the first file exists and the second does not, it will return an error to the client and the code -1
+   *  Here we test that if the first file exists and the second does not, it will return a success to the client
    *  https://its.cern.ch/jira/projects/EOS/issues/EOS-4722
    */
   int nbFiles = 3;
-  std::vector<std::string> paths;
-  for(int i = 0; i < nbFiles; i++){
-    std::stringstream ss;
-    ss << "path" << i + 1;
-    paths.push_back(ss.str());
-  }
+  std::vector<std::string> paths = PrepareManagerTest::generateDefaultPaths(nbFiles);
+  std::vector<std::string> oinfos = PrepareManagerTest::generateEmptyOinfos(nbFiles);
 
-  std::vector<std::string> oinfos;
-  for(int i = 0; i < nbFiles; i++){
-    oinfos.push_back("");
-  }
+  NiceMock<MockPrepareMgmFSInterface> mgmOfs;
+  //isTapeEnabled should not be called
+  EXPECT_CALL(mgmOfs,isTapeEnabled).Times(0);
+  //One file does not exist, Emsg should be called once
+  EXPECT_CALL(mgmOfs,Emsg).Times(0);
+  //Exist will first return true for the existing file, then return false,
+  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_)).Times(nbFiles).WillOnce(
+    Invoke(MockPrepareMgmFSInterface::_EXISTS_FILE_EXISTS_LAMBDA)
+  ).WillOnce(Invoke(
+      MockPrepareMgmFSInterface::_EXISTS_FILE_DOES_NOT_EXIST_LAMBDA)
+  ).WillRepeatedly(
+    Invoke(MockPrepareMgmFSInterface::_EXISTS_FILE_EXISTS_LAMBDA)
+  );
+  //Attr ls should work for the files that exist
+  EXPECT_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_)).Times(nbFiles - 1)
+      .WillRepeatedly(Invoke(
+          MockPrepareMgmFSInterface::_ATTR_LS_STAGE_PREPARE_LAMBDA
+      ));
+  EXPECT_CALL(mgmOfs,_access).Times(nbFiles - 1);
+  EXPECT_CALL(mgmOfs,FSctl).Times(nbFiles - 1);
 
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
   PrepareArgumentsWrapper pargs("testReqId",Prep_STAGE,oinfos,paths);
-
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
+
+  eos::mgm::PrepareManager pm(mgmOfs);
+
+  int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
+
+  //The existing files are in the bulk-request
+  std::set<std::string> bulkReqPaths = pm.getBulkRequest()->getPaths();
+  ASSERT_EQ(nbFiles - 1,bulkReqPaths.size());
+  auto bulkReqPathsItor = bulkReqPaths.begin();
+  int i = 0;
+  while(bulkReqPathsItor != bulkReqPaths.end()){
+    //The second file is failed, it should not be in the bulk-request
+    if(i != 1){
+      ASSERT_EQ(paths.at(i),*bulkReqPathsItor);
+    }
+    i++;
+    bulkReqPathsItor++;
+  }
+  //We failed the second file, the prepare is a success
+  ASSERT_EQ(SFS_DATA,retPrepare);
+}
+
+TEST_F(PrepareManagerTest,abortPrepareFilesWorkflow){
+  int nbFiles = 3;
+  std::vector<std::string> paths = PrepareManagerTest::generateDefaultPaths(nbFiles);
+  std::vector<std::string> oinfos = PrepareManagerTest::generateEmptyOinfos(nbFiles);
+
+  MockPrepareMgmFSInterface mgmOfs;
+  //addStats should be called only two times
+  EXPECT_CALL(mgmOfs,addStats).Times(2);
+  //isTapeEnabled should not be called as we are in the case where everything is fine
+  EXPECT_CALL(mgmOfs,isTapeEnabled).Times(0);
+  //As everything is fine, no Emsg should be called
+  EXPECT_CALL(mgmOfs,Emsg).Times(0);
+  //Everything is fine, all the files exist
+  ON_CALL(mgmOfs,_exists(_,_,_,_,_)).WillByDefault(Invoke(
+      MockPrepareMgmFSInterface::_EXISTS_FILE_EXISTS_LAMBDA));
+  //the _exists method should be called for all files
+  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_)).Times(nbFiles);
+  ON_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_))
+      .WillByDefault(Invoke(
+        MockPrepareMgmFSInterface::_ATTR_LS_ABORT_PREPARE_LAMBDA
+      ));
+  EXPECT_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_)).Times(nbFiles);
+  EXPECT_CALL(mgmOfs,Emsg).Times(0);
+  EXPECT_CALL(mgmOfs,_access).Times(nbFiles);
+  EXPECT_CALL(mgmOfs,FSctl).Times(nbFiles);
+
+  ClientWrapper client = PrepareManagerTest::getDefaultClient();
+  PrepareArgumentsWrapper pargs("testReqId",Prep_CANCEL,oinfos,paths);
+  ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
+  XrdOucErrInfo * error = errorWrapper.getError();
+
+  eos::mgm::PrepareManager pm(mgmOfs);
+  int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
+  //Abort prepare does not generate a bulk-request, so the bulk-request should be equal to nullptr
+  ASSERT_EQ(nullptr,pm.getBulkRequest());
+  //Abort prepare returns SFS_OK
+  ASSERT_EQ(SFS_OK,retPrepare);
+}
+
+TEST_F(PrepareManagerTest,abortPrepareOneFileDoesNotExist){
+  int nbFiles = 3;
+  std::vector<std::string> paths = PrepareManagerTest::generateDefaultPaths(nbFiles);
+  std::vector<std::string> oinfos = PrepareManagerTest::generateEmptyOinfos(nbFiles);
 
   NiceMock<MockPrepareMgmFSInterface> mgmOfs;
   //isTapeEnabled should not be called
@@ -363,30 +428,95 @@ TEST_F(PrepareManagerTest,stagePrepareOneFileDoNotExistReturnsSfsError){
   EXPECT_CALL(mgmOfs,Emsg).Times(1);
   //Exist will first return true for the existing file, then return false
   EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_)).Times(2).WillOnce(Invoke(
-      [](const char* path, XrdSfsFileExistence& file_exists, XrdOucErrInfo& error, const XrdSecEntity* client, const char* ininfo){
-        file_exists = XrdSfsFileExistIsFile;
-        return SFS_OK;
-      }
-  )).WillOnce(Invoke(
-      [](const char* path, XrdSfsFileExistence& file_exists, XrdOucErrInfo& error, const XrdSecEntity* client, const char* ininfo){
-        file_exists = XrdSfsFileExistNo;
-        return SFS_ERROR;
-      }
-  ));
+      MockPrepareMgmFSInterface::_EXISTS_FILE_EXISTS_LAMBDA)).WillRepeatedly(Invoke(
+      MockPrepareMgmFSInterface::_EXISTS_FILE_DOES_NOT_EXIST_LAMBDA));
   //Attr ls should work for the file that exists
   EXPECT_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_)).Times(1)
       .WillRepeatedly(Invoke(
-          [](const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)
-          {
-            map["sys.workflow.sync::prepare"] = "";
-            return SFS_OK;
-          }));
+          MockPrepareMgmFSInterface::_ATTR_LS_ABORT_PREPARE_LAMBDA
+      ));
   EXPECT_CALL(mgmOfs,_access).Times(1);
   EXPECT_CALL(mgmOfs,FSctl).Times(0);
+
+  ClientWrapper client = PrepareManagerTest::getDefaultClient();
+  PrepareArgumentsWrapper pargs("testReqId",Prep_CANCEL,oinfos,paths);
+  ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
+  XrdOucErrInfo * error = errorWrapper.getError();
+
+  eos::mgm::PrepareManager pm(mgmOfs);
+
+  int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
+  ASSERT_EQ(SFS_ERROR,retPrepare);
+}
+
+TEST_F(PrepareManagerTest,evictPrepareFilesWorkflow){
+  int nbFiles = 3;
+  std::vector<std::string> paths = PrepareManagerTest::generateDefaultPaths(nbFiles);
+  std::vector<std::string> oinfos = PrepareManagerTest::generateEmptyOinfos(nbFiles);
+
+  MockPrepareMgmFSInterface mgmOfs;
+  //addStats should be called only two times
+  EXPECT_CALL(mgmOfs,addStats).Times(2);
+  //isTapeEnabled should not be called as we are in the case where everything is fine
+  EXPECT_CALL(mgmOfs,isTapeEnabled).Times(0);
+  //As everything is fine, no Emsg should be called
+  EXPECT_CALL(mgmOfs,Emsg).Times(0);
+  //Everything is fine, all the files exist
+  ON_CALL(mgmOfs,_exists(_,_,_,_,_)).WillByDefault(Invoke(
+      MockPrepareMgmFSInterface::_EXISTS_FILE_EXISTS_LAMBDA));
+  //the _exists method should be called for all files
+  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_)).Times(nbFiles);
+  ON_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_))
+      .WillByDefault(Invoke(
+          MockPrepareMgmFSInterface::_ATTR_LS_EVICT_PREPARE_LAMBDA
+      ));
+  EXPECT_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_)).Times(nbFiles);
+  EXPECT_CALL(mgmOfs,Emsg).Times(0);
+  EXPECT_CALL(mgmOfs,_access).Times(nbFiles);
+  EXPECT_CALL(mgmOfs,FSctl).Times(nbFiles);
+
+  ClientWrapper client = PrepareManagerTest::getDefaultClient();
+  PrepareArgumentsWrapper pargs("testReqId",Prep_EVICT,oinfos,paths);
+  ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
+  XrdOucErrInfo * error = errorWrapper.getError();
+
   eos::mgm::PrepareManager pm(mgmOfs);
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
+  //Evict prepare does not generate a bulk-request, so the bulk-request should be equal to nullptr
+  ASSERT_EQ(nullptr,pm.getBulkRequest());
+  //Evict prepare returns SFS_OK
+  ASSERT_EQ(SFS_OK,retPrepare);
+}
 
-  //One file could have been prepared, but it did not. Still, it is in the bulk-request
-  ASSERT_EQ(1,pm.getBulkRequest()->getPaths().size());
+TEST_F(PrepareManagerTest,evictPrepareOneFileDoesNotExist){
+  int nbFiles = 3;
+  std::vector<std::string> paths = PrepareManagerTest::generateDefaultPaths(nbFiles);
+  std::vector<std::string> oinfos = PrepareManagerTest::generateEmptyOinfos(nbFiles);
+
+  NiceMock<MockPrepareMgmFSInterface> mgmOfs;
+  //isTapeEnabled should not be called
+  EXPECT_CALL(mgmOfs,isTapeEnabled).Times(0);
+  //One file does not exist, Emsg should be called once
+  EXPECT_CALL(mgmOfs,Emsg).Times(1);
+  //Exist will first return true for the existing file, then return false
+  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_)).Times(2).WillOnce(Invoke(
+      MockPrepareMgmFSInterface::_EXISTS_FILE_EXISTS_LAMBDA)).WillRepeatedly(Invoke(
+      MockPrepareMgmFSInterface::_EXISTS_FILE_DOES_NOT_EXIST_LAMBDA));
+  //Attr ls should work for the files that exist
+  EXPECT_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_)).Times(1)
+      .WillRepeatedly(Invoke(
+          MockPrepareMgmFSInterface::_ATTR_LS_EVICT_PREPARE_LAMBDA
+      ));
+  EXPECT_CALL(mgmOfs,_access).Times(1);
+  EXPECT_CALL(mgmOfs,FSctl).Times(0);
+
+  ClientWrapper client = PrepareManagerTest::getDefaultClient();
+  PrepareArgumentsWrapper pargs("testReqId",Prep_EVICT,oinfos,paths);
+  ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
+  XrdOucErrInfo * error = errorWrapper.getError();
+
+  eos::mgm::PrepareManager pm(mgmOfs);
+
+  int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
   ASSERT_EQ(SFS_ERROR,retPrepare);
 }

@@ -46,6 +46,21 @@ public:
   MOCK_METHOD6(_access,int(const char* path, int mode,XrdOucErrInfo& error, eos::common::VirtualIdentity& vid, const char* info, bool lock));
   MOCK_METHOD4(FSctl,int(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error, const XrdSecEntity* client));
   ~MockPrepareMgmFSInterface(){}
+
+  /**
+   * Lambdas that will be passed to the Invoke methods
+   */
+  //Lambda that will be called by the mock method _exists. This lambda will return that the file exists
+  static std::function<int(const char* path, XrdSfsFileExistence& file_exists, XrdOucErrInfo& error, const XrdSecEntity* client, const char* ininfo)> _EXISTS_FILE_EXISTS_LAMBDA;
+  //Lambda that will be called by the mock method _exists. This lambda will return that the file does not exist
+  static std::function<int(const char* path, XrdSfsFileExistence& file_exists, XrdOucErrInfo& error, const XrdSecEntity* client, const char* ininfo)> _EXISTS_FILE_DOES_NOT_EXIST_LAMBDA;
+
+  //Lambda that will be called by the mock method _attr_ls on the files' parent directory in the case of stage prepare
+  static std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)> _ATTR_LS_STAGE_PREPARE_LAMBDA;
+  //Lambda that will be called by the mock method _attr_ls on the files' parent directory in the case of abort prepare
+  static std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)> _ATTR_LS_ABORT_PREPARE_LAMBDA;
+  //Lambda that will be called by the mock method _attr_ls on the files' parent directory in the case of evict prepare
+  static std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)> _ATTR_LS_EVICT_PREPARE_LAMBDA;
 };
 
 EOSMGMNAMESPACE_END
