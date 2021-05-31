@@ -135,16 +135,66 @@ TEST_F(CapsTest, EmptyCapsInit) {
   EXPECT_EQ(mCaps.ncaps(), 0);
 }
 
-TEST_F(CapsTest, StoreCaps) {
+TEST_F(CapsTest, StoreBasic) {
   eos::common::VirtualIdentity vid;
   eos::fusex::cap c;
   mCaps.Store(c,&vid);
   EXPECT_EQ(mCaps.ncaps(), 1);
+}
+
+TEST_F(CapsTest, StoreUpdate) {
   auto vid1 = make_vid(1234, 1234);
   auto c1 = make_cap(123,"cid1","authid1");
   mCaps.Store(c1,&vid1);
-  EXPECT_EQ(mCaps.ncaps(), 2);
+  EXPECT_EQ(mCaps.ncaps(), 1);
   std::string authid {"authid1"};
   auto k = mCaps.Get(authid);
   EXPECT_EQ(k->id(),123);
+  EXPECT_EQ(k->clientid(), "cid1");
+
+  // now update this cap
+  c1.set_clientid("clientid_1");
+  mCaps.Store(c1,&vid1);
+  EXPECT_EQ(mCaps.ncaps(), 1);
+
+  auto k2 = mCaps.Get(authid);
+  EXPECT_EQ(k2->id(),123);
+  EXPECT_EQ(k2->clientid(), "clientid_1");
+}
+
+TEST_F(CapsTest, StoreViews) {
+  auto vid1 = make_vid(1234, 1234);
+  auto c1 = make_cap(123,"cid1","authid1");
+  mCaps.Store(c1,&vid1);
+  EXPECT_EQ(mCaps.ncaps(), 1);
+  std::string authid {"authid1"};
+  auto k = mCaps.Get(authid);
+  EXPECT_EQ(k->id(),123);
+  EXPECT_EQ(k->clientid(), "cid1");
+  // Test the 3 different views
+  auto& client_caps = mCaps.ClientCaps();
+  auto& ino_caps = mCaps.ClientInoCaps();
+  const auto& mcaps = mCaps.GetCaps();
+
+  EXPECT_EQ(client_caps["cid1"].count("authid1"), 1);
+  EXPECT_EQ(ino_caps["cid1"][123].count("authid1"),1);
+  const auto it = mcaps.find("authid1");
+  EXPECT_EQ(it->second, k);
+
+  //EXPECT_EQ(mcaps["authid1"], k);
+  // now update this cap
+  c1.set_clientid("clientid_1");
+  mCaps.Store(c1,&vid1);
+  EXPECT_EQ(mCaps.ncaps(), 1);
+
+  auto k2 = mCaps.Get(authid);
+  EXPECT_EQ(k2->id(),123);
+  EXPECT_EQ(k2->clientid(), "clientid_1");
+
+  // now check the updated values
+  EXPECT_EQ(client_caps["clientid_1"].count("authid1"), 1);
+  EXPECT_EQ(ino_caps["clientid_1"][123].count("authid1"),1);
+  const auto it2 = mcaps.find("authid1");
+  EXPECT_EQ(it2->second, k2);
+
 }
