@@ -25,4 +25,39 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+std::function<int(const char* path, XrdSfsFileExistence& file_exists, XrdOucErrInfo& error, const XrdSecEntity* client, const char* ininfo)>
+    MockPrepareMgmFSInterface::_EXISTS_FILE_EXISTS_LAMBDA =
+      [](const char* path, XrdSfsFileExistence& file_exists, XrdOucErrInfo& error, const XrdSecEntity* client, const char* ininfo){
+        file_exists = XrdSfsFileExistIsFile;
+        return SFS_OK;
+      };
+
+std::function<int(const char* path, XrdSfsFileExistence& file_exists, XrdOucErrInfo& error, const XrdSecEntity* client, const char* ininfo)>
+    MockPrepareMgmFSInterface::_EXISTS_FILE_DOES_NOT_EXIST_LAMBDA =
+    [](const char* path, XrdSfsFileExistence& file_exists, XrdOucErrInfo& error, const XrdSecEntity* client, const char* ininfo){
+      file_exists = XrdSfsFileExistNo;
+      return SFS_ERROR;
+    };
+
+std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)>
+    MockPrepareMgmFSInterface::_ATTR_LS_STAGE_PREPARE_LAMBDA =
+    [](const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links){
+      map["sys.workflow.sync::prepare"] = "";
+      return SFS_OK;
+    };
+
+std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)>
+    MockPrepareMgmFSInterface::_ATTR_LS_ABORT_PREPARE_LAMBDA =
+    [](const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links){
+      map["sys.workflow.sync::abort_prepare"] = "";
+      return SFS_OK;
+    };
+
+std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)>
+    MockPrepareMgmFSInterface::_ATTR_LS_EVICT_PREPARE_LAMBDA =
+    [](const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links){
+      map["sys.workflow.sync::evict_prepare"] = "";
+      return SFS_OK;
+    };
+
 EOSMGMNAMESPACE_END
