@@ -252,6 +252,39 @@ Storage::~Storage()
 }
 
 //------------------------------------------------------------------------------
+// General shutdown including stopping the helper threads and also
+// cleaning up the registered file systems
+//------------------------------------------------------------------------------
+void
+Storage::Shutdown()
+{
+  ShutdownThreads();
+  // Collect all the file systems to be deleted and then trigger the actual
+  // deletion outside the mFsMutex to avoid any deadlocks
+  std::set<eos::fst::FileSystem*> set_fs;
+  {
+    eos::common::RWMutexWriteLock wr_lock(mFsMutex);
+
+    for (auto* ptr_fs : mFsVect) {
+      set_fs.insert(ptr_fs);
+    }
+
+    for (auto& elem : mFsMap) {
+      set_fs.insert(elem.second);
+    }
+
+    mFsVect.clear();
+    mFsMap.clear();
+  }
+
+  for (auto& ptr_fs : set_fs) {
+    eos_static_warning("msg=\"deleting file system\" fsid=%lu",
+                       ptr_fs->GetLocalId());
+    delete ptr_fs;
+  }
+}
+
+//------------------------------------------------------------------------------
 // Shutdown all helper threads
 //------------------------------------------------------------------------------
 void
@@ -260,7 +293,7 @@ Storage::ShutdownThreads()
   XrdSysMutexHelper scope_lock(mThreadsMutex);
 
   for (auto it = mThreadSet.begin(); it != mThreadSet.end(); it++) {
-    eos_warning("op=shutdown threadid=%llx", (unsigned long long) *it);
+    eos_warning("op=shutdown thread_id=%llx", (unsigned long long) *it);
     XrdSysThread::Cancel(*it);
   }
 }

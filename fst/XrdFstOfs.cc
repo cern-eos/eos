@@ -207,11 +207,11 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
     delete gOFS.Messaging;
   }
 
-  std::this_thread::sleep_for(std::chrono::seconds(1));
-  gOFS.Storage->ShutdownThreads();
-  eos_static_warning("%s", "op=shutdown msg=\"stop messaging\"");
-  eos_static_warning("%s", "op=shutdown msg=\"shutdown fmddbmap handler\"");
+  eos_static_warning("%s", "op=shutdown msg=\"stopped messaging\"");
+  gOFS.Storage->Shutdown();
+  eos_static_warning("%s", "op=shutdown msg=\"stopped storage activities\"");
   gFmdDbMapHandler.Shutdown();
+  eos_static_warning("%s", "op=shutdown msg=\"stopped FmdDbMap handler\"");
 
   if (watchdog > 1) {
     kill(watchdog, 9);
@@ -219,7 +219,6 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
 
   int wstatus = 0;
   wait(&wstatus);
-  eos_static_warning("%s", "op=shutdown status=dbmapclosed");
   // Sync & close all file descriptors
   eos::common::SyncAll::AllandClose();
   eos_static_warning("%s", "op=shutdown status=completed");
@@ -284,10 +283,10 @@ XrdFstOfs::xrdfstofs_graceful_shutdown(int sig)
     eos_static_err("op=shutdown msg=\"failed graceful IO shutdown\"");
   }
 
-  std::this_thread::sleep_for(std::chrono::seconds(1));
-  gOFS.Storage->ShutdownThreads();
+  gOFS.Storage->Shutdown();
   eos_static_warning("op=shutdown msg=\"shutdown fmddbmap handler\"");
   gFmdDbMapHandler.Shutdown();
+  eos_static_warning("op=shutdown status=dbmapclosed");
 
   if (watchdog > 1) {
     kill(watchdog, 9);
@@ -295,7 +294,6 @@ XrdFstOfs::xrdfstofs_graceful_shutdown(int sig)
 
   int wstatus = 0;
   ::wait(&wstatus);
-  eos_static_warning("op=shutdown status=dbmapclosed");
   // Sync & close all file descriptors
   SyncAll::AllandClose();
   eos_static_warning("op=shutdown status=completed");
