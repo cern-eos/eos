@@ -62,8 +62,8 @@ FileSystem::~FileSystem()
 {
   mScanDir.release();
   mFileIO.release();
-  gFmdDbMapHandler.ShutdownDB(mLocalId, true);
   mTxMultiplexer.reset();
+  gFmdDbMapHandler.ShutdownDB(mLocalId, true);
 
   if (mTxBalanceQueue) {
     delete mTxBalanceQueue;
