@@ -21,9 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_STORAGE_HH__
-#define __EOSFST_STORAGE_HH__
-
+#pragma once
 #include "fst/Namespace.hh"
 #include "common/Logging.hh"
 #include "common/FileSystem.hh"
@@ -80,9 +78,10 @@ public:
   virtual ~Storage();
 
   //----------------------------------------------------------------------------
-  //! Shutdown all helper threads
+  //! General shutdown including stopping the helper threads and also
+  //! cleaning up the registered file systems
   //----------------------------------------------------------------------------
-  void ShutdownThreads();
+  void Shutdown();
 
   //----------------------------------------------------------------------------
   //! Add deletion object to the list of pending ones
@@ -323,6 +322,7 @@ private:
   void MgmSyncer();
   void Boot(fst::FileSystem* fs);
 
+
   //----------------------------------------------------------------------------
   //! Scrub filesystem
   //----------------------------------------------------------------------------
@@ -424,7 +424,11 @@ private:
   //----------------------------------------------------------------------------
   fst::FileSystem* GetFileSystemById(eos::common::FileSystem::fsid_t fsid) const;
 
-private:
+  //----------------------------------------------------------------------------
+  //! Shutdown all helper threads
+  //----------------------------------------------------------------------------
+  void ShutdownThreads();
+
   AssistedThread mCommunicatorThread;
   AssistedThread mQdbCommunicatorThread;
   std::set<std::string> mLastRoundFilesystems;
@@ -438,4 +442,3 @@ private:
 };
 
 EOSFSTNAMESPACE_END
-#endif
