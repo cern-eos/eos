@@ -105,8 +105,10 @@ struct Config {
   std::string spacename;
   bool onWork;
   int wait_time;
-  int new_security_stripes;
   bool test_enable;
+  uint64_t mapMaxSize;
+  uint64_t sleepWhenDone;
+  uint64_t sleepWhenFull;
 };
 
 class DynamicEC
