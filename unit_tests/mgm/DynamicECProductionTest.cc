@@ -47,8 +47,6 @@ TEST(DynamicECProduction, TestForSetterAndGetter)
   EXPECT_EQ(UUT.getMaxThresHold(), 99);
   UUT.setAgeFromWhenToDelete(40000);
   EXPECT_EQ(UUT.getAgeFromWhenToDelete(), 40000);
-  UUT.setSecurity(3);
-  EXPECT_EQ(UUT.getSecurity(), 3);
 }
 
 TEST(DynamicECProduction, TestForSetterAndGetter2)

@@ -96,8 +96,10 @@ struct Config {
   std::string spacename;
   bool onWork;
   int wait_time;
-  int new_security_stripes;
   bool test_enable;
+  uint64_t mapMaxSize;
+  uint64_t sleepWhenDone;
+  uint64_t sleepWhenFull;
 };
 
 class DynamicEC
@@ -132,9 +134,6 @@ private:
   std::atomic<uint64_t>
   mAge; ///< the age for old the files can be in order to be reduced.
 
-  std::atomic<int>
-  mSecurity; ///< security for how it is going to put in to how many excessstripes needed - currently not in use
-
   std::atomic<bool>
   mTestEnabel; ///< set the test to be online wich makes the system run faster but also use more resources.
 
@@ -143,6 +142,18 @@ private:
 
   std::atomic<uint64_t>
   mSizeToBeDeleted; ///< the size that the system will have to delete in order to get under the minimum threshold.
+
+  std::atomic<uint64_t>
+  mSizeInMap; ///< the size of the files in the map
+
+  std::atomic<uint64_t>
+  mSleepWhenDone; ///< sleep when all the files in the system is finish
+
+  std::atomic<uint64_t>
+  mSleepWhenFull; ///< the time the system will sleep when there is enough in the map
+
+  std::atomic<uint64_t>
+  mSizeForMapMax; ///< this is the max size for the map
 
   std::map<uint64_t, std::map<std::string, uint64_t>>
       lastScanStats; ///< map for the last scan
@@ -171,6 +182,8 @@ private:
 
   std::atomic<bool> mDynamicOn; ///< the bool to set the dynamicec on or off
 
+  bool isIdInMap(uint64_t id);
+
 public:
 
   std::map<uint64_t, std::shared_ptr<eos::IFileMD>> GetMap();
@@ -183,7 +196,8 @@ public:
 
   uint64_t mCreatedFileSize; ///< the size of the created files in bytes this is used for testing
 
-  uint64_t mDeletedFileSize; ///< The deletion of files for this section;
+  std::atomic<uint64_t>
+  mDeletedFileSize; ///< The deletion of files for this section;
 
   uint64_t mDeletedFileSizeInTotal; ///< The size that have been deletede though out the whole time of the systems time.
 
@@ -191,6 +205,18 @@ public:
       mSimulatedFiles; ///< file for running tests in gtest
 
   Config getConfiguration();
+
+  void setSizeForMap(uint64_t mapSize);
+
+  uint64_t getSizeForMap();
+
+  void setSleepWhenDone(uint64_t sleepWhenDone);
+
+  uint64_t getSleepWhenDone();
+
+  void setSleepWhenFull(uint64_t sleepWhenFull);
+
+  uint64_t getSleepWhenFull();
 
   void setTest(bool onOff);
 
@@ -249,10 +275,6 @@ public:
 
   uint64_t getMinForDeletion();
 
-  void setSecurity(int security);
-
-  int getSecurity();
-
   void fillFiles();
 
   void fillFiles(int newFiles);
@@ -273,22 +295,9 @@ public:
   //This is for a not modified file
   uint64_t GetSizeOfFile(std::shared_ptr<DynamicECFile> file);
 
-  long double TotalSizeInSystem(std::shared_ptr<eos::QuarkFileMD> file);
-
   long double TotalSizeInSystemMD(std::shared_ptr<eos::IFileMD> file);
 
-  static double GetRealSizeFactor(std::shared_ptr<eos::QuarkFileMD> file);
-
   static double GetRealSizeFactorMD(std::shared_ptr<eos::IFileMD> file);
-
-  //Bool to check it is done or failed.
-  void SingleDeletion(std::shared_ptr<DynamicECFile> file);
-
-  void kQrainReduction(std::shared_ptr<DynamicECFile> file);
-
-  void kRaid6(std::shared_ptr<eos::QuarkFileMD> file);
-
-  void kRaid6T(std::shared_ptr<eos::DynamicECFile> file);
 
   void kReduceMD(std::shared_ptr<eos::IFileMD> file);
 
@@ -306,7 +315,8 @@ public:
   DynamicEC(const char* spacename = "default", uint64_t age = 3600,
             uint64_t minsize = 1024 * 1024,
             double maxThres = 98.0, double minThres = 95.0, bool OnWork = true,
-            int wait = 30, int securityNew = 1);
+            int wait = 30, uint64_t mapMaxSize = 10000000000000,
+            uint64_t sleepWhenDone = 28800, uint64_t sleepWhenFull = 600);
 
   ~DynamicEC();
 
