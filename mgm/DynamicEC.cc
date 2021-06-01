@@ -74,19 +74,19 @@ extern XrdOucTrace gMgmOfsTrace;
 EOSMGMNAMESPACE_BEGIN
 DynamicEC::DynamicEC(const char* spacename, uint64_t ageNew,  uint64_t size,
                      double maxThres,
-                     double minThres, bool OnWork, int wait, int securityNew)
+                     double minThres, bool OnWork, int wait, uint64_t mapMaxSize,
+                     uint64_t sleepWhenDone, uint64_t sleepWhenFull)
 {
   fprintf(stderr, "Constructor \n");
   eos_static_info("%s", "Constructor is running now \n");
   mAge = ageNew;
-  mSecurity = securityNew;
 
   if (OnWork) {
     mThread.reset(&DynamicEC::Run, this);
   }
 
   if (OnWork) {
-    //mThread2.reset(&DynamicEC::createFilesOneTimeThread, this);
+    mThread2.reset(&DynamicEC::createFilesOneTimeThread, this);
   }
 
   mTestNumber = 0;
@@ -112,6 +112,10 @@ DynamicEC::DynamicEC(const char* spacename, uint64_t ageNew,  uint64_t size,
   ndirs = 0;
   nfiles = 0;
   mDynamicOn = true;
+  mSizeForMapMax = mapMaxSize;
+  mSleepWhenDone = sleepWhenDone;
+  mSleepWhenFull = sleepWhenFull;
+  mSizeInMap = 0;
 
   if (OnWork) {
     mThread3.reset(&DynamicEC::RunScan, this);
@@ -204,32 +208,71 @@ DynamicEC::~DynamicEC()
   Stop();
 }
 
-//-------------------------------------------------------------------------------------
-//! For turning the test on, the system will speed up the scanning and also use more resurces
+//--------------------------------------------------------------------------------------
+//! Set the max size for the map to grow to
 //!
-//! @param mTestEnabel the bool to set in order to run in test speed,
-//! which is faster and more demanding in power.
-//-------------------------------------------------------------------------------------
-/*
+//! @param mSizeForMapMax the size that can be put into to map before it will stop adding to the map
+//--------------------------------------------------------------------------------------
 void
-DynamicEC::setTestOn()
+DynamicEC::setSizeForMap(uint64_t mapSize)
 {
-  mTestEnabel = true;
+  mSizeForMapMax = mapSize;
 }
-*/
 
 //--------------------------------------------------------------------------------------
-//! For turning the test off, the system will stop the test
+//! Get the max size for the maps files to grow to, the map is the reduction map
 //!
-//! @param mTestEnabel the bool to set the test to off.
+//! @param mSizeForMapMax the size that can be put into to map before it will stop adding to the map
 //--------------------------------------------------------------------------------------
-/*
-void
-DynamicEC::setTestOff()
+uint64_t
+DynamicEC::getSizeForMap()
 {
-  mTestEnabel = false;
+  return mSizeForMapMax.load();
 }
-*/
+
+//--------------------------------------------------------------------------------------
+//! Set the sleep time when all data have been scanned
+//!
+//! @param mSleepWhenDone the time in seconds that the scanning will sleep, when the whole systems data have been scanned
+//--------------------------------------------------------------------------------------
+void
+DynamicEC::setSleepWhenDone(uint64_t sleepWhenDone)
+{
+  mSleepWhenDone = sleepWhenDone;
+}
+
+//--------------------------------------------------------------------------------------
+//! Get the sleep time when all data have been scanned
+//!
+//! @param mSleepWhenDone the time in seconds that the scanning will sleep, when the whole systems data have been scanned
+//--------------------------------------------------------------------------------------
+uint64_t
+DynamicEC::getSleepWhenDone()
+{
+  return mSleepWhenDone.load();
+}
+
+//--------------------------------------------------------------------------------------
+//! Set the sleep time when the cleanup map is full
+//!
+//! @param mSleepWhenFull the sleep time in seconds when there is enough file size in the map
+//--------------------------------------------------------------------------------------
+void
+DynamicEC::setSleepWhenFull(uint64_t sleepWhenFull)
+{
+  mSleepWhenFull = sleepWhenFull;
+}
+
+//--------------------------------------------------------------------------------------
+//! Get the sleep time when the cleanup map is full
+//!
+//! @param mSleepWhenFull the sleep time in seconds when there is enough file size in the map
+//--------------------------------------------------------------------------------------
+uint64_t
+DynamicEC::getSleepWhenFull()
+{
+  return mSleepWhenFull.load();
+}
 
 //--------------------------------------------------------------------------------------
 //! For turning the test off, the system will stop the test
@@ -377,28 +420,6 @@ DynamicEC::getMinForDeletion()
 }
 
 //-------------------------------------------------------------------------------------------
-//! Set security
-//!
-//! @param mSecurity the security stripes there will be left after cleanup.
-//-------------------------------------------------------------------------------------------
-void
-DynamicEC::setSecurity(int sec)
-{
-  mSecurity = sec;
-}
-
-//-------------------------------------------------------------------------------------------
-//! Get security
-//!
-//! @param mSecurity the security stripes there will be left after cleanup.
-//-------------------------------------------------------------------------------------------
-int
-DynamicEC::getSecurity()
-{
-  return mSecurity;
-}
-
-//-------------------------------------------------------------------------------------------
 //! Test files in order to make GTests
 //!
 //-------------------------------------------------------------------------------------------
@@ -476,7 +497,6 @@ DynamicEC::getConfiguration()
   configForSystem.min_size_for_deletion = mSizeMinForDeletion;
   configForSystem.onWork = mDynamicOn;
   configForSystem.wait_time = mWaitTime;
-  configForSystem.new_security_stripes = mSecurity;
   configForSystem.test_enable = mTestEnabel;
   return configForSystem;
 }
@@ -636,6 +656,11 @@ DynamicEC::testForSingleFileWithkPlain(int stripes, int redundancy,
   mCreatedFileSize += GetSizeOfFile(file);
   mStatusFilesMD[file->getId()] = file;
 }
+std::atomic<uint64_t>
+mSleepWhenDone; ///< sleep when all the files in the system is finish
+
+std::atomic<uint64_t>
+mSleepWhenFull; ///< the
 
 //-------------------------------------------------------------------------------------------
 //! Set in file with kQrain layout
@@ -818,8 +843,9 @@ DynamicEC::SpaceStatus()
 {
   //This will return a status for the system, it gives different statuses for the file system
   statusForSystem status;
+  eos_static_info("This is the mDynamic %B", mDynamicOn.load());
 
-  if (mDynamicOn) {
+  if (mDynamicOn.load()) {
     eos_static_info("this is in space status %llu",
                     FsView::gFsView.mSpaceView[mSpaceName]->SumLongLong("stat.statfs.capacity",
                         false))
@@ -847,7 +873,7 @@ DynamicEC::SpaceStatus()
                               100)))  ;
       eos_static_info("This is the status totalSize %lld", status.totalSize);
       eos_static_info("This is the min threshold %lld", mMinThresHold.load());
-      eos_static_info("This is the deleted file size", mDeletedFileSize);
+      eos_static_info("This is the deleted file size", mDeletedFileSize.load());
     } else {
       status.undeletedSize = 0;
       eos_static_info("This is from the static the undeleted file siye is now 0. ");
@@ -862,7 +888,7 @@ DynamicEC::SpaceStatus()
     // this have to be updated in order to make some of the new
     status.totalSize = mCreatedFileSize;
     status.usedSize = mCreatedFileSize - mDeletedFileSizeInTotal;
-    status.deletedSize = mDeletedFileSize;
+    status.deletedSize = mDeletedFileSize.load();
     //fprintf(stderr,"this is createdFileSize %"PRId64" deletedFileSize %"PRId64" ", createdFileSize, deletedFileSize);
 
     if ((mCreatedFileSize - mDeletedFileSizeInTotal) > ((mCreatedFileSize*
@@ -933,6 +959,7 @@ DynamicEC::DeletionOfFileIDMD(std::shared_ptr<eos::IFileMD> file,
 //!
 //! @param file the file from the test system to be checked on
 //-------------------------------------------------------------------------------------------
+
 uint64_t
 DynamicEC::GetSizeOfFile(std::shared_ptr<DynamicECFile> file)
 {
@@ -945,51 +972,10 @@ DynamicEC::GetSizeOfFile(std::shared_ptr<DynamicECFile> file)
 //! @param file the file from the test system to be checked on
 //-------------------------------------------------------------------------------------------
 long double
-DynamicEC::TotalSizeInSystem(std::shared_ptr<eos::QuarkFileMD> file)
-{
-  return (file->getSize() * eos::common::LayoutId::GetSizeFactor(
-            file->getLayoutId()));
-}
-
-//-------------------------------------------------------------------------------------------
-//! Get the size of the file
-//!
-//! @param file the file from the test system to be checked on
-//-------------------------------------------------------------------------------------------
-long double
 DynamicEC::TotalSizeInSystemMD(std::shared_ptr<eos::IFileMD> file)
 {
   return (file->getSize() * eos::common::LayoutId::GetSizeFactor(
             file->getLayoutId()));
-}
-
-//-------------------------------------------------------------------------------------------
-//! Get the size of the file this have a better fact for manipulated files
-//!
-//! @param file the file from the test system to be checked on
-//-------------------------------------------------------------------------------------------
-double
-DynamicEC::GetRealSizeFactor(std::shared_ptr<eos::QuarkFileMD> file)
-{
-  eos_static_info("This is the top part %lf \n",
-                  1.0 * (eos::common::LayoutId::GetStripeNumber(file->getLayoutId()) + 1 -
-                         eos::common::LayoutId::GetRedundancyStripeNumber(file->getLayoutId())));
-  eos_static_info("This is the next part %lf \n",
-                  1.0 * (file->getLocations().size() - (eos::common::LayoutId::GetStripeNumber(
-                           file->getLayoutId()) + 1 - eos::common::LayoutId::GetRedundancyStripeNumber(
-                           file->getLayoutId()))));
-  eos_static_info("This is the last part %lf",
-                  1.0 * (eos::common::LayoutId::GetStripeNumber(
-                           file->getLayoutId()) + 1 - eos::common::LayoutId::GetRedundancyStripeNumber(
-                           file->getLayoutId())));
-  return 1.0 * ((((1.0 * eos::common::LayoutId::GetStripeNumber(
-                     file->getLayoutId()) + 1) -
-                  eos::common::LayoutId::GetRedundancyStripeNumber(file->getLayoutId())) +
-                 (file->getLocations().size() - (eos::common::LayoutId::GetStripeNumber(
-                       file->getLayoutId()) + 1 - eos::common::LayoutId::GetRedundancyStripeNumber(
-                       file->getLayoutId())))) / (eos::common::LayoutId::GetStripeNumber(
-                             file->getLayoutId()) + 1 - eos::common::LayoutId::GetRedundancyStripeNumber(
-                             file->getLayoutId())));
 }
 
 //-------------------------------------------------------------------------------------------
@@ -1019,105 +1005,6 @@ DynamicEC::GetRealSizeFactorMD(std::shared_ptr<eos::IFileMD> file)
                        file->getLayoutId())))) / (eos::common::LayoutId::GetStripeNumber(
                              file->getLayoutId()) + 1 - eos::common::LayoutId::GetRedundancyStripeNumber(
                              file->getLayoutId())));
-}
-
-//-------------------------------------------------------------------------------------------
-//! Delete a file in the test enviroment for the gtests
-//!
-//! @param file the file needed to be deleted
-//-------------------------------------------------------------------------------------------
-void
-DynamicEC::SingleDeletion(std::shared_ptr<DynamicECFile> file)
-{
-  mSimulatedFiles.erase(file->getId());
-}
-
-
-void
-DynamicEC::kRaid6(std::shared_ptr<eos::QuarkFileMD>file)
-{
-  uint64_t beforeSize = TotalSizeInSystem(file);
-  double beforeScale = GetRealSizeFactor(file);
-  eos_static_info("This is the sizefactor after: %lf", GetRealSizeFactor(file));
-  eos_static_info("This works for the layout %lu",
-                  eos::common::LayoutId::GetLayoutType(file->getLayoutId()));
-  eos_static_info("This works for locations %lu", file->getLocations().size());
-  eos_static_info("This is reduncancyStripenumber %lu",
-                  eos::common::LayoutId::GetRedundancyStripeNumber(file->getLayoutId()));
-  eos_static_info("This is excessStripeNumber %lu",
-                  eos::common::LayoutId::GetExcessStripeNumber(file->getLayoutId()));
-  eos_static_info("This is the stripenumber %lld",
-                  eos::common::LayoutId::GetStripeNumber(file->getLayoutId()));
-
-  while (file->getLocations().size() > ((eos::common::LayoutId::GetStripeNumber(
-      file->getLayoutId()) + 1) - eos::common::LayoutId::GetRedundancyStripeNumber(
-                                          file->getLayoutId()) + mSecurity)) {
-    eos_static_info("This is from deletion");
-    auto fileId = file->getId();
-    //eos_static_info("This is the sizefactor before: %f",GetRealSizeFactor(file));
-    //eos_static_info("This is the size %lld", file->getSize());
-    //eos_static_info("Locatgion before unlinking %lld", file->getLocations().size());
-    file->unlinkLocation(file->getLocations().back());
-    //eos_static_info("Locatgion after unlinking %lld", file->getLocations().size());
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-    if (gOFS) {
-      eos_static_info("this is from gofs");
-      //gOFS->eosView->updateFileStore(file.get());
-    }
-
-    gOFS->eosView->updateFileStore(file.get());
-    // After update we might have to get the new address
-    // file = gOFS->eosFileService->getFileMD(fileId);
-//file = gOFS->eosFileService->getFileMD(fileId);
-  }
-
-  eos_static_info("This works for locations %lu", file->getLocations().size());
-  mDeletedFileSize += file->getSize() * (beforeScale - GetRealSizeFactor(file));
-  eos_static_info("\n \n Deleted file size: %lld", mDeletedFileSize);
-  //printAll();
-}
-
-
-void
-DynamicEC::kRaid6T(std::shared_ptr<DynamicECFile> file)
-{
-  while (file->getLocations().size() > ((eos::common::LayoutId::GetStripeNumber(
-      file->getLayoutId()) + 1) - eos::common::LayoutId::GetRedundancyStripeNumber(
-                                          file->getLayoutId()) + mSecurity)) {
-    file->unlinkLocation(file->getLocations().back());
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-    if (gOFS) {
-      gOFS->eosView->updateFileStore(file.get());
-    }
-  }
-
-  //mDeletedFileSize = 13;
-  eos_static_info("\n \n Deleted file size: %lld", mDeletedFileSize);
-}
-
-
-void
-DynamicEC::kQrainReduction(std::shared_ptr<DynamicECFile> file)
-{
-  uint64_t beforeSize = GetSizeOfFile(file);
-  {
-    eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex, __FUNCTION__,
-                                        __LINE__, __FILE__);
-
-    while (file->getLocations().size() > ((eos::common::LayoutId::GetStripeNumber(
-        file->getLayoutId()) + 1) - eos::common::LayoutId::GetRedundancyStripeNumber(
-                                            file->getLayoutId()) + 2)) {
-      file->unlinkLocation(file->getLocations().back());
-
-      if (gOFS) {
-        gOFS->eosView->updateFileStore(file.get());
-      }
-    }
-  }
-  mDeletedFileSize += (beforeSize - GetSizeOfFile(file));
-  eos_static_info("\n \n Deleted file size: %lld", mDeletedFileSize);
 }
 
 //-------------------------------------------------------------------------------------------
@@ -1152,7 +1039,7 @@ DynamicEC::kReduceMD(std::shared_ptr<eos::IFileMD> file)
 
   eos_static_info("This works for locations %lu", file->getLocations().size());
   mDeletedFileSize += file->getSize() * (beforeScale - GetRealSizeFactorMD(file));
-  eos_static_info("\n \n Deleted file size: %lld", mDeletedFileSize);
+  eos_static_info("\n \n Deleted file size: %lld", mDeletedFileSize.load());
   //printAll();
 }
 
@@ -1175,8 +1062,8 @@ DynamicEC::CleanupMD()
     eos_static_info(
       "This is where the status have been ran delete to be size is : %lld ",
       status.undeletedSize);
-
-    if (mDynamicOn) {
+    //if (mDynamicOn)
+    {
       status.totalSize =
         FsView::gFsView.mSpaceView[mSpaceName]->SumLongLong("stat.statfs.capacity",
             false);
@@ -1190,7 +1077,6 @@ DynamicEC::CleanupMD()
                          gOFS->eosFileService->getNumFiles());
       }
     }
-
     eos_static_info("This is the size to be deleted %lld", mSizeToBeDeleted.load());
 
     if (mSizeToBeDeleted.load() > 0) {
@@ -1199,6 +1085,9 @@ DynamicEC::CleanupMD()
 
       for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
              mStatusFilesMD.begin(); it != mStatusFilesMD.end(); ++it) {
+        mSizeInMap -= it->second->getSize();
+        eos_static_info("This is the size in the map %lld \n", mSizeInMap.load());
+
         if (DeletionOfFileIDMD(it->second, mTimeFromWhenToDelete)) {
           {
             kReduceMD(it->second);
@@ -1206,7 +1095,7 @@ DynamicEC::CleanupMD()
           }
         }
 
-        if (mDeletedFileSize >= mSizeToBeDeleted.load()) {
+        if (mDeletedFileSize.load() >= mSizeToBeDeleted.load()) {
           eos_static_info("%s",
                           "CleanUp ended with success there was deleted. \n \n \n \n"
                           "There is no stuff left and we went under the limit.");
@@ -1230,12 +1119,12 @@ DynamicEC::CleanupMD()
     }
 
     eos_static_info("CleanUp ended without success there was deleted:  %lld bytes, but there should have been deleted :  %llu bytes  \n",
-                    mDeletedFileSize, mSizeToBeDeleted.load());
+                    mDeletedFileSize.load(), mSizeToBeDeleted.load());
   }
 
-  mDeletedFileSizeInTotal += mDeletedFileSize;
+  mDeletedFileSizeInTotal += mDeletedFileSize.load();
   eos_static_info("This is the deleted file size for the system: %lld, and this is for this run: %lld",
-                  mDeletedFileSizeInTotal, mDeletedFileSize);
+                  mDeletedFileSizeInTotal, mDeletedFileSize.load());
   mDeletedFileSize = 0;
 }
 
@@ -1310,6 +1199,9 @@ DynamicEC::Options DynamicEC::getOptions()
   return opts;
 }
 
+
+
+
 //-------------------------------------------------------------------------------------------
 //! This runs the scan from a thread and will put possible files for deletion into a map,
 //! where the clean up will reduce it and remove them from the map again
@@ -1355,8 +1247,11 @@ DynamicEC::performCycleQDBMD(ThreadAssistant& assistant) noexcept
     std::string err;
     eos::ns::FileMdProto item;
 
+    //eos_static_info("just before the if");
     if (scanner.getItem(item)) {
       //test in order to speed the scan up in the live tests.
+      eos_static_info("This is the map that scans");
+
       if (mTestEnabel) {
         interval = 1;
       }
@@ -1371,16 +1266,68 @@ DynamicEC::performCycleQDBMD(ThreadAssistant& assistant) noexcept
       time_t target_time = (1.0 * nfiles_processed / nfiles) * interval;
       time_t is_time = time(NULL) - s_time;
       auto hasTape = fmd->hasLocation(EOS_TAPE_FSID);
+      //check for num2 and might be a num1
       long num2 = fmd->getNumLocation();
       num2 -= hasTape;
       num2 -= (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1);
+      //eos_static_info("This is the size in the map %lld \n", mSizeInMap.load());
+      //eos_static_info("This \n \n \n \n");
+
+      /*
+       *
+       *
+      if (mSizeToBeDeleted.load() > 0) {
+      std::list<uint64_t> deletionlist;
+      mMutexForStatusFilesMD.lock();
+
+      for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
+             mStatusFilesMD.begin(); it != mStatusFilesMD.end(); ++it) {
+        mSizeInMap =- it->second->getSize();
+        if (DeletionOfFileIDMD(it->second, mTimeFromWhenToDelete)) {
+          {
+            kReduceMD(it->second);
+            deletionlist.push_front(it->first);
+          }
+        }
+
+        if (mDeletedFileSize.load() >= mSizeToBeDeleted.load()) {
+          eos_static_info("%s",
+                          "CleanUp ended with success there was deleted. \n \n \n \n"
+                          "There is no stuff left and we went under the limit.");
+          break;
+        }
+      }
+
+      mMutexForStatusFilesMD.unlock();
+      std::list<uint64_t>::iterator it;
+
+      for (auto it = deletionlist.begin(); it != deletionlist.end(); ++it) {
+        eos_static_info("CleanUp have just been done and now we move the will be removed file : %lld.",
+                        mStatusFilesMD.size());
+        uint64_t id = *it;
+        mMutexForStatusFilesMD.lock();
+        mStatusFilesMD.erase(id);
+        mMutexForStatusFilesMD.unlock();
+        eos_static_info("CleanUp have just been done and now we move the file : %lld.",
+                        mStatusFilesMD.size());
+      }
+      }
+       *
+       *
+       */
 
       if (num2 > 0) {
+        //is it possible to overflow the system and then put the size in and get more size than there really is
+        eos_static_info("start of map \n \n \n");
         mMutexForStatusFilesMD.lock();
         mStatusFilesMD[fmd->getId()] = fmd;
         mMutexForStatusFilesMD.unlock();
+        mSizeInMap += fmd->getSize();
+        eos_static_info("This is the size in the map %lld \n", mSizeInMap.load());
         eos_static_info("This is the map %ld \n \n ", mStatusFilesMD.size());
       }
+
+      //eos_static_info("This is the size in the map %lld \n", mSizeInMap.load());
 
       if (target_time > is_time) {
         uint64_t p_time = target_time - is_time;
@@ -1413,6 +1360,34 @@ DynamicEC::performCycleQDBMD(ThreadAssistant& assistant) noexcept
           break;
         }
       }
+
+      //here there can be a break
+
+      /*
+      statusForSystem status;
+      status = SpaceStatus();
+      mSizeToBeDeleted = status.undeletedSize;
+      */
+
+      //eos_static_info("This is size to be deleted %llu this is the deleted filesize %llu", mSizeToBeDeleted.load(), mDeletedFileSize);
+
+      //This might have to be in the top to check.
+      //if(mSizeToBeDeleted.load() <= mDeletedFileSize.load())
+      if (mSizeInMap.load() > mSizeForMapMax) { ///<
+        //problem is that this is not updated always and the deletedfile size will be set to zero when a new try is made
+        //when the new try is made the size to be deleted will also be changed.
+        //pause here.
+        //move to top
+        sleep(mSleepWhenFull); ///< 10 minute sleep
+        //break;
+      }
+    } else {
+      eos_static_info("This is the end, everything has been scanned now");
+      sleep(mSleepWhenDone);
+      mSizeInMap = 0;
+      mStatusFilesMD.clear();
+      //setTest(false);
+      //setDynamicEC(false);
     }
 
     if (scanner.hasError(err)) {
@@ -1471,16 +1446,20 @@ DynamicEC::printAll()
                   mCreatedFileSize, mDeletedFileSizeInTotal);
   eos_static_info("Files is: %lld and directories: %lld", nfiles, ndirs);
   //eos_static_info("This it the scanned_percent: %f, enabled: %u",
-  //              scanned_percent.load(), mEnabled.load());
+  //            scanned_percent.load(), mEnabled.load());
   eos_static_info("This it the scanned_percent: %f",
                   scanned_percent.load());
-  eos_static_info("Wait time is: %d, on work is: %B, security stribes %d",
-                  mWaitTime.load(), mDynamicOn.load(), mSecurity.load());
+  eos_static_info("Wait time is: %d, on work is: %B",
+                  mWaitTime.load(), mDynamicOn.load());
   eos_static_info("age for the files is %lld, size for deletion %lld, time from when to delete %lld",
                   mAge.load(), mSizeMinForDeletion.load(), mTimeFromWhenToDelete.load());
   eos_static_info("max threshold %f, min threshold %f, time is %s, name is %s",
                   mMaxThresHold.load(), mMinThresHold.load(), mTimeStore.c_str(),
                   mSpaceName.c_str());
+  eos_static_info("The systems map max size: %lld, the sleep when the cleanup has run though %lld, the sleep when the system is full %lld",
+                  mSizeForMapMax.load(), mSleepWhenDone.load(), mSleepWhenFull.load());
+  //uint64_t mapMaxSize, uint64_t sleepWhenDone, uint64_t sleepWhenFull
+  //eos_static_info("This is the space name %c", mSpaceName)
 }
 
 void

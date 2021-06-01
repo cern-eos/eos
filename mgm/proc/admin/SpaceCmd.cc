@@ -691,7 +691,9 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             (key == "dynamicec.minthreshold") ||
             (key == "dynamicec.maxthreshold") ||
             (key == "dynamicec.agefromwhentodelete") ||
-            (key == "dynamicec.security") ||
+            (key == "dynamicec.sleepwhendone") ||
+            (key == "dynamicec.sleepwhenfull") ||
+            (key == "dynamicec.sizeformapmax") ||
             (key == "lru") ||
             (key == "lru.interval") ||
             (key == "wfe") ||
@@ -863,6 +865,30 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                 }
               }
             }
+          } else if (key == "dynamicec.sizeformapmax") {
+            if (std::all_of(value.begin(), value.end(), ::isdigit)) {
+              gOFS->mDynamicEC->setSizeForMap(std::stoi(value));
+              std_out << "The size for the map to be full: ";
+              std_out << std::stoi(value);
+            } else if (value == "show") {
+              std_out << gOFS->mDynamicEC->getSizeForMap();
+            }
+          } else if (key == "dynamicec.sleepwhenfull") {
+            if (std::all_of(value.begin(), value.end(), ::isdigit)) {
+              gOFS->mDynamicEC->setSleepWhenFull(std::stoi(value));
+              std_out << "The sleep when the size of the files in the map is full: ";
+              std_out << std::stoi(value);
+            } else if (value == "show") {
+              std_out << gOFS->mDynamicEC->getSleepWhenFull();
+            }
+          } else if (key == "dynamicec.sleepwhendone") {
+            if (std::all_of(value.begin(), value.end(), ::isdigit)) {
+              gOFS->mDynamicEC->setSleepWhenDone(std::stoi(value));
+              std_out << "The sleep when the all files have been scanned";
+              std_out << std::stoi(value);
+            } else if (value == "show") {
+              std_out << gOFS->mDynamicEC->getSleepWhenDone();
+            }
           } else if (key == "dynamicec.minsize") {
             if (std::all_of(value.begin(), value.end(), ::isdigit)) {
               //std_out << "This is for it \n";
@@ -924,18 +950,6 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
               std_out << std::stoull(value);
             } else if (value == "show") {
               std_out << gOFS->mDynamicEC->getAgeFromWhenToDelete();
-            } else {
-              std_out << value;
-              std_out << " is not a valid command.";
-            }
-          } else if (key == "dynamicec.security") {
-            if (std::all_of(value.begin(), value.end(), ::isdigit)) {
-              gOFS->mDynamicEC->setSecurity(std::stoi(value));
-              std_out << "The security is now: ";
-              //std_out << "The minimum size for the files are now:" + std::stoi(value);
-              std_out << std::stoi(value);
-            } else if (value == "show") {
-              std_out << gOFS->mDynamicEC->getSecurity();
             } else {
               std_out << value;
               std_out << " is not a valid command.";

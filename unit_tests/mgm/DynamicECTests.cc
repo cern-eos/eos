@@ -94,27 +94,6 @@ TEST(DynamicEC, TestForIfAnyWillHaveToBeDeleted)
   ASSERT_TRUE(number > 50000);
 }
 
-TEST(DynamicEC, TestForErasingFiles)
-{
-  const char* str = "DynamicTest";
-  testing::internal::CaptureStdout();
-  std::cout << "My test";
-  std::string output = testing::internal::GetCapturedStdout();
-  eos::mgm::DynamicEC UUT(str, 11556926, 10000000, 1, 1, false);
-  UUT.fillFiles();
-
-  //int number = 0;
-  for (int i = 0;  i < 100000; i++) {
-    auto file = UUT.mSimulatedFiles[i];
-
-    if (UUT.DeletionOfFileID(UUT.mSimulatedFiles[i], time(0) - 11556926)) {
-      UUT.SingleDeletion(UUT.mSimulatedFiles[i]);
-    }
-  }
-
-  ASSERT_TRUE(UUT.mSimulatedFiles.size() < 50000);
-}
-
 /*
 TEST(DynamicEC, TestForASingleFileWithMultiplePartisions)
 {

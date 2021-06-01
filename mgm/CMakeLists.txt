@@ -225,11 +225,7 @@ add_library(
   GroupBalancer.cc
   GeoBalancer.cc
   DynamicEC.cc
-  DynamicScanner.cc
-  DynamicEC.hh
   DynamicECFile.cc
-  DynamicCreator.cc
-  
   Features.cc
   ZMQ.cc
   FuseServer/Server.cc FuseServer/Server.hh
