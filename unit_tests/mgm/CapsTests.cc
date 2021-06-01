@@ -270,3 +270,22 @@ TEST_F(CapsTest, PopCaps) {
   EXPECT_TRUE(out.find("client2") != std::string::npos);
   EXPECT_TRUE(out.find("client1") == std::string::npos);
 }
+
+TEST_F(CapsTest, ExpireCaps)
+{
+  auto vid1 = make_vid(1,1);
+  auto vid2 = make_vid(2,2);
+
+  uint64_t time20 = static_cast<uint64_t>(time(nullptr)) - 20;
+  mCaps.Store(make_cap(1,"client1","auth1", time20), &vid1);
+  mCaps.Store(make_cap(2,"client2","auth2"), &vid2);
+
+  EXPECT_EQ(mCaps.ncaps(),2);
+  EXPECT_EQ(mCaps.GetCaps().size(), 2);
+
+  mCaps.expire();
+
+  EXPECT_EQ(mCaps.GetCaps().size(), 1);
+  EXPECT_TRUE(mCaps.HasCap("auth2"));
+  EXPECT_FALSE(mCaps.HasCap("auth1"));
+}
