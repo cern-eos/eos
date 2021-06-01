@@ -90,19 +90,33 @@ for name in {1..10}
 do eos cp ${TEST_FN1} /eos/dev/test2/filetest$name; done
 #do eos cp ${TEST_FN1} /eos/dev/test/instancetest/file$name; done
 
+systemctl restart eos@mgm
+
+sleep 30
+
+
+
+
 #This is in order to set the different settings to true in order to use it in the system for testing
 val20=`eos space config default space.dynamicec.minthreshold=show`
 val21=`eos space config default space.dynamicec.maxthreshold=show`
+val22=`eos space config default space.dynamicec.sizeformapmax=show`
+val23=`eos space config default space.dynamicec.sleepwhenfull=show`
+val24=`eos space config default space.dynamicec.sleepwhendone=show`
+
 echo "val of the thres"
 echo $val20
 echo $val21
 var
 
-eos space config default space.dynamicec.minthreshold=20
-eos space config default space.dynamicec.maxthreshold=21
+eos space config default space.dynamicec.minthreshold=0.0000001
+eos space config default space.dynamicec.maxthreshold=0.000001
+eos space config default space.dynamicec.sizeformapmax=10000000000000000 #10 petabyte
+eos space config default space.dynamicec.sleepwhenfull=10
+eos space config default space.dynamicec.sleepwhendone=60
 eos space config default space.dynamicec.test=on
 
-sleep 330
+sleep 390
 
 val=`eos file info /eos/dev/test2/filetest1 | grep Layout | awk '{print $10}'`
 echo $val
@@ -116,18 +130,54 @@ eos rm /eos/dev/test2/*
 eos space config default space.dynamicec.maxthreshold=$val21
 eos space config default space.dynamicec.minthreshold=$val20
 eos space config default space.dynamicec.test=off
+eos space config default space.dynamicec.sizeformapmax=$val22
+eos space config default space.dynamicec.sleepwhenfull=$val23
+eos space config default space.dynamicec.sleepwhendone=$val24
 
 rm -i /tmp/5mbfile.dat
 
 exit 1
 fi
 
-green "Succes for the test."
+green "Succes for the test part 1, now we will try again."
+
+for name in {11..20}
+do eos cp ${TEST_FN1} /eos/dev/test2/filetest$name; done
+
+
+sleep 450
+
+val=`eos file info /eos/dev/test2/filetest11 | grep Layout | awk '{print $10}'`
+echo $val
+
+if [ $val != "d3+2::t0" ];
+then
+red "This has a faliure for the system wich did fail to clean up for the second wave of files and are not reliable."
+
 eos rm /eos/dev/test2/*
 
 eos space config default space.dynamicec.maxthreshold=$val21
 eos space config default space.dynamicec.minthreshold=$val20
 eos space config default space.dynamicec.test=off
+eos space config default space.dynamicec.sizeformapmax=$val22
+eos space config default space.dynamicec.sleepwhenfull=$val23
+eos space config default space.dynamicec.sleepwhendone=$val24
+
+rm -i /tmp/5mbfile.dat
+
+exit 1
+fi
+
+green "both test had succes"
+
+eos rm /eos/dev/test2/*
+
+eos space config default space.dynamicec.maxthreshold=$val21
+eos space config default space.dynamicec.minthreshold=$val20
+eos space config default space.dynamicec.test=off
+eos space config default space.dynamicec.sizeformapmax=$val22
+eos space config default space.dynamicec.sleepwhenfull=$val23
+eos space config default space.dynamicec.sleepwhendone=$val24
 
 rm -f /tmp/5mbfile.dat
 
