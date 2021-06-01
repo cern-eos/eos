@@ -247,3 +247,26 @@ TEST_F(CapsTest, StoreUpdateID) {
   EXPECT_EQ(it2->second, k2);
 
 }
+
+TEST_F(CapsTest, PopCaps) {
+  auto vid1 = make_vid(1,1);
+  auto vid2 = make_vid(2,2);
+
+  mCaps.Store(make_cap(1,"client1","auth1"), &vid1);
+  mCaps.Store(make_cap(2,"client2","auth2"), &vid2);
+
+  EXPECT_EQ(mCaps.ncaps(), 2);
+  mCaps.pop();
+  EXPECT_EQ(mCaps.ncaps(), 1);
+
+  // pop only pops from time ordered caps, the other cap should still be present
+  EXPECT_TRUE(mCaps.HasCap("auth1"));
+  EXPECT_TRUE(mCaps.HasCap("auth2"));
+
+  std::string filter;
+  std::string option{"t"};
+
+  std::string out = mCaps.Print(option, filter);
+  EXPECT_TRUE(out.find("client2") != std::string::npos);
+  EXPECT_TRUE(out.find("client1") == std::string::npos);
+}
