@@ -315,3 +315,55 @@ TEST_F(CapsTest, DropCaps)
   EXPECT_EQ(mCaps.GetCaps().size(),1);
   EXPECT_TRUE(mCaps.HasCap("auth2"));
 }
+
+TEST_F(CapsTest, Remove)
+{
+  auto vid1 = make_vid(1,1);
+  auto vid2 = make_vid(2,2);
+
+  mCaps.Store(make_cap(1,"client1","auth1"), &vid1);
+  mCaps.Store(make_cap(2,"client2","auth2"), &vid2);
+
+  const auto& client_caps = mCaps.ClientCaps();
+  const auto& ino_caps = mCaps.ClientInoCaps();
+  const auto& mcaps = mCaps.GetCaps();
+
+  EXPECT_EQ(client_caps.size(), 2);
+  EXPECT_EQ(ino_caps.size(), 2);
+  EXPECT_EQ(mcaps.size(), 2);
+
+  EXPECT_TRUE(mCaps.Remove(mCaps.Get("auth1")));
+  EXPECT_FALSE(mCaps.Remove(mCaps.Get("foo")));
+  EXPECT_EQ(client_caps.size(), 1);
+  EXPECT_EQ(ino_caps.size(), 1);
+  EXPECT_EQ(mcaps.size(), 1);
+
+}
+
+
+TEST_F(CapsTest, Delete)
+{
+  auto vid1 = make_vid(1,1);
+  auto vid2 = make_vid(2,2);
+  auto vid3 = make_vid(3,3);
+  mCaps.Store(make_cap(1,"client1","auth1"), &vid1);
+  mCaps.Store(make_cap(2,"client2","auth2"), &vid2);
+  mCaps.Store(make_cap(1,"client3","auth3"), &vid3);
+
+  const auto& client_caps = mCaps.ClientCaps();
+  const auto& ino_caps = mCaps.ClientInoCaps();
+  const auto& mcaps = mCaps.GetCaps();
+
+  EXPECT_EQ(client_caps.size(), 3);
+  EXPECT_EQ(ino_caps.size(), 3);
+  EXPECT_EQ(mcaps.size(), 3);
+
+  EXPECT_EQ(mCaps.Delete(1), 0);
+  EXPECT_EQ(mCaps.Delete(123), ENONET);
+
+  EXPECT_TRUE(mCaps.HasCap("auth2"));
+  EXPECT_EQ(client_caps.size(), 1);
+  EXPECT_EQ(ino_caps.size(), 1);
+  EXPECT_EQ(mcaps.size(), 1);
+
+}
