@@ -148,7 +148,13 @@ Egroup::Status Egroup::isMemberUncached(const std::string& username,
                        "e-group=%s ldap_rc=%i ldap_err_msg=\"%s\"",
                        username.c_str(), egroupname.c_str(), rc,
                        ldap_err2string(rc));
-    return Status::kError;
+
+    if (rc == LDAP_NO_SUCH_OBJECT) {
+      // no such object, return not member to make it cacheable
+      return Status::kNotMember;
+    } else {
+      return Status::kError;
+    }
   }
 
   if (ldap_count_entries(ld, res) == 0) {
