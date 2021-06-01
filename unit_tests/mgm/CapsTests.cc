@@ -289,3 +289,29 @@ TEST_F(CapsTest, ExpireCaps)
   EXPECT_TRUE(mCaps.HasCap("auth2"));
   EXPECT_FALSE(mCaps.HasCap("auth1"));
 }
+
+TEST_F(CapsTest, DropCaps)
+{
+  std::string uuid1{"uuid1"};
+  auto c1 = make_cap(1,"client1","auth1");
+  c1.set_clientuuid(uuid1);
+  auto c2 = make_cap(2, "client2", "auth2");
+  c2.set_clientuuid("uuid2");
+  auto c3 = make_cap(3,"client1", "auth3");
+  c3.set_clientuuid(uuid1);
+
+  auto vid1 = make_vid(1,1);
+  auto vid2 = make_vid(2,2);
+  auto vid3 = make_vid(3,3);
+
+  mCaps.Store(c1, &vid1);
+  mCaps.Store(c2, &vid2);
+  mCaps.Store(c3, &vid3);
+
+  EXPECT_EQ(mCaps.GetCaps().size(), 3);
+
+  mCaps.dropCaps(uuid1);
+
+  EXPECT_EQ(mCaps.GetCaps().size(),1);
+  EXPECT_TRUE(mCaps.HasCap("auth2"));
+}
