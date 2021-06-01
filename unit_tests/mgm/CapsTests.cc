@@ -113,13 +113,16 @@ EnvMgr* CapsTest::test_env = nullptr;
 
 
 eos::fusex::cap make_cap(int id,
-                         std::string&& clientid,
-                         std::string&& authid)
+                         std::string clientid,
+                         std::string authid,
+                         uint64_t vtime = 0)
 {
   eos::fusex::cap c;
   c.set_id(id);
   c.set_clientid(std::move(clientid));
   c.set_authid(std::move(authid));
+  vtime ? c.set_vtime(vtime) :
+          c.set_vtime(static_cast<uint64_t>(time(nullptr)));
   return c;
 }
 
