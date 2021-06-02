@@ -28,7 +28,7 @@
 #include "mgm/bulk-request/prepare/StageBulkRequest.hh"
 #include <memory>
 
-EOSMGMNAMESPACE_BEGIN
+EOSBULKNAMESPACE_BEGIN
 
 /**
  * Interface to the bulk request Data Access Object
@@ -43,6 +43,6 @@ public:
   virtual void saveBulkRequest(const std::shared_ptr<StageBulkRequest> bulkRequest) = 0;
 };
 
-EOSMGMNAMESPACE_END
+EOSBULKNAMESPACE_END
 
 #endif // EOS_IBULKREQUESTDAO_HH

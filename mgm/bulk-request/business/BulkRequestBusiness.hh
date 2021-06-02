@@ -30,7 +30,7 @@
 #include <common/Logging.hh>
 #include <memory>
 
-EOSMGMNAMESPACE_BEGIN
+EOSBULKNAMESPACE_BEGIN
 
 /**
  * This class contains the business logic linked to the bulk requests
@@ -57,6 +57,6 @@ private:
   void dispatchBulkRequestSave(const std::shared_ptr<BulkRequest> req);
 };
 
-EOSMGMNAMESPACE_END
+EOSBULKNAMESPACE_END
 
 #endif // EOS_BULKREQUESTBUSINESS_HH

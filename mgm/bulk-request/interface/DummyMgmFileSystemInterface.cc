@@ -23,7 +23,7 @@
 
 #include "DummyMgmFileSystemInterface.hh"
 
-EOSMGMNAMESPACE_BEGIN
+EOSBULKNAMESPACE_BEGIN
 
 void DummyMgmFileSystemInterface::addStats(const char* tag, uid_t uid, gid_t gid, unsigned long val){
 
@@ -53,4 +53,4 @@ int DummyMgmFileSystemInterface::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucE
   return 0;
 }
 
-EOSMGMNAMESPACE_END
+EOSBULKNAMESPACE_END
