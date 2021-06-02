@@ -126,6 +126,22 @@ eos::fusex::cap make_cap(int id,
   return c;
 }
 
+eos::fusex::cap make_cap(int id,
+                         std::string clientid,
+                         std::string authid,
+                         std::string uuid,
+                         uint64_t vtime=0)
+{
+  eos::fusex::cap c;
+  c.set_id(id);
+  c.set_clientid(std::move(clientid));
+  c.set_authid(std::move(authid));
+  c.set_clientuuid(std::move(uuid));
+  vtime ? c.set_vtime(vtime) :
+    c.set_vtime(static_cast<uint64_t>(time(nullptr)));
+  return c;
+}
+
 eos::common::VirtualIdentity make_vid(uid_t uid, gid_t gid)
 {
   eos::common::VirtualIdentity vid;
