@@ -740,7 +740,7 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   RealMgmFileSystemInterface mgmFsInterface(gOFS);
   PrepareManager pm(mgmFsInterface);
   //We want the bulk request to be persisted, set the bulkRequestBusiness to the prepare manager
-  //pm.setBulkRequestBusiness(bulkRequestBusiness);
+  pm.setBulkRequestBusiness(bulkRequestBusiness);
   int prepareRetCode = pm.prepare(pargs,error,client);
   return prepareRetCode;
 #else
