@@ -23,6 +23,7 @@
 
 #include "common/Mapping.hh"
 #include "common/table_formatter/TableFormatterBase.hh"
+#include "common/Statistics.hh"
 #include "mgm/Stat.hh"
 #include "mgm/FsView.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -532,32 +533,26 @@ Stat::GetTotalMaxExt5(const char* tag)
 // warning: you have to lock the mutex if directly used
 //------------------------------------------------------------------------------
 double
-Stat::GetExec(const char* tag, double& deviation)
+Stat::GetExec(const char* tag, double& deviation, double& percentile, double& max)
 {
   double avg = 0;
   deviation = 0;
+  max = 0;
+  percentile = 0;
+
+
+  std::multiset<float> m;
 
   if (StatExec.count(tag)) {
     std::deque<float>::const_iterator it;
-    double sum = 0;
-    int cnt = 0;
 
     for (it = StatExec[tag].begin(); it != StatExec[tag].end(); ++it) {
-      cnt++;
-      sum += *it;
+      m.insert(*it);
     }
-
-    if (!cnt) {
-      return avg;
-    }
-
-    avg = sum / cnt;
-
-    for (it = StatExec[tag].begin(); it != StatExec[tag].end(); ++it) {
-      deviation += pow((*it - avg), 2);
-    }
-
-    deviation = sqrt(deviation / cnt);
+    avg = eos::common::Statistics::avg(m);
+    deviation = eos::common::Statistics::sig(m);
+    percentile = eos::common::Statistics::nperc(m,99);
+    max = eos::common::Statistics::max(m);
   }
 
   return avg;
@@ -681,7 +676,9 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
       std::make_tuple("5min", 8, format_f),
       std::make_tuple("1h", 8, format_f),
       std::make_tuple("exec(ms)", 8, format_f),
-      std::make_tuple("sigma(ms)", 8, format_ff)
+      std::make_tuple("sigma(ms)", 8, format_ff),
+      std::make_tuple("99p(ms)", 8, format_f),
+      std::make_tuple("max(ms)", 8, format_f)
     });
   } else {
     table_all.SetHeader({
@@ -694,14 +691,19 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
       std::make_tuple("300s", 0, format_f),
       std::make_tuple("3600s", 0, format_f),
       std::make_tuple("exec", 0, format_f),
-      std::make_tuple("execsig", 0, format_ff)
+      std::make_tuple("execsig", 0, format_ff),
+      std::make_tuple("exec99", 8, format_f),
+      std::make_tuple("execmax", 8, format_f)
     });
   }
 
   for (it = tags.begin(); it != tags.end(); ++it) {
     const char* tag = it->c_str();
     double avg = 0, sig = 0;
-    avg = GetExec(tag, sig);
+    double max = 0, perc = 0;
+
+    avg = GetExec(tag, sig, max, perc);
+
     TableData table_data;
     table_data.emplace_back();
     table_data.back().push_back(TableCell("all", format_ss));
@@ -719,13 +721,13 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
 
     if (avg || monitoring) {
       table_data.back().push_back(TableCell(avg, format_f));
+      table_data.back().push_back(TableCell(sig, format_f));
+      table_data.back().push_back(TableCell(perc, format_f));
+      table_data.back().push_back(TableCell(max, format_f));
     } else {
       table_data.back().push_back(TableCell(na, format_s));
-    }
-
-    if (sig || monitoring) {
-      table_data.back().push_back(TableCell(sig, format_ff));
-    } else {
+      table_data.back().push_back(TableCell(na, format_s));
+      table_data.back().push_back(TableCell(na, format_s));
       table_data.back().push_back(TableCell(na, format_s));
     }
 
