@@ -29,14 +29,14 @@
 #include "namespace/interface/IView.hh"
 #include "mgm/proc/ProcCommand.hh"
 
-EOSMGMNAMESPACE_BEGIN
+EOSBULKNAMESPACE_BEGIN
 
 ProcDirectoryBulkRequestDAO::ProcDirectoryBulkRequestDAO(XrdMgmOfs * fileSystem):mFileSystem(fileSystem){
 
 }
 
 void ProcDirectoryBulkRequestDAO::saveBulkRequest(const std::shared_ptr<StageBulkRequest> bulkRequest) {
-  mVid = eos::common::VirtualIdentity::Root();
+  mVid = common::VirtualIdentity::Root();
   std::string directoryBulkReqPath = generateBulkRequestProcPath(bulkRequest);
   try {
     createBulkRequestDirectory(bulkRequest,directoryBulkReqPath);
@@ -139,4 +139,4 @@ void ProcDirectoryBulkRequestDAO::cleanAfterExceptionHappenedDuringBulkRequestSa
     }
 }
 
-EOSMGMNAMESPACE_END
+EOSBULKNAMESPACE_END
