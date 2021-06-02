@@ -84,6 +84,7 @@ add_library(EosConsoleCommands-Objects OBJECT
   commands/com_print.cc
   commands/com_pwd.cc
   commands/com_quit.cc
+  commands/com_report.cc
   commands/com_reconnect.cc
   commands/com_rmdir.cc
   commands/com_role.cc
