@@ -153,6 +153,20 @@ public:
   GetReadableAgeString(XrdOucString& sizestring,
                        unsigned long long age);
 
+
+  // ---------------------------------------------------------------------------
+  /**
+   * Get a string with a width and precision formatted double value
+   * @param value - the double to print
+   * @param width - the total width of the printout
+   * @param percision - the precision to show after the .
+   *
+   * @return formated string showing double value
+   **/
+
+  static std::string
+  GetFixedDouble(double value, size_t width, size_t precision);
+
   // ---------------------------------------------------------------------------
   /**
    * Convert a long long value into K,M,G,T,P,E byte scale

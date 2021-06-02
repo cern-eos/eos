@@ -23,49 +23,11 @@
 
 #include "common/StringTokenizer.hh"
 #include "console/ConsoleMain.hh"
+#include "common/Statistics.hh"
 #include <fcntl.h>
 #include <unistd.h>
 #include <set>
 #include <regex.h>
-
-double max(std::multiset<float>& s)
-{
-  double lmax=0;
-  for (auto it : s) {
-    if (it > lmax) {
-      lmax = it;
-    }
-  }
-  return lmax;
-}
-
-double avg(std::multiset<float>& s)
-{
-  double sum=0;
-  if (!s.size())
-    return 0;
-
-  for (auto it : s) {
-    sum += it;
-  }
-  return sum/s.size();
-}
-
-double nperc(std::multiset<float>& s)
-{
-  size_t n = s.size();
-  size_t n_perc = (size_t)(n * 99.0 / 100.0);
-  size_t i=0;
-  double nperc=0;
-  for (auto it : s) {
-    i++;
-    if ( i >= n_perc ) {
-      nperc = it;
-      break;
-    }
-  }
-  return nperc;
-}
 
 /* Change working directory &*/
 int
@@ -80,6 +42,7 @@ com_report(char* arg1)
   std::string sregex;
   size_t max_reports=2000000000;
   bool silent = false;
+  bool ec = false;
   time_t start_time=0;
   time_t stop_time=0;
 
@@ -105,6 +68,11 @@ com_report(char* arg1)
       } else {
 	max_reports = std::strtoul(arg.c_str(),0,10);
       }
+      continue;
+    }
+
+    if ( arg == "--ec") {
+      ec = true;
       continue;
     }
 
@@ -209,22 +177,22 @@ com_report(char* arg1)
 	      continue;
 	    }
 	  }
-
+	  ssize_t wsize = ec?std::stol(map["csize"]):std::stol(map["wb"]);
+	  ssize_t rsize = ec?std::stol(map["csize"]):std::stol(map["rb"]);
 	  // classify write or read
 	  if (std::stol(map["wb"]) > 0) {
-	    sum_w += std::stol(map["wb"]);
+	    sum_w += wsize;
 	    double tt = std::stoul(map["cts"]) - std::stoul(map["ots"]) + (0.001 * std::stoul(map["ctms"])) - (0.001 * std::stoul(map["otms"]));
-	    float rate = std::stol(map["wb"]) / tt / 1000000.0;
-	    if (!silent) fprintf(stdout,"W %-16s t=%03.02f [s] r=%03.02f [MB/s] path=%64s\n", eos::common::StringConversion::GetReadableSizeString(sizestring, std::stoul(map["wb"]),""), tt, rate,map["path"].c_str());
+	    float rate = wsize  / tt / 1000000.0;
+	    if (!silent) fprintf(stdout,"W %-16s t=%03.02f [s] r=%03.02f [MB/s] path=%64s\n", eos::common::StringConversion::GetReadableSizeString(sizestring, wsize,""), tt, rate,map["path"].c_str());
 	    w_t.insert(tt);
 	    found=true;
 	  }
-
 	  if (std::stol(map["rb"]) > 0) {
-	    sum_r += std::stol(map["rb"]);
+	    sum_r += rsize;
 	    double tt = std::stoul(map["cts"]) - std::stoul(map["ots"]) + (0.001 * std::stoul(map["ctms"])) - (0.001 * std::stoul(map["otms"]));
-	    float rate = std::stol(map["rb"]) / tt / 1000000.0;
-	    if (!silent) fprintf(stdout,"R %-16s t=%03.02f [s] r=%03.02f [MB/s] path=%64s\n", eos::common::StringConversion::GetReadableSizeString(sizestring, std::stoul(map["rb"]),""), tt, rate, map["path"].c_str());
+	    float rate = rsize / tt / 1000000.0;
+	    if (!silent) fprintf(stdout,"R %-16s t=%03.02f [s] r=%03.02f [MB/s] path=%64s\n", eos::common::StringConversion::GetReadableSizeString(sizestring, rsize,""), tt, rate, map["path"].c_str());
 	    r_t.insert(tt);
 	    found=true;
 	  }
@@ -239,14 +207,28 @@ com_report(char* arg1)
 	}
       }
       std::string sizestring1, sizestring2;
+
       fprintf(stdout,"---------------------------------------------------------------\n");
-      fprintf(stdout," N(r)= %lu VOL(r)= %s N(w)= %lu VOL(w)= %s\n",
+      fprintf(stdout,"n(r): %lu vol(r): %s n(w): %lu vol(w): %s\n",
 	      r_t.size(),
 	      eos::common::StringConversion::GetReadableSizeString(sizestring1, sum_r,"B"),
 	      w_t.size(),
 	      eos::common::StringConversion::GetReadableSizeString(sizestring2, sum_w,"B"));
-      fprintf(stdout,"r:t avg: %.02f 99-perc: %0.02f -| max: %.02f \n", avg(r_t), nperc(r_t), max(r_t));
-      fprintf(stdout,"w:t avg: %.02f 99-perc: %0.02f -| max: %.02f \n", avg(w_t), nperc(w_t), max(w_t));
+      fprintf(stdout,"---------------------------------------------------------------\n");
+      fprintf(stdout,"r:t avg: %s +- %s 95-perc: %s 99-perc: %s max: %s \n",
+	      eos::common::StringConversion::GetFixedDouble(eos::common::Statistics::avg(r_t),6,2).c_str(),
+	      eos::common::StringConversion::GetFixedDouble(eos::common::Statistics::sig(r_t),6,2).c_str(),
+	      eos::common::StringConversion::GetFixedDouble(eos::common::Statistics::nperc(r_t,95),6,2).c_str(),
+	      eos::common::StringConversion::GetFixedDouble(eos::common::Statistics::nperc(r_t,99),6,2).c_str(),
+	      eos::common::StringConversion::GetFixedDouble(eos::common::Statistics::max(r_t),6,2).c_str()
+	      );
+      fprintf(stdout,"w:t avg: %s +- %s 95-perc: %s 99-perc: %s max: %s \n",
+	      eos::common::StringConversion::GetFixedDouble(eos::common::Statistics::avg(w_t),6,2).c_str(),
+	      eos::common::StringConversion::GetFixedDouble(eos::common::Statistics::sig(w_t),6,2).c_str(),
+	      eos::common::StringConversion::GetFixedDouble(eos::common::Statistics::nperc(w_t,95),6,2).c_str(),
+	      eos::common::StringConversion::GetFixedDouble(eos::common::Statistics::nperc(w_t,99),6,2).c_str(),
+	      eos::common::StringConversion::GetFixedDouble(eos::common::Statistics::max(w_t),6,2).c_str()
+	      );
       fprintf(stdout,"---------------------------------------------------------------\n");
 
       file.close();
@@ -263,12 +245,13 @@ com_report(char* arg1)
   return (0);
 com_report_usage:
   fprintf(stdout,
-          "'[eos] report [-n <nrecords>] [--regex <regex>] [-s] [--start <unixtime>] [--stop <unixtime>] <reportfile>\n");
+          "'[eos] report [-n <nrecords>] [--regex <regex>] [-s] [--start <unixtime>] [--stop <unixtime>] [--ec] <reportfile>\n");
   fprintf(stdout, "Usage: report <file>\n");
   fprintf(stdout, "Options:\n");
   fprintf(stdout, "          -s         : show only the summary with N(r) [number of files read] N(w) [number of files written] VOL(r) [data volume read] VOL (w) [data volume written],\n");
-  fprintf(stdout, "                       + timings avg [average transfer time], 99-perc [99 percentila] max [maximal transfer time]\n");
+  fprintf(stdout, "                       + timings avg [average transfer time], 95-perc [95 percentile], 99-perc [99 percentila] max [maximal transfer time]\n");
   fprintf(stdout, "          -n <n>     : stop after n records are accepted for the statistics\n");
+  fprintf(stdout,"           --ec       : consider records as EC file streaming reads/writes\n");
   fprintf(stdout, "     --regex <regex> : apply <regex> for filtering the records\n");
   fprintf(stdout, "  --start <unixtime> : only take records starting after <unixtime>\n");
   fprintf(stdout, "  --stop <unixtime>  : only take records starting before <unixtime>\n\n");
