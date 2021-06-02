@@ -317,7 +317,8 @@ TEST_F(PrepareManagerTest,stagePrepareAllFilesDoNotExist){
   eos::mgm::bulk::PrepareManager pm(mgmOfs);
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
 
-  ASSERT_EQ(0,pm.getBulkRequest()->getPaths().size());
+  //For the future, even if the files do not exist, they have to be in the bulk-request.
+  ASSERT_EQ(3,pm.getBulkRequest()->getPaths().size());
   ASSERT_EQ(SFS_ERROR,retPrepare);
 }
 
@@ -364,14 +365,12 @@ TEST_F(PrepareManagerTest,stagePrepareOneFileDoNotExistReturnsSfsData){
 
   //The existing files are in the bulk-request
   std::set<std::string> bulkReqPaths = pm.getBulkRequest()->getPaths();
-  ASSERT_EQ(nbFiles - 1,bulkReqPaths.size());
+  ASSERT_EQ(nbFiles,bulkReqPaths.size());
   auto bulkReqPathsItor = bulkReqPaths.begin();
   int i = 0;
   while(bulkReqPathsItor != bulkReqPaths.end()){
-    //The second file is failed, it should not be in the bulk-request
-    if(i != 1){
-      ASSERT_EQ(paths.at(i),*bulkReqPathsItor);
-    }
+    //All the files should be in the bulk-request, even the one that does not exist
+    ASSERT_EQ(paths.at(i),*bulkReqPathsItor);
     i++;
     bulkReqPathsItor++;
   }
