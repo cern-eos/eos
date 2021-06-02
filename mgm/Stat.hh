@@ -544,7 +544,7 @@ public:
   double GetTotalMaxExt5(const char* tag);
 
   // warning: you have to lock the mutex if directly used
-  double GetExec(const char* tag, double& deviation);
+  double GetExec(const char* tag, double& deviation, double& percential, double& max);
 
   // warning: you have to lock the mutex if directly used
   double GetTotalExec(double& deviation);
