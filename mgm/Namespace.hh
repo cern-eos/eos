@@ -38,4 +38,9 @@
 #define EOSTGCNAMESPACE_BEGIN namespace eos { namespace mgm { namespace tgc {
 #define EOSTGCNAMESPACE_END }}}
 
+#define USE_EOSBULKNAMESPACE using namespace eos::mgm::bulk;
+
+#define EOSBULKNAMESPACE_BEGIN namespace eos { namespace mgm { namespace bulk {
+#define EOSBULKNAMESPACE_END }}}
+
 #endif

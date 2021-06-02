@@ -29,7 +29,7 @@
 #include <string>
 #include <xrootd/XrdOuc/XrdOucErrInfo.hh>
 
-EOSMGMNAMESPACE_BEGIN
+EOSBULKNAMESPACE_BEGIN
 
 /**
  * Exception class for handling bulk-request persistency exceptions
@@ -58,6 +58,6 @@ private:
   std::string mErrorMsg;
 };
 
-EOSMGMNAMESPACE_END
+EOSBULKNAMESPACE_END
 
 #endif // EOS_PERSISTENCYEXCEPTION_HH

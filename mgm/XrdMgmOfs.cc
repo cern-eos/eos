@@ -736,6 +736,7 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
                     const XrdSecEntity* client)
 {
 #if !OLD_PREPARE
+  USE_EOSBULKNAMESPACE;
   std::unique_ptr<AbstractDAOFactory> daoFactory(new ProcDirectoryDAOFactory(gOFS));
   std::shared_ptr<BulkRequestBusiness> bulkRequestBusiness(new BulkRequestBusiness(std::move(daoFactory)));
   RealMgmFileSystemInterface mgmFsInterface(gOFS);

@@ -31,7 +31,7 @@
 #include "common/VirtualIdentity.hh"
 #include "namespace/interface/IContainerMD.hh"
 
-EOSMGMNAMESPACE_BEGIN
+EOSBULKNAMESPACE_BEGIN
 
 /**
  * This interface has mainly been created in order to allow
@@ -51,6 +51,6 @@ public:
   virtual ~IMgmFileSystemInterface() {}
 };
 
-EOSMGMNAMESPACE_END
+EOSBULKNAMESPACE_END
 
 #endif // EOS_IMGMFILESYSTEMINTERFACE_HH

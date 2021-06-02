@@ -25,7 +25,7 @@
 #include <mgm/bulk-request/dao/ProcDirectoryBulkRequestDAO.hh>
 #include "mgm/Stat.hh"
 
-EOSMGMNAMESPACE_BEGIN
+EOSBULKNAMESPACE_BEGIN
 
 BulkRequestBusiness::BulkRequestBusiness(std::unique_ptr<AbstractDAOFactory> && daoFactory) : mDaoFactory(std::move(daoFactory)){
 }
@@ -46,4 +46,4 @@ void BulkRequestBusiness::dispatchBulkRequestSave(const std::shared_ptr<BulkRequ
   }
 }
 
-EOSMGMNAMESPACE_END
+EOSBULKNAMESPACE_END

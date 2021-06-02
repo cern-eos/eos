@@ -24,7 +24,7 @@
 #include "RealMgmFileSystemInterface.hh"
 #include "mgm/Stat.hh"
 
-EOSMGMNAMESPACE_BEGIN
+EOSBULKNAMESPACE_BEGIN
 
 RealMgmFileSystemInterface::RealMgmFileSystemInterface(XrdMgmOfs * mgmOfs):mMgmOfs(mgmOfs){}
 
@@ -55,4 +55,5 @@ int RealMgmFileSystemInterface::_access(const char* path, int mode,XrdOucErrInfo
 int RealMgmFileSystemInterface::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error, const XrdSecEntity* client){
   return mMgmOfs->FSctl(cmd, args, error, client);
 }
-EOSMGMNAMESPACE_END
+
+EOSBULKNAMESPACE_END

@@ -34,7 +34,7 @@
 #include <sys/types.h>
 #include <gmock/gmock.h>
 
-EOSMGMNAMESPACE_BEGIN
+EOSBULKNAMESPACE_BEGIN
 
 class MockPrepareMgmFSInterface : public IMgmFileSystemInterface {
 public:
@@ -63,6 +63,6 @@ public:
   static std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)> _ATTR_LS_EVICT_PREPARE_LAMBDA;
 };
 
-EOSMGMNAMESPACE_END
+EOSBULKNAMESPACE_END
 
 #endif // EOS_MOCKPREPAREMGMFSINTERFACE_HH

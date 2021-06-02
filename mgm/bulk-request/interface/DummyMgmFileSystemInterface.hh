@@ -27,7 +27,7 @@
 #include "mgm/Namespace.hh"
 #include "mgm/bulk-request/interface/IMgmFileSystemInterface.hh"
 
-EOSMGMNAMESPACE_BEGIN
+EOSBULKNAMESPACE_BEGIN
 
 /**
  * Implementation of the MGM File system interface
@@ -43,6 +43,6 @@ public:
   int FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error, const XrdSecEntity* client) override;
 };
 
-EOSMGMNAMESPACE_END
+EOSBULKNAMESPACE_END
 
 #endif // EOS_DUMMYMGMFILESYSTEMINTERFACE_HH

@@ -27,7 +27,7 @@
 #include "mgm/Namespace.hh"
 #include "common/StringConversion.hh"
 
-EOSMGMNAMESPACE_BEGIN
+EOSBULKNAMESPACE_BEGIN
 
 class BulkRequestHelper {
 public:
@@ -40,6 +40,6 @@ public:
   }
 };
 
-EOSMGMNAMESPACE_END
+EOSBULKNAMESPACE_END
 
 #endif // EOS_BULKREQUESTHELPER_HH

@@ -27,7 +27,7 @@
 #include "mgm/Namespace.hh"
 #include "mgm/bulk-request/prepare/StageBulkRequest.hh"
 
-EOSMGMNAMESPACE_BEGIN
+EOSBULKNAMESPACE_BEGIN
 
 /**
  * Factory of bulk request
@@ -42,5 +42,5 @@ public:
   static StageBulkRequest * createStageBulkRequest(const eos::common::VirtualIdentity & clientVid);
 };
 
-EOSMGMNAMESPACE_END
+EOSBULKNAMESPACE_END
 #endif // EOS_BULKREQUESTFACTORY_HH

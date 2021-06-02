@@ -23,7 +23,7 @@
 
 #include "BulkRequest.hh"
 
-EOSMGMNAMESPACE_BEGIN
+EOSBULKNAMESPACE_BEGIN
 
 BulkRequest::BulkRequest(const std::string & id, const common::VirtualIdentity & clientVid):mId(id),mClientVid(clientVid){
 }
@@ -58,4 +58,4 @@ const std::map<BulkRequest::Type,std::string> BulkRequest::createTypeToStringMap
 
 const std::map<BulkRequest::Type,std::string> BulkRequest::BULK_REQ_TYPE_TO_STRING_MAP = BulkRequest::createTypeToStringMap();
 
-EOSMGMNAMESPACE_END
+EOSBULKNAMESPACE_END
