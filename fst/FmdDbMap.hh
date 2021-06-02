@@ -396,16 +396,6 @@ public:
   //----------------------------------------------------------------------------
   bool TrimDB();
 
-  //----------------------------------------------------------------------------
-  //! Return's the syncing flag (if we sync, all files on disk are flagge as
-  //! orphans until the MGM meta data has been verified and when this flag is
-  //! set, we don't report orphans!
-  //----------------------------------------------------------------------------
-  inline bool IsSyncing(eos::common::FileSystem::fsid_t fsid)
-  {
-    return mIsSyncing[fsid];
-  }
-
   inline void FsLockRead(const eos::common::FileSystem::fsid_t& fsid)
   {
     _FsLock(fsid, false);
@@ -456,15 +446,36 @@ public:
   //----------------------------------------------------------------------------
   uint32_t GetNumFileSystems() const;
 
+  //----------------------------------------------------------------------------
+  //! Check if given file system is currently syncing
+  //!
+  //! @param fsid file system id
+  //!
+  //! @return true if syncing, otherwise false
+  //----------------------------------------------------------------------------
+  bool IsSyncing(eos::common::FileSystem::fsid_t fsid) const;
+
 private:
   std::map<eos::common::FileSystem::fsid_t, eos::common::DbMap*> mDbMap;
-  mutable eos::common::RWMutex mMapMutex;//< Mutex protecting the Fmd handler
+  mutable eos::common::RWMutex mMapMutex; ///< Mutex protecting the Fmd handler
   eos::common::LvDbDbMapInterface::Option lvdboption;
+  //! Mutex protecting the mIsSyncing map
+  mutable eos::common::RWMutex mSyncMapMutex;
   std::map<eos::common::FileSystem::fsid_t, bool> mIsSyncing;
   ///! Map containing mutexes for each file system id
   google::dense_hash_map<eos::common::FileSystem::fsid_t, eos::common::RWMutex*>
   mFsMtxMap;
   eos::common::RWMutex mFsMtxMapMutex; ///< Mutex protecting the previous map
+
+  //----------------------------------------------------------------------------
+  //! Set syncing status of the given file system
+  //!
+  //! @param fsid file system id
+  //! @param is_syncing true if syncing, otherwise false
+  //!
+  //! @return true if syncing, otherwise false
+  //----------------------------------------------------------------------------
+  void SetSyncStatus(eos::common::FileSystem::fsid_t fsid, bool is_syncing);
 
   //----------------------------------------------------------------------------
   //! Move given file to orphans directory and also set its extended attribute
