@@ -383,3 +383,74 @@ TEST_F(CapsTest, Delete)
   EXPECT_EQ(mcaps.size(), 1);
 
 }
+
+TEST_F(CapsTest, BCCap)
+{
+  auto vid1 = make_vid(1,1);
+  auto vid2 = make_vid(2,2);
+  std::string auth1 {"auth1"};
+  mCaps.Store(make_cap(1,"client1",auth1), &vid1);
+  mCaps.Store(make_cap(2,"client2","auth2"), &vid2);
+
+
+  auto k = mCaps.Get(auth1);
+  EXPECT_EQ(k->id(), 1);
+  int ret = mCaps.BroadcastCap(k);
+  // This function returns -1 regardless whether cap exists or not
+  EXPECT_EQ(ret, -1);
+}
+
+
+TEST_F(CapsTest, GetBroadcastCapsTS)
+{
+  auto vid1 = make_vid(1,1);
+  auto vid2 = make_vid(2,2);
+  auto vid3 = make_vid(3,3);
+  std::string auth1 {"auth1"};
+  std::string auth2 {"auth2"};
+  std::string auth3 {"auth3"};
+
+  // Use a unordered_set with the same type as the vector elements returned from
+  // GetBroadcastCapsTS; the underlying types may not have ordering as they fill
+  // the vector from unordered_maps, so this is done to make sure that tests are
+  // deterministic
+  using bc_result_t = decltype(mCaps.GetBroadcastCapsTS(0));
+  using shared_cap_t = bc_result_t::value_type;
+  using result_set_t = std::unordered_set<shared_cap_t>;
+
+  mCaps.Store(make_cap(1,"client1",auth1,"uuid1"), &vid1);
+  mCaps.Store(make_cap(2,"client2",auth2,"uuid2"), &vid2);
+  mCaps.Store(make_cap(1,"client3",auth3,"uuid3"), &vid3);
+
+
+  {
+    auto empty_result = mCaps.GetBroadcastCapsTS(9999,
+                                                 mCaps.Get("foo"));
+    EXPECT_EQ(empty_result.size(), 0);
+  }
+
+  {
+
+    auto result = mCaps.GetBroadcastCapsTS(1,
+                                           mCaps.Get(auth1));
+    EXPECT_EQ(result.size(), 2);
+
+    result_set_t actual (std::make_move_iterator(result.begin()),
+                         std::make_move_iterator(result.end()));
+    result_set_t expected = { mCaps.Get(auth1), mCaps.Get(auth3)};
+    EXPECT_EQ(expected, actual);
+  }
+
+  {
+    // this will skip own caps
+    eos::fusex::md m;
+    m.set_authid(auth1);
+    m.set_clientuuid("uuid1");
+    auto actual = mCaps.GetBroadcastCapsTS(1,
+                                           mCaps.Get(auth1),
+                                           &m);
+    bc_result_t expected = { mCaps.Get(auth3) };
+    EXPECT_EQ(expected, actual);
+  }
+
+}
