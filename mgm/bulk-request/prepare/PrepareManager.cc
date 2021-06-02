@@ -172,6 +172,8 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
       return SFS_ERROR;
     }
 
+    addPathToBulkRequestIfPossible(prep_path.c_str());
+
     if (mMgmFsInterface._exists(prep_path.c_str(), check, error, client, "") ||
         (check != XrdSfsFileExistIsFile)) {
       if(continueProcessingIfFileDoesNotExist()){
@@ -200,7 +202,6 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
       if (foundPrepareTag) {
         pathsWithPrepare.emplace_back(&(pptr->text),
                                       optr != nullptr ? & (optr->text) : nullptr);
-        addPathToBulkRequestIfPossible(pptr->text);
       } else {
         // don't do workflow if no such tag
         goto nextPath;
