@@ -121,7 +121,7 @@ mgmofs.qdbpassword_file /etc/eos.keytab
 DAEMON_COREFILE_LIMIT=unlimited
 
 # Preload jemalloc
-LD_PRELOAD=/usr/lib64/libjemalloc.so.1
+LD_PRELOAD=/usr/lib64/libjemalloc.so
 
 # Disable the KRB5 replay cache
 KRB5RCACHETYPE=none
