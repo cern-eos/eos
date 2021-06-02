@@ -80,6 +80,8 @@ com_report(char* arg1)
   std::string sregex;
   size_t max_reports=2000000000;
   bool silent = false;
+  time_t start_time=0;
+  time_t stop_time=0;
 
   do {
     arg = subtokenizer.GetToken();
@@ -102,6 +104,26 @@ com_report(char* arg1)
 	goto com_report_usage;
       } else {
 	max_reports = std::strtoul(arg.c_str(),0,10);
+      }
+      continue;
+    }
+
+    if ( arg == "--start") {
+      arg = subtokenizer.GetToken();
+      if (!arg.length()) {
+	goto com_report_usage;
+      } else {
+	start_time = std::strtoul(arg.c_str(),0,10);
+      }
+      continue;
+    }
+
+    if ( arg == "--stop") {
+      arg = subtokenizer.GetToken();
+      if (!arg.length()) {
+	goto com_report_usage;
+      } else {
+	stop_time = std::strtoul(arg.c_str(),0,10);
       }
       continue;
     }
@@ -174,6 +196,20 @@ com_report(char* arg1)
 	    continue;
 	  }
 	  bool found=false;
+
+	  time_t start_ots = std::stoul(map["ots"]);
+
+	  if (start_time) {
+	    if (start_ots < start_time) {
+	      continue;
+	    }
+	  }
+	  if (stop_time) {
+	    if (start_ots > stop_time) {
+	      continue;
+	    }
+	  }
+
 	  // classify write or read
 	  if (std::stol(map["wb"]) > 0) {
 	    sum_w += std::stol(map["wb"]);
@@ -227,13 +263,18 @@ com_report(char* arg1)
   return (0);
 com_report_usage:
   fprintf(stdout,
-          "'[eos] report [-n <nrecords>] [--regex <regex>] [-s]' <reportfile>\n");
+          "'[eos] report [-n <nrecords>] [--regex <regex>] [-s] [--start <unixtime>] [--stop <unixtime>] <reportfile>\n");
   fprintf(stdout, "Usage: report <file>\n");
   fprintf(stdout, "Options:\n");
   fprintf(stdout, "          -s         : show only the summary with N(r) [number of files read] N(w) [number of files written] VOL(r) [data volume read] VOL (w) [data volume written],\n");
   fprintf(stdout, "                       + timings avg [average transfer time], 99-perc [99 percentila] max [maximal transfer time]\n");
   fprintf(stdout, "          -n <n>     : stop after n records are accepted for the statistics\n");
   fprintf(stdout, "     --regex <regex> : apply <regex> for filtering the records\n");
+  fprintf(stdout, "  --start <unixtime> : only take records starting after <unixtime>\n");
+  fprintf(stdout, "  --stop <unixtime>  : only take records starting before <unixtime>\n\n");
+  fprintf(stdout, "Example:               bash> eos report /var/eos/report/2021/05/20210530.eosreport\n");
+  fprintf(stdout, "                       bash> zcat /var/eos/report/2021/05/20210530.eosreport.gz | eos report /dev/stdin -s\n");
+  fprintf(stdout, "                       bash> eos report /var/eos/report/2021/05/20210530.eosreport --regex \"sec.app=fuse\" -s\n");
   global_retc = EINVAL;
   return (0);
 }
