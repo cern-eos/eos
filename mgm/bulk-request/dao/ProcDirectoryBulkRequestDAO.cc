@@ -69,34 +69,43 @@ std::string ProcDirectoryBulkRequestDAO::generateBulkRequestProcPath(const std::
 void ProcDirectoryBulkRequestDAO::insertBulkRequestFilesToBulkRequestDirectory(const std::shared_ptr<BulkRequest> bulkRequest, const std::string & bulkReqProcPath) {
   EXEC_TIMING_BEGIN("ProcDirectoryBulkRequestDAO::insertBulkRequestFilesToBulkRequestDirectory");
   const std::set<std::string> & paths = bulkRequest->getPaths();
-  eos::Prefetcher prefetcher(mFileSystem->eosView);
+  //Map of paths associated to the future object for the in-memory prefetching of the file informations
+  std::map<std::string,folly::Future<IFileMDPtr>> pathsWithMDFutures;
   for(auto & path : paths){
-    prefetcher.stageFileMD(path,false);
+    std::pair<std::string,folly::Future<IFileMDPtr>> itemToInsert(path,mFileSystem->eosView->getFileFut(path, false));
+    pathsWithMDFutures.emplace(std::move(itemToInsert));
   }
-  prefetcher.wait();
-  for(auto & path: paths){
+  for(auto & fileMd: pathsWithMDFutures){
+      fileMd.second.wait();
+  }
+  for(auto & pathWithMDFuture : pathsWithMDFutures){
+    const std::string & currentFilePath = pathWithMDFuture.first;
+    std::ostringstream pathOfFileToTouch;
+    pathOfFileToTouch << bulkReqProcPath << "/";
     std::shared_ptr<IFileMD> file;
-    {
-      try {
-        eos::common::RWMutexReadLock nsLock(mFileSystem->eosViewRWMutex,
-                                            __FUNCTION__, __LINE__, __FILE__);
-        file = mFileSystem->eosView->getFile(path);
-      } catch(const std::exception &ex){
-        std::ostringstream errMsg;
-        errMsg << "In ProcDirectoryBulkRequestDAO::insertBulkRequestFilesToBulkRequestDirectory(), got an exception trying to get informations about the file "
-               << path << " ErrorMsg=" << ex.what();
-        throw PersistencyException(ex.what());
-      }
+    try {
+      eos::common::RWMutexReadLock nsLock(mFileSystem->eosViewRWMutex,
+                                          __FUNCTION__, __LINE__, __FILE__);
+      file = mFileSystem->eosView->getFile(pathWithMDFuture.first);
+      pathOfFileToTouch << file->getId();
+    } catch (const eos::MDException &ex){
+      //The file does not exist, we will store the path under the same format as it is in the recycle bin
+      std::string newFilePath = currentFilePath;
+      common::StringConversion::ReplaceStringInPlace(newFilePath,"/","#:#");
+      pathOfFileToTouch << newFilePath;
+    } catch(const std::exception &ex){
+      std::ostringstream errMsg;
+      errMsg << "In ProcDirectoryBulkRequestDAO::insertBulkRequestFilesToBulkRequestDirectory(), got a standard exception trying to get informations about the file "
+             << currentFilePath << " ErrorMsg=" << ex.what();
+      throw PersistencyException(errMsg.str());
     }
-    std::ostringstream fullPath;
-    fullPath << bulkReqProcPath << "/" << file->getId();
     XrdOucErrInfo error;
     int retTouch =
-        mFileSystem->_touch(fullPath.str().c_str(), error, mVid);
+        mFileSystem->_touch(pathOfFileToTouch.str().c_str(), error, mVid);
     if (retTouch != SFS_OK) {
       std::ostringstream errMsg;
       errMsg << "In ProcDirectoryBulkRequestDAO::insertBulkRequestFilesToBulkRequestDirectory(), could not create the file to save the file "
-             << path << " that belongs to the bulk-request id="
+             <<  currentFilePath << " that belongs to the bulk-request id="
              << bulkRequest->getId() << " ErrorMsg=" << error.getErrText();
       throw PersistencyException(errMsg.str());
     }
