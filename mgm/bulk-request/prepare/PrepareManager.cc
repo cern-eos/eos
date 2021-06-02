@@ -35,7 +35,7 @@
 #include <mgm/bulk-request/exception/PersistencyException.hh>
 #include <mgm/bulk-request/prepare/PrepareUtils.hh>
 
-EOSMGMNAMESPACE_BEGIN
+EOSBULKNAMESPACE_BEGIN
 
 PrepareManager::PrepareManager(IMgmFileSystemInterface & mgmFsInterface):mMgmFsInterface(mgmFsInterface)
 {
@@ -283,7 +283,7 @@ const int PrepareManager::getPrepareActionsFromOpts(const int pargsOpts) const {
 
 const bool PrepareManager::isStagePrepare() const {
   return mBulkRequest != nullptr &&
-         mBulkRequest->getType() == eos::mgm::BulkRequest::PREPARE_STAGE;
+         mBulkRequest->getType() == eos::mgm::bulk::BulkRequest::PREPARE_STAGE;
 }
 
 const bool PrepareManager::continueProcessingIfFileDoesNotExist() const {
@@ -363,4 +363,4 @@ std::shared_ptr<BulkRequest> PrepareManager::getBulkRequest() const {
 }
 
 
-EOSMGMNAMESPACE_END
+EOSBULKNAMESPACE_END

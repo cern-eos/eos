@@ -29,14 +29,14 @@
 #include <common/Logging.hh>
 #include <mgm/XrdMgmOfs.hh>
 
-EOSMGMNAMESPACE_BEGIN
+EOSBULKNAMESPACE_BEGIN
 
 /**
  * This class is the bulk request persistency layer using the eos proc directory
  *
  * The bulk request persistence will be ensured by creating and listing a directory in a the /eos/.../proc/bulkrequest.
  */
-class ProcDirectoryBulkRequestDAO : public IBulkRequestDAO, eos::common::LogId {
+class ProcDirectoryBulkRequestDAO : public IBulkRequestDAO, public eos::common::LogId {
 public:
   ProcDirectoryBulkRequestDAO(XrdMgmOfs * fileSystem);
   /**
@@ -78,5 +78,6 @@ private:
   void cleanAfterExceptionHappenedDuringBulkRequestSave(const std::shared_ptr<BulkRequest> bulkRequest, const std::string & bulkReqProcPath);
 };
 
-EOSMGMNAMESPACE_END
+EOSBULKNAMESPACE_END
+
 #endif // EOS_PROCDIRECTORYBULKREQUESTDAO_HH

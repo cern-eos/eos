@@ -27,7 +27,7 @@
 #include <string>
 #include "mgm/Namespace.hh"
 
-EOSMGMNAMESPACE_BEGIN
+EOSBULKNAMESPACE_BEGIN
 
 /**
  * Utility class for Prepare-related business
@@ -42,6 +42,6 @@ public:
   static std::string prepareOptsToString(const int opts);
 };
 
-EOSMGMNAMESPACE_END
+EOSBULKNAMESPACE_END
 
 #endif // EOS_PREPAREUTILS_HH

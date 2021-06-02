@@ -26,7 +26,7 @@
 #include "mgm/Namespace.hh"
 #include "mgm/bulk-request/BulkRequest.hh"
 
-EOSMGMNAMESPACE_BEGIN
+EOSBULKNAMESPACE_BEGIN
 
 /**
  * This class represents a bulk request containing files that
@@ -39,5 +39,5 @@ public:
 private:
 };
 
-EOSMGMNAMESPACE_END
+EOSBULKNAMESPACE_END
 #endif // EOS_STAGEBULKREQUEST_HH

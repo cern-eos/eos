@@ -28,7 +28,7 @@
 #include "mgm/Namespace.hh"
 #include "mgm/XrdMgmOfs.hh"
 
-EOSMGMNAMESPACE_BEGIN
+EOSBULKNAMESPACE_BEGIN
 
 class RealMgmFileSystemInterface : public IMgmFileSystemInterface {
 public:
@@ -46,6 +46,6 @@ private:
 };
 
 
-EOSMGMNAMESPACE_END
+EOSBULKNAMESPACE_END
 
 #endif // EOS_REALMGMFILESYSTEMINTERFACE_HH

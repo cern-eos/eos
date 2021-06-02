@@ -27,7 +27,7 @@
 #include "mgm/bulk-request/dao/factories/AbstractDAOFactory.hh"
 #include "mgm/XrdMgmOfs.hh"
 
-EOSMGMNAMESPACE_BEGIN
+EOSBULKNAMESPACE_BEGIN
 
 /**
  * Factory of Data Access Object that will rely on
@@ -51,6 +51,6 @@ private:
   XrdMgmOfs * mFileSystem;
 };
 
-EOSMGMNAMESPACE_END
+EOSBULKNAMESPACE_END
 
 #endif // EOS_PROCDIRECTORYDAOFACTORY_HH

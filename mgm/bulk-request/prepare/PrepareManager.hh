@@ -33,7 +33,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/bulk-request/interface/IMgmFileSystemInterface.hh"
 
-EOSMGMNAMESPACE_BEGIN
+EOSBULKNAMESPACE_BEGIN
 
 /**
  * This class manages all the operations linked to the preparation of a file:
@@ -131,6 +131,6 @@ private:
   IMgmFileSystemInterface & mMgmFsInterface;
 };
 
-EOSMGMNAMESPACE_END
+EOSBULKNAMESPACE_END
 
 #endif // EOS_PREPAREMANAGER_HH

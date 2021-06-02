@@ -23,7 +23,7 @@
 
 #include "MockPrepareMgmFSInterface.hh"
 
-EOSMGMNAMESPACE_BEGIN
+EOSBULKNAMESPACE_BEGIN
 
 std::function<int(const char* path, XrdSfsFileExistence& file_exists, XrdOucErrInfo& error, const XrdSecEntity* client, const char* ininfo)>
     MockPrepareMgmFSInterface::_EXISTS_FILE_EXISTS_LAMBDA =
@@ -60,4 +60,4 @@ std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common:
       return SFS_OK;
     };
 
-EOSMGMNAMESPACE_END
+EOSBULKNAMESPACE_END

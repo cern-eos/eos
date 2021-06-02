@@ -24,7 +24,7 @@
 #include "ProcDirectoryDAOFactory.hh"
 #include "mgm/bulk-request/dao/ProcDirectoryBulkRequestDAO.hh"
 
-EOSMGMNAMESPACE_BEGIN
+EOSBULKNAMESPACE_BEGIN
 
 ProcDirectoryDAOFactory::ProcDirectoryDAOFactory(XrdMgmOfs * fileSystem): mFileSystem(fileSystem)
 {
@@ -35,4 +35,4 @@ std::unique_ptr<IBulkRequestDAO> ProcDirectoryDAOFactory::getBulkRequestDAO() co
   return ret;
 }
 
-EOSMGMNAMESPACE_END
+EOSBULKNAMESPACE_END

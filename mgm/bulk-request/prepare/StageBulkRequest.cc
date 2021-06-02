@@ -23,7 +23,7 @@
 
 #include "StageBulkRequest.hh"
 
-EOSMGMNAMESPACE_BEGIN
+EOSBULKNAMESPACE_BEGIN
 
 StageBulkRequest::StageBulkRequest(const std::string& id, const common::VirtualIdentity & clientVid): BulkRequest(id,clientVid)
 {
@@ -34,4 +34,4 @@ const BulkRequest::Type StageBulkRequest::getType() const
   return BulkRequest::Type::PREPARE_STAGE;
 }
 
-EOSMGMNAMESPACE_END
+EOSBULKNAMESPACE_END
