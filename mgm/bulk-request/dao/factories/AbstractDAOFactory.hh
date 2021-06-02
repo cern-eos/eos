@@ -28,7 +28,7 @@
 #include <memory>
 #include "mgm/bulk-request/dao/IBulkRequestDAO.hh"
 
-EOSMGMNAMESPACE_BEGIN
+EOSBULKNAMESPACE_BEGIN
 
 /**
  * AbstractFactory of DAO (Data Access Object) linked to bulk-requests
@@ -42,6 +42,6 @@ public:
   virtual std::unique_ptr<IBulkRequestDAO> getBulkRequestDAO() const = 0;
 };
 
-EOSMGMNAMESPACE_END
+EOSBULKNAMESPACE_END
 
 #endif // EOS_ABSTRACTDAOFACTORY_HH

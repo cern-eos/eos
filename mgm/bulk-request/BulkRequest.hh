@@ -30,7 +30,7 @@
 #include <set>
 #include <map>
 
-EOSMGMNAMESPACE_BEGIN
+EOSBULKNAMESPACE_BEGIN
 
 /**
  * This class represents a BulkRequest object
@@ -101,5 +101,5 @@ private:
   static const std::map<Type,std::string> BULK_REQ_TYPE_TO_STRING_MAP;
 };
 
-EOSMGMNAMESPACE_END
+EOSBULKNAMESPACE_END
 #endif // EOS_BULKREQUEST_HH

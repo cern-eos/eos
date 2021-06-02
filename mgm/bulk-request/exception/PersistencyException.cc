@@ -24,7 +24,7 @@
 #include "PersistencyException.hh"
 #include <xrootd/XrdSfs/XrdSfsInterface.hh>
 
-EOSMGMNAMESPACE_BEGIN
+EOSBULKNAMESPACE_BEGIN
 
 PersistencyException::PersistencyException(const std::string& exceptionMsg):std::exception(),mErrorMsg(exceptionMsg){
 }
@@ -44,6 +44,6 @@ int PersistencyException::fillXrdErrInfo(XrdOucErrInfo & error,int errorCode) co
   return SFS_ERROR;
 }
 
-EOSMGMNAMESPACE_END
+EOSBULKNAMESPACE_END
 
 
