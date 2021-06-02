@@ -37,6 +37,8 @@ using ::testing::_;
 using ::testing::Invoke;
 using ::testing::NiceMock;
 
+USE_EOSBULKNAMESPACE
+
 /**
  * RAII class to hold the XrdSecEntity client pointer
  * Avoids memory leaks for valgrind
@@ -253,7 +255,7 @@ TEST_F(PrepareManagerTest,stagePrepareFilesWorkflow){
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
-  eos::mgm::PrepareManager pm(mgmOfs);
+  eos::mgm::bulk::PrepareManager pm(mgmOfs);
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
 
   ASSERT_EQ(nbFiles,pm.getBulkRequest()->getPaths().size());
@@ -276,7 +278,7 @@ TEST_F(PrepareManagerTest,stagePrepareFileWithNoPath){
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
-  eos::mgm::PrepareManager pm(mgmOfs);
+  eos::mgm::bulk::PrepareManager pm(mgmOfs);
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
 
   //The bulk-request is created, but no file is put in it
@@ -312,7 +314,7 @@ TEST_F(PrepareManagerTest,stagePrepareAllFilesDoNotExist){
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
-  eos::mgm::PrepareManager pm(mgmOfs);
+  eos::mgm::bulk::PrepareManager pm(mgmOfs);
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
 
   ASSERT_EQ(0,pm.getBulkRequest()->getPaths().size());
@@ -356,7 +358,7 @@ TEST_F(PrepareManagerTest,stagePrepareOneFileDoNotExistReturnsSfsData){
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
-  eos::mgm::PrepareManager pm(mgmOfs);
+  eos::mgm::bulk::PrepareManager pm(mgmOfs);
 
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
 
@@ -408,7 +410,7 @@ TEST_F(PrepareManagerTest,abortPrepareFilesWorkflow){
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
-  eos::mgm::PrepareManager pm(mgmOfs);
+  eos::mgm::bulk::PrepareManager pm(mgmOfs);
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
   //Abort prepare does not generate a bulk-request, so the bulk-request should be equal to nullptr
   ASSERT_EQ(nullptr,pm.getBulkRequest());
@@ -443,7 +445,7 @@ TEST_F(PrepareManagerTest,abortPrepareOneFileDoesNotExist){
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
-  eos::mgm::PrepareManager pm(mgmOfs);
+  eos::mgm::bulk::PrepareManager pm(mgmOfs);
 
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
   ASSERT_EQ(SFS_ERROR,retPrepare);
@@ -480,7 +482,7 @@ TEST_F(PrepareManagerTest,evictPrepareFilesWorkflow){
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
-  eos::mgm::PrepareManager pm(mgmOfs);
+  eos::mgm::bulk::PrepareManager pm(mgmOfs);
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
   //Evict prepare does not generate a bulk-request, so the bulk-request should be equal to nullptr
   ASSERT_EQ(nullptr,pm.getBulkRequest());
@@ -515,7 +517,7 @@ TEST_F(PrepareManagerTest,evictPrepareOneFileDoesNotExist){
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
-  eos::mgm::PrepareManager pm(mgmOfs);
+  eos::mgm::bulk::PrepareManager pm(mgmOfs);
 
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
   ASSERT_EQ(SFS_ERROR,retPrepare);

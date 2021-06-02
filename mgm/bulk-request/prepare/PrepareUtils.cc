@@ -26,7 +26,7 @@
 #include <sstream>
 #include <xrootd/XrdSfs/XrdSfsInterface.hh>
 
-EOSMGMNAMESPACE_BEGIN
+EOSBULKNAMESPACE_BEGIN
 
 std::string PrepareUtils::prepareOptsToString(const int opts) {
   std::ostringstream result;
@@ -110,4 +110,4 @@ std::string PrepareUtils::prepareOptsToString(const int opts) {
   return result.str();
 }
 
-EOSMGMNAMESPACE_END
+EOSBULKNAMESPACE_END
