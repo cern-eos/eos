@@ -87,9 +87,7 @@ XrdMgmOfs::processIncomingMgmConfigurationChange(const std::string& key)
         const bool first_unregister = true;
         FsView::gFsView.ApplyFsConfig(fs_key.c_str(), value.c_str(),
                                       first_unregister);
-      }
-
-      if (key.find("quota:") == 0) {
+      } else if (key.find("quota:") == 0) {
         eos_info("%s", "msg=\"skip quota update as it might mess with "
                  "the namespace, will reload once we become master\"");
       } else {
