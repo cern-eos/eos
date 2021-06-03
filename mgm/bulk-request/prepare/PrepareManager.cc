@@ -162,31 +162,19 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
     XrdSfsFileExistence check;
 
     if (prep_path.length() == 0) {
-      if(continueProcessingIfFileDoesNotExist()) {
-        eos_info("msg=\"Ignoring empty path or path formed with forbidden characters\" path=\"%s\")",orig_path.c_str());
-        goto nextPath;
-      }
-      mMgmFsInterface.Emsg(epname, error, ENOENT,
-                 "prepare - path empty or uses forbidden characters:",
-                 orig_path.c_str());
-      return SFS_ERROR;
+      eos_info("msg=\"Ignoring empty path or path formed with forbidden characters\" path=\"%s\")",orig_path.c_str());
+      goto nextPath;
     }
 
-    addPathToBulkRequestIfPossible(prep_path.c_str());
+    addPathToBulkRequestIdempotent(prep_path.c_str());
 
     if (mMgmFsInterface._exists(prep_path.c_str(), check, error, client, "") ||
         (check != XrdSfsFileExistIsFile)) {
-      if(continueProcessingIfFileDoesNotExist()){
-        eos_info("msg=\"Ignoring non existing file\" path=\"%s\"",prep_path.c_str());
-        goto nextPath;
-      }
-      if (check != XrdSfsFileExistIsFile) {
-        mMgmFsInterface.Emsg(epname, error, ENOENT,
-                   "prepare - file does not exist or is not accessible to you",
-                   prep_path.c_str());
-      }
-
-      return SFS_ERROR;
+      //https://its.cern.ch/jira/browse/EOS-4739
+      //For every prepare scenario, we continue to process the files even if they do not exist or are not correct
+      //The user will then have to query prepare to figure out that the files do not exist
+      eos_info("msg=\"prepare - file does not exist or is not accessible to you\" path=\"%s\"",prep_path.c_str());
+      goto nextPath;
     }
 
     if (!event.empty() &&
@@ -213,6 +201,12 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
 
     // check that we have write permission on path
     if (mMgmFsInterface._access(prep_path.c_str(), P_OK, error, vid, "")) {
+      //https://its.cern.ch/jira/browse/EOS-4739
+      //For every prepare scenario, we continue to process the files even if they do not exist or are not correct
+      //The user will then have to query prepare to figure out that the directory where the files are located has
+      //no workflow permission
+      eos_info("msg=\"Ignoring file because there is no workflow permission\" path=\"%s\"",prep_path.c_str());
+      goto nextPath;
       return mMgmFsInterface.Emsg(epname, error, EPERM,
                         "prepare - you don't have workflow permission",
                         prep_path.c_str());
@@ -227,6 +221,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
   }
 
   if(isStagePrepare()){
+    //We currently persist only stage prepare request
     if(!pathsWithPrepare.empty()){
       try {
         saveBulkRequest();
@@ -234,12 +229,6 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
         eos_err("msg=\"Unable to persist the bulk request %s\" \"ErrorMsg=%s\"",mBulkRequest->getId().c_str(),ex.what());
         return ex.fillXrdErrInfo(error, EIO);
       }
-    } else {
-      //In the case we have a stage prepare request with only files that do not exist,
-      //an error should be returned to the client (https://its.cern.ch/jira/projects/EOS/issues/EOS-4722)
-      mMgmFsInterface.Emsg(epname, error, EIO,
-                           "prepare stage - the request only contains files that do not exist");
-      return SFS_ERROR;
     }
   }
   //Trigger the prepare workflow
@@ -266,7 +255,7 @@ void PrepareManager::saveBulkRequest() {
   }
 }
 
-void PrepareManager::addPathToBulkRequestIfPossible(const std::string& path){
+void PrepareManager::addPathToBulkRequestIdempotent(const std::string& path){
   if(mBulkRequest != nullptr){
     mBulkRequest->addPath(path);
   }
@@ -285,11 +274,6 @@ const int PrepareManager::getPrepareActionsFromOpts(const int pargsOpts) const {
 const bool PrepareManager::isStagePrepare() const {
   return mBulkRequest != nullptr &&
          mBulkRequest->getType() == eos::mgm::bulk::BulkRequest::PREPARE_STAGE;
-}
-
-const bool PrepareManager::continueProcessingIfFileDoesNotExist() const {
-  //Currently, we only ignore non existing files for stage prepare requests
-  return isStagePrepare();
 }
 
 void PrepareManager::triggerPrepareWorkflow(const std::list<std::pair<char**, char**>> & pathsToPrepare, const std::string & cmd, const std::string &event, const XrdOucString & reqid, XrdOucErrInfo & error, const eos::common::VirtualIdentity& vid) {

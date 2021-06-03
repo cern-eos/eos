@@ -86,12 +86,6 @@ private:
   const bool isStagePrepare() const;
 
   /**
-   * @return true if this prepare request allows to continue to process all the files if one file does not exist
-   * false otherwise
-   */
-  const bool continueProcessingIfFileDoesNotExist() const;
-
-  /**
    * Triggers the prepare workflow to all the pathsToPrepare passed in parameter
    * @param pathsToPrepare the paths of the files on which we want to trigger a prepare workflow
    * @param cmd the command to run in the Workflow engine
@@ -111,7 +105,7 @@ private:
    * Will add the prepared path to the bulk request if it exists
    * @param path the path to add to the bulk-request
    */
-  void addPathToBulkRequestIfPossible(const std::string & path);
+  void addPathToBulkRequestIdempotent(const std::string & path);
 
   /**
    * Perform the prepare logic
