@@ -1641,7 +1641,7 @@ FsView::Register(FileSystem* fs, const common::FileSystemCoreParams& coreParams,
 
   // Check for queuepath collision
   if (mIdView.lookupByQueuePath(coreParams.getQueuePath())) {
-    eos_err("msg=\"queuepath already registered\" qpath=%s",
+    eos_err("msg=\"queuepath already registered\" qpath=\"%s\"",
             coreParams.getQueuePath().c_str());
     return false;
   }
@@ -1764,7 +1764,8 @@ FsView::StoreFsConfig(FileSystem* fs, bool save_config)
     std::string key, val;
     fs->CreateConfig(key, val);
 
-    if (FsView::gFsView.mConfigEngine && !key.empty() && !val.empty()) {
+    if (gOFS->mMaster->IsMaster() && FsView::gFsView.mConfigEngine &&
+        !key.empty() && !val.empty()) {
       FsView::gFsView.mConfigEngine->SetConfigValue("fs", key.c_str(), val.c_str(),
           true, save_config);
     }
@@ -1917,7 +1918,7 @@ FsView::UnRegister(FileSystem* fs, bool unreg_from_geo_tree,
   // Delete in the configuration engine
   std::string key = fs->GetQueuePath();
 
-  if (FsView::gFsView.mConfigEngine) {
+  if (gOFS->mMaster->IsMaster() && FsView::gFsView.mConfigEngine) {
     FsView::gFsView.mConfigEngine->DeleteConfigValue("fs", key.c_str());
   }
 
@@ -2630,7 +2631,7 @@ BaseView::SetConfigMember(std::string key, std::string value,
   }
 
   // Register in the configuration engine
-  if ((!isstatus) && FsView::gFsView.mConfigEngine) {
+  if (gOFS->mMaster->IsMaster() && (!isstatus) && FsView::gFsView.mConfigEngine) {
     std::string node_cfg_name = mLocator.getConfigQueue();
     node_cfg_name += "#";
     node_cfg_name += key;
@@ -2661,7 +2662,7 @@ BaseView::DeleteConfigMember(std::string key) const
                                        mLocator).del(key);
 
   // Delete in the configuration engine
-  if (FsView::gFsView.mConfigEngine) {
+  if (gOFS->mMaster->IsMaster() && FsView::gFsView.mConfigEngine) {
     std::string node_cfg_name = mLocator.getConfigQueue();
     node_cfg_name += "#";
     node_cfg_name += key;
@@ -2875,7 +2876,7 @@ FsView::ApplyFsConfig(const char* inkey, const std::string& val,
   FileSystem* fs = FsView::gFsView.mIdView.lookupByID(fsid);
 
   if (first_unregister && fs) {
-    if (UnRegister(fs)) {
+    if (!UnRegister(fs)) {
       eos_static_warning("msg=\"failed to unregister file system\" fsid=%lu",
                          fsid);
     }
@@ -2909,7 +2910,7 @@ FsView::ApplyFsConfig(const char* inkey, const std::string& val,
     fs->SetString(it_cfg->first.c_str(), it_cfg->second.c_str());
   }
 
-  if (!FsView::gFsView.Register(fs, fs->getCoreParams())) {
+  if (!Register(fs, fs->getCoreParams())) {
     eos_err("msg=\"cannot register filesystem name=%s from configuration\"",
             configmap["queuepath"].c_str());
     return false;
