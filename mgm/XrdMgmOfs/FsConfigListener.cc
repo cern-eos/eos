@@ -78,9 +78,15 @@ XrdMgmOfs::processIncomingMgmConfigurationChange(const std::string& key)
 
       // For fs modification we need to lock for write the FsView::ViewMutex
       if (key.find("fs:") == 0) {
+        std::string fs_key = key;
+        fs_key.erase(0, 3);
         eos::common::RWMutexWriteLock
         wr_view_lock(FsView::gFsView.ViewMutex, __FUNCTION__, __LINE__, __FILE__);
-        gOFS->ConfEngine->ApplyEachConfig(key.c_str(), &value, &err);
+        // To avoid issues when applying config changes in the slave we need to
+        // unregister the file system first and then apply the new configuration
+        const bool first_unregister = true;
+        FsView::gFsView.ApplyFsConfig(fs_key.c_str(), value.c_str(),
+                                      first_unregister);
       }
 
       if (key.find("quota:") == 0) {

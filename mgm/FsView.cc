@@ -1924,13 +1924,6 @@ FsView::UnRegister(FileSystem* fs, bool unreg_from_geo_tree,
   eos::common::FileSystem::fs_snapshot_t snapshot;
 
   if (fs->SnapShotFileSystem(snapshot)) {
-    // Remove view by filesystem object and filesystem id
-    // Check if this is in the view
-    if (!mIdView.eraseByPtr(fs)) {
-      eos_static_crit("could not find fs ptr=%x (fsid=%lld) to unregister ?!", fs,
-                      snapshot.mId);
-    }
-
     // Remove fs from node view & evt. remove node view
     if (mNodeView.count(snapshot.mQueue)) {
       FsNode* node = mNodeView[snapshot.mQueue];
@@ -1984,6 +1977,12 @@ FsView::UnRegister(FileSystem* fs, bool unreg_from_geo_tree,
         mSpaceView.erase(snapshot.mSpace);
         delete space;
       }
+    }
+
+    // Remove view by filesystem object and filesystem id
+    if (!mIdView.eraseByPtr(fs)) {
+      eos_static_crit("msg=\"no such file system to unregister\" ptr=%x fsid=%lu",
+                      fs,  snapshot.mId);
     }
 
     // Remove mapping
@@ -2838,12 +2837,14 @@ FsView::PrintNodes(std::string& out, const std::string& table_format,
 // @note This method needs to be called with the ViewMutex locked for write
 //------------------------------------------------------------------------------
 bool
-FsView::ApplyFsConfig(const char* inkey, std::string& val)
+FsView::ApplyFsConfig(const char* inkey, const std::string& val,
+                      bool first_unregister)
 {
   std::map<std::string, std::string> configmap;
 
   if (!common::ConfigParsing::parseFilesystemConfig(val, configmap)) {
-    eos_err("could not parse fs config entry");
+    eos_err("msg=\"failed parsing fs config entry\" data=\"%s\"",
+            val.c_str());
     return false;
   }
 
@@ -2851,15 +2852,39 @@ FsView::ApplyFsConfig(const char* inkey, std::string& val)
 
   if (!common::FileSystemLocator::fromQueuePath(configmap["queuepath"],
       locator)) {
-    eos_crit("Could not parse queuepath: %s", configmap["queuepath"].c_str());
+    eos_crit("msg=\"failed parsing queuepath: %s", configmap["queuepath"].c_str());
     return false;
   }
 
-  eos::common::FileSystem::fsid_t fsid = atoi(configmap["id"].c_str());
+  const auto it = configmap.find("id");
+
+  if (it == configmap.end()) {
+    eos_static_err("msg=\"missing id from fs config entry\" value=\"%s\"",
+                   val.c_str());
+    return false;
+  }
+
+  eos::common::FileSystem::fsid_t fsid =
+    eos::common::FileSystem::ConvertToFsid(it->second);
+
+  if (fsid == 0ul) {
+    eos_static_err("msg=\"no such fsid 0\" value=\"%s\"", it->second.c_str());
+    return false;
+  }
+
   FileSystem* fs = FsView::gFsView.mIdView.lookupByID(fsid);
 
+  if (first_unregister && fs) {
+    if (UnRegister(fs)) {
+      eos_static_warning("msg=\"failed to unregister file system\" fsid=%lu",
+                         fsid);
+    }
+
+    fs = nullptr;
+  }
+
   // Apply only the registration for a new filesystem if it does not exist
-  if (!fs) {
+  if (fs == nullptr) {
     fs = new FileSystem(locator, gOFS->mMessagingRealm.get());
   }
 
