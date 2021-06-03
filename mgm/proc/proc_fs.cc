@@ -1418,16 +1418,6 @@ proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
       stdErr = "error: you can only remove file systems which are in 'empty' status";
       retc = EINVAL;
     } else {
-      if (!FsView::gFsView.RemoveMapping(fsid)) {
-        stdErr = "error: couldn't remove mapping of filesystem defined by ";
-        stdErr += nodename.c_str();
-        stdErr += "/";
-        stdErr += mountpoint.c_str();
-        stdErr += "/";
-        stdErr += id.c_str();
-        stdErr += " ";
-      }
-
       if (!FsView::gFsView.UnRegister(fs, true, true)) {
         stdErr = "error: couldn't unregister the filesystem ";
         stdErr += nodename.c_str();

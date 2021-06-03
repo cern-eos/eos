@@ -564,6 +564,16 @@ public:
   static const char* GetRegisterRequestString();
 
   //----------------------------------------------------------------------------
+  //! Convert input to file system id
+  //!
+  //! @param value input string
+  //!
+  //! @return file system id if conversion successful, otherwise 0
+  //----------------------------------------------------------------------------
+  static eos::common::FileSystem::fsid_t
+  ConvertToFsid(const std::string& value);
+
+  //----------------------------------------------------------------------------
   //! Serializes hash contents as follows 'key1=val1 key2=val2 ... keyn=valn'
   //! but return only keys that don't start with filter_prefix. If specified,
   //! the string values will be curl encoded

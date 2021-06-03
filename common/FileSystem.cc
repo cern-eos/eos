@@ -1324,4 +1324,26 @@ FileSystem::GetActiveStatus(bool cached)
   }
 }
 
+//------------------------------------------------------------------------------
+// Convert input to file system id
+//------------------------------------------------------------------------------
+eos::common::FileSystem::fsid_t
+FileSystem::ConvertToFsid(const std::string& value)
+{
+  eos::common::FileSystem::fsid_t fsid = 0ul;
+
+  try {
+    size_t pos = 0;
+    fsid = std::stoul(value, &pos);
+
+    if (pos != value.length()) {
+      throw std::runtime_error("failed fsid conversion");
+    }
+  } catch (...) {
+    fsid = 0ul;
+  }
+
+  return fsid;
+}
+
 EOSCOMMONNAMESPACE_END;
