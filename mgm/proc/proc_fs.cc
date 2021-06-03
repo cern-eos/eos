@@ -25,6 +25,7 @@
 #include "mgm/proc/proc_fs.hh"
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/IMaster.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/Prefetcher.hh"
@@ -1427,7 +1428,12 @@ proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
       return retc;
     }
 
-    if (cstate != "empty") {
+    // @note We can only remove a file system only if it's empty and
+    // exceptionally if we are a slave MGM and the fs is in drain mode
+    // and we got a request to remove it. The empty state from the
+    // master MGM is never propagated to the slaves.
+    if ((cstate != "empty") &&
+        !((cstate == "drain") && !gOFS->mMaster->IsMaster())) {
       stdErr = "error: you can only remove file systems which are in 'empty' status";
       retc = EINVAL;
     } else {
