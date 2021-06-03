@@ -107,7 +107,6 @@
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSfs/XrdSfsFlags.hh"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
-#include "mgm/bulk-request/prepare/PrepareManager.hh"
 #include "mgm/bulk-request/dao/factories/AbstractDAOFactory.hh"
 #include "mgm/bulk-request/dao/factories/ProcDirectoryDAOFactory.hh"
 #include "mgm/bulk-request/business/BulkRequestBusiness.hh"
@@ -740,7 +739,7 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   RealMgmFileSystemInterface mgmFsInterface(gOFS);
   PrepareManager pm(mgmFsInterface);
   //We want the bulk request to be persisted, set the bulkRequestBusiness to the prepare manager
-  pm.setBulkRequestBusiness(bulkRequestBusiness);
+  //pm.setBulkRequestBusiness(bulkRequestBusiness);
   int prepareRetCode = pm.prepare(pargs,error,client);
   return prepareRetCode;
 #else
@@ -1090,6 +1089,12 @@ XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     }
 
     rsp.is_exists = true;
+
+    if (_access(prep_path.c_str(), P_OK, error, vid, "")) {
+      rsp.error_text = "you don't have workflow permission";
+      continue;
+    }
+
     // Check file state (online/offline)
     XrdOucErrInfo xrd_error;
     struct stat buf;
