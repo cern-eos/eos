@@ -926,8 +926,15 @@ public:
 
   //----------------------------------------------------------------------------
   //! Apply all filesystem configuration key-val pair
+  //!
+  //! @param key fs configuration key
+  //! @param val fs configuration to be applied
+  //! @param first_unregister if true then unregister the file system before
+  //!        applying any of the changes. This is needed for slave MGMs when
+  //!        following changes from the master MGM. [default false]
   //----------------------------------------------------------------------------
-  bool ApplyFsConfig(const char* key, std::string& val);
+  bool ApplyFsConfig(const char* key, const std::string& val,
+                     bool first_unregister = false);
 
   //----------------------------------------------------------------------------
   //! Apply a global configuration key-val pair
