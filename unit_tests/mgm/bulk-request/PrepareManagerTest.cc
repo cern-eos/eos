@@ -263,10 +263,10 @@ TEST_F(PrepareManagerTest,stagePrepareFilesWorkflow){
 }
 
 TEST_F(PrepareManagerTest,stagePrepareFileWithNoPath){
-
+  //prepare stage should be idempotent https://its.cern.ch/jira/projects/EOS/issues/EOS-4739
   NiceMock<MockPrepareMgmFSInterface> mgmOfs;
-  //As no path exists, Emsg should be called one time
-  EXPECT_CALL(mgmOfs,Emsg).Times(1);
+  //No path exist, but Emsg should not be called
+  EXPECT_CALL(mgmOfs,Emsg).Times(0);
   //No path are set, no mgmOfs method should be called
   EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_)).Times(0);
   EXPECT_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_)).Times(0);
@@ -281,18 +281,16 @@ TEST_F(PrepareManagerTest,stagePrepareFileWithNoPath){
   eos::mgm::bulk::PrepareManager pm(mgmOfs);
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
 
-  //The bulk-request is created, but no file is put in it
+  //The bulk-request is created, 0 files are supposed to be there
   ASSERT_EQ(0,pm.getBulkRequest()->getPaths().size());
-  //The prepare manager returns SFS_ERROR
-  ASSERT_EQ(SFS_ERROR,retPrepare);
+  //The prepare manager returns SFS_DATA
+  ASSERT_EQ(SFS_DATA,retPrepare);
 }
 
 TEST_F(PrepareManagerTest,stagePrepareAllFilesDoNotExist){
   /**
-   *  The current behaviour is that if at least one file does not exist,
-   *  an error will be returned to the client without queueing any Retrieve request on CTA
-   *  Here we test that if all files do not exist, it will return an error to the client and the code -1
-   *  https://its.cern.ch/jira/projects/EOS/issues/EOS-4722
+   * If all files do not exist, the prepare should succeed
+   * prepare is now idempotent (https://its.cern.ch/jira/projects/EOS/issues/EOS-4739)
    */
   int nbFiles = 3;
   std::vector<std::string> paths = PrepareManagerTest::generateDefaultPaths(nbFiles);
@@ -300,7 +298,7 @@ TEST_F(PrepareManagerTest,stagePrepareAllFilesDoNotExist){
 
   NiceMock<MockPrepareMgmFSInterface> mgmOfs;
   //One file does not exist, Emsg should be called once
-  EXPECT_CALL(mgmOfs,Emsg).Times(1);
+  EXPECT_CALL(mgmOfs,Emsg).Times(0);
   ON_CALL(mgmOfs,_exists(_,_,_,_,_)).WillByDefault(Invoke(
       MockPrepareMgmFSInterface::_EXISTS_FILE_DOES_NOT_EXIST_LAMBDA));
   //The current behaviour is that the prepare logic returns an error if at least one file does not exist.
@@ -319,15 +317,13 @@ TEST_F(PrepareManagerTest,stagePrepareAllFilesDoNotExist){
 
   //For the future, even if the files do not exist, they have to be in the bulk-request.
   ASSERT_EQ(3,pm.getBulkRequest()->getPaths().size());
-  ASSERT_EQ(SFS_ERROR,retPrepare);
+  ASSERT_EQ(SFS_DATA,retPrepare);
 }
 
 TEST_F(PrepareManagerTest,stagePrepareOneFileDoNotExistReturnsSfsData){
   /**
-   *  The current behaviour is that if at least one file does not exist,
-   *  an error will be returned to the client without queueing any Retrieve request on CTA
-   *  Here we test that if the first file exists and the second does not, it will return a success to the client
-   *  https://its.cern.ch/jira/projects/EOS/issues/EOS-4722
+   * If all files do not exist, the prepare should succeed
+   * Prepare is now idempotent (https://its.cern.ch/jira/projects/EOS/issues/EOS-4739)
    */
   int nbFiles = 3;
   std::vector<std::string> paths = PrepareManagerTest::generateDefaultPaths(nbFiles);
@@ -418,6 +414,10 @@ TEST_F(PrepareManagerTest,abortPrepareFilesWorkflow){
 }
 
 TEST_F(PrepareManagerTest,abortPrepareOneFileDoesNotExist){
+  /**
+   * If one file does not exist, the prepare abort should succeed
+   * Prepare is now idempotent (https://its.cern.ch/jira/projects/EOS/issues/EOS-4739)
+   */
   int nbFiles = 3;
   std::vector<std::string> paths = PrepareManagerTest::generateDefaultPaths(nbFiles);
   std::vector<std::string> oinfos = PrepareManagerTest::generateEmptyOinfos(nbFiles);
@@ -425,10 +425,10 @@ TEST_F(PrepareManagerTest,abortPrepareOneFileDoesNotExist){
   NiceMock<MockPrepareMgmFSInterface> mgmOfs;
   //isTapeEnabled should not be called
   EXPECT_CALL(mgmOfs,isTapeEnabled).Times(0);
-  //One file does not exist, Emsg should be called once
-  EXPECT_CALL(mgmOfs,Emsg).Times(1);
+  //One file does not exist, but as we are idempotent, no error should be returned
+  EXPECT_CALL(mgmOfs,Emsg).Times(0);
   //Exist will first return true for the existing file, then return false
-  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_)).Times(2).WillOnce(Invoke(
+  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_)).Times(nbFiles).WillOnce(Invoke(
       MockPrepareMgmFSInterface::_EXISTS_FILE_EXISTS_LAMBDA)).WillRepeatedly(Invoke(
       MockPrepareMgmFSInterface::_EXISTS_FILE_DOES_NOT_EXIST_LAMBDA));
   //Attr ls should work for the file that exists
@@ -437,7 +437,7 @@ TEST_F(PrepareManagerTest,abortPrepareOneFileDoesNotExist){
           MockPrepareMgmFSInterface::_ATTR_LS_ABORT_PREPARE_LAMBDA
       ));
   EXPECT_CALL(mgmOfs,_access).Times(1);
-  EXPECT_CALL(mgmOfs,FSctl).Times(0);
+  EXPECT_CALL(mgmOfs,FSctl).Times(1);
 
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
   PrepareArgumentsWrapper pargs("testReqId",Prep_CANCEL,oinfos,paths);
@@ -447,7 +447,7 @@ TEST_F(PrepareManagerTest,abortPrepareOneFileDoesNotExist){
   eos::mgm::bulk::PrepareManager pm(mgmOfs);
 
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
-  ASSERT_EQ(SFS_ERROR,retPrepare);
+  ASSERT_EQ(SFS_OK,retPrepare);
 }
 
 TEST_F(PrepareManagerTest,evictPrepareFilesWorkflow){
@@ -490,6 +490,10 @@ TEST_F(PrepareManagerTest,evictPrepareFilesWorkflow){
 }
 
 TEST_F(PrepareManagerTest,evictPrepareOneFileDoesNotExist){
+  /**
+   * If one file does not exist, the prepare evict should succeed
+   * Prepare is now idempotent (https://its.cern.ch/jira/projects/EOS/issues/EOS-4739)
+   */
   int nbFiles = 3;
   std::vector<std::string> paths = PrepareManagerTest::generateDefaultPaths(nbFiles);
   std::vector<std::string> oinfos = PrepareManagerTest::generateEmptyOinfos(nbFiles);
@@ -497,10 +501,10 @@ TEST_F(PrepareManagerTest,evictPrepareOneFileDoesNotExist){
   NiceMock<MockPrepareMgmFSInterface> mgmOfs;
   //isTapeEnabled should not be called
   EXPECT_CALL(mgmOfs,isTapeEnabled).Times(0);
-  //One file does not exist, Emsg should be called once
-  EXPECT_CALL(mgmOfs,Emsg).Times(1);
+  //One file does not exist, Emsg should not be called as we are idempotent
+  EXPECT_CALL(mgmOfs,Emsg).Times(0);
   //Exist will first return true for the existing file, then return false
-  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_)).Times(2).WillOnce(Invoke(
+  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_)).Times(nbFiles).WillOnce(Invoke(
       MockPrepareMgmFSInterface::_EXISTS_FILE_EXISTS_LAMBDA)).WillRepeatedly(Invoke(
       MockPrepareMgmFSInterface::_EXISTS_FILE_DOES_NOT_EXIST_LAMBDA));
   //Attr ls should work for the files that exist
@@ -509,7 +513,7 @@ TEST_F(PrepareManagerTest,evictPrepareOneFileDoesNotExist){
           MockPrepareMgmFSInterface::_ATTR_LS_EVICT_PREPARE_LAMBDA
       ));
   EXPECT_CALL(mgmOfs,_access).Times(1);
-  EXPECT_CALL(mgmOfs,FSctl).Times(0);
+  EXPECT_CALL(mgmOfs,FSctl).Times(1);
 
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
   PrepareArgumentsWrapper pargs("testReqId",Prep_EVICT,oinfos,paths);
@@ -519,5 +523,5 @@ TEST_F(PrepareManagerTest,evictPrepareOneFileDoesNotExist){
   eos::mgm::bulk::PrepareManager pm(mgmOfs);
 
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
-  ASSERT_EQ(SFS_ERROR,retPrepare);
+  ASSERT_EQ(SFS_OK,retPrepare);
 }
