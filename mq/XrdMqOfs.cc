@@ -154,6 +154,7 @@ XrdMqOfsFile::stat(struct stat* buf)
   if (gMqFS->ShouldRedirect(host, port)) {
     // we have to close this object to make the client reopen it to be redirected
     // this->close();
+    eos_static_info("%s", "msg=\"stat force close - should redirect\"");
     return gMqFS->Emsg(epname, error, EINVAL,
                        "stat - forced close - you should be redirected");
   }
@@ -916,8 +917,8 @@ bool XrdMqOfs::ShouldRedirectQdb(XrdOucString& host, int& port)
     }
 
     if (now - last_check > 10) {
-      eos_info("msg=\"redirect to new master mq\" id=%s:%i", host.c_str(),
-               port);
+      eos_static_info("msg=\"redirect to new master mq\" id=%s:%i", host.c_str(),
+                      port);
     }
 
     return true;
