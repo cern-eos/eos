@@ -160,6 +160,11 @@ com_report(char* arg1)
 	  if (!sregex.length() && map["td"].substr(0,6) == "daemon") {
 	    continue;
 	  }
+
+	  if (!map.count("rb") && !map.count("wb")) {
+	    continue;
+	  }
+
 	  if (map["sec.app"] == "deletion") {
 	    continue;
 	  }
