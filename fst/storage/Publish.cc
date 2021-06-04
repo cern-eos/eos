@@ -83,7 +83,7 @@ static uint64_t GetNetSpeed(const std::string& tmpname)
   unsigned long long netspeed = 1000000000;
 
   if (rc.exit_code) {
-    eos_static_err("ip route list call failed to get netspeed");
+    eos_static_err("%s", "msg=\"ip route list call failed to get netspeed\"");
     return netspeed;
   }
 
@@ -168,7 +168,7 @@ static std::string GetNumOfTcpSockets(const std::string& tmpname)
   eos::common::cmd_status rc = cmd.wait(5);
 
   if (rc.exit_code) {
-    eos_static_err("retrieve #socket call failed");
+    eos_static_err("%s", "msg=\"retrieve #socket call failed\"");
   }
 
   std::string retval;
@@ -244,7 +244,7 @@ std::string makeTemporaryFile()
   int tmp_fd = mkstemp(tmp_name);
 
   if (tmp_fd == -1) {
-    eos_static_crit("failed to create temporary file!");
+    eos_static_crit("%s", "msg=\"failed to create temporary file!\"");
     return "";
   }
 
