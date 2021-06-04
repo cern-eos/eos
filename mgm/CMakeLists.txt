@@ -260,6 +260,7 @@ add_library(
   tracker/ReplicationTracker.cc
   inspector/FileInspector.cc
   bulk-request/prepare/PrepareManager.cc
+  bulk-request/prepare/BulkRequestPrepareManager.cc
   bulk-request/BulkRequest.cc
   bulk-request/prepare/StageBulkRequest.cc
   bulk-request/business/BulkRequestBusiness.cc

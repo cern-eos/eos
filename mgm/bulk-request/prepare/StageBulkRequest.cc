@@ -25,7 +25,7 @@
 
 EOSBULKNAMESPACE_BEGIN
 
-StageBulkRequest::StageBulkRequest(const std::string& id, const common::VirtualIdentity & clientVid): BulkRequest(id,clientVid)
+StageBulkRequest::StageBulkRequest(const std::string& id): BulkRequest(id)
 {
 }
 

@@ -73,6 +73,7 @@ set(MGM_UT_SRCS
   mgm/XrdMgmOfsTests.cc
   mgm/XrdMgmOfsFileTests.cc
   mgm/bulk-request/PrepareManagerTest.cc
+  mgm/bulk-request/BulkRequestPrepareManagerTest.cc
   mgm/bulk-request/MockPrepareMgmFSInterface.cc)
 
 set(COMMON_UT_SRCS

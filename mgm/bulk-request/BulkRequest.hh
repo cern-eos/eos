@@ -25,7 +25,6 @@
 #define EOS_BULKREQUEST_HH
 
 #include "mgm/Namespace.hh"
-#include "common/VirtualIdentity.hh"
 #include <string>
 #include <set>
 #include <map>
@@ -47,9 +46,8 @@ public:
   /**
    * Initializes the bulk request with the id passed in parameter
    * @param id the unique identifier of the bulk request
-   * @param clientVid the virtual identity of the client who submitted the bulk request
    */
-  BulkRequest(const std::string & id, const common::VirtualIdentity & clientVid);
+  BulkRequest(const std::string & id);
   /**
    * Returns the id of this bulk request
    * @return the id of this bulk request
@@ -73,12 +71,6 @@ public:
    */
   void addPath(const std::string & path);
 
-  /**
-   * Get the virtual identity of the client who created / submitted the bulk request
-   * @return the virtual identity of the client who created / submitted the bulk request
-   */
-  const common::VirtualIdentity & getClientVirtualIdentity() const;
-
   virtual ~BulkRequest(){}
 
   /**
@@ -93,8 +85,6 @@ private:
   std::string mId;
   //Paths of the files contained in the bulk request
   std::set<std::string> mPaths;
-  // Virtual identity of the client who created/submitted the bulk request
-  eos::common::VirtualIdentity mClientVid;
   //Initialize the map containing the string representation of each bulk-request type
   static const std::map<Type,std::string> createTypeToStringMap();
   //Map containing the string representation of each bulk-request type
