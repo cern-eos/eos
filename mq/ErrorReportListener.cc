@@ -28,7 +28,9 @@ EOSMQNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-ErrorReportListener::ErrorReportListener(const std::string &serveruri, const std::string &hostname) {
+ErrorReportListener::ErrorReportListener(const std::string& serveruri,
+    const std::string& hostname)
+{
   XrdOucString broker = serveruri.c_str();
 
   if (!broker.endswith("//")) {
@@ -53,26 +55,20 @@ ErrorReportListener::ErrorReportListener(const std::string &serveruri, const std
 
   if (!mClient.AddBroker(broker.c_str())) {
     eos_static_err("failed to add broker %s", broker.c_str());
-  }
-  else {
+  } else {
     mClient.Subscribe();
   }
-}
-
-//------------------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------------------
-ErrorReportListener::~ErrorReportListener() {
-  mClient.Unsubscribe();
 }
 
 //----------------------------------------------------------------------------
 // Fetch error report
 //----------------------------------------------------------------------------
-bool ErrorReportListener::fetch(std::string &out, ThreadAssistant *assistant) {
-  std::unique_ptr<XrdMqMessage> message = std::unique_ptr<XrdMqMessage>(mClient.RecvMessage(assistant));
+bool ErrorReportListener::fetch(std::string& out, ThreadAssistant* assistant)
+{
+  std::unique_ptr<XrdMqMessage> message = std::unique_ptr<XrdMqMessage>
+                                          (mClient.RecvMessage(assistant));
 
-  if(message) {
+  if (message) {
     out = message->GetBody();
     return true;
   }
