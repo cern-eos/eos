@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file StageBulkRequest.hh
+//! @file BulkRequestPrepareManager.cc
 //! @author Cedric Caffy - CERN
 //------------------------------------------------------------------------------
 
@@ -20,24 +20,44 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-#ifndef EOS_STAGEBULKREQUEST_HH
-#define EOS_STAGEBULKREQUEST_HH
 
-#include "mgm/Namespace.hh"
-#include "mgm/bulk-request/BulkRequest.hh"
+#include "BulkRequestPrepareManager.hh"
+#include "mgm/bulk-request/BulkRequestFactory.hh"
+#include "mgm/bulk-request/exception/PersistencyException.hh"
 
 EOSBULKNAMESPACE_BEGIN
 
-/**
- * This class represents a bulk request containing files that
- * have to be prepared
- */
-class StageBulkRequest : public BulkRequest {
-public:
-  StageBulkRequest(const std::string & id);
-  const BulkRequest::Type getType() const override;
-private:
-};
+BulkRequestPrepareManager::BulkRequestPrepareManager(IMgmFileSystemInterface& mgmFsInterface):
+  PrepareManager(mgmFsInterface){
+}
 
+void BulkRequestPrepareManager::setBulkRequestBusiness(std::shared_ptr<BulkRequestBusiness> bulkRequestBusiness) {
+  mBulkRequestBusiness = bulkRequestBusiness;
+}
+
+std::shared_ptr<BulkRequest> BulkRequestPrepareManager::getBulkRequest() const {
+  return mBulkRequest;
+}
+
+void BulkRequestPrepareManager::initializeStagePrepareRequest(XrdOucString& reqid){
+  mBulkRequest.reset(BulkRequestFactory::createStageBulkRequest());
+  reqid = mBulkRequest->getId().c_str();
+}
+
+void BulkRequestPrepareManager::addPathToBulkRequest(const std::string& path) {
+  if(mBulkRequest != nullptr){
+    mBulkRequest->addPath(path);
+  }
+}
+
+void BulkRequestPrepareManager::saveBulkRequest() {
+  if(mBulkRequestBusiness != nullptr){
+    try {
+      mBulkRequestBusiness->saveBulkRequest(mBulkRequest);
+    } catch(const PersistencyException & ex){
+      eos_err("msg=\"Unable to persist the bulk request %s\" \"ExceptionWhat=%s\"",mBulkRequest->getId().c_str(),ex.what());
+      throw ex;
+    }
+  }
+}
 EOSBULKNAMESPACE_END
-#endif // EOS_STAGEBULKREQUEST_HH

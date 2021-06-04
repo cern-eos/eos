@@ -23,7 +23,6 @@
 
 #include "PrepareManager.hh"
 #include "mgm/Stat.hh"
-#include "mgm/bulk-request/BulkRequestFactory.hh"
 #include <XrdOuc/XrdOucTList.hh>
 #include <XrdVersion.hh>
 #include <common/Path.hh>
@@ -43,6 +42,10 @@ PrepareManager::PrepareManager(IMgmFileSystemInterface & mgmFsInterface):mMgmFsI
 
 int PrepareManager::prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client) {
   return doPrepare(pargs,error,client);
+}
+
+void PrepareManager::initializeStagePrepareRequest(XrdOucString& reqid) {
+  reqid = eos::common::StringConversion::timebased_uuidstring().c_str();
 }
 
 int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecEntity* client) {
@@ -90,15 +93,17 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
 
   case Prep_STAGE:
     event = "sync::prepare";
-    mBulkRequest.reset(BulkRequestFactory::createStageBulkRequest(vid));
-    reqid = mBulkRequest->getId().c_str();
+    mPrepareAction = PrepareAction::STAGE;
+    initializeStagePrepareRequest(reqid);
     break;
 
   case Prep_CANCEL:
+    mPrepareAction = PrepareAction::ABORT;
     event = "sync::abort_prepare";
     break;
 
   case Prep_EVICT:
+    mPrepareAction = PrepareAction::EVICT;
     event = "sync::evict_prepare";
     break;
 
@@ -166,7 +171,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
       goto nextPath;
     }
 
-    addPathToBulkRequestIdempotent(prep_path.c_str());
+    addPathToBulkRequest(prep_path.c_str());
 
     if (mMgmFsInterface._exists(prep_path.c_str(), check, error, client, "") ||
         (check != XrdSfsFileExistIsFile)) {
@@ -207,9 +212,6 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
       //no workflow permission
       eos_info("msg=\"Ignoring file because there is no workflow permission\" path=\"%s\"",prep_path.c_str());
       goto nextPath;
-      return mMgmFsInterface.Emsg(epname, error, EPERM,
-                        "prepare - you don't have workflow permission",
-                        prep_path.c_str());
     }
 
     nextPath:
@@ -220,17 +222,12 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
       }
   }
 
-  if(isStagePrepare()){
-    //We currently persist only stage prepare request
-    if(!pathsWithPrepare.empty()){
-      try {
-        saveBulkRequest();
-      } catch(const PersistencyException &ex){
-        eos_err("msg=\"Unable to persist the bulk request %s\" \"ErrorMsg=%s\"",mBulkRequest->getId().c_str(),ex.what());
-        return ex.fillXrdErrInfo(error, EIO);
-      }
-    }
+  try {
+    saveBulkRequest();
+  } catch(const PersistencyException &ex){
+    return ex.fillXrdErrInfo(error, EIO);
   }
+
   //Trigger the prepare workflow
   triggerPrepareWorkflow(pathsWithPrepare,cmd,event,reqid,error,vid);
 
@@ -250,19 +247,11 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
 }
 
 void PrepareManager::saveBulkRequest() {
-  if(mBulkRequestBusiness != nullptr){
-    mBulkRequestBusiness->saveBulkRequest(mBulkRequest);
-  }
+
 }
 
-void PrepareManager::addPathToBulkRequestIdempotent(const std::string& path){
-  if(mBulkRequest != nullptr){
-    mBulkRequest->addPath(path);
-  }
-}
-
-void PrepareManager::setBulkRequestBusiness(std::shared_ptr<BulkRequestBusiness> bulkRequestBusiness) {
-  mBulkRequestBusiness = bulkRequestBusiness;
+void PrepareManager::addPathToBulkRequest(const std::string& path){
+  //The normal PrepareManager does not have any bulk-request, do nothing
 }
 
 const int PrepareManager::getPrepareActionsFromOpts(const int pargsOpts) const {
@@ -272,8 +261,7 @@ const int PrepareManager::getPrepareActionsFromOpts(const int pargsOpts) const {
 }
 
 const bool PrepareManager::isStagePrepare() const {
-  return mBulkRequest != nullptr &&
-         mBulkRequest->getType() == eos::mgm::bulk::BulkRequest::PREPARE_STAGE;
+  return mPrepareAction == PrepareAction::STAGE;
 }
 
 void PrepareManager::triggerPrepareWorkflow(const std::list<std::pair<char**, char**>> & pathsToPrepare, const std::string & cmd, const std::string &event, const XrdOucString & reqid, XrdOucErrInfo & error, const eos::common::VirtualIdentity& vid) {
@@ -342,10 +330,5 @@ void PrepareManager::triggerPrepareWorkflow(const std::list<std::pair<char**, ch
     }
   }
 }
-
-std::shared_ptr<BulkRequest> PrepareManager::getBulkRequest() const {
-  return mBulkRequest;
-}
-
 
 EOSBULKNAMESPACE_END
