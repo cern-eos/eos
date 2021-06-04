@@ -66,11 +66,10 @@
 extern XrdSysError gMgmOfsEroute;
 extern XrdOucTrace gMgmOfsTrace;
 
-#define CACHE_LIFE_TIME 300 // seconds
+#define CACHE_LIFE_TIME 300 ///< seconds
 
 
 /*----------------------------------------------------------------------------*/
-//EOSMGMNAMESPACE_BEGIN
 EOSMGMNAMESPACE_BEGIN
 DynamicEC::DynamicEC(const char* spacename, uint64_t ageNew,  uint64_t size,
                      double maxThres,
@@ -86,7 +85,7 @@ DynamicEC::DynamicEC(const char* spacename, uint64_t ageNew,  uint64_t size,
   }
 
   if (OnWork) {
-    mThread2.reset(&DynamicEC::createFilesOneTimeThread, this);
+    //mThread2.reset(&DynamicEC::createFilesOneTimeThread, this);
   }
 
   mTestNumber = 0;
@@ -116,9 +115,21 @@ DynamicEC::DynamicEC(const char* spacename, uint64_t ageNew,  uint64_t size,
   mSleepWhenDone = sleepWhenDone;
   mSleepWhenFull = sleepWhenFull;
   mSizeInMap = 0;
+  ready = false;
 
   if (OnWork) {
     mThread3.reset(&DynamicEC::RunScan, this);
+  }
+}
+
+void
+DynamicEC::restartScan()
+{
+  {
+    std::unique_lock<std::mutex> lck(mtx);
+    ready = true;
+    cv.notify_all();
+    eos_static_info("function done");
   }
 }
 
@@ -128,10 +139,13 @@ std::map<uint64_t, std::shared_ptr<eos::IFileMD>>
   return mStatusFilesMD;
 }
 
+//--------------------------------------------------------------------------------------
+//! Stops the system and shuts down the threads
+//!
+//--------------------------------------------------------------------------------------
 void
 DynamicEC::Stop()
 {
-  //Stopping the threads so the dynamicec will stop cleaning up
   eos_static_info("stop");
   mThread.join();
   mThread2.join();
@@ -145,7 +159,6 @@ DynamicEC::createFilesOneTimeThread(ThreadAssistant& assistant)
   gOFS->WaitUntilNamespaceIsBooted(assistant);
   //This is for creating a few files in the eos system and it can be used for what ever number if it is changed
   //It will be run in a seperated thread for the system in order to make this work fast for the start purpose of the system
-  //It is used in order to check files into system for testing.
   assistant.wait_for(std::chrono::seconds(mWaitTime.load()));
   eos_static_debug("starting the creation of files.");
   createFilesOneTime();
@@ -154,12 +167,8 @@ DynamicEC::createFilesOneTimeThread(ThreadAssistant& assistant)
 void
 DynamicEC::createFilesOneTime()
 {
-  //this will be changed in order to make it work for different test and to declass it.
-  //--gOFS->WaitUntilNamespaceIsBooted(assistant);
   //This is for creating a few files in the eos system and it can be used for what ever number if it is changed
   //It will be run in a seperated thread for the system in order to make this work fast for the start purpose of the system.
-  //--assistant.wait_for(std::chrono::seconds(waitTime));
-  //--eos_static_debug("starting the creation of files.");
   for (int i = 0; i < 10; i++) {
     XrdCl::DefaultEnv::GetEnv()->PutInt("TimeoutResolution", 1);
     XrdCl::File file;
@@ -169,7 +178,7 @@ DynamicEC::createFilesOneTime()
                                XrdCl::Access::UX;
     std::string helperUrl = "root://localhost//eos/testarea/dynec/rawfile";
     std::string url = helperUrl + std::to_string(i) + ".xrdcl";
-    //the last number is for how many seconds we wait have to be 5 normally.
+    //the last number is for how many seconds we wait after each creation, have to be 5 normally.
     XrdCl::XRootDStatus status = file.Open(url, targetFlags, mode, 1);
 
     if (!status.IsOK()) {
@@ -203,6 +212,10 @@ DynamicEC::createFilesOneTime()
   }
 }
 
+//--------------------------------------------------------------------------------------
+//! Destructor
+//!
+//--------------------------------------------------------------------------------------
 DynamicEC::~DynamicEC()
 {
   Stop();
@@ -238,6 +251,8 @@ DynamicEC::getSizeForMap()
 void
 DynamicEC::setSleepWhenDone(uint64_t sleepWhenDone)
 {
+  //test
+  //mThread3.AssistedThread.interrupt();
   mSleepWhenDone = sleepWhenDone;
 }
 
@@ -656,11 +671,6 @@ DynamicEC::testForSingleFileWithkPlain(int stripes, int redundancy,
   mCreatedFileSize += GetSizeOfFile(file);
   mStatusFilesMD[file->getId()] = file;
 }
-std::atomic<uint64_t>
-mSleepWhenDone; ///< sleep when all the files in the system is finish
-
-std::atomic<uint64_t>
-mSleepWhenFull; ///< the
 
 //-------------------------------------------------------------------------------------------
 //! Set in file with kQrain layout
@@ -1129,7 +1139,7 @@ DynamicEC::CleanupMD()
 }
 
 //-------------------------------------------------------------------------------------------
-//! This is the thread which run the cleanup and wait for the waittime, when the cleanup has been done
+//! This is the thread which run the cleanup and wait for the wait time, when the cleanup has been done
 //!
 //-------------------------------------------------------------------------------------------
 void
@@ -1137,7 +1147,6 @@ DynamicEC::Run(ThreadAssistant& assistant) noexcept
 {
   gOFS->WaitUntilNamespaceIsBooted(assistant);
   assistant.wait_for(std::chrono::seconds(mWaitTime.load()));
-  assistant.wait_for(std::chrono::seconds(200));
 
   while (!assistant.terminationRequested())  {
     if (mDynamicOn.load()) {
@@ -1145,7 +1154,6 @@ DynamicEC::Run(ThreadAssistant& assistant) noexcept
     }
 
 wait:
-    //let time pass for a notification
     assistant.wait_for(std::chrono::seconds(mWaitTime.load()));
 
     if (assistant.terminationRequested()) {
@@ -1187,15 +1195,6 @@ DynamicEC::Options DynamicEC::getOptions()
     }
   }
 
-  /*
-  if (opts.enabled) {
-    enable();
-    eos_static_debug("file inspector is enabled - interval = %ld seconds",
-                     opts.interval.count());
-  } else {
-    disable();
-  }
-  */
   return opts;
 }
 
@@ -1213,9 +1212,6 @@ DynamicEC::performCycleQDBMD(ThreadAssistant& assistant) noexcept
   //The start of performCycleQDB, this is code in order to look though the system where this will tjeck the system for potentiel files to be deleted.
   eos_static_info("The fact is that we are looking for the performance scan.");
 
-  //----------------------------------------------------------------------------
-  // Initialize qclient..
-  //----------------------------------------------------------------------------
   if (!mQcl) {
     mQcl.reset(new qclient::QClient(gOFS->mQdbContactDetails.members,
                                     gOFS->mQdbContactDetails.constructOptions()));
@@ -1223,9 +1219,6 @@ DynamicEC::performCycleQDBMD(ThreadAssistant& assistant) noexcept
 
   std::string member = gOFS->mQdbContactDetails.members.toString();
   eos_static_info("member:=%s", member.c_str());
-  //----------------------------------------------------------------------------
-  // Start scanning files
-  //----------------------------------------------------------------------------
   unsigned long long nfiles_processed;
   nfiles = ndirs = nfiles_processed = 0;
   time_t s_time = time(NULL);
@@ -1247,9 +1240,7 @@ DynamicEC::performCycleQDBMD(ThreadAssistant& assistant) noexcept
     std::string err;
     eos::ns::FileMdProto item;
 
-    //eos_static_info("just before the if");
     if (scanner.getItem(item)) {
-      //test in order to speed the scan up in the live tests.
       eos_static_info("This is the map that scans");
 
       if (mTestEnabel) {
@@ -1266,58 +1257,11 @@ DynamicEC::performCycleQDBMD(ThreadAssistant& assistant) noexcept
       time_t target_time = (1.0 * nfiles_processed / nfiles) * interval;
       time_t is_time = time(NULL) - s_time;
       auto hasTape = fmd->hasLocation(EOS_TAPE_FSID);
-      //check for num2 and might be a num1
       long num2 = fmd->getNumLocation();
       num2 -= hasTape;
       num2 -= (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1);
-      //eos_static_info("This is the size in the map %lld \n", mSizeInMap.load());
-      //eos_static_info("This \n \n \n \n");
-
-      /*
-       *
-       *
-      if (mSizeToBeDeleted.load() > 0) {
-      std::list<uint64_t> deletionlist;
-      mMutexForStatusFilesMD.lock();
-
-      for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-             mStatusFilesMD.begin(); it != mStatusFilesMD.end(); ++it) {
-        mSizeInMap =- it->second->getSize();
-        if (DeletionOfFileIDMD(it->second, mTimeFromWhenToDelete)) {
-          {
-            kReduceMD(it->second);
-            deletionlist.push_front(it->first);
-          }
-        }
-
-        if (mDeletedFileSize.load() >= mSizeToBeDeleted.load()) {
-          eos_static_info("%s",
-                          "CleanUp ended with success there was deleted. \n \n \n \n"
-                          "There is no stuff left and we went under the limit.");
-          break;
-        }
-      }
-
-      mMutexForStatusFilesMD.unlock();
-      std::list<uint64_t>::iterator it;
-
-      for (auto it = deletionlist.begin(); it != deletionlist.end(); ++it) {
-        eos_static_info("CleanUp have just been done and now we move the will be removed file : %lld.",
-                        mStatusFilesMD.size());
-        uint64_t id = *it;
-        mMutexForStatusFilesMD.lock();
-        mStatusFilesMD.erase(id);
-        mMutexForStatusFilesMD.unlock();
-        eos_static_info("CleanUp have just been done and now we move the file : %lld.",
-                        mStatusFilesMD.size());
-      }
-      }
-       *
-       *
-       */
 
       if (num2 > 0) {
-        //is it possible to overflow the system and then put the size in and get more size than there really is
         eos_static_info("start of map \n \n \n");
         mMutexForStatusFilesMD.lock();
         mStatusFilesMD[fmd->getId()] = fmd;
@@ -1326,8 +1270,6 @@ DynamicEC::performCycleQDBMD(ThreadAssistant& assistant) noexcept
         eos_static_info("This is the size in the map %lld \n", mSizeInMap.load());
         eos_static_info("This is the map %ld \n \n ", mStatusFilesMD.size());
       }
-
-      //eos_static_info("This is the size in the map %lld \n", mSizeInMap.load());
 
       if (target_time > is_time) {
         uint64_t p_time = target_time - is_time;
@@ -1356,38 +1298,30 @@ DynamicEC::performCycleQDBMD(ThreadAssistant& assistant) noexcept
         }
 
         if (!gOFS->mMaster->IsMaster()) {
-          // interrupt the scan f
+          // interrupt the scan
           break;
         }
       }
 
-      //here there can be a break
-
-      /*
-      statusForSystem status;
-      status = SpaceStatus();
-      mSizeToBeDeleted = status.undeletedSize;
-      */
-
-      //eos_static_info("This is size to be deleted %llu this is the deleted filesize %llu", mSizeToBeDeleted.load(), mDeletedFileSize);
-
       //This might have to be in the top to check.
       //if(mSizeToBeDeleted.load() <= mDeletedFileSize.load())
-      if (mSizeInMap.load() > mSizeForMapMax) { ///<
-        //problem is that this is not updated always and the deletedfile size will be set to zero when a new try is made
-        //when the new try is made the size to be deleted will also be changed.
-        //pause here.
-        //move to top
-        sleep(mSleepWhenFull); ///< 10 minute sleep
-        //break;
+      if (mSizeInMap.load() > mSizeForMapMax) {
+        sleep(mSleepWhenFull);
       }
     } else {
       eos_static_info("This is the end, everything has been scanned now");
-      sleep(mSleepWhenDone);
+      {
+        std::unique_lock<std::mutex> lck(mtx);
+
+        while (cv.wait_for(lck, std::chrono::seconds(mSleepWhenDone)) ==
+               std::cv_status::timeout) {
+          eos_static_info("the timer went");
+          break;
+        }
+      }
+      //sleep(mSleepWhenDone);
       mSizeInMap = 0;
       mStatusFilesMD.clear();
-      //setTest(false);
-      //setDynamicEC(false);
     }
 
     if (scanner.hasError(err)) {
@@ -1412,7 +1346,6 @@ DynamicEC::performCycleQDBMD(ThreadAssistant& assistant) noexcept
 void
 DynamicEC::RunScan(ThreadAssistant& assistant) noexcept
 {
-  //waiting for the system to boot.
   gOFS->WaitUntilNamespaceIsBooted(assistant);
   assistant.wait_for(std::chrono::seconds(mWaitTime.load()));
   eos_static_info("starting the scan for files");
@@ -1424,7 +1357,6 @@ DynamicEC::RunScan(ThreadAssistant& assistant) noexcept
     }
 
 wait:
-    //let time pass for a notification
     assistant.wait_for(std::chrono::seconds(mWaitTime.load()));
 
     if (assistant.terminationRequested()) {
@@ -1445,8 +1377,6 @@ DynamicEC::printAll()
   eos_static_info("This system has created: %lld bytes, and deletion in to tal is: %lld bytes",
                   mCreatedFileSize, mDeletedFileSizeInTotal);
   eos_static_info("Files is: %lld and directories: %lld", nfiles, ndirs);
-  //eos_static_info("This it the scanned_percent: %f, enabled: %u",
-  //            scanned_percent.load(), mEnabled.load());
   eos_static_info("This it the scanned_percent: %f",
                   scanned_percent.load());
   eos_static_info("Wait time is: %d, on work is: %B",
@@ -1458,8 +1388,6 @@ DynamicEC::printAll()
                   mSpaceName.c_str());
   eos_static_info("The systems map max size: %lld, the sleep when the cleanup has run though %lld, the sleep when the system is full %lld",
                   mSizeForMapMax.load(), mSleepWhenDone.load(), mSleepWhenFull.load());
-  //uint64_t mapMaxSize, uint64_t sleepWhenDone, uint64_t sleepWhenFull
-  //eos_static_info("This is the space name %c", mSpaceName)
 }
 
 void

@@ -694,6 +694,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             (key == "dynamicec.sleepwhendone") ||
             (key == "dynamicec.sleepwhenfull") ||
             (key == "dynamicec.sizeformapmax") ||
+            (key == "dynamicec.restartscan") ||
             (key == "lru") ||
             (key == "lru.interval") ||
             (key == "wfe") ||
@@ -724,6 +725,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
               (key == "inspector") ||
               (key == "dynamicEC") ||
               (key == "dynamicec.test") ||
+              (key == "dynamicec.restartscan") ||
               (key == "autorepair") || (key == "lru") ||
               (key == "groupbalancer") || (key == "geobalancer") ||
               (key == "geo.access.policy.read.exact") ||
@@ -795,6 +797,19 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                     gOFS->mDynamicEC->setTest(false);
                     std_out << "this is the test bool:";
                     std_out << gOFS->mDynamicEC->getTest();
+                  }
+                }
+
+                if (key == "dynamicec.restartscan") {
+                  if (value == "on") {
+                    eos_static_info("test restart scan");
+                    gOFS->mDynamicEC->restartScan();
+                    std_out << "test";
+                    std_out << "this is the test for the sys";
+                  } else if (value == "off") {
+                    //gOFS->mDynamicEC->setTest(false);
+                    //std_out << "this is the test bool:";
+                    //std_out << gOFS->mDynamicEC->getTest();
                   }
                 }
 
