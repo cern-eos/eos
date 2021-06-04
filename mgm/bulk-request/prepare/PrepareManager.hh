@@ -27,8 +27,6 @@
 #include "mgm/Namespace.hh"
 #include <XrdSfs/XrdSfsInterface.hh>
 #include <list>
-#include <mgm/bulk-request/business/BulkRequestBusiness.hh>
-#include <mgm/bulk-request/prepare/StageBulkRequest.hh>
 #include <string>
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/bulk-request/interface/IMgmFileSystemInterface.hh"
@@ -43,6 +41,14 @@ EOSBULKNAMESPACE_BEGIN
 class PrepareManager : public eos::common::LogId {
 public:
   /**
+   * Types of prepare action
+   */
+  enum PrepareAction {
+    STAGE,
+    EVICT,
+    ABORT
+  };
+  /**
    * Constructor
    * @param pargs Xrootd prepare arguments
    * @param error Xrootd error information to fill if there are any errors
@@ -50,11 +56,6 @@ public:
    */
   PrepareManager(IMgmFileSystemInterface & mgmFsInterface);
 
-  /**
-   * Allows to enable the bulk-request management linked to the prepare logic
-   * @param bulkRequestBusiness the class that allows to manage operations linked to bulk-requests
-   */
-  void setBulkRequestBusiness(std::shared_ptr<BulkRequestBusiness> bulkRequestBusiness);
 
   /**
    * Allows to launch a prepare logic on the files passed in parameter
@@ -63,15 +64,11 @@ public:
    * @param client the client who issued the prepare
    * @returns the status code of the issued prepare request
    */
-  int prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client);
+  virtual int prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client);
 
-  /**
-   * Returns the pointer to the bulk-request associated to the operation that occured or nullptr if the
-   * prepare operation did not create a BulkRequest
-   * @return the bulk-request pointer or nullptr
-   */
-  std::shared_ptr<BulkRequest> getBulkRequest() const;
-private:
+protected:
+
+  virtual void initializeStagePrepareRequest(XrdOucString & reqid);
 
   /**
    * Returns the Prepare actions to perform from the options given by Xrootd (XrdSfsPrep.opts)
@@ -83,7 +80,7 @@ private:
   /**
    * @return true if this prepare request is a stage one, false otherwise
    */
-  const bool isStagePrepare() const;
+  virtual const bool isStagePrepare() const;
 
   /**
    * Triggers the prepare workflow to all the pathsToPrepare passed in parameter
@@ -99,13 +96,13 @@ private:
   /**
    * Will call the business layer to persist the bulk request
    */
-  void saveBulkRequest();
+  virtual void saveBulkRequest();
 
   /**
    * Will add the prepared path to the bulk request if it exists
    * @param path the path to add to the bulk-request
    */
-  void addPathToBulkRequestIdempotent(const std::string & path);
+  virtual void addPathToBulkRequest(const std::string & path);
 
   /**
    * Perform the prepare logic
@@ -117,11 +114,9 @@ private:
   int doPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client);
 
   const std::string mEpname="prepare";
-  //The bulk request that possibly got created depending on the prepare command triggered
-  std::shared_ptr<BulkRequest> mBulkRequest;
-  //Business logic to manage bulkRequest actions (persistency for example)
-  std::shared_ptr<BulkRequestBusiness> mBulkRequestBusiness;
-
+  //The prepare action that is launched by the "prepare()" method
+  PrepareAction mPrepareAction;
+  //MGM file system interface
   IMgmFileSystemInterface & mMgmFsInterface;
 };
 
