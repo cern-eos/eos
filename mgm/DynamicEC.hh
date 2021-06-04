@@ -75,9 +75,6 @@ class IFileMD;
 }
 
 EOSMGMNAMESPACE_BEGIN
-//thread for dynamic cleaning the system for old and not used files.
-
-//check for different nameing conventions
 
 /// might be in the system in order to look for the constant update on this, bur for this it will be easy for the rest of the system to get the status of the thread.
 /// other stuff for the status of the thread can be put in as well.
@@ -186,6 +183,14 @@ private:
 
 public:
 
+  std::mutex mtx;
+
+  std::condition_variable cv;
+
+  bool ready;
+
+  void restartScan();
+
   std::map<uint64_t, std::shared_ptr<eos::IFileMD>> GetMap();
 
   std::map<uint64_t, std::shared_ptr<eos::IFileMD>> mStatusFilesMD; ///<
@@ -283,16 +288,12 @@ public:
 
   std::string TimeStampCheck(std::string file);
 
-  //high or low watermark, with some trigger.
   statusForSystem SpaceStatus();
 
-  ///might be bool too tell if the file was deleted, or int is on how many copies were deleted.
   bool DeletionOfFileID(std::shared_ptr<DynamicECFile> file, uint64_t ageOld);
 
-  //This is the new one for the fileMD
   bool DeletionOfFileIDMD(std::shared_ptr<eos::IFileMD>, uint64_t ageOld);
 
-  //This is for a not modified file
   uint64_t GetSizeOfFile(std::shared_ptr<DynamicECFile> file);
 
   long double TotalSizeInSystemMD(std::shared_ptr<eos::IFileMD> file);
@@ -322,17 +323,15 @@ public:
 
   void Stop();
 
-  //void Cleanup() noexcept;
-
   void CleanupMD() noexcept;
 
   void Run(ThreadAssistant& assistant)
-  noexcept; /// no exceptions aloud, have to check for all the output combinations to return.
+  noexcept; ///< no exceptions aloud, have to check for all the output combinations to return.
 
   struct Options {
-    bool enabled;                  //< Is FileInspector even enabled?
+    bool enabled;                  ///< Is FileInspector even enabled?
     std::chrono::seconds
-    interval; //< Run FileInsepctor cleanup every this many seconds
+    interval; ///< Run FileInsepctor cleanup every this many seconds
   };
 
   Options getOptions();
