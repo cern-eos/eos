@@ -299,6 +299,36 @@ Client and server should share an sss key for a user, which is actually not auth
     },
    }
 
+Using tokens for scoped eosxd access
+------------------------------------
+
+As a user you can create a token e.g. for applications like CIs, webservices etc. if the EOS instances it configured to issue tokens.
+
+To create a token as a user you do:
+
+.. code-block:: bash
+
+   eos token --path /eos/user/f/foo/ci/ --expires 1654328760 --perm rwx --tree
+
+
+If you create a token as a user, the token puts the calling role as the identity into the token.
+
+You can inspect your token to verify that it contains what you want using:
+
+.. code-block:: bash
+
+   eos token --token zteos64:...
+
+Finally to use the token on a mount client you define only the following variable:
+
+.. code-block:: bash
+
+   # put the token into your client environment
+   export XrdSecsssENDORSEMENT=zteos64:...
+
+   # you should now have rwx permission on this tree
+   ls /eos/user/f/foo/ci/
+
 
 
 
