@@ -343,8 +343,6 @@ public:
 
   void CleanupMD() noexcept;
 
-  void CleanupMD() noexcept;
-
   void Run(ThreadAssistant& assistant)
   noexcept; ///< no exceptions aloud, have to check for all the output combinations to return.
 

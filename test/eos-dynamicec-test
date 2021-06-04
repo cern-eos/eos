@@ -58,6 +58,7 @@ echo $val24
 
 
 eos space config default space.dynamicec.minthreshold=0.0000001
+echo "con1"
 eos space config default space.dynamicec.maxthreshold=0.000001
 eos space config default space.dynamicec.sizeformapmax=100000000000000
 eos space config default space.dynamicec.sleepwhenfull=120
@@ -68,7 +69,7 @@ eos space config default space.dynamicec.restartscan=on
 
 echo "done configuration"
 
-sleep 390
+sleep 360
 
 val=`eos file info /eos/testarea/test2/filetest1 | grep Layout | awk '{print $10}'`
 echo $val
@@ -96,7 +97,6 @@ green "Succes for the test part 1, now we will try again."
 
 for name in {11..20}
 do eos cp ${TEST_FN1} /eos/testarea/test2/filetest$name; done
-
 
 sleep 390
 

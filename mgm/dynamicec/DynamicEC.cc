@@ -85,7 +85,7 @@ DynamicEC::DynamicEC(const char* spacename, uint64_t ageNew,  uint64_t size,
   }
 
   if (OnWork) {
-    mThread2.reset(&DynamicEC::createFilesOneTimeThread, this);
+    //mThread2.reset(&DynamicEC::createFilesOneTimeThread, this);
   }
 
   mOnWork = OnWork;
@@ -116,6 +116,7 @@ DynamicEC::DynamicEC(const char* spacename, uint64_t ageNew,  uint64_t size,
   mSleepWhenDone = sleepWhenDone;
   mSleepWhenFull = sleepWhenFull;
   mSizeInMap = 0;
+  ready = false;
 
   if (OnWork) {
     mThread3.reset(&DynamicEC::RunScan, this);
@@ -669,11 +670,6 @@ DynamicEC::testForSingleFileWithkPlain(int stripes, int redundancy,
   mCreatedFileSize += GetSizeOfFile(file);
   mStatusFilesMD[file->getId()] = file;
 }
-std::atomic<uint64_t>
-mSleepWhenDone; ///< sleep when all the files in the system is finish
-
-std::atomic<uint64_t>
-mSleepWhenFull; ///< the
 
 //-------------------------------------------------------------------------------------------
 //! Set in file with kQrain layout
@@ -1212,7 +1208,6 @@ DynamicEC::performCycleQDBMD(ThreadAssistant& assistant) noexcept
     std::string err;
     eos::ns::FileMdProto item;
 
-    //eos_static_info("just before the if");
     if (scanner.getItem(item)) {
       if (mTestEnabel) {
         interval = 1;
@@ -1227,66 +1222,17 @@ DynamicEC::performCycleQDBMD(ThreadAssistant& assistant) noexcept
       time_t target_time = (1.0 * nfiles_processed / nfiles) * interval;
       time_t is_time = time(NULL) - s_time;
       auto hasTape = fmd->hasLocation(EOS_TAPE_FSID);
-      //check for num2 and might be a num1
       long num2 = fmd->getNumLocation();
       num2 -= hasTape;
       num2 -= (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1);
-      //eos_static_info("This is the size in the map %lld \n", mSizeInMap.load());
-      //eos_static_info("This \n \n \n \n");
-
-      /*
-       *
-       *
-      if (mSizeToBeDeleted.load() > 0) {
-      std::list<uint64_t> deletionlist;
-      mMutexForStatusFilesMD.lock();
-
-      for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-             mStatusFilesMD.begin(); it != mStatusFilesMD.end(); ++it) {
-        mSizeInMap =- it->second->getSize();
-        if (DeletionOfFileIDMD(it->second, mTimeFromWhenToDelete)) {
-          {
-            kReduceMD(it->second);
-            deletionlist.push_front(it->first);
-          }
-        }
-
-        if (mDeletedFileSize.load() >= mSizeToBeDeleted.load()) {
-          eos_static_info("%s",
-                          "CleanUp ended with success there was deleted. \n \n \n \n"
-                          "There is no stuff left and we went under the limit.");
-          break;
-        }
-      }
-
-      mMutexForStatusFilesMD.unlock();
-      std::list<uint64_t>::iterator it;
-
-      for (auto it = deletionlist.begin(); it != deletionlist.end(); ++it) {
-        eos_static_info("CleanUp have just been done and now we move the will be removed file : %lld.",
-                        mStatusFilesMD.size());
-        uint64_t id = *it;
-        mMutexForStatusFilesMD.lock();
-        mStatusFilesMD.erase(id);
-        mMutexForStatusFilesMD.unlock();
-        eos_static_info("CleanUp have just been done and now we move the file : %lld.",
-                        mStatusFilesMD.size());
-      }
-      }
-       *
-       *
-       */
 
       if (num2 > 0) {
-        //is it possible to overflow the system and then put the size in and get more size than there really is
         eos_static_info("start of map \n \n \n");
         mMutexForStatusFilesMD.lock();
         mStatusFilesMD[fmd->getId()] = fmd;
         mMutexForStatusFilesMD.unlock();
         mSizeInMap += fmd->getSize();
       }
-
-      //eos_static_info("This is the size in the map %lld \n", mSizeInMap.load());
 
       if (target_time > is_time) {
         uint64_t p_time = target_time - is_time;
