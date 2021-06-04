@@ -1815,7 +1815,13 @@ XrdFstOfs::RequestBroadcasts()
   {
     eos::common::RWMutexReadLock rd_lock(ObjectManager.HashMutex);
     hash = ObjectManager.GetHash(Config::gConfig.FstConfigQueueWildcard.c_str());
-    hash->BroadcastRequest(Config::gConfig.FstDefaultReceiverQueue.c_str());
+
+    while (!hash->BroadcastRequest(
+             Config::gConfig.FstDefaultReceiverQueue.c_str())) {
+      eos_static_notice("msg=\"retry broadcast request in 1 second\" hash=\"%s\"",
+                        Config::gConfig.FstConfigQueueWildcard.c_str());
+      std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
   }
   // Create a node gateway broadcast
   ObjectManager.CreateSharedQueue(Config::gConfig.FstGwQueueWildcard.c_str(),
@@ -1823,7 +1829,13 @@ XrdFstOfs::RequestBroadcasts()
   {
     eos::common::RWMutexReadLock rd_lock(ObjectManager.HashMutex);
     queue = ObjectManager.GetQueue(Config::gConfig.FstGwQueueWildcard.c_str());
-    queue->BroadcastRequest(Config::gConfig.FstDefaultReceiverQueue.c_str());
+
+    while (!queue->BroadcastRequest(
+             Config::gConfig.FstDefaultReceiverQueue.c_str())) {
+      eos_static_notice("msg=\"retry broadcast request in 1 second\" hash=\"%s\"",
+                        Config::gConfig.FstGwQueueWildcard.c_str());
+      std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
   }
   // Create a filesystem broadcast
   ObjectManager.CreateSharedHash(Config::gConfig.FstQueueWildcard.c_str(),
@@ -1831,7 +1843,13 @@ XrdFstOfs::RequestBroadcasts()
   {
     eos::common::RWMutexReadLock rd_lock(ObjectManager.HashMutex);
     hash = ObjectManager.GetHash(Config::gConfig.FstQueueWildcard.c_str());
-    hash->BroadcastRequest(Config::gConfig.FstDefaultReceiverQueue.c_str());
+
+    while (!hash->BroadcastRequest(
+             Config::gConfig.FstDefaultReceiverQueue.c_str())) {
+      eos_static_notice("msg=\"retry broadcast request in 1 second\" hash=\"%s\"",
+                        Config::gConfig.FstQueueWildcard.c_str());
+      std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
   }
 }
 
