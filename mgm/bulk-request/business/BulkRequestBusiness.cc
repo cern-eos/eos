@@ -23,6 +23,7 @@
 
 #include "BulkRequestBusiness.hh"
 #include <mgm/bulk-request/dao/ProcDirectoryBulkRequestDAO.hh>
+#include "mgm/bulk-request/exception/PersistencyException.hh"
 #include "mgm/Stat.hh"
 
 EOSBULKNAMESPACE_BEGIN
@@ -42,6 +43,8 @@ void BulkRequestBusiness::dispatchBulkRequestSave(const std::shared_ptr<BulkRequ
   switch(req->getType()) {
   case BulkRequest::PREPARE_STAGE:
     mDaoFactory->getBulkRequestDAO()->saveBulkRequest(static_pointer_cast<StageBulkRequest>(req));
+    break;
+  default:
     break;
   }
 }
