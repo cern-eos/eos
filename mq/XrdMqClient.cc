@@ -497,7 +497,15 @@ XrdMqClient::RefreshBrokersEndpoints()
         eos_static_err("msg=\"failed to contact broker\" url=\"%s\"",
                        tmp_url.GetURL().c_str());
         st = file.Close(1);
-        continue;
+
+        if (mDefaultBrokerUrl != broker.first) {
+          eos_static_info("msg=\"refresh broker endpoint\" old_url=\"%s\" "
+                          "default_url=\"%s\"", broker.first.c_str(),
+                          mDefaultBrokerUrl.c_str());
+          endpoint_replacements.emplace(broker.first, mDefaultBrokerUrl);
+        }
+
+        break;
       }
 
       st = file.Close(1);
@@ -643,13 +651,6 @@ XrdMqClient::Subscribe(bool take_lock)
         mMapBrokerToChannels.emplace(mDefaultBrokerUrl,
                                      std::make_pair(recv_channel,
                                          std::make_shared<XrdCl::FileSystem>(default_url)));
-      }
-
-      while (!recv_channel->Open(mDefaultBrokerUrl.c_str(),
-                                 XrdCl::OpenFlags::Read).IsOK()) {
-        eos_static_err("msg=\"failed opening file to default MQ\" url=\"%s\"",
-                       mDefaultBrokerUrl.c_str());
-        std::this_thread::sleep_for(std::chrono::seconds(1));
       }
 
       break;
