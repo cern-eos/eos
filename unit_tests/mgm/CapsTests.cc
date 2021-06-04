@@ -454,3 +454,94 @@ TEST_F(CapsTest, GetBroadcastCapsTS)
   }
 
 }
+
+TEST_F(CapsTest, MonitorCapsSimple)
+{
+  auto vid1 = make_vid(1,1);
+  auto vid2 = make_vid(2,2);
+
+  uint64_t time20 = static_cast<uint64_t>(time(nullptr)) - 20;
+  mCaps.Store(make_cap(1,"client1","auth1", time20), &vid1);
+  mCaps.Store(make_cap(2,"client2","auth2", time20), &vid2);
+
+  EXPECT_EQ(mCaps.ncaps(),2);
+  EXPECT_EQ(mCaps.GetCaps().size(), 2);
+
+  // Now expire the caps
+  while (true) {
+    if (mCaps.expire()) {
+      mCaps.pop();
+    } else {
+      break;
+    }
+  }
+
+  EXPECT_EQ(mCaps.GetCaps().size(), 0);
+  EXPECT_EQ(mCaps.ncaps(), 0);
+}
+
+TEST_F(CapsTest, MonitorCapsUpdate)
+{
+  auto vid1 = make_vid(1,1);
+  auto vid2 = make_vid(2,2);
+  auto vid3 = make_vid(123,123);
+
+  uint64_t time20 = static_cast<uint64_t>(time(nullptr)) - 20;
+  uint64_t time8 = static_cast<uint64_t>(time(nullptr)) - 8;
+  auto ucap = make_cap(123, "client123","auth123", time8);
+
+
+  mCaps.Store(make_cap(1,"client1","auth1", time20), &vid1);
+  mCaps.Store(make_cap(2,"client2","auth2", time20), &vid2);
+  mCaps.Store(ucap, &vid3);
+
+  EXPECT_EQ(mCaps.ncaps(),3);
+  EXPECT_EQ(mCaps.GetCaps().size(), 3);
+
+  // Now expire the caps
+  while (true) {
+    if (mCaps.expire()) {
+      mCaps.pop();
+    } else {
+      break;
+    }
+  }
+
+  EXPECT_EQ(mCaps.GetCaps().size(), 1);
+  EXPECT_EQ(mCaps.ncaps(), 1);
+
+  // update the cap vtime
+  ucap.set_vtime(static_cast<uint64_t>(time(nullptr)) - 7);
+  mCaps.Store(ucap, &vid3);
+  EXPECT_EQ(mCaps.GetCaps().size(), 1);
+  EXPECT_EQ(mCaps.ncaps(), 1);   // FIXME: should this be 2 as we've a new time?
+
+  using namespace std::chrono_literals;
+  std::this_thread::sleep_for(2s);
+
+  // Now expire the caps
+  while (true) {
+    if (mCaps.expire()) {
+      mCaps.pop();
+    } else {
+      break;
+    }
+  }
+
+  EXPECT_EQ(mCaps.GetCaps().size(),1);
+  EXPECT_EQ(mCaps.ncaps(), 0); // FIXME: This should be 1
+
+  std::this_thread::sleep_for(1s);
+  // Now expire the caps
+  while (true) {
+    if (mCaps.expire()) {
+      mCaps.pop();
+    } else {
+      break;
+    }
+  }
+
+
+  EXPECT_EQ(mCaps.GetCaps().size(),1) ; // FIXME: Should be 0
+  EXPECT_EQ(mCaps.ncaps(), 0);
+}
