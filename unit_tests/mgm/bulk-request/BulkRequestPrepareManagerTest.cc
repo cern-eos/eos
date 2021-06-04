@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file PrepareManagerTest.cc
+//! @file BulkRequestPrepareManagerTest.cc
 //! @author Cedric Caffy - CERN
 //------------------------------------------------------------------------------
 
@@ -21,88 +21,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "unit_tests/mgm/bulk-request/MockPrepareMgmFSInterface.hh"
 #include "unit_tests/mgm/bulk-request/PrepareManagerTest.hh"
-#include "mgm/bulk-request/prepare/PrepareManager.hh"
+#include "unit_tests/mgm/bulk-request/MockPrepareMgmFSInterface.hh"
+#include "mgm/bulk-request/prepare/BulkRequestPrepareManager.hh"
 
-using ::testing::Return;
-using ::testing::_;
-using ::testing::Invoke;
-using ::testing::NiceMock;
-
-USE_EOSBULKNAMESPACE
-
-
-//------------------------------------------------------------------------------
-// Test
-//------------------------------------------------------------------------------
-TEST_F(PrepareManagerTest, PrepareUtilsPrepareOptsToString)
-{
-  using namespace eos::mgm;
-
-  {
-    const int opts = Prep_PRTY0;
-    ASSERT_EQ("PRTY0", PrepareUtils::prepareOptsToString(opts));
-  }
-  {
-    const int opts = Prep_PRTY1;
-    ASSERT_EQ("PRTY1", PrepareUtils::prepareOptsToString(opts));
-  }
-  {
-    const int opts = Prep_PRTY2;
-    ASSERT_EQ("PRTY2", PrepareUtils::prepareOptsToString(opts));
-  }
-  {
-    const int opts = Prep_PRTY3;
-    ASSERT_EQ("PRTY3", PrepareUtils::prepareOptsToString(opts));
-  }
-
-  {
-    const int opts = Prep_SENDAOK;
-    ASSERT_EQ("PRTY0,SENDAOK", PrepareUtils::prepareOptsToString(opts));
-  }
-  {
-    const int opts = Prep_SENDERR;
-    ASSERT_EQ("PRTY0,SENDERR", PrepareUtils::prepareOptsToString(opts));
-  }
-  {
-    const int opts = Prep_SENDACK;
-    ASSERT_EQ("PRTY0,SENDACK", PrepareUtils::prepareOptsToString(opts));
-  }
-
-  {
-    const int opts = Prep_WMODE;
-    ASSERT_EQ("PRTY0,WMODE", PrepareUtils::prepareOptsToString(opts));
-  }
-  {
-    const int opts = Prep_STAGE;
-    ASSERT_EQ("PRTY0,STAGE", PrepareUtils::prepareOptsToString(opts));
-  }
-  {
-    const int opts = Prep_COLOC;
-    ASSERT_EQ("PRTY0,COLOC", PrepareUtils::prepareOptsToString(opts));
-  }
-  {
-    const int opts = Prep_FRESH;
-    ASSERT_EQ("PRTY0,FRESH", PrepareUtils::prepareOptsToString(opts));
-  }
-#if (XrdMajorVNUM(XrdVNUMBER) == 4 && XrdMinorVNUM(XrdVNUMBER) >= 10) || XrdMajorVNUM(XrdVNUMBER) >= 5
-  {
-    const int opts = Prep_CANCEL;
-    ASSERT_EQ("PRTY0,CANCEL", PrepareUtils::prepareOptsToString(opts));
-  }
-  {
-    const int opts = Prep_QUERY;
-    ASSERT_EQ("PRTY0,QUERY", PrepareUtils::prepareOptsToString(opts));
-  }
-  {
-    const int opts = Prep_EVICT;
-    ASSERT_EQ("PRTY0,EVICT", PrepareUtils::prepareOptsToString(opts));
-  }
-#endif
-}
-
-TEST_F(PrepareManagerTest,stagePrepareFilesWorkflow){
+TEST_F(BulkRequestPrepareManagerTest,stagePrepareFilesWorkflow){
   int nbFiles = 3;
   std::vector<std::string> paths = PrepareManagerTest::generateDefaultPaths(nbFiles);
   std::vector<std::string> oinfos = PrepareManagerTest::generateEmptyOinfos(nbFiles);
@@ -133,13 +56,14 @@ TEST_F(PrepareManagerTest,stagePrepareFilesWorkflow){
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
-  eos::mgm::bulk::PrepareManager pm(mgmOfs);
+  eos::mgm::bulk::BulkRequestPrepareManager pm(mgmOfs);
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
 
+  ASSERT_EQ(nbFiles,pm.getBulkRequest()->getPaths().size());
   ASSERT_EQ(SFS_DATA,retPrepare);
 }
 
-TEST_F(PrepareManagerTest,stagePrepareFileWithNoPath){
+TEST_F(BulkRequestPrepareManagerTest,stagePrepareFileWithNoPath){
   //prepare stage should be idempotent https://its.cern.ch/jira/projects/EOS/issues/EOS-4739
   NiceMock<MockPrepareMgmFSInterface> mgmOfs;
   //No path exist, but Emsg should not be called
@@ -155,14 +79,16 @@ TEST_F(PrepareManagerTest,stagePrepareFileWithNoPath){
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
-  eos::mgm::bulk::PrepareManager pm(mgmOfs);
+  eos::mgm::bulk::BulkRequestPrepareManager pm(mgmOfs);
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
 
+  //The bulk-request is created, 0 files are supposed to be there
+  ASSERT_EQ(0,pm.getBulkRequest()->getPaths().size());
   //The prepare manager returns SFS_DATA
   ASSERT_EQ(SFS_DATA,retPrepare);
 }
 
-TEST_F(PrepareManagerTest,stagePrepareAllFilesDoNotExist){
+TEST_F(BulkRequestPrepareManagerTest,stagePrepareAllFilesDoNotExist){
   /**
    * If all files do not exist, the prepare should succeed
    * prepare is now idempotent (https://its.cern.ch/jira/projects/EOS/issues/EOS-4739)
@@ -187,13 +113,15 @@ TEST_F(PrepareManagerTest,stagePrepareAllFilesDoNotExist){
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
-  eos::mgm::bulk::PrepareManager pm(mgmOfs);
+  eos::mgm::bulk::BulkRequestPrepareManager pm(mgmOfs);
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
 
+  //For the future, even if the files do not exist, they have to be in the bulk-request.
+  ASSERT_EQ(3,pm.getBulkRequest()->getPaths().size());
   ASSERT_EQ(SFS_DATA,retPrepare);
 }
 
-TEST_F(PrepareManagerTest,stagePrepareOneFileDoNotExistReturnsSfsData){
+TEST_F(BulkRequestPrepareManagerTest,stagePrepareOneFileDoNotExistReturnsSfsData){
   /**
    * If all files do not exist, the prepare should succeed
    * Prepare is now idempotent (https://its.cern.ch/jira/projects/EOS/issues/EOS-4739)
@@ -209,11 +137,11 @@ TEST_F(PrepareManagerTest,stagePrepareOneFileDoNotExistReturnsSfsData){
   EXPECT_CALL(mgmOfs,Emsg).Times(0);
   //Exist will first return true for the existing file, then return false,
   EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_)).Times(nbFiles).WillOnce(
-    Invoke(MockPrepareMgmFSInterface::_EXISTS_FILE_EXISTS_LAMBDA)
+      Invoke(MockPrepareMgmFSInterface::_EXISTS_FILE_EXISTS_LAMBDA)
   ).WillOnce(Invoke(
       MockPrepareMgmFSInterface::_EXISTS_FILE_DOES_NOT_EXIST_LAMBDA)
   ).WillRepeatedly(
-    Invoke(MockPrepareMgmFSInterface::_EXISTS_FILE_EXISTS_LAMBDA)
+      Invoke(MockPrepareMgmFSInterface::_EXISTS_FILE_EXISTS_LAMBDA)
   );
   //Attr ls should work for the files that exist
   EXPECT_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_)).Times(nbFiles - 1)
@@ -228,15 +156,26 @@ TEST_F(PrepareManagerTest,stagePrepareOneFileDoNotExistReturnsSfsData){
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
-  eos::mgm::bulk::PrepareManager pm(mgmOfs);
+  eos::mgm::bulk::BulkRequestPrepareManager pm(mgmOfs);
 
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
 
+  //The existing files are in the bulk-request
+  std::set<std::string> bulkReqPaths = pm.getBulkRequest()->getPaths();
+  ASSERT_EQ(nbFiles,bulkReqPaths.size());
+  auto bulkReqPathsItor = bulkReqPaths.begin();
+  int i = 0;
+  while(bulkReqPathsItor != bulkReqPaths.end()){
+    //All the files should be in the bulk-request, even the one that does not exist
+    ASSERT_EQ(paths.at(i),*bulkReqPathsItor);
+    i++;
+    bulkReqPathsItor++;
+  }
   //We failed the second file, the prepare is a success
   ASSERT_EQ(SFS_DATA,retPrepare);
 }
 
-TEST_F(PrepareManagerTest,abortPrepareFilesWorkflow){
+TEST_F(BulkRequestPrepareManagerTest,abortPrepareFilesWorkflow){
   int nbFiles = 3;
   std::vector<std::string> paths = PrepareManagerTest::generateDefaultPaths(nbFiles);
   std::vector<std::string> oinfos = PrepareManagerTest::generateEmptyOinfos(nbFiles);
@@ -255,7 +194,7 @@ TEST_F(PrepareManagerTest,abortPrepareFilesWorkflow){
   EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_)).Times(nbFiles);
   ON_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_))
       .WillByDefault(Invoke(
-        MockPrepareMgmFSInterface::_ATTR_LS_ABORT_PREPARE_LAMBDA
+          MockPrepareMgmFSInterface::_ATTR_LS_ABORT_PREPARE_LAMBDA
       ));
   EXPECT_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_)).Times(nbFiles);
   EXPECT_CALL(mgmOfs,Emsg).Times(0);
@@ -267,13 +206,15 @@ TEST_F(PrepareManagerTest,abortPrepareFilesWorkflow){
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
-  eos::mgm::bulk::PrepareManager pm(mgmOfs);
+  eos::mgm::bulk::BulkRequestPrepareManager pm(mgmOfs);
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
+  //Abort prepare does not generate a bulk-request, so the bulk-request should be equal to nullptr
+  ASSERT_EQ(nullptr,pm.getBulkRequest());
   //Abort prepare returns SFS_OK
   ASSERT_EQ(SFS_OK,retPrepare);
 }
 
-TEST_F(PrepareManagerTest,abortPrepareOneFileDoesNotExist){
+TEST_F(BulkRequestPrepareManagerTest,abortPrepareOneFileDoesNotExist){
   /**
    * If one file does not exist, the prepare abort should succeed
    * Prepare is now idempotent (https://its.cern.ch/jira/projects/EOS/issues/EOS-4739)
@@ -304,13 +245,13 @@ TEST_F(PrepareManagerTest,abortPrepareOneFileDoesNotExist){
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
-  eos::mgm::bulk::PrepareManager pm(mgmOfs);
+  eos::mgm::bulk::BulkRequestPrepareManager pm(mgmOfs);
 
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
   ASSERT_EQ(SFS_OK,retPrepare);
 }
 
-TEST_F(PrepareManagerTest,evictPrepareFilesWorkflow){
+TEST_F(BulkRequestPrepareManagerTest,evictPrepareFilesWorkflow){
   int nbFiles = 3;
   std::vector<std::string> paths = PrepareManagerTest::generateDefaultPaths(nbFiles);
   std::vector<std::string> oinfos = PrepareManagerTest::generateEmptyOinfos(nbFiles);
@@ -341,13 +282,15 @@ TEST_F(PrepareManagerTest,evictPrepareFilesWorkflow){
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
-  eos::mgm::bulk::PrepareManager pm(mgmOfs);
+  eos::mgm::bulk::BulkRequestPrepareManager pm(mgmOfs);
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
+  //Evict prepare does not generate a bulk-request, so the bulk-request should be equal to nullptr
+  ASSERT_EQ(nullptr,pm.getBulkRequest());
   //Evict prepare returns SFS_OK
   ASSERT_EQ(SFS_OK,retPrepare);
 }
 
-TEST_F(PrepareManagerTest,evictPrepareOneFileDoesNotExist){
+TEST_F(BulkRequestPrepareManagerTest,evictPrepareOneFileDoesNotExist){
   /**
    * If one file does not exist, the prepare evict should succeed
    * Prepare is now idempotent (https://its.cern.ch/jira/projects/EOS/issues/EOS-4739)
@@ -378,7 +321,7 @@ TEST_F(PrepareManagerTest,evictPrepareOneFileDoesNotExist){
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
-  eos::mgm::bulk::PrepareManager pm(mgmOfs);
+  eos::mgm::bulk::BulkRequestPrepareManager pm(mgmOfs);
 
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
   ASSERT_EQ(SFS_OK,retPrepare);
