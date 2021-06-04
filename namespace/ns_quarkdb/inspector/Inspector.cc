@@ -174,10 +174,15 @@ int Inspector::scan(const std::string& rootPath, bool relative, bool rawPaths,
   explorerOpts.depthLimit = maxDepth;
   NamespaceItem item;
   std::unique_ptr<folly::Executor> executor(new folly::IOThreadPoolExecutor(4));
-  NamespaceExplorer explorer(rootPath, explorerOpts, mQcl, executor.get());
-
-  while (explorer.fetch(item)) {
-
+  std::unique_ptr<NamespaceExplorer> explorer = nullptr;
+  try {
+    explorer = std::unique_ptr<NamespaceExplorer>(new NamespaceExplorer(rootPath, explorerOpts, mQcl, executor.get()));
+  } catch (const eos::MDException& exc) {
+    mOutputSink.err(SSTR("NamespaceExplorer -- " << exc.what()));
+    return 1;
+  }
+  while(explorer->fetch(item)) {
+      
     if (noDirs && !item.isFile) {
       continue;
     }
@@ -199,7 +204,6 @@ int Inspector::scan(const std::string& rootPath, bool relative, bool rawPaths,
       continue;
     }
   }
-
   return 0;
 }
 
@@ -214,10 +218,15 @@ int Inspector::dump(const std::string& dumpPath, bool relative, bool rawPaths,
   ExplorationOptions explorerOpts;
   explorerOpts.ignoreFiles = noFiles;
   std::unique_ptr<folly::Executor> executor(new folly::IOThreadPoolExecutor(4));
-  NamespaceExplorer explorer(dumpPath, explorerOpts, mQcl, executor.get());
   NamespaceItem item;
-
-  while (explorer.fetch(item)) {
+  std::unique_ptr<NamespaceExplorer> explorer = nullptr;
+  try {
+    explorer = std::unique_ptr<NamespaceExplorer>(new NamespaceExplorer(dumpPath, explorerOpts, mQcl, executor.get()));
+  } catch (const eos::MDException& exc) {
+    mOutputSink.err(SSTR("NamespaceExplorer -- " << exc.what()));
+    return 1;
+  }
+  while (explorer->fetch(item)) {
     if (noDirs && !item.isFile) {
       continue;
     }
