@@ -299,8 +299,8 @@ TEST_F(CapsTest, ExpireCaps)
   EXPECT_EQ(mCaps.ncaps(),2);
   EXPECT_EQ(mCaps.GetCaps().size(), 2);
 
-  mCaps.expire();
-
+  // Now expire the caps
+  EXPECT_TRUE(mCaps.expire());
   EXPECT_EQ(mCaps.GetCaps().size(), 1);
   EXPECT_TRUE(mCaps.HasCap("auth2"));
   EXPECT_FALSE(mCaps.HasCap("auth1"));
