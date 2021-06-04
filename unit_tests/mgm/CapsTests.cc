@@ -174,8 +174,8 @@ TEST_F(CapsTest, StoreUpdate) {
   // now update this cap
   c1.set_clientid("clientid_1");
   mCaps.Store(c1,&vid1);
-  EXPECT_EQ(mCaps.ncaps(), 1);
-
+  EXPECT_EQ(mCaps.ncaps(), 2); // new vtime() -> new cap ?
+  EXPECT_EQ(mCaps.GetCaps().size(), 1);
   auto k2 = mCaps.Get(authid);
   EXPECT_EQ(k2->id(),123);
   EXPECT_EQ(k2->clientid(), "clientid_1");
@@ -207,7 +207,7 @@ TEST_F(CapsTest, StoreUpdateClientID) {
   // If only the clientid is updated without changing the id the other views do
   //not get deleted
   mCaps.Store(c1,&vid1);
-  EXPECT_EQ(mCaps.ncaps(), 1);
+  EXPECT_EQ(mCaps.ncaps(), 2); // new vtime -> more mTimeOrderedCap entry.
 
   auto k2 = mCaps.Get(authid);
   EXPECT_EQ(k2->id(),123);
@@ -514,7 +514,7 @@ TEST_F(CapsTest, MonitorCapsUpdate)
   ucap.set_vtime(static_cast<uint64_t>(time(nullptr)) - 7);
   mCaps.Store(ucap, &vid3);
   EXPECT_EQ(mCaps.GetCaps().size(), 1);
-  EXPECT_EQ(mCaps.ncaps(), 1);   // FIXME: should this be 2 as we've a new time?
+  EXPECT_EQ(mCaps.ncaps(), 2);   // should this be 2 as we've a new time?
 
   using namespace std::chrono_literals;
   std::this_thread::sleep_for(2s);
@@ -529,7 +529,7 @@ TEST_F(CapsTest, MonitorCapsUpdate)
   }
 
   EXPECT_EQ(mCaps.GetCaps().size(),1);
-  EXPECT_EQ(mCaps.ncaps(), 0); // FIXME: This should be 1
+  EXPECT_EQ(mCaps.ncaps(), 1); // FIXME: This should be 1
 
   std::this_thread::sleep_for(1s);
   // Now expire the caps
@@ -542,6 +542,6 @@ TEST_F(CapsTest, MonitorCapsUpdate)
   }
 
 
-  EXPECT_EQ(mCaps.GetCaps().size(),1) ; // FIXME: Should be 0
+  EXPECT_EQ(mCaps.GetCaps().size(), 0) ; // FIXME: Should be 0
   EXPECT_EQ(mCaps.ncaps(), 0);
 }
