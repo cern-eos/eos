@@ -96,7 +96,7 @@ void ProcDirectoryBulkRequestDAO::insertBulkRequestFilesToBulkRequestDirectory(c
     } catch(const std::exception &ex){
       std::ostringstream errMsg;
       errMsg << "In ProcDirectoryBulkRequestDAO::insertBulkRequestFilesToBulkRequestDirectory(), got a standard exception trying to get informations about the file "
-             << currentFilePath << " ErrorMsg=" << ex.what();
+             << currentFilePath << " ExceptionWhat=" << ex.what();
       throw PersistencyException(errMsg.str());
     }
     XrdOucErrInfo error;

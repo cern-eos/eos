@@ -25,7 +25,7 @@
 
 EOSBULKNAMESPACE_BEGIN
 
-BulkRequest::BulkRequest(const std::string & id, const common::VirtualIdentity & clientVid):mId(id),mClientVid(clientVid){
+BulkRequest::BulkRequest(const std::string & id):mId(id){
 }
 
 const std::string BulkRequest::getId() const {
@@ -39,10 +39,6 @@ void BulkRequest::addPath(const std::string& path) {
 const std::set<std::string>& BulkRequest::getPaths() const
 {
   return mPaths;
-}
-
-const common::VirtualIdentity & BulkRequest::getClientVirtualIdentity() const {
-  return mClientVid;
 }
 
 const std::string BulkRequest::bulkRequestTypeToString(const BulkRequest::Type & bulkRequestType){
