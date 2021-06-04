@@ -26,9 +26,9 @@
 
 EOSBULKNAMESPACE_BEGIN
 
-StageBulkRequest * BulkRequestFactory::createStageBulkRequest(const eos::common::VirtualIdentity & clientVid) {
+StageBulkRequest * BulkRequestFactory::createStageBulkRequest() {
   std::string bulkRequestId = eos::common::StringConversion::timebased_uuidstring();
-  return new StageBulkRequest(bulkRequestId,clientVid);
+  return new StageBulkRequest(bulkRequestId);
 }
 
 EOSBULKNAMESPACE_END

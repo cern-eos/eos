@@ -39,7 +39,7 @@ public:
    * @param clientVid the Virtual Identity of the client who creates/submits a bulk request
    * @return a new StageBulkRequest
    */
-  static StageBulkRequest * createStageBulkRequest(const eos::common::VirtualIdentity & clientVid);
+  static StageBulkRequest * createStageBulkRequest();
 };
 
 EOSBULKNAMESPACE_END
