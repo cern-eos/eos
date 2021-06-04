@@ -90,33 +90,39 @@ for name in {1..10}
 do eos cp ${TEST_FN1} /eos/dev/test2/filetest$name; done
 #do eos cp ${TEST_FN1} /eos/dev/test/instancetest/file$name; done
 
-systemctl restart eos@mgm
+#systemctl restart eos@mgm
 
-sleep 30
-
-
-
+sleep 10
 
 #This is in order to set the different settings to true in order to use it in the system for testing
 val20=`eos space config default space.dynamicec.minthreshold=show`
 val21=`eos space config default space.dynamicec.maxthreshold=show`
-val22=`eos space config default space.dynamicec.sizeformapmax=show`
+#val22=`eos space config default space.dynamicec.sizeformapmax=show`
 val23=`eos space config default space.dynamicec.sleepwhenfull=show`
 val24=`eos space config default space.dynamicec.sleepwhendone=show`
 
 echo "val of the thres"
 echo $val20
 echo $val21
-var
+
+
 
 eos space config default space.dynamicec.minthreshold=0.0000001
+echo "con1"
 eos space config default space.dynamicec.maxthreshold=0.000001
-eos space config default space.dynamicec.sizeformapmax=10000000000000000 #10 petabyte
-eos space config default space.dynamicec.sleepwhenfull=10
-eos space config default space.dynamicec.sleepwhendone=60
+echo "con2"
+#eos space config default space.dynamicec.sizeformapmax=10000000000000000
+echo "con3"
+eos space config default space.dynamicec.sleepwhenfull=120
+echo "con4"
+eos space config default space.dynamicec.sleepwhendone=120
+echo "con5"
 eos space config default space.dynamicec.test=on
+eos space config default space.dynamicec.restartscan=on
 
-sleep 390
+echo "done configuration"
+
+sleep 330
 
 val=`eos file info /eos/dev/test2/filetest1 | grep Layout | awk '{print $10}'`
 echo $val
@@ -130,7 +136,7 @@ eos rm /eos/dev/test2/*
 eos space config default space.dynamicec.maxthreshold=$val21
 eos space config default space.dynamicec.minthreshold=$val20
 eos space config default space.dynamicec.test=off
-eos space config default space.dynamicec.sizeformapmax=$val22
+#eos space config default space.dynamicec.sizeformapmax=$val22
 eos space config default space.dynamicec.sleepwhenfull=$val23
 eos space config default space.dynamicec.sleepwhendone=$val24
 
@@ -145,7 +151,7 @@ for name in {11..20}
 do eos cp ${TEST_FN1} /eos/dev/test2/filetest$name; done
 
 
-sleep 450
+sleep 330
 
 val=`eos file info /eos/dev/test2/filetest11 | grep Layout | awk '{print $10}'`
 echo $val
@@ -159,7 +165,7 @@ eos rm /eos/dev/test2/*
 eos space config default space.dynamicec.maxthreshold=$val21
 eos space config default space.dynamicec.minthreshold=$val20
 eos space config default space.dynamicec.test=off
-eos space config default space.dynamicec.sizeformapmax=$val22
+#eos space config default space.dynamicec.sizeformapmax=$val22
 eos space config default space.dynamicec.sleepwhenfull=$val23
 eos space config default space.dynamicec.sleepwhendone=$val24
 
@@ -175,7 +181,7 @@ eos rm /eos/dev/test2/*
 eos space config default space.dynamicec.maxthreshold=$val21
 eos space config default space.dynamicec.minthreshold=$val20
 eos space config default space.dynamicec.test=off
-eos space config default space.dynamicec.sizeformapmax=$val22
+#eos space config default space.dynamicec.sizeformapmax=$val22
 eos space config default space.dynamicec.sleepwhenfull=$val23
 eos space config default space.dynamicec.sleepwhendone=$val24
 
