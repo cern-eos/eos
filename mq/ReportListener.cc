@@ -28,7 +28,9 @@ EOSMQNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-ReportListener::ReportListener(const std::string &broker, const std::string &hostname) {
+ReportListener::ReportListener(const std::string& broker,
+                               const std::string& hostname)
+{
   XrdOucString queue = broker.c_str();
   queue += hostname.c_str();
   queue += "/report";
@@ -36,26 +38,20 @@ ReportListener::ReportListener(const std::string &broker, const std::string &hos
 
   if (!mClient.AddBroker(queue.c_str())) {
     eos_static_err("failed to add broker %s", queue.c_str());
-  }
-  else {
+  } else {
     mClient.Subscribe();
   }
 }
 
 //------------------------------------------------------------------------------
-//! Destructor
-//------------------------------------------------------------------------------
-ReportListener::~ReportListener() {
-  mClient.Unsubscribe();
-}
-
-//------------------------------------------------------------------------------
 // Fetch report
 //------------------------------------------------------------------------------
-bool ReportListener::fetch(std::string &out, ThreadAssistant &assistant) {
-  std::unique_ptr<XrdMqMessage> message = std::unique_ptr<XrdMqMessage>(mClient.RecvMessage(&assistant));
+bool ReportListener::fetch(std::string& out, ThreadAssistant& assistant)
+{
+  std::unique_ptr<XrdMqMessage> message = std::unique_ptr<XrdMqMessage>
+                                          (mClient.RecvMessage(&assistant));
 
-  if(message) {
+  if (message) {
     out = message->GetBody();
     return true;
   }

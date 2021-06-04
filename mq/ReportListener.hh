@@ -34,22 +34,23 @@ EOSMQNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Helper class for listening to and processing IoStat report messages.
 //------------------------------------------------------------------------------
-class ReportListener {
+class ReportListener
+{
 public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  ReportListener(const std::string &broker, const std::string &hostname);
+  ReportListener(const std::string& broker, const std::string& hostname);
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~ReportListener();
+  ~ReportListener() = default;
 
   //----------------------------------------------------------------------------
   //! Fetch report
   //----------------------------------------------------------------------------
-  bool fetch(std::string &out, ThreadAssistant &assistant);
+  bool fetch(std::string& out, ThreadAssistant& assistant);
 
 private:
   XrdMqClient mClient;

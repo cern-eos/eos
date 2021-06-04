@@ -116,14 +116,6 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Get default receiver queue
-  //----------------------------------------------------------------------------
-  inline XrdOucString GetDefaultReceiverQueue() const
-  {
-    return kDefaultReceiverQueue;
-  }
-
-  //----------------------------------------------------------------------------
   //! Set client id
   //!
   //! @param clientid client id to set
@@ -171,19 +163,10 @@ public:
 
   //----------------------------------------------------------------------------
   //! Subscribe to all the brokers
+  //!
+  //! @param take_lock
   //----------------------------------------------------------------------------
-  void Subscribe();
-
-  //----------------------------------------------------------------------------
-  //! Unsubscribe from all brokers
-  //----------------------------------------------------------------------------
-  void Unsubscribe();
-
-  //----------------------------------------------------------------------------
-  //! Disconenct from all the brokers by clearing the map and destroying all
-  //! the in/ou-bound channels.
-  //----------------------------------------------------------------------------
-  void Disconnect();
+  void Subscribe(bool take_lock = true);
 
 private:
   //! Map of broker urls to channel objects i.e XrdCl::File object for receiving
@@ -192,7 +175,6 @@ private:
       std::shared_ptr<XrdCl::FileSystem>>>
       mMapBrokerToChannels;
   mutable eos::common::RWMutex mMutexMap;
-  static XrdSysMutex mMutexSend;
   XrdOucString kMessageBuffer;
   XrdOucString kClientId;
   XrdOucString kDefaultReceiverQueue;
@@ -201,12 +183,23 @@ private:
   size_t kInternalBufferPosition;
   bool kInitOK;
   std::atomic<bool> mNewMqBroker {true};
+  std::string mDefaultBrokerUrl;
 
   //----------------------------------------------------------------------------
   //! Refresh the in/out-bound channels to all the brokers even if we don't
   //! get any redirect
   //----------------------------------------------------------------------------
   void RefreshBrokersEndpoints();
+
+  //----------------------------------------------------------------------------
+  //! Extract hostname and port from XrdCl hostid info
+  //!
+  //! @param hostid information in the form <fqdn>:<port>@...
+  //! @param hostname <fqdn> info
+  //! @param port <port> info, 1097 by default
+  //----------------------------------------------------------------------------
+  void ParseXrdClHostId(const std::string& hostid, std::string& hostname,
+                        int& port);
 
   //----------------------------------------------------------------------------
   //! Response handler class to clean-up asynchronous callbacks which are
@@ -216,23 +209,11 @@ private:
   {
   public:
     //--------------------------------------------------------------------------
-    //! Constructor
-    //--------------------------------------------------------------------------
-    DiscardResponseHandler() = default;
-
-    //--------------------------------------------------------------------------
-    //! Destructor
-    //--------------------------------------------------------------------------
-    virtual ~DiscardResponseHandler() = default;
-
-    //--------------------------------------------------------------------------
     //! Handle response method. See XrdClFile.hh class for signature.
     //--------------------------------------------------------------------------
     virtual void HandleResponse(XrdCl::XRootDStatus* status,
                                 XrdCl::AnyObject* response) override
     {
-      XrdSysMutexHelper vLock(Lock);
-
       if (status) {
         delete status;
       }
@@ -241,9 +222,6 @@ private:
         delete response;
       }
     }
-
-  private:
-    XrdSysMutex Lock;
   };
 
   static DiscardResponseHandler gDiscardResponseHandler;

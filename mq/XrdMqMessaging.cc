@@ -116,7 +116,6 @@ void
 XrdMqMessaging::StopListener()
 {
   mThread.join();
-  gMessageClient.Unsubscribe();
 }
 
 //------------------------------------------------------------------------------
