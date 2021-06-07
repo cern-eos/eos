@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file BulkRequestHelper.hh
+//! @file ProcDirectoryBulkRequestLocations.hh
 //! @author Cedric Caffy - CERN
 //------------------------------------------------------------------------------
 
@@ -20,26 +20,31 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-#ifndef EOS_BULKREQUESTHELPER_HH
-#define EOS_BULKREQUESTHELPER_HH
+#ifndef EOS_PROCDIRECTORYBULKREQUESTLOCATIONS_HH
+#define EOS_PROCDIRECTORYBULKREQUESTLOCATIONS_HH
 
 #include "mgm/Namespace.hh"
-#include "common/StringConversion.hh"
+#include "mgm/bulk-request/BulkRequest.hh"
+#include <set>
 
 EOSBULKNAMESPACE_BEGIN
 
-class BulkRequestHelper {
+/**
+ * This class allows to store the paths where the bulk-requests will be stored
+ * according to their types.
+ *
+ * As the proc directory is created and known when the MGM starts, a pointer to this class
+ * is stored in the XrdMgmOfs object so that it can be reused later on.
+ */
+class ProcDirectoryBulkRequestLocations {
 public:
-  /**
-   * Allows to generate a bulk-request ID
-   * @return the id for a new BulkRequest
-   */
-  static std::string generateBulkRequestId () {
-    return common::StringConversion::timebased_uuidstring();
-  }
+  ProcDirectoryBulkRequestLocations(const std::string & procDirectoryPath);
+  std::set<std::string> getAllBulkRequestDirectoriesPath();
+  std::string getDirectoryPathToSaveBulkRequest(BulkRequest & bulkRequest);
+private:
+  std::map<BulkRequest::Type, std::string> mBulkRequestTypeToPath;
 };
 
 EOSBULKNAMESPACE_END
 
-#endif // EOS_BULKREQUESTHELPER_HH
+#endif // EOS_PROCDIRECTORYBULKREQUESTLOCATIONS_HH
