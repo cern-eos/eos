@@ -45,13 +45,8 @@ const std::string BulkRequest::bulkRequestTypeToString(const BulkRequest::Type &
   return BulkRequest::BULK_REQ_TYPE_TO_STRING_MAP.at(bulkRequestType);
 }
 
-const std::map<BulkRequest::Type,std::string> BulkRequest::createTypeToStringMap() {
-  std::map<BulkRequest::Type,std::string> ret = {
-      {BulkRequest::PREPARE_STAGE,"PREPARE_STAGE"}
-  };
-  return ret;
-}
-
-const std::map<BulkRequest::Type,std::string> BulkRequest::BULK_REQ_TYPE_TO_STRING_MAP = BulkRequest::createTypeToStringMap();
+const std::map<BulkRequest::Type,std::string> BulkRequest::BULK_REQ_TYPE_TO_STRING_MAP = {
+    {BulkRequest::PREPARE_STAGE,"PREPARE_STAGE"}
+};
 
 EOSBULKNAMESPACE_END
