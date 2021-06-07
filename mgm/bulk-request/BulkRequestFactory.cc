@@ -22,12 +22,12 @@
  ************************************************************************/
 
 #include "BulkRequestFactory.hh"
-#include "common/StringConversion.hh"
+#include "BulkRequestHelper.hh"
 
 EOSBULKNAMESPACE_BEGIN
 
 StageBulkRequest * BulkRequestFactory::createStageBulkRequest() {
-  std::string bulkRequestId = eos::common::StringConversion::timebased_uuidstring();
+  std::string bulkRequestId = BulkRequestHelper::generateBulkRequestId();
   return new StageBulkRequest(bulkRequestId);
 }
 
