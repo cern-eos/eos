@@ -1,4 +1,4 @@
-#!/bin/bash
+B#!/bin/bash
 
 
 #--------------------------------------------------------------------------------------
@@ -128,6 +128,7 @@ then
 red "This has a faliure for the system wich did fail."
 
 eos rm /eos/dev/test2/*
+eos rmdir /eos/dev/test2
 
 eos space config default space.dynamicec.maxthreshold=$val21
 eos space config default space.dynamicec.minthreshold=$val20
@@ -157,6 +158,7 @@ then
 red "This has a faliure for the system wich did fail to clean up for the second wave of files and are not reliable."
 
 eos rm /eos/dev/test2/*
+eos rmdir /eos/dev/test2
 
 eos space config default space.dynamicec.maxthreshold=$val21
 eos space config default space.dynamicec.minthreshold=$val20
@@ -173,6 +175,7 @@ fi
 green "both test had succes"
 
 eos rm /eos/dev/test2/*
+eos rmdir /eos/dev/test2
 
 eos space config default space.dynamicec.maxthreshold=$val21
 eos space config default space.dynamicec.minthreshold=$val20
