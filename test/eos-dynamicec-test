@@ -1,4 +1,4 @@
-#!/bin/bash
+B#!/bin/bash
 
 
 #--------------------------------------------------------------------------------------
@@ -29,10 +29,10 @@ eos chmod 777 /eos/dev/test2
 
 
 #This is used for setting the systems different parameters in the directory
-#eos attr set sys.forced.blocksize=1M /eos/dev/test2
-#eos attr set sys.forced.layout=raid6 /eos/dev/test2
-#eos attr set sys.forced.nstripes=6 /eos/dev/test2
-#eos attr set sys.forced.nexcess=2 /eos/dev/test2
+eos attr set sys.forced.blocksize=1M /eos/dev/test2
+eos attr set sys.forced.layout=raid6 /eos/dev/test2
+eos attr set sys.forced.nstripes=6 /eos/dev/test2
+eos attr set sys.forced.nexcess=2 /eos/dev/test2
 
 #eos attr set sys.forced.blocksize=1M /eos/testarea/dynec/dynamicectest
 
