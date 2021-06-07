@@ -909,9 +909,9 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             }
           } else if (key == "dynamicec.sizeformapmax") {
             if (std::all_of(value.begin(), value.end(), ::isdigit)) {
-              gOFS->mDynamicEC->setSizeForMap(std::stoi(value));
+              gOFS->mDynamicEC->setSizeForMap(std::stoull(value));
               std_out << "The size for the map to be full: ";
-              std_out << std::stoi(value);
+              std_out << std::stoull(value);
             } else if (value == "show") {
               std_out << gOFS->mDynamicEC->getSizeForMap();
             }
