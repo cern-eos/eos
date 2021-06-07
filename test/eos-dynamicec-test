@@ -21,11 +21,7 @@ function red() {
     echo -e "$RED$*$NORMAL"
 }
 
-#eos cp /etc/group /eos/dev/test2/file
-
-#eos mkdir /eos/dev/test/instancetest/dynamicec
-
-#eos mkdir /eos/dev/test2
+eos mkdir /eos/dev/test2
 #eos mkdir /eos/dev/test3
 #eos mkdir /eos/dev/test4/
 
