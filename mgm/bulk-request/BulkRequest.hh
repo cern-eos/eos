@@ -40,7 +40,8 @@ public:
    * The type a bulk request can be
    */
   enum Type {
-    PREPARE_STAGE
+    PREPARE_STAGE,
+    PREPARE_EVICT
   };
 
   /**
@@ -85,8 +86,6 @@ private:
   std::string mId;
   //Paths of the files contained in the bulk request
   std::set<std::string> mPaths;
-  //Initialize the map containing the string representation of each bulk-request type
-  static const std::map<Type,std::string> createTypeToStringMap();
   //Map containing the string representation of each bulk-request type
   static const std::map<Type,std::string> BULK_REQ_TYPE_TO_STRING_MAP;
 };

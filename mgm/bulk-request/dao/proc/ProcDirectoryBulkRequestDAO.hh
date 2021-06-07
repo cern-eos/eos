@@ -28,6 +28,7 @@
 #include "mgm/bulk-request/dao/IBulkRequestDAO.hh"
 #include <common/Logging.hh>
 #include <mgm/XrdMgmOfs.hh>
+#include "mgm/bulk-request/dao/proc/ProcDirectoryBulkRequestLocations.hh"
 
 EOSBULKNAMESPACE_BEGIN
 
@@ -38,7 +39,7 @@ EOSBULKNAMESPACE_BEGIN
  */
 class ProcDirectoryBulkRequestDAO : public IBulkRequestDAO, public eos::common::LogId {
 public:
-  ProcDirectoryBulkRequestDAO(XrdMgmOfs * fileSystem);
+  ProcDirectoryBulkRequestDAO(XrdMgmOfs * fileSystem, ProcDirectoryBulkRequestLocations& mBulkRequestDirSchema);
   /**
    * Save the Stage bulk request by creating a directory in the /eos/.../proc/ directory and creating one file
    * per path. The paths of the files will be modified in the format like the one in the EOS recycle-bin
@@ -49,6 +50,7 @@ private:
   //Interface to the EOS filesystem to allow the creation of files and directories
   XrdMgmOfs * mFileSystem;
   eos::common::VirtualIdentity mVid;
+  ProcDirectoryBulkRequestLocations & mProcDirectoryBulkRequestLocations;
   /**
    * Creates a directory to store the bulk-request files within it
    * @param bulkRequest the bulkRequest to get the id from

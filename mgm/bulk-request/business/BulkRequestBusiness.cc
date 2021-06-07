@@ -22,9 +22,8 @@
  ************************************************************************/
 
 #include "BulkRequestBusiness.hh"
-#include <mgm/bulk-request/dao/ProcDirectoryBulkRequestDAO.hh>
-#include "mgm/bulk-request/exception/PersistencyException.hh"
 #include "mgm/Stat.hh"
+#include "mgm/XrdMgmOfs.hh"
 
 EOSBULKNAMESPACE_BEGIN
 
