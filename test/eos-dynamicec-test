@@ -22,43 +22,10 @@ function red() {
 }
 
 eos mkdir /eos/dev/test2
-#eos mkdir /eos/dev/test3
-#eos mkdir /eos/dev/test4/
-
-#eos mkdir /eos/dev/test/dynectest
-#eos mkdir /eos/testarea/dynec/dynamicectest
-
-#export PATH=/op/eos/xrootd/bin/:$PATH
-#export LD_LIBRARY_PATH=/opt/eos/xrootd/lib64
-
-#PATH=/opt/eos/xrootd/bin:$PATH
 
 fallocate -l 5000000 /tmp/5mbfile.dat
 
-#echo ""
-#val=`eos file info /eos/dev/test2/filetest1 | grep Layout | awk '{print $10}'` 
-#echo $val
-#val=2
-#echo $val
-
-
-#if [[ 10 -eq 10 ]];
- #then
-#    exit 0
-#fi
-
-
-#exit 1 
-
-#if [[ $# -eq 0 || $# -gt 2 ]]; then
- #     echo "Usage: $0 <eos_mgm_hostname>"
-  #    exit 1
-#fi
-
-
-#eos chmod 777 /eos/dev/test2
-
-#eos chmod 777 /eos/dev/test5
+eos chmod 777 /eos/dev/test2
 
 
 #This is used for setting the systems different parameters in the directory
