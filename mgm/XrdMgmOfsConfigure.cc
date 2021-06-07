@@ -79,6 +79,7 @@
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "qclient/shared/SharedManager.hh"
+#include "mgm/bulk-request/dao/proc/ProcDirectoryBulkRequestLocations.hh"
 
 extern XrdOucTrace gMgmOfsTrace;
 extern void xrdmgmofs_shutdown(int sig);
@@ -1971,27 +1972,41 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       }
     }
 
-    // Create prepare directory
-    try {
-      eosmd = gOFS->eosView->getContainer(MgmProcBulkRequestPath.c_str());
-    } catch (const eos::MDException& e) {
-      eosmd = nullptr;
-    }
+    // Create bulkrequest-related directories
+    mProcDirectoryBulkRequestLocations.reset(new bulk::ProcDirectoryBulkRequestLocations(MgmProcPath.c_str()));
 
-    if (!eosmd) {
+    for(const std::string & bulkReqDirPath : mProcDirectoryBulkRequestLocations->getAllBulkRequestDirectoriesPath()){
       try {
-        eosmd = gOFS->eosView->createContainer(MgmProcBulkRequestPath.c_str(), true);
-        eosmd->setMode(S_IFDIR | S_IRWXU);
-        eosmd->setCUid(2); // prepare directory is owned by daemon
-        eosmd->setCGid(2);
-        gOFS->eosView->updateContainerStore(eosmd.get());
+        eosmd = gOFS->eosView->getContainer(bulkReqDirPath);
       } catch (const eos::MDException& e) {
-        Eroute.Emsg("Config", "cannot set the /eos/../proc/bulkrequests directory mode "
-                              "to initial mode");
-        eos_crit("cannot set the /eos/../proc/bulkrequests directory mode to 700");
-        return 1;
+        eosmd = nullptr;
+      }
+
+      if (!eosmd) {
+        try {
+          eosmd = gOFS->eosView->createContainer(bulkReqDirPath, true);
+          eosmd->setMode(S_IFDIR | S_IRWXU);
+          eosmd->setCUid(2); // bulk-request directories are owned by daemon
+          eosmd->setCGid(2);
+          gOFS->eosView->updateContainerStore(eosmd.get());
+        } catch (const eos::MDException& e) {
+          {
+            std::ostringstream errorMsg;
+            errorMsg << "cannot set the " << bulkReqDirPath
+                     << " directory mode to initial mode";
+            Eroute.Emsg("Config", errorMsg.str().c_str());
+          }
+          {
+            std::ostringstream errorMsg;
+            errorMsg << "cannot set the " << bulkReqDirPath
+                     << " directory mode to 700";
+            eos_crit(errorMsg.str().c_str());
+          }
+          return 1;
+        }
       }
     }
+
     if (NsInQDB) {
       SetupProcFiles();
     }

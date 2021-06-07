@@ -112,6 +112,7 @@
 #include "mgm/bulk-request/business/BulkRequestBusiness.hh"
 #include "mgm/bulk-request/interface/RealMgmFileSystemInterface.hh"
 #include "mgm/bulk-request/prepare/BulkRequestPrepareManager.hh"
+#include "mgm/bulk-request/dao/proc/ProcDirectoryBulkRequestLocations.hh"
 
 #ifdef __APPLE__
 #define ECOMM 70
@@ -736,13 +737,13 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 #if !OLD_PREPARE
   USE_EOSBULKNAMESPACE;
   //Temporary preprocessing directive for testing the bulk-request persistency
-  //If set to 1, xrdfs prepare -s will be issued and a bulk-request will be persisted in the proc directory
-  #define BULK_REQ_MANAGER 0
+  //If set to 1, xrdfs prepare will be issued and a bulk-request will be persisted in the proc directory
+  #define BULK_REQ_PERSISTENCY 0
 
   RealMgmFileSystemInterface mgmFsInterface(gOFS);
-  #if BULK_REQ_MANAGER
+  #if BULK_REQ_PERSISTENCY
     BulkRequestPrepareManager pm(mgmFsInterface);
-    std::unique_ptr<AbstractDAOFactory> daoFactory(new ProcDirectoryDAOFactory(gOFS));
+    std::unique_ptr<AbstractDAOFactory> daoFactory(new ProcDirectoryDAOFactory(gOFS,*mProcDirectoryBulkRequestLocations));
     std::shared_ptr<BulkRequestBusiness> bulkRequestBusiness(new BulkRequestBusiness(std::move(daoFactory)));
     pm.setBulkRequestBusiness(bulkRequestBusiness);
   #else
