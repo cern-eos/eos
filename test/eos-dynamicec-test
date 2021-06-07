@@ -97,7 +97,7 @@ sleep 10
 #This is in order to set the different settings to true in order to use it in the system for testing
 val20=`eos space config default space.dynamicec.minthreshold=show`
 val21=`eos space config default space.dynamicec.maxthreshold=show`
-#val22=`eos space config default space.dynamicec.sizeformapmax=show`
+val22=`eos space config default space.dynamicec.sizeformapmax=show`
 val23=`eos space config default space.dynamicec.sleepwhenfull=show`
 val24=`eos space config default space.dynamicec.sleepwhendone=show`
 
@@ -111,7 +111,7 @@ eos space config default space.dynamicec.minthreshold=0.0000001
 echo "con1"
 eos space config default space.dynamicec.maxthreshold=0.000001
 echo "con2"
-#eos space config default space.dynamicec.sizeformapmax=10000000000000000
+eos space config default space.dynamicec.sizeformapmax=100000000000000
 echo "con3"
 eos space config default space.dynamicec.sleepwhenfull=120
 echo "con4"
@@ -136,7 +136,7 @@ eos rm /eos/dev/test2/*
 eos space config default space.dynamicec.maxthreshold=$val21
 eos space config default space.dynamicec.minthreshold=$val20
 eos space config default space.dynamicec.test=off
-#eos space config default space.dynamicec.sizeformapmax=$val22
+eos space config default space.dynamicec.sizeformapmax=$val22
 eos space config default space.dynamicec.sleepwhenfull=$val23
 eos space config default space.dynamicec.sleepwhendone=$val24
 
