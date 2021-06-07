@@ -22,11 +22,15 @@
  ************************************************************************/
 
 #include "fst/Load.hh"
+#include "common/Timing.hh"
+#include "common/StringConversion.hh"
+#include "XrdOuc/XrdOucString.hh"
+#include <fstream>
 #include <cstdio>
 #include <cstdlib>
 #include <errno.h>
 #include <sys/stat.h>
-#include "XrdOuc/XrdOucString.hh"
+
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -209,20 +213,11 @@ Load::Monitor()
 //------------------------------------------------------------------------------
 DiskStat::DiskStat()
 {
-  mTags.push_back("type");
-  mTags.push_back("number");
-  mTags.push_back("device");
-  mTags.push_back("readReq");
-  mTags.push_back("mergedReadReq");
-  mTags.push_back("readSectors");
-  mTags.push_back("millisRead");
-  mTags.push_back("writeReqs");
-  mTags.push_back("mergedWriteReq");
-  mTags.push_back("writeSectors");
-  mTags.push_back("millisWrite");
-  mTags.push_back("concurrentIO");
-  mTags.push_back("millisIO");
-  mTags.push_back("weightedMillisIO");
+  mTags = {"type", "number", "device", "readReq", "mergedReadReq",
+           "readSectors", "millisRead", "writeReqs", "mergedWriteReq",
+           "writeSectors", "millisWrite", "concurrentIO", "millisIO",
+           "weightedMillisIO"
+          };
   t1.tv_sec = 0;
   t2.tv_sec = 0;
   t1.tv_nsec = 0;
@@ -250,82 +245,71 @@ DiskStat::GetRate(const char* dev, const char* key)
 // Get disk measurement values
 //------------------------------------------------------------------------------
 bool
-DiskStat::Measure()
+DiskStat::Measure(const std::string& fn_path)
 {
-  FILE* fd = fopen("/proc/diskstats", "r");
+  std::ifstream stream(fn_path);
 
-  if (fd != 0) {
-    XrdSysRWLockHelper wr_lock(&mMutexRW, false);
-    int items = 0;
-    char val[14][1024];
-    bool scanned = false;
-
-    do {
-      items = fscanf(fd, "%1023s %1023s %1023s %1023s %1023s %1023s %1023s "
-                     "%1023s %1023s %1023s %1023s %1023s %1023s %1023s\n",
-                     val[0], val[1], val[2], val[3], val[4], val[5], val[6],
-                     val[7], val[8], val[9], val[10], val[11], val[12], val[13]);
-
-      if (items == 14) {
-        scanned = true;
-#ifdef __APPLE__
-        struct timeval tv;
-        gettimeofday(&tv, 0);
-        t2.tv_sec = tv.tv_sec;
-        t2.tv_nsec = tv.tv_usec * 1000;
-#else
-        clock_gettime(CLOCK_REALTIME, &t2);
-#endif
-        std::string dev_name = val[2];
-
-        for (unsigned int i = 3; i < mTags.size(); i++) {
-          values_t2[dev_name][mTags[i]] = val[i];
-        }
-
-        if (t1.tv_sec != 0) {
-          float tdif = ((t2.tv_sec - t1.tv_sec) * 1000.0) +
-                       ((t2.tv_nsec - t1.tv_nsec) / 1000000.0);
-
-          for (unsigned int i = 3; i < mTags.size(); i++) {
-            if (tdif > 0) {
-              mRates[dev_name][mTags[i]] =
-                1000.0 * (strtoll(values_t2[dev_name][mTags[i]].c_str(), 0, 10) -
-                          strtoll(values_t1[dev_name][mTags[i]].c_str(), 0, 10)) / tdif;
-            } else {
-              mRates[dev_name][mTags[i]] = 0.0;
-            }
-          }
-
-          for (unsigned int i = 3; i < mTags.size(); i++) {
-            values_t1[dev_name][mTags[i]] = values_t2[dev_name][mTags[i]];
-          }
-        } else {
-          for (auto it = mTags.begin(); it != mTags.end(); it++) {
-            mRates[dev_name][*it] = 0.0;
-          }
-
-          for (unsigned int i = 3; i < mTags.size(); i++) {
-            values_t1[dev_name][mTags[i]] = values_t2[dev_name][mTags[i]];
-          }
-        }
-
-        continue;
-      }
-
-      fclose(fd);
-
-      if (scanned) {
-        t1.tv_sec = t2.tv_sec;
-        t1.tv_nsec = t2.tv_nsec;
-        return true;
-      } else {
-        return false;
-      }
-    } while (1);
-  } else {
+  if (!stream) {
     return false;
   }
+
+  bool scanned = false;
+  std::string line;
+  std::vector<std::string> val;
+
+  while (std::getline(stream, line)) {
+    val.clear();
+    eos::common::StringConversion::Tokenize(line, val);
+
+    if (val.size() < 14) {
+      return false;
+    }
+
+    scanned = true;
+    eos::common::Timing::GetTimeSpec(t2);
+    std::string dev_name = val[2];
+
+    for (unsigned int i = 3; i < mTags.size(); i++) {
+      values_t2[dev_name][mTags[i]] = val[i];
+    }
+
+    if (t1.tv_sec != 0) {
+      float tdif = ((t2.tv_sec - t1.tv_sec) * 1000.0) +
+                   ((t2.tv_nsec - t1.tv_nsec) / 1000000.0);
+
+      for (unsigned int i = 3; i < mTags.size(); i++) {
+        if (tdif > 0) {
+          mRates[dev_name][mTags[i]] =
+            1000.0 * (strtoll(values_t2[dev_name][mTags[i]].c_str(), 0, 10) -
+                      strtoll(values_t1[dev_name][mTags[i]].c_str(), 0, 10)) / tdif;
+        } else {
+          mRates[dev_name][mTags[i]] = 0.0;
+        }
+      }
+
+      for (unsigned int i = 3; i < mTags.size(); i++) {
+        values_t1[dev_name][mTags[i]] = values_t2[dev_name][mTags[i]];
+      }
+    } else {
+      for (auto it = mTags.begin(); it != mTags.end(); it++) {
+        mRates[dev_name][*it] = 0.0;
+      }
+
+      for (unsigned int i = 3; i < mTags.size(); i++) {
+        values_t1[dev_name][mTags[i]] = values_t2[dev_name][mTags[i]];
+      }
+    }
+  }
+
+  if (scanned) {
+    t1.tv_sec = t2.tv_sec;
+    t1.tv_nsec = t2.tv_nsec;
+    return true;
+  }
+
+  return false;
 }
+
 
 //------------------------------------------------------------------------------
 //                                 NetStat Class
@@ -415,11 +399,12 @@ NetStat::Measure()
       }
 
       if (items == 17) {
-	size_t dev_len = strlen(val[0]);
-	if (dev_len && (val[0][dev_len-1] == ':')) {
-	  // newer kernel use <device-name>: in this field ... sigh ...
-	  val[0][dev_len-1] = 0;
-	}
+        size_t dev_len = strlen(val[0]);
+
+        if (dev_len && (val[0][dev_len - 1] == ':')) {
+          // newer kernel use <device-name>: in this field ... sigh ...
+          val[0][dev_len - 1] = 0;
+        }
 
 #ifdef __APPLE__
         struct timeval tv;

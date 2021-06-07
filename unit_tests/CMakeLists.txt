@@ -101,6 +101,7 @@ set(FST_UT_SRCS
   fst/UtilsTest.cc
   fst/XrdFstOfsFileInternalTest.cc
   fst/ScanDirTests.cc
+  fst/LoadTests.cc
   fst/MonitorVarPartitionTest.cc)
 
 #-------------------------------------------------------------------------------
