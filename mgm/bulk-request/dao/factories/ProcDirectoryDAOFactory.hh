@@ -26,6 +26,7 @@
 #include "mgm/Namespace.hh"
 #include "mgm/bulk-request/dao/factories/AbstractDAOFactory.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/bulk-request/dao/proc/ProcDirectoryBulkRequestLocations.hh"
 
 EOSBULKNAMESPACE_BEGIN
 
@@ -37,10 +38,10 @@ class ProcDirectoryDAOFactory : public AbstractDAOFactory{
 public:
   /**
    * Factory of ProcDirectoryDAO objects
-   * @param mgmBulkRequestDirectoryPath
    * @param fileSystem that will allow to interact with the /proc/ directory
+   * @param bulkReqProcDirLocations the class that will allow to deduce the proc sub-paths where the bulk-request will be persisted/accessed
    */
-  ProcDirectoryDAOFactory(XrdMgmOfs * fileSystem);
+  ProcDirectoryDAOFactory(XrdMgmOfs * fileSystem, ProcDirectoryBulkRequestLocations & bulkReqProcDirLocations);
   /**
    * Returns the ProcDirectory bulk request DAO object to allow the persistence/access of the
    * bulk-requests metada via the /eos/.../proc directory
@@ -49,6 +50,7 @@ public:
   std::unique_ptr<IBulkRequestDAO> getBulkRequestDAO() const;
 private:
   XrdMgmOfs * mFileSystem;
+  ProcDirectoryBulkRequestLocations & mBulkReqLocations;
 };
 
 EOSBULKNAMESPACE_END

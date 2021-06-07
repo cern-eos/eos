@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file BulkRequestHelper.hh
+//! @file ProcDirectoryBulkRequestLocations.cc
 //! @author Cedric Caffy - CERN
 //------------------------------------------------------------------------------
 
@@ -21,25 +21,27 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_BULKREQUESTHELPER_HH
-#define EOS_BULKREQUESTHELPER_HH
-
-#include "mgm/Namespace.hh"
-#include "common/StringConversion.hh"
+#include "ProcDirectoryBulkRequestLocations.hh"
 
 EOSBULKNAMESPACE_BEGIN
 
-class BulkRequestHelper {
-public:
-  /**
-   * Allows to generate a bulk-request ID
-   * @return the id for a new BulkRequest
-   */
-  static std::string generateBulkRequestId () {
-    return common::StringConversion::timebased_uuidstring();
+ProcDirectoryBulkRequestLocations::ProcDirectoryBulkRequestLocations(const std::string & procDirectoryPath) {
+  std::string bulkRequestsPath = procDirectoryPath + "/bulkrequests";
+  mBulkRequestTypeToPath[BulkRequest::Type::PREPARE_STAGE] = bulkRequestsPath + "/stage";
+  mBulkRequestTypeToPath[BulkRequest::Type::PREPARE_EVICT] = bulkRequestsPath + "/evict";
+}
+
+std::set<std::string> ProcDirectoryBulkRequestLocations::getAllBulkRequestDirectoriesPath(){
+  std::set<std::string> allBulkRequetsDirectoriesPath;
+  for(auto & bulkRequestTypeToPath: mBulkRequestTypeToPath){
+    allBulkRequetsDirectoriesPath.insert(bulkRequestTypeToPath.second);
   }
-};
+  return allBulkRequetsDirectoriesPath;
+}
+
+std::string ProcDirectoryBulkRequestLocations::getDirectoryPathToSaveBulkRequest(BulkRequest& bulkRequest)
+{
+  return mBulkRequestTypeToPath.at(bulkRequest.getType());
+}
 
 EOSBULKNAMESPACE_END
-
-#endif // EOS_BULKREQUESTHELPER_HH

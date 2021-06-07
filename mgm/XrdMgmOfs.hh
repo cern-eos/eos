@@ -180,6 +180,10 @@ class RealTapeGcMgm;
 class MultiSpaceTapeGc;
 }
 
+namespace eos::mgm::bulk {
+  class ProcDirectoryBulkRequestLocations;
+}
+
 namespace eos::auth
 {
 class RequestProto;
@@ -1891,6 +1895,8 @@ public:
   std::set<std::string> mTapeGcSpaces;
   //! Tracker for drain, balance and convert fids
   eos::mgm::IdTrackerWithValidity<eos::IFileMD::id_t> mFidTracker;
+  //! The class holding the paths where the bulk-requets will be persisted
+  std::unique_ptr<eos::mgm::bulk::ProcDirectoryBulkRequestLocations> mProcDirectoryBulkRequestLocations;
 
   //----------------------------------------------------------------------------
   //! Return string representation of prepare options

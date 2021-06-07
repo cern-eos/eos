@@ -51,7 +51,8 @@ void BulkRequestPrepareManager::addPathToBulkRequest(const std::string& path) {
 }
 
 void BulkRequestPrepareManager::saveBulkRequest() {
-  if(mBulkRequestBusiness != nullptr){
+  //For now, only stage prepare request can be persisted
+  if(mBulkRequestBusiness != nullptr && isStagePrepare()){
     try {
       mBulkRequestBusiness->saveBulkRequest(mBulkRequest);
     } catch(const PersistencyException & ex){
