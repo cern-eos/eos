@@ -31,7 +31,8 @@
 
 EOSBULKNAMESPACE_BEGIN
 
-ProcDirectoryBulkRequestDAO::ProcDirectoryBulkRequestDAO(XrdMgmOfs * fileSystem):mFileSystem(fileSystem){
+ProcDirectoryBulkRequestDAO::ProcDirectoryBulkRequestDAO(XrdMgmOfs * fileSystem, ProcDirectoryBulkRequestLocations& procDirectoryBulkRequestLocations):mFileSystem(fileSystem),
+      mProcDirectoryBulkRequestLocations(procDirectoryBulkRequestLocations){
 
 }
 
@@ -62,8 +63,7 @@ void ProcDirectoryBulkRequestDAO::createBulkRequestDirectory(const std::shared_p
 }
 
 std::string ProcDirectoryBulkRequestDAO::generateBulkRequestProcPath(const std::shared_ptr<BulkRequest> bulkRequest) {
-  XrdOucString directoryBulkRequest = mFileSystem->MgmProcBulkRequestPath + "/" + bulkRequest->getId().c_str();
-  return directoryBulkRequest.c_str();
+  return mProcDirectoryBulkRequestLocations.getDirectoryPathToSaveBulkRequest(*bulkRequest) + "/" + bulkRequest->getId();
 }
 
 void ProcDirectoryBulkRequestDAO::insertBulkRequestFilesToBulkRequestDirectory(const std::shared_ptr<BulkRequest> bulkRequest, const std::string & bulkReqProcPath) {
@@ -119,7 +119,7 @@ void ProcDirectoryBulkRequestDAO::cleanAfterExceptionHappenedDuringBulkRequestSa
 
   XrdOucErrInfo lError;
 
-  if (gOFS->_stat(bulkReqProcPath.c_str(), &buf, lError, mVid, "", nullptr, false)) {
+  if (mFileSystem->_stat(bulkReqProcPath.c_str(), &buf, lError, mVid, "", nullptr, false)) {
     //If we cannot find the directory, there's nothing we can do.
     std::ostringstream debugMsg;
     debugMsg << "In ProcDirectoryBulkRequestDAO::cleanAfterExceptionHappenedDuringBulkRequestSave() "
@@ -128,24 +128,24 @@ void ProcDirectoryBulkRequestDAO::cleanAfterExceptionHappenedDuringBulkRequestSa
     return;
   }
 
-    // execute a proc command
-    ProcCommand Cmd;
-    XrdOucString info;
+  // execute a proc command
+  ProcCommand Cmd;
+  XrdOucString info;
 
-    // we do a recursive deletion
-    info = "mgm.cmd=rm&mgm.option=r&mgm.retc=1&mgm.path=";
+  // we do a recursive deletion
+  info = "mgm.cmd=rm&mgm.option=r&mgm.retc=1&mgm.path=";
 
-    info += bulkReqProcPath.c_str();
-    int result = Cmd.open("/proc/user", info.c_str(), mVid, &lError);
+  info += bulkReqProcPath.c_str();
+  int result = Cmd.open("/proc/user", info.c_str(), mVid, &lError);
 
-    Cmd.close();
+  Cmd.close();
 
-    if(result == SFS_ERROR){
-      std::ostringstream debugMsg;
-      debugMsg << "In ProcDirectoryBulkRequestDAO::cleanAfterExceptionHappenedDuringBulkRequestSave() "
-               << "unable to clean the directory " << bulkReqProcPath << "ErrorMsg=" << lError.getErrText();
-      eos_debug(debugMsg.str().c_str());
-    }
+  if(result == SFS_ERROR){
+    std::ostringstream debugMsg;
+    debugMsg << "In ProcDirectoryBulkRequestDAO::cleanAfterExceptionHappenedDuringBulkRequestSave() "
+             << "unable to clean the directory " << bulkReqProcPath << "ErrorMsg=" << lError.getErrText();
+    eos_debug(debugMsg.str().c_str());
+  }
 }
 
 EOSBULKNAMESPACE_END

@@ -22,16 +22,17 @@
  ************************************************************************/
 
 #include "ProcDirectoryDAOFactory.hh"
-#include "mgm/bulk-request/dao/ProcDirectoryBulkRequestDAO.hh"
+#include "mgm/bulk-request/dao/proc/ProcDirectoryBulkRequestDAO.hh"
+
 
 EOSBULKNAMESPACE_BEGIN
 
-ProcDirectoryDAOFactory::ProcDirectoryDAOFactory(XrdMgmOfs * fileSystem): mFileSystem(fileSystem)
+ProcDirectoryDAOFactory::ProcDirectoryDAOFactory(XrdMgmOfs * fileSystem, ProcDirectoryBulkRequestLocations & bulkReqProcDirLocations): mFileSystem(fileSystem),mBulkReqLocations(bulkReqProcDirLocations)
 {
 }
 
 std::unique_ptr<IBulkRequestDAO> ProcDirectoryDAOFactory::getBulkRequestDAO() const {
-  std::unique_ptr<IBulkRequestDAO> ret(new ProcDirectoryBulkRequestDAO(mFileSystem));
+  std::unique_ptr<IBulkRequestDAO> ret(new ProcDirectoryBulkRequestDAO(mFileSystem, mBulkReqLocations));
   return ret;
 }
 
