@@ -121,12 +121,12 @@ com_fusex(char* arg1)
     int q_interval = quota_interval.length() ? atoi(quota_interval.c_str()) : 0;
     
     if ((i_interval < 0) ||
-        (i_interval > 15)) {
+        (i_interval > 60)) {
       goto com_fusex_usage;
     }
 
     if ((q_interval < 0) ||
-        (q_interval > 60)) {
+        (q_interval > 120)) {
       goto com_fusex_usage;
     }
 
@@ -272,7 +272,7 @@ com_fusex_usage:
   fprintf(stdout,
           "   fusex conf 10                                             :  define heartbeat interval as 10 seconds\n");
   fprintf(stdout,
-          "   fusex conf 10 10                                          :  define heartbeat and quota interval as 10 seconds\n");
+          "   fusex conf 10 30                                          :  define heartbeat as 10 seconds and quota interval as 30 seconds\n");
   fprintf(stdout, 
 	  "   fusex conf 0 0 256 @b[67]                                :  suppress broadcasts when more than 256 clients are conected and the target matches @b[67]\n");
   return (0);
