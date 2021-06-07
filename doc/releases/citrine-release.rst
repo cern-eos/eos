@@ -16,6 +16,30 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.50 Citrine``
+===================
+
+2021-06-07
+
+Bug
+----
+
+* [EOS-4725] - Unknown lock held for many seconds
+* [EOS-4730] - Fix FST crash during shutdown
+* [EOS-4736] - Memory leak when parsing diskstat on CentOS8
+* [EOS-4737] - File systems blocked in booting during mass boot with --syncmgm
+* [EOS-4740] - Inconsistent FsView maps after removing/changing file system
+
+Improvement
+------------
+
+* [EOS-4724] - Support HTTP chunked uploads
+* [EOS-4727] - Add fsck subcommand to cleanup orphans
+* [EOS-4728] - Improve the refresh of fsck stats
+* [EOS-4729] - Improve remove detached for entries with deleted parents
+* [EOS-4735] - Make Egroup queries for non existing users / groups cacheable
+
+
 ``v4.8.49 Citrine``
 ===================
 
