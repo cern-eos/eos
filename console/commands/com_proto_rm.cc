@@ -152,11 +152,8 @@ int com_protorm(char* arg)
     return EINTR;
   }
 
-  global_retc = rm.Execute(false, true);
+  global_retc = rm.Execute(true, true);
 
-  if (global_retc) {
-    std::cerr << rm.GetError();
-  }
   return global_retc;
 }
 

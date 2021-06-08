@@ -134,11 +134,7 @@ com_protodebug(char* arg)
     return EINVAL;
   }
 
-  global_retc = debug.Execute(false);
-
-  if (global_retc) {
-    std::cerr << debug.GetError();
-  }
+  global_retc = debug.Execute();
 
   return global_retc;
 }

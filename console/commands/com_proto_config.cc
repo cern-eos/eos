@@ -201,11 +201,7 @@ int com_protoconfig(char* arg)
     return EINVAL;
   }
 
-  global_retc = config.Execute(false);
-
-  if (global_retc) {
-    std::cerr << config.GetError();
-  }
+  global_retc = config.Execute();
 
   return global_retc;
 }

@@ -361,11 +361,7 @@ int com_protospace(char* arg)
     return EINVAL;
   }
 
-  global_retc = space.Execute(false);
-
-  if (global_retc) {
-    std::cerr << space.GetError();
-  }
+  global_retc = space.Execute();
 
   return global_retc;
 }
