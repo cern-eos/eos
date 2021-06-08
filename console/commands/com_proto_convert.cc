@@ -333,10 +333,6 @@ int com_convert(char* arg)
 
   global_retc = convert.Execute();
 
-  if (global_retc) {
-    std::cerr << convert.GetError();
-  }
-
   return global_retc;
 }
 

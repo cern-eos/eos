@@ -147,10 +147,6 @@ int com_qos(char* arg)
 
   global_retc = qos.Execute();
 
-  if (global_retc) {
-    std::cerr << qos.GetError();
-  }
-
   return global_retc;
 }
 

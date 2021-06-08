@@ -47,10 +47,6 @@ int com_proto_token(char* arg)
   
   global_retc = token.Execute(true, true);
 
-  if (global_retc) {
-    std::cerr << token.GetError();
-  }
-
   return global_retc;
 }
 

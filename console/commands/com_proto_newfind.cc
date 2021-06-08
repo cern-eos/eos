@@ -630,9 +630,6 @@ com_protonewfind(char* arg)
   }
 
   global_retc = find.Execute();
-//  if (global_retc) {
-//    std::cerr << find.GetError();
-//  }
   return global_retc;
 
 }

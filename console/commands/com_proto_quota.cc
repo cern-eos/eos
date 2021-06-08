@@ -334,11 +334,7 @@ int com_protoquota(char* arg)
     return EINVAL;
   }
 
-  global_retc = quota.Execute(false, true);
-
-  if (global_retc) {
-    std::cerr << quota.GetError();
-  }
+  global_retc = quota.Execute(true, true);
 
   return global_retc;
 }

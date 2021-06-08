@@ -160,11 +160,7 @@ int com_protogroup(char* arg)
     return EINVAL;
   }
 
-  global_retc = group.Execute(false);
-
-  if (global_retc) {
-    std::cerr << group.GetError();
-  }
+  global_retc = group.Execute();
 
   return global_retc;
 }

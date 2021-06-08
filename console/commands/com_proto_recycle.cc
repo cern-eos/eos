@@ -46,11 +46,7 @@ int com_protorecycle(char* arg)
     return EINVAL;
   }
 
-  global_retc = recycle.Execute(false, true);
-
-  if (global_retc) {
-    std::cerr << recycle.GetError();
-  }
+  global_retc = recycle.Execute(true, true);
 
   return global_retc;
 }
