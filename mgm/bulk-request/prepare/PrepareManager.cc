@@ -48,6 +48,10 @@ void PrepareManager::initializeStagePrepareRequest(XrdOucString& reqid) {
   reqid = eos::common::StringConversion::timebased_uuidstring().c_str();
 }
 
+void PrepareManager::initializeEvictPrepareRequest(XrdOucString& reqid) {
+
+}
+
 int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecEntity* client) {
   EXEC_TIMING_BEGIN("Prepare");
   eos_info("prepareOpts=\"%s\"", PrepareUtils::prepareOptsToString(pargs.opts).c_str());
@@ -105,6 +109,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
   case Prep_EVICT:
     mPrepareAction = PrepareAction::EVICT;
     event = "sync::evict_prepare";
+    initializeEvictPrepareRequest(reqid);
     break;
 
   default:

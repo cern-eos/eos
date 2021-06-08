@@ -31,4 +31,8 @@ StageBulkRequest * BulkRequestFactory::createStageBulkRequest() {
   return new StageBulkRequest(bulkRequestId);
 }
 
+EvictBulkRequest * BulkRequestFactory::createEvictBulkRequest() {
+  std::string bulkRequestId = BulkRequestHelper::generateBulkRequestId();
+  return new EvictBulkRequest(bulkRequestId);
+}
 EOSBULKNAMESPACE_END

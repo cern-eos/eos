@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file BulkRequestBusiness.cc
+//! @file EvictBulkRequest.hh
 //! @author Cedric Caffy - CERN
 //------------------------------------------------------------------------------
 
@@ -21,21 +21,20 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "BulkRequestBusiness.hh"
-#include "mgm/Stat.hh"
-#include "mgm/XrdMgmOfs.hh"
+#ifndef EOS_EVICTBULKREQUEST_HH
+#define EOS_EVICTBULKREQUEST_HH
+
+#include "mgm/Namespace.hh"
+#include "mgm/bulk-request/BulkRequest.hh"
 
 EOSBULKNAMESPACE_BEGIN
 
-BulkRequestBusiness::BulkRequestBusiness(std::unique_ptr<AbstractDAOFactory> && daoFactory) : mDaoFactory(std::move(daoFactory)){
-}
-
-void BulkRequestBusiness::saveBulkRequest(const std::shared_ptr<BulkRequest> req){
-  eos_info("msg=\"Persisting bulk request id=%s nbFiles=%ld type=%s\"",req->getId().c_str(),req->getPaths().size(),BulkRequest::bulkRequestTypeToString(req->getType()).c_str());
-  EXEC_TIMING_BEGIN("BulkRequestBusiness::saveBulkRequest");
-  mDaoFactory->getBulkRequestDAO()->saveBulkRequest(req);
-  EXEC_TIMING_END("BulkRequestBusiness::saveBulkRequest");
-  eos_info("msg=\"Persisted bulk request id=%s\"",req->getId().c_str());
-}
+class EvictBulkRequest : public BulkRequest {
+public:
+  EvictBulkRequest(const std::string & id);
+  const BulkRequest::Type getType() const override;
+};
 
 EOSBULKNAMESPACE_END
+
+#endif // EOS_EVICTBULKREQUEST_HH
