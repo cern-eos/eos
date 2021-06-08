@@ -32,12 +32,11 @@
 EOSBULKNAMESPACE_BEGIN
 
 ProcDirectoryBulkRequestDAO::ProcDirectoryBulkRequestDAO(XrdMgmOfs * fileSystem, ProcDirectoryBulkRequestLocations& procDirectoryBulkRequestLocations):mFileSystem(fileSystem),
-      mProcDirectoryBulkRequestLocations(procDirectoryBulkRequestLocations){
+      mProcDirectoryBulkRequestLocations(procDirectoryBulkRequestLocations),mVid(common::VirtualIdentity::Root()){
 
 }
 
-void ProcDirectoryBulkRequestDAO::saveBulkRequest(const std::shared_ptr<StageBulkRequest> bulkRequest) {
-  mVid = common::VirtualIdentity::Root();
+void ProcDirectoryBulkRequestDAO::saveBulkRequest(const std::shared_ptr<BulkRequest> bulkRequest) {
   std::string directoryBulkReqPath = generateBulkRequestProcPath(bulkRequest);
   try {
     createBulkRequestDirectory(bulkRequest,directoryBulkReqPath);

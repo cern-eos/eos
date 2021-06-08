@@ -41,16 +41,19 @@ class ProcDirectoryBulkRequestDAO : public IBulkRequestDAO, public eos::common::
 public:
   ProcDirectoryBulkRequestDAO(XrdMgmOfs * fileSystem, ProcDirectoryBulkRequestLocations& mBulkRequestDirSchema);
   /**
-   * Save the Stage bulk request by creating a directory in the /eos/.../proc/ directory and creating one file
-   * per path. The paths of the files will be modified in the format like the one in the EOS recycle-bin
-   * @param bulkRequest the StageBulkRequest to save
+   * Save the bulk request by creating a directory in the /eos/.../proc/ directory and creating one file
+   * per file in the bulk-request:
+   * - If a file in the bulk-request exists, the file will be named according to the fileId
+   * - If a file in the bulk-request does not exist, the file will be named according to the path provided in the format like the one in the EOS
+   * recycle-bin (each '/' will be replaced by "#:#")
+   * @param bulkRequest the BulkRequest to save
    */
-  void saveBulkRequest(const std::shared_ptr<StageBulkRequest> bulkRequest) override;
+  void saveBulkRequest(const std::shared_ptr<BulkRequest> bulkRequest) override;
 private:
   //Interface to the EOS filesystem to allow the creation of files and directories
   XrdMgmOfs * mFileSystem;
-  eos::common::VirtualIdentity mVid;
   ProcDirectoryBulkRequestLocations & mProcDirectoryBulkRequestLocations;
+  eos::common::VirtualIdentity mVid;
   /**
    * Creates a directory to store the bulk-request files within it
    * @param bulkRequest the bulkRequest to get the id from

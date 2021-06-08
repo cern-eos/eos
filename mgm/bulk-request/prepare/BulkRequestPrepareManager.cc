@@ -44,6 +44,11 @@ void BulkRequestPrepareManager::initializeStagePrepareRequest(XrdOucString& reqi
   reqid = mBulkRequest->getId().c_str();
 }
 
+void BulkRequestPrepareManager::initializeEvictPrepareRequest(XrdOucString& reqid) {
+  mBulkRequest.reset(BulkRequestFactory::createEvictBulkRequest());
+  reqid = mBulkRequest->getId().c_str();
+}
+
 void BulkRequestPrepareManager::addPathToBulkRequest(const std::string& path) {
   if(mBulkRequest != nullptr){
     mBulkRequest->addPath(path);
@@ -51,8 +56,7 @@ void BulkRequestPrepareManager::addPathToBulkRequest(const std::string& path) {
 }
 
 void BulkRequestPrepareManager::saveBulkRequest() {
-  //For now, only stage prepare request can be persisted
-  if(mBulkRequestBusiness != nullptr && isStagePrepare()){
+  if(mBulkRequestBusiness != nullptr && mBulkRequest != nullptr){
     try {
       mBulkRequestBusiness->saveBulkRequest(mBulkRequest);
     } catch(const PersistencyException & ex){

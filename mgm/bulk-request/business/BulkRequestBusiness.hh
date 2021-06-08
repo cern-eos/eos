@@ -54,7 +54,6 @@ public:
   void saveBulkRequest(const std::shared_ptr<BulkRequest> req);
 private:
   std::unique_ptr<AbstractDAOFactory> mDaoFactory;
-  void dispatchBulkRequestSave(const std::shared_ptr<BulkRequest> req);
 };
 
 EOSBULKNAMESPACE_END
