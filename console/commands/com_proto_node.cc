@@ -46,11 +46,7 @@ int com_protonode(char* arg)
     return EINVAL;
   }
 
-  global_retc = node.Execute(false);
-
-  if (global_retc) {
-    std::cerr << node.GetError();
-  }
+  global_retc = node.Execute();
 
   return global_retc;
 }

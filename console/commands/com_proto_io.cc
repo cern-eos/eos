@@ -178,11 +178,7 @@ int com_protoio(char* arg)
     return EINVAL;
   }
 
-  global_retc = io.Execute(false);
-
-  if (global_retc) {
-    std::cerr << io.GetError();
-  }
+  global_retc = io.Execute();
 
   return global_retc;
 }

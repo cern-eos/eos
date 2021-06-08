@@ -314,11 +314,7 @@ int com_protoaccess(char* arg)
     return EINVAL;
   }
 
-  global_retc = access.Execute(false);
-
-  if (global_retc) {
-    std::cerr << access.GetError();
-  }
+  global_retc = access.Execute();
 
   return global_retc;
 }
