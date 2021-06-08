@@ -285,7 +285,10 @@ TEST_F(BulkRequestPrepareManagerTest,evictPrepareFilesWorkflow){
   eos::mgm::bulk::BulkRequestPrepareManager pm(mgmOfs);
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
   //Evict prepare does not generate a bulk-request, so the bulk-request should be equal to nullptr
-  ASSERT_EQ(nullptr,pm.getBulkRequest());
+  std::shared_ptr<BulkRequest> bulkRequest = pm.getBulkRequest();
+  ASSERT_NE(nullptr,bulkRequest);
+  ASSERT_EQ(nbFiles,bulkRequest->getPaths().size());
+  ASSERT_EQ(BulkRequest::Type::PREPARE_EVICT,bulkRequest->getType());
   //Evict prepare returns SFS_OK
   ASSERT_EQ(SFS_OK,retPrepare);
 }
