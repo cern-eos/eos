@@ -50,6 +50,14 @@ protected:
    * @param reqid the request id that will be returned to the xrootd client
    */
   void initializeStagePrepareRequest(XrdOucString &reqid) override;
+
+  /**
+   * This overriding method will instanciate an evict bulk request and will affect the
+   * bulk-request reqid to the variable passed in parameter
+   * @param reqid the request id that will be returned to the xrootd client
+   */
+  void initializeEvictPrepareRequest(XrdOucString& reqid) override;
+
   /**
    * Adds the path passed in parameter to this instance's bulk-request
    * @param path the path to add to the bulk-request
