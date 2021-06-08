@@ -46,7 +46,8 @@ const std::string BulkRequest::bulkRequestTypeToString(const BulkRequest::Type &
 }
 
 const std::map<BulkRequest::Type,std::string> BulkRequest::BULK_REQ_TYPE_TO_STRING_MAP = {
-    {BulkRequest::PREPARE_STAGE,"PREPARE_STAGE"}
+    {BulkRequest::PREPARE_STAGE,"PREPARE_STAGE"},
+    {BulkRequest::PREPARE_EVICT,"PREPARE_EVICT"}
 };
 
 EOSBULKNAMESPACE_END
