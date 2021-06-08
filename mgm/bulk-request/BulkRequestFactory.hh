@@ -26,6 +26,7 @@
 
 #include "mgm/Namespace.hh"
 #include "mgm/bulk-request/prepare/StageBulkRequest.hh"
+#include <mgm/bulk-request/prepare/EvictBulkRequest.hh>
 
 EOSBULKNAMESPACE_BEGIN
 
@@ -40,6 +41,9 @@ public:
    * @return a new StageBulkRequest
    */
   static StageBulkRequest * createStageBulkRequest();
+
+  static EvictBulkRequest * createEvictBulkRequest();
+
 };
 
 EOSBULKNAMESPACE_END

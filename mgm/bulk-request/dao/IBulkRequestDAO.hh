@@ -38,9 +38,9 @@ class IBulkRequestDAO {
 public:
   /**
    * This method allows to persist a StageBulkRequest
-   * @param bulkRequest the Stage bulk request to save
+   * @param bulkRequest the bulk request to save
    */
-  virtual void saveBulkRequest(const std::shared_ptr<StageBulkRequest> bulkRequest) = 0;
+  virtual void saveBulkRequest(const std::shared_ptr<BulkRequest> bulkRequest) = 0;
 };
 
 EOSBULKNAMESPACE_END
