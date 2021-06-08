@@ -512,8 +512,8 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
 
   for (const auto& it: auth_ids) {
     shared_cap cap = GetTS(it);
-    // avoid processing if the cap doesn't exist
-    if (!(*cap)()->id()) {
+    // avoid processing if the cap doesn't exist or to a sent client
+    if (!(*cap)()->id() || clients_sent.count((*cap)()->clientuuid())) {
       continue;
     }
 
@@ -545,19 +545,17 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
                     (*cap)()->clientuuid().c_str(),
                     (*cap)()->authid().c_str());
 
-    if ((*cap)()->id() && !clients_sent.count((*cap)()->clientuuid())) {
-      // make sure we sent the update only once to each client, eveh if this
-      // one has many caps
-      clients_sent.insert((*cap)()->clientuuid());
-      gOFS->zMQ->gFuseServer.Client().SendMD(md,
-                                             (*cap)()->clientuuid(),
-                                             (*cap)()->clientid(),
-                                             md_ino,
-                                             md_pino,
-                                             clock,
-                                             p_mtime);
-      errno = 0; // avoid errno clobbering from ZMQ
-    }
+    // make sure we sent the update only once to each client, eveh if this
+    // one has many caps
+    clients_sent.insert((*cap)()->clientuuid());
+    gOFS->zMQ->gFuseServer.Client().SendMD(md,
+                                           (*cap)()->clientuuid(),
+                                           (*cap)()->clientid(),
+                                           md_ino,
+                                           md_pino,
+                                           clock,
+                                           p_mtime);
+    errno = 0; // avoid errno clobbering from ZMQ
   }
 
   if (n_suppressed) {
