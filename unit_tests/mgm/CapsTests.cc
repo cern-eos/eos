@@ -169,8 +169,8 @@ TEST_F(CapsTest, StoreUpdate) {
   EXPECT_EQ(mCaps.ncaps(), 1);
   std::string authid {"authid1"};
   auto k = mCaps.Get(authid);
-  EXPECT_EQ(k->id(),123);
-  EXPECT_EQ(k->clientid(), "cid1");
+  EXPECT_EQ((*k)()->id(),123);
+  EXPECT_EQ((*k)()->clientid(), "cid1");
 
   // now update this cap
   c1.set_clientid("clientid_1");
@@ -178,8 +178,8 @@ TEST_F(CapsTest, StoreUpdate) {
   EXPECT_EQ(mCaps.ncaps(), 2); // new vtime() -> new cap ?
   EXPECT_EQ(mCaps.GetCaps().size(), 1);
   auto k2 = mCaps.Get(authid);
-  EXPECT_EQ(k2->id(),123);
-  EXPECT_EQ(k2->clientid(), "clientid_1");
+  EXPECT_EQ((*k2)()->id(),123);
+  EXPECT_EQ((*k2)()->clientid(), "clientid_1");
 }
 
 TEST_F(CapsTest, StoreUpdateClientID) {
@@ -190,8 +190,8 @@ TEST_F(CapsTest, StoreUpdateClientID) {
   std::string authid {"authid1"};
 
   auto k = mCaps.Get(authid);
-  EXPECT_EQ(k->id(),123);
-  EXPECT_EQ(k->clientid(), "cid1");
+  EXPECT_EQ((*k)()->id(),123);
+  EXPECT_EQ((*k)()->clientid(), "cid1");
   // Test the 3 different views
   auto& client_caps = mCaps.ClientCaps();
   auto& ino_caps = mCaps.ClientInoCaps();
@@ -211,8 +211,8 @@ TEST_F(CapsTest, StoreUpdateClientID) {
   EXPECT_EQ(mCaps.ncaps(), 2); // new vtime -> more mTimeOrderedCap entry.
 
   auto k2 = mCaps.Get(authid);
-  EXPECT_EQ(k2->id(),123);
-  EXPECT_EQ(k2->clientid(), "clientid_1");
+  EXPECT_EQ((*k2)()->id(),123);
+  EXPECT_EQ((*k2)()->clientid(), "clientid_1");
 
   EXPECT_EQ(client_caps["cid1"].count("authid1"), 1);
   EXPECT_EQ(ino_caps["cid1"][123].count("authid1"),1);
@@ -232,8 +232,8 @@ TEST_F(CapsTest, StoreUpdateID) {
   std::string authid {"authid1"};
 
   auto k = mCaps.Get(authid);
-  EXPECT_EQ(k->id(),123);
-  EXPECT_EQ(k->clientid(), "cid1");
+  EXPECT_EQ((*k)()->id(),123);
+  EXPECT_EQ((*k)()->clientid(), "cid1");
   // Test the 3 different views
   auto& client_caps = mCaps.ClientCaps();
   auto& ino_caps = mCaps.ClientInoCaps();
@@ -252,8 +252,8 @@ TEST_F(CapsTest, StoreUpdateID) {
   EXPECT_EQ(mCaps.ncaps(), 2);
 
   auto k2 = mCaps.Get(authid);
-  EXPECT_EQ(k2->id(),1234);
-  EXPECT_EQ(k2->clientid(), "clientid_1");
+  EXPECT_EQ((*k2)()->id(),1234);
+  EXPECT_EQ((*k2)()->clientid(), "clientid_1");
 
   EXPECT_EQ(client_caps["cid1"].size(), 0);
   EXPECT_EQ(ino_caps["cid1"][123].size(),0);
@@ -395,7 +395,7 @@ TEST_F(CapsTest, BCCap)
 
 
   auto k = mCaps.Get(auth1);
-  EXPECT_EQ(k->id(), 1);
+  EXPECT_EQ((*k)()->id(), 1);
   int ret = mCaps.BroadcastCap(k);
   // This function returns -1 regardless whether cap exists or not
   EXPECT_EQ(ret, -1);
