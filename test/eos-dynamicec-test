@@ -21,18 +21,16 @@ function red() {
     echo -e "$RED$*$NORMAL"
 }
 
-eos mkdir /eos/dev/test2
+eos mkdir /eos/testarea/test2
 
-eos chmod 777 /eos/dev/test2
+eos chmod 777 /eos/testarea/test2
 
 
 #This is used for setting the systems different parameters in the directory
-eos attr set sys.forced.blocksize=1M /eos/dev/test2
-eos attr set sys.forced.layout=raid6 /eos/dev/test2
-eos attr set sys.forced.nstripes=6 /eos/dev/test2
-eos attr set sys.forced.nexcess=2 /eos/dev/test2
-
-#eos attr set sys.forced.blocksize=1M /eos/testarea/dynec/dynamicectest
+eos attr set sys.forced.blocksize=1M /eos/testarea/test2
+eos attr set sys.forced.layout=raid6 /eos/testarea/test2
+eos attr set sys.forced.nstripes=6 /eos/testarea/test2
+eos attr set sys.forced.nexcess=2 /eos/testarea/test2
 
 # Create dummy test files                                                                                              
 
@@ -42,7 +40,7 @@ TEST_FN2=/tmp/1mbfile.dat
 
 
 for name in {1..10}
-do eos cp ${TEST_FN1} /eos/dev/test2/filetest$name; done
+do eos cp ${TEST_FN1} /eos/testarea/test2/filetest$name; done
 
 sleep 10
 
@@ -56,7 +54,9 @@ val24=`eos space config default space.dynamicec.sleepwhendone=show`
 echo "val of the thres"
 echo $val20
 echo $val21
-
+echo $val22
+echo $val23
+echo $val24
 
 
 eos space config default space.dynamicec.minthreshold=0.0000001
@@ -76,15 +76,15 @@ echo "done configuration"
 
 sleep 330
 
-val=`eos file info /eos/dev/test2/filetest1 | grep Layout | awk '{print $10}'`
+val=`eos file info /eos/testarea/test2/filetest1 | grep Layout | awk '{print $10}'`
 echo $val
 
 if [ $val != "d3+2::t0" ];
 then
 red "This has a faliure for the system wich did fail."
 
-eos rm /eos/dev/test2/*
-eos rmdir /eos/dev/test2
+eos rm /eos/testarea/test2/*
+eos rmdir /eos/testarea/test2
 
 eos space config default space.dynamicec.maxthreshold=$val21
 eos space config default space.dynamicec.minthreshold=$val20
@@ -101,20 +101,20 @@ fi
 green "Succes for the test part 1, now we will try again."
 
 for name in {11..20}
-do eos cp ${TEST_FN1} /eos/dev/test2/filetest$name; done
+do eos cp ${TEST_FN1} /eos/testarea/test2/filetest$name; done
 
 
 sleep 330
 
-val=`eos file info /eos/dev/test2/filetest11 | grep Layout | awk '{print $10}'`
+val=`eos file info /eos/testarea/test2/filetest11 | grep Layout | awk '{print $10}'`
 echo $val
 
 if [ $val != "d3+2::t0" ];
 then
 red "This has a faliure for the system wich did fail to clean up for the second wave of files and are not reliable."
 
-eos rm /eos/dev/test2/*
-eos rmdir /eos/dev/test2
+eos rm /eos/testarea/test2/*
+eos rmdir /eos/testarea/test2
 
 eos space config default space.dynamicec.maxthreshold=$val21
 eos space config default space.dynamicec.minthreshold=$val20
@@ -130,8 +130,8 @@ fi
 
 green "both test had succes"
 
-eos rm /eos/dev/test2/*
-eos rmdir /eos/dev/test2
+eos rm /eos/testarea/test2/*
+eos rmdir /eos/testarea/test2
 
 eos space config default space.dynamicec.maxthreshold=$val21
 eos space config default space.dynamicec.minthreshold=$val20
