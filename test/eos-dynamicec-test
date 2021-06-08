@@ -1,4 +1,4 @@
-#!/bin/bash
+B#!/bin/bash
 
 
 #--------------------------------------------------------------------------------------
@@ -74,7 +74,7 @@ eos space config default space.dynamicec.restartscan=on
 
 echo "done configuration"
 
-sleep 330
+sleep 360
 
 val=`eos file info /eos/testarea/test2/filetest1 | grep Layout | awk '{print $10}'`
 echo $val
@@ -104,7 +104,7 @@ for name in {11..20}
 do eos cp ${TEST_FN1} /eos/testarea/test2/filetest$name; done
 
 
-sleep 330
+sleep 360
 
 val=`eos file info /eos/testarea/test2/filetest11 | grep Layout | awk '{print $10}'`
 echo $val
