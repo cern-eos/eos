@@ -1256,6 +1256,7 @@ rpm_testing_artifacts:
     - publish
   only:
     - master
+    - eos5
     - tags
   retry: 1
 
