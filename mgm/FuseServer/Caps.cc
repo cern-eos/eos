@@ -149,6 +149,13 @@ FuseServer::Caps::GetTS(const FuseServer::Caps::authid_t& id)
   return Get(id);
 }
 
+const FuseServer::Caps::capx*
+FuseServer::Caps::GetRaw(const FuseServer::Caps::authid_t& id)
+{
+  auto kv = mCaps.find(id);
+  return kv != mCaps.end() ? kv->second.get() : nullptr;
+}
+
 //------------------------------------------------------------------------------
 // Get Broadcast Caps
 //----------------------------------------------------------------------------
