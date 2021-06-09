@@ -465,7 +465,7 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
 
   {
     eos::common::RWMutexReadLock lLock(*this);
-    refcap = Get(md.authid());
+    refcap = Get(md.authid(), false);
 
     auto kv = mInodeCaps.find(md_pino);
     if (kv == mInodeCaps.end()) {
@@ -500,7 +500,10 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
   }
 
   for (const auto& it: auth_ids) {
-    shared_cap cap = GetTS(it);
+    shared_cap cap = GetTS(it, false);
+    if (!cap) {
+      continue;
+    }
     // avoid processing if the cap doesn't exist or to a sent client
     if (!(*cap)()->id() || clients_sent.count((*cap)()->clientuuid())) {
       continue;
