@@ -219,8 +219,15 @@ public:
 
   int Delete(uint64_t id);
 
-  shared_cap GetTS(const authid_t& id);
-  shared_cap Get(const authid_t& id);
+  shared_cap Get(const authid_t& id, bool make_default=true);
+
+  template <typename... Args>
+  auto GetTS(Args&&... args) {
+    eos::common::RWMutexReadLock lLock(*this);
+    return Get(std::forward<Args>(args)...);
+  }
+
+  const capx* GetRaw(const authid_t& id);
 
   int BroadcastCap(shared_cap cap);
   int BroadcastRelease(const eos::fusex::md&
