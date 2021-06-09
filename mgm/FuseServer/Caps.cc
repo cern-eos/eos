@@ -130,24 +130,13 @@ FuseServer::Caps::Imply(uint64_t md_ino,
 // Get shared capability - one needs to hold (at least) the read lock
 //------------------------------------------------------------------------------
 FuseServer::Caps::shared_cap
-FuseServer::Caps::Get(const FuseServer::Caps::authid_t& id)
+FuseServer::Caps::Get(const FuseServer::Caps::authid_t& id, bool make_default)
 {
   if (auto kv = mCaps.find(id);
       kv != mCaps.end()) {
     return kv->second;
-  } else {
-    return std::make_shared<capx>();
   }
-}
-
-//------------------------------------------------------------------------------
-// Get shared capability - thread safe
-//------------------------------------------------------------------------------
-FuseServer::Caps::shared_cap
-FuseServer::Caps::GetTS(const FuseServer::Caps::authid_t& id)
-{
-  eos::common::RWMutexReadLock lLock(*this);
-  return Get(id);
+  return make_default ? std::make_shared<capx>() : nullptr;
 }
 
 //------------------------------------------------------------------------------
