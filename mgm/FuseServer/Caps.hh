@@ -239,6 +239,7 @@ public:
   const capx* GetRaw(const authid_t& id);
 
   int BroadcastCap(shared_cap cap);
+
   int BroadcastRelease(const eos::fusex::md&
                        md); // broad cast triggered by fuse network
 
