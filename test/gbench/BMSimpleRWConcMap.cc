@@ -35,7 +35,7 @@ public:
     eos::common::RWMutexReadLock rLock(*this);
     std::vector<key_type> result;
     for (const auto& kv: cmap) {
-      result.push_back(kv);
+      result.push_back(kv.first);
     }
     return result;
   }
@@ -202,10 +202,6 @@ BENCHMARK_DEFINE_F(CMFixedFixture, BM_ReadVectorTS)(benchmark::State& state) {
     for (int i=0; i < r_thread_sz; i++) {
       reader_threads.emplace_back(std::thread([&]() {
         auto keys = cm.get_all_keys();
-        for (int i=0; i < sz; i++) {
-          auto it = keys.find(std::to_string(std::rand() % sz));
-          if (it != keys.end()) { count++; }
-        }
       }));
     }
 
