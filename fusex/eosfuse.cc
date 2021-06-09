@@ -331,9 +331,18 @@ EosFuse::run(int argc, char* argv[], void* userdata)
   std::string jsonconfiglocal;
 
   if (geteuid()) {
-    jsonconfig = getenv("HOME");
+    if (getenv("HOME")) {
+      jsonconfig = getenv("HOME");
+    } else {
+      fprintf(stderr,"# warning: HOME environment not defined\n");
+      jsonconfig = ".";
+    }
     jsonconfig += "/.eos/fuse";
-    default_ssskeytab = getenv("HOME");
+    if (getenv("HOME")) {
+      default_ssskeytab = getenv("HOME");
+    } else {
+      default_ssskeytab = ".";
+    }
     default_ssskeytab += "/.eos/fuse.sss.keytab";
   }
 
@@ -1145,13 +1154,21 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       if (geteuid()) {
         if (!cconfig.location.length()) {
           cconfig.location = "/var/tmp/eos/fusex/cache/";
-          cconfig.location += getenv("USER");
+	  if (getenv("USER")) {
+	    cconfig.location += getenv("USER");
+	  } else {
+	    cconfig.location += std::to_string(geteuid());
+	  }
           cconfig.location += "/";
         }
 
         if (!cconfig.journal.length()) {
           cconfig.journal = "/var/tmp/eos/fusex/cache/";
-          cconfig.journal += getenv("USER");
+	  if (getenv("USER")) {
+	    cconfig.journal += getenv("USER");
+	  } else {
+	    cconfig.location +=std::to_string(geteuid());
+	  }
           cconfig.journal += "/";
         }
 
