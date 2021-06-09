@@ -152,10 +152,18 @@ FuseServer::Caps::GetTS(const FuseServer::Caps::authid_t& id)
 const FuseServer::Caps::capx*
 FuseServer::Caps::GetRaw(const FuseServer::Caps::authid_t& id)
 {
+  eos::common::RWMutexReadLock lLock(*this);
   auto kv = mCaps.find(id);
   return kv != mCaps.end() ? kv->second.get() : nullptr;
 }
 
+FuseServer::Caps::shared_cap
+FuseServer::Caps::GetUnsafe(const FuseServer::Caps::authid_t& id)
+{
+  eos::common::RWMutexReadLock lLock(*this);
+  auto kv = mCaps.find(id);
+  return kv != mCaps.end() ? kv->second : nullptr;
+}
 //------------------------------------------------------------------------------
 // Get Broadcast Caps
 //----------------------------------------------------------------------------

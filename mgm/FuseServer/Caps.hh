@@ -221,6 +221,7 @@ public:
 
   shared_cap GetTS(const authid_t& id);
   shared_cap Get(const authid_t& id);
+  shared_cap GetUnsafe(const authid_t& id);
   const capx* GetRaw(const authid_t& id);
 
   int BroadcastCap(shared_cap cap);
