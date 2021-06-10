@@ -764,6 +764,7 @@ FuseServer::Clients::Dropcaps(const std::string& uuid, std::string& out)
       return ENOENT;
     }
   }
+
   out += " dropping caps of '";
   out += uuid;
   out += "' : ";
