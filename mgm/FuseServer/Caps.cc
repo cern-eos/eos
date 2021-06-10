@@ -478,9 +478,12 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
               kv->second.end(),
               std::back_inserter(auth_ids));
   }
-  eos_static_info("id=%lx/%lx clientid=%s clientuuid=%s authid=%s",
-                  (*refcap)()->id(), md_pino, (*refcap)()->clientid().c_str(),
-                  (*refcap)()->clientuuid().c_str(), (*refcap)()->authid().c_str());
+
+  if (refcap != nullptr) {
+    eos_static_info("id=%lx/%lx clientid=%s clientuuid=%s authid=%s",
+                    (*refcap)()->id(), md_pino, (*refcap)()->clientid().c_str(),
+                    (*refcap)()->clientuuid().c_str(), (*refcap)()->authid().c_str());
+  }
 
   bool suppress_audience = false;
   regex_t regex;
