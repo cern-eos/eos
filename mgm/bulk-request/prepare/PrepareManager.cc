@@ -76,7 +76,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
     mMgmFsInterface.addStats("Prepare",vid.uid, vid.gid, nbFilesInPrepareRequest);
   }
   std::string cmd = "mgm.pcmd=event";
-  std::list<std::pair<char**, char**>> pathsWithPrepare;
+  std::list<std::pair<char**, char**>> pathsToPrepare;
   // Initialise the request ID for the Prepare request to the one provided by XRootD
   XrdOucString reqid(pargs.reqid);
   // Validate the event type
@@ -198,7 +198,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
       }
 
       if (foundPrepareTag) {
-        pathsWithPrepare.emplace_back(&(pptr->text),
+        pathsToPrepare.emplace_back(&(pptr->text),
                                       optr != nullptr ? & (optr->text) : nullptr);
       } else {
         // don't do workflow if no such tag
@@ -216,6 +216,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
       //The user will then have to query prepare to figure out that the directory where the files are located has
       //no workflow permission
       eos_info("msg=\"Ignoring file because there is no workflow permission\" path=\"%s\"",prep_path.c_str());
+      pathsToPrepare.pop_back();
       goto nextPath;
     }
 
@@ -234,7 +235,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
   }
 
   //Trigger the prepare workflow
-  triggerPrepareWorkflow(pathsWithPrepare,cmd,event,reqid,error,vid);
+  triggerPrepareWorkflow(pathsToPrepare,cmd,event,reqid,error,vid);
 
   int retc = SFS_OK;
 #if (XrdMajorVNUM(XrdVNUMBER) == 4 && XrdMinorVNUM(XrdVNUMBER) >= 10) || XrdMajorVNUM(XrdVNUMBER) >= 5
