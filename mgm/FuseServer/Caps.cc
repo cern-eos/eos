@@ -536,11 +536,11 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
       }
     }
 
-    eos_static_info("id=%lx clientid=%s clientuuid=%s authid=%s",
-                    cap->id(),
-                    cap->clientid().c_str(),
-                    cap->clientuuid().c_str(),
-                    cap->authid().c_str());
+    eos_static_debug("id=%lx clientid=%s clientuuid=%s authid=%s",
+                     cap->id(),
+                     cap->clientid().c_str(),
+                     cap->clientuuid().c_str(),
+                     cap->authid().c_str());
 
     if (!clients_sent.count(cap->clientuuid())) {
       // make sure we sent the update only once to each client, even if this
