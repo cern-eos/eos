@@ -1101,11 +1101,6 @@ XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 
     rsp.is_exists = true;
 
-    if (_access(prep_path.c_str(), P_OK, error, vid, "")) {
-      rsp.error_text = "you don't have workflow permission";
-      continue;
-    }
-
     // Check file state (online/offline)
     XrdOucErrInfo xrd_error;
     struct stat buf;

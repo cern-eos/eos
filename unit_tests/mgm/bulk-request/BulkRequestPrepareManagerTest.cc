@@ -175,6 +175,46 @@ TEST_F(BulkRequestPrepareManagerTest,stagePrepareOneFileDoNotExistReturnsSfsData
   ASSERT_EQ(SFS_DATA,retPrepare);
 }
 
+TEST_F(BulkRequestPrepareManagerTest,stagePrepareNoPreparePermission){
+  //prepare stage should be idempotent https://its.cern.ch/jira/projects/EOS/issues/EOS-4739
+  int nbFiles = 3;
+  std::vector<std::string> paths = PrepareManagerTest::generateDefaultPaths(nbFiles);
+  std::vector<std::string> oinfos = PrepareManagerTest::generateEmptyOinfos(nbFiles);
+
+  MockPrepareMgmFSInterface mgmOfs;
+  //addStats should be called only two times
+  EXPECT_CALL(mgmOfs,addStats).Times(2);
+  //isTapeEnabled should not be called as we are in the case where everything is fine
+  EXPECT_CALL(mgmOfs,isTapeEnabled).Times(0);
+  //As everything is fine, no Emsg should be called
+  EXPECT_CALL(mgmOfs,Emsg).Times(0);
+  //Everything is fine, all the files exist
+  ON_CALL(mgmOfs,_exists(_,_,_,_,_)).WillByDefault(Invoke(
+      MockPrepareMgmFSInterface::_EXISTS_FILE_EXISTS_LAMBDA));
+  //the _exists method should be called for all files
+  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_)).Times(nbFiles);
+  ON_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_))
+      .WillByDefault(Invoke(
+          MockPrepareMgmFSInterface::_ATTR_LS_STAGE_PREPARE_LAMBDA
+      ));
+  EXPECT_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_)).Times(nbFiles);
+  EXPECT_CALL(mgmOfs,Emsg).Times(0);
+  //Access should
+  EXPECT_CALL(mgmOfs,_access).Times(nbFiles).WillRepeatedly(Return(SFS_ERROR));
+  EXPECT_CALL(mgmOfs,FSctl).Times(0);
+
+  ClientWrapper client = PrepareManagerTest::getDefaultClient();
+  PrepareArgumentsWrapper pargs("testReqId",Prep_STAGE,oinfos,paths);
+  ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
+  XrdOucErrInfo * error = errorWrapper.getError();
+
+  eos::mgm::bulk::BulkRequestPrepareManager pm(mgmOfs);
+  int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
+
+  ASSERT_EQ(nbFiles,pm.getBulkRequest()->getPaths().size());
+  ASSERT_EQ(SFS_DATA,retPrepare);
+}
+
 TEST_F(BulkRequestPrepareManagerTest,abortPrepareFilesWorkflow){
   int nbFiles = 3;
   std::vector<std::string> paths = PrepareManagerTest::generateDefaultPaths(nbFiles);
