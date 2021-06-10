@@ -16,6 +16,19 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.51 Citrine``
+===================
+
+2021-06-10
+
+Bug
+----
+
+* [EOS-4740] MGM: Make sure only the master MGM propagates changes to the configuration engine.
+* SPEC: Fix ownership of archive directories
+* CONSOLE: Prevent to print out twice an error in selected proto commands
+
+
 ``v4.8.50 Citrine``
 ===================
 
