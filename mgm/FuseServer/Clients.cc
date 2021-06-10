@@ -968,7 +968,7 @@ FuseServer::Clients::SendMD(const eos::fusex::md& md,
 
   std::string id = mUUIDView[uuid];
   lLock.Release();
-  eos_static_info("msg=\"sending md update\" uuid=%s clientid=%s id=%lx",
+  eos_static_debug("msg=\"sending md update\" uuid=%s clientid=%s id=%lx",
                   uuid.c_str(), clientid.c_str(), md_ino);
   gOFS->zMQ->mTask->reply(id, rspstream);
   EXEC_TIMING_END("Eosxd::int::SendMD");
