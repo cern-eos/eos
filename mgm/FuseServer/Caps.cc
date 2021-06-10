@@ -372,6 +372,7 @@ FuseServer::Caps::BroadcastRefresh(uint64_t inode,
     refcap = Get(md.authid(), false);
 
     auto kv = mInodeCaps.find(parent_inode);
+
     if (kv == mInodeCaps.end()) {
       EXEC_TIMING_END("Eosxd::int::BcRefresh");
       return 0; // nothing to process here
