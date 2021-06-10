@@ -474,6 +474,7 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
     }
 
     auto kv = mInodeCaps.find(md_pino);
+
     if (kv == mInodeCaps.end()) {
       EXEC_TIMING_END("Eosxd::int::BcMD");
       return 0; // nothing to process here
