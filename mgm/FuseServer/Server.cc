@@ -186,13 +186,14 @@ Server::MonitorCaps() noexcept
       } quotainfo_t;
       std::map<std::string, quotainfo_t> qmap;
       {
-        eos::common::RWMutexReadLock lLock(Cap());
+        //eos::common::RWMutexReadLock lLock(Cap());
+
 
         if (EOS_LOGS_DEBUG) {
           eos_static_debug("looping over caps n=%d", Cap().GetCaps().size());
         }
 
-        for (const auto& it: Cap().GetCaps()) {
+        for (auto& it: Cap().GetAllCaps()) {
           if (EOS_LOGS_DEBUG) {
             eos_static_debug("cap q-node %lx", (*it.second)()->_quota().quota_inode());
           }
@@ -240,16 +241,7 @@ Server::MonitorCaps() noexcept
                 ((avail_files && avail_bytes) &&
                  (outofquota.count(*auit)))) { // first time back to quota
               // send the changed quota information via a cap update
-              FuseServer::Caps::shared_cap cap;
-              {
-                eos::common::RWMutexReadLock lLock(Cap());
-
-                if (auto kv = Cap().GetCaps().find(*auit);
-                    kv != Cap().GetCaps().end()) {
-                  cap = kv->second;
-                }
-              }
-
+              auto cap = Cap().GetTS(*auit);
               if (cap) {
                 (*cap)()->mutable__quota()->set_inode_quota(avail_files);
                 (*cap)()->mutable__quota()->set_volume_quota(avail_bytes);
@@ -573,27 +565,15 @@ Server::FillContainerCAP(uint64_t id,
 
     // check if the client has already a cap, in case yes, we don't return a new
     // one
-    eos::common::RWMutexReadLock lLock(Cap());
-
-    if (Cap().ClientInoCaps().count(dir.clientid())) {
-      if (Cap().ClientInoCaps()[dir.clientid()].count(id)) {
-        return true;
-      }
+    if (Cap().HasInodeId(dir.clientid(), id)) {
+      return true;
     }
   } else {
     // avoid to pile-up caps for the same client, delete previous ones
-    eos::common::RWMutexReadLock lLock(Cap());
-
-    if (Cap().ClientInoCaps().count(dir.clientid())) {
-      if (Cap().ClientInoCaps()[dir.clientid()].count(id)) {
-        for (auto it = Cap().ClientInoCaps()[dir.clientid()][id].begin();
-             it != Cap().ClientInoCaps()[dir.clientid()][id].end(); ++it) {
-          if (*it != reuse_uuid) {
-            duplicated_caps.insert(*it);
-          }
-        }
-      }
-    }
+    //eos::common::RWMutexReadLock lLock(Cap());
+    auto auth_ids = Cap().GetInodeCapAuthIds(dir.clientid(), id);
+    auth_ids.erase(reuse_uuid);
+    duplicated_caps = std::move(auth_ids);
   }
 
   dir.mutable_capability()->set_id(id);
@@ -849,11 +829,9 @@ Server::FillContainerCAP(uint64_t id,
   Cap().Store(dir.capability(), &vid);
 
   if (duplicated_caps.size()) {
-    eos::common::RWMutexWriteLock lLock(Cap());
-
     for (auto it = duplicated_caps.begin(); it != duplicated_caps.end(); ++it) {
       eos_static_debug("removing duplicated cap %s\n", it->c_str());
-      Caps::shared_cap cap = Cap().Get(*it);
+      Caps::shared_cap cap = Cap().GetTS(*it);
       Cap().Remove(cap);
     }
   }
