@@ -468,6 +468,10 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
   {
     std::lock_guard lg(mtx);
     refcap = Get(md.authid(), false);
+    if (refcap == nullptr) {
+      EXEC_TIMING_END("Eosxd::int::BcMD");
+      return 0;
+    }
 
     if (refcap == nullptr) {
       EXEC_TIMING_END("Eosxd::int::BcMD");
