@@ -1484,7 +1484,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   eos::common::RWMutex* quota_mtx = &Quota::pMapMutex;
   eos::common::RWMutex* ns_mtx = &eosViewRWMutex;
   eos::common::RWMutex* fusex_client_mtx = &gOFS->zMQ->gFuseServer.Client();
-  eos::common::RWMutex* fusex_cap_mtx = &gOFS->zMQ->gFuseServer.Cap();
+  //eos::common::RWMutex* fusex_cap_mtx = &gOFS->zMQ->gFuseServer.Cap();
   // eos::common::RWMutex::EstimateLatenciesAndCompensation();
   fs_mtx->SetBlocking(true);
   fs_mtx->SetDebugName("FsView");
@@ -1497,12 +1497,12 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   ns_mtx->SetTiming(false);
   ns_mtx->SetSampling(true, 0.01);
   fusex_client_mtx->SetDebugName("FusexClient");
-  fusex_cap_mtx->SetDebugName("FusexCap");
+  //fusex_cap_mtx->SetDebugName("FusexCap");
   std::vector<eos::common::RWMutex*> order;
   order.push_back(fs_mtx);
   order.push_back(ns_mtx);
   order.push_back(fusex_client_mtx);
-  order.push_back(fusex_cap_mtx);
+  //order.push_back(fusex_cap_mtx);
   order.push_back(quota_mtx);
   eos::common::RWMutex::AddOrderRule("Eos Mgm Mutexes", order);
 #endif
