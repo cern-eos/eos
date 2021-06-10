@@ -186,8 +186,6 @@ Server::MonitorCaps() noexcept
       } quotainfo_t;
       std::map<std::string, quotainfo_t> qmap;
       {
-        //eos::common::RWMutexReadLock lLock(Cap());
-
 
         if (EOS_LOGS_DEBUG) {
           eos_static_debug("looping over caps n=%d", Cap().GetCaps().size());
@@ -570,7 +568,6 @@ Server::FillContainerCAP(uint64_t id,
     }
   } else {
     // avoid to pile-up caps for the same client, delete previous ones
-    //eos::common::RWMutexReadLock lLock(Cap());
     auto auth_ids = Cap().GetInodeCapAuthIds(dir.clientid(), id);
     auth_ids.erase(reuse_uuid);
     duplicated_caps = std::move(auth_ids);
