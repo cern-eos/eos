@@ -832,7 +832,7 @@ Server::FillContainerCAP(uint64_t id,
     for (auto it = duplicated_caps.begin(); it != duplicated_caps.end(); ++it) {
       eos_static_debug("removing duplicated cap %s\n", it->c_str());
       Caps::shared_cap cap = Cap().GetTS(*it);
-      Cap().Remove(cap);
+      Cap().RemoveTS(cap);
     }
   }
 

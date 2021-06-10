@@ -185,9 +185,15 @@ public:
     }
   }
 
-  bool Remove(shared_cap cap)
+  template <typename... Args>
+  bool RemoveTS(Args&&... args)
   {
     std::lock_guard lg(mtx);
+    return Remove(std::forward<Args>(args)...);
+  }
+
+  bool Remove(shared_cap cap)
+  {
     // you have to have a write lock for the caps
     bool rc = mCaps.erase(cap->authid());
 
