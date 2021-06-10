@@ -199,6 +199,7 @@ public:
 
   bool Remove(shared_cap cap)
   {
+    std::lock_guard lg(mtx);
     // you have to have a write lock for the caps
     bool rc = mCaps.erase((*cap)()->authid());
 

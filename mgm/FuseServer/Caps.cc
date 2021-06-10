@@ -112,7 +112,6 @@ FuseServer::Caps::Imply(uint64_t md_ino,
       eos::common::RWMutexReadLock lLock(gOFS->zMQ->gFuseServer.Client());
       leasetime = gOFS->zMQ->gFuseServer.Client().leasetime((*cap)()->clientuuid());
     }
-    //eos::common::RWMutexWriteLock lock(*this);
     (*implied_cap)()->set_vtime(ts.tv_sec + (leasetime ? leasetime : 300));
     (*implied_cap)()->set_vtime_ns(ts.tv_nsec);
     // fill the three views on caps
