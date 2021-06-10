@@ -264,7 +264,7 @@ FuseServer::Clients::Dispatch(const std::string identity,
 
       // revoke LEASES by cap
       for (auto it = caps_to_revoke.begin(); it != caps_to_revoke.end(); ++it) {
-        gOFS->zMQ->gFuseServer.Cap().Remove(*it);
+        gOFS->zMQ->gFuseServer.Cap().RemoveTS(*it);
       }
 
       EXEC_TIMING_END("Eosxd::int::AuthRevocation");
@@ -810,7 +810,7 @@ FuseServer::Clients::Dropcaps(const std::string& uuid, std::string& out)
         (*scap)->clientid());
     eos_static_info("erasing %llx %s %s", (*scap)->id(),
                     (*scap)->clientid().c_str(), (*scap)->authid().c_str());
-    gOFS->zMQ->gFuseServer.Cap().Remove(*scap);
+    gOFS->zMQ->gFuseServer.Cap().RemoveTS(*scap);
   }
 
   return 0;
