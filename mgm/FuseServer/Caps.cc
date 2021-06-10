@@ -466,6 +466,10 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
   {
     eos::common::RWMutexReadLock lLock(*this);
     refcap = Get(md.authid(), false);
+    if (refcap == nullptr) {
+      EXEC_TIMING_END("Eosxd::int::BcMD");
+      return 0;
+    }
 
     auto kv = mInodeCaps.find(md_pino);
     if (kv == mInodeCaps.end()) {
