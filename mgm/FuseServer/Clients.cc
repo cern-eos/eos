@@ -322,18 +322,6 @@ FuseServer::Clients::Print(std::string& out, std::string options)
   struct timespec tsnow;
   eos::common::Timing::GetTimeSpec(tsnow);
   std::unordered_map<std::string, size_t> clientcaps;
-  /*{
-    eos::common::RWMutexReadLock lLock(gOFS->zMQ->gFuseServer.Cap());
-
-    // count caps per client uuid
-       for (const auto& it : gOFS->zMQ->gFuseServer.Cap().InodeCaps()) {
-      for (const auto& sit : it.second) {
-        if (auto cap = gOFS->zMQ->gFuseServer.Cap().Get(sit);
-            cap->id()) {
-          clientcaps[cap->clientuuid()]++;
-        }
-      }
-      }*/
 
   for (const auto & cap : gOFS->zMQ->gFuseServer.Cap().GetAllCaps()) {
     if (cap->id()) {
@@ -780,15 +768,7 @@ FuseServer::Clients::Dropcaps(const std::string& uuid, std::string& out)
   out += uuid;
   out += "' : ";
   std::set<FuseServer::Caps::shared_cap> cap2delete;
-  //  eos::common::RWMutexWriteLock lLock(gOFS->zMQ->gFuseServer.Cap());
 
-  /* for (auto it = gOFS->zMQ->gFuseServer.Cap().InodeCaps().begin();
-       it != gOFS->zMQ->gFuseServer.Cap().InodeCaps().end(); ++it) {
-    for (auto sit = it->second.begin(); sit != it->second.end(); ++sit) {
-
-    if (auto cap = gOFS->zMQ->gFuseServer.Cap().Get(*sit);
-          cap->id()) {
-  */
   for (auto cap: gOFS->zMQ->gFuseServer.Cap().GetAllCaps()) {
     if (cap->clientuuid() == uuid) {
           cap2delete.insert(cap);
