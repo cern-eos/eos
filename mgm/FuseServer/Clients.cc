@@ -322,18 +322,6 @@ FuseServer::Clients::Print(std::string& out, std::string options)
   struct timespec tsnow;
   eos::common::Timing::GetTimeSpec(tsnow);
   std::unordered_map<std::string, size_t> clientcaps;
-  /*{
-    eos::common::RWMutexReadLock lLock(gOFS->zMQ->gFuseServer.Cap());
-
-    // count caps per client uuid
-       for (const auto& it : gOFS->zMQ->gFuseServer.Cap().InodeCaps()) {
-      for (const auto& sit : it.second) {
-        if (auto cap = gOFS->zMQ->gFuseServer.Cap().Get(sit);
-            (*cap)()->id()) {
-          clientcaps[(*cap)()->clientuuid()]++;
-        }
-      }
-      }*/
 
   for (const auto & cap : gOFS->zMQ->gFuseServer.Cap().GetAllCaps()) {
     if (cap->id()) {
