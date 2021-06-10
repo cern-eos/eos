@@ -368,7 +368,7 @@ FuseServer::Caps::BroadcastRefresh(uint64_t inode,
 
   {
     eos::common::RWMutexReadLock lLock(*this);
-    refcap = Get(md.authid());
+    refcap = Get(md.authid(), false);
 
     auto kv = mInodeCaps.find(parent_inode);
     if (kv == mInodeCaps.end()) {
