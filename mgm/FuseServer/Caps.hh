@@ -268,9 +268,48 @@ public:
     return mCaps;
   }
 
+  auto GetAllCaps() {
+
+    std::vector<shared_cap> results;
+
+    std::lock_guard lg(mtx);
+    for (const auto& kv: mCaps) {
+      results.push_back(kv.second);
+    }
+    return results;
+  }
+
   bool HasCap(authid_t authid)
   {
     return (this->mCaps.count(authid) ? true : false);
+  }
+
+  bool HasInodeId(const std::string& client_id,
+                  uint64_t id)
+  {
+    std::lock_guard lg(mtx);
+    if (auto kv = mClientInoCaps.find(client_id);
+        kv != mClientInoCaps.end()) {
+      return kv->second.count(id) > 0;
+    }
+    return false;
+  }
+
+  authid_set_t GetInodeCapAuthIds(const std::string& client_id,
+                                  uint64_t id)
+  {
+    authid_set_t results;
+    std::lock_guard lg(mtx);
+    if (auto kv = mClientInoCaps.find(client_id);
+        kv != mClientInoCaps.end()) {
+      if (auto auth_ids = kv->second.find(id);
+          auth_ids != kv->second.end()) {
+        std::copy(auth_ids->second.begin(),
+                  auth_ids->second.end(),
+                  std::inserter(results, results.begin()));
+      }
+    }
+    return results;
   }
 
   notify_set_t& InodeCaps()
@@ -295,7 +334,7 @@ public:
 
   std::string Dump() {
     std::string s;
-    eos::common::RWMutexReadLock lock(*this);
+    std::lock_guard lg(mtx);
     s = std::to_string(mTimeOrderedCap.size()) + " c: " + std::to_string(mCaps.size()) + " cc: "
       + std::to_string(mClientCaps.size()) + " cic: " + std::to_string(mClientInoCaps.size()) + " ic: "
       + std::to_string(mInodeCaps.size());
