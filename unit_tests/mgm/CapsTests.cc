@@ -99,6 +99,7 @@ protected:
     delete fake_sys_error;
     delete fake_ofs;
     delete test_env;
+    gOFS = nullptr;
   }
 
   static XrdSysError* fake_sys_error;
