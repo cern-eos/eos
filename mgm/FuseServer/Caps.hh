@@ -41,7 +41,7 @@ EOSFUSESERVERNAMESPACE_BEGIN
 //----------------------------------------------------------------------------
 //! Class Caps
 //----------------------------------------------------------------------------
-class Caps : public eos::common::RWMutex
+class Caps
 {
   friend class FuseServer;
 public:
@@ -75,10 +75,7 @@ public:
 
   typedef std::shared_ptr<capx> shared_cap;
 
-  Caps(): eos::common::RWMutex()
-  {
-    mBlocking = true;
-  }
+  Caps() = default;
 
   virtual ~Caps() = default;
 
@@ -98,13 +95,13 @@ public:
 
   ssize_t ncaps()
   {
-    eos::common::RWMutexReadLock lock(*this);
+    std::lock_guard lg(mtx);
     return mTimeOrderedCap.size();
   }
 
   void pop()
   {
-    eos::common::RWMutexWriteLock lock(*this);
+    std::lock_guard lg(mtx);
 
     if (!mTimeOrderedCap.empty()) {
       mTimeOrderedCap.erase(mTimeOrderedCap.begin());
@@ -113,7 +110,7 @@ public:
 
   bool expire()
   {
-    eos::common::RWMutexWriteLock lock(*this);
+    std::lock_guard lg(mtx);
     authid_t id;
     time_t idtime = 0;
 
@@ -158,7 +155,7 @@ public:
 
     std::vector<shared_cap> deleteme;
     {
-      eos::common::RWMutexReadLock lock(*this);
+      std::lock_guard lg(mtx);
 
       for (auto it=mCaps.begin(); it!=mCaps.end(); ++it) {
         if (it->second->clientuuid() == uuid) {
@@ -168,7 +165,7 @@ public:
     }
     {
       for (auto it=deleteme.begin(); it!=deleteme.end(); ++it) {
-	eos::common::RWMutexWriteLock lock(*this);
+        std::lock_guard lg(mtx);
         shared_cap cap = *it;
         Remove(*it);
       }
@@ -176,7 +173,7 @@ public:
 
     // cleanup by client ids
     {
-      eos::common::RWMutexWriteLock lock(*this);
+      std::lock_guard lg(mtx);
       auto uuid_iter = mClientIds.find(uuid);
       if (uuid_iter != mClientIds.end()) {
         for (auto it = uuid_iter->second.begin(); it != uuid_iter->second.end(); ++it) {
@@ -190,6 +187,7 @@ public:
 
   bool Remove(shared_cap cap)
   {
+    std::lock_guard lg(mtx);
     // you have to have a write lock for the caps
     bool rc = mCaps.erase(cap->authid());
 
@@ -223,7 +221,7 @@ public:
 
   template <typename... Args>
   auto GetTS(Args&&... args) {
-    eos::common::RWMutexReadLock lLock(*this);
+    std::lock_guard lg(mtx);
     return Get(std::forward<Args>(args)...);
   }
 
@@ -315,6 +313,8 @@ public:
 
 
 protected:
+
+  std::mutex mtx;
   // a time ordered multimap pointing to caps
   std::multimap< time_t, authid_t > mTimeOrderedCap;
   // authid=>cap lookup map
