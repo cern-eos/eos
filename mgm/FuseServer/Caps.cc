@@ -48,7 +48,7 @@ FuseServer::Caps::Store(const eos::fusex::cap& ecap,
 {
   gOFS->MgmStats.Add("Eosxd::int::Store", 0, 0, 1);
   EXEC_TIMING_BEGIN("Eosxd::int::Store");
-  eos::common::RWMutexWriteLock lLock(*this);
+  std::lock_guard lg(mtx);
   eos_static_info("id=%lx clientid=%s authid=%s",
                   ecap.id(),
                   ecap.clientid().c_str(),
@@ -107,12 +107,13 @@ FuseServer::Caps::Imply(uint64_t md_ino,
   struct timespec ts;
   eos::common::Timing::GetTimeSpec(ts, true);
   {
+    std::lock_guard lg(mtx);
     size_t leasetime = 0;
     {
-      eos::common::RWMutexReadLock lLock(gOFS->zMQ->gFuseServer.Client());
+      //eos::common::RWMutexReadLock lLock(gOFS->zMQ->gFuseServer.Client());
       leasetime = gOFS->zMQ->gFuseServer.Client().leasetime((*cap)()->clientuuid());
     }
-    eos::common::RWMutexWriteLock lock(*this);
+    //eos::common::RWMutexWriteLock lock(*this);
     (*implied_cap)()->set_vtime(ts.tv_sec + (leasetime ? leasetime : 300));
     (*implied_cap)()->set_vtime_ns(ts.tv_nsec);
     // fill the three views on caps
@@ -155,7 +156,7 @@ FuseServer::Caps::GetBroadcastCapsTS(uint64_t id,
   regex_t regex;
 
   {
-    eos::common::RWMutexReadLock rlock(*this);
+    std::lock_guard lg(mtx);
     auto ids = mInodeCaps.find(id);
     if (ids == mInodeCaps.end()) {
       return bccaps;
@@ -367,7 +368,7 @@ FuseServer::Caps::BroadcastRefresh(uint64_t inode,
   FuseServer::Caps::shared_cap refcap {nullptr};
 
   {
-    eos::common::RWMutexReadLock lLock(*this);
+    std::lock_guard lg(mtx);
     refcap = Get(md.authid(), false);
 
     auto kv = mInodeCaps.find(parent_inode);
@@ -464,7 +465,7 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
   FuseServer::Caps::shared_cap refcap {nullptr};
 
   {
-    eos::common::RWMutexReadLock lLock(*this);
+    std::lock_guard lg(mtx);
     refcap = Get(md.authid(), false);
     if (refcap == nullptr) {
       EXEC_TIMING_END("Eosxd::int::BcMD");
@@ -581,7 +582,6 @@ FuseServer::Caps::Print(const std::string& option,
     lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
   }
 
-  eos::common::RWMutexReadLock lLock(*this);
   eos_static_info("option=%s string=%s", option.c_str(), filter.c_str());
   regex_t regex;
 
@@ -594,9 +594,7 @@ FuseServer::Caps::Print(const std::string& option,
   }
 
   if (option == "t") {
-    lLock.Release();
-    eos::common::RWMutexWriteLock wLock(*this);
-
+    std::lock_guard lg(mtx);
     // print by time order
     for (auto it = mTimeOrderedCap.begin(); it != mTimeOrderedCap.end();) {
       if (!mCaps.count(it->second)) {
@@ -756,7 +754,8 @@ FuseServer::Caps::Delete(uint64_t md_ino)
   };
   std::unordered_set<client_set_t::iterator, iter_client_set_hash>
   to_del_client_caps;
-  eos::common::RWMutexWriteLock lLock(*this);
+
+  std::lock_guard lg(mtx);
   const auto it_inode_caps = mInodeCaps.find(md_ino);
 
   if (it_inode_caps == mInodeCaps.end()) {
