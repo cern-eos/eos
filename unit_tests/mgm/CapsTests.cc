@@ -591,3 +591,29 @@ TEST_F(CapsTest, GetAllCaps)
   }
 
 }
+
+TEST_F(CapsTest, GetInodeCapAuthIds)
+{
+  auto vid1 = make_vid(1,1);
+  auto vid2 = make_vid(2,2);
+  auto vid3 = make_vid(3,3);
+  auto vid4 = make_vid(4,4);
+  mCaps.Store(make_cap(1,"client1","auth1"), &vid1);
+  mCaps.Store(make_cap(2,"client2","auth2"), &vid2);
+  mCaps.Store(make_cap(1,"client3","auth3"), &vid3);
+  mCaps.Store(make_cap(4,"client1","auth1"), &vid1);
+  mCaps.Store(make_cap(2,"client4","auth4"), &vid4);
+
+  Caps::authid_set_t results;
+  Caps::authid_set_t actual = {"auth2"};
+  {
+    EXPECT_EQ(mCaps.ncaps(), 5);
+    EXPECT_EQ(mCaps.ClientInoCaps()["client2"][2], actual);
+    auto r = mCaps.GetInodeCapAuthIds("client2",2);
+    results = std::move(r);
+    // This  move is not necessary, but we do this in
+    // Clients.cc as the results struct has different
+    // results in a if else branch, so we just simply simulate this
+  }
+  EXPECT_EQ(results, actual);
+}
