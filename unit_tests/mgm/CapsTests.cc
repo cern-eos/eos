@@ -546,3 +546,48 @@ TEST_F(CapsTest, MonitorCapsUpdate)
   EXPECT_EQ(mCaps.GetCaps().size(), 0) ;
   EXPECT_EQ(mCaps.ncaps(), 0);
 }
+
+TEST_F(CapsTest, GetAllCaps)
+{
+  auto vid1 = make_vid(1,1);
+  auto vid2 = make_vid(2,2);
+  auto vid3 = make_vid(3,3);
+  auto vid4 = make_vid(4,4);
+  mCaps.Store(make_cap(1,"client1","auth1"), &vid1);
+  mCaps.Store(make_cap(2,"client2","auth2"), &vid2);
+  mCaps.Store(make_cap(1,"client3","auth3"), &vid3);
+  //mCaps.Store(make_cap(4,"client4", "auth1"), &vid4);
+
+  EXPECT_EQ(mCaps.ncaps(),3);
+  EXPECT_EQ(mCaps.GetCaps().size(),3);
+
+  {
+    auto results = mCaps.GetAllCaps();
+    EXPECT_EQ(results.size(),3);
+
+    std::unordered_set<std::string> expected_ids = {"client1", "client2", "client3"};
+    std::unordered_set<std::string> actual_ids;
+    for (const auto& it: results) {
+      actual_ids.emplace(it->clientid());
+    }
+    EXPECT_EQ(expected_ids, actual_ids);
+  }
+
+  // Update authid1 -> authid4
+  mCaps.Store(make_cap(4,"client4","auth1"), &vid4);
+  EXPECT_EQ(mCaps.ncaps(),4); // TimeCaps will still have entry corresponding to unexpiredtimes
+  EXPECT_EQ(mCaps.GetCaps().size(),3);
+
+  {
+    auto results = mCaps.GetAllCaps();
+    EXPECT_EQ(results.size(),3);
+
+    std::unordered_set<std::string> expected_ids = {"client4", "client2", "client3"};
+    std::unordered_set<std::string> actual_ids;
+    for (const auto& it: results) {
+      actual_ids.emplace(it->clientid());
+    }
+    EXPECT_EQ(expected_ids, actual_ids);
+  }
+
+}
