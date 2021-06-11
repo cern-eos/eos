@@ -530,7 +530,7 @@ TEST_F(CapsTest, MonitorCapsUpdate)
   }
 
   EXPECT_EQ(mCaps.GetCaps().size(),1);
-  EXPECT_EQ(mCaps.ncaps(), 1); // FIXME: This should be 1
+  EXPECT_EQ(mCaps.ncaps(), 1);
 
   std::this_thread::sleep_for(1s);
   // Now expire the caps
@@ -543,6 +543,6 @@ TEST_F(CapsTest, MonitorCapsUpdate)
   }
 
 
-  EXPECT_EQ(mCaps.GetCaps().size(), 0) ; // FIXME: Should be 0
+  EXPECT_EQ(mCaps.GetCaps().size(), 0) ;
   EXPECT_EQ(mCaps.ncaps(), 0);
 }
