@@ -649,10 +649,12 @@ TEST_F(CapsTest, ImplyCaps)
 TEST_F(CapsTest, ImplyCapsMulti)
 {
   int limit = 10000;
+
   for (int i=0; i < limit; i++){
     auto vid = make_vid(i,i);
     mCaps.Store(make_cap(i,"client"+std::to_string(i),"auth"+std::to_string(i)),&vid);
   }
+
   std::thread deleter([&](){ for(int i=0; i < limit;i++) { EXPECT_EQ(mCaps.Delete(i),0);}});
   std::thread implier([&](){ for(int i=0; i < limit;i++) { std::string indp = std::to_string(i-1);
                                                            std::string indc = std::to_string(i+2);
