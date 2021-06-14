@@ -778,7 +778,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   eos::common::Path cPath(path);
   // indicate the scope for a possible token
-  vid.scope = cPath.GetPath();
+  TOKEN_SCOPE;
 
   if (cPath.isAtomicFile()) {
     isAtomicName = true;

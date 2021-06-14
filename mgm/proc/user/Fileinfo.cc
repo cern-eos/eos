@@ -53,6 +53,7 @@ ProcCommand::Fileinfo()
   NAMESPACEMAP;
   PROC_BOUNCE_ILLEGAL_NAMES;
   PROC_BOUNCE_NOT_ALLOWED;
+
   struct stat buf;
   unsigned long long fid = 0;
 

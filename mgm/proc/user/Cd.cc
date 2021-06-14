@@ -39,6 +39,8 @@ ProcCommand::Cd()
   NAMESPACEMAP;
   spath = path;
 
+  PROC_TOKEN_SCOPE;
+
   if (!spath.length()) {
     stdErr = "error: you have to give a path name to call 'cd'";
     retc = EINVAL;

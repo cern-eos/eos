@@ -388,6 +388,26 @@ public:
     return (path.find(EOS_COMMON_PATH_VERSION_PREFIX) != std::string::npos);
   }
 
+  // get the shared prefix for two paths
+  static std::string Overlap(const char* a, const char* b) {
+    eos::common::Path apath(a);
+    eos::common::Path bpath(b);
+    std::string ol="/";
+    for ( size_t i = 0 ; i< apath.GetSubPathSize(); ++i) {
+      std::string ta = apath.GetSubPath(i);
+      std::string tb = bpath.GetSubPath(i);
+      if (ta == tb) {
+	ol = ta;
+      } else {
+	return ol;
+      }
+    }
+    if ( std::string(apath.GetPath()) == std::string(bpath.GetPath()) ) {
+      return apath.GetPath();
+    }
+    return ol;
+  }
+
 protected:
   XrdOucString fullPath; //< the full path stored
   XrdOucString parentPath; //< path of the parent directory

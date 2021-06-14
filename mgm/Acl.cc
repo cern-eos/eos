@@ -841,8 +841,14 @@ Acl::TokenAcl(const eos::common::VirtualIdentity& vid) const
         tokenacl += ":";
         tokenacl += vid.token->Permission();
         return tokenacl;
+      } else {
+	eos_static_err("invald path token");
       }
+    } else {
+      eos_static_err("invalid token");
     }
+  } else {
+    eos_static_err("no token");
   }
 
   return "";
