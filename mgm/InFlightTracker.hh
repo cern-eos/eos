@@ -106,6 +106,7 @@ public:
     if (!(--mInFlightPids[mythread])) {
       mInFlightPids.erase(mythread);
       mInFlightUid.erase(mythread);
+
       if (mInFlightVids[myuid]) {
 	if (!--mInFlightVids[myuid]) {
 	  mInFlightVids.erase(myuid);
