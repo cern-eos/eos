@@ -91,6 +91,9 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
   std::string err_check;
   int errno_check = 0;
 
+  const char* path = spath.c_str();
+  PROC_MVID_TOKEN_SCOPE;
+
   // Enforce path checks and identity access rights
   if (IsOperationForbidden(spath, mVid, err_check, errno_check)) {
     eos_err("msg=\"operation forbidden\" path=\"%s\" serr_msg=\"%s\" errno=%i",

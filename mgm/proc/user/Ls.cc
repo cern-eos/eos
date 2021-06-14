@@ -85,6 +85,9 @@ ProcCommand::Ls()
   NAMESPACEMAP;
   PROC_BOUNCE_ILLEGAL_NAMES;
   PROC_BOUNCE_NOT_ALLOWED;
+
+  PROC_TOKEN_SCOPE;
+
   eos_info("mapped to %s", path);
   spath = path;
   XrdOucString option = pOpaque->Get("mgm.option");

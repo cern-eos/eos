@@ -590,6 +590,8 @@ ProcCommand::File()
       XrdOucString source = spath;
       XrdOucString target = pOpaque->Get("mgm.file.target");
 
+      PROC_MOVE_TOKENSCOPE(source.c_str(), target.c_str());
+
       if (gOFS->rename(source.c_str(), target.c_str(), *mError, *pVid, 0, 0, true)) {
         stdErr += "error: ";
         stdErr += mError->getErrText();

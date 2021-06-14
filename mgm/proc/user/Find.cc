@@ -61,6 +61,7 @@ ProcCommand::Find()
   PROC_BOUNCE_ILLEGAL_NAMES;
   PROC_BOUNCE_NOT_ALLOWED;
   spath = path;
+  PROC_TOKEN_SCOPE;
 
   if (!OpenTemporaryOutputFiles()) {
     stdErr += "error: cannot write find result files on MGM\n";
