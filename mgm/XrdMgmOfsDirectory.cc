@@ -147,8 +147,8 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
 
   // Skip printout when listing the /eos/<instance/proc/conversion dir
   if ((strstr(dir_path, "/proc/conversion") == nullptr) && (info != nullptr)) {
-    eos_info("name=opendir path=%s name=%s prot=%s uid=%u gid=%u", cPath.GetPath(),
-             vid.name.c_str(), vid.prot.c_str(), vid.uid, vid.gid);
+    eos_info("name=opendir path=%s name=%s prot=%s uid=%u gid=%u token=%s", cPath.GetPath(),
+             vid.name.c_str(), vid.prot.c_str(), vid.uid, vid.gid, (vid.token?"true":"false"));
   }
 
   gOFS->MgmStats.Add("OpenDir", vid.uid, vid.gid, 1);

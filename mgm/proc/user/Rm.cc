@@ -62,6 +62,8 @@ ProcCommand::Rm()
   PROC_BOUNCE_NOT_ALLOWED;
   spath = path;
 
+  PROC_TOKEN_SCOPE;
+
   if (force && (vid.uid)) {
     stdErr = "warning: removing the force flag - this is only allowed for the 'root' role!\n";
     force = false;

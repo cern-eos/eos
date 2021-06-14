@@ -79,7 +79,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
 //------------------------------------------------------------------------------
 //! Stall Macro
 //------------------------------------------------------------------------------
-#define MAYSTALL eos::mgm::InFlightRegistration tracker_helper(gOFS->mTracker); \
+#define MAYSTALL eos::mgm::InFlightRegistration tracker_helper(gOFS->mTracker, vid); \
   if (gOFS->IsStall) {                                                  \
     XrdOucString stallmsg="";                                           \
     int stalltime=0;                                                    \
@@ -98,7 +98,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
     }                                                                   \
   }
 
-#define FUNCTIONMAYSTALL(FUNCTION, VID, ERROR) eos::mgm::InFlightRegistration tracker_helper(gOFS->mTracker); \
+#define FUNCTIONMAYSTALL(FUNCTION, VID, ERROR) eos::mgm::InFlightRegistration tracker_helper(gOFS->mTracker, (VID) ); \
   if (gOFS->IsStall) {                                                  \
     XrdOucString stallmsg="";                                           \
     int stalltime=0;                                                    \
@@ -296,6 +296,26 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
     }                                                                   \
     path = store_path.c_str();                                          \
   }
+
+
+//------------------------------------------------------------------------------
+//! Define scope for tokens
+//------------------------------------------------------------------------------
+#define TOKEN_SCOPE                                                            \
+  vid.scope = path;
+
+
+#define PROC_TOKEN_SCOPE                                                       \
+  pVid->scope = path;
+
+
+#define PROC_MVID_TOKEN_SCOPE                                                  \
+  mVid.scope = path;
+
+
+#define PROC_MOVE_TOKENSCOPE(a,b)		                               \
+  mVid.scope = eos::common::Path::Overlap( (a), (b)  );
+
 
 //------------------------------------------------------------------------------
 //! Bounce Illegal Name Macro
