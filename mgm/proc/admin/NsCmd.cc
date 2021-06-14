@@ -654,6 +654,8 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
     oss << stats_out.c_str();
   }
 
+  oss << gOFS->mTracker.PrintOut(monitoring);
+
   if (WantsJsonOutput()) {
     std::string out = ResponseToJsonString(oss.str(), err.str(), retc);
     oss.clear(), oss.str(out);

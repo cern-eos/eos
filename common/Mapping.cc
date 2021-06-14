@@ -57,6 +57,7 @@ Mapping::AllowedTidentMatches_t Mapping::gAllowedTidentMatches;
 XrdSysMutex Mapping::ActiveLock;
 
 google::dense_hash_map<std::string, time_t> Mapping::ActiveTidents;
+google::dense_hash_map<uid_t,size_t> Mapping::ActiveUids;
 
 XrdOucHash<Mapping::id_pair> Mapping::gPhysicalUidCache;
 XrdOucHash<Mapping::gid_set> Mapping::gPhysicalGidCache;
@@ -86,6 +87,8 @@ Mapping::Init()
   ActiveTidents.set_empty_key("#__EMPTY__#");
   ActiveTidents.set_deleted_key("#__DELETED__#");
 
+  ActiveUids.set_empty_key(2147483646);
+  ActiveUids.set_deleted_key(2147483647);
   // allow FUSE client access as root via env variable
   if (getenv("EOS_FUSE_NO_ROOT_SQUASH") &&
       !strcmp("1", getenv("EOS_FUSE_NO_ROOT_SQUASH"))) {
@@ -117,6 +120,7 @@ Mapping::Reset()
   {
     XrdSysMutexHelper mLock(ActiveLock);
     ActiveTidents.clear();
+    ActiveUids.clear();
   }
 }
 
@@ -146,6 +150,7 @@ Mapping::ActiveExpire(int interval, bool force)
       if ((now - it1->second) > interval) {
         it2 = it1;
         ++it1;
+	Mapping::ActiveUids.erase(Mapping::UidFromTident(it2->first));
         Mapping::ActiveTidents.erase(it2);
       } else {
         ++it1;
@@ -153,6 +158,7 @@ Mapping::ActiveExpire(int interval, bool force)
     }
 
     Mapping::ActiveTidents.resize(0);
+    Mapping::ActiveUids.resize(0);
     expire = now + 1800;
   }
 }
@@ -980,7 +986,11 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     snprintf(actident, sizeof(actident) - 1, "%d^%s^%s^%s^%s", vid.uid,
              mytident.c_str(), vid.prot.c_str(), vid.host.c_str(), vid.app.c_str());
     std::string intident = actident;
+    if (!ActiveTidents.count(intident)) {
+      ActiveUids[vid.uid]++;
+    }
     ActiveTidents[intident] = now;
+
   }
 
   ActiveLock.UnLock();
@@ -2056,6 +2066,47 @@ Mapping::IsOAuth2Resource(const std::string& resource)
   uidkey += resource;
   uidkey += "\":uid";
   return gVirtualUidMap.count(uidkey.c_str());
+}
+
+
+//------------------------------------------------------------------------------
+//! Decode the uid from a trace ID string
+//------------------------------------------------------------------------------
+uid_t
+Mapping::UidFromTident(const std::string& tident)
+{
+  std::vector<std::string> tokens;
+  std::string delimiter = "^";
+  eos::common::StringConversion::Tokenize(tident, tokens, delimiter);
+  if (tokens.size()) {
+    return atoi(tokens[0].c_str());
+  }
+  return 0;
+}
+
+
+//------------------------------------------------------------------------------
+//! Return number of active sessions for a given uid
+//------------------------------------------------------------------------------
+size_t
+Mapping::ActiveSessions(uid_t uid)
+{
+  XrdSysMutexHelper mLock(ActiveLock);
+  size_t ActiveSession(uid_t uid);
+  auto n = ActiveUids.find(uid);
+  if (n != ActiveUids.end()) {
+    return n->second;
+  } else {
+    return 0;
+  }
+}
+
+
+size_t
+Mapping::ActiveSessions()
+{
+  XrdSysMutexHelper mLock(ActiveLock);
+  return ActiveTidents.size();
 }
 
 /*----------------------------------------------------------------------------*/

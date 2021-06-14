@@ -249,11 +249,10 @@ Access::ApplyAccessConfig(bool applyredirectandstall)
 
   for (size_t i = 0; i < tokens.size(); ++i) {
     if (tokens[i].length()) {
-      if (applyredirectandstall || (tokens[i].find("rate:") == 0)) {
+      if (applyredirectandstall || ( (tokens[i].find("rate:") == 0) || (tokens[i].find("threads:") == 0) )) {
         subtokens.clear();
         eos::common::StringConversion::Tokenize(tokens[i], subtokens,
                                                 subdelimiter);
-
         if (subtokens.size() >= 2) {
           Access::gStallRules[subtokens[0]] = subtokens[1];
 
@@ -603,5 +602,37 @@ Access::RemoveStallRule(const std::string& key)
     Access::gStallGlobal = false;
   }
 }
+
+//------------------------------------------------------------------------------
+// Thread limit by user id
+//------------------------------------------------------------------------------
+size_t
+Access::ThreadLimit(uid_t uid) {
+  std::string id = "threads:";
+  id += std::to_string(uid);
+
+  eos::common::RWMutexReadLock access_rd_lock(gAccessMutex);
+  if (gStallRules.count(id.c_str())) {
+    return strtoul(gStallRules[id.c_str()].c_str(),0,10);
+  } else {
+    if (gStallRules.count("threads:*")) {
+      return strtoul(gStallRules["threads:*"].c_str(),0,10);
+    }
+  }
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Global thread limit
+//------------------------------------------------------------------------------
+size_t
+Access::ThreadLimit() {
+  eos::common::RWMutexReadLock access_rd_lock(gAccessMutex);
+  if (gStallRules.count("threads:max")) {
+    return strtoul(gStallRules["threads:max"].c_str(),0,10);
+  }
+  return 1000000;
+}
+
 
 EOSMGMNAMESPACE_END
