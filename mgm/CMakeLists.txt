@@ -241,6 +241,7 @@ add_library(
   LRU.cc
   WFE.cc
   Workflow.cc
+  InFlightTracker.cc
   grpc/GrpcServer.cc   grpc/GrpcServer.hh
   grpc/GrpcNsInterface.cc   grpc/GrpcNsInterface.hh
   grpc/GrpcManilaInterface.cc   grpc/GrpcManilaInterface.hh

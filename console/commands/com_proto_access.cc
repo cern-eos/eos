@@ -120,8 +120,10 @@ bool AccessHelper::ParseCommand(const char* arg)
         return false;
       }
 
-      if (!(token.find("rate:user:") || token.find("rate:group:")) &&
-          token.find(':', 11)) {
+
+      if ((!token.find("threads:")) && (
+					!(token.find("rate:user:") || token.find("rate:group:")) &&
+					token.find(':', 11))) {
         return false;
       }
 
@@ -183,11 +185,13 @@ bool AccessHelper::ParseCommand(const char* arg)
         return false;
       }
 
-      if (!(token.find("rate:user:") || token.find("rate:group:")) &&
-          token.find(':', 11)) {
+      if ((!token.find("threads:")) && (
+				       !(token.find("rate:user:") || token.find("rate:group:")) &&
+				       token.find(':', 11))) {
         return false;
       }
 
+      fprintf(stderr,"settings %s\n", token.c_str());
       set->set_key(token);
     } else {
       return false;

@@ -53,7 +53,11 @@ XrdMgmOfs::ShouldStall(const char* function,
 
   if (stall) {
     if ((vid.uid > 3)) {
-      if (Access::gBannedUsers.count(vid.uid)) {
+      if ( (stalltime = gOFS->mTracker.ShouldStall(vid.uid)) ) {
+	smsg = "operate - your are exceeding your thread pool limit";
+	stallid += "::threads::";
+	stallid += std::to_string(vid.uid);;
+      } else if (Access::gBannedUsers.count(vid.uid)) {
         smsg = "operate - you are banned in this instance - contact an administrator";
 
         // fuse clients don't get stalled by a booted namespace, they get EACCES

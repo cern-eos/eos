@@ -230,6 +230,21 @@ public:
   static google::dense_hash_map<std::string, time_t> ActiveTidents;
 
   // ---------------------------------------------------------------------------
+  //! Map storing the active client uids
+  // ---------------------------------------------------------------------------
+  static google::dense_hash_map<uid_t, size_t> ActiveUids;
+
+  // ---------------------------------------------------------------------------
+  //! Retrieve the user ID from a trace identifier
+  // ---------------------------------------------------------------------------
+  static uid_t UidFromTident(const std::string& tident);
+
+  // ---------------------------------------------------------------------------
+  //! Get the number of active sessions (for a given uid)
+  static size_t ActiveSessions(uid_t uid);
+  static size_t ActiveSessions();
+
+  // ---------------------------------------------------------------------------
   //! Variable to forbid remote root mounts - by default true
   // ---------------------------------------------------------------------------
   static bool gRootSquash;

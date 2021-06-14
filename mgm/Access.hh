@@ -230,6 +230,13 @@ public:
   //! @param key stall rule key
   //----------------------------------------------------------------------------
   static void RemoveStallRule(const std::string& key);
+
+  //----------------------------------------------------------------------------
+  //! Get Thread limit (by uid)
+  //----------------------------------------------------------------------------
+  static size_t ThreadLimit(uid_t uid);
+  static size_t ThreadLimit();
+
 };
 
 EOSMGMNAMESPACE_END
