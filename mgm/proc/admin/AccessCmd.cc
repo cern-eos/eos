@@ -480,7 +480,8 @@ void AccessCmd::RmSubcmd(const eos::console::AccessProto_RmProto& rm,
 
       if (!rm.key().empty()) {
         if ((rm.key().find("rate:user:") == 0) ||
-            (rm.key().find("rate:group:") == 0)) {
+            (rm.key().find("rate:group:") == 0) ||
+	    (rm.key().find("threads:") == 0)) {
           std_out << "limit";
         } else {
           std_out << "stall";
@@ -490,7 +491,8 @@ void AccessCmd::RmSubcmd(const eos::console::AccessProto_RmProto& rm,
       }
 
       if ((rm.key().find("rate:user:") == 0) ||
-          (rm.key().find("rate:group:") == 0)) {
+          (rm.key().find("rate:group:") == 0) ||
+	  (rm.key().find("threads:") == 0)) {
         Access::gStallRules.erase(rm.key());
         Access::gStallComment.erase(rm.key());
       } else if (rm.key().empty()) {
@@ -586,19 +588,21 @@ void AccessCmd::SetSubcmd(const eos::console::AccessProto_SetProto& set,
       return;
     }
 
-    if (!(set.key().empty() || (set.key().find("rate:") == 0) ||
-          (set.key() == "r") || (set.key() == "w") || (set.key() == "ENOENT") ||
-          (set.key() == "ENONET") || (set.key() == "ENETUNREACH"))) {
-      reply.set_std_err("error: there is no redirection to set with such "
-                        "key: '" + set.key() + '\'');
-      reply.set_retc(EINVAL);
-      return;
-    }
-
     if (set.key().find("rate:") == 0) {
       std_out << "success: setting rate cutoff at " << set.target()
               << " Hz for rate:<user|group>:<operation>=" << set.key();
+    }  else if (set.key().find("threads:") == 0) {
+      std_out << "sucdess: setting thread limit at " << set.target()
+	      << " for " << set.key();
     } else {
+      if (!(set.key().empty() || (set.key() == "r") || (set.key() == "w") ||
+	    (set.key() == "ENONET") || (set.key() == "ENOENT") ||
+	    (set.key() == "ENETUNREACH"))) {
+	reply.set_std_err("error: there is no stall to set with such "
+			  "key: '" + set.key() + '\'');
+	reply.set_retc(EINVAL);
+      }
+
       std_out << "success: setting global stall to " << set.target() << " seconds";
 
       if (!set.key().empty()) {
@@ -607,7 +611,8 @@ void AccessCmd::SetSubcmd(const eos::console::AccessProto_SetProto& set,
     }
 
     if ((set.key().find("rate:user:") == 0) ||
-        (set.key().find("rate:group:") == 0)) {
+        (set.key().find("rate:group:") == 0) ||
+	(set.key().find("threads:") == 0)) {
       Access::gStallRules[set.key()] = set.target();
       Access::gStallComment[set.key()] = mReqProto.comment();
     } else if (set.key().empty()) {

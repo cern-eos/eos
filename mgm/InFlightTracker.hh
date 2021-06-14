@@ -24,6 +24,8 @@
 #pragma once
 #include "mgm/Namespace.hh"
 #include "common/Logging.hh"
+#include "common/VirtualIdentity.hh"
+#include "common/table_formatter/TableFormatterBase.hh"
 #include <atomic>
 
 EOSMGMNAMESPACE_BEGIN
@@ -48,7 +50,7 @@ public:
   //! Decide whether to account or not for a new connection. This helps to
   //! keep track of the number of threads inside a critical block of code.
   //----------------------------------------------------------------------------
-  bool Up()
+  bool Up(const eos::common::VirtualIdentity& vid)
   {
     // This contraption (hopefully) ensures that after setAcceptingRequests(false)
     // takes effect, the following guarantees hold:
@@ -78,7 +80,10 @@ public:
     // If setAcceptingRequests takes effect here, no problem:
     // mInFlight can NOT be zero at this point, and the spinner will wait.
     std::unique_lock<std::mutex> scope_lock(mInFlightPidMutex);
+    uid_t myuid = vid.uid;
     mInFlightPids[pthread_self()]++;
+    mInFlightUid[pthread_self()] = myuid;
+    mInFlightVids[myuid]++;
     return true;
   }
 
@@ -89,9 +94,18 @@ public:
   {
     --mInFlight;
     assert(mInFlight >= 0);
+    pthread_t mythread= pthread_self();
     std::unique_lock<std::mutex> scope_lock(mInFlightPidMutex);
-    if (!(--mInFlightPids[pthread_self()])) {
-      mInFlightPids.erase(pthread_self());
+    uid_t myuid = mInFlightUid[mythread];
+    if (!(--mInFlightPids[mythread])) {
+      mInFlightPids.erase(mythread);
+    }
+
+    if (mInFlightVids[myuid]) {
+      if (!--mInFlightVids[myuid]) {
+	mInFlightVids.erase(myuid);
+	mInFlightStalls.erase(myuid);
+      }
     }
   }
 
@@ -153,10 +167,51 @@ public:
     return inflight_threads;
   }
 
+  std::map<uid_t, size_t> getInFlightUids() {
+    std::unique_lock<std::mutex> scope_lock(mInFlightPidMutex);
+    return mInFlightVids;
+  }
+
+  size_t getInFlight(uid_t uid) {
+    std::unique_lock<std::mutex> scope_lock(mInFlightPidMutex);
+    auto it = mInFlightVids.find(uid);
+    if (it != mInFlightVids.end()) {
+      return it->second;
+    } else {
+      return 0;
+    }
+  }
+
+  void incStalls(uid_t uid) {
+    std::unique_lock<std::mutex> scope_lock(mInFlightPidMutex);
+    mInFlightStalls[uid]++;
+  }
+
+  size_t getStalls(uid_t uid) {
+    std::unique_lock<std::mutex> scope_lock(mInFlightPidMutex);
+    auto it = mInFlightStalls.find(uid);
+    if (it != mInFlightStalls.end()) {
+      return it->second;
+    } else {
+      return 0;
+    }
+  }
+
+  size_t getStallTime(uid_t uid, size_t& limit);
+
+  //----------------------------------------------------------------------------
+  //! Dump user tracking
+  //----------------------------------------------------------------------------
+  std::string PrintOut(bool monitoring) ;
+  size_t ShouldStall(uid_t uid);
+
 private:
   std::atomic<bool> mAcceptingRequests {true};
   std::atomic<int64_t> mInFlight {0};
   std::map<pthread_t, size_t> mInFlightPids;
+  std::map<pthread_t, uid_t> mInFlightUid;
+  std::map<uid_t, size_t> mInFlightVids;
+  std::map<uid_t, size_t> mInFlightStalls;
   std::mutex mInFlightPidMutex;
 
 };
@@ -173,10 +228,10 @@ public:
   //!
   //! @param tracke tracker object
   //----------------------------------------------------------------------------
-  InFlightRegistration(InFlightTracker& tracker) :
+  InFlightRegistration(InFlightTracker& tracker, const eos::common::VirtualIdentity& vid) :
     mInFlightTracker(tracker)
   {
-    mSucceeded = mInFlightTracker.Up();
+    mSucceeded = mInFlightTracker.Up(vid);
   }
 
   //----------------------------------------------------------------------------
@@ -203,6 +258,8 @@ public:
   std::set<pthread_t> getThreads() {
     return mInFlightTracker.getInFlightThreads();
   }
+
+
 private:
   InFlightTracker& mInFlightTracker;
   bool mSucceeded;
