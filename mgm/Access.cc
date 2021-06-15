@@ -619,7 +619,7 @@ Access::ThreadLimit(uid_t uid) {
       return strtoul(gStallRules["threads:*"].c_str(),0,10);
     }
   }
-  return 0;
+  return 65536;
 }
 
 //------------------------------------------------------------------------------

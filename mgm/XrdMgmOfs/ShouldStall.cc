@@ -52,7 +52,7 @@ XrdMgmOfs::ShouldStall(const char* function,
   std::string stallid = "Stall";
 
   if (stall) {
-    if ((vid.uid > 3)) {
+    if ((vid.uid > 3) && (functionname != "stat")  && (vid.app != "fuse::restic")) {
       if ( (stalltime = gOFS->mTracker.ShouldStall(vid.uid)) ) {
 	smsg = "operate - your are exceeding your thread pool limit";
 	stallid += "::threads::";
