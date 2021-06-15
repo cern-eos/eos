@@ -33,12 +33,13 @@ EOSMGMNAMESPACE_BEGIN
 std::string
 InFlightTracker::PrintOut(bool monitoring) {
   std::string format_l = !monitoring ? "+l" : "ol";
+  std::string format_nl = !monitoring ? "l" : "ol";
   std::string format_s = !monitoring ? "s" : "os";
   TableFormatterBase table_all;
 
   if (!monitoring) {
     table_all.SetHeader({
-	std::make_tuple("uid", 8, format_l),
+	std::make_tuple("uid", 8, format_nl),
           std::make_tuple("threads", 5, format_l),
           std::make_tuple("sessions", 5, format_l),
 	  std::make_tuple("limit",5,format_l),
