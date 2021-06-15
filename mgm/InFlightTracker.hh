@@ -79,10 +79,11 @@ public:
 
     // If setAcceptingRequests takes effect here, no problem:
     // mInFlight can NOT be zero at this point, and the spinner will wait.
-    std::unique_lock<std::mutex> scope_lock(mInFlightPidMutex);
+    pthread_t myself = pthread_self();
     uid_t myuid = vid.uid;
-    mInFlightPids[pthread_self()]++;
-    mInFlightUid[pthread_self()] = myuid;
+    std::unique_lock<std::mutex> scope_lock(mInFlightPidMutex);
+    mInFlightPids[myself]++;
+    mInFlightUid[myself] = myuid;
     mInFlightVids[myuid]++;
     return true;
   }
