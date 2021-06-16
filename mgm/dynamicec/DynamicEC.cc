@@ -421,7 +421,6 @@ DynamicEC::setMinForDeletion(uint64_t size)
 {
   mSizeMinForDeletion = size;
 }
-
 //-------------------------------------------------------------------------------------------
 //! Return the size for the minimum for deletion
 //!
