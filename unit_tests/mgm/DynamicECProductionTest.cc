@@ -59,11 +59,8 @@ TEST(DynamicECProduction, TestForFillingInFiles)
 {
   const char* str = "DynamicTest";
   eos::mgm::DynamicEC UUT(str, 11556926, 10000000, 1, 1, false);
-  //UUT.createFilesOneTime();
-  //UUT.createFileForTest();
   UUT.testFilesBeignFilled(8, 2, 2, 10);
   EXPECT_EQ(UUT.GetMap().size(), 10);
-  //EXPECT_EQ(UUT.simulatedFiles[0].get()->getSize(), 1000000000 );
 }
 
 TEST(DynamicECProduction, TestForFillingInFilesIfFail)
@@ -100,7 +97,6 @@ TEST(DynamicECProduction, TestForThis)
               6);
     EXPECT_EQ(eos::common::LayoutId::GetExcessStripeNumber(
                 it->second->getLayoutId()), 2);
-    //EXPECT_EQ(eos::common::LayoutId::GetRedundancy(it->second->getLayoutId(),it->second->getLocations().size() ) + 1, 4);
     EXPECT_EQ(it->second->getLocations().size(), 8);
   }
 
@@ -113,12 +109,12 @@ TEST(DynamicECProduction, TestForThis)
          UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
     fprintf(stderr, "This is for locations: %i \n",
             it->second->getLocations().size());
-    //The test would work if the ID was updated reguarly.
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
                 it->second->getLayoutId()), 2);
-    //EXPECT_EQ(eos::common::LayoutId::GetStripeNumber(it->second->getLayoutId() ) + 1, 6);
-    //EXPECT_EQ(eos::common::LayoutId::GetExcessStripeNumber(it->second->getLayoutId()), 0);
-    //EXPECT_EQ(eos::common::LayoutId::GetRedundancy(it->second->getLayoutId(),it->second->getLocations().size() ) + 1, 4);
+    EXPECT_EQ(eos::common::LayoutId::GetStripeNumber(it->second->getLayoutId()) + 1,
+              6);
+    EXPECT_EQ(eos::common::LayoutId::GetRedundancy(it->second->getLayoutId(),
+              it->second->getLocations().size()) + 1, 4);
     EXPECT_EQ(it->second->getLocations().size(), 6);
   }
 }
@@ -138,28 +134,15 @@ TEST(DynamicECProduction, TestForCleanup)
               6);
     EXPECT_EQ(eos::common::LayoutId::GetExcessStripeNumber(
                 it->second->getLayoutId()), 2);
-    //EXPECT_EQ(eos::common::LayoutId::GetRedundancy(it->second->getLayoutId(),it->second->getLocations().size() ) + 1, 6);
+    EXPECT_EQ(eos::common::LayoutId::GetRedundancy(it->second->getLayoutId(),
+              it->second->getLocations().size()) + 1, 6);
     EXPECT_EQ(it->second->getLocations().size(), 8);
   }
 
-  /*
-    for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-           UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
-      UUT.kReduceMD(it->second);
-    }
-  */
   UUT.CleanupMD();
-
-  /*
-  for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-         UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
-    UUT.kReduceMD(it->second);
-  }
-  */
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
          UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
-    //The test would work if the ID was updated reguarly.
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
                 it->second->getLayoutId()), 2);
     EXPECT_EQ(eos::common::LayoutId::GetStripeNumber(it->second->getLayoutId()) + 1,
@@ -186,7 +169,8 @@ TEST(DynamicECProduction, TestForSmallFileDeletion)
               6);
     EXPECT_EQ(eos::common::LayoutId::GetExcessStripeNumber(
                 it->second->getLayoutId()), 2);
-    //EXPECT_EQ(eos::common::LayoutId::GetRedundancy(it->second->getLayoutId(),it->second->getLocations().size() ) + 1, 6);
+    EXPECT_EQ(eos::common::LayoutId::GetRedundancy(it->second->getLayoutId(),
+              it->second->getLocations().size()) + 1, 6);
     EXPECT_EQ(it->second->getLocations().size(), 8);
   }
 
@@ -194,14 +178,12 @@ TEST(DynamicECProduction, TestForSmallFileDeletion)
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
          UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
-    //The test would work if the ID was updated reguarly.
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
                 it->second->getLayoutId()), 2);
     EXPECT_EQ(eos::common::LayoutId::GetStripeNumber(it->second->getLayoutId()) + 1,
               6);
     EXPECT_EQ(eos::common::LayoutId::GetExcessStripeNumber(
                 it->second->getLayoutId()), 2);
-    //EXPECT_EQ(eos::common::LayoutId::GetRedundancy(it->second->getLayoutId(),it->second->getLocations().size() ) + 1, 2);
     EXPECT_EQ(it->second->getLocations().size(), 8);
   }
 }
@@ -220,7 +202,8 @@ TEST(DynamicECProduction, TestForSmallFileDeletionComeTrue)
               6);
     EXPECT_EQ(eos::common::LayoutId::GetExcessStripeNumber(
                 it->second->getLayoutId()), 2);
-    //EXPECT_EQ(eos::common::LayoutId::GetRedundancy(it->second->getLayoutId(),it->second->getLocations().size() ) + 1, 6);
+    EXPECT_EQ(eos::common::LayoutId::GetRedundancy(it->second->getLayoutId(),
+              it->second->getLocations().size()) + 1, 6);
     EXPECT_EQ(it->second->getLocations().size(), 8);
   }
 
@@ -228,52 +211,18 @@ TEST(DynamicECProduction, TestForSmallFileDeletionComeTrue)
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
          UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
-    //The test would work if the ID was updated reguarly.
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
                 it->second->getLayoutId()), 2);
     EXPECT_EQ(eos::common::LayoutId::GetStripeNumber(it->second->getLayoutId()) + 1,
               6);
-    //EXPECT_EQ(eos::common::LayoutId::GetExcessStripeNumber(it->second->getLayoutId()), 2);
-    //EXPECT_EQ(eos::common::LayoutId::GetRedundancy(it->second->getLayoutId(),it->second->getLocations().size() ) + 1, 2);
+    EXPECT_EQ(eos::common::LayoutId::GetExcessStripeNumber(
+                it->second->getLayoutId()), 2);
+    EXPECT_EQ(eos::common::LayoutId::GetRedundancy(it->second->getLayoutId(),
+              it->second->getLocations().size()) + 1, 2);
     EXPECT_EQ(it->second->getLocations().size(), 6);
   }
 }
 
-/*
-TEST(DynamicECProduction, TestForMultiDeletionComeTrue1)
-{
-        const char* str = "DynamicTest";
-  eos::mgm::DynamicEC UUT(str, 3600, 1024*1024, 98, 95, false, 30, 1);
-
-  UUT.testFilesBeignFilled(6, 2, 2, 100);
-
-  EXPECT_EQ(UUT.statusFilesMD.size(),0);
-  UUT.CleanupMD();
-
-  int number = 0;
-  int reduced = 0;
-  int notReduced = 0;
-  for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-        UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
-    //  UUT.kReduceMD(it->second);
-
-    if(it->second->getLocations().size() == 8)
-    {
-      notReduced++;
-    }
-    else
-    {
-      reduced++;
-    }
-    number++;
-  }
-
-  EXPECT_EQ(reduced,1);
-  EXPECT_EQ(notReduced,1);
-  EXPECT_EQ(number,1);
-  EXPECT_EQ(UUT.statusFilesMD.size(),80);
-}
-*/
 
 TEST(DynamicECProduction, TestForMultiDeletionComeTrue)
 {
@@ -285,41 +234,9 @@ TEST(DynamicECProduction, TestForMultiDeletionComeTrue)
   EXPECT_EQ(UUT.mStatusFilesMD.size(), 90);
 }
 
-/*
-TEST(DynamicECProduction, TestForMultiDeletionComeTrue123456)
-{
-        const char* str = "DynamicTest";
-  eos::mgm::DynamicEC UUT(str, 3600, 1024*1024, 98, 95, false, 30, 1);
 
-  UUT.testFilesBeignFilled(6, 2, 2, 100);
 
-  EXPECT_EQ(UUT.statusFilesMD.size(),0);
-  UUT.CleanupMD();
 
-  int number = 0;
-  int reduced = 0;
-  int notReduced = 0;
-  for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
-        UUT.statusFilesMD.begin(); it != UUT.statusFilesMD.end(); ++it) {
-    //  UUT.kReduceMD(it->second);
-
-    if(it->second->getLocations().size() == 8)
-    {
-      notReduced++;
-    }
-    else
-    {
-      reduced++;
-    }
-    number++;
-  }
-
-  EXPECT_EQ(reduced,1);
-  EXPECT_EQ(notReduced,1);
-  EXPECT_EQ(number,1);
-  EXPECT_EQ(UUT.statusFilesMD.size(),80);
-}
-*/
 
 TEST(DynamicECProduction, TestForThisWithThekReduceMD)
 {
@@ -330,14 +247,12 @@ TEST(DynamicECProduction, TestForThisWithThekReduceMD)
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
          UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
-    //fprintf(stderr,"This is for locations: %i \n", it->second->getLocations().size());
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
                 it->second->getLayoutId()), 2);
     EXPECT_EQ(eos::common::LayoutId::GetStripeNumber(it->second->getLayoutId()) + 1,
               6);
     EXPECT_EQ(eos::common::LayoutId::GetExcessStripeNumber(
                 it->second->getLayoutId()), 2);
-    //EXPECT_EQ(eos::common::LayoutId::GetRedundancy(it->second->getLayoutId(),it->second->getLocations().size() ) + 1, 4);
     EXPECT_EQ(it->second->getLocations().size(), 8);
   }
 
@@ -348,13 +263,12 @@ TEST(DynamicECProduction, TestForThisWithThekReduceMD)
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
          UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
-    //fprintf(stderr,"This is for locations: %i \n", it->second->getLocations().size());
-    //The test would work if the ID was updated reguarly.
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
                 it->second->getLayoutId()), 2);
-    //EXPECT_EQ(eos::common::LayoutId::GetStripeNumber(it->second->getLayoutId() ) + 1, 6);
-    //EXPECT_EQ(eos::common::LayoutId::GetExcessStripeNumber(it->second->getLayoutId()), 0);
-    //EXPECT_EQ(eos::common::LayoutId::GetRedundancy(it->second->getLayoutId(),it->second->getLocations().size() ) + 1, 4);
+    EXPECT_EQ(eos::common::LayoutId::GetStripeNumber(it->second->getLayoutId()) + 1,
+              6);
+    EXPECT_EQ(eos::common::LayoutId::GetRedundancy(it->second->getLayoutId(),
+              it->second->getLocations().size()) + 1, 4);
     EXPECT_EQ(it->second->getLocations().size(), 6);
   }
 }
@@ -406,7 +320,6 @@ TEST(DynamicECProduction, TestForOtherLayoutskQrain)
                 it->second->getLayoutId()), 4);
     EXPECT_EQ(eos::common::LayoutId::GetStripeNumber(it->second->getLayoutId()) + 1,
               6);
-    //EXPECT_EQ(eos::common::LayoutId::GetExcessStripeNumber(it->second->getLayoutId()), 0);
     EXPECT_EQ(it->second->getLocations().size(), 6);
   }
 }
@@ -439,20 +352,10 @@ TEST(DynamicECProduction, TestForOtherLayoutskQrainNoExcessstripes)
                 it->second->getLayoutId()), 4);
     EXPECT_EQ(eos::common::LayoutId::GetStripeNumber(it->second->getLayoutId()) + 1,
               6);
-    //EXPECT_EQ(eos::common::LayoutId::GetExcessStripeNumber(it->second->getLayoutId()), 0);
+    EXPECT_EQ(eos::common::LayoutId::GetExcessStripeNumber(
+                it->second->getLayoutId()), 0);
     EXPECT_EQ(it->second->getLocations().size(), 6);
   }
-}
-
-TEST(DynamicECProduction, TestForTestingCases)
-{
-  EXPECT_EQ(eos::common::LayoutId::kPlain, 0);
-  EXPECT_EQ(eos::common::LayoutId::kRaid5, 6);
-  EXPECT_EQ(eos::common::LayoutId::kRaid6, 4);
-  EXPECT_EQ(eos::common::LayoutId::kRaidDP, 3);
-  EXPECT_EQ(eos::common::LayoutId::kQrain, 5);
-  EXPECT_EQ(eos::common::LayoutId::kArchive, 2);
-  EXPECT_EQ(eos::common::LayoutId::kReplica, 1);
 }
 
 TEST(DynamicECProduction, TestForOtherLayoutkPlain)
@@ -585,7 +488,8 @@ TEST(DynamicECProduction, TestForOtherLayoutkRaidDP)
                 it->second->getLayoutId()), 2);
     EXPECT_EQ(eos::common::LayoutId::GetStripeNumber(it->second->getLayoutId()) + 1,
               8);
-    //EXPECT_EQ(eos::common::LayoutId::GetExcessStripeNumber(it->second->getLayoutId()), 2 );
+    EXPECT_EQ(eos::common::LayoutId::GetExcessStripeNumber(
+                it->second->getLayoutId()), 2);
     EXPECT_EQ(it->second->getLocations().size(), 8);
   }
 }
@@ -618,7 +522,8 @@ TEST(DynamicECProduction, TestForOtherLayoutkRaid5)
                 it->second->getLayoutId()), 2);
     EXPECT_EQ(eos::common::LayoutId::GetStripeNumber(it->second->getLayoutId()) + 1,
               8);
-    //EXPECT_EQ(eos::common::LayoutId::GetExcessStripeNumber(it->second->getLayoutId()), 2 );
+    EXPECT_EQ(eos::common::LayoutId::GetExcessStripeNumber(
+                it->second->getLayoutId()), 2);
     EXPECT_EQ(it->second->getLocations().size(), 8);
   }
 }
