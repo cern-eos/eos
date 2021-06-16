@@ -1977,22 +1977,22 @@ runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/eos
 ################################################################################
 # categorie = "dynamicec"
 ################################################################################
-runtest "### Mkdir      " unix 0 "" eos mkdir "eos/$EOS_TEST_INSTANCE/test/instancetest/dynamicec"
-runtest "### Chmod      " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/dynamicec"
-runtest "### Attr       " unix 0 "" eos attr set sys.forced.blocksize=1M "/eos/$EOS_TEST_INSTANCE/test/instancetest/dynamicec"
-runtest "### Attr       " unix 0 "" eos attr set sys.forced.layout=raid6 "/eos/$EOS_TEST_INSTANCE/test/instancetest/dynamicec"
-runtest "### Attr       " unix 0 "" eos attr set sys.forced.nstripes=6 "/eos/$EOS_TEST_INSTANCE/test/instancetest/dynamicec"
-runtest "### Attr       " unix 0 "" eos attr set sys.forced.nexcess=2 "/eos/$EOS_TEST_INSTANCE/test/instancetest/dynamicec"
+#runtest "### Mkdir      " unix 0 "" eos mkdir "eos/$EOS_TEST_INSTANCE/test/instancetest/dynamicec"
+#runtest "### Chmod      " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/dynamicec"
+#runtest "### Attr       " unix 0 "" eos attr set sys.forced.blocksize=1M "/eos/$EOS_TEST_INSTANCE/test/instancetest/dynamicec"
+#runtest "### Attr       " unix 0 "" eos attr set sys.forced.layout=raid6 "/eos/$EOS_TEST_INSTANCE/test/instancetest/dynamicec"
+#runtest "### Attr       " unix 0 "" eos attr set sys.forced.nstripes=6 "/eos/$EOS_TEST_INSTANCE/test/instancetest/dynamicec"
+#runtest "### Attr       " unix 0 "" eos attr set sys.forced.nexcess=2 "/eos/$EOS_TEST_INSTANCE/test/instancetest/dynamicec"
 
 #Test in generel from another test script.
-runtest "### Test       " unix 0 "" bash eos-dynamicec-test
+#runtest "### Test       " unix 0 "" bash eos-dynamicec-test
 
 #this will be on for the real test
 #runtest "### Cleanup    " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test2/*"
 
 
 #runtest "### Cleanup    " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instacetest/dynamicec"
-runtest "### Rmdir      " unix 0 "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/dynamicec"
+#runtest "### Rmdir      " unix 0 "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/dynamicec"
 
 #runtest "### testforstuf" unix 0 "" bash eos-dynamicec-test
 
