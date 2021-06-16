@@ -55,7 +55,7 @@
 #include "mgm/inspector/FileInspector.hh"
 #include "mgm/qos/QoSClass.hh"
 #include "mgm/qos/QoSConfig.hh"
-#include "mgm/DynamicEC.hh"
+#include "mgm/dynamicec/DynamicEC.hh"
 #include "common/RWMutex.hh"
 #include "common/StacktraceHere.hh"
 #include "common/plugin_manager/PluginManager.hh"
