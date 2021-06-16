@@ -116,12 +116,31 @@ TEST(DynamicEC, TestForSpaceStatus)
   ASSERT_TRUE(status.undeletedSize < UUT.mCreatedFileSize * 0.081);
 }
 
+<<<<<<< HEAD
+=======
+
+
+
+
+
+
+
+
+
+
+
+
+>>>>>>> a8ede8d... unit test update
 TEST(DynamicEC, TestForFillingInMoreFiles)
 {
   const char* str = "DynamicTest";
   eos::mgm::DynamicEC UUT(str, 11556926, 1000000, 95, 92, false);
   UUT.fillFiles();
   ASSERT_EQ(UUT.mSimulatedFiles.size(), 100000);
+<<<<<<< HEAD
+=======
+  int a = UUT.mSimulatedFiles.size();
+>>>>>>> a8ede8d... unit test update
   UUT.fillFiles(100000);
   ASSERT_EQ(UUT.mSimulatedFiles.size(), 200000);
 }
