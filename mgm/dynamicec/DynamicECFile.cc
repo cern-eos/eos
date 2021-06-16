@@ -1,9 +1,6 @@
-///This is a helper file for testing the DynamicEC in google test with files.
+///< This is a helper file for testing the DynamicEC in google test with files.
 
-
-
-//#include "namespace/ns_in_memory/FileMD.hh"
-#include "mgm/DynamicECFile.hh"
+#include "mgm/dynamicec/DynamicECFile.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include <sstream>
@@ -32,13 +29,6 @@ DynamicECFile::DynamicECFile(IFileMD::id_t id):
   pCTime.tv_sec = pCTime.tv_nsec = 0;
   pMTime.tv_sec = pMTime.tv_nsec = 0;
 }
-
-/*
-DynamicECFile::~DynamicECFile()
-{
-
-}
-*/
 
 //------------------------------------------------------------------------------
 // Virtual copy constructor
@@ -95,10 +85,6 @@ void DynamicECFile::addLocation(location_t location)
 
   pLocation.push_back(location);
   lock.unlock();
-  /*IFileMDChangeListener::Event e(this,
-                                 IFileMDChangeListener::LocationAdded,
-                                 location);
-  */
 }
 
 //------------------------------------------------------------------------------
@@ -120,10 +106,6 @@ void DynamicECFile::removeLocation(location_t location)
 
   if (removed) {
     lock.unlock();
-    /* IFileMDChangeListener::Event e(this,
-                                    IFileMDChangeListener::LocationRemoved,
-                                    location);
-    */
   }
 }
 
@@ -144,10 +126,6 @@ void DynamicECFile::removeAllLocations()
   lock.unlock();
 
   for (auto const& loc : remove_loc) {
-    /* IFileMDChangeListener::Event e(this,
-                                    IFileMDChangeListener::LocationRemoved,
-                                    loc);
-    */
   }
 }
 
@@ -171,10 +149,6 @@ void DynamicECFile::unlinkLocation(location_t location)
 
   if (unlinked) {
     lock.unlock();
-    /*  IFileMDChangeListener::Event e(this,
-                                     IFileMDChangeListener::LocationUnlinked,
-                                     location);
-    */
   }
 }
 
@@ -202,10 +176,6 @@ void DynamicECFile::unlinkAllLocations()
   std::shared_lock<std::shared_timed_mutex> slock(mMutex);
 
   for (auto const& loc : unlink_loc) {
-    /*  IFileMDChangeListener::Event e(this,
-                                     IFileMDChangeListener::LocationUnlinked,
-                                     loc);
-    */
   }
 }
 
@@ -266,7 +236,6 @@ void DynamicECFile::getEnv(std::string& env, bool escapeAnd)
   }
 }
 
-//test
 //------------------------------------------------------------------------------
 // Serialize the object to a buffer
 //------------------------------------------------------------------------------
@@ -281,7 +250,6 @@ void DynamicECFile::serialize(Buffer& buffer)
   tmp |= (pSize & 0x0000ffffffffffff);
   buffer.putData(&tmp,          sizeof(tmp));
   buffer.putData(&pContainerId, sizeof(pContainerId));
-  // Symbolic links are serialized as <name>//<link>
   std::string nameAndLink = pName;
 
   if (pLinkName.length()) {
@@ -316,7 +284,6 @@ void DynamicECFile::serialize(Buffer& buffer)
   buffer.putData(&size, sizeof(size));
   buffer.putData(pChecksum.getDataPtr(), size);
 
-  // May store xattr
   if (pXAttrs.size()) {
     uint16_t len = pXAttrs.size();
     buffer.putData(&len, sizeof(len));
@@ -354,7 +321,6 @@ void DynamicECFile::deserialize(const Buffer& buffer)
   char strBuffer[len];
   offset = buffer.grabData(offset, strBuffer, len);
   pName = strBuffer;
-  // Possibly extract symbolic link
   size_t link_pos = pName.find("//");
 
   if (link_pos != std::string::npos) {
@@ -387,7 +353,6 @@ void DynamicECFile::deserialize(const Buffer& buffer)
   offset = buffer.grabData(offset, pChecksum.getDataPtr(), size);
 
   if ((buffer.size() - offset) >= 4) {
-    // XAttr are optional
     uint16_t len1 = 0;
     uint16_t len2 = 0;
     uint16_t len = 0;
@@ -435,10 +400,6 @@ DynamicECFile::setSize(uint64_t size)
   int64_t sizeChange = (size & 0x0000ffffffffffff) - pSize;
   pSize = size & 0x0000ffffffffffff;
   lock.unlock();
-  /* IFileMDChangeListener::Event e(this,
-                                 IFileMDChangeListener::SizeChange,
-                                 0, sizeChange);
-  */
 }
 
 //------------------------------------------------------------------------------
