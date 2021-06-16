@@ -135,8 +135,8 @@ TEST(DynamicEC, TestForASingleFileWithMultiplePartisionsForTheSizeFactor)
   //ASSERT_NE(eos::common::LayoutId::GetActualSizeFactor(UUT.simulatedFiles[0].get()),ii);
   //ASSERT_EQ(eos::common::LayoutId::GetSizeFactor(UUT.simulatedFiles[0]->getLayoutId()),400);
 }
-
-
+*/
+/*
 TEST(DynamicEC, TestForGetSizeOfFileFromRealComponents)
 {
   const char* str = "DynamicTest";
@@ -175,7 +175,6 @@ TEST(DynamicEC, TestForGetSmallSizedFillAtTheEdge)
 }
 
 /*
-///Test for multi purpose of this.
 TEST(DynamicEC, TestForTheDelitionForSingleFile)
 {
   const char* str = "DynamicTest";
@@ -245,12 +244,12 @@ TEST(DynamicEC, TestForSpaceStatus)
   eos::mgm::statusForSystem status {0, 0, 0, 0};
   status = UUT.SpaceStatus();
   //EXPECT_EQ(1,0);
-  EXPECT_EQ(status.totalSize, UUT.mCreatedFileSize);
-  EXPECT_EQ(status.deletedSize, 0);
-  ASSERT_EQ(status.usedSize, UUT.mCreatedFileSize);
-  ASSERT_EQ(status.deletedSize, UUT.mDeletedFileSize);
-  ASSERT_TRUE(status.undeletedSize > UUT.mCreatedFileSize * 0.079);
-  ASSERT_TRUE(status.undeletedSize < UUT.mCreatedFileSize * 0.081);
+  //EXPECT_EQ(status.totalSize, UUT.mCreatedFileSize);
+  //EXPECT_EQ(status.deletedSize, 0);
+  //ASSERT_EQ(status.usedSize, UUT.mCreatedFileSize);
+  //ASSERT_EQ(status.deletedSize, UUT.mDeletedFileSize);
+  //ASSERT_TRUE(status.undeletedSize > UUT.mCreatedFileSize * 0.079);
+  //ASSERT_TRUE(status.undeletedSize < UUT.mCreatedFileSize * 0.081);
   //EXPECT_THAT(2, IsBetween(1,3));
   //EXPECT_
   //EXPECT_THAT(status.undeletedSize, AllOf(Ge(UUT.createdFileSize*0.919),Le(UUT.createdFileSize*0.921)));
@@ -453,9 +452,9 @@ TEST(DynamicEC, TestForWaitTime)
 {
   const char* str = "DynamicTest";
   eos::mgm::DynamicEC UUT(str, 11556926, 10000000, 95, 92, false);
-  ASSERT_EQ(UUT.getWaitTime(), 10);
+  ASSERT_EQ(UUT.getWaitTime(), 30);
   UUT.setWaitTime(-2);
-  ASSERT_EQ(UUT.getWaitTime(), 10);
+  ASSERT_EQ(UUT.getWaitTime(), 30);
   UUT.setWaitTime(2);
   ASSERT_EQ(UUT.getWaitTime(), 2);
 }
@@ -472,21 +471,6 @@ TEST(DynamicEC, TestForFailToDeleteAll)
   ASSERT_TRUE(status.undeletedSize > 10000);
 }
 */
-
-TEST(DynamicEC, TestForLayout)
-{
-  std::string url2 = "root://localhost//eos/testarea/dynec/rawfile";
-  std::string url1 = url2 + "1" + ".xrdcl";
-  std::string url = "root://localhost//eos/testarea/dynec/rawfile1.xrdcl" ;
-  ASSERT_EQ(url, url1);
-}
-
-//Test for what did this come from
-
-TEST(DynamicEC, TestForLayout2)
-{
-  ASSERT_EQ(eos::common::LayoutId::kRaid6, 1);
-}
 
 
 //43647012370960

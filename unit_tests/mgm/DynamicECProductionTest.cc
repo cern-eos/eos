@@ -142,6 +142,12 @@ TEST(DynamicECProduction, TestForCleanup)
     EXPECT_EQ(it->second->getLocations().size(), 8);
   }
 
+  /*
+    for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
+           UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
+      UUT.kReduceMD(it->second);
+    }
+  */
   UUT.CleanupMD();
 
   /*
@@ -156,9 +162,12 @@ TEST(DynamicECProduction, TestForCleanup)
     //The test would work if the ID was updated reguarly.
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
                 it->second->getLayoutId()), 2);
-    //EXPECT_EQ(eos::common::LayoutId::GetStripeNumber(it->second->getLayoutId() ) + 1, 6);
-    //EXPECT_EQ(eos::common::LayoutId::GetExcessStripeNumber(it->second->getLayoutId()), 0);
-    //EXPECT_EQ(eos::common::LayoutId::GetRedundancy(it->second->getLayoutId(),it->second->getLocations().size() ) + 1, 2);
+    EXPECT_EQ(eos::common::LayoutId::GetStripeNumber(it->second->getLayoutId()) + 1,
+              6);
+    EXPECT_EQ(eos::common::LayoutId::GetExcessStripeNumber(
+                it->second->getLayoutId()), 0);
+    EXPECT_EQ(eos::common::LayoutId::GetRedundancy(it->second->getLayoutId(),
+              it->second->getLocations().size()) + 1, 2);
     EXPECT_EQ(it->second->getLocations().size(), 6);
   }
 }
