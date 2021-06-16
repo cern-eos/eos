@@ -88,6 +88,7 @@ DynamicEC::DynamicEC(const char* spacename, uint64_t ageNew,  uint64_t size,
     //mThread2.reset(&DynamicEC::createFilesOneTimeThread, this);
   }
 
+  mOnWork = OnWork;
   mTestNumber = 0;
   mSpaceName = spacename;
   mSimulatedFiles.clear();
@@ -845,7 +846,7 @@ DynamicEC::SpaceStatus()
   statusForSystem status;
   eos_static_info("This is the mDynamic %B", mDynamicOn.load());
 
-  if (mDynamicOn.load()) {
+  if (mOnWork.load()) {
     eos_static_info("this is in space status %llu",
                     FsView::gFsView.mSpaceView[mSpaceName]->SumLongLong("stat.statfs.capacity",
                         false))
@@ -1049,7 +1050,8 @@ DynamicEC::CleanupMD()
     eos_static_info(
       "This is where the status have been ran delete to be size is : %lld ",
       status.undeletedSize);
-    {
+
+    if (mOnWork.load()) {
       status.totalSize =
         FsView::gFsView.mSpaceView[mSpaceName]->SumLongLong("stat.statfs.capacity",
             false);
@@ -1063,6 +1065,7 @@ DynamicEC::CleanupMD()
                          gOFS->eosFileService->getNumFiles());
       }
     }
+
     eos_static_info("This is the size to be deleted %lld", mSizeToBeDeleted.load());
 
     if (mSizeToBeDeleted.load() > 0) {
