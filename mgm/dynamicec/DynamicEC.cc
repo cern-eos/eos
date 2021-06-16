@@ -116,7 +116,6 @@ DynamicEC::DynamicEC(const char* spacename, uint64_t ageNew,  uint64_t size,
   mSleepWhenDone = sleepWhenDone;
   mSleepWhenFull = sleepWhenFull;
   mSizeInMap = 0;
-  ready = false;
 
   if (OnWork) {
     mThread3.reset(&DynamicEC::RunScan, this);
