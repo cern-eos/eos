@@ -150,6 +150,9 @@ private:
   std::atomic<uint64_t>
   mSizeForMapMax; ///< this is the max size for the map
 
+  std::atomic<bool>
+  mOnWork; ///< used for running the unit tests
+
   std::map<uint64_t, std::map<std::string, uint64_t>>
       lastScanStats; ///< map for the last scan
   std::map<uint64_t, std::map<std::string, uint64_t>> currentScanStats; ///<

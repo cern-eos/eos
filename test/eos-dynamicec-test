@@ -1,4 +1,4 @@
-BB#!/bin/bash
+#!/bin/bash
 
 
 #--------------------------------------------------------------------------------------
@@ -60,15 +60,10 @@ echo $val24
 
 
 eos space config default space.dynamicec.minthreshold=0.0000001
-echo "con1"
 eos space config default space.dynamicec.maxthreshold=0.000001
-echo "con2"
 eos space config default space.dynamicec.sizeformapmax=100000000000000
-echo "con3"
 eos space config default space.dynamicec.sleepwhenfull=120
-echo "con4"
 eos space config default space.dynamicec.sleepwhendone=120
-echo "con5"
 eos space config default space.dynamicec.test=on
 eos space config default space.dynamicec.restartscan=on
 
