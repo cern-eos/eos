@@ -137,6 +137,12 @@ TEST(DynamicECProduction, TestForCleanup)
     EXPECT_EQ(it->second->getLocations().size(), 8);
   }
 
+  /*
+    for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
+           UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
+      UUT.kReduceMD(it->second);
+    }
+  */
   UUT.CleanupMD();
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =

@@ -1061,6 +1061,7 @@ DynamicEC::CleanupMD()
                          gOFS->eosFileService->getNumFiles());
       }
     }
+
     eos_static_info("This is the size to be deleted %lld", mSizeToBeDeleted.load());
 
     if (mSizeToBeDeleted.load() > 0) {
