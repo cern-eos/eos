@@ -29,7 +29,7 @@
 #include "common/Path.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
 #include "mgm/inspector/FileInspector.hh"
-#include "mgm/DynamicEC.hh"
+#include "mgm/dynamicec/DynamicEC.hh"
 #include "mgm/Egroup.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "namespace/interface/IChLogFileMDSvc.hh"
@@ -722,6 +722,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             (key == "dynamicec.sleepwhenfull") ||
             (key == "dynamicec.sizeformapmax") ||
             (key == "dynamicec.restartscan") ||
+            (key == "dynamicec.printall") ||
             (key == "lru") ||
             (key == "lru.interval") ||
             (key == "wfe") ||
@@ -753,6 +754,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
               (key == "dynamicEC") ||
               (key == "dynamicec.test") ||
               (key == "dynamicec.restartscan") ||
+              (key == "dynamicec.printall") ||
               (key == "autorepair") || (key == "lru") ||
               (key == "groupbalancer") || (key == "geobalancer") ||
               (key == "geo.access.policy.read.exact") ||
@@ -839,6 +841,16 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                     //std_out << gOFS->mDynamicEC->getTest();
                   }
                 }
+
+                if (key == "dynamicec.printall") {
+                  if (value == "on") {
+                    eos_static_info("print all in log");
+                    gOFS->mDynamicEC->printAll();
+                  } else if (value == "off") {
+                  }
+                }
+
+                // (key == "dynamicec.printall") ||
 
                 if (key == "autorepair") {
                   if (value == "on") {

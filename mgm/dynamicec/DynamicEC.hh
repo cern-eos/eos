@@ -34,7 +34,7 @@
 
 /* -------------------------------------------------------------------------- */
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
-#include "mgm/DynamicECFile.hh"
+#include "mgm/dynamicec/DynamicECFile.hh"
 #include "mgm/Namespace.hh"
 #include "common/Logging.hh"
 #include "common/FileId.hh"
@@ -76,13 +76,11 @@ class IFileMD;
 
 EOSMGMNAMESPACE_BEGIN
 
-/// might be in the system in order to look for the constant update on this, bur for this it will be easy for the rest of the system to get the status of the thread.
-/// other stuff for the status of the thread can be put in as well.
 struct statusForSystem {
   int64_t totalSize;
   int64_t usedSize;
   int64_t deletedSize;
-  int64_t undeletedSize; /// bytes that will have to be deleted.
+  int64_t undeletedSize;
 };
 
 struct Config {
@@ -186,8 +184,6 @@ public:
   std::mutex mtx;
 
   std::condition_variable cv;
-
-  bool ready;
 
   void restartScan();
 
