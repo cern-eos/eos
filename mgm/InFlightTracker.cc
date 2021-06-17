@@ -33,7 +33,6 @@ EOSMGMNAMESPACE_BEGIN
 std::string
 InFlightTracker::PrintOut(bool monitoring) {
   std::string format_l = !monitoring ? "+l" : "ol";
-  std::string format_nl = !monitoring ? "l" : "ol";
   std::string format_s = !monitoring ? "s" : "os";
   TableFormatterBase table_all;
 
