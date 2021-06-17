@@ -33,13 +33,12 @@ EOSMGMNAMESPACE_BEGIN
 std::string
 InFlightTracker::PrintOut(bool monitoring) {
   std::string format_l = !monitoring ? "+l" : "ol";
-  std::string format_nl = !monitoring ? "l" : "ol";
   std::string format_s = !monitoring ? "s" : "os";
   TableFormatterBase table_all;
 
   if (!monitoring) {
     table_all.SetHeader({
-	std::make_tuple("uid", 8, format_nl),
+	std::make_tuple("uid", 8, format_s),
           std::make_tuple("threads", 5, format_l),
           std::make_tuple("sessions", 5, format_l),
 	  std::make_tuple("limit",5,format_l),
@@ -49,7 +48,7 @@ InFlightTracker::PrintOut(bool monitoring) {
 	  });
   } else {
     table_all.SetHeader({
-	std::make_tuple("uid", 0, format_l),
+	std::make_tuple("uid", 0, format_s),
           std::make_tuple("threads", 0, format_l),
           std::make_tuple("sessions", 0, format_l),
 	  std::make_tuple("limit",0, format_l),
@@ -66,7 +65,7 @@ InFlightTracker::PrintOut(bool monitoring) {
     size_t global_limit = Access::ThreadLimit();
 
     table_data.emplace_back();
-    table_data.back().push_back(TableCell((long long )it.first, format_l));
+    table_data.back().push_back(TableCell(std::to_string((long long )it.first), format_l));
     table_data.back().push_back(TableCell((long long )it.second, format_l));
     table_data.back().push_back(TableCell((long long )eos::common::Mapping::ActiveSessions(it.first), format_l));
     table_data.back().push_back(TableCell((long long )limit, format_l));
