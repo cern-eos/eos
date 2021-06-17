@@ -224,7 +224,6 @@ add_library(
   convert/old/Converter.cc
   GroupBalancer.cc
   GeoBalancer.cc
-<<<<<<< HEAD
   DynamicEC.cc
   DynamicScanner.cc
   DynamicEC.hh
