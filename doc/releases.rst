@@ -1,4 +1,4 @@
-.. highlight:: rst
+i.. highlight:: rst
 
 .. index::
    single: Releases
