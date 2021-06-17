@@ -57,6 +57,7 @@ XrdMgmOfs::mkdir(const char* inpath,
   eos::common::Mapping::IdMap(client, ininfo, tident, vid);
   EXEC_TIMING_END("IdMap");
   NAMESPACEMAP;
+  TOKEN_SCOPE;
   BOUNCE_ILLEGAL_NAMES;
   XrdOucEnv mkdir_Env(ininfo);
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);

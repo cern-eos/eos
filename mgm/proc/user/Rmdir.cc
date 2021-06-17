@@ -34,9 +34,11 @@ ProcCommand::Rmdir()
   XrdOucString spath = pOpaque->Get("mgm.path");
   const char* inpath = spath.c_str();
   NAMESPACEMAP;
+  NAMESPACE_NO_TRALING_SLASH;
   PROC_BOUNCE_ILLEGAL_NAMES;
   PROC_BOUNCE_NOT_ALLOWED;
   spath = path;
+
   PROC_TOKEN_SCOPE;
 
   if (!spath.length()) {
