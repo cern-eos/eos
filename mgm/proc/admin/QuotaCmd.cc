@@ -575,9 +575,9 @@ void QuotaCmd::RmnodeSubcmd(const eos::console::QuotaProto_RmnodeProto& rmnode, 
 {
   eos_notice("quota rmnode");
 
-  if (mVid.uid != 0) {
+  if ( (mVid.uid != 0) && (mVid.uid != 3) ) {
     reply.set_retc(EPERM);
-    reply.set_std_err("error: you cannot remove quota nodes without having the root role!");
+    reply.set_std_err("error: you cannot remove quota nodes without having the root or adm role!");
     return;
   }
 
