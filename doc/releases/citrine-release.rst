@@ -16,6 +16,19 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.52 Citrine``
+===================
+
+2021-06-17
+
+Improvement
+------------
+
+* MGM: support tokens for EOS CLI commands and basic xrdfs functions like mkdir/rmdir/rm
+* MGM: introduce thread pool limits by user and global using 'eos access' and show usage in 'eos ns [stat]'
+* MGM: improve performance of eosxd broadcasts and use a standard mutex to protect the caps objects
+
+
 ``v4.8.51 Citrine``
 ===================
 
