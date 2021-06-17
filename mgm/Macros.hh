@@ -312,6 +312,11 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
 #define PROC_MVID_TOKEN_SCOPE                                                  \
   mVid.scope = path;
 
+#define NAMESPACE_NO_TRAILING_SLASH                                            \
+  if (store_path.endswith("/")) {                                              \
+    store_path.erase(store_path.length()-1,1);                                 \
+    path = store_path.c_str();                                                 \
+  }
 
 #define PROC_MOVE_TOKENSCOPE(a,b)		                               \
   mVid.scope = eos::common::Path::Overlap( (a), (b)  );

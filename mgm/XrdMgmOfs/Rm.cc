@@ -53,6 +53,7 @@ XrdMgmOfs::rem(const char* inpath,
   // use a thread private vid
   eos::common::VirtualIdentity vid;
   NAMESPACEMAP;
+  TOKEN_SCOPE;
   BOUNCE_ILLEGAL_NAMES;
   XrdOucEnv env(ininfo);
   AUTHORIZE(client, &env, AOP_Delete, "remove", inpath, error);
