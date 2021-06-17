@@ -370,6 +370,11 @@ void com_access_help()
       << "\t              rate:user:*:<counter> : apply to all users based on user counter\n"
       << "\t              rate:group:*:<counter>: apply to all groups based on group counter\n"
       << std::endl
+      << "access set limit <frequency> threads:{*,max,<uid>}\n"
+      << "\t                        threads:max : set the maximum number of threads running in parallel for <uid> > 3\n"
+      << "\t                        threads:*   : set the default thread pool limit for all users with <uid> > 3\n"
+      << "\t                      threads:<uid> : set a specific thread pool limit for user <uid>\n"
+      << std::endl
       << "access set limit <nfiles> rate:user:{name}:FindFiles :\n\tset find query limit to <nfiles> for user {name}\n"
       << std::endl
       << "access set limit <ndirs> rate:user:{name}:FindDirs:\n\tset find query limit to <ndirs> for user {name}\n"
@@ -390,6 +395,8 @@ void com_access_help()
       << std::endl
       << "access rm limit rate:{user,group}:{name}:<counter> : remove rate limitation\n"
       << std::endl
+      << "access rm limit threads:{max,*,<uid} : remove thread pool limit\n"
+      << std::endl
       << "access ls [-m] [-n] : print banned,unbanned user,group, hosts\n"
       << "\t -m : output in monitoring format with <key>=<value>\n"
       << "\t -n : don't translate uid/gids to names\n"
@@ -407,6 +414,8 @@ void com_access_help()
       << " access ls                                      : Print all defined access rules\n"
       << " access set limit 100  rate:user:*:OpenRead     : Limit the rate of open for read to a frequency of 100 Hz for all users\n"
       << " access set limit 2000 rate:group:zp:Stat       : Limit the stat rate for the zp group to 2kHz\n"
-      <<  "access rm limit rate:user:*:OpenRead           : Removes the defined limit\n";
+      << " access set limit 500 threads:*                 : Limit the thread pool usage to 500 threads per user\n"
+      << " access rm limit rate:user:*:OpenRead           : Removes the defined limit\n"
+      << " access rm limit threads:*                      : Removes the default per user thread pool limit\n";
   std::cerr << oss.str() << std::endl;
 }
