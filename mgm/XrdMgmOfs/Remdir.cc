@@ -47,6 +47,8 @@ XrdMgmOfs::remdir(const char* inpath,
   eos::common::Mapping::IdMap(client, ininfo, tident, vid);
   EXEC_TIMING_END("IdMap");
   NAMESPACEMAP;
+  NAMESPACE_NO_TRAILING_SLASH;
+  TOKEN_SCOPE;
   BOUNCE_ILLEGAL_NAMES;
   XrdOucEnv remdir_Env(ininfo);
   AUTHORIZE(client, &remdir_Env, AOP_Delete, "remove", inpath, error);
@@ -93,10 +95,6 @@ XrdMgmOfs::_remdir(const char* path,
   // Make sure this is not a quota node
   std::string qpath = path;
 
-  if (qpath[qpath.length() - 1] != '/') {
-    qpath += '/';
-  }
-
   if (Quota::Exists(qpath)) {
     errno = EBUSY;
     return Emsg(epname, error, errno, "rmdir - this is a quota node",
@@ -118,6 +116,9 @@ XrdMgmOfs::_remdir(const char* path,
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
               e.getErrno(), e.getMessage().str().c_str());
   }
+
+  fprintf(stderr,"remdir: %s %s %s %s\n", path, vid.scope.c_str(), ininfo?ininfo:"", aclpath.c_str());
+
 
   // check existence
   if (!dh) {
