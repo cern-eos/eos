@@ -49,6 +49,7 @@ New Feature
 * [EOS-4760] FST: implement round-robin scheduling
 * [EOS-4759] FST: add 'eos.iopriority' to stear BFQ/CFQ priorities
 
+
 ``v4.8.55 Citrine``
 ===================
 
