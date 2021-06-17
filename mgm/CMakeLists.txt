@@ -224,12 +224,17 @@ add_library(
   convert/old/Converter.cc
   GroupBalancer.cc
   GeoBalancer.cc
+<<<<<<< HEAD
   DynamicEC.cc
   DynamicScanner.cc
   DynamicEC.hh
   DynamicECFile.cc
   DynamicCreator.cc
   
+=======
+  dynamicec/DynamicEC.cc
+  dynamicec/DynamicECFile.cc
+>>>>>>> astoeve-Dev-Branch
   Features.cc
   ZMQ.cc
   FuseServer/Server.cc FuseServer/Server.hh

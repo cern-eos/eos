@@ -166,7 +166,8 @@ void FileInspector::performCycleInMem(ThreadAssistant& assistant) noexcept
   nfiles = ndirs = nfiles_processed = 0;
   time_t s_time = time(NULL);
   {
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
+                                            __LINE__, __FILE__);
     nfiles = (unsigned long long) gOFS->eosFileService->getNumFiles();
     ndirs = (unsigned long long) gOFS->eosDirectoryService->getNumContainers();
   }
@@ -281,6 +282,12 @@ void FileInspector::performCycleQDB(ThreadAssistant& assistant) noexcept
                                     gOFS->mQdbContactDetails.constructOptions()));
   }
 
+  //this have been put in case of a test and will not be in the final version of the system
+  {
+    std::string member = gOFS->mQdbContactDetails.members.toString();
+    eos_static_info(member.c_str());
+    eos_static_info("member:=%s", member.c_str());
+  }
   //----------------------------------------------------------------------------
   // Start scanning files
   //----------------------------------------------------------------------------
@@ -288,7 +295,8 @@ void FileInspector::performCycleQDB(ThreadAssistant& assistant) noexcept
   nfiles = ndirs = nfiles_processed = 0;
   time_t s_time = time(NULL);
   {
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
+                                            __LINE__, __FILE__);
     nfiles = (unsigned long long) gOFS->eosFileService->getNumFiles();
     ndirs = (unsigned long long) gOFS->eosDirectoryService->getNumContainers();
   }
@@ -312,6 +320,7 @@ void FileInspector::performCycleQDB(ThreadAssistant& assistant) noexcept
       time_t target_time = (1.0 * nfiles_processed / nfiles) * interval;
       time_t is_time = time(NULL) - s_time;
 
+      //here it goes wrong
       if (target_time > is_time) {
         uint64_t p_time = target_time - is_time;
 
@@ -353,6 +362,7 @@ void FileInspector::performCycleQDB(ThreadAssistant& assistant) noexcept
     }
   }
 
+  //this differ as well
   scanned_percent.store(100.0, std::memory_order_seq_cst);
   std::lock_guard<std::mutex> sMutex(mutexScanStats);
   lastScanStats = currentScanStats;
@@ -439,7 +449,8 @@ FileInspector::Process(std::string& filepath)
 {
   eos_static_debug("inspector-file=\"%s\"", filepath.c_str());
   eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-  eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+  eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
+                                          __LINE__, __FILE__);
   std::shared_ptr<eos::IFileMD> fmd;
 
   try {

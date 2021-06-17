@@ -697,6 +697,7 @@ public:
   }
 
 
+  <<< <<< < HEAD
   /*
     static double
     GetActualSizeFactor(std::shared_ptr<FileMD> file)
@@ -728,14 +729,19 @@ public:
     }
   */
 
+  == == == =
 
 
-  //--------------------------------------------------------------------------
-  //! Return minimum number of replicas which have to be online for a layout
-  //! to be readable
-  //--------------------------------------------------------------------------
-  static size_t
-  GetMinOnlineReplica(unsigned long layout)
+
+    >>>>>>> astoeve - Dev - Branch
+
+
+    //--------------------------------------------------------------------------
+    //! Return minimum number of replicas which have to be online for a layout
+    //! to be readable
+    //--------------------------------------------------------------------------
+    static size_t
+    GetMinOnlineReplica(unsigned long layout)
   {
     if (GetLayoutType(layout) == kPlain) {
       return 1;
