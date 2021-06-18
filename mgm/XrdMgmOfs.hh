@@ -730,17 +730,6 @@ public:
                  eos::common::VirtualIdentity& vid, std::string& accperm);
 
   //----------------------------------------------------------------------------
-  //! Test if this is eosnobody accessing a squashfs file
-  //!
-  //! @param path path to access
-  //! @param vid virtual identity of the user
-  //!
-  //! @return 0 if no squashfs access, 1 if squashfs but not allowed 2 if squashfs and allowed
-  //---------------------------------------------------------------------------
-  int is_squashfs_access(const char* path,
-			 eos::common::VirtualIdentity& vid);
-
-  //----------------------------------------------------------------------------
   //! Test if public access is allowed in a given path
   //!
   //! @param path path to access
@@ -1143,21 +1132,6 @@ public:
   //----------------------------------------------------------------------------
   int QueryResync(eos::common::FileId::fileid_t fid,
                   eos::common::FileSystem::fsid_t fsid, bool force = false);
-
-  //----------------------------------------------------------------------------
-  //! Remove file/container metadata object that was already deleted before
-  //! but it's still in the namespace detached from any parent
-  //!
-  //! @param id file/container id
-  //! @param is_dir if true id refers to a container, otherwise a file object
-  //! @param force if set then force remove unlinked locations even if they
-  //!        were not properly deleted from the diskserver
-  //! @param msg outcome information forwarded to the client
-  //!
-  //! @return true if deletion successful, otherwise false
-  //----------------------------------------------------------------------------
-  bool RemoveDetached(uint64_t id, bool is_dir, bool force,
-                      std::string& msg) const;
 
   // ---------------------------------------------------------------------------
   // static Mkpath is not supported
@@ -1574,7 +1548,7 @@ public:
   //----------------------------------------------------------------------------
   // Namespace specific variables
   //----------------------------------------------------------------------------
-  //! Initialization state of the namespace
+//! Initialization state of the namespace
   std::atomic<NamespaceState> mNamespaceState;
   std::atomic<time_t> mFileInitTime; ///< Time for the file initialization
   std::atomic<time_t> mTotalInitTime; ///< Time for entire initialization
@@ -1678,6 +1652,7 @@ public:
   //----------------------------------------------------------------------------
   AuthStats AuthComputeStats(const std::list<std::int64_t>&
                              lst_samples) const;
+
 
   //----------------------------------------------------------------------------
   //! Update aggregate info with the latest samples
@@ -1789,9 +1764,6 @@ public:
   //! Mgm IO Report store path by default is /var/tmp/eos/report
   XrdOucString IoReportStorePath;
 
-  //! Mgm tmp find output path by default is /var/tmp/eos/mgm/
-  XrdOucString TmpStorePath;
-
   //! Class implementing comment log: mgm writes all proc commands with a
   //! comment into /var/log/eos/comments.log
   std::unique_ptr<eos::common::CommentLog> mCommentLog;
@@ -1848,7 +1820,11 @@ public:
   WFE& WFEd;
 
   //! DynamicEC object
+
+//  std::unique_ptr<DynamicEC> mDynamicEC;
+
   std::unique_ptr<eos::mgm::DynamicEC> mDynamicEC;
+
 
   //!  Admin socket
   std::unique_ptr<AdminSocket> AdminSocketServer;
@@ -1891,8 +1867,6 @@ public:
   {
     return mFusePlacementBooking;
   }
-protected:
-  std::atomic<bool> mDoneOrderlyShutdown; ///< Mark for orderly shutdown
 
 private:
   //! XrdOucBuffPool object for managing buffers >= 2kb
@@ -1907,6 +1881,7 @@ private:
   std::list<std::string> mPendingBkps; ///< Backup jobs queueRequest
   //! Manage heap profiling
   std::unique_ptr<eos::common::JeMallocHandler> mJeMallocHandler;
+  std::atomic<bool> mDoneOrderlyShutdown; ///< Mark for orderly shutdown
   bool mTpcRedirect {false}; ///< Mark if tpc rdr enabled
   //! Map for delegated/undelegated TPC redirection info
   std::map<bool, std::pair<std::string, int>> mTpcRdrInfo;

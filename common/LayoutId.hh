@@ -700,8 +700,6 @@ public:
 
 
 
-
-
   //--------------------------------------------------------------------------
   //! Return minimum number of replicas which have to be online for a layout
   //! to be readable

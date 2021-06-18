@@ -39,12 +39,9 @@ TEST(DynamicEC, LookInMap)
   const char* str = "DynamicTest";
   eos::mgm::DynamicEC UUT(str, 11556926, 10000000, 1, 1, false);
   UUT.fillFiles();
-  //This is for 100000 files in the system
   ASSERT_EQ(UUT.mSimulatedFiles.size(), 100000);
   ASSERT_FALSE(UUT.mSimulatedFiles.empty());
 }
-
-
 
 TEST(DynamicEC, CheckingForAnythingInTheFile)
 {
@@ -60,8 +57,6 @@ TEST(DynamicEC, CheckingForAnythingInTheFile)
   }
 }
 
-
-
 TEST(DynamicEC, CheckOnWhatTheTimeIsIn)
 {
   const char* str = "DynamicTest";
@@ -72,8 +67,6 @@ TEST(DynamicEC, CheckOnWhatTheTimeIsIn)
   std::cerr << time.tv_sec << " seconds " << " nano seconds " << time.tv_nsec <<
             std::endl;
 }
-
-
 
 TEST(DynamicEC, TestForIfAnyWillHaveToBeDeleted)
 {
@@ -93,15 +86,6 @@ TEST(DynamicEC, TestForIfAnyWillHaveToBeDeleted)
   ASSERT_TRUE(number > 50000);
 }
 
-
-
-
-
-
-
-
-
-
 TEST(DynamicEC, TestForGetSmallSizedFill)
 {
   const char* str = "DynamicTest";
@@ -118,18 +102,6 @@ TEST(DynamicEC, TestForGetSmallSizedFillAtTheEdge)
   ASSERT_FALSE(UUT.DeletionOfFileID(UUT.mSimulatedFiles[0], time(0) - 11556926));
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
 TEST(DynamicEC, TestForSpaceStatus)
 {
   const char* str = "DynamicTest1";
@@ -144,18 +116,6 @@ TEST(DynamicEC, TestForSpaceStatus)
   ASSERT_TRUE(status.undeletedSize > UUT.mCreatedFileSize * 0.079);
   ASSERT_TRUE(status.undeletedSize < UUT.mCreatedFileSize * 0.081);
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 TEST(DynamicEC, TestForFillingInMoreFiles)
 {
@@ -205,6 +165,8 @@ TEST(DynamicEC, TestGetAndSetFunction)
   ASSERT_EQ(UUT.getMinForDeletion(), 10000000);
   UUT.setMinForDeletion(12345678910);
   ASSERT_EQ(UUT.getMinForDeletion(), 12345678910);
+  UUT.setMinForDeletion(12345678910);
+  ASSERT_EQ(UUT.getMinForDeletion(), 12345678910);
 }
 
 TEST(DynamicEC, TestForWaitTime)
@@ -214,10 +176,12 @@ TEST(DynamicEC, TestForWaitTime)
   ASSERT_EQ(UUT.getWaitTime(), 30);
   UUT.setWaitTime(-2);
   ASSERT_EQ(UUT.getWaitTime(), 30);
+  ASSERT_EQ(UUT.getWaitTime(), 30);
+  UUT.setWaitTime(-2);
+  ASSERT_EQ(UUT.getWaitTime(), 30);
   UUT.setWaitTime(2);
   ASSERT_EQ(UUT.getWaitTime(), 2);
 }
-
 
 TEST(DynamicEC, TestForFailToDeleteAll)
 {
@@ -229,7 +193,3 @@ TEST(DynamicEC, TestForFailToDeleteAll)
   status = UUT.SpaceStatus();
   ASSERT_TRUE(status.undeletedSize > 10000);
 }
-
-
-
-
