@@ -106,6 +106,7 @@ FuseServer::Caps::Imply(uint64_t md_ino,
   implied_cap->set_vid(cap->vid());
   struct timespec ts;
   eos::common::Timing::GetTimeSpec(ts, true);
+
   {
     size_t leasetime = 0;
     {
