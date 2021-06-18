@@ -81,6 +81,7 @@ public:
     // mInFlight can NOT be zero at this point, and the spinner will wait.
     pthread_t myself = pthread_self();
     uid_t myuid = vid.uid;
+    fprintf(stderr,"$$$$UP: %x %x\n", myself, myuid);
     std::unique_lock<std::mutex> scope_lock(mInFlightPidMutex);
 
     if (!mInFlightPids[myself]) {
