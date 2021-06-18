@@ -649,7 +649,6 @@ TEST_F(CapsTest, ImplyCaps)
 TEST_F(CapsTest, ImplyCapsMulti)
 {
   int limit = 10000;
-
   for (int i=0; i < limit; i++){
     auto vid = make_vid(i,i);
     mCaps.Store(make_cap(i,"client"+std::to_string(i),"auth"+std::to_string(i)),&vid);
