@@ -81,10 +81,15 @@ public:
     // mInFlight can NOT be zero at this point, and the spinner will wait.
     pthread_t myself = pthread_self();
     uid_t myuid = vid.uid;
+    fprintf(stderr,"$$$$UP: %x %x\n", myself, myuid);
     std::unique_lock<std::mutex> scope_lock(mInFlightPidMutex);
+
+    if (!mInFlightPids[myself]) {
+      mInFlightUid[myself] = myuid;
+      mInFlightVids[myuid]++;
+    }
     mInFlightPids[myself]++;
-    mInFlightUid[myself] = myuid;
-    mInFlightVids[myuid]++;
+
     return true;
   }
 
@@ -98,14 +103,16 @@ public:
     pthread_t mythread= pthread_self();
     std::unique_lock<std::mutex> scope_lock(mInFlightPidMutex);
     uid_t myuid = mInFlightUid[mythread];
+
+    fprintf(stderr,"$$$$ DOWN: %x %x\n", mythread, myuid);
     if (!(--mInFlightPids[mythread])) {
       mInFlightPids.erase(mythread);
-    }
-
-    if (mInFlightVids[myuid]) {
-      if (!--mInFlightVids[myuid]) {
-	mInFlightVids.erase(myuid);
-	mInFlightStalls.erase(myuid);
+      mInFlightUid.erase(mythread);
+      if (mInFlightVids[myuid]) {
+	if (!--mInFlightVids[myuid]) {
+	  mInFlightVids.erase(myuid);
+	  mInFlightStalls.erase(myuid);
+	}
       }
     }
   }
