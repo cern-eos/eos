@@ -93,9 +93,9 @@ FuseServer::Caps::Imply(uint64_t md_ino,
                   authid.c_str(),
                   implied_authid.c_str());
   shared_cap implied_cap = std::make_shared<capx>();
-  shared_cap cap = Get(authid);
+  shared_cap cap = GetTS(authid);
 
-  if (!cap->id() || !implied_authid.length()) {
+  if (cap == nullptr || !cap->id() || !implied_authid.length()) {
     return false;
   }
 
@@ -106,14 +106,15 @@ FuseServer::Caps::Imply(uint64_t md_ino,
   struct timespec ts;
   eos::common::Timing::GetTimeSpec(ts, true);
   {
-    std::lock_guard lg(mtx);
     size_t leasetime = 0;
     {
+      eos::common::RWMutexReadLock lLock(gOFS->zMQ->gFuseServer.Client());
       leasetime = gOFS->zMQ->gFuseServer.Client().leasetime(cap->clientuuid());
     }
     implied_cap->set_vtime(ts.tv_sec + (leasetime ? leasetime : 300));
     implied_cap->set_vtime_ns(ts.tv_nsec);
     // fill the three views on caps
+    std::lock_guard lg(mtx);
     mTimeOrderedCap.insert(std::pair<time_t, authid_t>(implied_cap->vtime(),
                            implied_authid));
     mClientCaps[cap->clientid()].insert(implied_authid);
