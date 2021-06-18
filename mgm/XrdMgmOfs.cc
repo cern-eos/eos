@@ -71,11 +71,7 @@
 #include "mgm/Iostat.hh"
 #include "mgm/LRU.hh"
 #include "mgm/WFE.hh"
-<<< <<< < HEAD
-#include "mgm/DynamicEC.hh"
-== == == =
 #include "mgm/dynamicec/DynamicEC.hh"
-  >>> >>> > astoeve - Dev - Branch
 #include "mgm/fsck/Fsck.hh"
 #include "mgm/Master.hh"
 #include "mgm/FuseServer/FusexCastBatch.hh"
@@ -121,7 +117,7 @@
 #endif
 
 // Initialize static variables
-  XrdSysError * XrdMgmOfs::eDest;
+XrdSysError* XrdMgmOfs::eDest;
 thread_local eos::common::LogId XrdMgmOfs::tlLogId;
 XrdSysError gMgmOfsEroute(0);
 XrdOucTrace gMgmOfsTrace(&gMgmOfsEroute);

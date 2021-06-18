@@ -22,44 +22,40 @@
  ************************************************************************/
 ///test
 #include "gtest/gtest.h"
-<<< <<< < HEAD
-#include "mgm/DynamicEC.hh"
-== == == =
 #include "mgm/dynamicec/DynamicEC.hh"
-  >>> >>> > astoeve - Dev - Branch
 #include "common/LayoutId.hh"
 #include "time.h"
 
 #include "common/Logging.hh"
 //#include "Namespace.hh"
 
-  /*
-  TEST(DynamicECTest, LookInMap)
-  {
-    eos::mgm::DynamicEC UUT(11556926,10000000,1,1);
-    UUT.fillFiles();
-    //This is for 100000 files in the system
-    ASSERT_EQ(UUT.simulatedFiles.size(),100000);
-    ASSERT_FALSE(UUT.simulatedFiles.empty());
+/*
+TEST(DynamicECTest, LookInMap)
+{
+  eos::mgm::DynamicEC UUT(11556926,10000000,1,1);
+  UUT.fillFiles();
+  //This is for 100000 files in the system
+  ASSERT_EQ(UUT.simulatedFiles.size(),100000);
+  ASSERT_FALSE(UUT.simulatedFiles.empty());
 
-    //ASSERT_EQ(UUT.simulatedFiles.max_size(),100000);
-  }
+  //ASSERT_EQ(UUT.simulatedFiles.max_size(),100000);
+}
 
 
-  */
+*/
 
-  /*
-  void function_using_logging()
-  {
-    eos_static_info("%s %s", __FUNCTION__, "print a test log line");
-    return;
-  }
-  */
+/*
+void function_using_logging()
+{
+  eos_static_info("%s %s", __FUNCTION__, "print a test log line");
+  return;
+}
+*/
 
 
 //EOSCOMMONTESTING_BEGIN
 
-  TEST(Logging, Log)
+TEST(Logging, Log)
 {
   using namespace eos::common;
   gLogging.SetLogPriority(LOG_INFO);

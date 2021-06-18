@@ -55,11 +55,7 @@
 #include "mgm/inspector/FileInspector.hh"
 #include "mgm/qos/QoSClass.hh"
 #include "mgm/qos/QoSConfig.hh"
-<<< <<< < HEAD
-#include "mgm/DynamicEC.hh"
-== == == =
 #include "mgm/dynamicec/DynamicEC.hh"
-  >>> >>> > astoeve - Dev - Branch
 #include "common/RWMutex.hh"
 #include "common/StacktraceHere.hh"
 #include "common/plugin_manager/PluginManager.hh"
@@ -85,7 +81,7 @@
 #include "XrdOuc/XrdOucTrace.hh"
 #include "qclient/shared/SharedManager.hh"
 
-  extern XrdOucTrace gMgmOfsTrace;
+extern XrdOucTrace gMgmOfsTrace;
 extern void xrdmgmofs_shutdown(int sig);
 extern void xrdmgmofs_stacktrace(int sig);
 extern void xrdmgmofs_coverage(int sig);

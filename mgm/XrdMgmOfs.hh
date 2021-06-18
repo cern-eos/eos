@@ -1820,11 +1820,11 @@ public:
   WFE& WFEd;
 
   //! DynamicEC object
-  <<< <<< < HEAD
-  std::unique_ptr<DynamicEC> mDynamicEC;
-  == == == =
-    std::unique_ptr<eos::mgm::DynamicEC> mDynamicEC;
-  >>> >>> > astoeve - Dev - Branch
+
+//  std::unique_ptr<DynamicEC> mDynamicEC;
+
+  std::unique_ptr<eos::mgm::DynamicEC> mDynamicEC;
+
 
   //!  Admin socket
   std::unique_ptr<AdminSocket> AdminSocketServer;
