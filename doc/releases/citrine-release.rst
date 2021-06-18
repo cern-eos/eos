@@ -16,6 +16,17 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.54 Citrine``
+===================
+
+2021-06-18
+
+Bug
+----
+
+* [EOS-4755] MGM: fix concurrency issues leading to SEGV in FuseServer/Caps (Imply)
+
+
 ``v4.8.53 Citrine``
 ===================
 
