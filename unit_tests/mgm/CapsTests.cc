@@ -27,6 +27,7 @@
 #include "mgm/XrdMgmOfs.hh"
 
 using namespace eos::mgm::FuseServer;
+using namespace std::chrono_literals;
 
 class FakeStats {
 public:
@@ -517,7 +518,6 @@ TEST_F(CapsTest, MonitorCapsUpdate)
   EXPECT_EQ(mCaps.GetCaps().size(), 1);
   EXPECT_EQ(mCaps.ncaps(), 2);   // should this be 2 as we've a new time?
 
-  using namespace std::chrono_literals;
   std::this_thread::sleep_for(2s);
 
   // Now expire the caps
@@ -616,4 +616,42 @@ TEST_F(CapsTest, GetInodeCapAuthIds)
     // results in a if else branch, so we just simply simulate this
   }
   EXPECT_EQ(results, actual);
+}
+
+TEST_F(CapsTest, ImplyCaps)
+{
+  auto vid1 = make_vid(1,1);
+  auto vid2 = make_vid(2,2);
+  auto vid3 = make_vid(3,3);
+  mCaps.Store(make_cap(1,"client1","auth1"), &vid1);
+  mCaps.Store(make_cap(2,"client2","auth2"), &vid2);
+  mCaps.Store(make_cap(3,"client3","auth3"), &vid3);
+
+  auto c = mCaps.Get("auth3");
+  EXPECT_EQ(c->clientid(), "client3");
+
+  EXPECT_FALSE(mCaps.Imply(3,"auth_foo","auth1"));
+  EXPECT_FALSE(mCaps.Imply(3,"auth1",""));
+
+  EXPECT_TRUE(mCaps.Imply(3,"auth3","auth1"));
+  auto c3 = mCaps.Get("auth3");
+  EXPECT_EQ(c3->clientid(), "client3");
+  auto c1 = mCaps.Get("auth1");
+  EXPECT_EQ(c1->clientid(),"client3");
+}
+
+TEST_F(CapsTest, ImplyCapsMulti)
+{
+
+  int limit = 10000;
+  for (int i=0; i < limit; i++){
+    auto vid = make_vid(i,i);
+    mCaps.Store(make_cap(i,"client"+std::to_string(i),"auth"+std::to_string(i)),&vid);
+  }
+  std::thread deleter([&](){ for(int i=0; i < limit;i++) { EXPECT_EQ(mCaps.Delete(i),0);}});
+  std::thread implier([&](){ for(int i=0; i < limit;i++) { std::string indp = std::to_string(i-1);
+                                                           std::string indc = std::to_string(i+2);
+                                                           ASSERT_NO_THROW(mCaps.Imply(i,"auth"+indc,"auth"+indp));}});
+  deleter.join();
+  implier.join();
 }
