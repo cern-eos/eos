@@ -44,6 +44,20 @@ project (eos)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 #-------------------------------------------------------------------------------
+# Detect target architecture
+#-------------------------------------------------------------------------------
+option(AARCH64 "Build on 64bit arm platform" OFF)
+execute_process(COMMAND uname -p COMMAND tr -d '\n' OUTPUT_VARIABLE FOO)
+if (${FOO} STREQUAL "aarch64")
+  set (AARCH64 ON)
+else()
+  set (AARCH64 OFF)
+endif()
+if (AARCH64)
+ LIST(APPEND CMAKE_CXX_FLAGS "-Wall -mabi=lp64 -g -D__aarch64__")
+endif()
+
+#-------------------------------------------------------------------------------
 # Make gtest / gmock available for all downstream CMakeLists.txt that need it
 #-------------------------------------------------------------------------------
 set(GTEST "${CMAKE_SOURCE_DIR}/unit_tests/googletest/")

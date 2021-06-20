@@ -13,7 +13,7 @@ find_path(ROCKSDB_INCLUDE_DIR
   PATH_SUFFIXES include)
 
 find_library(ROCKSDB_LIBRARY
-  NAMES librocksdb.a
+  NAMES librocksdb.so
   HINTS ${ROCKSDB_ROOT})
 
 include(FindPackageHandleStandardArgs)

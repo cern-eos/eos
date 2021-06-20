@@ -12,7 +12,7 @@
 # PROTOBUF_ROOT may be defined as a hint for where to look
 
 find_program(PROTOBUF_PROTOC_EXECUTABLE
-  NAMES protoc3
+  NAMES /opt/eos/bin/protoc3
   HINTS ${PROTOBUF_ROOT}/bin
   PATHS /opt/eos/bin /usr/local/bin /usr/bin /bin
   DOC "Version 3 of The Google Protocol Buffers Compiler"

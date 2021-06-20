@@ -43,4 +43,12 @@ uint32_t crc32cHardware32(uint32_t crc, const void* data, size_t length);
 uint32_t crc32cHardware64(uint32_t crc, const void* data, size_t length);
 
 }  // namespace checksum
+
+#ifdef __aarch64__
+#define __builtin_ia32_crc32di __builtin_aarch64_crc32cx 
+#define __builtin_ia32_crc32si __builtin_aarch64_crc32cw 
+#define __builtin_ia32_crc32hi __builtin_aarch64_crc32ch 
+#define __builtin_ia32_crc32qi __builtin_aarch64_crc32cb 
+#endif // GCC_AARCH64_H
+
 #endif

@@ -31,7 +31,8 @@ add_library(EosGrpcClient-Objects OBJECT
 
 target_link_libraries(EosGrpcClient-Objects PUBLIC
   EosGrpcProto-Objects
-  XROOTD::UTILS)
+  XROOTD::UTILS
+  gpr )
 
 target_compile_definitions(EosGrpcClient-Objects PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DHAVE_ATOMICS=1)
