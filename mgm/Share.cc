@@ -29,6 +29,7 @@
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/Resolver.hh"
+#include "common/table_formatter/TableFormatterBase.hh"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -310,13 +311,38 @@ Share::Proc::ModifyShareAttr(const std::string& path, const std::string& shareat
 }
 
 void
-Share::AclList::Dump(std::string& out)
+Share::AclList::Dump(std::string& out, bool monitoring)
 {
-  for (auto it : mListing) {
-    char format[1024];
-    snprintf(format, sizeof(format),"uid:%06d %32s %s\n", it->get_uid(), it->get_name().c_str(), it->get_rule().c_str());
-    out += format;
+  std::string format_s = !monitoring ? "s" : "os";
+  TableFormatterBase table_all;
+
+  if (!monitoring) {
+    table_all.SetHeader({
+	std::make_tuple("uid", 8, format_s),
+	std::make_tuple("name", 32, format_s),
+        std::make_tuple("rule", 48, format_s),
+        std::make_tuple("root", 48, format_s)
+          });
+  } else {
+    table_all.SetHeader({
+	std::make_tuple("uid", 0, format_s),
+        std::make_tuple("name", 0, format_s),
+        std::make_tuple("rule", 0, format_s),
+        std::make_tuple("root", 0, format_s)
+          });
   }
+
+
+  for (auto it : mListing) {
+    TableData table_data;
+    table_data.emplace_back();
+    table_data.back().push_back(TableCell(std::to_string((long long )it->get_uid()), format_s));
+    table_data.back().push_back(TableCell(it->get_name(), format_s));
+    table_data.back().push_back(TableCell(it->get_rule(), format_s));
+    table_data.back().push_back(TableCell(it->get_root(), format_s));
+    table_all.AddRows(table_data);
+  }
+  out = table_all.GenerateTable(HEADER);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -339,11 +365,15 @@ Share::Proc::List(eos::common::VirtualIdentity& vid, const std::string& name)
       if (std::string(val) == "..") continue;
       std::string entry = procpath + val;
       XrdOucString acl;
+      XrdOucString root;
       XrdOucErrInfo error;
       if (!gOFS->_attr_get(entry.c_str(), error,
 			   vid, "", "sys.share.acl", acl, true)) {
+	gOFS->_attr_get(entry.c_str(), error,
+			vid, "", "sys.share.root", root, true);
 	std::string sacl = acl.c_str();
-	acllist.Add(vid.uid, val, sacl);
+	std::string sroot = root.c_str();
+	acllist.Add(vid.uid, val, sacl ,sroot);
       }
     }
   }

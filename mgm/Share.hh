@@ -42,25 +42,27 @@ public:
   class Acl {
   public:
     Acl();
-    Acl(uid_t _uid, const std::string& _name, const std::string& _rule) : uid(_uid), name(_name), rule(_rule) {}
+    Acl(uid_t _uid, const std::string& _name, const std::string& _rule, const std::string& _root) : uid(_uid), name(_name), rule(_rule), root(_root) {}
     virtual ~Acl();
     uid_t get_uid() { return uid; }
     std::string get_name() { return name; }
     std::string get_rule() { return rule; }
+    std::string get_root() { return root; }
   private:
     uid_t uid;
     std::string name;
     std::string rule;
+    std::string root;
   };
 
   class AclList {
   public:
     AclList(){}
     virtual ~AclList(){}
-    void Add(uid_t uid, const std::string& name, const std::string& acl) {
-      mListing.push_back( std::make_shared<Acl>(uid,name,acl) );
+    void Add(uid_t uid, const std::string& name, const std::string& acl, const std::string& root) {
+      mListing.push_back( std::make_shared<Acl>(uid,name,acl, root) );
     }
-    void Dump(std::string& out);
+    void Dump(std::string& out, bool monitoring=false);
     size_t Size() { return mListing.size(); }
   private:
     std::vector<std::shared_ptr<Acl>> mListing;
