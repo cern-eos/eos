@@ -85,7 +85,25 @@ XrdCl::Proxy::Read(uint64_t offset,
   std::set<uint64_t> delete_chunk;
   void* pbuffer = buffer;
 
-  if (XReadAheadStrategy != NONE) {
+  if ((off_t)offset == (off_t)mPosition) {
+    mSeqDistance += size;
+  } else {
+    if (!XReadAheadDisabled) {
+      off_t seek_distance = labs(offset-mPosition);
+      double sparse_ratio = 1.0 * mSeqDistance / (seek_distance + mSeqDistance);
+      if (EOS_LOGS_DEBUG) {
+	eos_debug("sparse ratio:= %.02f seq-distance=%lu seek-distance=%lu", sparse_ratio, (off_t)mSeqDistance, (off_t)seek_distance);
+      }
+      mSeqDistance = size;
+      if (sparse_ratio && (sparse_ratio < XReadAheadSparseRatio)) {
+	eos_notice("sparse ratio:= %.02f seq-distance=%lu seek-distance=%lu - disabling readahead permanently url:'%s'", sparse_ratio, (off_t)mSeqDistance, (off_t)seek_distance,
+		   sparse_ratio, mUrl.c_str());
+	XReadAheadDisabled = true;
+      }
+    }
+  }
+
+  if ((XReadAheadStrategy != NONE)) {
     ReadCondVar().Lock();
     XReadAheadBlocksIs = 0;
 
@@ -205,7 +223,7 @@ XrdCl::Proxy::Read(uint64_t offset,
       if ((off_t) offset == mPosition) {
         XReadAheadReenableHits++;
 
-        if (XReadAheadReenableHits > 2) {
+	if ((!XReadAheadDisabled) && (XReadAheadReenableHits > 2)) {
           eos_info("re-enabling read-ahead at %lu (%lu)", offset, mPosition);
           // re-enable read-ahead if sequential reading occurs
           request_next = true;
@@ -233,7 +251,6 @@ XrdCl::Proxy::Read(uint64_t offset,
         set_readahead_position(0);
       }
     }
-
     if (request_next) {
       // dynamic window scaling
       if (readahead_window_hit) {
