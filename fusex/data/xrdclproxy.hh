@@ -565,6 +565,16 @@ public:
     return mReadAheadMaximumPosition;
   }
 
+  void set_readahead_sparse_ratio(double r)
+  {
+    XReadAheadSparseRatio = r;
+  }
+
+  double get_readhead_sparse_ratio()
+  {
+    return XReadAheadSparseRatio;
+  }
+
   static READAHEAD_STRATEGY readahead_strategy_from_string(
     const std::string& strategy)
   {
@@ -580,7 +590,7 @@ public:
   }
 
   void set_readahead_strategy(READAHEAD_STRATEGY rhs,
-                              size_t min, size_t nom, size_t max, size_t rablocks)
+                              size_t min, size_t nom, size_t max, size_t rablocks, float sparse_ratio=0.0)
   {
     XReadAheadStrategy = rhs;
     XReadAheadMin = min;
@@ -590,6 +600,7 @@ public:
     XReadAheadBlocksNom = 1;
     XReadAheadBlocksMin = 1;
     XReadAheadReenableHits = 0;
+    XReadAheadSparseRatio = sparse_ratio;
   }
 
   float get_readahead_efficiency()
@@ -601,7 +612,7 @@ public:
   float get_readahead_volume_efficiency()
   {
     XrdSysCondVarHelper lLock(ReadCondVar());
-    return (mTotalBytes) ? (100.0 * mTotalReadAheadHitBytes / mTotalReadAheadBytes)
+    return (mTotalReadAheadBytes) ? (100.0 * mTotalReadAheadHitBytes / mTotalReadAheadBytes)
            : 0.0;
   }
 
@@ -651,6 +662,9 @@ public:
     XReadAheadBlocksMin = 1;
     XReadAheadReenableHits = 0;
     XReadAheadBlocksIs = 0;
+    XReadAheadDisabled = false;
+    XReadAheadSparseRatio = 0.0;
+    mSeqDistance = 0;
     mPosition = 0;
     mReadAheadPosition = 0;
     mTotalBytes = 0;
@@ -744,8 +758,10 @@ public:
       CollectWrites();
     }
 
-    eos_notice("ra-efficiency=%f ra-vol-efficiency=%f", get_readahead_efficiency(),
-               get_readahead_volume_efficiency());
+    eos_notice("ra-efficiency=%f ra-vol-efficiency=%f tot-bytes=%lu ra-bytes=%lu ra-hit-bytes=%lu ", get_readahead_efficiency(),
+               get_readahead_volume_efficiency(),
+	       mTotalReadAheadBytes,
+	       mTotalReadAheadHitBytes);
   }
 
   // ---------------------------------------------------------------------- //
@@ -1355,13 +1371,15 @@ private:
   size_t XReadAheadBlocksMax; // maximum number of prefetch blocks
   size_t XReadAheadBlocksIs; // current blocks in the read-ahead
   size_t XReadAheadReenableHits; // sequential read hits in a row
+  bool   XReadAheadDisabled; // one-off disabling of read-ahead
+  double XReadAheadSparseRatio; // sparse ratio when we permanently disable read-ahead
   off_t mPosition;
   off_t mReadAheadPosition;
   off_t mTotalBytes;
   off_t mTotalReadAheadHitBytes;
   off_t mTotalReadAheadBytes;
   off_t mReadAheadMaximumPosition;
-
+  off_t mSeqDistance;
   XrdSysMutex mAttachedMutex;
   size_t mAttached;
   fuse_req_t mReq;

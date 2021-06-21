@@ -143,7 +143,7 @@ std::string fusexrdlogin::xrd_login(fuse_req_t req)
     login = "unix";
   }
 
-  eos_static_notice("uid=%u gid=%u xrd-login=%s",
+  eos_static_info("uid=%u gid=%u xrd-login=%s",
                     id.uid,
                     id.gid,
                     login.c_str()
