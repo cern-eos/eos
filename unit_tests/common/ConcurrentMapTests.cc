@@ -21,13 +21,28 @@
  ************************************************************************/
 
 #include "gtest/gtest.h"
-#include "common/concurrent_map/concurrent_map_adapter.hh"
+#include "common/concurrent_map/concurrent_map.hh"
 #include <unordered_map>
 #include <unordered_set>
 #include <numeric>
+#include <google/dense_hash_map>
+using eos::common::std_concurrent_map;
+using eos::common::dense_concurrent_map;
 
-template <class K, class V>
-using std_concurrent_map = eos::common::concurrent_map_adapter<std::unordered_map<K,V>>;
+// Some compile time checks... we could move this with an assert_true if we
+// later find very long amount of these increase the compile time TEST that the
+// aliases correctly forward the types to the underlying containers
+static_assert(std::is_same_v<std_concurrent_map<int,std::string>,
+              eos::common::concurrent_map_adapter<std::unordered_map<int,std::string>,std::mutex>>);
+
+static_assert(std::is_same_v<std_concurrent_map<int,std::string,std::shared_mutex>,
+              eos::common::concurrent_map_adapter<std::unordered_map<int,std::string>,std::shared_mutex>>);
+
+static_assert(std::is_same_v<std_concurrent_map<int,std::string,std::shared_mutex,std::hash<int>>,
+              eos::common::concurrent_map_adapter<std::unordered_map<int,std::string,std::hash<int>>,std::shared_mutex>>);
+
+static_assert(std::is_same_v<dense_concurrent_map<int,std::string>,
+              eos::common::concurrent_map_adapter<google::dense_hash_map<int,std::string,SPARSEHASH_HASH<int>>,std::mutex>>);
 
 TEST(ConcurrentMap, Basic)
 {
