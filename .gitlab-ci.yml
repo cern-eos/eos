@@ -363,11 +363,11 @@ build_cc7_asan:
     CMAKE_OPTIONS: "-DASAN=1"
     RPMBUILD_OPTIONS: "--with asan"
     CXXFLAGS: "-Wno-parentheses"    # Avoid boost header compilation errors
-  only:
-    - schedules
   tags:
     - docker_node
     - build
+  when: manual
+
 
 build_cc7_clang:
   <<: *build_cc7_exotic-template_definition
@@ -538,9 +538,8 @@ cc7_asan_docker_image:
   needs:
     - job: clone_docker
     - job: build_cc7_asan
-  only:
-    - schedules
   allow_failure: true
+  when: manual
 
 
 # @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
@@ -1184,8 +1183,7 @@ unit_test_asan:
     - job: cc7_asan_docker_image
       artifacts: false
   allow_failure: true
-  only:
-    - schedules
+  when: manual
 
 
 #-------------------------------------------------------------------------------
