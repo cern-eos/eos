@@ -545,9 +545,9 @@ cc7_asan_docker_image:
   needs:
     - job: clone_docker
     - job: build_cc7_asan
-  allow_failure: true
   when: manual
   allow_failure: true
+
 
 
 # @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
