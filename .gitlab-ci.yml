@@ -353,9 +353,6 @@ build_fedora_rawhide:
   dependencies: []
   allow_failure: true
 
-# @note.1 jobs with `needs: on manual jobs get stuck (no fail nor succeed)
-# if an `allow_failure: false` policy is not defined in GitLab < 13.12
-# Drop as we upgrade, ref: https://about.gitlab.com/blog/2021/05/20/dag-manual-fix/
 build_cc7_asan:
   <<: *build_cc7_exotic-template_definition
   variables:
@@ -363,11 +360,11 @@ build_cc7_asan:
     CMAKE_OPTIONS: "-DASAN=1"
     RPMBUILD_OPTIONS: "--with asan"
     CXXFLAGS: "-Wno-parentheses"    # Avoid boost header compilation errors
+  only:
+    - schedules
   tags:
     - docker_node
     - build
-  when: manual
-  allow_failure: true
 
 build_cc7_clang:
   <<: *build_cc7_exotic-template_definition
@@ -534,9 +531,6 @@ c8_docker_image:
     - tags
   allow_failure: true
 
-# @note.1 jobs with `needs: on manual jobs get stuck (no fail nor succeed)
-# if an `allow_failure: false` policy is not defined in GitLab < 13.12
-# Drop as we upgrade, ref: https://about.gitlab.com/blog/2021/05/20/dag-manual-fix/
 cc7_asan_docker_image:
   extends: .build_dockerimage-template
   variables:
@@ -545,8 +539,8 @@ cc7_asan_docker_image:
   needs:
     - job: clone_docker
     - job: build_cc7_asan
-  allow_failure: true
-  when: manual
+  only:
+    - schedules
   allow_failure: true
 
 
@@ -1175,9 +1169,6 @@ dock_fusex_ub_focal:
     - dock
   when: manual
 
-# @note.1 jobs with `needs: on manual jobs get stuck (no fail nor succeed)
-# if an `allow_failure: false` policy is not defined in GitLab < 13.12
-# Drop as we upgrade, ref: https://about.gitlab.com/blog/2021/05/20/dag-manual-fix/
 unit_test_asan:
   image:
     name: gitlab-registry.cern.ch/dss/eos:asan_${CI_COMMIT_SHORT_SHA}
@@ -1189,8 +1180,9 @@ unit_test_asan:
   needs:
     - job: cc7_asan_docker_image
       artifacts: false
-  when: manual
   allow_failure: true
+  only:
+    - schedules
 
 
 #-------------------------------------------------------------------------------
