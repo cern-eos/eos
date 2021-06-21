@@ -193,7 +193,7 @@ Share::Proc::Create(eos::common::VirtualIdentity& vid,
 {
   errno = 0 ;
   // create path
-  std::string procpath = GetEntry(vid, name);
+  std::string procpath = GetEntry(vid.uid, name);
   // create share entry
   int rc = CreateDir(procpath);
   if (rc) {
@@ -350,30 +350,39 @@ Share::AclList
 Share::Proc::List(eos::common::VirtualIdentity& vid, const std::string& name)
 {
   Share::AclList acllist;
-  std::string procpath = GetEntry(vid, name);
 
-  XrdMgmOfsDirectory directory;
-  int listrc = directory.open(procpath.c_str(),
-			      vid,
-			      "");
-  if (!listrc) {
-    const char* val;
+  std::set<uid_t> users;
+  users.insert(vid.uid);
 
-    while ((val = directory.nextEntry())) {
-<<<<<<< HEAD
-      if (std::string(val) == ".") continue;
-      if (std::string(val) == "..") continue;
-      std::string entry = procpath + val;
-      XrdOucString acl;
-      XrdOucString root;
-      XrdOucErrInfo error;
-      if (!gOFS->_attr_get(entry.c_str(), error,
-			   vid, "", "sys.share.acl", acl, true)) {
-	gOFS->_attr_get(entry.c_str(), error,
-			vid, "", "sys.share.root", root, true);
-	std::string sacl = acl.c_str();
-	std::string sroot = root.c_str();
-	acllist.Add(vid.uid, val, sacl ,sroot);
+  if (vid.uid == 0) {
+    users = GetShareUsers();
+  }
+
+  for ( auto it : users ) {
+    std::string procpath = GetEntry(it, name);
+
+    XrdMgmOfsDirectory directory;
+    int listrc = directory.open(procpath.c_str(),
+				vid,
+				"");
+    if (!listrc) {
+      const char* val;
+
+      while ((val = directory.nextEntry())) {
+	if (std::string(val) == ".") continue;
+	if (std::string(val) == "..") continue;
+	std::string entry = procpath + val;
+	XrdOucString acl;
+	XrdOucString root;
+	XrdOucErrInfo error;
+	if (!gOFS->_attr_get(entry.c_str(), error,
+			     vid, "", "sys.share.acl", acl, true)) {
+	  gOFS->_attr_get(entry.c_str(), error,
+			  vid, "", "sys.share.root", root, true);
+	  std::string sacl = acl.c_str();
+	  std::string sroot = root.c_str();
+	  acllist.Add(it, val, sacl ,sroot);
+	}
       }
     }
   }
@@ -384,12 +393,12 @@ Share::Proc::List(eos::common::VirtualIdentity& vid, const std::string& name)
 int
 Share::Proc::Delete(eos::common::VirtualIdentity& vid, const std::string& name)
 {
-
   // check if exists
   if (Get(vid, name)) {
     return ENOENT;
   }
-  std::string procpath = GetEntry(vid, name);
+
+  std::string procpath = GetEntry(vid.uid, name);
 
   XrdOucErrInfo error;
   eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
@@ -412,6 +421,31 @@ int
 Share::Proc::Modify()
 {
   return 0;
+}
+
+std::set<uid_t>
+Share::Proc::GetShareUsers()
+{
+  std::set<uid_t> users;
+
+  eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
+  XrdMgmOfsDirectory directory;
+  int listrc = directory.open(mProcPrefix.c_str(),
+			      root_vid,
+			      "");
+  if (!listrc) {
+    const char* val;
+
+    while ((val = directory.nextEntry())) {
+      if (std::string(val) == ".") continue;
+      if (std::string(val) == "..") continue;
+      std::string entry =val;
+      if (entry.substr(0,4) == "uid:") {
+	users.insert(std::stoul(entry.substr(4)));
+      }
+    }
+  }
+  return users;
 }
 
 /* ------------------------------------------------------------------------- */

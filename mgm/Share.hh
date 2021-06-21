@@ -45,9 +45,9 @@ public:
     Acl(uid_t _uid, const std::string& _name, const std::string& _rule, const std::string& _root) : uid(_uid), name(_name), rule(_rule), root(_root) {}
     virtual ~Acl();
     uid_t get_uid() { return uid; }
-    std::string get_name() { return name; }
+    std::string get_name() { return std::string("\"") + name + std::string("\""); }
     std::string get_rule() { return rule; }
-    std::string get_root() { return root; }
+    std::string get_root() { return std::string("\"") + root + std::string("\""); }
   private:
     uid_t uid;
     std::string name;
@@ -85,8 +85,10 @@ public:
     int ModifyShare(const eos::common::VirtualIdentity& vid, std::string shareattr, const std::string& share_root, bool remove=false);
     int ModifyShareAttr(const std::string& path, const std::string& shareattr, bool remove=false);
 
-    std::string GetEntry(eos::common::VirtualIdentity& vid, const std::string& name) {
-      return mProcPrefix + "uid:" + std::to_string(vid.uid) + std::string("/") + name;
+    std::set<uid_t> GetShareUsers();
+
+    std::string GetEntry(uid_t uid, const std::string& name) {
+      return mProcPrefix + "uid:" + std::to_string(uid) + std::string("/") + name;
     }
 
     int Delete(eos::common::VirtualIdentity& vid, const std::string& name);
