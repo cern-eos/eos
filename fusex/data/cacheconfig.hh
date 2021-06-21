@@ -34,6 +34,7 @@ struct cacheconfig {
     type = INVALID;
     total_file_cache_size = total_file_cache_inodes = per_file_cache_max_size = total_file_journal_size = total_file_journal_inodes = per_file_journal_max_size = default_read_ahead_size = max_inflight_read_ahead_buffer_size = max_inflight_write_buffer_size = max_read_ahead_size = 0 ;
     max_read_ahead_blocks = 0;
+    read_ahead_sparse_ratio = 0;
     clean_threshold = 0;
     clean_on_startup = false;
   }
@@ -53,6 +54,8 @@ struct cacheconfig {
   size_t max_read_ahead_blocks; // max  number of read-ahead blocks
   float clean_threshold; // filling percentage of the cache disk when we start to delete
   std::string read_ahead_strategy; // string values 'none', 'static', 'dynamic'
+  float    read_ahead_sparse_ratio; // ratio of sparseness when to disable permanently read-ahead
+
   std::string journal;
   bool clean_on_startup; // indicate that the cache is not reusable after restart
 };

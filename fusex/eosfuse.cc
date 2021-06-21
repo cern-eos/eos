@@ -1106,6 +1106,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         root["cache"]["read-ahead-strategy"] = "dynamic";
       }
 
+      if (!root["cache"].isMember("read-ahead-sparse-ratio")) {
+        root["cache"]["read-ahead-sparse-ratio"] = 0.0;
+      }
+
       // auto-scale read-ahead and write-back buffer
       uint64_t best_io_buffer_size = meminfo.get().totalram / 8;
 
@@ -1136,6 +1140,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       cconfig.max_read_ahead_size = root["cache"]["read-ahead-bytes-max"].asInt();
       cconfig.max_read_ahead_blocks = root["cache"]["read-ahead-blocks-max"].asInt();
       cconfig.read_ahead_strategy = root["cache"]["read-ahead-strategy"].asString();
+      cconfig.read_ahead_sparse_ratio = root["cache"]["read-ahead-sparse-ratio"].asFloat();
 
       if ((cconfig.read_ahead_strategy != "none") &&
           (cconfig.read_ahead_strategy != "static") &&
@@ -1689,11 +1694,12 @@ EosFuse::run(int argc, char* argv[], void* userdata)
                          config.options.inmemory_inodes,
                          config.options.flock
                         );
-      eos_static_warning("cache                  := rh-type:%s rh-nom:%d rh-max:%d rh-blocks:%d max-rh-buffer=%lu max-wr-buffer=%lu tot-size=%ld tot-ino=%ld jc-size=%ld jc-ino=%ld dc-loc:%s jc-loc:%s clean-thrs:%02f%%%",
+      eos_static_warning("cache                  := rh-type:%s rh-nom:%d rh-max:%d rh-blocks:%d rh-sparse-ratio:%.01f max-rh-buffer=%lu max-wr-buffer=%lu tot-size=%ld tot-ino=%ld jc-size=%ld jc-ino=%ld dc-loc:%s jc-loc:%s clean-thrs:%02f%%%",
                          cconfig.read_ahead_strategy.c_str(),
                          cconfig.default_read_ahead_size,
                          cconfig.max_read_ahead_size,
                          cconfig.max_read_ahead_blocks,
+			 cconfig.read_ahead_sparse_ratio,
                          cconfig.max_inflight_read_ahead_buffer_size,
                          cconfig.max_inflight_write_buffer_size,
                          cconfig.total_file_cache_size,

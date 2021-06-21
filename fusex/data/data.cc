@@ -757,10 +757,11 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
 
         if (!(flags & O_SYNC)) {
           if (EOS_LOGS_DEBUG)
-            eos_debug("readhead: strategy=%s nom:%lu max:%lu",
+            eos_debug("readhead: strategy=%s nom:%lu max:%lu sparse-ratio:%.01f",
                       cachehandler::instance().get_config().read_ahead_strategy.c_str(),
                       cachehandler::instance().get_config().default_read_ahead_size,
-                      cachehandler::instance().get_config().max_read_ahead_size);
+                      cachehandler::instance().get_config().max_read_ahead_size,
+		      cachehandler::instance().get_config().read_ahead_sparse_ratio);
 
           mFile->xrdioro(freq)->set_readahead_strategy(
             XrdCl::Proxy::readahead_strategy_from_string(
@@ -768,7 +769,8 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
             4096,
             cachehandler::instance().get_config().default_read_ahead_size,
             cachehandler::instance().get_config().max_read_ahead_size,
-            cachehandler::instance().get_config().max_read_ahead_blocks
+            cachehandler::instance().get_config().max_read_ahead_blocks,
+	    cachehandler::instance().get_config().read_ahead_sparse_ratio
           );
           mFile->xrdioro(freq)->set_readahead_maximum_position(mSize);
         }
