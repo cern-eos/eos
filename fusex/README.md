@@ -98,10 +98,11 @@ You also need to define a local cache directory (location) where small files are
     "clean-threshold" : 85.0,
     "location" : "/var/cache/eos/fusex/cache/",
     "journal" : "/var/cache/eos/fusex/journal/",
-    "read-ahead-strategy" : "static",
+    "read-ahead-strategy" : "dynamic",
     "read-ahead-bytes-nominal" : 262144,
-    "read-ahead-bytes-max" : 2097152,
+    "read-ahead-bytes-max" : 1048576,
     "read-ahead-blocks-max" : 16,
+    "read-ahead-sparse-ratio" : 0.0,
     "max-read-ahead-buffer" : 134217728,
     "max-write-buffer" : 134217728
   }
