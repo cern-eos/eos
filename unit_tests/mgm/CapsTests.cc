@@ -25,6 +25,7 @@
 #include "gtest/gtest.h"
 #include "mgm/FuseServer/Caps.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/ZMQ.hh"
 
 using namespace eos::mgm::FuseServer;
 using namespace std::chrono_literals;
@@ -43,6 +44,11 @@ public:
   {
   }
   ~FakeXrdMgmOFS() {
+    // Delete the ZMQ context, TODO future try to mock this class!
+    if (mZmqContext) {
+      mZmqContext->close();
+      delete mZmqContext;
+    }
     mDoneOrderlyShutdown = true;
   }
   // TODO shadow + mock?
