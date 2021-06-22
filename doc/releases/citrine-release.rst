@@ -25,6 +25,7 @@ BUG
 ----
 
 * MGM: silence fprintf statements in InFlightTracker
+* [EOS-4756] MGM: keep recusrive deletions exactly as configured by the recycle bin time policy
 
 New Feature
 ------------
