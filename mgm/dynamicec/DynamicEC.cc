@@ -1045,7 +1045,7 @@ DynamicEC::CleanupMD()
     statusForSystem status;
     status = SpaceStatus();
     mSizeToBeDeleted = status.undeletedSize;
-    mTimeFromWhenToDelete = time(0);
+    mTimeFromWhenToDelete = time(0) - mAge.load();
     eos_static_info(
       "This is where the status have been ran delete to be size is : %lld ",
       status.undeletedSize);
