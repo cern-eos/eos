@@ -291,6 +291,15 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
                   XrdOucString dirname = dirit->first.c_str();
 
                   if (dirname.endswith(".d/")) {
+		    // check again the ctime here, because we had to enalrge the query window by 31 days for the organization of the recycle bin
+		    struct stat buf;
+		    if (!gOFS->_stat(dirname.c_str(),
+				     &buf, lError,  rootvid, "", nullptr , false,0)) {
+		      if (buf.st_ctime > max_ctime_file) {
+			// skip this recusrive deletion, it is still inside the keep window
+			continue;
+		      }
+		    }
                     dirname.erase(dirname.length() - 1);
                     eos::common::Path cpath(dirname.c_str());
                     dirname = cpath.GetParentPath();
