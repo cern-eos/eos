@@ -356,6 +356,9 @@ build_fedora_rawhide:
   dependencies: []
   allow_failure: true
 
+# @note.1 jobs with `needs: on manual jobs get stuck (no fail nor succeed)
+# if an `allow_failure: false` policy is not defined in GitLab < 13.12
+# Drop as we upgrade, ref: https://about.gitlab.com/blog/2021/05/20/dag-manual-fix/
 build_cc7_asan:
   <<: *build_cc7_exotic-template_definition
   variables:
@@ -1192,6 +1195,7 @@ unit_test_asan:
       artifacts: false
   when: manual
   allow_failure: true
+
 
 #-------------------------------------------------------------------------------
 # RPM publishing
