@@ -124,9 +124,6 @@ void DynamicECFile::removeAllLocations()
   }
 
   lock.unlock();
-
-  for (auto const& loc : remove_loc) {
-  }
 }
 
 //------------------------------------------------------------------------------
@@ -174,9 +171,6 @@ void DynamicECFile::unlinkAllLocations()
 
   lock.unlock();
   std::shared_lock<std::shared_timed_mutex> slock(mMutex);
-
-  for (auto const& loc : unlink_loc) {
-  }
 }
 
 //------------------------------------------------------------------------
@@ -397,7 +391,7 @@ void
 DynamicECFile::setSize(uint64_t size)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-  int64_t sizeChange = (size & 0x0000ffffffffffff) - pSize;
+  //int64_t sizeChange = (size & 0x0000ffffffffffff) - pSize;
   pSize = size & 0x0000ffffffffffff;
   lock.unlock();
 }

@@ -31,9 +31,6 @@
 
 using namespace eos;
 
-//#define GTEST;
-
-
 TEST(DynamicEC, LookInMap)
 {
   const char* str = "DynamicTest";
@@ -49,7 +46,7 @@ TEST(DynamicEC, CheckingForAnythingInTheFile)
   eos::mgm::DynamicEC UUT(str, 11556926, 10000000, 1, 1, false);
   UUT.fillFiles();
 
-  for (int i = 0;  i < UUT.mSimulatedFiles.size(); i++) {
+  for (long unsigned int i = 0;  i < UUT.mSimulatedFiles.size(); i++) {
     if (UUT.mSimulatedFiles[i]->getSize() <= 0) {
       std::cerr << "Loop number" << i << std::endl;
       ASSERT_TRUE(false);
@@ -123,7 +120,6 @@ TEST(DynamicEC, TestForFillingInMoreFiles)
   eos::mgm::DynamicEC UUT(str, 11556926, 1000000, 95, 92, false);
   UUT.fillFiles();
   ASSERT_EQ(UUT.mSimulatedFiles.size(), 100000);
-  int a = UUT.mSimulatedFiles.size();
   UUT.fillFiles(100000);
   ASSERT_EQ(UUT.mSimulatedFiles.size(), 200000);
 }
@@ -132,7 +128,6 @@ TEST(DynamicEC, TestGetAndSetFunction)
 {
   const char* str = "DynamicTest";
   eos::mgm::DynamicEC UUT(str, 11556926, 10000000, 95, 92, false);
-  uint64_t before = time(0) - 11556926;
   ASSERT_EQ(UUT.getMaxThresHold(), 95);
   ASSERT_EQ(UUT.getMinThresHold(), 92);
   UUT.setMaxThresHold(10);

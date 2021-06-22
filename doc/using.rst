@@ -10,6 +10,7 @@ Using EOS
    :maxdepth: 1
 
    using/archive
+   using/dynamicec
    using/eos_services
    using/rain
    using/reports
