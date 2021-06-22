@@ -65,9 +65,23 @@ TEST(ConcurrentMap, Basic)
 
   auto kv = cm.find(10);
   EXPECT_EQ(kv->second,"value10");
+  // Can't modify!
+  // kv->second = "foo"; will not compile as we return a const
   EXPECT_TRUE(cm.erase(10));
-  const auto k = cm.find(10);
-  EXPECT_EQ(k, cm.end());
+  EXPECT_EQ(cm.find(10),cm.end());
+}
 
+TEST(ConcurrentMap, erase_it)
+{
+  std_concurrent_map<int,std::string> cm;
+  for (int i=0;i<100;i++){
+    cm.emplace(i,"value"+std::to_string(i));
+  }
 
+  auto kv = cm.find(10);
+  auto it2 = kv;
+  ++it2;
+  auto result_it = cm.erase(kv);
+  EXPECT_EQ(cm.find(10),cm.end());
+  EXPECT_EQ(result_it, it2);
 }

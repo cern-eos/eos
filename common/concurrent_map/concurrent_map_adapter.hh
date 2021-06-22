@@ -70,6 +70,12 @@ public:
       return *this;
     }
 
+    const_iterator operator++(int) {
+      UnderlyingIterator it2 = it;
+      it2++;
+      return const_iterator(it2);
+    }
+
     friend bool operator==(const const_iterator& a, const const_iterator& b) {
       return a.it ==b.it;
     }
@@ -123,10 +129,22 @@ public:
   }
 
   // We can't fixate on bool ret_type as some maps for eg. abseil have a void
-  // interface as well, ideally just ret. decltype(m).erase(Arg)
-  auto erase(const key_type& key) {
+  // interface as well
+  auto erase(const key_type& key) -> decltype(std::declval<MapType&>().erase(key))
+  {
     typename MapLock::UniqueLock wlock(mtx);
     return hashmap.erase(key);
+  }
+
+
+  // This API from std::unordered_map actually is rarely used this way, ie.
+  // reuse the next iterator from return, so maybe we should just return void
+  // like densemap and many others do so this whole snifae madness can go away
+  template <typename It, typename = std::enable_if_t<std::is_same_v<decltype(std::declval<MapType&>().erase(std::declval<typename It::UnderlyingIterator>())),
+                                                       typename MapType::iterator>>>
+  const_iterator erase(It pos) {
+    typename MapLock::UniqueLock wlock(mtx);
+    return const_iterator(hashmap.erase(pos.it));
   }
 
   // TODO: Value Modification not thread safe as it could be outside of the map,
