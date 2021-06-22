@@ -393,11 +393,6 @@ Share::Proc::List(eos::common::VirtualIdentity& vid, const std::string& name)
 int
 Share::Proc::Delete(eos::common::VirtualIdentity& vid, const std::string& name)
 {
-  // check if exists
-  if (Get(vid, name)) {
-    return ENOENT;
-  }
-
   std::string procpath = GetEntry(vid.uid, name);
 
   XrdOucErrInfo error;
@@ -407,13 +402,6 @@ Share::Proc::Delete(eos::common::VirtualIdentity& vid, const std::string& name)
 		      root_vid,
 		      "",
 		      false);
-}
-
-/* ------------------------------------------------------------------------- */
-int
-Share::Proc::Get(eos::common::VirtualIdentity& vid, const std::string& name)
-{
-  return 0;
 }
 
 /* ------------------------------------------------------------------------- */
