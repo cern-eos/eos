@@ -353,9 +353,6 @@ build_fedora_rawhide:
   dependencies: []
   allow_failure: true
 
-# @note.1 jobs with `needs: on manual jobs get stuck (no fail nor succeed)
-# if an `allow_failure: false` policy is not defined in GitLab < 13.12
-# Drop as we upgrade, ref: https://about.gitlab.com/blog/2021/05/20/dag-manual-fix/
 build_cc7_asan:
   <<: *build_cc7_exotic-template_definition
   variables:
@@ -535,7 +532,7 @@ c8_docker_image:
   allow_failure: true
 
 # @note.1 jobs with `needs: on manual jobs get stuck (no fail nor succeed)
-# if an `allow_failure: false` policy is not defined in GitLab < 13.12
+# if an `optional: true` policy is not defined in GitLab < 13.12
 # Drop as we upgrade, ref: https://about.gitlab.com/blog/2021/05/20/dag-manual-fix/
 cc7_asan_docker_image:
   extends: .build_dockerimage-template
@@ -545,6 +542,7 @@ cc7_asan_docker_image:
   needs:
     - job: clone_docker
     - job: build_cc7_asan
+      optional: true
   when: manual
   allow_failure: true
 
@@ -1175,7 +1173,7 @@ dock_fusex_ub_focal:
   when: manual
 
 # @note.1 jobs with `needs: on manual jobs get stuck (no fail nor succeed)
-# if an `allow_failure: false` policy is not defined in GitLab < 13.12
+# if an `optional: true` policy is not defined in GitLab < 13.12
 # Drop as we upgrade, ref: https://about.gitlab.com/blog/2021/05/20/dag-manual-fix/
 unit_test_asan:
   image:
@@ -1187,6 +1185,7 @@ unit_test_asan:
     ASAN_OPTIONS: "fast_unwind_on_malloc=0"  # Avoid indirect leaks from linked dependencies. For the namespace tests
   needs:
     - job: cc7_asan_docker_image
+      optional: true
       artifacts: false
   when: manual
   allow_failure: true
