@@ -16,6 +16,22 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.55 Citrine``
+===================
+
+2021-06-22
+
+BUG
+----
+
+* MGM: silence fprintf statements in InFlightTracker
+
+New Feature
+------------
+
+* FUSEX: allow to define 'sparse ratio' to disable read-ahead for good if a file has been seen to be sparse read - normally read-ahead can get re-enabled
+* CI: allow ASAN builds to be manually triggered
+
 ``v4.8.54 Citrine``
 ===================
 
