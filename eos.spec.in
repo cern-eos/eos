@@ -973,19 +973,12 @@ The EOS srm package.
 %package -n eos-testkeytab
 Summary: The EOS testkeytab package
 Group: Applications/File
-ExclusiveArch: x86_64
-Requires: shadow-utils
 
 %description -n eos-testkeytab
-Contains an example keytab file and create the eosnobody user
+Contains an example keytab file.
 
 %files -n eos-testkeytab
 %config(noreplace) %attr(-, daemon, daemon) %{_sysconfdir}/eos.keytab
-%config(noreplace) %attr(-, daemon, daemon) %{_sysconfdir}/eos.client.keytab
-
-%post -n eos-testkeytab
-
-getent passwd eosnobody || useradd eosnobody
 
 #-------------------------------------------------------------------------------
 # Package eos-archive only for >= CC7
