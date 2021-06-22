@@ -40,8 +40,8 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-const std::string Fsck::sFsckKey
-{"fsck"
+const std::string Fsck::sFsckKey {
+  "fsck"
 };
 const std::string Fsck::sCollectKey {"toggle-collect"};
 const std::string Fsck::sCollectIntervalKey {"collect-interval-min"};
@@ -126,9 +126,11 @@ Fsck::ApplyFsckConfig()
 bool
 Fsck::StoreFsckConfig()
 {
+  using namespace std::chrono;
   std::ostringstream oss;
   oss << sCollectKey << "=" << mCollectEnabled << " "
-      << sCollectIntervalKey << "=" << mCollectInterval.count() << " "
+      << sCollectIntervalKey << "="
+      << duration_cast<minutes>(mCollectInterval).count() << " "
       << sRepairKey << "=" << mRepairEnabled;
   return FsView::gFsView.SetGlobalConfig(sFsckKey, oss.str());
 }
@@ -249,23 +251,14 @@ Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
 
   gOFS->WaitUntilNamespaceIsBooted();
 
+  // Wait that current MGM becomes a master
+  do {
+    eos_debug("%s", "msg=\"fsck waiting for master MGM\"");
+    assistant.wait_for(std::chrono::seconds(10));
+  } while (!assistant.terminationRequested() && !gOFS->mMaster->IsMaster());
+
   while (!assistant.terminationRequested()) {
     Log("Start error collection");
-
-    // Don't run fsck if we are not a master
-    while (!gOFS->mMaster->IsMaster()) {
-      assistant.wait_for(std::chrono::seconds(60));
-
-      if (assistant.terminationRequested()) {
-        eos_info("%s", "msg=\"stopped fsck collector thread\"");
-        Log("Stop error collection");
-        mCollectRunning = false;
-        ResetErrorMaps();
-        PublishLogs();
-        return;
-      }
-    }
-
     Log("Filesystems to check: %lu", FsView::gFsView.GetNumFileSystems());
     // Broadcast fsck request and collect responses
     std::string response = QueryFsck();
@@ -334,6 +327,8 @@ Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
 
   mCollectRunning = false;
   ResetErrorMaps();
+  Log("Stop error collection");
+  PublishLogs();
   eos_info("%s", "msg=\"stopped fsck collector thread\"");
 }
 

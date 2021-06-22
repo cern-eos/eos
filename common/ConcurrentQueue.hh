@@ -22,13 +22,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOS_CONCURRENTQUEUE_HH__
-#define __EOS_CONCURRENTQUEUE_HH__
-
+#pragma once
 #include "common/Namespace.hh"
 #include <cstdio>
 #include <queue>
-#include <pthread.h>
+#include <mutex>
+#include <condition_variable>
 #include <common/Logging.hh>
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -40,45 +39,28 @@ template <typename Data>
 class ConcurrentQueue: public LogId
 {
 public:
-  ConcurrentQueue();
-  ~ConcurrentQueue();
+  ConcurrentQueue() = default;
+  ~ConcurrentQueue() = default;
+  ConcurrentQueue(const ConcurrentQueue& other) = delete;
+  ConcurrentQueue& operator=(const ConcurrentQueue& other) = delete;
+  ConcurrentQueue(ConcurrentQueue&& other) = delete;
+  ConcurrentQueue& operator=(ConcurrentQueue&& other) = delete;
 
   size_t size() const;
   void push(Data& data);
+  template<typename... Ts>
+  void emplace(Ts&& ... args);
   bool push_size(Data& data, size_t max_size);
-  bool empty();
+  bool empty() const;
   bool try_pop(Data& popped_value);
   void wait_pop(Data& popped_value);
   void clear();
 
 private:
   std::queue<Data> queue;
-  mutable pthread_mutex_t mutex;
-  pthread_cond_t cond;
+  mutable std::mutex mMutex;
+  std::condition_variable mCondVar;
 };
-
-
-//------------------------------------------------------------------------------
-//! Constructor
-//------------------------------------------------------------------------------
-template <typename Data>
-ConcurrentQueue<Data>::ConcurrentQueue():
-  eos::common::LogId()
-{
-  pthread_mutex_init(&mutex, NULL);
-  pthread_cond_init(&cond, NULL);
-}
-
-//------------------------------------------------------------------------------
-//! Destructor
-//------------------------------------------------------------------------------
-template <typename Data>
-ConcurrentQueue<Data>::~ConcurrentQueue()
-{
-  pthread_mutex_destroy(&mutex);
-  pthread_cond_destroy(&cond);
-}
-
 
 //------------------------------------------------------------------------------
 //! Get size of the queue
@@ -87,13 +69,9 @@ template <typename Data>
 size_t
 ConcurrentQueue<Data>::size() const
 {
-  size_t size = 0;
-  pthread_mutex_lock(&mutex);
-  size = queue.size();
-  pthread_mutex_unlock(&mutex);
-  return size;
+  std::lock_guard<std::mutex> lock(mMutex);
+  return queue.size();
 }
-
 
 //------------------------------------------------------------------------------
 //! Push data to the queue
@@ -102,51 +80,59 @@ template <typename Data>
 void
 ConcurrentQueue<Data>::push(Data& data)
 {
-  pthread_mutex_lock(&mutex);
-  queue.push(data);
-  pthread_cond_broadcast(&cond);
-  pthread_mutex_unlock(&mutex);
+  {
+    std::lock_guard<std::mutex> lock(mMutex);
+    queue.push(data);
+  }
+  mCondVar.notify_all();
 }
 
+//------------------------------------------------------------------------------
+//! Push data to the queue while constructing the object in place
+//------------------------------------------------------------------------------
+template<typename Data>
+template<typename... Ts>
+void ConcurrentQueue<Data>::emplace(Ts&& ... args)
+{
+  {
+    std::lock_guard<std::mutex> lock(mMutex);
+    queue.emplace(std::forward<Ts>(args)...);
+  }
+  mCondVar.notify_all();
+}
 
 //------------------------------------------------------------------------------
 //! Push data to the queue if queue size is less then max_size
 //!
 //! @param data object to be pushed in the queue
 //! @param max_size max size allowed of the queue
-//!
 //------------------------------------------------------------------------------
 template <typename Data>
 bool
 ConcurrentQueue<Data>::push_size(Data& data, size_t max_size)
 {
   bool ret_val = false;
-  pthread_mutex_lock(&mutex);
+  std::unique_lock<std::mutex> lock(mMutex);
 
   if (queue.size() <= max_size) {
     queue.push(data);
+    lock.unlock();
+    mCondVar.notify_all();
     ret_val = true;
-    pthread_cond_broadcast(&cond);
   }
 
-  pthread_mutex_unlock(&mutex);
   return ret_val;
 }
-
 
 //------------------------------------------------------------------------------
 //! Test if queue is empty
 //------------------------------------------------------------------------------
 template <typename Data>
-bool
-ConcurrentQueue<Data>::empty()
+bool ConcurrentQueue<Data>::empty() const
 {
-  pthread_mutex_lock(&mutex);
-  bool emptyState = queue.empty();
-  pthread_mutex_unlock(&mutex);
-  return emptyState;
+  std::lock_guard<std::mutex> lock(mMutex);
+  return queue.empty();
 }
-
 
 //------------------------------------------------------------------------------
 //! Try to get data from queue
@@ -155,19 +141,16 @@ template <typename Data>
 bool
 ConcurrentQueue<Data>::try_pop(Data& popped_value)
 {
-  pthread_mutex_lock(&mutex);
+  std::lock_guard<std::mutex> lock(mMutex);
 
   if (queue.empty()) {
-    pthread_mutex_unlock(&mutex);
     return false;
   }
 
   popped_value = queue.front();
   queue.pop();
-  pthread_mutex_unlock(&mutex);
   return true;
 }
-
 
 //------------------------------------------------------------------------------
 //! Get data from queue, if empty queue then block until at least one element
@@ -177,18 +160,14 @@ template <typename Data>
 void
 ConcurrentQueue<Data>::wait_pop(Data& popped_value)
 {
-  pthread_mutex_lock(&mutex);
-
-  while (queue.empty()) {
-    pthread_cond_wait(&cond, &mutex);
-    eos_static_debug("wait on concurrent queue signalled");
-  }
-
+  std::unique_lock<std::mutex> lock(mMutex);
+  mCondVar.wait(lock, [&]() {
+    return !queue.empty();
+  });
+  eos_static_debug("%s", "msg=\"wait on concurrent queue signalled\"");
   popped_value = queue.front();
   queue.pop();
-  pthread_mutex_unlock(&mutex);
 }
-
 
 //------------------------------------------------------------------------------
 //! Remove all elements from the queue
@@ -197,15 +176,11 @@ template <typename Data>
 void
 ConcurrentQueue<Data>::clear()
 {
-  pthread_mutex_lock(&mutex);
+  std::lock_guard<std::mutex> lock(mMutex);
 
   while (!queue.empty()) {
     queue.pop();
   }
-
-  pthread_mutex_unlock(&mutex);
 }
 
 EOSCOMMONNAMESPACE_END
-
-#endif

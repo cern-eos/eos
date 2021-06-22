@@ -27,7 +27,7 @@
 void com_token_help();
 
 //------------------------------------------------------------------------------
-// Fsck command entry point
+// Token command entry point
 //------------------------------------------------------------------------------
 int com_proto_token(char* arg)
 {
@@ -44,7 +44,7 @@ int com_proto_token(char* arg)
     global_retc = EINVAL;
     return EINVAL;
   }
-  
+
   global_retc = token.Execute(true, true);
   return global_retc;
 }

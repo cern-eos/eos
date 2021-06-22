@@ -35,7 +35,8 @@
 #include <deque>
 #include <folly/futures/Future.h>
 
-namespace folly {
+namespace folly
+{
 class Executor;
 }
 
@@ -48,20 +49,21 @@ EOSNSNAMESPACE_BEGIN
 
 class IView;
 
-class ExpansionDecider {
+class ExpansionDecider
+{
 public:
   //----------------------------------------------------------------------------
   //! Returns whether to expand the given container, or ignore it.
   //! Useful to filter out certain parts of the namespace tree.
   //----------------------------------------------------------------------------
   virtual bool shouldExpandContainer(
-    const eos::ns::ContainerMdProto &containerMd,
-    const eos::IContainerMD::XAttrMap &linkedAttrs) = 0;
-
+    const eos::ns::ContainerMdProto& containerMd,
+    const eos::IContainerMD::XAttrMap& linkedAttrs,
+    const std::string& fullPath) = 0;
 };
 
 struct ExplorationOptions {
-  int depthLimit;
+  unsigned int depthLimit = 0;
   std::shared_ptr<ExpansionDecider> expansionDecider;
   bool populateLinkedAttributes = false;
   bool prefixLinks = false; // only relevant if populateLinkedAttributes is true
@@ -69,7 +71,7 @@ struct ExplorationOptions {
   //----------------------------------------------------------------------------
   // You must supply the view if populateLinkedAttributes = true
   //----------------------------------------------------------------------------
-  eos::IView *view = nullptr;
+  eos::IView* view = nullptr;
 
   //----------------------------------------------------------------------------
   // Ignore files?
@@ -107,8 +109,9 @@ class NamespaceExplorer;
 class SearchNode
 {
 public:
-  SearchNode(NamespaceExplorer &explorer, ContainerIdentifier expectedParent,
-    ContainerIdentifier id, SearchNode* prnt, folly::Executor *exec, bool ignoreFiles);
+  SearchNode(NamespaceExplorer& explorer, ContainerIdentifier expectedParent,
+             ContainerIdentifier id, SearchNode* prnt, folly::Executor* exec,
+             bool ignoreFiles);
 
   inline ContainerIdentifier getID() const
   {
@@ -149,12 +152,12 @@ public:
   bool expansionFilteredOut = false;
 
 private:
-  NamespaceExplorer &explorer;
+  NamespaceExplorer& explorer;
   ContainerIdentifier expectedParent;
   ContainerIdentifier id;
   qclient::QClient& qcl;
   SearchNode* parent = nullptr;
-  folly::Executor *executor = nullptr;
+  folly::Executor* executor = nullptr;
   bool ignoreFiles;
 
   bool visited = false;
@@ -184,12 +187,13 @@ private:
 class NamespaceExplorer
 {
 public:
+
   //----------------------------------------------------------------------------
   //! Inject the QClient to use directly in the constructor. No ownership of
   //! underlying object.
   //----------------------------------------------------------------------------
   NamespaceExplorer(const std::string& path, const ExplorationOptions& options,
-                    qclient::QClient& qcl, folly::Executor *exec);
+                    qclient::QClient& qcl, folly::Executor* exec);
 
   //----------------------------------------------------------------------------
   //! Fetch next item.

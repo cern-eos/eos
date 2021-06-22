@@ -79,7 +79,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
 //------------------------------------------------------------------------------
 //! Stall Macro
 //------------------------------------------------------------------------------
-#define MAYSTALL eos::mgm::InFlightRegistration tracker_helper(gOFS->mTracker); \
+#define MAYSTALL eos::mgm::InFlightRegistration tracker_helper(gOFS->mTracker, vid); \
   if (gOFS->IsStall) {                                                  \
     XrdOucString stallmsg="";                                           \
     int stalltime=0;                                                    \
@@ -98,13 +98,13 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
     }                                                                   \
   }
 
-#define FUNCTIONMAYSTALL(FUNCTION, VID, ERROR) eos::mgm::InFlightRegistration tracker_helper(gOFS->mTracker); \
+#define FUNCTIONMAYSTALL(FUNCTION, VID, ERROR) eos::mgm::InFlightRegistration tracker_helper(gOFS->mTracker, (VID) ); \
   if (gOFS->IsStall) {                                                  \
     XrdOucString stallmsg="";                                           \
     int stalltime=0;                                                    \
     if (gOFS->ShouldStall((FUNCTION),__AccessMode__, (VID), stalltime, stallmsg)) { \
       if (stalltime) {                                                  \
-        return gOFS->Stall((ERROR),stalltime, stallmsg.c_str());	\
+        return gOFS->Stall((ERROR),stalltime, stallmsg.c_str());  \
       } else {                                                          \
         return gOFS->Emsg("maystall", (ERROR), EPERM, stallmsg.c_str(), ""); \
       }                                                                 \
@@ -112,7 +112,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
       if (!tracker_helper.IsOK()) {                                     \
         stallmsg="track request, stall the client 5 seconds";           \
         stalltime = 5;                                                  \
-        return gOFS->Stall((ERROR),stalltime, stallmsg.c_str());	\
+        return gOFS->Stall((ERROR),stalltime, stallmsg.c_str());  \
       }                                                                 \
     }                                                                   \
   }
@@ -232,11 +232,11 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
   } else {                                                              \
     while(store_path.replace("#AND#","&")){}                            \
   }                                                                     \
-  if (vid.token && vid.token->Valid()) {				\
-    if (!strncmp(path,"/zteos64:",9)) {					\
-      store_path = vid.token->Path().c_str();				\
-    }									\
-  }									\
+  if (vid.token && vid.token->Valid()) {        \
+    if (!strncmp(path,"/zteos64:",9)) {         \
+      store_path = vid.token->Path().c_str();       \
+    }                 \
+  }                 \
   if ( inpath && ( !(ininfo) || (ininfo && (!strstr(ininfo,"eos.prefix"))))) { \
     XrdOucString iinpath=store_path;                                    \
     gOFS->PathRemap(iinpath.c_str(),store_path);                        \
@@ -297,6 +297,31 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
     path = store_path.c_str();                                          \
   }
 
+
+//------------------------------------------------------------------------------
+//! Define scope for tokens
+//------------------------------------------------------------------------------
+#define TOKEN_SCOPE                                                            \
+  vid.scope = path;
+
+
+#define PROC_TOKEN_SCOPE                                                       \
+  pVid->scope = path;
+
+
+#define PROC_MVID_TOKEN_SCOPE                                                  \
+  mVid.scope = path;
+
+#define NAMESPACE_NO_TRAILING_SLASH                                            \
+  if (store_path.endswith("/")) {                                              \
+    store_path.erase(store_path.length()-1,1);                                 \
+    path = store_path.c_str();                                                 \
+  }
+
+#define PROC_MOVE_TOKENSCOPE(a,b)                                  \
+  mVid.scope = eos::common::Path::Overlap( (a), (b)  );
+
+
 //------------------------------------------------------------------------------
 //! Bounce Illegal Name Macro
 //------------------------------------------------------------------------------
@@ -351,7 +376,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
                 "path=\"%s\" user@domain=\"%s\"", vid.uid, vid.gid, vid.host.c_str(),            \
                 (vid.tident.c_str() ? vid.tident.c_str() : ""), inpath,       \
                 vid.getUserAtDomain().c_str());                               \
-	gOFS->MgmStats.Add("EAccess", vid.uid, vid.gid, 1);                   \
+  gOFS->MgmStats.Add("EAccess", vid.uid, vid.gid, 1);                   \
         return Emsg(epname, error, EACCES,"give access - user access "        \
                     "restricted - unauthorized identity used");               \
       }                                                                       \
@@ -373,7 +398,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
 //! Bounce not-allowed-users in proc request Macro
 //------------------------------------------------------------------------------
 #define PROC_BOUNCE_NOT_ALLOWED                                                 \
-  { /* reduce scope of this mutex */   					        \
+  { /* reduce scope of this mutex */                    \
     eos::common::RWMutexReadLock lock(Access::gAccessMutex);                    \
     if ((vid.uid > 3) &&                                                        \
         (Access::gAllowedUsers.size() ||                                        \
@@ -392,7 +417,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
                   (vid.tident.c_str() ? vid.tident.c_str() : ""), inpath,       \
                   vid.getUserAtDomain().c_str());                               \
           retc = EACCES;                                                        \
-	  gOFS->MgmStats.Add("EAccess", vid.uid, vid.gid, 1);                   \
+    gOFS->MgmStats.Add("EAccess", vid.uid, vid.gid, 1);                   \
           stdErr += "error: user access restricted - unauthorized identity used";\
           return SFS_OK;                                                        \
         }                                                                       \

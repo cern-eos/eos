@@ -39,6 +39,7 @@ ProcCommand::Chmod()
   PROC_BOUNCE_ILLEGAL_NAMES;
   PROC_BOUNCE_NOT_ALLOWED;
   spath = path;
+  PROC_TOKEN_SCOPE;
 
   if ((!spath.length()) || (!mode.length())) {
     stdErr = "error: you have to provide a path and the mode to set!\n";

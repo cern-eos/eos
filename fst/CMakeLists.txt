@@ -132,6 +132,8 @@ add_library(EosFstIo-Objects OBJECT
   layout/PlainLayout.cc          layout/PlainLayout.hh
   layout/HeaderCRC.cc            layout/HeaderCRC.hh
   layout/ReplicaParLayout.cc     layout/ReplicaParLayout.hh
+  layout/RainBlock.cc            layout/RainBlock.hh
+  layout/RainGroup.cc            layout/RainGroup.hh
   layout/RainMetaLayout.cc       layout/RainMetaLayout.hh
   layout/RaidDpLayout.cc         layout/RaidDpLayout.hh
   layout/ReedSLayout.cc          layout/ReedSLayout.hh)
@@ -296,7 +298,8 @@ target_link_libraries(XrdEosFst-Objects PUBLIC
   XROOTD::UTILS
   XROOTD::PRIVATE
   XROOTD::SERVER
-  XFS::XFS)
+  XFS::XFS
+  stdc++fs)
 
 set_target_properties(XrdEosFst-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
@@ -419,9 +422,9 @@ target_link_libraries(eos-compute-blockxs PRIVATE EosFstIo XROOTD::SERVER)
 target_link_libraries(eos-adler32 PRIVATE EosFstIo XROOTD::SERVER)
 target_link_libraries(eos-checksum PRIVATE EosFstIo XROOTD::SERVER)
 target_link_libraries(eos-scan-fs PRIVATE
-  EosFstIo EosCommonServer EosNsCommon-Static XROOTD::SERVER)
+  EosFstIo EosCommonServer EosNsCommon-Static XROOTD::SERVER stdc++fs)
 target_link_libraries(eos-fsck-fs PRIVATE
-  EosFstIo EosCommonServer EosNsCommon-Static XROOTD::SERVER)
+  EosFstIo EosCommonServer EosNsCommon-Static XROOTD::SERVER stdc++fs)
 
 add_executable(eos-create-file-pattern
   utils/CreateFileWithPattern.cc)

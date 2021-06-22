@@ -780,10 +780,8 @@ GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
   }
 
   bool first = true;
-
   auto itf = eos::FileMapIterator(cmd);
   auto itc = eos::ContainerMapIterator(cmd);
-
   viewReadLock.Release();
 
   // stream for listing and file type
@@ -1272,55 +1270,55 @@ GrpcNsInterface::Exec(eos::common::VirtualIdentity& ivid,
 
   switch (request->command_case()) {
   case eos::rpc::NSRequest::kMkdir:
-    return Mkdir(vid, reply->mutable_error() , &(request->mkdir()));
+    return Mkdir(vid, reply->mutable_error(), &(request->mkdir()));
     break;
 
   case eos::rpc::NSRequest::kRmdir:
-    return Rmdir(vid, reply->mutable_error() , &(request->rmdir()));
+    return Rmdir(vid, reply->mutable_error(), &(request->rmdir()));
     break;
 
   case eos::rpc::NSRequest::kTouch:
-    return Touch(vid, reply->mutable_error() , &(request->touch()));
+    return Touch(vid, reply->mutable_error(), &(request->touch()));
     break;
 
   case eos::rpc::NSRequest::kUnlink:
-    return Unlink(vid, reply->mutable_error() , &(request->unlink()));
+    return Unlink(vid, reply->mutable_error(), &(request->unlink()));
     break;
 
   case eos::rpc::NSRequest::kRm:
-    return Rm(vid, reply->mutable_error() , &(request->rm()));
+    return Rm(vid, reply->mutable_error(), &(request->rm()));
     break;
 
   case eos::rpc::NSRequest::kRename:
-    return Rename(vid, reply->mutable_error() , &(request->rename()));
+    return Rename(vid, reply->mutable_error(), &(request->rename()));
     break;
 
   case eos::rpc::NSRequest::kSymlink:
-    return Symlink(vid, reply->mutable_error() , &(request->symlink()));
+    return Symlink(vid, reply->mutable_error(), &(request->symlink()));
     break;
 
   case eos::rpc::NSRequest::kXattr:
-    return SetXAttr(vid, reply->mutable_error() , &(request->xattr()));
+    return SetXAttr(vid, reply->mutable_error(), &(request->xattr()));
     break;
 
   case eos::rpc::NSRequest::kVersion:
-    return Version(vid, reply->mutable_version() , &(request->version()));
+    return Version(vid, reply->mutable_version(), &(request->version()));
     break;
 
   case eos::rpc::NSRequest::kRecycle:
-    return Recycle(vid, reply->mutable_recycle() , &(request->recycle()));
+    return Recycle(vid, reply->mutable_recycle(), &(request->recycle()));
     break;
 
   case eos::rpc::NSRequest::kChown:
-    return Chown(vid, reply->mutable_error() , &(request->chown()));
+    return Chown(vid, reply->mutable_error(), &(request->chown()));
     break;
 
   case eos::rpc::NSRequest::kChmod:
-    return Chmod(vid, reply->mutable_error() , &(request->chmod()));
+    return Chmod(vid, reply->mutable_error(), &(request->chmod()));
     break;
 
   case eos::rpc::NSRequest::kAcl:
-    return Acl(vid, reply->mutable_acl() , &(request->acl()));
+    return Acl(vid, reply->mutable_acl(), &(request->acl()));
     break;
 
   case eos::rpc::NSRequest::kToken:
@@ -1328,7 +1326,7 @@ GrpcNsInterface::Exec(eos::common::VirtualIdentity& ivid,
     break;
 
   case eos::rpc::NSRequest::kQuota:
-    return Quota(vid, reply->mutable_quota() , &(request->quota()));
+    return Quota(vid, reply->mutable_quota(), &(request->quota()));
     break;
 
   default:
@@ -2315,84 +2313,204 @@ GrpcNsInterface::Quota(eos::common::VirtualIdentity& vid,
                        const eos::rpc::NSRequest::QuotaRequest* request)
 {
   eos::console::RequestProto req;
-  eos::console::QuotaProto_LsProto* ls = req.mutable_quota()->mutable_ls();
-  int rc = 0;
-  ls->set_format(true);
 
-  // filter by username
-  if (request->id().username().length()) {
-    ls->set_uid(request->id().username());
-  }
+  if (request->op() == eos::rpc::QUOTAOP::GET) {
+    // get quota request
+    eos::console::QuotaProto_LsProto* ls = req.mutable_quota()->mutable_ls();
+    int rc = 0;
+    ls->set_format(true);
 
-  if (request->id().groupname().length()) {
-    ls->set_gid(request->id().groupname());
-  }
+    // filter by username
+    if (request->id().username().length()) {
+      ls->set_uid(request->id().username());
+    } else {
+      ls->set_uid(std::to_string(request->id().uid()));
+    }
 
-  if (request->path().length()) {
-    ls->set_space(request->path());
-  }
+    if (request->id().groupname().length()) {
+      ls->set_gid(request->id().groupname());
+    } else {
+      ls->set_gid(std::to_string(request->id().gid()));
+    }
 
-  eos::mgm::QuotaCmd cmd(std::move(req), vid);
-  eos::console::ReplyProto preply = cmd.ProcessRequest();
+    if (request->path().length()) {
+      ls->set_space(request->path());
+    }
 
-  if ((rc = preply.retc())) {
-    std::string msg = "Quota Command Failed: ";
-    msg += preply.std_err();
-    reply->set_code((rc > 0) ? -rc : rc);
-    reply->set_msg(msg);
-    return grpc::Status::OK;
-  }
+    eos::mgm::QuotaCmd cmd(std::move(req), vid);
+    eos::console::ReplyProto preply = cmd.ProcessRequest();
 
-  // parse the output into a protobuf structure;
-  std::istringstream f(preply.std_out());
-  std::string line;
+    if ((rc = preply.retc())) {
+      std::string msg = "Quota Command Failed: ";
+      msg += preply.std_err();
+      reply->set_code((rc > 0) ? -rc : rc);
+      reply->set_msg(msg);
+      return grpc::Status::OK;
+    }
 
-  while (std::getline(f, line)) {
-    std::map<std::string, std::string> info;
+    // parse the output into a protobuf structure;
+    std::istringstream f(preply.std_out());
+    std::string line;
 
-    if (eos::common::StringConversion::GetKeyValueMap(line.c_str(),
-        info,
-        "=",
-        " ")) {
-      auto node = reply->add_quotanode();
-      node->set_path(info["space"]);
+    while (std::getline(f, line)) {
+      std::map<std::string, std::string> info;
 
-      if (info.count("uid")) {
-        node->set_name(info["uid"]);
-        node->set_type(eos::rpc::QUOTATYPE::USER);
-      }
+      if (eos::common::StringConversion::GetKeyValueMap(line.c_str(),
+          info,
+          "=",
+          " ")) {
+        auto node = reply->add_quotanode();
+        node->set_path(info["space"]);
 
-      if (info.count("gid")) {
-        node->set_name(info["gid"]);
-
-        if (info["gid"] == "project") {
-          node->set_type(eos::rpc::QUOTATYPE::PROJECT);
-        } else {
-          node->set_type(eos::rpc::QUOTATYPE::GROUP);
+        if (info.count("uid")) {
+          node->set_name(info["uid"]);
+          node->set_type(eos::rpc::QUOTATYPE::USER);
         }
+
+        if (info.count("gid")) {
+          node->set_name(info["gid"]);
+
+          if (info["gid"] == "project") {
+            node->set_type(eos::rpc::QUOTATYPE::PROJECT);
+          } else {
+            node->set_type(eos::rpc::QUOTATYPE::GROUP);
+          }
+        }
+
+        node->set_usedbytes(strtoull(info["usedbytes"].c_str(), 0, 10));
+        node->set_usedlogicalbytes(strtoull(info["usedlogicalbytes"].c_str(), 0, 10));
+        node->set_usedfiles(strtoull(info["usedfiles"].c_str(), 0, 10));
+        node->set_maxbytes(strtoull(info["maxbytes"].c_str(), 0, 10));
+        node->set_maxlogicalbytes(strtoull(info["maxlogicalbytes"].c_str(), 0, 10));
+        node->set_maxfiles(strtoull(info["maxfiles"].c_str(), 0, 10));
+
+        if (node->maxbytes() > 0) {
+          node->set_percentageusedbytes(100.0 * node->usedbytes() / node->maxbytes());
+        } else {
+          node->set_percentageusedbytes(0);
+        }
+
+        if (node->maxfiles() > 0) {
+          node->set_percentageusedfiles(100.0 * node->usedfiles() / node->maxfiles());
+        } else {
+          node->set_percentageusedfiles(0);
+        }
+
+        node->set_statusbytes(info["statusbytes"]);
+        node->set_statusfiles(info["statusfiles"]);
       }
+    }
+  } else if (request->op() == eos::rpc::QUOTAOP::SET) {
+    // set quota request
+    eos::console::QuotaProto_SetProto* sp = req.mutable_quota()->mutable_set();
+    int rc = 0;
 
-      node->set_usedbytes(strtoull(info["usedbytes"].c_str(), 0, 10));
-      node->set_usedlogicalbytes(strtoull(info["usedlogicalbytes"].c_str(), 0, 10));
-      node->set_usedfiles(strtoull(info["usedfiles"].c_str(), 0, 10));
-      node->set_maxbytes(strtoull(info["maxbytes"].c_str(), 0, 10));
-      node->set_maxlogicalbytes(strtoull(info["maxlogicalbytes"].c_str(), 0, 10));
-      node->set_maxfiles(strtoull(info["maxfiles"].c_str(), 0, 10));
-
-      if (node->maxbytes() > 0) {
-        node->set_percentageusedbytes(100.0 * node->usedbytes() / node->maxbytes());
-      } else {
-        node->set_percentageusedbytes(0);
+    // filter by username
+    if (request->id().username().length()) {
+      sp->set_uid(request->id().username());
+    } else {
+      if (request->id().uid()) {
+        sp->set_uid(std::to_string(request->id().uid()));
       }
+    }
 
-      if (node->maxfiles() > 0) {
-        node->set_percentageusedfiles(100.0 * node->usedfiles() / node->maxfiles());
-      } else {
-        node->set_percentageusedfiles(0);
+    if (request->id().groupname().length()) {
+      sp->set_gid(request->id().groupname());
+    } else {
+      if (request->id().gid()) {
+        sp->set_gid(std::to_string(request->id().gid()));
       }
+    }
 
-      node->set_statusbytes(info["statusbytes"]);
-      node->set_statusfiles(info["statusfiles"]);
+    if (request->path().length()) {
+      sp->set_space(request->path());
+    }
+
+    sp->set_maxbytes(std::to_string(request->maxbytes()));
+    sp->set_maxinodes(std::to_string(request->maxfiles()));
+    eos::mgm::QuotaCmd cmd(std::move(req), vid);
+    eos::console::ReplyProto preply = cmd.ProcessRequest();
+
+    if ((rc = preply.retc())) {
+      std::string msg = "Quota Command Failed: ";
+      msg += preply.std_err();
+      reply->set_code((rc > 0) ? -rc : rc);
+      reply->set_msg(msg);
+      return grpc::Status::OK;
+    }
+  } else if (request->op() == eos::rpc::QUOTAOP::RM) {
+    // delete quota entry
+    eos::console::QuotaProto_RmProto* sp = req.mutable_quota()->mutable_rm();
+    int rc = 0;
+
+    // select uid/gid
+    if (request->id().username().length()) {
+      sp->set_uid(request->id().username());
+    } else {
+      if (request->id().uid()) {
+        sp->set_uid(std::to_string(request->id().uid()));
+      }
+    }
+
+    if (request->id().groupname().length()) {
+      sp->set_gid(request->id().groupname());
+    } else {
+      if (request->id().gid()) {
+        sp->set_gid(std::to_string(request->id().gid()));
+      }
+    }
+
+    if (request->path().length()) {
+      sp->set_space(request->path());
+    }
+
+    switch (request->entry()) {
+    case eos::rpc::QUOTAENTRY::NONE :
+      sp->set_type(eos::console::QuotaProto_RmProto::NONE);
+      break;
+
+    case eos::rpc::QUOTAENTRY::VOLUME :
+      sp->set_type(eos::console::QuotaProto_RmProto::VOLUME);
+      break;
+
+    case eos::rpc::QUOTAENTRY::INODE :
+      sp->set_type(eos::console::QuotaProto_RmProto::INODE);
+      break;
+
+    default:
+      sp->set_type(eos::console::QuotaProto_RmProto::NONE);
+      break;
+    }
+
+    eos::mgm::QuotaCmd cmd(std::move(req), vid);
+    eos::console::ReplyProto preply = cmd.ProcessRequest();
+
+    if ((rc = preply.retc())) {
+      std::string msg = "Quota Command Failed: ";
+      msg += preply.std_err();
+      reply->set_code((rc > 0) ? -rc : rc);
+      reply->set_msg(msg);
+      return grpc::Status::OK;
+    }
+  } else if (request->op() == eos::rpc::QUOTAOP::RMNODE) {
+    // delete quota node
+    eos::console::QuotaProto_RmnodeProto* sp =
+      req.mutable_quota()->mutable_rmnode();
+    int rc = 0;
+
+    if (request->path().length()) {
+      sp->set_space(request->path());
+    }
+
+    eos::mgm::QuotaCmd cmd(std::move(req), vid);
+    eos::console::ReplyProto preply = cmd.ProcessRequest();
+
+    if ((rc = preply.retc())) {
+      std::string msg = "Quota Command Failed: ";
+      msg += preply.std_err();
+      reply->set_code((rc > 0) ? -rc : rc);
+      reply->set_msg(msg);
+      return grpc::Status::OK;
     }
   }
 

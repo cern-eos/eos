@@ -1,0 +1,11 @@
+#!/bin/bash
+set -x #echo on
+path=$1
+host=${2-"localhost"}
+url=root://$host
+
+test -z "$1" && exit -1
+
+export XRD_REDIRECTLIMIT=0
+# we get a redirection, but we cannot download the file because the FST does not use this sss key
+eoscp ${url}/$path - 2>&1 | grep Redirect

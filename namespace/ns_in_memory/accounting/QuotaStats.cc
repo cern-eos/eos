@@ -64,9 +64,18 @@ void QuotaNode::meld(const IQuotaNode* node)
 //------------------------------------------------------------------------------
 // Replace underlying QuotaNodeCore object.
 //------------------------------------------------------------------------------
-void QuotaNode::replaceCore(const QuotaNodeCore &updated)
+void QuotaNode::replaceCore(const QuotaNodeCore& updated)
 {
   pCore = updated;
+}
+
+
+//------------------------------------------------------------------------------
+// Update underlying QuotaNodeCore object.
+//------------------------------------------------------------------------------
+void QuotaNode::updateCore(const QuotaNodeCore& updated)
+{
+  pCore << updated;
 }
 
 //------------------------------------------------------------------------------
@@ -122,7 +131,7 @@ IQuotaNode* QuotaStats::registerNewNode(IContainerMD::id_t nodeId)
     throw e;
   }
 
-  QuotaNode* node = new QuotaNode(this , nodeId);
+  QuotaNode* node = new QuotaNode(this, nodeId);
   pNodeMap[nodeId] = node;
   return node;
 }

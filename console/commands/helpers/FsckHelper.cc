@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "console/commands/helpers/FsckHelper.hh"
+#include "common/FileSystem.hh"
 #include "common/StringTokenizer.hh"
 #include "common/FileId.hh"
 
@@ -90,21 +91,21 @@ FsckHelper::ParseCommand(const char* arg)
     while (tokenizer.NextToken(soption)) {
       if (soption == "--fxid") {
         if ((option = tokenizer.GetToken()) == nullptr) {
-          std::cerr << "error: fxid option needs a value\n";
+          std::cerr << "error: fxid option needs a value\n\n";
           return false;
         }
 
         uint64_t fid = eos::common::FileId::Hex2Fid(option);
 
         if (fid == 0ull) {
-          std::cerr << "error: fid option needs to be non-zero\n";
+          std::cerr << "error: fid option needs to be non-zero\n\n";
           return false;
         }
 
         repair->set_fid(fid);
       } else if (soption == "--fsid") {
         if ((option = tokenizer.GetToken()) == nullptr) {
-          std::cerr << "error: fsid option needs a value\n";
+          std::cerr << "error: fsid option needs a value\n\n";
           return false;
         }
 
@@ -114,7 +115,7 @@ FsckHelper::ParseCommand(const char* arg)
         try {
           fsid = std::stoull(soption);
         } catch (...) {
-          std::cerr << "error: fsid option needs to be numeric\n";
+          std::cerr << "error: fsid option needs to be numeric\n\n";
           return false;
         }
 
@@ -126,7 +127,7 @@ FsckHelper::ParseCommand(const char* arg)
         repair->set_fsid_err(fsid);
       } else if (soption == "--error") {
         if ((option = tokenizer.GetToken()) == nullptr) {
-          std::cerr << "error: the error flag needs an option\n";
+          std::cerr << "error: the error flag needs an option\n\n";
           return false;
         }
 
@@ -134,9 +135,43 @@ FsckHelper::ParseCommand(const char* arg)
       } else if (soption == "--async") {
         repair->set_async(true);
       } else {
-        std::cerr << "error: unknown option \"" << soption << "\n";
+        std::cerr << "error: unknown option \"" << soption << "\"\n\n";
         return false;
       }
+    }
+  } else if (cmd == "clean_orphans") {
+    eos::console::FsckProto::CleanOrphansProto* clean =
+      fsck->mutable_clean_orphans();
+
+    if (tokenizer.NextToken(soption)) {
+      if (soption != "--fsid") {
+        std::cerr << "error: unknown option \"" << soption << "\"\n\n";
+        return false;
+      }
+
+      if (!tokenizer.NextToken(soption)) {
+        std::cerr << "error: missing file system id value\n\n";
+        return false;
+      }
+
+      eos::common::FileSystem::fsid_t fsid = 0ul;
+
+      try {
+        size_t pos = 0;
+        fsid = std::stoul(soption.c_str(), &pos);
+
+        if (pos != soption.length()) {
+          throw std::invalid_argument("fsid not numeric");
+        }
+      } catch (...) {
+        std::cerr << "error: file system id must be numeric\n\n";
+        return false;
+      }
+
+      clean->set_fsid(fsid);
+    } else {
+      // Clean orphans for all file systems i.e. fsid=0;
+      clean->set_fsid(0ull);
     }
   } else {
     return false;

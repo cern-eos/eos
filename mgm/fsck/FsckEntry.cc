@@ -55,13 +55,13 @@ FsckEntry::FsckEntry(eos::IFileMD::id_t fid,
     {FsckErr::FstXsDiff,  &FsckEntry::RepairFstXsSzDiff},
     {FsckErr::FstSzDiff,  &FsckEntry::RepairFstXsSzDiff},
     {FsckErr::BlockxsErr, &FsckEntry::RepairFstXsSzDiff},
-    {FsckErr::UnregRepl,  &FsckEntry::RepairReplicaInconsistencies},
-    {FsckErr::DiffRepl,   &FsckEntry::RepairReplicaInconsistencies},
-    {FsckErr::MissRepl,   &FsckEntry::RepairReplicaInconsistencies}
+    {FsckErr::UnregRepl,  &FsckEntry::RepairInconsistencies},
+    {FsckErr::DiffRepl,   &FsckEntry::RepairInconsistencies},
+    {FsckErr::MissRepl,   &FsckEntry::RepairInconsistencies}
   };
   mRepairFactory = [](eos::common::FileId::fileid_t fid,
                       eos::common::FileSystem::fsid_t fsid_src,
-                      eos::common::FileSystem::fsid_t fsid_trg ,
+                      eos::common::FileSystem::fsid_t fsid_trg,
                       std::set<eos::common::FileSystem::fsid_t> exclude_srcs,
                       std::set<eos::common::FileSystem::fsid_t> exclude_dsts,
   bool drop_src, const std::string & app_tag) {
@@ -96,6 +96,19 @@ FsckEntry::CollectMgmInfo()
               FileIdentifier(mFid)).get();
   } catch (const eos::MDException& e) {
     return false;
+  }
+
+  if (mMgmFmd.cont_id()) {
+    // Double check that the parent exists, if not, this is a detached entry and
+    // we need to clean it up and mark the parentId with 0 otherwise the fsck
+    // mechanism gets confused.
+    try {
+      eos::common::RWMutexWriteLock ns_rd_lock(gOFS->eosViewRWMutex,
+          __FUNCTION__, __LINE__, __FILE__);
+      (void) gOFS->eosDirectoryService->getContainerMD(mMgmFmd.cont_id());
+    } catch (const eos::MDException& e) {
+      mMgmFmd.set_cont_id(0ull);
+    }
   }
 
   return true;
@@ -250,10 +263,7 @@ FsckEntry::RepairMgmXsSzDiff()
                 "xs and size\" fxid=%08llx", mFid);
     // The local info stored on of the the FSTs might be wrong, trigger a resync
     ResyncFstMd(false);
-    // Also trigger FstXsSzDiff repair as in this case the current broken
-    // replica needs to be repaired - we have another replica matching the
-    // MGM info!
-    return RepairFstXsSzDiff();
+    return true;
   }
 
   if (disk_xs_sz_match && sz_val) {
@@ -462,6 +472,7 @@ FsckEntry::RepairRainInconsistencies()
     }
   }
 
+  bool drop_src_fsid = false;
   // Trigger a fsck repair job to make sure all the remaining stripes are
   // recovered and and new ones are created if need be. By default pick the
   // first stripe as "source" unless we have a better candidate
@@ -469,9 +480,11 @@ FsckEntry::RepairRainInconsistencies()
 
   if (mReportedErr == FsckErr::MissRepl) {
     src_fsid = mFsidErr;
+    drop_src_fsid = true;
   }
 
-  auto repair_job = mRepairFactory(mFid, src_fsid, 0, {}, {}, true, "fsck");
+  auto repair_job = mRepairFactory(mFid, src_fsid, 0, {}, {},
+                                   drop_src_fsid, "fsck");
   repair_job->DoIt();
 
   if (repair_job->GetStatus() != FsckRepairJob::Status::OK) {
@@ -769,8 +782,13 @@ FsckEntry::Repair()
     }
 
     if (mMgmFmd.cont_id() == 0ull) {
-      eos_info("msg=\"no repair action, file is being deleted\" fxid=%08llx",
-               mFid);
+      eos_info("msg=\"force remove detached file\" fxid=%08llx", mFid);
+      std::string err_msg;
+
+      if (!gOFS->RemoveDetached(mFid, false, true, err_msg)) {
+        eos_err("msg=\"operation failed due to: %s\"", err_msg.c_str());
+      }
+
       UpdateMgmStats(true);
       return true;
     }
@@ -788,6 +806,8 @@ FsckEntry::Repair()
       return success;
     }
 
+    eos_static_info("msg=\"fsck repair\" fxid=%08llx err_type=%i",
+                    mFid, mReportedErr);
     auto fn_with_obj = std::bind(it->second, this);
     success = fn_with_obj();
     UpdateMgmStats(success);
@@ -799,7 +819,7 @@ FsckEntry::Repair()
   std::list<RepairFnT> repair_ops {
     &FsckEntry::RepairMgmXsSzDiff,
     &FsckEntry::RepairFstXsSzDiff,
-    &FsckEntry::RepairReplicaInconsistencies};
+    &FsckEntry::RepairInconsistencies};
 
   for (const auto& op : repair_ops) {
     auto fn_with_obj = std::bind(op, this);

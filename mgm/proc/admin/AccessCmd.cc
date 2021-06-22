@@ -40,14 +40,14 @@ AccessCmd::ProcessRequest() noexcept
   eos::console::ReplyProto reply;
   eos::console::AccessProto access = mReqProto.access();
 
-
-   if ((mVid.uid != 0) && (!mVid.hasUid(3)) && (!mVid.hasGid(4)) && (!mVid.sudoer)) {
-     // root and admins only
-     reply.set_std_out("");
-     reply.set_std_err("error: you are not an access administrator!\"");
-     reply.set_retc(EPERM);
-     return reply;
-   }
+  if ((mVid.uid != 0) && (!mVid.hasUid(3)) && (!mVid.hasGid(4)) &&
+      (!mVid.sudoer)) {
+    // root and admins only
+    reply.set_std_out("");
+    reply.set_std_err("error: you are not an access administrator!\"");
+    reply.set_retc(EPERM);
+    return reply;
+  }
 
   switch (access.subcmd_case()) {
   case eos::console::AccessProto::kLs :
@@ -453,6 +453,7 @@ void AccessCmd::RmSubcmd(const eos::console::AccessProto_RmProto& rm,
 
       lock.Release();
       eos::common::RWMutexReadLock lock(Access::gAccessMutex);
+
       if (!Access::StoreAccessConfig()) {
         reply.set_std_err("error: unable to store access configuration");
         reply.set_retc(EIO);
@@ -480,7 +481,8 @@ void AccessCmd::RmSubcmd(const eos::console::AccessProto_RmProto& rm,
 
       if (!rm.key().empty()) {
         if ((rm.key().find("rate:user:") == 0) ||
-            (rm.key().find("rate:group:") == 0)) {
+            (rm.key().find("rate:group:") == 0) ||
+            (rm.key().find("threads:") == 0)) {
           std_out << "limit";
         } else {
           std_out << "stall";
@@ -490,7 +492,8 @@ void AccessCmd::RmSubcmd(const eos::console::AccessProto_RmProto& rm,
       }
 
       if ((rm.key().find("rate:user:") == 0) ||
-          (rm.key().find("rate:group:") == 0)) {
+          (rm.key().find("rate:group:") == 0) ||
+          (rm.key().find("threads:") == 0)) {
         Access::gStallRules.erase(rm.key());
         Access::gStallComment.erase(rm.key());
       } else if (rm.key().empty()) {
@@ -503,6 +506,7 @@ void AccessCmd::RmSubcmd(const eos::console::AccessProto_RmProto& rm,
 
       lock.Release();
       eos::common::RWMutexReadLock rlock(Access::gAccessMutex);
+
       if (!Access::StoreAccessConfig()) {
         reply.set_std_err("error: unable to store access configuration");
         reply.set_retc(EIO);
@@ -559,6 +563,7 @@ void AccessCmd::SetSubcmd(const eos::console::AccessProto_SetProto& set,
 
       lock.Release();
       eos::common::RWMutexReadLock rlock(Access::gAccessMutex);
+
       if (!Access::StoreAccessConfig()) {
         reply.set_std_err("error: unable to store access configuration");
         reply.set_retc(EIO);
@@ -586,19 +591,21 @@ void AccessCmd::SetSubcmd(const eos::console::AccessProto_SetProto& set,
       return;
     }
 
-    if (!(set.key().empty() || (set.key().find("rate:") == 0) ||
-          (set.key() == "r") || (set.key() == "w") || (set.key() == "ENOENT") ||
-          (set.key() == "ENONET") || (set.key() == "ENETUNREACH"))) {
-      reply.set_std_err("error: there is no redirection to set with such "
-                        "key: '" + set.key() + '\'');
-      reply.set_retc(EINVAL);
-      return;
-    }
-
     if (set.key().find("rate:") == 0) {
       std_out << "success: setting rate cutoff at " << set.target()
               << " Hz for rate:<user|group>:<operation>=" << set.key();
+    }  else if (set.key().find("threads:") == 0) {
+      std_out << "sucdess: setting thread limit at " << set.target()
+              << " for " << set.key();
     } else {
+      if (!(set.key().empty() || (set.key() == "r") || (set.key() == "w") ||
+            (set.key() == "ENONET") || (set.key() == "ENOENT") ||
+            (set.key() == "ENETUNREACH"))) {
+        reply.set_std_err("error: there is no stall to set with such "
+                          "key: '" + set.key() + '\'');
+        reply.set_retc(EINVAL);
+      }
+
       std_out << "success: setting global stall to " << set.target() << " seconds";
 
       if (!set.key().empty()) {
@@ -607,7 +614,8 @@ void AccessCmd::SetSubcmd(const eos::console::AccessProto_SetProto& set,
     }
 
     if ((set.key().find("rate:user:") == 0) ||
-        (set.key().find("rate:group:") == 0)) {
+        (set.key().find("rate:group:") == 0) ||
+        (set.key().find("threads:") == 0)) {
       Access::gStallRules[set.key()] = set.target();
       Access::gStallComment[set.key()] = mReqProto.comment();
     } else if (set.key().empty()) {
@@ -620,6 +628,7 @@ void AccessCmd::SetSubcmd(const eos::console::AccessProto_SetProto& set,
 
     lock.Release();
     eos::common::RWMutexReadLock rlock(Access::gAccessMutex);
+
     if (!Access::StoreAccessConfig()) {
       reply.set_std_err("error: unable to store access configuration");
       reply.set_retc(EIO);
@@ -669,6 +678,7 @@ void AccessCmd::aux(const string& sid, std::ostringstream& std_out,
   }
 
   eos::common::RWMutexReadLock rlock(Access::gAccessMutex);
+
   if (Access::StoreAccessConfig()) {
     std_out << "success: " << saction << " '" << sid << '\'';
     ret_c = 0;
@@ -698,7 +708,7 @@ void AccessCmd::BanSubcmd(const eos::console::AccessProto_BanProto& ban,
 
       if (!errc) {
         Access::gBannedUsers.insert(uid);
-	lock.Release();
+        lock.Release();
         aux(ban.id(), std_out, std_err, ret_c);
       } else {
         std_err << "error: no such user - cannot ban '" << ban.id() << '\'';
@@ -713,7 +723,7 @@ void AccessCmd::BanSubcmd(const eos::console::AccessProto_BanProto& ban,
 
       if (!errc) {
         Access::gBannedGroups.insert(gid);
-	lock.Release();
+        lock.Release();
         aux(ban.id(), std_out, std_err, ret_c);
       } else {
         std_err << "error: no such group - cannot ban '" << ban.id() << '\'';
@@ -767,9 +777,9 @@ void AccessCmd::UnbanSubcmd(const eos::console::AccessProto_UnbanProto& unban,
 
       if (!errc) {
         if (Access::gBannedUsers.count(uid)) {
-	  Access::gBannedUsers.erase(uid);
-	  lock.Release();
-	  aux(unban.id(), std_out, std_err, ret_c);
+          Access::gBannedUsers.erase(uid);
+          lock.Release();
+          aux(unban.id(), std_out, std_err, ret_c);
         } else {
           std_err << "error: user '" << unban.id() << "' is not banned anyway";
           ret_c = ENOENT;
@@ -788,8 +798,8 @@ void AccessCmd::UnbanSubcmd(const eos::console::AccessProto_UnbanProto& unban,
       if (!errc) {
         if (Access::gBannedGroups.count(gid)) {
           Access::gBannedGroups.erase(gid);
-	  lock.Release();
-	  aux(unban.id(), std_out, std_err, ret_c);
+          lock.Release();
+          aux(unban.id(), std_out, std_err, ret_c);
         } else {
           std_err << "error: group '" << unban.id() << "' is not banned anyway";
           ret_c = ENOENT;
@@ -805,9 +815,9 @@ void AccessCmd::UnbanSubcmd(const eos::console::AccessProto_UnbanProto& unban,
       : {
       if (Access::gBannedHosts.count(unban.id())) {
         Access::gBannedHosts.erase(unban.id());
-	lock.Release();
+        lock.Release();
         aux(unban.id(), std_out, std_err, ret_c);
-	lock.Grab(Access::gAccessMutex);
+        lock.Grab(Access::gAccessMutex);
       } else {
         std_err << "error: host '" << unban.id() << "' is not banned anyway";
         ret_c = ENOENT;
@@ -819,9 +829,9 @@ void AccessCmd::UnbanSubcmd(const eos::console::AccessProto_UnbanProto& unban,
       : {
       if (Access::gBannedDomains.count(unban.id())) {
         Access::gBannedDomains.erase(unban.id());
-	lock.Release();
+        lock.Release();
         aux(unban.id(), std_out, std_err, ret_c);
-	lock.Grab(Access::gAccessMutex);
+        lock.Grab(Access::gAccessMutex);
       } else {
         std_err << "error: domain '" << unban.id() << "' is not banned anyway";
         ret_c = ENOENT;
@@ -858,7 +868,7 @@ void AccessCmd::AllowSubcmd(const eos::console::AccessProto_AllowProto& allow,
 
       if (!errc) {
         Access::gAllowedUsers.insert(uid);
-	lock.Release();
+        lock.Release();
         aux(allow.id(), std_out, std_err, ret_c);
       } else {
         std_err << "error: no such user - cannot allow '" << allow.id() << '\'';
@@ -873,7 +883,7 @@ void AccessCmd::AllowSubcmd(const eos::console::AccessProto_AllowProto& allow,
 
       if (!errc) {
         Access::gAllowedGroups.insert(gid);
-	lock.Release();
+        lock.Release();
         aux(allow.id(), std_out, std_err, ret_c);
       } else {
         std_err << "error: no such group - cannot allow '" << allow.id() << '\'';
@@ -928,9 +938,9 @@ AccessCmd::UnallowSubcmd(const eos::console::AccessProto_UnallowProto& unallow,
 
       if (!errc) {
         if (Access::gAllowedUsers.count(uid)) {
-	  Access::gAllowedUsers.erase(uid);
-	  lock.Release();
-	  aux(unallow.id(), std_out, std_err, ret_c);
+          Access::gAllowedUsers.erase(uid);
+          lock.Release();
+          aux(unallow.id(), std_out, std_err, ret_c);
         } else {
           std_err << "error: user '" << unallow.id() << "' is not allowed anyway";
           ret_c = ENOENT;
@@ -949,7 +959,7 @@ AccessCmd::UnallowSubcmd(const eos::console::AccessProto_UnallowProto& unallow,
       if (!errc) {
         if (Access::gAllowedGroups.count(gid)) {
           Access::gAllowedGroups.erase(gid);
-	  lock.Release();
+          lock.Release();
           aux(unallow.id(), std_out, std_err, ret_c);
         } else {
           std_err << "error: group '" << unallow.id() << "' is not allowed anyway";
@@ -966,7 +976,7 @@ AccessCmd::UnallowSubcmd(const eos::console::AccessProto_UnallowProto& unallow,
       : {
       if (Access::gAllowedHosts.count(unallow.id())) {
         Access::gAllowedHosts.erase(unallow.id());
-	lock.Release();
+        lock.Release();
         aux(unallow.id(), std_out, std_err, ret_c);
       } else {
         std_err << "error: host '" << unallow.id() << "' is not allowed anyway";
@@ -979,7 +989,7 @@ AccessCmd::UnallowSubcmd(const eos::console::AccessProto_UnallowProto& unallow,
       : {
       if (Access::gAllowedDomains.count(unallow.id())) {
         Access::gAllowedDomains.erase(unallow.id());
-	lock.Release();
+        lock.Release();
         aux(unallow.id(), std_out, std_err, ret_c);
       } else {
         std_err << "error: domain '" << unallow.id() << "' is not allowed anyway";

@@ -98,7 +98,7 @@ target_compile_definitions(xrdcpposixcache PUBLIC -D_FILE_OFFSET_BITS=64)
 target_compile_definitions(eoshashbench PUBLIC -D_FILE_OFFSET_BITS=64)
 target_compile_definitions(eoslogbench PUBLIC -D_FILE_OFFSET_BITS=64)
 target_compile_definitions(eos-checksum-benchmark PUBLIC -D_FILE_OFFSET_BITS=64)
-target_compile_options(eos-checksum-benchmark PRIVATE -msse4.2)
+target_compile_options(eos-checksum-benchmark PRIVATE ${CPU_ARCH_FLAGS})
 target_compile_definitions(eos-open-trunc-update PUBLIC -D_FILE_OFFSET_BITS=64)
 
 add_executable(threadpooltest ThreadPoolTest.cc)
@@ -112,8 +112,8 @@ install(TARGETS xrdstress.exe xrdcpabort xrdcprandom xrdcpextend xrdcpshrink xrd
 install(PROGRAMS xrdstress eos-instance-test eos-instance-test-ci fuse/eos-fuse-test
   eos-rain-test eoscp-rain-test eos-io-test eos-oc-test eos-drain-test
   eos-http-upload-test eos-mq-tests eos-rename-test eos-grpc-test
-  eos-fsck-test eos-token-test eos-backup eos-backup-browser eos-test-utils
-  eos-converter-test eos-qos-test eos-timestamp-test
+  eos-fsck-test eos-token-test eos-squash-test eos-backup eos-backup-browser eos-test-utils
+  eos-converter-test eos-qos-test eos-timestamp-test eos-squash-test eos-defaultcc-test eos-quota-test eos-synctime-test
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
   PERMISSIONS OWNER_READ OWNER_EXECUTE
   GROUP_READ GROUP_EXECUTE

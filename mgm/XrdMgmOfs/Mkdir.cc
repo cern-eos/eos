@@ -57,6 +57,7 @@ XrdMgmOfs::mkdir(const char* inpath,
   eos::common::Mapping::IdMap(client, ininfo, tident, vid);
   EXEC_TIMING_END("IdMap");
   NAMESPACEMAP;
+  TOKEN_SCOPE;
   BOUNCE_ILLEGAL_NAMES;
   XrdOucEnv mkdir_Env(ininfo);
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
@@ -112,7 +113,8 @@ XrdMgmOfs::_mkdir(const char* path,
   std::shared_ptr<eos::IContainerMD> dir;
   eos::IContainerMD::XAttrMap attrmap;
   {
-    eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, cPath.GetParentPath());
+    eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView,
+        cPath.GetParentPath());
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
                                       __FILE__);
 
@@ -245,7 +247,7 @@ XrdMgmOfs::_mkdir(const char* path,
       for (i = cPath.GetSubPathSize() - 1; i >= 0; i--) {
         eos_debug("testing path %s", cPath.GetSubPath(i));
         errno = 0;
-	eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, cPath.GetSubPath(i));
+        eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, cPath.GetSubPath(i));
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
                                           __FILE__);
         attrmap.clear();

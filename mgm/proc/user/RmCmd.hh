@@ -53,22 +53,6 @@ public:
   //! asynchronous thread
   //----------------------------------------------------------------------------
   eos::console::ReplyProto ProcessRequest() noexcept override;
-
-private:
-  //----------------------------------------------------------------------------
-  //! Remove file/container metadata object that was already deleted before
-  //! but it's still in the namespace detached from any parent
-  //!
-  //! @param id file/container id
-  //! @param is_dir if true id refers to a container, otherwise a file object
-  //! @param force if set then force remove unlinked locations even if they
-  //!        were not properly deleted from the diskserver
-  //! @param msg outcome information forwarded to the client
-  //!
-  //! @return true if deletion successful, otherwise false
-  //----------------------------------------------------------------------------
-  bool RemoveDetached(uint64_t id, bool is_dir, bool force,
-                      std::string& msg) const;
 };
 
 EOSMGMNAMESPACE_END

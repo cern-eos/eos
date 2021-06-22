@@ -1,4 +1,4 @@
 #!/bin/bash
 
-chown daemon:daemon /etc/eos.keytab
-chmod 400 /etc/eos.keytab
+chown daemon:daemon /etc/eos.client.keytab
+chmod 400 /etc/eos.client.keytab

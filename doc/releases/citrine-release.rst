@@ -16,6 +16,320 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.53 Citrine``
+===================
+
+2021-06-18
+
+Improvement
+------------
+
+* MGM: support tokens for EOS CLI commands and basic xrdfs functions like mkdir/rmdir/rm
+* MGM: introduce thread pool limits by user and global using 'eos access' and show usage in 'eos ns [stat]'
+* MGM: improve performance of eosxd broadcasts and use a standard mutex to protect the caps objects
+
+
+``v4.8.51 Citrine``
+===================
+
+2021-06-10
+
+Bug
+----
+
+* [EOS-4740] MGM: Make sure only the master MGM propagates changes to the configuration engine.
+* SPEC: Fix ownership of archive directories
+* CONSOLE: Prevent to print out twice an error in selected proto commands
+
+
+``v4.8.50 Citrine``
+===================
+
+2021-06-07
+
+Bug
+----
+
+* [EOS-4725] - Unknown lock held for many seconds
+* [EOS-4730] - Fix FST crash during shutdown
+* [EOS-4736] - Memory leak when parsing diskstat on CentOS8
+* [EOS-4737] - File systems blocked in booting during mass boot with --syncmgm
+* [EOS-4740] - Inconsistent FsView maps after removing/changing file system
+
+Improvement
+------------
+
+* [EOS-4724] - Support HTTP chunked uploads
+* [EOS-4727] - Add fsck subcommand to cleanup orphans
+* [EOS-4728] - Improve the refresh of fsck stats
+* [EOS-4729] - Improve remove detached for entries with deleted parents
+* [EOS-4735] - Make Egroup queries for non existing users / groups cacheable
+
+
+``v4.8.49 Citrine``
+===================
+
+2021-05-24
+
+Bug
+----
+
+* FUSEX: properly support also KERYRING:persisten:%{UID} as default krb5 CCCAHCE
+
+
+Improvement
+-----------
+
+* [EOS-4709] - [eos-ns-inspect] adding --maxdepth to scanning functionality
+* MGM/CONSOLE: allow to scan quota in a subtree for a given uid or gid using
+  e.g. 'eos update_quotanode /eos/tree uid:123'
+* MGM: enhance eosnobody squashfs check to distinguish three instead of two cases:
+  result eosnobody can only stat via eosxd and access squashfs image files, nothing else
+
+
+``v4.8.48 Citrine``
+===================
+
+2021-05-18
+
+Bug
+----
+
+* [EOS-4715] - Segv in jemalloc during PathRouting
+* MGM: add by-pass for squashfs sss 'eosnobody' file access without ACL entries
+* FUSEX: allow to open a squashfs image file client side even if we don't have R mode on the parent directory
+
+
+``v4.8.47 Citrine``
+===================
+
+2021-05-17
+
+Bug
+---
+
+* [EOS-4716] - quota zeroes the counters of used bytes/files from the quota node
+
+
+New Feature
+------------
+
+* [EOS-4712] - Support LOCK_MAND in eosxd
+
+
+``v4.8.46 Citrine``
+===================
+
+2021-05-07
+
+Bug
+----
+
+* FST: Don't free internal jerasure structs, these will be cleaned up when the FST is shutdown
+
+
+``v4.8.45 Citrine``
+===================
+
+2021-05-06
+
+Bug
+----
+
+* [EOS-4695] - Select default KRB5 token location
+* [EOS-4697] - LRU uses wrong prefetch type
+* [EOS-4699] - Screen both mappings (uid,gid) in vid set before setting any config value
+* [EOS-4700] - Space policies interfere with conversion jobs
+* [EOS-4702] - Don't redirect to FSTs if not enough locations are available in EC layouts
+* [EOS-4704] - Memory leak when using the jerasure library
+
+New Feature
+------------
+
+* [EOS-4705] - Block multi-source reading for EC files
+
+Task
+-----
+
+* [EOS-4684] - Make the "file archived" GC aware of different EOS spaces
+
+Improvement
+-----------
+
+* [EOS-4691] - Improve the locking primitives in FuseServer caps
+
+
+``v4.8.44 Citrine``
+===================
+
+2021-04-30
+
+Bug
+---
+
+* FST: fix bug introduced with a checksum reset in case of non-sequential writing
+
+
+``v4.8.43 Citrine``
+===================
+
+2021-04-21
+
+Bug
+---
+
+* [EOS-4669] - eos file verify need to be triggered twice in order to work
+* [EOS-4674] - Empty FSCK report seemingly after FST slow upgrade
+* [EOS-4676] - Crash when checking for recursive deletion
+* [EOS-4677] - FST deadlock when updating the scanner config
+* [EOS-4678] - MGM crash when removing a file system
+* Fix interference between master-slave setup and various internal services
+  like LRU, drainer and converter that should only run in a master MGM.
+
+Improvements
+------------
+
+* Add fileTruncateAsync API to the file IO interface
+
+
+``v4.8.42 Citrine``
+===================
+
+2021-04-14
+
+
+Bug
+----
+
+* [EOS-4545] Option for eosxd mounts to block symlinks walking up the hierarchie
+
+Improvements
+------------
+
+* Drop the use of folly concurrent map and use internal implementation
+* Add job for CentOS8 Stream packages
+
+
+``v4.8.41 Citrine``
+===================
+
+2021-04-14
+
+
+Bug
+----
+
+* [EOS-4607] - The commad eos node config does not accept 'off' when using configstatus
+* [EOS-4627] - FSCK collected time changed after restart
+* [EOS-4629] - Checksum not recomputed after certain truncation operations
+* [EOS-4657] - File in draining with both FST checksums to 0x00
+* [EOS-4659] - Debug command broken
+* [EOS-4653] - Krb5 memory leak in CredentialValidator
+* [EOS-4660] - Potential cross-site scripting vulnerability in the EOS-HTTP
+* [EOS-4639] - Fix possible memory leak when using dense_hash_set objects
+* [EOS-4635] - Failure to share with egroups containing underscore
+* FST: Avoid early return in case of HTTP partial content like for example for range requests
+
+New Feature
+-----------
+
+* [EOS-4623] - Create an utils script to setup a development environment on CentOS7/8
+* [EOS-4062] - Centos8: support "KCM" Kerberos cache
+* [EOS-4609] - Support for excess replicas/stripes
+
+Improvements
+------------
+
+* [EOS-4575] - Error on eos find command when tmp file cannot be created
+* [EOS-4617] - Quota option to provide only the quota of the specified quota node
+* [EOS-4658] - EOS workflow engine should not insist on the W_OK mode bit
+* Fsck improvements when dealing with detached files in general and also hadling
+  wired cases where a file is detached but its parent id is not properly marked as 0
+
+
+``v4.8.40 Citrine``
+===================
+
+2021-02-03
+
+Bug
+----
+
+* [EOS-4506] - Slowness when changing fs configurations when using eos space
+* [EOS-4540] - FST flips status from online to offline and back when cfg.status=off
+* [EOS-4582] - investigate far-in-the-future mtime, robustify "eos fileinfo"
+* MGM: Fix drain for RAIN 0-size files
+
+Improvements
+-------------
+
+* MGM/HTTP: Allow running XrdHttp without the need for token authentication
+* ALL: Improve logging functionality to avoid the long tail of performance
+
+Note
+----
+
+* Upgrade to XRootD-4.12.8
+
+
+``v4.8.39 Citrine``
+===================
+
+2021-02-08
+
+Bug
+----
+
+* [EOS-4539] - FST crash on shutdown in eos::common::DbMapT::iterate()
+* [EOS-4574] - Crash in HandleVOMS when role is not present
+
+Improvement
+------------
+
+* Improve buffering and memory operations for RAIN layouts
+* [EOS-4525] - Include in acl man page the difference between sys.acl and user.acl
+* [EOS-4534] - Check compatibility of libXrdVoms.so with the HTTP interface
+* [EOS-4541] - Add a log message when a `ns recompute_quotanode` finishes
+
+Note
+----
+
+* Update to XRootD-4.12.7
+
+
+``v4.8.38 Citrine``
+===================
+
+2021-02-02
+
+Bug
+----
+
+* [EOS-4573] - ZMQ threads jump into eternal parsing error state
+* COMMON: Compensate for the missing protocol info for HTTP transfers also in the SecEntity::ToKey method
+* SPEC: Make sure the debug info is not stripped from the binaries
+* MGM: Avoid to refresh directory MD all the time after a deletion
+
+Improvements
+------------
+
+* FST: Allow XRootD env variables to override default XrdCl timeouts in EOS
+* Deal with a list of VOMS roles/groups
+
+
+``v4.8.37 Citrine``
+===================
+
+2021-01-19
+
+Improvements
+-------------
+
+ALL: Improve the logging info evaluation which is now done only if the log line
+  is to be actually printed.
+MGM: Add hex dump of ZMQ messages received from the FUSEX clients
+
+
 ``v4.8.36 Citrine``
 ===================
 
@@ -1939,10 +2253,10 @@ Bug
 * [EOS-3276] - Inconsistent behavior (and doc) for "eos fs config" and "eos node config"
 * [EOS-3296] - eoscp crash while copying 'opaque_info' data
 * [EOS-3299] - Workaround for XRootD TPC bug in Converter which leads to data loss.
-	       This is not a definitive fix.
+               This is not a definitive fix.
 * [EOS-3280] - Logrotate rpm dependency missing for eos-server package
 * [EOS-3303] - Implement InheritChildren method for the QuarkContainerMD which otherwise
-	       crashes the MGM for commands like "eos --json fileinfo /path/to/dir/".
+               crashes the MGM for commands like "eos --json fileinfo /path/to/dir/".
 
 Improvement
 ------------
@@ -3685,7 +3999,7 @@ Bugfix
 -------
 
 - FUSE: when using krb5 or x509, allow both krb5/x509 and unix so that authentication
-	does not fail on the fst (using only unix) when using XRootD >= 4.4
+        does not fail on the fst (using only unix) when using XRootD >= 4.4
 
 
 ``v0.4.30 Citrine``
@@ -3697,9 +4011,9 @@ Bugfix
 -------
 
 - SPEC: Add workaround in the %posttrans section of the eos-fuse-core package
-	to keep all the necessary files and directories when doing an update.
+        to keep all the necessary files and directories when doing an update.
 - CMAKE: Remove the /var/eos directory from the eos-fuse-core package and fix
-	type in directory name.
+        type in directory name.
 
 ``v0.4.29 Citrine``
 ===================

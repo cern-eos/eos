@@ -77,6 +77,9 @@ ProcCommand::Attr()
     while (spath.replace("#AND#", "&")) {}
   }
 
+  path = spath.c_str();
+  PROC_TOKEN_SCOPE;
+
   if ((!spath.length()) && (!identifier)) {
     // Empty path or invalid numeric identifier
     stdErr = "error: you have to give a valid identifier (<path>|fid:<fid-dec>|fxid:<fid-hex>|pid:<pid-dec>|pxid:<pid-hex>)";

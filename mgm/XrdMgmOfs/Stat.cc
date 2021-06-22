@@ -29,6 +29,8 @@
 
 /*----------------------------------------------------------------------------*/
 
+#include "namespace/Resolver.hh"
+
 int
 XrdMgmOfs::stat(const char* inpath,
                 struct stat* buf,
@@ -121,7 +123,7 @@ XrdMgmOfs::_stat_set_flags(struct stat* buf)
 /*----------------------------------------------------------------------------*/
 {
   // If EOS_TAPE_MODE_T is set, there is a copy on tape
-  if(buf->st_mode & EOS_TAPE_MODE_T) {
+  if (buf->st_mode & EOS_TAPE_MODE_T) {
     buf->st_rdev |= XRDSFS_HASBKUP;
   } else {
     buf->st_rdev &= ~XRDSFS_HASBKUP;
@@ -129,6 +131,7 @@ XrdMgmOfs::_stat_set_flags(struct stat* buf)
 
   // Number of disk copies = total number of copies - 1 if there is a tape copy
   auto numDiskCopies = buf->st_nlink - (buf->st_mode & EOS_TAPE_MODE_T ? 1 : 0);
+
   if (numDiskCopies > 0) {
     buf->st_rdev &= ~XRDSFS_OFFLINE;
   } else {
@@ -181,23 +184,33 @@ XrdMgmOfs::_stat(const char* path,
   }
 
   // public access level restriction
-  if (!gOFS->allow_public_access(path,vid)) {
+  if (!gOFS->allow_public_access(path, vid)) {
     eos_static_err("vid.uid=%d\n", vid.uid);
     errno = EACCES;
-    return Emsg(epname, error, EACCES, "access - public access level restriction", path);
+    return Emsg(epname, error, EACCES, "access - public access level restriction",
+                path);
   }
 
   // Prefetch path
   eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, cPath.GetPath(), follow);
-  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                    __FILE__);
 
   try {
-    fmd = gOFS->eosView->getFile(cPath.GetPath(), follow);
+    if (strncmp(cPath.GetPath(), "/.fxid:", 7) == 0) {
+      XrdOucString spath = cPath.GetPath();
+      unsigned long long byfid = eos::Resolver::retrieveFileIdentifier(
+                                   spath).getUnderlyingUInt64();
+      fmd = gOFS->eosFileService->getFileMD(byfid);
+      eos_info("msg=\"access by inode\" ino=%s", cPath.GetPath());
+    } else {
+      fmd = gOFS->eosView->getFile(cPath.GetPath(), follow);
 
-    // if a stat comes with file/ return an error
-    if ( std::string(path).back() == '/' ) {
-      errno = EISDIR;
-      return Emsg(epname, error, errno, "stat", cPath.GetPath());
+      // if a stat comes with file/ return an error
+      if (std::string(path).back() == '/') {
+        errno = EISDIR;
+        return Emsg(epname, error, errno, "stat", cPath.GetPath());
+      }
     }
 
     if (uri) {
@@ -223,18 +236,20 @@ XrdMgmOfs::_stat(const char* path,
       buf->st_nlink = 1;
     } else {
       // we have to pass only disk locations to GetRedundancy and correct
-
       unsigned long disk_locations = fmd->getNumLocation();
+
       if (buf->st_mode & EOS_TAPE_MODE_T) {
-	if (disk_locations>0) {
-	  disk_locations--;
-	}
+        if (disk_locations > 0) {
+          disk_locations--;
+        }
       }
 
-      buf->st_nlink = eos::common::LayoutId::GetRedundancy(fmd->getLayoutId(), disk_locations);
+      buf->st_nlink = eos::common::LayoutId::GetRedundancy(fmd->getLayoutId(),
+                      disk_locations);
+
       if ((buf->st_mode & EOS_TAPE_MODE_T)) {
-	// file is unavailable on disk, but available on tape e.g. redundancy from disk layout = 0
-	buf->st_nlink++;
+        // file is unavailable on disk, but available on tape e.g. redundancy from disk layout = 0
+        buf->st_nlink++;
       }
     }
 
@@ -243,7 +258,8 @@ XrdMgmOfs::_stat(const char* path,
     buf->st_gid = fmd->getCGid();
     buf->st_rdev = 0; /* device type (if inode device) */
     buf->st_blksize = 512;
-    buf->st_blocks = (Quota::MapSizeCB(fmd.get())+512) / 512; // including layout factor
+    buf->st_blocks = (Quota::MapSizeCB(fmd.get()) + 512) /
+                     512; // including layout factor
     eos::IFileMD::ctime_t atime;
     // adding also nanosecond to stat struct
     fmd->getCTime(atime);
@@ -272,8 +288,9 @@ XrdMgmOfs::_stat(const char* path,
 
     if (etag) {
       eos::calculateEtag(fmd.get(), *etag);
+
       if (fmd->hasAttribute("sys.eos.mdino")) {
-	*etag = "hardlink";
+        *etag = "hardlink";
       }
     }
 
@@ -367,7 +384,8 @@ XrdMgmOfs::_getchecksum(const char* Name,
   std::shared_ptr<eos::IFileMD> fmd;
   eos::common::Path cPath(Name);
   eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, cPath.GetPath(), follow);
-  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                    __FILE__);
 
   try {
     fmd = gOFS->eosView->getFile(cPath.GetPath(), follow);

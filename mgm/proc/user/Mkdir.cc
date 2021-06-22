@@ -38,6 +38,7 @@ ProcCommand::Mkdir()
   PROC_BOUNCE_ILLEGAL_NAMES;
   PROC_BOUNCE_NOT_ALLOWED;
   spath = path;
+  PROC_TOKEN_SCOPE;
 
   if (!spath.length()) {
     stdErr = "error: you have to give a path name to call 'mkdir'";

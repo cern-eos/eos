@@ -99,7 +99,6 @@ FileCfgEngineChangelog::Tail(unsigned int nlines, std::string& tail)
 
   tail = oss.str();
   std::replace(tail.begin(), tail.end(), '&', ' ');
-
   return true;
 }
 
@@ -267,14 +266,14 @@ FileConfigEngine::LoadConfig(const std::string& filename, XrdOucString& err,
     err += "\"!";
     return false;
   }
-
 }
 
 //------------------------------------------------------------------------------
 // Store the current configuration to a given file or QuarkDB.
 //------------------------------------------------------------------------------
 bool
-FileConfigEngine::SaveConfig(std::string filename, bool overwrite, const std::string& comment, XrdOucString& err)
+FileConfigEngine::SaveConfig(std::string filename, bool overwrite,
+                             const std::string& comment, XrdOucString& err)
 {
   std::lock_guard<std::mutex> lock(sMutex);
   return SaveConfigNoLock(filename, overwrite, comment, err);
@@ -285,10 +284,11 @@ FileConfigEngine::SaveConfig(std::string filename, bool overwrite, const std::st
 // be executed by one thread at a time.
 //------------------------------------------------------------------------------
 bool
-FileConfigEngine::SaveConfigNoLock(std::string filename, bool overwrite, const std::string& comment, XrdOucString& err)
+FileConfigEngine::SaveConfigNoLock(std::string filename, bool overwrite,
+                                   const std::string& comment, XrdOucString& err)
 {
-
-  eos_debug("saving config name=%s comment=%s force=%d", filename.c_str(), comment.c_str(), overwrite);
+  eos_debug("saving config name=%s comment=%s force=%d", filename.c_str(),
+            comment.c_str(), overwrite);
 
   if (filename.empty()) {
     if (mConfigFile.length()) {
@@ -336,7 +336,8 @@ FileConfigEngine::SaveConfigNoLock(std::string filename, bool overwrite, const s
         return false;
       }
 
-      oss << half_path << sAutosaveTag << st.st_mtime << EOSMGMCONFIGENGINE_EOS_SUFFIX;
+      oss << half_path << sAutosaveTag << st.st_mtime <<
+          EOSMGMCONFIGENGINE_EOS_SUFFIX;
       bkp_path = oss.str();
     }
   }
@@ -530,7 +531,8 @@ FileConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
 void
 FileConfigEngine::FilterConfig(std::ostream& out, const std::string& configName)
 {
-  std::string full_path = SSTR(mConfigDir << configName << EOSMGMCONFIGENGINE_EOS_SUFFIX);
+  std::string full_path = SSTR(mConfigDir << configName <<
+                               EOSMGMCONFIGENGINE_EOS_SUFFIX);
   std::ifstream infile(full_path);
   std::string sline;
   XrdOucString line;
@@ -580,9 +582,10 @@ FileConfigEngine::AutoSave()
 //------------------------------------------------------------------------------
 void
 FileConfigEngine::SetConfigValue(const char* prefix, const char* key,
-                                 const char* val, bool tochangelog)
+                                 const char* val, bool from_local,
+                                 bool save_config)
 {
-  if (tochangelog) {
+  if (from_local) {
     mChangelog->AddEntry("set config", formFullKey(prefix, key), val);
   }
 
@@ -606,7 +609,7 @@ FileConfigEngine::SetConfigValue(const char* prefix, const char* key,
 //------------------------------------------------------------------------------
 void
 FileConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
-                                    bool tochangelog)
+                                    bool from_local)
 {
   std::string configname = formFullKey(prefix, key);
 
@@ -621,7 +624,7 @@ FileConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
     sConfigDefinitions.erase(configname);
   }
 
-  if (tochangelog) {
+  if (from_local) {
     mChangelog->AddEntry("del config", formFullKey(prefix, key), "");
   }
 

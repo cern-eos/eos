@@ -201,18 +201,7 @@ int com_protoconfig(char* arg)
     return EINVAL;
   }
 
-  global_retc = config.Execute(false);
-
-  // Provide compatibility in case the server does not support the protobuf
-  // implementation ie. < 4.5.0
-  if (global_retc) {
-    if (config.GetError().find("Cannot allocate memory") != std::string::npos) {
-      global_retc = com_config(arg);
-    } else {
-      std::cerr << config.GetError();
-    }
-  }
-
+  global_retc = config.Execute();
   return global_retc;
 }
 

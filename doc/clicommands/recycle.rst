@@ -16,7 +16,7 @@ recycle
     <date> : can be <year>, <year>/<month> or <year>/<month>/<day>
     e.g.: recycle ls 2018/08/12
     -m     : display info in monitoring format
-    -n     : dispaly numeric uid/gid(s) instead of names
+    -n     : display numeric uid/gid(s) instead of names
     recycle purge [-g|<date>]
     purge files in the recycle bin
     -g     : empties the recycle bin of all users (if done by root or admin)

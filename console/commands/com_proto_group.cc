@@ -88,10 +88,12 @@ bool GroupHelper::ParseCommand(const char* arg)
                     << "integer\n";
           return false;
         }
+
         try {
           ls->set_outdepth(std::stoi(token));
         } catch (const std::exception& e) {
-          std::cerr << "error: argument to geodepth (-g flag) needs to be a positive integer\n";
+          std::cerr <<
+                    "error: argument to geodepth (-g flag) needs to be a positive integer\n";
           return false;
         }
       } else if (token == "-b" || token == "--brief") {
@@ -160,18 +162,7 @@ int com_protogroup(char* arg)
     return EINVAL;
   }
 
-  global_retc = group.Execute(false);
-
-  // Provide compatibility in case the server does not support the protobuf
-  // implementation ie. < 4.5.0
-  if (global_retc) {
-    if (group.GetError().find("Cannot allocate memory") != std::string::npos) {
-      global_retc = com_group(arg);
-    } else {
-      std::cerr << group.GetError();
-    }
-  }
-
+  global_retc = group.Execute();
   return global_retc;
 }
 

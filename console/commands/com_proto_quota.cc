@@ -74,12 +74,16 @@ bool QuotaHelper::ParseCommand(const char* arg)
   tokenizer.NextToken(token);
 
 // quite ugly, but not to break the legacy syntax...
-  if ( token == "" || token == "-m" || token == "--path" || token == "-p" || (token.find('/') == 0) ) { // ... or begins with "/"
+  if (token == "" || token == "-m" || token == "--path" || token == "-p" ||
+      token == "-x" || token == "-q" ||
+      (token.find('/') == 0)) {  // ... or begins with "/"
     // lsuser
     eos::console::QuotaProto_LsuserProto* lsuser = quota->mutable_lsuser();
     std::string aux_string;
+
     if (token == "") {
       aux_string = DefaultRoute(false);
+
       if (aux_string.find('/') == 0) {
         lsuser->set_space(aux_string);
       }
@@ -88,11 +92,21 @@ bool QuotaHelper::ParseCommand(const char* arg)
         if (token == "-m") {
           lsuser->set_format(true);
           aux_string = DefaultRoute(false);
+
           if (aux_string.find('/') == 0) {
             lsuser->set_space(aux_string);
           }
-        } else if (token == "--path" || token == "-p" || (token.find('/') == 0)) {
-          if (token == "--path" || token == "-p") {
+        } else if (token == "--path" || token == "-p" || token == "-x" ||
+                   token == "-q" || (token.find('/') == 0)) {
+          if (token == "--path" || token == "-p" || token == "-x" || token == "-q") {
+            if (token == "-x") {
+              lsuser->set_exists(true);
+            }
+
+            if (token == "-q") {
+              lsuser->set_quotanode(true);
+            }
+
             if (tokenizer.NextToken(token)) {
               lsuser->set_space(token);
             } else {
@@ -100,6 +114,7 @@ bool QuotaHelper::ParseCommand(const char* arg)
             }
           } else if (token.find('/') == 0) {
             lsuser->set_space(token);
+
             // for convenience can omit --path and use /some/path/ as *last*
             // argument - e.g. quota ls /eos/ ...
             if (tokenizer.NextToken(token)) {
@@ -131,8 +146,20 @@ bool QuotaHelper::ParseCommand(const char* arg)
         ls->set_format(true);
       } else if (token == "-n") {
         ls->set_printid(true);
-      } else if (token == "--path" || token == "-p" || (token.find('/') == 0)) {
-        if (token == "--path" || token == "-p") {
+      } else if (token == "--path" ||
+                 token == "-p" ||
+                 token == "-x" ||
+                 token == "-q" ||
+                 (token.find('/') == 0)) {
+        if (token == "--path" || token == "-p" || token == "-q" || token == "-x") {
+          if (token == "-x") {
+            ls->set_exists(true);
+          }
+
+          if (token == "-q") {
+            ls->set_quotanode(true);
+          }
+
           if (tokenizer.NextToken(token)) {
             ls->set_space(token);
           } else {
@@ -140,6 +167,7 @@ bool QuotaHelper::ParseCommand(const char* arg)
           }
         } else if (token.find('/') == 0) {
           ls->set_space(token);
+
           // for convenience can omit --path and use /some/path/ as *last*
           // argument - e.g. quota ls /eos/ ...
           if (tokenizer.NextToken(token)) {
@@ -272,7 +300,7 @@ bool QuotaHelper::ParseCommand(const char* arg)
 
     if (!dontask) {
       std::cout << "Do you really want to delete the quota node under path: "
-		<< rmnode->space() << " ?" << std::endl;
+                << rmnode->space() << " ?" << std::endl;
       std::cout << "Confirm the deletion by typing => ";
       // Seed with a real random value, if available
       std::random_device rd;
@@ -318,18 +346,7 @@ int com_protoquota(char* arg)
     return EINVAL;
   }
 
-  global_retc = quota.Execute(false, true);
-
-  // Provide compatibility in case the server does not support the protobuf
-  // implementation ie. < 4.5.0
-  if (global_retc) {
-    if (quota.GetError().find("Cannot allocate memory") != std::string::npos) {
-      global_retc = com_quota(arg);
-    } else {
-      std::cerr << quota.GetError();
-    }
-  }
-
+  global_retc = quota.Execute(true, true);
   return global_retc;
 }
 
@@ -346,8 +363,11 @@ void com_quota_help()
       ": show personal quota for all or only the quota node responsible for <path>"
     },
     {
-      "quota ls [-n] [-m] [-u <uid>] [-g <gid>] [[-p] <path>]",
+      "quota ls [-n] [-m] [-u <uid>] [-g <gid>] [[-p|x|q] <path>]",
       ": list configured quota and quota node(s)"
+      "\n                                                                       -p : find closest matching quotanode"
+      "\n                                                                       -x : as -p but <path> has to exist"
+      "\n                                                                       -q : as -p but <path> has to be a quotanode"
     },
     {
       "quota set -u <uid>|-g <gid> [-v <bytes>] [-i <inodes>] [[-p] <path>]",

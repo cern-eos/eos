@@ -360,7 +360,8 @@ QuarkDBConfigEngine::AutoSave()
 //------------------------------------------------------------------------------
 void
 QuarkDBConfigEngine::SetConfigValue(const char* prefix, const char* key,
-                                    const char* val, bool not_bcast)
+                                    const char* val, bool from_local,
+                                    bool save_config)
 {
   // If val is null or empty we don't save anything
   if ((val == nullptr) || (strlen(val) == 0)) {
@@ -375,18 +376,15 @@ QuarkDBConfigEngine::SetConfigValue(const char* prefix, const char* key,
   }
 
   // In case the change is not coming from a broacast we can can broadcast it
-  if (not_bcast) {
+  // and add it to the changelog
+  if (from_local) {
     // Make this value visible between MGM's
     publishConfigChange(config_key.c_str(), val);
-  }
-
-  // In case is not coming from a broadcast we can add it to the changelog
-  if (not_bcast) {
     mChangelog->AddEntry("set config", formFullKey(prefix, key), val);
   }
 
   // If the change is not coming from a broacast we can can save it
-  if (not_bcast && mConfigFile.length()) {
+  if (from_local && save_config && mConfigFile.length()) {
     std::string filename = mConfigFile.c_str();
     bool overwrite = true;
     XrdOucString err = "";
@@ -402,12 +400,12 @@ QuarkDBConfigEngine::SetConfigValue(const char* prefix, const char* key,
 //------------------------------------------------------------------------------
 void
 QuarkDBConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
-                                       bool not_bcast)
+                                       bool from_local)
 {
   std::string config_key = formFullKey(prefix, key);
 
   // In case the change is not coming from a broacast we can can broadcast it
-  if (not_bcast) {
+  if (from_local) {
     // Make this value visible between MGM's
     publishConfigDeletion(config_key.c_str());
   }
@@ -418,12 +416,12 @@ QuarkDBConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
   }
 
   // If it's not coming from a broadcast we can add it to the changelog
-  if (not_bcast) {
+  if (from_local) {
     mChangelog->AddEntry("del config", formFullKey(prefix, key), "");
   }
 
   // If the change is not coming from a broacast we can can save it
-  if (not_bcast && mConfigFile.length()) {
+  if (from_local && mConfigFile.length()) {
     std::string filename = mConfigFile.c_str();
     bool overwrite = true;
     XrdOucString err = "";

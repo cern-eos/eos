@@ -62,7 +62,8 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   repairOnClose(false), mIsOCchunk(false), writeErrorFlag(false),
   mEventOnClose(false), mEventWorkflow(""),
   mSyncEventOnClose(false), mFmd(nullptr), mCheckSum(nullptr),
-  mLayout(nullptr), mCloseCb(nullptr), mMaxOffsetWritten(0ull), openSize(0),
+  mLayout(nullptr), mCloseCb(nullptr), mMaxOffsetWritten(0ull),
+  mWritePosition(0ull), openSize(0),
   closeSize(0), mTpcThreadStatus(EINVAL), mTpcState(kTpcIdle),
   mTpcFlag(kTpcNone), mTpcKey(""), mIsTpcDst(false), mTpcRetc(0),
   mTpcCancel(false)
@@ -260,6 +261,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
       mIsRW = true;
       isCreation = true;
       openSize = 0;
+      mWritePosition = 0;
       // Used to indicate if a file was written in the meanwhile by someone else
       updateStat.st_mtime = 0;
       open_mode |= SFS_O_CREAT;
@@ -555,6 +557,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     eos_info("msg=\"layout size\" disk_size=%zu db_size= %llu",
              statinfo.st_size, mFmd->mProtoFmd.size());
     openSize = mFmd->mProtoFmd.size();
+    mWritePosition = openSize;
 
     if (!eos::common::LayoutId::IsRain(mLayout->GetLayoutId())) {
       // If replica layout and physical size of replica difference from the
@@ -562,6 +565,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
       // size from disk.
       if ((off_t) statinfo.st_size != (off_t) mFmd->mProtoFmd.size()) {
         openSize = statinfo.st_size;
+        mWritePosition = openSize;
       }
     }
 
@@ -756,6 +760,16 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
               buffer_size);
     mMaxOffsetWritten = fileOffset + buffer_size;
     return buffer_size;
+  }
+
+  // if the write position moves the checksum is dirty
+  if (mCheckSum) {
+    if (mWritePosition != (unsigned long long)fileOffset) {
+      mCheckSum->SetDirty();
+    }
+
+    // store next write position
+    mWritePosition = fileOffset + buffer_size;
   }
 
   int rc = mLayout->Write(fileOffset, const_cast<char*>(buffer), buffer_size);
@@ -1013,8 +1027,7 @@ XrdFstOfsFile::truncate(XrdSfsFileOffset fsize)
 
   if (fsize != openSize) {
     if (mCheckSum) {
-      if (fsize != mCheckSum->GetMaxOffset()) {
-        mCheckSum->Reset();
+      if (mWritePosition != (unsigned long long)fsize) {
         mCheckSum->SetDirty();
       }
     }
@@ -1026,6 +1039,8 @@ XrdFstOfsFile::truncate(XrdSfsFileOffset fsize)
     if (fsize != openSize) {
       mHasWrite = true;
     }
+
+    mWritePosition = fsize;
   }
 
   return rc;
@@ -1068,7 +1083,7 @@ XrdFstOfsFile::close()
     eos_info("msg=\"doing close in the async thread\" fxid=%08llx", mFileId);
     int rc = _close();
     int reply_rc = mCloseCb->Reply(rc, (rc ? error.getErrInfo() : 0),
-    (rc ? error.getErrText() : ""));
+                                   (rc ? error.getErrText() : ""));
 
     if (reply_rc == 0)
     {
@@ -1269,6 +1284,7 @@ XrdFstOfsFile::_close()
       closeSize = openSize;
 
       if ((!checksumerror) && (!minimumsizeerror) &&
+          (!targetsizeerror) &&
           (mHasWrite || isCreation) &&
           (!mRainReconstruct || !hasReadError)) {
         // Commit meta data
@@ -1311,6 +1327,9 @@ XrdFstOfsFile::_close()
             closeSize = statinfo.st_size;
             mFmd->mProtoFmd.set_size(statinfo.st_size);
             mFmd->mProtoFmd.set_disksize(statinfo.st_size);
+            // Reset the diskchecksum after an update otherwise we might falsely report
+            // a checksum error. The diskchecksum will be updated by the scanner.
+            mFmd->mProtoFmd.set_diskchecksum("");
             mFmd->mProtoFmd.set_mgmsize(
               eos::common::FmdHelper::UNDEF); // now again undefined
             mFmd->mProtoFmd.set_mgmchecksum(""); // now again empty
@@ -2959,13 +2978,19 @@ XrdFstOfsFile::VerifyChecksum()
         mCheckSum.reset(nullptr);
         return false;
       }
+    }
 
-      if ((mIsRW) && mCheckSum->GetMaxOffset() &&
-          (mCheckSum->GetMaxOffset() < openSize)) {
-        // If there was a write which was not extending the file the checksum
-        // is dirty!
-        mCheckSum->SetDirty();
-      }
+    // -------------------------------------------------------------------------------------------------------------------
+    // !!! CAUTION !!!
+    // be carefule with adler checksum - finalize can remove the dirty flag if all pieces of a file until the max checksum
+    // offset were written - however if the file size is diffrent from the max checksum offset, the checksum is dirty
+    // because the ending part of a file was not written
+    // -------------------------------------------------------------------------------------------------------------------
+    if ((mIsRW) && mCheckSum->GetMaxOffset() &&
+        (mCheckSum->GetMaxOffset() != (off_t)mMaxOffsetWritten)) {
+      // If there was a write which was not extending the file the checksum
+      // is dirty!
+      mCheckSum->SetDirty();
     }
 
     // If checksum is not completely computed
@@ -2999,7 +3024,8 @@ XrdFstOfsFile::VerifyChecksum()
       }
     } else {
       // This was prefect streaming I/O
-      if ((!mIsRW) && (mCheckSum->GetMaxOffset() != openSize)) {
+      if ((!mIsRW) && ((sFwdBytes + sBwdBytes) ||
+                       (mCheckSum->GetMaxOffset() != openSize))) {
         eos_info("info=\"skipping checksum (re-scan) since file was not read "
                  "completely %llu %llu...\"", mCheckSum->GetMaxOffset(), openSize);
         mCheckSum.reset(nullptr);

@@ -330,7 +330,7 @@ void
 Storage::ProcessFsConfigChange(const std::string& queuepath,
                                const std::string& key)
 {
-  eos::common::RWMutexWriteLock fs_wr_lock(mFsMutex);
+  eos::common::RWMutexReadLock fs_rd_lock(mFsMutex);
   auto it = std::find_if(mFsMap.begin(), mFsMap.end(), [&](const auto & pair) {
     return (pair.second->GetQueuePath() == queuepath);
   });
@@ -339,6 +339,9 @@ Storage::ProcessFsConfigChange(const std::string& queuepath,
     // If file system does not exist in the map and this an "id" info then
     // it could be that we have a partially registered file system
     if ((key == "id") || (key == "uuid")) {
+      // Switch to a write lock as we might add the new fs to the map
+      fs_rd_lock.Release();
+      eos::common::RWMutexWriteLock fs_wr_lock(mFsMutex);
       auto itv = std::find_if(mFsVect.begin(), mFsVect.end(),
       [&](fst::FileSystem * fs) {
         return (fs->GetQueuePath() == queuepath);
@@ -364,10 +367,15 @@ Storage::ProcessFsConfigChange(const std::string& queuepath,
         return;
       }
 
-      it = mFsMap.emplace(fs->GetLocalId(), fs).first;
+      eos::common::FileSystem::fsid_t fsid = fs->GetLocalId();
+      it = mFsMap.emplace(fsid, fs).first;
       eos_static_info("msg=\"fully register file system\" qpath=%s fsid=%u "
                       "uuid=\"%s\"", queuepath.c_str(), fs->GetLocalId(),
                       fs->GetLocalUuid().c_str());
+      // Switch back to read lock and update the iterator
+      fs_wr_lock.Release();
+      fs_rd_lock.Grab(mFsMutex);
+      it = mFsMap.find(fsid);
     } else {
       eos_static_err("msg=\"no file system for modification\" qpath=\"%s\" "
                      "key=\"%s\"", queuepath.c_str(), key.c_str());

@@ -97,6 +97,7 @@ extern int com_ns(char*);
 extern int com_pwd(char*);
 extern int com_quit(char*);
 extern int com_protoquota(char*);
+extern int com_report(char*);
 extern int com_reconnect(char*);
 extern int com_protorecycle(char*);
 extern int com_rm(char*);
@@ -176,6 +177,7 @@ COMMAND commands[] = {
   { (char*) "qos", com_qos, (char*) "QoS configuration"},
   { (char*) "quit", com_quit, (char*) "Exit from EOS console"},
   { (char*) "quota", com_protoquota, (char*) "Quota System configuration"},
+  { (char*) "report", com_report, (char*) "Analyze report log files on the local machine"},
   { (char*) "reconnect", com_reconnect, (char*) "Forces a re-authentication of the shell"},
   { (char*) "recycle", com_protorecycle, (char*) "Recycle Bin Functionality"},
   { (char*) "rmdir", com_rmdir, (char*) "Remove a directory"},
@@ -550,7 +552,6 @@ client_command(XrdOucString& in, bool is_admin, std::string* reply)
     in += getenv("EOSAUTHZ");
   }
 
-
   XrdMqTiming mytiming("eos");
   TIMING("start", &mytiming);
   XrdOucString out = "";
@@ -572,15 +573,14 @@ client_command(XrdOucString& in, bool is_admin, std::string* reply)
   if (path.beginswith("ipc://")) {
     // local ZMQ ipc connection
     zmq::context_t context(1);
-    zmq::socket_t socket (context, ZMQ_REQ);
-    path.erase(0,serveruri.length()+1);
+    zmq::socket_t socket(context, ZMQ_REQ);
+    path.erase(0, serveruri.length() + 1);
     socket.connect(serveruri.c_str());
     zmq::message_t request(path.length());
     memcpy(request.data(), path.c_str(), path.length());
     socket.send(request);
     zmq::message_t response;
     socket.recv(&response);
-    
     std::string sout;
     sout.assign((char*)response.data(), response.size());
     CommandEnv = new XrdOucEnv(sout.c_str());
@@ -588,64 +588,64 @@ client_command(XrdOucString& in, bool is_admin, std::string* reply)
     if (reply) {
       reply->assign(out.c_str());
     }
-    
   } else {
     // xrootd based connection
     XrdCl::OpenFlags::Flags flags_xrdcl = XrdCl::OpenFlags::Read;
     std::unique_ptr<XrdCl::File> client {new XrdCl::File()};
     XrdCl::XRootDStatus status = client->Open(path.c_str(), flags_xrdcl);
-    
+
     if (status.IsOK()) {
       off_t offset = 0;
       uint32_t nbytes = 0;
       char buffer[4096 + 1];
       status = client->Read(offset, 4096, buffer, nbytes);
-      
+
       while (status.IsOK() && (nbytes > 0)) {
-	buffer[nbytes] = 0;
-	out += buffer;
-	offset += nbytes;
-	status = client->Read(offset, 4096, buffer, nbytes);
+        buffer[nbytes] = 0;
+        out += buffer;
+        offset += nbytes;
+        status = client->Read(offset, 4096, buffer, nbytes);
       }
-      
+
       status = client->Close();
       TIMING("stop", &mytiming);
-      
+
       if (timing) {
-	mytiming.Print();
+        mytiming.Print();
       }
-      
+
       if (global_debug) {
-	printf("> %s\n", out.c_str());
+        printf("> %s\n", out.c_str());
       }
-      
+
       CommandEnv = new XrdOucEnv(out.c_str());
-      
+
       // Save the reply string from the server
       if (reply) {
-	reply->assign(out.c_str());
+        reply->assign(out.c_str());
       }
     } else {
       std::string errmsg;
       std::ostringstream oss;
       int retc = status.GetShellCode();
-      
+
       if (status.errNo) {
-	retc = status.errNo;
+        retc = status.errNo;
       }
-      
+
       oss << "mgm.proc.stdout=&"
-	  << "mgm.proc.stderr=" << "error: errc=" << retc
-	  << " msg=\"" << status.ToString() << "\"&"
-	  << "mgm.proc.retc=" << retc;
+          << "mgm.proc.stderr=" << "error: errc=" << retc
+          << " msg=\"" << status.ToString() << "\"&"
+          << "mgm.proc.retc=" << retc;
       CommandEnv = new XrdOucEnv(oss.str().c_str());
-      
+
       // Save the reply string from the server
       if (reply) {
-	reply->assign(oss.str().c_str());
+        reply->assign(oss.str().c_str());
       }
     }
   }
+
   return CommandEnv;
 }
 
@@ -737,7 +737,7 @@ usage()
   fprintf(stderr,
           "            eos -b eosscript.eosh               : run the eos shell script 'eosscript.eosh'. This script has to contain linewise commands which are understood by the eos interactive shell\n");
   fprintf(stderr,
-	  "            eos -s                              : run <status> command\n");
+          "            eos -s                              : run <status> command\n");
   fprintf(stderr, "\n");
   fprintf(stderr,
           "You can leave the interactive shell with <Control-D>. <Control-C> cleans the current shell line or terminates the shell when a command is currently executed.\n");
@@ -758,6 +758,7 @@ Run(int argc, char* argv[])
 
   if (getenv("EOS_MGM_URL")) {
     serveruri = getenv("EOS_MGM_URL");
+
     if (serveruri == "ipc://") {
       // set the default ipc pipe
       serveruri = "ipc:///var/eos/md/.admin_socket:1094";
@@ -915,10 +916,12 @@ Run(int argc, char* argv[])
 
     if (in1.beginswith("ipc://")) {
       serveruri = argv[argindex];
+
       if (serveruri == "ipc://") {
-	// set the default ipc pipe
-	serveruri = "ipc:///var/eos/md/.admin_socket:1094";
+        // set the default ipc pipe
+        serveruri = "ipc:///var/eos/md/.admin_socket:1094";
       }
+
       gGlobalOpts.mMgmUri = serveruri.c_str();
       argindex++;
       in1 = argv[argindex];
@@ -1460,7 +1463,7 @@ bool RequiresMgm(const std::string& name, const std::string& args)
 //------------------------------------------------------------------------------
 bool CheckMgmOnline(const std::string& uri)
 {
-  if (uri.substr(0,6) == "ipc://") {
+  if (uri.substr(0, 6) == "ipc://") {
     return true;
   }
 

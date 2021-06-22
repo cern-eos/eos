@@ -25,12 +25,13 @@
 #ifndef __EOS_FST_FILEIO_HH__
 #define __EOS_FST_FILEIO_HH__
 
-#include <string>
-#include <list>
 #include "common/Logging.hh"
 #include "common/Statfs.hh"
 #include "fst/Namespace.hh"
 #include "fst/XrdFstOfsFile.hh"
+#include <string>
+#include <list>
+#include <future>
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -183,11 +184,23 @@ public:
                                  XrdSfsXferSize length,
                                  uint16_t timeout = 0) = 0;
 
+  //----------------------------------------------------------------------------
+  //! Write to file - async
+  //!
+  //! @param offset offset
+  //! @param buffer data to be written
+  //! @param length length
+  //!
+  //! @return future holding the status response
+  //--------------------------------------------------------------------------
+  virtual std::future<XrdCl::XRootDStatus>
+  fileWriteAsync(const char* buffer, XrdSfsFileOffset offset,
+                 XrdSfsXferSize length) = 0;
+
   //--------------------------------------------------------------------------
   //! Clean all read caches
   //!
   //! @return
-  //!
   //--------------------------------------------------------------------------
   virtual void CleanReadCache()
   {
@@ -213,6 +226,17 @@ public:
   //! @return 0 if successful, -1 otherwise and error code is set
   //--------------------------------------------------------------------------
   virtual int fileTruncate(XrdSfsFileOffset offset, uint16_t timeout = 0) = 0;
+
+  //----------------------------------------------------------------------------
+  //! Truncate asynchronous
+  //!
+  //! @param offset truncate file to this value
+  //! @param timeout timeout value
+  //!
+  //! @return future holding the status response
+  //----------------------------------------------------------------------------
+  virtual std::future<XrdCl::XRootDStatus>
+  fileTruncateAsync(XrdSfsFileOffset offset, uint16_t timeout = 0) = 0;
 
   //----------------------------------------------------------------------------
   //! Allocate file space

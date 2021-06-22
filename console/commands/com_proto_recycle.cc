@@ -46,18 +46,7 @@ int com_protorecycle(char* arg)
     return EINVAL;
   }
 
-  global_retc = recycle.Execute(false, true);
-
-  // Fallback for aquamarine server when dealing with new proto commands
-  if (global_retc != 0) {
-    if ((recycle.GetError().find("no such user command") != std::string::npos) ||
-        (global_retc == EIO)) {
-      global_retc = com_recycle(arg);
-    } else {
-      std::cerr << recycle.GetError();
-    }
-  }
-
+  global_retc = recycle.Execute(true, true);
   return global_retc;
 }
 
@@ -82,7 +71,7 @@ void com_recycle_help()
       << std::endl
       << "             e.g.: recycle ls 2018/08/12" << std::endl
       << "    -m     : display info in monitoring format" << std::endl
-      << "    -n     : dispaly numeric uid/gid(s) instead of names" << std::endl
+      << "    -n     : display numeric uid/gid(s) instead of names" << std::endl
       << std::endl
       << "  recycle purge [-g|<date>] [-k <key>]" << std::endl
       << "    purge files in the recycle bin" << std::endl

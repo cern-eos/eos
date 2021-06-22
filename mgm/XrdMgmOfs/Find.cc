@@ -295,7 +295,8 @@ _cloneMD(std::shared_ptr<eos::IContainerMD>& cloneMd, char cFlag,
     if (cFlag == '+' || cFlag == '-') {
       /* for '-': the clone directory may have been incorrectly removed, this should
        * not prevent a cleanup */
-      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                         __FILE__);
       eos::common::Path mdPath(buff);
 
       try {
@@ -468,12 +469,13 @@ _clone(std::shared_ptr<eos::IContainerMD>& cmd,
       }
 
       if (cFlag == '-' && cloneId > 9) {
-	eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+        eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                           __FILE__);
         std::string hex_fid = fmd->getCloneFST();
         fmd->setCloneId(0);         /* clear cloneId */
         fmd->setCloneFST("");       /* clean up clone fid */
         gOFS->eosFileService->updateStore(fmd.get());
-	lock.Release();
+        lock.Release();
 
         if (hex_fid != "") {
           eos::common::FileId::fileid_t clFid = eos::common::FileId::Hex2Fid(
@@ -518,7 +520,7 @@ _clone(std::shared_ptr<eos::IContainerMD>& cmd,
     }
 
     eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView,
-							    dit.value(), false);
+        dit.value(), false);
 
     if (cFlag == '+') {
       gOFS->eosViewRWMutex.LockWrite();
@@ -670,9 +672,9 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
                  const char* key, const char* val, bool no_files,
                  time_t millisleep, bool nscounter, int maxdepth,
                  const char* filematch, bool take_lock, bool json_output, FILE* fstdout,
-		 time_t max_ctime_dir,
-		 time_t max_ctime_file,
-		 std::map<std::string, time_t>* found_ctime_sec)
+                 time_t max_ctime_dir,
+                 time_t max_ctime_file,
+                 std::map<std::string, time_t>* found_ctime_sec)
 {
   std::vector< std::vector<std::string> > found_dirs;
   std::shared_ptr<eos::IContainerMD> cmd;
@@ -702,7 +704,6 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
   bool limitresult = false;
   bool limited = false;
   bool fail_if_limited = (out_error.getErrInfo() == E2BIG);
-
   bool sub_cmd_take_lock = false;
 
   if ((vid.uid != 0) && (!vid.hasUid(3)) && (!vid.hasGid(4)) && (!vid.sudoer)) {
@@ -729,12 +730,12 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
     }
 
     eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, Path.c_str(), false);
-
     eos::common::RWMutexReadLock ns_rd_lock;
 
     if (take_lock) {
       ns_rd_lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
     }
+
     try {
       cmd = gOFS->eosView->getContainer(Path.c_str(), false);
     } catch (eos::MDException& e) {
@@ -796,8 +797,9 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
       }
 
       eos::IContainerMD::ctime_t ctime;
+
       if (cmd) {
-	cmd->getCTime(ctime);
+        cmd->getCTime(ctime);
       }
 
       if (take_lock) {
@@ -806,8 +808,8 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
       }
 
       if (cmd && max_ctime_dir && (ctime.tv_sec > max_ctime_dir)) {
-	// skip directory entries which are newer than max_ctime
-	continue;
+        // skip directory entries which are newer than max_ctime
+        continue;
       }
 
       if (!gOFS->allow_public_access(Path.c_str(), vid)) {
@@ -905,14 +907,14 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
             }
 
             if (fmd) {
-	      // apply threadshold
-	      eos::IContainerMD::ctime_t ctime;
-	      fmd->getCTime(ctime);
+              // apply threadshold
+              eos::IContainerMD::ctime_t ctime;
+              fmd->getCTime(ctime);
 
-	      if ( max_ctime_file && (ctime.tv_sec > max_ctime_file) ) {
-		// skip file entries which are newer than max ctime
-		continue;
-	      }
+              if (max_ctime_file && (ctime.tv_sec > max_ctime_file)) {
+                // skip file entries which are newer than max ctime
+                continue;
+              }
 
               // Skip symbolic links
               if (fmd->isLink()) {
@@ -942,9 +944,9 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
                   found[Path].insert(fname);
                 }
 
-		if (found_ctime_sec) {
-		  (*found_ctime_sec)[Path] = ctime.tv_sec;
-		}
+                if (found_ctime_sec) {
+                  (*found_ctime_sec)[Path] = ctime.tv_sec;
+                }
 
                 filesfound++;
               } else {
@@ -952,9 +954,11 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
 
                 if (name.matches(filematch)) {
                   found[Path].insert(fname);
-		  if (found_ctime_sec) {
-		    (*found_ctime_sec)[Path] = ctime.tv_sec;
-		  }
+
+                  if (found_ctime_sec) {
+                    (*found_ctime_sec)[Path] = ctime.tv_sec;
+                  }
+
                   filesfound++;
                 }
               }
@@ -1006,7 +1010,8 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
 
   if (fail_if_limited && limited) {
     errno = E2BIG;
-    return Emsg("_find", out_error, E2BIG, "query incomplete - too many files/dirs in tree", path);
+    return Emsg("_find", out_error, E2BIG,
+                "query incomplete - too many files/dirs in tree", path);
   } else {
     errno = 0;
     return SFS_OK;

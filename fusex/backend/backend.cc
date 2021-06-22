@@ -32,10 +32,6 @@
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClURL.hh"
 
-#ifndef EOSCITRINE
-#include "fuse/SyncResponseHandler.hh"
-#endif
-
 /* -------------------------------------------------------------------------- */
 backend::backend()
 /* -------------------------------------------------------------------------- */
@@ -74,8 +70,11 @@ int
 /* -------------------------------------------------------------------------- */
 backend::mapErrCode(int retc)
 {
-  if( !retc ) return retc;
-  return XProtocol::toErrno( retc );
+  if (!retc) {
+    return retc;
+  }
+
+  return XProtocol::toErrno(retc);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -90,7 +89,7 @@ backend::getMD(fuse_req_t req,
 /* -------------------------------------------------------------------------- */
 {
   // return's the inode of path in inode and rc=0 for success, otherwise errno
-  std::string requestURL = getURL(req, path, "fuseX" , "getfusex",
+  std::string requestURL = getURL(req, path, "fuseX", "getfusex",
                                   listing ? "LS" : "GET", authid, listing ? true : false);
 
   if (listing || !use_mdquery()) {
@@ -111,7 +110,7 @@ backend::getMD(fuse_req_t req,
                std::string authid
               )
 {
-  std::string requestURL = getURL(req, inode, name, "fuseX" , "getfusex",
+  std::string requestURL = getURL(req, inode, name, "fuseX", "getfusex",
                                   listing ? "LS" : "GET",
                                   authid, listing ? true : false);
 
@@ -134,7 +133,7 @@ backend::getMD(fuse_req_t req,
               )
 /* -------------------------------------------------------------------------- */
 {
-  std::string requestURL = getURL(req, inode, myclock, "fuseX" , "getfusex",
+  std::string requestURL = getURL(req, inode, myclock, "fuseX", "getfusex",
                                   listing ? "LS" : "GET",
                                   authid, listing ? true : false);
 
@@ -153,7 +152,8 @@ backend::getCAP(fuse_req_t req,
                )
 /* -------------------------------------------------------------------------- */
 {
-  uint64_t myclock = (uint64_t) time(NULL)+13; // allow for 'slow' requests up-to 15s
+  uint64_t myclock = (uint64_t) time(NULL) +
+                     13; // allow for 'slow' requests up-to 15s
   std::string requestURL = getURL(req, inode, myclock, "fuseX", "getfusex",
                                   "GETCAP", "", true);
   return fetchResponse(requestURL, contv);
@@ -235,6 +235,10 @@ backend::fetchQueryResponse(std::string& requestURL,
       } while (1);
 
       return 0;
+    }
+
+    if (bresponse) {
+      delete bresponse;
     }
 
     eos_static_debug("");
@@ -545,7 +549,6 @@ backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
     was_bound = true;
   }
 
-
   {
     // update host + port NOW
     XrdCl::URL lurl("root://" + hostport);
@@ -657,9 +660,10 @@ backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
             locker->Lock();
           }
 
-	  if (resp.ack_().md_ino()) {
-	    md->set_md_ino(resp.ack_().md_ino());
-	  }
+          if (resp.ack_().md_ino()) {
+            md->set_md_ino(resp.ack_().md_ino());
+          }
+
           eos_static_debug("directory inode %lx => %lx/%lx tid=%lx error='%s'", md->id(),
                            md->md_ino(),
                            resp.ack_().md_ino(), resp.ack_().transactionid(),
@@ -1049,7 +1053,7 @@ backend::statvfs(fuse_req_t req,
     stbuf->f_namemax = 1024;
     eos_static_debug("vol=%lu ino=%lu", a1, a4);
   } else {
-    errno = ETIMEDOUT;
+    errno = EACCES;
     ;
   }
 
@@ -1096,7 +1100,7 @@ backend::getChecksum(fuse_req_t req,
       std::string checksum_response;
       checksum_response.assign(response->GetBuffer(), response->GetSize());
       eos_static_debug("response=%s", checksum_response.c_str());
-      char checksum[1023];
+      char checksum[1024]; // there should be no checksum with length 1024 bytes... unless you have corruption
       int retc = 0;
       size_t items = sscanf(checksum_response.c_str(), "checksum: %1023s retc=%i",
                             checksum, &retc);
@@ -1167,13 +1171,7 @@ backend::Query(XrdCl::URL& url, XrdCl::QueryCode::Code query_code,
     struct timespec ts;
     eos::common::Timing::GetTimeSpec(ts, true);
     XrdCl::XRootDStatus status;
-#ifdef EOSCITRINE
     status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, response, rtimeout);
-#else
-    SyncResponseHandler handler;
-    fs->Query(XrdCl::QueryCode::OpaqueFile, arg, &handler);
-    status = handler.Sync(response);
-#endif
 
     // we can't do anything if we cannot authenticate
     if (status.code == XrdCl::errAuthFailed) {

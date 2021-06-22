@@ -98,7 +98,7 @@ public:
   //! @param display_per_fs if true then display information per file system
   //! @param display_fxid if true then display file identifiers
   //! @param display_lfn if true then display logical file name
-  //! @param display_json if true then dispaly info in json format
+  //! @param display_json if true then display info in json format
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------

@@ -61,24 +61,24 @@ public:
   public:
 
     datax() : mIno(0), mReq(0), mFile(0), mSize(0), mAttached(0), mMd(0),
-	      mPrefetchHandler(0),
-	      mSimulateWriteErrorInFlush(false),
-	      mSimulateWriteErrorInFlusher(false),
-	      mFlags(0), mXoff(false), mIsInlined(false), mInlineMaxSize(0),
-	      mInlineCompressor("none"), mIsUnlinked(false),
-	      mCanRecoverRead(true)
-	      
+      mPrefetchHandler(0),
+      mSimulateWriteErrorInFlush(false),
+      mSimulateWriteErrorInFlusher(false),
+      mFlags(0), mXoff(false), mIsInlined(false), mInlineMaxSize(0),
+      mInlineCompressor("none"), mIsUnlinked(false),
+      mCanRecoverRead(true)
+
     {
       inline_buffer = nullptr;
     }
 
     datax(metad::shared_md md) : mIno(0), mReq(0), mFile(0), mSize(0),
-				 mAttached(0), mMd(md), mPrefetchHandler(0),
-				 mSimulateWriteErrorInFlush(false),
-				 mSimulateWriteErrorInFlusher(false),
-				 mFlags(0), mXoff(false),
-				 mIsInlined(false), mInlineMaxSize(0), mInlineCompressor("none"),
-				 mIsUnlinked(false), mCanRecoverRead(true) { }
+      mAttached(0), mMd(md), mPrefetchHandler(0),
+      mSimulateWriteErrorInFlush(false),
+      mSimulateWriteErrorInFlusher(false),
+      mFlags(0), mXoff(false),
+      mIsInlined(false), mInlineMaxSize(0), mInlineCompressor("none"),
+      mIsUnlinked(false), mCanRecoverRead(true) { }
 
     virtual ~datax()
     {
@@ -107,7 +107,8 @@ public:
       return mFile;
     }
 
-    void remove_file_cache() {
+    void remove_file_cache()
+    {
       mFile->disable_file_cache();
     }
 
@@ -163,11 +164,13 @@ public:
     int end_flush(fuse_req_t req);
 
 
-    bool can_recover_read() {
+    bool can_recover_read()
+    {
       return mCanRecoverRead;
     }
- 
-    void disable_read_recovery() {
+
+    void disable_read_recovery()
+    {
       mCanRecoverRead = false;
     }
 
@@ -234,7 +237,8 @@ public:
     static std::string kInlineCompressor;
 
 
-    metad::shared_md md() {
+    metad::shared_md md()
+    {
       return mMd;
     }
 
@@ -305,6 +309,7 @@ public:
       data = _data;
       md = _md;
       rw = _rw;
+      flocked = false;
       update_mtime_on_flush.store(false, std::memory_order_seq_cst);
       next_size_flush.store(0, std::memory_order_seq_cst);
       _maxfilesize = 0;
@@ -390,7 +395,10 @@ public:
                  assistant); // thread for delayed asynchronous close
 
     bool waitflush(uint64_t seconds);
-    void join() { tIOFlush.join(); }
+    void join()
+    {
+      tIOFlush.join();
+    }
 
   private:
     AssistedThread tIOFlush;

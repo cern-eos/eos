@@ -72,39 +72,48 @@ struct ContainerPrintingOptions {
 //------------------------------------------------------------------------------
 //! Printing class
 //------------------------------------------------------------------------------
-class Printing {
+class Printing
+{
 public:
   //----------------------------------------------------------------------------
   //! Print the given FileMd protobuf using multiple lines, full information
   //----------------------------------------------------------------------------
-  static void printMultiline(const eos::ns::FileMdProto &proto, std::ostream &stream);
-  static std::string printMultiline(const eos::ns::FileMdProto &proto);
+  static void printMultiline(const eos::ns::FileMdProto& proto,
+                             std::ostream& stream);
+  static std::string printMultiline(const eos::ns::FileMdProto& proto);
 
   //----------------------------------------------------------------------------
   //! Print the given ContainerMd protobuf using multiple lines, full information
   //----------------------------------------------------------------------------
-  static void printMultiline(const eos::ns::ContainerMdProto &proto, std::ostream &stream);
+  static void printMultiline(const eos::ns::ContainerMdProto& proto,
+                             std::ostream& stream);
 
   //----------------------------------------------------------------------------
   //! timespec to fileinfo: Convert a timespec into
   //! "Wed Nov 11 15:38:31 2015 Timestamp: 1447252711.38412918"
   //----------------------------------------------------------------------------
-  static void timespecToFileinfo(const struct timespec &val, std::ostream &stream);
-  static std::string timespecToFileinfo(const struct timespec &val);
-  static std::string timespecToTimestamp(const struct timespec &val);
+  static void timespecToFileinfo(const struct timespec& val,
+                                 std::ostream& stream);
+  static std::string timespecToFileinfo(const struct timespec& val);
+  static std::string timespecToTimestamp(const struct timespec& val);
 
   //----------------------------------------------------------------------------
   // Escape non-printable string
   //----------------------------------------------------------------------------
-  static std::string escapeNonPrintable(const std::string &str);
+  static std::string escapeNonPrintable(const std::string& str);
 
   //----------------------------------------------------------------------------
   //! Parse timespec
   //----------------------------------------------------------------------------
   template<typename T>
-  static struct timespec parseTimespec(const T& bytes) {
-    struct timespec spec;
-    (void) memcpy(&spec, bytes.data(), sizeof(struct timespec));
+  static struct timespec parseTimespec(const T& bytes)
+  {
+    struct timespec spec = {};
+
+    if (bytes.length()) {
+      (void) memcpy(&spec, bytes.data(), sizeof(struct timespec));
+    }
+
     return spec;
   }
 

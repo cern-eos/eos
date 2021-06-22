@@ -40,6 +40,7 @@
 #define EOS_COMMON_PATH_ATOMIC_FILE_PREFIX ".sys.a#."
 #define EOS_COMMON_PATH_ATOMIC_FILE_VERSION_PREFIX ".sys.a#.v#"
 #define EOS_COMMON_PATH_BACKUP_FILE_PREFIX ".sys.b#."
+#define EOS_COMMON_PATH_SQUASH_SUFFIX ".sqsh"
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -91,8 +92,19 @@ public:
   //! Return if file is an atomic filename
   //----------------------------------------------------------------------------
   bool
-  isAtomicFile() {
+  isAtomicFile()
+  {
     return lastPath.beginswith(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX);
+  }
+
+  //----------------------------------------------------------------------------
+  //! Return if file is a sqaush package file
+  //----------------------------------------------------------------------------
+  bool
+  isSquashFile()
+  {
+    return (lastPath.beginswith(".") &&
+            lastPath.endswith(EOS_COMMON_PATH_SQUASH_SUFFIX));
   }
 
   //----------------------------------------------------------------------------
@@ -375,8 +387,34 @@ public:
   }
 
   // check if path points to a version
-  static bool IsVersion(std::string& path) {
+  static bool IsVersion(std::string& path)
+  {
     return (path.find(EOS_COMMON_PATH_VERSION_PREFIX) != std::string::npos);
+  }
+
+  // get the shared prefix for two paths
+  static std::string Overlap(const char* a, const char* b)
+  {
+    eos::common::Path apath(a);
+    eos::common::Path bpath(b);
+    std::string ol = "/";
+
+    for (size_t i = 0 ; i < apath.GetSubPathSize(); ++i) {
+      std::string ta = apath.GetSubPath(i);
+      std::string tb = bpath.GetSubPath(i);
+
+      if (ta == tb) {
+        ol = ta;
+      } else {
+        return ol;
+      }
+    }
+
+    if (std::string(apath.GetPath()) == std::string(bpath.GetPath())) {
+      return apath.GetPath();
+    }
+
+    return ol;
   }
 
 protected:

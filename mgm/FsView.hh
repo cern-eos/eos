@@ -63,6 +63,20 @@ class Converter;
 class IConfigEngine;
 
 //------------------------------------------------------------------------------
+//! Check if given heartbeat timestamp is recent enough
+//------------------------------------------------------------------------------
+inline bool isHeartbeatRecent(time_t heartbeatTime)
+{
+  time_t now = time(NULL);
+
+  if ((now - heartbeatTime) < 60) {
+    return true;
+  }
+
+  return false;
+}
+
+//------------------------------------------------------------------------------
 //! Base class representing any element in a GeoTree
 //------------------------------------------------------------------------------
 struct GeoTreeElement {
@@ -83,7 +97,7 @@ struct GeoTreeElement {
   //! All the FileSystems attached to this node of the tree
   std::set<eos::common::FileSystem::fsid_t> mFsIds;
   //! Map geoTreeTag -> son branches
-  std::map<std::string , GeoTreeElement*> mSons;
+  std::map<std::string, GeoTreeElement*> mSons;
 };
 
 //------------------------------------------------------------------------------
@@ -124,14 +138,14 @@ public:
   // WARNING target node might be part of the nodes to aggregate.
   // Careful before overwriting the target node.
   //----------------------------------------------------------------------------
-  virtual bool aggregateNodes(const std::map<std::string , GeoTreeElement*>&
+  virtual bool aggregateNodes(const std::map<std::string, GeoTreeElement*>&
                               nodes,
                               const size_t& idx, bool includeSelf = false) = 0;
 
   // Aggregate the leaves and the nodes at any level of the tree
   virtual bool aggregateLeavesAndNodes(
     const std::set<eos::common::FileSystem::fsid_t>& leaves,
-    const std::map<std::string , GeoTreeElement*>& nodes,
+    const std::map<std::string, GeoTreeElement*>& nodes,
     const size_t& idx)
   {
     return (leaves.empty() ? true : aggregateLeaves(leaves, idx))
@@ -183,7 +197,7 @@ public:
   //!
   // @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool getGeoTagInTree(const fsid_t& fs , std::string& geoTag);
+  bool getGeoTagInTree(const fsid_t& fs, std::string& geoTag);
 
   //----------------------------------------------------------------------------
   //! Get number of file systems in the tree
@@ -505,9 +519,9 @@ public:
 protected:
 
   common::SharedHashLocator mLocator; ///< Locator for shared hash
+  std::atomic<time_t> mHeartBeat; ///< Last heartbeat time
 
 private:
-  std::atomic<time_t> mHeartBeat; ///< Last heartbeat time
   std::string mStatus; ///< Status (meaning depends on inheritor)
   std::string mSize; ///< Size of base object (meaning depends on inheritor)
   size_t mInQueue; ///< Number of items in queue(meaning depends on inheritor)
@@ -632,6 +646,11 @@ public:
   //! Set the configuration default values for a node
   //----------------------------------------------------------------------------
   void SetNodeConfigDefault();
+
+  //----------------------------------------------------------------------------
+  //! Check if node has a recent enough heartbeat
+  //----------------------------------------------------------------------------
+  bool HasHeartbeat() const;
 };
 
 
@@ -733,18 +752,10 @@ public:
   //! called whenever a filesystem wide parameters is changed.
   //!
   //! @param fs file system object
+  //! @param save_config mark if the config should be saved or not
   //! @note this requires at least the read lock on the gFsView.ViewMutex
   //----------------------------------------------------------------------------
-  void StoreFsConfig(FileSystem* fs);
-
-  //----------------------------------------------------------------------------
-  //! Store the filesystem configuration into the config engine.
-  //! @note this no longer requires a lock on the gFsView.ViewMutex
-  //!
-  //! @param key file system key identifier
-  //! @param val file system configuration value
-  //----------------------------------------------------------------------------
-  void StoreFsConfig(const std::string& key, const std::string& val);
+  void StoreFsConfig(FileSystem* fs, bool save_config = true);
 
   //----------------------------------------------------------------------------
   //! Remove a filesystem
@@ -915,8 +926,15 @@ public:
 
   //----------------------------------------------------------------------------
   //! Apply all filesystem configuration key-val pair
+  //!
+  //! @param key fs configuration key
+  //! @param val fs configuration to be applied
+  //! @param first_unregister if true then unregister the file system before
+  //!        applying any of the changes. This is needed for slave MGMs when
+  //!        following changes from the master MGM. [default false]
   //----------------------------------------------------------------------------
-  bool ApplyFsConfig(const char* key, std::string& val);
+  bool ApplyFsConfig(const char* key, const std::string& val,
+                     bool first_unregister = false);
 
   //----------------------------------------------------------------------------
   //! Apply a global configuration key-val pair
@@ -1052,7 +1070,7 @@ public:
     const std::set<eos::common::FileSystem::fsid_t>& leaves, const size_t& idx);
 
   virtual bool aggregateNodes(
-    const std::map<std::string , GeoTreeElement*>& nodes,
+    const std::map<std::string, GeoTreeElement*>& nodes,
     const size_t& idx, bool includeSelf = false);
 };
 
@@ -1116,7 +1134,7 @@ public:
     const std::set<eos::common::FileSystem::fsid_t>& leaves, const size_t& idx);
 
   virtual bool aggregateNodes(
-    const std::map<std::string , GeoTreeElement*>& nodes, const size_t& idx,
+    const std::map<std::string, GeoTreeElement*>& nodes, const size_t& idx,
     bool includeSelf = false);
 };
 

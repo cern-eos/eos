@@ -88,14 +88,15 @@ XrdMgmOfs::Event(const char* path,
                    vid.prot.c_str(), vid.uid, vid.gid);
   eos_thread_debug("local.prot=%s, local.uid=%u, local.gid=%u",
                    localVid.prot.c_str(), localVid.uid, localVid.gid);
-  // Check that we have write permission on path
+  // Assuming that all workflow actions accept for prepare can modify a file,
+  // check that we have either write or prepare permission as necessary on path
   bool isPrepare = (aevent != nullptr
                     && std::string(aevent).find("prepare") != std::string::npos);
-  int mode = isPrepare  ?  W_OK | P_OK  :  W_OK;
+  const int mode = isPrepare  ?  P_OK  :  W_OK;
 
   if (vid.prot != "sss" && gOFS->_access(spath, mode, error, localVid, "")) {
     const char* emsg =
-      isPrepare ? "event - you don't have write and prepare permissions [EPERM]"
+      isPrepare ? "event - you don't have prepare permissions [EPERM]"
       : "event - you don't have write permission [EPERM]";
     return Emsg(epname, error, EPERM, emsg, spath);
   }

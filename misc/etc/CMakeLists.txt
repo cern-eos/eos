@@ -27,7 +27,7 @@ if(EXISTS "/etc/debian_version")
 endif()
 
 install(
-  FILES eos.keytab
+  FILES eos.keytab eos.client.keytab
   DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/
   PERMISSIONS OWNER_READ OWNER_WRITE)
 

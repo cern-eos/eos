@@ -131,20 +131,21 @@ FuseServer::Clients::MonitorHeartBeat()
     // Delete clients to be evicted
     if (!evictmap.empty()) {
       {
-	std::set<string> uuids;
-	{
-	  eos::common::RWMutexWriteLock lLock(*this);
-	  for (auto it = evictmap.begin(); it != evictmap.end(); ++it) {
-	    uuids.insert(it->first);
+        std::set<string> uuids;
+        {
+          eos::common::RWMutexWriteLock lLock(*this);
 
-	    mMap.erase(it->second);
-	    mUUIDView.erase(it->first);
-	    gOFS->zMQ->gFuseServer.Locks().dropLocks(it->first);
-	  }
-	}
-	for (auto it = uuids.begin(); it != uuids.end(); ++it) {
-	  gOFS->zMQ->gFuseServer.Cap().dropCaps(*it);
-	}
+          for (auto it = evictmap.begin(); it != evictmap.end(); ++it) {
+            uuids.insert(it->first);
+            mMap.erase(it->second);
+            mUUIDView.erase(it->first);
+            gOFS->zMQ->gFuseServer.Locks().dropLocks(it->first);
+          }
+        }
+
+        for (auto it = uuids.begin(); it != uuids.end(); ++it) {
+          gOFS->zMQ->gFuseServer.Cap().dropCaps(*it);
+        }
       }
     }
 
@@ -203,14 +204,14 @@ FuseServer::Clients::Dispatch(const std::string identity,
 
   if (hb.log().size()) {
     gOFS->mFusexLogTraces->Add(time(NULL), hb.host().c_str(), hb.uuid().c_str(),
-                               hb.version().c_str(), std::string(hb.host() + ":" + hb.mount()).c_str() ,
+                               hb.version().c_str(), std::string(hb.host() + ":" + hb.mount()).c_str(),
                                hb.log().c_str(), 0);
     hb.clear_log();
   }
 
   if (hb.trace().size()) {
     gOFS->mFusexStackTraces->Add(time(NULL), hb.host().c_str(), hb.uuid().c_str(),
-                                 hb.version().c_str(), std::string(hb.host() + ":" + hb.mount()).c_str() ,
+                                 hb.version().c_str(), std::string(hb.host() + ":" + hb.mount()).c_str(),
                                  hb.trace().c_str(), 0);
     hb.clear_trace();
   }
@@ -264,8 +265,7 @@ FuseServer::Clients::Dispatch(const std::string identity,
 
       // revoke LEASES by cap
       for (auto it = caps_to_revoke.begin(); it != caps_to_revoke.end(); ++it) {
-        eos::common::RWMutexWriteLock lLock(gOFS->zMQ->gFuseServer.Cap());
-        gOFS->zMQ->gFuseServer.Cap().Remove(*it);
+        gOFS->zMQ->gFuseServer.Cap().RemoveTS(*it);
       }
 
       EXEC_TIMING_END("Eosxd::int::AuthRevocation");
@@ -322,23 +322,18 @@ FuseServer::Clients::Print(std::string& out, std::string options)
 {
   struct timespec tsnow;
   eos::common::Timing::GetTimeSpec(tsnow);
-  std::map<std::string, size_t> clientcaps;
-  {
-    eos::common::RWMutexReadLock lLock(gOFS->zMQ->gFuseServer.Cap());
+  std::unordered_map<std::string, size_t> clientcaps;
 
-    // count caps per client uuid
-    for (auto it = gOFS->zMQ->gFuseServer.Cap().InodeCaps().begin();
-         it != gOFS->zMQ->gFuseServer.Cap().InodeCaps().end(); ++it) {
-      for (auto sit = it->second.begin(); sit != it->second.end(); ++sit) {
-        if (gOFS->zMQ->gFuseServer.Cap().GetCaps().count(*sit)) {
-          FuseServer::Caps::shared_cap cap = gOFS->zMQ->gFuseServer.Cap().GetCaps()[*sit];
-          clientcaps[cap->clientuuid()]++;
-        }
-      }
+  for (const auto& cap : gOFS->zMQ->gFuseServer.Cap().GetAllCaps()) {
+    if (cap->id()) {
+      clientcaps[cap->clientuuid()]++;
     }
   }
+
   struct timespec now_time;
+
   eos::common::Timing::GetTimeSpec(now_time, true);
+
   eos::common::RWMutexReadLock lLock(*this);
 
   for (auto it = this->map().begin(); it != this->map().end(); ++it) {
@@ -777,27 +772,19 @@ FuseServer::Clients::Dropcaps(const std::string& uuid, std::string& out)
   out += uuid;
   out += "' : ";
   std::set<FuseServer::Caps::shared_cap> cap2delete;
-  eos::common::RWMutexWriteLock lLock(gOFS->zMQ->gFuseServer.Cap());
 
-  for (auto it = gOFS->zMQ->gFuseServer.Cap().InodeCaps().begin();
-       it != gOFS->zMQ->gFuseServer.Cap().InodeCaps().end(); ++it) {
-    for (auto sit = it->second.begin(); sit != it->second.end(); ++sit) {
-      if (gOFS->zMQ->gFuseServer.Cap().HasCap(*sit)) {
-        FuseServer::Caps::shared_cap cap = gOFS->zMQ->gFuseServer.Cap().GetCaps()[*sit];
-
-        if (cap->clientuuid() == uuid) {
-          cap2delete.insert(cap);
-          out += "\n ";
-          char ahex[20];
-          snprintf(ahex, sizeof(ahex), "%016lx", (unsigned long) cap->id());
-          std::string match = "";
-          match += "# i:";
-          match += ahex;
-          match += " a:";
-          match += cap->authid();
-          out += match;
-        }
-      }
+  for (auto cap : gOFS->zMQ->gFuseServer.Cap().GetAllCaps()) {
+    if (cap->clientuuid() == uuid) {
+      cap2delete.insert(cap);
+      out += "\n ";
+      char ahex[20];
+      snprintf(ahex, sizeof(ahex), "%016lx", (unsigned long) cap->id());
+      std::string match = "";
+      match += "# i:";
+      match += ahex;
+      match += " a:";
+      match += cap->authid();
+      out += match;
     }
   }
 
@@ -807,7 +794,7 @@ FuseServer::Clients::Dropcaps(const std::string& uuid, std::string& out)
         (*scap)->clientid());
     eos_static_info("erasing %llx %s %s", (*scap)->id(),
                     (*scap)->clientid().c_str(), (*scap)->authid().c_str());
-    gOFS->zMQ->gFuseServer.Cap().Remove(*scap);
+    gOFS->zMQ->gFuseServer.Cap().RemoveTS(*scap);
   }
 
   return 0;
@@ -969,8 +956,8 @@ FuseServer::Clients::SendMD(const eos::fusex::md& md,
 
   std::string id = mUUIDView[uuid];
   lLock.Release();
-  eos_static_info("msg=\"sending md update\" uuid=%s clientid=%s id=%lx",
-                  uuid.c_str(), clientid.c_str(), md_ino);
+  eos_static_debug("msg=\"sending md update\" uuid=%s clientid=%s id=%lx",
+                   uuid.c_str(), clientid.c_str(), md_ino);
   gOFS->zMQ->mTask->reply(id, rspstream);
   EXEC_TIMING_END("Eosxd::int::SendMD");
   return 0;

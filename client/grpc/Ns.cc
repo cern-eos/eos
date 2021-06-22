@@ -10,30 +10,33 @@ int usage(const char* prog)
   fprintf(stderr, "usage: %s [--key <ssl-key-file> "
           "--cert <ssl-cert-file> "
           "--ca <ca-cert-file>] "
-          "[--endpoint <host:port>] [--token <auth-token>] [--xattr <key:val>] [--mode <mode>] [--username <username>] [ [--groupname <groupname>] [--uid <uid>] [--gid <gid>] [--owner-uid <uid>] [--owner-gid <gid>] [--acl <acl>] [--sysacl] [--norecycle] [-r] [--max-version <max-version>] [--target <target>] [--year <year>] [--month <month>] [--day <day>] -p <path> <command>\n", prog);
-
+          "[--endpoint <host:port>] [--token <auth-token>] [--xattr <key:val>] [--mode <mode>] [--username <username>] [ [--groupname <groupname>] [--uid <uid>] [--gid <gid>] [--owner-uid <uid>] [--owner-gid <gid>] [--acl <acl>] [--sysacl] [--norecycle] [-r] [--max-version <max-version>] [--target <target>] [--year <year>] [--month <month>] [--day <day>] [--inodes <#>] [--volume <#>] [--quota volume|inode] -p <path> <command>\n",
+          prog);
   fprintf(stderr,
-	  "                                     -p <path> mkdir \n"
-	  "                                [-r] -p <path> rmdir \n"
-	  "                                     -p <path> touch \n"
-	  "                       [--norecycle] -p <path> rm \n"
-	  "                   --target <target> -p <path> rename \n"
-	  "                   --target <target> -p <path> symlink \n"
-	  "                   --xattr <key=val> -p <path> setxattr # sets key=val \n"
-	  "                     --xattr <!key=> -p <path> setxattr # deletes key\n"
-	  " --owner-uid <uid> --owner-gid <gid> -p <path> chown \n"
-	  "                       --mode <mode> -p <path> chmod \n"
-	  "       [--sysacl] [-r] [--acl <acl>] -p <path> acl \n"
-	  "     --ztoken <token> | [--acl] [-r] -p <path> token\n"
-	  "                [--max-version <max> -p <path> create-version \n"
-	  "                                     -p <path> list-version \n"
-	  "                [--max-version <max> -p <path> purge-version \n"
-	  "                                               recycle ls\n"
-	  "                                     -p <key>  recycle restore\n"
+          "                                     -p <path> mkdir \n"
+          "                                [-r] -p <path> rmdir \n"
+          "                                     -p <path> touch \n"
+          "                       [--norecycle] -p <path> rm \n"
+          "                   --target <target> -p <path> rename \n"
+          "                   --target <target> -p <path> symlink \n"
+          "                   --xattr <key=val> -p <path> setxattr # sets key=val \n"
+          "                     --xattr <!key=> -p <path> setxattr # deletes key\n"
+          " --owner-uid <uid> --owner-gid <gid> -p <path> chown \n"
+          "                       --mode <mode> -p <path> chmod \n"
+          "       [--sysacl] [-r] [--acl <acl>] -p <path> acl \n"
+          "     --ztoken <token> | [--acl] [-r] -p <path> token\n"
+          "                [--max-version <max> -p <path> create-version \n"
+          "                                     -p <path> list-version \n"
+          "                [--max-version <max> -p <path> purge-version \n"
+          "                                               recycle ls\n"
+          "                                     -p <key>  recycle restore\n"
           " --year <year> [--month <month> [--day <day>]] recycle purge\n"
           "                                     -p <key>  recycle purge\n"
-	  "[--username <u> | --groupname <g>] [-p <path>] quota \n \n");
-	  
+          "[--username <u> | --groupname <g>] [-p <path>] quota get\n"
+          "[--username <u> | --groupname <g>] [-p <path>] --inodes <#> --volume <#> --quota user|group|project \\"
+          "quota set\n"
+          "[--username <u> | --groupname <g>] [-p <path>] quota rm\n"
+          "                                   [-p <path>] quota rmnode\n");
   return -1;
 }
 
@@ -60,10 +63,11 @@ int main(int argc, const char* argv[])
   uint32_t day = 0;
   uint32_t month = 0;
   uint32_t year = 0;
-
+  uint64_t inodes = 0;
+  uint64_t volume = 0;
+  std::string qtype;
   std::string username;
   std::string groupname;
-
   uid_t owner_uid = 0;
   gid_t owner_gid = 0;
   bool recursive = false;
@@ -126,151 +130,181 @@ int main(int argc, const char* argv[])
 
     if (option == "--uid") {
       if (argc > i + 1) {
-	uid = strtoul(argv[i + 1],0,10);
-	++i;
-	continue;
+        uid = strtoul(argv[i + 1], 0, 10);
+        ++i;
+        continue;
       } else {
-	return usage(argv[0]);
+        return usage(argv[0]);
       }
     }
 
     if (option == "--gid") {
       if (argc > i + 1) {
-	gid = strtoul(argv[i + 1],0,10);
-	++i;
-	continue;
+        gid = strtoul(argv[i + 1], 0, 10);
+        ++i;
+        continue;
       } else {
-	return usage(argv[0]);
+        return usage(argv[0]);
+      }
+    }
+
+    if (option == "--inodes") {
+      if (argc > i + 1) {
+        inodes = strtoul(argv[i + 1], 0, 10);
+        ++i;
+        continue;
+      } else {
+        return usage(argv[0]);
+      }
+    }
+
+    if (option == "--volume") {
+      if (argc > i + 1) {
+        volume = strtoul(argv[i + 1], 0, 10);
+        ++i;
+        continue;
+      } else {
+        return usage(argv[0]);
+      }
+    }
+
+    if (option == "--quota") {
+      if (argc > i + 1) {
+        qtype = argv[i + 1];
+        ++i;
+        continue;
+      } else {
+        return usage(argv[0]);
       }
     }
 
     if (option == "--username") {
       if (argc > i + 1) {
-	username= argv[i + 1];
-	++i;
-	continue;
+        username = argv[i + 1];
+        ++i;
+        continue;
       } else {
-	return usage(argv[0]);
+        return usage(argv[0]);
       }
     }
 
     if (option == "--year") {
       if (argc > i + 1) {
-	year = strtoul(argv[i + 1],0,10);
-	++i;
-	continue;
+        year = strtoul(argv[i + 1], 0, 10);
+        ++i;
+        continue;
       } else {
-	return usage(argv[0]);
+        return usage(argv[0]);
       }
     }
 
     if (option == "--month") {
       if (argc > i + 1) {
-        month = strtoul(argv[i + 1],0,10);
-	++i;
-	continue;
+        month = strtoul(argv[i + 1], 0, 10);
+        ++i;
+        continue;
       } else {
-	return usage(argv[0]);
+        return usage(argv[0]);
       }
     }
 
     if (option == "--day") {
       if (argc > i + 1) {
-        day = strtoul(argv[i + 1],0,10);
-	++i;
-	continue;
+        day = strtoul(argv[i + 1], 0, 10);
+        ++i;
+        continue;
       } else {
-	return usage(argv[0]);
+        return usage(argv[0]);
       }
     }
 
     if (option == "--groupname") {
       if (argc > i + 1) {
-	groupname= argv[i + 1];
-	++i;
-	continue;
+        groupname = argv[i + 1];
+        ++i;
+        continue;
       } else {
-	return usage(argv[0]);
+        return usage(argv[0]);
       }
     }
 
     if (option == "--owner-uid") {
       if (argc > i + 1) {
-	owner_uid = strtoul(argv[i + 1],0,10);
-	++i;
-	continue;
+        owner_uid = strtoul(argv[i + 1], 0, 10);
+        ++i;
+        continue;
       } else {
-	return usage(argv[0]);
+        return usage(argv[0]);
       }
     }
 
     if (option == "--owner-gid") {
       if (argc > i + 1) {
-	owner_gid = strtoul(argv[i + 1],0,10);
-	++i;
-	continue;
+        owner_gid = strtoul(argv[i + 1], 0, 10);
+        ++i;
+        continue;
       } else {
-	return usage(argv[0]);
+        return usage(argv[0]);
       }
     }
 
     if (option == "-p") {
       if (argc > i + 1) {
-	path = argv[i+1];
-	++i;
-	continue;
+        path = argv[i + 1];
+        ++i;
+        continue;
       } else {
-	return usage(argv[0]);
+        return usage(argv[0]);
       }
     }
 
     if (option == "--target") {
       if (argc > i + 1) {
-	target = argv[i+1];
-	++i;
-	continue;
+        target = argv[i + 1];
+        ++i;
+        continue;
       } else {
-	return usage(argv[0]);
+        return usage(argv[0]);
       }
     }
 
     if (option == "--acl") {
       if (argc > i + 1) {
-	acl = argv[i+1];
-	++i;
-	continue;
+        acl = argv[i + 1];
+        ++i;
+        continue;
       } else {
-	return usage(argv[0]);
+        return usage(argv[0]);
       }
     }
 
     if (option == "--mode") {
       if (argc > i + 1) {
-	mode = strtol(argv[i+1],0,8);
-	++i;
-	continue;
+        mode = strtol(argv[i + 1], 0, 8);
+        ++i;
+        continue;
       } else {
-	return usage(argv[0]);
+        return usage(argv[0]);
       }
     }
 
     if (option == "--max-version") {
       if (argc > i + 1) {
-	max_version = strtol(argv[i+1],0,10);
-	++i;
-	continue;
+        max_version = strtol(argv[i + 1], 0, 10);
+        ++i;
+        continue;
       } else {
-	return usage(argv[0]);
+        return usage(argv[0]);
       }
     }
 
     if (option == "--xattr") {
       if (argc > i + 1) {
-	xattr = argv[i+1];
-	++i;
-	continue;
+        xattr = argv[i + 1];
+        ++i;
+        continue;
       } else {
-	return usage(argv[0]);
+        return usage(argv[0]);
       }
     }
 
@@ -291,28 +325,43 @@ int main(int argc, const char* argv[])
 
     if (option == "--ztoken") {
       if (argc > i + 1) {
-	eostoken = argv[i+1];
-	++i;
-	continue;
+        eostoken = argv[i + 1];
+        ++i;
+        continue;
       } else {
-	return usage(argv[0]);
+        return usage(argv[0]);
       }
     }
 
     cmd = option;
 
     if (argc > (i + 1)) {
-      if ( cmd == "recycle" ) {
-	subcmd = argv[i+1];
-	if ( (subcmd != "ls" ) &&
-	     (subcmd != "restore") &&
-	     (subcmd != "purge") ) {
-	  return usage(argv[0]);
-	}
-	break;
-      } else {
-	return usage(argv[0]);
+      if (cmd == "recycle") {
+        subcmd = argv[i + 1];
+
+        if ((subcmd != "ls") &&
+            (subcmd != "restore") &&
+            (subcmd != "purge")) {
+          return usage(argv[0]);
+        }
+
+        break;
       }
+
+      if (cmd == "quota") {
+        subcmd = argv[i + 1];
+
+        if ((subcmd != "get") &&
+            (subcmd != "set") &&
+            (subcmd != "rm") &&
+            (subcmd != "rmnode")) {
+          return usage(argv[0]);
+        }
+
+        break;
+      }
+
+      return usage(argv[0]);
     }
   }
 
@@ -322,7 +371,8 @@ int main(int argc, const char* argv[])
     }
   }
 
-  if (cmd.empty() || ((cmd != "quota") && (cmd != "recycle") && path.empty() && eostoken.empty())) {
+  if (cmd.empty() || ((cmd != "quota") && (cmd != "recycle") && path.empty() &&
+                      eostoken.empty())) {
     return usage(argv[0]);
   }
 
@@ -340,13 +390,14 @@ int main(int argc, const char* argv[])
 
   std::chrono::steady_clock::time_point watch_global =
     std::chrono::steady_clock::now();
-
   eos::rpc::NSRequest request;
   eos::rpc::NSResponse reply;
   request.set_authkey(token);
+
   if (uid) {
     request.mutable_role()->set_uid(uid);
   }
+
   if (gid) {
     request.mutable_role()->set_gid(gid);
   }
@@ -355,13 +406,14 @@ int main(int argc, const char* argv[])
   options.add_whitespace = true;
   options.always_print_primitive_fields = true;
   std::string jsonstring;
-  
+
   if (cmd == "mkdir") {
     request.mutable_mkdir()->mutable_id()->set_path(path);
 
     if (recursive) {
       request.mutable_mkdir()->set_recursive(true);
     }
+
     request.mutable_mkdir()->set_mode(mode);
   } else if (cmd == "rmdir") {
     request.mutable_rmdir()->mutable_id()->set_path(path);
@@ -369,11 +421,13 @@ int main(int argc, const char* argv[])
     request.mutable_touch()->mutable_id()->set_path(path);
   } else if (cmd == "unlink") {
     request.mutable_unlink()->mutable_id()->set_path(path);
+
     if (norecycle) {
       request.mutable_unlink()->set_norecycle(norecycle);
     }
   } else if (cmd == "rm") {
     request.mutable_rm()->mutable_id()->set_path(path);
+
     if (norecycle) {
       request.mutable_rm()->set_norecycle(norecycle);
     }
@@ -391,6 +445,7 @@ int main(int argc, const char* argv[])
     request.mutable_xattr()->mutable_id()->set_path(path);
     std::string key, val;
     eos::common::StringConversion::SplitKeyValue(xattr, key, val, "=");
+
     if (key.front() == '!') {
       // add as a deletion key
       auto x = request.mutable_xattr()->add_keystodelete();
@@ -427,28 +482,36 @@ int main(int argc, const char* argv[])
       request.mutable_acl()->set_cmd(eos::rpc::NSRequest::AclRequest::MODIFY);
       request.mutable_acl()->set_rule(acl);
     }
+
     request.mutable_acl()->mutable_id()->set_path(path);
+
     if (recursive) {
       request.mutable_acl()->set_recursive(true);
     }
+
     if (sysacl) {
       request.mutable_acl()->set_type(eos::rpc::NSRequest::AclRequest::SYS_ACL);
     } else {
       request.mutable_acl()->set_type(eos::rpc::NSRequest::AclRequest::USER_ACL);
     }
   } else if (cmd == "token") {
-    request.mutable_token()->mutable_token()->mutable_token()->set_expires(time(NULL) + 300);
+    request.mutable_token()->mutable_token()->mutable_token()->set_expires(time(
+          NULL) + 300);
+
     if (!path.empty()) {
       request.mutable_token()->mutable_token()->mutable_token()->set_path(path);
     }
+
     if (recursive) {
       request.mutable_token()->mutable_token()->mutable_token()->set_allowtree(true);
     }
+
     if (acl.empty()) {
       request.mutable_token()->mutable_token()->mutable_token()->set_permission("rx");
     } else {
       request.mutable_token()->mutable_token()->mutable_token()->set_permission(acl);
     }
+
     if (!eostoken.empty()) {
       request.mutable_token()->mutable_token()->mutable_token()->set_vtoken(eostoken);
     }
@@ -456,29 +519,61 @@ int main(int argc, const char* argv[])
     if (username.length()) {
       request.mutable_quota()->mutable_id()->set_username(username);
     }
+
     if (groupname.length()) {
       request.mutable_quota()->mutable_id()->set_groupname(groupname);
     }
-    request.mutable_quota()->set_path(path);
-  } else if (cmd == "recycle") {
 
-    if ( (subcmd == "")  ||
-	 (subcmd == "ls") ) {
+    request.mutable_quota()->set_path(path);
+
+    if (subcmd == "get")  {
+      request.mutable_quota()->set_op(eos::rpc::GET);
+    }
+
+    if (subcmd == "set") {
+      request.mutable_quota()->set_op(eos::rpc::SET);
+      request.mutable_quota()->set_maxfiles(inodes);
+      request.mutable_quota()->set_maxbytes(volume);
+    }
+
+    if (subcmd == "rm") {
+      request.mutable_quota()->set_op(eos::rpc::RM);
+      request.mutable_quota()->set_entry(eos::rpc::NONE);
+
+      if (qtype == "volume") {
+        request.mutable_quota()->set_entry(eos::rpc::VOLUME);
+      }
+
+      if (qtype == "inode") {
+        request.mutable_quota()->set_entry(eos::rpc::INODE);
+      }
+    }
+
+    if (subcmd == "rmnode") {
+      request.mutable_quota()->set_op(eos::rpc::RMNODE);
+    }
+  } else if (cmd == "recycle") {
+    if ((subcmd == "")  ||
+        (subcmd == "ls")) {
       request.mutable_recycle()->set_cmd(eos::rpc::NSRequest::RecycleRequest::LIST);
     } else if (subcmd == "purge") {
       if (year) {
-	request.mutable_recycle()->mutable_purgedate()->set_year(year);
+        request.mutable_recycle()->mutable_purgedate()->set_year(year);
       }
+
       if (month) {
-	request.mutable_recycle()->mutable_purgedate()->set_month(month);
+        request.mutable_recycle()->mutable_purgedate()->set_month(month);
       }
+
       if (day) {
-	request.mutable_recycle()->mutable_purgedate()->set_day(day);
+        request.mutable_recycle()->mutable_purgedate()->set_day(day);
       }
+
       request.mutable_recycle()->set_key(path);
       request.mutable_recycle()->set_cmd(eos::rpc::NSRequest::RecycleRequest::PURGE);
     } else if (subcmd == "restore") {
-      request.mutable_recycle()->set_cmd(eos::rpc::NSRequest::RecycleRequest::RESTORE);
+      request.mutable_recycle()->set_cmd(
+        eos::rpc::NSRequest::RecycleRequest::RESTORE);
       request.mutable_recycle()->set_key(path);
     } else {
       std::cerr << "invalid recycle request" << std::endl;
@@ -487,23 +582,20 @@ int main(int argc, const char* argv[])
   }
 
   google::protobuf::util::MessageToJsonString(request,
-					      &jsonstring, options);
-  
+      &jsonstring, options);
   std::cout << "request: " << std::endl << jsonstring << std::endl;
-  
   int retc = EIO;
+
   if (eosgrpc->Exec(request, reply)) {
     std::cerr << "grpc request failed" << std::endl;
   } else {
     retc = reply.error().code();
   }
-  
+
   jsonstring = "";
   google::protobuf::util::MessageToJsonString(reply,
-					      &jsonstring, options);
-  
+      &jsonstring, options);
   std::cout << "reply: " << std::endl << jsonstring << std::endl;
-  
   std::chrono::microseconds elapsed_global =
     std::chrono::duration_cast<std::chrono::microseconds>
     (std::chrono::steady_clock::now() - watch_global);

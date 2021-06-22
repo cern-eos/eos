@@ -1,0 +1,24 @@
+#!/bin/bash
+output=`runuser -u daemon eosxd get eos.reconnect $1 | grep -A1 "default paths" | tail -1`
+
+echo $output | grep KCM >& /dev/null && type=KCM
+echo $output | grep KEYRING >& /dev/null && type=KEYRING
+echo $output | grep /tmp/krb5 >& /dev/null && type=FILE
+
+echo $type
+
+if [ "$type" = "FILE" ]; then
+  echo $output | grep /tmp/krb5cc_2 ||  exit -1
+  exit 0
+fi
+
+if [ "$type" = "KEYRING" ]; then
+  echo $output | grep KEYRING:persistent:2 || exit -1
+  exit 0
+fi
+
+if [ "$type" = "KCM" ]; then
+  exit 0
+fi
+
+exit -1

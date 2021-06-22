@@ -573,6 +573,7 @@ XrdMqSharedHash::AddDeletionsToEnvString(XrdOucString& out)
   out += "&";
   out += XRDMQSHAREDHASH_KEYS;
   out += "=";
+  RWMutexWriteLock wr_lock(*mStoreMutex);
 
   for (auto it = mDeletions.begin(); it != mDeletions.end(); ++it) {
     out += "|";
@@ -652,6 +653,7 @@ XrdMqSharedHash::Delete(const std::string& key, bool broadcast)
 
       // Emulate transaction for single shot deletions
       if (!mIsTransaction) {
+        wr_lock.Release();
         CloseTransaction();
       }
     }
@@ -2441,7 +2443,7 @@ XrdMqSharedObjectManager::DeleteSharedHash(const char* subject, bool broadcast)
       XrdMqMessaging::gMessageClient.SendMessage(message, 0, false, false, true);
     }
 
-    delete(mHashSubjects[ss]);
+    delete (mHashSubjects[ss]);
     mHashSubjects.erase(ss);
     HashMutex.UnLockWrite();
 

@@ -65,6 +65,11 @@ message NsProto {
 
   message QuotaSizeProto {
     ContainerSpecificationProto container = 1;
+    string uid = 2;
+    string gid = 3;
+    uint64 used_bytes = 4;
+    uint64 physical_bytes = 5;
+    uint64 used_inodes = 6;
   }
 
   message CacheProto {

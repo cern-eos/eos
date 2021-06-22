@@ -215,7 +215,7 @@ ConvertContainerMD::commitSubcontainers(qclient::AsyncHandler& ah,
   cmd.push_back("HMSET");
   cmd.push_back(pDirsKey);
 
-  for (auto it = mSubcontainers.cbegin(); it != mSubcontainers.cend(); ++it) {
+  for (auto it = mSubcontainers.begin(); it != mSubcontainers.end(); ++it) {
     ++count;
     cmd.push_back(it->first);
     cmd.push_back(stringify(it->second));
@@ -262,7 +262,7 @@ ConvertContainerMD::commitFiles(qclient::AsyncHandler& ah,
   cmd.push_back("HMSET");
   cmd.push_back(pFilesKey);
 
-  for (auto it = mFiles.cbegin(); it != mFiles.cend(); ++it) {
+  for (auto it = mFiles.begin(); it != mFiles.end(); ++it) {
     ++count;
     cmd.push_back(it->first);
     cmd.push_back(stringify(it->second));
@@ -1222,8 +1222,10 @@ main(int argc, char* argv[])
               << std::endl;
     // Save the last used file and container id in the meta_hmap
     qclient::QHash meta_map {*sQcl, eos::constants::sMapMetaInfoKey};
-    meta_map.hset(eos::constants::sLastUsedFid, std::to_string(file_svc->getFirstFreeId() - 1));
-    meta_map.hset(eos::constants::sLastUsedCid, std::to_string(cont_svc->getFirstFreeId() - 1));
+    meta_map.hset(eos::constants::sLastUsedFid,
+                  std::to_string(file_svc->getFirstFreeId() - 1));
+    meta_map.hset(eos::constants::sLastUsedCid,
+                  std::to_string(cont_svc->getFirstFreeId() - 1));
     // QuarkDB bulkload finalization (triggers manual compaction in rocksdb)
     std::time_t finalizeStart = std::time(nullptr);
     sQcl->exec("quarkdb_bulkload_finalize").get();

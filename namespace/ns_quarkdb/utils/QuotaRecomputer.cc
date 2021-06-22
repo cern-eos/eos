@@ -46,7 +46,8 @@ public:
   QuotaNodeFilter(uint64_t root) : rootContainer(root) {}
 
   virtual bool shouldExpandContainer(const eos::ns::ContainerMdProto& proto,
-                                     const eos::IContainerMD::XAttrMap& attrs) override
+                                     const eos::IContainerMD::XAttrMap& attrs,
+                                     const std::string& fullPath) override
   {
     if (proto.id() == rootContainer) {
       return true; // always expand root, no matter what

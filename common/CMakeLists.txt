@@ -213,6 +213,8 @@ endif()
 # Create helper executables
 #-------------------------------------------------------------------------------
 if(NOT CLIENT AND Linux)
+  add_executable(eos-layout-print EosLayoutPrint.cc)
+  target_link_libraries(eos-layout-print PUBLIC EosCommon)
   add_executable(dbmaptestburn dbmaptest/DbMapTestBurn.cc)
   add_executable(mutextest
     mutextest/RWMutexTest.cc RWMutex.cc PthreadRWMutex.cc StacktraceHere.cc)

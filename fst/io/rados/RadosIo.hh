@@ -194,6 +194,26 @@ public:
     return SFS_ERROR;
   }
 
+  //----------------------------------------------------------------------------
+  //! Write to file - async
+  //!
+  //! @param offset offset
+  //! @param buffer data to be written
+  //! @param length length
+  //!
+  //! @return future holding the status response
+  //--------------------------------------------------------------------------
+  std::future<XrdCl::XRootDStatus>
+  fileWriteAsync(const char* buffer, XrdSfsFileOffset offset,
+                 XrdSfsXferSize length)
+  {
+    std::promise<XrdCl::XRootDStatus> wr_promise;
+    std::future<XrdCl::XRootDStatus> wr_future = wr_promise.get_future();
+    wr_promise.set_value(XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errUnknown,
+                         ENOSYS, "operation not supported"));
+    return wr_future;
+  }
+
   //--------------------------------------------------------------------------
   //! Truncate
   //!
@@ -205,6 +225,24 @@ public:
   {
     errno = ENOSYS;
     return SFS_ERROR;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Truncate asynchronous
+  //!
+  //! @param offset truncate file to this value
+  //! @param timeout timeout value
+  //!
+  //! @return future holding the status response
+  //----------------------------------------------------------------------------
+  std::future<XrdCl::XRootDStatus>
+  fileTruncateAsync(XrdSfsFileOffset offset, uint16_t timeout = 0)
+  {
+    std::promise<XrdCl::XRootDStatus> tr_promise;
+    std::future<XrdCl::XRootDStatus> tr_future = tr_promise.get_future();
+    tr_promise.set_value(XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errUnknown,
+                         ENOSYS, "operation not supported"));
+    return tr_future;
   }
 
   //--------------------------------------------------------------------------

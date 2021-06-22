@@ -26,6 +26,7 @@
 
 #include <thread>
 #include <map>
+#include <unordered_map>
 
 #include "mgm/Namespace.hh"
 #include "mgm/fusex.pb.h"
@@ -40,7 +41,7 @@ EOSFUSESERVERNAMESPACE_BEGIN
 //----------------------------------------------------------------------------
 //! Class Caps
 //----------------------------------------------------------------------------
-class Caps : public eos::common::RWMutex
+class Caps
 {
   friend class FuseServer;
 public:
@@ -74,36 +75,34 @@ public:
 
   typedef std::shared_ptr<capx> shared_cap;
 
-  Caps(): eos::common::RWMutex()
-  {
-    mBlocking = true;
-  }
+  Caps() = default;
 
   virtual ~Caps() = default;
 
   typedef std::string authid_t;
   typedef std::string clientid_t;
   typedef std::string client_uuid_t;
-  typedef std::set<clientid_t> clientid_set_t;
-  typedef std::map<client_uuid_t, clientid_set_t> client_ids_t;
+  typedef std::unordered_set<clientid_t> clientid_set_t;
+  typedef std::unordered_map<client_uuid_t, clientid_set_t> client_ids_t;
   typedef std::pair<uint64_t, authid_t> ino_authid_t;
-  typedef std::set<authid_t> authid_set_t;
-  typedef std::map<uint64_t, authid_set_t> ino_map_t;
-  typedef std::set<uint64_t> ino_set_t;
-  typedef std::map<uint64_t, authid_set_t> notify_set_t; // inode=>set(authid_t)
-  typedef std::map<clientid_t, authid_set_t> client_set_t;
-  typedef std::map<clientid_t, ino_map_t> client_ino_map_t;
+  typedef std::unordered_set<authid_t> authid_set_t;
+  typedef std::unordered_map<uint64_t, authid_set_t> ino_map_t;
+  typedef std::unordered_set<uint64_t> ino_set_t;
+  typedef std::unordered_map<uint64_t, authid_set_t>
+  notify_set_t; // inode=>set(authid_t)
+  typedef std::unordered_map<clientid_t, authid_set_t> client_set_t;
+  typedef std::unordered_map<clientid_t, ino_map_t> client_ino_map_t;
 
 
   ssize_t ncaps()
   {
-    eos::common::RWMutexReadLock lock(*this);
+    std::lock_guard lg(mtx);
     return mTimeOrderedCap.size();
   }
 
   void pop()
   {
-    eos::common::RWMutexWriteLock lock(*this);
+    std::lock_guard lg(mtx);
 
     if (!mTimeOrderedCap.empty()) {
       mTimeOrderedCap.erase(mTimeOrderedCap.begin());
@@ -112,7 +111,7 @@ public:
 
   bool expire()
   {
-    eos::common::RWMutexWriteLock lock(*this);
+    std::lock_guard lg(mtx);
     authid_t id;
     time_t idtime = 0;
 
@@ -123,8 +122,11 @@ public:
       return false;
     }
 
-    if (mCaps.count(id)) {
-      shared_cap cap = mCaps[id];
+    // TODO: C++17 - move initialization inside if
+    auto it = mCaps.find(id);
+
+    if (it != mCaps.end()) {
+      shared_cap cap = it->second;
       uint64_t now = (uint64_t) time(NULL);
 
       if ((cap->vtime() + 10) <= now) {
@@ -152,48 +154,50 @@ public:
   void dropCaps(const std::string& uuid)
   {
     eos_static_info("drop client caps: %s", uuid.c_str());
-
-    std::set<shared_cap> deleteme;
+    std::vector<shared_cap> deleteme;
     {
-      eos::common::RWMutexReadLock lock(*this);
+      std::lock_guard lg(mtx);
 
-      for (auto it=mCaps.begin(); it!=mCaps.end(); ++it) {
+      for (auto it = mCaps.begin(); it != mCaps.end(); ++it) {
         if (it->second->clientuuid() == uuid) {
-          deleteme.insert(it->second);
+          deleteme.push_back(it->second);
         }
       }
     }
     {
-      for (auto it=deleteme.begin(); it!=deleteme.end(); ++it) {
-	eos::common::RWMutexWriteLock lock(*this);
+      for (auto it = deleteme.begin(); it != deleteme.end(); ++it) {
+        std::lock_guard lg(mtx);
         shared_cap cap = *it;
         Remove(*it);
       }
     }
-
     // cleanup by client ids
     {
-      eos::common::RWMutexWriteLock lock(*this);
-      if (mClientIds.count(uuid)) {
-	for (auto it = mClientIds[uuid].begin(); it != mClientIds[uuid].end(); ++it) {
-	  mClientCaps.erase(*it);
-	  mClientInoCaps.erase(*it);
-	}
+      std::lock_guard lg(mtx);
+      auto uuid_iter = mClientIds.find(uuid);
+
+      if (uuid_iter != mClientIds.end()) {
+        for (auto it = uuid_iter->second.begin(); it != uuid_iter->second.end(); ++it) {
+          mClientCaps.erase(*it);
+          mClientInoCaps.erase(*it);
+        }
+
+        mClientIds.erase(uuid_iter);
       }
-      mClientIds.erase(uuid);
     }
+  }
+
+  template <typename... Args>
+  bool RemoveTS(Args&& ... args)
+  {
+    std::lock_guard lg(mtx);
+    return Remove(std::forward<Args>(args)...);
   }
 
   bool Remove(shared_cap cap)
   {
-    bool rc = false;
-
     // you have to have a write lock for the caps
-    if (mCaps.count(cap->authid())) {
-      rc = true;
-      mCaps.erase(cap->authid());
-    }
-
+    bool rc = mCaps.erase(cap->authid());
     mInodeCaps[cap->id()].erase(cap->authid());
 
     if (!mInodeCaps[cap->id()].size()) {
@@ -206,7 +210,7 @@ public:
       mClientInoCaps[cap->clientid()].erase(cap->id());
 
       if (!mClientInoCaps[cap->clientid()].size()) {
-	mClientInoCaps.erase(cap->clientid());
+        mClientInoCaps.erase(cap->clientid());
       }
     }
 
@@ -215,13 +219,22 @@ public:
     if (mClientCaps[cap->clientid()].size() == 0) {
       mClientCaps.erase(cap->clientid());
     }
+
     return rc;
   }
 
   int Delete(uint64_t id);
 
-  shared_cap GetTS(authid_t id);
-  shared_cap Get(authid_t id);
+  shared_cap Get(const authid_t& id, bool make_default = true);
+
+  template <typename... Args>
+  auto GetTS(Args&& ... args)
+  {
+    std::lock_guard lg(mtx);
+    return Get(std::forward<Args>(args)...);
+  }
+
+  const capx* GetRaw(const authid_t& id);
 
   int BroadcastCap(shared_cap cap);
   int BroadcastRelease(const eos::fusex::md&
@@ -256,16 +269,61 @@ public:
                   uint64_t clock,
                   struct timespec& p_mtime
                  ); // broad cast changed md around
-  std::string Print(std::string option, std::string filter);
+  std::string Print(const std::string& option,
+                    const std::string& filter);
 
-  std::map<authid_t, shared_cap>& GetCaps()
+  const auto& GetCaps() const
   {
     return mCaps;
+  }
+
+  auto GetAllCaps()
+  {
+    std::vector<shared_cap> results;
+    std::lock_guard lg(mtx);
+
+    for (const auto& kv : mCaps) {
+      results.push_back(kv.second);
+    }
+
+    return results;
   }
 
   bool HasCap(authid_t authid)
   {
     return (this->mCaps.count(authid) ? true : false);
+  }
+
+  bool HasInodeId(const std::string& client_id,
+                  uint64_t id)
+  {
+    std::lock_guard lg(mtx);
+
+    if (auto kv = mClientInoCaps.find(client_id);
+        kv != mClientInoCaps.end()) {
+      return kv->second.count(id) > 0;
+    }
+
+    return false;
+  }
+
+  authid_set_t GetInodeCapAuthIds(const std::string& client_id,
+                                  uint64_t id)
+  {
+    authid_set_t results;
+    std::lock_guard lg(mtx);
+
+    if (auto kv = mClientInoCaps.find(client_id);
+        kv != mClientInoCaps.end()) {
+      if (auto auth_ids = kv->second.find(id);
+          auth_ids != kv->second.end()) {
+        std::copy(auth_ids->second.begin(),
+                  auth_ids->second.end(),
+                  std::inserter(results, results.begin()));
+      }
+    }
+
+    return results;
   }
 
   notify_set_t& InodeCaps()
@@ -288,20 +346,35 @@ public:
     return mClientIds;
   }
 
-  std::string Dump() {
+  std::string Dump()
+  {
     std::string s;
-    eos::common::RWMutexReadLock lock(*this);
-    s = std::to_string(mTimeOrderedCap.size()) + " c: " + std::to_string(mCaps.size()) + " cc: "
-      + std::to_string(mClientCaps.size()) + " cic: " + std::to_string(mClientInoCaps.size()) + " ic: "
-      + std::to_string(mInodeCaps.size());
+    std::lock_guard lg(mtx);
+    s = std::to_string(mTimeOrderedCap.size()) + " c: " + std::to_string(
+          mCaps.size()) + " cc: "
+        + std::to_string(mClientCaps.size()) + " cic: " + std::to_string(
+          mClientInoCaps.size()) + " ic: "
+        + std::to_string(mInodeCaps.size());
     return s;
   }
 
+  // Given a pid, return a vector of shared caps matching this
+  // if a reference cap and mdptr are given, these ids are excluded
+  std::vector<shared_cap> GetBroadcastCapsTS(uint64_t pid,
+      shared_cap refcap = nullptr,
+      const eos::fusex::md* mdptr = nullptr,
+      bool suppress = false,
+      std::string suppress_stat_tag = "");
+
+
+
 protected:
+
+  std::mutex mtx;
   // a time ordered multimap pointing to caps
   std::multimap< time_t, authid_t > mTimeOrderedCap;
   // authid=>cap lookup map
-  std::map<authid_t, shared_cap> mCaps;
+  std::unordered_map<authid_t, shared_cap> mCaps;
   // clientid=>list of authid
   client_set_t mClientCaps;
   // clientid=>list of inodes

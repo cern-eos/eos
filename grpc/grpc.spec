@@ -11,6 +11,8 @@
 # Issue tracked at:
 # https://github.com/grpc/grpc/pull/14844
 #-------------------------------------------------------------------------------
+%define _prefix /opt/eos/grpc/
+%define _unpackaged_files_terminate_build 0
 
 %if 0%{?rhel} == 7
   # CentOS 7 can use ".el7.centos" or ".el7.cern". However, we want to avoid that
@@ -20,11 +22,11 @@
 %endif
 
 #-------------------------------------------------------------------------------
-# Custom strip command for CC7 @todo review devtoolset-6, could likely use 8
+# Custom strip command for CC7
 #-------------------------------------------------------------------------------
 %define distribution %(/usr/lib/rpm/redhat/dist.sh --distnum)
 %if 0%{distribution} == 7
-%global __strip /opt/rh/devtoolset-6/root/usr/bin/strip
+%global __strip /opt/rh/devtoolset-8/root/usr/bin/strip
 %endif
 
 #-------------------------------------------------------------------------------
@@ -32,14 +34,28 @@
 #-------------------------------------------------------------------------------
 Summary: gRPC, A high performance, open-source universal RPC framework
 Name: grpc
-Version: 1.19.0
+Version: 1.36.0
 Release: 1%{?dist}
 License: BSD
 URL: http://www.grpc.io/
 Source0: https://github.com/grpc/grpc/archive/v%{version}.tar.gz
 
+# Handle the different paths for the cmake package depending on the OS
+%if 0%{distribution} == 7
+BuildRequires: cmake3
+%define cmake cmake3
+%else
+%if 0%{distribution} == 8
+BuildRequires: eos-cmake
+%define cmake /opt/eos/cmake/bin/cmake
+%else
+BuildRequires: cmake
+%define cmake cmake
+%endif
+%endif
+
 BuildRequires: pkgconfig gcc-c++
-BuildRequires: protobuf-devel protobuf-compiler openssl-devel c-ares-devel
+BuildRequires: openssl-devel
 
 %description
 Remote Procedure Calls (RPCs) provide a useful abstraction for
@@ -51,7 +67,6 @@ clients and servers using any combination of the supported languages.
 %package plugins
 Summary: gRPC protocol buffers compiler plugins
 Requires: %{name}%{?_isa} = %{version}-%{release}
-Requires: protobuf-compiler
 
 %description plugins
 Plugins to the protocol buffers compiler to generate gRPC sources.
@@ -82,17 +97,26 @@ cd grpc
 export CPPFLAGS="-Wno-error=class-memaccess -Wno-error=tautological-compare -Wno-error=ignored-qualifiers -Wno-error=stringop-truncation"
 export HAS_SYSTEM_PROTOBUF=false
 %endif
+mkdir build
+cd build
+%{cmake} ../ -DgRPC_INSTALL=ON                  \
+             -DCMAKE_BUILD_TYPE=Release         \
+             -DgRPC_SSL_PROVIDER=package        \
+             -DgRPC_ZLIB_PROVIDER=package       \
+             -DCMAKE_INSTALL_PREFIX=%{_prefix}  \
+             -DBUILD_SHARED_LIBS=ON
 %make_build
 
 %check
 
 %install
-cd grpc
+cd grpc/build
 rm -rf %{buildroot}; mkdir %{buildroot}
-make install prefix="%{buildroot}/usr"
+make DESTDIR=%{buildroot} install
 %ifarch x86_64
-mkdir -p %{buildroot}/usr/lib64
-mv %{buildroot}/usr/lib/* %{buildroot}/usr/lib64/
+mkdir -p %{buildroot}/%{_prefix}/lib64
+shopt -s extglob
+mv %{buildroot}/%{_prefix}/lib/!(cmake|pkgconfig) %{buildroot}/%{_prefix}/lib64/
 %endif
 
 %clean

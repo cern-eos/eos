@@ -123,7 +123,7 @@ FileSystemHandler* FileSystemHandler::triggerCacheLoad()
   // missed between triggering the cache load, and receiving the contents.
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   eos_assert(mCacheStatus == CacheStatus::kInFlight);
-  mContents = std::move(temporaryContents);
+  mContents.swap(temporaryContents);
   mChangeList.apply(mContents);
   mChangeList.clear();
   mCacheStatus = CacheStatus::kLoaded;

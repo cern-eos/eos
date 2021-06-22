@@ -284,6 +284,50 @@ QuarkQuotaNode::replaceCore(const QuotaNodeCore& updated)
   }
 }
 
+
+//------------------------------------------------------------------------------
+// Update underlying QuotaNodeCore object.
+//------------------------------------------------------------------------------
+void
+QuarkQuotaNode::updateCore(const QuotaNodeCore& updated)
+{
+  // replace all existing entries from updated and flush them
+  pCore << updated;
+
+  for (auto it = updated.mUserInfo.begin(); it != updated.mUserInfo.end(); it++) {
+    std::string suid = std::to_string(it->first);
+    pFlusher->exec("HSET", pQuotaUidKey,
+                   suid + quota::sPhysicalSize,
+                   std::to_string(it->second.physicalSpace)
+                  );
+    pFlusher->exec("HSET", pQuotaUidKey,
+                   suid + quota::sLogicalSize,
+                   std::to_string(it->second.space)
+                  );
+    pFlusher->exec("HSET", pQuotaUidKey,
+                   suid + quota::sNumFiles,
+                   std::to_string(it->second.files)
+                  );
+  }
+
+  for (auto it = updated.mGroupInfo.begin(); it != updated.mGroupInfo.end();
+       it++) {
+    std::string sgid = std::to_string(it->first);
+    pFlusher->exec("HSET", pQuotaGidKey,
+                   sgid + quota::sPhysicalSize,
+                   std::to_string(it->second.physicalSpace)
+                  );
+    pFlusher->exec("HSET", pQuotaGidKey,
+                   sgid + quota::sLogicalSize,
+                   std::to_string(it->second.space)
+                  );
+    pFlusher->exec("HSET", pQuotaGidKey,
+                   sgid + quota::sNumFiles,
+                   std::to_string(it->second.files)
+                  );
+  }
+}
+
 //------------------------------------------------------------------------------
 // *** Class QuotaStats implementaion ***
 //------------------------------------------------------------------------------

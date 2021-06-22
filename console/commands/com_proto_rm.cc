@@ -152,17 +152,7 @@ int com_protorm(char* arg)
     return EINTR;
   }
 
-  global_retc = rm.Execute(false, true);
-
-  // fix for aquamarine server for new proto commands
-  if (global_retc != 0) {
-    if (rm.GetError().find("no such user command") != std::string::npos) {
-      global_retc = com_rm(arg);
-    } else {
-      std::cerr << rm.GetError();
-    }
-  }
-
+  global_retc = rm.Execute(true, true);
   return global_retc;
 }
 

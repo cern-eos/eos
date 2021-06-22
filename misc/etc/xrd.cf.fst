@@ -10,7 +10,7 @@ xrootd.redirect $(MGM):1094 chksum
 ###########################################################
 xrootd.seclib libXrdSec.so
 sec.protocol unix
-sec.protocol sss -c /etc/eos.keytab -s /etc/eos.keytab
+sec.protocol sss -c /etc/eos.client.keytab -s /etc/eos.client.keytab
 sec.protbind * only unix sss
 ###########################################################
 all.export / nolock
@@ -31,6 +31,9 @@ fstofs.metalog /var/eos/md/
 #fstofs.authdir /var/eos/auth/
 #fstofs.trace client
 ###########################################################
+# QuarkDB cluster info needed by FSCK to perform the namespace scan
+#fstofs.qdbcluster localhost:777
+#fstofs.qdbpassword_file /etc/eos.keytab
 
 #-------------------------------------------------------------------------------
 # Configuration for XrdHttp http(s) service on port 11000

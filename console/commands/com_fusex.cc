@@ -116,17 +116,16 @@ com_fusex(char* arg1)
     XrdOucString quota_interval = subtokenizer.GetToken();
     XrdOucString bc_audience = subtokenizer.GetToken();
     XrdOucString bc_audience_match = subtokenizer.GetToken();
-
     int i_interval = interval.length() ? atoi(interval.c_str()) : 0;
     int q_interval = quota_interval.length() ? atoi(quota_interval.c_str()) : 0;
-    
+
     if ((i_interval < 0) ||
-        (i_interval > 15)) {
+        (i_interval > 60)) {
       goto com_fusex_usage;
     }
 
     if ((q_interval < 0) ||
-        (q_interval > 60)) {
+        (q_interval > 120)) {
       goto com_fusex_usage;
     }
 
@@ -143,6 +142,7 @@ com_fusex(char* arg1)
       in += "&mgm.fusex.bc.max=";
       in += bc_audience;
     }
+
     if (bc_audience_match.length()) {
       in += "&mgm.fusex.bc.match=";
       in += bc_audience_match;
@@ -173,12 +173,12 @@ com_fusex(char* arg1)
             if (option == "-l") {
               options += "l";
             } else {
-	      if (option == "-k") {
-		options += "k";
-	      } else {
-		goto com_fusex_usage;
-	      }
-	    }
+              if (option == "-k") {
+                options += "k";
+              } else {
+                goto com_fusex_usage;
+              }
+            }
           }
         }
       }
@@ -203,7 +203,6 @@ com_fusex_usage:
           "                -f                                                   -  show ongoing flush locks\n");
   fprintf(stdout,
           "                -k                                                   -  show R/W locks\n");
-
   fprintf(stdout,
           "                -m                                                   -  show monitoring output format\n");
   fprintf(stdout, "\n");
@@ -217,19 +216,15 @@ com_fusex_usage:
           "                                                                     - if the reason contains the keywoard 'abort' the abort handler will be called on client side (might create a stack trace/core)\n");
   fprintf(stdout,
           "                                                                     - if reason contains the keyword 'log2big' the client will effectily not be evicted, but will truncate his logfile to 0\n");
-
-  fprintf(stdout,                           
-	  "                                                                     - if reason contains the keyword 'setlog' and 'debug','notice', 'error', 'crit', 'info', 'warning' the log level of the targeted mount is changed accordingly .e.g evict <uuid> \"setlog error\"\n");
-  
-  fprintf(stdout, 
-	  "                                                                     - if reason contains the keyword 'stacktrace' the client will send a self-stacktrace with the next heartbeat message and it will be stored in /var/log/eos/mgm/eosxd-stacktraces.log e.g. evict <uuid> stacktrace\n");
-  fprintf(stdout, 
-	  "                                                                     - if reason contains the keyword 'sendlog' the client will send max. the last 512 lines of each log level and the log will be stored in /var/log/eos/mgm/eosxd-logtraces.log e.g. evict <uuid> sendlog\n");
-  fprintf(stdout, 
-	  "                                                                     - if reason contains the keyword 'resetbuffer' the client will reset the read-ahead and write-buffers in flight and possibly unlock a locked mount point");
-
+  fprintf(stdout,
+          "                                                                     - if reason contains the keyword 'setlog' and 'debug','notice', 'error', 'crit', 'info', 'warning' the log level of the targeted mount is changed accordingly .e.g evict <uuid> \"setlog error\"\n");
+  fprintf(stdout,
+          "                                                                     - if reason contains the keyword 'stacktrace' the client will send a self-stacktrace with the next heartbeat message and it will be stored in /var/log/eos/mgm/eosxd-stacktraces.log e.g. evict <uuid> stacktrace\n");
+  fprintf(stdout,
+          "                                                                     - if reason contains the keyword 'sendlog' the client will send max. the last 512 lines of each log level and the log will be stored in /var/log/eos/mgm/eosxd-logtraces.log e.g. evict <uuid> sendlog\n");
+  fprintf(stdout,
+          "                                                                     - if reason contains the keyword 'resetbuffer' the client will reset the read-ahead and write-buffers in flight and possibly unlock a locked mount point");
   fprintf(stdout, "\n");
-
   fprintf(stdout,
           "       fusex evict static|autofs mem:<size-in-mb>|idle:<seconds>     :  evict all autofs or static mounts which have a resident memory footprint larger than <size-in-mb> or are idle longer than <seconds>\n");
   fprintf(stdout, "\n");
@@ -259,9 +254,8 @@ com_fusex_usage:
           "           fusex caps -p ^/eos/caps/                                 :  show all caps in subtree /eos/caps\n");
   fprintf(stdout,
           "       fusex conf [<heartbeat-in-seconds>] [quota-check-in-seconds] [max broadcast audience] [broadcast audience match]\n");
-  fprintf(stdout, "                                                             :  show heartbeat and quota interval\n");
-
-  
+  fprintf(stdout,
+          "                                                             :  show heartbeat and quota interval\n");
   fprintf(stdout,
           "                                                                     :  [ optional change heartbeat interval from [1-15] seconds ]\n");
   fprintf(stdout,
@@ -272,8 +266,8 @@ com_fusex_usage:
   fprintf(stdout,
           "   fusex conf 10                                             :  define heartbeat interval as 10 seconds\n");
   fprintf(stdout,
-          "   fusex conf 10 10                                          :  define heartbeat and quota interval as 10 seconds\n");
-  fprintf(stdout, 
-	  "   fusex conf 0 0 256 @b[67]                                :  suppress broadcasts when more than 256 clients are conected and the target matches @b[67]\n");
+          "   fusex conf 10 30                                          :  define heartbeat as 10 seconds and quota interval as 30 seconds\n");
+  fprintf(stdout,
+          "   fusex conf 0 0 256 @b[67]                                :  suppress broadcasts when more than 256 clients are conected and the target matches @b[67]\n");
   return (0);
 }

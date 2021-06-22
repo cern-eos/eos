@@ -37,7 +37,7 @@ EOSFSTNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 FileSystem::FileSystem(const common::FileSystemLocator& locator,
-  mq::MessagingRealm *realm) :
+                       mq::MessagingRealm* realm) :
   eos::common::FileSystem(locator, realm, true),
   mLocalId(0ul), mLocalUuid(""),  mScanDir(nullptr), mFileIO(nullptr),
   mTxDirectory("")
@@ -62,8 +62,8 @@ FileSystem::~FileSystem()
 {
   mScanDir.release();
   mFileIO.release();
-  gFmdDbMapHandler.ShutdownDB(mLocalId);
   mTxMultiplexer.reset();
+  gFmdDbMapHandler.ShutdownDB(mLocalId, true);
 
   if (mTxBalanceQueue) {
     delete mTxBalanceQueue;
@@ -192,6 +192,22 @@ FileSystem::IoPing()
   }
 
   eos_info("bw=%lld iops=%d", seqBandwidth, IOPS);
+}
+
+//------------------------------------------------------------------------------
+// Collect orphans registered in the db for the current file system
+//------------------------------------------------------------------------------
+std::set<eos::common::FileId::fileid_t>
+FileSystem::CollectOrphans() const
+{
+  eos::common::RWMutexReadLock rd_lock(mInconsistencyMutex);
+  auto it = mInconsistencySets.find("orphans_n");
+
+  if (it != mInconsistencySets.end()) {
+    return it->second;
+  }
+
+  return std::set<eos::common::FileId::fileid_t>();
 }
 
 //------------------------------------------------------------------------------

@@ -301,6 +301,19 @@ public:
   int64_t fileWriteAsync(XrdSfsFileOffset offset, const char* buffer,
                          XrdSfsXferSize length, uint16_t timeout = 0);
 
+  //----------------------------------------------------------------------------
+  //! Write to file - async
+  //!
+  //! @param offset offset
+  //! @param buffer data to be written
+  //! @param length length
+  //!
+  //! @return future holding the status response
+  //--------------------------------------------------------------------------
+  std::future<XrdCl::XRootDStatus>
+  fileWriteAsync(const char* buffer, XrdSfsFileOffset offset,
+                 XrdSfsXferSize length);
+
   //--------------------------------------------------------------------------
   //! Wait for all async IO
   //!
@@ -317,6 +330,17 @@ public:
   //! @return 0 if successful, -1 otherwise and error code is set
   //----------------------------------------------------------------------------
   int fileTruncate(XrdSfsFileOffset offset, uint16_t timeout = 0);
+
+  //----------------------------------------------------------------------------
+  //! Truncate asynchronous
+  //!
+  //! @param offset truncate file to this value
+  //! @param timeout timeout value
+  //!
+  //! @return future holding the status response
+  //----------------------------------------------------------------------------
+  std::future<XrdCl::XRootDStatus>
+  fileTruncateAsync(XrdSfsFileOffset offset, uint16_t timeout = 0);
 
   //----------------------------------------------------------------------------
   //! Allocate file space
@@ -653,6 +677,54 @@ private:
   //! Disable assign operator
   //----------------------------------------------------------------------------
   XrdIo& operator = (const XrdIo&) = delete;
+};
+
+//------------------------------------------------------------------------------
+//! Class XrdIoHandler
+//------------------------------------------------------------------------------
+class XrdIoHandler: public XrdCl::ResponseHandler
+{
+public:
+  enum class OpType {
+    None,
+    Write,
+    Truncate
+  };
+
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //!
+  //! @param wr_promise write promise used to notify when the answer arrives
+  //----------------------------------------------------------------------------
+  XrdIoHandler(std::promise<XrdCl::XRootDStatus>&& wr_promise,
+               OpType op):
+    mPromise(std::move(wr_promise)), mOperationType(op)
+  {}
+
+  //----------------------------------------------------------------------------
+  //! Handle response
+  //!
+  //! @param pStatus status of the response
+  //! @param pResponse object containing extra info about the response
+  //----------------------------------------------------------------------------
+  virtual void HandleResponse(XrdCl::XRootDStatus* pStatus,
+                              XrdCl::AnyObject* pResponse)
+  {
+    if (pStatus) {
+      mPromise.set_value(*pStatus);
+      delete pStatus;
+    }
+
+    if (pResponse) {
+      delete pResponse;
+    }
+
+    delete this;
+  }
+
+private:
+  std::promise<XrdCl::XRootDStatus> mPromise;
+  OpType mOperationType;
 };
 
 EOSFSTNAMESPACE_END

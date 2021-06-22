@@ -553,11 +553,11 @@ DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain)
     oss << " " << (unsigned long)(elem);
   }
 
-  eos_static_debug("msg=\"schedule placement retc=%d with fsids=%s", (int)res,
-                   oss.str().c_str());
   // Return only one fs now
   mFsIdTarget = new_repl[0];
   mExcludeDsts.push_back(mFsIdTarget);
+  eos_static_debug("msg=\"schedule placement retc=%d with fsids=%s\" ",
+                   (int)res, oss.str().c_str());
   return true;
 }
 
@@ -586,9 +586,12 @@ DrainTransferJob::DrainZeroSizeFile(const FileDrainInfo& fdrain)
       eos::common::LayoutId::GetStripeNumber(fdrain.mProto.layout_id()) + 1) {
     file->unlinkLocation(mFsIdSource);
   } else {
-    // Add the new location and remove the old one
-    file->unlinkLocation(mFsIdSource);
+    // Add the new location and remove the old one if requested
     file->addLocation(mFsIdTarget);
+
+    if (mDropSrc) {
+      file->unlinkLocation(mFsIdSource);
+    }
   }
 
   gOFS->eosFileService->updateStore(file.get());

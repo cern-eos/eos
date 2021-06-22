@@ -14,15 +14,12 @@ if ( $< ne "0" ) {
     exit(-1);
 }
 
-my $release="aquamarine";
+my $release="citrine";
 
 if ( $#ARGV >= 0 ) {
     if ( ($#ARGV>0) || ($ARGV[0] =~ /-h/ ) ||
-	 ( ($ARGV[0] ne "beryl") && 
-	   ($ARGV[0] ne "beryl-testing") &&
-	   ($ARGV[0] ne "aquamarine") &&
-	   ($ARGV[0] ne "citrine") ) ) {
-	print "Usage: eos-deploy [ beryl | beryl-testing | aquamarine | citrine ] (default=aquamarine)\n";
+	 ( ($ARGV[0] ne "citrine") ) ) {
+	print "Usage: eos-deploy [ citrine ] (default=citrine)\n";
         exit(-1);
     }
     $release=$ARGV[0];

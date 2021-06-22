@@ -596,6 +596,10 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
     mFlags |= O_CREAT;
   }
 
+  if (mFlags & O_CREAT) {
+    mFlags |= O_RDWR;
+  }
+
   // check for file inlining only for the first attach call
   if ((!inline_buffer) && (EosFuse::Instance().Config().inliner.max_size ||
                            mMd->inlinesize())) {
@@ -659,7 +663,7 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
     }
   }
 
-  if (flags & (O_RDWR | O_WRONLY)) {
+  if (flags & (O_CREAT | O_RDWR | O_WRONLY)) {
     isRW = true;
   }
 
@@ -753,10 +757,11 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
 
         if (!(flags & O_SYNC)) {
           if (EOS_LOGS_DEBUG)
-            eos_debug("readhead: strategy=%s nom:%lu max:%lu",
+            eos_debug("readhead: strategy=%s nom:%lu max:%lu sparse-ratio:%.01f",
                       cachehandler::instance().get_config().read_ahead_strategy.c_str(),
                       cachehandler::instance().get_config().default_read_ahead_size,
-                      cachehandler::instance().get_config().max_read_ahead_size);
+                      cachehandler::instance().get_config().max_read_ahead_size,
+                      cachehandler::instance().get_config().read_ahead_sparse_ratio);
 
           mFile->xrdioro(freq)->set_readahead_strategy(
             XrdCl::Proxy::readahead_strategy_from_string(
@@ -764,7 +769,8 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
             4096,
             cachehandler::instance().get_config().default_read_ahead_size,
             cachehandler::instance().get_config().max_read_ahead_size,
-            cachehandler::instance().get_config().max_read_ahead_blocks
+            cachehandler::instance().get_config().max_read_ahead_blocks,
+            cachehandler::instance().get_config().read_ahead_sparse_ratio
           );
           mFile->xrdioro(freq)->set_readahead_maximum_position(mSize);
         }
@@ -2513,7 +2519,7 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
 
       if (mFile->journal()) {
         // retrieve all journal chunks matching our range
-        chunks = ((mFile->journal()))->get_chunks(offset + br , count - br);
+        chunks = ((mFile->journal()))->get_chunks(offset + br, count - br);
 
         for (auto it = chunks.begin(); it != chunks.end(); ++it) {
           eos_info("offset=%ld count=%lu overlay-chunk offset=%ld size=%lu", offset,
@@ -3067,7 +3073,7 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                                           fit->second->mode(), 0);
                       newproxy->inherit_attached(fit->second);
                       newproxy->inherit_protocol(fit->second);
-                      delete(fit->second);
+                      delete (fit->second);
                       map[fit->first] = newproxy;
                       continue;
                     } else {

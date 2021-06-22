@@ -40,6 +40,7 @@ ProcCommand::Chown()
   PROC_BOUNCE_ILLEGAL_NAMES;
   PROC_BOUNCE_NOT_ALLOWED;
   spath = path;
+  PROC_TOKEN_SCOPE;
   bool nodereference = (option.find("h") != STR_NPOS) ? true : false;
   bool singlefile = false;
 

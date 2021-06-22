@@ -86,7 +86,8 @@ public:
   //! @param file_svc file metadata service
   //! @param cont_svc container metadata service
   //----------------------------------------------------------------------------
-  ContainerMD(ContainerMD::id_t id, IFileMDSvc* file_svc, IContainerMDSvc* cont_svc);
+  ContainerMD(ContainerMD::id_t id, IFileMDSvc* file_svc,
+              IContainerMDSvc* cont_svc);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -128,7 +129,8 @@ public:
   //----------------------------------------------------------------------------
   //! Find sub container, asynchronous API
   //----------------------------------------------------------------------------
-  folly::Future<IContainerMDPtr> findContainerFut(const std::string& name) override;
+  folly::Future<IContainerMDPtr> findContainerFut(const std::string& name)
+  override;
 
   //----------------------------------------------------------------------------
   //! Find sub container
@@ -486,7 +488,8 @@ public:
   //----------------------------------------------------------------------------
   //! Set cloneId (dummy)
   //----------------------------------------------------------------------------
-  void setCloneId(time_t id) override {
+  void setCloneId(time_t id) override
+  {
   }
 
   //----------------------------------------------------------------------------
@@ -638,7 +641,7 @@ private:
   eos::IContainerMD::ContainerMap::const_iterator
   subcontainersBegin() override
   {
-    return mSubcontainers.cbegin();
+    return mSubcontainers.begin();
   }
 
   //----------------------------------------------------------------------------
@@ -647,7 +650,15 @@ private:
   virtual eos::IContainerMD::ContainerMap::const_iterator
   subcontainersEnd() override
   {
-    return mSubcontainers.cend();
+    return mSubcontainers.end();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get generation value to check iterator validity
+  //----------------------------------------------------------------------------
+  virtual uint64_t getContainerMapGeneration() override
+  {
+    return mSubcontainers.bucket_count();
   }
 
   //----------------------------------------------------------------------------
@@ -656,7 +667,7 @@ private:
   virtual eos::IContainerMD::FileMap::const_iterator
   filesBegin() override
   {
-    return mFiles.cbegin();
+    return mFiles.begin();
   }
 
   //----------------------------------------------------------------------------
@@ -665,7 +676,15 @@ private:
   virtual eos::IContainerMD::FileMap::const_iterator
   filesEnd() override
   {
-    return mFiles.cend();
+    return mFiles.end();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get generation value to check iterator validity
+  //----------------------------------------------------------------------------
+  virtual uint64_t getFileMapGeneration() override
+  {
+    return mFiles.bucket_count();
   }
 
   // Non-presistent data members

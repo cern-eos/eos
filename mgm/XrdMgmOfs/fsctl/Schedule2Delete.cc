@@ -115,7 +115,8 @@ XrdMgmOfs::Schedule2Delete(const char* path,
   // <fsid, fs_path, fs_queue> in the tuple below
   std::list<std::tuple<unsigned long, std::string, std::string>> fs_info;
   {
-    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex, __FUNCTION__, __LINE__, __FILE__);
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex, __FUNCTION__,
+                                      __LINE__, __FILE__);
 
     if (!FsView::gFsView.mNodeView.count(nodename)) {
       eos_static_warning("msg=\"node is not configured\" name=%s",
@@ -149,8 +150,6 @@ XrdMgmOfs::Schedule2Delete(const char* path,
     std::string fs_path = std::get<1>(info);
     std::string fs_queue = std::get<2>(info);
     std::unordered_set<eos::IFileMD::id_t> set_fids;
-    eos::Prefetcher::prefetchFilesystemUnlinkedFileListAndWait
-    (gOFS->eosView, gOFS->eosFsView, fsid);
     {
       eos::common::RWMutexReadLock ns_rd_lock;
 

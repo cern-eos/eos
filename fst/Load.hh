@@ -52,9 +52,11 @@ public:
   //----------------------------------------------------------------------------
   //! Get disk measurement values
   //!
+  //! @param fn_path abs path to file to be read
+  //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool Measure();
+  bool Measure(const std::string& fn_path = "/proc/diskstats");
 
   //----------------------------------------------------------------------------
   //! Get rate type for device
@@ -67,13 +69,16 @@ public:
   double GetRate(const char* dev, const char* key);
 
 private:
+#ifdef IN_TEST_HARNESS
+public:
+#endif
   //! Map from device name to map of key/values
   std::map<std::string, std::map<std::string, std::string > > values_t2;
   std::map<std::string, std::map<std::string, std::string > > values_t1;
   std::map<std::string, std::map<std::string, double > > mRates;
   struct timespec t1; ///< Timestamp 1
   struct timespec t2; ///< Timestamp 2 for calculating the rates
-  std::vector<std::string> mTags; ///< Network statistics tags
+  std::vector<std::string> mTags; ///< Disk statistics tags
   XrdSysRWLock mMutexRW; ///< RW mutex for protecting accces to the rates map
 };
 
@@ -186,6 +191,9 @@ public:
   static void* StartLoadThread(void* pp);
 
 private:
+#ifdef IN_TEST_HARNESS
+public:
+#endif
   pthread_t mTid; ///< Monitor thread id
   unsigned int mInterval; ///< Sampling interval for the monitor thread
   DiskStat fDiskStat; ///< Disk statistics

@@ -371,19 +371,6 @@ private:
   ConfigStatus mConfigStatus;
 };
 
-//------------------------------------------------------------------------------
-//! Check if given heartbeat timestamp is recent enough
-//------------------------------------------------------------------------------
-inline bool isHeartbeatRecent(time_t heartbeatTime)
-{
-  time_t now = time(NULL);
-
-  if ((now - heartbeatTime) < 60) {
-    return true;
-  }
-
-  return false;
-}
 
 //------------------------------------------------------------------------------
 //! Base Class abstracting the internal representation of a filesystem inside
@@ -394,30 +381,19 @@ class FileSystem
 protected:
   //! This filesystem's locator object
   FileSystemLocator mLocator;
-
   //! Locator for shared hash
   SharedHashLocator mHashLocator;
-
   //! Indicates that if the filesystem is deleted - the deletion should be
   //! broadcasted or not (only MGMs should broadcast deletion!)
   bool BroadCastDeletion;
-
   //! This filesystem's messaging realm
   mq::MessagingRealm* mRealm;
-
   //! Handle to the balance queue
   TransferQueue* mBalanceQueue;
-
   //! Handle to the extern queue
   TransferQueue* mExternQueue;
-
   //! boot status stored inside the object not the hash
   BootStatus mInternalBootStatus;
-
-  //! Store the last heartbeat time - set/get through
-  //! the corresponding functions, not published on MQ.
-  std::atomic<time_t> mHeartBeatTime {0};
-
 public:
   //----------------------------------------------------------------------------
   //! Struct & Type definitions
@@ -455,7 +431,6 @@ public:
     unsigned int mErrCode;
     time_t mBootSentTime;
     time_t mBootDoneTime;
-    time_t mHeartBeatTime;
     double mDiskUtilization;
     double mDiskWriteRateMb;
     double mDiskReadRateMb;
@@ -488,11 +463,6 @@ public:
     time_t mGracePeriod;
     time_t mDrainPeriod;
 
-    bool hasHeartbeat() const
-    {
-      return isHeartbeatRecent(mHeartBeatTime);
-    }
-
     //--------------------------------------------------------------------------
     //! Get active status
     //--------------------------------------------------------------------------
@@ -522,15 +492,9 @@ public:
     std::string mProxyGroups;
     size_t mPublishTimestamp;
     ActiveStatus mActiveStatus;
-    time_t mHeartBeatTime;
     double mNetEthRateMiB;
     double mNetInRateMiB;
     double mNetOutRateMiB;
-
-    bool hasHeartbeat() const
-    {
-      return isHeartbeatRecent(mHeartBeatTime);
-    }
   };
 
   //----------------------------------------------------------------------------
@@ -598,6 +562,16 @@ public:
   //! Get the message string to register a filesystem
   //----------------------------------------------------------------------------
   static const char* GetRegisterRequestString();
+
+  //----------------------------------------------------------------------------
+  //! Convert input to file system id
+  //!
+  //! @param value input string
+  //!
+  //! @return file system id if conversion successful, otherwise 0
+  //----------------------------------------------------------------------------
+  static eos::common::FileSystem::fsid_t
+  ConvertToFsid(const std::string& value);
 
   //----------------------------------------------------------------------------
   //! Serializes hash contents as follows 'key1=val1 key2=val2 ... keyn=valn'

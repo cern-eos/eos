@@ -190,10 +190,12 @@ public:
   //! @param prefix identifies the type of configuration parameter
   //! @param key key of the configuration to set
   //! @param val value of the configuration
-  //! @param tochangelog if true add entry also to the changelog
+  //! @param from_local mark if change comes from local MGM or remote one
+  //! @param save_config mark if configuration should also be saved or not
   //----------------------------------------------------------------------------
   virtual void SetConfigValue(const char* prefix, const char* key,
-                              const char* val, bool tochangelog = true) = 0;
+                              const char* val, bool from_local = true,
+                              bool save_config = true) = 0;
 
   //----------------------------------------------------------------------------
   //! Delete a configuration value

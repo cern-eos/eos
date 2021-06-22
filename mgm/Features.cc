@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ZMQ.hh
+// File: Features.cc
 // Author: Geoffray Adde - CERN
 // ----------------------------------------------------------------------
 
@@ -29,16 +29,17 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-static std::string checkInodeScheme() {
-  if(getenv("EOS_USE_NEW_INODES") != nullptr && getenv("EOS_USE_NEW_INODES")[0] == '1') {
+static std::string checkInodeScheme()
+{
+  if (getenv("EOS_USE_NEW_INODES") != nullptr &&
+      getenv("EOS_USE_NEW_INODES")[0] == '1') {
     return "1";
   }
 
   return "0";
 }
 
-const std::map< const std::string, const std::string> Features::sMap =
-{
+const std::map< const std::string, const std::string> Features::sMap = {
   { "eos.encodepath", "curl" },
   { "eos.lazyopen",   "true" },
   { "eos.inodeencodingscheme", checkInodeScheme() }

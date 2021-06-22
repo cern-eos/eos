@@ -71,8 +71,8 @@ Each FST sends for each file replica or piece it writes a record which looks lik
    wb_min               smallest write call in bytes
    wb_max               largest write call in bytes
    wb_sigma             standard deviation of write call in bytes
-   sfwbd                forward seeked bytes 
-   sbwbd                backward seeked bytes
+   sfwdb                forward seeked bytes 
+   sbwdb                backward seeked bytes
    sxlfwdb              forward seeked bytes moving at least 128kb per seek
    sxlbwdb              backward seekd bytes moving at least 128kb per seek
    nfwds                number of forward seeks

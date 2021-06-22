@@ -10,16 +10,35 @@ The EOS client gets automatically built for recent Ubuntu releases,
 currently "bionic" and "focal"
 
 .. note::
-   You need to add the XRootD and EOS repositories to your ``/etc/apt/sources.list`` (change distribution name as required)
+    You need to add the XRootD and EOS repositories to your ``/etc/apt/sources.list``.
 
-.. code-block:: text
+    .. code-block:: text
 
-	deb [arch=amd64] http://storage-ci.web.cern.ch/storage-ci/debian/xrootd/ bionic release
-	deb [arch=amd64] http://storage-ci.web.cern.ch/storage-ci/debian/eos/citrine/ bionic tag
+        echo "deb [arch=$(dpkg --print-architecture)] http://storage-ci.web.cern.ch/storage-ci/debian/xrootd/ $(lsb_release -cs) release" | sudo tee -a /etc/apt/sources.list.d/cerneos-client.list > /dev/null
+        echo "deb [arch=$(dpkg --print-architecture)] http://storage-ci.web.cern.ch/storage-ci/debian/eos/citrine/ $(lsb_release -cs) tag" | sudo tee -a /etc/apt/sources.list.d/cerneos-client.list > /dev/null
 
+    The above snippet will automatically get "arch" and "release" information for your machine (otherwise, just change arch and distribution name as required).
+
+    e.g., for a "amd64" machine with ubuntu "focal" that would be
+
+    .. code-block:: text
+
+        deb [arch=amd64] http://storage-ci.web.cern.ch/storage-ci/debian/xrootd/ focal release
+        deb [arch=amd64] http://storage-ci.web.cern.ch/storage-ci/debian/eos/citrine/ focal tag
+
+.. note::
+    Also, to avoid possible conflicts with other releases you need to version-lock xrootd dependency packages (this will we softened in future releases).
+
+    e.g, as of eos version 4.8.31, you need to version-lock xrootd to 4.12.5:
+
+    .. code-block:: text
+
+        echo -e "Package: xrootd* libxrd* libxrootd*\nPin: version 4.12.5\nPin-Priority: 1000" > /etc/apt/preferences.d/xrootd.pref
 
 Install EOS client via apt
 --------------------------
+
+Once the repository are properly configured, you can simply run
 
 .. code-block:: text
 

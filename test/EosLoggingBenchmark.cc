@@ -52,15 +52,16 @@ void threadlog(int id)
   std::string message;
   message = "0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789_";
   message += std::to_string(id);
-
   double realtime = 0.0;
-  for (size_t i=0; i< NMESSAGES; i++) {
+
+  for (size_t i = 0; i < NMESSAGES; i++) {
     eos::common::Timing tm("Checksumming");
     COMMONTIMING("START", &tm);
     eos_static_info("%.4f %s", realtime, message.c_str());
     COMMONTIMING("STOP", &tm);
     realtime = tm.RealTime();
     realtimes[id][i] = realtime;
+
     if (nosaturation) {
       usleep(40000);
     }
@@ -75,7 +76,7 @@ int main(int argc, char* argv[])
   g_logging.gShortFormat = true;
   g_logging.SetLogPriority(LOG_DEBUG);
 
-  if (argc==1) {
+  if (argc == 1) {
     fprintf(stdout, "#running in saturation mode\n");
   } else {
     nosaturation = true;
@@ -88,27 +89,26 @@ int main(int argc, char* argv[])
     g_logging.AddFanOut("#", fp);
   }
 
-
   FILE* fstderr = 0;
 
   if (!(fstderr = freopen("/var/tmp/eoslogbench.log", "a+", stderr))) {
-    fprintf(stderr,"error: cannot open test log file /var/tmp/eoslogbench.log");
+    fprintf(stderr, "error: cannot open test log file /var/tmp/eoslogbench.log");
     exit(-1);
   }
-  std::vector<std::thread*> threads;
 
+  std::vector<std::thread*> threads;
   eos::common::Timing tm("Messaging");
   COMMONTIMING("START", &tm);
 
-  for (size_t i= 0; i< NTHREADS; i++) {
+  for (size_t i = 0; i < NTHREADS; i++) {
     threads.push_back(new std::thread(threadlog, i));
   }
 
-  for (size_t i =0 ; i< NTHREADS; i++) {
+  for (size_t i = 0 ; i < NTHREADS; i++) {
     threads[i]->join();
   }
 
-  for (size_t i =0 ; i< NTHREADS; i++) {
+  for (size_t i = 0 ; i < NTHREADS; i++) {
     delete threads[i];
   }
 
@@ -117,22 +117,27 @@ int main(int argc, char* argv[])
   max = 0;
   avg = 0;
 
-  for (size_t i = 0; i< NTHREADS; i++) {
-    for (size_t m = 0 ; m<NMESSAGES; m++) {
+  for (size_t i = 0; i < NTHREADS; i++) {
+    for (size_t m = 0 ; m < NMESSAGES; m++) {
       if (realtimes[i][m] < min) {
         min = realtimes[i][m];
       }
+
       if (realtimes[i][m] > max) {
-	max = realtimes[i][m];
+        max = realtimes[i][m];
       }
+
       avg += realtimes[i][m];
     }
   }
-  avg /= (NTHREADS*NMESSAGES);
 
+  avg /= (NTHREADS * NMESSAGES);
   COMMONTIMING("STOP", &tm);
-
-  fprintf(stdout,"duration: %.02f [s] min: %.04f [ms] max: %.04f [ms] avg: %.04f [ms] nmsg: %d rate: %.02f [Hz] \n", tm.RealTime()/1000.0, min, max, avg, NTHREADS*NMESSAGES, NTHREADS*NMESSAGES / tm.RealTime()*1000);
+  fprintf(stdout,
+          "duration: %.02f [s] min: %.04f [ms] max: %.04f [ms] avg: %.04f [ms] nmsg: %d rate: %.02f [Hz] \n",
+          tm.RealTime() / 1000.0, min, max, avg, NTHREADS * NMESSAGES,
+          NTHREADS * NMESSAGES / tm.RealTime() * 1000);
+  g_logging.shutDown(true);        /* gracefully, while files are still open */
   fclose(fstderr);
   fclose(fp);
 }

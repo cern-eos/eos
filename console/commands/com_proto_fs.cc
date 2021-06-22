@@ -207,11 +207,11 @@ void com_fs_help()
       << std::endl
       << "                 along with drain progress and statistics" << std::endl
       << "    -D|--drain_jobs : " << std::endl
-      << "                 dispaly ongoing drain transfers, matchlist needs to be an integer"
+      << "                 display ongoing drain transfers, matchlist needs to be an integer"
       << std::endl
       << "                 representing the drain file system id" << std::endl
       << "    -F|--failed_drain_jobs : " << std::endl
-      << "                 dispaly failed drain transfers, matchlist needs to be an integer"
+      << "                 display failed drain transfers, matchlist needs to be an integer"
       << std::endl
       << "                 representing the drain file system id. This will only display"
       << std::endl

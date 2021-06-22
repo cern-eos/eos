@@ -44,7 +44,8 @@ ProcCommand::Rm()
     GetPathFromFid(spath, std::strtoull(spathid.c_str(), nullptr, 10), "error: ");
   } else {
     if (scontainerid.length()) {
-      GetPathFromCid(spath, std::strtoull(scontainerid.c_str(), nullptr, 10), "error: ");
+      GetPathFromCid(spath, std::strtoull(scontainerid.c_str(), nullptr, 10),
+                     "error: ");
     } else {
       spath = pOpaque->Get("mgm.path");
     }
@@ -61,6 +62,7 @@ ProcCommand::Rm()
   PROC_BOUNCE_ILLEGAL_NAMES;
   PROC_BOUNCE_NOT_ALLOWED;
   spath = path;
+  PROC_TOKEN_SCOPE;
 
   if (force && (vid.uid)) {
     stdErr = "warning: removing the force flag - this is only allowed for the 'root' role!\n";
@@ -198,29 +200,30 @@ ProcCommand::Rm()
           std::map<gid_t, unsigned long long> group_deletion_size;
 
           for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {
-	    int rpos = 0;
-	    if ((rpos = rfoundit->first.find("/.sys.v#.")) == STR_NPOS) {
-	      // skip to check version files
-	      for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end();
-		   fileit++) {
-		std::string fspath = rfoundit->first;
-		size_t l_pos;
-		std::string entry = *fileit;
+            int rpos = 0;
 
-		if ((l_pos = entry.find(" ->")) != std::string::npos) {
-		  entry.erase(l_pos);
-		}
+            if ((rpos = rfoundit->first.find("/.sys.v#.")) == STR_NPOS) {
+              // skip to check version files
+              for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end();
+                   fileit++) {
+                std::string fspath = rfoundit->first;
+                size_t l_pos;
+                std::string entry = *fileit;
 
-		fspath += entry;
+                if ((l_pos = entry.find(" ->")) != std::string::npos) {
+                  entry.erase(l_pos);
+                }
 
-		if (gOFS->_rem(fspath.c_str(), *mError, *pVid, nullptr, true)) {
-		  stdErr += "error: unable to remove file - bulk deletion aborted\n";
-		  retc = errno;
-		  return SFS_OK;
-		}
-	      }
-	    }
-	  }
+                fspath += entry;
+
+                if (gOFS->_rem(fspath.c_str(), *mError, *pVid, nullptr, true)) {
+                  stdErr += "error: unable to remove file - bulk deletion aborted\n";
+                  retc = errno;
+                  return SFS_OK;
+                }
+              }
+            }
+          }
 
           // delete directories in simulation mode
           for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {

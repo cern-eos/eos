@@ -154,14 +154,21 @@ public:
   //----------------------------------------------------------------------------
   //! Get underlying QuotaNodeCore object.
   //----------------------------------------------------------------------------
-  const QuotaNodeCore& getCore() const {
+  const QuotaNodeCore& getCore() const
+  {
     return pCore;
   }
 
   //----------------------------------------------------------------------------
   //! Replace underlying QuotaNodeCore obejct.
   //----------------------------------------------------------------------------
-  virtual void replaceCore(const QuotaNodeCore &updated) = 0;
+  virtual void replaceCore(const QuotaNodeCore& updated) = 0;
+
+
+  //----------------------------------------------------------------------------
+  //! Partial update of underlying QuotaNodeCore obejct.
+  //----------------------------------------------------------------------------
+  virtual void updateCore(const QuotaNodeCore& updated) = 0;
 
 protected:
   IQuotaStats* pQuotaStats;

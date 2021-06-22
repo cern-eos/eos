@@ -144,10 +144,10 @@ XrdFstOfs::xrdfstofs_stacktrace(int sig)
   // Print out all the frames to stderr
   fprintf(stderr, "error: received signal %d:\n", sig);
   backtrace_symbols_fd(array, size, 2);
-  eos::common::StackTrace::GdbTrace(0 , getpid(), "thread apply all bt");
+  eos::common::StackTrace::GdbTrace(0, getpid(), "thread apply all bt");
 
   if (getenv("EOS_CORE_DUMP")) {
-    eos::common::StackTrace::GdbTrace(0 , getpid(), "generate-core-file");
+    eos::common::StackTrace::GdbTrace(0, getpid(), "generate-core-file");
   }
 
   // Now we put back the initial handler and send the signal again
@@ -207,11 +207,11 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
     delete gOFS.Messaging;
   }
 
-  std::this_thread::sleep_for(std::chrono::seconds(1));
-  gOFS.Storage->ShutdownThreads();
-  eos_static_warning("%s", "op=shutdown msg=\"stop messaging\"");
-  eos_static_warning("%s", "op=shutdown msg=\"shutdown fmddbmap handler\"");
+  eos_static_warning("%s", "op=shutdown msg=\"stopped messaging\"");
+  gOFS.Storage->Shutdown();
+  eos_static_warning("%s", "op=shutdown msg=\"stopped storage activities\"");
   gFmdDbMapHandler.Shutdown();
+  eos_static_warning("%s", "op=shutdown msg=\"stopped FmdDbMap handler\"");
 
   if (watchdog > 1) {
     kill(watchdog, 9);
@@ -219,7 +219,6 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
 
   int wstatus = 0;
   wait(&wstatus);
-  eos_static_warning("%s", "op=shutdown status=dbmapclosed");
   // Sync & close all file descriptors
   eos::common::SyncAll::AllandClose();
   eos_static_warning("%s", "op=shutdown status=completed");
@@ -284,10 +283,10 @@ XrdFstOfs::xrdfstofs_graceful_shutdown(int sig)
     eos_static_err("op=shutdown msg=\"failed graceful IO shutdown\"");
   }
 
-  std::this_thread::sleep_for(std::chrono::seconds(1));
-  gOFS.Storage->ShutdownThreads();
+  gOFS.Storage->Shutdown();
   eos_static_warning("op=shutdown msg=\"shutdown fmddbmap handler\"");
   gFmdDbMapHandler.Shutdown();
+  eos_static_warning("op=shutdown status=dbmapclosed");
 
   if (watchdog > 1) {
     kill(watchdog, 9);
@@ -295,7 +294,6 @@ XrdFstOfs::xrdfstofs_graceful_shutdown(int sig)
 
   int wstatus = 0;
   ::wait(&wstatus);
-  eos_static_warning("op=shutdown status=dbmapclosed");
   // Sync & close all file descriptors
   SyncAll::AllandClose();
   eos_static_warning("op=shutdown status=completed");
@@ -1272,8 +1270,8 @@ XrdFstOfs::_rem(const char* path, XrdOucErrInfo& error,
   } else {
     // Check for additional opaque info to create remote IO object
     std::string sFstPath = fstPath.c_str();
-    std::string s3credentials =
-      gOFS.Storage->GetFileSystemById(fsid)->GetString("s3credentials");
+    std::string s3credentials = gOFS.Storage->GetFileSystemConfig(fsid,
+                                "s3credentials");
 
     if (!s3credentials.empty()) {
       sFstPath += "?s3credentials=" + s3credentials;
@@ -1424,6 +1422,10 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
 
     if (execmd == "verify") {
       return HandleVerify(env, error);
+    }
+
+    if (execmd == "clean_orphans") {
+      return HandleCleanOrphans(env, error);
     }
 
     if (execmd == "getfmd") {
@@ -2153,6 +2155,49 @@ XrdFstOfs::HandleVerify(XrdOucEnv& env, XrdOucErrInfo& err_obj)
     Storage->PushVerification(new_verify);
   } else {
     eos_static_err("%s", "msg=\"failed verify, illegal opaque info\"");
+  }
+
+  // @todo(esindril) once xrootd bug regarding handling of SFS_OK response
+  // in XrdXrootdXeq is fixed we can just return SFS_OK (>= XRootD 5)
+  // return SFS_OK;
+  const char* done = "OK";
+  err_obj.setErrInfo(strlen(done) + 1, done);
+  return SFS_DATA;
+}
+
+//------------------------------------------------------------------------------
+// Handle clean orphans query
+//------------------------------------------------------------------------------
+int
+XrdFstOfs::HandleCleanOrphans(XrdOucEnv& env, XrdOucErrInfo& err_obj)
+{
+  const char* ptr = env.Get("fst.fsid");
+  eos::common::FileSystem::fsid_t fsid = 0ul;
+
+  if (ptr) {
+    std::string sfsid {ptr};
+
+    try {
+      size_t pos = 0;
+      fsid = std::stoul(sfsid, &pos);
+
+      if (pos != sfsid.length()) {
+        throw std::invalid_argument("fsid conversion failed");
+      }
+    } catch (...) {
+      err_obj.setErrInfo(EINVAL, "fsid is not numeric");
+      return SFS_ERROR;
+    }
+  } else {
+    err_obj.setErrInfo(EINVAL, "query missing fst.fsid key ");
+    return SFS_ERROR;
+  }
+
+  std::ostringstream err_msg;
+
+  if (!Storage->CleanupOrphans(fsid, err_msg)) {
+    err_obj.setErrInfo(EINVAL, err_msg.str().c_str());
+    return SFS_ERROR;
   }
 
   // @todo(esindril) once xrootd bug regarding handling of SFS_OK response

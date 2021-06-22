@@ -28,16 +28,18 @@
 #include "common/Mapping.hh"
 #include "namespace/interface/IContainerMD.hh"
 
-namespace eos {
-  class IContainerMD;
-  class IFileMD;
+namespace eos
+{
+class IContainerMD;
+class IFileMD;
 }
 
 EOSMGMNAMESPACE_BEGIN
 
 class Acl;
 
-class AccessChecker {
+class AccessChecker
+{
 public:
 
   //----------------------------------------------------------------------------
@@ -46,31 +48,31 @@ public:
   //!
   //! All information required to make a decision are passed to this function.
   //----------------------------------------------------------------------------
-  static bool checkContainer(IContainerMD *cont,
-    const eos::IContainerMD::XAttrMap &linkedAttrs, int mode,
-    const eos::common::VirtualIdentity &vid);
+  static bool checkContainer(IContainerMD* cont,
+                             const eos::IContainerMD::XAttrMap& linkedAttrs, int mode,
+                             const eos::common::VirtualIdentity& vid);
 
   //----------------------------------------------------------------------------
   //! Check access to the given container - all information required to make
   //! a decision are passed to this function, no external information should
   //! be needed.
   //----------------------------------------------------------------------------
-  static bool checkContainer(IContainerMD *cont, const Acl &acl, int mode,
-    const eos::common::VirtualIdentity &vid);
+  static bool checkContainer(IContainerMD* cont, const Acl& acl, int mode,
+                             const eos::common::VirtualIdentity& vid);
 
   //----------------------------------------------------------------------------
   //! Check access to the given file. The parent directory of the file
   //! needs to be checked separately!
   //----------------------------------------------------------------------------
-  static bool checkFile(IFileMD *file, int mode,
-    const eos::common::VirtualIdentity &vid);
+  static bool checkFile(IFileMD* file, int mode,
+                        const eos::common::VirtualIdentity& vid);
 
   //---------------------------------------------------------------------------------------------------
   //! Test if public access is allowed for a given path
   //---------------------------------------------------------------------------------------------------
-  static std::pair<bool, uint32_t>
-  checkPublicAccess(const std::string &fullpath,
-                         const common::VirtualIdentity& vid);
+  static bool
+  checkPublicAccess(const std::string& fullpath,
+                    const common::VirtualIdentity& vid);
 };
 
 EOSMGMNAMESPACE_END

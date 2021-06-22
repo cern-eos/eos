@@ -100,6 +100,11 @@ public:
   //----------------------------------------------------------------------------
   void replaceCore(const QuotaNodeCore& updated) override;
 
+  //----------------------------------------------------------------------------
+  //! Partial update of underlying QuotaNodeCore object.
+  //----------------------------------------------------------------------------
+  void updateCore(const QuotaNodeCore& updated) override;
+
 private:
   //! Quota quota node uid hash key e.g. quota_node:id:uid
   std::string pQuotaUidKey;
@@ -122,7 +127,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  QuarkQuotaStats(qclient::QClient *qcl, MetadataFlusher *flusher);
+  QuarkQuotaStats(qclient::QClient* qcl, MetadataFlusher* flusher);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -187,7 +192,8 @@ private:
   //----------------------------------------------------------------------------
   static bool ParseQuotaId(const std::string& input, IContainerMD::id_t& id);
 
-  std::map<IContainerMD::id_t, std::unique_ptr<IQuotaNode>> pNodeMap; ///< Map of quota nodes
+  std::map<IContainerMD::id_t, std::unique_ptr<IQuotaNode>>
+      pNodeMap; ///< Map of quota nodes
   qclient::QClient* pQcl; ///< Backend client
   MetadataFlusher* pFlusher; ///< Metadata flusher object
 };

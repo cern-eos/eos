@@ -104,7 +104,7 @@ changes to the **sec.protocol** directive that are clearly explained in the
 XRootD documentation and already present in the provided example.
 
 .. The :ref:`helper script <xrootd-third-party-copy>` refereced in the configuration
-The ``xrootd-third-party-copy.sh`` refereced in the configuration
+The ``xrootd-third-party-copy.sh`` referenced in the configuration
 makes use of specific environment variables exported by the XRootD PSS service
 in the context of the TPC process doing the transfer.
 
@@ -119,7 +119,7 @@ in the context of the TPC process doing the transfer.
 
 
 Once the XRootD gateway is setup, the EOS MGM configuration needs to be updated
-so that any incoming TPC trasnfers with delegated credentials where EOS is the
+so that any incoming TPC transfers with delegated credentials where EOS is the
 destination endpoint are redirected to the gateway node. This is done by adding
 the following directive to the default EOS MGM configuration file located in
 ``/etc/xrd.cf.mgm``:
@@ -146,7 +146,7 @@ package.
 
 .. code-block:: bash
 
-   voms-client-init
+   voms-proxy-init
    voms-proxy-info
    subject   : /DC=ch/DC=cern/OU=Organic Units/OU=Users/CN=foo/CN=007/CN=Foo Bar/CN=220482279
    issuer    : /DC=ch/DC=cern/OU=Organic Units/OU=Users/CN=foo/CN=007/CN=Foo Bar
@@ -194,7 +194,7 @@ for testing the token support against the EOS instance:
 
   - **x509-scitokens-issuer** and **x509-scitokens-issuer-client** that provide
     tools like **macaroon-init** useful when trying to acquire a macaroons for
-    testing purposes
+    testing purposes. They can be found here: http://koji.chtc.wisc.edu/kojifiles/packages/
 
 Support for HTTP(S) access in EOS is provided through an HTTP external handler
 plug-in library which is distributed by default with any EOS version called
@@ -214,14 +214,13 @@ contains a description of the functionality provided.
    # Directory containing CA certificates to be used by the server
    http.cadir /etc/grid-security/certificates/
    # File containing the x509 server certificate
-   http.cert /etc/grid-security/daemon//hostcert.pem
+   http.cert /etc/grid-security/daemon/hostcert.pem
    # File containing the x509 server private key
    http.key /etc/grid-security/daemon/hostkey.pem
    # Path to the "grid map file" to be used for mapping users to specific identities
    http.gridmap /etc/grid-security/grid-mapfile
-   # Load the XrdHttpVOMS security extractor plugin that is able to deal with
-   # proxy certificats and VOMS credentials
-   http.secxtractor libXrdHttpVOMS.so
+   # Load security extractor plugin able to deal with proxy certificates and VOMS credentials
+   http.secxtractor libXrdVoms.so
    # Optionally enable tracing on the HTTP plugin
    http.trace all
    # Load the XrdTpc external handler which deals only with COPY and OPTIONS http
@@ -280,10 +279,10 @@ file is provided below:
    default_user = dteam001
 
 An important configuration option is the **default_user** field which specifies
-the local username (i.e. known to the MGM) that any token issed by the given IAM
+the local username (i.e. known to the MGM) that any token issued by the given IAM
 is mapped to.
 
-Apart from the **MGM**, the **FST** configuration also needs to be updated in
+Apart from the **MGM**, all the **FST** configurations also need to be updated in
 order to support HTTP(XrdHttp) and HTTP TPC access.
 
 .. :caption: Contents of the /etc/xrd.cf.fst file relevant for HTTP config
@@ -449,6 +448,58 @@ To configure the **oidc-agent**, you can follow these steps:
    export SCI_TOKEN=`oidc-token WLCG-<your_username>`
    # Trigger a HTTP download using the SciToken information
    curl -v -L -H "Authorization: Bearer $SCI_TOKEN" https://esdss000.cern.ch:9000/eos/dev/replica/file1.dat
+
+
+To inspect the contents of a SciToken, one can use the following commands:
+
+.. code-block:: bash
+
+    echo $SCI_TOKEN | cut -d. -f2 | base64 --decode | jq .
+    {
+      "wlcg.ver": "1.0",
+      "sub": "faded49c-e1bc-4208-9634-682b2b8d16e5",
+      "aud": "https://wlcg.cern.ch/jwt/v1/any",
+      "nbf": 1613993622,
+      "scope": "address storage.create:/ phone openid offline_access profile storage.read:/ storage.modify:/ email wlcg wlcg.groups",
+      "iss": "https://wlcg.cloud.cnaf.infn.it/",
+      "exp": 1613997222,
+      "iat": 1613993622,
+      "jti": "ea07cad1-f504-4c16-9e22-da5de2876ca7",
+      "client_id": "710b4313-5ff7-4992-a59d-d404ea9d4ac5",
+      "wlcg.groups": [
+                "/wlcg",
+                "/wlcg/xfers"
+       ]
+    }
+
+HTTP TPC PULL transfers with CURL
+----------------------------------
+
+The following snippet provides the steps necessary for obtaining the necessary tokens for doing a HTTP TPC PULL transfer.
+
+.. code-block:: bash
+
+   export SRC=https://esdss000.cern.ch//eos/opstest/esindril/file.dat
+   export DST=https://esdss000.cern.ch//eos/opstest/esindril/file1.dat
+   # Get macaroon for source
+   export TSRC=$(curl --silent --cert /tmp/x509up_u$(id -u) --key /tmp/x509up_u$(id -u) --cacert /tmp/x509up_u$(id -u) --capath /etc/grid-security/certificates -X POST -H 'Content-Type: application/macaroon-request' -d '{"caveats": ["activity:DOWNLOAD"], "validity": "PT3000M"}' "$SRC" | jq -r '.macaroon')
+   # Get macaroon for destination
+   export TDST=$(curl --silent --cert /tmp/x509up_u$(id -u) --key /tmp/x509up_u$(id -u) --cacert /tmp/x509up_u$(id -u) --capath /etc/grid-security/certificates -X POST -H 'Content-Type: application/macaroon-request' -d '{"caveats": ["activity:UPLOAD,DELETE,LIST"], "validity": "PT3000M"}' "$DST" | jq -r '.macaroon')
+   # Trigger HTTP TPC PULL
+   curl -v --capath /etc/grid-security/certificates -L -X COPY -H 'Secure-Redirection: 1' -H 'X-No-Delegate: 1' -H 'Credentials: none' -H "Authorization: Bearer $TDST" -H "TransferHeaderAuthorization: Bearer $TSRC" -H "TransferHeaderTest: Test" -H "Source: $SRC" "$DST"
+
+The same thing now but for a HTTP TPC PUSH transfer.
+
+.. code-block:: bash
+
+   export SRC=https://esdss000.cern.ch//eos/opstest/esindril/xfile.dat
+   export DST=https://esdss000.cern.ch//eos/opstest/esindril/xfile1.dat
+   # Get macaroon for source
+   export TSRC=$(curl --silent --cert /tmp/x509up_u$(id -u) --key /tmp/x509up_u$(id -u) --cacert /tmp/x509up_u$(id -u) --capath /etc/grid-security/certificates -X POST -H 'Content-Type: application/macaroon-request' -d '{"caveats": ["activity:DOWNLOAD"], "validity": "PT3000M"}' "$SRC" | jq -r '.macaroon')
+   # Get macaroon for destination
+   export TDST=$(curl --silent --cert /tmp/x509up_u$(id -u) --key /tmp/x509up_u$(id -u) --cacert /tmp/x509up_u$(id -u) --capath /etc/grid-security/certificates -X POST -H 'Content-Type: application/macaroon-request' -d '{"caveats": ["activity:UPLOAD,DELETE,LIST"], "validity": "PT3000M"}' "$DST" | jq -r '.macaroon')
+   # Trigger HTTP TPC PUSH
+   curl -v --capath /etc/grid-security/certificates -L -X COPY -H 'Secure-Redirection: 1' -H 'X-No-Delegate: 1' -H 'Credentials: none' -H "Authorization: Bearer $TSRC" -H "TransferHeaderAuthorization: Bearer $TDST" -H "Destination: $DST" "$SRC"
 
 
 .. only:: adminmode

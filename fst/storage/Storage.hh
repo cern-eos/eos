@@ -21,9 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_STORAGE_HH__
-#define __EOSFST_STORAGE_HH__
-
+#pragma once
 #include "fst/Namespace.hh"
 #include "common/Logging.hh"
 #include "common/FileSystem.hh"
@@ -80,9 +78,10 @@ public:
   virtual ~Storage();
 
   //----------------------------------------------------------------------------
-  //! Shutdown all helper threads
+  //! General shutdown including stopping the helper threads and also
+  //! cleaning up the registered file systems
   //----------------------------------------------------------------------------
-  void ShutdownThreads();
+  void Shutdown();
 
   //----------------------------------------------------------------------------
   //! Add deletion object to the list of pending ones
@@ -104,16 +103,6 @@ public:
   //! @return number of pending deletions
   //----------------------------------------------------------------------------
   size_t GetNumDeletions();
-
-  //----------------------------------------------------------------------------
-  //! Get the filesystem associated with the given filesystem id
-  //! or NULL if none could be found
-  //!
-  //! @param fsid filesystem id
-  //!
-  //! @return associated filesystem object or NULL
-  //----------------------------------------------------------------------------
-  fst::FileSystem* GetFileSystemById(eos::common::FileSystem::fsid_t fsid);
 
   //----------------------------------------------------------------------------
   //! Push new verification job to the queue if the maximum number of pending
@@ -144,6 +133,56 @@ public:
   //! @return stoage path or empty string if unkown file system id
   //----------------------------------------------------------------------------
   std::string GetStoragePath(eos::common::FileSystem::fsid_t fsid) const;
+
+  //----------------------------------------------------------------------------
+  //! Get configuration associated with the given file system id
+  //!
+  //! @param fsid file system id
+  //! @param key configuration key
+  //!
+  //! @return associated configuration value or empty string if nothing found
+  //----------------------------------------------------------------------------
+  std::string GetFileSystemConfig(eos::common::FileSystem::fsid_t fsid,
+                                  const std::string& key) const;
+
+  //----------------------------------------------------------------------------
+  //! Update inconsistency info for the given file system id
+  //!
+  //! @param fsid file system id
+  //!
+  //! return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool UpdateInconsistencyInfo(eos::common::FileSystem::fsid_t fsid);
+
+  //----------------------------------------------------------------------------
+  //! Cleanup orphans
+  //!
+  //! @param fsid file system id or 0 if cleanup is to be performed for all
+  //!             file systems
+  //! @param err_msg error message
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool CleanupOrphans(eos::common::FileSystem::fsid_t fsid,
+                      std::ostringstream& err_msg);
+
+  //----------------------------------------------------------------------------
+  //! Cleanup orphans on disk
+  //!
+  //! @param mount file system mount path
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool CleanupOrphansDisk(const std::string& mount);
+
+  //----------------------------------------------------------------------------
+  //! Cleanup orphans from local DB
+  //!
+  //! @param fsid file system id
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool CleanupOrphansDb(eos::common::FileSystem::fsid_t fsid);
 
 protected:
   mutable eos::common::RWMutex mFsMutex; ///< Mutex protecting the fs map
@@ -283,6 +322,7 @@ private:
   void MgmSyncer();
   void Boot(fst::FileSystem* fs);
 
+
   //----------------------------------------------------------------------------
   //! Scrub filesystem
   //----------------------------------------------------------------------------
@@ -366,16 +406,29 @@ private:
 
   //----------------------------------------------------------------------------
   //! Check if the selected FST needs to be registered as "full" or "warning"
-  //! CAUTION: mFsMutex must be at-least-read locked before calling
-  //! this function.
+  //! @note  Needs to be called with at least a read lock on the mFsMutex.
   //!
   //! Parameter i is the index into mFsVect.
   //----------------------------------------------------------------------------
   void CheckFilesystemFullness(fst::FileSystem* fs,
                                eos::common::FileSystem::fsid_t fsid);
 
+  //----------------------------------------------------------------------------
+  //! Get the filesystem associated with the given filesystem id
+  //! or NULL if none could be found.
+  //! @note  Needs to be called with at least a read lock on the mFsMutex.
+  //!
+  //! @param fsid filesystem id
+  //!
+  //! @return associated filesystem object or NULL
+  //----------------------------------------------------------------------------
+  fst::FileSystem* GetFileSystemById(eos::common::FileSystem::fsid_t fsid) const;
 
-private:
+  //----------------------------------------------------------------------------
+  //! Shutdown all helper threads
+  //----------------------------------------------------------------------------
+  void ShutdownThreads();
+
   AssistedThread mCommunicatorThread;
   AssistedThread mQdbCommunicatorThread;
   std::set<std::string> mLastRoundFilesystems;
@@ -389,4 +442,3 @@ private:
 };
 
 EOSFSTNAMESPACE_END
-#endif

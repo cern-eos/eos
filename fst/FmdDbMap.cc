@@ -60,6 +60,7 @@ FmdDbMapHandler::FmdDbMapHandler()
   lvdboption.BloomFilterNbits = 0;
   mFsMtxMap.set_deleted_key(std::numeric_limits<FileSystem::fsid_t>::max() - 2);
   mFsMtxMap.set_empty_key(std::numeric_limits<FileSystem::fsid_t>::max() - 1);
+  mSyncMapMutex.SetBlocking(true);
 }
 
 //------------------------------------------------------------------------------
@@ -902,7 +903,7 @@ FmdDbMapHandler::ResyncAllDisk(const char* path,
   paths[1] = 0;
 
   if (flaglayouterror) {
-    mIsSyncing[fsid] = true;
+    SetSyncStatus(fsid, true);
   }
 
   if (!ResetDiskInformation(fsid)) {
@@ -983,7 +984,7 @@ FmdDbMapHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
     // Get an existing record without creating the record !!!
     std::unique_ptr<eos::common::FmdHelper> fmd {
       LocalGetFmd(fMd.mProtoFmd.fid(), fsid, true, false, fMd.mProtoFmd.uid(),
-      fMd.mProtoFmd.gid(), fMd.mProtoFmd.lid())};
+                  fMd.mProtoFmd.gid(), fMd.mProtoFmd.lid())};
 
     if (fmd) {
       // Check if exists on disk
@@ -1060,13 +1061,15 @@ FmdDbMapHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
                               const char* manager)
 {
   if (!ResetMgmInformation(fsid)) {
-    eos_err("failed to reset the mgm information before resyncing");
+    eos_err("%s", "msg=\"failed to reset the mgm information before resyncing\"");
+    SetSyncStatus(fsid, false);
     return false;
   }
 
   std::string tmpfile;
 
   if (!ExecuteDumpmd(manager, fsid, tmpfile)) {
+    SetSyncStatus(fsid, false);
     return false;
   }
 
@@ -1125,7 +1128,7 @@ FmdDbMapHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
     }
   }
 
-  mIsSyncing[fsid] = false;
+  SetSyncStatus(fsid, false);
   return true;
 }
 
@@ -1228,6 +1231,7 @@ FmdDbMapHandler::ResyncAllFromQdb(const QdbContactDetails& contact_details,
 
   if (!ResetMgmInformation(fsid)) {
     eos_err("%s", "msg=\"failed to reset the mgm info before resyncing\"");
+    SetSyncStatus(fsid, false);
     return false;
   }
 
@@ -1341,7 +1345,8 @@ FmdDbMapHandler::ResyncAllFromQdb(const QdbContactDetails& contact_details,
     rate = (num_files * 1000.0) / (double)ms.count();
   }
 
-  eos_info("fsid=%u resynced %llu/%llu files at a rate of %.2f Hz",
+  SetSyncStatus(fsid, false);
+  eos_info("msg=\"fsid=%u resynced %llu/%llu files at a rate of %.2f Hz\"",
            fsid, num_files, total, rate);
   return true;
 }
@@ -1752,6 +1757,33 @@ FmdDbMapHandler::ExcludeUnlinkedLoc(const std::string& slocations)
   }
 
   return oss.str();
+}
+
+//------------------------------------------------------------------------------
+// Check if given file system is currently syncing
+//------------------------------------------------------------------------------
+bool
+FmdDbMapHandler::IsSyncing(eos::common::FileSystem::fsid_t fsid) const
+{
+  eos::common::RWMutexReadLock rd_lock(mSyncMapMutex);
+  const auto it = mIsSyncing.find(fsid);
+
+  if (it == mIsSyncing.end()) {
+    return false;
+  }
+
+  return it->second;
+}
+
+//------------------------------------------------------------------------------
+// Set syncing status of the given file system
+//------------------------------------------------------------------------------
+void
+FmdDbMapHandler::SetSyncStatus(eos::common::FileSystem::fsid_t fsid,
+                               bool is_syncing)
+{
+  eos::common::RWMutexWriteLock wr_lock(mSyncMapMutex);
+  mIsSyncing[fsid] = is_syncing;
 }
 
 EOSFSTNAMESPACE_END

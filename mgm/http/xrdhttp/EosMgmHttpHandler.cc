@@ -74,7 +74,7 @@ extern "C" XrdHttpExtHandler* XrdHttpGetExtHandler(XrdHttpExtHandlerArgs)
   }
 
   if (handler->Config(eDest, confg, parms, myEnv)) {
-    eDest->Emsg("EosMgmHttpHandler", EINVAL, "Faile config of EosMgmHttpHandler");
+    eDest->Emsg("EosMgmHttpHandler", EINVAL, "Failed config of EosMgmHttpHandler");
     delete handler;
     return nullptr;
   }
@@ -182,50 +182,6 @@ OwningXrdSecEntity::CreateFrom(const XrdSecEntity& other)
   *mSecEntity;
 }
 
-//------------------------------------------------------------------------------
-// Standardise VOMS info so that HTTP and XRootD populate the XrdSecEntity in
-// a similar way
-//------------------------------------------------------------------------------
-void
-OwningXrdSecEntity::StandardiseVOMS()
-{
-  // No voms info
-  if ((mSecEntity->grps == nullptr) || (strlen(mSecEntity->grps) == 0)) {
-    return;
-  }
-
-  // The vorg is properly populated we just need to tweak the grps and
-  // endorsements fields. The grps info provided by the secxtractor is in the
-  // form: '/dteam /dteam/Role=NULL /dteam/Role=NULL/Capability=NULL'
-  std::string voms_info {mSecEntity->grps};
-  auto tokens = eos::common::StringTokenizer::split<std::vector<std::string>>
-                (voms_info, ' ');
-
-  if (tokens.size() <= 1) {
-    return;
-  }
-
-  voms_info = *tokens.rbegin();
-  free(mSecEntity->endorsements);
-  mSecEntity->endorsements = strdup(voms_info.c_str());
-  // Extract the group info
-  size_t pos = voms_info.find("/Role=");
-  free(mSecEntity->grps);
-  mSecEntity->grps = strdup(voms_info.substr(0, pos).c_str());
-
-  // Extract the role info
-  if (pos != std::string::npos) {
-    voms_info.erase(0, pos + strlen("/Role="));
-    pos = voms_info.find("/Capability=");
-    free(mSecEntity->role);
-    mSecEntity->role = nullptr;
-
-    if (voms_info.substr(0, pos) != "NULL") {
-      mSecEntity->role = strdup(voms_info.substr(0, pos).c_str());
-    }
-  }
-}
-
 //----------------------------------------------------------------------------
 //! Destructor
 //----------------------------------------------------------------------------
@@ -281,81 +237,79 @@ EosMgmHttpHandler::Config(XrdSysError* eDest, const char* confg,
     }
   }
 
-  if (macaroons_lib_path.empty()) {
-    eos_err("%s", "msg=\"missing mandatory mgmofs.macaroonslib config\"");
-    return 1;
-  }
-
   eos_notice("configuration: redirect-to-https:%d", mRedirectToHttps);
-  // Try to load the XrdHttpGetExtHandler from the libXrdMacaroons library
-  bool no_alt_path = false;
-  char resolve_path[2048];
 
-  if (!XrdOucPinPath(macaroons_lib_path.c_str(), no_alt_path, resolve_path,
-                     sizeof(resolve_path))) {
-    eos_err("msg=\"failed to locate library path\" lib=\"%s\"",
-            macaroons_lib_path.c_str());
-    return 1;
-  }
+  if (!macaroons_lib_path.empty()) {
+    // Try to load the XrdHttpGetExtHandler from the libXrdMacaroons library
+    bool no_alt_path = false;
+    char resolve_path[2048];
 
-  eos_info("msg=\"loading XrdMacaroons(http) plugin\" path=\"%s\"",
-           resolve_path);
-  XrdHttpExtHandler *(*ep)(XrdHttpExtHandlerArgs);
-  std::string http_symbol {"XrdHttpGetExtHandler"};
-  XrdSysPlugin tokens_plugin(eDest, resolve_path, "macaroonslib", &compiledVer,
-                             1);
-  void* http_addr = tokens_plugin.getPlugin(http_symbol.c_str(), 0, 0);
-  tokens_plugin.Persist();
-  ep = (XrdHttpExtHandler * (*)(XrdHttpExtHandlerArgs))(http_addr);
+    if (!XrdOucPinPath(macaroons_lib_path.c_str(), no_alt_path, resolve_path,
+                       sizeof(resolve_path))) {
+      eos_err("msg=\"failed to locate library path\" lib=\"%s\"",
+              macaroons_lib_path.c_str());
+      return 1;
+    }
 
-  if (!http_addr) {
-    eos_err("msg=\"no XrdHttpGetExtHandler entry point in library\" "
-            "lib=\"%s\"", macaroons_lib_path.c_str());
-    return 1;
-  }
+    eos_info("msg=\"loading XrdMacaroons(http) plugin\" path=\"%s\"",
+             resolve_path);
+    XrdHttpExtHandler *(*ep)(XrdHttpExtHandlerArgs);
+    std::string http_symbol {"XrdHttpGetExtHandler"};
+    XrdSysPlugin tokens_plugin(eDest, resolve_path, "macaroonslib",
+                               &compiledVer, 1);
+    void* http_addr = tokens_plugin.getPlugin(http_symbol.c_str(), 0, 0);
+    tokens_plugin.Persist();
+    ep = (XrdHttpExtHandler * (*)(XrdHttpExtHandlerArgs))(http_addr);
 
-  // Add a pointer to the MGM authz handler so that it can be used by the
-  // macaroons library to get access persissions for token requests
-  myEnv->PutPtr("XrdAccAuthorize*", (void*)mMgmOfsHandler->mMgmAuthz);
+    if (!http_addr) {
+      eos_err("msg=\"no XrdHttpGetExtHandler entry point in library\" "
+              "lib=\"%s\"", macaroons_lib_path.c_str());
+      return 1;
+    }
 
-  if (ep && (mTokenHttpHandler = ep(eDest, confg, (const char*) nullptr,
-                                    myEnv))) {
-    eos_info("%s", "msg=\"XrdHttpGetExthandler from libXrdMacaroons loaded "
-             "successfully\"");
-  } else {
-    eos_err("%s", "msg=\"failed loading XrdHttpGetExtHandler from "
-            "libXrdMacaroons\"");
-    return 1;
-  }
+    // Add a pointer to the MGM authz handler so that it can be used by the
+    // macaroons library to get access permissions for token requests
+    myEnv->PutPtr("XrdAccAuthorize*", (void*)mMgmOfsHandler->mMgmAuthz);
 
-  // Load the XrdAccAuthorizeObject provided by the libXrdMacaroons library
-  XrdAccAuthorize *(*authz_ep)(XrdSysLogger*, const char*, const char*);
-  std::string authz_symbol {"XrdAccAuthorizeObject"};
-  void* authz_addr = tokens_plugin.getPlugin(authz_symbol.c_str(), 0, 0);
-  authz_ep = (XrdAccAuthorize * (*)(XrdSysLogger*, const char*,
-                                    const char*))(authz_addr);
-  // The "authz_parms" argument needs to be set to
-  // [<sci_tokens_lib_path>] <libEosMgmOfs.so>
-  // so that the XrdMacaroons library properly chains the various authz plugins
-  std::string authz_parms = "libXrdEosMgm.so";
+    if (ep && (mTokenHttpHandler = ep(eDest, confg, (const char*) nullptr,
+                                      myEnv))) {
+      eos_info("%s", "msg=\"XrdHttpGetExthandler from libXrdMacaroons loaded "
+               "successfully\"");
+    } else {
+      eos_err("%s", "msg=\"failed loading XrdHttpGetExtHandler from "
+              "libXrdMacaroons\"");
+      return 1;
+    }
 
-  if (!scitokens_lib_path.empty()) {
-    std::ostringstream oss;
-    oss <<  scitokens_lib_path << " " << authz_parms;;
-    authz_parms = oss.str();
-  }
+    // Load the XrdAccAuthorizeObject provided by the libXrdMacaroons library
+    XrdAccAuthorize *(*authz_ep)(XrdSysLogger*, const char*, const char*);
+    std::string authz_symbol {"XrdAccAuthorizeObject"};
+    void* authz_addr = tokens_plugin.getPlugin(authz_symbol.c_str(), 0, 0);
+    authz_ep = (XrdAccAuthorize * (*)(XrdSysLogger*, const char*,
+                                      const char*))(authz_addr);
+    // The "authz_parms" argument needs to be set to
+    // [<sci_tokens_lib_path>] <libEosMgmOfs.so>
+    // so that the XrdMacaroons library properly chains the various authz plugins
+    std::string authz_parms = "libXrdEosMgm.so";
 
-  if (authz_ep &&
-      (mTokenAuthzHandler = authz_ep(eDest->logger(), confg,
-                                     (authz_parms.empty() ?
-                                      nullptr : authz_parms.c_str())))) {
-    eos_info("%s", "msg=\"XrdAccAuthorizeObject from libXrdMacaroons loaded "
-             "successfully\"");
-    mMgmOfsHandler->SetTokenAuthzHandler(mTokenAuthzHandler);
-  } else {
-    eos_err("%s", "msg=\"failed loading XrdAccAuthorizeObject from "
-            "libXrdMacaroons\"");
-    return 1;
+    if (!scitokens_lib_path.empty()) {
+      std::ostringstream oss;
+      oss <<  scitokens_lib_path << " " << authz_parms;
+      authz_parms = oss.str();
+    }
+
+    if (authz_ep &&
+        (mTokenAuthzHandler = authz_ep(eDest->logger(), confg,
+                                       (authz_parms.empty() ?
+                                        nullptr : authz_parms.c_str())))) {
+      eos_info("%s", "msg=\"XrdAccAuthorizeObject from libXrdMacaroons loaded "
+               "successfully\"");
+      mMgmOfsHandler->SetTokenAuthzHandler(mTokenAuthzHandler);
+    } else {
+      eos_err("%s", "msg=\"failed loading XrdAccAuthorizeObject from "
+              "libXrdMacaroons\"");
+      return 1;
+    }
   }
 
   return 0;
@@ -389,6 +343,13 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
   // @todo(esindril): handle redirection to new MGM master if the
   // current one is a slave
 
+  // Stop accepting requests if the MGM started the shutdown procedure
+  if (mMgmOfsHandler->Shutdown) {
+    std::string errmsg = "MGM daemon is shutting down";
+    return req.SendSimpleResp(500, errmsg.c_str(), "", errmsg.c_str(),
+                              errmsg.length());
+  }
+
   if (req.verb == "POST") {
     // Delegate request to the XrdMacaroons library
     eos_info("%s", "msg=\"delegate request to XrdMacaroons library\"");
@@ -414,7 +375,6 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
 
   std::string query;
   OwningXrdSecEntity client(req.GetSecEntity());
-  client.StandardiseVOMS();
 
   // Native XrdHttp access
   if (normalized_headers.find("x-forwarded-for") == normalized_headers.end()) {
@@ -432,7 +392,8 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
 
     // Make a copy of the original XrdSecEntity so that the authorization plugin
     // can update the name of the client from the macaroon info
-    if (mTokenAuthzHandler->Access(client.GetObj(), path.c_str(), oper,
+    if (mTokenAuthzHandler &&
+        mTokenAuthzHandler->Access(client.GetObj(), path.c_str(), oper,
                                    env.get()) == XrdAccPriv_None) {
       eos_static_err("msg=\"(token) authorization failed\" path=\"%s\"",
                      path.c_str());

@@ -78,11 +78,13 @@ int fusexrdlogin::loginurl(XrdCl::URL& url,
                   connection_id);
 }
 
-std::string fusexrdlogin::executable(fuse_req_t req) {
+std::string fusexrdlogin::executable(fuse_req_t req)
+{
   fuse_id id(req);
   ProcessSnapshot snapshot =
-    (id.pid)?processCache->retrieve(id.pid, id.uid, id.gid,
-				    false) : 0;
+    (id.pid) ? processCache->retrieve(id.pid, id.uid, id.gid,
+                                      false) : 0;
+
   if (snapshot) {
     return fillExeName(snapshot->getExe());
   } else {
@@ -143,11 +145,11 @@ std::string fusexrdlogin::xrd_login(fuse_req_t req)
     login = "unix";
   }
 
-  eos_static_notice("uid=%u gid=%u xrd-login=%s",
-                    id.uid,
-                    id.gid,
-                    login.c_str()
-                   );
+  eos_static_info("uid=%u gid=%u xrd-login=%s",
+                  id.uid,
+                  id.gid,
+                  login.c_str()
+                 );
   return login;
 }
 

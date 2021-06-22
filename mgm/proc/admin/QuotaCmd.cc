@@ -27,6 +27,7 @@
 #include "mgm/Acl.hh"
 #include "mgm/Stat.hh"
 #include "mgm/Quota.hh"
+#include "common/Path.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -44,18 +45,23 @@ QuotaCmd::ProcessRequest() noexcept
   case eos::console::QuotaProto::kLsuser:
     LsuserSubcmd(quota.lsuser(), reply);
     break;
+
   case eos::console::QuotaProto::kLs:
     LsSubcmd(quota.ls(), reply);
     break;
+
   case eos::console::QuotaProto::kSet:
     SetSubcmd(quota.set(), reply);
     break;
+
   case eos::console::QuotaProto::kRm:
     RmSubcmd(quota.rm(), reply);
     break;
+
   case eos::console::QuotaProto::kRmnode:
     RmnodeSubcmd(quota.rmnode(), reply);
     break;
+
   default:
     reply.set_retc(EINVAL);
     reply.set_std_err("error: not supported");
@@ -67,24 +73,29 @@ QuotaCmd::ProcessRequest() noexcept
 //------------------------------------------------------------------------------
 // Execute lsuser subcommand
 //------------------------------------------------------------------------------
-void QuotaCmd::LsuserSubcmd(const eos::console::QuotaProto_LsuserProto& lsuser, eos::console::ReplyProto& reply)
+void QuotaCmd::LsuserSubcmd(const eos::console::QuotaProto_LsuserProto& lsuser,
+                            eos::console::ReplyProto& reply)
 {
   std::ostringstream std_out, std_err;
   int ret_c = 0;
-
   gOFS->MgmStats.Add("Quota", mVid.uid, mVid.gid, 1);
   std::string space = lsuser.space();
+  bool exists = false;
 
   if (!space.empty()) {
     XrdOucErrInfo mError;
     // evt. correct the space variable to be a directory path (+/)
-    struct stat buf{};
+    struct stat buf {};
     std::string sspace = space;
+
     if (sspace[sspace.length() - 1] != '/') {
       sspace += '/';
     }
-    if (!gOFS->_stat(sspace.c_str(), &buf, mError, mVid, nullptr)) { // @note no.01 Where is the info in mError is going?
+
+    if (!gOFS->_stat(sspace.c_str(), &buf, mError, mVid,
+                     nullptr)) { // @note no.01 Where is the info in mError is going?
       space = sspace;
+      exists = true;
     }
   }
 
@@ -95,9 +106,29 @@ void QuotaCmd::LsuserSubcmd(const eos::console::QuotaProto_LsuserProto& lsuser, 
     return;
   }
 
+  if (!exists && lsuser.exists()) {
+    reply.set_retc(ENOENT);
+    reply.set_std_err("error: the given path does not exist!");
+    return;
+  }
+
+  if (lsuser.quotanode()) {
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                      __FILE__);
+    // check if this is a quotanode
+    std::string quota_node_path = Quota::GetResponsibleSpaceQuotaPath(space);
+    eos::common::Path qPath(quota_node_path.c_str());
+    eos::common::Path sPath(space.c_str());
+
+    if (std::string(qPath.GetPath()) != std::string(sPath.GetPath())) {
+      reply.set_retc(ENOENT);
+      reply.set_std_err("error: the given path is not a quotanode!");
+      return;
+    }
+  }
+
   XrdOucString out {""};
   auto monitoring = lsuser.format() || WantsJsonOutput();
-
   bool is_ok = Quota::PrintOut(space, out, mVid.uid, -1, monitoring, true);
 
   if (is_ok && out.length()) {
@@ -142,37 +173,46 @@ void QuotaCmd::LsuserSubcmd(const eos::console::QuotaProto_LsuserProto& lsuser, 
 //------------------------------------------------------------------------------
 // Execute ls subcommand
 //------------------------------------------------------------------------------
-void QuotaCmd::LsSubcmd(const eos::console::QuotaProto_LsProto& ls, eos::console::ReplyProto& reply)
+void QuotaCmd::LsSubcmd(const eos::console::QuotaProto_LsProto& ls,
+                        eos::console::ReplyProto& reply)
 {
   std::ostringstream std_out, std_err;
   bool canQuota;
   int ret_c = 0;
-
   XrdOucErrInfo mError;
   int errc;
-
   gOFS->MgmStats.Add("Quota", mVid.uid, mVid.gid, 1);
   std::string space = ls.space();
   auto monitoring = ls.format() || WantsJsonOutput();
 
   if (!space.empty()) {
     // evt. correct the space variable to be a directory path (+/)
-    struct stat buf{};
     std::string sspace = space;
+    struct stat buf {};
+
     if (sspace[sspace.length() - 1] != '/') {
       sspace += '/';
     }
+
     if (!gOFS->_stat(sspace.c_str(), &buf, mError, mVid, nullptr)) { // @note no.01
       space = sspace;
+    } else {
+      if (ls.exists()) {
+        reply.set_retc(ENOENT);
+        reply.set_std_err("error: the given path does not exist!");
+        return;
+      }
     }
   }
 
-  if ((!mVid.uid) || mVid.hasUid(3) || mVid.hasGid(4)) { // @note no.03 before 'vid' was used, using 'mVid' now
+  if ((!mVid.uid) || mVid.hasUid(3) ||
+      mVid.hasGid(4)) { // @note no.03 before 'vid' was used, using 'mVid' now
     // root and admin can set quota
     canQuota = true;
   } else {
     // figure out if the authenticated user is a quota admin
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                      __FILE__);
     eos::IContainerMD::XAttrMap attrmap;
 
     if (space[0] != '/') {
@@ -181,6 +221,7 @@ void QuotaCmd::LsSubcmd(const eos::console::QuotaProto_LsProto& ls, eos::console
     } else {
       // effectively check ACLs on the quota node directory if it can be retrieved
       std::string quota_node_path = Quota::GetResponsibleSpaceQuotaPath(space);
+
       if (quota_node_path.length()) {
         space = quota_node_path;
       }
@@ -191,6 +232,20 @@ void QuotaCmd::LsSubcmd(const eos::console::QuotaProto_LsProto& ls, eos::console
     canQuota = acl.CanSetQuota();
   }
 
+  if (ls.quotanode()) {
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                      __FILE__);
+    // check if this is a quotanode
+    std::string quota_node_path = Quota::GetResponsibleSpaceQuotaPath(space);
+    eos::common::Path qPath(quota_node_path.c_str());
+    eos::common::Path sPath(space.c_str());
+
+    if (std::string(qPath.GetPath()) != std::string(sPath.GetPath())) {
+      reply.set_retc(ENOENT);
+      reply.set_std_err("error: the given path is not a quotanode!");
+      return;
+    }
+  }
 
   if (!canQuota) {
     reply.set_retc(EPERM);
@@ -199,12 +254,12 @@ void QuotaCmd::LsSubcmd(const eos::console::QuotaProto_LsProto& ls, eos::console
   }
 
   eos_notice("msg=\"quota ls\" space=%s", space.c_str());
-
   XrdOucString out1 {""};
   XrdOucString out2 {""};
-
-  long long int uid = (ls.uid().empty() ? -1LL : eos::common::Mapping::UserNameToUid(ls.uid(), errc));
-  long long int gid = (ls.gid().empty() ? -1LL : eos::common::Mapping::GroupNameToGid(ls.gid(), errc));
+  long long int uid = (ls.uid().empty() ? -1LL :
+                       eos::common::Mapping::UserNameToUid(ls.uid(), errc));
+  long long int gid = (ls.gid().empty() ? -1LL :
+                       eos::common::Mapping::GroupNameToGid(ls.gid(), errc));
 
   if ((uid != -1LL) && (gid != -1LL)) {
     // Print both uid and gid info
@@ -241,33 +296,31 @@ void QuotaCmd::LsSubcmd(const eos::console::QuotaProto_LsProto& ls, eos::console
 //------------------------------------------------------------------------------
 // Execute set subcommand
 //------------------------------------------------------------------------------
-void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set, eos::console::ReplyProto& reply)
+void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set,
+                         eos::console::ReplyProto& reply)
 {
   std::ostringstream std_out, std_err;
   int ret_c = 0;
-
   XrdOucErrInfo mError;
-
   int errc;
   long id = 0;
   Quota::IdT id_type;
-
-
   gOFS->MgmStats.Add("Quota", mVid.uid, mVid.gid, 1);
   std::string space = set.space();
 
   if (!space.empty()) {
     // evt. correct the space variable to be a directory path (+/)
-    struct stat buf{};
+    struct stat buf {};
     std::string sspace = space;
+
     if (sspace[sspace.length() - 1] != '/') {
       sspace += '/';
     }
+
     if (!gOFS->_stat(sspace.c_str(), &buf, mError, mVid, nullptr)) { // @note no.01
       space = sspace;
     }
   }
-
 
   bool canQuota;
 
@@ -276,7 +329,8 @@ void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set, eos::cons
     canQuota = true;
   } else {
     // figure out if the authenticated user is a quota admin
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                      __FILE__);
     eos::IContainerMD::XAttrMap attrmap;
 
     if (space[0] != '/') {
@@ -285,6 +339,7 @@ void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set, eos::cons
     } else {
       // effectively check ACLs on the quota node directory if it can be retrieved
       std::string quota_node_path = Quota::GetResponsibleSpaceQuotaPath(space);
+
       if (quota_node_path.length()) {
         space = quota_node_path;
       }
@@ -295,13 +350,11 @@ void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set, eos::cons
     canQuota = acl.CanSetQuota();
   }
 
-
   if (!canQuota) {
     reply.set_retc(EPERM);
     reply.set_std_err("error: you are not a quota administrator!");
     return;
   }
-
 
   if (!(mVid.prot != "sss") && !mVid.isLocalhost()) {
     reply.set_retc(EPERM);
@@ -311,9 +364,8 @@ void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set, eos::cons
 
   eos_notice("quota set");
   std::string msg;
+  struct stat buf {};
 
-
-  struct stat buf{};
   if (space.empty()) {
     reply.set_retc(EINVAL);
     reply.set_std_err("error: command not properly formatted");
@@ -335,6 +387,7 @@ void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set, eos::cons
   if (set.uid().length()) {
     id_type = Quota::IdT::kUid;
     id = eos::common::Mapping::UserNameToUid(set.uid(), errc);
+
     if (errc == EINVAL) {
       reply.set_retc(EINVAL);
       reply.set_std_err("error: unable to translate uid=" + set.uid());
@@ -343,6 +396,7 @@ void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set, eos::cons
   } else if (set.gid().length()) {
     id_type = Quota::IdT::kGid;
     id = eos::common::Mapping::GroupNameToGid(set.gid(), errc);
+
     if (errc == EINVAL) {
       reply.set_retc(EINVAL);
       reply.set_std_err("error: unable to translate gid=" + set.gid());
@@ -354,16 +408,18 @@ void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set, eos::cons
     return;
   }
 
-
   // Deal with volume quota
-  unsigned long long size = eos::common::StringConversion::GetDataSizeFromString(set.maxbytes());
+  unsigned long long size = eos::common::StringConversion::GetDataSizeFromString(
+                              set.maxbytes());
+
   if (set.maxbytes().length() && ((errno == EINVAL) || (errno == ERANGE))) {
     reply.set_retc(EINVAL);
     reply.set_std_err("error: the volume quota you specified is not a valid number");
     return;
   } else if (set.maxbytes().length()) {
     // Set volume quota
-    if (!Quota::SetQuotaTypeForId(space, id, id_type, Quota::Type::kVolume, size, msg, ret_c)) {
+    if (!Quota::SetQuotaTypeForId(space, id, id_type, Quota::Type::kVolume, size,
+                                  msg, ret_c)) {
       std_err.str(msg);
       return;
     } else {
@@ -372,14 +428,17 @@ void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set, eos::cons
   }
 
   // Deal with inode quota
-  unsigned long long inodes = eos::common::StringConversion::GetSizeFromString(set.maxinodes());
+  unsigned long long inodes = eos::common::StringConversion::GetSizeFromString(
+                                set.maxinodes());
+
   if (set.maxinodes().length() && (errno == EINVAL)) {
     reply.set_retc(EINVAL);
     reply.set_std_err("error: the inode quota you specified is not a valid number");
     return;
   } else if (set.maxinodes().length()) {
     // Set inode quota
-    if (!Quota::SetQuotaTypeForId(space, id, id_type, Quota::Type::kInode, inodes, msg, ret_c)) {
+    if (!Quota::SetQuotaTypeForId(space, id, id_type, Quota::Type::kInode, inodes,
+                                  msg, ret_c)) {
       std_err << msg;
       return;
     } else {
@@ -401,31 +460,30 @@ void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set, eos::cons
 //------------------------------------------------------------------------------
 // Execute rm subcommand
 //------------------------------------------------------------------------------
-void QuotaCmd::RmSubcmd(const eos::console::QuotaProto_RmProto& rm, eos::console::ReplyProto& reply)
+void QuotaCmd::RmSubcmd(const eos::console::QuotaProto_RmProto& rm,
+                        eos::console::ReplyProto& reply)
 {
   int ret_c = 0;
-
   XrdOucErrInfo mError;
-
   int errc;
   long id = 0;
   Quota::IdT id_type;// = Quota::IdT::kUid;
-
   gOFS->MgmStats.Add("Quota", mVid.uid, mVid.gid, 1);
   std::string space = rm.space();
 
   if (!space.empty()) {
     // evt. correct the space variable to be a directory path (+/)
-    struct stat buf{};
+    struct stat buf {};
     std::string sspace = space;
+
     if (sspace[sspace.length() - 1] != '/') {
       sspace += '/';
     }
+
     if (!gOFS->_stat(sspace.c_str(), &buf, mError, mVid, nullptr)) { // @note no.01
       space = sspace;
     }
   }
-
 
   bool canQuota;
 
@@ -434,7 +492,8 @@ void QuotaCmd::RmSubcmd(const eos::console::QuotaProto_RmProto& rm, eos::console
     canQuota = true;
   } else {
     // figure out if the authenticated user is a quota admin
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                      __FILE__);
     eos::IContainerMD::XAttrMap attrmap;
 
     if (space[0] != '/') {
@@ -443,6 +502,7 @@ void QuotaCmd::RmSubcmd(const eos::console::QuotaProto_RmProto& rm, eos::console
     } else {
       // effectively check ACLs on the quota node directory if it can be retrieved
       std::string quota_node_path = Quota::GetResponsibleSpaceQuotaPath(space);
+
       if (quota_node_path.length()) {
         space = quota_node_path;
       }
@@ -453,13 +513,11 @@ void QuotaCmd::RmSubcmd(const eos::console::QuotaProto_RmProto& rm, eos::console
     canQuota = acl.CanSetQuota();
   }
 
-
   if (!canQuota) {
     reply.set_retc(EPERM);
     reply.set_std_err("error: you are not a quota administrator!");
     return;
   }
-
 
   if (!(mVid.prot != "sss") && !mVid.isLocalhost()) {
     reply.set_retc(EPERM);
@@ -482,6 +540,7 @@ void QuotaCmd::RmSubcmd(const eos::console::QuotaProto_RmProto& rm, eos::console
   if (rm.uid().length()) {
     id_type = Quota::IdT::kUid;
     id = eos::common::Mapping::UserNameToUid(rm.uid(), errc);
+
     if (errc == EINVAL) {
       reply.set_std_err("error: unable to translate uid=" + rm.uid());
       reply.set_retc(EINVAL);
@@ -490,6 +549,7 @@ void QuotaCmd::RmSubcmd(const eos::console::QuotaProto_RmProto& rm, eos::console
   } else if (rm.gid().length()) {
     id_type = Quota::IdT::kGid;
     id = eos::common::Mapping::GroupNameToGid(rm.gid(), errc);
+
     if (errc == EINVAL) {
       reply.set_std_err("error: unable to translate gid=" + rm.gid());
       reply.set_retc(EINVAL);
@@ -504,22 +564,25 @@ void QuotaCmd::RmSubcmd(const eos::console::QuotaProto_RmProto& rm, eos::console
   std::string ret_msg;
 
   if (rm.type() == eos::console::QuotaProto::RmProto::NONE) {
-    if (Quota::RmQuotaForId(space, id, id_type, ret_msg, ret_c))
-      reply.set_std_out(ret_msg); //std_out = ret_msg;
-    else
-      reply.set_std_err(ret_msg); //std_err = ret_msg;
-  }
-  else if (rm.type() == eos::console::QuotaProto::RmProto::VOLUME) {
-    if (Quota::RmQuotaTypeForId(space, id, id_type, Quota::Type::kVolume, ret_msg, ret_c))
-      reply.set_std_out(ret_msg); //std_out = ret_msg;
-    else
-      reply.set_std_err(ret_msg); //std_err = ret_msg;
-  }
-  else if (rm.type() == eos::console::QuotaProto::RmProto::INODE) {
-    if (Quota::RmQuotaTypeForId(space, id, id_type, Quota::Type::kInode, ret_msg, ret_c))
-      reply.set_std_out(ret_msg); //std_out = ret_msg;
-    else
-      reply.set_std_err(ret_msg); //std_err = ret_msg;
+    if (Quota::RmQuotaForId(space, id, id_type, ret_msg, ret_c)) {
+      reply.set_std_out(ret_msg);  //std_out = ret_msg;
+    } else {
+      reply.set_std_err(ret_msg);  //std_err = ret_msg;
+    }
+  } else if (rm.type() == eos::console::QuotaProto::RmProto::VOLUME) {
+    if (Quota::RmQuotaTypeForId(space, id, id_type, Quota::Type::kVolume, ret_msg,
+                                ret_c)) {
+      reply.set_std_out(ret_msg);  //std_out = ret_msg;
+    } else {
+      reply.set_std_err(ret_msg);  //std_err = ret_msg;
+    }
+  } else if (rm.type() == eos::console::QuotaProto::RmProto::INODE) {
+    if (Quota::RmQuotaTypeForId(space, id, id_type, Quota::Type::kInode, ret_msg,
+                                ret_c)) {
+      reply.set_std_out(ret_msg);  //std_out = ret_msg;
+    } else {
+      reply.set_std_err(ret_msg);  //std_err = ret_msg;
+    }
   }
 
 //  reply.set_std_out(ret_msg);
@@ -530,13 +593,14 @@ void QuotaCmd::RmSubcmd(const eos::console::QuotaProto_RmProto& rm, eos::console
 //------------------------------------------------------------------------------
 // Execute rmnode subcommand
 //------------------------------------------------------------------------------
-void QuotaCmd::RmnodeSubcmd(const eos::console::QuotaProto_RmnodeProto& rmnode, eos::console::ReplyProto& reply)
+void QuotaCmd::RmnodeSubcmd(const eos::console::QuotaProto_RmnodeProto& rmnode,
+                            eos::console::ReplyProto& reply)
 {
   eos_notice("quota rmnode");
 
-  if (mVid.uid != 0) {
+  if ((mVid.uid != 0) && (mVid.uid != 3)) {
     reply.set_retc(EPERM);
-    reply.set_std_err("error: you cannot remove quota nodes without having the root role!");
+    reply.set_std_err("error: you cannot remove quota nodes without having the root or adm role!");
     return;
   }
 

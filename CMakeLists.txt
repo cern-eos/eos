@@ -222,6 +222,11 @@ if (ASAN)
   LIST(APPEND RPM_OPTIONS --with asan)
 endif()
 
+option(NO_SSE "Build without sse instruction set" OFF)
+if (NO_SSE)
+  LIST(APPEND RPM_OPTIONS --with no_sse)
+endif()
+
 add_custom_target(
   srpm
   COMMAND rpmbuild -ts ${EOS_ARCHIVE} --define "_topdir ${CMAKE_BINARY_DIR}" ${SRPM_DEFINE} ${RPM_OPTIONS})

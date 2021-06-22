@@ -28,6 +28,7 @@
 #include "fst/Verify.hh"
 #include "fst/Deletion.hh"
 #include "fst/txqueue/TransferQueue.hh"
+#include "fst/XrdFstOss.hh"
 #include "common/FileSystem.hh"
 #include "common/Path.hh"
 #include "common/StringConversion.hh"
@@ -36,7 +37,7 @@
 #include "MonitorVarPartition.hh"
 #include <google/dense_hash_map>
 #include <math.h>
-#include "fst/XrdFstOss.hh"
+#include <filesystem>
 
 extern eos::fst::XrdFstOss* XrdOfsOss;
 
@@ -170,11 +171,10 @@ Storage::Storage(const char* meta_dir)
   mThreadSet.insert(tid);
   eos_info("starting filesystem communication thread");
 
-  if(gOFS.mMessagingRealm->haveQDB()) {
+  if (gOFS.mMessagingRealm->haveQDB()) {
     mQdbCommunicatorThread.reset(&Storage::QdbCommunicator, this);
     mQdbCommunicatorThread.setName("QDB Communicator Thread");
-  }
-  else {
+  } else {
     mCommunicatorThread.reset(&Storage::Communicator, this);
     mCommunicatorThread.setName("Communicator Thread");
   }
@@ -192,7 +192,6 @@ Storage::Storage(const char* meta_dir)
   eos_info("starting filesystem publishing thread");
   mPublisherThread.reset(&Storage::Publish, this);
   mPublisherThread.setName("Publisher Thread");
-
   eos_info("starting filesystem balancer thread");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsBalancer,
@@ -203,7 +202,6 @@ Storage::Storage(const char* meta_dir)
   }
 
   mThreadSet.insert(tid);
-
   eos_info("starting mgm synchronization thread");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartMgmSyncer,
@@ -254,6 +252,39 @@ Storage::~Storage()
 }
 
 //------------------------------------------------------------------------------
+// General shutdown including stopping the helper threads and also
+// cleaning up the registered file systems
+//------------------------------------------------------------------------------
+void
+Storage::Shutdown()
+{
+  ShutdownThreads();
+  // Collect all the file systems to be deleted and then trigger the actual
+  // deletion outside the mFsMutex to avoid any deadlocks
+  std::set<eos::fst::FileSystem*> set_fs;
+  {
+    eos::common::RWMutexWriteLock wr_lock(mFsMutex);
+
+    for (auto* ptr_fs : mFsVect) {
+      set_fs.insert(ptr_fs);
+    }
+
+    for (auto& elem : mFsMap) {
+      set_fs.insert(elem.second);
+    }
+
+    mFsVect.clear();
+    mFsMap.clear();
+  }
+
+  for (auto& ptr_fs : set_fs) {
+    eos_static_warning("msg=\"deleting file system\" fsid=%lu",
+                       ptr_fs->GetLocalId());
+    delete ptr_fs;
+  }
+}
+
+//------------------------------------------------------------------------------
 // Shutdown all helper threads
 //------------------------------------------------------------------------------
 void
@@ -262,7 +293,7 @@ Storage::ShutdownThreads()
   XrdSysMutexHelper scope_lock(mThreadsMutex);
 
   for (auto it = mThreadSet.begin(); it != mThreadSet.end(); it++) {
-    eos_warning("op=shutdown threadid=%llx", (unsigned long long) *it);
+    eos_warning("op=shutdown thread_id=%llx", (unsigned long long) *it);
     XrdSysThread::Cancel(*it);
   }
 }
@@ -386,18 +417,18 @@ Storage::Boot(FileSystem* fs)
     gOFS.WNoDeleteOnCloseFid[fsid].set_deleted_key(0);
   }
 
+  std::string fmd_on_disk = getenv("EOS_FST_FMD_ON_DATA_DISK") ?
+                            getenv("EOS_FST_FMD_ON_DATA_DISK") : "";
+  std::string metadir = (fmd_on_disk == "1") ? fs->GetPath() : mMetaDir.c_str();
 
-  std::string fmd_on_disk = getenv("EOS_FST_FMD_ON_DATA_DISK")?getenv("EOS_FST_FMD_ON_DATA_DISK"):"";
-
-  std::string metadir = (fmd_on_disk=="1")? fs->GetPath() : mMetaDir.c_str();
-
-  if ( fmd_on_disk == "1") {
+  if (fmd_on_disk == "1") {
     // e.g. we store on /data01/.eosmd/<leveldb>
     if (metadir.back() != '/') {
-      metadir+="/";
+      metadir += "/";
     }
+
     metadir += ".eosmd/";
-    eos::common::Path cPath( std::string(metadir + "dummy").c_str());
+    eos::common::Path cPath(std::string(metadir + "dummy").c_str());
     cPath.MakeParentPath(S_IRWXU | S_IRGRP | S_IXGRP);
   }
 
@@ -773,7 +804,7 @@ Storage::GetNumDeletions()
 // Get the filesystem associated with the given filesystem id
 //------------------------------------------------------------------------------
 FileSystem*
-Storage::GetFileSystemById(eos::common::FileSystem::fsid_t fsid)
+Storage::GetFileSystemById(eos::common::FileSystem::fsid_t fsid) const
 {
   auto it = mFsMap.find(fsid);
 
@@ -782,6 +813,41 @@ Storage::GetFileSystemById(eos::common::FileSystem::fsid_t fsid)
   }
 
   return nullptr;
+}
+
+//------------------------------------------------------------------------------
+// Get configuration associated with the given file system id
+//------------------------------------------------------------------------------
+std::string
+Storage::GetFileSystemConfig(eos::common::FileSystem::fsid_t fsid,
+                             const std::string& key) const
+{
+  std::string value;
+  eos::common::RWMutexReadLock fs_rd_lock(mFsMutex);
+  FileSystem* fs = GetFileSystemById(fsid);
+
+  if (fs) {
+    value = fs->GetString(key.c_str());
+  }
+
+  return value;
+}
+
+//------------------------------------------------------------------------------
+// Update inconsistency info for the given file system id
+//------------------------------------------------------------------------------
+bool
+Storage::UpdateInconsistencyInfo(eos::common::FileSystem::fsid_t fsid)
+{
+  eos::common::RWMutexReadLock fs_rd_lock(mFsMutex);
+  FileSystem* fs = GetFileSystemById(fsid);
+
+  if (fs) {
+    fs->UpdateInconsistencyInfo();
+    return true;
+  }
+
+  return false;
 }
 
 //------------------------------------------------------------------------------
@@ -1008,6 +1074,121 @@ Storage::GetStoragePath(eos::common::FileSystem::fsid_t fsid) const
   }
 
   return path;
+}
+
+
+//------------------------------------------------------------------------------
+// Cleanup orphans
+//------------------------------------------------------------------------------
+bool
+Storage::CleanupOrphans(eos::common::FileSystem::fsid_t fsid,
+                        std::ostringstream& err_msg)
+{
+  bool success = true;
+  std::map<eos::common::FileSystem::fsid_t, std::string> map;
+  {
+    eos::common::RWMutexReadLock rd_lock(mFsMutex);
+
+    for (const auto& elem : mFsMap) {
+      if (elem.second->GetStatus() != eos::common::BootStatus::kBooted) {
+        err_msg << "skip orphans clean up for not-booted file system fsid="
+                << elem.first << std::endl;
+        eos_static_warning("msg=\"skip orphans clean up for not-booted file "
+                           "system\" fsid=%lu", elem.first);
+        success = false;
+
+        if (fsid == 0ul) {
+          continue; // best-effort for general cleanup
+        } else {
+          break;
+        }
+      }
+
+      if (fsid == 0ul) {
+        map.emplace(elem.first, elem.second->GetPath());
+      } else {
+        if (fsid == elem.first) {
+          map.emplace(elem.first, elem.second->GetPath());
+          break;
+        }
+      }
+    }
+  }
+
+  // Perform the actual cleanup for the selected file systems
+  for (const auto& elem : map) {
+    if (!CleanupOrphansDisk(elem.second)) {
+      err_msg << "error: failed orphans cleanup on disk fsid="
+              << elem.first << std::endl;
+      eos_static_err("msg=\"failed orphans cleanup on disk\" fsid=%lu",
+                     elem.first);
+      success = false;
+    }
+
+    if (!CleanupOrphansDb(elem.first)) {
+      err_msg << "error: failed orphans cleanup in db fsid="
+              << elem.first << std::endl;
+      eos_static_err("msg=\"failed orphans cleanup in db\" fsid=%lu",
+                     elem.first);
+      success = false;
+    }
+  }
+
+  return success;
+}
+
+//------------------------------------------------------------------------------
+// Cleanup orphans on disk
+//------------------------------------------------------------------------------
+bool
+Storage::CleanupOrphansDisk(const std::string& mount)
+{
+  bool success = true;
+  eos_static_info("msg=\"doing orphans cleanup on disk\" path=\"%s\"",
+                  mount.c_str());
+  std::string path_orphans = mount + "/.eosorphans/";
+
+  for (auto& entry : std::filesystem::directory_iterator(path_orphans)) {
+    if (std::filesystem::is_regular_file(entry.status())) {
+      eos_static_info("msg=\"delete orphan entry\" path=\"%s\"",
+                      entry.path().c_str());
+
+      if (!std::filesystem::remove(entry.path())) {
+        eos_static_info("msg=\"delete failed\" path=\"%s\"",
+                        entry.path().c_str());
+        success = false;
+      }
+    }
+  }
+
+  return success;
+}
+
+//------------------------------------------------------------------------------
+// Cleanup orphans from local DB
+//------------------------------------------------------------------------------
+bool
+Storage::CleanupOrphansDb(eos::common::FileSystem::fsid_t fsid)
+{
+  eos_static_info("msg=\"doing orphans cleanup in db\" fsid=%lu", fsid);
+  std::set<eos::common::FileId::fileid_t> set_orphans;
+  {
+    eos::common::RWMutexReadLock rd_lock(mFsMutex);
+    auto it_fs = mFsMap.find(fsid);
+
+    if (it_fs == mFsMap.end()) {
+      eos_static_err("msg=\"unknown file system id\" fsid=%lu", fsid);
+      return false;
+    }
+
+    set_orphans = it_fs->second->CollectOrphans();
+  }
+
+  for (const auto& fid : set_orphans) {
+    gFmdDbMapHandler.LocalDeleteFmd(fid, fsid);
+  }
+
+  return true;
 }
 
 EOSFSTNAMESPACE_END

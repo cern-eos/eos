@@ -202,4 +202,12 @@ TEST(IntervalStopwatch, RestartIfExpired)
   ASSERT_FALSE(stopwatch.restartIfExpired());
 }
 
+TEST(Timing, gtime)
+{
+  time_t t = 0;
+  ASSERT_STREQ("Thu Jan  1 00:00:00 1970", eos::common::Timing::gtime(t).c_str());
+  t = 1613646201;
+  ASSERT_STREQ("Thu Feb 18 11:03:21 2021", eos::common::Timing::gtime(t).c_str());
+}
+
 EOSCOMMONTESTING_END

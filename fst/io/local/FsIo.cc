@@ -126,6 +126,27 @@ FsIo::fileWriteAsync(XrdSfsFileOffset offset, const char* buffer,
   return fileWrite(offset, buffer, length, timeout);
 }
 
+//----------------------------------------------------------------------------
+// Write to file - async
+//--------------------------------------------------------------------------
+std::future<XrdCl::XRootDStatus>
+FsIo::fileWriteAsync(const char* buffer, XrdSfsFileOffset offset,
+                     XrdSfsXferSize length)
+{
+  std::promise<XrdCl::XRootDStatus> wr_promise;
+  std::future<XrdCl::XRootDStatus> wr_future = wr_promise.get_future();
+  int64_t nwrite = fileWrite(offset, buffer, length);
+
+  if (nwrite != length) {
+    wr_promise.set_value(XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errUnknown,
+                         EIO, "failed write"));
+  } else {
+    wr_promise.set_value(XrdCl::XRootDStatus(XrdCl::stOK, ""));
+  }
+
+  return wr_future;
+}
+
 //------------------------------------------------------------------------------
 // Truncate file
 //------------------------------------------------------------------------------
@@ -133,6 +154,26 @@ int
 FsIo::fileTruncate(XrdSfsFileOffset offset, uint16_t timeout)
 {
   return ::ftruncate(mFd, offset);
+}
+
+//------------------------------------------------------------------------------
+// Truncate asynchronous
+//------------------------------------------------------------------------------
+std::future<XrdCl::XRootDStatus>
+FsIo::fileTruncateAsync(XrdSfsFileOffset offset, uint16_t timeout)
+{
+  std::promise<XrdCl::XRootDStatus> tr_promise;
+  std::future<XrdCl::XRootDStatus> tr_future = tr_promise.get_future();
+  int retc  = fileTruncate(offset, timeout);
+
+  if (retc) {
+    tr_promise.set_value(XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errUnknown,
+                         EIO, "failed truncate"));
+  } else {
+    tr_promise.set_value(XrdCl::XRootDStatus(XrdCl::stOK, ""));
+  }
+
+  return tr_future;
 }
 
 //------------------------------------------------------------------------------

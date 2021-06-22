@@ -3,32 +3,32 @@ Maintainer: Fabio Luchetti <fabio.luchetti@cern.ch>
 Section: misc
 Priority: optional
 Standards-Version: 3.9.3
-Build-Depends: debhelper (>= 10), cmake (>=3.3.0), git, libfuse-dev, libattr1-dev, libmicrohttpd-dev, xfslibs-dev, libcurl4-openssl-dev, libleveldb-dev, libzmq3-dev, libsparsehash-dev, libprotobuf-dev (>=3.0.0), protobuf-compiler (>=3.0.0), libsystemd-dev, libreadline-dev, ncurses-dev, libssl-dev, zlib1g-dev, libkrb5-dev, libevent-dev, libhiredis-dev, libjsoncpp-dev, libjemalloc-dev, libdw-dev, libbz2-dev, binutils-dev, libiberty-dev,
- xrootd-libs (>= 4.12.6), xrootd-plugins (>= 4.12.6),
- xrootd-clients (>= 4.12.6), xrootd-client-libs (>= 4.12.6), xrootd-client-plugins (>= 4.12.6),
- xrootd-server (>= 4.12.6), xrootd-server-libs (>= 4.12.6), xrootd-server-plugins (>= 4.12.6),
- libxrootd-dev (>= 4.12.6), libxrootd-private-dev (>= 4.12.6),
- libxrootd-client-dev (>= 4.12.6), libxrootd-server-dev (>= 4.12.6),
- libxrdapputils1 (>= 4.12.6), libxrdcrypto1 (>= 4.12.6), libxrdcryptolite1 (>= 4.12.6), libxrdxml2 (>= 4.12.6),
- libxrdutils2 (>= 4.12.6), libxrdhttputils1 (>= 4.12.6), libxrdserver2 (>= 4.12.6), libxrdssilib1 (>= 4.12.6),
- libxrdssishmap1 (>= 4.12.6), libxrdcl2 (>= 4.12.6), libxrdffs2 (>= 4.12.6), libxrdposix2 (>= 4.12.6),
+Build-Depends: debhelper (>= 10), cmake (>= 3.3.0), git, libfuse-dev, libattr1-dev, libmicrohttpd-dev, xfslibs-dev, libcurl4-openssl-dev, libleveldb-dev, libzmq3-dev, libsparsehash-dev, libprotobuf-dev (>=3.0.0), protobuf-compiler (>=3.0.0), libsystemd-dev, libreadline-dev, ncurses-dev, libssl-dev, zlib1g-dev, libkrb5-dev, libevent-dev, libhiredis-dev, libjsoncpp-dev, libjemalloc-dev, libdw-dev, libbz2-dev, binutils-dev, libiberty-dev,
+ xrootd-libs (= 4.12.8), xrootd-plugins (= 4.12.8),
+ xrootd-clients (= 4.12.8), xrootd-client-libs (= 4.12.8), xrootd-client-plugins (= 4.12.8),
+ xrootd-server (= 4.12.8), xrootd-server-libs (= 4.12.8), xrootd-server-plugins (= 4.12.8),
+ libxrootd-dev (= 4.12.8), libxrootd-private-dev (= 4.12.8),
+ libxrootd-client-dev (= 4.12.8), libxrootd-server-dev (= 4.12.8),
+ libxrdapputils1 (= 4.12.8), libxrdcrypto1 (= 4.12.8), libxrdcryptolite1 (= 4.12.8), libxrdxml2 (= 4.12.8),
+ libxrdutils2 (= 4.12.8), libxrdhttputils1 (= 4.12.8), libxrdserver2 (= 4.12.8), libxrdssilib1 (= 4.12.8),
+ libxrdssishmap1 (= 4.12.8), libxrdcl2 (= 4.12.8), libxrdffs2 (= 4.12.8), libxrdposix2 (= 4.12.8),
 Homepage: http://eos.web.cern.ch/
 Vcs-Git: https://gitlab.cern.ch/dss/eos.git
 Vcs-Browser: https://gitlab.cern.ch/dss/eos
 
 Package: eos-client
 Architecture: any
-Depends: ${shlibs:Depends}, systemd, libxrootd-client-dev (>= 4.12.6), xrootd-plugins (>= 4.12.6)
+Depends: ${shlibs:Depends}, systemd, libxrootd-client-dev (= 4.12.8), xrootd-plugins (= 4.12.8)
 Description: EOS client package
 
 Package: eos-fuse
 Architecture: any
-Depends: ${shlibs:Depends}, eos-client (=${binary:Version}), fuse, systemd, libxrootd-client-dev (>= 4.12.6)
+Depends: ${shlibs:Depends}, eos-client (=${binary:Version}), fuse, systemd, libxrootd-client-dev (= 4.12.8)
 Description: EOS FUSE package
 
 Package: eos-fusex
 Architecture: any
-Depends: ${shlibs:Depends}, eos-client (=${binary:Version}), fuse, libxrootd-client-dev (>= 4.12.6)
+Depends: ${shlibs:Depends}, eos-client (=${binary:Version}), fuse, libxrootd-client-dev (= 4.12.8)
 Description: The new EOS fuse client bundle
 
 Package: eos-test

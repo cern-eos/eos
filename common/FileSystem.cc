@@ -422,7 +422,6 @@ FileSystem::fs_snapshot_t::fs_snapshot_t()
   mErrCode = 0;
   mBootSentTime = 0;
   mBootDoneTime = 0;
-  mHeartBeatTime = 0;
   mDiskUtilization = 0;
   mNetEthRateMiB = 0;
   mNetInRateMiB = 0;
@@ -1200,7 +1199,6 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
   fs.mErrCode = (unsigned int) hash.getLongLong("stat.errc");
   fs.mBootSentTime = (time_t) hash.getLongLong("bootsenttime");
   fs.mBootDoneTime = (time_t) hash.getLongLong("stat.bootdonetime");
-  fs.mHeartBeatTime = mHeartBeatTime;
   fs.mDiskUtilization = hash.getDouble("stat.disk.load");
   fs.mNetEthRateMiB = hash.getDouble("stat.net.ethratemib");
   fs.mNetInRateMiB = hash.getDouble("stat.net.inratemib");
@@ -1327,35 +1325,25 @@ FileSystem::GetActiveStatus(bool cached)
 }
 
 //------------------------------------------------------------------------------
-// Get heartbeatTime
+// Convert input to file system id
 //------------------------------------------------------------------------------
-time_t FileSystem::getLocalHeartbeatTime() const
+eos::common::FileSystem::fsid_t
+FileSystem::ConvertToFsid(const std::string& value)
 {
-  return mHeartBeatTime;
-}
+  eos::common::FileSystem::fsid_t fsid = 0ul;
 
-//------------------------------------------------------------------------------
-// Get local heartbeat delta
-//------------------------------------------------------------------------------
-int FileSystem::getLocalHeartbeatDelta() const
-{
-  return time(NULL) - mHeartBeatTime;
-}
+  try {
+    size_t pos = 0;
+    fsid = std::stoul(value, &pos);
 
-//------------------------------------------------------------------------------
-// Set heartbeatTime
-//------------------------------------------------------------------------------
-void FileSystem::setLocalHeartbeatTime(time_t t)
-{
-  mHeartBeatTime = t;
-}
+    if (pos != value.length()) {
+      throw std::runtime_error("failed fsid conversion");
+    }
+  } catch (...) {
+    fsid = 0ul;
+  }
 
-//----------------------------------------------------------------------------
-//! Check if local heartbeat is recent enough
-//----------------------------------------------------------------------------
-bool FileSystem::hasHeartbeat() const
-{
-  return isHeartbeatRecent(mHeartBeatTime);
+  return fsid;
 }
 
 EOSCOMMONNAMESPACE_END;

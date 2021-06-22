@@ -71,8 +71,8 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
 
         // If -F is given then we try to force remove the file without waiting
         // for the confirmation from the diskservers
-        if (RemoveDetached((is_dir ? rm.containerid() : rm.fileid()),
-                           is_dir, force, msg)) {
+        if (gOFS->RemoveDetached((is_dir ? rm.containerid() : rm.fileid()),
+                                 is_dir, force, msg)) {
           reply.set_std_out(msg);
           reply.set_retc(0);
         } else {
@@ -90,6 +90,8 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
   eos::mgm::NamespaceMap(spath, nullptr, mVid);
   std::string err_check;
   int errno_check = 0;
+  const char* path = spath.c_str();
+  PROC_MVID_TOKEN_SCOPE;
 
   // Enforce path checks and identity access rights
   if (IsOperationForbidden(spath, mVid, err_check, errno_check)) {
@@ -198,15 +200,16 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
       std::map<std::string, std::set<std::string>>::const_reverse_iterator rfoundit;
       std::set<std::string>::const_iterator fileit;
       errInfo.clear();
-
       errInfo.setErrCode(E2BIG);// ask to fail E2BIG
 
       if (gOFS->_find(spath.c_str(), errInfo, m_err, mVid, found)) {
-	if (errno == E2BIG) {
-	  errStream << "error: the directory tree exceeds the configured query limit for you - ask an administrator to increase your query limit or split the operation into several deletions";
-	} else {
-	  errStream << "error: unable to list directory '" << spath << "'";
-	}
+        if (errno == E2BIG) {
+          errStream <<
+                    "error: the directory tree exceeds the configured query limit for you - ask an administrator to increase your query limit or split the operation into several deletions";
+        } else {
+          errStream << "error: unable to list directory '" << spath << "'";
+        }
+
         ret_c = errno;
       } else {
         XrdOucString recyclingAttribute = "";
@@ -239,31 +242,32 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
           std::map<gid_t, unsigned long long> group_deletion_size;
 
           for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {
-	    int rpos = 0;
+            int rpos = 0;
+
             if ((rpos = rfoundit->first.find("/.sys.v#.")) == STR_NPOS) {
-	      for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end();
-		   fileit++) {
-		std::string fspath = rfoundit->first;
-		std::string entry = *fileit;
-		size_t l_pos;
+              for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end();
+                   fileit++) {
+                std::string fspath = rfoundit->first;
+                std::string entry = *fileit;
+                size_t l_pos;
 
-		if ((l_pos = entry.find(" ->")) != std::string::npos) {
-		  entry.erase(l_pos);
-		}
+                if ((l_pos = entry.find(" ->")) != std::string::npos) {
+                  entry.erase(l_pos);
+                }
 
-		fspath += entry;
-		errInfo.clear();
+                fspath += entry;
+                errInfo.clear();
 
-		if (gOFS->_rem(fspath.c_str(), errInfo, mVid, nullptr, true)) {
-		  errStream << "error: unable to remove file '" << fspath << "'"
-                          << " - bulk deletion aborted" << std::endl;
-		  reply.set_std_err(errStream.str());
-		  reply.set_retc(errno);
-		  return reply;
-		}
-	      }
-	    }
-	  }
+                if (gOFS->_rem(fspath.c_str(), errInfo, mVid, nullptr, true)) {
+                  errStream << "error: unable to remove file '" << fspath << "'"
+                            << " - bulk deletion aborted" << std::endl;
+                  reply.set_std_err(errStream.str());
+                  reply.set_retc(errno);
+                  return reply;
+                }
+              }
+            }
+          }
 
           // Delete directories in simulation mode
           for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {
@@ -383,80 +387,6 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
   reply.set_std_out(outStream.str());
   reply.set_std_err(errStream.str());
   return reply;
-}
-
-//------------------------------------------------------------------------------
-// Remove file/container metadata object that was already deleted before
-// but now it's still in the namespace detached from any parent
-//------------------------------------------------------------------------------
-bool
-RmCmd::RemoveDetached(uint64_t id, bool is_dir, bool force,
-                      std::string& msg) const
-{
-  errno = 0;
-
-  if (is_dir) {
-    try {
-      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
-      std::shared_ptr<IContainerMD> cont  =
-        gOFS->eosDirectoryService->getContainerMD(id);
-      gOFS->eosDirectoryService->removeContainer(cont.get());
-      return true;
-    } catch (eos::MDException& e) {
-      errno = e.getErrno();
-      eos_debug("msg=\"caught exception\" errno=%d msg=\"%s\"",
-                e.getErrno(), e.getMessage().str().c_str());
-      msg = "error: " + e.getMessage().str() + '\n';
-      return false;
-    }
-  } else {
-    try {
-      eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-      eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
-      std::shared_ptr<IFileMD> file = gOFS->eosFileService->getFileMD(id);
-      // If any of the unlink locations is a file systems that doesn't exist
-      // anymore then just remove it
-      auto unlink_locs = file->getUnlinkedLocations();
-
-      for (const auto& uloc : unlink_locs) {
-        if (FsView::gFsView.mIdView.lookupByID(uloc) == nullptr) {
-          file->removeLocation(uloc);
-        }
-      }
-
-      // If there are no more locations we can also delete the file object
-      if (file->getUnlinkedLocations().empty()) {
-        gOFS->eosFileService->removeFile(file.get());
-        msg = "info: file object removed from namespace";
-      } else {
-        // Move the unlinked locations to the locations list and back so
-        // that we notify the listener for disk deletion
-        unlink_locs = file->getUnlinkedLocations();
-
-        for (const auto& uloc : unlink_locs) {
-          file->addLocation(uloc);
-        }
-
-        file->unlinkAllLocations();
-
-        if (force) {
-          gOFS->eosFileService->removeFile(file.get());
-          msg = "info: file force removed from namespace, best-effort disk "
-                "deletion(s)";
-        } else {
-          msg = "info: file locations unlinked, waiting for disk deletion(s)";
-        }
-      }
-
-      return true;
-    } catch (eos::MDException& e) {
-      errno = e.getErrno();
-      eos_debug("msg=\"caught exception\" errno=%d msg=\"%s\"",
-                e.getErrno(), e.getMessage().str().c_str());
-      msg = "error: " + e.getMessage().str() + '\n';
-      return false;
-    }
-  }
 }
 
 EOSMGMNAMESPACE_END

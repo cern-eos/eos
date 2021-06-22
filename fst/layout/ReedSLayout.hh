@@ -22,12 +22,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_REEDSFILE_HH__
-#define __EOSFST_REEDSFILE_HH__
-
-/*----------------------------------------------------------------------------*/
+#pragma once
 #include "fst/layout/RainMetaLayout.hh"
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -53,15 +49,19 @@ public:
   //! @param bookingOpaque opaque information
   //!
   //----------------------------------------------------------------------------
-  ReedSLayout(XrdFstOfsFile* file,
-              unsigned long lid,
-              const XrdSecEntity* client,
-              XrdOucErrInfo* outError,
-              const char* path,
-              uint16_t timeout = 0,
-              bool storeRecovery = false,
-              off_t targetSize = 0,
+  ReedSLayout(XrdFstOfsFile* file, unsigned long lid,
+              const XrdSecEntity* client, XrdOucErrInfo* outError,
+              const char* path, uint16_t timeout = 0,
+              bool storeRecovery = false, off_t targetSize = 0,
               std::string bookingOpaque = "oss.size");
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~ReedSLayout()
+  {
+    FreeJerasure();
+  }
 
   //----------------------------------------------------------------------------
   //! Truncate file
@@ -69,10 +69,8 @@ public:
   //! @param offset truncate size value
   //!
   //! @return 0 if successful, otherwise error
-  //!
   //----------------------------------------------------------------------------
   virtual int Truncate(XrdSfsFileOffset offset);
-
 
   //----------------------------------------------------------------------------
   //! Allocate file space
@@ -80,10 +78,8 @@ public:
   //! @param length space to be allocated
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //----------------------------------------------------------------------------
   virtual int Fallocate(XrdSfsFileOffset lenght);
-
 
   //----------------------------------------------------------------------------
   //! Deallocate file space
@@ -92,67 +88,53 @@ public:
   //! @param toOffset offset end
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //----------------------------------------------------------------------------
-  virtual int Fdeallocate(XrdSfsFileOffset fromOffset,
-                          XrdSfsFileOffset toOffset);
-
-
-  //----------------------------------------------------------------------------
-  //! Destructor
-  //----------------------------------------------------------------------------
-  virtual ~ReedSLayout();
+  virtual int Fdeallocate(XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffset);
 
 private:
+  //----------------------------------------------------------------------------
+  //! Disable copy/move assign/constructor operators
+  //----------------------------------------------------------------------------
+  ReedSLayout& operator = (const ReedSLayout&) = delete;
+  ReedSLayout(const ReedSLayout&) = delete;
+  ReedSLayout& operator = (ReedSLayout&&) = delete;
+  ReedSLayout(ReedSLayout&&) = delete;
 
   //! Values use by Jerasure codes
-  bool mDoneInitialisation; ///< Jerasure codes initialisation status
   unsigned int w;           ///< word size for Jerasure
   unsigned int mPacketSize; ///< packet size for Jerasure
   int* matrix;
   int* bitmatrix;
   int** schedule;
-
+  std::atomic<bool> mDoneInit {false}; ///< Mark Jerasure initialization
 
   //----------------------------------------------------------------------------
   //! Initialise the Jerasure structures used for encoding and decoding
-  //!
-  //! @return true if initalisation successful, otherwise false
-  //!
   //----------------------------------------------------------------------------
-  bool InitialiseJerasure();
-
+  void InitialiseJerasure();
 
   //----------------------------------------------------------------------------
-  //! Check if a number is prime
-  //!
-  //! @param w number to be checked
-  //!
-  //! @return true if number is prime, otherwise false
-  //!
+  //! Deallocated any Jerasure structures used for encoding and decoding
   //----------------------------------------------------------------------------
-  bool IsPrime(int w);
+  void FreeJerasure();
 
-
-  //----------------------------------------------------------------------------
+  //------------------------------------------------------------------------------
   //! Compute error correction blocks
   //!
-  //! @return true if parity info computed successfully, otherwise false
+  //! @param grp group object for parity computation
   //!
-  //----------------------------------------------------------------------------
-  virtual bool ComputeParity();
-
+  //! @return true if parity info computed successfully, otherwise false
+  //------------------------------------------------------------------------------
+  virtual bool ComputeParity(std::shared_ptr<eos::fst::RainGroup>& grp);
 
   //----------------------------------------------------------------------------
   //! Write parity information corresponding to a group to files
   //!
-  //! @param offsetGroup offset of the group of blocks
+  //! @param grp group object
   //!
   //! @return 0 if successful, otherwise error
-  //!
-  //--------------------------------------------------------------------------
-  virtual int WriteParityToFiles(uint64_t offsetGroup);
-
+  //----------------------------------------------------------------------------
+  virtual int WriteParityToFiles(std::shared_ptr<eos::fst::RainGroup>& grp);
 
   //--------------------------------------------------------------------------
   //! Recover corrupted chunks from the current group
@@ -160,23 +142,8 @@ private:
   //! @param grp_errs chunks to be recovered
   //!
   //! @return true if recovery successful, false otherwise
-  //!
   //--------------------------------------------------------------------------
   virtual bool RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs);
-
-
-  //--------------------------------------------------------------------------
-  //! Add data block to compute parity stripes for current group of blocks
-  //!
-  //! @param offset block offset
-  //! @param pBuffer data buffer
-  //! @param length data length
-  //!
-  //--------------------------------------------------------------------------
-  virtual void AddDataBlock(uint64_t offset,
-                            const char* pBuffer,
-                            uint32_t length);
-
 
   //--------------------------------------------------------------------------
   //! Map index from nDataBlocks representation to nTotalBlocks
@@ -184,10 +151,8 @@ private:
   //! @param idSmall with values between 0 and nDataBlocks
   //!
   //! @return index with the same values as idSmall, identical function
-  //!
   //--------------------------------------------------------------------------
   virtual unsigned int MapSmallToBig(unsigned int idSmall);
-
 
   //--------------------------------------------------------------------------
   //! Convert a global offset (from the inital file) to a local offset within
@@ -199,11 +164,9 @@ private:
   //!
   //! @return tuple made up of the logical index of the stripe data file the
   //!         piece belongs to and the local offset within that file.
-  //!
   //--------------------------------------------------------------------------
   virtual std::pair<int, uint64_t>
   GetLocalPos(uint64_t global_off);
-
 
   //--------------------------------------------------------------------------
   //! Convert a local position (from a stripe data file) to a global position
@@ -215,25 +178,9 @@ private:
   //! @param local_off local offset
   //!
   //! @return offset in the initial file of the local given piece
-  //!
   //--------------------------------------------------------------------------
   virtual uint64_t
   GetGlobalOff(int stripe_id, uint64_t local_off);
-
-
-  //--------------------------------------------------------------------------
-  //! Disable copy constructor
-  //--------------------------------------------------------------------------
-  ReedSLayout(const ReedSLayout&) = delete;
-
-
-  //--------------------------------------------------------------------------
-  //! Disable assign operator
-  //--------------------------------------------------------------------------
-  ReedSLayout& operator = (const ReedSLayout&) = delete;
-
 };
 
 EOSFSTNAMESPACE_END
-
-#endif  // __EOSFST_REEDSLAYOUT_HH__

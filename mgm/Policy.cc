@@ -26,6 +26,7 @@
 #include "common/LayoutId.hh"
 #include "common/Mapping.hh"
 #include "mgm/Policy.hh"
+#include "mgm/XrdMgmOfs.hh"
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------*/
@@ -44,18 +45,17 @@ Policy::GetSpacePolicyLayout(const char* space)
   long forcedgroup;
   unsigned long layoutid = 0;
   XrdOucString ret_space;
-
   eos::IContainerMD::XAttrMap attrmap;
   eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
   GetLayoutAndSpace("/",
-		    attrmap,
-		    rootvid,
-		    layoutid,
-		    ret_space,
-		    env,
-		    forcedfsid,
-		    forcedgroup,
-		    true);
+                    attrmap,
+                    rootvid,
+                    layoutid,
+                    ret_space,
+                    env,
+                    forcedfsid,
+                    forcedgroup,
+                    true);
   return layoutid;
 }
 
@@ -67,37 +67,39 @@ Policy::GetLayoutAndSpace(const char* path,
                           unsigned long& layoutId, XrdOucString& space,
                           XrdOucEnv& env,
                           unsigned long& forcedfsid,
-                          long& forcedgroup, 
-			  bool lockview)
+                          long& forcedgroup,
+                          bool lockview)
 
 {
   eos::common::RWMutexReadLock lock;
-
   // this is for the moment only defaulting or manual selection
   unsigned long layout = eos::common::LayoutId::GetLayoutFromEnv(env);
   unsigned long xsum = eos::common::LayoutId::GetChecksumFromEnv(env);
   unsigned long bxsum = eos::common::LayoutId::GetBlockChecksumFromEnv(env);
   unsigned long stripes = eos::common::LayoutId::GetStripeNumberFromEnv(env);
-  unsigned long excess = eos::common::LayoutId::GetExcessNumberFromEnv(env);
   unsigned long blocksize = eos::common::LayoutId::GetBlocksizeFromEnv(env);
   bool noforcedchecksum = false;
   const char* val = 0;
+  bool conversion = IsProcConversion(path);
   std::map<std::string, std::string> spacepolicies;
 
   if (lockview) {
     lock.Grab(FsView::gFsView.ViewMutex);
   }
 
-  auto it = FsView::gFsView.mSpaceView.find("default");
+  if (!conversion) {
+    // don't apply space policies to conversion paths
+    auto it = FsView::gFsView.mSpaceView.find("default");
 
-  if (it != FsView::gFsView.mSpaceView.end()) {
-    spacepolicies["space"]     = it->second->GetConfigMember("policy.space");
-    spacepolicies["layout"]    = it->second->GetConfigMember("policy.layout");
-    spacepolicies["nstripes"]  = it->second->GetConfigMember("policy.nstripes");
-    spacepolicies["nexcess"]  = it->second->GetConfigMember("policy.nexcess");
-    spacepolicies["checksum"]  = it->second->GetConfigMember("policy.checksum");
-    spacepolicies["blocksize"] = it->second->GetConfigMember("policy.blocksize");
-    spacepolicies["blockchecksum"] = it->second->GetConfigMember("policy.blockchecksum");
+    if (it != FsView::gFsView.mSpaceView.end()) {
+      spacepolicies["space"]     = it->second->GetConfigMember("policy.space");
+      spacepolicies["layout"]    = it->second->GetConfigMember("policy.layout");
+      spacepolicies["nstripes"]  = it->second->GetConfigMember("policy.nstripes");
+      spacepolicies["checksum"]  = it->second->GetConfigMember("policy.checksum");
+      spacepolicies["blocksize"] = it->second->GetConfigMember("policy.blocksize");
+      spacepolicies["blockchecksum"] =
+        it->second->GetConfigMember("policy.blockchecksum");
+    }
   }
 
   if ((val = env.Get("eos.space"))) {
@@ -105,39 +107,45 @@ Policy::GetLayoutAndSpace(const char* path,
   } else {
     space = "default";
 
-    if (!spacepolicies["space"].empty()) {
-      // if there is no explicit space given, we preset with the policy one
-      space = spacepolicies["space"].c_str();
+    if (!conversion) {
+      if (!spacepolicies["space"].empty()) {
+        // if there is no explicit space given, we preset with the policy one
+        space = spacepolicies["space"].c_str();
+      }
     }
   }
 
-  it = FsView::gFsView.mSpaceView.find(space.c_str());
-  if (it != FsView::gFsView.mSpaceView.end()) {
-    // overwrite the defaults if they are defined in the target space
-    std::string space_layout   = it->second->GetConfigMember("policy.layout");
-    std::string space_nstripes = it->second->GetConfigMember("policy.nstripes");
-    std::string space_nexcess = it->second->GetConfigMember("policy.nexcess");
-    std::string space_checksum = it->second->GetConfigMember("policy.checksum");
-    std::string space_blocksize= it->second->GetConfigMember("policy.blocksize");
-    std::string space_blockxs  = it->second->GetConfigMember("policy.blockchecksum");
+  if (!conversion) {
+    auto it = FsView::gFsView.mSpaceView.find(space.c_str());
 
-    if (space_layout.length()) {
-      spacepolicies["layout"] = space_layout;
-    }
-    if (space_nstripes.length()) {
-      spacepolicies["nstripes"] = space_nstripes;
-    }
-    if (space_nexcess.length()) {
-      spacepolicies["nexcess"] = space_nexcess;
-    }
-    if (space_checksum.length()) {
-      spacepolicies["checksum"] = space_checksum;
-    }
-    if (space_blocksize.length()) {
-      spacepolicies["blocksize"] = space_blocksize;
-    }
-    if (space_blockxs.length()) {
-      spacepolicies["blockchecksum"] = space_blockxs;
+    if (it != FsView::gFsView.mSpaceView.end()) {
+      // overwrite the defaults if they are defined in the target space
+      std::string space_layout   = it->second->GetConfigMember("policy.layout");
+      std::string space_nstripes = it->second->GetConfigMember("policy.nstripes");
+      std::string space_checksum = it->second->GetConfigMember("policy.checksum");
+      std::string space_blocksize = it->second->GetConfigMember("policy.blocksize");
+      std::string space_blockxs  =
+        it->second->GetConfigMember("policy.blockchecksum");
+
+      if (space_layout.length()) {
+        spacepolicies["layout"] = space_layout;
+      }
+
+      if (space_nstripes.length()) {
+        spacepolicies["nstripes"] = space_nstripes;
+      }
+
+      if (space_checksum.length()) {
+        spacepolicies["checksum"] = space_checksum;
+      }
+
+      if (space_blocksize.length()) {
+        spacepolicies["blocksize"] = space_blocksize;
+      }
+
+      if (space_blockxs.length()) {
+        spacepolicies["blockchecksum"] = space_blockxs;
+      }
     }
   }
 
@@ -225,15 +233,6 @@ Policy::GetLayoutAndSpace(const char* path,
       eos_static_debug("sys.forced.nstripes in %s", path);
     }
 
-    if (attrmap.count("sys.forced.nexcess")) {
-      XrdOucString layoutstring = "eos.layout.nexcess=";
-      layoutstring += attrmap["sys.forced.nexcess"].c_str();
-      XrdOucEnv layoutenv(layoutstring.c_str());
-      // we force to use a specified stripe number in this directory even if the user wants something else
-      excess = eos::common::LayoutId::GetExcessNumberFromEnv(layoutenv);
-      eos_static_debug("sys.forced.nexcess in %s", path);
-    }
-
     if (attrmap.count("sys.forced.blocksize")) {
       XrdOucString layoutstring = "eos.layout.blocksize=";
       layoutstring += attrmap["sys.forced.blocksize"].c_str();
@@ -289,15 +288,6 @@ Policy::GetLayoutAndSpace(const char* path,
         eos_static_debug("user.forced.nstripes in %s", path);
       }
 
-      if (attrmap.count("user.forced.nexcess")) {
-        XrdOucString layoutstring = "eos.layout.nexcess=";
-        layoutstring += attrmap["user.forced.nexcess"].c_str();
-        XrdOucEnv layoutenv(layoutstring.c_str());
-        // we force to use a specified stripe number in this directory even if the user wants something else
-        excess = eos::common::LayoutId::GetExcessNumberFromEnv(layoutenv);
-        eos_static_debug("user.forced.nexcess in %s", path);
-      }
-
       if (attrmap.count("user.forced.blocksize")) {
         XrdOucString layoutstring = "eos.layout.blocksize=";
         layoutstring += attrmap["user.forced.blocksize"].c_str();
@@ -324,7 +314,7 @@ Policy::GetLayoutAndSpace(const char* path,
   }
 
   layoutId = eos::common::LayoutId::GetId(layout, xsum, stripes, blocksize,
-                                          bxsum, excess);
+                                          bxsum);
   return;
 }
 
@@ -467,6 +457,19 @@ const char*
 Policy::Get(const char* key)
 {
   return 0;
+}
+
+/*----------------------------------------------------------------------------*/
+bool
+Policy::IsProcConversion(const char* path)
+{
+  XrdOucString spath = path;
+
+  if (spath.beginswith(gOFS->MgmProcConversionPath.c_str())) {
+    return true;
+  } else {
+    return false;
+  }
 }
 
 EOSMGMNAMESPACE_END

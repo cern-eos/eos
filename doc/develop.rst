@@ -50,6 +50,44 @@ Create a build directory ...
    mkdir build
    cd build
 
+Create your dev environment using utils scripts (Recommended)
+============================================================
+
+Two utility scripts have been created to ease the setup of the development environment necessary to build and install EOS on a bare Centos VM.
+These scripts are located in the :code:`utils` directory. Feel free to modify them as they could be outdated. These scripts automate what is documented in
+the `Dependencies`_ part of this documentation.
+
+EL7
+----------------
+
+Just run the :code:`./utils/centos7-dev-environment.sh` script.
+
+Go to your :code:`eos` directory and type:
+
+.. code-block:: bash
+
+    sudo ./utils/centos7-dev-environment.sh
+
+If everything went well, your VM should reboot.
+
+EL8
+----------------
+
+Just **source** the :code:`./utils/centos7-dev-environment.sh` script.
+
+Go to your :code:`eos` directory and type:
+
+.. code-block:: bash
+
+    source ./utils/centos8-dev-environment.sh
+
+If you haven't used **source**, source your :code:`.bashrc` file. Indeed the :code:`centos8-dev-environment.sh` script script modifies your .bashrc to update your :code:`PATH` variable.
+If you don't source it, you will not be able to use the good cmake version that has been installed to create the configuration for building EOS.
+
+You are ready to compile
+------------------------
+
+You can skip the next parts and go directly to the `Compilation`_ part of this documentation. Though you can also read them if you need to troubleshoot future problems.
 
 Dependencies
 =================================================
@@ -204,6 +242,7 @@ Troubleshooting:
 The following dependencies might not be required (you should be able to ignore these in the cmake3 output):
 
 .. code-block:: bash
+
     Could NOT find Sphinx
     Could NOT find fuse3
     Could NOT find davix
@@ -212,6 +251,7 @@ The following dependencies might not be required (you should be able to ignore t
 
 .. warning:: yum can automatically update your packages (in yum history you can see:  "-y --skip-broken update" in such a case) you can remove this package :code:`yum remove yum-autoupdate` to make sure it does not screw up EOS rpms installed.
 
+If when executing the unit tests you have errors about the linker that could not find .so files, you can update your :code:`LD_LIBRARY_PATH` to add to it the :code:`common` and the :code:`mq` directory of your EOS build directory. 
 
 Deployment
 =================================================
@@ -293,7 +333,7 @@ Create your QuarkDB path (modify eostest and <myhostname>) :
 
 .. code-block:: bash
 
-    UUID=eostest-$(uuidgen); echo $UUID; runuser daemon -s /bin/bash -c "quarkdb-create --path /var/lib/quarkdb/eosns --clusterID $UUID --nodes localhost:7777"
+    UUID=eostest-$(uuidgen); echo $UUID; sudo runuser daemon -s /bin/bash -c "quarkdb-create --path /var/lib/quarkdb/eosns --clusterID $UUID --nodes localhost:7777"
 
 
 Before starting the service, we will need custom config drop-in script. Create the following file path :code:`/etc/systemd/system/xrootd@quarkdb.service.d/custom.conf` with the following content:
@@ -368,7 +408,7 @@ There is yet another configuration file you will have to modify e.g. :code:`/etc
 .. code-block:: bash
 
     sec.protocol unix
-    sec.protocol sss -c /etc/eos.keytab -s /etc/eos.keytab
+    sec.protocol sss -c /etc/eos.client.keytab -s /etc/eos.keytab
     # Example disable krb5 and gsi
     #sec.protocol krb5
     #sec.protocol gsi
@@ -388,6 +428,8 @@ Also, activate QuarkDB namespace plugin usage and set other parameters as desire
     mgmofs.nslib /usr/lib64/libEosNsQuarkdb.so
 
     mgmofs.instance eostest
+    mgmofs.qdbcluster localhost:7777
+    mgmofs.qdbpassword_file /etc/eos.keytab
 
 Once done, backup the result to have it available after the next reinstallation of recompiled EOS:
 
@@ -404,8 +446,29 @@ Start the service, check the status and log file in :code:`/var/log/eos/mgm/xrdl
     systemctl status eos@mgm
 
 
-You will see errors *RefreshBrokersEndpoints* this is due to the fact that MQ is not yet running.
+You will see errors *RefreshBrokersEndpoints* this is due to the fact that MQ is not yet running:
 
+.. code-block:: bash
+
+    less /var/log/eos/mgm/xrdlog.mgm
+    ...
+    210304 11:34:22 time=1614854062.201983 func=RefreshBrokersEndpoints  level=ERROR logid=static.............................. unit=mgm@eos-ccaffy-dev01.cern.ch:1094 tid=00007f324109f700 source=XrdMqClient:495                tident= sec=(null) uid=99 gid=99 name=- geo="" msg="failed to contact broker" url="root://localhost:1097//eos/eos-ccaffy-dev01.cern.ch/mgm_mq_test?xmqclient.advisory.flushbacklog=1&xmqclient.advisory.query=1&xmqclient.advisory.status=1"
+    ...
+
+Troubleshooting:
+++++++++++++++++++++++++++++++++++
+
+If by looking at the :code:`/var/log/eos/mgm/xrdlog.mgm` log file, you see the following error:
+
+.. code-block:: bash
+
+    Seckrb5: Unable to start sequence on the keytab file FILE:/etc/krb5.keytab; Permission denied
+
+Then do 
+
+.. code-block:: bash
+    
+    chmod a+r /etc/krb5.keytab
 
 MQ
 ------------------------------------
@@ -455,18 +518,19 @@ Each file system will run its own FST daemon (which communicates via MQ with the
     done;
 
 
-FTS is usually represented by a disk server with many disks mounted on it.
+FST is usually represented by a disk server with many disks mounted on it.
 For our dev purposes, it is usually enough to just create a directory per fst on the local file system (do not forget to grant "daemon" the ownership). In each of these directories there has to be 2 hidden files containing the ID:code:`.eosfsid` and UUID :code:`.eosfsuuid` of the FST you are adding (define however convenient for you), e.g.:
 
 .. code-block:: bash
 
-    mkdir -p /home/<user>/eos/
-    cd /home/<user>/eos/
+    mkdir -p /fst
+    cd /fst
     for i in {1..3}; do
         mkdir data$i
         echo $i >  data$i/.eosfsid
-        echo fst$i > data$i/.eosfsuuid; done
-        chown daemon:daemon -R /home/<user>/eos/
+        echo fst$i > data$i/.eosfsuuid; 
+    done
+    chown daemon:daemon -R /fst
 
 
 Now, start the FST services:
@@ -475,13 +539,15 @@ Now, start the FST services:
 
     systemctl daemon-reload
     for i in {1..3}; do
-        sudo systemctl start eos@fst"${i}"
+      sudo systemctl start eos@fst"${i}"
+    done;
 
     for i in {1..3}; do
-        sudo systemctl status eos@fst"${i}"
+      sudo systemctl status eos@fst"${i}"
+    done;
 
 
-The :code:`/var/log/eos/fstX/xrdlog.fst1` you will see lines such as:
+The :code:`/var/log/eos/fstX/xrdlog.fstX` (replace X with the wanted FST number) you will see lines such as:
 
 .. code-block:: bash
 
@@ -536,7 +602,7 @@ Now we need to register the FST disks with EOS (we first put them in "spare"):
 
 .. code-block:: bash
 
-    for i in {1..3}; do eos fs add fst${i} ${HOSTNAME}:200${i} /home/<user>/eos/data${i} spare ;done;
+    for i in {1..3}; do eos fs add fst${i} ${HOSTNAME}:200${i} /fst/data${i} spare ;done;
     # to see them added:
     eos fs ls
 
@@ -544,7 +610,7 @@ Then drain the disks:
 
 .. code-block:: bash
 
-    eos fs ls spare | awk '/<user>/ {print "eos -b fs config " $3 " configstatus=drain"}' | sh -x
+    eos fs ls spare | awk '/fst/ {print "eos -b fs config " $3 " configstatus=drain"}' | sh -x
 
 
 Make sure, they all appear as empty in the output of :code:`eos fs ls` after this operation.
@@ -561,7 +627,7 @@ And finally move them to the default space. They will be distributed to the sche
 
 .. code-block:: bash
 
-    eos fs ls spare | awk '/<user>/ {print "eos -b fs mv --force " $3 " default"}'
+    eos fs ls spare | awk '/fst/ {print "eos -b fs mv --force " $3 " default"}' | sh -x
 
 
 After this you will see the file systems booted, empty and online in the output of :code:`eos fs ls -e`.
@@ -570,7 +636,7 @@ Set the disks to 'rw' mode:
 
 .. code-block:: bash
 
-    eos fs ls default | awk '/<user>/ {print "eos -b fs config " $3 " configstatus=rw"}' | sh -x
+    eos fs ls default | awk '/fst/ {print "eos -b fs config " $3 " configstatus=rw"}' | sh -x
     eos fs ls
 
 Now, you should be able to work with your EOS file system:

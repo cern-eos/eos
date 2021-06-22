@@ -20,4 +20,5 @@ Using EOS
    using/versions
    using/oauth2
    using/tokens
+   using/squashfs
 

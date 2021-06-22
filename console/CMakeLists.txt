@@ -84,6 +84,7 @@ add_library(EosConsoleCommands-Objects OBJECT
   commands/com_print.cc
   commands/com_pwd.cc
   commands/com_quit.cc
+  commands/com_report.cc
   commands/com_reconnect.cc
   commands/com_rmdir.cc
   commands/com_role.cc
@@ -109,20 +110,12 @@ add_library(EosConsoleCommands-Objects OBJECT
   commands/com_proto_route.cc
   commands/com_stagerrm.cc
   commands/com_proto_ns.cc
-  #@todo (esindril) drop com_debug when we drop beryl_aquamarine
-  commands/com_debug.cc
   commands/com_proto_debug.cc
-  #@todo (esindril) drop com_group when we drop beryl_aquamarine
-  commands/com_group.cc
   commands/com_proto_group.cc
-  #@todo (esindril) drop com_recycle when we drop beryl_aquamarine
-  commands/com_recycle.cc
   commands/com_proto_recycle.cc
   #@todo (esindril) drop com_config when move to 5.0.0
   commands/com_config.cc
   commands/com_proto_config.cc
-  #@todo (esindril) drop com_rm when we drop beryl_aquamarine
-  commands/com_rm.cc
   commands/com_proto_rm.cc
   #@todo (esindril) drop com_quota when move to 5.0.0
   commands/com_quota.cc

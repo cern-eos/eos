@@ -99,7 +99,7 @@ function corrupt_m_mem_sz_diff() {
   local QDB_CLUSTER=$(exec_cmd eos-mgm1 "cat /etc/xrd.cf.mgm | grep "^mgmofs.qdbcluster" | awk '{print \$2;}'")
   local QDB_PWDFILE=$(exec_cmd eos-mgm1 "cat /etc/xrd.cf.mgm | grep "^mgmofs.qdbpassword_file" | awk '{print \$2;}'")
   exec_cmd eos-cli1 "eos-ns-inspect change-fid --no-dry-run --members ${QDB_CLUSTER} --password-file ${QDB_PWDFILE} --fid $(( 16#${FXID_M_MEM_SZ_DIFF} )) --new-size 1234568"
-  exec_cmd eos-cli1 "eos -r 0 0 ns cache drop-single-file $(( 16#${FXID_M_MEM_SZ_DIFF} ))"
+  exec_cmd eos-cli1 "eos -r 0 0 ns cache drop-single-file $(( 16#${FXID_M_MEM_SZ_DIFF} )) || true"
 }
 
 # Corrupt file to generate d_cx_diff error
@@ -362,12 +362,15 @@ check_all_errors_collected $MAX_DELAY
 # correct all the discovered errors
 exec_cmd eos-cli1 "eos -r 0 0 fsck config toggle-repair"
 
+# Cleanup the orphan entries
+exec_cmd eos-cli1 "eos -r 0 0 fsck clean_orphans"
+
 # Wait for all the errors to be repaired
 START_TIME=$(date +%s)
 
 while
   CURRENT_TIME=$(date +%s)
-  HAS_ERRORS=$(exec_cmd eos-cli1 "eos -r 0 0 fsck report -i | grep -v orphans_n")
+  HAS_ERRORS=$(exec_cmd eos-cli1 "eos -r 0 0 fsck report -i")
 
   if [[ ! -z "${HAS_ERRORS}" ]]; then
     if (( $((${CURRENT_TIME} - ${START_TIME})) >= ${MAX_DELAY} )); then

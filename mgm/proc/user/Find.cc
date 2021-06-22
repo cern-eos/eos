@@ -61,6 +61,7 @@ ProcCommand::Find()
   PROC_BOUNCE_ILLEGAL_NAMES;
   PROC_BOUNCE_NOT_ALLOWED;
   spath = path;
+  PROC_TOKEN_SCOPE;
 
   if (!OpenTemporaryOutputFiles()) {
     stdErr += "error: cannot write find result files on MGM\n";
@@ -388,7 +389,8 @@ ProcCommand::Find()
                 printpartition || selectrepdiff || selectonehour ||
                 selectoldertime || selectyoungertime || purge_atomic) {
               //-------------------------------------------
-              eos::common::RWMutexReadLock viewReadLock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+              eos::common::RWMutexReadLock viewReadLock(gOFS->eosViewRWMutex, __FUNCTION__,
+                  __LINE__, __FILE__);
               std::shared_ptr<eos::IFileMD> fmd;
 
               try {
@@ -755,7 +757,8 @@ ProcCommand::Find()
           } else {
             // get location
             //-------------------------------------------
-            eos::common::RWMutexReadLock viewReadLock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+            eos::common::RWMutexReadLock viewReadLock(gOFS->eosViewRWMutex, __FUNCTION__,
+                __LINE__, __FILE__);
             std::shared_ptr<eos::IFileMD> fmd;
 
             try {
@@ -876,7 +879,8 @@ ProcCommand::Find()
         if (!purge && !printcounter) {
           if (printchildcount) {
             //-------------------------------------------
-            eos::common::RWMutexReadLock nLock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+            eos::common::RWMutexReadLock nLock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                               __FILE__);
             std::shared_ptr<eos::IContainerMD> cmd;
             unsigned long long childfiles = 0;
             unsigned long long childdirs = 0;
@@ -900,7 +904,8 @@ ProcCommand::Find()
               fprintf(fstdout, "path=%s", foundit->first.c_str());
 
               if (printuid || printgid) {
-                eos::common::RWMutexReadLock nLock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+                eos::common::RWMutexReadLock nLock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                                   __FILE__);
                 std::shared_ptr<eos::IContainerMD> cmd;
 
                 try {

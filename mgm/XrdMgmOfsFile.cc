@@ -82,7 +82,7 @@ eos::IFileMD::location_t
 getFirstDiskLocation(const eos::IFileMD::LocationVector& locations)
 {
   if (locations.empty()) {
-    throw DiskLocationNotFound("Failed to find d isk location");
+    throw DiskLocationNotFound("Failed to find disk location");
   }
 
   if (EOS_TAPE_FSID != locations.at(0)) {
@@ -90,7 +90,7 @@ getFirstDiskLocation(const eos::IFileMD::LocationVector& locations)
   }
 
   if (2 > locations.size()) {
-    throw DiskLocationNotFound("Failed to find d isk location");
+    throw DiskLocationNotFound("Failed to find disk location");
   }
 
   return locations.at(1);
@@ -423,7 +423,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   bool isFuse = false;
   // flag indiciating an atomic upload where a file get's a hidden unique name and is renamed when it is closed
   bool isAtomicUpload = false;
-  // flag indicationg an atomic file name
+  // flag indicating an atomic file name
   bool isAtomicName = false;
   // flag indicating a new injection - upload of a file into a stub without physical location
   bool isInjection = false;
@@ -441,7 +441,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   std::string tried_cgi;
   // versioning CGI
   std::string versioning_cgi;
-
   // file size
   uint64_t fmdsize = 0;
   int crOpts = (Mode & SFS_O_MKPTH) ? XRDOSS_mkpath : 0;
@@ -611,7 +610,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
   }
 
-
   if (!isFuse && isRW) {
     // resolve symbolic links
     try {
@@ -780,7 +778,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   eos::common::Path cPath(path);
   // indicate the scope for a possible token
-  vid.scope = cPath.GetPath();
+  TOKEN_SCOPE;
 
   if (cPath.isAtomicFile()) {
     isAtomicName = true;
@@ -819,6 +817,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   }
 
   bool isSharedFile = gOFS->VerifySharePath(path, openOpaque);
+
+  if (gOFS->is_squashfs_access(path, vid)) {
+    isSharedFile = true;
+  }
+
   // Get the directory meta data if it exists
   std::shared_ptr<eos::IContainerMD> dmd = nullptr;
   eos::IContainerMD::XAttrMap attrmap;
@@ -1030,11 +1033,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
 
     acl.SetFromAttrMap(attrmap, vid, &attrmapF);
-
     eos_info("acl=%d r=%d w=%d wo=%d egroup=%d shared=%d mutable=%d facl=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
              acl.HasEgroup(), isSharedFile, acl.IsMutable(),
-	     acl.EvalUserAttrFile());
+             acl.EvalUserAttrFile());
 
     if (acl.HasAcl()) {
       if ((vid.uid != 0) && (!vid.sudoer) &&
@@ -1139,7 +1141,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     versioning = atoi(versioning_cgi.c_str());
   }
 
-
   if (attrmap.count("sys.forced.atomic")) {
     isAtomicUpload = atoi(attrmap["sys.forced.atomic"].c_str());
   } else {
@@ -1172,6 +1173,20 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   // disable injection in fuse clients
   if (isFuse) {
     isInjection = false;
+  }
+
+  // short cut to block multi-source access to EC files
+  if (!isRW && LayoutId::IsRain(fmdlid)) {
+    char* triedrc = openOpaque->Get("triedrc");
+
+    if (triedrc) {
+      int errno_tried = GetTriedrcErrno(triedrc);
+
+      if (!errno_tried) {
+        return Emsg(epname, error, ENETUNREACH,
+                    "open file - multi-source reading on EC file blocked for ", path);
+      }
+    }
   }
 
   if (isRW) {
@@ -1257,7 +1272,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     if (!fmd) {
       if (!(open_flag & O_CREAT)) {
         // Open for write for non existing file without creation flag
-        return Emsg(epname, error, errno, "open file without creation flag", path);
+        return Emsg(epname, error, ENOENT, "open file without creation flag", path);
       } else {
         // creation of a new file or isOcUpload
         {
@@ -1310,12 +1325,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
               // on a temporary attribute
               ref_fmd->setAttribute("sys.tmp.atomic", fmd->getName());
 
-	      if (acl.EvalUserAttrFile()) {
-		// we inherit existing ACLs during (atomic) versioning
-		ref_fmd->setAttribute("user.acl", acl.UserAttrFile());
-		ref_fmd->setAttribute("sys.eval.useracl", "1");
-	      }
-
+              if (acl.EvalUserAttrFile()) {
+                // we inherit existing ACLs during (atomic) versioning
+                ref_fmd->setAttribute("user.acl", acl.UserAttrFile());
+                ref_fmd->setAttribute("sys.eval.useracl", "1");
+              }
 
               gOFS->eosView->updateFileStore(ref_fmd.get());
             }
@@ -1582,16 +1596,14 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         fmd->setAttribute("sys.tmp.etag", ext_etag);
       }
 
-
-
       for (auto it = ext_xattr_map.begin(); it != ext_xattr_map.end(); ++it) {
         fmd->setAttribute(it->first, it->second);
       }
 
       if (acl.EvalUserAttrFile()) {
-	// we inherit existing ACLs during (atomic) versioning
-	fmd->setAttribute("user.acl", acl.UserAttrFile());
-	fmd->setAttribute("sys.eval.useracl", "1");
+        // we inherit existing ACLs during (atomic) versioning
+        fmd->setAttribute("user.acl", acl.UserAttrFile());
+        fmd->setAttribute("sys.eval.useracl", "1");
       }
 
       try {
@@ -1629,10 +1641,14 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
   }
 
-  // 0-size files can be read from the MGM if this is not FUSE access! Atomic files are only served from here!
-  if (!isRW && (!isFuse || isAtomicName) && !fmd->getSize()) {
-    isZeroSizeFile = true;
-    return SFS_OK;
+  // 0-size files can be read from the MGM if this is not FUSE access
+  // atomic files are only served from here and also rain files are skipped
+  if (!isRW && !fmd->getSize() && (!isFuse || isAtomicName)) {
+    if (isAtomicName || (!LayoutId::IsRain(layoutId))) {
+      eos_info("msg=\"0-size file read from the MGM\" path=%s", path);
+      isZeroSizeFile = true;
+      return SFS_OK;
+    }
   }
 
   // @todo(esindril) the tag is wrong should actually be mgm.uid
@@ -2099,8 +2115,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
   } else {
     if (isRW) {
+      // we want to define the order of chunks during creation, so we attach also rain layouts
       if (isCreation && hasClientBookingSize && ((bookingsize == 0) ||
-          ocUploadUuid.length())) {
+          ocUploadUuid.length() || (LayoutId::IsRain(layoutId)))) {
         // ---------------------------------------------------------------------
         // if this is a creation we commit the scheduled replicas NOW
         // we do the same for chunked/parallel uploads
@@ -2245,10 +2262,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       }
     } else {
       if (!fmd->getSize()) {
-        // 0-size files can be read from the MGM if this is not FUSE access!
-        isZeroSizeFile = true;
-
-        if (!isFuse) {
+        // 0-size files can be read from the MGM if this is not FUSE access and
+        // also if this is not a rain file
+        if (!isFuse && !LayoutId::IsRain(layoutId)) {
+          isZeroSizeFile = true;
           return SFS_OK;
         }
       }
@@ -2373,15 +2390,15 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   std::set<unsigned int> ufs(selectedfs.begin(), selectedfs.end());
   ufs.insert(pio_reconstruct_fs.begin(), pio_reconstruct_fs.end());
   new_lid = LayoutId::GetId(
-			    isPio ? LayoutId::kPlain :
-			    LayoutId::GetLayoutType(layoutId),
-			    (isPio ? LayoutId::kNone :
-			     LayoutId::GetChecksum(layoutId)),
-			    isPioReconstruct ? static_cast<int>(ufs.size()) : static_cast<int>
-			    (selectedfs.size()),
-			    LayoutId::GetBlocksizeType(layoutId),
-			    LayoutId::GetBlockChecksum(layoutId),
-			    LayoutId::GetExcessStripeNumber(layoutId));
+              isPio ? LayoutId::kPlain :
+              LayoutId::GetLayoutType(layoutId),
+              (isPio ? LayoutId::kNone :
+               LayoutId::GetChecksum(layoutId)),
+              isPioReconstruct ? static_cast<int>(ufs.size()) : static_cast<int>
+              (selectedfs.size()),
+              LayoutId::GetBlocksizeType(layoutId),
+              LayoutId::GetBlockChecksum(layoutId),
+              LayoutId::GetExcessStripeNumber(layoutId));
 
   // For RAIN layouts we need to keep the original number of stripes since this
   // is used to compute the different groups and block sizes in the FSTs

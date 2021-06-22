@@ -171,6 +171,19 @@ public:
                                  uint16_t timeout = 0);
 
   //----------------------------------------------------------------------------
+  //! Write to file - async
+  //!
+  //! @param offset offset
+  //! @param buffer data to be written
+  //! @param length length
+  //!
+  //! @return future holding the status response
+  //--------------------------------------------------------------------------
+  virtual std::future<XrdCl::XRootDStatus>
+  fileWriteAsync(const char* buffer, XrdSfsFileOffset offset,
+                 XrdSfsXferSize length);
+
+  //----------------------------------------------------------------------------
   //! Truncate
   //!
   //! @param offset truncate file to this value
@@ -179,6 +192,17 @@ public:
   //! @return 0 if successful, -1 otherwise and error code is set
   //----------------------------------------------------------------------------
   virtual int fileTruncate(XrdSfsFileOffset offset, uint16_t timeout = 0);
+
+  //----------------------------------------------------------------------------
+  //! Truncate asynchronous
+  //!
+  //! @param offset truncate file to this value
+  //! @param timeout timeout value
+  //!
+  //! @return future holding the status response
+  //----------------------------------------------------------------------------
+  virtual std::future<XrdCl::XRootDStatus>
+  fileTruncateAsync(XrdSfsFileOffset offset, uint16_t timeout = 0);
 
   //----------------------------------------------------------------------------
   //! Allocate file space

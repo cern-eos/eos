@@ -106,8 +106,8 @@ IProcCommand::open(const char* path, const char* info,
         //       and the NS will be queried directly
         oss << reply.std_out();
       } else {
-        oss << "mgm.proc.stdout=" << reply.std_out()
-            << "&mgm.proc.stderr=" << reply.std_err()
+        oss << "mgm.proc.stdout=" << reply.std_out().c_str()
+            << "&mgm.proc.stderr=" << reply.std_err().c_str()
             << "&mgm.proc.retc=" << reply.retc();
       }
 
@@ -226,7 +226,7 @@ bool
 IProcCommand::OpenTemporaryOutputFiles()
 {
   ostringstream tmpdir;
-  tmpdir << "/tmp/eos.mgm/";
+  tmpdir << "/var/tmp/eos/mgm/";
   tmpdir << uuid++;
   ofstdoutStreamFilename = tmpdir.str();
   ofstdoutStreamFilename += ".stdout";
@@ -430,7 +430,8 @@ IProcCommand::GetPathFromFid(std::string& path, unsigned long long fid,
     }
 
     try {
-      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
+                                              __LINE__, __FILE__);
       std::string temp = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(
                            fid).get());
       path = temp;
@@ -542,26 +543,26 @@ IProcCommand::HasSlot()
     init = true;
 
     for (const auto& type : {
-    eos::console::RequestProto::kAcl,
-        eos::console::RequestProto::kNs,
-        eos::console::RequestProto::kDrain,
-        eos::console::RequestProto::kFind,
-        eos::console::RequestProto::kFs,
-        eos::console::RequestProto::kRm,
-        eos::console::RequestProto::kStagerRm,
-        eos::console::RequestProto::kRoute,
-        eos::console::RequestProto::kIo,
-        eos::console::RequestProto::kGroup,
-        eos::console::RequestProto::kDebug,
-        eos::console::RequestProto::kNode,
-        eos::console::RequestProto::kQuota,
-        eos::console::RequestProto::kSpace,
-        eos::console::RequestProto::kConfig,
-        eos::console::RequestProto::kAccess,
-        eos::console::RequestProto::kToken,
-        eos::console::RequestProto::kQos,
-        eos::console::RequestProto::kConvert
-  }) {
+           eos::console::RequestProto::kAcl,
+           eos::console::RequestProto::kNs,
+           eos::console::RequestProto::kDrain,
+           eos::console::RequestProto::kFind,
+           eos::console::RequestProto::kFs,
+           eos::console::RequestProto::kRm,
+           eos::console::RequestProto::kStagerRm,
+           eos::console::RequestProto::kRoute,
+           eos::console::RequestProto::kIo,
+           eos::console::RequestProto::kGroup,
+           eos::console::RequestProto::kDebug,
+           eos::console::RequestProto::kNode,
+           eos::console::RequestProto::kQuota,
+           eos::console::RequestProto::kSpace,
+           eos::console::RequestProto::kConfig,
+           eos::console::RequestProto::kAccess,
+           eos::console::RequestProto::kToken,
+           eos::console::RequestProto::kQos,
+           eos::console::RequestProto::kConvert
+         }) {
       mCmdsExecuting.emplace(type, 0ull);
     }
   }

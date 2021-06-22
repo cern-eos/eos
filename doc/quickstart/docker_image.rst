@@ -47,9 +47,11 @@ The arguments to provide are the name of the image to use with the **-i** and th
 
 The containers will reside on the same network knowing about each other and are configured to be working out-of-the-box.
 
+You are likely to have the best results with the latest release shown in <https://eos-docs.web.cern.ch/releases.html>.  These instructions assume that it is 4.8.39.
+
 .. code-block:: bash
 
-   scripts/start_services.sh -i gitlab-registry.cern.ch/dss/eos:4.2.16 -n 6
+   scripts/start_services.sh -i gitlab-registry.cern.ch/dss/eos:4.8.39 -n 6
 
 To connect to EOS using the *eos* shell CLI running in the MGM container you can do:
 
@@ -65,8 +67,8 @@ To connect to EOS using the *eos* shell CLI running in the MGM container you can
    EOS Console [root://localhost] |/> version
    version
    EOS_INSTANCE=eosdockertest
-   EOS_SERVER_VERSION=4.2.16 EOS_SERVER_RELEASE=1
-   EOS_CLIENT_VERSION=4.2.16 EOS_CLIENT_RELEASE=1
+   EOS_SERVER_VERSION=4.8.39 EOS_SERVER_RELEASE=1
+   EOS_CLIENT_VERSION=4.8.39 EOS_CLIENT_RELEASE=1
 
 .. code-block:: bash
 

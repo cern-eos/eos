@@ -38,6 +38,7 @@ ProcCommand::Cd()
   const char* inpath = spath.c_str();
   NAMESPACEMAP;
   spath = path;
+  PROC_TOKEN_SCOPE;
 
   if (!spath.length()) {
     stdErr = "error: you have to give a path name to call 'cd'";

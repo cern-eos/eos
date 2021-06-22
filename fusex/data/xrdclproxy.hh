@@ -41,99 +41,6 @@
 #include <atomic>
 #include <mutex>
 
-// need some redefines for XRootD v3
-#ifndef EOSCITRINE
-
-#define kXR_overQuota (kXR_inProgress+1)
-#define kXR_SigVerErr (kXR_inProgress+2)
-#define kXR_DecryptErr (kXR_inProgress+3)
-#define kXR_Overloaded (kXR_inProgress+4)
-
-static int XtoErrno(int xerr)
-{
-  switch (xerr) {
-  case kXR_ArgInvalid:
-    return EINVAL;
-
-  case kXR_ArgMissing:
-    return EINVAL;
-
-  case kXR_ArgTooLong:
-    return ENAMETOOLONG;
-
-  case kXR_FileLocked:
-    return EDEADLK;
-
-  case kXR_FileNotOpen:
-    return EBADF;
-
-  case kXR_FSError:
-    return EIO;
-
-  case kXR_InvalidRequest:
-    return EEXIST;
-
-  case kXR_IOError:
-    return EIO;
-
-  case kXR_NoMemory:
-    return ENOMEM;
-
-  case kXR_NoSpace:
-    return ENOSPC;
-
-  case kXR_NotAuthorized:
-    return EACCES;
-
-  case kXR_NotFound:
-    return ENOENT;
-
-  case kXR_ServerError:
-    return ENOMSG;
-
-  case kXR_Unsupported:
-    return ENOSYS;
-
-  case kXR_noserver:
-    return EHOSTUNREACH;
-
-  case kXR_NotFile:
-    return ENOTBLK;
-
-  case kXR_isDirectory:
-    return EISDIR;
-
-  case kXR_Cancelled:
-    return ECANCELED;
-
-  case kXR_ChkLenErr:
-    return EDOM;
-
-  case kXR_ChkSumErr:
-    return EDOM;
-
-  case kXR_inProgress:
-    return EINPROGRESS;
-
-  case kXR_overQuota:
-    return EDQUOT;
-
-  case kXR_SigVerErr:
-    return EILSEQ;
-
-  case kXR_DecryptErr:
-    return ERANGE;
-
-  case kXR_Overloaded:
-    return EUSERS;
-
-  default:
-    return ENOMSG;
-  }
-}
-
-#endif
-
 namespace XrdCl
 {
 
@@ -497,11 +404,7 @@ public:
     if (status.errNo < kXR_ArgInvalid) {
       return status.errNo;
     } else {
-#ifndef EOSCITRINE
-      return XtoErrno(status.errNo);
-#else
       return XProtocol::toErrno(status.errNo);
-#endif
     }
   }
 
@@ -662,6 +565,16 @@ public:
     return mReadAheadMaximumPosition;
   }
 
+  void set_readahead_sparse_ratio(double r)
+  {
+    XReadAheadSparseRatio = r;
+  }
+
+  double get_readhead_sparse_ratio()
+  {
+    return XReadAheadSparseRatio;
+  }
+
   static READAHEAD_STRATEGY readahead_strategy_from_string(
     const std::string& strategy)
   {
@@ -677,7 +590,7 @@ public:
   }
 
   void set_readahead_strategy(READAHEAD_STRATEGY rhs,
-                              size_t min, size_t nom, size_t max, size_t rablocks)
+                              size_t min, size_t nom, size_t max, size_t rablocks, float sparse_ratio = 0.0)
   {
     XReadAheadStrategy = rhs;
     XReadAheadMin = min;
@@ -687,6 +600,7 @@ public:
     XReadAheadBlocksNom = 1;
     XReadAheadBlocksMin = 1;
     XReadAheadReenableHits = 0;
+    XReadAheadSparseRatio = sparse_ratio;
   }
 
   float get_readahead_efficiency()
@@ -698,7 +612,8 @@ public:
   float get_readahead_volume_efficiency()
   {
     XrdSysCondVarHelper lLock(ReadCondVar());
-    return (mTotalBytes) ? (100.0 * mTotalReadAheadHitBytes / mTotalReadAheadBytes)
+    return (mTotalReadAheadBytes) ? (100.0 * mTotalReadAheadHitBytes /
+                                     mTotalReadAheadBytes)
            : 0.0;
   }
 
@@ -748,6 +663,9 @@ public:
     XReadAheadBlocksMin = 1;
     XReadAheadReenableHits = 0;
     XReadAheadBlocksIs = 0;
+    XReadAheadDisabled = false;
+    XReadAheadSparseRatio = 0.0;
+    mSeqDistance = 0;
     mPosition = 0;
     mReadAheadPosition = 0;
     mTotalBytes = 0;
@@ -841,8 +759,11 @@ public:
       CollectWrites();
     }
 
-    eos_notice("ra-efficiency=%f ra-vol-efficiency=%f", get_readahead_efficiency(),
-               get_readahead_volume_efficiency());
+    eos_notice("ra-efficiency=%f ra-vol-efficiency=%f tot-bytes=%lu ra-bytes=%lu ra-hit-bytes=%lu ",
+               get_readahead_efficiency(),
+               get_readahead_volume_efficiency(),
+               mTotalReadAheadBytes,
+               mTotalReadAheadHitBytes);
   }
 
   // ---------------------------------------------------------------------- //
@@ -1452,13 +1373,15 @@ private:
   size_t XReadAheadBlocksMax; // maximum number of prefetch blocks
   size_t XReadAheadBlocksIs; // current blocks in the read-ahead
   size_t XReadAheadReenableHits; // sequential read hits in a row
+  bool   XReadAheadDisabled; // one-off disabling of read-ahead
+  double XReadAheadSparseRatio; // sparse ratio when we permanently disable read-ahead
   off_t mPosition;
   off_t mReadAheadPosition;
   off_t mTotalBytes;
   off_t mTotalReadAheadHitBytes;
   off_t mTotalReadAheadBytes;
   off_t mReadAheadMaximumPosition;
-
+  off_t mSeqDistance;
   XrdSysMutex mAttachedMutex;
   size_t mAttached;
   fuse_req_t mReq;

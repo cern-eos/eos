@@ -34,7 +34,7 @@ Create file /etc/yum.repos.d/eos-dep.repo with following content
 EOS Citrine
 -------------------------------------------
 
-XRootD Repo (eventually change el-7 to your platform: el-5 el-6 el-7). Create file /etc/yum.repos.d/xrootd.repo with following content
+XRootD Repo (eventually change el-7 to your platform: el-6 el-7 el-8). Create file /etc/yum.repos.d/xrootd.repo with following content
 
 .. code-block:: text
 
@@ -46,7 +46,7 @@ XRootD Repo (eventually change el-7 to your platform: el-5 el-6 el-7). Create fi
   protect=0
   gpgkey=http://xrootd.cern.ch/sw/releases/RPM-GPG-KEY.txt
 
-EOS Repo (eventually change el-7 to your platform: el-5 el-6 el-7 fc-21 fc-22 fc-23 fc-rawhide). Create file /etc/yum.repos.d/eos.repo with following content
+EOS Repo (eventually change el-7 to your platform: el-6 el-7 el-8 fc-31 fc-32 fc-rawhide). Create file /etc/yum.repos.d/eos.repo with following content
 
 .. code-block:: text
 

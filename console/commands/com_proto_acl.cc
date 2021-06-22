@@ -66,8 +66,10 @@ void com_acl_help()
       << "  -h, --help      : print help message" << std::endl
       << "  -R, --recursive : apply to directories recursively" << std::endl
       << "  -l, --list      : list ACL rules" << std::endl
-      << "      --user      : handle/list user.acl rules on directory" << std::endl
-      << "      --sys       : handle/list sys.acl rules on directory" << std::endl
+      << "      --user      : handle/list user.acl rules on directory. " << std::endl
+      << "                    Regular users can modify these." << std::endl
+      << "      --sys       : handle/list sys.acl rules on directory." << std::endl
+      << "                    Only admin can modify these." << std::endl
       << std::endl
       << "  <rule> is created similarly to chmod rules. Every rule begins with"
       << std::endl

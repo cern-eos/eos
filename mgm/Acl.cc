@@ -94,8 +94,8 @@ Acl::SetFromAttrMap(const eos::IContainerMD::XAttrMap& attrmap,
 
       if (evalUseracl) {
         useracl = (*attrmapF)["user.acl"];
-	userattrF = useracl;
-	evaluserattrF = true;
+        userattrF = useracl;
+        evaluserattrF = true;
       }
     } else {
       evalUseracl = attrmap.count("sys.eval.useracl") > 0;
@@ -142,6 +142,7 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
 
   if (allowUserAcl) {
     evaluserattr = true;
+
     if (useracl.length()) {
       if (sysacl.length()) {
         acl += ",";
@@ -706,8 +707,14 @@ Acl::TokenAcl(const eos::common::VirtualIdentity& vid) const
         tokenacl += ":";
         tokenacl += vid.token->Permission();
         return tokenacl;
+      } else {
+        eos_static_err("invald path token");
       }
+    } else {
+      eos_static_err("invalid token");
     }
+  } else {
+    eos_static_err("no token");
   }
 
   return "";

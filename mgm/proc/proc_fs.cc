@@ -444,9 +444,6 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
                   << "# You can drain the filesystem if it is still operational via the command:\n"
                   << "# [eos] fs config " << fs->GetId() << " configstatus=drain\n"
                   << "# -------------------------------------------------------------------\n"
-                  << "# You can drain the filesystem if it is unusable via the command:\n"
-                  << "# [eos] fs config " << fs->GetId() << " configstatus=draindead\n"
-                  << "# -------------------------------------------------------------------\n"
                   << "# You can force to remove these files via the command:\n"
                   << "# [eos] fs dropfiles " << fs->GetId() << "\n"
                   << "# -------------------------------------------------------------------\n"
@@ -1155,7 +1152,7 @@ proc_sort_groups_by_priority(FsView& fs_view, const std::string& space,
   // without any file systems i.e highest priority
   std::list<std::string> ret_grps(set_grps.begin(), set_grps.end());
 
-  for (auto && grp : grps) {
+  for (auto&& grp : grps) {
     ret_grps.push_back(grp->mName);
   }
 
@@ -1199,7 +1196,7 @@ int proc_mv_grp_space(FsView& fs_view, const std::string& src,
   if (!failed_fs.empty()) {
     oss << "warning: the following file systems could not be moved ";
 
-    for (auto && elem : failed_fs) {
+    for (auto&& elem : failed_fs) {
       oss << elem << " ";
     }
 
@@ -1263,7 +1260,7 @@ int proc_mv_space_space(FsView& fs_view, const std::string& src,
   if (!failed_fs.empty()) {
     oss << "warning: the following file systems could not be moved ";
 
-    for (auto && elem : failed_fs) {
+    for (auto&& elem : failed_fs) {
       oss << elem << " ";
     }
 
@@ -1311,7 +1308,7 @@ proc_mv_fs_node(FsView& fs_view, const std::string& src,
       std::string group = snapshot.mGroup;
       std::string configstatus = eos::common::FileSystem::GetConfigStatusAsString(
                                    snapshot.mConfigStatus);
-      int rc = proc_fs_rm(a , b, id, stdOut, stdErr, vid_in);
+      int rc = proc_fs_rm(a, b, id, stdOut, stdErr, vid_in);
       FsView::gFsView.ViewMutex.UnLockWrite();
 
       if (!rc) {
@@ -1421,16 +1418,6 @@ proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
       stdErr = "error: you can only remove file systems which are in 'empty' status";
       retc = EINVAL;
     } else {
-      if (!FsView::gFsView.RemoveMapping(fsid)) {
-        stdErr = "error: couldn't remove mapping of filesystem defined by ";
-        stdErr += nodename.c_str();
-        stdErr += "/";
-        stdErr += mountpoint.c_str();
-        stdErr += "/";
-        stdErr += id.c_str();
-        stdErr += " ";
-      }
-
       if (!FsView::gFsView.UnRegister(fs, true, true)) {
         stdErr = "error: couldn't unregister the filesystem ";
         stdErr += nodename.c_str();

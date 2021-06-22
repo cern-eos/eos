@@ -1641,7 +1641,7 @@ FsView::Register(FileSystem* fs, const common::FileSystemCoreParams& coreParams,
 
   // Check for queuepath collision
   if (mIdView.lookupByQueuePath(coreParams.getQueuePath())) {
-    eos_err("msg=\"queuepath already registered\" qpath=%s",
+    eos_err("msg=\"queuepath already registered\" qpath=\"%s\"",
             coreParams.getQueuePath().c_str());
     return false;
   }
@@ -1758,23 +1758,17 @@ FsView::Register(FileSystem* fs, const common::FileSystemCoreParams& coreParams,
 // Store the filesystem configuration in the configuration engine
 //------------------------------------------------------------------------------
 void
-FsView::StoreFsConfig(FileSystem* fs)
+FsView::StoreFsConfig(FileSystem* fs, bool save_config)
 {
   if (fs) {
     std::string key, val;
     fs->CreateConfig(key, val);
-    return StoreFsConfig(key, val);
-  }
-}
 
-//------------------------------------------------------------------------------
-// Store the filesystem configuration into the config engine.
-//------------------------------------------------------------------------------
-void
-FsView::StoreFsConfig(const std::string& key, const std::string& val)
-{
-  if (FsView::gFsView.mConfigEngine && !key.empty() && !val.empty()) {
-    FsView::gFsView.mConfigEngine->SetConfigValue("fs", key.c_str(), val.c_str());
+    if (gOFS->mMaster->IsMaster() && FsView::gFsView.mConfigEngine &&
+        !key.empty() && !val.empty()) {
+      FsView::gFsView.mConfigEngine->SetConfigValue("fs", key.c_str(), val.c_str(),
+          true, save_config);
+    }
   }
 }
 
@@ -1924,20 +1918,13 @@ FsView::UnRegister(FileSystem* fs, bool unreg_from_geo_tree,
   // Delete in the configuration engine
   std::string key = fs->GetQueuePath();
 
-  if (FsView::gFsView.mConfigEngine) {
+  if (gOFS->mMaster->IsMaster() && FsView::gFsView.mConfigEngine) {
     FsView::gFsView.mConfigEngine->DeleteConfigValue("fs", key.c_str());
   }
 
   eos::common::FileSystem::fs_snapshot_t snapshot;
 
   if (fs->SnapShotFileSystem(snapshot)) {
-    // Remove view by filesystem object and filesystem id
-    // Check if this is in the view
-    if (!mIdView.eraseByPtr(fs)) {
-      eos_static_crit("could not find fs ptr=%x (fsid=%lld) to unregister ?!", fs,
-                      snapshot.mId);
-    }
-
     // Remove fs from node view & evt. remove node view
     if (mNodeView.count(snapshot.mQueue)) {
       FsNode* node = mNodeView[snapshot.mQueue];
@@ -1991,6 +1978,12 @@ FsView::UnRegister(FileSystem* fs, bool unreg_from_geo_tree,
         mSpaceView.erase(snapshot.mSpace);
         delete space;
       }
+    }
+
+    // Remove view by filesystem object and filesystem id
+    if (!mIdView.eraseByPtr(fs)) {
+      eos_static_crit("msg=\"no such file system to unregister\" ptr=%x fsid=%lu",
+                      fs,  snapshot.mId);
     }
 
     // Remove mapping
@@ -2115,8 +2108,7 @@ FsView::UnRegisterSpace(const char* spacename)
   bool has_fs = false;
 
   if (mSpaceView.count(spacename)) {
-    while (mSpaceView.count(spacename) &&
-           (mSpaceView[spacename]->begin() != mSpaceView[spacename]->end())) {
+    while (mSpaceView.count(spacename) && mSpaceView[spacename]->size()) {
       eos::common::FileSystem::fsid_t fsid = *(mSpaceView[spacename]->begin());
       FileSystem* fs = mIdView.lookupByID(fsid);
 
@@ -2135,8 +2127,10 @@ FsView::UnRegisterSpace(const char* spacename)
     if (!has_fs) {
       // We have to explicitly remove the space from the view here because no
       // fs was removed
-      delete mSpaceView[spacename];
-      retc = (mSpaceView.erase(spacename) ? true : false);
+      if (mSpaceView.count(spacename)) {
+        delete mSpaceView[spacename];
+        retc = (mSpaceView.erase(spacename) ? true : false);
+      }
     }
   }
 
@@ -2336,70 +2330,60 @@ void
 FsView::HeartBeatCheck(ThreadAssistant& assistant) noexcept
 {
   while (!assistant.terminationRequested()) {
-    {
-      eos::common::RWMutexReadLock lock(ViewMutex);
+    assistant.wait_for(std::chrono::seconds(10));
+    eos::common::RWMutexReadLock lock(ViewMutex, __FUNCTION__, __LINE__, __FILE__);
 
-      for (auto it = mIdView.begin(); it != mIdView.end(); ++it) {
-        if (it->second == nullptr) {
-          continue;
-        }
-
-        if (!it->second->hasHeartbeat()) {
-          // mark as offline
-          if (it->second->GetActiveStatus() != eos::common::ActiveStatus::kOffline) {
-            it->second->SetActiveStatus(eos::common::ActiveStatus::kOffline);
-          }
-        } else {
-          std::string queue = it->second->GetString("queue");
-          std::string group = it->second->GetString("schedgroup");
-
-          if ((FsView::gFsView.mNodeView.count(queue)) &&
-              (FsView::gFsView.mGroupView.count(group)) &&
-              (FsView::gFsView.mNodeView[queue]->GetConfigMember("status") == "on") &&
-              (FsView::gFsView.mGroupView[group]->GetConfigMember("status") == "on")) {
-            if (it->second->GetActiveStatus() != eos::common::ActiveStatus::kOnline) {
-              it->second->SetActiveStatus(eos::common::ActiveStatus::kOnline);
-            }
-          } else {
-            if (it->second->GetActiveStatus() != eos::common::ActiveStatus::kOffline) {
-              it->second->SetActiveStatus(eos::common::ActiveStatus::kOffline);
-            }
-          }
-        }
+    // Loop over all the nodes and update their status
+    for (auto it_node = mNodeView.begin();
+         it_node != mNodeView.end(); ++it_node) {
+      if (it_node->second == nullptr) {
+        continue;
       }
 
-      // Iterate over all filesystems
-      for (auto it = mNodeView.begin(); it != mNodeView.end(); it++) {
-        if (!it->second) {
-          continue;
+      auto* node = it_node->second;
+
+      if (node->HasHeartbeat()) {
+        if (node->GetActiveStatus() != eos::common::ActiveStatus::kOnline) {
+          node->SetActiveStatus(eos::common::ActiveStatus::kOnline);
         }
 
-        eos::common::FileSystem::host_snapshot_t snapshot;
-        auto shbt = it->second->GetMember("heartbeat");
-        snapshot.mHeartBeatTime = (time_t) strtoll(shbt.c_str(), NULL, 10);
+        // Loop over all files sysytems in the current node and update status
+        for (auto it_fsid = node->begin(); it_fsid != node->end(); ++it_fsid) {
+          FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it_fsid);
 
-        if (!snapshot.hasHeartbeat()) {
-          // mark as offline
-          if (it->second->GetActiveStatus() != eos::common::ActiveStatus::kOffline) {
-            it->second->SetActiveStatus(eos::common::ActiveStatus::kOffline);
+          if (fs == nullptr) {
+            continue;
           }
-        } else {
-          std::string queue = it->second->mName;
 
-          if ((FsView::gFsView.mNodeView.count(queue)) &&
-              (FsView::gFsView.mNodeView[queue]->GetConfigMember("status") == "on")) {
-            if (it->second->GetActiveStatus() != eos::common::ActiveStatus::kOnline) {
-              it->second->SetActiveStatus(eos::common::ActiveStatus::kOnline);
+          std::string group = fs->GetString("schedgroup");
+
+          if ((node->GetConfigMember("status") == "on") &&
+              FsView::gFsView.mGroupView.count(group) &&
+              (FsView::gFsView.mGroupView[group]->GetConfigMember("status") == "on")) {
+            if (fs->GetActiveStatus() != eos::common::ActiveStatus::kOnline) {
+              fs->SetActiveStatus(eos::common::ActiveStatus::kOnline);
             }
           } else {
-            if (it->second->GetActiveStatus() != eos::common::ActiveStatus::kOffline) {
-              it->second->SetActiveStatus(eos::common::ActiveStatus::kOffline);
+            if (fs->GetActiveStatus() != eos::common::ActiveStatus::kOffline) {
+              fs->SetActiveStatus(eos::common::ActiveStatus::kOffline);
             }
+          }
+        }
+      } else {
+        // Loop over all files sysytems in the current node and update status
+        for (auto it_fsid = node->begin(); it_fsid != node->end(); ++it_fsid) {
+          FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it_fsid);
+
+          if (fs == nullptr) {
+            continue;
+          }
+
+          if (fs->GetActiveStatus() != eos::common::ActiveStatus::kOffline) {
+            fs->SetActiveStatus(eos::common::ActiveStatus::kOffline);
           }
         }
       }
     }
-    assistant.wait_for(std::chrono::seconds(10));
   }
 }
 
@@ -2607,6 +2591,18 @@ FsNode::SetActiveStatus(eos::common::ActiveStatus active)
 }
 
 //------------------------------------------------------------------------------
+// Check if node has a recent enough heartbeat ie. less then 60 seconds
+//------------------------------------------------------------------------------
+bool FsNode::HasHeartbeat() const
+{
+  if (mHeartBeat == 0) {
+    return false;
+  }
+
+  return isHeartbeatRecent(mHeartBeat.load());
+}
+
+//------------------------------------------------------------------------------
 // Set a configuration member variable (stored in the config engine)
 // If 'isstatus'=true we just store the value in the shared hash but don't flush
 // it into the configuration engine.
@@ -2635,7 +2631,7 @@ BaseView::SetConfigMember(std::string key, std::string value,
   }
 
   // Register in the configuration engine
-  if ((!isstatus) && FsView::gFsView.mConfigEngine) {
+  if (gOFS->mMaster->IsMaster() && (!isstatus) && FsView::gFsView.mConfigEngine) {
     std::string node_cfg_name = mLocator.getConfigQueue();
     node_cfg_name += "#";
     node_cfg_name += key;
@@ -2666,7 +2662,7 @@ BaseView::DeleteConfigMember(std::string key) const
                                        mLocator).del(key);
 
   // Delete in the configuration engine
-  if (FsView::gFsView.mConfigEngine) {
+  if (gOFS->mMaster->IsMaster() && FsView::gFsView.mConfigEngine) {
     std::string node_cfg_name = mLocator.getConfigQueue();
     node_cfg_name += "#";
     node_cfg_name += key;
@@ -2842,12 +2838,14 @@ FsView::PrintNodes(std::string& out, const std::string& table_format,
 // @note This method needs to be called with the ViewMutex locked for write
 //------------------------------------------------------------------------------
 bool
-FsView::ApplyFsConfig(const char* inkey, std::string& val)
+FsView::ApplyFsConfig(const char* inkey, const std::string& val,
+                      bool first_unregister)
 {
   std::map<std::string, std::string> configmap;
 
   if (!common::ConfigParsing::parseFilesystemConfig(val, configmap)) {
-    eos_err("could not parse fs config entry");
+    eos_err("msg=\"failed parsing fs config entry\" data=\"%s\"",
+            val.c_str());
     return false;
   }
 
@@ -2855,15 +2853,39 @@ FsView::ApplyFsConfig(const char* inkey, std::string& val)
 
   if (!common::FileSystemLocator::fromQueuePath(configmap["queuepath"],
       locator)) {
-    eos_crit("Could not parse queuepath: %s", configmap["queuepath"].c_str());
+    eos_crit("msg=\"failed parsing queuepath: %s", configmap["queuepath"].c_str());
     return false;
   }
 
-  eos::common::FileSystem::fsid_t fsid = atoi(configmap["id"].c_str());
+  const auto it = configmap.find("id");
+
+  if (it == configmap.end()) {
+    eos_static_err("msg=\"missing id from fs config entry\" value=\"%s\"",
+                   val.c_str());
+    return false;
+  }
+
+  eos::common::FileSystem::fsid_t fsid =
+    eos::common::FileSystem::ConvertToFsid(it->second);
+
+  if (fsid == 0ul) {
+    eos_static_err("msg=\"no such fsid 0\" value=\"%s\"", it->second.c_str());
+    return false;
+  }
+
   FileSystem* fs = FsView::gFsView.mIdView.lookupByID(fsid);
 
+  if (first_unregister && fs) {
+    if (!UnRegister(fs)) {
+      eos_static_warning("msg=\"failed to unregister file system\" fsid=%lu",
+                         fsid);
+    }
+
+    fs = nullptr;
+  }
+
   // Apply only the registration for a new filesystem if it does not exist
-  if (!fs) {
+  if (fs == nullptr) {
     fs = new FileSystem(locator, gOFS->mMessagingRealm.get());
   }
 
@@ -2888,7 +2910,7 @@ FsView::ApplyFsConfig(const char* inkey, std::string& val)
     fs->SetString(it_cfg->first.c_str(), it_cfg->second.c_str());
   }
 
-  if (!FsView::gFsView.Register(fs, fs->getCoreParams())) {
+  if (!Register(fs, fs->getCoreParams())) {
     eos_err("msg=\"cannot register filesystem name=%s from configuration\"",
             configmap["queuepath"].c_str());
     return false;
@@ -3027,7 +3049,7 @@ FsView::CollectEndpoints(const std::string& queue) const
         continue;
       }
     } else {
-      if (queue != fs->GetQueuePath()) {
+      if (queue != fs->GetQueue()) {
         continue;
       } else {
         if (fs->GetActiveStatus() != eos::common::ActiveStatus::kOnline) {

@@ -89,7 +89,8 @@ bool
 ProcCommand::OpenTemporaryOutputFiles()
 {
   char tmpdir [4096];
-  snprintf(tmpdir, sizeof(tmpdir) - 1, "/tmp/eos.mgm/%llu",
+  snprintf(tmpdir, sizeof(tmpdir) - 1, "%s/%llu",
+           gOFS->TmpStorePath.c_str(),
            (unsigned long long) XrdSysThread::ID());
   fstdoutfilename = tmpdir;
   fstdoutfilename += ".stdout";
@@ -482,6 +483,13 @@ ProcCommand::MakeResult()
         mResultStream +=
           "<TITLE>EOS-HTTP</TITLE> <link rel=\"stylesheet\" href=\"http://www.w3.org/StyleSheets/Core/Midnight\"> \n";
         mResultStream += "<meta charset=\"utf-8\"> \n";
+
+        // block cross-site scripting in responses
+        if (stdErr.length()) {
+          mResultStream +=
+            "<meta http-equiv=\"Content-Security-Policy\" content=\"script-src https://code.jquery.com 'self';\">\n";
+        }
+
         mResultStream += "<div class=\"httptable\" id=\"";
         mResultStream += mCmd.c_str();
         mResultStream += "_";

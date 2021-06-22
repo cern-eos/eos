@@ -47,7 +47,7 @@ public:
   //! @param opts global options
   //----------------------------------------------------------------------------
   NewfindHelper(const GlobalOptions& opts):
-      ICmdHelper(opts)
+    ICmdHelper(opts)
   {}
 
   //----------------------------------------------------------------------------
@@ -138,9 +138,11 @@ NewfindHelper::ParseCommand(const char* arg)
       find->set_mixedgroups(true);
     } else if (s1 == "-uid") {
       find->set_searchuid(true);
+
       if (!subtokenizer.NextToken(token)) {
         return false;
       }
+
       try {
         find->set_uid(std::stoul(token));
       } catch (std::invalid_argument& error) {
@@ -148,9 +150,11 @@ NewfindHelper::ParseCommand(const char* arg)
       }
     } else if (s1 == "-nuid") {
       find->set_searchnotuid(true);
+
       if (!subtokenizer.NextToken(token)) {
         return false;
       }
+
       try {
         find->set_notuid(std::stoul(token));
       } catch (std::invalid_argument& error) {
@@ -158,9 +162,11 @@ NewfindHelper::ParseCommand(const char* arg)
       }
     } else if (s1 == "-gid") {
       find->set_searchgid(true);
+
       if (!subtokenizer.NextToken(token)) {
         return false;
       }
+
       try {
         find->set_gid(std::stoul(token));
       } catch (std::invalid_argument& error) {
@@ -168,9 +174,11 @@ NewfindHelper::ParseCommand(const char* arg)
       }
     } else if (s1 == "-ngid") {
       find->set_searchnotgid(true);
+
       if (!subtokenizer.NextToken(token)) {
         return false;
       }
+
       try {
         find->set_notgid(std::stoul(token));
       } catch (std::invalid_argument& error) {
@@ -178,26 +186,35 @@ NewfindHelper::ParseCommand(const char* arg)
       }
     } else if (s1 == "-flag") {
       find->set_searchpermission(true);
+
       if (!subtokenizer.NextToken(token)) {
         return false;
       }
-      if (token.length() != 3 || token.find_first_not_of("01234567") != std::string::npos) {
+
+      if (token.length() != 3 ||
+          token.find_first_not_of("01234567") != std::string::npos) {
         return false;
       }
+
       find->set_permission(token);
     } else if (s1 == "-nflag") {
       find->set_searchnotpermission(true);
+
       if (!subtokenizer.NextToken(token)) {
         return false;
       }
-      if (token.length() != 3 || token.find_first_not_of("01234567") != std::string::npos) {
+
+      if (token.length() != 3 ||
+          token.find_first_not_of("01234567") != std::string::npos) {
         return false;
       }
+
       find->set_notpermission(token);
     } else if (s1 == "-x") {
       if (!subtokenizer.NextToken(token)) {
         return false;
       }
+
       if (token.length() > 0 && token.find('=') != std::string::npos &&
           token.find('&') == std::string::npos) {
         auto key = token;
@@ -213,6 +230,7 @@ NewfindHelper::ParseCommand(const char* arg)
       if (!subtokenizer.NextToken(token)) {
         return false;
       }
+
       if (token.length() > 0) {
         try {
           find->set_maxdepth(std::stoul(token));
@@ -238,7 +256,8 @@ NewfindHelper::ParseCommand(const char* arg)
       } else {
         return false;
       }
-    // @todo drop "-name" sometime later
+
+      // @todo drop "-name" sometime later
     } else if (s1 == "--name" || s1 == "-name") {
       std::string filematch = subtokenizer.GetToken();
 
@@ -630,11 +649,7 @@ com_protonewfind(char* arg)
   }
 
   global_retc = find.Execute();
-//  if (global_retc) {
-//    std::cerr << find.GetError();
-//  }
   return global_retc;
-
 }
 
 void com_newfind_help()
@@ -647,7 +662,7 @@ void com_newfind_help()
       << "Filters: [--maxdepth <n>] [--name <pattern>] [-d] [-f] [-0] [-g] [-uid <n>] [-nuid <n>] [-gid <n>] [-ngid <n>] [-flag <n>] [-nflag <n>] [-ctime +<n>|-<n>] [-x <key>=<val>]\n"
 //      << "\t                   -1 : \n"
       << "\t       --maxdepth <n> : descend only <n> levels\n"
-      << "\t     --name <pattern> : find by name or wildcard match\n"
+      << "\t     --name <pattern> : find by name, filtering by 'egrep' style regex match\n"
       << "\t                -f,-d : find only files(-f) or directories (-d) in <path>\n"
       << "\t       -x <key>=<val> : find entries with <key>=<val>\n"
       << "\t   -uid <n>,-nuid <n> : find entries owned / not owned by a given user id number\n"

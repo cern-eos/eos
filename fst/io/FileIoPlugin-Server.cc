@@ -56,9 +56,9 @@ FileIoPlugin::GetIoObject(std::string path,
 
     // Attempt to retrieve S3 credentials from the filesystem
     if (file) {
-      FileSystem* fileSystem =
-        gOFS.Storage->GetFileSystemById(file->GetFileSystemId());
-      s3credentials = fileSystem->GetString("s3credentials");
+      s3credentials =
+        gOFS.Storage->GetFileSystemConfig(file->GetFileSystemId(),
+                                          "s3credentials");
     }
 
     return static_cast<FileIo*>(new DavixIo(path, s3credentials));

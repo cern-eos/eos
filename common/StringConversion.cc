@@ -131,6 +131,33 @@ StringConversion::GetReadableAgeString(XrdOucString& sizestring,
 }
 
 
+
+
+std::string
+StringConversion::GetFixedDouble(double value, size_t width, size_t precision)
+{
+  char dline[1024];
+  char format[16];
+
+  if (precision == 1) {
+    snprintf(dline, sizeof(dline), "%.01f", value);
+  } else if (precision == 2) {
+    snprintf(dline, sizeof(dline), "%.02f", value);
+  } else if (precision == 3) {
+    snprintf(dline, sizeof(dline), "%.03f", value);
+  } else if (precision == 4) {
+    snprintf(dline, sizeof(dline), "%.04f", value);
+  } else {
+    snprintf(dline, sizeof(dline), "%f", value);
+  }
+
+  char wline[1024];
+  snprintf(format, sizeof(format), "%%-%lus", width);
+  snprintf(wline, sizeof(wline), format, dline);
+  return std::string(wline);
+}
+
+
 //------------------------------------------------------------------------------
 // Convert a long long value into K,M,G,T,P,E byte scale
 //------------------------------------------------------------------------------

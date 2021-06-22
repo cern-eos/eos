@@ -186,35 +186,30 @@ Server::MonitorCaps() noexcept
       } quotainfo_t;
       std::map<std::string, quotainfo_t> qmap;
       {
-        eos::common::RWMutexReadLock lLock(Cap());
-
         if (EOS_LOGS_DEBUG) {
           eos_static_debug("looping over caps n=%d", Cap().GetCaps().size());
         }
 
-        std::map<FuseServer::Caps::authid_t, FuseServer::Caps::shared_cap>& allcaps =
-          Cap().GetCaps();
-
-        for (auto it = allcaps.begin(); it != allcaps.end(); ++it) {
+        for (auto& it : Cap().GetAllCaps()) {
           if (EOS_LOGS_DEBUG) {
-            eos_static_debug("cap q-node %lx", it->second->_quota().quota_inode());
+            eos_static_debug("cap q-node %lx", it->_quota().quota_inode());
           }
 
           // if we find a cap with 'noquota' contents, we just ignore this one
-          if (it->second->_quota().inode_quota() == noquota) {
+          if (it->_quota().inode_quota() == noquota) {
             continue;
           }
 
-          if (it->second->_quota().quota_inode()) {
-            quotainfo_t qi(it->second->uid(), it->second->gid(),
-                           it->second->_quota().quota_inode());
+          if (it->_quota().quota_inode()) {
+            quotainfo_t qi(it->uid(), it->gid(),
+                           it->_quota().quota_inode());
 
             // skip if we did this already ...
             if (qmap.count(qi.id())) {
-              qmap[qi.id()].authids.push_back(it->second->authid());
+              qmap[qi.id()].authids.push_back(it->authid());
             } else {
               qmap[qi.id()] = qi;
-              qmap[qi.id()].authids.push_back(it->second->authid());
+              qmap[qi.id()].authids.push_back(it->authid());
             }
           }
         }
@@ -243,14 +238,7 @@ Server::MonitorCaps() noexcept
                 ((avail_files && avail_bytes) &&
                  (outofquota.count(*auit)))) { // first time back to quota
               // send the changed quota information via a cap update
-              FuseServer::Caps::shared_cap cap;
-              {
-                eos::common::RWMutexReadLock lLock(Cap());
-
-                if (Cap().GetCaps().count(*auit)) {
-                  cap = Cap().GetCaps()[*auit];
-                }
-              }
+              auto cap = Cap().GetTS(*auit);
 
               if (cap) {
                 cap->mutable__quota()->set_inode_quota(avail_files);
@@ -577,27 +565,14 @@ Server::FillContainerCAP(uint64_t id,
 
     // check if the client has already a cap, in case yes, we don't return a new
     // one
-    eos::common::RWMutexReadLock lLock(Cap());
-
-    if (Cap().ClientInoCaps().count(dir.clientid())) {
-      if (Cap().ClientInoCaps()[dir.clientid()].count(id)) {
-        return true;
-      }
+    if (Cap().HasInodeId(dir.clientid(), id)) {
+      return true;
     }
   } else {
     // avoid to pile-up caps for the same client, delete previous ones
-    eos::common::RWMutexReadLock lLock(Cap());
-
-    if (Cap().ClientInoCaps().count(dir.clientid())) {
-      if (Cap().ClientInoCaps()[dir.clientid()].count(id)) {
-        for (auto it = Cap().ClientInoCaps()[dir.clientid()][id].begin();
-             it != Cap().ClientInoCaps()[dir.clientid()][id].end(); ++it) {
-          if (*it != reuse_uuid) {
-            duplicated_caps.insert(*it);
-          }
-        }
-      }
-    }
+    auto auth_ids = Cap().GetInodeCapAuthIds(dir.clientid(), id);
+    auth_ids.erase(reuse_uuid);
+    duplicated_caps = std::move(auth_ids);
   }
 
   dir.mutable_capability()->set_id(id);
@@ -751,7 +726,8 @@ Server::FillContainerCAP(uint64_t id,
     }
 
     if (!gOFS->allow_public_access(dir.fullpath().c_str(), vid)) {
-      mode = 0;
+      mode = dir.mode() & S_IFDIR;
+      mode |= X_OK;
     }
 
     dir.mutable_capability()->set_mode(mode);
@@ -852,12 +828,10 @@ Server::FillContainerCAP(uint64_t id,
   Cap().Store(dir.capability(), &vid);
 
   if (duplicated_caps.size()) {
-    eos::common::RWMutexWriteLock lLock(Cap());
-
     for (auto it = duplicated_caps.begin(); it != duplicated_caps.end(); ++it) {
       eos_static_debug("removing duplicated cap %s\n", it->c_str());
-      Caps::shared_cap cap = Cap().Get(*it);
-      Cap().Remove(cap);
+      Caps::shared_cap cap = Cap().GetTS(*it);
+      Cap().RemoveTS(cap);
     }
   }
 
@@ -1416,7 +1390,8 @@ Server::OpSetDirectory(const std::string& id,
   std::shared_ptr<eos::IContainerMD> cpcmd;
   eos::fusex::md mv_md;
   mode_t sgid_mode = 0;
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex,__FUNCTION__, __LINE__, __FILE__);
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                     __FILE__);
 
   try {
     if (md.md_ino() && exclusive) {
@@ -1465,9 +1440,7 @@ Server::OpSetDirectory(const std::string& id,
         // If the destination exists, we have to remove it if it's empty
         std::shared_ptr<eos::IContainerMD> exist_target_cmd = pcmd->findContainer(
               md.name());
-
-
-	unsigned long long tree_size = cmd->getTreeSize();
+        unsigned long long tree_size = cmd->getTreeSize();
 
         if (exist_target_cmd) {
           if (exist_target_cmd->getNumFiles() + exist_target_cmd->getNumContainers()) {
@@ -1495,16 +1468,18 @@ Server::OpSetDirectory(const std::string& id,
         cpcmd = gOFS->eosDirectoryService->getContainerMD(cmd->getParentId());
         cpcmd->removeContainer(cmd->getName());
 
-	if (gOFS->eosContainerAccounting) {
-	  gOFS->eosContainerAccounting->RemoveTree(cpcmd.get(), tree_size);
-	}
+        if (gOFS->eosContainerAccounting) {
+          gOFS->eosContainerAccounting->RemoveTree(cpcmd.get(), tree_size);
+        }
 
         gOFS->eosView->updateContainerStore(cpcmd.get());
         cmd->setName(md.name());
         pcmd->addContainer(cmd.get());
-	if (gOFS->eosContainerAccounting) {
-	  gOFS->eosContainerAccounting->AddTree(pcmd.get(), tree_size);
-	}
+
+        if (gOFS->eosContainerAccounting) {
+          gOFS->eosContainerAccounting->AddTree(pcmd.get(), tree_size);
+        }
+
         gOFS->eosView->updateContainerStore(pcmd.get());
       }
 
@@ -2156,17 +2131,19 @@ Server::OpSetFile(const std::string& id,
         try {
           eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
 
-          if (!Quota::QuotaBySpace(quotanode->getId(),
-                                   vid.uid,
-                                   vid.gid,
-                                   avail_files,
-                                   avail_bytes)) {
-            if (!avail_files) {
-              eos_err("name=%s out-of-inode-quota uid=%u gid=%u",
-                      md.name().c_str(),
-                      vid.uid,
-                      vid.gid);
-              return EDQUOT;
+          if (quotanode) {
+            if (!Quota::QuotaBySpace(quotanode->getId(),
+                                     vid.uid,
+                                     vid.gid,
+                                     avail_files,
+                                     avail_bytes)) {
+              if (!avail_files) {
+                eos_err("name=%s out-of-inode-quota uid=%u gid=%u",
+                        md.name().c_str(),
+                        vid.uid,
+                        vid.gid);
+                return EDQUOT;
+              }
             }
           }
         } catch (eos::MDException& e) {
@@ -2227,9 +2204,15 @@ Server::OpSetFile(const std::string& id,
 
     if (op != UPDATE) {
       // update the mtime
-      pcmd->setMTime(mtime);
-      pt_mtime.tv_sec = mtime.tv_sec;
-      pt_mtime.tv_nsec = mtime.tv_nsec;
+      if (op == RENAME) {
+        pcmd->setMTime(ctime);
+        pt_mtime.tv_sec = ctime.tv_sec;
+        pt_mtime.tv_nsec = ctime.tv_nsec;
+      } else {
+        pcmd->setMTime(mtime);
+        pt_mtime.tv_sec = mtime.tv_sec;
+        pt_mtime.tv_nsec = mtime.tv_nsec;
+      }
     } else {
       pt_mtime.tv_sec = pt_mtime.tv_nsec = 0;
     }
@@ -2239,6 +2222,7 @@ Server::OpSetFile(const std::string& id,
     if (op != UPDATE) {
       // update the mtime
       gOFS->eosDirectoryService->updateStore(pcmd.get());
+      pcmd->notifyMTimeChange(gOFS->eosDirectoryService);
     }
 
     // retrieve the clock
@@ -3160,8 +3144,24 @@ Server::HandleMD(const std::string& id,
     ops = "UNKNOWN";
   }
 
-  eos_info("ino=%016lx operation=%s cid=%s cuuid=%s", (long) md.md_ino(),
+  std::string op_class = "none";
+
+  if (S_ISDIR(md.mode())) {
+    op_class = "dir";
+  } else if (S_ISREG(md.mode())) {
+    op_class = "file";
+  } else if (S_ISFIFO(md.mode())) {
+    op_class = "fifo";
+  } else if (S_ISLNK(md.mode())) {
+    op_class = "link";
+  }
+
+  eos_info("ino=%016lx operation=%s type=%s name=%s pino=%016lx cid=%s cuuid=%s",
+           (long) md.md_ino(),
            ops.c_str(),
+           op_class.c_str(),
+           md.name().c_str(),
+           md.md_pino(),
            md.clientid().c_str(), md.clientuuid().c_str());
 
   if (EOS_LOGS_DEBUG) {

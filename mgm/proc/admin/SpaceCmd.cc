@@ -425,23 +425,6 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
   int ret_c = 0;
   eos::common::RWMutexReadLock fsViewLock(FsView::gFsView.ViewMutex);
 
-  if (reset.option() == eos::console::SpaceProto_ResetProto::DRAIN ||
-      reset.option() == eos::console::SpaceProto_ResetProto::NONE) {
-    if (FsView::gFsView.mSpaceView.count(reset.mgmspace())) {
-      FsView::gFsView.mSpaceView[reset.mgmspace()]->ResetDraining();
-      std_out << "info: reset draining in space '" + reset.mgmspace() + "'";
-    } else {
-      std_err << "error: illegal space name";
-      ret_c = EINVAL;
-    }
-  }
-
-  if (reset.option() == eos::console::SpaceProto_ResetProto::EGROUP ||
-      reset.option() == eos::console::SpaceProto_ResetProto::NONE) {
-    gOFS->EgroupRefresh->Reset();
-    std_out << "\ninfo: clear cached EGroup information ...";
-  }
-
   switch (reset.option()) {
   case eos::console::SpaceProto_ResetProto::DRAIN: {
     if (FsView::gFsView.mSpaceView.count(reset.mgmspace())) {
@@ -537,7 +520,7 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
   }
   break;
 
-  default: { // NONE - when NONE does cases DRAIN and EGROUP and MAPPING
+  default: { // NONE - when NONE, do cases DRAIN and EGROUP and MAPPING
     if (FsView::gFsView.mSpaceView.count(reset.mgmspace())) {
       FsView::gFsView.mSpaceView[reset.mgmspace()]->ResetDraining();
       std_out << "info: reset draining in space '" + reset.mgmspace() + "'";
@@ -1116,7 +1099,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
               fs->SetString("errc", "0");
             }
 
-            FsView::gFsView.StoreFsConfig(fs);
+            FsView::gFsView.StoreFsConfig(fs, false);
           } else {
             errno = 0;
             eos::common::StringConversion::GetSizeFromString(value.c_str());
@@ -1129,7 +1112,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                  (key == eos::common::SCAN_NS_RATE_NAME)) && (!errno)) {
               fs->SetLongLong(key.c_str(),
                               eos::common::StringConversion::GetSizeFromString(value.c_str()));
-              FsView::gFsView.StoreFsConfig(fs);
+              FsView::gFsView.StoreFsConfig(fs, false);
             } else {
               std_err << "error: not an allowed parameter <" + key + ">\n";
               ret_c = EINVAL;

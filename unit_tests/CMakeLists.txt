@@ -60,6 +60,7 @@ set(MGM_UT_SRCS
   mgm/IdTrackerTests.cc
   mgm/FsckEntryTests.cc
   mgm/FusexCastBatchTests.cc
+  mgm/CapsTests.cc
   mgm/tgc/CachedValueTests.cc
   mgm/tgc/FreedBytesHistogramTests.cc
   mgm/tgc/LruTests.cc
@@ -93,7 +94,8 @@ set(COMMON_UT_SRCS
   common/XrdConnPoolTests.cc
   common/RateLimitTests.cc
   common/EosTokenTests.cc
-  common/BufferManagerTests.cc)
+  common/BufferManagerTests.cc
+  common/ConcurrentQueueTests.cc)
 
 set(FST_UT_SRCS
   fst/XrdFstOfsTests.cc
@@ -102,6 +104,7 @@ set(FST_UT_SRCS
   fst/UtilsTest.cc
   fst/XrdFstOfsFileInternalTest.cc
   fst/ScanDirTests.cc
+  fst/LoadTests.cc
   fst/MonitorVarPartitionTest.cc)
   
   

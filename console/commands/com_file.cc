@@ -847,7 +847,15 @@ com_file(char* arg1)
             set_errors.insert(err_label);
           }
 
-          if ((disk_cx.length() > 0) &&
+          uint64_t disk_cx_val = 0ull;
+
+          try {
+            disk_cx_val = std::stoull(disk_cx.c_str(), nullptr, 16);
+          } catch (...) {
+            // error during conversion
+          }
+
+          if ((disk_cx.length() > 0) && disk_cx_val &&
               ((disk_cx.length() < 8) ||
                (!cx.beginswith(disk_cx.c_str())))) {
             err_label = "DISK_CHECKSUM";

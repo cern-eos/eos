@@ -65,7 +65,6 @@ QoSHelper::ParseCommand(const char* arg)
   eos::common::StringTokenizer tokenizer(arg);
   tokenizer.GetLine();
   std::string token;
-
   // Lambda function to parse identifier
   auto parseIdentifier = [](XrdOucString path) {
     auto identifier = new eos::console::QoSProto_IdentifierProto {};
@@ -155,14 +154,20 @@ int com_qos(char* arg)
 void com_qos_help()
 {
   std::ostringstream oss;
-  oss << "Usage: qos list [<name>]               : list available QoS classes" << std::endl
-      << "                                         If <name> is provided, list the properties of the given class" << std::endl
-      << "       qos get <identifier> [<key>]    : get QoS property of item" << std::endl
-      << "                                         If no <key> is provided, defaults to 'all'" << std::endl
+  oss << "Usage: qos list [<name>]               : list available QoS classes" <<
+      std::endl
+      << "                                         If <name> is provided, list the properties of the given class"
+      << std::endl
+      << "       qos get <identifier> [<key>]    : get QoS property of item" <<
+      std::endl
+      << "                                         If no <key> is provided, defaults to 'all'"
+      << std::endl
       << "       qos set <identifier> <class>    : set QoS class of item" << std::endl
       << std::endl
       << "Note: <identifier> = fid|fxid|cid|cxid|path" << std::endl
-      << "      Recognized `qos get` keys: all | cdmi | checksum | class | disksize |" << std::endl
-      << "                                 layout | id | path | placement | replica | size" << std::endl;
+      << "      Recognized `qos get` keys: all | cdmi | checksum | class | disksize |"
+      << std::endl
+      << "                                 layout | id | path | placement | replica | size"
+      << std::endl;
   std::cerr << oss.str() << std::endl;
 }

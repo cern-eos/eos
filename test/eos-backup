@@ -56,8 +56,12 @@ signal.signal(signal.SIGINT, request_stop)
 
 
 # options
-subcmd = sys.argv[1]
-opts, args = getopt.getopt(sys.argv[2:], "B:F:P:U:bvS:")
+try: 
+    subcmd = sys.argv[1]
+    opts, args = getopt.getopt(sys.argv[2:], "B:F:P:U:bvS:")
+except:
+    print("Unable to parse arguments")
+    sys.exit(1)
 
 # default backupDirPrefix and parentId
 dflt = [('-B', "/tmp/backupDir"),('-P', 10),('-S',1024*1024*1024)]
@@ -68,7 +72,7 @@ opt = dict(dflt+opts)
 if '-U' not in opt:
     opt['-U'] = os.getenv("EOS_MGM_URL")
 if opt['-U'] is None:
-    print("require a valid URL ('-U root://my_mgm')", file=sys.stderr)
+    print("specify a valid URL ('-U root://my_mgm')", file=sys.stderr)
     sys.exit(1)
 
 try:
@@ -181,19 +185,19 @@ class Blob:                 # the files where data are stored in
             self.bfile = open(self.blobname, "wb")  # 'wb' or 'w' hardly matters, we don't write ourselves
             os.lseek(self.bfile.fileno(), 0, 0)     # this may be implicit, but vital for the subprocess writes
 
-        print("blob", self.blob_num, "created", file=sys.stderr)
+        print("blob", self.blob_num, f"created as {self.blobname} copy={self.isCopy}", file=sys.stderr)
 
 
     def getBlob(self, sz, noCopy=False):
         if sz >= opt['-S']/10 and not noCopy:           # create a copyjob item, blob will be a single file
             new_blob = Blob(self.prefix, isCopy=True)
-            new_blob.csize += sz                        # save projected size, we'll start at offset 0 anyway
+            new_blob.csize = sz                         # save projected size, we'll start at offset 0 anyway
             return (self, new_blob)
         elif sz > opt['-S']:
             new_blob = Blob(self.prefix)
             return (self, new_blob)
         if self.csize > opt['-S']:
-            print(f"blob {self.blob_num} committed {self.csize} files {len(self.items)}", file=sys.stderr)
+            if "-v" in opt: print(f"blob {self.blob_num} committed {self.csize} files {len(self.items)}", file=sys.stderr)
             new_blob = Blob(self.prefix)
             new_blob.csize = sz
             blobs_active.remove(self)
@@ -208,19 +212,37 @@ class Blob:                 # the files where data are stored in
         self.state = 0
         self.src = (src, altsrc)
         self.trg = "%sb.%d" % (self.prefix, self.blob_num)
+        if "-v" in opt: print(f"*debug* copyjob {self.src} -> {self.trg}", file=sys.stderr)
+        
+        self.srcIndex = -1
+        self.size = self.csize
+
+        # There is a complication here: Ufs.stat() on the clone works (if it exists);
+        # Ufs.stat() on the "/.fxid:xxxx" was not always supported in EOS. But since reading
+        # from the live file is plan-B anyway no stat is really needed - just read until csize
+        if self.srcIndex < 0:
+            st, info = Ufs.stat(self.src[1])                # typically tries the clone first
+            print(f"copyjob st={st.ok}/{st.code} info={info}", file=sys.stderr)   #debug
+            if st.ok:
+                self.srcIndex = 1
+            else:                                           # else the live file
+                self.srcIndex = 0
+                if "-v" in opt: print(f"Copyjob live file {self.src[0]}", file=sys.stderr)
+
+                st, info = Ufs.stat(self.src[0])           # this should be supported now
+                if "-v" in opt: print(f"st {st}, info {info}")
+
+            if st.ok:
+                self.size = info.size
+
+
+        if self.srcIndex < 0:
+            return False
+
         copyjobs.append(self)
 
-        st, info = Ufs.stat(localpath(self.src[1]))                # typically tries the clone first
-        if st.ok:
-            self.srcIndex = 1
-        else:                                           # else the live file
-            self.srcIndex = 0
-            st, info = Ufs.stat(localpath(self.src[0]))
-
-        if not st.ok: return False
-
-        self.size = info.size
-        print("copy job", self.src[self.srcIndex], self.blobname, "size", self.size, file=sys.stderr)
+        if "-v" in opt:
+            print("copy job", self.src[self.srcIndex], self.blobname, "size", self.size, file=sys.stderr)
         copyprocess.add_job(self.src[self.srcIndex], self.blobname, thirdparty="only")      # could be  "first"
         return True
 
@@ -235,7 +257,7 @@ class Blob:                 # the files where data are stored in
             if not self.isCopy:
                 self.bfile.close()
                 blob_slots += 1
-                print(f"blob {self.blob_num} closed size {self.size} slots {blob_slots}", file=sys.stderr)
+                print(f"blob {self.blobname} closed size {self.size} slots {blob_slots}", file=sys.stderr)
 
                 for n in range(self.blob_num, len(BLOBS)):
                     if BLOBS[n].state == -1:
@@ -269,7 +291,6 @@ class Blob:                 # the files where data are stored in
         if len(cbargs) == 3 and self.state >= 0 and self.state <=9:
             st, resp, hotlist = cbargs
             i = self.items[self.currItem]
-            #print("blob %d: %s or %s to %s --" % (self.blob_num, i[1], i[2], self.blobname), "st: ok %r code %r len %d" % (st.ok, st.code, len(resp)), file=sys.stderr)
             self.continue_read(*cbargs)
 
         if self.state == 0:                             # idle
@@ -278,12 +299,7 @@ class Blob:                 # the files where data are stored in
         if self.state == 98:
             self.close()
 
-
-
-        # there is no progress
-        #print(f"state_machine blob {self.blob_num} file {self.currItem} cbargs {len(cbargs)} closing {self.closing} state {self.state} files {len(self.items)}", file=sys.stderr)
-        #return
-
+    # This is the part that reads files or clones
     def pick_next_element(self):                        # only called with self.state == 0!
         item = None
         for i in range(self.currItem+1, len(self.items)):
@@ -301,23 +317,24 @@ class Blob:                 # the files where data are stored in
         # try copy the clone first
         self.sm_src = client.File()
         self.state = 1                      # copy clone
-        cpath = "%s/%s%s" % (opt['-U'], item[2], item[3])
-        st, xx = self.sm_src.open(cpath)
+        path = "%s/%s%s" % (opt['-U'], item[2], item[3])
+        st, xx = self.sm_src.open(path)
 
         if st.ok:
-            if "-v" in opt: print(f"Copying clone {cpath} for {item[1]}", file=sys.stderr)
+            if "-v" in opt: print(f"Copying clone {path} for {item[1]}", file=sys.stderr)
         else:       # copy live file
             self.sm_src = client.File()
             path = "%s/%s%s" % (opt['-U'], item[1], item[3])
-            st, xx = self.sm_src.open("%s/%s%s" % (opt['-U'], item[1], item[3]))
+            st, xx = self.sm_src.open(path)
             self.state = 2  # copying live file
 
         # start the first read
         self.sm_offset = 0
         try:
             st = self.sm_src.read(offset=self.sm_offset, size=self.bufsz, callback=self.XrdCB)
-            #print(f"1st read blob {self.blob_num} file {self.currItem} st.ok {st.ok} st.code {st.code}", file=sys.stderr)
+            if "-v" in opt: print(f"1st read blob {self.blob_num} file {path} st.ok {st.ok} st.code {st.code}", file=sys.stderr)
             if st.ok: return                # state machine continues after callback
+
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print(f"line {exc_tb.tb_lineno} error {e} reading {item[1]} @{self.sm_offset}:{self.bufsz}", file=sys.stderr)
@@ -347,7 +364,6 @@ class Blob:                 # the files where data are stored in
                 print(f"line {exc_tb.tb_lineno} error {e}", file=sys.stderr)
                 pdb.set_trace()
 
-            #print(f"continue_read: blob {self.blob_num} file {self.currItem} st.ok {st.ok} len {len(buff)}", file=sys.stderr)
             if len(buff) > 0:               # write buffer, read next one
 
                 st2, xx = self.bfile.write(buff, offset=self.size)
@@ -365,11 +381,9 @@ class Blob:                 # the files where data are stored in
                     pdb.set_trace()
 
                 st2 = self.sm_src.read(offset=self.sm_offset, size=self.bufsz, callback=self.XrdCB)
-                #print(f"next read blob {self.blob_num} file {self.currItem} st: ok", st2.ok, "code", st2.code, file=sys.stderr)
             else:                           # a zero length read signals EOF
                 item = self.items[self.currItem]
                 rc = st.errno
-                #print(f"closing blob {self.blob_num} file {self.currItem}, rc={rc}", file=sys.stderr)
                 self.sm_src.close()
 
                 item[0]['b'] = "%d:%d:%d" % (self.blob_num, self.sm_oldSize, self.size-self.sm_oldSize)
@@ -386,7 +400,7 @@ class Blob:                 # the files where data are stored in
                         self.bfile.truncate(self.size)
                         try:
                             st2 = self.sm_src.read(offset=self.sm_offset, size=self.bufsz, callback=self.XrdCB)
-                            print("1st read clone ok", st.ok, "code", st.code, file=sys.stderr)
+                            if "-v" in opt: print("1st read clone ok", st.ok, "code", st.code, file=sys.stderr)
                         except Exception as e:
                             exc_type, exc_obj, exc_tb = sys.exc_info()
                             print(f"line {exc_tb.tb_lineno} error {e} reading {item[2]} @{self.sm_offset}:{self.bufsz}", file=sys.stderr)
@@ -397,8 +411,6 @@ class Blob:                 # the files where data are stored in
                     self.state = 0
                 else:
                     self.state = 0
-
-        #print(f"continue_read blob {self.blob_num} file {self.currItem} state {self.state}", file=sys.stderr)
 
 
 
@@ -444,20 +456,20 @@ def copy_xrdcp(path, cpath, blob):
 
 class MyCopyProgressHandler(client.utils.CopyProgressHandler):
     def begin(self, id, total, source, target):
-        print("%s %s/%s" % (time.strftime("%Y%m%d %H%M%S"), id, total), source, target, file=sys.stderr)
+        if "-v" in opt: print("%s CopyProgress %s/%s" % (time.strftime("%Y%m%d %H%M%S"), id, total), source, target, file=sys.stderr)
 
     def end(self, status):
-        print("end", file=sys.stderr)
+        if "-v" in opt: print("CopyProgress end", file=sys.stderr)
         #print('end status:', status, file=sys.stderr)
 
     def update(self, processed, total):
-        print("update", file=sys.stderr)
+        if "-v" in opt: print("CopyProgress update", file=sys.stderr)
         #print('processed: %d, total: %d' % (processed, total), file=sys.stderr)
 
 def myCopyprocess():
     try:
         if len(copyjobs) > 0:
-            print("running %d xrootd copies" % len(copyjobs), file=sys.stderr)
+            if "-v" in opt: print("running %d xrootd copies" % len(copyjobs), file=sys.stderr)
             copyprocess.parallel(8)
             copyprocess.prepare()
             copies = [None]
@@ -471,7 +483,7 @@ def myCopyprocess():
             xst = copies[0]
             if xst == None: raise NameError
 
-            print("xrootd copies first pass finished, ok=%r message='%s'" % (xst.ok, xst.message), file=sys.stderr)
+            if "-v" in opt: print("xrootd copies first pass finished, ok=%r message='%s'" % (xst.ok, xst.message), file=sys.stderr)
 
             copyjobs2=[]
             copyprocess2 = client.CopyProcess()
@@ -492,7 +504,7 @@ def myCopyprocess():
                 for cc in copies[1]: print(cc, file=sys.stderr)
 
             if len(copyjobs2) > 0:
-                print("re-running %d xrootd copies" % len(copyjobs2), file=sys.stderr)
+                if "-v" in opt: print("re-running %d xrootd copies" % len(copyjobs2), file=sys.stderr)
                 copyprocess2.prepare()
                 xst = None
                 try:
@@ -527,6 +539,7 @@ def myCopyprocess():
 
 # perform a clone unless a catalogFile has been given, then back up files
 def do_backup():
+    xxxdebugxxx = True
     b_Xroot = canXroot and opt['-B'].startswith("root:")
 
     if '-U' not in opt and not b_Xroot:
@@ -624,7 +637,7 @@ def do_backup():
         o_opt = ''
         if 'H' in jj:               # problem encountered: cksum on git hard-links not (always?) updated ??
             o_opt = "?eos.checksum=ignore"
-            print("Hard link %s copied with %s" % (path, o_opt), file=sys.stderr)
+            if "-v" in opt: print("Hard link %s copied with %s" % (path, o_opt), file=sys.stderr)
 
         if tblob.isCopy or tblob.blXroot:           # add file to the list
             tblob.addItem(jj, path, cpath, o_opt)
@@ -655,10 +668,11 @@ def do_backup():
                         tblob = None
                 if tblob:
                     tblob.state_machine(cbargs)
-                else:
+                elif "-v" in opt:
                     print(f"Waiting for close on blob {b.blob_num} closing {b.closing} state {b.state} current item {b.currItem+1} (of {len(b.items)})", file=sys.stderr)
 
-            print(f"blob {b.blob_num} state {b.state} items {len(b.items)}", file=sys.stderr)
+            if "-v" in opt:
+                print(f"blob {b.blob_num} state {b.state} items {len(b.items)}", file=sys.stderr)
             for i in b.items:
                 jxx = json.dumps(i[0]) + "\n"
                 newCatalog.write(jxx, offset=newCatPos)
@@ -747,10 +761,13 @@ def do_restore():
                 st, xx = blobFile.open(blobFn)
                 blobOff = bOffset
                 fileOff = 0
+                if not st.ok:
+                    print(f"Failed to open blob {blobFn}: {st.message}", file=sys.stderr)
+                    raise IOError
             else:
                 blobFile = open(blobFn, "rb")
                 blobFile.seek(bOffset, 0)
-
+ 
             trgFile = open("%s/%s" % (trg, p), "wb")
             bufsz = 1<<20           # 1 MB
             while bLen > 0:
@@ -768,8 +785,9 @@ def do_restore():
           except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             print("Exception %s in line %d:" % (type(e), exc_tb.tb_lineno), file=sys.stderr)
-            print(p, file=sys.stderr)
-            if p in cat: print(cat[p], file=sys.stderr)
+            print(f"p {p} bl_Xroot {bl_Xroot} blobFn {blobFn}", file=sys.stderr)
+            if bl_Xroot: print(f"offset {blobOff} size {bufsz}", file=sys.stderr)
+            if p in cat: print(f"cat: {cat[p]}", file=sys.stderr)
 
 # main
 if subcmd == 'clone':

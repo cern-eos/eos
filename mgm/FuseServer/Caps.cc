@@ -48,32 +48,27 @@ FuseServer::Caps::Store(const eos::fusex::cap& ecap,
 {
   gOFS->MgmStats.Add("Eosxd::int::Store", 0, 0, 1);
   EXEC_TIMING_BEGIN("Eosxd::int::Store");
-  eos::common::RWMutexWriteLock lLock(*this);
+  std::lock_guard lg(mtx);
   eos_static_info("id=%lx clientid=%s authid=%s",
                   ecap.id(),
                   ecap.clientid().c_str(),
                   ecap.authid().c_str());
-
   // register this clientid to a given client uuid
   ClientIds()[ecap.clientuuid()].insert(ecap.clientid());
 
   // avoid to have multiple time entries for the same cap
-  if (!mCaps.count(ecap.authid())) {
-    // fill the three views on caps
-    mTimeOrderedCap.insert(std::pair<time_t, authid_t>(ecap.vtime(),
-                           ecap.authid()));
-  } else {
-    shared_cap cap = mCaps[ecap.authid()];
+  if (auto kv = mCaps.find(ecap.authid());
+      kv != mCaps.end()) {
+    shared_cap cap = kv->second;
+
     if (cap->id() != ecap.id()) {
       eos_static_info("got inode change for %s from %x to %x",
-		      ecap.authid().c_str(), cap->id(), ecap.id());
+                      ecap.authid().c_str(), cap->id(), ecap.id());
       Remove(cap);
-      // fill the three views on caps
-      mTimeOrderedCap.insert(std::pair<time_t, authid_t>(ecap.vtime(),
-							 ecap.authid()));
     }
   }
 
+  mTimeOrderedCap.emplace(std::make_pair(ecap.vtime(), ecap.authid()));
   mClientCaps[ecap.clientid()].insert(ecap.authid());
   mClientInoCaps[ecap.clientid()][ecap.id()].insert(ecap.authid());
   shared_cap cap = std::make_shared<capx>();
@@ -97,9 +92,9 @@ FuseServer::Caps::Imply(uint64_t md_ino,
                   authid.c_str(),
                   implied_authid.c_str());
   shared_cap implied_cap = std::make_shared<capx>();
-  shared_cap cap = Get(authid);
+  shared_cap cap = GetTS(authid);
 
-  if (!cap->id() || !implied_authid.length()) {
+  if (cap == nullptr || !cap->id() || !implied_authid.length()) {
     return false;
   }
 
@@ -115,10 +110,10 @@ FuseServer::Caps::Imply(uint64_t md_ino,
       eos::common::RWMutexReadLock lLock(gOFS->zMQ->gFuseServer.Client());
       leasetime = gOFS->zMQ->gFuseServer.Client().leasetime(cap->clientuuid());
     }
-    eos::common::RWMutexWriteLock lock(*this);
     implied_cap->set_vtime(ts.tv_sec + (leasetime ? leasetime : 300));
     implied_cap->set_vtime_ns(ts.tv_nsec);
     // fill the three views on caps
+    std::lock_guard lg(mtx);
     mTimeOrderedCap.insert(std::pair<time_t, authid_t>(implied_cap->vtime(),
                            implied_authid));
     mClientCaps[cap->clientid()].insert(implied_authid);
@@ -133,28 +128,104 @@ FuseServer::Caps::Imply(uint64_t md_ino,
 // Get shared capability - one needs to hold (at least) the read lock
 //------------------------------------------------------------------------------
 FuseServer::Caps::shared_cap
-FuseServer::Caps::Get(FuseServer::Caps::authid_t id)
+FuseServer::Caps::Get(const FuseServer::Caps::authid_t& id, bool make_default)
 {
-  if (mCaps.count(id)) {
-    return mCaps[id];
-  } else {
-    return std::make_shared<capx>();
+  if (auto kv = mCaps.find(id);
+      kv != mCaps.end()) {
+    return kv->second;
   }
+
+  return make_default ? std::make_shared<capx>() : nullptr;
 }
 
 //------------------------------------------------------------------------------
-// Get shared capability - thread safe
-//------------------------------------------------------------------------------
-FuseServer::Caps::shared_cap
-FuseServer::Caps::GetTS(FuseServer::Caps::authid_t id)
+// Get Broadcast Caps
+//----------------------------------------------------------------------------
+std::vector<std::shared_ptr<eos::mgm::FuseServer::Caps::capx>>
+    FuseServer::Caps::GetBroadcastCapsTS(uint64_t id,
+        shared_cap refcap,
+        const eos::fusex::md* mdptr,
+        bool suppress,
+        std::string suppress_stat_tag)
 {
-  eos::common::RWMutexReadLock lLock(*this);
+  std::vector<shared_cap> bccaps;
+  std::vector<authid_t> auth_ids;
+  size_t n_suppressed {0};
+  regex_t regex;
+  {
+    std::lock_guard lg(mtx);
+    auto ids = mInodeCaps.find(id);
 
-  if (mCaps.count(id)) {
-    return mCaps[id];
-  } else {
-    return std::make_shared<capx>();
+    if (ids == mInodeCaps.end()) {
+      return bccaps;
+    }
+
+    auth_ids.reserve(ids->second.size());
+    std::copy(ids->second.begin(),
+              ids->second.end(),
+              std::back_inserter(auth_ids));
   }
+
+  if (suppress) {
+    // audience check
+    int audience = gOFS->zMQ->gFuseServer.Client().BroadCastMaxAudience();
+    std::string match =
+      gOFS->zMQ->gFuseServer.Client().BroadCastAudienceSuppressMatch();
+
+    if (audience && ((auth_ids.size() > (size_t)audience))) {
+      if (regcomp(&regex, match.c_str(), REG_ICASE | REG_EXTENDED | REG_NOSUB)) {
+        suppress = false;
+        eos_static_err("msg=\"broadcast audience suppress match not valid regex\" regex=\"%s\"",
+                       match.c_str());
+      }
+    } else {
+      suppress = false;
+    }
+  }
+
+  eos_static_debug("id=%lx mInodeCaps.count=1", id);
+
+  for (const auto& it : auth_ids) {
+    // TODO: do we need to debug log mCaps.found
+    // eos_static_debug("mCaps.found=1")
+    shared_cap cap = GetTS(it);
+
+    if (!cap->id()) {
+      continue;
+    }
+
+    if (refcap && mdptr) {
+      // skip our own cap!
+      if (cap->authid() == mdptr->authid()) {
+        continue;
+      }
+
+      // skip identical client mounts!
+      if (cap->clientuuid() == refcap->clientuuid()) {
+        continue;
+      }
+
+      // skip same source
+      if (cap->clientuuid() == mdptr->clientuuid()) {
+        continue;
+      }
+    }
+
+    if (suppress) {
+      if (regexec(&regex, cap->clientid().c_str(), 0, NULL, 0) != REG_NOMATCH) {
+        n_suppressed++;
+        continue;
+      }
+    }
+
+    bccaps.emplace_back(std::move(cap));
+  }
+
+  if (n_suppressed && !suppress_stat_tag.empty()) {
+    gOFS->MgmStats.Add(suppress_stat_tag.c_str(), 0, 0, n_suppressed);
+  }
+
+  return bccaps;
 }
 
 //------------------------------------------------------------------------------
@@ -166,31 +237,7 @@ FuseServer::Caps::BroadcastReleaseFromExternal(uint64_t id)
 {
   gOFS->MgmStats.Add("Eosxd::int::BcReleaseExt", 0, 0, 1);
   EXEC_TIMING_BEGIN("Eosxd::int::BcReleaseExt");
-  // broad-cast release for a given inode
-  eos::common::RWMutexReadLock lLock(*this);
-  eos_static_info("id=%lx mInodeCaps.count=%d", id, mInodeCaps.count(id));
-  std::vector<shared_cap> bccaps;
-
-  if (mInodeCaps.count(id)) {
-    for (auto it = mInodeCaps[id].begin();
-         it != mInodeCaps[id].end(); ++it) {
-      shared_cap cap;
-      // loop over all caps for that inode
-      eos_static_debug("mCaps.count=%d", mCaps.count(*it));
-
-      if (mCaps.count(*it)) {
-        cap = mCaps[*it];
-      } else {
-        continue;
-      }
-
-      if (cap->id()) {
-        bccaps.push_back(cap);
-      }
-    }
-  }
-
-  lLock.Release();
+  auto bccaps = GetBroadcastCapsTS(id);
 
   for (auto it : bccaps) {
     eos_static_debug("ReleaseCAP id %#lx clientid %s", it->clientid().c_str());
@@ -213,28 +260,8 @@ FuseServer::Caps::BroadcastRefreshFromExternal(uint64_t id, uint64_t pid)
   EXEC_TIMING_BEGIN("Eosxd::int::BcRefreshExt");
   // broad-cast refresh for a given inode
   eos_static_info("id=%lx pid=%lx", id, pid);
-  std::vector<shared_cap> bccaps;
-  eos::common::RWMutexReadLock lLock(*this);
-
-  if (mInodeCaps.count(pid)) {
-    for (auto it = mInodeCaps[pid].begin();
-         it != mInodeCaps[pid].end(); ++it) {
-      shared_cap cap;
-
-      // loop over all caps for that inode
-      if (mCaps.count(*it)) {
-        cap = mCaps[*it];
-      } else {
-        continue;
-      }
-
-      if (cap->id()) {
-        bccaps.push_back(cap);
-      }
-    }
-  }
-
-  lLock.Release();
+  auto bccaps = GetBroadcastCapsTS(pid, nullptr, nullptr, true,
+                                   "Eosxd::int::BcRefreshExtSup");
 
   for (auto it : bccaps) {
     gOFS->zMQ->gFuseServer.Client().RefreshEntry((uint64_t) id,
@@ -252,9 +279,7 @@ FuseServer::Caps::BroadcastRelease(const eos::fusex::md& md)
 {
   gOFS->MgmStats.Add("Eosxd::int::BcRelease", 0, 0, 1);
   EXEC_TIMING_BEGIN("Eosxd::int::BcRelease");
-  std::vector<shared_cap> bccaps;
-  eos::common::RWMutexReadLock lLock(*this);
-  FuseServer::Caps::shared_cap refcap = Get(md.authid());
+  FuseServer::Caps::shared_cap refcap = GetTS(md.authid());
   eos_static_info("id=%lx/%lx clientid=%s clientuuid=%s authid=%s",
                   refcap->id(),
                   md.md_pino(),
@@ -267,40 +292,7 @@ FuseServer::Caps::BroadcastRelease(const eos::fusex::md& md)
     md_pino = md.md_pino();
   }
 
-  if (mInodeCaps.count(md_pino)) {
-    for (auto it = mInodeCaps[md_pino].begin();
-         it != mInodeCaps[md_pino].end(); ++it) {
-      shared_cap cap;
-
-      // loop over all caps for that inode
-      if (mCaps.count(*it)) {
-        cap = mCaps[*it];
-      } else {
-        continue;
-      }
-
-      // skip our own cap!
-      if (cap->authid() == md.authid()) {
-        continue;
-      }
-
-      // skip identical client mounts!
-      if (cap->clientuuid() == refcap->clientuuid()) {
-        continue;
-      }
-
-      // skip same source
-      if (cap->clientuuid() == md.clientuuid()) {
-        continue;
-      }
-
-      if (cap->id()) {
-        bccaps.push_back(cap);
-      }
-    }
-  }
-
-  lLock.Release();
+  auto bccaps = GetBroadcastCapsTS(md_pino, refcap, &md);
 
   for (auto it : bccaps) {
     gOFS->zMQ->gFuseServer.Client().ReleaseCAP((uint64_t) it->id(),
@@ -322,29 +314,8 @@ FuseServer::Caps::BroadcastDeletionFromExternal(uint64_t id,
   gOFS->MgmStats.Add("Eosxd::int::BcDeletionExt", 0, 0, 1);
   EXEC_TIMING_BEGIN("Eosxd::int::BcDeletionExt");
   eos_static_info("id=%lx name=%s", id, name.c_str());
-  std::vector<shared_cap> bccaps;
   // broad-cast deletion for a given name in a container
-  eos::common::RWMutexReadLock lLock(*this);
-
-  if (mInodeCaps.count(id)) {
-    for (auto it = mInodeCaps[id].begin();
-         it != mInodeCaps[id].end(); ++it) {
-      shared_cap cap;
-
-      // loop over all caps for that inode
-      if (mCaps.count(*it)) {
-        cap = mCaps[*it];
-      } else {
-        continue;
-      }
-
-      if (cap->id()) {
-        bccaps.push_back(cap);
-      }
-    }
-  }
-
-  lLock.Release();
+  auto bccaps = GetBroadcastCapsTS(id);
 
   for (auto it : bccaps) {
     gOFS->zMQ->gFuseServer.Client().DeleteEntry((uint64_t) it->id(),
@@ -367,44 +338,8 @@ FuseServer::Caps::BroadcastDeletion(uint64_t id, const eos::fusex::md& md,
   gOFS->MgmStats.Add("Eosxd::int::BcDeletion", 0, 0, 1);
   EXEC_TIMING_BEGIN("Eosxd::int::BcDeletion");
   eos_static_info("id=%lx name=%s", id, name.c_str());
-  std::vector<shared_cap> bccaps;
-  eos::common::RWMutexReadLock lLock(*this);
-  FuseServer::Caps::shared_cap refcap = Get(md.authid());
-
-  if (mInodeCaps.count(refcap->id())) {
-    for (auto it = mInodeCaps[refcap->id()].begin();
-         it != mInodeCaps[refcap->id()].end(); ++it) {
-      shared_cap cap;
-
-      // loop over all caps for that inode
-      if (mCaps.count(*it)) {
-        cap = mCaps[*it];
-      } else {
-        continue;
-      }
-
-      // skip our own cap!
-      if (cap->authid() == refcap->authid()) {
-        continue;
-      }
-
-      // skip identical client mounts!
-      if (cap->clientuuid() == refcap->clientuuid()) {
-        continue;
-      }
-
-      // skip same source
-      if (cap->clientuuid() == md.clientuuid()) {
-        continue;
-      }
-
-      if (cap->id()) {
-        bccaps.push_back(cap);
-      }
-    }
-  }
-
-  lLock.Release();
+  FuseServer::Caps::shared_cap refcap = GetTS(md.authid());
+  auto bccaps = GetBroadcastCapsTS(refcap->id(), refcap, &md);
 
   for (auto it : bccaps) {
     gOFS->zMQ->gFuseServer.Client().DeleteEntry((uint64_t) it->id(),
@@ -429,68 +364,68 @@ FuseServer::Caps::BroadcastRefresh(uint64_t inode,
   EXEC_TIMING_BEGIN("Eosxd::int::BcRefresh");
   eos_static_info("id=%lx parent=%lx", inode, parent_inode);
   size_t n_suppressed = 0;
-  std::vector<shared_cap> bccaps;
-  eos::common::RWMutexReadLock lLock(*this);
-  FuseServer::Caps::shared_cap refcap = Get(md.authid());
+  std::vector<authid_t> auth_ids;
+  FuseServer::Caps::shared_cap refcap {nullptr};
+  {
+    std::lock_guard lg(mtx);
+    refcap = Get(md.authid(), false);
+    auto kv = mInodeCaps.find(parent_inode);
 
-  if (mInodeCaps.count(parent_inode)) {
-    bool suppress_audience = false;
-    regex_t regex;
-    // audience check
-    int audience = gOFS->zMQ->gFuseServer.Client().BroadCastMaxAudience();
-    std::string match =
-      gOFS->zMQ->gFuseServer.Client().BroadCastAudienceSuppressMatch();
-
-    if (audience && ((mInodeCaps[parent_inode].size() > (size_t)audience))) {
-      suppress_audience = true;
-
-      if (regcomp(&regex, match.c_str(), REG_ICASE | REG_EXTENDED | REG_NOSUB)) {
-        suppress_audience = false;
-        eos_static_err("msg=\"broadcast audience suppress match not valid regex\" regex=\"%s\"",
-                       match.c_str());
-      }
+    if (kv == mInodeCaps.end()) {
+      EXEC_TIMING_END("Eosxd::int::BcRefresh");
+      return 0; // nothing to process here
     }
 
-    for (auto it = mInodeCaps[parent_inode].begin();
-         it != mInodeCaps[parent_inode].end(); ++it) {
-      shared_cap cap;
+    auth_ids.reserve(kv->second.size());
+    std::copy(kv->second.begin(),
+              kv->second.end(),
+              std::back_inserter(auth_ids));
+  }
+  bool suppress_audience = false;
+  regex_t regex;
+  // audience check
+  int audience = gOFS->zMQ->gFuseServer.Client().BroadCastMaxAudience();
+  std::string match =
+    gOFS->zMQ->gFuseServer.Client().BroadCastAudienceSuppressMatch();
 
-      // loop over all caps for that inode
-      if (mCaps.count(*it)) {
-        cap = mCaps[*it];
-      } else {
-        continue;
-      }
+  if (audience && ((auth_ids.size() > (size_t)audience))) {
+    suppress_audience = true;
 
-      // skip identical client mounts!
-      if (cap->clientuuid() == refcap->clientuuid()) {
-        continue;
-      }
-
-      // skip same source
-      if (cap->clientuuid() == md.clientuuid()) {
-        continue;
-      }
-
-      if (suppress_audience) {
-        if (regexec(&regex, cap->clientid().c_str(), 0, NULL, 0) != REG_NOMATCH) {
-          n_suppressed++;
-          continue;
-        }
-      }
-
-      if (cap->id()) {
-        bccaps.push_back(cap);
-      }
+    if (regcomp(&regex, match.c_str(), REG_ICASE | REG_EXTENDED | REG_NOSUB)) {
+      suppress_audience = false;
+      eos_static_err("msg=\"broadcast audience suppress match not valid regex\" regex=\"%s\"",
+                     match.c_str());
     }
   }
 
-  lLock.Release();
+  for (const auto& it : auth_ids) {
+    shared_cap cap = GetTS(it);
 
-  for (auto it : bccaps) {
+    // avoid processing if the cap doesn't exist
+    if (!cap->id()) {
+      continue;
+    }
+
+    // skip identical client mounts!
+    if (refcap && cap->clientuuid() == refcap->clientuuid()) {
+      continue;
+    }
+
+    // skip same source
+    if (cap->clientuuid() == md.clientuuid()) {
+      continue;
+    }
+
+    if (suppress_audience) {
+      if (regexec(&regex, cap->clientid().c_str(), 0, NULL, 0) != REG_NOMATCH) {
+        n_suppressed++;
+        continue;
+      }
+    }
+
     gOFS->zMQ->gFuseServer.Client().RefreshEntry((uint64_t) inode,
-        it->clientuuid(),
-        it->clientid()
+        cap->clientuuid(),
+        cap->clientid()
                                                 );
     errno = 0;
   }
@@ -525,90 +460,99 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
   EXEC_TIMING_BEGIN("Eosxd::int::BcMD");
   size_t n_suppressed = 0;
   std::vector<shared_cap> bccaps;
-  std::set<std::string> clients_sent;
-  eos::common::RWMutexReadLock lLock(*this);
-  FuseServer::Caps::shared_cap refcap = Get(md.authid());
-  eos_static_info("id=%lx/%lx clientid=%s clientuuid=%s authid=%s",
-                  refcap->id(), md_pino, refcap->clientid().c_str(),
-                  refcap->clientuuid().c_str(), refcap->authid().c_str());
+  std::unordered_set<std::string> clients_sent;
+  std::vector<authid_t> auth_ids;
+  FuseServer::Caps::shared_cap refcap {nullptr};
+  {
+    std::lock_guard lg(mtx);
+    refcap = Get(md.authid(), false);
 
-  if (mInodeCaps.count(md_pino)) {
-    bool suppress_audience = false;
-    regex_t regex;
-    // audience check
-    int audience = gOFS->zMQ->gFuseServer.Client().BroadCastMaxAudience();
-    std::string match =
-      gOFS->zMQ->gFuseServer.Client().BroadCastAudienceSuppressMatch();
-
-    if (audience && (mInodeCaps[md_pino].size() > (size_t) audience)) {
-      suppress_audience = true;
-
-      if (regcomp(&regex, match.c_str(), REG_ICASE | REG_EXTENDED | REG_NOSUB)) {
-        suppress_audience = false;
-        eos_static_err("msg=\"broadcast audience suppress match not valid regex\" regex=\"%s\"",
-                       match.c_str());
-      }
+    if (refcap == nullptr) {
+      EXEC_TIMING_END("Eosxd::int::BcMD");
+      return 0;
     }
 
-    for (auto it = mInodeCaps[md_pino].begin();
-         it != mInodeCaps[md_pino].end(); ++it) {
-      shared_cap cap;
+    auto kv = mInodeCaps.find(md_pino);
 
-      // loop over all caps for that inode
-      if (mCaps.count(*it)) {
-        cap = mCaps[*it];
-      } else {
-        continue;
-      }
+    if (kv == mInodeCaps.end()) {
+      EXEC_TIMING_END("Eosxd::int::BcMD");
+      return 0; // nothing to process here
+    }
 
-      // skip our own cap!
-      if (cap->authid() == md.authid()) {
-        continue;
-      }
+    auth_ids.reserve(kv->second.size());
+    std::copy(kv->second.begin(),
+              kv->second.end(),
+              std::back_inserter(auth_ids));
+  }
 
-      // skip identical client mounts, the have it anyway!
-      if (cap->clientuuid() == refcap->clientuuid()) {
-        continue;
-      }
+  if (refcap != nullptr) {
+    eos_static_info("id=%lx/%lx clientid=%s clientuuid=%s authid=%s",
+                    refcap->id(), md_pino, refcap->clientid().c_str(),
+                    refcap->clientuuid().c_str(), refcap->authid().c_str());
+  }
 
-      // skip same source
-      if (cap->clientuuid() == md.clientuuid()) {
-        continue;
-      }
+  bool suppress_audience = false;
+  regex_t regex;
+  // audience check
+  int audience = gOFS->zMQ->gFuseServer.Client().BroadCastMaxAudience();
+  std::string match =
+    gOFS->zMQ->gFuseServer.Client().BroadCastAudienceSuppressMatch();
 
-      if (suppress_audience) {
-        if (regexec(&regex, cap->clientid().c_str(), 0, NULL, 0) != REG_NOMATCH) {
-          n_suppressed++;
-          continue;
-        }
-      }
+  if (audience && (auth_ids.size() > (size_t) audience)) {
+    suppress_audience = true;
 
-      eos_static_info("id=%lx clientid=%s clientuuid=%s authid=%s",
-                      cap->id(),
-                      cap->clientid().c_str(),
-                      cap->clientuuid().c_str(),
-                      cap->authid().c_str());
-
-      if (cap->id() && !clients_sent.count(cap->clientuuid())) {
-        bccaps.push_back(cap);
-        // make sure we sent the update only once to each client, eveh if this
-        // one has many caps
-        clients_sent.insert(cap->clientuuid());
-      }
+    if (regcomp(&regex, match.c_str(), REG_ICASE | REG_EXTENDED | REG_NOSUB)) {
+      suppress_audience = false;
+      eos_static_err("msg=\"broadcast audience suppress match not valid regex\" regex=\"%s\"",
+                     match.c_str());
     }
   }
 
-  lLock.Release();
+  for (const auto& it : auth_ids) {
+    shared_cap cap = GetTS(it, false);
 
-  for (auto it : bccaps) {
+    if (!cap) {
+      continue;
+    }
+
+    // avoid processing if the cap doesn't exist or to a sent client
+    if (!cap->id() || clients_sent.count(cap->clientuuid())) {
+      continue;
+    }
+
+    // skip identical client mounts!
+    if (refcap && cap->clientuuid() == refcap->clientuuid()) {
+      continue;
+    }
+
+    // skip same source
+    if (cap->clientuuid() == md.clientuuid()) {
+      continue;
+    }
+
+    if (suppress_audience) {
+      if (regexec(&regex, cap->clientid().c_str(), 0, NULL, 0) != REG_NOMATCH) {
+        n_suppressed++;
+        continue;
+      }
+    }
+
+    eos_static_debug("id=%lx clientid=%s clientuuid=%s authid=%s",
+                     cap->id(),
+                     cap->clientid().c_str(),
+                     cap->clientuuid().c_str(),
+                     cap->authid().c_str());
+    // make sure we sent the update only once to each client, even if this
+    // one has many caps
+    clients_sent.emplace(cap->clientuuid());
     gOFS->zMQ->gFuseServer.Client().SendMD(md,
-                                           it->clientuuid(),
-                                           it->clientid(),
+                                           cap->clientuuid(),
+                                           cap->clientid(),
                                            md_ino,
                                            md_pino,
                                            clock,
                                            p_mtime);
-    errno = 0;
+    errno = 0; // avoid errno clobbering from ZMQ
   }
 
   if (n_suppressed) {
@@ -623,7 +567,8 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
 //
 //------------------------------------------------------------------------------
 std::string
-FuseServer::Caps::Print(std::string option, std::string filter)
+FuseServer::Caps::Print(const std::string& option,
+                        const std::string& filter)
 {
   std::string out;
   std::string astring;
@@ -634,7 +579,6 @@ FuseServer::Caps::Print(std::string option, std::string filter)
     lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
   }
 
-  eos::common::RWMutexReadLock lLock(*this);
   eos_static_info("option=%s string=%s", option.c_str(), filter.c_str());
   regex_t regex;
 
@@ -647,8 +591,7 @@ FuseServer::Caps::Print(std::string option, std::string filter)
   }
 
   if (option == "t") {
-    lLock.Release();
-    eos::common::RWMutexWriteLock wLock(*this);
+    std::lock_guard lg(mtx);
 
     // print by time order
     for (auto it = mTimeOrderedCap.begin(); it != mTimeOrderedCap.end();) {
@@ -809,7 +752,7 @@ FuseServer::Caps::Delete(uint64_t md_ino)
   };
   std::unordered_set<client_set_t::iterator, iter_client_set_hash>
   to_del_client_caps;
-  eos::common::RWMutexWriteLock lLock(*this);
+  std::lock_guard lg(mtx);
   const auto it_inode_caps = mInodeCaps.find(md_ino);
 
   if (it_inode_caps == mInodeCaps.end()) {

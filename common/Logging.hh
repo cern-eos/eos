@@ -58,6 +58,10 @@
 #include <string>
 #include <vector>
 #include <sstream>
+#include <thread>
+#include <chrono>
+#include <mutex>
+#include <condition_variable>
 
 #define SSTR(message) static_cast<std::ostringstream&>(std::ostringstream().flush() << message).str()
 
@@ -301,11 +305,11 @@ public:
   SetLogId(const char* newlogid, const char* td)
   {
     if (newlogid && (newlogid != logId)) {
-      snprintf(logId, sizeof(logId) , "%s", newlogid);
+      snprintf(logId, sizeof(logId), "%s", newlogid);
     }
 
     if (td) {
-      snprintf(cident, sizeof(cident) , "%s", td);
+      snprintf(cident, sizeof(cident), "%s", td);
     }
   }
 
@@ -353,6 +357,155 @@ public:
   VirtualIdentity vid; //< the client identity
 };
 
+#define LOG_BUFFER_DBG 0
+
+class LogBuffer
+{
+public:
+
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  LogBuffer()
+  {
+    char* s = getenv("EOS_MGM_LOG_BUFFERS");
+
+    if (s) {
+      int val = atoi(s);
+
+      if (val > 0) {
+        max_log_buffers = val;
+      }
+    }
+  }
+
+
+  /* Suspend/resume is for forkers - threads aren't carried over into children */
+  void suspend()
+  {
+    std::unique_lock<std::mutex> guard(log_buffer_mutex);
+    log_suspended = true;
+  }
+
+  void resume()
+  {
+    std::unique_lock<std::mutex> guard(log_buffer_mutex);
+    resume_int();
+  }
+
+  void resume_int()
+  {
+    log_suspended = false;
+    log_thread_p = std::thread([this] { log_thread(); });
+    log_thread_started = true;
+  }
+
+  void
+  shutDown(bool gracefully = false)
+  {
+    LogBuffer::log_buffer* buff;
+    std::unique_lock<std::mutex> guard(log_buffer_mutex);
+
+    if (shuttingDown > 0) {
+      return;
+    }
+
+    /* Stop allocating buffers, tell thread to stop, perhaps gracefully */
+    /* many things here  should only be modified under a lock: the log
+       thread set shuttingDown it to indicate it finishes */
+    shuttingDown = (gracefully) ? 1 : 4;
+
+    if (log_thread_started) {
+      while (true) {
+        int old_q = log_buffer_in_q;
+        log_buffer_cond.notify_all();
+        guard.unlock();      /* let log_thread run for a bit */
+        std::this_thread::sleep_for(chrono::milliseconds(1000));
+        guard.lock();
+
+        if (shuttingDown > 38) {
+          break;
+        }
+
+        if (log_buffer_in_q == old_q) {
+          shuttingDown++;
+        }
+      }
+
+      if (shuttingDown < 99) {
+        log_thread_p.join();
+      }
+    }
+
+    while ((buff = free_buffers) != NULL) {
+      free_buffers = buff->h.next;
+      --log_buffer_free;
+      guard.unlock();
+#if LOG_BUFFER_DBG
+
+      if (buff->h.debug1 != 52) {
+        fprintf(stderr, "*** log shutdown: free buffer %#p has debug1=%#x free=%d\n",
+                buff, buff->h.debug1, log_buffer_free);
+        break;
+      }
+
+#endif
+      free(buff);
+      guard.lock();
+    }
+  }
+
+  struct log_buffer;
+  struct log_buffer_hdr {
+    struct log_buffer* next;
+#if LOG_BUFFER_DBG
+    int debug1;         /* for debugging only */
+#endif
+    char* ptr;
+    char* fanOutBuffer;
+    FILE* fanOutS;
+    FILE* fanOut;
+    int priority;
+    int fanOutBufLen;
+
+  };
+
+  struct log_buffer {
+    struct log_buffer_hdr h;
+    char buffer[(8 * 1024 - sizeof(struct log_buffer_hdr))];
+  };
+
+  struct log_buffer* free_buffers = NULL;
+  struct log_buffer* active_head = NULL;
+  struct log_buffer* active_tail = NULL;
+  int shuttingDown = 0;
+  int log_buffer_waiters = 0;     /* protected by log_buffer_shortage_mutex */
+
+  /* limit number of log_buffers */
+  int log_buffer_total = 0;       /* protected by log_mutex */
+  int max_log_buffers = 2048;     /* reasonable: 2048 */;
+
+  /* the following are info only, could be junked */
+  int log_buffer_balance = 0;    /* between "requested" and "queued" */
+  int log_buffer_free = 0;
+  int log_buffer_in_q = 0;
+  unsigned int log_buffer_num_waits = 0;
+
+  bool log_suspended = false;
+  bool log_thread_started = false;
+
+  std::thread log_thread_p;
+  std::mutex log_buffer_mutex;
+  std::condition_variable log_buffer_cond;
+  std::condition_variable log_buffer_shortage;
+
+  struct log_buffer* log_alloc_buffer();
+  void log_return_buffers(struct log_buffer*);
+  void log_queue_buffer(struct log_buffer*);
+  void log_thread();
+};
+
+
 //------------------------------------------------------------------------------
 //! Class wrapping global singleton objects for logging
 //------------------------------------------------------------------------------
@@ -382,6 +535,8 @@ public:
 
   bool gRateLimiter; //< indicating to apply message rate limiting
 
+  LogBuffer* LB;
+
   //----------------------------------------------------------------------------
   //! Get singleton instance
   //----------------------------------------------------------------------------
@@ -395,7 +550,16 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
+
   ~Logging() = default;
+
+  void
+  shutDown(bool gracefully = false)
+  {
+    if (LB) {
+      LB->shutDown(gracefully);
+    }
+  }
 
 
   //----------------------------------------------------------------------------

@@ -45,27 +45,37 @@ eos space config default space.drainer.node.nfs=1
 eos space config default space.drainer.node.ntx=5
 
 # Create dummy test files
+TEST_FN0=/tmp/zero.dat
 TEST_FN1=/tmp/32kb.dat
 TEST_FN2=/tmp/5mb.dat
 
+touch ${TEST_FN0}
 dd if=/dev/urandom of=${TEST_FN1} bs=1k count=32 &> /dev/null
 dd if=/dev/urandom of=${TEST_FN2} bs=1M count=5  &> /dev/null
 
 # Create eos directory for tests and copy some files in
 eos mkdir -p /eos/dockertest/drain_test/replica/
 eos mkdir -p /eos/dockertest/drain_test/raiddp/
+eos mkdir -p /eos/dockertest/drain_test/raiin/
 eos chmod 2777 /eos/dockertest/
 eos chmod 2777 /eos/dockertest/drain_test/replica/
 eos chmod 2777 /eos/dockertest/drain_test/raiddp/
+eos chmod 2777 /eos/dockertest/drain_test/rain/
 eos attr set default=replica /eos/dockertest/drain_test/replica/
 eos attr set default=raiddp /eos/dockertest/drain_test/raiddp/
+eos attr set default=raid6 /eos/dockertest/drain_test/rain/
 eos fs ls
 
 for i in {1..4}; do
-      xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/replica/r1file${i}.dat
-      xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/raiddp/a1file${i}.dat
-      xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/replica/r2file${i}.dat
-      xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/raiddp/a2file${i}.dat
+      xrdcp -f --nopbar ${TEST_FN0} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/replica/0kb_file${i}.dat
+      xrdcp -f --nopbar ${TEST_FN0} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/raiddp/0kb_file${i}.dat
+      xrdcp -f --nopbar ${TEST_FN0} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/rain/0kb_file${i}.dat
+      xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/replica/32kb_file${i}.dat
+      xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/raiddp/32kb_file${i}.dat
+      xrdcp -f --nopbar ${TEST_FN1} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/rain/32kb_file${i}.dat
+      xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/replica/5mb_file${i}.dat
+      xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/raiddp/5mb_file${i}.dat
+      xrdcp -f --nopbar ${TEST_FN2} root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/rain/5mb_file${i}.dat
 done
 
 # Check that the file system is ready
@@ -129,7 +139,9 @@ wait ${xrdcpslowwriter_pid}
 # Remove all the files and directories
 eos rm -rF "/eos/dockertest/drain_test/replica/*"
 eos rm -rF "/eos/dockertest/drain_test/raiddp/*"
+eos rm -rF "/eos/dockertest/drain_test/rain/*"
 eos rmdir "/eos/dockertest/drain_test/replica/"
 eos rmdir "/eos/dockertest/drain_test/raiddp/"
+eos rmdir "/eos/dockertest/drain_test/rain/"
 eos rmdir "/eos/dockertest/drain_test/"
 exit 0
