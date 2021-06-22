@@ -549,7 +549,6 @@ cc7_asan_docker_image:
   allow_failure: true
 
 
-
 # @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
 # xt stands for xrd_testing. Must shorten to not hit HOST_NAME_MAX
 .cc7_xrd_testing_docker_image:
