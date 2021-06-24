@@ -27,6 +27,7 @@
 #include "common/StringTokenizer.hh"
 #include "common/SecEntity.hh"
 #include "common/CtaCommon.hh"
+#include "common/IoPriority.hh"
 #include "common/xrootd-ssi-protobuf-interface/eos_cta/include/CtaFrontendApi.hpp"
 #include "fst/FmdDbMap.hh"
 #include "fst/layout/Layout.hh"
@@ -36,7 +37,6 @@
 #include "XrdOss/XrdOssApi.hh"
 #include "fst/io/FileIoPluginCommon.hh"
 #include "namespace/utils/Etag.hh"
-
 extern XrdOssSys* XrdOfsOss;
 
 EOSFSTNAMESPACE_BEGIN
@@ -78,6 +78,9 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   closeTime.tv_sec = closeTime.tv_usec = 0;
   openTime.tv_sec = openTime.tv_usec = 0;
   tz.tz_dsttime = tz.tz_minuteswest = 0;
+  mIoPriorityValue = 0;
+  mIoPriorityClass = IOPRIO_CLASS_NONE;
+  mIoPriorityErrorReported = false;
 }
 
 //------------------------------------------------------------------------------
@@ -316,6 +319,17 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
             (strcmp(mCapOpaque->Get("mgm.access"), "update")))) {
       return gOFS.Emsg(epname, error, EPERM, "open - capability does not allow "
                        "to read this file", path);
+    }
+  }
+
+  // Get IO priority
+  if (mCapOpaque->Get("mgm.iopriority")) {
+    std::string key;
+    std::string value;
+    std::string kv = mCapOpaque->Get("mgm.iopriority");
+    if ( eos::common::StringConversion::SplitKeyValue(kv, key,value, ":") ) {
+      mIoPriorityClass = ioprio_class(key);
+      mIoPriorityValue = ioprio_value(value);
     }
   }
 
@@ -1890,6 +1904,15 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset fileOffset, char* buffer,
   int rc = XrdOfsFile::read(fileOffset, buffer, buffer_size);
   eos_debug("read %llu %llu %i rc=%d", this, fileOffset, buffer_size, rc);
 
+  // set IO priority
+  if (ioprio_set(IOPRIO_WHO_PROCESS,
+		 IOPRIO_PRIO_VALUE(mIoPriorityClass, mIoPriorityValue))) {
+    if (!mIoPriorityErrorReported) {
+      eos_warning("failed to set IO priority to %d:%d - errno=%d\n", mIoPriorityClass, mIoPriorityValue, errno);
+      mIoPriorityErrorReported = true;
+    }
+  }
+
   if (gOFS.mSimIoReadErr) {
     if ((gOFS.mSimErrIoReadOff == 0) ||
         (gOFS.mSimErrIoReadOff <= (uint64_t)fileOffset)) {
@@ -1975,6 +1998,15 @@ XrdSfsXferSize
 XrdFstOfsFile::writeofs(XrdSfsFileOffset fileOffset, const char* buffer,
                         XrdSfsXferSize buffer_size)
 {
+  // set IO priority
+  if (ioprio_set(IOPRIO_WHO_PROCESS,
+		 IOPRIO_PRIO_VALUE(mIoPriorityClass, mIoPriorityValue))) {
+    if (!mIoPriorityErrorReported) {
+      eos_warning("failed to set IO priority to %d:%d - errno=%d\n", mIoPriorityClass, mIoPriorityValue, errno);
+      mIoPriorityErrorReported = true;
+    }
+  }
+
   if (gOFS.mSimIoWriteErr) {
     if ((gOFS.mSimErrIoWriteOff == 0) ||
         (gOFS.mSimErrIoWriteOff <= (uint64_t)fileOffset)) {
@@ -2764,6 +2796,7 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
   unsigned long rcmin, rcmax, rcsum;      // readv count
   unsigned long long wmin, wmax, wsum;
   double rsigma, rvsigma, rssigma, rcsigma, wsigma;
+  bool ioprio_default = false;
   {
     XrdSysMutexHelper vecLock(vecMutex);
     ComputeStatistics(rvec, rmin, rmax, rsum, rsigma);
@@ -2782,6 +2815,11 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
       wmin = 0;
     }
 
+    if (!mIoPriorityClass) {
+      mIoPriorityClass = IOPRIO_CLASS_BE;
+      mIoPriorityValue = 4;
+      ioprio_default = true;
+    }
     snprintf(report, sizeof(report) - 1,
              "log=%s&path=%s&fstpath=%s&ruid=%u&rgid=%u&td=%s&"
              "host=%s&lid=%lu&fid=%llu&fsid=%lu&"
@@ -2796,7 +2834,7 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
              "sfwdb=%llu&sbwdb=%llu&sxlfwdb=%llu&sxlbwdb=%llu&"
              "nfwds=%lu&nbwds=%lu&nxlfwds=%lu&nxlbwds=%lu&"
              "rt=%.02f&rvt=%.02f&wt=%.02f&osize=%llu&csize=%llu&"
-             "delete_on_close=%d&%s"
+             "delete_on_close=%d&prio_c=%d&prio_l=%d&prio_d=%d&%s"
              , this->logId
              , mCapOpaque->Get("mgm.path") ? mCapOpaque->Get("mgm.path") : mNsPath.c_str()
              , mFstPath.c_str()
@@ -2827,6 +2865,9 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
              , (unsigned long long) openSize
              , (unsigned long long) closeSize
              , (deleteOnClose) ? 1 : 0
+	     , mIoPriorityClass
+	     , mIoPriorityValue
+	     , ioprio_default
              , eos::common::SecEntity::ToEnv(mSecString.c_str(),
                  (sec_tpc ? "tpc" : 0)).c_str());
     reportString = report;
