@@ -443,6 +443,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   std::string versioning_cgi;
   // file size
   uint64_t fmdsize = 0;
+  // io priority string
+  std::string ioPriority;
+
   int crOpts = (Mode & SFS_O_MKPTH) ? XRDOSS_mkpath : 0;
 
   // Set the actual open mode and find mode
@@ -569,6 +572,20 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
       if (application == "xrootdfs") {
         isFuse = true;
+      }
+    }
+  }
+
+  {
+    // handle io priority
+    const char* val = 0;
+    if ((val = openOpaque->Get("eos.iopriority"))) {
+      if (vid.hasUid(11)) {  // operator role
+	// admin members can set iopriority
+	ioPriority = val;
+      } else {
+	eos_info("suppressing IO priority setting '%s' (no operator role)",
+		 val);
       }
     }
   }
@@ -1436,6 +1453,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   if (gOFS->mTapeEnabled) {
     capability += "&tapeenabled=1";
+  }
+
+  if (ioPriority.length()) {
+    capability += "mgm.iopriority=";
+    capability += ioPriority.c_str();
   }
 
   if (isPioReconstruct) {
