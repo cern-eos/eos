@@ -289,7 +289,7 @@ public:
     kOfsFsRemovedError = 5 //! filesystem has been unregistered
   };
 
-///< In-memory file meta data object
+  ///< In-memory file meta data object
   std::unique_ptr<eos::common::FmdHelper> mFmd;
   std::unique_ptr<eos::fst::CheckSum> mCheckSum; ///< Checksum object
   // @todo(esindril) this is not properly enforced everywhere ...
