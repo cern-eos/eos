@@ -275,6 +275,9 @@ public:
   std::string mEventRequestor;
   std::string mEventRequestorGroup;
   std::string mEventAttributes;
+  int mIoPriorityValue;
+  int mIoPriorityClass;
+  bool mIoPriorityErrorReported;
 
   enum {
     kOfsIoError = 1, //! generic IO error
