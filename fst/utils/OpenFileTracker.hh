@@ -27,6 +27,7 @@
 #include "fst/Namespace.hh"
 #include "common/FileSystem.hh"
 #include "common/RWMutex.hh"
+#include <mutex>
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -88,6 +89,12 @@ public:
   //----------------------------------------------------------------------------
   std::map<size_t, std::set<uint64_t>> getSortedByUsecount(
                                       eos::common::FileSystem::fsid_t fsid) const;
+
+  //----------------------------------------------------------------------------
+  //! Get the RR scheduling object per filesystem/app
+  //----------------------------------------------------------------------------
+  std::mutex* scheduleRR(eos::common::FileSystem::fsid_t fsid, const std::string app);
+  //----------------------------------------------------------------------------
 
   //----------------------------------------------------------------------------
   //! Get top hot files on current filesystem
@@ -153,6 +160,8 @@ private:
   mutable eos::common::RWMutex mMutex;
   std::map<eos::common::FileSystem::fsid_t, std::map<uint64_t, int32_t>>
       mContents;
+
+  std::map<eos::common::FileSystem::fsid_t, std::map<std::string, std::mutex>> mApp;
 };
 
 EOSFSTNAMESPACE_END
