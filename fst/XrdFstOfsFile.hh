@@ -238,6 +238,7 @@ public:
   XrdOucString mRedirectManager; ///< Manager host where we bounce back
   bool mTapeEnabled; ///< True if tape support is enabled
   XrdOucString mSecString; ///< string containing security summary
+  std::map<std::string,std::string> mSecMap; ///< map of all sec keys
   std::string mEtag; ///< Current and new ETag (recomputed in close)
   unsigned long long mFileId; //! file id
   unsigned long mFsId; //! file system id
@@ -278,6 +279,7 @@ public:
   int mIoPriorityValue;
   int mIoPriorityClass;
   bool mIoPriorityErrorReported;
+  std::string mAppRR;
 
   enum {
     kOfsIoError = 1, //! generic IO error
