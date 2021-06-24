@@ -64,6 +64,7 @@ eos space config default space.dynamicec.maxthreshold=0.000001
 eos space config default space.dynamicec.sizeformapmax=100000000000000
 eos space config default space.dynamicec.sleepwhenfull=120
 eos space config default space.dynamicec.sleepwhendone=120
+eos space config default space.dynamicec.agefromwhentodelete=0
 eos space config default space.dynamicec.test=on
 eos space config default space.dynamicec.restartscan=on
 
