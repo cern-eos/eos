@@ -196,6 +196,16 @@ int32_t OpenFileTracker::getOpenOnFilesystem(eos::common::FileSystem::fsid_t
 }
 
 //------------------------------------------------------------------------------
+// Get round-robin scheduling mutex per fsid/app
+//------------------------------------------------------------------------------
+std::mutex*
+OpenFileTracker::scheduleRR(eos::common::FileSystem::fsid_t fsid, const std::string app)
+{
+  eos::common::RWMutexReadLock rd_lock(mMutex);
+  return &mApp[fsid][app];
+}
+
+//------------------------------------------------------------------------------
 // Get top hot files on current filesystem
 //------------------------------------------------------------------------------
 std::vector<OpenFileTracker::HotEntry> OpenFileTracker::getHotFiles(
