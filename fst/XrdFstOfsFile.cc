@@ -673,6 +673,20 @@ XrdSfsXferSize
 XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
                     XrdSfsXferSize buffer_size)
 {
+  // use RR scheduling if there is a round-robin app name
+  std::mutex* mutex=0;
+  if (!mAppRR.empty()) {
+    if (mIsRW) {
+      mutex = gOFS.openedForWriting.scheduleRR(mFsId, mAppRR);
+    } else {
+      mutex = gOFS.openedForReading.scheduleRR(mFsId, mAppRR);
+    }
+  }
+
+  auto lockScope = ( mutex == nullptr ) ?
+    std::unique_lock<std::mutex>() :
+    std::unique_lock<std::mutex>(*mutex);
+
   eos_debug("fileOffset=%lli, buffer_size=%i", fileOffset, buffer_size);
 
   //  EPNAME("read");
@@ -775,6 +789,37 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
     mMaxOffsetWritten = fileOffset + buffer_size;
     return buffer_size;
   }
+
+  {
+    // use global RR serialization (we just use fsid 0 for that)
+    std::mutex* mutex=0;
+    if (!mAppRR.empty()) {
+      if (mIsRW) {
+      mutex = gOFS.openedForWriting.scheduleRR(0, mAppRR);
+      } else {
+      mutex = gOFS.openedForReading.scheduleRR(0, mAppRR);
+      }
+    }
+
+    auto lockScope = ( mutex == nullptr ) ?
+      std::unique_lock<std::mutex>() :
+      std::unique_lock<std::mutex>(*mutex);
+  }
+
+  // use RR scheduling if there is a round-robin app name per filesystem
+  std::mutex* mutex=0;
+  if (!mAppRR.empty()) {
+    if (mIsRW) {
+      mutex = gOFS.openedForWriting.scheduleRR(mFsId, mAppRR);
+    } else {
+      mutex = gOFS.openedForReading.scheduleRR(mFsId, mAppRR);
+    }
+  }
+
+  auto lockScope = ( mutex == nullptr ) ?
+    std::unique_lock<std::mutex>() :
+    std::unique_lock<std::mutex>(*mutex);
+
 
   // if the write position moves the checksum is dirty
   if (mCheckSum) {
@@ -1899,6 +1944,7 @@ XrdSfsXferSize
 XrdFstOfsFile::readofs(XrdSfsFileOffset fileOffset, char* buffer,
                        XrdSfsXferSize buffer_size)
 {
+  //  EPNAME("read");
   gettimeofday(&cTime, &tz);
   rCalls++;
   int rc = XrdOfsFile::read(fileOffset, buffer, buffer_size);
@@ -2249,6 +2295,11 @@ XrdFstOfsFile::ProcessOpenOpaque()
     mIsInjection = true;
   }
 
+  // enable round-robin scheduling per application/fsid on request
+  if ((val = mOpenOpaque->Get("eos.schedule"))) {
+    mAppRR = mSecMap["app"];
+  }
+
   // Tag as an OC chunk upload
   if (eos::common::OwnCloud::isChunkUpload(*mOpenOpaque.get())) {
     mIsOCchunk = true;
@@ -2324,6 +2375,7 @@ XrdFstOfsFile::ProcessCapOpaque(bool& is_repair_read,
                      "open - no security information in capability", mNsPath.c_str());
   } else {
     mSecString = secinfo;
+    mSecMap = eos::common::SecEntity::KeyToMap(std::string(secinfo));
   }
 
   // Handle min size value
