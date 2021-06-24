@@ -1227,7 +1227,6 @@ DynamicEC::performCycleQDBMD(ThreadAssistant& assistant) noexcept
       num2 -= (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1);
 
       if (num2 > 0) {
-        eos_static_info("start of map \n \n \n");
         mMutexForStatusFilesMD.lock();
         mStatusFilesMD[fmd->getId()] = fmd;
         mMutexForStatusFilesMD.unlock();

@@ -356,8 +356,6 @@ public:
 
   void performCycleQDBMD(ThreadAssistant& assistant) noexcept;
 
-  void performCycleQDBMD(ThreadAssistant& assistant) noexcept;
-
   void RunScan(ThreadAssistant& assistant) noexcept;
 
 };
