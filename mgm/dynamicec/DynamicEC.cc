@@ -1074,14 +1074,12 @@ DynamicEC::CleanupMD()
       for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
              mStatusFilesMD.begin(); it != mStatusFilesMD.end(); ++it) {
         mSizeInMap -= it->second->getSize();
-        eos_static_info("This is the size in the map %lld \n", mSizeInMap.load());
 
         if (DeletionOfFileIDMD(it->second, mTimeFromWhenToDelete)) {
-          {
-            kReduceMD(it->second);
-            deletionlist.push_front(it->first);
-          }
+          kReduceMD(it->second);
         }
+
+        deletionlist.push_front(it->first);
 
         if (mDeletedFileSize.load() >= mSizeToBeDeleted.load()) {
           eos_static_info("%s",
@@ -1095,14 +1093,10 @@ DynamicEC::CleanupMD()
       std::list<uint64_t>::iterator it;
 
       for (auto it = deletionlist.begin(); it != deletionlist.end(); ++it) {
-        eos_static_info("CleanUp have just been done and now we move the will be removed file : %lld.",
-                        mStatusFilesMD.size());
         uint64_t id = *it;
         mMutexForStatusFilesMD.lock();
         mStatusFilesMD.erase(id);
         mMutexForStatusFilesMD.unlock();
-        eos_static_info("CleanUp have just been done and now we move the file : %lld.",
-                        mStatusFilesMD.size());
       }
     }
 
@@ -1219,8 +1213,7 @@ DynamicEC::performCycleQDBMD(ThreadAssistant& assistant) noexcept
     eos::ns::FileMdProto item;
 
     if (scanner.getItem(item)) {
-      eos_static_info("This is the map that scans");
-
+      //eos_static_info("This is the map that scans");
       if (mTestEnabel) {
         interval = 1;
       }
@@ -1240,13 +1233,10 @@ DynamicEC::performCycleQDBMD(ThreadAssistant& assistant) noexcept
       num2 -= (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1);
 
       if (num2 > 0) {
-        eos_static_info("start of map \n \n \n");
         mMutexForStatusFilesMD.lock();
         mStatusFilesMD[fmd->getId()] = fmd;
         mMutexForStatusFilesMD.unlock();
         mSizeInMap += fmd->getSize();
-        eos_static_info("This is the size in the map %lld \n", mSizeInMap.load());
-        eos_static_info("This is the map %ld \n \n ", mStatusFilesMD.size());
       }
 
       if (target_time > is_time) {
