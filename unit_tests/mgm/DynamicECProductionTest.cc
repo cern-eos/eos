@@ -31,8 +31,6 @@
 
 using namespace eos;
 
-//#define GTEST;
-
 TEST(DynamicECProduction, TestForSetterAndGetter)
 {
   const char* str = "default";
@@ -89,7 +87,7 @@ TEST(DynamicECProduction, TestForThis)
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
          UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
-    fprintf(stderr, "This is for locations: %i \n",
+    fprintf(stderr, "This is for locations: %lu \n",
             it->second->getLocations().size());
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
                 it->second->getLayoutId()), 2);
@@ -107,7 +105,7 @@ TEST(DynamicECProduction, TestForThis)
 
   for (std::map<uint64_t, std::shared_ptr<eos::IFileMD>>::iterator it =
          UUT.mStatusFilesMD.begin(); it != UUT.mStatusFilesMD.end(); ++it) {
-    fprintf(stderr, "This is for locations: %i \n",
+    fprintf(stderr, "This is for locations: %lu \n",
             it->second->getLocations().size());
     EXPECT_EQ(eos::common::LayoutId::GetRedundancyStripeNumber(
                 it->second->getLayoutId()), 2);

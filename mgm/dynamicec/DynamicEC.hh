@@ -303,7 +303,6 @@ public:
 
   void printAll();
 
-//test
   //---------------------------------------------------------------------------------------------------
   //! Gets the age from now and how far back it will have to delete files from in seconds.
   //! Takes the size that will be the minimum for deletion as bytes.
@@ -338,9 +337,6 @@ public:
   void performCycleQDBMD(ThreadAssistant& assistant) noexcept;
 
   void RunScan(ThreadAssistant& assistant) noexcept;
-
-
-
 
 };
 

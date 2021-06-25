@@ -819,7 +819,7 @@ DynamicEC::fillSingleSmallFile(uint64_t time, uint64_t size, int partitions)
   fprintf(stderr, "Constructor \n");
   eos_static_info("%s", "Constructor from fill single small file\n");
   fprintf(stderr,
-          "There is a file with %d: time in seconds, %d: as size in bytes and %d: partitions.\n",
+          "There is a file with %lu: time in seconds, %lu: as size in bytes and %d: partitions.\n",
           time, size, partitions);
   eos_static_info("%s",
                   "There is a file with %d: time in seconds, %d: as size in bytes and %d: partitions.\n",
@@ -879,7 +879,7 @@ DynamicEC::SpaceStatus()
       eos_static_info("This is from the static the undeleted file siye is now 0. ");
     }
 
-    eos_static_info("Status:\i %llu: total size, %llu: used size, %llu: deleted size, %llu: undeleted size.\n",
+    eos_static_info("Status: %llu: total size, %llu: used size, %llu: deleted size, %llu: undeleted size.\n",
                     FsView::gFsView.mSpaceView[mSpaceName]->SumLongLong("stat.statfs.capacity",
                         false),
                     status.usedSize, status.deletedSize, status.undeletedSize);
@@ -899,7 +899,7 @@ DynamicEC::SpaceStatus()
       status.undeletedSize = 0;
     }
 
-    fprintf(stderr, "Status:\i %" PRId64 ": total size, %" PRId64 ": used size, %"
+    fprintf(stderr, "Status: %" PRId64 ": total size, %" PRId64 ": used size, %"
             PRId64 ": deleted size, %" PRId64 ": undeleted size.\n", status.totalSize,
             status.usedSize, status.deletedSize, status.undeletedSize);
     return status;
@@ -919,7 +919,7 @@ DynamicEC::DeletionOfFileID(std::shared_ptr<DynamicECFile> file,
   eos::IFileMD::ctime_t time;
   file->getCTime(time);
 
-  if (time.tv_sec < ageOld) {
+  if ((unsigned long) time.tv_sec < ageOld) {
     if (GetSizeOfFile(file) > mSizeMinForDeletion) {
       return true;
     }
@@ -941,7 +941,7 @@ DynamicEC::DeletionOfFileIDMD(std::shared_ptr<eos::IFileMD> file,
   eos::IFileMD::ctime_t time;
   file->getCTime(time);
 
-  if (time.tv_sec < ageOld) {
+  if ((unsigned long) time.tv_sec < ageOld) {
     if (file->getSize() > mSizeMinForDeletion) {
       return true;
     }
@@ -982,17 +982,17 @@ DynamicEC::TotalSizeInSystemMD(std::shared_ptr<eos::IFileMD> file)
 double
 DynamicEC::GetRealSizeFactorMD(std::shared_ptr<eos::IFileMD> file)
 {
-  eos_static_info("This is the top part %lf",
-                  1.0 * (eos::common::LayoutId::GetStripeNumber(file->getLayoutId()) + 1 -
-                         eos::common::LayoutId::GetRedundancyStripeNumber(file->getLayoutId())));
-  eos_static_info("This is the next part %lf",
-                  1.0 * (file->getLocations().size() - (eos::common::LayoutId::GetStripeNumber(
-                           file->getLayoutId()) + 1 - eos::common::LayoutId::GetRedundancyStripeNumber(
-                           file->getLayoutId()))));
-  eos_static_info("This is the last part %lf",
-                  1.0 * (eos::common::LayoutId::GetStripeNumber(
-                           file->getLayoutId()) + 1 - eos::common::LayoutId::GetRedundancyStripeNumber(
-                           file->getLayoutId())));
+  eos_static_debug("This is the top part %lf",
+                   1.0 * (eos::common::LayoutId::GetStripeNumber(file->getLayoutId()) + 1 -
+                          eos::common::LayoutId::GetRedundancyStripeNumber(file->getLayoutId())));
+  eos_static_debug("This is the next part %lf",
+                   1.0 * (file->getLocations().size() - (eos::common::LayoutId::GetStripeNumber(
+                            file->getLayoutId()) + 1 - eos::common::LayoutId::GetRedundancyStripeNumber(
+                            file->getLayoutId()))));
+  eos_static_debug("This is the last part %lf",
+                   1.0 * (eos::common::LayoutId::GetStripeNumber(
+                            file->getLayoutId()) + 1 - eos::common::LayoutId::GetRedundancyStripeNumber(
+                            file->getLayoutId())));
   return 1.0 * ((((1.0 * eos::common::LayoutId::GetStripeNumber(
                      file->getLayoutId()) + 1) -
                   eos::common::LayoutId::GetRedundancyStripeNumber(file->getLayoutId())) +
@@ -1011,12 +1011,10 @@ DynamicEC::GetRealSizeFactorMD(std::shared_ptr<eos::IFileMD> file)
 void
 DynamicEC::kReduceMD(std::shared_ptr<eos::IFileMD> file)
 {
-  uint64_t beforeSize = TotalSizeInSystemMD(file);
   double beforeScale = GetRealSizeFactorMD(file);
 
   while (file->getLocations().size() > ((eos::common::LayoutId::GetStripeNumber(
       file->getLayoutId()) + 1))) {
-    auto fileId = file->getId();
     file->unlinkLocation(file->getLocations().back());
 
     if (gOFS) {
@@ -1027,7 +1025,6 @@ DynamicEC::kReduceMD(std::shared_ptr<eos::IFileMD> file)
 
   eos_static_info("This works for locations %lu", file->getLocations().size());
   mDeletedFileSize += file->getSize() * (beforeScale - GetRealSizeFactorMD(file));
-  eos_static_info("\n \n Deleted file size: %lld", mDeletedFileSize.load());
 }
 
 //-------------------------------------------------------------------------------------------
@@ -1125,7 +1122,6 @@ DynamicEC::Run(ThreadAssistant& assistant) noexcept
       CleanupMD();
     }
 
-wait:
     assistant.wait_for(std::chrono::seconds(mWaitTime.load()));
 
     if (assistant.terminationRequested()) {
@@ -1223,8 +1219,7 @@ DynamicEC::performCycleQDBMD(ThreadAssistant& assistant) noexcept
       fmd->setFileMDSvc(gOFS->eosFileService);
       Process(fmd);
       nfiles_processed++;
-      scanned_percent = (100.0 * nfiles_processed / nfiles,
-                         std::memory_order_seq_cst);
+      scanned_percent = (100.0 * nfiles_processed / nfiles);
       time_t target_time = (1.0 * nfiles_processed / nfiles) * interval;
       time_t is_time = time(NULL) - s_time;
       auto hasTape = fmd->hasLocation(EOS_TAPE_FSID);
@@ -1294,7 +1289,7 @@ DynamicEC::performCycleQDBMD(ThreadAssistant& assistant) noexcept
     }
   }
 
-  scanned_percent = (100.0, std::memory_order_seq_cst);
+  scanned_percent = (100.0);
   std::lock_guard<std::mutex> sMutex(mutexScanStats);
   lastScanStats = currentScanStats;
   lastFaultyFiles = currentFaultyFiles;
@@ -1319,7 +1314,6 @@ DynamicEC::RunScan(ThreadAssistant& assistant) noexcept
       performCycleQDBMD(assistant);
     }
 
-wait:
     assistant.wait_for(std::chrono::seconds(mWaitTime.load()));
 
     if (assistant.terminationRequested()) {
