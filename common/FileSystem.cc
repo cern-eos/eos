@@ -441,6 +441,8 @@ FileSystem::fs_snapshot_t::fs_snapshot_t()
   mDiskNameLen = 0;
   mDiskRopen = 0;
   mDiskWopen = 0;
+  mMaxDiskRopen = 0;
+  mMaxDiskWopen = 0;
   mScanIoRate = 0;
   mScanEntryInterval = 0;
   mScanDiskInterval = 0;
@@ -1227,6 +1229,8 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
   fs.mDiskNameLen = (long) hash.getLongLong("stat.statfs.namelen");
   fs.mDiskRopen = (long) hash.getLongLong("stat.ropen");
   fs.mDiskWopen = (long) hash.getLongLong("stat.wopen");
+  fs.mMaxDiskRopen = (long) hash.getLongLong("max.ropen");
+  fs.mMaxDiskWopen = (long) hash.getLongLong("max.wopen");
   fs.mScanIoRate = (long) hash.getLongLong(eos::common::SCAN_IO_RATE_NAME);
   fs.mScanEntryInterval = (long)hash.getLongLong
                           (eos::common::SCAN_ENTRY_INTERVAL_NAME);
