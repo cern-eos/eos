@@ -897,7 +897,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
       gOFS->ConfEngine->SetAutoSave(false);
 
       // Store these as a global parameters of the space
-      if ((key == "headroom") || (key == "graceperiod") || (key == "drainperiod") || (key == "max.ropen") || (key == "max.wopen") ||
+      if ((key == "headroom") || (key == "graceperiod") || (key == "drainperiod") ||
           (key == eos::common::SCAN_IO_RATE_NAME) ||
           (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
           (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
@@ -944,7 +944,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             errno = 0;
             eos::common::StringConversion::GetSizeFromString(value.c_str());
 
-            if (((key == "headroom") || (key == "graceperiod") || (key == "drainperiod") || (key == "max.ropen") || (key == "max.wopen") ||
+            if (((key == "headroom") || (key == "graceperiod") || (key == "drainperiod") ||
                  (key == eos::common::SCAN_IO_RATE_NAME) ||
                  (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
                  (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
