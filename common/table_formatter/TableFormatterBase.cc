@@ -437,6 +437,10 @@ TableFormatterColor TableFormatterBase::ChangeColor(std::string header,
       return BRED_BGWHITE;
     }
 
+    if (value == "overload") {
+      return BWHITE_BGBLUE;
+    }
+
     if (value == "ok" || value == "fine") {
       return BGREEN;
     }

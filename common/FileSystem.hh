@@ -83,7 +83,8 @@ enum class DrainStatus {
 enum class ActiveStatus {
   kUndefined = -1,
   kOffline = 0,
-  kOnline = 1
+  kOnline = 1,
+  kOverload = 2
 };
 
 //! Values for a configuration status - stored persistently in the
@@ -670,6 +671,8 @@ public:
   {
     if (active == ActiveStatus::kOnline) {
       return SetString("stat.active", "online", false);
+    } else if (active == ActiveStatus::kOverload) {
+      return SetString("stat.active", "overload", false);
     } else {
       return SetString("stat.active", "offline", false);
     }
