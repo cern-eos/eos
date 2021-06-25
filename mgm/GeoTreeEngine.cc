@@ -3104,7 +3104,7 @@ void GeoTreeEngine::updateAtomicPenalties()
           }
         } else {
           eos_debug("not enough file opened to get reliable statistics %d",
-                    (int)(ropen[netSpeedClass] + ropen[netSpeedClass]));
+                    (int)(ropen[netSpeedClass] + wopen[netSpeedClass]));
         }
       }
     }
