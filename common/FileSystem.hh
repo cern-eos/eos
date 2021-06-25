@@ -455,6 +455,8 @@ public:
     long mDiskNameLen;
     long mDiskRopen;
     long mDiskWopen;
+    long mMaxDiskRopen;
+    long mMaxDiskWopen;
     long mScanIoRate; ///< Maximum scan rate in MB/s
     long mScanEntryInterval; ///< Time after which a scanned file is rescanned
     long mScanDiskInterval; ///< Time after which the disk scanner runs again

@@ -927,7 +927,7 @@ protected:
              sfgBalthres, sfgActive, sfgBlkavailb, sfgDiskload,
              sfgEthmib, sfgInratemib, sfgOutratemib, sfgWriteratemb,
              sfgReadratemb, sfgFsfilled, sfgNomfilled, sfgConfigstatus, sfgHost, sfgErrc,
-             sfgPubTmStmp, sfgPxyGrp, sfgFileStickPxy;
+             sfgPubTmStmp, sfgPxyGrp, sfgFileStickPxy, sfgWopen, sfgRopen ;
 
   //! This mutex protects the consistency between the GeoTreeEngine state and the filesystems it contains
   //! To make any change that temporarily set an unconsistent state (mainly adding a fs, removing a fs,
