@@ -812,6 +812,10 @@ FileSystem::GetActiveStatusFromString(const char* ss)
     return ActiveStatus::kOffline;
   }
 
+  if (!strcmp(ss, "overload")) {
+    return ActiveStatus::kOverload;
+  }
+
   return ActiveStatus::kOffline;
 }
 
@@ -1318,6 +1322,9 @@ FileSystem::GetActiveStatus(bool cached)
   } else if (active == "offline") {
     cActive = ActiveStatus::kOffline;
     return ActiveStatus::kOffline;
+  } else if (active == "overload") {
+    cActive = ActiveStatus::kOverload;
+    return ActiveStatus::kOverload;
   } else {
     cActive = ActiveStatus::kUndefined;
     return ActiveStatus::kUndefined;
