@@ -384,6 +384,7 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
             (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
             (key == eos::common::SCAN_NS_RATE_NAME) ||
             (key == eos::common::FSCK_REFRESH_INTERVAL_NAME) ||
+            (key == "max.ropen" || (key == "max.wopen")) ||
             (key == "headroom") || (key == "graceperiod") ||
             (key == "drainperiod") || (key == "proxygroup") ||
             (key == "filestickyproxydepth") || (key == "forcegeotag") ||
