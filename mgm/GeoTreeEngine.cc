@@ -71,6 +71,8 @@ const int GeoTreeEngine::sfgInratemib = 1 << 15;
 const int GeoTreeEngine::sfgOutratemib = 1 << 16;
 const int GeoTreeEngine::sfgErrc = 1 << 17;
 const int GeoTreeEngine::sfgPubTmStmp = 1 << 18;
+const int GeoTreeEngine::sfgWopen = 1 << 19;
+const int GeoTreeEngine::sfgRopen = 1 << 20;
 
 set<string> GeoTreeEngine::gWatchedKeys;
 
@@ -95,6 +97,8 @@ const map<string, int> GeoTreeEngine::gNotifKey2EnumSched = {
   make_pair("stat.net.outratemib", sfgOutratemib),
   make_pair("stat.errc", sfgErrc),
   make_pair("stat.publishtimestamp", sfgPubTmStmp),
+  make_pair("stat.wopen", sfgWopen),
+  make_pair("stat.ropen", sfgRopen),
 };
 
 map<string, int> GeoTreeEngine::gNotificationsBufferFs;
@@ -2529,12 +2533,16 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
     }
   }
 
-  if (keys & (sfgDiskload | sfgInratemib)) {
+  if (keys & (sfgDiskload | sfgInratemib | sfgWopen )) {
     // update the upload score
     double ulScore = (1 - fs->mDiskUtilization);
     double netoutweight = (1.0 - ((fs->mNetEthRateMiB) ? (fs->mNetOutRateMiB /
                                   fs->mNetEthRateMiB) : 0.0));
     ulScore *= ((netoutweight > 0) ? sqrt(netoutweight) : 0);
+
+    if (fs->mMaxDiskWopen && (fs->mDiskWopen >= fs->mMaxDiskWopen)) {
+      ulScore = 0;
+    }
 
     if (ftIdx) {
       setOneStateVarInAllFastTrees(ulScore, (char)(ulScore * 100));
@@ -2545,11 +2553,15 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
     }
   }
 
-  if (keys & (sfgOutratemib | sfgDiskload | sfgReadratemb)) {
+  if (keys & (sfgOutratemib | sfgDiskload | sfgReadratemb | sfgRopen)) {
     double dlScore = (1 - fs->mDiskUtilization);
     double netinweight = (1.0 - ((fs->mNetEthRateMiB) ? (fs->mNetInRateMiB /
                                  fs->mNetEthRateMiB) : 0.0));
     dlScore *= ((netinweight > 0) ? sqrt(netinweight) : 0);
+
+    if (fs->mMaxDiskRopen && (fs->mDiskRopen >= fs->mMaxDiskRopen)) {
+      dlScore = 0;
+    }
 
     if (ftIdx) {
       setOneStateVarInAllFastTrees(dlScore, (char)(dlScore * 100));
