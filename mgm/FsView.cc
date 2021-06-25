@@ -2358,9 +2358,20 @@ FsView::HeartBeatCheck(ThreadAssistant& assistant) noexcept
           if ((node->GetConfigMember("status") == "on") &&
               FsView::gFsView.mGroupView.count(group) &&
               (FsView::gFsView.mGroupView[group]->GetConfigMember("status") == "on")) {
-            if (fs->GetActiveStatus() != eos::common::ActiveStatus::kOnline) {
-              fs->SetActiveStatus(eos::common::ActiveStatus::kOnline);
-            }
+
+	    size_t max_ropen = fs->GetLongLong("max.ropen");
+	    size_t max_wopen = fs->GetLongLong("max.wopen");
+	    bool overloaded = ( (max_ropen && (max_ropen <=fs->GetLongLong("stat.ropen"))) ||
+				(max_wopen && (max_wopen <=fs->GetLongLong("stat.wopen"))) );
+	    if (!overloaded) {
+	      if (fs->GetActiveStatus() != eos::common::ActiveStatus::kOnline) {
+		fs->SetActiveStatus(eos::common::ActiveStatus::kOnline);
+	      }
+	    } else {
+	      if (fs->GetActiveStatus() != eos::common::ActiveStatus::kOverload) {
+		fs->SetActiveStatus(eos::common::ActiveStatus::kOverload);
+	      }
+	    }
           } else {
             if (fs->GetActiveStatus() != eos::common::ActiveStatus::kOffline) {
               fs->SetActiveStatus(eos::common::ActiveStatus::kOffline);
