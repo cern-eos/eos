@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/token/EosTok.hh"
 #include "mgm/XrdMgmAuthz.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucString.hh"
@@ -72,6 +73,10 @@ XrdAccPrivs
 XrdMgmAuthz::Access(const XrdSecEntity* Entity, const char* path,
                     const Access_Operation oper, XrdOucEnv* Env)
 {
+  if (eos::common::EosTok::isEosToken(path)) {
+    return XrdAccPriv_All;
+  }
+
   eos_static_info("msg=\"checking access\" path=\"%s\", name=\"%s\"",
                   path, Entity->name);
 

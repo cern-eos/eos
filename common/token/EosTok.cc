@@ -425,4 +425,16 @@ EosTok::Requester() const
   return share->token().requester();
 }
 
+bool
+EosTok::isEosToken(const char* pathcgi)
+
+{
+  std::string cgi=pathcgi;
+  if ( (cgi.find("?authz=zteos") != std::string::npos) ||
+       (cgi.find("&authz=zteos") != std::string::npos) ){
+    return true;
+  } else {
+    return false;
+  }
+}
 EOSCOMMONNAMESPACE_END
