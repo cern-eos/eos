@@ -16,6 +16,28 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.56 Citrine``
+===================
+
+2021-06-27
+
+Bug
+---
+
+* [EOS-4764] COMMON:  fix overlap function used in token macro for CLI commands creating a SEGV when doing certain 'file mv' operations
+
+Improvements
+------------
+
+* [EOS-4766] MGM: Don't block HTTP access with EOS tokens in the HTTP bridge code - this allows to mix SciTokens and EosTokens inside the same instance
+
+New Feature
+------------
+
+* [EOS-4762] MGM: add new filesystem active status online - overload - offline
+* [EOS-4760] FST: implement round-robin scheduling
+* [EOS-4759] FST: add 'eos.iopriority' to stear BFQ/CFQ priorities
+
 ``v4.8.55 Citrine``
 ===================
 
