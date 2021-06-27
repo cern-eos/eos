@@ -395,7 +395,8 @@ public:
     std::string ol="/";
     for ( size_t i = 0 ; i< apath.GetSubPathSize(); ++i) {
       std::string ta = apath.GetSubPath(i);
-      std::string tb = bpath.GetSubPath(i);
+      const char* pb = bpath.GetSubPath(i);
+      std::string tb = pb?pb:"";
       if (ta == tb) {
 	ol = ta;
       } else {
