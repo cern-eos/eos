@@ -81,6 +81,8 @@ public:
   virtual int Generation() const;
 
   static std::atomic<uint64_t> sTokenGeneration; ///< generation value for token issuing/verification 
+
+  static bool isEosToken(const char* pathcgi);
 private:
 
   bool Match(const std::string& input, const std::string& match);
