@@ -103,6 +103,7 @@ add_library(
   Messaging.cc
   ${MGM_TGC_SRC_FILES}
   Policy.cc
+  InFlightTracker.cc
   proc/IProcCommand.cc
   proc/ProcInterface.cc
   proc/ProcCommand.cc
@@ -243,7 +244,6 @@ add_library(
   LRU.cc
   WFE.cc
   Workflow.cc
-  InFlightTracker.cc
   grpc/GrpcServer.cc   grpc/GrpcServer.hh
   grpc/GrpcNsInterface.cc   grpc/GrpcNsInterface.hh
   grpc/GrpcManilaInterface.cc   grpc/GrpcManilaInterface.hh

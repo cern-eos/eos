@@ -97,20 +97,6 @@ struct Config {
   uint64_t sleepWhenFull;
 };
 
-struct Config {
-  double min_threshold;
-  double max_threshold;
-  uint64_t min_age_for_deletion;
-  uint64_t min_size_for_deletion;
-  std::string spacename;
-  bool onWork;
-  int wait_time;
-  bool test_enable;
-  uint64_t mapMaxSize;
-  uint64_t sleepWhenDone;
-  uint64_t sleepWhenFull;
-};
-
 class DynamicEC
 {
 private:
@@ -179,7 +165,7 @@ private:
   mMutexForStatusFilesMD; ///< mutex for the status files that can be removed
   std::map<uint64_t, std::shared_ptr<eos::QuarkFileMD>> statusFiles;
   std::mutex mMutexForStatusFiles;
-  
+
   time_t timeCurrentScan;
   time_t timeLastScan;
   void Process(std::string& filepath);
@@ -235,12 +221,6 @@ public:
   void setSleepWhenFull(uint64_t sleepWhenFull);
 
   uint64_t getSleepWhenFull();
-
-  void setTest(bool onOff);
-
-  bool getTest();
-
-  void setDynamicEC(bool onOff);
 
   void setTest(bool onOff);
 
