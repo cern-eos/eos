@@ -66,14 +66,14 @@ public:
       // be to find the current iterator in case of a rehash, but a rehash +
       // deletion of the current iterator would mean tracking with a cond_var or
       // so
-      it++;
+      ++it;
       return *this;
     }
 
     const_iterator operator++(int) {
-      UnderlyingIterator it2 = it;
-      it2++;
-      return const_iterator(it2);
+      UnderlyingIterator it2 = *this;
+      it++;
+      return it2;
     }
 
     friend bool operator==(const const_iterator& a, const const_iterator& b) {
