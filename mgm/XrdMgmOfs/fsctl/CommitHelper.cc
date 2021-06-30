@@ -716,8 +716,8 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
         gOFS->eosView->updateFileStore(fmd.get());
       } catch (eos::MDException& e) {
         errno = e.getErrno();
-        eos_thread_err("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                       e.getErrno(), e.getMessage().str().c_str());
+        eos_thread_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+			 e.getErrno(), e.getMessage().str().c_str());
       }
     }
 
