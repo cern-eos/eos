@@ -713,7 +713,7 @@ Acl::TokenAcl(const eos::common::VirtualIdentity& vid) const
       eos_static_err("invalid token");
     }
   } else {
-    eos_static_err("no token");
+    eos_static_debug("no token");
   }
 
   return "";
