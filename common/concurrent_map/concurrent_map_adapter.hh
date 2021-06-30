@@ -22,6 +22,7 @@
  ************************************************************************/
 #pragma once
 
+#include "concurrent_map_traits.hh"
 #include "concurrent_map_lock.hh"
 #include <thread>
 #include <utility>
@@ -101,22 +102,60 @@ public:
     const_iterator it(hashmap.cend());
     return it;
   }
+
+  const_iterator begin() {
+    const_iterator it(hashmap.begin());
+    return it;
+  }
+
+  const_iterator end() {
+    const_iterator it(hashmap.end());
+    return it;
+  }
+
   template <typename... Args>
   auto emplace(Args&&... args)
   {
+    static_assert(detail::has_emplace<MapType>::value,
+                  "Underlying hashtable has no emplace method implementation, please use insert!");
     typename MapLock::UniqueLock wlock(mtx);
     return hashmap.emplace(std::forward<Args>(args)...);
   }
 
-  // FIXME: The auto types are a placeolder atm, move to concrete or atleast
-  // provide type hints on the return type
-  // insert actually returns a pair of <iterator,bool>
-  // we could deviate from the standard and return a pair <const_iterator,bool> instead
-  // Most call sites seem to only care about the bool return value at best
-  auto insert(value_type&& val) //-> decltype(hashmap).insert(value_type&&)
+  template <typename KeyType,
+            typename... Args,
+            typename = std::enable_if_t<detail::has_try_emplace<MapType>::value>>
+  std::pair<const_iterator, bool> try_emplace(KeyType&& k,
+                                             Args&&... args)
   {
     typename MapLock::UniqueLock wlock(mtx);
-    return hashmap.insert(std::forward<value_type>(val));
+    auto [it, status] = hashmap.try_emplace(std::forward<KeyType>(k),
+                                              std::forward<Args>(args)...);
+    return std::make_pair(const_iterator(it), status);
+  }
+
+
+  template <typename KeyType,
+            typename... Args>
+  std::pair<const_iterator, bool> try_emplace(KeyType&& k,
+                                              Args&&... args)
+  {
+    auto it = find(k);
+    if (it != end()) {
+      return std::make_pair(const_iterator(it), false);
+    }
+    return emplace(std::forward<KeyType>(k),
+                   std::forward<Args>(args)...);
+  }
+
+  // we deviate from the standard and return a pair <const_iterator,bool> instead
+  // Most call sites seem to only care about the bool return value at best
+  template <typename V= value_type>
+  std::pair<const_iterator, bool> insert(V&& val)
+  {
+    typename MapLock::UniqueLock wlock(mtx);
+    auto [it, status] = hashmap.insert(std::forward<value_type>(val));
+    return std::make_pair(const_iterator(it), status);
   }
 
   // Warning- this is a deviation from standard, we don't return a mutable iterator, as we can't guarantee
@@ -149,14 +188,34 @@ public:
 
   // TODO: Value Modification not thread safe as it could be outside of the map,
   // prefer insert_or_assign or the like
-  template <typename K = key_type>
+  template <typename K = key_type,
+            typename = std::enable_if_t<detail::has_try_emplace<MapType>::value>>
   value_type& operator[](key_type&& key) {
     typename MapLock::UniqueLock wlock(mtx);
     return hashmap.try_emplace(std::forward<K>(key)).first;
   }
 
+
+
   size_type size() const {
     return hashmap.size();
+  }
+
+
+  // The following functions only work with dense hash map
+  void set_empty_key(const key_type& key) {
+    hashmap.set_empty_key(key);
+  }
+  void set_deleted_key(const key_type& key) {
+    hashmap.set_deleted_key(key);
+  }
+
+  void clear_deleted_key() {
+    hashmap.clear_deleted_key();
+  }
+
+  key_type deleted_key() const {
+    return hashmap.deleted_key();
   }
 
 private:
