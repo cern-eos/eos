@@ -166,7 +166,7 @@ For example:
 
 .. code-block:: bash
 
-   $ eos acl -l /eos/mypath
+   $ eos attr ls /eos/mypath
    sys.acl="u:99999:rw,egroup:mygroup:rw"
    #
    # if you try to set the deletion permission using ':' modification sign:
@@ -178,21 +178,21 @@ For example:
    #
    -->
    #
-   $ eos acl -l /eos/mypath
+   $ eos attr ls /eos/mypath
    sys.acl="egroup:mygroup:rw!d,u:99999:rw"
    #
    # one can also remove this permission by the '-' operator:
    $eos acl --sys 'egroup:mygroup:-!d' /eos/mypath
    -->
    #
-   $ eos acl -l /eos/mypath
+   $ eos attr ls /eos/mypath
    sys.acl="u:99999:rw,egroup:mygroup:rw"
    #
    # or set completely new permission, overwriting all by '=':
    eos acl --sys 'egroup:mygroup=w' /eos/mypath
    -->
    #
-   $ eos acl -l /eos/mypath
+   $ eos attr ls /eos/mypath
    sys.acl="u:99999:rw,egroup:mygroup:w"
    
    
