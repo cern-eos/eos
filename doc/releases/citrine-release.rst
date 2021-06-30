@@ -16,6 +16,16 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.57 Citrine``
+===================
+
+2021-06-30
+
+Bug
+---
+
+* MGM: silence 'no token' error message in Acl class
+
 ``v4.8.56 Citrine``
 ===================
 
