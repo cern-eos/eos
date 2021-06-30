@@ -91,9 +91,7 @@ std::unique_ptr<SearchNode> SearchNode::expand()
   explorer.handleLinkedAttrs(nodeItem);
   ExpansionDecider* decider = explorer.options.expansionDecider.get();
 
-  if (decider &&
-      !decider->shouldExpandContainer(getContainerInfo(), nodeItem.attrs,
-                                      nodeItem.fullPath)) {
+  if (expansionFilteredOut) {
     return {}; // nope, this node is being filtered out
   }
 
