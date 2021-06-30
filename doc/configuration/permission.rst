@@ -148,6 +148,8 @@ Finally the ACL can be set via either of the following 2 commands, see `eos acl 
    
    eos attr set sys.acl=<rule_a>,<rule_b>.. /eos/mypath
    eos acl --sys <rule_c> /eos/mypath
+   eos acl --front <rule_d> /eos/mypath
+   eos acl --position 2 <rule_f> /eos/mypath
    
 
 The ACLs can be listed by either of these commands as well:
@@ -165,8 +167,8 @@ or "=" for setting/overwriting permission. Finally a <permission> itself can be 
 For example:  
 
 .. code-block:: bash
-
-   $ eos attr ls /eos/mypath
+   
+   eos attr ls /eos/mypath
    sys.acl="u:99999:rw,egroup:mygroup:rw"
    #
    # if you try to set the deletion permission using ':' modification sign:
