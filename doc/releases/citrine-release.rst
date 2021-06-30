@@ -25,6 +25,7 @@ Bug
 ---
 
 * MGM: silence 'no token' error message in Acl class
+* MGM: silence error message in CommitHelper for atomic versioning, if no file has been versioned
 
 ``v4.8.56 Citrine``
 ===================
