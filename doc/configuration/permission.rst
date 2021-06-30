@@ -34,7 +34,7 @@ The S_ISVTX bit (1---) is displayed whenever a directory has any extended attrib
 
 ACLs
 ----
-ACLs are defined on the directory or file level via the extended attributes
+ACLs are defined on the directory or file level via the extended attributes. 
 
 .. code-block:: bash
 
@@ -49,7 +49,7 @@ The sys.acl attribute can only be defined by SUDO members.
 The user.acl attribute can be defined by the **owner** or SUDO members. It is only evaluated if the sys.eval.useracl attribute is set.
 
 The sys.acl/user.acl attributes are inherited from the parent at the time a directory is created. Subsequent changes to a directory's ACL
-do not automatically apply to child directories.
+do not automatically apply to child directories. 
 
 <acllist> is defined as a comma separated list of rules:
 
@@ -89,7 +89,10 @@ The following tags compose a rule:
    i   set the immutable flag    
    === =========================================================================
 
-Actually, every single-letter permission can be explicitely denied ('!'), e.g. '!w!r, or re-granted ('+').
+
+
+
+Actually, every single-letter permission can be explicitely denied ('!'), e.g. '!w!r, re-granted ('+').
 Denials persist after all other rules have been evaluated, i.e. in 'u:fred:!w!r,g:fredsgroup:wrx' the user "fred"
 is denied reading and writing although the group he is in has read+write access.
 Rights can be re-granted (in sys.acl only) even when denied by specyfing e.g. '+d'. Hence,
@@ -130,18 +133,73 @@ It is possible to write rules, which apply to everyone:
    # this directory is immutable for everybody
 
 
-Finally an ACL is set e.g.:
+The user.acl (if defined) is evaluated after the sys.acl, e.g. If we have:
+.. code-block:: bash
+   
+    sys.acl=’g:admins:+d’ and user.acl=’z:!d’
+    
+i.e., the group “admins” is granted the 'd' right although it is denied to everybody else in the user.acl.
+
+
+Finally the ACL can be set via either of the following 2 commands, see `eos acl --help` or `eos attr set --help`. From the operational perspective one may prefer the former command as it acts specifically on the element we change (egroup, user ... etc.) instead of re-specifying the whole permission set of rules (`eos attr set` case).
 
 .. code-block:: bash
+   
+   eos attr set sys.acl=<rule_a>,<rule_b>.. /eos/mypath
+   eos acl --sys <rule_c> /eos/mypath
+   
 
-   eos attr set sys.acl=... /eos/mypath
-
-
-The ACLs can be listed by:
+The ACLs can be listed by either of these commands as well:
 
 .. code-block:: bash
-
+    
    eos attr ls /eos/mypath
+   eos acl -l /eos/mypath
+   
+
+If the operator uses the `eos acl --sys <rule> /eos/mypath` command, the <rule> is composed as follows: 
+`[u|g|egroup]:<identifier>[:|=]<permission>`. The second delimiter [:|=] can be a ":" for modifying permissions 
+or "=" for setting/overwriting permission. Finally a <permission> itself can be added using the "+" or removed using the "-" operators. 
+
+For example:  
+
+.. code-block:: bash
+
+   $ eos acl -l /eos/mypath
+   sys.acl="u:99999:rw,egroup:mygroup:rw"
+   #
+   # if you try to set the deletion permission using ':' modification sign:
+   $ eos acl --sys 'egroup:mygroup:!d' /eos/mypath
+   #
+   # you will get an error since there is no deletion permission defined yet in the original ACL (i.e. nothing to be modified), but 
+   # one can add this new !d permission to the existing ACLs by the '+' operator:
+   $ eos acl --sys 'egroup:mygroup:+!d' /eos/mypath
+   #
+   -->
+   #
+   $ eos acl -l /eos/mypath
+   sys.acl="egroup:mygroup:rw!d,u:99999:rw"
+   #
+   # one can also remove this permission by the '-' operator:
+   $eos acl --sys 'egroup:mygroup:-!d' /eos/mypath
+   -->
+   #
+   $ eos acl -l /eos/mypath
+   sys.acl="u:99999:rw,egroup:mygroup:rw"
+   #
+   # or set completely new permission, overwriting all by '=':
+   eos acl --sys 'egroup:mygroup=w' /eos/mypath
+   -->
+   #
+   $ eos acl -l /eos/mypath
+   sys.acl="u:99999:rw,egroup:mygroup:w"
+   
+   
+.. note::
+
+   * The "-r 0 0" can be used to map your account with the sudoers role. This has to be assigned to your account on the EOS instance by the service manager, see `eos vid ls`), e.g. `eos -r 0 0 acl --sys 'egroup:mygroup:!d' /eos/mypath`. 
+   * If no '--sys' or '--user' is specified, by default the `eos acl` sets '--sys' permissions. 
+
 
 Validity of Permissions
 ----------------------------
