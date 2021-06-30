@@ -167,8 +167,8 @@ or "=" for setting/overwriting permission. Finally a <permission> itself can be 
 For example:  
 
 .. code-block:: bash
-   
-   eos attr ls /eos/mypath
+
+   $ eos attr ls /eos/mypath
    sys.acl="u:99999:rw,egroup:mygroup:rw"
    #
    # if you try to set the deletion permission using ':' modification sign:
