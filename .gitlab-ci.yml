@@ -725,7 +725,7 @@ code_quality_html:
   stage: test
   <<: *dock8s_before_script_template
   script:
-    - exec_cmd eos-dynamicec-test
+    - eos-mgm1: eos-dynamicec-test
   <<: *dock8s_after_script_template
   artifacts:
     when: on_failure
