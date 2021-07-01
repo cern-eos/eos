@@ -268,7 +268,7 @@ AclCmd::GenerateRuleMap(const std::string& acl_string, RuleMap& rmap)
 
     std::string single_acl = std::string(acl_string.begin() + curr_pos,
                                          acl_string.begin() + pos);
-    rmap.emplace_back(GetRuleFromString(single_acl));
+    insert_or_assign(rmap, GetRuleFromString(single_acl));
     curr_pos = pos + 1;
 
     if (curr_pos > acl_string.length()) {
