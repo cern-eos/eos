@@ -268,8 +268,7 @@ AclCmd::GenerateRuleMap(const std::string& acl_string, RuleMap& rmap)
 
     std::string single_acl = std::string(acl_string.begin() + curr_pos,
                                          acl_string.begin() + pos);
-    Rule elem = GetRuleFromString(single_acl);
-    rmap.insert(elem);
+    rmap.emplace_back(GetRuleFromString(single_acl));
     curr_pos = pos + 1;
 
     if (curr_pos > acl_string.length()) {
@@ -519,8 +518,15 @@ void AclCmd::ApplyRule(RuleMap& rules)
 {
   unsigned short temp_rule = 0;
 
-  if (!mSet && rules.find(mId) != rules.end()) {
-    temp_rule = rules[mId];
+  if (!mSet) {
+    auto it = std::find_if(rules.begin(),
+                           rules.end(),
+                           [&](const Rule& rule) -> bool {
+                             return rule.first == mId;
+                           });
+    if (it != rules.end()) {
+      temp_rule = it->second;
+    }
   }
 
   if (mAddRule != 0) {
@@ -531,7 +537,7 @@ void AclCmd::ApplyRule(RuleMap& rules)
     temp_rule = temp_rule & (~mRmRule);
   }
 
-  rules[mId] = temp_rule;
+  insert_or_assign(rules, mId, temp_rule);
 }
 
 //------------------------------------------------------------------------------
