@@ -48,6 +48,16 @@ void insert_or_assign(C& c, K&& k, V&& v)
                                 std::forward<V>(v)));
 }
 
+template <typename C>
+void insert_or_assign(C& c, typename C::value_type&& value)
+{
+  using first_type = typename C::value_type::first_type;
+  using second_type = typename C::value_type::second_type;
+  insert_or_assign(c,
+                   std::forward<first_type>(value.first),
+                   std::forward<second_type>(value.second));
+}
+
 //------------------------------------------------------------------------------
 //! Class AclCmd - class handling acl command from a client
 //------------------------------------------------------------------------------
