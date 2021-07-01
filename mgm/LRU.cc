@@ -692,7 +692,7 @@ LRU::ConvertMatch(const char* dir,
         fmd = cmd->findFile(fit.key());
 
         if (fmd == nullptr) {
-          eos_static_err("msg=\"file is null\" fxid=%08llx", fit.key());
+          eos_static_err("msg=\"file is null\" fxid=%08llx", fit.key().c_str());
           continue;
         }
 
