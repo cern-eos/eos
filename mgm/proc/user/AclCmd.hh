@@ -24,28 +24,60 @@
 #include "mgm/Namespace.hh"
 #include "mgm/proc/ProcCommand.hh"
 #include "proto/Acl.pb.h"
-#include <unordered_map>
+#include <list>
 
 EOSMGMNAMESPACE_BEGIN
 
 typedef std::pair<std::string, unsigned short> Rule;
 //typedef std::unordered_map<std::string, unsigned short> RuleMap;
-typedef std::vector<Rule> RuleMap;
+// We use a list as we need to be able to insert at any position
+typedef std::list<Rule> RuleMap;
+
+template <typename C, typename K>
+typename C::iterator key_position(C& c, const K& k)
+{
+  return std::find_if(c.begin(),
+                      c.end(),
+                      [&k](const typename C::value_type& val)->bool {
+                        return k == val.first;
+                      });
+}
 
 template <typename C, typename K, typename V>
 void insert_or_assign(C& c, K&& k, V&& v)
 {
-  auto it = std::find_if(c.begin(),
-                         c.end(),
-                         [&k](const typename C::value_type& val) -> bool {
-                           return k == val.first;
-                         });
+  auto it = key_position(c,k);
   if (it != c.end()) {
     it->second = v;
     return;
   }
   c.emplace_back(std::make_pair(std::forward<K>(k),
                                 std::forward<V>(v)));
+}
+
+template <typename C, typename K, typename V,
+          typename It = typename C::iterator>
+void insert_or_assign(C& c, K&& k, V&& v, It&& pos, bool move_existing=false)
+{
+  auto it = key_position(c,k);
+  if (it != c.end()) {
+    if (!move_existing || it == pos) {
+      it->second = v;
+      return;
+    }
+    // This function currently moves an existing key to a given position too, if
+    // this is not needed, we could skip the following erase! Since Iterator is at a
+    // different position, erase this, we'll readd the key back at the last step
+    auto next_it = c.erase(it);
+    // In case we're demoting an element the erase would've dropped an element
+    // so the index position should be incremented!
+    if (std::distance(c.begin(), next_it) <
+        std::distance(c.begin(), pos)) {
+      ++pos;
+    }
+  }
+  c.insert(pos, std::make_pair(std::forward<K>(k),
+                               std::forward<V>(v)));
 }
 
 template <typename C>
@@ -56,6 +88,20 @@ void insert_or_assign(C& c, typename C::value_type&& value)
   insert_or_assign(c,
                    std::forward<first_type>(value.first),
                    std::forward<second_type>(value.second));
+}
+
+template <typename C>
+std::pair<typename C::iterator, int>
+get_iterator(C& c, size_t pos)
+{
+  if (pos == 0 || pos > c.size()) {
+    return std::make_pair(c.end(),EINVAL);
+  }
+
+  auto it = c.begin();
+  std::advance(it, pos - 1);
+
+  return std::make_pair(it,0);
 }
 
 //------------------------------------------------------------------------------
@@ -211,7 +257,7 @@ private:
   //!
   //! @param rules map of acl rules for the current entry (directory)
   //----------------------------------------------------------------------------
-  void ApplyRule(RuleMap& rules);
+  void ApplyRule(RuleMap& rules, size_t pos=0);
 
   //----------------------------------------------------------------------------
   //! Convert ACL bitmask to string representation

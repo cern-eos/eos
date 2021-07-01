@@ -146,7 +146,7 @@ AclHelper::ParseCommand(const char* arg)
   eos::common::StringTokenizer tokenizer(arg);
   tokenizer.GetLine();
   bool type_set = false;
-
+  bool pos_set = false;
   // Get opts
   while ((temp = tokenizer.GetToken(false)) != 0) {
     // Trimming
@@ -165,6 +165,27 @@ AclHelper::ParseCommand(const char* arg)
 
     if ((token == "-R") || (token == "--recursive")) {
       acl->set_recursive(true);
+      continue;
+    }
+    if ((token == "-f") || (token == "--front")) {
+      acl->set_position(1);
+      pos_set = true;
+      continue;
+    }
+
+    if (((token == "-p") || (token == "--position")) && !pos_set) {
+      std::string spos;
+      if (!tokenizer.NextToken(spos)) {
+        std::cerr << "error: position needs an argument!" << std::endl;
+        return false;
+      }
+      try {
+        int pos = std::stoi(spos);
+        if (pos > 0)
+          acl->set_position(pos);
+      } catch (const std::exception& e) {
+        std::cerr << "error: position needs to be integer" << std::endl;
+      }
       continue;
     }
 
