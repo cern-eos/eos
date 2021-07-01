@@ -29,7 +29,24 @@
 EOSMGMNAMESPACE_BEGIN
 
 typedef std::pair<std::string, unsigned short> Rule;
-typedef std::unordered_map<std::string, unsigned short> RuleMap;
+//typedef std::unordered_map<std::string, unsigned short> RuleMap;
+typedef std::vector<Rule> RuleMap;
+
+template <typename C, typename K, typename V>
+void insert_or_assign(C& c, K&& k, V&& v)
+{
+  auto it = std::find_if(c.begin(),
+                         c.end(),
+                         [&k](const typename C::value_type& val) -> bool {
+                           return k == val.first;
+                         });
+  if (it != c.end()) {
+    it->second = v;
+    return;
+  }
+  c.emplace_back(std::make_pair(std::forward<K>(k),
+                                std::forward<V>(v)));
+}
 
 //------------------------------------------------------------------------------
 //! Class AclCmd - class handling acl command from a client
