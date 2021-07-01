@@ -203,10 +203,39 @@ Share::Proc::Create(eos::common::VirtualIdentity& vid,
   std::string shareattr;
 
   if (share_root.length()) {
+    bool is_owner = false;
+    {
+      std::shared_ptr<eos::IContainerMD> dh;
+      eos::common::RWMutexWriteLock viewLock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+
+      try {
+	dh = gOFS->eosView->getContainer(share_root);
+	eos::common::Path pPath(gOFS->eosView->getUri(dh.get()).c_str());
+      } catch (eos::MDException& e) {
+	dh.reset();
+	errno = e.getErrno();
+	eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+		e.getErrno(), e.getMessage().str().c_str());
+      }
+
+      if (!dh) {
+	errno = ENOENT;
+	return -1;
+      }
+
+      if (dh->getCUid() == vid.uid) {
+	is_owner = true;
+      }
+
+      if (vid.sudoer) {
+	is_owner = true;
+      }
+    }
+
     XrdOucErrInfo error;
     eos::IContainerMD::XAttrMap attrmap;
     eos::mgm::Acl acl (share_root.c_str(), error, vid, attrmap, true, true);
-    if (!acl.CanShare()) {
+    if (!acl.CanShare() && !is_owner) {
       errno = EACCES;
       return -1;
     } else {
