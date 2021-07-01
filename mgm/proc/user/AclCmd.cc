@@ -146,7 +146,13 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
   for (const auto& elem : paths) {
     GetAcls(elem, dir_acls, acl.sys_acl(), false);
     GenerateRuleMap(dir_acls, rule_map);
-    ApplyRule(rule_map);
+    // ACL position is 1-indexed as 0 is the default numeric protobuf val
+    if (acl.position() && acl.position() > rule_map.size()) {
+      mErr = "error: rule position cannot be met!";
+      return EINVAL;
+    }
+
+    ApplyRule(rule_map,acl.position());
     new_acl_val = GenerateAclString(rule_map);
 
     // Set xattr without taking the namespace lock
@@ -514,7 +520,7 @@ AclCmd::CheckCorrectId(const std::string& id) const
 //------------------------------------------------------------------------------
 // Apply client modification rule(s) to the acls of the current entry
 //------------------------------------------------------------------------------
-void AclCmd::ApplyRule(RuleMap& rules)
+void AclCmd::ApplyRule(RuleMap& rules, size_t pos)
 {
   unsigned short temp_rule = 0;
 
@@ -535,6 +541,15 @@ void AclCmd::ApplyRule(RuleMap& rules)
 
   if (mRmRule != 0) {
     temp_rule = temp_rule & (~mRmRule);
+  }
+
+  if (pos != 0) {
+    auto [it, err] = get_iterator(rules, pos);
+    if (err != 0) {
+      mErr = "Invalid position of rule, errc=" + std::to_string(err);
+    }
+    insert_or_assign(rules, mId, temp_rule, it, true);
+    return;
   }
 
   insert_or_assign(rules, mId, temp_rule);
