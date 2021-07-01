@@ -67,6 +67,8 @@ void com_acl_help()
       << "  -h, --help      : print help message" << std::endl
       << "  -R, --recursive : apply to directories recursively" << std::endl
       << "  -l, --list      : list ACL rules" << std::endl
+      << "  -p, --position  : add the acl rule at specified position" << std::endl
+      << "  -f, --front     : add the acl rule at the front position" << std::endl
       << "      --user      : handle/list user.acl rules on directory. " << std::endl
       << "                    Regular users can modify these." << std::endl
       << "      --sys       : handle/list sys.acl rules on directory." << std::endl

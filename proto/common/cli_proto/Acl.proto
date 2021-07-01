@@ -13,4 +13,5 @@ message AclProto {
   bool sys_acl   = 3;
   string rule    = 5;
   string path    = 6;
+  uint32 position = 7;
 }
