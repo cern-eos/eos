@@ -45,18 +45,20 @@ do eos cp ${TEST_FN1} /eos/testarea/test2/filetest$name; done
 sleep 10
 
 #This is in order to set the different settings to true in order to use it in the system for testing
-val20=`eos space config default space.dynamicec.minthreshold=show`
-val21=`eos space config default space.dynamicec.maxthreshold=show`
-val22=`eos space config default space.dynamicec.sizeformapmax=show`
-val23=`eos space config default space.dynamicec.sleepwhenfull=show`
-val24=`eos space config default space.dynamicec.sleepwhendone=show`
+minthreshold=`eos space config default space.dynamicec.minthreshold=show`
+maxthreshold=`eos space config default space.dynamicec.maxthreshold=show`
+sizeformapmax=`eos space config default space.dynamicec.sizeformapmax=show`
+sleepwhenfull=`eos space config default space.dynamicec.sleepwhenfull=show`
+sleepwhendone=`eos space config default space.dynamicec.sleepwhendone=show`
+fileage=`eos space config default space.dynamicec.agefromwhentodelete=show`
 
 echo "val of the thres"
-echo $val20
-echo $val21
-echo $val22
-echo $val23
-echo $val24
+echo "Minimum threshold: " $minthreshold
+echo "Maximum threshold: " $maxthreshold
+echo "Maximum size for map: " $sizeformapmax
+echo "Sleep when full: " $sleepwhenfull
+echo "Sleep when done: " $sleepwhendone
+echo "Age for files" $fileage
 
 
 eos space config default space.dynamicec.minthreshold=0.0000001
@@ -82,12 +84,13 @@ red "This has a faliure for the system wich did fail."
 eos rm /eos/testarea/test2/*
 eos rmdir /eos/testarea/test2
 
-eos space config default space.dynamicec.maxthreshold=$val21
-eos space config default space.dynamicec.minthreshold=$val20
+eos space config default space.dynamicec.maxthreshold=$maxthreshold
+eos space config default space.dynamicec.minthreshold=$minthreshold
 eos space config default space.dynamicec.test=off
-eos space config default space.dynamicec.sizeformapmax=$val22
-eos space config default space.dynamicec.sleepwhenfull=$val23
-eos space config default space.dynamicec.sleepwhendone=$val24
+eos space config default space.dynamicec.sizeformapmax=$sizeformapmax
+eos space config default space.dynamicec.sleepwhenfull=$sleepwhenfull
+eos space config default space.dynamicec.sleepwhendone=$sleepwhendone
+eos space config default space.dynamicec.agefromwhentodelete=fileage
 
 rm -i /tmp/5mbfile.dat
 
@@ -112,12 +115,13 @@ red "This has a faliure for the system wich did fail to clean up for the second 
 eos rm /eos/testarea/test2/*
 eos rmdir /eos/testarea/test2
 
-eos space config default space.dynamicec.maxthreshold=$val21
-eos space config default space.dynamicec.minthreshold=$val20
+eos space config default space.dynamicec.maxthreshold=$maxthreshold
+eos space config default space.dynamicec.minthreshold=$minthreshold
 eos space config default space.dynamicec.test=off
-eos space config default space.dynamicec.sizeformapmax=$val22
-eos space config default space.dynamicec.sleepwhenfull=$val23
-eos space config default space.dynamicec.sleepwhendone=$val24
+eos space config default space.dynamicec.sizeformapmax=$sizeformapmax
+eos space config default space.dynamicec.sleepwhenfull=$sleepwhenfull
+eos space config default space.dynamicec.sleepwhendone=$sleepwhendone
+eos space config default space.dynamicec.agefromwhentodelete=fileage
 
 rm -i /tmp/5mbfile.dat
 
@@ -129,12 +133,13 @@ green "both test had succes"
 eos rm /eos/testarea/test2/*
 eos rmdir /eos/testarea/test2
 
-eos space config default space.dynamicec.maxthreshold=$val21
-eos space config default space.dynamicec.minthreshold=$val20
+eos space config default space.dynamicec.maxthreshold=$maxthreshold
+eos space config default space.dynamicec.minthreshold=$minthreshold
 eos space config default space.dynamicec.test=off
-eos space config default space.dynamicec.sizeformapmax=$val22
-eos space config default space.dynamicec.sleepwhenfull=$val23
-eos space config default space.dynamicec.sleepwhendone=$val24
+eos space config default space.dynamicec.sizeformapmax=$sizeformapmax
+eos space config default space.dynamicec.sleepwhenfull=$sleepwhenfull
+eos space config default space.dynamicec.sleepwhendone=$sleepwhendone
+eos space config default space.dynamicec.agefromwhentodelete=fileage
 
 rm -f /tmp/5mbfile.dat
 
