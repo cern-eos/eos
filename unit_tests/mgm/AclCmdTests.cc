@@ -36,10 +36,7 @@ TEST(AclCmd, RuleMap)
   const std::string acl = "u:99:rwxm!m!d+d!u+uqc,u:0:wm!d!uq";
   AclCmd::GenerateRuleMap(acl, result_map);
   ASSERT_EQ(result_map.size(), expect_map.size());
-
-  for (auto const& elem : result_map) {
-    ASSERT_EQ(elem.second, expect_map[elem.first]);
-  }
+  ASSERT_EQ(result_map, expect_map);
 }
 
 EOSMGMNAMESPACE_END
