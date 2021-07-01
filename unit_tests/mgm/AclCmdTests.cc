@@ -270,7 +270,6 @@ TEST(AclCmd, insert_or_assign_iter)
     EXPECT_EQ(expected_map, input_map);
 
   }
-
 }
 
 TEST(AclCmd, GetRulePosition)
