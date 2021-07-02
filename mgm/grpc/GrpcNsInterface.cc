@@ -2236,6 +2236,11 @@ GrpcNsInterface::Acl(eos::common::VirtualIdentity& vid,
     req.mutable_acl()->set_op(eos::console::AclProto::LIST);
   }
 
+  uint32_t position = request->position();
+  if (position) {
+    req.mutable_acl()->set_position(position);
+  }
+
   req.mutable_acl()->set_rule(request->rule());
   eos::mgm::AclCmd aclcmd(std::move(req), vid);
   eos::console::ReplyProto preply = aclcmd.ProcessRequest();
