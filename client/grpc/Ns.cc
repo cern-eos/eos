@@ -10,7 +10,7 @@ int usage(const char* prog)
   fprintf(stderr, "usage: %s [--key <ssl-key-file> "
           "--cert <ssl-cert-file> "
           "--ca <ca-cert-file>] "
-          "[--endpoint <host:port>] [--token <auth-token>] [--xattr <key:val>] [--mode <mode>] [--username <username>] [ [--groupname <groupname>] [--uid <uid>] [--gid <gid>] [--owner-uid <uid>] [--owner-gid <gid>] [--acl <acl>] [--sysacl] [--norecycle] [-r] [--max-version <max-version>] [--target <target>] [--year <year>] [--month <month>] [--day <day>] [--inodes <#>] [--volume <#>] [--quota volume|inode] -p <path> <command>\n", prog);
+          "[--endpoint <host:port>] [--token <auth-token>] [--xattr <key:val>] [--mode <mode>] [--username <username>] [ [--groupname <groupname>] [--uid <uid>] [--gid <gid>] [--owner-uid <uid>] [--owner-gid <gid>] [--acl <acl>] [--sysacl] [--norecycle] [-r] [--max-version <max-version>] [--target <target>] [--year <year>] [--month <month>] [--day <day>] [--inodes <#>] [--volume <#>] [--quota volume|inode] [--position <position>] [--front] -p <path> <command>\n", prog);
 
   fprintf(stderr,
 	  "                                     -p <path> mkdir \n"
@@ -23,7 +23,7 @@ int usage(const char* prog)
 	  "                     --xattr <!key=> -p <path> setxattr # deletes key\n"
 	  " --owner-uid <uid> --owner-gid <gid> -p <path> chown \n"
 	  "                       --mode <mode> -p <path> chmod \n"
-	  "       [--sysacl] [-r] [--acl <acl>] -p <path> acl \n"
+	  " [--sysacl] [-r] [--acl <acl>] [--position <pos>] [--front] -p <path> acl \n"
 	  "     --ztoken <token> | [--acl] [-r] -p <path> token\n"
 	  "                [--max-version <max> -p <path> create-version \n"
 	  "                                     -p <path> list-version \n"
@@ -77,6 +77,7 @@ int main(int argc, const char* argv[])
   bool recursive = false;
   bool norecycle = false;
   bool sysacl = false;
+  uint32_t position = 0;
   std::string eostoken = "";
 
   for (auto i = 1; i < argc; ++i) {
@@ -282,6 +283,34 @@ int main(int argc, const char* argv[])
       }
     }
 
+    if (option == "--position") {
+      if (position) {
+        std::cout << "Please specify only one of --front or --position" << std::endl;
+        return usage(argv[0]);
+      }
+      if (argc > i + 1) {
+        try {
+          position = std::stoi(argv[i+1]);
+          ++i;
+        } catch (std::exception& e) {
+          return usage(argv[0]);
+        }
+        continue;
+      } else {
+        return usage(argv[0]);
+      }
+
+    }
+
+    if (option == "--front") {
+      if (position) {
+        std::cout << "Please specify only one of --front or --position" << std::endl;
+        return usage(argv[0]);
+      }
+      position = 1;
+      continue;
+    }
+
     if (option == "--mode") {
       if (argc > i + 1) {
 	mode = strtol(argv[i+1],0,8);
@@ -482,6 +511,10 @@ int main(int argc, const char* argv[])
       request.mutable_acl()->set_type(eos::rpc::NSRequest::AclRequest::SYS_ACL);
     } else {
       request.mutable_acl()->set_type(eos::rpc::NSRequest::AclRequest::USER_ACL);
+    }
+
+    if (position) {
+      request.mutable_acl()->set_position(position);
     }
   } else if (cmd == "token") {
     request.mutable_token()->mutable_token()->mutable_token()->set_expires(time(NULL) + 300);
