@@ -403,6 +403,8 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   XrdOucString wildcardtident = "";
   XrdOucString host = "";
   XrdOucString stident = "tident:";
+  bool is_localhost = false;
+
   stident += "\"";
   stident += ReduceTident(vid.tident, wildcardtident, mytident, host);
 
@@ -611,6 +613,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     vid.sudoer = true;
     vid.uid = 3;
     vid.gid = 4;
+    is_localhost = true;
 
     if (!vid.hasUid(3)) {
       vid.allowed_uids.insert(vid.uid);
@@ -879,6 +882,16 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       vid.gid = 99;
     }
   } else {
+    // remove sudo capability after changing identity
+    if (!is_localhost) {
+      if ( vid.uid != sel_uid) {
+	vid.sudoer = false;
+      }
+      if ( vid.gid != sel_gid) {
+	vid.sudoer = false;
+      }
+    }
+
     vid.uid = sel_uid;
     vid.gid = sel_gid;
 
