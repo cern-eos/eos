@@ -105,8 +105,15 @@ eos-grpc-ns --token $authkey -p $prefix/t_grpc/file unlink || exit -10
 #acls
 eos-grpc-ns --token $authkey -p $prefix/t_grpc --sysacl --acl u:adm=rwx acl || exit -11
 eos-grpc-ns --token $authkey -p $prefix/t_grpc --acl u:nobody=rwx acl || exit -11
-eos-grpc-ns --token $authkey -p $prefix/t_grpc --sysacl acl || grep "u:adm=rwx" || exit -11
-eos-grpc-ns --token $authkey -p $prefix/t_grpc acl || grep "u:nobody:rwx" || exit -11
+eos-grpc-ns --token $authkey -p $prefix/t_grpc --sysacl acl | grep "u:adm:rwx" || exit -11
+eos-grpc-ns --token $authkey -p $prefix/t_grpc acl |  grep "u:nobody:rwx" || exit -11
+eos-grpc-ns --token $authkey -p $prefix/t_grpc --acl u:adm=rwx --front acl || exit -11
+eos-grpc-ns --token $authkey -p $prefix/t_grpc acl |  grep "\"rule\": \"u:adm:rwx," || exit -11
+eos-grpc-ns --token $authkey -p $prefix/t_grpc --acl u:nobody=r --position 2 acl || exit -11
+eos-grpc-ns --token $authkey -p $prefix/t_grpc acl |  grep "\"rule\": \"u:adm:rwx,u:nobody:r" || exit -11
+eos-grpc-ns --token $authkey -p $prefix/t_grpc --acl u:1003=r --position 5 acl | grep "position cannot be met"  || exit -11
+
+
 eos rmdir $prefix/t_grpc/
 
 #quota
