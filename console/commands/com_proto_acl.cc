@@ -60,7 +60,8 @@ void com_acl_help()
 {
   std::ostringstream oss;
   oss
-      << "Usage: eos acl [-l|--list] [-R|--recursive] "
+      << "Usage: eos acl [-l|--list] [-R|--recursive]"
+      << " [-p | --position <pos>] [-f | --front] "
       << "[--sys|--user] [<rule>] <path>" << std::endl
       << "  atomically set and modify ACLs for the given directory path" << std::endl
       << std::endl
@@ -83,6 +84,10 @@ void com_acl_help()
       << "    When modifying permissions every ACL flag can be added with" <<
       std::endl
       << "    \"+\" or removed with \"-\"." << std::endl
+      << "    By default rules are appended at the end of acls" << std::endl
+      << "    This ordering can be changed via --position flag" << std::endl
+      << "    which will add the new rule at a given position starting at 1 or" << std::endl
+      << "    the --front flag which adds the rule at the front instead" << std::endl
       << std::endl
       << "Examples:" << std::endl
       << "  acl --user u:1001=rwx /eos/dev/" << std::endl
@@ -92,6 +97,8 @@ void com_acl_help()
       << "  acl --user u:1001:+m /eos/dev" << std::endl
       << "    Add change mode permission flag for user id 1001" << std::endl
       << "  acl --user u:1010= /eos/dev" << std::endl
-      << "    Remove all ACls for user id 1001" << std::endl;
+      << "    Remove all ACls for user id 1001" << std::endl
+      << "  acl --front --user u:1001:rwx /eos/dev" << std::endl
+      << "     Add the user id 1001 rule to the front of ACL rules" << std::endl;
   std::cerr << oss.str() << std::endl;
 }
