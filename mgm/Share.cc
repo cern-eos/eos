@@ -30,7 +30,7 @@
 #include "namespace/interface/IView.hh"
 #include "namespace/Resolver.hh"
 #include "common/table_formatter/TableFormatterBase.hh"
-
+#include "common/Path.hh"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -214,7 +214,7 @@ Share::Proc::Create(eos::common::VirtualIdentity& vid,
       } catch (eos::MDException& e) {
 	dh.reset();
 	errno = e.getErrno();
-	eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+	eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
 		e.getErrno(), e.getMessage().str().c_str());
       }
 
@@ -280,6 +280,9 @@ Share::Proc::ModifyShare(const eos::common::VirtualIdentity& vid, std::string sh
     const char* item;
     while ( ( item = subtree.nextEntry() ) ) {
       std::string child = share_root;
+      if ( (child == ".") || (child == "..") ) {
+	continue;
+      }
       child += "/";
       child += item;
       // propagate to children
