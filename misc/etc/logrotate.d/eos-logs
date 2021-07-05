@@ -1,299 +1,33 @@
-/var/log/eos/tx/transfer-archive.log {
-	missingok
-	daily
-	copytruncate
-	create 755 daemon daemon
-	dateext
-	rotate 200
-	compress
+# aequivalent to the original config, without duplicating for every file
+# rotation of MGM logs
+/var/log/eos/mgm/xrdlog.mgm /var/log/eos/mgm/*.log /var/log/eos/tx/transfer-archive.log {
+  missingok
+  daily
+  copytruncate
+  create 755 root root
+  dateext
+  rotate 200
+  compress
 }
 
-/var/log/eos/mgm/error.log {
-	missingok
-	daily
-	copytruncate
-	create 755 root root
-	dateext
-	rotate 200
-	compress
+# rotation of FST logs
+/var/log/eos/fst/xrdlog.fst /var/log/eos/fst/*.log {
+  missingok
+  daily
+  copytruncate
+  create 755 root root
+  dateext
+  rotate 200
+  compress
 }
 
-/var/log/eos/mgm/xrdlog.mgm {
-	missingok
-	daily
-	copytruncate
-	create 755 root root
-	dateext
-	rotate 200
-	compress
-}
-
+# rotation for frontend authentication daemons
 /var/log/eos/auth[0-9]/xrdlog.auth[0-9] {
-        missingok
-        daily
-        copytruncate
-        create 755 root root
-        dateext
-        rotate 200
-        compress
-}
-
-/var/log/eos/fst/xrdlog.fst {
-	missingok
-	daily
-	copytruncate
-	create 755 root root
-	dateext
-	rotate 200
-	compress
-}
-
-/var/log/eos/mq/xrdlog.mq {
-	missingok
-	daily
-	copytruncate
-	create 755 root root
-	dateext
-	rotate 200
-	compress
-}
-
-/var/log/eos/sync/xrdlog.sync {
-	missingok
-	daily
-	copytruncate
-	create 755 root root
-	dateext
-	rotate 200
-	compress
-}
-
-/var/log/eos/mgm/logbook.log {
-	missingok
-	daily
-	copytruncate
-	create 755 root root
-	dateext
-	rotate 200
-	compress
-}
-
-/var/log/eos/fst/eoscp.log {
-	missingok
-	daily
-	copytruncate
-	create 755 root root
-	dateext
-	rotate 200
-	compress
-}
-
-/var/log/eos/mgm/Client.log {
-	missingok
-	daily
-	copytruncate
-	create 755 root root
-	dateext
-	rotate 200
-	compress
-}
-
-/var/log/eos/mgm/DrainJob.log {
-	missingok
-	daily
-	copytruncate
-	create 755 root root
-	dateext
-	rotate 200
-	compress
-}
-
-/var/log/eos/mgm/Balancer.log {
-	missingok
-	daily
-	copytruncate
-	create 755 root root
-	dateext
-	rotate 200
-	compress
-}
-
-/var/log/eos/mgm/Converter.log {
-	missingok
-	daily
-	copytruncate
-	create 755 root root
-	dateext
-	rotate 200
-	compress
-}
-
-/var/log/eos/mgm/ReplicationTracker.log {
-	missingok
-	daily
-	copytruncate
-	create 755 root root
-	dateext
-	rotate 200
-	compress
-}
-
-/var/log/eos/mgm/FileInspector.log {
-	missingok
-	daily
-	copytruncate
-	create 755 root root
-	dateext
-	rotate 200
-	compress
-}
-
-/var/log/eos/mgm/Clients.log {
-	missingok
-	daily
-	copytruncate
-	create 755 root root
-	dateext
-	rotate 200
-	compress
-}
-
-/var/log/eos/mgm/Recycle.log {
-	missingok
-	daily
-	copytruncate
-	create 755 root root
-	dateext
-	rotate 200
-	compress
-}
-
-/var/log/eos/mgm/Http.log {
-	missingok
-	daily
-	copytruncate
-	create 755 root root
-	dateext
-	rotate 200
-	compress
-}
-
-/var/log/eos/mgm/Master.log {
-	missingok
-	daily
-	copytruncate
-	create 755 root root
-	dateext
-	rotate 200
-	compress
-}
-
-/var/log/eos/mgm/LRU.log {
-	missingok
-	daily
-	copytruncate
-	create 755 root root
-	dateext
-	rotate 200
-	compress
-}
-
-/var/log/eos/mgm/WFE.log {
-        missingok
-        daily
-        copytruncate
-        create 755 root root
-        dateext
-        rotate 200
-        compress
-}
-
-/var/log/eos/mgm/GroupBalancer.log {
-	missingok
-	daily
-	copytruncate
-	create 755 root root
-	dateext
-	rotate 200
-	compress
-}
-
-/var/log/eos/mgm/GeoBalancer.log {
-	missingok
-	daily
-	copytruncate
-	create 755 root root
-	dateext
-	rotate 200
-	compress
-}
-
-/var/log/eos/mgm/GeoTreeEngine.log {
-	missingok
-	daily
-	copytruncate
-	create 755 root root
-	dateext
-	rotate 200
-	compress
-}
-
-/var/log/eos/mgm/MetadataFlusher.log {
-	missingok
-	daily
-	copytruncate
-	create 755 root root
-	dateext
-	rotate 200
-	compress
-}
-
-/var/log/eos/mgm/ZMQ.log {
-	missingok
-	daily
-	copytruncate
-	create 755 root root
-	dateext
-	rotate 200
-	compress
-}
-
-/var/log/eos/mgm/OAuth.log {
-	missingok
-	daily
-	copytruncate
-	create 755 root root
-	dateext
-	rotate 200
-	compress
-}
-
-/var/log/eos/mgm/eosxd-logtraces.log {
-	missingok
-	daily
-	copytruncate
-	create 755 root root
-	dateext
-	rotate 200
-	compress
-}
-
-/var/log/eos/mgm/eosxd-stacktraces.log {
-	missingok
-	daily
-	copytruncate
-	create 755 root root
-	dateext
-	rotate 200
-	compress
-}
-
-/var/log/eos/mgm/Mounts.log {
-	missingok
-	daily
-	copytruncate
-	create 755 root root
-	dateext
-	rotate 200
-	compress
+  missingok
+  daily
+  copytruncate
+  create 755 root root
+  dateext
+  rotate 200
+  compress
 }
