@@ -508,9 +508,9 @@ The EOS server installation containing MGM, FST & MQ service.
     %{_sysconfdir}/rc.d/init.d/eossync
     %{_sysconfdir}/rc.d/init.d/eosslave
 %endif
-%{_sysconfdir}/cron.d/eos-logs
-%{_sysconfdir}/cron.d/eos-reports
-%{_sysconfdir}/logrotate.d/eos-logs
+%config %{_sysconfdir}/cron.d/eos-logs
+%config %{_sysconfdir}/cron.d/eos-reports
+%config %{_sysconfdir}/logrotate.d/eos-logs
 %dir %attr(700,daemon,daemon) %{_localstatedir}/eos
 %dir %attr(700,daemon,daemon) %{_localstatedir}/eos/html
 %dir %attr(700,daemon,daemon) %{_localstatedir}/eos/qos
