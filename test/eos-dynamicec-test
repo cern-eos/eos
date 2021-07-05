@@ -21,6 +21,8 @@ function red() {
     echo -e "$RED$*$NORMAL"
 }
 
+eos mkdir /eos/testarea
+
 eos mkdir /eos/testarea/test2
 
 eos chmod 777 /eos/testarea/test2
