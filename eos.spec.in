@@ -1173,6 +1173,7 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_sbindir}/eos-unit-tests-fst
 %{_sbindir}/eos-unit-tests-with-qdb
 %{_sbindir}/eos-ns-quarkdb-tests
+%{_sbindir}/eos-dynamicec-test
 %attr(444,daemon,daemon) %{_localstatedir}/eos/test/fuse/untar/untar.tgz
 %attr(444,daemon,daemon) %{_localstatedir}/eos/test/fuse/untar/xrootd.tgz
 %if %{?_with_asan:1}%{!?_with_asan:0}
