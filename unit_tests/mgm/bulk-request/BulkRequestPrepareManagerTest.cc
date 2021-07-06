@@ -59,7 +59,7 @@ TEST_F(BulkRequestPrepareManagerTest,stagePrepareFilesWorkflow){
   eos::mgm::bulk::BulkRequestPrepareManager pm(mgmOfs);
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
 
-  ASSERT_EQ(nbFiles,pm.getBulkRequest()->getPaths().size());
+  ASSERT_EQ(nbFiles, pm.getBulkRequest()->getFiles()->size());
   ASSERT_EQ(SFS_DATA,retPrepare);
 }
 
@@ -83,7 +83,7 @@ TEST_F(BulkRequestPrepareManagerTest,stagePrepareFileWithNoPath){
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
 
   //The bulk-request is created, 0 files are supposed to be there
-  ASSERT_EQ(0,pm.getBulkRequest()->getPaths().size());
+  ASSERT_EQ(0, pm.getBulkRequest()->getFiles()->size());
   //The prepare manager returns SFS_DATA
   ASSERT_EQ(SFS_DATA,retPrepare);
 }
@@ -117,7 +117,7 @@ TEST_F(BulkRequestPrepareManagerTest,stagePrepareAllFilesDoNotExist){
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
 
   //For the future, even if the files do not exist, they have to be in the bulk-request.
-  ASSERT_EQ(3,pm.getBulkRequest()->getPaths().size());
+  ASSERT_EQ(3, pm.getBulkRequest()->getFiles()->size());
   ASSERT_EQ(SFS_DATA,retPrepare);
 }
 
@@ -161,13 +161,13 @@ TEST_F(BulkRequestPrepareManagerTest,stagePrepareOneFileDoNotExistReturnsSfsData
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
 
   //The existing files are in the bulk-request
-  std::set<std::string> bulkReqPaths = pm.getBulkRequest()->getPaths();
+  const auto & bulkReqPaths = *pm.getBulkRequest()->getFiles();
   ASSERT_EQ(nbFiles,bulkReqPaths.size());
   auto bulkReqPathsItor = bulkReqPaths.begin();
   int i = 0;
   while(bulkReqPathsItor != bulkReqPaths.end()){
     //All the files should be in the bulk-request, even the one that does not exist
-    ASSERT_EQ(paths.at(i),*bulkReqPathsItor);
+    ASSERT_EQ(paths.at(i),bulkReqPathsItor->first);
     i++;
     bulkReqPathsItor++;
   }
@@ -211,7 +211,7 @@ TEST_F(BulkRequestPrepareManagerTest,stagePrepareNoPreparePermission){
   eos::mgm::bulk::BulkRequestPrepareManager pm(mgmOfs);
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
 
-  ASSERT_EQ(nbFiles,pm.getBulkRequest()->getPaths().size());
+  ASSERT_EQ(nbFiles, pm.getBulkRequest()->getFiles()->size());
   ASSERT_EQ(SFS_DATA,retPrepare);
 }
 
@@ -327,7 +327,7 @@ TEST_F(BulkRequestPrepareManagerTest,evictPrepareFilesWorkflow){
   //Evict prepare does not generate a bulk-request, so the bulk-request should be equal to nullptr
   std::shared_ptr<BulkRequest> bulkRequest = pm.getBulkRequest();
   ASSERT_NE(nullptr,bulkRequest);
-  ASSERT_EQ(nbFiles,bulkRequest->getPaths().size());
+  ASSERT_EQ(nbFiles, bulkRequest->getFiles()->size());
   ASSERT_EQ(BulkRequest::Type::PREPARE_EVICT,bulkRequest->getType());
   //Evict prepare returns SFS_OK
   ASSERT_EQ(SFS_OK,retPrepare);
