@@ -67,11 +67,12 @@ std::string ProcDirectoryBulkRequestDAO::generateBulkRequestProcPath(const std::
 
 void ProcDirectoryBulkRequestDAO::insertBulkRequestFilesToBulkRequestDirectory(const std::shared_ptr<BulkRequest> bulkRequest, const std::string & bulkReqProcPath) {
   EXEC_TIMING_BEGIN("ProcDirectoryBulkRequestDAO::insertBulkRequestFilesToBulkRequestDirectory");
-  const std::set<std::string> & paths = bulkRequest->getPaths();
-  //Map of paths associated to the future object for the in-memory prefetching of the file informations
+  const auto & files = *bulkRequest->getFiles();
+  //Map of files associated to the future object for the in-memory prefetching of the file informations
   std::map<std::string,folly::Future<IFileMDPtr>> pathsWithMDFutures;
-  for(auto & path : paths){
-    std::pair<std::string,folly::Future<IFileMDPtr>> itemToInsert(path,mFileSystem->eosView->getFileFut(path, false));
+  for(auto & file : files){
+    std::string path = file.first;
+    std::pair<std::string,folly::Future<IFileMDPtr>> itemToInsert(path,mFileSystem->eosView->getFileFut(path , false));
     pathsWithMDFutures.emplace(std::move(itemToInsert));
   }
   for(auto & fileMd: pathsWithMDFutures){

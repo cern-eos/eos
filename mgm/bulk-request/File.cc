@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file BulkRequest.cc
+//! @file File.hh
 //! @author Cedric Caffy - CERN
 //------------------------------------------------------------------------------
 
@@ -21,38 +21,37 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "BulkRequest.hh"
+#include "File.hh"
 
 EOSBULKNAMESPACE_BEGIN
 
-BulkRequest::BulkRequest(const std::string & id):mId(id){
+File::File(){}
+
+File::File(const std::string& path): mPath(path) {
 }
 
-const std::string BulkRequest::getId() const {
-  return mId;
+void File::setPath(const std::string& path) {
+  mPath = path;
 }
 
-void BulkRequest::addPath(const std::string & path) {
-  mFileCollection.addFile(path);
+std::string File::getPath() const {
+  return mPath;
 }
 
-void BulkRequest::addError(const std::string &path, const std::string & error) {
-  mFileCollection.addError(path,error);
+void File::setError(const std::string& error) {
+  mError = error;
 }
 
-const std::shared_ptr<FileCollection::Files> BulkRequest::getFiles() const
-{
-  return mFileCollection.getAllFiles();
+std::optional<std::string> File::getError() const {
+  return mError;
 }
 
-const std::string BulkRequest::bulkRequestTypeToString(const BulkRequest::Type & bulkRequestType){
-  return BulkRequest::BULK_REQ_TYPE_TO_STRING_MAP.at(bulkRequestType);
+bool File::operator==(const File& other) const {
+  return getPath() == other.getPath();
 }
 
-const std::map<BulkRequest::Type,std::string> BulkRequest::BULK_REQ_TYPE_TO_STRING_MAP = {
-    {BulkRequest::PREPARE_STAGE,"PREPARE_STAGE"},
-    {BulkRequest::PREPARE_EVICT,"PREPARE_EVICT"}
-};
-
+bool File::operator<(const File& other) const {
+  return getPath() < other.getPath();
+}
 
 EOSBULKNAMESPACE_END

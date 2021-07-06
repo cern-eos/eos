@@ -259,6 +259,8 @@ add_library(
   geotree/SchedulingTreeCommon.cc
   tracker/ReplicationTracker.cc
   inspector/FileInspector.cc
+  bulk-request/File.cc
+  bulk-request/FileCollection.cc
   bulk-request/prepare/PrepareManager.cc
   bulk-request/prepare/BulkRequestPrepareManager.cc
   bulk-request/BulkRequest.cc
