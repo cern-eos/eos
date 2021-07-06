@@ -176,6 +176,16 @@ public:
   bool GetRuleBitmask(const std::string& input, bool set = false);
 
   //----------------------------------------------------------------------------
+  //! Generate the position to place the rule
+  //!
+  //! @param input rule_map size of the current rule_map
+  //! @param input rule_pos position to be inserted
+  //!
+  //! @return a pair of error, insert position
+  //----------------------------------------------------------------------------
+  static std::pair<int, size_t> GetRulePosition(size_t rule_map_sz, size_t rule_pos);
+
+  //----------------------------------------------------------------------------
   //! Return mAddRule result after GetRuleBitmask call.
   //----------------------------------------------------------------------------
   unsigned short GetAddRule()

@@ -147,12 +147,13 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
     GetAcls(elem, dir_acls, acl.sys_acl(), false);
     GenerateRuleMap(dir_acls, rule_map);
     // ACL position is 1-indexed as 0 is the default numeric protobuf val
-    if (acl.position() && acl.position() > rule_map.size()) {
+    auto [err, acl_pos] = GetRulePosition(rule_map.size(), acl.position());
+    if (err) {
       mErr = "error: rule position cannot be met!";
-      return EINVAL;
+      return err;
     }
 
-    ApplyRule(rule_map,acl.position());
+    ApplyRule(rule_map,acl_pos);
     new_acl_val = GenerateAclString(rule_map);
 
     // Set xattr without taking the namespace lock
@@ -635,5 +636,35 @@ AclCmd::AclBitmaskToString(const unsigned short int in)
 
   return ret;
 }
+
+std::pair<int, size_t>
+AclCmd::GetRulePosition(size_t rule_map_sz, size_t rule_pos)
+{
+
+  std::pair<int,size_t> result {0,0};
+
+  // Trivial case, nothing is set
+  if (!rule_map_sz && !rule_pos) {
+    return result;
+  }
+
+  if (!rule_map_sz) {
+    // Only valid case here is that the client asks the first position!
+    if (rule_pos != 1) {
+      result.first = EINVAL;
+    }
+  }
+
+  if (rule_map_sz && rule_pos) {
+    if (rule_pos > rule_map_sz) {
+      result.first = EINVAL;
+    }
+
+    result.second = rule_pos;
+  }
+
+  return result;
+}
+
 
 EOSMGMNAMESPACE_END
