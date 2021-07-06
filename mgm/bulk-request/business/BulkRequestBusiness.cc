@@ -31,7 +31,7 @@ BulkRequestBusiness::BulkRequestBusiness(std::unique_ptr<AbstractDAOFactory> && 
 }
 
 void BulkRequestBusiness::saveBulkRequest(const std::shared_ptr<BulkRequest> req){
-  eos_info("msg=\"Persisting bulk request id=%s nbFiles=%ld type=%s\"",req->getId().c_str(),req->getPaths().size(),BulkRequest::bulkRequestTypeToString(req->getType()).c_str());
+  eos_info("msg=\"Persisting bulk request id=%s nbFiles=%ld type=%s\"",req->getId().c_str(), req->getFiles()->size(),BulkRequest::bulkRequestTypeToString(req->getType()).c_str());
   EXEC_TIMING_BEGIN("BulkRequestBusiness::saveBulkRequest");
   mDaoFactory->getBulkRequestDAO()->saveBulkRequest(req);
   EXEC_TIMING_END("BulkRequestBusiness::saveBulkRequest");

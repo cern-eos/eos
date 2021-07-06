@@ -28,6 +28,7 @@
 #include <string>
 #include <set>
 #include <map>
+#include "FileCollection.hh"
 
 EOSBULKNAMESPACE_BEGIN
 
@@ -36,6 +37,8 @@ EOSBULKNAMESPACE_BEGIN
  */
 class BulkRequest {
 public:
+
+
   /**
    * The type a bulk request can be
    */
@@ -61,16 +64,23 @@ public:
   virtual const Type getType() const = 0;
 
   /**
-   * Returns the paths of the files contained in this bulk request
-   * @return the set containing the paths of the files this bulk request manages
+   * Returns the files contained in this bulk request
+   * @return the set containing the files this bulk request manages
    */
-  const std::set<std::string> & getPaths() const;
+  const std::shared_ptr<FileCollection::Files> getFiles() const;
 
   /**
    * Add a file path to this bulk request
-   * @param path the path of the file to add to this bulk request
+   * @param file the pointer to the file to add to this bulk request
    */
   void addPath(const std::string & path);
+
+  /**
+   * Add an error text to the path that
+   * @param path the path of the file that had an error
+   * @param error the error that the file has
+   */
+  void addError(const std::string & path, const std::string & error);
 
   virtual ~BulkRequest(){}
 
@@ -84,8 +94,8 @@ public:
 private:
   //Id of the bulk request
   std::string mId;
-  //Paths of the files contained in the bulk request
-  std::set<std::string> mPaths;
+  //The collection of files that are hold by this bulk-request
+  FileCollection mFileCollection;
   //Map containing the string representation of each bulk-request type
   static const std::map<Type,std::string> BULK_REQ_TYPE_TO_STRING_MAP;
 };
