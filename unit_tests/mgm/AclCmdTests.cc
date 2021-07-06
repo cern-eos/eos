@@ -292,3 +292,25 @@ TEST(AclCmd, GetRulePosition)
   // except in case of error
   EXPECT_EQ(AclCmd::GetRulePosition(2,3), std::pair(EINVAL,3UL));
 }
+
+TEST(AclCmd, GetRulePosition)
+{
+  // first arg rule_map_sz, second_arg position
+  EXPECT_EQ(AclCmd::GetRulePosition(0,0), std::pair(0,0UL));
+  EXPECT_EQ(AclCmd::GetRulePosition(0,1), std::pair(0,0UL));
+  EXPECT_EQ(AclCmd::GetRulePosition(0,2), std::pair(EINVAL,0UL));
+  //no position argument was passed, so position should be 0
+  // regardless of map size
+
+  EXPECT_EQ(AclCmd::GetRulePosition(1,0), std::pair(0,0UL));
+  EXPECT_EQ(AclCmd::GetRulePosition(10,0), std::pair(0,0UL));
+
+  // For all the cases where there are acls and we're within boundaries
+  // we should return the second arg
+  EXPECT_EQ(AclCmd::GetRulePosition(2,2), std::pair(0,2UL));
+  EXPECT_EQ(AclCmd::GetRulePosition(2,1), std::pair(0,1UL));
+  EXPECT_EQ(AclCmd::GetRulePosition(8,4), std::pair(0,4UL));
+
+  // except in case of error
+  EXPECT_EQ(AclCmd::GetRulePosition(2,3), std::pair(EINVAL,3UL));
+}
