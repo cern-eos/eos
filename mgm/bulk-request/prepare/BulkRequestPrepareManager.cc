@@ -50,7 +50,7 @@ void BulkRequestPrepareManager::initializeEvictPrepareRequest(XrdOucString& reqi
 }
 
 void BulkRequestPrepareManager::addPathToBulkRequest(const std::string& path) {
-  if(mBulkRequest != nullptr){
+  if(mBulkRequest != nullptr) {
     mBulkRequest->addPath(path);
   }
 }
