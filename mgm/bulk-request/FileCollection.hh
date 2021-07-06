@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file BulkRequest.cc
+//! @file FileCollection.hh
 //! @author Cedric Caffy - CERN
 //------------------------------------------------------------------------------
 
@@ -21,38 +21,29 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "BulkRequest.hh"
+#ifndef EOS_FILECOLLECTION_HH
+#define EOS_FILECOLLECTION_HH
+
+#include "File.hh"
+#include "mgm/Namespace.hh"
+#include <set>
+#include <map>
+#include <memory>
 
 EOSBULKNAMESPACE_BEGIN
 
-BulkRequest::BulkRequest(const std::string & id):mId(id){
-}
+class FileCollection {
+public:
+  FileCollection();
+  typedef std::map<std::string,File> Files;
 
-const std::string BulkRequest::getId() const {
-  return mId;
-}
-
-void BulkRequest::addPath(const std::string & path) {
-  mFileCollection.addFile(path);
-}
-
-void BulkRequest::addError(const std::string &path, const std::string & error) {
-  mFileCollection.addError(path,error);
-}
-
-const std::shared_ptr<FileCollection::Files> BulkRequest::getFiles() const
-{
-  return mFileCollection.getAllFiles();
-}
-
-const std::string BulkRequest::bulkRequestTypeToString(const BulkRequest::Type & bulkRequestType){
-  return BulkRequest::BULK_REQ_TYPE_TO_STRING_MAP.at(bulkRequestType);
-}
-
-const std::map<BulkRequest::Type,std::string> BulkRequest::BULK_REQ_TYPE_TO_STRING_MAP = {
-    {BulkRequest::PREPARE_STAGE,"PREPARE_STAGE"},
-    {BulkRequest::PREPARE_EVICT,"PREPARE_EVICT"}
+  void addFile(const std::string & path);
+  const std::shared_ptr<Files> getAllFiles() const;
+  void addError(const std::string &path, const std::string & error);
+private:
+  std::shared_ptr<Files> mFiles;
 };
 
-
 EOSBULKNAMESPACE_END
+
+#endif // EOS_FILECOLLECTION_HH

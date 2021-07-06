@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file BulkRequest.cc
+//! @file File.hh
 //! @author Cedric Caffy - CERN
 //------------------------------------------------------------------------------
 
@@ -21,38 +21,43 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "BulkRequest.hh"
+#ifndef EOS_FILE_HH
+#define EOS_FILE_HH
+
+#include "mgm/Namespace.hh"
+#include <string>
+#include <optional>
 
 EOSBULKNAMESPACE_BEGIN
 
-BulkRequest::BulkRequest(const std::string & id):mId(id){
-}
+/**
+ * This class contains information
+ * about a file hold in a bulk-request
+ */
+class File {
+public:
+  File();
+  File(const std::string & path);
+  void setPath(const std::string & path);
+  void setError(const std::string & error);
 
-const std::string BulkRequest::getId() const {
-  return mId;
-}
+  std::string getPath() const;
+  std::optional<std::string> getError() const;
 
-void BulkRequest::addPath(const std::string & path) {
-  mFileCollection.addFile(path);
-}
+  bool operator==(const File & other) const;
+  bool operator<(const File & other) const;
 
-void BulkRequest::addError(const std::string &path, const std::string & error) {
-  mFileCollection.addError(path,error);
-}
-
-const std::shared_ptr<FileCollection::Files> BulkRequest::getFiles() const
-{
-  return mFileCollection.getAllFiles();
-}
-
-const std::string BulkRequest::bulkRequestTypeToString(const BulkRequest::Type & bulkRequestType){
-  return BulkRequest::BULK_REQ_TYPE_TO_STRING_MAP.at(bulkRequestType);
-}
-
-const std::map<BulkRequest::Type,std::string> BulkRequest::BULK_REQ_TYPE_TO_STRING_MAP = {
-    {BulkRequest::PREPARE_STAGE,"PREPARE_STAGE"},
-    {BulkRequest::PREPARE_EVICT,"PREPARE_EVICT"}
+private:
+  /**
+   * The path of the file
+   */
+  std::string mPath;
+  /**
+   * An eventual error message
+   */
+  std::optional<std::string> mError;
 };
 
-
 EOSBULKNAMESPACE_END
+
+#endif // EOS_FILE_HH
