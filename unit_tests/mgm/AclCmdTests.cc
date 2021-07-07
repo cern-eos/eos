@@ -220,6 +220,56 @@ TEST(AclCmd, insert_or_assign_iter)
     EXPECT_EQ(expected_map, input_map);
 
   }
+  {
+    // we are demoting the first element to the last
+    auto [it, _] = get_iterator(input_map, 6);
+    insert_or_assign(input_map, "u:9001",0b10011, it, true);
+
+    RuleMap expected_map = {{"u:1001",0b1001},
+                            {"u:100",0b11011},
+                            {"g:123",0b101},
+                            {"u:99", 0b11011},
+                            {"u:123",0b100},
+                            {"u:9001",0b10011}
+    };
+
+    EXPECT_EQ(expected_map, input_map);
+
+  }
+
+  {
+    // we are demoting a middle element to the last
+    auto [it, _] = get_iterator(input_map, 6);
+    insert_or_assign(input_map, "u:99",0b11011, it, true);
+
+    RuleMap expected_map = {{"u:1001",0b1001},
+                            {"u:100",0b11011},
+                            {"g:123",0b101},
+                            {"u:123",0b100},
+                            {"u:9001",0b10011},
+                            {"u:99", 0b11011}
+    };
+
+    EXPECT_EQ(expected_map, input_map);
+
+  }
+
+  {
+    // we are demoting the penultimate element to the last
+    auto [it, _] = get_iterator(input_map, 6);
+    insert_or_assign(input_map, "u:9001",0b10011, it, true);
+
+    RuleMap expected_map = {{"u:1001",0b1001},
+                            {"u:100",0b11011},
+                            {"g:123",0b101},
+                            {"u:123",0b100},
+                            {"u:99", 0b11011},
+                            {"u:9001",0b10011}
+    };
+
+    EXPECT_EQ(expected_map, input_map);
+
+  }
 
 }
 
