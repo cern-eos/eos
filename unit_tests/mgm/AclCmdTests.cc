@@ -268,17 +268,8 @@ TEST(AclCmd, insert_or_assign_iter)
     };
 
     EXPECT_EQ(expected_map, input_map);
-  }
-}
 
-TEST(AclCmd, GetRulePosition)
-{
-  // first arg rule_map_sz, second_arg position
-  EXPECT_EQ(AclCmd::GetRulePosition(0,0), std::pair(0,0UL));
-  EXPECT_EQ(AclCmd::GetRulePosition(0,1), std::pair(0,0UL));
-  EXPECT_EQ(AclCmd::GetRulePosition(0,2), std::pair(EINVAL,0UL));
-  //no position argument was passed, so position should be 0
-  // regardless of map size
+  }
 
   EXPECT_EQ(AclCmd::GetRulePosition(1,0), std::pair(0,0UL));
   EXPECT_EQ(AclCmd::GetRulePosition(10,0), std::pair(0,0UL));
