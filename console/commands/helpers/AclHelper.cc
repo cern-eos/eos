@@ -146,7 +146,6 @@ AclHelper::ParseCommand(const char* arg)
   eos::common::StringTokenizer tokenizer(arg);
   tokenizer.GetLine();
   bool type_set = false;
-  bool pos_set = false;
   // Get opts
   while ((temp = tokenizer.GetToken(false)) != 0) {
     // Trimming
@@ -168,12 +167,20 @@ AclHelper::ParseCommand(const char* arg)
       continue;
     }
     if ((token == "-f") || (token == "--front")) {
+      if (acl->position()) {
+        std::cerr << "error: set only one of position or front argument" << std::endl;
+        return false;
+      }
       acl->set_position(1);
-      pos_set = true;
       continue;
     }
 
-    if (((token == "-p") || (token == "--position")) && !pos_set) {
+    if ((token == "-p") || (token == "--position")) {
+      if (acl->position()) {
+        std::cerr << "error: set only one of position or front argument" << std::endl;
+        return false;
+      }
+
       std::string spos;
       if (!tokenizer.NextToken(spos)) {
         std::cerr << "error: position needs an argument!" << std::endl;
@@ -185,6 +192,7 @@ AclHelper::ParseCommand(const char* arg)
           acl->set_position(pos);
       } catch (const std::exception& e) {
         std::cerr << "error: position needs to be integer" << std::endl;
+        return false;
       }
       continue;
     }
