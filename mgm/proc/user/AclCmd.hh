@@ -71,8 +71,8 @@ void insert_or_assign(C& c, K&& k, V&& v, It&& pos, bool move_existing=false)
     auto next_it = c.erase(it);
     // In case we're demoting an element the erase would've dropped an element
     // so the index position should be incremented!
-    if (std::distance(c.begin(), next_it) <
-        std::distance(c.begin(), pos)) {
+    if (pos != c.end() &&
+        (std::distance(c.begin(), next_it) <= std::distance(c.begin(), pos))) {
       ++pos;
     }
   }
