@@ -791,6 +791,8 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                 }
 
                 if (key == "dynamiceC") {
+                  applied = true;
+
                   if (value == "on") {
                     gOFS->mDynamicEC->setDynamicEC(true);
                     std_out << "success: dynamicEC is enabled!";
@@ -801,6 +803,8 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                 }
 
                 if (key == "dynamicec.test") {
+                  applied = true;
+
                   if (value == "on") {
                     gOFS->mDynamicEC->setTest(true);
                     std_out << "this is the test bool:";
@@ -813,27 +817,26 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                 }
 
                 if (key == "dynamicec.restartscan") {
+                  applied = true;
+
                   if (value == "on") {
                     eos_static_info("test restart scan");
                     gOFS->mDynamicEC->restartScan();
                     std_out << "test";
                     std_out << "this is the test for the sys";
                   } else if (value == "off") {
-                    //gOFS->mDynamicEC->setTest(false);
-                    //std_out << "this is the test bool:";
-                    //std_out << gOFS->mDynamicEC->getTest();
                   }
                 }
 
                 if (key == "dynamicec.printall") {
+                  applied = true;
+
                   if (value == "on") {
                     eos_static_info("print all in log");
                     gOFS->mDynamicEC->printAll();
                   } else if (value == "off") {
                   }
                 }
-
-                // (key == "dynamicec.printall") ||
 
                 if (key == "autorepair") {
                   if (value == "on") {
@@ -903,6 +906,8 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
               }
             }
           } else if (key == "dynamicec.sizeformapmax") {
+            applied = true;
+
             if (std::all_of(value.begin(), value.end(), ::isdigit)) {
               gOFS->mDynamicEC->setSizeForMap(std::stoull(value));
               std_out << "The size for the map to be full: ";
@@ -911,6 +916,8 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
               std_out << gOFS->mDynamicEC->getSizeForMap();
             }
           } else if (key == "dynamicec.sleepwhenfull") {
+            applied = true;
+
             if (std::all_of(value.begin(), value.end(), ::isdigit)) {
               gOFS->mDynamicEC->setSleepWhenFull(std::stoi(value));
               std_out << "The sleep when the size of the files in the map is full: ";
@@ -919,6 +926,8 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
               std_out << gOFS->mDynamicEC->getSleepWhenFull();
             }
           } else if (key == "dynamicec.sleepwhendone") {
+            applied = true;
+
             if (std::all_of(value.begin(), value.end(), ::isdigit)) {
               gOFS->mDynamicEC->setSleepWhenDone(std::stoi(value));
               std_out << "The sleep when the all files have been scanned";
@@ -927,17 +936,18 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
               std_out << gOFS->mDynamicEC->getSleepWhenDone();
             }
           } else if (key == "dynamicec.minsize") {
+            applied = true;
+
             if (value.find_first_not_of("0123456789.-") == std::string::npos) {
-              //std_out << "This is for it \n";
-              //std_out << std::stoi(value) * 2;
               gOFS->mDynamicEC->setMinForDeletion(std::stoi(value));
               std_out << "The minimum size for the files are now: ";
-              //std_out << "The minimum size for the files are now:" + std::stoi(value);
               std_out << gOFS->mDynamicEC->getMinForDeletion();
             } else if (value == "show") {
               std_out << gOFS->mDynamicEC->getMinForDeletion();
             }
           } else if (key == "dynamicec.waittime") {
+            applied = true;
+
             if (std::all_of(value.begin(), value.end(), ::isdigit)) {
               gOFS->mDynamicEC->setWaitTime(std::stoi(value));
               std_out << "The wait time are now: ";
@@ -947,6 +957,8 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
               std_out << gOFS->mDynamicEC->getWaitTime();
             }
           } else if (key == "dynamicec.minthreshold") {
+            applied = true;
+
             if (value.find_first_not_of("0123456789.") == std::string::npos) {
               if (gOFS->mDynamicEC->getMaxThresHold() >= std::stod(value)) {
                 gOFS->mDynamicEC->setMinThresHold(std::stod(value));
@@ -964,6 +976,8 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
               std_out << " is not a valid command.";
             }
           } else if (key == "dynamicec.maxthreshold") {
+            applied = true;
+
             if (value.find_first_not_of("0123456789.") == std::string::npos) {
               if (gOFS->mDynamicEC->getMinThresHold() <= std::stod(value)) {
                 gOFS->mDynamicEC->setMaxThresHold(std::stod(value));
@@ -981,6 +995,8 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
               std_out << " is not a valid command.";
             }
           } else if (key == "dynamicec.agefromwhentodelete") {
+            applied = true;
+
             if (value.find_first_not_of("0123456789") == std::string::npos) {
               gOFS->mDynamicEC->setAgeFromWhenToDelete(std::stoull(value));
               std_out << "The age from when to delete is new set to: ";
