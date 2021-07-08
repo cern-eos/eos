@@ -780,7 +780,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                   }
                 }
 
-                if (key == "dynamicEC") {
+                if (key == "dynamiceC") {
                   if (value == "on") {
                     gOFS->mDynamicEC->setDynamicEC(true);
                     std_out << "success: dynamicEC is enabled!";
