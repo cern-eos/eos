@@ -324,8 +324,8 @@ FuseServer::Clients::Print(std::string& out, std::string options)
   std::unordered_map<std::string, size_t> clientcaps;
 
   for (const auto & cap : gOFS->zMQ->gFuseServer.Cap().GetAllCaps()) {
-    if (cap->id()) {
-      clientcaps[cap->clientuuid()]++;
+    if ((*cap)()->id()) {
+      clientcaps[(*cap)()->clientuuid()]++;
     }
   }
   struct timespec now_time;

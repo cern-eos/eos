@@ -96,7 +96,7 @@ FuseServer::Caps::Imply(uint64_t md_ino,
   shared_cap implied_cap = std::make_shared<capx>();
   shared_cap cap = GetTS(authid);
 
-  if ((caps == nullptr) || !(*cap)()->id() || !implied_authid.length()) {
+  if ((cap == nullptr) || !(*cap)()->id() || !implied_authid.length()) {
     return false;
   }
 
