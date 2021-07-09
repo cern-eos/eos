@@ -96,7 +96,7 @@ FuseServer::Caps::Imply(uint64_t md_ino,
   shared_cap implied_cap = std::make_shared<capx>();
   shared_cap cap = GetTS(authid);
 
-  if ((*cap)() == nullptr || !(*cap)()->id() || !implied_authid.length()) {
+  if ((caps == nullptr) || !(*cap)()->id() || !implied_authid.length()) {
     return false;
   }
 
@@ -516,10 +516,11 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
 
   for (const auto& it: auth_ids) {
     shared_cap cap = GetTS(it, false);
-    
+    // avoid processing if the cap doesn't exist
     if (!cap) {
       continue;
     }
+    
     // avoid processing if the cap doesn't exist or to a sent client
     if (!(*cap)()->id() || clients_sent.count((*cap)()->clientuuid())) {
       continue;

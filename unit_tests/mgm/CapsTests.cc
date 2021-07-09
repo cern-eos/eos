@@ -574,7 +574,7 @@ TEST_F(CapsTest, GetAllCaps)
     std::unordered_set<std::string> expected_ids = {"client1", "client2", "client3"};
     std::unordered_set<std::string> actual_ids;
     for (const auto& it: results) {
-      actual_ids.emplace(it->clientid());
+      actual_ids.emplace((*it)()->clientid());
     }
     EXPECT_EQ(expected_ids, actual_ids);
   }
@@ -591,7 +591,7 @@ TEST_F(CapsTest, GetAllCaps)
     std::unordered_set<std::string> expected_ids = {"client4", "client2", "client3"};
     std::unordered_set<std::string> actual_ids;
     for (const auto& it: results) {
-      actual_ids.emplace(it->clientid());
+      actual_ids.emplace((*it)()->clientid());
     }
     EXPECT_EQ(expected_ids, actual_ids);
   }
@@ -634,16 +634,16 @@ TEST_F(CapsTest, ImplyCaps)
   mCaps.Store(make_cap(3,"client3","auth3"), &vid3);
 
   auto c = mCaps.Get("auth3");
-  EXPECT_EQ(c->clientid(), "client3");
+  EXPECT_EQ((*c)()->clientid(), "client3");
 
   EXPECT_FALSE(mCaps.Imply(3,"auth_foo","auth1"));
   EXPECT_FALSE(mCaps.Imply(3,"auth1",""));
 
   EXPECT_TRUE(mCaps.Imply(3,"auth3","auth1"));
   auto c3 = mCaps.Get("auth3");
-  EXPECT_EQ(c3->clientid(), "client3");
+  EXPECT_EQ((*c3)()->clientid(), "client3");
   auto c1 = mCaps.Get("auth1");
-  EXPECT_EQ(c1->clientid(),"client3");
+  EXPECT_EQ((*c1)()->clientid(),"client3");
 }
 
 TEST_F(CapsTest, ImplyCapsMulti)
