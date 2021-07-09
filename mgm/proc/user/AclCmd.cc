@@ -242,6 +242,18 @@ Rule AclCmd::GetRuleFromString(const std::string& single_acl)
         rule_int = rule_int | AclCmd::nM;
       }
 
+      if (single_acl.at(i) == 'r') {
+        rule_int = rule_int | AclCmd::nR;
+      }
+
+      if (single_acl.at(i) == 'w') {
+        rule_int = rule_int | AclCmd::nW;
+      }
+
+      if (single_acl.at(i) == 'x') {
+        rule_int = rule_int | AclCmd::nX;
+      }
+
       break;
 
     default:
@@ -389,6 +401,21 @@ bool AclCmd::GetRuleBitmask(const std::string& input, bool set)
 
       if (*flag == 'm') {
         curr_lambda(AclCmd::nM);
+        continue;
+      }
+
+      if (*flag == 'r') {
+        curr_lambda(AclCmd::nR);
+        continue;
+      }
+
+      if (*flag == 'w') {
+        curr_lambda(AclCmd::nW);
+        continue;
+      }
+
+      if (*flag == 'x') {
+        curr_lambda(AclCmd::nX);
         continue;
       }
 
@@ -632,6 +659,18 @@ AclCmd::AclBitmaskToString(const unsigned short int in)
 
   if (in & AclCmd::C) {
     ret.append("c");
+  }
+
+  if (in & AclCmd::nR) {
+    ret.append("!r");
+  }
+
+  if (in & AclCmd::nW) {
+    ret.append("!w");
+  }
+
+  if (in & AclCmd::nX) {
+    ret.append("!x");
   }
 
   return ret;
