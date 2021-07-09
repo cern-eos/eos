@@ -176,7 +176,7 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
         if (!Acl::IsValid(val, error, is_sys_acl) &&
             !Acl::IsValid(val, error, is_sys_acl, true)) {
           errno = EINVAL;
-          return Emsg(epname, error, errno, "set attribute", path);
+          return Emsg(epname, error, errno, "set attribute (invalid acl format)", path);
         }
 
         // Convert to numeric representation
