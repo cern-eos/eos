@@ -493,6 +493,26 @@ public:
   //----------------------------------------------------------------------------
   IContainerMD::FileMap copyFileMap() const override;
 
+  //----------------------------------------------------------------------------
+  //! Get iterator to the begining of the files map
+  //----------------------------------------------------------------------------
+  virtual eos::IContainerMD::FileMap::const_iterator
+  filesBegin() override
+  {
+    // No lock here, only FileMapIterator can call us, which locks the mutex.
+    return mFiles->begin();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get iterator to the end of the files map
+  //----------------------------------------------------------------------------
+  virtual eos::IContainerMD::FileMap::const_iterator
+  filesEnd() override
+  {
+    // No lock here, only FileMapIterator can call us, which locks the mutex.
+    return mFiles->end();
+  }
+
 private:
   FRIEND_TEST(VariousTests, EtagFormattingContainer);
 
@@ -537,26 +557,6 @@ private:
   virtual uint64_t getContainerMapGeneration() override
   {
     return mSubcontainers->bucket_count();
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get iterator to the begining of the files map
-  //----------------------------------------------------------------------------
-  virtual eos::IContainerMD::FileMap::const_iterator
-  filesBegin() override
-  {
-    // No lock here, only FileMapIterator can call us, which locks the mutex.
-    return mFiles->begin();
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get iterator to the end of the files map
-  //----------------------------------------------------------------------------
-  virtual eos::IContainerMD::FileMap::const_iterator
-  filesEnd() override
-  {
-    // No lock here, only FileMapIterator can call us, which locks the mutex.
-    return mFiles->end();
   }
 
   //----------------------------------------------------------------------------

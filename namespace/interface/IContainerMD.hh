@@ -429,6 +429,18 @@ public:
     mLastPrefetch = tp;
   }
 
+  //----------------------------------------------------------------------------
+  //! Get iterator to the begining of the files map
+  //----------------------------------------------------------------------------
+  virtual eos::IContainerMD::FileMap::const_iterator
+  filesBegin() = 0;
+
+  //----------------------------------------------------------------------------
+  //! Get iterator to the end of the files map
+  //----------------------------------------------------------------------------
+  virtual eos::IContainerMD::FileMap::const_iterator
+  filesEnd() = 0;
+
 private:
   friend class FileMapIterator;
   friend class ContainerMapIterator;
@@ -462,18 +474,6 @@ protected:
   //! Get generation value to check interator validity
   //----------------------------------------------------------------------------
   virtual uint64_t getContainerMapGeneration() = 0;
-
-  //----------------------------------------------------------------------------
-  //! Get iterator to the begining of the files map
-  //----------------------------------------------------------------------------
-  virtual eos::IContainerMD::FileMap::const_iterator
-  filesBegin() = 0;
-
-  //----------------------------------------------------------------------------
-  //! Get iterator to the end of the files map
-  //----------------------------------------------------------------------------
-  virtual eos::IContainerMD::FileMap::const_iterator
-  filesEnd() = 0;
 
   //----------------------------------------------------------------------------
   //! Get generation value to check interator validity
