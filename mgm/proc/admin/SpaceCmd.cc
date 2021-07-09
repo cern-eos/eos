@@ -706,6 +706,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             (key == "dynamicec.sizeformapmax") ||
             (key == "dynamicec.restartscan") ||
             (key == "dynamicec.printall") ||
+            (key == "dynamicec.directory") ||
             (key == "lru") ||
             (key == "lru.interval") ||
             (key == "wfe") ||
@@ -915,6 +916,10 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             } else if (value == "show") {
               std_out << gOFS->mDynamicEC->getSizeForMap();
             }
+          }  else if (key == "dynamicec.directory") {
+            applied = true;
+            gOFS->mDynamicEC->setDirectory(value);
+            std_out << "The directory is set to: " << value;
           } else if (key == "dynamicec.sleepwhenfull") {
             applied = true;
 

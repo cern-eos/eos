@@ -182,7 +182,17 @@ private:
 
   bool isIdInMap(uint64_t id);
 
+  //write commets here about it
+
+  //std::atomic<std::string>
+  std::string
+  mDirectory;
+
+  void scanFiles(std::shared_ptr<eos::IFileMD> fmd, ThreadAssistant& assistant);
+
 public:
+
+  void setDirectory(std::string directory);
 
   std::mutex mtx;
 

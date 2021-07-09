@@ -116,10 +116,17 @@ DynamicEC::DynamicEC(const char* spacename, uint64_t ageNew,  uint64_t size,
   mSleepWhenDone = sleepWhenDone;
   mSleepWhenFull = sleepWhenFull;
   mSizeInMap = 0;
+  mDirectory = "";
 
   if (OnWork) {
     mThread3.reset(&DynamicEC::RunScan, this);
   }
+}
+
+void
+DynamicEC::setDirectory(std::string directory)
+{
+  mDirectory = directory;
 }
 
 void
@@ -1166,7 +1173,71 @@ DynamicEC::Options DynamicEC::getOptions()
   return opts;
 }
 
+void
+DynamicEC::scanFiles(std::shared_ptr<eos::IFileMD> fmd,
+                     ThreadAssistant& assistant)
+{
+  Options opts = getOptions();
+  uint64_t interval = opts.interval.count();
+  unsigned long long nfiles_processed;
+  time_t s_time = time(NULL);
+  time_t c_time = s_time;
 
+  if (mTestEnabel) {
+    interval = 1;
+  }
+
+  Process(fmd);
+  nfiles_processed++;
+  scanned_percent = (100.0 * nfiles_processed / nfiles);
+  time_t target_time = (1.0 * nfiles_processed / nfiles) * interval;
+  time_t is_time = time(NULL) - s_time;
+  auto hasTape = fmd->hasLocation(EOS_TAPE_FSID);
+  long num2 = fmd->getNumLocation();
+  num2 -= hasTape;
+  num2 -= (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1);
+
+  if (num2 > 0) {
+    mMutexForStatusFilesMD.lock();
+    mStatusFilesMD[fmd->getId()] = fmd;
+    mMutexForStatusFilesMD.unlock();
+    mSizeInMap += fmd->getSize();
+  }
+
+  if (target_time > is_time) {
+    uint64_t p_time = target_time - is_time;
+
+    if (p_time > 5) {
+      p_time = 5;
+    }
+
+    eos_static_debug("is:%lu target:%lu is_t:%lu target_t:%lu interval:%lu - pausing for %lu seconds\n",
+                     nfiles_processed, nfiles, is_time, target_time, interval, p_time);
+    std::this_thread::sleep_for(std::chrono::seconds(p_time));
+  }
+
+  if (assistant.terminationRequested()) {
+    return;
+  }
+
+  if ((time(NULL) - c_time) > 60) {
+    c_time = time(NULL);
+    Options opts = getOptions();
+    interval = opts.interval.count();
+
+    if (!opts.enabled) {
+      return;
+    }
+
+    if (!gOFS->mMaster->IsMaster()) {
+      return;
+    }
+  }
+
+  if (mSizeInMap.load() > mSizeForMapMax) {
+    std::this_thread::sleep_for(std::chrono::seconds(mSleepWhenFull));
+  }
+}
 
 
 //-------------------------------------------------------------------------------------------
@@ -1196,99 +1267,116 @@ DynamicEC::performCycleQDBMD(ThreadAssistant& assistant) noexcept
     nfiles = (unsigned long long) gOFS->eosFileService->getNumFiles();
     ndirs = (unsigned long long) gOFS->eosDirectoryService->getNumContainers();
   }
-  Options opts = getOptions();
-  uint64_t interval = opts.interval.count();
-  FileScanner scanner(*(mQcl.get()));
-  time_t c_time = s_time;
-  eos_static_debug("This is the scanner valid %d ", scanner.valid());
 
-  while (scanner.valid()) {
-    eos_static_debug("runs the scan");
-    scanner.next();
-    std::string err;
-    eos::ns::FileMdProto item;
+  if (!mDirectory.empty()) {
+    auto container = gOFS->eosView->getContainer(mDirectory);
 
-    if (scanner.getItem(item)) {
-      //eos_static_info("This is the map that scans");
-      if (mTestEnabel) {
-        interval = 1;
-      }
-
-      std::shared_ptr<eos::QuarkFileMD> fmd = std::make_shared<eos::QuarkFileMD>();
-      fmd->initialize(std::move(item));
-      fmd->setFileMDSvc(gOFS->eosFileService);
-      Process(fmd);
-      nfiles_processed++;
-      scanned_percent = (100.0 * nfiles_processed / nfiles);
-      time_t target_time = (1.0 * nfiles_processed / nfiles) * interval;
-      time_t is_time = time(NULL) - s_time;
-      auto hasTape = fmd->hasLocation(EOS_TAPE_FSID);
-      long num2 = fmd->getNumLocation();
-      num2 -= hasTape;
-      num2 -= (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1);
-
-      if (num2 > 0) {
-        mMutexForStatusFilesMD.lock();
-        mStatusFilesMD[fmd->getId()] = fmd;
-        mMutexForStatusFilesMD.unlock();
-        mSizeInMap += fmd->getSize();
-      }
-
-      if (target_time > is_time) {
-        uint64_t p_time = target_time - is_time;
-
-        if (p_time > 5) {
-          p_time = 5;
-        }
-
-        eos_static_debug("is:%lu target:%lu is_t:%lu target_t:%lu interval:%lu - pausing for %lu seconds\n",
-                         nfiles_processed, nfiles, is_time, target_time, interval, p_time);
-        std::this_thread::sleep_for(std::chrono::seconds(p_time));
-      }
-
-      if (assistant.terminationRequested()) {
-        return;
-      }
-
-      if ((time(NULL) - c_time) > 60) {
-        c_time = time(NULL);
-        Options opts = getOptions();
-        interval = opts.interval.count();
-
-        if (!opts.enabled) {
-          break;
-        }
-
-        if (!gOFS->mMaster->IsMaster()) {
-          break;
-        }
-      }
-
-      if (mSizeInMap.load() > mSizeForMapMax) {
-        sleep(mSleepWhenFull);
-      }
-    } else {
-      eos_static_info("This is the end, everything has been scanned now");
-      {
-        std::unique_lock<std::mutex> lck(mtx);
-
-        while (cv.wait_for(lck, std::chrono::seconds(mSleepWhenDone)) ==
-               std::cv_status::timeout) {
-          eos_static_info("the timer went");
-          break;
-        }
-      }
-      mSizeInMap = 0;
-      mStatusFilesMD.clear();
+    for (auto it = container->filesBegin(); it != container->filesEnd(); it++) {
+      auto fmd = gOFS->eosFileService->getFileMD(it->second);
+      scanFiles(fmd, assistant);
     }
+  } else {
+    Options opts = getOptions();
+    uint64_t interval = opts.interval.count();
+    FileScanner scanner(*(mQcl.get()));
+    time_t c_time = s_time;
+    eos_static_debug("This is the scanner valid %d ", scanner.valid());
 
-    if (scanner.hasError(err)) {
-      eos_static_err("msg=\"QDB scanner error - interrupting scan\" error=\"%s\"",
-                     err.c_str());
-      break;
+    while (scanner.valid()) {
+      eos_static_debug("runs the scan");
+      scanner.next();
+      std::string err;
+      eos::ns::FileMdProto item;
+
+      if (scanner.getItem(item)) {
+        //eos_static_info("This is the map that scans");
+        std::shared_ptr<eos::QuarkFileMD> fmd = std::make_shared<eos::QuarkFileMD>();
+        fmd->initialize(std::move(item));
+        fmd->setFileMDSvc(gOFS->eosFileService);
+        scanFiles(fmd, assistant);
+        /*
+        if (mTestEnabel) {
+          interval = 1;
+        }
+
+        std::shared_ptr<eos::QuarkFileMD> fmd = std::make_shared<eos::QuarkFileMD>();
+        fmd->initialize(std::move(item));
+        fmd->setFileMDSvc(gOFS->eosFileService);
+        Process(fmd);
+        nfiles_processed++;
+        scanned_percent = (100.0 * nfiles_processed / nfiles);
+        time_t target_time = (1.0 * nfiles_processed / nfiles) * interval;
+        time_t is_time = time(NULL) - s_time;
+        auto hasTape = fmd->hasLocation(EOS_TAPE_FSID);
+        long num2 = fmd->getNumLocation();
+        num2 -= hasTape;
+        num2 -= (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1);
+
+        if (num2 > 0) {
+          mMutexForStatusFilesMD.lock();
+          mStatusFilesMD[fmd->getId()] = fmd;
+          mMutexForStatusFilesMD.unlock();
+          mSizeInMap += fmd->getSize();
+        }
+
+        if (target_time > is_time) {
+          uint64_t p_time = target_time - is_time;
+
+          if (p_time > 5) {
+            p_time = 5;
+          }
+
+          eos_static_debug("is:%lu target:%lu is_t:%lu target_t:%lu interval:%lu - pausing for %lu seconds\n",
+                           nfiles_processed, nfiles, is_time, target_time, interval, p_time);
+          std::this_thread::sleep_for(std::chrono::seconds(p_time));
+        }
+
+        if (assistant.terminationRequested()) {
+          return;
+        }
+
+        if ((time(NULL) - c_time) > 60) {
+          c_time = time(NULL);
+          Options opts = getOptions();
+          interval = opts.interval.count();
+
+          if (!opts.enabled) {
+            break;
+          }
+
+          if (!gOFS->mMaster->IsMaster()) {
+            break;
+          }
+        }
+
+        if (mSizeInMap.load() > mSizeForMapMax) {
+          sleep(mSleepWhenFull);
+        }
+        */
+      } else {
+        eos_static_info("This is the end, everything has been scanned now");
+        {
+          std::unique_lock<std::mutex> lck(mtx);
+
+          while (cv.wait_for(lck, std::chrono::seconds(mSleepWhenDone)) ==
+                 std::cv_status::timeout) {
+            eos_static_info("the timer went");
+            break;
+          }
+        }
+        mSizeInMap = 0;
+        mStatusFilesMD.clear();
+      }
+
+      if (scanner.hasError(err)) {
+        eos_static_err("msg=\"QDB scanner error - interrupting scan\" error=\"%s\"",
+                       err.c_str());
+        break;
+      }
     }
   }
 
+  //this might not be true
   scanned_percent = (100.0);
   std::lock_guard<std::mutex> sMutex(mutexScanStats);
   lastScanStats = currentScanStats;
