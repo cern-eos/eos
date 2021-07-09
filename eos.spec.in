@@ -434,7 +434,7 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_libdir}/libEosNsQuarkdb.so
 
 %if 0%{?rhel} == 7 || 0%{?rhel} == 8
-%{_libdir}/libEosAccSciTokens.so
+%{_libdir}/libEosAccSciTokens-*.so
 %endif
 
 %config(noreplace) %{_sysconfdir}/xrd.cf.fst
