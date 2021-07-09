@@ -215,7 +215,10 @@ private:
     pU = 1 << 8,   // 256  - +u
     Q  = 1 << 9,   // 512  -  q
     C  = 1 << 10,  // 1024 -  c
-    WO = 1 << 11   // 2048 - wo
+    WO = 1 << 11,  // 2048 - wo
+    nR = 1 << 12,  // 4096 - !r
+    nW = 1 << 13,  // 8192 - !w
+    nX = 1 << 14,  //16384 - !x
   };
 
   std::string mId; ///< Rule identifier extracted from command line
