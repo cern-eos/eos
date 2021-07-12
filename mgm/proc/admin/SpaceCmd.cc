@@ -697,6 +697,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             (key == "dynamicec.restartscan") ||
             (key == "dynamicec.printall") ||
             (key == "dynamicec.directory") ||
+            (key == "dynamicec.namespace") ||
             (key == "lru") ||
             (key == "lru.interval") ||
             (key == "wfe") ||
@@ -910,6 +911,10 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             applied = true;
             gOFS->mDynamicEC->setDirectory(value);
             std_out << "The directory is set to: " << value;
+          } else if (key == "dynamicec.namespace")  {
+            applied = true;
+            gOFS->mDynamicEC->setNameSpace(value);
+            std_out << "The name space is set to: " << value;
           } else if (key == "dynamicec.sleepwhenfull") {
             applied = true;
 
@@ -946,7 +951,6 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             if (std::all_of(value.begin(), value.end(), ::isdigit)) {
               gOFS->mDynamicEC->setWaitTime(std::stoi(value));
               std_out << "The wait time are now: ";
-              //std_out << "The minimum size for the files are now:" + std::stoi(value);
               std_out << std::stoi(value);
             } else if (value == "show") {
               std_out << gOFS->mDynamicEC->getWaitTime();

@@ -124,6 +124,18 @@ DynamicEC::DynamicEC(const char* spacename, uint64_t ageNew,  uint64_t size,
 }
 
 void
+DynamicEC::setNameSpace(std::string nameSpace)
+{
+  mSpaceName = nameSpace;
+}
+
+std::string
+DynamicEC::getNameSpace()
+{
+  return mSpaceName;
+}
+
+void
 DynamicEC::setDirectory(std::string directory)
 {
   mDirectory = directory;

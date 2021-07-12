@@ -224,6 +224,10 @@ public:
 
   uint64_t getSizeForMap();
 
+  void setNameSpace(std::string nameSpace);
+
+  std::string getNameSpace();
+
   void setSleepWhenDone(uint64_t sleepWhenDone);
 
   uint64_t getSleepWhenDone();
