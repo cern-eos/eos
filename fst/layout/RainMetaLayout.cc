@@ -120,7 +120,7 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
   // Do some minimal checkups
   if (mNbTotalFiles < 6) {
     eos_err("msg=\"failed open, stripe size must be at least 6\" "
-            "stripe_size=%u", mNbDataFiles);
+            "stripe_size=%u", mNbTotalFiles);
     return SFS_ERROR;
   }
 
