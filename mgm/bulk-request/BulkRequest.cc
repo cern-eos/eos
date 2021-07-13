@@ -22,6 +22,9 @@
  ************************************************************************/
 
 #include "BulkRequest.hh"
+#include "common/exception/Exception.hh"
+#include <sstream>
+#include "mgm/bulk-request/exception/BulkRequestException.hh"
 
 EOSBULKNAMESPACE_BEGIN
 
@@ -37,12 +40,22 @@ void BulkRequest::addPath(const std::string & path) {
 }
 
 void BulkRequest::addError(const std::string &path, const std::string & error) {
-  mFileCollection.addError(path,error);
+  try {
+    mFileCollection.addError(path, error);
+  } catch(const common::Exception &ex){
+    std::ostringstream oss;
+    oss << "In BulkRequest::addError(), an exception occured. ExceptionWhat=" << ex.what();
+    throw BulkRequestException(oss.str());
+  }
 }
 
 const std::shared_ptr<FileCollection::Files> BulkRequest::getFiles() const
 {
   return mFileCollection.getAllFiles();
+}
+
+const std::shared_ptr<std::set<File>> BulkRequest::getAllFilesInError() const {
+  return mFileCollection.getAllFilesInError();
 }
 
 const std::string BulkRequest::bulkRequestTypeToString(const BulkRequest::Type & bulkRequestType){

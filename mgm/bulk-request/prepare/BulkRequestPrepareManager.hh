@@ -59,6 +59,13 @@ protected:
   void initializeEvictPrepareRequest(XrdOucString& reqid) override;
 
   /**
+   * This overriding method will set an error message to the corresponding path in the bulk-request
+   * @param path the path of the file to set the error
+   * @param error the error to set to the path of the file
+   */
+  void setErrorToBulkRequest(const std::string & path, const std::string & error) override;
+
+  /**
    * Adds the path passed in parameter to this instance's bulk-request
    * @param path the path to add to the bulk-request
    */
