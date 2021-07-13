@@ -183,7 +183,10 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
       //https://its.cern.ch/jira/browse/EOS-4739
       //For every prepare scenario, we continue to process the files even if they do not exist or are not correct
       //The user will then have to query prepare to figure out that the files do not exist
-      eos_info("msg=\"prepare - file does not exist or is not accessible to you\" path=\"%s\"",prep_path.c_str());
+      std::ostringstream oss;
+      oss << "msg=\"prepare - file does not exist or is not accessible to you\" path=\"" << prep_path.c_str() << "\"";
+      eos_info(oss.str().c_str());
+      setErrorToBulkRequest(prep_path.c_str(),oss.str());
       goto nextPath;
     }
 
@@ -202,10 +205,19 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
                                       optr != nullptr ? & (optr->text) : nullptr);
       } else {
         // don't do workflow if no such tag
+        std::ostringstream oss;
+        oss << "No prepare workflow set on the directory " << eos::common::Path(prep_path.c_str()).GetParentPath();
+        setErrorToBulkRequest(prep_path.c_str(),oss.str());
         goto nextPath;
       }
     } else {
       // don't do workflow if event not set or we can't check attributes
+      if(!event.empty()) {
+        std::ostringstream oss;
+        oss << "Unable to check the extended attributes of the directory "
+            << eos::common::Path(prep_path.c_str()).GetParentPath();
+        setErrorToBulkRequest(prep_path.c_str(), oss.str());
+      }
       goto nextPath;
     }
 
@@ -215,7 +227,10 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
       //For every prepare scenario, we continue to process the files even if they do not exist or are not correct
       //The user will then have to query prepare to figure out that the directory where the files are located has
       //no workflow permission
-      eos_info("msg=\"Ignoring file because there is no workflow permission\" path=\"%s\"",prep_path.c_str());
+      std::ostringstream oss;
+      oss << "msg=\"Ignoring file because there is no workflow permission\" path=\"" << prep_path.c_str() << "\"";
+      eos_info(oss.str().c_str());
+      setErrorToBulkRequest(prep_path.c_str(),oss.str());
       pathsToPrepare.pop_back();
       goto nextPath;
     }

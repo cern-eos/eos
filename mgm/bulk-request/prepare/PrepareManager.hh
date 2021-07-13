@@ -72,6 +72,8 @@ protected:
 
   virtual void initializeEvictPrepareRequest(XrdOucString & reqid);
 
+  virtual void setErrorToBulkRequest(const std::string & path, const std::string & error) {}
+
   /**
    * Returns the Prepare actions to perform from the options given by Xrootd (XrdSfsPrep.opts)
    * @param pargsOpts the prepare options given by Xrootd (XrdSfsPrep.opts)

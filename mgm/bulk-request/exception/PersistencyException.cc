@@ -22,26 +22,11 @@
  ************************************************************************/
 
 #include "PersistencyException.hh"
-#include <xrootd/XrdSfs/XrdSfsInterface.hh>
+
 
 EOSBULKNAMESPACE_BEGIN
 
-PersistencyException::PersistencyException(const std::string& exceptionMsg):std::exception(),mErrorMsg(exceptionMsg){
-}
-
-const char * PersistencyException::what() const noexcept {
-  return mErrorMsg.c_str();
-}
-
-int PersistencyException::fillXrdErrInfo(XrdOucErrInfo & error,int errorCode) const {
-  char buffer[4096];
-  // Get the reason for the error
-  if (errorCode < 0) {
-    errorCode = -errorCode;
-  }
-  snprintf(buffer, sizeof(buffer), mErrorMsg.c_str());
-  error.setErrInfo(errorCode,buffer);
-  return SFS_ERROR;
+PersistencyException::PersistencyException(const std::string& exceptionMsg):common::Exception(exceptionMsg){
 }
 
 EOSBULKNAMESPACE_END

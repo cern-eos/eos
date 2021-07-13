@@ -135,7 +135,8 @@ add_library(EosCommon-Objects OBJECT
   table_formatter/TableFormatterBase.cc
   config/ConfigParsing.cc
   token/EosTok.cc
-  utils/XrdUtils.cc)
+  utils/XrdUtils.cc
+  exception/Exception.cc)
 
 # Avoid warnings related to bfd_get_section* macros being redefined
 target_compile_options(EosCommon-Objects PRIVATE -Wno-macro-redefined)

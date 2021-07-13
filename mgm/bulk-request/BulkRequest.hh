@@ -91,6 +91,11 @@ public:
    */
   static const std::string bulkRequestTypeToString(const Type & bulkRequestType);
 
+  /**
+   * Returns the set of files that have an error
+   * @return the set of files that have an error
+   */
+  const std::shared_ptr<std::set<File>> getAllFilesInError() const;
 private:
   //Id of the bulk request
   std::string mId;
