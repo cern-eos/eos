@@ -40,6 +40,7 @@ public:
   void addFile(const std::string & path);
   const std::shared_ptr<Files> getAllFiles() const;
   void addError(const std::string &path, const std::string & error);
+  const std::shared_ptr<std::set<File>> getAllFilesInError() const;
 private:
   std::shared_ptr<Files> mFiles;
 };
