@@ -117,7 +117,13 @@ TEST_F(BulkRequestPrepareManagerTest,stagePrepareAllFilesDoNotExist){
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
 
   //For the future, even if the files do not exist, they have to be in the bulk-request.
-  ASSERT_EQ(3, pm.getBulkRequest()->getFiles()->size());
+  auto bulkRequest = pm.getBulkRequest();
+  ASSERT_EQ(3, bulkRequest->getFiles()->size());
+  ASSERT_EQ(3, bulkRequest->getAllFilesInError()->size());
+  auto filesInError = bulkRequest->getAllFilesInError();
+  for(auto fileInError: *filesInError){
+    ASSERT_EQ(0,fileInError.getError().value().find("msg=\"prepare - file does not exist or is not accessible to you\""));
+  }
   ASSERT_EQ(SFS_DATA,retPrepare);
 }
 
