@@ -44,14 +44,30 @@ function pause() {
 }
 
 
-eos mkdir -p /eos/testarea/test2
-eos chmod 777 /eos/testarea/test2
+################ ENTRYPOINT ################
+
+# Set the target instance name and the test area
+if [ -e /etc/sysconfig/eos ];  then
+. /etc/sysconfig/eos
+fi
+if [ -z "$EOS_TEST_INSTANCE" ]; then
+  if [ -n "$EOS_INSTANCE_NAME" ]; then
+    export EOS_TEST_INSTANCE=${EOS_INSTANCE_NAME#eos}
+  else
+    export EOS_TEST_INSTANCE="dev"
+  fi
+fi
+EOS_TESTDIR="/eos/$EOS_TEST_INSTANCE/test/dynamicec" # more than 4-level depth, or `eos rm -r` asks for interactive confirmation
+
+
+eos mkdir -p ${EOS_TESTDIR}
+eos chmod 777 ${EOS_TESTDIR}
 
 #This is used for setting the systems different parameters in the directory
-eos attr set sys.forced.blocksize=1M /eos/testarea/test2
-eos attr set sys.forced.layout=raid6 /eos/testarea/test2
-eos attr set sys.forced.nstripes=6 /eos/testarea/test2
-eos attr set sys.forced.nexcess=2 /eos/testarea/test2
+eos attr set sys.forced.blocksize=1M ${EOS_TESTDIR}
+eos attr set sys.forced.layout=raid6 ${EOS_TESTDIR}
+eos attr set sys.forced.nstripes=6 ${EOS_TESTDIR}
+eos attr set sys.forced.nexcess=2 ${EOS_TESTDIR}
 
 # Create dummy test files
 fallocate -l 5000000 /tmp/5mbfile.dat                                                                                                                                                                   
@@ -60,7 +76,7 @@ TEST_FN2=/tmp/1mbfile.dat
 
 
 for name in {1..10}
-do eos cp ${TEST_FN1} /eos/testarea/test2/filetest$name; done
+do eos cp ${TEST_FN1} ${EOS_TESTDIR}/filetest$name; done
 
 pause 10
 
@@ -94,13 +110,13 @@ echo "done configuration"
 
 pause 390
 
-val=$(eos file info /eos/testarea/test2/filetest1 | grep Layout | awk '{print $10}')
+val=$(eos file info ${EOS_TESTDIR}/filetest1 | grep Layout | awk '{print $10}')
 echo $val
 
 if [ $val != "d3+2::t0" ]; then
   red "This has a failure for the system wich did fail."
 
-  eos rm -r /eos/testarea/test2/
+  eos rm -r ${EOS_TESTDIR}/
 
   eos space config default space.dynamicec.maxthreshold=$maxthreshold
   eos space config default space.dynamicec.minthreshold=$minthreshold
@@ -119,20 +135,20 @@ fi
 green "Succes for the test part 1, now we will try again."
 
 for name in {11..20}
-do eos cp ${TEST_FN1} /eos/testarea/test2/filetest$name; done
+do eos cp ${TEST_FN1} ${EOS_TESTDIR}/filetest$name; done
 
 
 pause 390
 
-val=`eos file info /eos/testarea/test2/filetest11 | grep Layout | awk '{print $10}'`
+val=`eos file info ${EOS_TESTDIR}/filetest11 | grep Layout | awk '{print $10}'`
 echo $val
 
 if [ $val != "d3+2::t0" ];
 then
 red "This has a faliure for the system wich did fail to clean up for the second wave of files and are not reliable."
 
-eos rm /eos/testarea/test2/*
-eos rmdir /eos/testarea/test2
+eos rm ${EOS_TESTDIR}/*
+eos rmdir ${EOS_TESTDIR}
 
 eos space config default space.dynamicec.maxthreshold=$maxthreshold
 eos space config default space.dynamicec.minthreshold=$minthreshold
@@ -149,8 +165,8 @@ fi
 
 green "both test had succes"
 
-eos rm /eos/testarea/test2/*
-eos rmdir /eos/testarea/test2
+eos rm ${EOS_TESTDIR}/*
+eos rmdir ${EOS_TESTDIR}
 
 eos space config default space.dynamicec.maxthreshold=$maxthreshold
 eos space config default space.dynamicec.minthreshold=$minthreshold

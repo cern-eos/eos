@@ -122,7 +122,7 @@ RmHelper::ParseCommand(const char* arg)
   eos::common::Path cPath(path.c_str());
 
   if (path.length()) {
-    mNeedsConfirmation = rm->recursive() && (cPath.GetSubPathSize() < 4);
+    mNeedsConfirmation = rm->recursive() && (cPath.GetSubPathSize() < 4); // "less then 4" is so arbitrary... but we use it that way. @todo review
   }
 
   return true;
