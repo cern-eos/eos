@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file PersistenceException.hh
+//! @file BulkRequestException.hh
 //! @author Cedric Caffy - CERN
 //------------------------------------------------------------------------------
 
@@ -20,28 +20,27 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
+#ifndef EOS_BULKREQUESTEXCEPTION_HH
+#define EOS_BULKREQUESTEXCEPTION_HH
 
-#ifndef EOS_PERSISTENCYEXCEPTION_HH
-#define EOS_PERSISTENCYEXCEPTION_HH
+#include <exception>
+#include <string>
 
-#include "mgm/Namespace.hh"
-#include "common/exception/Exception.hh"
-
-EOSBULKNAMESPACE_BEGIN
-
-/**
- * Exception class for handling bulk-request persistency exceptions
- */
-class PersistencyException : public common::Exception {
+class BulkRequestException : public std::exception {
 public:
   /**
    * Constructor of the PersistencyException
    * @param exceptionMsg the error message associated to this exception
    */
-  PersistencyException(const std::string & exceptionMsg);
+  BulkRequestException(const std::string & exceptionMsg);
+  /**
+   * Returns the message of this exception
+   * @return the message of this exception
+   */
+  virtual const char*  what() const noexcept;
 
+private:
+  std::string mErrorMsg;
 };
 
-EOSBULKNAMESPACE_END
-
-#endif // EOS_PERSISTENCYEXCEPTION_HH
+#endif // EOS_BULKREQUESTEXCEPTION_HH

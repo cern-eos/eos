@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file PersistenceException.hh
+//! @file Exception.cc
 //! @author Cedric Caffy - CERN
 //------------------------------------------------------------------------------
 
@@ -21,27 +21,27 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_PERSISTENCYEXCEPTION_HH
-#define EOS_PERSISTENCYEXCEPTION_HH
+#include "Exception.hh"
+#include <xrootd/XrdSfs/XrdSfsInterface.hh>
 
-#include "mgm/Namespace.hh"
-#include "common/exception/Exception.hh"
+EOSCOMMONNAMESPACE_BEGIN
 
-EOSBULKNAMESPACE_BEGIN
+Exception::Exception(const std::string& exceptionMsg):std::exception(),mErrorMsg(exceptionMsg){
+}
 
-/**
- * Exception class for handling bulk-request persistency exceptions
- */
-class PersistencyException : public common::Exception {
-public:
-  /**
-   * Constructor of the PersistencyException
-   * @param exceptionMsg the error message associated to this exception
-   */
-  PersistencyException(const std::string & exceptionMsg);
+const char * Exception::what() const noexcept {
+  return mErrorMsg.c_str();
+}
 
-};
+int Exception::fillXrdErrInfo(XrdOucErrInfo & error,int errorCode) const {
+  char buffer[4096];
+  // Get the reason for the error
+  if (errorCode < 0) {
+    errorCode = -errorCode;
+  }
+  snprintf(buffer, sizeof(buffer), mErrorMsg.c_str());
+  error.setErrInfo(errorCode,buffer);
+  return SFS_ERROR;
+}
 
-EOSBULKNAMESPACE_END
-
-#endif // EOS_PERSISTENCYEXCEPTION_HH
+EOSCOMMONNAMESPACE_END

@@ -24,6 +24,7 @@
 #include "BulkRequestPrepareManager.hh"
 #include "mgm/bulk-request/BulkRequestFactory.hh"
 #include "mgm/bulk-request/exception/PersistencyException.hh"
+#include "mgm/bulk-request/exception/BulkRequestException.hh"
 
 EOSBULKNAMESPACE_BEGIN
 
@@ -47,6 +48,17 @@ void BulkRequestPrepareManager::initializeStagePrepareRequest(XrdOucString& reqi
 void BulkRequestPrepareManager::initializeEvictPrepareRequest(XrdOucString& reqid) {
   mBulkRequest.reset(BulkRequestFactory::createEvictBulkRequest());
   reqid = mBulkRequest->getId().c_str();
+}
+
+void BulkRequestPrepareManager::setErrorToBulkRequest(const std::string& path, const std::string& error) {
+  try {
+    if(mBulkRequest != nullptr)
+      mBulkRequest->addError(path, error);
+  } catch(const BulkRequestException &ex) {
+    std::ostringstream oss;
+    oss << "msg=\"Unable to add an error to the path " << path << " in the bulk-request " << mBulkRequest->getId() << "\" ExceptionMsg=\"" << ex.what() << "\"";
+    eos_warning(oss.str().c_str());
+  }
 }
 
 void BulkRequestPrepareManager::addPathToBulkRequest(const std::string& path) {

@@ -22,6 +22,9 @@
  ************************************************************************/
 
 #include "FileCollection.hh"
+#include <sstream>
+#include "mgm/bulk-request/exception/BulkRequestException.hh"
+#include "common/exception/Exception.hh"
 
 EOSBULKNAMESPACE_BEGIN
 
@@ -38,7 +41,23 @@ const std::shared_ptr<FileCollection::Files> FileCollection::getAllFiles() const
 }
 
 void FileCollection::addError(const std::string & path, const std::string & error) {
-  this->mFiles->at(path).setError(error);
+  try {
+    mFiles->at(path).setError(error);
+  } catch(const std::exception & ex){
+    std::ostringstream ss;
+    ss << "Cannot add the error " << error << " to the path " << path << " because it does not exist in the file collection";
+    throw common::Exception(ss.str());
+  }
+}
+
+const std::shared_ptr<std::set<File>> FileCollection::getAllFilesInError() const {
+  std::shared_ptr<std::set<File>> filesInError(new std::set<File>());
+  for(const auto & pathFile: *mFiles){
+    if(pathFile.second.getError()){
+      filesInError->insert(pathFile.second);
+    }
+  }
+  return filesInError;
 }
 
 EOSBULKNAMESPACE_END
