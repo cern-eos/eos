@@ -184,9 +184,10 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
       //For every prepare scenario, we continue to process the files even if they do not exist or are not correct
       //The user will then have to query prepare to figure out that the files do not exist
       std::ostringstream oss;
-      oss << "msg=\"prepare - file does not exist or is not accessible to you\" path=\"" << prep_path.c_str() << "\"";
+      std::string errorMsg = "prepare - file does not exist or is not accessible to you";
+      oss << "msg=\"" << errorMsg << "\" path=\"" << prep_path.c_str() << "\"";
       eos_info(oss.str().c_str());
-      setErrorToBulkRequest(prep_path.c_str(),oss.str());
+      setErrorToBulkRequest(prep_path.c_str(),errorMsg);
       goto nextPath;
     }
 
@@ -228,7 +229,8 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
       //The user will then have to query prepare to figure out that the directory where the files are located has
       //no workflow permission
       std::ostringstream oss;
-      oss << "msg=\"Ignoring file because there is no workflow permission\" path=\"" << prep_path.c_str() << "\"";
+      std::string errorMsg = "Ignoring file because there is no workflow permission";
+      oss << "msg=\"" << errorMsg << "\" path=\"" << prep_path.c_str() << "\"";
       eos_info(oss.str().c_str());
       setErrorToBulkRequest(prep_path.c_str(),oss.str());
       pathsToPrepare.pop_back();
