@@ -69,24 +69,24 @@ void ProcDirectoryBulkRequestDAO::insertBulkRequestFilesToBulkRequestDirectory(c
   EXEC_TIMING_BEGIN("ProcDirectoryBulkRequestDAO::insertBulkRequestFilesToBulkRequestDirectory");
   const auto & files = *bulkRequest->getFiles();
   //Map of files associated to the future object for the in-memory prefetching of the file informations
-  std::map<std::string,folly::Future<IFileMDPtr>> pathsWithMDFutures;
+  std::map<bulk::File,folly::Future<IFileMDPtr>> filesWithMDFutures;
   for(auto & file : files){
     std::string path = file.first;
-    std::pair<std::string,folly::Future<IFileMDPtr>> itemToInsert(path,mFileSystem->eosView->getFileFut(path , false));
-    pathsWithMDFutures.emplace(std::move(itemToInsert));
+    std::pair<bulk::File,folly::Future<IFileMDPtr>> itemToInsert(file.second,mFileSystem->eosView->getFileFut(path , false));
+    filesWithMDFutures.emplace(std::move(itemToInsert));
   }
-  for(auto & fileMd: pathsWithMDFutures){
+  for(auto & fileMd: filesWithMDFutures){
       fileMd.second.wait();
   }
-  for(auto & pathWithMDFuture : pathsWithMDFutures){
-    const std::string & currentFilePath = pathWithMDFuture.first;
+  for(auto & fileWithMDFuture : filesWithMDFutures){
+    const std::string & currentFilePath = fileWithMDFuture.first.getPath();
     std::ostringstream pathOfFileToTouch;
     pathOfFileToTouch << bulkReqProcPath << "/";
     std::shared_ptr<IFileMD> file;
     try {
       eos::common::RWMutexReadLock nsLock(mFileSystem->eosViewRWMutex,
                                           __FUNCTION__, __LINE__, __FILE__);
-      file = mFileSystem->eosView->getFile(pathWithMDFuture.first);
+      file = mFileSystem->eosView->getFile(currentFilePath);
       pathOfFileToTouch << file->getId();
     } catch (const eos::MDException &ex){
       //The file does not exist, we will store the path under the same format as it is in the recycle bin
@@ -109,6 +109,7 @@ void ProcDirectoryBulkRequestDAO::insertBulkRequestFilesToBulkRequestDirectory(c
              << bulkRequest->getId() << " ErrorMsg=" << error.getErrText();
       throw PersistencyException(errMsg.str());
     }
+    persistErrorIfAny(pathOfFileToTouch.str(), fileWithMDFuture.first);
   }
   EXEC_TIMING_END("ProcDirectoryBulkRequestDAO::insertBulkRequestFilesToBulkRequestDirectory");
 }
@@ -145,6 +146,22 @@ void ProcDirectoryBulkRequestDAO::cleanAfterExceptionHappenedDuringBulkRequestSa
     debugMsg << "In ProcDirectoryBulkRequestDAO::cleanAfterExceptionHappenedDuringBulkRequestSave() "
              << "unable to clean the directory " << bulkReqProcPath << "ErrorMsg=" << lError.getErrText();
     eos_debug(debugMsg.str().c_str());
+  }
+}
+
+void ProcDirectoryBulkRequestDAO::persistErrorIfAny(const std::string & persistedFilePath, const bulk::File & file) {
+  XrdOucErrInfo errorAttrSet;
+
+  std::optional<std::string> errorMsg = file.getError();
+  if(errorMsg) {
+    int retAttrSet = mFileSystem->_attr_set(persistedFilePath.c_str(), errorAttrSet, mVid, nullptr, "error_msg", errorMsg.value().c_str());
+    if(retAttrSet != SFS_OK) {
+      std::ostringstream oss;
+      oss << "In ProcDirectoryBulkRequestDAO::persistErrorIfAny(), could not set the error extended attribute to the file path "
+          << persistedFilePath << " ErrorMsg=" << errorAttrSet.getErrText();
+      eos_debug(oss.str().c_str());
+      throw PersistencyException(oss.str());
+    }
   }
 }
 
