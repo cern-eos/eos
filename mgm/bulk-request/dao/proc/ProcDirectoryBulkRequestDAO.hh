@@ -81,6 +81,13 @@ private:
    * @param bulkReqProcPath the directory where this bulk-request should have been stored
    */
   void cleanAfterExceptionHappenedDuringBulkRequestSave(const std::shared_ptr<BulkRequest> bulkRequest, const std::string & bulkReqProcPath);
+
+  /**
+   * Persists the error of the file by adding an extended attribute "bulk_req_error"
+   * @param persistedFilePath the path of the file in the /proc/ directory
+   * @param file the file that may have an error
+   */
+  void persistErrorIfAny(const std::string & persistedFilePath,const bulk::File & file);
 };
 
 EOSBULKNAMESPACE_END
