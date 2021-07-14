@@ -684,7 +684,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             (key == "converter") ||
             (key == "tracker") ||
             (key == "inspector") ||
-            (key == "dynamicEC") ||
+            (key == "dynamicec") ||
             (key == "dynamicec.minsize") ||
             (key == "dynamicec.test") ||
             (key == "dynamicec.waittime") ||
@@ -726,7 +726,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             (key == eos::common::SCAN_NS_RATE_NAME)) {
           if ((key == "balancer") || (key == "converter") || (key == "tracker") ||
               (key == "inspector") ||
-              (key == "dynamicEC") ||
+              (key == "dynamicec") ||
               (key == "dynamicec.test") ||
               (key == "dynamicec.restartscan") ||
               (key == "dynamicec.printall") ||
@@ -782,7 +782,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                   }
                 }
 
-                if (key == "dynamiceC") {
+                if (key == "dynamicec") {
                   applied = true;
 
                   if (value == "on") {
