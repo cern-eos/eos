@@ -123,24 +123,42 @@ DynamicEC::DynamicEC(const char* spacename, uint64_t ageNew,  uint64_t size,
   }
 }
 
+//--------------------------------------------------------------------------------------
+//! Set the space name for the system
+//!
+//! @param mSpaceName is the name of the space for what the system will work in
+//--------------------------------------------------------------------------------------
 void
 DynamicEC::setNameSpace(std::string nameSpace)
 {
   mSpaceName = nameSpace;
 }
 
+//--------------------------------------------------------------------------------------
+//! Get the space name for the system
+//!
+//! @param mSpaceName is the name of the space for what the system will work in
+//--------------------------------------------------------------------------------------
 std::string
 DynamicEC::getNameSpace()
 {
   return mSpaceName;
 }
 
+//--------------------------------------------------------------------------------------
+//! Set the working directory, where the system will scan and work in
+//!
+//! @param mDirectory the directory, where the system will work from
+//--------------------------------------------------------------------------------------
 void
 DynamicEC::setDirectory(std::string directory)
 {
   mDirectory = directory;
 }
 
+//--------------------------------------------------------------------------------------
+//! Restart the scan
+//--------------------------------------------------------------------------------------
 void
 DynamicEC::restartScan()
 {
@@ -151,6 +169,9 @@ DynamicEC::restartScan()
   }
 }
 
+//--------------------------------------------------------------------------------------
+//! Return the status files, which will be checked in order to see if they can be reduced
+//--------------------------------------------------------------------------------------
 std::map<uint64_t, std::shared_ptr<eos::IFileMD>>
     DynamicEC::GetMap()
 {
@@ -1280,7 +1301,7 @@ DynamicEC::performCycleQDBMD(ThreadAssistant& assistant) noexcept
     ndirs = (unsigned long long) gOFS->eosDirectoryService->getNumContainers();
   }
 
-  if (!mDirectory.empty()) {
+  if (mDirectory != "") {
     auto container = gOFS->eosView->getContainer(mDirectory);
 
     for (auto it = container->filesBegin(); it != container->filesEnd(); it++) {
