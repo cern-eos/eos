@@ -274,7 +274,6 @@ add_library(
   bulk-request/exception/PersistencyException.cc
   bulk-request/exception/BulkRequestException.cc
   bulk-request/interface/RealMgmFileSystemInterface.cc
-  bulk-request/interface/DummyMgmFileSystemInterface.cc
   bulk-request/prepare/PrepareUtils.cc
   ${FUSEX_SRCS})
 
