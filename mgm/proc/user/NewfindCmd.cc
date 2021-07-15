@@ -51,7 +51,6 @@ static bool eliminateBasedOnFileMatch(const eos::console::FindProto& req,
 {
   std::string toFilter = md->getName();
   std::regex filter(req.name(), std::regex_constants::egrep);
-
   return (!req.name().empty()) && (!std::regex_search(toFilter, filter));
 }
 
