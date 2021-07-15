@@ -56,4 +56,12 @@ int RealMgmFileSystemInterface::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucEr
   return mMgmOfs->FSctl(cmd, args, error, client);
 }
 
+int RealMgmFileSystemInterface::_stat(const char* path, struct stat* buf, XrdOucErrInfo& error, eos::common::VirtualIdentity& vid, const char* ininfo, std::string* etag, bool follow, std::string* uri) {
+  return mMgmOfs->_stat(path,buf,error,vid,ininfo,etag,follow,uri);
+}
+
+void RealMgmFileSystemInterface::_stat_set_flags(struct stat* buf) {
+  mMgmOfs->_stat_set_flags(buf);
+}
+
 EOSBULKNAMESPACE_END

@@ -66,6 +66,8 @@ public:
    */
   virtual int prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client);
 
+  virtual int queryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client);
+
 protected:
 
   virtual void initializeStagePrepareRequest(XrdOucString & reqid);
@@ -116,6 +118,8 @@ protected:
    * @returns the status code of the issued prepare request
    */
   int doPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client);
+
+  int doQueryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client);
 
   const std::string mEpname="prepare";
   //The prepare action that is launched by the "prepare()" method
