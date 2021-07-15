@@ -33,6 +33,9 @@
 #include <mgm/XrdMgmOfs.hh>
 #include <mgm/bulk-request/exception/PersistencyException.hh>
 #include <mgm/bulk-request/prepare/PrepareUtils.hh>
+#include "common/Constants.hh"
+#include "mgm/bulk-request/response/QueryPrepareResponse.hh"
+#include <xrootd/XrdSfs/XrdSfsFlags.hh>
 
 EOSBULKNAMESPACE_BEGIN
 
@@ -232,7 +235,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
       std::string errorMsg = "Ignoring file because there is no workflow permission";
       oss << "msg=\"" << errorMsg << "\" path=\"" << prep_path.c_str() << "\"";
       eos_info(oss.str().c_str());
-      setErrorToBulkRequest(prep_path.c_str(),oss.str());
+      setErrorToBulkRequest(prep_path.c_str(),errorMsg);
       pathsToPrepare.pop_back();
       goto nextPath;
     }
@@ -352,6 +355,158 @@ void PrepareManager::triggerPrepareWorkflow(const std::list<std::pair<char**, ch
               prep_path.c_str(), error.getErrText());
     }
   }
+}
+
+int PrepareManager::queryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client) {
+  return doQueryPrepare(pargs, error, client);
+}
+
+int PrepareManager::doQueryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client) {
+  EXEC_TIMING_BEGIN("QueryPrepare");
+  ACCESSMODE_R;
+  eos_info("cmd=\"_prepare_query\"");
+  eos::common::VirtualIdentity vid;
+  {
+    const char* tident = error.getErrUser();
+    XrdOucTList* optr = pargs.oinfo;
+    std::string info(optr && optr->text ? optr->text : "");
+    eos::common::Mapping::IdMap(client, info.c_str(), tident, vid);
+  }
+  MAYSTALL;
+  {
+    const char* path = "/";
+    const char* ininfo = "";
+    MAYREDIRECT;
+  }
+  int path_cnt = 0;
+  for (XrdOucTList* pptr = pargs.paths; pptr; pptr = pptr->next) {
+    ++path_cnt;
+  }
+
+  mMgmFsInterface.addStats("QueryPrepare", vid.uid, vid.gid, path_cnt);
+  // ID of the original prepare request. We don't need this to look up the list of files in
+  // the request, as they are provided in the arguments. Anyway we return it in the reply
+  // as a convenience for the client to track which prepare request the query applies to.
+  XrdOucString reqid(pargs.reqid);
+  std::vector<QueryPrepareResponse> response;
+
+  // Set the response for each file in the list
+  for (XrdOucTList* pptr = pargs.paths; pptr; pptr = pptr->next) {
+    if (!pptr->text) {
+      continue;
+    }
+
+    response.push_back(QueryPrepareResponse(pptr->text));
+    auto& rsp = response.back();
+    // check if the file exists
+    XrdOucString prep_path;
+    {
+      const char* inpath = rsp.path.c_str();
+      const char* ininfo = "";
+      NAMESPACEMAP;
+      prep_path = path;
+    }
+    {
+      const char* path = rsp.path.c_str();
+      const char* ininfo = "";
+      MAYREDIRECT;
+    }
+
+    if (prep_path.length() == 0) {
+      rsp.error_text = "path empty or uses forbidden characters";
+      continue;
+    }
+
+    XrdSfsFileExistence check;
+
+    if (gOFS->_exists(prep_path.c_str(), check, error, client, "") ||
+        check != XrdSfsFileExistIsFile) {
+      rsp.error_text = "file does not exist or is not accessible to you";
+      continue;
+    }
+
+    rsp.is_exists = true;
+
+    // Check file state (online/offline)
+    XrdOucErrInfo xrd_error;
+    struct stat buf;
+
+    if (mMgmFsInterface._stat(rsp.path.c_str(), &buf, xrd_error, vid, nullptr, nullptr, false)) {
+      rsp.error_text = xrd_error.getErrText();
+      continue;
+    }
+
+    mMgmFsInterface._stat_set_flags(&buf);
+    rsp.is_on_tape = buf.st_rdev & XRDSFS_HASBKUP;
+    rsp.is_online  = !(buf.st_rdev & XRDSFS_OFFLINE);
+    // Check file status in the extended attributes
+    eos::IFileMD::XAttrMap xattrs;
+
+    if (mMgmFsInterface._attr_ls(eos::common::Path(prep_path.c_str()).GetPath(), xrd_error, vid,
+                 nullptr, xattrs) == 0) {
+      auto xattr_it = xattrs.find(eos::common::RETRIEVE_REQID_ATTR_NAME);
+
+      if (xattr_it != xattrs.end()) {
+        // has file been requested? (not necessarily with this request ID)
+        rsp.is_requested = !xattr_it->second.empty();
+        // and is this specific request ID present in the request?
+        rsp.is_reqid_present = (xattr_it->second.find(reqid.c_str()) != string::npos);
+      }
+
+      xattr_it = xattrs.find(eos::common::RETRIEVE_REQTIME_ATTR_NAME);
+
+      if (xattr_it != xattrs.end()) {
+        rsp.request_time = xattr_it->second;
+      }
+
+      xattr_it = xattrs.find(eos::common::RETRIEVE_ERROR_ATTR_NAME);
+
+      if (xattr_it == xattrs.end()) {
+        // If there is no retrieve error, check for an archive error
+        xattr_it = xattrs.find(eos::common::ARCHIVE_ERROR_ATTR_NAME);
+      }
+
+      if (xattr_it != xattrs.end()) {
+        rsp.error_text = xattr_it->second;
+      }
+    } else {
+      // failed to read extended attributes
+      rsp.error_text = xrd_error.getErrText();
+      continue;
+    }
+  }
+
+  // Build a JSON reply in the following format :
+  // { request ID, [ array of response objects, one for each file ] }
+  std::stringstream json_ss;
+  json_ss << "{"
+          << "\"request_id\":\"" << reqid << "\","
+          << "\"responses\":[";
+  bool is_first(true);
+
+  for (auto& r : response) {
+    if (is_first) {
+      is_first = false;
+    } else {
+      json_ss << ",";
+    }
+
+    json_ss << r;
+  }
+
+  json_ss << "]"
+          << "}";
+  // Send the reply. XRootD requires that we put it into a buffer that can be released with free().
+  auto  json_len = json_ss.str().length();
+  char* json_buf = reinterpret_cast<char*>(malloc(json_len));
+  strncpy(json_buf, json_ss.str().c_str(), json_len);
+  // Ownership of this buffer is passed to xrd_buff which has a Recycle() method.
+  XrdOucBuffer* xrd_buff = new XrdOucBuffer(json_buf, json_len);
+  // Ownership of xrd_buff is passed to error. Note that as we are returning SFS_DATA, the first
+  // parameter is the buffer length rather than an error code.
+  error.setErrInfo(xrd_buff->BuffSize(), xrd_buff);
+  EXEC_TIMING_END("QueryPrepare");
+  return SFS_DATA;
 }
 
 EOSBULKNAMESPACE_END
