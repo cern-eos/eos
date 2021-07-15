@@ -80,7 +80,6 @@
 #include "mgm/tracker/ReplicationTracker.hh"
 #include "mgm/inspector/FileInspector.hh"
 #include "mgm/XrdMgmOfs/fsctl/CommitHelper.hh"
-#include "mgm/QueryPrepareResponse.hh"
 #include "mgm/auth/AccessChecker.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "mgm/bulk-request/prepare/PrepareManager.hh"
@@ -114,6 +113,7 @@
 #include "mgm/bulk-request/interface/RealMgmFileSystemInterface.hh"
 #include "mgm/bulk-request/prepare/BulkRequestPrepareManager.hh"
 #include "mgm/bulk-request/dao/proc/ProcDirectoryBulkRequestLocations.hh"
+#include "mgm/bulk-request/response/QueryPrepareResponse.hh"
 
 #ifdef __APPLE__
 #define ECOMM 70
@@ -1079,6 +1079,12 @@ int
 XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error,
                           const XrdSecEntity* client)
 {
+#if !OLD_PREPARE
+  USE_EOSBULKNAMESPACE;
+  RealMgmFileSystemInterface mgmFsInterface(gOFS);
+  PrepareManager pm(mgmFsInterface);
+  return pm.queryPrepare(pargs,error,client);
+#else
   EXEC_TIMING_BEGIN("QueryPrepare");
   ACCESSMODE_R;
   eos_info("cmd=\"_prepare_query\"");
@@ -1106,7 +1112,7 @@ XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   // the request, as they are provided in the arguments. Anyway we return it in the reply
   // as a convenience for the client to track which prepare request the query applies to.
   XrdOucString reqid(pargs.reqid);
-  std::vector<QueryPrepareResponse> response;
+  std::vector<bulk::QueryPrepareResponse> response;
 
   // Set the response for each file in the list
   for (XrdOucTList* pptr = pargs.paths; pptr; pptr = pptr->next) {
@@ -1114,7 +1120,7 @@ XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       continue;
     }
 
-    response.push_back(QueryPrepareResponse(pptr->text));
+    response.push_back(bulk::QueryPrepareResponse(pptr->text));
     auto& rsp = response.back();
     // check if the file exists
     XrdOucString prep_path;
@@ -1231,6 +1237,7 @@ XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   error.setErrInfo(xrd_buff->BuffSize(), xrd_buff);
   EXEC_TIMING_END("QueryPrepare");
   return SFS_DATA;
+#endif
 }
 
 
