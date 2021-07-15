@@ -26,7 +26,7 @@
 
 #include "mgm/Namespace.hh"
 
-EOSMGMNAMESPACE_BEGIN
+EOSBULKNAMESPACE_BEGIN
 
 struct QueryPrepareResponse {
   QueryPrepareResponse() :
@@ -59,4 +59,4 @@ struct QueryPrepareResponse {
   std::string error_text;
 };
 
-EOSMGMNAMESPACE_END
+EOSBULKNAMESPACE_END

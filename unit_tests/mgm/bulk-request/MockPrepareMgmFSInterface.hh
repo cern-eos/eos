@@ -45,6 +45,8 @@ public:
   MOCK_METHOD7(_attr_ls,int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links));
   MOCK_METHOD6(_access,int(const char* path, int mode,XrdOucErrInfo& error, eos::common::VirtualIdentity& vid, const char* info, bool lock));
   MOCK_METHOD4(FSctl,int(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error, const XrdSecEntity* client));
+  MOCK_METHOD8(_stat,int(const char* Name, struct stat* buf, XrdOucErrInfo& out_error, eos::common::VirtualIdentity& vid, const char* opaque, std::string* etag, bool follow, std::string* uri));
+  MOCK_METHOD1(_stat_set_flags,void(struct stat* buf));
   ~MockPrepareMgmFSInterface(){}
 
   /**
