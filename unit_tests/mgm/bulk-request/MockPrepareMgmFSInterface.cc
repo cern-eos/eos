@@ -60,4 +60,21 @@ std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common:
       return SFS_OK;
     };
 
+std::function<int(const char* Name, struct stat* buf, XrdOucErrInfo& out_error, eos::common::VirtualIdentity& vid, const char* opaque, std::string* etag, bool follow, std::string* uri)>
+    MockPrepareMgmFSInterface::_STAT_FILE_ON_TAPE_ONLY =
+    [](const char* Name, struct stat* buf, XrdOucErrInfo& out_error, eos::common::VirtualIdentity& vid, const char* opaque, std::string* etag, bool follow, std::string* uri){
+      return SFS_OK;
+    };
+
+std::function<int(const char* Name, struct stat* buf, XrdOucErrInfo& out_error, eos::common::VirtualIdentity& vid, const char* opaque, std::string* etag, bool follow, std::string* uri)>
+    MockPrepareMgmFSInterface::_STAT_FILE_ON_DISK_ONLY =
+    [](const char* Name, struct stat* buf, XrdOucErrInfo& out_error, eos::common::VirtualIdentity& vid, const char* opaque, std::string* etag, bool follow, std::string* uri){
+      return SFS_OK;
+    };
+
+std::function<int(const char* Name, struct stat* buf, XrdOucErrInfo& out_error, eos::common::VirtualIdentity& vid, const char* opaque, std::string* etag, bool follow, std::string* uri)>
+    MockPrepareMgmFSInterface::_STAT_FILE_ON_DISK_AND_TAPE =
+    [](const char* Name, struct stat* buf, XrdOucErrInfo& out_error, eos::common::VirtualIdentity& vid, const char* opaque, std::string* etag, bool follow, std::string* uri){
+      return SFS_OK;
+    };
 EOSBULKNAMESPACE_END

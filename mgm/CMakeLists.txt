@@ -275,6 +275,9 @@ add_library(
   bulk-request/exception/BulkRequestException.cc
   bulk-request/interface/RealMgmFileSystemInterface.cc
   bulk-request/prepare/PrepareUtils.cc
+  bulk-request/utils/json/Jsonifier.cc
+  bulk-request/utils/json/JSONCppJsonifier.cc
+  bulk-request/prepare/prepare-query/QueryPrepareResult.cc
   ${FUSEX_SRCS})
 
 target_link_libraries(XrdEosMgm-Objects PUBLIC

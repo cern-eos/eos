@@ -113,6 +113,8 @@
 #include "mgm/bulk-request/prepare/BulkRequestPrepareManager.hh"
 #include "mgm/bulk-request/dao/proc/ProcDirectoryBulkRequestLocations.hh"
 #include "mgm/bulk-request/response/QueryPrepareResponse.hh"
+#include "mgm/bulk-request/prepare/prepare-query/QueryPrepareResult.hh"
+#include "mgm/bulk-request/utils/json/JSONCppJsonifier.hh"
 
 #ifdef __APPLE__
 #define ECOMM 70
@@ -1039,7 +1041,24 @@ XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   USE_EOSBULKNAMESPACE;
   RealMgmFileSystemInterface mgmFsInterface(gOFS);
   PrepareManager pm(mgmFsInterface);
-  return pm.queryPrepare(pargs,error,client);
+  std::unique_ptr<QueryPrepareResult> result = pm.queryPrepare(pargs,error,client);
+  if(result->hasQueryPrepareFinished()){
+    // Build a JSON reply in the following format :
+    // { request ID, [ array of queryPrepareFileResponses objects, one for each file ] }
+    JSONCppJsonifier jsonifier;
+    std::stringstream json_ss;
+    result->getResponse()->jsonify(&jsonifier,json_ss);
+    // Send the reply. XRootD requires that we put it into a buffer that can be released with free().
+    auto  json_len = json_ss.str().length();
+    char* json_buf = reinterpret_cast<char*>(malloc(json_len));
+    strncpy(json_buf, json_ss.str().c_str(), json_len);
+    // Ownership of this buffer is passed to xrd_buff which has a Recycle() method.
+    XrdOucBuffer* xrd_buff = new XrdOucBuffer(json_buf, json_len);
+    // Ownership of xrd_buff is passed to error. Note that as we are returning SFS_DATA, the first
+    // parameter is the buffer length rather than an error code.
+    error.setErrInfo(xrd_buff->BuffSize(), xrd_buff);
+  }
+  return result->getReturnCode();
 #else
   EXEC_TIMING_BEGIN("QueryPrepare");
   ACCESSMODE_R;
@@ -1068,7 +1087,7 @@ XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   // the request, as they are provided in the arguments. Anyway we return it in the reply
   // as a convenience for the client to track which prepare request the query applies to.
   XrdOucString reqid(pargs.reqid);
-  std::vector<bulk::QueryPrepareResponse> response;
+  std::vector<bulk::QueryPrepareFileResponse> response;
 
   // Set the response for each file in the list
   for (XrdOucTList* pptr = pargs.paths; pptr; pptr = pptr->next) {
@@ -1076,7 +1095,7 @@ XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       continue;
     }
 
-    response.push_back(bulk::QueryPrepareResponse(pptr->text));
+    response.push_back(bulk::QueryPrepareFileResponse(pptr->text));
     auto& rsp = response.back();
     // check if the file exists
     XrdOucString prep_path;
