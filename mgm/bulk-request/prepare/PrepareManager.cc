@@ -36,6 +36,7 @@
 #include "common/Constants.hh"
 #include "mgm/bulk-request/response/QueryPrepareResponse.hh"
 #include <xrootd/XrdSfs/XrdSfsFlags.hh>
+#include "mgm/bulk-request/utils/json/JSONCppJsonifier.hh"
 
 EOSBULKNAMESPACE_BEGIN
 
@@ -357,11 +358,14 @@ void PrepareManager::triggerPrepareWorkflow(const std::list<std::pair<char**, ch
   }
 }
 
-int PrepareManager::queryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client) {
-  return doQueryPrepare(pargs, error, client);
+std::unique_ptr<QueryPrepareResult> PrepareManager::queryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client) {
+  std::unique_ptr<QueryPrepareResult> queryPrepareResult(new QueryPrepareResult());
+  int retCode = doQueryPrepare(pargs, error, client,*queryPrepareResult);
+  queryPrepareResult->setReturnCode(retCode);
+  return queryPrepareResult;
 }
 
-int PrepareManager::doQueryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client) {
+int PrepareManager::doQueryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client, QueryPrepareResult & result) {
   EXEC_TIMING_BEGIN("QueryPrepare");
   ACCESSMODE_R;
   eos_info("cmd=\"_prepare_query\"");
@@ -388,16 +392,16 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, con
   // the request, as they are provided in the arguments. Anyway we return it in the reply
   // as a convenience for the client to track which prepare request the query applies to.
   XrdOucString reqid(pargs.reqid);
-  std::vector<QueryPrepareResponse> response;
+  std::shared_ptr<QueryPrepareResponse> response = result.getResponse();
 
-  // Set the response for each file in the list
+  // Set the queryPrepareFileResponses for each file in the list
   for (XrdOucTList* pptr = pargs.paths; pptr; pptr = pptr->next) {
     if (!pptr->text) {
       continue;
     }
 
-    response.push_back(QueryPrepareResponse(pptr->text));
-    auto& rsp = response.back();
+    response->responses.push_back(QueryPrepareFileResponse(pptr->text));
+    auto& rsp = response->responses.back();
     // check if the file exists
     XrdOucString prep_path;
     {
@@ -419,7 +423,7 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, con
 
     XrdSfsFileExistence check;
 
-    if (gOFS->_exists(prep_path.c_str(), check, error, client, "") ||
+    if (mMgmFsInterface._exists(prep_path.c_str(), check, error, client, "") ||
         check != XrdSfsFileExistIsFile) {
       rsp.error_text = "file does not exist or is not accessible to you";
       continue;
@@ -476,9 +480,9 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, con
     }
   }
 
-  // Build a JSON reply in the following format :
-  // { request ID, [ array of response objects, one for each file ] }
-  std::stringstream json_ss;
+  response->request_id = reqid.c_str();
+
+  /*
   json_ss << "{"
           << "\"request_id\":\"" << reqid << "\","
           << "\"responses\":[";
@@ -496,15 +500,10 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, con
 
   json_ss << "]"
           << "}";
-  // Send the reply. XRootD requires that we put it into a buffer that can be released with free().
-  auto  json_len = json_ss.str().length();
-  char* json_buf = reinterpret_cast<char*>(malloc(json_len));
-  strncpy(json_buf, json_ss.str().c_str(), json_len);
-  // Ownership of this buffer is passed to xrd_buff which has a Recycle() method.
-  XrdOucBuffer* xrd_buff = new XrdOucBuffer(json_buf, json_len);
-  // Ownership of xrd_buff is passed to error. Note that as we are returning SFS_DATA, the first
-  // parameter is the buffer length rather than an error code.
-  error.setErrInfo(xrd_buff->BuffSize(), xrd_buff);
+          */
+
+  result.setQueryPrepareFinished();
+
   EXEC_TIMING_END("QueryPrepare");
   return SFS_DATA;
 }
