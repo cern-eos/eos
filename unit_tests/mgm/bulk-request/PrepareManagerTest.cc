@@ -383,3 +383,33 @@ TEST_F(PrepareManagerTest,evictPrepareOneFileDoesNotExist){
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
   ASSERT_EQ(SFS_OK,retPrepare);
 }
+
+TEST_F(PrepareManagerTest,queryPrepare){
+  int nbFiles = 3;
+  std::vector<std::string> paths = PrepareManagerTest::generateDefaultPaths(nbFiles);
+  std::vector<std::string> oinfos = PrepareManagerTest::generateEmptyOinfos(nbFiles);
+
+  NiceMock<MockPrepareMgmFSInterface> mgmOfs;
+  //Exist will first return true for the first file, then return false
+  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_)).Times(nbFiles).WillOnce(Invoke(
+      MockPrepareMgmFSInterface::_EXISTS_FILE_EXISTS_LAMBDA)).WillRepeatedly(Invoke(
+      MockPrepareMgmFSInterface::_EXISTS_FILE_DOES_NOT_EXIST_LAMBDA));
+  //stat with one file on disk, on file on disk and tape
+  EXPECT_CALL(mgmOfs,_stat(_,_,_,_,_,_,_,_)).Times(1).WillOnce(Invoke(
+      MockPrepareMgmFSInterface::_STAT_FILE_ON_DISK_AND_TAPE));
+  //Attr ls should work for the files that exist
+  EXPECT_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_)).Times(1)
+      .WillRepeatedly(Invoke(
+          MockPrepareMgmFSInterface::_ATTR_LS_EVICT_PREPARE_LAMBDA
+      ));
+
+  ClientWrapper client = PrepareManagerTest::getDefaultClient();
+  PrepareArgumentsWrapper pargs("testReqId",Prep_QUERY,oinfos,paths);
+  ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
+  XrdOucErrInfo * error = errorWrapper.getError();
+
+  eos::mgm::bulk::PrepareManager pm(mgmOfs);
+
+  auto queryPrepareResult = pm.queryPrepare(*(pargs.getPrepareArguments()),*error,client.getClient());
+  ASSERT_EQ(SFS_DATA,queryPrepareResult->getReturnCode());
+}
