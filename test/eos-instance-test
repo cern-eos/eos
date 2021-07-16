@@ -1267,7 +1267,7 @@ runtest H "### Rm        " sss  0 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INS
 runtest H "### Upload    " sss  0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=99\&eos.rgid=99"  # owned by 99
 runtest   "### Chmod     " unix 0 "" eos chmod 775 /eos/$EOS_TEST_INSTANCE/test/instancetest
 runtest   "### Attr      " unix 0 "" eos attr set user.acl=g:99:rwxc /eos/$EOS_TEST_INSTANCE/test/instancetest              # 'c' (chown) in user.acl 
-runtest H "### Chown     " sss  0 "EOSROLE='-r 99 99'" eos chown 98 /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k       # fail: user.acl cannot grant this chown but 99 is the owner
+runtest H "### Chown     " sss  1 "EOSROLE='-r 99 99'" eos chown 98 /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k       # fail: user.acl cannot grant this chown
 runtest   "### Attr      " unix 0 "" eos attr set sys.acl=g:99:c /eos/$EOS_TEST_INSTANCE/test/instancetest                  # 'c' (chown) in sys.ascl 
 runtest H "### Chown     " sss  0 "EOSROLE='-r 99 99'" eos chown 98 /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k
 runtest   "### Attr      " unix 0 "" eos attr rm sys.acl /eos/$EOS_TEST_INSTANCE/test/instancetest
