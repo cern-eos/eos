@@ -30,6 +30,7 @@
 #include <string>
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/bulk-request/interface/IMgmFileSystemInterface.hh"
+#include "mgm/bulk-request/prepare/prepare-query/QueryPrepareResult.hh"
 
 EOSBULKNAMESPACE_BEGIN
 
@@ -66,7 +67,7 @@ public:
    */
   virtual int prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client);
 
-  virtual int queryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client);
+  virtual std::unique_ptr<QueryPrepareResult> queryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client);
 
 protected:
 
@@ -119,7 +120,7 @@ protected:
    */
   int doPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client);
 
-  int doQueryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client);
+  int doQueryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client, QueryPrepareResult & result);
 
   const std::string mEpname="prepare";
   //The prepare action that is launched by the "prepare()" method
