@@ -129,6 +129,7 @@ Share::Proc::CreateDir(const std::string& path)
     errno = EEXIST;
     return -1;
   }
+  errno = 0;
   return 0;
 }
 
@@ -176,7 +177,7 @@ Share::Proc::GetShareReference(const char* path)
     dmd = gOFS->eosView->getContainer(path);
     eos::ContainerIdentifier cmd_id = dmd->getIdentifier();
     shareattr = "pxid:";
-    shareattr += std::to_string(cmd_id.getUnderlyingUInt64());
+    shareattr += eos::common::FileId::Fid2Hex(cmd_id.getUnderlyingUInt64());
   } catch (eos::MDException& e) {
     errno = e.getErrno();
     return "";
@@ -192,13 +193,6 @@ Share::Proc::Create(eos::common::VirtualIdentity& vid,
 		    )
 {
   errno = 0 ;
-  // create path
-  std::string procpath = GetEntry(vid.uid, name);
-  // create share entry
-  int rc = CreateDir(procpath);
-  if (rc) {
-    return rc;
-  }
 
   std::string shareattr;
 
@@ -248,6 +242,14 @@ Share::Proc::Create(eos::common::VirtualIdentity& vid,
     }
   }
 
+  // create path
+  std::string procpath = GetEntry(vid.uid, name);
+  // create share entry
+  int rc = CreateDir(procpath);
+  if (rc) {
+    return rc;
+  }
+
   // add share root
   if (!share_root.empty()) {
     rc |= SetShareRoot(procpath, share_root);
@@ -280,11 +282,14 @@ Share::Proc::ModifyShare(const eos::common::VirtualIdentity& vid, std::string sh
     const char* item;
     while ( ( item = subtree.nextEntry() ) ) {
       std::string child = share_root;
-      if ( (child == ".") || (child == "..") ) {
+      std::string sitem = item;
+      if ( (sitem  == ".") || (sitem == "..") ) {
 	continue;
       }
       child += "/";
       child += item;
+
+      fprintf(stderr,"modify %s\n", child.c_str());
       // propagate to children
       rc |= ModifyShare(vid,shareattr, child, remove);
     }
@@ -302,9 +307,9 @@ Share::Proc::ModifyShareAttr(const std::string& path, const std::string& shareat
   XrdOucString value;
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
   int rc = gOFS->_attr_get(path.c_str(), error, root_vid, "", "sys.acl.share", value, false);
-  if (rc) {
-    return rc;
-  }
+  //  if (rc) {
+  //    return rc;
+  //  }
 
   std::vector<std::string> rules;
   std::string delimiter = ",";
