@@ -25,17 +25,23 @@
 #pragma once
 
 #include "mgm/Namespace.hh"
+#include <mgm/bulk-request/utils/json/Jsonifier.hh>
+#include <sstream>
+#include <string>
+#include <vector>
 
 EOSBULKNAMESPACE_BEGIN
 
-struct QueryPrepareResponse {
-  QueryPrepareResponse() :
-    is_exists(false), is_on_tape(false), is_online(false), is_requested(false), is_reqid_present(false) {}
+class QueryPrepareFileResponse {
+public:
 
-  QueryPrepareResponse(const std::string _path) :
-    path(_path), is_exists(false), is_on_tape(false), is_online(false), is_requested(false), is_reqid_present(false) {}
+  QueryPrepareFileResponse() :
+      is_exists(false), is_on_tape(false), is_online(false), is_requested(false), is_reqid_present(false) {}
 
-  friend std::ostream& operator<<(std::ostream& json, QueryPrepareResponse &qpr) {
+  QueryPrepareFileResponse(const std::string _path) :
+      path(_path), is_exists(false), is_on_tape(false), is_online(false), is_requested(false), is_reqid_present(false) {}
+
+  friend std::ostream& operator<<(std::ostream& json, QueryPrepareFileResponse &qpr) {
     json << "{"
          << "\"path\":\""       << qpr.path << "\","
          << "\"path_exists\":"  << (qpr.is_exists        ? "true," : "false,")
@@ -57,6 +63,16 @@ struct QueryPrepareResponse {
   bool is_reqid_present;
   std::string request_time;
   std::string error_text;
+};
+
+class QueryPrepareResponse {
+public:
+  std::string request_id;
+  std::vector<QueryPrepareFileResponse> responses;
+
+  void jsonify(Jsonifier * jsonifier, std::stringstream & oss) const {
+    jsonifier->jsonify(*this,oss);
+  }
 };
 
 EOSBULKNAMESPACE_END
