@@ -1636,18 +1636,19 @@ RainMetaLayout::GetGroup(uint64_t offset)
   uint64_t grp_off = (offset / mSizeGroup) * mSizeGroup;
   std::unique_lock<std::mutex> lock(mMutexGroups);
 
+  // if the group exists already, we don't care about mMaxGroups
+  auto it = mMapGroups.find(grp_off);
+
+  if (it != mMapGroups.end()) {
+    return it->second;
+  }
+
   if (mMapGroups.size() > mMaxGroups) {
     eos_info("msg=\"waiting for available slot group\" file=\"%s\"",
              mFileIO->GetPath().c_str());
     mCvGroups.wait(lock, [&]() {
       return (mMapGroups.size() < mMaxGroups);
     });
-  }
-
-  auto it = mMapGroups.find(grp_off);
-
-  if (it != mMapGroups.end()) {
-    return it->second;
   }
 
   std::shared_ptr<eos::fst::RainGroup> grp
