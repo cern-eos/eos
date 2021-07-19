@@ -45,6 +45,7 @@ Policy::GetSpacePolicyLayout(const char* space)
   long forcedgroup;
   unsigned long layoutid = 0;
   XrdOucString ret_space;
+  std::string bandwidth;
 
   eos::IContainerMD::XAttrMap attrmap;
   eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
@@ -56,6 +57,7 @@ Policy::GetSpacePolicyLayout(const char* space)
 		    env,
 		    forcedfsid,
 		    forcedgroup,
+		    bandwidth,
 		    true);
   return layoutid;
 }
@@ -69,6 +71,7 @@ Policy::GetLayoutAndSpace(const char* path,
                           XrdOucEnv& env,
                           unsigned long& forcedfsid,
                           long& forcedgroup, 
+			  std::string& bandwidth,
 			  bool lockview)
 
 {
@@ -80,6 +83,8 @@ Policy::GetLayoutAndSpace(const char* path,
   unsigned long bxsum = eos::common::LayoutId::GetBlockChecksumFromEnv(env);
   unsigned long stripes = eos::common::LayoutId::GetStripeNumberFromEnv(env);
   unsigned long blocksize = eos::common::LayoutId::GetBlocksizeFromEnv(env);
+  bandwidth = eos::common::LayoutId::GetBandwidthFromEnv(env);
+
   bool noforcedchecksum = false;
   const char* val = 0;
   bool conversion = IsProcConversion(path);
@@ -100,6 +105,19 @@ Policy::GetLayoutAndSpace(const char* path,
       spacepolicies["checksum"]  = it->second->GetConfigMember("policy.checksum");
       spacepolicies["blocksize"] = it->second->GetConfigMember("policy.blocksize");
       spacepolicies["blockchecksum"] = it->second->GetConfigMember("policy.blockchecksum");
+      bandwidth = it->second->GetConfigMember("policy.bandwidth");
+    }
+
+    // try application specific bandwidth setting
+    std::string appkey = "bw.";
+    if (env.Get("eos.app")) {
+      appkey += env.Get("eos.app");
+    } else {
+      appkey += "default";
+    }
+    std::string app_bandwidth = it->second->GetConfigMember(appkey);
+    if (app_bandwidth.length()) {
+      bandwidth = app_bandwidth;
     }
   }
 
@@ -140,8 +158,22 @@ Policy::GetLayoutAndSpace(const char* path,
 	spacepolicies["blocksize"] = space_blocksize;
       }
       if (space_blockxs.length()) {
-      spacepolicies["blockchecksum"] = space_blockxs;
+	spacepolicies["blockchecksum"] = space_blockxs;
       }
+
+      bandwidth = it->second->GetConfigMember("policy.bandwidth");
+    }
+
+    // try application specific bandwidth setting
+    std::string appkey = "bw.";
+    if (env.Get("eos.app")) {
+      appkey += env.Get("eos.app");
+    } else {
+      appkey += "default";
+    }
+    std::string app_bandwidth = it->second->GetConfigMember(appkey);
+    if (app_bandwidth.length()) {
+      bandwidth = app_bandwidth;
     }
   }
 
