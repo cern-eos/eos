@@ -1101,6 +1101,20 @@ public:
   }
 
   //--------------------------------------------------------------------------
+  //! Return bandwidth string from env
+  //--------------------------------------------------------------------------
+  static std::string
+  GetBandwidthFromEnv(XrdOucEnv& env)
+  {
+    const char* val = 0;
+
+    if ((val = env.Get("eos.iobw"))) {
+      return std::string(env.Get("eos.iobw"));
+    }
+    return "";
+  }
+
+  //--------------------------------------------------------------------------
   //! Return block checksum enum from string representation
   //--------------------------------------------------------------------------
   static unsigned long

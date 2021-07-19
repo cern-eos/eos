@@ -855,6 +855,28 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
       }
     }
 
+    // Set a bandwidth limitation parameter
+    if (!key.compare(0, 3, "bw.")) {
+      applied = true;
+
+      if (value == "remove") {
+	if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->DeleteConfigMember(
+										    key)) {
+	  ret_c = ENOENT;
+	  std_err.str("error: key has not been deleted");
+	} else {
+	  std_out.str("success: deleted stream  bandwidth setting: " + key);
+	}
+      } else {
+	if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key,value)) {
+	  ret_c = EIO;
+	  std_err.str("error: cannot set space config value");
+	} else {
+	  std_out.str("success: defining stream bandwidth limitation: " + key + "=" +value);
+	}
+      }
+    }
+
     // Set a filesystem related parameter
     if (!key.compare(0, 3, "fs.")) {
       applied = true;

@@ -304,8 +304,12 @@ public:
   off_t openSize; //! file size when the file was opened
   off_t closeSize; //! file size when the file was closed
   struct timeval openTime; //! time when a file was opened
+  struct timeval currentTime; //! time when a write occurs
+  unsigned long long totalBytes; //! total bytes IO
+  unsigned long long msSleep; //! total ms sleeping during io
   struct timeval closeTime; //! time when a file was closed
   struct timezone tz; //! timezone
+  int mBandwidth; //! bandwidth limitation setting
   XrdSysMutex vecMutex; //! mutex protecting the rvec/wvec variables
   //! vector with all read  sizes -> to compute sigma,min,max,total
   std::vector<unsigned long long> rvec;

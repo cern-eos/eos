@@ -1508,11 +1508,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   unsigned long new_lid = 0;
   eos::mgm::Scheduler::tPlctPolicy plctplcy;
   std::string targetgeotag;
+  std::string bandwidth;
+
   eos::common::RWMutexReadLock
   fs_rd_lock(FsView::gFsView.ViewMutex, __FUNCTION__, __LINE__, __FILE__);
   // select space and layout according to policies
   Policy::GetLayoutAndSpace(path, attrmap, vid, new_lid, space, *openOpaque,
-                            forcedFsId, forced_group);
+                            forcedFsId, forced_group, bandwidth);
   // get placement policy
   Policy::GetPlctPolicy(path, attrmap, vid, *openOpaque, plctplcy, targetgeotag);
   unsigned long long ext_mtime_sec = 0;
@@ -2473,6 +2475,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     // the recovery step and we need it for the stat information
     capability += "&mgm.rain.size=";
     capability += std::to_string(fmdsize).c_str();
+  }
+
+
+  if (bandwidth.length() && (bandwidth != "0")) {
+    capability += "&mgm.iobw=";
+    capability += bandwidth.c_str();
   }
 
   XrdOucString infolog = "";
