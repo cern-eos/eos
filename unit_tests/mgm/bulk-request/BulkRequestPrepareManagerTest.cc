@@ -122,7 +122,7 @@ TEST_F(BulkRequestPrepareManagerTest,stagePrepareAllFilesDoNotExist){
   ASSERT_EQ(3, bulkRequest->getAllFilesInError()->size());
   auto filesInError = bulkRequest->getAllFilesInError();
   for(auto fileInError: *filesInError){
-    ASSERT_EQ(0,fileInError.getError().value().find("msg=\"prepare - file does not exist or is not accessible to you\""));
+    ASSERT_EQ(0,fileInError.getError().value().find("prepare - file does not exist or is not accessible to you"));
   }
   ASSERT_EQ(SFS_DATA,retPrepare);
 }
