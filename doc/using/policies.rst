@@ -2,8 +2,8 @@
 
 .. _space-policies:
 
-Space Policies
-==============
+Space and Application Policies
+==============================
 
 Space policies are set using the space configuration CLI.
 
@@ -20,6 +20,7 @@ The following policies can be configured
    checksum      adler,md5,sha1,crc32,crc32c        
    blockchecksum adler,md5,sha1,crc32,crc32c           
    blocksize     4k,64k,128k,512k,1M,4M,16M,64M           
+   bandwidth     IO limit in MB/s
    ============= ==============================================
 
 
@@ -44,6 +45,19 @@ Setting space policies
    # configure 1M blocksizes
    eos space config default space.policy.blocksize=1M
 
+   # configure a global bandwidth limitation for all streams of 100 MB/s in a space
+   eos space config default space.policy.bandwidth=100
+
+
+Setting application policies
+-------------------------------------
+
+Application bandwidht policies apply for all read and write streams.
+
+   # configure an application specific bandwidth limitations for all streams in a space
+   eos space config default space.bw.myapp=100 # streams tagged as ?eos.app=myapp are limited to 100 MB/s
+
+   eos space config default space.bw.eoscp=200 # limit untagged eoscp to 200 MB/s
 
 Policy Selection and Scopes
 ----------------------------
@@ -104,6 +118,9 @@ Policies are deleted by setting a space policy with `value=remove` e.g.
    # delete a policy entry
    eos space config default space.policy.layout=remove
 
+   # delete an application bandwidth entry
+   eos space config default space.bw.myapp=remove
+
 
 Displaying space policies
 -------------------------
@@ -124,8 +141,11 @@ Policies are displayd using the ``space status`` command:
    policy.checksum                  := adler
    policy.layout                    := replica
    policy.nstripes                  := 2
+   policy.bandwidth                 := 100
    ...
-
+   bw.myapp                         := 100
+   bw.eoscp                         := 200
+   ...
 
 Automatic Conversion Policies
 -----------------------------
