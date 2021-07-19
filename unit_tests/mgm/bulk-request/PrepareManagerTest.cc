@@ -385,7 +385,7 @@ TEST_F(PrepareManagerTest,evictPrepareOneFileDoesNotExist){
 }
 
 TEST_F(PrepareManagerTest,queryPrepare){
-  int nbFiles = 3;
+  int nbFiles = 2;
   std::vector<std::string> paths = PrepareManagerTest::generateDefaultPaths(nbFiles);
   std::vector<std::string> oinfos = PrepareManagerTest::generateEmptyOinfos(nbFiles);
 
@@ -400,16 +400,33 @@ TEST_F(PrepareManagerTest,queryPrepare){
   //Attr ls should work for the files that exist
   EXPECT_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_)).Times(1)
       .WillRepeatedly(Invoke(
-          MockPrepareMgmFSInterface::_ATTR_LS_EVICT_PREPARE_LAMBDA
+          MockPrepareMgmFSInterface::_ATTR_LS_STAGE_PREPARE_LAMBDA
       ));
 
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
-  PrepareArgumentsWrapper pargs("testReqId",Prep_QUERY,oinfos,paths);
+  std::string requestId = "testReqId";
+  PrepareArgumentsWrapper pargs(requestId,Prep_QUERY,oinfos,paths);
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
   eos::mgm::bulk::PrepareManager pm(mgmOfs);
 
-  auto queryPrepareResult = pm.queryPrepare(*(pargs.getPrepareArguments()),*error,client.getClient());
-  ASSERT_EQ(SFS_DATA,queryPrepareResult->getReturnCode());
+  std::unique_ptr<eos::mgm::bulk::QueryPrepareResult> retQueryPrepare = pm.queryPrepare(*(pargs.getPrepareArguments()),*error,client.getClient());
+  const auto & response = retQueryPrepare->getResponse();
+  ASSERT_EQ(requestId,response->request_id);
+  const auto & existingFile = response->responses.front();
+  ASSERT_TRUE(existingFile.is_online);
+  ASSERT_TRUE(existingFile.is_on_tape);
+  ASSERT_TRUE(existingFile.is_exists);
+  ASSERT_EQ(paths.front(),existingFile.path);
+
+  const auto & notExistingFile = response->responses.back();
+
+  ASSERT_FALSE(notExistingFile.is_online);
+  ASSERT_FALSE(notExistingFile.is_on_tape);
+  ASSERT_FALSE(notExistingFile.is_exists);
+  ASSERT_EQ("file does not exist or is not accessible to you",notExistingFile.error_text);
+  ASSERT_EQ(paths.back(),notExistingFile.path);
+
+  ASSERT_EQ(SFS_DATA,retQueryPrepare->getReturnCode());
 }

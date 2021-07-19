@@ -22,27 +22,33 @@
  ************************************************************************/
 
 #include "JSONCppJsonifier.hh"
-#include <json/json.h>
 #include "mgm/bulk-request/response/QueryPrepareResponse.hh"
 
 EOSBULKNAMESPACE_BEGIN
 
 void JSONCppJsonifier::jsonify(const QueryPrepareResponse & response, std::stringstream & oss) {
   Json::Value root;
-  root["request_id"] = response.request_id;
-  for(const auto & fileResponse: response.responses){
-    Json::Value fileResponseJson;
-    fileResponseJson["path"] = fileResponse.path;
-    fileResponseJson["path_exists"] = fileResponse.is_exists;
-    fileResponseJson["on_tape"] = fileResponse.is_on_tape;
-    fileResponseJson["online"] = fileResponse.is_online;
-    fileResponseJson["requested"] = fileResponse.is_requested;
-    fileResponseJson["has_reqid"] = fileResponse.is_reqid_present;
-    fileResponseJson["req_time"] = fileResponse.request_time;
-    fileResponseJson["error_text"] = fileResponse.error_text;
-    root["responses"].append(fileResponseJson);
-  }
+  jsonifyQueryPrepareResponse(response,root);
   oss << root;
 }
 
+void JSONCppJsonifier::jsonifyQueryPrepareResponse(const QueryPrepareResponse& response, Json::Value& json) {
+  json["request_id"] = response.request_id;
+  for(const auto & fileResponse: response.responses){
+    Json::Value fileResponseJson;
+    jsonifyQueryPrepareResponseFile(fileResponse,fileResponseJson);
+    json["responses"].append(fileResponseJson);
+  }
+}
+
+void JSONCppJsonifier::jsonifyQueryPrepareResponseFile(const QueryPrepareFileResponse& fileResponse, Json::Value& json) {
+  json["path"] = fileResponse.path;
+  json["path_exists"] = fileResponse.is_exists;
+  json["on_tape"] = fileResponse.is_on_tape;
+  json["online"] = fileResponse.is_online;
+  json["requested"] = fileResponse.is_requested;
+  json["has_reqid"] = fileResponse.is_reqid_present;
+  json["req_time"] = fileResponse.request_time;
+  json["error_text"] = fileResponse.error_text;
+}
 EOSBULKNAMESPACE_END

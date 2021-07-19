@@ -26,12 +26,17 @@
 
 #include "mgm/Namespace.hh"
 #include "Jsonifier.hh"
+#include <json/json.h>
+#include "mgm/bulk-request/response/QueryPrepareResponse.hh"
 
 EOSBULKNAMESPACE_BEGIN
 
 class JSONCppJsonifier : public Jsonifier {
 public:
   void jsonify(const QueryPrepareResponse & response, std::stringstream & oss) override;
+private:
+  void jsonifyQueryPrepareResponse(const QueryPrepareResponse & response, Json::Value & json);
+  void jsonifyQueryPrepareResponseFile(const QueryPrepareFileResponse & fileResponse,Json::Value & json);
 };
 
 EOSBULKNAMESPACE_END
