@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "MockPrepareMgmFSInterface.hh"
+#include <xrootd/XrdSfs/XrdSfsFlags.hh>
 
 EOSBULKNAMESPACE_BEGIN
 
@@ -63,18 +64,30 @@ std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common:
 std::function<int(const char* Name, struct stat* buf, XrdOucErrInfo& out_error, eos::common::VirtualIdentity& vid, const char* opaque, std::string* etag, bool follow, std::string* uri)>
     MockPrepareMgmFSInterface::_STAT_FILE_ON_TAPE_ONLY =
     [](const char* Name, struct stat* buf, XrdOucErrInfo& out_error, eos::common::VirtualIdentity& vid, const char* opaque, std::string* etag, bool follow, std::string* uri){
+      //File is on tape
+      buf->st_rdev |= XRDSFS_HASBKUP;
+      //File is not on disk
+      buf->st_rdev |= XRDSFS_OFFLINE;
       return SFS_OK;
     };
 
 std::function<int(const char* Name, struct stat* buf, XrdOucErrInfo& out_error, eos::common::VirtualIdentity& vid, const char* opaque, std::string* etag, bool follow, std::string* uri)>
     MockPrepareMgmFSInterface::_STAT_FILE_ON_DISK_ONLY =
     [](const char* Name, struct stat* buf, XrdOucErrInfo& out_error, eos::common::VirtualIdentity& vid, const char* opaque, std::string* etag, bool follow, std::string* uri){
+      //File is on disk
+      buf->st_rdev &= ~XRDSFS_OFFLINE;
+      //File is not on tape
+      buf->st_rdev &= ~XRDSFS_HASBKUP;
       return SFS_OK;
     };
 
 std::function<int(const char* Name, struct stat* buf, XrdOucErrInfo& out_error, eos::common::VirtualIdentity& vid, const char* opaque, std::string* etag, bool follow, std::string* uri)>
     MockPrepareMgmFSInterface::_STAT_FILE_ON_DISK_AND_TAPE =
     [](const char* Name, struct stat* buf, XrdOucErrInfo& out_error, eos::common::VirtualIdentity& vid, const char* opaque, std::string* etag, bool follow, std::string* uri){
+      //File is on tape
+      buf->st_rdev |= XRDSFS_HASBKUP;
+      //File is on disk
+      buf->st_rdev &= ~XRDSFS_OFFLINE;
       return SFS_OK;
     };
 EOSBULKNAMESPACE_END

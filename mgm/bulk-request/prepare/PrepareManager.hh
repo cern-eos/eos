@@ -30,7 +30,7 @@
 #include <string>
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/bulk-request/interface/IMgmFileSystemInterface.hh"
-#include "mgm/bulk-request/prepare/prepare-query/QueryPrepareResult.hh"
+#include "mgm/bulk-request/prepare/query-prepare/QueryPrepareResult.hh"
 
 EOSBULKNAMESPACE_BEGIN
 

@@ -113,7 +113,7 @@
 #include "mgm/bulk-request/prepare/BulkRequestPrepareManager.hh"
 #include "mgm/bulk-request/dao/proc/ProcDirectoryBulkRequestLocations.hh"
 #include "mgm/bulk-request/response/QueryPrepareResponse.hh"
-#include "mgm/bulk-request/prepare/prepare-query/QueryPrepareResult.hh"
+#include "mgm/bulk-request/prepare/query-prepare/QueryPrepareResult.hh"
 #include "mgm/bulk-request/utils/json/JSONCppJsonifier.hh"
 
 #ifdef __APPLE__
