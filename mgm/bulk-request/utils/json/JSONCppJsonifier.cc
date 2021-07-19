@@ -34,6 +34,7 @@ void JSONCppJsonifier::jsonify(const QueryPrepareResponse & response, std::strin
 
 void JSONCppJsonifier::jsonifyQueryPrepareResponse(const QueryPrepareResponse& response, Json::Value& json) {
   json["request_id"] = response.request_id;
+  json["responses"] = Json::arrayValue;
   for(const auto & fileResponse: response.responses){
     Json::Value fileResponseJson;
     jsonifyQueryPrepareResponseFile(fileResponse,fileResponseJson);
