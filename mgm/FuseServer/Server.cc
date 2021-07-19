@@ -2118,9 +2118,10 @@ Server::OpSetFile(const std::string& id,
       XrdOucString space;
       eos::IContainerMD::XAttrMap attrmap = pcmd->getAttributes();
       XrdOucEnv env;
+      std::string bandwidth;
       // retrieve the layout
       Policy::GetLayoutAndSpace("fusex", attrmap, vid, layoutId, space, env,
-                                forcedFsId, forcedGroup, false);
+                                forcedFsId, forcedGroup, bandwidth, false);
       fs_rd_lock.Release();
 
       if (eos::mgm::FsView::gFsView.IsQuotaEnabled(space.c_str())) {

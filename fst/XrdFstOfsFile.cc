@@ -76,11 +76,15 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   wTime.tv_usec = lwTime.tv_usec = cTime.tv_usec = 0;
   rCalls = wCalls = nFwdSeeks = nBwdSeeks = nXlFwdSeeks = nXlBwdSeeks = 0;
   closeTime.tv_sec = closeTime.tv_usec = 0;
+  currentTime.tv_sec = openTime.tv_usec = 0;
   openTime.tv_sec = openTime.tv_usec = 0;
+  mBandwidth=0;
+  msSleep = 0;
   tz.tz_dsttime = tz.tz_minuteswest = 0;
   mIoPriorityValue = 0;
   mIoPriorityClass = IOPRIO_CLASS_NONE;
   mIoPriorityErrorReported = false;
+  totalBytes = 0;
 }
 
 //------------------------------------------------------------------------------
@@ -331,6 +335,11 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
       mIoPriorityClass = ioprio_class(key);
       mIoPriorityValue = ioprio_value(value);
     }
+  }
+
+  if (mCapOpaque->Get("mgm.iobw")) {
+    mBandwidth = strtoull(mCapOpaque->Get("mgm.iobw"),0,10);
+    eos_info("msg=\"bandwidth limited\" bw=%d", mBandwidth);
   }
 
   // Bookingsize is only needed for file creation
@@ -714,6 +723,7 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
 
   if (rc > 0) {
     rOffset = fileOffset + rc;
+    totalBytes += rc;
   }
 
   gettimeofday(&lrTime, &tz);
@@ -773,7 +783,9 @@ XrdFstOfsFile::readv(XrdOucIOVec* readV, int readCount)
                                          (void*)readV[i].data));
   }
 
-  return mLayout->ReadV(chunkList, total_read);
+  uint64_t rv = mLayout->ReadV(chunkList, total_read);
+  totalBytes += rv;
+  return rv;
 }
 
 //------------------------------------------------------------------------------
@@ -820,6 +832,24 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
     std::unique_lock<std::mutex>() :
     std::unique_lock<std::mutex>(*mutex);
 
+  if (mBandwidth) {
+    gettimeofday(&currentTime, &tz);
+    float abs_time = static_cast<float>((currentTime.tv_sec -
+					 openTime.tv_sec) * 1000 +
+					(currentTime.tv_usec - openTime.tv_usec) / 1000);
+    //........................................................................
+    // Regulate the io - sleep as desired
+    //........................................................................
+    float exp_time = totalBytes / mBandwidth / 1000.0;
+
+    if (abs_time < exp_time) {
+      msSleep += (exp_time - abs_time);
+      std::int64_t thisSleep = msSleep;
+      std::this_thread::sleep_for(std::chrono::milliseconds( thisSleep ));
+    }
+  }
+
+
 
   // if the write position moves the checksum is dirty
   if (mCheckSum) {
@@ -850,6 +880,8 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
       mCheckSum->Add(buffer, static_cast<size_t>(rc),
                      static_cast<off_t>(fileOffset));
     }
+
+    totalBytes += rc;
 
     if (static_cast<unsigned long long>(fileOffset + buffer_size) >
         static_cast<unsigned long long>(mMaxOffsetWritten)) {
@@ -2886,7 +2918,7 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
              "sfwdb=%llu&sbwdb=%llu&sxlfwdb=%llu&sxlbwdb=%llu&"
              "nfwds=%lu&nbwds=%lu&nxlfwds=%lu&nxlbwds=%lu&"
              "rt=%.02f&rvt=%.02f&wt=%.02f&osize=%llu&csize=%llu&"
-             "delete_on_close=%d&prio_c=%d&prio_l=%d&prio_d=%d&%s"
+             "delete_on_close=%d&prio_c=%d&prio_l=%d&prio_d=%d&forced_bw=%d&ms_sleep=%llu%s"
              , this->logId
              , mCapOpaque->Get("mgm.path") ? mCapOpaque->Get("mgm.path") : mNsPath.c_str()
              , mFstPath.c_str()
@@ -2920,6 +2952,8 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
 	     , mIoPriorityClass
 	     , mIoPriorityValue
 	     , ioprio_default
+	     , mBandwidth
+	     , msSleep
              , eos::common::SecEntity::ToEnv(mSecString.c_str(),
                  (sec_tpc ? "tpc" : 0)).c_str());
     reportString = report;
