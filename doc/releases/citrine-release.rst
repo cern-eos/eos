@@ -15,6 +15,27 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.8.58 Citrine``
+===================
+
+2021-07-19
+
+Bug
+---
+
+* [EOS-4775] NS: fixing SearchNode expansion decision taking mechanism
+* [EOS-4779] FST: fix dead lock in parity computation for RAIN
+* [EOS-4806] MGM: protect newfind command against crashes on malformed/buggy input for regex match --name filters
+
+
+Improvements
+------------
+
+* [EOS-4819]  MGM: adding server side bandwidth limitation, which can be defined either as a space policy (policy.bandwidth) or by application per space. The key for an empty application is 'space.bw.default' and the limits are given in MB/s
+* [EOS-4781] COMMON: drop 'sudo' role after sudo mapping
+* [EOS-4746] MGM/CONSOLE/GRPC: support ACL positions
+* DOC: improvements of fsck,permission and policy documentation
+
 
 ``v4.8.57 Citrine``
 ===================
