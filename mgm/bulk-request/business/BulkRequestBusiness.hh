@@ -52,6 +52,14 @@ public:
    * @param req the bulk-request to persist
    */
   void saveBulkRequest(const std::shared_ptr<BulkRequest> req);
+
+  /**
+   * Returns the bulk-request persisted
+   * @param bulkRequestId the id of the bulk-request
+   * @param type the type of the bulk-request
+   * @return the bulk-request associated to the id and the type passed in parameter
+   */
+  std::unique_ptr<BulkRequest> getBulkRequest(const std::string & bulkRequestId, const BulkRequest::Type & type);
 private:
   std::unique_ptr<AbstractDAOFactory> mDaoFactory;
 };

@@ -38,4 +38,12 @@ void BulkRequestBusiness::saveBulkRequest(const std::shared_ptr<BulkRequest> req
   eos_info("msg=\"Persisted bulk request id=%s\"",req->getId().c_str());
 }
 
+std::unique_ptr<BulkRequest> BulkRequestBusiness::getBulkRequest(const std::string & bulkRequestId, const BulkRequest::Type & type){
+  EXEC_TIMING_BEGIN("BulkRequestBusiness::getBulkRequest");
+  std::unique_ptr<BulkRequest> bulkRequest =  mDaoFactory->getBulkRequestDAO()->getBulkRequest(bulkRequestId,type);
+  EXEC_TIMING_END("BulkRequestBusiness::getBulkRequest");
+  eos_info("msg=\"Retrieved bulk request id=%s from persistence layer\"",bulkRequestId.c_str());
+  return bulkRequest;
+}
+
 EOSBULKNAMESPACE_END

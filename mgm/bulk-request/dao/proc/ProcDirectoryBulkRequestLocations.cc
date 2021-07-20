@@ -39,9 +39,14 @@ std::set<std::string> ProcDirectoryBulkRequestLocations::getAllBulkRequestDirect
   return allBulkRequetsDirectoriesPath;
 }
 
-std::string ProcDirectoryBulkRequestLocations::getDirectoryPathToSaveBulkRequest(BulkRequest& bulkRequest)
+std::string ProcDirectoryBulkRequestLocations::getDirectoryPathToSaveBulkRequest(const BulkRequest& bulkRequest)
 {
-  return mBulkRequestTypeToPath.at(bulkRequest.getType());
+  return getDirectoryPathWhereBulkRequestCouldBeSaved(bulkRequest.getType());
+}
+
+std::string ProcDirectoryBulkRequestLocations::getDirectoryPathWhereBulkRequestCouldBeSaved(const BulkRequest::Type& type)
+{
+  return mBulkRequestTypeToPath.at(type);
 }
 
 EOSBULKNAMESPACE_END
