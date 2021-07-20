@@ -1053,6 +1053,11 @@ runtest "### Acl set " unix 0 "" eos acl u:daemon=rw+d+u "/eos/$EOS_TEST_INSTANC
 runtest "### Acl ls  " unix 0 "" eos acl -l "/eos/$EOS_TEST_INSTANCE/test/acl" | grep "u:daemon:rw+d+u"
 runtest "### Acl upd " unix 0 "" eos acl u:daemon:-r-w-+d-+u "/eos/$EOS_TEST_INSTANCE/test/acl"
 runtest "### Acl ls  " unix 1 "" eos acl -l "/eos/$EOS_TEST_INSTANCE/test/acl"
+runtest "### dir ls  " unix 0 "EOSROLE='-r daemon daemon'" eos ls "/eos/$EOS_TEST_INSTANCE/test/acl"
+runtest "### Acl deny ls" unix 0 "" eos acl u:daemon=\!x "/eos/$EOS_TEST_INSTANCE/test/acl"
+runtest "### dir ls  " unix 1 "EOSROLE='-r daemon daemon'" eos ls "/eos/$EOS_TEST_INSTANCE/test/acl"
+runtest "### Acl set " unix 0 "" eos acl u:daemon=rwx "/eos/$EOS_TEST_INSTANCE/test/acl"
+runtest "### dir ls  " unix 0 "EOSROLE='-r daemon daemon'" eos ls "/eos/$EOS_TEST_INSTANCE/test/acl"
 runtest "### Rmdir   " unix 0 "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/acl"
 
 
