@@ -31,6 +31,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/bulk-request/interface/IMgmFileSystemInterface.hh"
 #include "mgm/bulk-request/prepare/query-prepare/QueryPrepareResult.hh"
+#include <mgm/bulk-request/FileCollection.hh>
 
 EOSBULKNAMESPACE_BEGIN
 
@@ -110,6 +111,14 @@ protected:
    * @param path the path to add to the bulk-request
    */
   virtual void addPathToBulkRequest(const std::string & path);
+
+  /**
+   * Returns the files that were persisted if the id corresponds to an already persisted stage bulk-request
+   * @param reqid the request id of the already submitted prepare stage request
+   * @return the collection of the files that were submitted for staging (bulk-request). Here nothing will be returned in the collection as the persistency
+   * is accessible only via the BulkRequestPrepareManager.
+   */
+  virtual const std::shared_ptr<FileCollection::Files> getFileCollectionFromPersistency(const std::string & reqid);
 
   /**
    * Perform the prepare logic
