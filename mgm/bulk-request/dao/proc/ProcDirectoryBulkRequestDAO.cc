@@ -28,6 +28,8 @@
 #include <namespace/Prefetcher.hh>
 #include "namespace/interface/IView.hh"
 #include "mgm/proc/ProcCommand.hh"
+#include "mgm/bulk-request/BulkRequestFactory.hh"
+#include "mgm/bulk-request/dao/proc/ProcDirBulkRequestFile.hh"
 
 EOSBULKNAMESPACE_BEGIN
 
@@ -62,7 +64,11 @@ void ProcDirectoryBulkRequestDAO::createBulkRequestDirectory(const std::shared_p
 }
 
 std::string ProcDirectoryBulkRequestDAO::generateBulkRequestProcPath(const std::shared_ptr<BulkRequest> bulkRequest) {
-  return mProcDirectoryBulkRequestLocations.getDirectoryPathToSaveBulkRequest(*bulkRequest) + "/" + bulkRequest->getId();
+  return generateBulkRequestProcPath(bulkRequest->getId(),bulkRequest->getType());
+}
+
+std::string ProcDirectoryBulkRequestDAO::generateBulkRequestProcPath(const std::string& bulkRequestId, const BulkRequest::Type& type) {
+  return mProcDirectoryBulkRequestLocations.getDirectoryPathWhereBulkRequestCouldBeSaved(type) + "/" + bulkRequestId;
 }
 
 void ProcDirectoryBulkRequestDAO::insertBulkRequestFilesToBulkRequestDirectory(const std::shared_ptr<BulkRequest> bulkRequest, const std::string & bulkReqProcPath) {
@@ -163,6 +169,89 @@ void ProcDirectoryBulkRequestDAO::persistErrorIfAny(const std::string & persiste
       throw PersistencyException(oss.str());
     }
   }
+}
+
+std::unique_ptr<BulkRequest> ProcDirectoryBulkRequestDAO::getBulkRequest(const std::string & id, const BulkRequest::Type & type) {
+  std::unique_ptr<BulkRequest> bulkRequest;
+  std::string bulkRequestProcPath = this->generateBulkRequestProcPath(id, type);
+  if (existsAndIsDirectory(bulkRequestProcPath)) {
+    // Directory exists, the bulk-request can be fetched
+    bulkRequest.reset(BulkRequestFactory::createBulkRequest(id, type));
+    XrdOucErrInfo errFind;
+    XrdOucString stdErr;
+    std::map<std::string, std::set<std::string>> found;
+    if (mFileSystem->_find(bulkRequestProcPath.c_str(), errFind, stdErr, mVid, found) == SFS_OK) {
+      // Returns map of directory + filename
+      /*std::stringstream ss;
+      ss << "findResult=";
+      for(auto &kv: found){
+        ss << "directory=" << kv.first << "files=[";
+        for(auto & fileName: kv.second) {
+          ss << fileName << ",";
+        }
+        ss << "]";
+      }
+      eos_info(ss.str().c_str());
+       */
+      auto & bulkReqDirFiles = *found.begin();
+      std::string bulkReqDir = bulkReqDirFiles.first;
+      std::set<std::string>& filesName = bulkReqDirFiles.second;
+      // mFileSystem->eosFileService->getFileMDFut()
+      std::map<ProcDirBulkRequestFile, folly::Future<IFileMDPtr>> filesInBulkReqProcDirWithFuture;
+      std::vector<std::string> fileWithPaths;
+
+      for (auto& fileName : filesName) {
+        std::string fullPath = bulkReqDir + fileName;
+        ProcDirBulkRequestFile file(fullPath);
+        file.setNameInBulkRequestDirectory(fileName);
+        // attr ls to get the error
+        XrdOucErrInfo error;
+        eos::IContainerMD::XAttrMap xattrs;
+        if (mFileSystem->_attr_ls(fullPath.c_str(), error, mVid, nullptr,xattrs) == SFS_OK) {
+          try {
+            file.setError(xattrs.at("error_msg"));
+          } catch (const std::out_of_range& ex) {}
+          try {
+            eos::common::FileId::fileid_t fid = std::stoull(fileName);
+            file.setFileId(fid);
+            std::pair<ProcDirBulkRequestFile, folly::Future<IFileMDPtr>> fileWithFuture(file,mFileSystem->eosFileService->getFileMDFut(fid));
+            filesInBulkReqProcDirWithFuture.emplace(std::move(fileWithFuture));
+          } catch (std::invalid_argument& ex) {
+            // The current file is not a fid, it is therefore a file that has the format #:#eos#:#test#:#testFile.txt (#:# replaced by '/')
+            std::string filePathCopy = fileName;
+            common::StringConversion::ReplaceStringInPlace(filePathCopy, "#:#",
+                                                           "/");
+            File bulkRequestFile(filePathCopy);
+            bulkRequestFile.setError(file.getError());
+            bulkRequest->addFile(bulkRequestFile);
+          }
+        }
+      }
+      for(auto &fileWithFuture: filesInBulkReqProcDirWithFuture) {
+        fileWithFuture.second.wait();
+        eos::common::RWMutexReadLock lock(mFileSystem->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+        std::shared_ptr<IFileMD> fmd = gOFS->eosFileService->getFileMD(fileWithFuture.first.getFileId().value());
+        File bulkReqFile(mFileSystem->eosView->getUri(fmd.get()));
+        bulkReqFile.setError(fileWithFuture.first.getError());
+        bulkRequest->addFile(bulkReqFile);
+      }
+    }
+  }
+  return bulkRequest;
+}
+
+bool ProcDirectoryBulkRequestDAO::existsAndIsDirectory(const std::string& dirPath) {
+  XrdOucErrInfo error;
+  XrdSfsFileExistence fileExistence;
+  int retCode = mFileSystem->_exists(dirPath.c_str(),fileExistence,error,mVid);
+  if(retCode != SFS_OK) {
+    std::ostringstream oss;
+    oss << "In ProcDirectoryBulkRequestDAO::existsAndIsDirectory(), could not get information about the existence of the directory "
+        << dirPath << " ErrorMsg=" << error.getErrText();
+    eos_debug(oss.str().c_str());
+    throw PersistencyException(oss.str());
+  }
+  return fileExistence == XrdSfsFileExistIsDirectory;
 }
 
 EOSBULKNAMESPACE_END

@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file BulkRequestFactory.hh
+//! @file ProcDirBulkRequestFile.hh
 //! @author Cedric Caffy - CERN
 //------------------------------------------------------------------------------
 
@@ -21,38 +21,41 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_BULKREQUESTFACTORY_HH
-#define EOS_BULKREQUESTFACTORY_HH
+#ifndef EOS_PROCDIRBULKREQUESTFILE_HH
+#define EOS_PROCDIRBULKREQUESTFILE_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/bulk-request/prepare/StageBulkRequest.hh"
-#include <mgm/bulk-request/prepare/EvictBulkRequest.hh>
+#include "common/FileId.hh"
+#include <string>
+#include <optional>
 
 EOSBULKNAMESPACE_BEGIN
 
 /**
- * Factory of bulk request
+ * Class that will hold information about a file that belongs to a bulk-request
+ * in order to be persisted/retrieved in/from the proc directory
  */
-class BulkRequestFactory {
+class ProcDirBulkRequestFile {
 public:
-  /**
-   * Returns a new StageBulkRequest with a unique identifier
-   * @param clientVid the Virtual Identity of the client who creates/submits a bulk request
-   * @return a new StageBulkRequest
-   */
-  static StageBulkRequest * createStageBulkRequest();
-
-  static EvictBulkRequest * createEvictBulkRequest();
-
-  /**
-   * Instanciate a bulk-request according to the type passed in parameter
-   * @param id the id of the bulk-request to create
-   * @param type the type of the bulk-request to create
-   * @return a pointer to the bulk-request created
-   */
-  static BulkRequest * createBulkRequest(const std::string & id, const BulkRequest::Type & type);
-
+  ProcDirBulkRequestFile();
+  ProcDirBulkRequestFile(const std::string & path);
+  void setFileId(const eos::common::FileId::fileid_t fileId);
+  const std::optional<eos::common::FileId::fileid_t> getFileId() const;
+  void setError(const std::string & error);
+  const std::optional<std::string> getError() const;
+  void setFullPath(const std::string & fullPath);
+  const std::string getFullPath() const;
+  void setNameInBulkRequestDirectory(const std::string & name);
+  const std::string getNameInBulkRequestDirectory() const;
+  bool operator<(const ProcDirBulkRequestFile & other) const;
+  bool operator==(const ProcDirBulkRequestFile & other) const;
+private:
+  std::optional<eos::common::FileId::fileid_t> mFileId;
+  std::string mNameInBulkRequestDirectory;
+  std::optional<std::string> mError;
+  std::string mFullPath;
 };
 
 EOSBULKNAMESPACE_END
-#endif // EOS_BULKREQUESTFACTORY_HH
+
+#endif // EOS_PROCDIRBULKREQUESTFILE_HH

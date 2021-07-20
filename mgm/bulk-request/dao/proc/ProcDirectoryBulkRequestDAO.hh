@@ -49,6 +49,15 @@ public:
    * @param bulkRequest the BulkRequest to save
    */
   void saveBulkRequest(const std::shared_ptr<BulkRequest> bulkRequest) override;
+
+  /**
+   * Get the bulk-request from the /eos/.../proc directory
+   * @param id the id of the bulk-request
+   * @param type the type of bulk-request
+   * @return the bulk-request associated to the id and the type, nullptr if it does not exist
+   */
+  std::unique_ptr<BulkRequest> getBulkRequest(const std::string & id, const BulkRequest::Type & type) override;
+
 private:
   //Interface to the EOS filesystem to allow the creation of files and directories
   XrdMgmOfs * mFileSystem;
@@ -67,6 +76,15 @@ private:
    * @return the string containing the path of the directory used to store the bulk-request
    */
   std::string generateBulkRequestProcPath(const std::shared_ptr<BulkRequest> bulkRequest);
+
+  /**
+   * Generate the bulk-request directory path within the /eos/.../proc/ directory
+   * It is generated according to the id of the bulk-request
+   * @param bulkRequestId the id of the bulk-request to generate the proc directory path
+   * @param type the type of the bulk-request to generate the proc directory path
+   * @return the string containing the path of the directory used to store the bulk-request
+   */
+  std::string generateBulkRequestProcPath(const std::string & bulkRequestId, const BulkRequest::Type & type);
 
   /**
    * Insert the files contained in the bulk request into the directory created by createBulkRequestDirectory()
@@ -88,6 +106,13 @@ private:
    * @param file the file that may have an error
    */
   void persistErrorIfAny(const std::string & persistedFilePath,const bulk::File & file);
+
+  /**
+   * Returns true if the directory path passed in parameter exists, false otherwise
+   * @param dirPath the path of the directory to check its existence
+   * @return true if the directory path passed in parameter exists, false otherwise
+   */
+  bool existsAndIsDirectory(const std::string & dirPath);
 };
 
 EOSBULKNAMESPACE_END

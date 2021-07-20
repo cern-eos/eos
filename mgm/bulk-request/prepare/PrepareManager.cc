@@ -22,7 +22,10 @@
  ************************************************************************/
 
 #include "PrepareManager.hh"
+#include "common/Constants.hh"
 #include "mgm/Stat.hh"
+#include "mgm/bulk-request/response/QueryPrepareResponse.hh"
+#include "mgm/bulk-request/utils/json/JSONCppJsonifier.hh"
 #include <XrdOuc/XrdOucTList.hh>
 #include <XrdVersion.hh>
 #include <common/Path.hh>
@@ -31,12 +34,11 @@
 #include <mgm/Acl.hh>
 #include <mgm/Macros.hh>
 #include <mgm/XrdMgmOfs.hh>
+#include <mgm/bulk-request/File.hh>
+
 #include <mgm/bulk-request/exception/PersistencyException.hh>
 #include <mgm/bulk-request/prepare/PrepareUtils.hh>
-#include "common/Constants.hh"
-#include "mgm/bulk-request/response/QueryPrepareResponse.hh"
 #include <xrootd/XrdSfs/XrdSfsFlags.hh>
-#include "mgm/bulk-request/utils/json/JSONCppJsonifier.hh"
 
 EOSBULKNAMESPACE_BEGIN
 
@@ -382,25 +384,34 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, con
     const char* ininfo = "";
     MAYREDIRECT;
   }
-  int path_cnt = 0;
-  for (XrdOucTList* pptr = pargs.paths; pptr; pptr = pptr->next) {
-    ++path_cnt;
-  }
 
-  mMgmFsInterface.addStats("QueryPrepare", vid.uid, vid.gid, path_cnt);
   // ID of the original prepare request. We don't need this to look up the list of files in
   // the request, as they are provided in the arguments. Anyway we return it in the reply
   // as a convenience for the client to track which prepare request the query applies to.
   XrdOucString reqid(pargs.reqid);
-  std::shared_ptr<QueryPrepareResponse> response = result.getResponse();
 
-  // Set the queryPrepareFileResponses for each file in the list
+  int path_cnt = 0;
+  std::vector<std::string> pathsToQuery;
   for (XrdOucTList* pptr = pargs.paths; pptr; pptr = pptr->next) {
     if (!pptr->text) {
       continue;
     }
+    pathsToQuery.push_back(pptr->text);
+    ++path_cnt;
+  }
 
-    response->responses.push_back(QueryPrepareFileResponse(pptr->text));
+  mMgmFsInterface.addStats("QueryPrepare", vid.uid, vid.gid, path_cnt);
+  std::shared_ptr<FileCollection::Files> fileCollection;
+  if(reqid.length()){
+    //Look in the persistency layer for informations about files submitted previously for staging
+    fileCollection = getFileCollectionFromPersistency(reqid.c_str());
+  }
+
+  std::shared_ptr<QueryPrepareResponse> response = result.getResponse();
+
+  // Set the queryPrepareFileResponses for each file in the list
+  for (auto & queriedPath: pathsToQuery) {
+    response->responses.push_back(QueryPrepareFileResponse(queriedPath));
     auto& rsp = response->responses.back();
     // check if the file exists
     XrdOucString prep_path;
@@ -506,6 +517,10 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, con
 
   EXEC_TIMING_END("QueryPrepare");
   return SFS_DATA;
+}
+
+const std::shared_ptr<FileCollection::Files> PrepareManager::getFileCollectionFromPersistency(const std::string& reqid) {
+  return std::shared_ptr<FileCollection::Files>(new FileCollection::Files());
 }
 
 EOSBULKNAMESPACE_END
