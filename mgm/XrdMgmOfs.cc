@@ -1066,7 +1066,14 @@ XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 #if !OLD_PREPARE
   USE_EOSBULKNAMESPACE;
   RealMgmFileSystemInterface mgmFsInterface(gOFS);
+#if BULK_REQ_PERSISTENCY
+  BulkRequestPrepareManager pm(mgmFsInterface);
+  std::unique_ptr<AbstractDAOFactory> daoFactory(new ProcDirectoryDAOFactory(gOFS,*mProcDirectoryBulkRequestLocations));
+  std::shared_ptr<BulkRequestBusiness> bulkRequestBusiness(new BulkRequestBusiness(std::move(daoFactory)));
+  pm.setBulkRequestBusiness(bulkRequestBusiness);
+#else
   PrepareManager pm(mgmFsInterface);
+#endif
   std::unique_ptr<QueryPrepareResult> result = pm.queryPrepare(pargs,error,client);
   if(result->hasQueryPrepareFinished()){
     // Build a JSON reply in the following format :

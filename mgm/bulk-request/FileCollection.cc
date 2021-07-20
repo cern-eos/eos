@@ -32,8 +32,19 @@ FileCollection::FileCollection() {
   mFiles.reset(new Files());
 }
 
+FileCollection & FileCollection::operator=(const FileCollection& other) {
+  if(this != &other){
+    this->mFiles = other.mFiles;
+  }
+  return *this;
+}
+
 void FileCollection::addFile(const std::string & path) {
   (*mFiles)[path] = File(path);
+}
+
+void FileCollection::addFile(const File & file){
+  (*mFiles)[file.getPath()] = file;
 }
 
 const std::shared_ptr<FileCollection::Files> FileCollection::getAllFiles() const {

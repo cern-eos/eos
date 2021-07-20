@@ -49,7 +49,11 @@ void BulkRequest::addError(const std::string &path, const std::string & error) {
   }
 }
 
-const std::shared_ptr<FileCollection::Files> BulkRequest::getFiles() const
+void BulkRequest::addFile(const File & file){
+  mFileCollection.addFile(file);
+}
+
+const std::shared_ptr<FileCollection::Files> BulkRequest:: getFiles() const
 {
   return mFileCollection.getAllFiles();
 }
