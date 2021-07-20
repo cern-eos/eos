@@ -41,6 +41,14 @@ public:
    * @param bulkRequest the bulk request to save
    */
   virtual void saveBulkRequest(const std::shared_ptr<BulkRequest> bulkRequest) = 0;
+
+  /**
+   * Get the bulk-request from the persistence
+   * @param id the id of the bulk-request
+   * @param type the type of the bulk-request
+   * @return the bulk-request if it exists, nullptr otherwise
+   */
+  virtual std::unique_ptr<BulkRequest> getBulkRequest(const std::string & id, const BulkRequest::Type & type) = 0;
 };
 
 EOSBULKNAMESPACE_END

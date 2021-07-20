@@ -40,6 +40,7 @@ public:
   File(const std::string & path);
   void setPath(const std::string & path);
   void setError(const std::string & error);
+  void setError(const std::optional<std::string> & error);
 
   std::string getPath() const;
   std::optional<std::string> getError() const;
