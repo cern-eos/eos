@@ -42,6 +42,10 @@ void File::setError(const std::string& error) {
   mError = error;
 }
 
+void File::setError(const std::optional<std::string> & error) {
+  mError = error;
+}
+
 std::optional<std::string> File::getError() const {
   return mError;
 }

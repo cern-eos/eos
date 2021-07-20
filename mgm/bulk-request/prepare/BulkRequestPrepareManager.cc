@@ -77,4 +77,15 @@ void BulkRequestPrepareManager::saveBulkRequest() {
     }
   }
 }
+
+const std::shared_ptr<FileCollection::Files> BulkRequestPrepareManager::getFileCollectionFromPersistency(const std::string& reqid) {
+  std::shared_ptr<FileCollection::Files> ret(new FileCollection::Files());
+  if(mBulkRequestBusiness != nullptr){
+    std::unique_ptr<BulkRequest> bulkRequest = mBulkRequestBusiness->getBulkRequest(reqid,BulkRequest::PREPARE_STAGE);
+    if(bulkRequest != nullptr){
+      ret = bulkRequest->getFiles();
+    }
+  }
+  return ret;
+}
 EOSBULKNAMESPACE_END
