@@ -35,14 +35,16 @@ EOSBULKNAMESPACE_BEGIN
 class FileCollection {
 public:
   FileCollection();
+  FileCollection & operator=(const FileCollection & other);
   typedef std::map<std::string,File> Files;
 
   void addFile(const std::string & path);
-  const std::shared_ptr<Files> getAllFiles() const;
+  void addFile(const File & file);
+  const std::shared_ptr<FileCollection::Files> getAllFiles() const;
   void addError(const std::string &path, const std::string & error);
   const std::shared_ptr<std::set<File>> getAllFilesInError() const;
 private:
-  std::shared_ptr<Files> mFiles;
+  std::shared_ptr<FileCollection::Files> mFiles;
 };
 
 EOSBULKNAMESPACE_END

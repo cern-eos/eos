@@ -271,6 +271,7 @@ add_library(
   bulk-request/dao/factories/ProcDirectoryDAOFactory.cc
   bulk-request/dao/proc/ProcDirectoryBulkRequestDAO.cc
   bulk-request/dao/proc/ProcDirectoryBulkRequestLocations.cc
+  bulk-request/dao/proc/ProcDirBulkRequestFile.cc
   bulk-request/exception/PersistencyException.cc
   bulk-request/exception/BulkRequestException.cc
   bulk-request/interface/RealMgmFileSystemInterface.cc

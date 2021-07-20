@@ -28,11 +28,22 @@ EOSBULKNAMESPACE_BEGIN
 
 StageBulkRequest * BulkRequestFactory::createStageBulkRequest() {
   std::string bulkRequestId = BulkRequestHelper::generateBulkRequestId();
-  return new StageBulkRequest(bulkRequestId);
+  return static_cast<StageBulkRequest *>(createBulkRequest(bulkRequestId,BulkRequest::Type::PREPARE_STAGE));
 }
 
 EvictBulkRequest * BulkRequestFactory::createEvictBulkRequest() {
   std::string bulkRequestId = BulkRequestHelper::generateBulkRequestId();
-  return new EvictBulkRequest(bulkRequestId);
+  return static_cast<EvictBulkRequest *>(createBulkRequest(bulkRequestId,BulkRequest::Type::PREPARE_EVICT));
+}
+
+BulkRequest * BulkRequestFactory::createBulkRequest(const std::string& id, const BulkRequest::Type & type) {
+  switch(type){
+  case BulkRequest::Type::PREPARE_STAGE:
+    return new StageBulkRequest(id);
+  case BulkRequest::Type::PREPARE_EVICT:
+    return new EvictBulkRequest(id);
+  default:
+    return nullptr;
+  }
 }
 EOSBULKNAMESPACE_END

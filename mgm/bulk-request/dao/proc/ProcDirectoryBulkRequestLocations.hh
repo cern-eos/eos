@@ -40,7 +40,8 @@ class ProcDirectoryBulkRequestLocations {
 public:
   ProcDirectoryBulkRequestLocations(const std::string & procDirectoryPath);
   std::set<std::string> getAllBulkRequestDirectoriesPath();
-  std::string getDirectoryPathToSaveBulkRequest(BulkRequest & bulkRequest);
+  std::string getDirectoryPathToSaveBulkRequest(const BulkRequest & bulkRequest);
+  std::string getDirectoryPathWhereBulkRequestCouldBeSaved(const BulkRequest::Type & type);
 private:
   std::map<BulkRequest::Type, std::string> mBulkRequestTypeToPath;
 };

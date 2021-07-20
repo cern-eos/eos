@@ -65,13 +65,14 @@ public:
 
   /**
    * Returns the files contained in this bulk request
-   * @return the set containing the files this bulk request manages
+   * @return the map containing the files this bulk request contains
    */
   const std::shared_ptr<FileCollection::Files> getFiles() const;
 
   /**
    * Add a file path to this bulk request
-   * @param file the pointer to the file to add to this bulk request
+   * This will add a File with the path passed in parameter in the bulk-request's file container
+   * @param path the path to the file to add to this bulk request
    */
   void addPath(const std::string & path);
 
@@ -81,6 +82,12 @@ public:
    * @param error the error that the file has
    */
   void addError(const std::string & path, const std::string & error);
+
+  /**
+   * Adds a File to the bulk-request
+   * @param file the file to add to the bulk-request File container
+   */
+  void addFile(const File & file);
 
   virtual ~BulkRequest(){}
 
