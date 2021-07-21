@@ -26,7 +26,7 @@ Bug
 * [EOS-4775] NS: fixing SearchNode expansion decision taking mechanism
 * [EOS-4779] FST: fix dead lock in parity computation for RAIN
 * [EOS-4806] MGM: protect newfind command against crashes on malformed/buggy input for regex match --name filters
-
+* MGM: directory listing (XrdMgmOfsDirectory) always checks now ACLs for denials e.g. an ACL denial can superseed a POSIX allow
 
 Improvements
 ------------
@@ -35,7 +35,7 @@ Improvements
 * [EOS-4781] COMMON: drop 'sudo' role after sudo mapping
 * [EOS-4746] MGM/CONSOLE/GRPC: support ACL positions
 * DOC: improvements of fsck,permission and policy documentation
-
+* [EOS-4805] MGM: implement negative ACLs for read/write/delete operations
 
 ``v4.8.57 Citrine``
 ===================
