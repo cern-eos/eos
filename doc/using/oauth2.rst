@@ -23,6 +23,13 @@ If you want to check the audience claim in the ticket, you can add the audience 
    # allow on oauth2 resource in request for the audience 'eosoauth'
    eos vid set map -oauth2 key:auth.cern.ch/auth/realms/cern/protocol/openid-connect/userinfo@eosatuch vuid:0
 
+If you want to use a local account which is mapped in the instance to a local uid, you can define a 'sub' field mapping entry using:
+
+.. code-block:: bash
+
+   # remap the sub '7aa5167f-9c28-4336-8a66-af9145ea847d' to the local user id 1000
+   eos vid set map -oauth2 sub:7aa5167f-9c28-4336-8a66-af9145ea847d vuid:1000
+
    
 All XRootD based clients can add the oauth2 token in the endorsement environment variable for sss authentication.
    
