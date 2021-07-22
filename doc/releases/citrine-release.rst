@@ -29,7 +29,7 @@ Improvements
 ------------
 
 * [EOS-4823] MGM: eosxd creations support now linked attributes describing file layouts etc.
-
+* [EOS-4825] COMMON: allow static mappping to local accounts from 'sub' using 'vid set map -oauth2 sub:xyz vuid:localuid'
 
 ``v4.8.58 Citrine``
 ===================
