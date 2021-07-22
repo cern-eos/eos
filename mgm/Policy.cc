@@ -106,18 +106,19 @@ Policy::GetLayoutAndSpace(const char* path,
       spacepolicies["blocksize"] = it->second->GetConfigMember("policy.blocksize");
       spacepolicies["blockchecksum"] = it->second->GetConfigMember("policy.blockchecksum");
       bandwidth = it->second->GetConfigMember("policy.bandwidth");
-    }
 
-    // try application specific bandwidth setting
-    std::string appkey = "bw.";
-    if (env.Get("eos.app")) {
-      appkey += env.Get("eos.app");
-    } else {
-      appkey += "default";
-    }
-    std::string app_bandwidth = it->second->GetConfigMember(appkey);
-    if (app_bandwidth.length()) {
-      bandwidth = app_bandwidth;
+
+      // try application specific bandwidth setting
+      std::string appkey = "bw.";
+      if (env.Get("eos.app")) {
+	appkey += env.Get("eos.app");
+      } else {
+	appkey += "default";
+      }
+      std::string app_bandwidth = it->second->GetConfigMember(appkey);
+      if (app_bandwidth.length()) {
+	bandwidth = app_bandwidth;
+      }
     }
   }
 
@@ -162,18 +163,18 @@ Policy::GetLayoutAndSpace(const char* path,
       }
 
       bandwidth = it->second->GetConfigMember("policy.bandwidth");
-    }
 
-    // try application specific bandwidth setting
-    std::string appkey = "bw.";
-    if (env.Get("eos.app")) {
-      appkey += env.Get("eos.app");
-    } else {
-      appkey += "default";
-    }
-    std::string app_bandwidth = it->second->GetConfigMember(appkey);
-    if (app_bandwidth.length()) {
-      bandwidth = app_bandwidth;
+      // try application specific bandwidth setting
+      std::string appkey = "bw.";
+      if (env.Get("eos.app")) {
+	appkey += env.Get("eos.app");
+      } else {
+	appkey += "default";
+      }
+      std::string app_bandwidth = it->second->GetConfigMember(appkey);
+      if (app_bandwidth.length()) {
+	bandwidth = app_bandwidth;
+      }
     }
   }
 
