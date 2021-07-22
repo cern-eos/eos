@@ -15,6 +15,22 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.8.59 Citrine``
+===================
+
+2021-07-22
+
+Bug
+---
+
+* [EOS-4824] MGM: avoid SEGV when loading quota nodes with certain configurations
+
+Improvements
+------------
+
+* [EOS-4823] MGM: eosxd creations support now linked attributes describing file layouts etc.
+
+
 ``v4.8.58 Citrine``
 ===================
 
