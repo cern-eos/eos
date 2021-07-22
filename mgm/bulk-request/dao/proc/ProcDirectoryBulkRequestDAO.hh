@@ -29,6 +29,7 @@
 #include <common/Logging.hh>
 #include <mgm/XrdMgmOfs.hh>
 #include "mgm/bulk-request/dao/proc/ProcDirectoryBulkRequestLocations.hh"
+#include "mgm/bulk-request/dao/proc/ProcDirBulkRequestFile.hh"
 
 EOSBULKNAMESPACE_BEGIN
 
@@ -63,6 +64,9 @@ private:
   XrdMgmOfs * mFileSystem;
   ProcDirectoryBulkRequestLocations & mProcDirectoryBulkRequestLocations;
   eos::common::VirtualIdentity mVid;
+
+  const char * ERROR_MSG_ATTR_NAME = "error_msg";
+
   /**
    * Creates a directory to store the bulk-request files within it
    * @param bulkRequest the bulkRequest to get the id from
@@ -113,6 +117,47 @@ private:
    * @return true if the directory path passed in parameter exists, false otherwise
    */
   bool existsAndIsDirectory(const std::string & dirPath);
+
+  /**
+   * Fills the bulk-request with the information provided in the /proc/ directory
+   * @param bulkRequestProcPath the path of the bulk-request in the proc directory
+   * @param bulkRequest the bulk-request to fill
+   */
+  void fillBulkRequest(const std::string & bulkRequestProcPath, BulkRequest & bulkRequest);
+
+  /**
+   * Fills the directoryContent map passed in parameter. The key is the full path of the bulk-request directory
+   * the value is the file names that are located in the bulk-request directory.
+   * Reminder: the files that are in the directory of the bulk-request are the fileIds of the files that were submitted with the bulk-request (or
+   * transformed paths for the files that were submitted did not exist)
+   * @param bulkRequestProcPath the path of the bulk-request in the proc directory
+   * @param directoryContent the map that will be filled with the content of the bulk-request proc directory
+   */
+  void fillBulkRequestDirectoryContentMap(const std::string & bulkRequestProcPath, std::map<std::string, std::set<std::string>> & directoryContent);
+
+  /**
+   * Fetch the error from the extended attributes of the file passed in parameter
+   * and assign this potential error to it.
+   * This method will basically call a `attr ls` on the full path of this file and look for the error attribute
+   * defined in the variable ERROR_MSG_ATTR_NAME
+   * @param file the file to fetch and assign the potential error to.
+   * @param xattrs the extended attributes of the file where the potential error might be
+   */
+  void fillFileErrorIfAny(ProcDirBulkRequestFile & file, eos::IContainerMD::XAttrMap & xattrs);
+
+  /**
+   * Fetch the extended attributes of the file passed in parameter
+   * @param file the file to fetch the extended attribute
+   * @param xattrs the extended attributes map that will be filled by this method
+   */
+  void fetchFileExtendedAttributes(const ProcDirBulkRequestFile & file, eos::IContainerMD::XAttrMap & xattrs);
+
+  /**
+   *
+   * @param file
+   * @param filesWithFuture
+   */
+  void initiateFileMDFetch(const ProcDirBulkRequestFile & file,std::map<ProcDirBulkRequestFile, folly::Future<IFileMDPtr>> & filesWithFuture);
 };
 
 EOSBULKNAMESPACE_END
