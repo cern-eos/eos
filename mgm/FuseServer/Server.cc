@@ -45,6 +45,7 @@
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/ContainerIterators.hh"
 #include "namespace/Prefetcher.hh"
+#include "namespace/utils/Attributes.hh"
 
 #include "common/Logging.hh"
 #include "common/Path.hh"
@@ -1536,6 +1537,7 @@ Server::OpSetDirectory(const std::string& id,
       }
 
       eos::IContainerMD::XAttrMap xattrs = pcmd->getAttributes();
+
       // test to verify this is the culprit of failing all eosxd system tests in the CI
       // if ( (md.attr().find("user.acl") != md.attr().end()) && (xattrs.find("sys.eval.useracl") == xattrs.end()) ) {
       // return EPERM;
@@ -2116,7 +2118,10 @@ Server::OpSetFile(const std::string& id,
       unsigned long forcedFsId = 0;
       long forcedGroup = 0;
       XrdOucString space;
-      eos::IContainerMD::XAttrMap attrmap = pcmd->getAttributes();
+
+      eos::IContainerMD::XAttrMap attrmap;
+      eos::listAttributes(gOFS->eosView, &(*pcmd), attrmap, false);
+
       XrdOucEnv env;
       std::string bandwidth;
       // retrieve the layout
