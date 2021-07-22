@@ -742,9 +742,23 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
           vid.prot = "sss";
         }
       } else {
-        // map oauthname
-        Mapping::getPhysicalIds(oauthname.c_str(), vid);
-        vid.prot = "oauth2";
+	int errc=0;
+	std::string uidkey = "oauth2:\"";
+	uidkey += "sub:";
+	uidkey += oauthname.c_str();
+	uidkey += "\":uid";
+	if (gVirtualUidMap.count(uidkey.c_str())) {
+	  // map oauthname from static sub mapping
+	  oauthname = UidToUserName( gVirtualUidMap[uidkey.c_str()], errc );
+	}
+	if (errc) {
+	  // we have no mapping for this uid
+	  Mapping::getPhysicalIds("nobody", vid);
+	} else {
+	  // map oauthname
+	  Mapping::getPhysicalIds(oauthname.c_str(), vid);
+	}
+	vid.prot = "oauth2";
       }
     }
   }
