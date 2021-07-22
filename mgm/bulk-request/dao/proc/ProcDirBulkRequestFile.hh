@@ -45,13 +45,13 @@ public:
   const std::optional<std::string> getError() const;
   void setFullPath(const std::string & fullPath);
   const std::string getFullPath() const;
-  void setNameInBulkRequestDirectory(const std::string & name);
-  const std::string getNameInBulkRequestDirectory() const;
+  void setName(const std::string & name);
+  const std::string getName() const;
   bool operator<(const ProcDirBulkRequestFile & other) const;
   bool operator==(const ProcDirBulkRequestFile & other) const;
 private:
   std::optional<eos::common::FileId::fileid_t> mFileId;
-  std::string mNameInBulkRequestDirectory;
+  std::string mName;
   std::optional<std::string> mError;
   std::string mFullPath;
 };
