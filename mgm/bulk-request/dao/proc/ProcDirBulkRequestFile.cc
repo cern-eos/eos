@@ -55,12 +55,12 @@ const std::string ProcDirBulkRequestFile::getFullPath() const {
   return mFullPath;
 }
 
-void ProcDirBulkRequestFile::setNameInBulkRequestDirectory(const std::string& name){
-  mNameInBulkRequestDirectory = name;
+void ProcDirBulkRequestFile::setName(const std::string& name){
+  mName = name;
 }
 
-const std::string ProcDirBulkRequestFile::getNameInBulkRequestDirectory() const {
-  return mNameInBulkRequestDirectory;
+const std::string ProcDirBulkRequestFile::getName() const {
+  return mName;
 }
 
 bool ProcDirBulkRequestFile::operator<(const ProcDirBulkRequestFile& other) const {
