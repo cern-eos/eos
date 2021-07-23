@@ -92,7 +92,9 @@ The following tags compose a rule:
 
 
 
-Actually, every single-letter permission can be explicitely denied ('!'), e.g. '!w!r, re-granted ('+').
+Actually, every single-letter permission with the exception of change owner (c) can
+be explicitely denied ('!'), e.g. '!w!r, re-granted ('+'). Change owner
+permission is only explicitly enabled on grant, so it is denied by default.
 Denials persist after all other rules have been evaluated, i.e. in 'u:fred:!w!r,g:fredsgroup:wrx' the user "fred"
 is denied reading and writing although the group he is in has read+write access.
 Rights can be re-granted (in sys.acl only) even when denied by specyfing e.g. '+d'. Hence,
@@ -142,13 +144,14 @@ The user.acl (if defined) is evaluated after the sys.acl, e.g. If we have:
 i.e., the group “admins” is granted the 'd' right although it is denied to everybody else in the user.acl.
 
 
-Finally the ACL can be set via either of the following 2 commands, see `eos acl --help` or `eos attr set --help`. From the operational perspective one may prefer the former command as it acts specifically on the element we change (egroup, user ... etc.) instead of re-specifying the whole permission set of rules (`eos attr set` case).
+Finally the ACL can be set via either of the following 2 commands, see `eos acl --help` or `eos attr set --help`. From the operational perspective one may prefer the former command as it acts specifically on the element we change (egroup, user ... etc.) instead of re-specifying the whole permission set of rules (`eos attr set` case). `eos acl` set of commands also allow for specific position to place the rule in when creating or modifying a rule. By default rules are appended at the end of the acl, `--front` flag allows to place a rule at the front, and an integer position starting from 1 (which is equivalent to `--front`) can also be used to explicitly move a rule to a specific position via the `--position` argument.
 
 .. code-block:: bash
    
    eos attr set sys.acl=<rule_a>,<rule_b>.. /eos/mypath
    eos acl --sys <rule_c> /eos/mypath
-   
+   eos acl --front <rule_d> /eos/mypath
+   eos acl --position 2 <rule_f> /eos/mypath
 
 The ACLs can be listed by either of these commands as well:
 
@@ -194,8 +197,22 @@ For example:
    #
    $ eos attr ls /eos/mypath
    sys.acl="u:99999:rw,egroup:mygroup:w"
-   
-   
+   # append a new rule to the end
+   $ eos acl --sys u:1002=\!w /eos/mypath
+   $ eos attr ls /eos/mypath
+   sys.acl="u:99999:rw,egroup:mygroup:rw,u:1002:!w"
+
+   # Move a rule to the front, the full rule needs to be specified
+   $ eos acl --front egroup:mygroup=rw /eos/mypath
+   $ eos attr ls /eos/mypath
+   sys.acl="egroup:mygroup:rw,u:99999:rw,u:1002:!w"
+
+   # Add a new rule at a specific position
+   $ eos acl --position 2  egroup:mygroup2=rwx /eos/mypath
+   $ eos attr ls /eos/mypath
+   sys.acl="egroup:mygroup:rw,egroup:mygroup2:rwx,u:99999:rw,u:1002:!w"
+
+
 .. note::
 
    * The "-r 0 0" can be used to map your account with the sudoers role. This has to be assigned to your account on the EOS instance by the service manager, see `eos vid ls`), e.g. `eos -r 0 0 acl --sys 'egroup:mygroup:!d' /eos/mypath`. 
