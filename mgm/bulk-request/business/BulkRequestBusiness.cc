@@ -42,7 +42,13 @@ std::unique_ptr<BulkRequest> BulkRequestBusiness::getBulkRequest(const std::stri
   EXEC_TIMING_BEGIN("BulkRequestBusiness::getBulkRequest");
   std::unique_ptr<BulkRequest> bulkRequest =  mDaoFactory->getBulkRequestDAO()->getBulkRequest(bulkRequestId,type);
   EXEC_TIMING_END("BulkRequestBusiness::getBulkRequest");
-  eos_info("msg=\"Retrieved bulk request id=%s from persistence layer\"",bulkRequestId.c_str());
+  if(bulkRequest != nullptr) {
+    eos_info("msg=\"Retrieved bulk request id=%s from persistence layer\"",
+             bulkRequestId.c_str());
+  } else {
+    eos_info("msg=\"No bulk request with id=%s has been found in the persistence layer\"",
+             bulkRequestId.c_str());
+  }
   return bulkRequest;
 }
 
