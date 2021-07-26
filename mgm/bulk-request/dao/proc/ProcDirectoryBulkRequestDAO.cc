@@ -220,7 +220,6 @@ void ProcDirectoryBulkRequestDAO::fillBulkRequest(const std::string & bulkReques
     fetchFileExtendedAttributes(file,xattrs);
     fillFileErrorIfAny(file,xattrs);
 
-
     try {
       //The file name is normally a fid. But if the file submitted before did not exist, the path will be stored in another format (e.g: #:#eos#:#test#:#testFile.txt)
       eos::common::FileId::fileid_t fid = std::stoull(file.getName());
@@ -228,7 +227,7 @@ void ProcDirectoryBulkRequestDAO::fillBulkRequest(const std::string & bulkReques
       initiateFileMDFetch(file,filesInBulkReqProcDirWithFuture);
     } catch (std::invalid_argument& ex) {
       // The current file is not a fid, it is therefore a file that has the format #:#eos#:#test#:#testFile.txt (#:# replaced by '/')
-      std::string filePathCopy = fileName;
+      std::string filePathCopy = file.getName();
       common::StringConversion::ReplaceStringInPlace(filePathCopy, "#:#",
                                                      "/");
       File bulkRequestFile(filePathCopy);
@@ -236,25 +235,8 @@ void ProcDirectoryBulkRequestDAO::fillBulkRequest(const std::string & bulkReques
       bulkRequest.addFile(bulkRequestFile);
     }
   }
-  {
-    eos::common::RWMutexReadLock lock(mFileSystem->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
-    for (auto& fileWithFuture : filesInBulkReqProcDirWithFuture) {
-      try {
-        fileWithFuture.second.wait();
-        std::shared_ptr<IFileMD> fmd = gOFS->eosFileService->getFileMD(fileWithFuture.first.getFileId().value());
-        File bulkReqFile(mFileSystem->eosView->getUri(fmd.get()));
-        bulkReqFile.setError(fileWithFuture.first.getError());
-        bulkRequest.addFile(bulkReqFile);
-      } catch (const eos::MDException & ex){
-        //We could not get any information about this file (might have been deleted for example)
-        //log this as a warning and remove this file
-        std::stringstream ss;
-        ss << "In ProcDirectoryBulkRequestDAO::fillBulkRequest(), unable to get the metadata of the file id=" << fileWithFuture.first.getFileId().value()
-        << " ErrorMsg=\"" << ex.what() << "\"";
-        eos_warning(ss.str().c_str());
-      }
-    }
-  }
+
+  getFilesPathAndAddToBulkRequest(filesInBulkReqProcDirWithFuture,bulkRequest);
 }
 
 void ProcDirectoryBulkRequestDAO::fillBulkRequestDirectoryContentMap(const std::string & bulkRequestProcPath, std::map<std::string, std::set<std::string>> & directoryContent) {
@@ -289,4 +271,26 @@ void ProcDirectoryBulkRequestDAO::initiateFileMDFetch(const ProcDirBulkRequestFi
   std::pair<ProcDirBulkRequestFile, folly::Future<IFileMDPtr>> fileWithFuture(file,mFileSystem->eosFileService->getFileMDFut(file.getFileId().value()));
   filesWithFuture.emplace(std::move(fileWithFuture));
 }
+
+void ProcDirectoryBulkRequestDAO::getFilesPathAndAddToBulkRequest(std::map<ProcDirBulkRequestFile, folly::Future<IFileMDPtr>> & filesWithFuture, BulkRequest & bulkRequest) {
+  eos::common::RWMutexReadLock lock(mFileSystem->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+  for (auto& fileWithFuture : filesWithFuture) {
+    try {
+      fileWithFuture.second.wait();
+      std::shared_ptr<IFileMD> fmd = gOFS->eosFileService->getFileMD(fileWithFuture.first.getFileId().value());
+      File bulkReqFile(mFileSystem->eosView->getUri(fmd.get()));
+      bulkReqFile.setError(fileWithFuture.first.getError());
+      bulkRequest.addFile(bulkReqFile);
+    } catch (const eos::MDException & ex){
+      //We could not get any information about this file (might have been deleted for example)
+      //log this as a warning and remove this file
+      std::stringstream ss;
+      ss << "In ProcDirectoryBulkRequestDAO::getFilesPathAndAddToBulkRequest(), unable to get the metadata of the file id=" << fileWithFuture.first.getFileId().value()
+         << " ErrorMsg=\"" << ex.what() << "\"";
+      eos_warning(ss.str().c_str());
+    }
+  }
+}
+
+
 EOSBULKNAMESPACE_END
