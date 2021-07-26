@@ -1753,6 +1753,7 @@ grpc::Status GrpcNsInterface::Version(eos::common::VirtualIdentity& vid,
       CREATE= 0;
       PURGE = 1;
       LIST = 2;
+      GRAB = 3;
     }
     MDId id = 1;
     VERSION_CMD cmd = 2;
@@ -1883,8 +1884,89 @@ grpc::Status GrpcNsInterface::Version(eos::common::VirtualIdentity& vid,
           }
         }
       } else {
-        reply->set_code(EINVAL);
-        reply->set_msg("error: command is not supported");
+	if (request->cmd() == eos::rpc::NSRequest::VersionRequest::GRAB) {
+	  // grab a given version
+
+	  XrdOucErrInfo error;
+	  struct stat buf;
+	  struct stat vbuf;
+
+	  if (gOFS->_stat(path.c_str(), &buf, error, vid, "")) {
+	    std::string msg;
+	    msg = "error; unable to stat path=";
+	    msg += path.c_str();
+	    reply->set_code(errno);
+	    reply->set_msg(msg);
+	    return grpc::Status::OK;
+	  }
+
+
+	  XrdOucString versionname = request->grabversion().c_str();
+
+	  if (!versionname.length()) {
+	    std::string msg = "error: you have to provide the version you want to stage!";
+	    reply->set_code(EINVAL);
+	    reply->set_msg(msg);
+	    return grpc::Status::OK;
+	  }
+
+	  XrdOucString versionpath = cPath.GetVersionDirectory();
+	  versionpath += versionname;
+
+	  if (gOFS->_stat(versionpath.c_str(), &vbuf, error, vid, "")) {
+	    std::string msg;
+	    msg = "error: failed to stat your provided version path='";
+	    msg += versionpath.c_str();
+	    msg += "'";
+	    reply->set_code(errno);
+	    reply->set_msg(msg);
+	    return grpc::Status::OK;
+	  }
+
+	  // now stage a new version of the existing file
+	  XrdOucString versionedpath;
+	  if (gOFS->Version(eos::common::FileId::InodeToFid(buf.st_ino), error,
+			    vid, -1, &versionedpath)) {
+	    std::string msg;
+	    msg += "error: unable to create a version of path=";
+	    msg += path.c_str();
+	    msg += "\n";
+	    msg += "error: ";
+	    msg += error.getErrText();
+	    reply->set_code(error.getErrInfo());
+	    reply->set_msg(msg);
+	    return grpc::Status::OK;
+	  }
+
+	  // and stage back the desired version
+	  if (gOFS->rename(versionpath.c_str(), path.c_str(), error, vid)) {
+	    std::string msg;
+	    msg += "error: unable to stage";
+	    msg += " '";
+	    msg += versionpath.c_str();
+	    msg += "' back to '";
+	    msg += path.c_str();
+	    msg += "'";
+	    reply->set_code(errno);
+	    reply->set_msg(msg);
+	    return grpc::Status::OK;
+	  } else {
+	    std::string msg;
+	    msg += "success: staged '";
+	    msg += versionpath.c_str();
+	    msg += "' back to '";
+	    msg += path.c_str();
+	    msg += "'";
+	    msg += " - the previous file is now '";
+	    msg += versionedpath.c_str();
+	    msg+= ";";
+	    reply->set_code(0);
+	    reply->set_msg(msg);
+	  }
+	} else {
+	  reply->set_code(EINVAL);
+	  reply->set_msg("error: command is not supported");
+	}
       }
     }
   }
