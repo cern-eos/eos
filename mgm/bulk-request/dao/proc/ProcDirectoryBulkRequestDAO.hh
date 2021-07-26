@@ -153,11 +153,20 @@ private:
   void fetchFileExtendedAttributes(const ProcDirBulkRequestFile & file, eos::IContainerMD::XAttrMap & xattrs);
 
   /**
-   *
-   * @param file
-   * @param filesWithFuture
+   * Asynchronously fetch the file metadata by using the eosFileService->getFileMDFut() method. The filesWithFuture map will
+   * be filled by this method
+   * @param file the file to asynchronously fetch the metadata
+   * @param filesWithFuture the map to include the file and its future
    */
   void initiateFileMDFetch(const ProcDirBulkRequestFile & file,std::map<ProcDirBulkRequestFile, folly::Future<IFileMDPtr>> & filesWithFuture);
+
+  /**
+   * Wait for the futures associated to the files inserted in the filesWithFuture map (got filled by the initiateFileMDFetch() method).
+   * Once all the futures have returned
+   * @param filesWithFuture the map containing the files and the associated future to get the metadata from it
+   * @param bulkRequest
+   */
+  void getFilesPathAndAddToBulkRequest(std::map<ProcDirBulkRequestFile, folly::Future<IFileMDPtr>> & filesWithFuture, BulkRequest & bulkRequest);
 };
 
 EOSBULKNAMESPACE_END
