@@ -959,6 +959,12 @@ RainMetaLayout::AddDataBlock(uint64_t offset, const char* buffer,
             offset, length, grp_off);
   char* ptr {nullptr};
   {
+    // minimize the deadlock window, but with the current implementation, a final race condition
+    // remains because once the parity thread runs into a timeout and defins parity error
+    // follow up writes into the same group get locked in GetGroup
+    if (mHasParityErr) {
+      return false;
+    }
     // Reduce the scope for the eos::fst::RainGroup object to properly account
     // the number of references and trigger the Recycle procedure.
     std::shared_ptr<eos::fst::RainGroup> grp = GetGroup(offset);
@@ -981,7 +987,6 @@ RainMetaLayout::AddDataBlock(uint64_t offset, const char* buffer,
       mQueueGrps.push(grp_off);
     } else {
       if (!DoBlockParity(grp_off)) {
-        mHasParityErr = true;
         return false;
       }
     }
@@ -1021,6 +1026,7 @@ RainMetaLayout::DoBlockParity(uint64_t grp_off)
     done = false;
   }
 
+  mHasParityErr = true;
   grp->Unlock();
   RecycleGroup(grp);
   //  up.Print();
@@ -1723,7 +1729,6 @@ RainMetaLayout::StartParityThread(ThreadAssistant& assistant) noexcept
 
     if (!DoBlockParity(grp_off)) {
       eos_err("msg=\"failed parity computation\" grp_off=%llu", grp_off);
-      mHasParityErr = true;
       break;
     } else {
       eos_info("msg=\"successful parity computation\" grp_off=%llu", grp_off);
