@@ -18,6 +18,21 @@ This release is based on XRootD V4 and IPV6 enabled.
 ``v4.8.59 Citrine``
 ===================
 
+2021-07-27
+
+Bug
+---
+
+* [EOS-4779] FST: reduce file-local dead lock condition after parity computation error
+
+Improvements
+------------
+
+* [EOS-4827] MGM: implement GRAB version functionality in GRPC
+
+``v4.8.59 Citrine``
+===================
+
 2021-07-22
 
 Bug
