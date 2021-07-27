@@ -54,6 +54,8 @@ Setting application policies
 
 Application bandwidht policies apply for all read and write streams.
 
+.. code-block:: bash
+
    # configure an application specific bandwidth limitations for all streams in a space
    eos space config default space.bw.myapp=100 # streams tagged as ?eos.app=myapp are limited to 100 MB/s
 
