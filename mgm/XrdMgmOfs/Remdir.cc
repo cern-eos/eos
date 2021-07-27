@@ -117,9 +117,6 @@ XrdMgmOfs::_remdir(const char* path,
               e.getErrno(), e.getMessage().str().c_str());
   }
 
-  fprintf(stderr,"remdir: %s %s %s %s\n", path, vid.scope.c_str(), ininfo?ininfo:"", aclpath.c_str());
-
-
   // check existence
   if (!dh) {
     errno = ENOENT;
