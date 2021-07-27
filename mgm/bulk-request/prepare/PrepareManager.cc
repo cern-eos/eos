@@ -391,27 +391,42 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, con
   XrdOucString reqid(pargs.reqid);
 
   int path_cnt = 0;
-  std::vector<std::string> pathsToQuery;
+  FileCollection::Files userProvidedFiles;
   for (XrdOucTList* pptr = pargs.paths; pptr; pptr = pptr->next) {
     if (!pptr->text) {
       continue;
     }
-    pathsToQuery.push_back(pptr->text);
+    userProvidedFiles[pptr->text] = File(pptr->text);
     ++path_cnt;
   }
 
   mMgmFsInterface.addStats("QueryPrepare", vid.uid, vid.gid, path_cnt);
-  std::shared_ptr<FileCollection::Files> fileCollection;
+  std::shared_ptr<FileCollection::Files> filesFromPersistency;
   if(reqid.length()){
     //Look in the persistency layer for informations about files submitted previously for staging
-    fileCollection = getFileCollectionFromPersistency(reqid.c_str());
+    filesFromPersistency = getFileCollectionFromPersistency(reqid.c_str());
+  }
+
+  std::shared_ptr<FileCollection::Files> filesToQuery(new FileCollection::Files());
+  //If files were provided by the user, we will only query those which were provided
+  //If no files were provided, we will query the files that got fetched from the persistency layer
+  for(auto & userProvidedFile: userProvidedFiles){
+    try {
+      (*filesToQuery)[userProvidedFile.first] = filesFromPersistency->at(userProvidedFile.first);
+    } catch(const std::out_of_range &) {
+      (*filesToQuery)[userProvidedFile.first] = userProvidedFile.second;
+    }
+  }
+
+  if(filesToQuery->empty()){
+    filesToQuery = filesFromPersistency;
   }
 
   std::shared_ptr<QueryPrepareResponse> response = result.getResponse();
 
   // Set the queryPrepareFileResponses for each file in the list
-  for (auto & queriedPath: pathsToQuery) {
-    response->responses.push_back(QueryPrepareFileResponse(queriedPath));
+  for (auto & file: *filesToQuery) {
+    response->responses.push_back(QueryPrepareFileResponse(file.first));
     auto& rsp = response->responses.back();
     // check if the file exists
     XrdOucString prep_path;
