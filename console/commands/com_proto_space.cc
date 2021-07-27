@@ -417,7 +417,7 @@ void com_space_help()
       << "space config <space-name> space.geo.access.policy.write.exact=on|off  : if 'on' use exact matching geo replica (if available), 'off' uses weighting [ for write case ]\n"
       << "space config <space-name> space.geo.access.policy.read.exact=on|off   : if 'on' use exact matching geo replica (if available), 'off' uses weighting [ for read  case ]\n"
       << "space config <space-name> fs.<key>=<value>                            : configure file system parameters for each filesystem in this space (see help of 'fs config' for details)\n"
-      << "space config <space-name> space.policy.[layout|nstripes|checksum|blockchecksum|blocksize]=<value>      \n"
+      << "space config <space-name> space.policy.[layout|nstripes|checksum|blockchecksum|blocksize|bw|schedule|iopriority]=<value>      \n"
       << "                                                                      : configure default file layout creation settings as a space policy - a value='remove' deletes the space policy\n"
       << std::endl
       << "space config <space-name> space.policy.recycle=on\n"

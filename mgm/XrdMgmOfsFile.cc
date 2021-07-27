@@ -1455,11 +1455,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     capability += "&tapeenabled=1";
   }
 
-  if (ioPriority.length()) {
-    capability += "mgm.iopriority=";
-    capability += ioPriority.c_str();
-  }
-
   if (isPioReconstruct) {
     capability += "&mgm.access=update";
   } else {
@@ -1510,12 +1505,28 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   eos::mgm::Scheduler::tPlctPolicy plctplcy;
   std::string targetgeotag;
   std::string bandwidth;
+  std::string ioprio;
+  bool schedule=false;
 
   eos::common::RWMutexReadLock
   fs_rd_lock(FsView::gFsView.ViewMutex, __FUNCTION__, __LINE__, __FILE__);
   // select space and layout according to policies
   Policy::GetLayoutAndSpace(path, attrmap, vid, new_lid, space, *openOpaque,
-                            forcedFsId, forced_group, bandwidth);
+                            forcedFsId, forced_group, bandwidth, schedule, ioprio);
+  if (ioPriority.length()) {
+    capability += "&mgm.iopriority=";
+    capability += ioPriority.c_str();
+  } else {
+    if (ioprio.length()) {
+      capability += "&mgm.iopriority=";
+      capability += ioprio.c_str();
+    }
+  }
+
+  if (schedule) {
+    capability += "&mgm.schedule=1";
+  }
+
   // get placement policy
   Policy::GetPlctPolicy(path, attrmap, vid, *openOpaque, plctplcy, targetgeotag);
   unsigned long long ext_mtime_sec = 0;
