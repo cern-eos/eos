@@ -56,6 +56,8 @@ public:
                                  unsigned long &forcedfsid,
                                  long &forcedgroup, 
 				 std::string& bandwidth,
+				 bool &schedul,
+				 std::string& iopriority,
 				 bool lock_view = false);
 
   static void GetPlctPolicy (const char* path,

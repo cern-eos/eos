@@ -48,6 +48,11 @@ Setting space policies
    # configure a global bandwidth limitation for all streams of 100 MB/s in a space
    eos space config default space.policy.bandwidth=100
 
+   # configure FST fair thread scheduling
+   eos space config default space.policy.schedule=1
+
+   # configure default FST iopriority
+   eos space config default space.policy.iopriority=be:4
 
 Setting application policies
 -------------------------------------

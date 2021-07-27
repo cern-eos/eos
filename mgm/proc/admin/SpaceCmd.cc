@@ -877,6 +877,50 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
       }
     }
 
+    // Set iopriority parameter
+    if (!key.compare(0, 3, "iopriority.")) {
+      applied = true;
+
+      if (value == "remove") {
+	if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->DeleteConfigMember(
+										    key)) {
+	  ret_c = ENOENT;
+	  std_err.str("error: key has not been deleted");
+	} else {
+	  std_out.str("success: deleted iopriority setting: " + key);
+	}
+      } else {
+	if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key,value)) {
+	  ret_c = EIO;
+	  std_err.str("error: cannot set space config value");
+	} else {
+	  std_out.str("success: defining space iopriority: " + key + "=" +value);
+	}
+      }
+    }
+
+    // Set schedule parameter
+    if (!key.compare(0, 3, "schedule.")) {
+      applied = true;
+
+      if (value == "remove") {
+	if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->DeleteConfigMember(
+										    key)) {
+	  ret_c = ENOENT;
+	  std_err.str("error: key has not been deleted");
+	} else {
+	  std_out.str("success: deleted application scheduling setting: " + key);
+	}
+      } else {
+	if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key,value)) {
+	  ret_c = EIO;
+	  std_err.str("error: cannot set space config value");
+	} else {
+	  std_out.str("success: defining space scheduling: " + key + "=" +value);
+	}
+      }
+    }
+
     // Set a filesystem related parameter
     if (!key.compare(0, 3, "fs.")) {
       applied = true;
