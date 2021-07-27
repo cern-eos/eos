@@ -1026,7 +1026,9 @@ RainMetaLayout::DoBlockParity(uint64_t grp_off)
     done = false;
   }
 
-  mHasParityErr = true;
+  if (!done) {
+    mHasParityErr = true;
+  }
   grp->Unlock();
   RecycleGroup(grp);
   //  up.Print();
