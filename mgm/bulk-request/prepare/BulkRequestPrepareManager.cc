@@ -88,4 +88,5 @@ const std::shared_ptr<FileCollection::Files> BulkRequestPrepareManager::getFileC
   }
   return ret;
 }
+
 EOSBULKNAMESPACE_END
