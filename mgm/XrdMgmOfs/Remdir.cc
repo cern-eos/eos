@@ -117,6 +117,7 @@ XrdMgmOfs::_remdir(const char* path,
               e.getErrno(), e.getMessage().str().c_str());
   }
 
+  eos_info("path='%s' scope='%s' aclpath='%s'\n", path, vid.scope.c_str(), aclpath.c_str());
   // check existence
   if (!dh) {
     errno = ENOENT;
