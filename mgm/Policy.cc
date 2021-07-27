@@ -46,6 +46,8 @@ Policy::GetSpacePolicyLayout(const char* space)
   unsigned long layoutid = 0;
   XrdOucString ret_space;
   std::string bandwidth;
+  bool schedule=0;
+  std::string iopriority;
 
   eos::IContainerMD::XAttrMap attrmap;
   eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
@@ -58,6 +60,8 @@ Policy::GetSpacePolicyLayout(const char* space)
 		    forcedfsid,
 		    forcedgroup,
 		    bandwidth,
+		    schedule,
+		    iopriority,
 		    true);
   return layoutid;
 }
@@ -72,6 +76,8 @@ Policy::GetLayoutAndSpace(const char* path,
                           unsigned long& forcedfsid,
                           long& forcedgroup, 
 			  std::string& bandwidth,
+			  bool& schedule,
+			  std::string& iopriority,
 			  bool lockview)
 
 {
@@ -106,7 +112,8 @@ Policy::GetLayoutAndSpace(const char* path,
       spacepolicies["blocksize"] = it->second->GetConfigMember("policy.blocksize");
       spacepolicies["blockchecksum"] = it->second->GetConfigMember("policy.blockchecksum");
       bandwidth = it->second->GetConfigMember("policy.bandwidth");
-
+      schedule = (it->second->GetConfigMember("policy.schedule")=="1");
+      iopriority = it->second->GetConfigMember("policy.iopriority");
 
       // try application specific bandwidth setting
       std::string appkey = "bw.";
@@ -163,6 +170,8 @@ Policy::GetLayoutAndSpace(const char* path,
       }
 
       bandwidth = it->second->GetConfigMember("policy.bandwidth");
+      schedule = (it->second->GetConfigMember("policy.schedule")=="1");
+      iopriority = it->second->GetConfigMember("policy.iopriority");
 
       // try application specific bandwidth setting
       std::string appkey = "bw.";

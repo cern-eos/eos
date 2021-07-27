@@ -2509,6 +2509,11 @@ XrdFstOfsFile::ProcessCapOpaque(bool& is_repair_read,
                      mNsPath.c_str());
   }
 
+  // enable round-robin scheduling per application/fsid on request
+  if ((val = mCapOpaque->Get("mgm.schedule"))) {
+    mAppRR = mSecMap["app"];
+  }
+
   SetLogId(logId, vid, mTident.c_str());
   return SFS_OK;
 }
