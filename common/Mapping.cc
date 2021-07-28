@@ -1549,8 +1549,9 @@ Mapping::UidToUserName(uid_t uid, int& errc)
   {
     XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
 
-    if (gPhysicalUserNameCache.count(uid)) {
-      return gPhysicalUserNameCache[uid];
+    auto kv = gPhysicalUserNameCache.find(uid);
+    if (kv != gPhysicalUserNameCache.end()) {
+      return kv->second;
     }
   }
   char buffer[131072];
@@ -1611,8 +1612,9 @@ Mapping::GidToGroupName(gid_t gid, int& errc, size_t buffersize)
   {
     XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
 
-    if (gPhysicalGroupNameCache.count(gid)) {
-      return gPhysicalGroupNameCache[gid];
+    auto kv = gPhysicalGroupNameCache.find(gid);
+    if (kv != gPhysicalGroupNameCache.end()) {
+      return kv->second;
     }
   }
   {
@@ -1666,8 +1668,9 @@ Mapping::UserNameToUid(const std::string& username, int& errc)
   {
     XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
 
-    if (gPhysicalUserIdCache.count(username)) {
-      return gPhysicalUserIdCache[username];
+    if (auto kv = gPhysicalUserIdCache.find(username);
+        kv != gPhysicalUserIdCache.end()) {
+      return kv->second;
     }
   }
   char buffer[131072];
@@ -1728,9 +1731,9 @@ Mapping::GroupNameToGid(const std::string& groupname, int& errc)
 {
   {
     XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
-
-    if (gPhysicalGroupIdCache.count(groupname)) {
-      return gPhysicalGroupIdCache[groupname];
+    if (auto kv = gPhysicalGroupIdCache.find(groupname);
+        kv != gPhysicalGroupIdCache.end()) {
+      return kv->second;
     }
   }
   char buffer[131072];
@@ -2100,7 +2103,7 @@ Mapping::IsOAuth2Resource(const std::string& resource)
   uidkey += "key:";
   uidkey += resource;
   uidkey += "\":uid";
-  return gVirtualUidMap.count(uidkey.c_str());
+  return gVirtualUidMap.count(uidkey);
 }
 
 
