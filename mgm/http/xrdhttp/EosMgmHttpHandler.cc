@@ -351,9 +351,15 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
   }
 
   if (req.verb == "POST") {
-    // Delegate request to the XrdMacaroons library
-    eos_info("%s", "msg=\"delegate request to XrdMacaroons library\"");
-    return mTokenHttpHandler->ProcessReq(req);
+    if (mTokenHttpHandler) {
+      // Delegate request to the XrdMacaroons library
+      eos_info("%s", "msg=\"delegate request to XrdMacaroons library\"");
+      return mTokenHttpHandler->ProcessReq(req);
+    } else {
+      std::string errmsg = "POST request not supported";
+      return req.SendSimpleResp(404, errmsg.c_str(), "", errmsg.c_str(),
+                                errmsg.length());
+    }
   }
 
   if (req.verb == "PROPFIND") {
