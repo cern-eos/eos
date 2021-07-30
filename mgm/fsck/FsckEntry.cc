@@ -483,6 +483,13 @@ FsckEntry::RepairRainInconsistencies()
     drop_src_fsid = true;
   }
 
+  if (mReportedErr == FsckErr::DiffRepl) {
+    // For rep_diff_n errors the source file systems is not to be dropped
+    // or skipped during the scheduling process as it's a valid stripe
+    // useful when doing the transfer.
+    src_fsid = 0;
+  }
+
   auto repair_job = mRepairFactory(mFid, src_fsid, 0, {}, {},
                                    drop_src_fsid, "fsck");
   repair_job->DoIt();

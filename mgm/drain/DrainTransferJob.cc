@@ -505,7 +505,15 @@ DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain)
                                          mFsIdSource);
 
   if (source_fs == nullptr) {
-    return false;
+    // In case of rain reconstruction without dropping a particular stripe
+    // the mFsIdSource is set to the sentinel value of 0.
+    if ((mFsIdSource == 0u) && fdrain.mProto.locations_size()) {
+      source_fs = FsView::gFsView.mIdView.lookupByID(fdrain.mProto.locations(0));
+    }
+
+    if (source_fs == nullptr) {
+      return false;
+    }
   }
 
   source_fs->SnapShotFileSystem(source_snapshot);
