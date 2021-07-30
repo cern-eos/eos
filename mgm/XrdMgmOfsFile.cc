@@ -445,7 +445,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   uint64_t fmdsize = 0;
   // io priority string
   std::string ioPriority;
-
   int crOpts = (Mode & SFS_O_MKPTH) ? XRDOSS_mkpath : 0;
 
   // Set the actual open mode and find mode
@@ -579,13 +578,14 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   {
     // handle io priority
     const char* val = 0;
+
     if ((val = openOpaque->Get("eos.iopriority"))) {
       if (vid.hasUid(11)) {  // operator role
-	// admin members can set iopriority
-	ioPriority = val;
+        // admin members can set iopriority
+        ioPriority = val;
       } else {
-	eos_info("suppressing IO priority setting '%s' (no operator role)",
-		 val);
+        eos_info("suppressing IO priority setting '%s' (no operator role)",
+                 val);
       }
     }
   }
@@ -1506,13 +1506,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   std::string targetgeotag;
   std::string bandwidth;
   std::string ioprio;
-  bool schedule=false;
-
+  bool schedule = false;
   eos::common::RWMutexReadLock
   fs_rd_lock(FsView::gFsView.ViewMutex, __FUNCTION__, __LINE__, __FILE__);
   // select space and layout according to policies
   Policy::GetLayoutAndSpace(path, attrmap, vid, new_lid, space, *openOpaque,
                             forcedFsId, forced_group, bandwidth, schedule, ioprio);
+
   if (ioPriority.length()) {
     capability += "&mgm.iopriority=";
     capability += ioPriority.c_str();
@@ -2424,6 +2424,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   // Get the unique set of file systems
   std::set<unsigned int> ufs(selectedfs.begin(), selectedfs.end());
   ufs.insert(pio_reconstruct_fs.begin(), pio_reconstruct_fs.end());
+  // If file system 0 sentinel is present then it must be removed
+  ufs.erase(0u);
   new_lid = LayoutId::GetId(
               isPio ? LayoutId::kPlain :
               LayoutId::GetLayoutType(layoutId),
@@ -2489,7 +2491,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     capability += std::to_string(fmdsize).c_str();
   }
 
-
   if (bandwidth.length() && (bandwidth != "0")) {
     capability += "&mgm.iobw=";
     capability += bandwidth.c_str();
@@ -2536,8 +2537,14 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       // Create a plain layout with the number of replacement stripes to be
       // scheduled in the file placement routine
       unsigned long plain_lid = new_lid;
-      LayoutId::SetStripeNumber(plain_lid,
-                                pio_reconstruct_fs.size() - 1 + stripe_diff);
+
+      if (pio_reconstruct_fs.find(0) != pio_reconstruct_fs.end()) {
+        LayoutId::SetStripeNumber(plain_lid, stripe_diff - 1);
+      } else {
+        LayoutId::SetStripeNumber(plain_lid,
+                                  pio_reconstruct_fs.size() - 1 + stripe_diff);
+      }
+
       eos_info("msg=\"nominal stripes:%d reconstructed stripes=%d group_idx=%d\"",
                LayoutId::GetStripeNumber(new_lid) + 1,
                LayoutId::GetStripeNumber(plain_lid) + 1,
@@ -2596,7 +2603,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                (LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1),
                selectedfs.size(), selection_diff);
 
-      // If there as stripes missing then fill them in from the replacements
+      // If there are stripes missing then fill them in from the replacements
       if (pio_replacement_fs.size() < selection_diff) {
         eos_err("msg=\"not enough replacement fs\" need=%lu have=%lu",
                 selection_diff, pio_replacement_fs.size());
@@ -2609,6 +2616,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         pio_replacement_fs.pop_back();
       }
     }
+
+    replacedfs.resize(selectedfs.size());
 
     // Put all the replica urls into the capability
     for (unsigned int i = 0; i < selectedfs.size(); ++i) {

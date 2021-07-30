@@ -186,9 +186,7 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
 
   // The local stripe is expected to be reconstructed in a recovery on the
   // gateway server, since it might exist it is truncated.
-  if (mFileIO->fileOpen(flags | ((mStoreRecovery &&
-                                  (mPhysicalStripeIndex == mStripeHead)) ? SFS_O_TRUNC : 0),
-                        mode, enhanced_opaque.c_str(), mTimeout)) {
+  if (mFileIO->fileOpen(flags, mode, enhanced_opaque.c_str(), mTimeout)) {
     if (mFileIO->fileOpen(flags | SFS_O_CREAT, mode, enhanced_opaque.c_str() ,
                           mTimeout)) {
       eos_err("msg=\"failed to open local %s\"", mFileIO->GetPath().c_str());
@@ -965,6 +963,7 @@ RainMetaLayout::AddDataBlock(uint64_t offset, const char* buffer,
     if (mHasParityErr) {
       return false;
     }
+
     // Reduce the scope for the eos::fst::RainGroup object to properly account
     // the number of references and trigger the Recycle procedure.
     std::shared_ptr<eos::fst::RainGroup> grp = GetGroup(offset);
@@ -1029,6 +1028,7 @@ RainMetaLayout::DoBlockParity(uint64_t grp_off)
   if (!done) {
     mHasParityErr = true;
   }
+
   grp->Unlock();
   RecycleGroup(grp);
   //  up.Print();
@@ -1643,7 +1643,6 @@ RainMetaLayout::GetGroup(uint64_t offset)
 {
   uint64_t grp_off = (offset / mSizeGroup) * mSizeGroup;
   std::unique_lock<std::mutex> lock(mMutexGroups);
-
   // if the group exists already, we don't care about mMaxGroups
   auto it = mMapGroups.find(grp_off);
 
