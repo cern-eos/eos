@@ -296,7 +296,7 @@ GroupBalancer::UpdateTransferList()
 {
   for (auto it = mTransfers.begin(); it != mTransfers.end();) {
     if (gOFS->mConverterDriver) {
-      if (!gOFS->mFidTracker.HasEntry(it->first)) {
+      if (gOFS->mFidTracker.HasEntry(it->first)) {
         mTransfers.erase(it++);
       } else {
         ++it;
