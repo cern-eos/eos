@@ -293,9 +293,9 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   mFstGwPort(0), mQdbCluster(""), mHttpdPort(8000),
   mFusexPort(1100), mGRPCPort(50051),
   mFidTracker(std::chrono::seconds(600), std::chrono::seconds(3600)),
+  mDoneOrderlyShutdown(false),
   mXrdBuffPool(2 * eos::common::KB, 2 * eos::common::MB, 8, 64),
-  mJeMallocHandler(new eos::common::JeMallocHandler()),
-  mDoneOrderlyShutdown(false)
+  mJeMallocHandler(new eos::common::JeMallocHandler())
 {
   eDest = ep;
   ConfigFN = 0;
