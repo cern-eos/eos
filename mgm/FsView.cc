@@ -2379,6 +2379,10 @@ FsView::HeartBeatCheck(ThreadAssistant& assistant) noexcept
           }
         }
       } else {
+        if (node->GetActiveStatus() != eos::common::ActiveStatus::kOffline) {
+          node->SetActiveStatus(eos::common::ActiveStatus::kOffline);
+        }
+
         // Loop over all files sysytems in the current node and update status
         for (auto it_fsid = node->begin(); it_fsid != node->end(); ++it_fsid) {
           FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it_fsid);
