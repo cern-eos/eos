@@ -69,9 +69,9 @@ public:
   //! Add entry with expiration
   //!
   //! @param entry
+  //! @param tt tracker type
   //! @param validity validity for the newly added entry. If 0 then default
   //!         validity applies.
-  //! @param tt tracker type
   //!
   //! @return true if entry added, otherwise false
   //----------------------------------------------------------------------------
