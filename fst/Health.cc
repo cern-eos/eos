@@ -232,8 +232,22 @@ std::string DiskHealth::smartctl(const char* device)
         return "FAILING";
 
       case 4:
+        return "Check";
+
+      // Bit 5: SMART status check returned "DISK OK" but we found that
+      // some (usage or prefail) Attributes have been <= threshold at some
+      // time in the past.
+      // -> once bit 5 is set, this is game over for the rest of the disk
+      // life again just like bit 6.
+      //
+      // Bit 6: The device error log contains records of errors.
+      // -> some disks have 1 error log entry that was created upon first
+      // start (powertime hour 0 day 0) and this cannot be deleted. The
+      // disk is stuck in Check state for its entire life...
       case 5:
       case 6:
+        return "OK";
+
       case 7:
         return "Check";
       }
@@ -281,13 +295,16 @@ Health::Monitor()
 // Loop run by the monitoring thread to keep updated the disk health info.
 //------------------------------------------------------------------------------
 void
-Health::Measure(ThreadAssistant &assistant)
+Health::Measure(ThreadAssistant& assistant)
 {
-  while(!assistant.terminationRequested()) {
+  while (!assistant.terminationRequested()) {
     mDiskHealth.Measure();
 
     for (unsigned int i = 0; i < mIntervalMin; i++) {
-      if(assistant.terminationRequested()) return;
+      if (assistant.terminationRequested()) {
+        return;
+      }
+
       assistant.wait_for(std::chrono::seconds(60));
 
       if (mSkip) {
