@@ -667,7 +667,6 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             (key == "wfe.interval") ||
             (key == "wfe.ntx") ||
             (key == "converter.ntx") ||
-            (key == "autorepair") ||
             (key == "groupbalancer") ||
             (key == "groupbalancer.ntx") ||
             (key == "groupbalancer.threshold") ||
@@ -689,8 +688,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             (key == eos::common::SCAN_NS_RATE_NAME) ||
             (key == eos::common::FSCK_REFRESH_INTERVAL_NAME)) {
           if ((key == "balancer") || (key == "converter") || (key == "tracker") ||
-              (key == "inspector") ||
-              (key == "autorepair") || (key == "lru") ||
+              (key == "inspector") || (key == "lru") ||
               (key == "groupbalancer") || (key == "geobalancer") ||
               (key == "geo.access.policy.read.exact") ||
               (key == "geo.access.policy.write.exact") ||
@@ -739,14 +737,6 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                   } else {
                     gOFS->mFileInspector->disable();
                     std_out << "success: file inspector is disabled!";
-                  }
-                }
-
-                if (key == "autorepair") {
-                  if (value == "on") {
-                    std_out << "success: auto-repair is enabled!";
-                  } else {
-                    std_out << "success: auto-repair is disabled!";
                   }
                 }
 
