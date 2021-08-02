@@ -416,8 +416,6 @@ XrdMgmOfs::Schedule2Balance(const char* path,
         continue;
       }
     }
-    // Update tracker for scheduled fid balance jobs
-    mFidTracker.DoCleanup(TrackerType::Balance);
 
     if (!mFidTracker.AddEntry(fid, TrackerType::Balance)) {
       eos_thread_debug("msg=\"skip recently scheduled file\" fxid=%08llx", fid);
