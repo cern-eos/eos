@@ -461,6 +461,8 @@ public:
     long mScanDiskInterval; ///< Time after which the disk scanner runs again
     long mScanNsInterval; ///< Time after which the disk scanner runs again
     long mScanNsRate; ///< Max ns scan rate in entries/s
+    ///< Time in seconds after which fsck inconsistencies are refreshed
+    long mFsckRefreshInterval;
     time_t mGracePeriod;
     time_t mDrainPeriod;
 

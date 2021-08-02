@@ -906,6 +906,11 @@ FsSpace::FsSpace(const char* name)
       SetConfigMember(eos::common::SCAN_NS_INTERVAL_NAME, "259200");
     }
 
+    // Set the fsck refresh interval by default to 2 hours
+    if (GetConfigMember(eos::common::FSCK_REFRESH_INTERVAL_NAME).empty()) {
+      SetConfigMember(eos::common::FSCK_REFRESH_INTERVAL_NAME, "7200");
+    }
+
     // Disable quota by default
     if (GetConfigMember("quota").empty()) {
       SetConfigMember("quota", "off");
@@ -2358,20 +2363,21 @@ FsView::HeartBeatCheck(ThreadAssistant& assistant) noexcept
           if ((node->GetConfigMember("status") == "on") &&
               FsView::gFsView.mGroupView.count(group) &&
               (FsView::gFsView.mGroupView[group]->GetConfigMember("status") == "on")) {
+            ssize_t max_ropen = fs->GetLongLong("max.ropen");
+            ssize_t max_wopen = fs->GetLongLong("max.wopen");
+            bool overloaded = ((max_ropen &&
+                                (max_ropen <= fs->GetLongLong("stat.ropen"))) ||
+                               (max_wopen && (max_wopen <= fs->GetLongLong("stat.wopen"))));
 
-	    size_t max_ropen = fs->GetLongLong("max.ropen");
-	    size_t max_wopen = fs->GetLongLong("max.wopen");
-	    bool overloaded = ( (max_ropen && (max_ropen <=fs->GetLongLong("stat.ropen"))) ||
-				(max_wopen && (max_wopen <=fs->GetLongLong("stat.wopen"))) );
-	    if (!overloaded) {
-	      if (fs->GetActiveStatus() != eos::common::ActiveStatus::kOnline) {
-		fs->SetActiveStatus(eos::common::ActiveStatus::kOnline);
-	      }
-	    } else {
-	      if (fs->GetActiveStatus() != eos::common::ActiveStatus::kOverload) {
-		fs->SetActiveStatus(eos::common::ActiveStatus::kOverload);
-	      }
-	    }
+            if (!overloaded) {
+              if (fs->GetActiveStatus() != eos::common::ActiveStatus::kOnline) {
+                fs->SetActiveStatus(eos::common::ActiveStatus::kOnline);
+              }
+            } else {
+              if (fs->GetActiveStatus() != eos::common::ActiveStatus::kOverload) {
+                fs->SetActiveStatus(eos::common::ActiveStatus::kOverload);
+              }
+            }
           } else {
             if (fs->GetActiveStatus() != eos::common::ActiveStatus::kOffline) {
               fs->SetActiveStatus(eos::common::ActiveStatus::kOffline);
@@ -3929,6 +3935,14 @@ FsSpace::ApplySpaceDefaultParameters(eos::mgm::FileSystem* fs, bool force)
       if (GetConfigMember(eos::common::SCAN_NS_RATE_NAME).length()) {
         fs->SetString(eos::common::SCAN_NS_RATE_NAME,
                       GetConfigMember(eos::common::SCAN_NS_RATE_NAME).c_str());
+        modified = true;
+      }
+    }
+
+    if (force || (!snapshot.mFsckRefreshInterval)) {
+      if (GetConfigMember(eos::common::FSCK_REFRESH_INTERVAL_NAME).length()) {
+        fs->SetString(eos::common::FSCK_REFRESH_INTERVAL_NAME,
+                      GetConfigMember(eos::common::FSCK_REFRESH_INTERVAL_NAME).c_str());
         modified = true;
       }
     }

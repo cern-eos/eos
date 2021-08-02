@@ -362,7 +362,6 @@ int com_protospace(char* arg)
   }
 
   global_retc = space.Execute();
-
   return global_retc;
 }
 
@@ -407,6 +406,10 @@ void com_space_help()
       << "space config <space-name> space.headroom=<size>                       : configure the default disk headroom if not defined on a filesystem (see fs for details)\n"
       << "space config <space-name> space.scaninterval=<sec>                    : configure the default scan interval if not defined on a filesystem (see fs for details)\n"
       << "space config <space-name> space.scanrate=<MB/S>                       : configure the default scan rate if not defined on a filesystem     (see fs for details)\n"
+      << "space config <space-name> space.scan_disk_interva=<sec>               : time interval after which the disk scanner will run, default 4h\n"
+      << "space config <space-name> space.scan_ns_interval=<sec>                : time interval after which the namespace scanner will run, default 3 days"
+      << "space config <space-name> space.scan_ns_rate=entry/sec                : namespace scan rate in terms of number of stat requests per second done against the local disk"
+      << "space config <space-name> space.fsck_refresh_interval=<sec>           : time interval after which fsck inconsistencies are refreshed"
       << "space config <space-name> space.drainperiod=<sec>                     : configure the default drain  period if not defined on a filesystem (see fs for details)\n"
       << "space config <space-name> space.graceperiod=<sec>                     : configure the default grace  period if not defined on a filesystem (see fs for details)\n"
       << "space config <space-name> space.filearchivedgc=on|off                 : enable/disable the 'file archived' garbage collector [ default=off ]\n"
@@ -424,12 +427,22 @@ void com_space_help()
       << "                                                                      : globally enforce using always a recycle bin\n"
       << std::endl
       << "Tape specific configuration parameters:\n"
-      << "space config <space-name> space." << eos::mgm::tgc::TGC_NAME_QRY_PERIOD_SECS << "=<#>                 : tape-aware GC query period in seconds [ default=" << eos::mgm::tgc::TGC_DEFAULT_QRY_PERIOD_SECS << " ]\n"
-      << "                                                                        => value must be > 0 and <= " << eos::mgm::tgc::TGC_MAX_QRY_PERIOD_SECS << "\n"
-      << "space config <space-name> space." << eos::mgm::tgc::TGC_NAME_FREE_BYTES_SCRIPT << "=<path>            : optional path to a script used to determine the number of free bytes in a given EOS space [ default='" << eos::mgm::tgc::TGC_DEFAULT_FREE_BYTES_SCRIPT << "' ]\n"
+      << "space config <space-name> space." << eos::mgm::tgc::TGC_NAME_QRY_PERIOD_SECS
+      << "=<#>                 : tape-aware GC query period in seconds [ default=" <<
+      eos::mgm::tgc::TGC_DEFAULT_QRY_PERIOD_SECS << " ]\n"
+      << "                                                                        => value must be > 0 and <= "
+      << eos::mgm::tgc::TGC_MAX_QRY_PERIOD_SECS << "\n"
+      << "space config <space-name> space." <<
+      eos::mgm::tgc::TGC_NAME_FREE_BYTES_SCRIPT <<
+      "=<path>            : optional path to a script used to determine the number of free bytes in a given EOS space [ default='"
+      << eos::mgm::tgc::TGC_DEFAULT_FREE_BYTES_SCRIPT << "' ]\n"
       << "                                                                        => an empty or invalid path means the compile time default way of determining free space will be used\n"
-      << "space config <space-name> space." << eos::mgm::tgc::TGC_NAME_AVAIL_BYTES << "=<#>                    : configure the number of available bytes the space should have [ default=" << eos::mgm::tgc::TGC_DEFAULT_AVAIL_BYTES << " ] \n"
-      << "space config <space-name> space." << eos::mgm::tgc::TGC_NAME_TOTAL_BYTES << "=<#>                    : configure the total number of bytes the space should have before the tape-aware GC kicks in [ default=" << eos::mgm::tgc::TGC_DEFAULT_TOTAL_BYTES << " ] \n"
+      << "space config <space-name> space." << eos::mgm::tgc::TGC_NAME_AVAIL_BYTES <<
+      "=<#>                    : configure the number of available bytes the space should have [ default="
+      << eos::mgm::tgc::TGC_DEFAULT_AVAIL_BYTES << " ] \n"
+      << "space config <space-name> space." << eos::mgm::tgc::TGC_NAME_TOTAL_BYTES <<
+      "=<#>                    : configure the total number of bytes the space should have before the tape-aware GC kicks in [ default="
+      << eos::mgm::tgc::TGC_DEFAULT_TOTAL_BYTES << " ] \n"
       << std::endl
       << "space define <space-name> [<groupsize> [<groupmod>]] : define how many filesystems can end up in one scheduling group <groupsize> [ default=0 ]\n"
       << "                                                       => <groupsize>=0 means that no groups are built within a space, otherwise it should be the maximum number of nodes in a scheduling group\n"
