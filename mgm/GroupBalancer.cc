@@ -296,7 +296,7 @@ GroupBalancer::UpdateTransferList()
 {
   for (auto it = mTransfers.begin(); it != mTransfers.end();) {
     if (gOFS->mConverterDriver) {
-      if (gOFS->mFidTracker.HasEntry(it->first)) {
+      if (!gOFS->mFidTracker.HasEntry(it->first)) {
         mTransfers.erase(it++);
       } else {
         ++it;
@@ -569,6 +569,8 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
       break;
     }
 
+    // Update tracker for scheduled fid balance jobs
+    mFidTracker.DoCleanup(TrackerType::Balance);
     FsSpace* space = FsView::gFsView.mSpaceView[mSpaceName.c_str()];
     is_enabled = space->GetConfigMember("groupbalancer") == "on";
     num_tx = atoi(space->GetConfigMember("groupbalancer.ntx").c_str());
