@@ -415,8 +415,6 @@ void com_space_help()
       << "space config <space-name> space.filearchivedgc=on|off                 : enable/disable the 'file archived' garbage collector [ default=off ]\n"
       << "space config <space-name> space.tracker=on|off                        : enable/disable the space layout creation tracker [ default=off ]\n"
       << "space config <space-name> space.inspector=on|off                      : enable/disable the file inspector [ default=off ]\n"
-      << "space config <space-name> space.autorepair=on|off                     : enable auto-repair of faulty replica's/files (the converter has to be enabled too)\n"
-      << "                                                                        => size can be given also like 10T, 20G, 2P ... (without space before the unit)\n"
       << "space config <space-name> space.geo.access.policy.write.exact=on|off  : if 'on' use exact matching geo replica (if available), 'off' uses weighting [ for write case ]\n"
       << "space config <space-name> space.geo.access.policy.read.exact=on|off   : if 'on' use exact matching geo replica (if available), 'off' uses weighting [ for read  case ]\n"
       << "space config <space-name> fs.<key>=<value>                            : configure file system parameters for each filesystem in this space (see help of 'fs config' for details)\n"
