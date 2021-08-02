@@ -59,6 +59,7 @@ ScanDir::ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
   mFstLoad(fstload), mFsId(fsid), mDirPath(dirpath),
   mRateBandwidth(ratebandwidth), mEntryIntervalSec(file_rescan_interval),
   mDiskIntervalSec(4 * 3600), mNsIntervalSec(3 * 24 * 3600),
+  mFsckRefreshIntervalSec(2 * 3600),
   mNumScannedFiles(0), mNumCorruptedFiles(0),
   mNumHWCorruptedFiles(0),  mTotalScanSize(0), mNumTotalFiles(0),
   mNumSkippedFiles(0), mBuffer(nullptr),
@@ -128,6 +129,12 @@ ScanDir::SetConfig(const std::string& key, long long value)
       mDiskThread.join();
       mDiskThread.reset(&ScanDir::RunDiskScan, this);
     }
+  } else if (key == eos::common::FSCK_REFRESH_INTERVAL_NAME) {
+    if (mFsckRefreshIntervalSec != static_cast<uint64_t>(value)) {
+      mFsckRefreshIntervalSec = value;
+      mDiskThread.join();
+      mDiskThread.reset(&ScanDir::RunDiskScan, this);
+    }
   } else if (key == eos::common::SCAN_NS_INTERVAL_NAME) {
 #ifndef _NOOFS
 
@@ -152,8 +159,9 @@ ScanDir::RunNsScan(ThreadAssistant& assistant) noexcept
 {
   using namespace std::chrono;
   using eos::common::FileId;
-  eos_info("msg=\"started the ns scan thread\" fsid=%lu dirpath=\"%s\"",
-           mFsId, mDirPath.c_str());
+  eos_info("msg=\"started the ns scan thread\" fsid=%lu dirpath=\"%s\" "
+           "ns_scan_interval_sec=%llu", mFsId, mDirPath.c_str(),
+           mNsIntervalSec.load());
 
   if (gOFS.mFsckQcl == nullptr) {
     eos_notice("%s", "msg=\"no qclient present, skipping ns scan\"");
@@ -387,6 +395,7 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
   if (mBgThread) {
     pid_t tid = (pid_t) syscall(SYS_gettid);
     int retc = 0;
+
     if ((retc = ioprio_set(IOPRIO_WHO_PROCESS,
                            IOPRIO_PRIO_VALUE(IOPRIO_CLASS_BE, 7)))) {
       eos_err("msg=\"cannot set io priority to lowest best effort\" "
@@ -423,8 +432,9 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
                  " fsid=%lu", mFsId);
       return;
     } else {
-      eos_info("msg=\"done initial collection of inconsistency stats\" "
-               "fsid=%lu", mFsId);
+      eos_info("msg=\"done initial collection of inconsistency stats\" fsid=%lu "
+               "disk_scan_interval_sec=%llu fsck_refresh_interval_sec=%llu",
+               mFsId, mDiskIntervalSec.load(), mFsckRefreshIntervalSec.load());
     }
 
 #endif
@@ -447,7 +457,9 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
            << mTotalScanSize << " [Bytes] [ " << (mTotalScanSize / 1e6)
            << " MB ] scannedfiles=" << mNumScannedFiles << " corruptedfiles="
            << mNumCorruptedFiles << " hwcorrupted=" << mNumHWCorruptedFiles
-           << " skippedfiles=" << mNumSkippedFiles);
+           << " skippedfiles=" << mNumSkippedFiles
+           << " disk_scan_interval_sec=" << mDiskIntervalSec
+           << " fsck_refresh_interval_sec=" << mFsckRefreshIntervalSec);
 
     if (mBgThread) {
       syslog(LOG_ERR, "%s\n", log_msg.c_str());
@@ -458,11 +470,12 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
 
     if (mBgThread) {
       // Run again after (default) 4 hours. In the meantime update the
-      // inconsistencies at most once every 10 minutes. If mDiskIntervalSec
-      // is less then 20 minutes then the inconsistencies are updated every
-      // mDiskIntervalSec.
+      // inconsistencies every mFsckRefreshIntervalSec or every mDiskIntervalSec
+      // if this is more frequent.
+      long effective_delay = (mFsckRefreshIntervalSec > mDiskIntervalSec ?
+                              mDiskIntervalSec : mFsckRefreshIntervalSec) - 1;
       auto deadline = std::chrono::system_clock::now() +
-                      std::chrono::seconds(mDiskIntervalSec - 1);
+                      std::chrono::seconds(effective_delay);
 
       do {
 #ifndef _NOOFS
@@ -474,12 +487,7 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
         }
 
 #endif
-
-        if (std::chrono::seconds(mDiskIntervalSec) < std::chrono::minutes(20)) {
-          assistant.wait_for(std::chrono::seconds(mDiskIntervalSec));
-        } else {
-          assistant.wait_for(std::chrono::minutes(10));
-        }
+        assistant.wait_for(std::chrono::seconds(effective_delay));
 
         if (assistant.terminationRequested()) {
           break;

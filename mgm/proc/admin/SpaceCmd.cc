@@ -435,11 +435,13 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
     }
   }
   break;
+
   case eos::console::SpaceProto_ResetProto::EGROUP: {
     gOFS->EgroupRefresh->Reset();
     std_out << "\ninfo: clear cached EGroup information ...";
   }
   break;
+
   case eos::console::SpaceProto_ResetProto::NSFILESISTEMVIEW: {
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
                                        __FILE__);
@@ -447,6 +449,7 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
     std_out << "\ninfo: resized namespace filesystem view ...";
   }
   break;
+
   case eos::console::SpaceProto_ResetProto::NSFILEMAP: {
     auto* eos_chlog_filesvc = dynamic_cast<eos::IChLogFileMDSvc*>
                               (gOFS->eosFileService);
@@ -461,6 +464,7 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
     }
   }
   break;
+
   case eos::console::SpaceProto_ResetProto::NSDIRECTORYMAP: {
     auto* eos_chlog_dirsvc = dynamic_cast<eos::IChLogContainerMDSvc*>
                              (gOFS->eosDirectoryService);
@@ -475,6 +479,7 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
     }
   }
   break;
+
   case eos::console::SpaceProto_ResetProto::NS: {
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
                                        __FILE__);
@@ -493,23 +498,27 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
     }
   }
   break;
+
   case eos::console::SpaceProto_ResetProto::MAPPING: {
     eos::common::Mapping::Reset();
     std_out << "\ninfo: clear all user/group uid/gid caches ...\n";
   }
   break;
+
   case eos::console::SpaceProto_ResetProto::SCHEDULEDRAIN: {
     gOFS->mFidTracker.Clear(eos::mgm::TrackerType::Drain);
     std_out.str("info: reset drain scheduling map in space '" + reset.mgmspace() +
                 '\'');
   }
   break;
+
   case eos::console::SpaceProto_ResetProto::SCHEDULEBALANCE: {
     gOFS->mFidTracker.Clear(eos::mgm::TrackerType::Balance);
     std_out.str("info: reset balance scheduling map in space '" + reset.mgmspace() +
                 '\'');
   }
   break;
+
   default: { // NONE - when NONE, do cases DRAIN and EGROUP and MAPPING
     if (FsView::gFsView.mSpaceView.count(reset.mgmspace())) {
       FsView::gFsView.mSpaceView[reset.mgmspace()]->ResetDraining();
@@ -518,6 +527,7 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
       std_err << "error: illegal space name";
       ret_c = EINVAL;
     }
+
     gOFS->EgroupRefresh->Reset();
     std_out << "\ninfo: clear cached EGroup information ...";
     eos::common::Mapping::Reset();
@@ -709,7 +719,8 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
             (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
             (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
-            (key == eos::common::SCAN_NS_RATE_NAME)) {
+            (key == eos::common::SCAN_NS_RATE_NAME) ||
+            (key == eos::common::FSCK_REFRESH_INTERVAL_NAME)) {
           if ((key == "balancer") || (key == "converter") || (key == "tracker") ||
               (key == "inspector") ||
               (key == "autorepair") || (key == "lru") ||
@@ -893,20 +904,22 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
       applied = true;
 
       if (value == "remove") {
-	if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->DeleteConfigMember(
-										    key)) {
-	  ret_c = ENOENT;
-	  std_err.str("error: key has not been deleted");
-	} else {
-	  std_out.str("success: deleted stream  bandwidth setting: " + key);
-	}
+        if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->DeleteConfigMember(
+              key)) {
+          ret_c = ENOENT;
+          std_err.str("error: key has not been deleted");
+        } else {
+          std_out.str("success: deleted stream  bandwidth setting: " + key);
+        }
       } else {
-	if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key,value)) {
-	  ret_c = EIO;
-	  std_err.str("error: cannot set space config value");
-	} else {
-	  std_out.str("success: defining stream bandwidth limitation: " + key + "=" +value);
-	}
+        if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key,
+            value)) {
+          ret_c = EIO;
+          std_err.str("error: cannot set space config value");
+        } else {
+          std_out.str("success: defining stream bandwidth limitation: " + key + "=" +
+                      value);
+        }
       }
     }
 
@@ -915,20 +928,21 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
       applied = true;
 
       if (value == "remove") {
-	if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->DeleteConfigMember(
-										    key)) {
-	  ret_c = ENOENT;
-	  std_err.str("error: key has not been deleted");
-	} else {
-	  std_out.str("success: deleted iopriority setting: " + key);
-	}
+        if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->DeleteConfigMember(
+              key)) {
+          ret_c = ENOENT;
+          std_err.str("error: key has not been deleted");
+        } else {
+          std_out.str("success: deleted iopriority setting: " + key);
+        }
       } else {
-	if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key,value)) {
-	  ret_c = EIO;
-	  std_err.str("error: cannot set space config value");
-	} else {
-	  std_out.str("success: defining space iopriority: " + key + "=" +value);
-	}
+        if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key,
+            value)) {
+          ret_c = EIO;
+          std_err.str("error: cannot set space config value");
+        } else {
+          std_out.str("success: defining space iopriority: " + key + "=" + value);
+        }
       }
     }
 
@@ -937,20 +951,21 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
       applied = true;
 
       if (value == "remove") {
-	if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->DeleteConfigMember(
-										    key)) {
-	  ret_c = ENOENT;
-	  std_err.str("error: key has not been deleted");
-	} else {
-	  std_out.str("success: deleted application scheduling setting: " + key);
-	}
+        if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->DeleteConfigMember(
+              key)) {
+          ret_c = ENOENT;
+          std_err.str("error: key has not been deleted");
+        } else {
+          std_out.str("success: deleted application scheduling setting: " + key);
+        }
       } else {
-	if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key,value)) {
-	  ret_c = EIO;
-	  std_err.str("error: cannot set space config value");
-	} else {
-	  std_out.str("success: defining space scheduling: " + key + "=" +value);
-	}
+        if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key,
+            value)) {
+          ret_c = EIO;
+          std_err.str("error: cannot set space config value");
+        } else {
+          std_out.str("success: defining space scheduling: " + key + "=" + value);
+        }
       }
     }
 
@@ -968,7 +983,8 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
           (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
           (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
           (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
-          (key == eos::common::SCAN_NS_RATE_NAME)) {
+          (key == eos::common::SCAN_NS_RATE_NAME) ||
+          (key == eos::common::FSCK_REFRESH_INTERVAL_NAME)) {
         unsigned long long size = eos::common::StringConversion::GetSizeFromString(
                                     value.c_str());
         char ssize[1024];
@@ -1015,7 +1031,8 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                  (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
                  (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
                  (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
-                 (key == eos::common::SCAN_NS_RATE_NAME)) && (!errno)) {
+                 (key == eos::common::SCAN_NS_RATE_NAME) ||
+                 (key == eos::common::FSCK_REFRESH_INTERVAL_NAME)) && (!errno)) {
               fs->SetLongLong(key.c_str(),
                               eos::common::StringConversion::GetSizeFromString(value.c_str()));
               FsView::gFsView.StoreFsConfig(fs, false);

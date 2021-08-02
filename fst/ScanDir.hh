@@ -250,8 +250,10 @@ public:
   std::atomic<uint64_t> mEntryIntervalSec;
   //! Time interval after which the disk scanner will run again, default 4h
   std::atomic<uint64_t> mDiskIntervalSec;
-  //! Time interval after which the sn scanner will run again, default 3 days
+  //! Time interval after which the scanner will run again, default 3 days
   std::atomic<uint64_t> mNsIntervalSec;
+  //! Time interval after which fsck inconsistencies are refreshed, default 2h
+  std::atomic<uint64_t> mFsckRefreshIntervalSec;
   // Statistics
   long int mNumScannedFiles;
   long int mNumCorruptedFiles;

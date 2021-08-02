@@ -58,6 +58,9 @@ static constexpr auto SCAN_DISK_INTERVAL_NAME = "scan_disk_interval";
 static constexpr auto SCAN_NS_RATE_NAME = "scan_ns_rate";
 //! Time interval after which the ns scanner will rerun
 static constexpr auto SCAN_NS_INTERVAL_NAME = "scan_ns_interval";
+//! Time interval after which fsck inconsistencies are refreshed on each
+//! file system.
+static constexpr auto FSCK_REFRESH_INTERVAL_NAME = "fsck_refresh_interval";
 //! Special EOS scheduling group space
 static constexpr auto EOS_SPARE_GROUP = "spare";
 EOSCOMMONNAMESPACE_END
