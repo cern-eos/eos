@@ -15,7 +15,7 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
-``v4.8.59 Citrine``
+``v4.8.60 Citrine``
 ===================
 
 2021-07-27
@@ -24,11 +24,13 @@ Bug
 ---
 
 * [EOS-4779] FST: reduce file-local dead lock condition after parity computation error
+* [EOS-4835] MGM: fix ever growing '/' in remdir
 
 Improvements
 ------------
 
 * [EOS-4827] MGM: implement GRAB version functionality in GRPC
+* [EOS-4759] MGM: allow set space specific scheduling and iopriority parameter defaults
 
 ``v4.8.59 Citrine``
 ===================
