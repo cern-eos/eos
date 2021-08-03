@@ -44,8 +44,8 @@ DiskHealth::getHealth(const std::string& devpath)
     return std::map<std::string, std::string>();
   }
 
-  // RAID setups
-  if (dev[0] == 'm') {
+  // RAID setups and not (device-mapper) multipath
+  if (dev[0] == 'm' && dev.find("mapper/mpath") == string::npos) {
     return parse_mdstat(dev);
   }
 
@@ -206,6 +206,14 @@ DiskHealth::parse_mdstat(const std::string& device,
 std::string DiskHealth::smartctl(const char* device)
 {
   std::string command("smartctl -q silent -a /dev/");
+
+  // dev name starts with mpath, it's scsi multipath from linux device mapper,
+  // i.e. /dev/mapper/mpathXY
+  // device
+  if(std::string(device).find("mapper/mpath") == 0) {
+    command = std::string("smartctl -q silent --device=scsi -a /dev/");
+  }
+
   command += device;
   eos::common::ShellCmd scmd(command.c_str());
   eos::common::cmd_status rc = scmd.wait(5);
