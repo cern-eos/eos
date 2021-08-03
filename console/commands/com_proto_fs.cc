@@ -52,7 +52,6 @@ int com_protofs(char* arg)
   }
 
   global_retc = fs.Execute();
-
   return global_retc;
 }
 
@@ -146,11 +145,14 @@ void com_fs_help()
       << "      maximum scan rate of ns entries for the NS consistency. This\n"
       << "      is bound by the maxium number of IOPS per disk."
       << std::endl
-      << "    graceperiod=<seconds>" << std::endl
-      << "      grace period before a filesystem with an operation error gets"
+      << "     fsck_refresh_interval=<sec>\n"
+      << "       time interval after which fsck inconsistencies are refreshed"
       << std::endl
-      << "      automatically drained" << std::endl
-      << "    drainperiod=<seconds>" << std::endl
+      << "    graceperiod=<seconds>\n"
+      << "      grace period before a filesystem with an operation error gets\n"
+      << "      automatically drained"
+      << std::endl
+      << "    drainperiod=<seconds>\n"
       << "      period a drain job is allowed to finish the drain procedure"
       << std::endl
       << "    proxygroup=<proxy_grp_name>" << std::endl
