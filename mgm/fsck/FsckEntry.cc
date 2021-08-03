@@ -289,6 +289,9 @@ FsckEntry::RepairMgmXsSzDiff()
         fmd->setChecksum(xs_buff);
         fmd->setSize(sz_val);
         gOFS->eosView->updateFileStore(fmd.get());
+        // Update also the MGM fmd object
+        mMgmFmd.set_checksum(xs_buff.getDataPtr(), xs_buff.getSize());
+        mMgmFmd.set_size(sz_val);
       } catch (const eos::MDException& e) {
         eos_err("msg=\"mgm xs/size repair failed - no such filemd\" fxid=%08llx", mFid);
         return false;
