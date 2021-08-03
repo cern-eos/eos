@@ -107,7 +107,6 @@ NsCmd::MutexSubcmd(const eos::console::NsProto_MutexProto& mutex,
     eos::common::RWMutex* fusex_client_mtx = &gOFS->zMQ->gFuseServer.Client();
     //eos::common::RWMutex* fusex_cap_mtx = &gOFS->zMQ->gFuseServer.Cap();
 
-
     if (no_option) {
       size_t cycleperiod = eos::common::RWMutex::GetLockUnlockDuration();
       std::string line = "# ------------------------------------------------------"
@@ -798,34 +797,29 @@ NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
   QuotaNodeCore qnc;
   bool update = false;
 
-  if ( tree.used_bytes() || tree.used_inodes() ) {
+  if (tree.used_bytes() || tree.used_inodes()) {
     QuotaNodeCore::UsageInfo usage;
     usage.space = tree.used_bytes();
     usage.physicalSpace = tree.physical_bytes();
     usage.files = tree.used_inodes();
+
     if (tree.uid().size() && !tree.gid().size()) {
       // set by user
-      qnc.setByUid(strtoul(tree.uid().c_str(),0,10), usage);
+      qnc.setByUid(strtoul(tree.uid().c_str(), 0, 10), usage);
     } else if (tree.gid().size() && !tree.uid().size())  {
       // set by group
-      qnc.setByGid(strtoul(tree.gid().c_str(),0,10), usage);
+      qnc.setByGid(strtoul(tree.gid().c_str(), 0, 10), usage);
     } else {
       reply.set_std_err("error: to overwrite quota you have to set a user or group id - never both");
       reply.set_retc(EINVAL);
       return;
     }
+
     update = true;
   } else {
     if (gOFS->eosView->inMemory()) {
       reply.set_std_err("error: quota recomputation is only available for "
-			"QDB namespace");
-      reply.set_retc(EINVAL);
-      return;
-    }
-
-    if (!tree.uid().size() && !tree.gid().size()) {
-      // we cannot accep thtis for uid + gid == 0
-      reply.set_std_err("error: to overwrite quota you have to set a user and or group id");
+                        "QDB namespace");
       reply.set_retc(EINVAL);
       return;
     }
@@ -843,11 +837,6 @@ NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
       return;
     }
   }
-
-
-  // no remove all the entries, which should not have been recomputed
-  qnc.filterByUid(strtoul(tree.uid().c_str(),0,10));
-  qnc.filterByGid(strtoul(tree.gid().c_str(),0,10));
 
   // Update the quota note
   try {
@@ -868,11 +857,20 @@ NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
     if (update) {
       quotaNode->updateCore(qnc);
       eos_info("msg=\"quota update successful\" cxid=%08llx path=\"%s\"",
-	       cont_id, cont_uri.c_str());
+               cont_id, cont_uri.c_str());
     } else {
+      // Remove all the entries, which should not be replaced
+      if (tree.uid().size()) {
+        qnc.filterByUid(strtoul(tree.uid().c_str(), 0, 10));
+      }
+
+      if (tree.gid().size()) {
+        qnc.filterByGid(strtoul(tree.gid().c_str(), 0, 10));
+      }
+
       quotaNode->replaceCore(qnc);
       eos_info("msg=\"quota recomputation successful\" cxid=%08llx path=\"%s\"",
-	       cont_id, cont_uri.c_str());
+               cont_id, cont_uri.c_str());
     }
   } catch (const eos::MDException& e) {
     eos_err("msg=\"quota recomputation failed, directory removed\" "
