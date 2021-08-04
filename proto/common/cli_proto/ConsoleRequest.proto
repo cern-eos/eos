@@ -4,7 +4,6 @@ package eos.console;
 
 import "Acl.proto";
 import "Ns.proto";
-import "Drain.proto";
 import "Find.proto";
 import "Fs.proto";
 import "Rm.proto";
@@ -61,7 +60,7 @@ message RequestProto {
   oneof command {
     AclProto acl           = 2;
     NsProto  ns            = 3;
-    DrainProto drain       = 4;
+    //    DrainProto drain       = 4; @note not used, can be reused later on
     FindProto find         = 5;
     FsProto fs             = 6;
     RmProto rm             = 7;
