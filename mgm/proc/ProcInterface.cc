@@ -193,7 +193,7 @@ ProcInterface::HandleProtobufRequest(const char* opaque,
 
 std::unique_ptr<IProcCommand>
 ProcInterface::HandleProtobufRequest(eos::console::RequestProto& req,
-				       eos::common::VirtualIdentity& vid)
+                                     eos::common::VirtualIdentity& vid)
 {
   using eos::console::RequestProto;
   std::unique_ptr<IProcCommand> cmd;
@@ -292,7 +292,6 @@ ProcInterface::HandleProtobufRequest(eos::console::RequestProto& req,
     break;
   }
 
-
   return cmd;
 }
 
@@ -329,13 +328,20 @@ ProcInterface::ProtoIsWriteAccess(const char* opaque)
 
   /* being conservative, true by default. Add false clauses explicitly */
   switch (req.command_case()) {
-
-  // always false
   case RequestProto::kNs:
+    switch (req.ns().op()) {
+    case eos::console::NsProto::kQuota:
+      return true;
+
+    default:
+      return false;
+    }
+
   case RequestProto::kFind: // @todo could perhaps, check --purge
   case RequestProto::kIo:
   case RequestProto::kDebug:
   case RequestProto::kConfig:
+  case RequestProto::kToken:
     return false;
 
   // conditional on the subcommand
@@ -344,16 +350,20 @@ ProcInterface::ProtoIsWriteAccess(const char* opaque)
     case eos::console::AclProto::NONE:
     case eos::console::AclProto::LIST:
       return false;
+
     default:
       return true;
     }
+
   case RequestProto::kRecycle:
     switch (req.recycle().subcmd_case()) {
     case eos::console::RecycleProto::kLs:
       return false;
+
     default:
       return true;
     }
+
   case RequestProto::kFs:
     switch (req.fs().subcmd_case()) {
     case eos::console::FsProto::kClone:
@@ -362,66 +372,76 @@ ProcInterface::ProtoIsWriteAccess(const char* opaque)
     case eos::console::FsProto::kLs:
     case eos::console::FsProto::kStatus:
       return false;
-      default:
-        return true;
+
+    default:
+      return true;
     }
+
   case RequestProto::kRoute:
     switch (req.route().subcmd_case()) {
     case eos::console::RouteProto::kList:
       return false;
-      default:
-        return true;
+
+    default:
+      return true;
     }
+
   case RequestProto::kGroup:
     switch (req.group().subcmd_case()) {
     case eos::console::GroupProto::kLs:
       return false;
-      default:
-        return true;
+
+    default:
+      return true;
     }
+
   case RequestProto::kNode:
     switch (req.node().subcmd_case()) {
     case eos::console::NodeProto::kLs:
     case eos::console::NodeProto::kStatus:
       return false;
-      default:
-        return true;
+
+    default:
+      return true;
     }
+
   case RequestProto::kQuota:
     switch (req.quota().subcmd_case()) {
     case eos::console::QuotaProto::kLs:
     case eos::console::QuotaProto::kLsuser:
       return false;
-      default:
-        return true;
+
+    default:
+      return true;
     }
+
   case RequestProto::kSpace:
     switch (req.space().subcmd_case()) {
     case eos::console::SpaceProto::kLs:
     case eos::console::SpaceProto::kStatus:
     case eos::console::SpaceProto::kNodeGet:
       return false;
-      default:
-        return true;
+
+    default:
+      return true;
     }
+
   case RequestProto::kAccess:
     switch (req.access().subcmd_case()) {
     case eos::console::AccessProto::kLs:
       return false;
-      default:
-        return true;
+
+    default:
+      return true;
     }
 
   // always true
   case RequestProto::kRm:
   case RequestProto::kStagerRm:
-  case RequestProto::kDrain: // @note where is it?
-  case RequestProto::kToken:
   case RequestProto::kShare:
   default:
     return true;
   }
-
 }
 
 //------------------------------------------------------------------------------
