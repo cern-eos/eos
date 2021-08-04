@@ -1605,7 +1605,7 @@ Mapping::UidToUserName(uid_t uid, int& errc)
 
 /*----------------------------------------------------------------------------*/
 std::string
-Mapping::GidToGroupName(gid_t gid, int& errc)
+Mapping::GidToGroupName(gid_t gid, int& errc, size_t buffersize)
 {
   errc = 0;
   {
@@ -1616,13 +1616,21 @@ Mapping::GidToGroupName(gid_t gid, int& errc)
     }
   }
   {
-    char buffer[131072];
+    char buffer[buffersize];
     int buflen = sizeof(buffer);
     struct group grbuf;
     struct group* grbufp = 0;
     std::string gid_string = "";
 
     if (getgrgid_r(gid, &grbuf, buffer, buflen, &grbufp) || (!grbufp)) {
+      if (errno == ERANGE) {
+	if (buffersize < (16*1024*1024)) {
+	  // try doubling the buffer
+	  return GidToGroupName(gid, errc, 2*buffersize);
+	}
+	// just give up here
+      }
+
       // cannot translate this name
       char sgid[1024];
       snprintf(sgid, sizeof(sgid) - 1, "%u", gid);
