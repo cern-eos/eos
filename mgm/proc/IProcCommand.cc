@@ -545,7 +545,6 @@ IProcCommand::HasSlot()
     for (const auto& type : {
     eos::console::RequestProto::kAcl,
         eos::console::RequestProto::kNs,
-        eos::console::RequestProto::kDrain,
         eos::console::RequestProto::kFind,
         eos::console::RequestProto::kFs,
         eos::console::RequestProto::kRm,
