@@ -58,10 +58,10 @@ XrdMgmOfs::Version(eos::common::FileId::fileid_t fid,
   std::string versionpath;
   eos::common::VirtualIdentity fidvid = vid;
   eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
-
   time_t filectime = 0;
   {
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                      __FILE__);
 
     try {
       fmd = gOFS->eosFileService->getFileMD(fid);
@@ -123,7 +123,9 @@ XrdMgmOfs::Version(eos::common::FileId::fileid_t fid,
     }
 
     // make sure, the owner can write into the version directory
-    if (gOFS->_chmod(vpath.c_str(), buf.st_mode | S_IRWXU, error, rootvid, (const char*) 0)) {
+    XrdSfsMode chmod_mode = buf.st_mode | S_IRWXU;
+
+    if (gOFS->_chmod(vpath.c_str(), chmod_mode, error, rootvid, (const char*) 0)) {
       return Emsg(epname, error, errno, "chmod version directory", vpath.c_str());
     }
   }
