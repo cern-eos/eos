@@ -329,7 +329,7 @@ ProcInterface::ProtoIsWriteAccess(const char* opaque)
   /* being conservative, true by default. Add false clauses explicitly */
   switch (req.command_case()) {
   case RequestProto::kNs:
-    switch (req.ns().op()) {
+    switch (req.ns().subcmd_case()) {
     case eos::console::NsProto::kQuota:
       return true;
 
