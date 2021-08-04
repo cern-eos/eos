@@ -5,7 +5,7 @@
 
 Summary: eos-apmon package
 Name: eos-apmon
-Version: 1.1.9
+Version: 1.1.10
 Release: 1%{?dist}
 URL: none
 Source0: %{name}-%{version}.tar.gz
@@ -62,6 +62,11 @@ rm -rf $RPM_BUILD_ROOT
 %{perl_sitearch}/ApMon/
 
 %changelog
+* Wed Aug  4 2021  Elvin Sindrilaru <esindril@cern.ch> - 1.1.10-1
+- move the apmon logs out of the EOS FST owned directory and
+  place them in /var/log/eos/apmon/
+- bump version to 1.1.10
+
 * Fri Dec  6 2019  Cristian Contescu <acontesc@cern.ch> - 1.1.9-1
 - add fix for interface detection (fix traffic reporting)
 
