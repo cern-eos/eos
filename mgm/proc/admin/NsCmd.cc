@@ -936,6 +936,14 @@ NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
       reply.set_retc(status.getErrno());
       return;
     }
+
+    // Remove all the entries, which should not be updated if any uid/gid
+    // specified.
+    if (tree.uid().size() || tree.gid().size()) {
+      qnc.filterByUid(strtoul(tree.uid().c_str(), 0, 10));
+      qnc.filterByGid(strtoul(tree.gid().c_str(), 0, 10));
+      update = true;
+    }
   }
 
   // Update the quota note
@@ -959,15 +967,6 @@ NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
       eos_info("msg=\"quota update successful\" cxid=%08llx path=\"%s\"",
                cont_id, cont_uri.c_str());
     } else {
-      // Remove all the entries, which should not be replaced
-      if (tree.uid().size()) {
-        qnc.filterByUid(strtoul(tree.uid().c_str(), 0, 10));
-      }
-
-      if (tree.gid().size()) {
-        qnc.filterByGid(strtoul(tree.gid().c_str(), 0, 10));
-      }
-
       quotaNode->replaceCore(qnc);
       eos_info("msg=\"quota recomputation successful\" cxid=%08llx path=\"%s\"",
                cont_id, cont_uri.c_str());
