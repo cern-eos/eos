@@ -313,7 +313,7 @@ public:
   // ---------------------------------------------------------------------------
   //! Convert a gid to a group name
   // ---------------------------------------------------------------------------
-  static std::string GidToGroupName(uid_t gid, int& errc);
+  static std::string GidToGroupName(uid_t gid, int& errc, size_t buffersize=128*1024);
 
   // ---------------------------------------------------------------------------
   //! Convert a user name to a uid
