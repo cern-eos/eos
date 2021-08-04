@@ -234,7 +234,7 @@ Share::Proc::Create(eos::common::VirtualIdentity& vid,
       return -1;
     } else {
       errno = 0;
-      // retrieve shareattr like pxis:<cid>
+      // retrieve shareattr like pxid:<cid>
       shareattr = GetShareReference(share_root.c_str());
       if (errno) {
 	return -1;
@@ -307,9 +307,12 @@ Share::Proc::ModifyShareAttr(const std::string& path, const std::string& shareat
   XrdOucString value;
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
   int rc = gOFS->_attr_get(path.c_str(), error, root_vid, "", "sys.acl.share", value, false);
-  //  if (rc) {
-  //    return rc;
-  //  }
+
+  eos_static_info("path='%s' shareattr='%s' acl='%s' remove=%d",
+		  path.c_str(),
+		  shareattr.c_str(),
+		  value.c_str(),
+		  remove);
 
   std::vector<std::string> rules;
   std::string delimiter = ",";
@@ -412,10 +415,12 @@ Share::Proc::List(eos::common::VirtualIdentity& vid, const std::string& name)
 	XrdOucString acl;
 	XrdOucString root;
 	XrdOucErrInfo error;
+  eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
+
 	if (!gOFS->_attr_get(entry.c_str(), error,
-			     vid, "", "sys.share.acl", acl, true)) {
+			     root_vid, "", "sys.share.acl", acl, true)) {
 	  gOFS->_attr_get(entry.c_str(), error,
-			  vid, "", "sys.share.root", root, true);
+			  root_vid, "", "sys.share.root", root, true);
 	  std::string sacl = acl.c_str();
 	  std::string sroot = root.c_str();
 	  acllist.Add(it, val, sacl ,sroot);
@@ -431,9 +436,77 @@ int
 Share::Proc::Delete(eos::common::VirtualIdentity& vid, const std::string& name)
 {
   std::string procpath = GetEntry(vid.uid, name);
-
+  XrdOucString acl;
+  XrdOucString share_root;
+  std::string sshare_root;
   XrdOucErrInfo error;
+  int rc=0;
+  std::string shareattr;
+
   eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
+
+  if (!gOFS->_attr_get(procpath.c_str(), error,
+		       root_vid, "", "sys.share.acl", acl, true)) {
+    gOFS->_attr_get(procpath.c_str(), error,
+		    root_vid, "", "sys.share.root", share_root, true);
+  } else {
+    return -1;
+  }
+
+  if (share_root.length()) {
+    sshare_root = share_root.c_str();
+
+    bool is_owner = false;
+    {
+      std::shared_ptr<eos::IContainerMD> dh;
+      eos::common::RWMutexWriteLock viewLock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+
+      try {
+	dh = gOFS->eosView->getContainer(share_root.c_str());
+	eos::common::Path pPath(gOFS->eosView->getUri(dh.get()).c_str());
+      } catch (eos::MDException& e) {
+	dh.reset();
+	errno = e.getErrno();
+	eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+		e.getErrno(), e.getMessage().str().c_str());
+      }
+
+      if (!dh) {
+	errno = ENOENT;
+	return -1;
+      }
+
+      if (dh->getCUid() == vid.uid) {
+	is_owner = true;
+      }
+
+      if (vid.sudoer) {
+	is_owner = true;
+      }
+    }
+
+    XrdOucErrInfo error;
+    eos::IContainerMD::XAttrMap attrmap;
+    eos::mgm::Acl acl (share_root.c_str(), error, vid, attrmap, true, true);
+    if (!acl.CanShare() && !is_owner) {
+      errno = EACCES;
+      return -1;
+    } else {
+      errno = 0;
+      // retrieve shareattr like pxid:<cid>
+      shareattr = GetShareReference(sshare_root.c_str());
+      if (errno) {
+	return -1;
+      }
+    }
+
+    // apply the new share
+    rc = ModifyShare(vid, shareattr, sshare_root, true);
+    if (rc) {
+      return rc;
+    }
+  }
+
   return gOFS->_remdir(procpath.c_str(),
 		      error,
 		      root_vid,

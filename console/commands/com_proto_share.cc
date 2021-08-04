@@ -61,7 +61,14 @@ void com_share_help()
 {
   std::ostringstream oss;
   oss << "Usage: share ls|create|remove|share|unshare|access \n"
+      << "  share create <name> <acl> <path> \n"
+      << "    create a share with name <name>, acl <acl> under path <path>\n"
+      << "\n"
+      << "  share ls\n"
       << "    list my sharesn\n"
+      << "\n"
+      << "  share remove <name>\n"
+      << "    remove share with name <name>\n"
       << "\n"
       << "Examples:\n"
       << "          eos share ls [-m] \n"
