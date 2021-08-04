@@ -12,7 +12,7 @@
 EOSLOCATION="/usr/"
 EOSCONFIG="/etc/xrd.cf.fst"
 EOSLOGDIR="/var/log/eos/"
-EOSROLE="fst"
+EOSROLE="apmon"
 EOSUSER="daemon"
 . /etc/init.d/functions
 test -e /etc/sysconfig/eos && . /etc/sysconfig/eos
