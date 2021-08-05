@@ -77,6 +77,11 @@ QuarkFileMDSvc::configure(const std::map<std::string, std::string>& config)
     (&mUnifiedInodeProvider);
   }
 
+  // Refresh the inode provider with the latest inode values from QDB
+  if (config.find(constants::sKeyInodeRefresh) != config.end()) {
+    mUnifiedInodeProvider.configure(mMetaMap);
+  }
+
   if (config.find(constants::sMaxNumCacheFiles) != config.end()) {
     std::string val = config.at(constants::sMaxNumCacheFiles);
     mMetadataProvider->setFileMDCacheNum(std::stoull(val));
