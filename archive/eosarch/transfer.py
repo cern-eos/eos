@@ -1078,7 +1078,7 @@ class Transfer(object):
                     raise IOError()
 
                 # Check file is on tape
-                if not resp_stat.flags & StatInfoFlags.BACKUP_EXISTS:
+                if resp_stat.size != 0 and not (resp_stat.flags & StatInfoFlags.BACKUP_EXISTS):
                     self.logger.debug("File {0} is not yet on tape".format(dst))
                     all_on_tape = False
                     break
