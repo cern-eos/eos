@@ -94,7 +94,7 @@ ICmdHelper::ExecuteWithoutPrint(bool add_route)
   if (mGlobalOpts.mForceSss) {
     oss << "&xrd.wantprot=sss";
   }
-  
+
   if (getenv("EOSAUTHZ")) {
     oss << "&authz=" << getenv("EOSAUTHZ");
   }
@@ -131,9 +131,9 @@ ICmdHelper::RawExecute(const std::string& full_url)
   if (mGlobalOpts.mMgmUri.substr(0, 6) == "ipc://") {
     // ZMQ connection
     zmq::context_t context(1);
-    zmq::socket_t socket (context, ZMQ_REQ);
+    zmq::socket_t socket(context, ZMQ_REQ);
     std::string path = full_url;
-    path.erase(0,mGlobalOpts.mMgmUri.length()+1);
+    path.erase(0, mGlobalOpts.mMgmUri.length() + 1);
     socket.connect(mGlobalOpts.mMgmUri);
     zmq::message_t request(path.length());
     memcpy(request.data(), path.c_str(), path.length());
@@ -147,36 +147,35 @@ ICmdHelper::RawExecute(const std::string& full_url)
     // XRootD connection
     std::unique_ptr<XrdCl::File> client {new XrdCl::File()};
     XrdCl::XRootDStatus status = client->Open(full_url.c_str(),
-					      XrdCl::OpenFlags::Read);
-    
+                                 XrdCl::OpenFlags::Read);
+
     if (status.IsOK()) {
       off_t offset = 0;
       uint32_t nbytes = 0;
       char buffer[4096 + 1];
       status = client->Read(offset, 4096, buffer, nbytes);
-      
+
       while (status.IsOK() && (nbytes > 0)) {
-	buffer[nbytes] = 0;
-	oss << buffer;
-	offset += nbytes;
-	status = client->Read(offset, 4096, buffer, nbytes);
+        buffer[nbytes] = 0;
+        oss << buffer;
+        offset += nbytes;
+        status = client->Read(offset, 4096, buffer, nbytes);
       }
-      
+
       status = client->Close();
     } else {
       int retc = status.GetShellCode();
-      
+
       if (status.errNo) {
-	retc = status.errNo;
+        retc = status.errNo;
       }
-      
+
       oss << "mgm.proc.stdout="
-	  << "&mgm.proc.stderr=" << "error: errc=" << retc
-	  << " msg=\"" << status.ToString() << "\""
-	  << "&mgm.proc.retc=" << retc;
+          << "&mgm.proc.stderr=" << "error: errc=" << retc
+          << " msg=\"" << status.ToString() << "\""
+          << "&mgm.proc.retc=" << retc;
     }
   }
-
 
   return ProcessResponse(oss.str());
 }
@@ -355,23 +354,29 @@ void
 ICmdHelper::AddRouteInfo(std::string& cmd)
 {
   using eos::console::RequestProto;
-  
   bool verbose = true;
 
-  // suppress routing output for formatted quota command 
+  // suppress routing output for formatted quota command
   switch (mReq.command_case()) {
   case RequestProto::kQuota:
     if (mReq.quota().lsuser().format()) {
       verbose = false;
     }
+
     if (mReq.quota().ls().format()) {
       verbose = false;
     }
+
     break;
+
+  case RequestProto::kRm:
+    verbose = false;
+    break;
+
   default:
     break;
   }
-  
+
   const std::string default_route = DefaultRoute(verbose);
   std::ostringstream oss;
 
