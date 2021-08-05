@@ -69,7 +69,8 @@ static const std::string sCacheInvalidationFidChannel {"eos-md-cache-invalidatio
 //! Channel for incoming cid cache invalidation notifications
 static const std::string sCacheInvalidationCidChannel {"eos-md-cache-invalidation-cid"};
 
-
+//! Configuration key to trigger a refresh of the inode provider
+static const std::string sKeyInodeRefresh {"qdb_inode_refresh"};
 }
 
 //! Variable associated with the QuotaView

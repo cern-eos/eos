@@ -336,6 +336,8 @@ QdbMaster::SlaveToMaster()
   gOFS->mTracker.SetAcceptingRequests(false);
   gOFS->mTracker.SpinUntilNoRequestsInFlight(true,
       std::chrono::milliseconds(100));
+  // Force refresh the inode provider to get the latest inode values from QDB
+  gOFS->eosFileService->configure({{constants::sKeyInodeRefresh, "true"}});
   gOFS->eosFileService->initialize();
   gOFS->eosDirectoryService->initialize();
   std::string std_out, std_err;
