@@ -333,10 +333,11 @@ ICmdHelper::DefaultRoute(bool verbose)
                username.substr(0, 1).c_str(), username.c_str());
 
       if (verbose) {
-        fprintf(stderr,
-                "# pre-configuring default route to %s\n"
-                "# -use $EOSHOME variable to override\n",
-                default_home);
+        // @note route warning is no longer displayed
+        // fprintf(stderr,
+        //         "# pre-configuring default route to %s\n"
+        //         "# -use $EOSHOME variable to override\n",
+        //         default_home);
       }
 
       default_route = default_home;
