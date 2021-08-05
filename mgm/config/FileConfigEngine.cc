@@ -528,19 +528,20 @@ FileConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
 //------------------------------------------------------------------------------
 // Filter configuration and store it in output string
 //------------------------------------------------------------------------------
-void
-FileConfigEngine::FilterConfig(std::ostream& out, const std::string& configName)
+int
+FileConfigEngine::FilterConfig(std::ostream& out, const std::string& cfg_name)
 {
-  std::string full_path = SSTR(mConfigDir << configName <<
+  std::string full_path = SSTR(mConfigDir << cfg_name <<
                                EOSMGMCONFIGENGINE_EOS_SUFFIX);
   std::ifstream infile(full_path);
   std::string sline;
   XrdOucString line;
 
   while (getline(infile, sline)) {
-    // Filter according to user specification
     out << sline.c_str() << "\n";
   }
+
+  return 0;
 }
 
 //------------------------------------------------------------------------------

@@ -192,8 +192,10 @@ private:
   //!
   //! @param out output representation of the configuration after filtering
   //! @param cfg_name configuration name
+  //!
+  //! @return 0 if successful, otherwise errno
   //----------------------------------------------------------------------------
-  void FilterConfig(std::ostream& out, const std::string& configName) override;
+  int FilterConfig(std::ostream& out, const std::string& cfg_name) override;
 
   //----------------------------------------------------------------------------
   //! Get the most recent autosave file from the default location

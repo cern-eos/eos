@@ -24,87 +24,102 @@
 #pragma once
 #include "mgm/Namespace.hh"
 #include "common/Status.hh"
+#include "common/Logging.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "proto/ChangelogEntry.pb.h"
 #include <map>
 
 #include <folly/futures/Future.h>
 
-namespace folly {
-  class Executor;
+namespace folly
+{
+class Executor;
 }
 
-namespace qclient {
-  class QClient;
+namespace qclient
+{
+class QClient;
 }
 
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-// Class to perform reads and writes on the MGM configuration stored in QDB
+//! Class to perform reads and writes on the MGM configuration stored in QDB
 //------------------------------------------------------------------------------
-class QuarkConfigHandler {
+class QuarkConfigHandler: public eos::common::LogId
+{
 public:
   //----------------------------------------------------------------------------
-  // Constructor
+  //! Constructor
   //----------------------------------------------------------------------------
-  QuarkConfigHandler(const QdbContactDetails &cd);
+  QuarkConfigHandler(const QdbContactDetails& cd);
 
   //----------------------------------------------------------------------------
-  // Ensure connection is established
+  //! Ensure connection is established
   //----------------------------------------------------------------------------
   common::Status checkConnection(std::chrono::milliseconds timeout =
-    std::chrono::seconds(5));
+                                   std::chrono::seconds(5));
 
   //----------------------------------------------------------------------------
-  // Fetch a given configuration
+  //! Fetch a given configuration
   //----------------------------------------------------------------------------
-  common::Status fetchConfiguration(const std::string &name, std::map<std::string, std::string> &out);
+  common::Status fetchConfiguration(const std::string& name,
+                                    std::map<std::string, std::string>& out);
 
   //----------------------------------------------------------------------------
-  // Write the given configuration
+  //! Write the given configuration
   //----------------------------------------------------------------------------
-  folly::Future<common::Status> writeConfiguration(const std::string &name, const std::map<std::string, std::string> &config,
-    bool overwrite, const std::string &backup = "");
+  folly::Future<common::Status>
+  writeConfiguration(const std::string& name,
+                     const std::map<std::string, std::string>& config,
+                     bool overwrite, const std::string& backup = "");
 
   //----------------------------------------------------------------------------
-  // Check if configuration key exists already
+  //! Check if configuration key exists already
   //----------------------------------------------------------------------------
-  common::Status checkExistence(const std::string &name, bool &existence);
+  common::Status checkExistence(const std::string& name, bool& existence);
 
   //----------------------------------------------------------------------------
-  // Obtain list of available configurations, and backups
+  //! Obtain list of available configurations, and backups
   //----------------------------------------------------------------------------
-  common::Status listConfigurations(std::vector<std::string> &configs, std::vector<std::string> &backups);
+  common::Status listConfigurations(std::vector<std::string>& configs,
+                                    std::vector<std::string>& backups);
 
   //----------------------------------------------------------------------------
-  // Append an entry to the changelog
+  //! Append an entry to the changelog
   //----------------------------------------------------------------------------
-  folly::Future<common::Status> appendChangelog(const eos::mgm::ConfigChangelogEntry &entry);
+  folly::Future<common::Status>
+  appendChangelog(const eos::mgm::ConfigChangelogEntry& entry);
 
   //----------------------------------------------------------------------------
-  // Show configuration changelog
+  //! Show configuration changelog
   //----------------------------------------------------------------------------
-  common::Status tailChangelog(int nlines, std::vector<std::string> &changelog);
+  common::Status tailChangelog(int nlines, std::vector<std::string>& changelog);
 
   //----------------------------------------------------------------------------
-  // Trim backups to the nth most recent ones. If no more than N backups exist
-  // anyway, do nothing.
-  //
-  // We will delete a maximum of 200 backups at a time -- you may have to call
-  // this function multiple times to trim everything.
+  //! Trim backups to the nth most recent ones. If no more than N backups exist
+  //! anyway, do nothing.
+  //!
+  //! We will delete a maximum of 200 backups at a time -- you may have to call
+  //! this function multiple times to trim everything.
   //----------------------------------------------------------------------------
-  common::Status trimBackups(const std::string &name, size_t limit, size_t &deleted);
+  common::Status
+  trimBackups(const std::string& name, size_t limit, size_t& deleted);
 
   //----------------------------------------------------------------------------
-  // Form hash key
+  //! Form configuration target key
   //----------------------------------------------------------------------------
-  static std::string formHashKey(const std::string &name);
+  static std::string FormHashKey(const std::string& name);
 
   //----------------------------------------------------------------------------
-  // Form backup key
+  //! Form configuration backup target key
   //----------------------------------------------------------------------------
-  static std::string formBackupHashKey(const std::string &name, time_t timestamp);
+  static std::string FormBackupHashKey(const std::string& name);
+
+  //----------------------------------------------------------------------------
+  //! Form configuration backup target key
+  //----------------------------------------------------------------------------
+  static std::string FormBackupHashKey(const std::string& name, time_t timestamp);
 
 private:
   QdbContactDetails mContactDetails;
@@ -114,4 +129,3 @@ private:
 };
 
 EOSMGMNAMESPACE_END
-

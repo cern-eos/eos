@@ -306,15 +306,15 @@ protected:
   //----------------------------------------------------------------------------
   void FilterDeprecated(std::map<std::string, std::string>& map);
 
-private:
-
   //----------------------------------------------------------------------------
   //! Filter configuration
   //!
   //! @param out output representation of the configuration after filtering
   //! @param cfg_name configuration name
+  //!
+  //! @return 0 if successful, otherwise errno
   //----------------------------------------------------------------------------
-  virtual void FilterConfig(std::ostream& out, const std::string& configName) = 0;
+  virtual int FilterConfig(std::ostream& out, const std::string& cfg_name) = 0;
 };
 
 EOSMGMNAMESPACE_END
