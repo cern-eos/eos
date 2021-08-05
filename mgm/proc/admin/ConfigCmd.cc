@@ -93,7 +93,6 @@ ConfigCmd::ProcessRequest() noexcept
 void ConfigCmd::LsSubcmd(const eos::console::ConfigProto_LsProto& ls,
                          eos::console::ReplyProto& reply)
 {
-  eos_notice("config ls");
   XrdOucString listing = "";
 
   if (!(gOFS->ConfEngine->ListConfigs(listing, ls.showbackup()))) {
@@ -110,11 +109,10 @@ void ConfigCmd::LsSubcmd(const eos::console::ConfigProto_LsProto& ls,
 void ConfigCmd::DumpSubcmd(const eos::console::ConfigProto_DumpProto& dump,
                            eos::console::ReplyProto& reply)
 {
-  eos_notice("config dump");
   XrdOucString sdump = "";
 
   if (!gOFS->ConfEngine->DumpConfig(sdump, dump.file())) {
-    reply.set_std_err("error: listing of existing configs failed!");
+    reply.set_std_err("error: failed to dump configuration");
     reply.set_retc(errno);
   } else {
     reply.set_std_out(sdump.c_str());
@@ -126,7 +124,6 @@ void ConfigCmd::DumpSubcmd(const eos::console::ConfigProto_DumpProto& dump,
 //----------------------------------------------------------------------------
 void ConfigCmd::ResetSubcmd(eos::console::ReplyProto& reply)
 {
-  eos_notice("config reset");
   gOFS->ConfEngine->ResetConfig();
   reply.set_std_out("success: configuration has been reset(cleaned)!");
 }
@@ -150,7 +147,8 @@ void ConfigCmd::SaveSubcmd(const eos::console::ConfigProto_SaveProto& save,
   eos_notice("config save: %s", save.ShortDebugString().c_str());
   XrdOucString std_err;
 
-  if (!gOFS->ConfEngine->SaveConfig(save.file(), save.force(), mReqProto.comment(), std_err)) {
+  if (!gOFS->ConfEngine->SaveConfig(save.file(), save.force(),
+                                    mReqProto.comment(), std_err)) {
     reply.set_std_err(std_err.c_str());
     reply.set_retc(errno);
   } else {
