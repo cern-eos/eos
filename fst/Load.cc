@@ -93,6 +93,13 @@ Load::DevMap(const std::string& dev_path)
             std::string sdev = val[0];
             std::string spath = val[1];
 
+            // before truncating /dev/ prefix, follow possible symlink of device-mapper i.e. /dev/mapper/mpathX -> /dev/dm-YY
+            char buf_link[1024];
+            ssize_t size_link = readlink(sdev.c_str(), buf_link, sizeof(buf_link));
+            if (size_link > 0) {
+              sdev = buf_link;
+            }
+
             // fprintf(stderr,"%s => %s\n", sdev.c_str(), spath.c_str());
             if (sdev.find("/dev/") == 0) {
               sdev.erase(0, 5);
