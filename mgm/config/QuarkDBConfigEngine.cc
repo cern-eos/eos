@@ -313,21 +313,22 @@ QuarkDBConfigEngine::PullFromQuarkDB(const std::string& configName)
 //------------------------------------------------------------------------------
 // Filter the configuration and store in output string
 //------------------------------------------------------------------------------
-void
+int
 QuarkDBConfigEngine::FilterConfig(std::ostream& out,
-                                  const std::string& configName)
+                                  const std::string& cfg_name)
 {
   std::map<std::string, std::string> config;
-  common::Status st = mConfigHandler->fetchConfiguration(configName, config);
+  common::Status st = mConfigHandler->fetchConfiguration(cfg_name, config);
 
   if (!st) {
     out << st.toString();
-    return;
+  } else {
+    for (const auto& elem : config) {
+      out << elem.first << " => " << elem.second << "\n";
+    }
   }
 
-  for (const auto& elem : config) {
-    out << elem.first << " => " << elem.second << "\n";
-  }
+  return st.getErrc();
 }
 
 //------------------------------------------------------------------------------
