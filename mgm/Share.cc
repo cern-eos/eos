@@ -195,6 +195,14 @@ Share::Proc::Create(eos::common::VirtualIdentity& vid,
   errno = 0 ;
 
   std::string shareattr;
+  // create path
+  std::string procpath = GetEntry(vid.uid, name);
+
+  // create share entry
+  int rc = CreateDir(procpath);
+  if (rc) {
+    return rc;
+  }
 
   if (share_root.length()) {
     bool is_owner = false;
@@ -235,20 +243,13 @@ Share::Proc::Create(eos::common::VirtualIdentity& vid,
     } else {
       errno = 0;
       // retrieve shareattr like pxid:<cid>
-      shareattr = GetShareReference(share_root.c_str());
+      shareattr = GetShareReference(procpath.c_str());
       if (errno) {
 	return -1;
       }
     }
   }
 
-  // create path
-  std::string procpath = GetEntry(vid.uid, name);
-  // create share entry
-  int rc = CreateDir(procpath);
-  if (rc) {
-    return rc;
-  }
 
   // add share root
   if (!share_root.empty()) {
@@ -305,8 +306,7 @@ Share::Proc::ModifyShareAttr(const std::string& path, const std::string& shareat
   eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
   XrdOucErrInfo error;
   XrdOucString value;
-  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
-  int rc = gOFS->_attr_get(path.c_str(), error, root_vid, "", "sys.acl.share", value, false);
+  int rc = gOFS->_attr_get(path.c_str(), error, root_vid, "", "sys.acl.share", value, true);
 
   eos_static_info("path='%s' shareattr='%s' acl='%s' remove=%d",
 		  path.c_str(),
@@ -322,6 +322,7 @@ Share::Proc::ModifyShareAttr(const std::string& path, const std::string& shareat
   std::string new_shareacl;
   bool add = true;
   for ( auto i : rules ) {
+    eos_static_info("'%s' vs '%s'", i.c_str(), shareattr.c_str());
     if (remove) {
       add = false;
       if ( i == shareattr ) {
@@ -341,12 +342,18 @@ Share::Proc::ModifyShareAttr(const std::string& path, const std::string& shareat
   }
   if (add) {
     new_shareacl += shareattr;
+    new_shareacl += ",";
   }
   if (new_shareacl.length()) {
     new_shareacl.pop_back();
   }
 
-  rc = gOFS->_attr_set(path.c_str(), error, root_vid, "", "sys.acl.share", new_shareacl.c_str(), false);
+  eos_static_info("path='%s' new-share-acl='%s'", path.c_str(), new_shareacl.c_str());
+  if (new_shareacl.empty()) {
+    rc = gOFS->_attr_rem(path.c_str(), error, root_vid, "", "sys.acl.share", true);
+  } else {
+    rc = gOFS->_attr_set(path.c_str(), error, root_vid, "", "sys.acl.share", new_shareacl.c_str(), true);
+  }
   return rc;
 }
 
@@ -424,6 +431,9 @@ Share::Proc::List(eos::common::VirtualIdentity& vid, const std::string& name)
 	  std::string sacl = acl.c_str();
 	  std::string sroot = root.c_str();
 	  acllist.Add(it, val, sacl ,sroot);
+	} else {
+	  std::string none="-";
+	  acllist.Add(it, val, none, none);
 	}
       }
     }
@@ -450,7 +460,12 @@ Share::Proc::Delete(eos::common::VirtualIdentity& vid, const std::string& name)
     gOFS->_attr_get(procpath.c_str(), error,
 		    root_vid, "", "sys.share.root", share_root, true);
   } else {
-    return -1;
+    struct stat buf;
+    // check if there is an incomplete entry
+    if (gOFS->_stat(procpath.c_str(), &buf, error, vid)) {
+      return -1;
+    }
+    // let's continue to wipe this entry
   }
 
   if (share_root.length()) {
@@ -494,7 +509,7 @@ Share::Proc::Delete(eos::common::VirtualIdentity& vid, const std::string& name)
     } else {
       errno = 0;
       // retrieve shareattr like pxid:<cid>
-      shareattr = GetShareReference(sshare_root.c_str());
+      shareattr = GetShareReference(procpath.c_str());
       if (errno) {
 	return -1;
       }

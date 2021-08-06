@@ -921,11 +921,12 @@ public:
   //! @param client XRootD authentication object
   //! @param opaque CGI
   //! @param key key to delete
+  //! @param take_lock if true take namespace lock, otherwise don't
   //!
   //! @return SFS_OK if success, otherwise SFS_ERROR
   //----------------------------------------------------------------------------
   int attr_rem(const char* path, XrdOucErrInfo& out_error,
-               const XrdSecEntity* client, const char* opaque, const char* key);
+               const XrdSecEntity* client, const char* opaque, const char* key, bool take_lock = true);
 
   //----------------------------------------------------------------------------
   //! Remove an extended attribute for a given entry - low-level API.
@@ -935,12 +936,13 @@ public:
   //! @param vid virtual identity of the client
   //! @param opaque CGI
   //! @param key key to delete
+  //! @param take_lock if true take namespace lock, otherwise don't
   //!
   //! @return SFS_OK if success, otherwise SFS_ERROR
   //----------------------------------------------------------------------------
   int _attr_rem(const char* path, XrdOucErrInfo& out_error,
                 eos::common::VirtualIdentity& vid,
-                const char* opaque, const char* key);
+                const char* opaque, const char* key, bool take_lock = true);
 
   //----------------------------------------------------------------------------
   //! Remove all extended attributes for a given file/directory - low-level API.
