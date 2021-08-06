@@ -299,13 +299,26 @@ build_ubuntu_focal:
     paths:
       - ${EOS_DIST}_artifacts/
   dependencies: []
-  allow_failure: true # @todo false for tags
+  allow_failure: true
 
-build_fedora_stable:
-  image: fedora:32
+# @todo 33 requested by the community. Keep for a few releases and then drop in favor of 34+.
+build_fedora_33:
+  image: fedora:33
   <<: *build_fedora-template_definition
   variables:
-    EOS_DIST: fc-32
+    EOS_DIST: fc-33
+  only:
+    - schedules
+    - tags
+  tags:
+    - docker_node
+    - build
+
+build_fedora_34:
+  image: fedora:34
+  <<: *build_fedora-template_definition
+  variables:
+    EOS_DIST: fc-34
   only:
     - schedules
     - tags
