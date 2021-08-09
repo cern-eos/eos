@@ -44,14 +44,19 @@ DiskHealth::getHealth(const std::string& devpath)
     return std::map<std::string, std::string>();
   }
 
-  // RAID setups and not (device-mapper) multipath
-  if (dev[0] == 'm' && dev.find("mapper/mpath") == string::npos) {
+  // RAID setups; (device-mapper) multipath will be looked up as dm-XX
+  if (dev[0] == 'm') {
     return parse_mdstat(dev);
   }
 
   // Remove partition digits, we need the actual device name for smartctl...
-  while (isdigit(dev.back())) {
-    dev.pop_back();
+  // only for /dev/sdaX devices, NOT /dev/dm-13 and comparables, 
+  // where the trailing number is not a partition indicator
+  // edge case would be /dev/sdm1 where dev == "sdm1"
+  if (dev.find("dm-") != 0) {
+    while (isdigit(dev.back())) {
+      dev.pop_back();
+    }
   }
 
   std::lock_guard<std::mutex> lock(mMutex);
@@ -208,9 +213,8 @@ std::string DiskHealth::smartctl(const char* device)
   std::string command("smartctl -q silent -a /dev/");
 
   // dev name starts with mpath, it's scsi multipath from linux device mapper,
-  // i.e. /dev/mapper/mpathXY
-  // device
-  if(std::string(device).find("mapper/mpath") == 0) {
+  // i.e. /dev/dm-XY
+  if(std::string(device).find("dm-") == 0) {
     command = std::string("smartctl -q silent --device=scsi -a /dev/");
   }
 
