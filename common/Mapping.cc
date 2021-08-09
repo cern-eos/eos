@@ -456,9 +456,10 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   eos_static_debug("swcuidtident=%s sprotuidtident=%s myrole=%s",
                    swcuidtident.c_str(), sprotuidtident.c_str(), myrole.c_str());
 
-  if ((gVirtualUidMap.count(suidtident.c_str()))) {
+  if (auto kv = gVirtualUidMap.find(suidtident.c_str());
+      kv != gVirtualUidMap.end()) {
     //    eos_static_debug("tident mapping");
-    vid.uid = gVirtualUidMap[suidtident.c_str()];
+    vid.uid = kv->second;
 
     if (!vid.hasUid(vid.uid)) {
       vid.allowed_uids.insert(vid.uid);
@@ -469,9 +470,10 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     }
   }
 
-  if ((gVirtualGidMap.count(sgidtident.c_str()))) {
+  if (auto kv = gVirtualGidMap.find(sgidtident.c_str());
+      kv != gVirtualGidMap.end()) {
     //    eos_static_debug("tident mapping");
-    vid.gid = gVirtualGidMap[sgidtident.c_str()];
+    vid.gid = kv->second;
 
     if (!vid.hasGid(vid.gid)) {
       vid.allowed_gids.insert(vid.gid);
@@ -700,7 +702,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
 
   // SSS key mapping
   if ((vid.prot == "sss") && vid.key.length()) {
-    std::string keyname = vid.key.c_str();
+    std::string keyname = vid.key;
     std::string maptident = "tident:\"sss@";
     std::string wildcardmaptident = "tident:\"sss@*\":uid";
     std::vector<std::string> vtident;
@@ -727,8 +729,8 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         eos_static_info("%d %s %s %s", vtident.size(), client->tident,
                         maptident.c_str(), wildcardmaptident.c_str());
 
-        if (gVirtualUidMap.count(maptident.c_str()) ||
-            gVirtualUidMap.count(wildcardmaptident.c_str())) {
+        if (gVirtualUidMap.count(maptident) ||
+            gVirtualUidMap.count(wildcardmaptident)) {
           // if this is an allowed gateway, map according to client name or authkey
           std::string uidkey = "sss:\"";
           uidkey += "key:";
@@ -766,11 +768,12 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
 	int errc=0;
 	std::string uidkey = "oauth2:\"";
 	uidkey += "sub:";
-	uidkey += oauthname.c_str();
+	uidkey += oauthname;
 	uidkey += "\":uid";
-	if (gVirtualUidMap.count(uidkey.c_str())) {
+  if (auto kv = gVirtualUidMap.find(uidkey);
+      kv != gVirtualUidMap.end()) {
 	  // map oauthname from static sub mapping
-	  oauthname = UidToUserName( gVirtualUidMap[uidkey], errc );
+	  oauthname = UidToUserName(kv->second, errc );
 	}
 	if (errc) {
 	  // we have no mapping for this uid
@@ -786,20 +789,20 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
 
   // Explicit virtual mapping overrules physical mappings - the second one
   // comes from the physical mapping before
-  vid.uid = (gVirtualUidMap.count(useralias.c_str())) ?
-            gVirtualUidMap[useralias.c_str() ] : vid.uid;
-
-  if (!vid.hasUid(vid.uid)) {
-    vid.allowed_uids.insert(vid.uid);
+  {
+    auto userkey = gVirtualUidMap.find(useralias.c_str());
+    vid.uid = userkey != gVirtualUidMap.end() ? userkey->second : vid.uid;
+    if (!vid.hasUid(vid.uid)) {
+      vid.allowed_uids.insert(vid.uid);
+    }
   }
 
-  vid.gid = (gVirtualGidMap.count(groupalias.c_str())) ?
-            gVirtualGidMap[groupalias.c_str()] : vid.gid;
-
-  // eos_static_debug("mapped %d %d", vid.uid,vid.gid);
-
-  if (!vid.hasGid(vid.gid)) {
-    vid.allowed_gids.insert(vid.gid);
+  {
+    auto groupkey = gVirtualGidMap.find(groupalias.c_str());
+    vid.gid = groupkey != gVirtualGidMap.end() ? groupkey->second : vid.gid;
+    if (!vid.hasGid(vid.gid)) {
+      vid.allowed_gids.insert(vid.gid);
+    }
   }
 
   // Add virtual user and group roles - if any
@@ -993,8 +996,9 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     // to translate the host name and match a rule
 
     // if we have a default geo location we assume that a client in that one
-    if (gGeoMap.count("default")) {
-      vid.geolocation = gGeoMap["default"];
+    if (auto kv = gGeoMap.find("default");
+        kv != gGeoMap.end()) {
+      vid.geolocation = kv->second;
     }
 
     std::string ipstring = gIpCache.GetIp(host.c_str());
