@@ -143,7 +143,13 @@ Policy::GetLayoutAndSpace(const char* path,
   }
 
 
-  if (!conversion) {
+  if (!conversion && (space != "default")) {
+    // reset default settings, pickup new target space policy
+    spacepolicies.clear();
+    bandwidth = "";
+    schedule = false;
+    iopriority = "";
+
     auto it = FsView::gFsView.mSpaceView.find(space.c_str());
     if (it != FsView::gFsView.mSpaceView.end()) {
       // overwrite the defaults if they are defined in the target space
@@ -187,7 +193,7 @@ Policy::GetLayoutAndSpace(const char* path,
     }
   }
 
-  // look if we have to inject the default space policies
+  // look if we have to inject the space policies as attributes
   for (auto it = spacepolicies.begin(); it != spacepolicies.end(); ++it) {
     if (it->first == "space") {
       continue;
@@ -224,9 +230,37 @@ Policy::GetLayoutAndSpace(const char* path,
     // root can request not to apply any forced settings
   } else {
     if (attrmap.count("sys.forced.space")) {
-      // we force to use a certain space in this directory even if the user wants something else
+      bool refresh_io_policies = false;
+      if (space != attrmap["sys.forced.space"].c_str()) {
+	// if the target space has changed via enforcing a space
+	refresh_io_policies = true;
+      }
       space = attrmap["sys.forced.space"].c_str();
       eos_static_debug("sys.forced.space in %s", path);
+
+      if (refresh_io_policies) {
+	bandwidth="";
+	schedule=false;
+	iopriority="";
+	auto it = FsView::gFsView.mSpaceView.find(space.c_str());
+	if (it != FsView::gFsView.mSpaceView.end()) {
+	  bandwidth = it->second->GetConfigMember("policy.bandwidth");
+	  schedule = (it->second->GetConfigMember("policy.schedule")=="1");
+	  iopriority = it->second->GetConfigMember("policy.iopriority");
+
+	  // try application specific bandwidth setting
+	  std::string appkey = "bw.";
+	  if (env.Get("eos.app")) {
+	    appkey += env.Get("eos.app");
+	  } else {
+	    appkey += "default";
+	  }
+	  std::string app_bandwidth = it->second->GetConfigMember(appkey);
+	  if (app_bandwidth.length()) {
+	  bandwidth = app_bandwidth;
+	  }
+	}
+      }
     }
 
     if (attrmap.count("sys.forced.group")) {
