@@ -94,12 +94,20 @@ Load::DevMap(const std::string& dev_path)
             std::string spath = val[1];
 
             // before truncating /dev/ prefix, follow possible symlink of device-mapper i.e. /dev/mapper/mpathX -> /dev/dm-YY
+            // note: the actual symlink is likely /dev/mapper/mpathX -> ../dm-Y
+            // this is relevant to further string processing here
             char buf_link[1024];
             ssize_t size_link = readlink(sdev.c_str(), buf_link, sizeof(buf_link));
             if (size_link > 0) {
-              sdev = buf_link;
+                sdev = buf_link;
+                // this might be something like ../dm-7
+                if (sdev.find("../") == 0) {
+                    sdev.erase(0, 3);
+                    dev_map[sdev] = spath;
+                }
             }
 
+            // the default case, directly find device in i.e. /dev/sdX
             // fprintf(stderr,"%s => %s\n", sdev.c_str(), spath.c_str());
             if (sdev.find("/dev/") == 0) {
               sdev.erase(0, 5);
