@@ -73,7 +73,7 @@ eos::mgm::StagerRmCmd::ProcessRequest() noexcept
     default:
       errStream << "error: Received a file with neither a path nor an fid" <<
                 std::endl;
-        ret_c = EINVAL;
+      ret_c = EINVAL;
       continue;
     }
 
@@ -129,14 +129,15 @@ eos::mgm::StagerRmCmd::ProcessRequest() noexcept
     errInfo.clear();
 
     if (gOFS->_dropallstripes(path.c_str(), errInfo, root_vid, false) != 0) {
-      eos_static_err("Could not delete all replicas of %s. Reason: %s",
+      eos_static_err("msg=\"could not delete all replicas of %s\" reason=\"%s\"",
                      path.c_str(), errInfo.getErrText());
       errStream << "error: could not delete all replicas of '" << path << "'" <<
                 std::endl;
       ret_c = SFS_ERROR;
     } else {
       // reset the retrieves counter in case of success
-      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                         __FILE__);
 
       try {
         auto fmd = gOFS->eosView->getFile(path.c_str());
@@ -144,8 +145,10 @@ eos::mgm::StagerRmCmd::ProcessRequest() noexcept
         fmd->setAttribute(eos::common::RETRIEVE_REQTIME_ATTR_NAME, "");
         gOFS->eosView->updateFileStore(fmd.get());
       } catch (eos::MDException& ex) {
-        eos_static_err("Could not reset Prepare request ID list for file %s. Try removing the %s and %s attributes.",
-                       path.c_str(), eos::common::RETRIEVE_REQID_ATTR_NAME, eos::common::RETRIEVE_REQTIME_ATTR_NAME);
+        eos_static_err("msg=\"could not reset Prepare request ID list for "
+                       "file %s. Try removing the %s and %s attributes\"",
+                       path.c_str(), eos::common::RETRIEVE_REQID_ATTR_NAME,
+                       eos::common::RETRIEVE_REQTIME_ATTR_NAME);
       }
     }
   }
