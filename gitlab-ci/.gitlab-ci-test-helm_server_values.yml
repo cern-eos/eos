@@ -1,0 +1,29 @@
+# eos-chart/server
+# --set global.repository=$IMAGE_REPO --set global.tag=$IMAGE_TAG --set fst.replicaCount=8 --set fst.selfRegister.groupsize=8 --set fst.selfRegister.groupmod=1 \
+# --set mgm.kerberos.enable=true --set mgm.kerberos.admin_princ.name=$TEST_ADMINPRINC_NAME --set mgm.kerberos.admin_princ.password=$TEST_ADMINPRINC_PASSWORD
+
+global:
+  repository: gitlab-registry.cern.ch/dss/eos/eos-ci
+  tag: "--set $IMAGE_TAG"
+  keytab:
+    # matches the fusex chart value
+    secret: eos-sss-keytab
+
+qdb:
+  replicaCount: 1
+
+fst:
+  replicaCount: 8
+  selfRegister:
+    groupsize: 8
+    groupmod: 1
+
+mgm:
+  kerberos:
+    enabled: true
+    clientConfig:
+      # matches the default kerberos.fullname from the kuberos chart
+      configMap: kuberos-kuberos-krb5-config
+    adminPrinc:
+      name: "--set $TEST_ADMINPRINC_NAME"
+      password: "--set $TEST_ADMINPRINC_PASSWORD"
