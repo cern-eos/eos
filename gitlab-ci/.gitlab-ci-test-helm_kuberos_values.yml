@@ -1,0 +1,12 @@
+# kuberos
+# --set kdc.persistence.enabled=false --set admin_princ.enabled=false --set serviceAccount.create=false
+
+serviceAccount:
+  create: false
+
+kdc:
+  persistence:
+    enabled: false
+
+admin_princ:
+  enabled: false
