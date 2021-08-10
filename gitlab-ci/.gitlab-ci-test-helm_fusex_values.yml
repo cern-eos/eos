@@ -1,0 +1,28 @@
+# eos-chart fusex
+#--set image.tag=$CLI_IMAGE_TAG --set fusex.config.eos_mgm_alias=eos-mgm.$K8S_NAMESPACE.svc.cluster.local --set customLabels.component=$client1_label \
+#--set fusex.config.auth.sss=0 --set fusex.config.auth.krb5=1
+## --set kerberos.admin_princ.name=$TEST_ADMINPRINC_NAME --set kerberos.admin_princ.password=$TEST_ADMINPRINC_PASSWORD # put in the env ?
+
+image:
+  repository: gitlab-registry.cern.ch/dss/eos/eos-ci
+  tag: "--set $CLI_IMAGE_TAG"
+
+deploymentKind: Deployment
+
+fusex:
+  hostPID: false
+  enableHostMountpoint: false
+  keytab:
+    # matches the default utils.sssKeytabName from the eos server chart
+    secret: eos-sss-keytab
+  kerberos:
+    enabled: true
+    clientConfig:
+      # matches the default kerberos.fullname from the kuberos chart
+      configMap: kuberos-kuberos-krb5-config
+
+  config:
+    eos_mgm_alias: "--set eos-mgm.$K8S_NAMESPACE.svc.cluster.local"
+    auth: # parsing is bugged! 'sss: 0' and 'krb5: 1' via --set on helm install
+      sss: "--set 1"
+      krb5: "--set 1"

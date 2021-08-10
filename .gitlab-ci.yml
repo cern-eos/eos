@@ -9,8 +9,9 @@ stages:
 
 include:
   - template: Code-Quality.gitlab-ci.yml
-  - local: /gitlab-ci/.gitlab-ci-test-dock_include.yml
+  #  - local: /gitlab-ci/.gitlab-ci-test-dock_include.yml @note on the file
   - local: /gitlab-ci/.gitlab-ci-test-k8s_include.yml
+  - local: /gitlab-ci/.gitlab-ci-test-helm_include.yml
 
 default:
   before_script:
@@ -1020,6 +1021,18 @@ clean_k8s_cluster:
   tags:
     - docker_node
     - k8s
+
+# @todo cleanup helm leftover for failed / hanging tests. May be merged to 'clean_k8s_cluster'
+clean_helm_cluster:
+  stage: clean
+  image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.13.5
+  script:
+    - export KUBECONFIG=$K8S_CONFIG
+    - echo "Please, implement me!"
+  dependencies: []
+  allow_failure: true
+  only:
+    - schedules
 
 
 #-------------------------------------------------------------------------------

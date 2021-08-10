@@ -1,0 +1,217 @@
+
+# @todo consider to move the variables in the global 'variable' yaml keymap, not sure it works with ever-changing content
+.helm_before_script_template: &helm_before_script_template
+  # Setup a KDC server, an EOS instance, and an EOS client with an eos-fusex mount
+  before_script:
+    - |
+      chmod 600 $K8S_CONFIG
+      export KUBECONFIG=$K8S_CONFIG # get access configs for the cluster
+      K8S_NAMESPACE=$(echo ${CI_JOB_NAME}-${CI_JOB_ID}-${CI_PIPELINE_ID} | tr '_' '-' | tr '[:upper:]' '[:lower:]')
+      kubectl config set-context --current --namespace=$K8S_NAMESPACE
+      IMAGE_TAG="${BASETAG}${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}"
+      CLI_IMAGE_TAG="${BASETAG}${CLI_BASETAG}${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}" # may be different from the server image (eg ubuntu)
+      TEST_REALM=EXAMPLE.COM; TEST_ADMINPRINC_NAME=admin1; TEST_ADMINPRINC_PASSWORD=admin1; TEST_USERPRINC_NAME=eos-user; TEST_USERPRINC_PASSWORD=eos-user
+    - |
+      # @todo: git clone --branch or helm repo add? helm repo add when the repos are stable!
+      git clone https://gitlab.cern.ch/faluchet/kuberos
+      git clone --branch faluchet-devel-kdc-with-enricos-fixes https://gitlab.cern.ch/eos/eos-charts
+      cd ./eos-charts/
+      apk add yq --repository=https://dl-cdn.alpinelinux.org/alpine/edge/community
+      yq eval '( . | .dependencies.[] |= .repository = "file://../"+.name ) * .' -i server/Chart.yaml && cat server/Chart.yaml
+      for chart in $(ls -d */Chart.yaml | xargs -I{} dirname {}); do helm dep update ${chart}; done
+      cd ../
+    - |
+      ######## KUBEROS ########
+      helm install -f ./gitlab-ci/.gitlab-ci-test-helm_kuberos_values.yml kuberos ./kuberos/kuberos/ --atomic --create-namespace --namespace $K8S_NAMESPACE
+      sleep 10 # kadmind not quite ready by the time the following triggers. Perform the task of the kuberos k8s Job post-install hook since here we set "admin_princ.enabled=false"
+      kubectl exec kuberos-kuberos-kdc-0 -c kdc -- /usr/sbin/kadmin.local -r $TEST_REALM addprinc -pw $TEST_ADMINPRINC_PASSWORD $TEST_ADMINPRINC_NAME/admin
+      kubectl exec kuberos-kuberos-kdc-0 -c kdc -- /usr/sbin/kadmin.local -r $TEST_REALM addprinc -pw $TEST_USERPRINC_PASSWORD $TEST_USERPRINC_NAME
+    - |
+      ######## EOS-CHARTS/SERVER ########
+      helm install -f ./gitlab-ci/.gitlab-ci-test-helm_server_values.yml eos ./eos-charts/server --atomic --create-namespace --namespace $K8S_NAMESPACE \
+        --set global.tag=$IMAGE_TAG --set mgm.kerberos.adminPrinc.name=$TEST_ADMINPRINC_NAME --set mgm.kerberos.adminPrinc.password=$TEST_ADMINPRINC_PASSWORD
+    - |
+      ######## EOS-CHARTS/FUSEX ########
+      helm install -f ./gitlab-ci/.gitlab-ci-test-helm_fusex_values.yml eos-client1 ./eos-charts/fusex  --atomic --create-namespace --namespace $K8S_NAMESPACE \
+        --set image.tag=$CLI_IMAGE_TAG --set fusex.config.eos_mgm_alias=eos-mgm.$K8S_NAMESPACE.svc.cluster.local \
+        --set fusex.config.auth.sss=1 --set fusex.config.auth.krb5=1
+    - |
+      # allow backward compatibility with our legacy k8s utilities functions
+      for i in $(seq 1 8); do kubectl label pod eos-fst-$((i -1)) app=eos-fst${i}; done
+      kubectl label pod eos-mgm-0 app=eos-mgm1
+      kubectl label pod eos-mq-0 app=eos-mq
+      kubectl label pod eos-qdb-0 app=eos-qdb
+      client1_pod="$(kubectl get pods --no-headers -o custom-columns=':metadata.name' | grep 'eos-client1')"
+      kubectl label pod $client1_pod app=eos-cli1
+
+.helm_after_script_template: &helm_after_script_template
+  after_script:
+    - |
+      chmod 600 $K8S_CONFIG
+      export KUBECONFIG=$K8S_CONFIG # get access configs for the cluster
+      export K8S_NAMESPACE=$(echo ${CI_JOB_NAME}-${CI_JOB_ID}-${CI_PIPELINE_ID} | tr '_' '-' | tr '[:upper:]' '[:lower:]')
+      # ./eos-on-k8s/collect_logs.sh ${K8S_NAMESPACE} eos-logs-${CI_JOB_ID}/ @todo need to collect logs!
+      helm uninstall eos-client1 --namespace $K8S_NAMESPACE || true
+      helm uninstall eos --namespace $K8S_NAMESPACE || true
+      helm uninstall kuberos --namespace $K8S_NAMESPACE || true
+      kubectl delete namespace $K8S_NAMESPACE
+      # Paranoid:
+      # helm template eos-client1 ./eos-charts/fusex --namespace $K8S_NAMESPACE | kubectl delete -f -
+      # helm template eos ./eos-charts/server --namespace $K8S_NAMESPACE | kubectl delete -f -
+      # helm template kuberos ./kuberos/kuberos/ --namespace $K8S_NAMESPACE | kubectl delete -f -
+      rm -rf kuberos/ eos-charts/
+
+
+helm_cbox:
+  stage: test
+  image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.13.5
+  <<: *helm_before_script_template
+  script:
+    # @note need to distinguish between:
+    #       - 'this' shell environment, to access things like TEST_ADMINPRINC_PASSWORD : use kubectl exec ...
+    #       - eos-cli1 eos-user's environment, to set KRB5CCNAME and make it source-able from his HOME : use exec_cmd (but we shall get rid of it)
+    - source ./gitlab-ci/utilities_func_for_tests.sh --type k8s $K8S_NAMESPACE
+    # enable converter and prepare eoshome folder, cernbox alike
+    - kubectl exec eos-mgm-0 -- eos space config default space.converter=on
+    - kubectl exec eos-mgm-0 -- ./eos_create_userhome.sh eos-user
+    # the eos-user user gets his keytab ...
+    - kubectl exec $client1_pod -- su eos-user -c "echo $TEST_ADMINPRINC_PASSWORD | kadmin -r $TEST_REALM -p $TEST_ADMINPRINC_NAME/admin ktadd -k /tmp/eos-user.keytab eos-user"
+    # ... and uses it to auth. @note eos-user needs to have KRB5CCNAME set. KRB5CCNAME takes precedence over the kuberos default_ccache_name (see krb5.conf).
+    - exec_cmd eos-cli1 'echo -e "export KRB5CCNAME=FILE:/tmp/krb5cc_$(id -u eos-user)" >> ~/.bashrc'
+    - exec_cmd eos-cli1 'su eos-user -c "kinit eos-user -k -t /tmp/eos-user.keytab && klist"'
+    # download and launch the tests
+    - exec_cmd eos-cli1 'su eos-user -c "git clone https://gitlab.cern.ch/dss/eosclient-tests.git /eos/user/e/eos-user/eosclient-tests"'
+    - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && python2 ./eosclient-tests/run.py --workdir=/eos/user/e/eos-user regression"'
+    - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && python2 ./eosclient-tests/run.py --workdir=/eos/user/e/eos-user ci-eosfuse_release"'
+  <<: *helm_after_script_template
+  artifacts:
+    when: on_failure
+    expire_in: 3 days
+    paths:
+      - eos-logs-${CI_JOB_ID}/
+#  needs:
+#    - job: cc7_docker_image
+#      artifacts: false
+
+helm_cnvrt_fsck:
+  stage: test
+  image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.13.5
+  <<: *helm_before_script_template
+  script:
+    - source ./gitlab-ci/utilities_func_for_tests.sh --type k8s $K8S_NAMESPACE
+    - cp_to_local_cmd eos-cli1:/usr/sbin/eos-test-utils ./eos-test-utils
+    # converter
+    - kubectl exec eos-mgm-0 -- eos vid set membership 2 +sudo
+    - kubectl exec eos-mgm-0 -- eos chmod 2777 /eos/dockertest
+    - cp_to_local_cmd eos-cli1:/usr/sbin/eos-converter-test ./eos-converter-test; chmod +x eos-converter-test
+    - ./eos-converter-test --type k8s $K8S_NAMESPACE
+    - rm -rf eos-converter-test
+    # fsck
+    - cp_to_local_cmd eos-cli1:/usr/sbin/eos-fsck-test ./eos-fsck-test; chmod +x eos-fsck-test
+    - ./eos-fsck-test --max-delay 600 --type k8s $K8S_NAMESPACE
+    - rm -rf eos-fsck-test
+    - rm -rf eos-test-utils
+  <<: *helm_after_script_template
+  artifacts:
+    when: on_failure
+    expire_in: 3 days
+    paths:
+      - eos-logs-${CI_JOB_ID}/
+#  needs:
+#    - job: cc7_docker_image
+#      artifacts: false
+
+helm_rtb_clone:
+  stage: test
+  image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.13.5
+  <<: *helm_before_script_template
+  script:
+    - source ./gitlab-ci/utilities_func_for_tests.sh --type k8s $K8S_NAMESPACE
+    # prepare two further artificial mountpoints
+    - kubectl exec $client1_pod -- bash -c "sed -i \"s/eos-mgm1.eoscluster.cern.ch/eos-mgm.$K8S_NAMESPACE.svc.cluster.local/g\" /etc/eos/fuse.mount-1.conf"
+    - kubectl exec $client1_pod -- bash -c "sed -i \"s/eos-mgm1.eoscluster.cern.ch/eos-mgm.$K8S_NAMESPACE.svc.cluster.local/g\" /etc/eos/fuse.mount-2.conf"
+    - exec_cmd eos-cli1 'atd; at now <<< "mkdir -p /eos1/ && mount -t fuse eosxd -ofsname=mount-1 /eos1/; mkdir -p /eos2/ && mount -t fuse eosxd -ofsname=mount-2 /eos2/;"'
+    - exec_cmd eos-cli1 'count=0; while [[ $count -le 10 ]] && ( [[ ! -d /eos1/dockertest/ ]] || [[ ! -d /eos2/dockertest/ ]] ); do echo "Wait for mount... $count"; (( count++ )); sleep 1; done;'
+    # download tests repo
+    - exec_cmd eos-cli1 'git clone https://gitlab.cern.ch/dss/eosclient-tests.git'
+    # run the clone test (please remember that ubuntu releases do not support 'clone' yet)
+    - kubectl exec eos-mgm-0 -- eos chmod 2777 /eos/dockertest
+    - exec_cmd eos-cli1 'cd /eosclient-tests; clone_tests/clone_test.sh prepare; rc=$?; exit $rc'
+  <<: *helm_after_script_template
+  artifacts:
+    when: on_failure
+    expire_in: 3 days
+    paths:
+      - eos-logs-${CI_JOB_ID}/
+#  needs:
+#    - job: cc7_docker_image
+#      artifacts: false
+  allow_failure: true
+
+helm_stress:
+  stage: test
+  image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.13.5
+  <<: *helm_before_script_template
+  script:
+    - TEST_URL=$(kubectl exec eos-mgm-0 -- hostname -f)
+    - kubectl exec eos-mgm-0 -- yum install -y grid-hammer
+    - kubectl exec eos-mgm-0 -- eos chmod 2777 /eos/dockertest
+    - kubectl exec eos-mgm-0 -- hammer-runner.py --strict-exit-code 1 --gitlab --url ${TEST_URL}//eos/dockertest/hammer/ --protocols xroot --threads 1 2 10 100 --operations write stat read delete --runs 3 --nfiles 10000
+  <<: *helm_after_script_template
+  artifacts:
+    when: on_failure
+    expire_in: 3 days
+    paths:
+      - eos-logs-${CI_JOB_ID}/
+#  needs:
+#    - job: cc7_docker_image
+#      artifacts: false
+  # @todo(esindril) remove in eos5 once we have grid-hammer built with XRootD5
+  allow_failure: true
+
+.helm_system_test_template:
+  stage: test
+  image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.13.5
+  <<: *helm_before_script_template
+  script:
+    - kubectl exec eos-mgm-0 -- eos-instance-test-ci eos-mq
+    - kubectl exec eos-mgm-0 -- eos chmod 2777 /eos/dockertest
+    - kubectl exec eos-mgm-0 -- eos-unit-tests-with-instance -n root://localhost//eos/dockertest/
+  <<: *helm_after_script_template
+  artifacts:
+    when: on_failure
+    expire_in: 3 days
+    paths:
+      - eos-logs-${CI_JOB_ID}/
+
+helm_system:
+  extends: .helm_system_test_template
+#  needs:
+#    - job: cc7_docker_image
+#      artifacts: false
+
+helm_system_c8:
+  extends: .helm_system_test_template
+  variables:
+    BASETAG: "c8_"
+#  needs:
+#    - job: c8_docker_image
+#      artifacts: false
+  # @todo make it centos stream 8 and drop c8
+  only:
+    - schedules
+    - tags
+  allow_failure: true
+
+# @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
+# xt stands for xrd_testing. Must shorten to not hit HOST_NAME_MAX
+.helm_system_xt:
+  extends: .helm_system_test_template
+  variables:
+    BASETAG: "xrd_testing_"
+#  needs:
+#    - job: cc7_xrd_testing_docker_image
+#      artifacts: false
+  only:
+    - schedules
+  allow_failure: true
