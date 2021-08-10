@@ -236,19 +236,11 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
 
       Acl acl(xattrmap, vid);
 
-<<<<<<< HEAD
       if (fmd && (
 	  // any attribute not if not the owner and not a sudoer and not root
 		  ((vid.uid != fmd->getCUid()) && (!vid.sudoer && vid.uid)) ||
 		  // sys.acl only by non sudoer/root if ACL allows
 		  ((Key == "sys.acl") && (!vid.sudoer) && (vid.uid) && (!acl.CanSetAcl())))) {
-=======
-      if (fmd &&
-	  // any attribute not if not the owner and not a sudoer and not root
-	  (vid.uid != fmd->getCUid()) && (!vid.sudoer && vid.uid) ||
-	  // sys.acl only by non sudoer/root if ACL allows
-	  ((Key == "sys.acl") && (!vid.sudoer) && (vid.uid) && (!acl.CanSetAcl()))) {
->>>>>>> MGM: implement the core functionality for share ACLs - EOS-4680
         errno = EPERM;
       } else {
         XrdOucString val64 = value;

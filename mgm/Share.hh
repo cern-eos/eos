@@ -82,6 +82,15 @@ public:
 
     int Init(const char* prefix);
     int Create(eos::common::VirtualIdentity& vid, const std::string& name, const std::string& share_root, const std::string& share_acl);
+
+    int Share(eos::common::VirtualIdentity& vid, const std::string& name, const std::string& share_root, const std::string& share_acl);
+
+    int UnShare(eos::common::VirtualIdentity& vid, const std::string& name, const std::string& share_root);
+
+    int Access(eos::common::VirtualIdentity& vid, const std::string& name, eos::common::VirtualIdentity& access_vid);
+
+    int Modify(eos::common::VirtualIdentity& vid, const std::string& name, const std::string& share_acl);
+
     int ModifyShare(const eos::common::VirtualIdentity& vid, std::string shareattr, const std::string& share_root, bool remove=false);
     int ModifyShareAttr(const std::string& path, const std::string& shareattr, bool remove=false);
 
@@ -91,7 +100,7 @@ public:
       return mProcPrefix + "uid:" + std::to_string(uid) + std::string("/") + name;
     }
 
-    int Delete(eos::common::VirtualIdentity& vid, const std::string& name);
+    int Delete(eos::common::VirtualIdentity& vid, const std::string& name, bool keep_share=false);
     AclList List(eos::common::VirtualIdentity& vid, const std::string& name);
     int Delete();
     int Modify();
@@ -99,6 +108,7 @@ public:
   private:
     int CreateDir(const std::string& path);
     int SetShareRoot(const std::string& path, const std::string& share_root);
+    int GetShareRoot(const std::string& path, std::string& share_root);
     int SetShareAcl(const std::string& path, const std::string& share_acl);
     std::string GetShareReference(const char* path);
     std::string mProcPrefix;

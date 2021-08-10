@@ -149,6 +149,27 @@ Share::Proc::SetShareRoot(const std::string& path, const std::string& share_root
 		   true);
 }
 
+/* ------------------------------------------------------------------------- */
+int
+Share::Proc::GetShareRoot(const std::string& path, std::string& share_root)
+{
+  XrdOucErrInfo error;
+  eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
+  XrdOucString value;
+
+  int rc = gOFS->_attr_get(path.c_str(),
+			 error,
+			 root_vid,
+			 "",
+			 "sys.share.root",
+			 value,
+			 true);
+  if (!rc) {
+    share_root = value.c_str();
+  }
+  return rc;
+}
+
 
 /* ------------------------------------------------------------------------- */
 int
@@ -269,6 +290,107 @@ Share::Proc::Create(eos::common::VirtualIdentity& vid,
 
 /* ------------------------------------------------------------------------- */
 int
+Share::Proc::Share(eos::common::VirtualIdentity& vid, const std::string& name, const std::string& share_root, const std::string& share_acl)
+{
+  int rc = 0;
+  errno = 0;
+  std::string procpath = GetEntry(vid.uid, name);
+  std::string current_share;
+  std::string shareattr;
+
+  rc = GetShareRoot(procpath, current_share);
+  if (!rc) {
+    errno = EAGAIN;
+    eos_static_err("share is already shared")
+    return -1;
+  } else {
+    // reset rc to be good!
+    rc = 0;
+  }
+
+  if (!share_root.length()) {
+    errno = EINVAL;
+    eos_static_err("no share root specified")
+    return -1;
+  }
+
+  bool is_owner = false;
+  {
+    std::shared_ptr<eos::IContainerMD> dh;
+    eos::common::RWMutexWriteLock viewLock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+
+    try {
+      dh = gOFS->eosView->getContainer(share_root);
+      eos::common::Path pPath(gOFS->eosView->getUri(dh.get()).c_str());
+    } catch (eos::MDException& e) {
+      dh.reset();
+      errno = e.getErrno();
+      eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+		       e.getErrno(), e.getMessage().str().c_str());
+    }
+
+    if (!dh) {
+	errno = ENOENT;
+	eos_static_err("path'%s' does not exist errno=%d", share_root.c_str(), errno);
+	return -1;
+    }
+
+    if (dh->getCUid() == vid.uid) {
+	is_owner = true;
+    }
+
+    if (vid.sudoer) {
+      is_owner = true;
+    }
+  }
+
+  XrdOucErrInfo error;
+  eos::IContainerMD::XAttrMap attrmap;
+  eos::mgm::Acl acl (share_root.c_str(), error, vid, attrmap, true, true);
+  if (!acl.CanShare() && !is_owner) {
+    errno = EACCES;
+    eos_static_err("no access");
+    return -1;
+  } else {
+    errno = 0;
+    // retrieve shareattr like pxid:<cid>
+    shareattr = GetShareReference(procpath.c_str());
+    if (errno) {
+      eos_static_err("no share reference errno=%d", errno);
+      return -1;
+    }
+  }
+
+  rc |= SetShareRoot(procpath, share_root);
+  rc |= SetShareAcl(procpath, share_acl);
+  rc |= ModifyShare(vid, shareattr, share_root, false);
+  return rc;
+}
+
+/* ------------------------------------------------------------------------- */
+int
+Share::Proc::UnShare(eos::common::VirtualIdentity& vid, const std::string& name, const std::string& share_root)
+{
+  int rc = 0;
+  return Delete(vid, name, true);
+}
+
+int
+Share::Proc::Access(eos::common::VirtualIdentity& vid, const std::string& name, eos::common::VirtualIdentity& access_vid)
+{
+  int rc = 0;
+  return rc;
+}
+
+int
+Share::Proc::Modify(eos::common::VirtualIdentity& vid, const std::string& name, const std::string& share_acl)
+{
+  int rc = 0;
+  return rc;
+}
+
+/* ------------------------------------------------------------------------- */
+int
 Share::Proc::ModifyShare(const eos::common::VirtualIdentity& vid, std::string shareattr, const std::string& share_root, bool remove)
 {
   // recursively add this share
@@ -290,7 +412,6 @@ Share::Proc::ModifyShare(const eos::common::VirtualIdentity& vid, std::string sh
       child += "/";
       child += item;
 
-      fprintf(stderr,"modify %s\n", child.c_str());
       // propagate to children
       rc |= ModifyShare(vid,shareattr, child, remove);
     }
@@ -443,7 +564,7 @@ Share::Proc::List(eos::common::VirtualIdentity& vid, const std::string& name)
 
 /* ------------------------------------------------------------------------- */
 int
-Share::Proc::Delete(eos::common::VirtualIdentity& vid, const std::string& name)
+Share::Proc::Delete(eos::common::VirtualIdentity& vid, const std::string& name, bool keep_share)
 {
   std::string procpath = GetEntry(vid.uid, name);
   XrdOucString acl;
@@ -522,11 +643,18 @@ Share::Proc::Delete(eos::common::VirtualIdentity& vid, const std::string& name)
     }
   }
 
-  return gOFS->_remdir(procpath.c_str(),
-		      error,
-		      root_vid,
-		      "",
-		      false);
+  if (keep_share) {
+    // only remove the share root and acl
+    rc |= gOFS->_attr_rem(procpath.c_str(), error, root_vid, "", "sys.share.root", true);
+    rc |= gOFS->_attr_rem(procpath.c_str(), error, root_vid, "", "sys.share.acl", true);
+    return rc;
+  } else {
+    return gOFS->_remdir(procpath.c_str(),
+			 error,
+			 root_vid,
+			 "",
+			 false);
+  }
 }
 
 /* ------------------------------------------------------------------------- */

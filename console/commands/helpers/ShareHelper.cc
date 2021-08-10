@@ -91,7 +91,19 @@ ShareHelper::ParseCommand(const char* arg)
       // path
       option = tokenizer.GetToken();
       if (!option) return false;
+      op->set_acl(option);
+      option = tokenizer.GetToken();
+      if (!option) return false;
       op->set_path(option);
+      return true;
+    }
+
+    if ((cmd == "modify")) {
+      op->set_op(eos::console::ShareProto::OperateShare::MODIFY);
+      // acl
+      option = tokenizer.GetToken();
+      if (!option) return false;
+      op->set_acl(option);
       return true;
     }
 
@@ -99,8 +111,9 @@ ShareHelper::ParseCommand(const char* arg)
       op->set_op(eos::console::ShareProto::OperateShare::UNSHARE);
       // path
       option = tokenizer.GetToken();
-      if (!option) return false;
-      op->set_path(option);
+      if (option) {
+	op->set_path(option);
+      }
       return true;
     }
 
