@@ -1,0 +1,41 @@
+//------------------------------------------------------------------------------
+// File: Share.proto
+// Author: Andreas-Joachim Peters - CERN
+//------------------------------------------------------------------------------
+
+syntax="proto3";
+package eos.console;
+
+message ShareProto {
+
+  message LsShare {
+    enum OutFormat {
+      NONE                  = 0; //
+      MONITORING            = 1; // [-m]
+      LISTING               = 2; // [-l]
+    }
+    OutFormat outformat   = 1; //
+    string selection      = 2; //
+  }
+
+  message OperateShare {
+    enum Op {
+      CREATE = 0;
+      REMOVE = 1;
+      SHARE  = 2;
+      UNSHARE = 3;
+      ACCESS = 4;
+      MODIFY = 5;
+    }
+    Op op = 1;
+    string share = 2;
+    string acl = 3;
+    string path = 4;
+  }
+
+  oneof subcmd {
+    LsShare ls    = 1;
+    OperateShare op = 2;
+  }
+
+}
