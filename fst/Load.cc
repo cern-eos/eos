@@ -99,6 +99,7 @@ Load::DevMap(const std::string& dev_path)
             char buf_link[1024];
             ssize_t size_link = readlink(sdev.c_str(), buf_link, sizeof(buf_link));
             if (size_link > 0) {
+                buf_link[size_link] = '\0';
                 sdev = buf_link;
                 // this might be something like ../dm-7
                 if (sdev.find("../") == 0) {
