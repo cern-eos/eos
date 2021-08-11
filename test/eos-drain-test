@@ -1,5 +1,5 @@
 #!/bin/bash
-#
+
 # ******************************************************************************
 # EOS - the CERN Disk Storage System
 # Copyright (C) 2018 CERN/Switzerland
@@ -56,7 +56,7 @@ dd if=/dev/urandom of=${TEST_FN2} bs=1M count=5  &> /dev/null
 # Create eos directory for tests and copy some files in
 eos mkdir -p /eos/dockertest/drain_test/replica/
 eos mkdir -p /eos/dockertest/drain_test/raiddp/
-eos mkdir -p /eos/dockertest/drain_test/raiin/
+eos mkdir -p /eos/dockertest/drain_test/rain/
 eos chmod 2777 /eos/dockertest/
 eos chmod 2777 /eos/dockertest/drain_test/replica/
 eos chmod 2777 /eos/dockertest/drain_test/raiddp/
