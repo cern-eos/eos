@@ -31,6 +31,7 @@
 #include "namespace/Resolver.hh"
 #include "common/table_formatter/TableFormatterBase.hh"
 #include "common/Path.hh"
+#include "common/Mapping.hh"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -376,16 +377,45 @@ Share::Proc::UnShare(eos::common::VirtualIdentity& vid, const std::string& name,
 }
 
 int
-Share::Proc::Access(eos::common::VirtualIdentity& vid, const std::string& name, eos::common::VirtualIdentity& access_vid)
+Share::Proc::Access(eos::common::VirtualIdentity& vid, const std::string& name, std::string& out, const std::string& user, const std::string& group)
 {
-  int rc = 0;
-  return rc;
+  uid_t uid = atoi(user.c_str());
+  gid_t gid = atoi(group.c_str());
+  eos::common::VirtualIdentity access_vid;
+
+  // construct the accessing vid
+  if (uid && gid) {
+    access_vid = eos::common::Mapping::Someone(uid,gid);
+  } else {
+    access_vid = eos::common::Mapping::Someone(user);
+  }
+
+  auto acl = getShareAclByName(vid,access_vid, name);
+  if (!acl) {
+    errno = ENOENT;
+    return -1;
+  }
+
+  out = acl->Out();
+  return 0;
 }
 
 int
 Share::Proc::Modify(eos::common::VirtualIdentity& vid, const std::string& name, const std::string& share_acl)
 {
   int rc = 0;
+  errno = 0;
+  std::string procpath = GetEntry(vid.uid, name);
+  std::string current_share;
+  std::string shareattr;
+
+  rc = GetShareRoot(procpath, current_share);
+  if (rc) {
+    eos_static_err("unable to get share")
+    return -1;
+  }
+
+  rc |= SetShareAcl(procpath, share_acl);
   return rc;
 }
 
@@ -691,7 +721,7 @@ Share::Proc::GetShareUsers()
 
 /* ------------------------------------------------------------------------- */
 std::shared_ptr<eos::mgm::Acl>
-Share::getShareAcl(const eos::common::VirtualIdentity& vid, const std::string& s_id)
+Share::getShareAclById(const eos::common::VirtualIdentity& vid, const std::string& s_id)
 {
   XrdOucString s = s_id.c_str();
   s.replace('p', 'f', 0, 1);
@@ -713,5 +743,29 @@ Share::getShareAcl(const eos::common::VirtualIdentity& vid, const std::string& s
   eos::IContainerMD::XAttrMap attrmap;
 
   return std::make_shared<eos::mgm::Acl>(share_path.c_str(), error, vid, attrmap, false, true);
+}
+
+/* ------------------------------------------------------------------------- */
+std::shared_ptr<eos::mgm::Acl>
+Share::Proc::getShareAclByName(const eos::common::VirtualIdentity& vid, const eos::common::VirtualIdentity& access_vid, const std::string& name)
+{
+  std::string procpath = GetEntry(vid.uid, name);
+  std::string shareattr;
+  XrdOucErrInfo error;
+  eos::IContainerMD::XAttrMap attrmap;
+  eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
+  XrdOucString acl;
+
+  if (!gOFS->_attr_get(procpath.c_str(), error,
+		       root_vid, "", "sys.share.acl", acl, true)) {
+    attrmap["sys.acl"] = acl.c_str();
+    fprintf(stderr,"acl=%s\n", acl.c_str());
+    return std::make_shared<eos::mgm::Acl>((const char*)0, error, access_vid, attrmap, false, false);
+  } else {
+    return std::make_shared<eos::mgm::Acl>();
+  }
+
+
+
 }
 EOSMGMNAMESPACE_END

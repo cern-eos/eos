@@ -331,6 +331,11 @@ public:
   inline const bool EvalUserAttr() { return evaluserattr; }
   inline const bool EvalUserAttrFile() { return evaluserattrF; }
 
+
+  //----------------------------------------------------------------------------
+  //! Return a printout of the ACL rules
+  //----------------------------------------------------------------------------
+  std::string Out(bool monitoring=false);
 private:
   bool mCanRead; ///< acl allows read access
   bool mCanNotRead; ///< acl denies read access

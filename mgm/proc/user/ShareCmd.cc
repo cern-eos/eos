@@ -119,7 +119,22 @@ ShareCmd::ProcessRequest() noexcept
       }
     } else if (share.op() == eos::console::ShareProto::OperateShare::ACCESS) {
       // access
-      std_out = "access";
+      std::string share_name = share.share();
+      std::string out;
+      std::string user = share.user();
+      std::string group = share.group();
+
+      if (gOFS->mShare->getProc().Access(mVid, share_name,out,user,group)) {
+	if (errno == ENOENT) {
+	  std_err = std::string("error: share '") + share_name + std::string("' does not exist ") + mVid.uid_string + std::string("\n");
+	  reply.set_retc(EEXIST);
+	} else {
+	  std_err = std::string("error: share '") + share_name + std::string("' could not be accessed - errno:") + std::to_string(errno) + std::string("\n");
+	  reply.set_retc(errno?errno:EFAULT);
+	}
+      } else {
+	std_out = out;
+      }
     } else if (share.op() == eos::console::ShareProto::OperateShare::MODIFY) {
       // modify acl
       std::string share_name = share.share();

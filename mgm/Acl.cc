@@ -605,7 +605,7 @@ Acl::Set(std::string sysacl, std::string useracl, std::string shareacl, std::str
     for ( auto i : rules ) {
       eos_static_debug("parsing rule %s\n", i.c_str());
       eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
-      std::shared_ptr<eos::mgm::Acl> s_acl = Share::getShareAcl(vid, i);
+      std::shared_ptr<eos::mgm::Acl> s_acl = Share::getShareAclById(vid, i);
       if (s_acl) {
 	ApplyShare(*s_acl);
       }
@@ -854,5 +854,215 @@ Acl::TokenAcl(const eos::common::VirtualIdentity& vid) const
   return "";
 }
 
+//------------------------------------------------------------------------------
+// Output ACL state
+std::string
+Acl::Out(bool monitoring)
+{
+  std::string format_s = !monitoring ? "s" : "os";
+  TableFormatterBase table_all;
 
+  if (!monitoring) {
+    table_all.SetHeader({
+	  std::make_tuple("op", 16, format_s),
+	  std::make_tuple("perm", 8, format_s),
+          });
+  } else {
+    table_all.SetHeader({
+          std::make_tuple("op", 0, format_s),
+	  std::make_tuple("perm", 0, format_s),
+          });
+  }
+
+  {
+    // can read
+    TableData table_data;
+    table_data.emplace_back();
+    table_data.back().push_back(TableCell(std::string("read"), format_s));
+    table_data.back().push_back(TableCell(mCanRead?std::string("yes"):std::string("no"), format_s));
+    table_all.AddRows(table_data);
+  }
+
+  {
+    // can not read
+    TableData table_data;
+    table_data.emplace_back();
+    table_data.back().push_back(TableCell(std::string("not-read"), format_s));
+    table_data.back().push_back(TableCell(mCanNotRead?std::string("yes"):std::string("no"), format_s));
+    table_all.AddRows(table_data);
+  }
+
+  {
+    // can write
+    TableData table_data;
+    table_data.emplace_back();
+    table_data.back().push_back(TableCell(std::string("write"), format_s));
+    table_data.back().push_back(TableCell(mCanWrite?std::string("yes"):std::string("no"), format_s));
+    table_all.AddRows(table_data);
+  }
+
+  {
+    // can not write
+    TableData table_data;
+    table_data.emplace_back();
+    table_data.back().push_back(TableCell(std::string("not-write"), format_s));
+    table_data.back().push_back(TableCell(mCanNotWrite?std::string("yes"):std::string("no"), format_s));
+    table_all.AddRows(table_data);
+  }
+
+  {
+    // can write-once
+    TableData table_data;
+    table_data.emplace_back();
+    table_data.back().push_back(TableCell(std::string("write-once"), format_s));
+    table_data.back().push_back(TableCell(mCanWriteOnce?std::string("yes"):std::string("no"), format_s));
+    table_all.AddRows(table_data);
+  }
+
+  {
+    // can update
+    TableData table_data;
+    table_data.emplace_back();
+    table_data.back().push_back(TableCell(std::string("update"), format_s));
+    table_data.back().push_back(TableCell(mCanUpdate?std::string("yes"):std::string("no"), format_s));
+    table_all.AddRows(table_data);
+  }
+
+  {
+    // can not update
+    TableData table_data;
+    table_data.emplace_back();
+    table_data.back().push_back(TableCell(std::string("not-update"), format_s));
+    table_data.back().push_back(TableCell(mCanNotUpdate?std::string("yes"):std::string("no"), format_s));
+    table_all.AddRows(table_data);
+  }
+
+  {
+    // can browse
+    TableData table_data;
+    table_data.emplace_back();
+    table_data.back().push_back(TableCell(std::string("browse"), format_s));
+    table_data.back().push_back(TableCell(mCanBrowse?std::string("yes"):std::string("no"), format_s));
+    table_all.AddRows(table_data);
+  }
+
+  {
+    // can not browse
+    TableData table_data;
+    table_data.emplace_back();
+    table_data.back().push_back(TableCell(std::string("not-browse"), format_s));
+    table_data.back().push_back(TableCell(mCanNotBrowse?std::string("yes"):std::string("no"), format_s));
+    table_all.AddRows(table_data);
+  }
+
+  {
+    // can chmod
+    TableData table_data;
+    table_data.emplace_back();
+    table_data.back().push_back(TableCell(std::string("chmod"), format_s));
+    table_data.back().push_back(TableCell(mCanChmod?std::string("yes"):std::string("no"), format_s));
+    table_all.AddRows(table_data);
+  }
+
+  {
+    // can not chmod
+    TableData table_data;
+    table_data.emplace_back();
+    table_data.back().push_back(TableCell(std::string("not-chmod"), format_s));
+    table_data.back().push_back(TableCell(mCanNotChmod?std::string("yes"):std::string("no"), format_s));
+    table_all.AddRows(table_data);
+  }
+
+  {
+    // can chown
+    TableData table_data;
+    table_data.emplace_back();
+    table_data.back().push_back(TableCell(std::string("chown"), format_s));
+    table_data.back().push_back(TableCell(mCanChown?std::string("yes"):std::string("no"), format_s));
+    table_all.AddRows(table_data);
+  }
+
+  {
+    // can delete
+    TableData table_data;
+    table_data.emplace_back();
+    table_data.back().push_back(TableCell(std::string("delete"), format_s));
+    table_data.back().push_back(TableCell(mCanDelete?std::string("yes"):std::string("no"), format_s));
+    table_all.AddRows(table_data);
+  }
+
+  {
+    // can not delete
+    TableData table_data;
+    table_data.emplace_back();
+    table_data.back().push_back(TableCell(std::string("not-delete"), format_s));
+    table_data.back().push_back(TableCell(mCanNotDelete?std::string("yes"):std::string("no"), format_s));
+    table_all.AddRows(table_data);
+  }
+
+  {
+    // can set quota
+    TableData table_data;
+    table_data.emplace_back();
+    table_data.back().push_back(TableCell(std::string("set-quota"), format_s));
+    table_data.back().push_back(TableCell(mCanSetQuota?std::string("yes"):std::string("no"), format_s));
+    table_all.AddRows(table_data);
+  }
+
+  {
+    // can archive
+    TableData table_data;
+    table_data.emplace_back();
+    table_data.back().push_back(TableCell(std::string("archive"), format_s));
+    table_data.back().push_back(TableCell(mCanArchive?std::string("yes"):std::string("no"), format_s));
+    table_all.AddRows(table_data);
+  }
+
+  {
+    // can prepare
+    TableData table_data;
+    table_data.emplace_back();
+    table_data.back().push_back(TableCell(std::string("prepare"), format_s));
+    table_data.back().push_back(TableCell(mCanPrepare?std::string("yes"):std::string("no"), format_s));
+    table_all.AddRows(table_data);
+  }
+
+  {
+    // can share
+    TableData table_data;
+    table_data.emplace_back();
+    table_data.back().push_back(TableCell(std::string("share"), format_s));
+    table_data.back().push_back(TableCell(mCanShare?std::string("yes"):std::string("no"), format_s));
+    table_all.AddRows(table_data);
+  }
+
+  {
+    // can set acl
+    TableData table_data;
+    table_data.emplace_back();
+    table_data.back().push_back(TableCell(std::string("set-acl"), format_s));
+    table_data.back().push_back(TableCell(mCanSetAcl?std::string("yes"):std::string("no"), format_s));
+    table_all.AddRows(table_data);
+  }
+
+  {
+    // has egroup
+    TableData table_data;
+    table_data.emplace_back();
+    table_data.back().push_back(TableCell(std::string("egroup"), format_s));
+    table_data.back().push_back(TableCell(mHasEgroup?std::string("yes"):std::string("no"), format_s));
+    table_all.AddRows(table_data);
+  }
+
+  {
+    // is mutable
+    TableData table_data;
+    table_data.emplace_back();
+    table_data.back().push_back(TableCell(std::string("mutable"), format_s));
+    table_data.back().push_back(TableCell(mIsMutable?std::string("yes"):std::string("no"), format_s));
+    table_all.AddRows(table_data);
+  }
+
+ return table_all.GenerateTable(HEADER);
+}
 EOSMGMNAMESPACE_END

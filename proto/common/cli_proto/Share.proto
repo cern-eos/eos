@@ -31,6 +31,8 @@ message ShareProto {
     string share = 2;
     string acl = 3;
     string path = 4;
+    string user = 5;
+    string group = 6;
   }
 
   oneof subcmd {

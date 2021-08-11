@@ -119,10 +119,15 @@ ShareHelper::ParseCommand(const char* arg)
 
     if ((cmd == "access")) {
       op->set_op(eos::console::ShareProto::OperateShare::ACCESS);
-      // path
+      // user
       option = tokenizer.GetToken();
       if (!option) return false;
-      op->set_path(option);
+      op->set_user(option);
+      // group
+      option = tokenizer.GetToken();
+      if (option) {
+	op->set_group(option);
+      }
       return true;
     }
   }

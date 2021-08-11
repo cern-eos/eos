@@ -87,7 +87,7 @@ public:
 
     int UnShare(eos::common::VirtualIdentity& vid, const std::string& name, const std::string& share_root);
 
-    int Access(eos::common::VirtualIdentity& vid, const std::string& name, eos::common::VirtualIdentity& access_vid);
+    int Access(eos::common::VirtualIdentity& vid, const std::string& name, std::string& out, const std::string& user, const std::string& group);
 
     int Modify(eos::common::VirtualIdentity& vid, const std::string& name, const std::string& share_acl);
 
@@ -111,13 +111,13 @@ public:
     int GetShareRoot(const std::string& path, std::string& share_root);
     int SetShareAcl(const std::string& path, const std::string& share_acl);
     std::string GetShareReference(const char* path);
+    std::shared_ptr<eos::mgm::Acl> getShareAclByName(const eos::common::VirtualIdentity& vid, const eos::common::VirtualIdentity& access_vid, const std::string& name);
     std::string mProcPrefix;
     bool mValid;
   };
 
-  // return an ACL object for a given share_acl entry
-  static std::shared_ptr<eos::mgm::Acl> getShareAcl(const eos::common::VirtualIdentity& vid, const std::string& s_id);
-
+  // return an ACL object for a given share
+  static std::shared_ptr<eos::mgm::Acl> getShareAclById(const eos::common::VirtualIdentity& vid, const std::string& s_id);
   // return Proc object
   Proc& getProc() { return mProc; }
 private:
