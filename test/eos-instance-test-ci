@@ -45,7 +45,7 @@ if eos ns | grep -q "In-flight FileMD" ; then
   QUARKDB=true
 fi
 
-run_test_script "MQ" eos-mq-tests eos-mq.eoscluster.cern.ch
+run_test_script "MQ" eos-mq-tests "${1:-'eos-mq.eoscluster.cern.ch'}"
 run_test_script "drain" eos-drain-test localhost
 
 if [[ "$QUARKDB" = true ]]; then
