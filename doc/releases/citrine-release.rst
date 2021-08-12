@@ -145,6 +145,7 @@ Improvement
 * MGM: introduce thread pool limits by user and global using 'eos access' and show usage in 'eos ns [stat]'
 * MGM: improve performance of eosxd broadcasts and use a standard mutex to protect the caps objects
 
+
 ``v4.8.51 Citrine``
 ===================
 

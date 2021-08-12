@@ -2131,7 +2131,6 @@ Mapping::IsOAuth2Resource(const std::string& resource)
   return gVirtualUidMap.count(uidkey);
 }
 
-
 //------------------------------------------------------------------------------
 //! Decode the uid from a trace ID string
 //------------------------------------------------------------------------------
@@ -2147,7 +2146,6 @@ Mapping::UidFromTident(const std::string& tident)
   return 0;
 }
 
-
 //------------------------------------------------------------------------------
 //! Return number of active sessions for a given uid
 //------------------------------------------------------------------------------
@@ -2157,6 +2155,7 @@ Mapping::ActiveSessions(uid_t uid)
   XrdSysMutexHelper mLock(ActiveLock);
   size_t ActiveSession(uid_t uid);
   auto n = ActiveUids.find(uid);
+
   if (n != ActiveUids.end()) {
     return n->second;
   } else {
@@ -2172,5 +2171,4 @@ Mapping::ActiveSessions()
   return ActiveTidents.size();
 }
 
-/*----------------------------------------------------------------------------*/
 EOSCOMMONNAMESPACE_END

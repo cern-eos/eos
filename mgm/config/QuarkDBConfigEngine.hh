@@ -174,14 +174,6 @@ private:
   }
 
   //----------------------------------------------------------------------------
-  //! Filter configuration
-  //!
-  //! @param out
-  //! @param cfg_name
-  //----------------------------------------------------------------------------
-  void FilterConfig(std::ostream& out, const std::string& configName) override;
-
-  //----------------------------------------------------------------------------
   //! Store configuration into given name
   //----------------------------------------------------------------------------
   void StoreIntoQuarkDB(const std::string& name);

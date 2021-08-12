@@ -882,11 +882,37 @@ NewfindCmd::ProcessRequest() noexcept
   // @note when findRequest.childcount() is true, the namespace explorer will skip the files during the namespace traversal.
   // This way we can have a fast aggregate sum of the file/container count for each directory
   int depthlimit = findRequest.Maxdepth__case() ==
-                   eos::console::FindProto::MAXDEPTH__NOT_SET ?
-                   eos::common::Path::MAX_LEVELS : cPath.GetSubPathSize() + findRequest.maxdepth();
+    eos::console::FindProto::MAXDEPTH__NOT_SET ?
+    eos::common::Path::MAX_LEVELS : cPath.GetSubPathSize() + findRequest.maxdepth();
+  
+  // @note Shortcut with bad input --name regex filters. Move to client side?
+  // Looks like std::regex suffers from https://gcc.gnu.org/bugzilla/show_bug.cgi?id=86164#c7
+  // Found by filtering like " newfind --name '*sometext' " (note the '*' prefix!),
+  // which raises <std::regex_constants::error_paren> - although quite misleading.
+  // Is this an opportunity for fuzzing?
+  if (!findRequest.name().empty()) {
+    try {
+      std::regex filter(findRequest.name(), std::regex_constants::egrep);
+    } catch (const std::regex_error& e) {
+      eos_static_info("caught exception %d %s with newfind findRequest.name()=%s\n",
+                      e.code(), e.what(), findRequest.name().c_str());
+      ofstderrStream << "error(caught exception " << e.code() << ' ' << e.what() <<
+        " with newfind --name=" << findRequest.name()
+                     << ").\nPlease note that --name filters by 'egrep' style regex match, you may have to sanitize your input\n";
+      
+      if (!CloseTemporaryOutputFiles()) {
+        reply.set_retc(EIO);
+        reply.set_std_err("error: cannot save find result files on MGM\n");
+        return reply;
+      } else {
+        return reply;
+      }
+    }
+  }
+  
   findResultProvider.reset(new FindResultProvider(qcl.get(),
-                           findRequest.path(), depthlimit,
-                           findRequest.childcount(), mVid));
+                                                  findRequest.path(), depthlimit,
+                                                  findRequest.childcount(), mVid));
   uint64_t childcount_aggregate_dircounter = 0;
   uint64_t childcount_aggregate_filecounter = 0;
   uint64_t dircounter = 0;

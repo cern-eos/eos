@@ -520,9 +520,9 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
     if (!cap) {
       continue;
     }
-    
+
     // avoid processing if the cap doesn't exist or to a sent client
-    if (!(*cap)()->id() || clients_sent.count((*cap)()->clientuuid())) {
+    if (!(*cap)()->id() || (clients_sent.count((*cap)()->clientuuid()))) {
       continue;
     }
 

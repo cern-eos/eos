@@ -285,14 +285,6 @@ protected:
   std::map<std::string, std::string> sConfigDefinitions;
 
   //----------------------------------------------------------------------------
-  //! Filter configuration
-  //!
-  //! @param out output representation of the configuration after filtering
-  //! @param cfg_name configuration name
-  //----------------------------------------------------------------------------
-  virtual void FilterConfig(std::ostream& out, const std::string& configName) = 0;
-
-  //----------------------------------------------------------------------------
   //! Check if configuration key is deprecated
   //----------------------------------------------------------------------------
   bool IsDeprecated(const std::string& config_key) const;
