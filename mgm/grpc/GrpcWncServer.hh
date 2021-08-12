@@ -49,7 +49,9 @@ public:
   virtual ~GrpcWncServer()
   {
 #ifdef EOS_GRPC
-    mWncServer->Shutdown();
+    if (mWncServer) {
+      mWncServer->Shutdown();
+    }
 #endif
     mThread.join();
   }
