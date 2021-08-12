@@ -50,8 +50,8 @@
 %define major_version @CPACK_PACKAGE_VERSION_MAJOR@
 %define release_version @CPACK_PACKAGE_RELEASE@
 
-# release tags like x.y.z-1 enable automatically to build with eos-xrootd
-%if "%{release_version}" == "1"
+# releases for el-7 or el-8 distributions enable automatically to build with eos-xrootd
+%if 0%{?rhel} == 7 || 0%{?rhel} == 8
 %define _with_eos_xrootd_rh 1
 %endif
 
