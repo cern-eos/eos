@@ -50,12 +50,15 @@
 
 export ERR_MSG1="The provided directory does not have the extended attributes set correctly."
 
-# Set the path to the xrdcp and eos commands
-XRDCP=$(which xrdcp)
+# Set the path to the xrdcp and eos commands, considering it may come from eos-xrootd
+export EOS_XROOTSYS=/opt/eos/xrootd/
+export LD_LIBRARY_PATH=$EOS_XROOTSYS/lib64/:$LD_LIBRARY_PATH
+export PATH=$EOS_XROOTSYS/bin:$PATH
+XRDCP=$(command -v xrdcp)
 XRDCP="$XRDCP --nopbar"
-EOS=$(which eos)
+EOS=$(command -v eos)
 
-if [ "`whoami`" != "root" ]; then
+if [ "$(whoami)" != "root" ]; then
    SUDO="sudo"
 else 
   SUDO=""

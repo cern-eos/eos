@@ -36,7 +36,8 @@ function create_test_files() {
   EOS_REPLICA_DIR=${EOS_ROOT}/fsck/replica
 
  # Create one file per type of fsck error and trim whitespaces
-  exec_cmd eos-cli1 "dd if=/dev/urandom of=/tmp/test_file.dat bs=1M count=10 &&
+  exec_cmd eos-cli1 "export PATH=/opt/eos/xrootd/bin/:${PATH} &&
+                     dd if=/dev/urandom of=/tmp/test_file.dat bs=1M count=10 &&
                      eos -r 0 0 mkdir -p ${EOS_RAIN_DIR} &&
                      eos -r 0 0 mkdir -p ${EOS_REPLICA_DIR} &&
                      eos -r 0 0 attr set default=replica ${EOS_REPLICA_DIR} &&
