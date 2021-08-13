@@ -210,7 +210,11 @@ mailnotify () {
 ################################################################################
 (
 export XROOTSYS=/usr/
-export LD_LIBRARY_PATH=$XROOTSYS/lib64/:$LD_LIBRARY_PATH; export PATH=$XROOTSYS/bin:$PATH
+export LD_LIBRARY_PATH=$XROOTSYS/lib64/:$LD_LIBRARY_PATH
+export PATH=$XROOTSYS/bin:$PATH
+export EOS_XROOTSYS=/opt/eos/xrootd/
+export LD_LIBRARY_PATH=$EOS_XROOTSYS/lib64/:$LD_LIBRARY_PATH
+export PATH=$EOS_XROOTSYS/bin:$PATH
 pid=$(bash -c 'echo $PPID');
 echo -n $pid >& $EOSTESTPID
 ################################################################################
@@ -233,7 +237,7 @@ upload () {
     dst=$2
     shift
     shift
-    echo xrdcp -np -v -f $* $src root://$EOS_TEST_REDIRECTOR/$dst >& $EOSLASTLOG ;eval $XROOTSYS/bin/xrdcp -f $* $src root://$EOS_TEST_REDIRECTOR/$dst >> $EOSCERTLOG 2>&1
+    echo xrdcp -np -v -f $* $src root://$EOS_TEST_REDIRECTOR/$dst >& $EOSLASTLOG ;eval command xrdcp -f $* $src root://$EOS_TEST_REDIRECTOR/$dst >> $EOSCERTLOG 2>&1
 }
 ################################################################################
 download () {
@@ -241,7 +245,7 @@ download () {
     dst=$2
     shift
     shift
-    echo xrdcp -np -v -f $* root://$EOS_TEST_REDIRECTOR/$dst $src  >& $EOSLASTLOG ;eval $XROOTSYS/bin/xrdcp -f $* root://$EOS_TEST_REDIRECTOR/$dst $src >> $EOSCERTLOG 2>&1
+    echo xrdcp -np -v -f $* root://$EOS_TEST_REDIRECTOR/$dst $src  >& $EOSLASTLOG ;eval command xrdcp -f $* root://$EOS_TEST_REDIRECTOR/$dst $src >> $EOSCERTLOG 2>&1
 }
 ################################################################################
 downloadh () {
@@ -249,7 +253,7 @@ downloadh () {
     dst=$2
     shift
     shift
-    echo xrdcp -np -v -f $* root://$EOS_TEST_FULL_REDIRECTOR/$dst $src  >& $EOSLASTLOG ;eval $XROOTSYS/bin/xrdcp -f $* root://$EOS_TEST_FULL_REDIRECTOR/$dst $src >> $EOSCERTLOG 2>&1
+    echo xrdcp -np -v -f $* root://$EOS_TEST_FULL_REDIRECTOR/$dst $src  >& $EOSLASTLOG ;eval command xrdcp -f $* root://$EOS_TEST_FULL_REDIRECTOR/$dst $src >> $EOSCERTLOG 2>&1
 }
 ################################################################################
 timeout() {
@@ -258,32 +262,32 @@ timeout() {
 }
 
 meta() {
-    echo xrdfs $EOS_TEST_REDIRECTOR $* >& $EOSLASTLOG ; eval $XROOTSYS/bin/xrdfs $EOS_TEST_REDIRECTOR $* >> $EOSCERTLOG 2>&1
+    echo xrdfs $EOS_TEST_REDIRECTOR $* >& $EOSLASTLOG ; eval command xrdfs $EOS_TEST_REDIRECTOR $* >> $EOSCERTLOG 2>&1
 }
 
 eos() {
-    echo eos -b $EOSROLE root://$EOS_TEST_REDIRECTOR $* >& $EOSLASTLOG; eval $XROOTSYS/bin/eos -b $EOSROLE root://$EOS_TEST_REDIRECTOR $* >> $EOSCERTLOG 2>&1
+    echo eos -b $EOSROLE root://$EOS_TEST_REDIRECTOR $* >& $EOSLASTLOG; eval command eos -b $EOSROLE root://$EOS_TEST_REDIRECTOR $* >> $EOSCERTLOG 2>&1
 }
 
 
 eosr() {
-    echo eos -b $EOSROLE root://$EOS_TEST_FULL_REDIRECTOR $* >& $EOSLASTLOG; eval $XROOTSYS/bin/eos -b $EOSROLE root://$EOS_TEST_FULL_REDIRECTOR $* >> $EOSCERTLOG 2>&1
+    echo eos -b $EOSROLE root://$EOS_TEST_FULL_REDIRECTOR $* >& $EOSLASTLOG; eval command eos -b $EOSROLE root://$EOS_TEST_FULL_REDIRECTOR $* >> $EOSCERTLOG 2>&1
 }
 
 eosj() {
-    echo eos -j -b $EOSROLE root://$EOS_TEST_REDIRECTOR $* >& $EOSLASTLOG; eval $XROOTSYS/bin/eos -j -b $EOSROLE root://$EOS_TEST_REDIRECTOR $* >> $EOSCERTLOG 2>&1
+    echo eos -j -b $EOSROLE root://$EOS_TEST_REDIRECTOR $* >& $EOSLASTLOG; eval command eos -j -b $EOSROLE root://$EOS_TEST_REDIRECTOR $* >> $EOSCERTLOG 2>&1
 }
 
 tpc1() {
     src=$1
     dst=$2
-    echo xrdcp --tpc only root://$EOS_TEST_REDIRECTOR/$src root://$EOS_TEST_REDIRECTOR/$dst >& $EOSLASTLOG; eval $XROOTSYS/bin/xrdcp -f --tpc only root://$EOS_TEST_REDIRECTOR/$src root://$EOS_TEST_REDIRECTOR/$dst >> $EOSCERTLOG 2>&1
+    echo xrdcp --tpc only root://$EOS_TEST_REDIRECTOR/$src root://$EOS_TEST_REDIRECTOR/$dst >& $EOSLASTLOG; eval command xrdcp -f --tpc only root://$EOS_TEST_REDIRECTOR/$src root://$EOS_TEST_REDIRECTOR/$dst >> $EOSCERTLOG 2>&1
 }
 
 tpc2() {
     src=$1
     dst=$2
-    echo xrdcopy --tpc only root://$EOS_TEST_REDIRECTOR/$src root://$EOS_TEST_REDIRECTOR/$dst >& $EOSLASTLOG; eval $XROOTSYS/bin/xrdcopy --tpc only root://$EOS_TEST_REDIRECTOR/$src root://$EOS_TEST_REDIRECTOR/$dst >> $EOSCERTLOG 2>&1
+    echo xrdcopy --tpc only root://$EOS_TEST_REDIRECTOR/$src root://$EOS_TEST_REDIRECTOR/$dst >& $EOSLASTLOG; eval command xrdcopy --tpc only root://$EOS_TEST_REDIRECTOR/$src root://$EOS_TEST_REDIRECTOR/$dst >> $EOSCERTLOG 2>&1
 }
 
 tgrep() {
@@ -751,7 +755,7 @@ runtest "### Access    " unix 0 "" eos "access unallow user nobody"
 # ------------------------------------------------------------------------------
 categorie="quota"
 # ------------------------------------------------------------------------------
-$XROOTSYS/bin/eos -b space status default | grep quota | grep on >& /dev/null 2>&1
+command eos -b space status default | grep quota | grep on >& /dev/null 2>&1
 if [ $? -eq 0 ]; then
 # --------------------------
 # if quota is enabled
@@ -778,8 +782,8 @@ fi
 # ------------------------------------------------------------------------------
 categorie="recycle"
 # ------------------------------------------------------------------------------
-recyclesize=`$XROOTSYS/bin/eos -b $EOSROLE root://$EOS_TEST_REDIRECTOR recycle -m | grep maxbytes | awk '{print $3}' | sed s/maxbytes=//`
-recycletime=`$XROOTSYS/bin/eos -b $EOSROLE root://$EOS_TEST_REDIRECTOR recycle -m | grep lifetime | awk '{print $6}' | sed s/lifetime=//`
+recyclesize=`command eos -b $EOSROLE root://$EOS_TEST_REDIRECTOR recycle -m | grep maxbytes | awk '{print $3}' | sed s/maxbytes=//`
+recycletime=`command eos -b $EOSROLE root://$EOS_TEST_REDIRECTOR recycle -m | grep lifetime | awk '{print $6}' | sed s/lifetime=//`
 test -z $recyclesize && recyclesize=0
 test -z $recycletime && recycletime=0
 
@@ -800,13 +804,13 @@ runtest "### Rem       " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instance
 runtest "### Find      " unix 0 "" eos find -f /eos/$EOS_TEST_INSTANCE/proc/recycle/ | grep passwd.recycle | wc -l |grep -w 1
 runtest "### Newfind      " unix 0 "" eos newfind -f /eos/$EOS_TEST_INSTANCE/proc/recycle/ | grep passwd.recycle | wc -l |grep -w 1
 runtest "### Recycle-Ls" unix 0 "" eos recycle ls | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | wc -l | grep -w 1
-runtest "### Restore   " unix 1 "" eos recycle restore `$XROOTSYS/bin/eos -b root://$EOS_TEST_REDIRECTOR recycle ls -g | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | awk '{print $10}' | tail -1`
-runtest "### Restore   " unix 0 "EOSROLE='-r 3 4'" eos recycle restore `$XROOTSYS/bin/eos -b root://$EOS_TEST_REDIRECTOR recycle ls -g | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | awk '{print $10}' | tail -1`
+runtest "### Restore   " unix 1 "" eos recycle restore `command eos -b root://$EOS_TEST_REDIRECTOR recycle ls -g | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | awk '{print $10}' | tail -1`
+runtest "### Restore   " unix 0 "EOSROLE='-r 3 4'" eos recycle restore `command eos -b root://$EOS_TEST_REDIRECTOR recycle ls -g | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | awk '{print $10}' | tail -1`
 runtest "### Download  " unix 0 "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle"
 runtest "### Rem       " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle"
 runtest "### Upload    " unix 0 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle"
-runtest "### Restore   " unix 1 "EOSROLE='-r 3 4'" eos recycle restore `$XROOTSYS/bin/eos -b  root://$EOS_TEST_REDIRECTOR recycle ls -g | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | awk '{print $10}' | tail -1`
-runtest "### Restore   " unix 0 "EOSROLE='-r 3 4'" eos recycle restore -f `$XROOTSYS/bin/eos -b root://$EOS_TEST_REDIRECTOR recycle ls -g | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | awk '{print $10}' | tail -1`
+runtest "### Restore   " unix 1 "EOSROLE='-r 3 4'" eos recycle restore `command eos -b  root://$EOS_TEST_REDIRECTOR recycle ls -g | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | awk '{print $10}' | tail -1`
+runtest "### Restore   " unix 0 "EOSROLE='-r 3 4'" eos recycle restore -f `command eos -b root://$EOS_TEST_REDIRECTOR recycle ls -g | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | awk '{print $10}' | tail -1`
 runtest "### Recycle   " unix 0 "" eos recycle config --remove-bin /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle
 runtest "### Rem       " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle
 
@@ -875,7 +879,7 @@ runtest "### Attr Rm   " unix 0 "" eos attr rm user.attr.json5 "/eos/$EOS_TEST_I
 #----------------------------------------------------------------------------
 # Test fid|fxid|pid|pxid identifiers for attributes
 #----------------------------------------------------------------------------
-fid=$($XROOTSYS/bin/eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo "/eos/$EOS_TEST_INSTANCE/test/file" | jq -r .id)
+fid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo "/eos/$EOS_TEST_INSTANCE/test/file" | jq -r .id)
 # ------------------------------------------------------------------------------
 runtest "### Attr Set  " unix 0 "" eos attr set user.attr.key='value' "fid:${fid}"
 runtest "### Attr Get  " unix 0 "" eos attr get user.attr.key "fid:${fid} | grep -w 'value'"
@@ -911,9 +915,9 @@ runtest "### Fileinfo   " unix 0 "" eosj fileinfo "/eos/$EOS_TEST_INSTANCE/test/
 #----------------------------------------------------------------------------
 # Test fid|fxid|pid|pxid identifiers
 #----------------------------------------------------------------------------
-pid=$($XROOTSYS/bin/eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/" | jq -r .id)
+pid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/" | jq -r .id)
 pxid=$(printf "%x" $pid)
-fid=$($XROOTSYS/bin/eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/file&symbol" | jq -r .id)
+fid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/file&symbol" | jq -r .id)
 fxid=$(printf "%x" $fid)
 #----------------------------------------------------------------------------
 runtest "### Fileinfo   " unix 0 "" eosj fileinfo "pid:${pid} | jq -r '.name' | grep -w fileinfo"
@@ -933,11 +937,11 @@ runtest "### Upload     " unix 0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INST
 runtest "### Fileinfo   " unix 0 "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/file1 -m | grep -w detached=0"
 runtest "### Fileinfo   " unix 0 "" eosj fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/file1 | jq -r '.detached' | grep false"
 #----------------------------------------------------------------------------
-fid=$($XROOTSYS/bin/eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/file1" | jq -r .id)
+fid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/file1" | jq -r .id)
 runtest "### Rm         " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/file1"
 runtest "### Fileinfo   " unix 0 "" eos fileinfo "fid:${fid} -m | grep -w detached=1"
 #----------------------------------------------------------------------------
-fid=$($XROOTSYS/bin/eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/file2" | jq -r .id)
+fid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/file2" | jq -r .id)
 runtest "### Rm         " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/file2"
 runtest "### Fileinfo   " unix 0 "" eosj fileinfo "fid:${fid} | jq -r '.detached' | grep true"
 #----------------------------------------------------------------------------
@@ -1396,8 +1400,8 @@ categorie="rm"
 # the diskserver and will wait for the confirmation before dropping the ns entry
 RM_TEST_FILE="/eos/$EOS_TEST_INSTANCE/test/instancetest/rm_test.dat"
 runtest "### Upload      " unix 0 "" eos cp /etc/passwd ${RM_TEST_FILE}
-rm_fxid=$($XROOTSYS/bin/eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo ${RM_TEST_FILE} | jq -r .fxid)
-rm_fsid=$($XROOTSYS/bin/eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo ${RM_TEST_FILE} | jq -r .locations[].fsid | head -n 1)
+rm_fxid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo ${RM_TEST_FILE} | jq -r .fxid)
+rm_fsid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo ${RM_TEST_FILE} | jq -r .locations[].fsid | head -n 1)
 runtest "### Rm          " unix 0 "" eos rm -F ${RM_TEST_FILE}
 runtest "### Dropdel     " unix 0 "" eos fs dropdeletion "${rm_fsid}"
 sleep 7
@@ -1408,8 +1412,8 @@ runtest "### Fileinfo    " unix 1 "" eos fileinfo "fxid:${rm_fxid}"
 # Secondly test that rm -F on a detached file will clean up the namespace
 # without waiting for a confirmation from the diskservers
 runtest "### Upload      " unix 0 "" eos cp /etc/passwd ${RM_TEST_FILE}
-rm_fxid=$($XROOTSYS/bin/eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo ${RM_TEST_FILE} | jq -r .fxid)
-rm_fsid=$($XROOTSYS/bin/eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo ${RM_TEST_FILE} | jq -r .locations[].fsid | head -n 1)
+rm_fxid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo ${RM_TEST_FILE} | jq -r .fxid)
+rm_fsid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo ${RM_TEST_FILE} | jq -r .locations[].fsid | head -n 1)
 runtest "### Rm          " unix 0 "" eos rm -F ${RM_TEST_FILE}
 runtest "### Dropdel     " unix 0 "" eos fs dropdeletion "${rm_fsid}"
 sleep 7
@@ -1904,7 +1908,7 @@ runtest "### eos-token  " unix 0 "" eos_grpc "/eos/$EOS_TEST_INSTANCE/test/insta
 # ------------------------------------------------------------------------------
 categorie="rain"
 # ------------------------------------------------------------------------------
-NUM_FST=$($XROOTSYS/bin/eos -b $EOSROLE fs ls | awk '{ if (($6 ~ /booted/) || ($7 ~ /booted/)) c++} END {print c}')
+NUM_FST=$(command eos -b $EOSROLE fs ls | awk '{ if (($6 ~ /booted/) || ($7 ~ /booted/)) c++} END {print c}')
 if [ $NUM_FST -ge 6 ]; then
    # Create temporary RAIN test file outside EOS
    export EOS_TEST_RAIN_TMP=/tmp/rain_test
