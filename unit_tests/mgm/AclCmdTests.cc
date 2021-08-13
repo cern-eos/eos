@@ -234,7 +234,6 @@ TEST(AclCmd, insert_or_assign_iter)
     };
 
     EXPECT_EQ(expected_map, input_map);
-
   }
 
   {
@@ -270,18 +269,6 @@ TEST(AclCmd, insert_or_assign_iter)
     EXPECT_EQ(expected_map, input_map);
 
   }
-
-  EXPECT_EQ(AclCmd::GetRulePosition(1,0), std::pair(0,0UL));
-  EXPECT_EQ(AclCmd::GetRulePosition(10,0), std::pair(0,0UL));
-
-  // For all the cases where there are acls and we're within boundaries
-  // we should return the second arg
-  EXPECT_EQ(AclCmd::GetRulePosition(2,2), std::pair(0,2UL));
-  EXPECT_EQ(AclCmd::GetRulePosition(2,1), std::pair(0,1UL));
-  EXPECT_EQ(AclCmd::GetRulePosition(8,4), std::pair(0,4UL));
-
-  // except in case of error
-  EXPECT_EQ(AclCmd::GetRulePosition(2,3), std::pair(EINVAL,3UL));
 }
 
 TEST(AclCmd, GetRulePosition)

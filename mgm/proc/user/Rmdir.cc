@@ -38,9 +38,6 @@ ProcCommand::Rmdir()
   PROC_BOUNCE_ILLEGAL_NAMES;
   PROC_BOUNCE_NOT_ALLOWED;
   spath = path;
-
-  PROC_TOKEN_SCOPE;
-
   PROC_TOKEN_SCOPE;
 
   if (!spath.length()) {

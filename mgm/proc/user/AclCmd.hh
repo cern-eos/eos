@@ -104,7 +104,6 @@ get_iterator(C& c, size_t pos)
   return std::make_pair(it,0);
 }
 
-
 //------------------------------------------------------------------------------
 //! Class AclCmd - class handling acl command from a client
 //------------------------------------------------------------------------------
