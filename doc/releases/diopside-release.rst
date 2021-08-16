@@ -16,6 +16,18 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.0.1 Diopside``
+===================
+
+2021-08-16
+
+New features
+-------------
+
+* Comtrade WNC contribution for the server side
+* Includes all the fixes from the 4.8.60 release
+
+
 ``v5.0.0 Diopside``
 ===================
 
