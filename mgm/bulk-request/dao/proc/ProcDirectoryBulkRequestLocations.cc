@@ -39,11 +39,6 @@ std::set<std::string> ProcDirectoryBulkRequestLocations::getAllBulkRequestDirect
   return allBulkRequetsDirectoriesPath;
 }
 
-std::string ProcDirectoryBulkRequestLocations::getDirectoryPathToSaveBulkRequest(const BulkRequest& bulkRequest)
-{
-  return getDirectoryPathWhereBulkRequestCouldBeSaved(bulkRequest.getType());
-}
-
 std::string ProcDirectoryBulkRequestLocations::getDirectoryPathWhereBulkRequestCouldBeSaved(const BulkRequest::Type& type)
 {
   return mBulkRequestTypeToPath.at(type);

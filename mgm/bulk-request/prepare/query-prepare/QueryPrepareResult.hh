@@ -28,8 +28,16 @@
 
 EOSBULKNAMESPACE_BEGIN
 
+/**
+ * Class holding the result of the query prepare execution
+ * It contains the response that will be returned to the client and the return code that
+ * is set during the execution of the query prepare method of the PrepareManager.
+ */
 class QueryPrepareResult {
 public:
+  /**
+   * The PrepareManager need to acess the setter methods
+   */
   friend class PrepareManager;
   QueryPrepareResult();
   const bool hasQueryPrepareFinished() const;
