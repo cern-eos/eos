@@ -39,8 +39,11 @@ EOSBULKNAMESPACE_BEGIN
 class ProcDirectoryBulkRequestLocations {
 public:
   ProcDirectoryBulkRequestLocations(const std::string & procDirectoryPath);
+  /**
+   * Returns all the directories where a bulk-request could be persisted in the /proc/ directory
+   * @return all the directories where a bulk-request could be persisted in the /proc/ directory
+   */
   std::set<std::string> getAllBulkRequestDirectoriesPath();
-  std::string getDirectoryPathToSaveBulkRequest(const BulkRequest & bulkRequest);
   std::string getDirectoryPathWhereBulkRequestCouldBeSaved(const BulkRequest::Type & type);
 private:
   std::map<BulkRequest::Type, std::string> mBulkRequestTypeToPath;

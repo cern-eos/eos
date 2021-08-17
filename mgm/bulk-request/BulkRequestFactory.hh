@@ -37,11 +37,14 @@ class BulkRequestFactory {
 public:
   /**
    * Returns a new StageBulkRequest with a unique identifier
-   * @param clientVid the Virtual Identity of the client who creates/submits a bulk request
    * @return a new StageBulkRequest
    */
   static StageBulkRequest * createStageBulkRequest();
 
+  /**
+   * Returns a new EvictBulkRequest with a unique identifier
+   * @return a new EvictBulkRequest
+   */
   static EvictBulkRequest * createEvictBulkRequest();
 
   /**

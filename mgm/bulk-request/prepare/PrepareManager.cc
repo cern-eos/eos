@@ -428,6 +428,7 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, con
   for (auto & file: *filesToQuery) {
     response->responses.push_back(QueryPrepareFileResponse(file.first));
     auto& rsp = response->responses.back();
+    auto & currentFile = file.second;
     // check if the file exists
     XrdOucString prep_path;
     {
@@ -441,37 +442,35 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, con
       const char* ininfo = "";
       MAYREDIRECT;
     }
+    //Initialization of variables
+    XrdOucErrInfo xrd_error;
+    struct stat buf;
+    eos::IFileMD::XAttrMap xattrs;
+    XrdSfsFileExistence check;
 
     if (prep_path.length() == 0) {
-      rsp.error_text = "path empty or uses forbidden characters";
-      continue;
+      currentFile.setErrorIfNotAlreadySet("path empty or uses forbidden characters");
+      goto logErrorAndContinue;
     }
-
-    XrdSfsFileExistence check;
 
     if (mMgmFsInterface._exists(prep_path.c_str(), check, error, client, "") ||
         check != XrdSfsFileExistIsFile) {
-      rsp.error_text = "file does not exist or is not accessible to you";
-      continue;
+      currentFile.setErrorIfNotAlreadySet("file does not exist or is not accessible to you");
+      goto logErrorAndContinue;
     }
 
     rsp.is_exists = true;
 
     // Check file state (online/offline)
-    XrdOucErrInfo xrd_error;
-    struct stat buf;
-
     if (mMgmFsInterface._stat(rsp.path.c_str(), &buf, xrd_error, vid, nullptr, nullptr, false)) {
-      rsp.error_text = xrd_error.getErrText();
-      continue;
+      currentFile.setErrorIfNotAlreadySet(xrd_error.getErrText());
+      goto logErrorAndContinue;
     }
 
     mMgmFsInterface._stat_set_flags(&buf);
     rsp.is_on_tape = buf.st_rdev & XRDSFS_HASBKUP;
     rsp.is_online  = !(buf.st_rdev & XRDSFS_OFFLINE);
     // Check file status in the extended attributes
-    eos::IFileMD::XAttrMap xattrs;
-
     if (mMgmFsInterface._attr_ls(eos::common::Path(prep_path.c_str()).GetPath(), xrd_error, vid,
                  nullptr, xattrs) == 0) {
       auto xattr_it = xattrs.find(eos::common::RETRIEVE_REQID_ATTR_NAME);
@@ -497,13 +496,16 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, con
       }
 
       if (xattr_it != xattrs.end()) {
-        rsp.error_text = xattr_it->second;
+        currentFile.setErrorIfNotAlreadySet(xattr_it->second);
       }
     } else {
       // failed to read extended attributes
-      rsp.error_text = xrd_error.getErrText();
-      continue;
+      currentFile.setErrorIfNotAlreadySet(xrd_error.getErrText());
     }
+    logErrorAndContinue:
+      if(file.second.getError()) {
+        rsp.error_text = file.second.getError().value();
+      }
   }
 
   response->request_id = reqid.c_str();

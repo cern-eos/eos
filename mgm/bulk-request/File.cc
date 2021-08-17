@@ -46,6 +46,12 @@ void File::setError(const std::optional<std::string> & error) {
   mError = error;
 }
 
+void File::setErrorIfNotAlreadySet(const std::string& error) {
+  if(!getError()){
+    setError(error);
+  }
+}
+
 std::optional<std::string> File::getError() const {
   return mError;
 }
