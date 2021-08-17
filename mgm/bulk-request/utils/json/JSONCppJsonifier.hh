@@ -31,11 +31,24 @@
 
 EOSBULKNAMESPACE_BEGIN
 
+/**
+ * Visitor to jsonify an object using the JSONCpp library
+ */
 class JSONCppJsonifier : public Jsonifier {
 public:
   void jsonify(const QueryPrepareResponse & response, std::stringstream & oss) override;
 private:
+  /**
+   * Jsonify the base QueryPrepareResponse without any file
+   * @param response the QueryPrepareResponse to jsonify
+   * @param json the json object to add the QueryPrepareResponse object to (Json root object for example)
+   */
   void jsonifyQueryPrepareResponse(const QueryPrepareResponse & response, Json::Value & json);
+  /**
+   * Jsonifiy one file of the QueryPrepareResponse to jsonify
+   * @param fileResponse the file to jsonify
+   * @param json the object to which the file will be added (responses attribute)
+   */
   void jsonifyQueryPrepareResponseFile(const QueryPrepareFileResponse & fileResponse,Json::Value & json);
 };
 
