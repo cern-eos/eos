@@ -41,6 +41,12 @@ public:
   void setPath(const std::string & path);
   void setError(const std::string & error);
   void setError(const std::optional<std::string> & error);
+  /**
+   * Set the error passed in parameter to the file
+   * only if there is not already an error set
+   * @param error the error to set
+   */
+  void setErrorIfNotAlreadySet(const std::string & error);
 
   std::string getPath() const;
   std::optional<std::string> getError() const;
