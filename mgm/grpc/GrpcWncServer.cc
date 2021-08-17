@@ -7,7 +7,6 @@
 //-----------------------------------------------------------------------------
 #include "GrpcWncServer.hh"
 //-----------------------------------------------------------------------------
-#include "common/Logging.hh"
 #include "GrpcServer.hh"
 #include "GrpcWncInterface.hh"
 #include "mgm/Macros.hh"

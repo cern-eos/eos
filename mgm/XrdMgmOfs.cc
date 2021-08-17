@@ -460,6 +460,11 @@ XrdMgmOfs::OrderlyShutdown()
     mHttpd.reset();
   }
 
+  if (WNCd) {
+    eos_warning("%s", "msg=\"stopping gRPC server for EOS-wnc\"");
+    WNCd.reset();
+  }
+
   eos_warning("%s", "msg=\"stopping the transfer engine threads\"");
   gTransferEngine.Stop();
   eos_warning("%s", "msg=\"stopping fs listener thread\"");

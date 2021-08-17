@@ -12,6 +12,7 @@ import "StagerRm.proto";
 import "Route.proto";
 import "Recycle.proto";
 import "Io.proto";
+import "Geosched.proto";
 import "Group.proto";
 import "Debug.proto";
 import "Node.proto";
@@ -98,6 +99,7 @@ message RequestProto {
     ChownProto chown       = 41;
     LsProto ls             = 42;
     CpProto cp             = 43;
+    GeoschedProto geosched = 44;
   }
 
   string Comment = 30;

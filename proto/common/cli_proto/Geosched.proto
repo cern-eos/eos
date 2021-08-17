@@ -1,0 +1,55 @@
+// ----------------------------------------------------------------------------
+// File: Geosched.proto
+// Author: Branko Blagojevic <branko.blagojevic@comtrade.com>
+// ----------------------------------------------------------------------------
+
+
+syntax="proto3";
+package eos.console;
+
+message GeoschedProto {
+  message AccessProto {
+    string subcmd      = 1;
+    string geotag      = 2;
+    string geotag_list = 3;
+    string proxy_group = 4;
+    bool monitoring    = 5;
+  }
+
+  message DisabledProto {
+    string subcmd  = 1;
+    string geotag  = 2;
+    string op_type = 3;
+    string group   = 4;
+  }
+
+  message ForceRefreshProto {
+  }
+
+  message SetProto {
+    string param_name  = 1;
+    string param_index = 2;
+    string param_value = 3;
+  }
+
+  message ShowProto {
+    string subcmd   = 1;
+    string op_type  = 2;
+    string group    = 3;
+    bool color      = 4;
+    bool monitoring = 5;
+  }
+
+  message UpdaterProto {
+    string subcmd = 1;
+  }
+
+  oneof subcmd {
+    AccessProto access     = 1;
+    DisabledProto disabled = 2;
+    ForceRefreshProto ref  = 3;
+    SetProto set           = 4;
+    ShowProto show         = 5;
+    UpdaterProto updater   = 6;
+  }
+}

@@ -29,6 +29,7 @@
 #include "mgm/Acl.hh"
 #include "mgm/FsView.hh"
 #include "mgm/grpc/GrpcNsInterface.hh"
+#include "mgm/GeoTreeEngine.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "namespace/interface/ContainerIterators.hh"
 #include "namespace/Prefetcher.hh"
@@ -78,6 +79,9 @@ GrpcWncInterface::ExecCmd(eos::common::VirtualIdentity& vid,
       break;
     case eos::console::RequestProto::kFs:
       return Fs(vid, request, reply);
+      break;
+    case eos::console::RequestProto::kGeosched:
+      return Geosched(vid, request, reply);
       break;
     case eos::console::RequestProto::kGroup:
       return Group(vid, request, reply);
@@ -1733,6 +1737,160 @@ GrpcWncInterface::Fs(eos::common::VirtualIdentity& vid,
   eos::mgm::FsCmd fscmd(std::move(req), vid);
 
   *reply = fscmd.ProcessRequest();
+
+  return grpc::Status::OK;
+}
+
+grpc::Status
+GrpcWncInterface::Geosched(eos::common::VirtualIdentity& vid,
+                           const eos::console::RequestProto* request,
+                           eos::console::ReplyProto* reply)
+{
+  if (vid.uid == 0) {
+    std::string subcmd;
+    reply->set_retc(SFS_ERROR);
+
+    if (request->geosched().subcmd_case() == eos::console::GeoschedProto::kAccess) {
+      subcmd = request->geosched().access().subcmd();
+      // XrdOucString has to be manually initialized to avoid strange behaviour
+      // of some GeoTreeEngine functions
+      XrdOucString output = "";
+      std::string geotag = request->geosched().access().geotag();
+      std::string geotag_list = request->geosched().access().geotag_list();
+      std::string proxy_group = request->geosched().access().proxy_group();
+      bool monitoring = request->geosched().access().monitoring();
+
+      if (subcmd == "cleardirect") {
+        if (gOFS->mGeoTreeEngine->clearAccessGeotagMapping(&output, geotag == "all" ? "" : geotag))
+          reply->set_retc(SFS_OK);
+      }
+
+      if (subcmd == "clearproxygroup") {
+        if (gOFS->mGeoTreeEngine->clearAccessProxygroup(&output, geotag == "all" ? "" : geotag))
+          reply->set_retc(SFS_OK);
+      }
+
+      if (subcmd == "setdirect") {
+        if (gOFS->mGeoTreeEngine->setAccessGeotagMapping(&output, geotag, geotag_list))
+          reply->set_retc(SFS_OK);
+      }
+
+      if (subcmd == "setproxygroup") {
+        if (gOFS->mGeoTreeEngine->setAccessProxygroup(&output, geotag, proxy_group))
+          reply->set_retc(SFS_OK);
+      }
+
+      if (subcmd == "showdirect") {
+        if (gOFS->mGeoTreeEngine->showAccessGeotagMapping(&output, monitoring))
+          reply->set_retc(SFS_OK);
+      }
+
+      if (subcmd == "showproxygroup") {
+        if (gOFS->mGeoTreeEngine->showAccessProxygroup(&output, monitoring))
+          reply->set_retc(SFS_OK);
+      }
+
+      reply->set_std_out(output.c_str());
+    }
+
+    if (request->geosched().subcmd_case() == eos::console::GeoschedProto::kDisabled) {
+      subcmd = request->geosched().disabled().subcmd();
+      std::string sched_group = request->geosched().disabled().group();
+      std::string op_type = request->geosched().disabled().op_type();
+      std::string geotag = request->geosched().disabled().geotag();
+      XrdOucString output = "";
+      bool save_config = true; // save it to the config
+
+      if (subcmd == "add") {
+        if (gOFS->mGeoTreeEngine->addDisabledBranch(sched_group, op_type, geotag, &output, save_config))
+          reply->set_retc(SFS_OK);
+      }
+
+      if (subcmd == "rm") {
+        if (gOFS->mGeoTreeEngine->rmDisabledBranch(sched_group, op_type, geotag, &output, save_config))
+          reply->set_retc(SFS_OK);
+      }
+
+      if (subcmd == "show") {
+        if (gOFS->mGeoTreeEngine->showDisabledBranches(sched_group, op_type, geotag, &output))
+          reply->set_retc(SFS_OK);
+      }
+
+      reply->set_std_out(output.c_str());
+    }
+
+    if (request->geosched().subcmd_case() == eos::console::GeoschedProto::kRef) {
+      if (gOFS->mGeoTreeEngine->forceRefresh()) {
+        reply->set_std_out("GeoTreeEngine has been refreshed.");
+        reply->set_retc(SFS_OK);
+      }
+      else {
+        reply->set_std_out("GeoTreeEngine could not be refreshed at the moment.");
+      }
+    }
+
+    if (request->geosched().subcmd_case() == eos::console::GeoschedProto::kSet) {
+      std::string param_name  = request->geosched().set().param_name();
+      std::string param_index = request->geosched().set().param_index();
+      std::string param_value = request->geosched().set().param_value();
+
+      int index = -1;
+      if (!param_index.empty())
+        index = std::stoi(param_index);
+
+      bool save_config = true;
+
+      if (gOFS->mGeoTreeEngine->setParameter(param_name, param_value, index, save_config)) {
+        reply->set_std_out("GeoTreeEngine parameter has been set.");
+        reply->set_retc(SFS_OK);
+      }
+      else {
+        reply->set_std_out("GeoTreeEngine parameter could not be set.");
+      }
+    }
+
+    if (request->geosched().subcmd_case() == eos::console::GeoschedProto::kShow) {
+      subcmd = request->geosched().show().subcmd();
+      bool print_tree = (subcmd == "tree");
+      bool print_snaps = (subcmd == "snapshot");
+      bool print_param = (subcmd == "param");
+      bool print_state = (subcmd == "state");
+      std::string sched_group = request->geosched().show().group();
+      std::string op_type = request->geosched().show().op_type();
+      bool use_colors = request->geosched().show().color();
+      bool monitoring = request->geosched().show().monitoring();
+
+      std::string output;
+      gOFS->mGeoTreeEngine->printInfo(output, print_tree, print_snaps, print_param, print_state,
+                                      sched_group, op_type, use_colors, monitoring);
+
+      reply->set_std_out(output.c_str());
+      reply->set_retc(SFS_OK);
+    }
+
+    if (request->geosched().subcmd_case() == eos::console::GeoschedProto::kUpdater) {
+      subcmd = request->geosched().updater().subcmd();
+
+      if (subcmd == "pause") {
+        if (gOFS->mGeoTreeEngine->PauseUpdater()) {
+          reply->set_std_out("GeoTreeEngine has been paused.");
+          reply->set_retc(SFS_OK);
+        }
+        else {
+          reply->set_std_out("GeoTreeEngine could not be paused at the moment.");
+        }
+      }
+
+      if (subcmd == "resume") {
+        gOFS->mGeoTreeEngine->ResumeUpdater();
+        reply->set_std_out("GeoTreeEngine has been resumed.");
+        reply->set_retc(SFS_OK);
+      }
+    }
+  } else {
+    reply->set_retc(EPERM);
+    reply->set_std_err("error: you have to take role 'root' to execute this command");
+  }
 
   return grpc::Status::OK;
 }
