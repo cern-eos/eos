@@ -41,6 +41,7 @@ public:
   QueryPrepareFileResponse(const std::string _path) :
       path(_path), is_exists(false), is_on_tape(false), is_online(false), is_requested(false), is_reqid_present(false) {}
 
+  // @ccaffy TODO: to be removed at the end of the bulk-request implementation
   friend std::ostream& operator<<(std::ostream& json, QueryPrepareFileResponse &qpr) {
     json << "{"
          << "\"path\":\""       << qpr.path << "\","
@@ -55,21 +56,39 @@ public:
     return json;
   }
 
+  //Path of the file
   std::string path;
+  //Does it exist?
   bool is_exists;
+  //Is it on tape?
   bool is_on_tape;
+  //Is it on disk?
   bool is_online;
+  //Is it currently requested?
   bool is_requested;
+  //Is this file has a request id?
   bool is_reqid_present;
+  //The time this file was requested
   std::string request_time;
+  //The eventual error that the file encountered while being staged or archived
   std::string error_text;
 };
 
+/**
+ * Class holding the information contained in the response
+ * of a QueryPrepare query. This is the class that will be
+ * returned to the user in json format
+ */
 class QueryPrepareResponse {
 public:
   std::string request_id;
   std::vector<QueryPrepareFileResponse> responses;
 
+  /**
+   * Jsonify this QueryPrepareResponse object (Visitor pattern)
+   * @param jsonifier the class that will be use to jsonify this object
+   * @param oss the string stream where the json of this object will be stored
+   */
   void jsonify(Jsonifier * jsonifier, std::stringstream & oss) const {
     jsonifier->jsonify(*this,oss);
   }

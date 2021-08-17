@@ -33,6 +33,10 @@ EOSBULKNAMESPACE_BEGIN
 
 class QueryPrepareResponse;
 
+/**
+ * Visitor to jsonify an object
+ * the jsonify method takes the object as a parameter and the stringstream where the json will be put
+ */
 class Jsonifier {
 public:
   virtual void jsonify(const QueryPrepareResponse & response, std::stringstream & oss) = 0;
