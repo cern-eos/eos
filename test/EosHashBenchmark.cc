@@ -52,6 +52,8 @@ std::unordered_map<KeyType, ValueType> stdumap;
 std::map<std::string, double, std::less<>> results; // Allow transparent compare so as to use string_view/strings
 std::map<std::string, long long, std::less<>> results_mem;
 
+bool skip_ulib_bench = false;
+
 enum class MapType {
   std_map = 0,
   google_dense = 1,
@@ -259,6 +261,9 @@ std::vector<KeyType> generate_keys(size_t sz, KeyType init = {}, bool randomize=
 template <typename HT, typename C>
 void InitSingleThreadWrite(MapType t, HT* ht, int& counter, const C& keys)
 {
+  if (t == MapType::ulib && skip_ulib_bench) {
+    return;
+  }
     std::cerr <<
               "# **********************************************************************************"
               << std::endl;
@@ -284,9 +289,11 @@ void InitSingleThreadWrite(MapType t, HT* ht, int& counter, const C& keys)
       // Cross check if insert is defined, this is because ulibmap doesn't follow the same syntax!
       if constexpr(!std::is_same_v<HT,decltype(ulibmap)>)
       {
+        // normal maps use a tuple as input
         ht->insert({key,i});
       } else {
-        ht->operator[](key) = i;
+        // ulibmap needs a unpacked pair! also gets useless after > 500k keys
+        ht->insert(key,i);
       }
     }
     eos::common::LinuxStat::GetStat(st[1]);
@@ -295,7 +302,7 @@ void InitSingleThreadWrite(MapType t, HT* ht, int& counter, const C& keys)
     tm.Print();
     double rate = (keys.size()) / tm.RealTime() * 1000.0;
     std::stringstream ss;
-    ss << std::setw(3) << std::setw(3) << std::setfill('0') << counter << " Fill " << MapName(t);
+    ss << std::setw(3) << std::setw(3) << std::setfill('0') << (counter+100) << " Fill " << MapName(t);
     std::string title_key = ss.str();
     results.emplace(title_key, rate);
     results_mem.emplace(title_key, st[1].vsize - st[0].vsize);
@@ -306,6 +313,10 @@ void InitSingleThreadWrite(MapType t, HT* ht, int& counter, const C& keys)
 template <typename HT>
 void DoReadTests(MapType t, HT *ht, int& counter, size_t n_i, size_t n_files, bool lock=false)
 {
+  if (t == MapType::ulib && skip_ulib_bench) {
+    return;
+  }
+
   eos::common::LinuxStat::linux_stat_t st[10];;
   eos::common::LinuxMemConsumption::linux_mem_t mem[10];
   std::cerr <<
@@ -324,7 +335,10 @@ void DoReadTests(MapType t, HT *ht, int& counter, size_t n_i, size_t n_files, bo
 
   // fire threads
   for (size_t i = 0; i < n_i; i++) {
+    #if DEBUG
     fprintf(stderr, "# Level %02u\n", (unsigned int)i);
+    #endif
+
     RThread r(i, n_files, t, n_i, lock);
     XrdSysThread::Run(&tid[i], RunReader, static_cast<void*>(&r), XRDSYSTHREAD_HOLD,
                       "Reader Thread");
@@ -344,7 +358,8 @@ void DoReadTests(MapType t, HT *ht, int& counter, size_t n_i, size_t n_files, bo
 
   std::stringstream ss;
   std::string lock_str = lock ? "lock " : "no lock ";
-  ss << std::setw(3) << std::setw(3) << std::setfill('0') << counter << " Read " << lock_str << MapName(t);
+  int r_id = lock ? counter + 200 : counter + 300;
+  ss << std::setw(3) << std::setw(3) << std::setfill('0') << r_id << " Read " << lock_str << MapName(t);
   std::string title_key = ss.str();
 
   results.emplace(title_key, rate);
@@ -352,6 +367,32 @@ void DoReadTests(MapType t, HT *ht, int& counter, size_t n_i, size_t n_files, bo
   counter++;
 }
 
+template <typename HT>
+void ClearMap(MapType t, HT* ht, int& counter)
+{
+  if (t == MapType::ulib && skip_ulib_bench) {
+    return;
+  }
+
+  std::cerr <<
+    "# **********************************************************************************"
+            << std::endl;
+  std::cerr << "[i] Clear " << MapName(t) << " ..." << std::endl;
+  std::cerr <<
+    "# **********************************************************************************"
+            << std::endl;
+
+  eos::common::Timing tm("clearing");
+  COMMONTIMING("clear-start", &tm);
+  ht->clear();
+  COMMONTIMING("clear-stop", &tm);
+  tm.Print();
+  std::stringstream ss;
+  ss << std::setw(3) << std::setw(3) << std::setfill('0') << (counter+400) << " Clear " << MapName(t);
+
+  results.emplace(ss.str(), tm.RealTime());
+  counter++;
+}
 int main(int argc, char** argv)
 {
   googlemap.set_deleted_key(-1);
@@ -360,23 +401,35 @@ int main(int argc, char** argv)
   //----------------------------------------------------------------------------
   // Check up the commandline params
   //----------------------------------------------------------------------------
-  if (argc != 3) {
+  if (argc < 3) {
     std::cerr << "Usage:"                                << std::endl;
-    std::cerr << "  eos-hash-benchmark <entries> <threads>" << std::endl;
+    std::cerr << "  eos-hash-benchmark <entries> <threads> [rs]" << std::endl;
+    std::cerr << "      option r controls randomizing insertion order" << std::endl;
+    std::cerr << "      option s forces all the operations on single map before trying next" << std::endl;
     return 1;
   };
+
+  bool randomize = false;
+  bool single_test_mode = false;
 
   size_t n_files = atoi(argv[1]);
 
   size_t n_i = atoi(argv[2]);
+
+  if (argc == 4) {
+    std::string_view options = argv[3];
+    randomize = options.find('r') != options.npos;
+    single_test_mode = options.find('s') != options.npos;
+  }
 
   if (n_files <= 0) {
     std::cerr << "Error: number of entries has to be > 0" << std::endl;
     return 1;
   }
   int counter = 0;
-  auto keys = generate_keys(n_files, 1);
-
+  auto keys = generate_keys(n_files, 1, randomize);
+  // ulib insertions go to  < 0.02 MHz after ~500k random inserts
+  skip_ulib_bench = n_files > 8000000 && randomize;
   // Basically process map will process one map type for the given operation So
   // if you want to do entire set of ops on one map type just change the lambda
   // to do this!
@@ -391,15 +444,26 @@ int main(int argc, char** argv)
     DoReadTests(map_type, map, counter, n_i, n_files, true);
   };
 
-  ProcessOp(write_f);
-  //----------------------------------------------------------------------------
-  // Run a parallel consumer thread benchmark without locking
-  //----------------------------------------------------------------------------
-  ProcessOp(read_no_lock_f);
-  //----------------------------------------------------------------------------
-  // Run a parallel consumer thread benchmark with namespace locking
-  //----------------------------------------------------------------------------
-  ProcessOp(read_lock_f);
+  auto single_test_f = [&counter, &keys, &n_i, &n_files](auto&& map_type, auto&& map) {
+    InitSingleThreadWrite(map_type, map, counter, keys);
+    DoReadTests(map_type, map, counter, n_i, n_files);
+    DoReadTests(map_type, map, counter, n_i, n_files, true);
+    ClearMap(map_type, map, counter);
+  };
+
+  if (!single_test_mode) {
+    ProcessOp(write_f);
+    //----------------------------------------------------------------------------
+    // Run a parallel consumer thread benchmark without locking
+    //----------------------------------------------------------------------------
+    ProcessOp(read_no_lock_f);
+    //----------------------------------------------------------------------------
+    // Run a parallel consumer thread benchmark with namespace locking
+    //----------------------------------------------------------------------------
+    ProcessOp(read_lock_f);
+  } else {
+    ProcessOp(single_test_f);
+  }
 
   fprintf(stdout,
           "=====================================================================\n");
@@ -409,15 +473,19 @@ int main(int argc, char** argv)
           "=====================================================================\n");
   int i = 0;
 
+  int map_count = TOTAL_MAP_COUNT - (int)skip_ulib_bench;
   for (auto it = results.begin(); it != results.end(); it++) {
-    if (!(i % TOTAL_MAP_COUNT)) {
+    if (!(i % map_count)) {
       fprintf(stdout, "----------------------------------------------------\n");
     }
 
-    if (i < TOTAL_MAP_COUNT) {
+    if (i < map_count) {
       fprintf(stdout, "%s rate: %.02f MHz mem-overhead: %.02f %%\n",
               it->first.c_str(), it->second / 1000000.0,
               1.0 * results_mem[it->first] / (n_files * 16));
+    } else if (it->first.find("Clear") != std::string::npos) {
+      fprintf(stdout, "%s time: %.02f ms\n", it->first.c_str(),
+              it->second);
     } else {
       fprintf(stdout, "%s rate: %.02f MHz\n", it->first.c_str(),
               it->second / 1000000.0);
