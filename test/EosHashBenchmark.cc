@@ -35,6 +35,7 @@
 #include <google/dense_hash_map>
 #include <string>
 #include <map>
+#include <unordered_map>
 #include <random>
 
 eos::common::RWMutex nslock;
@@ -46,6 +47,7 @@ using ValueType = long long;
 std::map<KeyType, ValueType> stdmap;
 google::dense_hash_map<KeyType, ValueType> googlemap;
 ulib::align_hash_map<KeyType, ValueType> ulibmap;
+std::unordered_map<KeyType, ValueType> stdumap;
 
 std::map<std::string, double, std::less<>> results; // Allow transparent compare so as to use string_view/strings
 std::map<std::string, long long, std::less<>> results_mem;
@@ -54,6 +56,7 @@ enum class MapType {
   std_map = 0,
   google_dense = 1,
   ulib = 2,
+  std_umap = 3,
   UNKNOWN
 };
 
@@ -73,6 +76,10 @@ constexpr auto* getMap(){
     return &googlemap;
   } else if constexpr(MapIdx == static_cast<size_t>(MapType::ulib)) {
     return &ulibmap;
+  } else if constexpr(MapIdx == static_cast<size_t>(MapType::std_umap)) {
+    return &stdumap;
+  }
+
 }
 // Get the MapType given an id!
 template <typename T>
@@ -108,6 +115,9 @@ std::string MapName(MapType t)
     break;
   case MapType::ulib:
     map_name = "ULib Hash";
+    break;
+  case MapType::std_umap:
+    map_name = "STL Unordered Hash";
     break;
   case MapType::UNKNOWN:
   default:
@@ -208,6 +218,14 @@ static void* RunReader(void* tconf)
 
     if (r->type == MapType::ulib) {
       long long v = ulibmap[n];
+
+      if (v) {
+        v = 1;
+      }
+    }
+
+    if (r->type == MapType::std_umap) {
+      long long v = stdumap[n];
 
       if (v) {
         v = 1;
