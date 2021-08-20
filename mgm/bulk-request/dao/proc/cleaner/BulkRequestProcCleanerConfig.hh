@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file IBulkRequestPersist.hh
+//! @file BulkRequestProcCleanerConfig.hh
 //! @author Cedric Caffy - CERN
 //------------------------------------------------------------------------------
 
@@ -21,45 +21,35 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_IBULKREQUESTDAO_HH
-#define EOS_IBULKREQUESTDAO_HH
+#ifndef EOS_BULKREQUESTPROCCLEANERCONFIG_HH
+#define EOS_BULKREQUESTPROCCLEANERCONFIG_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/bulk-request/prepare/StageBulkRequest.hh"
-#include <memory>
 #include <chrono>
 
 EOSBULKNAMESPACE_BEGIN
 
-/**
- * Interface to the bulk request Data Access Object
- * It allows to access the persistency layer of the bulk requests
- */
-class IBulkRequestDAO {
+class BulkRequestProcCleanerConfig {
 public:
-  /**
-   * This method allows to persist a StageBulkRequest
-   * @param bulkRequest the bulk request to save
-   */
-  virtual void saveBulkRequest(const std::shared_ptr<BulkRequest> bulkRequest) = 0;
 
   /**
-   * Get the bulk-request from the persistence
-   * @param id the id of the bulk-request
-   * @param type the type of the bulk-request
-   * @return the bulk-request if it exists, nullptr otherwise
+   * Run the BulkRequestProcCleaner thread this many seconds
    */
-  virtual std::unique_ptr<BulkRequest> getBulkRequest(const std::string & id, const BulkRequest::Type & type) = 0;
+  std::chrono::seconds interval;
 
   /**
-   * Delete all the bulk-request of a certain type that were not accessed for  hours
-   * @param type the bulk-request type to look for
-   * @param seconds the number of seconds after which the bulk-requests can be deleted if they were not queried
-   * @returns the number of deleted bulk-request
+   * If a bulk-request has not been queried since this many seconds,
+   * it will be deleted from the /proc/ directory
    */
-  virtual uint64_t deleteBulkRequestNotQueriedFor(const BulkRequest::Type & type, const std::chrono::seconds & seconds) = 0;
+  std::chrono::seconds bulkReqLastAccessTimeBeforeCleaning;
+
+  /**
+   * Returns the default cleaner configuration
+   * @return the default cleaner configuration
+   */
+  static BulkRequestProcCleanerConfig getDefaultConfig();
 };
 
 EOSBULKNAMESPACE_END
 
-#endif // EOS_IBULKREQUESTDAO_HH
+#endif // EOS_BULKREQUESTPROCCLEANERCONFIG_HH
