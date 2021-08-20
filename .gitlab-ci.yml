@@ -123,6 +123,7 @@ macosx_dmg:
       - osx_artifacts/
   tags:
     - macosx-shell
+  when: manual
 
 clone_docker:
   stage: build:rpm
