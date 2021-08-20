@@ -59,6 +59,14 @@ public:
    */
   std::unique_ptr<BulkRequest> getBulkRequest(const std::string & id, const BulkRequest::Type & type) override;
 
+  /**
+   * Delete all the bulk-request of a certain type that were not accessed for  hours
+   * @param type the bulk-request type to look for
+   * @param seconds the number of seconds after which the bulk-requests can be deleted if they were not queried
+   * @returns the number of deleted bulk-request
+   */
+  uint64_t deleteBulkRequestNotQueriedFor(const BulkRequest::Type & type, const std::chrono::seconds & seconds) override;
+
 private:
   //Interface to the EOS filesystem to allow the creation of files and directories
   XrdMgmOfs * mFileSystem;
@@ -66,6 +74,7 @@ private:
   eos::common::VirtualIdentity mVid;
 
   const char * ERROR_MSG_ATTR_NAME = "error_msg";
+  const char * LAST_ACCESS_TIME_ATTR_NAME = "last_accessed_time";
 
   /**
    * Creates a directory to store the bulk-request files within it
@@ -99,10 +108,15 @@ private:
 
   /**
    * Performs the cleaning of the bulk-request directory if an exception happens during the persistency of the bulk-request
-   * @param bulkRequest the bulk-request that failed to be persisted
-   * @param bulkReqProcPath the directory where this bulk-request should have been stored
+   * @param bulkReqProcPath the directory where the bulk-request should have been stored
    */
-  void cleanAfterExceptionHappenedDuringBulkRequestSave(const std::shared_ptr<BulkRequest> bulkRequest, const std::string & bulkReqProcPath);
+  void cleanAfterExceptionHappenedDuringBulkRequestSave(const std::string & bulkReqProcPath) noexcept;
+
+  /**
+   * Deletes the directory located in the path passed in parameter
+   * @param path the path of the directory to delete
+   */
+  void deleteDirectory(const std::string & path);
 
   /**
    * Persists the error of the file by adding an extended attribute "bulk_req_error"
@@ -126,14 +140,14 @@ private:
   void fillBulkRequest(const std::string & bulkRequestProcPath, BulkRequest & bulkRequest);
 
   /**
-   * Fills the directoryContent map passed in parameter. The key is the full path of the bulk-request directory
-   * the value is the file names that are located in the bulk-request directory.
+   * Fills the directoryContent map passed in parameter. The key is the full path of the directory given in parameter
+   * the value is the file names that are located in the directory.
    * Reminder: the files that are in the directory of the bulk-request are the fileIds of the files that were submitted with the bulk-request (or
    * transformed paths for the files that were submitted did not exist)
-   * @param bulkRequestProcPath the path of the bulk-request in the proc directory
-   * @param directoryContent the map that will be filled with the content of the bulk-request proc directory
+   * @param path the path of the directory to get the content
+   * @param directoryContent the map that will be filled with the content of the directory passed in parameter
    */
-  void fillBulkRequestDirectoryContentMap(const std::string & bulkRequestProcPath, std::map<std::string, std::set<std::string>> & directoryContent);
+  void getDirectoryContent(const std::string & path, std::map<std::string, std::set<std::string>> & directoryContent);
 
   /**
    * Fetch the error from the extended attributes of the file passed in parameter
@@ -153,6 +167,13 @@ private:
   void fetchFileExtendedAttributes(const ProcDirBulkRequestFile & file, eos::IContainerMD::XAttrMap & xattrs);
 
   /**
+   * Fills the xattrs map with the extended attributes of the file/directory whose path is passed in parameter
+   * @param path the path of the file to get the extended attributes from
+   * @param xattrs extended attributes map to fill
+   */
+  void fetchExtendedAttributes(const std::string & path, eos::IContainerMD::XAttrMap & xattrs);
+
+  /**
    * Asynchronously fetch the file metadata by using the eosFileService->getFileMDFut() method. The filesWithFuture map will
    * be filled by this method
    * @param file the file to asynchronously fetch the metadata
@@ -167,6 +188,20 @@ private:
    * @param bulkRequest
    */
   void getFilesPathAndAddToBulkRequest(std::map<ProcDirBulkRequestFile, folly::Future<IFileMDPtr>> & filesWithFuture, BulkRequest & bulkRequest);
+
+  /**
+   * Sets an extended attribute on the file whose path is passed in parameter
+   * @param path the path of the file or directory to set the extended attribute
+   * @param xattrName the extended attribute name
+   * @param xattrValue the extended attribute value
+   */
+  void setExtendedAttribute(const std::string & path,const std::string & xattrName, const std::string & xattrValue);
+
+  /**
+   * Set the last_access_time extended attribute to the current timestamp on the file/directory passed in parameter
+   * @param path the path of the file/directory to set the last acess time
+   */
+  void updateLastAccessTime(const std::string & path);
 };
 
 EOSBULKNAMESPACE_END
