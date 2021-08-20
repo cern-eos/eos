@@ -82,10 +82,23 @@ public:
                        std::vector<std::string>& tokens,
                        const std::string& delimiters = " ");
 
+  // ---------------------------------------------------------------------------
+  /**
+   * Tokenize a string using a multichar delimiter, accepting also empty
+   * members e.g. a||b returns 3 fields
+   *
+   * @param str string to be tokenized
+   * @param tokens  returned list of separated string tokens
+   * @param delimiter delimiter used for tokenizing that can be multichar
+   */
+  // ----------------------------------------------------------------------------
+  static void EmptyTokenizeMultiCharDelimiter(const std::string& str,
+      std::vector<std::string>& tokens,
+      const std::string& delimiter = " ");
 
   // ---------------------------------------------------------------------------
   /**
-   * Tokenize a string accepting also empty members e.g. a||b is returning 3 fields
+   * Tokenize a string accepting also empty members e.g. a||b returns 3 fields
    *
    * @param str string to be tokenized
    * @param tokens  returned list of separated string tokens

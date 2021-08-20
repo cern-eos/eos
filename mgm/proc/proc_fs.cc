@@ -505,19 +505,29 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
           FsView::gFsView.StoreFsConfig(fs);
         } else if (key == "forcegeotag") {
           const int max_tag_size = 8;
-          char node_geotag [value.size()];
-          strcpy(node_geotag, value.c_str());
-          char* gtag = strtok(node_geotag, "::");
+          std::vector<std::string> geo_tags;
+          eos::common::StringConversion::EmptyTokenizeMultiCharDelimiter(value, geo_tags,
+              "::");
 
-          while (gtag != NULL) {
-            if (strlen(gtag) > max_tag_size) {
+          if (geo_tags.size() == 0) {
+            stdErr += "error: forcegeotag can not be empty";
+            retc = EINVAL;
+            return retc;
+          }
+
+          for (const auto& gtag : geo_tags) {
+            if (gtag.empty()) {
+              stdErr += "error: forcegeotag can not contain empty tokens";
+              retc = EINVAL;
+              return retc;
+            }
+
+            if (gtag.length() > max_tag_size) {
               stdErr += "error: the forcegeotag value contains a tag longer "
                         "than the 8 chars maximum allowed";
               retc = EINVAL;
               return retc;
             }
-
-            gtag = strtok(NULL, "::");
           }
 
           fs->SetString(key.c_str(), value.c_str());
