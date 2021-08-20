@@ -81,6 +81,7 @@
 #include "XrdOuc/XrdOucTrace.hh"
 #include "qclient/shared/SharedManager.hh"
 #include "mgm/bulk-request/dao/proc/ProcDirectoryBulkRequestLocations.hh"
+#include "mgm/bulk-request/dao/proc/cleaner/BulkRequestProcCleaner.hh"
 
 extern XrdOucTrace gMgmOfsTrace;
 extern void xrdmgmofs_shutdown(int sig);
@@ -2122,6 +2123,10 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
                                     std::string("/.admin_socket:") + std::to_string(ManagerPort);
     AdminSocketServer.reset(new eos::mgm::AdminSocket(admin_socket_path));
   }
+
+  // start the bulk-request proc directory cleaner
+  mBulkReqProcCleaner->Start();
+
   // start the LRU daemon
   mLRUEngine->Start();
 
