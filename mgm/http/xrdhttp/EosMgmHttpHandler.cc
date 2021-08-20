@@ -30,6 +30,7 @@
 #include "common/StringUtils.hh"
 #include "common/Timing.hh"
 #include "common/Path.hh"
+#include "XrdSec/XrdSecEntityAttr.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdAcc/XrdAccAuthorize.hh"
@@ -380,7 +381,7 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
   }
 
   std::string query;
-  OwningXrdSecEntity client(req.GetSecEntity());
+  const XrdSecEntity& client = req.GetSecEntity();
 
   // Native XrdHttp access
   if (normalized_headers.find("x-forwarded-for") == normalized_headers.end()) {
@@ -399,7 +400,7 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
     // Make a copy of the original XrdSecEntity so that the authorization plugin
     // can update the name of the client from the macaroon info
     if (mTokenAuthzHandler &&
-        mTokenAuthzHandler->Access(client.GetObj(), path.c_str(), oper,
+        mTokenAuthzHandler->Access(&client, path.c_str(), oper,
                                    env.get()) == XrdAccPriv_None) {
       eos_static_err("msg=\"(token) authorization failed\" path=\"%s\"",
                      path.c_str());
@@ -408,9 +409,26 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
                                 errmsg.length());
     }
 
-    eos_static_info("msg=\"(token) authorization done\" client_name=%s "
-                    " client_prot=%s", client.GetObj()->name,
-                    client.GetObj()->prot);
+    if (client.name == nullptr) {
+      // Check if we have the request.name in the attributes of the XrdSecEntity
+      // object which should contain the client username that the request
+      // belogs to
+      const std::string user_key = "request.name";
+      std::string user_value;
+
+      if (client.eaAPI->Get(user_key, user_value)) {
+        eos_static_info("msg=\"(token) authorization done\" client_name=\"%s\" "
+                        "client_request.name=\"%s\" client_prot=\"%s\"",
+                        client.name, user_value.c_str(), client.prot);
+      } else {
+        eos_static_info("msg=\"(token) authorization done but no username "
+                        "found\" client_prot=%s", client.prot);
+      }
+    } else {
+      eos_static_info("msg=\"(token) authorization done\" client_name=\"%s\" "
+                      "client_prot=\"%s\"", client.name, client.prot);
+    }
+
     query = (normalized_headers.count("xrd-http-query") ?
              normalized_headers["xrd-http-query"] : "");
   }
@@ -419,7 +437,7 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
   std::unique_ptr<eos::common::ProtocolHandler> handler =
     mMgmOfsHandler->mHttpd->XrdHttpHandler(req.verb, req.resource,
         normalized_headers, query, cookies,
-        body, *client.GetObj());
+        body, client);
 
   if (handler == nullptr) {
     std::string errmsg = "failed to create handler";

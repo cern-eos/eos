@@ -31,6 +31,7 @@
 #include "XrdNet/XrdNetUtils.hh"
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdSec/XrdSecEntityAttr.hh"
 #include <pwd.h>
 #include <grp.h>
 
@@ -163,7 +164,7 @@ Mapping::ActiveExpire(int interval, bool force)
       if ((now - it1->second) > interval) {
         it2 = it1;
         ++it1;
-	Mapping::ActiveUids.erase(Mapping::UidFromTident(it2->first));
+        Mapping::ActiveUids.erase(Mapping::UidFromTident(it2->first));
         Mapping::ActiveTidents.erase(it2);
       } else {
         ++it1;
@@ -291,7 +292,23 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       if (kv->second == 0) {
         eos_static_debug("%s", "msg=\"https uid mapping\"");
         // Use physical mapping for https names
-        Mapping::getPhysicalIds(client->name, vid);
+        std::string client_username;
+
+        if (client->name == nullptr) {
+          // Check if we have the request.name in the attributes of the
+          // XrdSecEntity object which should contain the client username
+          // that the request belongs to.
+          const std::string user_key = "request.name";
+          std::string user_value;
+
+          if (client->eaAPI->Get(user_key, user_value)) {
+            client_username = user_value;
+          }
+        } else {
+          client_username = client->name;
+        }
+
+        Mapping::getPhysicalIds(client_username.c_str(), vid);
         vid.gid = 99;
         vid.allowed_gids.clear();
         vid.allowed_gids.insert(vid.gid);
@@ -765,24 +782,24 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
           vid.prot = "sss";
         }
       } else {
-	int errc=0;
-	std::string uidkey = "oauth2:\"";
-	uidkey += "sub:";
-	uidkey += oauthname;
-	uidkey += "\":uid";
+        int errc=0;
+        std::string uidkey = "oauth2:\"";
+        uidkey += "sub:";
+        uidkey += oauthname;
+        uidkey += "\":uid";
   if (auto kv = gVirtualUidMap.find(uidkey);
       kv != gVirtualUidMap.end()) {
-	  // map oauthname from static sub mapping
-	  oauthname = UidToUserName(kv->second, errc );
-	}
-	if (errc) {
-	  // we have no mapping for this uid
-	  Mapping::getPhysicalIds("nobody", vid);
-	} else {
-	  // map oauthname
-	  Mapping::getPhysicalIds(oauthname.c_str(), vid);
-	}
-	vid.prot = "oauth2";
+          // map oauthname from static sub mapping
+          oauthname = UidToUserName(kv->second, errc );
+        }
+        if (errc) {
+          // we have no mapping for this uid
+          Mapping::getPhysicalIds("nobody", vid);
+        } else {
+          // map oauthname
+          Mapping::getPhysicalIds(oauthname.c_str(), vid);
+        }
+        vid.prot = "oauth2";
       }
     }
   }
@@ -923,10 +940,10 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     // remove sudo capability after changing identity
     if (!is_localhost) {
       if ( vid.uid != sel_uid) {
-	vid.sudoer = false;
+        vid.sudoer = false;
       }
       if ( vid.gid != sel_gid) {
-	vid.sudoer = false;
+        vid.sudoer = false;
       }
     }
 
@@ -1382,7 +1399,7 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity& vid)
   struct passwd passwdinfo;
   char buffer[131072];
 
-  if (!name) {
+  if (!name || (strlen(name) == 0)) {
     return;
   }
 
@@ -1651,11 +1668,11 @@ Mapping::GidToGroupName(gid_t gid, int& errc, size_t buffersize)
 
     if (getgrgid_r(gid, &grbuf, buffer, buflen, &grbufp) || (!grbufp)) {
       if (errno == ERANGE) {
-	if (buffersize < (16*1024*1024)) {
-	  // try doubling the buffer
-	  return GidToGroupName(gid, errc, 2*buffersize);
-	}
-	// just give up here
+        if (buffersize < (16*1024*1024)) {
+          // try doubling the buffer
+          return GidToGroupName(gid, errc, 2*buffersize);
+        }
+        // just give up here
       }
 
       // cannot translate this name
