@@ -404,7 +404,11 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, con
   std::shared_ptr<FileCollection::Files> filesFromPersistency;
   if(reqid.length()){
     //Look in the persistency layer for informations about files submitted previously for staging
-    filesFromPersistency = getFileCollectionFromPersistency(reqid.c_str());
+    try {
+      filesFromPersistency = getFileCollectionFromPersistency(reqid.c_str());
+    } catch (const PersistencyException &ex){
+      return ex.fillXrdErrInfo(error,EIO);
+    }
   }
 
   std::shared_ptr<FileCollection::Files> filesToQuery(new FileCollection::Files());
