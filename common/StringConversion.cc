@@ -64,9 +64,9 @@ StringConversion::Tokenize(const std::string& str,
                            std::vector<std::string>& tokens,
                            const std::string& delimiters)
 {
-  // Skip delimiters at beginning.
+  // Skip delimiters at the beginning
   std::string::size_type lastPos = str.find_first_not_of(delimiters, 0);
-  // Find first "non-delimiter".
+  // Find first "non-delimiter"
   std::string::size_type pos = str.find_first_of(delimiters, lastPos);
 
   while (std::string::npos != pos || std::string::npos != lastPos) {
@@ -80,7 +80,53 @@ StringConversion::Tokenize(const std::string& str,
 }
 
 //------------------------------------------------------------------------------
-// Tokenize a string accepting also empty members e.g. a||b is returning 3 fields
+// Tokenize a string using a multichar delimiter
+//------------------------------------------------------------------------------
+void
+StringConversion::EmptyTokenizeMultiCharDelimiter(const std::string& str,
+    std::vector<std::string>& tokens,
+    const std::string& delimiter)
+{
+  tokens.clear();
+  std::string::size_type last_pos = str.find(delimiter);
+
+  if (str.empty()) {
+    return;
+  }
+
+  // Return empty vector if no delimiter found
+  if (last_pos == std::string::npos) {
+    tokens.push_back(str);
+    return;
+  }
+
+  // Skip delimiter at the beginning
+  if (last_pos == 0) {
+    last_pos += delimiter.length();
+  } else {
+    last_pos = 0;
+  }
+
+  std::string::size_type pos = str.find(delimiter, last_pos);
+
+  while ((std::string::npos != pos) || (std::string::npos != last_pos)) {
+    if (pos == std::string::npos) {
+      tokens.push_back(str.substr(last_pos));
+      break;
+    } else {
+      tokens.push_back(str.substr(last_pos, pos - last_pos));
+    }
+
+    if (pos != std::string::npos) {
+      last_pos = pos + delimiter.length();
+    }
+
+    pos = str.find(delimiter, last_pos);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Tokenize a string accepting also empty members e.g. a||b returns 3 fields
 //------------------------------------------------------------------------------
 void
 StringConversion::EmptyTokenize(const std::string& str,
@@ -138,6 +184,7 @@ StringConversion::GetFixedDouble(double value, size_t width, size_t precision)
 {
   char dline[1024];
   char format[16];
+
   if (precision == 1) {
     snprintf(dline, sizeof(dline), "%.01f", value);
   } else if (precision == 2) {
@@ -149,9 +196,10 @@ StringConversion::GetFixedDouble(double value, size_t width, size_t precision)
   } else {
     snprintf(dline, sizeof(dline), "%f", value);
   }
+
   char wline[1024];
-  snprintf(format,sizeof(format), "%%-%lus",width);
-  snprintf(wline,sizeof(wline),format, dline);
+  snprintf(format, sizeof(format), "%%-%lus", width);
+  snprintf(wline, sizeof(wline), format, dline);
   return std::string(wline);
 }
 
