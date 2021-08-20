@@ -88,11 +88,12 @@ StringConversion::EmptyTokenizeMultiCharDelimiter(const std::string& str,
     const std::string& delimiter)
 {
   tokens.clear();
-  std::string::size_type last_pos = str.find(delimiter);
 
   if (str.empty()) {
     return;
   }
+
+  std::string::size_type last_pos = str.find(delimiter);
 
   // Return empty vector if no delimiter found
   if (last_pos == std::string::npos) {
