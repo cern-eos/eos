@@ -279,6 +279,8 @@ add_library(
   bulk-request/utils/json/Jsonifier.cc
   bulk-request/utils/json/JSONCppJsonifier.cc
   bulk-request/prepare/query-prepare/QueryPrepareResult.cc
+  bulk-request/dao/proc/cleaner/BulkRequestProcCleaner.cc
+  bulk-request/dao/proc/cleaner/BulkRequestProcCleanerConfig.cc
   ${FUSEX_SRCS})
 
 target_link_libraries(XrdEosMgm-Objects PUBLIC

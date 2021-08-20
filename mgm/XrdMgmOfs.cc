@@ -115,6 +115,7 @@
 #include "mgm/bulk-request/response/QueryPrepareResponse.hh"
 #include "mgm/bulk-request/prepare/query-prepare/QueryPrepareResult.hh"
 #include "mgm/bulk-request/utils/json/JSONCppJsonifier.hh"
+#include "mgm/bulk-request/dao/proc/cleaner/BulkRequestProcCleaner.hh"
 
 #ifdef __APPLE__
 #define ECOMM 70
@@ -304,7 +305,8 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   mFidTracker(std::chrono::seconds(600), std::chrono::seconds(3600)),
   mDoneOrderlyShutdown(false),
   mXrdBuffPool(2 * eos::common::KB, 2 * eos::common::MB, 8, 64),
-  mJeMallocHandler(new eos::common::JeMallocHandler())
+  mJeMallocHandler(new eos::common::JeMallocHandler()),
+  mBulkReqProcCleaner(new bulk::BulkRequestProcCleaner())
 {
   eDest = ep;
   ConfigFN = 0;
@@ -740,7 +742,7 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   USE_EOSBULKNAMESPACE;
   //Temporary preprocessing directive for testing the bulk-request persistency
   //If set to 1, xrdfs prepare will be issued and a bulk-request will be persisted in the proc directory
-  #define BULK_REQ_PERSISTENCY 0
+  #define BULK_REQ_PERSISTENCY 1
 
   RealMgmFileSystemInterface mgmFsInterface(gOFS);
   #if BULK_REQ_PERSISTENCY

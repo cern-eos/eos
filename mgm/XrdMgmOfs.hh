@@ -182,6 +182,7 @@ class MultiSpaceTapeGc;
 
 namespace eos::mgm::bulk {
   class ProcDirectoryBulkRequestLocations;
+  class BulkRequestProcCleaner;
 }
 
 namespace eos::auth
@@ -1897,6 +1898,9 @@ public:
   eos::mgm::IdTrackerWithValidity<eos::IFileMD::id_t> mFidTracker;
   //! The class holding the paths where the bulk-requets will be persisted
   std::unique_ptr<eos::mgm::bulk::ProcDirectoryBulkRequestLocations> mProcDirectoryBulkRequestLocations;
+
+  //! BulkRequestProcCleaner
+  std::unique_ptr<bulk::BulkRequestProcCleaner> mBulkReqProcCleaner;
 
   //----------------------------------------------------------------------------
   //! Return string representation of prepare options

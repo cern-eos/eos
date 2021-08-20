@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file IBulkRequestPersist.hh
+//! @file BulkRequestProcCleaner.hh
 //! @author Cedric Caffy - CERN
 //------------------------------------------------------------------------------
 
@@ -21,45 +21,55 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_IBULKREQUESTDAO_HH
-#define EOS_IBULKREQUESTDAO_HH
+#ifndef EOS_BULKREQUESTPROCCLEANER_HH
+#define EOS_BULKREQUESTPROCCLEANER_HH
 
+#include "common/AssistedThread.hh"
+#include "XrdOuc/XrdOucErrInfo.hh"
+#include "common/Mapping.hh"
 #include "mgm/Namespace.hh"
-#include "mgm/bulk-request/prepare/StageBulkRequest.hh"
-#include <memory>
-#include <chrono>
+#include "common/VirtualIdentity.hh"
+#include "mgm/bulk-request/dao/proc/cleaner/BulkRequestProcCleanerConfig.hh"
 
 EOSBULKNAMESPACE_BEGIN
 
-/**
- * Interface to the bulk request Data Access Object
- * It allows to access the persistency layer of the bulk requests
- */
-class IBulkRequestDAO {
+class BulkRequestProcCleaner {
 public:
+  BulkRequestProcCleaner();
   /**
-   * This method allows to persist a StageBulkRequest
-   * @param bulkRequest the bulk request to save
+   * Start the cleaner thread
    */
-  virtual void saveBulkRequest(const std::shared_ptr<BulkRequest> bulkRequest) = 0;
+  void Start();
+  /**
+   * Stop the cleaner thread
+   */
+  void Stop();
 
   /**
-   * Get the bulk-request from the persistence
-   * @param id the id of the bulk-request
-   * @param type the type of the bulk-request
-   * @return the bulk-request if it exists, nullptr otherwise
+   * Method that will be ran by the thread
+   *
+   * This thread will look for the bulk-request directories in /proc/ and check the last time
+   * a bulk-request was queried (extended attribute on the bulk-request directory. If a bulk-request has not been queried for more than one week,
+   * it will be deleted from the system.
    */
-  virtual std::unique_ptr<BulkRequest> getBulkRequest(const std::string & id, const BulkRequest::Type & type) = 0;
+  void backgroundThread(ThreadAssistant & assistant);
 
   /**
-   * Delete all the bulk-request of a certain type that were not accessed for  hours
-   * @param type the bulk-request type to look for
-   * @param seconds the number of seconds after which the bulk-requests can be deleted if they were not queried
-   * @returns the number of deleted bulk-request
+   * Perform a cleaning cycle of the bulk-request directory in /proc/
    */
-  virtual uint64_t deleteBulkRequestNotQueriedFor(const BulkRequest::Type & type, const std::chrono::seconds & seconds) = 0;
+  void performBulkReqDirCleaning(ThreadAssistant & assistant);
+
+  /**
+   * Destructor, stop the cleaner thread
+   */
+  ~BulkRequestProcCleaner();
+private:
+  AssistedThread mThread; ///< thread of the /proc/ cleaner thread
+  eos::common::VirtualIdentity mRootVid; ///< Uses the root vid
+  XrdOucErrInfo mError; ///< XRootD error object
+  BulkRequestProcCleanerConfig mConfig; ///< Configuration of the cleaner (e.g interval of execution)
 };
 
 EOSBULKNAMESPACE_END
 
-#endif // EOS_IBULKREQUESTDAO_HH
+#endif // EOS_BULKREQUESTPROCCLEANER_HH
