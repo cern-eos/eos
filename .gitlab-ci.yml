@@ -110,9 +110,6 @@ build_cc7:
     expire_in: 1 day
     paths:
       - cc7_artifacts/
-  tags:
-    - docker_node
-    - build
 
 macosx_dmg:
   stage: build:rpm
@@ -140,8 +137,6 @@ clone_docker:
     expire_in: 1 day
     paths:
       - eos-docker/
-  tags:
-    - docker_node
 
 # schedules ------------------------------
 
@@ -175,9 +170,6 @@ el-8s:
     - schedules
     - tags
   allow_failure: true # @todo dont
-  tags:
-    - docker_node
-    - build
 
 build_c8:
   stage: build:rpm
@@ -208,9 +200,6 @@ build_c8:
   only:
     - schedules
     - tags
-  tags:
-    - docker_node
-    - build
 
 .build_ubuntu-template: &build_ubuntu-template_definition
   stage: build:rpm
@@ -259,9 +248,6 @@ build_ubuntu_bionic:
   only:
     - schedules
     - tags
-  tags:
-    - docker_node
-    - build
 
 build_ubuntu_focal:
   image: ubuntu:focal
@@ -271,9 +257,6 @@ build_ubuntu_focal:
   only:
     - schedules
     - tags
-  tags:
-    - docker_node
-    - build
 
 .build_fedora-template: &build_fedora-template_definition
   stage: build:rpm
@@ -311,9 +294,6 @@ build_fedora_33:
   only:
     - schedules
     - tags
-  tags:
-    - docker_node
-    - build
 
 build_fedora_34:
   image: fedora:34
@@ -323,9 +303,6 @@ build_fedora_34:
   only:
     - schedules
     - tags
-  tags:
-    - docker_node
-    - build
 
 build_fedora_rawhide:
   image: registry.fedoraproject.org/fedora:rawhide
@@ -334,9 +311,6 @@ build_fedora_rawhide:
     EOS_DIST: fc-rawhide
   only:
     - schedules
-  tags:
-    - docker_node
-    - build
 
 # @note Using "normal" cc7 image as it doesn't actually need an exotic one, yet
 .build_cc7_exotic-template: &build_cc7_exotic-template_definition
@@ -374,9 +348,6 @@ build_cc7_asan:
     CMAKE_OPTIONS: "-DASAN=1"
     RPMBUILD_OPTIONS: "--with asan"
     CXXFLAGS: "-Wno-parentheses"    # Avoid boost header compilation errors
-  tags:
-    - docker_node
-    - build
   when: manual
   allow_failure: true
 
@@ -388,9 +359,6 @@ build_cc7_clang:
     RPMBUILD_OPTIONS: "--with clang"
   only:
     - schedules
-  tags:
-    - docker_node
-    - build
 
 build_cc7_xrd_testing: # @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
   before_script:
@@ -404,9 +372,6 @@ build_cc7_xrd_testing: # @todo Re-enable xrd_testing jobs once project ugprades 
     BUILD_NAME: cc7_xrd_testing
   only:
     - schedules
-  tags:
-    - docker_node
-    - build
   allow_failure: true
 
 build_cc7_opt_xrootd: # @note please contact CTA team / jleduc if you want to change this job
@@ -425,9 +390,6 @@ build_cc7_opt_xrootd: # @note please contact CTA team / jleduc if you want to ch
   allow_failure: true
   except:
     - tags
-  tags:
-    - docker_node
-    - build
   when: manual
 
 
@@ -439,9 +401,6 @@ build_cc7_no_sse:
     RPMBUILD_OPTIONS: "--with no_sse"
   only:
     - tags
-  tags:
-    - docker_node
-    - build
   when: manual
 
 build_cc7_coverage:
@@ -452,9 +411,6 @@ build_cc7_coverage:
   only:
     variables:
       - $COVERAGE_SCHEDULE
-  tags:
-    - docker_node
-    - build
 
 
 #-------------------------------------------------------------------------------
