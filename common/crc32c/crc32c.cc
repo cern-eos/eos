@@ -22,8 +22,11 @@ static uint32_t crc32c_CPUDetection(uint32_t crc, const void* data,
   crc32c = best;
   return best(crc, data, length);
 }
-
-CRC32CFunctionPtr crc32c = crc32c_CPUDetection;
+#if defined(__APPLE__) && defined(__aarch64__)
+  CRC32CFunctionPtr crc32c = crc32cHardware32;
+#else
+  CRC32CFunctionPtr crc32c = crc32c_CPUDetection;
+#endif
 
 static uint32_t cpuid(uint32_t functionInput)
 {
@@ -43,7 +46,9 @@ static uint32_t cpuid(uint32_t functionInput)
       "popl %%ebx" : "=a"(eax), [ebx] "=r"(ebx), "=c"(ecx), "=d"(edx) : "a"(functionInput)
       : "cc");
 #else
+#ifndef __aarch64__
   asm("cpuid" : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx) : "a"(functionInput));
+#endif
 #endif
 #else
   fprintf(stderr, "error: crc32c is not supported on 32bit platforms\n");
