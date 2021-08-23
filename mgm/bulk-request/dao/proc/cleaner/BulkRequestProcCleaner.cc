@@ -32,7 +32,7 @@
 
 EOSBULKNAMESPACE_BEGIN
 
-BulkRequestProcCleaner::BulkRequestProcCleaner(): mRootVid(common::VirtualIdentity::Root()),mConfig(BulkRequestProcCleanerConfig::getDefaultConfig()){
+BulkRequestProcCleaner::BulkRequestProcCleaner(): mConfig(BulkRequestProcCleanerConfig::getDefaultConfig()){
 
 }
 
@@ -80,11 +80,6 @@ BulkRequestProcCleaner::backgroundThread(ThreadAssistant & assistant){
       }
     }
   }
-}
-
-void BulkRequestProcCleaner::performBulkReqDirCleaning(ThreadAssistant& assistant){
-  eos_static_info("%s", "msg=\"start cleaning cycle on the bulk-request proc directory\"");
-
 }
 
 BulkRequestProcCleaner::~BulkRequestProcCleaner(){
