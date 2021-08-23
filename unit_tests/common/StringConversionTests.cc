@@ -98,30 +98,4 @@ TEST(GetSizeFromString, BasicSanity)
   ASSERT_EQ(out, 0);
 }
 
-TEST(EmptyTokenizeMultiCharDelimiter, BasicSanity)
-{
-  std::vector<std::string> tokens;
-  StringConversion::EmptyTokenizeMultiCharDelimiter("", tokens, "::");
-  ASSERT_EQ(0, tokens.size());
-  StringConversion::EmptyTokenizeMultiCharDelimiter("a:b", tokens, "::");
-  ASSERT_EQ(1, tokens.size());
-  ASSERT_TRUE("a:b" == tokens[0]);
-  StringConversion::EmptyTokenizeMultiCharDelimiter("a::b", tokens, "::");
-  ASSERT_EQ(2, tokens.size());
-  ASSERT_TRUE("a" == tokens[0]);
-  ASSERT_TRUE("b" == tokens[1]);
-  StringConversion::EmptyTokenizeMultiCharDelimiter("a::b::c::d::e::f::", tokens,
-      "::");
-  ASSERT_EQ(7, tokens.size());
-  StringConversion::EmptyTokenizeMultiCharDelimiter("abcd::efgh::ijkl", tokens,
-      "::");
-  ASSERT_EQ(3, tokens.size());
-  ASSERT_TRUE("abcd" == tokens[0]);
-  ASSERT_TRUE("efgh" == tokens[1]);
-  ASSERT_TRUE("ijkl" == tokens[2]);
-  StringConversion::EmptyTokenizeMultiCharDelimiter("abcd::ef::::gh::ijk", tokens,
-      "::");
-  ASSERT_EQ(5, tokens.size());
-}
-
 EOSCOMMONTESTING_END

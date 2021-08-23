@@ -80,53 +80,6 @@ StringConversion::Tokenize(const std::string& str,
 }
 
 //------------------------------------------------------------------------------
-// Tokenize a string using a multichar delimiter
-//------------------------------------------------------------------------------
-void
-StringConversion::EmptyTokenizeMultiCharDelimiter(const std::string& str,
-    std::vector<std::string>& tokens,
-    const std::string& delimiter)
-{
-  tokens.clear();
-
-  if (str.empty()) {
-    return;
-  }
-
-  std::string::size_type last_pos = str.find(delimiter);
-
-  // Return empty vector if no delimiter found
-  if (last_pos == std::string::npos) {
-    tokens.push_back(str);
-    return;
-  }
-
-  // Skip delimiter at the beginning
-  if (last_pos == 0) {
-    last_pos += delimiter.length();
-  } else {
-    last_pos = 0;
-  }
-
-  std::string::size_type pos = str.find(delimiter, last_pos);
-
-  while ((std::string::npos != pos) || (std::string::npos != last_pos)) {
-    if (pos == std::string::npos) {
-      tokens.push_back(str.substr(last_pos));
-      break;
-    } else {
-      tokens.push_back(str.substr(last_pos, pos - last_pos));
-    }
-
-    if (pos != std::string::npos) {
-      last_pos = pos + delimiter.length();
-    }
-
-    pos = str.find(delimiter, last_pos);
-  }
-}
-
-//------------------------------------------------------------------------------
 // Tokenize a string accepting also empty members e.g. a||b returns 3 fields
 //------------------------------------------------------------------------------
 void

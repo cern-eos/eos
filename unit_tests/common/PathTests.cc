@@ -148,4 +148,28 @@ TEST(ParseUtils, ValidHostnameOrIP)
   ASSERT_FALSE(eos::common::ValidHostnameOrIP("eos&.cern.ch"));
 }
 
+
+TEST(SanitizeGeoTag, BasicSanity)
+{
+  std::string geotag;
+  std::string sanitized;
+  sanitized = eos::common::SanitizeGeoTag(geotag);
+  ASSERT_TRUE(sanitized.empty());
+  geotag = "a:b";
+  sanitized = eos::common::SanitizeGeoTag(geotag);
+  ASSERT_TRUE(sanitized.empty());
+  geotag = "a::b";
+  sanitized = eos::common::SanitizeGeoTag(geotag);
+  ASSERT_TRUE("a::b" == sanitized);
+  geotag = "a::b::c::d::e::f::";
+  sanitized = eos::common::SanitizeGeoTag(geotag);
+  ASSERT_TRUE(sanitized.empty());
+  geotag = "abcd::efgh::ijkl";
+  sanitized = eos::common::SanitizeGeoTag(geotag);
+  ASSERT_TRUE("abcd::efgh::ijkl" == sanitized);
+  geotag = "abcd::ef::::gh::ijk";
+  sanitized = eos::common::SanitizeGeoTag(geotag);
+  ASSERT_TRUE(sanitized.empty());
+}
+
 EOSCOMMONNAMESPACE_END
