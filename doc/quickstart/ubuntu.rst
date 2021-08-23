@@ -29,11 +29,11 @@ currently "bionic" and "focal"
 .. note::
     Also, to avoid possible conflicts with other releases you need to version-lock xrootd dependency packages (this will we softened in future releases).
 
-    e.g, as of eos version 4.8.31, you need to version-lock xrootd to 4.12.5:
+    e.g, as of eos version 4.8.40, you need to version-lock xrootd to 4.12.8:
 
     .. code-block:: text
 
-        echo -e "Package: xrootd* libxrd* libxrootd*\nPin: version 4.12.5\nPin-Priority: 1000" > /etc/apt/preferences.d/xrootd.pref
+        echo -e "Package: xrootd* libxrd* libxrootd*\nPin: version 4.12.8\nPin-Priority: 1000" > /etc/apt/preferences.d/xrootd.pref
 
 Install EOS client via apt
 --------------------------
