@@ -15,6 +15,18 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
+``v4.8.61 Citrine``
+===================
+
+2021-08-21
+
+Bug
+----
+
+* Revert "COMMON: drop 'sudo' role after sudo mapping - fixes EOS-4781"
+
+
 ``v4.8.60 Citrine``
 ===================
 
