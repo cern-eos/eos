@@ -55,18 +55,11 @@ public:
   void backgroundThread(ThreadAssistant & assistant);
 
   /**
-   * Perform a cleaning cycle of the bulk-request directory in /proc/
-   */
-  void performBulkReqDirCleaning(ThreadAssistant & assistant);
-
-  /**
    * Destructor, stop the cleaner thread
    */
   ~BulkRequestProcCleaner();
 private:
   AssistedThread mThread; ///< thread of the /proc/ cleaner thread
-  eos::common::VirtualIdentity mRootVid; ///< Uses the root vid
-  XrdOucErrInfo mError; ///< XRootD error object
   BulkRequestProcCleanerConfig mConfig; ///< Configuration of the cleaner (e.g interval of execution)
 };
 
