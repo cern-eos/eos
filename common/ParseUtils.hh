@@ -26,10 +26,10 @@
 //! @brief Parse utilities with proper error checking
 //------------------------------------------------------------------------------
 
-#ifndef EOSCOMMON_PARSE_UTILS_HH
-#define EOSCOMMON_PARSE_UTILS_HH
-
+#pragma once
 #include "common/Namespace.hh"
+#include "common/Logging.hh"
+#include "common/StringTokenizer.hh"
 #include <string>
 #include <limits>
 
@@ -153,6 +153,53 @@ inline bool ValidHostnameOrIP(const std::string& input)
   return true;
 }
 
-EOSCOMMONNAMESPACE_END
 
-#endif
+//----------------------------------------------------------------------------
+//! Sanitize input geotag
+//!
+//! @param geotag input value
+//!
+//! @return emptystring if geotag not valid, otherwise sanitized geotag
+//----------------------------------------------------------------------------
+inline std::string SanitizeGeoTag(const std::string& geotag)
+{
+  if (geotag.empty()) {
+    return std::string();
+  }
+
+  std::string tmp_tag(geotag);
+  // Make sure the new geotag is properly formatted and respects the contraints
+  auto tokens = eos::common::StringTokenizer::split<std::vector<std::string>>
+                (tmp_tag, ':');
+  tmp_tag.clear();
+
+  for (const auto& token : tokens) {
+    if (token.empty()) {
+      continue;
+    }
+
+    if (token.length() > 8) {
+      eos_static_err("msg=\"token in geotag longer than 8 chars\" geotag=\"%s\"",
+                     geotag.c_str());
+      return std::string();
+    }
+
+    tmp_tag += token;
+    tmp_tag += "::";
+  }
+
+  if (tmp_tag.length() <= 2) {
+    eos_static_err("%s", "msg=\"empty geotag\"");
+    return std::string();
+  }
+
+  tmp_tag.erase(tmp_tag.length() - 2);
+
+  if (tmp_tag != geotag) {
+    return std::string();
+  }
+
+  return tmp_tag;
+}
+
+EOSCOMMONNAMESPACE_END

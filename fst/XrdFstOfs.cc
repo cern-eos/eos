@@ -45,6 +45,7 @@
 #include "common/StringTokenizer.hh"
 #include "common/SymKeys.hh"
 #include "common/XattrCompat.hh"
+#include "common/ParseUtils.hh"
 #include "mq/SharedHashWrapper.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetUtils.hh"
@@ -736,10 +737,16 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   }
 
   Eroute.Say("=====> eoscp-log : ", eoscpTransferLog.c_str());
+  char* ptr_geotag = getenv("EOS_GEOTAG");
 
-  if (!UpdateSanitizedGeoTag()) {
-    eos_static_err("%s", "msg=\"failed to update geotag, wrongly formatted\"");
-    return SFS_ERROR;
+  if (ptr_geotag) {
+    mGeoTag = eos::common::SanitizeGeoTag(ptr_geotag);
+
+    if (mGeoTag.empty()) {
+      eos_static_err("%s", "msg=\"failed to update geotag, wrongly formatted\" "
+                     "geotag=\"%s\"", ptr_geotag);
+      return SFS_ERROR;
+    }
   }
 
   // Compute checksum of the keytab file
@@ -888,50 +895,6 @@ XrdFstOfs::SetSimulationError(const std::string& input)
   } else if (input.find("fmd_open") == 0) {
     mSimFmdOpenErr = true;
   }
-}
-
-//------------------------------------------------------------------------------
-// Update geotag value from the EOS_GEOTAG env variable and sanitize the
-// input
-//------------------------------------------------------------------------------
-bool
-XrdFstOfs::UpdateSanitizedGeoTag()
-{
-  const char* ptr = getenv("EOS_GEOTAG");
-
-  if (ptr == nullptr) {
-    return true;
-  }
-
-  std::string tmp_tag(ptr);
-  // Make sure the new geotag is properly formatted and respects the contraints
-  auto tokens = eos::common::StringTokenizer::split<std::vector<std::string>>
-                (tmp_tag, ':');
-  tmp_tag.clear();
-
-  for (const auto& token : tokens) {
-    if (token.empty()) {
-      continue;
-    }
-
-    if (token.length() > 8) {
-      eos_static_err("msg=\"token in geotag longer than 8 chars\" geotag=\"%s\"",
-                     ptr);
-      return false;
-    }
-
-    tmp_tag += token;
-    tmp_tag += "::";
-  }
-
-  if (tmp_tag.length() <= 2) {
-    eos_static_err("%s", "msg=\"empty geotag\"");
-    return false;
-  }
-
-  tmp_tag.erase(tmp_tag.length() - 2);
-  mGeoTag = tmp_tag;
-  return true;
 }
 
 //------------------------------------------------------------------------------
