@@ -77,7 +77,7 @@ std::string ProcDirectoryBulkRequestDAO::generateBulkRequestProcPath(const std::
 }
 
 std::string ProcDirectoryBulkRequestDAO::generateBulkRequestProcPath(const std::string& bulkRequestId, const BulkRequest::Type& type) {
-  return mProcDirectoryBulkRequestLocations.getDirectoryPathWhereBulkRequestCouldBeSaved(type) + "/" + bulkRequestId;
+  return mProcDirectoryBulkRequestLocations.getDirectoryPathWhereBulkRequestCouldBeSaved(type) + bulkRequestId;
 }
 
 void ProcDirectoryBulkRequestDAO::insertBulkRequestFilesToBulkRequestDirectory(const std::shared_ptr<BulkRequest> bulkRequest, const std::string & bulkReqProcPath) {
@@ -256,6 +256,8 @@ void ProcDirectoryBulkRequestDAO::getDirectoryContent(const std::string & path, 
     eos_err(oss.str().c_str());
     throw PersistencyException(oss.str());
   }
+  //Drop the top directory: it does not belong to its content
+  directoryContent.erase(path);
 }
 
 void ProcDirectoryBulkRequestDAO::fetchFileExtendedAttributes(const ProcDirBulkRequestFile& file, eos::IContainerMD::XAttrMap & xattrs) {
@@ -322,7 +324,7 @@ uint64_t ProcDirectoryBulkRequestDAO::deleteBulkRequestNotQueriedFor(const BulkR
       if(elapsedTimeBetweenNowAndLastAccessTime > seconds.count()){
         deleteDirectory(kv.first);
         nbDeletedBulkRequests++;
-        eos_info("msg=\"Deleted a bulk request from the /proc/ persistency (path=%s)\"",kv.first.c_str());
+        eos_info("msg=\"Deleted a bulk request from the /proc/ persistency\" path=\"%s\"",kv.first.c_str());
       }
     } catch (const std::out_of_range &){
       //The extended attribute LAST_ACCESS_TIME_ATTR_NAME was not found, log an error
