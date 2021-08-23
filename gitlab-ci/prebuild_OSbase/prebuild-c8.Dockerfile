@@ -15,7 +15,7 @@ RUN dnf install -y epel-release \
     && source gitlab-ci/export_codename.sh \
     && echo "Exporting CODENAME=${CODENAME}" \
     && git submodule update --init --recursive \
-    && ./misc/cmake/cmake-3.15.5-Linux-x86_64.sh --prefix=/usr/ --skip-license \
+    && ./misc/cmake/cmake-3.19.7-Linux-x86_64.sh --prefix=/usr/ --skip-license \
     && mkdir build \
     && cd build \
     && cmake ../ -DPACKAGEONLY=1 && make srpm \
