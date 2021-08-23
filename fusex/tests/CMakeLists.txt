@@ -52,7 +52,9 @@ add_executable(eos-fusex-tests
 target_link_libraries(eos-fusex-tests PRIVATE
   eosxd-objects
   EosFuseAuth
-  ${LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH})
+  gtest
+  ${LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH}
+  )
 
 set_target_properties(eos-fusex-tests
   PROPERTIES COMPILE_FLAGS ${COMPILE_FLAGS_FOR_TEST_EXECUTABLES})
