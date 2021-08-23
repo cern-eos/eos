@@ -150,7 +150,7 @@ el-8s:
   image: gitlab-registry.cern.ch/dss/eos/prebuild-el-8s
   script:
     - git submodule update --init --recursive
-    - ./misc/cmake/cmake-3.15.5-Linux-x86_64.sh --prefix=/usr/ --skip-license \
+    - ./misc/cmake/cmake-3.19.7-Linux-x86_64.sh --prefix=/usr/ --skip-license \
     - mkdir build
     - cd build/
     - cmake ../ -DPACKAGEONLY=1
@@ -184,7 +184,7 @@ build_c8:
   image: gitlab-registry.cern.ch/dss/eos/prebuild-c8-${CODENAME}
   script:
     - git submodule update --init --recursive
-    - ./misc/cmake/cmake-3.15.5-Linux-x86_64.sh --prefix=/usr/ --skip-license
+    - ./misc/cmake/cmake-3.19.7-Linux-x86_64.sh --prefix=/usr/ --skip-license
     - mkdir build
     - cd build/
     - cmake ../ -DPACKAGEONLY=1

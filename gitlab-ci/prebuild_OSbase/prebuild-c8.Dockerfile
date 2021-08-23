@@ -14,7 +14,7 @@ RUN dnf install --nogpg -y git && dnf clean all \
 RUN dnf install -y epel-release \
     && dnf install --nogpg -y ccache dnf-plugins-core gcc-c++ git make python2 python3 python3-setuptools rpm-build rpm-sign tar which \
     && git submodule update --init --recursive \
-    && ./misc/cmake/cmake-3.15.5-Linux-x86_64.sh --prefix=/usr/ --skip-license \
+    && ./misc/cmake/cmake-3.19.7-Linux-x86_64.sh --prefix=/usr/ --skip-license \
     && mkdir build \
     && cd build \
     && cmake ../ -DPACKAGEONLY=1 && make srpm \
