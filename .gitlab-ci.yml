@@ -22,7 +22,7 @@ default:
 # Prebuild
 #-------------------------------------------------------------------------------
 
-.prebuid-template: &prebuild-template_definition
+.prebuild-template: &prebuild-template_definition
   stage: prebuild
   image:
     name: gcr.io/kaniko-project/executor:debug
@@ -46,6 +46,11 @@ prebuild-c8:
   <<: *prebuild-template_definition
   variables:
     PREBUILD_NAME: c8
+
+prebuild-el-8s:
+  <<: *prebuild-template_definition
+  variables:
+    PREBUILD_NAME: el-8s
 
 # @note Consider deletion
 .prebuild-cc7_asan:
@@ -138,24 +143,18 @@ clone_docker:
 
 # schedules ------------------------------
 
-# @todo prepare and use prebuild image
-# @note dnf builddep --nobest since
-#      "nothing provides binutils = 2.30-99.el8 needed by binutils-devel-2.30-99.el8.x86_64". Use then "binutils-devel-2.30-93.el8.x86_64"
-build_cs8:
+el-8s:
   stage: build:rpm
-  image: gitlab-registry.cern.ch/linuxsupport/cs8-base
+  image: gitlab-registry.cern.ch/dss/eos/prebuild-el-8s
   script:
-    - dnf install --nogpg -y epel-release
-    - dnf install --nogpg -y git moreutils
-    - dnf install --nogpg -y ccache dnf-plugins-core gcc-c++ git make python2 python3 python3-setuptools rpm-build rpm-sign tar which
     - git submodule update --init --recursive
-    - ./misc/cmake/cmake-3.15.5-Linux-x86_64.sh --prefix=/usr/ --skip-license
+    - ./misc/cmake/cmake-3.15.5-Linux-x86_64.sh --prefix=/usr/ --skip-license \
     - mkdir build
     - cd build/
     - cmake ../ -DPACKAGEONLY=1
     - make srpm
     - cd ../
-    - echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-8/x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n" >> /etc/yum.repos.d/eos-depend.repo
+    - echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/${CI_JOB_NAME}/x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n" >> /etc/yum.repos.d/eos-depend.repo
     - dnf builddep --nogpgcheck --allowerasing -y build/SRPMS/*
     - if [[ -n "$CI_COMMIT_TAG" ]]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache.sh; fi
     - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | ts
@@ -526,7 +525,7 @@ cs8_docker_image:
     BASETAG: "cs8_"
   needs:
     - job: clone_docker
-    - job: build_cs8
+    - job: el-8s
   only:
     - schedules
     - tags
@@ -1228,7 +1227,7 @@ publish_koji_cs8:
     TARGET: "eos8s"
     BUILD_NAME: "cs8"
   dependencies:
-    - build_cs8
+    - el-8s
 
 publish_koji_c8:
   <<: *publish_koji_template_definition
