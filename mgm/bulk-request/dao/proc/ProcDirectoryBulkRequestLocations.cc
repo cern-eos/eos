@@ -26,9 +26,9 @@
 EOSBULKNAMESPACE_BEGIN
 
 ProcDirectoryBulkRequestLocations::ProcDirectoryBulkRequestLocations(const std::string & procDirectoryPath) {
-  std::string bulkRequestsPath = procDirectoryPath + "/bulkrequests";
-  mBulkRequestTypeToPath[BulkRequest::Type::PREPARE_STAGE] = bulkRequestsPath + "/stage";
-  mBulkRequestTypeToPath[BulkRequest::Type::PREPARE_EVICT] = bulkRequestsPath + "/evict";
+  std::string bulkRequestsPath = procDirectoryPath + "/bulkrequests/";
+  mBulkRequestTypeToPath[BulkRequest::Type::PREPARE_STAGE] = bulkRequestsPath + "stage/";
+  mBulkRequestTypeToPath[BulkRequest::Type::PREPARE_EVICT] = bulkRequestsPath + "evict/";
 }
 
 std::set<std::string> ProcDirectoryBulkRequestLocations::getAllBulkRequestDirectoriesPath(){
