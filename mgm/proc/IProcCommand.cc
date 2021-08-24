@@ -34,8 +34,9 @@
 EOSMGMNAMESPACE_BEGIN
 
 std::atomic_uint_least64_t IProcCommand::uuid{0};
-std::map<eos::console::RequestProto::CommandCase, std::atomic<uint64_t>>
-    IProcCommand::mCmdsExecuting;
+std::mutex IProcCommand::mMapCmdsMutex;
+std::map<eos::console::RequestProto::CommandCase, uint64_t>
+IProcCommand::mCmdsExecuting;
 
 //------------------------------------------------------------------------------
 // Open a proc command e.g. call the appropriate user or admin command and
@@ -536,42 +537,11 @@ IProcCommand::ShouldRoute(const std::string& path,
 bool
 IProcCommand::HasSlot()
 {
-  static std::atomic<bool> init {false};
-
-  // Initialize only once in the beginning
-  if (!init) {
-    init = true;
-
-    for (const auto& type : {
-    eos::console::RequestProto::kAcl,
-        eos::console::RequestProto::kNs,
-        eos::console::RequestProto::kFind,
-        eos::console::RequestProto::kFs,
-        eos::console::RequestProto::kRm,
-        eos::console::RequestProto::kStagerRm,
-        eos::console::RequestProto::kRoute,
-        eos::console::RequestProto::kIo,
-        eos::console::RequestProto::kGroup,
-        eos::console::RequestProto::kDebug,
-        eos::console::RequestProto::kNode,
-        eos::console::RequestProto::kQuota,
-        eos::console::RequestProto::kSpace,
-        eos::console::RequestProto::kConfig,
-        eos::console::RequestProto::kAccess,
-        eos::console::RequestProto::kToken,
-        eos::console::RequestProto::kQos,
-        eos::console::RequestProto::kConvert
-  }) {
-      mCmdsExecuting.emplace(type, 0ull);
-    }
-  }
-
-  uint64_t slot_limit {50};
+  static const uint64_t slot_limit {50};
+  std::unique_lock<std::mutex> lock(mMapCmdsMutex);
   auto it = mCmdsExecuting.find(mReqProto.command_case());
 
   if (it == mCmdsExecuting.end()) {
-    // This should not happen unless you forgot to populate the map in the
-    // section above
     mCmdsExecuting[mReqProto.command_case()] = 1;
     mHasSlot = true;
   } else {
