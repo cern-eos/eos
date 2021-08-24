@@ -97,6 +97,7 @@ public:
     unlink(ofstderrStreamFilename.c_str());
 
     if (mHasSlot) {
+      std::unique_lock<std::mutex> lock(mMapCmdsMutex);
       --mCmdsExecuting[mReqProto.command_case()];
     }
   }
@@ -176,7 +177,8 @@ public:
     return SFS_OK;
   }
 
-  virtual std::string GetCmd(const char* cgi = 0) {
+  virtual std::string GetCmd(const char* cgi = 0)
+  {
     return "proto";
   }
 
@@ -339,9 +341,10 @@ protected:
   };
 
   static std::atomic_uint_least64_t uuid;
+  static std::mutex mMapCmdsMutex; ///< Mutex protecting the cmds map
   //! Map of command types to number of commands actually queued
-  static std::map<eos::console::RequestProto::CommandCase,
-         std::atomic<uint64_t>> mCmdsExecuting;
+  static std::map<eos::console::RequestProto::CommandCase, uint64_t>
+  mCmdsExecuting;
 
   //! Indicate if current command has taken a slot in the queue
   std::atomic<bool> mHasSlot;
