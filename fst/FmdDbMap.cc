@@ -1159,6 +1159,14 @@ FmdDbMapHandler::ResyncFileFromQdb(eos::common::FileId::fileid_t fid,
   } catch (const eos::MDException& e) {
     eos_err("msg=\"failed to get metadata from QDB: %s\" fxid=%08llx",
             e.what(), fid);
+
+    // If there is any transient error with QDB then we skip this file,
+    // otherwise it might be wronly marked as orphan below.
+    if (e.getErrno() != ENOENT) {
+      eos_err("msg=\"skip file update due to QDB error\" msg_err=\"%s\" "
+              "fxid=08llx", e.what(), fid);
+      return e.getErrno();
+    }
   }
 
   // Mark any possible layout error, if fid not found in QDB then this is
