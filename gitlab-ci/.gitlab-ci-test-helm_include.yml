@@ -234,20 +234,20 @@ helm_fusex_ub_focal:
 
 helm_fusex:
   extends: .helm_fusex_test_template
-# needs:
-#   - job: cc7_docker_image
-#     artifacts: false
+  needs:
+   - job: cc7_docker_image
+     artifacts: false
 
 
 helm_fusex_ub_focal:
   extends: .helm_fusex_test_template
   variables:
     CLI_BASETAG: "ubuntu_focal_client_"
-# needs:
-#   - job: cc7_docker_image
-#     artifacts: false
-#  - job: ubuntu_focal_docker_image
-#    artifacts: false
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
+    - job: ubuntu_focal_docker_image
+      artifacts: false
   only:
     - schedules
     - tags
