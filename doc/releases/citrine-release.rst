@@ -16,6 +16,26 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.62 Citrine``
+===================
+
+2021-08-25
+
+Bug
+----
+
+* [EOS-4327] - FST still misses the required capability key - symkey empty
+* [EOS-4852] - Race condition when accounting running console commands
+* [EOS-4878] - Balancing RAIN files stores wrong size in local DB
+
+Improvement
+------------
+
+* [EOS-4858] - Add fsck check for RAIN layout to spot disk size corruptions
+* [EOS-4863] - make eos-hashbench run a single benchmark at a time
+* [EOS-4875] - mgm: Mapping: avoid double lookups on maps
+
+
 ``v4.8.61 Citrine``
 ===================
 
