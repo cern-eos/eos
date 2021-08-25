@@ -1507,6 +1507,14 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
             statistics["m_mem_sz_diff"]++;
             fidset["m_mem_sz_diff"].insert(proto_fmd.fid());
           }
+        } else {
+          // RAIN stripes with mgmsize != 0 and disksize == 0 are broken
+          if (LayoutId::IsRain(proto_fmd.lid())) {
+            if (proto_fmd.mgmsize() && (proto_fmd.disksize() == 0)) {
+              statistics["d_mem_sz_diff"]++;
+              fidset["d_mem_sz_diff"].insert(proto_fmd.fid());
+            }
+          }
         }
       }
 
