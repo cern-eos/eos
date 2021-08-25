@@ -20,8 +20,9 @@
 # * You should have received a copy of the GNU General Public License    *
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
-
-add_subdirectory(tests)
+if(CPPUNIT_FOUND)
+  add_subdirectory(tests)
+endif(CPPUNIT_FOUND)
 
 #-------------------------------------------------------------------------------
 # eos executable

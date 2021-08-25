@@ -28,6 +28,7 @@
 #include <ctime>
 #include <functional>
 #include <folly/executors/IOThreadPoolExecutor.h>
+#include <cstdlib>
 
 using std::placeholders::_1;
 

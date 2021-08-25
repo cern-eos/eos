@@ -217,7 +217,7 @@ install(TARGETS eoscp
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 
-if(NOT CLIENT)
+if(NOT CLIENT AND NOT DISABLE_FST)
 #-------------------------------------------------------------------------------
 # EosFstOss library
 #-------------------------------------------------------------------------------

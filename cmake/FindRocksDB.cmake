@@ -13,7 +13,7 @@ find_path(ROCKSDB_INCLUDE_DIR
   PATH_SUFFIXES include)
 
 find_library(ROCKSDB_LIBRARY
-  NAMES librocksdb.a
+  NAMES rocksdb
   HINTS ${ROCKSDB_ROOT})
 
 include(FindPackageHandleStandardArgs)
@@ -32,6 +32,5 @@ else ()
   add_library(ROCKSDB::ROCKSDB INTERFACE IMPORTED)
 endif()
 
-unset(ROCKSDB_INCLUDE_DIR)
-unset(ROCKSDB_LIBRARY)
-
+#unset(ROCKSDB_INCLUDE_DIR)
+#unset(ROCKSDB_LIBRARY)

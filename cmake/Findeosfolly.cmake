@@ -37,9 +37,11 @@ if(EOSFOLLY_FOUND AND NOT TARGET FOLLY::FOLLY)
     INTERFACE_COMPILE_DEFINITIONS HAVE_FOLLY)
 endif()
 
+
 # This is done to preserve compatibility with qclient
+find_package(glog REQUIRED)
 set(FOLLY_INCLUDE_DIRS ${EOSFOLLY_INCLUDE_DIR})
-set(FOLLY_LIBRARIES    ${EOSFOLLY_LIBRARY} glog gflags)
+set(FOLLY_LIBRARIES    ${EOSFOLLY_LIBRARY} glog::glog gflags)
 set(FOLLY_FOUND TRUE)
 unset(EOSFOLLY_LIBRARY)
 unset(EOSFOLLY_INCLUDE_DIR)

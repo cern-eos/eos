@@ -10,7 +10,7 @@
 # LZ4::LZ4
 
 find_library(LZ4_LIBRARY
-  NAMES liblz4.so.1
+  NAMES lz4 lz4_static
   HINTS ${LZ4_ROOT}
   PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR})
 

@@ -41,7 +41,7 @@ endif()
 if(APPLE)
   include(GNUInstallDirs)
   set(MacOSX TRUE )
-  set(CLIENT TRUE )
+  #set(CLIENT TRUE )
   set(OSDEFINE "-D__APPLE__=1")
   # On MAC we don't link static objects at all
   set(FUSE_LIBRARY /usr/local/lib/libosxfuse_i64.dylib)

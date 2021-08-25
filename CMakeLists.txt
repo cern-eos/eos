@@ -94,6 +94,13 @@ endif()
 set(CMAKE_INSTALL_SYSCONFDIR /etc)
 include(EosFindLibs)
 
+if (CLIENT)
+  message("BUILDING CLIENT ONLY")
+else()
+  message("BUILDING SERVER & CLIENT")
+endif()
+
+message("SYSTEM PATH IS ${CMAKE_SYSTEM_INCLUDE_PATH}, PREFIX ${CMAKE_SYSTEM_PREFIX_PATH} and cmake path is ${CMAKE_PREFIX_PATH} & INCLUDE ${CMAKE_INCLUDE_PATH}")
 #-------------------------------------------------------------------------------
 # Generate documentation
 #-------------------------------------------------------------------------------
@@ -148,7 +155,7 @@ if (NOT CLIENT)
   add_subdirectory(auth_plugin)
   add_subdirectory(unit_tests)
   add_subdirectory(eos-scitokens)
-  add_subdirectory(quarkdb)
+  #add_subdirectory(quarkdb)
 endif ()
 
 #-------------------------------------------------------------------------------

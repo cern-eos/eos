@@ -30,6 +30,11 @@
 
 EOSNSNAMESPACE_BEGIN
 
+#ifdef __APPLE__
+#include <libkern/OSByteOrder.h>
+#define htobe64 OSSwapHostToBigInt64
+#endif
+
 class LocalityHint {
 public:
 

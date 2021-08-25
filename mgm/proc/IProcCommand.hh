@@ -30,7 +30,7 @@
 #include "XrdSfs/XrdSfsInterface.hh"
 #include <future>
 #include <sstream>
-
+#include <fstream>
 //! Forward declarations
 class XrdOucErrInfo;
 
