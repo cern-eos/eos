@@ -710,7 +710,6 @@ code_quality_html:
     - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && python2 ./eosclient-tests/run.py --workdir=/eos/user/e/eos-user ci-eosfuse_release"'
     - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && python2 ./eosclient-tests/run.py --workdir=/eos/user/e/eos-user regression"'
   <<: *dock8s_after_script_template
-  allow_failure: true # @todo remove soon, once stable
   artifacts:
     when: on_failure
     expire_in: 3 days
