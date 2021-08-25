@@ -12,14 +12,10 @@
       CLI_IMAGE_TAG="${BASETAG}${CLI_BASETAG}${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}" # may be different from the server image (eg ubuntu)
       TEST_REALM=EXAMPLE.COM; TEST_ADMINPRINC_NAME=admin1; TEST_ADMINPRINC_PASSWORD=admin1; TEST_USERPRINC_NAME=eos-user; TEST_USERPRINC_PASSWORD=eos-user
     - |
-      # @todo: git clone --branch or helm repo add? helm repo add when the repos are stable!
-      git clone https://gitlab.cern.ch/faluchet/kuberos
-      git clone --branch faluchet-devel-kdc-with-enricos-fixes https://gitlab.cern.ch/eos/eos-charts
-      cd ./eos-charts/
-      apk add yq --repository=https://dl-cdn.alpinelinux.org/alpine/edge/community
-      yq eval '( . | .dependencies.[] |= .repository = "file://../"+.name ) * .' -i server/Chart.yaml && cat server/Chart.yaml
-      for chart in $(ls -d */Chart.yaml | xargs -I{} dirname {}); do helm dep update ${chart}; done
-      cd ../
+      git clone https://gitlab.cern.ch/eos/kuberos
+      helm repo add eos https://registry.cern.ch/chartrepo/eos
+      HELM_EOS_SERVER_VERSION=0.1.0
+      HELM_EOS_FUSEX_VERSION=0.1.0
     - |
       ######## KUBEROS ########
       helm install -f ./gitlab-ci/.gitlab-ci-test-helm_kuberos_values.yml kuberos ./kuberos/kuberos/ --atomic --create-namespace --namespace $K8S_NAMESPACE
@@ -28,11 +24,13 @@
       kubectl exec kuberos-kuberos-kdc-0 -c kdc -- /usr/sbin/kadmin.local -r $TEST_REALM addprinc -pw $TEST_USERPRINC_PASSWORD $TEST_USERPRINC_NAME
     - |
       ######## EOS-CHARTS/SERVER ########
-      helm install -f ./gitlab-ci/.gitlab-ci-test-helm_server_values.yml eos ./eos-charts/server --atomic --create-namespace --namespace $K8S_NAMESPACE \
+      helm install -f ./gitlab-ci/.gitlab-ci-test-helm_server_values.yml eos eos/server --version $HELM_EOS_SERVER_VERSION \
+        --atomic --create-namespace --namespace $K8S_NAMESPACE \
         --set global.tag=$IMAGE_TAG --set mgm.kerberos.adminPrinc.name=$TEST_ADMINPRINC_NAME --set mgm.kerberos.adminPrinc.password=$TEST_ADMINPRINC_PASSWORD
     - |
       ######## EOS-CHARTS/FUSEX ########
-      helm install -f ./gitlab-ci/.gitlab-ci-test-helm_fusex_values.yml eos-client1 ./eos-charts/fusex  --atomic --create-namespace --namespace $K8S_NAMESPACE \
+      helm install -f ./gitlab-ci/.gitlab-ci-test-helm_fusex_values.yml eos-client1 eos/fusex --version $HELM_EOS_FUSEX_VERSION \
+        --atomic --create-namespace --namespace $K8S_NAMESPACE \
         --set image.tag=$CLI_IMAGE_TAG --set fusex.config.eos_mgm_alias=eos-mgm.$K8S_NAMESPACE.svc.cluster.local \
         --set fusex.config.auth.sss=1 --set fusex.config.auth.krb5=1
     - |
