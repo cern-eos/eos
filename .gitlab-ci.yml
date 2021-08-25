@@ -170,7 +170,7 @@ el-8s:
   only:
     - schedules
     - tags
-  allow_failure: true # @todo dont
+  allow_failure: true # @todo dont allow failure when/if we drop Centos8 and switch to Stream
 
 build_c8:
   stage: build:rpm
@@ -885,7 +885,6 @@ debian_bionic_artifacts:
     - docker_node
     - publish
 
-# @todo are two debian_<dist>_artifacts even needed? Check
 debian_focal_artifacts:
   stage: publish
   image: ubuntu:focal
@@ -907,7 +906,6 @@ debian_focal_artifacts:
   tags:
     - docker_node
     - publish
-  when: manual
 
 debian_artifacts_volume:
   stage: publish
