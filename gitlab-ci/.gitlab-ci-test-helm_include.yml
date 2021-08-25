@@ -165,6 +165,22 @@ helm_fusex:
 #   - job: cc7_docker_image
 #     artifacts: false
 
+
+helm_fusex_ub_focal:
+  extends: .helm_fusex_test_template
+  variables:
+    CLI_BASETAG: "ubuntu_focal_client_"
+# needs:
+#   - job: cc7_docker_image
+#     artifacts: false
+#  - job: ubuntu_focal_docker_image
+#    artifacts: false
+  only:
+    - schedules
+    - tags
+  allow_failure: true
+  retry: 1
+
 helm_rtb_clone:
   stage: test
   image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.13.5
