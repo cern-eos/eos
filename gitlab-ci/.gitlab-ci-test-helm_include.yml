@@ -87,9 +87,9 @@ helm_cbox:
     expire_in: 3 days
     paths:
       - eos-logs-${CI_JOB_ID}/
-#  needs:
-#    - job: cc7_docker_image
-#      artifacts: false
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
 
 helm_cnvrt_fsck:
   stage: test
@@ -115,9 +115,9 @@ helm_cnvrt_fsck:
     expire_in: 3 days
     paths:
       - eos-logs-${CI_JOB_ID}/
-#  needs:
-#    - job: cc7_docker_image
-#      artifacts: false
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
 
 .helm_fusex_test_template:
   stage: test
@@ -159,20 +159,20 @@ helm_cnvrt_fsck:
 
 helm_fusex:
   extends: .helm_fusex_test_template
-# needs:
-#   - job: cc7_docker_image
-#     artifacts: false
+  needs:
+   - job: cc7_docker_image
+     artifacts: false
 
 
 helm_fusex_ub_focal:
   extends: .helm_fusex_test_template
   variables:
     CLI_BASETAG: "ubuntu_focal_client_"
-# needs:
-#   - job: cc7_docker_image
-#     artifacts: false
-#  - job: ubuntu_focal_docker_image
-#    artifacts: false
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
+    - job: ubuntu_focal_docker_image
+      artifacts: false
   only:
     - schedules
     - tags
@@ -201,9 +201,9 @@ helm_rtb_clone:
     expire_in: 3 days
     paths:
       - eos-logs-${CI_JOB_ID}/
-#  needs:
-#    - job: cc7_docker_image
-#      artifacts: false
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
   allow_failure: true
 
 helm_stress:
@@ -221,9 +221,9 @@ helm_stress:
     expire_in: 3 days
     paths:
       - eos-logs-${CI_JOB_ID}/
-#  needs:
-#    - job: cc7_docker_image
-#      artifacts: false
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
   # @todo(esindril) remove in eos5 once we have grid-hammer built with XRootD5
   allow_failure: true
 
@@ -244,17 +244,17 @@ helm_stress:
 
 helm_system:
   extends: .helm_system_test_template
-#  needs:
-#    - job: cc7_docker_image
-#      artifacts: false
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
 
 helm_system_c8:
   extends: .helm_system_test_template
   variables:
     BASETAG: "c8_"
-#  needs:
-#    - job: c8_docker_image
-#      artifacts: false
+  needs:
+    - job: c8_docker_image
+      artifacts: false
   # @todo make it centos stream 8 and drop c8
   only:
     - schedules
@@ -267,9 +267,9 @@ helm_system_c8:
   extends: .helm_system_test_template
   variables:
     BASETAG: "xrd_testing_"
-#  needs:
-#    - job: cc7_xrd_testing_docker_image
-#      artifacts: false
+  needs:
+    - job: cc7_xrd_testing_docker_image
+      artifacts: false
   only:
     - schedules
   allow_failure: true
