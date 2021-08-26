@@ -194,66 +194,6 @@ helm_fusex_ub_focal:
   allow_failure: true
   retry: 1
 
-.helm_fusex_test_template:
-  stage: test
-  image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.13.5
-  <<: *helm_before_script_template
-  script:
-    - source ./gitlab-ci/utilities_func_for_tests.sh --type k8s $K8S_NAMESPACE
-    # prepare mountpoints
-    - kubectl exec $client1_pod -- bash -c "sed -i \"s/eos-mgm1.eoscluster.cern.ch/eos-mgm.$K8S_NAMESPACE.svc.cluster.local/g\" /etc/eos/fuse.mount-1.conf"
-    - kubectl exec $client1_pod -- bash -c "sed -i \"s/eos-mgm1.eoscluster.cern.ch/eos-mgm.$K8S_NAMESPACE.svc.cluster.local/g\" /etc/eos/fuse.mount-2.conf"
-    - exec_cmd eos-cli1 'atd; at now <<< "mkdir -p /eos1/ && mount -t fuse eosxd -ofsname=mount-1 /eos1/; mkdir -p /eos2/ && mount -t fuse eosxd -ofsname=mount-2 /eos2/;"'
-    - exec_cmd eos-cli1 'count=0; while [[ $count -le 10 ]] && ( [[ ! -d /eos1/dockertest/ ]] || [[ ! -d /eos2/dockertest/ ]] ); do echo "Wait for mount... $count"; (( count++ )); sleep 1; done;'
-    # the eos-user user gets his keytab ...
-    - kubectl exec $client1_pod -- su eos-user -c "echo $TEST_ADMINPRINC_PASSWORD | kadmin -r $TEST_REALM -p $TEST_ADMINPRINC_NAME/admin ktadd -k /tmp/eos-user.keytab eos-user"
-    # ... and uses it to auth. @note eos-user needs to have KRB5CCNAME set. KRB5CCNAME takes precedence over the kuberos default_ccache_name (see krb5.conf).
-    - exec_cmd eos-cli1 'echo -e "export KRB5CCNAME=FILE:/tmp/krb5cc_$(id -u eos-user)" >> ~/.bashrc'
-    - exec_cmd eos-cli1 'su eos-user -c "kinit eos-user -k -t /tmp/eos-user.keytab && klist"'
-    # run the fusex-benchmark test
-    - kubectl exec eos-mgm-0 -- eos chmod 2777 /eos/dockertest
-    - exec_cmd eos-cli1  'su eos-user -c "mkdir -p /eos1/dockertest/fusex_tests/ && cd /eos1/dockertest/fusex_tests/ && fusex-benchmark"'
-    # download and launch the ci tests
-    - exec_cmd eos-cli1 'git clone https://gitlab.cern.ch/dss/eosclient-tests.git'
-    # @todo(esindril): run "all" tests in schedule mode once these are properly supported
-    # if [[ "$CI_PIPELINE_SOURCE" == "schedule" ]];
-    # then
-    #   exec_cmd eos-mgm1 'eos vid add gateway "eos-cli1.eos-cli1.${K8S_NAMESPACE}.svc.cluster.local" unix';
-    #   exec_cmd eos-cli1 'env EOS_FUSE_NO_ROOT_SQUASH=1 python /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" ci';
-    # fi
-    # until then just run the "ci" tests
-    - exec_cmd eos-cli1 'cd eosclient-tests; for n in prepare/*.sh; do /bin/bash $n prepare; done'
-    - exec_cmd eos-cli1 'su eos-user -c "python2 /eosclient-tests/run.py --workdir=\"/eos1/dockertest /eos2/dockertest\" ci"'
-    - exec_cmd eos-cli1 'cd eosclient-tests; for n in prepare/*.sh; do /bin/bash $n cleanup; done'
-  <<: *helm_after_script_template
-  artifacts:
-    when: on_failure
-    expire_in: 3 days
-    paths:
-      - eos-logs-${CI_JOB_ID}/
-
-helm_fusex:
-  extends: .helm_fusex_test_template
-  needs:
-   - job: cc7_docker_image
-     artifacts: false
-
-
-helm_fusex_ub_focal:
-  extends: .helm_fusex_test_template
-  variables:
-    CLI_BASETAG: "ubuntu_focal_client_"
-  needs:
-    - job: cc7_docker_image
-      artifacts: false
-    - job: ubuntu_focal_docker_image
-      artifacts: false
-  only:
-    - schedules
-    - tags
-  allow_failure: true
-  retry: 1
-
 helm_rtb_clone:
   stage: test
   image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.13.5
