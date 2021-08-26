@@ -60,7 +60,7 @@
       rm -rf kuberos/ eos-charts/
 
 
-helm_cbox:
+.helm_cbox_test_template:
   stage: test
   image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.13.5
   <<: *helm_before_script_template
@@ -87,9 +87,24 @@ helm_cbox:
     expire_in: 3 days
     paths:
       - eos-logs-${CI_JOB_ID}/
+
+helm_cbox:
+  extends: .helm_cbox_test_template
   needs:
     - job: cc7_docker_image
       artifacts: false
+
+helm_cbox_cs8:
+  extends: .helm_cbox_test_template
+  variables:
+    BASETAG: "cs8_"
+  needs:
+    - job: cs8_docker_image
+      artifacts: false
+  only:
+    - schedules
+    - tags
+  allow_failure: true
 
 helm_cnvrt_fsck:
   stage: test
@@ -162,7 +177,6 @@ helm_fusex:
   needs:
    - job: cc7_docker_image
      artifacts: false
-
 
 helm_fusex_ub_focal:
   extends: .helm_fusex_test_template
@@ -248,14 +262,13 @@ helm_system:
     - job: cc7_docker_image
       artifacts: false
 
-helm_system_c8:
+helm_system_cs8:
   extends: .helm_system_test_template
   variables:
-    BASETAG: "c8_"
+    BASETAG: "cs8_"
   needs:
-    - job: c8_docker_image
+    - job: cs8_docker_image
       artifacts: false
-  # @todo make it centos stream 8 and drop c8
   only:
     - schedules
     - tags
