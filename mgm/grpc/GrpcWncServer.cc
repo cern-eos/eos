@@ -7,7 +7,6 @@
 //-----------------------------------------------------------------------------
 #include "GrpcWncServer.hh"
 //-----------------------------------------------------------------------------
-#include "common/Logging.hh"
 #include "GrpcServer.hh"
 #include "GrpcWncInterface.hh"
 #include "mgm/Macros.hh"
@@ -34,103 +33,135 @@ class WncService final : public EosWnc::Service
                        eos::console::ReplyProto* reply)
   {
     std::string command;
-    switch(request->command_case()) {
-      case eos::console::RequestProto::kAccess:
-        command = "Access";
-        break;
-      case eos::console::RequestProto::kAcl:
-        command = "Acl";
-        break;
-      case eos::console::RequestProto::kAttr:
-        command = "Attr";
-        break;
-      case eos::console::RequestProto::kChmod:
-        command = "Chmod";
-        break;
-      case eos::console::RequestProto::kChown:
-        command = "Chown";
-        break;
-      case eos::console::RequestProto::kConfig:
-        command = "Config";
-        break;
-      case eos::console::RequestProto::kDebug:
-        command = "Debug";
-        break;
-      case eos::console::RequestProto::kFile:
-        command = "File";
-        break;
-      case eos::console::RequestProto::kFileinfo:
-        command = "Fileinfo";
-        break;
-      case eos::console::RequestProto::kFs:
-        command = "Fs";
-        break;
-      case eos::console::RequestProto::kFsck:
-        command = "Fsck";
-        break;
-      case eos::console::RequestProto::kGroup:
-        command = "Group";
-        break;
-      case eos::console::RequestProto::kIo:
-        command = "Io";
-        break;
-      case eos::console::RequestProto::kMkdir:
-        command = "Mkdir";
-        break;
-      case eos::console::RequestProto::kMv:
-        command = "Mv";
-        break;
-      case eos::console::RequestProto::kNode:
-        command = "Node";
-        break;
-      case eos::console::RequestProto::kNs:
-        command = "Ns";
-        break;
-      case eos::console::RequestProto::kQuota:
-        command = "Quota";
-        break;
-      case eos::console::RequestProto::kRecycle:
-        command = "Recycle";
-        break;
-      case eos::console::RequestProto::kRm:
-        command = "Rm";
-        break;
-      case eos::console::RequestProto::kRmdir:
-        command = "Rmdir";
-        break;
-      case eos::console::RequestProto::kRoute:
-        command = "Route";
-        break;
-      case eos::console::RequestProto::kSpace:
-        command = "Space";
-        break;
-      case eos::console::RequestProto::kStagerRm:
-        command = "StagerRm";
-        break;
-      case eos::console::RequestProto::kStat:
-        command = "Stat";
-        break;
-      case eos::console::RequestProto::kTouch:
-        command = "Touch";
-        break;
-      case eos::console::RequestProto::kTransfer:
-        command = "Transfer";
-        break;
-      case eos::console::RequestProto::kVersion:
-        command = "Version";
-        break;
-      case eos::console::RequestProto::kVid:
-        command = "Vid";
-        break;
-      case eos::console::RequestProto::kWho:
-        command = "Who";
-        break;
-      case eos::console::RequestProto::kWhoami:
-        command = "Whoami";
-        break;
-      default:
-        command = "ping";
-        break;
+
+    switch (request->command_case()) {
+    case eos::console::RequestProto::kAccess:
+      command = "Access";
+      break;
+
+    case eos::console::RequestProto::kAcl:
+      command = "Acl";
+      break;
+
+    case eos::console::RequestProto::kAttr:
+      command = "Attr";
+      break;
+
+    case eos::console::RequestProto::kChmod:
+      command = "Chmod";
+      break;
+
+    case eos::console::RequestProto::kChown:
+      command = "Chown";
+      break;
+
+    case eos::console::RequestProto::kConfig:
+      command = "Config";
+      break;
+
+    case eos::console::RequestProto::kDebug:
+      command = "Debug";
+      break;
+
+    case eos::console::RequestProto::kFile:
+      command = "File";
+      break;
+
+    case eos::console::RequestProto::kFileinfo:
+      command = "Fileinfo";
+      break;
+
+    case eos::console::RequestProto::kFs:
+      command = "Fs";
+      break;
+
+    case eos::console::RequestProto::kFsck:
+      command = "Fsck";
+      break;
+
+    case eos::console::RequestProto::kGroup:
+      command = "Group";
+      break;
+
+    case eos::console::RequestProto::kIo:
+      command = "Io";
+      break;
+
+    case eos::console::RequestProto::kMkdir:
+      command = "Mkdir";
+      break;
+
+    case eos::console::RequestProto::kMv:
+      command = "Mv";
+      break;
+
+    case eos::console::RequestProto::kNode:
+      command = "Node";
+      break;
+
+    case eos::console::RequestProto::kNs:
+      command = "Ns";
+      break;
+
+    case eos::console::RequestProto::kQuota:
+      command = "Quota";
+      break;
+
+    case eos::console::RequestProto::kRecycle:
+      command = "Recycle";
+      break;
+
+    case eos::console::RequestProto::kRm:
+      command = "Rm";
+      break;
+
+    case eos::console::RequestProto::kRmdir:
+      command = "Rmdir";
+      break;
+
+    case eos::console::RequestProto::kRoute:
+      command = "Route";
+      break;
+
+    case eos::console::RequestProto::kSpace:
+      command = "Space";
+      break;
+
+    case eos::console::RequestProto::kStagerRm:
+      command = "StagerRm";
+      break;
+
+    case eos::console::RequestProto::kStat:
+      command = "Stat";
+      break;
+
+    case eos::console::RequestProto::kTouch:
+      command = "Touch";
+      break;
+
+    case eos::console::RequestProto::kTransfer:
+      command = "Transfer";
+      break;
+
+    case eos::console::RequestProto::kVersion:
+      command = "Version";
+      break;
+
+    case eos::console::RequestProto::kVid:
+      command = "Vid";
+      break;
+
+    case eos::console::RequestProto::kWho:
+      command = "Who";
+      break;
+
+    case eos::console::RequestProto::kWhoami:
+      command = "Whoami";
+      break;
+
+    default:
+      command = "ping";
+      break;
     }
 
     eos_static_debug("eos-wnc request from peer=%s IP=%s DN=%s token=%s command='%s'",
@@ -139,11 +170,8 @@ class WncService final : public EosWnc::Service
                      GrpcServer::DN(context).c_str(),
                      request->auth().authkey().c_str(),
                      command.c_str());
-
     eos::common::VirtualIdentity vid;
-
     GrpcServer::Vid(context, vid, request->auth().authkey());
-
     WAIT_BOOT;
     return GrpcWncInterface::ExecCmd(vid, request, reply);
   }
@@ -154,16 +182,20 @@ class WncService final : public EosWnc::Service
                        grpc::ServerWriter<eos::console::StreamReplyProto>* writer)
   {
     std::string command;
-    switch(request->command_case()) {
-      case eos::console::RequestProto::kList:
-        if (request->list().cmd() == eos::console::LIST_CMD::LS)
-          command = "Ls";
-        else if (request->list().cmd() == eos::console::LIST_CMD::FIND)
-          command = "Find";
-        break;
-      default:
-        command = "unknown";
-        break;
+
+    switch (request->command_case()) {
+    case eos::console::RequestProto::kList:
+      if (request->list().cmd() == eos::console::LIST_CMD::LS) {
+        command = "Ls";
+      } else if (request->list().cmd() == eos::console::LIST_CMD::FIND) {
+        command = "Find";
+      }
+
+      break;
+
+    default:
+      command = "unknown";
+      break;
     }
 
     eos_static_debug("eos-wnc request from peer=%s IP=%s DN=%s token=%s command='%s'",
@@ -172,11 +204,8 @@ class WncService final : public EosWnc::Service
                      GrpcServer::DN(context).c_str(),
                      request->auth().authkey().c_str(),
                      command.c_str());
-
     eos::common::VirtualIdentity vid;
-
     GrpcServer::Vid(context, vid, request->auth().authkey());
-
     WAIT_BOOT;
     return GrpcWncInterface::ExecStreamCmd(vid, request, writer);
   }
@@ -191,6 +220,7 @@ void
 GrpcWncServer::RunWnc(ThreadAssistant& assistant) noexcept
 {
 #ifdef EOS_GRPC
+
   if (getenv("EOS_MGM_WNC_SSL_CERT") &&
       getenv("EOS_MGM_WNC_SSL_KEY") &&
       getenv("EOS_MGM_WNC_SSL_CA")) {
@@ -245,11 +275,9 @@ GrpcWncServer::RunWnc(ThreadAssistant& assistant) noexcept
   wncBuilder.RegisterService(&wncService);
   mWncServer = wncBuilder.BuildAndStart();
   eos_static_info("gRPC server for EOS-wnc is running on port %i.", mWncPort);
-
   /*WARNING: The server must be either shutting down or
    *some other thread must call a Shutdown for Wait function to ever return.*/
   mWncServer->Wait();
-
 #else
   (void) mWncPort;
   (void) mSSL;

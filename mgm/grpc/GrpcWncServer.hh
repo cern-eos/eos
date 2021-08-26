@@ -7,6 +7,7 @@
 
 //-----------------------------------------------------------------------------
 #include "common/AssistedThread.hh"
+#include "common/Logging.hh"
 #include "common/Mapping.hh"
 #include "mgm/Namespace.hh"
 //-----------------------------------------------------------------------------
@@ -49,9 +50,12 @@ public:
   virtual ~GrpcWncServer()
   {
 #ifdef EOS_GRPC
+
     if (mWncServer) {
+      eos_static_info("%s", "msg=\"stopping gRPC server for EOS-wnc\"");
       mWncServer->Shutdown();
     }
+
 #endif
     mThread.join();
   }
