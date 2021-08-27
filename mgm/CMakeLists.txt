@@ -254,6 +254,10 @@ add_library(
   http/webdav/PropFindResponse.cc
   http/webdav/PropPatchResponse.cc
   http/webdav/LockResponse.cc
+  http/rest-api/RestHandler.cc
+  http/rest-api/resources/Resource.cc
+  http/rest-api/resources/ResourceFactory.cc
+  http/rest-api/controllers/ControllerFactory.cc
   geotree/SchedulingTreeTest.cc
   geotree/SchedulingSlowTree.cc
   geotree/SchedulingTreeCommon.cc
