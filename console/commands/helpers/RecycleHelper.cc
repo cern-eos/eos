@@ -42,7 +42,7 @@ RecycleHelper::CheckDateFormat(const std::string& sdate) const
     }
 
     // All tokens must be numeric
-    for (const auto token : tokens) {
+    for (const auto& token : tokens) {
       try {
         (void) std::stoi(token);
       } catch (...) {
