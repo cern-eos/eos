@@ -120,7 +120,7 @@ PathRouting::Reroute(const char* inpath, const char* ininfo,
   // tags have priorities.
   std::list<std::string> tags {"eos.route", "mgm.path", "mgm.quota.space"};
 
-  for (const auto tag : tags) {
+  for (const auto& tag : tags) {
     auto it = param.find(tag);
 
     if (it != param.end() && it->second.length()) {

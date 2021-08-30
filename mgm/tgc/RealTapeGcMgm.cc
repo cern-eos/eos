@@ -310,7 +310,7 @@ RealTapeGcMgm::getSpaces() const
 
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
-  for (const auto nameAndSpace : FsView::gFsView.mSpaceView) {
+  for (const auto& nameAndSpace : FsView::gFsView.mSpaceView) {
     if (0 != spaces.count(nameAndSpace.first)) {
       std::ostringstream msg;
       msg << __FUNCTION__ << " failed: Detected two EOS spaces with the same name: space=" <<

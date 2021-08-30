@@ -3324,7 +3324,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
           auto attrMap = md->mutable_attr();
           auto pattrMap = pmd->attr();
 
-          for (auto const it : pattrMap) {
+          for (const auto& it : pattrMap) {
             eos_static_debug("adding xattr[%s]=%s", it.first.c_str(), it.second.c_str());
             (*attrMap)[it.first] = it.second;
           }
