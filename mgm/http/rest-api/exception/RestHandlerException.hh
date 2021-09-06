@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: StageResource.cc
+// File: RestHandlerException.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,8 +21,20 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "StageResource.hh"
 
-EOSMGMNAMESPACE_BEGIN
+#ifndef EOS_RESTHANDLEREXCEPTION_HH
+#define EOS_RESTHANDLEREXCEPTION_HH
 
-EOSMGMNAMESPACE_END
+#include "mgm/Namespace.hh"
+#include "common/exception/Exception.hh"
+
+EOSMGMRESTNAMESPACE_BEGIN
+
+class RestHandlerException : public common::Exception {
+public:
+  RestHandlerException(const std::string & exceptionMsg);
+};
+
+EOSMGMRESTNAMESPACE_END
+
+#endif // EOS_RESTHANDLEREXCEPTION_HH

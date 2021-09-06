@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: Resource.hh
+// File: RestHandler.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,22 +21,37 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_RESOURCE_HH
-#define EOS_RESOURCE_HH
+#ifndef EOS_RESTHANDLER_HH
+#define EOS_RESTHANDLER_HH
 
 #include "mgm/Namespace.hh"
+#include <memory>
 #include "common/http/HttpResponse.hh"
+#include "common/http/HttpRequest.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class Resource {
+/**
+ * This class allows to handle REST requests.
+ */
+class RestHandler {
 public:
+  /**
+   * Handles the request given in parameter and returns a response
+   * @param request the request to handle
+   * @return A pointer to an HttpResponse object that will contain the JSON response that will be returned to the client
+   */
   virtual common::HttpResponse * handleRequest(common::HttpRequest * request) = 0;
-  inline void setVersion(const std::string & version){ mVersion = version; }
-protected:
-  std::string mVersion;
+  /**
+   * Returns true if the requestURL passed in parameter should trigger an API handling,
+   * false otherwise
+   * @param requestUrl
+   * @return true if the requestURL passed in parameter should trigger an API handling,
+   * false otherwise
+   */
+  virtual bool isRestRequest(const std::string & requestUrl) = 0;
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_RESOURCE_HH
+#endif // EOS_RESTHANDLER_HH

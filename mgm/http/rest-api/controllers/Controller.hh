@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: Resource.hh
+// File: Controller.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,22 +21,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_RESOURCE_HH
-#define EOS_RESOURCE_HH
+#ifndef EOS_CONTROLLER_HH
+#define EOS_CONTROLLER_HH
 
 #include "mgm/Namespace.hh"
-#include "common/http/HttpResponse.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class Resource {
-public:
-  virtual common::HttpResponse * handleRequest(common::HttpRequest * request) = 0;
-  inline void setVersion(const std::string & version){ mVersion = version; }
-protected:
-  std::string mVersion;
+class Controller {
+
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_RESOURCE_HH
+#endif // EOS_CONTROLLER_HH

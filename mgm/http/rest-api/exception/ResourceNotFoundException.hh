@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: Resource.hh
+// File: ResourceNotFoundException.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,22 +21,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_RESOURCE_HH
-#define EOS_RESOURCE_HH
+#ifndef EOS_RESOURCENOTFOUNDEXCEPTION_HH
+#define EOS_RESOURCENOTFOUNDEXCEPTION_HH
 
 #include "mgm/Namespace.hh"
-#include "common/http/HttpResponse.hh"
+#include "mgm/http/rest-api/exception/RestHandlerException.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class Resource {
+class ResourceNotFoundException : public RestHandlerException {
 public:
-  virtual common::HttpResponse * handleRequest(common::HttpRequest * request) = 0;
-  inline void setVersion(const std::string & version){ mVersion = version; }
-protected:
-  std::string mVersion;
+  ResourceNotFoundException(const std::string & exceptionMsg);
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_RESOURCE_HH
+#endif // EOS_RESOURCENOTFOUNDEXCEPTION_HH
