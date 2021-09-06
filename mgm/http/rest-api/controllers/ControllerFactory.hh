@@ -25,18 +25,19 @@
 #define EOS_CONTROLLERFACTORY_HH
 
 #include "mgm/Namespace.hh"
+#include <string>
+#include "mgm/http/rest-api/controllers/Controller.hh"
 
-EOSMGMNAMESPACE_BEGIN
+EOSMGMRESTNAMESPACE_BEGIN
 
 /**
  * Factory of REST API controllers.
- *
- * This class knows about all the resources available
  */
 class ControllerFactory {
-
+public:
+  static Controller * getStageControllerV1();
 };
 
-EOSMGMNAMESPACE_END
+EOSMGMRESTNAMESPACE_END
 
 #endif // EOS_CONTROLLERFACTORY_HH

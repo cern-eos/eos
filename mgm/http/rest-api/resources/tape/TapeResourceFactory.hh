@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: StageResource.hh
+// File: TapeResourceFactory.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,17 +21,25 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-
-#ifndef EOS_STAGERESOURCE_HH
-#define EOS_STAGERESOURCE_HH
+#ifndef EOS_TAPERESOURCEFACTORY_HH
+#define EOS_TAPERESOURCEFACTORY_HH
 
 #include "mgm/Namespace.hh"
+#include "mgm/http/rest-api/resources/ResourceFactory.hh"
+#include "mgm/http/rest-api/resources/tape/stage/StageResource.hh"
 
-EOSMGMNAMESPACE_BEGIN
+EOSMGMRESTNAMESPACE_BEGIN
 
-class StageResource {
+class TapeResourceFactory : public ResourceFactory {
+public:
+  Resource * createResource(const std::string & resourceName) override;
+private:
+  static Resource * createStageResource();
+
+  const static std::map<std::string,ResourceFactory::resource_factory_method_t> cResourceStrToFactoryMethod;
+  inline static const std::string cStageResourceName = "stage";
 };
 
-EOSMGMNAMESPACE_END
+EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_STAGERESOURCE_HH
+#endif // EOS_TAPERESOURCEFACTORY_HH

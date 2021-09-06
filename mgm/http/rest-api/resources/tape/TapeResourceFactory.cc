@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: Resource.hh
+// File: TapeResourceFactory.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,22 +21,30 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_RESOURCE_HH
-#define EOS_RESOURCE_HH
-
-#include "mgm/Namespace.hh"
-#include "common/http/HttpResponse.hh"
+#include "TapeResourceFactory.hh"
+#include "mgm/http/rest-api/resources/tape/stage/StageResource.hh"
+#include "mgm/http/rest-api/exception/ResourceNotFoundException.hh"
+#include <sstream>
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class Resource {
-public:
-  virtual common::HttpResponse * handleRequest(common::HttpRequest * request) = 0;
-  inline void setVersion(const std::string & version){ mVersion = version; }
-protected:
-  std::string mVersion;
+const std::map<std::string, ResourceFactory::resource_factory_method_t> TapeResourceFactory::cResourceStrToFactoryMethod = {
+    {cStageResourceName,&TapeResourceFactory::createStageResource}
 };
 
-EOSMGMRESTNAMESPACE_END
+Resource * TapeResourceFactory::createStageResource(){
+  return new StageResource();
+}
 
-#endif // EOS_RESOURCE_HH
+Resource * TapeResourceFactory::createResource(const std::string & resourceName){
+  try {
+    return cResourceStrToFactoryMethod.at(resourceName)();
+  } catch (const std::out_of_range &ex){
+    std::stringstream ss;
+    ss << "The resource " << resourceName << " has not been found";
+    throw ResourceNotFoundException(ss.str());
+  }
+}
+
+
+EOSMGMRESTNAMESPACE_END

@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: Resource.hh
+// File: StageResource.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,22 +21,26 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_RESOURCE_HH
-#define EOS_RESOURCE_HH
+
+#ifndef EOS_STAGERESOURCE_HH
+#define EOS_STAGERESOURCE_HH
 
 #include "mgm/Namespace.hh"
-#include "common/http/HttpResponse.hh"
+#include "mgm/http/rest-api/resources/Resource.hh"
+#include "mgm/http/rest-api/controllers/Controller.hh"
+#include <functional>
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class Resource {
+class StageResource : public Resource {
 public:
-  virtual common::HttpResponse * handleRequest(common::HttpRequest * request) = 0;
-  inline void setVersion(const std::string & version){ mVersion = version; }
-protected:
-  std::string mVersion;
+  StageResource();
+  virtual common::HttpResponse * handleRequest(common::HttpRequest * request) override;
+private:
+  virtual Controller * getController(const std::string & version);
+  static const std::map<std::string,std::function<Controller *()>> mVersionToControllerFactoryMethod;
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_RESOURCE_HH
+#endif // EOS_STAGERESOURCE_HH
