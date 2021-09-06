@@ -341,6 +341,13 @@ XrdFstOfs::XrdFstOfs() :
     (void) signal(SIGPROF, xrdfstofs_coverage);
   }
 
+  if (getenv("EOS_FST_ENABLE_STACKTRACE")) {
+    // Add stacktrace handler
+    (void) signal(SIGSEGV, xrdfstofs_stacktrace);
+    (void) signal(SIGABRT, xrdfstofs_stacktrace);
+    (void) signal(SIGBUS, xrdfstofs_stacktrace);
+  }
+
   // Initialize the google sparse hash maps
   gOFS.WNoDeleteOnCloseFid.clear_deleted_key();
   gOFS.WNoDeleteOnCloseFid.set_deleted_key(0);
