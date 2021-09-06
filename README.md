@@ -17,6 +17,16 @@ protocol, a **POSIX-like FUSE** client or **HTTP(S) & WebDav** protocol.
 The most up to date documentation can be found at:
 http://eos-docs.web.cern.ch/eos-docs/
 
+You will need to install some packages in order to generate them:
+
+```bash
+## RHEL instructions
+# TODO
+
+## Ubuntu 20.04 instructions
+sudo apt install python3-sphinx doxygen
+pip3 install solar_theme
+```
 
 **Doxygen** documentation of the API is available in the ``./doc`` directory
  and can be generated using the following command:
@@ -30,13 +40,14 @@ doxygen
 # file:///eos_git_clone_dir/doc/html/index.html
 ```
 
-**Sphinx** documentation of installation and application is also in the ``./doc'' directory
-This is what is published in https://eos-docs.web.cern.ch
-Documentation can be generated using the following command
+**Sphinx** documentation of installation and application is also in the ``./doc'' directory.
+This is what is published in https://eos-docs.web.cern.ch .
+Documentation can be generated using the following command:
 ```bash
 cd doc
 make html
-# Documentation can be found in build/html/index.html
+# Documentation can be found in build/html/index.html which can be viewed in a browser
+# The make interface can output types as well.
 
 ```
 

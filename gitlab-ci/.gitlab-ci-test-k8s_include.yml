@@ -1,0 +1,170 @@
+
+k8s_system:
+  extends: .dock8s_system_test_template
+  image: alpine/k8s:1.18.2
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
+  retry: 1
+  tags:
+    - docker_node
+    - k8s
+
+k8s_cnvrt_fsck:
+  extends: .dock8s_cnvrt_fsck_template
+  image: alpine/k8s:1.18.2
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
+  retry: 1
+  tags:
+    - docker_node
+    - k8s
+
+k8s_rtb_clone:
+  extends: .dock8s_rtb_clone_template
+  image: alpine/k8s:1.18.2
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
+  retry: 1
+  allow_failure: true
+  tags:
+    - docker_node
+    - k8s
+
+k8s_fusex:
+  extends: .dock8s_fusex_test_template
+  image: alpine/k8s:1.18.2
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
+  retry: 1
+  allow_failure: true
+  tags:
+    - docker_node
+    - k8s
+
+k8s_cbox:
+  extends: .dock8s_cbox_test_template
+  image: alpine/k8s:1.18.2
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
+  tags:
+    - docker_node
+    - k8s
+
+k8s_stress:
+  stage: test
+  image: alpine/k8s:1.18.2
+  before_script:
+    - !reference [.dock8s_before_script_template, before_script]
+#  <<: *dock8s_before_script_template
+  script:
+    - TEST_URL="eos-mgm1.eos-mgm1.$K8S_NAMESPACE.svc.cluster.local"
+    - exec_cmd eos-mgm1 "yum install -y grid-hammer"
+    - exec_cmd eos-mgm1 "hammer-runner.py --strict-exit-code 1 --gitlab --url ${TEST_URL}//eos/dockertest/hammer/ --protocols xroot --threads 1 2 10 100 --operations write stat read delete --runs 3 --nfiles 10000"
+  after_script:
+    - !reference [.dock8s_after_script_template, after_script]
+#   <<: *dock8s_after_script_template
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
+  retry: 1
+  # @todo(esindril) remove in eos5 once we have grid-hammer built with XRootD5
+  allow_failure: true
+  tags:
+    - docker_node
+    - k8s
+
+# schedules ------------------------------
+
+k8s_system_c8:
+  extends: .dock8s_system_test_template
+  image: alpine/k8s:1.18.2
+  variables:
+    BASETAG: "c8_"
+  needs:
+    - job: c8_docker_image
+      artifacts: false
+  retry: 1
+  allow_failure: true
+  only:
+    - schedules
+    - tags
+  tags:
+    - docker_node
+    - k8s
+
+k8s_cbox_c8:
+  extends: .dock8s_cbox_test_template
+  image: alpine/k8s:1.18.2
+  variables:
+    BASETAG: "c8_"
+  needs:
+    - job: c8_docker_image
+      artifacts: false
+  allow_failure: true
+  only:
+    - schedules
+    - tags
+  tags:
+    - docker_node
+    - k8s
+
+k8s_fusex_ub_bionic:
+  extends: .dock8s_fusex_test_template
+  image: alpine/k8s:1.18.2
+  variables:
+    CLI_BASETAG: "ubuntu_bionic_client_"
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
+    - job: ubuntu_bionic_docker_image
+      artifacts: false
+  retry: 1
+  allow_failure: true
+  only:
+    - schedules
+    - tags
+  tags:
+    - docker_node
+    - k8s
+
+k8s_fusex_ub_focal:
+  extends: .dock8s_fusex_test_template
+  image: alpine/k8s:1.18.2
+  variables:
+    CLI_BASETAG: "ubuntu_focal_client_"
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
+    - job: ubuntu_focal_docker_image
+      artifacts: false
+  retry: 1
+  allow_failure: true
+  only:
+    - schedules
+    - tags
+  tags:
+    - docker_node
+    - k8s
+
+# @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
+# xt stands for xrd_testing. Must shorten to not hit HOST_NAME_MAX
+.k8s_system_xt:
+  extends: .dock8s_system_test_template
+  image: alpine/k8s:1.18.2
+  variables:
+    BASETAG: "xrd_testing_"
+  needs:
+    - job: cc7_xrd_testing_docker_image
+      artifacts: false
+  retry: 1
+  allow_failure: true
+  only:
+    - schedules
+  tags:
+    - docker_node
+    - k8s

@@ -15,22 +15,55 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
+``v4.8.61 Citrine``
+===================
+
+2021-08-21
+
+Bug
+----
+
+* Revert "COMMON: drop 'sudo' role after sudo mapping - fixes EOS-4781"
+
+
 ``v4.8.60 Citrine``
 ===================
 
-2021-07-27
+2021-08-11
 
 Bug
----
+----
 
+* [EOS-4480] - HA issue: GridFTP transfers with checksum testing are failing when
+  the DNS alias is not pointing towards the active MGM node
+* [EOS-4633] - 'eos' manpage is empty, rest is missing
+* [EOS-4683] - MGM LRU crash
+* [EOS-4690] - HA: transition to master crashes the future master
+* [EOS-4696] - eos config dump <name> does not work for backup configs
+* [EOS-4803] - FST node status not remaining offline when service is stopped
+* [EOS-4814] - Restore of a version does not work
+* [EOS-4818] - EOSAMS02 crash in DrainTransferJob
+* [EOS-4835] - Strange remdir unformatted lines...
+* [EOS-4843] - Wrong quota after a ns update_quotanode command
+* [EOS-4847] - group translation failing in EOSHOME for def-cg
 * [EOS-4779] FST: reduce file-local dead lock condition after parity computation error
 * [EOS-4835] MGM: fix ever growing '/' in remdir
 
-Improvements
+Improvement
 ------------
 
+* [EOS-4411] - disk health check for Linux DM multipath devices
+* [EOS-4586] - RFE" remove "pre-configuring default route" warning for fully-qualified instance+path
+* [EOS-4749] - Remove the extra-output display in eos rm command
+* [EOS-4783] - Size differs only in MGM [WIP in fsck dev]
+* [EOS-4784] - [rep_diff_n] and [rep_missing_n]; Overreplicated file, faulty replica was commited to MGM
+* [EOS-4838] - Check health status refinement
+* [EOS-4839] - Improve balancer shutdown to clean what it was balancing from the tracker queue
+* [EOS-4682] - MGM crash in LRU.hh:252 eos::MetadataProviderShard::retrieveFileMD
 * [EOS-4827] MGM: implement GRAB version functionality in GRPC
 * [EOS-4759] MGM: allow set space specific scheduling and iopriority parameter defaults
+
 
 ``v4.8.59 Citrine``
 ===================
@@ -47,6 +80,7 @@ Improvements
 
 * [EOS-4823] MGM: eosxd creations support now linked attributes describing file layouts etc.
 * [EOS-4825] COMMON: allow static mappping to local accounts from 'sub' using 'vid set map -oauth2 sub:xyz vuid:localuid'
+
 
 ``v4.8.58 Citrine``
 ===================
@@ -69,6 +103,7 @@ Improvements
 * [EOS-4746] MGM/CONSOLE/GRPC: support ACL positions
 * DOC: improvements of fsck,permission and policy documentation
 * [EOS-4805] MGM: implement negative ACLs for read/write/delete operations
+
 
 ``v4.8.57 Citrine``
 ===================

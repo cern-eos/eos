@@ -42,7 +42,7 @@ RecycleHelper::CheckDateFormat(const std::string& sdate) const
     }
 
     // All tokens must be numeric
-    for (const auto token : tokens) {
+    for (const auto& token : tokens) {
       try {
         (void) std::stoi(token);
       } catch (...) {
@@ -93,7 +93,7 @@ RecycleHelper::ParseCommand(const char* arg)
           ls->set_monitorfmt(true);
         } else if (soption == "-n") {
           ls->set_numericids(true);
-	} else {
+        } else {
           // This must be a date format
           if (!CheckDateFormat(soption)) {
             std::cerr << "error: \"" << soption << "\" does not respect the "
@@ -119,14 +119,16 @@ RecycleHelper::ParseCommand(const char* arg)
 
       if (soption == "-g") {
         purge->set_all(true);
-      } else if (soption =="-k") {
-	option = tokenizer.GetToken();
-	if (option) {
-	  purge->set_key(option);
-	} else {
-	  std::cerr << "error: you have to provide a key when using the -k option" << std::endl;
-	  return false;
-	}
+      } else if (soption == "-k") {
+        option = tokenizer.GetToken();
+
+        if (option) {
+          purge->set_key(option);
+        } else {
+          std::cerr << "error: you have to provide a key when using the -k option" <<
+                    std::endl;
+          return false;
+        }
       } else {
         if (!CheckDateFormat(soption)) {
           std::cerr << "error: \"" << soption << "\" does not respect the "
@@ -154,7 +156,7 @@ RecycleHelper::ParseCommand(const char* arg)
       } else if ((soption == "-r") || (soption == "--restore-versions")) {
         restore->set_restoreversions(true);
       }  else if (soption == "-p") {
-	restore->set_makepath(true);
+        restore->set_makepath(true);
       } else {
         // This must be the recycle-key
         restore->set_key(soption);

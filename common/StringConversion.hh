@@ -82,10 +82,9 @@ public:
                        std::vector<std::string>& tokens,
                        const std::string& delimiters = " ");
 
-
   // ---------------------------------------------------------------------------
   /**
-   * Tokenize a string accepting also empty members e.g. a||b is returning 3 fields
+   * Tokenize a string accepting also empty members e.g. a||b returns 3 fields
    *
    * @param str string to be tokenized
    * @param tokens  returned list of separated string tokens

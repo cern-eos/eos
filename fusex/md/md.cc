@@ -136,7 +136,7 @@ metad::connect(std::string zmqtarget, std::string zmqidentity,
     try {
       z_socket->connect(zmq_target);
       int linger = 0;
-      z_socket->setsockopt( ZMQ_LINGER, &linger, sizeof(linger));
+      z_socket->setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
       eos_static_notice("connected to %s", zmq_target.c_str());
       break;
     } catch (zmq::error_t& e) {
@@ -193,15 +193,16 @@ metad::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
       // if we have a cap and we listed this directory, we trust the child information
       // --------------------------------------------------
       if (pmd->local_children().count(
-				      eos::common::StringConversion::EncodeInvalidUTF8(name))) {
+            eos::common::StringConversion::EncodeInvalidUTF8(name))) {
         inode = pmd->local_children().at(
-					 eos::common::StringConversion::EncodeInvalidUTF8(name));
+                  eos::common::StringConversion::EncodeInvalidUTF8(name));
       } else {
-	if (pmd->local_enoent().count(name)) {
+        if (pmd->local_enoent().count(name)) {
           md = std::make_shared<mdx>();
           (*md)()->set_err(ENOENT);
           return md;
-	}
+        }
+
         // if we are still having the creator MD record, we can be sure, that we know everything about this directory
         if ((*pmd)()->creator() ||
             ((*pmd)()->type() == (*pmd)()->MDLS)) {
@@ -441,14 +442,16 @@ metad::mdx::dump()
   snprintf(sout, sizeof(sout),
            "ino=%#lx dev=%#lx mode=%#o nlink=%u uid=%05u gid=%05u rdev=%#lx "
            "size=%llu bsize=%lu blocks=%llu atime=%lu.%lu mtime=%lu.%lu ctime=%lu.%lu",
-           (unsigned long) (*this)()->id(), (unsigned long)0, (unsigned int) (*this)()->mode(),
-           (unsigned int) (*this)()->nlink(),
-           (unsigned int) (*this)()->uid(), (unsigned int) (*this)()->gid(), (unsigned long)0,
-           (unsigned long long) (*this)()->size(), (unsigned long) 4096,
-           (unsigned long long) (*this)()->size() / 512,
-           (unsigned long) (*this)()->atime(), (unsigned long) (*this)()->atime_ns(),
-           (unsigned long) (*this)()->mtime(), (unsigned long) (*this)()->mtime_ns(),
-           (unsigned long) (*this)()->ctime(), (unsigned long) (*this)()->ctime_ns());
+           (unsigned long)(*this)()->id(), (unsigned long)0,
+           (unsigned int)(*this)()->mode(),
+           (unsigned int)(*this)()->nlink(),
+           (unsigned int)(*this)()->uid(), (unsigned int)(*this)()->gid(),
+           (unsigned long)0,
+           (unsigned long long)(*this)()->size(), (unsigned long) 4096,
+           (unsigned long long)(*this)()->size() / 512,
+           (unsigned long)(*this)()->atime(), (unsigned long)(*this)()->atime_ns(),
+           (unsigned long)(*this)()->mtime(), (unsigned long)(*this)()->mtime_ns(),
+           (unsigned long)(*this)()->ctime(), (unsigned long)(*this)()->ctime_ns());
   return sout;
 }
 
@@ -488,7 +491,8 @@ metad::map_children_to_local(shared_md pmd)
   std::vector<std::string> names_to_delete;
 
   // we always merge remote contents, for changes our cap will be dropped
-  for (auto map = (*pmd)()->children().begin(); map != (*pmd)()->children().end(); ++map) {
+  for (auto map = (*pmd)()->children().begin(); map != (*pmd)()->children().end();
+       ++map) {
     if (EOS_LOGS_DEBUG) {
       eos_static_debug("translate %s [%#lx]",
                        eos::common::StringConversion::EncodeInvalidUTF8(map->first).c_str(),
@@ -498,14 +502,19 @@ metad::map_children_to_local(shared_md pmd)
     uint64_t remote_ino = map->second;
     uint64_t local_ino = inomap.forward(remote_ino);
 
-    if (EosFuse::Instance().Config().options.hide_versions && EosFuse::Instance().mds.supports_hideversion()) {
+    if (EosFuse::Instance().Config().options.hide_versions &&
+        EosFuse::Instance().mds.supports_hideversion()) {
       // check for version prefixes
-      if ( map->first.substr(0, strlen(EOS_COMMON_PATH_VERSION_FILE_PREFIX)) == EOS_COMMON_PATH_VERSION_FILE_PREFIX ) {
-	// check if there is actually a 'babysitting' reference file for this version, if now we display it!
-	std::string nvfile = map->first.substr( strlen(EOS_COMMON_PATH_VERSION_FILE_PREFIX ));
-	if ((*pmd)()->children().count(nvfile)) {
-	  continue;
-	}
+      if (map->first.substr(0,
+                            strlen(EOS_COMMON_PATH_VERSION_FILE_PREFIX)) ==
+          EOS_COMMON_PATH_VERSION_FILE_PREFIX) {
+        // check if there is actually a 'babysitting' reference file for this version, if now we display it!
+        std::string nvfile = map->first.substr(strlen(
+            EOS_COMMON_PATH_VERSION_FILE_PREFIX));
+
+        if ((*pmd)()->children().count(nvfile)) {
+          continue;
+        }
       }
     }
 
@@ -556,7 +565,7 @@ metad::map_children_to_local(shared_md pmd)
 void
 /* -------------------------------------------------------------------------- */
 metad::wait_upstream(fuse_req_t req,
-		     fuse_ino_t ino)
+                     fuse_ino_t ino)
 /* -------------------------------------------------------------------------- */
 {
   shared_md md;
@@ -648,7 +657,8 @@ metad::get(fuse_req_t req,
       return md;
     }
 
-    if (pmd && (pmd->cap_count() || (*pmd)()->creator()) && !pmd->needs_refresh() && !md->needs_refresh()) {
+    if (pmd && (pmd->cap_count() || (*pmd)()->creator()) && !pmd->needs_refresh() &&
+        !md->needs_refresh()) {
       eos_static_info("returning cap entry");
       return md;
     } else {
@@ -659,7 +669,8 @@ metad::get(fuse_req_t req,
       {
         XrdSysMutexHelper mLock(md->Locker());
 
-        if (((!listing) || (listing && (*md)()->type() == (*md)()->MDLS)) && (*md)()->md_ino() &&
+        if (((!listing) || (listing && (*md)()->type() == (*md)()->MDLS)) &&
+            (*md)()->md_ino() &&
             md->cap_count() && !md->needs_refresh()) {
           eos_static_info("returning cap entry via parent lookup cap-count=%d",
                           md->cap_count());
@@ -780,8 +791,9 @@ metad::get(fuse_req_t req,
       }
        */
       eos_static_info("ino=%016lx type=%d", (*md)()->md_ino(), (*md)()->type());
-      rc = mdbackend->getMD(req, (*md)()->md_ino(), listing ? (((*md)()->type() != (*md)()->MDLS)
-                            ? 0 : (*md)()->clock()) : (*md)()->clock(),
+      rc = mdbackend->getMD(req, (*md)()->md_ino(),
+                            listing ? (((*md)()->type() != (*md)()->MDLS)
+                                       ? 0 : (*md)()->clock()) : (*md)()->clock(),
                             contv, listing, authid);
     } else {
       if ((*md)()->id()) {
@@ -843,8 +855,7 @@ metad::get(fuse_req_t req,
       if (pmd && (*pmd)()->id()) {
         std::string encname = eos::common::StringConversion::EncodeInvalidUTF8(
                                 (*md)()->name());
-
-	XrdSysMutexHelper mLock(pmd->Locker());
+        XrdSysMutexHelper mLock(pmd->Locker());
 
         if (!pmd->local_children().count(encname) &&
             !pmd->get_todelete().count(encname) &&
@@ -909,8 +920,9 @@ metad::wait_flush(fuse_req_t req, metad::shared_md md)
   while (1) {
     if (md->WaitSync(1)) {
       if (has_flush((*md)()->id())) {
-	// if a deletion was issued, OP state is (*md)()->RM not (*md)()->NONE hence we would never leave this loop
-	continue;
+        // if a deletion was issued, OP state is (*md)()->RM not (*md)()->NONE
+        // hence we would never leave this loop
+        continue;
       }
 
       break;
@@ -962,7 +974,8 @@ metad::update(fuse_req_t req, shared_md md, std::string authid,
     }
   }
 
-  flushentry fe((*md)()->id(), authid, localstore ? mdx::LSTORE : mdx::UPDATE, req);
+  flushentry fe((*md)()->id(), authid, localstore ? mdx::LSTORE : mdx::UPDATE,
+                req);
   fe.bind();
   mdqueue[(*md)()->id()]++;
   mdflushqueue.push_back(fe);
@@ -1204,11 +1217,11 @@ metad::remove(fuse_req_t req, metad::shared_md pmd, metad::shared_md md,
   (*md)()->set_mtime_ns(ts.tv_nsec);
   md->setop_delete();
 
-  if ( EosFuse::Instance().Config().options.hide_versions && EosFuse::Instance().mds.supports_hideversion() ) {
+  if (EosFuse::Instance().Config().options.hide_versions &&
+      EosFuse::Instance().mds.supports_hideversion()) {
     // indicate the MGM to remove also all versions
     (*md)()->set_opflags(eos::fusex::md::DELETEVERSIONS);
   }
-
 
   std::string name = (*md)()->name();
   // avoid lock order violation
@@ -1276,9 +1289,9 @@ metad::mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md,
     }
 
     p2md->local_children()[eos::common::StringConversion::EncodeInvalidUTF8(
-									    newname)] = (*md)()->id();
+                             newname)] = (*md)()->id();
     p1md->local_children().erase(eos::common::StringConversion::EncodeInvalidUTF8(
-										  (*md)()->name()));
+                                   (*md)()->name()));
     (*p1md)()->set_nchildren((*p1md)()->nchildren() - 1);
     (*p1md)()->set_mtime(ts.tv_sec);
     (*p1md)()->set_mtime_ns(ts.tv_nsec);
@@ -1323,7 +1336,6 @@ metad::mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md,
     p2md->local_enoent().erase(newname); // remove a possible enoent entry
     (*md)()->set_name(newname);
     md->setop_update();
-
     (*p1md)()->set_mtime(ts.tv_sec);
     (*p1md)()->set_mtime_ns(ts.tv_nsec);
     (*p1md)()->clear_pmtime();
@@ -1391,7 +1403,7 @@ metad::dump_md(shared_md md, bool lock)
   }
 
   google::protobuf::util::MessageToJsonString(*((eos::fusex::md*)((*md)())),
-					      &jsonstring, options);
+      &jsonstring, options);
   char capcnt[16];
   snprintf(capcnt, sizeof(capcnt), "%d", md->cap_count());
   jsonstring += "\nlocal-children: {\n";
@@ -1591,7 +1603,7 @@ metad::setlk(fuse_req_t req, shared_md md, struct flock* lock, int sleep)
 
     // check that we have actually a lock for that before doing an upstream call
     for (auto it = md->LockTable().begin(); it != md->LockTable().end(); ++it) {
-      if (it->l_pid == (pid_t) (*md)()->flock().pid()) {
+      if (it->l_pid == (pid_t)(*md)()->flock().pid()) {
         backend_call = true;
       }
     }
@@ -1620,7 +1632,7 @@ metad::setlk(fuse_req_t req, shared_md md, struct flock* lock, int sleep)
       auto it = md->LockTable().begin();
 
       while (it != md->LockTable().end()) {
-        if (it->l_pid == (pid_t) (*md)()->flock().pid()) {
+        if (it->l_pid == (pid_t)(*md)()->flock().pid()) {
           it = md->LockTable().erase(it);
         } else {
           it++;
@@ -1786,9 +1798,9 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
     {
       if (!has_flush(ino)) {
         (*md)()->CopyFrom(cont.md_());
+        shared_md d_md = EosFuse::Instance().datas.retrieve_wr_md(ino);
 
-	shared_md d_md = EosFuse::Instance().datas.retrieve_wr_md(ino);
-	if (d_md) {
+        if (d_md) {
           // see if this file is open for write, because in that case
           // we have to keep the local size information and modification times
           (*md)()->set_size((*d_md)()->size());
@@ -1812,7 +1824,8 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
     (*md)()->set_pid(p_ino);
     (*md)()->set_id(ino);
     md->clear_refresh();
-    eos_static_info("store local pino=%016lx for %016lx", (*md)()->pid(), (*md)()->id());
+    eos_static_info("store local pino=%016lx for %016lx", (*md)()->pid(),
+                    (*md)()->id());
     inomap.insert(md_ino, ino);
     md->Locker().UnLock();
 
@@ -1885,27 +1898,27 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
             size_t local_size = (*md)()->size();
             uint64_t local_mtime = (*md)()->mtime();
             uint64_t local_mtime_ns = (*md)()->mtime_ns();
+            (*md)()->CopyFrom(map->second);
+            md->clear_refresh();
+            shared_md d_md = EosFuse::Instance().datas.retrieve_wr_md(ino);
 
-	    (*md)()->CopyFrom(map->second);
-	    md->clear_refresh();
+            if (d_md) {
+              // see if this file is open for write, because in that case
+              // we have to keep the local size information and modification times
+              (*md)()->set_size((*d_md)()->size());
+              (*md)()->set_mtime((*d_md)()->mtime());
+              (*md)()->set_mtime_ns((*d_md)()->mtime_ns());
+            } else {
+              if (has_flush(ino)) {
+                (*md)()->set_size(local_size);
+                (*md)()->set_mtime(local_mtime);
+                (*md)()->set_mtime_ns(local_mtime_ns);
+              }
+            }
 
-	    shared_md d_md = EosFuse::Instance().datas.retrieve_wr_md(ino);
-	    if (d_md) {
-	      // see if this file is open for write, because in that case
-	      // we have to keep the local size information and modification times
-	      (*md)()->set_size((*d_md)()->size());
-	      (*md)()->set_mtime((*d_md)()->mtime());
-	      (*md)()->set_mtime_ns((*d_md)()->mtime_ns());
-	    } else {
-	      if (has_flush(ino)) {
-		(*md)()->set_size(local_size);
-		(*md)()->set_mtime(local_mtime);
-		(*md)()->set_mtime_ns(local_mtime_ns);
-	      }
-	    }
-	    (*md)()->set_nchildren(md->local_children().size());
-	    // if this object was a listing type, keep that
-	    (*md)()->set_type(mdtype);
+            (*md)()->set_nchildren(md->local_children().size());
+            // if this object was a listing type, keep that
+            (*md)()->set_type(mdtype);
           } else {
             // we have to overlay the listing
             std::map<std::string, uint64_t> todelete;
@@ -1920,10 +1933,11 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
               md->get_todelete() = todelete;
               (*md)()->set_type((*md)()->MD);
               (*md)()->set_nchildren(md->local_children().size());
-	      if (!md->get_todelete().size()) {
-		// if there are no local deletions anymore, we can trust the remote value of nchildren
-		md->clear_refresh();
-	      }
+
+              if (!md->get_todelete().size()) {
+                // if there are no local deletions anymore, we can trust the remote value of nchildren
+                md->clear_refresh();
+              }
             } else {
               eos_static_debug("case 3 %s children=%d listing=%d", (*md)()->name().c_str(),
                                map->second.children().size(), listing);
@@ -1935,7 +1949,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
               for (auto it = map->second.children().begin();
                    it != map->second.children().end(); ++it) {
                 (*((*md)()->mutable_children()))[eos::common::StringConversion::EncodeInvalidUTF8(
-                                            it->first)] = it->second;
+                                                   it->first)] = it->second;
               }
 
               // keep the listing
@@ -1943,10 +1957,10 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
               (*md)()->set_type((*md)()->MD);
               (*md)()->set_nchildren(md->local_children().size());
 
-	      if (!md->get_todelete().size()) {
-		// if there are no local deletions anymore, we can trust the remote value of nchildren
-		md->clear_refresh();
-	      }
+              if (!md->get_todelete().size()) {
+                // if there are no local deletions anymore, we can trust the remote value of nchildren
+                md->clear_refresh();
+              }
             }
           }
 
@@ -2037,7 +2051,8 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
         }
 
         (*md)()->set_pid(p_ino);
-        eos_static_info("store local pino=%016lx for %016lx", (*md)()->pid(), (*md)()->id());
+        eos_static_info("store local pino=%016lx for %016lx", (*md)()->pid(),
+                        (*md)()->id());
         inomap.insert(map->first, new_ino);
         {
           mdmap.insertTS(new_ino, md);
@@ -2290,7 +2305,7 @@ metad::mdcflush(ThreadAssistant& assistant)
                 // we don't remote entries from the local deletion list because there could be
                 // a race condition of a thread doing MDLS overwriting the locally deleted entry
                 pmd->get_todelete().erase(eos::common::StringConversion::EncodeInvalidUTF8(
-											   (*md)()->name()));
+                                            (*md)()->name()));
                 pmd->Signal();
               }
             }
@@ -2350,8 +2365,8 @@ metad::mdstackfree(ThreadAssistant& assistant)
           stat.inodes_dec();
         } else {
           if (it->second->deleted()) {
-            if ( (!has_flush(it->first)) &&
-		 (!EosFuse::Instance().datas.has(it->first)) ) {
+            if ((!has_flush(it->first)) &&
+                (!EosFuse::Instance().datas.has(it->first))) {
               eos_static_debug("removing deleted inode from mdmap ino=%#lx path=%s",
                                it->first, (*(it->second))()->fullpath().c_str());
               mdmap.lru_remove(it->first);
@@ -2423,7 +2438,7 @@ metad::mdstackfree(ThreadAssistant& assistant)
             if (md) {
               eos_static_info("swap-out lru-removed ino=%#llx oldest=%#llx", inode_to_swap,
                               mdmap.lru_oldest());
-	      mdmap.lru_remove(inode_to_swap);
+              mdmap.lru_remove(inode_to_swap);
               mdmap[inode_to_swap] = 0;
 
               if (mdmap.swap_out(md)) {
@@ -2633,7 +2648,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
           }
 
           do {
-            int size = zmq_msg_recv(&message, static_cast<void*>(*z_socket), 0);
+            (void)zmq_msg_recv(&message, static_cast<void*>(*z_socket), 0);
             zmq_getsockopt(static_cast<void*>(*z_socket), ZMQ_RCVMORE, &more, &more_size);
           } while (more);
 
@@ -2678,10 +2693,9 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                   hb.mutable_heartbeat_()->set_trace(stacktrace);
                 } else {
                   if (rsp.evict_().reason().find("sendlog") != std::string::npos) {
-		    std::string refs;
-		    XrdCl::Proxy::WriteAsyncHandler::DumpReferences(refs);
-		    eos_static_warning("\n%s\n", refs.c_str());
-
+                    std::string refs;
+                    XrdCl::Proxy::WriteAsyncHandler::DumpReferences(refs);
+                    eos_static_warning("\n%s\n", refs.c_str());
                     sendlog = "";
                     int logtagindex =
                       eos::common::Logging::GetInstance().GetPriorityByString("debug");
@@ -2746,7 +2760,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                                    rsp.config_().writesizeflush() ?  "enable" : "disable",
                                    rsp.config_().appname() ? "accepts" : "rejects",
                                    rsp.config_().mdquery() ? "accepts" : "rejects",
-				   rsp.config_().hideversion() ? "hidden" : "visible",
+                                   rsp.config_().hideversion() ? "hidden" : "visible",
                                    rsp.config_().serverversion().c_str());
                 interval = (int) rsp.config_().hbrate();
                 XrdSysMutexHelper cLock(EosFuse::Instance().mds.ConfigMutex);
@@ -2754,7 +2768,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                 EosFuse::Instance().mds.writesizeflush = rsp.config_().writesizeflush();
                 EosFuse::Instance().mds.appname = rsp.config_().appname();
                 EosFuse::Instance().mds.mdquery = rsp.config_().mdquery();
-		EosFuse::Instance().mds.hideversion = rsp.config_().hideversion();
+                EosFuse::Instance().mds.hideversion = rsp.config_().hideversion();
 
                 if (rsp.config_().serverversion().length()) {
                   EosFuse::Instance().mds.serverversion = rsp.config_().serverversion();
@@ -3014,7 +3028,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                   }
 
                   (*md)()->clear_pt_mtime();
-		  (*md)()->clear_pt_mtime_ns();
+                  (*md)()->clear_pt_mtime_ns();
                   inomap.insert((*md)()->md_ino(), (*md)()->id());
                   add(0, pmd, md, authid, true);
                   update(req, pmd, authid, true);
@@ -3036,13 +3050,12 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                     eos_static_info("invalidate md cache for ino=%016lx", pino);
                     kernelcache::inval_entry(pino, (*md)()->name());
                     kernelcache::inval_inode(pino, false);
-		    XrdSysMutexHelper mLock(pmd->Locker());
+                    XrdSysMutexHelper mLock(pmd->Locker());
                     pmd->local_enoent().erase((*md)()->name());
                   }
                 } else {
                   eos_static_err("missing parent mapping pino=%16x for ino%16x",
-                                 md_pino,
-                                 md_ino);
+                                 md_pino, md_ino);
                   md->Locker().UnLock();
                 }
               }
@@ -3072,9 +3085,9 @@ metad::mdcommunicate(ThreadAssistant& assistant)
         // we send a statistics update every 60 heartbeats
         EosFuse::Instance().getHbStat((*hb.mutable_statistics_()));
         std::string blocker;
-	uint64_t blocker_inode;
+        uint64_t blocker_inode;
         hb.mutable_statistics_()->set_blockedms(
-						EosFuse::Instance().Tracker().blocked_ms(blocker, blocker_inode));
+          EosFuse::Instance().Tracker().blocked_ms(blocker, blocker_inode));
         hb.mutable_statistics_()->set_blockedfunc(blocker);
       } else {
         hb.clear_statistics_();
@@ -3109,10 +3122,12 @@ metad::mdcommunicate(ThreadAssistant& assistant)
       std::string hbstream;
       zmq::message_t hb_msg;
       hb.SerializeToString(&hbstream);
-      hb_msg.rebuild(hbstream.c_str(),hbstream.length());
-      if ( !z_socket->send(hb_msg)) {
+      hb_msg.rebuild(hbstream.c_str(), hbstream.length());
+
+      if (!z_socket->send(hb_msg)) {
         eos_static_err("err sending heartbeat: hbstream.c_str()=%s, hbstream.length()=%d, hbstream:hex=%s",
-                       hbstream.c_str(), hbstream.length(), eos::common::stringToHex(hbstream).c_str());
+                       hbstream.c_str(), hbstream.length(),
+                       eos::common::stringToHex(hbstream).c_str());
 //      } else {
 //        eos_static_debug("debug sending heartbeat: hbstream.c_str()=%s, hbstream.length()=%d, hbstream:hex=%s",
 //                       hbstream.c_str(), hbstream.length(), eos::common::stringToHex(hbstream).c_str());

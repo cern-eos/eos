@@ -78,7 +78,7 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   closeTime.tv_sec = closeTime.tv_usec = 0;
   currentTime.tv_sec = openTime.tv_usec = 0;
   openTime.tv_sec = openTime.tv_usec = 0;
-  mBandwidth=0;
+  mBandwidth = 0;
   msSleep = 0;
   tz.tz_dsttime = tz.tz_minuteswest = 0;
   mIoPriorityValue = 0;
@@ -331,14 +331,15 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     std::string key;
     std::string value;
     std::string kv = mCapOpaque->Get("mgm.iopriority");
-    if ( eos::common::StringConversion::SplitKeyValue(kv, key,value, ":") ) {
+
+    if (eos::common::StringConversion::SplitKeyValue(kv, key, value, ":")) {
       mIoPriorityClass = ioprio_class(key);
       mIoPriorityValue = ioprio_value(value);
     }
   }
 
   if (mCapOpaque->Get("mgm.iobw")) {
-    mBandwidth = strtoull(mCapOpaque->Get("mgm.iobw"),0,10);
+    mBandwidth = strtoull(mCapOpaque->Get("mgm.iobw"), 0, 10);
     eos_info("msg=\"bandwidth limited\" bw=%d", mBandwidth);
   }
 
@@ -683,7 +684,8 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
                     XrdSfsXferSize buffer_size)
 {
   // use RR scheduling if there is a round-robin app name
-  std::mutex* mutex=0;
+  std::mutex* mutex = 0;
+
   if (!mAppRR.empty()) {
     if (mIsRW) {
       mutex = gOFS.openedForWriting.scheduleRR(mFsId, mAppRR);
@@ -692,10 +694,9 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
     }
   }
 
-  auto lockScope = ( mutex == nullptr ) ?
-    std::unique_lock<std::mutex>() :
-    std::unique_lock<std::mutex>(*mutex);
-
+  auto lockScope = (mutex == nullptr) ?
+                   std::unique_lock<std::mutex>() :
+                   std::unique_lock<std::mutex>(*mutex);
   eos_debug("fileOffset=%lli, buffer_size=%i", fileOffset, buffer_size);
 
   //  EPNAME("read");
@@ -804,22 +805,24 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
 
   {
     // use global RR serialization (we just use fsid 0 for that)
-    std::mutex* mutex=0;
+    std::mutex* mutex = 0;
+
     if (!mAppRR.empty()) {
       if (mIsRW) {
-      mutex = gOFS.openedForWriting.scheduleRR(0, mAppRR);
+        mutex = gOFS.openedForWriting.scheduleRR(0, mAppRR);
       } else {
-      mutex = gOFS.openedForReading.scheduleRR(0, mAppRR);
+        mutex = gOFS.openedForReading.scheduleRR(0, mAppRR);
       }
     }
 
-    auto lockScope = ( mutex == nullptr ) ?
-      std::unique_lock<std::mutex>() :
-      std::unique_lock<std::mutex>(*mutex);
+    auto lockScope = (mutex == nullptr) ?
+                     std::unique_lock<std::mutex>() :
+                     std::unique_lock<std::mutex>(*mutex);
   }
 
   // use RR scheduling if there is a round-robin app name per filesystem
-  std::mutex* mutex=0;
+  std::mutex* mutex = 0;
+
   if (!mAppRR.empty()) {
     if (mIsRW) {
       mutex = gOFS.openedForWriting.scheduleRR(mFsId, mAppRR);
@@ -828,15 +831,15 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
     }
   }
 
-  auto lockScope = ( mutex == nullptr ) ?
-    std::unique_lock<std::mutex>() :
-    std::unique_lock<std::mutex>(*mutex);
+  auto lockScope = (mutex == nullptr) ?
+                   std::unique_lock<std::mutex>() :
+                   std::unique_lock<std::mutex>(*mutex);
 
   if (mBandwidth) {
     gettimeofday(&currentTime, &tz);
     float abs_time = static_cast<float>((currentTime.tv_sec -
-					 openTime.tv_sec) * 1000 +
-					(currentTime.tv_usec - openTime.tv_usec) / 1000);
+                                         openTime.tv_sec) * 1000 +
+                                        (currentTime.tv_usec - openTime.tv_usec) / 1000);
     //........................................................................
     // Regulate the io - sleep as desired
     //........................................................................
@@ -845,11 +848,9 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
     if (abs_time < exp_time) {
       msSleep += (exp_time - abs_time);
       std::int64_t thisSleep = msSleep;
-      std::this_thread::sleep_for(std::chrono::milliseconds( thisSleep ));
+      std::this_thread::sleep_for(std::chrono::milliseconds(thisSleep));
     }
   }
-
-
 
   // if the write position moves the checksum is dirty
   if (mCheckSum) {
@@ -1421,8 +1422,7 @@ XrdFstOfsFile::_close()
             // Reset the diskchecksum after an update otherwise we might falsely report
             // a checksum error. The diskchecksum will be updated by the scanner.
             mFmd->mProtoFmd.set_diskchecksum("");
-            mFmd->mProtoFmd.set_mgmsize(
-              eos::common::FmdHelper::UNDEF); // now again undefined
+            mFmd->mProtoFmd.set_mgmsize(eos::common::FmdHelper::UNDEF);
             mFmd->mProtoFmd.set_mgmchecksum(""); // now again empty
             mFmd->mProtoFmd.set_layouterror(0); // reset layout errors
             mFmd->mProtoFmd.set_locations(""); // reset locations
@@ -1438,9 +1438,25 @@ XrdFstOfsFile::_close()
             // Set the container id
             mFmd->mProtoFmd.set_cid(mCid);
 
-            // For replicat's set the original uid/gid/lid values
             if (mCapOpaque->Get("mgm.source.lid")) {
-              mFmd->mProtoFmd.set_lid(strtoul(mCapOpaque->Get("mgm.source.lid"), 0, 10));
+              try {
+                std::string data = mCapOpaque->Get("mgm.source.lid");
+                eos::common::LayoutId::layoutid_t src_lid = std::stoul(data);
+                mFmd->mProtoFmd.set_lid(src_lid);
+
+                // For RAIN files size in local db is the size of the logical
+                // file and not the size of the current stripe on disk
+                if (mCapOpaque->Get("mgm.bookingsize") && isReplication &&
+                    eos::common::LayoutId::IsRain(src_lid)) {
+                  data = mCapOpaque->Get("mgm.bookingsize");
+                  mFmd->mProtoFmd.set_size(std::stoull(data));
+                }
+              } catch (...) {
+                eos_err("msg=\"failure to convert layout id or bookingsize\" "
+                        "lid=\"%s\" bookingsize=\"%s\"",
+                        mCapOpaque->Get("mgm.source.lid"),
+                        mCapOpaque->Get("mgm.bookingsize"));
+              }
             }
 
             if (mCapOpaque->Get("mgm.source.ruid")) {
@@ -1984,9 +2000,10 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset fileOffset, char* buffer,
 
   // set IO priority
   if (ioprio_set(IOPRIO_WHO_PROCESS,
-		 IOPRIO_PRIO_VALUE(mIoPriorityClass, mIoPriorityValue))) {
+                 IOPRIO_PRIO_VALUE(mIoPriorityClass, mIoPriorityValue))) {
     if (!mIoPriorityErrorReported) {
-      eos_warning("failed to set IO priority to %d:%d - errno=%d\n", mIoPriorityClass, mIoPriorityValue, errno);
+      eos_warning("failed to set IO priority to %d:%d - errno=%d\n", mIoPriorityClass,
+                  mIoPriorityValue, errno);
       mIoPriorityErrorReported = true;
     }
   }
@@ -2078,9 +2095,10 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset fileOffset, const char* buffer,
 {
   // set IO priority
   if (ioprio_set(IOPRIO_WHO_PROCESS,
-		 IOPRIO_PRIO_VALUE(mIoPriorityClass, mIoPriorityValue))) {
+                 IOPRIO_PRIO_VALUE(mIoPriorityClass, mIoPriorityValue))) {
     if (!mIoPriorityErrorReported) {
-      eos_warning("failed to set IO priority to %d:%d - errno=%d\n", mIoPriorityClass, mIoPriorityValue, errno);
+      eos_warning("failed to set IO priority to %d:%d - errno=%d\n", mIoPriorityClass,
+                  mIoPriorityValue, errno);
       mIoPriorityErrorReported = true;
     }
   }
@@ -2909,6 +2927,7 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
       mIoPriorityValue = 4;
       ioprio_default = true;
     }
+
     snprintf(report, sizeof(report) - 1,
              "log=%s&path=%s&fstpath=%s&ruid=%u&rgid=%u&td=%s&"
              "host=%s&lid=%lu&fid=%llu&fsid=%lu&"
@@ -2954,11 +2973,11 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
              , (unsigned long long) openSize
              , (unsigned long long) closeSize
              , (deleteOnClose) ? 1 : 0
-	     , mIoPriorityClass
-	     , mIoPriorityValue
-	     , ioprio_default
-	     , mBandwidth
-	     , msSleep
+             , mIoPriorityClass
+             , mIoPriorityValue
+             , ioprio_default
+             , mBandwidth
+             , msSleep
              , eos::common::SecEntity::ToEnv(mSecString.c_str(),
                  (sec_tpc ? "tpc" : 0)).c_str());
     reportString = report;
@@ -3119,12 +3138,11 @@ XrdFstOfsFile::VerifyChecksum()
     // because the ending part of a file was not written
     // -------------------------------------------------------------------------------------------------------------------
     if ((mIsRW) && mCheckSum->GetMaxOffset() &&
-	(mCheckSum->GetMaxOffset() != (off_t)mMaxOffsetWritten)) {
+        (mCheckSum->GetMaxOffset() != (off_t)mMaxOffsetWritten)) {
       // If there was a write which was not extending the file the checksum
       // is dirty!
       mCheckSum->SetDirty();
     }
-
 
     // If checksum is not completely computed
     if (mCheckSum->NeedsRecalculation()) {

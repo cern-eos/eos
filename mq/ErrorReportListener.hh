@@ -34,22 +34,23 @@ EOSMQNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Helper class for listening to error report messages.
 //------------------------------------------------------------------------------
-class ErrorReportListener {
+class ErrorReportListener
+{
 public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  ErrorReportListener(const std::string &serveruri, const std::string &hostname);
+  ErrorReportListener(const std::string& serveruri, const std::string& hostname);
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~ErrorReportListener();
+  ~ErrorReportListener() = default;
 
   //----------------------------------------------------------------------------
   //! Fetch error report
   //----------------------------------------------------------------------------
-  bool fetch(std::string &out, ThreadAssistant *assistant = nullptr);
+  bool fetch(std::string& out, ThreadAssistant* assistant = nullptr);
 
 private:
   XrdMqClient mClient;

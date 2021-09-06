@@ -1,0 +1,239 @@
+## @note (faluchet)
+## The following is hidden not to clog the GitLab UI/UX.
+## The ratio behind archiving it here is that in case the
+## kubernetes setup fails for any reason, we want to run
+## the tests via the legacy docker environment, self-contained
+## in the CI runners. However, this possibility revealed to be
+## so unusual (once in a couple of year?) that it make sense
+## to hide it all at once. If ever needed, just un-hide the jobs
+## below by including this file in the main .gitlab-ci.yml and
+## push a new commit. Consider to drop it for good at your own convenience.
+
+dock_system:
+  extends: .dock8s_system_test_template
+  image: gitlab-registry.cern.ch/dss/docker-enhanced:19.03.12
+  services:
+    - docker:19.03.12-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
+    - job: clone_docker
+  retry: 1
+  tags:
+    - docker_node
+    - dock
+  when: manual
+
+dock_cnvrt_fsck:
+  extends: .dock8s_cnvrt_fsck_template
+  image: gitlab-registry.cern.ch/dss/docker-enhanced:19.03.12
+  services:
+    - docker:19.03.12-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
+    - job: clone_docker
+  retry: 1
+  tags:
+    - docker_node
+    - dock
+  when: manual
+
+dock_rtb_clone:
+  extends: .dock8s_rtb_clone_template
+  image: gitlab-registry.cern.ch/dss/docker-enhanced:19.03.12
+  services:
+    - docker:19.03.12-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
+    - job: clone_docker
+  retry: 1
+  tags:
+    - docker_node
+    - dock
+  when: manual
+
+dock_fusex:
+  extends: .dock8s_fusex_test_template
+  image: gitlab-registry.cern.ch/dss/docker-enhanced:19.03.12
+  services:
+    - docker:19.03.12-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
+    - job: clone_docker
+  retry: 1
+  tags:
+    - docker_node
+    - dock
+  when: manual
+
+dock_cbox:
+  extends: .dock8s_cbox_test_template
+  image: gitlab-registry.cern.ch/dss/docker-enhanced:19.03.12
+  services:
+    - docker:19.03.12-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
+    - job: clone_docker
+  tags:
+    - docker_node
+    - dock
+  when: manual
+
+dock_stress:
+  stage: test
+  image: gitlab-registry.cern.ch/dss/docker-enhanced:19.03.12
+  services:
+    - docker:19.03.12-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  before_script:
+    - !reference [.dock8s_before_script_template, before_script]
+#  <<: *dock8s_before_script_template
+  script:
+    - TEST_URL="eos-mgm1.eoscluster.cern.ch"
+    - exec_cmd eos-mgm1 "yum install -y grid-hammer"
+    - exec_cmd eos-mgm1 "hammer-runner.py --strict-exit-code 1 --gitlab --url ${TEST_URL}//eos/dockertest/hammer/ --protocols xroot --threads 1 2 10 100 --operations write stat read delete --runs 3 --nfiles 10000"
+  after_script:
+    - !reference [.dock8s_after_script_template, after_script]
+#   <<: *dock8s_after_script_template
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
+    - job: clone_docker
+  retry: 1
+  # @todo(esindril) remove once we have grid-hammer built with XRootD5
+  allow_failure: true
+  tags:
+    - docker_node
+    - dock
+  when: manual
+
+# schedules ------------------------------
+
+dock_system_c8:
+  extends: .dock8s_system_test_template
+  image: gitlab-registry.cern.ch/dss/docker-enhanced:19.03.12
+  services:
+    - docker:19.03.12-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+    BASETAG: "c8_"
+  needs:
+    - job: c8_docker_image
+      artifacts: false
+    - job: clone_docker
+  allow_failure: true
+  retry: 1
+  only:
+    - schedules
+    - tags
+  tags:
+    - docker_node
+    - dock
+  when: manual
+
+dock_cbox_c8:
+  extends: .dock8s_cbox_test_template
+  image: gitlab-registry.cern.ch/dss/docker-enhanced:19.03.12
+  services:
+    - docker:19.03.12-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+    BASETAG: "c8_"
+  needs:
+    - job: c8_docker_image
+      artifacts: false
+    - job: clone_docker
+  allow_failure: true
+  only:
+    - schedules
+    - tags
+  tags:
+    - docker_node
+    - dock
+  when: manual
+
+dock_fusex_ub_bionic:
+  extends: .dock8s_fusex_test_template
+  image: gitlab-registry.cern.ch/dss/docker-enhanced:19.03.12
+  services:
+    - docker:19.03.12-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+    CLI_BASETAG: "ubuntu_bionic_client_"
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
+    - job: ubuntu_bionic_docker_image
+      artifacts: false
+    - job: clone_docker
+  allow_failure: true
+  retry: 1
+  only:
+    - schedules
+    - tags
+  tags:
+    - docker_node
+    - dock
+  when: manual
+
+dock_fusex_ub_focal:
+  extends: .dock8s_fusex_test_template
+  image: gitlab-registry.cern.ch/dss/docker-enhanced:19.03.12
+  services:
+    - docker:19.03.12-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+    CLI_BASETAG: "ubuntu_focal_client_"
+  needs:
+    - job: cc7_docker_image
+      artifacts: false
+    - job: ubuntu_focal_docker_image
+      artifacts: false
+    - job: clone_docker
+  allow_failure: true
+  retry: 1
+  only:
+    - schedules
+    - tags
+  tags:
+    - docker_node
+    - dock
+  when: manual
+
+# @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
+# xt stands for xrd_testing. Must shorten to not hit HOST_NAME_MAX
+dock_system_xt:
+  extends: .dock8s_system_test_template
+  image: gitlab-registry.cern.ch/dss/docker-enhanced:19.03.12
+  services:
+    - docker:19.03.12-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+    BASETAG: "xrd_testing_"
+  needs:
+    - job: cc7_xrd_testing_docker_image
+      artifacts: false
+    - job: clone_docker
+  allow_failure: true
+  retry: 1
+  only:
+    - schedules
+  tags:
+    - docker_node
+    - dock
+  when: manual

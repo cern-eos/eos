@@ -30,10 +30,12 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <memory>
 
-namespace qclient {
-  class UpdateBatch;
-  class SharedHash;
+namespace qclient
+{
+class UpdateBatch;
+class SharedHash;
 }
 
 class XrdMqSharedHash;
@@ -92,13 +94,14 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  SharedHashWrapper(mq::MessagingRealm *realm, const common::SharedHashLocator& locator,
-    bool takeLock = true, bool create = true);
+  SharedHashWrapper(mq::MessagingRealm* realm,
+                    const common::SharedHashLocator& locator,
+                    bool takeLock = true, bool create = true);
 
   //----------------------------------------------------------------------------
   //! "Constructor" for global MGM hash
   //----------------------------------------------------------------------------
-  static SharedHashWrapper makeGlobalMgmHash(mq::MessagingRealm *realm);
+  static SharedHashWrapper makeGlobalMgmHash(mq::MessagingRealm* realm);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -165,7 +168,8 @@ public:
   //----------------------------------------------------------------------------
   //! Delete a shared hash, without creating an object first
   //----------------------------------------------------------------------------
-  static bool deleteHash(mq::MessagingRealm* realm, const common::SharedHashLocator &locator);
+  static bool deleteHash(mq::MessagingRealm* realm,
+                         const common::SharedHashLocator& locator);
 
 private:
   XrdMqSharedObjectManager* mSom;

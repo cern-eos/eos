@@ -37,7 +37,8 @@
 #include "MonitorVarPartition.hh"
 #include <google/dense_hash_map>
 #include <math.h>
-#include <filesystem>
+// @note (esindril)use this when Clang (>= 6.0.0) supports it
+//#include <filesystem>
 
 extern eos::fst::XrdFstOss* XrdOfsOss;
 
@@ -1147,7 +1148,32 @@ Storage::CleanupOrphansDisk(const std::string& mount)
   eos_static_info("msg=\"doing orphans cleanup on disk\" path=\"%s\"",
                   mount.c_str());
   std::string path_orphans = mount + "/.eosorphans/";
+  DIR* dir {nullptr};
+  struct dirent* entry {
+    nullptr
+  };
+  std::string fn_path;
 
+  if (!(dir = opendir(path_orphans.c_str()))) {
+    return success;
+  }
+
+  while ((entry = readdir(dir)) != nullptr) {
+    if (entry->d_type == DT_REG) {
+      fn_path = path_orphans;
+      fn_path += entry->d_name;
+      eos_static_info("msg=\"delete orphan entry\" path=\"%s\"",
+                      fn_path.c_str());
+
+      if (unlink(fn_path.c_str())) {
+        eos_static_err("msg=\"delete failed\" path=\"%s\"", fn_path.c_str());
+        success = false;
+      }
+    }
+  }
+
+  closedir(dir);
+  /* @note (esindril) Use this once clang (>= 6.0.0) supports std::filesystem
   for (auto& entry : std::filesystem::directory_iterator(path_orphans)) {
     if (std::filesystem::is_regular_file(entry.status())) {
       eos_static_info("msg=\"delete orphan entry\" path=\"%s\"",
@@ -1160,7 +1186,7 @@ Storage::CleanupOrphansDisk(const std::string& mount)
       }
     }
   }
-
+  */
   return success;
 }
 

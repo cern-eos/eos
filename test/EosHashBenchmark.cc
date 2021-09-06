@@ -35,16 +35,108 @@
 #include <google/dense_hash_map>
 #include <string>
 #include <map>
+#include <unordered_map>
+#include <random>
 
 eos::common::RWMutex nslock;
 XrdSysMutex nsmutex;
 
-std::map<long long , long long> stdmap;
-google::dense_hash_map<long long, long long> googlemap;
-ulib::align_hash_map<long long, long long> ulibmap;
+using KeyType = long long;
+using ValueType = long long;
 
-std::map<std::string, double> results;
-std::map<std::string, long long> results_mem;
+std::map<KeyType, ValueType> stdmap;
+google::dense_hash_map<KeyType, ValueType> googlemap;
+ulib::align_hash_map<KeyType, ValueType> ulibmap;
+std::unordered_map<KeyType, ValueType> stdumap;
+
+std::map<std::string, double, std::less<>>
+                                        results; // Allow transparent compare so as to use string_view/strings
+std::map<std::string, long long, std::less<>> results_mem;
+
+bool skip_ulib_bench = false;
+
+enum class MapType {
+  std_map = 0,
+  google_dense = 1,
+  ulib = 2,
+  std_umap = 3,
+  UNKNOWN
+};
+
+constexpr uint8_t TOTAL_MAP_COUNT = static_cast<uint8_t>(MapType::UNKNOWN);
+
+// Here we have a factory that'll return the given global map given a type,
+// since we can't template based on enum types, do an index and use a fn to the
+// index conversion. We'll have a compile time failure if you supply a unknown map_index
+template <std::size_t MapIdx>
+constexpr auto* getMap()
+{
+  static_assert(MapIdx >= 0 && MapIdx <= TOTAL_MAP_COUNT,
+                "Unknown Map Type!!!");
+
+  if constexpr(MapIdx == static_cast<size_t>(MapType::std_map)) {
+    return &stdmap;
+  } else if constexpr(MapIdx == static_cast<size_t>(MapType::google_dense)) {
+    return &googlemap;
+  } else if constexpr(MapIdx == static_cast<size_t>(MapType::ulib)) {
+    return &ulibmap;
+  } else if constexpr(MapIdx == static_cast<size_t>(MapType::std_umap)) {
+    return &stdumap;
+  }
+}
+// Get the MapType given an id!
+template <typename T>
+constexpr size_t MapId(T t)
+{
+  return static_cast<size_t>(t);
+}
+
+// Apply processing function F on the given set of maps! Note that this function
+// will run from the given MapIndex downwards until 0 applying MapType and a
+// pointer to the hashmap as the first and second argument.
+template < size_t idx = TOTAL_MAP_COUNT - 1, class F, class... Args >
+void ProcessOp(F && f, Args && ... args)
+{
+  // in an ideal world with constexpr function with a loop with fixed compile
+  // time arguments, the compiler should be able to unroll the loop, here we do
+  // it manually since getMap needs to know the index at compile time
+  // accomplish, so we should be able to give it a tuple/list of map_types and
+  // we should have this done.
+  f(static_cast<MapType>(idx), getMap<idx>(), std::forward<Args>(args)...);
+
+  if constexpr(idx > 0) {
+    ProcessOp < idx - 1 > (f, args...);
+  }
+}
+
+std::string MapName(MapType t)
+{
+  std::string map_name;
+
+  switch (t) {
+  case MapType::std_map:
+    map_name = "STL Hash";
+    break;
+
+  case MapType::google_dense:
+    map_name = "Google Dense Hash";
+    break;
+
+  case MapType::ulib:
+    map_name = "ULib Hash";
+    break;
+
+  case MapType::std_umap:
+    map_name = "STL Unordered Hash";
+    break;
+
+  case MapType::UNKNOWN:
+  default:
+    map_name = "UNKNOWN";
+  }
+
+  return map_name;
+}
 
 //------------------------------------------------------------------------------
 // Print current status
@@ -88,16 +180,17 @@ void PrintStatus(eos::common::LinuxStat::linux_stat_t& st1,
 class RThread
 {
 public:
-  RThread(): i(0), n_files(0), type(0), threads(0), dolock(false) {}
+  RThread(): i(0), n_files(0), type(MapType::UNKNOWN), threads(0),
+    dolock(false) {}
 
-  RThread(size_t a, size_t b, size_t t, size_t nt, bool lock = false):
+  RThread(size_t a, size_t b, MapType t, size_t nt, bool lock = false):
     i(a), n_files(b), type(t), threads(nt), dolock(lock) {}
 
   ~RThread() {};
 
   size_t i;
   size_t n_files;
-  size_t type;
+  MapType type;
   size_t threads;
   bool dolock;
 };
@@ -120,7 +213,7 @@ static void* RunReader(void* tconf)
       nslock.LockRead();
     }
 
-    if (r->type == 0) {
+    if (r->type == MapType::std_map) {
       long long v = stdmap[n];
 
       if (v) {
@@ -128,7 +221,7 @@ static void* RunReader(void* tconf)
       }
     }
 
-    if (r->type == 1) {
+    if (r->type == MapType::google_dense) {
       long long v = googlemap[n];
 
       if (v) {
@@ -136,8 +229,16 @@ static void* RunReader(void* tconf)
       }
     }
 
-    if (r->type == 2) {
+    if (r->type == MapType::ulib) {
       long long v = ulibmap[n];
+
+      if (v) {
+        v = 1;
+      }
+    }
+
+    if (r->type == MapType::std_umap) {
+      long long v = stdumap[n];
 
       if (v) {
         v = 1;
@@ -153,6 +254,158 @@ static void* RunReader(void* tconf)
   return 0;
 }
 
+
+
+template <typename KeyType>
+std::vector<KeyType> generate_keys(size_t sz, KeyType init = {}, bool randomize
+                                   = false)
+{
+  std::vector<KeyType> keys(sz);
+  std::iota(keys.begin(), keys.end(), init);
+
+  if (randomize) {
+    std::shuffle(keys.begin(), keys.end(),
+                 std::mt19937{std::random_device{}()});
+  }
+
+  return keys;
+}
+
+template <typename HT, typename C>
+void InitSingleThreadWrite(MapType t, HT* ht, int& counter, const C& keys)
+{
+  if (t == MapType::ulib && skip_ulib_bench) {
+    return;
+  }
+
+  std::cerr <<
+            "# **********************************************************************************"
+            << std::endl;
+  std::cerr << "[i] Initialize " << MapName(t) << " ..." << std::endl;
+  std::cerr <<
+            "# **********************************************************************************"
+            << std::endl;
+  eos::common::LinuxStat::linux_stat_t st[10];;
+  eos::common::LinuxMemConsumption::linux_mem_t mem[10];
+  eos::common::LinuxStat::GetStat(st[0]);
+  eos::common::LinuxMemConsumption::GetMemoryFootprint(mem[0]);
+  eos::common::Timing tm("directories");
+  COMMONTIMING("hash-start", &tm);
+  size_t i = 0;
+
+  for (const auto& key : keys) {
+    if (!(i++ % 1000000)) {
+      XrdOucString l = "level-";
+      l += (int)i;
+      COMMONTIMING(l.c_str(), &tm);
+    }
+
+    // fill the hash
+    // Cross check if insert is defined, this is because ulibmap doesn't follow the same syntax!
+    if constexpr(!std::is_same_v<HT, decltype(ulibmap)>) {
+      // normal maps use a tuple as input
+      ht->insert({key, i});
+    } else {
+      // ulibmap needs a unpacked pair! also gets useless after > 500k keys
+      ht->insert(key, i);
+    }
+  }
+
+  eos::common::LinuxStat::GetStat(st[1]);
+  eos::common::LinuxMemConsumption::GetMemoryFootprint(mem[1]);
+  COMMONTIMING("dir-stop", &tm);
+  tm.Print();
+  double rate = (keys.size()) / tm.RealTime() * 1000.0;
+  std::stringstream ss;
+  ss << std::setw(3) << std::setw(3) << std::setfill('0') <<
+     (counter + 100) << " Fill " << MapName(t);
+  std::string title_key = ss.str();
+  results.emplace(title_key, rate);
+  results_mem.emplace(title_key, st[1].vsize - st[0].vsize);
+  PrintStatus(st[0], st[1], mem[0], mem[1], rate);
+  counter++;
+}
+
+template <typename HT>
+void DoReadTests(MapType t, HT* ht, int& counter, size_t n_i, size_t n_files,
+                 bool lock = false)
+{
+  if (t == MapType::ulib && skip_ulib_bench) {
+    return;
+  }
+
+  eos::common::LinuxStat::linux_stat_t st[10];;
+  eos::common::LinuxMemConsumption::linux_mem_t mem[10];
+  std::cerr <<
+            "# **********************************************************************************"
+            << std::endl;
+  std::cerr << "Parallel reader benchmark without locking ";
+  std::cerr << MapName(t) << std::endl;
+  std::cerr <<
+            "# **********************************************************************************"
+            << std::endl;
+  eos::common::LinuxStat::GetStat(st[0]);
+  eos::common::LinuxMemConsumption::GetMemoryFootprint(mem[0]);
+  eos::common::Timing tm("reading");
+  COMMONTIMING("read-start", &tm);
+  pthread_t tid[1024];
+
+  // fire threads
+  for (size_t i = 0; i < n_i; i++) {
+#if DEBUG
+    fprintf(stderr, "# Level %02u\n", (unsigned int)i);
+#endif
+    RThread r(i, n_files, t, n_i, lock);
+    XrdSysThread::Run(&tid[i], RunReader, static_cast<void*>(&r), XRDSYSTHREAD_HOLD,
+                      "Reader Thread");
+  }
+
+  // join them
+  for (size_t i = 0; i < n_i; i++) {
+    XrdSysThread::Join(tid[i], NULL);
+  }
+
+  eos::common::LinuxStat::GetStat(st[1]);
+  eos::common::LinuxMemConsumption::GetMemoryFootprint(mem[1]);
+  COMMONTIMING("read-stop", &tm);
+  tm.Print();
+  double rate = (n_files) / tm.RealTime() * 1000.0;
+  std::stringstream ss;
+  std::string lock_str = lock ? "lock " : "no lock ";
+  int r_id = lock ? counter + 200 : counter + 300;
+  ss << std::setw(3) << std::setw(3) << std::setfill('0') << r_id << " Read " <<
+     lock_str << MapName(t);
+  std::string title_key = ss.str();
+  results.emplace(title_key, rate);
+  PrintStatus(st[0], st[1], mem[0], mem[1], rate);
+  counter++;
+}
+
+template <typename HT>
+void ClearMap(MapType t, HT* ht, int& counter)
+{
+  if (t == MapType::ulib && skip_ulib_bench) {
+    return;
+  }
+
+  std::cerr <<
+            "# **********************************************************************************"
+            << std::endl;
+  std::cerr << "[i] Clear " << MapName(t) << " ..." << std::endl;
+  std::cerr <<
+            "# **********************************************************************************"
+            << std::endl;
+  eos::common::Timing tm("clearing");
+  COMMONTIMING("clear-start", &tm);
+  ht->clear();
+  COMMONTIMING("clear-stop", &tm);
+  tm.Print();
+  std::stringstream ss;
+  ss << std::setw(3) << std::setw(3) << std::setfill('0') <<
+     (counter + 400) << " Clear " << MapName(t);
+  results.emplace(ss.str(), tm.RealTime());
+  counter++;
+}
 int main(int argc, char** argv)
 {
   googlemap.set_deleted_key(-1);
@@ -161,271 +414,72 @@ int main(int argc, char** argv)
   //----------------------------------------------------------------------------
   // Check up the commandline params
   //----------------------------------------------------------------------------
-  if (argc != 3) {
+  if (argc < 3) {
     std::cerr << "Usage:"                                << std::endl;
-    std::cerr << "  eos-has-benchmark <entries> <threads>" << std::endl;
+    std::cerr << "  eos-hash-benchmark <entries> <threads> [rs]" << std::endl;
+    std::cerr << "      option r controls randomizing insertion order" << std::endl;
+    std::cerr <<
+              "      option s forces all the operations on single map before trying next" <<
+              std::endl;
     return 1;
   };
+
+  bool randomize = false;
+
+  bool single_test_mode = false;
 
   size_t n_files = atoi(argv[1]);
 
   size_t n_i = atoi(argv[2]);
+
+  if (argc == 4) {
+    std::string_view options = argv[3];
+    randomize = options.find('r') != options.npos;
+    single_test_mode = options.find('s') != options.npos;
+  }
 
   if (n_files <= 0) {
     std::cerr << "Error: number of entries has to be > 0" << std::endl;
     return 1;
   }
 
-  {
-    std::cerr <<
-              "# **********************************************************************************"
-              << std::endl;
-    std::cerr << "[i] Initialize Hash STL ..." << std::endl;
-    std::cerr <<
-              "# **********************************************************************************"
-              << std::endl;
-    eos::common::LinuxStat::linux_stat_t st[10];;
-    eos::common::LinuxMemConsumption::linux_mem_t mem[10];
-    eos::common::LinuxStat::GetStat(st[0]);
-    eos::common::LinuxMemConsumption::GetMemoryFootprint(mem[0]);
-    eos::common::Timing tm("directories");
-    COMMONTIMING("hash-start", &tm);
+  int counter = 0;
+  auto keys = generate_keys(n_files, 1, randomize);
+  // ulib insertions go to  < 0.02 MHz after ~500k random inserts
+  skip_ulib_bench = n_files > 8000000 && randomize;
+  // Basically process map will process one map type for the given operation So
+  // if you want to do entire set of ops on one map type just change the lambda
+  // to do this!
+  auto write_f = [&counter, &keys](auto && map_type, auto && map) {
+    InitSingleThreadWrite(map_type, map, counter, keys);
+  };
+  auto read_no_lock_f = [&counter, &n_i, &n_files](auto && map_type, auto &&
+  map) {
+    DoReadTests(map_type, map, counter, n_i, n_files);
+  };
+  auto read_lock_f = [&counter, &n_i, &n_files](auto && map_type, auto && map) {
+    DoReadTests(map_type, map, counter, n_i, n_files, true);
+  };
+  auto single_test_f = [&counter, &keys, &n_i, &n_files](auto && map_type, auto &&
+  map) {
+    InitSingleThreadWrite(map_type, map, counter, keys);
+    DoReadTests(map_type, map, counter, n_i, n_files);
+    DoReadTests(map_type, map, counter, n_i, n_files, true);
+    ClearMap(map_type, map, counter);
+  };
 
-    for (size_t i = 1; i <= n_files; i++) {
-      if (!(i % 1000000)) {
-        XrdOucString l = "level-";
-        l += (int)i;
-        COMMONTIMING(l.c_str(), &tm);
-      }
-
-      // fill the hash
-      stdmap[i] = i;
-    }
-
-    eos::common::LinuxStat::GetStat(st[1]);
-    eos::common::LinuxMemConsumption::GetMemoryFootprint(mem[1]);
-    COMMONTIMING("dir-stop", &tm);
-    tm.Print();
-    double rate = (n_files) / tm.RealTime() * 1000.0;
-    results["001 Fill STL            Hash"] = rate;
-    results_mem["001 Fill STL            Hash"] = st[1].vsize - st[0].vsize;
-    PrintStatus(st[0], st[1], mem[0], mem[1], rate);
-  }
-
-  {
-    std::cerr <<
-              "# **********************************************************************************"
-              << std::endl;
-    std::cerr << "[i] Initialize Hash GOOGLE DENSE ..." << std::endl;
-    std::cerr <<
-              "# **********************************************************************************"
-              << std::endl;
-    eos::common::LinuxStat::linux_stat_t st[10];;
-    eos::common::LinuxMemConsumption::linux_mem_t mem[10];
-    eos::common::LinuxStat::GetStat(st[0]);
-    eos::common::LinuxMemConsumption::GetMemoryFootprint(mem[0]);
-    eos::common::Timing tm("directories");
-    COMMONTIMING("hash-start", &tm);
-
-    for (size_t i = 1; i <= n_files; i++) {
-      if (!(i % 1000000)) {
-        XrdOucString l = "level-";
-        l += (int)i;
-        COMMONTIMING(l.c_str(), &tm);
-      }
-
-      // fill the hash
-      try {
-        googlemap[i] = i;
-      } catch (std::length_error& len_excp) {
-        std::cerr << "Resize overflow exeception in google map" << std::endl;
-        exit(-1);
-      }
-    }
-
-    eos::common::LinuxStat::GetStat(st[1]);
-    eos::common::LinuxMemConsumption::GetMemoryFootprint(mem[1]);
-    COMMONTIMING("dir-stop", &tm);
-    tm.Print();
-    double rate = (n_files) / tm.RealTime() * 1000.0;
-    results["002 Fill Google         Hash"] = rate;
-    results_mem["002 Fill Google         Hash"] = st[1].vsize - st[0].vsize;
-    PrintStatus(st[0], st[1], mem[0], mem[1], rate);
-  }
-
-  {
-    std::cerr <<
-              "# **********************************************************************************"
-              << std::endl;
-    std::cerr << "[i] Initialize Hash ULIB..." << std::endl;
-    std::cerr <<
-              "# **********************************************************************************"
-              << std::endl;
-    eos::common::LinuxStat::linux_stat_t st[10];;
-    eos::common::LinuxMemConsumption::linux_mem_t mem[10];
-    eos::common::LinuxStat::GetStat(st[0]);
-    eos::common::LinuxMemConsumption::GetMemoryFootprint(mem[0]);
-    eos::common::Timing tm("directories");
-    COMMONTIMING("hash-start", &tm);
-
-    for (size_t i = 1; i <= n_files; i++) {
-      if (!(i % 1000000)) {
-        XrdOucString l = "level-";
-        l += (int)i;
-        COMMONTIMING(l.c_str(), &tm);
-      }
-
-      // fill the hash
-      try {
-        ulibmap[i] = i;
-      } catch (const ulib::ulib_except& e) {
-        std::cerr << "Exception while inserting into ulib map" << std::endl;
-        exit(-1);
-      }
-    }
-
-    eos::common::LinuxStat::GetStat(st[1]);
-    eos::common::LinuxMemConsumption::GetMemoryFootprint(mem[1]);
-    COMMONTIMING("dir-stop", &tm);
-    tm.Print();
-    double rate = (n_files) / tm.RealTime() * 1000.0;
-    results["003 Fill Ulib           Hash"] = rate;
-    results_mem["003 Fill Ulib           Hash"] = st[1].vsize - st[0].vsize;
-    PrintStatus(st[0], st[1], mem[0], mem[1], rate);
-  }
-
-  //----------------------------------------------------------------------------
-  // Run a parallel consumer thread benchmark without locking
-  //----------------------------------------------------------------------------
-  for (size_t t = 0; t < 3; t++) {
-    eos::common::LinuxStat::linux_stat_t st[10];;
-    eos::common::LinuxMemConsumption::linux_mem_t mem[10];
-    std::cerr <<
-              "# **********************************************************************************"
-              << std::endl;
-    std::cerr << "[i] Parallel reader benchmark without locking ";
-
-    if (t == 0) {
-      std::cerr << "STL-MAP";
-    }
-
-    if (t == 1) {
-      std::cerr << "GOOGLE-DENSE";
-    }
-
-    if (t == 2) {
-      std::cerr << "ULIB-MAP";
-    }
-
-    std::cerr <<  std::endl;
-    std::cerr <<
-              "# **********************************************************************************"
-              << std::endl;
-    eos::common::LinuxStat::GetStat(st[0]);
-    eos::common::LinuxMemConsumption::GetMemoryFootprint(mem[0]);
-    eos::common::Timing tm("reading");
-    COMMONTIMING("read-start", &tm);
-    pthread_t tid[1024];
-
-    // fire threads
-    for (size_t i = 0; i < n_i; i++) {
-      fprintf(stderr, "# Level %02u\n", (unsigned int)i);
-      RThread r(i, n_files, t, n_i);
-      XrdSysThread::Run(&tid[i], RunReader, static_cast<void*>(&r), XRDSYSTHREAD_HOLD,
-                        "Reader Thread");
-    }
-
-    // join them
-    for (size_t i = 0; i < n_i; i++) {
-      XrdSysThread::Join(tid[i], NULL);
-    }
-
-    eos::common::LinuxStat::GetStat(st[1]);
-    eos::common::LinuxMemConsumption::GetMemoryFootprint(mem[1]);
-    COMMONTIMING("read-stop", &tm);
-    tm.Print();
-    double rate = (n_files) / tm.RealTime() * 1000.0;
-
-    if (t == 0) {
-      results["003 Read no-lock STL    Hash"] = rate;
-    }
-
-    if (t == 1) {
-      results["004 Read no-lock Google Hash"] = rate;
-    }
-
-    if (t == 2) {
-      results["005 Read no-lock Ulib   Hash"] = rate;
-    }
-
-    PrintStatus(st[0], st[1], mem[0], mem[1], rate);
-  }
-
-  //----------------------------------------------------------------------------
-  // Run a parallel consumer thread benchmark with namespace locking
-  //----------------------------------------------------------------------------
-  for (size_t t = 0; t < 3; t++) {
-    eos::common::LinuxStat::linux_stat_t st[10];;
-    eos::common::LinuxMemConsumption::linux_mem_t mem[10];
-    std::cerr <<
-              "# **********************************************************************************"
-              << std::endl;
-    std::cerr << "[i] Parallel reader benchmark with locking ";
-
-    if (t == 0) {
-      std::cerr << "STL-MAP";
-    }
-
-    if (t == 1) {
-      std::cerr << "GOOGLE-DENSE";
-    }
-
-    if (t == 2) {
-      std::cerr << "ULIB-MAP";
-    }
-
-    std::cerr <<  std::endl;
-    std::cerr <<
-              "# **********************************************************************************"
-              << std::endl;
-    eos::common::LinuxStat::GetStat(st[0]);
-    eos::common::LinuxMemConsumption::GetMemoryFootprint(mem[0]);
-    eos::common::Timing tm("reading");
-    COMMONTIMING("read-lock-start", &tm);
-    pthread_t tid[1024];
-
-    // fire threads
-    for (size_t i = 0; i < n_i; i++) {
-      fprintf(stderr, "# Level %02u\n", (unsigned int)i);
-      RThread r(i, n_files, t, n_i, true);
-      XrdSysThread::Run(&tid[i], RunReader, static_cast<void*>(&r), XRDSYSTHREAD_HOLD,
-                        "Reader Thread");
-    }
-
-    // join them
-    for (size_t i = 0; i < n_i; i++) {
-      XrdSysThread::Join(tid[i], NULL);
-    }
-
-    eos::common::LinuxStat::GetStat(st[1]);
-    eos::common::LinuxMemConsumption::GetMemoryFootprint(mem[1]);
-    COMMONTIMING("read-lock-stop", &tm);
-    tm.Print();
-    double rate = (n_files) / tm.RealTime() * 1000.0;
-
-    if (t == 0) {
-      results["006 Read lock    STL    Hash"] = rate;
-    }
-
-    if (t == 1) {
-      results["007 Read lock    Google Hash"] = rate;
-    }
-
-    if (t == 2) {
-      results["008 Read lock    Ulib   Hash"] = rate ;
-    }
-
-    PrintStatus(st[0], st[1], mem[0], mem[1], rate);
+  if (!single_test_mode) {
+    ProcessOp(write_f);
+    //----------------------------------------------------------------------------
+    // Run a parallel consumer thread benchmark without locking
+    //----------------------------------------------------------------------------
+    ProcessOp(read_no_lock_f);
+    //----------------------------------------------------------------------------
+    // Run a parallel consumer thread benchmark with namespace locking
+    //----------------------------------------------------------------------------
+    ProcessOp(read_lock_f);
+  } else {
+    ProcessOp(single_test_f);
   }
 
   fprintf(stdout,
@@ -435,16 +489,20 @@ int main(int argc, char** argv)
   fprintf(stdout,
           "=====================================================================\n");
   int i = 0;
+  int map_count = TOTAL_MAP_COUNT - (int)skip_ulib_bench;
 
   for (auto it = results.begin(); it != results.end(); it++) {
-    if (!(i % 3)) {
+    if (!(i % map_count)) {
       fprintf(stdout, "----------------------------------------------------\n");
     }
 
-    if (i < 3) {
+    if (i < map_count) {
       fprintf(stdout, "%s rate: %.02f MHz mem-overhead: %.02f %%\n",
               it->first.c_str(), it->second / 1000000.0,
               1.0 * results_mem[it->first] / (n_files * 16));
+    } else if (it->first.find("Clear") != std::string::npos) {
+      fprintf(stdout, "%s time: %.02f ms\n", it->first.c_str(),
+              it->second);
     } else {
       fprintf(stdout, "%s rate: %.02f MHz\n", it->first.c_str(),
               it->second / 1000000.0);

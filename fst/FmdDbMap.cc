@@ -1159,6 +1159,14 @@ FmdDbMapHandler::ResyncFileFromQdb(eos::common::FileId::fileid_t fid,
   } catch (const eos::MDException& e) {
     eos_err("msg=\"failed to get metadata from QDB: %s\" fxid=%08llx",
             e.what(), fid);
+
+    // If there is any transient error with QDB then we skip this file,
+    // otherwise it might be wronly marked as orphan below.
+    if (e.getErrno() != ENOENT) {
+      eos_err("msg=\"skip file update due to QDB error\" msg_err=\"%s\" "
+              "fxid=08llx", e.what(), fid);
+      return e.getErrno();
+    }
   }
 
   // Mark any possible layout error, if fid not found in QDB then this is
@@ -1506,6 +1514,14 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
               proto_fmd.size() != proto_fmd.mgmsize()) {
             statistics["m_mem_sz_diff"]++;
             fidset["m_mem_sz_diff"].insert(proto_fmd.fid());
+          }
+        } else {
+          // RAIN stripes with mgmsize != 0 and disksize == 0 are broken
+          if (LayoutId::IsRain(proto_fmd.lid())) {
+            if (proto_fmd.mgmsize() && (proto_fmd.disksize() == 0)) {
+              statistics["d_mem_sz_diff"]++;
+              fidset["d_mem_sz_diff"].insert(proto_fmd.fid());
+            }
           }
         }
       }

@@ -98,6 +98,4 @@ TEST(GetSizeFromString, BasicSanity)
   ASSERT_EQ(out, 0);
 }
 
-
-
 EOSCOMMONTESTING_END

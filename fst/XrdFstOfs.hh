@@ -454,15 +454,6 @@ public:
   XrdSysMutex TpcMapMutex; ///< Mutex protecting the Tpc map
 
   //----------------------------------------------------------------------------
-  //! Update geotag value from the EOS_GEOTAG env variable and sanitize the
-  //! input
-  //!
-  //! @return true if update successful, otherwise false since geotag is not
-  //!         properly formatted
-  //----------------------------------------------------------------------------
-  bool UpdateSanitizedGeoTag();
-
-  //----------------------------------------------------------------------------
   //! Compute adler checksum of given keytab file
   //!
   //! @param kt_path absolute path to keytab file

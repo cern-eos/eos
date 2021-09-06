@@ -15,7 +15,7 @@ Getting a development machine [CERN specific]:
 
 Go to `CERN Openstack <https://openstack.cern.ch/>`_ and find project 'IT EOS development' (if you are not a member ask your colleagues to give you access). Check in the Menu:Project/Compute/Overview if there are still free resources to be used. If not, coordinate with your colleagues on reviewing if all currently existing machines are needed. If yes, inform your section leader that you would like to ask for more resources, then follow `Request Quota <https://clouddocs.web.cern.ch/projects/project_quota_request.html>`_.
 
-To get a decent machine, look at Menu"Project/Compute/Instances and then click "Launch Instance" button. Follow the form and when choosing  "Flavour" look for 'm2.2xlarge'. If not visible, file a ticket to the openstack team asking for making it available to you (not publicly available). Machine creation is possible also from a command line using `CERN Openstack Tools <https://clouddocs.web.cern.ch/index.html>`_.
+To get a decent machine, look at Menu"Project/Compute/Instances and then click "Launch Instance" button. Follow the form and when choosing  "Flavour" look for 'm2.2xlarge'. If not visible, file a ticket to the Openstack team asking for making it available to you (not publicly available). Machine creation is possible also from a command line using `CERN Openstack Tools <https://clouddocs.web.cern.ch/index.html>`_.
 
 Once the machine is running, you can log-in from aiadm.cern.ch to your machine (as root for convenience) and upgrade to newest packages/kernel etc. (:code:`yum clean all; yum upgrade; reboot;`).
 
@@ -232,7 +232,7 @@ Compile:
 .. code-block:: bash
 
     ninja-build
-    # run some unit tests; sould finish with [  PASSED  ] XXX tests message
+    # run some unit tests; should finish with [  PASSED  ] XXX tests message
     unit_tests/eos-unit-tests
 
 
@@ -251,7 +251,7 @@ The following dependencies might not be required (you should be able to ignore t
 
 .. warning:: yum can automatically update your packages (in yum history you can see:  "-y --skip-broken update" in such a case) you can remove this package :code:`yum remove yum-autoupdate` to make sure it does not screw up EOS rpms installed.
 
-If when executing the unit tests you have errors about the linker that could not find .so files, you can update your :code:`LD_LIBRARY_PATH` to add to it the :code:`common` and the :code:`mq` directory of your EOS build directory. 
+If when executing the unit tests you have errors about the linker that could not find .so files, you can update your :code:`LD_LIBRARY_PATH` to add to it the :code:`common` and the :code:`mq` directory of your EOS build directory.
 
 Deployment
 =================================================
@@ -376,13 +376,16 @@ The environment configuration will be loaded from :code:`/etc/sysconfig/eos_env`
 
     mv /etc/sysconfig/eos_env.example /etc/sysconfig/eos_env
 
+Inside you need to fill in various pieces of information:
 
-Inside you need to fill in various pices of information:
-- :code:`XRD_ROLES="mq mgm fst1 fst2 fst3"`, here depending on how many fst daemons you plan (here 3) to run, you need to specify them here. Drop :code:`fed` and :code:`sync` as they are not used anymore. Also, HOST_TARGET was used for the sync; not needed anymore
+* :code:`XRD_ROLES="mq mgm fst1 fst2 fst3"`, depending on how many fst daemons you plan (here 3) to run, you need to specify them here. Drop :code:`fed` and :code:`sync` as they are not used anymore.
+* HOST_TARGET was used for the :code:`sync` and is not needed anymore.
+* EL8 systems will need :code:`LD_PRELOAD=/usr/lib64/libjemalloc.so.2`
 
 .. code-block:: bash
 
-    # XRD_ROLES depends on what you wish to run, each separate mgm, mq or fst needs to be specified, e.g. for 3 fsts daemons we put fst1 fst2 fst3. Drop :code:`fed` and :code:`sync` if they ae present, they are not used anymore.
+    # XRD_ROLES depends on what you wish to run, each separate mgm, mq or fst needs to be specified, e.g. for 3 fsts daemons we put fst1 fst2 fst3.
+    # Delete "fed" and "sync" if present as they are not used anymore.
     XRD_ROLES="mq mgm fst1 fst2 fst3"
     EOS_MGM_HOST=<myhostname>.cern.ch`
     EOS_MGM_HOST_TARGET` # was used for the sync and can be commented out
@@ -397,11 +400,13 @@ Inside you need to fill in various pices of information:
     EOS_USE_SHARED_MUTEX=1`
 
 
-Then you need security keys on your machine:
+Then you need Kerberos security keys on your machine:
 
 .. code-block:: bash
 
     cp /etc/krb5.keytab /etc/eos.krb5.keytab
+
+.. warning:: Kerberos and SSS keytab files are different and use different formats.  Read the documentation for the :code:`xrdsssadmin` command or XRootD SSS protocol at https://xrootd.slac.stanford.edu/doc/dev49/sec_config.htm#_Toc517294117
 
 There is yet another configuration file you will have to modify e.g. :code:`/etc/xrd.cf.mgm` (note aside: These are configuring the xroot daemons that will be running as a service, this has nothing to do with the config of eos itself which is being saved in QuarkDB.). In this file you can change the security settings as needed, e.g.:
 
@@ -413,12 +418,12 @@ There is yet another configuration file you will have to modify e.g. :code:`/etc
     #sec.protocol krb5
     #sec.protocol gsi
 
-    sec.protbind * only sss unix
-    sec.protbind localhost unix sss
     sec.protbind localhost.localdomain unix sss
+    sec.protbind localhost unix sss
+    sec.protbind * only sss unix
 
 
-Note: that the order of sec.protbind matters for host maching (matches from "bottom up", i.e. in reverse order of specification, from most specific to least specific).
+Note: that the order of sec.protbind matters for host matching (matches from "bottom up", i.e. in reverse order of specification, from most specific to least specific).
 
 Also, activate QuarkDB namespace plugin usage and set other parameters as desired, e.g.:
 
@@ -462,11 +467,12 @@ If by looking at the :code:`/var/log/eos/mgm/xrdlog.mgm` log file, you see the f
 
     Seckrb5: Unable to start sequence on the keytab file FILE:/etc/krb5.keytab; Permission denied
 
-Then do 
+Then do
 
 .. code-block:: bash
-    
+
     chmod a+r /etc/krb5.keytab
+
 
 MQ
 ------------------------------------
@@ -526,7 +532,7 @@ For our dev purposes, it is usually enough to just create a directory per fst on
     for i in {1..3}; do
         mkdir data$i
         echo $i >  data$i/.eosfsid
-        echo fst$i > data$i/.eosfsuuid; 
+        echo fst$i > data$i/.eosfsuuid;
     done
     chown daemon:daemon -R /fst
 
@@ -582,7 +588,7 @@ EOS namespace configuration
 
 We have QuarkDB, MQ, MGM, and FST daemons running. Now we need to define the EOS space
 to which we will be adding these file systems. Similarly to production we can define "spare"
-space, just to keep disks waiting unsused in spare and "default" space which will be in this example from 3 scheduling groups by 1 disk each:
+space, just to keep disks waiting unused in spare and "default" space which will be in this example from 3 scheduling groups by 1 disk each:
 
 .. code-block:: bash
 

@@ -25,12 +25,14 @@
 #include "mgm/proc/proc_fs.hh"
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/IMaster.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/Prefetcher.hh"
 #include "common/LayoutId.hh"
 #include "common/Path.hh"
 #include "common/Constants.hh"
+#include "common/ParseUtils.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -504,20 +506,12 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
           fs->SetString(key.c_str(), value.c_str());
           FsView::gFsView.StoreFsConfig(fs);
         } else if (key == "forcegeotag") {
-          const int max_tag_size = 8;
-          char node_geotag [value.size()];
-          strcpy(node_geotag, value.c_str());
-          char* gtag = strtok(node_geotag, "::");
+          std::string geotag = eos::common::SanitizeGeoTag(value);
 
-          while (gtag != NULL) {
-            if (strlen(gtag) > max_tag_size) {
-              stdErr += "error: the forcegeotag value contains a tag longer "
-                        "than the 8 chars maximum allowed";
-              retc = EINVAL;
-              return retc;
-            }
-
-            gtag = strtok(NULL, "::");
+          if (geotag.empty()) {
+            stdErr += "error: forcegeotag is not properly formatted";
+            retc = EINVAL;
+            return retc;
           }
 
           fs->SetString(key.c_str(), value.c_str());
@@ -1417,7 +1411,12 @@ proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
       return retc;
     }
 
-    if (cstate != "empty") {
+    // @note We can only remove a file system only if it's empty and
+    // exceptionally if we are a slave MGM and the fs is in drain mode
+    // and we got a request to remove it. The empty state from the
+    // master MGM is never propagated to the slaves.
+    if ((cstate != "empty") &&
+        !((cstate == "drain") && !gOFS->mMaster->IsMaster())) {
       stdErr = "error: you can only remove file systems which are in 'empty' status";
       retc = EINVAL;
     } else {

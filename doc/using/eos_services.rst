@@ -7,10 +7,13 @@ Daemon Control
 Control individual daemons
 --------------------------
 
-systemctl start eos@mq   # for starting MQ service
-systemctl start eos@mgm  # for starting MGM service
-systemctl start eos@fst  # for starting FST service
-systemctl start eos@fed  # for starting FED service
+.. code-block:: bash
+
+    systemctl start eos@mq   # for starting MQ service
+    systemctl start eos@sync # for starting SYNC service
+    systemctl start eos@mgm  # for starting MGM service
+    systemctl start eos@fst  # for starting FST service
+    systemctl start eos@fed  # for starting FED service
 
 It's the same for stop, status and restart. You can't start the daemon if it is
 not configured in "/etc/sysconfig/eos_env" config file.

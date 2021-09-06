@@ -9,6 +9,9 @@ stages:
 
 include:
   - template: Code-Quality.gitlab-ci.yml
+  #  - local: /gitlab-ci/.gitlab-ci-test-dock_include.yml @note on the file
+  - local: /gitlab-ci/.gitlab-ci-test-k8s_include.yml
+  - local: /gitlab-ci/.gitlab-ci-test-helm_include.yml
 
 variables:
   CODENAME: "diopside"
@@ -109,9 +112,6 @@ build_cc7:
     expire_in: 1 day
     paths:
       - cc7_artifacts/
-  tags:
-    - docker_node
-    - build
 
 macosx_dmg:
   stage: build:rpm
@@ -140,8 +140,6 @@ clone_docker:
     expire_in: 1 day
     paths:
       - eos-docker/
-  tags:
-    - docker_node
 
 # schedules ------------------------------
 
@@ -174,10 +172,7 @@ el-8s:
   only:
     - schedules
     - tags
-  allow_failure: true # @todo dont
-  tags:
-    - docker_node
-    - build
+  allow_failure: true # @todo dont allow failure when/if we drop Centos8 and switch to Stream
 
 build_c8:
   stage: build:rpm
@@ -208,9 +203,6 @@ build_c8:
   only:
     - schedules
     - tags
-  tags:
-    - docker_node
-    - build
 
 .build_ubuntu-template: &build_ubuntu-template_definition
   stage: build:rpm
@@ -261,9 +253,6 @@ build_ubuntu_bionic:
   only:
     - schedules
     - tags
-  tags:
-    - docker_node
-    - build
 
 build_ubuntu_focal:
   image: ubuntu:focal
@@ -273,9 +262,6 @@ build_ubuntu_focal:
   only:
     - schedules
     - tags
-  tags:
-    - docker_node
-    - build
 
 .build_fedora-template: &build_fedora-template_definition
   stage: build:rpm
@@ -313,9 +299,6 @@ build_fedora_33:
   only:
     - schedules
     - tags
-  tags:
-    - docker_node
-    - build
 
 build_fedora_34:
   image: fedora:34
@@ -325,9 +308,6 @@ build_fedora_34:
   only:
     - schedules
     - tags
-  tags:
-    - docker_node
-    - build
 
 build_fedora_rawhide:
   image: registry.fedoraproject.org/fedora:rawhide
@@ -336,9 +316,6 @@ build_fedora_rawhide:
     EOS_DIST: fc-rawhide
   only:
     - schedules
-  tags:
-    - docker_node
-    - build
 
 # @note Using "normal" cc7 image as it doesn't actually need an exotic one, yet
 .build_cc7_exotic-template: &build_cc7_exotic-template_definition
@@ -376,9 +353,6 @@ build_cc7_asan:
     CMAKE_OPTIONS: "-DASAN=1"
     RPMBUILD_OPTIONS: "--with asan"
     CXXFLAGS: "-Wno-parentheses"    # Avoid boost header compilation errors
-  tags:
-    - docker_node
-    - build
   when: manual
   allow_failure: true
 
@@ -390,9 +364,6 @@ build_cc7_clang:
     RPMBUILD_OPTIONS: "--with clang"
   only:
     - schedules
-  tags:
-    - docker_node
-    - build
 
 build_cc7_xrd_testing: # @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
   before_script:
@@ -404,9 +375,6 @@ build_cc7_xrd_testing: # @todo Re-enable xrd_testing jobs once project ugprades 
     BUILD_NAME: cc7_xrd_testing
   only:
     - schedules
-  tags:
-    - docker_node
-    - build
   allow_failure: true
 
 build_cc7_opt_xrootd: # @note please contact CTA team / jleduc if you want to change this job
@@ -423,9 +391,6 @@ build_cc7_opt_xrootd: # @note please contact CTA team / jleduc if you want to ch
   allow_failure: true
   except:
     - tags
-  tags:
-    - docker_node
-    - build
   when: manual
 
 
@@ -437,9 +402,6 @@ build_cc7_no_sse:
     RPMBUILD_OPTIONS: "--with no_sse"
   only:
     - tags
-  tags:
-    - docker_node
-    - build
   when: manual
 
 build_cc7_coverage:
@@ -450,9 +412,6 @@ build_cc7_coverage:
   only:
     variables:
       - $COVERAGE_SCHEDULE
-  tags:
-    - docker_node
-    - build
 
 
 #-------------------------------------------------------------------------------
@@ -751,201 +710,12 @@ code_quality_html:
     - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && python2 ./eosclient-tests/run.py --workdir=/eos/user/e/eos-user ci-eosfuse_release"'
     - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && python2 ./eosclient-tests/run.py --workdir=/eos/user/e/eos-user regression"'
   <<: *dock8s_after_script_template
-  allow_failure: true # @todo remove soon, once stable
   artifacts:
     when: on_failure
     expire_in: 3 days
     paths:
       - eos-logs-${CI_JOB_ID}/
   retry: 1
-
-k8s_system:
-  extends: .dock8s_system_test_template
-  image: alpine/k8s:1.18.2
-  needs:
-    - job: cc7_docker_image
-      artifacts: false
-  retry: 1
-  tags:
-    - docker_node
-    - k8s
-
-k8s_cnvrt_fsck:
-  extends: .dock8s_cnvrt_fsck_template
-  image: alpine/k8s:1.18.2
-  needs:
-    - job: cc7_docker_image
-      artifacts: false
-  retry: 1
-  tags:
-    - docker_node
-    - k8s
-
-k8s_rtb_clone:
-  extends: .dock8s_rtb_clone_template
-  image: alpine/k8s:1.18.2
-  needs:
-    - job: cc7_docker_image
-      artifacts: false
-  retry: 1
-  allow_failure: true
-  tags:
-    - docker_node
-    - k8s
-
-k8s_fusex:
-  extends: .dock8s_fusex_test_template
-  image: alpine/k8s:1.18.2
-  needs:
-    - job: cc7_docker_image
-      artifacts: false
-  retry: 1
-  allow_failure: true
-  tags:
-    - docker_node
-    - k8s
-
-k8s_cbox:
-  extends: .dock8s_cbox_test_template
-  image: alpine/k8s:1.18.2
-  needs:
-    - job: cc7_docker_image
-      artifacts: false
-  tags:
-    - docker_node
-    - k8s
-
-k8s_stress:
-  stage: test
-  image: alpine/k8s:1.18.2
-  <<: *dock8s_before_script_template
-  script:
-    - TEST_URL="eos-mgm1.eos-mgm1.$K8S_NAMESPACE.svc.cluster.local"
-    - exec_cmd eos-mgm1 "echo -e \"[grid-hammer]\nname=grid-hammer continuous builds for master\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/grid-hammer/xrootd5/master/el7/x86_64/\ngpgcheck=0\nenabled=1\nprotect=1\npriority=20\n\" > /etc/yum.repos.d/grid-hammer.repo"
-    - exec_cmd eos-mgm1 "yum install -y grid-hammer"
-    - exec_cmd eos-mgm1 "hammer-runner.py --strict-exit-code 1 --gitlab --url ${TEST_URL}//eos/dockertest/hammer/ --protocols xroot --threads 1 2 10 100 --operations write stat read delete --runs 3 --nfiles 10000"
-  <<: *dock8s_after_script_template
-  needs:
-    - job: cc7_docker_image
-      artifacts: false
-  retry: 1
-  # @todo(esindril) remove once we have grid-hammer built with XRootD5
-  allow_failure: true
-  tags:
-    - docker_node
-    - k8s
-
-dock_system:
-  extends: .dock8s_system_test_template
-  image: gitlab-registry.cern.ch/dss/docker-enhanced:19.03.12
-  services:
-    - docker:19.03.12-dind
-  variables:
-    DOCKER_TLS_CERTDIR: "/certs"
-  needs:
-    - job: cc7_docker_image
-      artifacts: false
-    - job: clone_docker
-  retry: 1
-  # @todo(esindril): allow to fail until we build grid-hammer with XRootD5
-  allow_failure: true
-  tags:
-    - docker_node
-    - dock
-  when: manual
-
-dock_cnvrt_fsck:
-  extends: .dock8s_cnvrt_fsck_template
-  image: gitlab-registry.cern.ch/dss/docker-enhanced:19.03.12
-  services:
-    - docker:19.03.12-dind
-  variables:
-    DOCKER_TLS_CERTDIR: "/certs"
-  needs:
-    - job: cc7_docker_image
-      artifacts: false
-    - job: clone_docker
-  retry: 1
-  tags:
-    - docker_node
-    - dock
-  when: manual
-
-dock_rtb_clone:
-  extends: .dock8s_rtb_clone_template
-  image: gitlab-registry.cern.ch/dss/docker-enhanced:19.03.12
-  services:
-    - docker:19.03.12-dind
-  variables:
-    DOCKER_TLS_CERTDIR: "/certs"
-  needs:
-    - job: cc7_docker_image
-      artifacts: false
-    - job: clone_docker
-  retry: 1
-  tags:
-    - docker_node
-    - dock
-  when: manual
-
-dock_fusex:
-  extends: .dock8s_fusex_test_template
-  image: gitlab-registry.cern.ch/dss/docker-enhanced:19.03.12
-  services:
-    - docker:19.03.12-dind
-  variables:
-    DOCKER_TLS_CERTDIR: "/certs"
-  needs:
-    - job: cc7_docker_image
-      artifacts: false
-    - job: clone_docker
-  retry: 1
-  tags:
-    - docker_node
-    - dock
-  when: manual
-
-dock_cbox:
-  extends: .dock8s_cbox_test_template
-  image: gitlab-registry.cern.ch/dss/docker-enhanced:19.03.12
-  services:
-    - docker:19.03.12-dind
-  variables:
-    DOCKER_TLS_CERTDIR: "/certs"
-  needs:
-    - job: cc7_docker_image
-      artifacts: false
-    - job: clone_docker
-  tags:
-    - docker_node
-    - dock
-  when: manual
-
-dock_stress:
-  stage: test
-  image: gitlab-registry.cern.ch/dss/docker-enhanced:19.03.12
-  services:
-    - docker:19.03.12-dind
-  variables:
-    DOCKER_TLS_CERTDIR: "/certs"
-  <<: *dock8s_before_script_template
-  script:
-    - TEST_URL="eos-mgm1.eoscluster.cern.ch"
-    - echo -e "[grid-hammer]\nname=grid-hammer continuous builds for master\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/grid-hammer/xrootd5/master/el7/x86_64/\ngpgcheck=0\nenabled=1\nprotect=1\npriority=20\n" > /etc/yum.repos.d/grid-hammer.repo
-    - exec_cmd eos-mgm1 "yum install -y grid-hammer"
-    - exec_cmd eos-mgm1 "hammer-runner.py --strict-exit-code 1 --gitlab --url ${TEST_URL}//eos/dockertest/hammer/ --protocols xroot --threads 1 2 10 100 --operations write stat read delete --runs 3 --nfiles 10000"
-  <<: *dock8s_after_script_template
-  needs:
-    - job: cc7_docker_image
-      artifacts: false
-    - job: clone_docker
-  retry: 1
-  # @todo(esindril) remove once we have grid-hammer built with XRootD5
-  allow_failure: true
-  tags:
-    - docker_node
-    - dock
-  when: manual
 
 .unit_test_template: &unit_test_template_definition
   stage: test
@@ -983,211 +753,6 @@ unit_test:
   <<: *unit_test_template_definition
   except:
     - tags
-
-# schedules ------------------------------
-
-k8s_system_c8:
-  extends: .dock8s_system_test_template
-  image: alpine/k8s:1.18.2
-  variables:
-    BASETAG: "c8_"
-  needs:
-    - job: c8_docker_image
-      artifacts: false
-  retry: 1
-  allow_failure: true
-  only:
-    - schedules
-    - tags
-  tags:
-    - docker_node
-    - k8s
-
-k8s_cbox_c8:
-  extends: .dock8s_cbox_test_template
-  image: alpine/k8s:1.18.2
-  variables:
-    BASETAG: "c8_"
-  needs:
-    - job: c8_docker_image
-      artifacts: false
-  allow_failure: true
-  only:
-    - schedules
-    - tags
-  tags:
-    - docker_node
-    - k8s
-
-k8s_fusex_ub_bionic:
-  extends: .dock8s_fusex_test_template
-  image: alpine/k8s:1.18.2
-  variables:
-    CLI_BASETAG: "ubuntu_bionic_client_"
-  needs:
-    - job: cc7_docker_image
-      artifacts: false
-    - job: ubuntu_bionic_docker_image
-      artifacts: false
-  retry: 1
-  allow_failure: true
-  only:
-    - schedules
-    - tags
-  tags:
-    - docker_node
-    - k8s
-
-k8s_fusex_ub_focal:
-  extends: .dock8s_fusex_test_template
-  image: alpine/k8s:1.18.2
-  variables:
-    CLI_BASETAG: "ubuntu_focal_client_"
-  needs:
-    - job: cc7_docker_image
-      artifacts: false
-    - job: ubuntu_focal_docker_image
-      artifacts: false
-  retry: 1
-  allow_failure: true
-  only:
-    - schedules
-    - tags
-  tags:
-    - docker_node
-    - k8s
-
-# @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
-# xt stands for xrd_testing. Must shorten to not hit HOST_NAME_MAX
-.k8s_system_xt:
-  extends: .dock8s_system_test_template
-  image: alpine/k8s:1.18.2
-  variables:
-    BASETAG: "xrd_testing_"
-  needs:
-    - job: cc7_xrd_testing_docker_image
-      artifacts: false
-  retry: 1
-  allow_failure: true
-  only:
-    - schedules
-  tags:
-    - docker_node
-    - k8s
-
-dock_system_c8:
-  extends: .dock8s_system_test_template
-  image: gitlab-registry.cern.ch/dss/docker-enhanced:19.03.12
-  services:
-    - docker:19.03.12-dind
-  variables:
-    DOCKER_TLS_CERTDIR: "/certs"
-    BASETAG: "c8_"
-  needs:
-    - job: c8_docker_image
-      artifacts: false
-    - job: clone_docker
-  allow_failure: true
-  retry: 1
-  only:
-    - schedules
-    - tags
-  tags:
-    - docker_node
-    - dock
-  when: manual
-
-dock_cbox_c8:
-  extends: .dock8s_cbox_test_template
-  image: gitlab-registry.cern.ch/dss/docker-enhanced:19.03.12
-  services:
-    - docker:19.03.12-dind
-  variables:
-    DOCKER_TLS_CERTDIR: "/certs"
-    BASETAG: "c8_"
-  needs:
-    - job: c8_docker_image
-      artifacts: false
-    - job: clone_docker
-  allow_failure: true
-  only:
-    - schedules
-    - tags
-  tags:
-    - docker_node
-    - dock
-  when: manual
-
-dock_fusex_ub_bionic:
-  extends: .dock8s_fusex_test_template
-  image: gitlab-registry.cern.ch/dss/docker-enhanced:19.03.12
-  services:
-    - docker:19.03.12-dind
-  variables:
-    DOCKER_TLS_CERTDIR: "/certs"
-    CLI_BASETAG: "ubuntu_bionic_client_"
-  needs:
-    - job: cc7_docker_image
-      artifacts: false
-    - job: ubuntu_bionic_docker_image
-      artifacts: false
-    - job: clone_docker
-  allow_failure: true
-  retry: 1
-  only:
-    - schedules
-    - tags
-  tags:
-    - docker_node
-    - dock
-  when: manual
-
-dock_fusex_ub_focal:
-  extends: .dock8s_fusex_test_template
-  image: gitlab-registry.cern.ch/dss/docker-enhanced:19.03.12
-  services:
-    - docker:19.03.12-dind
-  variables:
-    DOCKER_TLS_CERTDIR: "/certs"
-    CLI_BASETAG: "ubuntu_focal_client_"
-  needs:
-    - job: cc7_docker_image
-      artifacts: false
-    - job: ubuntu_focal_docker_image
-      artifacts: false
-    - job: clone_docker
-  allow_failure: true
-  retry: 1
-  only:
-    - schedules
-    - tags
-  tags:
-    - docker_node
-    - dock
-  when: manual
-
-# @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
-# xt stands for xrd_testing. Must shorten to not hit HOST_NAME_MAX
-.dock_system_xt:
-  extends: .dock8s_system_test_template
-  image: gitlab-registry.cern.ch/dss/docker-enhanced:19.03.12
-  services:
-    - docker:19.03.12-dind
-  variables:
-    DOCKER_TLS_CERTDIR: "/certs"
-    BASETAG: "xrd_testing_"
-  needs:
-    - job: cc7_xrd_testing_docker_image
-      artifacts: false
-    - job: clone_docker
-  allow_failure: true
-  retry: 1
-  only:
-    - schedules
-  tags:
-    - docker_node
-    - dock
-  when: manual
 
 # @note.1 jobs with `needs: on manual jobs get stuck (no fail nor succeed)
 # if an `optional: true` policy is not defined in GitLab < 13.12
@@ -1320,7 +885,6 @@ debian_bionic_artifacts:
     - docker_node
     - publish
 
-# @todo are two debian_<dist>_artifacts even needed? Check
 debian_focal_artifacts:
   stage: publish
   image: ubuntu:focal
@@ -1342,7 +906,6 @@ debian_focal_artifacts:
   tags:
     - docker_node
     - publish
-  when: manual
 
 debian_artifacts_volume:
   stage: publish
@@ -1457,6 +1020,18 @@ clean_k8s_cluster:
     - docker_node
     - k8s
 
+# @todo cleanup helm leftover for failed / hanging tests. May be merged to 'clean_k8s_cluster'
+clean_helm_cluster:
+  stage: clean
+  image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.13.5
+  script:
+    - export KUBECONFIG=$K8S_CONFIG
+    - echo "Please, implement me!"
+  dependencies: []
+  allow_failure: true
+  only:
+    - schedules
+
 
 #-------------------------------------------------------------------------------
 # Manually triggered builds
@@ -1521,6 +1096,26 @@ eos_apmon_c8:
   when: manual
   environment:
     name: apmon-c8-prod
+
+eos_apmon_cs8:
+  stage: build:manual
+  image: gitlab-registry.cern.ch/linuxsupport/cs8-base
+  script:
+    - yum install --nogpg -y gcc-c++ cmake make rpm-build which git sssd-client sudo createrepo rsync yum-utils
+    - cd ApMon
+    - ./maketar.sh
+    - rpmbuild --define "_source_filedigest_algorithm md5" --define "_binary_filedigest_algorithm md5" --define "_topdir ./rpmbuild" -ts eos-apmon-*.tar.gz
+    - yum-builddep --nogpgcheck -y rpmbuild/SRPMS/eos-apmon-*.src.rpm
+    - rpmbuild --rebuild --define "_rpmdir rpmbuild/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" rpmbuild/SRPMS/eos-apmon-*.src.rpm
+    - STORAGE_PATH=/eos/project/s/storage-ci/www/eos/${CODENAME}-depend/el-8s/x86_64
+    - sudo -u stci -H mkdir -p $STORAGE_PATH
+    - sudo -u stci -H cp -f rpmbuild/RPMS/*.rpm $STORAGE_PATH
+    - sudo -u stci -H createrepo --update -q $STORAGE_PATH
+  tags:
+    - docker_node
+  when: manual
+  environment:
+    name: apmon-cs8-prod
 
 eos_microhttpd_cc7:
   stage: build:manual

@@ -58,7 +58,7 @@ Mapping::AllowedTidentMatches_t Mapping::gAllowedTidentMatches;
 XrdSysMutex Mapping::ActiveLock;
 
 google::dense_hash_map<std::string, time_t> Mapping::ActiveTidents;
-google::dense_hash_map<uid_t,size_t> Mapping::ActiveUids;
+google::dense_hash_map<uid_t, size_t> Mapping::ActiveUids;
 
 XrdOucHash<Mapping::id_pair> Mapping::gPhysicalUidCache;
 XrdOucHash<Mapping::gid_set> Mapping::gPhysicalGidCache;
@@ -100,9 +100,9 @@ Mapping::Init()
 {
   ActiveTidents.set_empty_key("#__EMPTY__#");
   ActiveTidents.set_deleted_key("#__DELETED__#");
-
   ActiveUids.set_empty_key(2147483646);
   ActiveUids.set_deleted_key(2147483647);
+
   // allow FUSE client access as root via env variable
   if (getenv("EOS_FUSE_NO_ROOT_SQUASH") &&
       !strcmp("1", getenv("EOS_FUSE_NO_ROOT_SQUASH"))) {
@@ -287,7 +287,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   if ((vid.prot == "https")) {
     eos_static_debug("%s:", "msg=\"https mapping\"");
 
-    if (auto kv =gVirtualUidMap.find(g_https_uid_key);
+    if (auto kv = gVirtualUidMap.find(g_https_uid_key);
         kv != gVirtualUidMap.end()) {
       if (kv->second == 0) {
         eos_static_debug("%s", "msg=\"https uid mapping\"");
@@ -439,8 +439,6 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   XrdOucString wildcardtident = "";
   XrdOucString host = "";
   XrdOucString stident = "tident:";
-  bool is_localhost = false;
-
   stident += "\"";
   stident += ReduceTident(vid.tident, wildcardtident, mytident, host);
 
@@ -651,7 +649,6 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     vid.sudoer = true;
     vid.uid = 3;
     vid.gid = 4;
-    is_localhost = true;
 
     if (!vid.hasUid(3)) {
       vid.allowed_uids.insert(vid.uid);
@@ -782,16 +779,18 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
           vid.prot = "sss";
         }
       } else {
-        int errc=0;
+        int errc = 0;
         std::string uidkey = "oauth2:\"";
         uidkey += "sub:";
         uidkey += oauthname;
         uidkey += "\":uid";
-  if (auto kv = gVirtualUidMap.find(uidkey);
-      kv != gVirtualUidMap.end()) {
+
+        if (auto kv = gVirtualUidMap.find(uidkey);
+            kv != gVirtualUidMap.end()) {
           // map oauthname from static sub mapping
-          oauthname = UidToUserName(kv->second, errc );
+          oauthname = UidToUserName(kv->second, errc);
         }
+
         if (errc) {
           // we have no mapping for this uid
           Mapping::getPhysicalIds("nobody", vid);
@@ -799,6 +798,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
           // map oauthname
           Mapping::getPhysicalIds(oauthname.c_str(), vid);
         }
+
         vid.prot = "oauth2";
       }
     }
@@ -809,14 +809,15 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   {
     auto userkey = gVirtualUidMap.find(useralias.c_str());
     vid.uid = userkey != gVirtualUidMap.end() ? userkey->second : vid.uid;
+
     if (!vid.hasUid(vid.uid)) {
       vid.allowed_uids.insert(vid.uid);
     }
   }
-
   {
     auto groupkey = gVirtualGidMap.find(groupalias.c_str());
     vid.gid = groupkey != gVirtualGidMap.end() ? groupkey->second : vid.gid;
+
     if (!vid.hasGid(vid.gid)) {
       vid.allowed_gids.insert(vid.gid);
     }
@@ -937,16 +938,6 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       vid.gid = 99;
     }
   } else {
-    // remove sudo capability after changing identity
-    if (!is_localhost) {
-      if ( vid.uid != sel_uid) {
-        vid.sudoer = false;
-      }
-      if ( vid.gid != sel_gid) {
-        vid.sudoer = false;
-      }
-    }
-
     vid.uid = sel_uid;
     vid.gid = sel_gid;
 
@@ -1055,11 +1046,12 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     snprintf(actident, sizeof(actident) - 1, "%d^%s^%s^%s^%s", vid.uid,
              mytident.c_str(), vid.prot.c_str(), vid.host.c_str(), vid.app.c_str());
     std::string intident = actident;
+
     if (!ActiveTidents.count(intident)) {
       ActiveUids[vid.uid]++;
     }
-    ActiveTidents[intident] = now;
 
+    ActiveTidents[intident] = now;
   }
 
   ActiveLock.UnLock();
@@ -1590,8 +1582,8 @@ Mapping::UidToUserName(uid_t uid, int& errc)
   errc = 0;
   {
     XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
-
     auto kv = gPhysicalUserNameCache.find(uid);
+
     if (kv != gPhysicalUserNameCache.end()) {
       return kv->second;
     }
@@ -1653,8 +1645,8 @@ Mapping::GidToGroupName(gid_t gid, int& errc, size_t buffersize)
   errc = 0;
   {
     XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
-
     auto kv = gPhysicalGroupNameCache.find(gid);
+
     if (kv != gPhysicalGroupNameCache.end()) {
       return kv->second;
     }
@@ -1668,10 +1660,11 @@ Mapping::GidToGroupName(gid_t gid, int& errc, size_t buffersize)
 
     if (getgrgid_r(gid, &grbuf, buffer, buflen, &grbufp) || (!grbufp)) {
       if (errno == ERANGE) {
-        if (buffersize < (16*1024*1024)) {
+        if (buffersize < (16 * 1024 * 1024)) {
           // try doubling the buffer
-          return GidToGroupName(gid, errc, 2*buffersize);
+          return GidToGroupName(gid, errc, 2 * buffersize);
         }
+
         // just give up here
       }
 
@@ -1773,6 +1766,7 @@ Mapping::GroupNameToGid(const std::string& groupname, int& errc)
 {
   {
     XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
+
     if (auto kv = gPhysicalGroupIdCache.find(groupname);
         kv != gPhysicalGroupIdCache.end()) {
       return kv->second;
@@ -2157,9 +2151,11 @@ Mapping::UidFromTident(const std::string& tident)
   std::vector<std::string> tokens;
   std::string delimiter = "^";
   eos::common::StringConversion::Tokenize(tident, tokens, delimiter);
+
   if (tokens.size()) {
     return atoi(tokens[0].c_str());
   }
+
   return 0;
 }
 
