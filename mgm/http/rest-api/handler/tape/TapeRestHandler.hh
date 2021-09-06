@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: Resource.cc
+// File: TapeRestHandler.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,10 +21,31 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "Resource.hh"
+#ifndef EOS_TAPERESTHANDLER_HH
+#define EOS_TAPERESTHANDLER_HH
 
-EOSMGMNAMESPACE_BEGIN
+#include "mgm/Namespace.hh"
+#include "mgm/http/rest-api/handler/RestHandler.hh"
+#include "mgm/http/rest-api/resources/ResourceFactory.hh"
 
+EOSMGMRESTNAMESPACE_BEGIN
 
+class TapeRestHandler : public RestHandler {
+public:
+  /**
+   * Constructor of the TapeRestHandler
+   * @param restApiUrl the base URL of the REST API without the instance name
+   */
+  TapeRestHandler(const std::string & restApiUrl);
+  common::HttpResponse * handleRequest(common::HttpRequest * request) override;
+  bool isRestRequest(const std::string & requestUrl) override;
+private:
+  inline static const std::string cEntryPointRegex = "^\\/([a-z0-9-]+)+\\/$";
+  static void verifyRestApiEntryPoint(const std::string & restApiUrl);
+  std::string mRestAPIUrl;
+  std::unique_ptr<ResourceFactory> mResourceFactory;
+};
 
-EOSMGMNAMESPACE_END
+EOSMGMRESTNAMESPACE_END
+
+#endif // EOS_TAPERESTHANDLER_HH

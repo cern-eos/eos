@@ -74,7 +74,8 @@ set(MGM_UT_SRCS
   mgm/XrdMgmOfsFileTests.cc
   mgm/bulk-request/PrepareManagerTest.cc
   mgm/bulk-request/BulkRequestPrepareManagerTest.cc
-  mgm/bulk-request/MockPrepareMgmFSInterface.cc)
+  mgm/bulk-request/MockPrepareMgmFSInterface.cc
+  mgm/http/rest-api/RestApiTest.cc)
 
 set(COMMON_UT_SRCS
   common/FileIdTests.cc

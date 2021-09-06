@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: RestHandler.hh
+// File: StageControllerV1.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,36 +20,16 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-#ifndef EOS_RESTHANDLER_HH
-#define EOS_RESTHANDLER_HH
+#ifndef EOS_STAGECONTROLLERV1_HH
+#define EOS_STAGECONTROLLERV1_HH
 
 #include "mgm/Namespace.hh"
-#include <memory>
-#include "common/http/HttpResponse.hh"
-#include "common/http/HttpRequest.hh"
 
-EOSMGMNAMESPACE_BEGIN
+EOSMGMRESTNAMESPACE_BEGIN
 
-/**
- * This class allows to handle REST requests.
- */
-class RestHandler {
-public:
-  /**
-   * Constructor of the RestHandler
-   * @param restApiUrl the base URL of the REST API without the instance name
-   */
-  RestHandler(const std::string & restApiUrl);
-  common::HttpResponse * handleRequest(common::HttpRequest * request);
-  bool isRestRequest(const std::string & requestUrl);
-private:
-  const std::string extractResourceFromUrl(const std::string & url);
-  const std::string extractVersionFromUrl(const std::string & url);
-
-  const std::string mRestAPIUrl;
+class StageControllerV1 : public Controller {
 };
 
-EOSMGMNAMESPACE_END
+EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_RESTHANDLER_HH
+#endif // EOS_STAGECONTROLLERV1_HH

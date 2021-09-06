@@ -1,11 +1,11 @@
-// ----------------------------------------------------------------------
-// File: Resource.hh
-// Author: Cedric Caffy - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
+//! @file RestApiTest.hh
+//! @author Cedric Caffy - CERN
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2013 CERN/Switzerland                                  *
+ * Copyright (C) 2017 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,22 +21,25 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_RESOURCE_HH
-#define EOS_RESOURCE_HH
+#ifndef EOS_RESTAPITEST_HH
+#define EOS_RESTAPITEST_HH
 
 #include "mgm/Namespace.hh"
-#include "common/http/HttpResponse.hh"
+#include "mgm/http/rest-api/handler/RestHandler.hh"
+#include <gtest/gtest.h>
 
-EOSMGMRESTNAMESPACE_BEGIN
+USE_EOSMGMRESTNAMESPACE;
 
-class Resource {
-public:
-  virtual common::HttpResponse * handleRequest(common::HttpRequest * request) = 0;
-  inline void setVersion(const std::string & version){ mVersion = version; }
+class RestApiTest : public ::testing::Test {
 protected:
-  std::string mVersion;
+
+  virtual void SetUp() {
+
+  }
+
+  virtual void TearDown() {
+
+  }
 };
 
-EOSMGMRESTNAMESPACE_END
-
-#endif // EOS_RESOURCE_HH
+#endif // EOS_RESTAPITEST_HH

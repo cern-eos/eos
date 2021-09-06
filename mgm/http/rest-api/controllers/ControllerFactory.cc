@@ -22,7 +22,13 @@
  ************************************************************************/
 
 #include "ControllerFactory.hh"
+#include "mgm/http/rest-api/controllers/tape/stage/StageControllerV1.hh"
 
-EOSMGMNAMESPACE_BEGIN
 
-EOSMGMNAMESPACE_END
+EOSMGMRESTNAMESPACE_BEGIN
+
+Controller* ControllerFactory::getStageControllerV1() {
+  return new StageControllerV1();
+}
+
+EOSMGMRESTNAMESPACE_END
