@@ -1004,11 +1004,11 @@ int proc_mv_fs_group(FsView& fs_view, const std::string& src,
       if (value.length()) {
         int64_t uvalue = StringConversion::GetSizeFromString(value.c_str());
         fs->SetLongLong(it->c_str(), uvalue);
-        FsView::gFsView.StoreFsConfig(fs);
         oss << "info: applying space config " << *it << "=" << value << std::endl;
       }
     }
 
+    FsView::gFsView.StoreFsConfig(fs);
     oss << "success: filesystem " << (int) fs->GetId() << " moved to group "
         << dst << std::endl;
     stdOut = oss.str().c_str();

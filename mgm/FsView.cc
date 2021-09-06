@@ -1893,7 +1893,6 @@ FsView::MoveGroup(FileSystem* fs, std::string group)
                   snapshot.mSpace.c_str(), snapshot.mId, fs);
       }
 
-      StoreFsConfig(fs);
       return true;
     }
   }
