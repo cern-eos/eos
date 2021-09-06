@@ -258,6 +258,7 @@ function check_all_errors_collected() {
           -z "${FOUND_ORPHAN}"           ]]; then
       if (( $((${CURRENT_TIME} - ${START_TIME})) >= ${MAX_DELAY} )); then
         echo "error: some of the errors were not discovered"
+        # @todo(esindril) output the errors not discovered
         exit 1
       else
         echo "info: sleep for 5 seconds waiting for error collection, `secs_to_human $((${CURRENT_TIME} - ${START_TIME}))` passed"
@@ -376,6 +377,7 @@ while
   if [[ ! -z "${HAS_ERRORS}" ]]; then
     if (( $((${CURRENT_TIME} - ${START_TIME})) >= ${MAX_DELAY} )); then
       echo "error: some errors where not repaired"
+      # @todo(esindril) output the errors not repaired
       cleanup
       exit 1
     else
