@@ -16,6 +16,18 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.0.2 Diopside``
+===================
+
+2021-09-06
+
+Bug
+----
+
+* [EOS-4809] - Make eos5 work with XrdMacaroons from XRootD5
+* Includes all the fixes from 4.8.62
+
+
 ``v5.0.1 Diopside``
 ===================
 
