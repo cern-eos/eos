@@ -27,16 +27,18 @@
 #include "mgm/Namespace.hh"
 #include "mgm/http/rest-api/resources/Resource.hh"
 #include <string>
+#include <map>
+#include <functional>
 
-EOSMGMNAMESPACE_BEGIN
+EOSMGMRESTNAMESPACE_BEGIN
 
 class ResourceFactory {
 public:
-  Resource * createResource(const std::string & resourceName);
-private:
-
+  virtual Resource * createResource(const std::string & resourceName) = 0;
+protected:
+  typedef std::function<Resource *()> resource_factory_method_t;
 };
 
-EOSMGMNAMESPACE_END
+EOSMGMRESTNAMESPACE_END
 
 #endif // EOS_RESOURCEFACTORY_HH
