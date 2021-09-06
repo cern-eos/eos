@@ -1,11 +1,11 @@
-// ----------------------------------------------------------------------
-// File: Resource.hh
-// Author: Cedric Caffy - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
+//! @file RestApiTest.hh
+//! @author Cedric Caffy - CERN
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2013 CERN/Switzerland                                  *
+ * Copyright (C) 2017 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,22 +21,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_RESOURCE_HH
-#define EOS_RESOURCE_HH
+#include "RestApiTest.hh"
+#include "mgm/http/rest-api/exception/RestHandlerException.hh"
+#include "mgm/http/rest-api/handler/tape/TapeRestHandler.hh"
 
-#include "mgm/Namespace.hh"
-#include "common/http/HttpResponse.hh"
-
-EOSMGMRESTNAMESPACE_BEGIN
-
-class Resource {
-public:
-  virtual common::HttpResponse * handleRequest(common::HttpRequest * request) = 0;
-  inline void setVersion(const std::string & version){ mVersion = version; }
-protected:
-  std::string mVersion;
-};
-
-EOSMGMRESTNAMESPACE_END
-
-#endif // EOS_RESOURCE_HH
+TEST_F(RestApiTest,RestHandlerConstructorShouldThrowIfProgrammerGaveWrongURL){
+  std::unique_ptr<TapeRestHandler> restHandler;
+  ASSERT_THROW(restHandler.reset(new TapeRestHandler("WRONG_URL")),RestHandlerException);
+  ASSERT_THROW(restHandler.reset(new TapeRestHandler("//test.fr")),RestHandlerException);
+  ASSERT_THROW(restHandler.reset(new TapeRestHandler("/api/v1/")),RestHandlerException);
+  ASSERT_THROW(restHandler.reset(new TapeRestHandler("//")),RestHandlerException);
+  ASSERT_THROW(restHandler.reset(new TapeRestHandler("/ /")),RestHandlerException);
+  ASSERT_NO_THROW(restHandler.reset(new TapeRestHandler("/rest-api-entry-point/")));
+}
