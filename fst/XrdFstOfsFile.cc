@@ -1538,7 +1538,11 @@ XrdFstOfsFile::_close()
             } else {
               if (mLayout->IsEntryServer() && !isReplication && !mIsInjection) {
                 // The entry server commits size and checksum
-                capOpaqueFile += "&mgm.commit.size=1&mgm.commit.checksum=1";
+                capOpaqueFile += "&mgm.commit.size=1";
+
+                if (mCheckSum) {
+                  capOpaqueFile += "&mgm.commit.checksum=1";
+                }
               } else {
                 if (mCheckSum) {
                   // if we computed a checksum, we verify it
@@ -2564,6 +2568,8 @@ XrdFstOfsFile::ProcessMixedOpaque()
   if ((val = mOpenOpaque->Get("mgm.checksum"))) {
     opaqueCheckSum = val;
   }
+
+  eos_static_info("mgm.checksum is %s", opaqueCheckSum.c_str());
 
   // Call the checksum factory function with the selected layout
   if (opaqueCheckSum != "ignore") {
