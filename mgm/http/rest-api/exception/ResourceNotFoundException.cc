@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ResourceFactory.cc
+// File: ResourceNotFoundException.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,12 +21,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "ResourceFactory.hh"
+#include "ResourceNotFoundException.hh"
 
-EOSMGMNAMESPACE_BEGIN
+EOSMGMRESTNAMESPACE_BEGIN
 
-Resource * ResourceFactory::createResource(const std::string & resourceName){
- return nullptr;
-}
+ResourceNotFoundException::ResourceNotFoundException(const std::string& exceptionMsg): RestHandlerException(exceptionMsg){}
 
-EOSMGMNAMESPACE_END
+EOSMGMRESTNAMESPACE_END

@@ -22,32 +22,7 @@
  ************************************************************************/
 
 #include "RestHandler.hh"
-#include "common/StringConversion.hh"
-EOSMGMNAMESPACE_BEGIN
 
-RestHandler::RestHandler(const std::string & restApiUrl):mRestAPIUrl(restApiUrl){
+EOSMGMRESTNAMESPACE_BEGIN
 
-}
-
-common::HttpResponse* RestHandler::handleRequest(common::HttpRequest* request){
-  //Tokenize the URL given
-  //Instanciate the Resource
-  //Get the controller
-  //Perform the controller action depending on the method (GET, POST,...)
-  return nullptr;
-}
-
-bool RestHandler::isRestRequest(const std::string& requestUrl){
-  //The URL should start with the API entry URL
-  return ::strncmp(mRestAPIUrl.c_str(),requestUrl.c_str(),mRestAPIUrl.length()) == 0;
-}
-
-const std::string RestHandler::extractResourceFromUrl(const std::string& url) {
-  return "";
-}
-
-const std::string RestHandler::extractVersionFromUrl(const std::string& url) {
-  return "";
-}
-
-EOSMGMNAMESPACE_END
+EOSMGMRESTNAMESPACE_END
