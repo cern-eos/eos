@@ -43,4 +43,9 @@
 #define EOSBULKNAMESPACE_BEGIN namespace eos { namespace mgm { namespace bulk {
 #define EOSBULKNAMESPACE_END }}}
 
+#define USE_EOSMGMRESTNAMESPACE using namespace eos::mgm::rest;
+
+#define EOSMGMRESTNAMESPACE_BEGIN namespace eos { namespace mgm { namespace rest {
+#define EOSMGMRESTNAMESPACE_END }}}
+
 #endif
