@@ -78,7 +78,7 @@ AclHelper::CheckId(const std::string& id)
 bool
 AclHelper::CheckFlags(const std::string& flags)
 {
-  static const std::string allowed_chars = "!+-rwoxmduqc";
+  static const std::string allowed_chars = "!+-rwoxmduqca";
   return flags.find_first_not_of(allowed_chars) == std::string::npos;
 }
 
@@ -146,6 +146,7 @@ AclHelper::ParseCommand(const char* arg)
   eos::common::StringTokenizer tokenizer(arg);
   tokenizer.GetLine();
   bool type_set = false;
+
   // Get opts
   while ((temp = tokenizer.GetToken(false)) != 0) {
     // Trimming
@@ -166,11 +167,13 @@ AclHelper::ParseCommand(const char* arg)
       acl->set_recursive(true);
       continue;
     }
+
     if ((token == "-f") || (token == "--front")) {
       if (acl->position()) {
         std::cerr << "error: set only one of position or front argument" << std::endl;
         return false;
       }
+
       acl->set_position(1);
       continue;
     }
@@ -182,18 +185,23 @@ AclHelper::ParseCommand(const char* arg)
       }
 
       std::string spos;
+
       if (!tokenizer.NextToken(spos)) {
         std::cerr << "error: position needs an argument!" << std::endl;
         return false;
       }
+
       try {
         int pos = std::stoi(spos);
-        if (pos > 0)
+
+        if (pos > 0) {
           acl->set_position(pos);
+        }
       } catch (const std::exception& e) {
         std::cerr << "error: position needs to be integer" << std::endl;
         return false;
       }
+
       continue;
     }
 
