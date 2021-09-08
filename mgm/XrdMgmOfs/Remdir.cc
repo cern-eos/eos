@@ -48,8 +48,8 @@ XrdMgmOfs::remdir(const char* inpath,
   EXEC_TIMING_END("IdMap");
   NAMESPACEMAP;
   NAMESPACE_NO_TRAILING_SLASH;
-  TOKEN_SCOPE;
   BOUNCE_ILLEGAL_NAMES;
+  TOKEN_SCOPE;
   XrdOucEnv remdir_Env(ininfo);
   AUTHORIZE(client, &remdir_Env, AOP_Delete, "remove", inpath, error);
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
