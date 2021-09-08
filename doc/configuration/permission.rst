@@ -61,7 +61,7 @@ A rule is defined in the following way:
 
 .. code-block:: bash
 
-   <rule> = u:<uid|username>|g:<gid|groupname>|egroup:<name>|z::{rwxomqci(!d)(+d)(!u)(+u)}
+   <rule> = u:<uid|username>|g:<gid|groupname>|egroup:<name>|z::{rwxomqcia(!d)(+d)(!u)(+u)}
 
 A rule has three colon-separated fields. It starts with the type of rule: 
 User (u), Group (g), eGroup (egroup) or all (z). The second field specifies the name or 
@@ -76,10 +76,10 @@ The following tags compose a rule:
    tag definition
    === =========================================================================
    r   grant read permission
-   w   grant write permissions
+   w   grant write permission
    x   grant browsing permission
    m   grant change mode permission
-   !m  forbid change mode operations
+   !m  forbid change mode operation
    !d  forbid deletion of files and directories
    +d  overwrite a '!d' rule and allow deletion of files and directories
    !u  forbid update of files
@@ -87,6 +87,7 @@ The following tags compose a rule:
    q   grant 'set quota' permissions on a quota node
    c   grant 'change owner' permission on directory children
    i   set the immutable flag    
+   a   grant archiving permission
    === =========================================================================
 
 

@@ -29,10 +29,6 @@
 #include <unistd.h>
 #include <functional>
 #include <queue>
-//#include <getopt.h>
-//#include <algorithm>
-//#include <sstream>
-//extern XrdMgmOfs* gOFS;
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -103,7 +99,7 @@ AclCmd::GetAcls(const std::string& path, std::string& acl, bool is_sys,
 int
 AclCmd::ModifyAcls(const eos::console::AclProto& acl)
 {
-  XrdOucString m_err {""};
+  XrdOucString m_err = "";
 
   // Parse acl modification command into bitmask rule format
   if (!ParseRule(acl.rule())) {
@@ -112,10 +108,9 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
   }
 
   std::list<std::string> paths;
-
   eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, acl.path(), false);
-
-  eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+  eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex, __FUNCTION__,
+      __LINE__, __FILE__);
 
   if (acl.recursive()) {
     // @todo (esindril): get list of all directories recursively
@@ -148,12 +143,13 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
     GenerateRuleMap(dir_acls, rule_map);
     // ACL position is 1-indexed as 0 is the default numeric protobuf val
     auto [err, acl_pos] = GetRulePosition(rule_map.size(), acl.position());
+
     if (err) {
       mErr = "error: rule position cannot be met!";
       return err;
     }
 
-    ApplyRule(rule_map,acl_pos);
+    ApplyRule(rule_map, acl_pos);
     new_acl_val = GenerateAclString(rule_map);
 
     // Set xattr without taking the namespace lock
@@ -213,6 +209,10 @@ Rule AclCmd::GetRuleFromString(const std::string& single_acl)
 
     case 'c' :
       rule_int = rule_int | AclCmd::C;
+      break;
+
+    case 'a':
+      rule_int = rule_int | AclCmd::A;
       break;
 
     case '+' :
@@ -374,6 +374,11 @@ bool AclCmd::GetRuleBitmask(const std::string& input, bool set)
 
     if (*flag == 'q') {
       curr_lambda(AclCmd::Q);
+      continue;
+    }
+
+    if (*flag == 'a') {
+      curr_lambda(AclCmd::A);
       continue;
     }
 
@@ -555,9 +560,10 @@ void AclCmd::ApplyRule(RuleMap& rules, size_t pos)
   if (!mSet) {
     auto it = std::find_if(rules.begin(),
                            rules.end(),
-                           [&](const Rule& rule) -> bool {
-                             return rule.first == mId;
-                           });
+    [&](const Rule & rule) -> bool {
+      return rule.first == mId;
+    });
+
     if (it != rules.end()) {
       temp_rule = it->second;
     }
@@ -573,9 +579,11 @@ void AclCmd::ApplyRule(RuleMap& rules, size_t pos)
 
   if (pos != 0) {
     auto [it, err] = get_iterator(rules, pos);
+
     if (err != 0) {
       mErr = "Invalid position of rule, errc=" + std::to_string(err);
     }
+
     insert_or_assign(rules, mId, temp_rule, it, true);
     return;
   }
@@ -661,6 +669,10 @@ AclCmd::AclBitmaskToString(const unsigned short int in)
     ret.append("c");
   }
 
+  if (in & AclCmd::A) {
+    ret.append("a");
+  }
+
   if (in & AclCmd::nR) {
     ret.append("!r");
   }
@@ -679,8 +691,7 @@ AclCmd::AclBitmaskToString(const unsigned short int in)
 std::pair<int, size_t>
 AclCmd::GetRulePosition(size_t rule_map_sz, size_t rule_pos)
 {
-
-  std::pair<int,size_t> result {0,0};
+  std::pair<int, size_t> result {0, 0};
 
   // Trivial case, nothing is set
   if (!rule_map_sz && !rule_pos) {

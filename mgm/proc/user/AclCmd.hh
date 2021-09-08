@@ -38,37 +38,43 @@ typename C::iterator key_position(C& c, const K& k)
 {
   return std::find_if(c.begin(),
                       c.end(),
-                      [&k](const typename C::value_type& val)->bool {
-                        return k == val.first;
-                      });
+  [&k](const typename C::value_type & val)->bool {
+    return k == val.first;
+  });
 }
 
 template <typename C, typename K, typename V>
 void insert_or_assign(C& c, K&& k, V&& v)
 {
-  auto it = key_position(c,k);
+  auto it = key_position(c, k);
+
   if (it != c.end()) {
     it->second = v;
     return;
   }
+
   c.emplace_back(std::make_pair(std::forward<K>(k),
                                 std::forward<V>(v)));
 }
 
 template <typename C, typename K, typename V,
           typename It = typename C::iterator>
-void insert_or_assign(C& c, K&& k, V&& v, It&& pos, bool move_existing=false)
+void insert_or_assign(C& c, K && k, V && v, It &&
+                      pos, bool move_existing = false)
 {
-  auto it = key_position(c,k);
+  auto it = key_position(c, k);
+
   if (it != c.end()) {
     if (!move_existing || it == pos) {
       it->second = v;
       return;
     }
+
     // This function currently moves an existing key to a given position too, if
     // this is not needed, we could skip the following erase! Since Iterator is at a
     // different position, erase this, we'll readd the key back at the last step
     auto next_it = c.erase(it);
+
     // In case we're demoting an element the erase would've dropped an element
     // so the index position should be incremented!
     if (pos != c.end() &&
@@ -76,6 +82,7 @@ void insert_or_assign(C& c, K&& k, V&& v, It&& pos, bool move_existing=false)
       ++pos;
     }
   }
+
   c.insert(pos, std::make_pair(std::forward<K>(k),
                                std::forward<V>(v)));
 }
@@ -95,13 +102,12 @@ std::pair<typename C::iterator, int>
 get_iterator(C& c, size_t pos)
 {
   if (pos == 0 || pos > c.size()) {
-    return std::make_pair(c.end(),EINVAL);
+    return std::make_pair(c.end(), EINVAL);
   }
 
   auto it = c.begin();
   std::advance(it, pos - 1);
-
-  return std::make_pair(it,0);
+  return std::make_pair(it, 0);
 }
 
 //------------------------------------------------------------------------------
@@ -183,7 +189,8 @@ public:
   //!
   //! @return a pair of error, insert position
   //----------------------------------------------------------------------------
-  static std::pair<int, size_t> GetRulePosition(size_t rule_map_sz, size_t rule_pos);
+  static std::pair<int, size_t> GetRulePosition(size_t rule_map_sz,
+      size_t rule_pos);
 
   //----------------------------------------------------------------------------
   //! Return mAddRule result after GetRuleBitmask call.
@@ -219,6 +226,7 @@ private:
     nR = 1 << 12,  // 4096 - !r
     nW = 1 << 13,  // 8192 - !w
     nX = 1 << 14,  //16384 - !x
+    A  = 1 << 15   //32768 -  a
   };
 
   std::string mId; ///< Rule identifier extracted from command line
@@ -270,7 +278,7 @@ private:
   //!
   //! @param rules map of acl rules for the current entry (directory)
   //----------------------------------------------------------------------------
-  void ApplyRule(RuleMap& rules, size_t pos=0);
+  void ApplyRule(RuleMap& rules, size_t pos = 0);
 
   //----------------------------------------------------------------------------
   //! Convert ACL bitmask to string representation
