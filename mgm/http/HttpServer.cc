@@ -237,8 +237,18 @@ HttpServer::XrdHttpHandler(std::string& method,
   WAIT_BOOT;
   eos::common::VirtualIdentity* vid {nullptr};
 
+  // Security enhancement:
+  // by default don't allow proxy access because it makes xrdhttp unsafe unless you firewall the port for
+  // non proxy clients
+  if (!getenv("EOS_XRDHTTP_NGINX_PROXY")) {
+    header.erase("x-forwarded-for");
+  }
+
   // Native XrdHttp access
   if (headers.find("x-forwarded-for") == headers.end()) {
+    // Security enahncement:
+    // block manually injection a proxy x-real-ip header
+    headers.erase("x-real-ip");
     vid = new eos::common::VirtualIdentity();
     EXEC_TIMING_BEGIN("IdMap");
     eos::common::Mapping::IdMap(&client, "eos.app=http", client.tident, *vid, true);
