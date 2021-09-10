@@ -16,6 +16,27 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+
+``v4.8.63 Citrine``
+===================
+
+2021-09-10
+
+Bug
+===
+
+* [EOS-4904] MGM: block proxy headers in XrdHttp by default (add env file + fix typo) 
+* [EOS-4905] MGM: pass CGI 'query' to the access function used in XrdHttpMgm to allow token access
+* [EOS-4901] MGM: check for invalid paths before scoping them 
+* MGM/CONSOLE: Fix acl command to accept the "a" archive flag
+* FST: Make sure to skip checksum if asked to ignore it
+* MGM: Reduce load on the configuration backups when moving a files systems between groups/spaces
+
+Improvements
+============
+* CI: Add ApMon build/publish job for Centos Stream 8
+* DOC: various documentation improvements
+
 ``v4.8.62 Citrine``
 ===================
 
