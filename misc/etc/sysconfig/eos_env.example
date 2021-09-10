@@ -191,6 +191,11 @@ EOS_HTTP_CONNECTION_MEMORY_LIMIT=4194304
 # Timeout after which an idle connection is considered to be closed (default 2 min)
 # EOS_HTTP_CONNECTION_TIMEOUT=120
 
+# Enable XrdHttp with NGINX proxy - this opens a security issue if enabled since direct clients can overwrite their 
+# IP and pretend to be localhost
+# EOS_XRDHTTP_NGINX_PROXY=1 (default undefined)
+
+
 #-------------------------------------------------------------------------------
 # GRPC Configuration
 #-------------------------------------------------------------------------------
