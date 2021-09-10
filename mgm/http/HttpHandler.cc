@@ -208,7 +208,7 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
         response->AddHeader("X-Sendfile", link.c_str());
         return response;
       } else {
-        if (gOFS->access(url.c_str(), R_OK, error, &client, "")) {
+        if (gOFS->access(url.c_str(), R_OK, error, &client, query.c_str())) {
           // no permission or entry doesn't exist
           eos_static_info("method=GET error=%i path=%s", error.getErrInfo(),
                           url.c_str());
