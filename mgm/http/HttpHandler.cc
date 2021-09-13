@@ -188,7 +188,7 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
       if ((!gOFS->_readlink(url.c_str(), error, *mVirtualIdentity, link)) &&
           (link != "") && (link.beginswith("http://") ||
                            link.beginswith("https://"))) {
-        if (gOFS->access(url.c_str(), R_OK, error, &client, "")) {
+        if (gOFS->access(url.c_str(), R_OK, error, &client, query.c_str())) {
           // no permission or entry doesn't exist
           eos_static_info("method=GET error=%i path=%s", error.getErrInfo(),
                           url.c_str());
@@ -221,7 +221,7 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
       }
     }
 
-    if (gOFS->stat(url.c_str(), &buf, error, &etag, &client, "")) {
+    if (gOFS->stat(url.c_str(), &buf, error, &etag, &client, query.c_str())) {
       eos_static_info("method=GET error=ENOENT path=%s",
                       url.c_str());
       response = HttpServer::HttpError("No such file or directory",
@@ -229,7 +229,7 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
       return response;
     }
 
-    if (gOFS->stat(url.c_str(), &buf, error, &etag, &client, "")) {
+    if (gOFS->stat(url.c_str(), &buf, error, &etag, &client, query.c_str())) {
       eos_static_info("method=GET error=ENOENT path=%s",
                       url.c_str());
       response = HttpServer::HttpError("No such file or directory",
@@ -302,7 +302,7 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
                                   &xstype,
                                   &xs,
                                   &client,
-                                  "")) {
+                                  query.c_str())) {
             //check if the type match what requested
             if (xstype == type) {
               eos_static_debug("method=HEAD, path=%s, checksum requested=%s, checksum available=%s",
@@ -329,9 +329,9 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
       XrdOucString index;
       XrdOucErrInfo error(mVirtualIdentity->tident.c_str());
 
-      if (!gOFS->_attr_get(url.c_str(), error, *mVirtualIdentity, "",
+      if (!gOFS->_attr_get(url.c_str(), error, *mVirtualIdentity, query.c_str(),
                            "sys.http.index", index)) {
-        if (gOFS->access(url.c_str(), R_OK, error, &client, "")) {
+        if (gOFS->access(url.c_str(), R_OK, error, &client, query.c_str())) {
           // no permission or entry doesn't exist
           eos_static_info("method=GET error=%i path=%s", error.getErrInfo(),
                           url.c_str());
@@ -354,7 +354,7 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
     }
     XrdMgmOfsDirectory directory;
     int listrc = directory.open(request->GetUrl().c_str(), *mVirtualIdentity,
-                                (const char*) 0);
+                                query.c_str());
 
     if (!listrc) {
       std::string result;
