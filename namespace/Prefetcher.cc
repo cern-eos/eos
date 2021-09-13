@@ -52,8 +52,12 @@ void Prefetcher::stageFileMD(IFileMD::id_t id)
   if (pView->inMemory()) {
     return;
   }
-
-  mFileMDs.emplace_back(pFileMDSvc->getFileMDFut(id));
+  try {
+    mFileMDs.emplace_back(pFileMDSvc->getFileMDFut(id));
+  } catch (MDException& exc) {
+    eos_static_warning("Exception in Prefetcher while lookup up file ID exc=%s",
+                        exc.getMessage().str().c_str());
+  }
 }
 
 //------------------------------------------------------------------------------
