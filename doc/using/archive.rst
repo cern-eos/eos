@@ -20,7 +20,7 @@ The archive interface currently has the following signature:
 	   kill <job_uuid>                    : kill transfer
 	   help [--help|-h]                   : display help message
 
-In order to safely archive an EOS subtree to CASTOR the following steps detailed in this document must
+In order to safely archive an EOS subtree to tape (CTA) the following steps detailed in this document must
 be performed. Assume we want to archive the EOS subtree rooted at /eos/dir/archive/test. First of all,
 the user needs to make sure that he/she has the necessary permissions to submit archiving commands.
 The permissions check is enforced at directory level by using the **sys.acl** extended attribute
@@ -40,7 +40,7 @@ the *EOS Console*:
    archive create /eos/dir/archive/test
 
 After issuing this command the EOS subtree is **immutable** and no updates are allowed either to the
-data or the metadata. Transferring the data to CASTOR is done using the **archive put** command:
+data or the metadata. Transferring the data to tape (CTA) is done using the **archive put** command:
 
 .. code-block:: bash
 
@@ -75,7 +75,7 @@ directory or if no directory is given then "/" is assumed. This command displays
 jobs but no detailed information about them is provided - for this you should use the **archive transfers**
 command.
 
-In case the user wants to permanently delete the data saved in **CASTOR**, then unless he has root
+In case the user wants to permanently delete the data saved on **tape (CTA)**, then unless he has root
 privileges on the EOS instance he will need to contact one of the administrators to perform this operation.
 Permanently deleting the achive will not delete any data from EOS, but only the data saved in CASTOR.
 Therefore, it is the **user's responsibility** to make sure he/she first gets the data back to EOS before
