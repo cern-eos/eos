@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ResourceNotFoundException.hh
+// File: RestApiResponse.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,19 +21,57 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_RESOURCENOTFOUNDEXCEPTION_HH
-#define EOS_RESOURCENOTFOUNDEXCEPTION_HH
+#ifndef EOS_RESTAPIRESPONSE_HH
+#define EOS_RESTAPIRESPONSE_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/exception/RestException.hh"
+#include "common/http/HttpResponse.hh"
+#include "mgm/http/rest-api/model/tape/ErrorModel.hh"
+#include "common/http/PlainHttpResponse.hh"
+#include <memory>
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class ResourceNotFoundException : public RestException {
+template<typename T>
+class RestApiResponse {
 public:
-  ResourceNotFoundException(const std::string & exceptionMsg);
+  RestApiResponse(const std::shared_ptr<T> model);
+  RestApiResponse(const std::shared_ptr<T> model, const common::HttpResponse::ResponseCodes retCode);
+  void setRetCode(const common::HttpResponse::ResponseCodes retCode);
+  common::HttpResponse * getHttpResponse() const;
+private:
+  const std::shared_ptr<T> mModel;
+  common::HttpResponse::ResponseCodes mRetCode;
 };
+
+template<typename T>
+RestApiResponse<T>::RestApiResponse(const std::shared_ptr<T> model):mModel(model) {
+
+}
+
+template<typename T>
+RestApiResponse<T>::RestApiResponse(const std::shared_ptr<T> model, const common::HttpResponse::ResponseCodes retCode):mModel(model),mRetCode(retCode) {
+
+}
+
+template<typename T>
+void RestApiResponse<T>::setRetCode(const common::HttpResponse::ResponseCodes retCode){
+  mRetCode = retCode;
+}
+
+template<typename T>
+common::HttpResponse * RestApiResponse<T>::getHttpResponse() const{
+  common::HttpResponse * response = new common::PlainHttpResponse();
+  std::stringstream ss;
+  mModel->jsonify(ss);
+  response->SetBody(ss.str());
+  response->SetResponseCode(mRetCode);
+  common::HttpResponse::HeaderMap headerMap;
+  headerMap["application/type"] = "json";
+  response->SetHeaders(headerMap);
+  return response;
+}
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_RESOURCENOTFOUNDEXCEPTION_HH
+#endif // EOS_RESTAPIRESPONSE_HH

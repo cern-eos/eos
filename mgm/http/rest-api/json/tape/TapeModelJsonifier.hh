@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: RestHandlerException.hh
+// File: TapeModelJsonifier.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,20 +21,22 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-
-#ifndef EOS_RESTHANDLEREXCEPTION_HH
-#define EOS_RESTHANDLEREXCEPTION_HH
+#ifndef EOS_TAPEMODELJSONIFIER_HH
+#define EOS_TAPEMODELJSONIFIER_HH
 
 #include "mgm/Namespace.hh"
-#include "common/exception/Exception.hh"
+#include <sstream>
+#include <json/json.h>
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class RestHandlerException : public common::Exception {
+class ErrorModel;
+
+class TapeModelJsonifier {
 public:
-  RestHandlerException(const std::string & exceptionMsg);
+  virtual void jsonify(const ErrorModel & errorModel, std::stringstream & oss) = 0;
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_RESTHANDLEREXCEPTION_HH
+#endif // EOS_TAPEMODELJSONIFIER_HH

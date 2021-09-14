@@ -29,10 +29,8 @@
 #include "mgm/http/rest-api/resources/Resource.hh"
 #include "mgm/http/rest-api/resources/ResourceFactory.hh"
 #include "common/http/HttpServer.hh"
-#include <regex>
-#include <vector>
 #include "mgm/http/rest-api/resources/tape/TapeResourceFactory.hh"
-#include "mgm/http/rest-api/controllers/Controller.hh"
+#include "mgm/http/rest-api/response/tape/TapeRestApiResponseFactory.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -55,8 +53,8 @@ common::HttpResponse* TapeRestHandler::handleRequest(common::HttpRequest* reques
     std::vector<std::string> urlTokens;
     common::StringConversion::Tokenize(request->GetUrl(), urlTokens,"/");
     if(urlTokens.size() < 3) {
-      // Return 400 bad request error
-      common::HttpServer::HttpError("Bad request",400);
+      // Return 404 not found error
+      return TapeRestApiResponseFactory::createError404Response().getHttpResponse();
     }
     std::unique_ptr<Resource> resource;
     try {
@@ -64,8 +62,7 @@ common::HttpResponse* TapeRestHandler::handleRequest(common::HttpRequest* reques
       resource->setVersion(urlTokens.at(2));
       return resource->handleRequest(request);
     } catch(const ResourceNotFoundException &ex) {
-      //Todo: create Error object and return JSON
-      return common::HttpServer::HttpError("Not found",404);
+      return TapeRestApiResponseFactory::createError404Response().getHttpResponse();
     }
   }
   return nullptr;
@@ -76,7 +73,7 @@ void TapeRestHandler::verifyRestApiEntryPoint(const std::string& restApiUrl){
   if(!std::regex_match(restApiUrl,entryPointRegex)){
     std::stringstream ss;
     ss << "The REST API entrypoint provided (" << restApiUrl << ") is malformed. It should be under the format: /apientrypoint/.";
-    throw RestHandlerException(ss.str());
+    throw RestException(ss.str());
   }
 }
 

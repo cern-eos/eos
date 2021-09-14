@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: StageControllerV1.hh
+// File: ErrorModel.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,18 +20,55 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-#ifndef EOS_STAGECONTROLLERV1_HH
-#define EOS_STAGECONTROLLERV1_HH
 
-#include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/controllers/Controller.hh"
+#include "ErrorModel.hh"
+#include "mgm/http/rest-api/json/tape/JsonCPPTapeModelJsonifier.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class StageControllerV1 : public Controller {
-  virtual common::HttpResponse * handleRequest(common::HttpRequest * request) override;
-};
+ErrorModel::ErrorModel():mJsonifier(new JsonCPPTapeModelJsonifier()){}
+
+ErrorModel::ErrorModel(const std::string& title, const uint32_t status, const std::string& detail):
+  mTitle(title),mStatus(status),mDetail(detail),mJsonifier(new JsonCPPTapeModelJsonifier())
+{}
+
+ErrorModel::ErrorModel(const std::string& title, const uint32_t status):mTitle(title),mStatus(status),mJsonifier(new JsonCPPTapeModelJsonifier())
+{}
+
+void ErrorModel::setType(const std::string& type){
+  mType = type;
+}
+
+void ErrorModel::setTitle(const std::string & title){
+  mTitle = title;
+}
+
+void ErrorModel::setStatus(const uint32_t status){
+  mStatus = status;
+}
+
+void ErrorModel::setDetail(const std::string& detail){
+  mDetail = detail;
+}
+
+const std::string ErrorModel::getType() const {
+  return mType;
+}
+
+const std::string ErrorModel::getTitle() const{
+  return mTitle;
+}
+
+const uint32_t ErrorModel::getStatus() const {
+  return mStatus;
+}
+
+const std::optional<std::string> ErrorModel::getDetail() const{
+  return mDetail;
+}
+
+void ErrorModel::jsonify(std::stringstream & ss) const {
+  mJsonifier->jsonify(*this,ss);
+}
 
 EOSMGMRESTNAMESPACE_END
-
-#endif // EOS_STAGECONTROLLERV1_HH
