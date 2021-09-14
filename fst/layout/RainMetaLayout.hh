@@ -294,7 +294,7 @@ protected:
 
   //----------------------------------------------------------------------------
   //! Recycle given group by destroying the group object if there are no more
-  //! reffeence to it.
+  //! reference to it.
   //!
   //! @param group shared object referring to the group
   //----------------------------------------------------------------------------
