@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: StageControllerV1.hh
+// File: TapeRestApiResponseFactory.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,18 +20,22 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-#ifndef EOS_STAGECONTROLLERV1_HH
-#define EOS_STAGECONTROLLERV1_HH
+
+#ifndef EOS_TAPERESTAPIRESPONSEFACTORY_HH
+#define EOS_TAPERESTAPIRESPONSEFACTORY_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/controllers/Controller.hh"
+#include "mgm/http/rest-api/response/RestApiResponse.hh"
+#include "mgm/http/rest-api/model/tape/ErrorModel.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class StageControllerV1 : public Controller {
-  virtual common::HttpResponse * handleRequest(common::HttpRequest * request) override;
+class TapeRestApiResponseFactory {
+public:
+  static RestApiResponse<ErrorModel> createError400Response(const std::string & detail);
+  static RestApiResponse<ErrorModel> createError404Response();
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_STAGECONTROLLERV1_HH
+#endif // EOS_TAPERESTAPIRESPONSEFACTORY_HH

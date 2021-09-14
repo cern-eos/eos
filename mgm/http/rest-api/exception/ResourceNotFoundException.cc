@@ -25,6 +25,6 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-ResourceNotFoundException::ResourceNotFoundException(const std::string& exceptionMsg): RestHandlerException(exceptionMsg){}
+ResourceNotFoundException::ResourceNotFoundException(const std::string& exceptionMsg): RestException(exceptionMsg){}
 
 EOSMGMRESTNAMESPACE_END

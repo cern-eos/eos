@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: StageControllerV1.hh
+// File: RestException.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,18 +20,12 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-#ifndef EOS_STAGECONTROLLERV1_HH
-#define EOS_STAGECONTROLLERV1_HH
 
-#include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/controllers/Controller.hh"
+
+#include "RestException.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class StageControllerV1 : public Controller {
-  virtual common::HttpResponse * handleRequest(common::HttpRequest * request) override;
-};
+RestException::RestException(const std::string& exceptionMsg): common::Exception(exceptionMsg){}
 
 EOSMGMRESTNAMESPACE_END
-
-#endif // EOS_STAGECONTROLLERV1_HH

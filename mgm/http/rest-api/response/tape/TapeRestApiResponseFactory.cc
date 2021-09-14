@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: StageControllerV1.hh
+// File: TapeRestApiResponseFactory.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,18 +20,23 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-#ifndef EOS_STAGECONTROLLERV1_HH
-#define EOS_STAGECONTROLLERV1_HH
 
-#include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/controllers/Controller.hh"
+#include "TapeRestApiResponseFactory.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class StageControllerV1 : public Controller {
-  virtual common::HttpResponse * handleRequest(common::HttpRequest * request) override;
-};
+RestApiResponse<ErrorModel> TapeRestApiResponseFactory::createError400Response(const std::string & detail) {
+  common::HttpResponse::ResponseCodes badRequestCode = common::HttpResponse::BAD_REQUEST;
+  std::shared_ptr<ErrorModel> error400Model(new ErrorModel("Bad request",static_cast<uint32_t>(badRequestCode),detail));
+  RestApiResponse<ErrorModel> error400Response(error400Model,badRequestCode);
+  return error400Response;
+}
+
+RestApiResponse<ErrorModel> TapeRestApiResponseFactory::createError404Response() {
+  common::HttpResponse::ResponseCodes notFoundCode = common::HttpResponse::NOT_FOUND;
+  std::shared_ptr<ErrorModel> error404Model(new ErrorModel("Not found",static_cast<uint32_t>(notFoundCode)));
+  RestApiResponse<ErrorModel> error404Response(error404Model,notFoundCode);
+  return error404Response;
+}
 
 EOSMGMRESTNAMESPACE_END
-
-#endif // EOS_STAGECONTROLLERV1_HH
