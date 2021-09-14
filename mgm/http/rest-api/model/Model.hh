@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: StageControllerV1.hh
+// File: ErrorModel.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,18 +20,21 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-#ifndef EOS_STAGECONTROLLERV1_HH
-#define EOS_STAGECONTROLLERV1_HH
+
+#ifndef EOS_MODEL_HH
+#define EOS_MODEL_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/controllers/Controller.hh"
+#include <sstream>
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class StageControllerV1 : public Controller {
-  virtual common::HttpResponse * handleRequest(common::HttpRequest * request) override;
+class Model {
+public:
+  virtual void jsonify(std::stringstream & ss) const = 0;
+  virtual ~Model(){}
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_STAGECONTROLLERV1_HH
+#endif // EOS_MODEL_HH
