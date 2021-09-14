@@ -187,12 +187,11 @@ Server::MonitorCaps() noexcept
       } quotainfo_t;
       std::map<std::string, quotainfo_t> qmap;
       {
-
         if (EOS_LOGS_DEBUG) {
           eos_static_debug("looping over caps n=%d", Cap().GetCaps().size());
         }
 
-        for (auto& it: Cap().GetAllCaps()) {
+        for (auto& it : Cap().GetAllCaps()) {
           if (EOS_LOGS_DEBUG) {
             eos_static_debug("cap q-node %lx", it->_quota().quota_inode());
           }
@@ -241,6 +240,7 @@ Server::MonitorCaps() noexcept
                  (outofquota.count(*auit)))) { // first time back to quota
               // send the changed quota information via a cap update
               auto cap = Cap().GetTS(*auit);
+
               if (cap) {
                 cap->mutable__quota()->set_inode_quota(avail_files);
                 cap->mutable__quota()->set_volume_quota(avail_bytes);
@@ -329,6 +329,7 @@ Server::FillContainerMD(uint64_t id, eos::fusex::md& dir,
 
   eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex, __FUNCTION__,
                                           __LINE__, __FILE__);
+
   try {
     cmd = gOFS->eosDirectoryService->getContainerMD(id, &clock);
     rd_ns_lock.Release();
@@ -443,6 +444,7 @@ Server::FillFileMD(uint64_t inode, eos::fusex::md& file,
 
   eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex, __FUNCTION__,
                                           __LINE__, __FILE__);
+
   try {
     bool has_mdino = false;
     fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(inode),
@@ -724,6 +726,20 @@ Server::FillContainerCAP(uint64_t id,
         // the owner can always delete
         if ((vid.uid != (uid_t) dir.uid()) && acl.CanNotDelete()) {
           mode &= ~D_OK;
+        }
+      } else {
+        // For immutable directories we allow reading and browsing permissions
+        // if these are specified
+        if (acl.CanRead()) {
+          mode |= R_OK;
+        } else if (acl.CanNotRead()) { /* denials override mode bits */
+          mode &= ~R_OK;
+        }
+
+        if (acl.CanBrowse()) {
+          mode |= X_OK;
+        } else if (acl.CanNotBrowse()) {/* denials override mode bits */
+          mode &= ~X_OK;
         }
       }
     }
@@ -1539,7 +1555,6 @@ Server::OpSetDirectory(const std::string& id,
       }
 
       eos::IContainerMD::XAttrMap xattrs = pcmd->getAttributes();
-
       // test to verify this is the culprit of failing all eosxd system tests in the CI
       // if ( (md.attr().find("user.acl") != md.attr().end()) && (xattrs.find("sys.eval.useracl") == xattrs.end()) ) {
       // return EPERM;
@@ -2120,13 +2135,11 @@ Server::OpSetFile(const std::string& id,
       unsigned long forcedFsId = 0;
       long forcedGroup = 0;
       XrdOucString space;
-
       eos::IContainerMD::XAttrMap attrmap;
       eos::listAttributes(gOFS->eosView, &(*pcmd), attrmap, false);
-
       XrdOucEnv env;
       std::string bandwidth;
-      bool schedule=false;
+      bool schedule = false;
       std::string iopriority;
       // retrieve the layout
       Policy::GetLayoutAndSpace("fusex", attrmap, vid, layoutId, space, env,
@@ -2215,13 +2228,13 @@ Server::OpSetFile(const std::string& id,
     if (op != UPDATE) {
       // update the mtime
       if (op == RENAME) {
-	pcmd->setMTime(ctime);
-	pt_mtime.tv_sec = ctime.tv_sec;
-	pt_mtime.tv_nsec = ctime.tv_nsec;
+        pcmd->setMTime(ctime);
+        pt_mtime.tv_sec = ctime.tv_sec;
+        pt_mtime.tv_nsec = ctime.tv_nsec;
       } else {
-	pcmd->setMTime(mtime);
-	pt_mtime.tv_sec = mtime.tv_sec;
-	pt_mtime.tv_nsec = mtime.tv_nsec;
+        pcmd->setMTime(mtime);
+        pt_mtime.tv_sec = mtime.tv_sec;
+        pt_mtime.tv_nsec = mtime.tv_nsec;
       }
     } else {
       pt_mtime.tv_sec = pt_mtime.tv_nsec = 0;
