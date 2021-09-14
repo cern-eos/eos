@@ -40,6 +40,14 @@ protected:
   virtual void TearDown() {
 
   }
+
+  static std::unique_ptr<eos::common::HttpRequest> createHttpRequestWithEmptyBody(const std::string & url) {
+    eos::common::HttpRequest::HeaderMap headers;
+    size_t dataSize = 0;
+    eos::common::HttpRequest::HeaderMap cookies;
+    std::unique_ptr<eos::common::HttpRequest> request(new eos::common::HttpRequest(headers,"POST",url,"","",&dataSize,cookies));
+    return request;
+  }
 };
 
 #endif // EOS_RESTAPITEST_HH
