@@ -22,3 +22,11 @@
  ************************************************************************/
 
 #include "StageControllerV1.hh"
+
+EOSMGMRESTNAMESPACE_BEGIN
+
+common::HttpResponse * StageControllerV1::handleRequest(common::HttpRequest * request) {
+  return nullptr;
+}
+
+EOSMGMRESTNAMESPACE_END

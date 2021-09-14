@@ -259,8 +259,14 @@ add_library(
   http/rest-api/resources/tape/TapeResourceFactory.cc
   http/rest-api/resources/tape/stage/StageResource.cc
   http/rest-api/controllers/ControllerFactory.cc
-  http/rest-api/exception/RestHandlerException.cc
+  http/rest-api/controllers/tape/stage/StageControllerV1.cc
+  http/rest-api/exception/RestException.cc
   http/rest-api/exception/ResourceNotFoundException.cc
+  http/rest-api/exception/ControllerNotFoundException.cc
+  http/rest-api/model/tape/ErrorModel.cc
+  http/rest-api/json/tape/JsonCPPTapeModelJsonifier.cc
+  http/rest-api/response/RestApiResponse.cc
+  http/rest-api/response/tape/TapeRestApiResponseFactory.cc
   geotree/SchedulingTreeTest.cc
   geotree/SchedulingSlowTree.cc
   geotree/SchedulingTreeCommon.cc

@@ -23,10 +23,13 @@
 
 #include "StageResource.hh"
 #include "mgm/http/rest-api/controllers/ControllerFactory.hh"
+#include <memory>
+#include "mgm/http/rest-api/exception/ControllerNotFoundException.hh"
+#include <sstream>
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-const std::map<std::string,std::function<Controller *()>> StageResource::mVersionToControllerFactoryMethod = {
+const std::map<std::string,std::function<Controller *()>> StageResource::cVersionToControllerFactoryMethod = {
     {"v1",&ControllerFactory::getStageControllerV1}
 };
 
@@ -37,12 +40,23 @@ StageResource::StageResource(){
 common::HttpResponse* StageResource::handleRequest(common::HttpRequest* request){
   //Authorized ?
   //Which controller to instanciate ?
-
-  return nullptr;
+  std::unique_ptr<Controller> controller;
+  try {
+    controller.reset(getController());
+  } catch(const ControllerNotFoundException &ex){
+    //Return an error to the user
+  }
+  return controller->handleRequest(request);
 }
 
-Controller* StageResource::getController(const std::string& version){
-  return nullptr;
+Controller* StageResource::getController() {
+  try {
+    return cVersionToControllerFactoryMethod.at(mVersion)();
+  } catch (const std::out_of_range &ex) {
+    std::ostringstream ss;
+    ss << "No controller version " << mVersion << " found for the stage resource";
+    throw ControllerNotFoundException(ss.str());
+  }
 }
 
 EOSMGMRESTNAMESPACE_END

@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: RestHandlerException.cc
+// File: RestApiResponse.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,11 +21,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "RestApiResponse.hh"
 
-#include "RestHandlerException.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-RestHandlerException::RestHandlerException(const std::string& exceptionMsg): common::Exception(exceptionMsg){}
+
 
 EOSMGMRESTNAMESPACE_END

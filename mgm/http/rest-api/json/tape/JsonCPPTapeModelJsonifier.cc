@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: StageControllerV1.hh
+// File: JsonCPPTapeModelJsonifier.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,18 +20,19 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-#ifndef EOS_STAGECONTROLLERV1_HH
-#define EOS_STAGECONTROLLERV1_HH
 
-#include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/controllers/Controller.hh"
+#include "JsonCPPTapeModelJsonifier.hh"
+#include "mgm/http/rest-api/model/tape/ErrorModel.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class StageControllerV1 : public Controller {
-  virtual common::HttpResponse * handleRequest(common::HttpRequest * request) override;
-};
+void JsonCPPTapeModelJsonifier::jsonify(const ErrorModel& errorModel, std::stringstream& oss){
+  Json::Value root;
+  root["type"] = errorModel.getType();
+  root["title"] = errorModel.getTitle();
+  root["status"] = errorModel.getStatus();
+  root["detail"] = errorModel.getDetail() ? errorModel.getDetail().value() : "";
+  oss << root;
+}
 
 EOSMGMRESTNAMESPACE_END
-
-#endif // EOS_STAGECONTROLLERV1_HH
