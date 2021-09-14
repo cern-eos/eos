@@ -25,11 +25,13 @@
 #define EOS_CONTROLLER_HH
 
 #include "mgm/Namespace.hh"
+#include "common/http/HttpResponse.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
 class Controller {
-
+public:
+  virtual common::HttpResponse * handleRequest(common::HttpRequest * request) = 0;
 };
 
 EOSMGMRESTNAMESPACE_END

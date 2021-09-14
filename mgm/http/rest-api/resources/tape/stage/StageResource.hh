@@ -37,8 +37,9 @@ public:
   StageResource();
   virtual common::HttpResponse * handleRequest(common::HttpRequest * request) override;
 private:
-  virtual Controller * getController(const std::string & version);
-  static const std::map<std::string,std::function<Controller *()>> mVersionToControllerFactoryMethod;
+  virtual Controller * getController();
+  static const std::map<std::string,std::function<Controller *()>>
+      cVersionToControllerFactoryMethod;
 };
 
 EOSMGMRESTNAMESPACE_END
