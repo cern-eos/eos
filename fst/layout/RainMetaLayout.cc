@@ -957,9 +957,7 @@ RainMetaLayout::AddDataBlock(uint64_t offset, const char* buffer,
             offset, length, grp_off);
   char* ptr {nullptr};
   {
-    // minimize the deadlock window, but with the current implementation, a final race condition
-    // remains because once the parity thread runs into a timeout and defins parity error
-    // follow up writes into the same group get locked in GetGroup
+    // If an error already happened then there is no point in trying to write
     if (mHasParityErr) {
       return false;
     }
@@ -967,6 +965,16 @@ RainMetaLayout::AddDataBlock(uint64_t offset, const char* buffer,
     // Reduce the scope for the eos::fst::RainGroup object to properly account
     // the number of references and trigger the Recycle procedure.
     std::shared_ptr<eos::fst::RainGroup> grp = GetGroup(offset);
+
+    // The GetGroup call might block if the parity thread runs into timeouts
+    // and many (currently 32) groups accumulate. Once the parity thread manages
+    // to make progress then a group might be available but there might have been
+    // an error already so there is no point in continuing.
+    if (mHasParityErr) {
+      RecycleGroup(grp);
+      return false;
+    }
+
     eos::fst::RainGroup& data_blocks = *grp.get();
     ptr = data_blocks[indx_block].Write(buffer, offset_in_block, length);
     offset_in_group = (offset + length) % mSizeGroup;
@@ -1734,6 +1742,13 @@ RainMetaLayout::StartParityThread(ThreadAssistant& assistant) noexcept
     } else {
       eos_info("msg=\"successful parity computation\" grp_off=%llu", grp_off);
     }
+  }
+
+  // Make sure all pending groups are released to avoid any deadlock with
+  // a pending write that requires a group
+  while (mQueueGrps.try_pop(grp_off)) {
+    std::shared_ptr<eos::fst::RainGroup> grp = GetGroup(grp_off);
+    RecycleGroup(grp);
   }
 }
 
