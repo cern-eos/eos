@@ -506,8 +506,14 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     SET_ACCESSMODE_W;
   }
 
-  if (ProcInterface::IsWriteAccess(path, pinfo.c_str())) {
-    SET_ACCESSMODE_W;
+  if (ProcInterface::IsProcAccess(path)) {
+    if (ProcInterface::IsWriteAccess(path, pinfo.c_str())) {
+      SET_ACCESSMODE_W;
+    }
+  } else {
+    if (getenv("EOS_HA_REDIRECT_READS")) {
+      SET_ACCESSMODE_R_MASTER;
+    }
   }
 
   MAYSTALL;
