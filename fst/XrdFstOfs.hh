@@ -448,6 +448,7 @@ public:
   std::atomic<bool> mSimFmdOpenErr; ///< simulate a fmd mismatch error on open
   std::atomic<uint64_t> mSimErrIoReadOff; ///< Simulate IO error offset on rd
   std::atomic<uint64_t> mSimErrIoWriteOff;///< Simulate IO error offset on wr
+  std::atomic<uint64_t> mSimDiskWriting;///< Do not really write IO to disk
 
   //! A vector map pointing from tpc key => tpc information for reads, [0]
   //! are readers [1] are writers
