@@ -316,7 +316,7 @@ XrdFstOfs::XrdFstOfs() :
   mCloseThreadPool(8, 64, 5, 6, 5, "async_close"),
   mMgmXrdPool(nullptr), mSimIoReadErr(false), mSimIoWriteErr(false),
   mSimXsReadErr(false), mSimXsWriteErr(false), mSimFmdOpenErr(false),
-  mSimErrIoReadOff(0ull), mSimErrIoWriteOff(0ull)
+  mSimErrIoReadOff(0ull), mSimErrIoWriteOff(0ull), mSimDiskWriting(false)
 {
   Eroute = 0;
   Messaging = 0;
@@ -874,6 +874,7 @@ XrdFstOfs::SetSimulationError(const std::string& input)
   mSimIoReadErr = mSimIoWriteErr = mSimXsReadErr =
                                      mSimXsWriteErr = mSimFmdOpenErr = false;
   mSimErrIoReadOff = mSimErrIoWriteOff = 0ull;
+  mSimDiskWriting = false;
 
   if (input.find("io_read") == 0) {
     mSimIoReadErr = true;
@@ -887,6 +888,8 @@ XrdFstOfs::SetSimulationError(const std::string& input)
     mSimXsWriteErr = true;
   } else if (input.find("fmd_open") == 0) {
     mSimFmdOpenErr = true;
+  } else if (input.find("fake_write") == 0) {
+    mSimDiskWriting = true;
   }
 }
 
