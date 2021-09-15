@@ -335,7 +335,11 @@ FmdDbMapHandler::SetDBFile(const char* meta_dir, int fsid)
                    eos::common::DbMap::getDbType().c_str(), fsDBFileName);
     return false;
   } else {
-    mDbMap[fsid]->outOfCore(true);
+    if (getenv("EOS_FST_CACHE_LEVELDB")) {
+      mDbMap[fsid]->outOfCore(false);
+    } else {
+      mDbMap[fsid]->outOfCore(true);
+    }
   }
 
   return true;
@@ -1434,7 +1438,8 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
     std::map<std::string, std::set < eos::common::FileId::fileid_t> >& fidset)
 {
   using eos::common::LayoutId;
-  eos::common::RWMutexReadLock map_rd_lock(mMapMutex);
+  eos::common::RWMutexReadLock map_rd_lock(mMapMutex, __FUNCTION__, __LINE__,
+      __FILE__);
 
   if (!mDbMap.count(fsid)) {
     return false;
