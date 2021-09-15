@@ -75,6 +75,10 @@ EOS_MGM_MASTER2=eosdevsrv2.cern.ch
 # The alias which selects master 1 or 2
 EOS_MGM_ALIAS=eosdev.cern.ch
 
+# In HA mode, presence of this env enables the redirection of the
+# read traffic from the slaves to the master
+# EOS_HA_REDIRECT_READS=1
+
 # The mail notification in case of fail-over
 EOS_MAIL_CC="apeters@mail.cern.ch"
 EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"

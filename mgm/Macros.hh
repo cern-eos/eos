@@ -62,6 +62,9 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
 /// set's operation mode to be write
 #define SET_ACCESSMODE_W __AccessMode__ = 1
 
+/// set's operation mode to be write
+#define SET_ACCESSMODE_R_MASTER __AccessMode__ = 2
+
 /// check if we are in read access mode
 #define IS_ACCESSMODE_R (__AccessMode__ == 0)
 
@@ -104,7 +107,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
     int stalltime=0;                                                    \
     if (gOFS->ShouldStall((FUNCTION),__AccessMode__, (VID), stalltime, stallmsg)) { \
       if (stalltime) {                                                  \
-        return gOFS->Stall((ERROR),stalltime, stallmsg.c_str());	\
+        return gOFS->Stall((ERROR),stalltime, stallmsg.c_str());  \
       } else {                                                          \
         return gOFS->Emsg("maystall", (ERROR), EPERM, stallmsg.c_str(), ""); \
       }                                                                 \
@@ -112,7 +115,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
       if (!tracker_helper.IsOK()) {                                     \
         stallmsg="track request, stall the client 5 seconds";           \
         stalltime = 5;                                                  \
-        return gOFS->Stall((ERROR),stalltime, stallmsg.c_str());	\
+        return gOFS->Stall((ERROR),stalltime, stallmsg.c_str());  \
       }                                                                 \
     }                                                                   \
   }
@@ -232,11 +235,11 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
   } else {                                                              \
     while(store_path.replace("#AND#","&")){}                            \
   }                                                                     \
-  if (vid.token && vid.token->Valid()) {				\
-    if (!strncmp(path,"/zteos64:",9)) {					\
-      store_path = vid.token->Path().c_str();				\
-    }									\
-  }									\
+  if (vid.token && vid.token->Valid()) {        \
+    if (!strncmp(path,"/zteos64:",9)) {         \
+      store_path = vid.token->Path().c_str();       \
+    }                 \
+  }                 \
   if ( inpath && ( !(ininfo) || (ininfo && (!strstr(ininfo,"eos.prefix"))))) { \
     XrdOucString iinpath=store_path;                                    \
     gOFS->PathRemap(iinpath.c_str(),store_path);                        \
@@ -318,7 +321,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
     path = store_path.c_str();                                                 \
   }
 
-#define PROC_MOVE_TOKENSCOPE(a,b)		                               \
+#define PROC_MOVE_TOKENSCOPE(a,b)                                  \
   mVid.scope = eos::common::Path::Overlap( (a), (b)  );
 
 
@@ -376,7 +379,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
                 "path=\"%s\" user@domain=\"%s\"", vid.uid, vid.gid, vid.host.c_str(),            \
                 (vid.tident.c_str() ? vid.tident.c_str() : ""), inpath,       \
                 vid.getUserAtDomain().c_str());                               \
-	gOFS->MgmStats.Add("EAccess", vid.uid, vid.gid, 1);                   \
+  gOFS->MgmStats.Add("EAccess", vid.uid, vid.gid, 1);                   \
         return Emsg(epname, error, EACCES,"give access - user access "        \
                     "restricted - unauthorized identity used");               \
       }                                                                       \
@@ -398,7 +401,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
 //! Bounce not-allowed-users in proc request Macro
 //------------------------------------------------------------------------------
 #define PROC_BOUNCE_NOT_ALLOWED                                                 \
-  { /* reduce scope of this mutex */   					        \
+  { /* reduce scope of this mutex */                    \
     eos::common::RWMutexReadLock lock(Access::gAccessMutex);                    \
     if ((vid.uid > 3) &&                                                        \
         (Access::gAllowedUsers.size() ||                                        \
@@ -417,7 +420,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
                   (vid.tident.c_str() ? vid.tident.c_str() : ""), inpath,       \
                   vid.getUserAtDomain().c_str());                               \
           retc = EACCES;                                                        \
-	  gOFS->MgmStats.Add("EAccess", vid.uid, vid.gid, 1);                   \
+    gOFS->MgmStats.Add("EAccess", vid.uid, vid.gid, 1);                   \
           stdErr += "error: user access restricted - unauthorized identity used";\
           return SFS_OK;                                                        \
         }                                                                       \
