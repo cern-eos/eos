@@ -78,6 +78,7 @@ function create_test_files() {
         -z "${FXID_RAIN_BLOCKXS}"   ||
         -z "${FXID_RAIN_DIFF}"      ]]; then
     echo "error: some of the fxids could not be retrieved"
+    cleanup
     exit 1
   fi
 
@@ -257,8 +258,9 @@ function check_all_errors_collected() {
           -z "${FOUND_RAIN_DIFF}"      ||
           -z "${FOUND_ORPHAN}"           ]]; then
       if (( $((${CURRENT_TIME} - ${START_TIME})) >= ${MAX_DELAY} )); then
-        echo "error: some of the errors were not discovered"
-        # @todo(esindril) output the errors not discovered
+        echo "error: some errors not discovered"
+        exec_cmd eos-cli1 "eos -r 0 0 fsck report -i -a"
+        cleanup
         exit 1
       else
         echo "info: sleep for 5 seconds waiting for error collection, `secs_to_human $((${CURRENT_TIME} - ${START_TIME}))` passed"
@@ -377,7 +379,7 @@ while
   if [[ ! -z "${HAS_ERRORS}" ]]; then
     if (( $((${CURRENT_TIME} - ${START_TIME})) >= ${MAX_DELAY} )); then
       echo "error: some errors where not repaired"
-      # @todo(esindril) output the errors not repaired
+      exec_cmd eos-cli1 "eos -r 0 0 fsck report -i -a"
       cleanup
       exit 1
     else
