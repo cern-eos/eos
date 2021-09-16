@@ -171,6 +171,10 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # else if 1 then enabled.
 # EOS_FST_ASYNC_CLOSE=0
 
+# If present this env variable enables the caching of leveldb info in memory
+# to speed up scanning operations for fsck inconsistencies.
+# EOS_FST_CACHE_LEVELDB=1
+
 #-------------------------------------------------------------------------------
 # HTTPD Configuration
 #-------------------------------------------------------------------------------
