@@ -221,7 +221,8 @@ function configure_fsck() {
   for (( i=1; i<=${FST_ONLINE}; i++ )); do
     exec_cmd eos-cli1  "eos -r 0 0 fs config ${i} scan_disk_interval=20 &&
                         eos -r 0 0 fs config ${i} scan_ns_interval=20 &&
-                        eos -r 0 0 fs config ${i} scaninterval=15"
+                        eos -r 0 0 fs config ${i} scaninterval=15 &&
+                        eos -r 0 0 fs config ${i} fsck_refresh_interval=20"
   done
 
   # Reduce the interval when the fsck collection thread runs
