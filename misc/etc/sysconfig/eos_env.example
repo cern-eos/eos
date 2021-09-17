@@ -167,12 +167,16 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # EOS_FST_FMD_ON_DATA_DISK=0
 
 # Control the asynchronous callback on close, if undefined or 0 then disabled,
-# else if 1 then enabled.
+# else if 1 then enabled
 # EOS_FST_ASYNC_CLOSE=0
 
-# If present this env variable enables the caching of leveldb info in memory
-# to speed up scanning operations for fsck inconsistencies.
+# Enable caching of leveldb info in memory to speed up scanning operations
+# for fsck inconsistencies
 # EOS_FST_CACHE_LEVELDB=1
+
+# Enable internal stacktrace printing in the logs - this is useful especially
+# for container environments where abrtd is not running
+# EOS_FST_ENABLE_STACKTRACE=1
 
 #-------------------------------------------------------------------------------
 # HTTPD Configuration
@@ -199,7 +203,7 @@ EOS_HTTP_CONNECTION_MEMORY_LIMIT=4194304
 # Timeout after which an idle connection is considered to be closed (default 2 min)
 # EOS_HTTP_CONNECTION_TIMEOUT=120
 
-# Enable XrdHttp with NGINX proxy - this opens a security issue if enabled since direct clients can overwrite their 
+# Enable XrdHttp with NGINX proxy - this opens a security issue if enabled since direct clients can overwrite their
 # IP and pretend to be localhost
 # EOS_XRDHTTP_NGINX_PROXY=1 (default undefined)
 
