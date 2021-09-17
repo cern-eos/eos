@@ -739,7 +739,7 @@ public:
   //! @return 0 if no squashfs access, 1 if squashfs but not allowed 2 if squashfs and allowed
   //---------------------------------------------------------------------------
   int is_squashfs_access(const char* path,
-			 eos::common::VirtualIdentity& vid);
+                         eos::common::VirtualIdentity& vid);
 
   //----------------------------------------------------------------------------
   //! Test if public access is allowed in a given path
@@ -1365,12 +1365,6 @@ public:
   // Reset path mapping
   // ---------------------------------------------------------------------------
   void ResetPathMap();  // reset/empty the path map
-
-  // ---------------------------------------------------------------------------
-  // Send an explicit deletion message to any fsid/fid pair
-  // ---------------------------------------------------------------------------
-  bool DeleteExternal(eos::common::FileSystem::fsid_t fsid,
-                      unsigned long long fid);
 
   //----------------------------------------------------------------------------
   //! Authentication master thread function - accepts requests from EOS AUTH
