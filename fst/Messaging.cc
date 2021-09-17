@@ -103,10 +103,6 @@ Messaging::Process(XrdMqMessage* newmessage)
     return gOFS.SendRtLog(newmessage);
   }
 
-  if (cmd == "drop") {
-    return gOFS.DoDrop(action);
-  }
-
   if (cmd == "verify") {
     return gOFS.DoVerify(action);
   }
