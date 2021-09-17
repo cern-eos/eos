@@ -3288,8 +3288,8 @@ XrdFstOfsFile::QueueForArchiving(const struct stat& statinfo,
       eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_SEPARATOR, nullptr);
   std::string mgm_hostname;
 
-  if (!gOFS->MgmAlias.empty()) {
-    mgm_hostname = gOFS->mMgmAlias;
+  if (!gOFS.mMgmAlias.empty()) {
+    mgm_hostname = gOFS.mMgmAlias;
   } else {
     const char* ptr = mCapOpaque->Get("mgm.manager");
 
