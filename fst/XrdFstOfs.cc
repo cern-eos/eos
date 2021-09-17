@@ -2506,36 +2506,6 @@ XrdFstOfs::DoResync(XrdOucEnv& env)
 }
 
 //------------------------------------------------------------------------------
-// Handle drop query coming through MQ
-//------------------------------------------------------------------------------
-void
-XrdFstOfs::DoDrop(XrdOucEnv& env)
-{
-  int caprc = 0;
-  XrdOucEnv* capOpaque {nullptr};
-
-  if ((caprc = eos::common::SymKey::ExtractCapability(&env, capOpaque))) {
-    eos_static_err("msg=\"extract capability failed for deletion\" errno=%d",
-                   caprc);
-
-    if (capOpaque) {
-      delete capOpaque;
-    }
-  } else {
-    int envlen = 0;
-    eos_static_debug("opaque=\"%s\"", capOpaque->Env(envlen));
-    std::unique_ptr<Deletion> new_del = Deletion::Create(capOpaque);
-    delete capOpaque;
-
-    if (new_del) {
-      gOFS.Storage->AddDeletion(std::move(new_del));
-    } else {
-      eos_static_err("%s", "msg=\"illegal drop opaque information\"");
-    }
-  }
-}
-
-//------------------------------------------------------------------------------
 // Handle verify query coming through MQ
 //------------------------------------------------------------------------------
 void

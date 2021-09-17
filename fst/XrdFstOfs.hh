@@ -425,8 +425,6 @@ public:
 
   void DoResync(XrdOucEnv& env);
 
-  void DoDrop(XrdOucEnv& env);
-
   void DoVerify(XrdOucEnv& env);
 
 private:
