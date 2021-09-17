@@ -145,7 +145,7 @@ void com_fs_help()
       << "      maximum scan rate of ns entries for the NS consistency. This\n"
       << "      is bound by the maxium number of IOPS per disk."
       << std::endl
-      << "     fsck_refresh_interval=<sec>\n"
+      << "    fsck_refresh_interval=<sec>\n"
       << "       time interval after which fsck inconsistencies are refreshed"
       << std::endl
       << "    graceperiod=<seconds>\n"
