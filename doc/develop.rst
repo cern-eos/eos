@@ -568,20 +568,27 @@ If you now run :code:` eos node ls`, you should see the list of (3) FST nodes as
 Troubleshooting:
 ++++++++++++++++++++++++++++++++++
 
-If you see
+If you see in the log file :code:`/var/log/eos/fstX/xrdlog.fst1`
 
 .. code-block:: bash
 
     [QCLIENT - INFO - connectTCP:302] Encountered an error when connecting to <yourmachine>:7777 (IPv4,stream resolved from localhost): Unable to connect (111):Connection refused
 
 
-in the log file :code:`/var/log/eos/fstX/xrdlog.fst1` open a firewall for port 7777:
+open a firewall for port 7777:
 
 
 .. code-block:: bash
 
      firewall-cmd --zone=public --add-port=7777/tcp --permanent
      firewall-cmd --reload
+
+Note: If you are running multiple MGM nodes on separate hosts, you may also need to open the respective ports of all EOS daemons. By default they are:
+
+* quarkDB: 7777
+* mgm: 1094
+* fst: 1095
+* mq: 1097
 
 
 EOS namespace configuration
