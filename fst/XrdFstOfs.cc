@@ -453,6 +453,10 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     eos::fst::Config::gConfig.FstOfsBrokerUrl = getenv("EOS_BROKER_URL");
   }
 
+  if (getenv("EOS_MGM_ALIAS")) {
+    mMgmAlias = getenv("EOS_MGM_ALIAS");
+  }
+
   {
     // set the start date as string
     XrdOucString out = "";

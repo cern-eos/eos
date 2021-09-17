@@ -3286,6 +3286,21 @@ XrdFstOfsFile::QueueForArchiving(const struct stat& statinfo,
       attributes,
       eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_EQUALS,
       eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_SEPARATOR, nullptr);
+  std::string mgm_hostname;
+
+  if (!gOFS->MgmAlias.empty()) {
+    mgm_hostname = gOFS->mMgmAlias;
+  } else {
+    const char* ptr = mCapOpaque->Get("mgm.manager");
+
+    if (ptr != nullptr) {
+      mgm_hostname = ptr;
+    } else {
+      eos_err("%s", "msg=\"count not determine value of MGM hostname");
+      return false;
+    }
+  }
+
   const int notifyRc = NotifyProtoWfEndPointClosew(mFmd->mProtoFmd.fid(),
                        mFmd->mProtoFmd.lid(),
                        statinfo.st_size,
@@ -3296,7 +3311,7 @@ XrdFstOfsFile::QueueForArchiving(const struct stat& statinfo,
                        mEventRequestorGroup,
                        mEventInstance,
                        mCapOpaque->Get("mgm.path"),
-                       mCapOpaque->Get("mgm.manager"),
+                       mgm_hostname,
                        attributes,
                        queueing_errmsg,
                        archive_req_id);
@@ -3657,9 +3672,9 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
   }
 
   if (endPoint.empty() || resource.empty()) {
-    eos_static_err(
-      "You are running proto wf jobs without specifying fstofs.protowfendpoint or fstofs.protowfresource in the FST config file."
-    );
+    eos_static_err("%s", "msg=\"you are running proto wf jobs without "
+                   "specifying fstofs.protowfendpoint or "
+                   "fstofs.protowfresource in the FST config file\"");
     return ENOTCONN;
   }
 
