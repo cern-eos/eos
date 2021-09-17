@@ -413,6 +413,7 @@ public:
   //! Embedded http server if available
   std::unique_ptr<eos::fst::HttpServer> mHttpd;
   std::chrono::seconds mTpcKeyValidity {120}; ///< TPC key validity
+  std::string mMgmAlias; ///< MGM alias
 
   // @note
   // All of the commands below are going to be deprecated and replaced by XRootD

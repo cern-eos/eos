@@ -159,7 +159,7 @@ inline bool ValidHostnameOrIP(const std::string& input)
 //!
 //! @param geotag input value
 //!
-//! @return emptystring if geotag not valid, otherwise sanitized geotag
+//! @return empty string if geotag not valid, otherwise sanitized geotag
 //----------------------------------------------------------------------------
 inline std::string SanitizeGeoTag(const std::string& geotag)
 {
