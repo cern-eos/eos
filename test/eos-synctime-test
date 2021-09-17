@@ -14,38 +14,38 @@ stime0=`eos file info /eos/$eosdir/synctime/ -m | grep -o 'stime=[^ ]\+' | cut -
 
 touch $fusedir/$eosdir/synctime/f.1
 
-sleep 2
+sleep 5
 
 stime1=`eos file info /eos/$eosdir/synctime/ -m | grep -o 'stime=[^ ]\+' | cut -d "=" -f 2`
 
 chmod 700 $fusedir/$eosdir/synctime/f.1
 
-sleep 2
+sleep 5
 
 stime2=`eos file info /eos/$eosdir/synctime/ -m | grep -o 'stime=[^ ]\+' | cut -d "=" -f 2`
 
 mv $fusedir/$eosdir/synctime/f.1 $fusedir/$eosdir/synctime/f.2
 
-sleep 2
+sleep 5
 
 stime3=`eos file info /eos/$eosdir/synctime/ -m | grep -o 'stime=[^ ]\+' | cut -d "=" -f 2`
 
 # SYNC TIME PROPAGATION FOR DIRECTORIES
 mkdir -p $fusedir/$eosdir/synctime/d.1
 
-sleep 2
+sleep 5
 
 stime4=`eos file info /eos/$eosdir/synctime/ -m | grep -o 'stime=[^ ]\+' | cut -d "=" -f 2`
 
 chmod 777 $fusedir/$eosdir/synctime/d.1
 
-sleep 2
+sleep 5
 
 stime5=`eos file info /eos/$eosdir/synctime/ -m | grep -o 'stime=[^ ]\+' | cut -d "=" -f 2`
 
 mv $fusedir/$eosdir/synctime/d.1 $fusedir/$eosdir/synctime/d.2
 
-sleep 2
+sleep 5
 
 stime6=`eos file info /eos/$eosdir/synctime/ -m | grep -o 'stime=[^ ]\+' | cut -d "=" -f 2`
 
