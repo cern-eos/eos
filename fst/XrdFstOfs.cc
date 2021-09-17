@@ -342,10 +342,17 @@ XrdFstOfs::XrdFstOfs() :
   }
 
   if (getenv("EOS_FST_ENABLE_STACKTRACE")) {
-    // Add stacktrace handler
+    // Add stacktrace handler - this is useful for crashes inside containers
+    // where abrtd is not configured
     (void) signal(SIGSEGV, xrdfstofs_stacktrace);
     (void) signal(SIGABRT, xrdfstofs_stacktrace);
     (void) signal(SIGBUS, xrdfstofs_stacktrace);
+  }
+
+
+  if (getenv("EOS_MGM_ALIAS")) {
+    // Use MGM alias if available
+    mMgmAlias = getenv("EOS_MGM_ALIAS");
   }
 
   // Initialize the google sparse hash maps
@@ -453,8 +460,17 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     eos::fst::Config::gConfig.FstOfsBrokerUrl = getenv("EOS_BROKER_URL");
   }
 
-  if (getenv("EOS_MGM_ALIAS")) {
-    mMgmAlias = getenv("EOS_MGM_ALIAS");
+  // Handle geotag configuration
+  char* ptr_geotag = getenv("EOS_GEOTAG");
+
+  if (ptr_geotag) {
+    mGeoTag = eos::common::SanitizeGeoTag(ptr_geotag);
+
+    if (mGeoTag.empty()) {
+      eos_static_err("%s", "msg=\"failed to update geotag, wrongly formatted\" "
+                     "geotag=\"%s\"", ptr_geotag);
+      return 1;
+    }
   }
 
   {
@@ -727,18 +743,6 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   }
 
   Eroute.Say("=====> eoscp-log : ", eoscpTransferLog.c_str());
-  char* ptr_geotag = getenv("EOS_GEOTAG");
-
-  if (ptr_geotag) {
-    mGeoTag = eos::common::SanitizeGeoTag(ptr_geotag);
-
-    if (mGeoTag.empty()) {
-      eos_static_err("%s", "msg=\"failed to update geotag, wrongly formatted\" "
-                     "geotag=\"%s\"", ptr_geotag);
-      return SFS_ERROR;
-    }
-  }
-
   // Compute checksum of the keytab file
   std::string kt_cks = GetKeytabChecksum("/etc/eos.keytab");
   eos::fst::Config::gConfig.KeyTabAdler = kt_cks.c_str();
