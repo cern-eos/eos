@@ -33,6 +33,7 @@
 #include "common/Path.hh"
 #include "common/http/OwnCloud.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
+#include "common/osx/Macros.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

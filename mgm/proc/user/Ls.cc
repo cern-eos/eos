@@ -32,6 +32,7 @@
 #include "common/Timing.hh"
 #include "common/LayoutId.hh"
 #include "namespace/utils/Mode.hh"
+#include "common/osx/macros.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

@@ -31,6 +31,7 @@
 #include "common/ErrnoToString.hh"
 #include "XrdNet/XrdNetAddr.hh"
 #include <netdb.h>
+#include "common/osx/Macros.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

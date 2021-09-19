@@ -29,6 +29,7 @@
 #include "mgm/Stat.hh"
 #include "namespace/interface/IView.hh"
 #include "common/Path.hh"
+#include "common/osx/Macros.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
