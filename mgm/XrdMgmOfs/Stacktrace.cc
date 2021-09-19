@@ -28,6 +28,13 @@
 // -----------------------------------------------------------------------
 
 /*----------------------------------------------------------------------------*/
+#ifdef __APPLE__
+void
+xrdmgmofs_stacktrace (int sig)
+{
+  std::cerr<< "No stacktrace available on this platform!" << std::endl;
+}
+#else
 void
 xrdmgmofs_stacktrace (int sig)
 /*----------------------------------------------------------------------------*/
@@ -76,3 +83,5 @@ xrdmgmofs_stacktrace (int sig)
   }
 
 }
+
+#endif
