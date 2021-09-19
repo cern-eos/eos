@@ -23,13 +23,19 @@
 
 #include "common/CLI11.hpp"
 #include "namespace/ns_quarkdb/LRU.hh"
-#include <experimental/random>
+#include <random>
 
 //! Global synchronization primitives
 std::mutex gMutex;
 std::condition_variable gCondVar;
 std::atomic<unsigned long> gDoneWork {0};
 
+uint64_t randint(uint64_t start, uint64_t end)
+{
+  thread_local std::mt19937 engine(std::random_device{}());
+  std::uniform_int_distribution<> dist(start,end);
+  return dist(engine);
+}
 
 //------------------------------------------------------------------------------
 //! Dummy struct used to populate the LRU
@@ -64,9 +70,14 @@ void Populate(eos::LRU<std::uint64_t, Entry>& lru, uint64_t size)
 void WokerThread(eos::LRU<std::uint64_t, Entry>& lru, std::uint64_t num_req,
                  std::uint64_t max_size)
 {
+
+  std::random_device rd;
+  std::mt19937 gen(rd());
+
   // Pick a random start location between [1, max_size]
+
   unsigned long long random_start =
-    std::experimental::randint(1ull, (unsigned long long) max_size);
+    randint(1ull, (unsigned long long) max_size);
   // Wait for notification from the main thread
   std::unique_lock<std::mutex> lock(gMutex);
   gCondVar.wait(lock);
