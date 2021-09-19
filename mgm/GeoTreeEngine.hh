@@ -48,6 +48,10 @@
 #include <fcntl.h>
 
 /*----------------------------------------------------------------------------*/
+#ifdef __APPLE__
+#include "common/osx/sem_timedwait.hh"
+#endif
+
 /**
  * @file GeoTreeEngine.hh
  *
