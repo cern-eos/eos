@@ -30,6 +30,16 @@
 #include <chrono>
 #include "qclient/AssistedThread.hh"
 
+#ifdef __APPLE__
+// We seem to be using glibc basename which doesn't modify the path argument
+// instead of the <libgen.h> one, so just use that here.
+const char* basename (const char *filename)
+{
+  const char *p = strrchr(filename, '/');
+  return p ? p + 1 : (char *) filename;
+}
+#endif // __APPLE__
+
 #define __PRI64_PREFIX "l"
 #define PRId64         __PRI64_PREFIX "d"
 

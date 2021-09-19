@@ -25,8 +25,13 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/txengine/TransferEngine.hh"
 #include "mgm/Macros.hh"
-#include <sys/fsuid.h>
 #include <fcntl.h>
+#ifndef __APPLE__
+#include <sys/fsuid.h>
+#else
+#define setfsgid setegid
+#define setfsuid seteuid
+#endif
 
 EOSMGMNAMESPACE_BEGIN
 

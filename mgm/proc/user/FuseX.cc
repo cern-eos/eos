@@ -32,6 +32,10 @@
 #include "namespace/interface/IView.hh"
 #include "namespace/Prefetcher.hh"
 
+#ifdef __APPLE__
+#define EL2NSYNC    45  /* Level 2 not synchronized */
+#endif
+
 EOSMGMNAMESPACE_BEGIN
 
 

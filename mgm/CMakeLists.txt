@@ -279,6 +279,11 @@ target_link_libraries(XrdEosMgm-Objects PUBLIC
 target_compile_definitions(XrdEosMgm-Objects PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
+target_include_directories(XrdEosMgm-Objects PUBLIC
+  ${OPENSSL_INCLUDE_DIR}
+  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
+  )
+
 set_target_properties(XrdEosMgm-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
@@ -333,6 +338,11 @@ add_executable(eos-config-inspect
   config/QuarkConfigHandler.cc
   ../common/config/ConfigParsing.cc
 )
+
+target_include_directories(eos-config-inspect PUBLIC
+  ${OPENSSL_INCLUDE_DIR}
+  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
+  )
 
 target_link_libraries(
   eos-config-inspect
