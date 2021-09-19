@@ -104,7 +104,11 @@ QuarkHierarchicalView::initialize1()
     if (pRoot->getId() != 1) {
       eos_static_crit("Error when creating root '/' path - directory inode is not 1, but %d!",
                       pRoot->getId());
+      #ifndef __APPLE__
       std::quick_exit(1);
+      #else
+      std::exit(1);
+      #endif
     }
 
     pRoot->setName("/");

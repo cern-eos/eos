@@ -57,5 +57,9 @@ xrdmgmofs_shutdown(int sig)
   gOFS->Shutdown = true;
   gOFS->OrderlyShutdown();
   eos_static_alert("%s", "msg=\"shutdown complete\"");
+  #ifdef __APPLE__
+  std::exit(0);
+  #else
   std::quick_exit(0);
+  #endif
 }
