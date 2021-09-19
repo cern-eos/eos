@@ -89,7 +89,8 @@ add_library(XrdMqOfs-${XRDPLUGIN_SOVERSION} MODULE
 
 target_link_libraries(XrdMqOfs-${XRDPLUGIN_SOVERSION} PRIVATE
   EosCommon
-  qclient)
+  qclient
+  XROOTD::SERVER)
 
 install(TARGETS XrdMqOfs-${XRDPLUGIN_SOVERSION}
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
