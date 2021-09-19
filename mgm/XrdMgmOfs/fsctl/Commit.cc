@@ -35,6 +35,7 @@
 
 #include <XrdOuc/XrdOucEnv.hh>
 #include <openssl/sha.h>
+#include "common/osx/errno.h"
 
 //----------------------------------------------------------------------------
 // Commit a replica

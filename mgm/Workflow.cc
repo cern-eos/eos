@@ -30,6 +30,7 @@
 #include "mgm/FsView.hh"
 #include "common/Constants.hh"
 #include "namespace/Prefetcher.hh"
+#include "common/osx/errno.h"
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN

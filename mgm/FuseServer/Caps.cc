@@ -36,6 +36,7 @@
 #include "mgm/Stat.hh"
 
 #include "namespace/interface/IView.hh"
+#include "common/osx/errno.h"
 
 EOSMGMNAMESPACE_BEGIN
 

@@ -107,6 +107,7 @@
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSfs/XrdSfsFlags.hh"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
+#include "common/osx/errno.h"
 
 #ifdef __APPLE__
 #define ECOMM 70

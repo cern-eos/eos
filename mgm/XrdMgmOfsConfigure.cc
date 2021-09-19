@@ -250,6 +250,11 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     Eroute.Say("jemalloc is NOT loaded!");
   }
 
+  #ifdef __APPLE__
+  #define SIGRTMIN 100
+  #define SIGRTMAX 101
+  #endif
+
   if (SIGRTMIN <= 40 && 42 <= SIGRTMAX) {
     signal(40, StartHeapProfiling);
     signal(41, StopHeapProfiling);
@@ -260,7 +265,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
                        "dignal range. SIGRTMIN=%d  SIGRTMAX=%d",
                        (int)SIGRTMIN, (int)SIGRTMAX);
   }
-
   // Create and own the output cache directory or clean it up if it exists -
   // this is used to store temporary results for commands like find, backup
   // or archive

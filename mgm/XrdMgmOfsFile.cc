@@ -54,6 +54,7 @@
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSfs/XrdSfsAio.hh"
 #include "common/Constants.hh"
+#include "common/osx/errno.h"
 
 #ifdef __APPLE__
 #define ECOMM 70
