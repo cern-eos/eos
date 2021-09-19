@@ -49,7 +49,9 @@ target_link_libraries(
   gtest
   gmock_main
   EosNsCommon-Static
-  FOLLY::FOLLY)
+  FOLLY::FOLLY
+  XROOTD::UTILS
+  OPENSSL::OPENSSL)
 
 install(TARGETS eos-ns-quarkdb-tests
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
@@ -59,7 +61,10 @@ install(TARGETS eos-ns-quarkdb-tests
 #-------------------------------------------------------------------------------
 add_executable(eosnsbench EosNamespaceBenchmark.cc)
 target_compile_options(eosnsbench PUBLIC -DFILE_OFFSET_BITS=64)
-target_link_libraries(eosnsbench PRIVATE EosNsCommon-Static)
+target_link_libraries(eosnsbench PRIVATE
+  EosNsCommon-Static
+  XROOTD::UTILS
+  OPENSSL::OPENSSL)
 add_executable(eos-lru-benchmark LruBenchmark.cc)
 target_link_libraries(eos-lru-benchmark EosCommon)
 
