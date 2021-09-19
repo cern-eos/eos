@@ -42,27 +42,27 @@ uint32_t crc32cSlicingBy8(uint32_t crc, const void* data, size_t length);
 uint32_t crc32cHardware32(uint32_t crc, const void* data, size_t length);
 uint32_t crc32cHardware64(uint32_t crc, const void* data, size_t length);
 
-#if defined(__APPLE__) && defined(__aarch64__)
-#define __builtin_ia32_crc32si __builtin_arm_crc32cw
-#define __builtin_ia32_crc32hi __builtin_arm_crc32ch
-#define __builtin_ia32_crc32qi __builtin_arm_crc32cb
-#define __builtin_ia32_crc32di __builtin_arm_crc32cd // FIXME: This shouldn't be called, only here because we call this in an else path
-#endif
-}  // namespace checksum
+/* #if defined(__APPLE__) && defined(__aarch64__) */
+/* #define __builtin_ia32_crc32si __builtin_arm_crc32cw */
+/* #define __builtin_ia32_crc32hi __builtin_arm_crc32ch */
+/* #define __builtin_ia32_crc32qi __builtin_arm_crc32cb */
+/*  */
+/* #endif */
 
 #ifdef __aarch64__
-#define __builtin_ia32_crc32di __builtin_aarch_crc32cx
+#ifdef __APPLE__
+  #define __builtin_ia32_crc32di __builtin_arm_crc32cd // FIXME: This shouldn't be called, only here because we call this in an else path
+#else
+  #define __builtin_ia32_crc32di __builtin_aarch_crc32cx
+#endif // __APPLE__
 #define __builtin_ia32_crc32si __builtin_arm_crc32cw
 #define __builtin_ia32_crc32hi __builtin_arm_crc32ch
 #define __builtin_ia32_crc32qi __builtin_arm_crc32cb
 #endif // GCC_AARCH64_H
 
-/* #ifdef __arm64__ */
-/* #define __builtin_ia32_crc32di __builtin_arm_crc32cx */
-/* #define __builtin_ia32_crc32si __builtin_arm_crc32cw */
-/* #define __builtin_ia32_crc32hi __builtin_arm_crc32ch */
-/* #define __builtin_ia32_crc32qi __builtin_arm_crc32cb */
-/* #endif // GCC_AARCH64_H */
+}  // namespace checksum
+
+
 
 
 #endif
