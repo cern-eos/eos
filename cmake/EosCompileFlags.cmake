@@ -29,6 +29,10 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(EOS_CXX_DEFINE "-DEOSCITRINE -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\"")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EOS_CXX_DEFINE} ${CPP_VERSION} -Wall -Wno-error=parentheses")
+if (AARCH64)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EOS_CXX_DEFINE} ${CPP_VERSION} -march=armv8-a+crc+crypto -Wall -Wno-error=parentheses")
+endif()
+
 check_cxx_compiler_flag(-std=c++17 HAVE_FLAG_STD_CXX17)
 
 if(NOT HAVE_FLAG_STD_CXX17)
