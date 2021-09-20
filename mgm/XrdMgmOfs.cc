@@ -372,6 +372,21 @@ XrdMgmOfs::OrderlyShutdown()
   gOFS->mTracker.SetAcceptingRequests(false);
   gOFS->mTracker.SpinUntilNoRequestsInFlight(true,
       std::chrono::milliseconds(100));
+  eos_warning("%s", "msg=\"stopping fs listener thread\"");
+  auto stop_fsconfiglistener = std::thread([&]() {
+    mFsConfigTid.join();
+  });
+  // We now need to signal to the FsConfigListener thread to unblock it
+  XrdMqSharedObjectChangeNotifier::Subscriber*
+  subscriber = ObjectNotifier.GetSubscriberFromCatalog("fsconfiglistener", false);
+
+  if (subscriber) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    XrdSysMutexHelper lock(subscriber->mSubjMtx);
+    subscriber->mSubjSem.Post();
+  }
+
+  stop_fsconfiglistener.join();
   eos_warning("%s", "msg=\"disable configuration engine autosave\"");
   ConfEngine->SetAutoSave(false);
   FsView::gFsView.SetConfigEngine(nullptr);
@@ -454,21 +469,6 @@ XrdMgmOfs::OrderlyShutdown()
 
   eos_warning("%s", "msg=\"stopping the transfer engine threads\"");
   gTransferEngine.Stop();
-  eos_warning("%s", "msg=\"stopping fs listener thread\"");
-  auto stop_fsconfiglistener = std::thread([&]() {
-    mFsConfigTid.join();
-  });
-  // We now need to signal to the FsConfigListener thread to unblock it
-  XrdMqSharedObjectChangeNotifier::Subscriber*
-  subscriber = ObjectNotifier.GetSubscriberFromCatalog("fsconfiglistener", false);
-
-  if (subscriber) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    XrdSysMutexHelper lock(subscriber->mSubjMtx);
-    subscriber->mSubjSem.Post();
-  }
-
-  stop_fsconfiglistener.join();
   eos_warning("%s", "msg=\"stopping the shared object notifier thread\"");
   ObjectNotifier.Stop();
   eos_warning("%s", "msg=\"cleanup quota information\"");
