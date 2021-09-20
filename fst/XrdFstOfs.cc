@@ -1383,6 +1383,10 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
       return HandleVerify(env, error);
     }
 
+    if (execmd == "drop") {
+      return HandleDropFile(env, error);
+    }
+
     if (execmd == "clean_orphans") {
       return HandleCleanOrphans(env, error);
     }
@@ -2143,6 +2147,41 @@ XrdFstOfs::HandleVerify(XrdOucEnv& env, XrdOucErrInfo& err_obj)
 }
 
 //------------------------------------------------------------------------------
+// Handle drop file query
+//------------------------------------------------------------------------------
+int
+XrdFstOfs::HandleDropFile(XrdOucEnv& env, XrdOucErrInfo& err_obj)
+{
+  int caprc = 0;
+  XrdOucEnv* capOpaque {nullptr};
+
+  if ((caprc = eos::common::SymKey::ExtractCapability(&env, capOpaque))) {
+    eos_static_err("msg=\"extract capability failed for deletion\" errno=%d",
+                   caprc);
+    return SFS_ERROR;
+  } else {
+    int envlen = 0;
+    eos_static_debug("opaque=\"%s\"", capOpaque->Env(envlen));
+    std::unique_ptr<Deletion> new_del = Deletion::Create(capOpaque);
+
+    if (new_del) {
+      gOFS.Storage->AddDeletion(std::move(new_del));
+    } else {
+      eos_static_err("%s", "msg=\"illegal drop opaque information\"");
+      return SFS_ERROR;
+    }
+  }
+
+  delete capOpaque;
+  // @todo(esindril) once xrootd bug regarding handling of SFS_OK response
+  // in XrdXrootdXeq is fixed we can just return SFS_OK (>= XRootD 5)
+  // return SFS_OK;
+  const char* done = "OK";
+  err_obj.setErrInfo(strlen(done) + 1, done);
+  return SFS_DATA;
+}
+
+//------------------------------------------------------------------------------
 // Handle clean orphans query
 //------------------------------------------------------------------------------
 int
@@ -2506,15 +2545,10 @@ XrdFstOfs::DoDrop(XrdOucEnv& env)
   if ((caprc = eos::common::SymKey::ExtractCapability(&env, capOpaque))) {
     eos_static_err("msg=\"extract capability failed for deletion\" errno=%d",
                    caprc);
-
-    if (capOpaque) {
-      delete capOpaque;
-    }
   } else {
     int envlen = 0;
     eos_static_debug("opaque=\"%s\"", capOpaque->Env(envlen));
     std::unique_ptr<Deletion> new_del = Deletion::Create(capOpaque);
-    delete capOpaque;
 
     if (new_del) {
       gOFS.Storage->AddDeletion(std::move(new_del));
@@ -2522,6 +2556,8 @@ XrdFstOfs::DoDrop(XrdOucEnv& env)
       eos_static_err("%s", "msg=\"illegal drop opaque information\"");
     }
   }
+
+  delete capOpaque;
 }
 
 //------------------------------------------------------------------------------

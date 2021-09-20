@@ -739,7 +739,7 @@ public:
   //! @return 0 if no squashfs access, 1 if squashfs but not allowed 2 if squashfs and allowed
   //---------------------------------------------------------------------------
   int is_squashfs_access(const char* path,
-			 eos::common::VirtualIdentity& vid);
+                         eos::common::VirtualIdentity& vid);
 
   //----------------------------------------------------------------------------
   //! Test if public access is allowed in a given path
@@ -1366,9 +1366,16 @@ public:
   // ---------------------------------------------------------------------------
   void ResetPathMap();  // reset/empty the path map
 
-  // ---------------------------------------------------------------------------
-  // Send an explicit deletion message to any fsid/fid pair
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Send an explicit deletion message to any fsid/fid pair. This routine
+  //! signs a deletion message for the given file id and sends it to the
+  //! referenced file system.
+  //!
+  //! @param fsid file system id where to run a deletion
+  //! @param fid file id to be deleted
+  //!
+  //! @result true if successfully sent otherwise false
+  //-----------------------------------------------------------------------------
   bool DeleteExternal(eos::common::FileSystem::fsid_t fsid,
                       unsigned long long fid);
 

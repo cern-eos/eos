@@ -21,40 +21,24 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-
 // -----------------------------------------------------------------------
 // This file is included source code in XrdMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
-
-/*----------------------------------------------------------------------------*/
 bool
 XrdMgmOfs::DeleteExternal(eos::common::FileSystem::fsid_t fsid,
                           unsigned long long fid)
-/*----------------------------------------------------------------------------*/
-/*
- * @brief send an explicit deletion message to a fsid/fid pair
- *
- * @param fsid file system id where to run a deletion
- * @param fid file id to be deleted
- *
- * @result true if successfully sent otherwise false
- *
- * This routine signs a deletion message for the given file id and sends it
- * to the referenced file system.
- */
-/*----------------------------------------------------------------------------*/
+
 {
   using namespace eos::common;
-  eos::mgm::FileSystem* fs = 0;
-  XrdOucString receiver = "";
-  XrdOucString msgbody = "mgm.cmd=drop";
+  std::string fst_queue;
+  std::string fst_host;
+  int fst_port = 1095;
   XrdOucString capability = "";
-  XrdOucString idlist = "";
-  // get the filesystem from the FS view
   {
-    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-    fs = FsView::gFsView.mIdView.lookupByID(fsid);
+    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex,
+                                            __FUNCTION__, __LINE__, __FILE__);
+    auto* fs = FsView::gFsView.mIdView.lookupByID(fsid);
 
     if (fs) {
       capability += "&mgm.access=delete";
@@ -66,35 +50,44 @@ XrdMgmOfs::DeleteExternal(eos::common::FileSystem::fsid_t fsid,
       capability += fs->GetPath().c_str();
       capability += "&mgm.fids=";
       capability += eos::common::FileId::Fid2Hex(fid).c_str();
-      receiver = fs->GetQueue().c_str();
+      fst_queue = fs->GetQueue().c_str();
+      fst_host = fs->GetHost();
+      fst_port = fs->getCoreParams().getLocator().getPort();
+    } else {
+      eos_static_err("msg=\"no such file system object\" fsid=%lu", fsid);
+      return false;
     }
   }
-  bool ok = false;
+  // Encrypt the capability information
+  XrdOucEnv incapability(capability.c_str());
+  XrdOucEnv* capabilityenv = 0;
+  SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
+  int caprc = 0;
 
-  if (fs) {
-    XrdOucEnv incapability(capability.c_str());
-    XrdOucEnv* capabilityenv = 0;
-    SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
-    int caprc = 0;
+  if ((caprc = SymKey::CreateCapability(&incapability, capabilityenv, symkey,
+                                        mCapabilityValidity))) {
+    eos_static_err("msg=\"unable to create capability\" errno=%u", caprc);
+    return false;
+  }
 
-    if ((caprc = SymKey::CreateCapability(&incapability, capabilityenv, symkey,
-                                          mCapabilityValidity))) {
-      eos_static_err("unable to create capability - errno=%u", caprc);
-    } else {
-      int caplen = 0;
-      msgbody += capabilityenv->Env(caplen);
+  int caplen = 0;
+  bool ok = true;
+  std::string qreq = "/?fst.pcmd=drop";
+  qreq += capabilityenv->Env(caplen);
+  std::string qresp;
 
-      eos::mq::MessagingRealm::Response response = mMessagingRealm->sendMessage("deletion", msgbody.c_str(), receiver.c_str());
-      if(!response.ok()){
-        eos_static_err("unable to send deletion message to %s", receiver.c_str());
-      }
-      else {
-        ok = true;
-      }
+  if (SendQuery(fst_host, fst_port, qreq, qresp)) {
+    XrdOucString msgbody = "mgm.cmd=drop";
+    msgbody += capabilityenv->Env(caplen);
+    eos::mq::MessagingRealm::Response response =
+      mMessagingRealm->sendMessage("deletion", msgbody.c_str(), fst_queue.c_str());
+
+    if (!response.ok()) {
+      eos_static_err("msg=\"unable to send deletion message to %s\"",
+                     fst_queue.c_str());
+      ok = false;
     }
   }
 
   return ok;
 }
-
-
