@@ -746,12 +746,19 @@ FsckEntry::DropReplica(eos::common::FileSystem::fsid_t fsid) const
 
   eos_info("msg=\"drop (unregistered) replica\" fxid=%08llx fsid=%lu",
            mFid, fsid);
-  // Drop stripe/replica from the namespace, we don't need the path as root
-  // can drop by fid
+
+  // Send external deletion to the FST
+  if (gOFS && !gOFS->DeleteExternal(fsid, mFid)) {
+    eos_err("msg=\"failed to send unlink to FST\" fxid=%08llx fsid=%lu",
+            mFid, fsid);
+    retc = false;
+  }
+
+  // Drop from the namespace, we don't need the path as root can drop by fid
   XrdOucErrInfo err;
   eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
 
-  if (gOFS && gOFS->_dropstripe("", mFid, err, vid, fsid)) {
+  if (gOFS && gOFS->_dropstripe("", mFid, err, vid, fsid, true)) {
     eos_err("msg=\"failed to drop replicas from ns\" fxid=%08llx fsid=%lu",
             mFid, fsid);
   }

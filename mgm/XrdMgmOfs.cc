@@ -577,6 +577,7 @@ XrdMgmOfs::Disc(const XrdSecEntity* client)
 #include "XrdMgmOfs/Chmod.cc"
 #include "XrdMgmOfs/Chown.cc"
 #include "XrdMgmOfs/Coverage.cc"
+#include "XrdMgmOfs/DeleteExternal.cc"
 #include "XrdMgmOfs/Exists.cc"
 #include "XrdMgmOfs/Find.cc"
 #include "XrdMgmOfs/FsConfigListener.cc"
