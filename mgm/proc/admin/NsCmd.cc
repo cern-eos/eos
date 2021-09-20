@@ -44,6 +44,7 @@
 #include "mgm/ZMQ.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include <sstream>
+#include "common/RWMutex.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -91,6 +92,7 @@ void
 NsCmd::MutexSubcmd(const eos::console::NsProto_MutexProto& mutex,
                    eos::console::ReplyProto& reply)
 {
+#ifdef EOS_INSTRUMENTED_RWMUTEX
   if (mVid.uid == 0) {
     bool no_option = true;
     std::ostringstream oss;
@@ -216,6 +218,10 @@ NsCmd::MutexSubcmd(const eos::console::NsProto_MutexProto& mutex,
                       " command");
     reply.set_retc(EPERM);
   }
+#else
+  reply.set_std_err("error: Instrumented mutex not available in this platform!");
+  reply.set_retc(ENOTSUP);
+#endif
 }
 
 //------------------------------------------------------------------------------
