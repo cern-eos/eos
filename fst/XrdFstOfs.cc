@@ -1983,7 +1983,7 @@ XrdFstOfs::HandleResync(XrdOucEnv& env, XrdOucErrInfo& err_obj)
   if ((env.Get("fst.resync.fsid") == nullptr) ||
       (env.Get("fst.resync.fxid") == nullptr) ||
       (env.Get("fst.resync.force") == nullptr)) {
-    eos_static_err("%s", "msg=\"discard resync with missing arguments\"");
+    eos_static_err("%s", "msg=\"discard resync with missgin arguments\"");
     err_obj.setErrInfo(EINVAL, "resync missing arguments");
     return SFS_ERROR;
   }
