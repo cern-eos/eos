@@ -449,9 +449,14 @@ Storage::Publish(ThreadAssistant& assistant)
             continue;
           }
 
-          map_futures.emplace(fs, std::async(std::launch::async,
-                                             &Storage::PublishFsStatistics,
-                                             this, fs));
+          try {
+            map_futures.emplace(fs, std::async(std::launch::async,
+                                               &Storage::PublishFsStatistics,
+                                               this, fs));
+          } catch (const std::system_error& e) {
+            eos_static_err("msg=\"exception while collecting fs statistics\" "
+                           "fsid=%lu msg=\"%s\"", elem.first, e.what());
+          }
         }
 
         for (auto& elem : map_futures) {
