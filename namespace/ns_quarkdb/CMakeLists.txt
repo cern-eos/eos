@@ -60,10 +60,18 @@ add_executable(eos-fid-to-path tools/Fid2PathTool.cc)
 target_link_libraries(eos-fid-to-path
   EosNsCommon-Static)
 
+target_include_directories(eos-fid-to-path
+  PUBLIC
+  ${XROOTD_INCLUDE_DIRS})
+
 add_executable(eos-inode-to-fid tools/InodeToFidTool.cc)
 
 target_link_libraries(eos-inode-to-fid
   EosNsCommon-Static)
+
+target_include_directories(eos-inode-to-fid
+  PUBLIC
+  ${XROOTD_INCLUDE_DIRS})
 
 install(TARGETS eos-ns-convert-to-locality-hashes eos-ns-inspect eos-fid-to-path eos-inode-to-fid
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
