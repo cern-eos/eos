@@ -455,7 +455,11 @@ EosFstHttpHandler::HandleChunkUpload(XrdHttpExtReq& req,
   }
 
   COMMONTIMING("done", &tm);
-  tm.Print();
+
+  if (EOS_LOGS_DEBUG) {
+    tm.Print();
+  }
+
   return success;
 }
 
@@ -617,6 +621,10 @@ EosFstHttpHandler::HandleChunkUpload2(XrdHttpExtReq& req,
   }
 
   COMMONTIMING("done", &tm);
-  tm.Print();
+
+  if (EOS_LOGS_DEBUG) {
+    tm.Print();
+  }
+
   return (state == CHUNK_DATA);
 }
