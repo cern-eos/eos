@@ -43,7 +43,8 @@ ShareCmd::ProcessRequest() noexcept
   if (subcmd == ShareProto::kLs) {
     const eos::console::ShareProto_LsShare& ls = shareproto.ls();
     bool monitoring = (ls.outformat() == ls.MONITORING)? true:false;
-    gOFS->mShare->getProc().List(mVid, "").Dump(std_out, monitoring);
+    bool json = (ls.outformat() == ls.JSON)? true:false;
+    gOFS->mShare->getProc().List(mVid, "").Dump(std_out, monitoring, json);
     if (std_out.length()) {
       reply.set_std_out(std_out.c_str());
     }
@@ -123,8 +124,9 @@ ShareCmd::ProcessRequest() noexcept
       std::string out;
       std::string user = share.user();
       std::string group = share.group();
+      bool json = share.json();
 
-      if (gOFS->mShare->getProc().Access(mVid, share_name,out,user,group)) {
+      if (gOFS->mShare->getProc().Access(mVid, share_name,out,user,group, json)) {
 	if (errno == ENOENT) {
 	  std_err = std::string("error: share '") + share_name + std::string("' does not exist ") + mVid.uid_string + std::string("\n");
 	  reply.set_retc(EEXIST);

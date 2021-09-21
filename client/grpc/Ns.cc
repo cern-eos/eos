@@ -36,7 +36,14 @@ int usage(const char* prog)
 	  "[--username <u> | --groupname <g>] [-p <path>] --inodes <#> --volume <#> --quota user|group|project \\"
 	                                                 "quota set\n"
 	  "[--username <u> | --groupname <g>] [-p <path>] quota rm\n"
-	  "                                   [-p <path>] quota rmnode\n");
+	  "                                   [-p <path>] quota rmnode\n"
+          "                                               share ls \n"
+	  "         --share <name> --acl <acl> -p <path>  share create\n"
+	  "         --share <name> --username <u>         share access\n"
+	  "         --share <name> --acl <acl> -p <path>  share share\n"
+	  "         --share <name>                        share unshare\n"
+	  "         --share <name> --acl <acl>            share modify\n"
+	  "         --share <name>                        share remove\n");
 	  
   return -1;
 }
@@ -71,6 +78,8 @@ int main(int argc, const char* argv[])
 
   std::string username;
   std::string groupname;
+  std::string share;
+
 
   uid_t owner_uid = 0;
   gid_t owner_gid = 0;
@@ -253,9 +262,19 @@ int main(int argc, const char* argv[])
       }
     }
 
-    if (option == "-p") {
+    if ( (option == "-p") || (option == "--path") ){
       if (argc > i + 1) {
 	path = argv[i+1];
+	++i;
+	continue;
+      } else {
+	return usage(argv[0]);
+      }
+    }
+
+    if ( (option == "--share") ) {
+      if (argc > i + 1) {
+	share = argv[i+1];
 	++i;
 	continue;
       } else {
@@ -299,7 +318,6 @@ int main(int argc, const char* argv[])
       } else {
         return usage(argv[0]);
       }
-
     }
 
     if (option == "--front") {
@@ -388,6 +406,19 @@ int main(int argc, const char* argv[])
 	}
 	break;
       }
+      if ( cmd == "share" ) {
+	subcmd = argv[i+1];
+	if ( (subcmd != "access") &&
+	     (subcmd != "create") &&
+	     (subcmd != "share") &&
+	     (subcmd != "unshare") &&
+	     (subcmd != "modify") &&
+	     (subcmd != "remove") &&
+	     (subcmd != "ls") ) {
+	  return usage(argv[0]);
+	}
+	break;
+      }
       return usage(argv[0]);
     }
   }
@@ -398,7 +429,7 @@ int main(int argc, const char* argv[])
     }
   }
 
-  if (cmd.empty() || ((cmd != "quota") && (cmd != "recycle") && path.empty() && eostoken.empty())) {
+  if (cmd.empty() || ((cmd != "quota") && (cmd != "recycle") && (cmd != "share") && path.empty() && eostoken.empty())) {
     return usage(argv[0]);
   }
 
@@ -582,6 +613,37 @@ int main(int argc, const char* argv[])
       request.mutable_recycle()->set_key(path);
     } else {
       std::cerr << "invalid recycle request" << std::endl;
+      return EINVAL;
+    }
+  } else if (cmd == "share") {
+    if ( (subcmd == "ls") ) {
+      request.mutable_share()->mutable_ls()->set_outformat(eos::rpc::NSRequest::ShareRequest::LsShare::JSON);
+    } else if (subcmd == "create") {
+      request.mutable_share()->mutable_op()->set_op(eos::rpc::NSRequest::ShareRequest::OperateShare::CREATE);
+      request.mutable_share()->mutable_op()->set_path(path);
+      request.mutable_share()->mutable_op()->set_share(share);
+      request.mutable_share()->mutable_op()->set_acl(acl);
+    } else if (subcmd == "share") {
+      request.mutable_share()->mutable_op()->set_op(eos::rpc::NSRequest::ShareRequest::OperateShare::SHARE);
+      request.mutable_share()->mutable_op()->set_path(path);
+      request.mutable_share()->mutable_op()->set_share(share);
+      request.mutable_share()->mutable_op()->set_acl(acl);
+    } else if (subcmd == "unshare") {
+      request.mutable_share()->mutable_op()->set_op(eos::rpc::NSRequest::ShareRequest::OperateShare::UNSHARE);
+      request.mutable_share()->mutable_op()->set_share(share);
+    } else if (subcmd == "modify") {
+      request.mutable_share()->mutable_op()->set_op(eos::rpc::NSRequest::ShareRequest::OperateShare::MODIFY);
+      request.mutable_share()->mutable_op()->set_share(share);
+      request.mutable_share()->mutable_op()->set_acl(acl);
+    } else if (subcmd == "remove") {
+      request.mutable_share()->mutable_op()->set_op(eos::rpc::NSRequest::ShareRequest::OperateShare::REMOVE);
+      request.mutable_share()->mutable_op()->set_share(share);
+    } else if (subcmd == "access") {
+      request.mutable_share()->mutable_op()->set_op(eos::rpc::NSRequest::ShareRequest::OperateShare::ACCESS);
+      request.mutable_share()->mutable_op()->set_share(share);
+      request.mutable_share()->mutable_op()->set_user(username);
+    } else {
+      std::cerr << "invalid share request" << std::endl;
       return EINVAL;
     }
   }

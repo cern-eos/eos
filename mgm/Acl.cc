@@ -857,7 +857,7 @@ Acl::TokenAcl(const eos::common::VirtualIdentity& vid) const
 //------------------------------------------------------------------------------
 // Output ACL state
 std::string
-Acl::Out(bool monitoring)
+Acl::Out(bool monitoring, accessmap_t* map)
 {
   std::string format_s = !monitoring ? "s" : "os";
   TableFormatterBase table_all;
@@ -881,6 +881,7 @@ Acl::Out(bool monitoring)
     table_data.back().push_back(TableCell(std::string("read"), format_s));
     table_data.back().push_back(TableCell(mCanRead?std::string("yes"):std::string("no"), format_s));
     table_all.AddRows(table_data);
+    if (map) (*map)["read"] = mCanRead;
   }
 
   {
@@ -890,6 +891,7 @@ Acl::Out(bool monitoring)
     table_data.back().push_back(TableCell(std::string("not-read"), format_s));
     table_data.back().push_back(TableCell(mCanNotRead?std::string("yes"):std::string("no"), format_s));
     table_all.AddRows(table_data);
+    if (map) (*map)["notread"] = mCanNotRead;
   }
 
   {
@@ -899,6 +901,7 @@ Acl::Out(bool monitoring)
     table_data.back().push_back(TableCell(std::string("write"), format_s));
     table_data.back().push_back(TableCell(mCanWrite?std::string("yes"):std::string("no"), format_s));
     table_all.AddRows(table_data);
+    if (map) (*map)["write"] = mCanWrite;
   }
 
   {
@@ -908,6 +911,7 @@ Acl::Out(bool monitoring)
     table_data.back().push_back(TableCell(std::string("not-write"), format_s));
     table_data.back().push_back(TableCell(mCanNotWrite?std::string("yes"):std::string("no"), format_s));
     table_all.AddRows(table_data);
+    if (map) (*map)["notwrite"] = mCanNotWrite;
   }
 
   {
@@ -917,6 +921,7 @@ Acl::Out(bool monitoring)
     table_data.back().push_back(TableCell(std::string("write-once"), format_s));
     table_data.back().push_back(TableCell(mCanWriteOnce?std::string("yes"):std::string("no"), format_s));
     table_all.AddRows(table_data);
+    if (map) (*map)["writeonce"] = mCanWriteOnce;
   }
 
   {
@@ -926,6 +931,7 @@ Acl::Out(bool monitoring)
     table_data.back().push_back(TableCell(std::string("update"), format_s));
     table_data.back().push_back(TableCell(mCanUpdate?std::string("yes"):std::string("no"), format_s));
     table_all.AddRows(table_data);
+    if (map) (*map)["update"] = mCanUpdate;
   }
 
   {
@@ -935,6 +941,7 @@ Acl::Out(bool monitoring)
     table_data.back().push_back(TableCell(std::string("not-update"), format_s));
     table_data.back().push_back(TableCell(mCanNotUpdate?std::string("yes"):std::string("no"), format_s));
     table_all.AddRows(table_data);
+    if (map) (*map)["notupdate"] = mCanNotUpdate;
   }
 
   {
@@ -944,6 +951,7 @@ Acl::Out(bool monitoring)
     table_data.back().push_back(TableCell(std::string("browse"), format_s));
     table_data.back().push_back(TableCell(mCanBrowse?std::string("yes"):std::string("no"), format_s));
     table_all.AddRows(table_data);
+    if (map) (*map)["browse"] = mCanBrowse;
   }
 
   {
@@ -953,6 +961,7 @@ Acl::Out(bool monitoring)
     table_data.back().push_back(TableCell(std::string("not-browse"), format_s));
     table_data.back().push_back(TableCell(mCanNotBrowse?std::string("yes"):std::string("no"), format_s));
     table_all.AddRows(table_data);
+    if (map) (*map)["notbrowse"] = mCanNotBrowse;
   }
 
   {
@@ -962,6 +971,7 @@ Acl::Out(bool monitoring)
     table_data.back().push_back(TableCell(std::string("chmod"), format_s));
     table_data.back().push_back(TableCell(mCanChmod?std::string("yes"):std::string("no"), format_s));
     table_all.AddRows(table_data);
+    if (map) (*map)["chmod"] = mCanChmod;
   }
 
   {
@@ -971,6 +981,7 @@ Acl::Out(bool monitoring)
     table_data.back().push_back(TableCell(std::string("not-chmod"), format_s));
     table_data.back().push_back(TableCell(mCanNotChmod?std::string("yes"):std::string("no"), format_s));
     table_all.AddRows(table_data);
+    if (map) (*map)["notchmod"] = mCanNotChmod;
   }
 
   {
@@ -980,6 +991,7 @@ Acl::Out(bool monitoring)
     table_data.back().push_back(TableCell(std::string("chown"), format_s));
     table_data.back().push_back(TableCell(mCanChown?std::string("yes"):std::string("no"), format_s));
     table_all.AddRows(table_data);
+    if (map) (*map)["chown"] = mCanChown;
   }
 
   {
@@ -989,6 +1001,7 @@ Acl::Out(bool monitoring)
     table_data.back().push_back(TableCell(std::string("delete"), format_s));
     table_data.back().push_back(TableCell(mCanDelete?std::string("yes"):std::string("no"), format_s));
     table_all.AddRows(table_data);
+    if (map) (*map)["delete"] = mCanDelete;
   }
 
   {
@@ -998,6 +1011,7 @@ Acl::Out(bool monitoring)
     table_data.back().push_back(TableCell(std::string("not-delete"), format_s));
     table_data.back().push_back(TableCell(mCanNotDelete?std::string("yes"):std::string("no"), format_s));
     table_all.AddRows(table_data);
+    if (map) (*map)["notdelete"] = mCanNotDelete;
   }
 
   {
@@ -1007,6 +1021,7 @@ Acl::Out(bool monitoring)
     table_data.back().push_back(TableCell(std::string("set-quota"), format_s));
     table_data.back().push_back(TableCell(mCanSetQuota?std::string("yes"):std::string("no"), format_s));
     table_all.AddRows(table_data);
+    if (map) (*map)["setquota"] = mCanSetQuota;
   }
 
   {
@@ -1016,6 +1031,7 @@ Acl::Out(bool monitoring)
     table_data.back().push_back(TableCell(std::string("archive"), format_s));
     table_data.back().push_back(TableCell(mCanArchive?std::string("yes"):std::string("no"), format_s));
     table_all.AddRows(table_data);
+    if (map) (*map)["archive"] = mCanArchive;
   }
 
   {
@@ -1025,6 +1041,7 @@ Acl::Out(bool monitoring)
     table_data.back().push_back(TableCell(std::string("prepare"), format_s));
     table_data.back().push_back(TableCell(mCanPrepare?std::string("yes"):std::string("no"), format_s));
     table_all.AddRows(table_data);
+    if (map) (*map)["prepare"] = mCanPrepare;
   }
 
   {
@@ -1034,6 +1051,7 @@ Acl::Out(bool monitoring)
     table_data.back().push_back(TableCell(std::string("share"), format_s));
     table_data.back().push_back(TableCell(mCanShare?std::string("yes"):std::string("no"), format_s));
     table_all.AddRows(table_data);
+    if (map) (*map)["share"] = mCanShare;
   }
 
   {
@@ -1043,6 +1061,7 @@ Acl::Out(bool monitoring)
     table_data.back().push_back(TableCell(std::string("set-acl"), format_s));
     table_data.back().push_back(TableCell(mCanSetAcl?std::string("yes"):std::string("no"), format_s));
     table_all.AddRows(table_data);
+    if (map) (*map)["setacl"] = mCanSetAcl;
   }
 
   {
@@ -1052,6 +1071,7 @@ Acl::Out(bool monitoring)
     table_data.back().push_back(TableCell(std::string("egroup"), format_s));
     table_data.back().push_back(TableCell(mHasEgroup?std::string("yes"):std::string("no"), format_s));
     table_all.AddRows(table_data);
+    if (map) (*map)["egroup"] = mHasEgroup;
   }
 
   {
@@ -1061,6 +1081,7 @@ Acl::Out(bool monitoring)
     table_data.back().push_back(TableCell(std::string("mutable"), format_s));
     table_data.back().push_back(TableCell(mIsMutable?std::string("yes"):std::string("no"), format_s));
     table_all.AddRows(table_data);
+    if (map) (*map)["mutable"] = mIsMutable;
   }
 
  return table_all.GenerateTable(HEADER);

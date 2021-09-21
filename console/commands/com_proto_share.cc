@@ -68,7 +68,7 @@ void com_share_help()
       << "    create a share with name <name>, acl <acl> under path <path>\n"
       << "\n"
       << "  share ls\n"
-      << "    list my sharesn\n"
+      << "    list my shares\n"
       << "\n"
       << "  share modify <name> <acl>\n"
       << "    modify the acl of the existing share <name>\n"

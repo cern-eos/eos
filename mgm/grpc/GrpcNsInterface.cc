@@ -37,6 +37,7 @@
 #include "mgm/proc/admin/QuotaCmd.hh"
 #include "mgm/proc/user/RmCmd.hh"
 #include "mgm/proc/user/TokenCmd.hh"
+#include "mgm/proc/user/ShareCmd.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/Recycle.hh"
@@ -1329,6 +1330,10 @@ GrpcNsInterface::Exec(eos::common::VirtualIdentity& ivid,
     return Quota(vid, reply->mutable_quota() , &(request->quota()));
     break;
 
+  case eos::rpc::NSRequest::kShare:
+    return Share(vid, reply->mutable_share(), &(request->share()));
+    break;
+
   default:
     reply->mutable_error()->set_code(EINVAL);
     reply->mutable_error()->set_msg("error: command not supported");
@@ -2047,7 +2052,6 @@ grpc::Status GrpcNsInterface::Recycle(eos::common::VirtualIdentity& vid,
 
     return grpc::Status::OK;
   } else if (request->cmd() == eos::rpc::NSRequest::RecycleRequest::LIST) {
-    fprintf(stderr, "Doing Listing\n");
     std::string std_out, std_err;
     Recycle::RecycleListing rvec;
     Recycle::Print(std_out,
@@ -2077,7 +2081,6 @@ grpc::Status GrpcNsInterface::Recycle(eos::common::VirtualIdentity& vid,
       info.mutable_id()->set_path(item["path"]);
       info.set_key(item["key"]);
       auto new_info = reply->add_recycles();
-      fprintf(stderr, "Adding one\n");
       new_info->CopyFrom(info);
     }
 
@@ -2604,6 +2607,128 @@ GrpcNsInterface::Quota(eos::common::VirtualIdentity& vid,
   reply->set_code(0);
   return grpc::Status::OK;
 }
+
+grpc::Status
+GrpcNsInterface::Share(eos::common::VirtualIdentity& vid,
+		   eos::rpc::NSResponse::ShareResponse* reply,
+		   const eos::rpc::NSRequest::ShareRequest* request)
+{
+  eos::console::RequestProto req;
+  // translate the grpc request proto to a console request proto
+  switch (request->subcmd_case()) {
+  case eos::rpc::NSRequest::ShareRequest::kLs:
+    switch(request->ls().outformat()) {
+    case eos::rpc::NSRequest::ShareRequest::LsShare::NONE:
+      req.mutable_share()->mutable_ls()->set_outformat(eos::console::ShareProto::LsShare::MONITORING);
+      break;
+    case eos::rpc::NSRequest::ShareRequest::LsShare::MONITORING:
+      req.mutable_share()->mutable_ls()->set_outformat(eos::console::ShareProto::LsShare::MONITORING);
+      break;
+    case eos::rpc::NSRequest::ShareRequest::LsShare::LISTING:
+      req.mutable_share()->mutable_ls()->set_outformat(eos::console::ShareProto::LsShare::LISTING);
+      break;
+    case eos::rpc::NSRequest::ShareRequest::LsShare::JSON:
+      req.mutable_share()->mutable_ls()->set_outformat(eos::console::ShareProto::LsShare::JSON);
+    }
+    req.mutable_share()->mutable_ls()->set_selection(request->ls().selection());
+    break;
+  case eos::rpc::NSRequest::ShareRequest::kOp:
+    req.mutable_share()->mutable_op()->set_share(request->op().share());
+    req.mutable_share()->mutable_op()->set_acl(request->op().acl());
+    req.mutable_share()->mutable_op()->set_path(request->op().path());
+    req.mutable_share()->mutable_op()->set_user(request->op().user());
+    req.mutable_share()->mutable_op()->set_group(request->op().group());
+
+    switch (request->op().op()) {
+    case eos::rpc::NSRequest::ShareRequest::OperateShare::CREATE:
+      req.mutable_share()->mutable_op()->set_op(eos::console::ShareProto::OperateShare::CREATE);
+      break;
+    case eos::rpc::NSRequest::ShareRequest::OperateShare::REMOVE:
+      req.mutable_share()->mutable_op()->set_op(eos::console::ShareProto::OperateShare::REMOVE);
+      break;
+    case eos::rpc::NSRequest::ShareRequest::OperateShare::SHARE:
+      req.mutable_share()->mutable_op()->set_op(eos::console::ShareProto::OperateShare::SHARE);
+      break;
+    case eos::rpc::NSRequest::ShareRequest::OperateShare::UNSHARE:
+      req.mutable_share()->mutable_op()->set_op(eos::console::ShareProto::OperateShare::UNSHARE);
+      break;
+    case eos::rpc::NSRequest::ShareRequest::OperateShare::ACCESS:
+      req.mutable_share()->mutable_op()->set_op(eos::console::ShareProto::OperateShare::ACCESS);
+      break;
+    case eos::rpc::NSRequest::ShareRequest::OperateShare::MODIFY:
+      req.mutable_share()->mutable_op()->set_op(eos::console::ShareProto::OperateShare::MODIFY);
+      break;
+    default:
+      std::string msg = "Share operation not supported";
+      reply->set_code(EOPNOTSUPP);
+      reply->set_msg(msg);
+      return grpc::Status::OK;
+      break;
+    }
+    break;
+  default:
+    std::string msg = "Share proto not supported";
+    reply->set_code(EOPNOTSUPP);
+    reply->set_msg(msg);
+    return grpc::Status::OK;
+    break;
+  }
+
+  eos::mgm::ShareCmd sharecmd(std::move(req), vid);
+  // reuse the CLI implementation
+  eos::console::ReplyProto preply = sharecmd.ProcessRequest();
+
+  if (preply.retc()) {
+    reply->set_code(preply.retc());
+    reply->set_msg(preply.std_err());
+    return grpc::Status::OK;
+  }
+
+  reply->set_code(0);
+  reply->set_msg(preply.std_out());
+
+  fprintf(stderr,"msg: %s\n", reply->msg().c_str());
+  // parse the json and place into grpc
+  {
+    Json::Value root;
+    Json::Reader reader;
+    if (reader.parse(reply->msg(), root, false)) {
+      fprintf(stderr,"Parsed OK\n");
+      if (root.isMember("share")) {
+	fprintf(stderr,"Member OK\n");
+	for (unsigned int i = 0 ; i < root["share"].size(); ++i) {
+	  fprintf(stderr,"%s\n", root[i]["name"].asString().c_str());
+
+	  eos::rpc::NSResponse::ShareInfo info;
+	  info.set_name(root["share"][i]["name"].asString().c_str());
+	  info.set_root(root["share"][i]["root"].asString().c_str());
+	  info.set_rule(root["share"][i]["rule"].asString().c_str());
+	  info.set_uid(root["share"][i]["uid"].asInt());
+	  info.set_nshared(root["share"][i]["shared"].asInt());
+	  auto new_share = reply->add_shares();
+	  new_share->CopyFrom(info);
+	}
+      }
+      if (root.isMember("access")) {
+	for ( unsigned int j = 0 ; j < root["access"].getMemberNames().size(); ++j) {
+	  std::string key = root["access"].getMemberNames()[j];
+	  if (root["access"][key].isBool()) {
+	    bool val = root["access"][key].asBool();
+	    eos::rpc::NSResponse::ShareAccess access;
+	    access.set_name(key);
+	    access.set_granted(val);
+	    auto new_access =reply->add_access();
+	    new_access->CopyFrom(access);
+	  }
+	}
+      }
+    }
+  }
+
+  reply->set_code(0);
+  return grpc::Status::OK;
+}
+
 
 #endif
 

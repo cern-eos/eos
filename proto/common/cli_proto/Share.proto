@@ -13,6 +13,7 @@ message ShareProto {
       NONE                  = 0; //
       MONITORING            = 1; // [-m]
       LISTING               = 2; // [-l]
+      JSON                  = 3;
     }
     OutFormat outformat   = 1; //
     string selection      = 2; //
@@ -33,6 +34,7 @@ message ShareProto {
     string path = 4;
     string user = 5;
     string group = 6;
+    bool json = 7;
   }
 
   oneof subcmd {

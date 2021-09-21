@@ -372,12 +372,11 @@ Share::Proc::Share(eos::common::VirtualIdentity& vid, const std::string& name, c
 int
 Share::Proc::UnShare(eos::common::VirtualIdentity& vid, const std::string& name, const std::string& share_root)
 {
-  int rc = 0;
   return Delete(vid, name, true);
 }
 
 int
-Share::Proc::Access(eos::common::VirtualIdentity& vid, const std::string& name, std::string& out, const std::string& user, const std::string& group)
+Share::Proc::Access(eos::common::VirtualIdentity& vid, const std::string& name, std::string& out, const std::string& user, const std::string& group, bool json)
 {
   uid_t uid = atoi(user.c_str());
   gid_t gid = atoi(group.c_str());
@@ -396,7 +395,20 @@ Share::Proc::Access(eos::common::VirtualIdentity& vid, const std::string& name, 
     return -1;
   }
 
-  out = acl->Out();
+  if (json) {
+    eos::mgm::Acl::accessmap_t map;
+    // return a JSON document
+    acl->Out(false,&map);
+    Json::Value json;
+    for (auto it=map.begin(); it!=map.end(); ++it) {
+      json["access"][it->first] = json[it->second];
+    }
+    std::stringstream r;
+    r << json;
+    out = r.str().c_str();
+  } else {
+    out = acl->Out(false);
+  }
   return 0;
 }
 
@@ -509,38 +521,66 @@ Share::Proc::ModifyShareAttr(const std::string& path, const std::string& shareat
 }
 
 void
-Share::AclList::Dump(std::string& out, bool monitoring)
+Share::AclList::Dump(std::string& out, bool monitoring, bool json, eos::mgm::Share::shareinfo_t* info)
 {
   std::string format_s = !monitoring ? "s" : "os";
   TableFormatterBase table_all;
 
-  if (!monitoring) {
-    table_all.SetHeader({
-	std::make_tuple("uid", 8, format_s),
-	std::make_tuple("name", 32, format_s),
-        std::make_tuple("rule", 48, format_s),
-        std::make_tuple("root", 48, format_s)
-          });
+  if (json) {
+    Json::Value json;
+    for (auto it : mListing) {
+      Json::Value jsonshares;
+      jsonshares["uid"] = (long long) it->get_uid();
+      jsonshares["name"] = it->get_plain_name();
+      jsonshares["rule"] = it->get_rule();
+      jsonshares["root"] = it->get_plain_root();
+      jsonshares["shared"] = (long long)(mReshares[it->get_plain_root()]);
+      json["share"].append(jsonshares);
+
+      if (info) {
+	std::map<std::string,std::string> s;
+	s["uid"] = std::to_string((long long) it->get_uid());
+	s["name"] = it->get_name();
+	s["rule"] = it->get_rule();
+	s["root"] = it->get_root();
+	s["nshared"] = std::to_string((long long)(mReshares[it->get_plain_root()]));
+	info->push_back(s);
+      }
+    }
+    std::stringstream r;
+    r << json;
+    out = r.str().c_str();
   } else {
-    table_all.SetHeader({
-	std::make_tuple("uid", 0, format_s),
-        std::make_tuple("name", 0, format_s),
-        std::make_tuple("rule", 0, format_s),
-        std::make_tuple("root", 0, format_s)
+    if (!monitoring) {
+      table_all.SetHeader({
+	  std::make_tuple("uid", 8, format_s),
+	    std::make_tuple("name", 32, format_s),
+	    std::make_tuple("rule", 48, format_s),
+	    std::make_tuple("root", 48, format_s),
+	    std::make_tuple("shared", 8, format_s)
+	    });
+  } else {
+      table_all.SetHeader({
+	  std::make_tuple("uid", 0, format_s),
+	    std::make_tuple("name", 0, format_s),
+	    std::make_tuple("rule", 0, format_s),
+	    std::make_tuple("root", 0, format_s),
+	    std::make_tuple("shared", 0, format_s)
           });
-  }
+    }
 
-
-  for (auto it : mListing) {
-    TableData table_data;
-    table_data.emplace_back();
-    table_data.back().push_back(TableCell(std::to_string((long long )it->get_uid()), format_s));
-    table_data.back().push_back(TableCell(it->get_name(), format_s));
-    table_data.back().push_back(TableCell(it->get_rule(), format_s));
-    table_data.back().push_back(TableCell(it->get_root(), format_s));
-    table_all.AddRows(table_data);
+    for (auto it : mListing) {
+      TableData table_data;
+      table_data.emplace_back();
+      table_data.back().push_back(TableCell(std::to_string((long long )it->get_uid()), format_s));
+      table_data.back().push_back(TableCell(it->get_name(), format_s));
+      table_data.back().push_back(TableCell(it->get_rule(), format_s));
+      table_data.back().push_back(TableCell(it->get_root(), format_s));
+      table_data.back().push_back(TableCell(std::to_string((long long)(mReshares[it->get_plain_root()])), format_s));
+      table_all.AddRows(table_data);
+    }
+    out = table_all.GenerateTable(HEADER);
   }
-  out = table_all.GenerateTable(HEADER);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -548,11 +588,13 @@ Share::AclList
 Share::Proc::List(eos::common::VirtualIdentity& vid, const std::string& name)
 {
   Share::AclList acllist;
+  Share::reshare_t reshares;
 
   std::set<uid_t> users;
   users.insert(vid.uid);
 
-  if (vid.uid == 0) {
+  if ( (vid.uid == 0) ||
+       (vid.uid == 11) ) {
     users = GetShareUsers();
   }
 
@@ -573,7 +615,7 @@ Share::Proc::List(eos::common::VirtualIdentity& vid, const std::string& name)
 	XrdOucString acl;
 	XrdOucString root;
 	XrdOucErrInfo error;
-  eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
+	eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
 
 	if (!gOFS->_attr_get(entry.c_str(), error,
 			     root_vid, "", "sys.share.acl", acl, true)) {
@@ -582,6 +624,7 @@ Share::Proc::List(eos::common::VirtualIdentity& vid, const std::string& name)
 	  std::string sacl = acl.c_str();
 	  std::string sroot = root.c_str();
 	  acllist.Add(it, val, sacl ,sroot);
+	  reshares[sroot]++;
 	} else {
 	  std::string none="-";
 	  acllist.Add(it, val, none, none);
@@ -589,6 +632,7 @@ Share::Proc::List(eos::common::VirtualIdentity& vid, const std::string& name)
       }
     }
   }
+  acllist.SetReshare(reshares);
   return acllist;
 }
 
@@ -759,7 +803,6 @@ Share::Proc::getShareAclByName(const eos::common::VirtualIdentity& vid, const eo
   if (!gOFS->_attr_get(procpath.c_str(), error,
 		       root_vid, "", "sys.share.acl", acl, true)) {
     attrmap["sys.acl"] = acl.c_str();
-    fprintf(stderr,"acl=%s\n", acl.c_str());
     return std::make_shared<eos::mgm::Acl>((const char*)0, error, access_vid, attrmap, false, false);
   } else {
     return std::make_shared<eos::mgm::Acl>();

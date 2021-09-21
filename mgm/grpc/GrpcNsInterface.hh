@@ -148,6 +148,10 @@ public:
 			    eos::rpc::NSResponse::QuotaResponse* reply,
 			    const eos::rpc::NSRequest::QuotaRequest* request);
   
+  static grpc::Status Share(eos::common::VirtualIdentity& vid,
+			    eos::rpc::NSResponse::ShareResponse* reply,
+			    const eos::rpc::NSRequest::ShareRequest* request);
+
   static bool Access(eos::common::VirtualIdentity& vid, int mode,
                      std::shared_ptr<eos::IContainerMD> cmd);
 

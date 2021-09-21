@@ -24,6 +24,7 @@
 #pragma once
 #include "mgm/Namespace.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/Acl.hh"
 #include "common/VirtualIdentity.hh"
 #include <string>
 
@@ -46,8 +47,10 @@ public:
     virtual ~Acl();
     uid_t get_uid() { return uid; }
     std::string get_name() { return std::string("\"") + name + std::string("\""); }
+    std::string get_plain_name() { return name; }
     std::string get_rule() { return rule; }
     std::string get_root() { return std::string("\"") + root + std::string("\""); }
+    std::string get_plain_root() { return root; }
   private:
     uid_t uid;
     std::string name;
@@ -55,17 +58,29 @@ public:
     std::string root;
   };
 
+  typedef std::map<std::string, size_t> reshare_t;
+  typedef std::vector<std::map<std::string,std::string>> shareinfo_t;
+
   class AclList {
   public:
     AclList(){}
     virtual ~AclList(){}
+
+
     void Add(uid_t uid, const std::string& name, const std::string& acl, const std::string& root) {
       mListing.push_back( std::make_shared<Acl>(uid,name,acl, root) );
     }
-    void Dump(std::string& out, bool monitoring=false);
+    void Dump(std::string& out, bool monitoring=false, bool json=false, shareinfo_t* info = nullptr);
     size_t Size() { return mListing.size(); }
+    void SetReshare(const reshare_t& reshares) { mReshares = reshares;
+      for (auto it : reshares ) {
+	mReshares[it.first]=it.second;
+      }
+    }
+
   private:
     std::vector<std::shared_ptr<Acl>> mListing;
+    reshare_t mReshares;
   };
 
   class Cache {
@@ -73,6 +88,7 @@ public:
     Cache();
     virtual ~Cache();
   };
+
 
   class Proc {
   public:
@@ -87,7 +103,7 @@ public:
 
     int UnShare(eos::common::VirtualIdentity& vid, const std::string& name, const std::string& share_root);
 
-    int Access(eos::common::VirtualIdentity& vid, const std::string& name, std::string& out, const std::string& user, const std::string& group);
+    int Access(eos::common::VirtualIdentity& vid, const std::string& name, std::string& out, const std::string& user, const std::string& group, bool json=false);
 
     int Modify(eos::common::VirtualIdentity& vid, const std::string& name, const std::string& share_acl);
 

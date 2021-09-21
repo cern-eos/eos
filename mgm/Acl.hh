@@ -335,7 +335,10 @@ public:
   //----------------------------------------------------------------------------
   //! Return a printout of the ACL rules
   //----------------------------------------------------------------------------
-  std::string Out(bool monitoring=false);
+
+  typedef std::map<std::string, bool> accessmap_t;
+
+  std::string Out(bool monitoring=false, accessmap_t* map=nullptr);
 private:
   bool mCanRead; ///< acl allows read access
   bool mCanNotRead; ///< acl denies read access
