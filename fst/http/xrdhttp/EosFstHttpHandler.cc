@@ -34,6 +34,22 @@
 XrdVERSIONINFO(XrdSfsGetFileSystem, EosFstHttp);
 
 //------------------------------------------------------------------------------
+// Helper function to convert hex to decimal
+//------------------------------------------------------------------------------
+static int decode_hex(int ch)
+{
+  if ('0' <= ch && ch <= '9') {
+    return ch - '0';
+  } else if ('A' <= ch && ch <= 'F') {
+    return ch - 'A' + 0xa;
+  } else if ('a' <= ch && ch <= 'f') {
+    return ch - 'a' + 0xa;
+  } else {
+    return -1;
+  }
+}
+
+//------------------------------------------------------------------------------
 // Initialize handler
 //------------------------------------------------------------------------------
 int
@@ -327,6 +343,8 @@ EosFstHttpHandler::HandleChunkUpload(XrdHttpExtReq& req,
   std::string ssize;
   std::string chunk;
   char* ptr = nullptr;
+  eos::common::Timing tm("ChunkUpload");
+  COMMONTIMING("START", &tm);
 
   while (true) {
     bool has_size = false;
@@ -398,7 +416,7 @@ EosFstHttpHandler::HandleChunkUpload(XrdHttpExtReq& req,
         }
       } while (read_len < chunk_sz);
 
-      // We read less then we expected, malformed chunk request
+      // We read less than we expected, malformed chunk request
       if (read_len != chunk_sz) {
         eos_static_err("msg=\"chunk size less than what we expected\" len=%llu "
                        "expected=%llu", read_len, chunk_sz);
@@ -419,8 +437,8 @@ EosFstHttpHandler::HandleChunkUpload(XrdHttpExtReq& req,
 
     // Write the chunk to the file. Last chunk with size 0 will trigger the
     // close handler
-    eos_static_info("msg=\"writing chunk\" len=%llu data=\"%s\"",
-                    chunk.length(), chunk.c_str());
+    //eos_static_info("msg=\"writing chunk\" len=%llu data=\"%s\"",
+    //                chunk.length(), chunk.c_str());
     size_t wb = (size_t) OFS->mHttpd->FileWriter(handler, req.verb, req.resource,
                 norm_hdrs, query, cookies, chunk);
 
@@ -436,5 +454,169 @@ EosFstHttpHandler::HandleChunkUpload(XrdHttpExtReq& req,
     }
   }
 
+  COMMONTIMING("done", &tm);
+  tm.Print();
   return success;
+}
+
+//------------------------------------------------------------------------------
+// Handle chunk upload operation - optimised version
+//------------------------------------------------------------------------------
+bool
+EosFstHttpHandler::HandleChunkUpload2(XrdHttpExtReq& req,
+                                      eos::common::ProtocolHandler* handler,
+                                      std::map<std::string, std::string>& norm_hdrs,
+                                      std::map<std::string, std::string>& cookies,
+                                      std::string& query)
+{
+  enum {CHUNK_SIZE, CHUNK_CLRF1, CHUNK_CLRF2, CHUNK_DATA, ERROR};
+  const unsigned long long xrdhttp_sz = 256 * 1024;
+  const unsigned long long eoshttp_sz = 1024 * 1024;
+  char* ptr = nullptr, *end_ptr = nullptr;
+  std::string chunk;
+  chunk.reserve(eoshttp_sz);
+  eos::common::Timing tm("ChunkUpload");
+  COMMONTIMING("START", &tm);
+  int state = CHUNK_SIZE;
+  int nread = 0;
+  int hex_count = 0;
+  long int chunk_sz = 0;
+  bool final_chunk = false;
+
+  while (true) {
+    eos_static_info("%s", "msg=\"calling BuffgetData\"");
+    nread = req.BuffgetData(xrdhttp_sz, &ptr, false);
+    end_ptr = ptr + nread;
+    eos_static_info("msg=\"http read\" nread=%li", nread);
+
+    if (nread <= 0) {
+      state = ERROR;
+      break;
+    }
+
+    while (end_ptr - ptr != 0) {
+      switch (state) {
+      case CHUNK_SIZE:
+        int v;
+
+        if ((v = decode_hex(*ptr)) == -1) {
+          if (hex_count == 0) {
+            state = ERROR;
+          } else {
+            eos_static_info("msg=\"got chunk size\" chunk_sz=%li", chunk_sz);
+            state = CHUNK_CLRF1;
+          }
+        } else {
+          chunk_sz = chunk_sz * 16 + v;
+          ++hex_count;
+          ++ptr;
+        }
+
+        break;
+
+      case CHUNK_CLRF1:
+        if (*ptr != '\r') {
+          state = ERROR;
+        } else {
+          state = CHUNK_CLRF2;
+          ++ptr;
+        }
+
+        break;
+
+      case CHUNK_CLRF2:
+        if (*ptr != '\n') {
+          state = ERROR;
+        } else {
+          eos_static_info("%s", "msg=\"done reading CLRF\"");
+          ++ptr;
+
+          if (hex_count) {
+            // Entering after CHUNK_SIZE
+            hex_count = 0;
+            state = CHUNK_DATA;
+          } else {
+            // Entering after CHUNK_DATA
+            state = CHUNK_SIZE;
+          }
+        }
+
+        break;
+
+      case CHUNK_DATA:
+        if (chunk_sz == 0) {
+          if (final_chunk) {
+            eos_static_info("%s", "msg=\"done reading final chunk\"");
+            break;
+          } else {
+            // This is the final chunk
+            final_chunk = true;
+            state = CHUNK_CLRF1;
+            eos_static_info("%s", "msg=\"do read final chunk\"");
+          }
+        } else if (chunk_sz <= end_ptr - ptr) {
+          eos_static_info("msg=\"add data to chunk [1]\" sz=%li", chunk_sz);
+          chunk.append(ptr, chunk_sz);
+          ptr += chunk_sz;
+          chunk_sz = 0;
+          state = CHUNK_CLRF1;
+        } else {
+          eos_static_info("msg=\"add data to chunk [2]\" sz=%li", chunk_sz);
+          chunk.append(ptr, end_ptr - ptr);
+          ptr = end_ptr;
+          chunk_sz -= (end_ptr - ptr);
+        }
+
+        break;
+
+      case ERROR:
+        break;
+      }
+
+      if ((state == ERROR) ||
+          (final_chunk && (state = CHUNK_DATA))) {
+        break;
+      }
+    }
+
+    if (state == ERROR) {
+      break;
+    }
+
+    // Write the chunk to the file. Last chunk with size 0 will trigger the
+    // close handler
+    if ((final_chunk && (state == CHUNK_DATA)) ||
+        (chunk.size() >= eoshttp_sz)) {
+      eos_static_info("msg=\"writing chunk\" len=%llu", chunk.length());
+      size_t wb = (size_t) OFS->mHttpd->FileWriter(handler, req.verb, req.resource,
+                  norm_hdrs, query, cookies, chunk);
+
+      if (wb) {
+        eos_static_err("msg=\"failed writing chunk to file\" chunk_sz=%llu",
+                       chunk.length());
+        state = ERROR;
+        break;
+      }
+
+      chunk.clear();
+
+      // For final chunk also trigger write of 0 length which closes the file
+      if (final_chunk) {
+        size_t wb = (size_t) OFS->mHttpd->FileWriter(handler, req.verb, req.resource,
+                    norm_hdrs, query, cookies, chunk);
+
+        if (wb) {
+          eos_static_err("msg=\"failed writing chunk to file\" chunk_sz=%llu",
+                         chunk.length());
+          state = ERROR;
+        }
+
+        break;
+      }
+    }
+  }
+
+  COMMONTIMING("done", &tm);
+  tm.Print();
+  return (state == CHUNK_DATA);
 }

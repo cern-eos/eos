@@ -75,6 +75,23 @@ private:
                          std::map<std::string, std::string>& norm_hdrs,
                          std::map<std::string, std::string>& cookies,
                          std::string& query);
+
+  //----------------------------------------------------------------------------
+  //! Handle chunk upload operation
+  //!
+  //! @param req http external request object
+  //! @param handler eos protocol handler object for file operations
+  //! @param norm_hdrs normalized headers
+  //! @param cookies cookies
+  //! @param query query string
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool HandleChunkUpload2(XrdHttpExtReq& req,
+                          eos::common::ProtocolHandler* handler,
+                          std::map<std::string, std::string>& norm_hdrs,
+                          std::map<std::string, std::string>& cookies,
+                          std::string& query);
 };
 
 /******************************************************************************/
