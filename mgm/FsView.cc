@@ -1925,9 +1925,9 @@ FsView::UnRegister(FileSystem* fs, bool unreg_from_geo_tree,
     if (mNodeView.count(snapshot.mQueue)) {
       FsNode* node = mNodeView[snapshot.mQueue];
       node->erase(snapshot.mId);
-      eos_debug("unregister node %s from node view", node->GetMember("name").c_str());
 
       if (node->size() == 0) {
+        eos_debug("unregister node %s from node view", node->GetMember("name").c_str());
         mNodeView.erase(snapshot.mQueue);
         delete node;
       }
@@ -2027,13 +2027,13 @@ FsView::RegisterNode(const char* nodename)
   std::string nodequeue = nodename;
 
   if (mNodeView.count(nodequeue)) {
-    eos_debug("node is existing");
+    eos_debug("msg=\"node already exists\" info=\"%s\"", nodequeue.c_str());
     return false;
   } else {
     FsNode* node = new FsNode(nodequeue.c_str());
     mNodeView[nodequeue] = node;
     node->SetNodeConfigDefault();
-    eos_debug("creating node view %s", nodequeue.c_str());
+    eos_debug("msg=\"creating node\" info=\"%s\"", nodequeue.c_str());
     return true;
   }
 }
@@ -2488,6 +2488,8 @@ FsNode::FsNode(const char* name) : BaseView(
   mGwQueue = new eos::common::TransferQueue(
     eos::common::TransferQueueLocator(mName, "txq"),
     gOFS->mMessagingRealm.get(), false);
+  eos_static_info("msg=\"FsNode constructor\" name=\"%s\" ptr=%p",
+                  mName.c_str(), this);
 }
 
 //------------------------------------------------------------------------------
@@ -2500,6 +2502,8 @@ FsNode::~FsNode()
   }
 
   FsView::gFsView.mGwNodes.erase(mName); // unregister evt. gateway node
+  eos_static_info("msg=\"FsNode destructor\" name=\"%s\" ptr=%p",
+                  mName.c_str(), this);
 }
 
 //------------------------------------------------------------------------------
@@ -2508,6 +2512,8 @@ FsNode::~FsNode()
 void
 FsNode::SetNodeConfigDefault()
 {
+  eos_static_info("msg=\"set defaults\" node=%s", mName.c_str());
+
   // Define the manager ID
   if (!(GetConfigMember("manager").length())) {
     SetConfigMember("manager", gOFS->mMaster->GetMasterId(), true);
