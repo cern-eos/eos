@@ -401,6 +401,8 @@ void com_space_help()
       << "space config <space-name> space.geobalancer.threshold=<threshold>     : configure the threshold when a geotag is balanced [ default=0 ] \n"
       << "space config <space-name> space.lru=on|off                            : enable/disable the LRU policy engine [ default=off ]\n"
       << "space config <space-name> space.lru.interval=<sec>                    : configure the default lru scan interval\n"
+      << "space config <space-name> fs.max.ropen=<n>                         : allow now more than <n> read streams per disk in the given space\n"
+      << "space config <space-name> fs.max.wopen=<n>                         : allow now more than <n> write streams per disk in the given space\n"
       << "space config <space-name> space.wfe=on|off|paused                     : enable/disable the Workflow Engine [ default=off ]\n"
       << "space config <space-name> space.wfe.interval=<sec>                    : configure the default WFE scan interval\n"
       << "space config <space-name> space.headroom=<size>                       : configure the default disk headroom if not defined on a filesystem (see fs for details)\n"
