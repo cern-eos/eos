@@ -997,6 +997,8 @@ int proc_mv_fs_group(FsView& fs_view, const std::string& src,
     paramlist.insert("headroom");
     paramlist.insert("drainperiod");
     paramlist.insert("graceperiod");
+    paramlist.insert("max.ropen");
+    paramlist.insert("max.wopen");
 
     for (auto it = paramlist.begin(); it != paramlist.end(); ++it) {
       std::string value = it_space->second->GetConfigMember(*it);
