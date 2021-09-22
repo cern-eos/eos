@@ -473,7 +473,7 @@ Storage::Communicator(ThreadAssistant& assistant)
               (queue.length() > Config::gConfig.FstHostPort.length()) &&
               queue.endswith(Config::gConfig.FstHostPort)) {
             // This is the configuration entry and we should store it to have
-            // access to it since it's name depends on the instance name and
+            // access to it since its name depends on the instance name and
             // we don't know (yet)
             Config::gConfig.setFstNodeConfigQueue(queue.c_str());
             eos_static_info("msg=\"storing config queue name\" qpath=\"%s\"",
