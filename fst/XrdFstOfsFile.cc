@@ -2161,9 +2161,10 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset fileOffset, const char* buffer,
   gettimeofday(&cTime, &tz);
   wCalls++;
   int rc;
+
   if (gOFS.mSimDiskWriting) {
     // don't write to the disks
-    XrdFstOfsFile::truncateofs(fileOffset+rc);
+    XrdFstOfsFile::truncateofs(fileOffset);
     rc = buffer_size;
   } else {
     rc = XrdOfsFile::write(fileOffset, buffer, buffer_size);
