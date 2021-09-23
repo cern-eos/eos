@@ -131,7 +131,7 @@ ProcCommand::Archive()
 
     // Check that the requested path exists and is a directory
     if (gOFS->_stat(spath.c_str(), &statinfo, *mError, *pVid)) {
-      stdErr = "error: requested path does not exits";
+      stdErr = "error: requested path does not exit";
       retc = EINVAL;
       return SFS_OK;
     }
