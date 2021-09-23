@@ -82,15 +82,41 @@ public:
   struct GcAlreadyStarted: public std::runtime_error {using std::runtime_error::runtime_error;};
 
   //----------------------------------------------------------------------------
-  //! Start garbage collection for the specified EOS spaces
+  //! Thrown if garbage collection is started without being enabled
+  //----------------------------------------------------------------------------
+  struct GcIsNotEnabled: public std::runtime_error {using std::runtime_error::runtime_error;};
+
+  //----------------------------------------------------------------------------
+  //! Enables garbage collection for the specified EOS spaces
   //!
   //! Please note that calling this method tells this object that support for
   //! tape is enabled
-  //!
-  //! @param spaces names of the EOS spaces that are to be garbage collected
-  //! @throw GCAlreadyStarted if garbage collection has already been started
   //----------------------------------------------------------------------------
-  void start(const std::set<std::string> spaces);
+  void setTapeEnabled(const std::set<std::string>& spaces);
+
+  //----------------------------------------------------------------------------
+  //! Start garbage collection for the previously specified EOS spaces
+  //!
+  //! Please note that calling this method tells this object requires support
+  //! for tape to be enabled
+  //!
+  //! @throw GCAlreadyStarted if garbage collection has already been started
+  //! @throw GcIsNotEnabled if garbage colletion has not been enabled
+  //----------------------------------------------------------------------------
+  void start();
+
+  //----------------------------------------------------------------------------
+  //! Stop garbage collection for all specified EOS spacesm_worker
+  //!
+  //! @throw GCAlreadyStarted if garbage collection has already been started
+  //! @throw GcIsNotEnabled if garbage colletion has not been enabled
+  //----------------------------------------------------------------------------
+  void stop();
+
+  //----------------------------------------------------------------------------
+  //! Check if garbage collection is active
+  //----------------------------------------------------------------------------
+  bool isGcActive();
 
   //----------------------------------------------------------------------------
   //! Notify GC the specified file has been opened for write
@@ -140,9 +166,9 @@ private:
   std::atomic<bool> m_tapeEnabled;
 
   //----------------------------------------------------------------------------
-  //! Ensures start() only starts garbage collection once
+  //! True if garbage collector is active in current node
   //----------------------------------------------------------------------------
-  std::atomic_flag m_startMethodCalled = ATOMIC_FLAG_INIT;
+  std::atomic<bool> m_gcIsActive;
 
   //----------------------------------------------------------------------------
   //! The interface to the EOS MGM
@@ -160,9 +186,9 @@ private:
   std::atomic<bool> m_stop = false;
 
   //----------------------------------------------------------------------------
-  //! Mutex dedicated to protecting the m_worker member variable
+  //! Mutex ensuring that calls to start()/stop() are consistent
   //----------------------------------------------------------------------------
-  std::mutex m_workerMutex;
+  std::mutex m_gcStartupMutex;
 
   //----------------------------------------------------------------------------
   //! The worker thread for this object (each TapeGc also has its own separate
@@ -175,6 +201,11 @@ private:
   //! populated using Quark DB
   //----------------------------------------------------------------------------
   std::atomic<bool> m_gcsPopulatedUsingQdb = false;
+
+  //----------------------------------------------------------------------------
+  //! The names of the EOS spaces that are to be garbage collected
+  //----------------------------------------------------------------------------
+  std::set<std::string> m_spaces;
 
   //----------------------------------------------------------------------------
   //! Entry point for the worker thread of this object

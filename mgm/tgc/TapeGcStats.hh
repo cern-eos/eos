@@ -53,8 +53,8 @@ struct TapeGcStats {
   }
 
   //----------------------------------------------------------------------------
-  //! Number of files successfully stagerrm'ed since boot.   This value is Zero
-  //! in the case of an error.
+  //! Number of files successfully stagerrm'ed since TapeGc started.
+  //! This value is Zero in the case of an error.
   //----------------------------------------------------------------------------
   std::uint64_t nbStagerrms;
 

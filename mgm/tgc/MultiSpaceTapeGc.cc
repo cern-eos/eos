@@ -46,7 +46,7 @@ EOSTGCNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 MultiSpaceTapeGc::MultiSpaceTapeGc(ITapeGcMgm &mgm):
-m_tapeEnabled(false), m_mgm(mgm), m_gcs(mgm)
+m_tapeEnabled(false), m_gcIsActive(false), m_mgm(mgm), m_gcs(mgm)
 {
 }
 
@@ -56,11 +56,7 @@ m_tapeEnabled(false), m_mgm(mgm), m_gcs(mgm)
 MultiSpaceTapeGc::~MultiSpaceTapeGc()
 {
   try {
-    std::lock_guard<std::mutex> workerLock(m_workerMutex);
-    if(m_worker) {
-      m_stop = true;
-      m_worker->join();
-    }
+    stop();
   } catch(std::exception &ex) {
     eos_static_err("msg=\"%s\"", ex.what());
   } catch(...) {
@@ -232,28 +228,77 @@ MultiSpaceTapeGc::handleFSCTL_PLUGIO_tgc(XrdOucErrInfo& error,
 }
 
 //------------------------------------------------------------------------------
+// Enable garbage collection
+//------------------------------------------------------------------------------
+void
+MultiSpaceTapeGc::setTapeEnabled(const std::set<std::string>& spaces) {
+  std::lock_guard<std::mutex> workerLock(m_gcStartupMutex);
+  m_tapeEnabled = true;
+  m_spaces.insert(spaces.begin(), spaces.end());
+}
+
+//------------------------------------------------------------------------------
 // Start garbage collection for the specified EOS spaces
 //------------------------------------------------------------------------------
 void
-MultiSpaceTapeGc::start(const std::set<std::string> spaces) {
-  // Starting garbage collecton implies that support for tape is enabled
-  m_tapeEnabled = true;
+MultiSpaceTapeGc::start() {
 
-  if (m_startMethodCalled.test_and_set()) {
+  std::lock_guard<std::mutex> workerLock(m_gcStartupMutex);
+
+  // Starting garbage collecton requires it to have been enabled
+  if (!m_tapeEnabled) {
+    std::ostringstream msg;
+    msg << __FUNCTION__ << " failed: Trying to start garbage collection without enabling first";
+    throw GcIsNotEnabled(msg.str());
+  }
+
+  if (m_gcIsActive) {
     std::ostringstream msg;
     msg << __FUNCTION__ << " failed: Garbage collection has already been started";
     throw GcAlreadyStarted(msg.str());
   }
 
-  for (const auto &space: spaces) {
+  for (const auto &space: m_spaces) {
     m_gcs.createGc(space);
   }
 
   std::function<void()> entryPoint = std::bind(&MultiSpaceTapeGc::workerThreadEntryPoint, this);
-  {
-    std::lock_guard<std::mutex> workerLock(m_workerMutex);
-    m_worker = std::make_unique<std::thread>(entryPoint);
+  m_worker = std::make_unique<std::thread>(entryPoint);
+  m_gcIsActive = true;
+}
+
+//------------------------------------------------------------------------------
+// Stop garbage collection for all previously specified EOS spaces
+//------------------------------------------------------------------------------
+void
+MultiSpaceTapeGc::stop() {
+
+  std::lock_guard<std::mutex> workerLock(m_gcStartupMutex);
+
+  try {
+    if(m_worker) {
+      m_stop = true;
+      m_worker->join();
+      m_worker.reset();
+    }
+  } catch(std::exception &ex) {
+    eos_static_err("msg=\"%s\"", ex.what());
+  } catch(...) {
+    eos_static_err("msg=\"Caught an unknown exception\"");
   }
+
+  m_gcs.destroyAllGc();
+  m_gcsPopulatedUsingQdb = false;
+  m_gcIsActive = false;
+}
+
+//----------------------------------------------------------------------------
+// Check if garbage collection is active
+//----------------------------------------------------------------------------
+
+bool
+MultiSpaceTapeGc::isGcActive() {
+  return m_gcIsActive;
 }
 
 //------------------------------------------------------------------------------
