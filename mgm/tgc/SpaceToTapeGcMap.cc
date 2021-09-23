@@ -76,6 +76,16 @@ SpaceToTapeGcMap::createGc(const std::string &space)
 }
 
 //----------------------------------------------------------------------------
+//! Destroys the tape aware garbage collectors for all EOS spaces.
+//----------------------------------------------------------------------------
+void
+SpaceToTapeGcMap::destroyAllGc()
+{
+  std::lock_guard<std::mutex> lock(m_mutex);
+  m_gcs.clear();
+}
+
+//----------------------------------------------------------------------------
 //! Returns the garbage collector associated with the specified EOS space.
 //----------------------------------------------------------------------------
 TapeGc

@@ -382,9 +382,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     Eroute.Say("=====> mgmofs.managerid: ", ManagerId.c_str(), "");
   }
 
-  // EOS spaces for which tape-aware garbage collection should be enabled
-  std::set<std::string> tapeGcSpaces;
-
   if (!ConfigFN || !*ConfigFN) {
     Eroute.Emsg("Config", "Configuration file not specified.");
   } else {
@@ -636,7 +633,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           std::ostringstream tapeGcSpacesStream;
 
           while ((val = Config.GetWord())) {
-            tapeGcSpaces.insert(val);
+            mTapeGcSpaces.insert(val);
             tapeGcSpacesStream << " " << val;
           }
 
@@ -1370,6 +1367,30 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     return 1;
   }
 
+  // If tape is enabled, must enable the tape garbage collector
+  if (mTapeEnabled) {
+    try {
+      mTapeGc->setTapeEnabled(mTapeGcSpaces);
+    } catch (std::exception& ex) {
+      std::ostringstream msg;
+      msg << "msg=\"Failed to start tape-aware garbage collection: " << ex.what() << "\"";
+      eos_crit(msg.str().c_str());
+      return 1;
+    } catch (...) {
+      eos_crit("msg=\"Failed to start tape-aware garbage collection: Caught an unknown exception\"");
+      return 1;
+    }
+  } else if (!mTapeGcSpaces.empty()) {
+    std::ostringstream tapeGcSpaceWarning;
+    tapeGcSpaceWarning <<
+                       "msg=\"These spaces will not be garbage collected because mgmofs.tapeenabled=false:";
+    for (const auto& tapeGcSpace : mTapeGcSpaces) {
+      tapeGcSpaceWarning << " " << tapeGcSpace;
+    }
+    tapeGcSpaceWarning << "\"";
+    eos_warning(tapeGcSpaceWarning.str().c_str());
+  }
+
   // Initialize the HA setup
   mMaster.reset(new eos::mgm::QdbMaster(mQdbContactDetails, ManagerId.c_str()));
 
@@ -1955,32 +1976,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     eos_info("msg=\"starting Converter Engine\"");
     mConverterDriver.reset(new eos::mgm::ConverterDriver(mQdbContactDetails));
     mConverterDriver->Start();
-  }
-
-  if (mTapeEnabled) {
-    try {
-      mTapeGc->start(tapeGcSpaces);
-    } catch (std::exception& ex) {
-      std::ostringstream msg;
-      msg << "msg=\"Failed to start tape-aware garbage collection: " << ex.what() <<
-          "\"";
-      eos_crit(msg.str().c_str());
-      NoGo = 1;
-    } catch (...) {
-      eos_crit("msg=\"Failed to start tape-aware garbage collection: Caught an unknown exception\"");
-      NoGo = 1;
-    }
-  } else if (!tapeGcSpaces.empty()) {
-    std::ostringstream tapeGcSpaceWarning;
-    tapeGcSpaceWarning <<
-                       "msg=\"These spaces will not be garbage collected because mgmofs.tapeenabled=false:";
-
-    for (const auto& tapeGcSpace : tapeGcSpaces) {
-      tapeGcSpaceWarning << " " << tapeGcSpace;
-    }
-
-    tapeGcSpaceWarning << "\"";
-    eos_warning(tapeGcSpaceWarning.str().c_str());
   }
 
   return NoGo;

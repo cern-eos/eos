@@ -29,6 +29,7 @@
 #include "mgm/fsck/Fsck.hh"
 #include "mgm/LRU.hh"
 #include "mgm/config/IConfigEngine.hh"
+#include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IFsView.hh"
@@ -365,6 +366,22 @@ QdbMaster::SlaveToMaster()
   Access::SetSlaveToMasterRules();
   gOFS->mTracker.SetAcceptingRequests(true);
   CreateStatusFile(EOSMGMMASTER_SUBSYS_RW_LOCKFILE);
+
+  // Start tape garbage collector, only if tape is configured and enabled
+  if (gOFS->mTapeEnabled) {
+    try {
+      gOFS->mTapeGc->start();
+    } catch (std::exception& ex) {
+      std::ostringstream msg;
+      msg << "msg=\"Failed to start tape-aware garbage collection: " << ex.what() << "\"";
+      eos_crit(msg.str().c_str());
+      std::abort();
+    } catch (...) {
+      eos_crit("msg=\"Failed to start tape-aware garbage collection: Caught an unknown exception\"");
+      std::abort();
+    }
+  }
+
   eos_info("%s", "msg=\"finished slave to master transition\"");
 }
 
@@ -394,6 +411,7 @@ QdbMaster::MasterToSlave()
       std::chrono::milliseconds(100));
   // We are the slave, we just listen and don't broadcast anything
   gOFS->ObjectManager.EnableBroadCast(false);
+  DisableNsCaching();
 
   // When we boot the first time also load the config
   if (mOneOff) {
@@ -405,7 +423,19 @@ QdbMaster::MasterToSlave()
     }
   }
 
-  DisableNsCaching();
+  // Stop the tape garbage collector if tape is configured and enabled
+  if (gOFS->mTapeEnabled) {
+    try {
+      gOFS->mTapeGc->stop();
+    } catch (std::exception& ex) {
+      std::ostringstream msg;
+      msg << "msg=\"Failed to stop tape-aware garbage collection: " << ex.what() << "\"";
+      eos_err(msg.str().c_str());
+    } catch (...) {
+      eos_err("msg=\"Failed to stop tape-aware garbage collection: Caught an unknown exception\"");
+    }
+  }
+
   gOFS->mTracker.SetAcceptingRequests(true);
 }
 

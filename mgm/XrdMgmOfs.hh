@@ -1873,6 +1873,8 @@ public:
   std::unique_ptr<tgc::RealTapeGcMgm> mTapeGcMgm;
   //! Multi-space tape-aware garbage collector
   std::unique_ptr<tgc::MultiSpaceTapeGc> mTapeGc;
+  //! EOS spaces for which tape-aware garbage collection should be enabled
+  std::set<std::string> mTapeGcSpaces;
   //! Tracker for drain, balance and convert fids
   eos::mgm::IdTrackerWithValidity<eos::IFileMD::id_t> mFidTracker;
 

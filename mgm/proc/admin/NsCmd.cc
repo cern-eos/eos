@@ -396,6 +396,12 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
     // simplify the disk-only use of EOS
     if (gOFS->mTapeEnabled) {
       oss << "uid=all gid=all ns.tapeenabled=true" << std::endl;
+
+      // GC should only be active on the master MGM node
+      oss << "uid=all gid=all tgc.is_active="
+          << (gOFS->mTapeGc->isGcActive() ? "true" : "false")
+          << std::endl;
+
       // Tape GC stats are only displayed if enabled for at least one EOS space
       const auto tgcStats = gOFS->mTapeGc->getStats();
 
@@ -591,6 +597,12 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
     // simplify the disk-only use of EOS
     if (gOFS->mTapeEnabled) {
       oss << "ALL      tapeenabled                      true" << std::endl;
+
+      // GC should only be active on the master MGM node
+      oss << "ALL      tgc is active                    "
+          << (gOFS->mTapeGc->isGcActive() ? "true" : "false")
+          << std::endl;
+
       // Tape GC stats are only displayed if enabled for at least one EOS space
       const auto tgcStats = gOFS->mTapeGc->getStats();
 
