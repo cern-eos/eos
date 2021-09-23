@@ -112,6 +112,31 @@ TEST_F(TgcSpaceToTapeGcMapTest, createGc_already_exists)
 //------------------------------------------------------------------------------
 // Test
 //------------------------------------------------------------------------------
+TEST_F(TgcSpaceToTapeGcMapTest, createAndDestroyAllGc)
+{
+  using namespace eos::mgm::tgc;
+
+  DummyTapeGcMgm mgm;
+  SpaceToTapeGcMap map(mgm);
+  const std::string space1 = "space1";
+  const std::string space2 = "space2";
+
+  map.createGc(space1);
+  map.createGc(space2);
+
+  const auto spacesBefore = map.getSpaces();
+  ASSERT_EQ(2, spacesBefore.size());
+  ASSERT_EQ(1, spacesBefore.count(space1));
+  ASSERT_EQ(1, spacesBefore.count(space2));
+
+  map.destroyAllGc();
+  const auto spacesAfter = map.getSpaces();
+  ASSERT_EQ(0, spacesAfter.size());
+}
+
+//------------------------------------------------------------------------------
+// Test
+//------------------------------------------------------------------------------
 TEST_F(TgcSpaceToTapeGcMapTest, toJson)
 {
   using namespace eos::mgm::tgc;

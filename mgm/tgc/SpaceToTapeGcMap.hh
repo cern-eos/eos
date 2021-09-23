@@ -85,6 +85,11 @@ public:
   TapeGc &createGc(const std::string &space);
 
   //----------------------------------------------------------------------------
+  //! Thread safe method that destroys all tape-aware garbage collectors.
+  //----------------------------------------------------------------------------
+  void destroyAllGc();
+
+  //----------------------------------------------------------------------------
   //! Exception thrown when an unknown EOS space is encountered.
   //----------------------------------------------------------------------------
   struct UnknownEOSSpace: public std::runtime_error {
