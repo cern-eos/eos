@@ -21,11 +21,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
-
-/*----------------------------------------------------------------------------*/
+#include "fst/Config.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -35,7 +33,7 @@ Storage::Report()
 {
   // this thread send's report messages from the report queue
   bool failure;
-  XrdOucString monitorReceiver = Config::gConfig.FstDefaultReceiverQueue;
+  XrdOucString monitorReceiver = gConfig.FstDefaultReceiverQueue;
   monitorReceiver.replace("*/mgm", "*/report");
 
   while (1) {

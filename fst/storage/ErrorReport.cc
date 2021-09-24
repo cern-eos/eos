@@ -23,6 +23,7 @@
 
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
+#include "fst/Config.hh"
 #include "mq/MessagingRealm.hh"
 
 EOSFSTNAMESPACE_BEGIN
@@ -33,7 +34,7 @@ Storage::ErrorReport()
 {
   // this thread send's error report messages from the error queue
   bool failure;
-  XrdOucString errorReceiver = Config::gConfig.FstDefaultReceiverQueue;
+  XrdOucString errorReceiver = gConfig.FstDefaultReceiverQueue;
   errorReceiver.replace("*/mgm", "*/errorreport");
   eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
   eos::common::Logging::LogCircularIndex localCircularIndex;

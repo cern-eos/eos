@@ -180,7 +180,7 @@ FmdDbMapHandler::GetMgmFmd(const std::string& manager,
     mgr = manager;
 
     if (mgr.empty()) {
-      mgr = eos::fst::Config::gConfig.GetManager();
+      mgr = gConfig.GetManager();
 
       if (mgr.empty()) {
         eos_static_err("msg=\"no manager info available\"");

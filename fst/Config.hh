@@ -21,15 +21,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_CONFIG_HH__
-#define __EOSFST_CONFIG_HH__
-/*----------------------------------------------------------------------------*/
+#pragma once
 #include "fst/Namespace.hh"
 #include "common/Locators.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
-/*----------------------------------------------------------------------------*/
 #include <atomic>
 #include <chrono>
 #include <random>
@@ -60,7 +56,6 @@ public:
   XrdOucString StartDate; // Time when daemon was started
   XrdOucString KeyTabAdler; // adler string of the keytab file
   mutable XrdSysMutex Mutex; // lock for dynamic updates like 'Manager'
-  static Config gConfig;
 
   Config() : generator((std::random_device())())
   {
@@ -74,19 +69,20 @@ public:
   //----------------------------------------------------------------------------
   //! Get the current manager hostname and port
   //----------------------------------------------------------------------------
-  std::string GetManager() const
-  {
-    XrdSysMutexHelper scope_lock(Mutex);
-    return gConfig.Manager.c_str();
-  }
+  std::string GetManager() const;
+
+  //----------------------------------------------------------------------------
+  //! Wait for the current manager hostname and port
+  //----------------------------------------------------------------------------
+  std::string WaitManager() const;
 
   XrdOucString getFstNodeConfigQueue(const std::string& location = "",
                                      bool blocking = true);
 
   common::SharedHashLocator getNodeHashLocator(const std::string& location = "",
-                                     bool blocking = true);
+      bool blocking = true);
 
-  void setFstNodeConfigQueue(const std::string &value);
+  void setFstNodeConfigQueue(const std::string& value);
   std::chrono::seconds getPublishInterval();
 
   // Return a random number, uniformly distributed within
@@ -99,12 +95,11 @@ private:
   XrdOucString FstNodeConfigQueue;
   std::atomic<bool> configQueueInitialized {false};
   eos::common::SharedHashLocator mNodeHashLocator;
-
   // Random number generator
   std::mutex generatorMutex;
   std::mt19937 generator;
 };
 
-EOSFSTNAMESPACE_END
+extern Config gConfig;
 
-#endif
+EOSFSTNAMESPACE_END
