@@ -186,9 +186,8 @@ SpaceQuota::UpdateLogicalSizeFactor()
     long forcedgroup;
     XrdOucString spn = pPath.c_str();
     std::string bandwidth;
-    bool schedule=false;
+    bool schedule = false;
     std::string iopriority;
-
     // get the layout in this quota node
     Policy::GetLayoutAndSpace(pPath.c_str(), map, vid, layoutId, spn, env,
                               forcedfsid, forcedgroup, bandwidth, schedule, iopriority);
@@ -348,30 +347,44 @@ SpaceQuota::UpdateIsSums()
   mMapIdQuota[Index(kAllGroupBytesIs, 0)] = 0;
   mMapIdQuota[Index(kAllGroupFilesIs, 0)] = 0;
   mMapIdQuota[Index(kAllGroupLogicalBytesIs, 0)] = 0;
+  bool has_project_quota = (mMapIdQuota.find(Index(kGroupLogicalBytesIs,
+                            Quota::gProjectId)) !=
+                            mMapIdQuota.end());
 
-  for (auto it = mMapIdQuota.begin(); it != mMapIdQuota.end(); it++) {
-    if ((UnIndex(it->first) == kUserBytesIs)) {
-      AddQuota(kAllUserBytesIs, 0, it->second);
-    }
+  // If project quota is defined for the current quota node then use that
+  // value to avoid possible double counting
+  if (has_project_quota) {
+    AddQuota(kAllGroupFilesIs, 0,
+             mMapIdQuota[Index(kGroupFilesIs, Quota::gProjectId)]);
+    AddQuota(kAllGroupBytesIs, 0,
+             mMapIdQuota[Index(kGroupBytesIs, Quota::gProjectId)]);
+    AddQuota(kAllGroupLogicalBytesIs, 0,
+             mMapIdQuota[Index(kGroupLogicalBytesIs, Quota::gProjectId)]);
+  } else {
+    for (auto it = mMapIdQuota.begin(); it != mMapIdQuota.end(); it++) {
+      if ((UnIndex(it->first) == kUserBytesIs)) {
+        AddQuota(kAllUserBytesIs, 0, it->second);
+      }
 
-    if ((UnIndex(it->first) == kUserLogicalBytesIs)) {
-      AddQuota(kAllUserLogicalBytesIs, 0, it->second);
-    }
+      if ((UnIndex(it->first) == kUserLogicalBytesIs)) {
+        AddQuota(kAllUserLogicalBytesIs, 0, it->second);
+      }
 
-    if ((UnIndex(it->first) == kUserFilesIs)) {
-      AddQuota(kAllUserFilesIs, 0, it->second);
-    }
+      if ((UnIndex(it->first) == kUserFilesIs)) {
+        AddQuota(kAllUserFilesIs, 0, it->second);
+      }
 
-    if ((UnIndex(it->first) == kGroupBytesIs)) {
-      AddQuota(kAllGroupBytesIs, 0, it->second);
-    }
+      if ((UnIndex(it->first) == kGroupFilesIs)) {
+        AddQuota(kAllGroupFilesIs, 0, it->second);
+      }
 
-    if ((UnIndex(it->first) == kGroupLogicalBytesIs)) {
-      AddQuota(kAllGroupLogicalBytesIs, 0, it->second);
-    }
+      if ((UnIndex(it->first) == kGroupBytesIs)) {
+        AddQuota(kAllGroupBytesIs, 0, it->second);
+      }
 
-    if ((UnIndex(it->first) == kGroupFilesIs)) {
-      AddQuota(kAllGroupFilesIs, 0, it->second);
+      if ((UnIndex(it->first) == kGroupLogicalBytesIs)) {
+        AddQuota(kAllGroupLogicalBytesIs, 0, it->second);
+      }
     }
   }
 }
