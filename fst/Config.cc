@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "fst/Config.hh"
 #include <vector>
 #include "common/Logging.hh"
@@ -32,10 +31,42 @@
 
 EOSFSTNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
-Config Config::gConfig;
-/*----------------------------------------------------------------------------*/
+// Static initialization
+Config gConfig;
 
+
+//------------------------------------------------------------------------------
+// Get the current manager hostname and port
+//------------------------------------------------------------------------------
+std::string
+Config::GetManager() const
+{
+  XrdSysMutexHelper scope_lock(Mutex);
+  return gConfig.Manager.c_str();
+}
+
+//------------------------------------------------------------------------------
+// Wait for the current manager hostname and port
+//------------------------------------------------------------------------------
+std::string
+Config::WaitManager() const
+{
+  do {
+    {
+      XrdSysMutexHelper scope_lock(Mutex);
+
+      if (gConfig.Manager.length()) {
+        return gConfig.Manager.c_str();
+      }
+    }
+    eos_static_info("%s", "msg=\"wait for manager info ...\"");
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+  } while (true);
+}
+
+//------------------------------------------------------------------------------
+// Get node config queue
+//------------------------------------------------------------------------------
 XrdOucString Config::getFstNodeConfigQueue(const std::string& location,
     bool blocking)
 {
@@ -49,10 +80,14 @@ XrdOucString Config::getFstNodeConfigQueue(const std::string& location,
   return FstNodeConfigQueue;
 }
 
-void Config::setFstNodeConfigQueue(const std::string &value)
+//------------------------------------------------------------------------------
+// Set node config queue
+//------------------------------------------------------------------------------
+void Config::setFstNodeConfigQueue(const std::string& value)
 {
   std::unique_lock<std::mutex> lock(mConfigQueueMtx);
-  if(configQueueInitialized) {
+
+  if (configQueueInitialized) {
     return;
   }
 
@@ -65,9 +100,11 @@ void Config::setFstNodeConfigQueue(const std::string &value)
   configQueueInitialized = true;
 }
 
-common::SharedHashLocator Config::getNodeHashLocator(const std::string&
-    location,
-    bool blocking)
+//------------------------------------------------------------------------------
+// Get node hash locator
+//------------------------------------------------------------------------------
+common::SharedHashLocator
+Config::getNodeHashLocator(const std::string& location, bool blocking)
 {
   while (!configQueueInitialized && blocking) {
     std::this_thread::sleep_for(std::chrono::seconds(2));
@@ -81,6 +118,9 @@ common::SharedHashLocator Config::getNodeHashLocator(const std::string&
   return {};
 }
 
+//------------------------------------------------------------------------------
+// Get publishing interval
+//------------------------------------------------------------------------------
 std::chrono::seconds Config::getPublishInterval()
 {
   XrdSysMutexHelper lock(Mutex);
@@ -95,6 +135,9 @@ std::chrono::seconds Config::getPublishInterval()
   return std::chrono::seconds(localInterval);
 }
 
+//------------------------------------------------------------------------------
+// Get randomized  publishing interval
+//------------------------------------------------------------------------------
 std::chrono::milliseconds Config::getRandomizedPublishInterval()
 {
   std::chrono::seconds interval = getPublishInterval();

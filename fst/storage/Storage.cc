@@ -229,9 +229,9 @@ Storage::Storage(const char* meta_dir)
   eos_info("enabling local disk S.M.A.R.T attribute monitor");
   mFstHealth.Monitor();
   // Create gw queue
-  XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
+  XrdSysMutexHelper lock(gConfig.Mutex);
   mGwQueue = new eos::common::TransferQueue(
-    eos::common::TransferQueueLocator(eos::fst::Config::gConfig.FstQueue.c_str(),
+    eos::common::TransferQueueLocator(gConfig.FstQueue.c_str(),
                                       "txq"),
     gOFS.mMessagingRealm.get(), true);
   mTxGwQueue = new TransferQueue(&mGwQueue);
@@ -334,8 +334,8 @@ Storage::Boot(FileSystem* fs)
   do {
     cnt++;
     {
-      XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
-      manager = eos::fst::Config::gConfig.Manager.c_str();
+      XrdSysMutexHelper lock(gConfig.Mutex);
+      manager = gConfig.Manager.c_str();
     }
 
     if (manager != "") {

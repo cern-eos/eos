@@ -23,6 +23,7 @@
 
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
+#include "fst/Config.hh"
 #include "fst/storage/FileSystem.hh"
 #include "common/SymKeys.hh"
 #include "common/Assert.hh"
@@ -41,7 +42,7 @@ bool
 Storage::GetFstConfigValue(const std::string& key, std::string& value) const
 {
   common::SharedHashLocator locator =
-    Config::gConfig.getNodeHashLocator("getConfigValue", false);
+    gConfig.getNodeHashLocator("getConfigValue", false);
 
   if (locator.empty()) {
     return false;
@@ -155,7 +156,7 @@ Storage::RegisterFileSystem(const std::string& queuepath)
   mFsMap[fs->GetLocalId()] = fs;
 
   if (gOFS.mMessagingRealm->haveQDB()) {
-    if (eos::fst::Config::gConfig.autoBoot &&
+    if (gConfig.autoBoot &&
         (fs->GetStatus() <= eos::common::BootStatus::kDown) &&
         (fs->GetConfigStatus() > eos::common::ConfigStatus::kOff)) {
       RunBootThread(fs);
@@ -181,15 +182,15 @@ Storage::ProcessFstConfigChange(const std::string& key,
 
   if (key == "manager") {
     eos_static_info("manager=%s", value.c_str());
-    XrdSysMutexHelper lock(Config::gConfig.Mutex);
-    Config::gConfig.Manager = value.c_str();
+    XrdSysMutexHelper lock(gConfig.Mutex);
+    gConfig.Manager = value.c_str();
     return;
   }
 
   if (key == "publish.interval") {
     eos_static_info("publish.interval=%s", value.c_str());
-    XrdSysMutexHelper lock(Config::gConfig.Mutex);
-    Config::gConfig.PublishInterval = atoi(value.c_str());
+    XrdSysMutexHelper lock(gConfig.Mutex);
+    gConfig.PublishInterval = atoi(value.c_str());
     return;
   }
 
@@ -282,7 +283,7 @@ Storage::ProcessFsConfigChange(fst::FileSystem* targetFs,
 {
   if ((key == "id") || (key == "uuid")) {
     // Check if we are autobooting
-    if (eos::fst::Config::gConfig.autoBoot &&
+    if (gConfig.autoBoot &&
         (targetFs->GetStatus() <= eos::common::BootStatus::kDown) &&
         (targetFs->GetConfigStatus() > eos::common::ConfigStatus::kOff)) {
       RunBootThread(targetFs);
@@ -462,26 +463,26 @@ Storage::Communicator(ThreadAssistant& assistant)
 
       if (event.mType == XrdMqSharedObjectManager::kMqSubjectCreation) {
         // Skip fst wildcard queue creation and txqueue
-        if ((queue == Config::gConfig.FstQueueWildcard) ||
+        if ((queue == gConfig.FstQueueWildcard) ||
             (queue.find("/txqueue/") != STR_NPOS)) {
           continue;
         }
 
-        if (!queue.beginswith(Config::gConfig.FstQueue)) {
+        if (!queue.beginswith(gConfig.FstQueue)) {
           // ! endswith seems to be buggy if the comparable suffix is longer than the string !
           if (queue.beginswith("/config/") &&
-              (queue.length() > Config::gConfig.FstHostPort.length()) &&
-              queue.endswith(Config::gConfig.FstHostPort)) {
+              (queue.length() > gConfig.FstHostPort.length()) &&
+              queue.endswith(gConfig.FstHostPort)) {
             // This is the configuration entry and we should store it to have
             // access to it since its name depends on the instance name and
             // we don't know (yet)
-            Config::gConfig.setFstNodeConfigQueue(queue.c_str());
+            gConfig.setFstNodeConfigQueue(queue.c_str());
             eos_static_info("msg=\"storing config queue name\" qpath=\"%s\"",
                             queue.c_str());
           } else {
             eos_static_info("msg=\"no action on subject creation\" qpath=\"%s\" "
                             "own_id=\"%s\"", queue.c_str(),
-                            Config::gConfig.FstQueue.c_str());
+                            gConfig.FstQueue.c_str());
           }
 
           continue;
@@ -491,7 +492,7 @@ Storage::Communicator(ThreadAssistant& assistant)
       } else if (event.mType == XrdMqSharedObjectManager::kMqSubjectDeletion) {
         // Skip txqueue and deletions that don't concern us
         if ((queue.find("/txqueue/") != STR_NPOS) ||
-            (queue.beginswith(Config::gConfig.FstQueue) == false)) {
+            (queue.beginswith(gConfig.FstQueue) == false)) {
           continue;
         } else {
           UnregisterFileSystem(event.mSubject);
@@ -506,7 +507,7 @@ Storage::Communicator(ThreadAssistant& assistant)
           queue.erase(dpos);
         }
 
-        if (queue == Config::gConfig.getFstNodeConfigQueue("communicator", false)) {
+        if (queue == gConfig.getFstNodeConfigQueue("communicator", false)) {
           ProcessFstConfigChange(key.c_str());
         } else {
           ProcessFsConfigChange(queue.c_str(), key.c_str());
@@ -532,11 +533,11 @@ static std::string extractFilesystemPath(const std::string& key)
 void Storage::updateFilesystemDefinitions()
 {
   qclient::QScanner scanner(*gOFS.mMessagingRealm->getQSom()->getQClient(),
-                            SSTR("eos-hash||fs||" << eos::fst::Config::gConfig.FstHostPort << "||*"));
+                            SSTR("eos-hash||fs||" << gConfig.FstHostPort << "||*"));
   std::set<std::string> mNewFilesystems;
 
   for (; scanner.valid(); scanner.next()) {
-    std::string queuePath = SSTR("/eos/" << eos::fst::Config::gConfig.FstHostPort <<
+    std::string queuePath = SSTR("/eos/" << gConfig.FstHostPort <<
                                  "/fst" <<
                                  extractFilesystemPath(scanner.getValue()));
     mNewFilesystems.insert(queuePath);
@@ -597,12 +598,12 @@ Storage::QdbCommunicator(ThreadAssistant& assistant)
   }
 
   std::string configQueue = SSTR("/config/" << instanceName << "/node/" <<
-                                 eos::fst::Config::gConfig.FstHostPort);
-  Config::gConfig.setFstNodeConfigQueue(configQueue);
+                                 gConfig.FstHostPort);
+  gConfig.setFstNodeConfigQueue(configQueue);
   //----------------------------------------------------------------------------
   // Discover node-specific configuration..
   //----------------------------------------------------------------------------
-  common::SharedHashLocator nodeLocator = Config::gConfig.getNodeHashLocator();
+  common::SharedHashLocator nodeLocator = gConfig.getNodeHashLocator();
   mq::SharedHashWrapper hash(gOFS.mMessagingRealm.get(), nodeLocator, true,
                              false);
   //----------------------------------------------------------------------------

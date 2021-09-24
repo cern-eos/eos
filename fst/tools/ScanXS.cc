@@ -32,7 +32,6 @@
 #include <fcntl.h>
 
 eos::fst::FmdDbMapHandler gFmdDbMapHandler; // needed for compilation
-eos::fst::Config eos::fst::Config::gConfig; // needed for compilation
 
 int
 main(int argc, char* argv[])

@@ -21,6 +21,7 @@
  ************************************************************************/
 #include "fst/XrdFstOfsFile.hh"
 #include "fst/XrdFstOfs.hh"
+#include "fst/Config.hh"
 #include "common/Constants.hh"
 #include "common/Path.hh"
 #include "common/http/OwnCloud.hh"
@@ -2496,14 +2497,14 @@ XrdFstOfsFile::ProcessCapOpaque(bool& is_repair_read,
   mRedirectManager = smanager;
   {
     // evt. update the shared hash manager entry
-    XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
-    XrdOucString ConfigManager = eos::fst::Config::gConfig.Manager;
+    XrdSysMutexHelper lock(gConfig.Mutex);
+    XrdOucString ConfigManager = gConfig.Manager;
 
     if (ConfigManager != mRedirectManager) {
       eos_warning("msg=\"MGM master seems to have changed - adjusting global "
                   "config\" old-manager=\"%s\" new-manager=\"%s\"",
                   ConfigManager.c_str(), mRedirectManager.c_str());
-      eos::fst::Config::gConfig.Manager = mRedirectManager;
+      gConfig.Manager = mRedirectManager;
     }
   }
   // Handle virtual identity
@@ -3674,9 +3675,9 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
   std::string endPoint;
   std::string resource;
   {
-    XrdSysMutexHelper lock(Config::gConfig.Mutex);
-    endPoint = Config::gConfig.ProtoWFEndpoint;
-    resource = Config::gConfig.ProtoWFResource;
+    XrdSysMutexHelper lock(gConfig.Mutex);
+    endPoint = gConfig.ProtoWFEndpoint;
+    resource = gConfig.ProtoWFResource;
   }
 
   if (endPoint.empty() || resource.empty()) {

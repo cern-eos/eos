@@ -23,6 +23,7 @@
 
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
+#include "fst/Config.hh"
 #include "fst/txqueue/TransferJob.hh"
 #include "fst/txqueue/TransferQueue.hh"
 #include "fst/storage/FileSystem.hh"
@@ -299,7 +300,7 @@ Storage::Balancer()
   // ---------------------------------------------------------------------------
   // wait for our configuration queue to be set
   // ---------------------------------------------------------------------------
-  eos::fst::Config::gConfig.getFstNodeConfigQueue("Balancer");
+  gConfig.getFstNodeConfigQueue("Balancer");
 
   while (true) {
     time_t now = time(NULL);
