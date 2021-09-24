@@ -902,6 +902,7 @@ fi
 Summary: EOS QuarkDB package
 Group: Applications/File
 
+Obsoletes: quarkdb <= 0.4.2
 Requires: lz4-devel, lz4, elfutils-devel, jemalloc
 Requires: xrootd-server >= %{xrootd_version_min}
 
