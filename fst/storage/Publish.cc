@@ -23,6 +23,7 @@
 
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
+#include "fst/Config.hh"
 #include "fst/txqueue/TransferQueue.hh"
 #include "fst/storage/FileSystem.hh"
 #include "fst/FmdDbMap.hh"
@@ -190,7 +191,7 @@ Storage::GetFstStatistics(const std::string& tmpfile,
 
   std::map<std::string, std::string> output;
   // Kernel version
-  output["stat.sys.kernel"] = eos::fst::Config::gConfig.KernelVersion.c_str();
+  output["stat.sys.kernel"] = gConfig.KernelVersion.c_str();
   // Virtual memory size
   output["stat.sys.vsize"] = SSTR(osstat.vsize);
   // rss usage
@@ -202,13 +203,13 @@ Storage::GetFstStatistics(const std::string& tmpfile,
   // xrootd version
   output["stat.sys.xrootd.version"] = GetXrootdVersion();
   // adler32 of keytab
-  output["stat.sys.keytab"] = eos::fst::Config::gConfig.KeyTabAdler.c_str();
+  output["stat.sys.keytab"] = gConfig.KeyTabAdler.c_str();
   // machine uptime
   output["stat.sys.uptime"] = GetUptime(tmpfile);
   // active TCP sockets
   output["stat.sys.sockets"] = GetNumOfTcpSockets(tmpfile);
   // startup time of the FST daemon
-  output["stat.sys.eos.start"] = eos::fst::Config::gConfig.StartDate.c_str();
+  output["stat.sys.eos.start"] = gConfig.StartDate.c_str();
   // FST geotag
   output["stat.geotag"] = gOFS.GetGeoTag();
   // http port
@@ -425,11 +426,11 @@ Storage::Publish(ThreadAssistant& assistant)
                   1.0 * netspeed / 1000000000.0);
   // The following line acts as a barrier that prevents progress
   // until the config queue becomes known
-  eos::fst::Config::gConfig.getFstNodeConfigQueue("Publish");
+  gConfig.getFstNodeConfigQueue("Publish");
 
   while (!assistant.terminationRequested()) {
     std::chrono::milliseconds randomizedReportInterval =
-      eos::fst::Config::gConfig.getRandomizedPublishInterval();
+      gConfig.getRandomizedPublishInterval();
     common::IntervalStopwatch stopwatch(randomizedReportInterval);
     {
       // Publish with a MuxTransaction all file system changes
@@ -468,8 +469,7 @@ Storage::Publish(ThreadAssistant& assistant)
 
         auto fstStats = GetFstStatistics(tmp_name, netspeed);
         // Set node status values
-        common::SharedHashLocator locator =
-          Config::gConfig.getNodeHashLocator("Publish");
+        common::SharedHashLocator locator = gConfig.getNodeHashLocator("Publish");
 
         if (!locator.empty()) {
           mq::SharedHashWrapper hash(gOFS.mMessagingRealm.get(), locator, true, false);

@@ -25,7 +25,6 @@
 #define __XRDFSTOFS_FSTOFS_HH__
 
 #include "fst/Namespace.hh"
-#include "fst/Config.hh"
 #include "fst/utils/OpenFileTracker.hh"
 #include "fst/utils/TpcInfo.hh"
 #include "common/Fmd.hh"

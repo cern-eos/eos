@@ -265,8 +265,8 @@ TransferJob::SendState(int state, const char* logfile, float progress)
   eos_static_debug("sending %s", txinfo.c_str());
   std::string manager = "";
   {
-    XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
-    manager = eos::fst::Config::gConfig.Manager.c_str();
+    XrdSysMutexHelper lock(gConfig.Mutex);
+    manager = gConfig.Manager.c_str();
   }
   int rc = 0;
 
@@ -302,7 +302,7 @@ TransferJob::DoIt()
   mDoItThread = XrdSysThread::ID();
   std::string sTmp, strBand;
   std::string fileName =
-    eos::fst::Config::gConfig.FstAuthDir.c_str(); // script name for the transfer script
+    gConfig.FstAuthDir.c_str(); // script name for the transfer script
   std::string fileStageName = fileName;
   std::stringstream command, ss, commando, so;
   std::string uuid = NewUuid();

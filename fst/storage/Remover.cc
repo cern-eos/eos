@@ -24,6 +24,7 @@
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/Deletion.hh"
+#include "fst/Config.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -37,7 +38,8 @@ Storage::Remover()
   static auto last_request_ts = system_clock::now();
   static std::chrono::seconds request_interval(300);
   // Used as barrier for FSTs proper config
-  (void)eos::fst::Config::gConfig.getFstNodeConfigQueue("Remover").c_str();
+  (void)gConfig.getFstNodeConfigQueue("Remover").c_str();
+  (void)gConfig.WaitManager();
   uint64_t num_deleted = 0ull;
   const char* ptr = getenv("EOS_FST_DELETE_QUERY_INTERVAL");
 
@@ -117,7 +119,7 @@ Storage::Remover()
         XrdOucString managerQuery = "/?";
         managerQuery += "mgm.pcmd=schedule2delete";
         managerQuery += "&mgm.target.nodename=";
-        managerQuery += Config::gConfig.FstQueue;
+        managerQuery += gConfig.FstQueue;
         // the log ID to the schedule2delete call
         managerQuery += "&mgm.logid=";
         managerQuery += logId;

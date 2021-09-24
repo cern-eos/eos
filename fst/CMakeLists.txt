@@ -387,6 +387,7 @@ add_executable(eos-scan-fs
   ScanDir.cc
   Load.cc
   FmdDbMap.cc
+  Config.cc
   checksum/Adler.cc
   checksum/CheckSum.cc)
 
@@ -396,6 +397,7 @@ add_executable(eos-fsck-fs
   Fsck.cc
   Load.cc
   FmdDbMap.cc
+  Config.cc
   tools/Fsck.cc
   checksum/Adler.cc
   checksum/CheckSum.cc)

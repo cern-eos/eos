@@ -21,12 +21,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/FmdDbMap.hh"
-
-/*----------------------------------------------------------------------------*/
+#include "fst/Config.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -46,8 +44,8 @@ Storage::MgmSyncer()
     do {
       cnt++;
       {
-        XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
-        manager = eos::fst::Config::gConfig.Manager.c_str();
+        XrdSysMutexHelper lock(gConfig.Mutex);
+        manager = gConfig.Manager.c_str();
       }
 
       if (manager != "") {
