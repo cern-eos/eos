@@ -16,6 +16,33 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.64 Citrine``
+===================
+
+2021-09-27
+
+Bug
+----
+
+* [EOS-4779] - Dead lock in parity computation for RAIN
+* [EOS-4896] - queuing for archive should use MgmOfsAlias instead of mgm.manager
+* [EOS-4912] - fst - read lock held for 10s seconds
+* [EOS-4922] - SEGV on config after shutdown was initiated
+* [EOS-4924] - FST service restarts after calls to std::future, eos::fst::Storage::Publish
+* [EOS-4925] - Typo in mgm/proc/user/Archive.cc
+* [EOS-4926] - discrepancy of accounting report and quota
+
+New Feature
+-----------
+
+* [EOS-4903] - Add new configuration to setup redirection with Master/Slave QuarkDB Configuration
+
+
+Improvement
+-----------
+
+* [EOS-4889] - Make EOS-CTA tape garbage collector compatible with MGM master/slave configuration
+
 
 ``v4.8.63 Citrine``
 ===================
@@ -25,9 +52,9 @@ This release is based on XRootD V4 and IPV6 enabled.
 Bug
 ===
 
-* [EOS-4904] MGM: block proxy headers in XrdHttp by default (add env file + fix typo) 
+* [EOS-4904] MGM: block proxy headers in XrdHttp by default (add env file + fix typo)
 * [EOS-4905] MGM: pass CGI 'query' to the access function used in XrdHttpMgm to allow token access
-* [EOS-4901] MGM: check for invalid paths before scoping them 
+* [EOS-4901] MGM: check for invalid paths before scoping them
 * MGM/CONSOLE: Fix acl command to accept the "a" archive flag
 * FST: Make sure to skip checksum if asked to ignore it
 * MGM: Reduce load on the configuration backups when moving a files systems between groups/spaces
