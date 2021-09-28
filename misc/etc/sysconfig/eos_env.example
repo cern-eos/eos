@@ -178,6 +178,10 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # for container environments where abrtd is not running
 # EOS_FST_ENABLE_STACKTRACE=1
 
+# Enable async writes between replicas - this can improve the performance for
+# FSTs with long latency.
+# EOS_FST_REPLICA_ASYNC_WRITE=1
+
 #-------------------------------------------------------------------------------
 # HTTPD Configuration
 #-------------------------------------------------------------------------------
