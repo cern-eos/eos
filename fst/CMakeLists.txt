@@ -118,6 +118,7 @@ add_library(EosFstIo-Objects OBJECT
   io/local/FsIo.cc               io/local/FsIo.hh
   io/davix/DavixIo.cc            io/davix/DavixIo.hh
   io/xrd/XrdIo.cc                io/xrd/XrdIo.hh
+  io/xrd/ResponseCollector.cc    io/xrd/ResponseCollector.hh
   io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
   io/ChunkHandler.cc             io/ChunkHandler.hh
   io/VectChunkHandler.cc         io/VectChunkHandler.hh

@@ -35,12 +35,14 @@ ReplicaParLayout::ReplicaParLayout(XrdFstOfsFile* file,
                                    XrdOucErrInfo* outError,
                                    const char* path,
                                    uint16_t timeout) :
-  Layout(file, lid, client, outError, path, timeout)
+  Layout(file, lid, client, outError, path, timeout),
+  // this 1=0x0 16=0xf :-)
+  mNumReplicas(eos::common::LayoutId::GetStripeNumber(lid) + 1),
+  mIoLocal(false), mHasWriteErr(false), mDoAsyncWrite(false)
 {
-  mNumReplicas = eos::common::LayoutId::GetStripeNumber(lid) +
-                 1; // this 1=0x0 16=0xf :-)
-  ioLocal = false;
-  hasWriteError = false;
+  if (getenv("EOS_FST_REPLICA_ASYNC_WRITE")) {
+    mDoAsyncWrite = true;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -77,9 +79,9 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
                   "open replica - illegal replica index found", index);
     }
 
-    ioLocal = true;
+    mIoLocal = true;
   } else {
-    ioLocal = false;
+    mIoLocal = false;
     is_gateway = true;
   }
 
@@ -166,7 +168,7 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
 
   // Open all the replicas needed
   for (int i = 0; i < mNumReplicas; i++) {
-    if ((ioLocal) && (i == replica_index)) {
+    if ((mIoLocal) && (i == replica_index)) {
       // Only the referenced entry URL does local IO
       mReplicaUrl.push_back(mLocalPath);
       FileIo* file = FileIoPlugin::GetIoObject(mLocalPath, mOfsFile,
@@ -190,6 +192,10 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
       mLastUrl = file->GetLastUrl();
       // Local replica is always on the first position in the vector
       mReplicaFile.insert(mReplicaFile.begin(), file);
+
+      if (mOfsFile->mIsRW) {
+        mResponses.emplace_back();
+      }
     } else {
       // Gateway contacts the head, head contacts all
       if ((is_gateway && (i == replica_head)) ||
@@ -216,10 +222,11 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
           mLastTriedUrl = file->GetLastTriedUrl();
           mLastUrl = file->GetLastUrl();
           mReplicaFile.push_back(file);
-          eos_debug("Opened remote file for IO: %s.", maskUrl.c_str());
+          mResponses.emplace_back();
+          eos_debug("msg=\"remote open\" url=\"%s\"", maskUrl.c_str());
         } else {
           // Read case just uses one replica
-          eos_debug("Read case uses just one replica.");
+          eos_debug("%s", "msg=\"read case uses just one replica\"");
           continue;
         }
       }
@@ -285,7 +292,7 @@ int64_t
 ReplicaParLayout::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
 {
   int64_t rc = 0;
-  eos_debug("read count=%i", chunkList.size());
+  eos_debug("msg=\"readv\" count_chunks=%i", chunkList.size());
 
   for (unsigned int i = 0; i < mReplicaFile.size(); i++) {
     rc = mReplicaFile[i]->fileReadV(chunkList, mTimeout);
@@ -296,7 +303,7 @@ ReplicaParLayout::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
       eos::common::StringConversion::MaskTag(maskUrl, "cap.sym");
       eos::common::StringConversion::MaskTag(maskUrl, "cap.msg");
       eos::common::StringConversion::MaskTag(maskUrl, "authz");
-      eos_warning("Failed to readv from replica -%s", maskUrl.c_str());
+      eos_warning("msg=\"failed replica readv \" url=\"%s\"", maskUrl.c_str());
       continue;
     } else {
       // Read was successful no need to read from another replica
@@ -305,7 +312,7 @@ ReplicaParLayout::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
   }
 
   if (rc == SFS_ERROR) {
-    eos_err("Failed to readv from any replica");
+    eos_err("%s", "msg=\"failed to readv from any replica\"");
     return Emsg("ReplicaParRead", *mError, EREMOTEIO, "readv replica failed");
   }
 
@@ -316,10 +323,13 @@ ReplicaParLayout::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
 // Write to file
 //------------------------------------------------------------------------------
 int64_t
-ReplicaParLayout::Write(XrdSfsFileOffset offset,
-                        const char* buffer,
+ReplicaParLayout::Write(XrdSfsFileOffset offset, const char* buffer,
                         XrdSfsXferSize length)
 {
+  if (mDoAsyncWrite) {
+    return WriteAsync(offset, buffer, length);
+  }
+
   for (unsigned int i = 0; i < mReplicaFile.size(); ++i) {
     int64_t rc = mReplicaFile[i]->fileWrite(offset, buffer, length, mTimeout);
 
@@ -329,15 +339,10 @@ ReplicaParLayout::Write(XrdSfsFileOffset offset,
       eos::common::StringConversion::MaskTag(maskUrl, "cap.sym");
       eos::common::StringConversion::MaskTag(maskUrl, "cap.msg");
       eos::common::StringConversion::MaskTag(maskUrl, "authz");
-
-      if (i != 0) {
-        errno = EREMOTEIO;
-      } else {
-        errno = EIO;
-      }
+      errno = (i == 0) ? EIO : EREMOTEIO;
 
       // show only the first write error as an error to broadcast upstream
-      if (hasWriteError) {
+      if (mHasWriteErr) {
         eos_err("[NB] Failed to write replica %i - write failed -%llu %s",
                 i, offset, maskUrl.c_str());
       } else {
@@ -345,9 +350,49 @@ ReplicaParLayout::Write(XrdSfsFileOffset offset,
                 i, offset, maskUrl.c_str());
       }
 
-      hasWriteError = true;
+      mHasWriteErr = true;
       return Emsg("ReplicaWrite", *mError, errno, "write replica failed",
                   maskUrl.c_str());
+    }
+  }
+
+  return length;
+}
+
+//------------------------------------------------------------------------------
+// Write using async requests
+//------------------------------------------------------------------------------
+int64_t
+ReplicaParLayout::WriteAsync(XrdSfsFileOffset offset, const char* buffer,
+                             XrdSfsXferSize length)
+{
+  for (unsigned int i = 0; i < mReplicaFile.size(); ++i) {
+    mResponses[i].CollectFuture(mReplicaFile[i]->fileWriteAsync
+                                (buffer, offset, length));
+
+    // Collect available responses every 5GB of data written
+    if (offset &&
+        (offset / sMaxOffsetWrAsync != (offset + length) / sMaxOffsetWrAsync)) {
+      if (!mResponses[i].CheckResponses(false)) {
+        XrdOucString maskUrl = mReplicaUrl[i].c_str() ? mReplicaUrl[i].c_str() : "";
+        eos::common::StringConversion::MaskTag(maskUrl, "cap.sym");
+        eos::common::StringConversion::MaskTag(maskUrl, "cap.msg");
+        eos::common::StringConversion::MaskTag(maskUrl, "authz");
+
+        // Show only the first write error as an error to broadcast upstream
+        if (mHasWriteErr) {
+          eos_err("msg=\"[NB] write failed for replica %i\" offset=%llu url=%s",
+                  i, offset, maskUrl.c_str());
+        } else {
+          eos_err("msg=\"write failed for replica %i\" offset=%llu url=%s",
+                  i, offset, maskUrl.c_str());
+        }
+
+        mHasWriteErr = true;
+        errno = (i == 0) ? EIO : EREMOTEIO;
+        return Emsg("ReplicaWrite", *mError, errno, "write replica failed",
+                    maskUrl.c_str());
+      }
     }
   }
 
@@ -366,12 +411,7 @@ ReplicaParLayout::Truncate(XrdSfsFileOffset offset)
     rc = mReplicaFile[i]->fileTruncate(offset, mTimeout);
 
     if (rc != SFS_OK) {
-      if (i != 0) {
-        errno = EREMOTEIO;
-      } else {
-        errno = EIO;
-      }
-
+      errno = (i == 0) ? EIO : EREMOTEIO;
       XrdOucString maskUrl = mReplicaUrl[i].c_str() ? mReplicaUrl[i].c_str() : "";
       // mask some opaque parameters to shorten the logging
       eos::common::StringConversion::MaskTag(maskUrl, "cap.sym");
@@ -397,7 +437,7 @@ ReplicaParLayout::Stat(struct stat* buf)
   for (unsigned int i = 0; i < mReplicaFile.size(); i++) {
     rc = mReplicaFile[i]->fileStat(buf, mTimeout);
 
-    // we stop with the first stat which works
+    // Stop at the first stat which works
     if (!rc) {
       break;
     }
@@ -423,12 +463,7 @@ ReplicaParLayout::Sync()
     rc = mReplicaFile[i]->fileSync(mTimeout);
 
     if (rc != SFS_OK) {
-      if (i != 0) {
-        errno = EREMOTEIO;
-      } else {
-        errno = EIO;
-      }
-
+      errno = (i == 0) ? EIO : EREMOTEIO;
       eos_err("error=failed to sync replica %i", i);
       return Emsg("ReplicaParSync", *mError, errno, "sync failed",
                   maskUrl.c_str());
@@ -451,20 +486,9 @@ ReplicaParLayout::Remove()
     rc = mReplicaFile[i]->fileRemove();
 
     if (rc != SFS_OK) {
-      XrdOucString maskUrl = mReplicaUrl[i].c_str() ? mReplicaUrl[i].c_str() : "";
-      // mask some opaque parameters to shorten the logging
-      eos::common::StringConversion::MaskTag(maskUrl, "cap.sym");
-      eos::common::StringConversion::MaskTag(maskUrl, "cap.msg");
-      eos::common::StringConversion::MaskTag(maskUrl, "authz");
       got_error = true;
-
-      if (i != 0) {
-        errno = EREMOTEIO;
-      } else {
-        errno = EIO;
-      }
-
-      eos_err("error=failed to remove replica %i", i);
+      errno = (i == 0) ? EIO : EREMOTEIO;
+      eos_err("msg=\"failed to remove replica %i\"", i);
     }
   }
 
@@ -487,17 +511,23 @@ ReplicaParLayout::Close()
   for (unsigned int i = 0; i < mReplicaFile.size(); i++) {
     // Wait for any async requests before closing
     if (mReplicaFile[i]) {
+      if (mOfsFile->mIsRW && mDoAsyncWrite) {
+        if (!mResponses[i].CheckResponses(true)) {
+          eos_err("msg=\"some async write requests failed for replica %i\"", i);
+          ++rc;
+        }
+      }
+
       rc_close = mReplicaFile[i]->fileClose(mTimeout);
       rc += rc_close;
 
       if (rc_close != SFS_OK) {
-        if (i != 0) {
-          errno = EREMOTEIO;
-        } else {
-          errno = EIO;
-        }
+        eos_err("msg=\"failed to close replica %i\" url=\"%s\"",
+                i, mReplicaUrl[i].c_str());
 
-        eos_err("error=failed to close replica %s", mReplicaUrl[i].c_str());
+        if (errno != EIO) {
+          errno = ((i == 0) ? EIO : EREMOTEIO);
+        }
       }
     }
   }

@@ -26,6 +26,7 @@
 #define __EOSFST_REPLICAPARLAYOUT_HH__
 
 #include "fst/layout/Layout.hh"
+#include "fst/io/xrd/ResponseCollector.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -45,7 +46,6 @@ public:
   //! @param error error information
   //! @param io io access type ( ofs/xrd )
   //! @param timeout timeout value
-  //!
   //----------------------------------------------------------------------------
   ReplicaParLayout(XrdFstOfsFile* file,
                    unsigned long lid,
@@ -62,7 +62,6 @@ public:
   //--------------------------------------------------------------------------
   // Redirect to new target
   //--------------------------------------------------------------------------
-
   virtual void Redirect(const char* path);
 
   //----------------------------------------------------------------------------
@@ -74,7 +73,6 @@ public:
   //! @param opaque opaque information
   //!
   //! @return 0 on success, -1 otherwise and error code is set
-  //!
   //----------------------------------------------------------------------------
   virtual int Open(
     XrdSfsFileOpenMode flags,
@@ -90,13 +88,11 @@ public:
   //! @param readahead readahead switch
   //!
   //! @return number of bytes read or -1 if error
-  //!
   //----------------------------------------------------------------------------
   virtual int64_t Read(XrdSfsFileOffset offset,
                        char* buffer,
                        XrdSfsXferSize length,
                        bool readahead = false);
-
 
   //----------------------------------------------------------------------------
   //! Vector read
@@ -105,11 +101,9 @@ public:
   //! @param len total length of the vector read
   //!
   //! @return number of bytes read of -1 if error
-  //!
   //----------------------------------------------------------------------------
   virtual int64_t ReadV(XrdCl::ChunkList& chunkList,
                         uint32_t len);
-
 
   //----------------------------------------------------------------------------
   //! Write to file
@@ -119,12 +113,10 @@ public:
   //! @param length length
   //!
   //! @return number of bytes written or -1 if error
-  //!
   //----------------------------------------------------------------------------
   virtual int64_t Write(XrdSfsFileOffset offset,
                         const char* buffer,
                         XrdSfsXferSize length);
-
 
   //----------------------------------------------------------------------------
   //! Truncate
@@ -132,10 +124,8 @@ public:
   //! @param offset truncate file to this value
   //!
   //! @return 0 on success, -1 otherwise and error code is set
-  //!
   //----------------------------------------------------------------------------
   virtual int Truncate(XrdSfsFileOffset offset);
-
 
   //----------------------------------------------------------------------------
   //! Allocate file space
@@ -143,10 +133,8 @@ public:
   //! @param length space to be allocated
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //----------------------------------------------------------------------------
   virtual int Fallocate(XrdSfsFileOffset length);
-
 
   //----------------------------------------------------------------------------
   //! Deallocate file space
@@ -155,29 +143,23 @@ public:
   //! @param toOffset offset end
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //----------------------------------------------------------------------------
   virtual int Fdeallocate(XrdSfsFileOffset fromOffset,
                           XrdSfsFileOffset toOffset);
-
 
   //----------------------------------------------------------------------------
   //! Remove file
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //----------------------------------------------------------------------------
   virtual int Remove();
-
 
   //----------------------------------------------------------------------------
   //! Sync file to disk
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //----------------------------------------------------------------------------
   virtual int Sync();
-
 
   //----------------------------------------------------------------------------
   //! Get stats about the file
@@ -185,7 +167,6 @@ public:
   //! @param buf stat buffer
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //----------------------------------------------------------------------------
   virtual int Stat(struct stat* buf);
 
@@ -203,19 +184,34 @@ public:
   //! Close file
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //----------------------------------------------------------------------------
   virtual int Close();
 
 private:
-
+  ///! Max offset for async writes before trying to collect some responses
+  static const uint64_t sMaxOffsetWrAsync {5 * 1024 * 1024 * 1024ull};
   int mNumReplicas; ///< number of replicas for current file
-  bool ioLocal; ///< mark if we are to do local IO
-
-  //! replica file object, index 0 is the local file
+  bool mIoLocal; ///< mark if we are to do local IO
+  std::atomic<bool> mHasWriteErr;
+  std::atomic<bool> mDoAsyncWrite;
+  ///! Replica file object, index 0 is the local file
   std::vector<FileIo*> mReplicaFile;
-  std::vector<std::string> mReplicaUrl; ///< URLs of the replica files
-  bool hasWriteError;
+  ///! URLs for all the replica files
+  std::vector<std::string> mReplicaUrl;
+  ///! Vector of reponse collector for all replicas
+  std::vector<ResponseCollector> mResponses;
+
+  //----------------------------------------------------------------------------
+  //! Write using async requests
+  //!
+  //! @param offset offset
+  //! @param buffer data to be written
+  //! @param length length
+  //!
+  //! @return number of bytes written or -1 if error
+  //----------------------------------------------------------------------------
+  int64_t WriteAsync(XrdSfsFileOffset offset, const char* buffer,
+                     XrdSfsXferSize length);
 };
 
 EOSFSTNAMESPACE_END
