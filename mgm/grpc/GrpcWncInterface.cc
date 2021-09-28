@@ -230,6 +230,52 @@ GrpcWncInterface::ExecStreamCmd(eos::common::VirtualIdentity& vid,
   return retc;
 }
 
+
+std::string
+GrpcWncInterface::AddNamesToACL(std::string acl)
+{
+  acl += ",";
+  std::string full_acl = "";
+  size_t pos1 = 0;
+  size_t pos2 = 0;
+
+  while (acl.size() > pos1 &&
+         (pos2 = acl.find(',', pos1)) != std::string::npos)
+  {
+    std::string acl = acl.substr(pos1, pos2 - pos1);
+    size_t uid_pos1 = 0;
+    size_t uid_pos2 = 0;
+    std::string name = "";
+    int errc = 0;
+
+    // Set pos1 for next iteration
+    pos1 = pos2 + 1;
+
+    // Get uid/gid
+    if ((uid_pos1 = acl.find(':')) == std::string::npos ||
+        (uid_pos2 = acl.find(':', ++uid_pos1)) == std::string::npos)
+      continue;
+    uid_t id = std::stoull(acl.substr(uid_pos1, uid_pos2 - uid_pos1));
+
+    // Convert uid/gid to username/groupname
+    if (acl.substr(0,1) == "u")
+      name = eos::common::Mapping::UidToUserName(id, errc);
+    else if (acl.substr(0,1) == "g")
+      name = eos::common::Mapping::GidToGroupName(id, errc);
+
+    // Add username/groupname to ACL
+    if (!errc)
+      acl.insert(uid_pos2, "["+name+"]");
+    full_acl += acl;
+
+    // Add "," if next iteration exists
+    if (acl.size() > pos1)
+      full_acl += ",";
+  }
+
+  return full_acl;
+}
+
 void
 GrpcWncInterface::RoleChanger(eos::common::VirtualIdentity& vid,
                               const eos::console::RequestProto* request)
@@ -1755,7 +1801,7 @@ GrpcWncInterface::Fileinfo(eos::common::VirtualIdentity& vid,
       request->fileinfo().fxid() || request->fileinfo().size() ||
       request->fileinfo().checksum() || request->fileinfo().fullpath() ||
       request->fileinfo().proxy() || request->fileinfo().monitoring() ||
-      request->fileinfo().env()) {
+      request->fileinfo().wnc() || request->fileinfo().env()) {
     in += "&mgm.file.info.option=";
   }
 
@@ -1787,7 +1833,7 @@ GrpcWncInterface::Fileinfo(eos::common::VirtualIdentity& vid,
     in += "--proxy";
   }
 
-  if (request->fileinfo().monitoring()) {
+  if (request->fileinfo().monitoring() || request->fileinfo().wnc()) {
     in += "-m";
   }
 
@@ -1798,9 +1844,60 @@ GrpcWncInterface::Fileinfo(eos::common::VirtualIdentity& vid,
   cmd.open("/proc/user", in.c_str(), vid, &error);
   cmd.AddOutput(stdOut, stdErr);
   cmd.close();
+
+  // Complement EOS-Drive output with usernames and groupnames
+  if (!stdOut.empty() && request->fileinfo().wnc()) {
+    size_t pos;
+    int errc = 0;
+
+    // Add owner's username
+    if ((pos = stdOut.find("uid=")) != std::string::npos) {
+      size_t pos1 = pos + 4;
+      size_t pos2 = stdOut.find(' ', pos1);
+      if (pos1 < pos2) {
+        uid_t id = std::stoull(stdOut.substr(pos1, pos2 - pos1));
+
+        std::string name = eos::common::Mapping::UidToUserName(id, errc);
+        stdOut += "wnc_username=" + name + " ";
+      }
+    }
+
+    // Add owner's groupname
+    if ((pos = stdOut.find("gid=")) != std::string::npos) {
+      size_t pos1 = pos + 4;
+      size_t pos2 = stdOut.find(' ', pos1);
+      if (pos1 < pos2) {
+        uid_t id = std::stoull(stdOut.substr(pos1, pos2 - pos1));
+        std::string name = eos::common::Mapping::GidToGroupName(id, errc);
+        stdOut += "wnc_groupname=" + name + " ";
+      }
+    }
+
+    // Complement user ACL with usernames and groupnames
+    if ((pos = stdOut.find("xattrn=user.acl xattrv=")) != std::string::npos) {
+      size_t pos1 = pos + 23;
+      size_t pos2 = 0;
+      if ((pos2 = stdOut.find(' ', pos1)) != std::string::npos && pos1 < pos2) {
+        std::string acls = AddNamesToACL(stdOut.substr(pos1, pos2 - pos1));
+        stdOut += "wnc_acl_user=" + acls + " ";
+      }
+    }
+
+    // Complement system ACL with usernames and groupnames
+    if ((pos = stdOut.find("xattrn=sys.acl xattrv=")) != std::string::npos) {
+      size_t pos1 = pos + 22;
+      size_t pos2 = 0;
+      if ((pos2 = stdOut.find(' ', pos1)) != std::string::npos && pos1 < pos2) {
+        std::string acls = AddNamesToACL(stdOut.substr(pos1, pos2 - pos1));
+        stdOut += "wnc_acl_sys=" + acls + " ";
+      }
+    }
+  }
+
   reply->set_retc(cmd.GetRetc());
   reply->set_std_err(stdErr);
   reply->set_std_out(stdOut);
+
   return grpc::Status::OK;
 }
 
