@@ -5,71 +5,11 @@
 syntax="proto3";
 package eos.console;
 
-import "Authentication.proto";
 import "ConsoleReply.proto";
 
 //------------------------------------------------------------------------------
 // Reply message sent to the client
 //------------------------------------------------------------------------------
-message Time {
-  uint64 sec   = 1;
-  uint64 n_sec = 2;
-}
-
-message Checksum {
-  bytes value = 1;
-  string type = 2;
-}
-
-message FileMd {
-  message Location {
-    uint32 fsid      = 1;
-    string host      = 2;
-    string partition = 3;
-    bool online      = 4;
-    string space     = 5;
-    string group     = 6;
-  }
-  uint64 id                        = 1;
-  uint64 cont_id                   = 2;
-  RoleId owner                     = 3;
-  uint64 size                      = 4;
-  uint32 layout_id                 = 5;
-  uint32 flags                     = 6;
-  bytes name                       = 7;
-  bytes link_name                  = 8;
-  Time ctime                       = 9;  // change time
-  Time mtime                       = 10; // modification time
-  Checksum checksum                = 11;
-  repeated Location locations      = 12;
-  repeated uint32 unlink_locations = 13;
-  map<string, bytes> xattrs        = 14;
-  bytes path                       = 15;
-  uint64 backendstatus             = 16;
-  uint64 backendmode               = 17;
-  string fileinfo                  = 18;
-}
-
-message ContainerMd {
-  uint64 id                 = 1;
-  uint64 parent_id          = 2;
-  RoleId owner              = 3;
-  int64 tree_size           = 4;
-  uint32 mode               = 5;
-  uint32 flags              = 6;
-  bytes name                = 7;
-  Time ctime                = 8;  // change time
-  Time mtime                = 9;  // modification time
-  Time stime                = 10; // sync time
-  map<string, bytes> xattrs = 11;
-  bytes path                = 12;
-  uint64 backendstatus      = 13;
-  uint64 backendmode        = 14;
-  string fileinfo           = 15;
-}
-
 message StreamReplyProto {
-  FileMd fmd                 = 1;
-  ContainerMd cmd            = 2;
-  ReplyProto realtime_output = 3;
+  ReplyProto realtime_output = 1;
 }
