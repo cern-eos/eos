@@ -19,4 +19,5 @@ message FileinfoProto {
   bool proxy      = 8;
   bool monitoring = 9;
   bool env        = 10;
+  bool wnc        = 11; // for EOS-wnc
 }

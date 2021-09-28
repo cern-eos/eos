@@ -42,6 +42,15 @@ public:
 
 private:
 
+  //---------------------------------------------------------------------------
+  //! Complement ACL with usernames and groupnames
+  //! for fileinfo output for EOS-Drive
+  //!
+  //! @param acl  ACL string
+  //! @return     ACL string with added usernames and groupnames
+  //---------------------------------------------------------------------------
+  static std::string AddNamesToACL(std::string acl);
+
   static void RoleChanger(eos::common::VirtualIdentity& vid,
                           const eos::console::RequestProto* request);
 
