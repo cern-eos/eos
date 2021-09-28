@@ -31,7 +31,6 @@ import "Chown.proto";
 import "Cp.proto";
 import "File.proto";
 import "Fileinfo.proto";
-import "List.proto";
 import "Ls.proto";
 import "MakeDirectory.proto";
 import "Move.proto";
@@ -81,7 +80,6 @@ message RequestProto {
     TokenProto token       = 20;
     QoSProto qos           = 21;
     ConvertProto convert   = 22;
-    ListProto list         = 23;
     MoveProto mv           = 24;
     RmdirProto rmdir       = 25;
     TouchProto touch       = 26;

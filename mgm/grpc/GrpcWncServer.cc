@@ -184,15 +184,6 @@ class WncService final : public EosWnc::Service
     std::string command;
 
     switch (request->command_case()) {
-    case eos::console::RequestProto::kList:
-      if (request->list().cmd() == eos::console::LIST_CMD::LS) {
-        command = "Ls";
-      } else if (request->list().cmd() == eos::console::LIST_CMD::FIND) {
-        command = "Find";
-      }
-
-      break;
-
     default:
       command = "unknown";
       break;

@@ -97,10 +97,6 @@ private:
                                const eos::console::RequestProto* request,
                                eos::console::ReplyProto* reply);
 
-  static grpc::Status Find(eos::common::VirtualIdentity& vid,
-                           const eos::console::RequestProto* request,
-                           ServerWriter<eos::console::StreamReplyProto>* reply);
-
   static grpc::Status Fs(eos::common::VirtualIdentity& vid,
                          const eos::console::RequestProto* request,
                          eos::console::ReplyProto* reply);
@@ -120,10 +116,6 @@ private:
   static grpc::Status Io(eos::common::VirtualIdentity& vid,
                          const eos::console::RequestProto* request,
                          eos::console::ReplyProto* reply);
-
-  static grpc::Status List(eos::common::VirtualIdentity& vid,
-                           const eos::console::RequestProto* request,
-                           ServerWriter<eos::console::StreamReplyProto>* reply);
 
   static grpc::Status Ls(eos::common::VirtualIdentity& vid,
                          const eos::console::RequestProto* request,
@@ -201,28 +193,6 @@ private:
   static grpc::Status Whoami(eos::common::VirtualIdentity& vid,
                              const eos::console::RequestProto* request,
                              eos::console::ReplyProto* reply);
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-// Metadata common functions
-//-----------------------------------------------------------------------------
-  static bool MdFilterContainer(std::shared_ptr<eos::IContainerMD> md,
-                                const eos::console::MDSelection& filter);
-
-  static bool MdFilterFile(std::shared_ptr<eos::IFileMD> md,
-                           const eos::console::MDSelection& filter);
-
-  static grpc::Status MdGet(eos::common::VirtualIdentity& vid,
-                            const eos::console::RequestProto* request,
-                            ServerWriter<eos::console::StreamReplyProto>* reply,
-                            bool check_perms = true,
-                            bool lock = true);
-
-  static grpc::Status MdStream(eos::common::VirtualIdentity& ivid,
-                               const eos::console::RequestProto* request,
-                               ServerWriter<eos::console::StreamReplyProto>* reply,
-                               bool streamparent = true,
-                               std::vector<uint64_t>* childdirs = 0);
 //-----------------------------------------------------------------------------
 };
 
