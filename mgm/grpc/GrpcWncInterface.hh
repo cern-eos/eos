@@ -113,6 +113,10 @@ private:
                             const eos::console::RequestProto* request,
                             eos::console::ReplyProto* reply);
 
+  static grpc::Status Health(eos::common::VirtualIdentity& vid,
+                             const eos::console::RequestProto* request,
+                             eos::console::ReplyProto* reply);
+
   static grpc::Status Io(eos::common::VirtualIdentity& vid,
                          const eos::console::RequestProto* request,
                          eos::console::ReplyProto* reply);

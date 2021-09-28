@@ -13,6 +13,7 @@ import "Recycle.proto";
 import "Io.proto";
 import "Geosched.proto";
 import "Group.proto";
+import "Health.proto";
 import "Debug.proto";
 import "Node.proto";
 import "Quota.proto";
@@ -99,6 +100,7 @@ message RequestProto {
     LsProto ls             = 42;
     CpProto cp             = 43;
     GeoschedProto geosched = 44;
+    HealthProto health     = 45;
   }
 
   string Comment = 30;

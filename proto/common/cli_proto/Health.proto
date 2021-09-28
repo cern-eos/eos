@@ -1,0 +1,13 @@
+// ----------------------------------------------------------------------------
+// File: Health.proto
+// Author: Branko Blagojevic <branko.blagojevic@comtrade.com>
+// ----------------------------------------------------------------------------
+
+syntax="proto3";
+package eos.console;
+
+message HealthProto {
+  bool all_info   = 1;
+  bool monitoring = 2;
+  string section  = 3;
+}

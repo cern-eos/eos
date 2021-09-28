@@ -104,6 +104,7 @@ class HealthCommand : public ICommand
   bool m_all; ///< Indicator for all statistic
   std::string m_section; ///< Chosen section
   std::ostringstream m_output; ///< Object containing output
+  bool m_dont_color; ///< Disable text coloring
 
   //----------------------------------------------------------------------------
   //! Performing dead node check. Results are kept inside class attributes.
@@ -155,6 +156,11 @@ public:
   //! Executing command.
   //----------------------------------------------------------------------------
   void Execute();
+
+  //----------------------------------------------------------------------------
+  //! Execute command and save the output.
+  //----------------------------------------------------------------------------
+  void Execute(std::string& out);
 
   //----------------------------------------------------------------------------
   //! Destructor

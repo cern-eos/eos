@@ -294,6 +294,8 @@ target_link_libraries(XrdEosMgm-${XRDPLUGIN_SOVERSION} PUBLIC
   EosGrpcProto-Objects
   EosCliProto-Objects
   EosCliGrpc-Objects
+  EosConsoleHelpers-Objects
+  EosConsoleCommands-Objects
   EosWncGrpcProto-Objects
   ZLIB::ZLIB
   XROOTD::CL

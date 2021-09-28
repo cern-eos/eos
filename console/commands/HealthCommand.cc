@@ -114,7 +114,8 @@ HealthCommand::HealthCommand(const char* comm)
   : m_comm(const_cast<char*>(comm)),
     m_monitoring(false),
     m_all(false),
-    m_section("")
+    m_section(""),
+    m_dont_color(!isatty(STDOUT_FILENO) || !isatty(STDERR_FILENO))
 {
 }
 
@@ -124,7 +125,7 @@ void HealthCommand::DeadNodesCheck()
   node_cmd.ParseCommand("ls -m");
 
   if (node_cmd.ExecuteWithoutPrint()) {
-    throw std::string("MGMError: " + node_cmd.GetError());
+    throw std::string("NodeHelper: " + node_cmd.GetError());
   }
 
   std::string ret = node_cmd.GetResult();
@@ -132,8 +133,7 @@ void HealthCommand::DeadNodesCheck()
   std::istringstream splitter(ret);
   std::string format_s = !m_monitoring ? "s" : "os";
   std::string format_ss = !m_monitoring ? "-s" : "os";
-  eos::mgm::TableFormatterBase table(!isatty(STDOUT_FILENO) ||
-                                     !isatty(STDERR_FILENO));
+  eos::mgm::TableFormatterBase table(m_dont_color);
 
   if (!m_monitoring) {
     table.SetHeader({
@@ -179,8 +179,7 @@ void HealthCommand::TooFullForDrainingCheck()
   std::string format_ss = !m_monitoring ? "-s" : "os";
   std::string format_l = !m_monitoring ? "+l" : "ol";
   std::string unit = !m_monitoring ? "B" : "";
-  eos::mgm::TableFormatterBase table(!isatty(STDOUT_FILENO) ||
-                                     !isatty(STDERR_FILENO));
+  eos::mgm::TableFormatterBase table(m_dont_color);
 
   if (!m_monitoring) {
     table.SetHeader({
@@ -248,8 +247,7 @@ void HealthCommand::PlacementContentionCheck()
   std::string format_ss = !m_monitoring ? "-s" : "os";
   std::string format_l = !m_monitoring ? "l" : "ol";
   std::string unit = !m_monitoring ? "%" : "";
-  eos::mgm::TableFormatterBase table(!isatty(STDOUT_FILENO) ||
-                                     !isatty(STDERR_FILENO));
+  eos::mgm::TableFormatterBase table(m_dont_color);
 
   if (!m_monitoring) {
     table.SetHeader({
@@ -335,8 +333,7 @@ void HealthCommand::PlacementContentionCheck()
   m_output << table.GenerateTable(HEADER).c_str();
   //! Summary
   avg = (m_group_data.empty() ? 0 : avg / m_group_data.size()) ;
-  eos::mgm::TableFormatterBase table_summ(!isatty(STDOUT_FILENO) ||
-                                          !isatty(STDERR_FILENO));
+  eos::mgm::TableFormatterBase table_summ(m_dont_color);
 
   if (!m_monitoring) {
     table_summ.SetHeader({
@@ -379,7 +376,7 @@ void HealthCommand::GetGroupsInfo()
   fs.ParseCommand("ls -m");
 
   if (fs.ExecuteWithoutPrint() != 0) {
-    throw std::string("MGMError: " + fs.GetError());
+    throw std::string("FsHelper: " + fs.GetError());
   }
 
   std::string ret = fs.GetResult();
@@ -518,4 +515,27 @@ void HealthCommand::Execute()
   }
 
   std::cout << m_output.str();
+}
+
+void HealthCommand::Execute(std::string& out)
+{
+  m_dont_color = false; // Color text for EOS-wnc reply
+
+  ParseCommand();
+  GetGroupsInfo();
+
+  if (m_section.empty() || m_section == "all") {
+    AllCheck();
+  }
+  else if (m_section == "nodes") {
+    DeadNodesCheck();
+  }
+  else if (m_section == "drain") {
+    TooFullForDrainingCheck();
+  }
+  else if (m_section == "placement") {
+    PlacementContentionCheck();
+  }
+
+  out = m_output.str();
 }

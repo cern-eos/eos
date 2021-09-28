@@ -26,6 +26,8 @@
 #include "mgm/proc/admin/StagerRmCmd.hh"
 //-----------------------------------------------------------------------------
 #include "common/Fmd.hh"
+#include "console/commands/HealthCommand.hh"
+#include "console/ConsoleMain.hh"
 #include "mgm/Acl.hh"
 #include "mgm/FsView.hh"
 #include "mgm/grpc/GrpcNsInterface.hh"
@@ -98,6 +100,16 @@ GrpcWncInterface::ExecCmd(eos::common::VirtualIdentity& vid,
   case eos::console::RequestProto::kGroup:
     return Group(vid, request, reply);
     break;
+
+  case eos::console::RequestProto::kHealth: {
+    for (auto it : vid.allowed_uids)
+      if ((it == 0 && vid.uid == 0) || it == 2 || it == 3)
+        return Health(vid, request, reply);
+
+    reply->set_retc(EACCES);
+    reply->set_std_err("Error: Permission denied");
+    break;
+  }
 
   case eos::console::RequestProto::kIo:
     return Io(vid, request, reply);
@@ -343,6 +355,9 @@ GrpcWncInterface::RoleChanger(eos::common::VirtualIdentity& vid,
       }
     }
   }
+
+  gGlobalOpts.mUserRole = std::to_string(vid.uid);
+  gGlobalOpts.mGroupRole = std::to_string(vid.gid);
 }
 
 grpc::Status
@@ -2178,6 +2193,39 @@ GrpcWncInterface::Group(eos::common::VirtualIdentity& vid,
   eos::console::RequestProto req = *request;
   eos::mgm::GroupCmd groupcmd(std::move(req), vid);
   *reply = groupcmd.ProcessRequest();
+  return grpc::Status::OK;
+}
+
+grpc::Status
+GrpcWncInterface::Health(eos::common::VirtualIdentity& vid,
+                         const eos::console::RequestProto* request,
+                         eos::console::ReplyProto* reply)
+{
+  std::string output;
+
+  // Get command arguments for eos health command
+  std::string args = request->health().section();
+
+  if (request->health().all_info())
+    args += " -a";
+
+  if (request->health().monitoring())
+    args += " -m";
+
+  HealthCommand health(args.c_str());
+
+  try {
+    health.Execute(output);
+    reply->set_std_out(output.c_str());
+    reply->set_retc(0);
+  }
+  catch (std::string& err) {
+    output = "Error: ";
+    output += err;
+    reply->set_std_err(output.c_str());
+    reply->set_retc(errno);
+  }
+
   return grpc::Status::OK;
 }
 

@@ -9,6 +9,7 @@
 //-----------------------------------------------------------------------------
 #include "GrpcServer.hh"
 #include "GrpcWncInterface.hh"
+#include "console/ConsoleMain.hh"
 #include "mgm/Macros.hh"
 //-----------------------------------------------------------------------------
 #ifdef EOS_GRPC
@@ -16,7 +17,6 @@
 #include "proto/EosWnc.grpc.pb.h"
 using eos::console::EosWnc;
 using grpc::ServerContext;
-using grpc::Status;
 
 #endif // EOS_GRPC
 //-----------------------------------------------------------------------------
@@ -28,9 +28,9 @@ EOSMGMNAMESPACE_BEGIN
 class WncService final : public EosWnc::Service
 {
   // Process gRPC request from the EOS Windows native client
-  Status ProcessSingle(ServerContext* context,
-                       const eos::console::RequestProto* request,
-                       eos::console::ReplyProto* reply)
+  grpc::Status ProcessSingle(ServerContext* context,
+                             const eos::console::RequestProto* request,
+                             eos::console::ReplyProto* reply)
   {
     std::string command;
 
@@ -177,9 +177,9 @@ class WncService final : public EosWnc::Service
   }
 
   // Process gRPC request from the EOS Windows native client for metadata or realtime reply
-  Status ProcessStream(ServerContext* context,
-                       const eos::console::RequestProto* request,
-                       grpc::ServerWriter<eos::console::StreamReplyProto>* writer)
+  grpc::Status ProcessStream(ServerContext* context,
+                             const eos::console::RequestProto* request,
+                             grpc::ServerWriter<eos::console::StreamReplyProto>* writer)
   {
     std::string command;
 
@@ -247,6 +247,13 @@ GrpcWncServer::RunWnc(ThreadAssistant& assistant) noexcept
       eos_static_crit("Unable to load SSL CA file '%s'", mSSLCaFile.c_str());
       mSSL = false;
     }
+  }
+
+  if (gGlobalOpts.mMgmUri.empty()) {
+    if (getenv("EOS_MGM_URL"))
+      gGlobalOpts.mMgmUri = getenv("EOS_MGM_URL");
+    else
+      gGlobalOpts.mMgmUri = "root://localhost";
   }
 
   eos_static_info("Creating gRPC server for EOS-wnc.");
