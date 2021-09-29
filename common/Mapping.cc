@@ -645,50 +645,56 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   // GRPC key mapping
   if ((vid.prot == "grpc") && vid.key.length()) {
     std::string keyname = vid.key.c_str();
-    std::string maptident = "tident:\"grpc@";
-    std::string wildcardmaptident = "tident:\"grpc@*\":uid";
-    std::vector<std::string> vtident;
-    eos::common::StringConversion::Tokenize(client->tident, vtident, "@");
-
-    if (vtident.size() == 2) {
-      maptident += vtident[1];
-    }
-
-    maptident += "\":uid";
-    eos_static_info("%d %s %s %s", vtident.size(), client->tident,
-                    maptident.c_str(), wildcardmaptident.c_str());
-
-    if (gVirtualUidMap.count(maptident.c_str()) ||
-        gVirtualUidMap.count(wildcardmaptident.c_str())) {
-      // if this is an allowed gateway, map according to client name or authkey
-      std::string uidkey = "grpc:\"";
-      uidkey += "key:";
-      uidkey += keyname;
-      uidkey += "\":uid";
-      vid.uid = 99;
-      vid.allowed_uids.clear();
-      vid.allowed_uids.insert(99);
-
-      if (gVirtualUidMap.count(uidkey.c_str())) {
-        vid.uid = gVirtualUidMap[uidkey.c_str()];
-        vid.allowed_uids.insert(vid.uid);
-      }
-
-      std::string gidkey = "grpc:\"";
-      gidkey += "key:";
-      gidkey += keyname;
-      gidkey += "\":gid";
-      vid.gid = 99;
-      vid.allowed_gids.clear();
-      vid.allowed_gids.insert(99);
-
-      if (gVirtualGidMap.count(gidkey.c_str())) {
-        vid.gid = gVirtualGidMap[gidkey.c_str()];
-        vid.allowed_gids.insert(vid.gid);
-      }
-    } else {
-      // we are nobody if we are not an authorized host
+    if (keyname.substr(0, 8) == "zteos64:") {
       vid = VirtualIdentity::Nobody();
+      // this is an eos token
+      authz = vid.key;
+    }  else {
+      std::string maptident = "tident:\"grpc@";
+      std::string wildcardmaptident = "tident:\"grpc@*\":uid";
+      std::vector<std::string> vtident;
+      eos::common::StringConversion::Tokenize(client->tident, vtident, "@");
+
+      if (vtident.size() == 2) {
+	maptident += vtident[1];
+      }
+
+      maptident += "\":uid";
+      eos_static_info("%d %s %s %s", vtident.size(), client->tident,
+		      maptident.c_str(), wildcardmaptident.c_str());
+
+      if (gVirtualUidMap.count(maptident.c_str()) ||
+	  gVirtualUidMap.count(wildcardmaptident.c_str())) {
+	// if this is an allowed gateway, map according to client name or authkey
+	std::string uidkey = "grpc:\"";
+	uidkey += "key:";
+	uidkey += keyname;
+	uidkey += "\":uid";
+	vid.uid = 99;
+	vid.allowed_uids.clear();
+	vid.allowed_uids.insert(99);
+
+	if (gVirtualUidMap.count(uidkey.c_str())) {
+	  vid.uid = gVirtualUidMap[uidkey.c_str()];
+	  vid.allowed_uids.insert(vid.uid);
+	}
+
+	std::string gidkey = "grpc:\"";
+	gidkey += "key:";
+	gidkey += keyname;
+	gidkey += "\":gid";
+	vid.gid = 99;
+	vid.allowed_gids.clear();
+	vid.allowed_gids.insert(99);
+
+	if (gVirtualGidMap.count(gidkey.c_str())) {
+	  vid.gid = gVirtualGidMap[gidkey.c_str()];
+	  vid.allowed_gids.insert(vid.gid);
+	}
+    } else {
+	// we are nobody if we are not an authorized host
+	vid = VirtualIdentity::Nobody();
+      }
     }
   }
 
