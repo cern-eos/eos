@@ -247,7 +247,7 @@ RunProcessConfig(Configuration& config, const string& outputFile)
       Result* proc_result = static_cast<Result*>(StartRoutine(arg_process));
       std::string str_result;
       ResultProto& ll_result = proc_result->GetPbResult();
-      buff_size = ll_result.ByteSizeLong();
+      buff_size = ll_result.ByteSize();
       str_result.reserve(buff_size);
       str_result = ll_result.SerializeAsString();
       // Write first the size of the result object and then the object itself

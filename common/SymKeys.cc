@@ -495,7 +495,7 @@ bool
 SymKey::ProtobufBase64Encode(const google::protobuf::Message* msg,
                              std::string& output)
 {
-  auto sz = msg->ByteSizeLong();
+  auto sz = msg->ByteSize();
   std::string buffer(sz , '\0');
   google::protobuf::io::ArrayOutputStream aos((void*)buffer.data(), sz);
 
