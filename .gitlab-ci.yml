@@ -200,9 +200,6 @@ build_c8:
     expire_in: 1 day
     paths:
       - c8_artifacts/
-  only:
-    - schedules
-    - tags
 
 .build_ubuntu-template: &build_ubuntu-template_definition
   stage: build:rpm
