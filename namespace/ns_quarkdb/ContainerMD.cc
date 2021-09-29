@@ -606,7 +606,7 @@ void
 QuarkContainerMD::getTMTimeNoLock(tmtime_t& tmtime)
 {
   tmtime = {};
-  
+
   if (mCont.stime().length()) {
     (void) memcpy(&tmtime, mCont.stime().data(), sizeof(tmtime));
   } else {
@@ -695,7 +695,11 @@ QuarkContainerMD::serialize(Buffer& buffer)
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   // Align the buffer to 4 bytes to efficiently compute the checksum
   mClock = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+#if GOOGLE_PROTOBUF_VERSION < 3004000
+  size_t obj_size = mCont.ByteSize();
+#else
   size_t obj_size = mCont.ByteSizeLong();
+#endif
   uint32_t align_size = (obj_size + 3) >> 2 << 2;
   size_t sz = sizeof(align_size);
   size_t msg_size = align_size + 2 * sz;

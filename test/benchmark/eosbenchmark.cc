@@ -247,7 +247,11 @@ RunProcessConfig(Configuration& config, const string& outputFile)
       Result* proc_result = static_cast<Result*>(StartRoutine(arg_process));
       std::string str_result;
       ResultProto& ll_result = proc_result->GetPbResult();
+#if GOOGLE_PROTOBUF_VERSION < 3004000
+      buff_size = ll_result.ByteSize();
+#else
       buff_size = ll_result.ByteSizeLong();
+#endif
       str_result.reserve(buff_size);
       str_result = ll_result.SerializeAsString();
       // Write first the size of the result object and then the object itself

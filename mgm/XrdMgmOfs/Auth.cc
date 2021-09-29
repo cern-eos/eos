@@ -548,7 +548,11 @@ XrdMgmOfs::AuthWorkerThread()
 
     // Construct and send response to the requester
     resp.set_response(ret);
+#if GOOGLE_PROTOBUF_VERSION < 3004000
+    int reply_size = resp.ByteSize();
+#else
     int reply_size = resp.ByteSizeLong();
+#endif
     zmq::message_t reply(reply_size);
     google::protobuf::io::ArrayOutputStream aos(reply.data(), reply_size);
     resp.SerializeToZeroCopyStream(&aos);
