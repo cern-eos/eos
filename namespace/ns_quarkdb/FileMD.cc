@@ -167,6 +167,7 @@ QuarkFileMD::unlinkLocation(location_t location)
   for (auto it = mFile.mutable_locations()->cbegin();
        it != mFile.mutable_locations()->cend(); ++it) {
     if (*it == location) {
+
       // If location is already unlink, skip adding it
       if (!hasUnlinkedLocationNoLock(location)) {
         mFile.add_unlink_locations(*it);
@@ -276,7 +277,7 @@ QuarkFileMD::serialize(eos::Buffer& buffer)
   // Increase clock to mark that metadata file has suffered updates
   mClock = std::chrono::high_resolution_clock::now().time_since_epoch().count();
   // Align the buffer to 4 bytes to efficiently compute the checksum
-  size_t obj_size = mFile.ByteSize();
+  size_t obj_size = mFile.ByteSizeLong();
   uint32_t align_size = (obj_size + 3) >> 2 << 2;
   size_t sz = sizeof(align_size);
   size_t msg_size = align_size + 2 * sz;
@@ -455,10 +456,8 @@ void
 QuarkFileMD::getSyncTimeNoLock(ctime_t& stime) const
 {
   (void) memcpy(&stime, mFile.stime().data(), sizeof(stime));
-
-  if (stime.tv_sec == 0) {  /* fall back to mtime if default */
-    (void) memcpy(&stime, mFile.mtime().data(), sizeof(stime));
-  }
+  if (stime.tv_sec == 0)    /* fall back to mtime if default */
+      (void) memcpy(&stime, mFile.mtime().data(), sizeof(stime));
 }
 
 //------------------------------------------------------------------------------
@@ -511,8 +510,7 @@ QuarkFileMD::getAttributes() const
 //------------------------------------------------------------------------------
 // Test the unlinked location
 //------------------------------------------------------------------------------
-bool QuarkFileMD::hasUnlinkedLocation(IFileMD::location_t location)
-{
+bool QuarkFileMD::hasUnlinkedLocation(IFileMD::location_t location) {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   return hasUnlinkedLocationNoLock(location);
 }
@@ -520,8 +518,7 @@ bool QuarkFileMD::hasUnlinkedLocation(IFileMD::location_t location)
 //------------------------------------------------------------------------------
 // Test the unlinked location, no locks
 //------------------------------------------------------------------------------
-bool QuarkFileMD::hasUnlinkedLocationNoLock(location_t location) const
-{
+bool QuarkFileMD::hasUnlinkedLocationNoLock(location_t location) const {
   for (int i = 0; i < mFile.unlink_locations_size(); ++i) {
     if (mFile.unlink_locations()[i] == location) {
       return true;

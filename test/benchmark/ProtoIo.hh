@@ -80,7 +80,7 @@ public:
   //--------------------------------------------------------------------------
   inline bool operator()(const ::google::protobuf::Message& msg)
   {
-    _CodedOutputStream->WriteVarint32(msg.ByteSize());
+    _CodedOutputStream->WriteVarint32(msg.ByteSizeLong());
 
     if (!msg.SerializeToCodedStream(_CodedOutputStream)) {
       std::cerr << "SerializeToCodedStream error " << std::endl;

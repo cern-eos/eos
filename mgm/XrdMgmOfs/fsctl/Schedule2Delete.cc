@@ -222,7 +222,7 @@ XrdMgmOfs::Schedule2Delete(const char* path,
         eos_static_debug("msg=\"query2delete reponse\" data=\"%s\"", json.c_str());
       }
 
-      const auto sz = del_fst.ByteSize();
+      const auto sz = del_fst.ByteSizeLong();
       XrdOucBuffer* buff = mXrdBuffPool.Alloc(sz);
 
       if (buff == nullptr) {

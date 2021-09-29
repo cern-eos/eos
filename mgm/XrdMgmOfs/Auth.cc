@@ -548,7 +548,7 @@ XrdMgmOfs::AuthWorkerThread()
 
     // Construct and send response to the requester
     resp.set_response(ret);
-    int reply_size = resp.ByteSize();
+    int reply_size = resp.ByteSizeLong();
     zmq::message_t reply(reply_size);
     google::protobuf::io::ArrayOutputStream aos(reply.data(), reply_size);
     resp.SerializeToZeroCopyStream(&aos);
