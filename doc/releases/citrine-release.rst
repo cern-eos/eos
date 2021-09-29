@@ -16,6 +16,17 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.65 Citrine``
+===================
+
+2021-09-29
+
+Bug
+---
+
+* MGM: Fix quota accounting for the sum of all groups
+
+
 ``v4.8.64 Citrine``
 ===================
 
