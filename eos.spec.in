@@ -121,9 +121,7 @@ BuildRequires: eos-cmake
 BuildRequires: %{cmake} >= 3.14
 %endif
 
-# ----------------------
-# select xrootd package
-# ----------------------
+# Select xrootd package
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
 %if 0%{?rhel} == 7 || 0%{?rhel} == 8
@@ -341,9 +339,7 @@ Summary: The EOS server installation
 Group: Applications/File
 ExclusiveArch: x86_64
 
-# ----------------------
-# select xrootd package
-# ----------------------
+# Select xrootd package
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
 %if 0%{?rhel} == 7 || 0%{?rhel} == 8
@@ -657,9 +653,7 @@ Summary: The EOS fuse client
 Group: Applications/File
 ExclusiveArch: x86_64
 
-# ----------------------
-# select xrootd package
-# ----------------------
+# Select xrootd package
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
 %if 0%{?rhel} == 7 || 0%{?rhel} == 8
@@ -818,9 +812,7 @@ Summary: The new EOS fuse client
 Group: Applications/File
 ExclusiveArch: x86_64
 
-# ----------------------
-# select xrootd package
-# ----------------------
+# Select xrootd package
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
 %if 0%{?rhel} == 7 || 0%{?rhel} == 8
@@ -904,7 +896,18 @@ Group: Applications/File
 
 Obsoletes: quarkdb <= 0.4.2
 Requires: lz4-devel, lz4, elfutils-devel, jemalloc
+
+# Select xrootd package
+%if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
+# Install eos-xrootd
+%if 0%{?rhel} == 7 || 0%{?rhel} == 8
+Requires: eos-xrootd == %{eos_xrootd_version_min}
+%else
 Requires: xrootd-server >= %{xrootd_version_min}
+%endif
+%else
+Requires: xrootd-server >= %{xrootd_version_min}
+%endif
 
 %description -n eos-quarkdb
 EOS Quarkdb package
@@ -976,9 +979,7 @@ Requires: python-daemon python-zmq python3-fusepy
 Requires: python3-daemon python3-zmq python3-fusepy
 %endif
 
-# ----------------------
-# select xrootd package
-# ----------------------
+# Select xrootd package
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
 %if 0%{?rhel} == 7 || 0%{?rhel} == 8
