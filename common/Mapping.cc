@@ -286,28 +286,27 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   // https mapping
   if ((vid.prot == "https")) {
     eos_static_debug("%s:", "msg=\"https mapping\"");
+    // Use physical mapping for https names
+    std::string client_username;
+
+    if (client->name == nullptr) {
+      // Check if we have the request.name in the attributes of the
+      // XrdSecEntity object which should contain the client username
+      // that the request belongs to.
+      const std::string user_key = "request.name";
+      std::string user_value;
+      
+      if (client->eaAPI->Get(user_key, user_value)) {
+        client_username = user_value;
+      }
+    } else {
+      client_username = client->name;
+    }
 
     if (auto kv = gVirtualUidMap.find(g_https_uid_key);
         kv != gVirtualUidMap.end()) {
       if (kv->second == 0) {
         eos_static_debug("%s", "msg=\"https uid mapping\"");
-        // Use physical mapping for https names
-        std::string client_username;
-
-        if (client->name == nullptr) {
-          // Check if we have the request.name in the attributes of the
-          // XrdSecEntity object which should contain the client username
-          // that the request belongs to.
-          const std::string user_key = "request.name";
-          std::string user_value;
-
-          if (client->eaAPI->Get(user_key, user_value)) {
-            client_username = user_value;
-          }
-        } else {
-          client_username = client->name;
-        }
-
         Mapping::getPhysicalIds(client_username.c_str(), vid);
         vid.gid = 99;
         vid.allowed_gids.clear();
@@ -330,7 +329,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       if (kv->second == 0) {
         eos_static_debug("%s", "msg=\"https gid mapping\"");
         uid_t uid = vid.uid;
-        Mapping::getPhysicalIds(client->name, vid);
+        Mapping::getPhysicalIds(client_username.c_str(), vid);
         vid.uid = uid;
         vid.allowed_uids.clear();
         vid.allowed_uids.insert(vid.uid);
