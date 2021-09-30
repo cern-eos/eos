@@ -4354,6 +4354,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
                                       req,
                                       true);
               io->ioctx()->attach(req, cookie, fi->flags);
+              mLock.Lock(&md->Locker());
             }
 
             pmd->local_enoent().erase(name);
