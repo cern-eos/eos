@@ -781,7 +781,7 @@ QuarkHierarchicalView::getUriFut(ContainerIdentifier id) const
 // "resumable" function.
 //------------------------------------------------------------------------------
 folly::Future<std::deque<std::string>>
-QuarkHierarchicalView::getUriInternal(std::deque<std::string> currentChunks,
+QuarkHierarchicalView::getUriInternal(std::deque<std::string>&& currentChunks,
   IContainerMDPtr nextToLookup) const {
 
   while(true) {
@@ -808,7 +808,7 @@ QuarkHierarchicalView::getUriInternal(std::deque<std::string> currentChunks,
     // Reached the end?
     //--------------------------------------------------------------------------
     if(nextToLookup->getIdentifier()  == ContainerIdentifier(1)) {
-      return currentChunks;
+      return std::move(currentChunks);
     }
 
     //--------------------------------------------------------------------------
@@ -845,8 +845,9 @@ QuarkHierarchicalView::getUriInternal(std::deque<std::string> currentChunks,
     // from QDB.
     //--------------------------------------------------------------------------
     return pending.via(pExecutor.get())
-      .thenValue(std::bind(&QuarkHierarchicalView::getUriInternal, this, std::move(currentChunks),
-        _1));
+      .thenValue([&](IContainerMDPtr cptr){
+        return this->getUriInternal(std::move(currentChunks), cptr);
+      });
   }
 }
 
@@ -863,14 +864,16 @@ QuarkHierarchicalView::getUriInternalCid(std::deque<std::string> currentChunks,
     //--------------------------------------------------------------------------
     // Cache hit
     //--------------------------------------------------------------------------
-    return getUriInternal(currentChunks, std::move(pending).get());
+    return getUriInternal(std::move(currentChunks), std::move(pending).get());
   }
 
   //----------------------------------------------------------------------------
   // Pause execution, give back future.
   //----------------------------------------------------------------------------
   return pending.via(pExecutor.get())
-    .thenValue(std::bind(&QuarkHierarchicalView::getUriInternal, this, currentChunks, _1));
+    .thenValue([&](IContainerMDPtr cptr) {
+      return this->getUriInternal(std::move(currentChunks), cptr);
+    });
 }
 
 //------------------------------------------------------------------------------
