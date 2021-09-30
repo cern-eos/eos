@@ -26,6 +26,7 @@
 
 #include "common/Namespace.hh"
 #include <set>
+#include <cmath>
 
 EOSCOMMONNAMESPACE_BEGIN
 
