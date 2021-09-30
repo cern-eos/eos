@@ -350,7 +350,6 @@ XrdFstOfs::XrdFstOfs() :
     (void) signal(SIGBUS, xrdfstofs_stacktrace);
   }
 
-
   if (getenv("EOS_MGM_ALIAS")) {
     // Use MGM alias if available
     mMgmAlias = getenv("EOS_MGM_ALIAS");

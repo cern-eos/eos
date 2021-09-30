@@ -347,9 +347,12 @@ SpaceQuota::UpdateIsSums()
   mMapIdQuota[Index(kAllGroupBytesIs, 0)] = 0;
   mMapIdQuota[Index(kAllGroupFilesIs, 0)] = 0;
   mMapIdQuota[Index(kAllGroupLogicalBytesIs, 0)] = 0;
-  bool has_project_quota = (mMapIdQuota.find(Index(kGroupLogicalBytesIs,
-                            Quota::gProjectId)) !=
-                            mMapIdQuota.end());
+  bool has_project_quota = false;
+  auto it = mMapIdQuota.find(Index(kGroupLogicalBytesTarget, Quota::gProjectId));
+
+  if ((it != mMapIdQuota.end()) && it->second) {
+    has_project_quota = true;
+  }
 
   // If project quota is defined for the current quota node then use that
   // value to avoid possible double counting

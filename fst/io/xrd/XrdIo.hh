@@ -696,7 +696,7 @@ public:
   //!
   //! @param wr_promise write promise used to notify when the answer arrives
   //----------------------------------------------------------------------------
-  XrdIoHandler(std::promise<XrdCl::XRootDStatus>&& wr_promise,
+  XrdIoHandler(std::promise<XrdCl::XRootDStatus> wr_promise,
                OpType op):
     mPromise(std::move(wr_promise)), mOperationType(op)
   {}
@@ -713,6 +713,9 @@ public:
     if (pStatus) {
       mPromise.set_value(*pStatus);
       delete pStatus;
+    } else {
+      mPromise.set_value(XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errUnknown,
+                                             EINVAL, "no status returned"));
     }
 
     if (pResponse) {
