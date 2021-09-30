@@ -25,7 +25,7 @@
 #include "common/Logging.hh"
 #include "mgm/Namespace.hh"
 #include "mgm/qos/QoSClass.hh"
-
+#include <fstream>
 #include <json/json.h>
 
 //------------------------------------------------------------------------------
