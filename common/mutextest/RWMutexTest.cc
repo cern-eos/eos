@@ -27,6 +27,7 @@
 #include "common/RWMutex.hh"
 #include "common/Timing.hh"
 #include <iostream>
+#include <thread>
 
 using namespace eos::common;
 const int loopsize = 10e6;
