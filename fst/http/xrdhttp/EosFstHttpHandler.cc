@@ -474,6 +474,8 @@ EosFstHttpHandler::HandleChunkUpload2(XrdHttpExtReq& req,
                                       std::string& query)
 {
   enum {CHUNK_SIZE, CHUNK_CLRF1, CHUNK_CLRF2, CHUNK_DATA, ERROR};
+  int retries = 0;
+  const int max_retries = 5;
   const unsigned long long xrdhttp_sz = 256 * 1024;
   const unsigned long long eoshttp_sz = 1024 * 1024;
   char* ptr = nullptr, *end_ptr = nullptr;
@@ -493,9 +495,22 @@ EosFstHttpHandler::HandleChunkUpload2(XrdHttpExtReq& req,
     end_ptr = ptr + nread;
     eos_static_info("msg=\"http read\" nread=%li", nread);
 
-    if (nread <= 0) {
+    if (nread < 0) {
+      eos_static_err("%s", "msg=\"got a socket error from XrdHttp\"");
       state = ERROR;
       break;
+    } else if (nread == 0) {
+      ++retries;
+
+      if (retries > max_retries) {
+        eos_static_err("%s", "msg=\"reached the maximum number of retries\"");
+        state = ERROR;
+        break;
+      } else {
+        eos_static_warning("msg=\"wait for more data\" retry=%i", retries);
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        continue;
+      }
     }
 
     while (end_ptr - ptr != 0) {
@@ -565,10 +580,10 @@ EosFstHttpHandler::HandleChunkUpload2(XrdHttpExtReq& req,
           chunk_sz = 0;
           state = CHUNK_CLRF1;
         } else {
-          eos_static_info("msg=\"add data to chunk [2]\" sz=%li", chunk_sz);
+          eos_static_info("msg=\"add data to chunk [2]\" sz=%li", (end_ptr - ptr));
           chunk.append(ptr, end_ptr - ptr);
-          ptr = end_ptr;
           chunk_sz -= (end_ptr - ptr);
+          ptr = end_ptr;
         }
 
         break;
@@ -584,6 +599,7 @@ EosFstHttpHandler::HandleChunkUpload2(XrdHttpExtReq& req,
     }
 
     if (state == ERROR) {
+      eos_static_err("%s", "msg=\"error state\"");
       break;
     }
 
