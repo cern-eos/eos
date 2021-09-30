@@ -25,7 +25,12 @@ Bug
 ----
 
 * [EOS-4809] - Make eos5 work with XrdMacaroons from XRootD5
-* Includes all the fixes from 4.8.62
+* Includes all the fixes from 4.8.65
+
+Improvements
+------------
+
+* WNC: Improvements to the EOS-Drive for fileinfo & health command
 
 
 ``v5.0.1 Diopside``
