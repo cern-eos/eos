@@ -27,6 +27,7 @@
 #include "mgm/Namespace.hh"
 #include "mgm/http/rest-api/handler/RestHandler.hh"
 #include "mgm/http/rest-api/resources/ResourceFactory.hh"
+#include "common/VirtualIdentity.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -36,8 +37,8 @@ public:
    * Constructor of the TapeRestHandler
    * @param restApiUrl the base URL of the REST API without the instance name
    */
-  TapeRestHandler(const std::string & restApiUrl);
-  common::HttpResponse * handleRequest(common::HttpRequest * request) override;
+  TapeRestHandler(const std::string & restApiUrl = "/api/");
+  common::HttpResponse * handleRequest(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
   bool isRestRequest(const std::string & requestUrl) override;
 private:
   inline static const std::string cEntryPointRegex = "^\\/([a-z0-9-]+)+\\/$";

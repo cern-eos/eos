@@ -40,6 +40,20 @@ std::function<int(const char* path, XrdSfsFileExistence& file_exists, XrdOucErrI
       return SFS_ERROR;
     };
 
+std::function<int(const char* path, XrdSfsFileExistence& file_exists, XrdOucErrInfo& error, eos::common::VirtualIdentity& vid, const char* opaque, bool take_lock)>
+    MockPrepareMgmFSInterface::_EXISTS_VID_FILE_EXISTS_LAMBDA =
+    [](const char* path, XrdSfsFileExistence& file_exists, XrdOucErrInfo& error, eos::common::VirtualIdentity& vid, const char* opaque, bool take_lock){
+      file_exists = XrdSfsFileExistIsFile;
+      return SFS_OK;
+    };
+
+std::function<int(const char* path, XrdSfsFileExistence& file_exists, XrdOucErrInfo& error, eos::common::VirtualIdentity& vid, const char* opaque, bool take_lock)>
+MockPrepareMgmFSInterface::_EXISTS_VID_FILE_DOES_NOT_EXIST_LAMBDA =
+    [](const char* path, XrdSfsFileExistence& file_exists, XrdOucErrInfo& error, eos::common::VirtualIdentity& vid, const char* opaque, bool take_lock){
+  file_exists = XrdSfsFileExistNo;
+  return SFS_ERROR;
+};
+
 std::function<int(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links)>
     MockPrepareMgmFSInterface::_ATTR_LS_STAGE_PREPARE_LAMBDA =
     [](const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links){

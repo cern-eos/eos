@@ -26,6 +26,7 @@
 #include <regex>
 #include "common/StringConversion.hh"
 #include "mgm/http/rest-api/exception/ResourceNotFoundException.hh"
+#include "mgm/http/rest-api/exception/ControllerNotFoundException.hh"
 #include "mgm/http/rest-api/resources/Resource.hh"
 #include "mgm/http/rest-api/resources/ResourceFactory.hh"
 #include "common/http/HttpServer.hh"
@@ -46,7 +47,7 @@ bool TapeRestHandler::isRestRequest(const std::string& requestUrl){
   return ::strncmp(mRestAPIUrl.c_str(),requestUrl.c_str(),mRestAPIUrl.length()) == 0;
 }
 
-common::HttpResponse* TapeRestHandler::handleRequest(common::HttpRequest* request) {
+common::HttpResponse* TapeRestHandler::handleRequest(common::HttpRequest* request, const common::VirtualIdentity * vid) {
   //URL = /entrypoint/version/resource-name
   std::string url = request->GetUrl();
   if(isRestRequest(url)) {
@@ -54,15 +55,22 @@ common::HttpResponse* TapeRestHandler::handleRequest(common::HttpRequest* reques
     common::StringConversion::Tokenize(request->GetUrl(), urlTokens,"/");
     if(urlTokens.size() < 3) {
       // Return 404 not found error
-      return TapeRestApiResponseFactory::createError404Response().getHttpResponse();
+      std::ostringstream oss;
+      oss << "URL provided (" << url << ") does not allow to identify an API version or a resource";
+      eos_static_info(oss.str().c_str());
+      return TapeRestApiResponseFactory::createNotFoundError().getHttpResponse();
     }
     std::unique_ptr<Resource> resource;
     try {
-      resource.reset(mResourceFactory->createResource(urlTokens.at(3)));
-      resource->setVersion(urlTokens.at(2));
-      return resource->handleRequest(request);
+      resource.reset(mResourceFactory->createResource(urlTokens.at(2)));
+      resource->setVersion(urlTokens.at(1));
+      return resource->handleRequest(request,vid);
     } catch(const ResourceNotFoundException &ex) {
-      return TapeRestApiResponseFactory::createError404Response().getHttpResponse();
+      eos_static_info(ex.what());
+      return TapeRestApiResponseFactory::createNotFoundError().getHttpResponse();
+    } catch (const ControllerNotFoundException &ex) {
+      eos_static_info(ex.what());
+      return TapeRestApiResponseFactory::createNotFoundError().getHttpResponse();
     }
   }
   return nullptr;

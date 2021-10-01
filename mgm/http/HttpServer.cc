@@ -310,6 +310,10 @@ HttpServer::XrdHttpHandler(std::string& method,
   return handler;
 }
 
+bool HttpServer::isRestRequest(const std::string & requestUrl){
+  return mTapeRestHandler.isRestRequest(requestUrl);
+}
+
 //------------------------------------------------------------------------------
 // Handle clientDN specified using RFC2253 (and RFC4514) where the
 // separator is "," instead of the usual "/" and also the order of the DNs

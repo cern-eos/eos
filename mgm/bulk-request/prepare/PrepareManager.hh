@@ -32,6 +32,7 @@
 #include "mgm/bulk-request/interface/IMgmFileSystemInterface.hh"
 #include "mgm/bulk-request/prepare/query-prepare/QueryPrepareResult.hh"
 #include <mgm/bulk-request/FileCollection.hh>
+#include "mgm/bulk-request/BulkRequest.hh"
 
 EOSBULKNAMESPACE_BEGIN
 
@@ -68,6 +69,23 @@ public:
    */
   virtual int prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client);
 
+  /**
+   * Allows to launch a prepare logic on the files passed in parameter. Will not perform a client map
+   * as the vid is already given
+   * @param pargs Xrootd prepare arguments (containing the path of the files)
+   * @param error Xrootd error information to fill if there are any errors
+   * @param vid the vid of the client who issued the prepare
+   * @return the status code of the issued prepare request
+   */
+  virtual int prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const common::VirtualIdentity * vid);
+
+  /**
+   * Allows to launch a query prepare logic on the files passed in parameter
+   * @param pargs Xrootd prepare arguments (containing the path of the files)
+   * @param error Xrootd error information to fill if there are any errors
+   * @param client the client who issued the query prepare
+   * @returns the query prepare result object containing the result of the query prepare request
+   */
   virtual std::unique_ptr<QueryPrepareResult> queryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client);
 
 protected:
@@ -125,11 +143,20 @@ protected:
    * @param pargs Xrootd prepare arguments
    * @param error Xrootd error information to fill if there are any errors
    * @param client the client who issued the prepare
+   * @param vid the vid of the client if the latter has already been mapped. (Avoids an IdMap call on the client param)
    * @returns the status code of the issued prepare request
    */
-  int doPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client);
+  int doPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client, const common::VirtualIdentity * vidClient = nullptr);
 
-  int doQueryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client, QueryPrepareResult & result);
+  /**
+   * Perform the query prepare logic
+   * @param pargs Xrootd prepare arguments
+   * @param error Xrootd error information to fill if there are any errors
+   * @param client the client who issued the query prepare
+   * @param vid the vid of the client if the latter has already been mapped. (Avoids an IdMap call on the client param)
+   * @returns the status code of the issued prepare request
+   */
+  int doQueryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client, QueryPrepareResult & result, const common::VirtualIdentity * vidClient = nullptr);
 
   const std::string mEpname="prepare";
   //The prepare action that is launched by the "prepare()" method

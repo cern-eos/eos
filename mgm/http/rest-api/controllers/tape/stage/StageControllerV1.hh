@@ -25,11 +25,17 @@
 
 #include "mgm/Namespace.hh"
 #include "mgm/http/rest-api/controllers/Controller.hh"
+#include "mgm/bulk-request/prepare/StageBulkRequest.hh"
+#include "mgm/http/rest-api/model/tape/stage/CreateStageBulkRequestModel.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
 class StageControllerV1 : public Controller {
-  virtual common::HttpResponse * handleRequest(common::HttpRequest * request) override;
+public:
+  StageControllerV1();
+  virtual common::HttpResponse * handleRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) override;
+private:
+  common::HttpResponse * createBulkStageRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) const;
 };
 
 EOSMGMRESTNAMESPACE_END

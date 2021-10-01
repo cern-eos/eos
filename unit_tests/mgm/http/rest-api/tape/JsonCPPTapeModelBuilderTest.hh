@@ -1,11 +1,11 @@
-// ----------------------------------------------------------------------
-// File: StageResource.hh
-// Author: Cedric Caffy - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
+//! @file JsonCPPTapeModelBuilderTest.hh
+//! @author Cedric Caffy - CERN
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2013 CERN/Switzerland                                  *
+ * Copyright (C) 2017 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -20,29 +20,22 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-
-#ifndef EOS_STAGERESOURCE_HH
-#define EOS_STAGERESOURCE_HH
+#ifndef EOS_JSONCPPTAPEMODELBUILDERTEST_HH
+#define EOS_JSONCPPTAPEMODELBUILDERTEST_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/resources/Resource.hh"
-#include "mgm/http/rest-api/controllers/Controller.hh"
-#include <functional>
+#include <gtest/gtest.h>
 
-EOSMGMRESTNAMESPACE_BEGIN
+class JsonCPPTapeModelBuilderTest : public ::testing::Test {
+protected:
 
-class StageResource : public Resource {
-public:
-  StageResource();
-  virtual common::HttpResponse * handleRequest(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
-  virtual const std::string getName() const override;
-private:
-  virtual Controller * getController();
-  static const std::map<std::string,std::function<Controller *()>>
-      cVersionToControllerFactoryMethod;
+  virtual void SetUp() {
+
+  }
+
+  virtual void TearDown() {
+
+  }
 };
 
-EOSMGMRESTNAMESPACE_END
-
-#endif // EOS_STAGERESOURCE_HH
+#endif // EOS_JSONCPPTAPEMODELBUILDERTEST_HH
