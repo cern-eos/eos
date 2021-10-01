@@ -43,7 +43,9 @@ static uint32_t cpuid(uint32_t functionInput)
       "popl %%ebx" : "=a"(eax), [ebx] "=r"(ebx), "=c"(ecx), "=d"(edx) : "a"(functionInput)
       : "cc");
 #else
+#if !(defined(__APPLE__) && defined(__aarch64__))
   asm("cpuid" : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx) : "a"(functionInput));
+#endif // APPLE detection end
 #endif
 #else
   fprintf(stderr, "error: crc32c is not supported on 32bit platforms\n");
@@ -236,7 +238,7 @@ uint32_t crc32cHardware32(uint32_t crc, const void* data, size_t length)
 // Hardware-accelerated CRC-32C (using CRC32 instruction)
 uint32_t crc32cHardware64(uint32_t crc, const void* data, size_t length)
 {
-#ifndef __LP64__
+#if !defined(__LP64__) || (defined(__APPLE__) && defined(__aarch64__))
   return crc32cHardware32(crc, data, length);
 #else
   const char* p_buf = (const char*) data;
