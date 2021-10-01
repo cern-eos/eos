@@ -725,7 +725,7 @@ code_quality_html:
     - export EOS_QUARKDB_HOSTPORT=localhost:7777
     - quarkdb-create --path /var/quarkdb/node-0
     - chown -R daemon:daemon /var/quarkdb/node-0
-    - /usr/bin/xrootd -n qdb -c /etc/xrd.cf.quarkdb -l /var/log/eos/xrdlog.qdb -b -Rdaemon
+    - xrootd -n qdb -c /etc/xrd.cf.quarkdb -l /var/log/eos/xrdlog.qdb -b -Rdaemon
     - eos-ns-quarkdb-tests
   needs:
     - job: cc7_docker_image
