@@ -25,7 +25,6 @@
 #include "mgm/http/rest-api/exception/RestException.hh"
 #include "mgm/http/rest-api/handler/tape/TapeRestHandler.hh"
 #include "common/http/HttpResponse.hh"
-#include <common/http/PlainHttpResponse.hh>
 
 TEST_F(RestApiTest,RestHandlerConstructorShouldThrowIfProgrammerGaveWrongURL){
   std::unique_ptr<TapeRestHandler> restHandler;
@@ -41,20 +40,22 @@ TEST_F(RestApiTest,RestHandlerConstructorShouldThrowIfProgrammerGaveWrongURL){
 }
 
 TEST_F(RestApiTest,RestHandlerHandleRequestNoResource){
+  eos::common::VirtualIdentity vid;
   std::unique_ptr<TapeRestHandler> restHandler;
   restHandler.reset(new TapeRestHandler("/rest-api-entry-point/"));
   std::unique_ptr<eos::common::HttpRequest> request(createHttpRequestWithEmptyBody("/rest-api-entry-point/"));
-  std::unique_ptr<eos::common::HttpResponse> response(restHandler->handleRequest(request.get()));
+  std::unique_ptr<eos::common::HttpResponse> response(restHandler->handleRequest(request.get(),&vid));
   ASSERT_EQ(eos::common::HttpResponse::ResponseCodes::NOT_FOUND,response->GetResponseCode());
   request = std::move(createHttpRequestWithEmptyBody("/rest-api-entry-point/v1"));
-  response.reset(restHandler->handleRequest(request.get()));
+  response.reset(restHandler->handleRequest(request.get(),&vid));
   ASSERT_EQ(eos::common::HttpResponse::ResponseCodes::NOT_FOUND,response->GetResponseCode());
 }
 
 TEST_F(RestApiTest,RestHandlerHandleRequestResourceButNoVersion){
+  eos::common::VirtualIdentity vid;
   std::unique_ptr<TapeRestHandler> restHandler;
   restHandler.reset(new TapeRestHandler("/rest-api-entry-point/"));
   std::unique_ptr<eos::common::HttpRequest> request(createHttpRequestWithEmptyBody("/rest-api-entry-point/tape/"));
-  std::unique_ptr<eos::common::HttpResponse> response(restHandler->handleRequest(request.get()));
+  std::unique_ptr<eos::common::HttpResponse> response(restHandler->handleRequest(request.get(),&vid));
   ASSERT_EQ(eos::common::HttpResponse::ResponseCodes::NOT_FOUND,response->GetResponseCode());
 }
