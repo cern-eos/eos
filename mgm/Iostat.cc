@@ -1969,8 +1969,10 @@ IostatAvg::Add(unsigned long long val, time_t starttime, time_t stoptime)
     if (mbins == 0) {
       mbins = 1;
     }
-
-    unsigned long long norm_val = (1.0 * val / mbins);
+    // we partially mitigate the precision loss in integer division
+    // when getting norm_val below by redistribution of reminder into bins
+    unsigned long long remainder = val % mbins;
+    unsigned long long norm_val = val / mbins;
 
     for (size_t bins = 0; bins < mbins; bins++) {
       unsigned int bin86400 = (((stoptime - (bins * 1440)) / 1440) % 60);
@@ -1991,7 +1993,8 @@ IostatAvg::Add(unsigned long long val, time_t starttime, time_t stoptime)
       mbins = 1;
     }
 
-    unsigned long long norm_val = 1.0 * val / mbins;
+    unsigned long long remainder = val % mbins;
+    unsigned long long norm_val = val / mbins;
 
     for (size_t bins = 0; bins < mbins; bins++) {
       unsigned int bin3600 = (((stoptime - (bins * 60)) / 60) % 60);
@@ -2012,7 +2015,8 @@ IostatAvg::Add(unsigned long long val, time_t starttime, time_t stoptime)
       mbins = 1;
     }
 
-    unsigned long long norm_val = 1.0 * val / mbins;
+    unsigned long long remainder = val % mbins;
+    unsigned long long norm_val = val / mbins;
 
     for (size_t bins = 0; bins < mbins; bins++) {
       unsigned int bin300 = (((stoptime - (bins * 5)) / 5) % 60);
@@ -2033,7 +2037,8 @@ IostatAvg::Add(unsigned long long val, time_t starttime, time_t stoptime)
       mbins = 1;
     }
 
-    unsigned long long norm_val = 1.0 * val / mbins;
+    unsigned long long remainder = val % mbins;
+    unsigned long long norm_val = val / mbins;
 
     for (size_t bins = 0; bins < mbins; ++bins) {
       unsigned int bin60 = (((stoptime - (bins * 1)) / 1) % 60);
