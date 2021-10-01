@@ -29,7 +29,6 @@
 #include "fst/XrdFstOfs.hh"
 #include "fst/FmdDbMap.hh"
 #include "common/SymKeys.hh"
-#include "common/ShellCmd.hh"
 
 EOSFSTNAMESPACE_BEGIN
 

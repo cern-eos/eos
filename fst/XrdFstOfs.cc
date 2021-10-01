@@ -47,6 +47,7 @@
 #include "common/SymKeys.hh"
 #include "common/XattrCompat.hh"
 #include "common/ParseUtils.hh"
+#include "common/ShellCmd.hh"
 #include "mq/SharedHashWrapper.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetUtils.hh"
@@ -427,6 +428,12 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   int cfgFD;
   int NoGo = 0;
   eos::common::StringConversion::InitLookupTables();
+  {
+    // Run a dummy command so that the ShellExecutor is forked before any XrdCl
+    // is initialized. Otherwise it might segv due to the following bug:
+    // https://github.com/xrootd/xrootd/issues/1515
+    eos::common::ShellCmd dummy_cmd("uname -a");
+  }
 
   if (XrdOfs::Configure(Eroute, envP)) {
     Eroute.Emsg("Config", "default OFS configuration failed");
