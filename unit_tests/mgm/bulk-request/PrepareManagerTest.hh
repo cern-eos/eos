@@ -31,6 +31,7 @@
 #include <gmock/gmock.h>
 #include "mgm/bulk-request/prepare/PrepareUtils.hh"
 #include "auth_plugin/ProtoUtils.hh"
+#include "mgm/bulk-request/utils/PrepareArgumentsWrapper.hh"
 
 using ::testing::Return;
 using ::testing::_;
@@ -59,34 +60,6 @@ public:
   XrdSecEntity * getClient() { return mClient; }
 private:
   XrdSecEntity * mClient;
-};
-
-/**
- * RAII class to hold the XrdSfsPrep prepare arguments pointer
- * Avoids memory leaks for valgrind
- */
-class PrepareArgumentsWrapper{
-public:
-  PrepareArgumentsWrapper(const std::string & reqid, const int opts, const std::vector<std::string> & oinfos, const std::vector<std::string> & paths){
-    eos::auth::XrdSfsPrepProto pargsProto;
-    pargsProto.set_reqid(reqid);
-    pargsProto.set_opts(opts);
-    for(auto & oinfo: oinfos){
-      pargsProto.add_oinfo(oinfo);
-    }
-    for(auto & path: paths){
-      pargsProto.add_paths(path);
-    }
-    mPargs = eos::auth::utils::GetXrdSfsPrep(pargsProto);
-  }
-  ~PrepareArgumentsWrapper(){
-    eos::auth::utils::DeleteXrdSfsPrep(mPargs);
-  }
-  XrdSfsPrep * getPrepareArguments() {
-    return mPargs;
-  }
-private:
-  XrdSfsPrep * mPargs;
 };
 
 /**

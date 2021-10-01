@@ -43,6 +43,9 @@ int RealMgmFileSystemInterface::Emsg(const char* pfx, XrdOucErrInfo& einfo, int 
 int RealMgmFileSystemInterface::_exists(const char* path, XrdSfsFileExistence& file_exists, XrdOucErrInfo& error, const XrdSecEntity* client, const char* ininfo){
   return mMgmOfs->_exists(path,file_exists,error,client,ininfo);
 }
+int RealMgmFileSystemInterface::_exists(const char* path, XrdSfsFileExistence& file_exists, XrdOucErrInfo& error, eos::common::VirtualIdentity& vid, const char* opaque, bool take_lock){
+  return mMgmOfs->_exists(path,file_exists,error,vid,opaque,take_lock);
+}
 
 int RealMgmFileSystemInterface::_attr_ls(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock, bool links){
   return mMgmOfs->_attr_ls(path,out_error,vid,opaque,map,take_lock,links);
