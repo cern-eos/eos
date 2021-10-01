@@ -36,6 +36,7 @@
 #include "common/Mapping.hh"
 #include <map>
 #include <string>
+#include "mgm/http/rest-api/handler/tape/TapeRestHandler.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -119,6 +120,11 @@ public:
                  std::string& body,
                  const XrdSecEntity& client
                 );
+
+  virtual bool isRestRequest(const std::string & requestUrl);
+
+  //Tape REST API handler
+  rest::TapeRestHandler mTapeRestHandler;
 
 private:
 #ifdef IN_TEST_HARNESS

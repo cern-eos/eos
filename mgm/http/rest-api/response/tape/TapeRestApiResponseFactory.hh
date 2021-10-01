@@ -32,8 +32,12 @@ EOSMGMRESTNAMESPACE_BEGIN
 
 class TapeRestApiResponseFactory {
 public:
-  static RestApiResponse<ErrorModel> createError400Response(const std::string & detail);
-  static RestApiResponse<ErrorModel> createError404Response();
+  static RestApiResponse<ErrorModel> createBadRequestError(const std::string & detail);
+  static RestApiResponse<ErrorModel> createNotFoundError();
+  static RestApiResponse<ErrorModel>
+  createMethodNotAllowedError(const std::string & detail);
+private:
+  static RestApiResponse<ErrorModel> createError(const common::HttpResponse::ResponseCodes code,const std::string & title, const std::string & detail);
 };
 
 EOSMGMRESTNAMESPACE_END

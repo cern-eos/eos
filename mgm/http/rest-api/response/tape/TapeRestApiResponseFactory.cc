@@ -25,18 +25,21 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-RestApiResponse<ErrorModel> TapeRestApiResponseFactory::createError400Response(const std::string & detail) {
-  common::HttpResponse::ResponseCodes badRequestCode = common::HttpResponse::BAD_REQUEST;
-  std::shared_ptr<ErrorModel> error400Model(new ErrorModel("Bad request",static_cast<uint32_t>(badRequestCode),detail));
-  RestApiResponse<ErrorModel> error400Response(error400Model,badRequestCode);
-  return error400Response;
+RestApiResponse<ErrorModel> TapeRestApiResponseFactory::createError(const common::HttpResponse::ResponseCodes code, const std::string & title, const std::string& detail){
+  std::shared_ptr<ErrorModel> errorModel(new ErrorModel(title,static_cast<uint32_t>(code),detail));
+  return RestApiResponse<ErrorModel>(errorModel,code);
 }
 
-RestApiResponse<ErrorModel> TapeRestApiResponseFactory::createError404Response() {
-  common::HttpResponse::ResponseCodes notFoundCode = common::HttpResponse::NOT_FOUND;
-  std::shared_ptr<ErrorModel> error404Model(new ErrorModel("Not found",static_cast<uint32_t>(notFoundCode)));
-  RestApiResponse<ErrorModel> error404Response(error404Model,notFoundCode);
-  return error404Response;
+RestApiResponse<ErrorModel> TapeRestApiResponseFactory::createBadRequestError(const std::string & detail) {
+  return createError(common::HttpResponse::BAD_REQUEST,"Bad request",detail);
+}
+
+RestApiResponse<ErrorModel> TapeRestApiResponseFactory::createNotFoundError() {
+  return createError(common::HttpResponse::NOT_FOUND,"Not found","");
+}
+
+RestApiResponse<ErrorModel> TapeRestApiResponseFactory::createMethodNotAllowedError(const std::string& detail){
+  return createError(common::HttpResponse::METHOD_NOT_ALLOWED,"Method not allowed",detail);
 }
 
 EOSMGMRESTNAMESPACE_END

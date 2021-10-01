@@ -115,10 +115,10 @@ TEST_F(PrepareManagerTest,stagePrepareFilesWorkflow){
   //As everything is fine, no Emsg should be called
   EXPECT_CALL(mgmOfs,Emsg).Times(0);
   //Everything is fine, all the files exist
-  ON_CALL(mgmOfs,_exists(_,_,_,_,_)).WillByDefault(Invoke(
-      MockPrepareMgmFSInterface::_EXISTS_FILE_EXISTS_LAMBDA));
+  ON_CALL(mgmOfs,_exists(_,_,_,_,_,_)).WillByDefault(Invoke(
+      MockPrepareMgmFSInterface::_EXISTS_VID_FILE_EXISTS_LAMBDA));
   //the _exists method should be called for all files
-  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_)).Times(nbFiles);
+  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_,_)).Times(nbFiles);
   ON_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_))
       .WillByDefault(Invoke(
           MockPrepareMgmFSInterface::_ATTR_LS_STAGE_PREPARE_LAMBDA
@@ -145,7 +145,7 @@ TEST_F(PrepareManagerTest,stagePrepareFileWithNoPath){
   //No path exist, but Emsg should not be called
   EXPECT_CALL(mgmOfs,Emsg).Times(0);
   //No path are set, no mgmOfs method should be called
-  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_)).Times(0);
+  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_,_)).Times(0);
   EXPECT_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_)).Times(0);
   EXPECT_CALL(mgmOfs,_access).Times(0);
   EXPECT_CALL(mgmOfs,FSctl).Times(0);
@@ -174,10 +174,10 @@ TEST_F(PrepareManagerTest,stagePrepareAllFilesDoNotExist){
   NiceMock<MockPrepareMgmFSInterface> mgmOfs;
   //One file does not exist, Emsg should be called once
   EXPECT_CALL(mgmOfs,Emsg).Times(0);
-  ON_CALL(mgmOfs,_exists(_,_,_,_,_)).WillByDefault(Invoke(
-      MockPrepareMgmFSInterface::_EXISTS_FILE_DOES_NOT_EXIST_LAMBDA));
+  ON_CALL(mgmOfs,_exists(_,_,_,_,_,_)).WillByDefault(Invoke(
+      MockPrepareMgmFSInterface::_EXISTS_VID_FILE_DOES_NOT_EXIST_LAMBDA));
   //The current behaviour is that the prepare logic returns an error if at least one file does not exist.
-  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_)).Times(3);
+  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_,_)).Times(3);
   EXPECT_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_)).Times(0);
   EXPECT_CALL(mgmOfs,_access).Times(0);
   EXPECT_CALL(mgmOfs,FSctl).Times(0);
@@ -208,12 +208,12 @@ TEST_F(PrepareManagerTest,stagePrepareOneFileDoNotExistReturnsSfsData){
   //One file does not exist, Emsg should be called once
   EXPECT_CALL(mgmOfs,Emsg).Times(0);
   //Exist will first return true for the existing file, then return false,
-  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_)).Times(nbFiles).WillOnce(
-    Invoke(MockPrepareMgmFSInterface::_EXISTS_FILE_EXISTS_LAMBDA)
+  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_,_)).Times(nbFiles).WillOnce(
+    Invoke(MockPrepareMgmFSInterface::_EXISTS_VID_FILE_EXISTS_LAMBDA)
   ).WillOnce(Invoke(
-      MockPrepareMgmFSInterface::_EXISTS_FILE_DOES_NOT_EXIST_LAMBDA)
+      MockPrepareMgmFSInterface::_EXISTS_VID_FILE_DOES_NOT_EXIST_LAMBDA)
   ).WillRepeatedly(
-    Invoke(MockPrepareMgmFSInterface::_EXISTS_FILE_EXISTS_LAMBDA)
+    Invoke(MockPrepareMgmFSInterface::_EXISTS_VID_FILE_EXISTS_LAMBDA)
   );
   //Attr ls should work for the files that exist
   EXPECT_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_)).Times(nbFiles - 1)
@@ -249,10 +249,10 @@ TEST_F(PrepareManagerTest,abortPrepareFilesWorkflow){
   //As everything is fine, no Emsg should be called
   EXPECT_CALL(mgmOfs,Emsg).Times(0);
   //Everything is fine, all the files exist
-  ON_CALL(mgmOfs,_exists(_,_,_,_,_)).WillByDefault(Invoke(
-      MockPrepareMgmFSInterface::_EXISTS_FILE_EXISTS_LAMBDA));
+  ON_CALL(mgmOfs,_exists(_,_,_,_,_,_)).WillByDefault(Invoke(
+      MockPrepareMgmFSInterface::_EXISTS_VID_FILE_EXISTS_LAMBDA));
   //the _exists method should be called for all files
-  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_)).Times(nbFiles);
+  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_,_)).Times(nbFiles);
   ON_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_))
       .WillByDefault(Invoke(
         MockPrepareMgmFSInterface::_ATTR_LS_ABORT_PREPARE_LAMBDA
@@ -288,9 +288,9 @@ TEST_F(PrepareManagerTest,abortPrepareOneFileDoesNotExist){
   //One file does not exist, but as we are idempotent, no error should be returned
   EXPECT_CALL(mgmOfs,Emsg).Times(0);
   //Exist will first return true for the existing file, then return false
-  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_)).Times(nbFiles).WillOnce(Invoke(
-      MockPrepareMgmFSInterface::_EXISTS_FILE_EXISTS_LAMBDA)).WillRepeatedly(Invoke(
-      MockPrepareMgmFSInterface::_EXISTS_FILE_DOES_NOT_EXIST_LAMBDA));
+  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_,_)).Times(nbFiles).WillOnce(Invoke(
+      MockPrepareMgmFSInterface::_EXISTS_VID_FILE_EXISTS_LAMBDA)).WillRepeatedly(Invoke(
+      MockPrepareMgmFSInterface::_EXISTS_VID_FILE_DOES_NOT_EXIST_LAMBDA));
   //Attr ls should work for the file that exists
   EXPECT_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_)).Times(1)
       .WillRepeatedly(Invoke(
@@ -323,10 +323,10 @@ TEST_F(PrepareManagerTest,evictPrepareFilesWorkflow){
   //As everything is fine, no Emsg should be called
   EXPECT_CALL(mgmOfs,Emsg).Times(0);
   //Everything is fine, all the files exist
-  ON_CALL(mgmOfs,_exists(_,_,_,_,_)).WillByDefault(Invoke(
-      MockPrepareMgmFSInterface::_EXISTS_FILE_EXISTS_LAMBDA));
+  ON_CALL(mgmOfs,_exists(_,_,_,_,_,_)).WillByDefault(Invoke(
+      MockPrepareMgmFSInterface::_EXISTS_VID_FILE_EXISTS_LAMBDA));
   //the _exists method should be called for all files
-  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_)).Times(nbFiles);
+  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_,_)).Times(nbFiles);
   ON_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_))
       .WillByDefault(Invoke(
           MockPrepareMgmFSInterface::_ATTR_LS_EVICT_PREPARE_LAMBDA
@@ -362,9 +362,9 @@ TEST_F(PrepareManagerTest,evictPrepareOneFileDoesNotExist){
   //One file does not exist, Emsg should not be called as we are idempotent
   EXPECT_CALL(mgmOfs,Emsg).Times(0);
   //Exist will first return true for the existing file, then return false
-  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_)).Times(nbFiles).WillOnce(Invoke(
-      MockPrepareMgmFSInterface::_EXISTS_FILE_EXISTS_LAMBDA)).WillRepeatedly(Invoke(
-      MockPrepareMgmFSInterface::_EXISTS_FILE_DOES_NOT_EXIST_LAMBDA));
+  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_,_)).Times(nbFiles).WillOnce(Invoke(
+      MockPrepareMgmFSInterface::_EXISTS_VID_FILE_EXISTS_LAMBDA)).WillRepeatedly(Invoke(
+      MockPrepareMgmFSInterface::_EXISTS_VID_FILE_DOES_NOT_EXIST_LAMBDA));
   //Attr ls should work for the files that exist
   EXPECT_CALL(mgmOfs, _attr_ls(_,_,_,_,_,_,_)).Times(1)
       .WillRepeatedly(Invoke(
@@ -391,9 +391,9 @@ TEST_F(PrepareManagerTest,queryPrepare){
 
   NiceMock<MockPrepareMgmFSInterface> mgmOfs;
   //Exist will first return true for the first file, then return false
-  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_)).Times(nbFiles).WillOnce(Invoke(
-      MockPrepareMgmFSInterface::_EXISTS_FILE_EXISTS_LAMBDA)).WillRepeatedly(Invoke(
-      MockPrepareMgmFSInterface::_EXISTS_FILE_DOES_NOT_EXIST_LAMBDA));
+  EXPECT_CALL(mgmOfs,_exists(_,_,_,_,_,_)).Times(nbFiles).WillOnce(Invoke(
+      MockPrepareMgmFSInterface::_EXISTS_VID_FILE_EXISTS_LAMBDA)).WillRepeatedly(Invoke(
+      MockPrepareMgmFSInterface::_EXISTS_VID_FILE_DOES_NOT_EXIST_LAMBDA));
   //stat with one file on disk, on file on disk and tape
   EXPECT_CALL(mgmOfs,_stat(_,_,_,_,_,_,_,_)).Times(1).WillOnce(Invoke(
       MockPrepareMgmFSInterface::_STAT_FILE_ON_DISK_AND_TAPE));

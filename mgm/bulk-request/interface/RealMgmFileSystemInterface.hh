@@ -38,6 +38,7 @@ public:
   bool isTapeEnabled() override;
   int Emsg(const char* pfx, XrdOucErrInfo& einfo, int ecode, const char* op, const char* target = "") override;
   int _exists(const char* path, XrdSfsFileExistence& file_exists, XrdOucErrInfo& error, const XrdSecEntity* client = 0, const char* ininfo = 0) override;
+  int _exists(const char* path, XrdSfsFileExistence& file_exists, XrdOucErrInfo& error, eos::common::VirtualIdentity& vid, const char* opaque = 0, bool take_lock = true) override;
   int _attr_ls(const char* path, XrdOucErrInfo& out_error, const eos::common::VirtualIdentity& vid, const char* opaque, eos::IContainerMD::XAttrMap& map, bool take_lock = true, bool links = false) override;
   int _access(const char* path, int mode,XrdOucErrInfo& error, eos::common::VirtualIdentity& vid, const char* info, bool lock = true) override;
   int FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error, const XrdSecEntity* client) override;

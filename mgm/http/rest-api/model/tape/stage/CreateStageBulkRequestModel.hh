@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: StageResource.hh
+// File: CreateStageBulkRequestModel.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,29 +20,29 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-
-#ifndef EOS_STAGERESOURCE_HH
-#define EOS_STAGERESOURCE_HH
+#ifndef EOS_CREATESTAGEBULKREQUESTMODEL_HH
+#define EOS_CREATESTAGEBULKREQUESTMODEL_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/resources/Resource.hh"
-#include "mgm/http/rest-api/controllers/Controller.hh"
-#include <functional>
+#include <string>
+#include <vector>
+#include <map>
+#include <any>
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class StageResource : public Resource {
+class CreateStageBulkRequestModel {
 public:
-  StageResource();
-  virtual common::HttpResponse * handleRequest(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
-  virtual const std::string getName() const override;
+  void addPath(const std::string & path);
+  void addOrModifyMetadata(const std::string & key, const std::any & value);
+  const std::vector<std::string> & getPaths() const;
+  inline static const std::string PATHS_KEY_NAME = "paths";
+  inline static const std::string METADATA_KEY_NAME = "metadata";
 private:
-  virtual Controller * getController();
-  static const std::map<std::string,std::function<Controller *()>>
-      cVersionToControllerFactoryMethod;
+  std::vector<std::string> mPaths;
+  std::map<std::string,std::any> mMetadata;
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_STAGERESOURCE_HH
+#endif // EOS_CREATESTAGEBULKREQUESTMODEL_HH
