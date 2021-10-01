@@ -156,94 +156,98 @@ TEST(IostatAvg, GetAvgStampZeroAdd)
 {
   using namespace std::chrono;
   IostatAvg iostatavg;
-  // the values summed up finish in integer array The GetAvg methods add doubles o them
-  // - seems pointless unless we want to change the array definition as well (???)
+  // the values summed up finish in integer array The GetAvg methods add doubles
+  // of them which is pointless unless we want to change the array definition as
+  // well (which is int !!!) (???)
   ASSERT_EQ(0, iostatavg.GetAvg86400());
   ASSERT_EQ(0, iostatavg.GetAvg3600());
   ASSERT_EQ(0, iostatavg.GetAvg300());
   ASSERT_EQ(0, iostatavg.GetAvg60());
 
   for (int i = 0; i < 60; i++) {
-    iostatavg.avg86400[i] = 1;
-    iostatavg.avg3600[i] = 1;
-    iostatavg.avg300[i] = 1;
+    iostatavg.avg86400[i] = 1440;
+    iostatavg.avg3600[i] = 60;
+    iostatavg.avg300[i] = 5;
     iostatavg.avg60[i] = 1;
   }
 
-  ASSERT_EQ(60, iostatavg.GetAvg86400());
-  ASSERT_EQ(60, iostatavg.GetAvg3600());
-  ASSERT_EQ(60, iostatavg.GetAvg300());
+  ASSERT_EQ(86400, iostatavg.GetAvg86400());
+  ASSERT_EQ(3600, iostatavg.GetAvg3600());
+  ASSERT_EQ(300, iostatavg.GetAvg300());
   ASSERT_EQ(60, iostatavg.GetAvg60());
-  auto now = system_clock::now();
+  // the bin assignment currently depends on the reference point
+  // being number of seconds since epoch, we need to sync the test start time
+  // with the boundary of the bin start
+  // aka - this would not work as a reference for counting:
+  // auto now = std::chrono::system_clock::now();
+  time_t now = 0;
 
-  for (int i = 0; i <  86400; ++i) {
-    now = now + seconds(1);
-    time_t now_time = std::chrono::system_clock::to_time_t(now);
-    iostatavg.StampZero(now_time);
+  for (int i = 0; i < 86400; ++i) {
+    if (i != 0) {
+      now = now + 1;
+    }
+    iostatavg.StampZero(now);
+    if (i < 60) {
+      ASSERT_EQ(60 - (i + 1) * 1, iostatavg.GetAvg60());
+    }
+    if (i < 300) {
+      // in 5 sec interval the same bin gets marked zero
+      // cout << i << " time: "<<  now << endl;
+      ASSERT_EQ(300 - (i / 5 + 1) * 5, iostatavg.GetAvg300());
+    }
+    if (i < 3600) {
+      // in 60 sec interval the same bin gets marked zero
+      ASSERT_EQ(3600 - (i / 60 + 1) * 60, iostatavg.GetAvg3600());
+    }
+    if (i < 86400) {
+      // in 1440 sec interval the same bin gets marked zero
+      ASSERT_EQ(86400 - (i / 1440 + 1) * 1440, iostatavg.GetAvg86400());
+    }
   }
 
+  ASSERT_EQ(0, iostatavg.GetAvg60());
+  ASSERT_EQ(0, iostatavg.GetAvg300());
+  ASSERT_EQ(0, iostatavg.GetAvg3600());
   ASSERT_EQ(0, iostatavg.GetAvg86400());
-  ASSERT_EQ(0, iostatavg.GetAvg3600());
-  ASSERT_EQ(0, iostatavg.GetAvg300());
-  ASSERT_EQ(0, iostatavg.GetAvg60());
-  auto start = system_clock::now() - seconds(3610);
-  auto stopAvg60 = start + seconds(3590);
-  auto stopAvg300 = start + seconds(3400);
-  auto stopAvg3600 = start + seconds(900);
-  auto stopAvg86400 = start + seconds(5);
+
+  auto start = system_clock::now() - seconds(2*86400); // started measurement 2 days ago
   time_t start_time = std::chrono::system_clock::to_time_t(start);
-  time_t stopAvg60_time = std::chrono::system_clock::to_time_t(stopAvg60);
-  time_t stopAvg300_time = std::chrono::system_clock::to_time_t(stopAvg300);
-  time_t stopAvg3600_time = std::chrono::system_clock::to_time_t(stopAvg3600);
-  time_t stopAvg86400_time = std::chrono::system_clock::to_time_t(stopAvg86400);
-  // THE FOLLOWING NEEDS A REVIEW OF THE FUNCTIONALITY ITSELF; The AVGs provided by the method
-  // are not exact and maybe misleading depending on the use-case for this this method was constructed.
-  // When a value is added with the Add function, it is divided by mbins and
-  // result converted to integer norm_val; if val/mbins < 0 we have 0, is this what we want ?
-  // for small values the stat avgs just show 0
-  iostatavg.Add(10000, start_time, stopAvg86400_time);
-  ASSERT_EQ(10000, iostatavg.GetAvg86400());
-  ASSERT_EQ(0, iostatavg.GetAvg3600());
-  ASSERT_EQ(0, iostatavg.GetAvg300());
-  ASSERT_EQ(0, iostatavg.GetAvg60());
-  iostatavg.Add(10000, start_time, stopAvg3600_time);
-  ASSERT_EQ(20000, iostatavg.GetAvg86400());
-  ASSERT_EQ(9990, iostatavg.GetAvg3600());
-  ASSERT_EQ(0, iostatavg.GetAvg300());
-  ASSERT_EQ(0, iostatavg.GetAvg60());
-  iostatavg.Add(10000, start_time, stopAvg300_time);
-  ASSERT_EQ(30000, iostatavg.GetAvg86400());
-  ASSERT_EQ(19958, iostatavg.GetAvg3600());
-  ASSERT_EQ(9520, iostatavg.GetAvg300());
-  ASSERT_EQ(0, iostatavg.GetAvg60());
-  iostatavg.Add(10000, start_time, stopAvg60_time);
-  ASSERT_EQ(40000, iostatavg.GetAvg86400());
-  ASSERT_EQ(29929, iostatavg.GetAvg3600());
-  ASSERT_EQ(18854, iostatavg.GetAvg300());
-  ASSERT_EQ(7180, iostatavg.GetAvg60());
+  // currently no protection in the code against:
+  // * start - stop times fits within the time window of last day, hour or minute
+  // * tdiff (stop - start) <= 0; will get added to all averages
+  // * consider adding check in the code against toff < 0 and tdiff < 0 and testing against it
+  for (int i = 0; i < 2*86400 + 1; ++i) {
+    auto stopAvg = start + seconds(i);
+    time_t stopAvg_time = std::chrono::system_clock::to_time_t(stopAvg);
+    iostatavg.Add(1, start_time, stopAvg_time);
+    if (i < 86401){
+      ASSERT_EQ(0, iostatavg.GetAvg60());
+      ASSERT_EQ(0, iostatavg.GetAvg300());
+      ASSERT_EQ(0, iostatavg.GetAvg3600());
+      ASSERT_EQ(0, iostatavg.GetAvg86400());
+    } else {
+      if (i > 2*86400 - 60) {
+        ASSERT_EQ(i - (2*86400 - 60), iostatavg.GetAvg60());
+      } else {
+        ASSERT_EQ(0, iostatavg.GetAvg60());
+      }
+      if (i > 2*86400 - 300) {
+        ASSERT_EQ(i - (2*86400 - 300), iostatavg.GetAvg300());
+      } else {
+        ASSERT_EQ(0, iostatavg.GetAvg300());
+      }
+      if (i > 2*86400 - 3600) {
+        //std::cout << i << " AVG: " << iostatavg.GetAvg3600() <<std::endl;
+        ASSERT_EQ(i - (2*86400 - 3600), iostatavg.GetAvg3600());
+      } else {
+        ASSERT_EQ(0, iostatavg.GetAvg3600());
+      }
+      if (i > 86400) {
+        ASSERT_EQ(i - 86400, iostatavg.GetAvg86400());
+      } else {
+        ASSERT_EQ(0, iostatavg.GetAvg86400());
+      }
+    }
+  }
 }
 
-// methods needing some gOFS object work around (to be done):
-//Receive
-//PrintNs
-//NamespaceReport
-//UdpBroadCast
-
-// method manipulating private Iostat members - not being tested:
-//StartCirculate
-//StartPopularity
-//StopPopularity
-//StartReport
-//StopReport
-//StartCollection
-//StopCollection
-//StartReportNamespace
-//StopReportNamespace
-//AddToPopularity
-//Add
-//Circulate
-
-// external file operations (not sure if worth testing as this will change to QDB soon)
-//Store
-//Restore
-//WriteRecord
