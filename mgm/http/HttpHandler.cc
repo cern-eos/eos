@@ -57,10 +57,9 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
 {
   eos_static_debug("handling http request");
   eos::common::HttpResponse* response = 0;
-  //REST HANDLER HERE
-  eos::mgm::rest::TapeRestHandler tapeRestHandler("/api/");
-  if(tapeRestHandler.isRestRequest(request->GetUrl())){
-    response = tapeRestHandler.handleRequest(request);
+  eos::mgm::rest::TapeRestHandler & tapeRestHandler = gOFS->mHttpd->mTapeRestHandler;
+  if(tapeRestHandler.isRestRequest(request->GetUrl())) {
+    response = tapeRestHandler.handleRequest(request,mVirtualIdentity);
   } else {
     request->AddEosApp();
 
