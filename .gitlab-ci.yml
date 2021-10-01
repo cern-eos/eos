@@ -50,10 +50,10 @@ prebuild-c8:
   variables:
     PREBUILD_NAME: c8
 
-prebuild-el-8s:
+prebuild-cs8:
   <<: *prebuild-template_definition
   variables:
-    PREBUILD_NAME: el-8s
+    PREBUILD_NAME: cs8
 
 # @note Consider deletion
 .prebuild-cc7_asan:
@@ -141,9 +141,9 @@ clone_docker:
 
 # schedules ------------------------------
 
-el-8s:
+build_cs8:
   stage: build:rpm
-  image: gitlab-registry.cern.ch/dss/eos/prebuild-el-8s
+  image: gitlab-registry.cern.ch/dss/eos/prebuild-cs8
   script:
     - git submodule update --init --recursive
     - ./misc/cmake/cmake-3.19.7-Linux-x86_64.sh --prefix=/usr/ --skip-license \
@@ -484,7 +484,7 @@ cs8_docker_image:
     BASETAG: "cs8_"
   needs:
     - job: clone_docker
-    - job: el-8s
+    - job: build_cs8
   only:
     - schedules
     - tags
@@ -796,7 +796,7 @@ publish_koji_cs8:
     TARGET: "eos8s"
     BUILD_NAME: "cs8"
   dependencies:
-    - el-8s
+    - build_cs8
 
 publish_koji_c8:
   <<: *publish_koji_template_definition
