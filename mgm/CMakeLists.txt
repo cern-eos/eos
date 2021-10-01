@@ -263,8 +263,13 @@ add_library(
   http/rest-api/exception/RestException.cc
   http/rest-api/exception/ResourceNotFoundException.cc
   http/rest-api/exception/ControllerNotFoundException.cc
+  http/rest-api/exception/InvalidJSONException.cc
+  http/rest-api/exception/JsonObjectModelMalformedException.cc
   http/rest-api/model/tape/ErrorModel.cc
+  http/rest-api/model/tape/stage/CreateStageBulkRequestModel.cc
+  http/rest-api/model/tape/stage/CreatedStageBulkRequestModel.cc
   http/rest-api/json/tape/JsonCPPTapeModelJsonifier.cc
+  http/rest-api/json/tape/JsonCPPTapeModelBuilder.cc
   http/rest-api/response/RestApiResponse.cc
   http/rest-api/response/tape/TapeRestApiResponseFactory.cc
   geotree/SchedulingTreeTest.cc

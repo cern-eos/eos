@@ -26,13 +26,15 @@
 
 #include "mgm/Namespace.hh"
 #include "common/http/HttpResponse.hh"
+#include "common/VirtualIdentity.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
 class Resource {
 public:
-  virtual common::HttpResponse * handleRequest(common::HttpRequest * request) = 0;
+  virtual common::HttpResponse * handleRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) = 0;
   inline void setVersion(const std::string & version){ mVersion = version; }
+  virtual const std::string getName() const = 0;
 protected:
   std::string mVersion;
 };

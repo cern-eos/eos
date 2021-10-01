@@ -24,14 +24,18 @@
 #ifndef EOS_CONTROLLER_HH
 #define EOS_CONTROLLER_HH
 
-#include "mgm/Namespace.hh"
 #include "common/http/HttpResponse.hh"
+#include "mgm/Namespace.hh"
+#include "common/http/HttpHandler.hh"
+#include "common/VirtualIdentity.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
 class Controller {
 public:
-  virtual common::HttpResponse * handleRequest(common::HttpRequest * request) = 0;
+  virtual common::HttpResponse * handleRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) = 0;
+protected:
+  std::map<common::HttpHandler::Methods,std::function<common::HttpResponse *(common::HttpRequest * request,const common::VirtualIdentity * vid)>> mHttpVerbToMethod;
 };
 
 EOSMGMRESTNAMESPACE_END

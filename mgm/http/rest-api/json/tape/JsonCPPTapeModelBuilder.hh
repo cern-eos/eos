@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: StageResource.hh
+// File: JsonCPPTapeModelBuilder.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,28 +21,21 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-
-#ifndef EOS_STAGERESOURCE_HH
-#define EOS_STAGERESOURCE_HH
+#ifndef EOS_JSONCPPTAPEMODELBUILDER_HH
+#define EOS_JSONCPPTAPEMODELBUILDER_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/resources/Resource.hh"
-#include "mgm/http/rest-api/controllers/Controller.hh"
-#include <functional>
+#include "mgm/http/rest-api/json/tape/JsonTapeModelBuilder.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class StageResource : public Resource {
+class JsonCPPTapeModelBuilder : public JsonTapeModelBuilder {
 public:
-  StageResource();
-  virtual common::HttpResponse * handleRequest(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
-  virtual const std::string getName() const override;
+  virtual std::shared_ptr<CreateStageBulkRequestModel> buildCreateStageBulkRequestModel(const std::string & json) override;
 private:
-  virtual Controller * getController();
-  static const std::map<std::string,std::function<Controller *()>>
-      cVersionToControllerFactoryMethod;
+  void parseJson(const std::string & json,Json::Value & root);
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_STAGERESOURCE_HH
+#endif // EOS_JSONCPPTAPEMODELBUILDER_HH

@@ -26,6 +26,7 @@
 #include <memory>
 #include "mgm/http/rest-api/exception/ControllerNotFoundException.hh"
 #include <sstream>
+#include "mgm/http/rest-api/response/tape/TapeRestApiResponseFactory.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -37,16 +38,15 @@ StageResource::StageResource(){
 
 }
 
-common::HttpResponse* StageResource::handleRequest(common::HttpRequest* request){
+common::HttpResponse* StageResource::handleRequest(common::HttpRequest* request,const common::VirtualIdentity * vid){
   //Authorized ?
-  //Which controller to instanciate ?
   std::unique_ptr<Controller> controller;
-  try {
-    controller.reset(getController());
-  } catch(const ControllerNotFoundException &ex){
-    //Return an error to the user
-  }
-  return controller->handleRequest(request);
+  controller.reset(getController());
+  return controller->handleRequest(request,vid);
+}
+
+const std::string StageResource::getName() const{
+  return "stage";
 }
 
 Controller* StageResource::getController() {
@@ -54,7 +54,7 @@ Controller* StageResource::getController() {
     return cVersionToControllerFactoryMethod.at(mVersion)();
   } catch (const std::out_of_range &ex) {
     std::ostringstream ss;
-    ss << "No controller version " << mVersion << " found for the stage resource";
+    ss << "No controller version " << mVersion << " found for the " << getName() << " resource";
     throw ControllerNotFoundException(ss.str());
   }
 }

@@ -350,7 +350,16 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
                               errmsg.length());
   }
 
-  if (req.verb == "POST") {
+  bool isRestRequest = mMgmOfsHandler->mHttpd->isRestRequest(req.resource);
+
+  if(isRestRequest){
+    body.resize(req.length);
+    char* data = 0;
+    int rbytes = req.BuffgetData(req.length, &data, true);
+    body.assign(data, (size_t) rbytes);
+  }
+
+  if (req.verb == "POST" && !isRestRequest) {
     if (mTokenHttpHandler) {
       // Delegate request to the XrdMacaroons library
       eos_info("%s", "msg=\"delegate request to XrdMacaroons library\"");
@@ -362,7 +371,7 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
     }
   }
 
-  if (req.verb == "PROPFIND") {
+  if (req.verb == "PROPFIND" && !isRestRequest) {
     // read the body
     body.resize(req.length);
     char* data = 0;

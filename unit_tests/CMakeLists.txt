@@ -75,7 +75,8 @@ set(MGM_UT_SRCS
   mgm/bulk-request/PrepareManagerTest.cc
   mgm/bulk-request/BulkRequestPrepareManagerTest.cc
   mgm/bulk-request/MockPrepareMgmFSInterface.cc
-  mgm/http/rest-api/RestApiTest.cc)
+  mgm/http/rest-api/tape/RestApiTest.cc
+  mgm/http/rest-api/tape/JsonCPPTapeModelBuilderTest.cc)
 
 set(COMMON_UT_SRCS
   common/FileIdTests.cc

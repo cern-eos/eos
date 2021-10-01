@@ -44,7 +44,7 @@ EOSCOMMONNAMESPACE_BEGIN
 class HttpHandler : virtual public eos::common::ProtocolHandler
 {
 
-protected:
+public:
   /**
    * Standard plain HTTP request methods
    */
@@ -76,8 +76,6 @@ protected:
     PATCH,   //!< Is used to apply partial modifications to a resource.
     CREATE,  //!< internal method used by Xrdhttp - creates a file without payload
   };
-
-public:
 
   /**
    * Constructor

@@ -28,6 +28,7 @@
 #include <memory>
 #include "common/http/HttpResponse.hh"
 #include "common/http/HttpRequest.hh"
+#include "common/VirtualIdentity.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -41,7 +42,7 @@ public:
    * @param request the request to handle
    * @return A pointer to an HttpResponse object that will contain the JSON response that will be returned to the client
    */
-  virtual common::HttpResponse * handleRequest(common::HttpRequest * request) = 0;
+  virtual common::HttpResponse * handleRequest(common::HttpRequest * request, const common::VirtualIdentity * vid) = 0;
   /**
    * Returns true if the requestURL passed in parameter should trigger an API handling,
    * false otherwise

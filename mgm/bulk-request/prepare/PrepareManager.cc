@@ -35,7 +35,7 @@
 #include <mgm/Macros.hh>
 #include <mgm/XrdMgmOfs.hh>
 #include <mgm/bulk-request/File.hh>
-
+#include "mgm/bulk-request/utils/PrepareArgumentsWrapper.hh"
 #include <mgm/bulk-request/exception/PersistencyException.hh>
 #include <mgm/bulk-request/prepare/PrepareUtils.hh>
 #include <xrootd/XrdSfs/XrdSfsFlags.hh>
@@ -50,6 +50,11 @@ int PrepareManager::prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdS
   return doPrepare(pargs,error,client);
 }
 
+int PrepareManager::prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const common::VirtualIdentity * vid){
+  XrdSecEntity client;
+  return doPrepare(pargs,error,&client,vid);
+}
+
 void PrepareManager::initializeStagePrepareRequest(XrdOucString& reqid) {
   reqid = eos::common::StringConversion::timebased_uuidstring().c_str();
 }
@@ -58,18 +63,24 @@ void PrepareManager::initializeEvictPrepareRequest(XrdOucString& reqid) {
 
 }
 
-int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecEntity* client) {
+int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecEntity* client, const common::VirtualIdentity * vidClient) {
   EXEC_TIMING_BEGIN("Prepare");
   eos_info("prepareOpts=\"%s\"", PrepareUtils::prepareOptsToString(pargs.opts).c_str());
   static const char* epname = mEpname.c_str();
-  const char* tident = error.getErrUser();
-  eos::common::VirtualIdentity vid;
+  const char* tident;
   XrdOucTList* pptr = pargs.paths;
   XrdOucTList* optr = pargs.oinfo;
   std::string info;
   info = (optr ? (optr->text ? optr->text : "") : "");
-  eos::common::Mapping::IdMap(client, info.c_str(), tident, vid);
-  mMgmFsInterface.addStats("IdMap", vid.uid, vid.gid, 1);
+  eos::common::VirtualIdentity vid;
+  if(vidClient != nullptr){
+    vid = *vidClient;
+    tident = vid.tident.c_str();
+  } else {
+    tident = error.getErrUser();
+    eos::common::Mapping::IdMap(client, info.c_str(), tident, vid);
+    mMgmFsInterface.addStats("IdMap", vid.uid, vid.gid, 1);
+  }
   ACCESSMODE_W;
   MAYSTALL;
   {
@@ -184,7 +195,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
 
     addPathToBulkRequest(prep_path.c_str());
 
-    if (mMgmFsInterface._exists(prep_path.c_str(), check, error, client, "") ||
+    if (mMgmFsInterface._exists(prep_path.c_str(), check, error, vid, "") ||
         (check != XrdSfsFileExistIsFile)) {
       //https://its.cern.ch/jira/browse/EOS-4739
       //For every prepare scenario, we continue to process the files even if they do not exist or are not correct
@@ -367,12 +378,14 @@ std::unique_ptr<QueryPrepareResult> PrepareManager::queryPrepare(XrdSfsPrep &par
   return queryPrepareResult;
 }
 
-int PrepareManager::doQueryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client, QueryPrepareResult & result) {
+int PrepareManager::doQueryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client, QueryPrepareResult & result, const common::VirtualIdentity * vidClient) {
   EXEC_TIMING_BEGIN("QueryPrepare");
   ACCESSMODE_R;
   eos_info("cmd=\"_prepare_query\"");
   eos::common::VirtualIdentity vid;
-  {
+  if(vidClient != nullptr){
+    vid = *vidClient;
+  } else  {
     const char* tident = error.getErrUser();
     XrdOucTList* optr = pargs.oinfo;
     std::string info(optr && optr->text ? optr->text : "");
@@ -457,7 +470,7 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, con
       goto logErrorAndContinue;
     }
 
-    if (mMgmFsInterface._exists(prep_path.c_str(), check, error, client, "") ||
+    if (mMgmFsInterface._exists(prep_path.c_str(), check, error, vid, "") ||
         check != XrdSfsFileExistIsFile) {
       currentFile.setErrorIfNotAlreadySet("file does not exist or is not accessible to you");
       goto logErrorAndContinue;

@@ -1,11 +1,11 @@
-// ----------------------------------------------------------------------
-// File: StageResource.hh
-// Author: Cedric Caffy - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
+//! @file PrepareArgumentsWrapper.hh
+//! @author Cedric Caffy - CERN
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2013 CERN/Switzerland                                  *
+ * Copyright (C) 2017 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -20,29 +20,42 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
+#ifndef EOS_PREPAREARGUMENTSWRAPPER_HH
+#define EOS_PREPAREARGUMENTSWRAPPER_HH
 
-
-#ifndef EOS_STAGERESOURCE_HH
-#define EOS_STAGERESOURCE_HH
-
+#include "auth_plugin/ProtoUtils.hh"
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/resources/Resource.hh"
-#include "mgm/http/rest-api/controllers/Controller.hh"
-#include <functional>
 
-EOSMGMRESTNAMESPACE_BEGIN
+EOSBULKNAMESPACE_BEGIN
 
-class StageResource : public Resource {
+class PrepareArgumentsWrapper {
 public:
-  StageResource();
-  virtual common::HttpResponse * handleRequest(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
-  virtual const std::string getName() const override;
+  PrepareArgumentsWrapper(const std::string & reqid, const int opts, const std::vector<std::string> & oinfos, const std::vector<std::string> & paths) {
+    eos::auth::XrdSfsPrepProto pargsProto;
+    pargsProto.set_reqid(reqid);
+    pargsProto.set_opts(opts);
+    for(auto & oinfo: oinfos){
+      pargsProto.add_oinfo(oinfo);
+    }
+    for(auto & path: paths){
+      pargsProto.add_paths(path);
+    }
+    mPargs = eos::auth::utils::GetXrdSfsPrep(pargsProto);
+  }
+
+  ~PrepareArgumentsWrapper(){
+    eos::auth::utils::DeleteXrdSfsPrep(mPargs);
+  }
+
+  XrdSfsPrep * getPrepareArguments() {
+    return mPargs;
+  }
 private:
-  virtual Controller * getController();
-  static const std::map<std::string,std::function<Controller *()>>
-      cVersionToControllerFactoryMethod;
+  XrdSfsPrep * mPargs;
 };
 
-EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_STAGERESOURCE_HH
+
+EOSBULKNAMESPACE_END
+
+#endif // EOS_PREPAREARGUMENTSWRAPPER_HH
