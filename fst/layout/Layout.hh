@@ -79,8 +79,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get the name of the layout
   //--------------------------------------------------------------------------
-  const char*
-  GetName()
+  const char* GetName()
   {
     return mName.c_str();
   }
@@ -88,8 +87,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get path to the local replica
   //--------------------------------------------------------------------------
-  const char*
-  GetLocalReplicaPath()
+  const char* GetLocalReplicaPath()
   {
     return mLocalPath.c_str();
   }
@@ -97,8 +95,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get layout id
   //--------------------------------------------------------------------------
-  inline unsigned int
-  GetLayoutId()
+  inline unsigned int GetLayoutId()
   {
     return mLayoutId;
   }
@@ -106,8 +103,7 @@ public:
   //--------------------------------------------------------------------------
   //! Get last remote URL (if available)
   //--------------------------------------------------------------------------
-  const std::string&
-  GetLastUrl()
+  const std::string& GetLastUrl()
   {
     return mLastUrl;
   }
@@ -115,8 +111,7 @@ public:
   //--------------------------------------------------------------------------
   //! Get last remote URL (if available)
   //--------------------------------------------------------------------------
-  const std::string&
-  GetLastTriedUrl()
+  const std::string& GetLastTriedUrl()
   {
     return mLastTriedUrl;
   }
@@ -124,8 +119,7 @@ public:
   //--------------------------------------------------------------------------
   //! Get last errCode
   //--------------------------------------------------------------------------
-  const int&
-  GetLastErrCode()
+  const int& GetLastErrCode()
   {
     return mLastErrCode;
   }
@@ -133,8 +127,7 @@ public:
   //--------------------------------------------------------------------------
   //! Get last errCode
   //--------------------------------------------------------------------------
-  const int&
-  GetLastErrNo()
+  const int& GetLastErrNo()
   {
     return mLastErrNo;
   }
@@ -142,8 +135,7 @@ public:
   //--------------------------------------------------------------------------
   //! Get error object
   //--------------------------------------------------------------------------
-  XrdOucErrInfo*
-  GetErrObj() const
+  XrdOucErrInfo* GetErrObj() const
   {
     return mError;
   }
@@ -151,8 +143,7 @@ public:
   //--------------------------------------------------------------------------
   //! Test if we are at the entry server
   //--------------------------------------------------------------------------
-  virtual bool
-  IsEntryServer()
+  virtual bool IsEntryServer()
   {
     return mIsEntryServer;
   }
@@ -239,8 +230,7 @@ public:
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
   //--------------------------------------------------------------------------
-  virtual int
-  Fallocate(XrdSfsFileOffset lenght)
+  virtual int Fallocate(XrdSfsFileOffset lenght)
   {
     return 0;
   }
@@ -253,10 +243,8 @@ public:
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
   //--------------------------------------------------------------------------
-
-  virtual int
-  Fdeallocate(XrdSfsFileOffset fromOffset,
-              XrdSfsFileOffset toOffset)
+  virtual int Fdeallocate(XrdSfsFileOffset fromOffset,
+                          XrdSfsFileOffset toOffset)
   {
     return 0;
   }
@@ -266,8 +254,7 @@ public:
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
   //--------------------------------------------------------------------------
-  virtual int
-  Remove()
+  virtual int Remove()
   {
     return 0;
   }
@@ -340,7 +327,7 @@ public:
            const char* target = "");
 
 protected:
-  bool mIsEntryServer; ///< mark entry server
+  std::atomic<bool> mIsEntryServer; ///< Mark entry server
   unsigned long mLayoutId; ///< layout id
   XrdOucString mName; ///< layout name
   std::string mLastUrl; ///< last URL for remote files
