@@ -908,6 +908,11 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
     hasWriteError = true;
   } else {
     mHasWrite = true;
+
+    if (mLayout->IsEntryServer() || isReplication) {
+      XrdSysMutexHelper lock(vecMutex);
+      wvec.push_back(rc);
+    }
   }
 
   if (rc < 0) {
@@ -2201,11 +2206,6 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset fileOffset, const char* buffer,
   }
 
   if (rc > 0) {
-    if (mLayout->IsEntryServer() || eos::common::LayoutId::IsRain(mLid)) {
-      XrdSysMutexHelper lock(vecMutex);
-      wvec.push_back(rc);
-    }
-
     wOffset = fileOffset + rc;
   }
 

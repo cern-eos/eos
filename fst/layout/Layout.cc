@@ -31,8 +31,8 @@ EOSFSTNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 Layout::Layout(XrdFstOfsFile* file) :
-  mIsEntryServer(false), mLayoutId(0), mName(""), mLastErrCode(0),
-  mLastErrNo(0), mOfsFile(file), mError(0), mSecEntity(0),
+  mIsEntryServer(false), mLayoutId(0), mName(""),
+  mLastErrCode(0), mLastErrNo(0), mOfsFile(file), mError(0), mSecEntity(0),
   mIoType(eos::common::LayoutId::kLocal), mTimeout(0), mFileIO(nullptr)
 {}
 
@@ -45,19 +45,13 @@ Layout::Layout(XrdFstOfsFile* file,
                XrdOucErrInfo* outError,
                const char* path,
                uint16_t timeout) :
-  eos::common::LogId(),
-  mLayoutId(lid),
-  mLastErrCode(0),
-  mLastErrNo(0),
-  mOfsFile(file),
-  mError(outError),
+  eos::common::LogId(), mIsEntryServer(false), mLayoutId(lid),
+  mLastErrCode(0), mLastErrNo(0), mOfsFile(file), mError(outError),
   mTimeout(timeout)
-
 {
   mSecEntity = const_cast<XrdSecEntity*>(client);
   mIoType = eos::common::LayoutId::GetIoType(path);
   mName = eos::common::LayoutId::GetLayoutTypeString(mLayoutId);
-  mIsEntryServer = false;
   mLocalPath = (path ? path : "");
   mFileIO.reset(FileIoPlugin::GetIoObject((path ? path : ""), mOfsFile,
                                           mSecEntity));

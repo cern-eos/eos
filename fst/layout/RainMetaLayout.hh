@@ -81,7 +81,8 @@ public:
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
   //----------------------------------------------------------------------------
-  virtual int Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque);
+  virtual int Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
+  override;
 
   //----------------------------------------------------------------------------
   //! Open file using parallel IO
@@ -107,7 +108,7 @@ public:
   //! @return number of bytes read or -1 if error
   //--------------------------------------------------------------------------
   virtual int64_t Read(XrdSfsFileOffset offset, char* buffer,
-                       XrdSfsXferSize length, bool readahead = false);
+                       XrdSfsXferSize length, bool readahead = false) override;
 
   //----------------------------------------------------------------------------
   //! Vector read
@@ -117,7 +118,7 @@ public:
   //!
   //! @return number of bytes read of -1 if error
   //----------------------------------------------------------------------------
-  virtual int64_t ReadV(XrdCl::ChunkList& chunkList, uint32_t len);
+  virtual int64_t ReadV(XrdCl::ChunkList& chunkList, uint32_t len) override;
 
   //----------------------------------------------------------------------------
   //! Write to file
@@ -129,7 +130,7 @@ public:
   //! @return number of bytes written or -1 if error
   //----------------------------------------------------------------------------
   virtual int64_t Write(XrdSfsFileOffset offset, const char* buffer,
-                        XrdSfsXferSize length);
+                        XrdSfsXferSize length) override;
 
   //----------------------------------------------------------------------------
   //! Truncate
