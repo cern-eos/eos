@@ -300,7 +300,7 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
 
         Mutex.UnLock();
 
-        if (mReport) {
+        if (mReport && gOFS->mMaster->IsMaster()) {
           // add the record to a daily report log file
           static XrdOucString openreportfile = "";
           time_t now = time(NULL);
@@ -1969,6 +1969,7 @@ IostatAvg::Add(unsigned long long val, time_t starttime, time_t stoptime)
     if (mbins == 0) {
       mbins = 1;
     }
+
     // we partially mitigate the precision loss in integer division
     // when getting norm_val below by redistribution of reminder into bins
     unsigned long long remainder = val % mbins;
