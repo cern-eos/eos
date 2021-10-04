@@ -3017,11 +3017,13 @@ Server::OpGetLock(const std::string& id,
   eos::fusex::response resp;
   resp.set_type(resp.LOCK);
   struct flock lock;
-  Locks().getLocks(md.md_ino())->getlk((pid_t) md.flock().pid(), &lock);
+  memset(&lock, 0, sizeof(struct flock));
+  int rc = Locks().getLocks(md.md_ino())->getlk((pid_t) md.flock().pid(), &lock);
   resp.mutable_lock_()->set_len(lock.l_len);
   resp.mutable_lock_()->set_start(lock.l_start);
   resp.mutable_lock_()->set_pid(lock.l_pid);
-  eos_info("getlk: ino=%016lx start=%lu len=%ld pid=%u type=%d",
+  eos_info("getlk: rc=%d ino=%016lx start=%lu len=%ld pid=%u type=%d",
+	   rc,
            md.md_ino(),
            lock.l_start,
            lock.l_len,
@@ -3042,6 +3044,8 @@ Server::OpGetLock(const std::string& id,
     break;
   }
 
+  std::string rspstream;
+  resp.SerializeToString(response);
   EXEC_TIMING_END("Eosxd::ext::GETLK");
   return 0;
 }

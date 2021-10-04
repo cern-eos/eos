@@ -89,6 +89,15 @@ public:
     return len_;
   }
 
+  Offset f_lock_len() const
+  {
+    if (len_ == -1) {
+      return 0;
+    } else {
+      return len_;
+    }
+  }
+
   Offset end() const
   {
     if (len_ == -1) {
