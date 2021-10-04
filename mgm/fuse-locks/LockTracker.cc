@@ -326,6 +326,11 @@ LockTracker::canLock(pid_t pid, struct flock* f_lock)
 
   // Are there any exclusive locks right now?
   if (wlocks.getconflict(lock)) {
+    f_lock->l_start = lock.range().start();
+    f_lock->l_len = lock.range().f_lock_len();
+    f_lock->l_pid = lock.pid();
+    f_lock->l_whence = SEEK_SET;
+    f_lock->l_type = F_WRLCK;
     return false;
   }
 
@@ -336,7 +341,17 @@ LockTracker::canLock(pid_t pid, struct flock* f_lock)
 
   // If this is a write lock, we can lock only if there are no read locks
   if (f_lock->l_type == F_WRLCK) {
-    return rlocks.getconflict(lock);
+    bool rc = rlocks.getconflict(lock);
+    if (rc) {
+      f_lock->l_start = lock.range().start();
+      f_lock->l_len = lock.range().f_lock_len();
+      f_lock->l_pid = lock.pid();
+      f_lock->l_whence = SEEK_SET;
+      f_lock->l_type = F_RDLCK;
+      return false;
+    } else {
+      return true;
+    }
   }
 
   // TODO raise warning, should never reach this point
