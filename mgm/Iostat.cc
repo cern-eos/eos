@@ -21,7 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
+
 #include "common/table_formatter/TableFormatterBase.hh"
 #include "common/Report.hh"
 #include "common/Path.hh"
@@ -29,13 +29,12 @@
 #include "common/Logging.hh"
 #include "mgm/Iostat.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/IMaster.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/Prefetcher.hh"
 #include "mq/ReportListener.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdNet/XrdNetUtils.hh"
 #include "XrdNet/XrdNetAddr.hh"
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -301,7 +300,7 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
 
         Mutex.UnLock();
 
-        if (mReport) {
+        if (mReport && gOFS->mMaster->IsMaster()) {
           // add the record to a daily report log file
           static XrdOucString openreportfile = "";
           time_t now = time(NULL);
@@ -1970,6 +1969,7 @@ IostatAvg::Add(unsigned long long val, time_t starttime, time_t stoptime)
     if (mbins == 0) {
       mbins = 1;
     }
+
     // we partially mitigate the precision loss in integer division
     // when getting norm_val below by redistribution of reminder into bins
     unsigned long long remainder = val % mbins;
@@ -1977,7 +1977,8 @@ IostatAvg::Add(unsigned long long val, time_t starttime, time_t stoptime)
 
     for (size_t bins = 0; bins < mbins; bins++) {
       unsigned int bin86400 = (((stoptime - (bins * 1440)) / 1440) % 60);
-      if (bins < remainder){
+
+      if (bins < remainder) {
         avg86400[bin86400] += (norm_val + 1);
       } else {
         avg86400[bin86400] += norm_val;
@@ -1998,7 +1999,8 @@ IostatAvg::Add(unsigned long long val, time_t starttime, time_t stoptime)
 
     for (size_t bins = 0; bins < mbins; bins++) {
       unsigned int bin3600 = (((stoptime - (bins * 60)) / 60) % 60);
-      if (bins < remainder){
+
+      if (bins < remainder) {
         avg3600[bin3600] += (norm_val + 1);
       } else {
         avg3600[bin3600] += norm_val;
@@ -2019,7 +2021,8 @@ IostatAvg::Add(unsigned long long val, time_t starttime, time_t stoptime)
 
     for (size_t bins = 0; bins < mbins; bins++) {
       unsigned int bin300 = (((stoptime - (bins * 5)) / 5) % 60);
-      if (bins < remainder){
+
+      if (bins < remainder) {
         avg300[bin300] += (norm_val + 1);
       } else {
         avg300[bin300] += norm_val;
@@ -2040,7 +2043,8 @@ IostatAvg::Add(unsigned long long val, time_t starttime, time_t stoptime)
 
     for (size_t bins = 0; bins < mbins; ++bins) {
       unsigned int bin60 = (((stoptime - (bins * 1)) / 1) % 60);
-      if (bins < remainder){
+
+      if (bins < remainder) {
         avg60[bin60] += (norm_val + 1);
       } else {
         avg60[bin60] += norm_val;
