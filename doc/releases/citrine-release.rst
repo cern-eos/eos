@@ -16,6 +16,24 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.66 Citrine``
+===================
+
+2021-10-05
+
+Bug
+----
+
+* [EOS-4936] - GETLK returns EAGAIN instead of lock information
+* [EOS-4937] - Fix reporting for written bytes for RAIN layouts
+* [EOS-4938] - Store report info only in the current MGM master
+
+Improvement
+-----------
+
+* [EOS-4930] - Add support for async writes for replica layout
+
+
 ``v4.8.65 Citrine``
 ===================
 
