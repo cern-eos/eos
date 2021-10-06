@@ -28,10 +28,13 @@
 #define __EOSCOMMON__STACKTRACE__HH
 
 #include "common/ShellCmd.hh"
+#include "common/Timing.hh"
 #include "common/StringConversion.hh"
 #include <unistd.h>
 
 EOSCOMMONNAMESPACE_BEGIN
+
+static const std::string EOS_DEFAULT_STACKTRACE_PATH = "/var/eos/md/stacktrace";
 
 //------------------------------------------------------------------------------
 //! Static Class implementing comfortable readable stack traces
@@ -66,9 +69,17 @@ public:
   //! Create a readable back trace using gdb
   //----------------------------------------------------------------------------
   static void GdbTrace(const char* executable, pid_t pid, const char* what,
-                       const char* file = "/var/eos/md/stacktrace", std::string* ret_dump = 0)
+                       std::string file = EOS_DEFAULT_STACKTRACE_PATH,
+                       std::string* ret_dump = 0)
   {
     std::string exe;
+
+    // Append timestamp to easily distinguish multiple failures
+    if (file == EOS_DEFAULT_STACKTRACE_PATH) {
+      auto now = std::time(nullptr);
+      file += "-";
+      file += eos::common::Timing::UnixTimestamp_to_ISO8601(now);
+    }
 
     if (!executable) {
       std::string procentry = "/proc/";
@@ -100,11 +111,11 @@ public:
     gdbline += "\"";
     gdbline += what;
     gdbline += "\" >&" ;
-    gdbline += file;
+    gdbline += file.c_str();
     eos::common::ShellCmd shelltrace(gdbline.c_str());
     shelltrace.wait(120);
     std::string cat = "cat ";
-    cat += file;
+    cat += file.c_str();
     std::string gdbdump = StringConversion::StringFromShellCmd
                           (cat.c_str());
 
