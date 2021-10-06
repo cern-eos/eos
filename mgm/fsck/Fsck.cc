@@ -98,23 +98,14 @@ Fsck::ApplyFsckConfig()
   // Apply the configuration to the fsck engine
   std::string msg;
 
-  if (kv_map.count(sCollectKey)) {
+  if (kv_map.count(sCollectKey) && kv_map.count(sCollectIntervalKey)) {
     mCollectEnabled = (kv_map[sCollectKey] == "1");
-
-    if (mCollectEnabled != mCollectRunning) {
-      Config(sCollectKey, kv_map[sCollectIntervalKey], msg);
-    }
+    Config(sCollectKey, (mCollectEnabled ? kv_map[sCollectIntervalKey] : "off"),
+           msg);
 
     if (kv_map.count(sRepairKey)) {
       mRepairEnabled = (kv_map[sRepairKey] == "1");
-
-      if (!mCollectEnabled) {
-        mRepairEnabled = false;
-      }
-
-      if (mRepairEnabled != mRepairRunning) {
-        Config(sRepairKey, mRepairEnabled ? "1" : "0", msg);
-      }
+      Config(sRepairKey, kv_map[sRepairKey], msg);
     }
   }
 }
@@ -140,6 +131,10 @@ Fsck::StoreFsckConfig()
 bool
 Fsck::Config(const std::string& key, const std::string& value, std::string& msg)
 {
+  // Make sure only one config runs at a time
+  static std::mutex mutex;
+  std::unique_lock<std::mutex> serialize_lock(mutex);
+
   if (mQcl == nullptr) {
     if (!gOFS->mQdbCluster.empty()) {
       mQcl = std::make_shared<qclient::QClient>
@@ -153,16 +148,23 @@ Fsck::Config(const std::string& key, const std::string& value, std::string& msg)
   }
 
   if (key == sCollectKey) {
-    mCollectEnabled = !mCollectRunning;
+    if (value == "off") {
+      mCollectEnabled = false;
+    } else {
+      mCollectEnabled = !mCollectRunning;
+    }
 
-    if (mCollectRunning) {
-      // Stop also repair thread if it's running
+    if (mCollectEnabled == false) {
+      mRepairEnabled = false;
+
+      // Stop the collection and repair
       if (mRepairRunning) {
         mRepairThread.join();
-        mRepairEnabled = false;
       }
 
-      mCollectorThread.join();
+      if (mCollectRunning) {
+        mCollectorThread.join();
+      }
     } else {
       // If value is present then it represents the collection interval
       if (!value.empty()) {
@@ -179,7 +181,9 @@ Fsck::Config(const std::string& key, const std::string& value, std::string& msg)
         }
       }
 
-      mCollectorThread.reset(&Fsck::CollectErrs, this);
+      if (!mCollectRunning) {
+        mCollectorThread.reset(&Fsck::CollectErrs, this);
+      }
     }
 
     if (!StoreFsckConfig()) {
@@ -187,16 +191,24 @@ Fsck::Config(const std::string& key, const std::string& value, std::string& msg)
       return false;
     }
   } else if (key == "toggle-repair") {
-    if (mCollectEnabled == false) {
-      msg = "error: repair can not be enabled without error collection";
-      return false;
+    if (value.empty()) {
+      // User triggered repair toggle
+      mRepairEnabled = !mRepairRunning;
+    } else {
+      // Mandatory config coming from the stored configuration
+      mRepairEnabled = (value == "1");
     }
 
-    mRepairEnabled = !mRepairRunning;
-
-    if (mRepairRunning) {
-      mRepairThread.join();
+    if (mRepairEnabled == false) {
+      if (mRepairRunning) {
+        mRepairThread.join();
+      }
     } else {
+      if (!mCollectEnabled) {
+        msg = "error: repair can not be enabled without error collection";
+        return false;
+      }
+
       mRepairThread.reset(&Fsck::RepairErrs, this);
     }
 
@@ -324,11 +336,11 @@ Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
     assistant.wait_for(mCollectInterval);
   }
 
-  mCollectRunning = false;
   ResetErrorMaps();
   Log("Stop error collection");
   PublishLogs();
   eos_info("%s", "msg=\"stopped fsck collector thread\"");
+  mCollectRunning = false;
 }
 
 //------------------------------------------------------------------------------
@@ -428,8 +440,8 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
     assistant.wait_for(std::chrono::seconds(1));
   }
 
-  mRepairRunning = false;
   eos_info("%s", "msg=\"stopped fsck repair thread\"");
+  mRepairRunning = false;
 }
 
 //------------------------------------------------------------------------------
