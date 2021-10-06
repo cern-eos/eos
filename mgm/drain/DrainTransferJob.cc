@@ -675,7 +675,7 @@ DrainTransferJob::UpdateMgmStats()
     tag_stats += "Started";
   }
 
-  if (tag_stats != "Unknown") {
+  if (gOFS && (tag_stats != "Unknown")) {
     gOFS->MgmStats.Add(tag_stats.c_str(), 0, 0, 1);
   }
 }
