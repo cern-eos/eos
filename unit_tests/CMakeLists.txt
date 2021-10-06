@@ -85,6 +85,7 @@ set(COMMON_UT_SRCS
   common/RWMutexTest.cc
   common/StringConversionTests.cc
   common/StringTokenizerTests.cc
+  common/StringSplitTests.cc
   common/SymKeysTests.cc
   common/ThreadPoolTest.cc
   common/TimingTests.cc
