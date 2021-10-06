@@ -156,7 +156,6 @@ Fsck::Config(const std::string& key, const std::string& value, std::string& msg)
 
     if (mCollectEnabled == false) {
       mRepairEnabled = false;
-
       // Stop the collection and repair
       if (mRepairRunning) {
         mRepairThread.join();
