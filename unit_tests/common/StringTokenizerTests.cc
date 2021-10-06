@@ -290,4 +290,38 @@ TEST(StringTokenizer, IsUnsignedNumber)
   ASSERT_FALSE(StringTokenizer::IsUnsignedNumber("1bc1"));
 }
 
+TEST(StringTokenizer, Split)
+{
+  std::string path="/eos/foo/bar/baz/";
+  std::vector<std::string> v{"eos","foo","bar","baz"};
+  ASSERT_EQ(StringTokenizer::split<vector<std::string>>(path,'/'),
+            v);
+
+  ASSERT_EQ(StringTokenizer::split<vector<std::string>>("eos/foo/bar/baz",'/'),
+            v);
+
+
+  ASSERT_EQ(StringTokenizer::split<vector<std::string>>("///eos//foo/bar/baz///",'/'),
+            v);
+
+  std::string path_null = "/eos/foo";
+  path_null += '\0';
+  path_null += "bar";
+  path_null += '\0';
+  std::vector<std::string> path_null_v = {"/eos/foo","bar"};
+
+  ASSERT_EQ(StringTokenizer::split<vector<std::string>>(path_null,'\0'),
+            path_null_v);
+
+  std::string path_null2;
+  path_null2 += '\0';
+  path_null2 += path_null;
+  ASSERT_EQ(StringTokenizer::split<vector<std::string>>(path_null2,'\0'),
+            path_null_v);
+  char empty;
+  ASSERT_EQ(StringTokenizer::split<vector<std::string>>("abcd",empty),
+            std::vector<std::string>({"abcd"}));
+
+}
+
 EOSCOMMONTESTING_END
