@@ -78,6 +78,57 @@ TEST(PathSplitter, BasicSanity)
   ASSERT_TRUE(elements.empty());
 }
 
+TEST(PathSplitter, DequeTests)
+{
+  std::string path1 = "/test1/test2/test3/test4/";
+  std::string path2 = "/test1/test2/test3/test4";
+  std::string path3 = "test1/test2/test3/test4/";
+  std::string path4 = "test1/test2/test3/test4";
+  std::deque<std::string> dq1,dq2,dq3,dq4;
+  std::deque<std::string> expected {
+    "test1","test2","test3","test4"
+  };
+  eos::PathProcessor::insertChunksIntoDeque(dq1,
+                                            path1);
+  eos::PathProcessor::insertChunksIntoDeque(dq2,
+                                            path2);
+  eos::PathProcessor::insertChunksIntoDeque(dq3,
+                                            path3);
+  eos::PathProcessor::insertChunksIntoDeque(dq4,
+                                            path4);
+
+  ASSERT_EQ(dq1, expected);
+  ASSERT_EQ(dq2, expected);
+  ASSERT_EQ(dq3, expected);
+  ASSERT_EQ(dq4, expected);
+}
+
+TEST(PathSplitter, DequeTestsNonEmpty)
+{
+  std::string path1 = "/test1/test2/test3/test4/";
+  std::string path2 = "/test1/test2/test3/test4";
+  std::string path3 = "test1/test2/test3/test4/";
+  std::string path4 = "test1/test2/test3/test4";
+  std::deque<std::string> dq1,dq2,dq3,dq4;
+  dq1 = dq2 = dq3 = dq4 = {"foo","bar"};
+  std::deque<std::string> expected {
+    "test1","test2","test3","test4","foo","bar"
+  };
+  eos::PathProcessor::insertChunksIntoDeque(dq1,
+                                            path1);
+  eos::PathProcessor::insertChunksIntoDeque(dq2,
+                                            path2);
+  eos::PathProcessor::insertChunksIntoDeque(dq3,
+                                            path3);
+  eos::PathProcessor::insertChunksIntoDeque(dq4,
+                                            path4);
+
+  ASSERT_EQ(dq1, expected);
+  ASSERT_EQ(dq2, expected);
+  ASSERT_EQ(dq3, expected);
+  ASSERT_EQ(dq4, expected);
+}
+
 TEST(LRU, BasicSanity)
 {
   struct Entry {
