@@ -194,8 +194,8 @@ private:
   std::atomic<bool> mStartProcessing; ///< Notification flag for repair thread
   std::atomic<bool> mCollectEnabled; ///< Mark if the err collection is enabled
   std::atomic<bool> mRepairEnabled; ///< Mark if the repair thread is enabled
-  std::atomic<bool> mCollectRunning; ///< Mark fi collector is running
-  std::atomic<bool> mRepairRunning; ///< Mark fi collector is running
+  std::atomic<bool> mCollectRunning; ///< Mark if collector is running
+  std::atomic<bool> mRepairRunning; ///< Mark if repair is running
   mutable std::string mLog, mTmpLog; ///< In-memory fsck log
   mutable XrdSysMutex mLogMutex; ///< Mutex protecting the in-memory log
   ///< Interval between FSCK collection loops

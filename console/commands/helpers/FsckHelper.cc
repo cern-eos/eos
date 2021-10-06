@@ -48,7 +48,7 @@ FsckHelper::ParseCommand(const char* arg)
     }
 
     std::string key = option;
-    std::string value {""};
+    std::string value {};
 
     if ((option = tokenizer.GetToken()) != nullptr) {
       value = option;
