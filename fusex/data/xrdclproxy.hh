@@ -32,6 +32,7 @@
 #include "llfusexx.hh"
 #include "common/Logging.hh"
 #include "common/Timing.hh"
+#include "common/RWMutex.hh"
 #include <memory>
 #include <map>
 #include <string>
@@ -676,6 +677,7 @@ public:
     mRChunksInFlight.store(0, std::memory_order_seq_cst);
     mDeleted = false;
     mReadAheadMaximumPosition = 64 * 1024ll * 1024ll * 1024ll * 1024ll;
+    sProxy++;
   }
 
   void Collect()
@@ -746,6 +748,7 @@ public:
 
   virtual ~Proxy()
   {
+    sProxy--;
     WaitOpen();
 
     // collect all pending read requests
@@ -1333,6 +1336,10 @@ public:
     return mProtocol;
   }
 
+  static eos::common::RWMutex gDeleteMutex;
+  static std::atomic<int> sProxy;
+  static int Proxies() { return sProxy;}
+
 private:
   OPEN_STATE open_state;
   struct timespec open_state_time;
@@ -1351,6 +1358,7 @@ private:
   static chunk_vector sTimeoutWriteAsyncChunks;
   static chunk_rvector sTimeoutReadAsyncChunks;
   static XrdSysMutex sTimeoutAsyncChunksMutex;
+
 
   XRootDStatus XReadState;
   XRootDStatus XWriteState;
