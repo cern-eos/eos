@@ -60,7 +60,6 @@ bool readFile(const std::string& path, std::string& contents)
   const int BUFFER_SIZE = 1024;
   char buffer[BUFFER_SIZE];
   FILE* in = fopen(path.c_str(), "rb");
-
   if (!in) {
     return false;
   }
@@ -73,7 +72,9 @@ bool readFile(const std::string& path, std::string& contents)
     }
 
     if (bytesRead == 0) {
-      retvalue = false;
+      if (!feof(in)) {
+	retvalue = false;
+      }
       break;
     }
 
