@@ -29,6 +29,7 @@
 #include <vector>
 #include <sstream>
 #include <iostream>
+#include "common/StringUtils.hh"
 
 class FatalException : public std::exception
 {
@@ -96,21 +97,7 @@ inline std::string join(const std::vector<std::string>& contents,
   return ss.str();
 }
 
-inline bool startswith(const std::string& str, const std::string& prefix)
-{
-  if (prefix.size() > str.size()) {
-    return false;
-  }
-
-  for (size_t i = 0; i < prefix.size(); i++) {
-    if (str[i] != prefix[i]) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
+using eos::common::startsWith;
 bool readFile(int fd, std::string& ret);
 bool readFile(const std::string& path, std::string& ret);
 bool writeFile600(const std::string& path, const std::string &contents);

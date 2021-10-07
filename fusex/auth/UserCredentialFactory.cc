@@ -68,7 +68,7 @@ void UserCredentialFactory::addKrb5(const JailIdentifier &id, std::string path,
   //----------------------------------------------------------------------------
   // Kerberos keyring?
   //----------------------------------------------------------------------------
-  if(startswith(path, "KEYRING")) {
+  if(startsWith(path, "KEYRING")) {
     out.emplace_back(UserCredentials::MakeKrk5(path, uid, gid));
     return;
   }
@@ -76,7 +76,7 @@ void UserCredentialFactory::addKrb5(const JailIdentifier &id, std::string path,
   //----------------------------------------------------------------------------
   // Kerberos kcm?
   //----------------------------------------------------------------------------
-  if(startswith(path, "KCM")) {
+  if(startsWith(path, "KCM")) {
     out.emplace_back(UserCredentials::MakeKcm(path, uid, gid));
     return;
   }
@@ -85,7 +85,7 @@ void UserCredentialFactory::addKrb5(const JailIdentifier &id, std::string path,
   // Drop FILE:, if exists
   //----------------------------------------------------------------------------
   const std::string prefix = "FILE:";
-  if(startswith(path, prefix)) {
+  if(startsWith(path, prefix)) {
     path = path.substr(prefix.size());
   }
 
@@ -114,7 +114,7 @@ void UserCredentialFactory::addOAUTH2(const JailIdentifier &id, std::string path
   // Drop FILE:, if exists
   //----------------------------------------------------------------------------
   const std::string prefix = "FILE:";
-  if(startswith(path, prefix)) {
+  if(startsWith(path, prefix)) {
     path = path.substr(prefix.size());
   }
 
@@ -237,7 +237,7 @@ bool UserCredentialFactory::parseSingle(LogbookScope &scope,
   // KRB?
   //----------------------------------------------------------------------------
   const std::string krbPrefix = "krb:";
-  if(startswith(str, krbPrefix)) {
+  if(startsWith(str, krbPrefix)) {
     addKrb5(id, str.substr(krbPrefix.size()), uid, gid, out);
     return true;
   }
@@ -246,7 +246,7 @@ bool UserCredentialFactory::parseSingle(LogbookScope &scope,
   // X509?
   //----------------------------------------------------------------------------
   const std::string x509Prefix = "x509:";
-  if(startswith(str, x509Prefix)) {
+  if(startsWith(str, x509Prefix)) {
     addx509(id, str.substr(x509Prefix.size()), uid, gid, out);
     return true;
   }

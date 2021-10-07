@@ -50,7 +50,7 @@ bool CredentialValidator::checkKeyringUID(const std::string &keyring,
   }
 
   std::string prefix = SSTR("KEYRING:persistent:" << uid << ":");
-  return startswith(keyring, prefix);
+  return startsWith(keyring, prefix);
 }
 
 //----------------------------------------------------------------------------
@@ -70,7 +70,7 @@ bool CredentialValidator::checkKcmUID(const std::string &kcm,
   }
 
   std::string prefix = SSTR("KCM:" << uid << ":");
-  return startswith(kcm, prefix);
+  return startsWith(kcm, prefix);
 }
 
 //----------------------------------------------------------------------------
