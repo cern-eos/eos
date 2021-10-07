@@ -476,7 +476,6 @@ QdbMaster::ApplyMasterConfig(std::string& stdOut, std::string& stdErr,
     }
   }
 
-  gOFS->mDrainEngine.Start();
   gOFS->SetupGlobalConfig();
   return mConfigLoaded;
 }
