@@ -30,6 +30,7 @@
 #include <sstream>
 #include <iostream>
 #include "common/StringUtils.hh"
+#include "common/StringSplit.hh"
 
 class FatalException : public std::exception
 {
@@ -52,33 +53,14 @@ private:
 #define SSTR(message) static_cast<std::ostringstream&>(std::ostringstream().flush() << message).str()
 #define THROW(message) throw FatalException(SSTR(message))
 
-inline std::vector<std::string> split(std::string data, std::string token)
+inline std::vector<std::string> split_on_nullbyte(std::string_view data)
 {
-  std::vector<std::string> output;
-  size_t pos = std::string::npos;
-
-  do {
-    pos = data.find(token);
-    output.push_back(data.substr(0, pos));
-
-    if (std::string::npos != pos) {
-      data = data.substr(pos + token.size());
-    }
-  } while (std::string::npos != pos);
-
-  return output;
-}
-
-inline std::vector<std::string> split_on_nullbyte(std::string data)
-{
-  std::string nullbyte("\0", 1);
-  std::vector<std::string> ret = split(data, nullbyte);
-
-  if (ret[ret.size() - 1].size() == 0) {
-    ret.pop_back();
+  std::vector<std::string> result;
+  auto segments = eos::common::CharSplitIt(data,'\0');
+  for (std::string_view segment: segments) {
+    result.emplace_back(segment);
   }
-
-  return ret;
+  return result;
 }
 
 inline std::string join(const std::vector<std::string>& contents,

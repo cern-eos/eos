@@ -168,9 +168,8 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
   // User-space lookup of path - this could be avoided if the linux kernel
   // supported openat with AT_THIS_ROOT ...
   //----------------------------------------------------------------------------
-  std::vector<std::string> splitPath = split(path, "/");
 
-  if(splitPath[0] != "") {
+  if(eos::common::startsWith(path,"/")) {
     //--------------------------------------------------------------------------
     // User is attempting to open a relative path ?! No.
     //--------------------------------------------------------------------------
@@ -178,16 +177,17 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
   }
 
   FileDescriptor current = std::move(jailfd);
+  auto splitPath = eos::common::SplitPath(path);
 
-  for(size_t i = 1; i < splitPath.size() - 1; i++) {
+  for(const auto& segment: splitPath) {
     //--------------------------------------------------------------------------
     // ".." in path? Disallow for now.
     //--------------------------------------------------------------------------
-    if(splitPath[i] == "..") {
+    if(segment == "..") {
       return Info(CredentialState::kCannotStat, {0, 0} );
     }
 
-    FileDescriptor next(openat(current.getFD(), splitPath[i].c_str(),
+    FileDescriptor next(openat(current.getFD(), segment.c_str(),
       O_DIRECTORY | O_NOFOLLOW | O_RDONLY));
 
     if(!next.ok()) {
