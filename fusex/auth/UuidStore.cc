@@ -61,7 +61,7 @@ void UuidStore::initialCleanup()
   struct dirent* current = nullptr;
 
   while ((current = iterator.next())) {
-    if (startswith(current->d_name, "eos-fusex-uuid-store-")) {
+    if (startsWith(current->d_name, "eos-fusex-uuid-store-")) {
       if (unlink(SSTR(repository << "/" << current->d_name).c_str()) != 0) {
         eos_static_crit("UuidStore:: Could not delete %s during initial cleanup, errno %d",
                         current->d_name, errno);
