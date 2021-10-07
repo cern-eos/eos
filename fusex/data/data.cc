@@ -1608,7 +1608,10 @@ data::datax::recover_write(fuse_req_t req)
     if (rc) {
       mRecoveryStack.push_back(eos_log(LOG_SILENT,
                                        "hint='read-open failed with rc=%d'", rc));
-      delete aproxy;
+      {
+	eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
+	delete aproxy;
+      }
       proxy->CleanWriteQueue();
       return rc;
     }
@@ -1745,7 +1748,10 @@ data::datax::recover_write(fuse_req_t req)
       }
 
       ::close(fd);
-      delete uploadproxy;
+      {
+	eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
+	delete uploadproxy;
+      }
 
       if (req && end_flush(req)) {
         eos_warning("failed to signal end-flush");
@@ -1773,7 +1779,10 @@ data::datax::recover_write(fuse_req_t req)
           }
 
           sBufferManager.put_buffer(buffer);
-          delete uploadproxy;
+	  {
+	    eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
+	    delete uploadproxy;
+	  }
 
           if (req && end_flush(req)) {
             eos_warning("failed to signal end-flush");
@@ -1799,7 +1808,10 @@ data::datax::recover_write(fuse_req_t req)
       if (!uploadproxy->write_state().IsOK()) {
         sBufferManager.put_buffer(buffer);
         eos_crit("got failure when collecting outstanding writes from the upload proxy");
-        delete uploadproxy;
+	{
+	  eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
+	  delete uploadproxy;
+	}
 
         if (req && end_flush(req)) {
           eos_warning("failed to signal end-flush");
@@ -2959,7 +2971,10 @@ data::dmap::ioflush(ThreadAssistant& assistant)
 
                 if (fit->second->IsClosed()) {
                   if (fit->second->DoneReadAhead()) {
-                    delete fit->second;
+		    {
+		      eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
+		      delete fit->second;
+		    }
                     fit = (*it)->file()->get_xrdioro().erase(fit);
                     eos_static_info("deleting reader");
                     continue;
@@ -3073,7 +3088,10 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                                           fit->second->mode(), 0);
                       newproxy->inherit_attached(fit->second);
                       newproxy->inherit_protocol(fit->second);
-                      delete(fit->second);
+		      {
+			eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
+			delete(fit->second);
+		      }
                       map[fit->first] = newproxy;
                       continue;
                     } else {
@@ -3141,7 +3159,10 @@ data::dmap::ioflush(ThreadAssistant& assistant)
 
                   eos_static_info("deleting xrdclproxyrw state=%d %d", fit->second->stateTS(),
                                   fit->second->IsClosed());
-                  delete fit->second;
+		  {
+		    eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
+		    delete fit->second;
+		  }
                   (*it)->file()->get_xrdiorw().erase(fit);
                   break;
                 }

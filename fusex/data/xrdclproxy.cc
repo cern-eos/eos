@@ -32,8 +32,12 @@ using namespace XrdCl;
 
 ssize_t XrdCl::Proxy::sChunkTimeout = 300;
 
+eos::common::RWMutex XrdCl::Proxy::gDeleteMutex;
+
 XrdCl::BufferManager XrdCl::Proxy::sWrBufferManager;
 XrdCl::BufferManager XrdCl::Proxy::sRaBufferManager;
+
+std::atomic<int> XrdCl::Proxy::sProxy;
 
 std::mutex XrdCl::Proxy::WriteAsyncHandler::gBuffReferenceMutex;
 std::map<std::string, uint64_t>
@@ -217,6 +221,7 @@ XrdCl::Proxy::Read(uint64_t offset,
       }
 
       for (auto it = delete_chunk.begin(); it != delete_chunk.end(); ++it) {
+	eos::common::RWMutexReadLock dLock(XrdCl::Proxy::gDeleteMutex);
         ChunkRMap().erase(*it);
       }
     } else {
@@ -443,6 +448,7 @@ XrdCl::Proxy::OpenAsyncHandler::HandleResponseWithHosts(
 /* -------------------------------------------------------------------------- */
 {
   eos_static_debug("");
+  eos::common::RWMutexReadLock dLock(XrdCl::Proxy::gDeleteMutex);
   {
     XrdSysCondVarHelper openLock(proxy()->OpenCondVar());
     XRootDStatus fuzzingstatus = proxy()->fuzzing().OpenAsyncResponseFuzz();
@@ -650,6 +656,7 @@ XrdCl::Proxy::CloseAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
 /* -------------------------------------------------------------------------- */
 {
   eos_static_debug("");
+  eos::common::RWMutexReadLock dLock(XrdCl::Proxy::gDeleteMutex);
   {
     XrdSysCondVarHelper lLock(mProxy->OpenCondVar());
 
@@ -676,6 +683,7 @@ XrdCl::Proxy::CloseAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
     delete response;
     delete status;
   }
+  dLock.Release();
   mProxy->CheckSelfDestruction();
 }
 
@@ -822,31 +830,22 @@ XrdCl::Proxy::WriteAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
     XrdCl::AnyObject* response)
 /* -------------------------------------------------------------------------- */
 {
-  eos_static_debug("");
+  eos_static_debug("ino=%llx", mProxy->id());
+  eos::common::RWMutexReadLock dLock(XrdCl::Proxy::gDeleteMutex);
   bool no_chunks_left = true;
   {
-    if (proxy()) {
+
+    {
       XrdSysCondVarHelper lLock(mProxy->WriteCondVar());
-
-      if (!status->IsOK()) {
-        mProxy->set_writestate(status);
+      {
+	if (!status->IsOK()) {
+	  mProxy->set_writestate(status);
+	}
+	mProxy->WriteCondVar().Signal();
+	eos_static_crit("write error");
+	delete response;
+	delete status;
       }
-
-      mProxy->WriteCondVar().Signal();
-    }
-
-    delete response;
-    delete status;
-
-    if (proxy()) {
-      XrdSysCondVarHelper lLock(mProxy->WriteCondVar());
-
-      if ((mProxy->ChunkMap().size() > 1) ||
-          (!mProxy->ChunkMap().count((uint64_t) this))) {
-        no_chunks_left = false;
-      }
-    } else {
-      return;
     }
   }
   write_handler
@@ -871,6 +870,7 @@ XrdCl::Proxy::WriteAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
   }
 
   if (no_chunks_left) {
+    dLock.Release();
     mProxy->CheckSelfDestruction();
   }
 }
@@ -1103,6 +1103,7 @@ XrdCl::Proxy::ReadAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
 /* -------------------------------------------------------------------------- */
 {
   eos_static_debug("");
+  eos::common::RWMutexReadLock dLock(XrdCl::Proxy::gDeleteMutex);
   {
     XrdSysCondVarHelper lLock(ReadCondVar());
     mStatus = *status;
@@ -1154,14 +1155,9 @@ XrdCl::Proxy::ReadAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
     ReadCondVar().Signal();
   }
 
-  if (!proxy()) {
-    return;
-  }
-
-  {
-    if (!proxy()->HasReadsInFlight()) {
-      proxy()->CheckSelfDestruction();
-    }
+  if (!proxy()->HasReadsInFlight()) {
+    dLock.Release();
+    proxy()->CheckSelfDestruction();
   }
 }
 
@@ -1352,6 +1348,7 @@ XrdCl::Proxy::CheckSelfDestruction()
     if (!IsClosing()) {
       // don't destroy if we still expect an async close callback
       eos_debug("self-destruction %llx", this);
+      eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
       delete this;
     }
   }
