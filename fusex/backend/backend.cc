@@ -772,8 +772,8 @@ backend::doLock(fuse_req_t req,
   eos_static_info("sync-response");
 
   if (status.IsOK()) {
-    eos_static_debug("response=%s response-size=%d",
-                     response ? response->GetBuffer() : "null", response ? response->GetSize() : 0);
+    eos_static_debug("response=%d response-size=%d",
+                     response ? true: false, response ? response->GetSize() : 0);
 
     if (response && response->GetBuffer()) {
       std::string responseprefix;
