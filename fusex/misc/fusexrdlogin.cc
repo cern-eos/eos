@@ -27,6 +27,7 @@
 #include "common/Macros.hh"
 #include "common/SymKeys.hh"
 #include "misc/FuseId.hh"
+#include "auth/Logbook.hh"
 #include <algorithm>
 #include <regex>
 #ifdef __APPLE__
@@ -80,9 +81,10 @@ int fusexrdlogin::loginurl(XrdCl::URL& url,
 
 std::string fusexrdlogin::executable(fuse_req_t req) {
   fuse_id id(req);
+  Logbook logbook(true);
   ProcessSnapshot snapshot =
     (id.pid)?processCache->retrieve(id.pid, id.uid, id.gid,
-				    false) : 0;
+				    false, logbook) : 0;
   if (snapshot) {
     return fillExeName(snapshot->getExe());
   } else {
@@ -120,12 +122,13 @@ int fusexrdlogin::loginurl(XrdCl::URL& url,
 
   url.SetUserName(username);
   int rc = 0;
-  eos_static_notice("%s uid=%u gid=%u rc=%d user-name=%s",
+  eos_static_notice("%s uid=%u gid=%u rc=%d user-name=%s url=%s",
                     EosFuse::dump(id, ino, 0, rc).c_str(),
                     id.uid,
                     id.gid,
                     rc,
-                    username.c_str()
+                    username.c_str(),
+		    url.GetURL().c_str()
                    );
   return rc;
 }
