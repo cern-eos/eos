@@ -56,7 +56,7 @@ BoundIdentityProvider::krb5EnvToBoundIdentity(const JailInformation& jail,
   //----------------------------------------------------------------------------
   // Kerberos keyring?
   //----------------------------------------------------------------------------
-  if(startswith(path, "KEYRING")) {
+  if(startsWith(path, "KEYRING")) {
     LOGBOOK_INSERT(scope, "Found kerberos keyring: " << path << ", need to validate");
     return userCredsToBoundIdentity(jail,
       UserCredentials::MakeKrk5(path, uid, gid), reconnect, scope);
@@ -65,7 +65,7 @@ BoundIdentityProvider::krb5EnvToBoundIdentity(const JailInformation& jail,
   //----------------------------------------------------------------------------
   // Kerberos KCM?
   //----------------------------------------------------------------------------
-  if(startswith(path, "KCM")) {
+  if(startsWith(path, "KCM")) {
     LOGBOOK_INSERT(scope, "Found kerberos kcm: " << path << ", need to validate");
     return userCredsToBoundIdentity(jail,
       UserCredentials::MakeKcm(path, uid, gid), reconnect, scope);
@@ -75,7 +75,7 @@ BoundIdentityProvider::krb5EnvToBoundIdentity(const JailInformation& jail,
   // Drop FILE:, if exists
   //----------------------------------------------------------------------------
   const std::string prefix = "FILE:";
-  if(startswith(path, prefix)) {
+  if(startsWith(path, prefix)) {
     path = path.substr(prefix.size());
   }
 
@@ -109,7 +109,7 @@ BoundIdentityProvider::oauth2EnvToBoundIdentity(const JailInformation& jail,
   // Drop FILE:, if exists
   //----------------------------------------------------------------------------
   const std::string prefix = "FILE:";
-  if(startswith(path, prefix)) {
+  if(startsWith(path, prefix)) {
     path = path.substr(prefix.size());
   }
 

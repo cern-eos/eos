@@ -50,7 +50,7 @@ std::string Environment::get(const std::string& key) const
   std::string keyWithEquals = key + "=";
 
   for (size_t i = 0; i < contents.size(); i++) {
-    if (startswith(contents[i], keyWithEquals)) {
+    if (startsWith(contents[i], keyWithEquals)) {
       return contents[i].substr(keyWithEquals.size());
     }
   }
