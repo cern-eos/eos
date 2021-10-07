@@ -47,7 +47,7 @@ SearchOrder UserCredentialFactory::parse(LogbookScope &scope,
     return retval;
   }
 
-  std::vector<std::string> parts = split(credString, ",");
+  std::vector<std::string> parts = eos::common::StringSplit<std::vector<std::string>>(credString, ",");
   for(auto it = parts.begin(); it != parts.end(); it++) {
     parseSingle(scope, *it, id, env, uid, gid, retval);
   }
