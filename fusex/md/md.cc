@@ -1531,7 +1531,12 @@ metad::getlk(fuse_req_t req, shared_md md, struct flock* lock)
 
   // digest the response
   if (!rc) {
-    // store the (*md)()->flock response into the flock structure
+    // store the md->flock response into the flock structure
+    eos_static_notice("pid=%llu len=%llu start=%llu type=%llu\n",
+		      (*md)()->flock().pid(),
+		      (*md)()->flock().len(),
+		      (*md)()->flock().start(),
+		      (*md)()->flock().type());
     lock->l_pid = (*md)()->flock().pid();
     lock->l_len = (*md)()->flock().len();
     lock->l_start = (*md)()->flock().start();
