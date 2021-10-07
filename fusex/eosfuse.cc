@@ -1951,6 +1951,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
              "ALL        inodes-vmap         := %lu\n"
              "ALL        inodes-caps         := %lu\n"
              "ALL        inodes-tracker      := %lu\n"
+	     "ALL        proxies             := %d\n"
              "# -----------------------------------------------------------------------------------------------------------\n",
              this->getMdStat().inodes(),
              this->getMdStat().inodes_stacked(),
@@ -1961,7 +1962,8 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
              this->datas.size(),
              this->mds.vmaps().size(),
              this->caps.size(),
-             this->Tracker().size()
+             this->Tracker().size(),
+	     XrdCl::Proxy::Proxies()
             );
     sout += ino_stat;
     std::string s1;
@@ -6039,6 +6041,13 @@ EosFuse::getlk(fuse_req_t req, fuse_ino_t ino,
       rc = ENXIO;
     }
   }
+
+  eos_static_info("%u %u %u %lu %lu rc=%d", lock->l_type,
+		  lock->l_whence,
+		  lock->l_pid,
+		  lock->l_start,
+		  lock->l_len,
+		  rc);
 
   if (rc) {
     fuse_reply_err(req, rc);
