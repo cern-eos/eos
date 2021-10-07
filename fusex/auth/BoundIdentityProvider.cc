@@ -218,7 +218,7 @@ BoundIdentityProvider::environmentToBoundIdentity(const JailInformation& jail,
     //----------------------------------------------------------------------------
     // Try to use SSS if available.
     //----------------------------------------------------------------------------
-    if (credConfig.use_user_sss && !skip_sss) {
+    if (credConfig.use_user_sss && ((!skip_sss) || (!env.get("XrdSecsssENDORSEMENT").empty()) )) {
       output = sssEnvToBoundIdentity(jail, env, uid, gid, reconnect, scope);
       
       if (output) {
@@ -498,7 +498,7 @@ BoundIdentityProvider::pidEnvironmentToBoundIdentity(
     "variables for pid=" << pid);
 
   return environmentToBoundIdentity(jail, response.get(), uid, gid,
-    reconnect, subscope, false);
+    reconnect, subscope, true);
 }
 
 //------------------------------------------------------------------------------
