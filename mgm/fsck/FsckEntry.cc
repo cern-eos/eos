@@ -356,7 +356,11 @@ FsckEntry::RepairFstXsSzDiff()
           (finfo->mFstFmd.mProtoFmd.checksum() == xs_val)) {
         good_fsids.insert(finfo->mFstFmd.mProtoFmd.fsid());
       } else {
-        bad_fsids.insert(finfo->mFstFmd.mProtoFmd.fsid());
+        // It could be that the diskchecksum for the replica was not yet
+        // computed - this does not mean the replica is bad
+        if (!xs_val.empty()) {
+          bad_fsids.insert(finfo->mFstFmd.mProtoFmd.fsid());
+        }
       }
     }
 
