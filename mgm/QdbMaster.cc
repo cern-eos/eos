@@ -238,7 +238,7 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
 {
   bool new_is_master = false;
   std::string old_master_id;
-  uint64_t master_init_lease = 30000; // 30 seconds
+  uint64_t master_init_lease = 60000; // 60 seconds
   ConfigureTimeouts(master_init_lease);
   eos_notice("%s", "msg=\"set up booting stall rule\"");
   RemoveStatusFile(EOSMGMMASTER_SUBSYS_RW_LOCKFILE);
@@ -373,7 +373,8 @@ QdbMaster::SlaveToMaster()
       gOFS->mTapeGc->start();
     } catch (std::exception& ex) {
       std::ostringstream msg;
-      msg << "msg=\"Failed to start tape-aware garbage collection: " << ex.what() << "\"";
+      msg << "msg=\"Failed to start tape-aware garbage collection: " << ex.what() <<
+          "\"";
       eos_crit(msg.str().c_str());
       std::abort();
     } catch (...) {
@@ -429,7 +430,8 @@ QdbMaster::MasterToSlave()
       gOFS->mTapeGc->stop();
     } catch (std::exception& ex) {
       std::ostringstream msg;
-      msg << "msg=\"Failed to stop tape-aware garbage collection: " << ex.what() << "\"";
+      msg << "msg=\"Failed to stop tape-aware garbage collection: " << ex.what() <<
+          "\"";
       eos_err(msg.str().c_str());
     } catch (...) {
       eos_err("msg=\"Failed to stop tape-aware garbage collection: Caught an unknown exception\"");
@@ -471,6 +473,7 @@ QdbMaster::ApplyMasterConfig(std::string& stdOut, std::string& stdErr,
     }
   }
 
+  gOFS->mDrainEngine.Start();
   gOFS->SetupGlobalConfig();
   return mConfigLoaded;
 }
