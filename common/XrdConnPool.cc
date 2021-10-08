@@ -97,8 +97,8 @@ XrdConnPool::AssignConnection(XrdCl::URL& url)
       // Share the least busy connection
       ++map_id_score[best_conn_id];
       conn_id = best_conn_id;
-      eos_warning("msg=\"connection pool limit reached - using %u/%u connections\"",
-                  map_id_score.size(), mMaxSize);
+      eos_static_debug("msg=\"connection pool limit reached - using %u/%u "
+                       "connections\"", map_id_score.size(), mMaxSize);
     } else {
       conn_id = map_id_score.size() + 1;
       map_id_score[conn_id] = 1;
