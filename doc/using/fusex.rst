@@ -239,4 +239,15 @@ The default heartbeat interval is 10 seconds. It is the interval each **eosxd** 
 
 When working with thousands of clients within a single directory the amount of messages in the FuseServer broadcast network can overwhelm the MGM messaging capacity. To reduce the amount of messages sent around while files are open and written, a threshold can be defined after which a certain audience of clients will not receive anymore meta-data update or forced refresh messages. If 1000 clients write 1000 files within a single directory the message rate is 100kHz for file-size updates while the clients are writing. In the example above if a message hits more than 256 listeners and the client names start with b6 or b6 messages will be suppressed. Messages emitted when files are created or commmitted are not suppressed!
 
+
+Namespace Configuration
+-----------------------
+
+By default each client sends his desired leastime for directory subscriptions (300s default at time of writing). For certain directories in the hierarchy which are essentially read-only it improves the overall performance to define a longer leasetime. In a home directory hierarchy like **/eos/user/f/foo** the first three directory level could have a longer lease time defined.
+
+.. code-block:: bash
+
+   [root@eos ]# eos attr set sys.forced.leasetime=86400 /eos/
+   [root@eos ]# eos attr set sys.forced.leasetime=86400 /eos/user/
+   [root@eos ]# eos attr set sys.forced.leasetime=86400 /eos/user/f
    
