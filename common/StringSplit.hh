@@ -41,6 +41,31 @@ struct has_const_iter<T, std::void_t<decltype(std::declval<T>().cbegin(),
 
 template <typename T>
 bool constexpr has_const_iter_v = has_const_iter<T>::value;
+
+// A helper function to find the next position of a delimiter in a sequence
+// given a starting position
+// While tested for strings, this should work for any
+// iterator sequence which requires a subset match of a delimiter pattern.
+// Technically these can take univ. references if you decay the template
+// arguments and do a enable_if_t on the delim_t, given we don't have a lot of
+// variants the less generic version is a bit more readable
+template <typename str_t, typename delim_t>
+auto get_delim_p(const str_t& str, const delim_t& delim,
+                 typename str_t::size_type start_pos) -> typename str_t::size_type
+{
+  static_assert(has_const_iter_v<delim_t>, "delimiter must implement a const iterator!");
+  auto p = std::find_first_of(str.cbegin()+start_pos, str.cend(),
+                              delim.cbegin(), delim.cend());
+  return std::distance(str.cbegin(), p);
+}
+
+template <typename str_t>
+auto get_delim_p(const str_t& str, char delim,
+                 typename str_t::size_type start_pos) -> typename str_t::size_type
+{
+  return str.find(delim, start_pos);
+}
+
 } // detail
 
 
@@ -51,11 +76,19 @@ bool constexpr has_const_iter_v = has_const_iter<T>::value;
 //
 //  ...}
 //
+// The current implementation is similar to boost::split and the like in the sense of
+// Given a string of delimiters, presence of any of them will trigger a match. For eg.
+//
+// StringSplit("ab,cd\nde,gh", ",\n") -> ["ab","cd","de", "gh"]
+//
+// Though it is easy enough to modify this to use find instead of find_first_of
+// for a pattern by using a different detail::get_delim_p function (This can be
+// an additional template param/tag which is currently not implemented though
+// fairly easy to do)
+//
 // For copying onto a container the same code above can be used for eg.
-//  std::vector<std::string> v
-//  for (std::string_view part : StringSplit(input,delim)) {
-//    v.emplace_back(part)
-//  }
+// std::vector<std::string> v for (std::string_view part :
+// StringSplit(input,delim)) { v.emplace_back(part) }
 //
 // Though if it is sure that the parent string is in scope, using either the iterator
 // directly or using a vector<std::string_view> would yield the most performant results
@@ -65,105 +98,87 @@ bool constexpr has_const_iter_v = has_const_iter<T>::value;
 // compiler will try to default to const char* which is not desirable
 template <typename str_type = std::string_view,
           typename delim_type = std::string_view>
-class LazySplit{
+class LazySplit {
 public:
     LazySplit(str_type s, delim_type d) : str(s), delim(d) {}
 
-class iterator {
+  class iterator {
 
-public:
-  // A base declaration of the underlying string type so that we don't have to
-  // decay every time, this is to ensure that we correctly have a reference type
-  // when we hold a const std::string&,
-  using base_string_type = typename std::decay<str_type>::type;
+  public:
+    // A base declaration of the underlying string type so that we don't have to
+    // decay every time, this is to ensure that we correctly have a reference type
+    // when we hold a const std::string&,
+    using base_string_type = typename std::decay<str_type>::type;
 
-  // Basic iterator definition member types
-  using iterator_category = std::forward_iterator_tag;
-  using value_type = str_type;
-  using difference_type = std::string_view::difference_type; // basically std::ptrdiff_t
-  using pointer = std::add_pointer_t<base_string_type>;
-  using const_pointer = std::add_const_t<pointer>;
-  using reference = std::add_lvalue_reference_t<base_string_type>;
-  using const_reference = std::add_const_t<reference>;
-  using size_type = std::string_view::size_type;
+    // Basic iterator definition member types
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = str_type;
+    using difference_type = std::string_view::difference_type; // basically std::ptrdiff_t
+    using pointer = std::add_pointer_t<base_string_type>;
+    using const_pointer = std::add_const_t<pointer>;
+    using reference = std::add_lvalue_reference_t<base_string_type>;
+    using const_reference = std::add_const_t<reference>;
+    using size_type = std::string_view::size_type;
 
-  iterator(str_type s, delim_type d): str(s), delim(d), segment(next(0)) {}
-  iterator(size_type sz) : pos(sz) {}
+    iterator(str_type s, delim_type d): str(s), delim(d), segment(next(0)) {}
+    iterator(size_type sz) : pos(sz) {}
 
-  iterator& operator++() {
-    segment = next(pos);
-    return *this;
-  }
-
-  iterator operator++(int) {
-    iterator curr = *this;
-    segment = next(pos);
-    return curr;
-  }
-
-  reference operator*() { return segment; }
-  pointer operator->()  { return &segment; }
-
-  friend bool operator==(const iterator& a, const iterator& b) {
-    return a.segment == b.segment;
-  }
-
-  friend bool operator!=(const iterator& a, const iterator& b) {
-    return !(a==b);
-  }
-
-private:
-  // we need to collapse the reference here, hence we have to return by value We
-  // have a special variant accepting char delimiters, this is useful for
-  // functions which split on nullbyte etc. For allmost everything else the
-  // other string_view splitter is more preferred as it allows for
-  // multicharacter splits while still maintaining speed. The member function*
-  // find_first_of is slightly slower than the std::find_first_of with iterators
-  template <typename T=delim_type,
-            std::enable_if_t<std::is_same_v<T,char>,bool> = true>
-  base_string_type next(size_type start_pos) {
-    static_assert(std::is_same_v<delim_type,char>, "expected char!");
-    // this loop is needed to advance past empty delims
-    while (start_pos < str.size()) {
-      pos = str.find_first_of(delim, start_pos);
-      // check if we are at the end or at a delim
-      if (pos != start_pos) {
-        return str.substr(start_pos, pos - start_pos);
-      }
-      start_pos = pos + 1;
+    iterator& operator++() {
+      segment = next(pos);
+      return *this;
     }
-    return {};
-  }
 
-  template <typename T=delim_type,
-            typename = std::enable_if_t<detail::has_const_iter_v<T>>>
-  base_string_type next(size_type start_pos) {
-    while (start_pos < str.size()) {
-      auto p = std::find_first_of(str.cbegin()+start_pos, str.cend(),
-                                  delim.cbegin(), delim.cend());
-      pos = std::distance(str.cbegin(), p);
-      if (p != str.cbegin() + start_pos) {
-
-        return str.substr(start_pos, pos - start_pos);
-      }
-      start_pos = pos + 1;
+    iterator operator++(int) {
+      iterator curr = *this;
+      segment = next(pos);
+      return curr;
     }
-    return {};
-  }
 
-  size_type pos {0};
-  str_type str;
-  delim_type delim;
-  str_type segment;
+    reference operator*() { return segment; }
+    pointer operator->()  { return &segment; }
 
-};
+    friend bool operator==(const iterator& a, const iterator& b) {
+      return a.segment == b.segment;
+    }
+
+    friend bool operator!=(const iterator& a, const iterator& b) {
+      return !(a==b);
+    }
+
+  private:
+    // we need to collapse the reference here, hence we have to return by value We
+    // have a special variant accepting char delimiters, this is useful for
+    // functions which split on nullbyte etc. For allmost everything else the
+    // other string_view splitter is more preferred as it allows for
+    // multicharacter splits while still maintaining speed. The member function*
+    // find_first_of is slightly slower than the std::find_first_of with iterators
+    base_string_type next(size_type start_pos)
+    {
+      // this loop is needed to advance past empty delims
+      while (start_pos < str.size()) {
+        pos = detail::get_delim_p(str, delim, start_pos);
+        // check if we are at the end or at a delim
+        if (pos != start_pos) {
+          return str.substr(start_pos, pos - start_pos);
+        }
+        start_pos = pos + 1;
+      }
+      return {};
+    }
+
+    size_type pos {0};
+    str_type str;
+    delim_type delim;
+    str_type segment;
+
+  };
 
   using const_iterator = iterator;
   iterator begin() const { return {str, delim}; }
   const_iterator cbegin() const { return {str, delim}; }
 
   iterator end() const { return { std::string::npos }; }
-  const_iterator cend() const { return {std::string::npos }; }
+  const_iterator cend() const { return { std::string::npos }; }
 private:
   str_type str;
   delim_type delim;
@@ -194,6 +209,12 @@ C StringSplit(std::string_view input, std::string_view delim)
     c.emplace_back(part);
   }
   return c;
+}
+
+template <typename C=std::vector<std::string>>
+C SplitPath(std::string_view input)
+{
+  return StringSplit<C>(input, "/");
 }
 
 } // namespace eos::common
