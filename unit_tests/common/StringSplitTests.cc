@@ -179,6 +179,7 @@ TEST(StringSplit, get_delim_p)
   ASSERT_EQ(detail::get_delim_p("foo;;bar;baz"sv,';',4),4);
   ASSERT_EQ(detail::get_delim_p("foo;;bar;baz"sv,';',5),8);
 }
+
 TEST(StringSplit, PathSplitter)
 {
   s_vector expect_v{"eos","foo","bar"};
