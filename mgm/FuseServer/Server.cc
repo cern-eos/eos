@@ -590,8 +590,15 @@ Server::FillContainerCAP(uint64_t id,
   size_t leasetime = 0;
 
   {
+    if (dir.attr().count("sys.force.leasetime") > 0) {
+      // directory has leasetime overwrite
+      leasetime = strtoul((*(dir.mutable_attr()))["sys.forced.leasetime"].c_str(),0,10);
+    }
     eos::common::RWMutexReadLock lLock(gOFS->zMQ->gFuseServer.Client());
-    leasetime = gOFS->zMQ->gFuseServer.Client().leasetime(dir.clientuuid());
+    if (!leasetime) {
+      // only use client leasetime if there is no overwrite
+      leasetime = gOFS->zMQ->gFuseServer.Client().leasetime(dir.clientuuid());
+    }
     eos_debug("checking client %s leastime=%d", dir.clientid().c_str(),
               leasetime);
   }
