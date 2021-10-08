@@ -182,8 +182,7 @@ QuarkHierarchicalView::getItem(const std::string& uri, bool follow)
   //----------------------------------------------------------------------------
   // Build our deque of pending chunks...
   //----------------------------------------------------------------------------
-  std::deque<std::string> pendingChunks;
-  eos::PathProcessor::insertChunksIntoDeque(pendingChunks, uri);
+  std::deque<std::string> pendingChunks = eos::PathProcessor::insertChunksIntoDeque(uri);
   //----------------------------------------------------------------------------
   // Initial state: We're at "/", and have to look up all chunks.
   //----------------------------------------------------------------------------
@@ -420,8 +419,7 @@ QuarkHierarchicalView::createFile(const std::string& uri, uid_t uid, gid_t gid, 
   }
 
   // Split the path and find the last container
-  std::deque<std::string> chunks;
-  eos::PathProcessor::insertChunksIntoDeque(chunks, uri);
+  std::deque<std::string> chunks = eos::PathProcessor::insertChunksIntoDeque(uri);
 
   if (chunks.size() == 0u) {
     throw_mdexception(EEXIST, "File exists");
@@ -492,8 +490,7 @@ QuarkHierarchicalView::removeLink(const std::string& uri)
 void
 QuarkHierarchicalView::unlinkFile(const std::string& uri)
 {
-  std::deque<std::string> chunks;
-  eos::PathProcessor::insertChunksIntoDeque(chunks, uri);
+  std::deque<std::string> chunks = eos::PathProcessor::insertChunksIntoDeque(uri);
 
   if (chunks.size() == 0) {
     MDException e(ENOENT);
@@ -611,8 +608,7 @@ QuarkHierarchicalView::createContainer(const std::string& uri, bool createParent
     throw_mdexception(EEXIST, uri << ": Container exists");
   }
 
-  std::deque<std::string> chunks;
-  eos::PathProcessor::insertChunksIntoDeque(chunks, uri);
+  std::deque<std::string> chunks = eos::PathProcessor::insertChunksIntoDeque(uri);
 
   if (chunks.empty()) {
     throw_mdexception(EEXIST, uri << ": File exists");
@@ -702,8 +698,7 @@ QuarkHierarchicalView::removeContainer(const std::string& uri)
   //----------------------------------------------------------------------------
   // Lookup last container
   //----------------------------------------------------------------------------
-  std::deque<std::string> chunks;
-  eos::PathProcessor::insertChunksIntoDeque(chunks, uri);
+  std::deque<std::string> chunks = eos::PathProcessor::insertChunksIntoDeque(uri);
   eos_assert(chunks.size() != 0);
   std::string lastChunk = chunks[chunks.size() - 1];
   chunks.pop_back();
@@ -969,8 +964,7 @@ std::string QuarkHierarchicalView::getRealPath(const std::string& uri)
     throw e;
   }
 
-  std::deque<std::string> chunks;
-  eos::PathProcessor::insertChunksIntoDeque(chunks, uri);
+  std::deque<std::string> chunks = eos::PathProcessor::insertChunksIntoDeque(uri);
   eos_assert(chunks.size() != 0);
 
   if (chunks.size() == 1) {
