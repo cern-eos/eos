@@ -29,7 +29,7 @@
 #include <string>
 #include <list>
 #include <sstream>
-
+#include "common/StringSplit.hh"
 namespace eos
 {
 //----------------------------------------------------------------------------
@@ -42,38 +42,29 @@ public:
   //------------------------------------------------------------------------
   //! Split the path and prepend its elements into a deque.
   //------------------------------------------------------------------------
+  static std::deque<std::string> insertChunksIntoDeque(std::string_view path)
+  {
+    return eos::common::SplitPath<std::deque<std::string>>(path);
+  }
+
   static void insertChunksIntoDeque(std::deque<std::string>& elements,
-                                    const std::string& path)
+                                    std::string_view path)
   {
-    std::vector<std::string> tmp;
-    splitPath(tmp, path);
-
-    for(auto it = tmp.rbegin(); it != tmp.rend(); it++) {
-      elements.push_front(*it);
+    if (elements.empty()) {
+      elements = insertChunksIntoDeque(path);
+      return;
     }
+
+    auto vpath = eos::common::SplitPath(path);
+    // This is to ensure old_path = [a,b] new_path = [c,d,e] -> [c,d,e,a,b]
+    std::move(vpath.rbegin(), vpath.rend(), std::front_inserter(elements));
   }
 
+  // The following function is only used in ns_in_memory and not preferred for
+  // newer apis
   //------------------------------------------------------------------------
-  //! Split the path and put its elements in a vector, the tokens are
-  //! copied, the buffer is not overwritten
-  //------------------------------------------------------------------------
-  static void splitPath(std::vector<std::string>& elements,
-                        const std::string& path)
-  {
-    elements.clear();
-    std::vector<char*> elems;
-    char buffer[path.length() + 1];
-    strcpy(buffer, path.c_str());
-    splitPath(elems, buffer);
-
-    for (size_t i = 0; i < elems.size(); ++i) {
-      elements.push_back(elems[i]);
-    }
-  }
-
-  //------------------------------------------------------------------------
-  //! Split the path and put its element in a vector, the split is done
-  //! in-place and the buffer is overwritten
+  //!Split the path and put its element in a vector, the split is done !
+  //in-place and the buffer is overwritten
   //------------------------------------------------------------------------
   static void splitPath(std::vector<char*>& elements, char* buffer)
   {
@@ -109,8 +100,8 @@ public:
   //------------------------------------------------------------------------
   static void absPath(std::string& mypath)
   {
-    std::vector<std::string> elements, abs_path;
-    splitPath(elements, mypath);
+    std::vector<std::string> abs_path;
+    std::vector<std::string> elements = eos::common::SplitPath(mypath);
     std::ostringstream oss;
     int skip = 0;
 

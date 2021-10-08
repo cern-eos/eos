@@ -74,26 +74,26 @@ void OtherTests::pathSplitterTest()
   std::string path4 = "test1/test2/test3/test4";
 
   std::vector<std::string> elements;
-  eos::PathProcessor::splitPath( elements, path1 );
+  elements = eos::common::SplitPath( path1 );
   CPPUNIT_ASSERT( checkPath( elements, 4 ) );
 
   elements.clear();
-  eos::PathProcessor::splitPath( elements, path2 );
+  elements = eos::common::SplitPath( path2 );
   CPPUNIT_ASSERT( checkPath( elements, 4 ) );
 
   elements.clear();
-  eos::PathProcessor::splitPath( elements, path3 );
+  elements = eos::common::SplitPath( path3 );
   CPPUNIT_ASSERT( checkPath( elements, 4 ) );
 
   elements.clear();
-  eos::PathProcessor::splitPath( elements, path4 );
+  elements = eos::common::SplitPath( path4 );
   CPPUNIT_ASSERT( checkPath( elements, 4 ) );
 
   elements.clear();
-  eos::PathProcessor::splitPath( elements, "/" );
+  elements = eos::common::SplitPath( "/" );
   CPPUNIT_ASSERT( elements.size() == 0 );
 
   elements.clear();
-  eos::PathProcessor::splitPath( elements, "" );
+  elements = eos::common::SplitPath( "" );
   CPPUNIT_ASSERT( elements.size() == 0 );
 }

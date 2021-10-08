@@ -212,8 +212,7 @@ NamespaceExplorer::NamespaceExplorer(const std::string& pth,
                       "NamespaceExplorer: asked to populate linked attrs, but view not provided");
   }
 
-  std::vector<std::string> pathParts;
-  eos::PathProcessor::splitPath(pathParts, path);
+  std::vector<std::string> pathParts = eos::common::SplitPath(path);
   // This part is synchronous by necessity.
   staticPath.emplace_back(MetadataFetcher::getContainerFromId(qcl,
                           ContainerIdentifier(1)).get());
