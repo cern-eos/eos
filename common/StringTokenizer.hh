@@ -29,6 +29,7 @@
 #include <sstream>
 #include <stdio.h>
 #include <errno.h>
+#include "common/StringSplit.hh"
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -127,7 +128,7 @@ public:
   //! @return vector of tokens
   //----------------------------------------------------------------------------
   template<typename C>
-  static C split(const std::string& str, const char delimiter);
+  static C split(std::string_view str, const char delimiter);
 
   //----------------------------------------------------------------------------
   //! Merge vector's contents using the provided delimiter
@@ -167,16 +168,11 @@ inline bool StringTokenizer::NextToken(StringType& token, bool escapeand)
 // Split given string based on the delimiter
 //------------------------------------------------------------------------------
 template<typename C>
-C StringTokenizer::split(const std::string& str, char delimiter)
+C StringTokenizer::split(std::string_view str, char delimiter)
 {
-  istringstream iss(str);
   C container;
-  std::string part;
-
-  while (std::getline(iss, part, delimiter)) {
-    if (!part.empty()) {
-      container.emplace_back(part);
-    }
+  for (std::string_view part: CharSplitIt(str, delimiter)) {
+    container.emplace_back(part);
   }
 
   return container;
