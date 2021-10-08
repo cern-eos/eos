@@ -119,3 +119,46 @@ TEST(StringSplit, StrCopy)
   }
   ASSERT_EQ(expected, actual);
 }
+
+TEST(StringSplit, MultiSplit)
+{
+  sv_vector expect_v {"key1","val1","key2","val2"};
+  ASSERT_EQ(StringSplit("key1=val1;\nkey2=val2",";=\n"),expect_v);
+  std::string k = "?key1=val1";
+  k+='\0';
+  k+=";key2=val2;";
+
+  std::string delim = "?=;\n";
+  delim += '\0';
+
+  ASSERT_EQ(StringSplit(k,delim), expect_v);
+
+  // Check that a delim starting with null doesn't break parsing
+  std::string delim2;
+  delim2 += '\0';
+  delim2 += delim;
+  ASSERT_EQ(StringSplit(k,delim2), expect_v);
+
+  std::string k2;
+  for (int i = 0; i <= 10; i++) {
+    k2 += '\0';
+  }
+  k2 += k;
+  ASSERT_EQ(StringSplit(k2,delim), expect_v);
+}
+
+TEST(StringSplit, get_delim_p)
+{
+  using namespace std::literals;
+  // pos search is left inclusive [start,end)
+  ASSERT_EQ(detail::get_delim_p("foo;;bar;baz"sv,";"sv,0),3);
+  ASSERT_EQ(detail::get_delim_p("foo;;bar;baz"sv,";"sv,3),3);
+  ASSERT_EQ(detail::get_delim_p("foo;;bar;baz"sv,";"sv,4),4);
+  ASSERT_EQ(detail::get_delim_p("foo;;bar;baz"sv,";"sv,5),8);
+
+  // Test the char variant
+  ASSERT_EQ(detail::get_delim_p("foo;;bar;baz"sv,';',0),3);
+  ASSERT_EQ(detail::get_delim_p("foo;;bar;baz"sv,';',3),3);
+  ASSERT_EQ(detail::get_delim_p("foo;;bar;baz"sv,';',4),4);
+  ASSERT_EQ(detail::get_delim_p("foo;;bar;baz"sv,';',5),8);
+}
