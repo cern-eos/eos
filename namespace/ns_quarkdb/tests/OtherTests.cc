@@ -58,22 +58,22 @@ TEST(PathSplitter, BasicSanity)
   std::string path3 = "test1/test2/test3/test4/";
   std::string path4 = "test1/test2/test3/test4";
   std::vector<std::string> elements;
-  eos::PathProcessor::splitPath(elements, path1);
+  elements = eos::common::SplitPath(path1);
   ASSERT_TRUE(checkPath(elements, 4));
   elements.clear();
-  eos::PathProcessor::splitPath(elements, path2);
+  elements = eos::common::SplitPath(path2);
   ASSERT_TRUE(checkPath(elements, 4));
   elements.clear();
-  eos::PathProcessor::splitPath(elements, path3);
+  elements = eos::common::SplitPath(path3);
   ASSERT_TRUE(checkPath(elements, 4));
   elements.clear();
-  eos::PathProcessor::splitPath(elements, path4);
+  elements = eos::common::SplitPath(path4);
   ASSERT_TRUE(checkPath(elements, 4));
   elements.clear();
-  eos::PathProcessor::splitPath(elements, "/");
+  elements = eos::common::SplitPath("/");
   ASSERT_TRUE(elements.empty());
   elements.clear();
-  eos::PathProcessor::splitPath(elements, "");
+  elements = eos::common::SplitPath("");
   ASSERT_TRUE(elements.empty());
 }
 
