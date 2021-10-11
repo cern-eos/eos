@@ -23,6 +23,7 @@
 #include "mgm/WFE.hh"
 #include "mgm/fsck/Fsck.hh"
 #include "mgm/LRU.hh"
+#include "mgm/Recycle.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
