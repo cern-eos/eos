@@ -108,7 +108,9 @@ XrdMgmOfs::PathRemap(const char* inpath,
   }
 
   if (PathMap.count(outpath.c_str())) {
-    outpath.replace(outpath.c_str(), PathMap[outpath.c_str()].c_str());
+    const std::string old_path = outpath.c_str();
+    const std::string new_path = PathMap[outpath.c_str()].c_str();
+    outpath.replace(old_path.c_str(), new_path.c_str());
     outpath.erase(outpath.length() - 1);
     return;
   }
