@@ -110,6 +110,23 @@ TEST(StringSplit, Iterator)
   ASSERT_EQ(segments.end(),++iter);
 }
 
+TEST(StringSplit, IteratorCopy)
+{
+  const auto segments = StringSplitIt("/eos/foo/bar","/");
+  auto start_segment = segments.begin();
+  ASSERT_NE(start_segment, segments.end());
+  auto start_copy = start_segment;
+  ASSERT_EQ(start_copy, start_segment);
+
+  ASSERT_EQ("eos", *start_segment);
+  ASSERT_NE(start_copy, ++start_segment);
+  ASSERT_EQ("foo", *start_segment++);
+  ASSERT_EQ(segments.end(), ++start_segment);
+
+  ASSERT_EQ("eos",*start_copy);
+  ASSERT_EQ("foo",*++start_copy);
+}
+
 TEST(StringSplit, StrCopy)
 {
   std::vector<std::string> expected = {"eos","foo","bar"};
