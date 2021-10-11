@@ -362,6 +362,7 @@ QdbMaster::SlaveToMaster()
   }
 
   gOFS->mLRUEngine->Start();
+  gOFS->Recycler->Start();
   Access::RemoveStallRule("*");
   Access::SetSlaveToMasterRules();
   gOFS->mTracker.SetAcceptingRequests(true);
@@ -396,6 +397,7 @@ QdbMaster::MasterToSlave()
   RemoveStatusFile(EOSMGMMASTER_SUBSYS_RW_LOCKFILE);
   mIsMaster = false;
   UpdateMasterId("");
+  gOFS->Recycler->Stop();
   gOFS->mDrainEngine.Stop();
   gOFS->mFsckEngine->Stop();
   gOFS->mLRUEngine->Stop();
