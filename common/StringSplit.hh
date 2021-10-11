@@ -87,8 +87,9 @@ auto get_delim_p(const str_t& str, char delim,
 // fairly easy to do)
 //
 // For copying onto a container the same code above can be used for eg.
-// std::vector<std::string> v for (std::string_view part :
-// StringSplit(input,delim)) { v.emplace_back(part) }
+// std::vector<std::string> v
+// for (std::string_view part : StringSplit(input,delim)) {
+//      v.emplace_back(part) }
 //
 // Though if it is sure that the parent string is in scope, using either the iterator
 // directly or using a vector<std::string_view> would yield the most performant results
