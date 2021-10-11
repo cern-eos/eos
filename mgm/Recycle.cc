@@ -29,6 +29,7 @@
 #include "mgm/Recycle.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Quota.hh"
+#include "mgm/QdbMaster.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/Prefetcher.hh"
@@ -111,7 +112,7 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
       }
     }
 
-    if (!gOFS->IsMaster()) {
+    if (!gOFS->mMaster->IsMaster()) {
       continue;
     }
 
