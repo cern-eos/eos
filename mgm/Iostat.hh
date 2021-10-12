@@ -26,6 +26,8 @@
 
 #include "mgm/Namespace.hh"
 #include "mgm/FsView.hh"
+#include "namespace/ns_quarkdb/qclient/include/qclient/QClient.hh"
+#include "namespace/ns_quarkdb/qclient/include/qclient/structures/QHash.hh"
 #include "common/AssistedThread.hh"
 #include "common/StringConversion.hh"
 #include <google/sparse_hash_map>
@@ -50,6 +52,8 @@ EOSMGMNAMESPACE_BEGIN
 // define the history in days we want to do popularity tracking
 #define IOSTAT_POPULARITY_HISTORY_DAYS 7
 #define IOSTAT_POPULARITY_DAY 86400
+
+std::shared_ptr<qclient::QClient> mQcl; ///< QClient object for metadata
 
 class IostatAvg
 {
@@ -251,7 +255,9 @@ public:
   }
 
   bool Store();
+  bool StoreToQDB();
   bool Restore();
+  bool RestoreFromQDB();
 
   void StartCirculate();
   bool Start();

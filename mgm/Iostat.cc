@@ -1221,6 +1221,96 @@ Iostat::PrintNs(XrdOucString& out, XrdOucString option)
     PopularityMutex.UnLock();
   }
 }
+//------------------------------------------------------------------------------
+// Save current uid/gid counters to Quark DB
+//------------------------------------------------------------------------------
+bool
+Iostat::StoreToQDB()
+{
+  // Initialize qclient..
+  if (gOFS != NULL && !mQcl){
+      mQcl.reset(new qclient::QClient(gOFS->mQdbContactDetails.members,
+                                      gOFS->mQdbContactDetails.constructOptions()));
+  }
+  XrdOucString hash_key = "Iostat:";
+  // TO-DO: change variable name mStoreFileName to hash_key
+  hash_key += mStoreFileName;
+
+  if (!mStoreFileName.length()) {
+    return false;
+  }
+  QHash qhash{mQcl, hash_key};
+  std::vector<pair<std::string,unsigned long long>> iostat_id_val_pairs;
+
+  Mutex.Lock();
+  // store user counters to the vectors
+  for (tuit = IostatUid.begin(); tuit != IostatUid.end(); tuit++) {
+    for (auto it = tuit->second.begin(); it != tuit->second.end(); ++it) {
+      std::string iostat_id = "idt=uid";
+      iostat_id += "&id=" + std::to_string(tuit->first.c_str());
+      iostat_id += "&tag=" + std::to_string(tuit->first.c_str());
+      iostat_id_val_pairs->push_back(make_pair(iostat_id, std::to_string((unsigned long long)it->second)));
+    }
+  }
+  // store group counter to the vectors
+  for (tgit = IostatGid.begin(); tgit != IostatGid.end(); tgit++) {
+    for (auto it = tgit->second.begin(); it != tgit->second.end(); ++it) {
+      std::string iostat_id = "idt=gid";
+      iostat_id += "&id=" + std::to_string(tuit->first.c_str());
+      iostat_id += "&tag=" + std::to_string(tuit->first.c_str());
+      iostat_id_val_pairs->push_back(make_pair(iostat_id, std::to_string((unsigned long long)it->second)));
+    }
+  }
+  // store the IOstats to QuarkDB
+  bool allok = true;
+  for (ioit = iostat_id_val_pairs.begin(); ioit != iostat_id_val_pairs.end(); ioit++) {
+    allok &= qhash.hset(ioit.first, ioit.second);
+  }
+  Mutex.UnLock();
+  return allok;
+}
+
+
+bool
+Iostat::RestoreFromQDB()
+{
+  // Initialize qclient..
+  if (gOFS != NULL && !mQcl){
+    mQcl.reset(new qclient::QClient(gOFS->mQdbContactDetails.members,
+                                    gOFS->mQdbContactDetails.constructOptions()));
+  }
+  XrdOucString hash_key = "Iostat:";
+  // TO-DO: change variable name mStoreFileName to hash_key
+  hash_key += mStoreFileName;
+
+  if (!mStoreFileName.length()) {
+    return false;
+  }
+  Mutex.Lock();
+  QHash qhash{mQcl, hash_key};
+  std::vector<pair<std::string,unsigned long long>> iostat_id_val_pairs;
+  resp = qhash.hgetall();
+
+  qclient::HgetallParser parser(resp);
+  if (!parser.ok() || parser.value().empty()) {
+    return false;
+  }
+
+  std::map<std::string, std::string> stored_iostat = parser.value();
+
+  for (auto it = stored_iostat.begin(); it != stored_iostat.end(); it++) {
+    // to do
+    //std::string tag = env.Get("tag");
+    //uid_t uid = atoi(env.Get("uid"));
+    //unsigned long long val = strtoull(env.Get("val"), 0, 10);
+    //IostatUid[tag][uid] = val;
+    continue;
+  }
+
+}
+  Mutex.UnLock();
+  return true;
+}
 
 //------------------------------------------------------------------------------
 // Save current uid/gid counters to a dump file
@@ -1296,7 +1386,7 @@ Iostat::Restore()
 
   while ((item = fscanf(fin, "%16383s\n", line)) == 1) {
     XrdOucEnv env(line);
-
+    // to-do split string
     if (env.Get("tag") && env.Get("uid") && env.Get("val")) {
       std::string tag = env.Get("tag");
       uid_t uid = atoi(env.Get("uid"));
