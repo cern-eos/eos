@@ -32,6 +32,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/Prefetcher.hh"
+#include "namespace/ns_quarkdb/qclient/include/qclient/ResponseParsing.hh"
 #include "mq/ReportListener.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdNet/XrdNetUtils.hh"
@@ -49,8 +50,16 @@ FILE* Iostat::gOpenReportFD = 0;
 
 /* ------------------------------------------------------------------------- */
 Iostat::Iostat():
-  mReport(true), mReportNamespace(false), mReportPopularity(true)
+    mQcl(nullptr), mReport(true), mReportNamespace(false), mReportPopularity(true)
 {
+  // Initialize qclient..
+  if (gOFS != NULL && !mQcl){
+
+    const eos::QdbContactDetails& qdb_details = gOFS->mQdbContactDetails;
+    mQcl.reset(new qclient::QClient(qdb_details.members,
+                                    qdb_details.constructOptions()));
+  }
+
   mRunning = false;
   mStoreFileName = "";
   // push default domains to watch TODO: make generic
@@ -1226,103 +1235,76 @@ Iostat::PrintNs(XrdOucString& out, XrdOucString option)
 // Save current uid/gid counters to Quark DB
 //------------------------------------------------------------------------------
 bool
-Iostat::StoreToQDB()
+Iostat::Store()
 {
-  // Initialize qclient..
-  if (gOFS != NULL && !mQcl){
-      mQcl.reset(new qclient::QClient(gOFS->mQdbContactDetails.members,
-                                      gOFS->mQdbContactDetails.constructOptions()));
-  }
-  XrdOucString hash_key = "Iostat:";
-  // TO-DO: change variable name mStoreFileName to hash_key
-  hash_key += mStoreFileName;
-
-  if (!mStoreFileName.length()) {
-    return false;
-  }
-  QHash qhash{mQcl, hash_key};
-  std::vector<pair<std::string,unsigned long long>> iostat_id_val_pairs;
+  std::vector<std::pair<std::string, std::string>> iostat_id_val_pairs;
 
   Mutex.Lock();
   // store user counters to the vectors
-  for (tuit = IostatUid.begin(); tuit != IostatUid.end(); tuit++) {
+  for (auto tuit = IostatUid.begin(); tuit != IostatUid.end(); tuit++) {
     for (auto it = tuit->second.begin(); it != tuit->second.end(); ++it) {
       std::string iostat_id = "idt=uid";
-      iostat_id += "&id=" + std::to_string(tuit->first.c_str());
-      iostat_id += "&tag=" + std::to_string(tuit->first.c_str());
-      iostat_id_val_pairs->push_back(make_pair(iostat_id, std::to_string((unsigned long long)it->second)));
+      iostat_id += "&id=" + it->first;
+      iostat_id += "&tag=" + tuit->first;
+      iostat_id_val_pairs.push_back(make_pair(iostat_id, std::to_string((unsigned long long)it->second)));
     }
   }
   // store group counter to the vectors
-  for (tgit = IostatGid.begin(); tgit != IostatGid.end(); tgit++) {
+  for (auto tgit = IostatGid.begin(); tgit != IostatGid.end(); tgit++) {
     for (auto it = tgit->second.begin(); it != tgit->second.end(); ++it) {
       std::string iostat_id = "idt=gid";
-      iostat_id += "&id=" + std::to_string(tuit->first.c_str());
-      iostat_id += "&tag=" + std::to_string(tuit->first.c_str());
-      iostat_id_val_pairs->push_back(make_pair(iostat_id, std::to_string((unsigned long long)it->second)));
+      iostat_id += "&id=" + it->first;
+      iostat_id += "&tag=" + tgit->first;
+      iostat_id_val_pairs.push_back(make_pair(iostat_id, std::to_string((unsigned long long)it->second)));
     }
   }
   // store the IOstats to QuarkDB
   bool allok = true;
-  for (ioit = iostat_id_val_pairs.begin(); ioit != iostat_id_val_pairs.end(); ioit++) {
-    allok &= qhash.hset(ioit.first, ioit.second);
+  for (auto ioit = iostat_id_val_pairs.begin(); ioit != iostat_id_val_pairs.end(); ioit++) {
+    allok &= mQHashIostat.hset(ioit->first, ioit->second);
   }
   Mutex.UnLock();
   return allok;
 }
 
-
+// ---------------------------------------------------------------------------
+// ! load current uid/gid counters from a QuarkDB hash map
+// ---------------------------------------------------------------------------
 bool
-Iostat::RestoreFromQDB()
+Iostat::Restore()
 {
-  // Initialize qclient..
-  if (gOFS != NULL && !mQcl){
-    mQcl.reset(new qclient::QClient(gOFS->mQdbContactDetails.members,
-                                    gOFS->mQdbContactDetails.constructOptions()));
-  }
-  XrdOucString hash_key = "Iostat:";
-  // TO-DO: change variable name mStoreFileName to hash_key
-  hash_key += mStoreFileName;
-
-  if (!mStoreFileName.length()) {
-    return false;
-  }
   Mutex.Lock();
-  QHash qhash{mQcl, hash_key};
-  std::vector<pair<std::string,unsigned long long>> iostat_id_val_pairs;
-  resp = qhash.hgetall();
-
-  qclient::HgetallParser parser(resp);
-  if (!parser.ok() || parser.value().empty()) {
+  std::string kIoStatReportIDsHashKey = "eos-iostat-report-ids:" + *(mStoreFileName.c_str());
+  qclient::redisReplyPtr reply = mQcl->exec("HGETALL", kIoStatReportIDsHashKey).get();
+  qclient::HgetallParser mQdbRespParser(reply);
+  if (!mQdbRespParser.ok() || mQdbRespParser.value().empty()) {
     return false;
   }
-
-  std::map<std::string, std::string> stored_iostat = parser.value();
+  std::map<std::string, std::string> stored_iostat = mQdbRespParser.value();
   std::vector<std::string> entry{};
   for (auto it = stored_iostat.begin(); it != stored_iostat.end(); it++) {
     // parsing the key-values from key "idt=uid&id=xxx&tag=blabla"
     // of the hash map entry
-    unsigned long long val = (unsigned long long)it->second;
-    entry = StringSplit(it->first.c_str(), "&");
+    unsigned long long val = strtoull(it->second.c_str(), 0, 10);
+    entry = eos::common::StringSplit<std::vector<std::string>>(it->first, "&");
     unsigned long id = 0;
     std::string tag = "";
     std::string id_type = "";
-    unsigned long long val = 0;
     std::vector<std::string> entry_kv{};
     for (auto itkv = entry.begin(); itkv != entry.end(); itkv++){
-      entry_kv = StringSplit(itkv.c_str(), "=");
+      entry_kv = eos::common::StringSplit<std::vector<std::string>>(*itkv, "=");
       if (entry_kv.size()!=2) {
         // wrong/unexpected QDB entry format
         return false;
       }else {
         if ("idt" == entry_kv[0]) {
-          id_type = entry_kv[1].c_str()
+          id_type = entry_kv[1].c_str();
         }
         if ("id" == entry_kv[0]) {
-          id = atoi(entry_kv[1].c_str())
+          id = atoi(entry_kv[1].c_str());
         }
         if ("tag" == entry_kv[0]) {
-          tag = entry_kv[1].c_str()
+          tag = entry_kv[1].c_str();
         }
       }
       entry_kv.clear();
@@ -1343,7 +1325,7 @@ Iostat::RestoreFromQDB()
 // Save current uid/gid counters to a dump file
 //------------------------------------------------------------------------------
 bool
-Iostat::Store()
+Iostat::StoreToFile()
 {
   XrdOucString tmpname = mStoreFileName;
 
@@ -1392,7 +1374,7 @@ Iostat::Store()
 
 /* ------------------------------------------------------------------------- */
 bool
-Iostat::Restore()
+Iostat::RestoreFromFile()
 {
   // ---------------------------------------------------------------------------
   // ! load current uid/gid counters from a dump file

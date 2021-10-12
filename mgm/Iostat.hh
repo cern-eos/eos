@@ -26,8 +26,6 @@
 
 #include "mgm/Namespace.hh"
 #include "mgm/FsView.hh"
-#include "namespace/ns_quarkdb/qclient/include/qclient/QClient.hh"
-#include "namespace/ns_quarkdb/qclient/include/qclient/structures/QHash.hh"
 #include "common/AssistedThread.hh"
 #include "common/StringConversion.hh"
 #include <google/sparse_hash_map>
@@ -38,6 +36,9 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include "namespace/ns_quarkdb/QdbContactDetails.hh"
+#include "namespace/ns_quarkdb/qclient/include/qclient/QClient.hh"
+#include "namespace/ns_quarkdb/qclient/include/qclient/structures/QHash.hh"
 
 namespace eos
 {
@@ -47,13 +48,16 @@ class Report;
 }
 }
 
+namespace qclient
+{
+class QClient;
+}
+
 EOSMGMNAMESPACE_BEGIN
 
 // define the history in days we want to do popularity tracking
 #define IOSTAT_POPULARITY_HISTORY_DAYS 7
 #define IOSTAT_POPULARITY_DAY 86400
-
-std::shared_ptr<qclient::QClient> mQcl; ///< QClient object for metadata
 
 class IostatAvg
 {
@@ -118,6 +122,8 @@ private:
   std::set<std::string> IoDomains;
   std::set<std::string> IoNodes;
 
+  std::unique_ptr<qclient::QClient> mQcl; // Internal QClient object
+  qclient::QHash mQHashIostat; // QDB hash map object
   // -----------------------------------------------------------
   // here we handle the popularity history for the last 7+1 days
   // -----------------------------------------------------------
@@ -177,7 +183,6 @@ private:
   std::map<std::string, struct sockaddr_in> mUdpSockAddr;
   //! File name where a dump is loaded/saved in Restore/Store
   XrdOucString mStoreFileName;
-
 
 public:
   // configuration keys used in config key-val store
@@ -255,9 +260,9 @@ public:
   }
 
   bool Store();
-  bool StoreToQDB();
+  bool StoreToFile();
   bool Restore();
-  bool RestoreFromQDB();
+  bool RestoreFromFile();
 
   void StartCirculate();
   bool Start();
