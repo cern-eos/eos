@@ -778,9 +778,14 @@ runtest "### Quota     " unix 0 "" eos quota set -u 99 -p /eos/$EOS_TEST_INSTANC
 runtest "### Quota     " unix 1 "" eos quota set -u 99 -p /doesnotexist -v 1T -i 1M
 runtest "### Quota     " unix 0 "" eos quota set -u 3 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
 runtest "### Upload    " unix 0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/1k" "-ODeos.ruid=3" "-DITransactionTimeout 30"
-runtest "### QUpdate   " unix 0 "" eos_quota "/eos/$EOS_TEST_INSTANCE/test/"
-runtest "### Rem       " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/1k"
-
+runtest "### QUpdate   " unix 0 "" eos_quota "/eos/$EOS_TEST_INSTANCE/test/" "uid=adm"
+runtest "### Rem       " unix 2 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/1k"
+runtest "### Mkdir     " unix 0 "" eos mkdir /eos/$EOS_TEST_INSTANCE/test/testproj
+runtest "### Quota     " unix 0 "" eos quota set -g 99 -p /eos/$EOS_TEST_INSTANCE/test/testproj -v 1T -i 1M
+runtest "### Upload    " unix 0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/testproj/1k" "-ODeos.ruid=3"
+runtest "### QUpdate   " unix 0 "" eos quota ls -m "/eos/$EOS_TEST_INSTANCE/test/testproj" | grep "gid=project space=/eos/$EOS_TEST_INSTANCE/test/testproj"
+runtest "### Rem       " unix 2 "" eos rm  "/eos/$EOS_TEST_INSTANCE/test/testproj/1k"
+runtest "### Rmdir     " unix 0 "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/testproj/"
 fi
 ################################################################################
 # RECYCLE BIN TEST
