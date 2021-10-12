@@ -24,6 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "common/table_formatter/TableFormatterBase.hh"
 #include "common/Report.hh"
+#include "common/StringSplit.hh"
 #include "common/Path.hh"
 #include "common/JeMallocHandler.hh"
 #include "common/Logging.hh"
@@ -1297,17 +1298,43 @@ Iostat::RestoreFromQDB()
   }
 
   std::map<std::string, std::string> stored_iostat = parser.value();
-
+  std::vector<std::string> entry{};
   for (auto it = stored_iostat.begin(); it != stored_iostat.end(); it++) {
-    // to do
-    //std::string tag = env.Get("tag");
-    //uid_t uid = atoi(env.Get("uid"));
-    //unsigned long long val = strtoull(env.Get("val"), 0, 10);
-    //IostatUid[tag][uid] = val;
-    continue;
+    // parsing the key-values from key "idt=uid&id=xxx&tag=blabla"
+    // of the hash map entry
+    unsigned long long val = (unsigned long long)it->second;
+    entry = StringSplit(it->first.c_str(), "&");
+    unsigned long id = 0;
+    std::string tag = "";
+    std::string id_type = "";
+    unsigned long long val = 0;
+    std::vector<std::string> entry_kv{};
+    for (auto itkv = entry.begin(); itkv != entry.end(); itkv++){
+      entry_kv = StringSplit(itkv.c_str(), "=");
+      if (entry_kv.size()!=2) {
+        // wrong/unexpected QDB entry format
+        return false;
+      }else {
+        if ("idt" == entry_kv[0]) {
+          id_type = entry_kv[1].c_str()
+        }
+        if ("id" == entry_kv[0]) {
+          id = atoi(entry_kv[1].c_str())
+        }
+        if ("tag" == entry_kv[0]) {
+          tag = entry_kv[1].c_str()
+        }
+      }
+      entry_kv.clear();
+    }
+    entry.clear();
+    if (id_type == "uid") {
+      IostatUid[tag][(uid_t)id] = val;
+    }
+    if (id_type == "gid") {
+      IostatGid[tag][(gid_t)id] = val;
+    }
   }
-
-}
   Mutex.UnLock();
   return true;
 }
