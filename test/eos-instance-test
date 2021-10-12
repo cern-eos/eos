@@ -1631,7 +1631,7 @@ dd of="/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypte
 runtest "### Diff      " unix 0 "EOS_FUSE_SECRET=12e629ee-e68a-4a5b-9743-33ba8f794e07" shell diff /etc/group  "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted"
 unset EOS_FUSE_SECRET
 dd of="/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted" oflag=nocache conv=notrunc,fdatasync count=0
-runtest "### Diff      " unix 1 "" shell diff /etc/group  "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted"
+runtest "### Diff      " unix 2 "" shell diff /etc/group  "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted"
 runtest "### defaultcc " unix 0 "" eos_defaultcc "/test-fusex/"
 runtest "### sycntime  " unix 0 "" eos_synctime "/test-fusex/" "$EOS_TEST_INSTANCE/test/instancetest/fusex/"
 test -d /test-fusex/ && umount -fl /test-fusex/
