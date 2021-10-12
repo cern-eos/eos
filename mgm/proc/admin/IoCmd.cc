@@ -38,21 +38,25 @@ IoCmd::ProcessRequest() noexcept
   eos::console::IoProto io = mReqProto.io();
 
   switch (mReqProto.io().subcmd_case()) {
-    case eos::console::IoProto::kStat:
-      StatSubcmd(io.stat(), reply);
-      break;
-    case eos::console::IoProto::kEnable:
-      EnableSubcmd(io.enable(), reply);
-      break;
-    case eos::console::IoProto::kReport:
-      ReportSubcmd(io.report(), reply);
-      break;
-    case eos::console::IoProto::kNs:
-      NsSubcmd(io.ns(), reply);
-      break;
-    default:
-      reply.set_retc(EINVAL);
-      reply.set_std_err("error: not supported");
+  case eos::console::IoProto::kStat:
+    StatSubcmd(io.stat(), reply);
+    break;
+
+  case eos::console::IoProto::kEnable:
+    EnableSubcmd(io.enable(), reply);
+    break;
+
+  case eos::console::IoProto::kReport:
+    ReportSubcmd(io.report(), reply);
+    break;
+
+  case eos::console::IoProto::kNs:
+    NsSubcmd(io.ns(), reply);
+    break;
+
+  default:
+    reply.set_retc(EINVAL);
+    reply.set_std_err("error: not supported");
   }
 
   return reply;
@@ -108,7 +112,7 @@ void IoCmd::EnableSubcmd(const eos::console::IoProto_EnableProto& enable,
         if (enable.popularity()) {
           // Always enable collection otherwise we don't get anything for
           // popularity reporting
-          gOFS->IoStats->Start();
+          gOFS->IoStats->StartCollection();
 
           if (gOFS->IoStats->StartPopularity()) {
             out << "success: enabled IO popularity collection";
@@ -205,14 +209,15 @@ void IoCmd::ReportSubcmd(const eos::console::IoProto_ReportProto& report,
   XrdOucString out {""};
   XrdOucString err {""};
 
-  if ( mVid.uid != 0 ) {
+  if (mVid.uid != 0) {
     reply.set_std_err("error: you have to take role 'root' to execute this command");
     reply.set_retc(EPERM);
     return;
   }
 
-  (void) Iostat::NamespaceReport(report.path().c_str(), out, err);
-
+  if (gOFS->IoStats) {
+    gOFS->IoStats->PrintNsReport(report.path().c_str(), out);
+  }
 
   reply.set_std_out(out.c_str());
   reply.set_std_err(err.c_str());
@@ -230,37 +235,46 @@ void IoCmd::NsSubcmd(const eos::console::IoProto_NsProto& ns,
   if (ns.monitoring() || WantsJsonOutput()) {
     option += "-m";
   }
+
   if (ns.rank_by_byte()) {
     option += "-b";
   }
+
   if (ns.rank_by_access()) {
     option += "-n";
   }
+
   if (ns.last_week()) {
     option += "-w";
   }
+
   if (ns.hotfiles()) {
     option += "-f";
   }
+
   switch (ns.count()) {
-    case eos::console::IoProto_NsProto::ONEHUNDRED:
-      option += "-100";
-      break;
-    case eos::console::IoProto_NsProto::ONETHOUSAND:
-      option += "-1000";
-      break;
-    case eos::console::IoProto_NsProto::TENTHOUSAND:
-      option += "-10000";
-      break;
-    case eos::console::IoProto_NsProto::ALL:
-      option += "-a";
-      break;
-    default : // NONE
-      break;
+  case eos::console::IoProto_NsProto::ONEHUNDRED:
+    option += "-100";
+    break;
+
+  case eos::console::IoProto_NsProto::ONETHOUSAND:
+    option += "-1000";
+    break;
+
+  case eos::console::IoProto_NsProto::TENTHOUSAND:
+    option += "-10000";
+    break;
+
+  case eos::console::IoProto_NsProto::ALL:
+    option += "-a";
+    break;
+
+  default : // NONE
+    break;
   }
 
   XrdOucString out = "";
-  gOFS->IoStats->PrintNs(out, option.c_str());
+  gOFS->IoStats->PrintNsPopularity(out, option.c_str());
 
   if (WantsJsonOutput()) {
     out = ResponseToJsonString(out.c_str()).c_str();

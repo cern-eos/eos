@@ -33,7 +33,11 @@ ProcCommand::Io()
   if (pVid->uid == 0) {
     if (mSubCmd == "report") {
       XrdOucString path = pOpaque->Get("mgm.io.path");
-      retc = Iostat::NamespaceReport(path.c_str(), stdOut, stdErr);
+
+      if (gOFS->IoStats) {
+        gOFS->IoStats->PrintNsReport(path.c_str(), stdOut);
+        retc = 0;
+      }
     } else {
       XrdOucString option = pOpaque->Get("mgm.option");
       XrdOucString target = pOpaque->Get("mgm.udptarget");
@@ -66,7 +70,7 @@ ProcCommand::Io()
             }
           } else {
             if (popularity) {
-              gOFS->IoStats->Start(); // always enable collection otherwise we don't get anything for popularity reporting
+              gOFS->IoStats->StartCollection(); // always enable collection otherwise we don't get anything for popularity reporting
 
               if (gOFS->IoStats->StartPopularity()) {
                 stdOut += "success: enabled IO popularity collection";
@@ -211,7 +215,7 @@ ProcCommand::Io()
   if (mSubCmd == "ns") {
     XrdOucString option = pOpaque->Get("mgm.option");
     eos_info("io ns");
-    gOFS->IoStats->PrintNs(stdOut, option);
+    gOFS->IoStats->PrintNsPopularity(stdOut, option);
   }
 
   return SFS_OK;

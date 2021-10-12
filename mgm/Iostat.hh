@@ -1,11 +1,11 @@
-// ----------------------------------------------------------------------
-// File: Iostat.hh
-// Author: Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
+//! @file Iostat.hh
+//! @authors Andreas-Joachim Peters/Jaroslav Guenther - CERN
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2021 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,21 +21,21 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSMGM_IOSTAT__HH__
-#define __EOSMGM_IOSTAT__HH__
-
-#include "mgm/Namespace.hh"
-#include "mgm/FsView.hh"
+#pragma once
 #include "common/AssistedThread.hh"
 #include "common/StringConversion.hh"
-#include <google/sparse_hash_map>
-#include <sys/types.h>
-#include <string>
-#include <set>
-#include <atomic>
-#include <sys/socket.h>
-#include <netinet/in.h>
+#include "mgm/FsView.hh"
+#include "mgm/Namespace.hh"
+#include "namespace/ns_quarkdb/qclient/include/qclient/QClient.hh"
+#include "namespace/ns_quarkdb/qclient/include/qclient/structures/QHash.hh"
 #include <arpa/inet.h>
+#include <atomic>
+#include <google/sparse_hash_map>
+#include <netinet/in.h>
+#include <set>
+#include <string>
+#include <sys/socket.h>
+#include <sys/types.h>
 
 namespace eos
 {
@@ -43,120 +43,124 @@ namespace common
 {
 class Report;
 }
-}
+} // namespace eos
 
 EOSMGMNAMESPACE_BEGIN
 
-// define the history in days we want to do popularity tracking
+//! Define the history in days we want to do popularity tracking
 #define IOSTAT_POPULARITY_HISTORY_DAYS 7
 #define IOSTAT_POPULARITY_DAY 86400
 
-class IostatAvg
+//! Enumeration class for the 4 periods for which stats are collected
+enum class Period {DAY, HOUR, FIVEMIN, ONEMIN};
+
+//------------------------------------------------------------------------------
+//! Class IostatPeriods holds read/write stats in 60 bins per each period of
+//! last 1day, 1h, 5min, 1min
+//------------------------------------------------------------------------------
+class IostatPeriods
 {
 public:
-  unsigned long long avg86400[60];
-  unsigned long long avg3600[60];
-  unsigned long long avg300[60];
-  unsigned long long avg60[60];
-
-  IostatAvg()
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  IostatPeriods()
   {
-    memset(avg86400, 0, sizeof(avg86400));
-    memset(avg3600, 0, sizeof(avg3600));
-    memset(avg300, 0, sizeof(avg300));
-    memset(avg60, 0, sizeof(avg60));
+    for (size_t i = 0; i < std::size(mPeriodBins); ++i) {
+      memset(mPeriodBins[i], 0, sizeof(mPeriodBins[i]));
+    }
   }
 
-  ~IostatAvg() { };
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  ~IostatPeriods() = default;
 
-  void
-  Add(unsigned long long val, time_t starttime, time_t stoptime);
+  //----------------------------------------------------------------------------
+  //! Add measurement to the various periods it overlaps with
+  //!
+  //! @param val measured value
+  //! @param start start time of the measurement
+  //! @param stop stop time of the measurement
+  //! @param now current timestamp
+  //----------------------------------------------------------------------------
+  void Add(unsigned long long val, time_t start, time_t stop,
+           time_t now);
 
-  void
-  StampZero(time_t& now);
+  //----------------------------------------------------------------------------
+  //! Reset the bin affected by the given timestamp
+  //----------------------------------------------------------------------------
+  void StampZero(time_t& timestamp);
 
-  double
-  GetAvg86400();
+  //----------------------------------------------------------------------------
+  //! Get the sum of values for the given period
+  //!
+  //! @param period type of period
+  //!
+  //! @return sum for the given period
+  //----------------------------------------------------------------------------
+  unsigned long long GetSumForPeriod(Period period) const;
 
-  double
-  GetAvg3600();
+private:
+#ifdef IN_TEST_HARNESS
+public:
+#endif
+  static constexpr size_t sNumberOfPeriods = 4;
+  static constexpr size_t sBinsPerPeriod = 60;
+  //! 3 arrays to collect stat per 1day, 1h, 5m and 60sec each within 60 bins
+  unsigned long long mPeriodBins[sNumberOfPeriods][sBinsPerPeriod];
+  //! Setting the width of the (60) time bins of the arrays in mPeriodBins to
+  //! 1440sec, 60sec, 5sec and 1 sec respectively
+  const size_t mPeriodBinWidth[sNumberOfPeriods] {1440, 60, 5, 1};
 
-  double
-  GetAvg300();
-
-  double
-  GetAvg60();
+  //----------------------------------------------------------------------------
+  //! Measurement stop time and duration determine which of the bins of the
+  //! corresponding period will get populated with the new values
+  //!
+  //! @param period_indx index of the period to be updated [0, sNumberOfPeriods)
+  //! @param val measured value
+  //! @param tdiff duration of the measurement
+  //! @param stop end time of the measurement
+  //----------------------------------------------------------------------------
+  void AddToPeriod(size_t period_indx, unsigned long long val,
+                   size_t tdiff, time_t stop);
 };
 
+//------------------------------------------------------------------------------
+//! Iostat subscribes to MQ, collects and digests report messages
+//------------------------------------------------------------------------------
 class Iostat
 {
-  // -------------------------------------------------------------
-  // ! subscribes to our MQ, collects and digestes report messages
-  // -------------------------------------------------------------
 private:
+  std::mutex Mutex;
+  google::sparse_hash_map<std::string,
+         google::sparse_hash_map<uid_t, unsigned long long>>
+         IostatUid;
+  google::sparse_hash_map<std::string,
+         google::sparse_hash_map<gid_t, unsigned long long>>
+         IostatGid;
+  google::sparse_hash_map<std::string,
+         google::sparse_hash_map<uid_t, IostatPeriods>>
+         IostatPeriodsUid;
+  google::sparse_hash_map<std::string,
+         google::sparse_hash_map<gid_t, IostatPeriods>>
+         IostatPeriodsGid;
 
-  XrdSysMutex Mutex;
-  google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, unsigned long long> >
-  IostatUid;
-  google::sparse_hash_map<std::string, google::sparse_hash_map<gid_t, unsigned long long> >
-  IostatGid;
-  google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, IostatAvg> >
-  IostatAvgUid;
-  google::sparse_hash_map<std::string, google::sparse_hash_map<gid_t, IostatAvg> >
-  IostatAvgGid;
+  google::sparse_hash_map<std::string, IostatPeriods> IostatPeriodsDomainIOrb;
+  google::sparse_hash_map<std::string, IostatPeriods> IostatPeriodsDomainIOwb;
 
-  google::sparse_hash_map<std::string, IostatAvg> IostatAvgDomainIOrb;
-  google::sparse_hash_map<std::string, IostatAvg> IostatAvgDomainIOwb;
-
-  google::sparse_hash_map<std::string, IostatAvg> IostatAvgAppIOrb;
-  google::sparse_hash_map<std::string, IostatAvg> IostatAvgAppIOwb;
+  google::sparse_hash_map<std::string, IostatPeriods> IostatPeriodsAppIOrb;
+  google::sparse_hash_map<std::string, IostatPeriods> IostatPeriodsAppIOwb;
 
   std::set<std::string> IoDomains;
   std::set<std::string> IoNodes;
 
-  // -----------------------------------------------------------
-  // here we handle the popularity history for the last 7+1 days
-  // -----------------------------------------------------------
-
-  XrdSysMutex PopularityMutex;
-
-  struct Popularity {
-    unsigned int nread;
-    unsigned long long rb;
-  };
-
-  // Points to the bin which was last used in IostatPopularity
-  std::atomic<size_t> IostatLastPopularityBin;
-
-  google::sparse_hash_map<std::string, struct Popularity>
-    IostatPopularity[ IOSTAT_POPULARITY_HISTORY_DAYS ];
-
-  typedef std::pair<std::string, struct Popularity> popularity_t;
-
-  struct PopularityCmp_nread {
-
-    bool operator()(popularity_t const& l, popularity_t const& r)
-    {
-      if (l.second.nread == r.second.nread) {
-        return (l.first < r.first);
-      }
-
-      return l.second.nread > r.second.nread;
-    }
-  };
-
-  struct PopularityCmp_rb {
-
-    bool operator()(popularity_t const& l, popularity_t const& r)
-    {
-      if (l.second.rb == r.second.rb) {
-        return (l.first < r.first);
-      }
-
-      return l.second.rb > r.second.rb;
-    }
-  };
-
+  //! Internal QClient object
+  std::unique_ptr<qclient::QClient> mQcl;
+  //! QDB hash map object
+  qclient::QHash mQHashIostat;
+  //! QDB entry key map
+  google::sparse_hash_map<std::string, std::string> StoreKeyStruct;
 
   //! Flag to store reports in the local report store
   std::atomic<bool> mReport;
@@ -164,116 +168,53 @@ private:
   std::atomic<bool> mReportNamespace;
   //! Flag if we fill the popularity maps (protected by this::Mutex)
   std::atomic<bool> mReportPopularity;
-  mutable XrdSysMutex mBcastMutex; ///< Mutex protecting the following sets
-  // Destinations for udp popularity packets
-  std::set<std::string> mUdpPopularityTarget;
-  //! Socket to the udp destination(s)
-  std::map<std::string, int> mUdpSocket;
-  //! Socket address structure to be reused for messages
-  std::map<std::string, struct sockaddr_in> mUdpSockAddr;
-  //! File name where a dump is loaded/saved in Restore/Store
-  XrdOucString mStoreFileName;
-
+  //! QuarkDB hash map key name where a dump is loaded/saved via Restore/Store methods
+  std::string mReportHashKeyBase;
 
 public:
-  // configuration keys used in config key-val store
+  // Configuration keys used in config key-val store
   static const char* gIostatCollect;
   static const char* gIostatReport;
   static const char* gIostatReportNamespace;
   static const char* gIostatPopularity;
   static const char* gIostatUdpTargetList;
-
   static FILE* gOpenReportFD;
-  bool mRunning;
+  std::atomic<bool> mRunning;
 
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
   Iostat();
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
   ~Iostat();
 
-  void
-  ApplyIostatConfig(FsView* fsview)
-  {
-    std::string iocollect = fsview->GetGlobalConfig(Iostat::gIostatCollect);
-    std::string ioreport = fsview->GetGlobalConfig(Iostat::gIostatReport);
-    std::string ioreportns = fsview->GetGlobalConfig(
-                               Iostat::gIostatReportNamespace);
-    std::string iopopularity = fsview->GetGlobalConfig(
-                                 Iostat::gIostatPopularity);
-    std::string udplist = fsview->GetGlobalConfig(
-                            Iostat::gIostatUdpTargetList);
+  //----------------------------------------------------------------------------
+  //! Perform object initialization
+  //!
+  //! @param instance_name used to build the hash map key to be stored in QDB
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool Init(const std::string& instance_name);
 
-    if ((iocollect == "true") || (iocollect.empty())) {
-      // by default enable
-      StartCollection();
-    }
+  //----------------------------------------------------------------------------
+  //! Apply instance level configuration concerning IoStats
+  //!
+  //! @param fsview pointer to FsView object
+  //----------------------------------------------------------------------------
+  void ApplyIostatConfig(FsView* fsview);
 
-    mReport = (ioreport == "true");
-    mReportNamespace = (ioreportns == "true");
-    mReportPopularity = (iopopularity == "true") || (iopopularity.empty());
-    std::string delimiter = "|";
-    std::vector<std::string> hostlist;
-    eos::common::StringConversion::Tokenize(udplist, hostlist, delimiter);
-    XrdSysMutexHelper scope_lock(mBcastMutex);
-    mUdpPopularityTarget.clear();
-
-    for (size_t i = 0; i < hostlist.size(); i++) {
-      AddUdpTarget(hostlist[i].c_str(), false);
-    }
-  }
-
-  /* ------------------------------------------------------------------------- */
-  bool
-  StoreIostatConfig(FsView* fsview)
-  {
-    bool ok = true;
-    ok &= fsview->SetGlobalConfig(Iostat::gIostatPopularity,
-                                  mReportPopularity ? "true" : "false");
-    ok &= fsview->SetGlobalConfig(Iostat::gIostatReport,
-                                  mReport ? "true" : "false");
-    ok &= fsview->SetGlobalConfig(Iostat::gIostatReportNamespace,
-                                  mReportNamespace ? "true" : "false");
-    ok &= fsview->SetGlobalConfig(Iostat::gIostatCollect,
-                                  mRunning ? "true" : "false");
-    std::string udp_popularity_targets = EncodeUdpPopularityTargets();
-
-    if (!udp_popularity_targets.empty()) {
-      ok &= fsview->SetGlobalConfig(Iostat::gIostatUdpTargetList,
-                                    udp_popularity_targets);
-    }
-
-    return ok;
-  }
-
-  bool
-  SetStoreFileName(const char* storefilename)
-  {
-    mStoreFileName = storefilename;
-    return Restore();
-  }
-
-  bool Store();
-  bool Restore();
-
-  void StartCirculate();
-  bool Start();
-  bool Stop();
-  bool StartCollection();
-  bool StopCollection();
-  bool StartPopularity();
-  bool StopPopularity();
-  bool StartReport();
-  bool StopReport();
-  bool StartReportNamespace();
-  bool StopReportNamespace();
-  bool AddUdpTarget(const char* target, bool storeitandlock = true);
-  bool RemoveUdpTarget(const char* target);
-
-  void PrintOut(XrdOucString& out, bool summary, bool details, bool monitoring,
-                bool numerical = false, bool top = false, bool domain = false,
-                bool apps = false, XrdOucString option = "");
-
-  void PrintNs(XrdOucString& out, XrdOucString option = "");
-
-  void UdpBroadCast(eos::common::Report*);
+  //----------------------------------------------------------------------------
+  //! Store IoStat config in the instance level configuration
+  //!
+  //! @param fsview pointer to FsView object
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool StoreIostatConfig(FsView* fsview) const;
 
   //----------------------------------------------------------------------------
   //! Method executed by the thread receiving reports
@@ -290,6 +231,225 @@ public:
   void Circulate(ThreadAssistant& assistant) noexcept;
 
   //----------------------------------------------------------------------------
+  //! Start collection thread
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool StartCollection();
+
+  //----------------------------------------------------------------------------
+  //! Stop collection thread
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool StopCollection();
+
+  //----------------------------------------------------------------------------
+  //! Start popularity thread
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool StartPopularity();
+
+  //----------------------------------------------------------------------------
+  //! Stop popularity thread
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool StopPopularity();
+
+  //----------------------------------------------------------------------------
+  //! Start daily report thread
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool StartReport();
+
+  //----------------------------------------------------------------------------
+  //! Stop daily report thread
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool StopReport();
+
+  //----------------------------------------------------------------------------
+  //! Start namespace report thread
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool StartReportNamespace();
+
+  //----------------------------------------------------------------------------
+  //! Stop namespace report thread
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool StopReportNamespace();
+
+  //----------------------------------------------------------------------------
+  //! Add UDP target
+  //!
+  //! @param target new UDP target
+  //! @param store_and_lock if true store new target in config
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool AddUdpTarget(const std::string& target, bool store_and_lock = true);
+
+  //----------------------------------------------------------------------------
+  //! Remove UDP target
+  //!
+  //! @param target UDP target to be removed
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool RemoveUdpTarget(const std::string& target);
+
+  //----------------------------------------------------------------------------
+  //! Write record to the stream - used by the MGM to push entries
+  //!
+  //! @param report report entry
+  //----------------------------------------------------------------------------
+  void WriteRecord(const std::string& record);
+
+  // build a key for QuarkDB hash map store from info in StoreKeyStruct
+  std::string BuildStatKey();
+  // get the kv pairs for QDB from IostatUid or IostatGid (as gmap)
+  // template is needed since the two maps differ in uid_t git_t types within the map
+  template <typename T>
+  bool InsertToQDBStore(const T& gmap, const char* id_type);
+  // parsing the key-values from key "idt=u&id=xxx&tag=blabla"
+  // of the QuarkDB report hash map entry to be able to repopulate
+  // IostatUid/IostatGid objects via StoreKeyStruct
+  bool UnfoldStatKey(const char* storedqdbkey_kv);
+
+  bool Store();
+  bool Restore();
+
+  //------------------------------------------------------------------------------
+  //! Print IO statistics
+  //------------------------------------------------------------------------------
+  void PrintOut(XrdOucString& out, bool summary, bool details, bool monitoring,
+                bool numerical = false, bool top = false, bool domain = false,
+                bool apps = false, XrdOucString option = "");
+
+  //----------------------------------------------------------------------------
+  //! Compute and print out the namespace popularity ranking
+  //!
+  //! @param out output string
+  //! @param option fileter options
+  //----------------------------------------------------------------------------
+  void PrintNsPopularity(XrdOucString& out, XrdOucString option = "") const;
+
+  //----------------------------------------------------------------------------
+  //! Print namespace activity report for given path
+  //!
+  //! @param path namespace path
+  //! @param out output string
+  //----------------------------------------------------------------------------
+  void PrintNsReport(const char* path, XrdOucString& out) const;
+
+
+  void ResetIostatMaps();
+
+  //----------------------------------------------------------------------------
+  //! Record measurement to the various periods it overlaps with
+  //!
+  //! @param tag measurement info tag
+  //! @param uid user id
+  //! @param gid group id
+  //! @param val measurement value
+  //! @param start start timestamp of measurement
+  //! @param stop stop timestamp of measurement
+  //! @param now current timestamp
+  //----------------------------------------------------------------------------
+  void Add(const char* tag, uid_t uid, gid_t gid, unsigned long long val,
+           time_t start, time_t stop, time_t now);
+
+  //----------------------------------------------------------------------------
+  //! Get sum of measurements for the given tag
+  //! @note: need to lock the mutex if directly used
+  //!
+  //! @param tag measurement info tag
+  //!
+  //! @return total value
+  //----------------------------------------------------------------------------
+  unsigned long long GetTotalStatForTag(const char* tag) const;
+
+  //----------------------------------------------------------------------------
+  //! Get sum of measurements for the given tag an period
+  //!
+  //! @param tag measurement info tag
+  //! @parma period time interval of interest
+  //!
+  //! @return total value
+  //----------------------------------------------------------------------------
+  unsigned long long GetPeriodStatForTag(const char* tag, Period period) const;
+
+private:
+#ifdef IN_TEST_HARNESS
+public:
+#endif
+  std::mutex mThreadSyncMutex; ///< Mutex serializing thread(s) start/stop
+  AssistedThread mReceivingThread; ///< Looping thread receiving reports
+  AssistedThread mCirculateThread; ///< Looping thread circulating report
+  ///< Mutex protecting the UDP broadcast data structures that follow
+  mutable std::mutex mBcastMutex;
+  //! Destinations for udp popularity packets
+  std::set<std::string> mUdpPopularityTarget;
+  //! Socket to the udp destination(s)
+  std::map<std::string, int> mUdpSocket;
+  //! Socket address structure to be reused for messages
+  std::map<std::string, struct sockaddr_in> mUdpSockAddr;
+  mutable std::mutex mPopularityMutex;
+  //! Popularity data structure
+  struct Popularity {
+    unsigned int nread;
+    unsigned long long rb;
+  };
+
+  //! Points to the bin which was last used in IostatPopularity
+  std::atomic<size_t> IostatLastPopularityBin;
+  google::sparse_hash_map<std::string, struct Popularity>
+    IostatPopularity[IOSTAT_POPULARITY_HISTORY_DAYS];
+  typedef std::pair<std::string, struct Popularity> popularity_t;
+
+  //----------------------------------------------------------------------------
+  //! Value comparator for number of reads
+  //----------------------------------------------------------------------------
+  struct PopularityCmp_nread {
+    bool operator()(popularity_t const& l, popularity_t const& r)
+    {
+      if (l.second.nread == r.second.nread) {
+        return (l.first < r.first);
+      }
+
+      return l.second.nread > r.second.nread;
+    }
+  };
+
+  //---------------------------------------------------------------------------
+  //! Value comparator for read bytes
+  //----------------------------------------------------------------------------
+  struct PopularityCmp_rb {
+    bool operator()(popularity_t const& l, popularity_t const& r)
+    {
+      if (l.second.rb == r.second.rb) {
+        return (l.first < r.first);
+      }
+
+      return l.second.rb > r.second.rb;
+    }
+  };
+
+  //----------------------------------------------------------------------------
+  //! Do the UDP broadcast
+  //!
+  //! @param report pointer to report object
+  //----------------------------------------------------------------------------
+  void UdpBroadCast(eos::common::Report* report) const;
+
+  //----------------------------------------------------------------------------
   //! Encode the UDP popularity targets to a string using the provided separator
   //!
   //! @param separator separator for the encoding
@@ -298,132 +458,17 @@ public:
   //----------------------------------------------------------------------------
   std::string EncodeUdpPopularityTargets() const;
 
+  //----------------------------------------------------------------------------
+  //! Add entry to popularity statistics
+  //!
+  //! @param path entry path
+  //! @param rb read bytes
+  //! @param start start timestamp of the operation
+  //! @param stop stop timstamp of the operation
+  //----------------------------------------------------------------------------
+  void AddToPopularity(const std::string& path, unsigned long long rb,
+                       time_t start, time_t stop);
 
-  void WriteRecord(std::string&
-                   record); // let's the MGM add some record into the stream
-
-  static bool NamespaceReport(const char* path, XrdOucString& stdOut,
-                              XrdOucString& stdErr);
-
-  void
-  AddToPopularity(std::string path, unsigned long long rb, time_t starttime,
-                  time_t stoptime);
-
-
-
-
-  // Stats collection
-  void
-  Add(const char* tag, uid_t uid, gid_t gid, unsigned long long val,
-      time_t starttime,
-      time_t stoptime)
-  {
-    Mutex.Lock();
-    IostatUid[tag][uid] += val;
-    IostatGid[tag][gid] += val;
-    IostatAvgUid[tag][uid].Add(val, starttime, stoptime);
-    IostatAvgGid[tag][gid].Add(val, starttime, stoptime);
-    Mutex.UnLock();
-  }
-
-  unsigned long long
-  GetTotal(const char* tag)
-  {
-    google::sparse_hash_map<uid_t, unsigned long long>::const_iterator it;
-    unsigned long long val = 0;
-
-    if (!IostatUid.count(tag)) {
-      return 0;
-    }
-
-    for (it = IostatUid[tag].begin(); it != IostatUid[tag].end(); ++it) {
-      val += it->second;
-    }
-
-    return val;
-  }
-
-  // warning: you have to lock the mutex if directly used
-
-  double
-  GetTotalAvg86400(const char* tag)
-  {
-    google::sparse_hash_map<uid_t, IostatAvg>::iterator it;
-    double val = 0;
-
-    if (!IostatAvgUid.count(tag)) {
-      return 0;
-    }
-
-    for (it = IostatAvgUid[tag].begin(); it != IostatAvgUid[tag].end(); ++it) {
-      val += it->second.GetAvg86400();
-    }
-
-    return val;
-  }
-
-  // warning: you have to lock the mutex if directly used
-
-  double
-  GetTotalAvg3600(const char* tag)
-  {
-    google::sparse_hash_map<uid_t, IostatAvg>::iterator it;
-    double val = 0;
-
-    if (!IostatAvgUid.count(tag)) {
-      return 0;
-    }
-
-    for (it = IostatAvgUid[tag].begin(); it != IostatAvgUid[tag].end(); ++it) {
-      val += it->second.GetAvg3600();
-    }
-
-    return val;
-  }
-
-  // warning: you have to lock the mutex if directly used
-
-  double
-  GetTotalAvg300(const char* tag)
-  {
-    google::sparse_hash_map<uid_t, IostatAvg>::iterator it;
-    double val = 0;
-
-    if (!IostatAvgUid.count(tag)) {
-      return 0;
-    }
-
-    for (it = IostatAvgUid[tag].begin(); it != IostatAvgUid[tag].end(); ++it) {
-      val += it->second.GetAvg300();
-    }
-
-    return val;
-  }
-
-  // warning: you have to lock the mutex if directly used
-
-  double
-  GetTotalAvg60(const char* tag)
-  {
-    google::sparse_hash_map<uid_t, IostatAvg>::iterator it;
-    double val = 0;
-
-    if (!IostatAvgUid.count(tag)) {
-      return 0;
-    }
-
-    for (it = IostatAvgUid[tag].begin(); it != IostatAvgUid[tag].end(); ++it) {
-      val += it->second.GetAvg60();
-    }
-
-    return val;
-  }
-
-private:
-  AssistedThread mReceivingThread; ///< Looping thread receiving reports
-  AssistedThread mCirculateThread; ///< Looping thread circulating reports
 };
 
 EOSMGMNAMESPACE_END
-
-#endif

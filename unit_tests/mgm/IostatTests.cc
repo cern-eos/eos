@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 // File: IostatTests.cc
-// Author: Jaroslav Guenther <jaroslav dot guenther at cern dot ch>
+// Author: Jaroslav Guenther <jaroslav dot guenther at cern dot ch> - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -21,14 +21,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include <map>
 #include "gtest/gtest.h"
-#include "mgm/Namespace.hh"
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdSys/XrdSysPthread.hh"
+#define IN_TEST_HARNESS
 #include "mgm/Iostat.hh"
+#undef IN_TEST_HARNESS
 #include "mgm/FsView.hh"
-//#include "common/InstanceName.hh"
+#include <map>
 
 using namespace eos::mgm;
 
@@ -37,6 +35,11 @@ using namespace eos::mgm;
 
 // using Google Test Fixtures (TEST_T); a new instance
 // of the following class will get created before each test
+Period LAST_DAY = Period::DAY;
+Period LAST_HOUR = Period::HOUR;
+Period LAST_5MIN = Period::FIVEMIN;
+Period LAST_1MIN = Period::ONEMIN;
+
 class IostatTest : public :: testing::Test
 {
 protected:
@@ -88,9 +91,9 @@ TEST_F(IostatTest, InitConfig)
 TEST_F(IostatTest, StartStop)
 {
   ASSERT_EQ(false, iostat.mRunning);
-  iostat.Start();
+  iostat.StartCollection();
   ASSERT_EQ(true, iostat.mRunning);
-  iostat.Stop();
+  iostat.StopCollection();
   ASSERT_EQ(false, iostat.mRunning);
 }
 
@@ -152,29 +155,28 @@ TEST_F(IostatTest, AddRemoveUdpTargets)
   ASSERT_EQ(expected, out);
 }
 
-TEST(IostatAvg, GetAvgStampZeroAdd)
+TEST(IostatPeriods, GetStatStampZeroAdd)
 {
   using namespace std::chrono;
-  IostatAvg iostatavg;
-  // the values summed up finish in integer array The GetAvg methods add doubles
+  IostatPeriods iostattbins;
+  // the values summed up finish in integer array The GetStat methods add doubles
   // of them which is pointless unless we want to change the array definition as
   // well (which is int !!!) (???)
-  ASSERT_EQ(0, iostatavg.GetAvg86400());
-  ASSERT_EQ(0, iostatavg.GetAvg3600());
-  ASSERT_EQ(0, iostatavg.GetAvg300());
-  ASSERT_EQ(0, iostatavg.GetAvg60());
+  ASSERT_EQ(0, iostattbins.GetSumForPeriod(LAST_DAY));
+  ASSERT_EQ(0, iostattbins.GetSumForPeriod(LAST_HOUR));
+  ASSERT_EQ(0, iostattbins.GetSumForPeriod(LAST_5MIN));
+  ASSERT_EQ(0, iostattbins.GetSumForPeriod(LAST_1MIN));
 
-  for (int i = 0; i < 60; i++) {
-    iostatavg.avg86400[i] = 1440;
-    iostatavg.avg3600[i] = 60;
-    iostatavg.avg300[i] = 5;
-    iostatavg.avg60[i] = 1;
+  for (int pidx = 0; pidx < 4; pidx++) {
+    for (int i = 0; i < 60; i++) {
+      iostattbins.mPeriodBins[pidx][i] = iostattbins.mPeriodBinWidth[pidx];
+    }
   }
 
-  ASSERT_EQ(86400, iostatavg.GetAvg86400());
-  ASSERT_EQ(3600, iostatavg.GetAvg3600());
-  ASSERT_EQ(300, iostatavg.GetAvg300());
-  ASSERT_EQ(60, iostatavg.GetAvg60());
+  ASSERT_EQ(86400, iostattbins.GetSumForPeriod(LAST_DAY));
+  ASSERT_EQ(3600, iostattbins.GetSumForPeriod(LAST_HOUR));
+  ASSERT_EQ(300, iostattbins.GetSumForPeriod(LAST_5MIN));
+  ASSERT_EQ(60, iostattbins.GetSumForPeriod(LAST_1MIN));
   // the bin assignment currently depends on the reference point
   // being number of seconds since epoch, we need to sync the test start time
   // with the boundary of the bin start
@@ -186,66 +188,74 @@ TEST(IostatAvg, GetAvgStampZeroAdd)
     if (i != 0) {
       now = now + 1;
     }
-    iostatavg.StampZero(now);
+
+    iostattbins.StampZero(now);
+
     if (i < 60) {
-      ASSERT_EQ(60 - (i + 1) * 1, iostatavg.GetAvg60());
+      ASSERT_EQ(60 - (i + 1) * 1, iostattbins.GetSumForPeriod(LAST_1MIN));
     }
+
     if (i < 300) {
       // in 5 sec interval the same bin gets marked zero
       // cout << i << " time: "<<  now << endl;
-      ASSERT_EQ(300 - (i / 5 + 1) * 5, iostatavg.GetAvg300());
+      ASSERT_EQ(300 - (i / 5 + 1) * 5, iostattbins.GetSumForPeriod(LAST_5MIN));
     }
+
     if (i < 3600) {
       // in 60 sec interval the same bin gets marked zero
-      ASSERT_EQ(3600 - (i / 60 + 1) * 60, iostatavg.GetAvg3600());
+      ASSERT_EQ(3600 - (i / 60 + 1) * 60, iostattbins.GetSumForPeriod(LAST_HOUR));
     }
+
     if (i < 86400) {
       // in 1440 sec interval the same bin gets marked zero
-      ASSERT_EQ(86400 - (i / 1440 + 1) * 1440, iostatavg.GetAvg86400());
+      ASSERT_EQ(86400 - (i / 1440 + 1) * 1440, iostattbins.GetSumForPeriod(LAST_DAY));
     }
   }
 
-  ASSERT_EQ(0, iostatavg.GetAvg60());
-  ASSERT_EQ(0, iostatavg.GetAvg300());
-  ASSERT_EQ(0, iostatavg.GetAvg3600());
-  ASSERT_EQ(0, iostatavg.GetAvg86400());
+  ASSERT_EQ(0, iostattbins.GetSumForPeriod(LAST_1MIN));
+  ASSERT_EQ(0, iostattbins.GetSumForPeriod(LAST_5MIN));
+  ASSERT_EQ(0, iostattbins.GetSumForPeriod(LAST_HOUR));
+  ASSERT_EQ(0, iostattbins.GetSumForPeriod(LAST_DAY));
+  time_t start_time = 0;
+  time_t mark_time = 2 * 86400;
 
-  auto start = system_clock::now() - seconds(2*86400); // started measurement 2 days ago
-  time_t start_time = std::chrono::system_clock::to_time_t(start);
   // currently no protection in the code against:
   // * start - stop times fits within the time window of last day, hour or minute
   // * tdiff (stop - start) <= 0; will get added to all averages
   // * consider adding check in the code against toff < 0 and tdiff < 0 and testing against it
-  for (int i = 0; i < 2*86400 + 1; ++i) {
-    auto stopAvg = start + seconds(i);
-    time_t stopAvg_time = std::chrono::system_clock::to_time_t(stopAvg);
-    iostatavg.Add(1, start_time, stopAvg_time);
-    if (i < 86401){
-      ASSERT_EQ(0, iostatavg.GetAvg60());
-      ASSERT_EQ(0, iostatavg.GetAvg300());
-      ASSERT_EQ(0, iostatavg.GetAvg3600());
-      ASSERT_EQ(0, iostatavg.GetAvg86400());
+  for (int i = 0; i < 2 * 86400 + 1; ++i) {
+    time_t stop_time = i;
+    iostattbins.Add(1, start_time, stop_time, mark_time);
+
+    if (i < 86400) {
+      ASSERT_EQ(0, iostattbins.GetSumForPeriod(LAST_1MIN));
+      ASSERT_EQ(0, iostattbins.GetSumForPeriod(LAST_5MIN));
+      ASSERT_EQ(0, iostattbins.GetSumForPeriod(LAST_HOUR));
+      ASSERT_EQ(0, iostattbins.GetSumForPeriod(LAST_DAY));
     } else {
-      if (i > 2*86400 - 60) {
-        ASSERT_EQ(i - (2*86400 - 60), iostatavg.GetAvg60());
+      if (i >= 2 * 86400 - 60) {
+        ASSERT_EQ(i - (2 * 86400 - 60), iostattbins.GetSumForPeriod(LAST_1MIN));
       } else {
-        ASSERT_EQ(0, iostatavg.GetAvg60());
+        ASSERT_EQ(0, iostattbins.GetSumForPeriod(LAST_1MIN));
       }
-      if (i > 2*86400 - 300) {
-        ASSERT_EQ(i - (2*86400 - 300), iostatavg.GetAvg300());
+
+      if (i >= 2 * 86400 - 300) {
+        ASSERT_EQ(i - (2 * 86400 - 300), iostattbins.GetSumForPeriod(LAST_5MIN));
       } else {
-        ASSERT_EQ(0, iostatavg.GetAvg300());
+        ASSERT_EQ(0, iostattbins.GetSumForPeriod(LAST_5MIN));
       }
-      if (i > 2*86400 - 3600) {
-        //std::cout << i << " AVG: " << iostatavg.GetAvg3600() <<std::endl;
-        ASSERT_EQ(i - (2*86400 - 3600), iostatavg.GetAvg3600());
+
+      if (i >= 2 * 86400 - 3600) {
+        //std::cout << i << " AVG: " << iostattbins.GetSumForPeriod("stat3600() <<std::endl;
+        ASSERT_EQ(i - (2 * 86400 - 3600), iostattbins.GetSumForPeriod(LAST_HOUR));
       } else {
-        ASSERT_EQ(0, iostatavg.GetAvg3600());
+        ASSERT_EQ(0, iostattbins.GetSumForPeriod(LAST_HOUR));
       }
-      if (i > 86400) {
-        ASSERT_EQ(i - 86400, iostatavg.GetAvg86400());
+
+      if (i >= 86400) {
+        ASSERT_EQ(i - 86400, iostattbins.GetSumForPeriod(LAST_DAY));
       } else {
-        ASSERT_EQ(0, iostatavg.GetAvg86400());
+        ASSERT_EQ(0, iostattbins.GetSumForPeriod(LAST_DAY));
       }
     }
   }

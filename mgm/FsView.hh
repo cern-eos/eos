@@ -947,9 +947,26 @@ public:
   virtual bool SetGlobalConfig(const std::string& key, const std::string& value);
 
   //----------------------------------------------------------------------------
+  //! Set a global configuration key-val pair given as boolean
+  //----------------------------------------------------------------------------
+  bool SetGlobalConfig(const std::string& key, bool value)
+  {
+    return SetGlobalConfig(key, (value ? std::string("true") :
+                                 std::string("false")));
+  }
+
+  //----------------------------------------------------------------------------
   //! Get a global configuration value
   //----------------------------------------------------------------------------
   virtual std::string GetGlobalConfig(const std::string& key);
+
+  //----------------------------------------------------------------------------
+  //! Get a global configuration value as boolean
+  //----------------------------------------------------------------------------
+  bool GetBoolGlobalConfig(const std::string& key)
+  {
+    return (GetGlobalConfig(key) == "true");
+  }
 
   //----------------------------------------------------------------------------
   //! Broadcast new manager id to all the FST nodes

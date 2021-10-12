@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
 // File: XrdMgmOfsConfigure.cc
-// Author: Andreas-Joachim Peters - CERN
+// Authors: Andreas-Joachim Peters - CERN
+//          Jaroslav Guenther      - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -1547,7 +1548,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       mTapeGc->setTapeEnabled(mTapeGcSpaces);
     } catch (std::exception& ex) {
       std::ostringstream msg;
-      msg << "msg=\"Failed to start tape-aware garbage collection: " << ex.what() << "\"";
+      msg << "msg=\"Failed to start tape-aware garbage collection: " << ex.what() <<
+          "\"";
       eos_crit(msg.str().c_str());
       return 1;
     } catch (...) {
@@ -1558,9 +1560,11 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     std::ostringstream tapeGcSpaceWarning;
     tapeGcSpaceWarning <<
                        "msg=\"These spaces will not be garbage collected because mgmofs.tapeenabled=false:";
+
     for (const auto& tapeGcSpace : mTapeGcSpaces) {
       tapeGcSpaceWarning << " " << tapeGcSpace;
     }
+
     tapeGcSpaceWarning << "\"";
     eos_warning(tapeGcSpaceWarning.str().c_str());
   }
@@ -1574,7 +1578,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   bool use_qdb_master = false;
 
   if (NsInQDB && getenv("EOS_USE_QDB_MASTER")) {
-
     // If tape garbage collector is enabled, all R/W must be redirected to the master node
     if (mTapeEnabled && !getenv("EOS_HA_REDIRECT_READS")) {
       std::ostringstream msg;
@@ -2104,22 +2107,12 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   InitStats();
   // start the fuse server
   gOFS->zMQ->gFuseServer.start();
-  // set IO accounting file
-  XrdOucString ioaccounting = MgmMetaLogDir;
-  ioaccounting += "/iostat.";
-  ioaccounting += ManagerId;;
-  ioaccounting += ".dump";
-  eos_notice("Setting IO dump store file to %s", ioaccounting.c_str());
 
-  if (!IoStats->SetStoreFileName(ioaccounting.c_str())) {
-    eos_warning("couldn't load anything from the io stat dump file %s",
-                ioaccounting.c_str());
+  if (!IoStats->Init(MgmOfsInstanceName.c_str())) {
+    eos_warning("%s", "msg=\"failed to initialize IoStat object\"");
   } else {
-    eos_notice("loaded io stat dump file %s", ioaccounting.c_str());
+    eos_notice("%s", "msg=\"successfully initalized IoStat object\"");
   }
-
-  // Start IO circulate thread
-  IoStats->StartCirculate();
 
   if (!MgmRedirector) {
     ObjectManager.HashMutex.LockRead();

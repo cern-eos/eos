@@ -138,6 +138,17 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Get current year as a string
+  //----------------------------------------------------------------------------
+  static std::string GetCurrentYear()
+  {
+    auto now = std::chrono::system_clock::now();
+    std::time_t now_t = std::chrono::system_clock::to_time_t(now);
+    std::tm* const nowtimeparts = std::localtime(&now_t);
+    return std::to_string(1900 + nowtimeparts->tm_year);
+  }
+
+  //----------------------------------------------------------------------------
   //! Get current time in nanoseconds
   //----------------------------------------------------------------------------
   static long long
