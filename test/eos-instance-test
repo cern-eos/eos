@@ -1609,9 +1609,6 @@ runtest "### stat l1   " unix 1 "" eos stat "/eos/$EOS_TEST_INSTANCE/test/instan
 runtest "### stat l2   " unix 1 "" eos stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/symlink.2"
 runtest "### stat l1   " unix 0 "" eos stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/symlink.3"
 runtest "### stat l2   " unix 0 "" eos stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/symdir/symlink.4"
-runtest "### defaultcc " unix 0 "" eos_defaultcc "/test-fusex/"
-runtest "### sycntime  " unix 0 "" eos_synctime "/test-fusex/" "$EOS_TEST_INSTANCE/test/instancetest/fusex/"
-runtest "### Cleanup"    unix 2 "" eos rm  "-r /eos/$EOS_TEST_INSTANCE/test/instancetest/fusex"
 #obfuscation
 runtest "### Obfuscate " unix 0 "" shell mkdir "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/"
 runtest "### Obfuscate " unix 0 "" shell eos attr set sys.file.obfuscate=1 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/"
