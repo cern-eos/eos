@@ -4514,6 +4514,7 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char* buf, size_t size,
       io = nullptr;
     } else {
       memcpy(obuf, buf, size);
+      eos_static_debug("secret=%s", fusexrdlogin::secret(req).c_str());
       // obfuscate
       io->md->obfuscate_buffer(obuf, buf, size, off, fusexrdlogin::secret(req));
       // make the data object read from the obfuscated buffer
