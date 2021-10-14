@@ -840,9 +840,9 @@ XrdCl::Proxy::WriteAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
       {
 	if (!status->IsOK()) {
 	  mProxy->set_writestate(status);
+	  eos_static_crit("write error '%s'", status->ToString().c_str());
 	}
 	mProxy->WriteCondVar().Signal();
-	eos_static_crit("write error");
 	delete response;
 	delete status;
       }

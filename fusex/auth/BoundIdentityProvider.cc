@@ -179,8 +179,8 @@ BoundIdentityProvider::sssEnvToBoundIdentity(const JailInformation& jail,
 //------------------------------------------------------------------------------
 std::shared_ptr<const BoundIdentity>
 BoundIdentityProvider::environmentToBoundIdentity(const JailInformation& jail,
-  const Environment& env, uid_t uid, gid_t gid, bool reconnect,
-  LogbookScope &scope, bool skip_sss)
+						  const Environment& env, uid_t uid, gid_t gid, bool reconnect,
+						  LogbookScope &scope, bool skip_sss)
 {
   std::shared_ptr<const BoundIdentity> output;
 
@@ -400,11 +400,11 @@ BoundIdentityProvider::userCredsToBoundIdentity(const JailInformation& jail,
 //------------------------------------------------------------------------------
 std::shared_ptr<const BoundIdentity>
 BoundIdentityProvider::unixAuth(pid_t pid, uid_t uid, gid_t gid,
-  bool reconnect, LogbookScope &scope)
+				bool reconnect, LogbookScope &scope, const Environment& pidEnv)
 {
   LOGBOOK_INSERT(scope, "Producing UNIX identity out of pid=" << pid <<
     ", uid=" << uid << ", gid=" << gid);
-  return unixAuthenticator.createIdentity(pid, uid, gid, reconnect);
+  return unixAuthenticator.createIdentity(pid, uid, gid, reconnect, pidEnv.get("EOS_FUSE_SECRET"));
 }
 
 //------------------------------------------------------------------------------
@@ -414,7 +414,7 @@ BoundIdentityProvider::unixAuth(pid_t pid, uid_t uid, gid_t gid,
 //------------------------------------------------------------------------------
 std::shared_ptr<const BoundIdentity>
 BoundIdentityProvider::defaultPathsToBoundIdentity(const JailInformation& jail,
-  uid_t uid, gid_t gid, bool reconnect, LogbookScope &scope)
+						   uid_t uid, gid_t gid, bool reconnect, LogbookScope &scope, const Environment& pidEnv)
 {
   // Pretend as if the environment of the process simply contained the default values,
   // and follow the usual code path.
@@ -444,8 +444,11 @@ BoundIdentityProvider::defaultPathsToBoundIdentity(const JailInformation& jail,
     SSTR("Attempting to produce BoundIdentity out of default paths for uid="
       << uid)));
 
+  // attach secret key and endorsement
+  defaultEnv.push_back("EOS_FUSE_SECRET=" + pidEnv.get("EOS_FUSE_SECRET"));
+  defaultEnv.push_back("XrdSecsssENDORSEMENT=" + pidEnv.get("XrdSecsssENDORSEMENT"));
   return environmentToBoundIdentity(jail, defaultEnv, uid, gid, reconnect,
-    subscope, false);
+				    subscope, false);
 }
 
 //------------------------------------------------------------------------------
@@ -454,7 +457,7 @@ BoundIdentityProvider::defaultPathsToBoundIdentity(const JailInformation& jail,
 //------------------------------------------------------------------------------
 std::shared_ptr<const BoundIdentity>
 BoundIdentityProvider::globalBindingToBoundIdentity(const JailInformation& jail,
-  uid_t uid, gid_t gid, bool reconnect, LogbookScope &scope)
+						    uid_t uid, gid_t gid, bool reconnect, LogbookScope &scope, const Environment& pidEnv)
 {
   // Pretend as if the environment of the process simply contained the eosfusebind
   // global bindings, and follow the usual code path.
@@ -468,8 +471,11 @@ BoundIdentityProvider::globalBindingToBoundIdentity(const JailInformation& jail,
     SSTR("Attempting to produce BoundIdentity out of eosfusebind " <<
       "global binding for uid=" << uid)));
 
+  defaultEnv.push_back("EOS_FUSE_SECRET=" + pidEnv.get("EOS_FUSE_SECRET"));
+  defaultEnv.push_back("XrdSecsssENDORSEMENT=" + pidEnv.get("XrdSecsssENDORSEMENT"));
+
   return environmentToBoundIdentity(jail, defaultEnv, uid, gid, reconnect,
-    subscope, true);
+				    subscope, true);
 }
 
 //------------------------------------------------------------------------------
@@ -479,7 +485,7 @@ BoundIdentityProvider::globalBindingToBoundIdentity(const JailInformation& jail,
 std::shared_ptr<const BoundIdentity>
 BoundIdentityProvider::pidEnvironmentToBoundIdentity(
   const JailInformation &jail, pid_t pid, uid_t uid, gid_t gid,
-  bool reconnect, LogbookScope &scope)
+  bool reconnect, LogbookScope &scope, Environment &env)
 {
 
   LogbookScope subscope(scope.makeScope(
@@ -500,8 +506,11 @@ BoundIdentityProvider::pidEnvironmentToBoundIdentity(
   LOGBOOK_INSERT(subscope, "Succeeded in retrieving environment "
     "variables for pid=" << pid);
 
-  return environmentToBoundIdentity(jail, response.get(), uid, gid,
-    reconnect, subscope, true);
+  // store environment
+  env = response.get();
+
+  return environmentToBoundIdentity(jail, env, uid, gid,
+				    reconnect, subscope, true);
 }
 
 //------------------------------------------------------------------------------

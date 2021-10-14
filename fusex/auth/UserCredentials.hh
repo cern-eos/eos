@@ -325,6 +325,7 @@ struct UserCredentials {
       }
       case CredentialType::NOBODY:
       case CredentialType::INVALID: {
+	ss << ",secret=" << secretkey;
         break;
         // null
       }

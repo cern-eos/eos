@@ -70,8 +70,10 @@ ProcessCache::discoverBoundIdentity(const JailInformation& jail,
 
     LogbookScope scope = logbook.makeScope("krb5, x509, OAUTH2 and SSS disabled - "
       "falling back to UNIX");
+    Environment env;
+    // in such a case encryptio does not work
     return boundIdentityProvider.unixAuth(processInfo.getPid(), uid, gid,
-      reconnect, scope);
+					  reconnect, scope, env);
   }
 
   //----------------------------------------------------------------------------
@@ -111,9 +113,11 @@ ProcessCache::discoverBoundIdentity(const JailInformation& jail,
   //----------------------------------------------------------------------------
   // Check parent?
   //----------------------------------------------------------------------------
+  Environment pidEnv;
+
   if(checkParentFirst && processInfo.getParentId() != 1) {
     output = boundIdentityProvider.pidEnvironmentToBoundIdentity(jail,
-      processInfo.getParentId(), uid, gid, reconnect, scope);
+								 processInfo.getParentId(), uid, gid, reconnect, scope, pidEnv);
 
     if(output) {
       return output;
@@ -131,7 +135,7 @@ ProcessCache::discoverBoundIdentity(const JailInformation& jail,
   //----------------------------------------------------------------------------
   if (!execveAlarm) {
     output = boundIdentityProvider.pidEnvironmentToBoundIdentity(jail,
-      processInfo.getPid(), uid, gid, reconnect, scope);
+								 processInfo.getPid(), uid, gid, reconnect, scope, pidEnv);
 
     if(output) {
       return output;
@@ -143,7 +147,7 @@ ProcessCache::discoverBoundIdentity(const JailInformation& jail,
   //----------------------------------------------------------------------------
   if(!checkParentFirst && processInfo.getParentId() != 1) {
     output = boundIdentityProvider.pidEnvironmentToBoundIdentity(jail,
-      processInfo.getParentId(), uid, gid, reconnect, scope);
+								 processInfo.getParentId(), uid, gid, reconnect, scope, pidEnv);
 
     if(output) {
       return output;
@@ -154,7 +158,7 @@ ProcessCache::discoverBoundIdentity(const JailInformation& jail,
   // Nothing yet.. try global binding from eosfusebind...
   //----------------------------------------------------------------------------
   output = boundIdentityProvider.globalBindingToBoundIdentity(jail, uid, gid,
-    reconnect, scope);
+							      reconnect, scope, pidEnv);
 
   if(output) {
     return output;
@@ -164,7 +168,7 @@ ProcessCache::discoverBoundIdentity(const JailInformation& jail,
   // What about default paths, ie /tmp/krb5cc_<uid>?
   //----------------------------------------------------------------------------
   output = boundIdentityProvider.defaultPathsToBoundIdentity(jail, uid, gid,
-    reconnect, scope);
+							     reconnect, scope, pidEnv);
 
   if(output) {
     return output;
@@ -174,7 +178,7 @@ ProcessCache::discoverBoundIdentity(const JailInformation& jail,
   // No credentials found at all.. fallback to unix authentication.
   //----------------------------------------------------------------------------
   return boundIdentityProvider.unixAuth(processInfo.getPid(), uid, gid,
-    reconnect, scope);
+					reconnect, scope, pidEnv);
 }
 
 //------------------------------------------------------------------------------
