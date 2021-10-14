@@ -781,7 +781,7 @@ QuarkHierarchicalView::getUriFut(ContainerIdentifier id) const
 // "resumable" function.
 //------------------------------------------------------------------------------
 folly::Future<std::deque<std::string>>
-QuarkHierarchicalView::getUriInternal(std::deque<std::string>&& currentChunks,
+QuarkHierarchicalView::getUriInternal(std::deque<std::string> currentChunks,
   IContainerMDPtr nextToLookup) const {
 
   while(true) {
@@ -845,9 +845,8 @@ QuarkHierarchicalView::getUriInternal(std::deque<std::string>&& currentChunks,
     // from QDB.
     //--------------------------------------------------------------------------
     return pending.via(pExecutor.get())
-      .thenValue([&](IContainerMDPtr cptr){
-        return this->getUriInternal(std::move(currentChunks), cptr);
-      });
+      .thenValue(std::bind(&QuarkHierarchicalView::getUriInternal, this,
+                           std::move(currentChunks), _1));
   }
 }
 
@@ -871,9 +870,8 @@ QuarkHierarchicalView::getUriInternalCid(std::deque<std::string> currentChunks,
   // Pause execution, give back future.
   //----------------------------------------------------------------------------
   return pending.via(pExecutor.get())
-    .thenValue([&](IContainerMDPtr cptr) {
-      return this->getUriInternal(std::move(currentChunks), cptr);
-    });
+    .thenValue(std::bind(&QuarkHierarchicalView::getUriInternal, this,
+                         std::move(currentChunks), _1));
 }
 
 //------------------------------------------------------------------------------
