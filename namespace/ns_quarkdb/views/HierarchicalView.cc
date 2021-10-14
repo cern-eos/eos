@@ -781,7 +781,7 @@ QuarkHierarchicalView::getUriFut(ContainerIdentifier id) const
 // "resumable" function.
 //------------------------------------------------------------------------------
 folly::Future<std::deque<std::string>>
-QuarkHierarchicalView::getUriInternal(std::deque<std::string>&& currentChunks,
+QuarkHierarchicalView::getUriInternal(std::deque<std::string> currentChunks,
   IContainerMDPtr nextToLookup) const {
 
   while(true) {
