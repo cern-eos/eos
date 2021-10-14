@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: TapeResourceFactory.cc
+// File: ControllerManager.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,31 +20,25 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
+#ifndef EOS_CONTROLLERMANAGER_HH
+#define EOS_CONTROLLERMANAGER_HH
 
-#include "TapeResourceFactory.hh"
-#include "mgm/http/rest-api/resources/tape/stage/StageResource.hh"
-#include "mgm/http/rest-api/exception/ResourceNotFoundException.hh"
-#include <sstream>
+#include "mgm/Namespace.hh"
+#include <map>
+#include <memory>
+#include "mgm/http/rest-api/controllers/Controller.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-const std::map<std::string, ResourceFactory::resource_factory_method_t> TapeResourceFactory::cResourceStrToFactoryMethod = {
-    {cStageResourceName,&TapeResourceFactory::createStageResource}
+class ControllerManager {
+public:
+  ControllerManager();
+  void addController(std::shared_ptr<Controller> controller);
+  std::shared_ptr<Controller> getController(const std::string & clientUrl) const;
+private:
+  std::map<std::string,std::shared_ptr<Controller>> mControllers;
 };
 
-Resource * TapeResourceFactory::createStageResource(){
-  return new StageResource();
-}
-
-Resource * TapeResourceFactory::createResource(const std::string & resourceName){
-  try {
-    return cResourceStrToFactoryMethod.at(resourceName)();
-  } catch (const std::out_of_range &ex){
-    std::stringstream ss;
-    ss << "The resource " << resourceName << " has not been found";
-    throw ResourceNotFoundException(ss.str());
-  }
-}
-
-
 EOSMGMRESTNAMESPACE_END
+
+#endif // EOS_CONTROLLERMANAGER_HH
