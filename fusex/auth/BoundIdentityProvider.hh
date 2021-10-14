@@ -70,7 +70,7 @@ public:
   //----------------------------------------------------------------------------
   std::shared_ptr<const BoundIdentity> pidEnvironmentToBoundIdentity(
     const JailInformation& jail, pid_t pid, uid_t uid, gid_t gid,
-    bool reconnect, LogbookScope &logbook);
+    bool reconnect, LogbookScope &logbook, Environment& env);
 
   //----------------------------------------------------------------------------
   // Attempt to produce a BoundIdentity object out of default paths, such
@@ -79,7 +79,7 @@ public:
   //----------------------------------------------------------------------------
   std::shared_ptr<const BoundIdentity>
   defaultPathsToBoundIdentity(const JailInformation& jail, uid_t uid,
-    gid_t gid, bool reconnect, LogbookScope &scope);
+			      gid_t gid, bool reconnect, LogbookScope &scope, const Environment& env);
 
   //----------------------------------------------------------------------------
   // Attempt to produce a BoundIdentity object out of the global eosfusebind
@@ -87,7 +87,7 @@ public:
   //----------------------------------------------------------------------------
   std::shared_ptr<const BoundIdentity>
   globalBindingToBoundIdentity(const JailInformation& jail, uid_t uid,
-    gid_t gid, bool reconnect, LogbookScope &scope);
+			       gid_t gid, bool reconnect, LogbookScope &scope, const Environment& env);
 
   void setCredentialConfig(const CredentialConfig& conf)
   {
@@ -106,7 +106,7 @@ public:
   // matter)
   //----------------------------------------------------------------------------
   std::shared_ptr<const BoundIdentity> unixAuth(pid_t pid, uid_t uid, gid_t gid,
-    bool reconnect, LogbookScope &scope);
+						bool reconnect, LogbookScope &scope, const Environment& env);
 
 private:
   SecurityChecker& securityChecker;
