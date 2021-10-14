@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: TapeRestHandler.cc
+// File: ControllerActionDispatcher.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,37 +21,40 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "TapeRestHandler.hh"
-#include "common/StringConversion.hh"
-#include "common/http/HttpServer.hh"
-#include "mgm/http/rest-api/exception/ControllerNotFoundException.hh"
+#include "ControllerActionDispatcher.hh"
 #include "mgm/http/rest-api/exception/MethodNotAllowedException.hh"
-#include "mgm/http/rest-api/response/tape/TapeRestApiResponseFactory.hh"
-#include "mgm/http/rest-api/controllers/ControllerFactory.hh"
-
-
+#include "mgm/http/rest-api/exception/ControllerNotFoundException.hh"
+#include "mgm/http/rest-api/utils/URLParser.hh"
+#include <sstream>
 EOSMGMRESTNAMESPACE_BEGIN
 
-TapeRestHandler::TapeRestHandler(const std::string& entryPointURL): RestHandler(entryPointURL){
-  mControllerManager.addController(std::shared_ptr<Controller>(ControllerFactory::getStageControllerV1(mEntryPointURL+"v1/stage/")));
+ControllerActionDispatcher::ControllerActionDispatcher(){}
+
+void ControllerActionDispatcher::addAction(const std::string& urlPattern, const common::HttpHandler::Methods method, const ControllerHandler& controllerHandler){
+  mMethodFunctionMap[urlPattern][method] = controllerHandler;
 }
 
-common::HttpResponse* TapeRestHandler::handleRequest(common::HttpRequest* request, const common::VirtualIdentity * vid) {
-  //URL = /entrypoint/version/resource-name/...
+ControllerActionDispatcher::ControllerHandler ControllerActionDispatcher::getAction(common::HttpRequest* request) {
+  std::string methodStr = request->GetMethod();
   std::string url = request->GetUrl();
-  if(isRestRequest(url)) {
+  URLParser requestUrlParser(url);
+  HttpHandler::Methods method = (HttpHandler::Methods)HttpHandler::ParseMethodString(methodStr);
+  auto methodFunctionItor = std::find_if(mMethodFunctionMap.begin(),mMethodFunctionMap.end(),[&requestUrlParser](const std::pair<std::string,std::map<common::HttpHandler::Methods,ControllerHandler>> & item){
+    return requestUrlParser.matches(item.first);
+  });
+  if(methodFunctionItor != mMethodFunctionMap.end()){
     try {
-      std::shared_ptr<Controller> controller = mControllerManager.getController(url);
-      return controller->handleRequest(request,vid);
-    } catch (const ControllerNotFoundException &ex) {
-      eos_static_info(ex.what());
-      return TapeRestApiResponseFactory::createNotFoundError().getHttpResponse();
-    } catch (const MethodNotAllowedException &ex) {
-      eos_static_info(ex.what());
-      return TapeRestApiResponseFactory::createMethodNotAllowedError(ex.what()).getHttpResponse();
+      return methodFunctionItor->second.at(method);
+    } catch (const std::out_of_range & ex){
+      std::ostringstream oss;
+      oss << "The method " << methodStr << " is not allowed for this resource.";
+      throw MethodNotAllowedException(oss.str());
     }
+  } else {
+    std::ostringstream oss;
+    oss << "The url provided (" << request->GetUrl() << ") does not allow to identify a controller";
+    throw ControllerNotFoundException(oss.str());
   }
-  return nullptr;
 }
 
 EOSMGMRESTNAMESPACE_END

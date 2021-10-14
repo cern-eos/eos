@@ -35,7 +35,7 @@ EOSMGMRESTNAMESPACE_BEGIN
  */
 class ControllerFactory {
 public:
-  static Controller * getStageControllerV1();
+  static Controller * getStageControllerV1(const std::string & accessURL);
 };
 
 EOSMGMRESTNAMESPACE_END

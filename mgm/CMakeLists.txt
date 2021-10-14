@@ -256,15 +256,17 @@ add_library(
   http/webdav/LockResponse.cc
   http/rest-api/handler/RestHandler.cc
   http/rest-api/handler/tape/TapeRestHandler.cc
-  http/rest-api/resources/tape/TapeResourceFactory.cc
-  http/rest-api/resources/tape/stage/StageResource.cc
+  http/rest-api/controllers/Controller.cc
   http/rest-api/controllers/ControllerFactory.cc
+  http/rest-api/controllers/ControllerManager.cc
+  http/rest-api/controllers/ControllerActionDispatcher.cc
   http/rest-api/controllers/tape/stage/StageControllerV1.cc
   http/rest-api/exception/RestException.cc
-  http/rest-api/exception/ResourceNotFoundException.cc
   http/rest-api/exception/ControllerNotFoundException.cc
   http/rest-api/exception/InvalidJSONException.cc
   http/rest-api/exception/JsonObjectModelMalformedException.cc
+  http/rest-api/exception/MethodNotAllowedException.cc
+  http/rest-api/exception/InvalidRestURLException.cc
   http/rest-api/model/tape/ErrorModel.cc
   http/rest-api/model/tape/stage/CreateStageBulkRequestModel.cc
   http/rest-api/model/tape/stage/CreatedStageBulkRequestModel.cc
@@ -272,6 +274,7 @@ add_library(
   http/rest-api/json/tape/JsonCPPTapeModelBuilder.cc
   http/rest-api/response/RestApiResponse.cc
   http/rest-api/response/tape/TapeRestApiResponseFactory.cc
+  http/rest-api/utils/URLParser.cc
   geotree/SchedulingTreeTest.cc
   geotree/SchedulingSlowTree.cc
   geotree/SchedulingTreeCommon.cc

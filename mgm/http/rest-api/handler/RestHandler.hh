@@ -29,6 +29,8 @@
 #include "common/http/HttpResponse.hh"
 #include "common/http/HttpRequest.hh"
 #include "common/VirtualIdentity.hh"
+#include <map>
+#include "mgm/http/rest-api/controllers/ControllerManager.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -37,6 +39,7 @@ EOSMGMRESTNAMESPACE_BEGIN
  */
 class RestHandler {
 public:
+  RestHandler(const std::string & entryPointURL);
   /**
    * Handles the request given in parameter and returns a response
    * @param request the request to handle
@@ -46,11 +49,17 @@ public:
   /**
    * Returns true if the requestURL passed in parameter should trigger an API handling,
    * false otherwise
-   * @param requestUrl
+   * @param requestUrl the user request URL
    * @return true if the requestURL passed in parameter should trigger an API handling,
    * false otherwise
    */
-  virtual bool isRestRequest(const std::string & requestUrl) = 0;
+  bool isRestRequest(const std::string & requestUrl);
+protected:
+  ControllerManager mControllerManager;
+  std::string mEntryPointURL;
+private:
+  inline static const std::string cEntryPointRegex = "^\\/([a-z0-9-]+)+\\/$";
+  void verifyRestApiEntryPoint(const std::string & entryPointURL);
 };
 
 EOSMGMRESTNAMESPACE_END

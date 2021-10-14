@@ -22,35 +22,29 @@
  ************************************************************************/
 
 #include "StageControllerV1.hh"
+#include "XrdSfs/XrdSfsInterface.hh"
+#include "mgm/XrdMgmOfs.hh"
+#include "mgm/bulk-request/BulkRequestFactory.hh"
+#include "mgm/bulk-request/dao/factories/ProcDirectoryDAOFactory.hh"
+#include "mgm/bulk-request/interface/RealMgmFileSystemInterface.hh"
+#include "mgm/bulk-request/prepare/BulkRequestPrepareManager.hh"
+#include "mgm/bulk-request/utils/PrepareArgumentsWrapper.hh"
 #include "mgm/http/HttpHandler.hh"
-#include "mgm/http/rest-api/json/tape/JsonCPPTapeModelBuilder.hh"
 #include "mgm/http/rest-api/exception/InvalidJSONException.hh"
 #include "mgm/http/rest-api/exception/JsonObjectModelMalformedException.hh"
+#include "mgm/http/rest-api/exception/MethodNotAllowedException.hh"
+#include "mgm/http/rest-api/json/tape/JsonCPPTapeModelBuilder.hh"
 #include "mgm/http/rest-api/response/tape/TapeRestApiResponseFactory.hh"
-#include "mgm/bulk-request/BulkRequestFactory.hh"
-#include "mgm/bulk-request/interface/RealMgmFileSystemInterface.hh"
-#include "mgm/bulk-request/dao/factories/ProcDirectoryDAOFactory.hh"
-#include "mgm/bulk-request/prepare/BulkRequestPrepareManager.hh"
-#include "mgm/XrdMgmOfs.hh"
-#include "mgm/bulk-request/utils/PrepareArgumentsWrapper.hh"
-#include "XrdSfs/XrdSfsInterface.hh"
+#include "mgm/http/rest-api/utils/URLParser.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-StageControllerV1::StageControllerV1(){
-  mHttpVerbToMethod[eos::common::HttpHandler::Methods::POST] = std::bind(&StageControllerV1::createBulkStageRequest,this,std::placeholders::_1,std::placeholders::_2);
+StageControllerV1::StageControllerV1(const std::string & accessURL):Controller(accessURL){
+  mControllerActionDispatcher.addAction(mAccessURL,eos::common::HttpHandler::Methods::POST,std::bind(&StageControllerV1::createBulkStageRequest,this,std::placeholders::_1,std::placeholders::_2));
 }
 
 common::HttpResponse * StageControllerV1::handleRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) {
-  std::string methodStr = request->GetMethod();
-  HttpHandler::Methods method = (HttpHandler::Methods)HttpHandler::ParseMethodString(methodStr);
-  try {
-    return mHttpVerbToMethod.at(method)(request,vid);
-  } catch (const std::out_of_range &ex) {
-    std::ostringstream oss;
-    oss << "The method " << methodStr << " is not allowed by this resource";
-    return TapeRestApiResponseFactory::createMethodNotAllowedError(oss.str()).getHttpResponse();
-  }
+  return mControllerActionDispatcher.getAction(request)(request,vid);
 }
 
 common::HttpResponse * StageControllerV1::createBulkStageRequest(common::HttpRequest* request, const common::VirtualIdentity * vid) const

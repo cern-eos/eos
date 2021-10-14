@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: TapeResourceFactory.hh
+// File: URLParser.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,26 +20,34 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-#ifndef EOS_TAPERESOURCEFACTORY_HH
-#define EOS_TAPERESOURCEFACTORY_HH
+#ifndef EOS_URLPARSER_HH
+#define EOS_URLPARSER_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/resources/ResourceFactory.hh"
-#include "mgm/http/rest-api/resources/tape/stage/StageResource.hh"
+#include <string>
+#include <vector>
+#include <map>
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class TapeResourceFactory : public ResourceFactory {
+class URLParser {
 public:
-  Resource * createResource(const std::string & resourceName) override;
+  URLParser(const std::string & url);
+  /**
+   * Returns true if the URL of this instance
+   * starts by the URL passed in parameter
+   * @param url the URL to compare this instance URL with
+   * @return true the URL of this instance
+   * starts by the URL passed in parameter, false otherwise
+   */
+  bool startsBy(const std::string & url);
+  bool matches(const std::string & urlPattern);
+  bool matchesAndExtractParameters(const std::string & urlPattern, std::map<std::string, std::string>& params);
 private:
-  static Resource * createStageResource();
-
-  const static std::map<std::string,ResourceFactory::resource_factory_method_t> cResourceStrToFactoryMethod;
-  inline static const std::string cStageResourceName = "stage";
+  const std::string & mURL;
+  std::vector<std::string> mURLTokens;
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_TAPERESOURCEFACTORY_HH
+#endif // EOS_URLPARSER_HH

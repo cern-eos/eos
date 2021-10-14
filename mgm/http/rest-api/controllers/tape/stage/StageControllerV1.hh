@@ -32,7 +32,7 @@ EOSMGMRESTNAMESPACE_BEGIN
 
 class StageControllerV1 : public Controller {
 public:
-  StageControllerV1();
+  StageControllerV1(const std::string & accessURL);
   virtual common::HttpResponse * handleRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) override;
 private:
   common::HttpResponse * createBulkStageRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) const;

@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: StageResource.hh
+// File: ControllerActionDispatcher.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,29 +20,32 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-
-#ifndef EOS_STAGERESOURCE_HH
-#define EOS_STAGERESOURCE_HH
+#ifndef EOS_CONTROLLERACTIONDISPATCHER_HH
+#define EOS_CONTROLLERACTIONDISPATCHER_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/resources/Resource.hh"
-#include "mgm/http/rest-api/controllers/Controller.hh"
+#include <string>
+#include <map>
+#include "mgm/http/HttpHandler.hh"
 #include <functional>
+#include "common/http/HttpResponse.hh"
+#include "common/VirtualIdentity.hh"
+
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class StageResource : public Resource {
+class ControllerActionDispatcher {
 public:
-  StageResource();
-  virtual common::HttpResponse * handleRequest(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
-  virtual const std::string getName() const override;
+  typedef std::function<common::HttpResponse *(common::HttpRequest * request,const common::VirtualIdentity * vid)> ControllerHandler;
+  typedef std::map<std::string,std::map<common::HttpHandler::Methods,ControllerHandler>> URLMethodFunctionMap;
+
+  ControllerActionDispatcher();
+  void addAction(const std::string & urlPattern, const common::HttpHandler::Methods method, const ControllerHandler & controllerHandler);
+  ControllerHandler getAction(common::HttpRequest * request);
 private:
-  virtual Controller * getController();
-  static const std::map<std::string,std::function<Controller *()>>
-      cVersionToControllerFactoryMethod;
+  URLMethodFunctionMap mMethodFunctionMap;
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_STAGERESOURCE_HH
+#endif // EOS_CONTROLLERACTIONDISPATCHER_HH

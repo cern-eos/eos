@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ResourceFactory.hh
+// File: MethodNotAllowedException.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,24 +21,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_RESOURCEFACTORY_HH
-#define EOS_RESOURCEFACTORY_HH
-
-#include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/resources/Resource.hh"
-#include <string>
-#include <map>
-#include <functional>
+#include "MethodNotAllowedException.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class ResourceFactory {
-public:
-  virtual Resource * createResource(const std::string & resourceName) = 0;
-protected:
-  typedef std::function<Resource *()> resource_factory_method_t;
-};
+MethodNotAllowedException::MethodNotAllowedException(const std::string& exceptionMsg): RestException(exceptionMsg){}
 
 EOSMGMRESTNAMESPACE_END
-
-#endif // EOS_RESOURCEFACTORY_HH
