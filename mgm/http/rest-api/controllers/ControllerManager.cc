@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: StageResource.cc
+// File: ControllerManager.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,43 +20,32 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-#include "StageResource.hh"
-#include "mgm/http/rest-api/controllers/ControllerFactory.hh"
-#include <memory>
+#include "ControllerManager.hh"
 #include "mgm/http/rest-api/exception/ControllerNotFoundException.hh"
 #include <sstream>
-#include "mgm/http/rest-api/response/tape/TapeRestApiResponseFactory.hh"
+#include "mgm/http/rest-api/utils/URLParser.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-const std::map<std::string,std::function<Controller *()>> StageResource::cVersionToControllerFactoryMethod = {
-    {"v1",&ControllerFactory::getStageControllerV1}
-};
+ControllerManager::ControllerManager()
+{}
 
-StageResource::StageResource(){
-
+void ControllerManager::addController(std::shared_ptr<Controller> controller) {
+  mControllers[controller->getAccessURL()] = controller;
 }
 
-common::HttpResponse* StageResource::handleRequest(common::HttpRequest* request,const common::VirtualIdentity * vid){
-  //Authorized ?
-  std::unique_ptr<Controller> controller;
-  controller.reset(getController());
-  return controller->handleRequest(request,vid);
-}
-
-const std::string StageResource::getName() const{
-  return "stage";
-}
-
-Controller* StageResource::getController() {
-  try {
-    return cVersionToControllerFactoryMethod.at(mVersion)();
-  } catch (const std::out_of_range &ex) {
+std::shared_ptr<Controller> ControllerManager::getController(const std::string & urlFromClient) const {
+  URLParser urlFromClientParser(urlFromClient);
+  const auto controllerItor = std::find_if(mControllers.begin(),mControllers.end(),[&urlFromClientParser](const std::pair<std::string,std::shared_ptr<Controller>> & keyValue){
+    return urlFromClientParser.startsBy(keyValue.first);
+  });
+  if(controllerItor == mControllers.end()){
     std::ostringstream ss;
-    ss << "No controller version " << mVersion << " found for the " << getName() << " resource";
+    ss << "The URL provided (" << urlFromClient << ") does not allow to identify an existing resource and its version";
     throw ControllerNotFoundException(ss.str());
   }
+  return controllerItor->second;
 }
+
 
 EOSMGMRESTNAMESPACE_END

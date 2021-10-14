@@ -22,3 +22,13 @@
  ************************************************************************/
 
 #include "Controller.hh"
+
+EOSMGMRESTNAMESPACE_BEGIN
+
+Controller::Controller(const std::string & accessURL): mAccessURL(accessURL){}
+
+const std::string Controller::getAccessURL() const {
+  return mAccessURL;
+}
+
+EOSMGMRESTNAMESPACE_END

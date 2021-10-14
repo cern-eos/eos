@@ -22,7 +22,27 @@
  ************************************************************************/
 
 #include "RestHandler.hh"
+#include <regex>
+#include "mgm/http/rest-api/exception/RestException.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
+
+RestHandler::RestHandler(const std::string& entryPointURL):mEntryPointURL(entryPointURL){
+  verifyRestApiEntryPoint(entryPointURL);
+}
+
+bool RestHandler::isRestRequest(const std::string& requestUrl){
+  //The URL should start with the API entry URL
+  return ::strncmp(mEntryPointURL.c_str(),requestUrl.c_str(),mEntryPointURL.length()) == 0;
+}
+
+void RestHandler::verifyRestApiEntryPoint(const std::string & entryPointURL) {
+  std::regex entryPointRegex(cEntryPointRegex);
+  if(!std::regex_match(entryPointURL,entryPointRegex)){
+    std::stringstream ss;
+    ss << "The REST API entrypoint provided (" << entryPointURL << ") is malformed. It should have the format: /apientrypoint/.";
+    throw RestException(ss.str());
+  }
+}
 
 EOSMGMRESTNAMESPACE_END

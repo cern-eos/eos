@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ResourceNotFoundException.cc
+// File: InvalidRestURLException.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,11 +20,19 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
+#ifndef EOS_INVALIDRESTURLEXCEPTION_HH
+#define EOS_INVALIDRESTURLEXCEPTION_HH
 
-#include "ResourceNotFoundException.hh"
+#include "mgm/Namespace.hh"
+#include "mgm/http/rest-api/exception/RestException.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-ResourceNotFoundException::ResourceNotFoundException(const std::string& exceptionMsg): RestException(exceptionMsg){}
+class InvalidRestURLException : public RestException {
+public:
+  InvalidRestURLException(const std::string & exceptionMsg);
+};
 
 EOSMGMRESTNAMESPACE_END
+
+#endif // EOS_INVALIDRESTURLEXCEPTION_HH
