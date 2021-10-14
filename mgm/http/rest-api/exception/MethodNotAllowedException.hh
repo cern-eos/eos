@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: Resource.hh
+// File: MethodNotAllowedException.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,24 +21,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_RESOURCE_HH
-#define EOS_RESOURCE_HH
+#ifndef EOS_METHODNOTALLOWEDEXCEPTION_HH
+#define EOS_METHODNOTALLOWEDEXCEPTION_HH
 
 #include "mgm/Namespace.hh"
-#include "common/http/HttpResponse.hh"
-#include "common/VirtualIdentity.hh"
+#include "mgm/http/rest-api/exception/RestException.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class Resource {
+class MethodNotAllowedException : public RestException{
 public:
-  virtual common::HttpResponse * handleRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) = 0;
-  inline void setVersion(const std::string & version){ mVersion = version; }
-  virtual const std::string getName() const = 0;
-protected:
-  std::string mVersion;
+  MethodNotAllowedException(const std::string & exceptionMsg);
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_RESOURCE_HH
+#endif // EOS_METHODNOTALLOWEDEXCEPTION_HH

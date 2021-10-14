@@ -27,8 +27,8 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-Controller* ControllerFactory::getStageControllerV1() {
-  return new StageControllerV1();
+Controller* ControllerFactory::getStageControllerV1(const std::string & accessURL) {
+  return new StageControllerV1(accessURL);
 }
 
 EOSMGMRESTNAMESPACE_END
