@@ -331,7 +331,7 @@ private:
   //! Build the URL of the given container, as a deque of chunks. Primary
   //! "resumable" function.
   //----------------------------------------------------------------------------
-  folly::Future<std::deque<std::string>> getUriInternal(std::deque<std::string>&&
+  folly::Future<std::deque<std::string>> getUriInternal(std::deque<std::string>
     currentChunks, IContainerMDPtr nextToLookup) const;
 
   //----------------------------------------------------------------------------
