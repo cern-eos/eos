@@ -3368,7 +3368,6 @@ EROFS  pathname refers to a file on a read-only filesystem.
             md->convert(e, pcap2->lifetime());
             md->lookup_inc();
             eos_static_info("%s", md->dump(e).c_str());
-            pmd->local_enoent().erase(name);
             {
               XrdSysMutexHelper pLock(pmd->Locker());
               pmd->local_enoent().erase(name);
@@ -4375,7 +4374,6 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
                                       req,
                                       true);
               io->ioctx()->attach(req, cookie, fi->flags);
-              mLock.Lock(&md->Locker());
             }
 
             XrdSysMutexHelper pLock(pmd->Locker());
