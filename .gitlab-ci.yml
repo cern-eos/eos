@@ -756,7 +756,7 @@ unit_test:
 # Drop as we upgrade, ref: https://about.gitlab.com/blog/2021/05/20/dag-manual-fix/
 unit_test_asan:
   image:
-    name: gitlab-registry.cern.ch/dss/eos:asan_${CI_COMMIT_SHORT_SHA}
+    name: gitlab-registry.cern.ch/dss/eos/eos-ci:asan_${CI_COMMIT_SHORT_SHA}
     entrypoint: ["/bin/bash", "-c"]
   <<: *unit_test_template_definition
   variables:
