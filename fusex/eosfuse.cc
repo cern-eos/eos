@@ -3352,8 +3352,12 @@ EROFS  pathname refers to a file on a read-only filesystem.
 	    memset(&e, 0, sizeof(e));
 	    md->convert(e, pcap2->lifetime());
 	    md->lookup_inc();
-	    pmd->local_enoent().erase(name);
 	    eos_static_info("%s", md->dump(e).c_str());
+	    pmd->local_enoent().erase(name);
+            {
+              XrdSysMutexHelper pLock(pmd->Locker());
+              pmd->local_enoent().erase(name);
+            }
 	  }
 	}
       }
@@ -4354,9 +4358,9 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
                                       req,
                                       true);
               io->ioctx()->attach(req, cookie, fi->flags);
-              mLock.Lock(&md->Locker());
             }
 
+            XrdSysMutexHelper pLock(pmd->Locker());
             pmd->local_enoent().erase(name);
             pino = (*pmd)()->id();
           }
@@ -5905,6 +5909,7 @@ EosFuse::symlink(fuse_req_t req, const char* link, fuse_ino_t parent,
 
       if (!rc) {
         Instance().mds.insert(req, md, (*pcap)()->authid());
+        XrdSysMutexHelper pLock(pmd->Locker());
         pmd->local_enoent().erase(name);
       }
 
@@ -6044,7 +6049,10 @@ EosFuse::link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
             eos_static_debug("hlnk tmd %s %s", (*tmd)()->name().c_str(), tmd->dump(e).c_str());
           }
 
-          pmd->local_enoent().erase(newname);
+          {
+            XrdSysMutexHelper pLock(pmd->Locker());
+            pmd->local_enoent().erase(newname);
+          }
           // reply with the target entry
           fuse_reply_entry(req, &e);
         }
