@@ -284,20 +284,21 @@ StringConversion::BinData2HexString(const char* buf, const size_t buf_len,
 // Convert checksum hex representation to binary string
 //------------------------------------------------------------------------------
 std::unique_ptr<char[]>
-StringConversion::Hex2BinDataChar(const std::string& shex, size_t& out_size)
+StringConversion::Hex2BinDataChar(const std::string& shex, size_t& out_size,
+                                  const size_t nominal_len)
 {
   out_size = 0;
-  std::unique_ptr<char[]> buf {new char[SHA_DIGEST_LENGTH]};
+  std::unique_ptr<char[]> buf {new char[nominal_len]};
 
   if ((buf == nullptr) || shex.empty()) {
     return nullptr;
   }
 
-  memset(buf.get(), 0, SHA_DIGEST_LENGTH);
+  memset(buf.get(), 0, nominal_len);
   char hex[3];
 
   for (size_t i = 0;
-       ((i < shex.length() - 1) && (i / 2 < SHA_DIGEST_LENGTH)); i += 2) {
+       ((i < shex.length() - 1) && (i / 2 < nominal_len)); i += 2) {
     hex[0] = shex.at(i);
     hex[1] = shex.at(i + 1);
     hex[2] = '\0';

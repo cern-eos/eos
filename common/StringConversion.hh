@@ -136,7 +136,8 @@ public:
   //!         checksum or nullptr if there were any errors
   //----------------------------------------------------------------------------
   static std::unique_ptr<char[]>
-  Hex2BinDataChar(const std::string& shex, size_t& out_size);
+  Hex2BinDataChar(const std::string& shex, size_t& out_size,
+                  const size_t nominal_len = SHA_DIGEST_LENGTH);
 
   // ---------------------------------------------------------------------------
   /**
