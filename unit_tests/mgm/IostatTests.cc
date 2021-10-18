@@ -75,11 +75,11 @@ public:
 //------------------------------------------------------------------------------
 TEST_F(IostatTest, InitConfig)
 {
-  ASSERT_EQ("iostat::collect", iostat.gIostatCollect);
-  ASSERT_EQ("iostat::report", iostat.gIostatReport);
-  ASSERT_EQ("iostat::reportnamespace", iostat.gIostatReportNamespace);
-  ASSERT_EQ("iostat::popularity", iostat.gIostatPopularity);
-  ASSERT_EQ("iostat::udptargets", iostat.gIostatUdpTargetList);
+  EXPECT_STREQ("iostat::collect", iostat.gIostatCollect);
+  EXPECT_STREQ("iostat::report", iostat.gIostatReport);
+  EXPECT_STREQ("iostat::reportnamespace", iostat.gIostatReportNamespace);
+  EXPECT_STREQ("iostat::popularity", iostat.gIostatPopularity);
+  EXPECT_STREQ("iostat::udptargets", iostat.gIostatUdpTargetList);
   ASSERT_EQ(0, iostat.gOpenReportFD);
   ASSERT_EQ(false, iostat.mRunning);
 }
