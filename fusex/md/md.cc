@@ -1236,6 +1236,16 @@ metad::remove(fuse_req_t req, metad::shared_md pmd, metad::shared_md md,
     (*pmd)()->set_mtime(ts.tv_sec);
     (*pmd)()->set_mtime_ns(ts.tv_nsec);
   }
+
+  {
+    // wait that there is space in the queue
+    mdflush.Lock();
+    while (mdqueue.size() == mdqueue_max_backlog) {
+      mdflush.WaitMS(25);
+    }
+      mdflush.UnLock();
+  }
+
   md->Locker().Lock();
 
   if (!upstream) {
@@ -1246,12 +1256,8 @@ metad::remove(fuse_req_t req, metad::shared_md pmd, metad::shared_md md,
   fe.bind();
   flushentry fep((*pmd)()->id(), authid, mdx::LSTORE, req);
   fep.bind();
+
   mdflush.Lock();
-
-  while (mdqueue.size() == mdqueue_max_backlog) {
-    mdflush.WaitMS(25);
-  }
-
   mdqueue[(*pmd)()->id()]++;
   mdqueue[(*md)()->id()]++;
   mdflushqueue.push_back(fe);
