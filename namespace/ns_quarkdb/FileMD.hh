@@ -30,6 +30,7 @@
 #include "proto/FileMd.pb.h"
 #include <cstdint>
 #include <sys/time.h>
+#include <attr/xattr.h>
 
 #define FRIEND_TEST(test_case_name, test_name)\
 friend class test_case_name##_##test_name##_Test
@@ -630,7 +631,7 @@ public:
     auto it = mFile.xattrs().find(name);
 
     if (it == mFile.xattrs().end()) {
-      MDException e(ENOENT);
+      MDException e(ENOATTR);
       e.getMessage() << "Attribute: " << name << " not found";
       throw e;
     }
