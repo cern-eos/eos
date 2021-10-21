@@ -331,7 +331,11 @@ PropFindResponse::BuildResponseNode(const std::string& url,
                   (const char*) 0, &etag)) {
     eos_static_err("msg=\"error stating %s: %s\"", urlp.c_str(),
                    error.getErrText());
-    SetResponseCode(ResponseCodes::NOT_FOUND);
+    if (error.getErrInfo() == EACCES) {
+      SetResponseCode(ResponseCodes::FORBIDDEN);
+    } else {
+      SetResponseCode(ResponseCodes::NOT_FOUND);
+    }
     return NULL;
   }
 
