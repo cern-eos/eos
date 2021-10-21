@@ -650,17 +650,20 @@ Share::Proc::Delete(eos::common::VirtualIdentity& vid, const std::string& name, 
 
   eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
 
-  if (!gOFS->_attr_get(procpath.c_str(), error,
-		       root_vid, "", "sys.share.acl", acl, true)) {
-    gOFS->_attr_get(procpath.c_str(), error,
-		    root_vid, "", "sys.share.root", share_root, true);
-  } else {
-    struct stat buf;
-    // check if there is an incomplete entry
-    if (gOFS->_stat(procpath.c_str(), &buf, error, vid)) {
-      return -1;
+  XrdOucErrInfo attrerror;
+  {
+    if (!gOFS->_attr_get(procpath.c_str(), attrerror,
+			 root_vid, "", "sys.share.acl", acl, true)) {
+      gOFS->_attr_get(procpath.c_str(), attrerror,
+		      root_vid, "", "sys.share.root", share_root, true);
+    } else {
+      struct stat buf;
+      // check if there is an incomplete entry
+      if (gOFS->_stat(procpath.c_str(), &buf, attrerror, vid)) {
+	return -1;
+      }
+      // let's continue to wipe this entry
     }
-    // let's continue to wipe this entry
   }
 
   if (share_root.length()) {
