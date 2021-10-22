@@ -52,10 +52,22 @@ find_library(PROTOBUF3_LIBRARY
 # Include Protobuf package from the generation commands like PROTOBUF_GENERATE_CPP
 find_package(Protobuf)
 # This is done to overwrite the variables that might be set by the above call
-set(PROTOBUF_INCLUDE_DIR ${PROTOBUF3_INCLUDE_DIR})
-set(PROTOBUF_LIBRARY ${PROTOBUF3_LIBRARY})
-set(PROTOBUF_INCLUDE_DIRS ${PROTOBUF3_INCLUDE_DIR})
-set(PROTOBUF_LIBRARIES ${PROTOBUF3_LIBRARY})
+set(Protobuf_PROTOC_EXECUTABLE ${PROTOBUF3_PROTOC_EXECUTABLE})
+set(Protobuf_INCLUDE_DIR ${PROTOBUF3_INCLUDE_DIR})
+set(Protobuf_LIBRARY ${PROTOBUF3_LIBRARY})
+set(Protobuf_INCLUDE_DIRS ${PROTOBUF3_INCLUDE_DIR})
+set(Protobuf_LIBRARIES ${PROTOBUF3_LIBRARY})
+
+if (TARGET protobuf::protoc)
+  set_target_properties(protobuf::protoc PROPERTIES
+    IMPORTED_LOCATION ${PROTOBUF3_PROTOC_EXECUTABLE})
+endif()
+
+if (TARGET protobuf::libprotobuf)
+  set_target_properties(protobuf::libprotobuf PROPERTIES
+   INTERFACE_INCLUDE_DIRECTORIES ${PROTOBUF3_INCLUDE_DIR}
+   IMPORTED_LOCATION ${PROTOBUF3_LIBRARY})
+endif()
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(Protobuf3
