@@ -39,8 +39,8 @@ function(GRPC_GENERATE_CPP SRCS HDRS DEST)
     set(_protobuf_include_path -I ${CMAKE_CURRENT_SOURCE_DIR})
   endif()
 
-  if(DEFINED PROTOBUF_IMPORT_DIRS)
-    foreach(DIR ${PROTOBUF_IMPORT_DIRS})
+  if(DEFINED PROTOBUF3_IMPORT_DIRS)
+    foreach(DIR ${PROTOBUF3_IMPORT_DIRS})
       get_filename_component(ABS_PATH ${DIR} ABSOLUTE)
       list(FIND _protobuf_include_path ${ABS_PATH} _contains_already)
       if(${_contains_already} EQUAL -1)
@@ -65,7 +65,7 @@ function(GRPC_GENERATE_CPP SRCS HDRS DEST)
       "LD_LIBRARY_PATH=${GRPC_LD_LIBRARY_PATH}:$LD_LIBRARY_PATH"
       ${PROTOBUF_PROTOC_EXECUTABLE}
       ARGS --grpc_out ${DEST} ${_protobuf_include_path} --plugin=protoc-gen-grpc=${GRPC_CPP_PLUGIN} ${ABS_FIL}
-      DEPENDS ${ABS_FIL} ${PROTOBUF_PROTOC_EXECUTABLE} GRPC::grpc_cpp_plugin
+      DEPENDS ${ABS_FIL} ${PROTOBUF3_PROTOC_EXECUTABLE} GRPC::grpc_cpp_plugin
       COMMENT "Running C++ GRPC compiler on ${FIL}"
       VERBATIM )
   endforeach()
