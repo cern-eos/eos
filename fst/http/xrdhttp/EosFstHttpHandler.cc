@@ -192,8 +192,15 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
                                 response->GetBody().length());
     } else {
       int retc = 0;
-      retc = req.SendSimpleResp(0, response->GetResponseCodeDescription().c_str(),
-                                header.c_str(), 0 , content_length);
+
+      if (response->GetResponseCode() == response->PARTIAL_CONTENT) {
+        retc = req.SendSimpleResp(response->GetResponseCode(),
+                                  response->GetResponseCodeDescription().c_str(),
+                                  header.c_str(), 0 , content_length);
+      } else {
+        retc = req.SendSimpleResp(0, response->GetResponseCodeDescription().c_str(),
+                                  header.c_str(), 0 , content_length);
+      }
 
       if (retc) {
         return retc;
