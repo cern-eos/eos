@@ -58,17 +58,6 @@ set(Protobuf_LIBRARY ${PROTOBUF3_LIBRARY})
 set(Protobuf_INCLUDE_DIRS ${PROTOBUF3_INCLUDE_DIR})
 set(Protobuf_LIBRARIES ${PROTOBUF3_LIBRARY})
 
-if (TARGET protobuf::protoc)
-  set_target_properties(protobuf::protoc PROPERTIES
-    IMPORTED_LOCATION ${PROTOBUF3_PROTOC_EXECUTABLE})
-endif()
-
-if (TARGET protobuf::libprotobuf)
-  set_target_properties(protobuf::libprotobuf PROPERTIES
-   INTERFACE_INCLUDE_DIRECTORIES ${PROTOBUF3_INCLUDE_DIR}
-   IMPORTED_LOCATION ${PROTOBUF3_LIBRARY})
-endif()
-
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(Protobuf3
   REQUIRED_VARS PROTOBUF3_LIBRARY PROTOBUF3_INCLUDE_DIR PROTOBUF3_PROTOC_EXECUTABLE)
@@ -80,4 +69,20 @@ if (PROTOBUF3_FOUND AND NOT TARGET PROTOBUF::PROTOBUF)
   set_target_properties(PROTOBUF::PROTOBUF PROPERTIES
     IMPORTED_LOCATION "${PROTOBUF3_LIBRARY}"
     INTERFACE_INCLUDE_DIRECTORIES "${PROTOBUF3_INCLUDE_DIR}")
+
+  # Overwrite these since they are used in generating the Protobuf files
+  if (NOT TARGET protobuf::protoc)
+    add_executable(protobuf::protoc IMPORTED)
+  endif()
+
+  set_target_properties(protobuf::protoc PROPERTIES
+    IMPORTED_LOCATION ${PROTOBUF3_PROTOC_EXECUTABLE})
+
+  if (NOT TARGET protobuf::libprotobuf)
+    add_library(protobuf::libprotobuf UNKNOWN IMPORTED)
+  endif()
+
+  set_target_properties(protobuf::libprotobuf PROPERTIES
+   INTERFACE_INCLUDE_DIRECTORIES ${PROTOBUF3_INCLUDE_DIR}
+   IMPORTED_LOCATION ${PROTOBUF3_LIBRARY})
 endif ()
