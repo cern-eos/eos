@@ -56,12 +56,6 @@ BuildRequires: cmake
 
 BuildRequires: pkgconfig gcc-c++
 BuildRequires: openssl-devel
-# Select protobuf package
-%if 0%{?rhel} == 7 || 0%{?rhel} == 8
-BuildRequires: eos-protobuf3 >= 3.5
-%else
-BuildRequires: protobuf >= 3.5
-%endif
 
 %description
 Remote Procedure Calls (RPCs) provide a useful abstraction for
@@ -101,7 +95,7 @@ git submodule update --init --recursive
 cd grpc
 %if %{?fedora}%{!?fedora:0} >= 19 || 0%{distribution} == 8
 export CPPFLAGS="-Wno-error=class-memaccess -Wno-error=tautological-compare -Wno-error=ignored-qualifiers -Wno-error=stringop-truncation"
-#export HAS_SYSTEM_PROTOBUF=false
+export HAS_SYSTEM_PROTOBUF=false
 %endif
 mkdir build
 cd build
