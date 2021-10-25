@@ -211,47 +211,26 @@ GrpcServer::DN(grpc::ServerContext* context)
 std::string GrpcServer::IP(grpc::ServerContext* context, std::string* id,
                            std::string* net)
 {
-  std::vector<std::string> tokens;
-  eos::common::StringConversion::Tokenize(std::string(context->peer().c_str()),
-                                          tokens,
-                                          ":");
+  // format is ipv4:<ip>:<..> or ipv6:<ip>:<..> - we just return the IP address
+  // but net and id are populated as well with the prefix and suffix, respectively
+  auto peer_info = context->peer();
+  
+  std::size_t first = peer_info.find_first_of(':');
+  if (net ){
+    *net = peer_info.substr(0,first); // prefix ipv[46]
+  }  
 
-  if (tokens.size() == 3) {
-    // format is ipv4:<ip>:<..> or ipv6:<ip>:<..> - we just return the IP address
-    if (id) {
-      *id = tokens[2];
-    }
-
-    if (net) {
-      *net = tokens[0];
-    }
-
-    return tokens[1];
+  std::size_t last = peer_info.length()-1; 
+  // ipv6
+  if (peer_info[first+1] == '[') {
+    last = peer_info.find_first_of(']') + 1;
+  }else{ //iv4
+    last = peer_info.find_first_of(':',first+1);  
   }
-
-  if ((tokens.size() > 3) && tokens[0] == "ipv6") {
-    std::string ip;
-
-    for (size_t it = 1; it < tokens.size() - 1; ++it) {
-      ip += tokens[it];
-
-      if (it != tokens.size() - 2) {
-        ip += ":";
-      }
-    }
-
-    if (id) {
-      *id = tokens[tokens.size() - 1];
-    }
-
-    if (net) {
-      *net = tokens[0];
-    }
-
-    return ip;
+  if(id){
+    *id = peer_info.substr(last+1); // suffix with port and possible following args
   }
-
-  return "";
+  return peer_info.substr(first+1,last-first-1);
 }
 
 /* return VID for a given call */
