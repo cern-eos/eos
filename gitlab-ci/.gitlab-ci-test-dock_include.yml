@@ -123,16 +123,16 @@ dock_stress:
 
 # schedules ------------------------------
 
-dock_system_c8:
+dock_system_cs8:
   extends: .dock8s_system_test_template
   image: gitlab-registry.cern.ch/dss/docker-enhanced:19.03.12
   services:
     - docker:19.03.12-dind
   variables:
     DOCKER_TLS_CERTDIR: "/certs"
-    BASETAG: "c8_"
+    BASETAG: "cs8_"
   needs:
-    - job: c8_docker_image
+    - job: cs8_docker_image
       artifacts: false
     - job: clone_docker
   allow_failure: true
@@ -145,16 +145,16 @@ dock_system_c8:
     - dock
   when: manual
 
-dock_cbox_c8:
+dock_cbox_cs8:
   extends: .dock8s_cbox_test_template
   image: gitlab-registry.cern.ch/dss/docker-enhanced:19.03.12
   services:
     - docker:19.03.12-dind
   variables:
     DOCKER_TLS_CERTDIR: "/certs"
-    BASETAG: "c8_"
+    BASETAG: "cs8_"
   needs:
-    - job: c8_docker_image
+    - job: cs8_docker_image
       artifacts: false
     - job: clone_docker
   allow_failure: true
