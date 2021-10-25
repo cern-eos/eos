@@ -193,28 +193,18 @@ class RequestServiceImpl final : public Eos::Service
 std::string
 GrpcServer::DN(grpc::ServerContext* context)
 {
-  std::string property =
-    context->auth_context()->GetPeerIdentityPropertyName().c_str();
-
-  if (property == "x509_subject_alternative_name") {
-    std::vector<grpc::string_ref> identities =
-      context->auth_context()->GetPeerIdentity();
-
-    if (identities.size() == 1) {
-      return identities[0].data();
-    }
+  /*
+    The methods GetPeerIdentityPropertyName() and GetPeerIdentity() from grpc::ServerContext.auth_context
+    will prioritize SAN fields (x509_subject_alternative_name) in favor of x509_common_name
+  */
+  std::string tag = "x509_common_name";
+  auto resp = context->auth_context()->FindPropertyValues(tag);
+  if(resp.empty()){
+    tag = "x509_subject_alternative_name";
+    auto resp = context->auth_context()->FindPropertyValues(tag);
+    if (resp.empty()) { return "";}
   }
-
-  if (property == "x509_common_name") {
-    std::vector<grpc::string_ref> identities =
-      context->auth_context()->GetPeerIdentity();
-
-    if (identities.size() == 1) {
-      return identities[0].data();
-    }
-  }
-
-  return "";
+  return resp[0].data();
 }
 
 /* return client IP */
