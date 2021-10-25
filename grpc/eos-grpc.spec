@@ -33,12 +33,12 @@
 # Package definitions
 #-------------------------------------------------------------------------------
 Summary: gRPC, A high performance, open-source universal RPC framework
-Name: grpc
-Version: 1.36.0
+Name: eos-grpc
+Version: 1.41.0
 Release: 1%{?dist}
 License: BSD
 URL: http://www.grpc.io/
-Source0: https://github.com/grpc/grpc/archive/v%{version}.tar.gz
+Source: https://github.com/grpc/grpc/archive/v%{version}.tar.gz
 
 # Handle the different paths for the cmake package depending on the OS
 %if 0%{distribution} == 7
@@ -56,6 +56,12 @@ BuildRequires: cmake
 
 BuildRequires: pkgconfig gcc-c++
 BuildRequires: openssl-devel
+# Select protobuf package
+%if 0%{?rhel} == 7 || 0%{?rhel} == 8
+BuildRequires: eos-protobuf3 >= 3.5
+%else
+BuildRequires: protobuf >= 3.5
+%endif
 
 %description
 Remote Procedure Calls (RPCs) provide a useful abstraction for
@@ -95,7 +101,7 @@ git submodule update --init --recursive
 cd grpc
 %if %{?fedora}%{!?fedora:0} >= 19 || 0%{distribution} == 8
 export CPPFLAGS="-Wno-error=class-memaccess -Wno-error=tautological-compare -Wno-error=ignored-qualifiers -Wno-error=stringop-truncation"
-export HAS_SYSTEM_PROTOBUF=false
+#export HAS_SYSTEM_PROTOBUF=false
 %endif
 mkdir build
 cd build

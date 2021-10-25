@@ -188,7 +188,7 @@ BuildRequires: eos-rocksdb = 6.2.4-1%{rocksdb_dist}
 BuildRequires: openldap-devel
 BuildRequires: e2fsprogs-devel
 BuildRequires: eos-libmicrohttpd, eos-libmicrohttpd-devel >= 0.9.38
-BuildRequires: grpc, grpc-devel, grpc-plugins
+BuildRequires: eos-grpc, eos-grpc-devel, eos-grpc-plugins
 %endif
 
 BuildRequires: bzip2-devel
