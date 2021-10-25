@@ -45,8 +45,8 @@
 %bcond_without no_sse
 
 # Define required dependency for XRootD
-%define eos_xrootd_version_min 0:5.3.1
-%define xrootd_version_min 1:5.3.1
+%define eos_xrootd_version_min 0:5.3.2
+%define xrootd_version_min 1:5.3.2
 %define major_version @CPACK_PACKAGE_VERSION_MAJOR@
 %define release_version @CPACK_PACKAGE_RELEASE@
 
