@@ -176,7 +176,7 @@ set(CPACK_PACKAGE_RELEASE "${RELEASE}")
 set(CPACK_SOURCE_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}")
 set(CPACK_SOURCE_IGNORE_FILES
 "${CMAKE_CURRENT_BINARY_DIR};/ApMon/;/git/;/gitlab-ci/;/ccache/;/xrootd-dsi/;/nginx/;/dsi/;\
-/microhttpd/;/grpc/grpc.spec;/.deps/;~$;'.'o$;/lib/;/.git/;eos.spec.in;elrepopackage.spec;.tar.gz$;\
+/microhttpd/;/grpc/eos-grpc.spec;/.deps/;~$;'.'o$;/lib/;/.git/;eos.spec.in;elrepopackage.spec;.tar.gz$;\
 .tar.bz2$;${CPACK_SOURCE_IGNORE_FILES};")
 
 configure_file(
