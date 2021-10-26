@@ -184,7 +184,8 @@ Storage::ScrubFs(const char* path, unsigned long long free,
         }
 
         if (ff < 0) {
-          eos_static_crit("Unable to create/wopen scrubfile %s", scrubfile[k].c_str());
+          eos_static_crit("Unable to create/wopen scrubfile %s errno=%d",
+                          scrubfile[k].c_str(), errno);
           fserrors = 1;
           break;
         }
@@ -197,8 +198,8 @@ Storage::ScrubFs(const char* path, unsigned long long free,
           int nwrite = write(ff, mScrubPattern[rshift], 1024 * 1024);
 
           if (nwrite != (1024 * 1024)) {
-            eos_static_crit("Unable to write all needed bytes for scrubfile %s",
-                            scrubfile[k].c_str());
+            eos_static_crit("Unable to write all needed bytes for scrubfile %s errno=%d",
+                            scrubfile[k].c_str(), errno);
             fserrors = 1;
             break;
           }
@@ -215,7 +216,8 @@ Storage::ScrubFs(const char* path, unsigned long long free,
       int ff = open(scrubfile[k].c_str(), dflags | O_RDONLY);
 
       if (ff < 0) {
-        eos_static_crit("Unable to open static scrubfile %s", scrubfile[k].c_str());
+        eos_static_crit("Unable to open static scrubfile %s, errno=%d",
+                        scrubfile[k].c_str(), errno);
         return 1;
       }
 
@@ -225,8 +227,8 @@ Storage::ScrubFs(const char* path, unsigned long long free,
         int nread = read(ff, mScrubPatternVerify, 1024 * 1024);
 
         if (nread != (1024 * 1024)) {
-          eos_static_crit("Unable to read all needed bytes from scrubfile %s",
-                          scrubfile[k].c_str());
+          eos_static_crit("Unable to read all needed bytes from scrubfile %s errno=%d",
+                          scrubfile[k].c_str(), errno);
           fserrors = 1;
           break;
         }
