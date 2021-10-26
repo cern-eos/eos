@@ -91,6 +91,12 @@ git clone https://github.com/grpc/grpc
 cd grpc
 git checkout -b %{version} tags/v%{version}
 git submodule update --init --recursive
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# Patch the protobuf code so that we get properly formatted library versions.
+# If we don't to this then we'll get libprotobuf.so.3.17.3.0 instead of the usual
+# libprotobuf.so.3.17.3.
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+sed -i 's/${protobuf_VERSION}.0/${protobuf_VERSION}/g' third_party/protobuf/cmake/CMakeLists.txt
 %build
 cd grpc
 %if %{?fedora}%{!?fedora:0} >= 19 || 0%{distribution} == 8
