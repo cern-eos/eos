@@ -49,7 +49,7 @@ add_executable(eos-grpc-ns-stat grpc/NsStat.cc)
 
 #-------------------------------------------------------------------------------
 # Add dependency which guarantees that the protocol buffer files are generated
-# when we build the "eos" executable.
+# when we build the executables
 #-------------------------------------------------------------------------------
 target_link_libraries(eos-grpc-ping PUBLIC
   EosGrpcProto-Objects
