@@ -26,7 +26,7 @@ else()
   find_program(PROTOBUF_PROTOC_EXECUTABLE
     NAMES protoc3
     HINTS ${PROTOBUF_ROOT}/bin
-    PATHS /opt/eos/grpc/bin /opt/eos/bin /usr/local/bin /usr/bin /bin
+    PATHS /opt/eos/bin /usr/local/bin /usr/bin /bin
     DOC "Version 3 of The Google Protocol Buffers Compiler"
     NO_DEFAULT_PATH)
 endif()
@@ -34,14 +34,14 @@ endif()
 find_path(PROTOBUF3_INCLUDE_DIR
   NAMES google/protobuf/message.h
   HINTS ${PROTOBUF_ROOT}
-  PATHS /opt/eos/grpc/include/ /opt/eos/include/protobuf3 /usr/include/protobuf3 /usr/local /usr
+  PATHS /opt/eos/include/protobuf3 /usr/include/protobuf3 /usr/local /usr
   PATH_SUFFIXES include
   NO_DEFAULT_PATH)
 
 find_library(PROTOBUF3_LIBRARY
   NAME protobuf
   HINTS ${PROTOBUF_ROOT}
-  PATHS /opt/eos/grpc/ /opt/eos/lib64/protobuf3 /usr/lib64/protobuf3 /usr/lib/protobuf3
+  PATHS /opt/eos/lib64/protobuf3 /usr/lib64/protobuf3 /usr/lib/protobuf3
 	/usr/local /usr /usr/lib/x86_64-linux-gnu
   PATH_SUFFIXES lib64 lib
   NO_DEFAULT_PATH)
