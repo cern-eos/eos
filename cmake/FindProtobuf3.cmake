@@ -11,7 +11,7 @@
 #
 # PROTOBUF_ROOT may be defined as a hint for where to look
 
-find_program(PROTOBUF_PROTOC_EXECUTABLE
+find_program(PROTOBUF3_PROTOC_EXECUTABLE
   NAMES protoc
   HINTS ${PROTOBUF_ROOT}/bin
   PATHS /opt/eos/bin
@@ -22,8 +22,8 @@ if (PROTOBUF3_PROTOC_EXECUTABLE)
   message(STATUS "Found protoc: ${PROTOBUF3_PROTOC_EXECUTABLE}")
 else()
   message(STATUS "Trying to search for protoc3 instead for protoc")
-  unset(PROTOBUF_PROTOC_EXECUTABLE)
-  find_program(PROTOBUF_PROTOC_EXECUTABLE
+  unset(PROTOBU3F_PROTOC_EXECUTABLE)
+  find_program(PROTOBUF3_PROTOC_EXECUTABLE
     NAMES protoc3
     HINTS ${PROTOBUF_ROOT}/bin
     PATHS /opt/eos/bin /usr/local/bin /usr/bin /bin
