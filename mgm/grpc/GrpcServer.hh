@@ -83,7 +83,7 @@ public:
   static std::string DN(grpc::ServerContext* context);
   /* return client IP*/
   static std::string IP(grpc::ServerContext* context, std::string* id = 0,
-                        std::string* net = 0);
+                        std::string* port = 0);
   /* return VID for a given call */
   static void Vid(grpc::ServerContext* context,
                   eos::common::VirtualIdentity& vid,

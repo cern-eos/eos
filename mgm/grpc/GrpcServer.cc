@@ -27,7 +27,6 @@
 #include <google/protobuf/util/json_util.h>
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
-#include "common/StringConversion.hh"
 #include "mgm/Macros.hh"
 #include "XrdSec/XrdSecEntity.hh"
 
@@ -207,37 +206,42 @@ GrpcServer::DN(grpc::ServerContext* context)
   return resp[0].data();
 }
 
+
+
 /* return client IP */
 std::string GrpcServer::IP(grpc::ServerContext* context, std::string* id,
-                           std::string* net)
+                           std::string* port)
 {
   // format is ipv4:<ip>:<..> or ipv6:<ip>:<..> - we just return the IP address
-  // but net and id are populated as well with the prefix and suffix, respectively
-  auto peer_info = context->peer();
-  
-  std::size_t first = peer_info.find_first_of(':');
-  if(first == std::string::npos){
-    first = -1;
+  // butq net and id are populated as well with the prefix and suffix, respectively
+  std::vector<std::string> tokens;
+  eos::common::StringConversion::Tokenize(context->peer(),
+                                          tokens,
+                                          "[]");
+  if (tokens.size() == 3){
+    if (id) {
+      *id = tokens[0].substr(0,tokens[0].size()-1);
+    }
+    if (port) {
+      *port = tokens[2].substr(1,tokens[2].size()-1);
+    }
+    return "["+tokens[1]+"]";
+  }else {
+    tokens.clear();
+    eos::common::StringConversion::Tokenize(context->peer(),
+                                            tokens,
+                                            ":");
+    if (tokens.size() == 3){
+      if (id) {
+          *id = tokens[0].substr(0,tokens[0].size());
+        }
+        if (port) {
+          *port = tokens[2].substr(0,tokens[2].size());
+        }
+        return tokens[1];
+    }
+    return "";
   }
-  if (net && first != (long unsigned int) -1){
-    *net = peer_info.substr(0,first); // prefix ipv[46]
-  }  
-
-  std::size_t last = peer_info.length()-1; 
-  // ipv6
-  if (peer_info[first+1] == '[') {
-    last = peer_info.find_first_of(']');
-    last += (last != std::string::npos);
-  }else{ //iv4
-    last = peer_info.find_first_of(':',first+1);
-  }
-  if(last == std::string::npos){
-    last = peer_info.length()+1;
-  }
-  if(id){
-    *id = peer_info.substr(last+1); // suffix with port and possible following args
-  }
-  return peer_info.substr(first+1,last-first-1);
 }
 
 /* return VID for a given call */
