@@ -13,8 +13,9 @@
 
 find_program(PROTOBUF3_PROTOC_EXECUTABLE
   NAMES protoc
-  HINTS ${PROTOBUF_ROOT}/bin
-  PATHS /opt/eos/bin
+  HINTS ${PROTOBUF_ROOT}
+  PATHS /opt/eos
+  PATH_SUFFIXES bin
   DOC "Version 3 of The Google Protocol Buffers Compiler"
   NO_DEFAULT_PATH)
 
@@ -22,13 +23,15 @@ if (PROTOBUF3_PROTOC_EXECUTABLE)
   message(STATUS "Found protoc: ${PROTOBUF3_PROTOC_EXECUTABLE}")
 else()
   message(STATUS "Trying to search for protoc3 instead for protoc")
-  unset(PROTOBU3F_PROTOC_EXECUTABLE)
+  unset(PROTOBUF3_PROTOC_EXECUTABLE)
   find_program(PROTOBUF3_PROTOC_EXECUTABLE
     NAMES protoc3
-    HINTS ${PROTOBUF_ROOT}/bin
-    PATHS /opt/eos/bin /usr/local/bin /usr/bin /bin
+    HINTS ${PROTOBUF_ROOT}
+    PATHS /opt/eos/ /usr/local /usr /
+    PATH_SUFFIXES bin
     DOC "Version 3 of The Google Protocol Buffers Compiler"
     NO_DEFAULT_PATH)
+  message(STATUS "Found protoc3: ${PROTOBUF3_PROTOC_EXECUTABLE}")
 endif()
 
 find_path(PROTOBUF3_INCLUDE_DIR
@@ -46,15 +49,6 @@ find_library(PROTOBUF3_LIBRARY
   PATH_SUFFIXES lib64 lib
   NO_DEFAULT_PATH)
 
-# Include Protobuf package from the generation commands like PROTOBUF_GENERATE_CPP
-find_package(Protobuf)
-# This is done to overwrite the variables that might be set by the above call
-set(Protobuf_PROTOC_EXECUTABLE ${PROTOBUF3_PROTOC_EXECUTABLE})
-set(Protobuf_INCLUDE_DIR ${PROTOBUF3_INCLUDE_DIR})
-set(Protobuf_LIBRARY ${PROTOBUF3_LIBRARY})
-set(Protobuf_INCLUDE_DIRS ${PROTOBUF3_INCLUDE_DIR})
-set(Protobuf_LIBRARIES ${PROTOBUF3_LIBRARY})
-
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(Protobuf3
   REQUIRED_VARS PROTOBUF3_LIBRARY PROTOBUF3_INCLUDE_DIR PROTOBUF3_PROTOC_EXECUTABLE)
@@ -62,6 +56,13 @@ mark_as_advanced(PROOBUF3_FOUND PROTOBUF3_INCLUDE_DIR PROTOBUF3_LIBRARY
   PROTOBUF3_PROTOC_EXECUTABLE)
 
 if (PROTOBUF3_FOUND AND NOT TARGET PROTOBUF::PROTOBUF)
+  # These are set for make the find_package(Protobuf) happy at the end and
+  # at the same time include the PROTOBUF_GENERATE_CPP function
+  set(Protobuf_FOUND ${PROTOBUF3_FOUND})
+  set(Protobuf_INCLUDE_DIR ${PROTOBUF3_INCLUDE_DIR})
+  set(Protobuf_LIBRARY ${PROTOBUF3_LIBRARY})
+  set(Protobuf_PROTOC_EXECUTABLE ${PROTOBUF3_PROTOC_EXECUTABLE})
+
   add_library(PROTOBUF::PROTOBUF UNKNOWN IMPORTED)
   set_target_properties(PROTOBUF::PROTOBUF PROPERTIES
     IMPORTED_LOCATION "${PROTOBUF3_LIBRARY}"
@@ -83,3 +84,6 @@ if (PROTOBUF3_FOUND AND NOT TARGET PROTOBUF::PROTOBUF)
    INTERFACE_INCLUDE_DIRECTORIES ${PROTOBUF3_INCLUDE_DIR}
    IMPORTED_LOCATION ${PROTOBUF3_LIBRARY})
 endif ()
+
+# Include Protobuf package from the generation commands like PROTOBUF_GENERATE_CPP
+find_package(Protobuf)
