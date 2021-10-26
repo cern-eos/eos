@@ -165,7 +165,8 @@ public:
     {
       // atomic operation, no need to lock before calling
       int prevOpendir = opendir_cnt.fetch_add(1, std::memory_order_seq_cst);
-      eos_static_info("ino=%16x opendir=%d => opendir=%d", (*this)()->id(), prevOpendir,
+      eos_static_info("ino=%16x opendir=%d => opendir=%d", (*this)()->id(),
+                      prevOpendir,
                       prevOpendir + 1);
     }
 
@@ -251,10 +252,10 @@ public:
     std::string Cookie()
     {
       char s[256];
-      snprintf(s, sizeof(s), "%lx:%lu.%lu:%lu", (unsigned long) (*this)()->id(),
-               (unsigned long) (*this)()->mtime(),
-	       (unsigned long) (*this)()->mtime_ns(),
-               (unsigned long) (*this)()->size());
+      snprintf(s, sizeof(s), "%lx:%lu.%lu:%lu", (unsigned long)(*this)()->id(),
+               (unsigned long)(*this)()->mtime(),
+               (unsigned long)(*this)()->mtime_ns(),
+               (unsigned long)(*this)()->size());
       return s;
     }
 
@@ -284,65 +285,81 @@ public:
       return inline_size;
     }
 
-    const bool obfuscate() {
-      auto xattr = attr();
+    const bool obfuscate()
+    {
+      auto xattr = proto.attr();
+
       if (xattr.count("sys.file.obfuscate")) {
-	return (xattr["sys.file.obfuscate"] == "1");
+        return (xattr["sys.file.obfuscate"] == "1");
       } else {
-	return false;
+        return false;
       }
     }
 
-    void set_obfuscate_key (const std::string& key) {
-      (*this->mutable_attr())["user.obfuscate.key"] = key;
+    void set_obfuscate_key(const std::string& key)
+    {
+      (*proto.mutable_attr())["user.obfuscate.key"] = key;
     }
 
 
-    std::string obfuscate_key() {
-      auto xattr = attr();
+    std::string obfuscate_key()
+    {
+      auto xattr = proto.attr();
+
       if (xattr.count("user.obfuscate.key")) {
-	return xattr["user.obfuscate.key"];
+        return xattr["user.obfuscate.key"];
       } else {
-	return "";
+        return "";
       }
     }
 
-    const char obfuscate_cipher(const std::string& key, off_t offset) {
-      return key.at(offset%key.length());
+    const char obfuscate_cipher(const std::string& key, off_t offset)
+    {
+      return key.at(offset % key.length());
     }
 
-    void obfuscate_buffer(char* dst, const char* src, size_t size, off_t offset, std::string secret) {
+    void obfuscate_buffer(char* dst, const char* src, size_t size, off_t offset,
+                          std::string secret)
+    {
       auto key = obfuscate_key();
+
       if (secret.length()) {
-	if (hmac.hmac.empty() || (hmac.key != secret)) {
-	  // recompute new hmac
-	  hmac.hmac = eos::common::SymKey::HmacSha256(secret, key);
-	  hmac.key  = secret;
-	}
-	key = hmac.hmac;
+        if (hmac.hmac.empty() || (hmac.key != secret)) {
+          // recompute new hmac
+          hmac.hmac = eos::common::SymKey::HmacSha256(secret, key);
+          hmac.key  = secret;
+        }
+
+        key = hmac.hmac;
       }
-      for (size_t i = 0; i< size; ++i) {
-	*dst = *src ^ obfuscate_cipher(key, offset+i);
-	src++;
-	dst++;
+
+      for (size_t i = 0; i < size; ++i) {
+        *dst = *src ^ obfuscate_cipher(key, offset + i);
+        src++;
+        dst++;
       }
     }
 
 
-    void unobfuscate_buffer(char* buf, size_t size, off_t offset, std::string secret) {
+    void unobfuscate_buffer(char* buf, size_t size, off_t offset,
+                            std::string secret)
+    {
       auto key = obfuscate_key();
+
       if (secret.length()) {
-	if (hmac.hmac.empty() || (hmac.key != secret)) {
-	  // recompute new hmac
-	  hmac.hmac = eos::common::SymKey::HmacSha256(secret, key);
-	  hmac.key  = secret;
-	}
-	key = hmac.hmac;
+        if (hmac.hmac.empty() || (hmac.key != secret)) {
+          // recompute new hmac
+          hmac.hmac = eos::common::SymKey::HmacSha256(secret, key);
+          hmac.key  = secret;
+        }
+
+        key = hmac.hmac;
       }
+
       char* pbuf = buf;
-      for (size_t i = 0; i< size; ++i) {
-	*pbuf++ ^= obfuscate_cipher(key,offset+i);
 
+      for (size_t i = 0; i < size; ++i) {
+        *pbuf++ ^= obfuscate_cipher(key, offset + i);
       }
     }
 
@@ -351,14 +368,14 @@ public:
       inline_size = inlinesize;
     }
 
-    void force_refresh()      
+    void force_refresh()
     {
       refresh.store(1, std::memory_order_seq_cst);
     }
 
     bool needs_refresh() const
     {
-      return refresh.load()?true:false;
+      return refresh.load() ? true : false;
     }
 
     void clear_refresh()
@@ -399,11 +416,12 @@ public:
     {
       rmrf = false;
     }
-    
+
     int state_serialize(std::string& out);
     int state_deserialize(std::string& out);
 
-    eos::fusex::md* operator()() {
+    eos::fusex::md* operator()()
+    {
       return &proto;
     }
 
@@ -459,7 +477,7 @@ public:
     fuse_ino_t forward(fuse_ino_t lookup);
     fuse_ino_t backward(fuse_ino_t lookup);
 
-    void clear() 
+    void clear()
     {
       XrdSysMutexHelper mLock(mMutex);
       fwd_map.clear();
@@ -550,7 +568,7 @@ public:
              int nlookup);
 
   void wait_upstream(fuse_req_t req,
-		     fuse_ino_t ino);
+                     fuse_ino_t ino);
 
   shared_md getlocal(fuse_req_t req,
                      fuse_ino_t ino);
@@ -741,7 +759,8 @@ public:
     return inomap;
   }
 
-  void mdreset() {
+  void mdreset()
+  {
     XrdSysMutexHelper lock(mdmap);
     shared_md md1 = mdmap[1];
     (*md1)()->set_type((*md1)()->MD);
@@ -750,7 +769,7 @@ public:
     mdmap[1] = md1;
     uint64_t i_root = inomap.backward(1);
     inomap.clear();
-    inomap.insert(i_root,1);
+    inomap.insert(i_root, 1);
   }
 
   void
@@ -844,7 +863,8 @@ public:
       return _fuse_id;
     }
 
-    void bind() {
+    void bind()
+    {
       _fuse_id.bind();
     }
 

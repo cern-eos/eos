@@ -334,15 +334,18 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     if (getenv("HOME")) {
       jsonconfig = getenv("HOME");
     } else {
-      fprintf(stderr,"# warning: HOME environment not defined\n");
+      fprintf(stderr, "# warning: HOME environment not defined\n");
       jsonconfig = ".";
     }
+
     jsonconfig += "/.eos/fuse";
+
     if (getenv("HOME")) {
       default_ssskeytab = getenv("HOME");
     } else {
       default_ssskeytab = ".";
     }
+
     default_ssskeytab += "/.eos/fuse.sss.keytab";
   }
 
@@ -1140,7 +1143,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       cconfig.max_read_ahead_size = root["cache"]["read-ahead-bytes-max"].asInt();
       cconfig.max_read_ahead_blocks = root["cache"]["read-ahead-blocks-max"].asInt();
       cconfig.read_ahead_strategy = root["cache"]["read-ahead-strategy"].asString();
-      cconfig.read_ahead_sparse_ratio = root["cache"]["read-ahead-sparse-ratio"].asFloat();
+      cconfig.read_ahead_sparse_ratio =
+        root["cache"]["read-ahead-sparse-ratio"].asFloat();
 
       if ((cconfig.read_ahead_strategy != "none") &&
           (cconfig.read_ahead_strategy != "static") &&
@@ -1159,21 +1163,25 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       if (geteuid()) {
         if (!cconfig.location.length()) {
           cconfig.location = "/var/tmp/eos/fusex/cache/";
-	  if (getenv("USER")) {
-	    cconfig.location += getenv("USER");
-	  } else {
-	    cconfig.location += std::to_string(geteuid());
-	  }
+
+          if (getenv("USER")) {
+            cconfig.location += getenv("USER");
+          } else {
+            cconfig.location += std::to_string(geteuid());
+          }
+
           cconfig.location += "/";
         }
 
         if (!cconfig.journal.length()) {
           cconfig.journal = "/var/tmp/eos/fusex/cache/";
-	  if (getenv("USER")) {
-	    cconfig.journal += getenv("USER");
-	  } else {
-	    cconfig.location +=std::to_string(geteuid());
-	  }
+
+          if (getenv("USER")) {
+            cconfig.journal += getenv("USER");
+          } else {
+            cconfig.location += std::to_string(geteuid());
+          }
+
           cconfig.journal += "/";
         }
 
@@ -1373,7 +1381,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       }
     }
     std::string nodelay = getenv("XRD_NODELAY") ? getenv("XRD_NODELAY") : "";
-
     umount_system_line = "fusermount -u -z ";
     umount_system_line += EosFuse::Instance().Config().localmountdir;
 
@@ -1699,7 +1706,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
                          cconfig.default_read_ahead_size,
                          cconfig.max_read_ahead_size,
                          cconfig.max_read_ahead_blocks,
-			 cconfig.read_ahead_sparse_ratio,
+                         cconfig.read_ahead_sparse_ratio,
                          cconfig.max_inflight_read_ahead_buffer_size,
                          cconfig.max_inflight_write_buffer_size,
                          cconfig.total_file_cache_size,
@@ -1848,14 +1855,14 @@ EosFuse::umounthandler(int sig, siginfo_t* si, void* ctx)
 
   eos::common::handleSignal(sig, si, ctx);
   static char systemline[4096];
-  snprintf(systemline,sizeof(systemline),"fusermount -u -z %s",EosFuse::Instance().Config().localmountdir.c_str());
+  snprintf(systemline, sizeof(systemline), "fusermount -u -z %s",
+           EosFuse::Instance().Config().localmountdir.c_str());
   system(systemline);
   fprintf(stderr, "# umounthandler: executing %s\n", systemline);
   fprintf(stderr,
           "# umounthandler: sighandler received signal %d - emitting signal %d again\n",
           sig, sig);
   system(systemline);
-
   signal(SIGSEGV, SIG_DFL);
   signal(SIGABRT, SIG_DFL);
   signal(SIGTERM, SIG_DFL);
@@ -1956,7 +1963,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
              "ALL        inodes-vmap         := %lu\n"
              "ALL        inodes-caps         := %lu\n"
              "ALL        inodes-tracker      := %lu\n"
-	     "ALL        proxies             := %d\n"
+             "ALL        proxies             := %d\n"
              "# -----------------------------------------------------------------------------------------------------------\n",
              this->getMdStat().inodes(),
              this->getMdStat().inodes_stacked(),
@@ -1968,7 +1975,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
              this->mds.vmaps().size(),
              this->caps.size(),
              this->Tracker().size(),
-	     XrdCl::Proxy::Proxies()
+             XrdCl::Proxy::Proxies()
             );
     sout += ino_stat;
     std::string s1;
@@ -2303,8 +2310,8 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
         EXEC_TIMING_BEGIN("setattr:chmod");
         struct timespec tsnow;
         eos::common::Timing::GetTimeSpec(tsnow);
-	(*md)()->set_ctime(tsnow.tv_sec);
-	(*md)()->set_ctime_ns(tsnow.tv_nsec);
+        (*md)()->set_ctime(tsnow.tv_sec);
+        (*md)()->set_ctime_ns(tsnow.tv_nsec);
         (*md)()->set_mode(attr->st_mode);
 
         if (S_ISDIR((*md)()->mode())) {
@@ -2367,10 +2374,13 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
           (*md)()->set_gid(attr->st_gid);
         }
 
-	struct timespec tsnow;
+        struct timespec tsnow;
+
         eos::common::Timing::GetTimeSpec(tsnow);
-	(*md)()->set_ctime(tsnow.tv_sec);
-	(*md)()->set_ctime_ns(tsnow.tv_nsec);
+
+        (*md)()->set_ctime(tsnow.tv_sec);
+
+        (*md)()->set_ctime_ns(tsnow.tv_nsec);
 
         if (S_ISDIR((*md)()->mode())) {
           // if this is a directory we have to revoke a potential existing cap for that directory
@@ -2520,7 +2530,7 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
 
               if (io) {
                 if (!(*md)()->creator() || ((*md)()->creator() &&
-                                       ((off_t) (*md)()->size() != attr->st_size))) {
+                                            ((off_t)(*md)()->size() != attr->st_size))) {
                   // no need to truncate if we still have the creator key
                   eos_static_debug("ftruncate size=%lu", (size_t) attr->st_size);
                   rc |= io->ioctx()->truncate(req, attr->st_size);
@@ -2544,7 +2554,7 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
               data::shared_data io = Instance().datas.get(req, (*md)()->id(), md);
 
               if (!(*md)()->creator() || ((*md)()->creator() &&
-                                     ((off_t) (*md)()->size() != attr->st_size))) {
+                                          ((off_t)(*md)()->size() != attr->st_size))) {
                 rc = io->attach(req, cookie, true);
                 eos_static_debug("calling truncate");
                 rc |= io->truncate(req, attr->st_size);
@@ -2565,7 +2575,7 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
             }
 
             if (!rc) {
-              ssize_t size_change = (int64_t)(attr->st_size) - (int64_t) (*md)()->size();
+              ssize_t size_change = (int64_t)(attr->st_size) - (int64_t)(*md)()->size();
 
               if (size_change > 0) {
                 Instance().caps.book_volume(pcap, size_change);
@@ -2596,7 +2606,8 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
     }
 
     if (EOS_LOGS_DEBUG) {
-      eos_static_debug("id %ld err %d op %d del %d", (*md)()->id(), (*md)()->err(), md->getop(),
+      eos_static_debug("id %ld err %d op %d del %d", (*md)()->id(), (*md)()->err(),
+                       md->getop(),
                        md->deleted());
     }
 
@@ -2817,8 +2828,9 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
           if (pmd) {
             pmd->local_children().erase(eos::common::StringConversion::EncodeInvalidUTF8(
                                           name));
-            (*pmd)()->mutable_children()->erase(eos::common::StringConversion::EncodeInvalidUTF8(
-                                             name));
+            (*pmd)()->mutable_children()->erase(
+              eos::common::StringConversion::EncodeInvalidUTF8(
+                name));
             pino = (*pmd)()->id();
           }
 
@@ -2910,8 +2922,8 @@ EosFuse::readdir_filler(fuse_req_t req, EosFuse::opendir_t* md,
   } while ((!rc) && ((*pmd)()->type() != (*pmd)()->MDLS));
 
   if (md->pmd_children.size() != pmd->local_children().size() ||
-      ((md->pmd_mtime.tv_sec != (int64_t) (*pmd)()->mtime()) ||
-       (md->pmd_mtime.tv_nsec != (int64_t) (*pmd)()->mtime_ns()))) {
+      ((md->pmd_mtime.tv_sec != (int64_t)(*pmd)()->mtime()) ||
+       (md->pmd_mtime.tv_nsec != (int64_t)(*pmd)()->mtime_ns()))) {
     auto pmap = pmd->local_children();
     auto it = pmap.begin();
     // make a copy of the listing for subsequent readdir operations
@@ -3028,7 +3040,8 @@ EBADF  Invalid directory stream descriptor fi->fh
     // ---------------------------------------------------------------------- //
     if (off == 1) {
       // at offset=1 add the '..' directory
-      metad::shared_md ppmd = Instance().mds.get(req, (*pmd)()->pid(), "", false, 0, 0,
+      metad::shared_md ppmd = Instance().mds.get(req, (*pmd)()->pid(), "", false, 0,
+                              0,
                               true);
 
       // don't add a '..' at root
@@ -3099,7 +3112,8 @@ EBADF  Invalid directory stream descriptor fi->fh
 
           if (EOS_LOGS_DEBUG) {
             eos_static_debug("hlnk %s id %#lx mdino '%s' (%lx) local_ino %#lx",
-                             (*cmd)()->name().c_str(), (*cmd)()->id(), (*attrMap)[k_mdino].c_str(), mdino, local_ino);
+                             (*cmd)()->name().c_str(), (*cmd)()->id(), (*attrMap)[k_mdino].c_str(), mdino,
+                             local_ino);
           }
 
           stbuf.st_ino = local_ino;
@@ -3300,66 +3314,67 @@ EROFS  pathname refers to a file on a read-only filesystem.
       if ((*md)()->id() && !md->deleted()) {
         rc = EEXIST;
       } else {
-	if ((*pcap2)()->errc()) {
-	  rc = (*pcap2)()->errc();
-	} else {
-	  (*md)()->set_id(0);
-	  (*md)()->set_md_ino(0);
-	  (*md)()->set_err(0);
-	  (*md)()->set_mode(mode | S_IFDIR);
-	  struct timespec ts;
-	  eos::common::Timing::GetTimeSpec(ts);
-	  (*md)()->set_name(name);
-	  (*md)()->set_atime(ts.tv_sec);
-	  (*md)()->set_atime_ns(ts.tv_nsec);
-	  (*md)()->set_mtime(ts.tv_sec);
-	  (*md)()->set_mtime_ns(ts.tv_nsec);
-	  (*md)()->set_ctime(ts.tv_sec);
-	  (*md)()->set_ctime_ns(ts.tv_nsec);
-	  (*md)()->set_btime(ts.tv_sec);
-	  (*md)()->set_btime_ns(ts.tv_nsec);
-	  // need to update the parent mtime
-	  (*md)()->set_pmtime(ts.tv_sec);
-	  (*md)()->set_pmtime_ns(ts.tv_nsec);
-	  (*pmd)()->set_mtime(ts.tv_sec);
-	  (*pmd)()->set_mtime_ns(ts.tv_nsec);
-	  (*md)()->set_uid((*pcap2)()->uid());
-	  (*md)()->set_gid((*pcap2)()->gid());
-	  /* xattr inheritance */
-	  auto attrMap = (*md)()->mutable_attr();
-	  auto pattrMap = (*pmd)()->attr();
+        if ((*pcap2)()->errc()) {
+          rc = (*pcap2)()->errc();
+        } else {
+          (*md)()->set_id(0);
+          (*md)()->set_md_ino(0);
+          (*md)()->set_err(0);
+          (*md)()->set_mode(mode | S_IFDIR);
+          struct timespec ts;
+          eos::common::Timing::GetTimeSpec(ts);
+          (*md)()->set_name(name);
+          (*md)()->set_atime(ts.tv_sec);
+          (*md)()->set_atime_ns(ts.tv_nsec);
+          (*md)()->set_mtime(ts.tv_sec);
+          (*md)()->set_mtime_ns(ts.tv_nsec);
+          (*md)()->set_ctime(ts.tv_sec);
+          (*md)()->set_ctime_ns(ts.tv_nsec);
+          (*md)()->set_btime(ts.tv_sec);
+          (*md)()->set_btime_ns(ts.tv_nsec);
+          // need to update the parent mtime
+          (*md)()->set_pmtime(ts.tv_sec);
+          (*md)()->set_pmtime_ns(ts.tv_nsec);
+          (*pmd)()->set_mtime(ts.tv_sec);
+          (*pmd)()->set_mtime_ns(ts.tv_nsec);
+          (*md)()->set_uid((*pcap2)()->uid());
+          (*md)()->set_gid((*pcap2)()->gid());
+          /* xattr inheritance */
+          auto attrMap = (*md)()->mutable_attr();
+          auto pattrMap = (*pmd)()->attr();
 
-	  for (auto const it : pattrMap) {
-	    eos_static_debug("adding xattr[%s]=%s", it.first.c_str(), it.second.c_str());
-	    (*attrMap)[it.first] = it.second;
-	  }
+          for (auto const it : pattrMap) {
+            eos_static_debug("adding xattr[%s]=%s", it.first.c_str(), it.second.c_str());
+            (*attrMap)[it.first] = it.second;
+          }
 
-	  (*md)()->set_nlink(2);
-	  (*md)()->set_creator(true);
-	  (*md)()->set_type((*md)()->EXCL);
-	  std::string imply_authid = eos::common::StringConversion::random_uuidstring();
-	  eos_static_info("generating implied authid %s => %s", (*pcap2)()->authid().c_str(),
-			  imply_authid.c_str());
-	  implied_cid = Instance().caps.imply(pcap2, imply_authid, mode,
-					      (fuse_ino_t) (*md)()->id());
-	  md->cap_inc();
-	  (*md)()->set_implied_authid(imply_authid);
-	  rc = Instance().mds.add_sync(req, pmd, md, (*pcap2)()->authid());
-	  (*md)()->set_type((*md)()->MD);
+          (*md)()->set_nlink(2);
+          (*md)()->set_creator(true);
+          (*md)()->set_type((*md)()->EXCL);
+          std::string imply_authid = eos::common::StringConversion::random_uuidstring();
+          eos_static_info("generating implied authid %s => %s",
+                          (*pcap2)()->authid().c_str(),
+                          imply_authid.c_str());
+          implied_cid = Instance().caps.imply(pcap2, imply_authid, mode,
+                                              (fuse_ino_t)(*md)()->id());
+          md->cap_inc();
+          (*md)()->set_implied_authid(imply_authid);
+          rc = Instance().mds.add_sync(req, pmd, md, (*pcap2)()->authid());
+          (*md)()->set_type((*md)()->MD);
 
-	  if (!rc) {
-	    Instance().mds.insert(req, md, (*pcap2)()->authid());
-	    memset(&e, 0, sizeof(e));
-	    md->convert(e, pcap2->lifetime());
-	    md->lookup_inc();
-	    eos_static_info("%s", md->dump(e).c_str());
-	    pmd->local_enoent().erase(name);
+          if (!rc) {
+            Instance().mds.insert(req, md, (*pcap2)()->authid());
+            memset(&e, 0, sizeof(e));
+            md->convert(e, pcap2->lifetime());
+            md->lookup_inc();
+            eos_static_info("%s", md->dump(e).c_str());
+            pmd->local_enoent().erase(name);
             {
               XrdSysMutexHelper pLock(pmd->Locker());
               pmd->local_enoent().erase(name);
             }
-	  }
-	}
+          }
+        }
       }
     }
   }
@@ -3675,17 +3690,18 @@ EROFS  pathname refers to a directory on a read-only filesystem.
       }
 
       if ((!rc && (*md)()->nchildren())) {
-	// if we still see children, we wait that we have sent all our MD updates upstream and refetch it
-	md->Locker().UnLock();
-	Instance().mds.wait_upstream(req, (*md)()->id());
-	md->force_refresh();
-	// if we still see children, we wait that we have sent all our MD updates upstream and refetch it
-	md = Instance().mds.lookup(req, parent, name);
-	md->Locker().Lock();
-	if ((*md)()->nchildren()) {
-	  eos_static_warning("not empty children after refresh");
-	  rc = ENOTEMPTY;
-	}
+        // if we still see children, we wait that we have sent all our MD updates upstream and refetch it
+        md->Locker().UnLock();
+        Instance().mds.wait_upstream(req, (*md)()->id());
+        md->force_refresh();
+        // if we still see children, we wait that we have sent all our MD updates upstream and refetch it
+        md = Instance().mds.lookup(req, parent, name);
+        md->Locker().Lock();
+
+        if ((*md)()->nchildren()) {
+          eos_static_warning("not empty children after refresh");
+          rc = ENOTEMPTY;
+        }
       }
 
       if (!rc) {
@@ -3885,7 +3901,8 @@ EosFuse::access(fuse_req_t req, fuse_ino_t ino, int mask)
       rc = EIO;
     } else {
       // We need a fresh cap for pmd
-      cap::shared_cap pcap = Instance().caps.acquire(req, (*pmd)()->id(), S_IFDIR | pmode);
+      cap::shared_cap pcap = Instance().caps.acquire(req, (*pmd)()->id(),
+                             S_IFDIR | pmode);
       XrdSysMutexHelper mLock(pcap->Locker());
 
       if ((*pcap)()->errc()) {
@@ -3972,11 +3989,12 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
       if ((*md)()->attr().count("user.acl")) { /* file with own ACL */
         cap_ino = (*md)()->id();
       } else {
-	// screen for sqash image access, they only retrieve X_OK on the parent directories
-	eos::common::Path cPath((*md)()->name());
-	if ( ( mode == R_OK ) && (cPath.isSquashFile()) ) {
-	  mode = X_OK;
-	}
+        // screen for sqash image access, they only retrieve X_OK on the parent directories
+        eos::common::Path cPath((*md)()->name());
+
+        if ((mode == R_OK) && (cPath.isSquashFile())) {
+          mode = X_OK;
+        }
       }
 
       cap::shared_cap pcap = Instance().caps.acquire(req, cap_ino, mode);
@@ -4019,7 +4037,8 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
           memset(&e, 0, sizeof(e));
           md->convert(e, pcap->lifetime());
           mLock.UnLock();
-          data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req, (*md)()->id(),
+          data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req,
+                              (*md)()->id(),
                               md), md, (mode == U_OK));
           capLock.Lock(&pcap->Locker());
           io->set_authid((*pcap)()->authid());
@@ -4210,8 +4229,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
       if (!rc) {
         metad::shared_md md;
         metad::shared_md pmd;
-	bool obfuscate = false;
-
+        bool obfuscate = false;
         md = Instance().mds.lookup(req, parent, name);
         pmd = Instance().mds.get(req, parent, (*pcap)()->authid());
         {
@@ -4226,14 +4244,13 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
               del_ino = it->second;
             }
 
-	    obfuscate = pmd->obfuscate();
+            obfuscate = pmd->obfuscate();
           }
 
           if (del_ino) {
             Instance().mds.wait_upstream(req, del_ino);
           }
         }
-
         XrdSysMutexHelper mLock(md->Locker());
 
         if ((*md)()->id() && !md->deleted()) {
@@ -4285,19 +4302,17 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
 
           (*md)()->set_type((*md)()->EXCL);
 
-	  if (obfuscate) {
-	    // create a random uuid
-	    char suuid[40];
-	    uuid_t uuid;
-	    uuid_generate_random(uuid);
-	    uuid_unparse(uuid, suuid);
-
-	    (*md)()->set_obfuscate_key(std::string(suuid));
-	    eos_static_err("obfuscating with key='%s'\n", suuid);
-	  }
+          if (obfuscate) {
+            // create a random uuid
+            char suuid[40];
+            uuid_t uuid;
+            uuid_generate_random(uuid);
+            uuid_unparse(uuid, suuid);
+            md->set_obfuscate_key(std::string(suuid));
+            eos_static_err("obfuscating with key='%s'\n", suuid);
+          }
 
           rc = Instance().mds.add_sync(req, pmd, md, (*pcap)()->authid());
-
           (*md)()->set_type((*md)()->MD);
 
           if (!rc) {
@@ -4344,7 +4359,8 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
               uint64_t md_pino = (*md)()->md_pino();
               std::string cookie = md->Cookie();
               mLock.UnLock();
-              data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req, (*md)()->id(),
+              data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req,
+                                  (*md)()->id(),
                                   md), md, true);
               io->set_authid((*pcap)()->authid());
               io->set_maxfilesize((*pcap)()->max_file_size());
@@ -4423,11 +4439,13 @@ EosFuse::read(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
       rc = errno ? errno : EIO;
     } else {
       eos_static_debug("reply res=%lu", res);
+
       if (io->md->obfuscate_key().length()) {
-	// un-obfuscate
-	eos_static_debug("secret=%s", fusexrdlogin::secret(req).c_str());
-	io->md->unobfuscate_buffer(buf, res, off, fusexrdlogin::secret(req));
+        // un-obfuscate
+        eos_static_debug("secret=%s", fusexrdlogin::secret(req).c_str());
+        io->md->unobfuscate_buffer(buf, res, off, fusexrdlogin::secret(req));
       }
+
       fuse_reply_buf(req, buf, res);
     }
 
@@ -4466,12 +4484,12 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char* buf, size_t size,
   EXEC_TIMING_BEGIN(__func__);
   data::data_fh* io = (data::data_fh*) fi->fh;
   int rc = 0;
-
   char* obuf = 0;
 
   if (io->md->obfuscate_key().length()) {
     // duplicate buffer
     obuf = (char*) malloc(size);
+
     if (!obuf) {
       // EOM
       io = nullptr;
@@ -4561,7 +4579,7 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char* buf, size_t size,
   }
 
   if (obuf) {
-    free (obuf);
+    free(obuf);
   }
 
   eos_static_debug("t(ms)=%.03f %s", timing.RealTime(),
@@ -4727,22 +4745,22 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
       cap::shared_cap pcap;
       {
         XrdSysMutexHelper mLock(io->md->Locker());
-	auto map = (*(io->md))()->attr();
+        auto map = (*(io->md))()->attr();
 
-	if (map.count("user.acl") > 0) { /* file has it's own ACL */
-	  mLock.UnLock();
-	  cap::shared_cap ccap = Instance().caps.acquire(req, (*(io->md))()->id(), W_OK, true);
-	  rc = (*ccap)()->errc();
+        if (map.count("user.acl") > 0) { /* file has it's own ACL */
+          mLock.UnLock();
+          cap::shared_cap ccap = Instance().caps.acquire(req, (*(io->md))()->id(), W_OK,
+                                 true);
+          rc = (*ccap)()->errc();
 
-	  if (rc == 0) {
-	    pcap = Instance().caps.acquire(req, (*(io->md))()->pid(), S_IFDIR | X_OK, true);
-	  }
-	} else {
-	  mLock.UnLock();
-	  pcap = Instance().caps.acquire(req, (*(io->md))()->pid(), S_IFDIR | W_OK, true);
-	}
+          if (rc == 0) {
+            pcap = Instance().caps.acquire(req, (*(io->md))()->pid(), S_IFDIR | X_OK, true);
+          }
+        } else {
+          mLock.UnLock();
+          pcap = Instance().caps.acquire(req, (*(io->md))()->pid(), S_IFDIR | W_OK, true);
+        }
       }
-
       XrdSysMutexHelper capLock(pcap->Locker());
 
       if (rc == 0 && (*pcap)()->errc() != 0) {
@@ -4751,7 +4769,7 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
 
       if (rc == 0) {
         {
-          ssize_t size_change = (int64_t) (*(io->md))()->size() - (int64_t) io->opensize();
+          ssize_t size_change = (int64_t)(*(io->md))()->size() - (int64_t) io->opensize();
 
           if (size_change > 0) {
             Instance().caps.book_volume(pcap, size_change);
@@ -4773,7 +4791,7 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
         }
 
         XrdSysMutexHelper mLock(io->md->Locker());
-	auto map = (*(io->md))()->attr();
+        auto map = (*(io->md))()->attr();
 
         // actually do the flush
         if ((rc = io->ioctx()->flush(req))) {
@@ -5021,12 +5039,13 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
             if (key == "eos.md_ino") {
               std::string md_ino;
               value = eos::common::StringConversion::GetSizeString(md_ino,
-                      (unsigned long long) (*md)()->md_ino());
+                      (unsigned long long)(*md)()->md_ino());
             }
 
             if (key == "eos.btime") {
               char btime[256];
-              snprintf(btime, sizeof(btime), "%lu.%lu", (*md)()->btime(), (*md)()->btime_ns());
+              snprintf(btime, sizeof(btime), "%lu.%lu", (*md)()->btime(),
+                       (*md)()->btime_ns());
               value = btime;
             }
 
@@ -5034,9 +5053,11 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
               char ttime[256];
 
               if (S_ISDIR((*md)()->mode())) {
-                snprintf(ttime, sizeof(ttime), "%lu.%lu", (*md)()->ttime(), (*md)()->ttime_ns());
+                snprintf(ttime, sizeof(ttime), "%lu.%lu", (*md)()->ttime(),
+                         (*md)()->ttime_ns());
               } else {
-                snprintf(ttime, sizeof(ttime), "%lu.%lu", (*md)()->mtime(), (*md)()->mtime_ns());
+                snprintf(ttime, sizeof(ttime), "%lu.%lu", (*md)()->mtime(),
+                         (*md)()->mtime_ns());
               }
 
               value = ttime;
@@ -5557,15 +5578,15 @@ EosFuse::listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
       }
 
       if (!Instance().Config().options.no_eos_xattr_listing) {
-	// for files add 'eos.checksum'
-	if (S_ISREG((*md)()->mode())) {
-	  attrlist += "eos.checksum";
-	  attrlist += '\0';
-	  attrlistsize += strlen("eos.checksum") + 1;
+        // for files add 'eos.checksum'
+        if (S_ISREG((*md)()->mode())) {
+          attrlist += "eos.checksum";
+          attrlist += '\0';
+          attrlistsize += strlen("eos.checksum") + 1;
           attrlist += "eos.md_ino";
           attrlist += '\0';
           attrlistsize += strlen("eos.md_ino") + 1;
-	}
+        }
       }
 
       if (size != 0) {
@@ -5993,7 +6014,8 @@ EosFuse::link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
         XrdSysMutexHelper tmLock(tmd->Locker());
 
         if (EOS_LOGS_DEBUG) {
-          eos_static_debug("hlnk tmd id=%ld %s", (*tmd)()->id(), (*tmd)()->name().c_str());
+          eos_static_debug("hlnk tmd id=%ld %s", (*tmd)()->id(),
+                           (*tmd)()->name().c_str());
         }
 
         (*md)()->set_mode((*tmd)()->mode());
@@ -6046,13 +6068,15 @@ EosFuse::link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
           tmd->convert(e, pcap->lifetime());
 
           if (EOS_LOGS_DEBUG) {
-            eos_static_debug("hlnk tmd %s %s", (*tmd)()->name().c_str(), tmd->dump(e).c_str());
+            eos_static_debug("hlnk tmd %s %s", (*tmd)()->name().c_str(),
+                             tmd->dump(e).c_str());
           }
 
           {
             XrdSysMutexHelper pLock(pmd->Locker());
             pmd->local_enoent().erase(newname);
           }
+
           // reply with the target entry
           fuse_reply_entry(req, &e);
         }
@@ -6098,11 +6122,11 @@ EosFuse::getlk(fuse_req_t req, fuse_ino_t ino,
   }
 
   eos_static_info("%u %u %u %lu %lu rc=%d", lock->l_type,
-		  lock->l_whence,
-		  lock->l_pid,
-		  lock->l_start,
-		  lock->l_len,
-		  rc);
+                  lock->l_whence,
+                  lock->l_pid,
+                  lock->l_start,
+                  lock->l_len,
+                  rc);
 
   if (rc) {
     fuse_reply_err(req, rc);
@@ -6196,85 +6220,85 @@ EosFuse::flock(fuse_req_t req, fuse_ino_t ino,
     if (op) {
       // use global locking
       data::data_fh* io = (data::data_fh*) fi->fh;
-      
+
       if (io) {
-	metad::shared_md md = io->mdctx();
-	size_t w_ms = 10;
-	int sleep = 1;
-	struct flock lock;
-	lock.l_len = 0;
-	lock.l_start = 0;
-	
-	if (op & LOCK_NB) {
-	  sleep = 0;
-	}
-	
-	if (op & LOCK_SH) {
-	  lock.l_type = F_RDLCK;
-	} else if (op & LOCK_EX) {
-	  lock.l_type = F_WRLCK;
-	} else if (op & LOCK_UN) {
-	  lock.l_type = F_UNLCK;
-      } else if (op & LOCK_MAND) {
-	  // mandatory locking used by samba
-	  if ( op & LOCK_READ) {
-	    // 1st approximation
-	    lock.l_type = F_RDLCK;
-	  } else if (op & LOCK_WRITE) {
-	    // 1st approximation
-	    lock.l_type = F_RDLCK;
-	  } else if (op & LOCK_RW) {
-	    // 1st approximation
-	    lock.l_type = F_RDLCK;
-	  } else {
-	    // 1st approximation
-	    lock.l_type = F_WRLCK;
-	  }
-	} else {
-	  eos_static_notice("unsupported lock operation op:=%x", op);
-	  rc = EINVAL;
-	}
-	
-	lock.l_pid = fuse_req_ctx(req)->pid;
-	
-	if (!rc) {
-	  do {
-	    // we currently implement the polling lock on client side due to the
-	    // thread-per-link model of XRootD
-	    rc = Instance().mds.setlk(req, md, &lock, sleep);
-	    
-	    if (rc && sleep) {
-	      std::this_thread::sleep_for(std::chrono::milliseconds(w_ms));
-	      // do exponential back-off with a hard limit at 1s
-	      w_ms *= 2;
-	      
-	      if (w_ms > 1000) {
-		w_ms = 1000;
-	      }
-	      
-	      continue;
-	    }
-	    
-	    break;
-	  } while (rc);
-	}
-	
-	if (!rc) {
-	  io->flocked = true;
-	}
+        metad::shared_md md = io->mdctx();
+        size_t w_ms = 10;
+        int sleep = 1;
+        struct flock lock;
+        lock.l_len = 0;
+        lock.l_start = 0;
+
+        if (op & LOCK_NB) {
+          sleep = 0;
+        }
+
+        if (op & LOCK_SH) {
+          lock.l_type = F_RDLCK;
+        } else if (op & LOCK_EX) {
+          lock.l_type = F_WRLCK;
+        } else if (op & LOCK_UN) {
+          lock.l_type = F_UNLCK;
+        } else if (op & LOCK_MAND) {
+          // mandatory locking used by samba
+          if (op & LOCK_READ) {
+            // 1st approximation
+            lock.l_type = F_RDLCK;
+          } else if (op & LOCK_WRITE) {
+            // 1st approximation
+            lock.l_type = F_RDLCK;
+          } else if (op & LOCK_RW) {
+            // 1st approximation
+            lock.l_type = F_RDLCK;
+          } else {
+            // 1st approximation
+            lock.l_type = F_WRLCK;
+          }
+        } else {
+          eos_static_notice("unsupported lock operation op:=%x", op);
+          rc = EINVAL;
+        }
+
+        lock.l_pid = fuse_req_ctx(req)->pid;
+
+        if (!rc) {
+          do {
+            // we currently implement the polling lock on client side due to the
+            // thread-per-link model of XRootD
+            rc = Instance().mds.setlk(req, md, &lock, sleep);
+
+            if (rc && sleep) {
+              std::this_thread::sleep_for(std::chrono::milliseconds(w_ms));
+              // do exponential back-off with a hard limit at 1s
+              w_ms *= 2;
+
+              if (w_ms > 1000) {
+                w_ms = 1000;
+              }
+
+              continue;
+            }
+
+            break;
+          } while (rc);
+        }
+
+        if (!rc) {
+          io->flocked = true;
+        }
       } else {
-	rc = ENXIO;
+        rc = ENXIO;
       }
     } else {
       // consider a no-op
       rc = 0;
     }
   }
-  
+
   fuse_reply_err(req, rc);
   EXEC_TIMING_END(__func__);
   COMMONTIMING("_stop_", &timing);
-  eos_static_notice("t(ms)=%.03f op=%x %s", timing.RealTime(),op,
+  eos_static_notice("t(ms)=%.03f op=%x %s", timing.RealTime(), op,
                     dump(id, ino, 0, rc).c_str());
 }
 #endif
