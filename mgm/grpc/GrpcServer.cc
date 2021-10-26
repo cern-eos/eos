@@ -216,16 +216,23 @@ std::string GrpcServer::IP(grpc::ServerContext* context, std::string* id,
   auto peer_info = context->peer();
   
   std::size_t first = peer_info.find_first_of(':');
-  if (net ){
+  if(first == std::string::npos){
+    first = -1;
+  }
+  if (net && first != (long unsigned int) -1){
     *net = peer_info.substr(0,first); // prefix ipv[46]
   }  
 
   std::size_t last = peer_info.length()-1; 
   // ipv6
   if (peer_info[first+1] == '[') {
-    last = peer_info.find_first_of(']') + 1;
+    last = peer_info.find_first_of(']');
+    last += (last != std::string::npos);
   }else{ //iv4
-    last = peer_info.find_first_of(':',first+1);  
+    last = peer_info.find_first_of(':',first+1);
+  }
+  if(last == std::string::npos){
+    last = peer_info.length()+1;
   }
   if(id){
     *id = peer_info.substr(last+1); // suffix with port and possible following args
