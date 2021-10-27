@@ -12,26 +12,26 @@
 # PROTOBUF_ROOT may be defined as a hint for where to look
 
 find_program(PROTOBUF3_PROTOC_EXECUTABLE
-  NAMES protoc
+  NAMES protoc3
   HINTS ${PROTOBUF_ROOT}
-  PATHS /opt/eos
+  PATHS /opt/eos/ /usr/local /usr /
   PATH_SUFFIXES bin
-  DOC "Version 3 of The Google Protocol Buffers Compiler"
+  DOC "Version 3 of The Google Protocol Buffers Compiler (protoc3)"
   NO_DEFAULT_PATH)
 
 if (PROTOBUF3_PROTOC_EXECUTABLE)
-  message(STATUS "Found protoc: ${PROTOBUF3_PROTOC_EXECUTABLE}")
+  message(STATUS "Found protoc3: ${PROTOBUF3_PROTOC_EXECUTABLE}")
 else()
-  message(STATUS "Trying to search for protoc3 instead for protoc")
+  message(STATUS "Trying to search for protoc instead for protoc3")
   unset(PROTOBUF3_PROTOC_EXECUTABLE)
   find_program(PROTOBUF3_PROTOC_EXECUTABLE
-    NAMES protoc3
+    NAMES protoc
     HINTS ${PROTOBUF_ROOT}
     PATHS /opt/eos/ /usr/local /usr /
     PATH_SUFFIXES bin
-    DOC "Version 3 of The Google Protocol Buffers Compiler"
+    DOC "Version 3 of The Google Protocol Buffers Compiler (protoc)"
     NO_DEFAULT_PATH)
-  message(STATUS "Found protoc3: ${PROTOBUF3_PROTOC_EXECUTABLE}")
+  message(STATUS "Found protoc: ${PROTOBUF3_PROTOC_EXECUTABLE}")
 endif()
 
 find_path(PROTOBUF3_INCLUDE_DIR
