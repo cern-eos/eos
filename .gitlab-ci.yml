@@ -224,9 +224,6 @@ build_ubuntu_focal:
   <<: *build_ubuntu-template_definition
   variables:
     EOS_DIST: focal
-  only:
-    - schedules
-    - tags
 
 .build_fedora-template: &build_fedora-template_definition
   stage: build:rpm
