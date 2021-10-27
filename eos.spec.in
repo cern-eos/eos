@@ -149,7 +149,7 @@ BuildRequires: xrootd-private-devel >= %{xrootd_version_min}
 BuildRequires: eos-protobuf3 >= 3.3, eos-protobuf3-devel >= 3.3, eos-protobuf3-compiler >= 3.3
 # Don't put an explicit dependency on xrootd because eos-xrootd hides the
 # shared libraries from provide
-%global __requires_exclude ^(libprotobuf|libXrd)*
+%global __requires_exclude ^libprotobuf*|^libXrd*
 %else
 BuildRequires: protobuf >= 3.3, protobuf-devel >= 3.3, protobuf-compiler >= 3.3
 %endif
