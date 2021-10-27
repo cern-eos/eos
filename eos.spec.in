@@ -341,7 +341,7 @@ rm -rf $RPM_BUILD_ROOT
 %package -n eos-server
 Summary: The EOS server installation
 Group: Applications/File
-ExclusiveArch: x86_64
+ExclusiveArch: x86_64 aarch64
 
 # Select xrootd package
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
@@ -529,7 +529,7 @@ fi
 %package -n eos-ns-inspect
 Summary: EOS namespace inspection tool for instance administrators
 Group: Applications/File
-ExclusiveArch: x86_64
+ExclusiveArch: x86_64 aarch64
 
 # Select xrootd package
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
@@ -570,7 +570,7 @@ EOS namespace inspection tool for instance administrators
 %package -n eos-client
 Summary: The EOS shell client
 Group: Applications/File
-ExclusiveArch: x86_64
+ExclusiveArch: x86_64 aarch64
 Requires: zeromq
 Requires: squashfs-tools
 
@@ -631,7 +631,7 @@ The EOS shell client.
 %package -n eos-fuse
 Summary: The new EOS fuse client
 Group: Applications/File
-ExclusiveArch: x86_64
+ExclusiveArch: x86_64 aarch64
 Requires: eos-fuse-core = @CPACK_PACKAGE_VERSION@
 Requires: eos-fuse-sysv = @CPACK_PACKAGE_VERSION@
 %if %{use_systemd}
@@ -655,7 +655,7 @@ The new EOS fuse client bundle.
 %package -n eos-fuse-core
 Summary: The EOS fuse client
 Group: Applications/File
-ExclusiveArch: x86_64
+ExclusiveArch: x86_64 aarch64
 
 # Select xrootd package
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
@@ -730,7 +730,7 @@ fi
 %package -n eos-fuse-sysv
 Summary: The EOS fuse client
 Group: Applications/File
-ExclusiveArch: x86_64
+ExclusiveArch: x86_64 aarch64
 Requires: eos-fuse-core = @CPACK_PACKAGE_VERSION@
 
 %description -n eos-fuse-sysv
@@ -798,7 +798,7 @@ The EOS fuse SYSV init scripts.
 %package -n eos-fusex
 Summary: The new EOS fuse client
 Group: Applications/File
-ExclusiveArch: x86_64
+ExclusiveArch: x86_64 aarch64
 Requires: eos-fusex-core = @CPACK_PACKAGE_VERSION@
 Requires: eos-fusex-selinux = @CPACK_PACKAGE_VERSION@
 
@@ -814,7 +814,7 @@ The new EOS fuse client bundle.
 %package -n eos-fusex-core
 Summary: The new EOS fuse client
 Group: Applications/File
-ExclusiveArch: x86_64
+ExclusiveArch: x86_64 aarch64
 
 # Select xrootd package
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
@@ -856,7 +856,7 @@ The new EOS fuse core containing eosxd.
 %package -n eos-fusex-selinux
 Summary: The new EOS fuse client selinux configuration
 Group: Applications/File
-ExclusiveArch: x86_64
+ExclusiveArch: x86_64 aarch64
 
 %description -n eos-fusex-selinux
 The new EOS fuse core containing selinux definitions.
@@ -936,7 +936,7 @@ EOS Quarkdb package
 %package -n eos-srm
 Summary: The EOS srm script package for checksumming and space
 Group: Applications/File
-ExclusiveArch: x86_64
+ExclusiveArch: x86_64 aarch64
 Requires: eos-client
 
 %description -n eos-srm
@@ -954,7 +954,7 @@ The EOS srm package.
 %package -n eos-testkeytab
 Summary: The EOS testkeytab package
 Group: Applications/File
-ExclusiveArch: x86_64
+ExclusiveArch: x86_64 aarch64
 Requires: shadow-utils
 
 %description -n eos-testkeytab
@@ -975,7 +975,7 @@ getent passwd eosnobody || useradd eosnobody
 %package -n eos-archive
 Summary: The EOS archive daemon
 Group: Applications/File
-ExclusiveArch: x86_64
+ExclusiveArch: x86_64 aarch64
 
 %if 0%{?rhel} == 7
 Requires: python-daemon python-zmq python3-fusepy
@@ -1080,7 +1080,7 @@ esac
 %package -n eos-test
 Summary: The EOS test package
 Group: Applications/File
-ExclusiveArch: x86_64
+ExclusiveArch: x86_64 aarch64
 Requires: cadaver bc davix jq dmidecode
 
 %description -n eos-test
@@ -1159,7 +1159,7 @@ Contains an instance and fuse test script and some test executables and test arc
 %package -n eos-coverage
 Summary: The EOS coverage package
 Group: Applications/File
-ExclusiveArch: x86_64
+ExclusiveArch: x86_64 aarch64
 
 %description -n eos-coverage
 Contains all the ".gcno" files needed to produce coverage data for EOS server.
@@ -1176,7 +1176,7 @@ Contains all the ".gcno" files needed to produce coverage data for EOS server.
 %package -n eos-cleanup
 Summary: The EOS test package
 Group: Applications/File
-ExclusiveArch: x86_64
+ExclusiveArch: x86_64 aarch64
 
 %description -n eos-cleanup
 Contains an clean-up scripts to remove 'left-overs' of an EOS instance for FST/MGM/FUSE etc.
@@ -1198,7 +1198,7 @@ Release: 1
 BuildArch: noarch
 Summary: The EOS YUM repo configuration for EL7
 Group: Applications/File
-ExclusiveArch: x86_64
+ExclusiveArch: x86_64 aarch64
 
 %description -n eos-repo-el7
 Contains a yum configuration file for the production EOS EL7 repo
@@ -1215,7 +1215,7 @@ Release: 1
 BuildArch: noarch
 Summary: The EOS development YUM repo configuration for EL7
 Group: Applications/File
-ExclusiveArch: x86_64
+ExclusiveArch: x86_64 aarch64
 
 %description -n eos-repo-el7-dev
 Contains a yum configuration file for the development EOS EL7 repo
