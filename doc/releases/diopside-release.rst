@@ -15,6 +15,27 @@ Introduction
 ------------
 This release is based on XRootD V5.
 
+``v5.0.3 Diopside``
+===================
+
+2021-10-27
+
+
+Bug
+----
+
+* SPEC: Make sure both libproto* and libXrd* requirements are excluded when
+  building the eos packages since these come from internally build rpms like
+  eos-xrootd and eos-protobuf3 which don't expose the library so names so that
+  they can be installed on a machine along with the official rpms for the
+  corresponding packages if they exist.
+* MGM: Avoid that a slave MGM applies an fsck configuration change in a loop
+
+Improvements
+------------
+
+* EOS-4967: Add ARM64 support for blake3
+
 
 ``v5.0.3 Diopside``
 ===================
