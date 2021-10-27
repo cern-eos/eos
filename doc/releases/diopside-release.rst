@@ -16,6 +16,33 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.0.3 Diopside``
+===================
+
+2021-10-27
+
+
+Note
+----
+
+* This version is based on XRootD 5.3.2 that addresses some critical bug observed
+  in the previous version for XRootD.
+
+Bug
+----
+
+* MGM: Fix GRPC IPv6 parsing
+* [EOS-4963] - FST: Reply with 206(PARTIAL_CONTENT) for partial content responses
+* [EOS-4962] - MGM: Return FORBIDDEN if there is a public access restriction in PROFIND requests
+* [EOS-4950] - FUSEX: fix race conditions in async callbacks with respect to proxy object deletions
+*
+
+New features
+------------
+
+* [EOS-4670] - FUSEX: implement file obfuscation and encryption
+
+
 ``v5.0.2 Diopside``
 ===================
 
