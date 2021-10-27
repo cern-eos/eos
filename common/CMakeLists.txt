@@ -41,15 +41,40 @@ set_target_properties(EosCrc32c-Objects PROPERTIES
 #-------------------------------------------------------------------------------
 # EosBlake3-Objects library
 #-------------------------------------------------------------------------------
-set_property(SOURCE blake3/blake3_sse2_x86-64_unix.S blake3/blake3_sse41_x86-64_unix.S blake3/blake3_avx2_x86-64_unix.S blake3/blake3_avx512_x86-64_unix.S PROPERTY LANGUAGE C)
+set(BLAKE3_PORTABLE_SRCS
+  blake3/blake3.c
+  blake3/blake3_dispatch.c
+  blake3/blake3_portable.c)
+
+
+if (ARM64_BUILD)
+  # NOTE: we assume that all arm architectures we're building for supports NEON
+  # intrinsics, which is true for almost all armv8/arm64 processors, otherwise
+  # add some logic to skip the neon bits here. Check the README on possible
+  # additional flags for armv7
+  set(BLAKE3_NATIVE_SRCS
+    blake3/blake3_neon.c)
+else()
+  set(BLAKE3_NATIVE_SRCS
+    blake3/blake3_sse2_x86-64_unix.S
+    blake3/blake3_sse41_x86-64_unix.S
+    blake3/blake3_avx2_x86-64_unix.S
+    blake3/blake3_avx512_x86-64_unix.S)
+  set_property(SOURCE ${BLAKE3_NATIVE_SRCS}
+    PROPERTY LANGUAGE C)
+endif()
 
 add_library(EosBlake3-Objects OBJECT
-    blake3/blake3.c blake3/blake3_dispatch.c blake3/blake3_portable.c
-    blake3/blake3_sse2_x86-64_unix.S blake3/blake3_sse41_x86-64_unix.S blake3/blake3_avx2_x86-64_unix.S
-    blake3/blake3_avx512_x86-64_unix.S)
+  ${BLAKE3_PORTABLE_SRCS}
+  ${BLAKE3_NATIVE_SRCS}
+  )
 
 set_target_properties(EosBlake3-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
+
+if (ARM64_BUILD)
+  target_compile_definitions(EosBlake3-Objects PUBLIC BLAKE3_USE_NEON)
+endif()
 
 #-------------------------------------------------------------------------------
 # EosCommon-Objects
