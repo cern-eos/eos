@@ -1663,7 +1663,8 @@ WFE::Job::HandleProtoMethodPrepareEvent(const std::string& fullPath,
   EXEC_TIMING_BEGIN("Proto::Prepare");
   gOFS->MgmStats.Add("Proto::Prepare", 0, 0, 1);
   const std::string prepareRequestId = GetPrepareRequestIdFromOpaqueData(ininfo);
-  const int prepareRc = IdempotentPrepare(fullPath, prepareRequestId, errorMsg);
+  const std::string prepareActivity = GetPrepareActivityFromOpaqueData(ininfo);
+  const int prepareRc = IdempotentPrepare(fullPath, prepareRequestId, prepareActivity, errorMsg);
   EXEC_TIMING_END("Proto::Prepare");
   return prepareRc;
 }
@@ -1686,9 +1687,25 @@ WFE::Job::GetPrepareRequestIdFromOpaqueData(const char* const ininfo)
 }
 
 
+std::string
+WFE::Job::GetPrepareActivityFromOpaqueData(const char* const ininfo)
+{
+  // Get the activity from the opaque data and add it to the list
+  XrdOucEnv opaque(ininfo);
+  const char* const prepareActivity = opaque.Get("activity");
+
+  if (prepareActivity == nullptr) {
+    return "";
+  }
+
+  return prepareActivity;
+}
+
+
 int
 WFE::Job::IdempotentPrepare(const std::string& fullPath,
-                            const std::string& prepareRequestId, std::string& errorMsg)
+                            const std::string& prepareRequestId,
+                            const std::string& prepareActivity, std::string& errorMsg)
 {
   using namespace std::chrono;
   struct stat buf;
@@ -1773,6 +1790,11 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath,
   for (const auto& attribute : CollectAttributes(fullPath)) {
     google::protobuf::MapPair<std::string, std::string> attr(attribute.first,
         attribute.second);
+    notification->mutable_file()->mutable_xattr()->insert(attr);
+  }
+
+  if (prepareActivity.length()) {
+    google::protobuf::MapPair<std::string, std::string> attr("activity", prepareActivity);
     notification->mutable_file()->mutable_xattr()->insert(attr);
   }
 
@@ -2406,7 +2428,8 @@ WFE::Job::HandleProtoMethodOfflineEvent(const std::string& fullPath,
   EXEC_TIMING_BEGIN("Proto::Offline");
   gOFS->MgmStats.Add("Proto::Offline", 0, 0, 1);
   const std::string prepareRequestId = "eos:implicit-prepare";
-  const int prepareRc = IdempotentPrepare(fullPath, prepareRequestId, errorMsg);
+  const std::string prepareActivity = "";
+  const int prepareRc = IdempotentPrepare(fullPath, prepareRequestId, prepareActivity, errorMsg);
   EXEC_TIMING_END("Proto::Offline");
   return prepareRc;
 }

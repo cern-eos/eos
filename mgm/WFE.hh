@@ -366,11 +366,17 @@ public:
     //! opaque information or if it has no value
     std::string GetPrepareRequestIdFromOpaqueData(const char* const ininfo);
 
+    //! @brief get prepare request activity from specified opaque information
+    //! @param ininfo opaque information
+    //! @return prepare request activity, or empty string if no activity is found
+    std::string GetPrepareActivityFromOpaqueData(const char* const ininfo);
+
     //! @brief Queues a prepare request if necessary
     //! @param fullPath the full path of the file
     //! @param prepareRequestId prepare request identifier
+    //! @param prepareActivity prepare request activity, can be empty string
     //! @param errorMsg out parameter giving the text of any error response
-    int IdempotentPrepare(const std::string& fullPath, const std::string &prepareRequestId, std::string& errorMsg);
+    int IdempotentPrepare(const std::string& fullPath, const std::string &prepareRequestId, const std::string& prepareActivity, std::string& errorMsg);
 
   };
 
