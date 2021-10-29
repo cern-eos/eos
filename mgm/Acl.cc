@@ -686,6 +686,7 @@ Acl::IsValid(const std::string& value, XrdOucErrInfo& error, Acl::AclType type,
     } else {
       regexString = sRegexUsrGenericAcl;
     }
+    break;
   case eShareAcl:
     regexString = sRegexShareAcl;
     break;
