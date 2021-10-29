@@ -700,6 +700,7 @@ XrdFstOss::DropXs(const std::string& fileName, bool force)
     eos_debug("Xs obj no ref: %i.", pair_value.second->GetTotalRef());
 
     if ((pair_value.second->GetTotalRef() == 0) || force) {
+      pair_value.second->CloseMap();
       pair_value.first->UnLock(); // <-- unlock xs obj
       delete pair_value.first;
       delete pair_value.second;
