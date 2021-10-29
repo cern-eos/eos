@@ -28,6 +28,9 @@ if [ $failed -eq 1 ] ; then failedno="$failedno,3"; fi
 echo "#----------------------------------------------------------------------"
 echo "#- modify share001"
 echo "#----------------------------------------------------------------------"
+# put some nice denial here ;-)
+eos attr set sys.acl="u:99:!r!w!x!d" $testpath/share-001/
+eos attr ls $testpath/share-001
 eos share modify share001 u:99:rwx $testpath/share-001/ || failed=1
 if [ $failed -eq 1 ] ; then failedno="$failedno,4"; fi
 eos -r 99 99 mkdir -p $testpath/share-001/nobody-dir || failed=1
