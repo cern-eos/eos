@@ -1,0 +1,97 @@
+#!/bin/bash
+
+testpath=${1:-/eos/dev/test/instancetest/sharing/}
+# setup
+failed=0
+
+echo "----------------------------------------------------------------------"
+echo "# Share Tests : $testpath"
+echo "----------------------------------------------------------------------"
+failedno="0"
+eos mkdir -p $testpath
+response=$?
+test $response -ne 0 && failed=1
+
+eos chmod 700 $testpath
+
+eos mkdir -p $testpath/share-001
+
+echo "#----------------------------------------------------------------------"
+echo "#- create share001"
+echo "#----------------------------------------------------------------------"
+eos share create share001 u:99:rx $testpath/share-001/ || failed=1
+if [ $failed -eq 1 ] ; then failedno="$failedno,1"; fi
+eos -r 99 99 mkdir -p $testpath/share-001/nobody-dir && failed=1
+if [ $failed -eq 1 ] ; then failedno="$failedno,2"; fi
+eos share ls || failed=1
+if [ $failed -eq 1 ] ; then failedno="$failedno,3"; fi
+echo "#----------------------------------------------------------------------"
+echo "#- modify share001"
+echo "#----------------------------------------------------------------------"
+eos share modify share001 u:99:rwx $testpath/share-001/ || failed=1
+if [ $failed -eq 1 ] ; then failedno="$failedno,4"; fi
+eos -r 99 99 mkdir -p $testpath/share-001/nobody-dir || failed=1
+if [ $failed -eq 1 ] ; then failedno="$failedno,5"; fi
+eos attr ls $testpath/share-001/nobody-dir | grep sys.acl.share | tr "," '\n' | grep -c 'pxid:' | grep 1 || failed=1
+if [ $failed -eq 1 ] ; then failedno="$failedno,6"; fi
+firstshare=`eos attr get sys.acl.share $testpath/share-001/nobody-dir | sed s/\"//g | cut -d "=" -f 2`
+echo "initial share: $firstshare"
+echo "#----------------------------------------------------------------------"
+echo "#- create share002"
+echo "#----------------------------------------------------------------------"
+eos share create share002 u:99:rx $testpath/share-001/nobody-dir || failed=1
+if [ $failed -eq 1 ] ; then failedno="$failedno,7"; fi
+eos attr ls $testpath/share-001/nobody-dir | grep sys.acl.share | tr "," '\n' | grep -c 'pxid:' | grep 2 || failed=1
+if [ $failed -eq 1 ] ; then failedno="$failedno,8"; fi
+echo "#----------------------------------------------------------------------"
+echo "#- unshare share001"
+echo "#----------------------------------------------------------------------"
+eos share unshare share001
+eos attr ls $testpath/share-001/nobody-dir | grep sys.acl.share | tr "," '\n' | grep -c 'pxid:' | grep 1 || failed=1
+if [ $failed -eq 1 ] ; then failedno="$failedno,9"; fi
+eos attr ls $testpath/share-001/nobody-dir | grep sys.acl.share | grep -c $firstshare | grep 0 || failed=1
+if [ $failed -eq 1 ] ; then failedno="$failedno,10"; fi
+eos share ls || failed=1
+if [ $failed -eq 1 ] ; then failedno="$failedno,11"; fi
+echo "#----------------------------------------------------------------------"
+echo "#- unshare share001"
+echo "#----------------------------------------------------------------------"
+eos share unshare share001 && failed=1
+if [ $failed -eq 1 ] ; then failedno="$failedno,12"; fi
+echo "#----------------------------------------------------------------------"
+echo "#- unshare share002"
+echo "#----------------------------------------------------------------------"
+eos share unshare share002 || failed=1
+if [ $failed -eq 1 ] ; then failedno="$failedno,13"; fi
+
+
+echo "#----------------------------------------------------------------------"
+echo "#- create empty share003 and share it"
+echo "#----------------------------------------------------------------------"
+
+eos share create share003 u:99:rwx
+if [ $failed -eq 1 ] ; then failedno="$failedno,14"; fi
+eos attr ls $testpath/share-001/nobody-dir
+eos share share share003 u:100:rwx $testpath/share-001/
+if [ $failed -eq 1 ] ; then failedno="$failedno,15"; fi
+eos attr ls $testpath/share-001/nobody-dir
+eos share ls
+eos share access share003 nobody | grep -c yes | grep 1 || failed=1
+if [ $failed -eq 1 ] ; then failedno="$failedno,16"; fi
+eos share access share003 100 | grep -c yes | grep 5 || failed=1
+if [ $failed -eq 1 ] ; then failedno="$failedno,17"; fi
+response=$?
+test $response -ne 0 && failed=1
+
+# cleanup
+echo "----------------------------------------------------------------------"
+eos share remove share001 || failed=1
+eos share remove share002 || failed=1
+eos share remove share003 || failed=1
+eos rm -r $testpath
+
+echo "----------------------------------------------------------------------"
+test $failed -eq 1 && echo "RESULT: some sharing tests failed [${failedno}]" || echo "RESULT: all sharing tests passwd"
+echo "----------------------------------------------------------------------"
+test $failed -eq 1 && exit -1
+exit 0

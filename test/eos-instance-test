@@ -377,6 +377,10 @@ eos_grpc() {
    echo eos-grpc-test $1 ; eval eos-grpc-test $1 >> $EOSCERTLOG 2>&1
 }
 
+eos_share() {
+   echo eos-share-test $1 ; eval eos-share-test $1 >> $EOSCERTLOG 2>&1
+}
+
 eos_token() {
    echo eos-token-test $1 ; eval eos-token-test $1 >> $EOSCERTLOG 2>&1
 }
@@ -1917,6 +1921,16 @@ runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/ins
 categorie="grpc"
 # ------------------------------------------------------------------------------
 runtest "### eos-grpc  " unix 0 "" eos_grpc "/eos/$EOS_TEST_INSTANCE/test/instancetest/grpc.dir/"
+
+
+################################################################################
+# Share tests
+################################################################################
+# ------------------------------------------------------------------------------
+categorie="share"
+# ------------------------------------------------------------------------------
+
+runtest "### eos-share " unix 0 "" eos_share "/eos/$EOS_TEST_INSTANCE/test/instancetest/sharing/"
 
 ################################################################################
 # Token tests
