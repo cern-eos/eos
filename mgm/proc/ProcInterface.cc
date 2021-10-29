@@ -438,10 +438,7 @@ ProcInterface::ProtoIsWriteAccess(const char* opaque)
   // always true
   case RequestProto::kRm:
   case RequestProto::kStagerRm:
-<<<<<<< HEAD
   case RequestProto::kShare:
-=======
->>>>>>> MGM: fix merge
   default:
     return true;
   }
