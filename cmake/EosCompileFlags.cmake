@@ -49,6 +49,12 @@ if (CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "x86_64")
   endif()
 endif()
 
+if (CMAKE_SYSTEM_PROCESSOR MATCHES "^arm" OR
+    CMAKE_SYSTEM_PROCESSOR MATCHES "^aarch64")
+  set(ARM64_BUILD ON)
+  set(CPU_ARCH_FLAGS "-march=armv8-a+crc+crypto")
+endif()
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CPU_ARCH_FLAGS}")
 
 #-------------------------------------------------------------------------------
@@ -104,7 +110,3 @@ if (TSAN)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
 endif()
 
-if (CMAKE_SYSTEM_PROCESSOR MATCHES "^arm" OR
-    CMAKE_SYSTEM_PROCESSOR MATCHES "^aarch64")
-  set(ARM64_BUILD ON)
-endif()
