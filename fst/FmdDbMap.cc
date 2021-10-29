@@ -1168,7 +1168,7 @@ FmdDbMapHandler::ResyncFileFromQdb(eos::common::FileId::fileid_t fid,
     // otherwise it might be wronly marked as orphan below.
     if (e.getErrno() != ENOENT) {
       eos_err("msg=\"skip file update due to QDB error\" msg_err=\"%s\" "
-              "fxid=08llx", e.what(), fid);
+              "fxid=%08llx", e.what(), fid);
       return e.getErrno();
     }
   }
