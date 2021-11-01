@@ -59,12 +59,13 @@ struct VirtualIdentity {
   std::string federation;
   std::string scope;
   bool sudoer;
+  bool avatar;
   std::shared_ptr<Token> token;
 
   //----------------------------------------------------------------------------
   //! Constructor - assign to "nobody" by default
   //----------------------------------------------------------------------------
-  VirtualIdentity() : uid(99), gid(99), sudoer(false) {}
+  VirtualIdentity() : uid(99), gid(99), sudoer(false), avatar(false) {}
 
   //----------------------------------------------------------------------------
   //! "Constructor" - return Root identity

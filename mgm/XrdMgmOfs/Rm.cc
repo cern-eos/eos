@@ -196,6 +196,10 @@ XrdMgmOfs::_rem(const char* path,
     }
 
     if (container) {
+      if (vid.avatar) {
+	vid.uid = container->getCUid();
+	vid.gid = container->getCGid();
+      }
       if (stdpermcheck && (!container->access(vid.uid, vid.gid, W_OK | X_OK))) {
         errno = EPERM;
         std::ostringstream oss;

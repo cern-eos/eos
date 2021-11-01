@@ -47,6 +47,7 @@ Mapping::GroupRoleMap_t Mapping::gGroupRoleVector;
 Mapping::VirtualUserMap_t Mapping::gVirtualUidMap;
 Mapping::VirtualGroupMap_t Mapping::gVirtualGidMap;
 Mapping::SudoerMap_t Mapping::gSudoerMap;
+Mapping::AvatarMap_t Mapping::gAvatarMap;
 bool Mapping::gRootSquash = true;
 
 Mapping::GeoLocationMap_t Mapping::gGeoMap;
@@ -204,6 +205,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   vid.name = client->name;
   vid.tident = tident;
   vid.sudoer = false;
+  vid.avatar = false;
   // first map by alias
   XrdOucString useralias = client->prot;
   useralias += ":";
@@ -937,6 +939,11 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     }
   }
 
+  // Avatar flag setting
+  if (gAvatarMap.count(vid.uid)) {
+    vid.avatar = true;
+  }
+
   if (client->host) {
     vid.host = client->host;
   } else {
@@ -1043,9 +1050,9 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
                    rgid.c_str());
 
   if (log) {
-    eos_static_info("%s sec.tident=\"%s\" vid.uid=%d vid.gid=%d",
+    eos_static_info("%s sec.tident=\"%s\" vid.uid=%d vid.gid=%d sudo=%d avatar=%d",
                     eos::common::SecEntity::ToString(client, Env.Get("eos.app")).c_str(),
-                    tident, vid.uid, vid.gid);
+                    tident, vid.uid, vid.gid, vid.sudoer, vid.avatar);
   }
 }
 
@@ -1232,6 +1239,33 @@ Mapping::Print(XrdOucString& stdOut, XrdOucString option)
     stdOut += "sudoer                 => uids(";
 
     for (it = gSudoerMap.begin(); it != gSudoerMap.end(); ++it) {
+      if (it->second) {
+        int errc = 0;
+        std::string username = UidToUserName(it->first, errc);
+
+        if (!errc && translateids) {
+          stdOut += username.c_str();
+        } else {
+          stdOut += (int)(it->first);
+        }
+
+        stdOut += ",";
+      }
+    }
+
+    if (stdOut.endswith(",")) {
+      stdOut.erase(stdOut.length() - 1);
+    }
+
+    stdOut += ")\n";
+  }
+
+  if ((!option.length()) || ((option.find("A")) != STR_NPOS)) {
+    SudoerMap_t::const_iterator it;
+    // print avatar line
+    stdOut += "avatar                 => uids(";
+
+    for (it = gAvatarMap.begin(); it != gAvatarMap.end(); ++it) {
       if (it->second) {
         int errc = 0;
         std::string username = UidToUserName(it->first, errc);

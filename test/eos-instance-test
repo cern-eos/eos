@@ -1122,6 +1122,55 @@ if [ $? -eq 0 ]; then
 fi
 
 ################################################################################
+# avatar
+################################################################################
+categorie="avatar"
+runtest "### Mkdir     " unix 0 "" eos mkdir -p /eos/$EOS_TEST_INSTANCE/test/instancetest/avatar
+runtest "### Chown     " unix 0 "" eos chown adm:adm /eos/$EOS_TEST_INSTANCE/test/instancetest/avatar
+runtest "### Chmod     " unix 0 "" eos chmod "700" "/eos/$EOS_TEST_INSTANCE/test/instancetest/avatar/"
+## based on unix permissions
+# directories
+runtest "### AvMkdir   " unix 1 "EOSROLE='-r 99 99'" eos mkdir -p /eos/$EOS_TEST_INSTANCE/test/instancetest/avatar/forbidden
+runtest "### Avatar    " unix 0 "" eos vid set membership nobody +avatar
+runtest "### AvMkdir   " unix 0 "EOSROLE='-r 99 99'" eos mkdir -p /eos/$EOS_TEST_INSTANCE/test/instancetest/avatar/allowed
+runtest "### Avatar    " unix 0 "" eos vid set membership nobody -avatar
+runtest "### AvMkdir   " unix 1 "EOSROLE='-r 99 99'" eos rmdir /eos/$EOS_TEST_INSTANCE/test/instancetest/avatar/allowed
+runtest "### Avatar    " unix 0 "" eos vid set membership nobody +avatar
+runtest "### AvMkdir   " unix 0 "EOSROLE='-r 99 99'" eos rmdir /eos/$EOS_TEST_INSTANCE/test/instancetest/avatar/allowed
+runtest "### Avatar    " unix 0 "" eos vid set membership nobody -avatar
+#files
+runtest "### AvMkdir   " unix 1 "EOSROLE='-r 99 99'" eos file touch /eos/$EOS_TEST_INSTANCE/test/instancetest/avatar/file
+runtest "### Avatar    " unix 0 "" eos vid set membership nobody +avatar
+runtest "### AvMkdir   " unix 0 "EOSROLE='-r 99 99'" eos file touch /eos/$EOS_TEST_INSTANCE/test/instancetest/avatar/file
+runtest "### Avatar    " unix 0 "" eos vid set membership nobody -avatar
+runtest "### AvMkdir   " unix 1 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/avatar/file
+runtest "### Avatar    " unix 0 "" eos vid set membership nobody +avatar
+runtest "### AvMkdir   " unix 0 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/avatar/file
+runtest "### Avatar    " unix 0 "" eos vid set membership nobody -avatar
+## based on acls
+runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:99:rx "/eos/$EOS_TEST_INSTANCE/test/instancetest/avatar"
+# directories
+runtest "### AvMkdir   " unix 1 "EOSROLE='-r 99 99'" eos mkdir -p /eos/$EOS_TEST_INSTANCE/test/instancetest/avatar/forbidden
+runtest "### Avatar    " unix 0 "" eos vid set membership nobody +avatar
+runtest "### AvMkdir   " unix 0 "EOSROLE='-r 99 99'" eos mkdir -p /eos/$EOS_TEST_INSTANCE/test/instancetest/avatar/allowed
+runtest "### Avatar    " unix 0 "" eos vid set membership nobody -avatar
+runtest "### AvMkdir   " unix 1 "EOSROLE='-r 99 99'" eos rmdir /eos/$EOS_TEST_INSTANCE/test/instancetest/avatar/allowed
+runtest "### Avatar    " unix 0 "" eos vid set membership nobody +avatar
+runtest "### AvMkdir   " unix 0 "EOSROLE='-r 99 99'" eos rmdir /eos/$EOS_TEST_INSTANCE/test/instancetest/avatar/allowed
+runtest "### Avatar    " unix 0 "" eos vid set membership nobody -avatar
+#files
+runtest "### AvMkdir   " unix 1 "EOSROLE='-r 99 99'" eos file touch /eos/$EOS_TEST_INSTANCE/test/instancetest/avatar/file
+runtest "### Avatar    " unix 0 "" eos vid set membership nobody +avatar
+runtest "### AvMkdir   " unix 0 "EOSROLE='-r 99 99'" eos file touch /eos/$EOS_TEST_INSTANCE/test/instancetest/avatar/file
+runtest "### Avatar    " unix 0 "" eos vid set membership nobody -avatar
+runtest "### AvMkdir   " unix 1 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/avatar/file
+runtest "### Avatar    " unix 0 "" eos vid set membership nobody +avatar
+runtest "### AvMkdir   " unix 0 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/avatar/file
+runtest "### Avatar    " unix 0 "" eos vid set membership nobody -avatar
+#cleaning
+runtest "### Cleanup   " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/avatar/
+exit
+################################################################################
 # POLICIES
 ###################################################A############################
 categorie="policy"

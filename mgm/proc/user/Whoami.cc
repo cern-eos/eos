@@ -108,6 +108,9 @@ ProcCommand::Whoami()
       stdOut += " sudo*";
     }
 
+    if (pVid->avatar) {
+      stdOut += " avatar*";
+    }
     stdOut += " host=";
     stdOut += pVid->host.c_str();
     stdOut += " domain=";

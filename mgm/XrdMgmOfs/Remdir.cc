@@ -166,6 +166,12 @@ XrdMgmOfs::_remdir(const char* path,
   bool stdpermcheck = false;
   bool aclok = false;
 
+  if (vid.avatar) {
+    vid.uid = dh->getCUid();
+    vid.gid = dh->getCGid();
+  }
+
+
   if (acl.HasAcl()) {
     if ((dh->getCUid() != vid.uid) &&
         (vid.uid) && // not the root user

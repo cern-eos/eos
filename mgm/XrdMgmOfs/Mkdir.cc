@@ -175,6 +175,12 @@ XrdMgmOfs::_mkdir(const char* path,
         }
       }
 
+      if (vid.avatar) {
+	eos_info("msg=\"client avatar\"");
+	vid.uid = d_uid;
+	vid.gid = d_gid;
+      }
+
       bool stdpermcheck = false;
 
       if (acl.HasAcl()) {
@@ -186,7 +192,7 @@ XrdMgmOfs::_mkdir(const char* path,
         stdpermcheck = true;
       }
 
-      // Admin can always create a directory
+      // no acl, do std permission check
       if (stdpermcheck && (!dir->access(vid.uid, vid.gid, X_OK | W_OK))) {
         errno = EPERM;
         return Emsg(epname, error, EPERM, "access(XW) parent directory",

@@ -60,6 +60,8 @@ public:
   typedef std::map<std::string, gid_t> VirtualGroupMap_t;
   //! Typedef of map storing members of the suid group
   typedef std::map<uid_t, bool > SudoerMap_t;
+  //! Typedef of map storing members of the avatar group
+  typedef std::map<uid_t, bool > AvatarMap_t;
   //! Typedef of map storing translation of string(IP) => geo location string
   typedef std::map<std::string, std::string> GeoLocationMap_t;
   //! Typedef of set storing all host patterns which are allowed to use tident mapping
@@ -147,6 +149,11 @@ public:
   //! Map keeping the super user members
   // ---------------------------------------------------------------------------
   static SudoerMap_t gSudoerMap;
+
+  // ---------------------------------------------------------------------------
+  //! Map keeping the avatar user members
+  // ---------------------------------------------------------------------------
+  static AvatarMap_t gAvatarMap;
 
   // ---------------------------------------------------------------------------
   //! Map keeping the geo location HostName=>GeoTag translation
@@ -274,6 +281,7 @@ public:
   //!         'u' for user role mappings
   //!         'g' for group role mappings
   //!         's' for sudoer list
+  //!         'A' for avatar list
   //!         'U' for user alias mapping
   //!         'G' for group alias mapping
   //!         'y' for gateway mappings (tidents)

@@ -1037,6 +1037,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       }
     }
 
+    if (vid.avatar) {
+      eos_info("msg=\"client avatar\"");
+      vid.uid = d_uid;
+      vid.gid = d_gid;
+    }
+
     // -------------------------------------------------------------------------
     // ACL and permission check
     // -------------------------------------------------------------------------

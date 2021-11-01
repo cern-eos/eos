@@ -787,6 +787,10 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
 
       try {
         cmd = gOFS->eosView->getContainer(Path.c_str(), false);
+	if (vid.avatar) {
+	  vid.uid = cmd->getCUid();
+	  vid.gid = cmd->getCGid();
+	}
         permok = cmd->access(vid.uid, vid.gid, R_OK | X_OK);
       } catch (eos::MDException& e) {
         errno = e.getErrno();
