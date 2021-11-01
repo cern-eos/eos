@@ -1438,6 +1438,13 @@ Quota::GetIndividualQuota(eos::common::VirtualIdentity& vid,
         }
       }
     }
+    if (vid.avatar) {
+      eos_static_info("msg=\"client avatar for directory owner\" "
+		      "path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"", path.c_str(),
+		      vid.uid, vid.gid, buf.st_uid, buf.st_gid);
+      m_vid.uid = buf.st_uid;
+      m_vid.gid = buf.st_gid;
+    }
   }
 
   eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex, __FUNCTION__,

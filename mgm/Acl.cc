@@ -202,8 +202,20 @@ Acl::Set(std::string sysacl, std::string useracl, std::string shareacl, std::str
   userattr = "";
   evaluserattr = false;
 
-  mOwner = owner;
-  mGowner = gowner;
+  uid_t mOwner = owner;
+  gid_t mGowner = gowner;
+
+  uid_t viduid = 99;
+  uid_t vidgid = 99;
+
+  // we are an avatar and change in to the owner uid/gid
+  if (vid.avatar) {
+    viduid = owner;
+    vidgid = gowner;
+  } else {
+    viduid = vid.uid;
+    vidgid = vid.gid;
+  }
 
   if (sysacl.length()) {
     acl += sysacl;
@@ -293,7 +305,7 @@ Acl::Set(std::string sysacl, std::string useracl, std::string shareacl, std::str
     }
 
     std::string userid = eos::common::StringConversion::GetSizeString(sizestring1,
-                         (unsigned long long) vid.uid);
+                         (unsigned long long) viduid);
     std::string groupid = eos::common::StringConversion::GetSizeString(sizestring2,
                           (unsigned long long) chk_gid);
     std::string usertag = "u:";
@@ -302,7 +314,7 @@ Acl::Set(std::string sysacl, std::string useracl, std::string shareacl, std::str
     std::string grouptag = "g:";
     grouptag += groupid;
     grouptag += ":";
-    std::string username = eos::common::Mapping::UidToUserName(vid.uid, errc);
+    std::string username = eos::common::Mapping::UidToUserName(viduid, errc);
 
     if (errc) {
       username = "_INVAL_";
@@ -330,8 +342,8 @@ Acl::Set(std::string sysacl, std::string useracl, std::string shareacl, std::str
     keytag += vid.key;
     keytag += ":";;
 
-    bool is_owner = (vid.uid == mOwner);
-    bool is_gowner = (vid.gid == mGowner);
+    bool is_owner = (viduid == mOwner);
+    bool is_gowner = (vidgid == mGowner);
 
     if (EOS_LOGS_DEBUG) eos_static_debug("%s %s %s %s %s", usertag.c_str(),
                                            grouptag.c_str(),

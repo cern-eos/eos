@@ -42,6 +42,7 @@ VirtualIdentity VirtualIdentity::Root()
   vid.prot = "local";
   vid.tident = "service@localhost";
   vid.sudoer = false;
+  vid.avatar = false;
   vid.host = "localhost";
   return vid;
 }
@@ -58,6 +59,7 @@ VirtualIdentity VirtualIdentity::Nobody()
   vid.allowed_gids = {99};
   vid.name = "nobody";
   vid.sudoer = false;
+  vid.avatar = false;
   vid.tident = "nobody@unknown";
   return vid;
 }
@@ -109,7 +111,7 @@ VirtualIdentity::getTrace() const
      uid_string << "] gid:" << gid << "[" << gid_string << "] tident:" <<
      tident.c_str() << " name:" << name << " dn:" << dn << " prot:" << prot <<
      " host:" << host << " domain:" << domain << " geo:" << geolocation << " sudo:"
-     << sudoer;
+     << sudoer << " avatar:" << avatar;
   return ss.str();
 }
 

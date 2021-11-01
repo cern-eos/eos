@@ -142,6 +142,11 @@ XrdMgmOfs::_access(const char* path,
       attr_path = pPath.GetParentPath();
     }
 
+    if (vid.avatar) {
+      vid.uid = dh->getCUid();
+      vid.gid = dh->getCGid();
+    }
+
     // ACL and permission check
     Acl acl(attr_path.c_str(), error, vid, attrmap, false, dh->getCUid(), dh->getCGid());
     eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d mutable=%d",

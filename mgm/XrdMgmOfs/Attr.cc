@@ -528,6 +528,11 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
     dh = gOFS->eosView->getContainer(path);
     XrdOucString Key = key;
 
+    if (vid.avatar) {
+      vid.uid = dh->getCUid();
+      vid.gid = dh->getCGid();
+    }
+
     if (Key.beginswith("sys.") && ((!vid.sudoer) && (vid.uid))) {
       errno = EPERM;
     } else {

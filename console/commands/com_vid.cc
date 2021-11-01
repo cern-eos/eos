@@ -165,6 +165,23 @@ com_vid(char* arg1)
         in += "&mgm.vid.target.sudo=false";
       }
 
+
+      if ((type == "+avatar")) {
+        vidkey += ":root";
+        list = " "; // fake
+        in += "&mgm.vid.key=";
+        in += vidkey;
+        in += "&mgm.vid.target.avatar=true";
+      }
+
+      if ((type == "-avatar")) {
+        vidkey += ":root";
+        list = " "; // fake
+        in += "&mgm.vid.key=";
+        in += vidkey;
+        in += "&mgm.vid.target.avatar=false";
+      }
+
       if (!list.length()) {
         goto com_vid_usage;
       }
@@ -531,6 +548,8 @@ com_vid_usage:
   fprintf(stdout,
           "                                        -s : show list of sudoers\n");
   fprintf(stdout,
+          "                                        -A : show list of avatars\n");
+  fprintf(stdout,
           "                                        -U : show user  alias mapping\n");
   fprintf(stdout,
           "                                        -G : show group alias mapping\n");
@@ -550,6 +569,7 @@ com_vid_usage:
   fprintf(stdout,
           "       vid rm membership <uid>             : delete the membership entries for <uid>.\n");
   fprintf(stdout, "       vid set membership <uid> [+|-]sudo \n");
+  fprintf(stdout, "       vid set membership <uid> [+|-]avatar \n");
   fprintf(stdout,
           "       vid set map -krb5|-gsi|-https|-sss|-unix|-tident|-voms|-grpc|-oauth2 <pattern> [vuid:<uid>] [vgid:<gid>] \n");
   fprintf(stdout,

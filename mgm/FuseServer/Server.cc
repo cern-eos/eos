@@ -620,7 +620,7 @@ Server::FillContainerCAP(uint64_t id,
     dir.mutable_capability()->set_mode(0xff | mode);
   } else {
     if (vid.sudoer) {
-      mode |= C_OK | M_OK | U_OK | W_OK | D_OK | SA_OK | SU_OK
+      mode |= C_OK | M_OK | U_OK | W_OK | D_OK | SA_OK | SU_OK | X_OK;
               ; // chown + chmod permission + all the rest
     }
 
@@ -793,6 +793,12 @@ Server::FillContainerCAP(uint64_t id,
     // no sticky ownership
     dir.mutable_capability()->set_uid(vid.uid);
     dir.mutable_capability()->set_gid(vid.gid);
+  }
+
+  if (vid.avatar) {
+    // sticky ownership for everybody
+    dir.mutable_capability()->set_uid(dir.uid());
+    dir.mutable_capability()->set_gid(dir.gid());
   }
 
   dir.mutable_capability()->set_authid(reuse_uuid.length() ?

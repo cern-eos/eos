@@ -161,6 +161,31 @@ Vid::Set(const char* value, bool storeConfig)
         return true;
       }
     }
+
+    if ((val = env.Get("mgm.vid.target.avatar"))) {
+      // fill sudoer list
+      XrdOucString setting = val;
+
+      if (setting == "true") {
+        eos::common::Mapping::gAvatarMap[uid] = 1;
+
+        if (storeConfig) {
+          gOFS->ConfEngine->SetConfigValue("vid", skey.c_str(), value);
+        }
+
+        return true;
+      } else {
+        // this in fact is deletion of the right
+        eos::common::Mapping::gAvatarMap.erase(uid);
+
+        if (storeConfig) {
+          gOFS->ConfEngine->DeleteConfigValue("vid", skey.c_str());
+        }
+
+        return true;
+      }
+    }
+
   }
 
   if (vidcmd == "map") {
@@ -484,6 +509,15 @@ Vid::Rm(XrdOucEnv& env,
     lkey.replace(":root", "");
     uid_t uid = atoi(lkey.c_str());
     eos::common::Mapping::gSudoerMap[uid] = 0;
+  }
+
+  if (skey.endswith(":avatar")) {
+    // revoke sudo permission
+    XrdOucString lkey = skey;
+    lkey.erase("vid:");
+    lkey.replace(":avatar", "");
+    uid_t uid = atoi(lkey.c_str());
+    eos::common::Mapping::gAvatarMap[uid] = 0;
   }
 
   if (vidcmd == "map") {
