@@ -861,6 +861,22 @@ rpm_stable_artifacts:
   dependencies: []
   when: manual
 
+rpm_no_sse_tag_artifacts:
+  stage: publish
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  script:
+    - yum install --nogpg -y sudo sssd-client createrepo
+    - sudo -u stci -H ./gitlab-ci/store_artifacts.sh "${CODENAME}-no_sse" "tag" /eos/project/s/storage-ci/www/eos
+  tags:
+    - docker_node
+    - publish
+  only:
+    - tags
+  allow_failure: true
+  dependencies:
+    - build_cc7_no_sse
+  when: manual
+
 # @todo rework on the entanglement between the sign, the publish and the removal of the old artifacts
 debian_bionic_artifacts:
   stage: publish
