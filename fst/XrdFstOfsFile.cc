@@ -118,7 +118,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   int envlen = 0;
   mNsPath = path;
   gettimeofday(&openTime, &tz);
-  bool hasCreationMode = (open_mode & SFS_O_CREAT);
+  bool hasCreationMode = (open_mode & (SFS_O_CREAT | SFS_O_TRUNC));
   bool isRepairRead = false;
   // Mask some opaque parameters to shorten the logging
   XrdOucString maskOpaque = opaque ? opaque : "";
