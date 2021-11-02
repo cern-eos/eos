@@ -48,18 +48,32 @@ set(BLAKE3_PORTABLE_SRCS
 
 
 if (ARM64_BUILD)
-  # NOTE: we assume that all arm architectures we're building for supports NEON
-  # intrinsics, which is true for almost all armv8/arm64 processors, otherwise
-  # add some logic to skip the neon bits here. Check the README on possible
-  # additional flags for armv7
-  set(BLAKE3_NATIVE_SRCS
-    blake3/blake3_neon.c)
+  if (HAVE_ARM_NEON)
+    set(BLAKE3_NATIVE_SRCS
+      blake3/blake3_neon.c)
+    message(STATUS "Building Blake3 with ARM NEON intrinsics")
+  endif() # ARM NEON
 else()
+  if (HAVE_AVX2)
+    set(BLAKE3_AVX_SRCS blake3/blake3_avx2_x86-64_unix.S)
+    if (HAVE_AVX512)
+      set(BLAKE3_AVX_SRCS
+        "${BLAKE3_AVX_SRCS}"
+        blake3/blake3_avx512_x86-64_unix.S)
+    endif() # AVX_512
+  endif() #AVX2
+
+  if (HAVE_SSE42)
+    set(BLAKE3_SSE_SRCS
+      blake3/blake3_sse2_x86-64_unix.S
+      blake3/blake3_sse41_x86-64_unix.S)
+  endif() # SSE
+
+  message(STATUS "Building Blake3 on x86_64 with intrinsics AVX2=${HAVE_AVX2} "
+    "AVX512=${HAVE_AVX512} SSE42=${HAVE_SSE42}")
   set(BLAKE3_NATIVE_SRCS
-    blake3/blake3_sse2_x86-64_unix.S
-    blake3/blake3_sse41_x86-64_unix.S
-    blake3/blake3_avx2_x86-64_unix.S
-    blake3/blake3_avx512_x86-64_unix.S)
+    "${BLAKE3_SSE_SRCS}"
+    "${BLAKE3_AVX_SRCS}")
   set_property(SOURCE ${BLAKE3_NATIVE_SRCS}
     PROPERTY LANGUAGE C)
 endif()
