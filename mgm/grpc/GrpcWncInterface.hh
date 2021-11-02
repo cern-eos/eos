@@ -49,7 +49,7 @@ private:
   //! @param acl  ACL string
   //! @return     ACL string with added usernames and groupnames
   //---------------------------------------------------------------------------
-  static std::string AddNamesToACL(std::string acl);
+  static std::string AddNamesToACL(std::string input);
 
   static void RoleChanger(eos::common::VirtualIdentity& vid,
                           const eos::console::RequestProto* request);

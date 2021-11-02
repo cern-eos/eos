@@ -233,17 +233,17 @@ GrpcWncInterface::ExecStreamCmd(eos::common::VirtualIdentity& vid,
 }
 
 std::string
-GrpcWncInterface::AddNamesToACL(std::string acl)
+GrpcWncInterface::AddNamesToACL(std::string input)
 {
-  acl += ",";
+  input += ",";
   std::string full_acl = "";
   size_t pos1 = 0;
   size_t pos2 = 0;
 
-  while (acl.size() > pos1 &&
-         (pos2 = acl.find(',', pos1)) != std::string::npos)
+  while (input.size() > pos1 &&
+         (pos2 = input.find(',', pos1)) != std::string::npos)
   {
-    std::string acl = acl.substr(pos1, pos2 - pos1);
+    std::string acl = input.substr(pos1, pos2 - pos1);
     size_t uid_pos1 = 0;
     size_t uid_pos2 = 0;
     std::string name = "";
@@ -270,7 +270,7 @@ GrpcWncInterface::AddNamesToACL(std::string acl)
     full_acl += acl;
 
     // Add "," if next iteration exists
-    if (acl.size() > pos1)
+    if (input.size() > pos1)
       full_acl += ",";
   }
 
