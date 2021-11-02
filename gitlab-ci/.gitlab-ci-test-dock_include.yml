@@ -124,49 +124,6 @@ dock_stress:
 
 # schedules ------------------------------
 
-dock_system_c8:
-  extends: .dock8s_system_test_template
-  image: gitlab-registry.cern.ch/dss/docker-enhanced:19.03.12
-  services:
-    - docker:19.03.12-dind
-  variables:
-    DOCKER_TLS_CERTDIR: "/certs"
-    BASETAG: "c8_"
-  needs:
-    - job: c8_docker_image
-      artifacts: false
-    - job: clone_docker
-  allow_failure: true
-  retry: 1
-  only:
-    - schedules
-    - tags
-  tags:
-    - docker_node
-    - dock
-  when: manual
-
-dock_cbox_c8:
-  extends: .dock8s_cbox_test_template
-  image: gitlab-registry.cern.ch/dss/docker-enhanced:19.03.12
-  services:
-    - docker:19.03.12-dind
-  variables:
-    DOCKER_TLS_CERTDIR: "/certs"
-    BASETAG: "c8_"
-  needs:
-    - job: c8_docker_image
-      artifacts: false
-    - job: clone_docker
-  allow_failure: true
-  only:
-    - schedules
-    - tags
-  tags:
-    - docker_node
-    - dock
-  when: manual
-
 dock_fusex_ub_bionic:
   extends: .dock8s_fusex_test_template
   image: gitlab-registry.cern.ch/dss/docker-enhanced:19.03.12

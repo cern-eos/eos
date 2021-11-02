@@ -80,39 +80,6 @@ k8s_stress:
 
 # schedules ------------------------------
 
-k8s_system_c8:
-  extends: .dock8s_system_test_template
-  image: alpine/k8s:1.18.2
-  variables:
-    BASETAG: "c8_"
-  needs:
-    - job: c8_docker_image
-      artifacts: false
-  retry: 1
-  allow_failure: true
-  only:
-    - schedules
-    - tags
-  tags:
-    - docker_node
-    - k8s
-
-k8s_cbox_c8:
-  extends: .dock8s_cbox_test_template
-  image: alpine/k8s:1.18.2
-  variables:
-    BASETAG: "c8_"
-  needs:
-    - job: c8_docker_image
-      artifacts: false
-  allow_failure: true
-  only:
-    - schedules
-    - tags
-  tags:
-    - docker_node
-    - k8s
-
 k8s_fusex_ub_bionic:
   extends: .dock8s_fusex_test_template
   image: alpine/k8s:1.18.2

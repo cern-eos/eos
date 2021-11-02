@@ -172,36 +172,6 @@ build_cs8:
     - tags
   allow_failure: true # @todo dont allow failure when/if we drop Centos8 and switch to Stream
 
-build_c8:
-  stage: build:rpm
-  image: gitlab-registry.cern.ch/dss/eos/prebuild-c8
-  script:
-    - git submodule update --init --recursive
-    - ./misc/cmake/cmake-3.19.7-Linux-x86_64.sh --prefix=/usr/ --skip-license
-    - mkdir build
-    - cd build/
-    - cmake ../ -DPACKAGEONLY=1
-    - make srpm
-    - cd ../
-    - echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-8/x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n" >> /etc/yum.repos.d/eos-depend.repo
-    - dnf builddep --nogpgcheck --allowerasing -y build/SRPMS/*
-    - if [[ -n "$CI_COMMIT_TAG" ]]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache.sh; fi
-    - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | ts
-    - ccache -s
-    - if [[ -n "$CI_COMMIT_TAG" ]]; then gpg2 --import $STCI_REPO_KEY; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
-    - mkdir c8_artifacts; cp -R build/SRPMS/ build/RPMS c8_artifacts
-  cache:
-    key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
-    paths:
-      - ccache/
-  artifacts:
-    expire_in: 1 day
-    paths:
-      - c8_artifacts/
-  only:
-    - schedules
-    - tags
-
 .build_ubuntu-template: &build_ubuntu-template_definition
   stage: build:rpm
   before_script:
@@ -485,19 +455,6 @@ cs8_docker_image:
   needs:
     - job: clone_docker
     - job: build_cs8
-  only:
-    - schedules
-    - tags
-  allow_failure: true
-
-c8_docker_image:
-  extends: .build_dockerimage-template
-  variables:
-    DOCKERFILE: eos-docker/Dockerfile_c8
-    BASETAG: "c8_"
-  needs:
-    - job: clone_docker
-    - job: build_c8
   only:
     - schedules
     - tags
@@ -798,14 +755,6 @@ publish_koji_cs8:
   dependencies:
     - build_cs8
 
-publish_koji_c8:
-  <<: *publish_koji_template_definition
-  variables:
-    TARGET: "eos8"
-    BUILD_NAME: "c8"
-  dependencies:
-    - build_c8
-
 publish_koji_cc7:
   <<: *publish_koji_template_definition
   variables:
@@ -1091,26 +1040,6 @@ eos_apmon_cc7:
   when: manual
   environment:
     name: apmon-cc7-prod
-
-eos_apmon_c8:
-  stage: build:manual
-  image: gitlab-registry.cern.ch/linuxsupport/c8-base
-  script:
-    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git sssd-client sudo createrepo rsync yum-utils
-    - cd ApMon
-    - ./maketar.sh
-    - rpmbuild --define "_source_filedigest_algorithm md5" --define "_binary_filedigest_algorithm md5" --define "_topdir ./rpmbuild" -ts eos-apmon-*.tar.gz
-    - yum-builddep --nogpgcheck -y rpmbuild/SRPMS/eos-apmon-*.src.rpm
-    - rpmbuild --rebuild --define "_rpmdir rpmbuild/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" rpmbuild/SRPMS/eos-apmon-*.src.rpm
-    - STORAGE_PATH=/eos/project/s/storage-ci/www/eos/${CODENAME}-depend/el-8/x86_64
-    - sudo -u stci -H mkdir -p $STORAGE_PATH
-    - sudo -u stci -H cp -f rpmbuild/RPMS/*.rpm $STORAGE_PATH
-    - sudo -u stci -H createrepo --update -q $STORAGE_PATH
-  tags:
-    - docker_node
-  when: manual
-  environment:
-    name: apmon-c8-prod
 
 eos_apmon_cs8:
   stage: build:manual
