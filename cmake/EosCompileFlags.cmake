@@ -38,17 +38,7 @@ endif()
 #-------------------------------------------------------------------------------
 # CPU architecture flags
 #-------------------------------------------------------------------------------
-# Don't add specific arch flags unless x86_64, or may cause troubles.
-# Consider to extend in the future, e.g., for aarch64.
-if (CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "x86_64")
-  set(CPU_ARCH_FLAGS "-msse4.2")
-  if (NO_SSE)
-    # Some old hardware does not have sse instructions support, allow switch-off.
-    message(NOTICE "SSE extensions not enabled")
-    set(CPU_ARCH_FLAGS "-mcrc32")
-  endif()
-endif()
-
+include(CPUArchFlags)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CPU_ARCH_FLAGS}")
 
 #-------------------------------------------------------------------------------
@@ -102,9 +92,4 @@ if (TSAN)
   endif()
 
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
-endif()
-
-if (CMAKE_SYSTEM_PROCESSOR MATCHES "^arm" OR
-    CMAKE_SYSTEM_PROCESSOR MATCHES "^aarch64")
-  set(ARM64_BUILD ON)
 endif()
