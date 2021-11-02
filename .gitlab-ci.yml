@@ -452,7 +452,6 @@ cs8_docker_image:
     - tags
   allow_failure: true
 
-
 # @note.1 jobs with `needs: on manual jobs get stuck (no fail nor succeed)
 # if an `optional: true` policy is not defined in GitLab < 13.12
 # Drop as we upgrade, ref: https://about.gitlab.com/blog/2021/05/20/dag-manual-fix/
