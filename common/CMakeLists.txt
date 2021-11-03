@@ -90,6 +90,15 @@ if (ARM64_BUILD)
   target_compile_definitions(EosBlake3-Objects PUBLIC BLAKE3_USE_NEON)
 endif()
 
+# FIXME: This is a workaround for clang < 7 see
+# https://bugs.llvm.org/show_bug.cgi?id=39875 &&
+# https://bugs.llvm.org/show_bug.cgi?id=36202 and remove this when we drop
+# clang5 support or we enable this globally for all options
+if (HAVE_AVX512 AND
+    ("${CMAKE_CXX_COMPILER_ID}" MATCHES Clang) AND
+    ("${CMAKE_CXX_COMPILER_VERSION}" VERSION_LESS "7.0"))
+  target_compile_options(EosBlake3-Objects PRIVATE -mavx512f -mavx512vl)
+endif() # CLANG5 hack
 #-------------------------------------------------------------------------------
 # EosCommon-Objects
 #-------------------------------------------------------------------------------
