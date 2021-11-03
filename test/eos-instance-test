@@ -1173,7 +1173,6 @@ runtest "### AvMkdir   " unix 0 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INSTA
 runtest "### Avatar    " unix 0 "" eos vid set membership nobody -avatar
 #cleaning
 runtest "### Cleanup   " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/avatar/
-exit
 ################################################################################
 # POLICIES
 ###################################################A############################
