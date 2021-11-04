@@ -31,6 +31,10 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
+/**
+ * This object represents a client's request
+ * to create a stage bulk-request
+ */
 class CreateStageBulkRequestModel {
 public:
   void addPath(const std::string & path);

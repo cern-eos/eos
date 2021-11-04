@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: CreatedStageBulkRequestModel.hh
+// File: CreatedStageBulkRequestResponseModel.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,21 +20,25 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-#ifndef EOS_CREATEDSTAGEBULKREQUESTMODEL_HH
-#define EOS_CREATEDSTAGEBULKREQUESTMODEL_HH
-
-#include "mgm/Namespace.hh"
-#include <cstdint>
+#include "CreatedStageBulkRequestResponseModel.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class CreatedStageBulkRequestModel {
-  //TO BE CONTINUED
-private:
-  uint64_t numTargets;
-};
+CreatedStageBulkRequestResponseModel::CreatedStageBulkRequestResponseModel(const std::string& jsonFromClient, const std::string & accessURL):
+                                                                          mJsonFromClient(jsonFromClient),mAccessURL(accessURL) {
+
+}
+
+void CreatedStageBulkRequestResponseModel::jsonify(std::stringstream& ss) const {
+  mJsonifier->jsonify(*this,ss);
+}
+
+const std::string& CreatedStageBulkRequestResponseModel::getJsonRequest() const {
+  return mJsonFromClient;
+}
+
+const std::string& CreatedStageBulkRequestResponseModel::getAccessURL() const {
+  return mAccessURL;
+}
 
 EOSMGMRESTNAMESPACE_END
-
-#endif // EOS_CREATEDSTAGEBULKREQUESTMODEL_HH

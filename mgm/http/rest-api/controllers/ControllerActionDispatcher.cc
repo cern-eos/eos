@@ -28,8 +28,6 @@
 #include <sstream>
 EOSMGMRESTNAMESPACE_BEGIN
 
-ControllerActionDispatcher::ControllerActionDispatcher(){}
-
 void ControllerActionDispatcher::addAction(const std::string& urlPattern, const common::HttpHandler::Methods method, const ControllerHandler& controllerHandler){
   mMethodFunctionMap[urlPattern][method] = controllerHandler;
 }

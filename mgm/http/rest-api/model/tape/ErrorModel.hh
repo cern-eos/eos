@@ -74,10 +74,7 @@ private:
    */
   std::optional<std::string> mDetail;
 
-  /**
-   * Jsonifier object that allows to jsonify this object
-   */
-  std::unique_ptr<TapeModelJsonifier> mJsonifier;
+
 };
 
 EOSMGMRESTNAMESPACE_END

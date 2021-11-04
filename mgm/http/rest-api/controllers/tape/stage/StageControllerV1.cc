@@ -32,14 +32,16 @@
 #include "mgm/http/HttpHandler.hh"
 #include "mgm/http/rest-api/exception/InvalidJSONException.hh"
 #include "mgm/http/rest-api/exception/JsonObjectModelMalformedException.hh"
-#include "mgm/http/rest-api/exception/MethodNotAllowedException.hh"
 #include "mgm/http/rest-api/json/tape/JsonCPPTapeModelBuilder.hh"
 #include "mgm/http/rest-api/response/tape/TapeRestApiResponseFactory.hh"
 #include "mgm/http/rest-api/utils/URLParser.hh"
+#include "mgm/http/rest-api/utils/URLBuilder.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
 StageControllerV1::StageControllerV1(const std::string & accessURL):Controller(accessURL){
+  //Add actions to URLs and Http verb
+  //A POST on the accessURL of this controller will create and persist a new stage bulk-request
   mControllerActionDispatcher.addAction(mAccessURL,eos::common::HttpHandler::Methods::POST,std::bind(&StageControllerV1::createBulkStageRequest,this,std::placeholders::_1,std::placeholders::_2));
 }
 
@@ -68,10 +70,29 @@ common::HttpResponse * StageControllerV1::createBulkStageRequest(common::HttpReq
   std::shared_ptr<bulk::BulkRequestBusiness> bulkRequestBusiness(new bulk::BulkRequestBusiness(std::move(daoFactory)));
   pm.setBulkRequestBusiness(bulkRequestBusiness);
   XrdOucErrInfo error;
-  pm.prepare(*pargsWrapper.getPrepareArguments(),error,vid);
+  int prepareRetCode = pm.prepare(*pargsWrapper.getPrepareArguments(),error,vid);
+  if(prepareRetCode != SFS_DATA){
+    //A problem occured, return the error to the client
+    return TapeRestApiResponseFactory::createInternalServerError(error.getErrText()).getHttpResponse();
+  }
+  //Get the bulk-request 
   std::shared_ptr<bulk::BulkRequest> bulkRequest = pm.getBulkRequest();
-
-  return nullptr;
+  const std::string & clientRequest = request->GetBody();
+  std::string host;
+  try {
+    host = request->GetHeaders().at("host");
+  } catch(const std::out_of_range &ex){
+    return TapeRestApiResponseFactory::createInternalServerError("No host information found in the header of the request").getHttpResponse();
+  }
+  //Generate the bulk-request access URL
+  std::string bulkRequestAccessURL = URLBuilder::getInstance()
+                                         ->setHttpsProtocol()
+                                         ->setHostname(host)
+                                         ->setControllerAccessURL(mAccessURL)
+                                         ->setRequestId(bulkRequest->getId())->build();
+  //Prepare the response and return it
+  std::shared_ptr<CreatedStageBulkRequestResponseModel> createdStageBulkRequestModel(new CreatedStageBulkRequestResponseModel(clientRequest,bulkRequestAccessURL));
+  return TapeRestApiResponseFactory::createStageBulkRequestResponse(createdStageBulkRequestModel).getHttpResponse();
 }
 
 EOSMGMRESTNAMESPACE_END

@@ -42,4 +42,14 @@ RestApiResponse<ErrorModel> TapeRestApiResponseFactory::createMethodNotAllowedEr
   return createError(common::HttpResponse::METHOD_NOT_ALLOWED,"Method not allowed",detail);
 }
 
+RestApiResponse<ErrorModel> TapeRestApiResponseFactory::createInternalServerError(const std::string& detail){
+  return createError(common::HttpResponse::INTERNAL_SERVER_ERROR,"Internal server error",detail);
+}
+
+RestApiResponse<CreatedStageBulkRequestResponseModel> TapeRestApiResponseFactory::createStageBulkRequestResponse(const std::shared_ptr<CreatedStageBulkRequestResponseModel> createdStageBulkRequestModel){
+  RestApiResponse<CreatedStageBulkRequestResponseModel> response(createdStageBulkRequestModel);
+  response.setRetCode(common::HttpResponse::CREATED);
+  return response;
+}
+
 EOSMGMRESTNAMESPACE_END
