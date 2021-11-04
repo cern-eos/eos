@@ -43,15 +43,17 @@ uint32_t crc32cHardware32(uint32_t crc, const void* data, size_t length);
 uint32_t crc32cHardware64(uint32_t crc, const void* data, size_t length);
 
 #ifdef __aarch64__
+#ifdef __APPLE__
 #define __builtin_ia32_crc32si __builtin_arm_crc32cw
 #define __builtin_ia32_crc32hi __builtin_arm_crc32ch
 #define __builtin_ia32_crc32qi __builtin_arm_crc32cb
-// APPLE doesn't have a crc32di instruction equivalent, only arm_acle intrinsics, so
-// this instruction needs a filter out, so we only use the 32bit HW accel for apple
-#ifndef __APPLE__
-#define __builtin_ia32_crc32di __builtin_aarch_crc32cx
-#endif
+#else
+#define __builtin_ia32_crc32si __builtin_aarch64_crc32cw
+#define __builtin_ia32_crc32hi __builtin_aarch64_crc32ch
+#define __builtin_ia32_crc32qi __builtin_aarch64_crc32cb
+#define __builtin_ia32_crc32di __builtin_aarch64_crc32cx
+#endif // APPLE
+#endif // __aarch64__
 
-#endif
 }  // namespace checksum
 #endif

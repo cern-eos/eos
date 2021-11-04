@@ -43,7 +43,7 @@ static uint32_t cpuid(uint32_t functionInput)
       "popl %%ebx" : "=a"(eax), [ebx] "=r"(ebx), "=c"(ecx), "=d"(edx) : "a"(functionInput)
       : "cc");
 #else
-#if !(defined(__APPLE__) && defined(__aarch64__))
+#if !defined(__aarch64__)
   asm("cpuid" : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx) : "a"(functionInput));
 #endif // APPLE detection end
 #endif

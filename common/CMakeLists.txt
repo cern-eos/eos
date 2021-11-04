@@ -48,11 +48,10 @@ set(BLAKE3_PORTABLE_SRCS
 
 
 if (ARM64_BUILD)
-  if (HAVE_ARM_NEON)
+# For 64 bit arm neon is mandatory, check HAVE_NEON only for arm32
     set(BLAKE3_NATIVE_SRCS
       blake3/blake3_neon.c)
     message(STATUS "Building Blake3 with ARM NEON intrinsics")
-  endif() # ARM NEON
 else()
   if (HAVE_AVX2)
     set(BLAKE3_AVX_SRCS blake3/blake3_avx2_x86-64_unix.S)
