@@ -23,6 +23,7 @@
 
 #include "JsonCPPTapeModelJsonifier.hh"
 #include "mgm/http/rest-api/model/tape/ErrorModel.hh"
+#include "mgm/http/rest-api/model/tape/stage/CreatedStageBulkRequestResponseModel.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -32,6 +33,14 @@ void JsonCPPTapeModelJsonifier::jsonify(const ErrorModel& errorModel, std::strin
   root["title"] = errorModel.getTitle();
   root["status"] = errorModel.getStatus();
   root["detail"] = errorModel.getDetail() ? errorModel.getDetail().value() : "";
+  oss << root;
+}
+
+void JsonCPPTapeModelJsonifier::jsonify(const CreatedStageBulkRequestResponseModel& createdStageBulkRequestModel, std::stringstream& oss) {
+  Json::Value root;
+  root["accessURL"] = createdStageBulkRequestModel.getAccessURL();
+  Json::Reader reader;
+  reader.parse(createdStageBulkRequestModel.getJsonRequest(),root["request"]);
   oss << root;
 }
 
