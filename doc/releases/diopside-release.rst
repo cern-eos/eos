@@ -15,7 +15,20 @@ Introduction
 ------------
 This release is based on XRootD V5.
 
-``v5.0.3 Diopside``
+
+``v5.0.5 Diopside``
+===================
+
+2021-11-04
+
+Bug
+----
+
+OSS: Avoid leaking file descriptors for xsmap files which are deleted in the meantime
+MGM: Skip applying fsck config changes at the slave as these will be properly
+
+
+``v5.0.4 Diopside``
 ===================
 
 2021-10-27
