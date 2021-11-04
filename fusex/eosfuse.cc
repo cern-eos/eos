@@ -4503,24 +4503,6 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char* buf, size_t size,
     }
   }
 
-  char* obuf = 0;
-
-  if (io->md->obfuscate_key().length()) {
-    // duplicate buffer
-    obuf = (char*) malloc(size);
-    if (!obuf) {
-      // EOM
-      io = nullptr;
-    } else {
-      memcpy(obuf, buf, size);
-      eos_static_debug("secret=%s", fusexrdlogin::secret(req).c_str());
-      // obfuscate
-      io->md->obfuscate_buffer(obuf, buf, size, off, fusexrdlogin::secret(req));
-      // make the data object read from the obfuscated buffer
-      buf = obuf;
-    }
-  }
-
   if (io) {
     eos_static_debug("max-file-size=%llu", io->maxfilesize());
 
