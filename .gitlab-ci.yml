@@ -164,9 +164,6 @@ build_cs8:
     expire_in: 1 day
     paths:
       - cs8_artifacts/
-  only:
-    - schedules
-    - tags
   allow_failure: true # @todo dont allow failure when/if we drop Centos8 and switch to Stream
 
 .build_ubuntu-template: &build_ubuntu-template_definition
