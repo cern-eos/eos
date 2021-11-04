@@ -26,13 +26,13 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-ErrorModel::ErrorModel():mJsonifier(new JsonCPPTapeModelJsonifier()){}
+ErrorModel::ErrorModel():Model(){}
 
-ErrorModel::ErrorModel(const std::string& title, const uint32_t status, const std::string& detail):
-  mTitle(title),mStatus(status),mDetail(detail),mJsonifier(new JsonCPPTapeModelJsonifier())
+ErrorModel::ErrorModel(const std::string& title, const uint32_t status, const std::string& detail):Model(),
+  mTitle(title),mStatus(status),mDetail(detail)
 {}
 
-ErrorModel::ErrorModel(const std::string& title, const uint32_t status):mTitle(title),mStatus(status),mJsonifier(new JsonCPPTapeModelJsonifier())
+ErrorModel::ErrorModel(const std::string& title, const uint32_t status):Model(),mTitle(title),mStatus(status)
 {}
 
 void ErrorModel::setType(const std::string& type){

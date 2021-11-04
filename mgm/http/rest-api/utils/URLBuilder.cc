@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: CreatedStageBulkRequestModel.cc
+// File: URLBuilder.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,9 +20,50 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-#include "CreatedStageBulkRequestModel.hh"
+
+#include "URLBuilder.hh"
+#include "mgm/XrdMgmOfs.hh"
+#include <unistd.h>
 
 EOSMGMRESTNAMESPACE_BEGIN
 
+std::unique_ptr<URLBuilderProtocol> URLBuilder::getInstance() {
+  std::unique_ptr<URLBuilderProtocol> ret;
+  ret.reset(new URLBuilder());
+  return std::move(ret);
+}
+
+URLBuilderHostname * URLBuilder::setHttpsProtocol() {
+  mURL = "https://";
+  return this;
+}
+
+URLBuilderControllerAccessURL * URLBuilder::setHostname(const std::string & hostname) {
+  mURL += hostname;
+  addSlashIfNecessary();
+  return this;
+}
+
+URLBuilderRequestId * URLBuilder::setControllerAccessURL(const std::string & controllerAccessURL) {
+  addSlashIfNecessary(controllerAccessURL);
+  mURL += controllerAccessURL;
+  return this;
+}
+
+URLBuilder * URLBuilder::setRequestId(const std::string & requestId) {
+  addSlashIfNecessary();
+  mURL += requestId;
+  return this;
+}
+
+std::string URLBuilder::build() {
+  return mURL;
+}
+
+void URLBuilder::addSlashIfNecessary(const std::string & nextItem){
+  if(mURL.back() != '/' && (!nextItem.empty() && nextItem.front() != '/')){
+    mURL += "/";
+  }
+}
 
 EOSMGMRESTNAMESPACE_END

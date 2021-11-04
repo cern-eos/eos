@@ -31,10 +31,21 @@
 EOSMGMRESTNAMESPACE_BEGIN
 
 class ErrorModel;
+class CreatedStageBulkRequestResponseModel;
 
+/**
+ * This class allows to create the json representation
+ * of objects
+ */
 class TapeModelJsonifier {
 public:
+  /**
+   * Creates the json representation of an ErrorModel object
+   * @param errorModel the object to create the JSON representation from
+   * @param oss the stream where the json will be put on
+   */
   virtual void jsonify(const ErrorModel & errorModel, std::stringstream & oss) = 0;
+  virtual void jsonify(const CreatedStageBulkRequestResponseModel& createdStageBulkRequestModel, std::stringstream & oss) = 0;
 };
 
 EOSMGMRESTNAMESPACE_END

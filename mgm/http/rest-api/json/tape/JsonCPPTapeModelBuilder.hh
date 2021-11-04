@@ -29,10 +29,20 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
+/**
+ * JsonCPP-specific tape-rest-api model object builder
+ */
 class JsonCPPTapeModelBuilder : public JsonTapeModelBuilder {
 public:
   virtual std::shared_ptr<CreateStageBulkRequestModel> buildCreateStageBulkRequestModel(const std::string & json) override;
 private:
+  /**
+   * Parses the json string passed in parameter and
+   * create JsonCpp-related object out of it
+   * @param json the string representing the object
+   * @param root the JsonCpp root object
+   * @throws InvalidJsonException if the parsing could not be done
+   */
   void parseJson(const std::string & json,Json::Value & root);
 };
 
