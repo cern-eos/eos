@@ -318,10 +318,15 @@ TEST(StringTokenizer, Split)
   path_null2 += path_null;
   ASSERT_EQ(StringTokenizer::split<vector<std::string>>(path_null2,'\0'),
             path_null_v);
+  //We explicitely want to test that passing an unitialized char variable
+  //does not cause any issue with the StringTokenizer.
+  //We therefore deactivate the warning for this piece of code
+  #pragma GCC diagnostic push
+  #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
   char empty;
   ASSERT_EQ(StringTokenizer::split<vector<std::string>>("abcd",empty),
             std::vector<std::string>({"abcd"}));
-
+  #pragma GCC diagnostic pop
 }
 
 EOSCOMMONTESTING_END
