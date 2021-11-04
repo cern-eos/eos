@@ -29,6 +29,7 @@
 #include "mgm/bulk-request/interface/RealMgmFileSystemInterface.hh"
 #include "mgm/bulk-request/prepare/BulkRequestPrepareManager.hh"
 #include "mgm/bulk-request/utils/PrepareArgumentsWrapper.hh"
+#include "mgm/bulk-request/exception/PersistencyException.hh"
 #include "mgm/http/HttpHandler.hh"
 #include "mgm/http/rest-api/exception/InvalidJSONException.hh"
 #include "mgm/http/rest-api/exception/JsonObjectModelMalformedException.hh"
@@ -36,6 +37,7 @@
 #include "mgm/http/rest-api/response/tape/TapeRestApiResponseFactory.hh"
 #include "mgm/http/rest-api/utils/URLParser.hh"
 #include "mgm/http/rest-api/utils/URLBuilder.hh"
+#include "common/SymKeys.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -83,6 +85,14 @@ common::HttpResponse * StageControllerV1::createBulkStageRequest(common::HttpReq
     host = request->GetHeaders().at("host");
   } catch(const std::out_of_range &ex){
     return TapeRestApiResponseFactory::createInternalServerError("No host information found in the header of the request").getHttpResponse();
+  }
+  //Persist the user request in the extended attribute of the directory where the bulk-request is saved
+  std::map<std::string, std::string> attributes;
+  common::SymKey::Base64Encode(clientRequest.c_str(),clientRequest.size(),attributes["base64jsonrequest"]);
+  try {
+    bulkRequestBusiness->addOrUpdateAttributes(bulkRequest, attributes);
+  } catch (const bulk::PersistencyException &ex) {
+    return TapeRestApiResponseFactory::createInternalServerError("Unable to persist the attributes of the bulk-request").getHttpResponse();
   }
   //Generate the bulk-request access URL
   std::string bulkRequestAccessURL = URLBuilder::getInstance()
