@@ -30,6 +30,7 @@
 #include <sstream>
 #include <iostream>
 #include "common/StringSplit.hh"
+#include "common/StringUtils.hh"
 
 class FatalException : public std::exception
 {
@@ -55,10 +56,12 @@ private:
 inline std::vector<std::string> split_on_nullbyte(std::string_view data)
 {
   std::vector<std::string> result;
-  auto segments = eos::common::CharSplitIt(data,'\0');
-  for (std::string_view segment: segments) {
+  auto segments = eos::common::CharSplitIt(data, '\0');
+
+  for (std::string_view segment : segments) {
     result.emplace_back(segment);
   }
+
   return result;
 }
 
@@ -81,9 +84,9 @@ inline std::string join(const std::vector<std::string>& contents,
 using eos::common::startsWith;
 bool readFile(int fd, std::string& ret);
 bool readFile(const std::string& path, std::string& ret);
-bool writeFile600(const std::string& path, const std::string &contents);
+bool writeFile600(const std::string& path, const std::string& contents);
 
 bool checkCredSecurity(const struct stat& filestat, uid_t uid);
-std::string chopTrailingSlashes(const std::string &path);
+std::string chopTrailingSlashes(const std::string& path);
 
 #endif

@@ -156,37 +156,35 @@ EosAuthOfs::Configure(XrdSysError& error, XrdOucEnv* envP)
     return 1;
   }
 
-  XrdNetAddr *addrs  = 0;
+  XrdNetAddr* addrs  = 0;
   int         nAddrs = 0;
-  const char* err    = XrdNetUtils::GetAddrs( host_name, &addrs, nAddrs,
-                                              XrdNetUtils::allIPv64,
-                                              XrdNetUtils::NoPortRaw );
-  free( const_cast<char*>( host_name ) );
+  const char* err    = XrdNetUtils::GetAddrs(host_name, &addrs, nAddrs,
+                       XrdNetUtils::allIPv64,
+                       XrdNetUtils::NoPortRaw);
+  free(const_cast<char*>(host_name));
 
-  if( err )
-  {
+  if (err) {
     error.Emsg("Config", "hostname is invalid : %s", err);
     return 1;
   }
 
-  if( nAddrs == 0 )
-  {
+  if (nAddrs == 0) {
     error.Emsg("Config", "hostname is invalid");
     return 1;
   }
 
   char buffer[64];
-  int length = addrs[0].Format( buffer, sizeof( buffer ), 
-                                XrdNetAddrInfo::fmtAddr,
-                                XrdNetAddrInfo::noPortRaw );
+  int length = addrs[0].Format(buffer, sizeof(buffer),
+                               XrdNetAddrInfo::fmtAddr,
+                               XrdNetAddrInfo::noPortRaw);
   delete [] addrs;
-  if( length == 0 )
-  {
+
+  if (length == 0) {
     error.Emsg("Config", "hostname is invalid");
     return 1;
   }
-  mManagerIp.assign( buffer, length );
 
+  mManagerIp.assign(buffer, length);
   // Extract the manager from the config file
   XrdOucStream Config(&error, getenv("XRDINSTANCE"));
 
@@ -1245,7 +1243,11 @@ EosAuthOfs::SendProtoBufRequest(zmq::socket_t* socket,
 {
   // Send the request
   bool sent = false;
+#if GOOGLE_PROTOBUF_VERSION < 3004000
   int msg_size = message->ByteSize();
+#else
+  int msg_size = message->ByteSizeLong();
+#endif
   zmq::message_t request(msg_size);
   google::protobuf::io::ArrayOutputStream aos(request.data(), msg_size);
 
