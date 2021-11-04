@@ -28,6 +28,7 @@
 #include "mgm/bulk-request/prepare/StageBulkRequest.hh"
 #include <memory>
 #include <chrono>
+#include <map>
 
 EOSBULKNAMESPACE_BEGIN
 
@@ -58,6 +59,14 @@ public:
    * @returns the number of deleted bulk-request
    */
   virtual uint64_t deleteBulkRequestNotQueriedFor(const BulkRequest::Type & type, const std::chrono::seconds & seconds) = 0;
+
+  /**
+   * Adds or updates the attributes of a persisted bulk-request
+   * @param bulkRequest the bulk-request to update
+   * @param attributes the attributes to add/update to the bulk-request
+   * @throws PersistencyException if the bulk-request does not exist
+   */
+  virtual void addOrUpdateAttributes(const std::shared_ptr<BulkRequest> bulkRequest, const std::map<std::string,std::string> & attributes) = 0;
 };
 
 EOSBULKNAMESPACE_END
