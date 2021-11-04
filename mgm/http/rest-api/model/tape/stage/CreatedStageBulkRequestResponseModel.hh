@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: JsonCPPTapeModelJsonifier.hh
+// File: CreatedStageBulkRequestResponseModel.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,23 +20,29 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-#ifndef EOS_JSONCPPTAPEMODELJSONIFIER_HH
-#define EOS_JSONCPPTAPEMODELJSONIFIER_HH
+
+#ifndef EOS_CREATEDSTAGEBULKREQUESTRESPONSEMODEL_HH
+#define EOS_CREATEDSTAGEBULKREQUESTRESPONSEMODEL_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/json/tape/TapeModelJsonifier.hh"
+#include <cstdint>
+#include <string>
+#include "mgm/http/rest-api/model/Model.hh"
+#include "mgm/bulk-request/BulkRequest.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-/**
- * JsonCPP jsonifier class
- */
-class JsonCPPTapeModelJsonifier : public TapeModelJsonifier {
+class CreatedStageBulkRequestResponseModel : public Model {
 public:
-  void jsonify(const ErrorModel & errorModel, std::stringstream & oss) override;
-  void jsonify(const CreatedStageBulkRequestResponseModel& createdStageBulkRequestModel, std::stringstream & oss) override;
+  CreatedStageBulkRequestResponseModel(const std::string & jsonFromClient, const std::string & accessURL);
+  void jsonify(std::stringstream& ss) const override;
+  const std::string & getAccessURL() const;
+  const std::string & getJsonRequest() const;
+private:
+  const std::string & mJsonFromClient;
+  const std::string & mAccessURL;
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_JSONCPPTAPEMODELJSONIFIER_HH
+#endif // EOS_CREATEDSTAGEBULKREQUESTRESPONSEMODEL_HH

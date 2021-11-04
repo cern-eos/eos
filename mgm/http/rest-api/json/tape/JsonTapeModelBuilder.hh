@@ -30,6 +30,10 @@
 #include <json/json.h>
 
 EOSMGMRESTNAMESPACE_BEGIN
+
+/**
+ * This class allows to build tape-rest-api model objects from a json string
+ */
 class JsonTapeModelBuilder {
 public:
   virtual std::shared_ptr<CreateStageBulkRequestModel> buildCreateStageBulkRequestModel(const std::string& json) = 0;

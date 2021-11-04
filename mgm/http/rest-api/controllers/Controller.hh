@@ -32,13 +32,39 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
+/**
+ * This class is the base class for all the controllers of a REST API
+ * A controller contains the logic that is ran when a client queries the
+ * controller access URL
+ */
 class Controller {
 public:
+  /**
+   * Constructor of a controller
+   * @param accessURL
+   */
   Controller(const std::string & accessURL);
+  /**
+   * This method handles the request passed in parameter. It calls the controller
+   * method according to what the URL of the request is.
+   * @param request the client's request
+   * @param vid the virtual identity of the client
+   * @return the response the client expects.
+   */
   virtual common::HttpResponse * handleRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) = 0;
+  /**
+   * Returns the access URL of this controller
+   * @return the access URL of this controller
+   */
   const std::string getAccessURL() const;
 protected:
+  /**
+   * Depending on the URL coming from the client's request, the dispatcher will
+   * run a method of this controller.
+   * This dispatcher needs to be initialized in the constructor of the controller
+   */
   ControllerActionDispatcher mControllerActionDispatcher;
+  //The URL to access the functionalities of this controller
   std::string mAccessURL;
 };
 

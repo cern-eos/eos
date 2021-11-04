@@ -25,14 +25,30 @@
 #define EOS_MODEL_HH
 
 #include "mgm/Namespace.hh"
+#include "mgm/http/rest-api/json/tape/TapeModelJsonifier.hh"
+#include <memory>
+#include "mgm/http/rest-api/json/tape/JsonCPPTapeModelJsonifier.hh"
 #include <sstream>
 
 EOSMGMRESTNAMESPACE_BEGIN
 
+/**
+ * Base class for a REST-API model object
+ *
+ * A Model object represents client's request or api response.
+ */
 class Model {
 public:
+  Model(){
+    mJsonifier.reset(new JsonCPPTapeModelJsonifier());
+  }
   virtual void jsonify(std::stringstream & ss) const = 0;
   virtual ~Model(){}
+protected:
+  /**
+   * Jsonifier object that allows to jsonify this object
+   */
+  std::unique_ptr<TapeModelJsonifier> mJsonifier;
 };
 
 EOSMGMRESTNAMESPACE_END
