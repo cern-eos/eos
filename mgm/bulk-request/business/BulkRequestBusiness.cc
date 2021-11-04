@@ -52,4 +52,10 @@ std::unique_ptr<BulkRequest> BulkRequestBusiness::getBulkRequest(const std::stri
   return bulkRequest;
 }
 
+void BulkRequestBusiness::addOrUpdateAttributes(const std::shared_ptr<BulkRequest> req, const std::map<std::string, std::string>& attributes){
+  EXEC_TIMING_BEGIN("BulkRequestBusiness::addOrUpdateAttributes");
+  mDaoFactory->getBulkRequestDAO()->addOrUpdateAttributes(req,attributes);
+  EXEC_TIMING_END("BulkRequestBusiness::addOrUpdateAttributes");
+}
+
 EOSBULKNAMESPACE_END

@@ -67,6 +67,14 @@ public:
    */
   uint64_t deleteBulkRequestNotQueriedFor(const BulkRequest::Type & type, const std::chrono::seconds & seconds) override;
 
+  /**
+   * Adds or updates the attributes of a persisted bulk-request
+   * @param bulkRequest the bulk-request to update
+   * @param attributes the attributes to add/update to the bulk-request
+   * @throws PersistencyException if the bulk-request does not exist
+   */
+  void addOrUpdateAttributes(const std::shared_ptr<BulkRequest> bulkRequest, const std::map<std::string,std::string> & attributes) override;
+
 private:
   //Interface to the EOS filesystem to allow the creation of files and directories
   XrdMgmOfs * mFileSystem;

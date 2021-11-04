@@ -60,6 +60,13 @@ public:
    * @return the bulk-request associated to the id and the type passed in parameter
    */
   std::unique_ptr<BulkRequest> getBulkRequest(const std::string & bulkRequestId, const BulkRequest::Type & type);
+
+  /**
+   * Creates or update the persisted bulk-request attributes
+   * @param req the bulk-request to update its attributes
+   * @param attributes the attributes to add/update
+   */
+  void addOrUpdateAttributes(const std::shared_ptr<BulkRequest> req, const std::map<std::string,std::string> & attributes);
 private:
   std::unique_ptr<AbstractDAOFactory> mDaoFactory;
 };
