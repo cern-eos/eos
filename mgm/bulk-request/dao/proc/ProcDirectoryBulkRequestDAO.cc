@@ -353,4 +353,17 @@ void ProcDirectoryBulkRequestDAO::updateLastAccessTime(const std::string & path)
   setExtendedAttribute(path,LAST_ACCESS_TIME_ATTR_NAME,nowStr);
 }
 
+void ProcDirectoryBulkRequestDAO::addOrUpdateAttributes(const std::shared_ptr<BulkRequest> bulkRequest, const std::map<std::string,std::string> & attributes){
+  std::string bulkRequestPath = generateBulkRequestProcPath(bulkRequest);
+  if(existsAndIsDirectory(bulkRequestPath)){
+    for(const auto& kv: attributes){
+      setExtendedAttribute(bulkRequestPath,kv.first,kv.second);
+    }
+  } else {
+    std::ostringstream oss;
+    oss << "In ProcDirectoryBulkRequestDAO::addOrUpdateAttributes(), the bulk-request " << bulkRequest->getId() << " does not exist";
+    throw PersistencyException(oss.str());
+  }
+}
+
 EOSBULKNAMESPACE_END
