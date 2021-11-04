@@ -30,12 +30,27 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
+/**
+ * This class keeps track of the controllers of a REST API
+ */
 class ControllerManager {
 public:
   ControllerManager();
+  /**
+   * Adds a controller to this manager
+   * @param controller the controller to add
+   */
   void addController(std::shared_ptr<Controller> controller);
+  /**
+   * Returns the controller depending on the client URL
+   * e.g: if the client's URL is /api/v1/stage/xxx/cancel, the controller that will be returned will be
+   * the STAGEv1 controller
+   * @param clientUrl the URL from the client allowing to determine the controller to get
+   * @return the controller that depends on the client URL
+   */
   std::shared_ptr<Controller> getController(const std::string & clientUrl) const;
 private:
+  //Map associating a URL and a controller
   std::map<std::string,std::shared_ptr<Controller>> mControllers;
 };
 

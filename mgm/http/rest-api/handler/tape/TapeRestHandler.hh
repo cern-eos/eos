@@ -30,6 +30,10 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
+/**
+ * This class handles the HTTP requests that are
+ * intended for the WLCG TAPE REST API
+ */
 class TapeRestHandler : public RestHandler {
 public:
   /**

@@ -30,12 +30,16 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
+/**
+ * Factory of tape REST API responses
+ */
 class TapeRestApiResponseFactory {
 public:
   static RestApiResponse<ErrorModel> createBadRequestError(const std::string & detail);
   static RestApiResponse<ErrorModel> createNotFoundError();
-  static RestApiResponse<ErrorModel>
-  createMethodNotAllowedError(const std::string & detail);
+  static RestApiResponse<ErrorModel> createMethodNotAllowedError(const std::string & detail);
+  static RestApiResponse<ErrorModel> createInternalServerError(const std::string & detail);
+  static RestApiResponse<CreatedStageBulkRequestResponseModel> createStageBulkRequestResponse(const std::shared_ptr<CreatedStageBulkRequestResponseModel> createdStageBulkRequestModel);
 private:
   static RestApiResponse<ErrorModel> createError(const common::HttpResponse::ResponseCodes code,const std::string & title, const std::string & detail);
 };

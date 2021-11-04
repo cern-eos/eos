@@ -34,15 +34,31 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
+/**
+ * This class holds a map of <<URL,HttpMethod>,std::function> allowing to identify
+ * which function to run on a specific URL,method
+ */
 class ControllerActionDispatcher {
 public:
   typedef std::function<common::HttpResponse *(common::HttpRequest * request,const common::VirtualIdentity * vid)> ControllerHandler;
   typedef std::map<std::string,std::map<common::HttpHandler::Methods,ControllerHandler>> URLMethodFunctionMap;
 
-  ControllerActionDispatcher();
+  ControllerActionDispatcher() = default;
+  /**
+   * Set a ControllerHandler function to a specific URL pattern and Http method
+   * @param urlPattern the URL (with possible parameters) associated to the handler to run
+   * @param method Http method associated with the URL and the handler to run
+   * @param controllerHandler the handler function that corresponds to the URL and the method
+   */
   void addAction(const std::string & urlPattern, const common::HttpHandler::Methods method, const ControllerHandler & controllerHandler);
+  /**
+   * Returns the handler depending on the URL and the Http method located in the request passed in parameter
+   * @param request the request allowing to return the handler
+   * @return the handler depending on the URL and the Http method located in the request passed in parameter
+   */
   ControllerHandler getAction(common::HttpRequest * request);
 private:
+  //The map storing the URL,HttpMethod and the associated handler
   URLMethodFunctionMap mMethodFunctionMap;
 };
 
