@@ -451,6 +451,7 @@ QdbMaster::ApplyMasterConfig(std::string& stdOut, std::string& stdErr,
   std::unique_lock<std::mutex> lock(sequential_mutex);
   gOFS->mFsckEngine->Stop();
   gOFS->mDrainEngine.Stop();
+  gOFS->mDrainEngine.Start();
   gOFS->ConfEngine->SetConfigDir(gOFS->MgmConfigDir.c_str());
   // Take care of setting the config engine for FsView to null while applying
   // the config otherwise we deadlock since the FsView will try to set config
@@ -472,7 +473,6 @@ QdbMaster::ApplyMasterConfig(std::string& stdOut, std::string& stdErr,
     }
   }
 
-  gOFS->mDrainEngine.Start();
   gOFS->SetupGlobalConfig();
   return mConfigLoaded;
 }
