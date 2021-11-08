@@ -3696,11 +3696,12 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
   }
 
   config.set("request_timeout", "120");
-  // Instantiate service object only once, static is also thread-safe
-  static XrdSsiPbServiceType service(endPoint, resource, config);
   cta::xrd::Response response;
 
   try {
+    // Instantiate service object only once, static is also thread-safe
+    // If static initialization throws an exception, it will be retried next time
+    static XrdSsiPbServiceType service(endPoint, resource, config);
     auto sentAt = std::chrono::steady_clock::now();
     service.Send(request, response);
     auto receivedAt = std::chrono::steady_clock::now();
