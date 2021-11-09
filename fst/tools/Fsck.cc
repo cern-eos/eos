@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "fst/Fsck.hh"
-#include "fst/FmdDbMap.hh"
+#include "fst/filemd/FmdDbMap.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/Config.hh"
 #include "common/LayoutId.hh"

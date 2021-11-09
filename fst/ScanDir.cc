@@ -28,7 +28,7 @@
 #include "console/commands/helpers/FsHelper.hh"
 #include "fst/Config.hh"
 #include "fst/XrdFstOfs.hh"
-#include "fst/FmdDbMap.hh"
+#include "fst/filemd/FmdDbMap.hh"
 #include "fst/Deletion.hh"
 #include "fst/storage/FileSystem.hh"
 #include "fst/checksum/ChecksumPlugins.hh"

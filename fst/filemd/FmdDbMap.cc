@@ -21,7 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "fst/FmdDbMap.hh"
+#include "fst/filemd/FmdDbMap.hh"
 #include "common/Path.hh"
 #include "common/ShellCmd.hh"
 #include "proto/Fs.pb.h"

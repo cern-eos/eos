@@ -26,7 +26,7 @@
 #include "fst/Config.hh"
 #include "fst/txqueue/TransferQueue.hh"
 #include "fst/storage/FileSystem.hh"
-#include "fst/FmdDbMap.hh"
+#include "fst/filemd/FmdDbMap.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "qclient/Formatting.hh"
 #include "common/LinuxStat.hh"

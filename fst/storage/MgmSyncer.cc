@@ -23,7 +23,7 @@
 
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
-#include "fst/FmdDbMap.hh"
+#include "fst/filemd/FmdDbMap.hh"
 #include "fst/Config.hh"
 
 EOSFSTNAMESPACE_BEGIN
