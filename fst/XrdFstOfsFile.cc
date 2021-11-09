@@ -244,7 +244,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
   if ((mRainReconstruct && (mTpcFlag == kTpcSrcCanDo)) ||
       (mTpcFlag == kTpcSrcSetup)) {
-    eos_info("msg=kTpcSrcSetup return SFS_OK");
+    eos_info("%s", "msg=kTpcSrcSetup return SFS_OK");
     return SFS_OK;
   }
 
