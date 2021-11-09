@@ -283,7 +283,7 @@ set(XRDEOSFST_SRCS
   # Utils
   utils/OpenFileTracker.cc
   # File metadata interface
-  FmdDbMap.cc          FmdDbMap.hh
+  filemd/FmdDbMap.cc          filemd/FmdDbMap.hh
   # HTTP interface
   http/HttpServer.cc    http/HttpServer.hh
   http/HttpHandler.cc   http/HttpHandler.hh
@@ -393,7 +393,7 @@ add_executable(eos-scan-fs
   tools/ScanXS.cc
   ScanDir.cc
   Load.cc
-  FmdDbMap.cc
+  filemd/FmdDbMap.cc
   Config.cc
   checksum/Adler.cc
   checksum/CheckSum.cc)
@@ -403,7 +403,7 @@ target_compile_definitions(eos-scan-fs PUBLIC -D_NOOFS=1)
 add_executable(eos-fsck-fs
   Fsck.cc
   Load.cc
-  FmdDbMap.cc
+  filemd/FmdDbMap.cc
   Config.cc
   tools/Fsck.cc
   checksum/Adler.cc

@@ -24,7 +24,7 @@
 #include "fst/XrdFstOfs.hh"
 #include "fst/XrdFstOss.hh"
 #include "fst/Config.hh"
-#include "fst/FmdDbMap.hh"
+#include "fst/filemd/FmdDbMap.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/http/HttpServer.hh"
 #include "fst/storage/FileSystem.hh"

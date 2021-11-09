@@ -29,7 +29,7 @@
 #include "fst/Config.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/io/FileIoPluginCommon.hh"
-#include "fst/FmdDbMap.hh"
+#include "fst/filemd/FmdDbMap.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
