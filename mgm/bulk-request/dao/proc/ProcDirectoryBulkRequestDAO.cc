@@ -40,6 +40,11 @@ ProcDirectoryBulkRequestDAO::ProcDirectoryBulkRequestDAO(XrdMgmOfs * fileSystem,
 void ProcDirectoryBulkRequestDAO::saveBulkRequest(const std::shared_ptr<BulkRequest> bulkRequest) {
   std::string directoryBulkReqPath = generateBulkRequestProcPath(bulkRequest);
   try {
+    if(bulkRequest->getFiles()->size() == 0) {
+      std::ostringstream oss;
+      oss << "In ProcDirectoryBulkRequestDAO::saveBulkRequest(), unable to persist the bulk-request id=" << bulkRequest->getId() << " because it does not contain any files";
+      throw PersistencyException(oss.str());
+    }
     {
       eos_info("msg=\"Persistence of the bulk request %s : creating the directory %s\"",bulkRequest->getId().c_str(),
                directoryBulkReqPath.c_str());

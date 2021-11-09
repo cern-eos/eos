@@ -29,12 +29,20 @@ void CreateStageBulkRequestModel::addPath(const std::string & path){
   mPaths.push_back(path);
 }
 
+void CreateStageBulkRequestModel::addOpaqueInfo(const std::string& oinfos){
+  mOinfos.push_back(oinfos);
+}
+
 void CreateStageBulkRequestModel::addOrModifyMetadata(const std::string & key, const std::any & value){
   mMetadata[key] = value;
 }
 
 const std::vector<std::string> & CreateStageBulkRequestModel::getPaths() const{
   return mPaths;
+}
+
+const std::vector<std::string> & CreateStageBulkRequestModel::getOpaqueInfos() const {
+  return mOinfos;
 }
 
 EOSMGMRESTNAMESPACE_END
