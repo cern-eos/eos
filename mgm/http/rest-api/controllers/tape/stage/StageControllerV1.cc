@@ -64,7 +64,7 @@ common::HttpResponse * StageControllerV1::createBulkStageRequest(common::HttpReq
     return TapeRestApiResponseFactory::createBadRequestError(ex2.what()).getHttpResponse();
   }
   //Create the prepare arguments
-  bulk::PrepareArgumentsWrapper pargsWrapper("fake_id",Prep_STAGE,{""},createStageBulkRequestModel->getPaths());
+  bulk::PrepareArgumentsWrapper pargsWrapper("fake_id",Prep_STAGE,createStageBulkRequestModel->getOpaqueInfos(),createStageBulkRequestModel->getPaths());
   //Stage and persist the bulk-request created by the prepare manager
   bulk::RealMgmFileSystemInterface mgmFsInterface(gOFS);
   bulk::BulkRequestPrepareManager pm(mgmFsInterface);

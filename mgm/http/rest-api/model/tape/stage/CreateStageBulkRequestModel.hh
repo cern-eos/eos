@@ -38,12 +38,15 @@ EOSMGMRESTNAMESPACE_BEGIN
 class CreateStageBulkRequestModel {
 public:
   void addPath(const std::string & path);
+  void addOpaqueInfo(const std::string & oinfos);
   void addOrModifyMetadata(const std::string & key, const std::any & value);
   const std::vector<std::string> & getPaths() const;
+  const std::vector<std::string> & getOpaqueInfos() const;
   inline static const std::string PATHS_KEY_NAME = "paths";
   inline static const std::string METADATA_KEY_NAME = "metadata";
 private:
   std::vector<std::string> mPaths;
+  std::vector<std::string> mOinfos;
   std::map<std::string,std::any> mMetadata;
 };
 
