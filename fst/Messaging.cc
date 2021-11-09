@@ -27,7 +27,6 @@
 #include "fst/Deletion.hh"
 #include "fst/Verify.hh"
 #include "fst/XrdFstOfs.hh"
-#include "fst/FmdDbMap.hh"
 #include "common/SymKeys.hh"
 
 EOSFSTNAMESPACE_BEGIN
