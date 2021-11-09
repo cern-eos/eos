@@ -53,6 +53,8 @@ std::shared_ptr<CreateStageBulkRequestModel> JsonCPPTapeModelBuilder::buildCreat
       throw JsonObjectModelMalformedException(oss.str());
     }
     createStageBulkReq->addPath(path->asString());
+    //TODO in the future: metadata
+    createStageBulkReq->addOpaqueInfo("");
   }
   //TODO in the future: metadata
   return createStageBulkReq;
