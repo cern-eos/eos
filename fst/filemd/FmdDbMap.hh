@@ -27,7 +27,6 @@
 #include "common/DbMap.hh"
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
-#include "XrdSys/XrdSysPthread.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
 
@@ -38,10 +37,6 @@
 //! Forward declaration
 namespace eos
 {
-namespace ns
-{
-class FileMdProto;
-}
 class QdbContactDetails;
 }
 
@@ -53,53 +48,6 @@ EOSFSTNAMESPACE_BEGIN
 class FmdDbMapHandler : public eos::common::LogId
 {
 public:
-  //----------------------------------------------------------------------------
-  //! Convert an FST env representation to an Fmd struct
-  //!
-  //! @param env env representation
-  //! @param fmd reference to Fmd struct
-  //!
-  //! @return true if successful otherwise false
-  //----------------------------------------------------------------------------
-  static bool EnvMgmToFmd(XrdOucEnv& env, eos::common::FmdHelper& fmd);
-
-  //----------------------------------------------------------------------------
-  //! Convert namespace file proto md to an Fmd struct
-  //!
-  //! @param file namespace file proto object
-  //! @param fmd reference to Fmd struct
-  //!
-  //! @return true if successful otherwise false
-  //----------------------------------------------------------------------------
-  static bool NsFileProtoToFmd(eos::ns::FileMdProto&& filemd,
-                               eos::common::FmdHelper& fmd);
-
-  //----------------------------------------------------------------------------
-  //! Return Fmd from MGM doing getfmd command
-  //!
-  //! @parm manager manager hostname:port
-  //! @param fid file id
-  //! @param fmd reference to the Fmd struct to store Fmd
-  //!
-  //! @return 0 if successful, otherwise errno
-  //----------------------------------------------------------------------------
-  static int GetMgmFmd(const std::string& manager,
-                       eos::common::FileId::fileid_t fid,
-                       eos::common::FmdHelper& fmd);
-
-  //----------------------------------------------------------------------------
-  //! Execute "fs dumpmd" on the MGM node
-  //!
-  //! @param mgm_host MGM hostname
-  //! @param fsid filesystem id
-  //! @param fn_output file name where output is written
-  //!
-  //! @return true if successful, otherwise false
-  //----------------------------------------------------------------------------
-  static bool ExecuteDumpmd(const std::string& mgm_hosst,
-                            eos::common::FileSystem::fsid_t fsid,
-                            std::string& fn_output);
-
   //----------------------------------------------------------------------------
   //! Check if entry has a file checksum error
   //!
@@ -484,16 +432,6 @@ private:
   //! @param fpath file to move
   //----------------------------------------------------------------------------
   void MoveToOrphans(const std::string& fpath) const;
-
-  //----------------------------------------------------------------------------
-  //! Exclude unlinked locations from the given string representation
-  //!
-  //! @param slocations string of locations separated by commad with unlinked
-  //!        locations having an ! in front
-  //!
-  //! @return string with the linked locations excluded
-  //----------------------------------------------------------------------------
-  static std::string ExcludeUnlinkedLoc(const std::string& slocations);
 
   //----------------------------------------------------------------------------
   //! Lock mutex corresponding to the given file systemd id
