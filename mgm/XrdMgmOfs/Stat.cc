@@ -51,7 +51,8 @@ XrdMgmOfs::stat(const char* inpath,
                 const XrdSecEntity* client,
                 const char* ininfo,
                 bool follow,
-                std::string* uri)
+                std::string* uri,
+		std::string* cks)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief return stat information for a given path
@@ -93,7 +94,7 @@ XrdMgmOfs::stat(const char* inpath,
   }
 
   errno = 0;
-  int rc = _stat(path, buf, error, vid, ininfo, etag, follow, uri);
+  int rc = _stat(path, buf, error, vid, ininfo, etag, follow, uri, cks);
 
   if (rc) {
     if (errno == ENOENT) {
@@ -147,7 +148,8 @@ XrdMgmOfs::_stat(const char* path,
                  const char* ininfo,
                  std::string* etag,
                  bool follow,
-                 std::string* uri)
+                 std::string* uri,
+		 std::string* cks)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief return stat information for a given path
@@ -213,6 +215,9 @@ XrdMgmOfs::_stat(const char* path,
 
     if (uri) {
       *uri = gOFS->eosView->getUri(fmd.get());
+    }
+    if (cks) {
+      eos::appendChecksumOnStringAsHex(fmd.get(), *cks);
     }
   } catch (eos::MDException& e) {
     errno = e.getErrno();
@@ -352,6 +357,9 @@ XrdMgmOfs::_stat(const char* path,
       eos::calculateEtag(cmd.get(), *etag);
     }
 
+    if (cks) {
+      *cks = "";
+    }
     return SFS_OK;
   } catch (eos::MDException& e) {
     errno = e.getErrno();

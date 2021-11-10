@@ -57,7 +57,9 @@ com_ls(char* arg1)
 
     if (param.beginswith("-")) {
       option += param;
-
+      if (param == "-c") {
+	option += "-l";
+      }
       if ((option.find("&")) != STR_NPOS) {
         goto com_ls_usage;
       }
@@ -274,6 +276,7 @@ com_ls_usage:
           "                    -lh: show long listing with readable sizes\n");
   fprintf(stdout, "                    -a : show hidden files\n");
   fprintf(stdout, "                    -i : add inode information\n");
+  fprintf(stdout, "                    -c : add checksum value\n");
   fprintf(stdout, "                    -n : show numerical user/group ids\n");
   fprintf(stdout, "                    -F : append indicator '/' to directories \n");
   fprintf(stdout,

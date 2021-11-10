@@ -618,7 +618,8 @@ public:
            const XrdSecEntity* client = 0,
            const char* opaque = 0,
            bool follow = true,
-           std::string* uri = 0
+           std::string* uri = 0,
+	   std::string* cks = 0
           );
 
   int stat(const char* Name,
@@ -648,7 +649,8 @@ public:
             const char* opaque = 0,
             std::string* etag = 0,
             bool follow = true,
-            std::string* uri = 0);
+            std::string* uri = 0,
+	    std::string* cks = 0);
   // ---------------------------------------------------------------------------
   // set XRDSFS_OFFLINE and XRDSFS_HASBKUP flags
   // ---------------------------------------------------------------------------

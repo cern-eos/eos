@@ -218,9 +218,9 @@ ProcCommand::Ls()
             }
 
             struct stat buf;
-
+	    std::string cks;
             if (gOFS->_stat(statpath.c_str(), &buf, *mError, *pVid, (const char*) 0, 0,
-                            false)) {
+                            false, 0, &cks)) {
 	      if (errno != ENOENT) {
 		stdErr += "error: unable to stat path ";
 		stdErr += statpath;
@@ -296,6 +296,13 @@ ProcCommand::Ls()
                 sprintf(lsline, "%-16s", sinode);
                 stdOut += lsline;
               }
+
+	      if ((option.find("c")) != STR_NPOS) {
+		// add checksum information
+		char checksum[32];
+		sprintf(checksum, "%-34s",cks.c_str());
+		stdOut += checksum;
+	      }
 
               if ((option.find("h")) == STR_NPOS)
                 sprintf(lsline, "%s%s %3d %-8.8s %-8.8s %12s %s %s%s", backendstatus.c_str(),
