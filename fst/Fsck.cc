@@ -30,6 +30,7 @@
 #include "fst/XrdFstOfs.hh"
 #include "fst/io/FileIoPluginCommon.hh"
 #include "fst/filemd/FmdDbMap.hh"
+#include "fst/filemd/FmdMgm.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
@@ -363,7 +364,7 @@ Fsck::ScanMd()
   std::string tmpfile;
 
   // dump all metadata from mgm
-  if (!eos::fst::FmdDbMapHandler::ExecuteDumpmd(managerHostPort, fsId, tmpfile)) {
+  if (!eos::fst::FmdMgmHandler::ExecuteDumpmd(managerHostPort, fsId, tmpfile)) {
     return;
   }
 
@@ -381,7 +382,7 @@ Fsck::ScanMd()
     if (env) {
       eos::common::FmdHelper fMd;
 
-      if (eos::fst::FmdDbMapHandler::EnvMgmToFmd(*env, fMd)) {
+      if (eos::fst::FmdMgmHandler::EnvMgmToFmd(*env, fMd)) {
         // now the MD object is filled
         CheckFile(fMd, nfiles);
         mMd[fMd.mProtoFmd.fid()] = fMd;
@@ -459,7 +460,7 @@ Fsck::ScanMdQdb()
     eos::common::FmdHelper fMd;
 
     try {
-      FmdDbMapHandler::NsFileProtoToFmd(std::move(files.front()).get(), fMd);
+      FmdMgmHandler::NsFileProtoToFmd(std::move(files.front()).get(), fMd);
       CheckFile(fMd, nfiles);
       mMd[fMd.mProtoFmd.fid()] = fMd;
       files.pop_front();
