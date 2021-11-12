@@ -83,7 +83,7 @@ XrdMgmOfs::_chown(const char* path,
     }
     acl.SetFromAttrMap(attrmap, vid, NULL, false, cmd->getCUid(), cmd->getCGid());  /* also takes care of eval.useracl */
 
-    eos_static_debug("sys.acl %s acl.CanChown() %d", attrmap["sys.acl"].c_str(), acl.CanChown());
+    eos_static_info("sys.acl %s acl.CanChown() %d", attrmap["sys.acl"].c_str(), acl.CanChown());
 
     if (((vid.uid) && (!vid.hasUid(3) && !vid.hasGid(4) ) &&
          !acl.CanChown()) ||
