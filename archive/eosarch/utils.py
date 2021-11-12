@@ -313,6 +313,9 @@ def set_dir_info(surl, dict_dinfo, excl_xattr):
         if key in excl_xattr:
             continue
 
+        if len(val) == 0:
+            continue
+
         fsetattr = ''.join([url.protocol, "://", url.hostid, "//proc/user/?",
                             "mgm.cmd=attr&mgm.subcmd=set&mgm.attr.key=", key,
                             "&mgm.attr.value=", val, "&mgm.path=", seal_path(url.path)])
