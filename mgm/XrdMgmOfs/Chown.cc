@@ -81,9 +81,9 @@ XrdMgmOfs::_chown(const char* path,
       // if the user is not the owner, user acls are removed
       attrmap["user.acl"] = "";
     }
-    acl.SetFromAttrMap(attrmap, vid, NULL, false, cmd->getCUid(), cmd->getCGid());  /* also takes care of eval.useracl */
+    acl.SetFromAttrMap(attrmap, vid, NULL, false, false, cmd->getCUid(), cmd->getCGid());  /* also takes care of eval.useracl */
 
-    eos_static_info("sys.acl %s acl.CanChown() %d", attrmap["sys.acl"].c_str(), acl.CanChown());
+    eos_info("sys.acl %s acl.CanChown() %d", attrmap["sys.acl"].c_str(), acl.CanChown());
 
     if (((vid.uid) && (!vid.hasUid(3) && !vid.hasGid(4) ) &&
          !acl.CanChown()) ||
@@ -137,9 +137,9 @@ XrdMgmOfs::_chown(const char* path,
 	attrmap["user.acl"] = "";
       }
 
-      acl.SetFromAttrMap(attrmap, vid, NULL, false, cmd->getCUid(), cmd->getCGid());   /* also takes care of eval.useracl */
+      acl.SetFromAttrMap(attrmap, vid, NULL, false, false, cmd->getCUid(), cmd->getCGid());   /* also takes care of eval.useracl */
 
-      eos_static_debug("sys.acl %s acl.CanChown() %d", attrmap["sys.acl"].c_str(), acl.CanChown());
+      eos_info("sys.acl %s acl.CanChown() %d", attrmap["sys.acl"].c_str(), acl.CanChown());
 
       if ((vid.uid) && (!vid.sudoer) && (vid.uid != 3) && (vid.gid != 4) && !acl.CanChown()) {
         errno = EPERM;
