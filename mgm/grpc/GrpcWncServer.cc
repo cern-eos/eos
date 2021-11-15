@@ -43,8 +43,16 @@ class WncService final : public EosWnc::Service
       command = "Acl";
       break;
 
+    case eos::console::RequestProto::kArchive:
+      command = "Archive";
+      break;
+
     case eos::console::RequestProto::kAttr:
       command = "Attr";
+      break;
+
+    case eos::console::RequestProto::kBackup:
+      command = "Backup";
       break;
 
     case eos::console::RequestProto::kChmod:
@@ -57,6 +65,10 @@ class WncService final : public EosWnc::Service
 
     case eos::console::RequestProto::kConfig:
       command = "Config";
+      break;
+
+    case eos::console::RequestProto::kCp:
+      command = "Cp";
       break;
 
     case eos::console::RequestProto::kDebug:
@@ -79,12 +91,24 @@ class WncService final : public EosWnc::Service
       command = "Fsck";
       break;
 
+    case eos::console::RequestProto::kGeosched:
+      command = "Geosched";
+      break;
+
     case eos::console::RequestProto::kGroup:
       command = "Group";
       break;
 
+    case eos::console::RequestProto::kHealth:
+      command = "Health";
+      break;
+
     case eos::console::RequestProto::kIo:
       command = "Io";
+      break;
+
+    case eos::console::RequestProto::kLs:
+      command = "Ls";
       break;
 
     case eos::console::RequestProto::kMkdir:
@@ -184,6 +208,10 @@ class WncService final : public EosWnc::Service
     std::string command;
 
     switch (request->command_case()) {
+    case eos::console::RequestProto::kTransfer:
+      command = "Transfer";
+      break;
+
     default:
       command = "unknown";
       break;
