@@ -29,6 +29,7 @@
 #include "console/commands/HealthCommand.hh"
 #include "console/ConsoleMain.hh"
 #include "mgm/Acl.hh"
+#include "mgm/Egroup.hh"
 #include "mgm/FsView.hh"
 #include "mgm/grpc/GrpcNsInterface.hh"
 #include "mgm/GeoTreeEngine.hh"
@@ -129,6 +130,10 @@ GrpcWncInterface::ExecCmd(eos::common::VirtualIdentity& vid,
 
   case eos::console::RequestProto::kMap:
     return Map(vid, request, reply);
+    break;
+
+  case eos::console::RequestProto::kMember:
+    return Member(vid, request, reply);
     break;
 
   case eos::console::RequestProto::kMkdir:
@@ -2379,6 +2384,38 @@ GrpcWncInterface::Map(eos::common::VirtualIdentity& vid,
   reply->set_std_out(std_out);
   reply->set_std_err(std_err);
 
+  return grpc::Status::OK;
+}
+
+grpc::Status
+GrpcWncInterface::Member(eos::common::VirtualIdentity& vid,
+                         const eos::console::RequestProto* request,
+                         eos::console::ReplyProto* reply)
+{
+  std::string egroup = request->member().egroup();
+  int errc = 0;
+  std::string uid_string = eos::common::Mapping::UidToUserName(vid.uid, errc);
+  std::string rs;
+
+  if (!egroup.empty()) {
+
+    if (request->member().update()) {
+      gOFS->EgroupRefresh->refresh(uid_string, egroup);
+    }
+
+    rs = gOFS->EgroupRefresh->DumpMember(uid_string, egroup);
+  }
+  else if (vid.uid != 0) {
+    reply->set_retc(EPERM);
+    reply->set_std_err("error: you have to take role 'root' to execute this command");
+    return grpc::Status::OK;
+  }
+  else {
+    rs = gOFS->EgroupRefresh->DumpMembers();
+  }
+
+  reply->set_std_out(rs);
+  reply->set_retc(SFS_OK);
   return grpc::Status::OK;
 }
 

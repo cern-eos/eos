@@ -1,0 +1,12 @@
+// ----------------------------------------------------------------------------
+// File: Member.proto
+// Author: Branko Blagojevic <branko.blagojevic@comtrade.com>
+// ----------------------------------------------------------------------------
+
+syntax="proto3";
+package eos.console;
+
+message MemberProto {
+  string egroup = 1;
+  bool update   = 2;
+}
