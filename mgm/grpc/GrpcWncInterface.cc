@@ -57,6 +57,10 @@ GrpcWncInterface::ExecCmd(eos::common::VirtualIdentity& vid,
     return Acl(vid, request, reply);
     break;
 
+  case eos::console::RequestProto::kArchive:
+    return Archive(vid, request, reply);
+    break;
+
   case eos::console::RequestProto::kAttr:
     return Attr(vid, request, reply);
     break;
@@ -368,6 +372,43 @@ GrpcWncInterface::Acl(eos::common::VirtualIdentity& vid,
   eos::console::RequestProto req = *request;
   eos::mgm::AclCmd aclcmd(std::move(req), vid);
   *reply = aclcmd.ProcessRequest();
+  return grpc::Status::OK;
+}
+
+grpc::Status
+GrpcWncInterface::Archive(eos::common::VirtualIdentity& vid,
+                          const eos::console::RequestProto* request,
+                          eos::console::ReplyProto* reply)
+{
+  std::string subcmd = request->archive().command();
+  std::string in_cmd = "mgm.cmd=archive&mgm.subcmd=" + subcmd;
+
+  if (subcmd == "kill") {
+    in_cmd += "&mgm.archive.option=" + request->archive().job_uuid();
+  }
+  else if (subcmd == "transfers") {
+    in_cmd += "&mgm.archive.option=" + request->archive().selection();
+  }
+  else {
+    if (request->archive().retry()) {
+      in_cmd += "&mgm.archive.option=r";
+    }
+
+    in_cmd += "&mgm.archive.path=" + request->archive().path();
+  }
+
+  ProcCommand cmd;
+  XrdOucErrInfo error;
+  std::string std_out, std_err;
+
+  cmd.open("/proc/user", in_cmd.c_str(), vid, &error);
+  cmd.AddOutput(std_out, std_err);
+  cmd.close();
+
+  reply->set_retc(cmd.GetRetc());
+  reply->set_std_out(std_out);
+  reply->set_std_err(std_err);
+
   return grpc::Status::OK;
 }
 

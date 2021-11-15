@@ -46,8 +46,8 @@ private:
   //! Complement ACL with usernames and groupnames
   //! for fileinfo output for EOS-Drive
   //!
-  //! @param acl  ACL string
-  //! @return     ACL string with added usernames and groupnames
+  //! @param input  ACL string
+  //! @return       ACL string with added usernames and groupnames
   //---------------------------------------------------------------------------
   static std::string AddNamesToACL(std::string input);
 
@@ -64,6 +64,10 @@ private:
   static grpc::Status Acl(eos::common::VirtualIdentity& vid,
                           const eos::console::RequestProto* request,
                           eos::console::ReplyProto* reply);
+
+  static grpc::Status Archive(eos::common::VirtualIdentity& vid,
+                              const eos::console::RequestProto* request,
+                              eos::console::ReplyProto* reply);
 
   static grpc::Status Attr(eos::common::VirtualIdentity& vid,
                            const eos::console::RequestProto* request,

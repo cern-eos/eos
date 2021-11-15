@@ -1,0 +1,15 @@
+// ----------------------------------------------------------------------------
+// File: Archive.proto
+// Author: Branko Blagojevic <branko.blagojevic@comtrade.com>
+// ----------------------------------------------------------------------------
+
+syntax="proto3";
+package eos.console;
+
+message ArchiveProto {
+  string command   = 1;
+  string path      = 2;
+  bool retry       = 3;
+  string selection = 4;
+  string job_uuid  = 5;
+}
