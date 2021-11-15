@@ -129,6 +129,10 @@ private:
                          const eos::console::RequestProto* request,
                          eos::console::ReplyProto* reply);
 
+  static grpc::Status Map(eos::common::VirtualIdentity& vid,
+                          const eos::console::RequestProto* request,
+                          eos::console::ReplyProto* reply);
+
   static grpc::Status Mkdir(eos::common::VirtualIdentity& vid,
                             const eos::console::RequestProto* request,
                             eos::console::ReplyProto* reply);
