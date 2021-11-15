@@ -54,6 +54,9 @@ ProcCommand::Attr()
   XrdOucString option = pOpaque->Get("mgm.option");
   const char* inpath = spath.c_str();
   uint64_t identifier = 0;
+
+  bool exclusive = false;
+
   NAMESPACEMAP;
   PROC_BOUNCE_ILLEGAL_NAMES;
   PROC_BOUNCE_NOT_ALLOWED;
@@ -116,7 +119,7 @@ ProcCommand::Attr()
       // Find everything to be modified i.e. directories only
       std::map<std::string, std::set<std::string> > found;
 
-      if (option == "r") {
+      if (option.find("r") != STR_NPOS) {
         if (gOFS->_find(spath.c_str(), *mError, stdErr, *pVid, found, nullptr,
                         nullptr, true)) {
           stdErr += "error: unable to search in path";
@@ -125,6 +128,10 @@ ProcCommand::Attr()
       } else {
         // the single dir case
         (void) found[spath.c_str()].size();
+      }
+
+      if (option.find("c") != STR_NPOS) {
+	exclusive = true;
       }
 
       if (!retc) {
@@ -217,7 +224,7 @@ ProcCommand::Attr()
               }
 
               if (gOFS->_attr_set(foundit->first.c_str(), *mError, *pVid, (const char*) 0,
-                                  key.c_str(), val.c_str())) {
+                                  key.c_str(), val.c_str(), true, exclusive)) {
                 stdErr += "error: unable to set attribute in file/directory ";
                 stdErr += foundit->first.c_str();
 

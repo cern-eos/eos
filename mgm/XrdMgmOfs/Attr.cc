@@ -124,7 +124,8 @@ int
 XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
                      eos::common::VirtualIdentity& vid,
                      const char* info, const char* key, const char* value,
-                     bool take_lock)
+                     bool take_lock,
+		     bool exclusive)
 {
   static const char* epname = "attr_set";
   EXEC_TIMING_BEGIN("AttrSet");
@@ -186,6 +187,11 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
         }
       }
 
+      if (exclusive && dh->hasAttribute(Key.c_str())) {
+	errno = EEXIST;
+	return Emsg(epname, error, errno, "set attribute (exclusive set for existing attribute)", path);
+      }
+
       dh->setAttribute(key, val.c_str());
 
       if (Key != "sys.tmp.etag") {
@@ -222,6 +228,11 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
           && (!vid.sudoer && vid.uid)) {
         errno = EPERM;
       } else {
+	if (exclusive && fmd->hasAttribute(Key.c_str())) {
+	  errno = EEXIST;
+	  return Emsg(epname, error, errno, "set attribute (exclusive set for existing attribute)", path);
+	}
+
         XrdOucString val64 = value;
         XrdOucString val;
         eos::common::SymKey::DeBase64(val64, val);
