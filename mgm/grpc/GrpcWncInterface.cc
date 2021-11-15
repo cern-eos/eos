@@ -65,6 +65,10 @@ GrpcWncInterface::ExecCmd(eos::common::VirtualIdentity& vid,
     return Attr(vid, request, reply);
     break;
 
+  case eos::console::RequestProto::kBackup:
+    return Backup(vid, request, reply);
+    break;
+
   case eos::console::RequestProto::kChmod:
     return Chmod(vid, request, reply);
     break;
@@ -538,6 +542,76 @@ GrpcWncInterface::Attr(eos::common::VirtualIdentity& vid,
   } else {
     reply->set_std_out(stdOut + stdErr);
   }
+
+  return grpc::Status::OK;
+}
+
+grpc::Status
+GrpcWncInterface::Backup(eos::common::VirtualIdentity& vid,
+                         const eos::console::RequestProto* request,
+                         eos::console::ReplyProto* reply)
+{
+  std::string src = request->backup().src_url();
+  std::string dst = request->backup().dst_url();
+  XrdCl::URL src_url(src.c_str()), dst_url(dst.c_str());
+
+  // Check that source is valid XRootD URL
+  if (!src_url.IsValid())
+  {
+    reply->set_retc(EINVAL);
+    reply->set_std_err("Error: Source is not valid XRootD URL: " + src);
+    return grpc::Status::OK;
+  }
+
+  // Check that destination is valid XRootD URL
+  if (!dst_url.IsValid())
+  {
+    reply->set_retc(EINVAL);
+    reply->set_std_err("Error: Destination is not valid XRootD URL: " + dst);
+    return grpc::Status::OK;
+  }
+
+  std::string in_cmd = "mgm.cmd=backup&mgm.backup.src=" + src + "&mgm.backup.dst=" + dst;
+
+  if (request->backup().ctime()) {
+    struct timeval tv;
+
+    if (gettimeofday(&tv, NULL)) {
+      reply->set_retc(EINVAL);
+      reply->set_std_err("Error: Failed getting current timestamp");
+      return grpc::Status::OK;
+    }
+
+    in_cmd += "&mgm.backup.ttime=ctime&mgm.backup.vtime=" + std::to_string(tv.tv_sec - request->backup().ctime());
+  }
+
+  if (request->backup().mtime()) {
+    struct timeval tv;
+
+    if (gettimeofday(&tv, NULL)) {
+      reply->set_retc(errno);
+      reply->set_std_err("Error: Failed getting current timestamp");
+      return grpc::Status::OK;
+    }
+
+    in_cmd += "&mgm.backup.ttime=mtime&mgm.backup.vtime=" + std::to_string(tv.tv_sec - request->backup().mtime());
+  }
+
+  if (!request->backup().xattr().empty()) {
+    in_cmd += "&mgm.backup.excl_xattr=" + request->backup().xattr();
+  }
+
+  ProcCommand cmd;
+  XrdOucErrInfo error;
+  std::string std_out, std_err;
+
+  cmd.open("/proc/admin", in_cmd.c_str(), vid, &error);
+  cmd.AddOutput(std_out, std_err);
+  cmd.close();
+
+  reply->set_retc(cmd.GetRetc());
+  reply->set_std_out(std_out);
+  reply->set_std_err(std_err);
 
   return grpc::Status::OK;
 }

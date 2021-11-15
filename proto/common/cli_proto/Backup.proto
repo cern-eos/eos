@@ -1,0 +1,15 @@
+// ----------------------------------------------------------------------------
+// File: Backup.proto
+// Author: Branko Blagojevic <branko.blagojevic@comtrade.com>
+// ----------------------------------------------------------------------------
+
+syntax="proto3";
+package eos.console;
+
+message BackupProto {
+  string src_url = 1;
+  string dst_url = 2;
+  int32 ctime    = 3;
+  int32 mtime    = 4;
+  string xattr   = 5;
+}
