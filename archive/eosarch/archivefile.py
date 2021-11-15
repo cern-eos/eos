@@ -302,7 +302,7 @@ class ArchiveFile(object):
                     new_rules.append(rule)
 
                 acl_val = ','.join(new_rules)
-                self.logger.error("new acl: {0}".format(acl_val))
+                self.logger.info("new acl: {0}".format(acl_val))
 
                 if acl_val:
                     # Set the new sys.acl xattr
