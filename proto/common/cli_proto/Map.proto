@@ -1,0 +1,13 @@
+// ----------------------------------------------------------------------------
+// File: Map.proto
+// Author: Branko Blagojevic <branko.blagojevic@comtrade.com>
+// ----------------------------------------------------------------------------
+
+syntax="proto3";
+package eos.console;
+
+message MapProto {
+  string command  = 1;
+  string src_path = 2;
+  string dst_path = 3;
+}

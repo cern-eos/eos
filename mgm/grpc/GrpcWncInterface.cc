@@ -127,6 +127,10 @@ GrpcWncInterface::ExecCmd(eos::common::VirtualIdentity& vid,
     return Ls(vid, request, reply);
     break;
 
+  case eos::console::RequestProto::kMap:
+    return Map(vid, request, reply);
+    break;
+
   case eos::console::RequestProto::kMkdir:
     return Mkdir(vid, request, reply);
     break;
@@ -2344,6 +2348,37 @@ GrpcWncInterface::Ls(eos::common::VirtualIdentity& vid,
   reply->set_retc(cmd.GetRetc());
   reply->set_std_err(stdErr);
   reply->set_std_out(stdOut);
+  return grpc::Status::OK;
+}
+
+grpc::Status
+GrpcWncInterface::Map(eos::common::VirtualIdentity& vid,
+                      const eos::console::RequestProto* request,
+                      eos::console::ReplyProto* reply)
+{
+  std::string subcmd = request->map().command();
+  std::string in_cmd = "mgm.cmd=map&mgm.subcmd=" + subcmd;
+
+  if (subcmd == "link") {
+    in_cmd += "&mgm.map.src=" + request->map().src_path();
+    in_cmd += "&mgm.map.dest=" + request->map().dst_path();
+  }
+  else if (subcmd == "unlink") {
+    in_cmd += "&mgm.map.src=" + request->map().src_path();
+  }
+
+  ProcCommand cmd;
+  XrdOucErrInfo error;
+  std::string std_out, std_err;
+
+  cmd.open("/proc/user", in_cmd.c_str(), vid, &error);
+  cmd.AddOutput(std_out, std_err);
+  cmd.close();
+
+  reply->set_retc(cmd.GetRetc());
+  reply->set_std_out(std_out);
+  reply->set_std_err(std_err);
+
   return grpc::Status::OK;
 }
 

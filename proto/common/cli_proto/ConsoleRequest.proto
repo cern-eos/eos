@@ -25,6 +25,7 @@ import "Health.proto";
 import "Io.proto";
 import "Ls.proto";
 import "MakeDirectory.proto";
+import "Map.proto";
 import "Move.proto";
 import "Node.proto";
 import "Ns.proto";
@@ -103,6 +104,7 @@ message RequestProto {
     GeoschedProto geosched = 44;
     HealthProto health     = 45;
     BackupProto backup     = 46;
+    MapProto map           = 47;
   }
 
   string Comment = 30;
