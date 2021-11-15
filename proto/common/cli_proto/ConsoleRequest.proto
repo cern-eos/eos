@@ -25,6 +25,7 @@ import "Token.proto";
 import "QoS.proto";
 import "Convert.proto";
 import "Authentication.proto";
+import "Archive.proto";
 import "Attr.proto";
 import "ChangeMode.proto";
 import "Chown.proto";
@@ -80,6 +81,7 @@ message RequestProto {
     TokenProto token       = 20;
     QoSProto qos           = 21;
     ConvertProto convert   = 22;
+    ArchiveProto archive   = 23;
     MoveProto mv           = 24;
     RmdirProto rmdir       = 25;
     TouchProto touch       = 26;
