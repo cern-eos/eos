@@ -124,7 +124,8 @@ int
 XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
                      eos::common::VirtualIdentity& vid,
                      const char* info, const char* key, const char* value,
-                     bool take_lock)
+                     bool take_lock,
+                     bool exclusive)
 {
   static const char* epname = "attr_set";
   EXEC_TIMING_BEGIN("AttrSet");
@@ -186,6 +187,12 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
         }
       }
 
+      if (exclusive && dh->hasAttribute(Key.c_str())) {
+        errno = EEXIST;
+        return Emsg(epname, error, errno,
+                    "set attribute (exclusive set for existing attribute)", path);
+      }
+
       dh->setAttribute(key, val.c_str());
 
       if (Key != "sys.tmp.etag") {
@@ -222,6 +229,12 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
           && (!vid.sudoer && vid.uid)) {
         errno = EPERM;
       } else {
+        if (exclusive && fmd->hasAttribute(Key.c_str())) {
+          errno = EEXIST;
+          return Emsg(epname, error, errno,
+                      "set attribute (exclusive set for existing attribute)", path);
+        }
+
         XrdOucString val64 = value;
         XrdOucString val;
         eos::common::SymKey::DeBase64(val64, val);
@@ -411,7 +424,8 @@ static bool attrGetInternal(T& md, std::string key, std::string& rvalue)
   std::string linkedContainer = md.getAttribute(kMagicKey);
   std::shared_ptr<eos::IContainerMD> dh;
   eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, linkedContainer);
-  eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+  eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex, __FUNCTION__,
+                                      __LINE__, __FILE__);
 
   try {
     dh = gOFS->eosView->getContainer(linkedContainer.c_str());
@@ -497,7 +511,8 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
   }
 
   eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, path);
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                     __FILE__);
 
   try {
     dh = gOFS->eosView->getContainer(path);
@@ -578,8 +593,8 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
 int
 XrdMgmOfs::_attr_clear(const char* path, XrdOucErrInfo& error,
                        eos::common::VirtualIdentity& vid,
-                       const char* info, 
-		       bool keep_acls)
+                       const char* info,
+                       bool keep_acls)
 
 {
   eos::IContainerMD::XAttrMap map;
@@ -591,11 +606,12 @@ XrdMgmOfs::_attr_clear(const char* path, XrdOucErrInfo& error,
   int success = SFS_OK;
 
   for (auto it = map.begin(); it != map.end(); ++it) {
-    if ( keep_acls && (
-		       (it->first == "sys.acl") ||
-		       (it->first == "user.acl") )) {
+    if (keep_acls && (
+          (it->first == "sys.acl") ||
+          (it->first == "user.acl"))) {
       continue;
     }
+
     success |= _attr_rem(path, error, vid, info, it->first.c_str());
   }
 

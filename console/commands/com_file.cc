@@ -689,7 +689,18 @@ com_file(char* arg1)
     in += "&mgm.path=";
     in += path;
     XrdOucString option = fsid1;
+    // Eventually disable json format to avoid parsin issues
+    bool old_json = json;
+
+    if (old_json) {
+      json = false;
+    }
+
     XrdOucEnv* result = client_command(in);
+
+    if (old_json) {
+      json = true;
+    }
 
     if (!result) {
       fprintf(stderr, "error: getmdlocation query failed\n");
@@ -698,12 +709,36 @@ com_file(char* arg1)
     }
 
     int envlen = 0;
-    XrdOucEnv* newresult = new XrdOucEnv(result->Env(envlen));
+    std::unique_ptr<XrdOucEnv> newresult(new XrdOucEnv(result->Env(envlen)));
     delete result;
 
     if (!envlen) {
       fprintf(stderr, "error: couldn't get meta data information\n");
       global_retc = EIO;
+      return (0);
+    }
+
+    char* ptr = newresult->Get("mgm.proc_retc");
+
+    if (ptr == nullptr) {
+      fprintf(stderr, "error: unexpected response from server, msg=\"%s\"",
+              newresult->Env(envlen));
+      global_retc = EINVAL;
+      return (0);
+    }
+
+    int retc_getmdloc = 0;
+
+    try {
+      retc_getmdloc = std::stoi(ptr);
+    } catch (...) {
+      retc_getmdloc = EINVAL;
+    }
+
+    if (retc_getmdloc) {
+      fprintf(stderr, "error: failed getmdlocation command, errno=%i",
+              retc_getmdloc);
+      global_retc = retc_getmdloc;
       return (0);
     }
 
@@ -938,7 +973,6 @@ com_file(char* arg1)
       }
     }
 
-    delete newresult;
     return (0);
   }
 

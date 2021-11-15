@@ -4250,7 +4250,6 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
             Instance().mds.wait_upstream(req, del_ino);
           }
         }
-
         XrdSysMutexHelper mLock(md->Locker());
 
         if ((*md)()->id() && !md->deleted()) {

@@ -1035,7 +1035,7 @@ class Transfer(object):
             url = client.URL(dst.encode("utf-8"))
             batch.append(url.path.encode("utf-8"))
 
-            if batch.size() == batch_sz:
+            if len(batch) == batch_sz:
                 fs = self.archive.get_fs(dst)
                 prep_stat, __ = fs.prepare(batch, xrd_prepare_evict_flag, 0, timeout)
                 batch.clear()
@@ -1043,7 +1043,7 @@ class Transfer(object):
                 if not prep_stat.ok:
                     self.logger.warning("Failed prepare evit for batch")
 
-        if batch.size() != 0:
+        if len(batch) != 0:
             fs = self.archive.get_fs(dst)
             prep_stat, __ = fs.prepare(batch, xrd_prepare_evict_flag, 0, timeout)
             batch.clear()

@@ -29,8 +29,8 @@
 #include <vector>
 #include <sstream>
 #include <iostream>
-#include "common/StringSplit.hh"
 #include "common/StringUtils.hh"
+#include "common/StringSplit.hh"
 
 class FatalException : public std::exception
 {

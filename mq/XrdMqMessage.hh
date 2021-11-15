@@ -292,7 +292,7 @@ public:
   //! @return pointer to the sealed string
   //! @toto This should be moved in a common place
   //----------------------------------------------------------------------------
-  static const char* Seal(XrdOucString& s, const char* seal = "#and#")
+  static const char* Seal(XrdOucString& s, const char* seal = "#AND#")
   {
     while (s.replace("&", seal)) {};
 
@@ -308,7 +308,7 @@ public:
   //! @return pointer to the un-sealed string
   //! @toto This should be moved in a common place
   //----------------------------------------------------------------------------
-  static const char* UnSeal(XrdOucString& s, const char* seal = "#and#")
+  static const char* UnSeal(XrdOucString& s, const char* seal = "#AND#")
   {
     while (s.replace(seal, "&")) {};
 

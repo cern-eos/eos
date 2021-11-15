@@ -50,13 +50,38 @@ com_attr(char* arg1)
     optionstring += " ";
     subcommand = subtokenizer.GetToken(false);
     arg = subtokenizer.GetToken(false);
+
+    if (subcommand == "set") {
+      if (arg.beginswith("-")) {
+        if (arg == "-c") {
+          option += "c";
+          arg = subtokenizer.GetToken(false);
+        } else {
+          goto com_attr_usage;
+        }
+      }
+    }
+
     in += "&mgm.option=";
     in += option;
   } else {
-    if (subcommand == "ls") {
-      arg = subtokenizer.GetToken(true);
-    } else {
+    if (subcommand == "set") {
       arg = subtokenizer.GetToken(false);
+
+      if (arg.beginswith("-")) {
+        if (arg == "-c") {
+          in += "&mgm.option=c";
+          arg = subtokenizer.GetToken(false);
+        } else {
+          goto com_attr_usage;
+        }
+      }
+    } else {
+      if (subcommand == "ls") {
+        arg = subtokenizer.GetToken(true);
+      } else {
+        arg = subtokenizer.GetToken(false);
+      }
     }
   }
 
@@ -78,7 +103,6 @@ com_attr(char* arg1)
     }
 
     path = path_identifier(path.c_str(), true);
-
     in += "&mgm.subcmd=ls";
     in += "&mgm.path=";
     in += path;
@@ -140,7 +164,6 @@ com_attr(char* arg1)
     }
 
     path = path_identifier(path.c_str(), true);
-
     in += "&mgm.subcmd=set&mgm.attr.key=";
     in += key;
     in += "&mgm.attr.value=";
@@ -344,7 +367,6 @@ com_attr(char* arg1)
     }
 
     path = path_identifier(path.c_str(), true);
-
     in += "&mgm.subcmd=get&mgm.attr.key=";
     in += key;
     in += "&mgm.path=";
@@ -359,7 +381,6 @@ com_attr(char* arg1)
     }
 
     path = path_identifier(path.c_str(), true);
-
     in += "&mgm.subcmd=fold";
     in += "&mgm.path=";
     in += path;
@@ -379,7 +400,6 @@ com_attr(char* arg1)
     }
 
     path = path_identifier(path.c_str(), true);
-
     in += "&mgm.subcmd=rm&mgm.attr.key=";
     in += key;
     in += "&mgm.path=";
@@ -397,9 +417,9 @@ com_attr_usage:
   fprintf(stdout,
           "                                                : list attributes of path\n");
   fprintf(stdout, " -r : list recursive on all directory children\n");
-  fprintf(stdout, "attr [-r] set <key>=<value> <identifier> :\n");
+  fprintf(stdout, "attr [-r] set [-c] <key>=<value> <identifier> :\n");
   fprintf(stdout,
-          "                                                : set attributes of path (-r recursive)\n");
+          "                                                : set attributes of path (-r : recursive) (-c : only if attribute does not exist already)\n");
   fprintf(stdout,
           "attr [-r] set default=replica|raiddp|raid5|raid6|archive|qrain <identifier> :\n");
   fprintf(stdout,

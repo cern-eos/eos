@@ -620,7 +620,8 @@ public:
            const XrdSecEntity* client = 0,
            const char* opaque = 0,
            bool follow = true,
-           std::string* uri = 0
+           std::string* uri = 0,
+           std::string* cks = 0
           );
 
   int stat(const char* Name,
@@ -650,7 +651,8 @@ public:
             const char* opaque = 0,
             std::string* etag = 0,
             bool follow = true,
-            std::string* uri = 0);
+            std::string* uri = 0,
+            std::string* cks = 0);
   // ---------------------------------------------------------------------------
   // set XRDSFS_OFFLINE and XRDSFS_HASBKUP flags
   // ---------------------------------------------------------------------------
@@ -848,13 +850,15 @@ public:
   //! @param key key to set
   //! @param value value to set for key
   //! @param take_lock if true take namespace lock, otherwise don't
+  //! @param exlusive only create attribute if it does not exist
   //!
   //! @return SFS_OK if success otherwise SFS_ERROR
   // ---------------------------------------------------------------------------
   int _attr_set(const char* path, XrdOucErrInfo& out_error,
                 eos::common::VirtualIdentity& vid,
                 const char* opaque, const char* key, const char* value,
-                bool take_lock = true);
+                bool take_lock = true,
+                bool exclusive = false);
 
   //----------------------------------------------------------------------------
   //! Get an extended attribute for a given entry by key - high-level API.

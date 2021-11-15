@@ -412,7 +412,8 @@ public:
       break;
 
     case kBLAKE3:
-      hexchecksum = "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262";
+      hexchecksum =
+        "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262";
       break;
     }
 
@@ -773,7 +774,8 @@ public:
   static int
   GetChecksumFromString(const std::string& checksum)
   {
-    fprintf(stderr,"# string=%s\n", checksum.c_str());
+    fprintf(stderr, "# string=%s\n", checksum.c_str());
+
     if ((checksum == "adler") || (checksum == "adler32")) {
       return kAdler;
     } else if (checksum == "blake3") {
@@ -1141,6 +1143,7 @@ public:
     if ((val = env.Get("eos.iobw"))) {
       return std::string(env.Get("eos.iobw"));
     }
+
     return "";
   }
 

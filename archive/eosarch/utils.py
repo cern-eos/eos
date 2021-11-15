@@ -46,7 +46,7 @@ def seal_path(path, seal_dict={'&': "#AND#"}):
     return path
 
 
-def unseal_path(path, seal_dict={"#and#": '&'}):
+def unseal_path(path, seal_dict={"#AND#": '&'}):
     """ Unseal a path by replacing the key characters in the dictionary with their
     values so that we are happy.
 
@@ -311,6 +311,9 @@ def set_dir_info(surl, dict_dinfo, excl_xattr):
     for key, val in dict_dattr.iteritems():
         # Don't set the excluded xattrs
         if key in excl_xattr:
+            continue
+
+        if len(val) == 0:
             continue
 
         fsetattr = ''.join([url.protocol, "://", url.hostid, "//proc/user/?",
