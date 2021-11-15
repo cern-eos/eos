@@ -106,7 +106,7 @@ public:
     mCanNotBrowse(false),
     mCanChmod(false), mCanChown(false), mCanNotDelete(false),
     mCanNotChmod(false), mCanDelete(false), mCanSetQuota(false), mHasAcl(false),
-    mHasEgroup(false), mIsMutable(false), mCanArchive(false), mCanPrepare(false), mCanShare(false), mCanSetAcl(false), mOwner(0), mGowner(0)
+    mHasEgroup(false), mIsMutable(false), mCanArchive(false), mCanPrepare(false), mCanShare(false), mCanSetAcl(false), mOwner(0), mGowner(0), mIsEgroupOwner(false)
   {}
 
   //----------------------------------------------------------------------------
@@ -176,7 +176,7 @@ public:
   //! @param vid virtual id to match ACL
   //! @param allowUserAcl if true evaluate the user acl for permissions
   //----------------------------------------------------------------------------
-  void Set(std::string sysacl, std::string useracl, std::string shareacl, std::string tokenacl,
+  void Set(std::string sysacl, std::string useracl, std::string shareacl, std::string tokenacl, std::string owneregroup,
            const eos::common::VirtualIdentity& vid,
            bool allowUserAcl = false,
 	   uid_t owner=0, gid_t gowner=0);
@@ -285,6 +285,11 @@ public:
     return mHasEgroup;
   }
 
+  inline bool IsEgroupOwner() const
+  {
+    return mIsEgroupOwner;
+  }
+
   //----------------------------------------------------------------------------
   //! It should not have the 'i' flag to be mutable
   //----------------------------------------------------------------------------
@@ -371,6 +376,8 @@ private:
   std::string sysattr;
   std::string userattr;
   std::string shareattr;
+  std::string owneregroup;
+  bool mIsEgroupOwner;
   bool evaluserattr;
   std::string userattrF;
   bool evaluserattrF;

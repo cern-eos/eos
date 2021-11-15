@@ -90,6 +90,7 @@ Acl::SetFromAttrMap(const eos::IContainerMD::XAttrMap& attrmap,
   std::string useracl;
   std::string shareacl;
   std::string tokenacl;
+  std::string ownergroup;
 
   if (asShare) {
     auto it = attrmap.find("sys.share.acl");
@@ -127,12 +128,16 @@ Acl::SetFromAttrMap(const eos::IContainerMD::XAttrMap& attrmap,
     }
   }
 
-  if (EOS_LOGS_DEBUG) {
-    eos_static_debug("sysacl='%s' useracl='%s' shareacl='%s' tokenacl='%s' evalUseracl=%d asShare=%d",
-                     sysacl.c_str(), useracl.c_str(), shareacl.c_str(), tokenacl.c_str(), evalUseracl, asShare);
+v  if (attrmap.count("sys.owner.egroup")) {
+    ownergroup = attrmap["sys.owner.egroup"];
   }
 
-  Set(sysacl, useracl, shareacl, tokenacl, vid, evalUseracl);
+  if (EOS_LOGS_DEBUG) {
+    eos_static_debug("sysacl='%s' useracl='%s' shareacl='%s' tokenacl='%s' evalUseracl=%d asShare=%d ownerEgroup='%s'",
+                     sysacl.c_str(), useracl.c_str(), shareacl.c_str(), tokenacl.c_str(), evalUseracl, asShare, ownergroup.c_str());
+  }
+
+  Set(sysacl, useracl, shareacl, tokenacl, ownergroup, vid, evalUseracl);
 }
 
 //------------------------------------------------------------------------------
@@ -194,7 +199,7 @@ Acl::ApplyShare(Acl& acl)
 // Set the contents of an ACL and compute the canXX and hasXX booleans.
 //------------------------------------------------------------------------------
 void
-Acl::Set(std::string sysacl, std::string useracl, std::string shareacl, std::string tokenacl,
+Acl::Set(std::string sysacl, std::string useracl, std::string shareacl, std::string tokenacl, std::string ownergroup,
          const eos::common::VirtualIdentity& vid, bool allowUserAcl, uid_t owner, gid_t gowner)
 {
   std::string acl = "";
@@ -243,6 +248,23 @@ Acl::Set(std::string sysacl, std::string useracl, std::string shareacl, std::str
     acl = tokenacl;
     sysacl = tokenacl;
     allowUserAcl = false;
+  }
+
+  std::string username = eos::common::Mapping::UidToUserName(viduid, errc);
+
+  if (errc) {
+    username = "_INVAL_";
+  }
+
+  if (ownergroup.length()) {
+    // check if we have an owning egroup and if we are a member
+    owneregroup = ownergroup;
+    if (gOFS->EgroupRefresh->Member(username, ownergegroup)) {
+      // yes, so lets take identity of the file owner
+      vid.uid = owner;
+      vid.gid = gowner;
+      mIsEgroupOwner = true;
+    }
   }
 
   // By default nothing is granted
@@ -314,13 +336,9 @@ Acl::Set(std::string sysacl, std::string useracl, std::string shareacl, std::str
     std::string grouptag = "g:";
     grouptag += groupid;
     grouptag += ":";
-    std::string username = eos::common::Mapping::UidToUserName(viduid, errc);
-
-    if (errc) {
-      username = "_INVAL_";
-    }
 
     std::string groupname = eos::common::Mapping::GidToGroupName(chk_gid, errc);
+
 
     if (errc) {
       groupname = "_INVAL_";
@@ -1098,6 +1116,16 @@ Acl::Out(bool monitoring, accessmap_t* map)
     table_data.back().push_back(TableCell(mHasEgroup?std::string("yes"):std::string("no"), format_s));
     table_all.AddRows(table_data);
     if (map) (*map)["egroup"] = mHasEgroup;
+  }
+
+  {
+    // is egroup owner
+    TableData table_data;
+    table_data.emplace_back();
+    table_data.back().push_back(TableCell(std::string("eowner"), format_s));
+    table_data.back().push_back(TableCell(mIsEgroupOwner?std::string("yes"):std::string("no"), format_s));
+    table_all.AddRows(table_data);
+    if (map) (*map)["eowner"] = mHasEgroup;
   }
 
   {

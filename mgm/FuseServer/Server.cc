@@ -730,8 +730,19 @@ Server::FillContainerCAP(uint64_t id,
           mode |= U_OK | SA_OK;
         }
 
-        // the owner can always delete
-        if ((vid.uid != (uid_t) dir.uid()) && acl.CanNotDelete()) {
+	if (vid.IsEgroupOwner()) {
+	  // egroup owner inherits all owner permissions
+	  if (dir.mode() & S_IWUSR) {
+	    mode |= U_OK | W_OK | D_OK | SA_OK | M_OK | SU_OK;
+	  }
+	  if (dir.mode() & mask & S_IXUSR) {
+	    mode |= X_OK;
+	  }
+	}
+
+        // the owner/egroup owner can always delete
+        if ( (vid.uid != (uid_t) dir.uid()) && (!vid.IsEgroupOwner())
+	     && acl.CanNotDelete()) {
           mode &= ~D_OK;
         }
       } else {
