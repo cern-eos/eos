@@ -26,6 +26,7 @@ import "Io.proto";
 import "Ls.proto";
 import "MakeDirectory.proto";
 import "Map.proto";
+import "Member.proto";
 import "Move.proto";
 import "Node.proto";
 import "Ns.proto";
@@ -105,6 +106,7 @@ message RequestProto {
     HealthProto health     = 45;
     BackupProto backup     = 46;
     MapProto map           = 47;
+    MemberProto member     = 48;
   }
 
   string Comment = 30;

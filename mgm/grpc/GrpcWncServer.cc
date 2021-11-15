@@ -115,6 +115,10 @@ class WncService final : public EosWnc::Service
       command = "Map";
       break;
 
+    case eos::console::RequestProto::kMember:
+      command = "Member";
+      break;
+
     case eos::console::RequestProto::kMkdir:
       command = "Mkdir";
       break;
