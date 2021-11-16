@@ -16,6 +16,25 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.0.6 Diopside``
+===================
+
+2021-11-16
+
+Note
+-----
+
+* Release based on XRootD-5.3.3 which fixes a critical bug concerning "invalid responses"
+
+
+Bug
+----
+
+* ARCHIVE: Avoid trying to set extended attributes which are empty
+* [EOS-4995] MGM/CONSOLE: add '-c' option to CLI ls to show also the checksum for a listing
+* CTA: Fixed FST crash when connecting to misconfigured ctafrontend endpoint
+
+
 ``v5.0.5 Diopside``
 ===================
 
