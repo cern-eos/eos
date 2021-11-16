@@ -4,31 +4,31 @@ Section: misc
 Priority: optional
 Standards-Version: 3.9.3
 Build-Depends: debhelper (>= 10), cmake (>= 3.3.0), git, libfuse-dev, libattr1-dev, libmicrohttpd-dev, xfslibs-dev, libcurl4-openssl-dev, libleveldb-dev, libzmq3-dev, libsparsehash-dev, libprotobuf-dev (>=3.0.0), protobuf-compiler (>=3.0.0), libsystemd-dev, libreadline-dev, ncurses-dev, libssl-dev, zlib1g-dev, libkrb5-dev, libevent-dev, libhiredis-dev, libjsoncpp-dev, libjemalloc-dev, libdw-dev, libbz2-dev, binutils-dev, libiberty-dev,
- xrootd-libs (= 5.3.2), xrootd-plugins (= 5.3.2),
- xrootd-clients (= 5.3.2), xrootd-client-libs (= 5.3.2), xrootd-client-plugins (= 5.3.2),
- xrootd-server (= 5.3.2), xrootd-server-libs (= 5.3.2), xrootd-server-plugins (= 5.3.2),
- libxrootd-dev (= 5.3.2), libxrootd-private-dev (= 5.3.2),
- libxrootd-client-dev (= 5.3.2), libxrootd-server-dev (= 5.3.2),
- libxrdapputils1 (= 5.3.2), libxrdcrypto1 (= 5.3.2), libxrdcryptolite1 (= 5.3.2), libxrdxml2 (= 5.3.2),
- libxrdutils2 (= 5.3.2), libxrdhttputils1 (= 5.3.2), libxrdserver2 (= 5.3.2), libxrdssilib1 (= 5.3.2),
- libxrdssishmap1 (= 5.3.2), libxrdcl2 (= 5.3.2), libxrdffs2 (= 5.3.2), libxrdposix2 (= 5.3.2),
+ xrootd-libs (= 5.3.3), xrootd-plugins (= 5.3.3),
+ xrootd-clients (= 5.3.3), xrootd-client-libs (= 5.3.3), xrootd-client-plugins (= 5.3.3),
+ xrootd-server (= 5.3.3), xrootd-server-libs (= 5.3.3), xrootd-server-plugins (= 5.3.3),
+ libxrootd-dev (= 5.3.3), libxrootd-private-dev (= 5.3.3),
+ libxrootd-client-dev (= 5.3.3), libxrootd-server-dev (= 5.3.3),
+ libxrdapputils1 (= 5.3.3), libxrdcrypto1 (= 5.3.3), libxrdcryptolite1 (= 5.3.3), libxrdxml2 (= 5.3.3),
+ libxrdutils2 (= 5.3.3), libxrdhttputils1 (= 5.3.3), libxrdserver2 (= 5.3.3), libxrdssilib1 (= 5.3.3),
+ libxrdssishmap1 (= 5.3.3), libxrdcl2 (= 5.3.3), libxrdffs2 (= 5.3.3), libxrdposix2 (= 5.3.3),
 Homepage: http://eos.web.cern.ch/
 Vcs-Git: https://gitlab.cern.ch/dss/eos.git
 Vcs-Browser: https://gitlab.cern.ch/dss/eos
 
 Package: eos-client
 Architecture: any
-Depends: ${shlibs:Depends}, systemd, libxrootd-client-dev (= 5.3.2), xrootd-plugins (= 5.3.2)
+Depends: ${shlibs:Depends}, systemd, libxrootd-client-dev (= 5.3.3), xrootd-plugins (= 5.3.3)
 Description: EOS client package
 
 Package: eos-fuse
 Architecture: any
-Depends: ${shlibs:Depends}, eos-client (=${binary:Version}), fuse, systemd, libxrootd-client-dev (= 5.3.2)
+Depends: ${shlibs:Depends}, eos-client (=${binary:Version}), fuse, systemd, libxrootd-client-dev (= 5.3.3)
 Description: EOS FUSE package
 
 Package: eos-fusex
 Architecture: any
-Depends: ${shlibs:Depends}, eos-client (=${binary:Version}), fuse, libxrootd-client-dev (= 5.3.2)
+Depends: ${shlibs:Depends}, eos-client (=${binary:Version}), fuse, libxrootd-client-dev (= 5.3.3)
 Description: The new EOS fuse client bundle
 
 Package: eos-test
