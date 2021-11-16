@@ -59,6 +59,8 @@ prebuild-cs8_arm64:
   <<: *prebuild-template_definition
   variables:
     PREBUILD_NAME: cs8_arm64
+  tags:
+    - docker-arm
 
 # @note Consider deletion
 .prebuild-cc7_asan:
@@ -180,7 +182,7 @@ build_cs8:
 
 build_cs8_arm64:
   stage: build:rpm
-  image: gitlab-registry.cern.ch/dss/eos/prebuild-cs8_arm64-${CODENAME}
+  image: gitlab-registry.cern.ch/dss/eos/prebuild-cs8_arm64
   script:
     - git submodule update --init --recursive
     - mkdir build
