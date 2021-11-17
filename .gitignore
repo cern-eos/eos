@@ -7,6 +7,7 @@
 Makefile
 Makefile.in
 Console/eos
+console/iam.cfg
 XrdMqOfs/xrdmqclientmaster
 XrdMqOfs/xrdmqclienttest
 XrdMqOfs/xrdmqclientworker
