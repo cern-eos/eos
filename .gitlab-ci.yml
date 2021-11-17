@@ -265,6 +265,7 @@ build_fedora_33:
   only:
     - schedules
     - tags
+  when: manual
 
 build_fedora_34:
   image: fedora:34
@@ -274,6 +275,7 @@ build_fedora_34:
   only:
     - schedules
     - tags
+  when: manual
 
 build_fedora_rawhide:
   image: registry.fedoraproject.org/fedora:rawhide
@@ -282,6 +284,7 @@ build_fedora_rawhide:
     EOS_DIST: fc-rawhide
   only:
     - schedules
+  when: manual
 
 # @note Using "normal" cc7 image as it doesn't actually need an exotic one, yet
 .build_cc7_exotic-template: &build_cc7_exotic-template_definition
