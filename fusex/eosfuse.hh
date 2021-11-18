@@ -74,7 +74,7 @@ public:
   std::string UsageMount();
   std::string UsageHelp();
 
-  int run(int argc, char* argv[], void* userdata);
+  int run(int argc, char* argv[], void* userdata, bool isLibrary=false);
 
   static void umounthandler(int sig, siginfo_t* si, void* unused);
 
@@ -482,6 +482,7 @@ private:
   }
 
   bool mTrace;
+  bool mLibrary;
 
   Track tracker;
 

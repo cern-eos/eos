@@ -23,7 +23,9 @@
 
 include_directories(
   ${CMAKE_BINARY_DIR}
-  ${CMAKE_CURRENT_SOURCE_DIR})
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${XROOTD_INCLUDE_DIRS}
+)
 
 if (Linux)
   add_subdirectory(benchmark)
@@ -117,7 +119,7 @@ else()
 endif()
 
 set_target_properties(eosxd-objects
-  PROPERTIES COMPILE_FLAGS ${EOSXD_COMPILE_FLAGS})
+  PROPERTIES COMPILE_FLAGS "-fPIC ${EOSXD_COMPILE_FLAGS}")
 
 #-------------------------------------------------------------------------------
 # eosxd executables
@@ -152,3 +154,43 @@ if (FUSE3_FOUND)
   install(TARGETS eosxd3
     RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
 endif()
+
+
+#-------------------------------------------------------------------------------
+# eoslib
+#-------------------------------------------------------------------------------
+
+add_library(eoslib-objects OBJECT
+			   eoslib.hh )
+
+add_library(eoslib SHARED $<TARGET_OBJECTS:eoslib-objects>)
+
+target_compile_definitions(eoslib-objects PRIVATE
+  -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
+
+target_link_libraries(eoslib PUBLIC
+  eoslib-objects
+  eosxd-objects
+)
+
+set_target_properties(EosCommon PROPERTIES
+  VERSION ${VERSION}
+  SOVERSION ${VERSION_MAJOR}
+  MACOSX_RPATH TRUE)
+
+
+add_executable(eosxl mainlib.cc)
+
+target_link_libraries(eosxl PUBLIC
+  eoslib
+  ${EOSXD_COMMON_LINK_LIBRARIES})
+
+if(Linux)
+  target_link_libraries(eosxl PRIVATE jemalloc)
+endif()
+
+set_target_properties(eosxl
+  PROPERTIES COMPILE_FLAGS ${EOSXD_COMPILE_FLAGS})
+
+install(TARGETS eosxl
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})

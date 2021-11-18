@@ -102,6 +102,7 @@ EosFuse::EosFuse()
   fusesession = 0;
   fusechan = 0;
   SetTrace(false);
+  mLibrary = false;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -229,7 +230,7 @@ EosFuse::UsageHelp()
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-EosFuse::run(int argc, char* argv[], void* userdata)
+EosFuse::run(int argc, char* argv[], void* userdata, bool isLibrary)
 /* -------------------------------------------------------------------------- */
 {
   eos::common::Logging::GetInstance().LB->suspend();      /* no log thread yet */
@@ -244,6 +245,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
   std::string nowait_flush_exec_list;
   // check the fsname to choose the right JSON config file
   std::string fsname = "";
+
+  mLibrary = isLibrary;
 
   if (argc == 1) {
     fprintf(stderr, "%s%s%s%s", UsageGet().c_str(), UsageSet().c_str(),
@@ -1419,7 +1422,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       exit(errno ? errno : -1);
     }
 
-    if (fuse_daemonize(config.options.foreground) != -1) {
+    if ((mLibrary) || (fuse_daemonize(config.options.foreground) != -1)) {
 #ifndef __APPLE__
       eos::common::ShellCmd cmd("echo eos::common::ShellCmd init 2>&1");
       eos::common::cmd_status st = cmd.wait(5);
@@ -1458,71 +1461,72 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         }
       }
 
-      // Open log file
-      if (getuid()) {
-        char logfile[1024];
+      if (!mLibrary) {
+	// Open log file
+	if (getuid()) {
+	  char logfile[1024];
 
-        if (getenv("EOS_FUSE_LOGFILE")) {
-          snprintf(logfile, sizeof(logfile) - 1, "%s",
-                   getenv("EOS_FUSE_LOGFILE"));
-        } else {
-          snprintf(logfile, sizeof(logfile) - 1, "/tmp/eos-fuse.%d.log",
-                   getuid());
-        }
+	  if (getenv("EOS_FUSE_LOGFILE")) {
+	    snprintf(logfile, sizeof(logfile) - 1, "%s",
+		     getenv("EOS_FUSE_LOGFILE"));
+	  } else {
+	    snprintf(logfile, sizeof(logfile) - 1, "/tmp/eos-fuse.%d.log",
+		     getuid());
+	  }
 
-        config.logfilepath = logfile;
+	  config.logfilepath = logfile;
 
-        if (!config.statfilepath.length()) {
-          config.statfilepath = logfile;
-          config.statfilepath += ".";
-          config.statfilepath += config.statfilesuffix;
-        }
+	  if (!config.statfilepath.length()) {
+	    config.statfilepath = logfile;
+	    config.statfilepath += ".";
+	    config.statfilepath += config.statfilesuffix;
+	  }
 
-        // Running as a user ... we log into /tmp/eos-fuse.$UID.log
-        if (!(fstderr = freopen(logfile, "a+", stderr))) {
-          fprintf(stdout, "error: cannot open log file %s\n", logfile);
-        } else {
-          if (::chmod(logfile, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) {
-            fprintf(stderr, "error: cannot change permission of log file %s\n", logfile);
-            exit(-1);
-          }
-        }
-      } else {
-        // Running as root ... we log into /var/log/eos/fuse
-        std::string log_path = "/var/log/eos/fusex/fuse.";
+	  // Running as a user ... we log into /tmp/eos-fuse.$UID.log
+	  if (!(fstderr = freopen(logfile, "a+", stderr))) {
+	    fprintf(stdout, "error: cannot open log file %s\n", logfile);
+	  } else {
+	    if (::chmod(logfile, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) {
+	      fprintf(stderr, "error: cannot change permission of log file %s\n", logfile);
+	      exit(-1);
+	    }
+	  }
+	} else {
+	  // Running as root ... we log into /var/log/eos/fuse
+	  std::string log_path = "/var/log/eos/fusex/fuse.";
 
-        if (getenv("EOS_FUSE_LOG_PREFIX") || fsname.length()) {
-          if (getenv("EOS_FUSE_LOG_PREFIX")) {
-            log_path += getenv("EOS_FUSE_LOG_PREFIX");
-          } else {
-            log_path += fsname;
-          }
+	  if (getenv("EOS_FUSE_LOG_PREFIX") || fsname.length()) {
+	    if (getenv("EOS_FUSE_LOG_PREFIX")) {
+	      log_path += getenv("EOS_FUSE_LOG_PREFIX");
+	    } else {
+	      log_path += fsname;
+	    }
 
-          if (!config.statfilepath.length()) config.statfilepath = log_path +
-                "." + config.statfilesuffix;
+	    if (!config.statfilepath.length()) config.statfilepath = log_path +
+						 "." + config.statfilesuffix;
 
-          log_path += ".log";
-        } else {
-          if (!config.statfilepath.length()) config.statfilepath = log_path +
-                config.statfilesuffix;
+	    log_path += ".log";
+	  } else {
+	    if (!config.statfilepath.length()) config.statfilepath = log_path +
+						 config.statfilesuffix;
 
-          log_path += "log";
-        }
+	    log_path += "log";
+	  }
 
-        eos::common::Path cPath(log_path.c_str());
-        cPath.MakeParentPath(S_IRWXU | S_IRGRP | S_IROTH);
-        config.logfilepath = log_path;
-        ;
+	  eos::common::Path cPath(log_path.c_str());
+	  cPath.MakeParentPath(S_IRWXU | S_IRGRP | S_IROTH);
+	  config.logfilepath = log_path;
 
-        if (!(fstderr = freopen(cPath.GetPath(), "a+", stderr))) {
-          fprintf(stderr, "error: cannot open log file %s\n", cPath.GetPath());
-        } else if (::chmod(cPath.GetPath(), S_IRUSR | S_IWUSR)) {
-          fprintf(stderr, "error: failed to chmod %s\n", cPath.GetPath());
-        }
-      }
+	  if (!(fstderr = freopen(cPath.GetPath(), "a+", stderr))) {
+	    fprintf(stderr, "error: cannot open log file %s\n", cPath.GetPath());
+	  } else if (::chmod(cPath.GetPath(), S_IRUSR | S_IWUSR)) {
+	    fprintf(stderr, "error: failed to chmod %s\n", cPath.GetPath());
+	  }
+	}
 
-      if (fstderr) {
-        setvbuf(fstderr, (char*) NULL, _IONBF, 0);
+	if (fstderr) {
+	  setvbuf(fstderr, (char*) NULL, _IONBF, 0);
+	}
       }
 
       eos::common::Logging::GetInstance().SetUnit("FUSE@eosxd");
@@ -1744,34 +1748,36 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       eos_static_warning("xrdcl-options          := %s log-level='%s' fusex-chunk-timeout=%d",
                          xrdcl_option_string.c_str(), xrdcl_option_loglevel.c_str(),
                          XrdCl::Proxy::sChunkTimeout);
-      fusesession = fuse_lowlevel_new(&args,
-                                      &(get_operations()),
-                                      sizeof(operations), NULL);
 
-      if ((fusesession != NULL)) {
-        if (fuse_set_signal_handlers(fusesession) != -1) {
-          fuse_session_add_chan(fusesession, fusechan);
+      if (!mLibrary) {
+	fusesession = fuse_lowlevel_new(&args,
+					&(get_operations()),
+					sizeof(operations), NULL);
 
-          if (getenv("EOS_FUSE_NO_MT") &&
-              (!strcmp(getenv("EOS_FUSE_NO_MT"), "1"))) {
-            err = fuse_session_loop(fusesession);
-          } else {
+	if ((fusesession != NULL)) {
+	  if (fuse_set_signal_handlers(fusesession) != -1) {
+	    fuse_session_add_chan(fusesession, fusechan);
+
+	    if (getenv("EOS_FUSE_NO_MT") &&
+		(!strcmp(getenv("EOS_FUSE_NO_MT"), "1"))) {
+	      err = fuse_session_loop(fusesession);
+	    } else {
 #if ( FUSE_USE_VERSION <= 28 )
-            err = fuse_session_loop_mt(fusesession);
+	      err = fuse_session_loop_mt(fusesession);
 #else
-
-            if (config.options.libfusethreads) {
-              err = fuse_session_loop_mt(fusesession);
-            } else {
-              EosFuseSessionLoop loop(10, 20, 10, 20);
-              err = loop.Loop(fusesession);
-            }
-
+	      if (config.options.libfusethreads) {
+		err = fuse_session_loop_mt(fusesession);
+	      } else {
+		EosFuseSessionLoop loop(10, 20, 10, 20);
+		err = loop.Loop(fusesession);
+	      }
 #endif
-          }
-        }
+	    }
+	  }
+	}
+      } else {
+	return 0;
       }
-
       if (config.options.flush_wait_umount) {
         datas.terminate(config.options.flush_wait_umount);
       }
