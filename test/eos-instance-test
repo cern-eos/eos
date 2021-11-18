@@ -1307,6 +1307,25 @@ runtest H "### Upload    " sss  0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INS
 runtest   "### Attr      " unix 0 "" eos attr ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.3 | grep user.acl | wc -l | grep -w 1 "
 runtest   "### Attr      " unix 0 "" eos attr ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.3 | grep sys.eval.useracl | wc -l | grep -w 1 "
 
+# test sys file acl
+runtest   "### Attr      " unix 0 "" eos attr rm user.acl /eos/$EOS_TEST_INSTANCE/test/instancetest
+runtest   "### Chmod     " sss  0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
+runtest   "### Chmod     " sss  0 "" eos chown root:root "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
+
+runtest H "### Upload    " sss  0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4"
+runtest   "### Chmod     " sss  0 "" eos chmod 700 "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
+runtest   "### Ls        " sss  0 "" eos ls -la "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
+runtest   "### Download  " unix 0 "EOSROLE='-r 0 0'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4" -
+runtest   "### Download  " unix 1 "EOSROLE='-r 99 99'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4" -
+runtest   "### Attr      " unix 0 "" eos attr set sys.acl=u:99:rx "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4"
+runtest   "### Download  " unix 0 "EOSROLE='-r 0 0'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4" -
+runtest   "### Download  " unix 0 "EOSROLE='-r 99 99'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4" -
+runtest   "### Chmod     " sss  0 "" eos chmod 700 "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
+runtest   "### Attr      " unix 0 "" eos attr set sys.acl=u:99:w "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4"
+runtest   "### Download  " unix 0 "EOSROLE='-r 0 0'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4" -
+runtest   "### Download  " unix 1 "EOSROLE='-r 99 99'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.4" -
+runtest   "### Chmod     " sss  0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
+
 # date +%s.%N;exit
 
 #cleanup

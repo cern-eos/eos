@@ -115,6 +115,10 @@ Acl::SetFromAttrMap(const eos::IContainerMD::XAttrMap& attrmap,
     sysAcl = it->second;
   }
 
+  if (attrmapF && attrmapF->count("sys.acl")) {
+    sysAcl = (*attrmapF)["sys.acl"];
+  }
+
   if (EOS_LOGS_DEBUG) {
     eos_static_debug("sysacl='%s' useracl='%s' tokenacl='%s' evalUseracl=%d",
                      sysAcl.c_str(), useracl.c_str(), tokenacl.c_str(), evalUseracl);
