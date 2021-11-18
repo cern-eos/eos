@@ -286,6 +286,7 @@ set(XRDEOSFST_SRCS
   filemd/FmdHandler.cc
   filemd/FmdDbMap.cc          filemd/FmdDbMap.hh
   filemd/FmdMgm.cc
+  filemd/FmdAttr.cc
   # HTTP interface
   http/HttpServer.cc    http/HttpServer.hh
   http/HttpHandler.cc   http/HttpHandler.hh
