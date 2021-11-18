@@ -1047,7 +1047,7 @@ class Transfer(object):
             url = client.URL(dst.encode("utf-8"))
             batch.append(url.path.encode("utf-8"))
 
-            if len(batch) == batch_sz:
+            if len(batch) == batch_size:
                 fs = self.archive.get_fs(dst)
                 prep_stat, __ = fs.prepare(batch, xrd_prepare_evict_flag, 0, timeout)
                 batch.clear()
