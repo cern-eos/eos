@@ -368,28 +368,9 @@ private:
   //! @note this function must be called with the mMapMutex locked and also the
   //! mutex corresponding to the filesystem locked
   //----------------------------------------------------------------------------
-  bool LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
-                        eos::common::FileSystem::fsid_t fsid,
-                        eos::common::FmdHelper& fmd) override
-  {
-    fmd.Reset();
-    auto it = mDbMap.find(fsid);
-
-    if (it == mDbMap.end()) {
-      eos_crit("msg=\"db not open\" dbpath=%s fsid=%lu",
-               eos::common::DbMap::getDbType().c_str(), fsid);
-      return false;
-    }
-
-    eos::common::DbMap::Tval val;
-
-    if (it->second->get(eos::common::Slice((const char*)&fid, sizeof(fid)), &val)) {
-      fmd.mProtoFmd.ParseFromString(val.value);
-      return true;
-    }
-
-    return false;
-  }
+  std::pair<bool,eos::common::FmdHelper>
+  LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
+                   eos::common::FileSystem::fsid_t fsid) override;
 
   //----------------------------------------------------------------------------
   //! Store Fmd structure in the local database

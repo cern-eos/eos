@@ -257,9 +257,11 @@ private:
                            eos::common::FileSystem::fsid_t fsid,
                            const eos::common::FmdHelper& fmd) = 0;
 
-  virtual bool LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
-                                eos::common::FileSystem::fsid_t fsid,
-                                eos::common::FmdHelper& fmd) = 0;
+  virtual std::pair<bool,eos::common::FmdHelper>
+  LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
+                   eos::common::FileSystem::fsid_t fsid) = 0;
+
+
   virtual bool ResetDiskInformation(eos::common::FileSystem::fsid_t fsid) = 0;
   virtual bool ResetMgmInformation(eos::common::FileSystem::fsid_t fsid) = 0;
 
