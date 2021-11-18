@@ -19,7 +19,7 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 bool
 FmdHandler::FileHasXsError(const std::string& lpath,
-                                eos::common::FileSystem::fsid_t fsid)
+                           eos::common::FileSystem::fsid_t fsid)
 {
   bool has_xs_err = false;
   // First check the local db for any filecxerror flags
@@ -65,8 +65,7 @@ FmdHandler::UpdateWithDiskInfo(eos::common::FileSystem::fsid_t fsid,
             "fcxerror=%d bcxerror=%d flaglayouterror=%d",
             fsid, fid, disk_size, disk_xs.c_str(), check_ts_sec,
             filexs_err, blockxs_err, layout_err);
-  eos::common::FmdHelper valfmd;
-  (void)LocalRetrieveFmd(fid, fsid, valfmd);
+  auto [status, valfmd] = LocalRetrieveFmd(fid, fsid);
   valfmd.mProtoFmd.set_fid(fid);
   valfmd.mProtoFmd.set_fsid(fsid);
   valfmd.mProtoFmd.set_disksize(disk_size);
@@ -123,8 +122,7 @@ FmdHandler::UpdateWithMgmInfo(eos::common::FileSystem::fsid_t fsid,
 
   eos_debug("fxid=%08llx fsid=%lu cid=%llu lid=%lx mgmsize=%llu mgmchecksum=%s",
             fid, fsid, cid, lid, mgmsize, mgmchecksum.c_str());
-  eos::common::FmdHelper valfmd;
-  (void)LocalRetrieveFmd(fid, fsid, valfmd);
+  auto [status, valfmd] = LocalRetrieveFmd(fid, fsid);
   valfmd.mProtoFmd.set_mgmsize(mgmsize);
   valfmd.mProtoFmd.set_mgmchecksum(mgmchecksum);
   valfmd.mProtoFmd.set_cid(cid);
