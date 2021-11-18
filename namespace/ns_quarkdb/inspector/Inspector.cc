@@ -42,6 +42,7 @@
 #include <qclient/QClient.hh>
 #include <qclient/ResponseParsing.hh>
 #include <google/protobuf/util/json_util.h>
+#include <regex>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -161,17 +162,44 @@ static std::string constructPath(const std::string& rootPath, const std::string
   return fullPath;
 }
 
+class ExpansionTrim : public ExpansionDecider
+{
+public:
+  ExpansionTrim(std::regex pathsToTrim) : trimRegex(pathsToTrim) {}
+  virtual bool shouldExpandContainer(const eos::ns::ContainerMdProto& proto,
+                                     const eos::IContainerMD::XAttrMap& attrs,
+                                     const std::string& fullPath) override
+  {
+    return !std::regex_search(fullPath, trimRegex);
+  }
+private:
+  std::regex trimRegex;
+};
+
 //------------------------------------------------------------------------------
 // Scan contents of the given path.
 //------------------------------------------------------------------------------
 int Inspector::scan(const std::string& rootPath, bool relative, bool rawPaths,
-                    bool noDirs, bool noFiles, uint32_t maxDepth)
+                    bool noDirs, bool noFiles, uint32_t maxDepth, const std::string& trimPaths)
 {
   FilePrintingOptions filePrintingOpts;
   ContainerPrintingOptions containerPrintingOpts;
   ExplorationOptions explorerOpts;
   explorerOpts.ignoreFiles = noFiles;
   explorerOpts.depthLimit = maxDepth;
+  if (!trimPaths.empty()){
+    try {
+      auto expT = new ExpansionTrim(std::regex(trimPaths));
+      explorerOpts.expansionDecider.reset(expT);
+    }
+    catch (const std::regex_error& e) {
+        std::cout << "regex_error caught: " << e.what() << '\n';
+        if (e.code() == std::regex_constants::error_brack) {
+            std::cout << "The code was error_brack\n";
+        }
+    }
+  }
+
   NamespaceItem item;
   std::unique_ptr<folly::Executor> executor(new folly::IOThreadPoolExecutor(4));
   std::unique_ptr<NamespaceExplorer> explorer = nullptr;

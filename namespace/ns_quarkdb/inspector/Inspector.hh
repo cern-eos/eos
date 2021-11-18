@@ -77,7 +77,7 @@ public:
   //! Scan contents of the given path.
   //----------------------------------------------------------------------------
   int scan(const std::string& path, bool relative, bool rawPaths, bool noDirs,
-           bool noFiles, uint32_t maxDepth);
+           bool noFiles, uint32_t maxDepth, const std::string& trimPaths = "");
 
   //----------------------------------------------------------------------------
   //! Scan all directories in the namespace, and print out some information

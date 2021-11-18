@@ -113,6 +113,7 @@ int main(int argc, char* argv[])
   addClusterOptions(dumpSubcommand, membersStr, memberValidator, password,
                     passwordFile);
   std::string dumpPath;
+  std::string trimPaths;
   std::string attrQuery;
   bool relativePaths = false;
   bool rawPaths = false;
@@ -147,6 +148,8 @@ int main(int argc, char* argv[])
                     passwordFile);
   scanSubcommand->add_option("--path", dumpPath, "The target path to scan")
   ->required();
+  scanSubcommand->add_option("--trim", trimPaths, "REGEX to not expand scan for matching paths");
+
   scanSubcommand->add_flag("--relative-paths", relativePaths,
                            "Print paths relative to --path");
   scanSubcommand->add_flag("--raw-paths", rawPaths,
@@ -500,7 +503,7 @@ int main(int argc, char* argv[])
   }
 
   if (scanSubcommand->parsed()) {
-    return inspector.scan(dumpPath, relativePaths, rawPaths, noDirs, noFiles, maxDepth);
+    return inspector.scan(dumpPath, relativePaths, rawPaths, noDirs, noFiles, maxDepth, trimPaths=trimPaths);
   }
 
   if (namingConflictsSubcommand->parsed()) {
