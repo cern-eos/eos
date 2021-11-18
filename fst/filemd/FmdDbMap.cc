@@ -165,7 +165,8 @@ FmdDbMapHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
     {
       FsReadLock fs_rd_lock(fsid);
 
-      if (LocalRetrieveFmd(fid, fsid, valfmd)) {
+      if (auto [status, valfmd] = LocalRetrieveFmd(fid, fsid);
+          status) {
         std::unique_ptr<eos::common::FmdHelper> fmd {
           new eos::common::FmdHelper()};
 
@@ -278,6 +279,33 @@ FmdDbMapHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
     return nullptr;
   }
 }
+
+std::pair<bool,eos::common::FmdHelper>
+FmdDbMapHandler::LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
+                                  eos::common::FileSystem::fsid_t fsid)
+{
+  eos::common::FmdHelper fmd;
+  bool found {false};
+
+  if (auto it = mDbMap.find(fsid);
+      it != mDbMap.end()) {
+    eos::common::DbMap::Tval val;
+    if (it->second->get(eos::common::Slice((const char*)&fid, sizeof(fid)), &val)) {
+      fmd.mProtoFmd.ParseFromString(val.value);
+      found = true;
+    }
+  } else {
+    eos_crit("msg=\"db not open\" dbpath=%s fsid=%lu",
+             eos::common::DbMap::getDbType().c_str(), fsid);
+  }
+
+  // In this particular case we need the move construction only because this
+  // will be directly passed on to the destructuring bind at call sites, if we
+  // were only returning fmd for eg. the copy ellision would've been guaranteed
+  return {found,std::move(fmd)};
+
+}
+
 
 //------------------------------------------------------------------------------
 // Delete a record associated with fid and filesystem fsid
