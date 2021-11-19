@@ -89,4 +89,90 @@ FmdAttrHandler::Commit(eos::common::FmdHelper* fmd, bool)
   return LocalPutFmd(fmd->mProtoFmd.fid(), fmd->mProtoFmd.fsid(),
                      *fmd);
 }
+
+std::unique_ptr<eos::common::FmdHelper>
+FmdAttrHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
+                            eos::common::FileSystem::fsid_t fsid,
+                            bool force_retrieve, bool do_create,
+                            uid_t uid, gid_t gid,
+                            eos::common::LayoutId::layoutid_t layoutid)
+{
+  auto [status, _fmd] = LocalRetrieveFmd(fid, fsid);
+  if (!status && !do_create) {
+    eos_warning("msg=\"no fmd record found\" fid=%08llx fsid=%lu", fid, fsid);
+    return nullptr;
+  }
+  auto fmd = std::make_unique<eos::common::FmdHelper>(std::move(_fmd.mProtoFmd));
+  // Check the various conditions
+  if (!do_create) {
+    if ((fmd->mProtoFmd.fid() != fid) || (fmd->mProtoFmd.fsid() != fsid)) {
+      eos_crit("msg=\"mismatch between requested fid/fsid and retrieved ones\" "
+               "fid=%08llx retrieved_fid=%08llx fsid=%lu retrieved_fsid=%lu",
+               fid, fmd->mProtoFmd.fid(), fsid, fmd->mProtoFmd.fsid());
+      return nullptr;
+    }
+
+    if (force_retrieve) {
+      return fmd;
+    }
+
+    if (!eos::common::LayoutId::IsRain(fmd->mProtoFmd.lid())) {
+      if ((fmd->mProtoFmd.disksize() &&
+          (fmd->mProtoFmd.disksize() != eos::common::FmdHelper::UNDEF) &&
+          (fmd->mProtoFmd.disksize() != fmd->mProtoFmd.size())) ||
+         (fmd->mProtoFmd.mgmsize() &&
+          (fmd->mProtoFmd.mgmsize() != eos::common::FmdHelper::UNDEF) &&
+          (fmd->mProtoFmd.mgmsize() != fmd->mProtoFmd.size()))) {
+        eos_crit("msg=\"size mismatch disk/mgm vs memory\" fxid=%08llx "
+                 "fsid=%lu size=%llu disksize=%llu mgmsize=%llu",
+                 fid, (unsigned long) fsid, fmd->mProtoFmd.size(),
+                 fmd->mProtoFmd.disksize(), fmd->mProtoFmd.mgmsize());
+        return nullptr;
+      }
+
+      if ((fmd->mProtoFmd.filecxerror() == 1) ||
+          (fmd->mProtoFmd.mgmchecksum().length() &&
+           (fmd->mProtoFmd.mgmchecksum() != fmd->mProtoFmd.checksum()))) {
+        eos_crit("msg=\"checksum error flagged/detected\" fxid=%08llx "
+                 "fsid=%lu checksum=%s diskchecksum=%s mgmchecksum=%s "
+                 "filecxerror=%d blockcxerror=%d", fid,
+                 (unsigned long) fsid, fmd->mProtoFmd.checksum().c_str(),
+                 fmd->mProtoFmd.diskchecksum().c_str(),
+                 fmd->mProtoFmd.mgmchecksum().c_str(),
+                 fmd->mProtoFmd.filecxerror(),
+                 fmd->mProtoFmd.blockcxerror());
+      }
+
+    } else {//Non Rain
+      if (fmd->mProtoFmd.blockcxerror() == 1) {
+        eos_crit("msg=\"blockxs error detected\" fxid=%08llx fsid=%lu",
+                 fid, fsid);
+        return nullptr;
+      }
+    }
+  } // !do_create
+
+  // creating an fmd
+  fmd->Reset();
+  fmd->mProtoFmd.set_uid(uid);
+  fmd->mProtoFmd.set_gid(gid);
+  fmd->mProtoFmd.set_lid(layoutid);
+  fmd->mProtoFmd.set_fsid(fsid);
+  fmd->mProtoFmd.set_fid(fid);
+
+  struct timeval tv;
+  struct timezone tz;
+  gettimeofday(&tv, &tz);
+  fmd->mProtoFmd.set_ctime(tv.tv_sec);
+  fmd->mProtoFmd.set_ctime_ns(tv.tv_usec * 1000);
+
+  if (Commit(fmd.get(), false)) {
+    eos_debug("msg=\"return fmd object\" fid=%08llx fsid=%lu", fid, fsid);
+    return fmd;
+  }
+  eos_crit("msg=\"failed to commit fmd to storage\" fid=%08llx fsid=%lu",
+           fid, fsid);
+  return nullptr;
+}
+
 } // namespace eos::fst
