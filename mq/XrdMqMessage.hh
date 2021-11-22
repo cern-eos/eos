@@ -310,7 +310,15 @@ public:
   //----------------------------------------------------------------------------
   static const char* UnSeal(XrdOucString& s, const char* seal = "#AND#")
   {
-    while (s.replace(seal, "&")) {};
+    //! @note: this is to ensure backwards compatibility with versions prior to
+    //! 4.8.67 and this should be removed once we move to 4.8.68 everywhere
+    const char* old_seal = "#and#";
+
+    if (s.find(old_seal) != STR_NPOS) {
+      while (s.replace(old_seal, "&")) {};
+    } else {
+      while (s.replace(seal, "&")) {};
+    }
 
     return s.c_str();
   }
