@@ -145,7 +145,8 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
   }
 
   // Never put any attribute on version directories
-  if (strstr(path, EOS_COMMON_PATH_VERSION_PREFIX) != 0) {
+  if ( (strstr(path, EOS_COMMON_PATH_VERSION_PREFIX) != 0) &&
+       ( (Key.beginswith("sys.forced")) || (Key.beginswith("user.forced")) ) ) {
     return SFS_OK;
   }
 
