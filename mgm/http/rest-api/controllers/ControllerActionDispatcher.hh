@@ -59,7 +59,7 @@ public:
   ControllerHandler getAction(common::HttpRequest * request);
 private:
   //The map storing the URL,HttpMethod and the associated handler
-  URLMethodFunctionMap mMethodFunctionMap;
+  URLMethodFunctionMap mURLMapMethodFunctionMap;
 };
 
 EOSMGMRESTNAMESPACE_END
