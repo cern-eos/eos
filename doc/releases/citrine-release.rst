@@ -16,6 +16,25 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.68 Citrine``
+===================
+
+2021-11-23
+
+Bug
+----
+
+* [EOS-5015] - FSTs running versions older than 4.8.67 cannot connect to MQ
+  running version 4.8.67
+
+Improvement
+-----------
+
+* [EOS-5004] - Support sys.acl for file ACLs for RA protocols
+* [EOS-5013] - Make oAuth userinfo configurable
+* [EOS-5018] - Allow to set extended attributes on version folders
+
+
 ``v4.8.67 Citrine``
 ===================
 
