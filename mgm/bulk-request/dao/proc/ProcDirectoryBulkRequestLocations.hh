@@ -43,10 +43,12 @@ public:
    * Returns all the directories where a bulk-request could be persisted in the /proc/ directory
    * @return all the directories where a bulk-request could be persisted in the /proc/ directory
    */
-  std::set<std::string> getAllBulkRequestDirectoriesPath();
-  std::string getDirectoryPathWhereBulkRequestCouldBeSaved(const BulkRequest::Type & type);
+  std::set<std::string> getAllBulkRequestDirectoriesPath() const;
+  std::string getBulkRequestDirectory() const;
+  std::string getDirectoryPathWhereBulkRequestCouldBeSaved(const BulkRequest::Type & type) const;
 private:
   std::map<BulkRequest::Type, std::string> mBulkRequestTypeToPath;
+  std::string mBulkRequestDirectory;
 };
 
 EOSBULKNAMESPACE_END

@@ -29,7 +29,7 @@
 EOSMGMRESTNAMESPACE_BEGIN
 
 void ControllerActionDispatcher::addAction(const std::string& urlPattern, const common::HttpHandler::Methods method, const ControllerHandler& controllerHandler){
-  mMethodFunctionMap[urlPattern][method] = controllerHandler;
+  mURLMapMethodFunctionMap[urlPattern][method] = controllerHandler;
 }
 
 ControllerActionDispatcher::ControllerHandler ControllerActionDispatcher::getAction(common::HttpRequest* request) {
@@ -37,18 +37,28 @@ ControllerActionDispatcher::ControllerHandler ControllerActionDispatcher::getAct
   std::string url = request->GetUrl();
   URLParser requestUrlParser(url);
   HttpHandler::Methods method = (HttpHandler::Methods)HttpHandler::ParseMethodString(methodStr);
-  auto methodFunctionItor = std::find_if(mMethodFunctionMap.begin(),mMethodFunctionMap.end(),[&requestUrlParser](const std::pair<std::string,std::map<common::HttpHandler::Methods,ControllerHandler>> & item){
+  //First we look if the URL is known by the dispatcher.
+  //If it is known, the map<Method,Function> will be looked at
+  auto urlMapMethodFunctionItor = std::find_if(
+      mURLMapMethodFunctionMap.begin(), mURLMapMethodFunctionMap.end(),[&requestUrlParser](const std::pair<std::string,std::map<common::HttpHandler::Methods,ControllerHandler>> & item){
     return requestUrlParser.matches(item.first);
   });
-  if(methodFunctionItor != mMethodFunctionMap.end()){
-    try {
-      return methodFunctionItor->second.at(method);
-    } catch (const std::out_of_range & ex){
+  if(urlMapMethodFunctionItor != mURLMapMethodFunctionMap.end()){
+    //The URL allowed to identify a map<Method,Function>.
+    //If the method exists, it will return the function (Action) to run
+    auto methodFunctionItor = std::find_if(urlMapMethodFunctionItor->second.begin(), urlMapMethodFunctionItor->second.end(), [&method](const auto & methodFunctionItem){
+      return method == methodFunctionItem.first;
+    });
+    if(methodFunctionItor != urlMapMethodFunctionItor->second.end()){
+      return methodFunctionItor->second;
+    } else {
+      //Method not found
       std::ostringstream oss;
       oss << "The method " << methodStr << " is not allowed for this resource.";
       throw MethodNotAllowedException(oss.str());
     }
   } else {
+    //URL not found
     std::ostringstream oss;
     oss << "The url provided (" << request->GetUrl() << ") does not allow to identify a controller";
     throw ControllerNotFoundException(oss.str());

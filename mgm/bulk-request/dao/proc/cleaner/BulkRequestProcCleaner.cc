@@ -32,7 +32,7 @@
 
 EOSBULKNAMESPACE_BEGIN
 
-BulkRequestProcCleaner::BulkRequestProcCleaner(): mConfig(BulkRequestProcCleanerConfig::getDefaultConfig()){
+BulkRequestProcCleaner::BulkRequestProcCleaner(const bulk::ProcDirectoryBulkRequestLocations & bulkReqDirectory, std::unique_ptr<BulkRequestProcCleanerConfig> config): mBulkRequestLocation(bulkReqDirectory),mConfig(std::move(config)){
 
 }
 
@@ -48,7 +48,9 @@ BulkRequestProcCleaner::Stop(){
 
 void
 BulkRequestProcCleaner::backgroundThread(ThreadAssistant & assistant){
-  eos_static_notice("%s", "msg=\"starting BulkRequestProcCleaner thread\"");
+  std::ostringstream oss;
+  oss << "msg=\"starting BulkRequestProcCleaner thread. Directory=" << mBulkRequestLocation.getBulkRequestDirectory() <<  "\"";
+  eos_static_notice(oss.str().c_str());
   gOFS->WaitUntilNamespaceIsBooted(assistant);
   // Wait that current MGM becomes a master
   do {
@@ -58,14 +60,14 @@ BulkRequestProcCleaner::backgroundThread(ThreadAssistant & assistant){
 
   while (!assistant.terminationRequested()) {
     // every now and then we wake up
-    common::IntervalStopwatch stopwatch(mConfig.interval);
+    common::IntervalStopwatch stopwatch(mConfig->mInterval);
     // Only a master needs to run the cleaner
     if (gOFS->mMaster->IsMaster()) {
       //Initialize the bulk-request DAO
-      std::unique_ptr<AbstractDAOFactory> daoFactory(new ProcDirectoryDAOFactory(gOFS,*gOFS->mProcDirectoryBulkRequestLocations));
+      std::unique_ptr<AbstractDAOFactory> daoFactory(new ProcDirectoryDAOFactory(gOFS,mBulkRequestLocation));
       std::unique_ptr<IBulkRequestDAO> bulkReqDao = daoFactory->getBulkRequestDAO();
       try{
-        uint64_t nbBulkRequestDeleted = bulkReqDao->deleteBulkRequestNotQueriedFor(BulkRequest::Type::PREPARE_STAGE,mConfig.bulkReqLastAccessTimeBeforeCleaning);
+        uint64_t nbBulkRequestDeleted = bulkReqDao->deleteBulkRequestNotQueriedFor(BulkRequest::Type::PREPARE_STAGE,mConfig->mBulkReqLastAccessTimeBeforeCleaning);
         eos_static_info("msg=\"BulkRequestProcCleaner did one round of cleaning, nbDeletedBulkRequests=%ld\"",nbBulkRequestDeleted);
       } catch (const PersistencyException &ex) {
         eos_static_err("msg=\"BulkRequestProcCleaner an exception occured during a round of cleaning\" exceptionMsg=\"%s\"",ex.what());
