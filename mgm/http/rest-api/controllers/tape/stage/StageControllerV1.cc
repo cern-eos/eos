@@ -68,7 +68,7 @@ common::HttpResponse * StageControllerV1::createBulkStageRequest(common::HttpReq
   //Stage and persist the bulk-request created by the prepare manager
   bulk::RealMgmFileSystemInterface mgmFsInterface(gOFS);
   bulk::BulkRequestPrepareManager pm(mgmFsInterface);
-  std::unique_ptr<bulk::AbstractDAOFactory> daoFactory(new bulk::ProcDirectoryDAOFactory(gOFS,*gOFS->mProcDirectoryBulkRequestLocations));
+  std::unique_ptr<bulk::AbstractDAOFactory> daoFactory(new bulk::ProcDirectoryDAOFactory(gOFS,*gOFS->mProcDirectoryBulkRequestTapeRestApiLocations));
   std::shared_ptr<bulk::BulkRequestBusiness> bulkRequestBusiness(new bulk::BulkRequestBusiness(std::move(daoFactory)));
   pm.setBulkRequestBusiness(bulkRequestBusiness);
   XrdOucErrInfo error;

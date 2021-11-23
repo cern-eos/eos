@@ -26,12 +26,12 @@
 EOSBULKNAMESPACE_BEGIN
 
 ProcDirectoryBulkRequestLocations::ProcDirectoryBulkRequestLocations(const std::string & procDirectoryPath) {
-  std::string bulkRequestsPath = procDirectoryPath + "/bulkrequests/";
-  mBulkRequestTypeToPath[BulkRequest::Type::PREPARE_STAGE] = bulkRequestsPath + "stage/";
-  mBulkRequestTypeToPath[BulkRequest::Type::PREPARE_EVICT] = bulkRequestsPath + "evict/";
+  mBulkRequestDirectory = procDirectoryPath + "/bulkrequests/";
+  mBulkRequestTypeToPath[BulkRequest::Type::PREPARE_STAGE] = mBulkRequestDirectory + "stage/";
+  mBulkRequestTypeToPath[BulkRequest::Type::PREPARE_EVICT] = mBulkRequestDirectory + "evict/";
 }
 
-std::set<std::string> ProcDirectoryBulkRequestLocations::getAllBulkRequestDirectoriesPath(){
+std::set<std::string> ProcDirectoryBulkRequestLocations::getAllBulkRequestDirectoriesPath() const{
   std::set<std::string> allBulkRequetsDirectoriesPath;
   for(auto & bulkRequestTypeToPath: mBulkRequestTypeToPath){
     allBulkRequetsDirectoriesPath.insert(bulkRequestTypeToPath.second);
@@ -39,8 +39,11 @@ std::set<std::string> ProcDirectoryBulkRequestLocations::getAllBulkRequestDirect
   return allBulkRequetsDirectoriesPath;
 }
 
-std::string ProcDirectoryBulkRequestLocations::getDirectoryPathWhereBulkRequestCouldBeSaved(const BulkRequest::Type& type)
-{
+std::string ProcDirectoryBulkRequestLocations::getBulkRequestDirectory() const{
+  return mBulkRequestDirectory;
+}
+
+std::string ProcDirectoryBulkRequestLocations::getDirectoryPathWhereBulkRequestCouldBeSaved(const BulkRequest::Type& type) const {
   return mBulkRequestTypeToPath.at(type);
 }
 
