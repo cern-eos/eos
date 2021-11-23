@@ -40,7 +40,7 @@ EOSBULKNAMESPACE_BEGIN
  */
 class ProcDirectoryBulkRequestDAO : public IBulkRequestDAO, public eos::common::LogId {
 public:
-  ProcDirectoryBulkRequestDAO(XrdMgmOfs * fileSystem, ProcDirectoryBulkRequestLocations& mBulkRequestDirSchema);
+  ProcDirectoryBulkRequestDAO(XrdMgmOfs * fileSystem, const ProcDirectoryBulkRequestLocations & mBulkRequestDirSchema);
   /**
    * Save the bulk request by creating a directory in the /eos/.../proc/ directory and creating one file
    * per file in the bulk-request:
@@ -78,7 +78,7 @@ public:
 private:
   //Interface to the EOS filesystem to allow the creation of files and directories
   XrdMgmOfs * mFileSystem;
-  ProcDirectoryBulkRequestLocations & mProcDirectoryBulkRequestLocations;
+  const ProcDirectoryBulkRequestLocations & mProcDirectoryBulkRequestLocations;
   eos::common::VirtualIdentity mVid;
 
   const char * ERROR_MSG_ATTR_NAME = "error_msg";

@@ -30,12 +30,14 @@
 #include "mgm/Namespace.hh"
 #include "common/VirtualIdentity.hh"
 #include "mgm/bulk-request/dao/proc/cleaner/BulkRequestProcCleanerConfig.hh"
+#include "mgm/bulk-request/dao/proc/ProcDirectoryBulkRequestLocations.hh"
+#include <memory>
 
 EOSBULKNAMESPACE_BEGIN
 
 class BulkRequestProcCleaner {
 public:
-  BulkRequestProcCleaner();
+  BulkRequestProcCleaner(const bulk::ProcDirectoryBulkRequestLocations & bulkReqDirectory, std::unique_ptr<BulkRequestProcCleanerConfig> config);
   /**
    * Start the cleaner thread
    */
@@ -60,7 +62,8 @@ public:
   ~BulkRequestProcCleaner();
 private:
   AssistedThread mThread; ///< thread of the /proc/ cleaner thread
-  BulkRequestProcCleanerConfig mConfig; ///< Configuration of the cleaner (e.g interval of execution)
+  const ProcDirectoryBulkRequestLocations & mBulkRequestLocation; ///< The location of the bulk-request proc directory
+  const std::unique_ptr<BulkRequestProcCleanerConfig> mConfig; ///< Configuration of the cleaner (e.g interval of execution)
 };
 
 EOSBULKNAMESPACE_END
