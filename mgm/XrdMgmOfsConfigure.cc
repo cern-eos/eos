@@ -82,6 +82,7 @@
 #include "qclient/shared/SharedManager.hh"
 #include "mgm/bulk-request/dao/proc/ProcDirectoryBulkRequestLocations.hh"
 #include "mgm/bulk-request/dao/proc/cleaner/BulkRequestProcCleaner.hh"
+#include "mgm/bulk-request/dao/proc/cleaner/BulkRequestProcCleanerConfig.hh"
 
 extern XrdOucTrace gMgmOfsTrace;
 extern void xrdmgmofs_shutdown(int sig);
@@ -2013,6 +2014,42 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       }
     }
 
+    std::string restApiProcBulkRequestPath = MgmProcPath.c_str();
+    restApiProcBulkRequestPath += "/tape-rest-api";
+    mProcDirectoryBulkRequestTapeRestApiLocations.reset(new bulk::ProcDirectoryBulkRequestLocations(restApiProcBulkRequestPath));
+
+    for(const std::string & bulkReqDirPath : mProcDirectoryBulkRequestTapeRestApiLocations->getAllBulkRequestDirectoriesPath()){
+      try {
+        eosmd = gOFS->eosView->getContainer(bulkReqDirPath);
+      } catch (const eos::MDException& e) {
+        eosmd = nullptr;
+      }
+
+      if (!eosmd) {
+        try {
+          eosmd = gOFS->eosView->createContainer(bulkReqDirPath, true);
+          eosmd->setMode(S_IFDIR | S_IRWXU);
+          eosmd->setCUid(2); // bulk-request directories are owned by daemon
+          eosmd->setCGid(2);
+          gOFS->eosView->updateContainerStore(eosmd.get());
+        } catch (const eos::MDException& e) {
+          {
+            std::ostringstream errorMsg;
+            errorMsg << "cannot set the " << bulkReqDirPath
+            << " directory mode to initial mode";
+            Eroute.Emsg("Config", errorMsg.str().c_str());
+          }
+          {
+            std::ostringstream errorMsg;
+            errorMsg << "cannot set the " << bulkReqDirPath
+            << " directory mode to 700";
+            eos_crit(errorMsg.str().c_str());
+          }
+          return 1;
+        }
+      }
+    }
+
     if (NsInQDB) {
       SetupProcFiles();
     }
@@ -2125,7 +2162,11 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   // start the bulk-request proc directory cleaner
+  mBulkReqProcCleaner.reset(new bulk::BulkRequestProcCleaner(*gOFS->mProcDirectoryBulkRequestLocations,bulk::BulkRequestProcCleanerConfig::getDefaultConfig()));
   mBulkReqProcCleaner->Start();
+
+  mHttpTapeRestApiBulkReqProcCleaner.reset(new bulk::BulkRequestProcCleaner(*gOFS->mProcDirectoryBulkRequestTapeRestApiLocations,bulk::BulkRequestProcCleanerConfig::getDefaultConfig()));
+  mHttpTapeRestApiBulkReqProcCleaner->Start();
 
   // start the LRU daemon
   mLRUEngine->Start();

@@ -25,13 +25,12 @@
 
 EOSBULKNAMESPACE_BEGIN
 
-BulkRequestProcCleanerConfig BulkRequestProcCleanerConfig::getDefaultConfig(){
-  BulkRequestProcCleanerConfig defaultConfig;
+BulkRequestProcCleanerConfig::BulkRequestProcCleanerConfig(const std::chrono::seconds& interval, const std::chrono::seconds& bulkReqLastAccessTimeBeforeCleaning):mInterval(interval),mBulkReqLastAccessTimeBeforeCleaning(bulkReqLastAccessTimeBeforeCleaning){}
+
+std::unique_ptr<BulkRequestProcCleanerConfig> BulkRequestProcCleanerConfig::getDefaultConfig(){
   //By default, the interval to run this thread is 1 hour
-  defaultConfig.interval = std::chrono::seconds(3600);
   //By default, a bulk-request that was not queried for one week will be deleted from the /proc/ directory
-  defaultConfig.bulkReqLastAccessTimeBeforeCleaning = std::chrono::seconds(604800);
-  return defaultConfig;
+  return std::make_unique<BulkRequestProcCleanerConfig>(std::chrono::seconds(3600),std::chrono::seconds(604800));
 }
 
 EOSBULKNAMESPACE_END

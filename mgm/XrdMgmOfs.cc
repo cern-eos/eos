@@ -305,8 +305,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   mFidTracker(std::chrono::seconds(600), std::chrono::seconds(3600)),
   mDoneOrderlyShutdown(false),
   mXrdBuffPool(2 * eos::common::KB, 2 * eos::common::MB, 8, 64),
-  mJeMallocHandler(new eos::common::JeMallocHandler()),
-  mBulkReqProcCleaner(new bulk::BulkRequestProcCleaner())
+  mJeMallocHandler(new eos::common::JeMallocHandler())
 {
   eDest = ep;
   ConfigFN = 0;
