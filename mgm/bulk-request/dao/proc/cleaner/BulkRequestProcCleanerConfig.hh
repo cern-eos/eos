@@ -26,28 +26,30 @@
 
 #include "mgm/Namespace.hh"
 #include <chrono>
+#include <memory>
 
 EOSBULKNAMESPACE_BEGIN
 
 class BulkRequestProcCleanerConfig {
 public:
 
+  BulkRequestProcCleanerConfig(const std::chrono::seconds & interval, const std::chrono::seconds & bulkReqLastAccessTimeBeforeCleaning);
   /**
    * Run the BulkRequestProcCleaner thread this many seconds
    */
-  std::chrono::seconds interval;
+  std::chrono::seconds mInterval;
 
   /**
    * If a bulk-request has not been queried since this many seconds,
    * it will be deleted from the /proc/ directory
    */
-  std::chrono::seconds bulkReqLastAccessTimeBeforeCleaning;
+  std::chrono::seconds mBulkReqLastAccessTimeBeforeCleaning;
 
   /**
    * Returns the default cleaner configuration
    * @return the default cleaner configuration
    */
-  static BulkRequestProcCleanerConfig getDefaultConfig();
+  static std::unique_ptr<BulkRequestProcCleanerConfig> getDefaultConfig();
 };
 
 EOSBULKNAMESPACE_END

@@ -27,6 +27,7 @@
 #include "mgm/Namespace.hh"
 #include <string>
 #include "mgm/http/rest-api/controllers/Controller.hh"
+#include <memory>
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -35,7 +36,7 @@ EOSMGMRESTNAMESPACE_BEGIN
  */
 class ControllerFactory {
 public:
-  static Controller * getStageControllerV1(const std::string & accessURL);
+  static std::unique_ptr<Controller> getStageControllerV1(const std::string & accessURL);
 };
 
 EOSMGMRESTNAMESPACE_END
