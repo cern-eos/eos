@@ -2008,13 +2008,15 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset fileOffset, char* buffer,
   int rc = XrdOfsFile::read(fileOffset, buffer, buffer_size);
   eos_debug("read %llu %llu %i rc=%d", this, fileOffset, buffer_size, rc);
 
-  // set IO priority
-  if (ioprio_set(IOPRIO_WHO_PROCESS,
-                 IOPRIO_PRIO_VALUE(mIoPriorityClass, mIoPriorityValue))) {
-    if (!mIoPriorityErrorReported) {
-      eos_warning("failed to set IO priority to %d:%d - errno=%d\n", mIoPriorityClass,
-                  mIoPriorityValue, errno);
+  if (!getenv("EOS_FST_NO_IOPRIORITY")) {
+    // set IO priority
+    if (ioprio_set(IOPRIO_WHO_PROCESS,
+		   IOPRIO_PRIO_VALUE(mIoPriorityClass, mIoPriorityValue))) {
+      if (!mIoPriorityErrorReported) {
+	eos_warning("failed to set IO priority to %d:%d - errno=%d\n", mIoPriorityClass,
+		    mIoPriorityValue, errno);
       mIoPriorityErrorReported = true;
+      }
     }
   }
 
@@ -2103,13 +2105,15 @@ XrdSfsXferSize
 XrdFstOfsFile::writeofs(XrdSfsFileOffset fileOffset, const char* buffer,
                         XrdSfsXferSize buffer_size)
 {
-  // set IO priority
-  if (ioprio_set(IOPRIO_WHO_PROCESS,
-                 IOPRIO_PRIO_VALUE(mIoPriorityClass, mIoPriorityValue))) {
-    if (!mIoPriorityErrorReported) {
-      eos_warning("failed to set IO priority to %d:%d - errno=%d\n", mIoPriorityClass,
-                  mIoPriorityValue, errno);
-      mIoPriorityErrorReported = true;
+  if (!getenv("EOS_FST_NO_IOPRIORITY")) {
+    // set IO priority
+    if (ioprio_set(IOPRIO_WHO_PROCESS,
+		   IOPRIO_PRIO_VALUE(mIoPriorityClass, mIoPriorityValue))) {
+      if (!mIoPriorityErrorReported) {
+	eos_warning("failed to set IO priority to %d:%d - errno=%d\n", mIoPriorityClass,
+		    mIoPriorityValue, errno);
+	mIoPriorityErrorReported = true;
+      }
     }
   }
 

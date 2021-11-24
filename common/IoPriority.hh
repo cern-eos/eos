@@ -36,8 +36,7 @@ ioprio_set(int which, int ioprio)
 #ifdef __APPLE__
   return 0;
 #else
-  pid_t who = (pid_t) syscall(SYS_gettid);
-  return syscall(SYS_ioprio_set, which, who, ioprio);
+  return syscall(SYS_ioprio_set, which, 0, ioprio);
 #endif
 }
 
@@ -47,8 +46,7 @@ ioprio_get(int which)
 #ifdef __APPLE__
   return 0;
 #else
-  pid_t who = (pid_t) syscall(SYS_gettid);
-  return syscall(SYS_ioprio_get, which, who);
+  return syscall(SYS_ioprio_get, which, 0);
 #endif
 }
 
