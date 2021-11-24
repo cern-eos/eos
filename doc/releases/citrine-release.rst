@@ -16,6 +16,17 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.69 Citrine``
+===================
+
+2021-11-24
+
+Improvements
+------------
+
+* FST: allow to disable any iopriority settings in FSTs using env EOS_FST_NO_IOPRIORITY
+
+
 ``v4.8.68 Citrine``
 ===================
 
