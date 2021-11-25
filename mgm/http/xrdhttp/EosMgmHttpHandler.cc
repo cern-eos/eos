@@ -353,10 +353,10 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
   bool isRestRequest = mMgmOfsHandler->mHttpd->isRestRequest(req.resource);
 
   if(isRestRequest){
-    body.resize(req.length);
-    char* data = 0;
-    int rbytes = req.BuffgetData(req.length, &data, true);
-    body.assign(data, (size_t) rbytes);
+    std::optional<int> retCode = readBody(req,body);
+    if(retCode){
+      return retCode.value();
+    }
   }
 
   if (req.verb == "POST" && !isRestRequest) {
@@ -566,4 +566,49 @@ EosMgmHttpHandler::GetOfsPlugin(XrdSysError* eDest, const std::string& confg,
   }
 
   return (mMgmOfsHandler != nullptr);
+}
+
+std::optional<int> EosMgmHttpHandler::readBody(XrdHttpExtReq& req,std::string & body) {
+  std::optional<int> returnCode;
+  body.reserve(req.length);
+  const unsigned long long eoshttp_sz = 1024 * 1024;
+  unsigned long long contentLeft = req.length;
+  std::string bodyTemp;
+  do {
+    unsigned long long contentToRead = std::min(eoshttp_sz,contentLeft);
+    bodyTemp.clear();
+    bodyTemp.reserve(contentToRead);
+    char * data = nullptr;
+    unsigned long long dataRead = 0;
+
+    do {
+      size_t chunk_len = std::min(eoshttp_sz,contentToRead - dataRead);
+      int bytesRead = req.BuffgetData(chunk_len,&data,true);
+      if(bytesRead > 0){
+        bodyTemp.append(data,bytesRead);
+        dataRead += bytesRead;
+      } else if (bytesRead == -1){
+        std::ostringstream oss;
+        oss << "msg=\"In EosMgmHttpHandler::ProcessReq(), unable to read the body of the request coming from the user. Internal XRootD Http request buffer error\"";
+        eos_static_err(oss.str().c_str());
+        std::string errorMsg = "Http server error: unable to read the request received";
+        return req.SendSimpleResp(500, errorMsg.c_str(), "", errorMsg.c_str(),
+                                  errorMsg.length());
+      } else {
+        break;
+      }
+      if((unsigned long long)bytesRead != contentToRead) {
+        std::ostringstream oss;
+        oss << "msg=\"In EosMgmHttpHandler::ProcessReq(), error while reading the data buffer. expected "
+        << contentToRead << " bytes but got " << bytesRead << " bytes\"";
+        eos_static_err(oss.str().c_str());
+        std::string errorMsg = "Unable to read the request received. XRootD HTTP request buffer error.";
+        return req.SendSimpleResp(500, errorMsg.c_str(), "", errorMsg.c_str(),
+                                  errorMsg.length());
+      }
+    } while(dataRead < contentToRead);
+    contentLeft -= dataRead;
+    body += bodyTemp;
+  } while(contentLeft);
+  return returnCode;
 }
