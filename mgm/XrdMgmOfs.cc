@@ -741,7 +741,7 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   USE_EOSBULKNAMESPACE;
   //Temporary preprocessing directive for testing the bulk-request persistency
   //If set to 1, xrdfs prepare will be issued and a bulk-request will be persisted in the proc directory
-  #define BULK_REQ_PERSISTENCY 1
+  #define BULK_REQ_PERSISTENCY 0
 
   RealMgmFileSystemInterface mgmFsInterface(gOFS);
   #if BULK_REQ_PERSISTENCY
