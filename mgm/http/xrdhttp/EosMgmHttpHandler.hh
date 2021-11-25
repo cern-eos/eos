@@ -176,4 +176,15 @@ private:
   //----------------------------------------------------------------------------
   bool GetOfsPlugin(XrdSysError* eDest, const std::string& confg,
                     XrdOucEnv* myEnv);
+  //----------------------------------------------------------------------------
+  //! Reads the body of the XrdHttpExtReq object and put it in the
+  //! body string
+  //!
+  //! @param req the request from which we will read the body content from
+  //! @param body, the string where the body from the request will be put on
+  //!
+  //! @return a return code if there was an error during the reading. Nothing otherwise,
+  //! hence the optional<int>
+  //----------------------------------------------------------------------------
+  std::optional<int> readBody(XrdHttpExtReq& req, std::string & body);
 };
