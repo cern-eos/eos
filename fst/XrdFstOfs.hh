@@ -73,6 +73,7 @@ class HttpServer;
 class Storage;
 class Messaging;
 class XrdFstOfsFile;
+class FmdHandler;
 
 //------------------------------------------------------------------------------
 //! Class XrdFstOfs
@@ -415,6 +416,7 @@ public:
   std::unique_ptr<eos::fst::HttpServer> mHttpd;
   std::chrono::seconds mTpcKeyValidity {120}; ///< TPC key validity
   std::string mMgmAlias; ///< MGM alias
+  std::shared_ptr<FmdHandler> mFmdHandler; // <File Metadata Handler
 
   // @note
   // All of the commands below are going to be deprecated and replaced by XRootD

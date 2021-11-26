@@ -25,6 +25,7 @@
 #include "fst/XrdFstOss.hh"
 #include "fst/Config.hh"
 #include "fst/filemd/FmdDbMap.hh"
+#include "fst/filemd/FmdAttr.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/http/HttpServer.hh"
 #include "fst/storage/FileSystem.hh"
@@ -659,6 +660,27 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
 
           Eroute.Say("=====> fstofs.mq_implementation : ", value.c_str());
         }
+
+
+        if (!strcmp("filemd_handler", var)) {
+          std::string value;
+
+          while ((val = Config.GetWord())) {
+            value += val;
+          }
+
+          if (value == "leveldb") {
+            mFmdHandler = std::make_shared<FmdDbMapHandler>();
+          } else if (value == "attr") {
+            mFmdHandler = std::make_shared<FmdAttrHandler>();
+          } else {
+            Eroute.Emsg("Config", "unrecognized value for filemd_handler");
+            NoGo = 1;
+          }
+
+          Eroute.Say("=====> fstofs.filemd_handler : ", value.c_str());
+
+        }
       }
     }
 
@@ -874,6 +896,12 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   eos_notice("FST_HOST=%s FST_PORT=%ld FST_HTTP_PORT=%d VERSION=%s RELEASE=%s "
              "KEYTABADLER=%s", mHostName, myPort, mHttpdPort, VERSION, RELEASE,
              kt_cks.c_str());
+
+  if (mFmdHandler == nullptr) {
+    mFmdHandler.reset(new FmdAttrHandler);
+  }
+
+
   return 0;
 }
 
