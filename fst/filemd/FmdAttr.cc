@@ -17,7 +17,7 @@ FmdAttrHandler::LocalRetrieveFmd(const std::string& path)
 {
   LocalIo localIo {path};
   std::string attrval;
-  int result = localIo.attrGet(gFmdAttrName.c_str(), attrval);
+  int result = localIo.attrGet(gFmdAttrName, attrval);
   if (result != 0) {
     eos_err("Failed to Fmd Attribute at path:%s, errno=%d", path.c_str(), errno);
     return {false, eos::common::FmdHelper{}};
@@ -35,7 +35,7 @@ FmdAttrHandler::LocalPutFmd(const std::string& path, const eos::common::FmdHelpe
   std::string attrval;
   fmd.mProtoFmd.SerializePartialToString(&attrval);
 
-  int result = localio.attrSet(gFmdAttrName, attrval);
+  int result = localio.attrSet(gFmdAttrName, attrval.c_str(), attrval.length());
   bool err_status = result != 0;
   if (err_status) {
     eos_err("Failed to Set Fmd Attribute at path:%s", path.c_str());
@@ -47,7 +47,7 @@ void
 FmdAttrHandler::LocalDeleteFmd(const std::string& path)
 {
   LocalIo localio {path};
-  if (int rc = localio.attrDelete(gFmdAttrName.c_str());
+  if (int rc = localio.attrDelete(gFmdAttrName);
       rc != 0 && rc != ENOATTR) {
     eos_err("Failed to Delete Fmd Attribute at path:%s, rc=%d", path.c_str(), rc)
   }
