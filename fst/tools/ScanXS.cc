@@ -31,8 +31,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-eos::fst::FmdDbMapHandler gFmdDbMapHandler; // needed for compilation
-
 int
 main(int argc, char* argv[])
 {

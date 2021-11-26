@@ -34,8 +34,6 @@
 #include <fcntl.h>
 #include <string>
 
-eos::fst::FmdDbMapHandler gFmdDbMapHandler; // needed for compilation
-
 /*----------------------------------------------------------------------------*/
 void usage()
 {
