@@ -5,6 +5,9 @@ namespace eos::fst {
 class FmdAttrHandler final: public FmdHandler
 {
 public:
+  // We don't maintain any local other than the mutexes held by the parent class
+  ~FmdAttrHandler() = default;
+
   void LocalDeleteFmd(eos::common::FileId::fileid_t fid,
                       eos::common::FileSystem::fsid_t fsid) override;
 
@@ -49,6 +52,6 @@ private:
   bool ResetMgmInformation(eos::common::FileSystem::fsid_t fsid) override { return true; };
 };
 
-static const std::string gFmdAttrName = "user.eos.fmd";
+static constexpr auto gFmdAttrName = "user.eos.fmd";
 
 } // namespace eos::fst
