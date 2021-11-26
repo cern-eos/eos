@@ -50,6 +50,8 @@ private:
 
   bool ResetDiskInformation(eos::common::FileSystem::fsid_t fsid) override { return true; };
   bool ResetMgmInformation(eos::common::FileSystem::fsid_t fsid) override { return true; };
+
+  void SetSyncStatus(eos::common::FileSystem::fsid_t, bool) {}
 };
 
 static constexpr auto gFmdAttrName = "user.eos.fmd";
