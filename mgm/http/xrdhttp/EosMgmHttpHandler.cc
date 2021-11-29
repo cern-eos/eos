@@ -572,6 +572,7 @@ std::optional<int> EosMgmHttpHandler::readBody(XrdHttpExtReq& req,std::string & 
   std::optional<int> returnCode;
   body.reserve(req.length);
   const unsigned long long eoshttp_sz = 1024 * 1024;
+  const unsigned long long xrdhttp_sz = 256 * 1024;
   unsigned long long contentLeft = req.length;
   std::string bodyTemp;
   do {
@@ -580,10 +581,11 @@ std::optional<int> EosMgmHttpHandler::readBody(XrdHttpExtReq& req,std::string & 
     bodyTemp.reserve(contentToRead);
     char * data = nullptr;
     unsigned long long dataRead = 0;
-
     do {
-      size_t chunk_len = std::min(eoshttp_sz,contentToRead - dataRead);
+      size_t chunk_len = std::min(xrdhttp_sz,contentToRead - dataRead);
       int bytesRead = req.BuffgetData(chunk_len,&data,true);
+      eos_static_debug("contentToRead=%lli rb=%i body=%u contentLeft=%lli",
+                       contentToRead, bytesRead, body.size(), contentLeft);
       if(bytesRead > 0){
         bodyTemp.append(data,bytesRead);
         dataRead += bytesRead;
@@ -596,15 +598,6 @@ std::optional<int> EosMgmHttpHandler::readBody(XrdHttpExtReq& req,std::string & 
                                   errorMsg.length());
       } else {
         break;
-      }
-      if((unsigned long long)bytesRead != contentToRead) {
-        std::ostringstream oss;
-        oss << "msg=\"In EosMgmHttpHandler::ProcessReq(), error while reading the data buffer. expected "
-        << contentToRead << " bytes but got " << bytesRead << " bytes\"";
-        eos_static_err(oss.str().c_str());
-        std::string errorMsg = "Unable to read the request received. XRootD HTTP request buffer error.";
-        return req.SendSimpleResp(500, errorMsg.c_str(), "", errorMsg.c_str(),
-                                  errorMsg.length());
       }
     } while(dataRead < contentToRead);
     contentLeft -= dataRead;
