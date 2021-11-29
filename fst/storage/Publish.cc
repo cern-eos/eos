@@ -280,8 +280,7 @@ static void insertStatfs(struct statfs* statfs,
                                          1 + statfs->f_blocks)));
   output["stat.statfs.capacity"] = std::to_string(statfs->f_blocks *
                                    statfs->f_bsize);
-  output["stat.statfs.fused"] = std::to_string((statfs->f_files - statfs->f_ffree)
-                                * statfs->f_bsize);
+  output["stat.statfs.fused"] = std::to_string(statfs->f_files - statfs->f_ffree);
 }
 
 //------------------------------------------------------------------------------
