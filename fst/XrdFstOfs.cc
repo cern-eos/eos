@@ -195,7 +195,7 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
     eos::common::SyncAll::AllandClose();
     // Sleep for an amount of time proportional to the number of filesystems
     // on the current machine
-    std::chrono::seconds timeout(gFmdDbMapHandler.GetNumFileSystems() * 5);
+    std::chrono::seconds timeout(gOFS.Storage->mFsMap.size() * 5);
     std::this_thread::sleep_for(timeout);
     fprintf(stderr, "@@@@@@ 00:00:00 op=shutdown msg=\"shutdown timedout after "
             "%li seconds, signal=%i\n", timeout.count(), sig);
