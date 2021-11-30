@@ -8,6 +8,11 @@ public:
   // We don't maintain any local other than the mutexes held by the parent class
   ~FmdAttrHandler() = default;
 
+  fmd_handler_t get_type() override {
+    return fmd_handler_t::ATTR;
+  }
+
+
   void LocalDeleteFmd(eos::common::FileId::fileid_t fid,
                       eos::common::FileSystem::fsid_t fsid) override;
 
