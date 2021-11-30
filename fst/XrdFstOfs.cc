@@ -674,8 +674,8 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
           } else if (value == "attr") {
             mFmdHandler = std::make_shared<FmdAttrHandler>();
           } else {
-            Eroute.Emsg("Config", "unrecognized value for filemd_handler");
-            NoGo = 1;
+            Eroute.Emsg("Config", "unrecognized value for filemd_handler creating LDB");
+            mFmdHandler.reset(new FmdDbMapHandler);
           }
 
           Eroute.Say("=====> fstofs.filemd_handler : ", value.c_str());
@@ -896,11 +896,6 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   eos_notice("FST_HOST=%s FST_PORT=%ld FST_HTTP_PORT=%d VERSION=%s RELEASE=%s "
              "KEYTABADLER=%s", mHostName, myPort, mHttpdPort, VERSION, RELEASE,
              kt_cks.c_str());
-
-  if (mFmdHandler == nullptr) {
-    mFmdHandler.reset(new FmdDbMapHandler);
-  }
-
 
   return 0;
 }
@@ -2670,7 +2665,8 @@ XrdFstOfs::SetXrdClTimeouts()
 bool
 XrdFstOfs::FmdOnDb() const
 {
-  return mFmdHandler->get_type() == fmd_handler_t::DB;
+
+  return (mFmdHandler != nullptr) && (mFmdHandler->get_type() == fmd_handler_t::DB);
 }
 
 EOSFSTNAMESPACE_END
