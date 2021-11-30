@@ -30,10 +30,13 @@ EOSFSTNAMESPACE_BEGIN
 void
 Storage::Trim()
 {
+  // In this case we need to use the sp itself as this thread may or may not
+  // outlive the other one
+  auto fmd_handler = std::static_pointer_cast<FmdDbMapHandler>(gOFS.mFmdHandler);
   // Trim the DB every 30 days
   while (true) {
     std::this_thread::sleep_for(std::chrono::hours(24 * 30));
-    gFmdDbMapHandler.TrimDB();
+    fmd_handler->TrimDB();
   }
 }
 

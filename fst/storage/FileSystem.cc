@@ -63,7 +63,10 @@ FileSystem::~FileSystem()
   mScanDir.release();
   mFileIO.release();
   mTxMultiplexer.reset();
-  gFmdDbMapHandler.ShutdownDB(mLocalId, true);
+  if (gOFS.FmdOnDb()) {
+    auto fmd_handler = static_cast<FmdDbMapHandler*>(gOFS.mFmdHandler.get());
+    fmd_handler->ShutdownDB(mLocalId, true);
+  }
 
   if (mTxBalanceQueue) {
     delete mTxBalanceQueue;
@@ -235,11 +238,15 @@ FileSystem::UpdateInconsistencyInfo()
   decltype(mInconsistencyStats) tmp_stats;
   decltype(mInconsistencySets) tmp_sets;
 
-  if (!gFmdDbMapHandler.GetInconsistencyStatistics(mLocalId, tmp_stats,
-      tmp_sets)) {
-    eos_static_err("msg=\"failed to get inconsistency statistics\" fsid=%lu",
-                   mLocalId);
-    return;
+  if (gOFS.FmdOnDb()) {
+    auto fmd_handler = static_cast<FmdDbMapHandler*>(gOFS.mFmdHandler.get());
+    if (!fmd_handler->GetInconsistencyStatistics(mLocalId, tmp_stats,
+                                                 tmp_sets)) {
+      eos_static_err("msg=\"failed to get inconsistency statistics\" fsid=%lu",
+                     mLocalId);
+      return;
+    }
+
   }
 
   eos::common::RWMutexWriteLock wr_lock(mInconsistencyMutex);
