@@ -218,8 +218,13 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
   eos_static_warning("%s", "op=shutdown msg=\"stopped messaging\"");
   gOFS.Storage->Shutdown();
   eos_static_warning("%s", "op=shutdown msg=\"stopped storage activities\"");
-  gOFS.mFmdHandler->Shutdown();
-  eos_static_warning("%s", "op=shutdown msg=\"stopped Fmd handler\"");
+
+  if (gOFS.mFmdHandler != nullptr) {
+    gOFS.mFmdHandler->Shutdown();
+    eos_static_warning("%s", "op=shutdown msg=\"stopped FmdHandler\"");
+  } else {
+    eos_static_err("%s", "op=shutdown msg=\"FmdHandler empty, lifetime issue!\"");
+  }
 
   if (watchdog > 1) {
     kill(watchdog, 9);
@@ -670,12 +675,11 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
           }
 
           if (value == "leveldb") {
-            mFmdHandler = std::make_shared<FmdDbMapHandler>();
-          } else if (value == "attr") {
-            mFmdHandler = std::make_shared<FmdAttrHandler>();
-          } else {
-            Eroute.Emsg("Config", "unrecognized value for filemd_handler creating LDB");
             mFmdHandler.reset(new FmdDbMapHandler);
+            Eroute.Say("Config", "creating DB Handler");
+          } else if (value == "attr") {
+            mFmdHandler.reset(new FmdAttrHandler);
+            Eroute.Say("Config", "creating Attr Handler");
           }
 
           Eroute.Say("=====> fstofs.filemd_handler : ", value.c_str());
@@ -714,6 +718,11 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
 
   if (!gConfig.FstOfsBrokerUrl.endswith("/")) {
     gConfig.FstOfsBrokerUrl += "/";
+  }
+
+  if (!mFmdHandler) {
+    mFmdHandler.reset(new FmdDbMapHandler);
+    Eroute.Say("=====> fstofs.filemd_handler : leveldb");
   }
 
   gConfig.FstDefaultReceiverQueue =
