@@ -25,9 +25,6 @@
 
 EOSFSTNAMESPACE_BEGIN
 
-// Global objects
-FmdDbMapHandler gFmdDbMapHandler;
-
 using eos::common::LayoutId;
 
 //------------------------------------------------------------------------------
@@ -617,7 +614,7 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
     const eos::common::DbMapTypes::Tkey* k;
     const eos::common::DbMapTypes::Tval* v;
     eos::common::DbMapTypes::Tval val;
-    FsReadLock fs_rd_lock(fsid);
+    FsReadLock fs_rd_lock(this, fsid);
 
     // We report values only when we are not in the sync phase from disk/mgm
     for (mDbMap[fsid]->beginIter(false); mDbMap[fsid]->iterate(&k, &v, false);) {
@@ -727,7 +724,7 @@ FmdDbMapHandler::ResetDB(eos::common::FileSystem::fsid_t fsid)
 
   // Erase the hash entry
   if (mDbMap.count(fsid)) {
-    FsWriteLock fs_wr_lock(fsid);
+    FsWriteLock fs_wr_lock(this, fsid);
 
     // Delete in the in-memory hash
     if (!mDbMap[fsid]->clear()) {
@@ -771,7 +768,7 @@ long long
 FmdDbMapHandler::GetNumFiles(eos::common::FileSystem::fsid_t fsid)
 {
   eos::common::RWMutexReadLock lock(mMapMutex);
-  FsReadLock fs_rd_lock(fsid);
+  FsReadLock fs_rd_lock(this, fsid);
 
   if (mDbMap.count(fsid)) {
     return mDbMap[fsid]->size();

@@ -122,11 +122,13 @@ Storage::Storage(const char* meta_dir)
   mThreadSet.insert(tid);
   eos_info("starting trim thread");
 
-  if ((rc = XrdSysThread::Run(&tid, Storage::StartFsTrim,
-                              static_cast<void*>(this),
-                              0, "Meta Store Trim"))) {
-    eos_crit("cannot start trimming theread");
-    mZombie = true;
+  if (gOFS.FmdOnDb()) {
+    if ((rc = XrdSysThread::Run(&tid, Storage::StartFsTrim,
+                                static_cast<void*>(this),
+                                0, "Meta Store Trim"))) {
+      eos_crit("cannot start trimming theread");
+      mZombie = true;
+    }
   }
 
   mThreadSet.insert(tid);
@@ -433,13 +435,17 @@ Storage::Boot(FileSystem* fs)
     cPath.MakeParentPath(S_IRWXU | S_IRGRP | S_IXGRP);
   }
 
-  // Attach to the local DB
-  if (!gFmdDbMapHandler.SetDBFile(metadir.c_str(), fsid)) {
-    fs->SetStatus(eos::common::BootStatus::kBootFailure);
-    fs->SetError(EFAULT, "cannot set DB filename - see the fst logfile "
-                 "for details");
-    return;
+  // Attach to the local DB if we deal with DB
+  if (gOFS.FmdOnDb()) {
+    auto *fmd_handler = static_cast<FmdDbMapHandler*>(gOFS.mFmdHandler.get());
+    if (!fmd_handler->SetDBFile(metadir.c_str(), fsid)) {
+      fs->SetStatus(eos::common::BootStatus::kBootFailure);
+      fs->SetError(EFAULT, "cannot set DB filename - see the fst logfile "
+                   "for details");
+      return;
+    }
   }
+
 
   bool resyncmgm = (fs->GetLongLong("bootcheck") ==
                     eos::common::FileSystem::kBootResync);
@@ -453,10 +459,13 @@ Storage::Boot(FileSystem* fs)
   // Sync only local disks
   if (resyncdisk && (fs->GetPath()[0] == '/')) {
     if (resyncmgm) {
-      if (!gFmdDbMapHandler.ResetDB(fsid)) {
-        fs->SetStatus(eos::common::BootStatus::kBootFailure);
-        fs->SetError(EFAULT, "cannot clean DB on local disk");
-        return;
+      if (gOFS.FmdOnDb()) {
+        auto *fmd_handler = static_cast<FmdDbMapHandler*>(gOFS.mFmdHandler.get());
+        if (!fmd_handler->ResetDB(fsid)) {
+          fs->SetStatus(eos::common::BootStatus::kBootFailure);
+          fs->SetError(EFAULT, "cannot clean DB on local disk");
+          return;
+        }
       }
     }
 
