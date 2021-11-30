@@ -37,11 +37,19 @@ namespace eos
 
 EOSFSTNAMESPACE_BEGIN
 
+enum class fmd_handler_t {
+  DB,
+  ATTR,
+  UNDEF
+};
+
 class FmdHandler: public eos::common::LogId
 {
 public:
   FmdHandler() = default;
   virtual ~FmdHandler() = default;
+
+  virtual fmd_handler_t get_type() = 0;
   //----------------------------------------------------------------------------
   //! Check if entry has a file checksum error
   //!
@@ -248,6 +256,9 @@ public:
   //----------------------------------------------------------------------------
   static void MoveToOrphans(const std::string& fpath);
 
+  // A shutdown/cleanup routine for the specific handler, meant to be overriden
+  // if the class handles some objects needing cleanup
+  virtual void Shutdown() {}
 private:
 
   // Virtual private methods are overrideable at derived classes, this allows

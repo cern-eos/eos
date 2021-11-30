@@ -63,6 +63,11 @@ public:
     mFsMtxMap.clear();
   }
 
+  fmd_handler_t get_type() override {
+    return fmd_handler_t::DB;
+  }
+
+
   //----------------------------------------------------------------------------
   //! Set a new DB file for a filesystem id
   //!
@@ -236,7 +241,7 @@ public:
   //! Shutdown
   //----------------------------------------------------------------------------
   void
-  Shutdown()
+  Shutdown() override
   {
     while (!mDbMap.empty()) {
       ShutdownDB(mDbMap.begin()->first, true);
