@@ -431,18 +431,20 @@ extern FmdDbMapHandler gFmdDbMapHandler;
 class FsReadLock
 {
 private:
+  FmdDbMapHandler* const mFmdDbMapHandler;
   eos::common::FileSystem::fsid_t mFsId;
-
 public:
-  FsReadLock(const eos::common::FileSystem::fsid_t& fsid) :
+  FsReadLock(FmdDbMapHandler* fmdhandler,
+             const eos::common::FileSystem::fsid_t& fsid) :
+    mFmdDbMapHandler(fmdhandler),
     mFsId(fsid)
   {
-    gFmdDbMapHandler.FsLockRead(mFsId);
+    mFmdDbMapHandler->FsLockRead(mFsId);
   }
 
   ~FsReadLock()
   {
-    gFmdDbMapHandler.FsUnlockRead(mFsId);
+    mFmdDbMapHandler->FsUnlockRead(mFsId);
   }
 };
 
@@ -452,17 +454,20 @@ public:
 class FsWriteLock
 {
 private:
+  FmdDbMapHandler* const mFmdDbMapHandler;
   eos::common::FileSystem::fsid_t mFsId;
-
 public:
-  FsWriteLock(const eos::common::FileSystem::fsid_t& fsid) : mFsId(fsid)
+  FsWriteLock(FmdDbMapHandler* fmdhandler,
+              const eos::common::FileSystem::fsid_t& fsid) :
+    mFmdDbMapHandler(fmdhandler),
+    mFsId(fsid)
   {
-    gFmdDbMapHandler.FsLockWrite(mFsId);
+    mFmdDbMapHandler->FsLockWrite(mFsId);
   }
 
   ~FsWriteLock()
   {
-    gFmdDbMapHandler.FsUnlockWrite(mFsId);
+    mFmdDbMapHandler->FsUnlockWrite(mFsId);
   }
 };
 
