@@ -718,28 +718,23 @@ com_file(char* arg1)
       return (0);
     }
 
-    char* ptr = newresult->Get("mgm.proc_retc");
+    char* ptr = newresult->Get("mgm.proc.retc");
 
-    if (ptr == nullptr) {
-      fprintf(stderr, "error: unexpected response from server, msg=\"%s\"",
-              newresult->Env(envlen));
-      global_retc = EINVAL;
-      return (0);
-    }
+    if (ptr) {
+      int retc_getmdloc = 0;
 
-    int retc_getmdloc = 0;
+      try {
+        retc_getmdloc = std::stoi(ptr);
+      } catch (...) {
+        retc_getmdloc = EINVAL;
+      }
 
-    try {
-      retc_getmdloc = std::stoi(ptr);
-    } catch (...) {
-      retc_getmdloc = EINVAL;
-    }
-
-    if (retc_getmdloc) {
-      fprintf(stderr, "error: failed getmdlocation command, errno=%i",
-              retc_getmdloc);
-      global_retc = retc_getmdloc;
-      return (0);
+      if (retc_getmdloc) {
+        fprintf(stderr, "error: failed getmdlocation command, errno=%i",
+                retc_getmdloc);
+        global_retc = retc_getmdloc;
+        return (0);
+      }
     }
 
     XrdOucString ns_path = newresult->Get("mgm.nspath");
