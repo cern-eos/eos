@@ -423,7 +423,6 @@ private:
   bool ResetDiskInformation(eos::common::FileSystem::fsid_t fsid);
 };
 
-extern FmdDbMapHandler gFmdDbMapHandler;
 
 //------------------------------------------------------------------------------
 //! DB read lock per fsid

@@ -218,8 +218,8 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
   eos_static_warning("%s", "op=shutdown msg=\"stopped messaging\"");
   gOFS.Storage->Shutdown();
   eos_static_warning("%s", "op=shutdown msg=\"stopped storage activities\"");
-  gFmdDbMapHandler.Shutdown();
-  eos_static_warning("%s", "op=shutdown msg=\"stopped FmdDbMap handler\"");
+  gOFS.mFmdHandler->Shutdown();
+  eos_static_warning("%s", "op=shutdown msg=\"stopped Fmd handler\"");
 
   if (watchdog > 1) {
     kill(watchdog, 9);
@@ -293,7 +293,7 @@ XrdFstOfs::xrdfstofs_graceful_shutdown(int sig)
 
   gOFS.Storage->Shutdown();
   eos_static_warning("op=shutdown msg=\"shutdown fmddbmap handler\"");
-  gFmdDbMapHandler.Shutdown();
+  gOFS.mFmdHandler->Shutdown();
   eos_static_warning("op=shutdown status=dbmapclosed");
 
   if (watchdog > 1) {
@@ -898,7 +898,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
              kt_cks.c_str());
 
   if (mFmdHandler == nullptr) {
-    mFmdHandler.reset(new FmdAttrHandler);
+    mFmdHandler.reset(new FmdDbMapHandler);
   }
 
 
@@ -2665,6 +2665,12 @@ XrdFstOfs::SetXrdClTimeouts()
     eos_static_info("msg=\"update xrootd client timeouts\" name=%s value=%i",
                     elem.first.c_str(), env_value);
   }
+}
+
+bool
+XrdFstOfs::FmdOnDb() const
+{
+  return mFmdHandler->get_type() == fmd_handler_t::DB;
 }
 
 EOSFSTNAMESPACE_END
