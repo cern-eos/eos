@@ -82,7 +82,7 @@ FmdDbMapHandler::SetDBFile(const char* meta_dir, int fsid)
   eos_info("%s DB is now %s", eos::common::DbMap::getDbType().c_str(),
            fsDBFileName);
   eos::common::RWMutexWriteLock wr_lock(mMapMutex);
-  FsWriteLock wlock(fsid);
+  FsWriteLock wlock(this, fsid);
 
   if (!is_attached) {
     auto result = mDbMap.insert(std::make_pair(fsid, new eos::common::DbMap()));
@@ -163,7 +163,7 @@ FmdDbMapHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
   if (mDbMap.count(fsid)) {
     eos::common::FmdHelper valfmd;
     {
-      FsReadLock fs_rd_lock(fsid);
+      FsReadLock fs_rd_lock(this, fsid);
 
       if (auto [status, valfmd] = LocalRetrieveFmd(fid, fsid);
           status) {
@@ -241,7 +241,7 @@ FmdDbMapHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
       struct timezone tz;
       gettimeofday(&tv, &tz);
       valfmd.Reset();
-      FsWriteLock fs_wr_lock(fsid); // --> (return)
+      FsWriteLock fs_wr_lock(this, fsid); // --> (return)
       valfmd.mProtoFmd.set_uid(uid);
       valfmd.mProtoFmd.set_gid(gid);
       valfmd.mProtoFmd.set_lid(layoutid);
@@ -315,7 +315,7 @@ FmdDbMapHandler::LocalDeleteFmd(eos::common::FileId::fileid_t fid,
                                 eos::common::FileSystem::fsid_t fsid)
 {
   eos::common::RWMutexReadLock map_rd_lock(mMapMutex);
-  FsWriteLock fs_wr_lock(fsid);
+  FsWriteLock fs_wr_lock(this, fsid);
   auto it = mDbMap.find(fsid);
 
   if (it != mDbMap.end()) {
@@ -388,7 +388,7 @@ FmdDbMapHandler::UpdateWithDiskInfo(eos::common::FileSystem::fsid_t fsid,
     return false;
   }
   eos::common::RWMutexReadLock map_rd_lock(mMapMutex);
-  FsWriteLock fs_wr_lock(fsid);
+  FsWriteLock fs_wr_lock(this, fsid);
   return FmdHandler::UpdateWithDiskInfo(fsid, fid, disk_size, disk_xs, check_ts_sec,
                                         filexs_err, blockxs_err, layout_err);
 }
@@ -415,7 +415,7 @@ FmdDbMapHandler::UpdateWithMgmInfo(eos::common::FileSystem::fsid_t fsid,
     return false;
   }
   eos::common::RWMutexReadLock map_rd_lock(mMapMutex);
-  FsWriteLock fs_wr_lock(fsid);
+  FsWriteLock fs_wr_lock(this, fsid);
   return FmdHandler::UpdateWithMgmInfo(fsid, fid, cid, lid, mgmsize,
                                        mgmchecksum, uid, gid,
                                        ctime, ctime_ns, mtime, mtime_ns,
@@ -429,7 +429,7 @@ bool
 FmdDbMapHandler::ResetDiskInformation(eos::common::FileSystem::fsid_t fsid)
 {
   eos::common::RWMutexReadLock lock(mMapMutex);
-  FsWriteLock wlock(fsid);
+  FsWriteLock wlock(this, fsid);
 
   if (mDbMap.count(fsid)) {
     const eos::common::DbMapTypes::Tkey* k;
@@ -473,7 +473,7 @@ bool
 FmdDbMapHandler::ResetMgmInformation(eos::common::FileSystem::fsid_t fsid)
 {
   eos::common::RWMutexReadLock lock(mMapMutex);
-  FsWriteLock vlock(fsid);
+  FsWriteLock vlock(this, fsid);
 
   if (mDbMap.count(fsid)) {
     const eos::common::DbMapTypes::Tkey* k;
@@ -521,7 +521,7 @@ FmdDbMapHandler::RemoveGhostEntries(const char* fs_root,
   if (!IsSyncing(fsid)) {
     {
       eos::common::RWMutexReadLock rd_lock(mMapMutex);
-      FsReadLock fs_rd_lock(fsid);
+      FsReadLock fs_rd_lock(this, fsid);
 
       if (!mDbMap.count(fsid)) {
         return true;
