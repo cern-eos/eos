@@ -34,9 +34,9 @@ FmdAttrHandler::CreateFile(FileIo* fio)
   if (fio->fileExists() == 0) {
     return 0;
   }
-
-  int rc = fio->fileOpen(SFS_O_CREAT | SFS_O_RDWR);
-  fio->fileClose();
+  FsIo fsio {fio->GetPath()};
+  int rc = fsio.fileOpen(SFS_O_CREAT | SFS_O_RDWR);
+  fsio.fileClose();
   return rc;
 }
 
