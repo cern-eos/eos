@@ -19,7 +19,7 @@ FmdAttrHandler::LocalRetrieveFmd(const std::string& path)
   std::string attrval;
   int result = localIo.attrGet(gFmdAttrName, attrval);
   if (result != 0) {
-    eos_err("Failed to Fmd Attribute at path:%s, errno=%d", path.c_str(), errno);
+    eos_err("Failed to Retrieve Fmd Attribute at path:%s, errno=%d", path.c_str(), errno);
     return {false, eos::common::FmdHelper{}};
   }
 
@@ -35,8 +35,13 @@ FmdAttrHandler::CreateFile(FileIo* fio)
     return 0;
   }
   FsIo fsio {fio->GetPath()};
-  int rc = fsio.fileOpen(SFS_O_CREAT | SFS_O_RDWR);
+  int rc = fsio.fileOpen(O_CREAT | O_RDWR);
+  if (rc != 0)
+  {
+    eos_err("Failed to open file rc=%d", errno);
+  }
   fsio.fileClose();
+
   return rc;
 }
 
@@ -47,7 +52,7 @@ FmdAttrHandler::LocalPutFmd(const std::string& path, const eos::common::FmdHelpe
   if (int rc = CreateFile(&localio);
       rc != 0) {
     // TODO: do we need to set kMissing when create
-    eos_err("Failed to open file for fmd attr path:%s", path.c_str());
+    eos_err("Failed to open file for fmd attr path:%s, rc=%d", path.c_str(), rc);
   }
 
   std::string attrval;
