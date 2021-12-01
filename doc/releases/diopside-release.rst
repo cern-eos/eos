@@ -16,6 +16,24 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.0.7 Diopside``
+===================
+
+2021-12-01
+
+Note
+----
+
+* Release based on XRootD-5.3.4
+
+
+New features
+------------
+
+* WNC: Implemeneted support for EOS-wnc member, backup, map and archive command
+
+
+
 ``v5.0.6 Diopside``
 ===================
 
