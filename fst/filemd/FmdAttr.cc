@@ -28,10 +28,28 @@ FmdAttrHandler::LocalRetrieveFmd(const std::string& path)
   return {status, std::move(fmd)};
 }
 
+int
+FmdAttrHandler::CreateFile(FileIo* fio)
+{
+  if (fio->fileExists() == 0) {
+    return 0;
+  }
+
+  int rc = fio->fileOpen(SFS_O_CREAT | SFS_O_RDWR);
+  fio->fileClose();
+  return rc;
+}
+
 bool
 FmdAttrHandler::LocalPutFmd(const std::string& path, const eos::common::FmdHelper& fmd)
 {
   LocalIo localio {path};
+  if (int rc = CreateFile(&localio);
+      rc != 0) {
+    // TODO: do we need to set kMissing when create
+    eos_err("Failed to open file for fmd attr path:%s", path.c_str());
+  }
+
   std::string attrval;
   fmd.mProtoFmd.SerializePartialToString(&attrval);
 
