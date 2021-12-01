@@ -575,6 +575,8 @@ class ArchiveFile(object):
                         val_mode |= mask_mode
                         compat_entry = list(entry)
                         compat_entry[4] = "{0:o}".format(val_mode)
+                    else:
+                        compat_entry = list(entry)
 
                     if not meta_info == entry and not compat_entry == entry:
                         err_msg = ("Verify failed for entry={0} expect={1} got={2}"
