@@ -721,8 +721,8 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   }
 
   if (!mFmdHandler) {
-    mFmdHandler.reset(new FmdDbMapHandler);
-    Eroute.Say("=====> fstofs.filemd_handler : leveldb");
+    mFmdHandler.reset(new FmdAttrHandler);
+    Eroute.Say("=====> fstofs.filemd_handler : attr");
   }
 
   gConfig.FstDefaultReceiverQueue =
