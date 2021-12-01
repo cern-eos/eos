@@ -26,6 +26,7 @@
 
 #include "mgm/Namespace.hh"
 #include "mgm/http/rest-api/model/tape/stage/CreateStageBulkRequestModel.hh"
+#include "mgm/http/rest-api/model/tape/stage/CancelStageBulkRequestModel.hh"
 #include <memory>
 #include <json/json.h>
 
@@ -36,7 +37,8 @@ EOSMGMRESTNAMESPACE_BEGIN
  */
 class JsonTapeModelBuilder {
 public:
-  virtual std::shared_ptr<CreateStageBulkRequestModel> buildCreateStageBulkRequestModel(const std::string& json) = 0;
+  virtual std::unique_ptr<CreateStageBulkRequestModel> buildCreateStageBulkRequestModel(const std::string& json) = 0;
+  virtual std::unique_ptr<CancelStageBulkRequestModel> buildCancelStageBulkRequestModel(const std::string& json) = 0;
 };
 EOSMGMRESTNAMESPACE_END
 
