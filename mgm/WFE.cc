@@ -1731,8 +1731,25 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath,
   gid_t cgid = 99;
 
   if (onDisk) {
-    eos_static_info("File %s is already on disk, nothing to prepare.",
+    eos_static_info("File %s is already on disk, nothing to prepare. Eviction counter will be incremented.",
                     fullPath.c_str());
+
+    try {
+      int evictionCounter = 0;
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                         __FILE__);
+      auto fmd = gOFS->eosFileService->getFileMD(mFid);
+      if (fmd->hasAttribute(RETRIEVE_EVICT_COUNTER_NAME)) {
+        evictionCounter = std::stoi(fmd->getAttribute(RETRIEVE_EVICT_COUNTER_NAME));
+      }
+      fmd->setAttribute(RETRIEVE_EVICT_COUNTER_NAME, std::to_string(++evictionCounter));
+      gOFS->eosView->updateFileStore(fmd.get());
+
+    } catch (eos::MDException& ex) {
+      eos_static_err("msg=\"could not update eviction counter for file %s\"",
+                     fullPath.c_str());
+    }
+
     MoveWithResults(SFS_OK);
     return SFS_OK;
   } else if (!onTape) {
@@ -2200,10 +2217,16 @@ WFE::Job::resetRetrieveIdListAndErrorMsg(const std::string& fullPath)
   try {
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
                                        __FILE__);
+    XattrSet prepareReqIds;
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
+    if (fmd->hasAttribute(RETRIEVE_REQID_ATTR_NAME)) {
+      prepareReqIds.deserialize(fmd->getAttribute(RETRIEVE_REQID_ATTR_NAME));
+    }
+    int evictionCounter = prepareReqIds.values.size();
     fmd->setAttribute(RETRIEVE_REQID_ATTR_NAME, "");
     fmd->setAttribute(RETRIEVE_REQTIME_ATTR_NAME, "");
     fmd->setAttribute(RETRIEVE_ERROR_ATTR_NAME, "");
+    fmd->setAttribute(RETRIEVE_EVICT_COUNTER_NAME, std::to_string(evictionCounter));
     fmd->removeAttribute(CTA_OBJECTSTORE_REQ_ID_NAME);
     gOFS->eosView->updateFileStore(fmd.get());
     return;
