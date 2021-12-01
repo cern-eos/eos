@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: Controller.cc
+// File: FilesContainer.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,21 +21,27 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "Controller.hh"
-#include "common/http/PlainHttpResponse.hh"
+#ifndef EOS_FILESCONTAINER_HH
+#define EOS_FILESCONTAINER_HH
+
+#include "mgm/Namespace.hh"
+#include <vector>
+#include <string>
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-Controller::Controller(const std::string & accessURL): mAccessURL(accessURL){}
-
-const std::string Controller::getAccessURL() const {
-  return mAccessURL;
-}
-
-common::HttpResponse * Controller::createOKEmptyResponse() {
-  common::HttpResponse * ret = new common::PlainHttpResponse();
-  ret->SetResponseCode(200);
-  return ret;
-}
+class FilesContainer {
+public:
+  FilesContainer() = default;
+  void addFile(const std::string & path);
+  void addFile(const std::string & path, const std::string & opaqueInfo);
+  const std::vector<std::string> & getPaths() const;
+  const std::vector<std::string> & getOpaqueInfos() const;
+private:
+  std::vector<std::string> mPaths;
+  std::vector<std::string> mOpaqueInfos;
+};
 
 EOSMGMRESTNAMESPACE_END
+
+#endif // EOS_FILESCONTAINER_HH

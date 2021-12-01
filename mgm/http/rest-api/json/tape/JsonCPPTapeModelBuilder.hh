@@ -34,7 +34,8 @@ EOSMGMRESTNAMESPACE_BEGIN
  */
 class JsonCPPTapeModelBuilder : public JsonTapeModelBuilder {
 public:
-  virtual std::shared_ptr<CreateStageBulkRequestModel> buildCreateStageBulkRequestModel(const std::string & json) override;
+  virtual std::unique_ptr<CreateStageBulkRequestModel> buildCreateStageBulkRequestModel(const std::string & json) override;
+  virtual std::unique_ptr<CancelStageBulkRequestModel> buildCancelStageBulkRequestModel(const std::string &json) override;
 private:
   /**
    * Parses the json string passed in parameter and
@@ -43,7 +44,17 @@ private:
    * @param root the JsonCpp root object
    * @throws InvalidJsonException if the parsing could not be done
    */
-  void parseJson(const std::string & json,Json::Value & root);
+  void parseJson(const std::string & json,Json::Value & root) const;
+
+  void checkFieldNotNull(const Json::Value & value, const std::string & fieldName) const;
+
+  void checkNotNull(const Json::Value & value, const std::string & errorMsg) const;
+
+  void checkFieldIsNotAnEmptyArray(const Json::Value & value, const std::string & fieldName) const;
+
+  void checkIsNotAnEmptyArray(const Json::Value & value, const std::string & errorMsg) const;
+
+  void checkIsString(const Json::Value & value, const std::string & errorMsg) const;
 };
 
 EOSMGMRESTNAMESPACE_END
