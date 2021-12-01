@@ -34,10 +34,10 @@ public:
     eos::auth::XrdSfsPrepProto pargsProto;
     pargsProto.set_reqid(reqid);
     pargsProto.set_opts(opts);
-    for(auto & oinfo: oinfos){
+    for(auto & oinfo: oinfos) {
       pargsProto.add_oinfo(oinfo);
     }
-    for(auto & path: paths){
+    for(auto & path: paths) {
       pargsProto.add_paths(path);
     }
     mPargs = eos::auth::utils::GetXrdSfsPrep(pargsProto);
