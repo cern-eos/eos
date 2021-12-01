@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: Controller.cc
+// File: CancelStageBulkRequestModel.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,21 +21,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "Controller.hh"
-#include "common/http/PlainHttpResponse.hh"
+#include "CancelStageBulkRequestModel.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-Controller::Controller(const std::string & accessURL): mAccessURL(accessURL){}
-
-const std::string Controller::getAccessURL() const {
-  return mAccessURL;
+void CancelStageBulkRequestModel::addFile(const std::string& path){
+  mFilesContainer.addFile(path);
 }
 
-common::HttpResponse * Controller::createOKEmptyResponse() {
-  common::HttpResponse * ret = new common::PlainHttpResponse();
-  ret->SetResponseCode(200);
-  return ret;
+const FilesContainer& CancelStageBulkRequestModel::getFilesContainer() const {
+  return mFilesContainer;
 }
 
 EOSMGMRESTNAMESPACE_END
