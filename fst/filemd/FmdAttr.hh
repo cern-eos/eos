@@ -2,6 +2,8 @@
 
 namespace eos::fst {
 
+class FileIo;
+
 class FmdAttrHandler final: public FmdHandler
 {
 public:
@@ -40,6 +42,7 @@ private:
                    eos::common::FileSystem::fsid_t fsid,
                    const eos::common::FmdHelper& fmd) override;
 
+  int CreateFile(FileIo* fio);
 
   std::pair<bool,eos::common::FmdHelper>
   LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
