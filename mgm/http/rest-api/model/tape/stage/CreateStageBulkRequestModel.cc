@@ -25,24 +25,12 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-void CreateStageBulkRequestModel::addPath(const std::string & path){
-  mPaths.push_back(path);
+void CreateStageBulkRequestModel::addFile(const std::string & path, const std::string & opaqueInfos){
+  mFilesContainer.addFile(path,opaqueInfos);
 }
 
-void CreateStageBulkRequestModel::addOpaqueInfo(const std::string& oinfos){
-  mOinfos.push_back(oinfos);
-}
-
-void CreateStageBulkRequestModel::addOrModifyMetadata(const std::string & key, const std::any & value){
-  mMetadata[key] = value;
-}
-
-const std::vector<std::string> & CreateStageBulkRequestModel::getPaths() const{
-  return mPaths;
-}
-
-const std::vector<std::string> & CreateStageBulkRequestModel::getOpaqueInfos() const {
-  return mOinfos;
+const FilesContainer& CreateStageBulkRequestModel::getFiles() const {
+  return mFilesContainer;
 }
 
 EOSMGMRESTNAMESPACE_END

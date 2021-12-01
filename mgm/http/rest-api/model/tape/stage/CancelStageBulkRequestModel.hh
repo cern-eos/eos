@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: Controller.cc
+// File: CancelStageBulkRequestModel.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,21 +21,26 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "Controller.hh"
-#include "common/http/PlainHttpResponse.hh"
+#ifndef EOS_CANCELSTAGEBULKREQUESTMODEL_HH
+#define EOS_CANCELSTAGEBULKREQUESTMODEL_HH
+
+#include "mgm/Namespace.hh"
+#include <vector>
+#include <string>
+#include "mgm/http/rest-api/model/tape/common/FilesContainer.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-Controller::Controller(const std::string & accessURL): mAccessURL(accessURL){}
-
-const std::string Controller::getAccessURL() const {
-  return mAccessURL;
-}
-
-common::HttpResponse * Controller::createOKEmptyResponse() {
-  common::HttpResponse * ret = new common::PlainHttpResponse();
-  ret->SetResponseCode(200);
-  return ret;
-}
+class CancelStageBulkRequestModel {
+public:
+  CancelStageBulkRequestModel() = default;
+  void addFile(const std::string & path);
+  const FilesContainer & getFilesContainer() const;
+  inline static const std::string PATHS_KEY_NAME = "paths";
+private:
+  FilesContainer mFilesContainer;
+};
 
 EOSMGMRESTNAMESPACE_END
+
+#endif // EOS_CANCELSTAGEBULKREQUESTMODEL_HH
