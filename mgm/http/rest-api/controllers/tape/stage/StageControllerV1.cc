@@ -45,6 +45,7 @@ StageControllerV1::StageControllerV1(const std::string & accessURL):Controller(a
   //Add actions to URLs and Http verb
   //A POST on the accessURL of this controller will create and persist a new stage bulk-request
   mControllerActionDispatcher.addAction(mAccessURL,eos::common::HttpHandler::Methods::POST,std::bind(&StageControllerV1::createBulkStageRequest,this,std::placeholders::_1,std::placeholders::_2));
+  mControllerActionDispatcher.addAction(mAccessURL+"/{id}/cancel",eos::common::HttpHandler::Methods::POST,std::bind(&StageControllerV1::createBulkStageRequest,this,std::placeholders::_1,std::placeholders::_2));
 }
 
 common::HttpResponse * StageControllerV1::handleRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) {
@@ -54,7 +55,7 @@ common::HttpResponse * StageControllerV1::handleRequest(common::HttpRequest * re
 common::HttpResponse * StageControllerV1::createBulkStageRequest(common::HttpRequest* request, const common::VirtualIdentity * vid) const
 {
   //Check the content of the request and create a bulk-request with it
-  std::shared_ptr<CreateStageBulkRequestModel> createStageBulkRequestModel;
+  std::unique_ptr<CreateStageBulkRequestModel> createStageBulkRequestModel;
   JsonCPPTapeModelBuilder builder;
   try {
     createStageBulkRequestModel = builder.buildCreateStageBulkRequestModel(request->GetBody());
@@ -64,7 +65,8 @@ common::HttpResponse * StageControllerV1::createBulkStageRequest(common::HttpReq
     return TapeRestApiResponseFactory::createBadRequestError(ex2.what()).getHttpResponse();
   }
   //Create the prepare arguments
-  bulk::PrepareArgumentsWrapper pargsWrapper("fake_id",Prep_STAGE,createStageBulkRequestModel->getOpaqueInfos(),createStageBulkRequestModel->getPaths());
+  const FilesContainer & files = createStageBulkRequestModel->getFiles();
+  bulk::PrepareArgumentsWrapper pargsWrapper("fake_id",Prep_STAGE,files.getOpaqueInfos(),files.getPaths());
   //Stage and persist the bulk-request created by the prepare manager
   bulk::RealMgmFileSystemInterface mgmFsInterface(gOFS);
   bulk::BulkRequestPrepareManager pm(mgmFsInterface);
@@ -103,6 +105,30 @@ common::HttpResponse * StageControllerV1::createBulkStageRequest(common::HttpReq
   //Prepare the response and return it
   std::shared_ptr<CreatedStageBulkRequestResponseModel> createdStageBulkRequestModel(new CreatedStageBulkRequestResponseModel(clientRequest,bulkRequestAccessURL));
   return TapeRestApiResponseFactory::createStageBulkRequestResponse(createdStageBulkRequestModel).getHttpResponse();
+}
+
+common::HttpResponse * StageControllerV1::cancelBulkStageRequest(common::HttpRequest* request, const common::VirtualIdentity * vid) const {
+  //Check the content of the request and create a bulk-request with it
+  std::unique_ptr<CreateStageBulkRequestModel> createStageBulkRequestModel;
+  JsonCPPTapeModelBuilder builder;
+  try {
+    createStageBulkRequestModel = builder.buildCreateStageBulkRequestModel(request->GetBody());
+  } catch (const InvalidJSONException & ex) {
+    return TapeRestApiResponseFactory::createBadRequestError(ex.what()).getHttpResponse();
+  } catch (const JsonObjectModelMalformedException & ex2){
+    return TapeRestApiResponseFactory::createBadRequestError(ex2.what()).getHttpResponse();
+  }
+  //Get the id of the request in the URL
+  //TO BE CONTINUED
+  //Create the prepare arguments
+  const FilesContainer & files = createStageBulkRequestModel->getFiles();
+  bulk::PrepareArgumentsWrapper pargsWrapper("fake_id",Prep_CANCEL,files.getOpaqueInfos(),files.getPaths());
+  //Cancel the files that are contained in this
+  bulk::RealMgmFileSystemInterface mgmFsInterface(gOFS);
+  bulk::BulkRequestPrepareManager pm(mgmFsInterface);
+  XrdOucErrInfo error;
+  pm.prepare(*pargsWrapper.getPrepareArguments(),error,vid);
+  return Controller::createOKEmptyResponse();
 }
 
 EOSMGMRESTNAMESPACE_END

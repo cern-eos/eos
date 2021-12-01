@@ -38,6 +38,7 @@ class StageControllerV1 : public Controller {
 public:
   StageControllerV1(const std::string & accessURL);
   virtual common::HttpResponse * handleRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) override;
+
 private:
   /**
    * Creates and persist a stage bulk-request
@@ -46,6 +47,14 @@ private:
    * @return the HttpResponse to the client's request (JSON body)
    */
   common::HttpResponse * createBulkStageRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) const;
+
+  /**
+   * Cancels the stage bulk-request
+   * @param request the client's request
+   * @param vid the virtual identity of the client
+   * @return the HttpResponse to the client's request (JSON body)
+   */
+  common::HttpResponse * cancelBulkStageRequest(common::HttpRequest* request, const common::VirtualIdentity * vid) const;
 };
 
 EOSMGMRESTNAMESPACE_END

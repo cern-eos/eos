@@ -267,7 +267,9 @@ add_library(
   http/rest-api/exception/JsonObjectModelMalformedException.cc
   http/rest-api/exception/MethodNotAllowedException.cc
   http/rest-api/exception/InvalidRestURLException.cc
+  http/rest-api/model/tape/common/FilesContainer.cc
   http/rest-api/model/tape/ErrorModel.cc
+  http/rest-api/model/tape/stage/CancelStageBulkRequestModel.cc
   http/rest-api/model/tape/stage/CreateStageBulkRequestModel.cc
   http/rest-api/model/tape/stage/CreatedStageBulkRequestResponseModel.cc
   http/rest-api/json/tape/JsonCPPTapeModelJsonifier.cc
