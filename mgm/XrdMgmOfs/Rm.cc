@@ -133,6 +133,7 @@ XrdMgmOfs::_rem(const char* path,
   }
 
   // ---------------------------------------------------------------------------
+  eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
   // free the booked quota
   std::shared_ptr<eos::IFileMD> fmd;
