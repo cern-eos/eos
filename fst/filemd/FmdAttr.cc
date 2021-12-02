@@ -35,7 +35,7 @@ FmdAttrHandler::CreateFile(FileIo* fio)
     return 0;
   }
   FsIo fsio {fio->GetPath()};
-  int rc = fsio.fileOpen(O_CREAT | O_RDWR);
+  int rc = fsio.fileOpen(O_CREAT | O_RDWR | O_APPEND);
   if (rc != 0)
   {
     eos_err("Failed to open file rc=%d", errno);
@@ -71,8 +71,9 @@ FmdAttrHandler::LocalDeleteFmd(const std::string& path)
 {
   LocalIo localio {path};
   if (int rc = localio.attrDelete(gFmdAttrName);
-      rc != 0 && rc != ENOATTR) {
-    eos_err("Failed to Delete Fmd Attribute at path:%s, rc=%d", path.c_str(), rc)
+      rc != 0) {
+    if (errno != ENOATTR)
+      eos_err("Failed to Delete Fmd Attribute at path:%s, rc=%d", path.c_str(), errno);
   }
 }
 
