@@ -484,7 +484,8 @@ public:
 
 #define EXEC_TIMING_END(__ID__)                                         \
   gettimeofday(&stop__ID__, &tz__ID__);                                 \
-  gOFS->MgmStats.AddExec(__ID__, ((stop__ID__.tv_sec-start__ID__.tv_sec)*1000.0) + ((stop__ID__.tv_usec-start__ID__.tv_usec)/1000.0) );
+  double __exec_time__ = ((stop__ID__.tv_sec-start__ID__.tv_sec)*1000.0) + ((stop__ID__.tv_usec-start__ID__.tv_usec)/1000.0); \
+  gOFS->MgmStats.AddExec(__ID__, __exec_time__ );
 
 class Stat
 {

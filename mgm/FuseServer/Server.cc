@@ -2310,6 +2310,7 @@ Server::OpSetFile(const std::string& id,
   }
 
   EXEC_TIMING_END("Eosxd::ext::SETFILE");
+  eos_info("ino=%lx rt=%.02f", (long) md.md_ino(), __exec_time__);
   return 0;
 }
 

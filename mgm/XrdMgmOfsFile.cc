@@ -3051,6 +3051,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   }
 
   EXEC_TIMING_END("Open");
+  eos_info("path=%s rt=%.02f", path, __exec_time__);
   return rcode;
 }
 

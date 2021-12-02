@@ -2278,6 +2278,7 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("Eosxd::int::FillFileMD", 0, 0, 0);
   MgmStats.Add("Eosxd::int::Heartbeat", 0, 0, 0);
   MgmStats.Add("Eosxd::int::MonitorCaps", 0, 0, 0);
+  MgmStats.Add("Eosxd::int::MonitorHeartBeat", 0, 0, 0);
   MgmStats.Add("Eosxd::int::RefreshEntry", 0, 0, 0);
   MgmStats.Add("Eosxd::int::ReleaseCap", 0, 0, 0);
   MgmStats.Add("Eosxd::int::SendCAP", 0, 0, 0);

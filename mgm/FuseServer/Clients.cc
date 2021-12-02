@@ -74,6 +74,7 @@ FuseServer::Clients::MonitorHeartBeat()
   eos_static_info("msg=\"starting fusex heart beat thread\"");
 
   while (true) {
+    EXEC_TIMING_BEGIN("Eosxd::int::MonitorHeartBeat");
     client_uuid_t evictmap;
     client_uuid_t evictversionmap;
     struct timespec tsnow;
@@ -162,10 +163,16 @@ FuseServer::Clients::MonitorHeartBeat()
     }
 
     gOFS->zMQ->gFuseServer.Flushs().expireFlush();
+
+    EXEC_TIMING_END("Eosxd::int::MonitorHeartBeat");
     std::this_thread::sleep_for(std::chrono::seconds(1));
 
     if (should_terminate()) {
       break;
+    }
+
+    if (gOFS) {
+      gOFS->MgmStats.Add("Eosxd::int::MonitorHeartBeat", 0, 0, 1);
     }
   }
 
