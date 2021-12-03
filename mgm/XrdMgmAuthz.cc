@@ -25,6 +25,7 @@
 #include "mgm/XrdMgmAuthz.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucString.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdVersion.hh"
 
 XrdMgmAuthz* gMgmAuthz {nullptr};
