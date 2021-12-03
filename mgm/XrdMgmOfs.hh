@@ -619,7 +619,7 @@ public:
            const char* opaque = 0,
            bool follow = true,
            std::string* uri = 0,
-	   std::string* cks = 0
+           std::string* cks = 0
           );
 
   int stat(const char* Name,
@@ -650,7 +650,7 @@ public:
             std::string* etag = 0,
             bool follow = true,
             std::string* uri = 0,
-	    std::string* cks = 0);
+            std::string* cks = 0);
   // ---------------------------------------------------------------------------
   // set XRDSFS_OFFLINE and XRDSFS_HASBKUP flags
   // ---------------------------------------------------------------------------
@@ -856,7 +856,7 @@ public:
                 eos::common::VirtualIdentity& vid,
                 const char* opaque, const char* key, const char* value,
                 bool take_lock = true,
-		bool exclusive = false);
+                bool exclusive = false);
 
   //----------------------------------------------------------------------------
   //! Get an extended attribute for a given entry by key - high-level API.
@@ -1775,7 +1775,7 @@ public:
   //! handler which is responsible for loading the authorization plugin from
   //! the corresponding XrdMacaroons or XrdSciTokens libraries.
   //!
-  //! @param token_authz pointer to the toke authorization plugin
+  //! @param token_authz pointer to the token authorization plugin
   //----------------------------------------------------------------------------
   inline void SetTokenAuthzHandler(XrdAccAuthorize* token_authz)
   {

@@ -84,5 +84,12 @@ XrdMgmAuthz::Access(const XrdSecEntity* Entity, const char* path,
     return XrdAccPriv_None;
   }
 
+  // When a bearer token is already supplied the token library is responsible
+  // for deciding the access permissions therefore, in this case the MGM Authz
+  // module will not give any additional permissions.
+  if (Env && Env->Get("authz")) {
+    return XrdAccPriv_None;
+  }
+
   return XrdAccPriv_All;
 }
