@@ -360,3 +360,9 @@ EOS_TTY_BROACAST_EGREP="\"CRIT|ALERT|EMERG|PROGRESS\""
 
 # set to 0 to disable listing cache for 'xrdfs ls' and 'eos ls', or a number with the number of dirs to cache
 # EOS_MGM_LISTING_CACHE=1024
+
+# ------------------------------------------------------------------
+# MGM OIDC configuration
+# ------------------------------------------------------------------
+# by default the sub field is mapped from OIDC tokens
+# EOS_MGM_OIDC_MAP_FIELD=sub

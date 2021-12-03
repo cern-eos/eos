@@ -1373,7 +1373,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       mTapeGc->setTapeEnabled(mTapeGcSpaces);
     } catch (std::exception& ex) {
       std::ostringstream msg;
-      msg << "msg=\"Failed to start tape-aware garbage collection: " << ex.what() << "\"";
+      msg << "msg=\"Failed to start tape-aware garbage collection: " << ex.what() <<
+          "\"";
       eos_crit(msg.str().c_str());
       return 1;
     } catch (...) {
@@ -1384,9 +1385,11 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     std::ostringstream tapeGcSpaceWarning;
     tapeGcSpaceWarning <<
                        "msg=\"These spaces will not be garbage collected because mgmofs.tapeenabled=false:";
+
     for (const auto& tapeGcSpace : mTapeGcSpaces) {
       tapeGcSpaceWarning << " " << tapeGcSpace;
     }
+
     tapeGcSpaceWarning << "\"";
     eos_warning(tapeGcSpaceWarning.str().c_str());
   }
@@ -2059,6 +2062,7 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("Eosxd::int::FillFileMD", 0, 0, 0);
   MgmStats.Add("Eosxd::int::Heartbeat", 0, 0, 0);
   MgmStats.Add("Eosxd::int::MonitorCaps", 0, 0, 0);
+  MgmStats.Add("Eosxd::int::MonitorHeartBeat", 0, 0, 0);
   MgmStats.Add("Eosxd::int::RefreshEntry", 0, 0, 0);
   MgmStats.Add("Eosxd::int::ReleaseCap", 0, 0, 0);
   MgmStats.Add("Eosxd::int::SendCAP", 0, 0, 0);

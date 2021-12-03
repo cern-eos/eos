@@ -302,7 +302,7 @@ class ArchiveFile(object):
                     new_rules.append(rule)
 
                 acl_val = ','.join(new_rules)
-                self.logger.error("new acl: {0}".format(acl_val))
+                self.logger.info("new acl: {0}".format(acl_val))
 
                 if acl_val:
                     # Set the new sys.acl xattr
@@ -575,6 +575,8 @@ class ArchiveFile(object):
                         val_mode |= mask_mode
                         compat_entry = list(entry)
                         compat_entry[4] = "{0:o}".format(val_mode)
+                    else:
+                        compat_entry = list(entry)
 
                     if not meta_info == entry and not compat_entry == entry:
                         err_msg = ("Verify failed for entry={0} expect={1} got={2}"

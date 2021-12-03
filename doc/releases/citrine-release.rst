@@ -16,6 +16,60 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.69 Citrine``
+===================
+
+2021-11-24
+
+Improvements
+------------
+
+* FST: allow to disable any iopriority settings in FSTs using env EOS_FST_NO_IOPRIORITY
+
+
+``v4.8.68 Citrine``
+===================
+
+2021-11-23
+
+Bug
+----
+
+* [EOS-5015] - FSTs running versions older than 4.8.67 cannot connect to MQ
+  running version 4.8.67
+
+Improvement
+-----------
+
+* [EOS-5004] - Support sys.acl for file ACLs for RA protocols
+* [EOS-5013] - Make oAuth userinfo configurable
+* [EOS-5018] - Allow to set extended attributes on version folders
+
+
+``v4.8.67 Citrine``
+===================
+
+2021-11-17
+
+Bug
+----
+
+* [EOS-4934] - ASAN: fusex: enoent use after free
+* [EOS-4941] - FSCK toogle-repair multiple time crashes MGM
+* [EOS-4952] - Unify the various string split interfaces
+* [EOS-4963] - FST returns 200 status code for Partial Content request instead of 206
+* [EOS-4976] - Fix activity field passed from EOS to CTA
+* [EOS-4986] - eos CLI aborts with "basic_string::_S_construct null not valid"
+* [EOS-4992] - FST crashes upon SSI exception
+
+Improvement
+------------
+
+* [EOS-4945] - Use timestamp for saving the stack trace
+* [EOS-4995] - Add flag to 'ls' to add checksum printout in long listing
+* [EOS-5002] - Add a '-c' option to set an extended attribute only if it does not exist altready
+
+
 ``v4.8.66 Citrine``
 ===================
 

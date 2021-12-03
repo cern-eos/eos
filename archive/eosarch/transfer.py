@@ -462,7 +462,7 @@ class Transfer(object):
             self.archive_tx_clean(check_ok)
 
     def backup_tx_clean(self):
-        """ Clean after a backup tranfer by copying the log file in the same
+        """ Clean after a backup transfer by copying the log file in the same
         directory as the destiantion of the backup.
         """
         # Copy local log file to EOS directory
@@ -594,9 +594,21 @@ class Transfer(object):
         indx_file = 0
         # For inital PUT copy also the archive file to tape
         if self.init_put:
-            __, dst = self.archive.get_endpoints(self.config.ARCH_INIT)
-            self.list_jobs.append((self.efile_full + "?eos.ruid=0&eos.rgid=0" +
-                                   "&eos.app=archive", dst))
+            # The archive init is already renamed to archive.put.err at this
+            # and we need to take this into consideration when trasferring it
+            url = client.URL(self.efile_full.encode("utf-8"))
+            eos_fs = client.FileSystem(self.efile_full.encode("utf-8"))
+            st_stat, resp = eos_fs.stat(url.path.encode("utf-8"))
+
+            if st_stat.ok:
+                __, dst = self.archive.get_endpoints(self.config.ARCH_INIT)
+                self.list_jobs.append((self.efile_full + "?eos.ruid=0&eos.rgid=0" +
+                                       "&eos.app=archive", dst, resp.size))
+            else:
+                err_msg = ''.join(["Failed to get init archive file info, msg=",
+                                   st_stat.message])
+                self.logger.error(err_msg)
+                raise IOError(err_msg)
 
         # Copy files
         for fentry in self.archive.files():
@@ -1035,7 +1047,7 @@ class Transfer(object):
             url = client.URL(dst.encode("utf-8"))
             batch.append(url.path.encode("utf-8"))
 
-            if len(batch) == batch_sz:
+            if len(batch) == batch_size:
                 fs = self.archive.get_fs(dst)
                 prep_stat, __ = fs.prepare(batch, xrd_prepare_evict_flag, 0, timeout)
                 batch.clear()

@@ -2008,13 +2008,15 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset fileOffset, char* buffer,
   int rc = XrdOfsFile::read(fileOffset, buffer, buffer_size);
   eos_debug("read %llu %llu %i rc=%d", this, fileOffset, buffer_size, rc);
 
-  // set IO priority
-  if (ioprio_set(IOPRIO_WHO_PROCESS,
-                 IOPRIO_PRIO_VALUE(mIoPriorityClass, mIoPriorityValue))) {
-    if (!mIoPriorityErrorReported) {
-      eos_warning("failed to set IO priority to %d:%d - errno=%d\n", mIoPriorityClass,
-                  mIoPriorityValue, errno);
-      mIoPriorityErrorReported = true;
+  if (!getenv("EOS_FST_NO_IOPRIORITY")) {
+    // set IO priority
+    if (ioprio_set(IOPRIO_WHO_PROCESS,
+                   IOPRIO_PRIO_VALUE(mIoPriorityClass, mIoPriorityValue))) {
+      if (!mIoPriorityErrorReported) {
+        eos_warning("failed to set IO priority to %d:%d - errno=%d\n", mIoPriorityClass,
+                    mIoPriorityValue, errno);
+        mIoPriorityErrorReported = true;
+      }
     }
   }
 
@@ -2103,13 +2105,15 @@ XrdSfsXferSize
 XrdFstOfsFile::writeofs(XrdSfsFileOffset fileOffset, const char* buffer,
                         XrdSfsXferSize buffer_size)
 {
-  // set IO priority
-  if (ioprio_set(IOPRIO_WHO_PROCESS,
-                 IOPRIO_PRIO_VALUE(mIoPriorityClass, mIoPriorityValue))) {
-    if (!mIoPriorityErrorReported) {
-      eos_warning("failed to set IO priority to %d:%d - errno=%d\n", mIoPriorityClass,
-                  mIoPriorityValue, errno);
-      mIoPriorityErrorReported = true;
+  if (!getenv("EOS_FST_NO_IOPRIORITY")) {
+    // set IO priority
+    if (ioprio_set(IOPRIO_WHO_PROCESS,
+                   IOPRIO_PRIO_VALUE(mIoPriorityClass, mIoPriorityValue))) {
+      if (!mIoPriorityErrorReported) {
+        eos_warning("failed to set IO priority to %d:%d - errno=%d\n", mIoPriorityClass,
+                    mIoPriorityValue, errno);
+        mIoPriorityErrorReported = true;
+      }
     }
   }
 
@@ -2957,7 +2961,7 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
              "sfwdb=%llu&sbwdb=%llu&sxlfwdb=%llu&sxlbwdb=%llu&"
              "nfwds=%lu&nbwds=%lu&nxlfwds=%lu&nxlbwds=%lu&"
              "rt=%.02f&rvt=%.02f&wt=%.02f&osize=%llu&csize=%llu&"
-             "delete_on_close=%d&prio_c=%d&prio_l=%d&prio_d=%d&forced_bw=%d&ms_sleep=%llu%s"
+             "delete_on_close=%d&prio_c=%d&prio_l=%d&prio_d=%d&forced_bw=%d&ms_sleep=%llu&%s"
              , this->logId
              , mCapOpaque->Get("mgm.path") ? mCapOpaque->Get("mgm.path") : mNsPath.c_str()
              , mFstPath.c_str()

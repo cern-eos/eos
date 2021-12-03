@@ -1764,7 +1764,7 @@ public:
   //! handler which is responsible for loading the authorization plugin from
   //! the corresponding XrdMacaroons or XrdSciTokens libraries.
   //!
-  //! @param token_authz pointer to the toke authorization plugin
+  //! @param token_authz pointer to the token authorization plugin
   //----------------------------------------------------------------------------
   inline void SetTokenAuthzHandler(XrdAccAuthorize* token_authz)
   {

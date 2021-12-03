@@ -36,8 +36,7 @@ ioprio_set(int which, int ioprio)
 #ifdef __APPLE__
   return 0;
 #else
-  pid_t who = (pid_t) syscall(SYS_gettid);
-  return syscall(SYS_ioprio_set, which, who, ioprio);
+  return syscall(SYS_ioprio_set, which, 0, ioprio);
 #endif
 }
 
@@ -47,8 +46,7 @@ ioprio_get(int which)
 #ifdef __APPLE__
   return 0;
 #else
-  pid_t who = (pid_t) syscall(SYS_gettid);
-  return syscall(SYS_ioprio_get, which, who);
+  return syscall(SYS_ioprio_get, which, 0);
 #endif
 }
 
@@ -93,7 +91,8 @@ enum {
 
 
 static
-int ioprio_class(std::string& c) {
+int ioprio_class(std::string& c)
+{
   if (c == "idle") {
     return IOPRIO_CLASS_IDLE;
   } else if (c == "be") {
@@ -105,10 +104,12 @@ int ioprio_class(std::string& c) {
   }
 }
 
-static int ioprio_value(std::string& v) {
-  if (v.length()){
+static int ioprio_value(std::string& v)
+{
+  if (v.length()) {
     int level = std::atoi(v.c_str());
-    if ( (level < 0) || (level>7) ) {
+
+    if ((level < 0) || (level > 7)) {
       return 0;
     } else {
       return level;

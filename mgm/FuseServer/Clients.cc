@@ -74,6 +74,7 @@ FuseServer::Clients::MonitorHeartBeat()
   eos_static_info("msg=\"starting fusex heart beat thread\"");
 
   while (true) {
+    EXEC_TIMING_BEGIN("Eosxd::int::MonitorHeartBeat");
     client_uuid_t evictmap;
     client_uuid_t evictversionmap;
     struct timespec tsnow;
@@ -131,20 +132,21 @@ FuseServer::Clients::MonitorHeartBeat()
     // Delete clients to be evicted
     if (!evictmap.empty()) {
       {
-	std::set<string> uuids;
-	{
-	  eos::common::RWMutexWriteLock lLock(*this);
-	  for (auto it = evictmap.begin(); it != evictmap.end(); ++it) {
-	    uuids.insert(it->first);
+        std::set<string> uuids;
+        {
+          eos::common::RWMutexWriteLock lLock(*this);
 
-	    mMap.erase(it->second);
-	    mUUIDView.erase(it->first);
-	    gOFS->zMQ->gFuseServer.Locks().dropLocks(it->first);
-	  }
-	}
-	for (auto it = uuids.begin(); it != uuids.end(); ++it) {
-	  gOFS->zMQ->gFuseServer.Cap().dropCaps(*it);
-	}
+          for (auto it = evictmap.begin(); it != evictmap.end(); ++it) {
+            uuids.insert(it->first);
+            mMap.erase(it->second);
+            mUUIDView.erase(it->first);
+            gOFS->zMQ->gFuseServer.Locks().dropLocks(it->first);
+          }
+        }
+
+        for (auto it = uuids.begin(); it != uuids.end(); ++it) {
+          gOFS->zMQ->gFuseServer.Cap().dropCaps(*it);
+        }
       }
     }
 
@@ -162,10 +164,15 @@ FuseServer::Clients::MonitorHeartBeat()
     }
 
     gOFS->zMQ->gFuseServer.Flushs().expireFlush();
+    EXEC_TIMING_END("Eosxd::int::MonitorHeartBeat");
     std::this_thread::sleep_for(std::chrono::seconds(1));
 
     if (should_terminate()) {
       break;
+    }
+
+    if (gOFS) {
+      gOFS->MgmStats.Add("Eosxd::int::MonitorHeartBeat", 0, 0, 1);
     }
   }
 
@@ -323,13 +330,16 @@ FuseServer::Clients::Print(std::string& out, std::string options)
   eos::common::Timing::GetTimeSpec(tsnow);
   std::unordered_map<std::string, size_t> clientcaps;
 
-  for (const auto & cap : gOFS->zMQ->gFuseServer.Cap().GetAllCaps()) {
+  for (const auto& cap : gOFS->zMQ->gFuseServer.Cap().GetAllCaps()) {
     if ((*cap)()->id()) {
       clientcaps[(*cap)()->clientuuid()]++;
     }
   }
+
   struct timespec now_time;
+
   eos::common::Timing::GetTimeSpec(now_time, true);
+
   eos::common::RWMutexReadLock lLock(*this);
 
   for (auto it = this->map().begin(); it != this->map().end(); ++it) {
@@ -764,18 +774,17 @@ FuseServer::Clients::Dropcaps(const std::string& uuid, std::string& out)
       return ENOENT;
     }
   }
-
   out += " dropping caps of '";
   out += uuid;
   out += "' : ";
   std::set<FuseServer::Caps::shared_cap> cap2delete;
 
-  for (auto cap: gOFS->zMQ->gFuseServer.Cap().GetAllCaps()) {
+  for (auto cap : gOFS->zMQ->gFuseServer.Cap().GetAllCaps()) {
     if ((*cap)()->clientuuid() == uuid) {
       cap2delete.insert(cap);
       out += "\n ";
       char ahex[20];
-      snprintf(ahex, sizeof(ahex), "%016lx", (unsigned long) (*cap)()->id());
+      snprintf(ahex, sizeof(ahex), "%016lx", (unsigned long)(*cap)()->id());
       std::string match = "";
       match += "# i:";
       match += ahex;
@@ -787,8 +796,8 @@ FuseServer::Clients::Dropcaps(const std::string& uuid, std::string& out)
 
   for (auto scap = cap2delete.begin(); scap != cap2delete.end(); ++scap) {
     gOFS->zMQ->gFuseServer.Client().ReleaseCAP((uint64_t)(*(*scap))()->id(),
-					       (*(*scap))()->clientuuid(),
-					       (*(*scap))()->clientid());
+        (*(*scap))()->clientuuid(),
+        (*(*scap))()->clientid());
     eos_static_info("erasing %llx %s %s", (*(*scap))()->id(),
                     (*(*scap))()->clientid().c_str(), (*(*scap))()->authid().c_str());
     gOFS->zMQ->gFuseServer.Cap().RemoveTS(*scap);
@@ -954,7 +963,7 @@ FuseServer::Clients::SendMD(const eos::fusex::md& md,
   std::string id = mUUIDView[uuid];
   lLock.Release();
   eos_static_debug("msg=\"sending md update\" uuid=%s clientid=%s id=%lx",
-                  uuid.c_str(), clientid.c_str(), md_ino);
+                   uuid.c_str(), clientid.c_str(), md_ino);
   gOFS->zMQ->mTask->reply(id, rspstream);
   EXEC_TIMING_END("Eosxd::int::SendMD");
   return 0;

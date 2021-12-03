@@ -126,7 +126,7 @@ ProcCommand::Archive()
     }
 
     std::ostringstream dir_stream;
-    dir_stream << "root://" << gOFS->ManagerId.c_str() << "/" << spath.c_str();
+    dir_stream << "root://" << gOFS->MgmOfsAlias.c_str() << "/" << spath.c_str();
     std::string dir_url = dir_stream.str();
 
     // Check that the requested path exists and is a directory

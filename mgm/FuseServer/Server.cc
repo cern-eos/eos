@@ -592,13 +592,17 @@ Server::FillContainerCAP(uint64_t id,
   {
     if (dir.attr().count("sys.force.leasetime") > 0) {
       // directory has leasetime overwrite
-      leasetime = strtoul((*(dir.mutable_attr()))["sys.forced.leasetime"].c_str(),0,10);
+      leasetime = strtoul((*(dir.mutable_attr()))["sys.forced.leasetime"].c_str(), 0,
+                          10);
     }
+
     eos::common::RWMutexReadLock lLock(gOFS->zMQ->gFuseServer.Client());
+
     if (!leasetime) {
       // only use client leasetime if there is no overwrite
       leasetime = gOFS->zMQ->gFuseServer.Client().leasetime(dir.clientuuid());
     }
+
     eos_debug("checking client %s leastime=%d", dir.clientid().c_str(),
               leasetime);
   }
@@ -2310,6 +2314,7 @@ Server::OpSetFile(const std::string& id,
   }
 
   EXEC_TIMING_END("Eosxd::ext::SETFILE");
+  eos_info("ino=%lx rt=%.02f", (long) md.md_ino(), __exec_time__);
   return 0;
 }
 
@@ -3030,7 +3035,7 @@ Server::OpGetLock(const std::string& id,
   resp.mutable_lock_()->set_start(lock.l_start);
   resp.mutable_lock_()->set_pid(lock.l_pid);
   eos_info("getlk: rc=%d ino=%016lx start=%lu len=%ld pid=%u type=%d",
-	   rc,
+           rc,
            md.md_ino(),
            lock.l_start,
            lock.l_len,

@@ -405,7 +405,7 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
       eos_static_err("msg=\"(token) authorization failed\" path=\"%s\"",
                      path.c_str());
       std::string errmsg = "token authorization failed";
-      return req.SendSimpleResp(403, errmsg.c_str(), "", errmsg.c_str(),
+      return req.SendSimpleResp(401, errmsg.c_str(), "", errmsg.c_str(),
                                 errmsg.length());
     }
 
