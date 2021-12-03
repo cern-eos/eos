@@ -37,15 +37,16 @@ struct QueryPrepareResponse {
 
   friend std::ostream& operator<<(std::ostream& json, QueryPrepareResponse &qpr) {
     json << "{"
-         << "\"path\":\""       << qpr.path << "\","
-         << "\"exists\":"       << (qpr.is_exists        ? "true," : "false,") // This line is deprecated, will be removed when FTS is updated to use "path_exists"
-         << "\"path_exists\":"  << (qpr.is_exists        ? "true," : "false,")
-         << "\"on_tape\":"      << (qpr.is_on_tape       ? "true," : "false,")
-         << "\"online\":"       << (qpr.is_online        ? "true," : "false,")
-         << "\"requested\":"    << (qpr.is_requested     ? "true," : "false,")
-         << "\"has_reqid\":"    << (qpr.is_reqid_present ? "true," : "false,")
-         << "\"req_time\":\""   << qpr.request_time << "\","
-         << "\"error_text\":\"" << qpr.error_text << "\""
+         << "\"path\":\""              << qpr.path << "\","
+         << "\"exists\":"              << (qpr.is_exists        ? "true," : "false,") // This line is deprecated, will be removed when FTS is updated to use "path_exists"
+         << "\"path_exists\":"         << (qpr.is_exists        ? "true," : "false,")
+         << "\"on_tape\":"             << (qpr.is_on_tape       ? "true," : "false,")
+         << "\"online\":"              << (qpr.is_online        ? "true," : "false,")
+         << "\"requested\":"           << (qpr.is_requested     ? "true," : "false,")
+         << "\"has_reqid\":"           << (qpr.is_reqid_present ? "true," : "false,")
+         << "\"req_time\":\""          << qpr.request_time      << "\","
+         << "\"error_text\":\""        << qpr.error_text        << "\","
+         << "\"user_error_reason\":\"" << qpr.user_error_reason << "\""
          << "}";
     return json;
   }
@@ -58,6 +59,7 @@ struct QueryPrepareResponse {
   bool is_reqid_present;
   std::string request_time;
   std::string error_text;
+  std::string user_error_reason;
 };
 
 EOSMGMNAMESPACE_END
