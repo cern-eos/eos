@@ -30,6 +30,7 @@
 
 
 #ifdef __APPLE__
+#define EBADE 52
 #define EKEYEXPIRED 127
 #endif
 
