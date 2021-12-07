@@ -147,14 +147,14 @@ The client location from where a token can be used can be restricted by using th
 .. code-block:: bash
 
    # all machines at CERN authenticating via kerberos as user nobody		
-   eos token --path /eos/myfile --origin \*.cern.ch:nobody:krb5"
+   eos token --path /eos/myfile --origin \.*.cern.ch:nobody:krb5"
 
    # all machines at CERN authenticating via unix as user kubernetes from machine k8s.cern.ch
    eos token --path /eos/myfile --origin "k8s.cern.ch:kubernetes:unix"
 
    # general syntax is a regexp for origin like <regexp hostname>:<regexp username>:<regexp auth protocol>
 
-The default origin regexp is ``*:*:*`` accepting all origins.
+The default origin regexp is ``.*:.*:.*`` accepting all origins. If the regex is invalid, the command will return with an error message.
 
 
 Token via GRPC

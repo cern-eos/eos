@@ -69,7 +69,7 @@ void com_token_help()
       << "                                             <origin> := <regexp:hostname>:<regex:username>:<regex:protocol>\n"
       << "                                             - described by three regular extended expressions matching the \n"
       << "                                               bearers hostname, possible authenticated name and protocol\n"
-      << "                                             - default is *.*.*"
+      << "                                             - default is .*:.*:.* (be careful with proper shell escaping)"
       << "\n"
       << "Examples:\n"
       << "          eos token --path /eos/ --permission rx --tree\n"

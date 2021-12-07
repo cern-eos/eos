@@ -85,7 +85,7 @@ public:
   static bool isEosToken(const char* pathcgi);
 private:
 
-  bool Match(const std::string& input, const std::string& match);
+  int Match(const std::string& input, const std::string& match);
   std::shared_ptr<eos::console::TokenEnclosure> share;
   bool valid;
 };

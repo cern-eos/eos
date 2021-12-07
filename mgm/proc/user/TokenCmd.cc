@@ -150,7 +150,12 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
       eostoken.AddOrigin(auth.host(), auth.name(), auth.prot());
     }
     
-    outStream << eostoken.Write(key) ;
+    if (eostoken.VerifyOrigin(vid.host, vid.uid_string, std::string(vid.prot.c_str())) == -EBADE) {
+      errStream << "error: one or several origin regexp's are invalid" << std::endl;
+      ret_c = -EBADE;
+    } else {
+      outStream << eostoken.Write(key) ;
+    }
   } else {
     if (!(ret_c = eostoken.Read(token.vtoken(),key, eos::common::EosTok::sTokenGeneration.load(), true))) {
       std::string dump;
@@ -158,6 +163,11 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
       outStream << dump;
     } else {
       errStream << "error: cannot read token" << std::endl;
+    }
+
+    if (eostoken.VerifyOrigin(vid.host, vid.uid_string, std::string(vid.prot.c_str())) == -EBADE) {
+      errStream << "error: one or several origin regexp's are invalid" << std::endl;
+      ret_c = -EBADE;
     }
   }
 

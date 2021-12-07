@@ -108,7 +108,7 @@ TokenHelper::ParseCommand(const char* arg)
     if (args.count("origin")) {
       for (auto it = args["origin"].begin(); it != args["origin"].end(); ++it) {
 	std::vector<std::string> info;
-	eos::common::StringConversion::Tokenize(*it,info, "@");
+	eos::common::StringConversion::Tokenize(*it,info, ":");
 	eos::console::TokenAuth* auth = token->add_origins();
 	if (info.size()>0) {
 	  auth->set_host(info[0]);
