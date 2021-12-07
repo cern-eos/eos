@@ -130,10 +130,13 @@ ProcCommand::Chown()
       failure = true;
     }
 
+    ACCESSMODE_W;
+
     if (!failure) {
       if (!singlefile) {
         // for directories
         for (foundit = found.begin(); foundit != found.end(); foundit++) {
+	  RECURSIVE_STALL("Chown", (*pVid));
           std::string dirname = foundit->first;
           size_t linkpos = (dirname.find(" -> "));
 

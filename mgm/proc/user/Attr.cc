@@ -57,6 +57,7 @@ ProcCommand::Attr()
 
   bool exclusive = false;
 
+  ACCESSMODE_R;
   NAMESPACEMAP;
   PROC_BOUNCE_ILLEGAL_NAMES;
   PROC_BOUNCE_NOT_ALLOWED;
@@ -134,6 +135,11 @@ ProcCommand::Attr()
 	exclusive = true;
       }
 
+
+      if ( (mSubCmd == "set") || (mSubCmd == "rm") ) {
+	SET_ACCESSMODE_W;
+      }
+
       if (!retc) {
         // apply to  directories starting at the highest level
         for (auto foundit = found.begin(); foundit != found.end(); foundit++) {
@@ -142,6 +148,7 @@ ProcCommand::Attr()
             eos::IContainerMD::XAttrMap linkmap;
 
             if ((mSubCmd == "ls")) {
+	      RECURSIVE_STALL("AttrLs", (*pVid));
               if (gOFS->_access(foundit->first.c_str(), R_OK, *mError, *pVid, 0)) {
                 stdErr += "error: unable to get attributes  ";
                 stdErr += foundit->first.c_str();
@@ -191,6 +198,7 @@ ProcCommand::Attr()
             }
 
             if (mSubCmd == "set") {
+	      RECURSIVE_STALL("AttrSet", (*pVid));
               if (key == "user.acl") {
                 XrdOucString evalacl;
 
@@ -239,6 +247,7 @@ ProcCommand::Attr()
             }
 
             if (mSubCmd == "get") {
+	      RECURSIVE_STALL("AttrGet", (*pVid));
               if (gOFS->_access(foundit->first.c_str(), R_OK, *mError, *pVid, 0)) {
                 stdErr += "error: unable to get attributes of ";
                 stdErr += foundit->first.c_str();
@@ -263,6 +272,7 @@ ProcCommand::Attr()
             }
 
             if (mSubCmd == "rm") {
+	      RECURSIVE_STALL("AttrRm", (*pVid));
               if (gOFS->_attr_rem(foundit->first.c_str(), *mError, *pVid, (const char*) 0,
                                   key.c_str())) {
                 stdErr += "error: unable to remove attribute '";
@@ -281,6 +291,7 @@ ProcCommand::Attr()
             }
 
             if (mSubCmd == "fold") {
+	      RECURSIVE_STALL("AttrLs", (*pVid));
               int retc = gOFS->_attr_ls(foundit->first.c_str(), *mError, *pVid,
                                         (const char*) 0, map, true, false);
 

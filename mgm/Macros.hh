@@ -101,6 +101,20 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
     }                                                                   \
   }
 
+#define RECURSIVE_STALL(FUNCTION, VID) {				\
+  if (gOFS->IsStall) {                                                  \
+    XrdOucString stallmsg="";                                           \
+    int stalltime=0;                                                    \
+    for (size_t i=0; i<20;++i) {					\
+      if (gOFS->ShouldStall((FUNCTION),__AccessMode__, (VID), stalltime, stallmsg)) { \
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));	\
+      }	else {				                                \
+	break;								\
+      }									\
+    }									\
+  }									\
+}
+
 #define FUNCTIONMAYSTALL(FUNCTION, VID, ERROR) eos::mgm::InFlightRegistration tracker_helper(gOFS->mTracker, (VID) ); \
   if (gOFS->IsStall) {                                                  \
     XrdOucString stallmsg="";                                           \
