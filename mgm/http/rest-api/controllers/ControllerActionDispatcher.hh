@@ -30,6 +30,8 @@
 #include <functional>
 #include "common/http/HttpResponse.hh"
 #include "common/VirtualIdentity.hh"
+#include "mgm/http/rest-api/controllers/Action.hh"
+#include <memory>
 
 
 EOSMGMRESTNAMESPACE_BEGIN
@@ -40,7 +42,7 @@ EOSMGMRESTNAMESPACE_BEGIN
  */
 class ControllerActionDispatcher {
 public:
-  typedef std::function<common::HttpResponse *(common::HttpRequest * request,const common::VirtualIdentity * vid)> ControllerHandler;
+  typedef std::unique_ptr<Action> ControllerHandler;
   typedef std::map<std::string,std::map<common::HttpHandler::Methods,ControllerHandler>> URLMethodFunctionMap;
 
   ControllerActionDispatcher() = default;
@@ -50,13 +52,13 @@ public:
    * @param method Http method associated with the URL and the handler to run
    * @param controllerHandler the handler function that corresponds to the URL and the method
    */
-  void addAction(const std::string & urlPattern, const common::HttpHandler::Methods method, const ControllerHandler & controllerHandler);
+  void addAction(std::unique_ptr<Action> && action);
   /**
-   * Returns the handler depending on the URL and the Http method located in the request passed in parameter
-   * @param request the request allowing to return the handler
-   * @return the handler depending on the URL and the Http method located in the request passed in parameter
+   * Returns the handler depending on the URL and the Http method located in the urlMethodFunctionItem passed in parameter
+   * @param urlMethodFunctionItem the urlMethodFunctionItem allowing to return the handler
+   * @return the handler depending on the URL and the Http method located in the urlMethodFunctionItem passed in parameter
    */
-  ControllerHandler getAction(common::HttpRequest * request);
+  Action * getAction(common::HttpRequest * urlMethodFunctionItem);
 private:
   //The map storing the URL,HttpMethod and the associated handler
   URLMethodFunctionMap mURLMapMethodFunctionMap;

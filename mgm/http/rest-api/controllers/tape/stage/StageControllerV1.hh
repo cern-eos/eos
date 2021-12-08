@@ -25,8 +25,10 @@
 
 #include "mgm/Namespace.hh"
 #include "mgm/http/rest-api/controllers/Controller.hh"
+#include "mgm/http/rest-api/controllers/Action.hh"
 #include "mgm/bulk-request/prepare/StageBulkRequest.hh"
 #include "mgm/http/rest-api/model/tape/stage/CreateStageBulkRequestModel.hh"
+#include "mgm/bulk-request/business/BulkRequestBusiness.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -42,19 +44,36 @@ public:
 private:
   /**
    * Creates and persist a stage bulk-request
-   * @param request the client's request
-   * @param vid the virtual identity of the client
-   * @return the HttpResponse to the client's request (JSON body)
    */
-  common::HttpResponse * createBulkStageRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) const;
+  class CreateStageBulkRequest : public Action {
+  public:
+    CreateStageBulkRequest(const std::string & accessURL,const common::HttpHandler::Methods method): Action(accessURL,method){}
+    /**
+     * Creates and persist a stage bulk-request
+     * @param request the client's request
+     * @param vid the virtual identity of the client
+     * @return the HttpResponse to the client's request (JSON body)
+     */
+    common::HttpResponse * run(common::HttpRequest * request,const common::VirtualIdentity * vid) override;
+  };
 
   /**
    * Cancels the stage bulk-request
-   * @param request the client's request
-   * @param vid the virtual identity of the client
-   * @return the HttpResponse to the client's request (JSON body)
    */
-  common::HttpResponse * cancelBulkStageRequest(common::HttpRequest* request, const common::VirtualIdentity * vid) const;
+  class CancelStageBulkRequest : public Action {
+  public:
+    CancelStageBulkRequest(const std::string & accessURL,const common::HttpHandler::Methods method):Action(accessURL,method){}
+
+    /**
+     * Cancels the stage bulk-request
+     * @param request the client's request
+     * @param vid the virtual identity of the client
+     * @return the HttpResponse to the client's request (JSON body)
+     */
+    common::HttpResponse * run(common::HttpRequest * request,const common::VirtualIdentity * vid) override;
+  };
+
+  static std::shared_ptr<bulk::BulkRequestBusiness> createBulkRequestBusiness();
 };
 
 EOSMGMRESTNAMESPACE_END
