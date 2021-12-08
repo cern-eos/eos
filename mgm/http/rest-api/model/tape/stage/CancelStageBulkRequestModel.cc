@@ -29,7 +29,7 @@ void CancelStageBulkRequestModel::addFile(const std::string& path){
   mFilesContainer.addFile(path);
 }
 
-const FilesContainer& CancelStageBulkRequestModel::getFilesContainer() const {
+const FilesContainer& CancelStageBulkRequestModel::getFiles() const {
   return mFilesContainer;
 }
 

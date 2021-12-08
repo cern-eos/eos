@@ -32,10 +32,4 @@ const std::string Controller::getAccessURL() const {
   return mAccessURL;
 }
 
-common::HttpResponse * Controller::createOKEmptyResponse() {
-  common::HttpResponse * ret = new common::PlainHttpResponse();
-  ret->SetResponseCode(200);
-  return ret;
-}
-
 EOSMGMRESTNAMESPACE_END

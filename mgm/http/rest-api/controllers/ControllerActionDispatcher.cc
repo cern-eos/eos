@@ -28,11 +28,11 @@
 #include <sstream>
 EOSMGMRESTNAMESPACE_BEGIN
 
-void ControllerActionDispatcher::addAction(const std::string& urlPattern, const common::HttpHandler::Methods method, const ControllerHandler& controllerHandler){
-  mURLMapMethodFunctionMap[urlPattern][method] = controllerHandler;
+void ControllerActionDispatcher::addAction(std::unique_ptr<Action> && action){
+  mURLMapMethodFunctionMap[action->getAccessURL()][action->getMethod()] = std::move(action);
 }
 
-ControllerActionDispatcher::ControllerHandler ControllerActionDispatcher::getAction(common::HttpRequest* request) {
+Action * ControllerActionDispatcher::getAction(common::HttpRequest* request) {
   std::string methodStr = request->GetMethod();
   std::string url = request->GetUrl();
   URLParser requestUrlParser(url);
@@ -40,8 +40,8 @@ ControllerActionDispatcher::ControllerHandler ControllerActionDispatcher::getAct
   //First we look if the URL is known by the dispatcher.
   //If it is known, the map<Method,Function> will be looked at
   auto urlMapMethodFunctionItor = std::find_if(
-      mURLMapMethodFunctionMap.begin(), mURLMapMethodFunctionMap.end(),[&requestUrlParser](const std::pair<std::string,std::map<common::HttpHandler::Methods,ControllerHandler>> & item){
-    return requestUrlParser.matches(item.first);
+      mURLMapMethodFunctionMap.begin(), mURLMapMethodFunctionMap.end(),[&requestUrlParser](const auto & urlMethodFunctionItem){
+    return requestUrlParser.matches(urlMethodFunctionItem.first);
   });
   if(urlMapMethodFunctionItor != mURLMapMethodFunctionMap.end()){
     //The URL allowed to identify a map<Method,Function>.
@@ -50,7 +50,7 @@ ControllerActionDispatcher::ControllerHandler ControllerActionDispatcher::getAct
       return method == methodFunctionItem.first;
     });
     if(methodFunctionItor != urlMapMethodFunctionItor->second.end()){
-      return methodFunctionItor->second;
+      return methodFunctionItor->second.get();
     } else {
       //Method not found
       std::ostringstream oss;

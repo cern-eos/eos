@@ -52,4 +52,10 @@ RestApiResponse<CreatedStageBulkRequestResponseModel> TapeRestApiResponseFactory
   return response;
 }
 
+common::HttpResponse* TapeRestApiResponseFactory::createOkEmptyResponse() {
+  common::HttpResponse * ret = new common::PlainHttpResponse();
+  ret->SetResponseCode(200);
+  return ret;
+}
+
 EOSMGMRESTNAMESPACE_END
