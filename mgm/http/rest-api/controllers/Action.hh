@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: CancelStageBulkRequestModel.hh
+// File: Action.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,27 +20,28 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-#ifndef EOS_CANCELSTAGEBULKREQUESTMODEL_HH
-#define EOS_CANCELSTAGEBULKREQUESTMODEL_HH
+#ifndef EOS_ACTION_HH
+#define EOS_ACTION_HH
 
 #include "mgm/Namespace.hh"
-#include <vector>
-#include <string>
-#include "mgm/http/rest-api/model/tape/common/FilesContainer.hh"
+#include "common/VirtualIdentity.hh"
+#include "common/http/HttpRequest.hh"
+#include "common/http/HttpResponse.hh"
+#include "common/http/HttpHandler.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class CancelStageBulkRequestModel {
+class Action {
 public:
-  CancelStageBulkRequestModel() = default;
-  void addFile(const std::string & path);
-  const FilesContainer & getFiles() const;
-  inline static const std::string PATHS_KEY_NAME = "paths";
-private:
-  FilesContainer mFilesContainer;
+  Action(const std::string & accessURL,const common::HttpHandler::Methods method):mAccessURL(accessURL),mMethod(method){};
+  virtual common::HttpResponse * run(common::HttpRequest * request, const common::VirtualIdentity * vid) = 0;
+  inline const std::string & getAccessURL() const { return mAccessURL; }
+  inline const common::HttpHandler::Methods getMethod() const { return mMethod; }
+protected:
+  std::string mAccessURL;
+  eos::common::HttpHandler::Methods mMethod;
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_CANCELSTAGEBULKREQUESTMODEL_HH
+#endif // EOS_ACTION_HH

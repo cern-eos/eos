@@ -66,8 +66,6 @@ protected:
   ControllerActionDispatcher mControllerActionDispatcher;
   //The URL to access the functionalities of this controller
   std::string mAccessURL;
-
-  static common::HttpResponse * createOKEmptyResponse();
 };
 
 EOSMGMRESTNAMESPACE_END
