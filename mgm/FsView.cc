@@ -1329,6 +1329,7 @@ FsView::GetFileSystemFormat(std::string option)
     format += "key=local.drain.failed:format=ol|";
     format += "key=local.drain.timeleft:format=ol|";
     format += "key=graceperiod:format=ol|";
+    format += "key=drainperiod:format=ol|";
     format += "key=stat.active:format=os|";
     format += "key=scaninterval:format=os|";
     format += "key=scanreruninterval:format=os|";
@@ -2288,11 +2289,10 @@ FsView::FindByQueuePath(std::string& queuepath)
 //------------------------------------------------------------------------------
 bool
 FsView::SetGlobalConfig(const std::string& key, const std::string& value)
-{  
-  if (gOFS != NULL)
-  { 
+{
+  if (gOFS != NULL) {
     std::string ckey = SSTR(common::InstanceName::getGlobalMgmConfigQueue()
-                          << "#" << key);
+                            << "#" << key);
 
     if (value.empty()) {
       mq::SharedHashWrapper::makeGlobalMgmHash(gOFS->mMessagingRealm.get()).del(key);
@@ -2300,7 +2300,7 @@ FsView::SetGlobalConfig(const std::string& key, const std::string& value)
       mq::SharedHashWrapper::makeGlobalMgmHash(gOFS->mMessagingRealm.get()).set(key,
           value);
     }
-  
+
     if (FsView::gFsView.mConfigEngine) {
       if (value.empty()) {
         FsView::gFsView.mConfigEngine->DeleteConfigValue("global", ckey.c_str());
@@ -2310,6 +2310,7 @@ FsView::SetGlobalConfig(const std::string& key, const std::string& value)
       }
     }
   }
+
   return true;
 }
 
@@ -2319,10 +2320,11 @@ FsView::SetGlobalConfig(const std::string& key, const std::string& value)
 std::string
 FsView::GetGlobalConfig(const std::string& key)
 {
-  if (gOFS != NULL){
+  if (gOFS != NULL) {
     return mq::SharedHashWrapper::makeGlobalMgmHash(
-           gOFS->mMessagingRealm.get()).get(key);
+             gOFS->mMessagingRealm.get()).get(key);
   }
+
   return "";
 }
 
