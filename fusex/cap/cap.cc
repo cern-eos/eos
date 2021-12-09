@@ -323,7 +323,9 @@ cap::acquire(fuse_req_t req,
 /* -------------------------------------------------------------------------- */
 {
   // the parent of 1 might be 0
-  if (!ino) { ino = 1; }
+  if (!ino) {
+    ino = 1;
+  }
 
   std::string cid = cap::capx::capid(req, ino);
   eos_static_debug("inode=%08lx cap-id=%s mode=%x", ino, cid.c_str(), mode);
@@ -343,6 +345,12 @@ cap::acquire(fuse_req_t req,
     }
 
     if (!cap->satisfy(mode) || !cap->valid()) {
+      if (!cap->valid()) {
+        eos_static_err("msg=\"unsynchronized clocks between fuse client machine "
+                       "and MGM\" now_time=%lu cap_time=%lu", time(nullptr),
+                       (*cap)()->vtime());
+      }
+
       cap->set_errc(EPERM);
     } else {
       cap->set_errc(0);
@@ -415,9 +423,10 @@ cap::refresh(fuse_req_t req, shared_cap cap)
       return rc;
     } else {
       if (errno != EPERM) {
-	fuse_id id(req);
-	eos_static_err("GETCAP failed with errno=%d for inode=%16x uid=%lu gid=lu pid=%lu", errno, cap->id(),
-		       id.uid, id.gid, id.pid);
+        fuse_id id(req);
+        eos_static_err("GETCAP failed with errno=%d for inode=%16x uid=%lu gid=lu pid=%lu",
+                       errno, cap->id(),
+                       id.uid, id.gid, id.pid);
       }
 
       if (errno != EL2NSYNC) {
@@ -528,13 +537,11 @@ cap::capflush(ThreadAssistant& assistant)
     {
       cmap capdelmap;
       cinodes capdelinodes;
-
       cmap flushcaps;
-
       // avoid keeping two mutexes
       {
-	XrdSysMutexHelper capLock(capmap);
-	flushcaps = capmap;
+        XrdSysMutexHelper capLock(capmap);
+        flushcaps = capmap;
       }
 
       for (auto it = flushcaps.begin(); it != flushcaps.end(); ++it) {
@@ -544,9 +551,9 @@ cap::capflush(ThreadAssistant& assistant)
         if (!it->second->valid(false)) {
           capdelmap[it->first] = it->second;
 
-	  if (EOS_LOGS_DEBUG) {
-	    eos_static_debug("expire %s", it->second->dump().c_str());
-	  }
+          if (EOS_LOGS_DEBUG) {
+            eos_static_debug("expire %s", it->second->dump().c_str());
+          }
 
           mds->decrease_cap(it->second->id());
           capdelinodes.insert(it->second->id());
@@ -554,11 +561,12 @@ cap::capflush(ThreadAssistant& assistant)
       }
 
       {
-	XrdSysMutexHelper capLock(capmap);
-	for (auto it = capdelmap.begin(); it != capdelmap.end(); ++it) {
-	  // remove the expired or invalidated by delete caps
-	  capmap.erase(it->first);
-	}
+        XrdSysMutexHelper capLock(capmap);
+
+        for (auto it = capdelmap.begin(); it != capdelmap.end(); ++it) {
+          // remove the expired or invalidated by delete caps
+          capmap.erase(it->first);
+        }
       }
 
       for (auto it = capdelinodes.begin(); it != capdelinodes.end(); ++it) {
@@ -589,12 +597,14 @@ cap::qmap::get(shared_cap cap)
   // quota information is shared per uid/gid/quota_inode triple
   if (this->count(qid)) {
     shared_quota quota = (*this)[qid];
+
     if (!quota->writer()) {
-      eos_static_notice("updating qnode=%s volume=%lu inodes=%lu", 
-			sqid, quota->volume_quota(), quota->inode_quota());
+      eos_static_notice("updating qnode=%s volume=%lu inodes=%lu",
+                        sqid, quota->volume_quota(), quota->inode_quota());
       // if there is no open file on that quota node, we can refresh from remo
       *quota = cap->_quota();
     }
+
     (*this)[qid] = quota;
     return quota;
   } else {
