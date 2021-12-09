@@ -426,6 +426,7 @@ BuildRequires: zeromq, zeromq-devel, cppzmq-devel
 Requires: zeromq
 BuildRequires: eos-folly = 2019.11.11.00-1%{folly_dist}
 Requires: eos-folly = 2019.11.11.00-1%{folly_dist}
+BuildRequires: perl-generators
 
 %description -n eos-server
 The EOS server installation containing MGM, FST & MQ service.

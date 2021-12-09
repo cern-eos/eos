@@ -348,7 +348,7 @@ cap::acquire(fuse_req_t req,
       if (!cap->valid()) {
         eos_static_err("msg=\"unsynchronized clocks between fuse client machine "
                        "and MGM\" now_time=%lu cap_time=%lu", time(nullptr),
-                       (*cap)()->vtime());
+                       cap->vtime());
       }
 
       cap->set_errc(EPERM);
