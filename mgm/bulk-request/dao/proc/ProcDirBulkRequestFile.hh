@@ -50,6 +50,7 @@ public:
   bool operator<(const ProcDirBulkRequestFile & other) const;
   bool operator==(const ProcDirBulkRequestFile & other) const;
 private:
+  //A file that does not exist will not have an id
   std::optional<eos::common::FileId::fileid_t> mFileId;
   std::string mName;
   std::optional<std::string> mError;
