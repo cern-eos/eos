@@ -210,6 +210,20 @@ private:
    * @param path the path of the file/directory to set the last acess time
    */
   void updateLastAccessTime(const std::string & path);
+
+  /**
+   * Generate the extended attributes map that will be added to the bulk-request directory
+   * @param bulkRequest the bulk-request from which the map will be added
+   * @param xattrs the map containing the fid of a file associated to an eventual error (e.g prepare submission)
+   */
+  void generateXattrsMapFromBulkRequestFiles(const std::shared_ptr<BulkRequest> bulkRequest,eos::IContainerMD::XAttrMap & xattrs);
+
+  /**
+   * Persist the bulk-request in the extended attributes of the directory
+   * @param directoryBulkReqPath the directory where each file belonging to the bulk-request will be persisted
+   * @param xattrs the map containing each file belonging to the bulk-request
+   */
+  void persistBulkRequestDirectory(const std::string & directoryBulkReqPath,const eos::IContainerMD::XAttrMap & xattrs);
 };
 
 EOSBULKNAMESPACE_END
