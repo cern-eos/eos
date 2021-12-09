@@ -118,17 +118,31 @@ void ProcDirectoryBulkRequestDAO::insertBulkRequestFilesToBulkRequestDirectory(c
              << currentFilePath << " ExceptionWhat=\"" << ex.what() << "\"";
       throw PersistencyException(errMsg.str());
     }
-    XrdOucErrInfo error;
-    int retTouch =
-        mFileSystem->_touch(pathOfFileToTouch.str().c_str(), error, mVid);
-    if (retTouch != SFS_OK) {
-      std::ostringstream errMsg;
-      errMsg << "In ProcDirectoryBulkRequestDAO::insertBulkRequestFilesToBulkRequestDirectory(), could not create the file to save the file "
-             <<  currentFilePath << " that belongs to the bulk-request id="
-             << bulkRequest->getId() << " XrdOfsErrMsg=\"" << error.getErrText() << "\"";
-      throw PersistencyException(errMsg.str());
+    {
+      //Low level system call
+      try {
+        std::shared_ptr<IFileMD> fmd;
+        {
+          eos::common::RWMutexWriteLock(mFileSystem->eosViewRWMutex,
+                                        __FUNCTION__, __LINE__, __FILE__);
+          auto fmd = mFileSystem->eosView->createFile(pathOfFileToTouch.str(),
+                                                      vid.uid, vid.gid);
+          fmd->setSize(0);
+          if (fileWithMDFuture.first.getError()) {
+            fmd->setAttribute(ERROR_MSG_ATTR_NAME,
+                              fileWithMDFuture.first.getError().value());
+          }
+          mFileSystem->eosView->updateFileStore(fmd.get());
+        }
+      } catch (const eos::MDException &ex) {
+        std::ostringstream errMsg;
+        errMsg << "In ProcDirectoryBulkRequestDAO::insertBulkRequestFilesToBulkRequestDirectory(), could not create the file to save the file "
+               <<  pathOfFileToTouch.str() << " that belongs to the bulk-request id="
+               << bulkRequest->getId() << " ExceptionWhat=\"" << ex.what() << "\"";
+        throw PersistencyException(errMsg.str());
+      }
+
     }
-    persistErrorIfAny(pathOfFileToTouch.str(), fileWithMDFuture.first);
   }
   updateLastAccessTime(bulkReqProcPath);
 }
@@ -297,7 +311,7 @@ void ProcDirectoryBulkRequestDAO::getFilesPathAndAddToBulkRequest(std::map<ProcD
   for (auto& fileWithFuture : filesWithFuture) {
     try {
       fileWithFuture.second.wait();
-      std::shared_ptr<IFileMD> fmd = gOFS->eosFileService->getFileMD(fileWithFuture.first.getFileId().value());
+      std::shared_ptr<IFileMD> fmd = mFileSystem->eosFileService->getFileMD(fileWithFuture.first.getFileId().value());
       File bulkReqFile(mFileSystem->eosView->getUri(fmd.get()));
       bulkReqFile.setError(fileWithFuture.first.getError());
       bulkRequest.addFile(bulkReqFile);
