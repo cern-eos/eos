@@ -99,7 +99,8 @@ void ProcDirectoryBulkRequestDAO::generateXattrsMapFromBulkRequestFiles(const st
              << currentFilePath << " ExceptionWhat=\"" << ex.what() << "\"";
       throw PersistencyException(errMsg.str());
     }
-    xattrs[fid] = fileWithMDFuture.first.getError() ? fileWithMDFuture.first.getError().value() : "";
+    //Prepend the file id / modified path of the file with the fid identifier
+    xattrs[FILE_ID_PREFIX_XATTR + fid] = fileWithMDFuture.first.getError() ? fileWithMDFuture.first.getError().value() : "";
   }
 }
 
@@ -289,24 +290,28 @@ bool ProcDirectoryBulkRequestDAO::existsAndIsDirectory(const std::string& dirPat
 void ProcDirectoryBulkRequestDAO::fillBulkRequest(const std::string & bulkRequestProcPath,BulkRequest& bulkRequest) {
   XrdOucErrInfo errFind;
   XrdOucString stdErr;
-  std::map<std::string, std::set<std::string>> bulkReqDirAndFiles;
-  getDirectoryContent(bulkRequestProcPath, bulkReqDirAndFiles);
+  eos::IContainerMD::XAttrMap xattrs;
+  fetchExtendedAttributes(bulkRequestProcPath, xattrs);
 
-  auto & bulkReqDirFiles = *bulkReqDirAndFiles.begin();
-  std::string bulkReqDir = bulkReqDirFiles.first;
-  std::set<std::string>& filesName = bulkReqDirFiles.second;
   std::map<ProcDirBulkRequestFile, folly::Future<IFileMDPtr>> filesInBulkReqProcDirWithFuture;
   std::vector<std::string> fileWithPaths;
 
-  for (auto& fileName : filesName) {
-    std::string fullPath = bulkReqDir + fileName;
+  for (auto & fileIdError : xattrs) {
+    std::string fileId = fileIdError.first;
+    size_t pos = fileId.find(FILE_ID_PREFIX_XATTR,0);
+    if(pos != std::string::npos){
+      fileId.erase(0,FILE_ID_PREFIX_XATTR.length());
+    } else {
+      continue;
+    }
+    std::string fullPath = bulkRequestProcPath + fileId;
     //The files in the bulk-request proc directory will be wrapped into a ProcDirBulkRequestFile object.
     ProcDirBulkRequestFile file(fullPath);
-    file.setName(fileName);
+    file.setName(fileId);
     // Get the error of the current file if there is some
-    eos::IContainerMD::XAttrMap xattrs;
-    fetchFileExtendedAttributes(file,xattrs);
-    fillFileErrorIfAny(file,xattrs);
+    if(!fileIdError.second.empty()){
+      file.setError(fileIdError.second);
+    }
 
     try {
       //The file name is normally a fid. But if the file submitted before did not exist, the path will be stored in another format (e.g: #:#eos#:#test#:#testFile.txt)
