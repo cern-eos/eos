@@ -36,14 +36,14 @@ EOSBULKNAMESPACE_BEGIN
 /**
  * This class is the bulk request persistency layer using the eos proc directory
  *
- * The bulk request persistence will be ensured by creating and listing a directory in a the /eos/.../proc/bulkrequest.
+ * The bulk request persistence will be ensured by creating and listing a directory's extended attributes in a the /eos/.../proc/bulkrequest.
  */
 class ProcDirectoryBulkRequestDAO : public IBulkRequestDAO, public eos::common::LogId {
 public:
   ProcDirectoryBulkRequestDAO(XrdMgmOfs * fileSystem, const ProcDirectoryBulkRequestLocations & mBulkRequestDirSchema);
   /**
-   * Save the bulk request by creating a directory in the /eos/.../proc/ directory and creating one file
-   * per file in the bulk-request:
+   * Save the bulk request by creating a directory in the /eos/.../proc/ directory and creating one extended attribute
+   * per file in this directory:
    * - If a file in the bulk-request exists, the file will be named according to the fileId
    * - If a file in the bulk-request does not exist, the file will be named according to the path provided in the format like the one in the EOS
    * recycle-bin (each '/' will be replaced by "#:#")
@@ -83,6 +83,8 @@ private:
 
   const char * ERROR_MSG_ATTR_NAME = "error_msg";
   const char * LAST_ACCESS_TIME_ATTR_NAME = "last_accessed_time";
+  //File persisted as bulk-request's directory extended attribute will be prefixed by this prefix
+  inline static const std::string FILE_ID_PREFIX_XATTR = "fid.";
 
   /**
    * Creates a directory to store the bulk-request files within it
