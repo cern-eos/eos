@@ -108,7 +108,7 @@ VirtualIdentity::getTrace() const
   ss << "[" << eos::common::Timing::ltime(now) << "] uid:" << uid << "[" <<
      uid_string << "] gid:" << gid << "[" << gid_string << "] tident:" <<
      tident.c_str() << " name:" << name << " dn:" << dn << " prot:" << prot <<
-     " host:" << host << " domain:" << domain << " geo:" << geolocation << " sudo:"
+    " app:" << app << " host:" << host << " domain:" << domain << " geo:" << geolocation << " sudo:"
      << sudoer;
   return ss.str();
 }
