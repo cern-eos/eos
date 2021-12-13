@@ -122,16 +122,21 @@ bool ProcessInfoProvider::parseStat(const std::string& procstat,
 
   // let's parse
   for (size_t i = 0; i < procstat.size(); i++) {
+    // be careful, process names can have all kinds of combinations of () in it !
+    // we will fail parsing if a process ends with a name like ') <X> ' where <X> = R|S|Z|D|T and there is a space of <X>
     if (procstat[i] == '(') {
-      if (inParenth) {
-        return false; // parse error
-      }
-
       inParenth = true;
       continue;
     }
 
-    if (procstat[i] == ')') {
+    if (procstat[i] == ')' &&
+	procstat[i+1] == ' ' &&
+	procstat[i+3] == ' ' &&
+	( (procstat[i+2] == 'R') ||
+	  (procstat[i+2] == 'S') ||
+	  (procstat[i+2] == 'Z') ||
+	  (procstat[i+2] == 'D') ||
+	  (procstat[i+2] == 'T') ) ) {
       if (!inParenth) {
         return false; // parse error
       }
