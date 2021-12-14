@@ -27,6 +27,8 @@
 #include "mgm/Namespace.hh"
 #include "mgm/http/rest-api/response/RestApiResponse.hh"
 #include "mgm/http/rest-api/model/tape/ErrorModel.hh"
+#include "mgm/http/rest-api/model/tape/stage/CreatedStageBulkRequestResponseModel.hh"
+#include "mgm/http/rest-api/model/tape/stage/GetStageBulkRequestResponseModel.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -40,6 +42,7 @@ public:
   static RestApiResponse<ErrorModel> createMethodNotAllowedError(const std::string & detail);
   static RestApiResponse<ErrorModel> createInternalServerError(const std::string & detail);
   static RestApiResponse<CreatedStageBulkRequestResponseModel> createStageBulkRequestResponse(const std::shared_ptr<CreatedStageBulkRequestResponseModel> createdStageBulkRequestModel);
+  static RestApiResponse<GetStageBulkRequestResponseModel> createGetStageBulkRequestResponse(const std::shared_ptr<GetStageBulkRequestResponseModel> getStageBulkRequestResponseModel);
   static common::HttpResponse * createOkEmptyResponse();
 private:
   static RestApiResponse<ErrorModel> createError(const common::HttpResponse::ResponseCodes code,const std::string & title, const std::string & detail);

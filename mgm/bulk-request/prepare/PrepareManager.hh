@@ -88,6 +88,15 @@ public:
    */
   virtual std::unique_ptr<QueryPrepareResult> queryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client);
 
+  /**
+   * Allows to launch a query prepare logic on the files passed in parameter
+   * @param pargs Xrootd prepare arguments (containing the path of the files)
+   * @param error Xrootd error information to fill if there are any errors
+   * @param vid the vid of the client who issued the query prepare
+   * @returns the query prepare result object containing the result of the query prepare request
+   */
+  virtual std::unique_ptr<QueryPrepareResult> queryPrepare(XrdSfsPrep &pargs,XrdOucErrInfo & error, const common::VirtualIdentity * vid);
+
 protected:
 
   virtual void initializeStagePrepareRequest(XrdOucString & reqid);
