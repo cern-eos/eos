@@ -29,7 +29,7 @@
 EOSMGMRESTNAMESPACE_BEGIN
 
 void ControllerActionDispatcher::addAction(std::unique_ptr<Action> && action){
-  mURLMapMethodFunctionMap[action->getAccessURL()][action->getMethod()] = std::move(action);
+  mURLMapMethodFunctionMap[action->getURLPattern()][action->getMethod()] = std::move(action);
 }
 
 Action * ControllerActionDispatcher::getAction(common::HttpRequest* request) {
