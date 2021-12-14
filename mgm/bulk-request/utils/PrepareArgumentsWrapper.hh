@@ -43,6 +43,13 @@ public:
     mPargs = eos::auth::utils::GetXrdSfsPrep(pargsProto);
   }
 
+  PrepareArgumentsWrapper(const std::string & reqid, const int opts) {
+    eos::auth::XrdSfsPrepProto pargsProto;
+    pargsProto.set_reqid(reqid);
+    pargsProto.set_opts(opts);
+    mPargs = eos::auth::utils::GetXrdSfsPrep(pargsProto);
+  }
+
   ~PrepareArgumentsWrapper(){
     eos::auth::utils::DeleteXrdSfsPrep(mPargs);
   }

@@ -27,6 +27,7 @@
 #include "mgm/http/rest-api/controllers/Controller.hh"
 #include "mgm/http/rest-api/controllers/Action.hh"
 #include "mgm/bulk-request/prepare/StageBulkRequest.hh"
+#include "mgm/bulk-request/prepare/BulkRequestPrepareManager.hh"
 #include "mgm/http/rest-api/model/tape/stage/CreateStageBulkRequestModel.hh"
 #include "mgm/bulk-request/business/BulkRequestBusiness.hh"
 
@@ -66,6 +67,22 @@ private:
 
     /**
      * Cancels the stage bulk-request
+     * @param request the client's request
+     * @param vid the virtual identity of the client
+     * @return the HttpResponse to the client's request (JSON body)
+     */
+    common::HttpResponse * run(common::HttpRequest * request,const common::VirtualIdentity * vid) override;
+  };
+
+  /**
+   * Returns all the stage bulk-request known by the system (in the persistence)
+   */
+  class GetStageBulkRequest : public Action {
+  public:
+    GetStageBulkRequest(const std::string & accessURL,const common::HttpHandler::Methods method): Action(accessURL,method){}
+
+    /**
+     * Get all the stage bulk-request known by the system (in the persistence)
      * @param request the client's request
      * @param vid the virtual identity of the client
      * @return the HttpResponse to the client's request (JSON body)

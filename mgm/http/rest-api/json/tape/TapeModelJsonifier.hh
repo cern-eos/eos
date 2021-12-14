@@ -25,13 +25,14 @@
 #define EOS_TAPEMODELJSONIFIER_HH
 
 #include "mgm/Namespace.hh"
+#include "mgm/bulk-request/response/QueryPrepareResponse.hh"
 #include <sstream>
-#include <json/json.h>
 
 EOSMGMRESTNAMESPACE_BEGIN
 
 class ErrorModel;
 class CreatedStageBulkRequestResponseModel;
+class GetStageBulkRequestResponseModel;
 
 /**
  * This class allows to create the json representation
@@ -46,6 +47,7 @@ public:
    */
   virtual void jsonify(const ErrorModel & errorModel, std::stringstream & oss) = 0;
   virtual void jsonify(const CreatedStageBulkRequestResponseModel& createdStageBulkRequestModel, std::stringstream & oss) = 0;
+  virtual void jsonify(const GetStageBulkRequestResponseModel & getStageBulkRequestResponseModel, std::stringstream & ss) = 0;
 };
 
 EOSMGMRESTNAMESPACE_END
