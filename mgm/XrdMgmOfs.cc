@@ -1081,7 +1081,7 @@ XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     // { request ID, [ array of queryPrepareFileResponses objects, one for each file ] }
     JSONCppJsonifier jsonifier;
     std::stringstream json_ss;
-    result->getResponse()->jsonify(&jsonifier,json_ss);
+    jsonifier.jsonify(*result->getResponse(),json_ss);
     // Send the reply. XRootD requires that we put it into a buffer that can be released with free().
     auto  json_len = json_ss.str().length();
     char* json_buf = reinterpret_cast<char*>(malloc(json_len));

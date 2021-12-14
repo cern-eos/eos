@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include <mgm/http/rest-api/model/tape/stage/GetStageBulkRequestResponseModel.hh>
 #include "StageControllerV1.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -37,6 +38,7 @@
 #include "mgm/http/rest-api/response/tape/TapeRestApiResponseFactory.hh"
 #include "mgm/http/rest-api/utils/URLParser.hh"
 #include "mgm/http/rest-api/utils/URLBuilder.hh"
+#include "mgm/http/rest-api/controllers/tape/URLParametersConstants.hh"
 #include "common/SymKeys.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
@@ -45,7 +47,8 @@ StageControllerV1::StageControllerV1(const std::string & accessURL):Controller(a
   //Add actions to URLs and Http verb
   //A POST on the accessURL of this controller will create and persist a new stage bulk-request
   mControllerActionDispatcher.addAction(std::make_unique<CreateStageBulkRequest>(mAccessURL,common::HttpHandler::Methods::POST));
-  mControllerActionDispatcher.addAction(std::make_unique<CancelStageBulkRequest>(mAccessURL+"/{id}/cancel",common::HttpHandler::Methods::POST));
+  mControllerActionDispatcher.addAction(std::make_unique<CancelStageBulkRequest>(mAccessURL + "/" + URLParametersConstants::ID + "/cancel",common::HttpHandler::Methods::POST));
+  mControllerActionDispatcher.addAction(std::make_unique<GetStageBulkRequest>(mAccessURL + URLParametersConstants::ID,common::HttpHandler::Methods::GET));
 }
 
 common::HttpResponse * StageControllerV1::handleRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) {
@@ -98,7 +101,7 @@ common::HttpResponse* StageControllerV1::CreateStageBulkRequest::run(common::Htt
   std::string bulkRequestAccessURL = URLBuilder::getInstance()
       ->setHttpsProtocol()
       ->setHostname(host)
-      ->setControllerAccessURL(mAccessURL)
+      ->setControllerAccessURL(mURLPattern)
       ->setRequestId(bulkRequest->getId())->build();
   //Prepare the response and return it
   std::shared_ptr<CreatedStageBulkRequestResponseModel> createdStageBulkRequestModel(new CreatedStageBulkRequestResponseModel(clientRequest,bulkRequestAccessURL));
@@ -106,6 +109,8 @@ common::HttpResponse* StageControllerV1::CreateStageBulkRequest::run(common::Htt
 }
 
 common::HttpResponse* StageControllerV1::CancelStageBulkRequest::run(common::HttpRequest* request, const common::VirtualIdentity* vid) {
+  URLParser parser(request->GetUrl());
+  std::map<std::string,std::string> requestParameters;
   //Check the content of the request and create a bulk-request with it
   std::unique_ptr<CancelStageBulkRequestModel> cancelStageBulkRequestModel;
   JsonCPPTapeModelBuilder builder;
@@ -116,15 +121,9 @@ common::HttpResponse* StageControllerV1::CancelStageBulkRequest::run(common::Htt
   } catch (const JsonObjectModelMalformedException & ex2){
     return TapeRestApiResponseFactory::createBadRequestError(ex2.what()).getHttpResponse();
   }
-  //Get the id of the request in the URL
-  std::map<std::string,std::string> requestParameters;
-  URLParser parser(request->GetUrl());
-  parser.matchesAndExtractParameters(this->mAccessURL,requestParameters);
-  auto requestIdItor = requestParameters.find("{id}");
-  if(requestIdItor == requestParameters.end()) {
-    return TapeRestApiResponseFactory::createBadRequestError("Unable to get the bulk-request ID from the URL").getHttpResponse();
-  }
-  const std::string & requestId = requestIdItor->second;
+  //Get the id of the request from the URL
+  parser.matchesAndExtractParameters(this->mURLPattern,requestParameters);
+  const std::string & requestId = requestParameters[URLParametersConstants::ID];
   //Get the prepare request from the persistency
   std::shared_ptr<bulk::BulkRequestBusiness> bulkRequestBusiness = createBulkRequestBusiness();
   auto bulkRequest = bulkRequestBusiness->getBulkRequest(requestId,bulk::BulkRequest::Type::PREPARE_STAGE);
@@ -140,7 +139,7 @@ common::HttpResponse* StageControllerV1::CancelStageBulkRequest::run(common::Htt
       filesToCancel.addFile(fileFromClient);
     } else {
       std::ostringstream oss;
-      oss << "The file " << fileFromClient << " does not belong to the STAGE request " << bulkRequest->getId();
+      oss << "The file " << fileFromClient << " does not belong to the STAGE request " << bulkRequest->getId() << ". No modification has been made to this request.";
       return TapeRestApiResponseFactory::createBadRequestError(oss.str()).getHttpResponse();
     }
   }
@@ -154,10 +153,36 @@ common::HttpResponse* StageControllerV1::CancelStageBulkRequest::run(common::Htt
   return TapeRestApiResponseFactory::createOkEmptyResponse();
 }
 
+common::HttpResponse* StageControllerV1::GetStageBulkRequest::run(common::HttpRequest* request, const common::VirtualIdentity* vid) {
+  URLParser parser(request->GetUrl());
+  std::map<std::string,std::string> requestParameters;
+
+  //Get the id of the request from the URL
+  parser.matchesAndExtractParameters(this->mURLPattern,requestParameters);
+  std::string requestId = requestParameters[URLParametersConstants::ID];
+
+  //Instanciate prepare manager
+  auto bulkRequestBusiness = createBulkRequestBusiness();
+  bulk::RealMgmFileSystemInterface mgmFsInterface(gOFS);
+  bulk::BulkRequestPrepareManager pm(mgmFsInterface);
+  pm.setBulkRequestBusiness(bulkRequestBusiness);
+  XrdOucErrInfo error;
+  bulk::PrepareArgumentsWrapper pargsWrapper(requestId,Prep_QUERY);
+  XrdSfsPrep * pargs = pargsWrapper.getPrepareArguments();
+  auto queryPrepareResult = pm.queryPrepare(*pargs,error,vid);
+  if(!queryPrepareResult->hasQueryPrepareFinished()){
+    std::ostringstream oss;
+    oss << "Unable to get information about the request " << requestId <<". errMsg=\"" << error.getErrText() << "\"";
+    return TapeRestApiResponseFactory::createInternalServerError(oss.str()).getHttpResponse();
+  }
+  auto queryPrepareResponse = queryPrepareResult->getResponse();
+  std::shared_ptr<GetStageBulkRequestResponseModel> model = std::make_shared<GetStageBulkRequestResponseModel>(queryPrepareResponse);
+  return TapeRestApiResponseFactory::createGetStageBulkRequestResponse(model).getHttpResponse();
+}
+
 std::shared_ptr<bulk::BulkRequestBusiness> StageControllerV1::createBulkRequestBusiness(){
   std::unique_ptr<bulk::AbstractDAOFactory> daoFactory(new bulk::ProcDirectoryDAOFactory(gOFS,*gOFS->mProcDirectoryBulkRequestTapeRestApiLocations));
   return std::make_shared<bulk::BulkRequestBusiness>(std::move(daoFactory));
 }
-
 
 EOSMGMRESTNAMESPACE_END

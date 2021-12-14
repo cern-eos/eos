@@ -24,6 +24,8 @@
 #include "JsonCPPTapeModelJsonifier.hh"
 #include "mgm/http/rest-api/model/tape/ErrorModel.hh"
 #include "mgm/http/rest-api/model/tape/stage/CreatedStageBulkRequestResponseModel.hh"
+#include "mgm/http/rest-api/model/tape/stage/GetStageBulkRequestResponseModel.hh"
+#include <json/json.h>
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -42,6 +44,21 @@ void JsonCPPTapeModelJsonifier::jsonify(const CreatedStageBulkRequestResponseMod
   Json::Reader reader;
   reader.parse(createdStageBulkRequestModel.getJsonRequest(),root["request"]);
   oss << root;
+}
+
+void JsonCPPTapeModelJsonifier::jsonify(const GetStageBulkRequestResponseModel & getStageBulkRequestResponseModel, std::stringstream& ss) {
+  Json::Value root;
+  root = Json::Value(Json::arrayValue);
+  const auto queryPrepareResponse = getStageBulkRequestResponseModel.getQueryPrepareResponse();
+  for(auto response: queryPrepareResponse->responses) {
+    Json::Value fileObj;
+    fileObj["path"] = response.path;
+    fileObj["error"] = response.error_text;
+    fileObj["onDisk"] = response.is_online;
+    fileObj["onTape"] = response.is_on_tape;
+    root.append(fileObj);
+  }
+  ss << root;
 }
 
 EOSMGMRESTNAMESPACE_END
