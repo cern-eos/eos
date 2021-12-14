@@ -83,15 +83,6 @@ class QueryPrepareResponse {
 public:
   std::string request_id;
   std::vector<QueryPrepareFileResponse> responses;
-
-  /**
-   * Jsonify this QueryPrepareResponse object (Visitor pattern)
-   * @param jsonifier the class that will be use to jsonify this object
-   * @param oss the string stream where the json of this object will be stored
-   */
-  void jsonify(Jsonifier * jsonifier, std::stringstream & oss) const {
-    jsonifier->jsonify(*this,oss);
-  }
 };
 
 EOSBULKNAMESPACE_END

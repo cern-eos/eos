@@ -54,8 +54,13 @@ RestApiResponse<CreatedStageBulkRequestResponseModel> TapeRestApiResponseFactory
 
 common::HttpResponse* TapeRestApiResponseFactory::createOkEmptyResponse() {
   common::HttpResponse * ret = new common::PlainHttpResponse();
-  ret->SetResponseCode(200);
+  ret->SetResponseCode(common::HttpResponse::OK);
   return ret;
 }
 
+RestApiResponse<GetStageBulkRequestResponseModel> TapeRestApiResponseFactory::createGetStageBulkRequestResponse(const std::shared_ptr<GetStageBulkRequestResponseModel> getStageBulkRequestResponseModel) {
+  RestApiResponse<GetStageBulkRequestResponseModel> response(getStageBulkRequestResponseModel);
+  response.setRetCode(common::HttpResponse::OK);
+  return response;
+}
 EOSMGMRESTNAMESPACE_END
