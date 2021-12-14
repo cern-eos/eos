@@ -272,6 +272,7 @@ add_library(
   http/rest-api/model/tape/stage/CancelStageBulkRequestModel.cc
   http/rest-api/model/tape/stage/CreateStageBulkRequestModel.cc
   http/rest-api/model/tape/stage/CreatedStageBulkRequestResponseModel.cc
+  http/rest-api/model/tape/stage/GetStageBulkRequestResponseModel.cc
   http/rest-api/json/tape/JsonCPPTapeModelJsonifier.cc
   http/rest-api/json/tape/JsonCPPTapeModelBuilder.cc
   http/rest-api/response/RestApiResponse.cc

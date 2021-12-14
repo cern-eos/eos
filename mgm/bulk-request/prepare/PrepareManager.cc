@@ -25,7 +25,6 @@
 #include "common/Constants.hh"
 #include "mgm/Stat.hh"
 #include "mgm/bulk-request/response/QueryPrepareResponse.hh"
-#include "mgm/bulk-request/utils/json/JSONCppJsonifier.hh"
 #include <XrdOuc/XrdOucTList.hh>
 #include <XrdVersion.hh>
 #include <common/Path.hh>
@@ -35,7 +34,6 @@
 #include <mgm/Macros.hh>
 #include <mgm/XrdMgmOfs.hh>
 #include <mgm/bulk-request/File.hh>
-#include "mgm/bulk-request/utils/PrepareArgumentsWrapper.hh"
 #include <mgm/bulk-request/exception/PersistencyException.hh>
 #include <mgm/bulk-request/prepare/PrepareUtils.hh>
 #include <xrootd/XrdSfs/XrdSfsFlags.hh>
@@ -374,6 +372,13 @@ void PrepareManager::triggerPrepareWorkflow(const std::list<std::pair<char**, ch
 std::unique_ptr<QueryPrepareResult> PrepareManager::queryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client) {
   std::unique_ptr<QueryPrepareResult> queryPrepareResult(new QueryPrepareResult());
   int retCode = doQueryPrepare(pargs, error, client,*queryPrepareResult);
+  queryPrepareResult->setReturnCode(retCode);
+  return queryPrepareResult;
+}
+
+std::unique_ptr<QueryPrepareResult> PrepareManager::queryPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const common::VirtualIdentity * vidClient) {
+  std::unique_ptr<QueryPrepareResult> queryPrepareResult(new QueryPrepareResult());
+  int retCode = doQueryPrepare(pargs,error,nullptr,*queryPrepareResult,vidClient);
   queryPrepareResult->setReturnCode(retCode);
   return queryPrepareResult;
 }

@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: JsonCPPTapeModelJsonifier.hh
+// File: GetStageBulkRequestResponseModel.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,24 +20,25 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-#ifndef EOS_JSONCPPTAPEMODELJSONIFIER_HH
-#define EOS_JSONCPPTAPEMODELJSONIFIER_HH
+
+#ifndef EOS_GETSTAGEBULKREQUESTRESPONSEMODEL_HH
+#define EOS_GETSTAGEBULKREQUESTRESPONSEMODEL_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/json/tape/TapeModelJsonifier.hh"
+#include "mgm/http/rest-api/model/Model.hh"
+#include "mgm/bulk-request/response/QueryPrepareResponse.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-/**
- * JsonCPP jsonifier class
- */
-class JsonCPPTapeModelJsonifier : public TapeModelJsonifier {
+class GetStageBulkRequestResponseModel : public Model {
 public:
-  void jsonify(const ErrorModel & errorModel, std::stringstream & oss) override;
-  void jsonify(const CreatedStageBulkRequestResponseModel& createdStageBulkRequestModel, std::stringstream & oss) override;
-  void jsonify(const GetStageBulkRequestResponseModel & getStageBulkRequestResponseModel, std::stringstream & ss) override;
+  GetStageBulkRequestResponseModel(std::shared_ptr<bulk::QueryPrepareResponse> queryPrepareResponse);
+  const bulk::QueryPrepareResponse * getQueryPrepareResponse() const;
+  void jsonify(std::stringstream & ss) const;
+private:
+  std::shared_ptr<bulk::QueryPrepareResponse> mQueryPrepareResponse;
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_JSONCPPTAPEMODELJSONIFIER_HH
+#endif // EOS_GETSTAGEBULKREQUESTRESPONSEMODEL_HH

@@ -33,12 +33,12 @@ EOSMGMRESTNAMESPACE_BEGIN
 
 class Action {
 public:
-  Action(const std::string & accessURL,const common::HttpHandler::Methods method):mAccessURL(accessURL),mMethod(method){};
+  Action(const std::string & urlPattern,const common::HttpHandler::Methods method): mURLPattern(urlPattern),mMethod(method){};
   virtual common::HttpResponse * run(common::HttpRequest * request, const common::VirtualIdentity * vid) = 0;
-  inline const std::string & getAccessURL() const { return mAccessURL; }
+  inline const std::string & getURLPattern() const { return mURLPattern; }
   inline const common::HttpHandler::Methods getMethod() const { return mMethod; }
 protected:
-  std::string mAccessURL;
+  std::string mURLPattern;
   eos::common::HttpHandler::Methods mMethod;
 };
 
