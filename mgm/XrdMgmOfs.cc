@@ -319,6 +319,13 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
     mFusePlacementBooking = 5 * 1024 * 1024 * 1024ll;
   }
 
+  {
+    // Run a dummy command so that the ShellExecutor is forked before any XrdCl
+    // is initialized. Otherwise it might segv due to the following bug:
+    // https://github.com/xrootd/xrootd/issues/1515
+    eos::common::ShellCmd dummy_cmd("uname -a");
+  }
+
   eos::common::LogId::SetSingleShotLogId();
   mZmqContext = new zmq::context_t(1);
   IoStats.reset(new eos::mgm::Iostat());
