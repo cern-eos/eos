@@ -62,4 +62,8 @@ bool BulkRequestBusiness::exists(const std::string& bulkRequestId, const BulkReq
   return mDaoFactory->getBulkRequestDAO()->exists(bulkRequestId, type);
 }
 
+void BulkRequestBusiness::deleteBulkRequest(const std::shared_ptr<BulkRequest> req) {
+  return mDaoFactory->getBulkRequestDAO()->deleteBulkRequest(req);
+}
+
 EOSBULKNAMESPACE_END

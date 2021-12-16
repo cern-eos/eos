@@ -49,7 +49,8 @@ StageControllerV1::StageControllerV1(const std::string & accessURL):Controller(a
   //A POST on the accessURL of this controller will create and persist a new stage bulk-request
   mControllerActionDispatcher.addAction(std::make_unique<CreateStageBulkRequest>(mAccessURL,common::HttpHandler::Methods::POST));
   mControllerActionDispatcher.addAction(std::make_unique<CancelStageBulkRequest>(mAccessURL + "/" + URLParametersConstants::ID + "/cancel",common::HttpHandler::Methods::POST));
-  mControllerActionDispatcher.addAction(std::make_unique<GetStageBulkRequest>(mAccessURL + URLParametersConstants::ID,common::HttpHandler::Methods::GET));
+  mControllerActionDispatcher.addAction(std::make_unique<GetStageBulkRequest>(mAccessURL + "/" + URLParametersConstants::ID,common::HttpHandler::Methods::GET));
+  mControllerActionDispatcher.addAction(std::make_unique<DeleteStageBulkRequest>(mAccessURL + "/" + URLParametersConstants::ID, common::HttpHandler::Methods::DELETE));
 }
 
 common::HttpResponse * StageControllerV1::handleRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) {
@@ -187,6 +188,38 @@ common::HttpResponse* StageControllerV1::GetStageBulkRequest::run(common::HttpRe
   }
   auto queryPrepareResponse = queryPrepareResult->getResponse();
   return mResponseFactory.createGetStageBulkRequestResponse(queryPrepareResponse).getHttpResponse();
+}
+
+common::HttpResponse * StageControllerV1::DeleteStageBulkRequest::run(common::HttpRequest* request, const common::VirtualIdentity* vid) {
+  URLParser parser(request->GetUrl());
+  std::map<std::string,std::string> requestParameters;
+  //Get the id of the request from the URL
+  parser.matchesAndExtractParameters(this->mURLPattern,requestParameters);
+  std::string requestId = requestParameters[URLParametersConstants::ID];
+  //Get the prepare request from the persistency
+  std::shared_ptr<bulk::BulkRequestBusiness> bulkRequestBusiness = createBulkRequestBusiness();
+  auto bulkRequest = bulkRequestBusiness->getBulkRequest(requestId,bulk::BulkRequest::Type::PREPARE_STAGE);
+  if(bulkRequest == nullptr) {
+    return mResponseFactory.createNotFoundError().getHttpResponse();
+  }
+  //Create the prepare arguments, we will cancel all the files from this bulk-request
+  auto filesFromBulkRequest = bulkRequest->getFiles();
+  FilesContainer filesToCancel;
+  for(auto & fileFromBulkRequest: *filesFromBulkRequest){
+    filesToCancel.addFile(fileFromBulkRequest.first);
+  }
+  bulk::PrepareArgumentsWrapper pargsWrapper(requestId,Prep_CANCEL,filesToCancel.getOpaqueInfos(),filesToCancel.getPaths());
+  bulk::RealMgmFileSystemInterface mgmFsInterface(gOFS);
+  bulk::BulkRequestPrepareManager pm(mgmFsInterface);
+  XrdOucErrInfo error;
+  pm.prepare(*pargsWrapper.getPrepareArguments(),error,vid);
+  //Now that the request got cancelled, let's delete it from the persistency
+  try {
+    bulkRequestBusiness->deleteBulkRequest(std::move(bulkRequest));
+  } catch (bulk::PersistencyException &ex) {
+    return mResponseFactory.createInternalServerError(ex.what()).getHttpResponse();
+  }
+  return mResponseFactory.createOkEmptyResponse().getHttpResponse();
 }
 
 std::shared_ptr<bulk::BulkRequestBusiness> StageControllerV1::createBulkRequestBusiness(){
