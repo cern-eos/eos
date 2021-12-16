@@ -58,4 +58,8 @@ void BulkRequestBusiness::addOrUpdateAttributes(const std::shared_ptr<BulkReques
   EXEC_TIMING_END("BulkRequestBusiness::addOrUpdateAttributes");
 }
 
+bool BulkRequestBusiness::exists(const std::string& bulkRequestId, const BulkRequest::Type& type) {
+  return mDaoFactory->getBulkRequestDAO()->exists(bulkRequestId, type);
+}
+
 EOSBULKNAMESPACE_END
