@@ -126,7 +126,7 @@ const char* RWMutex::LOCK_STATE[] = {"N", "wLR", "wULR", "LR", "wLW", "wULW", "L
 //------------------------------------------------------------------------------
 RWMutex::RWMutex(bool prefer_rd):
   mBlocking(false), mMutexImpl(nullptr), mRdLockCounter(0), mWrLockCounter(0),
-  mPreferRd(prefer_rd)
+  mPreferRd(prefer_rd), mName("unnamed")
 {
   // Try to get write lock in 5 seconds, then release quickly and retry
   wlocktime.tv_sec = 5;
@@ -1031,7 +1031,7 @@ RWMutex::OrderViolationMessage(unsigned char rule,
 
   for (auto ito = order.begin(); ito != order.end(); ++ito) {
     fprintf(stderr, "\t%12s (%p)",
-            static_cast<RWMutex*>(*ito)->mDebugName.c_str(), (*ito));
+            static_cast<RWMutex*>(*ito)->mName.c_str(), (*ito));
   }
 
   fprintf(stderr, "\nThe lock states of these mutexes are (before the violating"
@@ -1068,7 +1068,7 @@ RWMutex::CheckAndLockOrder()
     // Check if following mutex is already locked in the same thread
     if (ordermask_staticthread[k] >= mask) {
       char strmess[1024];
-      sprintf(strmess, "locking %s at address %p", mDebugName.c_str(), this);
+      sprintf(strmess, "locking %s at address %p", mName.c_str(), this);
       OrderViolationMessage(k, strmess);
     }
 
@@ -1100,7 +1100,7 @@ RWMutex::CheckAndUnlockOrder()
       // check if following mutex is already locked in the same thread
       if (ordermask_staticthread[k] >= (mask << 1)) {
         char strmess[1024];
-        sprintf(strmess, "unlocking %s at address %p", mDebugName.c_str(), this);
+        sprintf(strmess, "unlocking %s at address %p", mName.c_str(), this);
         OrderViolationMessage(k, strmess);
       }
     }
@@ -1377,7 +1377,8 @@ RWMutexWriteLock::Release()
 
     if (blockedFor.count() > blockedinterval) {
       std::ostringstream ss;
-      ss << "write lock held for " << blockedFor.count() <<
+
+      ss << "write lock [ " << mWrMutex->getName() << " ] held for " << blockedFor.count() <<
          " milliseconds" << std::endl;
 
       if (blockedtracing) {
@@ -1454,7 +1455,7 @@ RWMutexReadLock::Release()
 
     if (blockedFor.count() > blockedinterval) {
       std::ostringstream ss;
-      ss << "read lock held for " << blockedFor.count() <<
+      ss << "read lock [ " << mRdMutex->getName() << " ] held for " << blockedFor.count() <<
          " milliseconds" << std::endl;
 
       if (blockedtracing) {

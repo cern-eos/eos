@@ -235,6 +235,14 @@ public:
   static void PrintMutexOps(std::ostringstream& oss);
 
 
+  //----------------------------------------------------------------------------
+  //! Get the name
+  //----------------------------------------------------------------------------
+  std::string getName() {
+    return mName;
+  }
+
+
 #ifdef EOS_INSTRUMENTED_RWMUTEX
   typedef std::map<uint64_t, std::string> MapMutexNameT;
   typedef std::map<pid_t, std::map<uint64_t, LOCK_T>> MapMutexOpT;
@@ -438,11 +446,11 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Set the debug name
+  //! Set the name
   //----------------------------------------------------------------------------
   inline void SetDebugName(const std::string& name)
   {
-    mDebugName = name;
+    mName = name;
     std::unique_lock<std::mutex> lock(sOpMutex);
     sMtxNameMap[(uint64_t) GetRawPtr()] = name;
   }
@@ -535,8 +543,10 @@ private:
   int64_t mBlockedForInterval; // interval in ms after which we might stacktrace a long-lasted mutex
   bool mBlockedStackTracing; // en-disable stacktracing long-lasted mutexes
 
+  std::string mName;
+
 #ifdef EOS_INSTRUMENTED_RWMUTEX
-  std::string mDebugName;
+
   int mCounter;
   int mSamplingModulo;
   std::atomic<bool> mEnableTiming, mEnableSampling;
