@@ -60,6 +60,7 @@
 #include <atomic>
 #include <chrono>
 #include <map>
+#include <string>
 #ifdef EOS_INSTRUMENTED_RWMUTEX
 #include <vector>
 #include <ostream>
@@ -234,11 +235,10 @@ public:
   //----------------------------------------------------------------------------
   static void PrintMutexOps(std::ostringstream& oss);
 
-
   //----------------------------------------------------------------------------
   //! Get the name
   //----------------------------------------------------------------------------
-  std::string getName() {
+  std::string getName() const {
     return mName;
   }
 
