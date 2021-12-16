@@ -67,6 +67,16 @@ public:
    * @param attributes the attributes to add/update
    */
   void addOrUpdateAttributes(const std::shared_ptr<BulkRequest> req, const std::map<std::string,std::string> & attributes);
+
+  /**
+   * Returns true if the bulk-request corresponding to the id and the type
+   * passed in parameters exists, false otherwise
+   * @param bulkRequestId the id of the bulk-request to check
+   * @param type the type of the bulk-request to test
+   * @throws PersistencyException if an error happens during the check
+   */
+  bool exists(const std::string & bulkRequestId, const BulkRequest::Type & type);
+
 private:
   std::unique_ptr<AbstractDAOFactory> mDaoFactory;
 };

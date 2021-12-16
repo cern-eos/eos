@@ -67,6 +67,15 @@ public:
    * @throws PersistencyException if the bulk-request does not exist
    */
   virtual void addOrUpdateAttributes(const std::shared_ptr<BulkRequest> bulkRequest, const std::map<std::string,std::string> & attributes) = 0;
+
+  /**
+   * Returns true if the bulk-request corresponding to the id and the type
+   * passed in parameters exists, false otherwise
+   * @param bulkRequestId the id of the bulk-request to check
+   * @param type the type of the bulk-request to test
+   * @returns true if the bulk-request exists, false otherwise
+   */
+  virtual bool exists(const std::string & bulkRequestId, const BulkRequest::Type & type) = 0;
 };
 
 EOSBULKNAMESPACE_END
