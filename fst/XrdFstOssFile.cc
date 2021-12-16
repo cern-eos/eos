@@ -53,7 +53,8 @@ XrdFstOssFile::XrdFstOssFile(const char* tid) :
   eos::common::LogId(),
   mIsRW(false),
   mRWLockXs(0),
-  mBlockXs(0)
+  mBlockXs(0),
+  fdDirect(-1)
 {}
 
 //------------------------------------------------------------------------------
@@ -65,8 +66,13 @@ XrdFstOssFile::~XrdFstOssFile()
     close(fd);
   }
 
+  if (fdDirect >= 0) {
+    close (fdDirect);
+  }
   fd = -1;
+  fdDirect = -1;
 }
+
 
 //------------------------------------------------------------------------------
 // Open function
@@ -80,6 +86,7 @@ XrdFstOssFile::Open(const char* path, int flags, mode_t mode, XrdOucEnv& env)
   off_t booking_size = 0;
   eos_debug("path=%s", path);
   mPath = path;
+  bool directIO = false;
 
   if (fd >= 0) {
     return -EBADF;
@@ -101,7 +108,8 @@ XrdFstOssFile::Open(const char* path, int flags, mode_t mode, XrdOucEnv& env)
   // add support for IO flags like synchronous or direct IO
   if ((val = env.Get("mgm.ioflag"))) {
     if (!strcmp(val, "direct")) {
-      flags |= O_DIRECT;
+      directIO = true;
+      //      flags |= O_DIRECT;
     } else {
       if (!strcmp(val, "sync")) {
         // data + meta data
@@ -166,6 +174,16 @@ XrdFstOssFile::Open(const char* path, int flags, mode_t mode, XrdOucEnv& env)
 #endif
   } while ((fd < 0) && (errno == EINTR));
 
+  if (directIO) {
+    do {
+#if defined(O_CLOEXEC)
+      fdDirect = open(path, flags | O_DIRECT | O_LARGEFILE | O_CLOEXEC, mode);
+#else
+      fdDirect = open(path, flags | O_DIRECT | O_LARGEFILE, mode);
+#endif
+    } while ((fdDirect < 0) && (errno == EINTR));
+  }
+
   if (fd >= 0) {
     if (fd < XrdFstSS->mFdFence) {
 #if defined(__linux__) && defined(SOCK_CLOEXEC) && defined(O_CLOEXEC)
@@ -187,7 +205,29 @@ XrdFstOssFile::Open(const char* path, int flags, mode_t mode, XrdOucEnv& env)
     (void) fcntl(fd, F_SETFD, FD_CLOEXEC);
   }
 
-  eos_debug("fd=%d flags=%x", fd, flags);
+  if (fdDirect >= 0) {
+    if (fdDirect < XrdFstSS->mFdFence) {
+#if defined(__linux__) && defined(SOCK_CLOEXEC) && defined(O_CLOEXEC)
+
+      // Relocate the file descriptor if need be and make sure file is closed
+      // on exec
+      if ((newfd = fcntl(fdDirect, F_DUPFD_CLOEXEC, XrdFstSS->mFdFence)) < 0) {
+#else
+
+      if ((newfd = fcntl(fdDirect, F_DUPFD, XrdFstSS->mFdFence)) < 0) {
+#endif
+        eos_err("error= unable to reloc FD for ", path);
+      } else {
+        close(fdDirect);
+        fdDirect = newfd;
+      }
+    }
+
+    (void) fcntl(fdDirect, F_SETFD, FD_CLOEXEC);
+  }
+
+
+  eos_debug("fd=%d fdDirect=%d flags=%x", fd, fdDirect, flags);
   return (fd < 0 ? fd : XrdOssOK);
 }
 
@@ -195,7 +235,7 @@ XrdFstOssFile::Open(const char* path, int flags, mode_t mode, XrdOucEnv& env)
 // Read
 //------------------------------------------------------------------------------
 ssize_t
-XrdFstOssFile::Read(void* buffer, off_t offset, size_t length)
+  XrdFstOssFile::Read(void* buffer, off_t offset, size_t length)
 {
   ssize_t retval = 0;
   ssize_t nread;
@@ -219,8 +259,20 @@ XrdFstOssFile::Read(void* buffer, off_t offset, size_t length)
 
   // Loop through all the pieces and read them in
   for (auto piece = pieces.begin(); piece != pieces.end(); ++piece) {
+    int rfd = fd;
+    if ( (fdDirect >= 0) ) {
+      if (
+	  (!(piece->offset%512)) &&
+	  (!(piece->size%512)) ) {
+	rfd = fdDirect;
+      } else {
+	// we don't want cache data, but we cannot use direct IO
+	posix_fadvise(rfd, piece->offset, piece->size, POSIX_FADV_DONTNEED);
+      }
+    }
+
     do {
-      nread = pread(fd, piece->data, piece->size, piece->offset);
+      nread = pread(rfd, piece->data, piece->size, piece->offset);
     } while ((nread < 0) && (errno == EINTR));
 
     if (mBlockXs) {
@@ -368,7 +420,7 @@ XrdFstOssFile::ReadV(XrdOucIOVec* readV, int n)
   int nPR = n;
 
   // Indicate we are in preread state and see if we have exceeded the limit
-  if (XrdFstSS->mPrDepth
+  if ((fdDirect==-1) && XrdFstSS->mPrDepth
       && ((XrdFstSS->mPrActive++) < XrdFstSS->mPrQSize)
       && (n > 2)) {
     int faBytes = 0;
@@ -480,9 +532,28 @@ XrdFstOssFile::Write(const void* buffer, off_t offset, size_t length)
     return static_cast<ssize_t>(-EBADF);
   }
 
-  do {
-    retval = pwrite(fd, buffer, length, offset);
-  } while ((retval < 0) && (errno == EINTR));
+  if ( (fdDirect >= 0) &&
+       (!(offset%512)) &&
+       (!(length%512)) ) {
+    // tell the kernel to drop cache pages for the buffered fd
+    posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED);
+    // try direct IO
+    do {
+      retval = pwrite(fdDirect, buffer, length, offset);
+    } while ((retval < 0) && (errno == EINTR));
+  } else {
+    // buffered IO
+    do {
+      retval = pwrite(fd, buffer, length, offset);
+    } while ((retval < 0) && (errno == EINTR));
+
+    if ((retval > 0) && (fdDirect >= 0)) {
+      // force the data flush out of the buffer cache
+      if (fdatasync(fd)) {
+	retval = -1;
+      }
+    }
+  }
 
   if ((retval > 0) && mBlockXs) {
     XrdSysRWLockHelper wr_lock(mRWLockXs, 0);
@@ -633,15 +704,29 @@ XrdFstOssFile::Close(long long* retsz)
   if (unlinked) {
     close(fd);
     fd = -1;
+    if (fdDirect>=0) {
+      close(fdDirect);
+      fdDirect = -1;
+    }
     return -EIO;
   }
 
   //............................................................................
   if (close(fd)) {
+    if (fdDirect >=0) {
+      close(fdDirect);
+    }
     return -errno;
   }
 
+  if (fdDirect >=0) {
+    if (close(fdDirect)) {
+      return -errno;
+    }
+  }
+
   fd = -1;
+  fdDirect = -1;
   return XrdOssOK;
 }
 
