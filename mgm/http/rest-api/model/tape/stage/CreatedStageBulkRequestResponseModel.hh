@@ -27,15 +27,13 @@
 #include "mgm/Namespace.hh"
 #include <cstdint>
 #include <string>
-#include "mgm/http/rest-api/model/Model.hh"
 #include "mgm/bulk-request/BulkRequest.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class CreatedStageBulkRequestResponseModel : public Model {
+class CreatedStageBulkRequestResponseModel {
 public:
   CreatedStageBulkRequestResponseModel(const std::string & jsonFromClient, const std::string & accessURL);
-  void jsonify(std::stringstream& ss) const override;
   const std::string & getAccessURL() const;
   const std::string & getJsonRequest() const;
 private:

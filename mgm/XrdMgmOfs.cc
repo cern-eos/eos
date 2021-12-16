@@ -114,8 +114,8 @@
 #include "mgm/bulk-request/dao/proc/ProcDirectoryBulkRequestLocations.hh"
 #include "mgm/bulk-request/response/QueryPrepareResponse.hh"
 #include "mgm/bulk-request/prepare/query-prepare/QueryPrepareResult.hh"
-#include "mgm/bulk-request/utils/json/JSONCppJsonifier.hh"
 #include "mgm/bulk-request/dao/proc/cleaner/BulkRequestProcCleaner.hh"
+#include "mgm/bulk-request/utils/json/BulkJsonCppObject.hh"
 
 #ifdef __APPLE__
 #define ECOMM 70
@@ -1079,9 +1079,9 @@ XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   if(result->hasQueryPrepareFinished()){
     // Build a JSON reply in the following format :
     // { request ID, [ array of queryPrepareFileResponses objects, one for each file ] }
-    JSONCppJsonifier jsonifier;
+    bulk::BulkJsonCppObject<QueryPrepareResponse> jsonQueryPrepareResponse(result->getResponse());
     std::stringstream json_ss;
-    jsonifier.jsonify(*result->getResponse(),json_ss);
+    jsonQueryPrepareResponse.jsonify(json_ss);
     // Send the reply. XRootD requires that we put it into a buffer that can be released with free().
     auto  json_len = json_ss.str().length();
     char* json_buf = reinterpret_cast<char*>(malloc(json_len));

@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: CreatedStageBulkRequestResponseModel.cc
+// File: JsonObject.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,21 +20,19 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-#include "CreatedStageBulkRequestResponseModel.hh"
+#ifndef EOS_JSONOBJECT_HH
+#define EOS_JSONOBJECT_HH
 
-EOSMGMRESTNAMESPACE_BEGIN
+#include "common/Namespace.hh"
+#include <sstream>
 
-CreatedStageBulkRequestResponseModel::CreatedStageBulkRequestResponseModel(const std::string& jsonFromClient, const std::string & accessURL):
-                                                                          mJsonFromClient(jsonFromClient),mAccessURL(accessURL) {
+EOSCOMMONNAMESPACE_BEGIN
 
-}
+class JsonObject {
+public:
+  virtual void jsonify(std::stringstream & ss) = 0;
+};
 
-const std::string& CreatedStageBulkRequestResponseModel::getJsonRequest() const {
-  return mJsonFromClient;
-}
+EOSCOMMONNAMESPACE_END
 
-const std::string& CreatedStageBulkRequestResponseModel::getAccessURL() const {
-  return mAccessURL;
-}
-
-EOSMGMRESTNAMESPACE_END
+#endif // EOS_JSONOBJECT_HH

@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: JsonCPPTapeModelJsonifier.hh
+// File: TapeRestApiResponseFactory.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,44 +21,30 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "JsonCPPTapeModelJsonifier.hh"
+#ifndef EOS_TAPERESTAPIRESPONSEFACTORY_HH
+#define EOS_TAPERESTAPIRESPONSEFACTORY_HH
+
+#include "mgm/Namespace.hh"
+#include "mgm/http/rest-api/response/RestApiResponse.hh"
 #include "mgm/http/rest-api/model/tape/ErrorModel.hh"
 #include "mgm/http/rest-api/model/tape/stage/CreatedStageBulkRequestResponseModel.hh"
-#include "mgm/http/rest-api/model/tape/stage/GetStageBulkRequestResponseModel.hh"
-#include <json/json.h>
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-void JsonCPPTapeModelJsonifier::jsonify(const ErrorModel& errorModel, std::stringstream& oss){
-  Json::Value root;
-  root["type"] = errorModel.getType();
-  root["title"] = errorModel.getTitle();
-  root["status"] = errorModel.getStatus();
-  root["detail"] = errorModel.getDetail() ? errorModel.getDetail().value() : "";
-  oss << root;
-}
-
-void JsonCPPTapeModelJsonifier::jsonify(const CreatedStageBulkRequestResponseModel& createdStageBulkRequestModel, std::stringstream& oss) {
-  Json::Value root;
-  root["accessURL"] = createdStageBulkRequestModel.getAccessURL();
-  Json::Reader reader;
-  reader.parse(createdStageBulkRequestModel.getJsonRequest(),root["request"]);
-  oss << root;
-}
-
-void JsonCPPTapeModelJsonifier::jsonify(const GetStageBulkRequestResponseModel & getStageBulkRequestResponseModel, std::stringstream& ss) {
-  Json::Value root;
-  root = Json::Value(Json::arrayValue);
-  const auto queryPrepareResponse = getStageBulkRequestResponseModel.getQueryPrepareResponse();
-  for(auto response: queryPrepareResponse->responses) {
-    Json::Value fileObj;
-    fileObj["path"] = response.path;
-    fileObj["error"] = response.error_text;
-    fileObj["onDisk"] = response.is_online;
-    fileObj["onTape"] = response.is_on_tape;
-    root.append(fileObj);
-  }
-  ss << root;
-}
+/**
+ * Factory of tape REST API responses
+ */
+class TapeRestApiResponseFactory {
+public:
+  RestApiResponse createBadRequestError(const std::string & detail) const;
+  RestApiResponse createNotFoundError() const;
+  RestApiResponse createMethodNotAllowedError(const std::string & detail) const;
+  RestApiResponse createInternalServerError(const std::string & detail) const;
+  RestApiResponse createOkEmptyResponse() const;
+private:
+  RestApiResponse createError(const common::HttpResponse::ResponseCodes code,const std::string & title, const std::string & detail) const;
+};
 
 EOSMGMRESTNAMESPACE_END
+
+#endif // EOS_TAPERESTAPIRESPONSEFACTORY_HH

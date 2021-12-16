@@ -25,6 +25,7 @@
 
 #include "mgm/Namespace.hh"
 #include "mgm/bulk-request/response/QueryPrepareResponse.hh"
+#include <memory>
 
 EOSBULKNAMESPACE_BEGIN
 
