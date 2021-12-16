@@ -457,4 +457,9 @@ bool ProcDirectoryBulkRequestDAO::exists(const std::string& bulkRequestId, const
   return existsAndIsDirectory(bulkRequestPath);
 }
 
+void ProcDirectoryBulkRequestDAO::deleteBulkRequest(const std::shared_ptr<BulkRequest> bulkRequest) {
+  std::string bulkRequestPath = generateBulkRequestProcPath(bulkRequest);
+  deleteDirectory(bulkRequestPath);
+}
+
 EOSBULKNAMESPACE_END
