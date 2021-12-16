@@ -30,6 +30,7 @@
 #include "mgm/bulk-request/prepare/BulkRequestPrepareManager.hh"
 #include "mgm/http/rest-api/model/tape/stage/CreateStageBulkRequestModel.hh"
 #include "mgm/bulk-request/business/BulkRequestBusiness.hh"
+#include "mgm/http/rest-api/response/factories/tape/v1/TapeRestApiV1ResponseFactory.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -43,6 +44,9 @@ public:
   virtual common::HttpResponse * handleRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) override;
 
 private:
+
+  static TapeRestApiV1ResponseFactory mResponseFactory;
+
   /**
    * Creates and persist a stage bulk-request
    */
