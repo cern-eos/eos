@@ -300,9 +300,9 @@ build_fedora_rawhide:
     - >
       if [[ "$RPMBUILD_OPTIONS" == *asan* ]]; then
         echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-7-asan/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n" > /etc/yum.repos.d/eos-depend.repo;
+        yum reinstall -y eos-xrootd;
       else
         echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n" > /etc/yum.repos.d/eos-depend.repo;
-        yum reinstall -y eos-xrootd;
       fi
     - yum-builddep --nogpgcheck --setopt="cern*.exclude=xrootd*" -y build/SRPMS/*
     - if [[ -n "$CI_COMMIT_TAG" ]]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache.sh; fi
