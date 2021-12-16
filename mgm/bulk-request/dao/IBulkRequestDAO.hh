@@ -76,6 +76,12 @@ public:
    * @returns true if the bulk-request exists, false otherwise
    */
   virtual bool exists(const std::string & bulkRequestId, const BulkRequest::Type & type) = 0;
+
+  /**
+   * Deletes the bulk-request passed in parameters from the persistency
+   * @param bulkRequest the bulk-request to delete
+   */
+  virtual void deleteBulkRequest(const std::shared_ptr<BulkRequest> bulkRequest) = 0;
 };
 
 EOSBULKNAMESPACE_END

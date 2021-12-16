@@ -79,14 +79,27 @@ private:
   };
 
   /**
-   * Returns all the stage bulk-request known by the system (in the persistence)
+   * Returns the stage bulk-request identified by the ID passed in the URL
    */
   class GetStageBulkRequest : public Action {
   public:
     GetStageBulkRequest(const std::string & accessURL,const common::HttpHandler::Methods method): Action(accessURL,method){}
 
     /**
-     * Get all the stage bulk-request known by the system (in the persistence)
+     * Returns the stage bulk-request identified by the ID passed in the URL
+     * @param request the client's request
+     * @param vid the virtual identity of the client
+     * @return the HttpResponse to the client's request (JSON body)
+     */
+    common::HttpResponse * run(common::HttpRequest * request,const common::VirtualIdentity * vid) override;
+  };
+
+  class DeleteStageBulkRequest : public Action {
+  public:
+    DeleteStageBulkRequest(const std::string & accessURL, const common::HttpHandler::Methods method): Action(accessURL,method){}
+
+    /**
+     * Deletes the bulk-request identified by the ID passed in the URL
      * @param request the client's request
      * @param vid the virtual identity of the client
      * @return the HttpResponse to the client's request (JSON body)
