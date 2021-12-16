@@ -300,7 +300,8 @@ build_fedora_rawhide:
     - >
       if [[ "$RPMBUILD_OPTIONS" == *asan* ]]; then
         echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-7-asan/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n" > /etc/yum.repos.d/eos-depend.repo;
-        yum reinstall -y eos-xrootd;
+        yum remove -y eos-xrootd;
+        yum install -y eos-xrootd;
       else
         echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n" > /etc/yum.repos.d/eos-depend.repo;
       fi
