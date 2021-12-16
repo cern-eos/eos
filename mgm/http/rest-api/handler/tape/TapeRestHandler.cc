@@ -26,7 +26,7 @@
 #include "common/http/HttpServer.hh"
 #include "mgm/http/rest-api/exception/ControllerNotFoundException.hh"
 #include "mgm/http/rest-api/exception/MethodNotAllowedException.hh"
-#include "mgm/http/rest-api/response/tape/TapeRestApiResponseFactory.hh"
+#include "mgm/http/rest-api/response/factories/tape/TapeRestApiResponseFactory.hh"
 #include "mgm/http/rest-api/controllers/ControllerFactory.hh"
 
 
@@ -45,10 +45,10 @@ common::HttpResponse* TapeRestHandler::handleRequest(common::HttpRequest* reques
       return controller->handleRequest(request,vid);
     } catch (const ControllerNotFoundException &ex) {
       eos_static_info(ex.what());
-      return TapeRestApiResponseFactory::createNotFoundError().getHttpResponse();
+      return mTapeRestApiResponseFactory.createNotFoundError().getHttpResponse();
     } catch (const MethodNotAllowedException &ex) {
       eos_static_info(ex.what());
-      return TapeRestApiResponseFactory::createMethodNotAllowedError(ex.what()).getHttpResponse();
+      return mTapeRestApiResponseFactory.createMethodNotAllowedError(ex.what()).getHttpResponse();
     }
   }
   return nullptr;

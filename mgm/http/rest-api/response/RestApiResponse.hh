@@ -27,8 +27,7 @@
 #include "common/http/HttpResponse.hh"
 #include "common/http/PlainHttpResponse.hh"
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/model/tape/ErrorModel.hh"
-#include "mgm/http/rest-api/model/tape/stage/CreatedStageBulkRequestResponseModel.hh"
+#include "common/json/JsonObject.hh"
 #include <memory>
 
 EOSMGMRESTNAMESPACE_BEGIN
@@ -36,22 +35,15 @@ EOSMGMRESTNAMESPACE_BEGIN
 /**
  * This class allows to create a RestAPI http response
  * from a model object
- * @tparam T the type of the model to create the http response from
  */
-template<typename T>
 class RestApiResponse {
 public:
   /**
    * Constructor with the model
    * @param model the model that will be used to create the http response
    */
-  RestApiResponse(const std::shared_ptr<T> model);
-  RestApiResponse(const std::shared_ptr<T> model, const common::HttpResponse::ResponseCodes retCode);
-  /**
-   * Sets the return code of the HttpResponse
-   * @param retCode the code to associate to the HttpResponse
-   */
-  void setRetCode(const common::HttpResponse::ResponseCodes retCode);
+  RestApiResponse();
+  RestApiResponse(const std::shared_ptr<common::JsonObject> object, const common::HttpResponse::ResponseCodes retCode);
 
   /**
    * Returns the actual HttpResponse created from the model and the return code
@@ -60,37 +52,10 @@ public:
    */
   common::HttpResponse * getHttpResponse() const;
 private:
-  const std::shared_ptr<T> mModel;
+  std::shared_ptr<common::JsonObject> mJsonObject;
   common::HttpResponse::ResponseCodes mRetCode;
 };
 
-template<typename T>
-RestApiResponse<T>::RestApiResponse(const std::shared_ptr<T> model):mModel(model) {
-
-}
-
-template<typename T>
-RestApiResponse<T>::RestApiResponse(const std::shared_ptr<T> model, const common::HttpResponse::ResponseCodes retCode):mModel(model),mRetCode(retCode) {
-
-}
-
-template<typename T>
-void RestApiResponse<T>::setRetCode(const common::HttpResponse::ResponseCodes retCode){
-  mRetCode = retCode;
-}
-
-template<typename T>
-common::HttpResponse * RestApiResponse<T>::getHttpResponse() const{
-  common::HttpResponse * response = new common::PlainHttpResponse();
-  std::stringstream ss;
-  mModel->jsonify(ss);
-  response->SetBody(ss.str());
-  response->SetResponseCode(mRetCode);
-  common::HttpResponse::HeaderMap headerMap;
-  headerMap["application/type"] = "json";
-  response->SetHeaders(headerMap);
-  return response;
-}
 
 EOSMGMRESTNAMESPACE_END
 
