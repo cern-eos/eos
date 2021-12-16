@@ -104,7 +104,7 @@
 Summary: The EOS project
 Name: @CPACK_PACKAGE_NAME@
 Version: @CPACK_PACKAGE_VERSION@
-Release: @CPACK_PACKAGE_RELEASE@%{dist}
+Release: @CPACK_PACKAGE_RELEASE@%{dist}%{?_with_asan:.asan}
 Prefix: /usr
 License: none
 Group: Applications/File
