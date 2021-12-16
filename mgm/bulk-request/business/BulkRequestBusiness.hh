@@ -77,6 +77,12 @@ public:
    */
   bool exists(const std::string & bulkRequestId, const BulkRequest::Type & type);
 
+  /**
+   * Deletes the bulk-request passed in parameter
+   * @param req the bulk-request to delete
+   */
+  void deleteBulkRequest(const std::shared_ptr<BulkRequest> req);
+
 private:
   std::unique_ptr<AbstractDAOFactory> mDaoFactory;
 };

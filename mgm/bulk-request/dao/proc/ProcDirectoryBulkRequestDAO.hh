@@ -84,6 +84,12 @@ public:
    */
   bool exists(const std::string & bulkRequestId, const BulkRequest::Type & type) override;
 
+  /**
+   * Deletes the bulk-request passed in parameters from the persistency
+   * @param bulkRequest the bulk-request to delete
+   */
+  void deleteBulkRequest(const std::shared_ptr<BulkRequest> bulkRequest) override;
+
 private:
   //Interface to the EOS filesystem to allow the creation of files and directories
   XrdMgmOfs * mFileSystem;
