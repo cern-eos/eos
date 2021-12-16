@@ -27,6 +27,7 @@
 #include "mgm/Namespace.hh"
 #include "mgm/http/rest-api/handler/RestHandler.hh"
 #include "common/VirtualIdentity.hh"
+#include "mgm/http/rest-api/response/factories/tape/TapeRestApiResponseFactory.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -42,6 +43,8 @@ public:
    */
   TapeRestHandler(const std::string & entryPointURL = "/api/");
   common::HttpResponse * handleRequest(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
+private:
+  TapeRestApiResponseFactory mTapeRestApiResponseFactory;
 };
 
 EOSMGMRESTNAMESPACE_END

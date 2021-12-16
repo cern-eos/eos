@@ -30,8 +30,6 @@
 #include <optional>
 #include <sstream>
 #include <memory>
-#include "mgm/http/rest-api/model/Model.hh"
-#include "mgm/http/rest-api/json/tape/TapeModelJsonifier.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -39,7 +37,7 @@ EOSMGMRESTNAMESPACE_BEGIN
  * This class represents the Error object that will be returned to the client
  * if an error occured. It follows the RFC 7807 https://datatracker.ietf.org/doc/html/rfc7807
  */
-class ErrorModel : public Model {
+class ErrorModel {
 public:
   ErrorModel();
   ErrorModel(const std::string & title, const uint32_t status, const std::string & detail);
@@ -52,7 +50,6 @@ public:
   const std::string getTitle() const;
   const uint32_t getStatus() const;
   const std::optional<std::string> getDetail() const;
-  void jsonify(std::stringstream & ss) const override;
   virtual ~ErrorModel(){}
 private:
   /**
