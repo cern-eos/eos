@@ -162,8 +162,17 @@ common::HttpResponse* StageControllerV1::GetStageBulkRequest::run(common::HttpRe
   parser.matchesAndExtractParameters(this->mURLPattern,requestParameters);
   std::string requestId = requestParameters[URLParametersConstants::ID];
 
-  //Instanciate prepare manager
+  //Check existency of the request
   auto bulkRequestBusiness = createBulkRequestBusiness();
+  try {
+    if (!bulkRequestBusiness->exists(requestId,
+                                     bulk::BulkRequest::Type::PREPARE_STAGE)) {
+      return mResponseFactory.createNotFoundError().getHttpResponse();
+    }
+  } catch(bulk::PersistencyException & ex){
+    return mResponseFactory.createInternalServerError(ex.what()).getHttpResponse();
+  }
+  //Instanciate prepare manager
   bulk::RealMgmFileSystemInterface mgmFsInterface(gOFS);
   bulk::BulkRequestPrepareManager pm(mgmFsInterface);
   pm.setBulkRequestBusiness(bulkRequestBusiness);

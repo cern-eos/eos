@@ -452,4 +452,9 @@ void ProcDirectoryBulkRequestDAO::addOrUpdateAttributes(const std::shared_ptr<Bu
   }
 }
 
+bool ProcDirectoryBulkRequestDAO::exists(const std::string& bulkRequestId, const BulkRequest::Type& type) {
+  std::string bulkRequestPath = generateBulkRequestProcPath(bulkRequestId,type);
+  return existsAndIsDirectory(bulkRequestPath);
+}
+
 EOSBULKNAMESPACE_END
