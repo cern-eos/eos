@@ -272,11 +272,10 @@ add_library(
   http/rest-api/model/tape/stage/CancelStageBulkRequestModel.cc
   http/rest-api/model/tape/stage/CreateStageBulkRequestModel.cc
   http/rest-api/model/tape/stage/CreatedStageBulkRequestResponseModel.cc
-  http/rest-api/model/tape/stage/GetStageBulkRequestResponseModel.cc
-  http/rest-api/json/tape/JsonCPPTapeModelJsonifier.cc
   http/rest-api/json/tape/JsonCPPTapeModelBuilder.cc
   http/rest-api/response/RestApiResponse.cc
-  http/rest-api/response/tape/TapeRestApiResponseFactory.cc
+  http/rest-api/response/factories/tape/TapeRestApiResponseFactory.cc
+  http/rest-api/response/factories/tape/v1/TapeRestApiV1ResponseFactory.cc
   http/rest-api/utils/URLParser.cc
   http/rest-api/utils/URLBuilder.cc
   geotree/SchedulingTreeTest.cc
@@ -301,8 +300,6 @@ add_library(
   bulk-request/exception/BulkRequestException.cc
   bulk-request/interface/RealMgmFileSystemInterface.cc
   bulk-request/prepare/PrepareUtils.cc
-  bulk-request/utils/json/Jsonifier.cc
-  bulk-request/utils/json/JSONCppJsonifier.cc
   bulk-request/prepare/query-prepare/QueryPrepareResult.cc
   bulk-request/dao/proc/cleaner/BulkRequestProcCleaner.cc
   bulk-request/dao/proc/cleaner/BulkRequestProcCleanerConfig.cc

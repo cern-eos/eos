@@ -22,17 +22,15 @@
  ************************************************************************/
 
 #include "ErrorModel.hh"
-#include "mgm/http/rest-api/json/tape/JsonCPPTapeModelJsonifier.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-ErrorModel::ErrorModel():Model(){}
+ErrorModel::ErrorModel(){}
 
-ErrorModel::ErrorModel(const std::string& title, const uint32_t status, const std::string& detail):Model(),
-  mTitle(title),mStatus(status),mDetail(detail)
+ErrorModel::ErrorModel(const std::string& title, const uint32_t status, const std::string& detail):mTitle(title),mStatus(status),mDetail(detail)
 {}
 
-ErrorModel::ErrorModel(const std::string& title, const uint32_t status):Model(),mTitle(title),mStatus(status)
+ErrorModel::ErrorModel(const std::string& title, const uint32_t status):mTitle(title),mStatus(status)
 {}
 
 void ErrorModel::setType(const std::string& type){
@@ -65,10 +63,6 @@ const uint32_t ErrorModel::getStatus() const {
 
 const std::optional<std::string> ErrorModel::getDetail() const{
   return mDetail;
-}
-
-void ErrorModel::jsonify(std::stringstream & ss) const {
-  mJsonifier->jsonify(*this,ss);
 }
 
 EOSMGMRESTNAMESPACE_END

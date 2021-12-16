@@ -25,7 +25,6 @@
 #pragma once
 
 #include "mgm/Namespace.hh"
-#include <mgm/bulk-request/utils/json/Jsonifier.hh>
 #include <sstream>
 #include <string>
 #include <vector>

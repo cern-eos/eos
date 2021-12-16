@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: TapeModelJsonifier.hh
+// File: JsonCppObject.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,35 +21,30 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_TAPEMODELJSONIFIER_HH
-#define EOS_TAPEMODELJSONIFIER_HH
+#ifndef EOS_JSONCPPOBJECT_HH
+#define EOS_JSONCPPOBJECT_HH
 
-#include "mgm/Namespace.hh"
-#include "mgm/bulk-request/response/QueryPrepareResponse.hh"
+#include "common/Namespace.hh"
+#include "common/json/JsonObject.hh"
 #include <sstream>
+#include <memory>
+#include <json/json.h>
 
-EOSMGMRESTNAMESPACE_BEGIN
+EOSCOMMONNAMESPACE_BEGIN
 
-class ErrorModel;
-class CreatedStageBulkRequestResponseModel;
-class GetStageBulkRequestResponseModel;
-
-/**
- * This class allows to create the json representation
- * of objects
- */
-class TapeModelJsonifier {
+template <typename Obj>
+class JsonCppObject : public common::JsonObject {
 public:
-  /**
-   * Creates the json representation of an ErrorModel object
-   * @param errorModel the object to create the JSON representation from
-   * @param oss the stream where the json will be put on
-   */
-  virtual void jsonify(const ErrorModel & errorModel, std::stringstream & oss) = 0;
-  virtual void jsonify(const CreatedStageBulkRequestResponseModel& createdStageBulkRequestModel, std::stringstream & oss) = 0;
-  virtual void jsonify(const GetStageBulkRequestResponseModel & getStageBulkRequestResponseModel, std::stringstream & ss) = 0;
+  template<class... Args>
+  JsonCppObject(Args... args):mObject(std::make_shared<Obj>(args...)){}
+  JsonCppObject(std::shared_ptr<Obj> object) :mObject(object) { }
+  virtual void jsonify(std::stringstream & oss) override {
+    oss << "{}";
+  }
+protected:
+  std::shared_ptr<Obj> mObject;
 };
 
-EOSMGMRESTNAMESPACE_END
+EOSCOMMONNAMESPACE_END
 
-#endif // EOS_TAPEMODELJSONIFIER_HH
+#endif // EOS_JSONCPPOBJECT_HH

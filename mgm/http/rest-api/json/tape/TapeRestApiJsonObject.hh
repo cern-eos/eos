@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ErrorModel.hh
+// File: TapeRestApiJsonObject.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,37 +20,35 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-#ifndef EOS_MODEL_HH
-#define EOS_MODEL_HH
+#ifndef EOS_TAPERESTAPIJSONOBJECT_HH
+#define EOS_TAPERESTAPIJSONOBJECT_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/json/tape/TapeModelJsonifier.hh"
-#include <memory>
-#include "mgm/http/rest-api/json/tape/JsonCPPTapeModelJsonifier.hh"
+#include "common/json/JsonCppObject.hh"
+#include "mgm/http/rest-api/model/tape/ErrorModel.hh"
 #include <sstream>
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-/**
- * Base class for a REST-API model object
- *
- * A Model object represents client's request or api response.
- */
-class Model {
+template<typename Obj>
+class TapeRestApiJsonObject : public common::JsonCppObject<Obj>{
 public:
-  Model(){
-    mJsonifier.reset(new JsonCPPTapeModelJsonifier());
-  }
-  virtual void jsonify(std::stringstream & ss) const = 0;
-  virtual ~Model(){}
-protected:
-  /**
-   * Jsonifier object that allows to jsonify this object
-   */
-  std::unique_ptr<TapeModelJsonifier> mJsonifier;
+  template<class... Args>
+  TapeRestApiJsonObject(Args... args): common::JsonCppObject<Obj>(args...){}
+  inline virtual void jsonify(std::stringstream & ss) override { common::JsonCppObject<Obj>::jsonify(ss); }
 };
+
+template<>
+inline void
+TapeRestApiJsonObject<ErrorModel>::jsonify(std::stringstream& ss) {
+  Json::Value root;
+  root["type"] = mObject->getType();
+  root["title"] = mObject->getTitle();
+  root["status"] = mObject->getStatus();
+  root["detail"] = mObject->getDetail() ? mObject->getDetail().value() : "";
+  ss << root;
+}
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_MODEL_HH
+#endif // EOS_TAPERESTAPIJSONOBJECT_HH

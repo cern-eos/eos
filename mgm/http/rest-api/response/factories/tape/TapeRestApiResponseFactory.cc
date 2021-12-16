@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: JsonCPPTapeModelJsonifier.hh
+// File: TapeRestApiResponseFactory.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,24 +20,34 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-#ifndef EOS_JSONCPPTAPEMODELJSONIFIER_HH
-#define EOS_JSONCPPTAPEMODELJSONIFIER_HH
 
-#include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/json/tape/TapeModelJsonifier.hh"
+#include "TapeRestApiResponseFactory.hh"
+#include "mgm/http/rest-api/json/tape/TapeRestApiJsonObject.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-/**
- * JsonCPP jsonifier class
- */
-class JsonCPPTapeModelJsonifier : public TapeModelJsonifier {
-public:
-  void jsonify(const ErrorModel & errorModel, std::stringstream & oss) override;
-  void jsonify(const CreatedStageBulkRequestResponseModel& createdStageBulkRequestModel, std::stringstream & oss) override;
-  void jsonify(const GetStageBulkRequestResponseModel & getStageBulkRequestResponseModel, std::stringstream & ss) override;
-};
+RestApiResponse TapeRestApiResponseFactory::createError(const common::HttpResponse::ResponseCodes code, const std::string & title, const std::string& detail) const {
+  return RestApiResponse(std::make_shared<TapeRestApiJsonObject<ErrorModel>>(title,static_cast<uint32_t>(code),detail),code);
+}
+
+RestApiResponse TapeRestApiResponseFactory::createBadRequestError(const std::string & detail) const {
+  return createError(common::HttpResponse::BAD_REQUEST,"Bad request",detail);
+}
+
+RestApiResponse TapeRestApiResponseFactory::createNotFoundError() const {
+  return createError(common::HttpResponse::NOT_FOUND,"Not found","");
+}
+
+RestApiResponse TapeRestApiResponseFactory::createMethodNotAllowedError(const std::string& detail) const {
+  return createError(common::HttpResponse::METHOD_NOT_ALLOWED,"Method not allowed",detail);
+}
+
+RestApiResponse TapeRestApiResponseFactory::createInternalServerError(const std::string& detail) const {
+  return createError(common::HttpResponse::INTERNAL_SERVER_ERROR,"Internal server error",detail);
+}
+
+RestApiResponse TapeRestApiResponseFactory::createOkEmptyResponse() const {
+  return RestApiResponse();
+}
 
 EOSMGMRESTNAMESPACE_END
-
-#endif // EOS_JSONCPPTAPEMODELJSONIFIER_HH
