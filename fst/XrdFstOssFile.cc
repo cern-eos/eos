@@ -201,8 +201,6 @@ XrdFstOssFile::Open(const char* path, int flags, mode_t mode, XrdOucEnv& env)
         fd = newfd;
       }
     }
-
-    (void) fcntl(fd, F_SETFD, FD_CLOEXEC);
   }
 
   if (fdDirect >= 0) {
@@ -222,8 +220,6 @@ XrdFstOssFile::Open(const char* path, int flags, mode_t mode, XrdOucEnv& env)
         fdDirect = newfd;
       }
     }
-
-    (void) fcntl(fdDirect, F_SETFD, FD_CLOEXEC);
   }
 
 
