@@ -1,11 +1,11 @@
-//------------------------------------------------------------------------------
-//! @file Jsonifier.hh
-//! @author Cedric Caffy - CERN
-//------------------------------------------------------------------------------
+// ----------------------------------------------------------------------
+// File: TapeRestApiV1ResponseFactory.cc
+// Author: Cedric Caffy - CERN
+// ----------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2017 CERN/Switzerland                                  *
+ * Copyright (C) 2013 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,27 +21,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_JSONIFIER_HH
-#define EOS_JSONIFIER_HH
+#include "TapeRestApiV1ResponseFactory.hh"
+#include "mgm/http/rest-api/json/tape/TapeRestApiV1JsonObject.hh"
+EOSMGMRESTNAMESPACE_BEGIN
 
-#include "mgm/Namespace.hh"
-#include <memory>
-#include <string>
-#include <sstream>
+TapeRestApiV1ResponseFactory::TapeRestApiV1ResponseFactory(): TapeRestApiResponseFactory(){}
 
-EOSBULKNAMESPACE_BEGIN
+RestApiResponse TapeRestApiV1ResponseFactory::createCreatedStageRequestResponse(std::shared_ptr<CreatedStageBulkRequestResponseModel> model) const {
+  return RestApiResponse(std::make_shared<TapeRestApiV1JsonObject<CreatedStageBulkRequestResponseModel>>(model),common::HttpResponse::ResponseCodes::CREATED);
+}
 
-class QueryPrepareResponse;
-
-/**
- * Visitor to jsonify an object
- * the jsonify method takes the object as a parameter and the stringstream where the json will be put
- */
-class Jsonifier {
-public:
-  virtual void jsonify(const QueryPrepareResponse & response, std::stringstream & oss) = 0;
-};
-
-EOSBULKNAMESPACE_END
-
-#endif // EOS_JSONIFIER_HH
+RestApiResponse TapeRestApiV1ResponseFactory::createGetStageBulkRequestResponse(std::shared_ptr<bulk::QueryPrepareResponse> model) const {
+  return RestApiResponse(std::make_shared<TapeRestApiV1JsonObject<bulk::QueryPrepareResponse>>(model),common::HttpResponse::ResponseCodes::OK);
+}
+EOSMGMRESTNAMESPACE_END

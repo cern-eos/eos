@@ -1,11 +1,11 @@
-//------------------------------------------------------------------------------
-//! @file Jsonifier.cc
-//! @author Cedric Caffy - CERN
-//------------------------------------------------------------------------------
+// ----------------------------------------------------------------------
+// File: TapeRestApiV1ResponseFactory.hh
+// Author: Cedric Caffy - CERN
+// ----------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2017 CERN/Switzerland                                  *
+ * Copyright (C) 2013 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,10 +21,24 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "Jsonifier.hh"
+#ifndef EOS_TAPERESTAPIV1RESPONSEFACTORY_HH
+#define EOS_TAPERESTAPIV1RESPONSEFACTORY_HH
 
-EOSBULKNAMESPACE_BEGIN
+#include "mgm/Namespace.hh"
+#include "mgm/http/rest-api/response/factories/tape/TapeRestApiResponseFactory.hh"
+#include "mgm/http/rest-api/model/tape/stage/CreatedStageBulkRequestResponseModel.hh"
+#include "mgm/bulk-request/response/QueryPrepareResponse.hh"
+#include <memory>
 
+EOSMGMRESTNAMESPACE_BEGIN
 
+class TapeRestApiV1ResponseFactory : public TapeRestApiResponseFactory {
+public:
+  TapeRestApiV1ResponseFactory();
+  RestApiResponse createCreatedStageRequestResponse(std::shared_ptr<CreatedStageBulkRequestResponseModel> model) const;
+  RestApiResponse createGetStageBulkRequestResponse(std::shared_ptr<bulk::QueryPrepareResponse> getStageBulkRequestResponseModel) const;
+};
 
-EOSBULKNAMESPACE_END
+EOSMGMRESTNAMESPACE_END
+
+#endif // EOS_TAPERESTAPIV1RESPONSEFACTORY_HH
