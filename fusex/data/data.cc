@@ -2955,6 +2955,12 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                 if (fit->second->IsOpen()) {
                   // close read-only file if longer than 1s open
                   if ((fit->second->state_age() > 1.0)) {
+		    if (fit->second->HasReadsInFlight()) {
+		      // don't close files if there is still something in flight from read-ahead
+		      // TODO: in EOS5 (Xrootd5) we can ue SetProperty( "BundledClose", "true" ) and end the close with outstanding reads
+		      fit++;
+		      continue;
+		    }
                     // closing read-only file
                     fit->second->CloseAsync();
                     eos_static_info("closing reader");
