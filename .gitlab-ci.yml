@@ -317,7 +317,7 @@ build_fedora_rawhide:
 build_cc7_asan:
   <<: *build_cc7_exotic-template_definition
   variables:
-    BUILD_NAME: cc7-asan
+    BUILD_NAME: cc7_asan
     CMAKE_OPTIONS: "-DASAN=1"
     RPMBUILD_OPTIONS: "--with asan"
     CXXFLAGS: "-Wno-parentheses"    # Avoid boost header compilation errors
