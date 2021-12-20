@@ -55,14 +55,6 @@ prebuild-cs8:
   variables:
     PREBUILD_NAME: cs8
 
-# @note Consider deletion
-.prebuild-cc7_asan:
-  <<: *prebuild-template_definition
-  variables:
-    PREBUILD_NAME: cc7_asan
-    CMAKE_OPTIONS: "-DASAN=1"
-    CXXFLAGS: "-Wno-parentheses"  # Avoid boost header compilation errors
-
 .prebuild-cc7_clang:
   <<: *prebuild-template_definition
   variables:
@@ -325,7 +317,7 @@ build_fedora_rawhide:
 build_cc7_asan:
   <<: *build_cc7_exotic-template_definition
   variables:
-    BUILD_NAME: cc7_asan
+    BUILD_NAME: cc7-asan
     CMAKE_OPTIONS: "-DASAN=1"
     RPMBUILD_OPTIONS: "--with asan"
     CXXFLAGS: "-Wno-parentheses"    # Avoid boost header compilation errors
@@ -470,9 +462,6 @@ cs8_docker_image:
     - tags
   allow_failure: true
 
-# @note.1 jobs with `needs: on manual jobs get stuck (no fail nor succeed)
-# if an `optional: true` policy is not defined in GitLab < 13.12
-# Drop as we upgrade, ref: https://about.gitlab.com/blog/2021/05/20/dag-manual-fix/
 cc7_asan_docker_image:
   extends: .build_dockerimage-template
   variables:
@@ -481,7 +470,6 @@ cc7_asan_docker_image:
   needs:
     - job: clone_docker
     - job: build_cc7_asan
-      optional: true
   when: manual
   allow_failure: true
 
