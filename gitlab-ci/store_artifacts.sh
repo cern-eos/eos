@@ -47,7 +47,7 @@ for artifacts_dir in *_artifacts; do
 
   # Upload RPMS
   if [ -d "${build_artifacts}/RPMS" ]; then
-    if [ "$(ls -A ${build_artifacts}/RPMS})" ]; then
+    if [ "$(ls -A ${build_artifacts}/RPMS)" ]; then
       mkdir -p ${path}/x86_64/
       cp ${build_artifacts}/RPMS/* ${path}/x86_64/
       createrepo --update -q ${path}/x86_64/
@@ -58,7 +58,7 @@ for artifacts_dir in *_artifacts; do
 
   # Upload SRPMS
   if [ -d "${build_artifacts}/SRPMS" ]; then
-    if [ "$(ls -A ${build_artifacts}/SRPMS})" ]; then
+    if [ "$(ls -A ${build_artifacts}/SRPMS)" ]; then
       mkdir -p ${path}/SRPMS/
       cp ${build_artifacts}/SRPMS/* ${path}/SRPMS/
       createrepo --update -q ${path}/SRPMS/
