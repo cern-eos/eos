@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ControllerFactory.cc
+// File: ModelBuilder.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,14 +20,21 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
+#ifndef EOS_MODELBUILDER_HH
+#define EOS_MODELBUILDER_HH
 
-#include "ControllerFactory.hh"
-#include "mgm/http/rest-api/controllers/tape/stage/StageController.hh"
+#include "mgm/Namespace.hh"
+#include <memory>
+#include <string>
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-std::unique_ptr<Controller> ControllerFactory::getStageControllerV1(const std::string & accessURL) {
-  return std::make_unique<StageController>(accessURL);
-}
+template<typename Model>
+class ModelBuilder {
+public:
+  virtual std::unique_ptr<Model> buildFromJson(const std::string & json) const = 0;
+};
 
 EOSMGMRESTNAMESPACE_END
+
+#endif // EOS_MODELBUILDER_HH

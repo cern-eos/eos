@@ -24,22 +24,22 @@
 #include "JsonCPPTapeModelBuilderTest.hh"
 #include "mgm/http/rest-api/exception/InvalidJSONException.hh"
 #include "mgm/http/rest-api/exception/JsonObjectModelMalformedException.hh"
-#include "mgm/http/rest-api/json/tape/JsonCPPTapeModelBuilder.hh"
+#include "mgm/http/rest-api/json/tape/model-builders/CreateStageRequestModelBuilder.hh"
 
 using namespace eos::mgm::rest;
 
-TEST_F(JsonCPPTapeModelBuilderTest,buildCreateStageBulkRequestModel){
-  JsonCPPTapeModelBuilder builder;
+TEST_F(JsonCPPTapeModelBuilderTest,createStageRequestModelBuilderTest){
+  CreateStageRequestModelBuilder builder;
   std::string json = "jsonNotValid";
-  ASSERT_THROW(builder.buildCreateStageBulkRequestModel(json),InvalidJSONException);
+  ASSERT_THROW(builder.buildFromJson(json),InvalidJSONException);
   json = "{}";
-  ASSERT_THROW(builder.buildCreateStageBulkRequestModel(json),JsonObjectModelMalformedException);
+  ASSERT_THROW(builder.buildFromJson(json),JsonObjectModelMalformedException);
   json = "{\"" + CreateStageBulkRequestModel::PATHS_KEY_NAME + "\":12345}";
-  ASSERT_THROW(builder.buildCreateStageBulkRequestModel(json),JsonObjectModelMalformedException);
+  ASSERT_THROW(builder.buildFromJson(json),JsonObjectModelMalformedException);
   json = "{\"" + CreateStageBulkRequestModel::PATHS_KEY_NAME + "\":[]}";
-  ASSERT_THROW(builder.buildCreateStageBulkRequestModel(json),JsonObjectModelMalformedException);
+  ASSERT_THROW(builder.buildFromJson(json),JsonObjectModelMalformedException);
   json = "{\"" + CreateStageBulkRequestModel::PATHS_KEY_NAME + "\":[1,2,3]}";
-  ASSERT_THROW(builder.buildCreateStageBulkRequestModel(json),JsonObjectModelMalformedException);
+  ASSERT_THROW(builder.buildFromJson(json),JsonObjectModelMalformedException);
   json = "{\"" + CreateStageBulkRequestModel::PATHS_KEY_NAME + "\":[\"/path/to/file.txt\",\"/path/to/file2.txt\"]}";
-  ASSERT_NO_THROW(builder.buildCreateStageBulkRequestModel(json));
+  ASSERT_NO_THROW(builder.buildFromJson(json));
 }
