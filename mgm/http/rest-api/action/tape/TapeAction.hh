@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: TapeRestHandler.hh
+// File: Action.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,33 +21,24 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_TAPERESTHANDLER_HH
-#define EOS_TAPERESTHANDLER_HH
+#ifndef EOS_TAPEACTION_HH
+#define EOS_TAPEACTION_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/handler/RestHandler.hh"
-#include "common/VirtualIdentity.hh"
-#include "mgm/http/rest-api/response/tape/factories/TapeRestApiResponseFactory.hh"
+#include "mgm/http/rest-api/action/Action.hh"
+#include "mgm/http/rest-api/business/tape/ITapeRestApiBusiness.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-/**
- * This class handles the HTTP requests that are
- * intended for the WLCG TAPE REST API
- */
-class TapeRestHandler : public RestHandler {
+class TapeAction : public Action {
 public:
-  /**
-   * Constructor of the TapeRestHandler
-   * @param restApiUrl the base URL of the REST API without the instance name
-   */
-  TapeRestHandler(const std::string & entryPointURL = "/api/");
-  common::HttpResponse * handleRequest(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
-private:
-  void addControllers();
-  TapeRestApiResponseFactory mTapeRestApiResponseFactory;
+  TapeAction(const std::string & urlPattern,const common::HttpHandler::Methods method, std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness):
+    Action(urlPattern,method),mTapeRestApiBusiness(tapeRestApiBusiness){}
+  virtual common::HttpResponse * run(common::HttpRequest * request, const common::VirtualIdentity * vid) override = 0;
+protected:
+  std::shared_ptr<ITapeRestApiBusiness> mTapeRestApiBusiness;
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_TAPERESTHANDLER_HH
+#endif // EOS_TAPEACTION_HH

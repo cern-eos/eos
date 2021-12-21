@@ -25,7 +25,7 @@
 #define EOS_BULKREQUESTPREPAREMANAGER_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/bulk-request/prepare/PrepareManager.hh"
+#include "mgm/bulk-request/prepare/manager/PrepareManager.hh"
 #include "mgm/bulk-request/business/BulkRequestBusiness.hh"
 
 EOSBULKNAMESPACE_BEGIN
@@ -36,7 +36,7 @@ EOSBULKNAMESPACE_BEGIN
  */
 class BulkRequestPrepareManager : public PrepareManager {
 public:
-  BulkRequestPrepareManager(IMgmFileSystemInterface & mgmFsInterface);
+  BulkRequestPrepareManager(std::unique_ptr<IMgmFileSystemInterface> && mgmFsInterface);
   /**
    * Allows to enable the bulk-request management linked to the prepare logic
    * @param bulkRequestBusiness the class that allows to manage operations linked to bulk-requests
