@@ -32,4 +32,8 @@ const std::string Controller::getAccessURL() const {
   return mAccessURL;
 }
 
+void Controller::addAction(std::unique_ptr<Action>&& action) {
+  mControllerActionDispatcher.addAction(std::move(action));
+}
+
 EOSMGMRESTNAMESPACE_END
