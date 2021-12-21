@@ -256,11 +256,15 @@ add_library(
   http/webdav/LockResponse.cc
   http/rest-api/handler/RestHandler.cc
   http/rest-api/handler/tape/TapeRestHandler.cc
+  http/rest-api/action/tape/CreateStageBulkRequest.cc
+  http/rest-api/action/tape/CancelStageBulkRequest.cc
+  http/rest-api/action/tape/GetStageBulkRequest.cc
+  http/rest-api/action/tape/DeleteStageBulkRequest.cc
   http/rest-api/controllers/Controller.cc
   http/rest-api/controllers/ControllerFactory.cc
   http/rest-api/controllers/ControllerManager.cc
   http/rest-api/controllers/ControllerActionDispatcher.cc
-  http/rest-api/controllers/tape/stage/StageControllerV1.cc
+  http/rest-api/controllers/tape/stage/StageController.cc
   http/rest-api/exception/RestException.cc
   http/rest-api/exception/ControllerNotFoundException.cc
   http/rest-api/exception/InvalidJSONException.cc
@@ -272,7 +276,8 @@ add_library(
   http/rest-api/model/tape/stage/CancelStageBulkRequestModel.cc
   http/rest-api/model/tape/stage/CreateStageBulkRequestModel.cc
   http/rest-api/model/tape/stage/CreatedStageBulkRequestResponseModel.cc
-  http/rest-api/json/tape/JsonCPPTapeModelBuilder.cc
+  http/rest-api/json/tape/model-builders/CreateStageRequestModelBuilder.cc
+  http/rest-api/json/tape/model-builders/CancelStageRequestModelBuilder.cc
   http/rest-api/response/RestApiResponse.cc
   http/rest-api/response/factories/tape/TapeRestApiResponseFactory.cc
   http/rest-api/response/factories/tape/v1/TapeRestApiV1ResponseFactory.cc

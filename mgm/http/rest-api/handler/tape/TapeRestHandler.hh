@@ -44,6 +44,7 @@ public:
   TapeRestHandler(const std::string & entryPointURL = "/api/");
   common::HttpResponse * handleRequest(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
 private:
+  void addControllers();
   TapeRestApiResponseFactory mTapeRestApiResponseFactory;
 };
 

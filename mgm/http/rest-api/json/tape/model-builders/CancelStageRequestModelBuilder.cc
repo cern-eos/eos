@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ControllerFactory.cc
+// File: CancelStageRequestModelBuilder.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,13 +21,25 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "ControllerFactory.hh"
-#include "mgm/http/rest-api/controllers/tape/stage/StageController.hh"
+#include "CancelStageRequestModelBuilder.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-std::unique_ptr<Controller> ControllerFactory::getStageControllerV1(const std::string & accessURL) {
-  return std::make_unique<StageController>(accessURL);
+std::unique_ptr<CancelStageBulkRequestModel> CancelStageRequestModelBuilder::buildFromJson(const std::string& json) const {
+  std::unique_ptr<CancelStageBulkRequestModel> cancelStageBulkRequestModel(new CancelStageBulkRequestModel());
+  Json::Value root;
+  parseJson(json, root);
+  Json::Value paths = root[CancelStageBulkRequestModel::PATHS_KEY_NAME];
+  checkFieldNotNull(paths,CancelStageBulkRequestModel::PATHS_KEY_NAME);
+  checkIsNotAnEmptyArray(paths,CancelStageBulkRequestModel::PATHS_KEY_NAME);
+  for(auto path = paths.begin(); path != paths.end(); path++){
+    std::ostringstream oss;
+    oss << "The " << CancelStageBulkRequestModel::PATHS_KEY_NAME << " object should contain only strings";
+    checkIsString(*path,oss.str());
+    cancelStageBulkRequestModel->addFile(path->asString());
+    //TODO in the future: metadata
+  }
+  return std::move(cancelStageBulkRequestModel);
 }
 
 EOSMGMRESTNAMESPACE_END

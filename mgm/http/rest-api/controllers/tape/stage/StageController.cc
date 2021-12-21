@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ControllerFactory.cc
+// File: StageController.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,13 +21,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "ControllerFactory.hh"
-#include "mgm/http/rest-api/controllers/tape/stage/StageController.hh"
+#include "StageController.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-std::unique_ptr<Controller> ControllerFactory::getStageControllerV1(const std::string & accessURL) {
-  return std::make_unique<StageController>(accessURL);
+StageController::StageController(const std::string & accessURL):Controller(accessURL){}
+
+common::HttpResponse *
+StageController::handleRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) {
+  return mControllerActionDispatcher.getAction(request)->run(request,vid);
 }
 
 EOSMGMRESTNAMESPACE_END

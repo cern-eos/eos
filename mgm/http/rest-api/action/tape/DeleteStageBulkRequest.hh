@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ControllerFactory.cc
+// File: DeleteStageBulkRequest.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,13 +21,25 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "ControllerFactory.hh"
-#include "mgm/http/rest-api/controllers/tape/stage/StageController.hh"
+#ifndef EOS_DELETESTAGEBULKREQUEST_HH
+#define EOS_DELETESTAGEBULKREQUEST_HH
+
+#include "mgm/Namespace.hh"
+#include "mgm/http/rest-api/action/Action.hh"
+#include "mgm/bulk-request/business/BulkRequestBusiness.hh"
+#include "mgm/http/rest-api/response/factories/tape/v1/TapeRestApiV1ResponseFactory.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-std::unique_ptr<Controller> ControllerFactory::getStageControllerV1(const std::string & accessURL) {
-  return std::make_unique<StageController>(accessURL);
-}
+class DeleteStageBulkRequest : public Action {
+public:
+  DeleteStageBulkRequest(const std::string & accessURL,const common::HttpHandler::Methods method): Action(accessURL,method){}
+  common::HttpResponse * run(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
+private:
+  std::shared_ptr<bulk::BulkRequestBusiness> createBulkRequestBusiness();
+  static TapeRestApiV1ResponseFactory mResponseFactory;
+};
 
 EOSMGMRESTNAMESPACE_END
+
+#endif // EOS_DELETESTAGEBULKREQUEST_HH
