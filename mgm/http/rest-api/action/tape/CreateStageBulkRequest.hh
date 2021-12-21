@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ControllerFactory.cc
+// File: CreateStageBulkRequest.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,13 +21,29 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "ControllerFactory.hh"
-#include "mgm/http/rest-api/controllers/tape/stage/StageController.hh"
+
+#ifndef EOS_CREATESTAGEBULKREQUEST_HH
+#define EOS_CREATESTAGEBULKREQUEST_HH
+
+#include "mgm/Namespace.hh"
+#include "mgm/http/rest-api/action/Action.hh"
+#include "mgm/bulk-request/business/BulkRequestBusiness.hh"
+#include "mgm/http/rest-api/response/factories/tape/v1/TapeRestApiV1ResponseFactory.hh"
+#include "mgm/http/rest-api/model/tape/stage/CreateStageBulkRequestModel.hh"
+#include "mgm/http/rest-api/json/ModelBuilder.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-std::unique_ptr<Controller> ControllerFactory::getStageControllerV1(const std::string & accessURL) {
-  return std::make_unique<StageController>(accessURL);
-}
+class CreateStageBulkRequest : public Action {
+public:
+  CreateStageBulkRequest(const std::string & accessURL,const common::HttpHandler::Methods method, std::shared_ptr<ModelBuilder<CreateStageBulkRequestModel>> inputJsonModelBuilder): Action(accessURL,method),mInputJsonModelBuilder(inputJsonModelBuilder){}
+  common::HttpResponse * run(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
+private:
+  std::shared_ptr<bulk::BulkRequestBusiness> createBulkRequestBusiness();
+  static TapeRestApiV1ResponseFactory mResponseFactory;
+  std::shared_ptr<ModelBuilder<CreateStageBulkRequestModel>> mInputJsonModelBuilder;
+};
 
 EOSMGMRESTNAMESPACE_END
+
+#endif // EOS_CREATESTAGEBULKREQUEST_HH

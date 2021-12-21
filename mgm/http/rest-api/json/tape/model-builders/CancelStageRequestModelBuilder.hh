@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ControllerFactory.cc
+// File: CancelStageRequestModelBuilder.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,13 +21,21 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "ControllerFactory.hh"
-#include "mgm/http/rest-api/controllers/tape/stage/StageController.hh"
+
+#ifndef EOS_CANCELSTAGEREQUESTMODELBUILDER_HH
+#define EOS_CANCELSTAGEREQUESTMODELBUILDER_HH
+
+#include "mgm/Namespace.hh"
+#include "mgm/http/rest-api/json/JsonCppModelBuilder.hh"
+#include "mgm/http/rest-api/model/tape/stage/CancelStageBulkRequestModel.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-std::unique_ptr<Controller> ControllerFactory::getStageControllerV1(const std::string & accessURL) {
-  return std::make_unique<StageController>(accessURL);
-}
+class CancelStageRequestModelBuilder : public JsonCppModelBuilder<CancelStageBulkRequestModel> {
+public:
+  std::unique_ptr<CancelStageBulkRequestModel> buildFromJson(const std::string & json) const override;
+};
 
 EOSMGMRESTNAMESPACE_END
+
+#endif // EOS_CANCELSTAGEREQUESTMODELBUILDER_HH

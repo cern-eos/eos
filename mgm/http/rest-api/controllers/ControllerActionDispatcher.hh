@@ -30,7 +30,7 @@
 #include <functional>
 #include "common/http/HttpResponse.hh"
 #include "common/VirtualIdentity.hh"
-#include "mgm/http/rest-api/controllers/Action.hh"
+#include "mgm/http/rest-api/action/Action.hh"
 #include <memory>
 
 
