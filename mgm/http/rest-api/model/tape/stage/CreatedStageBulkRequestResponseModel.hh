@@ -33,11 +33,11 @@ EOSMGMRESTNAMESPACE_BEGIN
 
 class CreatedStageBulkRequestResponseModel {
 public:
-  CreatedStageBulkRequestResponseModel(const std::string & jsonFromClient, const std::string & accessURL);
+  CreatedStageBulkRequestResponseModel(/*const std::string & jsonFromClient, */const std::string & accessURL);
   const std::string & getAccessURL() const;
-  const std::string & getJsonRequest() const;
+  //const std::string & getJsonRequest() const;
 private:
-  const std::string & mJsonFromClient;
+  //const std::string & mJsonFromClient;
   const std::string & mAccessURL;
 };
 
