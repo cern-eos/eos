@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: CancelStageBulkRequest.hh
+// File: TapeRestApiBusiness.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,29 +20,23 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-#ifndef EOS_CANCELSTAGEBULKREQUEST_HH
-#define EOS_CANCELSTAGEBULKREQUEST_HH
+
+#ifndef EOS_TAPERESTAPIBUSINESS_HH
+#define EOS_TAPERESTAPIBUSINESS_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/action/Action.hh"
-#include "mgm/http/rest-api/response/factories/tape/v1/TapeRestApiV1ResponseFactory.hh"
-#include "mgm/bulk-request/business/BulkRequestBusiness.hh"
-#include "mgm/http/rest-api/json/ModelBuilder.hh"
-#include "mgm/http/rest-api/model/tape/stage/CancelStageBulkRequestModel.hh"
+#include "mgm/http/rest-api/business/tape/ITapeRestApiBusiness.hh"
+#include "mgm/bulk-request/prepare/manager/BulkRequestPrepareManager.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class CancelStageBulkRequest : public Action {
+class TapeRestApiBusiness : public ITapeRestApiBusiness {
 public:
-  CancelStageBulkRequest(const std::string & accessURL,const common::HttpHandler::Methods method,std::shared_ptr<ModelBuilder<CancelStageBulkRequestModel>> inputJsonModelBuilder):
-    Action(accessURL,method),mInputJsonModelBuilder(inputJsonModelBuilder){}
-  common::HttpResponse * run(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
-private:
-  static TapeRestApiV1ResponseFactory mResponseFactory;
-  std::shared_ptr<ModelBuilder<CancelStageBulkRequestModel>> mInputJsonModelBuilder;
-  std::shared_ptr<bulk::BulkRequestBusiness> createBulkRequestBusiness();
+  virtual std::shared_ptr<bulk::BulkRequest> createStageBulkRequest(const CreateStageBulkRequestModel * model,const common::VirtualIdentity * vid) override;
+protected:
+  std::unique_ptr<bulk::BulkRequestPrepareManager> createBulkRequestPrepareManager();
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_CANCELSTAGEBULKREQUEST_HH
+#endif // EOS_TAPERESTAPIBUSINESS_HH
