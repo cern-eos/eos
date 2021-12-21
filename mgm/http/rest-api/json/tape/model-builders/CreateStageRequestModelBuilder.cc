@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: JsonCPPTapeModelBuilder.hh
+// File: CreateStageRequestModelBuilder.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,42 +21,26 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_JSONCPPTAPEMODELBUILDER_HH
-#define EOS_JSONCPPTAPEMODELBUILDER_HH
-
-#include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/json/tape/JsonTapeModelBuilder.hh"
+#include "CreateStageRequestModelBuilder.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-/**
- * JsonCPP-specific tape-rest-api model object builder
- */
-class JsonCPPTapeModelBuilder : public JsonTapeModelBuilder {
-public:
-  virtual std::unique_ptr<CreateStageBulkRequestModel> buildCreateStageBulkRequestModel(const std::string & json) override;
-  virtual std::unique_ptr<CancelStageBulkRequestModel> buildCancelStageBulkRequestModel(const std::string &json) override;
-private:
-  /**
-   * Parses the json string passed in parameter and
-   * create JsonCpp-related object out of it
-   * @param json the string representing the object
-   * @param root the JsonCpp root object
-   * @throws InvalidJsonException if the parsing could not be done
-   */
-  void parseJson(const std::string & json,Json::Value & root) const;
-
-  void checkFieldNotNull(const Json::Value & value, const std::string & fieldName) const;
-
-  void checkNotNull(const Json::Value & value, const std::string & errorMsg) const;
-
-  void checkFieldIsNotAnEmptyArray(const Json::Value & value, const std::string & fieldName) const;
-
-  void checkIsNotAnEmptyArray(const Json::Value & value, const std::string & errorMsg) const;
-
-  void checkIsString(const Json::Value & value, const std::string & errorMsg) const;
-};
+std::unique_ptr<CreateStageBulkRequestModel> CreateStageRequestModelBuilder::buildFromJson(const std::string& json) const {
+  std::unique_ptr<CreateStageBulkRequestModel> createStageBulkReq(new CreateStageBulkRequestModel());
+  std::map<std::string,std::string> errors;
+  Json::Value root;
+  parseJson(json, root);
+  Json::Value paths = root[CreateStageBulkRequestModel::PATHS_KEY_NAME];
+  checkFieldNotNull(paths,CreateStageBulkRequestModel::PATHS_KEY_NAME);
+  checkIsNotAnEmptyArray(paths,CreateStageBulkRequestModel::PATHS_KEY_NAME);
+  for(auto path = paths.begin(); path != paths.end(); path++){
+    std::ostringstream oss;
+    oss << "The " << CreateStageBulkRequestModel::PATHS_KEY_NAME << " object should contain only strings";
+    checkIsString(*path,oss.str());
+    createStageBulkReq->addFile(path->asString(),"");
+    //TODO in the future: metadata
+  }
+  return std::move(createStageBulkReq);
+}
 
 EOSMGMRESTNAMESPACE_END
-
-#endif // EOS_JSONCPPTAPEMODELBUILDER_HH

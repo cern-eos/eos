@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: JsonTapeModelBuilder.hh
+// File: GetStageBulkRequest.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,26 +20,25 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-#ifndef EOS_JSONTAPEMODELBUILDER_HH
-#define EOS_JSONTAPEMODELBUILDER_HH
+#ifndef EOS_GETSTAGEBULKREQUEST_HH
+#define EOS_GETSTAGEBULKREQUEST_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/model/tape/stage/CreateStageBulkRequestModel.hh"
-#include "mgm/http/rest-api/model/tape/stage/CancelStageBulkRequestModel.hh"
-#include <memory>
-#include <json/json.h>
+#include "mgm/http/rest-api/action/Action.hh"
+#include "mgm/bulk-request/business/BulkRequestBusiness.hh"
+#include "mgm/http/rest-api/response/factories/tape/v1/TapeRestApiV1ResponseFactory.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-/**
- * This class allows to build tape-rest-api model objects from a json string
- */
-class JsonTapeModelBuilder {
+class GetStageBulkRequest : public Action {
 public:
-  virtual std::unique_ptr<CreateStageBulkRequestModel> buildCreateStageBulkRequestModel(const std::string& json) = 0;
-  virtual std::unique_ptr<CancelStageBulkRequestModel> buildCancelStageBulkRequestModel(const std::string& json) = 0;
+  GetStageBulkRequest(const std::string & accessURL,const common::HttpHandler::Methods method): Action(accessURL,method){}
+  common::HttpResponse * run(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
+private:
+  std::shared_ptr<bulk::BulkRequestBusiness> createBulkRequestBusiness();
+  static TapeRestApiV1ResponseFactory mResponseFactory;
 };
+
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_JSONTAPEMODELBUILDER_HH
+#endif // EOS_GETSTAGEBULKREQUEST_HH

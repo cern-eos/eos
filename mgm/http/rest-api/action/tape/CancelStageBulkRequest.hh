@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ControllerFactory.cc
+// File: CancelStageBulkRequest.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,14 +20,29 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
+#ifndef EOS_CANCELSTAGEBULKREQUEST_HH
+#define EOS_CANCELSTAGEBULKREQUEST_HH
 
-#include "ControllerFactory.hh"
-#include "mgm/http/rest-api/controllers/tape/stage/StageController.hh"
+#include "mgm/Namespace.hh"
+#include "mgm/http/rest-api/action/Action.hh"
+#include "mgm/http/rest-api/response/factories/tape/v1/TapeRestApiV1ResponseFactory.hh"
+#include "mgm/bulk-request/business/BulkRequestBusiness.hh"
+#include "mgm/http/rest-api/json/ModelBuilder.hh"
+#include "mgm/http/rest-api/model/tape/stage/CancelStageBulkRequestModel.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-std::unique_ptr<Controller> ControllerFactory::getStageControllerV1(const std::string & accessURL) {
-  return std::make_unique<StageController>(accessURL);
-}
+class CancelStageBulkRequest : public Action {
+public:
+  CancelStageBulkRequest(const std::string & accessURL,const common::HttpHandler::Methods method,std::shared_ptr<ModelBuilder<CancelStageBulkRequestModel>> inputJsonModelBuilder):
+    Action(accessURL,method),mInputJsonModelBuilder(inputJsonModelBuilder){}
+  common::HttpResponse * run(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
+private:
+  static TapeRestApiV1ResponseFactory mResponseFactory;
+  std::shared_ptr<ModelBuilder<CancelStageBulkRequestModel>> mInputJsonModelBuilder;
+  std::shared_ptr<bulk::BulkRequestBusiness> createBulkRequestBusiness();
+};
 
 EOSMGMRESTNAMESPACE_END
+
+#endif // EOS_CANCELSTAGEBULKREQUEST_HH
