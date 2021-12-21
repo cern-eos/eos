@@ -52,6 +52,13 @@ public:
    * @return the response the client expects.
    */
   virtual common::HttpResponse * handleRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) = 0;
+
+  /**
+   * Adds an action that this controller should run
+   * @param action the action to add
+   */
+  void addAction(std::unique_ptr<Action> && action);
+
   /**
    * Returns the access URL of this controller
    * @return the access URL of this controller
