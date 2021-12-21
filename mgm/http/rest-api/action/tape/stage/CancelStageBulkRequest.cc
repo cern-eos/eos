@@ -31,7 +31,7 @@
 #include "mgm/bulk-request/dao/factories/ProcDirectoryDAOFactory.hh"
 #include "mgm/bulk-request/utils/PrepareArgumentsWrapper.hh"
 #include "mgm/bulk-request/interface/RealMgmFileSystemInterface.hh"
-#include "mgm/bulk-request/prepare/BulkRequestPrepareManager.hh"
+#include "mgm/bulk-request/prepare/manager/BulkRequestPrepareManager.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -74,8 +74,7 @@ common::HttpResponse* CancelStageBulkRequest::run(common::HttpRequest* request, 
 
   //Do the cancellation
   bulk::PrepareArgumentsWrapper pargsWrapper(requestId,Prep_CANCEL,filesToCancel.getOpaqueInfos(),filesToCancel.getPaths());
-  bulk::RealMgmFileSystemInterface mgmFsInterface(gOFS);
-  bulk::BulkRequestPrepareManager pm(mgmFsInterface);
+  bulk::BulkRequestPrepareManager pm(std::make_unique<bulk::RealMgmFileSystemInterface>(gOFS));
   XrdOucErrInfo error;
   pm.prepare(*pargsWrapper.getPrepareArguments(),error,vid);
   return mResponseFactory.createOkEmptyResponse().getHttpResponse();

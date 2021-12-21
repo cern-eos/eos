@@ -44,8 +44,9 @@ inline void
 TapeRestApiV1JsonObject<CreatedStageBulkRequestResponseModel>::jsonify(std::stringstream& ss) {
   Json::Value root;
   root["accessURL"] = mObject->getAccessURL();
-  Json::Reader reader;
+  /*Json::Reader reader;
   reader.parse(mObject->getJsonRequest(),root["request"]);
+   */
   ss << root;
 }
 
