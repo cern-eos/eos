@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: GetStageBulkRequest.hh
+// File: TapeRestApiV1ResponseFactory.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,25 +20,25 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-#ifndef EOS_GETSTAGEBULKREQUEST_HH
-#define EOS_GETSTAGEBULKREQUEST_HH
+
+#ifndef EOS_TAPERESTAPIV1RESPONSEFACTORY_HH
+#define EOS_TAPERESTAPIV1RESPONSEFACTORY_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/action/Action.hh"
-#include "mgm/bulk-request/business/BulkRequestBusiness.hh"
-#include "mgm/http/rest-api/response/factories/tape/v1/TapeRestApiV1ResponseFactory.hh"
+#include "mgm/http/rest-api/response/tape/factories/TapeRestApiResponseFactory.hh"
+#include "mgm/http/rest-api/model/tape/stage/CreatedStageBulkRequestResponseModel.hh"
+#include "mgm/bulk-request/response/QueryPrepareResponse.hh"
+#include <memory>
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class GetStageBulkRequest : public Action {
+class TapeRestApiV1ResponseFactory : public TapeRestApiResponseFactory {
 public:
-  GetStageBulkRequest(const std::string & accessURL,const common::HttpHandler::Methods method): Action(accessURL,method){}
-  common::HttpResponse * run(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
-private:
-  std::shared_ptr<bulk::BulkRequestBusiness> createBulkRequestBusiness();
-  static TapeRestApiV1ResponseFactory mResponseFactory;
+  TapeRestApiV1ResponseFactory();
+  RestApiResponse createCreatedStageRequestResponse(std::shared_ptr<CreatedStageBulkRequestResponseModel> model) const;
+  RestApiResponse createGetStageBulkRequestResponse(std::shared_ptr<bulk::QueryPrepareResponse> getStageBulkRequestResponseModel) const;
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_GETSTAGEBULKREQUEST_HH
+#endif // EOS_TAPERESTAPIV1RESPONSEFACTORY_HH

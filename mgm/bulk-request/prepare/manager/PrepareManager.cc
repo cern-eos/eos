@@ -40,15 +40,15 @@
 
 EOSBULKNAMESPACE_BEGIN
 
-PrepareManager::PrepareManager(IMgmFileSystemInterface & mgmFsInterface):mMgmFsInterface(mgmFsInterface)
+PrepareManager::PrepareManager(std::unique_ptr<IMgmFileSystemInterface> && mgmFsInterface):mMgmFsInterface(std::move(mgmFsInterface))
 {
 }
 
-int PrepareManager::prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client) {
+int PrepareManager::prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client) noexcept {
   return doPrepare(pargs,error,client);
 }
 
-int PrepareManager::prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const common::VirtualIdentity * vid){
+int PrepareManager::prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const common::VirtualIdentity * vid) noexcept {
   XrdSecEntity client;
   return doPrepare(pargs,error,&client,vid);
 }
@@ -61,7 +61,7 @@ void PrepareManager::initializeEvictPrepareRequest(XrdOucString& reqid) {
 
 }
 
-int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecEntity* client, const common::VirtualIdentity * vidClient) {
+int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecEntity* client, const common::VirtualIdentity * vidClient) noexcept {
   EXEC_TIMING_BEGIN("Prepare");
   eos_info("prepareOpts=\"%s\"", PrepareUtils::prepareOptsToString(pargs.opts).c_str());
   static const char* epname = mEpname.c_str();
@@ -77,7 +77,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
   } else {
     tident = error.getErrUser();
     eos::common::Mapping::IdMap(client, info.c_str(), tident, vid);
-    mMgmFsInterface.addStats("IdMap", vid.uid, vid.gid, 1);
+    mMgmFsInterface->addStats("IdMap", vid.uid, vid.gid, 1);
   }
   ACCESSMODE_W;
   MAYSTALL;
@@ -88,7 +88,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
   }
   {
     const int nbFilesInPrepareRequest = eos::common::XrdUtils::countNbElementsInXrdOucTList(pargs.paths);
-    mMgmFsInterface.addStats("Prepare",vid.uid, vid.gid, nbFilesInPrepareRequest);
+    mMgmFsInterface->addStats("Prepare",vid.uid, vid.gid, nbFilesInPrepareRequest);
   }
   std::string cmd = "mgm.pcmd=event";
   std::list<std::pair<char**, char**>> pathsToPrepare;
@@ -104,8 +104,8 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
   // The XRootD prepare actions are mutually exclusive
   switch (pargsOptsAction) {
   case 0:
-    if(mMgmFsInterface.isTapeEnabled()) {
-      mMgmFsInterface.Emsg(epname, error, EINVAL, "prepare with empty pargs.opts on tape-enabled back-end");
+    if(mMgmFsInterface->isTapeEnabled()) {
+      mMgmFsInterface->Emsg(epname, error, EINVAL, "prepare with empty pargs.opts on tape-enabled back-end");
       return SFS_ERROR;
     }
     break;
@@ -129,7 +129,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
 
   default:
     // More than one flag was set or there is an unknown flag
-    mMgmFsInterface.Emsg(epname, error, EINVAL, "prepare - invalid value for pargs.opts =",
+    mMgmFsInterface->Emsg(epname, error, EINVAL, "prepare - invalid value for pargs.opts =",
                          std::to_string(pargs.opts).c_str());
     return SFS_ERROR;
   }
@@ -193,7 +193,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
 
     addPathToBulkRequest(prep_path.c_str());
 
-    if (mMgmFsInterface._exists(prep_path.c_str(), check, error, vid, "") ||
+    if (mMgmFsInterface->_exists(prep_path.c_str(), check, error, vid, "") ||
         (check != XrdSfsFileExistIsFile)) {
       //https://its.cern.ch/jira/browse/EOS-4739
       //For every prepare scenario, we continue to process the files even if they do not exist or are not correct
@@ -207,7 +207,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
     }
 
     if (!event.empty() &&
-        mMgmFsInterface._attr_ls(eos::common::Path(prep_path.c_str()).GetParentPath(), error, vid,
+        mMgmFsInterface->_attr_ls(eos::common::Path(prep_path.c_str()).GetParentPath(), error, vid,
                        nullptr, attributes) == 0) {
       bool foundPrepareTag = false;
       std::string eventAttr = "sys.workflow." + event;
@@ -238,7 +238,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
     }
 
     // check that we have write permission on path
-    if (mMgmFsInterface._access(prep_path.c_str(), P_OK, error, vid, "")) {
+    if (mMgmFsInterface->_access(prep_path.c_str(), P_OK, error, vid, "")) {
       //https://its.cern.ch/jira/browse/EOS-4739
       //For every prepare scenario, we continue to process the files even if they do not exist or are not correct
       //The user will then have to query prepare to figure out that the directory where the files are located has
@@ -359,7 +359,7 @@ void PrepareManager::triggerPrepareWorkflow(const std::list<std::pair<char**, ch
     args.Arg1Len = prep_path.length();
     args.Arg2 = prep_info.c_str();
     args.Arg2Len = prep_info.length();
-    auto ret_wfe = mMgmFsInterface.FSctl(SFS_FSCTL_PLUGIN, args, error, &lClient);
+    auto ret_wfe = mMgmFsInterface->FSctl(SFS_FSCTL_PLUGIN, args, error, &lClient);
 
     // Log errors but continue to process the rest of the files in the list
     if (ret_wfe != SFS_DATA) {
@@ -418,7 +418,7 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, con
     ++path_cnt;
   }
 
-  mMgmFsInterface.addStats("QueryPrepare", vid.uid, vid.gid, path_cnt);
+  mMgmFsInterface->addStats("QueryPrepare", vid.uid, vid.gid, path_cnt);
   std::shared_ptr<FileCollection::Files> filesFromPersistency;
   if(reqid.length()){
     //Look in the persistency layer for informations about files submitted previously for staging
@@ -475,7 +475,7 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, con
       goto logErrorAndContinue;
     }
 
-    if (mMgmFsInterface._exists(prep_path.c_str(), check, error, vid, "") ||
+    if (mMgmFsInterface->_exists(prep_path.c_str(), check, error, vid, "") ||
         check != XrdSfsFileExistIsFile) {
       currentFile.setErrorIfNotAlreadySet("file does not exist or is not accessible to you");
       goto logErrorAndContinue;
@@ -484,16 +484,16 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, con
     rsp.is_exists = true;
 
     // Check file state (online/offline)
-    if (mMgmFsInterface._stat(rsp.path.c_str(), &buf, xrd_error, vid, nullptr, nullptr, false)) {
+    if (mMgmFsInterface->_stat(rsp.path.c_str(), &buf, xrd_error, vid, nullptr, nullptr, false)) {
       currentFile.setErrorIfNotAlreadySet(xrd_error.getErrText());
       goto logErrorAndContinue;
     }
 
-    mMgmFsInterface._stat_set_flags(&buf);
+    mMgmFsInterface->_stat_set_flags(&buf);
     rsp.is_on_tape = buf.st_rdev & XRDSFS_HASBKUP;
     rsp.is_online  = !(buf.st_rdev & XRDSFS_OFFLINE);
     // Check file status in the extended attributes
-    if (mMgmFsInterface._attr_ls(eos::common::Path(prep_path.c_str()).GetPath(), xrd_error, vid,
+    if (mMgmFsInterface->_attr_ls(eos::common::Path(prep_path.c_str()).GetPath(), xrd_error, vid,
                  nullptr, xattrs) == 0) {
       auto xattr_it = xattrs.find(eos::common::RETRIEVE_REQID_ATTR_NAME);
 

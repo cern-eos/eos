@@ -57,7 +57,7 @@ public:
    * @param error Xrootd error information to fill if there are any errors
    * @param client the client who issued the prepare
    */
-  PrepareManager(IMgmFileSystemInterface & mgmFsInterface);
+  PrepareManager(std::unique_ptr<IMgmFileSystemInterface> && mgmFsInterface);
 
 
   /**
@@ -67,7 +67,7 @@ public:
    * @param client the client who issued the prepare
    * @returns the status code of the issued prepare request
    */
-  virtual int prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client);
+  virtual int prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client) noexcept;
 
   /**
    * Allows to launch a prepare logic on the files passed in parameter. Will not perform a client map
@@ -77,7 +77,7 @@ public:
    * @param vid the vid of the client who issued the prepare
    * @return the status code of the issued prepare request
    */
-  virtual int prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const common::VirtualIdentity * vid);
+  virtual int prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const common::VirtualIdentity * vid) noexcept;
 
   /**
    * Allows to launch a query prepare logic on the files passed in parameter
@@ -155,7 +155,7 @@ protected:
    * @param vid the vid of the client if the latter has already been mapped. (Avoids an IdMap call on the client param)
    * @returns the status code of the issued prepare request
    */
-  int doPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client, const common::VirtualIdentity * vidClient = nullptr);
+  int doPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const XrdSecEntity* client, const common::VirtualIdentity * vidClient = nullptr) noexcept;
 
   /**
    * Perform the query prepare logic
@@ -171,7 +171,7 @@ protected:
   //The prepare action that is launched by the "prepare()" method
   PrepareAction mPrepareAction;
   //MGM file system interface
-  IMgmFileSystemInterface & mMgmFsInterface;
+  std::unique_ptr<IMgmFileSystemInterface> mMgmFsInterface;
 };
 
 EOSBULKNAMESPACE_END

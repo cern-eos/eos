@@ -29,16 +29,17 @@
 #include "mgm/bulk-request/BulkRequestFactory.hh"
 #include "mgm/bulk-request/dao/factories/ProcDirectoryDAOFactory.hh"
 #include "mgm/bulk-request/interface/RealMgmFileSystemInterface.hh"
-#include "mgm/bulk-request/prepare/BulkRequestPrepareManager.hh"
+#include "mgm/bulk-request/prepare/manager/BulkRequestPrepareManager.hh"
 #include "mgm/bulk-request/utils/PrepareArgumentsWrapper.hh"
 #include "mgm/bulk-request/exception/PersistencyException.hh"
 #include "mgm/http/HttpHandler.hh"
 #include "mgm/http/rest-api/exception/InvalidJSONException.hh"
 #include "mgm/http/rest-api/exception/JsonObjectModelMalformedException.hh"
-#include "mgm/http/rest-api/response/factories/tape/TapeRestApiResponseFactory.hh"
+#include "mgm/http/rest-api/response/tape/factories/TapeRestApiResponseFactory.hh"
 #include "mgm/http/rest-api/utils/URLParser.hh"
 #include "mgm/http/rest-api/utils/URLBuilder.hh"
 #include "mgm/http/rest-api/controllers/tape/URLParametersConstants.hh"
+#include "mgm/http/rest-api/exception/tape/TapeRestApiBusinessException.hh"
 #include "common/SymKeys.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
@@ -56,22 +57,14 @@ common::HttpResponse* CreateStageBulkRequest::run(common::HttpRequest* request, 
     return mResponseFactory.createBadRequestError(ex2.what()).getHttpResponse();
   }
   //Create the prepare arguments
-  const FilesContainer & files = createStageBulkRequestModel->getFiles();
-  bulk::PrepareArgumentsWrapper pargsWrapper("fake_id",Prep_STAGE,files.getOpaqueInfos(),files.getPaths());
-  //Stage and persist the bulk-request created by the prepare manager
-  bulk::RealMgmFileSystemInterface mgmFsInterface(gOFS);
-  bulk::BulkRequestPrepareManager pm(mgmFsInterface);
-  std::shared_ptr<bulk::BulkRequestBusiness> bulkRequestBusiness = createBulkRequestBusiness();
-  pm.setBulkRequestBusiness(bulkRequestBusiness);
-  XrdOucErrInfo error;
-  int prepareRetCode = pm.prepare(*pargsWrapper.getPrepareArguments(),error,vid);
-  if(prepareRetCode != SFS_DATA){
-    //A problem occured, return the error to the client
-    return mResponseFactory.createInternalServerError(error.getErrText()).getHttpResponse();
+  std::shared_ptr<bulk::BulkRequest> bulkRequest;
+  try {
+    bulkRequest = mTapeRestApiBusiness->createStageBulkRequest(createStageBulkRequestModel.get(), vid);
+  } catch (const TapeRestApiBusinessException &ex){
+    return mResponseFactory.createInternalServerError(ex.what()).getHttpResponse();
   }
   //Get the bulk-request
-  std::shared_ptr<bulk::BulkRequest> bulkRequest = pm.getBulkRequest();
-  const std::string & clientRequest = request->GetBody();
+  //const std::string & clientRequest = request->GetBody();
   std::string host;
   try {
     host = request->GetHeaders().at("host");
@@ -79,13 +72,13 @@ common::HttpResponse* CreateStageBulkRequest::run(common::HttpRequest* request, 
     return mResponseFactory.createInternalServerError("No host information found in the header of the request").getHttpResponse();
   }
   //Persist the user request in the extended attribute of the directory where the bulk-request is saved
-  std::map<std::string, std::string> attributes;
+  /*std::map<std::string, std::string> attributes;
   common::SymKey::Base64Encode(clientRequest.c_str(),clientRequest.size(),attributes["base64jsonrequest"]);
   try {
     bulkRequestBusiness->addOrUpdateAttributes(bulkRequest, attributes);
   } catch (const bulk::PersistencyException &ex) {
     return mResponseFactory.createInternalServerError("Unable to persist the attributes of the bulk-request").getHttpResponse();
-  }
+  }*/
   //Generate the bulk-request access URL
   std::string bulkRequestAccessURL = URLBuilder::getInstance()
                                          ->setHttpsProtocol()
@@ -93,14 +86,8 @@ common::HttpResponse* CreateStageBulkRequest::run(common::HttpRequest* request, 
                                          ->setControllerAccessURL(mURLPattern)
                                          ->setRequestId(bulkRequest->getId())->build();
   //Prepare the response and return it
-  std::shared_ptr<CreatedStageBulkRequestResponseModel> createdStageBulkRequestModel(new CreatedStageBulkRequestResponseModel(clientRequest,bulkRequestAccessURL));
+  std::shared_ptr<CreatedStageBulkRequestResponseModel> createdStageBulkRequestModel(new CreatedStageBulkRequestResponseModel(/*clientRequest,*/bulkRequestAccessURL));
   return mResponseFactory.createCreatedStageRequestResponse(createdStageBulkRequestModel).getHttpResponse();
-}
-
-std::shared_ptr<bulk::BulkRequestBusiness>
-CreateStageBulkRequest::createBulkRequestBusiness(){
-  std::unique_ptr<bulk::AbstractDAOFactory> daoFactory(new bulk::ProcDirectoryDAOFactory(gOFS,*gOFS->mProcDirectoryBulkRequestTapeRestApiLocations));
-  return std::make_shared<bulk::BulkRequestBusiness>(std::move(daoFactory));
 }
 
 EOSMGMRESTNAMESPACE_END

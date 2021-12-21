@@ -28,8 +28,8 @@
 
 EOSBULKNAMESPACE_BEGIN
 
-BulkRequestPrepareManager::BulkRequestPrepareManager(IMgmFileSystemInterface& mgmFsInterface):
-  PrepareManager(mgmFsInterface){
+BulkRequestPrepareManager::BulkRequestPrepareManager(std::unique_ptr<IMgmFileSystemInterface> && mgmFsInterface):
+  PrepareManager(std::move(mgmFsInterface)){
 }
 
 void BulkRequestPrepareManager::setBulkRequestBusiness(std::shared_ptr<BulkRequestBusiness> bulkRequestBusiness) {

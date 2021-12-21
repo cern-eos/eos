@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: CreateStageBulkRequest.hh
+// File: TapeRestApiBusinessException.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -22,28 +22,19 @@
  ************************************************************************/
 
 
-#ifndef EOS_CREATESTAGEBULKREQUEST_HH
-#define EOS_CREATESTAGEBULKREQUEST_HH
+#ifndef EOS_TAPERESTAPIBUSINESSEXCEPTION_HH
+#define EOS_TAPERESTAPIBUSINESSEXCEPTION_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/action/Action.hh"
-#include "mgm/bulk-request/business/BulkRequestBusiness.hh"
-#include "mgm/http/rest-api/response/factories/tape/v1/TapeRestApiV1ResponseFactory.hh"
-#include "mgm/http/rest-api/model/tape/stage/CreateStageBulkRequestModel.hh"
-#include "mgm/http/rest-api/json/ModelBuilder.hh"
+#include "mgm/http/rest-api/exception/RestException.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class CreateStageBulkRequest : public Action {
+class TapeRestApiBusinessException : public RestException {
 public:
-  CreateStageBulkRequest(const std::string & accessURL,const common::HttpHandler::Methods method, std::shared_ptr<ModelBuilder<CreateStageBulkRequestModel>> inputJsonModelBuilder): Action(accessURL,method),mInputJsonModelBuilder(inputJsonModelBuilder){}
-  common::HttpResponse * run(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
-private:
-  std::shared_ptr<bulk::BulkRequestBusiness> createBulkRequestBusiness();
-  static TapeRestApiV1ResponseFactory mResponseFactory;
-  std::shared_ptr<ModelBuilder<CreateStageBulkRequestModel>> mInputJsonModelBuilder;
+  TapeRestApiBusinessException(const std::string & errorMsg): RestException(errorMsg){}
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_CREATESTAGEBULKREQUEST_HH
+#endif // EOS_TAPERESTAPIBUSINESSEXCEPTION_HH

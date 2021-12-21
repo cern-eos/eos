@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: TapeRestHandler.hh
+// File: DeleteStageBulkRequest.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,33 +21,25 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_TAPERESTHANDLER_HH
-#define EOS_TAPERESTHANDLER_HH
+#ifndef EOS_DELETESTAGEBULKREQUEST_HH
+#define EOS_DELETESTAGEBULKREQUEST_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/handler/RestHandler.hh"
-#include "common/VirtualIdentity.hh"
-#include "mgm/http/rest-api/response/tape/factories/TapeRestApiResponseFactory.hh"
+#include "mgm/http/rest-api/action/Action.hh"
+#include "mgm/bulk-request/business/BulkRequestBusiness.hh"
+#include "mgm/http/rest-api/response/tape/factories/v1/TapeRestApiV1ResponseFactory.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-/**
- * This class handles the HTTP requests that are
- * intended for the WLCG TAPE REST API
- */
-class TapeRestHandler : public RestHandler {
+class DeleteStageBulkRequest : public Action {
 public:
-  /**
-   * Constructor of the TapeRestHandler
-   * @param restApiUrl the base URL of the REST API without the instance name
-   */
-  TapeRestHandler(const std::string & entryPointURL = "/api/");
-  common::HttpResponse * handleRequest(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
+  DeleteStageBulkRequest(const std::string & accessURL,const common::HttpHandler::Methods method): Action(accessURL,method){}
+  common::HttpResponse * run(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
 private:
-  void addControllers();
-  TapeRestApiResponseFactory mTapeRestApiResponseFactory;
+  std::shared_ptr<bulk::BulkRequestBusiness> createBulkRequestBusiness();
+  static TapeRestApiV1ResponseFactory mResponseFactory;
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_TAPERESTHANDLER_HH
+#endif // EOS_DELETESTAGEBULKREQUEST_HH

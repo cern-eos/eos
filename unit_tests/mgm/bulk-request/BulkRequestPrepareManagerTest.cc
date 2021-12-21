@@ -23,14 +23,15 @@
 
 #include "unit_tests/mgm/bulk-request/PrepareManagerTest.hh"
 #include "unit_tests/mgm/bulk-request/MockPrepareMgmFSInterface.hh"
-#include "mgm/bulk-request/prepare/BulkRequestPrepareManager.hh"
+#include "mgm/bulk-request/prepare/manager/BulkRequestPrepareManager.hh"
 
 TEST_F(BulkRequestPrepareManagerTest,stagePrepareFilesWorkflow){
   int nbFiles = 3;
   std::vector<std::string> paths = PrepareManagerTest::generateDefaultPaths(nbFiles);
   std::vector<std::string> oinfos = PrepareManagerTest::generateEmptyOinfos(nbFiles);
 
-  MockPrepareMgmFSInterface mgmOfs;
+  std::unique_ptr<MockPrepareMgmFSInterface> mgmOfsPtr = std::make_unique<MockPrepareMgmFSInterface>();
+  MockPrepareMgmFSInterface & mgmOfs = *mgmOfsPtr;
   //addStats should be called only two times
   EXPECT_CALL(mgmOfs,addStats).Times(2);
   //isTapeEnabled should not be called as we are in the case where everything is fine
@@ -56,7 +57,7 @@ TEST_F(BulkRequestPrepareManagerTest,stagePrepareFilesWorkflow){
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
-  eos::mgm::bulk::BulkRequestPrepareManager pm(mgmOfs);
+  eos::mgm::bulk::BulkRequestPrepareManager pm(std::move(mgmOfsPtr));
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
 
   ASSERT_EQ(nbFiles, pm.getBulkRequest()->getFiles()->size());
@@ -65,7 +66,8 @@ TEST_F(BulkRequestPrepareManagerTest,stagePrepareFilesWorkflow){
 
 TEST_F(BulkRequestPrepareManagerTest,stagePrepareFileWithNoPath){
   //prepare stage should be idempotent https://its.cern.ch/jira/projects/EOS/issues/EOS-4739
-  NiceMock<MockPrepareMgmFSInterface> mgmOfs;
+  std::unique_ptr<NiceMock<MockPrepareMgmFSInterface>> mgmOfsPtr = std::make_unique<NiceMock<MockPrepareMgmFSInterface>>();
+  NiceMock<MockPrepareMgmFSInterface> & mgmOfs = *mgmOfsPtr;
   //No path exist, but Emsg should not be called
   EXPECT_CALL(mgmOfs,Emsg).Times(0);
   //No path are set, no mgmOfs method should be called
@@ -79,7 +81,7 @@ TEST_F(BulkRequestPrepareManagerTest,stagePrepareFileWithNoPath){
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
-  eos::mgm::bulk::BulkRequestPrepareManager pm(mgmOfs);
+  eos::mgm::bulk::BulkRequestPrepareManager pm(std::move(mgmOfsPtr));
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
 
   //The bulk-request is created, 0 files are supposed to be there
@@ -97,7 +99,8 @@ TEST_F(BulkRequestPrepareManagerTest,stagePrepareAllFilesDoNotExist){
   std::vector<std::string> paths = PrepareManagerTest::generateDefaultPaths(nbFiles);
   std::vector<std::string> oinfos = PrepareManagerTest::generateEmptyOinfos(nbFiles);
 
-  NiceMock<MockPrepareMgmFSInterface> mgmOfs;
+  std::unique_ptr<NiceMock<MockPrepareMgmFSInterface>> mgmOfsPtr = std::make_unique<NiceMock<MockPrepareMgmFSInterface>>();
+  NiceMock<MockPrepareMgmFSInterface> & mgmOfs = *mgmOfsPtr;
   //One file does not exist, Emsg should be called once
   EXPECT_CALL(mgmOfs,Emsg).Times(0);
   ON_CALL(mgmOfs,_exists(_,_,_,_,_,_)).WillByDefault(Invoke(
@@ -113,7 +116,7 @@ TEST_F(BulkRequestPrepareManagerTest,stagePrepareAllFilesDoNotExist){
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
-  eos::mgm::bulk::BulkRequestPrepareManager pm(mgmOfs);
+  eos::mgm::bulk::BulkRequestPrepareManager pm(std::move(mgmOfsPtr));
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
 
   //For the future, even if the files do not exist, they have to be in the bulk-request.
@@ -136,7 +139,8 @@ TEST_F(BulkRequestPrepareManagerTest,stagePrepareOneFileDoNotExistReturnsSfsData
   std::vector<std::string> paths = PrepareManagerTest::generateDefaultPaths(nbFiles);
   std::vector<std::string> oinfos = PrepareManagerTest::generateEmptyOinfos(nbFiles);
 
-  NiceMock<MockPrepareMgmFSInterface> mgmOfs;
+  std::unique_ptr<NiceMock<MockPrepareMgmFSInterface>> mgmOfsPtr = std::make_unique<NiceMock<MockPrepareMgmFSInterface>>();
+  NiceMock<MockPrepareMgmFSInterface> & mgmOfs = *mgmOfsPtr;
   //isTapeEnabled should not be called
   EXPECT_CALL(mgmOfs,isTapeEnabled).Times(0);
   //One file does not exist, Emsg should be called once
@@ -162,7 +166,7 @@ TEST_F(BulkRequestPrepareManagerTest,stagePrepareOneFileDoNotExistReturnsSfsData
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
-  eos::mgm::bulk::BulkRequestPrepareManager pm(mgmOfs);
+  eos::mgm::bulk::BulkRequestPrepareManager pm(std::move(mgmOfsPtr));
 
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
 
@@ -187,7 +191,8 @@ TEST_F(BulkRequestPrepareManagerTest,stagePrepareNoPreparePermission){
   std::vector<std::string> paths = PrepareManagerTest::generateDefaultPaths(nbFiles);
   std::vector<std::string> oinfos = PrepareManagerTest::generateEmptyOinfos(nbFiles);
 
-  MockPrepareMgmFSInterface mgmOfs;
+  std::unique_ptr<MockPrepareMgmFSInterface> mgmOfsPtr = std::make_unique<MockPrepareMgmFSInterface>();
+  MockPrepareMgmFSInterface & mgmOfs = *mgmOfsPtr;
   //addStats should be called only two times
   EXPECT_CALL(mgmOfs,addStats).Times(2);
   //isTapeEnabled should not be called as we are in the case where everything is fine
@@ -214,7 +219,7 @@ TEST_F(BulkRequestPrepareManagerTest,stagePrepareNoPreparePermission){
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
-  eos::mgm::bulk::BulkRequestPrepareManager pm(mgmOfs);
+  eos::mgm::bulk::BulkRequestPrepareManager pm(std::move(mgmOfsPtr));
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
 
   ASSERT_EQ(nbFiles, pm.getBulkRequest()->getFiles()->size());
@@ -226,7 +231,8 @@ TEST_F(BulkRequestPrepareManagerTest,abortPrepareFilesWorkflow){
   std::vector<std::string> paths = PrepareManagerTest::generateDefaultPaths(nbFiles);
   std::vector<std::string> oinfos = PrepareManagerTest::generateEmptyOinfos(nbFiles);
 
-  MockPrepareMgmFSInterface mgmOfs;
+  std::unique_ptr<MockPrepareMgmFSInterface> mgmOfsPtr = std::make_unique<MockPrepareMgmFSInterface>();
+  MockPrepareMgmFSInterface & mgmOfs = *mgmOfsPtr;
   //addStats should be called only two times
   EXPECT_CALL(mgmOfs,addStats).Times(2);
   //isTapeEnabled should not be called as we are in the case where everything is fine
@@ -252,7 +258,7 @@ TEST_F(BulkRequestPrepareManagerTest,abortPrepareFilesWorkflow){
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
-  eos::mgm::bulk::BulkRequestPrepareManager pm(mgmOfs);
+  eos::mgm::bulk::BulkRequestPrepareManager pm(std::move(mgmOfsPtr));
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
   //Abort prepare does not generate a bulk-request, so the bulk-request should be equal to nullptr
   ASSERT_EQ(nullptr,pm.getBulkRequest());
@@ -269,7 +275,8 @@ TEST_F(BulkRequestPrepareManagerTest,abortPrepareOneFileDoesNotExist){
   std::vector<std::string> paths = PrepareManagerTest::generateDefaultPaths(nbFiles);
   std::vector<std::string> oinfos = PrepareManagerTest::generateEmptyOinfos(nbFiles);
 
-  NiceMock<MockPrepareMgmFSInterface> mgmOfs;
+  std::unique_ptr<NiceMock<MockPrepareMgmFSInterface>> mgmOfsPtr = std::make_unique<NiceMock<MockPrepareMgmFSInterface>>();
+  NiceMock<MockPrepareMgmFSInterface> & mgmOfs = *mgmOfsPtr;
   //isTapeEnabled should not be called
   EXPECT_CALL(mgmOfs,isTapeEnabled).Times(0);
   //One file does not exist, but as we are idempotent, no error should be returned
@@ -291,7 +298,7 @@ TEST_F(BulkRequestPrepareManagerTest,abortPrepareOneFileDoesNotExist){
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
-  eos::mgm::bulk::BulkRequestPrepareManager pm(mgmOfs);
+  eos::mgm::bulk::BulkRequestPrepareManager pm(std::move(mgmOfsPtr));
 
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
   ASSERT_EQ(SFS_OK,retPrepare);
@@ -302,7 +309,8 @@ TEST_F(BulkRequestPrepareManagerTest,evictPrepareFilesWorkflow){
   std::vector<std::string> paths = PrepareManagerTest::generateDefaultPaths(nbFiles);
   std::vector<std::string> oinfos = PrepareManagerTest::generateEmptyOinfos(nbFiles);
 
-  MockPrepareMgmFSInterface mgmOfs;
+  std::unique_ptr<MockPrepareMgmFSInterface> mgmOfsPtr = std::make_unique<MockPrepareMgmFSInterface>();
+  MockPrepareMgmFSInterface & mgmOfs = *mgmOfsPtr;
   //addStats should be called only two times
   EXPECT_CALL(mgmOfs,addStats).Times(2);
   //isTapeEnabled should not be called as we are in the case where everything is fine
@@ -328,7 +336,7 @@ TEST_F(BulkRequestPrepareManagerTest,evictPrepareFilesWorkflow){
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
-  eos::mgm::bulk::BulkRequestPrepareManager pm(mgmOfs);
+  eos::mgm::bulk::BulkRequestPrepareManager pm(std::move(mgmOfsPtr));
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
   //Evict prepare does not generate a bulk-request, so the bulk-request should be equal to nullptr
   std::shared_ptr<BulkRequest> bulkRequest = pm.getBulkRequest();
@@ -348,7 +356,8 @@ TEST_F(BulkRequestPrepareManagerTest,evictPrepareOneFileDoesNotExist){
   std::vector<std::string> paths = PrepareManagerTest::generateDefaultPaths(nbFiles);
   std::vector<std::string> oinfos = PrepareManagerTest::generateEmptyOinfos(nbFiles);
 
-  NiceMock<MockPrepareMgmFSInterface> mgmOfs;
+  std::unique_ptr<NiceMock<MockPrepareMgmFSInterface>> mgmOfsPtr = std::make_unique<NiceMock<MockPrepareMgmFSInterface>>();
+  NiceMock<MockPrepareMgmFSInterface> & mgmOfs = *mgmOfsPtr;
   //isTapeEnabled should not be called
   EXPECT_CALL(mgmOfs,isTapeEnabled).Times(0);
   //One file does not exist, Emsg should not be called as we are idempotent
@@ -370,7 +379,7 @@ TEST_F(BulkRequestPrepareManagerTest,evictPrepareOneFileDoesNotExist){
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
-  eos::mgm::bulk::BulkRequestPrepareManager pm(mgmOfs);
+  eos::mgm::bulk::BulkRequestPrepareManager pm(std::move(mgmOfsPtr));
 
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
   ASSERT_EQ(SFS_OK,retPrepare);

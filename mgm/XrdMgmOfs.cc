@@ -81,7 +81,7 @@
 #include "mgm/XrdMgmOfs/fsctl/CommitHelper.hh"
 #include "mgm/auth/AccessChecker.hh"
 #include "mgm/config/IConfigEngine.hh"
-#include "mgm/bulk-request/prepare/PrepareManager.hh"
+#include "mgm/bulk-request/prepare/manager/PrepareManager.hh"
 #include "mq/SharedHashWrapper.hh"
 #include "mq/FileSystemChangeListener.hh"
 #include "mq/GlobalConfigChangeListener.hh"
@@ -110,7 +110,7 @@
 #include "mgm/bulk-request/dao/factories/ProcDirectoryDAOFactory.hh"
 #include "mgm/bulk-request/business/BulkRequestBusiness.hh"
 #include "mgm/bulk-request/interface/RealMgmFileSystemInterface.hh"
-#include "mgm/bulk-request/prepare/BulkRequestPrepareManager.hh"
+#include "mgm/bulk-request/prepare/manager/BulkRequestPrepareManager.hh"
 #include "mgm/bulk-request/dao/proc/ProcDirectoryBulkRequestLocations.hh"
 #include "mgm/bulk-request/response/QueryPrepareResponse.hh"
 #include "mgm/bulk-request/prepare/query-prepare/QueryPrepareResult.hh"
@@ -743,14 +743,13 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   //If set to 1, xrdfs prepare will be issued and a bulk-request will be persisted in the proc directory
   #define BULK_REQ_PERSISTENCY 0
 
-  RealMgmFileSystemInterface mgmFsInterface(gOFS);
   #if BULK_REQ_PERSISTENCY
-    BulkRequestPrepareManager pm(mgmFsInterface);
+    BulkRequestPrepareManager pm(std::make_unique<RealMgmFileSystemInterface>(gOFS));
     std::unique_ptr<AbstractDAOFactory> daoFactory(new ProcDirectoryDAOFactory(gOFS,*mProcDirectoryBulkRequestLocations));
     std::shared_ptr<BulkRequestBusiness> bulkRequestBusiness(new BulkRequestBusiness(std::move(daoFactory)));
     pm.setBulkRequestBusiness(bulkRequestBusiness);
   #else
-    PrepareManager pm(mgmFsInterface);
+    PrepareManager pm(std::make_unique<RealMgmFileSystemInterface>(gOFS));
   #endif
 
 
@@ -1042,12 +1041,12 @@ XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   USE_EOSBULKNAMESPACE;
   RealMgmFileSystemInterface mgmFsInterface(gOFS);
 #if BULK_REQ_PERSISTENCY
-  BulkRequestPrepareManager pm(mgmFsInterface);
+  BulkRequestPrepareManager pm(std::make_unique<RealMgmFileSystemInterface>(gOFS));
   std::unique_ptr<AbstractDAOFactory> daoFactory(new ProcDirectoryDAOFactory(gOFS,*mProcDirectoryBulkRequestLocations));
   std::shared_ptr<BulkRequestBusiness> bulkRequestBusiness(new BulkRequestBusiness(std::move(daoFactory)));
   pm.setBulkRequestBusiness(bulkRequestBusiness);
 #else
-  PrepareManager pm(mgmFsInterface);
+  PrepareManager pm(std::make_unique<RealMgmFileSystemInterface>(gOFS));
 #endif
   std::unique_ptr<QueryPrepareResult> result = pm.queryPrepare(pargs,error,client);
   if(result->hasQueryPrepareFinished()){

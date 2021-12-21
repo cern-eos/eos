@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: TapeRestApiV1ResponseFactory.hh
+// File: CreateStageBulkRequest.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,24 +21,29 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_TAPERESTAPIV1RESPONSEFACTORY_HH
-#define EOS_TAPERESTAPIV1RESPONSEFACTORY_HH
+
+#ifndef EOS_CREATESTAGEBULKREQUEST_HH
+#define EOS_CREATESTAGEBULKREQUEST_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/response/factories/tape/TapeRestApiResponseFactory.hh"
-#include "mgm/http/rest-api/model/tape/stage/CreatedStageBulkRequestResponseModel.hh"
-#include "mgm/bulk-request/response/QueryPrepareResponse.hh"
-#include <memory>
+#include "mgm/http/rest-api/action/tape/TapeAction.hh"
+#include "mgm/bulk-request/business/BulkRequestBusiness.hh"
+#include "mgm/http/rest-api/response/tape/factories/v1/TapeRestApiV1ResponseFactory.hh"
+#include "mgm/http/rest-api/model/tape/stage/CreateStageBulkRequestModel.hh"
+#include "mgm/http/rest-api/json/ModelBuilder.hh"
+#include "mgm/http/rest-api/business/tape/ITapeRestApiBusiness.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class TapeRestApiV1ResponseFactory : public TapeRestApiResponseFactory {
+class CreateStageBulkRequest : public TapeAction {
 public:
-  TapeRestApiV1ResponseFactory();
-  RestApiResponse createCreatedStageRequestResponse(std::shared_ptr<CreatedStageBulkRequestResponseModel> model) const;
-  RestApiResponse createGetStageBulkRequestResponse(std::shared_ptr<bulk::QueryPrepareResponse> getStageBulkRequestResponseModel) const;
+  CreateStageBulkRequest(const std::string & accessURL,const common::HttpHandler::Methods method,std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness, std::shared_ptr<ModelBuilder<CreateStageBulkRequestModel>> inputJsonModelBuilder): TapeAction(accessURL,method,tapeRestApiBusiness),mInputJsonModelBuilder(inputJsonModelBuilder){}
+  common::HttpResponse * run(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
+private:
+  static TapeRestApiV1ResponseFactory mResponseFactory;
+  std::shared_ptr<ModelBuilder<CreateStageBulkRequestModel>> mInputJsonModelBuilder;
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_TAPERESTAPIV1RESPONSEFACTORY_HH
+#endif // EOS_CREATESTAGEBULKREQUEST_HH

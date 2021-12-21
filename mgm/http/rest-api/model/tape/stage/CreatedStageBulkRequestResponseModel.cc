@@ -24,14 +24,14 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-CreatedStageBulkRequestResponseModel::CreatedStageBulkRequestResponseModel(const std::string& jsonFromClient, const std::string & accessURL):
-                                                                          mJsonFromClient(jsonFromClient),mAccessURL(accessURL) {
+CreatedStageBulkRequestResponseModel::CreatedStageBulkRequestResponseModel(/*const std::string& jsonFromClient,*/ const std::string & accessURL):
+                                                                          /*mJsonFromClient(jsonFromClient),*/mAccessURL(accessURL) {
 
 }
 
-const std::string& CreatedStageBulkRequestResponseModel::getJsonRequest() const {
+/*const std::string& CreatedStageBulkRequestResponseModel::getJsonRequest() const {
   return mJsonFromClient;
-}
+}*/
 
 const std::string& CreatedStageBulkRequestResponseModel::getAccessURL() const {
   return mAccessURL;

@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: DeleteStageBulkRequest.hh
+// File: GetStageBulkRequest.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,20 +20,19 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-#ifndef EOS_DELETESTAGEBULKREQUEST_HH
-#define EOS_DELETESTAGEBULKREQUEST_HH
+#ifndef EOS_GETSTAGEBULKREQUEST_HH
+#define EOS_GETSTAGEBULKREQUEST_HH
 
 #include "mgm/Namespace.hh"
 #include "mgm/http/rest-api/action/Action.hh"
 #include "mgm/bulk-request/business/BulkRequestBusiness.hh"
-#include "mgm/http/rest-api/response/factories/tape/v1/TapeRestApiV1ResponseFactory.hh"
+#include "mgm/http/rest-api/response/tape/factories/v1/TapeRestApiV1ResponseFactory.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class DeleteStageBulkRequest : public Action {
+class GetStageBulkRequest : public Action {
 public:
-  DeleteStageBulkRequest(const std::string & accessURL,const common::HttpHandler::Methods method): Action(accessURL,method){}
+  GetStageBulkRequest(const std::string & accessURL,const common::HttpHandler::Methods method): Action(accessURL,method){}
   common::HttpResponse * run(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
 private:
   std::shared_ptr<bulk::BulkRequestBusiness> createBulkRequestBusiness();
@@ -42,4 +41,4 @@ private:
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_DELETESTAGEBULKREQUEST_HH
+#endif // EOS_GETSTAGEBULKREQUEST_HH

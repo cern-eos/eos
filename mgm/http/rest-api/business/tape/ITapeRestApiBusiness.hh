@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: TapeRestHandler.hh
+// File: ITapeRestApiBusiness.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,33 +21,22 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_TAPERESTHANDLER_HH
-#define EOS_TAPERESTHANDLER_HH
+#ifndef EOS_ITAPERESTAPIBUSINESS_HH
+#define EOS_ITAPERESTAPIBUSINESS_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/handler/RestHandler.hh"
+#include <memory>
+#include "mgm/bulk-request/BulkRequest.hh"
+#include "mgm/http/rest-api/model/tape/stage/CreateStageBulkRequestModel.hh"
 #include "common/VirtualIdentity.hh"
-#include "mgm/http/rest-api/response/tape/factories/TapeRestApiResponseFactory.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-/**
- * This class handles the HTTP requests that are
- * intended for the WLCG TAPE REST API
- */
-class TapeRestHandler : public RestHandler {
+class ITapeRestApiBusiness {
 public:
-  /**
-   * Constructor of the TapeRestHandler
-   * @param restApiUrl the base URL of the REST API without the instance name
-   */
-  TapeRestHandler(const std::string & entryPointURL = "/api/");
-  common::HttpResponse * handleRequest(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
-private:
-  void addControllers();
-  TapeRestApiResponseFactory mTapeRestApiResponseFactory;
+  virtual std::shared_ptr<bulk::BulkRequest> createStageBulkRequest(const CreateStageBulkRequestModel * model, const common::VirtualIdentity * vid) = 0;
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_TAPERESTHANDLER_HH
+#endif // EOS_ITAPERESTAPIBUSINESS_HH

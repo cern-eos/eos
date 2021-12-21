@@ -256,12 +256,13 @@ add_library(
   http/webdav/LockResponse.cc
   http/rest-api/handler/RestHandler.cc
   http/rest-api/handler/tape/TapeRestHandler.cc
-  http/rest-api/action/tape/CreateStageBulkRequest.cc
-  http/rest-api/action/tape/CancelStageBulkRequest.cc
-  http/rest-api/action/tape/GetStageBulkRequest.cc
-  http/rest-api/action/tape/DeleteStageBulkRequest.cc
+  http/rest-api/action/tape/stage/CreateStageBulkRequest.cc
+  http/rest-api/action/tape/stage/CancelStageBulkRequest.cc
+  http/rest-api/action/tape/stage/GetStageBulkRequest.cc
+  http/rest-api/action/tape/stage/DeleteStageBulkRequest.cc
+  http/rest-api/business/tape/TapeRestApiBusiness.cc
   http/rest-api/controllers/Controller.cc
-  http/rest-api/controllers/ControllerFactory.cc
+  http/rest-api/controllers/tape/factories/ControllerFactory.cc
   http/rest-api/controllers/ControllerManager.cc
   http/rest-api/controllers/ControllerActionDispatcher.cc
   http/rest-api/controllers/tape/stage/StageController.cc
@@ -279,8 +280,8 @@ add_library(
   http/rest-api/json/tape/model-builders/CreateStageRequestModelBuilder.cc
   http/rest-api/json/tape/model-builders/CancelStageRequestModelBuilder.cc
   http/rest-api/response/RestApiResponse.cc
-  http/rest-api/response/factories/tape/TapeRestApiResponseFactory.cc
-  http/rest-api/response/factories/tape/v1/TapeRestApiV1ResponseFactory.cc
+  http/rest-api/response/tape/factories/TapeRestApiResponseFactory.cc
+  http/rest-api/response/tape/factories/v1/TapeRestApiV1ResponseFactory.cc
   http/rest-api/utils/URLParser.cc
   http/rest-api/utils/URLBuilder.cc
   geotree/SchedulingTreeTest.cc
@@ -290,8 +291,8 @@ add_library(
   inspector/FileInspector.cc
   bulk-request/File.cc
   bulk-request/FileCollection.cc
-  bulk-request/prepare/PrepareManager.cc
-  bulk-request/prepare/BulkRequestPrepareManager.cc
+  bulk-request/prepare/manager/PrepareManager.cc
+  bulk-request/prepare/manager/BulkRequestPrepareManager.cc
   bulk-request/BulkRequest.cc
   bulk-request/prepare/StageBulkRequest.cc
   bulk-request/prepare/EvictBulkRequest.cc

@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: DeleteStageBulkRequest.cc
+// File: GetStageBulkRequest.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,54 +20,61 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-#include "DeleteStageBulkRequest.hh"
-#include "mgm/http/rest-api/utils/URLParser.hh"
-#include "mgm/http/rest-api/utils/URLBuilder.hh"
-#include "mgm/http/rest-api/model/tape/stage/CancelStageBulkRequestModel.hh"
-#include "mgm/http/rest-api/controllers/tape/URLParametersConstants.hh"
+
+#include "GetStageBulkRequest.hh"
+#include <memory>
+#include "XrdSfs/XrdSfsInterface.hh"
+#include "mgm/XrdMgmOfs.hh"
+#include "mgm/bulk-request/BulkRequestFactory.hh"
 #include "mgm/bulk-request/dao/factories/ProcDirectoryDAOFactory.hh"
-#include "mgm/bulk-request/utils/PrepareArgumentsWrapper.hh"
 #include "mgm/bulk-request/interface/RealMgmFileSystemInterface.hh"
-#include "mgm/bulk-request/prepare/BulkRequestPrepareManager.hh"
+#include "mgm/bulk-request/prepare/manager/BulkRequestPrepareManager.hh"
+#include "mgm/bulk-request/utils/PrepareArgumentsWrapper.hh"
 #include "mgm/bulk-request/exception/PersistencyException.hh"
+#include "mgm/http/HttpHandler.hh"
+#include "mgm/http/rest-api/utils/URLParser.hh"
+#include "mgm/http/rest-api/controllers/tape/URLParametersConstants.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-TapeRestApiV1ResponseFactory DeleteStageBulkRequest::mResponseFactory;
+TapeRestApiV1ResponseFactory GetStageBulkRequest::mResponseFactory;
 
-common::HttpResponse* DeleteStageBulkRequest::run(common::HttpRequest* request, const common::VirtualIdentity* vid) {
+common::HttpResponse* GetStageBulkRequest::run(common::HttpRequest* request, const common::VirtualIdentity* vid) {
   URLParser parser(request->GetUrl());
   std::map<std::string,std::string> requestParameters;
+
   //Get the id of the request from the URL
   parser.matchesAndExtractParameters(this->mURLPattern,requestParameters);
   std::string requestId = requestParameters[URLParametersConstants::ID];
-  //Get the prepare request from the persistency
-  std::shared_ptr<bulk::BulkRequestBusiness> bulkRequestBusiness = createBulkRequestBusiness();
-  auto bulkRequest = bulkRequestBusiness->getBulkRequest(requestId,bulk::BulkRequest::Type::PREPARE_STAGE);
-  if(bulkRequest == nullptr) {
-    return mResponseFactory.createNotFoundError().getHttpResponse();
-  }
-  //Create the prepare arguments, we will cancel all the files from this bulk-request
-  auto filesFromBulkRequest = bulkRequest->getFiles();
-  FilesContainer filesToCancel;
-  for(auto & fileFromBulkRequest: *filesFromBulkRequest){
-    filesToCancel.addFile(fileFromBulkRequest.first);
-  }
-  bulk::PrepareArgumentsWrapper pargsWrapper(requestId,Prep_CANCEL,filesToCancel.getOpaqueInfos(),filesToCancel.getPaths());
-  bulk::RealMgmFileSystemInterface mgmFsInterface(gOFS);
-  bulk::BulkRequestPrepareManager pm(mgmFsInterface);
-  XrdOucErrInfo error;
-  pm.prepare(*pargsWrapper.getPrepareArguments(),error,vid);
-  //Now that the request got cancelled, let's delete it from the persistency
+
+  //Check existency of the request
+  auto bulkRequestBusiness = createBulkRequestBusiness();
   try {
-    bulkRequestBusiness->deleteBulkRequest(std::move(bulkRequest));
-  } catch (bulk::PersistencyException &ex) {
+    if (!bulkRequestBusiness->exists(requestId,
+                                     bulk::BulkRequest::Type::PREPARE_STAGE)) {
+      return mResponseFactory.createNotFoundError().getHttpResponse();
+    }
+  } catch(bulk::PersistencyException & ex){
     return mResponseFactory.createInternalServerError(ex.what()).getHttpResponse();
   }
-  return mResponseFactory.createOkEmptyResponse().getHttpResponse();
+  //Instanciate prepare manager
+  bulk::BulkRequestPrepareManager pm(std::make_unique<bulk::RealMgmFileSystemInterface>(gOFS));
+  pm.setBulkRequestBusiness(bulkRequestBusiness);
+  XrdOucErrInfo error;
+  bulk::PrepareArgumentsWrapper pargsWrapper(requestId,Prep_QUERY);
+  XrdSfsPrep * pargs = pargsWrapper.getPrepareArguments();
+  auto queryPrepareResult = pm.queryPrepare(*pargs,error,vid);
+  if(!queryPrepareResult->hasQueryPrepareFinished()){
+    std::ostringstream oss;
+    oss << "Unable to get information about the request " << requestId <<". errMsg=\"" << error.getErrText() << "\"";
+    return mResponseFactory.createInternalServerError(oss.str()).getHttpResponse();
+  }
+  auto queryPrepareResponse = queryPrepareResult->getResponse();
+  return mResponseFactory.createGetStageBulkRequestResponse(queryPrepareResponse).getHttpResponse();
 }
 
-std::shared_ptr<bulk::BulkRequestBusiness> DeleteStageBulkRequest::createBulkRequestBusiness(){
+std::shared_ptr<bulk::BulkRequestBusiness>
+GetStageBulkRequest::createBulkRequestBusiness(){
   std::unique_ptr<bulk::AbstractDAOFactory> daoFactory(new bulk::ProcDirectoryDAOFactory(gOFS,*gOFS->mProcDirectoryBulkRequestTapeRestApiLocations));
   return std::make_shared<bulk::BulkRequestBusiness>(std::move(daoFactory));
 }
