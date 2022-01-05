@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: TapeRestApiBusiness.hh
+// File: ObjectNotFoundException.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,27 +20,19 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-#ifndef EOS_TAPERESTAPIBUSINESS_HH
-#define EOS_TAPERESTAPIBUSINESS_HH
+#ifndef EOS_OBJECTNOTFOUNDEXCEPTION_HH
+#define EOS_OBJECTNOTFOUNDEXCEPTION_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/business/tape/ITapeRestApiBusiness.hh"
-#include "mgm/bulk-request/prepare/manager/BulkRequestPrepareManager.hh"
+#include "mgm/http/rest-api/exception/RestException.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class TapeRestApiBusiness : public ITapeRestApiBusiness {
+class ObjectNotFoundException : public RestException {
 public:
-  virtual std::shared_ptr<bulk::BulkRequest> createStageBulkRequest(const CreateStageBulkRequestModel * model,const common::VirtualIdentity * vid) override;
-  virtual void cancelStageBulkRequest(const std::string & requestId, const CancelStageBulkRequestModel * model, const common::VirtualIdentity * vid) override;
-  virtual std::shared_ptr<bulk::QueryPrepareResponse> getStageBulkRequest(const std::string & requestId, const common::VirtualIdentity * vid) override;
-  virtual void deleteStageBulkRequest(const std::string & requestId, const common::VirtualIdentity * vid) override;
-protected:
-  std::unique_ptr<bulk::BulkRequestPrepareManager> createBulkRequestPrepareManager();
-  std::shared_ptr<bulk::BulkRequestBusiness> createBulkRequestBusiness();
+  ObjectNotFoundException(const std::string & exceptionMsg): RestException(exceptionMsg){}
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_TAPERESTAPIBUSINESS_HH
+#endif // EOS_OBJECTNOTFOUNDEXCEPTION_HH

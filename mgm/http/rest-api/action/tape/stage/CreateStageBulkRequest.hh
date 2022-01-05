@@ -27,7 +27,6 @@
 
 #include "mgm/Namespace.hh"
 #include "mgm/http/rest-api/action/tape/TapeAction.hh"
-#include "mgm/bulk-request/business/BulkRequestBusiness.hh"
 #include "mgm/http/rest-api/response/tape/factories/v1/TapeRestApiV1ResponseFactory.hh"
 #include "mgm/http/rest-api/model/tape/stage/CreateStageBulkRequestModel.hh"
 #include "mgm/http/rest-api/json/ModelBuilder.hh"
