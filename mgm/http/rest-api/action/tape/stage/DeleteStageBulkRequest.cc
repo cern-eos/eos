@@ -22,14 +22,10 @@
  ************************************************************************/
 #include "DeleteStageBulkRequest.hh"
 #include "mgm/http/rest-api/utils/URLParser.hh"
-#include "mgm/http/rest-api/utils/URLBuilder.hh"
 #include "mgm/http/rest-api/model/tape/stage/CancelStageBulkRequestModel.hh"
 #include "mgm/http/rest-api/controllers/tape/URLParametersConstants.hh"
-#include "mgm/bulk-request/dao/factories/ProcDirectoryDAOFactory.hh"
-#include "mgm/bulk-request/utils/PrepareArgumentsWrapper.hh"
-#include "mgm/bulk-request/interface/RealMgmFileSystemInterface.hh"
-#include "mgm/bulk-request/prepare/manager/BulkRequestPrepareManager.hh"
-#include "mgm/bulk-request/exception/PersistencyException.hh"
+#include "mgm/http/rest-api/exception/ObjectNotFoundException.hh"
+#include "mgm/http/rest-api/exception/tape/TapeRestApiBusinessException.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -41,34 +37,14 @@ common::HttpResponse* DeleteStageBulkRequest::run(common::HttpRequest* request, 
   //Get the id of the request from the URL
   parser.matchesAndExtractParameters(this->mURLPattern,requestParameters);
   std::string requestId = requestParameters[URLParametersConstants::ID];
-  //Get the prepare request from the persistency
-  std::shared_ptr<bulk::BulkRequestBusiness> bulkRequestBusiness = createBulkRequestBusiness();
-  auto bulkRequest = bulkRequestBusiness->getBulkRequest(requestId,bulk::BulkRequest::Type::PREPARE_STAGE);
-  if(bulkRequest == nullptr) {
-    return mResponseFactory.createNotFoundError().getHttpResponse();
-  }
-  //Create the prepare arguments, we will cancel all the files from this bulk-request
-  auto filesFromBulkRequest = bulkRequest->getFiles();
-  FilesContainer filesToCancel;
-  for(auto & fileFromBulkRequest: *filesFromBulkRequest){
-    filesToCancel.addFile(fileFromBulkRequest.first);
-  }
-  bulk::PrepareArgumentsWrapper pargsWrapper(requestId,Prep_CANCEL,filesToCancel.getOpaqueInfos(),filesToCancel.getPaths());
-  bulk::BulkRequestPrepareManager pm(std::make_unique<bulk::RealMgmFileSystemInterface>(gOFS));
-  XrdOucErrInfo error;
-  pm.prepare(*pargsWrapper.getPrepareArguments(),error,vid);
-  //Now that the request got cancelled, let's delete it from the persistency
   try {
-    bulkRequestBusiness->deleteBulkRequest(std::move(bulkRequest));
-  } catch (bulk::PersistencyException &ex) {
+    mTapeRestApiBusiness->deleteStageBulkRequest(requestId, vid);
+  } catch (const ObjectNotFoundException & ex) {
+    return mResponseFactory.createNotFoundError().getHttpResponse();
+  } catch (const TapeRestApiBusinessException & ex) {
     return mResponseFactory.createInternalServerError(ex.what()).getHttpResponse();
   }
   return mResponseFactory.createOkEmptyResponse().getHttpResponse();
-}
-
-std::shared_ptr<bulk::BulkRequestBusiness> DeleteStageBulkRequest::createBulkRequestBusiness(){
-  std::unique_ptr<bulk::AbstractDAOFactory> daoFactory(new bulk::ProcDirectoryDAOFactory(gOFS,*gOFS->mProcDirectoryBulkRequestTapeRestApiLocations));
-  return std::make_shared<bulk::BulkRequestBusiness>(std::move(daoFactory));
 }
 
 EOSMGMRESTNAMESPACE_END
