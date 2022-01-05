@@ -27,7 +27,9 @@
 #include "mgm/Namespace.hh"
 #include <memory>
 #include "mgm/bulk-request/BulkRequest.hh"
+#include "mgm/bulk-request/response/QueryPrepareResponse.hh"
 #include "mgm/http/rest-api/model/tape/stage/CreateStageBulkRequestModel.hh"
+#include "mgm/http/rest-api/model/tape/stage/CancelStageBulkRequestModel.hh"
 #include "common/VirtualIdentity.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
@@ -35,6 +37,9 @@ EOSMGMRESTNAMESPACE_BEGIN
 class ITapeRestApiBusiness {
 public:
   virtual std::shared_ptr<bulk::BulkRequest> createStageBulkRequest(const CreateStageBulkRequestModel * model, const common::VirtualIdentity * vid) = 0;
+  virtual void cancelStageBulkRequest(const std::string & requestId, const CancelStageBulkRequestModel * model, const common::VirtualIdentity * vid) = 0;
+  virtual std::shared_ptr<bulk::QueryPrepareResponse> getStageBulkRequest(const std::string & requestId, const common::VirtualIdentity * vid) = 0;
+  virtual void deleteStageBulkRequest(const std::string & requestId, const common::VirtualIdentity * vid) = 0;
 };
 
 EOSMGMRESTNAMESPACE_END

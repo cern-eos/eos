@@ -23,17 +23,12 @@
 
 #include "GetStageBulkRequest.hh"
 #include <memory>
-#include "XrdSfs/XrdSfsInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/bulk-request/BulkRequestFactory.hh"
-#include "mgm/bulk-request/dao/factories/ProcDirectoryDAOFactory.hh"
-#include "mgm/bulk-request/interface/RealMgmFileSystemInterface.hh"
-#include "mgm/bulk-request/prepare/manager/BulkRequestPrepareManager.hh"
-#include "mgm/bulk-request/utils/PrepareArgumentsWrapper.hh"
-#include "mgm/bulk-request/exception/PersistencyException.hh"
 #include "mgm/http/HttpHandler.hh"
 #include "mgm/http/rest-api/utils/URLParser.hh"
 #include "mgm/http/rest-api/controllers/tape/URLParametersConstants.hh"
+#include "mgm/http/rest-api/exception/ObjectNotFoundException.hh"
+#include "mgm/http/rest-api/exception/tape/TapeRestApiBusinessException.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -48,35 +43,15 @@ common::HttpResponse* GetStageBulkRequest::run(common::HttpRequest* request, con
   std::string requestId = requestParameters[URLParametersConstants::ID];
 
   //Check existency of the request
-  auto bulkRequestBusiness = createBulkRequestBusiness();
+  std::shared_ptr<bulk::QueryPrepareResponse> queryPrepareResponse;
   try {
-    if (!bulkRequestBusiness->exists(requestId,
-                                     bulk::BulkRequest::Type::PREPARE_STAGE)) {
-      return mResponseFactory.createNotFoundError().getHttpResponse();
-    }
-  } catch(bulk::PersistencyException & ex){
+    queryPrepareResponse = mTapeRestApiBusiness->getStageBulkRequest(requestId,vid);
+  } catch(const ObjectNotFoundException &ex) {
+    return mResponseFactory.createNotFoundError().getHttpResponse();
+  } catch(const TapeRestApiBusinessException & ex) {
     return mResponseFactory.createInternalServerError(ex.what()).getHttpResponse();
   }
-  //Instanciate prepare manager
-  bulk::BulkRequestPrepareManager pm(std::make_unique<bulk::RealMgmFileSystemInterface>(gOFS));
-  pm.setBulkRequestBusiness(bulkRequestBusiness);
-  XrdOucErrInfo error;
-  bulk::PrepareArgumentsWrapper pargsWrapper(requestId,Prep_QUERY);
-  XrdSfsPrep * pargs = pargsWrapper.getPrepareArguments();
-  auto queryPrepareResult = pm.queryPrepare(*pargs,error,vid);
-  if(!queryPrepareResult->hasQueryPrepareFinished()){
-    std::ostringstream oss;
-    oss << "Unable to get information about the request " << requestId <<". errMsg=\"" << error.getErrText() << "\"";
-    return mResponseFactory.createInternalServerError(oss.str()).getHttpResponse();
-  }
-  auto queryPrepareResponse = queryPrepareResult->getResponse();
   return mResponseFactory.createGetStageBulkRequestResponse(queryPrepareResponse).getHttpResponse();
-}
-
-std::shared_ptr<bulk::BulkRequestBusiness>
-GetStageBulkRequest::createBulkRequestBusiness(){
-  std::unique_ptr<bulk::AbstractDAOFactory> daoFactory(new bulk::ProcDirectoryDAOFactory(gOFS,*gOFS->mProcDirectoryBulkRequestTapeRestApiLocations));
-  return std::make_shared<bulk::BulkRequestBusiness>(std::move(daoFactory));
 }
 
 EOSMGMRESTNAMESPACE_END

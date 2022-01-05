@@ -24,19 +24,12 @@
 
 #include "CreateStageBulkRequest.hh"
 #include <memory>
-#include "XrdSfs/XrdSfsInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/bulk-request/BulkRequestFactory.hh"
-#include "mgm/bulk-request/dao/factories/ProcDirectoryDAOFactory.hh"
-#include "mgm/bulk-request/interface/RealMgmFileSystemInterface.hh"
-#include "mgm/bulk-request/prepare/manager/BulkRequestPrepareManager.hh"
-#include "mgm/bulk-request/utils/PrepareArgumentsWrapper.hh"
-#include "mgm/bulk-request/exception/PersistencyException.hh"
 #include "mgm/http/HttpHandler.hh"
 #include "mgm/http/rest-api/exception/InvalidJSONException.hh"
 #include "mgm/http/rest-api/exception/JsonObjectModelMalformedException.hh"
 #include "mgm/http/rest-api/response/tape/factories/TapeRestApiResponseFactory.hh"
-#include "mgm/http/rest-api/utils/URLParser.hh"
 #include "mgm/http/rest-api/utils/URLBuilder.hh"
 #include "mgm/http/rest-api/controllers/tape/URLParametersConstants.hh"
 #include "mgm/http/rest-api/exception/tape/TapeRestApiBusinessException.hh"
@@ -53,8 +46,8 @@ common::HttpResponse* CreateStageBulkRequest::run(common::HttpRequest* request, 
     createStageBulkRequestModel = mInputJsonModelBuilder->buildFromJson(request->GetBody());
   } catch (const InvalidJSONException & ex) {
     return mResponseFactory.createBadRequestError(ex.what()).getHttpResponse();
-  } catch (const JsonObjectModelMalformedException & ex2){
-    return mResponseFactory.createBadRequestError(ex2.what()).getHttpResponse();
+  } catch (const JsonObjectModelMalformedException & ex){
+    return mResponseFactory.createBadRequestError(ex.what()).getHttpResponse();
   }
   //Create the prepare arguments
   std::shared_ptr<bulk::BulkRequest> bulkRequest;

@@ -22,8 +22,6 @@
  ************************************************************************/
 
 #include "TapeRestHandler.hh"
-#include "common/StringConversion.hh"
-#include "common/http/HttpServer.hh"
 #include "mgm/http/rest-api/exception/ControllerNotFoundException.hh"
 #include "mgm/http/rest-api/exception/MethodNotAllowedException.hh"
 #include "mgm/http/rest-api/response/tape/factories/TapeRestApiResponseFactory.hh"
@@ -39,13 +37,14 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-TapeRestHandler::TapeRestHandler(const std::string& entryPointURL): RestHandler(entryPointURL){
+TapeRestHandler::TapeRestHandler(const std::string& entryPointURL): RestHandler(entryPointURL) {
   std::shared_ptr<Controller> controllerV1(ControllerFactory::getStageControllerV1(mEntryPointURL+"v1/stage/"));
   const std::string & controllerAccessURL = controllerV1->getAccessURL();
-  controllerV1->addAction(std::make_unique<CreateStageBulkRequest>(controllerAccessURL,common::HttpHandler::Methods::POST,std::make_shared<TapeRestApiBusiness>(),std::make_shared<CreateStageRequestModelBuilder>()));
-  controllerV1->addAction(std::make_unique<CancelStageBulkRequest>(controllerAccessURL + "/" + URLParametersConstants::ID + "/cancel",common::HttpHandler::Methods::POST,std::make_shared<CancelStageRequestModelBuilder>()));
-  controllerV1->addAction(std::make_unique<GetStageBulkRequest>(controllerAccessURL + "/" + URLParametersConstants::ID,common::HttpHandler::Methods::GET));
-  controllerV1->addAction(std::make_unique<DeleteStageBulkRequest>(controllerAccessURL + "/" + URLParametersConstants::ID, common::HttpHandler::Methods::DELETE));
+  std::shared_ptr<TapeRestApiBusiness> restApiBusiness = std::make_shared<TapeRestApiBusiness>();
+  controllerV1->addAction(std::make_unique<CreateStageBulkRequest>(controllerAccessURL,common::HttpHandler::Methods::POST,restApiBusiness,std::make_shared<CreateStageRequestModelBuilder>()));
+  controllerV1->addAction(std::make_unique<CancelStageBulkRequest>(controllerAccessURL + "/" + URLParametersConstants::ID + "/cancel",common::HttpHandler::Methods::POST,restApiBusiness,std::make_shared<CancelStageRequestModelBuilder>()));
+  controllerV1->addAction(std::make_unique<GetStageBulkRequest>(controllerAccessURL + "/" + URLParametersConstants::ID,common::HttpHandler::Methods::GET,restApiBusiness));
+  controllerV1->addAction(std::make_unique<DeleteStageBulkRequest>(controllerAccessURL + "/" + URLParametersConstants::ID, common::HttpHandler::Methods::DELETE,restApiBusiness));
   mControllerManager.addController(controllerV1);
 }
 
