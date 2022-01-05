@@ -24,23 +24,22 @@
 #define EOS_CANCELSTAGEBULKREQUEST_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/action/Action.hh"
+#include "mgm/http/rest-api/action/tape/TapeAction.hh"
 #include "mgm/http/rest-api/response/tape/factories/v1/TapeRestApiV1ResponseFactory.hh"
-#include "mgm/bulk-request/business/BulkRequestBusiness.hh"
 #include "mgm/http/rest-api/json/ModelBuilder.hh"
 #include "mgm/http/rest-api/model/tape/stage/CancelStageBulkRequestModel.hh"
+#include "mgm/http/rest-api/business/tape/TapeRestApiBusiness.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class CancelStageBulkRequest : public Action {
+class CancelStageBulkRequest : public TapeAction {
 public:
-  CancelStageBulkRequest(const std::string & accessURL,const common::HttpHandler::Methods method,std::shared_ptr<ModelBuilder<CancelStageBulkRequestModel>> inputJsonModelBuilder):
-    Action(accessURL,method),mInputJsonModelBuilder(inputJsonModelBuilder){}
+  CancelStageBulkRequest(const std::string & accessURL,const common::HttpHandler::Methods method,std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness,std::shared_ptr<ModelBuilder<CancelStageBulkRequestModel>> inputJsonModelBuilder):
+    TapeAction(accessURL,method,tapeRestApiBusiness),mInputJsonModelBuilder(inputJsonModelBuilder){}
   common::HttpResponse * run(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
 private:
   static TapeRestApiV1ResponseFactory mResponseFactory;
   std::shared_ptr<ModelBuilder<CancelStageBulkRequestModel>> mInputJsonModelBuilder;
-  std::shared_ptr<bulk::BulkRequestBusiness> createBulkRequestBusiness();
 };
 
 EOSMGMRESTNAMESPACE_END
