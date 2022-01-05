@@ -1091,7 +1091,6 @@ static void printOntoTable(mq::SharedHashWrapper& hash,
 	  long long capacity = hash.getLongLong("stat.statfs.capacity");
 	  long long headroom = hash.getLongLong("headroom");
 	  double usage = 0;
-	  fprintf(stderr,"****** capacity=%lld\n", capacity);
 	  if (capacity) {
 	    usage = 100.0 * (used_bytes + headroom) / (capacity);
 	    if (usage > 100.0) {
