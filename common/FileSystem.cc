@@ -1083,6 +1083,26 @@ static void printOntoTable(mq::SharedHashWrapper& hash,
 
         table_mq_header.push_back(std::make_tuple(name.c_str(), width, format));
       }
+
+      if (formattags.count("compute")) {
+	if (formattags["compute"] == "usage") {
+	  // compute the percentage usage
+	  long long used_bytes = hash.getLongLong("stat.statfs.usedbytes");
+	  long long capacity = hash.getLongLong("stat.statfs.capacity");
+	  long long headroom = hash.getLongLong("headroom");
+	  double usage = 0;
+	  fprintf(stderr,"****** capacity=%lld\n", capacity);
+	  if (capacity) {
+	    usage = 100.0 * (used_bytes + headroom) / (capacity);
+	    if (usage > 100.0) {
+	      usage = 100.0;
+	    }
+	  }
+	  table_mq_data.back().push_back(
+					 TableCell(usage, format, unit));
+	  table_mq_header.push_back(std::make_tuple("usage", width, format));
+	}
+      }
     }
   }
 

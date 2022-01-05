@@ -1356,6 +1356,7 @@ FsView::GetFileSystemFormat(std::string option)
     format += "key=stat.net.outratemib:width=10:format=l:tag=etho-MiB|";
     format += "key=stat.ropen:width=6:format=l:tag=ropen|";
     format += "key=stat.wopen:width=6:format=l:tag=wopen|";
+    format += "compute=usage:width=6:format=f|";
     format += "key=stat.statfs.usedbytes:width=12:format=+l:unit=B:tag=used-bytes|";
     format += "key=stat.statfs.capacity:width=12:format=+l:unit=B:tag=max-bytes|";
     format += "key=stat.usedfiles:width=12:format=+l:tag=used-files|";
@@ -1402,6 +1403,7 @@ FsView::GetFileSystemFormat(std::string option)
     format += "key=stat.boot:width=12:format=s|";
     format += "key=configstatus:width=14:format=s|";
     format += "key=local.drain:width=12:format=s|";
+    format += "compute=usage:width=6:format=f|";
     format += "key=stat.active:width=8:format=s|";
     format += "key=scaninterval:width=14:format=s|";
     format += "key=stat.health:width=16:format=s|";
@@ -1427,6 +1429,7 @@ FsView::GetFileSystemFormat(std::string option)
     format += "key=stat.boot:width=12:format=s|";
     format += "key=configstatus:width=14:format=s|";
     format += "key=local.drain:width=12:format=s|";
+    format += "compute=usage:width=6:format=f|";
     format += "key=stat.active:width=8:format=s|";
     format += "key=stat.health:width=16:format=s";
   }
