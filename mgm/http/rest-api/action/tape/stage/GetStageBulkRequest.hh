@@ -23,19 +23,17 @@
 #ifndef EOS_GETSTAGEBULKREQUEST_HH
 #define EOS_GETSTAGEBULKREQUEST_HH
 
+#include "mgm/http/rest-api/action/tape/TapeAction.hh"
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/action/Action.hh"
-#include "mgm/bulk-request/business/BulkRequestBusiness.hh"
 #include "mgm/http/rest-api/response/tape/factories/v1/TapeRestApiV1ResponseFactory.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class GetStageBulkRequest : public Action {
+class GetStageBulkRequest : public TapeAction {
 public:
-  GetStageBulkRequest(const std::string & accessURL,const common::HttpHandler::Methods method): Action(accessURL,method){}
+  GetStageBulkRequest(const std::string & accessURL,const common::HttpHandler::Methods method,std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness): TapeAction(accessURL,method,tapeRestApiBusiness){}
   common::HttpResponse * run(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
 private:
-  std::shared_ptr<bulk::BulkRequestBusiness> createBulkRequestBusiness();
   static TapeRestApiV1ResponseFactory mResponseFactory;
 };
 
