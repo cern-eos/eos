@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "MockPrepareMgmFSInterface.hh"
-#include <xrootd/XrdSfs/XrdSfsFlags.hh>
+#include "XrdSfs/XrdSfsFlags.hh"
 
 EOSBULKNAMESPACE_BEGIN
 
