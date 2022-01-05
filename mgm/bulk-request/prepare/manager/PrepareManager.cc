@@ -36,7 +36,7 @@
 #include <mgm/bulk-request/File.hh>
 #include <mgm/bulk-request/exception/PersistencyException.hh>
 #include <mgm/bulk-request/prepare/PrepareUtils.hh>
-#include <xrootd/XrdSfs/XrdSfsFlags.hh>
+#include "XrdSfs/XrdSfsFlags.hh"
 
 EOSBULKNAMESPACE_BEGIN
 

@@ -26,7 +26,7 @@
 #include "common/Namespace.hh"
 #include <exception>
 #include <string>
-#include <xrootd/XrdOuc/XrdOucErrInfo.hh>
+#include "XrdOuc/XrdOucErrInfo.hh"
 
 EOSCOMMONNAMESPACE_BEGIN
 
