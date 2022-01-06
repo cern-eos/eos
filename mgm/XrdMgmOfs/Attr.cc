@@ -554,9 +554,9 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
       if (Key.beginswith("sys.") && ((!vid.sudoer) && (vid.uid))) {
         errno = EPERM;
       } else {
-        // check permissions
-        if (vid.uid && (fmd->getCUid() != vid.uid)) {
-          // TODO: REVIEW: only owner can set file attributes
+        if ((vid.uid != fmd->getCUid())
+            && (!vid.sudoer && vid.uid)) {
+          // TODO: REVIEW: only owner/sudoer can delete file attributes
           errno = EPERM;
         } else {
           if (fmd->hasAttribute(key)) {

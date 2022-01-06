@@ -39,7 +39,6 @@ ProcCommand::Chmod()
   PROC_BOUNCE_ILLEGAL_NAMES;
   PROC_BOUNCE_NOT_ALLOWED;
   spath = path;
-
   PROC_TOKEN_SCOPE;
 
   if ((!spath.length()) || (!mode.length())) {
@@ -70,10 +69,13 @@ ProcCommand::Chmod()
       stdErr = "error: mode has to be an octal number like 777, 2777, 755, 644 ...";
       retc = EINVAL;
     } else {
+      ACCESSMODE_W;
       XrdSfsMode Mode = (XrdSfsMode) strtoul(mode.c_str(), 0, 8);
 
       for (foundit = found.begin(); foundit != found.end(); foundit++) {
         {
+          RECURSIVE_STALL("Chmod", (*pVid));
+
           if (gOFS->_chmod(foundit->first.c_str(), Mode, *mError, *pVid, (char*) 0)) {
             stdErr += "error: unable to chmod of directory ";
             stdErr += foundit->first.c_str();

@@ -70,8 +70,11 @@ int
 /* -------------------------------------------------------------------------- */
 backend::mapErrCode(int retc)
 {
-  if( !retc ) return retc;
-  return XProtocol::toErrno( retc );
+  if (!retc) {
+    return retc;
+  }
+
+  return XProtocol::toErrno(retc);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -149,7 +152,8 @@ backend::getCAP(fuse_req_t req,
                )
 /* -------------------------------------------------------------------------- */
 {
-  uint64_t myclock = (uint64_t) time(NULL)+13; // allow for 'slow' requests up-to 15s
+  uint64_t myclock = (uint64_t) time(NULL) +
+                     13; // allow for 'slow' requests up-to 15s
   std::string requestURL = getURL(req, inode, myclock, "fuseX", "getfusex",
                                   "GETCAP", "", true);
   return fetchResponse(requestURL, contv);
@@ -348,6 +352,9 @@ backend::fetchResponse(std::string& requestURL,
       // the xrootd mapping of errno to everything unknown to EIO is really unfortunate
       if (xrootderr.find("get-cap-clock-out-of-sync") != std::string::npos) {
         // this is a time synchronization error
+        eos_static_err("%s", "msg=\"GETCAP finished during the allowed 2s "
+                       "round-trip time, the clock seems to be out of sync "
+                       "with the MGM\"");
         errno = EL2NSYNC;
         return EL2NSYNC;
       }
@@ -545,7 +552,6 @@ backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
     was_bound = true;
   }
 
-
   {
     // update host + port NOW
     XrdCl::URL lurl("root://" + hostport);
@@ -657,9 +663,10 @@ backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
             locker->Lock();
           }
 
-	  if (resp.ack_().md_ino()) {
-	    md->set_md_ino(resp.ack_().md_ino());
-	  }
+          if (resp.ack_().md_ino()) {
+            md->set_md_ino(resp.ack_().md_ino());
+          }
+
           eos_static_debug("directory inode %lx => %lx/%lx tid=%lx error='%s'", md->id(),
                            md->md_ino(),
                            resp.ack_().md_ino(), resp.ack_().transactionid(),
@@ -773,7 +780,7 @@ backend::doLock(fuse_req_t req,
 
   if (status.IsOK()) {
     eos_static_debug("response=%d response-size=%d",
-                     response ? true: false, response ? response->GetSize() : 0);
+                     response ? true : false, response ? response->GetSize() : 0);
 
     if (response && response->GetBuffer()) {
       std::string responseprefix;

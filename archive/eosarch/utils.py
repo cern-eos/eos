@@ -204,6 +204,9 @@ def get_entry_info(url, rel_path, tags, is_dir):
 
         key, value = elem.split('=', 1)
 
+        if len(value) == 0:
+            continue
+
         if key in tags:
             dict_info[key] = value
         elif key == "xattrn" and is_dir:

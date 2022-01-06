@@ -41,7 +41,6 @@ ProcCommand::Chown()
   PROC_BOUNCE_NOT_ALLOWED;
   spath = path;
   PROC_TOKEN_SCOPE;
-
   bool nodereference = (option.find("h") != STR_NPOS) ? true : false;
   bool singlefile = false;
 
@@ -130,10 +129,13 @@ ProcCommand::Chown()
       failure = true;
     }
 
+    ACCESSMODE_W;
+
     if (!failure) {
       if (!singlefile) {
         // for directories
         for (foundit = found.begin(); foundit != found.end(); foundit++) {
+          RECURSIVE_STALL("Chown", (*pVid));
           std::string dirname = foundit->first;
           size_t linkpos = (dirname.find(" -> "));
 

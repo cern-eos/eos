@@ -30,6 +30,7 @@
 
 
 #ifdef __APPLE__
+#define EBADE 52
 #define EKEYEXPIRED 127
 #endif
 
@@ -43,6 +44,7 @@
 #include "common/Path.hh"
 #include <errno.h>
 #include <regex>
+#include <iostream>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -330,10 +332,15 @@ EosTok::VerifyOrigin(const std::string& host, const std::string& name,
 
   for (int i = 0; i < share->token().origins_size(); ++i) {
     const eos::console::TokenAuth& auth = share->token().origins(i);
+    int m1 = Match(host, auth.host());
+    int m2 = Match(name, auth.name());
+    int m3 = Match(prot, auth.prot());
 
-    if (Match(host, auth.host()) &&
-        Match(name, auth.name()) &&
-        Match(prot, auth.prot())) {
+    if ((m1 < 0) || (m2 < 0) || (m3 < 0)) {
+      return -EBADE;
+    }
+
+    if ((m1 == 1) && (m2 == 1) && (m3 == 1)) {
       return 0;
     }
   }
@@ -342,13 +349,19 @@ EosTok::VerifyOrigin(const std::string& host, const std::string& name,
 }
 
 
-bool
+int
 EosTok::Match(const std::string& input, const std::string& regexString)
 
 {
-  std::regex re(regexString);
-  bool match = std::regex_match(input, re);
-  return match;
+  try {
+    std::regex re(regexString);
+    bool match = std::regex_match(input, re);
+    return match;
+  } catch (regex_error& e) {
+    std::cerr << "error: invalid regex : " << e.what() << " : " << "CODE IS: " <<
+              e.code() << std::endl;
+    return -1;
+  }
 }
 
 int
@@ -429,9 +442,10 @@ bool
 EosTok::isEosToken(const char* pathcgi)
 
 {
-  std::string cgi=pathcgi;
-  if ( (cgi.find("?authz=zteos") != std::string::npos) ||
-       (cgi.find("&authz=zteos") != std::string::npos) ){
+  std::string cgi = pathcgi;
+
+  if ((cgi.find("?authz=zteos") != std::string::npos) ||
+      (cgi.find("&authz=zteos") != std::string::npos)) {
     return true;
   } else {
     return false;

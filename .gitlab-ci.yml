@@ -51,14 +51,6 @@ prebuild-cs8:
   variables:
     PREBUILD_NAME: cs8
 
-# @note Consider deletion
-.prebuild-cc7_asan:
-  <<: *prebuild-template_definition
-  variables:
-    PREBUILD_NAME: cc7_asan
-    CMAKE_OPTIONS: "-DASAN=1"
-    CXXFLAGS: "-Wno-parentheses"  # Avoid boost header compilation errors
-
 .prebuild-cc7_clang:
   <<: *prebuild-template_definition
   variables:
@@ -290,7 +282,14 @@ build_fedora_rawhide:
     - cmake3 ../ -DPACKAGEONLY=1 ${CMAKE_OPTIONS}
     - make srpm
     - cd ../
-    - echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n" >> /etc/yum.repos.d/eos-depend.repo
+    - >
+      if [[ "$RPMBUILD_OPTIONS" == *asan* ]]; then
+        echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-7-asan/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n" > /etc/yum.repos.d/eos-depend.repo;
+        yum remove -y eos-xrootd;
+        yum install -y eos-xrootd;
+      else
+        echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n" > /etc/yum.repos.d/eos-depend.repo;
+      fi
     - yum-builddep --nogpgcheck --setopt="cern*.exclude=xrootd*" -y build/SRPMS/*
     - if [[ -n "$CI_COMMIT_TAG" ]]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache.sh; fi
     - rpmbuild --rebuild --with server ${RPMBUILD_OPTIONS} --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | ts
@@ -452,9 +451,6 @@ cs8_docker_image:
     - tags
   allow_failure: true
 
-# @note.1 jobs with `needs: on manual jobs get stuck (no fail nor succeed)
-# if an `optional: true` policy is not defined in GitLab < 13.12
-# Drop as we upgrade, ref: https://about.gitlab.com/blog/2021/05/20/dag-manual-fix/
 cc7_asan_docker_image:
   extends: .build_dockerimage-template
   variables:
@@ -463,7 +459,6 @@ cc7_asan_docker_image:
   needs:
     - job: clone_docker
     - job: build_cc7_asan
-      optional: true
   when: manual
   allow_failure: true
 

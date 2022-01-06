@@ -38,46 +38,51 @@ TokenHelper::ParseCommand(const char* arg)
   eos::console::TokenProto* token = mReq.mutable_token();
   eos::common::StringTokenizer tokenizer(arg);
   tokenizer.GetLine();
-
   std::map<std::string, std::set<std::string>> args;
 
   do {
     std::string element;
     option = tokenizer.GetToken();
+
     if (option) {
       element = option;
     } else {
       break;
     }
-    if (element.empty())
-      break;
 
-    if (element.substr(0,2) == "--") {
-      element.erase(0,2);
+    if (element.empty()) {
+      break;
+    }
+
+    if (element.substr(0, 2) == "--") {
+      element.erase(0, 2);
+
       if (element != "tree") {
-	option = tokenizer.GetToken();
-	if (option) {
-	  std::string value = option;
-	  args[element].insert(value);
-	}
+        option = tokenizer.GetToken();
+
+        if (option) {
+          std::string value = option;
+          args[element].insert(value);
+        }
       } else {
-	args[element].insert("dummy");
+        args[element].insert("dummy");
       }
     }
-  } while(1);
+  } while (1);
 
   if (args.count("token")) {
     // this is a show token request
     token->set_vtoken(*(args["token"].begin()));
   } else {
     bool isdir = false;
-    if ( 
-	!args.count("path")
-	 ) {
+
+    if (
+      !args.count("path")
+    ) {
       return false;
     } else {
       if (args["path"].begin()->back() == '/') {
-	isdir = true;
+        isdir = true;
       }
     }
 
@@ -87,45 +92,53 @@ TokenHelper::ParseCommand(const char* arg)
       args["permission"].insert("rx");
     }
 
-    token->set_path(std::string(cPath.GetPath()) + (isdir?"/":""));
+    token->set_path(std::string(cPath.GetPath()) + (isdir ? "/" : ""));
     token->set_permission(*args["permission"].begin());
 
     if (args.count("expires")) {
-      token->set_expires(strtoull((args["expires"].begin())->c_str(),0,10));
+      token->set_expires(strtoull((args["expires"].begin())->c_str(), 0, 10));
     } else {
       // ask by default for 5 min token
       token->set_expires(time(NULL) + 300);
     }
+
     if (args.count("owner")) {
       token->set_owner(*args["owner"].begin());
     }
+
     if (args.count("group")) {
       token->set_group(*args["group"].begin());
     }
+
     if (args.count("tree")) {
       token->set_allowtree(true);
     }
+
     if (args.count("origin")) {
       for (auto it = args["origin"].begin(); it != args["origin"].end(); ++it) {
-	std::vector<std::string> info;
-	eos::common::StringConversion::Tokenize(*it,info, "@");
-	eos::console::TokenAuth* auth = token->add_origins();
-	if (info.size()>0) {
-	  auth->set_host(info[0]);
-	  if (info.size()>1) {
-	    auth->set_name(info[1]);
-	    if (info.size()>2) {
-	      auth->set_prot(info[2]);
-	    } else {
-	      auth->set_prot("(.*)");
-	    } 
-	  } else {
-	    auth->set_name("(.*)");
-	    auth->set_prot("(.*)");
-	  }
-	}
+        std::vector<std::string> info;
+        eos::common::StringConversion::Tokenize(*it, info, ":");
+        eos::console::TokenAuth* auth = token->add_origins();
+
+        if (info.size() > 0) {
+          auth->set_host(info[0]);
+
+          if (info.size() > 1) {
+            auth->set_name(info[1]);
+
+            if (info.size() > 2) {
+              auth->set_prot(info[2]);
+            } else {
+              auth->set_prot("(.*)");
+            }
+          } else {
+            auth->set_name("(.*)");
+            auth->set_prot("(.*)");
+          }
+        }
       }
     }
   }
+
   return true;
 }

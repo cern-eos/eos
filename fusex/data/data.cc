@@ -273,7 +273,8 @@ data::datax::flush(fuse_req_t req)
                        EosFuse::Instance().Config().options.kWAIT_FLUSH_ON_CREATE) ? true : false;
 
     if ((!flush_wait_open) &&
-        ((*mMd)()->size() >= EosFuse::Instance().Config().options.flush_wait_open_size)) {
+        ((*mMd)()->size() >=
+         EosFuse::Instance().Config().options.flush_wait_open_size)) {
       flush_wait_open = true;
     }
 
@@ -761,7 +762,7 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
                       cachehandler::instance().get_config().read_ahead_strategy.c_str(),
                       cachehandler::instance().get_config().default_read_ahead_size,
                       cachehandler::instance().get_config().max_read_ahead_size,
-		      cachehandler::instance().get_config().read_ahead_sparse_ratio);
+                      cachehandler::instance().get_config().read_ahead_sparse_ratio);
 
           mFile->xrdioro(freq)->set_readahead_strategy(
             XrdCl::Proxy::readahead_strategy_from_string(
@@ -770,7 +771,7 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
             cachehandler::instance().get_config().default_read_ahead_size,
             cachehandler::instance().get_config().max_read_ahead_size,
             cachehandler::instance().get_config().max_read_ahead_blocks,
-	    cachehandler::instance().get_config().read_ahead_sparse_ratio
+            cachehandler::instance().get_config().read_ahead_sparse_ratio
           );
           mFile->xrdioro(freq)->set_readahead_maximum_position(mSize);
         }
@@ -1609,8 +1610,8 @@ data::datax::recover_write(fuse_req_t req)
       mRecoveryStack.push_back(eos_log(LOG_SILENT,
                                        "hint='read-open failed with rc=%d'", rc));
       {
-	eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
-	delete aproxy;
+        eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
+        delete aproxy;
       }
       proxy->CleanWriteQueue();
       return rc;
@@ -1749,8 +1750,8 @@ data::datax::recover_write(fuse_req_t req)
 
       ::close(fd);
       {
-	eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
-	delete uploadproxy;
+        eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
+        delete uploadproxy;
       }
 
       if (req && end_flush(req)) {
@@ -1779,10 +1780,10 @@ data::datax::recover_write(fuse_req_t req)
           }
 
           sBufferManager.put_buffer(buffer);
-	  {
-	    eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
-	    delete uploadproxy;
-	  }
+          {
+            eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
+            delete uploadproxy;
+          }
 
           if (req && end_flush(req)) {
             eos_warning("failed to signal end-flush");
@@ -1808,10 +1809,10 @@ data::datax::recover_write(fuse_req_t req)
       if (!uploadproxy->write_state().IsOK()) {
         sBufferManager.put_buffer(buffer);
         eos_crit("got failure when collecting outstanding writes from the upload proxy");
-	{
-	  eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
-	  delete uploadproxy;
-	}
+        {
+          eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
+          delete uploadproxy;
+        }
 
         if (req && end_flush(req)) {
           eos_warning("failed to signal end-flush");
@@ -2379,7 +2380,7 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
       return br;
     }
 
-    if ((br == (ssize_t) count) || (br == (ssize_t) (*mMd)()->size())) {
+    if ((br == (ssize_t) count) || (br == (ssize_t)(*mMd)()->size())) {
       return br;
     }
   }
@@ -2955,6 +2956,13 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                 if (fit->second->IsOpen()) {
                   // close read-only file if longer than 1s open
                   if ((fit->second->state_age() > 1.0)) {
+                    if (fit->second->HasReadsInFlight()) {
+                      // don't close files if there is still something in flight from read-ahead
+                      // TODO: in EOS5 (Xrootd5) we can ue SetProperty( "BundledClose", "true" ) and end the close with outstanding reads
+                      fit++;
+                      continue;
+                    }
+
                     // closing read-only file
                     fit->second->CloseAsync();
                     eos_static_info("closing reader");
@@ -2971,10 +2979,10 @@ data::dmap::ioflush(ThreadAssistant& assistant)
 
                 if (fit->second->IsClosed()) {
                   if (fit->second->DoneReadAhead()) {
-		    {
-		      eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
-		      delete fit->second;
-		    }
+                    {
+                      eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
+                      delete fit->second;
+                    }
                     fit = (*it)->file()->get_xrdioro().erase(fit);
                     eos_static_info("deleting reader");
                     continue;
@@ -3088,10 +3096,10 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                                           fit->second->mode(), 0);
                       newproxy->inherit_attached(fit->second);
                       newproxy->inherit_protocol(fit->second);
-		      {
-			eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
-			delete(fit->second);
-		      }
+                      {
+                        eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
+                        delete(fit->second);
+                      }
                       map[fit->first] = newproxy;
                       continue;
                     } else {
@@ -3159,10 +3167,10 @@ data::dmap::ioflush(ThreadAssistant& assistant)
 
                   eos_static_info("deleting xrdclproxyrw state=%d %d", fit->second->stateTS(),
                                   fit->second->IsClosed());
-		  {
-		    eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
-		    delete fit->second;
-		  }
+                  {
+                    eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
+                    delete fit->second;
+                  }
                   (*it)->file()->get_xrdiorw().erase(fit);
                   break;
                 }

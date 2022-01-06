@@ -77,6 +77,6 @@ command.
 
 In case the user wants to permanently delete the data saved on **tape (CTA)**, then unless he has root
 privileges on the EOS instance he will need to contact one of the administrators to perform this operation.
-Permanently deleting the achive will not delete any data from EOS, but only the data saved in CASTOR.
+Permanently deleting the achive will not delete any data from EOS, but only the data saved in CTA.
 Therefore, it is the **user's responsibility** to make sure he/she first gets the data back to EOS before
 requesting the deletion of the archive.

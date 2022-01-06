@@ -42,8 +42,6 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
   std::ostringstream errStream;
   XrdOucString m_err {""};
   int ret_c = 0;
-
-
   eos::console::TokenProto token = mReqProto.token();
 
   // ----------------------------------------------------------------------------------------------
@@ -56,78 +54,79 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
   // a sudoer or root can ask for any token
   // ----------------------------------------------------------------------------------------------
 
-
   if (!eos::common::EosTok::sTokenGeneration) {
     reply.set_retc(EPERM);
     reply.set_std_err("error: change the generation value != 0 e.g. using eos space config default space.token.generation=1 to enable token creation");
     return reply;
   }
 
-  eos_static_info("root=%d sudoer=%d uid=%u gid=%u", mVid.hasUid(0), mVid.sudoer, mVid.uid, mVid.gid);
+  eos_static_info("root=%d sudoer=%d uid=%u gid=%u", mVid.hasUid(0), mVid.sudoer,
+                  mVid.uid, mVid.gid);
 
   if (token.vtoken().empty()) {
     eos_static_info("%s\n", token.vtoken().c_str());
+
     // check who asks for a token
-    if ( (mVid.hasUid(0) ) ) {
+    if ((mVid.hasUid(0))) {
       // we issue all the token in the world for them
     } else {
       struct stat buf;
       XrdOucErrInfo error;
-      
       // we restrict only on-behalf of the requestor tokens
       token.set_owner(mVid.uid_string);
       token.set_group(mVid.gid_string);
+
       // we verify that mVid owns the path in the token
       if (token.path().back() == '/') {
-	// tree/directory path
-	if (gOFS->_stat( token.path().c_str(), &buf, error, mVid, "", 0, false, 0) ||
-	    (buf.st_uid != mVid.uid)) {
-	  if (error.getErrInfo()) {
-	    // stat error
-	    reply.set_retc(error.getErrInfo());
-	    reply.set_std_err(error.getErrText());
-	    return reply;
-	  } else {
-	    // owner error
-	    reply.set_retc(EACCES);
-	    reply.set_std_err("error: you are not the owner of the path given in your request and you are not a sudoer or root!");
-	    return reply;
-	  }
-	}
+        // tree/directory path
+        if (gOFS->_stat(token.path().c_str(), &buf, error, mVid, "", 0, false, 0) ||
+            (buf.st_uid != mVid.uid)) {
+          if (error.getErrInfo()) {
+            // stat error
+            reply.set_retc(error.getErrInfo());
+            reply.set_std_err(error.getErrText());
+            return reply;
+          } else {
+            // owner error
+            reply.set_retc(EACCES);
+            reply.set_std_err("error: you are not the owner of the path given in your request and you are not a sudoer or root!");
+            return reply;
+          }
+        }
       } else {
-	// file path
-	eos::common::Path cPath(token.path().c_str());
-	if (gOFS->_stat( token.path().c_str(), &buf, error, mVid, "", 0, false, 0)) {
-	  // file does not exist
-	  if (gOFS->_stat( cPath.GetParentPath(), &buf, error, mVid, "", 0, false, 0)) {
-	    // parent does not exist
-	    reply.set_retc(ENOENT);
-	    reply.set_std_err("error: neither the given path nor the parent path exists!");
-	    return reply;
-	  } else {
-	    if (buf.st_uid != mVid.uid) {
-	      // owner error
-	      reply.set_retc(EACCES);
-	      reply.set_std_err("error: you are not the owner of the parent path given in your request and you are not a sudoer or root!");
-	      return reply;
-	    }
-	  }
-	} else {
-	  if (buf.st_uid != mVid.uid) {
-	    // owner error
-	    reply.set_retc(EACCES);
-	    reply.set_std_err("error: you are not the owner of the path given in your request and you are not a sudoer or root!");
-	    return reply;
-	  }
-	}
+        // file path
+        eos::common::Path cPath(token.path().c_str());
+
+        if (gOFS->_stat(token.path().c_str(), &buf, error, mVid, "", 0, false, 0)) {
+          // file does not exist
+          if (gOFS->_stat(cPath.GetParentPath(), &buf, error, mVid, "", 0, false, 0)) {
+            // parent does not exist
+            reply.set_retc(ENOENT);
+            reply.set_std_err("error: neither the given path nor the parent path exists!");
+            return reply;
+          } else {
+            if (buf.st_uid != mVid.uid) {
+              // owner error
+              reply.set_retc(EACCES);
+              reply.set_std_err("error: you are not the owner of the parent path given in your request and you are not a sudoer or root!");
+              return reply;
+            }
+          }
+        } else {
+          if (buf.st_uid != mVid.uid) {
+            // owner error
+            reply.set_retc(EACCES);
+            reply.set_std_err("error: you are not the owner of the path given in your request and you are not a sudoer or root!");
+            return reply;
+          }
+        }
       }
     }
   }
 
   eos::common::EosTok eostoken;
-
   eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
-  std::string key=symkey?symkey->GetKey64():"0123456789defaultkey";
+  std::string key = symkey ? symkey->GetKey64() : "0123456789defaultkey";
 
   if (token.vtoken().empty()) {
     if (token.permission().find(":") != std::string::npos) {
@@ -136,7 +135,7 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
       reply.set_std_err("error: illegal permission requested");
       return reply;
     }
-    
+
     // create a token
     eostoken.SetPath(token.path(), token.allowtree());
     eostoken.SetPermission(token.permission());
@@ -145,19 +144,33 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
     eostoken.SetGroup(token.group());
     eostoken.SetGeneration(eos::common::EosTok::sTokenGeneration);
     eostoken.SetRequester(mVid.getTrace());
-    for ( int i = 0; i < token.origins_size(); ++i ) {
+
+    for (int i = 0; i < token.origins_size(); ++i) {
       const eos::console::TokenAuth& auth = token.origins(i);
       eostoken.AddOrigin(auth.host(), auth.name(), auth.prot());
     }
-    
-    outStream << eostoken.Write(key) ;
+
+    if (eostoken.VerifyOrigin(vid.host, vid.uid_string,
+                              std::string(vid.prot.c_str())) == -EBADE) {
+      errStream << "error: one or several origin regexp's are invalid" << std::endl;
+      ret_c = -EBADE;
+    } else {
+      outStream << eostoken.Write(key) ;
+    }
   } else {
-    if (!(ret_c = eostoken.Read(token.vtoken(),key, eos::common::EosTok::sTokenGeneration.load(), true))) {
+    if (!(ret_c = eostoken.Read(token.vtoken(), key,
+                                eos::common::EosTok::sTokenGeneration.load(), true))) {
       std::string dump;
       eostoken.Dump(dump);
       outStream << dump;
     } else {
       errStream << "error: cannot read token" << std::endl;
+    }
+
+    if (eostoken.VerifyOrigin(vid.host, vid.uid_string,
+                              std::string(vid.prot.c_str())) == -EBADE) {
+      errStream << "error: one or several origin regexp's are invalid" << std::endl;
+      ret_c = -EBADE;
     }
   }
 

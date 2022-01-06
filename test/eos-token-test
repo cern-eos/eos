@@ -27,6 +27,10 @@ eos space config default space.token.generation=0
 eos token --path $prefix/t_token/file.1 --expires $later && exit -1
 eos space config default space.token.generation=1
 ###############################################################################################
+# test origin regexp test
+eos token --path $prefix/t_token/file.1 --expires $later --origin \*:\*:\* && exit -1
+eos token --path $prefix/t_token/file.1 --expires $later --origin \.*:\.*:\.* || exit -1
+###############################################################################################
 # single file token - test 1
 FILETOKEN=`eos token --path $prefix/t_token/file.1 --expires $later`
 # fail because of read-only permission

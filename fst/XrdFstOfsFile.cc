@@ -1550,12 +1550,17 @@ XrdFstOfsFile::_close()
                   capOpaqueFile += "&mgm.commit.checksum=1";
                 }
               } else {
-                if (mCheckSum) {
-                  // if we computed a checksum, we verify it
+                bool issinglewriter = (gOFS.openedForWriting.getUseCount(mFmd->mProtoFmd.fsid(),
+                                       mFmd->mProtoFmd.fid()) <= 1);
+
+                if (issinglewriter && mCheckSum) {
+                  // if we computed a checksum, we verify it IF there is only a single writer, if there are several writers we have a significant inconsistency window during commit between replicas
                   capOpaqueFile += "&mgm.replication=1&mgm.verify.checksum=1";
                 } else {
-                  // if we didn't compute a checksum, we disable checksum verification
-                  capOpaqueFile += "&mgm.replication=1&mgm.verify.checksum=0";
+                  if (issinglewriter) {
+                    // if we didn't compute a checksum, we disable checksum verification and we only indicate replication if therei is only one active writer
+                    capOpaqueFile += "&mgm.replication=1&mgm.verify.checksum=0";
+                  }
                 }
               }
             }

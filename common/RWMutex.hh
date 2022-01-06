@@ -60,6 +60,7 @@
 #include <atomic>
 #include <chrono>
 #include <map>
+#include <string>
 #ifdef EOS_INSTRUMENTED_RWMUTEX
 #include <vector>
 #include <ostream>
@@ -233,6 +234,14 @@ public:
   //! @param out output string
   //----------------------------------------------------------------------------
   static void PrintMutexOps(std::ostringstream& oss);
+
+  //----------------------------------------------------------------------------
+  //! Get the name
+  //----------------------------------------------------------------------------
+  std::string getName() const
+  {
+    return mName;
+  }
 
 
 #ifdef EOS_INSTRUMENTED_RWMUTEX
@@ -438,11 +447,11 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Set the debug name
+  //! Set the name
   //----------------------------------------------------------------------------
   inline void SetDebugName(const std::string& name)
   {
-    mDebugName = name;
+    mName = name;
     std::unique_lock<std::mutex> lock(sOpMutex);
     sMtxNameMap[(uint64_t) GetRawPtr()] = name;
   }
@@ -535,8 +544,10 @@ private:
   int64_t mBlockedForInterval; // interval in ms after which we might stacktrace a long-lasted mutex
   bool mBlockedStackTracing; // en-disable stacktracing long-lasted mutexes
 
+  std::string mName;
+
 #ifdef EOS_INSTRUMENTED_RWMUTEX
-  std::string mDebugName;
+
   int mCounter;
   int mSamplingModulo;
   std::atomic<bool> mEnableTiming, mEnableSampling;

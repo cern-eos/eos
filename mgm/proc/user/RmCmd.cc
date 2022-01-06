@@ -37,6 +37,7 @@ EOSMGMNAMESPACE_BEGIN
 eos::console::ReplyProto
 eos::mgm::RmCmd::ProcessRequest() noexcept
 {
+  ACCESSMODE_W;
   eos::console::ReplyProto reply;
   std::ostringstream outStream;
   std::ostringstream errStream;
@@ -90,7 +91,6 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
   eos::mgm::NamespaceMap(spath, nullptr, mVid);
   std::string err_check;
   int errno_check = 0;
-
   const char* path = spath.c_str();
   PROC_MVID_TOKEN_SCOPE;
 
@@ -244,6 +244,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
 
           for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {
             int rpos = 0;
+            RECURSIVE_STALL("Rm", mVid);
 
             if ((rpos = rfoundit->first.find("/.sys.v#.")) == STR_NPOS) {
               for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end();
@@ -272,6 +273,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
 
           // Delete directories in simulation mode
           for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {
+            RECURSIVE_STALL("RmDir", mVid);
             // don't even try to delete the root directory
             std::string fspath = rfoundit->first;
 

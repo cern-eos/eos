@@ -34,17 +34,20 @@
 #include "common/Namespace.hh"
 #include <memory>
 #include <atomic>
-namespace  eos {
-  namespace console {
-    class TokenEnclosure;
-  }
+namespace  eos
+{
+namespace console
+{
+class TokenEnclosure;
+}
 }
 
 EOSCOMMONNAMESPACE_BEGIN
 
 
 
-class EosTok : public Token {
+class EosTok : public Token
+{
 public:
 
   EosTok();
@@ -53,14 +56,16 @@ public:
   virtual ~EosTok();
 
   virtual std::string Write(const std::string& key);
-  virtual int Read(const std::string& input, const std::string& key, uint64_t generation, bool ignoreerror=false);
+  virtual int Read(const std::string& input, const std::string& key,
+                   uint64_t generation, bool ignoreerror = false);
 
   virtual int Reset();
   virtual int Serialize();
   virtual int Deserialize();
   virtual int Sign(const std::string& key);
   virtual int Verify(const std::string& key);
-  virtual int Dump(std::string& dump, bool filtersec = false, bool oneline = false);
+  virtual int Dump(std::string& dump, bool filtersec = false,
+                   bool oneline = false);
   virtual int SetPath(const std::string& path, bool subtree);
   virtual int SetPermission(const std::string& perm);
   virtual int SetOwner(const std::string& owner);
@@ -68,10 +73,12 @@ public:
   virtual int SetExpires(time_t expires);
   virtual int SetGeneration(uint64_t generation);
   virtual int SetRequester(const std::string& requester);
-  virtual int AddOrigin(const std::string& host, const std::string& name, const std::string& prot);
-  virtual int VerifyOrigin(const std::string& host, const std::string& name, const std::string& prot);
+  virtual int AddOrigin(const std::string& host, const std::string& name,
+                        const std::string& prot);
+  virtual int VerifyOrigin(const std::string& host, const std::string& name,
+                           const std::string& prot);
   virtual int ValidatePath(const std::string& path) const;
-  virtual bool Valid() const; 
+  virtual bool Valid() const;
   virtual std::string Owner() const;
   virtual std::string Group() const;
   virtual std::string Permission() const;
@@ -80,12 +87,13 @@ public:
   virtual std::string Requester() const;
   virtual int Generation() const;
 
-  static std::atomic<uint64_t> sTokenGeneration; ///< generation value for token issuing/verification 
+  static std::atomic<uint64_t>
+  sTokenGeneration; ///< generation value for token issuing/verification
 
   static bool isEosToken(const char* pathcgi);
 private:
 
-  bool Match(const std::string& input, const std::string& match);
+  int Match(const std::string& input, const std::string& match);
   std::shared_ptr<eos::console::TokenEnclosure> share;
   bool valid;
 };

@@ -2645,6 +2645,12 @@ Server::OpDeleteDirectory(const std::string& id,
       throw_mdexception(ENOENT, "No such directory : " << md.md_ino());
     }
 
+    if (cmd->getName() != md.name()) {
+      // directory was removed or renamed before deletion
+      throw_mdexception(ENOENT,
+                        "No such directory : " << md.name() << " (" << cmd->getName() << " )");
+    }
+
     pcmd->setMTime(mtime);
 
     // check if this directory is empty
@@ -2741,6 +2747,12 @@ Server::OpDeleteFile(const std::string& id,
     if (!fmd) {
       // file does not exist
       throw_mdexception(ENOENT, "No such file : " << md.md_ino());
+    }
+
+    if (fmd->getName() != md.name()) {
+      // file was removed or renamed before deletion
+      throw_mdexception(ENOENT,
+                        "No such file : " << md.name() << " (" << fmd->getName() << " )");
     }
 
     pcmd->setMTime(mtime);
@@ -2929,6 +2941,12 @@ Server::OpDeleteLink(const std::string& id,
     if (!fmd) {
       // no link
       throw_mdexception(ENOENT, "No such link : " << md.md_ino());
+    }
+
+    if (fmd->getName() != md.name()) {
+      // link was removed or renamed before deletion
+      throw_mdexception(ENOENT,
+                        "No such link : " << md.name() << " (" << fmd->getName() << " )");
     }
 
     pcmd->setMTime(mtime);

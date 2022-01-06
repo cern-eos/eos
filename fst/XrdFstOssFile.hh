@@ -178,6 +178,8 @@ private:
   bool mIsRW; ///< mark if opened for rw operations
   XrdSysRWLock* mRWLockXs; ///< rw lock for the block xs
   CheckSum* mBlockXs; ///< block xs object
+  int fdDirect; ///< fd for direct IO
+
 #ifdef IN_TEST_HARNESS
 public:
 #endif

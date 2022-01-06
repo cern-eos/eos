@@ -32,6 +32,9 @@ static constexpr auto TAPE_FS_ID = 65535u;
 static constexpr auto RETRIEVE_REQID_ATTR_NAME = "sys.retrieve.req_id";
 //! Last time the Prepare request was actioned
 static constexpr auto RETRIEVE_REQTIME_ATTR_NAME = "sys.retrieve.req_time";
+//! Counter for multiple staging requests on same file
+static constexpr auto RETRIEVE_EVICT_COUNTER_NAME =
+  "sys.retrieve.evict_counter";
 //! Prepare request failure reason
 static constexpr auto RETRIEVE_ERROR_ATTR_NAME = "sys.retrieve.error";
 //! Archive request failure reason

@@ -79,7 +79,7 @@ XrdMgmOfs::_rem(const char* path,
                 bool no_recycling,
                 bool no_quota_enforcement,
                 bool fusexcast,
-		bool no_workflow)
+                bool no_workflow)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief delete a file from the namespace
@@ -133,7 +133,9 @@ XrdMgmOfs::_rem(const char* path,
   }
 
   // ---------------------------------------------------------------------------
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+  eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
+                                     __FILE__);
   // free the booked quota
   std::shared_ptr<eos::IFileMD> fmd;
   std::shared_ptr<eos::IContainerMD> container;
@@ -243,6 +245,7 @@ XrdMgmOfs::_rem(const char* path,
           // add the recycle attribute to enable recycling funcionality
           attrmap[Recycle::gRecyclingAttribute] = Recycle::gRecyclingPrefix;
         }
+
         doRecycle = true;
       } else {
         // ---------------------------------------------------------------------
@@ -267,69 +270,66 @@ XrdMgmOfs::_rem(const char* path,
 
   if (!doRecycle) {
     try {
-
       if (!simulate) {
         eos_info("unlinking from view %s", path);
 
-	if (!no_workflow) {
-	  Workflow workflow;
-	  // eventually trigger a workflow
-	  workflow.Init(&attrmap, path, fid);
-	  errno = 0;
-	  lock.Release();
-	  auto ret_wfe = workflow.Trigger("sync::delete", "default", vid, ininfo, errMsg);
+        if (!no_workflow) {
+          Workflow workflow;
+          // eventually trigger a workflow
+          workflow.Init(&attrmap, path, fid);
+          errno = 0;
+          lock.Release();
+          auto ret_wfe = workflow.Trigger("sync::delete", "default", vid, ininfo, errMsg);
 
-	  if (ret_wfe < 0 && errno == ENOKEY) {
-	    eos_info("msg=\"no workflow defined for delete\"");
-	  } else {
-	    eos_info("msg=\"workflow trigger returned\" retc=%d errno=%d", ret_wfe, errno);
-	  }
+          if (ret_wfe < 0 && errno == ENOKEY) {
+            eos_info("msg=\"no workflow defined for delete\"");
+          } else {
+            eos_info("msg=\"workflow trigger returned\" retc=%d errno=%d", ret_wfe, errno);
+          }
 
-	  lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+          lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
 
-	  if (ret_wfe && errno != ENOKEY) {
-	    eos::MDException e(errno);
-	    e.getMessage() << "Deletion workflow failed";
-	    throw e;
-	  }
-	}
+          if (ret_wfe && errno != ENOKEY) {
+            eos::MDException e(errno);
+            e.getMessage() << "Deletion workflow failed";
+            throw e;
+          }
+        }
 
         /* create a Copy-on-Write clone if needed */
         XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowDelete, container, fmd, vid, error);
 
         if (!XrdMgmOfsFile::handleHardlinkDelete(container, fmd, vid)) {
-            gOFS->eosView->unlinkFile(path);
-            // Reload file object that was modifed in the unlinkFile method
-            // TODO: this can be dropped if you use the unlinkFile which takes
-            // as argument the IFileMD object
-            fmd = gOFS->eosFileService->getFileMD(fmd->getId());
+          gOFS->eosView->unlinkFile(path);
+          // Reload file object that was modifed in the unlinkFile method
+          // TODO: this can be dropped if you use the unlinkFile which takes
+          // as argument the IFileMD object
+          fmd = gOFS->eosFileService->getFileMD(fmd->getId());
 
-            // Drop the TAPE_FS_ID which otherwise would prevent the
-            // file metadata cleanup
-            if (fmd->hasUnlinkedLocation(eos::common::TAPE_FS_ID)) {
-              fmd->removeLocation(eos::common::TAPE_FS_ID);
-            }
+          // Drop the TAPE_FS_ID which otherwise would prevent the
+          // file metadata cleanup
+          if (fmd->hasUnlinkedLocation(eos::common::TAPE_FS_ID)) {
+            fmd->removeLocation(eos::common::TAPE_FS_ID);
+          }
 
-            if ((!fmd->getNumUnlinkedLocation()) && (!fmd->getNumLocation())) {
-              gOFS->eosView->removeFile(fmd.get());
-            }
+          if ((!fmd->getNumUnlinkedLocation()) && (!fmd->getNumLocation())) {
+            gOFS->eosView->removeFile(fmd.get());
+          }
 
-            gOFS->WriteRmRecord(fmd);
+          gOFS->WriteRmRecord(fmd);
 
-            if (container) {
-              container->setMTimeNow();
-              container->notifyMTimeChange(gOFS->eosDirectoryService);
-              eosView->updateContainerStore(container.get());
-
-	      std::string deletion_name = fmd->getName();
-	      eos::ContainerIdentifier c_ident = container->getIdentifier();
-	      eos::ContainerIdentifier p_ident = container->getParentIdentifier();
-	      lock.Release();
-
-              gOFS->FuseXCastContainer(c_ident);
-              gOFS->FuseXCastDeletion(c_ident, deletion_name);
-              gOFS->FuseXCastRefresh(c_ident, p_ident);
-            }
+          if (container) {
+            container->setMTimeNow();
+            container->notifyMTimeChange(gOFS->eosDirectoryService);
+            eosView->updateContainerStore(container.get());
+            std::string deletion_name = fmd->getName();
+            eos::ContainerIdentifier c_ident = container->getIdentifier();
+            eos::ContainerIdentifier p_ident = container->getParentIdentifier();
+            lock.Release();
+            gOFS->FuseXCastContainer(c_ident);
+            gOFS->FuseXCastDeletion(c_ident, deletion_name);
+            gOFS->FuseXCastRefresh(c_ident, p_ident);
+          }
         }
       }
 
@@ -369,10 +369,13 @@ XrdMgmOfs::_rem(const char* path,
           return rc;
         } else {
           if (container) {
-              if (XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowUnlink, container, fmd, vid, error) > -1)
-                  eos_info("create_cow for recycled %s (fxid:%lx)", fmd->getName().c_str(), fmd->getId());
+            if (XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowUnlink, container, fmd, vid,
+                                          error) > -1) {
+              eos_info("create_cow for recycled %s (fxid:%lx)", fmd->getName().c_str(),
+                       fmd->getId());
+            }
           }
-          
+
           recyclePath = error.getErrText();
           gOFS->WriteRecycleRecord(fmd);
         }
