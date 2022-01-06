@@ -16,6 +16,28 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.0.8 Diopside``
+===================
+
+2022-01-06
+
+Note
+----
+
+* Note: This release includes all the changes to the 4.8.70 release
+
+Bug
+----
+
+* [EOS-5039] - Threads with parens in their name cannot access EOS
+
+Improvement
+-----------
+
+* [EOS-5029] - Allow to apply rate limiting in recursive (server side) command.
+* [EOS-5048] - Support direct IO for high performance read/write use cases
+
+
 ``v5.0.7 Diopside``
 ===================
 
