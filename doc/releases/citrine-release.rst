@@ -16,6 +16,27 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.70 Citrine``
+===================
+
+2022-01-06
+
+Bug
+----
+
+* [EOS-5033] - missing drainperiod from `eos -j fs ls`
+* [EOS-5034] - eos-server missing dependency on perl(Time::HiRes)
+* [EOS-5052] - Repeated open/close sequence leads to failed file state
+* [EOS-5039] - Threads with parens in their name cannot access EOS
+
+Improvement
+-----------
+
+* [EOS-5027] - Handle eviction for multiple staging requests on the same file
+* [EOS-5029] - Allow to apply rate limiting in recursive (server side) command
+* [EOS-5048] - Support direct IO for high performance read/write use cases
+
+
 ``v4.8.69 Citrine``
 ===================
 
