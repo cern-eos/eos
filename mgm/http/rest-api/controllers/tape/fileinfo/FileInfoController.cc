@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: CancelStageRequestModelBuilder.hh
+// File: FileInfoController.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,25 +21,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "CancelStageRequestModelBuilder.hh"
+#include "FileInfoController.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-std::unique_ptr<CancelStageBulkRequestModel> CancelStageRequestModelBuilder::buildFromJson(const std::string& json) const {
-  std::unique_ptr<CancelStageBulkRequestModel> cancelStageBulkRequestModel(new CancelStageBulkRequestModel());
-  Json::Value root;
-  parseJson(json, root);
-  Json::Value paths = root[CancelStageBulkRequestModel::PATHS_KEY_NAME];
-  checkFieldNotNull(paths,CancelStageBulkRequestModel::PATHS_KEY_NAME);
-  checkIsNotAnEmptyArray(paths,CancelStageBulkRequestModel::PATHS_KEY_NAME);
-  for(auto path = paths.begin(); path != paths.end(); path++){
-    std::ostringstream oss;
-    oss << "The " << CancelStageBulkRequestModel::PATHS_KEY_NAME << " object should contain only strings";
-    checkIsString(*path,oss.str());
-    cancelStageBulkRequestModel->addFile(path->asString());
-    //TODO in the future: metadata
-  }
-  return std::move(cancelStageBulkRequestModel);
+FileInfoController::FileInfoController(const std::string & accessURL):Controller(accessURL){}
+
+common::HttpResponse * FileInfoController::handleRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) {
+  return mControllerActionDispatcher.getAction(request)->run(request,vid);
 }
 
 EOSMGMRESTNAMESPACE_END
