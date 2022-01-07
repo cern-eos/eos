@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: TapeRestApiV1ResponseFactory.hh
+// File: GetStageBulkRequestJsonifier.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,24 +21,22 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_TAPERESTAPIV1RESPONSEFACTORY_HH
-#define EOS_TAPERESTAPIV1RESPONSEFACTORY_HH
-
-#include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/response/tape/factories/TapeRestApiResponseFactory.hh"
-#include "mgm/http/rest-api/model/tape/stage/CreatedStageBulkRequestResponseModel.hh"
-#include "mgm/bulk-request/response/QueryPrepareResponse.hh"
-#include <memory>
+#include "GetStageBulkRequestJsonifier.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class TapeRestApiV1ResponseFactory : public TapeRestApiResponseFactory {
-public:
-  TapeRestApiV1ResponseFactory();
-  RestApiResponse createCreatedStageRequestResponse(std::shared_ptr<CreatedStageBulkRequestResponseModel> model) const;
-  RestApiResponse createGetStageBulkRequestResponse(std::shared_ptr<bulk::QueryPrepareResponse> getStageBulkRequestResponseModel) const;
-};
+void GetStageBulkRequestJsonifier::jsonify(const GetStageBulkRequestResponseModel* obj, std::stringstream& ss) {
+  Json::Value root;
+  root = Json::Value(Json::arrayValue);
+  for(auto response: obj->getQueryPrepareResponse()->responses) {
+    Json::Value fileObj;
+    fileObj["path"] = response.path;
+    fileObj["error"] = response.error_text;
+    fileObj["onDisk"] = response.is_online;
+    fileObj["onTape"] = response.is_on_tape;
+    root.append(fileObj);
+  }
+  ss << root;
+}
 
 EOSMGMRESTNAMESPACE_END
-
-#endif // EOS_TAPERESTAPIV1RESPONSEFACTORY_HH

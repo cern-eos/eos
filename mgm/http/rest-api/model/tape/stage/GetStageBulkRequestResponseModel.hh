@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: TapeRestApiV1JsonObject.hh
+// File: GetStageBulkRequestResponseModel.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,52 +20,24 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-#ifndef EOS_TAPERESTAPIV1JSONOBJECT_HH
-#define EOS_TAPERESTAPIV1JSONOBJECT_HH
+
+#ifndef EOS_GETSTAGEBULKREQUESTRESPONSEMODEL_HH
+#define EOS_GETSTAGEBULKREQUESTRESPONSEMODEL_HH
 
 #include "mgm/Namespace.hh"
-#include "TapeRestApiJsonObject.hh"
-#include "mgm/http/rest-api/model/tape/stage/CreatedStageBulkRequestResponseModel.hh"
+#include "common/json/Jsonifiable.hh"
 #include "mgm/bulk-request/response/QueryPrepareResponse.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-template<typename Obj>
-class TapeRestApiV1JsonObject : public TapeRestApiJsonObject<Obj>{
+class GetStageBulkRequestResponseModel : public common::Jsonifiable<GetStageBulkRequestResponseModel> {
 public:
-  template<class... Args>
-  TapeRestApiV1JsonObject(Args... args):TapeRestApiJsonObject<Obj>(args...){}
-  virtual void jsonify(std::stringstream & ss) {
-    TapeRestApiJsonObject<Obj>::jsonify(ss); };
+  GetStageBulkRequestResponseModel(std::shared_ptr<bulk::QueryPrepareResponse> queryPrepareResponse):mQueryPrepareResponse(queryPrepareResponse){}
+  std::shared_ptr<bulk::QueryPrepareResponse> getQueryPrepareResponse() const;
+private:
+  std::shared_ptr<bulk::QueryPrepareResponse> mQueryPrepareResponse;
 };
-
-template<>
-inline void
-TapeRestApiV1JsonObject<CreatedStageBulkRequestResponseModel>::jsonify(std::stringstream& ss) {
-  Json::Value root;
-  root["accessURL"] = mObject->getAccessURL();
-  /*Json::Reader reader;
-  reader.parse(mObject->getJsonRequest(),root["request"]);
-   */
-  ss << root;
-}
-
-template<>
-inline void
-TapeRestApiV1JsonObject<bulk::QueryPrepareResponse>::jsonify(std::stringstream& ss) {
-  Json::Value root;
-  root = Json::Value(Json::arrayValue);
-  for(auto response: mObject->responses) {
-    Json::Value fileObj;
-    fileObj["path"] = response.path;
-    fileObj["error"] = response.error_text;
-    fileObj["onDisk"] = response.is_online;
-    fileObj["onTape"] = response.is_on_tape;
-    root.append(fileObj);
-  }
-  ss << root;
-}
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_TAPERESTAPIV1JSONOBJECT_HH
+#endif // EOS_GETSTAGEBULKREQUESTRESPONSEMODEL_HH

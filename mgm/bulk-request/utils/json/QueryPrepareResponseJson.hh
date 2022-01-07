@@ -21,30 +21,36 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_BULKJSONCPPOBJECT_HH
-#define EOS_BULKJSONCPPOBJECT_HH
+#ifndef EOS_QUERYPREPARERESPONSEJSON_HH
+#define EOS_QUERYPREPARERESPONSEJSON_HH
 
 #include "mgm/Namespace.hh"
-#include "common/json/JsonCppObject.hh"
+#include "common/json/JsonCppJsonifier.hh"
 #include "mgm/bulk-request/response/QueryPrepareResponse.hh"
 
 EOSBULKNAMESPACE_BEGIN
 
-template<typename Obj>
-class BulkJsonCppObject : public common::JsonCppObject<Obj> {
+class QueryPrepareResponseJson : public common::JsonCppJsonifier<QueryPrepareResponse> {
 public:
-  template<class... Args>
-  BulkJsonCppObject(Args... args):common::JsonCppObject<Obj>(args...){}
-  virtual void jsonify(std::stringstream & ss) override { common::JsonCppObject<Obj>::jsonify(ss); }
-protected:
-  template<typename SubObj>
-  void jsonify(const SubObj & subObject, Json::Value & value) {}
+  virtual void jsonify(const QueryPrepareResponse * obj, std::stringstream & ss) override;
+private:
+  void jsonify(const QueryPrepareFileResponse & fileResponse,Json::Value & value);
 };
 
-template<>
-template<>
-inline void
-BulkJsonCppObject<QueryPrepareResponse>::jsonify(const QueryPrepareFileResponse& fileResponse, Json::Value& value) {
+
+void QueryPrepareResponseJson::jsonify(const QueryPrepareResponse * obj,std::stringstream &ss) {
+  Json::Value root;
+  root["request_id"] = obj->request_id;
+  root["responses"] = Json::arrayValue;
+  for(const auto & fileResponse: obj->responses){
+    Json::Value response;
+    jsonify(fileResponse,response);
+    root["responses"].append(response);
+  }
+  ss << root;
+}
+
+void QueryPrepareResponseJson::jsonify(const QueryPrepareFileResponse & fileResponse, Json::Value& value) {
   value["path"] = fileResponse.path;
   value["path_exists"] = fileResponse.is_exists;
   value["on_tape"] = fileResponse.is_on_tape;
@@ -55,22 +61,7 @@ BulkJsonCppObject<QueryPrepareResponse>::jsonify(const QueryPrepareFileResponse&
   value["error_text"] = fileResponse.error_text;
 }
 
-template<>
-inline void
-BulkJsonCppObject<QueryPrepareResponse>::jsonify(std::stringstream &ss) {
-  Json::Value root;
-  root["request_id"] = mObject->request_id;
-  root["responses"] = Json::arrayValue;
-  for(const auto & fileResponse: mObject->responses){
-    Json::Value response;
-    jsonify(fileResponse,response);
-    root["responses"].append(response);
-  }
-  ss << root;
-}
-
-
 
 EOSBULKNAMESPACE_END
 
-#endif // EOS_BULKJSONCPPOBJECT_HH
+#endif // EOS_QUERYPREPARERESPONSEJSON_HH

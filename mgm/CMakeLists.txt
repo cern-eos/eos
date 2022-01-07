@@ -273,15 +273,17 @@ add_library(
   http/rest-api/exception/MethodNotAllowedException.cc
   http/rest-api/exception/InvalidRestURLException.cc
   http/rest-api/model/tape/common/FilesContainer.cc
-  http/rest-api/model/tape/ErrorModel.cc
+  http/rest-api/model/tape/common/ErrorModel.cc
   http/rest-api/model/tape/stage/CancelStageBulkRequestModel.cc
   http/rest-api/model/tape/stage/CreateStageBulkRequestModel.cc
   http/rest-api/model/tape/stage/CreatedStageBulkRequestResponseModel.cc
+  http/rest-api/model/tape/stage/GetStageBulkRequestResponseModel.cc
   http/rest-api/json/tape/model-builders/CreateStageRequestModelBuilder.cc
   http/rest-api/json/tape/model-builders/CancelStageRequestModelBuilder.cc
-  http/rest-api/response/RestApiResponse.cc
+  http/rest-api/json/tape/jsonifiers/stage/CreatedStageBulkRequestJsonifier.cc
+        http/rest-api/json/tape/jsonifiers/stage/GetStageBulkRequestJsonifier.cc
+        http/rest-api/json/tape/jsonifiers/common/ErrorModelJsonifier.cc
   http/rest-api/response/tape/factories/TapeRestApiResponseFactory.cc
-  http/rest-api/response/tape/factories/v1/TapeRestApiV1ResponseFactory.cc
   http/rest-api/utils/URLParser.cc
   http/rest-api/utils/URLBuilder.cc
   geotree/SchedulingTreeTest.cc

@@ -28,6 +28,7 @@
 #include "common/http/HttpRequest.hh"
 #include "common/http/HttpResponse.hh"
 #include "common/http/HttpHandler.hh"
+#include "common/json/Jsonifier.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 

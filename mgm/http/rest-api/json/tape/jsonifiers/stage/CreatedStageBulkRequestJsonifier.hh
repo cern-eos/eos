@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: CancelStageBulkRequest.hh
+// File: CreatedStageBulkRequestJsonifier.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,26 +20,23 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-#ifndef EOS_CANCELSTAGEBULKREQUEST_HH
-#define EOS_CANCELSTAGEBULKREQUEST_HH
+#ifndef EOS_CREATEDSTAGEBULKREQUESTJSONIFIER_HH
+#define EOS_CREATEDSTAGEBULKREQUESTJSONIFIER_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/action/tape/TapeAction.hh"
-#include "mgm/http/rest-api/json/ModelBuilder.hh"
-#include "mgm/http/rest-api/model/tape/stage/CancelStageBulkRequestModel.hh"
-#include "mgm/http/rest-api/business/tape/TapeRestApiBusiness.hh"
+#include "common/json/JsonCppJsonifier.hh"
+#include "mgm/http/rest-api/json/tape/TapeRestApiJsonifier.hh"
+#include "mgm/http/rest-api/model/tape/stage/CreatedStageBulkRequestResponseModel.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class CancelStageBulkRequest : public TapeAction {
+class CreatedStageBulkRequestJsonifier
+    : public TapeRestApiJsonifier<CreatedStageBulkRequestResponseModel>, public common::JsonCppJsonifier<CreatedStageBulkRequestResponseModel> {
 public:
-  CancelStageBulkRequest(const std::string & accessURL,const common::HttpHandler::Methods method,std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness,std::shared_ptr<ModelBuilder<CancelStageBulkRequestModel>> inputJsonModelBuilder):
-    TapeAction(accessURL,method,tapeRestApiBusiness),mInputJsonModelBuilder(inputJsonModelBuilder){}
-  common::HttpResponse * run(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
-private:
-  std::shared_ptr<ModelBuilder<CancelStageBulkRequestModel>> mInputJsonModelBuilder;
+  void jsonify(const CreatedStageBulkRequestResponseModel * obj, std::stringstream & ss) override;
 };
 
-EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_CANCELSTAGEBULKREQUEST_HH
+
+EOSMGMRESTNAMESPACE_END
+#endif // EOS_CREATEDSTAGEBULKREQUESTJSONIFIER_HH

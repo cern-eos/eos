@@ -28,10 +28,11 @@
 #include <cstdint>
 #include <string>
 #include "mgm/bulk-request/BulkRequest.hh"
+#include "common/json/Jsonifiable.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class CreatedStageBulkRequestResponseModel {
+class CreatedStageBulkRequestResponseModel : public common::Jsonifiable<CreatedStageBulkRequestResponseModel> {
 public:
   CreatedStageBulkRequestResponseModel(/*const std::string & jsonFromClient, */const std::string & accessURL);
   const std::string & getAccessURL() const;

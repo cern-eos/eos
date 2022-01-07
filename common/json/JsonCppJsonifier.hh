@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: TapeRestApiV1ResponseFactory.cc
+// File: JsonCppJsonifier.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,17 +21,33 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "TapeRestApiV1ResponseFactory.hh"
-#include "mgm/http/rest-api/json/tape/TapeRestApiV1JsonObject.hh"
-EOSMGMRESTNAMESPACE_BEGIN
+#ifndef EOS_JSONCPPJSONIFIER_HH
+#define EOS_JSONCPPJSONIFIER_HH
 
-TapeRestApiV1ResponseFactory::TapeRestApiV1ResponseFactory(): TapeRestApiResponseFactory(){}
+#include "common/Namespace.hh"
+#include "common/json/Jsonifier.hh"
+#include <sstream>
+#include <memory>
+#include <json/json.h>
 
-RestApiResponse TapeRestApiV1ResponseFactory::createCreatedStageRequestResponse(std::shared_ptr<CreatedStageBulkRequestResponseModel> model) const {
-  return RestApiResponse(std::make_shared<TapeRestApiV1JsonObject<CreatedStageBulkRequestResponseModel>>(model),common::HttpResponse::ResponseCodes::CREATED);
-}
+EOSCOMMONNAMESPACE_BEGIN
 
-RestApiResponse TapeRestApiV1ResponseFactory::createGetStageBulkRequestResponse(std::shared_ptr<bulk::QueryPrepareResponse> model) const {
-  return RestApiResponse(std::make_shared<TapeRestApiV1JsonObject<bulk::QueryPrepareResponse>>(model),common::HttpResponse::ResponseCodes::OK);
-}
-EOSMGMRESTNAMESPACE_END
+/**
+ * Inherit this interface in order to implement
+ * the way to generate the json representation of any object using the JsonCPP library
+ * @tparam Obj the Object you want to generate the json representation from
+ */
+template <typename Obj>
+class JsonCppJsonifier : public virtual common::Jsonifier<Obj> {
+public:
+  /**
+   * Implement this method to generate the json representation of any object
+   * @param object the object from which you want the json representation
+   * @param ss the stream where this json representation will be pushed to
+   */
+  virtual void jsonify(const Obj * obj, std::stringstream & oss) = 0;
+};
+
+EOSCOMMONNAMESPACE_END
+
+#endif // EOS_JSONCPPJSONIFIER_HH

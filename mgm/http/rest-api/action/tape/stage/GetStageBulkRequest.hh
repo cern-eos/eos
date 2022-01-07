@@ -25,16 +25,18 @@
 
 #include "mgm/http/rest-api/action/tape/TapeAction.hh"
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/response/tape/factories/v1/TapeRestApiV1ResponseFactory.hh"
+#include "mgm/http/rest-api/json/tape/TapeRestApiJsonifier.hh"
+#include "mgm/http/rest-api/model/tape/stage/GetStageBulkRequestResponseModel.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
 class GetStageBulkRequest : public TapeAction {
 public:
-  GetStageBulkRequest(const std::string & accessURL,const common::HttpHandler::Methods method,std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness): TapeAction(accessURL,method,tapeRestApiBusiness){}
+  GetStageBulkRequest(const std::string & accessURL,const common::HttpHandler::Methods method,std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness,std::shared_ptr<TapeRestApiJsonifier<GetStageBulkRequestResponseModel>>outputObjectJsonifier):
+       TapeAction(accessURL,method,tapeRestApiBusiness), mOutputObjectJsonifier(outputObjectJsonifier){}
   common::HttpResponse * run(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
 private:
-  static TapeRestApiV1ResponseFactory mResponseFactory;
+  std::shared_ptr<TapeRestApiJsonifier<GetStageBulkRequestResponseModel>>  mOutputObjectJsonifier;
 };
 
 EOSMGMRESTNAMESPACE_END

@@ -34,8 +34,6 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-TapeRestApiV1ResponseFactory CancelStageBulkRequest::mResponseFactory;
-
 common::HttpResponse* CancelStageBulkRequest::run(common::HttpRequest* request, const common::VirtualIdentity* vid) {
   URLParser parser(request->GetUrl());
   std::map<std::string,std::string> requestParameters;

@@ -36,6 +36,7 @@ EOSMGMRESTNAMESPACE_BEGIN
  */
 class CreateStageBulkRequestModel {
 public:
+  CreateStageBulkRequestModel(){}
   void addFile(const std::string & path, const std::string & opaqueInfos);
   const FilesContainer & getFiles() const;
   inline static const std::string PATHS_KEY_NAME = "paths";

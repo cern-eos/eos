@@ -22,32 +22,37 @@
  ************************************************************************/
 
 #include "TapeRestApiResponseFactory.hh"
-#include "mgm/http/rest-api/json/tape/TapeRestApiJsonObject.hh"
+#include "mgm/http/rest-api/json/tape/TapeRestApiJsonifier.hh"
+#include "mgm/http/rest-api/json/tape/jsonifiers/common/ErrorModelJsonifier.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-RestApiResponse TapeRestApiResponseFactory::createError(const common::HttpResponse::ResponseCodes code, const std::string & title, const std::string& detail) const {
-  return RestApiResponse(std::make_shared<TapeRestApiJsonObject<ErrorModel>>(title,static_cast<uint32_t>(code),detail),code);
+RestApiResponse<ErrorModel> TapeRestApiResponseFactory::createError(const common::HttpResponse::ResponseCodes code, const std::string & title, const std::string& detail) const {
+  std::shared_ptr<ErrorModel> errorModel = std::make_shared<ErrorModel>(title,static_cast<uint32_t>(code),detail);
+  std::shared_ptr<ErrorModelJsonifier> jsonObject = std::make_shared<ErrorModelJsonifier>();
+  errorModel->setJsonifier(jsonObject);
+  return createResponse(errorModel,code);
 }
 
-RestApiResponse TapeRestApiResponseFactory::createBadRequestError(const std::string & detail) const {
+RestApiResponse<ErrorModel> TapeRestApiResponseFactory::createBadRequestError(const std::string & detail) const {
   return createError(common::HttpResponse::BAD_REQUEST,"Bad request",detail);
 }
 
-RestApiResponse TapeRestApiResponseFactory::createNotFoundError() const {
+RestApiResponse<ErrorModel> TapeRestApiResponseFactory::createNotFoundError() const {
   return createError(common::HttpResponse::NOT_FOUND,"Not found","");
 }
 
-RestApiResponse TapeRestApiResponseFactory::createMethodNotAllowedError(const std::string& detail) const {
+RestApiResponse<ErrorModel> TapeRestApiResponseFactory::createMethodNotAllowedError(const std::string& detail) const {
   return createError(common::HttpResponse::METHOD_NOT_ALLOWED,"Method not allowed",detail);
 }
 
-RestApiResponse TapeRestApiResponseFactory::createInternalServerError(const std::string& detail) const {
+RestApiResponse<ErrorModel> TapeRestApiResponseFactory::createInternalServerError(const std::string& detail) const {
   return createError(common::HttpResponse::INTERNAL_SERVER_ERROR,"Internal server error",detail);
 }
 
-RestApiResponse TapeRestApiResponseFactory::createOkEmptyResponse() const {
-  return RestApiResponse();
+RestApiResponse<void> TapeRestApiResponseFactory::createOkEmptyResponse() const {
+  return RestApiResponse<void>();
 }
+
 
 EOSMGMRESTNAMESPACE_END
