@@ -24,7 +24,7 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-CreatedStageBulkRequestResponseModel::CreatedStageBulkRequestResponseModel(/*const std::string& jsonFromClient,*/ const std::string & accessURL):
+CreatedStageBulkRequestResponseModel::CreatedStageBulkRequestResponseModel(/*const std::string& jsonFromClient,*/ const std::string & accessURL): Jsonifiable(),
                                                                           /*mJsonFromClient(jsonFromClient),*/mAccessURL(accessURL) {
 
 }

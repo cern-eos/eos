@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: RestApiResponse.cc
+// File: ErrorModelJsonifier.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,28 +21,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "RestApiResponse.hh"
-
+#include "ErrorModelJsonifier.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-RestApiResponse::RestApiResponse() : mRetCode(common::HttpResponse::ResponseCodes::OK){}
-
-RestApiResponse::RestApiResponse(const std::shared_ptr<common::JsonObject> object, const common::HttpResponse::ResponseCodes retCode) :
-    mJsonObject(object),mRetCode(retCode){}
-
-common::HttpResponse * RestApiResponse::getHttpResponse() const{
-  common::HttpResponse * response = new common::PlainHttpResponse();
-  if(mJsonObject) {
-    common::HttpResponse::HeaderMap headerMap;
-    headerMap["application/type"] = "json";
-    response->SetHeaders(headerMap);
-    std::stringstream ss;
-    mJsonObject->jsonify(ss);
-    response->SetBody(ss.str());
-  }
-  response->SetResponseCode(mRetCode);
-  return response;
+void ErrorModelJsonifier::jsonify(const ErrorModel * model, std::stringstream& ss) {
+  Json::Value root;
+  root["type"] = model->getType();
+  root["title"] = model->getTitle();
+  root["status"] = model->getStatus();
+  root["detail"] = model->getDetail() ? model->getDetail().value() : "";
+  ss << root;
 }
 
 EOSMGMRESTNAMESPACE_END
