@@ -27,7 +27,6 @@
 #include "common/http/HttpResponse.hh"
 #include "common/http/PlainHttpResponse.hh"
 #include "mgm/Namespace.hh"
-#include "common/json/JsonObject.hh"
 #include <memory>
 
 EOSMGMRESTNAMESPACE_BEGIN
@@ -36,6 +35,7 @@ EOSMGMRESTNAMESPACE_BEGIN
  * This class allows to create a RestAPI http response
  * from a model object
  */
+template<typename Model>
 class RestApiResponse {
 public:
   /**
@@ -43,8 +43,7 @@ public:
    * @param model the model that will be used to create the http response
    */
   RestApiResponse();
-  RestApiResponse(const std::shared_ptr<common::JsonObject> object, const common::HttpResponse::ResponseCodes retCode);
-
+  RestApiResponse(std::shared_ptr<Model> model, const common::HttpResponse::ResponseCodes retCode);
   /**
    * Returns the actual HttpResponse created from the model and the return code
    * of this instance
@@ -52,10 +51,38 @@ public:
    */
   common::HttpResponse * getHttpResponse() const;
 private:
-  std::shared_ptr<common::JsonObject> mJsonObject;
+  std::shared_ptr<Model> mModel;
   common::HttpResponse::ResponseCodes mRetCode;
 };
 
+template<typename Model>
+RestApiResponse<Model>::RestApiResponse() : mRetCode(common::HttpResponse::ResponseCodes::OK){}
+
+template<typename Model>
+RestApiResponse<Model>::RestApiResponse(std::shared_ptr<Model> model, const common::HttpResponse::ResponseCodes retCode) :
+    mModel(model),mRetCode(retCode){}
+
+template<typename Model>
+inline common::HttpResponse * RestApiResponse<Model>::getHttpResponse() const{
+  common::HttpResponse * response = new common::PlainHttpResponse();
+  if(mModel) {
+    common::HttpResponse::HeaderMap headerMap;
+    headerMap["application/type"] = "json";
+    response->SetHeaders(headerMap);
+    std::stringstream ss;
+    mModel->jsonify(ss);
+    response->SetBody(ss.str());
+  }
+  response->SetResponseCode(mRetCode);
+  return response;
+}
+
+template<>
+inline common::HttpResponse * RestApiResponse<void>::getHttpResponse() const {
+  common::HttpResponse * response = new common::PlainHttpResponse();
+  response->SetResponseCode(mRetCode);
+  return response;
+}
 
 EOSMGMRESTNAMESPACE_END
 

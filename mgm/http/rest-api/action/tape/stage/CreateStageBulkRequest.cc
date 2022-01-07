@@ -37,8 +37,6 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-TapeRestApiV1ResponseFactory CreateStageBulkRequest::mResponseFactory;
-
 common::HttpResponse* CreateStageBulkRequest::run(common::HttpRequest* request, const common::VirtualIdentity* vid) {
   //Check the content of the request and create a bulk-request with it
   std::unique_ptr<CreateStageBulkRequestModel> createStageBulkRequestModel;
@@ -80,7 +78,8 @@ common::HttpResponse* CreateStageBulkRequest::run(common::HttpRequest* request, 
                                          ->setRequestId(bulkRequest->getId())->build();
   //Prepare the response and return it
   std::shared_ptr<CreatedStageBulkRequestResponseModel> createdStageBulkRequestModel(new CreatedStageBulkRequestResponseModel(/*clientRequest,*/bulkRequestAccessURL));
-  return mResponseFactory.createCreatedStageRequestResponse(createdStageBulkRequestModel).getHttpResponse();
+  createdStageBulkRequestModel->setJsonifier(mOutputObjectJsonifier);
+  return mResponseFactory.createResponse(createdStageBulkRequestModel,common::HttpResponse::ResponseCodes::CREATED).getHttpResponse();
 }
 
 EOSMGMRESTNAMESPACE_END

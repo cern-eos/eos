@@ -30,7 +30,6 @@
 #include "mgm/bulk-request/prepare/manager/BulkRequestPrepareManager.hh"
 #include "mgm/http/rest-api/model/tape/stage/CreateStageBulkRequestModel.hh"
 #include "mgm/bulk-request/business/BulkRequestBusiness.hh"
-#include "mgm/http/rest-api/response/tape/factories/v1/TapeRestApiV1ResponseFactory.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 

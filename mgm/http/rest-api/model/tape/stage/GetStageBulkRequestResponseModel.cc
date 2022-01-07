@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: JsonCppObject.hh
+// File: GetStageBulkRequestResponseModel.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,30 +21,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_JSONCPPOBJECT_HH
-#define EOS_JSONCPPOBJECT_HH
+#include "GetStageBulkRequestResponseModel.hh"
 
-#include "common/Namespace.hh"
-#include "common/json/JsonObject.hh"
-#include <sstream>
-#include <memory>
-#include <json/json.h>
+EOSMGMRESTNAMESPACE_BEGIN
 
-EOSCOMMONNAMESPACE_BEGIN
+std::shared_ptr<bulk::QueryPrepareResponse> GetStageBulkRequestResponseModel::getQueryPrepareResponse() const {
+  return mQueryPrepareResponse;
+}
 
-template <typename Obj>
-class JsonCppObject : public common::JsonObject {
-public:
-  template<class... Args>
-  JsonCppObject(Args... args):mObject(std::make_shared<Obj>(args...)){}
-  JsonCppObject(std::shared_ptr<Obj> object) :mObject(object) { }
-  virtual void jsonify(std::stringstream & oss) override {
-    oss << "{}";
-  }
-protected:
-  std::shared_ptr<Obj> mObject;
-};
-
-EOSCOMMONNAMESPACE_END
-
-#endif // EOS_JSONCPPOBJECT_HH
+EOSMGMRESTNAMESPACE_END
