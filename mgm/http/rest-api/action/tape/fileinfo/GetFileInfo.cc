@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: StageController.cc
+// File: GetFileInfo.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,14 +21,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "StageController.hh"
+#include "GetFileInfo.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-StageController::StageController(const std::string & accessURL):Controller(accessURL){}
-
-common::HttpResponse * StageController::handleRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) {
-  return mControllerActionDispatcher.getAction(request)->run(request,vid);
+common::HttpResponse* GetFileInfo::run(common::HttpRequest* request, const common::VirtualIdentity* vid) {
+  //TODO
+  return nullptr;
 }
 
 EOSMGMRESTNAMESPACE_END
