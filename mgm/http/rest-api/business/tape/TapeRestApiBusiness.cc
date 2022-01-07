@@ -47,7 +47,7 @@ std::shared_ptr<bulk::BulkRequest> TapeRestApiBusiness::createStageBulkRequest(c
   return prepareManager->getBulkRequest();
 }
 
-void TapeRestApiBusiness::cancelStageBulkRequest(const std::string & requestId, const CancelStageBulkRequestModel * model, const common::VirtualIdentity * vid) {
+void TapeRestApiBusiness::cancelStageBulkRequest(const std::string & requestId, const PathsModel* model, const common::VirtualIdentity * vid) {
   std::shared_ptr<bulk::BulkRequestBusiness> bulkRequestBusiness = createBulkRequestBusiness();
   auto bulkRequest = bulkRequestBusiness->getBulkRequest(requestId,bulk::BulkRequest::Type::PREPARE_STAGE);
   if(bulkRequest == nullptr) {

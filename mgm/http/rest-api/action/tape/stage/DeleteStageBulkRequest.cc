@@ -22,7 +22,7 @@
  ************************************************************************/
 #include "DeleteStageBulkRequest.hh"
 #include "mgm/http/rest-api/utils/URLParser.hh"
-#include "mgm/http/rest-api/model/tape/stage/CancelStageBulkRequestModel.hh"
+#include "mgm/http/rest-api/model/tape/stage/PathsModel.hh"
 #include "mgm/http/rest-api/controllers/tape/URLParametersConstants.hh"
 #include "mgm/http/rest-api/exception/ObjectNotFoundException.hh"
 #include "mgm/http/rest-api/exception/tape/TapeRestApiBusinessException.hh"
