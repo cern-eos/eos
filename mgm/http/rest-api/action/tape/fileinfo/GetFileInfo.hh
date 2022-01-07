@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: CancelStageRequestModelBuilder.hh
+// File: GetFileInfo.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,21 +21,24 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-
-#ifndef EOS_CANCELSTAGEREQUESTMODELBUILDER_HH
-#define EOS_CANCELSTAGEREQUESTMODELBUILDER_HH
+#ifndef EOS_GETFILEINFO_HH
+#define EOS_GETFILEINFO_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/json/JsonCppModelBuilder.hh"
-#include "mgm/http/rest-api/model/tape/stage/CancelStageBulkRequestModel.hh"
+#include "mgm/http/rest-api/action/tape/TapeAction.hh"
+#include "mgm/http/rest-api/json/ModelBuilder.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class CancelStageRequestModelBuilder : public JsonCppModelBuilder<CancelStageBulkRequestModel> {
+class GetFileInfo : public TapeAction {
 public:
-  std::unique_ptr<CancelStageBulkRequestModel> buildFromJson(const std::string & json) const override;
+  GetFileInfo(const std::string & accessURL,const common::HttpHandler::Methods method,std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness,std::shared_ptr<ModelBuilder<PathsModel>> inputJsonModelBuilder):
+    TapeAction(accessURL,method,tapeRestApiBusiness),mInputJsonModelBuilder(inputJsonModelBuilder){}
+  common::HttpResponse * run(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
+private:
+  std::shared_ptr<ModelBuilder<PathsModel>> mInputJsonModelBuilder;
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_CANCELSTAGEREQUESTMODELBUILDER_HH
+#endif // EOS_GETFILEINFO_HH

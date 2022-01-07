@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: CancelStageBulkRequestModel.hh
+// File: PathsModel.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,26 +21,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_CANCELSTAGEBULKREQUESTMODEL_HH
-#define EOS_CANCELSTAGEBULKREQUESTMODEL_HH
-
-#include "mgm/Namespace.hh"
-#include <vector>
-#include <string>
-#include "mgm/http/rest-api/model/tape/common/FilesContainer.hh"
+#include "PathsModel.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class CancelStageBulkRequestModel {
-public:
-  CancelStageBulkRequestModel() = default;
-  void addFile(const std::string & path);
-  const FilesContainer & getFiles() const;
-  inline static const std::string PATHS_KEY_NAME = "paths";
-private:
-  FilesContainer mFilesContainer;
-};
+void
+PathsModel::addFile(const std::string& path){
+  mFilesContainer.addFile(path);
+}
+
+const FilesContainer&
+PathsModel::getFiles() const {
+  return mFilesContainer;
+}
 
 EOSMGMRESTNAMESPACE_END
-
-#endif // EOS_CANCELSTAGEBULKREQUESTMODEL_HH

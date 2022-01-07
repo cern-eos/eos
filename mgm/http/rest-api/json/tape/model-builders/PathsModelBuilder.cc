@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: StageController.cc
+// File: PathsModelBuilder.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,14 +21,26 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "StageController.hh"
+#include "PathsModelBuilder.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-StageController::StageController(const std::string & accessURL):Controller(accessURL){}
-
-common::HttpResponse * StageController::handleRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) {
-  return mControllerActionDispatcher.getAction(request)->run(request,vid);
+std::unique_ptr<PathsModel>
+PathsModelBuilder::buildFromJson(const std::string& json) const {
+  std::unique_ptr<PathsModel> cancelStageBulkRequestModel(new PathsModel());
+  Json::Value root;
+  parseJson(json, root);
+  Json::Value paths = root[PathsModel::PATHS_KEY_NAME];
+  checkFieldNotNull(paths, PathsModel::PATHS_KEY_NAME);
+  checkIsNotAnEmptyArray(paths, PathsModel::PATHS_KEY_NAME);
+  for(auto path = paths.begin(); path != paths.end(); path++){
+    std::ostringstream oss;
+    oss << "The " << PathsModel::PATHS_KEY_NAME << " object should contain only strings";
+    checkIsString(*path,oss.str());
+    cancelStageBulkRequestModel->addFile(path->asString());
+    //TODO in the future: metadata
+  }
+  return std::move(cancelStageBulkRequestModel);
 }
 
 EOSMGMRESTNAMESPACE_END

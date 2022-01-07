@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: StageController.cc
+// File: PathsModelBuilder.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,14 +21,21 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "StageController.hh"
+
+#ifndef EOS_PATHSMODELBUILDER_HH
+#define EOS_PATHSMODELBUILDER_HH
+
+#include "mgm/Namespace.hh"
+#include "mgm/http/rest-api/json/JsonCppModelBuilder.hh"
+#include "mgm/http/rest-api/model/tape/stage/PathsModel.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-StageController::StageController(const std::string & accessURL):Controller(accessURL){}
-
-common::HttpResponse * StageController::handleRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) {
-  return mControllerActionDispatcher.getAction(request)->run(request,vid);
-}
+class PathsModelBuilder : public JsonCppModelBuilder<PathsModel> {
+public:
+  std::unique_ptr<PathsModel> buildFromJson(const std::string & json) const override;
+};
 
 EOSMGMRESTNAMESPACE_END
+
+#endif // EOS_PATHSMODELBUILDER_HH

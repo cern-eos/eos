@@ -260,12 +260,14 @@ add_library(
   http/rest-api/action/tape/stage/CancelStageBulkRequest.cc
   http/rest-api/action/tape/stage/GetStageBulkRequest.cc
   http/rest-api/action/tape/stage/DeleteStageBulkRequest.cc
+  http/rest-api/action/tape/fileinfo/GetFileInfo.cc
   http/rest-api/business/tape/TapeRestApiBusiness.cc
   http/rest-api/controllers/Controller.cc
   http/rest-api/controllers/tape/factories/ControllerFactory.cc
   http/rest-api/controllers/ControllerManager.cc
   http/rest-api/controllers/ControllerActionDispatcher.cc
   http/rest-api/controllers/tape/stage/StageController.cc
+  http/rest-api/controllers/tape/fileinfo/FileInfoController.cc
   http/rest-api/exception/RestException.cc
   http/rest-api/exception/ControllerNotFoundException.cc
   http/rest-api/exception/InvalidJSONException.cc
@@ -274,15 +276,15 @@ add_library(
   http/rest-api/exception/InvalidRestURLException.cc
   http/rest-api/model/tape/common/FilesContainer.cc
   http/rest-api/model/tape/common/ErrorModel.cc
-  http/rest-api/model/tape/stage/CancelStageBulkRequestModel.cc
+  http/rest-api/model/tape/stage/PathsModel.cc
   http/rest-api/model/tape/stage/CreateStageBulkRequestModel.cc
   http/rest-api/model/tape/stage/CreatedStageBulkRequestResponseModel.cc
   http/rest-api/model/tape/stage/GetStageBulkRequestResponseModel.cc
   http/rest-api/json/tape/model-builders/CreateStageRequestModelBuilder.cc
-  http/rest-api/json/tape/model-builders/CancelStageRequestModelBuilder.cc
+  http/rest-api/json/tape/model-builders/PathsModelBuilder.cc
   http/rest-api/json/tape/jsonifiers/stage/CreatedStageBulkRequestJsonifier.cc
-        http/rest-api/json/tape/jsonifiers/stage/GetStageBulkRequestJsonifier.cc
-        http/rest-api/json/tape/jsonifiers/common/ErrorModelJsonifier.cc
+  http/rest-api/json/tape/jsonifiers/stage/GetStageBulkRequestJsonifier.cc
+  http/rest-api/json/tape/jsonifiers/common/ErrorModelJsonifier.cc
   http/rest-api/response/tape/factories/TapeRestApiResponseFactory.cc
   http/rest-api/utils/URLParser.cc
   http/rest-api/utils/URLBuilder.cc

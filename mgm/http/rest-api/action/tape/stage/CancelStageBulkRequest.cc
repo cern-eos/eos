@@ -24,7 +24,7 @@
 #include "CancelStageBulkRequest.hh"
 #include "mgm/http/rest-api/utils/URLParser.hh"
 #include "mgm/http/rest-api/utils/URLBuilder.hh"
-#include "mgm/http/rest-api/model/tape/stage/CancelStageBulkRequestModel.hh"
+#include "mgm/http/rest-api/model/tape/stage/PathsModel.hh"
 #include "mgm/http/rest-api/exception/InvalidJSONException.hh"
 #include "mgm/http/rest-api/exception/JsonObjectModelMalformedException.hh"
 #include "mgm/http/rest-api/exception/ObjectNotFoundException.hh"
@@ -38,7 +38,7 @@ common::HttpResponse* CancelStageBulkRequest::run(common::HttpRequest* request, 
   URLParser parser(request->GetUrl());
   std::map<std::string,std::string> requestParameters;
   //Check the content of the request and create a bulk-request with it
-  std::unique_ptr<CancelStageBulkRequestModel> cancelStageBulkRequestModel;
+  std::unique_ptr<PathsModel> cancelStageBulkRequestModel;
   try {
     cancelStageBulkRequestModel = mInputJsonModelBuilder->buildFromJson(request->GetBody());
   } catch (const InvalidJSONException & ex) {

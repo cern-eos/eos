@@ -25,11 +25,6 @@
 
 #include "mgm/Namespace.hh"
 #include "mgm/http/rest-api/controllers/Controller.hh"
-#include "mgm/http/rest-api/action/Action.hh"
-#include "mgm/bulk-request/prepare/StageBulkRequest.hh"
-#include "mgm/bulk-request/prepare/manager/BulkRequestPrepareManager.hh"
-#include "mgm/http/rest-api/model/tape/stage/CreateStageBulkRequestModel.hh"
-#include "mgm/bulk-request/business/BulkRequestBusiness.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 

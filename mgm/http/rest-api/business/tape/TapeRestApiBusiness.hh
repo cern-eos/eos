@@ -33,7 +33,7 @@ EOSMGMRESTNAMESPACE_BEGIN
 class TapeRestApiBusiness : public ITapeRestApiBusiness {
 public:
   virtual std::shared_ptr<bulk::BulkRequest> createStageBulkRequest(const CreateStageBulkRequestModel * model,const common::VirtualIdentity * vid) override;
-  virtual void cancelStageBulkRequest(const std::string & requestId, const CancelStageBulkRequestModel * model, const common::VirtualIdentity * vid) override;
+  virtual void cancelStageBulkRequest(const std::string & requestId, const PathsModel* model, const common::VirtualIdentity * vid) override;
   virtual std::shared_ptr<bulk::QueryPrepareResponse> getStageBulkRequest(const std::string & requestId, const common::VirtualIdentity * vid) override;
   virtual void deleteStageBulkRequest(const std::string & requestId, const common::VirtualIdentity * vid) override;
 protected:

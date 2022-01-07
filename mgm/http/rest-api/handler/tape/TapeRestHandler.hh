@@ -44,8 +44,9 @@ public:
   TapeRestHandler(const std::string & entryPointURL = "/api/");
   common::HttpResponse * handleRequest(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
 private:
-  void addControllers();
+  void initializeControllers();
   TapeRestApiResponseFactory mTapeRestApiResponseFactory;
+  inline static const std::string VERSION_0 = "v1";
 };
 
 EOSMGMRESTNAMESPACE_END
