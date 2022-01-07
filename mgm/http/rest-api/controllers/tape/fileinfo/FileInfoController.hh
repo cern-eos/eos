@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: StageController.cc
+// File: FileInfoController.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,14 +21,20 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "StageController.hh"
+#ifndef EOS_FILEINFOCONTROLLER_HH
+#define EOS_FILEINFOCONTROLLER_HH
+
+#include "mgm/Namespace.hh"
+#include "mgm/http/rest-api/controllers/Controller.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-StageController::StageController(const std::string & accessURL):Controller(accessURL){}
-
-common::HttpResponse * StageController::handleRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) {
-  return mControllerActionDispatcher.getAction(request)->run(request,vid);
-}
+class FileInfoController : public Controller {
+public:
+  FileInfoController(const std::string & accessURL);
+  virtual common::HttpResponse * handleRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) override;
+};
 
 EOSMGMRESTNAMESPACE_END
+
+#endif // EOS_FILEINFOCONTROLLER_HH
