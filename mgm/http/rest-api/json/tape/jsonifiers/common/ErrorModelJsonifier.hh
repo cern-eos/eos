@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: JsonObject.hh
+// File: ErrorModelJsonifier.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,19 +20,22 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-#ifndef EOS_JSONOBJECT_HH
-#define EOS_JSONOBJECT_HH
 
-#include "common/Namespace.hh"
-#include <sstream>
+#ifndef EOS_ERRORMODELJSONIFIER_HH
+#define EOS_ERRORMODELJSONIFIER_HH
 
-EOSCOMMONNAMESPACE_BEGIN
+#include "mgm/Namespace.hh"
+#include "mgm/http/rest-api/model/tape/common/ErrorModel.hh"
+#include "mgm/http/rest-api/json/tape/TapeRestApiJsonifier.hh"
+#include "common/json/JsonCppJsonifier.hh"
 
-class JsonObject {
+EOSMGMRESTNAMESPACE_BEGIN
+
+class ErrorModelJsonifier : public TapeRestApiJsonifier<ErrorModel>, public common::JsonCppJsonifier<ErrorModel>  {
 public:
-  virtual void jsonify(std::stringstream & ss) = 0;
+  void jsonify(const ErrorModel * model, std::stringstream & ss) override;
 };
 
-EOSCOMMONNAMESPACE_END
+EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_JSONOBJECT_HH
+#endif // EOS_ERRORMODELJSONIFIER_HH

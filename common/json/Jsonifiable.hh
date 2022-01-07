@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: CancelStageBulkRequest.hh
+// File: Jsonifiable.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,26 +20,41 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-#ifndef EOS_CANCELSTAGEBULKREQUEST_HH
-#define EOS_CANCELSTAGEBULKREQUEST_HH
+
+#ifndef EOS_JSONIFIABLE_HH
+#define EOS_JSONIFIABLE_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/action/tape/TapeAction.hh"
-#include "mgm/http/rest-api/json/ModelBuilder.hh"
-#include "mgm/http/rest-api/model/tape/stage/CancelStageBulkRequestModel.hh"
-#include "mgm/http/rest-api/business/tape/TapeRestApiBusiness.hh"
+#include <memory>
+#include <sstream>
+#include "common/json/Jsonifier.hh"
 
-EOSMGMRESTNAMESPACE_BEGIN
+EOSCOMMONNAMESPACE_BEGIN
 
-class CancelStageBulkRequest : public TapeAction {
+
+/**
+ * Common class allowing any object inheriting from this class
+ * can give its json representation
+ * You can implement the jsonify() method by hand
+ * or set a custom jsonifier before calling jsonify()
+ * @tparam Object the object to give its json representation
+ */
+template<typename Object>
+class Jsonifiable {
 public:
-  CancelStageBulkRequest(const std::string & accessURL,const common::HttpHandler::Methods method,std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness,std::shared_ptr<ModelBuilder<CancelStageBulkRequestModel>> inputJsonModelBuilder):
-    TapeAction(accessURL,method,tapeRestApiBusiness),mInputJsonModelBuilder(inputJsonModelBuilder){}
-  common::HttpResponse * run(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
-private:
-  std::shared_ptr<ModelBuilder<CancelStageBulkRequestModel>> mInputJsonModelBuilder;
+  inline void setJsonifier(std::shared_ptr<common::Jsonifier<Object>> jsonifier) {
+    mJsonifier = jsonifier;
+  }
+  virtual void jsonify(std::stringstream & ss) const {
+    if(mJsonifier) {
+      Object* thisptr = const_cast<Object*>(static_cast<const Object*>(this));
+      mJsonifier->jsonify(thisptr,ss);
+    }
+  }
+protected:
+  std::shared_ptr<common::Jsonifier<Object>> mJsonifier;
 };
 
-EOSMGMRESTNAMESPACE_END
+EOSCOMMONNAMESPACE_END
 
-#endif // EOS_CANCELSTAGEBULKREQUEST_HH
+#endif // EOS_JSONIFIABLE_HH
