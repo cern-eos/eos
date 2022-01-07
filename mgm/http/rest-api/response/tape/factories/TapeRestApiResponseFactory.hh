@@ -26,8 +26,7 @@
 
 #include "mgm/Namespace.hh"
 #include "mgm/http/rest-api/response/RestApiResponse.hh"
-#include "mgm/http/rest-api/model/tape/ErrorModel.hh"
-#include "mgm/http/rest-api/model/tape/stage/CreatedStageBulkRequestResponseModel.hh"
+#include "mgm/http/rest-api/model/tape/common/ErrorModel.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -36,14 +35,23 @@ EOSMGMRESTNAMESPACE_BEGIN
  */
 class TapeRestApiResponseFactory {
 public:
-  RestApiResponse createBadRequestError(const std::string & detail) const;
-  RestApiResponse createNotFoundError() const;
-  RestApiResponse createMethodNotAllowedError(const std::string & detail) const;
-  RestApiResponse createInternalServerError(const std::string & detail) const;
-  RestApiResponse createOkEmptyResponse() const;
+  RestApiResponse<ErrorModel> createBadRequestError(const std::string & detail) const;
+  RestApiResponse<ErrorModel> createNotFoundError() const;
+  RestApiResponse<ErrorModel> createMethodNotAllowedError(const std::string & detail) const;
+  RestApiResponse<ErrorModel> createInternalServerError(const std::string & detail) const;
+  RestApiResponse<void> createOkEmptyResponse() const;
+  template<typename Model>
+  RestApiResponse<Model> createResponse(std::shared_ptr<Model> model,const common::HttpResponse::ResponseCodes code) const;
 private:
-  RestApiResponse createError(const common::HttpResponse::ResponseCodes code,const std::string & title, const std::string & detail) const;
+  RestApiResponse<ErrorModel> createError(const common::HttpResponse::ResponseCodes code,const std::string & title, const std::string & detail) const;
 };
+
+
+
+template<typename Model>
+inline RestApiResponse<Model> TapeRestApiResponseFactory::createResponse(std::shared_ptr<Model> model, const common::HttpResponse::ResponseCodes code) const {
+  return RestApiResponse(model,code);
+}
 
 EOSMGMRESTNAMESPACE_END
 

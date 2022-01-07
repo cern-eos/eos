@@ -30,6 +30,7 @@
 #include <optional>
 #include <sstream>
 #include <memory>
+#include "common/json/Jsonifiable.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -37,7 +38,7 @@ EOSMGMRESTNAMESPACE_BEGIN
  * This class represents the Error object that will be returned to the client
  * if an error occured. It follows the RFC 7807 https://datatracker.ietf.org/doc/html/rfc7807
  */
-class ErrorModel {
+class ErrorModel : public common::Jsonifiable<ErrorModel> {
 public:
   ErrorModel();
   ErrorModel(const std::string & title, const uint32_t status, const std::string & detail);
