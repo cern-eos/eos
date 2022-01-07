@@ -349,12 +349,12 @@ GroupBalancer::scheduleTransfer(eos::common::FileId::fileid_t fid,
     std::string conv_tag = fileName;
     conv_tag.erase(0, gOFS->MgmProcConversionPath.length() + 1);
 
-    if (!gOFS->mConverterDriver->ScheduleJob(fid, conv_tag)) {
+    if (gOFS->mConverterDriver->ScheduleJob(fid, conv_tag)) {
       eos_static_info("msg=\"grp_balance scheduled job\" file=\"%s\" "
                       "src_grp=\"%s\" dst_grp=\"%s\"", conv_tag.c_str(),
                       sourceGroup->mName.c_str(), targetGroup->mName.c_str());
     } else {
-      eos_static_err("msg=\"grp_balance could not to schedule job\" "
+      eos_static_err("msg=\"grp_balance could not schedule job\" "
                      "file=\"%s\" src_grp=\"%s\" dst_grp=\"%s\"",
                      conv_tag.c_str(), sourceGroup->mName.c_str(),
                      targetGroup->mName.c_str());
