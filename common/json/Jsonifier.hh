@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: TapeRestApiJsonObject.hh
+// File: Jsonifier.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,35 +20,30 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-#ifndef EOS_TAPERESTAPIJSONOBJECT_HH
-#define EOS_TAPERESTAPIJSONOBJECT_HH
+#ifndef EOS_JSONIFIER_HH
+#define EOS_JSONIFIER_HH
 
-#include "mgm/Namespace.hh"
-#include "common/json/JsonCppObject.hh"
-#include "mgm/http/rest-api/model/tape/ErrorModel.hh"
+#include "common/Namespace.hh"
 #include <sstream>
 
-EOSMGMRESTNAMESPACE_BEGIN
+EOSCOMMONNAMESPACE_BEGIN
 
+/**
+ * Inherit this interface in order to implement
+ * the way to generate the json representation of any object
+ * @tparam Obj the Object you want to generate the json representation from
+ */
 template<typename Obj>
-class TapeRestApiJsonObject : public common::JsonCppObject<Obj>{
+class Jsonifier {
 public:
-  template<class... Args>
-  TapeRestApiJsonObject(Args... args): common::JsonCppObject<Obj>(args...){}
-  inline virtual void jsonify(std::stringstream & ss) override { common::JsonCppObject<Obj>::jsonify(ss); }
+  /**
+   * Implement this method to generate the json representation of any object
+   * @param object the object from which you want the json representation
+   * @param ss the stream where this json representation will be pushed to
+   */
+  virtual void jsonify(const Obj * object,std::stringstream & ss) = 0;
 };
 
-template<>
-inline void
-TapeRestApiJsonObject<ErrorModel>::jsonify(std::stringstream& ss) {
-  Json::Value root;
-  root["type"] = mObject->getType();
-  root["title"] = mObject->getTitle();
-  root["status"] = mObject->getStatus();
-  root["detail"] = mObject->getDetail() ? mObject->getDetail().value() : "";
-  ss << root;
-}
+EOSCOMMONNAMESPACE_END
 
-EOSMGMRESTNAMESPACE_END
-
-#endif // EOS_TAPERESTAPIJSONOBJECT_HH
+#endif // EOS_JSONIFIER_HH

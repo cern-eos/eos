@@ -23,6 +23,7 @@
 
 #include "GetStageBulkRequest.hh"
 #include <memory>
+#include "mgm/http/rest-api/model/tape/stage/GetStageBulkRequestResponseModel.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/http/HttpHandler.hh"
 #include "mgm/http/rest-api/utils/URLParser.hh"
@@ -31,8 +32,6 @@
 #include "mgm/http/rest-api/exception/tape/TapeRestApiBusinessException.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
-
-TapeRestApiV1ResponseFactory GetStageBulkRequest::mResponseFactory;
 
 common::HttpResponse* GetStageBulkRequest::run(common::HttpRequest* request, const common::VirtualIdentity* vid) {
   URLParser parser(request->GetUrl());
@@ -51,7 +50,9 @@ common::HttpResponse* GetStageBulkRequest::run(common::HttpRequest* request, con
   } catch(const TapeRestApiBusinessException & ex) {
     return mResponseFactory.createInternalServerError(ex.what()).getHttpResponse();
   }
-  return mResponseFactory.createGetStageBulkRequestResponse(queryPrepareResponse).getHttpResponse();
+  std::shared_ptr<GetStageBulkRequestResponseModel> stageBulkRequestModel = std::make_shared<GetStageBulkRequestResponseModel>(queryPrepareResponse);
+  stageBulkRequestModel->setJsonifier(mOutputObjectJsonifier);
+  return mResponseFactory.createResponse(stageBulkRequestModel,common::HttpResponse::ResponseCodes::OK).getHttpResponse();
 }
 
 EOSMGMRESTNAMESPACE_END

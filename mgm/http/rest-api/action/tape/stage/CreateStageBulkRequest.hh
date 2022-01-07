@@ -27,20 +27,23 @@
 
 #include "mgm/Namespace.hh"
 #include "mgm/http/rest-api/action/tape/TapeAction.hh"
-#include "mgm/http/rest-api/response/tape/factories/v1/TapeRestApiV1ResponseFactory.hh"
 #include "mgm/http/rest-api/model/tape/stage/CreateStageBulkRequestModel.hh"
 #include "mgm/http/rest-api/json/ModelBuilder.hh"
 #include "mgm/http/rest-api/business/tape/ITapeRestApiBusiness.hh"
+#include "mgm/http/rest-api/json/tape/TapeRestApiJsonifier.hh"
+#include "mgm/http/rest-api/model/tape/stage/CreatedStageBulkRequestResponseModel.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
 class CreateStageBulkRequest : public TapeAction {
 public:
-  CreateStageBulkRequest(const std::string & accessURL,const common::HttpHandler::Methods method,std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness, std::shared_ptr<ModelBuilder<CreateStageBulkRequestModel>> inputJsonModelBuilder): TapeAction(accessURL,method,tapeRestApiBusiness),mInputJsonModelBuilder(inputJsonModelBuilder){}
+  CreateStageBulkRequest(const std::string & accessURL,const common::HttpHandler::Methods method,std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness, std::shared_ptr<ModelBuilder<CreateStageBulkRequestModel>> inputJsonModelBuilder,std::shared_ptr<
+          TapeRestApiJsonifier<CreatedStageBulkRequestResponseModel>> outputObjectJsonifier): TapeAction(accessURL,method,tapeRestApiBusiness),mInputJsonModelBuilder(inputJsonModelBuilder),
+        mOutputObjectJsonifier(outputObjectJsonifier){}
   common::HttpResponse * run(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
 private:
-  static TapeRestApiV1ResponseFactory mResponseFactory;
   std::shared_ptr<ModelBuilder<CreateStageBulkRequestModel>> mInputJsonModelBuilder;
+  std::shared_ptr<TapeRestApiJsonifier<CreatedStageBulkRequestResponseModel>> mOutputObjectJsonifier;
 };
 
 EOSMGMRESTNAMESPACE_END

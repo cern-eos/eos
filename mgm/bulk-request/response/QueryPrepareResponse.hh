@@ -28,6 +28,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include "common/json/Jsonifiable.hh"
 
 EOSBULKNAMESPACE_BEGIN
 
@@ -78,7 +79,7 @@ public:
  * of a QueryPrepare query. This is the class that will be
  * returned to the user in json format
  */
-class QueryPrepareResponse {
+class QueryPrepareResponse : public common::Jsonifiable<QueryPrepareResponse> {
 public:
   std::string request_id;
   std::vector<QueryPrepareFileResponse> responses;
