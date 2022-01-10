@@ -396,6 +396,7 @@ void com_space_help()
       << "space config <space-name> space.groupbalancer=on|off                  : enable/disable the group balancer [ default=off ]\n"
       << "space config <space-name> space.groupbalancer.ntx=<ntx>               : configure the numebr of parallel group balancer jobs [ default=0 ]\n"
       << "space config <space-name> space.groupbalancer.threshold=<threshold>   : configure the threshold when a group is balanced [ default=0 ] ( taken from dev(filled) parameter in 'group ls'\n"
+      << "space config <space-name> space.groupbalancer.min_file_size=<#K/M/G/T>: configure the min file size to move between groups [ default=1G ]\n"
       << "space config <space-name> space.geobalancer=on|off                    : enable/disable the geo balancer [ default=off ]\n"
       << "space config <space-name> space.geobalancer.ntx=<ntx>                 : configure the numebr of parallel geobalancer jobs [ default=0 ]\n"
       << "space config <space-name> space.geobalancer.threshold=<threshold>     : configure the threshold when a geotag is balanced [ default=0 ] \n"

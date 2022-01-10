@@ -577,6 +577,8 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
     num_tx = atoi(space->GetConfigMember("groupbalancer.ntx").c_str());
     mThreshold = atof(space->GetConfigMember("groupbalancer.threshold").c_str()) /
                  100.0;
+    mMinFileSize = common::StringConversion::GetSizeFromString(space->GetConfigMember("groupbalancer.min_file_size"));
+
 
     if (!is_enabled) {
       FsView::gFsView.ViewMutex.UnLockRead();
