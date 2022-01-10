@@ -46,6 +46,10 @@ public:
    * @param ss the stream where this json representation will be pushed to
    */
   virtual void jsonify(const Obj * obj, std::stringstream & oss) = 0;
+protected:
+  inline virtual void initializeArray(Json::Value & value) {
+    value = Json::Value(Json::arrayValue);
+  }
 };
 
 EOSCOMMONNAMESPACE_END

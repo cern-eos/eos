@@ -26,6 +26,8 @@
 
 #include "mgm/Namespace.hh"
 #include "mgm/http/rest-api/handler/RestHandler.hh"
+#include "mgm/http/rest-api/business/tape/ITapeRestApiBusiness.hh"
+#include "mgm/http/rest-api/controllers/Controller.hh"
 #include "common/VirtualIdentity.hh"
 #include "mgm/http/rest-api/response/tape/factories/TapeRestApiResponseFactory.hh"
 
@@ -45,6 +47,8 @@ public:
   common::HttpResponse * handleRequest(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
 private:
   void initializeControllers();
+  std::unique_ptr<Controller> initializeStageController(const std::string & apiVersion, std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness);
+  std::unique_ptr<Controller> initializeFileInfoController(const std::string & apiVersion, std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness);
   TapeRestApiResponseFactory mTapeRestApiResponseFactory;
   inline static const std::string VERSION_0 = "v1";
 };
