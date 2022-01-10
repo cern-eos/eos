@@ -513,13 +513,13 @@ public:
     mProtocol.Add(eos_static_log(LOG_SILENT, "lfn='%s' app='%s'",
                                  cgi["eos.lfn"].c_str(), cgi["eos.app"].c_str()));
     mProtocol.Add(eos_static_log(LOG_SILENT, "logid=%s", cgi["mgm.logid"].c_str()));
-    mProtocol.Add(eos_static_log(LOG_SILENT, "fuse=%s:%s:%s:%s:%s]",
+    mProtocol.Add(eos_static_log(LOG_SILENT, "fuse=%s:%s:%s:%s:%s",
                                  cgi["fuse.exe"].c_str(),
                                  cgi["fuse.uid"].c_str(),
                                  cgi["fuse.gid"].c_str(),
                                  cgi["fuse.pid"].c_str(),
                                  cgi["fuse.ver"].c_str()));
-    mProtocol.Add(eos_static_log(LOG_SILENT, "xrd=%s:%s:%s:%s]",
+    mProtocol.Add(eos_static_log(LOG_SILENT, "xrd=%s:%s:%s:%s",
                                  cgi["xrdcl.requuid"].c_str(),
                                  cgi["xrdcl.secuid"].c_str(),
                                  cgi["xrdcl.sccgid"].c_str(),
