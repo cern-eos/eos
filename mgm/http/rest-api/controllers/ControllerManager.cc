@@ -30,13 +30,13 @@ EOSMGMRESTNAMESPACE_BEGIN
 ControllerManager::ControllerManager()
 {}
 
-void ControllerManager::addController(std::shared_ptr<Controller> controller) {
-  mControllers[controller->getAccessURL()] = controller;
+void ControllerManager::addController(std::unique_ptr<Controller> controller) {
+  mControllers[controller->getAccessURL()] = std::move(controller);
 }
 
-std::shared_ptr<Controller> ControllerManager::getController(const std::string & urlFromClient) const {
+Controller * ControllerManager::getController(const std::string & urlFromClient) const {
   URLParser urlFromClientParser(urlFromClient);
-  const auto controllerItor = std::find_if(mControllers.begin(),mControllers.end(),[&urlFromClientParser](const std::pair<std::string,std::shared_ptr<Controller>> & keyValue){
+  const auto controllerItor = std::find_if(mControllers.begin(),mControllers.end(),[&urlFromClientParser](const std::pair<const std::string,std::unique_ptr<Controller>> & keyValue){
     return urlFromClientParser.startsBy(keyValue.first);
   });
   if(controllerItor == mControllers.end()){
@@ -44,7 +44,7 @@ std::shared_ptr<Controller> ControllerManager::getController(const std::string &
     ss << "The URL provided (" << urlFromClient << ") does not allow to identify an existing resource and its version";
     throw ControllerNotFoundException(ss.str());
   }
-  return controllerItor->second;
+  return controllerItor->second.get();
 }
 
 

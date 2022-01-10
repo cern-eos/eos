@@ -63,9 +63,9 @@ void TapeRestApiBusiness::cancelStageBulkRequest(const std::string & requestId, 
     if(filesFromBulkRequest->find(fileFromClient) != filesFromBulkRequest->end()){
       filesToCancel.addFile(fileFromClient);
     } else {
-      std::ostringstream oss;
-      oss << "The file " << fileFromClient << " does not belong to the STAGE request " << bulkRequest->getId() << ". No modification has been made to this request.";
-      throw FileDoesNotBelongToBulkRequestException(oss.str());
+      std::stringstream ss;
+      ss << "The file " << fileFromClient << " does not belong to the STAGE request " << bulkRequest->getId() << ". No modification has been made to this request.";
+      throw FileDoesNotBelongToBulkRequestException(ss.str());
     }
   }
   //Do the cancellation
@@ -80,22 +80,22 @@ std::shared_ptr<bulk::QueryPrepareResponse> TapeRestApiBusiness::getStageBulkReq
   try {
     if (!bulkRequestBusiness->exists(requestId,
                                      bulk::BulkRequest::Type::PREPARE_STAGE)) {
-      throw ObjectNotFoundException("");
+      std::stringstream ss;
+      ss << "Unable to find the STAGE bulk-request ID =" << requestId;
+      throw ObjectNotFoundException(ss.str());
     }
   } catch(bulk::PersistencyException & ex){
     throw TapeRestApiBusinessException(ex.what());
   }
   //Instanciate prepare manager
-  bulk::BulkRequestPrepareManager pm(std::make_unique<bulk::RealMgmFileSystemInterface>(gOFS));
-  pm.setBulkRequestBusiness(bulkRequestBusiness);
-  XrdOucErrInfo error;
   bulk::PrepareArgumentsWrapper pargsWrapper(requestId,Prep_QUERY);
-  XrdSfsPrep * pargs = pargsWrapper.getPrepareArguments();
-  auto queryPrepareResult = pm.queryPrepare(*pargs,error,vid);
+  auto pm = createBulkRequestPrepareManager();
+  XrdOucErrInfo error;
+  auto queryPrepareResult = pm->queryPrepare(*pargsWrapper.getPrepareArguments(),error,vid);
   if(!queryPrepareResult->hasQueryPrepareFinished()){
-    std::ostringstream oss;
-    oss << "Unable to get information about the request " << requestId <<". errMsg=\"" << error.getErrText() << "\"";
-    throw TapeRestApiBusinessException(oss.str());
+    std::stringstream ss;
+    ss << "Unable to get information about the request " << requestId <<". errMsg=\"" << error.getErrText() << "\"";
+    throw TapeRestApiBusinessException(ss.str());
   }
   return queryPrepareResult->getResponse();
 }
@@ -116,15 +116,29 @@ void TapeRestApiBusiness::deleteStageBulkRequest(const std::string& requestId, c
     filesToCancel.addFile(fileFromBulkRequest.first);
   }
   bulk::PrepareArgumentsWrapper pargsWrapper(requestId,Prep_CANCEL,filesToCancel.getOpaqueInfos(),filesToCancel.getPaths());
-  bulk::BulkRequestPrepareManager pm(std::make_unique<bulk::RealMgmFileSystemInterface>(gOFS));
+  auto pm = createBulkRequestPrepareManager();
   XrdOucErrInfo error;
-  pm.prepare(*pargsWrapper.getPrepareArguments(),error,vid);
+  pm->prepare(*pargsWrapper.getPrepareArguments(),error,vid);
   //Now that the request got cancelled, let's delete it from the persistency
   try {
     bulkRequestBusiness->deleteBulkRequest(std::move(bulkRequest));
   } catch (bulk::PersistencyException &ex) {
     throw TapeRestApiBusinessException(ex.what());
   }
+}
+
+std::shared_ptr<bulk::QueryPrepareResponse> TapeRestApiBusiness::getFileInfo(const PathsModel * model, const common::VirtualIdentity* vid) {
+  auto & filesContainer = model->getFiles();
+  bulk::PrepareArgumentsWrapper pargsWrapper("fake_id",Prep_QUERY,filesContainer.getOpaqueInfos(),filesContainer.getPaths());
+  auto pm = createBulkRequestPrepareManager();
+  XrdOucErrInfo error;
+  auto queryPrepareResult = pm->queryPrepare(*pargsWrapper.getPrepareArguments(),error,vid);
+  if(!queryPrepareResult->hasQueryPrepareFinished()){
+    std::stringstream ss;
+    ss << "Unable to get information about the files provided. errMsg=\"" << error.getErrText() << "\"";
+    throw TapeRestApiBusinessException(ss.str());
+  }
+  return queryPrepareResult->getResponse();
 }
 
 std::unique_ptr<bulk::BulkRequestPrepareManager> TapeRestApiBusiness::createBulkRequestPrepareManager() {

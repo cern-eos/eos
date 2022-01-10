@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ITapeRestApiBusiness.hh
+// File: GetFileInfoResponseJsonifier.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,28 +21,24 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_ITAPERESTAPIBUSINESS_HH
-#define EOS_ITAPERESTAPIBUSINESS_HH
-
-#include "mgm/Namespace.hh"
-#include <memory>
-#include "mgm/bulk-request/BulkRequest.hh"
-#include "mgm/bulk-request/response/QueryPrepareResponse.hh"
-#include "mgm/http/rest-api/model/tape/stage/CreateStageBulkRequestModel.hh"
-#include "mgm/http/rest-api/model/tape/stage/PathsModel.hh"
-#include "common/VirtualIdentity.hh"
+#include "GetFileInfoResponseJsonifier.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class ITapeRestApiBusiness {
-public:
-  virtual std::shared_ptr<bulk::BulkRequest> createStageBulkRequest(const CreateStageBulkRequestModel * model, const common::VirtualIdentity * vid) = 0;
-  virtual void cancelStageBulkRequest(const std::string & requestId, const PathsModel* model, const common::VirtualIdentity * vid) = 0;
-  virtual std::shared_ptr<bulk::QueryPrepareResponse> getStageBulkRequest(const std::string & requestId, const common::VirtualIdentity * vid) = 0;
-  virtual void deleteStageBulkRequest(const std::string & requestId, const common::VirtualIdentity * vid) = 0;
-  virtual std::shared_ptr<bulk::QueryPrepareResponse> getFileInfo(const PathsModel * model, const common::VirtualIdentity * vid) = 0;
-};
+void GetFileInfoResponseJsonifier::jsonify(const GetFileInfoResponseModel* obj, std::stringstream& ss) {
+  Json::Value root;
+  initializeArray(root);
+  auto queryPrepareResponse = obj->getQueryPrepareResponse();
+  for(const auto & queryPrepareFileResponse: queryPrepareResponse->responses) {
+    Json::Value fileResponse;
+    fileResponse["path"] = queryPrepareFileResponse.path;
+    fileResponse["exists"] = queryPrepareFileResponse.is_exists;
+    fileResponse["error"] = queryPrepareFileResponse.error_text;
+    fileResponse["onDisk"] = queryPrepareFileResponse.is_online;
+    fileResponse["onTape"] = queryPrepareFileResponse.is_on_tape;
+    root.append(fileResponse);
+  }
+  ss << root;
+}
 
 EOSMGMRESTNAMESPACE_END
-
-#endif // EOS_ITAPERESTAPIBUSINESS_HH

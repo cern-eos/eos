@@ -40,7 +40,7 @@ public:
    * Adds a controller to this manager
    * @param controller the controller to add
    */
-  void addController(std::shared_ptr<Controller> controller);
+  void addController(std::unique_ptr<Controller> controller);
   /**
    * Returns the controller depending on the client URL
    * e.g: if the client's URL is /api/v1/stage/xxx/cancel, the controller that will be returned will be
@@ -48,10 +48,10 @@ public:
    * @param clientUrl the URL from the client allowing to determine the controller to get
    * @return the controller that depends on the client URL
    */
-  std::shared_ptr<Controller> getController(const std::string & clientUrl) const;
+  Controller * getController(const std::string & clientUrl) const;
 private:
   //Map associating a URL and a controller
-  std::map<std::string,std::shared_ptr<Controller>> mControllers;
+  std::map<std::string,std::unique_ptr<Controller>> mControllers;
 };
 
 EOSMGMRESTNAMESPACE_END

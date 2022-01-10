@@ -54,7 +54,6 @@ common::HttpResponse* CreateStageBulkRequest::run(common::HttpRequest* request, 
   } catch (const TapeRestApiBusinessException &ex){
     return mResponseFactory.createInternalServerError(ex.what()).getHttpResponse();
   }
-  //Get the bulk-request
   //const std::string & clientRequest = request->GetBody();
   std::string host;
   try {

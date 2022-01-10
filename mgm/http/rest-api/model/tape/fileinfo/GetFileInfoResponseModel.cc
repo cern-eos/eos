@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ITapeRestApiBusiness.hh
+// File: GetFileInfoResponseModel.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,28 +21,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_ITAPERESTAPIBUSINESS_HH
-#define EOS_ITAPERESTAPIBUSINESS_HH
-
-#include "mgm/Namespace.hh"
-#include <memory>
-#include "mgm/bulk-request/BulkRequest.hh"
-#include "mgm/bulk-request/response/QueryPrepareResponse.hh"
-#include "mgm/http/rest-api/model/tape/stage/CreateStageBulkRequestModel.hh"
-#include "mgm/http/rest-api/model/tape/stage/PathsModel.hh"
-#include "common/VirtualIdentity.hh"
+#include "GetFileInfoResponseModel.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class ITapeRestApiBusiness {
-public:
-  virtual std::shared_ptr<bulk::BulkRequest> createStageBulkRequest(const CreateStageBulkRequestModel * model, const common::VirtualIdentity * vid) = 0;
-  virtual void cancelStageBulkRequest(const std::string & requestId, const PathsModel* model, const common::VirtualIdentity * vid) = 0;
-  virtual std::shared_ptr<bulk::QueryPrepareResponse> getStageBulkRequest(const std::string & requestId, const common::VirtualIdentity * vid) = 0;
-  virtual void deleteStageBulkRequest(const std::string & requestId, const common::VirtualIdentity * vid) = 0;
-  virtual std::shared_ptr<bulk::QueryPrepareResponse> getFileInfo(const PathsModel * model, const common::VirtualIdentity * vid) = 0;
-};
+std::shared_ptr<bulk::QueryPrepareResponse> GetFileInfoResponseModel::getQueryPrepareResponse() const {
+  return mQueryPrepareResponse;
+}
 
 EOSMGMRESTNAMESPACE_END
-
-#endif // EOS_ITAPERESTAPIBUSINESS_HH
