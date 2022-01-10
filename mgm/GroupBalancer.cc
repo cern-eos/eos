@@ -67,7 +67,7 @@ GroupSize::swapFile(GroupSize* toGroup, uint64_t size)
 // GroupBalancer constructor
 //-------------------------------------------------------------------------------
 GroupBalancer::GroupBalancer(const char* spacename)
-  : mSpaceName(spacename), mThreshold(.5), mAvgUsedSize(0), mLastCheck(0)
+  : mSpaceName(spacename), mAvgUsedSize(0), mLastCheck(0)
 {
   mThread.reset(&GroupBalancer::GroupBalance, this);
 }
@@ -154,10 +154,10 @@ GroupBalancer::updateGroupAvgCache(FsGroup* group)
     mGroupsUnderAvg.erase(name);
   }
 
-  eos_static_debug("diff=%.02f threshold=%.02f", diffWithAvg, mThreshold);
+  eos_static_debug("diff=%.02f threshold=%.02f", diffWithAvg, cfg.mThreshold);
 
   // Group is mThreshold over or under the average used size
-  if (abs(diffWithAvg) > mThreshold) {
+  if (abs(diffWithAvg) > cfg.mThreshold) {
     if (diffWithAvg > 0) {
       mGroupsOverAvg[name] = group;
     } else {
@@ -534,14 +534,25 @@ GroupBalancer::prepareTransfers(int nrTransfers)
   }
 }
 
+void
+GroupBalancer::Configure(FsSpace* const space, GroupBalancer::Config& cfg)
+{
+  cfg.is_enabled = space->GetConfigMember("groupbalancer") == "on";
+  cfg.is_conv_enabled = space->GetConfigMember("converter") == "on";
+  cfg.num_tx = atoi(space->GetConfigMember("groupbalancer.ntx").c_str());
+  cfg.mThreshold = atof(space->GetConfigMember("groupbalancer.threshold").c_str()) /
+    100.0;
+  cfg.mMinFileSize = common::StringConversion::GetSizeFromString(space->GetConfigMember("groupbalancer.min_file_size"));
+  cfg.mMaxFileSize = common::StringConversion::GetSizeFromString(space->GetConfigMember("groupbalancer.max_file_size"));
+}
+
+
 //------------------------------------------------------------------------------
 // Eternal loop trying to run conversion jobs
 //------------------------------------------------------------------------------
 void
 GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
 {
-  int num_tx = 0;
-  bool is_enabled = true;
   uint64_t timeout_ns = 100 * 1e6; // 100 ms
   gOFS->WaitUntilNamespaceIsBooted();
   eos_static_info("%s", "msg=\"starting group balancer thread\"");
@@ -573,30 +584,21 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
     // Update tracker for scheduled fid balance jobs
     gOFS->mFidTracker.DoCleanup(TrackerType::Balance);
     FsSpace* space = FsView::gFsView.mSpaceView[mSpaceName.c_str()];
-    is_enabled = space->GetConfigMember("groupbalancer") == "on";
-    num_tx = atoi(space->GetConfigMember("groupbalancer.ntx").c_str());
-    mThreshold = atof(space->GetConfigMember("groupbalancer.threshold").c_str()) /
-                 100.0;
+    GroupBalancer::Configure(space, cfg);
 
-    if (!is_enabled) {
+    if (!cfg.is_enabled || !cfg.is_conv_enabled) {
       FsView::gFsView.ViewMutex.UnLockRead();
-      eos_static_debug("msg=\"group balancer disabled\" space=\"%s\"",
-                       mSpaceName.c_str());
-      continue;
-    }
-
-    if (space->GetConfigMember("converter") != "on") {
-      FsView::gFsView.ViewMutex.UnLockRead();
-      eos_static_debug("msg=\"group balancer needs the converter to be enabled\""
-                       "space=\"%s\"", mSpaceName.c_str());
+      eos_static_debug("msg=\"group balancer or converter not enabled\" space=\"%s\""
+                       " balancer status=%d converter status=%d",
+                       mSpaceName.c_str(), cfg.is_enabled, cfg.is_conv_enabled);
       continue;
     }
 
     FsView::gFsView.ViewMutex.UnLockRead();
-    eos_static_info("msg=\"group balancer enabled\" ntx=%d ", num_tx);
+    eos_static_info("msg=\"group balancer enabled\" ntx=%d ", cfg.num_tx);
     UpdateTransferList();
 
-    if ((int) mTransfers.size() >= num_tx) {
+    if ((int) mTransfers.size() >= cfg.num_tx) {
       continue;
     }
 
@@ -607,7 +609,7 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
       recalculateAvg();
     }
 
-    prepareTransfers(num_tx);
+    prepareTransfers(cfg.num_tx);
   }
 }
 
