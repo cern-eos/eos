@@ -29,6 +29,7 @@
 #include "misc/fusexrdlogin.hh"
 #include "common/Logging.hh"
 #include "common/Timing.hh"
+#include <google/protobuf/util/json_util.h>
 
 /* -------------------------------------------------------------------------- */
 cap::cap()
@@ -598,11 +599,20 @@ cap::qmap::get(shared_cap cap)
   if (this->count(qid)) {
     shared_quota quota = (*this)[qid];
 
-    if (!quota->writer()) {
+    // check if we have a newer quota value
+    if ( (cap->vtime() > quota->get_vtime()) ||
+	 ((cap->vtime() == quota->get_vtime()) && (cap->vtime_ns() > quota->get_vtime_ns()))) {
       eos_static_notice("updating qnode=%s volume=%lu inodes=%lu",
-                        sqid, quota->volume_quota(), quota->inode_quota());
-      // if there is no open file on that quota node, we can refresh from remo
-      *quota = cap->_quota();
+			sqid, quota->volume_quota(), quota->inode_quota());
+      {
+	XrdSysMutexHelper qLock(quota->Locker());
+	// if there is no open file on that quota node, we can refresh from remote
+	*quota = cap->_quota();
+      }
+      // store latest vtime
+      quota->set_vtime(cap->vtime(), cap->vtime_ns());
+      // zero local accounting
+      quota->local_reset();
     }
 
     (*this)[qid] = quota;
@@ -610,7 +620,30 @@ cap::qmap::get(shared_cap cap)
   } else {
     shared_quota quota = std::make_shared<quotax>();
     *quota = cap->_quota();
+    quota->set_vtime(cap->vtime(),cap->vtime_ns());
+
     (*this)[qid] = quota;
     return quota;
   }
+}
+
+std::string
+cap::quotax::dump() {
+  google::protobuf::util::JsonPrintOptions options;
+  options.add_whitespace = true;
+  options.always_print_primitive_fields = true;
+  std::string jsonstring;
+  google::protobuf::util::MessageToJsonString(*((eos::fusex::quota*)(&(*this))),
+					      &jsonstring, options);
+  jsonstring.pop_back();
+  jsonstring += ",\n{\n  timestamp : ";
+  jsonstring += std::to_string(timestamp());
+  jsonstring += ",\n";
+  jsonstring += "  local-volume : ";
+  jsonstring += std::to_string(local_volume);
+  jsonstring += ",\n";
+  jsonstring += "  local-inodes : ";
+  jsonstring += std::to_string(local_inode);
+  jsonstring += "\n}\n";
+  return jsonstring;
 }

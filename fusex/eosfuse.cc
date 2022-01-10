@@ -3995,6 +3995,7 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
         if (mode == U_OK) {
           if (!(pquota = Instance().caps.has_quota(pcap, 1024 * 1024))) {
             rc = EDQUOT;
+	    eos_static_err("quota-error: inode=%lld size=%lld - no update under 1M quota", ino, md->size());
           } else {
             Instance().caps.open_writer_inode(pcap);
           }
@@ -4201,6 +4202,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
       {
         if (!Instance().caps.has_quota(pcap, 1024 * 1024)) {
           rc = EDQUOT;
+	  eos_static_err("quota-error: inode=%lld name='%s' - no creation under 1M quota", parent, name);
         }
       }
 
@@ -4783,12 +4785,6 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
         std::string cookie = io->md->Cookie();
         io->ioctx()->store_cookie(cookie);
         capLock.Lock(&pcap->Locker());
-
-        if (!Instance().caps.has_quota(pcap, 0)) {
-          // we signal an error to the client if the quota get's exceeded although
-          // we let the file be complete
-          rc = EDQUOT;
-        }
       }
     }
 
@@ -5093,18 +5089,22 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
               } else {
                 cap::shared_quota q = Instance().caps.quota(pcap);
                 XrdSysMutexHelper qLock(q->Locker());
-                char qline[1024];
+                char qline[4096];
                 snprintf(qline, sizeof(qline),
-                         "instance             uid     gid        vol-avail        ino-avail        max-fsize                         endpoint                        writer\n"
-                         "%-16s %7u %7u %16lu %16lu %16lu %32s %d\n",
+                         "%-32s %8s %8s %20s %20s %20s %32s %s\n"
+                         "%-32s %8s %8s %20s %20s %20s %32s %s:%s:%s\n",
+			 "instance", "uid", "gid", "vol-avail", "ino-avail", "max-fsize", "endpoint", "writer:lvol:lino",
                          Instance().Config().name.c_str(),
-                         pcap->uid(),
-                         pcap->gid(),
-                         q->volume_quota(),
-                         q->inode_quota(),
-                         pcap->max_file_size(),
+                         std::to_string(pcap->uid()).c_str(),
+                         std::to_string(pcap->gid()).c_str(),
+			 std::to_string(q->volume_quota() - q->get_local_volume()).c_str(),
+			 std::to_string(q->inode_quota() - q->get_local_inode()).c_str(),
+                         std::to_string(pcap->max_file_size()).c_str(),
                          Instance().Config().hostport.c_str(),
-                         q->writer());
+                         std::to_string(q->writer()).c_str(),
+			 std::to_string(q->get_local_volume()).c_str(),
+			 std::to_string(q->get_local_inode()).c_str()
+			 );
                 value = qline;
               }
             }
