@@ -418,6 +418,9 @@ SpaceQuota::UpdateFromQuotaNode(uid_t uid, gid_t gid, bool upd_proj_quota)
     mMapIdQuota[Index(kUserLogicalBytesIs, Quota::gProjectId)] = 0;
     mMapIdQuota[Index(kUserFilesIs, Quota::gProjectId)] = 0;
 
+    mMapIdQuota[Index(kUserLogicalBytesTarget, uid)] = mMapIdQuota[Index(kUserBytesTarget, uid)] / mLayoutSizeFactor;
+    mMapIdQuota[Index(kGroupLogicalBytesTarget, gid)] = mMapIdQuota[Index(kGroupBytesTarget, gid)] / mLayoutSizeFactor;
+
     if (upd_proj_quota) {
       // Recalculate the project quota only every 5 seconds to boost perf.
       static XrdSysMutex lMutex;
@@ -438,6 +441,9 @@ SpaceQuota::UpdateFromQuotaNode(uid_t uid, gid_t gid, bool upd_proj_quota)
         mMapIdQuota[Index(kGroupBytesIs, Quota::gProjectId)] = 0;
         mMapIdQuota[Index(kGroupFilesIs, Quota::gProjectId)] = 0;
         mMapIdQuota[Index(kGroupLogicalBytesIs, Quota::gProjectId)] = 0;
+	// update logical target
+	mMapIdQuota[Index(kGroupLogicalBytesTarget, Quota::gProjectId)] = mMapIdQuota[Index(kGroupBytesTarget, Quota::gProjectId)] / mLayoutSizeFactor;
+
         // Loop over users and fill project quota
         auto uids = mQuotaNode->getUids();
 
@@ -2172,9 +2178,9 @@ Quota::GetQuotaInfo(SpaceQuota* squota, uid_t uid, gid_t gid,
   squota->UpdateFromQuotaNode(uid, gid,
                               squota->GetQuota(SpaceQuota::kGroupBytesTarget, Quota::gProjectId)
                               ? true : false);
-  maxbytes_user  = squota->GetQuota(SpaceQuota::kUserBytesTarget, uid);
-  maxbytes_group = squota->GetQuota(SpaceQuota::kGroupBytesTarget, gid);
-  maxbytes_project = squota->GetQuota(SpaceQuota::kGroupBytesTarget,
+  maxbytes_user  = squota->GetQuota(SpaceQuota::kUserLogicalBytesTarget, uid);
+  maxbytes_group = squota->GetQuota(SpaceQuota::kGroupLogicalBytesTarget, gid);
+  maxbytes_project = squota->GetQuota(SpaceQuota::kGroupLogicalBytesTarget,
                                       Quota::gProjectId);
   freebytes_user = maxbytes_user - squota->GetQuota(
                      SpaceQuota::kUserLogicalBytesIs, uid);
