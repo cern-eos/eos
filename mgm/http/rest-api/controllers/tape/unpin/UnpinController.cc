@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ControllerFactory.cc
+// File: UnpinController.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,23 +21,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "ControllerFactory.hh"
-#include "mgm/http/rest-api/controllers/tape/stage/StageController.hh"
-#include "mgm/http/rest-api/controllers/tape/fileinfo/FileInfoController.hh"
-#include "mgm/http/rest-api/controllers/tape/unpin/UnpinController.hh"
+#include "UnpinController.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-std::unique_ptr<Controller> ControllerFactory::getStageController(const std::string & accessURL) {
-  return std::make_unique<StageController>(accessURL);
-}
+UnpinController::UnpinController(const std::string & accessURL):Controller(accessURL){}
 
-std::unique_ptr<Controller> ControllerFactory::getFileinfoController(const std::string& accessURL){
-  return std::make_unique<FileInfoController>(accessURL);
-}
-
-std::unique_ptr<Controller> ControllerFactory::getUnpinController(const std::string& accessURL) {
-  return std::make_unique<UnpinController>(accessURL);
+common::HttpResponse * UnpinController::handleRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) {
+  return mControllerActionDispatcher.getAction(request)->run(request,vid);
 }
 
 EOSMGMRESTNAMESPACE_END
