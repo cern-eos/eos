@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ControllerFactory.cc
+// File: UnpinController.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,24 +20,22 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-#include "ControllerFactory.hh"
-#include "mgm/http/rest-api/controllers/tape/stage/StageController.hh"
-#include "mgm/http/rest-api/controllers/tape/fileinfo/FileInfoController.hh"
-#include "mgm/http/rest-api/controllers/tape/unpin/UnpinController.hh"
+#ifndef EOS_UNPINCONTROLLER_HH
+#define EOS_UNPINCONTROLLER_HH
+#include "mgm/Namespace.hh"
+#include "mgm/http/rest-api/controllers/Controller.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-std::unique_ptr<Controller> ControllerFactory::getStageController(const std::string & accessURL) {
-  return std::make_unique<StageController>(accessURL);
-}
-
-std::unique_ptr<Controller> ControllerFactory::getFileinfoController(const std::string& accessURL){
-  return std::make_unique<FileInfoController>(accessURL);
-}
-
-std::unique_ptr<Controller> ControllerFactory::getUnpinController(const std::string& accessURL) {
-  return std::make_unique<UnpinController>(accessURL);
-}
+/**
+ * This controller is the version 1 of the stage
+ * resource of the tape REST API
+ */
+class UnpinController : public Controller {
+public:
+  UnpinController(const std::string & accessURL);
+  virtual common::HttpResponse * handleRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) override;
+};
 
 EOSMGMRESTNAMESPACE_END
+#endif // EOS_UNPINCONTROLLER_HH
