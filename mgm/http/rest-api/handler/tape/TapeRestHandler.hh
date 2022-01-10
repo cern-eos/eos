@@ -49,6 +49,7 @@ private:
   void initializeControllers();
   std::unique_ptr<Controller> initializeStageController(const std::string & apiVersion, std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness);
   std::unique_ptr<Controller> initializeFileInfoController(const std::string & apiVersion, std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness);
+  std::unique_ptr<Controller> initializeUnpinController(const std::string & apiVersion, std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness);
   TapeRestApiResponseFactory mTapeRestApiResponseFactory;
   inline static const std::string VERSION_0 = "v1";
 };

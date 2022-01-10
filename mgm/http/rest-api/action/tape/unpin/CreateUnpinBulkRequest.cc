@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ControllerFactory.cc
+// File: CreateUnpinBulkRequest.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,23 +21,29 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "ControllerFactory.hh"
-#include "mgm/http/rest-api/controllers/tape/stage/StageController.hh"
-#include "mgm/http/rest-api/controllers/tape/fileinfo/FileInfoController.hh"
-#include "mgm/http/rest-api/controllers/tape/unpin/UnpinController.hh"
+#include "CreateUnpinBulkRequest.hh"
+#include "mgm/http/rest-api/exception/InvalidJSONException.hh"
+#include "mgm/http/rest-api/exception/JsonObjectModelMalformedException.hh"
+#include "mgm/http/rest-api/exception/tape/TapeRestApiBusinessException.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-std::unique_ptr<Controller> ControllerFactory::getStageController(const std::string & accessURL) {
-  return std::make_unique<StageController>(accessURL);
-}
-
-std::unique_ptr<Controller> ControllerFactory::getFileinfoController(const std::string& accessURL){
-  return std::make_unique<FileInfoController>(accessURL);
-}
-
-std::unique_ptr<Controller> ControllerFactory::getUnpinController(const std::string& accessURL) {
-  return std::make_unique<UnpinController>(accessURL);
+common::HttpResponse* CreateUnpinBulkRequest::run(common::HttpRequest* request, const common::VirtualIdentity* vid) {
+  std::unique_ptr<PathsModel> paths;
+  try {
+    paths = mInputJsonModelBuilder->buildFromJson(request->GetBody());
+  } catch (const InvalidJSONException & ex) {
+    return mResponseFactory.createBadRequestError(ex.what()).getHttpResponse();
+  } catch (const JsonObjectModelMalformedException & ex) {
+    return mResponseFactory.createBadRequestError(ex.what()).getHttpResponse();
+  }
+  //Unpin the files provided by the user
+  try {
+    mTapeRestApiBusiness->unpinPaths(paths.get(), vid);
+  } catch(const TapeRestApiBusinessException & ex) {
+    return mResponseFactory.createInternalServerError(ex.what()).getHttpResponse();
+  }
+  return mResponseFactory.createOkEmptyResponse().getHttpResponse();
 }
 
 EOSMGMRESTNAMESPACE_END
