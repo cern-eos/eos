@@ -34,7 +34,8 @@
 EOSMGMNAMESPACE_BEGIN
 
 class FsGroup;
-static constexpr uint64_t GROUPBALANCER_MIN_FILE_SIZE = 1<<30UL;
+class FsSpace;
+static constexpr uint64_t GROUPBALANCER_MIN_FILE_SIZE = 1ULL<<30;
 
 //------------------------------------------------------------------------------
 //! @brief Class representing a group's size
@@ -109,11 +110,28 @@ public:
   //----------------------------------------------------------------------------
   void GroupBalance(ThreadAssistant& assistant) noexcept;
 
+
+  struct Config {
+    bool is_enabled;
+    bool is_conv_enabled;
+    int num_tx;
+    double mThreshold;     ///< Threshold for group balancing
+    uint64_t mMinFileSize; ///< Min size of files to be picked
+
+    Config(): is_enabled(true), is_conv_enabled(true), num_tx(0), mThreshold(.5),
+              mMinFileSize(GROUPBALANCER_MIN_FILE_SIZE)
+    {}
+  };
+
+  //----------------------------------------------------------------------------
+  //! Set up Config based on values configured in space
+  //----------------------------------------------------------------------------
+  static void Configure(FsSpace* const space, Config& cfg);
+
 private:
   AssistedThread mThread; ///< Thread scheduling jobs
   std::string mSpaceName; ///< Attached space name
-  double mThreshold; ///< Threshold for group balancing
-  uint64_t mMinFileSize = GROUPBALANCER_MIN_FILE_SIZE; ///< Min size of files to be picked
+  Config cfg;
 
   /// groups whose size is over the average size of the groups
   std::map<std::string, FsGroup*> mGroupsOverAvg;
