@@ -27,16 +27,19 @@
 #include "mgm/Namespace.hh"
 #include "mgm/http/rest-api/action/tape/TapeAction.hh"
 #include "mgm/http/rest-api/json/ModelBuilder.hh"
+#include "mgm/http/rest-api/json/tape/TapeRestApiJsonifier.hh"
+#include "mgm/http/rest-api/model/tape/fileinfo/GetFileInfoResponseModel.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
 class GetFileInfo : public TapeAction {
 public:
-  GetFileInfo(const std::string & accessURL,const common::HttpHandler::Methods method,std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness,std::shared_ptr<ModelBuilder<PathsModel>> inputJsonModelBuilder):
-    TapeAction(accessURL,method,tapeRestApiBusiness),mInputJsonModelBuilder(inputJsonModelBuilder){}
+  GetFileInfo(const std::string & accessURL,const common::HttpHandler::Methods method,std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness,std::shared_ptr<ModelBuilder<PathsModel>> inputJsonModelBuilder,std::shared_ptr<TapeRestApiJsonifier<GetFileInfoResponseModel>> outputObjectJsonifier):
+    TapeAction(accessURL,method,tapeRestApiBusiness),mInputJsonModelBuilder(inputJsonModelBuilder),mOutputObjectJsonifier(outputObjectJsonifier){}
   common::HttpResponse * run(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
 private:
   std::shared_ptr<ModelBuilder<PathsModel>> mInputJsonModelBuilder;
+  std::shared_ptr<TapeRestApiJsonifier<GetFileInfoResponseModel>>  mOutputObjectJsonifier;
 };
 
 EOSMGMRESTNAMESPACE_END

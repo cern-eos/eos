@@ -38,9 +38,9 @@ common::HttpResponse* CancelStageBulkRequest::run(common::HttpRequest* request, 
   URLParser parser(request->GetUrl());
   std::map<std::string,std::string> requestParameters;
   //Check the content of the request and create a bulk-request with it
-  std::unique_ptr<PathsModel> cancelStageBulkRequestModel;
+  std::unique_ptr<PathsModel> paths;
   try {
-    cancelStageBulkRequestModel = mInputJsonModelBuilder->buildFromJson(request->GetBody());
+    paths = mInputJsonModelBuilder->buildFromJson(request->GetBody());
   } catch (const InvalidJSONException & ex) {
     return mResponseFactory.createBadRequestError(ex.what()).getHttpResponse();
   } catch (const JsonObjectModelMalformedException & ex) {
@@ -50,7 +50,7 @@ common::HttpResponse* CancelStageBulkRequest::run(common::HttpRequest* request, 
   parser.matchesAndExtractParameters(this->mURLPattern,requestParameters);
   const std::string & requestId = requestParameters[URLParametersConstants::ID];
   try {
-    mTapeRestApiBusiness->cancelStageBulkRequest(requestId, cancelStageBulkRequestModel.get(), vid);
+    mTapeRestApiBusiness->cancelStageBulkRequest(requestId, paths.get(), vid);
   } catch (const ObjectNotFoundException &ex){
     return mResponseFactory.createNotFoundError().getHttpResponse();
   } catch(const FileDoesNotBelongToBulkRequestException&ex) {

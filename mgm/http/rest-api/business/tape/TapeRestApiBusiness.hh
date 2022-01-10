@@ -36,6 +36,7 @@ public:
   virtual void cancelStageBulkRequest(const std::string & requestId, const PathsModel* model, const common::VirtualIdentity * vid) override;
   virtual std::shared_ptr<bulk::QueryPrepareResponse> getStageBulkRequest(const std::string & requestId, const common::VirtualIdentity * vid) override;
   virtual void deleteStageBulkRequest(const std::string & requestId, const common::VirtualIdentity * vid) override;
+  virtual std::shared_ptr<bulk::QueryPrepareResponse> getFileInfo(const PathsModel * model, const common::VirtualIdentity * vid) override;
 protected:
   std::unique_ptr<bulk::BulkRequestPrepareManager> createBulkRequestPrepareManager();
   std::shared_ptr<bulk::BulkRequestBusiness> createBulkRequestBusiness();
