@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: GetFileInfo.cc
+// File: GetFileInfoResponseJsonifier.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,34 +21,22 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "GetFileInfo.hh"
-#include "mgm/http/rest-api/exception/InvalidJSONException.hh"
-#include "mgm/http/rest-api/exception/JsonObjectModelMalformedException.hh"
-#include "mgm/http/rest-api/exception/tape/TapeRestApiBusinessException.hh"
+#ifndef EOS_GETFILEINFORESPONSEJSONIFIER_HH
+#define EOS_GETFILEINFORESPONSEJSONIFIER_HH
+
+#include "mgm/Namespace.hh"
+#include "common/json/JsonCppJsonifier.hh"
+#include "mgm/http/rest-api/json/tape/TapeRestApiJsonifier.hh"
 #include "mgm/http/rest-api/model/tape/fileinfo/GetFileInfoResponseModel.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-common::HttpResponse* GetFileInfo::run(common::HttpRequest* request, const common::VirtualIdentity* vid) {
-  std::unique_ptr<PathsModel> paths;
-  try {
-    paths = mInputJsonModelBuilder->buildFromJson(request->GetBody());
-  } catch (const InvalidJSONException & ex) {
-    return mResponseFactory.createBadRequestError(ex.what()).getHttpResponse();
-  } catch (const JsonObjectModelMalformedException & ex) {
-    return mResponseFactory.createBadRequestError(ex.what()).getHttpResponse();
-  }
-  //Get the information about the files
-  std::shared_ptr<bulk::QueryPrepareResponse> queryPrepareResponse;
-  try {
-    queryPrepareResponse = mTapeRestApiBusiness->getFileInfo(paths.get(), vid);
-  } catch(const TapeRestApiBusinessException & ex) {
-    return mResponseFactory.createInternalServerError(ex.what()).getHttpResponse();
-  }
-  //Build the json response and return it to the client
-  std::shared_ptr<GetFileInfoResponseModel> response = std::make_shared<GetFileInfoResponseModel>(queryPrepareResponse);
-  response->setJsonifier(mOutputObjectJsonifier);
-  return mResponseFactory.createResponse(response,common::HttpResponse::ResponseCodes::OK).getHttpResponse();
-}
+class GetFileInfoResponseJsonifier
+    : public TapeRestApiJsonifier<GetFileInfoResponseModel>, public common::JsonCppJsonifier<GetFileInfoResponseModel> {
+public:
+  void jsonify(const GetFileInfoResponseModel * obj, std::stringstream & ss) override;
+};
 
 EOSMGMRESTNAMESPACE_END
+
+#endif // EOS_GETFILEINFORESPONSEJSONIFIER_HH
