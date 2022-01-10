@@ -27,7 +27,7 @@ EOSMGMRESTNAMESPACE_BEGIN
 
 void GetStageBulkRequestJsonifier::jsonify(const GetStageBulkRequestResponseModel* obj, std::stringstream& ss) {
   Json::Value root;
-  root = Json::Value(Json::arrayValue);
+  initializeArray(root);
   for(auto response: obj->getQueryPrepareResponse()->responses) {
     Json::Value fileObj;
     fileObj["path"] = response.path;

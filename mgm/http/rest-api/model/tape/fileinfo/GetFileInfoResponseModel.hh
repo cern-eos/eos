@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ITapeRestApiBusiness.hh
+// File: GetFileInfoResponseModel.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,29 +20,23 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-#ifndef EOS_ITAPERESTAPIBUSINESS_HH
-#define EOS_ITAPERESTAPIBUSINESS_HH
+#ifndef EOS_GETFILEINFORESPONSEMODEL_HH
+#define EOS_GETFILEINFORESPONSEMODEL_HH
 
 #include "mgm/Namespace.hh"
-#include <memory>
-#include "mgm/bulk-request/BulkRequest.hh"
+#include "common/json/Jsonifiable.hh"
 #include "mgm/bulk-request/response/QueryPrepareResponse.hh"
-#include "mgm/http/rest-api/model/tape/stage/CreateStageBulkRequestModel.hh"
-#include "mgm/http/rest-api/model/tape/stage/PathsModel.hh"
-#include "common/VirtualIdentity.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class ITapeRestApiBusiness {
+class GetFileInfoResponseModel : public common::Jsonifiable<GetFileInfoResponseModel> {
 public:
-  virtual std::shared_ptr<bulk::BulkRequest> createStageBulkRequest(const CreateStageBulkRequestModel * model, const common::VirtualIdentity * vid) = 0;
-  virtual void cancelStageBulkRequest(const std::string & requestId, const PathsModel* model, const common::VirtualIdentity * vid) = 0;
-  virtual std::shared_ptr<bulk::QueryPrepareResponse> getStageBulkRequest(const std::string & requestId, const common::VirtualIdentity * vid) = 0;
-  virtual void deleteStageBulkRequest(const std::string & requestId, const common::VirtualIdentity * vid) = 0;
-  virtual std::shared_ptr<bulk::QueryPrepareResponse> getFileInfo(const PathsModel * model, const common::VirtualIdentity * vid) = 0;
+  GetFileInfoResponseModel(std::shared_ptr<bulk::QueryPrepareResponse> queryPrepareResponse):mQueryPrepareResponse(queryPrepareResponse){}
+  std::shared_ptr<bulk::QueryPrepareResponse> getQueryPrepareResponse() const;
+private:
+  std::shared_ptr<bulk::QueryPrepareResponse> mQueryPrepareResponse;
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_ITAPERESTAPIBUSINESS_HH
+#endif // EOS_GETFILEINFORESPONSEMODEL_HH

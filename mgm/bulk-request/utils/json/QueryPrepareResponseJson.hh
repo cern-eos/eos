@@ -41,7 +41,7 @@ private:
 void QueryPrepareResponseJson::jsonify(const QueryPrepareResponse * obj,std::stringstream &ss) {
   Json::Value root;
   root["request_id"] = obj->request_id;
-  root["responses"] = Json::arrayValue;
+  initializeArray(root["responses"]);
   for(const auto & fileResponse: obj->responses){
     Json::Value response;
     jsonify(fileResponse,response);
