@@ -72,7 +72,12 @@ void TapeRestApiBusiness::cancelStageBulkRequest(const std::string & requestId, 
   bulk::PrepareArgumentsWrapper pargsWrapper(requestId,Prep_CANCEL,filesToCancel.getOpaqueInfos(),filesToCancel.getPaths());
   auto pm = createBulkRequestPrepareManager();
   XrdOucErrInfo error;
-  pm->prepare(*pargsWrapper.getPrepareArguments(),error,vid);
+  int retCancellation = pm->prepare(*pargsWrapper.getPrepareArguments(),error,vid);
+  if(retCancellation != SFS_OK) {
+    std::stringstream ss;
+    ss << "Unable to cancel the files provided. errMsg=\"" << error.getErrText() << "\"";
+    throw TapeRestApiBusinessException(ss.str());
+  }
 }
 
 std::shared_ptr<bulk::QueryPrepareResponse> TapeRestApiBusiness::getStageBulkRequest(const std::string& requestId,const common::VirtualIdentity * vid) {
@@ -118,7 +123,12 @@ void TapeRestApiBusiness::deleteStageBulkRequest(const std::string& requestId, c
   bulk::PrepareArgumentsWrapper pargsWrapper(requestId,Prep_CANCEL,filesToCancel.getOpaqueInfos(),filesToCancel.getPaths());
   auto pm = createBulkRequestPrepareManager();
   XrdOucErrInfo error;
-  pm->prepare(*pargsWrapper.getPrepareArguments(),error,vid);
+  int retCancellation = pm->prepare(*pargsWrapper.getPrepareArguments(),error,vid);
+  if(retCancellation != SFS_OK) {
+    std::stringstream ss;
+    ss << "Unable to cancel the files provided. errMsg=\"" << error.getErrText() << "\"";
+    throw TapeRestApiBusinessException(ss.str());
+  }
   //Now that the request got cancelled, let's delete it from the persistency
   try {
     bulkRequestBusiness->deleteBulkRequest(std::move(bulkRequest));
@@ -139,6 +149,19 @@ std::shared_ptr<bulk::QueryPrepareResponse> TapeRestApiBusiness::getFileInfo(con
     throw TapeRestApiBusinessException(ss.str());
   }
   return queryPrepareResult->getResponse();
+}
+
+void TapeRestApiBusiness::unpinPaths(const PathsModel* model, const common::VirtualIdentity* vid) {
+  auto & filesContainer = model->getFiles();
+  bulk::PrepareArgumentsWrapper pargsWrapper("fake_id",Prep_EVICT,filesContainer.getOpaqueInfos(),filesContainer.getPaths());
+  auto pm = createBulkRequestPrepareManager();
+  XrdOucErrInfo error;
+  int retEvict = pm->prepare(*pargsWrapper.getPrepareArguments(),error,vid);
+  if(retEvict != SFS_OK) {
+    std::stringstream ss;
+    ss << "Unable to unpin the files provided. errMsg=\"" << error.getErrText() << "\"";
+    throw TapeRestApiBusinessException(ss.str());
+  }
 }
 
 std::unique_ptr<bulk::BulkRequestPrepareManager> TapeRestApiBusiness::createBulkRequestPrepareManager() {

@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ControllerFactory.cc
+// File: CreateUnpinBulkRequest.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,24 +20,26 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
+#ifndef EOS_CREATEUNPINBULKREQUEST_HH
+#define EOS_CREATEUNPINBULKREQUEST_HH
 
-#include "ControllerFactory.hh"
-#include "mgm/http/rest-api/controllers/tape/stage/StageController.hh"
-#include "mgm/http/rest-api/controllers/tape/fileinfo/FileInfoController.hh"
-#include "mgm/http/rest-api/controllers/tape/unpin/UnpinController.hh"
+#include "mgm/Namespace.hh"
+#include "mgm/http/rest-api/action/tape/TapeAction.hh"
+#include "mgm/http/rest-api/action/tape/TapeAction.hh"
+#include "mgm/http/rest-api/json/ModelBuilder.hh"
+#include "mgm/http/rest-api/json/tape/TapeRestApiJsonifier.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-std::unique_ptr<Controller> ControllerFactory::getStageController(const std::string & accessURL) {
-  return std::make_unique<StageController>(accessURL);
-}
-
-std::unique_ptr<Controller> ControllerFactory::getFileinfoController(const std::string& accessURL){
-  return std::make_unique<FileInfoController>(accessURL);
-}
-
-std::unique_ptr<Controller> ControllerFactory::getUnpinController(const std::string& accessURL) {
-  return std::make_unique<UnpinController>(accessURL);
-}
+class CreateUnpinBulkRequest : public TapeAction {
+public:
+  CreateUnpinBulkRequest(const std::string & accessURL,const common::HttpHandler::Methods method,std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness,std::shared_ptr<ModelBuilder<PathsModel>> inputJsonModelBuilder):
+      TapeAction(accessURL,method,tapeRestApiBusiness),mInputJsonModelBuilder(inputJsonModelBuilder){}
+  common::HttpResponse * run(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
+private:
+  std::shared_ptr<ModelBuilder<PathsModel>> mInputJsonModelBuilder;
+};
 
 EOSMGMRESTNAMESPACE_END
+
+#endif // EOS_CREATEUNPINBULKREQUEST_HH

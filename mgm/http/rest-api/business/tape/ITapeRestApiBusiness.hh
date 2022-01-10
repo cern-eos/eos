@@ -41,6 +41,7 @@ public:
   virtual std::shared_ptr<bulk::QueryPrepareResponse> getStageBulkRequest(const std::string & requestId, const common::VirtualIdentity * vid) = 0;
   virtual void deleteStageBulkRequest(const std::string & requestId, const common::VirtualIdentity * vid) = 0;
   virtual std::shared_ptr<bulk::QueryPrepareResponse> getFileInfo(const PathsModel * model, const common::VirtualIdentity * vid) = 0;
+  virtual void unpinPaths(const PathsModel * model, const common::VirtualIdentity * vid) = 0;
 };
 
 EOSMGMRESTNAMESPACE_END

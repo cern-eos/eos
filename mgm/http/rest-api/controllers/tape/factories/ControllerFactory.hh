@@ -38,6 +38,7 @@ class ControllerFactory {
 public:
   static std::unique_ptr<Controller> getStageController(const std::string & accessURL);
   static std::unique_ptr<Controller> getFileinfoController(const std::string & accessURL);
+  static std::unique_ptr<Controller> getUnpinController(const std::string & accessURL);
 };
 
 EOSMGMRESTNAMESPACE_END
