@@ -130,7 +130,7 @@ TEST_F(PrepareManagerTest,stagePrepareFilesWorkflow){
   EXPECT_CALL(mgmOfs,FSctl).Times(nbFiles);
 
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
-  PrepareArgumentsWrapper pargs("testReqId",Prep_STAGE,oinfos,paths);
+  PrepareArgumentsWrapper pargs("testReqId", Prep_STAGE, paths, oinfos);
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
@@ -153,7 +153,7 @@ TEST_F(PrepareManagerTest,stagePrepareFileWithNoPath){
   EXPECT_CALL(mgmOfs,FSctl).Times(0);
 
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
-  PrepareArgumentsWrapper pargs("testReqId",Prep_STAGE, {""},{""});
+  PrepareArgumentsWrapper pargs("testReqId", Prep_STAGE, {""}, {""});
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
@@ -186,7 +186,7 @@ TEST_F(PrepareManagerTest,stagePrepareAllFilesDoNotExist){
   EXPECT_CALL(mgmOfs,FSctl).Times(0);
 
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
-  PrepareArgumentsWrapper pargs("testReqId",Prep_STAGE,oinfos,paths);
+  PrepareArgumentsWrapper pargs("testReqId", Prep_STAGE, paths, oinfos);
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
@@ -228,7 +228,7 @@ TEST_F(PrepareManagerTest,stagePrepareOneFileDoNotExistReturnsSfsData){
   EXPECT_CALL(mgmOfs,FSctl).Times(nbFiles - 1);
 
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
-  PrepareArgumentsWrapper pargs("testReqId",Prep_STAGE,oinfos,paths);
+  PrepareArgumentsWrapper pargs("testReqId", Prep_STAGE, paths, oinfos);
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
@@ -268,7 +268,7 @@ TEST_F(PrepareManagerTest,abortPrepareFilesWorkflow){
   EXPECT_CALL(mgmOfs,FSctl).Times(nbFiles);
 
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
-  PrepareArgumentsWrapper pargs("testReqId",Prep_CANCEL,oinfos,paths);
+  PrepareArgumentsWrapper pargs("testReqId", Prep_CANCEL, paths, oinfos);
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
@@ -306,7 +306,7 @@ TEST_F(PrepareManagerTest,abortPrepareOneFileDoesNotExist){
   EXPECT_CALL(mgmOfs,FSctl).Times(1);
 
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
-  PrepareArgumentsWrapper pargs("testReqId",Prep_CANCEL,oinfos,paths);
+  PrepareArgumentsWrapper pargs("testReqId", Prep_CANCEL, paths, oinfos);
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
@@ -344,7 +344,7 @@ TEST_F(PrepareManagerTest,evictPrepareFilesWorkflow){
   EXPECT_CALL(mgmOfs,FSctl).Times(nbFiles);
 
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
-  PrepareArgumentsWrapper pargs("testReqId",Prep_EVICT,oinfos,paths);
+  PrepareArgumentsWrapper pargs("testReqId", Prep_EVICT, paths, oinfos);
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
@@ -382,7 +382,7 @@ TEST_F(PrepareManagerTest,evictPrepareOneFileDoesNotExist){
   EXPECT_CALL(mgmOfs,FSctl).Times(1);
 
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
-  PrepareArgumentsWrapper pargs("testReqId",Prep_EVICT,oinfos,paths);
+  PrepareArgumentsWrapper pargs("testReqId", Prep_EVICT, paths, oinfos);
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
@@ -414,7 +414,7 @@ TEST_F(PrepareManagerTest,queryPrepare){
 
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
   std::string requestId = "testReqId";
-  PrepareArgumentsWrapper pargs(requestId,Prep_QUERY,oinfos,paths);
+  PrepareArgumentsWrapper pargs(requestId, Prep_QUERY, paths, oinfos);
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
