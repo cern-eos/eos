@@ -948,7 +948,7 @@ FsSpace::FsSpace(const char* name)
 
     // Set the groupbalancer min file size by default
     if (GetConfigMember("groupbalancer.min_file_size").empty()) {
-      SetConfigMember("groupbalancer.threshold", "1G");
+      SetConfigMember("groupbalancer.min_file_size", "1G");
     }
 
     if (GetConfigMember("geobalancer").empty()) {
