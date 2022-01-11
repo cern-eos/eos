@@ -56,7 +56,6 @@ public:
   static CheckSum*
   GetXsObj(unsigned long xs_type)
   {
-    fprintf(stderr,"#  type=%d\n",xs_type);
     if (xs_type == eos::common::LayoutId::kAdler) {
       return static_cast<CheckSum*>(new Adler());
     } else if (xs_type == eos::common::LayoutId::kBLAKE3) {

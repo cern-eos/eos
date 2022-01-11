@@ -774,8 +774,6 @@ public:
   static int
   GetChecksumFromString(const std::string& checksum)
   {
-    fprintf(stderr, "# string=%s\n", checksum.c_str());
-
     if ((checksum == "adler") || (checksum == "adler32")) {
       return kAdler;
     } else if (checksum == "blake3") {
