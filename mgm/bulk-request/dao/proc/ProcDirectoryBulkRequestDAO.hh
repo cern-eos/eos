@@ -49,7 +49,7 @@ public:
    * recycle-bin (each '/' will be replaced by "#:#")
    * @param bulkRequest the BulkRequest to save
    */
-  void saveBulkRequest(const std::shared_ptr<BulkRequest> bulkRequest) override;
+  void saveBulkRequest(const BulkRequest * bulkRequest) override;
 
   /**
    * Get the bulk-request from the /eos/.../proc directory
@@ -73,7 +73,7 @@ public:
    * @param attributes the attributes to add/update to the bulk-request
    * @throws PersistencyException if the bulk-request does not exist
    */
-  void addOrUpdateAttributes(const std::shared_ptr<BulkRequest> bulkRequest, const std::map<std::string,std::string> & attributes) override;
+  void addOrUpdateAttributes(const BulkRequest * bulkRequest, const std::map<std::string,std::string> & attributes) override;
 
   /**
    * Returns true if the bulk-request corresponding to the id and the type
@@ -88,7 +88,7 @@ public:
    * Deletes the bulk-request passed in parameters from the persistency
    * @param bulkRequest the bulk-request to delete
    */
-  void deleteBulkRequest(const std::shared_ptr<BulkRequest> bulkRequest) override;
+  void deleteBulkRequest(const BulkRequest * bulkRequest) override;
 
 private:
   //Interface to the EOS filesystem to allow the creation of files and directories
@@ -106,14 +106,14 @@ private:
    * @param bulkRequest the bulkRequest to get the id from
    * @param bulkReqProcPath the directory in /proc/ where the files contained in the bulk-request will be saved
    */
-  void createBulkRequestDirectory(const std::shared_ptr<BulkRequest> bulkRequest, const std::string & bulkReqProcPath);
+  void createBulkRequestDirectory(const BulkRequest * bulkRequest, const std::string & bulkReqProcPath);
   /**
    * Generate the bulk-request directory path within the /eos/.../proc/ directory
    * It is generated according to the id of the bulk-request
    * @param bulkRequest the bulk-request to generate the path from
    * @return the string containing the path of the directory used to store the bulk-request
    */
-  std::string generateBulkRequestProcPath(const std::shared_ptr<BulkRequest> bulkRequest);
+  std::string generateBulkRequestProcPath(const BulkRequest * bulkRequest);
 
   /**
    * Generate the bulk-request directory path within the /eos/.../proc/ directory
@@ -129,7 +129,7 @@ private:
    * @param bulkRequest the bulk-request containing the files to insert in the directory
    * @param bulkReqProcPath the he directory in /proc/ where the files contained in the bulk-request will be saved
    */
-  void insertBulkRequestFilesToBulkRequestDirectory(const std::shared_ptr<BulkRequest> bulkRequest, const std::string & bulkReqProcPath);
+  void insertBulkRequestFilesToBulkRequestDirectory(const BulkRequest * bulkRequest, const std::string & bulkReqProcPath);
 
   /**
    * Performs the cleaning of the bulk-request directory if an exception happens during the persistency of the bulk-request
@@ -233,7 +233,7 @@ private:
    * @param bulkRequest the bulk-request from which the map will be added
    * @param xattrs the map containing the fid of a file associated to an eventual error (e.g prepare submission)
    */
-  void generateXattrsMapFromBulkRequestFiles(const std::shared_ptr<BulkRequest> bulkRequest,eos::IContainerMD::XAttrMap & xattrs);
+  void generateXattrsMapFromBulkRequestFiles(const BulkRequest * bulkRequest,eos::IContainerMD::XAttrMap & xattrs);
 
   /**
    * Persist the bulk-request in the extended attributes of the directory

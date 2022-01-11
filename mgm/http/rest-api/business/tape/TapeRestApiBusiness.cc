@@ -37,7 +37,8 @@ EOSMGMRESTNAMESPACE_BEGIN
 
 std::shared_ptr<bulk::BulkRequest> TapeRestApiBusiness::createStageBulkRequest(const CreateStageBulkRequestModel* model, const common::VirtualIdentity * vid) {
   const FilesContainer & files = model->getFiles();
-  bulk::PrepareArgumentsWrapper pargsWrapper("fake_id",Prep_STAGE,files.getOpaqueInfos(),files.getPaths());
+  bulk::PrepareArgumentsWrapper pargsWrapper(
+      "fake_id", Prep_STAGE, files.getPaths(), files.getOpaqueInfos());
   auto prepareManager = createBulkRequestPrepareManager();
   XrdOucErrInfo error;
   int prepareRetCode = prepareManager->prepare(*pargsWrapper.getPrepareArguments(),error,vid);
@@ -69,7 +70,9 @@ void TapeRestApiBusiness::cancelStageBulkRequest(const std::string & requestId, 
     }
   }
   //Do the cancellation
-  bulk::PrepareArgumentsWrapper pargsWrapper(requestId,Prep_CANCEL,filesToCancel.getOpaqueInfos(),filesToCancel.getPaths());
+  bulk::PrepareArgumentsWrapper pargsWrapper(requestId, Prep_CANCEL,
+                                             filesToCancel.getPaths(),
+                                             filesToCancel.getOpaqueInfos());
   auto pm = createBulkRequestPrepareManager();
   XrdOucErrInfo error;
   int retCancellation = pm->prepare(*pargsWrapper.getPrepareArguments(),error,vid);
@@ -120,7 +123,9 @@ void TapeRestApiBusiness::deleteStageBulkRequest(const std::string& requestId, c
   for(auto & fileFromBulkRequest: *filesFromBulkRequest){
     filesToCancel.addFile(fileFromBulkRequest.first);
   }
-  bulk::PrepareArgumentsWrapper pargsWrapper(requestId,Prep_CANCEL,filesToCancel.getOpaqueInfos(),filesToCancel.getPaths());
+  bulk::PrepareArgumentsWrapper pargsWrapper(requestId, Prep_CANCEL,
+                                             filesToCancel.getPaths(),
+                                             filesToCancel.getOpaqueInfos());
   auto pm = createBulkRequestPrepareManager();
   XrdOucErrInfo error;
   int retCancellation = pm->prepare(*pargsWrapper.getPrepareArguments(),error,vid);
@@ -131,7 +136,7 @@ void TapeRestApiBusiness::deleteStageBulkRequest(const std::string& requestId, c
   }
   //Now that the request got cancelled, let's delete it from the persistency
   try {
-    bulkRequestBusiness->deleteBulkRequest(std::move(bulkRequest));
+    bulkRequestBusiness->deleteBulkRequest(bulkRequest.get());
   } catch (bulk::PersistencyException &ex) {
     throw TapeRestApiBusinessException(ex.what());
   }
@@ -139,7 +144,9 @@ void TapeRestApiBusiness::deleteStageBulkRequest(const std::string& requestId, c
 
 std::shared_ptr<bulk::QueryPrepareResponse> TapeRestApiBusiness::getFileInfo(const PathsModel * model, const common::VirtualIdentity* vid) {
   auto & filesContainer = model->getFiles();
-  bulk::PrepareArgumentsWrapper pargsWrapper("fake_id",Prep_QUERY,filesContainer.getOpaqueInfos(),filesContainer.getPaths());
+  bulk::PrepareArgumentsWrapper pargsWrapper("fake_id", Prep_QUERY,
+                                             filesContainer.getPaths(),
+                                             filesContainer.getOpaqueInfos());
   auto pm = createBulkRequestPrepareManager();
   XrdOucErrInfo error;
   auto queryPrepareResult = pm->queryPrepare(*pargsWrapper.getPrepareArguments(),error,vid);
@@ -153,7 +160,9 @@ std::shared_ptr<bulk::QueryPrepareResponse> TapeRestApiBusiness::getFileInfo(con
 
 void TapeRestApiBusiness::unpinPaths(const PathsModel* model, const common::VirtualIdentity* vid) {
   auto & filesContainer = model->getFiles();
-  bulk::PrepareArgumentsWrapper pargsWrapper("fake_id",Prep_EVICT,filesContainer.getOpaqueInfos(),filesContainer.getPaths());
+  bulk::PrepareArgumentsWrapper pargsWrapper("fake_id", Prep_EVICT,
+                                             filesContainer.getPaths(),
+                                             filesContainer.getOpaqueInfos());
   auto pm = createBulkRequestPrepareManager();
   XrdOucErrInfo error;
   int retEvict = pm->prepare(*pargsWrapper.getPrepareArguments(),error,vid);

@@ -36,8 +36,8 @@ void BulkRequestPrepareManager::setBulkRequestBusiness(std::shared_ptr<BulkReque
   mBulkRequestBusiness = bulkRequestBusiness;
 }
 
-std::shared_ptr<BulkRequest> BulkRequestPrepareManager::getBulkRequest() const {
-  return mBulkRequest;
+std::unique_ptr<BulkRequest> BulkRequestPrepareManager::getBulkRequest() {
+  return std::move(mBulkRequest);
 }
 
 void BulkRequestPrepareManager::initializeStagePrepareRequest(XrdOucString& reqid){
@@ -70,7 +70,7 @@ void BulkRequestPrepareManager::addPathToBulkRequest(const std::string& path) {
 void BulkRequestPrepareManager::saveBulkRequest() {
   if(mBulkRequestBusiness != nullptr && mBulkRequest != nullptr){
     try {
-      mBulkRequestBusiness->saveBulkRequest(mBulkRequest);
+      mBulkRequestBusiness->saveBulkRequest(mBulkRequest.get());
     } catch(const PersistencyException & ex){
       eos_err("msg=\"Unable to persist the bulk request %s\" \"ExceptionWhat=%s\"",mBulkRequest->getId().c_str(),ex.what());
       throw ex;

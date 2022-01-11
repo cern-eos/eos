@@ -37,7 +37,7 @@ ProcDirectoryBulkRequestDAO::ProcDirectoryBulkRequestDAO(XrdMgmOfs * fileSystem,
 
 }
 
-void ProcDirectoryBulkRequestDAO::saveBulkRequest(const std::shared_ptr<BulkRequest> bulkRequest) {
+void ProcDirectoryBulkRequestDAO::saveBulkRequest(const BulkRequest * bulkRequest) {
   std::string directoryBulkReqPath = generateBulkRequestProcPath(bulkRequest);
   try {
     if(bulkRequest->getFiles()->size() == 0) {
@@ -66,7 +66,7 @@ void ProcDirectoryBulkRequestDAO::saveBulkRequest(const std::shared_ptr<BulkRequ
   }
 }
 
-void ProcDirectoryBulkRequestDAO::generateXattrsMapFromBulkRequestFiles(const std::shared_ptr<BulkRequest> bulkRequest, eos::IContainerMD::XAttrMap& xattrs) {
+void ProcDirectoryBulkRequestDAO::generateXattrsMapFromBulkRequestFiles(const BulkRequest * bulkRequest, eos::IContainerMD::XAttrMap& xattrs) {
   std::map<bulk::File,folly::Future<IFileMDPtr>> filesWithMDFutures;
 
   const auto & files = *bulkRequest->getFiles();
@@ -128,7 +128,7 @@ void ProcDirectoryBulkRequestDAO::persistBulkRequestDirectory(const std::string&
   }
 }
 
-void ProcDirectoryBulkRequestDAO::createBulkRequestDirectory(const std::shared_ptr<BulkRequest> bulkRequest,const std::string & bulkReqProcPath) {
+void ProcDirectoryBulkRequestDAO::createBulkRequestDirectory(const BulkRequest * bulkRequest,const std::string & bulkReqProcPath) {
   XrdOucErrInfo error;
   int directoryCreationRetCode = mFileSystem->_mkdir(bulkReqProcPath.c_str(),S_IFDIR | S_IRWXU,error, mVid);
   if(directoryCreationRetCode != SFS_OK){
@@ -140,7 +140,7 @@ void ProcDirectoryBulkRequestDAO::createBulkRequestDirectory(const std::shared_p
 
 }
 
-std::string ProcDirectoryBulkRequestDAO::generateBulkRequestProcPath(const std::shared_ptr<BulkRequest> bulkRequest) {
+std::string ProcDirectoryBulkRequestDAO::generateBulkRequestProcPath(const BulkRequest * bulkRequest) {
   return generateBulkRequestProcPath(bulkRequest->getId(),bulkRequest->getType());
 }
 
@@ -148,7 +148,7 @@ std::string ProcDirectoryBulkRequestDAO::generateBulkRequestProcPath(const std::
   return mProcDirectoryBulkRequestLocations.getDirectoryPathWhereBulkRequestCouldBeSaved(type) + bulkRequestId;
 }
 
-void ProcDirectoryBulkRequestDAO::insertBulkRequestFilesToBulkRequestDirectory(const std::shared_ptr<BulkRequest> bulkRequest, const std::string & bulkReqProcPath) {
+void ProcDirectoryBulkRequestDAO::insertBulkRequestFilesToBulkRequestDirectory(const BulkRequest * bulkRequest, const std::string & bulkReqProcPath) {
   const auto & files = *bulkRequest->getFiles();
   //Map of files associated to the future object for the in-memory prefetching of the file informations
   std::map<bulk::File,folly::Future<IFileMDPtr>> filesWithMDFutures;
@@ -439,7 +439,7 @@ void ProcDirectoryBulkRequestDAO::updateLastAccessTime(const std::string & path)
   setExtendedAttribute(path,LAST_ACCESS_TIME_ATTR_NAME,nowStr);
 }
 
-void ProcDirectoryBulkRequestDAO::addOrUpdateAttributes(const std::shared_ptr<BulkRequest> bulkRequest, const std::map<std::string,std::string> & attributes){
+void ProcDirectoryBulkRequestDAO::addOrUpdateAttributes(const BulkRequest * bulkRequest, const std::map<std::string,std::string> & attributes){
   std::string bulkRequestPath = generateBulkRequestProcPath(bulkRequest);
   if(existsAndIsDirectory(bulkRequestPath)){
     for(const auto& kv: attributes){
@@ -457,7 +457,7 @@ bool ProcDirectoryBulkRequestDAO::exists(const std::string& bulkRequestId, const
   return existsAndIsDirectory(bulkRequestPath);
 }
 
-void ProcDirectoryBulkRequestDAO::deleteBulkRequest(const std::shared_ptr<BulkRequest> bulkRequest) {
+void ProcDirectoryBulkRequestDAO::deleteBulkRequest(const BulkRequest * bulkRequest) {
   std::string bulkRequestPath = generateBulkRequestProcPath(bulkRequest);
   deleteDirectory(bulkRequestPath);
 }
