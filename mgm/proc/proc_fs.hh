@@ -121,7 +121,8 @@ int proc_fs_add(mq::MessagingRealm* realm, std::string& sfsid,
                 std::string& nodename, std::string& mountpoint, std::string& space,
                 std::string& configstatus, XrdOucString& stdOut,
                 XrdOucString& stdErr,
-                eos::common::VirtualIdentity& vid_in);
+                eos::common::VirtualIdentity& vid_in,
+		bool force=false);
 
 //------------------------------------------------------------------------------
 //! Remove a filesystem

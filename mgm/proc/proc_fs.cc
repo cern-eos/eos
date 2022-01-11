@@ -545,7 +545,7 @@ int
 proc_fs_add(mq::MessagingRealm* realm, std::string& sfsid, std::string& uuid,
             std::string& nodename, std::string& mountpoint, std::string& space,
             std::string& configstatusStr, XrdOucString& stdOut,
-            XrdOucString& stdErr, eos::common::VirtualIdentity& vid_in)
+            XrdOucString& stdErr, eos::common::VirtualIdentity& vid_in, bool force)
 {
   using eos::common::StringConversion;
   const std::string vid_hostname = vid_in.host;
@@ -694,15 +694,17 @@ proc_fs_add(mq::MessagingRealm* realm, std::string& sfsid, std::string& uuid,
 
     FsGroup* group = FsView::gFsView.mGroupView[schedgroup];
 
-    // Skip if group is already full
-    if (group->size() > groupsize) {
-      if (target_grps.size() == 1) {
-        stdErr += SSTR("error: scheduling group " << splitspace << "." << grp_id
-                       << " is full" << std::endl).c_str();
+    if (!force) {
+      // Skip if group is already full
+      if (group->size() > groupsize) {
+	if (target_grps.size() == 1) {
+	  stdErr += SSTR("error: scheduling group " << splitspace << "." << grp_id
+			 << " is full" << std::endl).c_str();
+	}
+	continue;
       }
-
-      continue;
     }
+
 
     // Skip if group already contains an fs from the current node.
     // Allow disabling this check in development clusters through the envvar
@@ -1316,7 +1318,7 @@ proc_mv_fs_node(FsView& fs_view, const std::string& src,
         nodename += "/fst";
         int rc = proc_fs_add(realm, id, uuid, nodename, path,
                              getenv("EOS_ALLOW_SAME_HOST_IN_GROUP") ? group : space,
-                             configstatus, stdOut, stdErr, vid_in);
+                             configstatus, stdOut, stdErr, vid_in, true);
 
         if (rc) {
           oss << "error: failed to reinsert filesystem with id='" << fsid <<
