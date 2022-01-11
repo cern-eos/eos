@@ -731,6 +731,7 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   eos::common::VirtualIdentity vid;
   XrdOucTList* pptr = pargs.paths;
   XrdOucTList* optr = pargs.oinfo;
+  bool isPrepareStage = false;
   std::string info;
   info = (optr ? (optr->text ? optr->text : "") : "");
   eos::common::Mapping::IdMap(client, info.c_str(), tident, vid);
@@ -772,6 +773,7 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 
   case Prep_STAGE:
     event = "sync::prepare";
+    isPrepareStage = true;
 
     if (gOFS->IsFileSystem2) {
       // Override the XRootD-supplied request ID. The request ID can be any arbitrary string, so long as
@@ -833,6 +835,8 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 
 #endif
 
+  int retc = SFS_OK;
+
   // check that all files exist
   for (
        ; pptr
@@ -858,6 +862,7 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       Emsg(epname, error, ENOENT,
            "prepare - path empty or uses forbidden characters:",
            orig_path.c_str());
+      if (!isPrepareStage) retc = SFS_ERROR;
       continue;
     }
 
@@ -868,6 +873,7 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
              "prepare - file does not exist or is not accessible to you",
              prep_path.c_str());
       }
+      if (!isPrepareStage) retc = SFS_ERROR;
       continue;
     }
 
@@ -900,6 +906,7 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       Emsg(epname, error, EPERM,
            "prepare - you don't have prepare permission",
            prep_path.c_str());
+      if (!isPrepareStage) retc = SFS_ERROR;
       continue;
     }
   }
@@ -966,7 +973,6 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     }
   }
 
-  int retc = SFS_OK;
 #if (XrdMajorVNUM(XrdVNUMBER) == 4 && XrdMinorVNUM(XrdVNUMBER) >= 10) || XrdMajorVNUM(XrdVNUMBER) >= 5
 
   // If we generated our own request ID, return it to the client
@@ -1041,7 +1047,7 @@ XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     }
 
     if (prep_path.length() == 0) {
-      rsp.user_error_reason = "path empty or uses forbidden characters";
+      rsp.error_text = "USER ERROR: path empty or uses forbidden characters";
       continue;
     }
 
@@ -1049,7 +1055,7 @@ XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 
     if (_exists(prep_path.c_str(), check, error, client, "") ||
         check != XrdSfsFileExistIsFile) {
-      rsp.user_error_reason = "file does not exist or is not accessible to you";
+      rsp.error_text = "USER ERROR: file does not exist or is not accessible to you";
       continue;
     }
 
@@ -1104,7 +1110,7 @@ XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 
     // check that we have prepare permission on path
     if (gOFS->_access(prep_path.c_str(), P_OK, error, vid, "")) {
-      rsp.user_error_reason = "you don't have prepare permission";
+      rsp.error_text = "USER ERROR: you don't have prepare permission";
       continue;
     }
   }
