@@ -53,7 +53,7 @@ TEST_F(BulkRequestPrepareManagerTest,stagePrepareFilesWorkflow){
   EXPECT_CALL(mgmOfs,FSctl).Times(nbFiles);
 
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
-  PrepareArgumentsWrapper pargs("testReqId",Prep_STAGE,oinfos,paths);
+  PrepareArgumentsWrapper pargs("testReqId", Prep_STAGE, paths, oinfos);
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
@@ -77,7 +77,7 @@ TEST_F(BulkRequestPrepareManagerTest,stagePrepareFileWithNoPath){
   EXPECT_CALL(mgmOfs,FSctl).Times(0);
 
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
-  PrepareArgumentsWrapper pargs("testReqId",Prep_STAGE, {""},{""});
+  PrepareArgumentsWrapper pargs("testReqId", Prep_STAGE, {""}, {""});
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
@@ -112,7 +112,7 @@ TEST_F(BulkRequestPrepareManagerTest,stagePrepareAllFilesDoNotExist){
   EXPECT_CALL(mgmOfs,FSctl).Times(0);
 
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
-  PrepareArgumentsWrapper pargs("testReqId",Prep_STAGE,oinfos,paths);
+  PrepareArgumentsWrapper pargs("testReqId", Prep_STAGE, paths, oinfos);
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
@@ -162,7 +162,7 @@ TEST_F(BulkRequestPrepareManagerTest,stagePrepareOneFileDoNotExistReturnsSfsData
   EXPECT_CALL(mgmOfs,FSctl).Times(nbFiles - 1);
 
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
-  PrepareArgumentsWrapper pargs("testReqId",Prep_STAGE,oinfos,paths);
+  PrepareArgumentsWrapper pargs("testReqId", Prep_STAGE, paths, oinfos);
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
@@ -171,7 +171,8 @@ TEST_F(BulkRequestPrepareManagerTest,stagePrepareOneFileDoNotExistReturnsSfsData
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
 
   //The existing files are in the bulk-request
-  const auto & bulkReqPaths = *pm.getBulkRequest()->getFiles();
+  auto bulkRequest = pm.getBulkRequest();
+  const auto & bulkReqPaths = *bulkRequest->getFiles();
   ASSERT_EQ(nbFiles,bulkReqPaths.size());
   auto bulkReqPathsItor = bulkReqPaths.begin();
   int i = 0;
@@ -215,7 +216,7 @@ TEST_F(BulkRequestPrepareManagerTest,stagePrepareNoPreparePermission){
   EXPECT_CALL(mgmOfs,FSctl).Times(0);
 
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
-  PrepareArgumentsWrapper pargs("testReqId",Prep_STAGE,oinfos,paths);
+  PrepareArgumentsWrapper pargs("testReqId", Prep_STAGE, paths, oinfos);
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
@@ -254,7 +255,7 @@ TEST_F(BulkRequestPrepareManagerTest,abortPrepareFilesWorkflow){
   EXPECT_CALL(mgmOfs,FSctl).Times(nbFiles);
 
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
-  PrepareArgumentsWrapper pargs("testReqId",Prep_CANCEL,oinfos,paths);
+  PrepareArgumentsWrapper pargs("testReqId", Prep_CANCEL, paths, oinfos);
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
@@ -294,7 +295,7 @@ TEST_F(BulkRequestPrepareManagerTest,abortPrepareOneFileDoesNotExist){
   EXPECT_CALL(mgmOfs,FSctl).Times(1);
 
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
-  PrepareArgumentsWrapper pargs("testReqId",Prep_CANCEL,oinfos,paths);
+  PrepareArgumentsWrapper pargs("testReqId", Prep_CANCEL, paths, oinfos);
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
@@ -332,14 +333,14 @@ TEST_F(BulkRequestPrepareManagerTest,evictPrepareFilesWorkflow){
   EXPECT_CALL(mgmOfs,FSctl).Times(nbFiles);
 
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
-  PrepareArgumentsWrapper pargs("testReqId",Prep_EVICT,oinfos,paths);
+  PrepareArgumentsWrapper pargs("testReqId", Prep_EVICT, paths, oinfos);
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 
   eos::mgm::bulk::BulkRequestPrepareManager pm(std::move(mgmOfsPtr));
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
   //Evict prepare does not generate a bulk-request, so the bulk-request should be equal to nullptr
-  std::shared_ptr<BulkRequest> bulkRequest = pm.getBulkRequest();
+  std::unique_ptr<BulkRequest> bulkRequest = pm.getBulkRequest();
   ASSERT_NE(nullptr,bulkRequest);
   ASSERT_EQ(nbFiles, bulkRequest->getFiles()->size());
   ASSERT_EQ(BulkRequest::Type::PREPARE_EVICT,bulkRequest->getType());
@@ -375,7 +376,7 @@ TEST_F(BulkRequestPrepareManagerTest,evictPrepareOneFileDoesNotExist){
   EXPECT_CALL(mgmOfs,FSctl).Times(1);
 
   ClientWrapper client = PrepareManagerTest::getDefaultClient();
-  PrepareArgumentsWrapper pargs("testReqId",Prep_EVICT,oinfos,paths);
+  PrepareArgumentsWrapper pargs("testReqId", Prep_EVICT, paths, oinfos);
   ErrorWrapper errorWrapper = PrepareManagerTest::getDefaultError();
   XrdOucErrInfo * error = errorWrapper.getError();
 

@@ -30,7 +30,7 @@ EOSBULKNAMESPACE_BEGIN
 BulkRequestBusiness::BulkRequestBusiness(std::unique_ptr<AbstractDAOFactory> && daoFactory) : mDaoFactory(std::move(daoFactory)){
 }
 
-void BulkRequestBusiness::saveBulkRequest(const std::shared_ptr<BulkRequest> req){
+void BulkRequestBusiness::saveBulkRequest(const BulkRequest * req){
   eos_info("msg=\"Persisting bulk request id=%s nbFiles=%ld type=%s\"",req->getId().c_str(), req->getFiles()->size(),BulkRequest::bulkRequestTypeToString(req->getType()).c_str());
   EXEC_TIMING_BEGIN("BulkRequestBusiness::saveBulkRequest");
   mDaoFactory->getBulkRequestDAO()->saveBulkRequest(req);
@@ -52,7 +52,7 @@ std::unique_ptr<BulkRequest> BulkRequestBusiness::getBulkRequest(const std::stri
   return bulkRequest;
 }
 
-void BulkRequestBusiness::addOrUpdateAttributes(const std::shared_ptr<BulkRequest> req, const std::map<std::string, std::string>& attributes){
+void BulkRequestBusiness::addOrUpdateAttributes(const BulkRequest * req, const std::map<std::string, std::string>& attributes){
   EXEC_TIMING_BEGIN("BulkRequestBusiness::addOrUpdateAttributes");
   mDaoFactory->getBulkRequestDAO()->addOrUpdateAttributes(req,attributes);
   EXEC_TIMING_END("BulkRequestBusiness::addOrUpdateAttributes");
@@ -62,7 +62,7 @@ bool BulkRequestBusiness::exists(const std::string& bulkRequestId, const BulkReq
   return mDaoFactory->getBulkRequestDAO()->exists(bulkRequestId, type);
 }
 
-void BulkRequestBusiness::deleteBulkRequest(const std::shared_ptr<BulkRequest> req) {
+void BulkRequestBusiness::deleteBulkRequest(const BulkRequest * req) {
   return mDaoFactory->getBulkRequestDAO()->deleteBulkRequest(req);
 }
 
