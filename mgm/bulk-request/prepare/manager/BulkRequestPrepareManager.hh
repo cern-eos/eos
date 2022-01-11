@@ -42,7 +42,7 @@ public:
    * @param bulkRequestBusiness the class that allows to manage operations linked to bulk-requests
    */
   void setBulkRequestBusiness(std::shared_ptr<BulkRequestBusiness> bulkRequestBusiness);
-  std::shared_ptr<BulkRequest> getBulkRequest() const;
+  std::unique_ptr<BulkRequest> getBulkRequest();
 protected:
   /**
    * This overriding method will instanciate a stage bulk request and will
@@ -86,7 +86,7 @@ private:
   //The bulk-request business allowing the persistence of the bulk-request
   std::shared_ptr<BulkRequestBusiness> mBulkRequestBusiness;
   //The bulk request that possibly got created depending on the prepare command triggered
-  std::shared_ptr<BulkRequest> mBulkRequest;
+  std::unique_ptr<BulkRequest> mBulkRequest;
 };
 
 EOSBULKNAMESPACE_END
