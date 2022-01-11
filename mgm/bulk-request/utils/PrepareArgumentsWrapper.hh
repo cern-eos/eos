@@ -30,7 +30,10 @@ EOSBULKNAMESPACE_BEGIN
 
 class PrepareArgumentsWrapper {
 public:
-  PrepareArgumentsWrapper(const std::string & reqid, const int opts, const std::vector<std::string> & oinfos, const std::vector<std::string> & paths) {
+  PrepareArgumentsWrapper(const std::string& reqid, const int opts,
+                          const std::vector<std::string>& paths,
+                          const std::vector<std::string>& oinfos)
+  {
     eos::auth::XrdSfsPrepProto pargsProto;
     pargsProto.set_reqid(reqid);
     pargsProto.set_opts(opts);
