@@ -57,6 +57,7 @@ struct QueryPrepareResponse {
   bool is_reqid_present;
   std::string request_time;
   std::string error_text;
+  std::string user_error_reason;
 };
 
 EOSMGMNAMESPACE_END
