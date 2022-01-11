@@ -1303,13 +1303,13 @@ RWMutex::PrintMutexOps(std::ostringstream& oss)
 
   for (const auto& elem : it->second) {
     std::string name;
+
     if (RWMutex::sMtxNameMap.count(elem.first)) {
       oss << RWMutex::sMtxNameMap[elem.first] << ": "
-	  << eos::common::RWMutex::LOCK_STATE[(int)elem.second] << " ";
-
+          << eos::common::RWMutex::LOCK_STATE[(int)elem.second] << " ";
     } else {
       oss << elem.first << ": "
-	  << eos::common::RWMutex::LOCK_STATE[(int)elem.second] << " ";
+          << eos::common::RWMutex::LOCK_STATE[(int)elem.second] << " ";
     }
   }
 
@@ -1377,8 +1377,8 @@ RWMutexWriteLock::Release()
 
     if (blockedFor.count() > blockedinterval) {
       std::ostringstream ss;
-
-      ss << "write lock [ " << mWrMutex->getName() << " ] held for " << blockedFor.count() <<
+      ss << "write lock [ " << mWrMutex->getName() << " ] held for " <<
+         blockedFor.count() <<
          " milliseconds" << std::endl;
 
       if (blockedtracing) {
@@ -1448,14 +1448,14 @@ RWMutexReadLock::Release()
     RWMutex::RecordMutexOp((uint64_t)mRdMutex->GetRawPtr(), RWMutex::LOCK_T::eNone);
     int64_t blockedinterval = mRdMutex->BlockedForMsInterval();
     bool blockedtracing = mRdMutex->BlockedStackTracing();
-    mRdMutex = nullptr;
     std::chrono::milliseconds blockedFor =
       std::chrono::duration_cast<std::chrono::milliseconds>
       (std::chrono::steady_clock::now() - mAcquiredAt);
 
     if (blockedFor.count() > blockedinterval) {
       std::ostringstream ss;
-      ss << "read lock [ " << mRdMutex->getName() << " ] held for " << blockedFor.count() <<
+      ss << "read lock [ " << mRdMutex->getName() << " ] held for " <<
+         blockedFor.count() <<
          " milliseconds" << std::endl;
 
       if (blockedtracing) {
@@ -1464,6 +1464,8 @@ RWMutexReadLock::Release()
 
       eos_third_party_warning(mFunction, mFile, mLine, "%s", ss.str().c_str());
     }
+
+    mRdMutex = nullptr;
   }
 }
 
