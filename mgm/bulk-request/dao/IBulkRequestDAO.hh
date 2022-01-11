@@ -42,7 +42,7 @@ public:
    * This method allows to persist a StageBulkRequest
    * @param bulkRequest the bulk request to save
    */
-  virtual void saveBulkRequest(const std::shared_ptr<BulkRequest> bulkRequest) = 0;
+  virtual void saveBulkRequest(const BulkRequest * bulkRequest) = 0;
 
   /**
    * Get the bulk-request from the persistence
@@ -66,7 +66,7 @@ public:
    * @param attributes the attributes to add/update to the bulk-request
    * @throws PersistencyException if the bulk-request does not exist
    */
-  virtual void addOrUpdateAttributes(const std::shared_ptr<BulkRequest> bulkRequest, const std::map<std::string,std::string> & attributes) = 0;
+  virtual void addOrUpdateAttributes(const BulkRequest * bulkRequest, const std::map<std::string,std::string> & attributes) = 0;
 
   /**
    * Returns true if the bulk-request corresponding to the id and the type
@@ -81,7 +81,7 @@ public:
    * Deletes the bulk-request passed in parameters from the persistency
    * @param bulkRequest the bulk-request to delete
    */
-  virtual void deleteBulkRequest(const std::shared_ptr<BulkRequest> bulkRequest) = 0;
+  virtual void deleteBulkRequest(const BulkRequest * bulkRequest) = 0;
 };
 
 EOSBULKNAMESPACE_END
