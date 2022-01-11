@@ -836,40 +836,45 @@ metad::get(fuse_req_t req,
     // if the md record was returned, it is accessible after the apply function
     // attached it. We should also attach to the parent to be able to add
     // a not yet published child entry at the parent.
-    mdmap.retrieveWithParentTS(ino, md, pmd);
-    eos_static_info("ino=%08llx pino=%08llx name=%s listing=%d", ino,
-                    pmd ? pmd->id() : 0, name, listing);
 
-    switch (thecase) {
-    case 1:
-      // nothing to do
-      break;
+    if (md) {
+      mdmap.retrieveWithParentTS(ino, md, pmd);
+      eos_static_info("ino=%08llx pino=%08llx name=%s listing=%d", ino,
+		      pmd ? pmd->id() : 0, name, listing);
 
-    case 2: {
-      // we make sure, that the meta data record is attached to the local parent
-      if (pmd && pmd->id()) {
-        std::string encname = eos::common::StringConversion::EncodeInvalidUTF8(
-                                md->name());
-        XrdSysMutexHelper mLock(pmd->Locker());
+      switch (thecase) {
+      case 1:
+	// nothing to do
+	break;
 
-        if (!pmd->local_children().count(encname) &&
-            !pmd->get_todelete().count(encname) &&
-            !md->deleted()) {
-          eos_static_info("attaching %s [%#lx] to %s [%#lx]",
-                          encname.c_str(), md->id(),
-                          pmd->name().c_str(), pmd->id());
-          // persist this hierarchical dependency
-          pmd->local_children()[eos::common::StringConversion::EncodeInvalidUTF8(
-                                  md->name())] = md->id();
-          update(req, pmd, "", true);
-        }
+      case 2: {
+	// we make sure, that the meta data record is attached to the local parent
+	if (pmd && pmd->id()) {
+	  std::string encname = eos::common::StringConversion::EncodeInvalidUTF8(
+										 md->name());
+	  XrdSysMutexHelper mLock(pmd->Locker());
+
+	  if (!pmd->local_children().count(encname) &&
+	      !pmd->get_todelete().count(encname) &&
+	      !md->deleted()) {
+	    eos_static_info("attaching %s [%#lx] to %s [%#lx]",
+			    encname.c_str(), md->id(),
+			    pmd->name().c_str(), pmd->id());
+	    // persist this hierarchical dependency
+	    pmd->local_children()[eos::common::StringConversion::EncodeInvalidUTF8(
+										   md->name())] = md->id();
+	    update(req, pmd, "", true);
+	  }
+	}
+
+	break;
       }
 
-      break;
-    }
-
-    case 3:
-      break;
+      case 3:
+	break;
+      }
+    } else {
+      rc = ENOENT;
     }
   }
 
