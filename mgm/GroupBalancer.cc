@@ -543,6 +543,7 @@ GroupBalancer::Configure(FsSpace* const space, GroupBalancer::Config& cfg)
   cfg.mThreshold = atof(space->GetConfigMember("groupbalancer.threshold").c_str()) /
     100.0;
   cfg.mMinFileSize = common::StringConversion::GetSizeFromString(space->GetConfigMember("groupbalancer.min_file_size"));
+  cfg.mMaxFileSize = common::StringConversion::GetSizeFromString(space->GetConfigMember("groupbalancer.max_file_size"));
 }
 
 

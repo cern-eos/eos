@@ -36,6 +36,7 @@ EOSMGMNAMESPACE_BEGIN
 class FsGroup;
 class FsSpace;
 static constexpr uint64_t GROUPBALANCER_MIN_FILE_SIZE = 1ULL<<30;
+static constexpr uint64_t GROUPBALANCER_MAX_FILE_SIZE = 16ULL<<30;
 
 //------------------------------------------------------------------------------
 //! @brief Class representing a group's size
@@ -117,9 +118,11 @@ public:
     int num_tx;
     double mThreshold;     ///< Threshold for group balancing
     uint64_t mMinFileSize; ///< Min size of files to be picked
+    uint64_t mMaxFileSize; ///< Max size of files to be picked
 
     Config(): is_enabled(true), is_conv_enabled(true), num_tx(0), mThreshold(.5),
-              mMinFileSize(GROUPBALANCER_MIN_FILE_SIZE)
+              mMinFileSize(GROUPBALANCER_MIN_FILE_SIZE),
+              mMaxFileSize(GROUPBALANCER_MAX_FILE_SIZE)
     {}
   };
 

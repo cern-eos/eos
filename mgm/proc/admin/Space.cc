@@ -543,6 +543,7 @@ ProcCommand::Space()
                   (key == "groupbalancer.ntx") ||
                   (key == "groupbalancer.threshold") ||
                   (key == "groupbalancer.min_file_size") ||
+                  (key == "groupbalancer.max_file_size") ||
                   (key == "geobalancer") ||
                   (key == "geobalancer.ntx") ||
                   (key == "geobalancer.threshold") ||
