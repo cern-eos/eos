@@ -159,8 +159,9 @@ private:
   //!
   //! @return name of the proc transfer file
   //----------------------------------------------------------------------------
-  std::string getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
-      FsGroup* group, uint64_t* size);
+  static std::string
+  getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
+                                 FsGroup* group, uint64_t* size);
 
   //----------------------------------------------------------------------------
   //! Chooses a random file ID from a random filesystem in the given group

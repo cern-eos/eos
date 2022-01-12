@@ -242,7 +242,7 @@ GroupBalancer::populateGroupsInfo()
 //------------------------------------------------------------------------------
 std::string
 GroupBalancer::getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
-    FsGroup* group, uint64_t* size)
+                                              FsGroup* group, uint64_t* size)
 
 {
   char fileName[1024];
