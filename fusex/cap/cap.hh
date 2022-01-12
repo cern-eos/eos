@@ -226,7 +226,6 @@ public:
   void book_inode(shared_cap cap)
   {
     shared_quota q = quotamap.get(cap);
-    XrdSysMutexHelper qLock(q->Locker());
     q->inc_inode();
     eos_static_debug("%s", q->dump().c_str());
   }

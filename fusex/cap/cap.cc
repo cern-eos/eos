@@ -633,8 +633,11 @@ cap::quotax::dump() {
   options.add_whitespace = true;
   options.always_print_primitive_fields = true;
   std::string jsonstring;
-  google::protobuf::util::MessageToJsonString(*((eos::fusex::quota*)(&(*this))),
-					      &jsonstring, options);
+  {
+    XrdSysMutexHelper qLock(Locker());
+    google::protobuf::util::MessageToJsonString(*((eos::fusex::quota*)(&(*this))),
+						&jsonstring, options);
+  }
   jsonstring.pop_back();
   jsonstring += ",\n{\n  timestamp : ";
   jsonstring += std::to_string(timestamp());
