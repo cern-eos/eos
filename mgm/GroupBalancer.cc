@@ -136,32 +136,30 @@ GroupBalancer::clearCachedSizes()
 // than or less than the current mAvgUsedSize, respectively.
 //------------------------------------------------------------------------------
 void
-GroupBalancer::updateGroupAvgCache(FsGroup* group)
+GroupBalancer::updateGroupAvgCache(const std::string& group_name)
 
 {
-  if (mGroupSizes.count(group->mName) == 0) {
+  auto kv = mGroupSizes.find(group_name);
+  if (kv == mGroupSizes.end()) {
     return;
   }
 
-  const std::string& name = group->mName;
-  GroupSize* groupSize = mGroupSizes[name];
+  GroupSize* groupSize = kv->second;
   double diffWithAvg = ((double) groupSize->filled()
                         - ((double) mAvgUsedSize));
 
-  if (mGroupsOverAvg.count(name)) {
-    mGroupsOverAvg.erase(name);
-  } else if (mGroupsUnderAvg.count(name)) {
-    mGroupsUnderAvg.erase(name);
-  }
+  // set erase only erases if found, so this is safe without key checking
+  mGroupsOverAvg.erase(group_name);
+  mGroupsUnderAvg.erase(group_name);
 
   eos_static_debug("diff=%.02f threshold=%.02f", diffWithAvg, cfg.mThreshold);
 
   // Group is mThreshold over or under the average used size
   if (abs(diffWithAvg) > cfg.mThreshold) {
     if (diffWithAvg > 0) {
-      mGroupsOverAvg[name] = group;
+      mGroupsOverAvg.emplace(group_name);
     } else {
-      mGroupsUnderAvg[name] = group;
+      mGroupsUnderAvg.emplace(group_name);
     }
   }
 }
@@ -185,8 +183,7 @@ GroupBalancer::fillGroupsByAvg()
   for (auto size_it = mGroupSizes.cbegin(); size_it != mGroupSizes.cend();
        ++size_it) {
     const std::string& name = (*size_it).first;
-    FsGroup* group = FsView::gFsView.mGroupView[name];
-    updateGroupAvgCache(group);
+    updateGroupAvgCache(name);
   }
 }
 
@@ -374,8 +371,8 @@ GroupBalancer::scheduleTransfer(eos::common::FileId::fileid_t fid,
   mTransfers[fid] = fileName.c_str();
   mGroupSizes[sourceGroup->mName]->swapFile(mGroupSizes[targetGroup->mName],
       size);
-  updateGroupAvgCache(sourceGroup);
-  updateGroupAvgCache(targetGroup);
+  updateGroupAvgCache(sourceGroup->mName);
+  updateGroupAvgCache(targetGroup->mName);
 }
 
 //------------------------------------------------------------------------------
@@ -426,8 +423,8 @@ GroupBalancer::scheduleTransfer(const FileInfo& file_info,
   mTransfers[file_info.fid] = file_info.filename;
   mGroupSizes[sourceGroup->mName]->swapFile(mGroupSizes[targetGroup->mName],
       file_info.filesize);
-  updateGroupAvgCache(sourceGroup);
-  updateGroupAvgCache(targetGroup);
+  updateGroupAvgCache(sourceGroup->mName);
+  updateGroupAvgCache(targetGroup->mName);
 }
 
 //------------------------------------------------------------------------------
@@ -541,8 +538,6 @@ void
 GroupBalancer::prepareTransfer()
 {
   FsGroup* fromGroup, *toGroup;
-  std::map<std::string, FsGroup*>::iterator over_it, under_it;
-  eos::mgm::BaseView::const_iterator fsid_it;
 
   if (mGroupsUnderAvg.size() == 0 || mGroupsOverAvg.size() == 0) {
     if (mGroupsOverAvg.size() == 0) {
@@ -557,14 +552,14 @@ GroupBalancer::prepareTransfer()
     return;
   }
 
-  over_it = mGroupsOverAvg.begin();
-  under_it = mGroupsUnderAvg.begin();
+  auto over_it = mGroupsOverAvg.begin();
+  auto under_it = mGroupsUnderAvg.begin();
   int rndIndex = getRandom(mGroupsOverAvg.size() - 1);
   std::advance(over_it, rndIndex);
   rndIndex = getRandom(mGroupsUnderAvg.size() - 1);
   std::advance(under_it, rndIndex);
-  fromGroup = (*over_it).second;
-  toGroup = (*under_it).second;
+  fromGroup = FsView::gFsView.mGroupView[*over_it];
+  toGroup = FsView::gFsView.mGroupView[*under_it];
 
   if (fromGroup->size() == 0) {
     return;

@@ -30,6 +30,7 @@
 #include <cstring>
 #include <ctime>
 #include <map>
+#include <unordered_set>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -155,9 +156,9 @@ private:
   Config cfg;
 
   /// groups whose size is over the average size of the groups
-  std::map<std::string, FsGroup*> mGroupsOverAvg;
+  std::unordered_set<std::string> mGroupsOverAvg;
   /// groups whose size is under the average size of the groups
-  std::map<std::string, FsGroup*> mGroupsUnderAvg;
+  std::unordered_set<std::string> mGroupsUnderAvg;
   /// groups' sizes cache
   std::map<std::string, GroupSize*> mGroupSizes;
   /// average filled percentage in groups
@@ -216,7 +217,7 @@ private:
   //! Places group in mGroupsOverAvg or mGroupsUnderAvg in case they're greater
   //! than or less than the current mAvgUsedSize, respectively.
   //----------------------------------------------------------------------------
-  void updateGroupAvgCache(FsGroup* group);
+  void updateGroupAvgCache(const std::string& group);
 
   //----------------------------------------------------------------------------
   //! Fills mGroupsOverAvg and mGroupsUnderAvg with the objects in mGroupSizes,
