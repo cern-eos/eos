@@ -30,5 +30,5 @@ EOS releases are named after gemstones. The actively developed version is called
    :doc:`releases/amber`             0.2.47              1st EOS Generation
    :doc:`releases/beryl`             0.3.267-aquamarine  2nd EOS Generation  :doc:`releases/beryl-release`
    :doc:`releases/citrine`           4.8.70              3rd EOS Generation  :doc:`releases/citrine-release`
-   :doc:`releases/diopside`          5.0.8               4th EOS Generation  :doc:`releases/diopside-release`
+   :doc:`releases/diopside`          5.0.9               4th EOS Generation  :doc:`releases/diopside-release`
    ================================= =================== =================== =================================

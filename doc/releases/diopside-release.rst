@@ -16,6 +16,19 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.0.9 Diopside``
+===================
+
+2022-01-12
+
+Bug
+----
+
+* COMMON: Avoid segv due to mutex object set to nullptr in RWLock printout
+* [EOS-4850] - eosxd crash in destructor under metad::pmap::retrieveWithParentTS()
+* [EOS-5057] - Volume quota dispatched to FUSE clients mixes logical and physical bytes
+
+
 ``v5.0.8 Diopside``
 ===================
 
