@@ -126,6 +126,24 @@ public:
     {}
   };
 
+  struct FileInfo {
+    eos::common::FileId::fileid_t fid;
+    std::string filename;
+    uint64_t filesize;
+
+    FileInfo() = default;
+    FileInfo(eos::common::FileId::fileid_t _fid,
+             std::string&& _fname, uint64_t _fsize) : fid(_fid),
+                                                      filename(std::move(_fname)),
+                                                      filesize(_fsize)
+    {}
+
+    // Check if both fid && filename are set, 0 size is valid
+    operator bool() const
+    {
+      return fid !=0  && !filename.empty();
+    }
+  };
   //----------------------------------------------------------------------------
   //! Set up Config based on values configured in space
   //----------------------------------------------------------------------------
