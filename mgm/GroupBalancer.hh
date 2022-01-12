@@ -30,6 +30,8 @@
 #include <cstring>
 #include <ctime>
 #include <map>
+#include <unordered_set>
+#include "mgm/groupbalancer/BalancerEngine.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -37,50 +39,7 @@ class FsGroup;
 class FsSpace;
 static constexpr uint64_t GROUPBALANCER_MIN_FILE_SIZE = 1ULL<<30;
 static constexpr uint64_t GROUPBALANCER_MAX_FILE_SIZE = 16ULL<<30;
-
-//------------------------------------------------------------------------------
-//! @brief Class representing a group's size
-//! It holds the capacity and the current used space of a group.
-//------------------------------------------------------------------------------
-class GroupSize
-{
-public:
-  //------------------------------------------------------------------------------
-  //! Constructor
-  //------------------------------------------------------------------------------
-  GroupSize(uint64_t usedBytes, uint64_t capacity);
-
-  //------------------------------------------------------------------------------
-  //! Subtracts the given size from this group and adds it to the given toGroup
-  //!
-  //! @param toGroup the group where to add the size
-  //! @param size the file size that should be swapped
-  //------------------------------------------------------------------------------
-  void swapFile(GroupSize* toGroup, uint64_t size);
-
-  uint64_t
-  usedBytes() const
-  {
-    return mSize;
-  }
-
-  uint64_t
-  capacity() const
-  {
-    return mCapacity;
-  }
-
-  double
-  filled() const
-  {
-    return (double) mSize / (double) mCapacity;
-  }
-
-private:
-  uint64_t mSize;
-  uint64_t mCapacity;
-};
-
+using eos::mgm::group_balancer::GroupSize;
 //------------------------------------------------------------------------------
 //! @brief Class running the balancing among groups
 //! For it to work, the Converter also needs to be enabled.
@@ -147,26 +106,19 @@ public:
   //----------------------------------------------------------------------------
   //! Set up Config based on values configured in space
   //----------------------------------------------------------------------------
-  static void Configure(FsSpace* const space, Config& cfg);
+  void Configure(FsSpace* const space, Config& cfg);
 
 private:
   AssistedThread mThread; ///< Thread scheduling jobs
   std::string mSpaceName; ///< Attached space name
   Config cfg;
 
-  /// groups whose size is over the average size of the groups
-  std::map<std::string, FsGroup*> mGroupsOverAvg;
-  /// groups whose size is under the average size of the groups
-  std::map<std::string, FsGroup*> mGroupsUnderAvg;
-  /// groups' sizes cache
-  std::map<std::string, GroupSize*> mGroupSizes;
-  /// average filled percentage in groups
-  double mAvgUsedSize;
+  std::unique_ptr<group_balancer::BalancerEngine> mEngine;
   /// last time the groups' real used space was checked
   time_t mLastCheck;
   //! Scheduled transfers (maps fid to path in proc)
   std::map<eos::common::FileId::fileid_t, std::string> mTransfers;
-
+  group_balancer::engine_conf_t mEngineConf;
   //----------------------------------------------------------------------------
   //! Produces a file conversion path to be placed in the proc directory taking
   //! into account the given group and also returns its size
@@ -201,35 +153,6 @@ private:
   FileInfo
   chooseFileFromGroup(FsGroup *group, int attempts = 50);
 
-  //----------------------------------------------------------------------------
-  // Fills mGroupSizes, calculates the mAvgUsedSize and fills mGroupsUnderAvg
-  // and mGroupsOverAvg
-  //----------------------------------------------------------------------------
-  void populateGroupsInfo(void);
-
-  //----------------------------------------------------------------------------
-  //! Deletes all the GrouSize objects stored in mGroupSizes and empties it
-  //----------------------------------------------------------------------------
-  void clearCachedSizes(void);
-
-  //----------------------------------------------------------------------------
-  //! Places group in mGroupsOverAvg or mGroupsUnderAvg in case they're greater
-  //! than or less than the current mAvgUsedSize, respectively.
-  //----------------------------------------------------------------------------
-  void updateGroupAvgCache(FsGroup* group);
-
-  //----------------------------------------------------------------------------
-  //! Fills mGroupsOverAvg and mGroupsUnderAvg with the objects in mGroupSizes,
-  //! in case they're greater than or less than the current mAvgUsedSize,
-  //! respectively
-  //----------------------------------------------------------------------------
-  void fillGroupsByAvg(void);
-
-  //----------------------------------------------------------------------------
-  //! Recalculates the sizes average from the mGroupSizes
-  //----------------------------------------------------------------------------
-  void recalculateAvg(void);
-
   void prepareTransfers(int nrTransfers);
 
   //----------------------------------------------------------------------------
@@ -237,17 +160,6 @@ private:
   //! to be transferred
   //----------------------------------------------------------------------------
   void prepareTransfer(void);
-
-  //----------------------------------------------------------------------------
-  //! Creates the conversion file in proc for the file ID, from the given
-  //! sourceGroup, to the targetGroup (and updates the cache structures)
-  //!
-  //! @param fid the id of the file to be transferred
-  //! @param sourceGroup the group where the file is currently located
-  //! @param targetGroup the group to which the file is will be transferred
-  //----------------------------------------------------------------------------
-  void scheduleTransfer(eos::common::FileId::fileid_t fid,
-                        FsGroup* sourceGroup, FsGroup* targetGroup);
 
   //----------------------------------------------------------------------------
   //! Creates the conversion file in proc for the file ID, from the given
