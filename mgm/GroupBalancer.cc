@@ -379,6 +379,58 @@ GroupBalancer::scheduleTransfer(eos::common::FileId::fileid_t fid,
 }
 
 //------------------------------------------------------------------------------
+// Creates the conversion file in proc for the file ID, from the given
+// sourceGroup, to the targetGroup (and updates the cache structures)
+//------------------------------------------------------------------------------
+void
+GroupBalancer::scheduleTransfer(const FileInfo& file_info,
+                                FsGroup* sourceGroup, FsGroup* targetGroup)
+{
+  if ((mGroupSizes.count(sourceGroup->mName) == 0) ||
+      (mGroupSizes.count(targetGroup->mName) == 0)) {
+    eos_static_err("msg=\"no src/trg group in map\" src_group=%s trg_group=%s",
+                   sourceGroup->mName.c_str(), targetGroup->mName.c_str());
+    return;
+  }
+
+  // Use new converter if available
+  if (gOFS->mConverterDriver) {
+    // Push conversion job to QuarkDB
+    std::string conv_tag = file_info.filename;
+    conv_tag.erase(0, gOFS->MgmProcConversionPath.length() + 1);
+
+    if (gOFS->mConverterDriver->ScheduleJob(file_info.fid, conv_tag)) {
+      eos_static_info("msg=\"grp_balance scheduled job\" file=\"%s\" "
+                      "src_grp=\"%s\" dst_grp=\"%s\"", conv_tag.c_str(),
+                      sourceGroup->mName.c_str(), targetGroup->mName.c_str());
+    } else {
+      eos_static_err("msg=\"grp_balance could not schedule job\" "
+                     "file=\"%s\" src_grp=\"%s\" dst_grp=\"%s\"",
+                     conv_tag.c_str(), sourceGroup->mName.c_str(),
+                     targetGroup->mName.c_str());
+    }
+  } else { // use old converter
+    eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
+    XrdOucErrInfo mError;
+    if (!gOFS->_touch(file_info.filename.c_str(), mError, rootvid, 0)) {
+      eos_static_info("scheduledfile=%s src_group=%s trg_group=%s",
+                      file_info.filename.c_str(), sourceGroup->mName.c_str(),
+                      targetGroup->mName.c_str());
+    } else {
+      eos_static_err("msg=\"failed to schedule transfer\" schedulingfile=\"%s\"",
+                     file_info.filename.c_str());
+      return;
+    }
+  }
+
+  mTransfers[file_info.fid] = file_info.filename;
+  mGroupSizes[sourceGroup->mName]->swapFile(mGroupSizes[targetGroup->mName],
+      file_info.filesize);
+  updateGroupAvgCache(sourceGroup);
+  updateGroupAvgCache(targetGroup);
+}
+
+//------------------------------------------------------------------------------
 // Chooses a random file ID from a random filesystem in the given group
 //------------------------------------------------------------------------------
 eos::common::FileId::fileid_t
@@ -422,7 +474,7 @@ GroupBalancer::chooseFidFromGroup(FsGroup* group)
 
   // Check if we have any files to transfer
   if (!found) {
-    return -1;
+    return {};
   }
 
   int attempts = 10;
@@ -436,7 +488,36 @@ GroupBalancer::chooseFidFromGroup(FsGroup* group)
     }
   }
 
-  return -1;
+  return {};
+}
+
+
+GroupBalancer::FileInfo
+GroupBalancer::chooseFileFromGroup(FsGroup *group, int attempts)
+{
+  uint64_t filesize;
+
+  while (attempts-- > 0) {
+    auto fid = chooseFidFromGroup(group);
+
+    if (!fid)
+    {
+      continue;
+    }
+
+    auto filename = getFileProcTransferNameAndSize(fid, group, &filesize);
+
+    if (filename.empty() ||
+        (cfg.mMinFileSize > filesize) ||
+        (cfg.mMaxFileSize < filesize)) {
+      continue;
+    }
+
+    // We've a hit!
+    return {fid,std::move(filename), filesize};
+  }
+
+  return {};
 }
 
 //------------------------------------------------------------------------------
@@ -489,15 +570,15 @@ GroupBalancer::prepareTransfer()
     return;
   }
 
-  eos::common::FileId::fileid_t fid = chooseFidFromGroup(fromGroup);
+  auto file_info = chooseFileFromGroup(fromGroup);
 
-  if ((int) fid == -1) {
+  if (!file_info) {
     eos_static_info("Couldn't choose any FID to schedule: failedgroup=%s",
                     fromGroup->mName.c_str());
     return;
   }
 
-  scheduleTransfer(fid, fromGroup, toGroup);
+  scheduleTransfer(file_info, fromGroup, toGroup);
 }
 
 //------------------------------------------------------------------------------

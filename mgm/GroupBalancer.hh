@@ -191,6 +191,17 @@ private:
   eos::common::FileId::fileid_t chooseFidFromGroup(FsGroup* group);
 
   //----------------------------------------------------------------------------
+  //! Chooses a random file from a random filesystem in the given group, but makes
+  //! a few attempts to pick a file within the configured size limits.
+  //! @param group the group from which the file id will be chosen
+  //! @param no of attempts (default :50)
+  //!
+  //! @return FileInfo for the chosen file
+  //----------------------------------------------------------------------------
+  FileInfo
+  chooseFileFromGroup(FsGroup *group, int attempts = 50);
+
+  //----------------------------------------------------------------------------
   // Fills mGroupSizes, calculates the mAvgUsedSize and fills mGroupsUnderAvg
   // and mGroupsOverAvg
   //----------------------------------------------------------------------------
@@ -236,6 +247,17 @@ private:
   //! @param targetGroup the group to which the file is will be transferred
   //----------------------------------------------------------------------------
   void scheduleTransfer(eos::common::FileId::fileid_t fid,
+                        FsGroup* sourceGroup, FsGroup* targetGroup);
+
+  //----------------------------------------------------------------------------
+  //! Creates the conversion file in proc for the file ID, from the given
+  //! sourceGroup, to the targetGroup (and updates the cache structures)
+  //!
+  //! @param file_info, the FileInfo struct of the file to be transferred
+  //! @param sourceGroup the group where the file is currently located
+  //! @param targetGroup the group to which the file is will be transferred
+  //----------------------------------------------------------------------------
+  void scheduleTransfer(const FileInfo& file_info,
                         FsGroup* sourceGroup, FsGroup* targetGroup);
 
   //----------------------------------------------------------------------------
