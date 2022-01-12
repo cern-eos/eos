@@ -746,9 +746,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       XrdCl::DefaultEnv::GetEnv()->PutInt("TimeoutResolution", 1);
       XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionWindow", 10);
       XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionRetry", 0);
-      XrdCl::DefaultEnv::GetEnv()->PutInt("StreamErrorWindow", 60);
-      XrdCl::DefaultEnv::GetEnv()->PutInt("RequestTimeout", 30);
-      XrdCl::DefaultEnv::GetEnv()->PutInt("StreamTimeout", 60);
+      XrdCl::DefaultEnv::GetEnv()->PutInt("StreamErrorWindow", 120);
+      XrdCl::DefaultEnv::GetEnv()->PutInt("RequestTimeout", 60);
+      XrdCl::DefaultEnv::GetEnv()->PutInt("StreamTimeout", 120);
       XrdCl::DefaultEnv::GetEnv()->PutInt("RedirectLimit", 3);
 
       for (auto it = xrdcl_options.begin(); it != xrdcl_options.end(); ++it) {
