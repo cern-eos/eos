@@ -513,13 +513,13 @@ public:
     mProtocol.Add(eos_static_log(LOG_SILENT, "lfn='%s' app='%s'",
                                  cgi["eos.lfn"].c_str(), cgi["eos.app"].c_str()));
     mProtocol.Add(eos_static_log(LOG_SILENT, "logid=%s", cgi["mgm.logid"].c_str()));
-    mProtocol.Add(eos_static_log(LOG_SILENT, "fuse=%s:%s:%s:%s:%s]",
+    mProtocol.Add(eos_static_log(LOG_SILENT, "fuse=%s:%s:%s:%s:%s",
                                  cgi["fuse.exe"].c_str(),
                                  cgi["fuse.uid"].c_str(),
                                  cgi["fuse.gid"].c_str(),
                                  cgi["fuse.pid"].c_str(),
                                  cgi["fuse.ver"].c_str()));
-    mProtocol.Add(eos_static_log(LOG_SILENT, "xrd=%s:%s:%s:%s]",
+    mProtocol.Add(eos_static_log(LOG_SILENT, "xrd=%s:%s:%s:%s",
                                  cgi["xrdcl.requuid"].c_str(),
                                  cgi["xrdcl.secuid"].c_str(),
                                  cgi["xrdcl.sccgid"].c_str(),
@@ -591,7 +591,7 @@ public:
   }
 
   void set_readahead_strategy(READAHEAD_STRATEGY rhs,
-                              size_t min, size_t nom, size_t max, size_t rablocks, float sparse_ratio=0.0)
+                              size_t min, size_t nom, size_t max, size_t rablocks, float sparse_ratio = 0.0)
   {
     XReadAheadStrategy = rhs;
     XReadAheadMin = min;
@@ -613,7 +613,8 @@ public:
   float get_readahead_volume_efficiency()
   {
     XrdSysCondVarHelper lLock(ReadCondVar());
-    return (mTotalReadAheadBytes) ? (100.0 * mTotalReadAheadHitBytes / mTotalReadAheadBytes)
+    return (mTotalReadAheadBytes) ? (100.0 * mTotalReadAheadHitBytes /
+                                     mTotalReadAheadBytes)
            : 0.0;
   }
 
@@ -761,10 +762,11 @@ public:
       CollectWrites();
     }
 
-    eos_notice("ra-efficiency=%f ra-vol-efficiency=%f tot-bytes=%lu ra-bytes=%lu ra-hit-bytes=%lu ", get_readahead_efficiency(),
+    eos_notice("ra-efficiency=%f ra-vol-efficiency=%f tot-bytes=%lu ra-bytes=%lu ra-hit-bytes=%lu ",
+               get_readahead_efficiency(),
                get_readahead_volume_efficiency(),
-	       mTotalReadAheadBytes,
-	       mTotalReadAheadHitBytes);
+               mTotalReadAheadBytes,
+               mTotalReadAheadHitBytes);
   }
 
   // ---------------------------------------------------------------------- //
@@ -1338,7 +1340,10 @@ public:
 
   static eos::common::RWMutex gDeleteMutex;
   static std::atomic<int> sProxy;
-  static int Proxies() { return sProxy;}
+  static int Proxies()
+  {
+    return sProxy;
+  }
 
 private:
   OPEN_STATE open_state;

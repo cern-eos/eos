@@ -1370,7 +1370,6 @@ RWMutexWriteLock::Release()
     RWMutex::RecordMutexOp((uint64_t)mWrMutex->GetRawPtr(), RWMutex::LOCK_T::eNone);
     int64_t blockedinterval = mWrMutex->BlockedForMsInterval();
     bool blockedtracing = mWrMutex->BlockedStackTracing();
-    mWrMutex = nullptr;
     std::chrono::milliseconds blockedFor =
       std::chrono::duration_cast<std::chrono::milliseconds>
       (std::chrono::steady_clock::now() - mAcquiredAt);
@@ -1388,6 +1387,8 @@ RWMutexWriteLock::Release()
 
       eos_third_party_warning(mFunction, mFile, mLine, "%s", ss.str().c_str());
     }
+
+    mWrMutex = nullptr;
   }
 }
 
@@ -1448,7 +1449,6 @@ RWMutexReadLock::Release()
     RWMutex::RecordMutexOp((uint64_t)mRdMutex->GetRawPtr(), RWMutex::LOCK_T::eNone);
     int64_t blockedinterval = mRdMutex->BlockedForMsInterval();
     bool blockedtracing = mRdMutex->BlockedStackTracing();
-    mRdMutex = nullptr;
     std::chrono::milliseconds blockedFor =
       std::chrono::duration_cast<std::chrono::milliseconds>
       (std::chrono::steady_clock::now() - mAcquiredAt);
@@ -1465,6 +1465,8 @@ RWMutexReadLock::Release()
 
       eos_third_party_warning(mFunction, mFile, mLine, "%s", ss.str().c_str());
     }
+
+    mRdMutex = nullptr;
   }
 }
 

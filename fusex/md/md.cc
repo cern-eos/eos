@@ -841,40 +841,45 @@ metad::get(fuse_req_t req,
     // if the md record was returned, it is accessible after the apply function
     // attached it. We should also attach to the parent to be able to add
     // a not yet published child entry at the parent.
-    mdmap.retrieveWithParentTS(ino, md, pmd);
-    eos_static_info("ino=%08llx pino=%08llx name=%s listing=%d", ino,
-                    pmd ? (*pmd)()->id() : 0, name, listing);
 
-    switch (thecase) {
-    case 1:
-      // nothing to do
-      break;
+    if (md) {
+      mdmap.retrieveWithParentTS(ino, md, pmd);
+      eos_static_info("ino=%08llx pino=%08llx name=%s listing=%d", ino,
+                      pmd ? (*pmd)()->id() : 0, name, listing);
 
-    case 2: {
-      // we make sure, that the meta data record is attached to the local parent
-      if (pmd && (*pmd)()->id()) {
-        std::string encname = eos::common::StringConversion::EncodeInvalidUTF8(
-                                (*md)()->name());
-        XrdSysMutexHelper mLock(pmd->Locker());
+      switch (thecase) {
+      case 1:
+        // nothing to do
+        break;
 
-        if (!pmd->local_children().count(encname) &&
-            !pmd->get_todelete().count(encname) &&
-            !md->deleted()) {
-          eos_static_info("attaching %s [%#lx] to %s [%#lx]",
-                          encname.c_str(), (*md)()->id(),
-                          (*pmd)()->name().c_str(), (*pmd)()->id());
-          // persist this hierarchical dependency
-          pmd->local_children()[eos::common::StringConversion::EncodeInvalidUTF8(
-                                  (*md)()->name())] = (*md)()->id();
-          update(req, pmd, "", true);
+      case 2: {
+        // we make sure, that the meta data record is attached to the local parent
+        if (pmd && (*pmd)()->id()) {
+          std::string encname = eos::common::StringConversion::EncodeInvalidUTF8
+                                ((*md)()->name());
+          XrdSysMutexHelper mLock(pmd->Locker());
+
+          if (!pmd->local_children().count(encname) &&
+              !pmd->get_todelete().count(encname) &&
+              !md->deleted()) {
+            eos_static_info("attaching %s [%#lx] to %s [%#lx]",
+                            encname.c_str(), (*md)()->id(),
+                            (*pmd)()->name().c_str(), (*pmd)()->id());
+            // persist this hierarchical dependency
+            pmd->local_children()[eos::common::StringConversion::EncodeInvalidUTF8
+                                  ((*md)()->name())] = (*md)()->id();
+            update(req, pmd, "", true);
+          }
         }
+
+        break;
       }
 
-      break;
-    }
-
-    case 3:
-      break;
+      case 3:
+        break;
+      }
+    } else {
+      rc = ENOENT;
     }
   }
 
@@ -1236,16 +1241,16 @@ metad::remove(fuse_req_t req, metad::shared_md pmd, metad::shared_md md,
     (*pmd)()->set_mtime(ts.tv_sec);
     (*pmd)()->set_mtime_ns(ts.tv_nsec);
   }
-
   {
     // wait that there is space in the queue
     mdflush.Lock();
+
     while (mdqueue.size() == mdqueue_max_backlog) {
       mdflush.WaitMS(25);
     }
-      mdflush.UnLock();
-  }
 
+    mdflush.UnLock();
+  }
   md->Locker().Lock();
 
   if (!upstream) {
@@ -1256,7 +1261,6 @@ metad::remove(fuse_req_t req, metad::shared_md pmd, metad::shared_md md,
   fe.bind();
   flushentry fep((*pmd)()->id(), authid, mdx::LSTORE, req);
   fep.bind();
-
   mdflush.Lock();
   mdqueue[(*pmd)()->id()]++;
   mdqueue[(*md)()->id()]++;
@@ -1539,10 +1543,10 @@ metad::getlk(fuse_req_t req, shared_md md, struct flock* lock)
   if (!rc) {
     // store the md->flock response into the flock structure
     eos_static_notice("pid=%llu len=%llu start=%llu type=%llu\n",
-		      (*md)()->flock().pid(),
-		      (*md)()->flock().len(),
-		      (*md)()->flock().start(),
-		      (*md)()->flock().type());
+                      (*md)()->flock().pid(),
+                      (*md)()->flock().len(),
+                      (*md)()->flock().start(),
+                      (*md)()->flock().type());
     lock->l_pid = (*md)()->flock().pid();
     lock->l_len = (*md)()->flock().len();
     lock->l_start = (*md)()->flock().start();

@@ -1468,6 +1468,7 @@ FsView::GetSpaceFormat(std::string option)
     format += "sum=stat.usedfiles:format=ol|";
     format += "sum=stat.statfs.ffiles:format=ol|";
     format += "sum=stat.statfs.files:format=ol|";
+    format += "geosched=totalspace:format=ol:tag=sched.capacity|";
     format += "sum=stat.statfs.capacity?configstatus@rw:format=ol|";
     format += "sum=<n>?configstatus@rw:format=ol|";
     format += "member=cfg.quota:format=os|";
@@ -1536,6 +1537,7 @@ FsView::GetSpaceFormat(std::string option)
     format += "sum=stat.statfs.capacity:width=14:format=+l:unit=B|";
     format += "sum=stat.statfs.capacity?configstatus@rw:width=13:format=+l:tag=capacity(rw):unit=B|";
     format += "member=cfg.nominalsize:width=13:format=+l:tag=nom.capacity:unit=B|";
+    format += "geosched=totalspace:width=14:format=+l:tag=sched.capacity:unit=B|";
     format += "member=cfg.quota:width=6:format=s|";
     format += "member=cfg.balancer:width=10:format=s:tag=balancing|";
     format += "member=cfg.balancer.threshold:width=11:format=+l:tag=threshold|";
@@ -3646,6 +3648,16 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
         unsigned int width = (formattags.count("width") ?
                               atoi(formattags["width"].c_str()) : 0);
         std::string unit = (formattags.count("unit") ? formattags["unit"] : "");
+
+        if (formattags.count("geosched")) {
+          if (formattags["geosched"] == "totalspace") {
+            std::string nogroup;
+            table_data.back().push_back(
+              TableCell((long long)gOFS->mGeoTreeEngine->placementSpace(mName, nogroup),
+                        format, unit));
+            table_header.push_back(std::make_tuple("sched.capacity", width, format));
+          }
+        }
 
         // Normal member printout
         if (formattags.count("member")) {

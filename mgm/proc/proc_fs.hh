@@ -121,7 +121,8 @@ int proc_fs_add(mq::MessagingRealm* realm, std::string& sfsid,
                 std::string& nodename, std::string& mountpoint, std::string& space,
                 std::string& configstatus, XrdOucString& stdOut,
                 XrdOucString& stdErr,
-                eos::common::VirtualIdentity& vid_in);
+                eos::common::VirtualIdentity& vid_in,
+                bool force = false);
 
 //------------------------------------------------------------------------------
 //! Remove a filesystem
@@ -213,7 +214,7 @@ int proc_fs_mv(std::string& src, std::string& dst, XrdOucString& stdOut,
                XrdOucString& stdErr,
                eos::common::VirtualIdentity& vid_in,
                bool force,
-	       mq::MessagingRealm* realm = 0);
+               mq::MessagingRealm* realm = 0);
 
 
 //------------------------------------------------------------------------------
@@ -314,10 +315,10 @@ int proc_mv_space_space(FsView& fs_view, const std::string& src,
 //! @return 0 if successful, otherwise error code
 //------------------------------------------------------------------------------
 int proc_mv_fs_node(FsView& fs_view, const std::string& src,
-		    const std::string& dst, XrdOucString& stdOut,
-		    XrdOucString& stdErr, bool force,
-		    eos::common::VirtualIdentity& vid_in,
-		    mq::MessagingRealm* realm);
+                    const std::string& dst, XrdOucString& stdOut,
+                    XrdOucString& stdErr, bool force,
+                    eos::common::VirtualIdentity& vid_in,
+                    mq::MessagingRealm* realm);
 
 //------------------------------------------------------------------------------
 //! Sort the groups in a space by priority - the first ones are the ones that

@@ -3022,10 +3022,13 @@ Server::OpGetCap(const std::string& id,
   *response += Header(rspstream);
   response->append(rspstream.c_str(), rspstream.size());
   eos_info("cap-issued: id=%lx mode=%x vtime=%lu.%lu uid=%u gid=%u "
-           "client-id=%s auth-id=%s errc=%d",
+           "client-id=%s auth-id=%s q-node=%lx q-vol=%ld  q-ino=%ld errc=%d",
            cont.cap_().id(), cont.cap_().mode(), cont.cap_().vtime(),
            cont.cap_().vtime_ns(), cont.cap_().uid(), cont.cap_().gid(),
            cont.cap_().clientid().c_str(), cont.cap_().authid().c_str(),
+           cont.cap_()._quota().quota_inode(),
+           cont.cap_()._quota().volume_quota(),
+           cont.cap_()._quota().inode_quota(),
            cont.cap_().errc());
   EXEC_TIMING_END("Eosxd::ext::GETCAP");
   return 0;
