@@ -4016,7 +4016,7 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
           if (!(pquota = Instance().caps.has_quota(pcap, 1024 * 1024))) {
             rc = EDQUOT;
             eos_static_err("quota-error: inode=%lld size=%lld - no update under 1M quota",
-                           ino, md->size());
+                           ino, (*md)()->size());
           } else {
             Instance().caps.open_writer_inode(pcap);
           }

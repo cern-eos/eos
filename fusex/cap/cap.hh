@@ -325,7 +325,7 @@ public:
     }
 
     // no quota, let's manifest this in the log file
-    eos_static_warning("no-quota: i=%08lx\n%s,cap = {%s}\n", cap->id(),
+    eos_static_warning("no-quota: i=%08lx\n%s,cap = {%s}\n", (*cap)()->id(),
                        q->dump().c_str(), cap->dump().c_str());
     return 0;
   }
@@ -345,7 +345,7 @@ public:
     shared_quota q = quotamap.get(cap);
     XrdSysMutexHelper qLock(q->Locker());
     *q = new_quota;
-    q->set_vtime(cap->vtime(), cap->vtime_ns());
+    q->set_vtime((*cap)()->vtime(), (*cap)()->vtime_ns());
   }
 
   shared_quota quota(shared_cap cap)

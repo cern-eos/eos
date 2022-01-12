@@ -583,19 +583,19 @@ cap::qmap::get(shared_cap cap)
     shared_quota quota = (*this)[qid];
 
     // check if we have a newer quota value
-    if ((cap->vtime() > quota->get_vtime()) ||
-        ((cap->vtime() == quota->get_vtime()) &&
-         (cap->vtime_ns() > quota->get_vtime_ns()))) {
+    if (((*cap)()->vtime() > quota->get_vtime()) ||
+        (((*cap)()->vtime() == quota->get_vtime()) &&
+         ((*cap)()->vtime_ns() > quota->get_vtime_ns()))) {
       eos_static_notice("updating qnode=%s volume=%lu inodes=%lu",
                         sqid, (*quota)()->volume_quota(),
                         (*quota)()->inode_quota());
       {
         XrdSysMutexHelper qLock(quota->Locker());
         // if there is no open file on that quota node, we can refresh from remote
-        *quota = cap->_quota();
+        *quota = (*cap)()->_quota();
       }
       // store latest vtime
-      quota->set_vtime(cap->vtime(), cap->vtime_ns());
+      quota->set_vtime((*cap)()->vtime(), (*cap)()->vtime_ns());
       // zero local accounting
       quota->local_reset();
     }
@@ -605,7 +605,7 @@ cap::qmap::get(shared_cap cap)
   } else {
     shared_quota quota = std::make_shared<quotax>();
     *quota = (*cap)()->_quota();
-    quota->set_vtime(cap->vtime(), cap->vtime_ns());
+    quota->set_vtime((*cap)()->vtime(), (*cap)()->vtime_ns());
     (*this)[qid] = quota;
     return quota;
   }
