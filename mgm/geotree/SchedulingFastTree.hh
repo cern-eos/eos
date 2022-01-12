@@ -1615,6 +1615,11 @@ public:
     }
   }
 
+  uint64_t getTotalSpace(const tFastTreeIdx& node = 0)
+  {
+    return pNodes[node].fsData.totalSpace;
+  }
+
   inline void
   updateTree(const tFastTreeIdx& node = 0)
   {

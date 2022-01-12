@@ -1728,6 +1728,14 @@ public:
                  bool useColors = false, bool monitoring = false);
 
   // ---------------------------------------------------------------------------
+  //! Print formated information about the GeoTreeEngine
+  // @param space name of the space
+  // @param name of a particular group or empty
+  // @return number of bytes available for writing
+  // ---------------------------------------------------------------------------
+  uint64_t placementSpace(const std::string& space, const std::string& schedgroup);
+
+  // ---------------------------------------------------------------------------
   //! Place several replicas in one scheduling group.
   // @param group
   //   the group to place the replicas in

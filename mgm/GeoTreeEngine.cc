@@ -523,6 +523,23 @@ bool GeoTreeEngine::removeFsFromGroup(FileSystem* fs, FsGroup* group,
   return true;
 }
 
+
+uint64_t GeoTreeEngine::placementSpace(const std::string& space, const std::string& schedgroup)
+{
+  RWMutexReadLock lock(pTreeMapMutex);
+  uint64_t totalSpace = 0;
+  for (auto it = pGroup2SchedTME.begin(); it != pGroup2SchedTME.end(); it++) {
+    std::string ispace;
+    std::string index;
+    eos::common::StringConversion::SplitKeyValue(it->second->group->mName, ispace, index, ".");
+    if ( (ispace == space) && ( (schedgroup=="") || (schedgroup == it->second->group->mName)) ) {
+      totalSpace += it->second->foregroundFastStruct->placementTree->getTotalSpace();
+    }
+  }
+  return totalSpace;
+}
+
+
 void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
                               bool dispParam, bool dispState, const std::string&
                               schedgroup, const std::string& optype,
