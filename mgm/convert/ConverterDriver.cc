@@ -206,14 +206,14 @@ bool
 ConverterDriver::ScheduleJob(const eos::IFileMD::id_t& id,
                              const std::string& conversion_info)
 {
-  if (!gOFS->mFidTracker.AddEntry(id, TrackerType::Convert)) {
-    eos_static_debug("msg=\"skip recently scheduled file\" fxid=%08llx", id);
-    return false;
-  }
-
   if (mPendingJobs.size() > 1000000) {
     eos_static_err("%s", "msg=\"forbid conversion as there are more than 1M "
                    "jobs pending");
+    return false;
+  }
+
+  if (!gOFS->mFidTracker.AddEntry(id, TrackerType::Convert)) {
+    eos_static_debug("msg=\"skip recently scheduled file\" fxid=%08llx", id);
     return false;
   }
 
