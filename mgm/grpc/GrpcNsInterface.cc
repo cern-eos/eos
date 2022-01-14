@@ -1718,7 +1718,7 @@ grpc::Status GrpcNsInterface::SetXAttr(eos::common::VirtualIdentity& vid,
     eos::common::SymKey::Base64(value, b64value);
 
     if (gOFS->_attr_set(path.c_str(), error, vid, (const char*) 0, key.c_str(),
-                        b64value.c_str())) {
+                        b64value.c_str(), true, request->create())) {
       reply->set_code(errno);
       reply->set_msg(error.getErrText());
       return grpc::Status::OK;
