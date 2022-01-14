@@ -65,7 +65,6 @@ CurlWriteCallback(void* contents, size_t size, size_t nmemb, void* userp)
   return size * nmemb;
 }
 
-
 //------------------------------------------------------------------------------
 // Get list of top level domains
 //------------------------------------------------------------------------------
@@ -202,13 +201,9 @@ IostatPeriods::GetSumForPeriod(Period period) const
 // Iostat constructor
 //------------------------------------------------------------------------------
 Iostat::Iostat():
-  mQcl(nullptr), mReport(true), mReportNamespace(false), mReportPopularity(true)
+  mRunning(false), mQcl(nullptr), mReport(true), mReportNamespace(false),
+  mReportPopularity(true), mHashKeyBase("")
 {
-  mRunning = false;
-  mReportHashKeyBase = "";
-  StoreKeyStruct["id"] = "";
-  StoreKeyStruct["idt"] = "";
-  StoreKeyStruct["tag"] = "";
   GetTopLevelDomains(IoDomains);
   // push default nodes to watch TODO: make generic
   IoNodes.insert("lxplus"); // CERN interactive cluster
@@ -223,7 +218,7 @@ Iostat::Iostat():
     IostatPopularity[i].resize(100000);
   }
 
-  IostatLastPopularityBin = 9999999;
+  mLastPopularityBin = 9999999;
 }
 
 //------------------------------------------------------------------------------
@@ -236,15 +231,36 @@ Iostat::~Iostat()
 }
 
 //------------------------------------------------------------------------------
+// Get hash key under which info is stored in QDB. This also included the
+// current year and it's cached for ~5 minutes.
+//------------------------------------------------------------------------------
+std::string
+Iostat::GetHashKey() const
+{
+  using namespace std::chrono;
+  static std::string key;
+  static seconds cache_interval {300};
+  static auto ts = steady_clock::now();
+
+  if (key.empty() ||
+      (duration_cast<seconds>(steady_clock::now() - ts) > cache_interval)) {
+    key = mHashKeyBase + eos::common::Timing::GetCurrentYear();
+    ts = steady_clock::now();
+  }
+
+  return key;
+}
+
+//------------------------------------------------------------------------------
 // Perform object initialization
 //------------------------------------------------------------------------------
 bool
-Iostat::Init(const std::string& instance_name)
+Iostat::Init(const std::string& instance_name, const std::string& file_path)
 {
-  mReportHashKeyBase = SSTR("eos-iostat-report:" << instance_name << ":");
+  mHashKeyBase = SSTR("eos-iostat-report:" << instance_name << ":");
 
   // Initialize qclient
-  if (gOFS != NULL && !mQcl) {
+  if (gOFS && !mQcl) {
     const eos::QdbContactDetails& qdb_details = gOFS->mQdbContactDetails;
     mQcl.reset(new qclient::QClient(qdb_details.members,
                                     qdb_details.constructOptions()));
@@ -255,12 +271,88 @@ Iostat::Init(const std::string& instance_name)
     return false;
   }
 
-  if (Restore()) {
-    mCirculateThread.reset(&Iostat::Circulate, this);
-    return true;
-  } else {
+  if (!OneOffQdbMigration(file_path)) {
+    eos_static_err("%s", "msg=\"failed while attempting migration to QDB\"");
     return false;
   }
+
+  if (!LoadFromQdb()) {
+    return false;
+  }
+
+  mCirculateThread.reset(&Iostat::Circulate, this);
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// One off migration from file based to QDB of IoStat information
+//------------------------------------------------------------------------------
+bool
+Iostat::OneOffQdbMigration(const std::string& file_path)
+{
+  struct stat info;
+
+  if (stat(file_path.c_str(), &info)) {
+    // File does not exist, migration was probably already done
+    return true;
+  }
+
+  FILE* fin = fopen(file_path.c_str(), "r");
+
+  if (!fin) {
+    eos_static_err("msg=\"failed to open iostat file\" path=\"%s\"",
+                   file_path.c_str());
+    return false;
+  }
+
+  int item = 0;
+  char line[16384];
+  std::string tag;
+  std::list<std::string> entries;
+
+  while ((item = fscanf(fin, "%16383s\n", line)) == 1) {
+    XrdOucEnv env(line);
+
+    if (env.Get("tag") && env.Get("uid") && env.Get("val")) {
+      entries.push_back(EncodeKey("u", env.Get("uid"), env.Get("tag")));
+      entries.push_back(env.Get("val"));
+    }
+
+    if (env.Get("tag") && env.Get("gid") && env.Get("val")) {
+      entries.push_back(EncodeKey("g", env.Get("gid"), env.Get("tag")));
+      entries.push_back(env.Get("val"));
+    }
+  }
+
+  fclose(fin);
+  // Push all the collected info to QDB
+  qclient::QHash qhash(*mQcl, GetHashKey());
+
+  try {
+    bool done = qhash.hmset(entries);
+
+    if (!done) {
+      eos_static_err("%s", "msg=\"failed while inserting entries in QDB\"");
+      return false;
+    }
+  } catch (const std::exception& e) {
+    eos_static_err("msg=\"got exception while inserting entrines in QDB\" "
+                   "emsg=\"%s\"", e.what());
+    return false;
+  }
+
+  // Save file based iostat as a backup
+  const std::string bkp_path = file_path + ".bkp";
+
+  if (rename(file_path.c_str(), bkp_path.c_str())) {
+    eos_static_err("msg=\"failed file rename\" old_path=\"%s\" new_path=\"%s\"",
+                   file_path.c_str(), bkp_path.c_str());
+    return false;
+  }
+
+  eos_static_info("msg=\"saved iostat backup successfully\" old_path=\"%s\" "
+                  " new_path=\"%s\"", file_path.c_str(), bkp_path.c_str());
+  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -455,7 +547,7 @@ void
 Iostat::Add(const char* tag, uid_t uid, gid_t gid, unsigned long long val,
             time_t start, time_t stop, time_t now)
 {
-  std::unique_lock<std::mutex> scope_lock(Mutex);
+  std::unique_lock<std::mutex> scope_lock(mDataMutex);
   IostatUid[tag][uid] += val;
   IostatGid[tag][gid] += val;
   IostatPeriodsUid[tag][uid].Add(val, start, stop, now);
@@ -573,7 +665,7 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
       if (report->path.substr(0, 11) == "/replicate:") {
         // check if this is a replication path
         // push into the 'eos' domain
-        std::unique_lock<std::mutex> scope_lock(Mutex);
+        std::unique_lock<std::mutex> scope_lock(mDataMutex);
 
         if (report->rb) {
           IostatPeriodsDomainIOrb["eos"].Add(report->rb, report->ots, report->cts, now);
@@ -597,7 +689,7 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
           std::string sdomain = report->sec_domain.substr(pos);
 
           if (IoDomains.find(sdomain) != IoDomains.end()) {
-            std::unique_lock<std::mutex> scope_lock(Mutex);
+            std::unique_lock<std::mutex> scope_lock(mDataMutex);
 
             if (report->rb) {
               IostatPeriodsDomainIOrb[sdomain].Add(report->rb, report->ots, report->cts, now);
@@ -616,7 +708,7 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
 
         for (nit = IoNodes.begin(); nit != IoNodes.end(); nit++) {
           if (*nit == report->sec_host.substr(0, nit->length())) {
-            std::unique_lock<std::mutex> scope_lock(Mutex);
+            std::unique_lock<std::mutex> scope_lock(mDataMutex);
 
             if (report->rb) {
               IostatPeriodsDomainIOrb[*nit].Add(report->rb, report->ots, report->cts, now);
@@ -632,7 +724,7 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
 
         if (!dfound) {
           // push into the 'other' domain
-          std::unique_lock<std::mutex> scope_lock(Mutex);
+          std::unique_lock<std::mutex> scope_lock(mDataMutex);
 
           if (report->rb) {
             IostatPeriodsDomainIOrb["other"].Add(report->rb, report->ots, report->cts, now);
@@ -653,7 +745,7 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
 
       // Push into app accounting
       {
-        std::unique_lock<std::mutex> scope_lock(Mutex);
+        std::unique_lock<std::mutex> scope_lock(mDataMutex);
 
         if (report->rb) {
           IostatPeriodsAppIOrb[apptag].Add(report->rb, report->ots, report->cts, now);
@@ -689,7 +781,7 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
               fflush(gOpenReportFD);
             }
           } else {
-            std::unique_lock<std::mutex> scope_lock(Mutex);
+            std::unique_lock<std::mutex> scope_lock(mDataMutex);
 
             if (gOpenReportFD) {
               fclose(gOpenReportFD);
@@ -737,12 +829,13 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
 
 
 //------------------------------------------------------------------------------
-// Write record to the stream - used by the MGM to push entries
+// Write record to the stream - used by the MGM/FUSEX to push entries
 //------------------------------------------------------------------------------
 void
 Iostat::WriteRecord(const std::string& record)
 {
-  std::unique_lock<std::mutex> scope_lock(Mutex);
+  static std::mutex mutex;
+  std::unique_lock<std::mutex> scope_lock(mutex);
 
   if (gOpenReportFD) {
     fprintf(gOpenReportFD, "%s\n", record.c_str());
@@ -763,7 +856,7 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
   std::string format_l = (!monitoring ? "+l" : "ol");
   std::string format_ll = (!monitoring ? "l." : "ol");
   std::vector<std::string> tags;
-  std::unique_lock<std::mutex> scope_lock(Mutex);
+  std::unique_lock<std::mutex> scope_lock(mDataMutex);
 
   for (auto tit = IostatUid.begin(); tit != IostatUid.end(); ++tit) {
     tags.push_back(tit->first);
@@ -1647,230 +1740,19 @@ Iostat::PrintNsReport(const char* path, XrdOucString& out) const
   out += summaryline;
 }
 
-
-// creates key under which we will store an Iostat value in QuarkDB hash map report
-std::string Iostat::BuildStatKey()
-{
-  std::string iostat_id = std::string("idt=") + StoreKeyStruct["idt"];
-  iostat_id += std::string("&id=") + StoreKeyStruct["id"];
-  iostat_id += std::string("&tag=") + StoreKeyStruct["tag"];
-  return iostat_id;
-}
-
-//------------------------------------------------------------------------------
-// Save current uid/gid counters to Quark DB
-//------------------------------------------------------------------------------
-bool
-Iostat::Store()
-{
-  std::string year = eos::common::Timing::GetCurrentYear();
-  // check if current year map exists in the QuarkDB, if not (new year) reset all counters to 0
-  std::string mReportHashKeyBaseWithYear = mReportHashKeyBase + year;
-
-  if (!mQcl->exists(mReportHashKeyBaseWithYear)) {
-    eos_static_info("msg=\"HashMap=\"%s\" does not exists, cleaning up\"",
-                    mReportHashKeyBaseWithYear.c_str());
-    Iostat::ResetIostatMaps();
-    // In case MGM starts for first time, no stat key initialised yet
-    // making sure here that there is at least one kv entry in IostatUid and IostatGid,
-    // so that the new hash map gets inserted to QDB
-    time_t now = time(0);
-    Add("files_deleted", 0, 0, 0, now - 30, now, now);
-  };
-
-  std::unique_lock<std::mutex> scope_lock(Mutex);
-
-  // store user counters to the vectors
-  return InsertToQDBStore(IostatUid, "u") && InsertToQDBStore(IostatGid, "g");
-}
-
-//------------------------------------------------------------------------------
-//
-//------------------------------------------------------------------------------
-template <typename T>
-bool Iostat::InsertToQDBStore(const T& gmap, const char* id_type)
-{
-  std::list<std::string> iostat_id_val_list;
-  std::list<std::string> iostat_tot_val_list;
-
-  // collecting the info and constructing key value lists
-  for (auto tit : gmap) {
-    unsigned long long tagtotalval = 0;
-
-    for (auto it : tit.second) {
-      if (std::strcmp(id_type, "u") == 0) {
-        StoreKeyStruct["idt"] = "u";
-      } else {
-        StoreKeyStruct["idt"] = "g";
-      }
-
-      StoreKeyStruct["id"] = std::to_string(it.first);
-      StoreKeyStruct["tag"] = tit.first;
-      std::string itemkey = BuildStatKey();
-      iostat_id_val_list.push_back(itemkey);
-      iostat_id_val_list.push_back(std::to_string((unsigned long long)it.second));
-      tagtotalval += (unsigned long long)it.second;
-    }
-
-    StoreKeyStruct["id"] = "ALL";
-    std::string totitemkey = BuildStatKey();
-    iostat_tot_val_list.push_back(totitemkey);
-    iostat_tot_val_list.push_back(std::to_string(tagtotalval));
-  }
-
-  // QDB insert
-  bool allok = true;
-  std::string year = eos::common::Timing::GetCurrentYear();
-  eos_static_info("msg=\"storing QDB hash map %s%s\"",
-                  mReportHashKeyBase.c_str(), year.c_str());
-  mQHashIostat = qclient::QHash(*mQcl, mReportHashKeyBase + year);
-
-  try {
-    allok += mQHashIostat.hmset(iostat_id_val_list);
-  } catch (const std::exception& e) {
-    eos_static_err("msg=\"error trying to add iostat entry (sum per tag)\" "
-                   "emsg=\"%s\"", e.what());
-    return false;
-  }
-
-  eos_static_info("msg=\"storing QDB totals hash map %s%s%s\"",
-                  mReportHashKeyBase.c_str(), "sum-per-tag:", year.c_str());
-  mQHashIostat = qclient::QHash(*mQcl,
-                                mReportHashKeyBase + "sum-per-tag:" + year);
-
-  try {
-    allok += mQHashIostat.hmset(iostat_tot_val_list);
-  } catch (const std::exception& e) {
-    eos_static_err("msg=\"error trying to add iostat entry (sum per tag)\""
-                   " emsg=\"%s\"", e.what());
-    return false;
-  }
-
-  return allok;
-}
-
-// parsing the key-values from key "idt=u&id=xxx&tag=blabla"
-// of the QuarkDB report hash map entry to be able to repopulate IostatUid/IostatGid objects
-bool Iostat::UnfoldStatKey(const char* storedqdbkey_kv)
-{
-  std::vector<std::string> entry{};
-  eos::common::StringConversion::Tokenize(storedqdbkey_kv, entry, "&");
-
-  for (auto itkv = entry.begin(); itkv != entry.end(); itkv++) {
-    std::vector<std::string> entry_kv{};
-    eos::common::StringConversion::Tokenize(*itkv, entry_kv, "=");
-
-    if (entry_kv.size() != 2) {
-      // wrong/unexpected QDB entry format
-      eos_static_err("[Iostat] bad entry, clean the QDB %s", entry_kv[0].c_str());
-      return false;
-    } else {
-      if ("idt" == entry_kv[0]) {
-        StoreKeyStruct["idt"] = entry_kv[1];
-      }
-
-      if ("id" == entry_kv[0]) {
-        StoreKeyStruct["id"] = entry_kv[1];
-      }
-
-      if ("tag" == entry_kv[0]) {
-        StoreKeyStruct["tag"] = entry_kv[1];
-      }
-    }
-
-    entry_kv.clear();
-  }
-
-  entry.clear();
-  return true;
-}
-
-// ---------------------------------------------------------------------------
-// ! load current uid/gid counters from a QuarkDB hash map
-// ---------------------------------------------------------------------------
-bool
-Iostat::Restore()
-{
-  std::string year = eos::common::Timing::GetCurrentYear();
-  std::string mReportHashKeyBaseWithYear = mReportHashKeyBase + year;
-  eos_static_info("[Iostat] Restoring from hash map %s",
-                  mReportHashKeyBaseWithYear.c_str());
-  qclient::redisReplyPtr reply;
-
-  try {
-    reply = mQcl->exec("HGETALL", mReportHashKeyBaseWithYear).get();
-  } catch (const std::exception& e) {
-    eos_static_err("msg=\"[Iostat] Error encountered while trying to get iostat entries from QuarkDB, emsg=\"%s\"",
-                   e.what());
-    return false;
-  }
-
-  qclient::HgetallParser mQdbRespParser(reply);
-
-  if (!mQdbRespParser.ok() || mQdbRespParser.value().empty()) {
-    return false;
-  }
-
-  std::map<std::string, std::string> stored_iostat = mQdbRespParser.value();
-  std::vector<std::string> entry{};
-  std::unique_lock<std::mutex> scope_lock(Mutex);
-  unsigned long long val = 0;
-  int id = 0;
-
-  for (auto it = stored_iostat.begin(); it != stored_iostat.end(); it++) {
-    // parsing the key-values from key "idt=u&id=xxx&tag=blabla"
-    // of the hash map entry
-    val = strtoull(it->second.c_str(), 0, 10);
-
-    // populating StoreKeyStruct with values via UnfoldStatKey method
-    if (!UnfoldStatKey(it->first.c_str())) {
-      continue;
-    }
-
-    id = atoi(StoreKeyStruct["id"].c_str());
-
-    if (StoreKeyStruct["id"] == "ALL") {
-      continue;
-    }
-
-    if (StoreKeyStruct["idt"] == "u") {
-      IostatUid[StoreKeyStruct["tag"]][(uid_t)id] = val;
-    }
-
-    if (StoreKeyStruct["idt"] == "g") {
-      IostatGid[StoreKeyStruct["tag"]][(gid_t)id] = val;
-    }
-  }
-
-  return true;
-}
-
 //------------------------------------------------------------------------------
 // Circulate the entries to get stats collected over last sec, min, hour and day
 //------------------------------------------------------------------------------
 void
 Iostat::Circulate(ThreadAssistant& assistant) noexcept
 {
-  unsigned long long sc = 0;
-
-  // empty the circular buffer
   while (!assistant.terminationRequested()) {
-    // we store once per minute the current statistics
-    if (!(sc % 117)) {
-      // save the current state ~ every minute
-      if (!Store()) {
-        eos_static_err("msg=\"IoStat store failed\" hash_key=\"%s\"",
-                       mReportHashKeyBase.c_str());
-      }
-    }
-
-    sc++;
     assistant.wait_for(std::chrono::milliseconds(512));
-    std::unique_lock<std::mutex> scope_lock(Mutex);
     google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, IostatPeriods> >::iterator
     tit;
     google::sparse_hash_map<std::string, IostatPeriods >::iterator dit;
     time_t now = time(NULL);
+    std::unique_lock<std::mutex> scope_lock(mDataMutex);
 
     // loop over tags
     for (tit = IostatPeriodsUid.begin(); tit != IostatPeriodsUid.end(); ++tit) {
@@ -1918,38 +1800,16 @@ Iostat::Circulate(ThreadAssistant& assistant) noexcept
     size_t popularitybin = (((time(NULL))) % (IOSTAT_POPULARITY_DAY *
                             IOSTAT_POPULARITY_HISTORY_DAYS)) / IOSTAT_POPULARITY_DAY;
 
-    if (IostatLastPopularityBin != popularitybin) {
+    if (mLastPopularityBin != popularitybin) {
       // only if we enter a new bin we erase it
       std::unique_lock<std::mutex> scope_lock(mPopularityMutex);
       IostatPopularity[popularitybin].clear();
       IostatPopularity[popularitybin].resize(10000);
-      IostatLastPopularityBin = popularitybin;
+      mLastPopularityBin = popularitybin;
     }
   }
 
   eos_static_info("%s", "msg=\"stopping iostat circulate thread\"");
-}
-
-
-// resets the IostatUid and IostatGid counters to 0
-// useful when new year starts
-void
-Iostat::ResetIostatMaps()
-{
-  std::unique_lock<std::mutex> reset_scope_lock(Mutex);
-
-  // store user counters to the vectors
-  for (auto tit : IostatUid) {
-    for (auto it : tit.second) {
-      IostatUid[tit.first][it.first] = 0;
-    }
-  }
-
-  for (auto tit : IostatGid) {
-    for (auto it : tit.second) {
-      IostatGid[tit.first][it.first] = 0;
-    }
-  }
 }
 
 //------------------------------------------------------------------------------
@@ -2351,6 +2211,112 @@ Iostat::AddToPopularity(const std::string& path, unsigned long long rb,
     IostatPopularity[popularitybin][sp].rb += rb;
     IostatPopularity[popularitybin][sp].nread++;
   }
+}
+
+//------------------------------------------------------------------------------
+// Create hash map key string from the given information
+//------------------------------------------------------------------------------
+std::string
+Iostat::EncodeKey(const std::string& id_type, const std::string& id_val,
+                  const std::string& tag)
+{
+  return SSTR("idt=" << id_type << "&id=" << id_val << "&tag=" << tag);
+}
+
+//------------------------------------------------------------------------------
+// Decode/parse hash map key to extract entry information
+//------------------------------------------------------------------------------
+bool
+Iostat::DecodeKey(const std::string& key, std::string& id_type,
+                  std::string& id_val, std::string& tag)
+{
+  std::vector<std::string> tokens {};
+  eos::common::StringConversion::Tokenize(key, tokens, "&");
+
+  for (const auto& token : tokens) {
+    std::vector<std::string> kv {};
+    eos::common::StringConversion::Tokenize(token, kv, "=");
+
+    if (kv.size() != 2) {
+      eos_static_err("msg=\"unexpected token format\" token=\"%s\"",
+                     token.c_str());
+      return false;
+    }
+
+    if (kv[0] == "idt") {
+      id_type = kv[1];
+    } else if (kv[0] == "id") {
+      id_val = kv[1];
+    } else if (kv[0] == "tag") {
+      tag = kv[1];
+    } else {
+      eos_static_err("msg=\"unexpected key format\" key=\"%s\"", kv[0].c_str());
+      return false;
+    }
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Load Iostat information from Qdb backend
+//------------------------------------------------------------------------------
+bool
+Iostat::LoadFromQdb()
+{
+  std::string key = GetHashKey();
+  eos_static_info("msg=\"loading iostat info from Qdb\" hash_map=\"%s\"",
+                  key.c_str());
+  qclient::redisReplyPtr reply;
+
+  try {
+    reply = mQcl->exec("HGETALL", key).get();
+  } catch (const std::exception& e) {
+    eos_static_err("msg=\"failed getting entries from Qdb\", emsg=\"%s\"",
+                   e.what());
+    return false;
+  }
+
+  qclient::HgetallParser mQdbRespParser(reply);
+
+  if (!mQdbRespParser.ok() || mQdbRespParser.value().empty()) {
+    return false;
+  }
+
+  int id = 0;
+  unsigned long long val = 0ull;
+  std::string id_type, id_val, tag;
+  std::map<std::string, std::string> stored_iostat = mQdbRespParser.value();
+  std::unique_lock<std::mutex> scope_lock(mDataMutex);
+  // Clean up the memory data structures
+  IostatUid.clear();
+  IostatUid.resize(0);
+  IostatGid.clear();
+  IostatGid.resize(0);
+
+  for (const auto& pair : stored_iostat) {
+    if (!DecodeKey(pair.first, id_type, id_val, tag)) {
+      return false;
+    }
+
+    // Convert entries from string to numeric
+    try {
+      id = std::stoi(id_val);
+      val = std::stoull(pair.second);
+    } catch (...) {
+      eos_static_err("msg=\"failed converting to numeric format\" key=\"%s\" "
+                     "val=\"%s\"", pair.first.c_str(), pair.second.c_str());
+      return false;
+    }
+
+    if (id_type == "u") {
+      IostatUid[tag][id] = val;
+    } else if (id_type == "g") {
+      IostatGid[tag][id] = val;
+    }
+  }
+
+  return true;
 }
 
 EOSMGMNAMESPACE_END

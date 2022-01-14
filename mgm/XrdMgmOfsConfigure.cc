@@ -1704,7 +1704,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   mViewMutexWatcher.activate(eosViewRWMutex, "eosViewRWMutex");
   // Configure the access mutex to be blocking
   Access::gAccessMutex.SetBlocking(true);
-
 #ifdef EOS_INSTRUMENTED_RWMUTEX
   eos::common::RWMutex* fs_mtx = &FsView::gFsView.ViewMutex;
   eos::common::RWMutex* quota_mtx = &Quota::pMapMutex;
@@ -2107,8 +2106,10 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   InitStats();
   // start the fuse server
   gOFS->zMQ->gFuseServer.start();
+  const std::string iostat_file = SSTR(MgmMetaLogDir << "/iostat." << ManagerId
+                                       << ".dump");
 
-  if (!IoStats->Init(MgmOfsInstanceName.c_str())) {
+  if (!IoStats->Init(MgmOfsInstanceName.c_str(), iostat_file)) {
     eos_warning("%s", "msg=\"failed to initialize IoStat object\"");
   } else {
     eos_notice("%s", "msg=\"successfully initalized IoStat object\"");

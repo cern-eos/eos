@@ -131,55 +131,14 @@ public:
 //------------------------------------------------------------------------------
 class Iostat
 {
-private:
-  std::mutex Mutex;
-  google::sparse_hash_map<std::string,
-         google::sparse_hash_map<uid_t, unsigned long long>>
-         IostatUid;
-  google::sparse_hash_map<std::string,
-         google::sparse_hash_map<gid_t, unsigned long long>>
-         IostatGid;
-  google::sparse_hash_map<std::string,
-         google::sparse_hash_map<uid_t, IostatPeriods>>
-         IostatPeriodsUid;
-  google::sparse_hash_map<std::string,
-         google::sparse_hash_map<gid_t, IostatPeriods>>
-         IostatPeriodsGid;
-
-  google::sparse_hash_map<std::string, IostatPeriods> IostatPeriodsDomainIOrb;
-  google::sparse_hash_map<std::string, IostatPeriods> IostatPeriodsDomainIOwb;
-
-  google::sparse_hash_map<std::string, IostatPeriods> IostatPeriodsAppIOrb;
-  google::sparse_hash_map<std::string, IostatPeriods> IostatPeriodsAppIOwb;
-
-  std::set<std::string> IoDomains;
-  std::set<std::string> IoNodes;
-
-  //! Internal QClient object
-  std::unique_ptr<qclient::QClient> mQcl;
-  //! QDB hash map object
-  qclient::QHash mQHashIostat;
-  //! QDB entry key map
-  google::sparse_hash_map<std::string, std::string> StoreKeyStruct;
-
-  //! Flag to store reports in the local report store
-  std::atomic<bool> mReport;
-  //! Flag if we should fill the report namespace
-  std::atomic<bool> mReportNamespace;
-  //! Flag if we fill the popularity maps (protected by this::Mutex)
-  std::atomic<bool> mReportPopularity;
-  //! QuarkDB hash map key name where a dump is loaded/saved via Restore/Store methods
-  std::string mReportHashKeyBase;
-
 public:
-  // Configuration keys used in config key-val store
+  //! Configuration keys used in config key-val store
   static const char* gIostatCollect;
   static const char* gIostatReport;
   static const char* gIostatReportNamespace;
   static const char* gIostatPopularity;
   static const char* gIostatUdpTargetList;
   static FILE* gOpenReportFD;
-  std::atomic<bool> mRunning;
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -195,10 +154,11 @@ public:
   //! Perform object initialization
   //!
   //! @param instance_name used to build the hash map key to be stored in QDB
+  //! @param file path legacy iostat file path location
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool Init(const std::string& instance_name);
+  bool Init(const std::string& instance_name, const std::string& file_path);
 
   //----------------------------------------------------------------------------
   //! Apply instance level configuration concerning IoStats
@@ -312,20 +272,6 @@ public:
   //----------------------------------------------------------------------------
   void WriteRecord(const std::string& record);
 
-  // build a key for QuarkDB hash map store from info in StoreKeyStruct
-  std::string BuildStatKey();
-  // get the kv pairs for QDB from IostatUid or IostatGid (as gmap)
-  // template is needed since the two maps differ in uid_t git_t types within the map
-  template <typename T>
-  bool InsertToQDBStore(const T& gmap, const char* id_type);
-  // parsing the key-values from key "idt=u&id=xxx&tag=blabla"
-  // of the QuarkDB report hash map entry to be able to repopulate
-  // IostatUid/IostatGid objects via StoreKeyStruct
-  bool UnfoldStatKey(const char* storedqdbkey_kv);
-
-  bool Store();
-  bool Restore();
-
   //------------------------------------------------------------------------------
   //! Print IO statistics
   //------------------------------------------------------------------------------
@@ -349,9 +295,6 @@ public:
   //----------------------------------------------------------------------------
   void PrintNsReport(const char* path, XrdOucString& out) const;
 
-
-  void ResetIostatMaps();
-
   //----------------------------------------------------------------------------
   //! Record measurement to the various periods it overlaps with
   //!
@@ -368,7 +311,7 @@ public:
 
   //----------------------------------------------------------------------------
   //! Get sum of measurements for the given tag
-  //! @note: need to lock the mutex if directly used
+  //! @note: needs a lock on the mDataMutex
   //!
   //! @param tag measurement info tag
   //!
@@ -378,6 +321,7 @@ public:
 
   //----------------------------------------------------------------------------
   //! Get sum of measurements for the given tag an period
+  //! @note: needs a lock on the mDataMutex
   //!
   //! @param tag measurement info tag
   //! @parma period time interval of interest
@@ -390,10 +334,37 @@ private:
 #ifdef IN_TEST_HARNESS
 public:
 #endif
+  google::sparse_hash_map<std::string,
+         google::sparse_hash_map<uid_t, unsigned long long>> IostatUid;
+  google::sparse_hash_map<std::string,
+         google::sparse_hash_map<gid_t, unsigned long long>> IostatGid;
+  google::sparse_hash_map<std::string,
+         google::sparse_hash_map<uid_t, IostatPeriods>> IostatPeriodsUid;
+  google::sparse_hash_map<std::string,
+         google::sparse_hash_map<gid_t, IostatPeriods>> IostatPeriodsGid;
+  google::sparse_hash_map<std::string, IostatPeriods> IostatPeriodsDomainIOrb;
+  google::sparse_hash_map<std::string, IostatPeriods> IostatPeriodsDomainIOwb;
+  google::sparse_hash_map<std::string, IostatPeriods> IostatPeriodsAppIOrb;
+  google::sparse_hash_map<std::string, IostatPeriods> IostatPeriodsAppIOwb;
+  std::set<std::string> IoDomains;
+  std::set<std::string> IoNodes;
+  //! Mutex protecting the above data structures
+  std::mutex mDataMutex;
+  std::atomic<bool> mRunning;
+  //! Internal QClient object
+  std::unique_ptr<qclient::QClient> mQcl;
+  //! Flag to store reports in the local report store
+  std::atomic<bool> mReport;
+  //! Flag if we should fill the report namespace
+  std::atomic<bool> mReportNamespace;
+  //! Flag if we fill the popularity maps (protected by this::Mutex)
+  std::atomic<bool> mReportPopularity;
+  //! QuarkDB hash map key name where info is saved
+  std::string mHashKeyBase;
   std::mutex mThreadSyncMutex; ///< Mutex serializing thread(s) start/stop
   AssistedThread mReceivingThread; ///< Looping thread receiving reports
   AssistedThread mCirculateThread; ///< Looping thread circulating report
-  ///< Mutex protecting the UDP broadcast data structures that follow
+  //! Mutex protecting the UDP broadcast data structures that follow
   mutable std::mutex mBcastMutex;
   //! Destinations for udp popularity packets
   std::set<std::string> mUdpPopularityTarget;
@@ -401,6 +372,7 @@ public:
   std::map<std::string, int> mUdpSocket;
   //! Socket address structure to be reused for messages
   std::map<std::string, struct sockaddr_in> mUdpSockAddr;
+  //! Mutex protecting the popularity data structures
   mutable std::mutex mPopularityMutex;
   //! Popularity data structure
   struct Popularity {
@@ -409,7 +381,7 @@ public:
   };
 
   //! Points to the bin which was last used in IostatPopularity
-  std::atomic<size_t> IostatLastPopularityBin;
+  std::atomic<size_t> mLastPopularityBin;
   google::sparse_hash_map<std::string, struct Popularity>
     IostatPopularity[IOSTAT_POPULARITY_HISTORY_DAYS];
   typedef std::pair<std::string, struct Popularity> popularity_t;
@@ -469,6 +441,54 @@ public:
   void AddToPopularity(const std::string& path, unsigned long long rb,
                        time_t start, time_t stop);
 
+  //----------------------------------------------------------------------------
+  //! One off migration from file based to QDB of IoStat information
+  //!
+  //! @param file_path file path for IoStat information
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool OneOffQdbMigration(const std::string& file_path);
+
+  //----------------------------------------------------------------------------
+  //! Create/encode hash map key string from the given information
+  //!
+  //! @param id_type type of id, can be either user 'u' or group 'g'
+  //! @param id_val numeric value of the id
+  //! @param tag type of tag eg. bytes_read, bytes_write etc.
+  //!
+  //! @param return string representing the key to be used for storing this
+  //!        info in the hash map
+  //----------------------------------------------------------------------------
+  static std::string EncodeKey(const std::string& id_type,
+                               const std::string& id_val,
+                               const std::string& tag);
+
+  //----------------------------------------------------------------------------
+  //! Decode/parse hash map key to extract entry information
+  //!
+  //! @param key hash map key obtained by calling EncodeKey
+  //! @param id_type type of id, can be either user 'u' or group 'g'
+  //! @param id_val numeric value of the id
+  //! @param tag type of tag eg. bytes_read, bytes_write etc.
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  static bool DecodeKey(const std::string& key, std::string& id_type,
+                        std::string& id_val, std::string& tag);
+
+  //----------------------------------------------------------------------------
+  //! Load info from Qdb backend clearing up any memory data structures
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool LoadFromQdb();
+
+  //----------------------------------------------------------------------------
+  //! Get hash key under which info is stored in QDB. This also included the
+  //! current year and it's cached for 5 minutes.
+  //----------------------------------------------------------------------------
+  std::string GetHashKey() const;
 };
 
 EOSMGMNAMESPACE_END
