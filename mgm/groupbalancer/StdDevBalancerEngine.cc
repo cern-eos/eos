@@ -28,9 +28,8 @@ namespace eos::mgm::group_balancer {
 
 void StdDevBalancerEngine::configure(const engine_conf_t& conf)
 {
-  auto threshold_kv = conf.find("threshold");
-  if (threshold_kv != conf.end())
-    mThreshold=atof(threshold_kv->second.c_str())/100.0;
+  using namespace std::string_view_literals;
+  mThreshold = extract_percent_value(conf, "threshold"sv);
 }
 
 void StdDevBalancerEngine::recalculate()

@@ -113,6 +113,33 @@ inline double calculateAvg(const group_size_map& m)
                          { return s + kv.second.filled(); })/m.size();
 }
 
+template <typename map_type, typename key_type>
+double extract_value(const map_type& m, const key_type& k,
+                     double default_val = 0.0,
+                     std::string* err_str=nullptr)
+{
+  double result;
+  auto kv = m.find(k);
+  if (kv != m.end()) {
+    try {
+      result = std::stod(kv->second);
+    } catch (std::exception& e) {
+      if (err_str)
+        *err_str = e.what();
+      return default_val;
+    }
+  }
+
+  return result;
+}
+
+template <typename... Args>
+double extract_percent_value(Args&&... args)
+{
+  double value = extract_value(std::forward<Args>(args)...);
+  return value/100.0;
+}
+
 struct IBalancerEngine
 {
   // //----------------------------------------------------------------------------
