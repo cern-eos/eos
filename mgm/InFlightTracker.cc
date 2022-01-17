@@ -123,8 +123,8 @@ InFlightTracker::getStallTime(uid_t uid, size_t& limit)
 size_t
 InFlightTracker::ShouldStall(uid_t uid)
 {
-  size_t limit = Access::ThreadLimit(uid);
-  size_t global_limit = Access::ThreadLimit();
+  size_t limit = Access::ThreadLimit(uid, false);
+  size_t global_limit = Access::ThreadLimit(false);
   //size_t global_sessions = eos::common::Mapping::ActiveSessions();
 
   // user limit

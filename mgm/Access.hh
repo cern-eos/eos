@@ -234,8 +234,8 @@ public:
   //----------------------------------------------------------------------------
   //! Get Thread limit (by uid)
   //----------------------------------------------------------------------------
-  static size_t ThreadLimit(uid_t uid);
-  static size_t ThreadLimit();
+  static size_t ThreadLimit(uid_t uid, bool lock_ns=true);
+  static size_t ThreadLimit(bool lock_ns=true);
 
 };
 
