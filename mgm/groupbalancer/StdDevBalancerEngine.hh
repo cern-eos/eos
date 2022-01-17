@@ -32,7 +32,6 @@ class StdDevBalancerEngine: public BalancerEngine
 public:
   void recalculate() override;
   void updateGroup(const std::string& group_name) override;
-  groups_picked_t pickGroupsforTransfer() override;
   void configure(const engine_conf_t& conf) override;
 
   // get the set threshold, mostly only useful for testing

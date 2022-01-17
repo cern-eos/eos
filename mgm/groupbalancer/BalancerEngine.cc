@@ -11,6 +11,12 @@ void BalancerEngine::populateGroupsInfo(group_size_map&& info)
   updateGroups();
 }
 
+void BalancerEngine::clear_threshold(const std::string& group_name)
+{
+  data.mGroupsOverThreshold.erase(group_name);
+  data.mGroupsUnderThreshold.erase(group_name);
+}
+
 void BalancerEngine::clear_thresholds()
 {
   data.mGroupsOverThreshold.clear();
@@ -51,6 +57,33 @@ int BalancerEngine::record_transfer(std::string_view source_group,
 
   source_grp->second.swapFile(&target_grp->second, filesize);
   return 0;
+}
+
+
+groups_picked_t
+BalancerEngine::pickGroupsforTransfer()
+{
+  if (data.mGroupsUnderThreshold.size() == 0 || data.mGroupsOverThreshold.size() == 0) {
+    if (data.mGroupsOverThreshold.size() == 0) {
+      eos_static_debug("No groups over the average!");
+    }
+
+    if (data.mGroupsUnderThreshold.size() == 0) {
+      eos_static_debug("No groups under the average!");
+    }
+
+    recalculate();
+    return {};
+  }
+
+
+  auto over_it = data.mGroupsOverThreshold.begin();
+  auto under_it = data.mGroupsUnderThreshold.begin();
+  int rndIndex = getRandom(data.mGroupsOverThreshold.size() - 1);
+  std::advance(over_it, rndIndex);
+  rndIndex = getRandom(data.mGroupsUnderThreshold.size() - 1);
+  std::advance(under_it, rndIndex);
+  return {*over_it, *under_it};
 }
 
 template <typename C>

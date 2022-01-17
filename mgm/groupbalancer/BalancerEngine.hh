@@ -226,10 +226,13 @@ public:
     return data;
   }
 
+  groups_picked_t pickGroupsforTransfer() override;
 
 protected:
   BalancerEngineData data;
-private:
+
+  bool prepare_update(const std::string& group_name);
+  void clear_threshold(const std::string& group_name);
   void clear_thresholds();
 
 };
