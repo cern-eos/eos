@@ -45,6 +45,12 @@ public:
   void updateGroup(const std::string& group_name) override;
   groups_picked_t pickGroupsforTransfer() override;
   void configure(const engine_conf_t& conf) override;
+
+  // get the set threshold, mostly only useful for testing
+  double get_threshold() const {
+    return mThreshold;
+  }
+
 private:
   /// average filled percentage in groups
   double mAvgUsedSize;

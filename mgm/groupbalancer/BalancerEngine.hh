@@ -97,8 +97,9 @@ inline double calculateAvg(const group_size_map& m)
   if (!m.size())
     return 0.0;
 
-  return std::accumulate(m.begin(),m.end(),0ULL,
-                         [](uint64_t s,const auto& kv) { return s + kv.second.filled(); })/m.size();
+  return std::accumulate(m.begin(),m.end(),0.0,
+                         [](double s,const auto& kv) -> double
+                         { return s + kv.second.filled(); })/m.size();
 }
 
 struct IBalancerEngine
@@ -144,9 +145,17 @@ struct IBalancerEngine
 
   virtual const group_size_map& get_group_sizes() const = 0;
 
+  virtual std::string get_status_str(bool detail) const = 0;
+
   virtual ~IBalancerEngine() {};
 };
 
+struct BalancerEngineData
+{
+  std::unordered_set<std::string> mGroupsOverThreshold;
+  std::unordered_set<std::string> mGroupsUnderThreshold;
+  group_size_map mGroupSizes;
+};
 
 // A simple base class implementing common functionalities for most BalancerEngines
 // Note that this class doesn't implement the entire interface, so cannot be constructed!
@@ -159,7 +168,7 @@ public:
 
   const group_size_map& get_group_sizes() const override
   {
-    return mGroupSizes;
+    return data.mGroupSizes;
   }
 
 
@@ -167,15 +176,21 @@ public:
                       std::string_view target_group,
                       uint64_t filesize) override;
 
+  std::string get_status_str(bool detail) const override;
 
 
   BalancerEngine() = default;
   virtual ~BalancerEngine() = default;
-protected:
-  std::unordered_set<std::string> mGroupsOverThreshold;
-  std::unordered_set<std::string> mGroupsUnderThreshold;
-  group_size_map mGroupSizes;
 
+  // Only useful for unit-testing/ validating the status of the balancerengine
+  const BalancerEngineData& get_data() const
+  {
+    return data;
+  }
+
+
+protected:
+  BalancerEngineData data;
 private:
   void clear_thresholds();
 
