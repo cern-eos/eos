@@ -27,8 +27,19 @@
 #include <cstdint>
 #include <string>
 #include <unordered_set>
+#include <random>
 
 namespace eos::mgm::group_balancer {
+
+namespace {
+  std::random_device rd;
+  std::mt19937 generator(rd());
+}
+
+inline uint32_t getRandom(uint32_t max) {
+  std::uniform_int_distribution<> distribution(0,max);
+  return distribution(generator);
+}
 
 //------------------------------------------------------------------------------
 //! @brief Class representing a group's size
