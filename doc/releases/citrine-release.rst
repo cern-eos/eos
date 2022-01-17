@@ -15,6 +15,23 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.8.72 Citrine``
+===================
+
+2022-01-17
+
+Bug
+----
+
+* [EOS-5069] - filesystem status in "rw + failed"
+* [EOS-5070] - Access::ThreadLimit creates re-entrant lock of the access mutex
+
+Improvement
+------------
+
+* [EOS-5065] - Add create-if-not-exists option in GRPC
+
+
 ``v4.8.71 Citrine``
 ===================
 
@@ -23,7 +40,7 @@ This release is based on XRootD V4 and IPV6 enabled.
 Bug
 ----
 
-* COMMON: Avoid segv due to mutex object set to nullptr in RWLock printout    
+* COMMON: Avoid segv due to mutex object set to nullptr in RWLock printout
 * [EOS-4850] - eosxd crash in destructor under metad::pmap::retrieveWithParentTS()
 * [EOS-5057] - Volume quota dispatched to FUSE clients mixes logical and physical bytes
 
