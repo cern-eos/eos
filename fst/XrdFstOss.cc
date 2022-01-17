@@ -629,7 +629,7 @@ XrdFstOss::AddMapping(const std::string& fileName,
     // If no. ref 0 then the obj is closed and waiting to be deleted so we can
     // add the new one, else return the old one
     if (pair_value.second->GetTotalRef() == 0) {
-      pair_value->CloseMap();
+      pair_value.second->CloseMap();
       delete pair_value.second;
       pair_value = std::make_pair(pair_value.first, blockXs);
       mMapFileXs[fileName] = pair_value;
