@@ -825,6 +825,11 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
       if (nread > mBufferSize) {
         eos_err("msg=\"read returned more than the buffer size\" buff_sz=%llu "
                 "nread=%lli\"", mBufferSize, nread);
+
+        if (blockXS) {
+          blockXS->CloseMap();
+        }
+
         return false;
       }
 
