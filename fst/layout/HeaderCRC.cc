@@ -98,13 +98,18 @@ HeaderCRC::HeaderCRC(int sizeHeader, long long numBlocks, int sizeBlock) :
 bool
 HeaderCRC::ReadFromFile(FileIo* pFile, uint16_t timeout)
 {
+  mValid = false;
   long int offset = 0;
   size_t read_sizeblock = 0;
   auto buff = GetAlignedBuffer(mSizeHeader);
 
+  if (buff == nullptr) {
+    eos_static_err("msg=\"failed to allocate buffer\" size=%lu", mSizeHeader);
+    return mValid;
+  }
+
   if (pFile->fileRead(offset, buff.get(), mSizeHeader, timeout) !=
       static_cast<uint32_t>(mSizeHeader)) {
-    mValid = false;
     return mValid;
   }
 
@@ -112,7 +117,6 @@ HeaderCRC::ReadFromFile(FileIo* pFile, uint16_t timeout)
   std::string tag = mTag;
 
   if (strncmp(mTag, msTagName, strlen(msTagName))) {
-    mValid = false;
     return mValid;
   }
 
@@ -128,8 +132,9 @@ HeaderCRC::ReadFromFile(FileIo* pFile, uint16_t timeout)
   if (mSizeBlock == 0) {
     mSizeBlock = read_sizeblock;
   } else if (mSizeBlock != read_sizeblock) {
-    eos_err("error=block size read from file does not match block size expected");
-    mValid = false;
+    eos_static_err("msg=\"read block size does not match expected size\" "
+                   "got=%lu expected=%lu", read_sizeblock, mSizeBlock);
+    return mValid;
   }
 
   mValid = true;
@@ -142,8 +147,15 @@ HeaderCRC::ReadFromFile(FileIo* pFile, uint16_t timeout)
 bool
 HeaderCRC::WriteToFile(FileIo* pFile, uint16_t timeout)
 {
+  mValid = false;
   int offset = 0;
   auto buff = GetAlignedBuffer(mSizeHeader);
+
+  if (buff == nullptr) {
+    eos_static_err("msg=\"failed to allocate buffer\" size=%lu", mSizeHeader);
+    return mValid;
+  }
+
   memcpy(buff.get() + offset, msTagName, sizeof msTagName);
   offset += sizeof mTag;
   memcpy(buff.get() + offset, &mIdStripe, sizeof mIdStripe);
@@ -156,9 +168,7 @@ HeaderCRC::WriteToFile(FileIo* pFile, uint16_t timeout)
   offset += sizeof mSizeBlock;
   memset(buff.get() + offset, 0, mSizeHeader - offset);
 
-  if (pFile->fileWrite(0, buff.get(), mSizeHeader, timeout) < 0) {
-    mValid = false;
-  } else {
+  if (pFile->fileWrite(0, buff.get(), mSizeHeader, timeout) > 0) {
     mValid = true;
   }
 
