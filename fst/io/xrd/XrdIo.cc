@@ -29,7 +29,6 @@
 #include "fst/io/AsyncMetaHandler.hh"
 #include "common/FileMap.hh"
 #include "common/Logging.hh"
-#include "common/BufferManager.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClBuffer.hh"
 #include "XrdCl/XrdClConstants.hh"
@@ -671,10 +670,11 @@ XrdIo::fileWriteAsync(const char* buffer, XrdSfsFileOffset offset,
   }
 
   XrdIoHandler* wr_handler = new XrdIoHandler(std::move(wr_promise),
-      XrdIoHandler::OpType::Write);
+      XrdIoHandler::OpType::Write,
+      &gBuffMgr, buffer, length);
   XrdCl::XRootDStatus status = mXrdFile->Write(static_cast<uint64_t>(offset),
                                static_cast<uint32_t>(length),
-                               buffer, wr_handler);
+                               wr_handler->GetDataPtr(), wr_handler);
 
   if (!status.IsOK()) {
     wr_handler->HandleResponse(new XrdCl::XRootDStatus(status), nullptr);
