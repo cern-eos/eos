@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ModelBuilder.hh
+// File: ObjectModelMalformedException.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,21 +20,12 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-#ifndef EOS_MODELBUILDER_HH
-#define EOS_MODELBUILDER_HH
-
-#include "mgm/Namespace.hh"
-#include <memory>
-#include <string>
+#include "JsonValidationException.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-template<typename Model>
-class ModelBuilder {
-public:
-  virtual std::unique_ptr<Model> buildFromJson(const std::string & json) const = 0;
-};
+JsonValidationException::JsonValidationException(std::unique_ptr<ValidationErrors> && validationErrors): RestException("JSON validation error"),mValidationErrors(std::move(validationErrors)){}
+
+JsonValidationException::JsonValidationException(const std::string & exceptionMsg): RestException(exceptionMsg){}
 
 EOSMGMRESTNAMESPACE_END
-
-#endif // EOS_MODELBUILDER_HH

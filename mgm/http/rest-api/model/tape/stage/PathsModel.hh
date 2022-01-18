@@ -36,7 +36,6 @@ public:
   PathsModel() = default;
   void addFile(const std::string & path);
   const FilesContainer & getFiles() const;
-  inline static const std::string PATHS_KEY_NAME = "paths";
 private:
   FilesContainer mFilesContainer;
 };

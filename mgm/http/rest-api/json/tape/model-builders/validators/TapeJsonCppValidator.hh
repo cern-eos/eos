@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: InvalidJSONException.hh
+// File: TapeJsonCppValidator.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,18 +21,33 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_INVALIDJSONEXCEPTION_HH
-#define EOS_INVALIDJSONEXCEPTION_HH
 
+#ifndef EOS_TAPEJSONCPPVALIDATOR_HH
+#define EOS_TAPEJSONCPPVALIDATOR_HH
+
+#include "common/Path.hh"
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/exception/RestException.hh"
+#include "mgm/http/rest-api/json/builder/jsoncpp/JsonCppValidator.hh"
+#include "common/StringUtils.hh"
+
 EOSMGMRESTNAMESPACE_BEGIN
 
-class InvalidJSONException : public RestException {
+class PathValidator : public JsonCppValidator {
 public:
-  InvalidJSONException(const std::string & exceptionMsg);
+  void validate(const Json::Value & value) override {
+    if(value.empty() || !value.isString() || value.asString().empty()) {
+      throw ValidatorException("The value must be a valid non-empty string");
+    }
+  }
+};
+
+class TapeJsonCppValidatorFactory : public JsonCppValidatorFactory {
+public:
+  std::unique_ptr<JsonCppValidator> getPathValidator() {
+    return std::make_unique<PathValidator>();
+  }
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_INVALIDJSONEXCEPTION_HH
+#endif // EOS_TAPEJSONCPPVALIDATOR_HH
