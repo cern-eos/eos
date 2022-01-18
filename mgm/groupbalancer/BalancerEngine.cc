@@ -1,6 +1,7 @@
 #include "BalancerEngine.hh"
 #include "common/Logging.hh"
 #include "mgm/groupbalancer/BalancerEngineUtils.hh"
+#include "common/table_formatter/TableFormatterBase.hh"
 
 namespace eos::mgm::group_balancer {
 
@@ -103,17 +104,64 @@ static std::string pprint(const C& c, uint8_t items_per_line)
   return ss.str();
 }
 
-std::string BalancerEngine::get_status_str(bool detail) const
+std::string BalancerEngine::generate_table(const threshold_group_set& groups) const
+{
+  TableFormatterBase table_threshold_groups(true);
+  std::string format_s = "-s";
+  std::string format_l = "+l";
+  std::string format_f = "f";
+
+  table_threshold_groups.SetHeader({
+      {"Group",10,"-s"},
+      {"UsedBytes",10,"+l"},
+      {"Capacity",10,"+l"},
+      {"Filled",10,"f"}
+    });
+
+
+  TableData table_data;
+  for (const auto& grp: groups) {
+    const auto kv = data.mGroupSizes.find(grp);
+    if (kv == data.mGroupSizes.end()) {
+      continue;
+    }
+    TableRow row;
+    row.emplace_back(grp, "-s");
+    // FIXME force a double conversion as the current table cell ultimately will
+    // use a double when using + anyway. a TODO is have the table formatter
+    // itself understand uint64_t type and avoid a double conversion as units
+    // can be done without
+    row.emplace_back((double)kv->second.usedBytes(), format_l);
+    row.emplace_back((double)kv->second.capacity(), format_l);
+    row.emplace_back(kv->second.filled(), format_f);
+    table_data.emplace_back(std::move(row));
+  }
+  table_threshold_groups.AddRows(table_data);
+  return table_threshold_groups.GenerateTable();
+}
+
+
+  std::string BalancerEngine::get_status_str(bool detail, bool monitoring) const
 {
   std::stringstream oss;
+
+  if (monitoring) {
+    oss << "groupbalancer.groups_over_threshold=" << data.mGroupsOverThreshold.size()
+        << " groupbalancer.groups_under_threshold=" << data.mGroupsUnderThreshold.size();
+    return oss.str();
+  }
+
+
   oss << "Total Group Size: " << data.mGroupSizes.size() << "\n"
       << "Total Groups Over Threshold: " << data.mGroupsOverThreshold.size() << "\n"
       << "Total Groups Under Threshold: " << data.mGroupsUnderThreshold.size() << "\n";
 
-  if (detail) {
-    oss << "Groups Over Threshold:" << pprint(data.mGroupsOverThreshold,10) << "\n";
-    oss << "Groups Under Threshold: " << pprint(data.mGroupsUnderThreshold,10) << "\n";
-  }
+ if (detail) {
+   oss << "Groups Over Threshold\n";
+   oss << generate_table(data.mGroupsOverThreshold) << "\n";
+   oss << "Groups Under Threshold\n";
+   oss << generate_table(data.mGroupsUnderThreshold) << "\n";
+ }
 
   return oss.str();
 }

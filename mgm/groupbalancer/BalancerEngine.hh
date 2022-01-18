@@ -84,6 +84,7 @@ private:
 
 // Allow std::string_view -> std::string lookups on keys
 using group_size_map = std::map<std::string,GroupSize, std::less<>>;
+using threshold_group_set = std::unordered_set<std::string>;
 using groups_picked_t = std::pair<std::string, std::string>;
 using engine_conf_t = std::map<std::string, std::string, std::less<>>;
 
@@ -137,15 +138,15 @@ struct IBalancerEngine
 
   virtual const group_size_map& get_group_sizes() const = 0;
 
-  virtual std::string get_status_str(bool detail) const = 0;
+  virtual std::string get_status_str(bool detail,bool monitoring) const = 0;
 
   virtual ~IBalancerEngine() {};
 };
 
 struct BalancerEngineData
 {
-  std::unordered_set<std::string> mGroupsOverThreshold;
-  std::unordered_set<std::string> mGroupsUnderThreshold;
+  threshold_group_set mGroupsOverThreshold;
+  threshold_group_set mGroupsUnderThreshold;
   group_size_map mGroupSizes;
 };
 
@@ -168,7 +169,7 @@ public:
                       std::string_view target_group,
                       uint64_t filesize) override;
 
-  std::string get_status_str(bool detail) const override;
+  std::string get_status_str(bool detail=false, bool monitoring=false) const override;
 
 
   BalancerEngine() = default;
@@ -184,10 +185,15 @@ public:
 
 protected:
   BalancerEngineData data;
+  enum class TableType {
+    OVER,
+    UNDER
+  };
 
   bool prepare_update(const std::string& group_name);
   void clear_threshold(const std::string& group_name);
   void clear_thresholds();
+  std::string generate_table(const threshold_group_set& items) const;
 
 };
 
