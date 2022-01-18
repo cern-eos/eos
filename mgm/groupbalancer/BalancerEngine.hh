@@ -1,4 +1,3 @@
-#pragma once
 //------------------------------------------------------------------------------
 // File: BalancerEngine.hh
 // Author: Abhishek Lekshmanan - CERN
@@ -22,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#pragma once
 #include <map>
 #include <numeric>
 #include <cstdint>
@@ -135,7 +135,7 @@ struct IBalancerEngine
   //----------------------------------------------------------------------------
   virtual groups_picked_t pickGroupsforTransfer() = 0;
 
-  // TODO: make this configurable
+
   virtual void configure(const engine_conf_t& conf) = 0;
 
   virtual int record_transfer(std::string_view source_group,
@@ -170,7 +170,6 @@ public:
     return data.mGroupSizes;
   }
 
-
   int record_transfer(std::string_view source_group,
                       std::string_view target_group,
                       uint64_t filesize) override;
@@ -191,12 +190,7 @@ public:
 
 protected:
   BalancerEngineData data;
-  enum class TableType {
-    OVER,
-    UNDER
-  };
 
-  bool prepare_update(const std::string& group_name);
   void clear_threshold(const std::string& group_name);
   void clear_thresholds();
   std::string generate_table(const threshold_group_set& items) const;

@@ -1,5 +1,3 @@
-#pragma once
-#include <unordered_set>
 //------------------------------------------------------------------------------
 // File: StdDevBalancerEngine.hh
 // Author: Abhishek Lekshmanan - CERN
@@ -23,6 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#pragma once
+#include <unordered_set>
 #include "mgm/groupbalancer/BalancerEngine.hh"
 
 namespace eos::mgm::group_balancer {
