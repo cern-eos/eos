@@ -176,14 +176,6 @@ private:
                         FsGroup* sourceGroup, FsGroup* targetGroup);
 
   //----------------------------------------------------------------------------
-  //! Gets a random int between 0 and a given maximum
-  //!
-  //! @param max the upper bound of the range within which the int will be
-  //!        generated
-  //----------------------------------------------------------------------------
-  int getRandom(int max);
-
-  //----------------------------------------------------------------------------
   //! Check if the sizes cache should be updated (based on the time passed since
   //! they were last updated)
   //!

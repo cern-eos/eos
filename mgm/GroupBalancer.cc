@@ -37,6 +37,7 @@
 #include <random>
 #include <cmath>
 #include "mgm/groupbalancer/BalancerEngineFactory.hh"
+#include "mgm/groupbalancer/BalancerEngineUtils.hh"
 
 extern XrdSysError gMgmOfsEroute;
 extern XrdOucTrace gMgmOfsTrace;
@@ -46,43 +47,14 @@ extern XrdOucTrace gMgmOfsTrace;
 EOSMGMNAMESPACE_BEGIN
 
 using group_balancer::BalancerEngineT;
-
-//-------------------------------------------------------------------------------
-// GroupBalancer constructor
-//-------------------------------------------------------------------------------
-GroupBalancer::GroupBalancer(const char* spacename)
-  : mSpaceName(spacename), mLastCheck(0)
-{
-  // TODO when we have more engines add a builder to do this
-  mEngine.reset(group_balancer::make_balancer_engine(BalancerEngineT::stddev));
-  mThread.reset(&GroupBalancer::GroupBalance, this);
-}
-
-//------------------------------------------------------------------------------
-// Stop group balancing thread
-//------------------------------------------------------------------------------
-void
-GroupBalancer::Stop()
-{
-  mThread.join();
-}
-
-//------------------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------------------
-GroupBalancer::~GroupBalancer()
-{
-  Stop();
-  mEngine->clear();
-}
-
 using group_balancer::group_size_map;
 using group_balancer::IBalancerInfoFetcher;
 
 class eosBalancerInfoFetcher final: public IBalancerInfoFetcher {
   std::string spaceName;
 public:
-  eosBalancerInfoFetcher(const std::string& _spaceName): spaceName(_spaceName){}
+  eosBalancerInfoFetcher(const std::string& _spaceName):
+    spaceName(_spaceName) {}
   group_size_map fetch() override;
 };
 
@@ -93,7 +65,7 @@ group_size_map eosBalancerInfoFetcher::fetch()
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
   if (FsView::gFsView.mSpaceGroupView.count(spaceName) == 0) {
-    eos_static_err("No such space %s", spaceName);
+    eos_static_err("No such space %s", spaceName.c_str());
     return mGroupSizes;
   }
 
@@ -116,15 +88,33 @@ group_size_map eosBalancerInfoFetcher::fetch()
   return mGroupSizes;
 }
 
-//------------------------------------------------------------------------------
-// Gets a random int between 0 and a given maximum
-//------------------------------------------------------------------------------
-int
-GroupBalancer::getRandom(int max)
+//-------------------------------------------------------------------------------
+// GroupBalancer constructor
+//-------------------------------------------------------------------------------
+GroupBalancer::GroupBalancer(const char* spacename)
+  : mSpaceName(spacename), mLastCheck(0)
 {
-  return (int) round(max * random() / (double) RAND_MAX);
+  mEngine.reset(group_balancer::make_balancer_engine(BalancerEngineT::stddev));
+  mThread.reset(&GroupBalancer::GroupBalance, this);
 }
 
+//------------------------------------------------------------------------------
+// Stop group balancing thread
+//------------------------------------------------------------------------------
+void
+GroupBalancer::Stop()
+{
+  mThread.join();
+}
+
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+GroupBalancer::~GroupBalancer()
+{
+  Stop();
+  mEngine->clear();
+}
 
 //------------------------------------------------------------------------------
 // Produces a file conversion path to be placed in the proc directory taking
@@ -287,7 +277,7 @@ GroupBalancer::chooseFidFromGroup(FsGroup* group)
 
   while (validFsIndexes.size() > 0) {
     fs_it = group->begin();
-    rndIndex = getRandom(validFsIndexes.size() - 1);
+    rndIndex = group_balancer::getRandom(validFsIndexes.size() - 1);
     std::advance(fs_it, validFsIndexes[rndIndex]);
     fsid = *fs_it;
     // Accept only active file systems
@@ -347,7 +337,7 @@ GroupBalancer::chooseFileFromGroup(FsGroup *group, int attempts)
     }
 
     // We've a hit!
-    return {fid,std::move(filename), filesize};
+    return {fid, std::move(filename), filesize};
   }
 
   return {};
