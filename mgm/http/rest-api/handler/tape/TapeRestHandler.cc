@@ -61,7 +61,7 @@ void TapeRestHandler::initializeControllers() {
 std::unique_ptr<Controller> TapeRestHandler::initializeStageController(const std::string & apiVersion, std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness) {
   std::unique_ptr<Controller> stageController(ControllerFactory::getStageController(mEntryPointURL + apiVersion + "/stage/"));
   const std::string & controllerAccessURL = stageController->getAccessURL();
-  stageController->addAction(std::make_unique<CreateStageBulkRequest>(controllerAccessURL,common::HttpHandler::Methods::POST,tapeRestApiBusiness,std::make_shared<CreateStageRequestModelBuilder>(),std::make_shared<CreatedStageBulkRequestJsonifier>()));
+  stageController->addAction(std::make_unique<CreateStageBulkRequest>(controllerAccessURL,common::HttpHandler::Methods::POST,tapeRestApiBusiness,std::make_shared<CreateStageRequestWithFilesModelBuilder>(),std::make_shared<CreatedStageBulkRequestJsonifier>()));
   stageController->addAction(std::make_unique<CancelStageBulkRequest>(controllerAccessURL + "/" + URLParametersConstants::ID + "/cancel",common::HttpHandler::Methods::POST,tapeRestApiBusiness,std::make_shared<PathsModelBuilder>()));
   stageController->addAction(std::make_unique<GetStageBulkRequest>(controllerAccessURL + "/" + URLParametersConstants::ID,common::HttpHandler::Methods::GET,tapeRestApiBusiness,std::make_shared<GetStageBulkRequestJsonifier>()));
   stageController->addAction(std::make_unique<DeleteStageBulkRequest>(controllerAccessURL + "/" + URLParametersConstants::ID, common::HttpHandler::Methods::DELETE,tapeRestApiBusiness));
