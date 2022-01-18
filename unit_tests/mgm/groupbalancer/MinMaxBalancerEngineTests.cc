@@ -24,7 +24,6 @@ TEST(MinMaxBalancerEngine, simple)
                               {"group5",{95,100}}});
 
   auto d = engine->get_data();
-  EXPECT_NEAR(calculateAvg(d.mGroupSizes),0.85,0.0000001);
   EXPECT_EQ(d.mGroupSizes.size(),5);
   EXPECT_EQ(d.mGroupsOverThreshold.size(),1);
   EXPECT_EQ(d.mGroupsUnderThreshold.size(),1);
@@ -48,7 +47,6 @@ TEST(MinMaxBalancerEngine, updatethreshold)
 
   {
     auto d = engine->get_data();
-    EXPECT_NEAR(calculateAvg(d.mGroupSizes),0.85,0.0000001);
     EXPECT_EQ(d.mGroupSizes.size(),5);
     EXPECT_EQ(d.mGroupsOverThreshold.size(),1);
     EXPECT_EQ(d.mGroupsUnderThreshold.size(),1);
@@ -61,7 +59,6 @@ TEST(MinMaxBalancerEngine, updatethreshold)
 
   {
     auto d = engine->get_data();
-    EXPECT_NEAR(calculateAvg(d.mGroupSizes),0.85,0.0000001);
     EXPECT_EQ(d.mGroupSizes.size(),5);
     EXPECT_EQ(d.mGroupsOverThreshold.size(),2);
     EXPECT_EQ(d.mGroupsUnderThreshold.size(),2);

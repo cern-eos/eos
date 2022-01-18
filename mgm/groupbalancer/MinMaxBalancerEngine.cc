@@ -1,5 +1,5 @@
 #include "mgm/groupbalancer/MinMaxBalancerEngine.hh"
-#include "common/Logging.hh"
+#include "mgm/groupbalancer/BalancerEngineUtils.hh"
 
 namespace eos::mgm::group_balancer {
 using namespace std::string_view_literals;

@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: StdDevBalancerEngine.cc
+// File: BalancerEngineUtils.hh
 // Author: Abhishek Lekshmanan - CERN
 //------------------------------------------------------------------------------
 
@@ -20,48 +20,63 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
+#pragma once
 
-#include "mgm/groupbalancer/StdDevBalancerEngine.hh"
-#include "mgm/groupbalancer/BalancerEngineUtils.hh"
-#include "common/Logging.hh"
+#include <string>
+#include <numeric>
+#include <random>
+
+namespace {
+  std::random_device rd;
+  std::mt19937 generator(rd());
+}
 
 namespace eos::mgm::group_balancer {
 
-void StdDevBalancerEngine::configure(const engine_conf_t& conf)
-{
-  using namespace std::string_view_literals;
-  mThreshold = extract_percent_value(conf, "threshold"sv);
-}
-
-void StdDevBalancerEngine::recalculate()
-{
-  mAvgUsedSize = calculateAvg(data.mGroupSizes);
+inline uint32_t getRandom(uint32_t max) {
+  std::uniform_int_distribution<> distribution(0,max);
+  return distribution(generator);
 }
 
 
-void StdDevBalancerEngine::updateGroup(const std::string& group_name)
+inline double calculateAvg(const group_size_map& m)
 {
-  auto kv = data.mGroupSizes.find(group_name);
-  if (kv == data.mGroupSizes.end()) {
-    return;
+  if (!m.size())
+    return 0.0;
+
+  return std::accumulate(m.begin(),m.end(),0.0,
+                         [](double s,const auto& kv) -> double
+                         { return s + kv.second.filled(); })/m.size();
+}
+
+template <typename map_type, typename key_type>
+double extract_value(const map_type& m, const key_type& k,
+                     double default_val = 0.0,
+                     std::string* err_str=nullptr)
+{
+  auto kv = m.find(k);
+  if (kv == m.end()) {
+    return default_val;
   }
 
-  const GroupSize& groupSize = kv->second;
-  double diffWithAvg = ((double) groupSize.filled()
-                        - ((double) mAvgUsedSize));
-  // set erase only erases if found, so this is safe without key checking
-  data.mGroupsOverThreshold.erase(group_name);
-  data.mGroupsUnderThreshold.erase(group_name);
-  eos_static_debug("diff=%.02f threshold=%.02f", diffWithAvg, mThreshold);
+  double result;
 
-  // Group is mThreshold over or under the average used size
-  if (abs(diffWithAvg) > mThreshold) {
-    if (diffWithAvg > 0) {
-      data.mGroupsOverThreshold.emplace(group_name);
-    } else {
-      data.mGroupsUnderThreshold.emplace(group_name);
-    }
+  try {
+    result = std::stod(kv->second);
+  } catch (std::exception& e) {
+    if (err_str)
+      *err_str = e.what();
+    return default_val;
   }
+  return result;
 }
 
+template <typename... Args>
+double extract_percent_value(Args&&... args)
+{
+  double value = extract_value(std::forward<Args>(args)...);
+  return value/100.0;
 }
+
+
+} // namespace eos::mgm::group_balancer

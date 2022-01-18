@@ -1,5 +1,6 @@
 #include "BalancerEngine.hh"
 #include "common/Logging.hh"
+#include "mgm/groupbalancer/BalancerEngineUtils.hh"
 
 namespace eos::mgm::group_balancer {
 

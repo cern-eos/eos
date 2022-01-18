@@ -1,6 +1,7 @@
 #include "gtest/gtest.h"
 #include "mgm/groupbalancer/BalancerEngine.hh"
 #include "mgm/groupbalancer/StdDevBalancerEngine.hh"
+#include "mgm/groupbalancer/BalancerEngineUtils.hh"
 
 
 using namespace eos::mgm::group_balancer;
