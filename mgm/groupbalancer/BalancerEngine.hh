@@ -88,6 +88,12 @@ using threshold_group_set = std::unordered_set<std::string>;
 using groups_picked_t = std::pair<std::string, std::string>;
 using engine_conf_t = std::map<std::string, std::string, std::less<>>;
 
+enum class BalancerEngineT {
+  stddev,
+  minmax,
+  total_count
+};
+
 // A simple interface to populate the group_size map per group. This is useful
 // for DI scenarios where we can alternatively fill in the group_size structures
 struct IBalancerInfoFetcher {

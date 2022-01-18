@@ -78,10 +78,12 @@ public:
     double mThreshold;     ///< Threshold for group balancing
     uint64_t mMinFileSize; ///< Min size of files to be picked
     uint64_t mMaxFileSize; ///< Max size of files to be picked
+    group_balancer::BalancerEngineT engine_type;
 
     Config(): is_enabled(true), is_conv_enabled(true), num_tx(0), mThreshold(.5),
               mMinFileSize(GROUPBALANCER_MIN_FILE_SIZE),
-              mMaxFileSize(GROUPBALANCER_MAX_FILE_SIZE)
+              mMaxFileSize(GROUPBALANCER_MAX_FILE_SIZE),
+              engine_type(group_balancer::BalancerEngineT::stddev)
     {}
   };
 
@@ -114,6 +116,7 @@ private:
   Config cfg;
 
   std::unique_ptr<group_balancer::BalancerEngine> mEngine;
+
   /// last time the groups' real used space was checked
   time_t mLastCheck;
   //! Scheduled transfers (maps fid to path in proc)

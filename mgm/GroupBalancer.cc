@@ -36,7 +36,7 @@
 #include "Xrd/XrdScheduler.hh"
 #include <random>
 #include <cmath>
-#include "mgm/groupbalancer/StdDevBalancerEngine.hh"
+#include "mgm/groupbalancer/BalancerEngineFactory.hh"
 
 extern XrdSysError gMgmOfsEroute;
 extern XrdOucTrace gMgmOfsTrace;
@@ -45,6 +45,8 @@ extern XrdOucTrace gMgmOfsTrace;
 
 EOSMGMNAMESPACE_BEGIN
 
+using group_balancer::BalancerEngineT;
+
 //-------------------------------------------------------------------------------
 // GroupBalancer constructor
 //-------------------------------------------------------------------------------
@@ -52,7 +54,7 @@ GroupBalancer::GroupBalancer(const char* spacename)
   : mSpaceName(spacename), mLastCheck(0)
 {
   // TODO when we have more engines add a builder to do this
-  mEngine.reset(new group_balancer::StdDevBalancerEngine());
+  mEngine.reset(group_balancer::make_balancer_engine(BalancerEngineT::stddev));
   mThread.reset(&GroupBalancer::GroupBalance, this);
 }
 
@@ -440,7 +442,11 @@ GroupBalancer::Configure(FsSpace* const space, GroupBalancer::Config& cfg)
     100.0;
   cfg.mMinFileSize = common::StringConversion::GetSizeFromString(space->GetConfigMember("groupbalancer.min_file_size"));
   cfg.mMaxFileSize = common::StringConversion::GetSizeFromString(space->GetConfigMember("groupbalancer.max_file_size"));
-  mEngineConf.emplace("threshold",space->GetConfigMember("groupbalancer.threshold"));
+  cfg.engine_type = group_balancer::get_engine_type(space->GetConfigMember("groupbalancer.engine"));
+  mEngineConf.emplace("threshold",space->GetConfigMember("groupbalancer.engine.std.threshold"));
+  mEngineConf.emplace("min_threshold",space->GetConfigMember("groupbalancer.engine.mm.min_threshold"));
+  mEngineConf.emplace("max_threshold",space->GetConfigMember("groupbalancer.engine.mm.max_threshold"));
+
 }
 
 
@@ -454,7 +460,8 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
   gOFS->WaitUntilNamespaceIsBooted();
   eos_static_info("%s", "msg=\"starting group balancer thread\"");
   eosBalancerInfoFetcher fetcher(mSpaceName);
-
+  group_balancer::BalancerEngineT prev_engine_type {BalancerEngineT::stddev};
+  bool engine_reconfigured = false;
   // Loop forever until cancelled
   while (!assistant.terminationRequested()) {
     assistant.wait_for(std::chrono::seconds(10));
@@ -494,6 +501,12 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
 
     FsView::gFsView.ViewMutex.UnLockRead();
 
+    if (prev_engine_type != cfg.engine_type) {
+      mEngine.reset(group_balancer::make_balancer_engine(cfg.engine_type));
+      engine_reconfigured = true;
+      prev_engine_type = cfg.engine_type;
+    }
+
     mEngine->configure(mEngineConf);
 
     eos_static_info("msg=\"group balancer enabled\" ntx=%d ", cfg.num_tx);
@@ -503,7 +516,7 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
       continue;
     }
 
-    if (cacheExpired()) {
+    if (cacheExpired() || engine_reconfigured) {
       mEngine->populateGroupsInfo(fetcher.fetch());
       printSizes(mEngine->get_group_sizes());
     } else {
@@ -511,6 +524,10 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
     }
 
     prepareTransfers(cfg.num_tx);
+
+    if (engine_reconfigured && prev_engine_type == cfg.engine_type) {
+      engine_reconfigured = false;
+    }
   }
 }
 

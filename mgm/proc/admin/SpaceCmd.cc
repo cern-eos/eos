@@ -705,6 +705,10 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             (key == "groupbalancer.threshold") ||
             (key == "groupbalancer.min_file_size") ||
             (key == "groupbalancer.max_file_size") ||
+            (key == "groupbalancer.engine") ||
+            (key == "groupbalancer.engine.std.threshold") ||
+            (key == "groupbalancer.engine.mm.min_threshold") ||
+            (key == "groupbalancer.engine.mm.max_threshold") ||
             (key == "geobalancer") ||
             (key == "geobalancer.ntx") ||
             (key == "geobalancer.threshold") ||

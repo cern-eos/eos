@@ -956,6 +956,23 @@ FsSpace::FsSpace(const char* name)
       SetConfigMember("groupbalancer.max_file_size", "16G");
     }
 
+    // Set the default group balancer engine
+    if (GetConfigMember("groupbalancer.engine").empty()) {
+      SetConfigMember("groupbalancer.engine", "std");
+    }
+
+    if (GetConfigMember("groupbalancer.engine.std.threshold").empty()) {
+      SetConfigMember("groupbalancer.engine.std.threshold", "5");
+    }
+
+    if (GetConfigMember("groupbalancer.engine.mm.min_threshold").empty()) {
+      SetConfigMember("groupbalancer.engine.mm.min_threshold", "60");
+    }
+
+    if (GetConfigMember("groupbalancer.engine.mm.max_threshold").empty()) {
+      SetConfigMember("groupbalancer.engine.mm.max_threshold", "95");
+    }
+
     if (GetConfigMember("geobalancer").empty()) {
       SetConfigMember("geobalancer", "off");
     }
