@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: CreateStageBulkRequestModel.hh
+// File: ObjectModelMalformedException.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,29 +20,30 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-#ifndef EOS_CREATESTAGEBULKREQUESTMODEL_HH
-#define EOS_CREATESTAGEBULKREQUESTMODEL_HH
+
+#ifndef EOS_JSONVALIDATIONEXCEPTION_HH
+#define EOS_JSONVALIDATIONEXCEPTION_HH
 
 #include "mgm/Namespace.hh"
-#include <string>
-#include <vector>
-#include "mgm/http/rest-api/model/tape/common/FilesContainer.hh"
+#include "mgm/http/rest-api/exception/RestException.hh"
+#include "mgm/http/rest-api/json/builder/ValidationError.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
 /**
- * This object represents a client's request
- * to create a stage bulk-request
+ * Exception class to use when a json string cannot allow to instanciate
+ * a Model object (wrong field names, invalid JSON format...)
  */
-class CreateStageBulkRequestModel {
+class JsonValidationException : public RestException {
 public:
-  CreateStageBulkRequestModel(){}
-  void addFile(const std::string & path, const std::string & opaqueInfos);
-  const FilesContainer & getFiles() const;
-private:
-  FilesContainer mFilesContainer;
+  JsonValidationException(const std::string & exceptionMsg);
+  JsonValidationException(std::unique_ptr<ValidationErrors> && validationErrors);
+  inline const ValidationErrors * getValidationErrors() const { return mValidationErrors.get(); }
+  inline std::unique_ptr<ValidationErrors> getValidationErrors() { return std::move(mValidationErrors); }
+protected:
+  std::unique_ptr<ValidationErrors> mValidationErrors;
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_CREATESTAGEBULKREQUESTMODEL_HH
+#endif // EOS_JSONVALIDATIONEXCEPTION_HH

@@ -26,18 +26,18 @@
 #include "mgm/Namespace.hh"
 #include "mgm/http/rest-api/action/tape/TapeAction.hh"
 #include "mgm/http/rest-api/action/tape/TapeAction.hh"
-#include "mgm/http/rest-api/json/ModelBuilder.hh"
+#include "mgm/http/rest-api/json/builder/JsonModelBuilder.hh"
 #include "mgm/http/rest-api/json/tape/TapeRestApiJsonifier.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
 class CreateUnpinBulkRequest : public TapeAction {
 public:
-  CreateUnpinBulkRequest(const std::string & accessURL,const common::HttpHandler::Methods method,std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness,std::shared_ptr<ModelBuilder<PathsModel>> inputJsonModelBuilder):
+  CreateUnpinBulkRequest(const std::string & accessURL,const common::HttpHandler::Methods method,std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness,std::shared_ptr<JsonModelBuilder<PathsModel>> inputJsonModelBuilder):
       TapeAction(accessURL,method,tapeRestApiBusiness),mInputJsonModelBuilder(inputJsonModelBuilder){}
   common::HttpResponse * run(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
 private:
-  std::shared_ptr<ModelBuilder<PathsModel>> mInputJsonModelBuilder;
+  std::shared_ptr<JsonModelBuilder<PathsModel>> mInputJsonModelBuilder;
 };
 
 EOSMGMRESTNAMESPACE_END

@@ -24,6 +24,7 @@
 #include "TapeRestApiResponseFactory.hh"
 #include "mgm/http/rest-api/json/tape/TapeRestApiJsonifier.hh"
 #include "mgm/http/rest-api/json/tape/jsonifiers/common/ErrorModelJsonifier.hh"
+#include "mgm/http/rest-api/json/tape/jsonifiers/common/JsonValidationErrorModelJsonifier.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -36,6 +37,14 @@ RestApiResponse<ErrorModel> TapeRestApiResponseFactory::createError(const common
 
 RestApiResponse<ErrorModel> TapeRestApiResponseFactory::createBadRequestError(const std::string & detail) const {
   return createError(common::HttpResponse::BAD_REQUEST,"Bad request",detail);
+}
+
+RestApiResponse<JsonValidationErrorModel> TapeRestApiResponseFactory::createBadRequestError(const JsonValidationException& ex) const {
+  std::shared_ptr<JsonValidationErrorModel> errorModel = std::make_shared<JsonValidationErrorModel>(ex.what());
+  errorModel->setValidationErrors(ex.getValidationErrors());
+  std::shared_ptr<JsonValidationErrorModelJsonifier> jsonifier = std::make_shared<JsonValidationErrorModelJsonifier>();
+  errorModel->setJsonifier(jsonifier);
+  return createResponse(errorModel,common::HttpResponse::BAD_REQUEST);
 }
 
 RestApiResponse<ErrorModel> TapeRestApiResponseFactory::createNotFoundError() const {

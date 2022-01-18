@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: InvalidJSONException.cc
+// File: JsonModelBuilder.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,11 +20,24 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
+#ifndef EOS_JSONMODELBUILDER_HH
+#define EOS_JSONMODELBUILDER_HH
 
-#include "InvalidJSONException.hh"
+#include "mgm/Namespace.hh"
+#include <memory>
+#include <string>
+#include <vector>
+#include <utility>
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-InvalidJSONException::InvalidJSONException(const std::string& exceptionMsg): RestException(exceptionMsg){}
+template<typename Model>
+class JsonModelBuilder {
+public:
+  virtual std::unique_ptr<Model> buildFromJson(const std::string & json) = 0;
+
+};
 
 EOSMGMRESTNAMESPACE_END
+
+#endif // EOS_JSONMODELBUILDER_HH

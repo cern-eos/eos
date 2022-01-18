@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: CreateStageBulkRequestModel.hh
+// File: JsonValidationErrorModelJsonifier.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,29 +20,23 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-#ifndef EOS_CREATESTAGEBULKREQUESTMODEL_HH
-#define EOS_CREATESTAGEBULKREQUESTMODEL_HH
+
+#ifndef EOS_JSONVALIDATIONERRORMODELJSONIFIER_HH
+#define EOS_JSONVALIDATIONERRORMODELJSONIFIER_HH
 
 #include "mgm/Namespace.hh"
-#include <string>
-#include <vector>
-#include "mgm/http/rest-api/model/tape/common/FilesContainer.hh"
+#include "mgm/http/rest-api/json/tape/jsonifiers/common/ErrorModelJsonifier.hh"
+#include "mgm/http/rest-api/model/tape/common/JsonValidationErrorModel.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-/**
- * This object represents a client's request
- * to create a stage bulk-request
- */
-class CreateStageBulkRequestModel {
+class JsonValidationErrorModelJsonifier : public ErrorModelJsonifier, public TapeRestApiJsonifier<JsonValidationErrorModel>, public common::JsonCppJsonifier<JsonValidationErrorModel> {
 public:
-  CreateStageBulkRequestModel(){}
-  void addFile(const std::string & path, const std::string & opaqueInfos);
-  const FilesContainer & getFiles() const;
-private:
-  FilesContainer mFilesContainer;
+  void jsonify(const JsonValidationErrorModel * model, std::stringstream & ss) override;
+protected:
+  inline static const std::string VALIDATION_ERRORS_KEY = "validationErrors";
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_CREATESTAGEBULKREQUESTMODEL_HH
+#endif // EOS_JSONVALIDATIONERRORMODELJSONIFIER_HH

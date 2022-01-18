@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: CreateStageBulkRequestModel.hh
+// File: JsonValidationErrorModel.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,29 +20,22 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-#ifndef EOS_CREATESTAGEBULKREQUESTMODEL_HH
-#define EOS_CREATESTAGEBULKREQUESTMODEL_HH
 
-#include "mgm/Namespace.hh"
-#include <string>
-#include <vector>
-#include "mgm/http/rest-api/model/tape/common/FilesContainer.hh"
 
+#include "JsonValidationErrorModel.hh"
+#include "common/http/HttpResponse.hh"
 EOSMGMRESTNAMESPACE_BEGIN
 
-/**
- * This object represents a client's request
- * to create a stage bulk-request
- */
-class CreateStageBulkRequestModel {
-public:
-  CreateStageBulkRequestModel(){}
-  void addFile(const std::string & path, const std::string & opaqueInfos);
-  const FilesContainer & getFiles() const;
-private:
-  FilesContainer mFilesContainer;
-};
+JsonValidationErrorModel::JsonValidationErrorModel(const std::string& detail):ErrorModel("Bad request",common::HttpResponse::BAD_REQUEST,detail) {
+
+}
+
+void JsonValidationErrorModel::setValidationErrors(const ValidationErrors * validationErrors) {
+  mValidationErrors = validationErrors;
+}
+
+const ValidationErrors * JsonValidationErrorModel::getValidationErrors() const {
+  return mValidationErrors;
+}
 
 EOSMGMRESTNAMESPACE_END
-
-#endif // EOS_CREATESTAGEBULKREQUESTMODEL_HH

@@ -27,8 +27,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/bulk-request/BulkRequestFactory.hh"
 #include "mgm/http/HttpHandler.hh"
-#include "mgm/http/rest-api/exception/InvalidJSONException.hh"
-#include "mgm/http/rest-api/exception/JsonObjectModelMalformedException.hh"
+#include "mgm/http/rest-api/exception/JsonValidationException.hh"
 #include "mgm/http/rest-api/response/tape/factories/TapeRestApiResponseFactory.hh"
 #include "mgm/http/rest-api/utils/URLBuilder.hh"
 #include "mgm/http/rest-api/controllers/tape/URLParametersConstants.hh"
@@ -42,10 +41,8 @@ common::HttpResponse* CreateStageBulkRequest::run(common::HttpRequest* request, 
   std::unique_ptr<CreateStageBulkRequestModel> createStageBulkRequestModel;
   try {
     createStageBulkRequestModel = mInputJsonModelBuilder->buildFromJson(request->GetBody());
-  } catch (const InvalidJSONException & ex) {
-    return mResponseFactory.createBadRequestError(ex.what()).getHttpResponse();
-  } catch (const JsonObjectModelMalformedException & ex){
-    return mResponseFactory.createBadRequestError(ex.what()).getHttpResponse();
+  } catch (const JsonValidationException& ex){
+    return mResponseFactory.createBadRequestError(ex).getHttpResponse();
   }
   //Create the prepare arguments
   std::shared_ptr<bulk::BulkRequest> bulkRequest;

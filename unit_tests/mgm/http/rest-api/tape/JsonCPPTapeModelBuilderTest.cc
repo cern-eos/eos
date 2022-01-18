@@ -22,8 +22,7 @@
  ************************************************************************/
 
 #include "JsonCPPTapeModelBuilderTest.hh"
-#include "mgm/http/rest-api/exception/InvalidJSONException.hh"
-#include "mgm/http/rest-api/exception/JsonObjectModelMalformedException.hh"
+#include "mgm/http/rest-api/exception/JsonValidationException.hh"
 #include "mgm/http/rest-api/json/tape/model-builders/CreateStageRequestModelBuilder.hh"
 
 using namespace eos::mgm::rest;
@@ -31,15 +30,15 @@ using namespace eos::mgm::rest;
 TEST_F(JsonCPPTapeModelBuilderTest,createStageRequestModelBuilderTest){
   CreateStageRequestModelBuilder builder;
   std::string json = "jsonNotValid";
-  ASSERT_THROW(builder.buildFromJson(json),InvalidJSONException);
+  ASSERT_THROW(builder.buildFromJson(json),JsonValidationException);
   json = "{}";
-  ASSERT_THROW(builder.buildFromJson(json),JsonObjectModelMalformedException);
-  json = "{\"" + CreateStageBulkRequestModel::PATHS_KEY_NAME + "\":12345}";
-  ASSERT_THROW(builder.buildFromJson(json),JsonObjectModelMalformedException);
-  json = "{\"" + CreateStageBulkRequestModel::PATHS_KEY_NAME + "\":[]}";
-  ASSERT_THROW(builder.buildFromJson(json),JsonObjectModelMalformedException);
-  json = "{\"" + CreateStageBulkRequestModel::PATHS_KEY_NAME + "\":[1,2,3]}";
-  ASSERT_THROW(builder.buildFromJson(json),JsonObjectModelMalformedException);
-  json = "{\"" + CreateStageBulkRequestModel::PATHS_KEY_NAME + "\":[\"/path/to/file.txt\",\"/path/to/file2.txt\"]}";
+  ASSERT_THROW(builder.buildFromJson(json), JsonValidationException);
+  json = "{\"" + CreateStageRequestModelBuilder::PATHS_KEY_NAME + "\":12345}";
+  ASSERT_THROW(builder.buildFromJson(json), JsonValidationException);
+  json = "{\"" + CreateStageRequestModelBuilder::PATHS_KEY_NAME + "\":[]}";
+  ASSERT_THROW(builder.buildFromJson(json), JsonValidationException);
+  json = "{\"" + CreateStageRequestModelBuilder::PATHS_KEY_NAME + "\":[1,2,3]}";
+  ASSERT_THROW(builder.buildFromJson(json), JsonValidationException);
+  json = "{\"" + CreateStageRequestModelBuilder::PATHS_KEY_NAME + "\":[\"/path/to/file.txt\",\"/path/to/file2.txt\"]}";
   ASSERT_NO_THROW(builder.buildFromJson(json));
 }

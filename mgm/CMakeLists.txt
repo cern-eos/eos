@@ -272,12 +272,12 @@ add_library(
   http/rest-api/controllers/tape/unpin/UnpinController.cc
   http/rest-api/exception/RestException.cc
   http/rest-api/exception/ControllerNotFoundException.cc
-  http/rest-api/exception/InvalidJSONException.cc
-  http/rest-api/exception/JsonObjectModelMalformedException.cc
+  http/rest-api/exception/JsonValidationException.cc
   http/rest-api/exception/MethodNotAllowedException.cc
   http/rest-api/exception/InvalidRestURLException.cc
   http/rest-api/model/tape/common/FilesContainer.cc
   http/rest-api/model/tape/common/ErrorModel.cc
+  http/rest-api/model/tape/common/JsonValidationErrorModel.cc
   http/rest-api/model/tape/fileinfo/GetFileInfoResponseModel.cc
   http/rest-api/model/tape/stage/PathsModel.cc
   http/rest-api/model/tape/stage/CreateStageBulkRequestModel.cc
@@ -288,6 +288,7 @@ add_library(
   http/rest-api/json/tape/jsonifiers/stage/CreatedStageBulkRequestJsonifier.cc
   http/rest-api/json/tape/jsonifiers/stage/GetStageBulkRequestJsonifier.cc
   http/rest-api/json/tape/jsonifiers/common/ErrorModelJsonifier.cc
+  http/rest-api/json/tape/jsonifiers/common/JsonValidationErrorModelJsonifier.cc
   http/rest-api/json/tape/jsonifiers/fileinfo/GetFileInfoResponseJsonifier.cc
   http/rest-api/response/tape/factories/TapeRestApiResponseFactory.cc
   http/rest-api/utils/URLParser.cc

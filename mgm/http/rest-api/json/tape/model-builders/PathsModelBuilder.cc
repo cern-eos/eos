@@ -25,22 +25,32 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-std::unique_ptr<PathsModel>
-PathsModelBuilder::buildFromJson(const std::string& json) const {
-  std::unique_ptr<PathsModel> cancelStageBulkRequestModel(new PathsModel());
+std::unique_ptr<PathsModel> PathsModelBuilder::buildFromJson(const std::string& json) {
+  std::unique_ptr<PathsModel> model(new PathsModel());
+  std::unique_ptr<ValidationErrors> validationErrors(new ValidationErrors());
   Json::Value root;
   parseJson(json, root);
-  Json::Value paths = root[PathsModel::PATHS_KEY_NAME];
-  checkFieldNotNull(paths, PathsModel::PATHS_KEY_NAME);
-  checkIsNotAnEmptyArray(paths, PathsModel::PATHS_KEY_NAME);
-  for(auto path = paths.begin(); path != paths.end(); path++){
-    std::ostringstream oss;
-    oss << "The " << PathsModel::PATHS_KEY_NAME << " object should contain only strings";
-    checkIsString(*path,oss.str());
-    cancelStageBulkRequestModel->addFile(path->asString());
-    //TODO in the future: metadata
+  Json::Value & paths = root[PATHS_KEY_NAME];
+  try {
+    mValidatorFactory.getNonEmptyArrayValidator()->validate(paths);
+  } catch(const ValidatorException &ex) {
+    validationErrors->addError(PATHS_KEY_NAME, ex.what());
+    throw JsonValidationException(std::move(validationErrors));
   }
-  return std::move(cancelStageBulkRequestModel);
+  for(auto path = paths.begin(); path != paths.end(); path++){
+    try {
+      mValidatorFactory.getPathValidator()->validate(*path);
+      model->addFile(path->asString());
+    } catch(const ValidatorException & ex) {
+      std::stringstream ss;
+      ss << "The value " << *path << " is not a correct path.";
+      validationErrors->addError(PATHS_KEY_NAME,ss.str());
+    }
+  }
+  if(validationErrors->hasAnyError()) {
+    throw JsonValidationException(std::move(validationErrors));
+  }
+  return std::move(model);
 }
 
 EOSMGMRESTNAMESPACE_END

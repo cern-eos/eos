@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ObjectModelMalformedException.hh
+// File: JsonValidationErrorModelJsonifier.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -21,23 +21,23 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_JSONOBJECTMODELMALFORMEDEXCEPTION_HH
-#define EOS_JSONOBJECTMODELMALFORMEDEXCEPTION_HH
-
-#include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/exception/RestException.hh"
+#include "JsonValidationErrorModelJsonifier.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-/**
- * Exception class to use when a json string cannot allow to instanciate
- * a Model object (wrong field names...)
- */
-class JsonObjectModelMalformedException : public RestException {
-public:
-  JsonObjectModelMalformedException(const std::string & exceptionMsg);
-};
-
+void JsonValidationErrorModelJsonifier::jsonify(const JsonValidationErrorModel * model, std::stringstream & ss) {
+  Json::Value root;
+  ErrorModelJsonifier::jsonify(model,root);
+  const ValidationErrors * errors = model->getValidationErrors();
+  if(errors != nullptr) {
+    root[VALIDATION_ERRORS_KEY] = Json::Value(Json::arrayValue);
+    for(const auto & validationError: *(errors->getErrors())) {
+      Json::Value errorItem;
+      errorItem["name"] = validationError->getFieldName();
+      errorItem["reason"] = validationError->getReason();
+      root[VALIDATION_ERRORS_KEY].append(errorItem);
+    }
+  }
+  ss << root;
+}
 EOSMGMRESTNAMESPACE_END
-
-#endif // EOS_JSONOBJECTMODELMALFORMEDEXCEPTION_HH

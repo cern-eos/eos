@@ -28,7 +28,7 @@
 #include "mgm/Namespace.hh"
 #include "mgm/http/rest-api/action/tape/TapeAction.hh"
 #include "mgm/http/rest-api/model/tape/stage/CreateStageBulkRequestModel.hh"
-#include "mgm/http/rest-api/json/ModelBuilder.hh"
+#include "mgm/http/rest-api/json/builder/JsonModelBuilder.hh"
 #include "mgm/http/rest-api/business/tape/ITapeRestApiBusiness.hh"
 #include "mgm/http/rest-api/json/tape/TapeRestApiJsonifier.hh"
 #include "mgm/http/rest-api/model/tape/stage/CreatedStageBulkRequestResponseModel.hh"
@@ -37,12 +37,12 @@ EOSMGMRESTNAMESPACE_BEGIN
 
 class CreateStageBulkRequest : public TapeAction {
 public:
-  CreateStageBulkRequest(const std::string & accessURL,const common::HttpHandler::Methods method,std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness, std::shared_ptr<ModelBuilder<CreateStageBulkRequestModel>> inputJsonModelBuilder,std::shared_ptr<
+  CreateStageBulkRequest(const std::string & accessURL,const common::HttpHandler::Methods method,std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness, std::shared_ptr<JsonModelBuilder<CreateStageBulkRequestModel>> inputJsonModelBuilder,std::shared_ptr<
           TapeRestApiJsonifier<CreatedStageBulkRequestResponseModel>> outputObjectJsonifier): TapeAction(accessURL,method,tapeRestApiBusiness),mInputJsonModelBuilder(inputJsonModelBuilder),
         mOutputObjectJsonifier(outputObjectJsonifier){}
   common::HttpResponse * run(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
 private:
-  std::shared_ptr<ModelBuilder<CreateStageBulkRequestModel>> mInputJsonModelBuilder;
+  std::shared_ptr<JsonModelBuilder<CreateStageBulkRequestModel>> mInputJsonModelBuilder;
   std::shared_ptr<TapeRestApiJsonifier<CreatedStageBulkRequestResponseModel>> mOutputObjectJsonifier;
 };
 

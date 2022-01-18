@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: CreateStageBulkRequestModel.hh
+// File: ValidationError.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,29 +20,43 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-#ifndef EOS_CREATESTAGEBULKREQUESTMODEL_HH
-#define EOS_CREATESTAGEBULKREQUESTMODEL_HH
+
+#ifndef EOS_VALIDATIONERROR_HH
+#define EOS_VALIDATIONERROR_HH
 
 #include "mgm/Namespace.hh"
 #include <string>
 #include <vector>
-#include "mgm/http/rest-api/model/tape/common/FilesContainer.hh"
+#include <memory>
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-/**
- * This object represents a client's request
- * to create a stage bulk-request
- */
-class CreateStageBulkRequestModel {
+class ValidationError {
 public:
-  CreateStageBulkRequestModel(){}
-  void addFile(const std::string & path, const std::string & opaqueInfos);
-  const FilesContainer & getFiles() const;
+  ValidationError(const std::string & fieldName, const std::string & reason):mFieldName(fieldName),mReason(reason){}
+  typedef std::vector<std::unique_ptr<ValidationError>> List;
+  inline const std::string & getFieldName() const { return mFieldName; }
+  inline const std::string & getReason() const {return mReason;}
 private:
-  FilesContainer mFilesContainer;
+  std::string mFieldName;
+  std::string mReason;
+};
+
+class ValidationErrors {
+public:
+  typedef std::vector<std::unique_ptr<ValidationError>> ErrorVector;
+  ValidationErrors(){ mErrors.reset(new ErrorVector()); }
+  inline void addError(const std::string & fieldName, const std::string & reason) {
+    mErrors->push_back(std::make_unique<ValidationError>(fieldName,reason));
+  }
+  inline const ErrorVector * getErrors() const {
+    return mErrors.get();
+  }
+  inline bool hasAnyError() const { return !mErrors->empty(); }
+private:
+  std::unique_ptr<ErrorVector> mErrors;
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_CREATESTAGEBULKREQUESTMODEL_HH
+#endif // EOS_VALIDATIONERROR_HH

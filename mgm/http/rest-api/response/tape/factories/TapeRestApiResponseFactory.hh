@@ -27,6 +27,8 @@
 #include "mgm/Namespace.hh"
 #include "mgm/http/rest-api/response/RestApiResponse.hh"
 #include "mgm/http/rest-api/model/tape/common/ErrorModel.hh"
+#include "mgm/http/rest-api/model/tape/common/JsonValidationErrorModel.hh"
+#include "mgm/http/rest-api/exception/JsonValidationException.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -36,6 +38,7 @@ EOSMGMRESTNAMESPACE_BEGIN
 class TapeRestApiResponseFactory {
 public:
   RestApiResponse<ErrorModel> createBadRequestError(const std::string & detail) const;
+  RestApiResponse<JsonValidationErrorModel> createBadRequestError(const JsonValidationException &ex) const;
   RestApiResponse<ErrorModel> createNotFoundError() const;
   RestApiResponse<ErrorModel> createMethodNotAllowedError(const std::string & detail) const;
   RestApiResponse<ErrorModel> createInternalServerError(const std::string & detail) const;

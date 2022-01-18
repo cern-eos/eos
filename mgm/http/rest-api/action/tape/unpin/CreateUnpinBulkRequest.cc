@@ -22,8 +22,7 @@
  ************************************************************************/
 
 #include "CreateUnpinBulkRequest.hh"
-#include "mgm/http/rest-api/exception/InvalidJSONException.hh"
-#include "mgm/http/rest-api/exception/JsonObjectModelMalformedException.hh"
+#include "mgm/http/rest-api/exception/JsonValidationException.hh"
 #include "mgm/http/rest-api/exception/tape/TapeRestApiBusinessException.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
@@ -32,10 +31,8 @@ common::HttpResponse* CreateUnpinBulkRequest::run(common::HttpRequest* request, 
   std::unique_ptr<PathsModel> paths;
   try {
     paths = mInputJsonModelBuilder->buildFromJson(request->GetBody());
-  } catch (const InvalidJSONException & ex) {
-    return mResponseFactory.createBadRequestError(ex.what()).getHttpResponse();
-  } catch (const JsonObjectModelMalformedException & ex) {
-    return mResponseFactory.createBadRequestError(ex.what()).getHttpResponse();
+  } catch (const JsonValidationException & ex) {
+    return mResponseFactory.createBadRequestError(ex).getHttpResponse();
   }
   //Unpin the files provided by the user
   try {

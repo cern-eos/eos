@@ -27,11 +27,15 @@ EOSMGMRESTNAMESPACE_BEGIN
 
 void ErrorModelJsonifier::jsonify(const ErrorModel * model, std::stringstream& ss) {
   Json::Value root;
+  jsonify(model,root);
+  ss << root;
+}
+
+void ErrorModelJsonifier::jsonify(const ErrorModel* model, Json::Value & root) {
   root["type"] = model->getType();
   root["title"] = model->getTitle();
   root["status"] = model->getStatus();
   root["detail"] = model->getDetail() ? model->getDetail().value() : "";
-  ss << root;
 }
 
 EOSMGMRESTNAMESPACE_END
