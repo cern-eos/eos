@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ObjectModelMalformedException.cc
+// File: JsonValidationErrorModel.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,11 +20,27 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-#include "JsonObjectModelMalformedException.hh"
+
+#ifndef EOS_JSONVALIDATIONERRORMODEL_HH
+#define EOS_JSONVALIDATIONERRORMODEL_HH
+
+#include "mgm/Namespace.hh"
+#include "mgm/http/rest-api/model/tape/common/ErrorModel.hh"
+#include "mgm/http/rest-api/json/builder/ValidationError.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-JsonObjectModelMalformedException::JsonObjectModelMalformedException(const std::string& exceptionMsg):RestException(exceptionMsg)
-{}
+class JsonValidationErrorModel : public ErrorModel, public common::Jsonifiable<JsonValidationErrorModel> {
+public:
+  using common::Jsonifiable<JsonValidationErrorModel>::setJsonifier;
+  using common::Jsonifiable<JsonValidationErrorModel>::jsonify;
+  JsonValidationErrorModel(const std::string & detail);
+  void setValidationErrors(const ValidationErrors * validationErrors);
+  const ValidationErrors * getValidationErrors() const;
+protected:
+  const ValidationErrors * mValidationErrors = nullptr;
+};
 
 EOSMGMRESTNAMESPACE_END
+
+#endif // EOS_JSONVALIDATIONERRORMODEL_HH

@@ -34,6 +34,8 @@ EOSMGMRESTNAMESPACE_BEGIN
 class ErrorModelJsonifier : public TapeRestApiJsonifier<ErrorModel>, public common::JsonCppJsonifier<ErrorModel>  {
 public:
   void jsonify(const ErrorModel * model, std::stringstream & ss) override;
+protected:
+  void jsonify(const ErrorModel * model, Json::Value & root);
 };
 
 EOSMGMRESTNAMESPACE_END
