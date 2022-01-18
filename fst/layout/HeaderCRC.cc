@@ -24,6 +24,7 @@
 #include "fst/layout/HeaderCRC.hh"
 #include "fst/io/FileIo.hh"
 #include <stdint.h>
+#include <stdlib.h>
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -71,11 +72,11 @@ HeaderCRC::ReadFromFile(FileIo* pFile, uint16_t timeout)
 {
   long int offset = 0;
   size_t read_sizeblock = 0;
-  char* buff = new char[mSizeHeader];
+  char* buff = (char*) aligned_alloc (4096, mSizeHeader);
 
   if (pFile->fileRead(offset, buff, mSizeHeader, timeout) !=
       static_cast<uint32_t>(mSizeHeader)) {
-    delete[] buff;
+    free(buff);
     mValid = false;
     return mValid;
   }
@@ -84,7 +85,7 @@ HeaderCRC::ReadFromFile(FileIo* pFile, uint16_t timeout)
   std::string tag = mTag;
 
   if (strncmp(mTag, msTagName, strlen(msTagName))) {
-    delete[] buff;
+    free(buff);
     mValid = false;
     return mValid;
   }
@@ -105,7 +106,7 @@ HeaderCRC::ReadFromFile(FileIo* pFile, uint16_t timeout)
     mValid = false;
   }
 
-  delete[] buff;
+  free(buff);
   mValid = true;
   return mValid;
 }
@@ -117,7 +118,7 @@ bool
 HeaderCRC::WriteToFile(FileIo* pFile, uint16_t timeout)
 {
   int offset = 0;
-  char* buff = new char[mSizeHeader];
+  char* buff = (char*) aligned_alloc (4096, mSizeHeader);
   memcpy(buff + offset, msTagName, sizeof msTagName);
   offset += sizeof mTag;
   memcpy(buff + offset, &mIdStripe, sizeof mIdStripe);
@@ -136,7 +137,7 @@ HeaderCRC::WriteToFile(FileIo* pFile, uint16_t timeout)
     mValid = true;
   }
 
-  delete[] buff;
+  free(buff);
   return mValid;
 }
 
