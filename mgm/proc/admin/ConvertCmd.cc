@@ -69,12 +69,7 @@ ConvertCmd::ProcessRequest() noexcept
   } else if (subcmd == eos::console::ConvertProto::kConfig) {
     ConfigSubcmd(convert.config(), reply, jsonOutput);
   } else if (subcmd == eos::console::ConvertProto::kFile) {
-    try {
-      FileSubcmd(convert.file(), reply, jsonOutput);
-    } catch (const std::exception& e) {
-      reply.set_std_err(SSTR("error: got an exception msg=" << e.what()));
-      reply.set_retc(EINVAL);
-    }
+    FileSubcmd(convert.file(), reply, jsonOutput);
   } else if (subcmd == eos::console::ConvertProto::kRule) {
     RuleSubcmd(convert.rule(), reply, jsonOutput);
   } else if (subcmd == eos::console::ConvertProto::kList) {
