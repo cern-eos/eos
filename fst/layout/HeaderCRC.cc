@@ -30,6 +30,34 @@ EOSFSTNAMESPACE_BEGIN
 
 char HeaderCRC::msTagName[] = "_HEADER__RAIDIO_";
 
+
+//------------------------------------------------------------------------------
+// Get OS page size aligned buffer
+//------------------------------------------------------------------------------
+std::unique_ptr<char, void(*)(void*)>
+GetAlignedBuffer(const size_t size)
+{
+  static long os_pg_size = sysconf(_SC_PAGESIZE);
+  char* raw_buffer = nullptr;
+  std::unique_ptr<char, void(*)(void*)> buffer
+  ((char*) raw_buffer, [](void* ptr) {
+    if (ptr) {
+      free(ptr);
+    }
+  });
+
+  if (os_pg_size < 0) {
+    return buffer;
+  }
+
+  if (posix_memalign((void**) &raw_buffer, os_pg_size, size)) {
+    return buffer;
+  }
+
+  buffer.reset(raw_buffer);
+  return buffer;
+}
+
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
@@ -72,32 +100,30 @@ HeaderCRC::ReadFromFile(FileIo* pFile, uint16_t timeout)
 {
   long int offset = 0;
   size_t read_sizeblock = 0;
-  char* buff = (char*) aligned_alloc (4096, mSizeHeader);
+  auto buff = GetAlignedBuffer(mSizeHeader);
 
-  if (pFile->fileRead(offset, buff, mSizeHeader, timeout) !=
+  if (pFile->fileRead(offset, buff.get(), mSizeHeader, timeout) !=
       static_cast<uint32_t>(mSizeHeader)) {
-    free(buff);
     mValid = false;
     return mValid;
   }
 
-  memcpy(mTag, buff, sizeof mTag);
+  memcpy(mTag, buff.get(), sizeof mTag);
   std::string tag = mTag;
 
   if (strncmp(mTag, msTagName, strlen(msTagName))) {
-    free(buff);
     mValid = false;
     return mValid;
   }
 
   offset += sizeof mTag;
-  memcpy(&mIdStripe, buff + offset, sizeof mIdStripe);
+  memcpy(&mIdStripe, buff.get() + offset, sizeof mIdStripe);
   offset += sizeof mIdStripe;
-  memcpy(&mNumBlocks, buff + offset, sizeof mNumBlocks);
+  memcpy(&mNumBlocks, buff.get() + offset, sizeof mNumBlocks);
   offset += sizeof mNumBlocks;
-  memcpy(&mSizeLastBlock, buff + offset, sizeof mSizeLastBlock);
+  memcpy(&mSizeLastBlock, buff.get() + offset, sizeof mSizeLastBlock);
   offset += sizeof mSizeLastBlock;
-  memcpy(&read_sizeblock, buff + offset, sizeof read_sizeblock);
+  memcpy(&read_sizeblock, buff.get() + offset, sizeof read_sizeblock);
 
   if (mSizeBlock == 0) {
     mSizeBlock = read_sizeblock;
@@ -106,7 +132,6 @@ HeaderCRC::ReadFromFile(FileIo* pFile, uint16_t timeout)
     mValid = false;
   }
 
-  free(buff);
   mValid = true;
   return mValid;
 }
@@ -118,26 +143,25 @@ bool
 HeaderCRC::WriteToFile(FileIo* pFile, uint16_t timeout)
 {
   int offset = 0;
-  char* buff = (char*) aligned_alloc (4096, mSizeHeader);
-  memcpy(buff + offset, msTagName, sizeof msTagName);
+  auto buff = GetAlignedBuffer(mSizeHeader);
+  memcpy(buff.get() + offset, msTagName, sizeof msTagName);
   offset += sizeof mTag;
-  memcpy(buff + offset, &mIdStripe, sizeof mIdStripe);
+  memcpy(buff.get() + offset, &mIdStripe, sizeof mIdStripe);
   offset += sizeof mIdStripe;
-  memcpy(buff + offset, &mNumBlocks, sizeof mNumBlocks);
+  memcpy(buff.get() + offset, &mNumBlocks, sizeof mNumBlocks);
   offset += sizeof mNumBlocks;
-  memcpy(buff + offset, &mSizeLastBlock, sizeof mSizeLastBlock);
+  memcpy(buff.get() + offset, &mSizeLastBlock, sizeof mSizeLastBlock);
   offset += sizeof mSizeLastBlock;
-  memcpy(buff + offset, &mSizeBlock, sizeof mSizeBlock);
+  memcpy(buff.get() + offset, &mSizeBlock, sizeof mSizeBlock);
   offset += sizeof mSizeBlock;
-  memset(buff + offset, 0, mSizeHeader - offset);
+  memset(buff.get() + offset, 0, mSizeHeader - offset);
 
-  if (pFile->fileWrite(0, buff, mSizeHeader, timeout) < 0) {
+  if (pFile->fileWrite(0, buff.get(), mSizeHeader, timeout) < 0) {
     mValid = false;
   } else {
     mValid = true;
   }
 
-  free(buff);
   return mValid;
 }
 
