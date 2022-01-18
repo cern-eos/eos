@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: CreateStageBulkRequestModel.hh
+// File: JsonCppValidator.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,29 +20,66 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-#ifndef EOS_CREATESTAGEBULKREQUESTMODEL_HH
-#define EOS_CREATESTAGEBULKREQUESTMODEL_HH
+
+#ifndef EOS_JSONCPPVALIDATOR_HH
+#define EOS_JSONCPPVALIDATOR_HH
 
 #include "mgm/Namespace.hh"
-#include <string>
-#include <vector>
-#include "mgm/http/rest-api/model/tape/common/FilesContainer.hh"
+#include <json/json.h>
+#include <memory>
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-/**
- * This object represents a client's request
- * to create a stage bulk-request
- */
-class CreateStageBulkRequestModel {
+class ValidatorException : public common::Exception {
 public:
-  CreateStageBulkRequestModel(){}
-  void addFile(const std::string & path, const std::string & opaqueInfos);
-  const FilesContainer & getFiles() const;
-private:
-  FilesContainer mFilesContainer;
+  ValidatorException(const std::string & msg): common::Exception(msg){}
+};
+
+class JsonCppValidator {
+public:
+  virtual void validate(const Json::Value & value) = 0;
+};
+
+class NonEmptyArrayValidator : public JsonCppValidator {
+public:
+  virtual void validate(const Json::Value & value) override {
+    if(value.empty() || !value.isArray()) {
+      throw ValidatorException("Field does not exist or is not a valid non-empty array.");
+    }
+  }
+};
+
+class StringValidator : public JsonCppValidator {
+public:
+  virtual void validate(const Json::Value & value) override {
+    if(!value.isString()) {
+      throw ValidatorException("Field is not a valid string.");
+    }
+  }
+};
+
+class NotNullValidator : public JsonCppValidator {
+public:
+  virtual void validate(const Json::Value & value) override {
+    if(value.empty()) {
+      throw ValidatorException("Field is null.");
+    }
+  }
+};
+
+class JsonCppValidatorFactory {
+public:
+  std::unique_ptr<JsonCppValidator> getNonEmptyArrayValidator() {
+    return std::make_unique<NonEmptyArrayValidator>();
+  }
+  std::unique_ptr<JsonCppValidator> getStringValidator() {
+    return std::make_unique<StringValidator>();
+  }
+  std::unique_ptr<JsonCppValidator> getNotNullValidator() {
+    return std::make_unique<StringValidator>();
+  }
 };
 
 EOSMGMRESTNAMESPACE_END
 
-#endif // EOS_CREATESTAGEBULKREQUESTMODEL_HH
+#endif // EOS_JSONCPPVALIDATOR_HH

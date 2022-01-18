@@ -22,8 +22,7 @@
  ************************************************************************/
 
 #include "GetFileInfo.hh"
-#include "mgm/http/rest-api/exception/InvalidJSONException.hh"
-#include "mgm/http/rest-api/exception/JsonObjectModelMalformedException.hh"
+#include "mgm/http/rest-api/exception/JsonValidationException.hh"
 #include "mgm/http/rest-api/exception/tape/TapeRestApiBusinessException.hh"
 #include "mgm/http/rest-api/model/tape/fileinfo/GetFileInfoResponseModel.hh"
 
@@ -33,10 +32,8 @@ common::HttpResponse* GetFileInfo::run(common::HttpRequest* request, const commo
   std::unique_ptr<PathsModel> paths;
   try {
     paths = mInputJsonModelBuilder->buildFromJson(request->GetBody());
-  } catch (const InvalidJSONException & ex) {
-    return mResponseFactory.createBadRequestError(ex.what()).getHttpResponse();
-  } catch (const JsonObjectModelMalformedException & ex) {
-    return mResponseFactory.createBadRequestError(ex.what()).getHttpResponse();
+  } catch (const JsonValidationException& ex) {
+    return mResponseFactory.createBadRequestError(ex).getHttpResponse();
   }
   //Get the information about the files
   std::shared_ptr<bulk::QueryPrepareResponse> queryPrepareResponse;
