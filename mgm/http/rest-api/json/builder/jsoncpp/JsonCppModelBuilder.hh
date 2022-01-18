@@ -25,25 +25,25 @@
 #define EOS_JSONCPPMODELBUILDER_HH
 
 #include "mgm/Namespace.hh"
-#include "ModelBuilder.hh"
+#include "mgm/http/rest-api/json/builder/JsonModelBuilder.hh"
 #include <json/json.h>
 #include <sstream>
-#include "mgm/http/rest-api/exception/InvalidJSONException.hh"
-#include "mgm/http/rest-api/exception/JsonObjectModelMalformedException.hh"
+#include "mgm/http/rest-api/exception/JsonValidationException.hh"
+#include "mgm/http/rest-api/json/builder/ValidationError.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
 template<typename Model>
-class JsonCppModelBuilder : public ModelBuilder<Model> {
+class JsonCppModelBuilder : public JsonModelBuilder<Model> {
 public:
-  virtual std::unique_ptr<Model> buildFromJson(const std::string & json) const = 0;
+  virtual std::unique_ptr<Model> buildFromJson(const std::string & json) = 0;
 protected:
   /**
   * Parses the json string passed in parameter and
   * create JsonCpp-related object out of it
   * @param json the string representing the object
   * @param root the JsonCpp root object
-  * @throws InvalidJsonException if the parsing could not be done
+  * @throws JsonValidationException if the parsing could not be done
    */
   void parseJson(const std::string& json, Json::Value& root) const{
     Json::Reader reader;
@@ -51,37 +51,7 @@ protected:
     if(!parsingSuccessful){
       std::ostringstream oss;
       oss << "Unable to create a JSON object from the json string provided. json=" << json;
-      throw InvalidJSONException(oss.str());
-    }
-  }
-
-  void checkNotNull(const Json::Value& value, const std::string& errorMsg) const{
-    if(value.isNull()) {
-      throw JsonObjectModelMalformedException(errorMsg);
-    }
-  }
-
-  void checkFieldNotNull(const Json::Value& value, const std::string& fieldName) const {
-    std::ostringstream oss;
-    oss << "No " << fieldName << " attribute provided";
-    checkNotNull(value,oss.str());
-  }
-
-  void checkFieldIsNotAnEmptyArray(const Json::Value& value, const std::string& fieldName) const {
-    std::ostringstream oss;
-    oss << "The " << fieldName << " attribute should be a non-empty array";
-    checkIsNotAnEmptyArray(value,oss.str());
-  }
-
-  void checkIsNotAnEmptyArray(const Json::Value& value, const std::string& errorMsg) const {
-    if(!value.isArray() || value.empty()) {
-      throw JsonObjectModelMalformedException(errorMsg);
-    }
-  }
-
-  void checkIsString(const Json::Value& value, const std::string& errorMsg) const {
-    if(!value.isString()){
-      throw JsonObjectModelMalformedException(errorMsg);
+      throw JsonValidationException(oss.str());
     }
   }
 };

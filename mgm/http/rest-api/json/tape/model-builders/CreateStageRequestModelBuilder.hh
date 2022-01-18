@@ -25,14 +25,18 @@
 #define EOS_CREATESTAGEREQUESTMODELBUILDER_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/json/JsonCppModelBuilder.hh"
+#include "mgm/http/rest-api/json/builder/jsoncpp/JsonCppModelBuilder.hh"
+#include "mgm/http/rest-api/json/tape/model-builders/validators/TapeJsonCppValidator.hh"
 #include "mgm/http/rest-api/model/tape/stage/CreateStageBulkRequestModel.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
 class CreateStageRequestModelBuilder : public JsonCppModelBuilder<CreateStageBulkRequestModel> {
 public:
-  std::unique_ptr<CreateStageBulkRequestModel> buildFromJson(const std::string & json) const override;
+  std::unique_ptr<CreateStageBulkRequestModel> buildFromJson(const std::string & json) override;
+  inline static const std::string PATHS_KEY_NAME = "paths";
+protected:
+  TapeJsonCppValidatorFactory mValidatorFactory;
 };
 
 EOSMGMRESTNAMESPACE_END
