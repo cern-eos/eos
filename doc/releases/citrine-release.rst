@@ -15,6 +15,28 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.8.73 Citrine``
+===================
+
+2022-01-18
+
+Bug
+----
+
+* FST: Ensure buffers for write async requests are duplicated and kept until
+  requests are satisfied
+* FST: Fix starvation when deleting a TransferMultiplexer object
+* MGM: Fix crash when trying to convert files without replicas
+* MGM: Fix building of conversion id that was using hex representation for
+  the group indices.
+
+Improvements
+-------------
+
+* MGM: Prefetch the FileSystem contents outside the ns lock for Drop operations
+* FST: Use OS page size aligned buffers for the HeaderCRC objects
+
+
 ``v4.8.72 Citrine``
 ===================
 
