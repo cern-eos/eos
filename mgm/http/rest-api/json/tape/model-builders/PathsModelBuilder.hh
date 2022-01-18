@@ -26,14 +26,18 @@
 #define EOS_PATHSMODELBUILDER_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/json/JsonCppModelBuilder.hh"
+#include "mgm/http/rest-api/json/builder/jsoncpp/JsonCppModelBuilder.hh"
 #include "mgm/http/rest-api/model/tape/stage/PathsModel.hh"
+#include "mgm/http/rest-api/json/tape/model-builders/validators/TapeJsonCppValidator.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
 class PathsModelBuilder : public JsonCppModelBuilder<PathsModel> {
 public:
-  std::unique_ptr<PathsModel> buildFromJson(const std::string & json) const override;
+  std::unique_ptr<PathsModel> buildFromJson(const std::string & json) override;
+  inline static const std::string PATHS_KEY_NAME = "paths";
+protected:
+  TapeJsonCppValidatorFactory mValidatorFactory;
 };
 
 EOSMGMRESTNAMESPACE_END
