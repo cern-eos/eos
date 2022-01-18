@@ -39,6 +39,14 @@ protected:
   TapeJsonCppValidatorFactory mValidatorFactory;
 };
 
+class CreateStageRequestWithFilesModelBuilder : public CreateStageRequestModelBuilder {
+public:
+  virtual std::unique_ptr<CreateStageBulkRequestModel> buildFromJson(const std::string & json) override;
+  inline static const std::string FILES_KEY_NAME = "files";
+  inline static const std::string PATH_KEY_NAME = "path";
+  inline static const std::string TARGETED_METADATA_KEY_NAME = "targeted_metadata";
+};
+
 EOSMGMRESTNAMESPACE_END
 
 #endif // EOS_CREATESTAGEREQUESTMODELBUILDER_HH
