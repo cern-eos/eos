@@ -153,10 +153,19 @@ TransferMultiplexer::ThreadLoop(ThreadAssistant& assistant) noexcept
   // Wait that the scheduler is empty, otherwise we might have callbacks
   // to our queues
   eos_notice("%s", "msg=\"wait for all scheduled jobs to finish\"");
-  XrdSysMutexHelper lock(gOFS.TransferSchedulerMutex);
+  bool is_active = false;
 
-  while (gOFS.TransferScheduler->Active()) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  while (true) {
+    {
+      XrdSysMutexHelper lock(gOFS.TransferSchedulerMutex);
+      is_active = (gOFS.TransferScheduler->Active() != 0);
+    }
+
+    if (is_active) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    } else {
+      break;
+    }
   }
 
   eos_notice("%s", "msg=\"stopped transfer multiplexer\"");
