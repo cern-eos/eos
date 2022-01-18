@@ -645,22 +645,23 @@ static std::string BuildConversionId(const std::string& layout,
 {
   using eos::common::LayoutId;
   unsigned long layoutid = 0;
-  std::ostringstream ssid;
   layoutid = LayoutId::GetId(LayoutId::GetLayoutFromString(layout),
                              echecksum,
                              stripes,
                              LayoutId::eBlockSize::k4M,
                              LayoutId::eChecksum::kCRC32C,
                              LayoutId::GetRedundancyFromLayoutString(layout));
-  ssid << std::hex << std::setw(16) << std::setfill('0') << file_id
-       << ":" << space
-       << "#" << std::setw(8) << std::setfill('0') << layoutid;
+  char buff[4096];
+  snprintf(buff, std::size(buff), "%016llx:%s#%08lx",
+           file_id, space.c_str(), layoutid);
+  std::string conversion {buff};
 
-  if (placement.length()) {
-    ssid << "~" << placement;
+  if (!placement.empty()) { // ~<placement_policy>
+    conversion += "~";
+    conversion += placement;
   }
 
-  return ssid.str();
+  return conversion;
 }
 
 EOSMGMNAMESPACE_END

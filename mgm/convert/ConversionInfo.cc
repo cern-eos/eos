@@ -37,22 +37,21 @@ ConversionInfo::ConversionInfo(const eos::common::FileId::fileid_t fid,
   mFid(fid), mLid(lid), mLocation(location), mPlctPolicy(plct_policy),
   mUpdateCtime(update_ctime)
 {
-  std::ostringstream conversion;
-  conversion << std::hex << std::setfill('0')
-             << std::setw(16) << mFid           // <fid(016hex)>
-             << ":" << mLocation.getSpace()     // :<space>
-             << "." << mLocation.getIndex()     // .<group>
-             << "#" << std::setw(8) << mLid;     // #<layoutid(08hex)>
+  char buff[4096];
+  snprintf(buff, std::size(buff), "%016llx:%s.%i#%08lx",
+           mFid, mLocation.getSpace().c_str(), mLocation.getIndex(), mLid);
+  std::string conversion {buff};
 
-  if (!mPlctPolicy.empty()) {
-    conversion << "~" << mPlctPolicy;          // ~<placement_policy>
+  if (!mPlctPolicy.empty()) { // ~<placement_policy>
+    conversion += "~";
+    conversion += mPlctPolicy;
   }
 
   if (mUpdateCtime) {
-    conversion << UPDATE_CTIME;
+    conversion += UPDATE_CTIME;
   }
 
-  mConversionString = conversion.str();
+  mConversionString = conversion;
 }
 
 //----------------------------------------------------------------------------
