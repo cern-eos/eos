@@ -422,6 +422,12 @@ GroupBalancer::prepareTransfers(int nrTransfers)
   }
 }
 
+std::string
+GroupBalancer::Status(bool detail, bool monitoring) const
+{
+  return mEngine->get_status_str(detail, monitoring);
+}
+
 void
 GroupBalancer::Configure(FsSpace* const space, GroupBalancer::Config& cfg)
 {

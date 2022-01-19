@@ -42,6 +42,7 @@ public:
     return mMaxThreshold;
   }
 
+  std::string get_status_str(bool detail=false, bool monitoring=false) const override;
 private:
   double mMinThreshold;
   double mMaxThreshold;

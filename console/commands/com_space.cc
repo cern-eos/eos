@@ -457,9 +457,40 @@ com_space(char* arg1)
     ok = true;
   }
 
-  if (subcommand == "config") {
+  if (subcommand == "groupbalancer") {
     XrdOucString spacename = subtokenizer.GetToken();
+    XrdOucString balancercmd = subtokenizer.GetToken();
+    // TODO when you add more balancer cmds use a set and
+    // check membership here instead
+    if ((!spacename.length() || balancercmd.length())) {
+      goto com_space_usage;
+    }
+
+    in = "mgm.cmd=space&mgm.subcmd=groupbalancer&mgm.space=";
+    in += spacename;
+
+    if (balancercmd == "status") {
+      in += "&mgm.space.groupbalancer.cmd=status";
+      in += "&mgm.space.groupbalancer.cmd.status.options=";
+      ok = true;
+
+      do {
+        option = subtokenizer.GetToken();
+        if (option == "--detail" || option == "-d") {
+          in += "d";
+        }
+
+        if (option == "-m") {
+          in += "m";
+        }
+      } while (option.length());
+    }
+
+  }
+
+  if (subcommand == "config") {
     XrdOucString keyval = subtokenizer.GetToken();
+    XrdOucString spacename = subtokenizer.GetToken();
 
     if ((!spacename.length()) || (!keyval.length())) {
       goto com_space_usage;
@@ -653,6 +684,8 @@ com_space_usage:
   fprintf(stdout, "\n");
   fprintf(stdout,
           "       space quota <space-name> on|off                               : enable/disable quota\n");
+  fprintf(stdout,
+          "       space groupbalancer status <space-name> [--detail(-d)|-m]     : get the groupbalancer status for the space\n");
   global_retc = EINVAL;
   return (0);
 }

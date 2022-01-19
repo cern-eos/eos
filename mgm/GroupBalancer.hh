@@ -110,6 +110,7 @@ public:
   //----------------------------------------------------------------------------
   void Configure(FsSpace* const space, Config& cfg);
 
+  std::string Status(bool detail=false, bool monitoring=false) const;
 private:
   AssistedThread mThread; ///< Thread scheduling jobs
   std::string mSpaceName; ///< Attached space name

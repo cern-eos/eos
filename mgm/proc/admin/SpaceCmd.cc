@@ -31,6 +31,7 @@
 #include "mgm/inspector/FileInspector.hh"
 #include "mgm/Egroup.hh"
 #include "mgm/config/IConfigEngine.hh"
+#include "mgm/GroupBalancer.hh"
 #include "namespace/interface/IChLogFileMDSvc.hh"
 #include "namespace/interface/IChLogContainerMDSvc.hh"
 #include "namespace/interface/IFsView.hh"
@@ -99,6 +100,10 @@ SpaceCmd::ProcessRequest() noexcept
 
   case eos::console::SpaceProto::kInspector:
     InspectorSubcmd(space.inspector(), reply);
+    break;
+
+  case eos::console::SpaceProto::kGroupbalancer:
+    GroupBalancerSubCmd(space.groupbalancer(), reply);
     break;
 
   default:
@@ -1185,5 +1190,42 @@ void SpaceCmd::InspectorSubcmd(const eos::console::SpaceProto_InspectorProto&
   reply.set_retc(0);
 }
 
+void SpaceCmd::GroupBalancerSubCmd(const eos::console::SpaceProto_GroupBalancerProto& groupbalancer,
+                                   eos::console::ReplyProto& reply)
+{
+  if (groupbalancer.mgmspace().empty()) {
+    reply.set_std_err("error: A spacename is needed for this cmd");
+    reply.set_retc(EINVAL);
+  }
+
+  auto space_it = FsView::gFsView.mSpaceView.find(groupbalancer.mgmspace());
+  if (space_it == FsView::gFsView.mSpaceView.end()) {
+    reply.set_std_err("error: No such space exists!");
+    reply.set_retc(EINVAL);
+  }
+  const auto fs_space = space_it->second;
+
+  switch (groupbalancer.cmd_case()) {
+  case eos::console::SpaceProto_GroupBalancerProto::kStatus:
+    GroupBalancerStatusCmd(groupbalancer.status(), reply, fs_space);
+    break;
+  default:
+    reply.set_std_err("error: not supported");
+    reply.set_retc(EINVAL);
+  }
+
+}
+
+void SpaceCmd::GroupBalancerStatusCmd(const eos::console::SpaceProto_GroupBalancerStatusProto& status,
+                                      eos::console::ReplyProto& reply,
+                                      FsSpace* const fs_space)
+{
+
+  bool monitoring = status.options().find('m') != std::string::npos;
+  bool detail = status.options().find('d') != std::string::npos;
+
+  reply.set_std_out(fs_space->mGroupBalancer->Status(detail, monitoring));
+  reply.set_retc(0);
+}
 
 EOSMGMNAMESPACE_END

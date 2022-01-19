@@ -64,4 +64,15 @@ void StdDevBalancerEngine::updateGroup(const std::string& group_name)
   }
 }
 
+std::string StdDevBalancerEngine::get_status_str(bool detail, bool monitoring) const
+{
+  std::stringstream oss;
+  if (!monitoring) {
+    oss << "Engine configured: Std\n";
+    oss << "Deviation Threshold    : " << mThreshold << "\n";
+  }
+  oss << BalancerEngine::get_status_str(detail, monitoring);
+  return oss.str();
+
+}
 }

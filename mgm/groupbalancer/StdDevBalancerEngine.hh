@@ -39,6 +39,7 @@ public:
     return mThreshold;
   }
 
+  std::string get_status_str(bool detail=false, bool monitoring=false) const override;
 private:
   /// average filled percentage in groups
   double mAvgUsedSize;

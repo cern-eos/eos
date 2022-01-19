@@ -89,6 +89,17 @@ message SpaceProto {
     string options  = 2;
   }
 
+  message GroupBalancerStatusProto {
+    string options = 1;
+  }
+
+  message GroupBalancerProto {
+    string mgmspace = 1;
+    oneof cmd {
+      GroupBalancerStatusProto status = 2;
+    }
+  }
+
   oneof subcmd {
     LsProto ls = 1;
     StatusProto status = 2;
@@ -102,6 +113,7 @@ message SpaceProto {
     NodeGetProto nodeGet = 10;
     TrackerProto tracker = 11;
     InspectorProto inspector = 12;
+    GroupBalancerProto groupbalancer = 13;
   }
 
 }

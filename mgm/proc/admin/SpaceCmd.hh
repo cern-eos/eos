@@ -27,7 +27,7 @@
 #include "mgm/proc/ProcCommand.hh"
 
 EOSMGMNAMESPACE_BEGIN
-
+class FsSpace;
 //------------------------------------------------------------------------------
 //! Class SpaceCmd - class handling space commands
 //------------------------------------------------------------------------------
@@ -164,9 +164,21 @@ private:
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
   static void InspectorSubcmd(const eos::console::SpaceProto_InspectorProto& inspector,
-                eos::console::ReplyProto& reply);
+                              eos::console::ReplyProto& reply);
+
+  //----------------------------------------------------------------------------
+  //! Execute groupbalancer subcommand
+  //!
+  //! @param groupbalaner groupbalaner subcommand proto object
+  //! @param reply reply proto object
+  //----------------------------------------------------------------------------
+  void GroupBalancerSubCmd(const eos::console::SpaceProto_GroupBalancerProto& groupbalancer,
+                           eos::console::ReplyProto& reply);
 
 
+  void GroupBalancerStatusCmd(const eos::console::SpaceProto_GroupBalancerStatusProto& status,
+                              eos::console::ReplyProto& reply,
+                              FsSpace* const fs_space);
 };
 
 EOSMGMNAMESPACE_END
