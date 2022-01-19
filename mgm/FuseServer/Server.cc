@@ -1547,7 +1547,8 @@ Server::OpSetDirectory(const std::string& id,
 
       if (md.name().substr(0, strlen(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX)) ==
           EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) {
-        eos_err("ino=%lx name=%s atomic path is forbidden as a directory name");
+        eos_err("ino=%lx name=%s atomic path is forbidden as a directory name",
+		md.md_pino(), md.name().c_str(
         return EPERM;
       }
 
