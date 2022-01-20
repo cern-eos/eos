@@ -1202,6 +1202,7 @@ void SpaceCmd::GroupBalancerSubCmd(const eos::console::SpaceProto_GroupBalancerP
   if (space_it == FsView::gFsView.mSpaceView.end()) {
     reply.set_std_err("error: No such space exists!");
     reply.set_retc(EINVAL);
+    return;
   }
   const auto fs_space = space_it->second;
 
@@ -1221,6 +1222,11 @@ void SpaceCmd::GroupBalancerStatusCmd(const eos::console::SpaceProto_GroupBalanc
                                       FsSpace* const fs_space)
 {
 
+  if (fs_space == nullptr || fs_space->mGroupBalancer == nullptr) {
+    reply.set_std_err("Invalid space/GroupBalancer config");
+    reply.set_retc(EINVAL);
+    return;
+  }
   bool monitoring = status.options().find('m') != std::string::npos;
   bool detail = status.options().find('d') != std::string::npos;
 
