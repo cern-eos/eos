@@ -33,6 +33,7 @@
 #include "mgm/IMaster.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
+#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "namespace/ns_quarkdb/qclient/include/qclient/ResponseParsing.hh"
 #include "namespace/Prefetcher.hh"
 #include "mq/ReportListener.hh"
@@ -76,6 +77,7 @@ void GetTopLevelDomains(std::set<std::string>& domains)
 
   if (curl) {
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5L);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, CurlWriteCallback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &data);
     CURLcode res = curl_easy_perform(curl);
@@ -255,9 +257,12 @@ Iostat::GetHashKey() const
 // Perform object initialization
 //------------------------------------------------------------------------------
 bool
-Iostat::Init(const std::string& instance_name, const std::string& file_path)
+Iostat::Init(const std::string& instance_name, int port,
+             const std::string& legacy_file)
 {
-  mHashKeyBase = SSTR("eos-iostat-report:" << instance_name << ":");
+  mHashKeyBase = SSTR("eos-iostat:" << instance_name << ":");
+  mFlusherPath = SSTR("/var/eos/ns-queue/" << instance_name << ":" << port
+                      << "_iostat");
 
   // Initialize qclient
   if (gOFS && !mQcl) {
@@ -271,7 +276,7 @@ Iostat::Init(const std::string& instance_name, const std::string& file_path)
     return false;
   }
 
-  if (!OneOffQdbMigration(file_path)) {
+  if (!OneOffQdbMigration(legacy_file)) {
     eos_static_err("%s", "msg=\"failed while attempting migration to QDB\"");
     return false;
   }
@@ -288,20 +293,20 @@ Iostat::Init(const std::string& instance_name, const std::string& file_path)
 // One off migration from file based to QDB of IoStat information
 //------------------------------------------------------------------------------
 bool
-Iostat::OneOffQdbMigration(const std::string& file_path)
+Iostat::OneOffQdbMigration(const std::string& legacy_file)
 {
   struct stat info;
 
-  if (stat(file_path.c_str(), &info)) {
+  if (stat(legacy_file.c_str(), &info)) {
     // File does not exist, migration was probably already done
     return true;
   }
 
-  FILE* fin = fopen(file_path.c_str(), "r");
+  FILE* fin = fopen(legacy_file.c_str(), "r");
 
   if (!fin) {
     eos_static_err("msg=\"failed to open iostat file\" path=\"%s\"",
-                   file_path.c_str());
+                   legacy_file.c_str());
     return false;
   }
 
@@ -314,12 +319,12 @@ Iostat::OneOffQdbMigration(const std::string& file_path)
     XrdOucEnv env(line);
 
     if (env.Get("tag") && env.Get("uid") && env.Get("val")) {
-      entries.push_back(EncodeKey("u", env.Get("uid"), env.Get("tag")));
+      entries.push_back(EncodeKey(USER_ID_TYPE, env.Get("uid"), env.Get("tag")));
       entries.push_back(env.Get("val"));
     }
 
     if (env.Get("tag") && env.Get("gid") && env.Get("val")) {
-      entries.push_back(EncodeKey("g", env.Get("gid"), env.Get("tag")));
+      entries.push_back(EncodeKey(GROUP_ID_TYPE, env.Get("gid"), env.Get("tag")));
       entries.push_back(env.Get("val"));
     }
   }
@@ -342,16 +347,16 @@ Iostat::OneOffQdbMigration(const std::string& file_path)
   }
 
   // Save file based iostat as a backup
-  const std::string bkp_path = file_path + ".bkp";
+  const std::string bkp_path = legacy_file + ".bkp";
 
-  if (rename(file_path.c_str(), bkp_path.c_str())) {
+  if (rename(legacy_file.c_str(), bkp_path.c_str())) {
     eos_static_err("msg=\"failed file rename\" old_path=\"%s\" new_path=\"%s\"",
-                   file_path.c_str(), bkp_path.c_str());
+                   legacy_file.c_str(), bkp_path.c_str());
     return false;
   }
 
   eos_static_info("msg=\"saved iostat backup successfully\" old_path=\"%s\" "
-                  " new_path=\"%s\"", file_path.c_str(), bkp_path.c_str());
+                  " new_path=\"%s\"", legacy_file.c_str(), bkp_path.c_str());
   return true;
 }
 
@@ -544,14 +549,49 @@ Iostat::StopReportNamespace()
 // Record measurement to the various periods it overlaps with
 //------------------------------------------------------------------------------
 void
-Iostat::Add(const char* tag, uid_t uid, gid_t gid, unsigned long long val,
+Iostat::Add(const std::string& tag, uid_t uid, gid_t gid,
+            unsigned long long val,
             time_t start, time_t stop, time_t now)
 {
+  AddToQdb(tag, uid, gid, val);
   std::unique_lock<std::mutex> scope_lock(mDataMutex);
   IostatUid[tag][uid] += val;
   IostatGid[tag][gid] += val;
   IostatPeriodsUid[tag][uid].Add(val, start, stop, now);
   IostatPeriodsGid[tag][gid].Add(val, start, stop, now);
+}
+
+//------------------------------------------------------------------------------
+// Low level implementation for Add method also sending data to QDB
+//------------------------------------------------------------------------------
+void
+Iostat::AddToQdb(const std::string& tag, uid_t uid, gid_t gid,
+                 unsigned long long val)
+{
+  using namespace std::chrono;
+  using eos::common::Timing;
+  static const hours timeout {1};
+  static auto timestamp = steady_clock::now();
+  static std::string hash_key = mHashKeyBase + Timing::GetCurrentYear();
+
+  if ((mFlusher == nullptr) ||
+      (duration_cast<minutes>(steady_clock::now() - timestamp) > timeout)) {
+    timestamp = steady_clock::now();
+    std::string new_hash_key = mHashKeyBase + Timing::GetCurrentYear();
+
+    if ((mFlusher == nullptr) || (new_hash_key != hash_key)) {
+      hash_key = new_hash_key;
+      mFlusher.reset(new eos::MetadataFlusher(mFlusherPath,
+                                              gOFS->mQdbContactDetails));
+    }
+  }
+
+  const std::string svalue = std::to_string(val);
+  mFlusher->exec("HINCRBYMULTI",
+                 hash_key, EncodeKey(USER_ID_TYPE, std::to_string(uid), tag),
+                 svalue,
+                 hash_key, EncodeKey(GROUP_ID_TYPE, std::to_string(gid), tag),
+                 svalue);
 }
 
 //------------------------------------------------------------------------------
@@ -656,8 +696,12 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
           report->ots, report->cts, now);
       Add("disk_time_write", report->uid, report->gid,
           report->wt, report->ots, report->cts, now);
-      Add("bytes_deleted", 0, 0, report->dsize, now - 30, now, now);
-      Add("files_deleted", 0, 0, 1, now - 30, now, now);
+
+      if (report->dsize) {
+        Add("bytes_deleted", 0, 0, report->dsize, now - 30, now, now);
+        Add("files_deleted", 0, 0, 1, now - 30, now, now);
+      }
+
       // Do the UDP broadcasting
       UdpBroadCast(report.get());
 
@@ -2309,9 +2353,9 @@ Iostat::LoadFromQdb()
       return false;
     }
 
-    if (id_type == "u") {
+    if (id_type == USER_ID_TYPE) {
       IostatUid[tag][id] = val;
-    } else if (id_type == "g") {
+    } else if (id_type == GROUP_ID_TYPE) {
       IostatGid[tag][id] = val;
     }
   }

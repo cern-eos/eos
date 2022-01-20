@@ -39,6 +39,7 @@
 
 namespace eos
 {
+class MetadataFlusher;
 namespace common
 {
 class Report;
@@ -154,11 +155,13 @@ public:
   //! Perform object initialization
   //!
   //! @param instance_name used to build the hash map key to be stored in QDB
-  //! @param file path legacy iostat file path location
+  //! @param port instance port
+  //! @param legacy_file path legacy iostat file path location
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool Init(const std::string& instance_name, const std::string& file_path);
+  bool Init(const std::string& instance_name, int port,
+            const std::string& legacy_file);
 
   //----------------------------------------------------------------------------
   //! Apply instance level configuration concerning IoStats
@@ -306,7 +309,7 @@ public:
   //! @param stop stop timestamp of measurement
   //! @param now current timestamp
   //----------------------------------------------------------------------------
-  void Add(const char* tag, uid_t uid, gid_t gid, unsigned long long val,
+  void Add(const std::string& tag, uid_t uid, gid_t gid, unsigned long long val,
            time_t start, time_t stop, time_t now);
 
   //----------------------------------------------------------------------------
@@ -334,6 +337,8 @@ private:
 #ifdef IN_TEST_HARNESS
 public:
 #endif
+  inline static const std::string USER_ID_TYPE = "u";
+  inline static const std::string GROUP_ID_TYPE = "g";
   google::sparse_hash_map<std::string,
          google::sparse_hash_map<uid_t, unsigned long long>> IostatUid;
   google::sparse_hash_map<std::string,
@@ -348,6 +353,9 @@ public:
   google::sparse_hash_map<std::string, IostatPeriods> IostatPeriodsAppIOwb;
   std::set<std::string> IoDomains;
   std::set<std::string> IoNodes;
+  //! Flusher to QDB backend
+  std::unique_ptr<eos::MetadataFlusher> mFlusher;
+  std::string mFlusherPath;
   //! Mutex protecting the above data structures
   std::mutex mDataMutex;
   std::atomic<bool> mRunning;
@@ -415,6 +423,17 @@ public:
   };
 
   //----------------------------------------------------------------------------
+  //! Record measurements directly in QDB
+  //!
+  //! @param tag measurement info tag
+  //! @param uid user id
+  //! @param gid group id
+  //! @param val measurement value
+  //----------------------------------------------------------------------------
+  void AddToQdb(const std::string& tag, uid_t uid, gid_t gid,
+                unsigned long long val);
+
+  //----------------------------------------------------------------------------
   //! Do the UDP broadcast
   //!
   //! @param report pointer to report object
@@ -444,16 +463,17 @@ public:
   //----------------------------------------------------------------------------
   //! One off migration from file based to QDB of IoStat information
   //!
-  //! @param file_path file path for IoStat information
+  //! @param legacy_file file path for IoStat information
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool OneOffQdbMigration(const std::string& file_path);
+  bool OneOffQdbMigration(const std::string& legacy_file);
 
   //----------------------------------------------------------------------------
   //! Create/encode hash map key string from the given information
   //!
-  //! @param id_type type of id, can be either user 'u' or group 'g'
+  //! @param id_type type of id, can be either user USER_ID_TYPE
+  //!        or group GROUP_ID_TYPE
   //! @param id_val numeric value of the id
   //! @param tag type of tag eg. bytes_read, bytes_write etc.
   //!
@@ -468,7 +488,8 @@ public:
   //! Decode/parse hash map key to extract entry information
   //!
   //! @param key hash map key obtained by calling EncodeKey
-  //! @param id_type type of id, can be either user 'u' or group 'g'
+  //! @param id_type type of id, can be either user USER_ID_TYPE
+  //!        or group GROUP_ID_TYPE
   //! @param id_val numeric value of the id
   //! @param tag type of tag eg. bytes_read, bytes_write etc.
   //!
