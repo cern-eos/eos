@@ -553,7 +553,11 @@ Iostat::Add(const std::string& tag, uid_t uid, gid_t gid,
             unsigned long long val,
             time_t start, time_t stop, time_t now)
 {
-  AddToQdb(tag, uid, gid, val);
+  // Flush to QDB if not in testing mode
+  if (gOFS) {
+    AddToQdb(tag, uid, gid, val);
+  }
+
   std::unique_lock<std::mutex> scope_lock(mDataMutex);
   IostatUid[tag][uid] += val;
   IostatGid[tag][gid] += val;
