@@ -27,7 +27,6 @@
 #include "fst/io/FileIoPlugin.hh"
 #include "fst/io/FileIoPluginCommon.hh"
 #include "fst/io/local/LocalIo.hh"
-#include "fst/io/rados/RadosIo.hh"
 #include "fst/io/davix/DavixIo.hh"
 
 EOSFSTNAMESPACE_BEGIN
@@ -48,8 +47,6 @@ FileIoPlugin::GetIoObject(std::string path,
     return static_cast<FileIo*>(new LocalIo(path, file, client));
   } else if (ioType == LayoutId::kXrdCl) {
     return static_cast<FileIo*>(new XrdIo(path));
-  } else if (ioType == LayoutId::kRados) {
-    return static_cast<FileIo*>(new RadosIo(path));
   } else if (ioType == LayoutId::kDavix) {
 #ifdef HAVE_DAVIX
     std::string s3credentials = "";

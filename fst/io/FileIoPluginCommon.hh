@@ -28,9 +28,6 @@
 #include "fst/io/FileIo.hh"
 #include "fst/io/local/FsIo.hh"
 #include "fst/io/xrd/XrdIo.hh"
-#ifdef RADOS_FOUND
-#include "fst/io/rados/RadosIo.hh"
-#endif
 #include "fst/io/davix/DavixIo.hh"
 #include "common/LayoutId.hh"
 #include "common/Logging.hh"
@@ -77,12 +74,6 @@ public:
       return static_cast<FileIo*>(new FsIo(path));
     } else if (ioType == LayoutId::kXrdCl) {
       return static_cast<FileIo*>(new XrdIo(path));
-    } else if (ioType == LayoutId::kRados) {
-#ifdef RADOS_FOUND
-      return static_cast<FileIo*>(new RadosIo(path));
-#endif // RADOS_FOUND
-      eos_static_warning("%s", "msg=\"EOS has been compiled without RADOS support\"");
-      return NULL;
     } else if (ioType == LayoutId::kDavix) {
 #ifdef HAVE_DAVIX
       return static_cast<FileIo*>(new DavixIo(path));
