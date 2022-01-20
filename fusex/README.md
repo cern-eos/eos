@@ -69,6 +69,7 @@ This
     "sss" : 1,
     "ssskeytab" : "/etc/eos/fuse.sss.keytab",
     "oauth2" : 1,
+    "unix" : 0,
     "environ-deadlock-timeout" : 100,
     "forknoexec-heuristic" : 1
   },
@@ -287,6 +288,22 @@ Use these authentication directives in the config file:
 ```
 The mount daemon uses /etc/fuse/fuse.sss.keytab as default keytab when running as a shared mount. The user mount default is $HOME/.eos/fuse.sss.keytab. Unlike Kerberos it is not possible in XRootD to use different keytabs for individual users. If you want to create a 'trusted' mount mapping local users to their local username, you have to create an sss keytab entry for user **anybody** and group **anygroup**. Otherwise you can create an sss keytab for a given application user.
 The mount also supports to forward sss endorsements, which are forwarded to the server. These endorsement can be used server-side to define an ACL entry by key e.g. sys.acl="k:9c2bd333-5331-4095-8fcd-28726404742f:rwx". This would provide access to all sss clients having this key in their environment even if the mapped sss user/group wouldn't have access.
+
+
+Mounting for UNIX gateways
+--------------------------
+
+
+Use these authentication directives in the config files:
+```
+```
+  "auth" : {
+    "shared-mount" : 1,
+    "unix" : 1,
+    "sss" : 1
+  }
+```
+If you enable UNIX, it will be used for everbody but root (uid=0). In this example root will fall back to sss authentication. If you don't specify any other, root will also use UNIX and will be mapped to nobody server side.
 
 
 AUTOFS Configuration

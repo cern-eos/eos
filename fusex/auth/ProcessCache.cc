@@ -63,13 +63,20 @@ ProcessCache::discoverBoundIdentity(const JailInformation& jail,
   std::shared_ptr<const BoundIdentity> output;
 
   //----------------------------------------------------------------------------
-  // Shortcut: If all authentication methods are disabled, just use Unix
+  // Shortcut: If all authentication methods are disabled, or unix is enabled and uid!=0 just use Unix
   //----------------------------------------------------------------------------
-  if (!credConfig.use_user_krb5cc && !credConfig.use_user_gsiproxy &&
-      !credConfig.use_user_sss && !credConfig.use_user_oauth2) {
+  if ((!credConfig.use_user_krb5cc && !credConfig.use_user_gsiproxy &&
+       !credConfig.use_user_sss && !credConfig.use_user_oauth2) ||
+      (credConfig.use_user_unix && uid)) {
 
-    LogbookScope scope = logbook.makeScope("krb5, x509, OAUTH2 and SSS disabled - "
+    LogbookScope scope;
+    if (credConfig.use_user_unix && uid) {
+      scope = logbook.makeScope("unix enabled and uid!=0 - "
+      "using UNIX");
+    } else {
+      scope = logbook.makeScope("krb5, x509, OAUTH2 and SSS disabled - "
       "falling back to UNIX");
+    }
     Environment env;
     // in such a case encryptio does not work
     return boundIdentityProvider.unixAuth(processInfo.getPid(), uid, gid,

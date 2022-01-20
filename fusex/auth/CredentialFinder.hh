@@ -44,7 +44,7 @@ class CredentialConfig
 public:
 
   CredentialConfig() : use_user_krb5cc(false), use_user_gsiproxy(false),
-    use_user_sss(false), use_user_oauth2(false), tryKrb5First(false), fallback2nobody(false),
+    use_user_sss(false), use_user_oauth2(false), tryKrb5First(false), use_user_unix(false),
     fuse_shared(false),
     environ_deadlock_timeout(500), forknoexec_heuristic(true),
     ignore_containerization(false) { }
@@ -59,9 +59,8 @@ public:
   bool use_user_oauth2;
   //! Indicates if Krb5 should be tried before Gsi
   bool tryKrb5First;
-  //! Indicates if unix authentication (as nobody) should be used as a fallback
-  //! if strong authentication is configured and none is found
-  bool fallback2nobody;
+  //! Indicates if unix authentication is to be used for authentication for all but uid=0
+  bool use_user_unix;
   //! Indicates if this is a shared fuse mount
   bool fuse_shared;
   //! How long to wait before declaring a kernel deadlock when reading /proc/environ
