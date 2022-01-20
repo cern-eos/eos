@@ -709,8 +709,8 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             (key == "geo.access.policy.read.exact") ||
             (key == "geo.access.policy.write.exact") ||
             (key == "filearchivedgc") ||
-	    (key == "max.ropen") ||
-	    (key == "max.wopen") ||
+            (key == "max.ropen") ||
+            (key == "max.wopen") ||
             (key == eos::mgm::tgc::TGC_NAME_QRY_PERIOD_SECS) ||
             (key == eos::mgm::tgc::TGC_NAME_AVAIL_BYTES) ||
             (key == eos::mgm::tgc::TGC_NAME_TOTAL_BYTES) ||
@@ -970,7 +970,8 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
       gOFS->ConfEngine->SetAutoSave(false);
 
       // Store these as a global parameters of the space
-      if ((key == "headroom") || (key == "graceperiod") || (key == "drainperiod") || (key == "max.ropen") || (key == "max.wopen") ||
+      if ((key == "headroom") || (key == "graceperiod") || (key == "drainperiod") ||
+          (key == "max.ropen") || (key == "max.wopen") ||
           (key == eos::common::SCAN_IO_RATE_NAME) ||
           (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
           (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
@@ -1006,13 +1007,6 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                (eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) !=
                 eos::common::ConfigStatus::kUnknown))) {
             fs->SetString(key.c_str(), value.c_str());
-
-            if (value == "off") {
-              // we have to remove the errc here, otherwise we cannot
-              // terminate drainjobs on file systems with errc set
-              fs->SetString("errc", "0");
-            }
-
             FsView::gFsView.StoreFsConfig(fs, false);
           } else {
             errno = 0;

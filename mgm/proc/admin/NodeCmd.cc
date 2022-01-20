@@ -27,6 +27,7 @@
 #include "mgm/IMaster.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "mq/MessagingRealm.hh"
+#include "namespace/interface/IFsView.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -202,8 +203,7 @@ void NodeCmd::RmSubcmd(const eos::console::NodeProto_RmProto& rm,
       // check the empty state
       if ((fs->GetConfigStatus(false) != eos::common::ConfigStatus::kEmpty)) {
         reply.set_std_err("error: unable to remove node '" + nodename +
-                          "' - filesystems are not all in empty state - try "
-                          "to drain them or: node config <name> configstatus=empty");
+                          "' - filesystems are not all in empty state");
         reply.set_retc(EBUSY);
         return;
       }
@@ -462,14 +462,19 @@ NodeCmd::ConfigFsSpecific(const std::set<std::string>& nodes,
         continue;
       }
 
-      fs->SetString(key.c_str(), value.c_str());
-
-      if (value == "off") {
-        // We have to remove the errc here, otherwise we cannot terminate
-        // drainjobs on file systems with errc set
-        fs->SetString("errc", "0");
+      if (value == "empty") {
+        // Check if the file system is really empty
+        if (gOFS->eosFsView->getNumFilesOnFs(fs->GetId())) {
+          eos_static_info("msg=\"trying to set a file system that still "
+                          "contains files to empty state\" fsid=%lu",
+                          fs->GetId());
+          reply.set_std_err("error: some file systems are not empty");
+          reply.set_retc(EINVAL);
+          break;
+        }
       }
 
+      fs->SetString(key.c_str(), value.c_str());
       FsView::gFsView.StoreFsConfig(fs, false);
     }
 
