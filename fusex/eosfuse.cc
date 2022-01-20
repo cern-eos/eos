@@ -634,7 +634,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       }
 
       if (!root["auth"].isMember("unix")) {
-        root["auth"]["unix"] = 1;
+        root["auth"]["unix"] = 0;
       }
 
       if (!root["auth"].isMember("ignore-containerization")) {
