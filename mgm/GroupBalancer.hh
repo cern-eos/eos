@@ -111,6 +111,8 @@ public:
   void Configure(FsSpace* const space, Config& cfg);
 
   std::string Status(bool detail=false, bool monitoring=false) const;
+
+  static bool is_valid_engine(std::string_view engine_name);
 private:
   AssistedThread mThread; ///< Thread scheduling jobs
   std::string mSpaceName; ///< Attached space name

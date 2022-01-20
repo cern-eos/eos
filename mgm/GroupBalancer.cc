@@ -429,6 +429,11 @@ GroupBalancer::Status(bool detail, bool monitoring) const
   return mEngine->get_status_str(detail, monitoring);
 }
 
+bool
+GroupBalancer::is_valid_engine(std::string_view engine_name) {
+  return engine_name == "std" || engine_name == "minmax";
+}
+
 void
 GroupBalancer::Configure(FsSpace* const space, GroupBalancer::Config& cfg)
 {
