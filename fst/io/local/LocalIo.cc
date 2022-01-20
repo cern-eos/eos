@@ -81,6 +81,27 @@ LocalIo::fileOpen(XrdSfsFileOpenMode flags, mode_t mode,
 }
 
 //------------------------------------------------------------------------------
+// Open file asynchronously
+//----------------------------------------------------------------------------
+std::future<XrdCl::XRootDStatus>
+LocalIo::fileOpenAsync(XrdSfsFileOpenMode flags, mode_t mode,
+                       const std::string& opaque, uint16_t timeout)
+{
+  std::promise<XrdCl::XRootDStatus> open_promise;
+  std::future<XrdCl::XRootDStatus> open_future = open_promise.get_future();
+
+  if (fileOpen(flags, mode, opaque, timeout) != SFS_OK) {
+    open_promise.set_value(XrdCl::XRootDStatus(XrdCl::stError,
+                           XrdCl::errUnknown,
+                           EIO, "failed open"));
+  } else {
+    open_promise.set_value(XrdCl::XRootDStatus(XrdCl::stOK, ""));
+  }
+
+  return open_future;
+}
+
+//------------------------------------------------------------------------------
 // Read from file - sync
 //------------------------------------------------------------------------------
 int64_t

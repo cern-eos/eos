@@ -69,6 +69,20 @@ public:
                const std::string& opaque = "",
                uint16_t timeout = 0);
 
+  //----------------------------------------------------------------------------
+  //! Open file asynchronously
+  //!
+  //! @param flags open flags
+  //! @param mode open mode
+  //! @param opaque opaque info to be appended to the request
+  //! @param timeout operation timeout
+  //!
+  //! @return future holding the status response
+  //--------------------------------------------------------------------------
+  std::future<XrdCl::XRootDStatus>
+  fileOpenAsync(XrdSfsFileOpenMode flags, mode_t mode = 0,
+                const std::string& opaque = "", uint16_t timeout = 0) override;
+
   //--------------------------------------------------------------------------
   //! Read from file - sync
   //!

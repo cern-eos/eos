@@ -195,7 +195,7 @@ public:
   //! @return 0 if successful, -1 otherwise and error code is set
   //----------------------------------------------------------------------------
   int fileOpen(XrdSfsFileOpenMode flags, mode_t mode = 0,
-               const std::string& opaque = "", uint16_t timeout = 0);
+               const std::string& opaque = "", uint16_t timeout = 0) override;
 
   //----------------------------------------------------------------------------
   //! Open file - asynchronously. This call is to be used from one of the file
@@ -212,7 +212,21 @@ public:
   //----------------------------------------------------------------------------
   int fileOpenAsync(void* io_handler, XrdSfsFileOpenMode flags,
                     mode_t mode = 0, const std::string& opaque = "",
-                    uint16_t timeout = 0);
+                    uint16_t timeout = 0) override;
+
+  //----------------------------------------------------------------------------
+  //! Open file asynchronously
+  //!
+  //! @param flags open flags
+  //! @param mode open mode
+  //! @param opaque opaque info to be appended to the request
+  //! @param timeout operation timeout
+  //!
+  //! @return future holding the status response
+  //--------------------------------------------------------------------------
+  std::future<XrdCl::XRootDStatus>
+  fileOpenAsync(XrdSfsFileOpenMode flags, mode_t mode = 0,
+                const std::string& opaque = "", uint16_t timeout = 0) override;
 
   //----------------------------------------------------------------------------
   //! Read from file - sync
@@ -689,7 +703,8 @@ public:
   enum class OpType {
     None,
     Write,
-    Truncate
+    Truncate,
+    Open
   };
 
   //----------------------------------------------------------------------------

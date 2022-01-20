@@ -373,6 +373,39 @@ XrdIo::fileOpenAsync(void* io_handler,
 }
 
 //------------------------------------------------------------------------------
+// Open file asynchronously
+//------------------------------------------------------------------------------
+std::future<XrdCl::XRootDStatus>
+XrdIo::fileOpenAsync(XrdSfsFileOpenMode flags, mode_t mode,
+                     const std::string& opaque, uint16_t timeout)
+{
+  using eos::common::LayoutId;
+  std::promise<XrdCl::XRootDStatus> open_promise;
+  std::future<XrdCl::XRootDStatus> open_future = open_promise.get_future();
+
+  if (!mXrdFile) {
+    errno = EIO;
+    open_promise.set_value(XrdCl::XRootDStatus(XrdCl::stError,
+                           XrdCl::errOSError, EIO));
+    return open_future;
+  }
+
+  XrdIoHandler* open_handler = new XrdIoHandler(std::move(open_promise),
+      XrdIoHandler::OpType::Open);
+  XrdCl::OpenFlags::Flags flags_xrdcl = LayoutId::MapFlagsSfs2XrdCl(flags);
+  XrdCl::Access::Mode mode_xrdcl = LayoutId::MapModeSfs2XrdCl(mode);
+  XrdCl::XRootDStatus status = mXrdFile->Open(mTargetUrl.GetURL().c_str(),
+                               flags_xrdcl, mode_xrdcl,
+                               open_handler, timeout);
+
+  if (!status.IsOK()) {
+    open_handler->HandleResponse(new XrdCl::XRootDStatus(status), nullptr);
+  }
+
+  return open_future;
+}
+
+//------------------------------------------------------------------------------
 // Read from file - sync
 //------------------------------------------------------------------------------
 int64_t
