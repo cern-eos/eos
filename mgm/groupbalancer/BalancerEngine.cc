@@ -141,7 +141,7 @@ std::string BalancerEngine::generate_table(const threshold_group_set& groups) co
 }
 
 
-  std::string BalancerEngine::get_status_str(bool detail, bool monitoring) const
+std::string BalancerEngine::get_status_str(bool detail, bool monitoring) const
 {
   std::stringstream oss;
 

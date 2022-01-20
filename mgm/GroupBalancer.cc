@@ -366,7 +366,8 @@ GroupBalancer::prepareTransfer()
 
   auto&& [over_it, under_it] = mEngine->pickGroupsforTransfer();
   if (over_it.empty() || under_it.empty()) {
-    eos_static_info("Engine gave us invalid groups skipping!");
+    eos_static_info("Engine gave us empty groups skipping! engine_status: %s",
+                    mEngine->get_status_str(false, true).c_str());
     return;
   }
 
@@ -489,9 +490,9 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
 
     if (!cfg.is_enabled || !cfg.is_conv_enabled) {
       FsView::gFsView.ViewMutex.UnLockRead();
-      eos_static_debug("msg=\"group balancer or converter not enabled\" space=\"%s\""
-                       " balancer status=%d converter status=%d",
-                       mSpaceName.c_str(), cfg.is_enabled, cfg.is_conv_enabled);
+      eos_static_info("msg=\"group balancer or converter not enabled\" space=\"%s\""
+                      " balancer status=%d converter status=%d",
+                      mSpaceName.c_str(), cfg.is_enabled, cfg.is_conv_enabled);
       continue;
     }
 
@@ -505,25 +506,26 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
 
     mEngine->configure(mEngineConf);
 
-    eos_static_info("msg=\"group balancer enabled\" ntx=%d ", cfg.num_tx);
     UpdateTransferList();
 
     if ((int) mTransfers.size() >= cfg.num_tx) {
       continue;
     }
+    eos_static_debug("msg=\"group balancer enabled\" ntx=%d ", cfg.num_tx);
 
     if (cacheExpired() || engine_reconfigured) {
       mEngine->populateGroupsInfo(fetcher.fetch());
       printSizes(mEngine->get_group_sizes());
+      if (engine_reconfigured) {
+        eos_static_info("msg=\"group balancer engine reconfigured\"");
+        engine_reconfigured = false;
+      }
     } else {
       mEngine->recalculate();
     }
 
     prepareTransfers(cfg.num_tx);
 
-    if (engine_reconfigured && prev_engine_type == cfg.engine_type) {
-      engine_reconfigured = false;
-    }
   }
 }
 
