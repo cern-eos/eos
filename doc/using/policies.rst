@@ -21,6 +21,7 @@ The following policies can be configured
    blockchecksum adler,md5,sha1,crc32,crc32c           
    blocksize     4k,64k,128k,512k,1M,4M,16M,64M           
    bandwidth     IO limit in MB/s
+   iotype        io flavour [ direct, sync, msync, dsync ]
    ============= ==============================================
 
 
@@ -54,10 +55,13 @@ Setting space policies
    # configure default FST iopriority
    eos space config default space.policy.iopriority=be:4
 
+   # configure default FST iotype
+   eos space config default space.policy.iotype=direct
+
 Setting application policies
 -------------------------------------
 
-Application bandwidht policies apply for all read and write streams.
+Application bandwidth policies apply for all read and write streams.
 
 .. code-block:: bash
 
@@ -112,6 +116,8 @@ The space polcies are overwritten by the local extended attribute settings of th
    checksum      sys.forced.checksum, user.forced.checksum
    blockchecksum sys.forced.blockchecksum, user.forced.blockchecksum   
    blocksize     sys.forced.blocksize, user.forced.blocksize
+   iopritoiry    sys.forced.iopriority
+   iotype        sys.forced.iotype
    ============= ===================================================
 
 
@@ -149,6 +155,7 @@ Policies are displayd using the ``space status`` command:
    policy.layout                    := replica
    policy.nstripes                  := 2
    policy.bandwidth                 := 100
+   policy.iotype                    := direct
    ...
    bw.myapp                         := 100
    bw.eoscp                         := 200

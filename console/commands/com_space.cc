@@ -572,13 +572,9 @@ com_space_usage:
           "       space config <space-name> space.autorepair=on|off             : enable auto-repair of faulty replica's/files (the converter has to be enabled too)\n");
   fprintf(stdout,
           "                                                                       => size can be given also like 10T, 20G, 2P ... without space before the unit \n");
-  fprintf(stdout,
-          "       space config <space-name> space.geo.access.policy.write.exact=on|off   : if 'on' use exact matching geo replica (if available) , 'off' uses weighting [ for write case ]\n");
-  fprintf(stdout,
-          "       space config <space-name> space.geo.access.policy.read.exact=on|off    : if 'on' use exact matching geo replica (if available) , 'off' uses weighting [ for read case  ]\n");
   fprintf(stdout, "\n");
   fprintf(stdout, 
-	  "       space config <space-name> space.policy.[layout|nstripes|checksum|blockchecksum|blocksize|remove]=<value>              : configure default file layout creation settings as a space policy - a value='remove' deletes the space policy\n\n");
+	  "       space config <space-name> space.policy.[layout|nstripes|checksum|blockchecksum|blocksize|iotype|remove]=<value>              : configure default file layout creation settings as a space policy - a value='remove' deletes the space policy\n\n");
   
   fprintf(stdout,
           "       space config <space-name> fs.<key>=<value>                    : configure file system parameters for each filesystem in this space (see help of 'fs config' for details)\n");

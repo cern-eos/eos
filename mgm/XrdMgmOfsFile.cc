@@ -1512,12 +1512,14 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   std::string targetgeotag;
   std::string bandwidth;
   std::string ioprio;
+  std::string iotype;
+
   bool schedule = false;
   eos::common::RWMutexReadLock
   fs_rd_lock(FsView::gFsView.ViewMutex, __FUNCTION__, __LINE__, __FILE__);
   // select space and layout according to policies
   Policy::GetLayoutAndSpace(path, attrmap, vid, new_lid, space, *openOpaque,
-                            forcedFsId, forced_group, bandwidth, schedule, ioprio);
+                            forcedFsId, forced_group, bandwidth, schedule, ioprio, iotype);
 
   if (ioPriority.length()) {
     capability += "&mgm.iopriority=";
@@ -1531,6 +1533,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   if (schedule) {
     capability += "&mgm.schedule=1";
+  }
+
+  if (iotype.length()) {
+    capability += "&mgm.iotype=";
+    capability += iotype.c_str();
   }
 
   // get placement policy

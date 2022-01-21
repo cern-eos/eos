@@ -48,7 +48,7 @@ Policy::GetSpacePolicyLayout(const char* space)
   std::string bandwidth;
   bool schedule=0;
   std::string iopriority;
-
+  std::string iotype;
   eos::IContainerMD::XAttrMap attrmap;
   eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
   GetLayoutAndSpace("/",
@@ -62,6 +62,7 @@ Policy::GetSpacePolicyLayout(const char* space)
 		    bandwidth,
 		    schedule,
 		    iopriority,
+		    iotype,
 		    true);
   return layoutid;
 }
@@ -78,6 +79,7 @@ Policy::GetLayoutAndSpace(const char* path,
 			  std::string& bandwidth,
 			  bool& schedule,
 			  std::string& iopriority,
+			  std::string& iotype,
 			  bool lockview)
 
 {
@@ -114,6 +116,7 @@ Policy::GetLayoutAndSpace(const char* path,
       bandwidth = it->second->GetConfigMember("policy.bandwidth");
       schedule = (it->second->GetConfigMember("policy.schedule")=="1");
       iopriority = it->second->GetConfigMember("policy.iopriority");
+      iopriority = it->second->GetConfigMember("policy.iotype");
 
       // try application specific bandwidth setting
       std::string appkey = "bw.";
@@ -172,6 +175,7 @@ Policy::GetLayoutAndSpace(const char* path,
       bandwidth = it->second->GetConfigMember("policy.bandwidth");
       schedule = (it->second->GetConfigMember("policy.schedule")=="1");
       iopriority = it->second->GetConfigMember("policy.iopriority");
+      iotype = it->second->GetConfigMember("policy.iotype");
 
       // try application specific bandwidth setting
       std::string appkey = "bw.";
@@ -278,6 +282,16 @@ Policy::GetLayoutAndSpace(const char* path,
       // we force to use a specified stripe width in this directory even if the user wants something else
       blocksize = eos::common::LayoutId::GetBlocksizeFromEnv(layoutenv);
       eos_static_debug("sys.forced.blocksize in %s : %llu", path, blocksize);
+    }
+
+    if (attrmap.count("sys.forced.iotype")) {
+      iotype = attrmap["sys.forced.iotype"];
+      eos_static_debug("sys.forced.iotype i %s : %s", path, iotype.c_str());
+    }
+
+    if (attrmap.count("sys.forced.iopriority")) {
+      iotype = attrmap["sys.forced.iopriority"];
+      eos_static_debug("sys.forced.iopriority i %s : %s", path, iopriority.c_str());
     }
 
     if (((!attrmap.count("sys.forced.nouserlayout")) ||

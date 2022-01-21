@@ -484,8 +484,15 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   oss_opaque += "&mgm.bookingsize=";
   oss_opaque += static_cast<int>(mBookingSize);
 
-  if ((val = mOpenOpaque->Get("eos.iotype"))) {
-    oss_opaque += "&mgm.ioflag=";
+  if (! (val = mCapOpaque->Get("mgm.iotype"))) {
+    // provided by a client
+    if ((val = mOpenOpaque->Get("eos.iotype"))) {
+      oss_opaque += "&mgm.ioflag=";
+      oss_opaque += val;
+    }
+  } else {
+    // forced by the MGM configuration
+    oss_opaque += "mgm.ioflag=";
     oss_opaque += val;
   }
 

@@ -2145,9 +2145,11 @@ Server::OpSetFile(const std::string& id,
       std::string bandwidth;
       bool schedule = false;
       std::string iopriority;
+      std::string iotype;
+
       // retrieve the layout
       Policy::GetLayoutAndSpace("fusex", attrmap, vid, layoutId, space, env,
-                                forcedFsId, forcedGroup, bandwidth, schedule, iopriority, false);
+                                forcedFsId, forcedGroup, bandwidth, schedule, iopriority, iotype, false);
       fs_rd_lock.Release();
 
       if (eos::mgm::FsView::gFsView.IsQuotaEnabled(space.c_str())) {

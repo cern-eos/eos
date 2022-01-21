@@ -58,6 +58,7 @@ public:
 				 std::string& bandwidth,
 				 bool &schedul,
 				 std::string& iopriority,
+				 std::string& ioptype,
 				 bool lock_view = false);
 
   static void GetPlctPolicy (const char* path,
