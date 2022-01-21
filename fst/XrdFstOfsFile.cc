@@ -67,7 +67,7 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   mWritePosition(0ull), openSize(0),
   closeSize(0), mTpcThreadStatus(EINVAL), mTpcState(kTpcIdle),
   mTpcFlag(kTpcNone), mTpcKey(""), mIsTpcDst(false), mTpcRetc(0),
-  mTpcCancel(false)
+  mTpcCancel(false), mSyncOnClose(false)
 {
   rBytes = wBytes = sFwdBytes = sBwdBytes = sXlFwdBytes
                                 = sXlBwdBytes = rOffset = wOffset = 0;
@@ -489,11 +489,19 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     if ((val = mOpenOpaque->Get("eos.iotype"))) {
       oss_opaque += "&mgm.ioflag=";
       oss_opaque += val;
+      if (std::string(val) == "csync") {
+	// cannot be done in the OSS
+	mSyncOnClose = true;
+      }
     }
   } else {
     // forced by the MGM configuration
-    oss_opaque += "mgm.ioflag=";
+    oss_opaque += "&mgm.ioflag=";
     oss_opaque += val;
+    if (std::string(val) == "csync") {
+      // cannot be done in the OSS
+      mSyncOnClose = true;
+    }
   }
 
   // Open layout implementation
@@ -1639,6 +1647,10 @@ XrdFstOfsFile::_close()
     int closerc = 0; // return of the close
     brc = rc; // return before the close
     rc |= ModifiedWhileInUse();
+    if (mSyncOnClose) {
+      eos_info("syncing layout for iotype=csync");
+      rc |= mLayout->Sync();
+    }
     closerc = mLayout->Close();
     rc |= closerc;
     closed = true;

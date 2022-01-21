@@ -267,6 +267,7 @@ public:
   bool mIsOCchunk; //! indicator this is an OC chunk upload
   int writeErrorFlag; //! uses kOFSxx enums to specify an error condition
   bool mEventOnClose; ///< Indicator to send a specified event to MGM on close
+  bool mSyncOnClose; ///< Indicator to run a fsync on close
   //! Indicates the workflow to be triggered by an event
   XrdOucString mEventWorkflow;
   bool mSyncEventOnClose; //! Indicator to send a specified event to the mgm on close

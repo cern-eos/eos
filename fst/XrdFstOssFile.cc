@@ -54,8 +54,7 @@ XrdFstOssFile::XrdFstOssFile(const char* tid) :
   mIsRW(false),
   mRWLockXs(0),
   mBlockXs(0),
-  fdDirect(-1),
-  mCSync(false)
+  fdDirect(-1)
 {}
 
 //------------------------------------------------------------------------------
@@ -119,10 +118,7 @@ XrdFstOssFile::Open(const char* path, int flags, mode_t mode, XrdOucEnv& env)
 	// data
 	if (!strcmp(val, "dsync")) {
 	  flags |= O_DSYNC;
-        } else {
-	  // fdatasync on close
-	  mCSync = true;
-	}
+        }
       }
     }
   }
@@ -580,7 +576,7 @@ XrdFstOssFile::Fstat(struct stat* statinfo)
 
 
 //------------------------------------------------------------------------------
-// Truncate the file
+// Fsync the file
 //------------------------------------------------------------------------------
 int
 XrdFstOssFile::Fsync()
@@ -704,17 +700,6 @@ XrdFstOssFile::Close(long long* retsz)
       fdDirect = -1;
     }
     return -EIO;
-  }
-
-  if (mCSync) {
-    // flush on close
-    if (fdatasync(fd)) {
-      close(fd);
-      if (fdDirect>=0) {
-	close(fdDirect);
-      }
-      return -errno;
-    }
   }
 
   //............................................................................

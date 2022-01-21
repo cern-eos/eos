@@ -179,7 +179,6 @@ private:
   XrdSysRWLock* mRWLockXs; ///< rw lock for the block xs
   CheckSum* mBlockXs; ///< block xs object
   int fdDirect; ///< fd for direct IO
-  bool mCSync; ///< flush on close
 
 #ifdef IN_TEST_HARNESS
 public:
