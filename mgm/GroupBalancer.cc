@@ -446,10 +446,9 @@ GroupBalancer::Configure(FsSpace* const space, GroupBalancer::Config& cfg)
   cfg.mMaxFileSize = common::StringConversion::GetSizeFromString(space->GetConfigMember("groupbalancer.max_file_size"));
   cfg.engine_type = group_balancer::get_engine_type(space->GetConfigMember("groupbalancer.engine"));
   cfg.file_attempts = atoi(space->GetConfigMember("groupbalancer.file_attempts").c_str());
-  mEngineConf.emplace("threshold",space->GetConfigMember("groupbalancer.engine.std.threshold"));
-  mEngineConf.emplace("min_threshold",space->GetConfigMember("groupbalancer.engine.mm.min_threshold"));
-  mEngineConf.emplace("max_threshold",space->GetConfigMember("groupbalancer.engine.mm.max_threshold"));
-
+  mEngineConf.insert_or_assign("threshold",space->GetConfigMember("groupbalancer.engine.std.threshold"));
+  mEngineConf.insert_or_assign("min_threshold",space->GetConfigMember("groupbalancer.engine.mm.min_threshold"));
+  mEngineConf.insert_or_assign("max_threshold",space->GetConfigMember("groupbalancer.engine.mm.max_threshold"));
 }
 
 
