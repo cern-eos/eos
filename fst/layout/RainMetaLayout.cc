@@ -166,11 +166,6 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
   enhanced_opaque += "&fst.blocksize=";
   enhanced_opaque += static_cast<int>(mStripeWidth);
 
-  // evt. mark an IO module as talking to external storage
-  if ((mFileIO->GetIoType() != "LocalIo")) {
-    mFileIO->SetExternalStorage();
-  }
-
   // When recovery enabled we open the files in RDWR mode
   if (mStoreRecovery) {
     flags = SFS_O_RDWR;

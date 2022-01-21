@@ -57,8 +57,7 @@ public:
     mLastErrMsg(""),
     mLastErrCode(0),
     mLastErrNo(0),
-    mIsOpen(false),
-    mExternalStorage(false)
+    mIsOpen(false)
   {}
 
   //--------------------------------------------------------------------------
@@ -466,14 +465,6 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Mark this IO as an IO module towards an external storage system
-  //----------------------------------------------------------------------------
-  void SetExternalStorage()
-  {
-    mExternalStorage = true;
-  }
-
-  //----------------------------------------------------------------------------
   //! Return the IO type
   //----------------------------------------------------------------------------
   std::string GetIoType()
@@ -540,8 +531,6 @@ protected:
   int mLastErrCode; ///< last error code
   int mLastErrNo; ///< last error no
   bool mIsOpen; ///< Mark if file is opened, so that we close it properly
-  //! Mark if this is an IO module to talk to an external storage system
-  bool mExternalStorage;
 };
 
 EOSFSTNAMESPACE_END

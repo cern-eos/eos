@@ -383,11 +383,23 @@ XrdIo::fileOpenAsync(XrdSfsFileOpenMode flags, mode_t mode,
   std::promise<XrdCl::XRootDStatus> open_promise;
   std::future<XrdCl::XRootDStatus> open_future = open_promise.get_future();
 
-  if (!mXrdFile) {
-    errno = EIO;
-    open_promise.set_value(XrdCl::XRootDStatus(XrdCl::stError,
-                           XrdCl::errOSError, EIO));
-    return open_future;
+  if (mXrdFile) {
+    delete mXrdFile;
+    mXrdFile = NULL;
+  }
+
+  mXrdFile = new XrdCl::File();
+  // Final path + opaque info used in the open
+  mTargetUrl.FromString(BuildRequestUrl());
+  mXrdIdHelper.reset(new eos::common::XrdConnIdHelper(mXrdConnPool, mTargetUrl));
+
+  if (mXrdIdHelper->HasNewConnection()) {
+    eos_info("xrd_connection_id=%s", mTargetUrl.GetHostId().c_str());
+  }
+
+  if (!mXrdFile->SetProperty("ReadRecovery", "false") ||
+      !mXrdFile->SetProperty("WriteRecovery", "false")) {
+    eos_warning("%s", "msg=\"failed to disable file read and write recovery\"");
   }
 
   XrdIoHandler* open_handler = new XrdIoHandler(std::move(open_promise),

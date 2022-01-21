@@ -84,11 +84,6 @@ PlainLayout::PlainLayout(XrdFstOfsFile* file,
   mFileSize(0), mDisableRdAhead(false), mHasAsyncResponse(false),
   mAsyncResponse(false), mIoOpenHandler(NULL), mFlags(0)
 {
-  // evt. mark an IO module as talking to external storage
-  if ((mFileIO->GetIoType() != "LocalIo")) {
-    mFileIO->SetExternalStorage();
-  }
-
   pthread_mutex_init(&mMutex, NULL);
   pthread_cond_init(&mCondVar, NULL);
   mIsEntryServer = true;

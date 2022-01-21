@@ -1346,20 +1346,20 @@ XrdFstOfsFile::_close()
         minimumsizeerror = false;
       }
 
-      eos_debug("checksumerror = %i, targetsizerror= %i,"
-                "mMaxOffsetWritten = %zu, targetsize = %lli",
+      eos_debug("checksumerror=%i targetsizerror=%i "
+                "mMaxOffsetWritten=%zu targetsize=%lli",
                 checksumerror, targetsizeerror, mMaxOffsetWritten, mTargetSize);
 
       // ---- add error simulation for checksum errors on read
       if ((!mIsRW) && gOFS.mSimXsReadErr) {
         checksumerror = true;
-        eos_warning("msg=\"simulating checksum errors on read\"");
+        eos_warning("%s", "msg=\"simulating checksum errors on read\"");
       }
 
       // ---- add error simulation for checksum errors on write
       if (mIsRW && gOFS.mSimXsWriteErr) {
         checksumerror = true;
-        eos_warning("msg=\"simulating checksum errors on write\"");
+        eos_warning("%s", "msg=\"simulating checksum errors on write\"");
       }
 
       if (mIsRW && (checksumerror || targetsizeerror || minimumsizeerror)) {
@@ -1557,16 +1557,17 @@ XrdFstOfsFile::_close()
                   capOpaqueFile += "&mgm.commit.checksum=1";
                 }
               } else {
-		bool issinglewriter = (gOFS.openedForWriting.getUseCount(mFmd->mProtoFmd.fsid(),
-									 mFmd->mProtoFmd.fid()) <= 1);
-		if ( issinglewriter && mCheckSum ) {
+                bool issinglewriter = (gOFS.openedForWriting.getUseCount(mFmd->mProtoFmd.fsid(),
+                                       mFmd->mProtoFmd.fid()) <= 1);
+
+                if (issinglewriter && mCheckSum) {
                   // if we computed a checksum, we verify it IF there is only a single writer, if there are several writers we have a significant inconsistency window during commit between replicas
                   capOpaqueFile += "&mgm.replication=1&mgm.verify.checksum=1";
                 } else {
-		  if ( issinglewriter) {
-		    // if we didn't compute a checksum, we disable checksum verification and we only indicate replication if therei is only one active writer
-		    capOpaqueFile += "&mgm.replication=1&mgm.verify.checksum=0";
-		  }
+                  if (issinglewriter) {
+                    // if we didn't compute a checksum, we disable checksum verification and we only indicate replication if therei is only one active writer
+                    capOpaqueFile += "&mgm.replication=1&mgm.verify.checksum=0";
+                  }
                 }
               }
             }
@@ -2022,11 +2023,11 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset fileOffset, char* buffer,
   if (!getenv("EOS_FST_NO_IOPRIORITY")) {
     // set IO priority
     if (ioprio_set(IOPRIO_WHO_PROCESS,
-		   IOPRIO_PRIO_VALUE(mIoPriorityClass, mIoPriorityValue))) {
+                   IOPRIO_PRIO_VALUE(mIoPriorityClass, mIoPriorityValue))) {
       if (!mIoPriorityErrorReported) {
-	eos_warning("failed to set IO priority to %d:%d - errno=%d\n", mIoPriorityClass,
-		    mIoPriorityValue, errno);
-      mIoPriorityErrorReported = true;
+        eos_warning("failed to set IO priority to %d:%d - errno=%d\n", mIoPriorityClass,
+                    mIoPriorityValue, errno);
+        mIoPriorityErrorReported = true;
       }
     }
   }
@@ -2119,11 +2120,11 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset fileOffset, const char* buffer,
   if (!getenv("EOS_FST_NO_IOPRIORITY")) {
     // set IO priority
     if (ioprio_set(IOPRIO_WHO_PROCESS,
-		   IOPRIO_PRIO_VALUE(mIoPriorityClass, mIoPriorityValue))) {
+                   IOPRIO_PRIO_VALUE(mIoPriorityClass, mIoPriorityValue))) {
       if (!mIoPriorityErrorReported) {
-	eos_warning("failed to set IO priority to %d:%d - errno=%d\n", mIoPriorityClass,
-		    mIoPriorityValue, errno);
-	mIoPriorityErrorReported = true;
+        eos_warning("failed to set IO priority to %d:%d - errno=%d\n", mIoPriorityClass,
+                    mIoPriorityValue, errno);
+        mIoPriorityErrorReported = true;
       }
     }
   }
@@ -2586,12 +2587,11 @@ XrdFstOfsFile::ProcessMixedOpaque()
     opaqueCheckSum = val;
   }
 
-  eos_static_info("mgm.checksum is %s", opaqueCheckSum.c_str());
-
   // Call the checksum factory function with the selected layout
   if (opaqueCheckSum != "ignore") {
     mCheckSum = eos::fst::ChecksumPlugins::GetChecksumObject(mLid);
-    eos_debug("checksum requested %d %u", mCheckSum.get(), mLid);
+    eos_debug("msg=\"checksum requested\" xs_ptr=%p lid=%u mgm.checksum=\"%s\"",
+              mCheckSum.get(), mLid, opaqueCheckSum.c_str());
   }
 
   // Handle file system id and local prefix - If we open a replica we have to
