@@ -378,7 +378,7 @@ GroupBalancer::prepareTransfer()
     return;
   }
 
-  auto file_info = chooseFileFromGroup(fromGroup);
+  auto file_info = chooseFileFromGroup(fromGroup, cfg.file_attempts);
 
   if (!file_info) {
     eos_static_info("Couldn't choose any FID to schedule: failedgroup=%s",
@@ -445,6 +445,7 @@ GroupBalancer::Configure(FsSpace* const space, GroupBalancer::Config& cfg)
   cfg.mMinFileSize = common::StringConversion::GetSizeFromString(space->GetConfigMember("groupbalancer.min_file_size"));
   cfg.mMaxFileSize = common::StringConversion::GetSizeFromString(space->GetConfigMember("groupbalancer.max_file_size"));
   cfg.engine_type = group_balancer::get_engine_type(space->GetConfigMember("groupbalancer.engine"));
+  cfg.file_attempts = atoi(space->GetConfigMember("groupbalancer.file_attempts").c_str());
   mEngineConf.emplace("threshold",space->GetConfigMember("groupbalancer.engine.std.threshold"));
   mEngineConf.emplace("min_threshold",space->GetConfigMember("groupbalancer.engine.mm.min_threshold"));
   mEngineConf.emplace("max_threshold",space->GetConfigMember("groupbalancer.engine.mm.max_threshold"));

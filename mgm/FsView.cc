@@ -956,6 +956,10 @@ FsSpace::FsSpace(const char* name)
       SetConfigMember("groupbalancer.max_file_size", "16G");
     }
 
+    if (GetConfigMember("groupbalancer.file_attempts").empty()) {
+      SetConfigMember("groupbalancer.file_attempts", "50");
+    }
+
     // Set the default group balancer engine
     if (GetConfigMember("groupbalancer.engine").empty()) {
       SetConfigMember("groupbalancer.engine", "std");

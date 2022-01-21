@@ -78,6 +78,7 @@ public:
     double mThreshold;     ///< Threshold for group balancing
     uint64_t mMinFileSize; ///< Min size of files to be picked
     uint64_t mMaxFileSize; ///< Max size of files to be picked
+    uint64_t file_attempts;
     group_balancer::BalancerEngineT engine_type;
 
     Config(): is_enabled(true), is_conv_enabled(true), num_tx(0), mThreshold(.5),

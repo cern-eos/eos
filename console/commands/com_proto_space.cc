@@ -436,6 +436,7 @@ void com_space_help()
       << "space config <space-name> space.groupbalancer.threshold=<threshold>   : [Deprecated use <..>engine.std.threshold (see above)] configure the threshold when a group is balanced\n"
       << "space config <space-name> space.groupbalancer.min_file_size=<#K/M/G/T>: configure the min file size to move between groups [ default=1G ]\n"
       << "space config <space-name> space.groupbalancer.max_file_size=<#K/M/G/T>: configure the max file size to move between groups [ default=16G ]\n"
+      << "space config <space-name> space.groupbalancer.file_attempts=<#>       : configure the no of attempts to find a file within sizes [ default=50 ]\n"
       << "space config <space-name> space.geobalancer=on|off                    : enable/disable the geo balancer [ default=off ]\n"
       << "space config <space-name> space.geobalancer.ntx=<ntx>                 : configure the numebr of parallel geobalancer jobs [ default=0 ]\n"
       << "space config <space-name> space.geobalancer.threshold=<threshold>     : configure the threshold when a geotag is balanced [ default=0 ] \n"
