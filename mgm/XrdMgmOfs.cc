@@ -836,6 +836,7 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 #endif
 
   int retc = SFS_OK;
+  bool allFilesFailed = true;
 
   // check that all files exist
   for (
@@ -892,6 +893,7 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       if (foundPrepareTag) {
         pathsWithPrepare.emplace_back(&(pptr->text),
                                       optr != nullptr ? & (optr->text) : nullptr);
+        allFilesFailed &= false;
       } else {
         // don't do workflow if no such tag
         continue;
@@ -909,6 +911,14 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       if (!isPrepareStage) retc = SFS_ERROR;
       continue;
     }
+  }
+
+  // (Only) If ALL files failed to prepare, return error
+  // 'error' variable will already contain the error message
+  if (isPrepareStage && allFilesFailed) {
+    eos_err("Unable to prepare - failed to prepare all files with reqID %s",
+            reqid.c_str());
+    return SFS_ERROR;
   }
 
   for (auto& pathPair : pathsWithPrepare) {
