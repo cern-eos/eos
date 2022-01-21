@@ -382,7 +382,8 @@ Requires: xrootd-client >= %{xrootd_version_min}
 %endif
 
 
-Requires: eos-client = @CPACK_PACKAGE_VERSION@
+
+Requires: eos-client == @CPACK_PACKAGE_VERSION@
 Requires: libmicrohttpd >= 0.9.38
 Requires: acl
 Requires: gdb
