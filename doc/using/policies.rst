@@ -21,7 +21,7 @@ The following policies can be configured
    blockchecksum adler,md5,sha1,crc32,crc32c           
    blocksize     4k,64k,128k,512k,1M,4M,16M,64M           
    bandwidth     IO limit in MB/s
-   iotype        io flavour [ direct, sync, msync, dsync ]
+   iotype        io flavour [ direct, sync, csync, dsync ]
    ============= ==============================================
 
 

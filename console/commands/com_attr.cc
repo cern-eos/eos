@@ -497,7 +497,7 @@ com_attr_usage:
   fprintf(stdout,
           "         sys.forced.leasetime=86400            : allows to overwrite the eosxd client provided leasetime with a new value\n");
   fprintf(stdout,
-	  "         sys.forced.iotype=direct|sync|msync|dsync"
+	  "         sys.forced.iotype=direct|sync|dsync|csync"
 	  "                                               : force the given iotype for that directory");
   fprintf(stdout,
           "         sys.mtime.propagation=1               : if present a change under this directory propagates an mtime change up to all parents until the attribute is not present anymore\n");
