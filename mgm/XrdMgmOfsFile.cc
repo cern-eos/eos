@@ -368,6 +368,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   using eos::common::LayoutId;
   static const char* epname = "open";
   const char* tident = error.getErrUser();
+  eos::IFileMD::XAttrMap attrmapF;
+
   errno = 0;
   EXEC_TIMING_BEGIN("Open");
   XrdOucString spath = inpath;
@@ -592,6 +594,21 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       } else {
         eos_info("suppressing IO priority setting '%s' (no operator role)",
                  val);
+      }
+    }
+  }
+
+  {
+    eosobfuscate = 1;
+    // handle obfuscation and encryption
+    const char* val = 0;
+    if ((val = openOpaque->Get("eos.obfuscate"))) {
+      eosobfuscate = std::strtoul(val, 0, 10);
+    }
+    if ((val = openOpaque->Get("eos.key"))) {
+      eoskey = val;
+      if (!eosobfuscate) {
+	eosobfuscate = 1;
       }
     }
   }
@@ -1047,8 +1064,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       return Emsg(epname, error, errno, "open file - open by fxid denied", path);
     }
 
-    eos::IFileMD::XAttrMap attrmapF;
-
     if (fmd) {
       eos::listAttributes(gOFS->eosView, fmd.get(), attrmapF, false);
     } else {
@@ -1334,6 +1349,15 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
             fmd = gOFS->eosView->createFile(creation_path, vid.uid, vid.gid);
 
+	    std::string skey = eos::common::SymKey::RandomCipher(eoskey);
+
+	    // attach an obfucation key
+	    fmd->setAttribute("user.obfuscate.key",skey);
+	    if (eoskey.length()) {
+	      fmd->setAttribute("user.encrypted","1");
+	    }
+	    attrmapF["user.obfuscate.key"] = skey;
+
             if (ocUploadUuid.length()) {
               fmd->setFlags(0);
             } else {
@@ -1491,6 +1515,19 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       }
     } else {
       capability += "&mgm.access=read";
+    }
+  }
+
+  if (eosobfuscate && !isFuse) {
+    // add obfuscation key to redirection capability
+    if (attrmapF.count("user.obfuscate.key")) {
+      capability += "&mgm.obfuscate.key=";
+      capability += attrmapF["user.obfuscate.key"].c_str();
+    }
+    // add encryption key to redirection capability
+    if (eoskey.length()) {
+      capability += "&mgm.encryption.key=";
+      capability += eoskey.c_str();
     }
   }
 

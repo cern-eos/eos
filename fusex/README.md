@@ -536,7 +536,7 @@ visible using the mount client, all other protocols see obfuscated contents. Obf
 attr set sys.file.obfuscate="1" <mydir>
 ```
 
-The obfuscation key is stored on each file as an extended user argument:
+The obfuscation key is stored on each file as an extended user argument, which cannot be displayed:
 ```
 user.obfuscate.key=
 ```
@@ -562,6 +562,34 @@ cp <myfile> <mydir>
 cp <mydir>/<myfile> /tmp/
 ```
 
-If you have read a file and change the key to re-read the file, you might need to drop the buffer cache contents to force a re-read.
+Encrypted files are flagged with an extended attribute:
 
-If you lose EOS_FUSE_SECRET for a given directory, there is no way to decrypt the contents since the key is stored nowhereelse.
+```
+user.encrypted=1
+```
+
+If files have been encrypted through eosxd, an additional attribute
+```
+user.encrypted.fp=int16
+```
+stores a low resolution key fingerprint which is checked during open. If the key does not match ENOKEY is returned as errno. File can be encrypted with an absent fingerprint attribute (e.g. using eoscp). In this case no key correctness check is done client side.
+If you have read such a file and change the key to re-read the file, you might need to drop the buffer cache contents to force a re-read.
+
+If you lose EOS_FUSE_SECRET for a given file, there is no way to decrypt the contents since the key is stored nowhereelse.
+
+```
+eos fileinfo myfile
+
+EOS Console [root://localhost] |/eos/dev/encryption/> fileinfo enc.32
+  File: '/eos/dev/encryption/enc.1'  Flags: 0644
+  Size: 2195
+Modify: Mon Jan 24 15:55:29 2022 Timestamp: 1643036129.045484252
+Change: Mon Jan 24 15:56:28 2022 Timestamp: 1643036188.645107946
+ Birth: Mon Jan 24 15:54:58 2022 Timestamp: 1643036098.235424071
+  CUid: 99 CGid: 99 Fxid: 001b7800 Fid: 1800192 Pid: 384815 Pxid: 0005df2f
+XStype: adler    XS: 55 91 03 04    ETAGs: "483235360407552:55910304"
+Layout: plain Stripes: 1 Blocksize: 4k LayoutId: 00100002 Redundancy: d1::t0
+  #Rep: 1
+ Crypt: encrypted
+```
+shows in a comprehensive way after the "Crypt:" tag, if a file is either encrypted or obfuscated.

@@ -293,10 +293,31 @@ public:
       }
     }
 
-    void set_obfuscate_key (const std::string& key) {
+    void set_obfuscate_key (const std::string& key, bool encryption=false , std::string encryptionhash = "") {
       (*this->mutable_attr())["user.obfuscate.key"] = key;
+      if (encryption) {
+	(*this->mutable_attr())["user.encrypted"] = "1";
+	(*this->mutable_attr())["user.encrypted.fp"] = encryptionhash;
+      }
     }
 
+    std::string keyprint16(const std::string& key1, const std::string& key2) {
+      std::hash<std::string> secrethash;
+      return std::to_string(secrethash(key1+key2)%65536);
+    }
+
+    bool wrong_key(const std::string& keyprint) {
+      auto xattr = attr();
+      if (!xattr.count("user.encrypted.fp")) {
+	return false;
+      }
+      return (xattr["user.encrypted.fp"] != keyprint);
+    }
+
+    bool encrypted() {
+      auto xattr = attr();
+      return (xattr.count("user.encrypted"));
+    }
 
     std::string obfuscate_key() {
       auto xattr = attr();
@@ -304,45 +325,6 @@ public:
 	return xattr["user.obfuscate.key"];
       } else {
 	return "";
-      }
-    }
-
-    const char obfuscate_cipher(const std::string& key, off_t offset) {
-      return key.at(offset%key.length());
-    }
-
-    void obfuscate_buffer(char* dst, const char* src, size_t size, off_t offset, std::string secret) {
-      auto key = obfuscate_key();
-      if (secret.length()) {
-	if (hmac.hmac.empty() || (hmac.key != secret)) {
-	  // recompute new hmac
-	  hmac.hmac = eos::common::SymKey::HmacSha256(secret, key);
-	  hmac.key  = secret;
-	}
-	key = hmac.hmac;
-      }
-      for (size_t i = 0; i< size; ++i) {
-	*dst = *src ^ obfuscate_cipher(key, offset+i);
-	src++;
-	dst++;
-      }
-    }
-
-
-    void unobfuscate_buffer(char* buf, size_t size, off_t offset, std::string secret) {
-      auto key = obfuscate_key();
-      if (secret.length()) {
-	if (hmac.hmac.empty() || (hmac.key != secret)) {
-	  // recompute new hmac
-	  hmac.hmac = eos::common::SymKey::HmacSha256(secret, key);
-	  hmac.key  = secret;
-	}
-	key = hmac.hmac;
-      }
-      char* pbuf = buf;
-      for (size_t i = 0; i< size; ++i) {
-	*pbuf++ ^= obfuscate_cipher(key,offset+i);
-
       }
     }
 

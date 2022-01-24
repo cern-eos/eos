@@ -299,7 +299,7 @@ ProcCommand::Ls()
 
 	      if ((option.find("c")) != STR_NPOS) {
 		// add checksum information
-		char checksum[32];
+		char checksum[36];
 		sprintf(checksum, "%-34s",cks.c_str());
 		stdOut += checksum;
 	      }

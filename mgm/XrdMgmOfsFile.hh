@@ -301,6 +301,8 @@ private:
   std::unique_ptr<IProcCommand> mProcCmd; // proc command object
   std::shared_ptr<eos::IFileMD> fmd; //< file meta data object
   eos::common::VirtualIdentity vid; //< virtual ID of the client
+  std::string eoskey; //< file specific encryption key
+  size_t eosobfuscate; //< number of 36 byte blocks for obfucation key
 };
 
 #endif

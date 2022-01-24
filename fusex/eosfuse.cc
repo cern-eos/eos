@@ -77,6 +77,7 @@ extern "C" { /* this 'extern "C"' brace will eventually end up in the .h file, t
 #include "common/LinuxMemConsumption.hh"
 #include "common/LinuxStat.hh"
 #include "common/StringConversion.hh"
+#include "common/SymKeys.hh"
 #include "auth/Logbook.hh"
 #include "md/md.hh"
 #include "md/kernelcache.hh"
@@ -4007,59 +4008,71 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
         }
 
         if (!rc) {
-          int cache_flag = 0;
-          std::string md_name = md->name();
-          uint64_t md_ino = md->md_ino();
-          uint64_t md_pino = md->md_pino();
-          std::string cookie = md->Cookie();
+	  // check if we need an encryption key for this file and if it is a 'correct' one
+	  std::string eoskey = fusexrdlogin::secret(req);
+	  std::string fingerprint = md->keyprint16(eoskey, md->obfuscate_key());
+	  if (md->encrypted() && (eoskey.empty() || md->wrong_key(fingerprint))) {
+	    rc = ENOKEY;
+	  } else {
+	    int cache_flag = 0;
+	    std::string md_name = md->name();
+	    uint64_t md_ino = md->md_ino();
+	    uint64_t md_pino = md->md_pino();
+	    std::string cookie = md->Cookie();
 
-          if (md->attr().count("sys.file.cache")) {
-            cache_flag |= O_CACHE;
-          }
+	    if (md->attr().count("sys.file.cache")) {
+	      cache_flag |= O_CACHE;
+	    }
 
-          capLock.UnLock();
-          struct fuse_entry_param e;
-          memset(&e, 0, sizeof(e));
-          md->convert(e, pcap->lifetime());
-          mLock.UnLock();
-          data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req, md->id(),
-                              md), md, (mode == U_OK));
-          capLock.Lock(&pcap->Locker());
-          io->set_authid(pcap->authid());
+	    capLock.UnLock();
+	    struct fuse_entry_param e;
+	    memset(&e, 0, sizeof(e));
+	    md->convert(e, pcap->lifetime());
+	    mLock.UnLock();
+	    data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req, md->id(),
+									     md), md, (mode == U_OK));
+	    capLock.Lock(&pcap->Locker());
+	    io->set_authid(pcap->authid());
 
-          if (pquota < pcap->max_file_size()) {
-            io->set_maxfilesize(pquota);
-          } else {
-            io->set_maxfilesize(pcap->max_file_size());
-          }
+	    if (!md->obfuscate_key().empty()) {
+	      std::string obfuscation_key = md->obfuscate_key();
+	      io->hmac.set(obfuscation_key, eoskey);
+	    }
 
-          io->cap_ = pcap;
-          capLock.UnLock();
-          // attach a datapool object
-          fi->fh = (uint64_t) io;
-          io->ioctx()->set_remote(Instance().Config().hostport,
+	    if (pquota < pcap->max_file_size()) {
+	      io->set_maxfilesize(pquota);
+	    } else {
+	      io->set_maxfilesize(pcap->max_file_size());
+	    }
+
+	    io->cap_ = pcap;
+	    capLock.UnLock();
+	    // attach a datapool object
+	    fi->fh = (uint64_t) io;
+	    io->ioctx()->set_remote(Instance().Config().hostport,
                                   md_name,
-                                  md_ino,
-                                  md_pino,
-                                  req,
-                                  (mode == U_OK));
-          bool outdated = (io->ioctx()->attach(req, cookie,
-                                               fi->flags | cache_flag) == EKEYEXPIRED);
-          fi->keep_cache = outdated ? 0 : Instance().Config().options.data_kernelcache;
+				    md_ino,
+				    md_pino,
+				    req,
+				    (mode == U_OK));
+	    bool outdated = (io->ioctx()->attach(req, cookie,
+						 fi->flags | cache_flag) == EKEYEXPIRED);
+	    fi->keep_cache = outdated ? 0 : Instance().Config().options.data_kernelcache;
 
-          if (md->creator()) {
-            fi->keep_cache = Instance().Config().options.data_kernelcache;
-          }
+	    if (md->creator()) {
+	      fi->keep_cache = Instance().Config().options.data_kernelcache;
+	    }
 
-          // files which have been broadcasted from a remote update are not cached during the first default:5 seconds
-          if ((time(NULL) - md->bc_time()) <
-              EosFuse::Instance().Config().options.nocache_graceperiod) {
-            fi->keep_cache = false;
-          }
+	    // files which have been broadcasted from a remote update are not cached during the first default:5 seconds
+	    if ((time(NULL) - md->bc_time()) <
+		EosFuse::Instance().Config().options.nocache_graceperiod) {
+	      fi->keep_cache = false;
+	    }
 
-          fi->direct_io = 0;
-          eos_static_info("%s data-cache=%d", md->dump(e).c_str(), fi->keep_cache);
-        }
+	    fi->direct_io = 0;
+	    eos_static_info("%s data-cache=%d", md->dump(e).c_str(), fi->keep_cache);
+	  }
+	}
       }
     }
   }
@@ -4231,7 +4244,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
             }
 
 	    obfuscate = pmd->obfuscate();
-          }
+	  }
 
           if (del_ino) {
             Instance().mds.wait_upstream(req, del_ino);
@@ -4289,15 +4302,16 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
 
           md->set_type(md->EXCL);
 
+	  std::string eoskey;
+	  std::string obfuscation_key;
 	  if (obfuscate) {
-	    // create a random uuid
-	    char suuid[40];
-	    uuid_t uuid;
-	    uuid_generate_random(uuid);
-	    uuid_unparse(uuid, suuid);
-
-	    md->set_obfuscate_key(std::string(suuid));
-	    eos_static_err("obfuscating with key='%s'\n", suuid);
+	    // extracte key from environment;
+	    eoskey = fusexrdlogin::secret(req);
+	    // create obfuscation key based on length of secret key
+	    obfuscation_key = eos::common::SymKey::RandomCipher(eoskey);
+	    // store obfuscation key
+	    std::string fingerprint = md->keyprint16(eoskey, obfuscation_key);
+	    md->set_obfuscate_key(obfuscation_key, eoskey.length(), fingerprint);
 	  }
 
           rc = Instance().mds.add_sync(req, pmd, md, pcap->authid());
@@ -4361,6 +4375,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
                                       md_pino,
                                       req,
                                       true);
+	      io->hmac.set(obfuscation_key,eoskey);
               io->ioctx()->attach(req, cookie, fi->flags);
             }
 
@@ -4427,10 +4442,9 @@ EosFuse::read(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
       rc = errno ? errno : EIO;
     } else {
       eos_static_debug("reply res=%lu", res);
-      if (io->md->obfuscate_key().length()) {
+      if (!io->hmac.key.empty()) {
 	// un-obfuscate
-	eos_static_debug("secret=%s", fusexrdlogin::secret(req).c_str());
-	io->md->unobfuscate_buffer(buf, res, off, fusexrdlogin::secret(req));
+	eos::common::SymKey::UnobfuscateBuffer(buf, res, off, io->hmac);
       }
       fuse_reply_buf(req, buf, res);
     }
@@ -4471,25 +4485,11 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char* buf, size_t size,
   data::data_fh* io = (data::data_fh*) fi->fh;
   int rc = 0;
 
-  char* obuf = 0;
-
-  if (io->md->obfuscate_key().length()) {
-    // duplicate buffer
-    obuf = (char*) malloc(size);
-    if (!obuf) {
-      // EOM
-      io = nullptr;
-    } else {
-      memcpy(obuf, buf, size);
-      eos_static_debug("secret=%s", fusexrdlogin::secret(req).c_str());
-      // obfuscate
-      io->md->obfuscate_buffer(obuf, buf, size, off, fusexrdlogin::secret(req));
-      // make the data object read from the obfuscated buffer
-      buf = obuf;
-    }
-  }
-
   if (io) {
+    if (!io->hmac.key.empty()) {
+      eos::common::SymKey::ObfuscateBuffer((char*)buf, (char*)buf, size, off, io->hmac);
+    }
+
     eos_static_debug("max-file-size=%llu", io->maxfilesize());
 
     if ((off + size) > io->maxfilesize()) {
@@ -4562,10 +4562,6 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char* buf, size_t size,
     fuse_reply_err(req, rc);
   } else {
     ADD_IO_STAT("wbytes", size);
-  }
-
-  if (obuf) {
-    free (obuf);
   }
 
   eos_static_debug("t(ms)=%.03f %s", timing.RealTime(),

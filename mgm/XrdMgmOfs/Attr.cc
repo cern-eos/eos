@@ -77,6 +77,8 @@ XrdMgmOfs::_attr_ls(const char* path, XrdOucErrInfo& error,
   try {
     eos::FileOrContainerMD item = gOFS->eosView->getItem(path).get();
     listAttributes(gOFS->eosView, item, map, links);
+    // we never show obfuscion keys
+    map.erase("user.obfuscate.key");
   } catch (eos::MDException& e) {
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
@@ -365,6 +367,10 @@ XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
       fmd = gOFS->eosView->getFile(path);
       value = (fmd->getAttribute(key)).c_str();
       errno = 0;
+      if (std::string(key) == "user.obfuscate.key") {
+	// we never show this key
+	value = "";
+      }
     } catch (eos::MDException& e) {
       errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",

@@ -739,6 +739,11 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
   }
 
   if (rc > 0) {
+    // if required, unobfuscate a buffer server side
+    if (mLayout->IsEntryServer() && hmac.key.length()) {
+      eos::common::SymKey::UnobfuscateBuffer(const_cast<char*>(buffer), rc, fileOffset, hmac);
+    }
+
     rOffset = fileOffset + rc;
     totalBytes += rc;
   }
@@ -876,6 +881,11 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
 
     // store next write position
     mWritePosition = fileOffset + buffer_size;
+  }
+
+  // if required, obfuscate a buffer server side
+  if (mLayout->IsEntryServer() && hmac.key.length()) {
+    eos::common::SymKey::ObfuscateBuffer(const_cast<char*>(buffer), const_cast<char*>(buffer), buffer_size, fileOffset, hmac);
   }
 
   int rc = mLayout->Write(fileOffset, const_cast<char*>(buffer), buffer_size);
@@ -2439,7 +2449,11 @@ XrdFstOfsFile::ProcessCapOpaque(bool& is_repair_read,
   }
 
   int envlen {0};
-  eos_info("capability=%s", mCapOpaque->Env(envlen));
+
+  XrdOucString maskOpaque = mCapOpaque->Env(envlen);
+  eos::common::StringConversion::MaskTag(maskOpaque, "mgm.obfuscate.key");
+  eos::common::StringConversion::MaskTag(maskOpaque, "mgm.encryption.key");
+  eos_info("capability=%s", maskOpaque.c_str());
   char* val = nullptr;
   const char* hexfid = 0;
   const char* slid = 0;
@@ -2572,6 +2586,21 @@ XrdFstOfsFile::ProcessCapOpaque(bool& is_repair_read,
   if ((val = mCapOpaque->Get("mgm.schedule"))) {
     mAppRR = mSecMap["app"];
   }
+
+  std::string obfuscation_key;
+  std::string encryption_key;
+
+  // handle obfuscation keys
+  if ((val = mCapOpaque->Get("mgm.obfuscate.key"))) {
+    obfuscation_key = val;
+  }
+
+  // handl encryption keys
+  if ((val = mCapOpaque->Get("mgm.encryption.key"))) {
+    encryption_key = val;
+  }
+
+  hmac.set(obfuscation_key,encryption_key);
 
   SetLogId(logId, vid, mTident.c_str());
   return SFS_OK;

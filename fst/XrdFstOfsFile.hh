@@ -29,6 +29,7 @@
 #include "fst/utils/TpcInfo.hh"
 #include "common/Fmd.hh"
 #include "common/FileId.hh"
+#include "common/SymKeys.hh"
 #include "XrdVersion.hh"
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsTPCInfo.hh"
@@ -223,6 +224,9 @@ private:
 #ifdef IN_TEST_HARNESS
 public:
 #endif
+
+  eos::common::SymKey::hmac_t hmac;
+
   std::unique_ptr<XrdOucEnv> mOpenOpaque; ///< Open opaque info (encrypted)
   std::unique_ptr<XrdOucEnv> mCapOpaque; ///< Capability opaque info (decrypted)
   std::string mFstPath; ///< Physical path on the FST

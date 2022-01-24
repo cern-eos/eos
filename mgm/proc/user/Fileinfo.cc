@@ -354,6 +354,14 @@ ProcCommand::FileInfo(const char* path)
                   " StorageClass: " << (storage_class.length() ? storage_class : "none")
                   << std::endl;
             }
+
+	    if (xattrs.count("user.obfuscate.key")) {
+	      if (xattrs.count("user.encrypted")) {
+		out << " Crypt: encrypted" << std::endl;
+	      } else {
+		out << " Crypt: obfuscated" << std::endl;
+	      }
+	    }
           } else {
             std::string xs;
 

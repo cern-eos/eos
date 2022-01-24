@@ -1620,6 +1620,16 @@ main(int argc, char* argv[])
         }
       }
 
+      if (getenv("EOS_FUSE_SECRET")) {
+	if ((location.find("?") == std::string::npos)) {
+	  location += "?eos.key=";
+	} else {
+	  location += "&eos.key=";
+	}
+	location += getenv("EOS_FUSE_SECRET");
+      }
+
+      fprintf(stderr,"location=%s\n", location.c_str());
       XrdCl::File* file = new XrdCl::File();
       status = file->Open(location, xrdcl_flags, xrdcl_mode);
 
@@ -1821,6 +1831,15 @@ main(int argc, char* argv[])
       }
 
       location = dst_location[i].first + dst_location[i].second;
+      if (getenv("EOS_FUSE_SECRET")) {
+	if ((location.find("?") == std::string::npos)) {
+	  location += "?eos.key=";
+	} else {
+	  location += "&eos.key=";
+	}
+	location += getenv("EOS_FUSE_SECRET");
+      }
+
       eos::fst::XrdIo* file = new eos::fst::XrdIo(location.c_str());
 
       if (appendmode || nooverwrite) {

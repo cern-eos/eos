@@ -38,6 +38,7 @@
 #include <time.h>
 #include <string.h>
 #include <mutex>
+#include <uuid/uuid.h>
 #define EOSCOMMONSYMKEYS_GRACEPERIOD 5
 #define EOSCOMMONSYMKEYS_DELETIONOFFSET 60
 
@@ -140,8 +141,8 @@ public:
   //! @return hash-based message authentication code
   //!
   //----------------------------------------------------------------------------
-  static std::string HmacSha256(std::string& key,
-                                std::string& data,
+  static std::string HmacSha256(const std::string& key,
+                                const std::string& data,
                                 unsigned int blockSize = 64,
                                 unsigned int resultSize = 32);
 
@@ -242,6 +243,60 @@ public:
   //! Encode a zbase64: prefixed string
   //----------------------------------------------------------------------------
   static bool ZBase64(std::string& in, std::string& out);
+
+  struct hmac_t {
+    void set(const std::string& secret, const std::string& key) {
+      if (secret.length()) {
+	this->hmac = HmacSha256(secret, key);
+        this->key = hmac;
+      } else {
+        this->key = key;
+      }
+    }
+
+    hmac_t(const std::string& secret, const std::string& key) {
+      set(secret, key);
+    }
+    hmac_t() {}
+
+    std::string key;
+    std::string hmac;
+  };
+
+  //----------------------------------------------------------------------------
+  //! Obfuscate a buffer based on offset and hmac
+  //----------------------------------------------------------------------------
+  static void ObfuscateBuffer(char* dst, const char* src, size_t size, off_t offset, hmac_t &hmac);
+
+  //----------------------------------------------------------------------------
+  //! Unbfuscate a buffer based on offset and hmac
+  //----------------------------------------------------------------------------
+  static void UnobfuscateBuffer(char* buf, size_t size, off_t offset, hmac_t &hmac);
+
+  //----------------------------------------------------------------------------
+  //! Retrieve a random cipher fitting input key <key>
+  //----------------------------------------------------------------------------
+  static std::string RandomCipher(const std::string& key) {
+    size_t keyblocks = 1;
+    if (key.length() > 36) {
+      keyblocks = key.length()/36 + 1;
+    }
+
+    std::string skey;
+    for (size_t i=0; i<keyblocks; i++) {
+      // create a random uuid
+      char suuid[40];
+      uuid_t uuid;
+      uuid_generate_random(uuid);
+      uuid_unparse(uuid, suuid);
+      for (size_t n=0; n<strlen(suuid); n++) {
+	if (suuid[n] != '-') {
+	  skey += suuid[n];
+	}
+      }
+    }
+    return skey;
+  }
 
   //----------------------------------------------------------------------------
   //! Serialise a Google Protobuf object and base64 encode the result

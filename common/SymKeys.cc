@@ -93,8 +93,8 @@ SymKey::SymKey(const char* inkey, time_t invalidity)
 // Compute the HMAC SHA-256 value
 //------------------------------------------------------------------------------
 std::string
-SymKey::HmacSha256(std::string& key,
-                   std::string& data,
+SymKey::HmacSha256(const std::string& key,
+                   const std::string& data,
                    unsigned int blockSize,
                    unsigned int resultSize)
 {
@@ -487,6 +487,71 @@ SymKey::ZDeBase64(std::string& in, std::string& out)
 
   return false;
 }
+
+//------------------------------------------------------------------------------
+// Obfucate a buffer based on offset and hmac
+//------------------------------------------------------------------------------
+
+void
+SymKey::ObfuscateBuffer(char* dst, const char* src, size_t size, off_t offset, SymKey::hmac_t& hmac) {
+  const char* cipher=hmac.key.c_str();
+  size_t len = hmac.key.length();
+  size_t ilen = offset%len;
+  bool overwrite = (dst == src);
+  if ((!ilen) && (!(len%8)) && (!(size%len)) && (!((unsigned long long)(dst)%8)) && (!((unsigned long long)(src)%8))) {
+    // fast case
+    uint64_t* pbuf = (uint64_t*) dst;
+    uint64_t* sbuf = (uint64_t*) src;
+    for (size_t i = 0; i< size/len; ++i) {
+      uint64_t* cipher64 = (uint64_t*)(cipher);
+      for (size_t k = 0; k < len/8; ++k) {
+        if (overwrite) {
+          *pbuf++ ^= *cipher64++;
+        } else {
+          *pbuf++ = *sbuf++ ^ *cipher64++;
+        }
+      }
+    }
+  } else {
+    // slow case
+    if ( dst == src ) {
+      for (size_t i = 0; i< size; ++i) {
+        *dst++ ^= cipher[(offset+i)%len];
+      }
+    } else {
+      for (size_t i = 0; i< size; ++i) {
+        *dst++ = *src++ ^ cipher[(offset+i)%len];
+      }
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+// Unobfucate a buffer based on offset and hmac
+//------------------------------------------------------------------------------
+void
+SymKey::UnobfuscateBuffer(char* buf, size_t size, off_t offset, SymKey::hmac_t& hmac) {
+  const char* cipher=hmac.key.c_str();
+  size_t len = hmac.key.length();
+  size_t ilen = offset%len;
+  if ((!ilen) && (!(len%8)) && (!(size%len)) && (!((unsigned long long)(buf)%8))) {
+    // fast case
+    uint64_t* pbuf = (uint64_t*) buf;
+    for (size_t i = 0; i< size/len; ++i) {
+      uint64_t* cipher64 = (uint64_t*)(cipher);
+      for (size_t k = 0; k < len/8; ++k) {
+        *pbuf++ ^= *cipher64++;
+      }
+    }
+  } else {
+    // slow case
+    char* pbuf = buf;
+    for (size_t i = 0; i< size; ++i) {
+      *pbuf++ ^= cipher[(offset+i)%len];
+    }
+  }
+}
+
 
 //------------------------------------------------------------------------------
 // Serialise a Google Protobuf object and base64 encode the result

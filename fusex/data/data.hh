@@ -34,6 +34,7 @@
 #include "cap/cap.hh"
 #include "common/AssistedThread.hh"
 #include "common/FileId.hh"
+#include "common/SymKeys.hh"
 #include "bufferll.hh"
 #include "llfusexx.hh"
 #include "fusex/fusex.pb.h"
@@ -308,6 +309,7 @@ public:
     std::atomic<time_t> next_size_flush;
     uint64_t _maxfilesize; // maximum allowed file size
     uint64_t _opensize; // size at the moment of opening the file
+    eos::common::SymKey::hmac_t hmac; /// obfuscation/encryption cipher
 
     _data_fh(shared_data _data, metad::shared_md _md, bool _rw)
     {
