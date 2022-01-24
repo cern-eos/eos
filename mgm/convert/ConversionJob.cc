@@ -183,11 +183,12 @@ void ConversionJob::DoIt() noexcept
     return;
   }
 
+  const std::string& app_tag = mConversionInfo.mAppTag.empty() ? EOS_APP_NAME : mConversionInfo.mAppTag;
   // Construct destination CGI
   std::ostringstream dst_cgi;
   dst_cgi << "&eos.ruid=" << DAEMONUID << "&eos.rgid=" << DAEMONGID
           << "&" << ConversionCGI(mConversionInfo)
-          << "&eos.app=eos/converter"
+          << "&eos.app=" << app_tag
           << "&eos.targetsize=" << source_size;
 
   if (source_xs.size() && !overwrite_checksum) {
@@ -214,7 +215,8 @@ void ConversionJob::DoIt() noexcept
   dst_cgi << exclude_fsids;
   // Prepare the TPC job
   XrdCl::URL url_src = NewUrl();
-  url_src.SetParams("eos.ruid=0&eos.rgid=0&eos.app=eos/converter");
+  std::string url_params = "eos.ruid=0&eos.rgid=0&eos.app=" + app_tag;
+  url_src.SetParams(url_params);
   url_src.SetPath(mSourcePath);
   XrdCl::URL url_dst = NewUrl();
   url_dst.SetParams(dst_cgi.str());

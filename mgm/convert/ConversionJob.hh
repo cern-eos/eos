@@ -35,6 +35,7 @@ EOSMGMNAMESPACE_BEGIN
 
 //! Forward declaration
 class ConversionJob;
+static std::string EOS_APP_NAME="eos/converter";
 
 //------------------------------------------------------------------------------
 //! @brief Class used for monitoring the progress of a running
