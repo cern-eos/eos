@@ -369,7 +369,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   static const char* epname = "open";
   const char* tident = error.getErrUser();
   eos::IFileMD::XAttrMap attrmapF;
-
   errno = 0;
   EXEC_TIMING_BEGIN("Open");
   XrdOucString spath = inpath;
@@ -602,13 +601,16 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     eosobfuscate = -1;
     // handle obfuscation and encryption
     const char* val = 0;
+
     if ((val = openOpaque->Get("eos.obfuscate"))) {
       eosobfuscate = std::strtoul(val, 0, 10);
     }
+
     if ((val = openOpaque->Get("eos.key"))) {
       eoskey = val;
+
       if (!eosobfuscate) {
-	eosobfuscate = 1;
+        eosobfuscate = 1;
       }
     }
   }
@@ -1349,17 +1351,18 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
             fmd = gOFS->eosView->createFile(creation_path, vid.uid, vid.gid);
 
+            if ((eosobfuscate > 0) || (attrmap.count("sys.file.obfuscate") &&
+                                       (attrmap["sys.file.obfuscate"] == "1"))) {
+              std::string skey = eos::common::SymKey::RandomCipher(eoskey);
+              // attach an obfucation key
+              fmd->setAttribute("user.obfuscate.key", skey);
 
-	    if ( (eosobfuscate>0) || (attrmap.count("sys.file.obfuscate") &&
-				    (attrmap["sys.file.obfuscate"] == "1" )) ) {
-	      std::string skey = eos::common::SymKey::RandomCipher(eoskey);
-	      // attach an obfucation key
-	      fmd->setAttribute("user.obfuscate.key",skey);
-	      if (eoskey.length()) {
-		fmd->setAttribute("user.encrypted","1");
-	      }
-	      attrmapF["user.obfuscate.key"] = skey;
-	    }
+              if (eoskey.length()) {
+                fmd->setAttribute("user.encrypted", "1");
+              }
+
+              attrmapF["user.obfuscate.key"] = skey;
+            }
 
             if (ocUploadUuid.length()) {
               fmd->setFlags(0);
@@ -1527,6 +1530,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       capability += "&mgm.obfuscate.key=";
       capability += attrmapF["user.obfuscate.key"].c_str();
     }
+
     // add encryption key to redirection capability
     if (eoskey.length()) {
       capability += "&mgm.encryption.key=";
@@ -1553,7 +1557,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   std::string bandwidth;
   std::string ioprio;
   std::string iotype;
-
   bool schedule = false;
   eos::common::RWMutexReadLock
   fs_rd_lock(FsView::gFsView.ViewMutex, __FUNCTION__, __LINE__, __FILE__);
@@ -1751,10 +1754,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   {
     // an '&' will create a failure on the FST
     XrdOucString safepath = spath.c_str();
-
-    while (safepath.replace("&", "#AND#")) {
-    }
-
+    eos::common::StringConversion::SealXrdPath(safepath);
     capability += safepath;
   }
   capability += "&mgm.manager=";

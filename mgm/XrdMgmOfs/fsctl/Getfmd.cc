@@ -72,15 +72,11 @@ XrdMgmOfs::Getfmd(const char* path,
     eos::common::Path cPath(fullpath.c_str());
     std::string fmdEnv = "";
     fmd->getEnv(fmdEnv, true);
-
     vlock.Release();
-
     fmdEnv += "&container=";
     // Patch parent name
     XrdOucString safepath = cPath.GetParentPath();
-
-    while (safepath.replace("&", "#AND#")) {}
-
+    eos::common::StringConversion::SealXrdPath(safepath);
     fmdEnv += safepath.c_str();
     response = "getfmd: retc=0 ";
     response += fmdEnv.c_str();
@@ -96,9 +92,7 @@ XrdMgmOfs::Getfmd(const char* path,
     if (safepath.find("&") != STR_NPOS) {
       XrdOucString initial_name = "name=";
       initial_name += safepath;
-
-      while (safepath.replace("&", "#AND#")) {}
-
+      eos::common::StringConversion::SealXrdPath(safepath);
       XrdOucString safe_name = "name=";
       safe_name += safepath;
       response.replace(initial_name, safe_name);

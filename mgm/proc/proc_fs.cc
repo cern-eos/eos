@@ -201,14 +201,10 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
             try {
               std::string spath = gOFS->eosView->getUri(fmd.get());
               XrdOucString safepath = spath.c_str();
-
-              while (safepath.replace("&", "#AND#")) {}
-
+              eos::common::StringConversion::SealXrdPath(safepath);
               fullpath = safepath.c_str();
               safepath = eos::common::Path{spath.c_str()} .GetParentPath();
-
-              while (safepath.replace("&", "#AND#")) {}
-
+              eos::common::StringConversion::SealXrdPath(safepath);
               containerpath = safepath.c_str();
             } catch (eos::MDException& e) {
               errno = e.getErrno();
@@ -697,14 +693,14 @@ proc_fs_add(mq::MessagingRealm* realm, std::string& sfsid, std::string& uuid,
     if (!force) {
       // Skip if group is already full
       if (group->size() > groupsize) {
-	if (target_grps.size() == 1) {
-	  stdErr += SSTR("error: scheduling group " << splitspace << "." << grp_id
-			 << " is full" << std::endl).c_str();
-	}
-	continue;
+        if (target_grps.size() == 1) {
+          stdErr += SSTR("error: scheduling group " << splitspace << "." << grp_id
+                         << " is full" << std::endl).c_str();
+        }
+
+        continue;
       }
     }
-
 
     // Skip if group already contains an fs from the current node.
     // Allow disabling this check in development clusters through the envvar

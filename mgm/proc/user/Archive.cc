@@ -1147,7 +1147,7 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
     }
 
     unseal_str = XrdOucString(line.c_str());
-    line = XrdMqMessage::UnSeal(unseal_str);
+    line = eos::common::StringConversion::UnSeal(unseal_str);
     line_iss.clear();
     line_iss.str(line);
 

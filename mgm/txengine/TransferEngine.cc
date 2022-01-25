@@ -524,7 +524,7 @@ TransferEngine::Scheduler(ThreadAssistant& assistant) noexcept
                 // the opaque information has to be sealead against the use of '& '
                 XrdOucString env = src_tok[1].c_str();
                 transferjob += "&source.env=";
-                transferjob += XrdMqMessage::Seal(env, "_AND_");
+                transferjob += eos::common::StringConversion::Seal(env, "_AND_");
               }
 
               transferjob  += "&target.url=";
@@ -534,7 +534,7 @@ TransferEngine::Scheduler(ThreadAssistant& assistant) noexcept
                 // the opaque information has to be sealead against the use of '&'
                 XrdOucString env = dst_tok[1].c_str();
                 transferjob += "&target.env=";
-                transferjob += XrdMqMessage::Seal(env, "_AND_");
+                transferjob += eos::common::StringConversion::Seal(env, "_AND_");
               }
 
               transferjob  += "&tx.id=";

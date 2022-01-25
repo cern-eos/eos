@@ -298,7 +298,7 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
   mTxFsIdSource = src_snapshot.mId;
 
   if (mRainReconstruct) {
-    src_params << "&mgm.path=" << StringConversion::SealXrdOpaque(fdrain.mFullPath)
+    src_params << "&mgm.path=" << StringConversion::SealXrdPath(fdrain.mFullPath)
                << "&mgm.manager=" << gOFS->ManagerId.c_str()
                << "&mgm.fid=" << eos::common::FileId::Fid2Hex(mFileId)
                << "&mgm.sec="
@@ -310,7 +310,7 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
                << "&mgm.lid=" << target_lid
                << "&mgm.cid=" << fdrain.mProto.cont_id()
                << "&mgm.ruid=1&mgm.rgid=1&mgm.uid=1&mgm.gid=1"
-               << "&mgm.path=" << StringConversion::SealXrdOpaque(fdrain.mFullPath)
+               << "&mgm.path=" << StringConversion::SealXrdPath(fdrain.mFullPath)
                << "&mgm.manager=" << gOFS->ManagerId.c_str()
                << "&mgm.fid=" << eos::common::FileId::Fid2Hex(mFileId)
                << "&mgm.sec="
@@ -418,7 +418,7 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
                << "&mgm.source.rgid=" << fdrain.mProto.gid()
                << "&mgm.cid=" << fdrain.mProto.cont_id()
                << "&mgm.ruid=1&mgm.rgid=1&mgm.uid=1&mgm.gid=1"
-               << "&mgm.path=" << StringConversion::SealXrdOpaque(fdrain.mFullPath.c_str())
+               << "&mgm.path=" << StringConversion::SealXrdPath(fdrain.mFullPath.c_str())
                << "&mgm.manager=" << gOFS->ManagerId.c_str()
                << "&mgm.fid=" << eos::common::FileId::Fid2Hex(mFileId)
                << "&mgm.sec="

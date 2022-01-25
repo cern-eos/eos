@@ -90,7 +90,7 @@ ProcCommand::OpenTemporaryOutputFiles()
 {
   char tmpdir [4096];
   snprintf(tmpdir, sizeof(tmpdir) - 1, "%s/%llu",
-	   gOFS->TmpStorePath.c_str(),
+           gOFS->TmpStorePath.c_str(),
            (unsigned long long) XrdSysThread::ID());
   fstdoutfilename = tmpdir;
   fstdoutfilename += ".stdout";
@@ -456,6 +456,7 @@ ProcCommand::close()
 void
 ProcCommand::MakeResult()
 {
+  using eos::common::StringConversion;
   mResultStream = "";
 
   if (!fstdout) {
@@ -466,9 +467,9 @@ ProcCommand::MakeResult()
     if ((!mFuseFormat && !mJsonFormat && !mHttpFormat)) {
       // The default format
       mResultStream = "mgm.proc.stdout=";
-      mResultStream += XrdMqMessage::Seal(stdOut);
+      mResultStream += StringConversion::Seal(stdOut);
       mResultStream += "&mgm.proc.stderr=";
-      mResultStream += XrdMqMessage::Seal(stdErr);
+      mResultStream += StringConversion::Seal(stdErr);
       mResultStream += "&mgm.proc.retc=";
       mResultStream += std::to_string(retc);
     }
@@ -483,10 +484,12 @@ ProcCommand::MakeResult()
         mResultStream +=
           "<TITLE>EOS-HTTP</TITLE> <link rel=\"stylesheet\" href=\"http://www.w3.org/StyleSheets/Core/Midnight\"> \n";
         mResultStream += "<meta charset=\"utf-8\"> \n";
-	// block cross-site scripting in responses
-	if (stdErr.length()) {
-	  mResultStream += "<meta http-equiv=\"Content-Security-Policy\" content=\"script-src https://code.jquery.com 'self';\">\n";
-	}
+
+        // block cross-site scripting in responses
+        if (stdErr.length()) {
+          mResultStream +=
+            "<meta http-equiv=\"Content-Security-Policy\" content=\"script-src https://code.jquery.com 'self';\">\n";
+        }
 
         mResultStream += "<div class=\"httptable\" id=\"";
         mResultStream += mCmd.c_str();
@@ -559,7 +562,7 @@ ProcCommand::MakeResult()
           mResultStream = stdJson.c_str();
         } else {
           mResultStream = "mgm.proc.json=";
-          mResultStream += XrdMqMessage::Seal(stdJson);
+          mResultStream += StringConversion::Seal(stdJson);
         }
       }
     }
@@ -590,7 +593,7 @@ ProcCommand::MakeResult()
           sentry += "\n";
 
           if (!mFuseFormat) {
-            XrdMqMessage::Seal(sentry);
+            StringConversion::Seal(sentry);
           }
 
           fprintf(fresultStream, "%s", sentry.c_str());
@@ -606,7 +609,7 @@ ProcCommand::MakeResult()
         while (std::getline(inStderr, entry)) {
           XrdOucString sentry = entry.c_str();
           sentry += "\n";
-          XrdMqMessage::Seal(sentry);
+          StringConversion::Seal(sentry);
           fprintf(fresultStream, "%s", sentry.c_str());
         }
 

@@ -363,7 +363,7 @@ IProcCommand::ConvertOutputToJsonFormat(const std::string& stdOut)
       quoted_ss >> std::quoted(value);
       // Seal value
       XrdOucString svalue = value.c_str();
-      XrdMqMessage::Seal(svalue);
+      eos::common::StringConversion::Seal(svalue);
       value = svalue.c_str();
 
       if (errno || (!val && (conv  == it.second.c_str())) ||

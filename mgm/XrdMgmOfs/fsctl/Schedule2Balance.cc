@@ -386,11 +386,9 @@ XrdMgmOfs::Schedule2Balance(const char* path,
       try {
         fmd = gOFS->eosFileService->getFileMD(fid);
         fullpath = gOFS->eosView->getUri(fmd.get());
-        XrdOucString savepath = fullpath.c_str();
-
-        while (savepath.replace("&", "#AND#")) {}
-
-        fullpath = savepath.c_str();
+        XrdOucString safepath = fullpath.c_str();
+        eos::common::StringConversion::SealXrdPath(safepath);
+        fullpath = safepath.c_str();
         lid = fmd->getLayoutId();
         cid = fmd->getContainerId();
         size = fmd->getSize();

@@ -405,7 +405,7 @@ command_result_stdout_to_vector(std::vector<std::string>& string_vector)
     eos::common::SymKey::DeBase64(rstdout, ub64out);
     rstdout = ub64out;
   } else {
-    XrdMqMessage::UnSeal(rstdout);
+    eos::common::StringConversion::UnSeal(rstdout);
   }
 
   XrdOucTokenizer subtokenizer((char*) rstdout.c_str());
@@ -429,6 +429,8 @@ command_result_stdout_to_vector(std::vector<std::string>& string_vector)
 int
 output_result(XrdOucEnv* result, bool highlighting)
 {
+  using eos::common::StringConversion;
+
   if (!result) {
     return EINVAL;
   }
@@ -442,7 +444,7 @@ output_result(XrdOucEnv* result, bool highlighting)
     eos::common::SymKey::DeBase64(rstdout, ub64out);
     rstdout = ub64out;
   } else {
-    XrdMqMessage::UnSeal(rstdout);
+    StringConversion::UnSeal(rstdout);
   }
 
   if (rstderr.beginswith("base64:")) {
@@ -450,7 +452,7 @@ output_result(XrdOucEnv* result, bool highlighting)
     eos::common::SymKey::DeBase64(rstderr, ub64out);
     rstderr = ub64out;
   } else {
-    XrdMqMessage::UnSeal(rstderr);
+    StringConversion::UnSeal(rstderr);
   }
 
   if (rstdjson.beginswith("base64:")) {
@@ -458,7 +460,7 @@ output_result(XrdOucEnv* result, bool highlighting)
     eos::common::SymKey::DeBase64(rstdjson, ub64out);
     rstdjson = ub64out;
   } else {
-    XrdMqMessage::UnSeal(rstdjson);
+    StringConversion::UnSeal(rstdjson);
   }
 
   if (highlighting && global_highlighting) {
@@ -1353,7 +1355,9 @@ const char* path_identifier(const char* in, bool escapeand)
 
   input = abspath(in);
 
-  while (escapeand && input.replace("&", "#AND#")) {}
+  if (escapeand) {
+    eos::common::StringConversion::SealXrdPath(input);
+  }
 
   return input.c_str();
 }

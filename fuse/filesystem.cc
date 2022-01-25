@@ -2136,8 +2136,7 @@ fuse_filesystem::symlink(const char* path, const char* link, uid_t uid,
   if (encode_pathname) {
     savelink = safePath(savelink.c_str()).c_str();
   } else {
-    while (savelink.replace("&", "#AND#")) {
-    }
+    eos::common::StringConversion::SealXrdPath(savelink);
   }
 
   request += savelink.c_str();
@@ -4846,7 +4845,7 @@ fuse_filesystem::init(int argc, char* argv[], void* userdata,
   if (getenv("EOS_FUSE_PROCPATH")) {
     std::string pp(getenv("EOS_FUSE_PROCPATH"));
 
-    if (pp[pp.size()-1] != '/') {
+    if (pp[pp.size() - 1] != '/') {
       pp.append("/");
     }
 

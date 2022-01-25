@@ -30,6 +30,7 @@
 #include "google/protobuf/io/zero_copy_stream_impl_lite.h"
 #include "common/Assert.hh"
 #include "common/StacktraceHere.hh"
+#include "common/StringConversion.hh"
 #include "common/Logging.hh"
 #include <sys/stat.h>
 #include <algorithm>
@@ -810,15 +811,7 @@ QuarkContainerMD::getEnv(std::string& env, bool escapeAnd)
 
   if (escapeAnd) {
     if (!saveName.empty()) {
-      std::string from = "&";
-      std::string to = "#AND#";
-      size_t start_pos = 0;
-
-      while ((start_pos = saveName.find(from, start_pos)) !=
-             std::string::npos) {
-        saveName.replace(start_pos, from.length(), to);
-        start_pos += to.length();
-      }
+      saveName = eos::common::StringConversion::SealXrdPath(saveName);
     }
   }
 

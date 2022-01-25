@@ -31,17 +31,16 @@ using namespace eos::common;
 TEST(StringConversion, Seal_Unseal_Operation)
 {
   std::string input = "/eos/dev/pic_and_poc";
-  ASSERT_TRUE(input == StringConversion::SealXrdOpaque(input));
-  ASSERT_TRUE(input == StringConversion::UnsealXrdOpaque(input));
+  ASSERT_TRUE(input == StringConversion::SealXrdPath(input));
+  ASSERT_TRUE(input == StringConversion::UnsealXrdPath(input));
   input = "/eos/dev/pic&poc";
   std::string expected = "/eos/dev/pic#AND#poc";
-  ASSERT_TRUE(expected == StringConversion::SealXrdOpaque(input));
-  ASSERT_TRUE(input == StringConversion::UnsealXrdOpaque(expected));
+  ASSERT_TRUE(expected == StringConversion::SealXrdPath(input));
+  ASSERT_TRUE(input == StringConversion::UnsealXrdPath(expected));
   input = "/eos/dev/&pic&and&poc&&";
   expected = "/eos/dev/#AND#pic#AND#and#AND#poc#AND##AND#";
-  ASSERT_STREQ(expected.c_str(), StringConversion::SealXrdOpaque(input).c_str());
-  ASSERT_STREQ(input.c_str(),
-               StringConversion::UnsealXrdOpaque(expected).c_str());
+  ASSERT_STREQ(expected.c_str(), StringConversion::SealXrdPath(input).c_str());
+  ASSERT_STREQ(input.c_str(), StringConversion::UnsealXrdPath(expected).c_str());
 }
 
 TEST(StringConversion, ChecksumTranslations)

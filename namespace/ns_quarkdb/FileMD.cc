@@ -20,6 +20,7 @@
 #include <chrono>
 #include "common/Logging.hh"
 #include "common/StacktraceHere.hh"
+#include "common/StringConversion.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
 #include "namespace/ns_quarkdb/persistency/Serialization.hh"
 #include "namespace/interface/IContainerMD.hh"
@@ -167,7 +168,6 @@ QuarkFileMD::unlinkLocation(location_t location)
   for (auto it = mFile.mutable_locations()->cbegin();
        it != mFile.mutable_locations()->cend(); ++it) {
     if (*it == location) {
-
       // If location is already unlink, skip adding it
       if (!hasUnlinkedLocationNoLock(location)) {
         mFile.add_unlink_locations(*it);
@@ -216,15 +216,7 @@ QuarkFileMD::getEnv(std::string& env, bool escapeAnd)
 
   if (escapeAnd) {
     if (!saveName.empty()) {
-      std::string from = "&";
-      std::string to = "#AND#";
-      size_t start_pos = 0;
-
-      while ((start_pos = saveName.find(from, start_pos)) !=
-             std::string::npos) {
-        saveName.replace(start_pos, from.length(), to);
-        start_pos += to.length();
-      }
+      saveName = eos::common::StringConversion::SealXrdPath(saveName);
     }
   }
 
@@ -456,8 +448,10 @@ void
 QuarkFileMD::getSyncTimeNoLock(ctime_t& stime) const
 {
   (void) memcpy(&stime, mFile.stime().data(), sizeof(stime));
-  if (stime.tv_sec == 0)    /* fall back to mtime if default */
-      (void) memcpy(&stime, mFile.mtime().data(), sizeof(stime));
+
+  if (stime.tv_sec == 0) {  /* fall back to mtime if default */
+    (void) memcpy(&stime, mFile.mtime().data(), sizeof(stime));
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -510,7 +504,8 @@ QuarkFileMD::getAttributes() const
 //------------------------------------------------------------------------------
 // Test the unlinked location
 //------------------------------------------------------------------------------
-bool QuarkFileMD::hasUnlinkedLocation(IFileMD::location_t location) {
+bool QuarkFileMD::hasUnlinkedLocation(IFileMD::location_t location)
+{
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   return hasUnlinkedLocationNoLock(location);
 }
@@ -518,7 +513,8 @@ bool QuarkFileMD::hasUnlinkedLocation(IFileMD::location_t location) {
 //------------------------------------------------------------------------------
 // Test the unlinked location, no locks
 //------------------------------------------------------------------------------
-bool QuarkFileMD::hasUnlinkedLocationNoLock(location_t location) const {
+bool QuarkFileMD::hasUnlinkedLocationNoLock(location_t location) const
+{
   for (int i = 0; i < mFile.unlink_locations_size(); ++i) {
     if (mFile.unlink_locations()[i] == location) {
       return true;
