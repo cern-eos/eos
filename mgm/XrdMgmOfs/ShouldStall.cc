@@ -54,9 +54,9 @@ XrdMgmOfs::ShouldStall(const char* function,
   if (stall) {
     if ((vid.uid > 3) && (functionname != "stat")  && (vid.app != "fuse::restic")) {
       if ( (stalltime = gOFS->mTracker.ShouldStall(vid.uid)) ) {
-	smsg = "operate - your are exceeding your thread pool limit";
-	stallid += "::threads::";
-	stallid += std::to_string(vid.uid);;
+	      smsg = "operate - your are exceeding your thread pool limit";
+	      stallid += "::threads::";
+	      stallid += std::to_string(vid.uid);;
       } else if (Access::gBannedUsers.count(vid.uid)) {
         smsg = "operate - you are banned in this instance - contact an administrator";
 
@@ -138,9 +138,12 @@ XrdMgmOfs::ShouldStall(const char* function,
               // catch all rule = global user rate cut
               XrdSysMutexHelper statLock(gOFS->MgmStats.mMutex);
 
-              if (gOFS->MgmStats.StatAvgUid.count(cmd) &&
-                  gOFS->MgmStats.StatAvgUid[cmd].count(vid.uid) &&
-                  (gOFS->MgmStats.StatAvgUid[cmd][vid.uid].GetAvg5() > cutoff)) {
+              if ((cutoff == 0) ||
+                  (
+                    gOFS->MgmStats.StatAvgUid.count(cmd) &&
+                    gOFS->MgmStats.StatAvgUid[cmd].count(vid.uid) &&
+                    (gOFS->MgmStats.StatAvgUid[cmd][vid.uid].GetAvg5() > cutoff)
+                  )) {
                 if (!stalltime) {
                   stalltime = 5;
                 }
@@ -152,9 +155,12 @@ XrdMgmOfs::ShouldStall(const char* function,
               // catch all rule = global user rate cut
               XrdSysMutexHelper statLock(gOFS->MgmStats.mMutex);
 
-              if (gOFS->MgmStats.StatAvgGid.count(cmd) &&
-                  gOFS->MgmStats.StatAvgGid[cmd].count(vid.gid) &&
-                  (gOFS->MgmStats.StatAvgGid[cmd][vid.gid].GetAvg5() > cutoff)) {
+              if ((cutoff == 0) ||
+                  (
+                    gOFS->MgmStats.StatAvgGid.count(cmd) &&
+                    gOFS->MgmStats.StatAvgGid[cmd].count(vid.gid) &&
+                    (gOFS->MgmStats.StatAvgGid[cmd][vid.gid].GetAvg5() > cutoff)
+                  )) {
                 if (!stalltime) {
                   stalltime = 5;
                 }
@@ -166,9 +172,12 @@ XrdMgmOfs::ShouldStall(const char* function,
               // check user rule
               XrdSysMutexHelper statLock(gOFS->MgmStats.mMutex);
 
-              if (gOFS->MgmStats.StatAvgUid.count(cmd) &&
-                  gOFS->MgmStats.StatAvgUid[cmd].count(vid.uid) &&
-                  (gOFS->MgmStats.StatAvgUid[cmd][vid.uid].GetAvg5() > cutoff)) {
+              if ((cutoff == 0) ||
+                  (
+                    gOFS->MgmStats.StatAvgUid.count(cmd) &&
+                    gOFS->MgmStats.StatAvgUid[cmd].count(vid.uid) &&
+                    (gOFS->MgmStats.StatAvgUid[cmd][vid.uid].GetAvg5() > cutoff)
+                  )) {
                 // rate exceeded
                 if (!stalltime) {
                   stalltime = 5;
@@ -181,9 +190,12 @@ XrdMgmOfs::ShouldStall(const char* function,
               // check group rule
               XrdSysMutexHelper statLock(gOFS->MgmStats.mMutex);
 
-              if (gOFS->MgmStats.StatAvgGid.count(cmd) &&
-                  gOFS->MgmStats.StatAvgGid[cmd].count(vid.gid) &&
-                  (gOFS->MgmStats.StatAvgGid[cmd][vid.gid].GetAvg5() > cutoff)) {
+              if ((cutoff == 0) ||
+                  (
+                    gOFS->MgmStats.StatAvgGid.count(cmd) &&
+                    gOFS->MgmStats.StatAvgGid[cmd].count(vid.gid) &&
+                    (gOFS->MgmStats.StatAvgGid[cmd][vid.gid].GetAvg5() > cutoff)
+                  )) {
                 // rate exceeded
                 if (!stalltime) {
                   stalltime = 5;

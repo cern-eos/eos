@@ -297,6 +297,8 @@ com_access_usage:
           "                                                  rate:user:*:<counter> : apply to all users based on user counter\n");
   fprintf(stdout,
           "                                                  rate:group:*:<counter>: apply to all groups based on group counter\n");
+  fprintf(stdout,
+          "                                                                          set <frequency> to 0 (zero) to continuously stall the user or group\n");
   fprintf(stdout, "\n");
   fprintf(stdout, "access set limit <nfiles> rate:user:{name}:FindFiles\n");
   fprintf(stdout,
@@ -348,6 +350,8 @@ com_access_usage:
   fprintf(stdout, "  access ls                Print all defined access rules\n");
   fprintf(stdout,
           "  access set limit 100  rate:user:*:OpenRead      Limit the rate of open for read to a frequency of 100 Hz for all users\n");
+  fprintf(stdout,
+          "  access set limit 0    rate:user:ab:OpenRead     Limit the open for read rate for the ab user to 0 Hz, to continuously stall it\n");
   fprintf(stdout,
           "  access set limit 2000 rate:group:zp:Stat        Limit the stat rate for the zp group to 2kHz\n");
   fprintf(stdout,

@@ -369,6 +369,7 @@ void com_access_help()
       << "\t                                      - the instantaneous rate can exceed this value by 33%%\n"
       << "\t              rate:user:*:<counter> : apply to all users based on user counter\n"
       << "\t              rate:group:*:<counter>: apply to all groups based on group counter\n"
+      << "\t                                      set <frequency> to 0 (zero) to continuously stall the user or group\n"
       << std::endl
       << "access set limit <frequency> threads:{*,max,<uid>}\n"
       << "\t                        threads:max : set the maximum number of threads running in parallel for <uid> > 3\n"
@@ -412,7 +413,8 @@ void com_access_help()
       << " access rm redirect                             : Remove redirection to previously defined host foo\n"
       << " access set stall 60                            : Stall all clients by 60 seconds\n"
       << " access ls                                      : Print all defined access rules\n"
-      << " access set limit 100  rate:user:*:OpenRead     : Limit the rate of open for read to a frequency of 100 Hz for all users\n"
+      << " access set limit 100  rate:user:*:OpenRead     : Limit the open for read rate to a frequency of 100 Hz for all users\n"
+      << " access set limit 0    rate:user:ab:OpenRead    : Limit the open for read rate for the ab user to 0 Hz, to continuously stall it\n"
       << " access set limit 2000 rate:group:zp:Stat       : Limit the stat rate for the zp group to 2kHz\n"
       << " access set limit 500 threads:*                 : Limit the thread pool usage to 500 threads per user\n"
       << " access rm limit rate:user:*:OpenRead           : Removes the defined limit\n"

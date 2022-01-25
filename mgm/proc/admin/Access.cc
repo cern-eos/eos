@@ -478,7 +478,9 @@ ProcCommand::Access()
       }
     } else {
       if (stall.length()) {
-        if ((atoi(stall.c_str()) > 0) &&
+        int desiredRate = atoi(stall.c_str());
+        bool rateIsValid = ((type.find("rate:") == 0 && desiredRate >= 0) || (desiredRate > 0));
+        if (rateIsValid &&
             ((type.length() == 0) || (type == "r") || (type == "w") ||
              ((type.find("rate:") == 0)) || (type == "ENONET") ||
              (type == "ENOENT") || (type == "ENETUNREACH"))) {
@@ -539,7 +541,7 @@ ProcCommand::Access()
             retc = EIO;
           }
         } else {
-          stdErr = "error: limit has to be > 0";
+          stdErr = "error: limit has to be >= 0 (value zero allowed just for 'rate:' limit)";
           retc = EINVAL;
         }
       } else {

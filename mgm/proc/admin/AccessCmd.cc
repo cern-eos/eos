@@ -577,13 +577,13 @@ void AccessCmd::SetSubcmd(const eos::console::AccessProto_SetProto& set,
     try {
       target = (std::stoi(set.target()));
     } catch (const std::exception& e) {
-      reply.set_std_err("error: target must be an integer greater than 0");
+      reply.set_std_err("error: target must be an integer equal or greater than 0 (value zero allowed just for 'rate:' limit)");
       reply.set_retc(EINVAL);
       return;
     }
 
-    if (target <= 0) {
-      reply.set_std_err("error: target must be an integer greater than 0");
+    if (!((set.key().find("rate:") == 0 && target >= 0) || (target > 0))) {
+      reply.set_std_err("error: target must be an integer equal or greater than 0 (value zero allowed just for 'rate:' limit)");
       reply.set_retc(EINVAL);
       return;
     }
