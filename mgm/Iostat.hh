@@ -358,6 +358,10 @@ public:
   std::string mFlusherPath;
   //! Mutex protecting the above data structures
   std::mutex mDataMutex;
+  //! If true then use the file based approach otherwise store info in QDB
+  std::atomic<bool> mLegacyMode;
+  //! File path where statistics are stored on disk
+  std::string mLegacyFilePath;
   std::atomic<bool> mRunning;
   //! Internal QClient object
   std::unique_ptr<qclient::QClient> mQcl;
@@ -510,6 +514,20 @@ public:
   //! current year and it's cached for 5 minutes.
   //----------------------------------------------------------------------------
   std::string GetHashKey() const;
+
+  //----------------------------------------------------------------------------
+  //! Store statistics in legacy file format
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool LegacyStoreInFile();
+
+  //----------------------------------------------------------------------------
+  //! Restore statistics from legacy file format
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool LegacyRestoreFromFile();
 };
 
 EOSMGMNAMESPACE_END

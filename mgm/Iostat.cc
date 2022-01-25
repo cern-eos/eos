@@ -203,8 +203,8 @@ IostatPeriods::GetSumForPeriod(Period period) const
 // Iostat constructor
 //------------------------------------------------------------------------------
 Iostat::Iostat():
-  mRunning(false), mQcl(nullptr), mReport(true), mReportNamespace(false),
-  mReportPopularity(true), mHashKeyBase("")
+  mLegacyMode(false), mRunning(false), mQcl(nullptr), mReport(true),
+  mReportNamespace(false), mReportPopularity(true), mHashKeyBase("")
 {
   GetTopLevelDomains(IoDomains);
   // push default nodes to watch TODO: make generic
@@ -264,25 +264,32 @@ Iostat::Init(const std::string& instance_name, int port,
   mFlusherPath = SSTR("/var/eos/ns-queue/" << instance_name << ":" << port
                       << "_iostat");
 
-  // Initialize qclient
-  if (gOFS && !mQcl) {
-    const eos::QdbContactDetails& qdb_details = gOFS->mQdbContactDetails;
-    mQcl.reset(new qclient::QClient(qdb_details.members,
-                                    qdb_details.constructOptions()));
-  }
+  if (gOFS) {
+    // QDB namespace, initialize qclient
+    if (!gOFS->namespaceGroup->isInMemory()) {
+      const eos::QdbContactDetails& qdb_details = gOFS->mQdbContactDetails;
+      mQcl.reset(new qclient::QClient(qdb_details.members,
+                                      qdb_details.constructOptions()));
 
-  if (!mQcl) {
-    eos_static_err("%s", "msg=\"failed to configure qclient\"");
-    return false;
-  }
+      if (!OneOffQdbMigration(legacy_file)) {
+        eos_static_err("%s", "msg=\"failed while attempting migration to QDB\"");
+        return false;
+      }
 
-  if (!OneOffQdbMigration(legacy_file)) {
-    eos_static_err("%s", "msg=\"failed while attempting migration to QDB\"");
-    return false;
-  }
+      if (!LoadFromQdb()) {
+        return false;
+      }
+    } else {
+      // In-memory namespace forces the stats to be saved in the file
+      mLegacyMode = true;
+      mLegacyFilePath = legacy_file;
 
-  if (!LoadFromQdb()) {
-    return false;
+      if (!LegacyRestoreFromFile()) {
+        eos_static_err("msg=\"failed to restore info from file\" path=%s",
+                       mLegacyFilePath.c_str());
+        return false;
+      }
+    }
   }
 
   mCirculateThread.reset(&Iostat::Circulate, this);
@@ -554,7 +561,7 @@ Iostat::Add(const std::string& tag, uid_t uid, gid_t gid,
             time_t start, time_t stop, time_t now)
 {
   // Flush to QDB if not in testing mode
-  if (gOFS) {
+  if (gOFS && !mLegacyMode) {
     AddToQdb(tag, uid, gid, val);
   }
 
@@ -1795,6 +1802,23 @@ void
 Iostat::Circulate(ThreadAssistant& assistant) noexcept
 {
   while (!assistant.terminationRequested()) {
+    if (mLegacyMode) {
+      static unsigned long long sc = 0ull;
+
+      // Store once per minute the current statistics
+      if (sc % 117 == 0) {
+        sc = 0ull;
+
+        // save the current state ~ every minute
+        if (!LegacyStoreInFile()) {
+          eos_static_err("msg=\"failed store io stat dump\" path=\"%s\"",
+                         mLegacyFilePath.c_str());
+        }
+      }
+
+      sc++;
+    }
+
     assistant.wait_for(std::chrono::milliseconds(512));
     google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, IostatPeriods> >::iterator
     tit;
@@ -2364,6 +2388,93 @@ Iostat::LoadFromQdb()
     }
   }
 
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Store statistics in legacy file format
+//------------------------------------------------------------------------------
+bool
+Iostat::LegacyStoreInFile()
+{
+  if (mLegacyFilePath.empty()) {
+    return false;
+  }
+
+  XrdOucString tmpname = mLegacyFilePath.c_str();
+  tmpname += ".tmp";
+  FILE* fout = fopen(tmpname.c_str(), "w+");
+
+  if (!fout) {
+    return false;
+  }
+
+  if (chmod(tmpname.c_str(), S_IRWXU | S_IRGRP | S_IROTH)) {
+    fclose(fout);
+    return false;
+  }
+
+  std::unique_lock<std::mutex> scope_lock(mDataMutex);
+
+  // Store user counters
+  for (auto tuit = IostatUid.begin(); tuit != IostatUid.end(); tuit++) {
+    for (auto it = tuit->second.begin(); it != tuit->second.end(); ++it) {
+      fprintf(fout, "tag=%s&uid=%u&val=%llu\n", tuit->first.c_str(), it->first,
+              (unsigned long long)it->second);
+    }
+  }
+
+  // Store group counter
+  for (auto tgit = IostatGid.begin(); tgit != IostatGid.end(); tgit++) {
+    for (auto it = tgit->second.begin(); it != tgit->second.end(); ++it) {
+      fprintf(fout, "tag=%s&gid=%u&val=%llu\n", tgit->first.c_str(), it->first,
+              (unsigned long long)it->second);
+    }
+  }
+
+  fclose(fout);
+  return (rename(tmpname.c_str(), mLegacyFilePath.c_str()) == 0);
+}
+
+//------------------------------------------------------------------------------
+// Restore statistics from legacy file format
+//------------------------------------------------------------------------------
+bool
+Iostat::LegacyRestoreFromFile()
+{
+  if (mLegacyFilePath.empty()) {
+    return false;
+  }
+
+  FILE* fin = fopen(mLegacyFilePath.c_str(), "r");
+
+  if (!fin) {
+    return false;
+  }
+
+  int item = 0;
+  char line[16384];
+  std::unique_lock<std::mutex> scope_lock(mDataMutex);
+
+  while ((item = fscanf(fin, "%16383s\n", line)) == 1) {
+    XrdOucEnv env(line);
+
+    if (env.Get("tag") && env.Get("uid") && env.Get("val")) {
+      std::string tag = env.Get("tag");
+      uid_t uid = atoi(env.Get("uid"));
+      unsigned long long val = strtoull(env.Get("val"), 0, 10);
+      IostatUid[tag][uid] = val;
+    }
+
+    if (env.Get("tag") && env.Get("gid") && env.Get("val")) {
+      std::string tag = env.Get("tag");
+      gid_t gid = atoi(env.Get("gid"));
+      unsigned long long val = strtoull(env.Get("val"), 0, 10);
+      IostatGid[tag][gid] = val;
+    }
+  }
+
+  fclose(fin);
   return true;
 }
 
