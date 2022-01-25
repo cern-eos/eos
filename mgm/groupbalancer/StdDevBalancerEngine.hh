@@ -34,16 +34,21 @@ public:
   void updateGroup(const std::string& group_name) override;
   void configure(const engine_conf_t& conf) override;
 
-  // get the set threshold, mostly only useful for testing
-  double get_threshold() const {
-    return mThreshold;
+  // Getters only used by GTest
+  double get_min_threshold() const {
+    return mMinDeviation;
+  }
+
+  double get_max_threshold() const {
+    return mMaxDeviation;
   }
 
   std::string get_status_str(bool detail=false, bool monitoring=false) const override;
 private:
   /// average filled percentage in groups
   double mAvgUsedSize;
-  double mThreshold;
+  double mMinDeviation;
+  double mMaxDeviation;
 };
 
-}
+} // namespace eos::mgm::group_balancer

@@ -724,13 +724,11 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             (key == "converter.ntx") ||
             (key == "groupbalancer") ||
             (key == "groupbalancer.ntx") ||
-            (key == "groupbalancer.threshold") ||
+            (key == "groupbalancer.min_threshold") ||
+            (key == "groupbalancer.max_threshold") ||
             (key == "groupbalancer.min_file_size") ||
             (key == "groupbalancer.max_file_size") ||
             (key == "groupbalancer.file_attempts") ||
-            (key == "groupbalancer.engine.std.threshold") ||
-            (key == "groupbalancer.engine.mm.min_threshold") ||
-            (key == "groupbalancer.engine.mm.max_threshold") ||
             (key == "geobalancer") ||
             (key == "geobalancer.ntx") ||
             (key == "geobalancer.threshold") ||
@@ -887,11 +885,9 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
 
             if (!errno) {
               if ((key != "balancer.threshold") &&
-                  (key != "groupbalancer.threshold") &&
                   (key != "geobalancer.threshold") &&
-                  (key != "groupbalancer.engine.std.threshold") &&
-                  (key != "groupbalancer.engine.mm.min_threshold") &&
-                  (key != "groupbalancer.engine.mm.max_threshold")) {
+                  (key != "groupbalancer.min_threshold") &&
+                  (key != "groupbalancer.max_threshold")) {
                 // the threshold is allowed to be decimal!
                 char ssize[1024];
                 snprintf(ssize, sizeof(ssize) - 1, "%llu", size);

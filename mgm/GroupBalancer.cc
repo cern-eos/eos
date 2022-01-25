@@ -443,15 +443,13 @@ GroupBalancer::Configure(FsSpace* const space, GroupBalancer::Config& cfg)
   cfg.is_enabled = space->GetConfigMember("groupbalancer") == "on";
   cfg.is_conv_enabled = space->GetConfigMember("converter") == "on";
   cfg.num_tx = atoi(space->GetConfigMember("groupbalancer.ntx").c_str());
-  cfg.mThreshold = atof(space->GetConfigMember("groupbalancer.threshold").c_str()) /
-    100.0;
   cfg.mMinFileSize = common::StringConversion::GetSizeFromString(space->GetConfigMember("groupbalancer.min_file_size"));
   cfg.mMaxFileSize = common::StringConversion::GetSizeFromString(space->GetConfigMember("groupbalancer.max_file_size"));
   cfg.engine_type = group_balancer::get_engine_type(space->GetConfigMember("groupbalancer.engine"));
   cfg.file_attempts = atoi(space->GetConfigMember("groupbalancer.file_attempts").c_str());
-  mEngineConf.insert_or_assign("threshold",space->GetConfigMember("groupbalancer.engine.std.threshold"));
-  mEngineConf.insert_or_assign("min_threshold",space->GetConfigMember("groupbalancer.engine.mm.min_threshold"));
-  mEngineConf.insert_or_assign("max_threshold",space->GetConfigMember("groupbalancer.engine.mm.max_threshold"));
+
+  mEngineConf.insert_or_assign("min_threshold",space->GetConfigMember("groupbalancer.min_threshold"));
+  mEngineConf.insert_or_assign("max_threshold",space->GetConfigMember("groupbalancer.max_threshold"));
 }
 
 

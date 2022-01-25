@@ -965,16 +965,12 @@ FsSpace::FsSpace(const char* name)
       SetConfigMember("groupbalancer.engine", "std");
     }
 
-    if (GetConfigMember("groupbalancer.engine.std.threshold").empty()) {
-      SetConfigMember("groupbalancer.engine.std.threshold", "5");
+    if (GetConfigMember("groupbalancer.min_threshold").empty()) {
+      SetConfigMember("groupbalancer.min_threshold", "10");
     }
 
-    if (GetConfigMember("groupbalancer.engine.mm.min_threshold").empty()) {
-      SetConfigMember("groupbalancer.engine.mm.min_threshold", "60");
-    }
-
-    if (GetConfigMember("groupbalancer.engine.mm.max_threshold").empty()) {
-      SetConfigMember("groupbalancer.engine.mm.max_threshold", "95");
+    if (GetConfigMember("groupbalancer.max_threshold").empty()) {
+      SetConfigMember("groupbalancer.max_threshold", "10");
     }
 
     if (GetConfigMember("geobalancer").empty()) {

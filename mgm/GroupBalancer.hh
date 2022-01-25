@@ -75,13 +75,12 @@ public:
     bool is_enabled;
     bool is_conv_enabled;
     int num_tx;
-    double mThreshold;     ///< Threshold for group balancing
     uint64_t mMinFileSize; ///< Min size of files to be picked
     uint64_t mMaxFileSize; ///< Max size of files to be picked
     uint64_t file_attempts;
     group_balancer::BalancerEngineT engine_type;
 
-    Config(): is_enabled(true), is_conv_enabled(true), num_tx(0), mThreshold(.5),
+    Config(): is_enabled(true), is_conv_enabled(true), num_tx(0),
               mMinFileSize(GROUPBALANCER_MIN_FILE_SIZE),
               mMaxFileSize(GROUPBALANCER_MAX_FILE_SIZE),
               engine_type(group_balancer::BalancerEngineT::stddev)
