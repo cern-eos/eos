@@ -89,17 +89,7 @@ RainMetaLayout::~RainMetaLayout()
     delete hd;
   }
 
-  while (!mStripe.empty()) {
-    FileIo* file = mStripe.back();
-    mStripe.pop_back();
-
-    if (file == mFileIO.get()) {
-      continue; // this is deleted when mFileIO is destroyed
-    }
-
-    delete file;
-  }
-
+  mStripe.clear();
   StopParityThread();
 }
 
@@ -112,22 +102,22 @@ void RainMetaLayout::Redirect(const char* path)
 }
 
 //------------------------------------------------------------------------------
-// Open file layout
+// Perform basic layout checks
 //------------------------------------------------------------------------------
-int
-RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
+bool
+RainMetaLayout::BasicLayoutChecks()
 {
   // Do some minimal checkups
   if (mNbTotalFiles < 6) {
     eos_err("msg=\"failed open, stripe size must be at least 6\" "
             "stripe_size=%u", mNbTotalFiles);
-    return SFS_ERROR;
+    return false;
   }
 
   if (mStripeWidth < 64) {
     eos_err("msg=\"failed open, stripe width must be at least 64\" "
             "stripe_width=%llu", mStripeWidth);
-    return SFS_ERROR;
+    return false;
   }
 
   // Get the index of the current stripe
@@ -138,9 +128,16 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
 
     if ((mPhysicalStripeIndex < 0) || (mPhysicalStripeIndex > 255)) {
       eos_err("msg=\"illegal stripe index %d\"", mPhysicalStripeIndex);
-      errno = EINVAL;
-      return SFS_ERROR;
+      return false;
     }
+  } else {
+    eos_err("%s", "msg=\"replica index missing\"");
+    return false;
+  }
+
+  if (mOfsFile == nullptr) {
+    eos_err("%s", "msg=\"no raw OFS file available\"");
+    return false;
   }
 
   // Get the index of the head stripe
@@ -151,179 +148,190 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
 
     if ((mStripeHead < 0) || (mStripeHead > 255)) {
       eos_err("msg=\"illegal stripe head %d\"", mStripeHead);
-      errno = EINVAL;
-      return SFS_ERROR;
+      return false;
     }
   } else {
     eos_err("%s", "msg=\"stripe head missing\"");
+    return false;
+  }
+
+  if (!mStripe.empty()) {
+    eos_err("%s", "msg=\"vector of stripe files is not empty\"");
+    return false;
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Open file layout
+//------------------------------------------------------------------------------
+int
+RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
+{
+  if (!BasicLayoutChecks()) {
     errno = EINVAL;
     return SFS_ERROR;
   }
 
-  // Add opaque information to enable readahead
-  XrdOucString enhanced_opaque = opaque;
-  enhanced_opaque += "&fst.readahead=true";
-  enhanced_opaque += "&fst.blocksize=";
-  enhanced_opaque += static_cast<int>(mStripeWidth);
+  if (mPhysicalStripeIndex == mStripeHead) {
+    mIsEntryServer = true;
+  }
 
   // When recovery enabled we open the files in RDWR mode
   if (mStoreRecovery) {
-    flags = SFS_O_RDWR;
+    flags = SFS_O_CREAT | SFS_O_RDWR;
     mIsRw = true;
   } else if (flags & (SFS_O_RDWR | SFS_O_TRUNC | SFS_O_WRONLY)) {
     mStoreRecovery = true;
     mIsRw = true;
+    // Files are never open in update mode!
     flags |= (SFS_O_RDWR | SFS_O_TRUNC);
+  } else {
+    mode = 0;
   }
 
-  eos_debug("open_mode=%x truncate=%d", flags,
-            ((mStoreRecovery && (mPhysicalStripeIndex == mStripeHead)) ? 1 : 0));
-
-  // The local stripe is expected to be reconstructed in a recovery on the
-  // gateway server, since it might exist it is truncated.
-  if (mFileIO->fileOpen(flags, mode, enhanced_opaque.c_str(), mTimeout)) {
-    if (mFileIO->fileOpen(flags | SFS_O_CREAT, mode, enhanced_opaque.c_str() ,
-                          mTimeout)) {
-      eos_err("msg=\"failed to open local %s\"", mFileIO->GetPath().c_str());
-      errno = EIO;
-      return SFS_ERROR;
-    }
-  }
-
+  eos_debug("flags=%x isrw=%i truncate=%d", flags, mIsRw,
+            ((mStoreRecovery && mIsEntryServer) ? 1 : 0));
+  // Add opaque information to enable readahead
+  std::string enhanced_opaque = opaque;
+  enhanced_opaque += "&fst.readahead=true";
+  enhanced_opaque += "&fst.blocksize=";
+  enhanced_opaque += static_cast<int>(mStripeWidth);
+  std::vector<std::string> stripe_urls;
   // Local stripe is always on the first position
-  if (!mStripe.empty()) {
-    eos_err("%s", "msg=\"vector of stripe files is not empty\"");
-    errno = EIO;
-    return SFS_ERROR;
-  }
-
-  mStripe.push_back(mFileIO.get());
-  mHdrInfo.push_back(new HeaderCRC(mSizeHeader, mStripeWidth));
-  // Read header information for the local file
-  HeaderCRC* hd = mHdrInfo.back();
-
-  if (!hd->ReadFromFile(mFileIO.get(), mTimeout)) {
-    eos_warning("msg=\"reading header failed for local stripe, try to recover\"");
-  }
+  stripe_urls.push_back(mLocalPath);
+  XrdOucString ns_path = mOfsFile->mOpenOpaque->Get("mgm.path");
 
   // Operations done only by the entry server
-  if (mPhysicalStripeIndex == mStripeHead) {
-    uint32_t nmissing = 0;
-    std::vector<std::string> stripe_urls;
-    mIsEntryServer = true;
+  if (mIsEntryServer) {
+    unsigned int nmissing = 0;
 
-    // Assign stripe urls and check minimal requirements
-    for (unsigned int i = 0; i < mNbTotalFiles; i++) {
-      XrdOucString stripetag = "mgm.url";
-      stripetag += static_cast<int>(i);
-      const char* stripe = mOfsFile->mCapOpaque->Get(stripetag.c_str());
-
-      if (mOfsFile->mIsRW && (!stripe)) {
-        eos_err("msg=\"failed to open stripe, missing url for %s\"", stripetag.c_str());
-        errno = EINVAL;
-        return SFS_ERROR;
-      }
-
-      if (!stripe) {
-        nmissing++;
-        stripe_urls.push_back("");
-      } else {
-        stripe_urls.push_back(stripe);
-      }
-    }
-
-    // For read we tolerate at most mNbParityFiles missing, for write none
-    if ((!mIsRw && (nmissing > mNbParityFiles)) ||
-        (mIsRw && nmissing)) {
-      eos_err("msg=\"failed to open RainMetaLayout - %i stripes are missing and "
-              "parity is %i\"", nmissing, mNbParityFiles);
-      errno = EREMOTEIO;
-      return SFS_ERROR;
-    }
-
-    // Open remote stripes
     // @note: for TPC transfers we open the remote stipes only in the
     // kTpcSrcRead or kTpcDstSetup stages.
     if ((mOfsFile->mTpcFlag == XrdFstOfsFile::kTpcSrcRead) ||
         (mOfsFile->mTpcFlag == XrdFstOfsFile::kTpcDstSetup) ||
         (mOfsFile->mTpcFlag == XrdFstOfsFile::kTpcNone)) {
-      for (unsigned int i = 0; i < stripe_urls.size(); i++) {
-        if (i != (unsigned int) mPhysicalStripeIndex) {
-          eos_info("msg=\"open remote stripe i=%i\"", i);
+      // Build stripe urls and check minimal requirements
+      for (unsigned int i = 0; i < mNbTotalFiles; i++) {
+        if (i != (unsigned int)mPhysicalStripeIndex) {
+          // Extract xrootd endpoint
+          std::string stripe_url;
+          std::string stripe_tag = "mgm.url" + std::to_string(i);
+          const char* stripe = mOfsFile->mCapOpaque->Get(stripe_tag.c_str());
+
+          if (!stripe) {
+            nmissing++;
+
+            // For read we tolerate at most mNbParityFiles missing, for write none
+            if ((mIsRw && nmissing) || (!mIsRw && (nmissing > mNbParityFiles))) {
+              eos_err("msg=\"failed open, %i stripes missing and parity is %i\"",
+                      nmissing, mNbParityFiles);
+              errno = EINVAL;
+              return SFS_ERROR;
+            }
+
+            stripe_urls.push_back("");
+            continue;
+          } else {
+            stripe_url = stripe;
+          }
+
+          // Build path and opaque info for remote stripes
+          stripe_url += ns_path.c_str();
+          stripe_url += "?";
           int envlen;
           const char* val;
-          XrdOucString remoteOpenOpaque = mOfsFile->mOpenOpaque->Env(envlen);
-          XrdOucString remoteOpenPath = mOfsFile->mOpenOpaque->Get("mgm.path");
-          stripe_urls[i] += remoteOpenPath.c_str();
-          stripe_urls[i] += "?";
+          XrdOucString new_opaque = mOfsFile->mOpenOpaque->Env(envlen);
 
-          // Create the opaque information for the next stripe file
           if ((val = mOfsFile->mOpenOpaque->Get("mgm.replicaindex"))) {
             XrdOucString oldindex = "mgm.replicaindex=";
             XrdOucString newindex = "mgm.replicaindex=";
             oldindex += val;
             newindex += static_cast<int>(i);
-            remoteOpenOpaque.replace(oldindex.c_str(), newindex.c_str());
+            new_opaque.replace(oldindex.c_str(), newindex.c_str());
           } else {
-            remoteOpenOpaque += "&mgm.replicaindex=";
-            remoteOpenOpaque += static_cast<int>(i);
+            new_opaque += "&mgm.replicaindex=";
+            new_opaque += static_cast<int>(i);
           }
 
-          stripe_urls[i] += remoteOpenOpaque.c_str();
-          int ret = -1;
-          FileIo* file = FileIoPlugin::GetIoObject(stripe_urls[i].c_str(), mOfsFile,
-                         mSecEntity);
-
-          // Set the correct open flags for the stripe
-          if (mStoreRecovery || (flags & (SFS_O_RDWR | SFS_O_TRUNC | SFS_O_WRONLY))) {
-            mIsRw = true;
-            eos_debug("msg=\"write case\" flags:%x", flags);
-          } else {
-            mode = 0;
-            eos_debug("msg=\"read case\" flags=%x", flags);
-          }
-
-          // Doing the actual open
-          ret = file->fileOpen(flags, mode, enhanced_opaque.c_str(), mTimeout);
-          mLastTriedUrl = file->GetLastTriedUrl();
-
-          if (ret == SFS_ERROR) {
-            eos_warning("msg=\"open failed on remote stripe: %s\"", stripe_urls[i].c_str());
-            delete file;
-            file = NULL;
-
-            if (mIsRw) {
-              eos_err("msg=\"open failure is fatal is RW mode\" stripe=%s",
-                      stripe_urls[i].c_str());
-              errno = EIO;
-              return SFS_ERROR;
-            }
-          } else {
-            mLastUrl = file->GetLastUrl();
-          }
-
-          mStripe.push_back(file);
-          mHdrInfo.push_back(new HeaderCRC(mSizeHeader, mStripeWidth));
-          // Read header information for remote files
-          hd = mHdrInfo.back();
-          file = mStripe.back();
-
-          if (file && !hd->ReadFromFile(file, mTimeout)) {
-            eos_warning("msg=\"reading header failed for remote stripe=%i\"",
-                        mStripe.size() - 1);
-          }
+          stripe_url += new_opaque.c_str();
+          stripe_urls.push_back(stripe_url);
         }
       }
+    }
+  }
 
-      // Consistency checks
-      if (mStripe.size() != mNbTotalFiles) {
-        eos_err("%s", "msg=\"number of files opened is different from "
-                "the one expected\"");
-        errno = EIO;
-        return SFS_ERROR;
+  unsigned int num_failures = 0u;
+  std::vector<std::future<XrdCl::XRootDStatus>> open_futures;
+  std::vector<XrdCl::XRootDStatus> open_replies;
+
+  for (unsigned int i = 0; i < stripe_urls.size(); ++i) {
+    if (stripe_urls[i].empty()) {
+      open_futures.emplace_back();
+      mStripe.push_back(nullptr);
+    } else {
+      std::unique_ptr<FileIo> file
+      {FileIoPlugin::GetIoObject(stripe_urls[i], mOfsFile, mSecEntity)};
+
+      if (file) {
+        open_futures.push_back(file->fileOpenAsync(flags, mode, enhanced_opaque,
+                               mTimeout));
+        mStripe.push_back(std::move(file));
+      } else {
+        open_futures.emplace_back();
+        mStripe.push_back(nullptr);
       }
+    }
+  }
 
-      // Only the head node does the validation of the headers
+  // Collect open replies and read header information
+  for (unsigned int i = 0; i < mStripe.size(); ++i) {
+    HeaderCRC* hd = new HeaderCRC(mSizeHeader, mStripeWidth);
+    mHdrInfo.push_back(hd);
+
+    if (mStripe[i] == nullptr) {
+      ++num_failures;
+    }
+
+    if (open_futures[i].valid()) {
+      if (!open_futures[i].get().IsOK()) {
+        // // The local stripe is expected to be reconstructed in a recovery on the
+        // // gateway server since it might not exist, it gets created
+        // if (mFileIO->fileOpen(flags, mode, enhanced_opaque.c_str(), mTimeout)) {
+        //   if (mFileIO->fileOpen(flags | SFS_O_CREAT, mode, enhanced_opaque.c_str() ,
+        //                         mTimeout)) {
+        //     eos_err("msg=\"failed to open local stripe\" path=\"%s\"",
+        //             mLocalPath.c_str());
+        //     errno = EIO;
+        //     return SFS_ERROR;
+        //   }
+        // }
+        eos_warning("msg=\"failed open stripe\" url=\"%s\"", stripe_urls[i].c_str());
+        ++num_failures;
+      } else {
+        if (!hd->ReadFromFile(mStripe[i].get(), mTimeout)) {
+          eos_warning("msg=\"reading header failed for stripe\" index=%i\"", i);
+        }
+      }
+    }
+  }
+
+  // Check if there are any fatal errors
+  if ((mIsRw && num_failures) ||
+      (!mIsEntryServer && !mIsRw && num_failures) ||
+      (mIsEntryServer && !mIsRw && (num_failures > mNbParityFiles))) {
+    eos_err("msg=\"failed to open some file objects\" num_failures=%i "
+            "path=%s is_rw=%i", num_failures, ns_path.c_str(), mIsRw);
+    errno = EINVAL;
+    return SFS_ERROR;
+  }
+
+  // Only the head node does the validation of the headers
+  if (mIsEntryServer) {
+    if ((mOfsFile->mTpcFlag == XrdFstOfsFile::kTpcSrcRead) ||
+        (mOfsFile->mTpcFlag == XrdFstOfsFile::kTpcDstSetup) ||
+        (mOfsFile->mTpcFlag == XrdFstOfsFile::kTpcNone)) {
       if (!ValidateHeader()) {
         eos_err("%s", "msg=\"fail open due to invalid headers\"");
         errno = EIO;
@@ -331,6 +339,7 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
       }
     }
 
+    // Only entry server in RW mode starts the parity thread helper
     if (mIsRw) {
       mHasParityThread = true;
       mParityThread.reset(&RainMetaLayout::StartParityThread, this);
@@ -405,7 +414,7 @@ RainMetaLayout::OpenPio(std::vector<std::string> stripeUrls,
   // Open stripes
   for (unsigned int i = 0; i < stripe_urls.size(); i++) {
     int ret = -1;
-    FileIo* file = FileIoPlugin::GetIoObject(stripe_urls[i]);
+    std::unique_ptr<FileIo> file {FileIoPlugin::GetIoObject(stripe_urls[i])};
     XrdOucString openOpaque = opaque;
     openOpaque += "&mgm.replicaindex=";
     openOpaque += static_cast<int>(i);
@@ -428,24 +437,21 @@ RainMetaLayout::OpenPio(std::vector<std::string> stripeUrls,
         if (ret == SFS_ERROR) {
           eos_err("msg=\"failed to create remote stripe\" url=%s",
                   stripe_urls[i].c_str());
-          delete file;
-          file = NULL;
+          file.release();
         }
       } else {
-        delete file;
-        file = NULL;
+        file.release();
       }
     } else {
       mLastUrl = file->GetLastUrl();
     }
 
-    mStripe.push_back(file);
+    mStripe.push_back(std::move(file));
     mHdrInfo.push_back(new HeaderCRC(mSizeHeader, mStripeWidth));
     // Read header information for remote files
     HeaderCRC* hd = mHdrInfo.back();
-    file = mStripe.back();
 
-    if (file && !hd->ReadFromFile(file, mTimeout)) {
+    if (file && !hd->ReadFromFile(file.get(), mTimeout)) {
       eos_err("%s", "msg=\"RAIN header invalid\"");
     }
   }
@@ -546,7 +552,7 @@ RainMetaLayout::ValidateHeader()
         // If file successfully opened, we need to store the info
         if (mStoreRecovery && mStripe[physical_id]) {
           eos_info("msg=\"recovered header for stripe %i\"", mapPL[physical_id]);
-          mHdrInfo[physical_id]->WriteToFile(mStripe[physical_id], mTimeout);
+          mHdrInfo[physical_id]->WriteToFile(mStripe[physical_id].get(), mTimeout);
         }
 
         break;
@@ -803,8 +809,7 @@ RainMetaLayout::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
             if (error_type == XrdCl::errOperationExpired) {
               eos_debug("%s", "msg=\"calling close after timeout error\"");
               mStripe[j]->fileClose(mTimeout);
-              delete mStripe[j];
-              mStripe[j] = NULL;
+              mStripe[j].release();
             }
           }
         }
@@ -890,7 +895,8 @@ RainMetaLayout::Write(XrdSfsFileOffset offset,
       // streaming mode. In this way, we can recompute the parity later on by
       // using the map of pieces written.
       if (mIsStreaming) {
-        if (!AddDataBlock(offset, buffer, nwrite, mStripe[physical_id], off_local)) {
+        if (!AddDataBlock(offset, buffer, nwrite, mStripe[physical_id].get(),
+                          off_local)) {
           write_length = SFS_ERROR;
           break;
         }
@@ -1507,7 +1513,7 @@ RainMetaLayout::Close()
             mHdrInfo[i]->SetIdStripe(mapPL[i]);
 
             if (mStripe[i]) {
-              if (!mHdrInfo[i]->WriteToFile(mStripe[i], mTimeout)) {
+              if (!mHdrInfo[i]->WriteToFile(mStripe[i].get(), mTimeout)) {
                 eos_err("msg=\"failed write header\" stripe_id=%i", i);
                 rc =  SFS_ERROR;
               }
@@ -1655,7 +1661,7 @@ RainMetaLayout::GetGroup(uint64_t offset)
 
   if (mMapGroups.size() > mMaxGroups) {
     eos_info("msg=\"waiting for available slot group\" file=\"%s\"",
-             mFileIO->GetPath().c_str());
+             mLocalPath.c_str());
     mCvGroups.wait(lock, [&]() {
       return (mMapGroups.size() < mMaxGroups);
     });

@@ -155,6 +155,11 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
       open_futures.push_back(file->fileOpenAsync(flags, mode, opaque, mTimeout));
       mReplicaFile.push_back(std::move(file));
     } else {
+      // Wait and discard any pending replies
+      for (auto& fut : open_futures) {
+        (void) fut.get();
+      }
+
       eos_err("msg=\"failed to allocate file object\" path=\"%s\"",
               replica_url.c_str());
       return Emsg("ReplicaParOpen", *mError, EINVAL, "open stripes - "

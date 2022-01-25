@@ -619,7 +619,7 @@ XrdFstOss::AddMapping(const std::string& fileName,
 {
   XrdSysRWLockHelper wr_lock(mRWMap, 0); // --> wrlock map
   std::pair<XrdSysRWLock*, CheckSum*> pair_value;
-  eos_debug("Initial map size: %i and filename: %s.",
+  eos_debug("Initial map size: %i and filename: %s",
             mMapFileXs.size(), fileName.c_str());
 
   if (mMapFileXs.count(fileName)) {
@@ -648,7 +648,7 @@ XrdFstOss::AddMapping(const std::string& fileName,
     // Can increment without the lock as no one knows about this obj. yet
     blockXs->IncrementRef(isRW);
     mMapFileXs[fileName] = pair_value;
-    eos_debug("Add completely new obj, map size: %i and filename: %s.",
+    eos_debug("Add completely new obj, map size: %i and filename: %s",
               mMapFileXs.size(), fileName.c_str());
     return mutex_xs;
   }

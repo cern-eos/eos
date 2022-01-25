@@ -247,8 +247,7 @@ RaidDpLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
           // If timeout error, then disable current file
           if (error_type == XrdCl::errOperationExpired) {
             mStripe[i]->fileClose(mTimeout);
-            delete mStripe[i];
-            mStripe[i] = NULL;
+            mStripe[i].release();
           }
         }
 
@@ -413,8 +412,7 @@ RaidDpLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
 
           if (error_type == XrdCl::errOperationExpired) {
             mStripe[i]->fileClose(mTimeout);
-            delete mStripe[i];
-            mStripe[i] = NULL;
+            mStripe[i].release();
           }
         }
       }
