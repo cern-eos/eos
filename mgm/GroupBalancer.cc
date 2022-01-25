@@ -250,10 +250,6 @@ GroupBalancer::scheduleTransfer(const FileInfo& file_info,
   }
 
   mTransfers[file_info.fid] = file_info.filename;
-  mEngine->record_transfer(sourceGroup->mName, targetGroup->mName,
-                          file_info.filesize);
-  mEngine->updateGroup(sourceGroup->mName);
-  mEngine->updateGroup(targetGroup->mName);
 }
 
 //------------------------------------------------------------------------------
