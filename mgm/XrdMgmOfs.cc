@@ -731,7 +731,6 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   eos::common::VirtualIdentity vid;
   XrdOucTList* pptr = pargs.paths;
   XrdOucTList* optr = pargs.oinfo;
-  bool isPrepareStage = false;
   std::string info;
   info = (optr ? (optr->text ? optr->text : "") : "");
   eos::common::Mapping::IdMap(client, info.c_str(), tident, vid);
@@ -773,7 +772,6 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 
   case Prep_STAGE:
     event = "sync::prepare";
-    isPrepareStage = true;
 
     if (gOFS->IsFileSystem2) {
       // Override the XRootD-supplied request ID. The request ID can be any arbitrary string, so long as
@@ -836,7 +834,7 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 #endif
 
   int retc = SFS_OK;
-  bool allFilesFailed = true;
+  bool noFilesPrepared = true;
 
   // check that all files exist
   for (
@@ -863,7 +861,7 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       Emsg(epname, error, ENOENT,
            "prepare - path empty or uses forbidden characters:",
            orig_path.c_str());
-      if (!isPrepareStage) retc = SFS_ERROR;
+      if (!(pargs.opts & Prep_STAGE)) retc = SFS_ERROR;
       continue;
     }
 
@@ -874,7 +872,7 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
              "prepare - file does not exist or is not accessible to you",
              prep_path.c_str());
       }
-      if (!isPrepareStage) retc = SFS_ERROR;
+      if (!(pargs.opts & Prep_STAGE)) retc = SFS_ERROR;
       continue;
     }
 
@@ -893,7 +891,7 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       if (foundPrepareTag) {
         pathsWithPrepare.emplace_back(&(pptr->text),
                                       optr != nullptr ? & (optr->text) : nullptr);
-        allFilesFailed &= false;
+        noFilesPrepared = false;
       } else {
         // don't do workflow if no such tag
         continue;
@@ -908,14 +906,14 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       Emsg(epname, error, EPERM,
            "prepare - you don't have prepare permission",
            prep_path.c_str());
-      if (!isPrepareStage) retc = SFS_ERROR;
+      if (!(pargs.opts & Prep_STAGE)) retc = SFS_ERROR;
       continue;
     }
   }
 
   // (Only) If ALL files failed to prepare, return error
   // 'error' variable will already contain the error message
-  if (isPrepareStage && allFilesFailed) {
+  if ((pargs.opts & Prep_STAGE) && noFilesPrepared) {
     eos_err("Unable to prepare - failed to prepare all files with reqID %s",
             reqid.c_str());
     return SFS_ERROR;
