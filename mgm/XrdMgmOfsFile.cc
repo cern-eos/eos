@@ -599,7 +599,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   }
 
   {
-    eosobfuscate = 1;
+    eosobfuscate = -1;
     // handle obfuscation and encryption
     const char* val = 0;
     if ((val = openOpaque->Get("eos.obfuscate"))) {
@@ -1349,14 +1349,17 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
             fmd = gOFS->eosView->createFile(creation_path, vid.uid, vid.gid);
 
-	    std::string skey = eos::common::SymKey::RandomCipher(eoskey);
 
-	    // attach an obfucation key
-	    fmd->setAttribute("user.obfuscate.key",skey);
-	    if (eoskey.length()) {
-	      fmd->setAttribute("user.encrypted","1");
+	    if ( (eosobfuscate>0) || (attrmap.count("sys.file.obfuscate") &&
+				    (attrmap["sys.file.obfuscate"] == "1" )) ) {
+	      std::string skey = eos::common::SymKey::RandomCipher(eoskey);
+	      // attach an obfucation key
+	      fmd->setAttribute("user.obfuscate.key",skey);
+	      if (eoskey.length()) {
+		fmd->setAttribute("user.encrypted","1");
+	      }
+	      attrmapF["user.obfuscate.key"] = skey;
 	    }
-	    attrmapF["user.obfuscate.key"] = skey;
 
             if (ocUploadUuid.length()) {
               fmd->setFlags(0);
