@@ -266,6 +266,7 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
   std::vector<std::future<XrdCl::XRootDStatus>> open_futures;
   std::vector<XrdCl::XRootDStatus> open_replies;
 
+  // Open stripes
   for (unsigned int i = 0; i < stripe_urls.size(); ++i) {
     if (stripe_urls[i].empty()) {
       open_futures.emplace_back();
@@ -275,10 +276,10 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
       {FileIoPlugin::GetIoObject(stripe_urls[i], mOfsFile, mSecEntity)};
 
       if (file) {
-        struct stat info;
-
         // The local stripe is expected to be reconstructed during recovery
         // and since it might not exist, it gets created
+        struct stat info;
+
         if (mIsRw && (i == 0) && (file->fileStat(&info))) {
           flags |= SFS_O_CREAT;
         }
@@ -298,19 +299,21 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
     HeaderCRC* hd = new HeaderCRC(mSizeHeader, mStripeWidth);
     mHdrInfo.push_back(hd);
 
-    if (mStripe[i] == nullptr) {
-      ++num_failures;
-    }
-
     if (open_futures[i].valid()) {
-      if (!open_futures[i].get().IsOK()) {
-        eos_warning("msg=\"failed open stripe\" url=\"%s\"", stripe_urls[i].c_str());
-        ++num_failures;
-      } else {
+      if (open_futures[i].get().IsOK()) {
         if (!hd->ReadFromFile(mStripe[i].get(), mTimeout)) {
-          eos_warning("msg=\"reading header failed for stripe\" index=%i\"", i);
+          eos_warning("msg=\"failed reading header\" url=\"%s\"",
+                      stripe_urls[i].c_str());
         }
+      } else {
+        eos_warning("msg=\"failed open stripe\" url=\"%s\"",
+                    stripe_urls[i].c_str());
+        ++num_failures;
       }
+    } else {
+      eos_warning("msg=\"failed open stripe\" url=\"%s\"",
+                  stripe_urls[i].c_str());
+      ++num_failures;
     }
   }
 
@@ -380,8 +383,6 @@ RainMetaLayout::OpenPio(std::vector<std::string> stripeUrls,
                         const char* opaque)
 
 {
-  std::vector<std::string> stripe_urls = stripeUrls;
-
   // Do some minimal checkups
   if (mNbTotalFiles < 2) {
     eos_err("msg=\"failed open layout, stripe size at least 2\" stripes=%u",
@@ -408,48 +409,69 @@ RainMetaLayout::OpenPio(std::vector<std::string> stripeUrls,
     eos_debug("%s", "msg=\"read case\"");
   }
 
+  unsigned int num_failures = 0u;
+  std::vector<std::string> stripe_urls = stripeUrls;
+  std::vector<std::future<XrdCl::XRootDStatus>> open_futures;
+  std::vector<XrdCl::XRootDStatus> open_replies;
+
   // Open stripes
-  for (unsigned int i = 0; i < stripe_urls.size(); i++) {
-    int ret = -1;
+  for (unsigned int i = 0; i < stripe_urls.size(); ++i) {
+    XrdOucString new_opaque = opaque;
+    new_opaque += "&mgm.replicaindex=";
+    new_opaque += static_cast<int>(i);
+    new_opaque += "&fst.readahead=true";
+    new_opaque += "&fst.blocksize=";
+    new_opaque += static_cast<int>(mStripeWidth);
     std::unique_ptr<FileIo> file {FileIoPlugin::GetIoObject(stripe_urls[i])};
-    XrdOucString openOpaque = opaque;
-    openOpaque += "&mgm.replicaindex=";
-    openOpaque += static_cast<int>(i);
-    openOpaque += "&fst.readahead=true";
-    openOpaque += "&fst.blocksize=";
-    openOpaque += static_cast<int>(mStripeWidth);
-    ret = file->fileOpen(flags, mode, openOpaque.c_str());
-    mLastTriedUrl = file->GetLastTriedUrl();
 
-    if (ret == SFS_ERROR) {
-      eos_err("msg=\"failed remove stripe open\" url=%s",
-              stripe_urls[i].c_str());
+    if (file) {
+      open_futures.push_back(file->fileOpenAsync(flags, mode, new_opaque.c_str()));
+      mStripe.push_back(std::move(file));
+    } else {
+      open_futures.emplace_back();
+      mStripe.push_back(nullptr);
+    }
+  }
 
-      // If flag is SFS_RDWR then we can try to create the file
-      if (flags & SFS_O_RDWR) {
-        XrdSfsFileOpenMode tmp_flags = flags | SFS_O_CREAT;
-        mode_t tmp_mode = mode | SFS_O_CREAT;
-        ret = file->fileOpen(tmp_flags, tmp_mode, openOpaque.c_str());
+  // Collect open replies and read header information
+  for (unsigned int i = 0; i < stripe_urls.size(); ++i) {
+    HeaderCRC* hd = new HeaderCRC(mSizeHeader, mStripeWidth);
+    mHdrInfo.push_back(hd);
 
-        if (ret == SFS_ERROR) {
-          eos_err("msg=\"failed to create remote stripe\" url=%s",
-                  stripe_urls[i].c_str());
-          file.release();
+    if (open_futures[i].valid()) {
+      if (open_futures[i].get().IsOK()) {
+        if (!hd->ReadFromFile(mStripe[i].get(), mTimeout)) {
+          eos_warning("msg=\"failed reading header\" url=\"%s\"",
+                      stripe_urls[i].c_str());
         }
       } else {
-        file.release();
+        // If flag is SFS_RDWR then we can try to create the file otherwise
+        // just mark it as a failure
+        if (flags & SFS_O_RDWR) {
+          XrdSfsFileOpenMode tmp_flags = flags | SFS_O_CREAT;
+          mode_t tmp_mode = mode | S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+          XrdOucString new_opaque = opaque;
+          new_opaque += "&mgm.replicaindex=";
+          new_opaque += static_cast<int>(i);
+          new_opaque += "&fst.readahead=true";
+          new_opaque += "&fst.blocksize=";
+          new_opaque += static_cast<int>(mStripeWidth);
+          int ret = mStripe[i]->fileOpen(tmp_flags, tmp_mode, new_opaque.c_str());
+
+          if (ret == SFS_ERROR) {
+            eos_err("msg=\"failed open create stripe\" url=%s",
+                    stripe_urls[i].c_str());
+            mStripe[i].release();
+            ++num_failures;
+          }
+        } else {
+          mStripe[i].release();
+          ++num_failures;
+        }
       }
     } else {
-      mLastUrl = file->GetLastUrl();
-    }
-
-    mStripe.push_back(std::move(file));
-    mHdrInfo.push_back(new HeaderCRC(mSizeHeader, mStripeWidth));
-    // Read header information for remote files
-    HeaderCRC* hd = mHdrInfo.back();
-
-    if (file && !hd->ReadFromFile(file.get(), mTimeout)) {
-      eos_err("%s", "msg=\"RAIN header invalid\"");
+      // The stripe file is already nullptr
+      ++num_failures;
     }
   }
 
