@@ -1629,7 +1629,6 @@ main(int argc, char* argv[])
 	location += getenv("EOS_FUSE_SECRET");
       }
 
-      fprintf(stderr,"location=%s\n", location.c_str());
       XrdCl::File* file = new XrdCl::File();
       status = file->Open(location, xrdcl_flags, xrdcl_mode);
 
