@@ -23,40 +23,13 @@
 
 #include "fst/layout/HeaderCRC.hh"
 #include "fst/io/FileIo.hh"
+#include "common/BufferManager.hh"
 #include <stdint.h>
 #include <stdlib.h>
 
 EOSFSTNAMESPACE_BEGIN
 
 char HeaderCRC::msTagName[] = "_HEADER__RAIDIO_";
-
-
-//------------------------------------------------------------------------------
-// Get OS page size aligned buffer
-//------------------------------------------------------------------------------
-std::unique_ptr<char, void(*)(void*)>
-GetAlignedBuffer(const size_t size)
-{
-  static long os_pg_size = sysconf(_SC_PAGESIZE);
-  char* raw_buffer = nullptr;
-  std::unique_ptr<char, void(*)(void*)> buffer
-  ((char*) raw_buffer, [](void* ptr) {
-    if (ptr) {
-      free(ptr);
-    }
-  });
-
-  if (os_pg_size < 0) {
-    return buffer;
-  }
-
-  if (posix_memalign((void**) &raw_buffer, os_pg_size, size)) {
-    return buffer;
-  }
-
-  buffer.reset(raw_buffer);
-  return buffer;
-}
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -101,7 +74,7 @@ HeaderCRC::ReadFromFile(FileIo* pFile, uint16_t timeout)
   mValid = false;
   long int offset = 0;
   size_t read_sizeblock = 0;
-  auto buff = GetAlignedBuffer(mSizeHeader);
+  auto buff = eos::common::GetAlignedBuffer(mSizeHeader);
 
   if (buff == nullptr) {
     eos_static_err("msg=\"failed to allocate buffer\" size=%lu", mSizeHeader);
@@ -149,7 +122,7 @@ HeaderCRC::WriteToFile(FileIo* pFile, uint16_t timeout)
 {
   mValid = false;
   int offset = 0;
-  auto buff = GetAlignedBuffer(mSizeHeader);
+  auto buff = eos::common::GetAlignedBuffer(mSizeHeader);
 
   if (buff == nullptr) {
     eos_static_err("msg=\"failed to allocate buffer\" size=%lu", mSizeHeader);

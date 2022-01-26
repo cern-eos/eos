@@ -61,13 +61,13 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   noAtomicVersioning(false),
   mIsInjection(false), mRainReconstruct(false), deleteOnClose(false),
   repairOnClose(false), mIsOCchunk(false), writeErrorFlag(false),
-  mEventOnClose(false), mEventWorkflow(""),
+  mEventOnClose(false), mSyncOnClose(false), mEventWorkflow(""),
   mSyncEventOnClose(false), mFmd(nullptr), mCheckSum(nullptr),
   mLayout(nullptr), mCloseCb(nullptr), mMaxOffsetWritten(0ull),
   mWritePosition(0ull), openSize(0),
   closeSize(0), mTpcThreadStatus(EINVAL), mTpcState(kTpcIdle),
   mTpcFlag(kTpcNone), mTpcKey(""), mIsTpcDst(false), mTpcRetc(0),
-  mTpcCancel(false), mSyncOnClose(false)
+  mTpcCancel(false)
 {
   rBytes = wBytes = sFwdBytes = sBwdBytes = sXlFwdBytes
                                 = sXlBwdBytes = rOffset = wOffset = 0;
@@ -79,13 +79,13 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   closeTime.tv_sec = closeTime.tv_usec = 0;
   currentTime.tv_sec = openTime.tv_usec = 0;
   openTime.tv_sec = openTime.tv_usec = 0;
-  mBandwidth = 0;
+  totalBytes = 0;
   msSleep = 0;
+  mBandwidth = 0;
   tz.tz_dsttime = tz.tz_minuteswest = 0;
   mIoPriorityValue = 0;
   mIoPriorityClass = IOPRIO_CLASS_NONE;
   mIoPriorityErrorReported = false;
-  totalBytes = 0;
 }
 
 //------------------------------------------------------------------------------
@@ -484,20 +484,22 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   oss_opaque += "&mgm.bookingsize=";
   oss_opaque += static_cast<int>(mBookingSize);
 
-  if (! (val = mCapOpaque->Get("mgm.iotype"))) {
+  if (!(val = mCapOpaque->Get("mgm.iotype"))) {
     // provided by a client
     if ((val = mOpenOpaque->Get("eos.iotype"))) {
       oss_opaque += "&mgm.ioflag=";
       oss_opaque += val;
+
       if (std::string(val) == "csync") {
-	// cannot be done in the OSS
-	mSyncOnClose = true;
+        // cannot be done in the OSS
+        mSyncOnClose = true;
       }
     }
   } else {
     // forced by the MGM configuration
     oss_opaque += "&mgm.ioflag=";
     oss_opaque += val;
+
     if (std::string(val) == "csync") {
       // cannot be done in the OSS
       mSyncOnClose = true;
@@ -741,7 +743,8 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
   if (rc > 0) {
     // if required, unobfuscate a buffer server side
     if (mLayout->IsEntryServer() && hmac.key.length()) {
-      eos::common::SymKey::UnobfuscateBuffer(const_cast<char*>(buffer), rc, fileOffset, hmac);
+      eos::common::SymKey::UnobfuscateBuffer(const_cast<char*>(buffer), rc,
+                                             fileOffset, hmac);
     }
 
     rOffset = fileOffset + rc;
@@ -885,7 +888,8 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
 
   // if required, obfuscate a buffer server side
   if (mLayout->IsEntryServer() && hmac.key.length()) {
-    eos::common::SymKey::ObfuscateBuffer(const_cast<char*>(buffer), const_cast<char*>(buffer), buffer_size, fileOffset, hmac);
+    eos::common::SymKey::ObfuscateBuffer(const_cast<char*>(buffer),
+                                         const_cast<char*>(buffer), buffer_size, fileOffset, hmac);
   }
 
   int rc = mLayout->Write(fileOffset, const_cast<char*>(buffer), buffer_size);
@@ -1657,10 +1661,12 @@ XrdFstOfsFile::_close()
     int closerc = 0; // return of the close
     brc = rc; // return before the close
     rc |= ModifiedWhileInUse();
+
     if (mSyncOnClose) {
       eos_info("syncing layout for iotype=csync");
       rc |= mLayout->Sync();
     }
+
     closerc = mLayout->Close();
     rc |= closerc;
     closed = true;
@@ -2449,7 +2455,6 @@ XrdFstOfsFile::ProcessCapOpaque(bool& is_repair_read,
   }
 
   int envlen {0};
-
   XrdOucString maskOpaque = mCapOpaque->Env(envlen);
   eos::common::StringConversion::MaskTag(maskOpaque, "mgm.obfuscate.key");
   eos::common::StringConversion::MaskTag(maskOpaque, "mgm.encryption.key");
@@ -2600,8 +2605,7 @@ XrdFstOfsFile::ProcessCapOpaque(bool& is_repair_read,
     encryption_key = val;
   }
 
-  hmac.set(obfuscation_key,encryption_key);
-
+  hmac.set(obfuscation_key, encryption_key);
   SetLogId(logId, vid, mTident.c_str());
   return SFS_OK;
 }
