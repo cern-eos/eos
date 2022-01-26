@@ -277,7 +277,7 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
       if (file) {
         struct stat info;
 
-        // The local stripe is expected to be reconstructed in a recovery
+        // The local stripe is expected to be reconstructed during recovery
         // and since it might not exist, it gets created
         if (mIsRw && (i == 0) && (file->fileStat(&info))) {
           flags |= SFS_O_CREAT;
@@ -304,15 +304,6 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
 
     if (open_futures[i].valid()) {
       if (!open_futures[i].get().IsOK()) {
-        // if (mFileIO->fileOpen(flags, mode, enhanced_opaque.c_str(), mTimeout)) {
-        //   if (mFileIO->fileOpen(flags | SFS_O_CREAT, mode, enhanced_opaque.c_str() ,
-        //                         mTimeout)) {
-        //     eos_err("msg=\"failed to open local stripe\" path=\"%s\"",
-        //             mLocalPath.c_str());
-        //     errno = EIO;
-        //     return SFS_ERROR;
-        //   }
-        // }
         eos_warning("msg=\"failed open stripe\" url=\"%s\"", stripe_urls[i].c_str());
         ++num_failures;
       } else {
