@@ -180,7 +180,7 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
 
   // When recovery enabled we open the files in RDWR mode
   if (mStoreRecovery) {
-    flags = SFS_O_CREAT | SFS_O_RDWR;
+    flags = SFS_O_RDWR;
     mIsRw = true;
   } else if (flags & (SFS_O_RDWR | SFS_O_TRUNC | SFS_O_WRONLY)) {
     mStoreRecovery = true;
@@ -275,6 +275,14 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
       {FileIoPlugin::GetIoObject(stripe_urls[i], mOfsFile, mSecEntity)};
 
       if (file) {
+        struct stat info;
+
+        // The local stripe is expected to be reconstructed in a recovery
+        // and since it might not exist, it gets created
+        if (mIsRw && (i == 0) && (file->fileStat(&info))) {
+          flags |= SFS_O_CREAT;
+        }
+
         open_futures.push_back(file->fileOpenAsync(flags, mode, enhanced_opaque,
                                mTimeout));
         mStripe.push_back(std::move(file));
@@ -296,8 +304,6 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
 
     if (open_futures[i].valid()) {
       if (!open_futures[i].get().IsOK()) {
-        // // The local stripe is expected to be reconstructed in a recovery on the
-        // // gateway server since it might not exist, it gets created
         // if (mFileIO->fileOpen(flags, mode, enhanced_opaque.c_str(), mTimeout)) {
         //   if (mFileIO->fileOpen(flags | SFS_O_CREAT, mode, enhanced_opaque.c_str() ,
         //                         mTimeout)) {
