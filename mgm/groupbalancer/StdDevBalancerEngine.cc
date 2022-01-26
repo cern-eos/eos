@@ -75,6 +75,7 @@ std::string StdDevBalancerEngine::get_status_str(bool detail, bool monitoring) c
   std::stringstream oss;
   if (!monitoring) {
     oss << "Engine configured          : Std\n";
+    oss << "Current Computed Average   : " << mAvgUsedSize << "\n";
     oss << "Min Deviation Threshold    : " << mMinDeviation << "\n";
     oss << "Max Deviation Threshold    : " << mMaxDeviation << "\n";
   }
