@@ -108,7 +108,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set up Config based on values configured in space
   //----------------------------------------------------------------------------
-  void Configure(FsSpace* const space, Config& cfg);
+  bool Configure(FsSpace* const space, Config& cfg);
 
   std::string Status(bool detail=false, bool monitoring=false) const;
 

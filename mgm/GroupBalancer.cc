@@ -433,7 +433,7 @@ GroupBalancer::is_valid_engine(std::string_view engine_name) {
   return engine_name == "std" || engine_name == "minmax";
 }
 
-void
+bool
 GroupBalancer::Configure(FsSpace* const space, GroupBalancer::Config& cfg)
 {
   cfg.is_enabled = space->GetConfigMember("groupbalancer") == "on";
@@ -444,8 +444,31 @@ GroupBalancer::Configure(FsSpace* const space, GroupBalancer::Config& cfg)
   cfg.engine_type = group_balancer::get_engine_type(space->GetConfigMember("groupbalancer.engine"));
   cfg.file_attempts = atoi(space->GetConfigMember("groupbalancer.file_attempts").c_str());
 
-  mEngineConf.insert_or_assign("min_threshold",space->GetConfigMember("groupbalancer.min_threshold"));
-  mEngineConf.insert_or_assign("max_threshold",space->GetConfigMember("groupbalancer.max_threshold"));
+  auto min_threshold_str = space->GetConfigMember("groupbalancer.min_threshold");
+  auto max_threshold_str = space->GetConfigMember("groupbalancer.max_threshold");
+
+  if (!group_balancer::is_valid_threshold(min_threshold_str, max_threshold_str)) {
+    if (cfg.engine_type == BalancerEngineT::minmax) {
+      eos_static_err("%s", "msg=Invalid min/max balancer threshold configuration");
+      return false;
+    }
+
+    // This is a temporary stop gap until we force min/max threshold to be set
+    // and remove this param. For std. balancer in case there isn't an explicit
+    // min/max, let's set to configured threshold
+    auto threshold_str = space->GetConfigMember("groupbalancer.threshold");
+    if (!group_balancer::is_valid_threshold(threshold_str)) {
+      eos_static_err("%s", "msg=Invalid std balancer threshold configuration");
+      return false;
+    }
+
+    min_threshold_str = threshold_str;
+    max_threshold_str = threshold_str;
+  }
+
+  mEngineConf.insert_or_assign("min_threshold", std::move(min_threshold_str));
+  mEngineConf.insert_or_assign("max_threshold", std::move(max_threshold_str));
+  return true;
 }
 
 
@@ -488,7 +511,11 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
     // Update tracker for scheduled fid balance jobs
     gOFS->mFidTracker.DoCleanup(TrackerType::Balance);
     FsSpace* space = FsView::gFsView.mSpaceView[mSpaceName.c_str()];
-    GroupBalancer::Configure(space, cfg);
+    if (!GroupBalancer::Configure(space, cfg)) {
+      eos_static_info("msg=\"group balancer configuration invalid! Waiting for 10s\"");
+      assistant.wait_for(std::chrono::seconds(10));
+      continue;
+    }
 
     if (!cfg.is_enabled || !cfg.is_conv_enabled) {
       FsView::gFsView.ViewMutex.UnLockRead();

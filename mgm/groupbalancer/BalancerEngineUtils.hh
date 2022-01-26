@@ -25,6 +25,7 @@
 #include <string>
 #include <numeric>
 #include <random>
+#include "mgm/groupbalancer/BalancerEngine.hh"
 
 namespace {
   std::random_device rd;
@@ -78,5 +79,22 @@ double extract_percent_value(Args&&... args)
   return value/100.0;
 }
 
+inline bool is_valid_threshold(const std::string& threshold_str)
+{
+  double d;
+  try {
+    d = std::stod(threshold_str);
+  } catch (std::exception& e) {
+    return false;
+  }
 
-} // namespace eos::mgm::group_balancer
+  return d > 0;
+}
+
+template <typename... Args>
+inline bool is_valid_threshold(const std::string& threshold_str, Args&&... args)
+{
+  return is_valid_threshold(threshold_str) && is_valid_threshold(args...);
+}
+
+} // eos::mgm::group_balancer

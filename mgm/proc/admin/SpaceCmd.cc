@@ -724,6 +724,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             (key == "converter.ntx") ||
             (key == "groupbalancer") ||
             (key == "groupbalancer.ntx") ||
+            (key == "groupbalancer.threshold") ||
             (key == "groupbalancer.min_threshold") ||
             (key == "groupbalancer.max_threshold") ||
             (key == "groupbalancer.min_file_size") ||
@@ -886,6 +887,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             if (!errno) {
               if ((key != "balancer.threshold") &&
                   (key != "geobalancer.threshold") &&
+                  (key != "groupbalancer.threshold") &&
                   (key != "groupbalancer.min_threshold") &&
                   (key != "groupbalancer.max_threshold")) {
                 // the threshold is allowed to be decimal!
