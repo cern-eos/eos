@@ -185,6 +185,10 @@ private:
                            const eos::console::RequestProto* request,
                            eos::console::ReplyProto* reply);
 
+  static grpc::Status Token(eos::common::VirtualIdentity& vid,
+                            const eos::console::RequestProto* request,
+                            eos::console::ReplyProto* reply);
+
   static grpc::Status Touch(eos::common::VirtualIdentity& vid,
                             const eos::console::RequestProto* request,
                             eos::console::ReplyProto* reply);
