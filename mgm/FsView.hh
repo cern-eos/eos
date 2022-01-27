@@ -997,6 +997,14 @@ public:
   //----------------------------------------------------------------------------
   std::set<std::string> CollectEndpoints(const std::string& queue) const;
 
+  //----------------------------------------------------------------------------
+  //! Re-apply drain status for file systems to re-trigger draining. This is
+  //! needed in case the drain engine is stopped and then restatred the fs-es
+  //! which where in draning mode are not reactivated so we need to go through
+  //! them and reapply the drain status so that draining is activated.
+  //----------------------------------------------------------------------------
+  void ReapplyDrainStatus();
+
 private:
   IConfigEngine* mConfigEngine;
   AssistedThread mHeartBeatThread; ///< Thread monitoring heart-beats

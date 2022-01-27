@@ -90,15 +90,15 @@ int
 FileSystem::IsDrainTransition(const eos::common::ConfigStatus old,
                               const eos::common::ConfigStatus status)
 {
-  using eos::common::FileSystem;
+  using namespace eos::common;
 
   // Enable draining
-  if (((old != common::ConfigStatus::kDrain) &&
-       (old != common::ConfigStatus::kDrainDead) &&
-       ((status == common::ConfigStatus::kDrain) ||
-        (status == common::ConfigStatus::kDrainDead))) ||
-      (((old == common::ConfigStatus::kDrain) ||
-        (old == common::ConfigStatus::kDrainDead)) &&
+  if (((old != ConfigStatus::kDrain) &&
+       (old != ConfigStatus::kDrainDead) &&
+       ((status == ConfigStatus::kDrain) ||
+        (status == ConfigStatus::kDrainDead))) ||
+      (((old == ConfigStatus::kDrain) ||
+        (old == ConfigStatus::kDrainDead)) &&
        (status == old))) {
     return 1;
   }

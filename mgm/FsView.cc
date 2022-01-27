@@ -2414,6 +2414,24 @@ FsView::HeartBeatCheck(ThreadAssistant& assistant) noexcept
 }
 
 //------------------------------------------------------------------------------
+// Re-apply drain status for file systems to re-trigger draining
+//------------------------------------------------------------------------------
+void
+FsView::ReapplyDrainStatus()
+{
+  eos::common::RWMutexReadLock lock(ViewMutex, __FUNCTION__, __LINE__, __FILE__);
+
+  for (auto it = mIdView.begin(); it != mIdView.end(); ++it) {
+    eos::common::ConfigStatus cs = it->second->GetConfigStatus();
+
+    if ((cs == eos::common::ConfigStatus::kDrain) ||
+        (cs == eos::common::ConfigStatus::kDrainDead)) {
+      it->second->SetConfigStatus(cs);
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
 // Return a view member variable
 //------------------------------------------------------------------------------
 std::string
@@ -3651,14 +3669,15 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
                               atoi(formattags["width"].c_str()) : 0);
         std::string unit = (formattags.count("unit") ? formattags["unit"] : "");
 
-	if (formattags.count("geosched")) {
-	  if (formattags["geosched"] == "totalspace") {
-	    std::string nogroup;
-	    table_data.back().push_back(
-					TableCell((long long)gOFS->mGeoTreeEngine->placementSpace(mName, nogroup), format, unit));
-	    table_header.push_back(std::make_tuple("sched.capacity", width, format));
-	  }
-	}
+        if (formattags.count("geosched")) {
+          if (formattags["geosched"] == "totalspace") {
+            std::string nogroup;
+            table_data.back().push_back(
+              TableCell((long long)gOFS->mGeoTreeEngine->placementSpace(mName, nogroup),
+                        format, unit));
+            table_header.push_back(std::make_tuple("sched.capacity", width, format));
+          }
+        }
 
         // Normal member printout
         if (formattags.count("member")) {

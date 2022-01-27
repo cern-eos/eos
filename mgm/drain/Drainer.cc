@@ -270,6 +270,9 @@ Drainer::Drain(ThreadAssistant& assistant) noexcept
     assistant.wait_for(std::chrono::seconds(10));
   } while (!assistant.terminationRequested() && !gOFS->mMaster->IsMaster());
 
+  // Reapply the drain status for file systems in drain mode
+  FsView::gFsView.ReapplyDrainStatus();
+
   while (!assistant.terminationRequested()) {
     UpdateFromSpaceConfig();
     HandleQueued();
@@ -373,7 +376,8 @@ Drainer::UpdateFromSpaceConfig()
 }
 
 //------------------------------------------------------------------------------
-//
+// Get the maximum number of file systems that can be drained in parallel
+// on the same node.
 //------------------------------------------------------------------------------
 unsigned int
 Drainer::MaxDrainFsInParallel(const std::string& space) const
