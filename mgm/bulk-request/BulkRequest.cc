@@ -35,22 +35,8 @@ const std::string BulkRequest::getId() const {
   return mId;
 }
 
-void BulkRequest::addPath(const std::string & path) {
-  mFileCollection.addFile(path);
-}
-
-void BulkRequest::addError(const std::string &path, const std::string & error) {
-  try {
-    mFileCollection.addError(path, error);
-  } catch(const common::Exception &ex){
-    std::ostringstream oss;
-    oss << "In BulkRequest::addError(), an exception occured. ExceptionWhat=" << ex.what();
-    throw BulkRequestException(oss.str());
-  }
-}
-
-void BulkRequest::addFile(const File & file){
-  mFileCollection.addFile(file);
+void BulkRequest::addFile(std::unique_ptr<File> && file) {
+  mFileCollection.addFile(std::move(file));
 }
 
 const std::shared_ptr<FileCollection::Files> BulkRequest:: getFiles() const
@@ -68,7 +54,8 @@ const std::string BulkRequest::bulkRequestTypeToString(const BulkRequest::Type &
 
 const std::map<BulkRequest::Type,std::string> BulkRequest::BULK_REQ_TYPE_TO_STRING_MAP = {
     {BulkRequest::PREPARE_STAGE,"PREPARE_STAGE"},
-    {BulkRequest::PREPARE_EVICT,"PREPARE_EVICT"}
+    {BulkRequest::PREPARE_EVICT,"PREPARE_EVICT"},
+    {BulkRequest::PREPARE_CANCEL,"PREPARE_CANCEL"}
 };
 
 

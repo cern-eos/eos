@@ -102,6 +102,15 @@ TEST_F(PrepareManagerTest, PrepareUtilsPrepareOptsToString)
 #endif
 }
 
+TEST_F(PrepareManagerTest,pargsWrapperTest){
+  PrepareArgumentsWrapper pargs("reqid",Prep_CANCEL);
+  for(int i = 0; i < 10; ++i) {
+    pargs.addFile(std::to_string(i), std::to_string(i));
+  }
+  ASSERT_EQ(10,pargs.getNbFiles());
+  ASSERT_NE(nullptr,pargs.getPrepareArguments());
+}
+
 TEST_F(PrepareManagerTest,stagePrepareFilesWorkflow){
   int nbFiles = 3;
   std::vector<std::string> paths = PrepareManagerTest::generateDefaultPaths(nbFiles);
