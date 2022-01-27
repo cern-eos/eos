@@ -699,6 +699,7 @@ static unsigned int countNbElementsInXrdOucTList(const XrdOucTList* listPtr)
   return count;
 }
 
+
 //-------------------------------------------------------------------------------------
 // Prepare a file or query the status of a previous prepare request
 //-------------------------------------------------------------------------------------
@@ -832,8 +833,16 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 
 #endif
 
+  bool no_files_prepared = true;
+
+  int error_counter = 0;
+  XrdOucErrInfo first_error;
+
   // check that all files exist
-  while (pptr) {
+  for (
+       ; pptr
+       ; pptr = pptr->next, optr = optr ? optr->next : optr) {
+
     XrdOucString prep_path = (pptr->text ? pptr->text : "");
     std::string orig_path = prep_path.c_str();
     eos_info("msg =\"checking file exists\" path=\"%s\"", prep_path.c_str());
@@ -854,18 +863,21 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       Emsg(epname, error, ENOENT,
            "prepare - path empty or uses forbidden characters:",
            orig_path.c_str());
-      return SFS_ERROR;
+      if (error_counter == 0) first_error = error;
+      error_counter++;
+      continue;
     }
 
     if (_exists(prep_path.c_str(), check, error, client, "") ||
         (check != XrdSfsFileExistIsFile)) {
       if (check != XrdSfsFileExistIsFile) {
         Emsg(epname, error, ENOENT,
-             "prepare - file does not exist or is not accessible to you",
+             "prepare - file does not exist or is not accessible to you:",
              prep_path.c_str());
       }
-
-      return SFS_ERROR;
+      if (error_counter == 0) first_error = error;
+      error_counter++;
+      continue;
     }
 
     eos::IContainerMD::XAttrMap attributes;
@@ -883,39 +895,42 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       if (foundPrepareTag) {
         pathsWithPrepare.emplace_back(&(pptr->text),
                                       optr != nullptr ? & (optr->text) : nullptr);
+        no_files_prepared = false;
       } else {
         // don't do workflow if no such tag
-        pptr = pptr->next;
-
-        if (optr) {
-          optr = optr->next;
-        }
-
         continue;
       }
     } else {
       // don't do workflow if event not set or we can't check attributes
-      pptr = pptr->next;
-
-      if (optr) {
-        optr = optr->next;
-      }
-
       continue;
     }
 
-    // check that we have write permission on path
+    // check that we have prepare permission on path
     if (gOFS->_access(prep_path.c_str(), P_OK, error, vid, "")) {
-      return Emsg(epname, error, EPERM,
-                  "prepare - you don't have workflow permission",
-                  prep_path.c_str());
+      Emsg(epname, error, EPERM,
+           "prepare - you don't have prepare permission:",
+           prep_path.c_str());
+      if (error_counter == 0) first_error = error;
+      error_counter++;
+      continue;
     }
+  }
 
-    pptr = pptr->next;
-
-    if (optr) {
-      optr = optr->next;
+  // (Only) If ALL files failed to prepare, return error
+  // 'error' variable will already contain an error message
+  if ((pargs.opts & Prep_STAGE) && no_files_prepared) {
+    eos_err("Unable to prepare - failed to prepare all files with reqID %s",
+            reqid.c_str());
+    if (error_counter > 0) {
+      int err_code;
+      std::stringstream err_message;
+      err_message << first_error.getErrText(err_code);
+      if (error_counter > 1) {
+        err_message << " (all " << (error_counter-1) << " other files also failed with errors)";
+      }
+      error.setErrInfo(err_code, err_message.str().c_str());
     }
+    return SFS_ERROR;
   }
 
   for (auto& pathPair : pathsWithPrepare) {
@@ -988,6 +1003,16 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     // If we return SFS_DATA, the first parameter is the length of the buffer, not the error code
     error.setErrInfo(reqid.length() + 1, reqid.c_str());
     retc = SFS_DATA;
+  } else if ((pargs.opts & (Prep_EVICT | Prep_CANCEL)) && (error_counter > 0)) {
+    // Return first error
+    int err_code;
+    std::stringstream err_message;
+    err_message << first_error.getErrText(err_code);
+    if (error_counter > 1) {
+      err_message << " (" << (error_counter-1) << " other files also failed with errors)";
+    }
+    error.setErrInfo(err_code, err_message.str().c_str());
+    retc = SFS_ERROR;
   }
 
 #endif
@@ -1055,7 +1080,7 @@ XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     }
 
     if (prep_path.length() == 0) {
-      rsp.error_text = "path empty or uses forbidden characters";
+      rsp.error_text = "USER ERROR: path empty or uses forbidden characters";
       continue;
     }
 
@@ -1063,7 +1088,7 @@ XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 
     if (_exists(prep_path.c_str(), check, error, client, "") ||
         check != XrdSfsFileExistIsFile) {
-      rsp.error_text = "file does not exist or is not accessible to you";
+      rsp.error_text = "USER ERROR: file does not exist or is not accessible to you";
       continue;
     }
 
@@ -1113,6 +1138,12 @@ XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     } else {
       // failed to read extended attributes
       rsp.error_text = xrd_error.getErrText();
+      continue;
+    }
+
+    // check that we have prepare permission on path
+    if (gOFS->_access(prep_path.c_str(), P_OK, error, vid, "")) {
+      rsp.error_text = "USER ERROR: you don't have prepare permission";
       continue;
     }
   }
