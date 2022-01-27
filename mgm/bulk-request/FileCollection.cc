@@ -40,11 +40,11 @@ FileCollection & FileCollection::operator=(const FileCollection& other) {
 }
 
 void FileCollection::addFile(const std::string & path) {
-  (*mFiles)[path] = File(path);
+  (*mFiles)[path] = std::make_unique<File>(path);
 }
 
-void FileCollection::addFile(const File & file){
-  (*mFiles)[file.getPath()] = file;
+void FileCollection::addFile(std::unique_ptr<File> && file){
+  (*mFiles)[file->getPath()] = std::move(file);
 }
 
 const std::shared_ptr<FileCollection::Files> FileCollection::getAllFiles() const {
@@ -53,7 +53,7 @@ const std::shared_ptr<FileCollection::Files> FileCollection::getAllFiles() const
 
 void FileCollection::addError(const std::string & path, const std::string & error) {
   try {
-    mFiles->at(path).setError(error);
+    mFiles->at(path)->setError(error);
   } catch(const std::exception & ex){
     std::ostringstream ss;
     ss << "Cannot add the error " << error << " to the path " << path << " because it does not exist in the file collection";
@@ -64,8 +64,8 @@ void FileCollection::addError(const std::string & path, const std::string & erro
 const std::shared_ptr<std::set<File>> FileCollection::getAllFilesInError() const {
   std::shared_ptr<std::set<File>> filesInError(new std::set<File>());
   for(const auto & pathFile: *mFiles){
-    if(pathFile.second.getError()){
-      filesInError->insert(pathFile.second);
+    if(pathFile.second->getError()){
+      filesInError->insert(*pathFile.second);
     }
   }
   return filesInError;
