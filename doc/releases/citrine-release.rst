@@ -25,11 +25,14 @@ Bug
 ---
 
 * [EOS-5062] - Node config command should take fs status into consideration
+* [EOS-5079] - Fix for Groupbalancer size calculation post transfer
 * [EOS-5081] - Align buffers used during various layout rd/wr ops
 
 New Feature
 -------------
 
+* [EOS-5067] - Groupbalancer now introduces multiple engines & supports min/max
+  file sizes. Check the GroupBalancer docs for details.
 * [EOS-5085] - Allow rate limits of zero
 
 Improvement
@@ -39,6 +42,7 @@ Improvement
 * [EOS-5049] - Handle draining for files with one replica on tape
 * [EOS-5051] - Benefit from parallelization in layout::open
 * [EOS-5076] - Extend iotype interfaces to be space/directory defined
+* [EOS-5080] - Support eos.app tag in the Converter interface
 * [EOS-5084] - Remove deprecated "exists" field in QUERY PREPARE response
 
 
