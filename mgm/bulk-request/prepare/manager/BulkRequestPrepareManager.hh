@@ -51,25 +51,13 @@ protected:
    */
   void initializeStagePrepareRequest(XrdOucString &reqid) override;
 
-  /**
-   * This overriding method will instanciate an evict bulk request and will affect the
-   * bulk-request reqid to the variable passed in parameter
-   * @param reqid the request id that will be set to the bulk-request
-   */
-  void initializeEvictPrepareRequest(XrdOucString& reqid) override;
-
-  /**
-   * This overriding method will set an error message to the corresponding path in the bulk-request
-   * @param path the path of the file to set the error
-   * @param error the error to set to the path of the file
-   */
-  void setErrorToBulkRequest(const std::string & path, const std::string & error) override;
+  void initializeCancelPrepareRequest(XrdOucString & reqid) override;
 
   /**
    * Adds the path passed in parameter to this instance's bulk-request
    * @param path the path to add to the bulk-request
    */
-  void addPathToBulkRequest(const std::string & path) override;
+  void addFileToBulkRequest(std::unique_ptr<File> && file) override;
   /**
    * Persists the managed bulk-request
    */

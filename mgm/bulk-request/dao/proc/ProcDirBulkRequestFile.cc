@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "ProcDirBulkRequestFile.hh"
+#include <regex>
 
 EOSBULKNAMESPACE_BEGIN
 
@@ -43,8 +44,17 @@ void ProcDirBulkRequestFile::setError(const std::string& error) {
   mError = error;
 }
 
+void ProcDirBulkRequestFile::setState(const std::string& state)
+{
+  mState = state;
+}
+
 const std::optional<std::string> ProcDirBulkRequestFile::getError() const {
   return mError;
+}
+
+const std::optional<std::string> ProcDirBulkRequestFile::getState() const {
+  return mState;
 }
 
 void ProcDirBulkRequestFile::setFullPath(const std::string& fullPath){

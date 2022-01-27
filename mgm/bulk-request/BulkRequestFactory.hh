@@ -26,7 +26,8 @@
 
 #include "mgm/Namespace.hh"
 #include "mgm/bulk-request/prepare/StageBulkRequest.hh"
-#include <mgm/bulk-request/prepare/EvictBulkRequest.hh>
+#include "mgm/bulk-request/prepare/EvictBulkRequest.hh"
+#include "mgm/bulk-request/prepare/CancellationBulkRequest.hh"
 
 EOSBULKNAMESPACE_BEGIN
 
@@ -39,13 +40,15 @@ public:
    * Returns a new StageBulkRequest with a unique identifier
    * @return a new StageBulkRequest
    */
-  static StageBulkRequest * createStageBulkRequest();
+  static std::unique_ptr<BulkRequest> createStageBulkRequest();
 
   /**
    * Returns a new EvictBulkRequest with a unique identifier
    * @return a new EvictBulkRequest
    */
-  static EvictBulkRequest * createEvictBulkRequest();
+  static std::unique_ptr<BulkRequest> createEvictBulkRequest();
+
+  static std::unique_ptr<BulkRequest> createCancelBulkRequest(const std::string & id);
 
   /**
    * Instanciate a bulk-request according to the type passed in parameter
@@ -53,7 +56,7 @@ public:
    * @param type the type of the bulk-request to create
    * @return a pointer to the bulk-request created
    */
-  static BulkRequest * createBulkRequest(const std::string & id, const BulkRequest::Type & type);
+  static std::unique_ptr<BulkRequest> createBulkRequest(const std::string & id, const BulkRequest::Type & type);
 
 };
 

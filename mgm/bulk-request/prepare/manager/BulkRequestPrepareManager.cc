@@ -41,29 +41,17 @@ std::unique_ptr<BulkRequest> BulkRequestPrepareManager::getBulkRequest() {
 }
 
 void BulkRequestPrepareManager::initializeStagePrepareRequest(XrdOucString& reqid){
-  mBulkRequest.reset(BulkRequestFactory::createStageBulkRequest());
+  mBulkRequest =std::move(BulkRequestFactory::createStageBulkRequest());
   reqid = mBulkRequest->getId().c_str();
 }
 
-void BulkRequestPrepareManager::initializeEvictPrepareRequest(XrdOucString& reqid) {
-  mBulkRequest.reset(BulkRequestFactory::createEvictBulkRequest());
-  reqid = mBulkRequest->getId().c_str();
+void BulkRequestPrepareManager::initializeCancelPrepareRequest(XrdOucString& reqid) {
+  mBulkRequest = std::move(BulkRequestFactory::createCancelBulkRequest(reqid.c_str()));
 }
 
-void BulkRequestPrepareManager::setErrorToBulkRequest(const std::string& path, const std::string& error) {
-  try {
-    if(mBulkRequest != nullptr)
-      mBulkRequest->addError(path, error);
-  } catch(const BulkRequestException &ex) {
-    std::ostringstream oss;
-    oss << "msg=\"Unable to add an error to the path " << path << " in the bulk-request " << mBulkRequest->getId() << "\" ExceptionMsg=\"" << ex.what() << "\"";
-    eos_warning(oss.str().c_str());
-  }
-}
-
-void BulkRequestPrepareManager::addPathToBulkRequest(const std::string& path) {
+void BulkRequestPrepareManager::addFileToBulkRequest(std::unique_ptr<File>&& file){
   if(mBulkRequest != nullptr) {
-    mBulkRequest->addPath(path);
+    mBulkRequest->addFile(std::move(file));
   }
 }
 

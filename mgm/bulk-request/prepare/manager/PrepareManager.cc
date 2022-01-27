@@ -57,8 +57,8 @@ void PrepareManager::initializeStagePrepareRequest(XrdOucString& reqid) {
   reqid = eos::common::StringConversion::timebased_uuidstring().c_str();
 }
 
-void PrepareManager::initializeEvictPrepareRequest(XrdOucString& reqid) {
-
+void PrepareManager::initializeCancelPrepareRequest(XrdOucString& reqid) {
+  //Nothing to do as cancellation does not require the creation of an ID
 }
 
 int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecEntity* client, const common::VirtualIdentity * vidClient) noexcept {
@@ -118,13 +118,13 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
 
   case Prep_CANCEL:
     mPrepareAction = PrepareAction::ABORT;
+    initializeCancelPrepareRequest(reqid);
     event = "sync::abort_prepare";
     break;
 
   case Prep_EVICT:
     mPrepareAction = PrepareAction::EVICT;
     event = "sync::evict_prepare";
-    initializeEvictPrepareRequest(reqid);
     break;
 
   default:
@@ -169,6 +169,8 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
 
     XrdOucString prep_path = (pptr->text ? pptr->text : "");
     std::string orig_path = prep_path.c_str();
+    std::unique_ptr<bulk::File> currentFile = nullptr;
+
     eos_info("msg=\"checking file exists\" path=\"%s\"", prep_path.c_str());
     {
       const char* inpath = prep_path.c_str();
@@ -191,7 +193,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
       goto nextPath;
     }
 
-    addPathToBulkRequest(prep_path.c_str());
+    currentFile = std::make_unique<File>(prep_path.c_str());
 
     if (mMgmFsInterface->_exists(prep_path.c_str(), check, error, vid, "") ||
         (check != XrdSfsFileExistIsFile)) {
@@ -202,7 +204,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
       std::string errorMsg = "prepare - file does not exist or is not accessible to you";
       oss << "msg=\"" << errorMsg << "\" path=\"" << prep_path.c_str() << "\"";
       eos_info(oss.str().c_str());
-      setErrorToBulkRequest(prep_path.c_str(),errorMsg);
+      currentFile->setError(errorMsg);
       goto nextPath;
     }
 
@@ -223,7 +225,6 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
         // don't do workflow if no such tag
         std::ostringstream oss;
         oss << "No prepare workflow set on the directory " << eos::common::Path(prep_path.c_str()).GetParentPath();
-        setErrorToBulkRequest(prep_path.c_str(),oss.str());
         goto nextPath;
       }
     } else {
@@ -232,7 +233,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
         std::ostringstream oss;
         oss << "Unable to check the extended attributes of the directory "
             << eos::common::Path(prep_path.c_str()).GetParentPath();
-        setErrorToBulkRequest(prep_path.c_str(), oss.str());
+        currentFile->setError(oss.str());
       }
       goto nextPath;
     }
@@ -247,12 +248,15 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
       std::string errorMsg = "Ignoring file because there is no workflow permission";
       oss << "msg=\"" << errorMsg << "\" path=\"" << prep_path.c_str() << "\"";
       eos_info(oss.str().c_str());
-      setErrorToBulkRequest(prep_path.c_str(),errorMsg);
+      currentFile->setError(errorMsg);
       pathsToPrepare.pop_back();
       goto nextPath;
     }
 
     nextPath:
+      if(currentFile != nullptr) {
+        addFileToBulkRequest(std::move(currentFile));
+      }
       pptr = pptr->next;
 
       if (optr) {
@@ -288,7 +292,7 @@ void PrepareManager::saveBulkRequest() {
 
 }
 
-void PrepareManager::addPathToBulkRequest(const std::string& path){
+void PrepareManager::addFileToBulkRequest(std::unique_ptr<File>&& file){
   //The normal PrepareManager does not have any bulk-request, do nothing
 }
 
@@ -414,7 +418,7 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, con
     if (!pptr->text) {
       continue;
     }
-    userProvidedFiles[pptr->text] = File(pptr->text);
+    userProvidedFiles[pptr->text] = std::make_unique<File>(pptr->text);
     ++path_cnt;
   }
 
@@ -434,9 +438,9 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, con
   //If no files were provided, we will query the files that got fetched from the persistency layer
   for(auto & userProvidedFile: userProvidedFiles){
     try {
-      (*filesToQuery)[userProvidedFile.first] = filesFromPersistency->at(userProvidedFile.first);
+      (*filesToQuery)[userProvidedFile.first] = std::move(filesFromPersistency->at(userProvidedFile.first));
     } catch(const std::out_of_range &) {
-      (*filesToQuery)[userProvidedFile.first] = userProvidedFile.second;
+      (*filesToQuery)[userProvidedFile.first] = std::move(userProvidedFile.second);
     }
   }
 
@@ -471,13 +475,13 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, con
     XrdSfsFileExistence check;
 
     if (prep_path.length() == 0) {
-      currentFile.setErrorIfNotAlreadySet("path empty or uses forbidden characters");
+      currentFile->setErrorIfNotAlreadySet("path empty or uses forbidden characters");
       goto logErrorAndContinue;
     }
 
     if (mMgmFsInterface->_exists(prep_path.c_str(), check, error, vid, "") ||
         check != XrdSfsFileExistIsFile) {
-      currentFile.setErrorIfNotAlreadySet("file does not exist or is not accessible to you");
+      currentFile->setErrorIfNotAlreadySet("file does not exist or is not accessible to you");
       goto logErrorAndContinue;
     }
 
@@ -485,7 +489,7 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, con
 
     // Check file state (online/offline)
     if (mMgmFsInterface->_stat(rsp.path.c_str(), &buf, xrd_error, vid, nullptr, nullptr, false)) {
-      currentFile.setErrorIfNotAlreadySet(xrd_error.getErrText());
+      currentFile->setErrorIfNotAlreadySet(xrd_error.getErrText());
       goto logErrorAndContinue;
     }
 
@@ -518,15 +522,15 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, con
       }
 
       if (xattr_it != xattrs.end()) {
-        currentFile.setErrorIfNotAlreadySet(xattr_it->second);
+        currentFile->setErrorIfNotAlreadySet(xattr_it->second);
       }
     } else {
       // failed to read extended attributes
-      currentFile.setErrorIfNotAlreadySet(xrd_error.getErrText());
+      currentFile->setErrorIfNotAlreadySet(xrd_error.getErrText());
     }
     logErrorAndContinue:
-      if(file.second.getError()) {
-        rsp.error_text = file.second.getError().value();
+      if(file.second->getError()) {
+        rsp.error_text = file.second->getError().value();
       }
   }
 

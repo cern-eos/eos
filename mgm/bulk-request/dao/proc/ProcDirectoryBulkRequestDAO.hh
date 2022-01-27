@@ -30,6 +30,7 @@
 #include <mgm/XrdMgmOfs.hh>
 #include "mgm/bulk-request/dao/proc/ProcDirectoryBulkRequestLocations.hh"
 #include "mgm/bulk-request/dao/proc/ProcDirBulkRequestFile.hh"
+#include "mgm/bulk-request/prepare/CancellationBulkRequest.hh"
 
 EOSBULKNAMESPACE_BEGIN
 
@@ -99,7 +100,18 @@ private:
   const char * ERROR_MSG_ATTR_NAME = "error_msg";
   const char * LAST_ACCESS_TIME_ATTR_NAME = "last_accessed_time";
   //File persisted as bulk-request's directory extended attribute will be prefixed by this prefix
-  inline static const std::string FILE_ID_PREFIX_XATTR = "fid.";
+  inline static const std::string FILE_ID_XATTR_KEY_PREFIX = "fid.";
+  inline static const std::string FILE_ID_ERROR_XATTR_KEY_PREFIX = "fid.error.";
+
+  /**
+   * Specific saving method for cancellation bulk-request
+   * @param bulkRequest the bulk-request cancellation to save
+   */
+  void saveCancellationBulkRequest(const CancellationBulkRequest* bulkRequest);
+
+  void saveAnyBulkRequest(const BulkRequest * bulkRequest);
+
+  void cancelStageBulkRequest(const CancellationBulkRequest * bulkRequest);
 
   /**
    * Creates a directory to store the bulk-request files within it
@@ -173,16 +185,6 @@ private:
    * @param directoryContent the map that will be filled with the content of the directory passed in parameter
    */
   void getDirectoryContent(const std::string & path, std::map<std::string, std::set<std::string>> & directoryContent);
-
-  /**
-   * Fetch the error from the extended attributes of the file passed in parameter
-   * and assign this potential error to it.
-   * This method will basically call a `attr ls` on the full path of this file and look for the error attribute
-   * defined in the variable ERROR_MSG_ATTR_NAME
-   * @param file the file to fetch and assign the potential error to.
-   * @param xattrs the extended attributes of the file where the potential error might be
-   */
-  void fillFileErrorIfAny(ProcDirBulkRequestFile & file, eos::IContainerMD::XAttrMap & xattrs);
 
   /**
    * Fetch the extended attributes of the file passed in parameter

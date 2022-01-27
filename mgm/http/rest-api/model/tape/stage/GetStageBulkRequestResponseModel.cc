@@ -25,8 +25,12 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-std::shared_ptr<bulk::QueryPrepareResponse> GetStageBulkRequestResponseModel::getQueryPrepareResponse() const {
-  return mQueryPrepareResponse;
+void GetStageBulkRequestResponseModel::addItem(std::unique_ptr<Item>&& item) {
+  mItems.emplace_back(std::move(item));
+}
+
+const std::vector<std::unique_ptr<GetStageBulkRequestResponseModel::Item>> & GetStageBulkRequestResponseModel::getItems() const {
+  return mItems;
 }
 
 EOSMGMRESTNAMESPACE_END

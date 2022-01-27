@@ -305,6 +305,7 @@ add_library(
   bulk-request/BulkRequest.cc
   bulk-request/prepare/StageBulkRequest.cc
   bulk-request/prepare/EvictBulkRequest.cc
+  bulk-request/prepare/CancellationBulkRequest.cc
   bulk-request/business/BulkRequestBusiness.cc
   bulk-request/BulkRequestFactory.cc
   bulk-request/dao/factories/ProcDirectoryDAOFactory.cc

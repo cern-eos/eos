@@ -35,6 +35,7 @@ EOSBULKNAMESPACE_BEGIN
 class StageBulkRequest : public BulkRequest {
 public:
   StageBulkRequest(const std::string & id);
+  void addFile(std::unique_ptr<File> && file) override;
   const BulkRequest::Type getType() const override;
 private:
 };

@@ -27,6 +27,7 @@
 #include "mgm/Namespace.hh"
 #include <string>
 #include <optional>
+#include <map>
 
 EOSBULKNAMESPACE_BEGIN
 
@@ -36,11 +37,18 @@ EOSBULKNAMESPACE_BEGIN
  */
 class File {
 public:
+  enum State { SUBMITTED, CANCELLED, ERROR };
+
   File();
   File(const std::string & path);
   void setPath(const std::string & path);
   void setError(const std::string & error);
   void setError(const std::optional<std::string> & error);
+  void setState(const std::optional<std::string> & state);
+  void setState(const State & state);
+  void setState(const std::string & state);
+  const std::optional<State> getState() const;
+  const std::optional<std::string> getStateStr() const;
   /**
    * Set the error passed in parameter to the file
    * only if there is not already an error set
@@ -48,13 +56,24 @@ public:
    */
   void setErrorIfNotAlreadySet(const std::string & error);
 
-  std::string getPath() const;
-  std::optional<std::string> getError() const;
+  const std::string getPath() const;
+  const std::optional<std::string> getError() const;
 
   bool operator==(const File & other) const;
   bool operator<(const File & other) const;
 
 private:
+  static inline const std::map<State,std::string> STATE_TO_STRING_MAP = {
+      {State::SUBMITTED,"SUBMITTED"},
+      {State::CANCELLED,"CANCELLED"},
+      {State::ERROR,"ERROR"}
+  };
+
+  static inline const std::map<std::string,State> STRING_TO_STATE_MAP = {
+      {"SUBMITTED", State::SUBMITTED},
+      {"CANCELLED",State::CANCELLED},
+      {"ERROR",State::ERROR}
+  };
   /**
    * The path of the file
    */
@@ -63,6 +82,10 @@ private:
    * An eventual error message
    */
   std::optional<std::string> mError;
+ /**
+  * An eventual state for the file
+  */
+  std::optional<State> mState;
 };
 
 EOSBULKNAMESPACE_END

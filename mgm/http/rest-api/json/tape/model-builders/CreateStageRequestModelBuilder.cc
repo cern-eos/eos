@@ -60,6 +60,11 @@ std::unique_ptr<CreateStageBulkRequestModel> CreateStageRequestWithFilesModelBui
   std::unique_ptr<ValidationErrors> validationErrors(new ValidationErrors());
   Json::Value root;
   parseJson(json, root);
+  try {
+    mValidatorFactory.getObjectValidator()->validate(root);
+  } catch (const ValidatorException &ex) {
+    throw JsonValidationException("The root object of the input JSON must be an object");
+  }
   Json::Value & files = root[FILES_KEY_NAME];
   try {
     mValidatorFactory.getNonEmptyArrayValidator()->validate(files);
@@ -68,6 +73,14 @@ std::unique_ptr<CreateStageBulkRequestModel> CreateStageRequestWithFilesModelBui
     throw JsonValidationException(std::move(validationErrors));
   }
   for(auto & file: files) {
+    try {
+      mValidatorFactory.getObjectValidator()->validate(file);
+    } catch(const ValidatorException & ex) {
+      std::stringstream ss;
+      ss << "The field must be an array of objects.";
+      validationErrors->addError(FILES_KEY_NAME,ss.str());
+      throw JsonValidationException(std::move(validationErrors));
+    }
     Json::Value & path = file[PATH_KEY_NAME];
     try {
       mValidatorFactory.getPathValidator()->validate(path);

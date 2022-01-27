@@ -41,18 +41,16 @@ common::HttpResponse* GetStageBulkRequest::run(common::HttpRequest* request, con
   parser.matchesAndExtractParameters(this->mURLPattern,requestParameters);
   std::string requestId = requestParameters[URLParametersConstants::ID];
 
-  //Check existency of the request
-  std::shared_ptr<bulk::QueryPrepareResponse> queryPrepareResponse;
+  std::shared_ptr<GetStageBulkRequestResponseModel> responseModel;
   try {
-    queryPrepareResponse = mTapeRestApiBusiness->getStageBulkRequest(requestId,vid);
+    responseModel = mTapeRestApiBusiness->getStageBulkRequest(requestId,vid);
   } catch(const ObjectNotFoundException &ex) {
     return mResponseFactory.createNotFoundError().getHttpResponse();
   } catch(const TapeRestApiBusinessException & ex) {
     return mResponseFactory.createInternalServerError(ex.what()).getHttpResponse();
   }
-  std::shared_ptr<GetStageBulkRequestResponseModel> stageBulkRequestModel = std::make_shared<GetStageBulkRequestResponseModel>(queryPrepareResponse);
-  stageBulkRequestModel->setJsonifier(mOutputObjectJsonifier);
-  return mResponseFactory.createResponse(stageBulkRequestModel,common::HttpResponse::ResponseCodes::OK).getHttpResponse();
+  responseModel->setJsonifier(mOutputObjectJsonifier);
+  return mResponseFactory.createResponse(responseModel,common::HttpResponse::ResponseCodes::OK).getHttpResponse();
 }
 
 EOSMGMRESTNAMESPACE_END

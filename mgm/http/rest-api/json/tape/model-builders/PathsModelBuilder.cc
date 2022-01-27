@@ -30,6 +30,11 @@ std::unique_ptr<PathsModel> PathsModelBuilder::buildFromJson(const std::string& 
   std::unique_ptr<ValidationErrors> validationErrors(new ValidationErrors());
   Json::Value root;
   parseJson(json, root);
+  try {
+    mValidatorFactory.getObjectValidator()->validate(root);
+  } catch(const ValidatorException &ex) {
+    throw JsonValidationException("The root object of the input JSON must be an object");
+  }
   Json::Value & paths = root[PATHS_KEY_NAME];
   try {
     mValidatorFactory.getNonEmptyArrayValidator()->validate(paths);
