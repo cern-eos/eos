@@ -833,8 +833,9 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 
 #endif
 
-  int retc = SFS_OK;
+  XrdOucErrInfo lastCheckError;
   bool noFilesPrepared = true;
+  int filesFailedCounter = 0;
 
   // check that all files exist
   for (
@@ -861,7 +862,8 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       Emsg(epname, error, ENOENT,
            "prepare - path empty or uses forbidden characters:",
            orig_path.c_str());
-      if (!(pargs.opts & Prep_STAGE)) retc = SFS_ERROR;
+      lastCheckError = error;
+      filesFailedCounter++;
       continue;
     }
 
@@ -872,7 +874,8 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
              "prepare - file does not exist or is not accessible to you",
              prep_path.c_str());
       }
-      if (!(pargs.opts & Prep_STAGE)) retc = SFS_ERROR;
+      lastCheckError = error;
+      filesFailedCounter++;
       continue;
     }
 
@@ -906,13 +909,14 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       Emsg(epname, error, EPERM,
            "prepare - you don't have prepare permission",
            prep_path.c_str());
-      if (!(pargs.opts & Prep_STAGE)) retc = SFS_ERROR;
+      lastCheckError = error;
+      filesFailedCounter++;
       continue;
     }
   }
 
   // (Only) If ALL files failed to prepare, return error
-  // 'error' variable will already contain the error message
+  // 'error' variable will already contain an error message
   if ((pargs.opts & Prep_STAGE) && noFilesPrepared) {
     eos_err("Unable to prepare - failed to prepare all files with reqID %s",
             reqid.c_str());
@@ -981,6 +985,7 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     }
   }
 
+  int retc = SFS_OK;
 #if (XrdMajorVNUM(XrdVNUMBER) == 4 && XrdMinorVNUM(XrdVNUMBER) >= 10) || XrdMajorVNUM(XrdVNUMBER) >= 5
 
   // If we generated our own request ID, return it to the client
@@ -988,6 +993,10 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     // If we return SFS_DATA, the first parameter is the length of the buffer, not the error code
     error.setErrInfo(reqid.length() + 1, reqid.c_str());
     retc = SFS_DATA;
+  } else if ((pargs.opts & (Prep_EVICT | Prep_CANCEL)) && (filesFailedCounter > 0)) {
+    // Return last error
+    error = lastCheckError;
+    retc = SFS_ERROR;
   }
 
 #endif
