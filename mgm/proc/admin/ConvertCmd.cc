@@ -394,6 +394,7 @@ void ConvertCmd::RuleSubcmd(const eos::console::ConvertProto_RuleProto& rule,
                       conversion_rule.c_str())) {
     err << "error: could not set conversion rule '" << conversion_rule
         << "' on path '" << path << "' -- emsg=" << errInfo.getErrText();
+    reply.set_std_err(err.str());
     reply.set_retc(errInfo.getErrInfo());
     return;
   }
@@ -530,6 +531,8 @@ std::string ConvertCmd::PathFromIdentifierProto(
     path = identifier.path().c_str();
   } else if (type == ConvertProto::IdentifierProto::kFileId) {
     GetPathFromFid(path, identifier.fileid(), err_msg);
+  } else if (type == ConvertProto::IdentifierProto::kContainerId) {
+    GetPathFromCid(path, identifier.containerid(), err_msg);
   } else {
     err_msg = "error: received empty string path";
   }
