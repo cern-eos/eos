@@ -67,6 +67,15 @@ public:
   }
 };
 
+class ObjectValidator : public JsonCppValidator {
+public:
+  virtual void validate(const Json::Value & value) override {
+    if(!value.isObject()) {
+      throw ValidatorException("Field is not an object.");
+    }
+  }
+};
+
 class JsonCppValidatorFactory {
 public:
   std::unique_ptr<JsonCppValidator> getNonEmptyArrayValidator() {
@@ -77,6 +86,9 @@ public:
   }
   std::unique_ptr<JsonCppValidator> getNotNullValidator() {
     return std::make_unique<StringValidator>();
+  }
+  std::unique_ptr<JsonCppValidator> getObjectValidator() {
+    return std::make_unique<ObjectValidator>();
   }
 };
 

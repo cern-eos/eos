@@ -42,7 +42,9 @@ public:
   void setFileId(const eos::common::FileId::fileid_t fileId);
   const std::optional<eos::common::FileId::fileid_t> getFileId() const;
   void setError(const std::string & error);
+  void setState(const std::string & state);
   const std::optional<std::string> getError() const;
+  const std::optional<std::string> getState() const;
   void setFullPath(const std::string & fullPath);
   const std::string getFullPath() const;
   void setName(const std::string & name);
@@ -54,6 +56,7 @@ private:
   std::optional<eos::common::FileId::fileid_t> mFileId;
   std::string mName;
   std::optional<std::string> mError;
+  std::optional<std::string> mState;
   std::string mFullPath;
 };
 

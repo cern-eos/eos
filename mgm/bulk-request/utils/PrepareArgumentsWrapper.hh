@@ -30,37 +30,44 @@ EOSBULKNAMESPACE_BEGIN
 
 class PrepareArgumentsWrapper {
 public:
-  PrepareArgumentsWrapper(const std::string& reqid, const int opts,
-                          const std::vector<std::string>& paths,
-                          const std::vector<std::string>& oinfos)
-  {
-    eos::auth::XrdSfsPrepProto pargsProto;
-    pargsProto.set_reqid(reqid);
-    pargsProto.set_opts(opts);
+  PrepareArgumentsWrapper(const std::string& reqid, const int opts, const std::vector<std::string>& paths, const std::vector<std::string>& oinfos):mPargs(nullptr)   {
+    mPargsProto.set_reqid(reqid);
+    mPargsProto.set_opts(opts);
     for(auto & oinfo: oinfos) {
-      pargsProto.add_oinfo(oinfo);
+      mPargsProto.add_oinfo(oinfo);
     }
     for(auto & path: paths) {
-      pargsProto.add_paths(path);
+      mPargsProto.add_paths(path);
     }
-    mPargs = eos::auth::utils::GetXrdSfsPrep(pargsProto);
   }
 
-  PrepareArgumentsWrapper(const std::string & reqid, const int opts) {
-    eos::auth::XrdSfsPrepProto pargsProto;
-    pargsProto.set_reqid(reqid);
-    pargsProto.set_opts(opts);
-    mPargs = eos::auth::utils::GetXrdSfsPrep(pargsProto);
+  PrepareArgumentsWrapper(const std::string & reqid, const int opts):mPargs(nullptr) {
+    mPargsProto.set_reqid(reqid);
+    mPargsProto.set_opts(opts);
   }
 
   ~PrepareArgumentsWrapper(){
-    eos::auth::utils::DeleteXrdSfsPrep(mPargs);
+    if(mPargs != nullptr) {
+      eos::auth::utils::DeleteXrdSfsPrep(mPargs);
+      mPargs = nullptr;
+    }
+  }
+
+  void addFile(const std::string & path, const std::string & opaqueInfos) {
+    mPargsProto.add_paths(path);
+    mPargsProto.add_oinfo(opaqueInfos);
+  }
+
+  uint64_t getNbFiles() {
+    return mPargsProto.paths().size();
   }
 
   XrdSfsPrep * getPrepareArguments() {
+    mPargs = eos::auth::utils::GetXrdSfsPrep(mPargsProto);
     return mPargs;
   }
 private:
+  eos::auth::XrdSfsPrepProto mPargsProto;
   XrdSfsPrep * mPargs;
 };
 
