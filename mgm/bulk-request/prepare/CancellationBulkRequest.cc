@@ -1,11 +1,11 @@
-// ----------------------------------------------------------------------
-// File: GetStageBulkRequestResponseModel.hh
-// Author: Cedric Caffy - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
+//! @file CancellationBulkRequest.cc
+//! @author Cedric Caffy - CERN
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2013 CERN/Switzerland                                  *
+ * Copyright (C) 2017 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -20,34 +20,22 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
+#include <common/Logging.hh>
+#include "CancellationBulkRequest.hh"
 
-#ifndef EOS_GETSTAGEBULKREQUESTRESPONSEMODEL_HH
-#define EOS_GETSTAGEBULKREQUESTRESPONSEMODEL_HH
+EOSBULKNAMESPACE_BEGIN
 
-#include "mgm/Namespace.hh"
-#include "common/json/Jsonifiable.hh"
-#include "mgm/bulk-request/response/QueryPrepareResponse.hh"
-#include "mgm/bulk-request/BulkRequest.hh"
+CancellationBulkRequest::CancellationBulkRequest(const std::string& id): BulkRequest(id){}
 
-EOSMGMRESTNAMESPACE_BEGIN
+const BulkRequest::Type CancellationBulkRequest::getType() const {
+  return BulkRequest::Type::PREPARE_CANCEL;
+}
 
-class GetStageBulkRequestResponseModel : public common::Jsonifiable<GetStageBulkRequestResponseModel> {
-public:
-  class Item {
-  public:
-    std::string mPath;
-    std::string mError;
-    bool mOnDisk;
-    bool mOnTape;
-    std::string mState;
-  };
-  GetStageBulkRequestResponseModel(){}
-  void addItem(std::unique_ptr<Item> && item);
-  const std::vector<std::unique_ptr<Item>> & getItems() const;
-private:
-  std::vector<std::unique_ptr<Item>> mItems;
-};
+void CancellationBulkRequest::addFile(std::unique_ptr<File>&& file) {
+  if(!file->getError()) {
+    file->setState(File::State::CANCELLED);
+  }
+  BulkRequest::addFile(std::move(file));
+}
 
-EOSMGMRESTNAMESPACE_END
-
-#endif // EOS_GETSTAGEBULKREQUESTRESPONSEMODEL_HH
+EOSBULKNAMESPACE_END

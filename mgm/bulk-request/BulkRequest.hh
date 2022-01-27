@@ -38,13 +38,13 @@ EOSBULKNAMESPACE_BEGIN
 class BulkRequest {
 public:
 
-
   /**
    * The type a bulk request can be
    */
   enum Type {
     PREPARE_STAGE,
-    PREPARE_EVICT
+    PREPARE_EVICT,
+    PREPARE_CANCEL
   };
 
   /**
@@ -70,24 +70,10 @@ public:
   const std::shared_ptr<FileCollection::Files> getFiles() const;
 
   /**
-   * Add a file path to this bulk request
-   * This will add a File with the path passed in parameter in the bulk-request's file container
-   * @param path the path to the file to add to this bulk request
-   */
-  void addPath(const std::string & path);
-
-  /**
-   * Add an error text to the path that
-   * @param path the path of the file that had an error
-   * @param error the error that the file has
-   */
-  void addError(const std::string & path, const std::string & error);
-
-  /**
    * Adds a File to the bulk-request
    * @param file the file to add to the bulk-request File container
    */
-  void addFile(const File & file);
+  virtual void addFile(std::unique_ptr<File> && file);
 
   virtual ~BulkRequest(){}
 

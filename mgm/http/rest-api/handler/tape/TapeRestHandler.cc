@@ -95,6 +95,9 @@ common::HttpResponse* TapeRestHandler::handleRequest(common::HttpRequest* reques
     } catch (const MethodNotAllowedException &ex) {
       eos_static_info(ex.what());
       return mTapeRestApiResponseFactory.createMethodNotAllowedError(ex.what()).getHttpResponse();
+    } catch(const RestException &ex) {
+      eos_static_info(ex.what());
+      return mTapeRestApiResponseFactory.createInternalServerError(ex.what()).getHttpResponse();
     }
   }
   return nullptr;

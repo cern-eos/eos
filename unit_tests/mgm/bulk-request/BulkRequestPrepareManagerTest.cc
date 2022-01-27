@@ -261,8 +261,8 @@ TEST_F(BulkRequestPrepareManagerTest,abortPrepareFilesWorkflow){
 
   eos::mgm::bulk::BulkRequestPrepareManager pm(std::move(mgmOfsPtr));
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
-  //Abort prepare does not generate a bulk-request, so the bulk-request should be equal to nullptr
-  ASSERT_EQ(nullptr,pm.getBulkRequest());
+  //Abort prepare generates a bulk-request
+  ASSERT_NE(nullptr,pm.getBulkRequest());
   //Abort prepare returns SFS_OK
   ASSERT_EQ(SFS_OK,retPrepare);
 }
@@ -341,9 +341,7 @@ TEST_F(BulkRequestPrepareManagerTest,evictPrepareFilesWorkflow){
   int retPrepare = pm.prepare(*(pargs.getPrepareArguments()),*error,client.getClient());
   //Evict prepare does not generate a bulk-request, so the bulk-request should be equal to nullptr
   std::unique_ptr<BulkRequest> bulkRequest = pm.getBulkRequest();
-  ASSERT_NE(nullptr,bulkRequest);
-  ASSERT_EQ(nbFiles, bulkRequest->getFiles()->size());
-  ASSERT_EQ(BulkRequest::Type::PREPARE_EVICT,bulkRequest->getType());
+  ASSERT_EQ(nullptr,bulkRequest);
   //Evict prepare returns SFS_OK
   ASSERT_EQ(SFS_OK,retPrepare);
 }

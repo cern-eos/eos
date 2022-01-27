@@ -28,12 +28,13 @@ EOSMGMRESTNAMESPACE_BEGIN
 void GetStageBulkRequestJsonifier::jsonify(const GetStageBulkRequestResponseModel* obj, std::stringstream& ss) {
   Json::Value root;
   initializeArray(root);
-  for(auto response: obj->getQueryPrepareResponse()->responses) {
+  for(auto & file: obj->getItems()) {
     Json::Value fileObj;
-    fileObj["path"] = response.path;
-    fileObj["error"] = response.error_text;
-    fileObj["onDisk"] = response.is_online;
-    fileObj["onTape"] = response.is_on_tape;
+    fileObj["path"] = file->mPath;
+    fileObj["error"] = file->mError;
+    fileObj["onDisk"] = file->mOnDisk;
+    fileObj["onTape"] = file->mOnTape;
+    fileObj["state"] = file->mState;
     root.append(fileObj);
   }
   ss << root;
