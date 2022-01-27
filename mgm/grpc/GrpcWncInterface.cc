@@ -11,6 +11,7 @@
 //-----------------------------------------------------------------------------
 #include "mgm/proc/admin/AccessCmd.hh"
 #include "mgm/proc/admin/ConfigCmd.hh"
+#include "mgm/proc/admin/ConvertCmd.hh"
 #include "mgm/proc/admin/DebugCmd.hh"
 #include "mgm/proc/admin/FsCmd.hh"
 #include "mgm/proc/admin/GroupCmd.hh"
@@ -81,6 +82,10 @@ GrpcWncInterface::ExecCmd(eos::common::VirtualIdentity& vid,
 
   case eos::console::RequestProto::kConfig:
     return Config(vid, request, reply);
+    break;
+
+  case eos::console::RequestProto::kConvert:
+    return Convert(vid, request, reply);
     break;
 
   case eos::console::RequestProto::kCp:
@@ -797,6 +802,17 @@ GrpcWncInterface::Config(eos::common::VirtualIdentity& vid,
   eos::console::RequestProto req = *request;
   eos::mgm::ConfigCmd configcmd(std::move(req), vid);
   *reply = configcmd.ProcessRequest();
+  return grpc::Status::OK;
+}
+
+grpc::Status
+GrpcWncInterface::Convert(eos::common::VirtualIdentity& vid,
+                          const eos::console::RequestProto* request,
+                          eos::console::ReplyProto* reply)
+{
+  eos::console::RequestProto req = *request;
+  eos::mgm::ConvertCmd convertcmd(std::move(req), vid);
+  *reply = convertcmd.ProcessRequest();
   return grpc::Status::OK;
 }
 

@@ -89,6 +89,10 @@ private:
                              const eos::console::RequestProto* request,
                              eos::console::ReplyProto* reply);
 
+  static grpc::Status Convert(eos::common::VirtualIdentity& vid,
+                              const eos::console::RequestProto* request,
+                              eos::console::ReplyProto* reply);
+
   static grpc::Status Cp(eos::common::VirtualIdentity& vid,
                          const eos::console::RequestProto* request,
                          eos::console::ReplyProto* reply);
