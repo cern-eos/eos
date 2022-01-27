@@ -244,8 +244,9 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
 
     for (const auto id : fdrain.mProto.locations()) {
       // First try copying from a location different from the current draining
-      // file system
-      if ((id != mFsIdSource) && (mTriedSrcs.find(id) == mTriedSrcs.end())) {
+      // file system. Make sure we also skip any EOS_TAPE_FSID (65535) replicas.
+      if ((id != mFsIdSource) && (id != EOS_TAPE_FSID) &&
+          (mTriedSrcs.find(id) == mTriedSrcs.end())) {
         mTriedSrcs.insert(id);
         eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
         FileSystem* fs = FsView::gFsView.mIdView.lookupByID(id);
@@ -524,7 +525,10 @@ DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain)
   std::vector<FileSystem::fsid_t> existing_repl;
 
   for (auto elem : fdrain.mProto.locations()) {
-    existing_repl.push_back(elem);
+    // Skip any EOS_TAPE_FSID replicas
+    if (elem != EOS_TAPE_FSID) {
+      existing_repl.push_back(elem);
+    }
   }
 
   if (!gOFS->mGeoTreeEngine->getInfosFromFsIds(existing_repl, &fsid_geotags, 0,
