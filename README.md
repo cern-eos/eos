@@ -17,11 +17,15 @@ protocol, a **POSIX-like FUSE** client or **HTTP(S) & WebDav** protocol.
 The most up to date documentation can be found at:
 http://eos-docs.web.cern.ch/eos-docs/
 
-You will need to install some packages in order to generate them:
+You will need to install sphinx, doxygen & solar_theme (for sphinx) in order to
+generate them. For up to date information on getting sphinx refer to the [sphinx
+docs](https://www.sphinx-doc.org/en/master/usage/installation.html)
 
 ```bash
 ## RHEL instructions
-# TODO
+# Please choose the revelant python version based on the distro
+sudo yum install python-sphinx doxygen
+pip install solar_theme
 
 ## Ubuntu 20.04 instructions
 sudo apt install python3-sphinx doxygen
@@ -99,8 +103,21 @@ cppzmq-devel libcurl-devel libevent-devel jemalloc jemalloc-devel
 
 ## Build
 
-To build **EOS**, you need **gcc (>=4.9)** with **C++14 features** and **CMake** 
-installed on your system:
+To build **EOS**, you need **gcc (>=7)** with **C++17 features** and **CMake**
+installed on your system. If you can install ninja, **EOS** supports ninja for builds.
+
+```bash
+git submodule update --init --recursive
+# Create build workdir
+mkdir build-with-ninja
+cd build
+# Run CMake
+cmake3 -GNinja ..
+# Build
+ninja -j 4
+```
+
+Otherwise standard make builds are of course possible
 
 ```bash
 git submodule update --init --recursive
@@ -121,6 +138,11 @@ To change the default install prefix path, do the following:
 ```bash
 # Modify the default install path
 cmake ../ -DCMAKE_INSTALL_PREFIX=/other_path
+# if using ninja
+ninja install
+# Uninstall
+ninja uninstall
+
 # Install - might require sudo privileges
 make install
 # Uninstall
@@ -147,10 +169,15 @@ The preferable way, if you have access, is use the online bug tracking
 system [Jira][2] to submit new problem reports or search for existing ones: 
 https://its.cern.ch/jira/browse/EOS
 
+## EOS Community
+
+For discussions and help, there is also the eos community which brings together
+users, developers & collaborators at https://eos-community.web.cern.ch/
+
 ## Licence
 
 **EOS - The CERN Disk Storage System**  
-**Copyright (C) 2019 CERN/Switzerland**  
+**Copyright (C) 2022 CERN/Switzerland**
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
 Foundation, either version 3 of the License, or (at your option) any later
