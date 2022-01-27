@@ -58,36 +58,44 @@ void TapeRestApiBusiness::cancelStageBulkRequest(const std::string & requestId, 
   }
   //Create the prepare arguments, we will only cancel the files that were given by the user
   const FilesContainer & filesFromClient = model->getFiles();
-  auto filesFromBulkRequest = bulkRequest->getFiles();
-  FilesContainer filesToCancel;
-  for(auto & fileFromClient: filesFromClient.getPaths()) {
-    if(filesFromBulkRequest->find(fileFromClient) != filesFromBulkRequest->end()){
-      filesToCancel.addFile(fileFromClient);
+  auto filesFromBulkRequestContainer = bulkRequest->getFiles();
+  bulk::PrepareArgumentsWrapper pargsWrapper(requestId, Prep_CANCEL);
+  for(const auto & fileFromClient: filesFromClient.getPaths()) {
+    const auto & fileFromBulkRequestKeyVal = filesFromBulkRequestContainer->find(fileFromClient);
+    if(fileFromBulkRequestKeyVal != filesFromBulkRequestContainer->end()) {
+      auto & fileFromBulkRequest = fileFromBulkRequestKeyVal->second;
+      auto & error = fileFromBulkRequest->getError();
+      if(!error){
+        //We only cancel the files that do not have any error
+        pargsWrapper.addFile(fileFromClient, "");
+      }
     } else {
       std::stringstream ss;
       ss << "The file " << fileFromClient << " does not belong to the STAGE request " << bulkRequest->getId() << ". No modification has been made to this request.";
       throw FileDoesNotBelongToBulkRequestException(ss.str());
     }
   }
-  //Do the cancellation
-  bulk::PrepareArgumentsWrapper pargsWrapper(requestId, Prep_CANCEL,
-                                             filesToCancel.getPaths(),
-                                             filesToCancel.getOpaqueInfos());
-  auto pm = createBulkRequestPrepareManager();
-  XrdOucErrInfo error;
-  int retCancellation = pm->prepare(*pargsWrapper.getPrepareArguments(),error,vid);
-  if(retCancellation != SFS_OK) {
-    std::stringstream ss;
-    ss << "Unable to cancel the files provided. errMsg=\"" << error.getErrText() << "\"";
-    throw TapeRestApiBusinessException(ss.str());
+  //Do the cancellation if there are files to cancel
+  if(pargsWrapper.getNbFiles() != 0) {
+    auto pm = createBulkRequestPrepareManager();
+    XrdOucErrInfo error;
+    int retCancellation = pm->prepare(*pargsWrapper.getPrepareArguments(), error, vid);
+    if (retCancellation != SFS_OK) {
+      std::stringstream ss;
+      ss << "Unable to cancel the files provided. errMsg=\""
+         << error.getErrText() << "\"";
+      throw TapeRestApiBusinessException(ss.str());
+    }
   }
 }
 
-std::shared_ptr<bulk::QueryPrepareResponse> TapeRestApiBusiness::getStageBulkRequest(const std::string& requestId,const common::VirtualIdentity * vid) {
+std::shared_ptr<GetStageBulkRequestResponseModel> TapeRestApiBusiness::getStageBulkRequest(const std::string& requestId,const common::VirtualIdentity * vid) {
+  std::shared_ptr<GetStageBulkRequestResponseModel> ret = std::make_shared<GetStageBulkRequestResponseModel>();
   auto bulkRequestBusiness = createBulkRequestBusiness();
+  std::unique_ptr<bulk::BulkRequest> bulkRequest;
   try {
-    if (!bulkRequestBusiness->exists(requestId,
-                                     bulk::BulkRequest::Type::PREPARE_STAGE)) {
+    bulkRequest = bulkRequestBusiness->getBulkRequest(requestId,bulk::BulkRequest::PREPARE_STAGE);
+    if(!bulkRequest) {
       std::stringstream ss;
       ss << "Unable to find the STAGE bulk-request ID =" << requestId;
       throw ObjectNotFoundException(ss.str());
@@ -95,17 +103,46 @@ std::shared_ptr<bulk::QueryPrepareResponse> TapeRestApiBusiness::getStageBulkReq
   } catch(bulk::PersistencyException & ex){
     throw TapeRestApiBusinessException(ex.what());
   }
-  //Instanciate prepare manager
+
+  //Instanciate prepare manager to get the tape, disk residency and an eventual error (set by CTA)
   bulk::PrepareArgumentsWrapper pargsWrapper(requestId,Prep_QUERY);
-  auto pm = createBulkRequestPrepareManager();
+  for(auto &kv: *bulkRequest->getFiles()) {
+    pargsWrapper.addFile(kv.first, "");
+  }
+  auto pm = createPrepareManager();
   XrdOucErrInfo error;
   auto queryPrepareResult = pm->queryPrepare(*pargsWrapper.getPrepareArguments(),error,vid);
   if(!queryPrepareResult->hasQueryPrepareFinished()){
     std::stringstream ss;
-    ss << "Unable to get information about the request " << requestId <<". errMsg=\"" << error.getErrText() << "\"";
+    ss << "Unable to get information about the files belonging to the request " << requestId <<". errMsg=\"" << error.getErrText() << "\"";
     throw TapeRestApiBusinessException(ss.str());
   }
-  return queryPrepareResult->getResponse();
+
+  for(const auto & queryPrepareResponse: queryPrepareResult->getResponse()->responses) {
+    auto & filesFromBulkRequest = bulkRequest->getFiles();
+    auto fileFromBulkRequestItor = filesFromBulkRequest->find(queryPrepareResponse.path);
+    if(fileFromBulkRequestItor != filesFromBulkRequest->end()) {
+      auto & fileFromBulkRequest = fileFromBulkRequestItor->second;
+      std::unique_ptr<GetStageBulkRequestResponseModel::Item> item = std::make_unique<GetStageBulkRequestResponseModel::Item>();
+      item->mPath = queryPrepareResponse.path;
+      //For the stage bulk-request, the state is always set
+      item->mState = *fileFromBulkRequest->getStateStr();
+      eos_static_crit("ITEM->MSTATE =%s",item->mState.c_str());
+      if(fileFromBulkRequest->getError()) {
+        item->mError = *fileFromBulkRequest->getError();
+      } else {
+        //Error comes from CTA, so we need to update the state of the file to ERROR
+        item->mError = queryPrepareResponse.error_text;
+        if(!item->mError.empty()) {
+          item->mState = item->mState = bulk::File::State::ERROR;
+        }
+      }
+      item->mOnDisk = queryPrepareResponse.is_online;
+      item->mOnTape = queryPrepareResponse.is_on_tape;
+      ret->addItem(std::move(item));
+    }
+  }
+  return ret;
 }
 
 void TapeRestApiBusiness::deleteStageBulkRequest(const std::string& requestId, const common::VirtualIdentity* vid) {
@@ -119,14 +156,12 @@ void TapeRestApiBusiness::deleteStageBulkRequest(const std::string& requestId, c
   }
   //Create the prepare arguments, we will cancel all the files from this bulk-request
   auto filesFromBulkRequest = bulkRequest->getFiles();
-  FilesContainer filesToCancel;
-  for(auto & fileFromBulkRequest: *filesFromBulkRequest){
-    filesToCancel.addFile(fileFromBulkRequest.first);
+  bulk::PrepareArgumentsWrapper pargsWrapper(requestId, Prep_CANCEL);
+
+  for(auto & fileFromBulkRequest: *filesFromBulkRequest) {
+    pargsWrapper.addFile(fileFromBulkRequest.first, "");
   }
-  bulk::PrepareArgumentsWrapper pargsWrapper(requestId, Prep_CANCEL,
-                                             filesToCancel.getPaths(),
-                                             filesToCancel.getOpaqueInfos());
-  auto pm = createBulkRequestPrepareManager();
+  auto pm = createPrepareManager();
   XrdOucErrInfo error;
   int retCancellation = pm->prepare(*pargsWrapper.getPrepareArguments(),error,vid);
   if(retCancellation != SFS_OK) {
@@ -178,6 +213,12 @@ std::unique_ptr<bulk::BulkRequestPrepareManager> TapeRestApiBusiness::createBulk
   std::unique_ptr<bulk::BulkRequestPrepareManager> prepareManager = std::make_unique<bulk::BulkRequestPrepareManager>(std::move(mgmOfs));
   std::shared_ptr<bulk::BulkRequestBusiness> bulkRequestBusiness = createBulkRequestBusiness();
   prepareManager->setBulkRequestBusiness(bulkRequestBusiness);
+  return prepareManager;
+}
+
+std::unique_ptr<bulk::PrepareManager> TapeRestApiBusiness::createPrepareManager() {
+  std::unique_ptr<bulk::RealMgmFileSystemInterface> mgmOfs = std::make_unique<bulk::RealMgmFileSystemInterface>(gOFS);
+  std::unique_ptr<bulk::PrepareManager> prepareManager = std::make_unique<bulk::PrepareManager>(std::move(mgmOfs));
   return prepareManager;
 }
 

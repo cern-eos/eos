@@ -101,7 +101,7 @@ protected:
 
   virtual void initializeStagePrepareRequest(XrdOucString & reqid);
 
-  virtual void initializeEvictPrepareRequest(XrdOucString & reqid);
+  virtual void initializeCancelPrepareRequest(XrdOucString & reqid);
 
   virtual void setErrorToBulkRequest(const std::string & path, const std::string & error) {}
 
@@ -135,9 +135,9 @@ protected:
 
   /**
    * Will add the prepared path to the bulk request if it exists
-   * @param path the path to add to the bulk-request
+   * @param file the file to add to the bulk-request
    */
-  virtual void addPathToBulkRequest(const std::string & path);
+  virtual void addFileToBulkRequest(std::unique_ptr<File> && file);
 
   /**
    * Returns the files that were persisted if the id corresponds to an already persisted stage bulk-request

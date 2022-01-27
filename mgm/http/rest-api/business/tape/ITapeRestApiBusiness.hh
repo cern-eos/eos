@@ -30,6 +30,7 @@
 #include "mgm/bulk-request/response/QueryPrepareResponse.hh"
 #include "mgm/http/rest-api/model/tape/stage/CreateStageBulkRequestModel.hh"
 #include "mgm/http/rest-api/model/tape/stage/PathsModel.hh"
+#include "mgm/http/rest-api/model/tape/stage/GetStageBulkRequestResponseModel.hh"
 #include "common/VirtualIdentity.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
@@ -38,7 +39,7 @@ class ITapeRestApiBusiness {
 public:
   virtual std::shared_ptr<bulk::BulkRequest> createStageBulkRequest(const CreateStageBulkRequestModel * model, const common::VirtualIdentity * vid) = 0;
   virtual void cancelStageBulkRequest(const std::string & requestId, const PathsModel* model, const common::VirtualIdentity * vid) = 0;
-  virtual std::shared_ptr<bulk::QueryPrepareResponse> getStageBulkRequest(const std::string & requestId, const common::VirtualIdentity * vid) = 0;
+  virtual std::shared_ptr<GetStageBulkRequestResponseModel> getStageBulkRequest(const std::string & requestId, const common::VirtualIdentity * vid) = 0;
   virtual void deleteStageBulkRequest(const std::string & requestId, const common::VirtualIdentity * vid) = 0;
   virtual std::shared_ptr<bulk::QueryPrepareResponse> getFileInfo(const PathsModel * model, const common::VirtualIdentity * vid) = 0;
   virtual void unpinPaths(const PathsModel * model, const common::VirtualIdentity * vid) = 0;

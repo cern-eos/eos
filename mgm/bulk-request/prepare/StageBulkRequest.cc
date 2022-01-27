@@ -22,11 +22,26 @@
  ************************************************************************/
 
 #include "StageBulkRequest.hh"
-
+#include "common/Logging.hh"
 EOSBULKNAMESPACE_BEGIN
 
 StageBulkRequest::StageBulkRequest(const std::string& id): BulkRequest(id)
 {
+}
+
+void StageBulkRequest::addFile(std::unique_ptr<File>&& file) {
+  //If there is an error, the state of the file will
+  //be ERROR, even if there was a state already set
+  if(file->getError()) {
+    file->setState(File::State::ERROR);
+  } else {
+    if(!file->getState()) {
+      //If no state is set to the file, the state SUBMITTED
+      //is the default one
+      file->setState(File::State::SUBMITTED);
+    }
+  }
+  BulkRequest::addFile(std::move(file));
 }
 
 const BulkRequest::Type StageBulkRequest::getType() const
