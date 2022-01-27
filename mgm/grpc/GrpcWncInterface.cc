@@ -14,6 +14,7 @@
 #include "mgm/proc/admin/ConvertCmd.hh"
 #include "mgm/proc/admin/DebugCmd.hh"
 #include "mgm/proc/admin/FsCmd.hh"
+#include "mgm/proc/admin/FsckCmd.hh"
 #include "mgm/proc/admin/GroupCmd.hh"
 #include "mgm/proc/admin/IoCmd.hh"
 #include "mgm/proc/admin/NodeCmd.hh"
@@ -106,6 +107,10 @@ GrpcWncInterface::ExecCmd(eos::common::VirtualIdentity& vid,
 
   case eos::console::RequestProto::kFs:
     return Fs(vid, request, reply);
+    break;
+
+  case eos::console::RequestProto::kFsck:
+    return Fsck(vid, request, reply);
     break;
 
   case eos::console::RequestProto::kGeosched:
@@ -2058,6 +2063,17 @@ GrpcWncInterface::Fs(eos::common::VirtualIdentity& vid,
   eos::console::RequestProto req = *request;
   eos::mgm::FsCmd fscmd(std::move(req), vid);
   *reply = fscmd.ProcessRequest();
+  return grpc::Status::OK;
+}
+
+grpc::Status
+GrpcWncInterface::Fsck(eos::common::VirtualIdentity& vid,
+                       const eos::console::RequestProto* request,
+                       eos::console::ReplyProto* reply)
+{
+  eos::console::RequestProto req = *request;
+  eos::mgm::FsckCmd fsckcmd(std::move(req), vid);
+  *reply = fsckcmd.ProcessRequest();
   return grpc::Status::OK;
 }
 
