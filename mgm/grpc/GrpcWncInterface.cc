@@ -10,7 +10,6 @@
 #include "GrpcWncInterface.hh"
 //-----------------------------------------------------------------------------
 #include "mgm/proc/admin/AccessCmd.hh"
-#include "mgm/proc/user/AclCmd.hh"
 #include "mgm/proc/admin/ConfigCmd.hh"
 #include "mgm/proc/admin/DebugCmd.hh"
 #include "mgm/proc/admin/FsCmd.hh"
@@ -19,11 +18,13 @@
 #include "mgm/proc/admin/NodeCmd.hh"
 #include "mgm/proc/admin/NsCmd.hh"
 #include "mgm/proc/admin/QuotaCmd.hh"
+#include "mgm/proc/admin/SpaceCmd.hh"
+#include "mgm/proc/admin/StagerRmCmd.hh"
+#include "mgm/proc/user/AclCmd.hh"
 #include "mgm/proc/user/RecycleCmd.hh"
 #include "mgm/proc/user/RmCmd.hh"
 #include "mgm/proc/user/RouteCmd.hh"
-#include "mgm/proc/admin/SpaceCmd.hh"
-#include "mgm/proc/admin/StagerRmCmd.hh"
+#include "mgm/proc/user/TokenCmd.hh"
 //-----------------------------------------------------------------------------
 #include "common/Fmd.hh"
 #include "console/commands/HealthCommand.hh"
@@ -182,6 +183,10 @@ GrpcWncInterface::ExecCmd(eos::common::VirtualIdentity& vid,
 
   case eos::console::RequestProto::kStat:
     return Stat(vid, request, reply);
+    break;
+
+  case eos::console::RequestProto::kToken:
+    return Token(vid, request, reply);
     break;
 
   case eos::console::RequestProto::kTouch:
@@ -2710,6 +2715,17 @@ GrpcWncInterface::Stat(eos::common::VirtualIdentity& vid,
     reply->set_std_err("error: failed to stat " + path);
   }
 
+  return grpc::Status::OK;
+}
+
+grpc::Status
+GrpcWncInterface::Token(eos::common::VirtualIdentity& vid,
+                        const eos::console::RequestProto* request,
+                        eos::console::ReplyProto* reply)
+{
+  eos::console::RequestProto req = *request;
+  eos::mgm::TokenCmd tokencmd(std::move(req), vid);
+  *reply = tokencmd.ProcessRequest();
   return grpc::Status::OK;
 }
 
