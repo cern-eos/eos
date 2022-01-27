@@ -29,6 +29,8 @@ ProcDirectoryBulkRequestLocations::ProcDirectoryBulkRequestLocations(const std::
   mBulkRequestDirectory = procDirectoryPath + "/bulkrequests/";
   mBulkRequestTypeToPath[BulkRequest::Type::PREPARE_STAGE] = mBulkRequestDirectory + "stage/";
   mBulkRequestTypeToPath[BulkRequest::Type::PREPARE_EVICT] = mBulkRequestDirectory + "evict/";
+  //The cancellation is done on PREPARE_STAGE bulk-request, it will update the PREPARE_STAGE bulk-request files
+  mBulkRequestTypeToPath[BulkRequest::Type::PREPARE_CANCEL] = mBulkRequestTypeToPath[BulkRequest::Type::PREPARE_STAGE];
 }
 
 std::set<std::string> ProcDirectoryBulkRequestLocations::getAllBulkRequestDirectoriesPath() const{

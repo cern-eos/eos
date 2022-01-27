@@ -34,16 +34,48 @@ void File::setPath(const std::string& path) {
   mPath = path;
 }
 
-std::string File::getPath() const {
+const std::string File::getPath() const {
   return mPath;
 }
 
 void File::setError(const std::string& error) {
-  mError = error;
+  std::optional<std::string> errorOpt(error);
+  setError(errorOpt);
 }
 
 void File::setError(const std::optional<std::string> & error) {
   mError = error;
+  if(error)
+    mState = State::ERROR;
+}
+
+void File::setState(const std::optional<std::string> & state)
+{
+  if (state && STRING_TO_STATE_MAP.find(state.value()) != STRING_TO_STATE_MAP.end()) {
+    mState = STRING_TO_STATE_MAP.at(*state);
+  }
+}
+
+void File::setState(const State& state) {
+  mState = state;
+}
+
+void File::setState(const std::string& state) {
+  if(STRING_TO_STATE_MAP.find(state) != STRING_TO_STATE_MAP.end()) {
+    mState = STRING_TO_STATE_MAP.at(state);
+  }
+  //State is not set if the string does not match any existing state
+}
+
+const std::optional<File::State> File::getState() const {
+  return mState;
+}
+
+const std::optional<std::string> File::getStateStr() const {
+  if(mState) {
+    return STATE_TO_STRING_MAP.at(*mState);
+  }
+  return std::optional<std::string>();
 }
 
 void File::setErrorIfNotAlreadySet(const std::string& error) {
@@ -52,7 +84,7 @@ void File::setErrorIfNotAlreadySet(const std::string& error) {
   }
 }
 
-std::optional<std::string> File::getError() const {
+const std::optional<std::string> File::getError() const {
   return mError;
 }
 

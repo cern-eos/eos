@@ -42,7 +42,7 @@ public:
   /**
    * The collection is a map of <path,File>
    */
-  typedef std::map<std::string,File> Files;
+  typedef std::map<std::string,std::unique_ptr<File>> Files;
 
   /**
    * Creates a new file object associated to the path passed in parameter
@@ -55,7 +55,7 @@ public:
    * will be the file itself
    * @param file the file to add to this collection
    */
-  void addFile(const File & file);
+  void addFile(std::unique_ptr<File> && file);
   /**
    * Returns the pointer of the collection (map) managed by this class
    * @return the pointer of the collection (map) managed by this class
