@@ -67,6 +67,10 @@ class WncService final : public EosWnc::Service
       command = "Config";
       break;
 
+    case eos::console::RequestProto::kConvert:
+      command = "Convert";
+      break;
+
     case eos::console::RequestProto::kCp:
       command = "Cp";
       break;
