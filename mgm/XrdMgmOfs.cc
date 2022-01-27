@@ -833,9 +833,10 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 
 #endif
 
-  XrdOucErrInfo lastCheckError;
-  bool noFilesPrepared = true;
-  int filesFailedCounter = 0;
+  bool no_files_prepared = true;
+
+  int error_counter = 0;
+  XrdOucErrInfo first_error;
 
   // check that all files exist
   for (
@@ -862,8 +863,8 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       Emsg(epname, error, ENOENT,
            "prepare - path empty or uses forbidden characters:",
            orig_path.c_str());
-      lastCheckError = error;
-      filesFailedCounter++;
+      if (error_counter == 0) first_error = error;
+      error_counter++;
       continue;
     }
 
@@ -871,11 +872,11 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
         (check != XrdSfsFileExistIsFile)) {
       if (check != XrdSfsFileExistIsFile) {
         Emsg(epname, error, ENOENT,
-             "prepare - file does not exist or is not accessible to you",
+             "prepare - file does not exist or is not accessible to you:",
              prep_path.c_str());
       }
-      lastCheckError = error;
-      filesFailedCounter++;
+      if (error_counter == 0) first_error = error;
+      error_counter++;
       continue;
     }
 
@@ -894,7 +895,7 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       if (foundPrepareTag) {
         pathsWithPrepare.emplace_back(&(pptr->text),
                                       optr != nullptr ? & (optr->text) : nullptr);
-        noFilesPrepared = false;
+        no_files_prepared = false;
       } else {
         // don't do workflow if no such tag
         continue;
@@ -907,19 +908,28 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     // check that we have prepare permission on path
     if (gOFS->_access(prep_path.c_str(), P_OK, error, vid, "")) {
       Emsg(epname, error, EPERM,
-           "prepare - you don't have prepare permission",
+           "prepare - you don't have prepare permission:",
            prep_path.c_str());
-      lastCheckError = error;
-      filesFailedCounter++;
+      if (error_counter == 0) first_error = error;
+      error_counter++;
       continue;
     }
   }
 
   // (Only) If ALL files failed to prepare, return error
   // 'error' variable will already contain an error message
-  if ((pargs.opts & Prep_STAGE) && noFilesPrepared) {
+  if ((pargs.opts & Prep_STAGE) && no_files_prepared) {
     eos_err("Unable to prepare - failed to prepare all files with reqID %s",
             reqid.c_str());
+    if (error_counter > 0) {
+      int err_code;
+      std::stringstream err_message;
+      err_message << first_error.getErrText(err_code);
+      if (error_counter > 1) {
+        err_message << " (all " << (error_counter-1) << " other files also failed with errors)";
+      }
+      error.setErrInfo(err_code, err_message.str().c_str());
+    }
     return SFS_ERROR;
   }
 
@@ -993,9 +1003,15 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     // If we return SFS_DATA, the first parameter is the length of the buffer, not the error code
     error.setErrInfo(reqid.length() + 1, reqid.c_str());
     retc = SFS_DATA;
-  } else if ((pargs.opts & (Prep_EVICT | Prep_CANCEL)) && (filesFailedCounter > 0)) {
-    // Return last error
-    error = lastCheckError;
+  } else if ((pargs.opts & (Prep_EVICT | Prep_CANCEL)) && (error_counter > 0)) {
+    // Return first error
+    int err_code;
+    std::stringstream err_message;
+    err_message << first_error.getErrText(err_code);
+    if (error_counter > 1) {
+      err_message << " (" << (error_counter-1) << " other files also failed with errors)";
+    }
+    error.setErrInfo(err_code, err_message.str().c_str());
     retc = SFS_ERROR;
   }
 
