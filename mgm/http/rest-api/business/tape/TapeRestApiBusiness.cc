@@ -179,10 +179,11 @@ void TapeRestApiBusiness::deleteStageBulkRequest(const std::string& requestId, c
 
 std::shared_ptr<bulk::QueryPrepareResponse> TapeRestApiBusiness::getFileInfo(const PathsModel * model, const common::VirtualIdentity* vid) {
   auto & filesContainer = model->getFiles();
-  bulk::PrepareArgumentsWrapper pargsWrapper("fake_id", Prep_QUERY,
-                                             filesContainer.getPaths(),
-                                             filesContainer.getOpaqueInfos());
-  auto pm = createBulkRequestPrepareManager();
+  bulk::PrepareArgumentsWrapper pargsWrapper("fake_id", Prep_QUERY);
+  for(const auto & pathFromUser : filesContainer.getPaths()){
+    pargsWrapper.addFile(pathFromUser,"");
+  }
+  auto pm = createPrepareManager();
   XrdOucErrInfo error;
   auto queryPrepareResult = pm->queryPrepare(*pargsWrapper.getPrepareArguments(),error,vid);
   if(!queryPrepareResult->hasQueryPrepareFinished()){
