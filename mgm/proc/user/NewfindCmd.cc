@@ -268,8 +268,8 @@ static bool hasStripeDiff(std::shared_ptr<eos::IFileMD>& fmd)
 //------------------------------------------------------------------------------
 // Print path.
 //------------------------------------------------------------------------------
-static void printPath(std::ofstream& ss, const std::string& path,
-                      bool url)
+template<typename S>   // std::ofstream or std::stringstream
+static void printPath(S& ss, const std::string& path, bool url)
 {
   if (url) {
     ss << "root://" << gOFS->MgmOfsAlias << "/";
@@ -282,9 +282,8 @@ static void printPath(std::ofstream& ss, const std::string& path,
 //------------------------------------------------------------------------------
 // Print uid / gid of a FileMD or ContainerMD, if requested by req.
 //------------------------------------------------------------------------------
-template<typename T>
-static void printUidGid(std::ofstream& ss, const eos::console::FindProto& req,
-                        const T& md)
+template<typename S, typename T>
+static void printUidGid(S& ss, const eos::console::FindProto& req, const T& md)
 {
   ss << "\t";
 
@@ -298,8 +297,8 @@ static void printUidGid(std::ofstream& ss, const eos::console::FindProto& req,
 }
 
 
-template<typename T>
-static void printAttributes(std::ofstream& ss,
+template<typename S, typename T>
+static void printAttributes(S& ss,
                             const eos::console::FindProto& req, const T& md)
 {
   if (!req.printkey().empty()) {
@@ -331,7 +330,8 @@ static void printAttributes(std::ofstream& ss,
 //------------------------------------------------------------------------------
 // Print hex checksum of given fmd, if requested by req.
 //------------------------------------------------------------------------------
-static void printChecksum(std::ofstream& ss, const eos::console::FindProto& req,
+template<typename S>   // std::ofstream or std::stringstream
+static void printChecksum(S& ss, const eos::console::FindProto& req,
                           const std::shared_ptr<eos::IFileMD>& fmd)
 {
   if (req.checksum()) {
@@ -345,8 +345,9 @@ static void printChecksum(std::ofstream& ss, const eos::console::FindProto& req,
 //------------------------------------------------------------------------------
 // Print replica location of an fmd.
 //------------------------------------------------------------------------------
-static void printReplicas(std::ofstream& ss,
-                          const std::shared_ptr<eos::IFileMD>& fmd, bool onlyhost, bool selectonline)
+template<typename S>   // std::ofstream or std::stringstream
+static void printReplicas(S& ss, const std::shared_ptr<eos::IFileMD>& fmd,
+                          bool onlyhost, bool selectonline)
 {
   if (onlyhost) {
     ss << " hosts=";
@@ -400,7 +401,8 @@ static void printReplicas(std::ofstream& ss,
 //------------------------------------------------------------------------------
 // Print fs of a FileMD.
 //------------------------------------------------------------------------------
-static void printFs(std::ofstream& ss, const std::shared_ptr<eos::IFileMD>& fmd)
+template<typename S>   // std::ofstream or std::stringstream
+static void printFs(S& ss, const std::shared_ptr<eos::IFileMD>& fmd)
 {
   ss << " fsid=";
   eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
@@ -418,7 +420,8 @@ static void printFs(std::ofstream& ss, const std::shared_ptr<eos::IFileMD>& fmd)
 //------------------------------------------------------------------------------
 // Print a selected FileMD, according to formatting settings in req.
 //------------------------------------------------------------------------------
-static void printFMD(std::ofstream& ss, const eos::console::FindProto& req,
+template<typename S>   // std::ofstream or std::stringstream
+static void printFMD(S& ss, const eos::console::FindProto& req,
                      const std::shared_ptr<eos::IFileMD>& fmd)
 {
   if (req.size()) {
@@ -428,7 +431,7 @@ static void printFMD(std::ofstream& ss, const eos::console::FindProto& req,
   if (req.fid()) {
     ss << " fid=" << fmd->getId();
   }
-
+/* Outputs of uid and gid are duplicated. These are also in printUidGid function
   if (req.printuid()) {
     ss << " uid=" << fmd->getCUid();
   }
@@ -436,7 +439,7 @@ static void printFMD(std::ofstream& ss, const eos::console::FindProto& req,
   if (req.printgid()) {
     ss << " gid=" << fmd->getCGid();
   }
-
+*/
   if (req.fs()) {
     printFs(ss, fmd);
   }
@@ -478,8 +481,9 @@ static void printFMD(std::ofstream& ss, const eos::console::FindProto& req,
 //------------------------------------------------------------------------------
 // Purge atomic files
 //------------------------------------------------------------------------------
+template<typename S>   // std::ofstream or std::stringstream
 void
-NewfindCmd::ProcessAtomicFilePurge(std::ofstream& ss,
+NewfindCmd::ProcessAtomicFilePurge(S& ss,
                                    const std::string& fspath,
                                    eos::IFileMD& fmd)
 {
@@ -523,8 +527,9 @@ NewfindCmd::ProcessAtomicFilePurge(std::ofstream& ss,
 //------------------------------------------------------------------------------
 // Purge version directory.
 //------------------------------------------------------------------------------
+template<typename S>   // std::ofstream or std::stringstream
 void
-NewfindCmd::PurgeVersions(std::ofstream& ss, int64_t maxVersion,
+NewfindCmd::PurgeVersions(S& ss, int64_t maxVersion,
                           const std::string& dirpath)
 {
   if (dirpath.find(EOS_COMMON_PATH_VERSION_PREFIX) == std::string::npos) {
@@ -1149,5 +1154,400 @@ NewfindCmd::PrintFileInfoMinusM(const std::string& path,
   Cmd.close();
 }
 
+#ifdef EOS_GRPC
+//------------------------------------------------------------------------------
+// Method implementing the specific behaviour of the command executed for gRPC
+//------------------------------------------------------------------------------
+void
+NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
+{
+  XrdOucString m_err {""};
+  eos::console::ReplyProto StreamReply;
+
+  const eos::console::FindProto& findRequest = mReqProto.find();
+  auto& purgeversion = findRequest.purge();
+  bool purge = false;
+  bool purge_atomic = (purgeversion == "atomic");
+  auto max_version = 999999ul;
+
+  if (!purge_atomic) {
+    try {
+      max_version = std::stoul(purgeversion);
+      purge = true;
+    } catch (std::logic_error& err) {
+      // this error is handled at client side, should not receive bad input from client
+    }
+  }
+
+  // This hash is used to calculate the balance of the found files over the
+  // filesystems involved
+  eos::BalanceCalculator balanceCalculator;
+  eos::common::Path cPath(findRequest.path().c_str());
+  XrdOucErrInfo errInfo;
+  // check what <path> actually is ...
+  XrdSfsFileExistence file_exists;
+
+  if ((gOFS->_exists(findRequest.path().c_str(), file_exists, errInfo, mVid,
+                     nullptr))) {
+    StreamReply.set_std_out("");
+    StreamReply.set_std_err(
+      "error: failed to run exists on '" + findRequest.path() + "'\n");
+    StreamReply.set_retc(errno);
+    writer->Write(StreamReply);
+    return;
+  } else if (file_exists == XrdSfsFileExistNo) {
+    StreamReply.set_std_out("");
+    StreamReply.set_std_err("error: no such file or directory\n");
+    StreamReply.set_retc(ENOENT);
+    writer->Write(StreamReply);
+    return;
+  }
+
+  errInfo.clear();
+  std::unique_ptr<qclient::QClient> qcl =
+    std::make_unique<qclient::QClient>(gOFS->mQdbContactDetails.members,
+                                       gOFS->mQdbContactDetails.constructOptions());
+  std::unique_ptr<FindResultProvider> findResultProvider;
+  // @note when findRequest.childcount() is true, the namespace explorer will skip the files during the namespace traversal.
+  // This way we can have a fast aggregate sum of the file/container count for each directory
+  int depthlimit = findRequest.Maxdepth__case() ==
+    eos::console::FindProto::MAXDEPTH__NOT_SET ?
+    eos::common::Path::MAX_LEVELS : cPath.GetSubPathSize() + findRequest.maxdepth();
+
+  // @note Shortcut with bad input --name regex filters. Move to client side?
+  // Looks like std::regex suffers from https://gcc.gnu.org/bugzilla/show_bug.cgi?id=86164#c7
+  // Found by filtering like " newfind --name '*sometext' " (note the '*' prefix!),
+  // which raises <std::regex_constants::error_paren> - although quite misleading.
+  // Is this an opportunity for fuzzing?
+  if (!findRequest.name().empty()) {
+    try {
+      std::regex filter(findRequest.name(), std::regex_constants::egrep);
+    } catch (const std::regex_error& e) {
+      eos_static_info("caught exception %d %s with newfind findRequest.name()=%s\n",
+                      e.code(), e.what(), findRequest.name().c_str());
+      StreamReply.set_std_out("");
+      StreamReply.set_std_err(
+        "error(caught exception " + std::to_string(e.code()) + " " + e.what() + " with find --name=" + findRequest.name() +
+        ").\nPlease note that --name filters by 'egrep' style regex match, you may have to sanitize your input\n");
+      StreamReply.set_retc(errno);
+      writer->Write(StreamReply);
+      return;
+    }
+  }
+
+  findResultProvider.reset(new FindResultProvider(qcl.get(),
+                                                  findRequest.path(), depthlimit,
+                                                  findRequest.childcount(), mVid));
+  uint64_t childcount_aggregate_dircounter = 0;
+  uint64_t childcount_aggregate_filecounter = 0;
+  uint64_t dircounter = 0;
+  uint64_t filecounter = 0;
+  // For general users, cannot return more than 50k dirs and 100k files with one find,
+  // unless there is an access rule allowing deeper queries.
+  // Special users (like root) have the limit lifted by default.
+  const bool limit_result=((mVid.uid != 0) && (!mVid.hasUid(3)) && (!mVid.hasGid(4)) && (!mVid.sudoer));
+  static uint64_t dir_limit = 50000;
+  static uint64_t file_limit = 100000;
+  Access::GetFindLimits(mVid, dir_limit, file_limit);
+  // @note assume that findResultProvider will serve results DFS-ordered
+  FindResult findResult;
+  std::shared_ptr<eos::IContainerMD> cMD;
+  std::shared_ptr<eos::IFileMD> fMD;
+//  EXEC_TIMING_BEGIN("Newfind");
+  std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+  std::string output_str("");
+  int counter = 0;
+
+  while (findResultProvider->next(findResult)) {
+    if (limit_result) {
+      if (dircounter >= dir_limit || filecounter >= file_limit) {
+        output_str += "warning(" + std::to_string(E2BIG) + "): find results are limited for you to " + std::to_string(dir_limit) +
+          " directories and " + std::to_string(file_limit) + " files.\nResult is truncated! (found " +
+          std::to_string(dircounter) + " directories and " + std::to_string(filecounter) + " files so far)\n";
+        break;
+      }
+    }
+
+    std::stringstream output;
+    if (findResult.isdir) {
+      eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView,
+          findResult.path, false, findRequest.childcount(), limit_result, dir_limit,
+          file_limit);
+
+      if (!findRequest.directories() && findRequest.files()) {
+        continue;
+      }
+
+      if (findResult.expansionFilteredOut) {
+        // Returns a meaningful error message. Mirrors the checks in shouldExpandContainer
+        if (!AccessChecker::checkContainer(findResult.toContainerMD().get(),
+                                           findResult.attrs, R_OK | X_OK, mVid)) {
+          output_str += "error(" + std::to_string(EACCES) + "): no permissions to read directory " + findResult.path + "\n";
+          continue;
+        } else if (!AccessChecker::checkPublicAccess(findResult.path,const_cast<common::VirtualIdentity&>(mVid))) {
+          output_str += "error(" + std::to_string(EACCES) + "): public access level restriction on directory " + findResult.path + "\n";
+          continue;
+        } else {
+          // @note Empty branch, will be cut out from the compiler anyway.
+          // Either the findResult container can't be expanded further as it reaches maxdepth
+          // (this is not an error), either there is something fundamentally wrong. Should never happen.
+        }
+      }
+
+      // Selection
+      cMD = findResult.toContainerMD();
+
+      if (!cMD) {
+        continue;  // Process next item if we don't have a cMD
+      }
+
+      // --childcount nullify the filters, we don't want to bias the count because of intermediate filtered-out result
+      // Alse, take the chance to update the total counter while traversing
+      if (!findRequest.childcount()) {
+        if (FilterOut(findRequest, cMD)) {
+          continue;
+        }
+      } else {
+        childcount_aggregate_dircounter += cMD->getNumContainers();
+        childcount_aggregate_filecounter += cMD->getNumFiles();
+      }
+
+      dircounter++;
+
+      if (findRequest.count() || findRequest.childcount()) {
+        continue;
+      }
+
+      // Purge version directory?
+      if (purge) {
+        this->PurgeVersions(output, max_version, findResult.path);
+      }
+
+      // Printing
+
+      // Are we printing fileinfo -m? Then, that's it
+      else if (findRequest.fileinfo()) {
+        this->PrintFileInfoMinusM(output, findResult.path, errInfo);
+      }
+      else {
+        printPath(output, findResult.path, findRequest.xurl());
+        printUidGid(output, findRequest, cMD);
+        printAttributes(output, findRequest, cMD);
+
+        // Print times for directory
+        if (findRequest.ctime()) {
+          eos::IFileMD::ctime_t ctime;
+          cMD->getCTime(ctime);
+          output << " ctime=" << (unsigned long long) ctime.tv_sec;
+          output << '.' << (unsigned long long) ctime.tv_nsec;
+        }
+
+        if (findRequest.mtime()) {
+          eos::IFileMD::ctime_t mtime;
+          cMD->getMTime(mtime);
+          output << " mtime=" << (unsigned long long) mtime.tv_sec;
+          output << '.' << (unsigned long long) mtime.tv_nsec;
+        }
+      }
+    }
+    else if (!findResult.isdir) { // redundant, no problem
+      if (!findRequest.files() && findRequest.directories()) {
+        continue;
+      }
+
+      // Selection
+      fMD = findResult.toFileMD();
+
+      if (!fMD) {
+        continue;  // Process next item if we don't have a fMD
+      }
+
+      // Balance calculation? If yes,
+      // ignore selection criteria (TODO: Change this?)
+      // and simply account all fMD's.
+      if (findRequest.balance()) {
+        balanceCalculator.account(fMD);
+        continue;
+      }
+
+      if (FilterOut(findRequest, fMD)) {
+        continue;
+      }
+
+      if (findRequest.zerosizefiles() && !hasSizeZero(fMD)) {
+        continue;
+      }
+
+      if (findRequest.mixedgroups() && !hasMixedSchedGroups(fMD)) {
+        continue;
+      }
+
+      if (findRequest.stripediff() && hasStripeDiff(fMD)) {
+        continue;  // @note or the opposite?
+      }
+
+      filecounter++;
+
+      if (findRequest.count() || findRequest.childcount()) {
+        continue;
+      }
+
+      // Purge atomic files?
+      if (purge_atomic) {
+        this->ProcessAtomicFilePurge(output, findResult.path, *fMD.get());
+      }
+
+      // Modify layout stripes?
+      else if (findRequest.dolayoutstripes()) {
+        this->ModifyLayoutStripes(output, findRequest, findResult.path);
+      }
+
+      // Printing
+
+      // Are we printing fileinfo -m? Then, that's it
+      else if (findRequest.fileinfo()) {
+        this->PrintFileInfoMinusM(output, findResult.path, errInfo);
+      }
+      else {
+        printPath(output,
+                  fMD->isLink() ? findResult.path + " -> " + fMD->getLink() : findResult.path,
+                  findRequest.xurl());
+        printUidGid(output, findRequest, fMD);
+        printAttributes(output, findRequest, fMD);
+        printFMD(output, findRequest, fMD);
+      }
+    }
+
+    output_str += output.str();
+    counter++;
+
+    // Erase "\t" if it is on the end of entry
+    if (!output_str.empty() && output_str.substr(output_str.size() - 1) == "\t")
+      output_str.erase(output_str.size() - 1);
+
+    // Add "\n" if doesn't exist
+    if (!output_str.empty() && output_str.substr(output_str.size() - 1) != "\n")
+      output_str += "\n";
+
+    // Write every 100 lines separately to gRPC
+    if (counter >= 100) {
+      StreamReply.set_std_out(output_str);
+      StreamReply.set_std_err("");
+      StreamReply.set_retc(0);
+      writer->Write(StreamReply);
+      counter = 0;
+      output_str.clear();
+    }
+  }
+
+  // Write last part to gRPC, if exists
+  if (!output_str.empty()) {
+    StreamReply.set_std_out(output_str);
+    StreamReply.set_std_err("");
+    StreamReply.set_retc(0);
+    writer->Write(StreamReply);
+  }
+
+//  EXEC_TIMING_END("Newfind");
+  std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+  gOFS->MgmStats.AddExec("Newfind",
+                         std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count());
+  gOFS->MgmStats.Add("Newfind", mVid.uid, mVid.gid, 1);
+  gOFS->MgmStats.Add("NewfindEntries", mVid.uid, mVid.gid, filecounter);
+
+  if (findRequest.childcount()) {
+    StreamReply.set_std_out(
+      "Aggregate results for the path " + findRequest.path() +
+      ": Files=" + std::to_string(childcount_aggregate_filecounter) +
+      " Directories=" + std::to_string(childcount_aggregate_dircounter) + "\n");
+    StreamReply.set_std_err("");
+    StreamReply.set_retc(0);
+    writer->Write(StreamReply);
+  }
+
+  if (findRequest.count()) {
+    StreamReply.set_std_out(
+      "nfiles=" + std::to_string(filecounter) + " ndirectories=" + std::to_string(dircounter) + "\n");
+    StreamReply.set_std_err("");
+    StreamReply.set_retc(0);
+    writer->Write(StreamReply);
+  }
+
+  if (findRequest.balance()) {
+    std::stringstream output;
+    balanceCalculator.printSummary(output);
+    StreamReply.set_std_out(output.str() + "\n");
+    StreamReply.set_std_err("");
+    StreamReply.set_retc(0);
+    writer->Write(StreamReply);
+  }
+}
+#endif
+
+//------------------------------------------------------------------------------
+// Get fileinfo about path in monitoring format for gRPC
+//------------------------------------------------------------------------------
+void
+NewfindCmd::PrintFileInfoMinusM(std::stringstream& ss,
+                                const std::string& path, XrdOucErrInfo& errInfo)
+{
+  ProcCommand Cmd;
+  std::string output_stdout(""), output_stderr("");
+  std::string info = "&mgm.cmd=fileinfo&mgm.path=" + path +
+                      "&mgm.file.info.option=-m";
+  Cmd.open("/proc/user", info.c_str(), mVid, &errInfo);
+  Cmd.AddOutput(output_stdout, output_stderr);
+  Cmd.close();
+
+  if (Cmd.GetRetc() == 0)
+    ss << output_stdout;
+  else
+    ss << output_stderr;
+}
+
+//------------------------------------------------------------------------------
+// Modify layout stripes for gRPC
+//------------------------------------------------------------------------------
+void
+NewfindCmd::ModifyLayoutStripes(std::stringstream& ss,
+                                const eos::console::FindProto& req,
+                                const std::string& fspath)
+{
+  XrdOucErrInfo errInfo;
+  ProcCommand fileCmd;
+  std::string info = "mgm.cmd=file&mgm.subcmd=layout&mgm.path=";
+  info += fspath;
+  info += "&mgm.file.layout.stripes=";
+  info += std::to_string(req.layoutstripes());
+
+  if (fileCmd.open("/proc/user", info.c_str(), mVid, &errInfo) == 0) {
+    std::ostringstream outputStream;
+    XrdSfsFileOffset offset = 0;
+    constexpr uint32_t size = 512;
+    auto bytesRead = 0ul;
+    char buffer[size];
+
+    do {
+      bytesRead = fileCmd.read(offset, buffer, size);
+
+      for (auto i = 0u; i < bytesRead; i++) {
+        outputStream << buffer[i];
+      }
+
+      offset += bytesRead;
+    } while (bytesRead == size);
+
+    fileCmd.close();
+    XrdOucEnv env(outputStream.str().c_str());
+
+    if (std::stoi(env.Get("mgm.proc.retc")) == 0) {
+      if (!req.silent()) {
+        ss << env.Get("mgm.proc.stdout");
+      }
+    } else {
+      ss << env.Get("mgm.proc.stderr");
+    }
+  }
+}
 
 EOSMGMNAMESPACE_END

@@ -37,19 +37,10 @@ public:
 
   static grpc::Status ExecStreamCmd(eos::common::VirtualIdentity& vid,
                                     const eos::console::RequestProto* request,
-                                    ServerWriter<eos::console::StreamReplyProto>* writer);
+                                    ServerWriter<eos::console::ReplyProto>* writer);
 //-----------------------------------------------------------------------------
 
 private:
-
-  //---------------------------------------------------------------------------
-  //! Complement ACL with usernames and groupnames
-  //! for fileinfo output for EOS-Drive
-  //!
-  //! @param input  ACL string
-  //! @return       ACL string with added usernames and groupnames
-  //---------------------------------------------------------------------------
-  static std::string AddNamesToACL(std::string input);
 
   static void RoleChanger(eos::common::VirtualIdentity& vid,
                           const eos::console::RequestProto* request);
@@ -109,6 +100,10 @@ private:
                                const eos::console::RequestProto* request,
                                eos::console::ReplyProto* reply);
 
+  static grpc::Status Find(eos::common::VirtualIdentity& vid,
+                           const eos::console::RequestProto* request,
+                           ServerWriter<eos::console::ReplyProto>* writer);
+
   static grpc::Status Fs(eos::common::VirtualIdentity& vid,
                          const eos::console::RequestProto* request,
                          eos::console::ReplyProto* reply);
@@ -135,7 +130,7 @@ private:
 
   static grpc::Status Ls(eos::common::VirtualIdentity& vid,
                          const eos::console::RequestProto* request,
-                         eos::console::ReplyProto* reply);
+                         ServerWriter<eos::console::ReplyProto>* writer);
 
   static grpc::Status Map(eos::common::VirtualIdentity& vid,
                           const eos::console::RequestProto* request,
@@ -204,7 +199,7 @@ private:
   static grpc::Status Transfer(eos::common::VirtualIdentity& vid,
                                const eos::console::RequestProto* request,
                                eos::console::ReplyProto* reply,
-                               ServerWriter<eos::console::StreamReplyProto>* writer);
+                               ServerWriter<eos::console::ReplyProto>* writer);
 
   static grpc::Status Version(eos::common::VirtualIdentity& vid,
                               const eos::console::RequestProto* request,

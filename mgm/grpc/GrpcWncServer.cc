@@ -111,10 +111,6 @@ class WncService final : public EosWnc::Service
       command = "Io";
       break;
 
-    case eos::console::RequestProto::kLs:
-      command = "Ls";
-      break;
-
     case eos::console::RequestProto::kMap:
       command = "Map";
       break;
@@ -219,11 +215,19 @@ class WncService final : public EosWnc::Service
   // Process gRPC request from the EOS Windows native client for metadata or realtime reply
   grpc::Status ProcessStream(ServerContext* context,
                              const eos::console::RequestProto* request,
-                             grpc::ServerWriter<eos::console::StreamReplyProto>* writer)
+                             grpc::ServerWriter<eos::console::ReplyProto>* writer)
   {
     std::string command;
 
     switch (request->command_case()) {
+    case eos::console::RequestProto::kFind:
+      command = "Find";
+      break;
+
+    case eos::console::RequestProto::kLs:
+      command = "Ls";
+      break;
+
     case eos::console::RequestProto::kTransfer:
       command = "Transfer";
       break;
