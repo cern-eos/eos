@@ -26,6 +26,10 @@
 #include "mgm/Namespace.hh"
 #include "proto/ConsoleRequest.pb.h"
 
+#ifdef EOS_GRPC
+#include "proto/EosWnc.grpc.pb.h"
+#endif
+
 namespace eos
 {
 class IFileMD;
@@ -58,16 +62,27 @@ public:
   //----------------------------------------------------------------------------
   eos::console::ReplyProto ProcessRequest() noexcept override;
 
+#ifdef EOS_GRPC
+  void ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer);
+#endif
+
 private:
   void PrintFileInfoMinusM(const std::string& path, XrdOucErrInfo& errInfo);
-  void ProcessAtomicFilePurge(std::ofstream& ss, const std::string& fspath,
-                              eos::IFileMD& fmd);
+
+  void PrintFileInfoMinusM(std::stringstream& ss,
+                           const std::string& path, XrdOucErrInfo& errInfo);
+
+  template<typename S>   // std::ofstream or std::stringstream
+  void ProcessAtomicFilePurge(S& ss, const std::string& fspath, eos::IFileMD& fmd);
 
   void ModifyLayoutStripes(std::ofstream& ss,
                            const eos::console::FindProto& req, const std::string& fspath);
 
-  void PurgeVersions(std::ofstream& ss, int64_t maxVersion,
-                     const std::string& dirpath);
+  void ModifyLayoutStripes(std::stringstream& ss,
+                           const eos::console::FindProto& req, const std::string& fspath);
+
+  template<typename S>   // std::ofstream or std::stringstream
+  void PurgeVersions(S& ss, int64_t maxVersion, const std::string& dirpath);
 
 };
 

@@ -9,7 +9,6 @@ package eos.console;
 
 import "ConsoleRequest.proto";
 import "ConsoleReply.proto";
-import "ConsoleStreamReply.proto";
 
 option java_multiple_files = true;
 option java_package = "io.grpc.eos.wnc";
@@ -19,5 +18,5 @@ option objc_class_prefix = "EOS";
 service EosWnc {
   // Process requests from the EOS Windows native client
   rpc ProcessSingle (RequestProto) returns (ReplyProto) {}
-  rpc ProcessStream (RequestProto) returns (stream StreamReplyProto) {}
+  rpc ProcessStream (RequestProto) returns (stream ReplyProto) {}
 }

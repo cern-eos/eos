@@ -82,7 +82,8 @@ public:
   //----------------------------------------------------------------------------
   //! Print a summary into the given stream
   //----------------------------------------------------------------------------
-  void printSummary(std::ofstream& ss)
+  template<typename S>   // std::ofstream or std::stringstream
+  void printSummary(S& ss)
   {
     XrdOucString sizestring = "";
 

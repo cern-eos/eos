@@ -23,6 +23,7 @@
 #include "mgm/proc/admin/SpaceCmd.hh"
 #include "mgm/proc/admin/StagerRmCmd.hh"
 #include "mgm/proc/user/AclCmd.hh"
+#include "mgm/proc/user/NewfindCmd.hh"
 #include "mgm/proc/user/RecycleCmd.hh"
 #include "mgm/proc/user/RmCmd.hh"
 #include "mgm/proc/user/RouteCmd.hh"
@@ -135,10 +136,6 @@ GrpcWncInterface::ExecCmd(eos::common::VirtualIdentity& vid,
     return Io(vid, request, reply);
     break;
 
-  case eos::console::RequestProto::kLs:
-    return Ls(vid, request, reply);
-    break;
-
   case eos::console::RequestProto::kMap:
     return Map(vid, request, reply);
     break;
@@ -204,7 +201,7 @@ GrpcWncInterface::ExecCmd(eos::common::VirtualIdentity& vid,
     break;
 
   case eos::console::RequestProto::kTransfer: {
-    ServerWriter<eos::console::StreamReplyProto>* writer = nullptr;
+    ServerWriter<eos::console::ReplyProto>* writer = nullptr;
     return Transfer(vid, request, reply, writer);
     break;
   }
@@ -244,12 +241,20 @@ GrpcWncInterface::ExecCmd(eos::common::VirtualIdentity& vid,
 grpc::Status
 GrpcWncInterface::ExecStreamCmd(eos::common::VirtualIdentity& vid,
                                 const eos::console::RequestProto* request,
-                                ServerWriter<eos::console::StreamReplyProto>* writer)
+                                ServerWriter<eos::console::ReplyProto>* writer)
 {
   grpc::Status retc;
   RoleChanger(vid, request);
 
   switch (request->command_case()) {
+  case eos::console::RequestProto::kFind:
+    retc = Find(vid, request, writer);
+    break;
+
+  case eos::console::RequestProto::kLs:
+    retc = Ls(vid, request, writer);
+    break;
+
   case eos::console::RequestProto::kTransfer: {
     eos::console::ReplyProto* reply = nullptr;
     retc = Transfer(vid, request, reply, writer);
@@ -262,51 +267,6 @@ GrpcWncInterface::ExecStreamCmd(eos::common::VirtualIdentity& vid,
   }
 
   return retc;
-}
-
-std::string
-GrpcWncInterface::AddNamesToACL(std::string input)
-{
-  input += ",";
-  std::string full_acl = "";
-  size_t pos1 = 0;
-  size_t pos2 = 0;
-
-  while (input.size() > pos1 &&
-         (pos2 = input.find(',', pos1)) != std::string::npos)
-  {
-    std::string acl = input.substr(pos1, pos2 - pos1);
-    size_t uid_pos1 = 0;
-    size_t uid_pos2 = 0;
-    std::string name = "";
-    int errc = 0;
-
-    // Set pos1 for next iteration
-    pos1 = pos2 + 1;
-
-    // Get uid/gid
-    if ((uid_pos1 = acl.find(':')) == std::string::npos ||
-        (uid_pos2 = acl.find(':', ++uid_pos1)) == std::string::npos)
-      continue;
-    uid_t id = std::stoull(acl.substr(uid_pos1, uid_pos2 - uid_pos1));
-
-    // Convert uid/gid to username/groupname
-    if (acl.substr(0,1) == "u")
-      name = eos::common::Mapping::UidToUserName(id, errc);
-    else if (acl.substr(0,1) == "g")
-      name = eos::common::Mapping::GidToGroupName(id, errc);
-
-    // Add username/groupname to ACL
-    if (!errc)
-      acl.insert(uid_pos2, "["+name+"]");
-    full_acl += acl;
-
-    // Add "," if next iteration exists
-    if (input.size() > pos1)
-      full_acl += ",";
-  }
-
-  return full_acl;
 }
 
 void
@@ -2027,31 +1987,40 @@ GrpcWncInterface::Fileinfo(eos::common::VirtualIdentity& vid,
       }
     }
 
-    // Complement user ACL with usernames and groupnames
-    if ((pos = stdOut.find("xattrn=user.acl xattrv=")) != std::string::npos) {
-      size_t pos1 = pos + 23;
-      size_t pos2 = 0;
-      if ((pos2 = stdOut.find(' ', pos1)) != std::string::npos && pos1 < pos2) {
-        std::string acls = AddNamesToACL(stdOut.substr(pos1, pos2 - pos1));
-        stdOut += "wnc_acl_user=" + acls + " ";
-      }
-    }
+    // Get ACL with usernames/groupnames/egroupnames
+    eos::console::RequestProto request_acl;
+    eos::console::ReplyProto reply_acl_user;
+    request_acl.mutable_acl()->set_op(eos::console::AclProto_OpType_LIST);
+    request_acl.mutable_acl()->set_path(request->fileinfo().md().path());
+    Acl(vid, &request_acl, &reply_acl_user);
 
-    // Complement system ACL with usernames and groupnames
-    if ((pos = stdOut.find("xattrn=sys.acl xattrv=")) != std::string::npos) {
-      size_t pos1 = pos + 22;
-      size_t pos2 = 0;
-      if ((pos2 = stdOut.find(' ', pos1)) != std::string::npos && pos1 < pos2) {
-        std::string acls = AddNamesToACL(stdOut.substr(pos1, pos2 - pos1));
-        stdOut += "wnc_acl_sys=" + acls + " ";
-      }
-    }
+    if (!reply_acl_user.std_out().empty())
+      stdOut += "wnc_acl_user=" + reply_acl_user.std_out() + " ";
+
+    // Get ACL with usernames/groupnames/egroupnames
+    eos::console::ReplyProto reply_acl_sys;
+    request_acl.mutable_acl()->set_sys_acl(true);
+    Acl(vid, &request_acl, &reply_acl_sys);
+
+    if (!reply_acl_sys.std_out().empty())
+      stdOut += "wnc_acl_sys=" + reply_acl_sys.std_out() + " ";
   }
 
   reply->set_retc(cmd.GetRetc());
   reply->set_std_err(stdErr);
   reply->set_std_out(stdOut);
 
+  return grpc::Status::OK;
+}
+
+grpc::Status
+GrpcWncInterface::Find(eos::common::VirtualIdentity& vid,
+                       const eos::console::RequestProto* request,
+                       ServerWriter<eos::console::ReplyProto>* writer)
+{
+  eos::console::RequestProto req = *request;
+  eos::mgm::NewfindCmd findcmd(std::move(req), vid);
+  findcmd.ProcessRequest(writer);
   return grpc::Status::OK;
 }
 
@@ -2304,9 +2273,10 @@ GrpcWncInterface::Io(eos::common::VirtualIdentity& vid,
 grpc::Status
 GrpcWncInterface::Ls(eos::common::VirtualIdentity& vid,
                      const eos::console::RequestProto* request,
-                     eos::console::ReplyProto* reply)
+                     ServerWriter<eos::console::ReplyProto>* writer)
 {
   std::string path = request->ls().md().path();
+  eos::console::ReplyProto StreamReply;
   errno = 0;
 
   if (path.empty()) {
@@ -2329,8 +2299,10 @@ GrpcWncInterface::Ls(eos::common::VirtualIdentity& vid,
     }
 
     if (errno) {
-      reply->set_retc(EINVAL);
-      reply->set_std_err("Error: Path is empty");
+      StreamReply.set_std_out("");
+      StreamReply.set_std_err("Error: Path is empty");
+      StreamReply.set_retc(EINVAL);
+      writer->Write(StreamReply);
       return grpc::Status::OK;
     }
   }
@@ -2387,9 +2359,39 @@ GrpcWncInterface::Ls(eos::common::VirtualIdentity& vid,
   cmd.open("/proc/user", in.c_str(), vid, &error);
   cmd.AddOutput(stdOut, stdErr);
   cmd.close();
-  reply->set_retc(cmd.GetRetc());
-  reply->set_std_err(stdErr);
-  reply->set_std_out(stdOut);
+
+  if (cmd.GetRetc() == 0) {
+    std::stringstream list(stdOut);
+    std::string entry(""), out("");
+    int counter = 0;
+
+    // Send every 100 lines separately
+    while (std::getline(list, entry)) {
+      out += entry + "\n";
+      counter++;
+      if (counter >= 100) {
+        StreamReply.set_std_out(out);
+        StreamReply.set_retc(0);
+        writer->Write(StreamReply);
+        counter = 0;
+        out.clear();
+      }
+    }
+
+    // Send last part if exists
+    if (!out.empty()) {
+      StreamReply.set_std_out(out);
+      StreamReply.set_retc(0);
+      writer->Write(StreamReply);
+    }
+  }
+  else {
+    StreamReply.set_std_out(stdOut);
+    StreamReply.set_std_err(stdErr);
+    StreamReply.set_retc(cmd.GetRetc());
+    writer->Write(StreamReply);
+  }
+
   return grpc::Status::OK;
 }
 
@@ -2798,7 +2800,7 @@ grpc::Status
 GrpcWncInterface::Transfer(eos::common::VirtualIdentity& vid,
                            const eos::console::RequestProto* request,
                            eos::console::ReplyProto* reply,
-                           ServerWriter<eos::console::StreamReplyProto>* writer)
+                           ServerWriter<eos::console::ReplyProto>* writer)
 {
   std::string stdOut, stdErr;
   ProcCommand cmd;
@@ -2909,14 +2911,14 @@ GrpcWncInterface::Transfer(eos::common::VirtualIdentity& vid,
     }
 
     if (request->transfer().submit().sync()) {
-      eos::console::StreamReplyProto StreamReply;
+      eos::console::ReplyProto StreamReply;
       time_t starttime = time(NULL);
       in += "&mgm.txoption=s";
       cmd.open("/proc/admin", in.c_str(), vid, &error);
       cmd.AddOutput(stdOut, stdErr);
       cmd.close();
-      StreamReply.mutable_realtime_output()->set_std_out(stdOut + "\n");
-      StreamReply.mutable_realtime_output()->set_retc(0);
+      StreamReply.set_std_out(stdOut + "\n");
+      StreamReply.set_retc(0);
       writer->Write(StreamReply);
 
       if (!cmd.GetRetc()) {
@@ -2933,8 +2935,8 @@ GrpcWncInterface::Transfer(eos::common::VirtualIdentity& vid,
         long lid = strtol(id.c_str(), 0, 10);
 
         if (stdOut.empty() || errno || (lid == LONG_MIN) || (lid == LONG_MAX)) {
-          StreamReply.mutable_realtime_output()->set_std_err("error: submission of transfer probably failed - check with 'transfer ls'\n");
-          StreamReply.mutable_realtime_output()->set_retc(EFAULT);
+          StreamReply.set_std_err("error: submission of transfer probably failed - check with 'transfer ls'\n");
+          StreamReply.set_retc(EFAULT);
           writer->Write(StreamReply);
           return grpc::Status::OK;
         }
@@ -2954,8 +2956,8 @@ GrpcWncInterface::Transfer(eos::common::VirtualIdentity& vid,
           in = incp;
 
           if (stdOut.empty()) {
-            StreamReply.mutable_realtime_output()->set_std_err("error: transfer has been canceled externnaly!\n");
-            StreamReply.mutable_realtime_output()->set_retc(EFAULT);
+            StreamReply.set_std_err("error: transfer has been canceled externally!\n");
+            StreamReply.set_retc(EFAULT);
             writer->Write(StreamReply);
             return grpc::Status::OK;
           }
@@ -2992,8 +2994,8 @@ GrpcWncInterface::Transfer(eos::common::VirtualIdentity& vid,
               output << "s\n";
             }
 
-            StreamReply.mutable_realtime_output()->set_std_out(output.str());
-            StreamReply.mutable_realtime_output()->set_retc(0);
+            StreamReply.set_std_out(output.str());
+            StreamReply.set_retc(0);
             writer->Write(StreamReply);
           }
 
@@ -3005,13 +3007,13 @@ GrpcWncInterface::Transfer(eos::common::VirtualIdentity& vid,
               cmd.open("/proc/admin", in.c_str(), vid, &error);
               cmd.AddOutput(stdOut, stdErr);
               cmd.close();
-              StreamReply.mutable_realtime_output()->set_std_out(stdOut);
-              StreamReply.mutable_realtime_output()->set_std_err(stdErr);
+              StreamReply.set_std_out(stdOut);
+              StreamReply.set_std_err(stdErr);
 
               if (status == "done") {
-                StreamReply.mutable_realtime_output()->set_retc(0);
+                StreamReply.set_retc(0);
               } else {
-                StreamReply.mutable_realtime_output()->set_retc(EFAULT);
+                StreamReply.set_retc(EFAULT);
               }
 
               writer->Write(StreamReply);
