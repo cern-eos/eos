@@ -391,8 +391,8 @@ XrdMgmOfs::_rename(const char* old_name,
       eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
                                         __FILE__);
       // figure out if this is a move within the same quota node
-      eos::IContainerMD::id_t q1;
-      eos::IContainerMD::id_t q2;
+      eos::IContainerMD::id_t q1 {0ull};
+      eos::IContainerMD::id_t q2 {0ull};
       long long avail_files, avail_bytes;
       Quota::QuotaByPath(oPath.GetParentPath(), 0, 0, avail_files, avail_bytes, q1);
       Quota::QuotaByPath(nPath.GetParentPath(), 0, 0, avail_files, avail_bytes, q2);
