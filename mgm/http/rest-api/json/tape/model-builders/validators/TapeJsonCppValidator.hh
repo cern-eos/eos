@@ -35,7 +35,7 @@ EOSMGMRESTNAMESPACE_BEGIN
 class PathValidator : public JsonCppValidator {
 public:
   void validate(const Json::Value & value) override {
-    if(value.empty() || !value.isString() || value.asString().empty()) {
+    if(value.empty() || !value.isString() || value.asString().empty() || value.isConvertibleTo(Json::ValueType::intValue)) {
       throw ValidatorException("The value must be a valid non-empty string");
     }
   }
