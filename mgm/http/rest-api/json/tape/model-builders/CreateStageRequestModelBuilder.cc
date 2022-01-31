@@ -86,8 +86,9 @@ std::unique_ptr<CreateStageBulkRequestModel> CreateStageRequestWithFilesModelBui
       mValidatorFactory.getPathValidator()->validate(path);
     } catch(const ValidatorException & ex) {
       std::stringstream ss;
-      ss << "The value " << path << " is not a correct path.";
+      ss << "The field has not been provided or does not contain a valid string.";
       validationErrors->addError(PATH_KEY_NAME,ss.str());
+      continue;
     }
     Json::Value & targetedMetadata = file[TARGETED_METADATA_KEY_NAME];
     std::string opaqueInfos = "";
@@ -97,7 +98,7 @@ std::unique_ptr<CreateStageBulkRequestModel> CreateStageRequestWithFilesModelBui
       //TODO: HARDCODED FOR TESTING, THE UNIQUE ID OF THE ENDPOINT MUST BE PASSED
       //VIA THE CONSTRUCTOR OF THIS CLASS
       Json::Value & myTargetedMetadata = targetedMetadata["localhost"];
-      if(!myTargetedMetadata.empty()) {
+      if(!myTargetedMetadata.empty() && myTargetedMetadata.isObject()) {
         //There are metadata for us
         //Each metadata will be converted into an opaque info
         const auto metadataKeys = myTargetedMetadata.getMemberNames();
@@ -120,6 +121,9 @@ std::unique_ptr<CreateStageBulkRequestModel> CreateStageRequestWithFilesModelBui
       }
     }
     model->addFile(path.asString(),opaqueInfos);
+  }
+  if(validationErrors->hasAnyError()) {
+    throw JsonValidationException(std::move(validationErrors));
   }
   return std::move(model);
 }
