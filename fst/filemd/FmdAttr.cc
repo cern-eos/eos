@@ -49,8 +49,9 @@ bool
 FmdAttrHandler::LocalPutFmd(const std::string& path, const eos::common::FmdHelper& fmd)
 {
   LocalIo localio {path};
-  if (int rc = CreateFile(&localio);
-      rc != 0) {
+  int rc;
+  rc = CreateFile(&localio);
+  if (rc != 0) {
     // TODO: do we need to set kMissing when create
     eos_err("Failed to open file for fmd attr path:%s, rc=%d", path.c_str(), rc);
   }
@@ -58,12 +59,12 @@ FmdAttrHandler::LocalPutFmd(const std::string& path, const eos::common::FmdHelpe
   std::string attrval;
   fmd.mProtoFmd.SerializePartialToString(&attrval);
 
-  int result = localio.attrSet(gFmdAttrName, attrval.c_str(), attrval.length());
-  bool err_status = result != 0;
-  if (err_status) {
-    eos_err("Failed to Set Fmd Attribute at path:%s", path.c_str());
+  rc = localio.attrSet(gFmdAttrName, attrval.c_str(), attrval.length());
+  if (rc != 0) {
+    eos_err("Failed to Set Fmd Attribute at path:%s, errno=%d", path.c_str(),
+            rc);
   }
-  return err_status;
+  return rc != 0;
 }
 
 void
