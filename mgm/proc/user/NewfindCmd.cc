@@ -619,7 +619,7 @@ struct FindResult {
     eos::common::RWMutexReadLock eosViewMutexGuard(gOFS->eosViewRWMutex);
 
     try {
-      return gOFS->eosView->getFile(path);
+      return gOFS->eosView->getFile(path, false);
     } catch (eos::MDException& e) {
       eos_static_err("caught exception %d %s\n", e.getErrno(),
                      e.getMessage().str().c_str());
@@ -903,9 +903,9 @@ NewfindCmd::ProcessRequest() noexcept
   } else {
     // @note when findRequest.childcount() is true, the namespace explorer will skip the files during the namespace traversal.
     // This way we can have a fast aggregate sum of the file/container count for each directory
-    int depthlimit = findRequest.Maxdepth__case() ==
-                     eos::console::FindProto::MAXDEPTH__NOT_SET ?
-                     eos::common::Path::MAX_LEVELS : cPath.GetSubPathSize() + findRequest.maxdepth();
+    uint32_t depthlimit = findRequest.Maxdepth__case() ==
+                          eos::console::FindProto::MAXDEPTH__NOT_SET ?
+                          eos::common::Path::MAX_LEVELS : cPath.GetSubPathSize() + findRequest.maxdepth();
 
     // @note Shortcut with bad input --name regex filters. Move to client side?
     // Looks like std::regex suffers from https://gcc.gnu.org/bugzilla/show_bug.cgi?id=86164#c7

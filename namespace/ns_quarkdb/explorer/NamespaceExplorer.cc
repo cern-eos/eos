@@ -426,12 +426,9 @@ bool NamespaceExplorer::fetch(NamespaceItem& item)
                                       item.containerMd, item.attrs, item.fullPath);
       }
 
-      if (options.depthLimit > 0) {
-        eos::common::Path cpath{item.fullPath};
-        item.expansionFilteredOut = (item.expansionFilteredOut
-                                     || (cpath.GetSubPathSize() > options.depthLimit));
-      }
-
+      eos::common::Path cpath{item.fullPath};
+      item.expansionFilteredOut = (item.expansionFilteredOut
+                                   || (cpath.GetSubPathSize() >= options.depthLimit));
       dfsPath.back()->expansionFilteredOut = item.expansionFilteredOut;
       return true;
     }
