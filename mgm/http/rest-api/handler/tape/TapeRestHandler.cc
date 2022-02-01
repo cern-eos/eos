@@ -85,7 +85,7 @@ std::unique_ptr<Controller> TapeRestHandler::initializeUnpinController(const std
 common::HttpResponse* TapeRestHandler::handleRequest(common::HttpRequest* request, const common::VirtualIdentity * vid) {
   //URL = /entrypoint/version/resource-name/...
   std::string url = request->GetUrl();
-  if(isRestRequest(url)) {
+  if(isRestRequest(request)) {
     try {
       Controller * controller = mControllerManager.getController(url);
       return controller->handleRequest(request,vid);
