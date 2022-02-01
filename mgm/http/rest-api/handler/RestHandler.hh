@@ -30,6 +30,7 @@
 #include "common/http/HttpRequest.hh"
 #include "common/VirtualIdentity.hh"
 #include <map>
+#include <XrdHttp/XrdHttpExtHandler.hh>
 #include "mgm/http/rest-api/controllers/ControllerManager.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
@@ -53,7 +54,9 @@ public:
    * @return true if the requestURL passed in parameter should trigger an API handling,
    * false otherwise
    */
-  bool isRestRequest(const std::string & requestUrl);
+  bool isRestRequest(common::HttpRequest * request);
+
+  bool isRestRequest(const std::string & requestURL);
 protected:
   ControllerManager mControllerManager;
   std::string mEntryPointURL;
