@@ -310,8 +310,8 @@ HttpServer::XrdHttpHandler(std::string& method,
   return handler;
 }
 
-bool HttpServer::isRestRequest(const std::string & requestUrl){
-  return mTapeRestHandler.isRestRequest(requestUrl);
+bool HttpServer::isRestRequest(const XrdHttpExtReq& req){
+  return mTapeRestHandler.isRestRequest(req.resource);
 }
 
 //------------------------------------------------------------------------------

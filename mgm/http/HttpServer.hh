@@ -37,6 +37,7 @@
 #include <map>
 #include <string>
 #include "mgm/http/rest-api/handler/tape/TapeRestHandler.hh"
+#include <XrdHttp/XrdHttpExtHandler.hh>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -121,7 +122,7 @@ public:
                  const XrdSecEntity& client
                 );
 
-  virtual bool isRestRequest(const std::string & requestUrl);
+  virtual bool isRestRequest(const XrdHttpExtReq& req);
 
   //Tape REST API handler
   rest::TapeRestHandler mTapeRestHandler;
