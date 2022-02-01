@@ -254,16 +254,17 @@ public:
   uint64_t has_quota(shared_cap cap, uint64_t size)
   {
     shared_quota q = quotamap.get(cap);
-    XrdSysMutexHelper qLock(q->Locker());
-
-    ssize_t volume = q->volume_quota() - q->get_local_volume();
-    ssize_t inodes = q->inode_quota()  - q->get_local_inode();
-
-    if ( ((volume > 0) && (volume > (ssize_t)size)) &&
-	 ( (inodes > 0) || (!size) ) ) {
-      return volume;
+    {
+      XrdSysMutexHelper qLock(q->Locker());
+      ssize_t volume = q->volume_quota() - q->get_local_volume();
+      ssize_t inodes = q->inode_quota()  - q->get_local_inode();
+      
+      if ( ((volume > 0) && (volume > (ssize_t)size)) &&
+	   ( (inodes > 0) || (!size) ) ) {
+	return volume;
+      }
     }
-    // no quota, let's manifest this in the log file
+    // no quota, let's manifest this in the log file - but don't lock the quota node
     eos_static_warning("no-quota: i=%08lx\n%s,cap = {%s}\n", cap->id(), q->dump().c_str(), cap->dump().c_str());
     return 0;
   }
