@@ -995,7 +995,7 @@ runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/insta
 runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/a"
 runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/b"
 runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/c"
-runtest "### Mkdir     " unix 0 "" eos touch "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/links/"
+runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/links/"
 runtest "### Mkdir     " unix 0 "" eos touch "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/a.txt"
 runtest "### Mkdir     " unix 0 "" eos touch "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/b.txt"
 runtest "### Mkdir     " unix 0 "" eos touch "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/c.txt"
