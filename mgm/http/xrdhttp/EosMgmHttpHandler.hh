@@ -187,4 +187,13 @@ private:
   //! hence the optional<int>
   //----------------------------------------------------------------------------
   std::optional<int> readBody(XrdHttpExtReq& req, std::string & body);
+
+  //----------------------------------------------------------------------------
+  //! Returns true if the request is a macaroon token request
+  //! false otherwise
+  //! @param req the request from which we will read the header and the HTTP verb
+  //!
+  //! @return true if the request is a macaroon token request, false otherwise
+  //----------------------------------------------------------------------------
+  bool isMacaroonRequest(const XrdHttpExtReq & req);
 };
