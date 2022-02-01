@@ -16,6 +16,30 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.0.10 Diopside``
+===================
+
+2022-02-02
+
+Note
+-----
+
+* This release includes all the changes from 4.8.74 release
+
+Bug
+----
+
+* [EOS-5069] - filesystem status in "rw + failed"
+* [EOS-5070] - Access::ThreadLimit creates re-entrant lock of the access mutex
+* [EOS-5095] - Re-entrant lock triggered by out of quota warning
+
+Improvement
+------------
+
+* [EOS-5065] - Add create-if-not-exists option in GRPC
+* [EOS-5076] - Extend iotype interfaces to be space/directory defined
+
+
 ``v5.0.9 Diopside``
 ===================
 
