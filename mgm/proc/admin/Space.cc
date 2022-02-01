@@ -513,6 +513,12 @@ ProcCommand::Space()
                   (key == "groupbalancer") ||
                   (key == "groupbalancer.ntx") ||
                   (key == "groupbalancer.threshold") ||
+                  (key == "groupbalancer.min_file_size") ||
+                  (key == "groupbalancer.max_file_size") ||
+                  (key == "groupbalancer.engine") ||
+                  (key == "groupbalancer.engine.std.threshold") ||
+                  (key == "groupbalancer.engine.mm.min_threshold") ||
+                  (key == "groupbalancer.engine.mm.max_threshold") ||
                   (key == "geobalancer") ||
                   (key == "geobalancer.ntx") ||
                   (key == "geobalancer.threshold") ||
@@ -739,13 +745,6 @@ ProcCommand::Space()
                      (eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) !=
                       eos::common::ConfigStatus::kUnknown))) {
                   fs->SetString(key.c_str(), value.c_str());
-
-                  if (value == "off") {
-                    // we have to remove the errc here, otherwise we cannot
-                    // terminate drainjobs on file systems with errc set
-                    fs->SetString("errc", "0");
-                  }
-
                   FsView::gFsView.StoreFsConfig(fs);
                 } else {
                   errno = 0;

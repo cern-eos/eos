@@ -241,7 +241,8 @@ com_cp(char* argin)
       return com_cp_usage();
     } else {
       if ((!option.beginswith("/eos/")) || (!option.beginswith("root:/"))) {
-        while (option.replace("#AND#", "&")) {}
+        // Do this since tokenizer sealed the path when extracting the token!
+        eos::common::StringConversion::UnsealXrdPath(option);
       }
 
       source_find_list.emplace_back(option.c_str());
@@ -502,9 +503,9 @@ com_cp(char* argin)
       target.name.erase(qpos);
     }
 
-    // Replace '&' with '#AND#' for EOS target
+    // Seal the target name
     if (target.protocol == Protocol::EOS) {
-      target.name.replace("&", "#AND");
+      eos::common::StringConversion::SealXrdPath(target.name);
     }
   }
 
@@ -1004,7 +1005,7 @@ com_cp(char* argin)
     }
 
     safename = eos::common::Path(safename.c_str()).GetName();;
-    safename.replace("&", "#AND#");
+    eos::common::StringConversion::SealXrdPath(safename);
     safename.replace("'", "\\'");
     //------------------------------------
     // Construct 'eoscp' command
@@ -1450,8 +1451,8 @@ bool is_dir(const char* path, Protocol protocol, struct stat* buf)
   }
 
   int rc = 0;
+  struct stat tmpbuf {};
 
-  struct stat tmpbuf{};
   if (buf == nullptr) {
     buf = &tmpbuf;
     const char* abs_path = absolute_path(path);

@@ -57,8 +57,7 @@ public:
     mLastErrMsg(""),
     mLastErrCode(0),
     mLastErrNo(0),
-    mIsOpen(false),
-    mExternalStorage(false)
+    mIsOpen(false)
   {}
 
   //--------------------------------------------------------------------------
@@ -92,6 +91,20 @@ public:
   {
     return -1;
   }
+
+  //----------------------------------------------------------------------------
+  //! Open file asynchronously
+  //!
+  //! @param flags open flags
+  //! @param mode open mode
+  //! @param opaque opaque info to be appended to the request
+  //! @param timeout operation timeout
+  //!
+  //! @return future holding the status response
+  //--------------------------------------------------------------------------
+  virtual std::future<XrdCl::XRootDStatus>
+  fileOpenAsync(XrdSfsFileOpenMode flags, mode_t mode = 0,
+                const std::string& opaque = "", uint16_t timeout = 0) = 0;
 
   //--------------------------------------------------------------------------
   //! Read from file - sync
@@ -452,14 +465,6 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Mark this IO as an IO module towards an external storage system
-  //----------------------------------------------------------------------------
-  void SetExternalStorage()
-  {
-    mExternalStorage = true;
-  }
-
-  //----------------------------------------------------------------------------
   //! Return the IO type
   //----------------------------------------------------------------------------
   std::string GetIoType()
@@ -526,8 +531,6 @@ protected:
   int mLastErrCode; ///< last error code
   int mLastErrNo; ///< last error no
   bool mIsOpen; ///< Mark if file is opened, so that we close it properly
-  //! Mark if this is an IO module to talk to an external storage system
-  bool mExternalStorage;
 };
 
 EOSFSTNAMESPACE_END

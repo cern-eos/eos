@@ -51,7 +51,7 @@ eos::console::ReplyProto
 ConvertCmd::ProcessRequest() noexcept
 {
   eos::console::ReplyProto reply;
-  eos::console::ConvertProto convert = mReqProto.convert();
+  const eos::console::ConvertProto& convert = mReqProto.convert();
   const auto& subcmd = convert.subcmd_case();
   bool jsonOutput =
     (mReqProto.format() == eos::console::RequestProto::JSON);
@@ -217,14 +217,12 @@ void ConvertCmd::FileSubcmd(const eos::console::ConvertProto_FileProto& file,
                             bool jsonOutput)
 {
   using eos::common::LayoutId;
-  auto conversion = file.conversion();
   std::ostringstream out;
   std::ostringstream err;
   std::string errmsg;
-  std::string path;
   int retc = 0;
   auto enforce_file = XrdSfsFileExistence::XrdSfsFileExistIsFile;
-  path = PathFromIdentifierProto(file.identifier(), errmsg);
+  std::string path = PathFromIdentifierProto(file.identifier(), errmsg);
 
   if (!path.length()) {
     reply.set_std_err(errmsg);
@@ -233,12 +231,6 @@ void ConvertCmd::FileSubcmd(const eos::console::ConvertProto_FileProto& file,
   }
 
   if ((retc = CheckValidPath(path.c_str(), mVid, errmsg, enforce_file))) {
-    reply.set_std_err(errmsg);
-    reply.set_retc(retc);
-    return;
-  }
-
-  if ((retc = CheckConversionProto(conversion, errmsg))) {
     reply.set_std_err(errmsg);
     reply.set_retc(retc);
     return;
@@ -264,9 +256,24 @@ void ConvertCmd::FileSubcmd(const eos::console::ConvertProto_FileProto& file,
     reply.set_std_err(err.str());
     reply.set_retc(e.getErrno());
     return;
+  } catch (const std::out_of_range& e) {
+    eos_static_err("msg=\"exception getting replica locations\" path=%s "
+                   "emsg=\"%s\"", path.c_str(), e.what());
+    err << "error: files without replicas can not be converted";
+    reply.set_std_err(err.str());
+    reply.set_retc(EINVAL);
+    return;
   }
 
   // Handle conversion space
+  const auto& conversion = file.conversion();
+
+  if ((retc = CheckConversionProto(conversion, errmsg))) {
+    reply.set_std_err(errmsg);
+    reply.set_retc(retc);
+    return;
+  }
+
   std::string space = conversion.space();
 
   if (space.empty()) {
@@ -288,11 +295,11 @@ void ConvertCmd::FileSubcmd(const eos::console::ConvertProto_FileProto& file,
   LayoutId::eChecksum echecksum;
 
   if (conversion.checksum().length()) {
-    echecksum = static_cast<LayoutId::eChecksum>(
-                  LayoutId::GetChecksumFromString(conversion.checksum()));
+    echecksum = static_cast<LayoutId::eChecksum>
+                (LayoutId::GetChecksumFromString(conversion.checksum()));
   } else {
-    echecksum = static_cast<LayoutId::eChecksum>(
-                  LayoutId::GetChecksum(file_layoutid));
+    echecksum = static_cast<LayoutId::eChecksum>
+                (LayoutId::GetChecksum(file_layoutid));
   }
 
   // Schedule conversion job
@@ -638,22 +645,23 @@ static std::string BuildConversionId(const std::string& layout,
 {
   using eos::common::LayoutId;
   unsigned long layoutid = 0;
-  std::ostringstream ssid;
   layoutid = LayoutId::GetId(LayoutId::GetLayoutFromString(layout),
                              echecksum,
                              stripes,
                              LayoutId::eBlockSize::k4M,
                              LayoutId::eChecksum::kCRC32C,
                              LayoutId::GetRedundancyFromLayoutString(layout));
-  ssid << std::hex << std::setw(16) << std::setfill('0') << file_id
-       << ":" << space
-       << "#" << std::setw(8) << std::setfill('0') << layoutid;
+  char buff[4096];
+  snprintf(buff, std::size(buff), "%016llx:%s#%08lx",
+           file_id, space.c_str(), layoutid);
+  std::string conversion {buff};
 
-  if (placement.length()) {
-    ssid << "~" << placement;
+  if (!placement.empty()) { // ~<placement_policy>
+    conversion += "~";
+    conversion += placement;
   }
 
-  return ssid.str();
+  return conversion;
 }
 
 EOSMGMNAMESPACE_END

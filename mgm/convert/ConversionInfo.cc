@@ -33,26 +33,32 @@ ConversionInfo::ConversionInfo(const eos::common::FileId::fileid_t fid,
                                const eos::common::LayoutId::layoutid_t lid,
                                const eos::common::GroupLocator& location,
                                const std::string& plct_policy,
-                               const bool update_ctime) :
+                               const bool update_ctime,
+                               const std::string& app_tag) :
   mFid(fid), mLid(lid), mLocation(location), mPlctPolicy(plct_policy),
-  mUpdateCtime(update_ctime)
+  mUpdateCtime(update_ctime), mAppTag(app_tag)
 {
-  std::ostringstream conversion;
-  conversion << std::hex << std::setfill('0')
-             << std::setw(16) << mFid           // <fid(016hex)>
-             << ":" << mLocation.getSpace()     // :<space>
-             << "." << mLocation.getIndex()     // .<group>
-             << "#" << std::setw(8) << mLid;     // #<layoutid(08hex)>
+  char buff[4096];
+  snprintf(buff, std::size(buff), "%016llx:%s.%i#%08lx",
+           mFid, mLocation.getSpace().c_str(), mLocation.getIndex(), mLid);
+  std::string conversion {buff};
 
-  if (!mPlctPolicy.empty()) {
-    conversion << "~" << mPlctPolicy;          // ~<placement_policy>
+  if (!mPlctPolicy.empty()) { // ~<placement_policy>
+    conversion += "~";
+    conversion += mPlctPolicy;
+  }
+
+  if (!mAppTag.empty()) {
+    conversion += "^";
+    conversion += mAppTag;
+    conversion += "^";
   }
 
   if (mUpdateCtime) {
-    conversion << UPDATE_CTIME;
+    conversion += UPDATE_CTIME;
   }
 
-  mConversionString = conversion.str();
+  mConversionString = conversion;
 }
 
 //----------------------------------------------------------------------------
@@ -72,6 +78,7 @@ std::shared_ptr<ConversionInfo> ConversionInfo::parseConversionString(
   LayoutId::layoutid_t lid = 0;
   GroupLocator location;
   std::string policy;
+  std::string app_tag;
   bool update_ctime {false};
   std::size_t conv_pos = 0;
 
@@ -122,8 +129,26 @@ std::shared_ptr<ConversionInfo> ConversionInfo::parseConversionString(
     }
   }
 
-  // Parse layout id
+  // Parse app_tag
   sconversion.erase(0, pos + 1);
+  pos = sconversion.find('^');
+
+  if (pos != std::string::npos) {
+    auto end_pos = sconversion.find('^', pos + 1);
+
+    if (end_pos == std::string::npos) {
+      eos_static_err("msg='%s' conversion_string=%s ",
+                     "reason=\"invalid app tag\"", errmsg, sconversion.c_str());
+      return nullptr;
+    }
+
+    // Parse only substr excluding ^
+    app_tag = sconversion.substr(pos + 1, end_pos - (pos + 1));
+    // Erase [start, size including trailing ^]
+    sconversion.erase(pos, (end_pos - pos) + 1);
+  }
+
+  // Parse layout id
   pos = sconversion.find("~");
   std::string hexlid = sconversion.c_str();
 
@@ -139,19 +164,19 @@ std::shared_ptr<ConversionInfo> ConversionInfo::parseConversionString(
     lid = 0;
   }
 
-  // Parse placement policy
-  if (pos != std::string::npos) {
-    policy = sconversion.substr(pos + 1);
-  }
-
   if (!fid || !lid) {
     eos_static_err("msg=\"%s\" conversion_string=%s "
                    "reason=\"invalid fid or lid\"", errmsg, sconversion.c_str());
     return nullptr;
   }
 
+  // Parse placement policy
+  if (pos != std::string::npos) {
+    policy = sconversion.substr(pos + 1);
+  }
+
   return std::make_shared<ConversionInfo>(fid, lid, location, policy,
-                                          update_ctime);
+                                          update_ctime, app_tag);
 }
 
 EOSMGMNAMESPACE_END

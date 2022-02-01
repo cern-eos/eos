@@ -46,23 +46,24 @@ Policy::GetSpacePolicyLayout(const char* space)
   unsigned long layoutid = 0;
   XrdOucString ret_space;
   std::string bandwidth;
-  bool schedule=0;
+  bool schedule = 0;
   std::string iopriority;
-
+  std::string iotype;
   eos::IContainerMD::XAttrMap attrmap;
   eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
   GetLayoutAndSpace("/",
-		    attrmap,
-		    rootvid,
-		    layoutid,
-		    ret_space,
-		    env,
-		    forcedfsid,
-		    forcedgroup,
-		    bandwidth,
-		    schedule,
-		    iopriority,
-		    true);
+                    attrmap,
+                    rootvid,
+                    layoutid,
+                    ret_space,
+                    env,
+                    forcedfsid,
+                    forcedgroup,
+                    bandwidth,
+                    schedule,
+                    iopriority,
+                    iotype,
+                    true);
   return layoutid;
 }
 
@@ -74,15 +75,15 @@ Policy::GetLayoutAndSpace(const char* path,
                           unsigned long& layoutId, XrdOucString& space,
                           XrdOucEnv& env,
                           unsigned long& forcedfsid,
-                          long& forcedgroup, 
-			  std::string& bandwidth,
-			  bool& schedule,
-			  std::string& iopriority,
-			  bool lockview)
+                          long& forcedgroup,
+                          std::string& bandwidth,
+                          bool& schedule,
+                          std::string& iopriority,
+                          std::string& iotype,
+                          bool lockview)
 
 {
   eos::common::RWMutexReadLock lock;
-
   // this is for the moment only defaulting or manual selection
   unsigned long layout = eos::common::LayoutId::GetLayoutFromEnv(env);
   unsigned long xsum = eos::common::LayoutId::GetChecksumFromEnv(env);
@@ -90,11 +91,9 @@ Policy::GetLayoutAndSpace(const char* path,
   unsigned long stripes = eos::common::LayoutId::GetStripeNumberFromEnv(env);
   unsigned long blocksize = eos::common::LayoutId::GetBlocksizeFromEnv(env);
   bandwidth = eos::common::LayoutId::GetBandwidthFromEnv(env);
-
   bool noforcedchecksum = false;
   const char* val = 0;
   bool conversion = IsProcConversion(path);
-
   std::map<std::string, std::string> spacepolicies;
 
   if (lockview) {
@@ -104,27 +103,32 @@ Policy::GetLayoutAndSpace(const char* path,
   if (!conversion) {
     // don't apply space policies to conversion paths
     auto it = FsView::gFsView.mSpaceView.find("default");
+
     if (it != FsView::gFsView.mSpaceView.end()) {
       spacepolicies["space"]     = it->second->GetConfigMember("policy.space");
       spacepolicies["layout"]    = it->second->GetConfigMember("policy.layout");
       spacepolicies["nstripes"]  = it->second->GetConfigMember("policy.nstripes");
       spacepolicies["checksum"]  = it->second->GetConfigMember("policy.checksum");
       spacepolicies["blocksize"] = it->second->GetConfigMember("policy.blocksize");
-      spacepolicies["blockchecksum"] = it->second->GetConfigMember("policy.blockchecksum");
+      spacepolicies["blockchecksum"] =
+        it->second->GetConfigMember("policy.blockchecksum");
       bandwidth = it->second->GetConfigMember("policy.bandwidth");
-      schedule = (it->second->GetConfigMember("policy.schedule")=="1");
+      schedule = (it->second->GetConfigMember("policy.schedule") == "1");
       iopriority = it->second->GetConfigMember("policy.iopriority");
-
+      iopriority = it->second->GetConfigMember("policy.iotype");
       // try application specific bandwidth setting
       std::string appkey = "bw.";
+
       if (env.Get("eos.app")) {
-	appkey += env.Get("eos.app");
+        appkey += env.Get("eos.app");
       } else {
-	appkey += "default";
+        appkey += "default";
       }
+
       std::string app_bandwidth = it->second->GetConfigMember(appkey);
+
       if (app_bandwidth.length()) {
-	bandwidth = app_bandwidth;
+        bandwidth = app_bandwidth;
       }
     }
   }
@@ -134,55 +138,63 @@ Policy::GetLayoutAndSpace(const char* path,
   } else {
     space = "default";
 
-    if(!conversion) {
+    if (!conversion) {
       if (!spacepolicies["space"].empty()) {
-	// if there is no explicit space given, we preset with the policy one
-	space = spacepolicies["space"].c_str();
+        // if there is no explicit space given, we preset with the policy one
+        space = spacepolicies["space"].c_str();
       }
     }
   }
 
-
   if (!conversion) {
     auto it = FsView::gFsView.mSpaceView.find(space.c_str());
+
     if (it != FsView::gFsView.mSpaceView.end()) {
       // overwrite the defaults if they are defined in the target space
       std::string space_layout   = it->second->GetConfigMember("policy.layout");
       std::string space_nstripes = it->second->GetConfigMember("policy.nstripes");
       std::string space_checksum = it->second->GetConfigMember("policy.checksum");
-      std::string space_blocksize= it->second->GetConfigMember("policy.blocksize");
-      std::string space_blockxs  = it->second->GetConfigMember("policy.blockchecksum");
+      std::string space_blocksize = it->second->GetConfigMember("policy.blocksize");
+      std::string space_blockxs  =
+        it->second->GetConfigMember("policy.blockchecksum");
 
       if (space_layout.length()) {
-	spacepolicies["layout"] = space_layout;
+        spacepolicies["layout"] = space_layout;
       }
+
       if (space_nstripes.length()) {
-	spacepolicies["nstripes"] = space_nstripes;
+        spacepolicies["nstripes"] = space_nstripes;
       }
+
       if (space_checksum.length()) {
-	spacepolicies["checksum"] = space_checksum;
+        spacepolicies["checksum"] = space_checksum;
       }
+
       if (space_blocksize.length()) {
-	spacepolicies["blocksize"] = space_blocksize;
+        spacepolicies["blocksize"] = space_blocksize;
       }
+
       if (space_blockxs.length()) {
-	spacepolicies["blockchecksum"] = space_blockxs;
+        spacepolicies["blockchecksum"] = space_blockxs;
       }
 
       bandwidth = it->second->GetConfigMember("policy.bandwidth");
-      schedule = (it->second->GetConfigMember("policy.schedule")=="1");
+      schedule = (it->second->GetConfigMember("policy.schedule") == "1");
       iopriority = it->second->GetConfigMember("policy.iopriority");
-
+      iotype = it->second->GetConfigMember("policy.iotype");
       // try application specific bandwidth setting
       std::string appkey = "bw.";
+
       if (env.Get("eos.app")) {
-	appkey += env.Get("eos.app");
+        appkey += env.Get("eos.app");
       } else {
-	appkey += "default";
+        appkey += "default";
       }
+
       std::string app_bandwidth = it->second->GetConfigMember(appkey);
+
       if (app_bandwidth.length()) {
-	bandwidth = app_bandwidth;
+        bandwidth = app_bandwidth;
       }
     }
   }
@@ -278,6 +290,16 @@ Policy::GetLayoutAndSpace(const char* path,
       // we force to use a specified stripe width in this directory even if the user wants something else
       blocksize = eos::common::LayoutId::GetBlocksizeFromEnv(layoutenv);
       eos_static_debug("sys.forced.blocksize in %s : %llu", path, blocksize);
+    }
+
+    if (attrmap.count("sys.forced.iotype")) {
+      iotype = attrmap["sys.forced.iotype"];
+      eos_static_debug("sys.forced.iotype i %s : %s", path, iotype.c_str());
+    }
+
+    if (attrmap.count("sys.forced.iopriority")) {
+      iotype = attrmap["sys.forced.iopriority"];
+      eos_static_debug("sys.forced.iopriority i %s : %s", path, iopriority.c_str());
     }
 
     if (((!attrmap.count("sys.forced.nouserlayout")) ||

@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
 // File: XrdMgmOfsConfigure.cc
-// Author: Andreas-Joachim Peters - CERN
+// Authors: Andreas-Joachim Peters - CERN
+//          Jaroslav Guenther      - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -1394,6 +1395,15 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     eos_warning(tapeGcSpaceWarning.str().c_str());
   }
 
+  // If tape garbage collector is enabled, all R/W must be redirected to the master node
+  if (mTapeEnabled && !getenv("EOS_HA_REDIRECT_READS")) {
+    std::ostringstream msg;
+    msg << "msg="
+        << "Mgm node with tape-aware garbage collection must redirect all write/read traffic to master\"";
+    eos_crit(msg.str().c_str());
+    return 1;
+  }
+  
   // Initialize the HA setup
   mMaster.reset(new eos::mgm::QdbMaster(mQdbContactDetails, ManagerId.c_str()));
 
@@ -1887,22 +1897,14 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   InitStats();
   // start the fuse server
   gOFS->zMQ->gFuseServer.start();
-  // set IO accounting file
-  XrdOucString ioaccounting = MgmMetaLogDir;
-  ioaccounting += "/iostat.";
-  ioaccounting += ManagerId;;
-  ioaccounting += ".dump";
-  eos_notice("Setting IO dump store file to %s", ioaccounting.c_str());
+  const std::string iostat_file = SSTR(MgmMetaLogDir << "/iostat." << ManagerId
+                                       << ".dump");
 
-  if (!IoStats->SetStoreFileName(ioaccounting.c_str())) {
-    eos_warning("couldn't load anything from the io stat dump file %s",
-                ioaccounting.c_str());
+  if (!IoStats->Init(MgmOfsInstanceName.c_str(), ManagerPort, iostat_file)) {
+    eos_warning("%s", "msg=\"failed to initialize IoStat object\"");
   } else {
-    eos_notice("loaded io stat dump file %s", ioaccounting.c_str());
+    eos_notice("%s", "msg=\"successfully initalized IoStat object\"");
   }
-
-  // Start IO circulate thread
-  IoStats->StartCirculate();
 
   if (!MgmRedirector) {
     ObjectManager.HashMutex.LockRead();

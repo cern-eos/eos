@@ -89,5 +89,6 @@ XrdMgmOfs::DeleteExternal(eos::common::FileSystem::fsid_t fsid,
     }
   }
 
+  delete capabilityenv;
   return ok;
 }

@@ -511,6 +511,10 @@ metad::map_children_to_local(shared_md pmd)
         // check if there is actually a 'babysitting' reference file for this version, if now we display it!
         std::string nvfile = map->first.substr(strlen(
             EOS_COMMON_PATH_VERSION_FILE_PREFIX));
+        eos_static_crit("hide %d:%d %s",
+                        EosFuse::Instance().Config().options.hide_versions,
+                        EosFuse::Instance().mds.supports_hideversion(),
+                        nvfile.c_str());
 
         if ((*pmd)()->children().count(nvfile)) {
           continue;

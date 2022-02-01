@@ -29,7 +29,6 @@
 #include "fst/io/AsyncMetaHandler.hh"
 #include "common/FileMap.hh"
 #include "common/Logging.hh"
-#include "common/BufferManager.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClBuffer.hh"
 #include "XrdCl/XrdClConstants.hh"
@@ -374,6 +373,51 @@ XrdIo::fileOpenAsync(void* io_handler,
 }
 
 //------------------------------------------------------------------------------
+// Open file asynchronously
+//------------------------------------------------------------------------------
+std::future<XrdCl::XRootDStatus>
+XrdIo::fileOpenAsync(XrdSfsFileOpenMode flags, mode_t mode,
+                     const std::string& opaque, uint16_t timeout)
+{
+  using eos::common::LayoutId;
+  std::promise<XrdCl::XRootDStatus> open_promise;
+  std::future<XrdCl::XRootDStatus> open_future = open_promise.get_future();
+
+  if (mXrdFile) {
+    delete mXrdFile;
+    mXrdFile = NULL;
+  }
+
+  mXrdFile = new XrdCl::File();
+  // Final path + opaque info used in the open
+  mTargetUrl.FromString(BuildRequestUrl());
+  mXrdIdHelper.reset(new eos::common::XrdConnIdHelper(mXrdConnPool, mTargetUrl));
+
+  if (mXrdIdHelper->HasNewConnection()) {
+    eos_info("xrd_connection_id=%s", mTargetUrl.GetHostId().c_str());
+  }
+
+  if (!mXrdFile->SetProperty("ReadRecovery", "false") ||
+      !mXrdFile->SetProperty("WriteRecovery", "false")) {
+    eos_warning("%s", "msg=\"failed to disable file read and write recovery\"");
+  }
+
+  XrdIoHandler* open_handler = new XrdIoHandler(std::move(open_promise),
+      XrdIoHandler::OpType::Open);
+  XrdCl::OpenFlags::Flags flags_xrdcl = LayoutId::MapFlagsSfs2XrdCl(flags);
+  XrdCl::Access::Mode mode_xrdcl = LayoutId::MapModeSfs2XrdCl(mode);
+  XrdCl::XRootDStatus status = mXrdFile->Open(mTargetUrl.GetURL().c_str(),
+                               flags_xrdcl, mode_xrdcl,
+                               open_handler, timeout);
+
+  if (!status.IsOK()) {
+    open_handler->HandleResponse(new XrdCl::XRootDStatus(status), nullptr);
+  }
+
+  return open_future;
+}
+
+//------------------------------------------------------------------------------
 // Read from file - sync
 //------------------------------------------------------------------------------
 int64_t
@@ -671,10 +715,11 @@ XrdIo::fileWriteAsync(const char* buffer, XrdSfsFileOffset offset,
   }
 
   XrdIoHandler* wr_handler = new XrdIoHandler(std::move(wr_promise),
-      XrdIoHandler::OpType::Write);
+      XrdIoHandler::OpType::Write,
+      &gBuffMgr, buffer, length);
   XrdCl::XRootDStatus status = mXrdFile->Write(static_cast<uint64_t>(offset),
                                static_cast<uint32_t>(length),
-                               buffer, wr_handler);
+                               wr_handler->GetDataPtr(), wr_handler);
 
   if (!status.IsOK()) {
     wr_handler->HandleResponse(new XrdCl::XRootDStatus(status), nullptr);

@@ -20,6 +20,7 @@
 #include <chrono>
 #include "common/Logging.hh"
 #include "common/StacktraceHere.hh"
+#include "common/StringConversion.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
 #include "namespace/ns_quarkdb/persistency/Serialization.hh"
 #include "namespace/interface/IContainerMD.hh"
@@ -215,15 +216,7 @@ QuarkFileMD::getEnv(std::string& env, bool escapeAnd)
 
   if (escapeAnd) {
     if (!saveName.empty()) {
-      std::string from = "&";
-      std::string to = "#AND#";
-      size_t start_pos = 0;
-
-      while ((start_pos = saveName.find(from, start_pos)) !=
-             std::string::npos) {
-        saveName.replace(start_pos, from.length(), to);
-        start_pos += to.length();
-      }
+      saveName = eos::common::StringConversion::SealXrdPath(saveName);
     }
   }
 

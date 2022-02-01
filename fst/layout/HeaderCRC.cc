@@ -23,7 +23,9 @@
 
 #include "fst/layout/HeaderCRC.hh"
 #include "fst/io/FileIo.hh"
+#include "common/BufferManager.hh"
 #include <stdint.h>
+#include <stdlib.h>
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -69,43 +71,45 @@ HeaderCRC::HeaderCRC(int sizeHeader, long long numBlocks, int sizeBlock) :
 bool
 HeaderCRC::ReadFromFile(FileIo* pFile, uint16_t timeout)
 {
+  mValid = false;
   long int offset = 0;
   size_t read_sizeblock = 0;
-  char* buff = new char[mSizeHeader];
+  auto buff = eos::common::GetAlignedBuffer(mSizeHeader);
 
-  if (pFile->fileRead(offset, buff, mSizeHeader, timeout) !=
-      static_cast<uint32_t>(mSizeHeader)) {
-    delete[] buff;
-    mValid = false;
+  if (buff == nullptr) {
+    eos_static_err("msg=\"failed to allocate buffer\" size=%lu", mSizeHeader);
     return mValid;
   }
 
-  memcpy(mTag, buff, sizeof mTag);
+  if (pFile->fileRead(offset, buff.get(), mSizeHeader, timeout) !=
+      static_cast<uint32_t>(mSizeHeader)) {
+    return mValid;
+  }
+
+  memcpy(mTag, buff.get(), sizeof mTag);
   std::string tag = mTag;
 
   if (strncmp(mTag, msTagName, strlen(msTagName))) {
-    delete[] buff;
-    mValid = false;
     return mValid;
   }
 
   offset += sizeof mTag;
-  memcpy(&mIdStripe, buff + offset, sizeof mIdStripe);
+  memcpy(&mIdStripe, buff.get() + offset, sizeof mIdStripe);
   offset += sizeof mIdStripe;
-  memcpy(&mNumBlocks, buff + offset, sizeof mNumBlocks);
+  memcpy(&mNumBlocks, buff.get() + offset, sizeof mNumBlocks);
   offset += sizeof mNumBlocks;
-  memcpy(&mSizeLastBlock, buff + offset, sizeof mSizeLastBlock);
+  memcpy(&mSizeLastBlock, buff.get() + offset, sizeof mSizeLastBlock);
   offset += sizeof mSizeLastBlock;
-  memcpy(&read_sizeblock, buff + offset, sizeof read_sizeblock);
+  memcpy(&read_sizeblock, buff.get() + offset, sizeof read_sizeblock);
 
   if (mSizeBlock == 0) {
     mSizeBlock = read_sizeblock;
   } else if (mSizeBlock != read_sizeblock) {
-    eos_err("error=block size read from file does not match block size expected");
-    mValid = false;
+    eos_static_err("msg=\"read block size does not match expected size\" "
+                   "got=%lu expected=%lu", read_sizeblock, mSizeBlock);
+    return mValid;
   }
 
-  delete[] buff;
   mValid = true;
   return mValid;
 }
@@ -116,27 +120,31 @@ HeaderCRC::ReadFromFile(FileIo* pFile, uint16_t timeout)
 bool
 HeaderCRC::WriteToFile(FileIo* pFile, uint16_t timeout)
 {
+  mValid = false;
   int offset = 0;
-  char* buff = new char[mSizeHeader];
-  memcpy(buff + offset, msTagName, sizeof msTagName);
-  offset += sizeof mTag;
-  memcpy(buff + offset, &mIdStripe, sizeof mIdStripe);
-  offset += sizeof mIdStripe;
-  memcpy(buff + offset, &mNumBlocks, sizeof mNumBlocks);
-  offset += sizeof mNumBlocks;
-  memcpy(buff + offset, &mSizeLastBlock, sizeof mSizeLastBlock);
-  offset += sizeof mSizeLastBlock;
-  memcpy(buff + offset, &mSizeBlock, sizeof mSizeBlock);
-  offset += sizeof mSizeBlock;
-  memset(buff + offset, 0, mSizeHeader - offset);
+  auto buff = eos::common::GetAlignedBuffer(mSizeHeader);
 
-  if (pFile->fileWrite(0, buff, mSizeHeader, timeout) < 0) {
-    mValid = false;
-  } else {
+  if (buff == nullptr) {
+    eos_static_err("msg=\"failed to allocate buffer\" size=%lu", mSizeHeader);
+    return mValid;
+  }
+
+  memcpy(buff.get() + offset, msTagName, sizeof msTagName);
+  offset += sizeof mTag;
+  memcpy(buff.get() + offset, &mIdStripe, sizeof mIdStripe);
+  offset += sizeof mIdStripe;
+  memcpy(buff.get() + offset, &mNumBlocks, sizeof mNumBlocks);
+  offset += sizeof mNumBlocks;
+  memcpy(buff.get() + offset, &mSizeLastBlock, sizeof mSizeLastBlock);
+  offset += sizeof mSizeLastBlock;
+  memcpy(buff.get() + offset, &mSizeBlock, sizeof mSizeBlock);
+  offset += sizeof mSizeBlock;
+  memset(buff.get() + offset, 0, mSizeHeader - offset);
+
+  if (pFile->fileWrite(0, buff.get(), mSizeHeader, timeout) > 0) {
     mValid = true;
   }
 
-  delete[] buff;
   return mValid;
 }
 

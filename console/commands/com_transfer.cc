@@ -169,9 +169,9 @@ com_transfer(char* argin)
     }
 
     in += "&mgm.txsrc=";
-    in += XrdMqMessage::Seal(arg1);
+    in += eos::common::StringConversion::Seal(arg1);
     in += "&mgm.txdst=";
-    in += XrdMqMessage::Seal(arg2);
+    in += eos::common::StringConversion::Seal(arg2);
     in += "&mgm.txrate=";
     in += rate;
     in += "&mgm.txstreams=";

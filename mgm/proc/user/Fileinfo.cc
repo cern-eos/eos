@@ -53,7 +53,6 @@ ProcCommand::Fileinfo()
   NAMESPACEMAP;
   PROC_BOUNCE_ILLEGAL_NAMES;
   PROC_BOUNCE_NOT_ALLOWED;
-
   struct stat buf;
   unsigned long long fid = 0;
 
@@ -353,6 +352,14 @@ ProcCommand::FileInfo(const char* path)
               out << "TapeID: " << (archive_id.length() ? archive_id : "undef") <<
                   " StorageClass: " << (storage_class.length() ? storage_class : "none")
                   << std::endl;
+            }
+
+            if (xattrs.count("user.obfuscate.key")) {
+              if (xattrs.count("user.encrypted")) {
+                out << " Crypt: encrypted" << std::endl;
+              } else {
+                out << " Crypt: obfuscated" << std::endl;
+              }
             }
           } else {
             std::string xs;
@@ -655,7 +662,6 @@ ProcCommand::DirInfo(const char* path)
       size_t num_containers = dmd->getNumContainers();
       size_t num_files = dmd->getNumFiles();
       size_t tree_size = dmd->getTreeSize();
-
       std::shared_ptr<eos::IContainerMD> dmd_copy(dmd->clone());
       dmd.reset();
       viewReadLock.Release();

@@ -34,6 +34,16 @@
 EOSCOMMONNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
+//! Get OS page size aligned buffer
+//!
+//! @param size buffer size to be allocated
+//!
+//! @return unique_ptr to buffer or null if there is any error
+//------------------------------------------------------------------------------
+std::unique_ptr<char, void(*)(void*)>
+GetAlignedBuffer(const size_t size);
+
+//------------------------------------------------------------------------------
 //! Class Buffer
 //------------------------------------------------------------------------------
 class Buffer
@@ -44,16 +54,9 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   Buffer(uint64_t size):
-    mCapacity(size),
-    mData(size, '\0')
-  {}
-
-  //----------------------------------------------------------------------------
-  //! Get pointer to underlying data
-  //----------------------------------------------------------------------------
-  inline char* GetDataPtr()
+    mCapacity(size), mLength(0ull), mData(nullptr, free)
   {
-    return &mData.front();
+    mData = GetAlignedBuffer(mCapacity);
   }
 
   //----------------------------------------------------------------------------
@@ -61,9 +64,17 @@ public:
   //----------------------------------------------------------------------------
   ~Buffer() = default;
 
+  //----------------------------------------------------------------------------
+  //! Get pointer to underlying data
+  //----------------------------------------------------------------------------
+  inline char* GetDataPtr()
+  {
+    return mData.get();
+  }
+
   uint64_t mCapacity; ///< Available size of the buffer
   uint64_t mLength; ///< Length of the useful data
-  std::vector<char> mData; ///< Buffer holding the data
+  std::unique_ptr<char, void(*)(void*)> mData; ///< Buffer holding the data
 };
 
 

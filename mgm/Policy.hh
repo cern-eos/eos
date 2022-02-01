@@ -43,42 +43,46 @@ class Policy
 {
 public:
 
-  Policy () { };
+  Policy() { };
 
-  ~Policy () { };
+  ~Policy() { };
 
-  static void GetLayoutAndSpace (const char* path,
-                                 eos::IContainerMD::XAttrMap &map,
-                                 const eos::common::VirtualIdentity &vid,
-                                 unsigned long &layoutId,
-                                 XrdOucString &space,
-                                 XrdOucEnv &env,
-                                 unsigned long &forcedfsid,
-                                 long &forcedgroup, 
-				 std::string& bandwidth,
-				 bool &schedul,
-				 std::string& iopriority,
-				 bool lock_view = false);
+  static void GetLayoutAndSpace(const char* path,
+                                eos::IContainerMD::XAttrMap& map,
+                                const eos::common::VirtualIdentity& vid,
+                                unsigned long& layoutId,
+                                XrdOucString& space,
+                                XrdOucEnv& env,
+                                unsigned long& forcedfsid,
+                                long& forcedgroup,
+                                std::string& bandwidth,
+                                bool& schedul,
+                                std::string& iopriority,
+                                std::string& ioptype,
+                                bool lock_view = false);
 
-  static void GetPlctPolicy (const char* path,
-                             eos::IContainerMD::XAttrMap &map,
-                             const eos::common::VirtualIdentity &vid,
-                             XrdOucEnv &env,
-                             eos::mgm::Scheduler::tPlctPolicy &plctpo,
-                             std::string &targetgeotag);
+  static void GetPlctPolicy(const char* path,
+                            eos::IContainerMD::XAttrMap& map,
+                            const eos::common::VirtualIdentity& vid,
+                            XrdOucEnv& env,
+                            eos::mgm::Scheduler::tPlctPolicy& plctpo,
+                            std::string& targetgeotag);
 
   static unsigned long GetSpacePolicyLayout(const char* space);
 
 
-  static bool Set (const char* value);
-  static bool Set (XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr);
-  static void Ls (XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr);
-  static bool Rm (XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr);
+  static bool Set(const char* value);
+  static bool Set(XrdOucEnv& env, int& retc, XrdOucString& stdOut,
+                  XrdOucString& stdErr);
+  static void Ls(XrdOucEnv& env, int& retc, XrdOucString& stdOut,
+                 XrdOucString& stdErr);
+  static bool Rm(XrdOucEnv& env, int& retc, XrdOucString& stdOut,
+                 XrdOucString& stdErr);
 
 
   static bool IsProcConversion(const char* path);
 
-  static const char* Get (const char* key);
+  static const char* Get(const char* key);
 };
 
 EOSMGMNAMESPACE_END

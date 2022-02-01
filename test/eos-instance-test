@@ -1634,20 +1634,29 @@ runtest "### stat l1   " unix 0 "" eos stat "/eos/$EOS_TEST_INSTANCE/test/instan
 runtest "### stat l2   " unix 0 "" eos stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/symdir/symlink.4"
 #obfuscation
 runtest "### Obfuscate " unix 0 "" shell mkdir "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/"
+runtest "### Obfuscate " unix 0 "" shell eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/"
 runtest "### Obfuscate " unix 0 "" shell eos attr set sys.file.obfuscate=1 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/"
 runtest "### Upload    " unix 0 "" shell cp /etc/group "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/group"
 runtest "### Upload    " unix 0 "" shell cp /etc/group "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/group"
+runtest "### Download  " unix 0 "" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/group?eos.obfuscate=0" "/var/tmp/obfuscate.raw"
 runtest "### Download  " unix 0 "" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/group" "/var/tmp/obfuscate"
 runtest "### Diff      " unix 0 "" shell diff /etc/group  "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/group"
-runtest "### Diff      " unix 1 "" shell diff /etc/group  "/var/tmp/obfuscate"
+runtest "### Diff      " unix 1 "" shell diff /etc/group  "/var/tmp/obfuscate.raw"
+runtest "### Diff      " unix 0 "" shell diff /etc/group  "/var/tmp/obfuscate"
 runtest "### Diff      " unix 0 "" shell rm  "/var/tmp/obfuscate"
 runtest "### Cleanup"    unix 0 "" eos rm  "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/group"
 #encryption
 runtest "### Id        " unix 0 "" shell env EOS_FUSE_SECRET=bla eosxd get eos.reconnect "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/"
 runtest "### Upload    " unix 0 "EOS_FUSE_SECRET=12e629ee-e68a-4a5b-9743-33ba8f794e07" eos_bash cp /etc/group "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted"
+runtest "### Download  " unix 0 "EOS_FUSE_SECRET=12e629ee-e68a-4a5b-9743-33ba8f794e07" eos cp /etc/group "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted.cp"
+runtest "### Dowload   " unix 0 "EOS_FUSE_SECRET=12e629ee-e68a-4a5b-9743-33ba8f794e07" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted /var/tmp/encrypted.ok"
+runtest "### Diff      " unix 0 "" eos_bash diff /etc/group  /var/tmp/encrypted.ok
+runtest "### Diff      " unix 1 "" eos_bash diff /etc/group  /var/tmp/encrypted.false
+runtest "### Dowload   " unix 0 "EOS_FUSE_SECRET=false" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted /var/tmp/encrypted.false"
 # drop from buffer cache
 dd of="/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted" oflag=nocache conv=notrunc,fdatasync count=0
 runtest "### Diff      " unix 0 "EOS_FUSE_SECRET=12e629ee-e68a-4a5b-9743-33ba8f794e07" eos_bash diff /etc/group  "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted"
+runtest "### Diff      " unix 0 "EOS_FUSE_SECRET=12e629ee-e68a-4a5b-9743-33ba8f794e07" eos_bash diff /etc/group  "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted.cp"
 dd of="/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted" oflag=nocache conv=notrunc,fdatasync count=0
 runtest "### Diff      " unix 1 "EOS_FUSE_SECRET=false" eos_bash diff /etc/group  "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted"
 dd of="/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted" oflag=nocache conv=notrunc,fdatasync count=0

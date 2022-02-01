@@ -51,13 +51,14 @@ FileSystem::SetConfigStatus(eos::common::ConfigStatus new_status)
     } else {
       if (!gOFS->mDrainEngine.StopFsDrain(this, out_msg)) {
         eos_static_debug("%s", out_msg.c_str());
-        // // Drain already stopped make sure we also update the drain status
-        // // if this was a finished drain ie. has status drained or failed
-        // DrainStatus st = GetDrainStatus();
-        // if ((st == DrainStatus::kDrained) ||
-        //     (st == DrainStatus::kDrainFailed)) {
-        //   SetDrainStatus(eos::common::DrainStatus::kNoDrain);
-        // }
+        // Drain already stopped make sure we also update the drain status
+        // if this was a finished drain ie. has status drained or failed
+        DrainStatus st = GetDrainStatus();
+
+        if ((st == DrainStatus::kDrained) ||
+            (st == DrainStatus::kDrainFailed)) {
+          SetDrainStatus(eos::common::DrainStatus::kNoDrain);
+        }
       }
     }
   }
@@ -88,15 +89,15 @@ int
 FileSystem::IsDrainTransition(const eos::common::ConfigStatus old,
                               const eos::common::ConfigStatus status)
 {
-  using eos::common::FileSystem;
+  using namespace eos::common;
 
   // Enable draining
-  if (((old != common::ConfigStatus::kDrain) &&
-       (old != common::ConfigStatus::kDrainDead) &&
-       ((status == common::ConfigStatus::kDrain) ||
-        (status == common::ConfigStatus::kDrainDead))) ||
-      (((old == common::ConfigStatus::kDrain) ||
-        (old == common::ConfigStatus::kDrainDead)) &&
+  if (((old != ConfigStatus::kDrain) &&
+       (old != ConfigStatus::kDrainDead) &&
+       ((status == ConfigStatus::kDrain) ||
+        (status == ConfigStatus::kDrainDead))) ||
+      (((old == ConfigStatus::kDrain) ||
+        (old == ConfigStatus::kDrainDead)) &&
        (status == old))) {
     return 1;
   }

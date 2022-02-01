@@ -69,6 +69,7 @@ This
     "sss" : 1,
     "ssskeytab" : "/etc/eos/fuse.sss.keytab",
     "oauth2" : 1,
+    "unix" : 0,
     "environ-deadlock-timeout" : 100,
     "forknoexec-heuristic" : 1
   },
@@ -287,6 +288,22 @@ Use these authentication directives in the config file:
 ```
 The mount daemon uses /etc/fuse/fuse.sss.keytab as default keytab when running as a shared mount. The user mount default is $HOME/.eos/fuse.sss.keytab. Unlike Kerberos it is not possible in XRootD to use different keytabs for individual users. If you want to create a 'trusted' mount mapping local users to their local username, you have to create an sss keytab entry for user **anybody** and group **anygroup**. Otherwise you can create an sss keytab for a given application user.
 The mount also supports to forward sss endorsements, which are forwarded to the server. These endorsement can be used server-side to define an ACL entry by key e.g. sys.acl="k:9c2bd333-5331-4095-8fcd-28726404742f:rwx". This would provide access to all sss clients having this key in their environment even if the mapped sss user/group wouldn't have access.
+
+
+Mounting for UNIX gateways
+--------------------------
+
+
+Use these authentication directives in the config files:
+```
+```
+  "auth" : {
+    "shared-mount" : 1,
+    "unix" : 1,
+    "sss" : 1
+  }
+```
+If you enable UNIX, it will be used for everbody but root (uid=0). In this example root will fall back to sss authentication. If you don't specify any other, root will also use UNIX and will be mapped to nobody server side.
 
 
 AUTOFS Configuration
@@ -519,7 +536,7 @@ visible using the mount client, all other protocols see obfuscated contents. Obf
 attr set sys.file.obfuscate="1" <mydir>
 ```
 
-The obfuscation key is stored on each file as an extended user argument:
+The obfuscation key is stored on each file as an extended user argument, which cannot be displayed:
 ```
 user.obfuscate.key=
 ```
@@ -545,6 +562,34 @@ cp <myfile> <mydir>
 cp <mydir>/<myfile> /tmp/
 ```
 
-If you have read a file and change the key to re-read the file, you might need to drop the buffer cache contents to force a re-read.
+Encrypted files are flagged with an extended attribute:
 
-If you lose EOS_FUSE_SECRET for a given directory, there is no way to decrypt the contents since the key is stored nowhereelse.
+```
+user.encrypted=1
+```
+
+If files have been encrypted through eosxd, an additional attribute
+```
+user.encrypted.fp=int16
+```
+stores a low resolution key fingerprint which is checked during open. If the key does not match ENOKEY is returned as errno. File can be encrypted with an absent fingerprint attribute (e.g. using eoscp). In this case no key correctness check is done client side.
+If you have read such a file and change the key to re-read the file, you might need to drop the buffer cache contents to force a re-read.
+
+If you lose EOS_FUSE_SECRET for a given file, there is no way to decrypt the contents since the key is stored nowhereelse.
+
+```
+eos fileinfo myfile
+
+EOS Console [root://localhost] |/eos/dev/encryption/> fileinfo enc.32
+  File: '/eos/dev/encryption/enc.1'  Flags: 0644
+  Size: 2195
+Modify: Mon Jan 24 15:55:29 2022 Timestamp: 1643036129.045484252
+Change: Mon Jan 24 15:56:28 2022 Timestamp: 1643036188.645107946
+ Birth: Mon Jan 24 15:54:58 2022 Timestamp: 1643036098.235424071
+  CUid: 99 CGid: 99 Fxid: 001b7800 Fid: 1800192 Pid: 384815 Pxid: 0005df2f
+XStype: adler    XS: 55 91 03 04    ETAGs: "483235360407552:55910304"
+Layout: plain Stripes: 1 Blocksize: 4k LayoutId: 00100002 Redundancy: d1::t0
+  #Rep: 1
+ Crypt: encrypted
+```
+shows in a comprehensive way after the "Crypt:" tag, if a file is either encrypted or obfuscated.

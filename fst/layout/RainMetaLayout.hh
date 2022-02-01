@@ -251,7 +251,8 @@ protected:
   uint64_t mSizeLine;
   //! Size of a group of blockseg. RAIDDP: group = noDataStr^2 blocks
   uint64_t mSizeGroup;
-  std::vector<FileIo*> mStripe; ///< file IO layout obj for each stripe
+  std::vector<std::unique_ptr<FileIo>>
+                                    mStripe; ///< file IO layout obj for each stripe
   std::vector<HeaderCRC*> mHdrInfo; ///< headers of the stripe files
   std::map<unsigned int, unsigned int> mapLP; ///< map of url to stripes
   std::map<unsigned int, unsigned int> mapPL; ///< map of stripes to url
@@ -467,6 +468,13 @@ private:
   //!         corresponding to each of the chunks making up the original file
   //----------------------------------------------------------------------------
   XrdCl::ChunkList SplitRead(uint64_t off, uint32_t len, char* buff);
+
+  //----------------------------------------------------------------------------
+  //! Perform basic layout checks
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool BasicLayoutChecks();
 
   AssistedThread mParityThread; ///< Thread computing and wrintg parity
   //! Queue holding group offsets to be used for parity computatio

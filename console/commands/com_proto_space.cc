@@ -335,6 +335,42 @@ bool SpaceHelper::ParseCommand(const char* arg)
     } else {
       return false;
     }
+  } else if (token == "groupbalancer") {
+    // Parsing eos space groupbalancer <subcmd> <space-name> <options>
+    auto groupbalancer = space->mutable_groupbalancer();
+
+    // subcmd
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
+
+    if (token == "status") {
+      // spacename
+      if (!tokenizer.NextToken(token)) {
+        return false;
+      }
+
+      groupbalancer->set_mgmspace(token);
+      auto groupbalancer_status = groupbalancer->mutable_status();
+      // Now parse options
+      std::string options;
+
+      while (tokenizer.NextToken(token)) {
+        if (token == "--detail" || token == "-d") {
+          options += "d";
+        } else if (token == "-m") {
+          options += "m";
+        }
+      }
+
+      if (!options.empty()) {
+        groupbalancer_status->set_options(options);
+      }
+
+      return true;
+    }
+
+    return false;
   } else { // no proper subcommand
     return false;
   }
@@ -394,8 +430,14 @@ void com_space_help()
       << "space config <space-name> space.drainer.retries=<#>                   : configure the number of retry for the draining process (Valid only for central drain)     [ default=1 ]\n"
       << "space config <space-name> space.drainer.fs.ntx=<#>                    : configure the number of parallel draining transfers per fs (Valid only for central drain) [ default=5 ]\n"
       << "space config <space-name> space.groupbalancer=on|off                  : enable/disable the group balancer [ default=off ]\n"
-      << "space config <space-name> space.groupbalancer.ntx=<ntx>               : configure the numebr of parallel group balancer jobs [ default=0 ]\n"
-      << "space config <space-name> space.groupbalancer.threshold=<threshold>   : configure the threshold when a group is balanced [ default=0 ] ( taken from dev(filled) parameter in 'group ls'\n"
+      << "space config <space-name> space.groupbalancer.ntx=<ntx>               : configure the number of parallel group balancer jobs [ default=0 ]\n"
+      << "space config <space-name> space.groupbalancer.engine=<std|minmax>     : configure the groupbalancer engine [ default=std ]\n"
+      << "space config <space-name> space.groupbalancer.min_threshold=<v>       : configure the groupbalancer min threshold(%), groups below this will be picked as targets [default=60]\n"
+      << "space config <space-name> space.groupbalancer.max_threshold=<v>       : configure the groupbalancer max threshold(%), groups above this will be picked as sources [default=95]\n"
+      << "space config <space-name> space.groupbalancer.min_file_size=<#K/M/G/T>: configure the min file size to move between groups [ default=1G ]\n"
+      << "space config <space-name> space.groupbalancer.max_file_size=<#K/M/G/T>: configure the max file size to move between groups [ default=16G ]\n"
+      << "space config <space-name> space.groupbalancer.file_attempts=<#>       : configure the no of attempts to find a file within sizes [ default=50 ]\n"
+      << "space config <space-name> space.groupbalancer.threshold=<threshold>   : [Deprecated use <..>.min/max_threshold (see above)] configure the threshold when a group is balanced"
       << "space config <space-name> space.geobalancer=on|off                    : enable/disable the geo balancer [ default=off ]\n"
       << "space config <space-name> space.geobalancer.ntx=<ntx>                 : configure the numebr of parallel geobalancer jobs [ default=0 ]\n"
       << "space config <space-name> space.geobalancer.threshold=<threshold>     : configure the threshold when a geotag is balanced [ default=0 ] \n"
@@ -484,6 +526,8 @@ void com_space_help()
       << "space rm <space-name> : remove space\n"
       << std::endl
       << "space quota <space-name> on|off : enable/disable quota\n"
+      << std::endl
+      << "space groupbalancer status <space-name> [--detail(-d)|-m] : print groupbalancer status\n"
       << std::endl;
   std::cerr << oss.str();
 }

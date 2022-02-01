@@ -75,8 +75,7 @@ ProcCommand::Attr()
     GetPathFromCid(spath, identifier, "error: ");
   } else {
     spath = eos::common::Path(path).GetPath();
-
-    while (spath.replace("#AND#", "&")) {}
+    eos::common::StringConversion::UnsealXrdPath(spath);
   }
 
   path = spath.c_str();

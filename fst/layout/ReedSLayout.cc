@@ -242,8 +242,7 @@ ReedSLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
 
           if (error_type == XrdCl::errOperationExpired) {
             mStripe[physical_id]->fileClose(mTimeout);
-            delete mStripe[physical_id];
-            mStripe[physical_id] = NULL;
+            mStripe[physical_id].release();
           }
         }
       }
@@ -356,8 +355,7 @@ ReedSLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
 
           if (error_type == XrdCl::errOperationExpired) {
             mStripe[physical_id]->fileClose(mTimeout);
-            delete mStripe[physical_id];
-            mStripe[physical_id] = NULL;
+            mStripe[physical_id].release();
           }
         }
       }

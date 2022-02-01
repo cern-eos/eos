@@ -619,7 +619,7 @@ XrdFstOss::AddMapping(const std::string& fileName,
 {
   XrdSysRWLockHelper wr_lock(mRWMap, 0); // --> wrlock map
   std::pair<XrdSysRWLock*, CheckSum*> pair_value;
-  eos_debug("Initial map size: %i and filename: %s.",
+  eos_debug("Initial map size: %i and filename: %s",
             mMapFileXs.size(), fileName.c_str());
 
   if (mMapFileXs.count(fileName)) {
@@ -629,11 +629,13 @@ XrdFstOss::AddMapping(const std::string& fileName,
     // If no. ref 0 then the obj is closed and waiting to be deleted so we can
     // add the new one, else return the old one
     if (pair_value.second->GetTotalRef() == 0) {
+      pair_value.second->CloseMap();
       delete pair_value.second;
       pair_value = std::make_pair(pair_value.first, blockXs);
       mMapFileXs[fileName] = pair_value;
       eos_debug("Update old entry, map size: %i. ", mMapFileXs.size());
     } else {
+      blockXs->CloseMap();
       delete blockXs;
       blockXs = pair_value.second;
     }
@@ -646,7 +648,7 @@ XrdFstOss::AddMapping(const std::string& fileName,
     // Can increment without the lock as no one knows about this obj. yet
     blockXs->IncrementRef(isRW);
     mMapFileXs[fileName] = pair_value;
-    eos_debug("Add completely new obj, map size: %i and filename: %s.",
+    eos_debug("Add completely new obj, map size: %i and filename: %s",
               mMapFileXs.size(), fileName.c_str());
     return mutex_xs;
   }

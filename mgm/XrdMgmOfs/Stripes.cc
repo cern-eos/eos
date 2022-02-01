@@ -153,9 +153,7 @@ XrdMgmOfs::_verifystripe(const char* path,
   opaquestring += eos::common::StringConversion::GetSizeString(sizestring, cid);
   opaquestring += "&mgm.path=";
   XrdOucString safepath = path;
-
-  while (safepath.replace("&", "#AND#")) {}
-
+  eos::common::StringConversion::SealXrdPath(safepath);
   opaquestring += safepath;
   opaquestring += "&mgm.lid=";
   opaquestring += lid;
@@ -680,9 +678,7 @@ XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
   source_capability += (int) 1;
   source_capability += "&mgm.path=";
   XrdOucString safepath = path;
-
-  while (safepath.replace("&", "#AND#")) {}
-
+  eos::common::StringConversion::SealXrdPath(safepath);
   source_capability += safepath;
   source_capability += "&mgm.manager=";
   source_capability += gOFS->ManagerId.c_str();

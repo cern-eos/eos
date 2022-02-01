@@ -30,6 +30,7 @@
 #include <XrdOuc/XrdOucStream.hh>
 #include <XrdSys/XrdSysLogger.hh>
 #include <openssl/evp.h>
+#include "common/StringConversion.hh"
 
 #define XMQHEADER                "xrdmqmessage.header"
 #define XMQBODY                  "xrdmqmessage.body"
@@ -284,46 +285,6 @@ public:
   void SetReply(XrdMqMessage& message);
 
   //----------------------------------------------------------------------------
-  //! Seal string by replacing & with the desired seal
-  //!
-  //! @param s input string
-  //! @param seal type of seal to use
-  //!
-  //! @return pointer to the sealed string
-  //! @toto This should be moved in a common place
-  //----------------------------------------------------------------------------
-  static const char* Seal(XrdOucString& s, const char* seal = "#AND#")
-  {
-    while (s.replace("&", seal)) {};
-
-    return s.c_str();
-  }
-
-  //----------------------------------------------------------------------------
-  //! Un-seal string
-  //!
-  //! @param s input string
-  //! @param seal type of seal to use
-  //!
-  //! @return pointer to the un-sealed string
-  //! @toto This should be moved in a common place
-  //----------------------------------------------------------------------------
-  static const char* UnSeal(XrdOucString& s, const char* seal = "#AND#")
-  {
-    //! @note: this is to ensure backwards compatibility with versions prior to
-    //! 4.8.67 and this should be removed once we move to 4.8.68 everywhere
-    const char* old_seal = "#and#";
-
-    if (s.find(old_seal) != STR_NPOS) {
-      while (s.replace(old_seal, "&")) {};
-    } else {
-      while (s.replace(seal, "&")) {};
-    }
-
-    return s.c_str();
-  }
-
-  //----------------------------------------------------------------------------
   //! Set message body
   //!
   //! @param body raw data
@@ -331,7 +292,7 @@ public:
   void SetBody(const char* body)
   {
     kMessageBody = body;
-    Seal(kMessageBody);
+    eos::common::StringConversion::Seal(kMessageBody);
   }
 
   //----------------------------------------------------------------------------
@@ -341,7 +302,7 @@ public:
   //----------------------------------------------------------------------------
   const char* GetBody()
   {
-    UnSeal(kMessageBody);
+    eos::common::StringConversion::UnSeal(kMessageBody);
     return kMessageBody.c_str();
   }
 

@@ -201,14 +201,10 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
             try {
               std::string spath = gOFS->eosView->getUri(fmd.get());
               XrdOucString safepath = spath.c_str();
-
-              while (safepath.replace("&", "#AND#")) {}
-
+              eos::common::StringConversion::SealXrdPath(safepath);
               fullpath = safepath.c_str();
               safepath = eos::common::Path{spath.c_str()} .GetParentPath();
-
-              while (safepath.replace("&", "#AND#")) {}
-
+              eos::common::StringConversion::SealXrdPath(safepath);
               containerpath = safepath.c_str();
             } catch (eos::MDException& e) {
               errno = e.getErrno();

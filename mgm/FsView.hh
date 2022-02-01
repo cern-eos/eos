@@ -947,9 +947,26 @@ public:
   virtual bool SetGlobalConfig(const std::string& key, const std::string& value);
 
   //----------------------------------------------------------------------------
+  //! Set a global configuration key-val pair given as boolean
+  //----------------------------------------------------------------------------
+  bool SetGlobalConfig(const std::string& key, bool value)
+  {
+    return SetGlobalConfig(key, (value ? std::string("true") :
+                                 std::string("false")));
+  }
+
+  //----------------------------------------------------------------------------
   //! Get a global configuration value
   //----------------------------------------------------------------------------
   virtual std::string GetGlobalConfig(const std::string& key);
+
+  //----------------------------------------------------------------------------
+  //! Get a global configuration value as boolean
+  //----------------------------------------------------------------------------
+  bool GetBoolGlobalConfig(const std::string& key)
+  {
+    return (GetGlobalConfig(key) == "true");
+  }
 
   //----------------------------------------------------------------------------
   //! Broadcast new manager id to all the FST nodes
@@ -979,6 +996,14 @@ public:
   //! @return set of matching endpoints
   //----------------------------------------------------------------------------
   std::set<std::string> CollectEndpoints(const std::string& queue) const;
+
+  //----------------------------------------------------------------------------
+  //! Re-apply drain status for file systems to re-trigger draining. This is
+  //! needed in case the drain engine is stopped and then restatred the fs-es
+  //! which where in draning mode are not reactivated so we need to go through
+  //! them and reapply the drain status so that draining is activated.
+  //----------------------------------------------------------------------------
+  void ReapplyDrainStatus();
 
 private:
   IConfigEngine* mConfigEngine;

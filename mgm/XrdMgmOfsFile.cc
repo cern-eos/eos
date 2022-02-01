@@ -367,6 +367,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   using eos::common::LayoutId;
   static const char* epname = "open";
   const char* tident = error.getErrUser();
+  eos::IFileMD::XAttrMap attrmapF;
   errno = 0;
   EXEC_TIMING_BEGIN("Open");
   XrdOucString spath = inpath;
@@ -591,6 +592,24 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       } else {
         eos_info("suppressing IO priority setting '%s' (no operator role)",
                  val);
+      }
+    }
+  }
+
+  {
+    eosobfuscate = -1;
+    // handle obfuscation and encryption
+    const char* val = 0;
+
+    if ((val = openOpaque->Get("eos.obfuscate"))) {
+      eosobfuscate = std::strtoul(val, 0, 10);
+    }
+
+    if ((val = openOpaque->Get("eos.key"))) {
+      eoskey = val;
+
+      if (!eosobfuscate) {
+        eosobfuscate = 1;
       }
     }
   }
@@ -1046,8 +1065,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       return Emsg(epname, error, errno, "open file - open by fxid denied", path);
     }
 
-    eos::IFileMD::XAttrMap attrmapF;
-
     if (fmd) {
       eos::listAttributes(gOFS->eosView, fmd.get(), attrmapF, false);
     } else {
@@ -1333,6 +1350,19 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
             fmd = gOFS->eosView->createFile(creation_path, vid.uid, vid.gid);
 
+            if ((eosobfuscate > 0) || (attrmap.count("sys.file.obfuscate") &&
+                                       (attrmap["sys.file.obfuscate"] == "1"))) {
+              std::string skey = eos::common::SymKey::RandomCipher(eoskey);
+              // attach an obfucation key
+              fmd->setAttribute("user.obfuscate.key", skey);
+
+              if (eoskey.length()) {
+                fmd->setAttribute("user.encrypted", "1");
+              }
+
+              attrmapF["user.obfuscate.key"] = skey;
+            }
+
             if (ocUploadUuid.length()) {
               fmd->setFlags(0);
             } else {
@@ -1493,6 +1523,20 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
   }
 
+  if (eosobfuscate && !isFuse) {
+    // add obfuscation key to redirection capability
+    if (attrmapF.count("user.obfuscate.key")) {
+      capability += "&mgm.obfuscate.key=";
+      capability += attrmapF["user.obfuscate.key"].c_str();
+    }
+
+    // add encryption key to redirection capability
+    if (eoskey.length()) {
+      capability += "&mgm.encryption.key=";
+      capability += eoskey.c_str();
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // forward some allowed user opaque tags
   // ---------------------------------------------------------------------------
@@ -1511,12 +1555,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   std::string targetgeotag;
   std::string bandwidth;
   std::string ioprio;
+  std::string iotype;
   bool schedule = false;
   eos::common::RWMutexReadLock
   fs_rd_lock(FsView::gFsView.ViewMutex, __FUNCTION__, __LINE__, __FILE__);
   // select space and layout according to policies
   Policy::GetLayoutAndSpace(path, attrmap, vid, new_lid, space, *openOpaque,
-                            forcedFsId, forced_group, bandwidth, schedule, ioprio);
+                            forcedFsId, forced_group, bandwidth, schedule, ioprio, iotype);
 
   if (ioPriority.length()) {
     capability += "&mgm.iopriority=";
@@ -1530,6 +1575,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   if (schedule) {
     capability += "&mgm.schedule=1";
+  }
+
+  if (iotype.length()) {
+    capability += "&mgm.iotype=";
+    capability += iotype.c_str();
   }
 
   // get placement policy
@@ -1703,10 +1753,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   {
     // an '&' will create a failure on the FST
     XrdOucString safepath = spath.c_str();
-
-    while (safepath.replace("&", "#AND#")) {
-    }
-
+    eos::common::StringConversion::SealXrdPath(safepath);
     capability += safepath;
   }
   capability += "&mgm.manager=";

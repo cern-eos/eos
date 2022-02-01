@@ -846,32 +846,89 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Seal opaque xrootd info i.e. replace any & with #AND#
+  //! Seal xrootd path i.e. replace any & with #AND#
   //!
   //! @param input string to be sealed
   //!
   //! @return newly sealed string
   //----------------------------------------------------------------------------
-  static std::string SealXrdOpaque(const std::string& input);
+  static std::string SealXrdPath(const std::string& input);
 
   //----------------------------------------------------------------------------
-  //! Unseal opaque xrootd inf i.e. replace any #AND# with &
+  //! Unseal xrootd path i.e. replace any #AND# with &
   //!
   //! @param input string to be unsealed
   //!
   //! @return newly unsealed string
   //----------------------------------------------------------------------------
-  static std::string UnsealXrdOpaque(const std::string& input);
+  static std::string UnsealXrdPath(const std::string& input);
+
+  //----------------------------------------------------------------------------
+  //! Seal xrootd path in placei.e. replace any & with #AND#
+  //!
+  //! @param input string to be sealed
+  //!
+  //! @return sealed string
+  //----------------------------------------------------------------------------
+  static const char* SealXrdPath(XrdOucString& input);
+
+  //----------------------------------------------------------------------------
+  //! Unseal xrootd path in place i.e. replace any #AND# with &
+  //!
+  //! @param input string to be unsealed
+  //!
+  //! @return unsealed string
+  //----------------------------------------------------------------------------
+  static const char* UnsealXrdPath(XrdOucString& input);
+
+  //----------------------------------------------------------------------------
+  //! Seal string by replacing & with the desired seal
+  //! @note: to be used for opaque data
+  //!
+  //! @param s input string
+  //! @param seal type of seal to use
+  //!
+  //! @return pointer to the sealed string
+  //----------------------------------------------------------------------------
+  static const char* Seal(XrdOucString& s, const char* seal = "#and#")
+  {
+    while (s.replace("&", seal)) {};
+
+    return s.c_str();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Un-seal string by replacing seal with &
+  //! @note: to be used for opaque data
+  //!
+  //! @param s input string
+  //! @param seal type of seal to use
+  //!
+  //! @return pointer to the un-sealed string
+  //----------------------------------------------------------------------------
+  static const char* UnSeal(XrdOucString& s, const char* seal = "#and#")
+  {
+    // Ensure compatibility with old clients using #AND#
+    const char* other_seal = "#AND#";
+
+    if (s.find(other_seal) != STR_NPOS) {
+      while (s.replace(other_seal, "&")) {};
+    } else {
+      while (s.replace(seal, "&")) {};
+    }
+
+    return s.c_str();
+  }
 
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  StringConversion() {};
+  StringConversion() = default;
 
   //----------------------------------------------------------------------------
   //! Destructor
   // ---------------------------------------------------------------------------
-  ~StringConversion() {};
+  ~StringConversion() = default;
 
 private:
   //! Lookup Table for Hex Ascii Conversion

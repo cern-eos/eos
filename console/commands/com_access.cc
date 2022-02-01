@@ -47,26 +47,32 @@ com_access(char* arg1)
     ok = true;
     in += "&mgm.subcmd=ban";
   }
+
   if (subcmd == "unban") {
     in += "&mgm.subcmd=unban";
     ok = true;
   }
+
   if (subcmd == "allow") {
     in += "&mgm.subcmd=allow";
     ok = true;
   }
+
   if (subcmd == "unallow") {
     in += "&mgm.subcmd=unallow";
     ok = true;
   }
+
   if (subcmd == "ls") {
     in += "&mgm.subcmd=ls";
     ok = true;
   }
+
   if (subcmd == "set") {
     in += "&mgm.subcmd=set";
     ok = true;
   }
+
   if (subcmd == "rm") {
     in += "&mgm.subcmd=rm";
     ok = true;
@@ -90,6 +96,7 @@ com_access(char* arg1)
       option += maybeoption;
       maybeoption = subtokenizer.GetToken();
     }
+
     if (subcmd == "ls") {
       ok = true;
     }
@@ -272,7 +279,6 @@ com_access_usage:
           "                                       [ENONET] : optional set a redirect if a file is offline (ENONET) \n");
   fprintf(stdout,
           "                                       [ENOENT] : optional set a redirect if a file is not existing     \n");
-
   fprintf(stdout, "access rm redirect [r|w|ENOENT|ENONET]  :\n");
   fprintf(stdout,
           "                                                  removes global redirection\n");
@@ -297,6 +303,8 @@ com_access_usage:
           "                                                  rate:user:*:<counter> : apply to all users based on user counter\n");
   fprintf(stdout,
           "                                                  rate:group:*:<counter>: apply to all groups based on group counter\n");
+  fprintf(stdout,
+          "                                                                          set <frequency> to 0 (zero) to continuously stall the user or group\n");
   fprintf(stdout, "\n");
   fprintf(stdout, "access set limit <nfiles> rate:user:{name}:FindFiles\n");
   fprintf(stdout,
@@ -337,8 +345,10 @@ com_access_usage:
   fprintf(stdout, "Examples:\n");
   fprintf(stdout, "  access ban host foo      Ban host foo\n");
   fprintf(stdout, "  access ban domain bar    Ban domain bar\n");
-  fprintf(stdout, "  access allow domain nobody@bar Allows user nobody from domain bar\n");
-  fprintf(stdout, "  access allow domain -    use domain allow as whitelist - e.g. nobody@bar will additionally allow the nobody user from domain bar!");
+  fprintf(stdout,
+          "  access allow domain nobody@bar Allows user nobody from domain bar\n");
+  fprintf(stdout,
+          "  access allow domain -    use domain allow as whitelist - e.g. nobody@bar will additionally allow the nobody user from domain bar!");
   fprintf(stdout, "  access allow domain bar  Allow only domain bar\n");
   fprintf(stdout,
           "  access set redirect foo  Redirect all requests to host foo\n");
@@ -348,6 +358,8 @@ com_access_usage:
   fprintf(stdout, "  access ls                Print all defined access rules\n");
   fprintf(stdout,
           "  access set limit 100  rate:user:*:OpenRead      Limit the rate of open for read to a frequency of 100 Hz for all users\n");
+  fprintf(stdout,
+          "  access set limit 0    rate:user:ab:OpenRead     Limit the open for read rate for the ab user to 0 Hz, to continuously stall it\n");
   fprintf(stdout,
           "  access set limit 2000 rate:group:zp:Stat        Limit the stat rate for the zp group to 2kHz\n");
   fprintf(stdout,

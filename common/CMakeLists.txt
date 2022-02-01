@@ -102,6 +102,7 @@ endif() # CLANG5 hack
 # EosCommon-Objects
 #-------------------------------------------------------------------------------
 add_library(EosCommon-Objects OBJECT
+  BufferManager.cc
   Fmd.cc
   SymKeys.cc
   InstanceName.cc

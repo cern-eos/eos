@@ -1551,7 +1551,8 @@ Server::OpSetDirectory(const std::string& id,
 
       if (md.name().substr(0, strlen(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX)) ==
           EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) {
-        eos_err("ino=%lx name=%s atomic path is forbidden as a directory name");
+        eos_err("ino=%lx name=%s atomic path is forbidden as a directory name",
+                md.md_pino(), md.name().c_str());
         return EPERM;
       }
 
@@ -2148,9 +2149,10 @@ Server::OpSetFile(const std::string& id,
       std::string bandwidth;
       bool schedule = false;
       std::string iopriority;
+      std::string iotype;
       // retrieve the layout
       Policy::GetLayoutAndSpace("fusex", attrmap, vid, layoutId, space, env,
-                                forcedFsId, forcedGroup, bandwidth, schedule, iopriority, false);
+                                forcedFsId, forcedGroup, bandwidth, schedule, iopriority, iotype, false);
       fs_rd_lock.Release();
 
       if (eos::mgm::FsView::gFsView.IsQuotaEnabled(space.c_str())) {

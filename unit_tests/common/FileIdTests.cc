@@ -37,3 +37,10 @@ TEST(FileId, EstimateTpcTimeout)
   ASSERT_EQ(FileId::EstimateTpcTimeout(100 * GB, 100).count(), 1800);
   ASSERT_EQ(FileId::EstimateTpcTimeout(250 * GB, 100).count(), 2560);
 }
+
+
+TEST(FileId, DefaultConstruction)
+{
+  eos::common::FileId::fileid_t fid;
+  ASSERT_EQ(fid, 0);
+}

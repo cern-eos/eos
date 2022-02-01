@@ -52,6 +52,7 @@
     "sss" : 1,
     "ssskeytab" : "/etc/eos/fuse.sss.keytab",
     "oauth2" : 1,
+    "unix" : 0,
     "environ-deadlock-timeout" : 100,
     "forknoexec-heuristic" : 1
   },

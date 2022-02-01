@@ -61,7 +61,7 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   noAtomicVersioning(false),
   mIsInjection(false), mRainReconstruct(false), deleteOnClose(false),
   repairOnClose(false), mIsOCchunk(false), writeErrorFlag(false),
-  mEventOnClose(false), mEventWorkflow(""),
+  mEventOnClose(false), mSyncOnClose(false), mEventWorkflow(""),
   mSyncEventOnClose(false), mFmd(nullptr), mCheckSum(nullptr),
   mLayout(nullptr), mCloseCb(nullptr), mMaxOffsetWritten(0ull),
   mWritePosition(0ull), openSize(0),
@@ -79,13 +79,13 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   closeTime.tv_sec = closeTime.tv_usec = 0;
   currentTime.tv_sec = openTime.tv_usec = 0;
   openTime.tv_sec = openTime.tv_usec = 0;
-  mBandwidth = 0;
+  totalBytes = 0;
   msSleep = 0;
+  mBandwidth = 0;
   tz.tz_dsttime = tz.tz_minuteswest = 0;
   mIoPriorityValue = 0;
   mIoPriorityClass = IOPRIO_CLASS_NONE;
   mIoPriorityErrorReported = false;
-  totalBytes = 0;
 }
 
 //------------------------------------------------------------------------------
@@ -484,9 +484,26 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   oss_opaque += "&mgm.bookingsize=";
   oss_opaque += static_cast<int>(mBookingSize);
 
-  if ((val = mOpenOpaque->Get("eos.iotype"))) {
+  if (!(val = mCapOpaque->Get("mgm.iotype"))) {
+    // provided by a client
+    if ((val = mOpenOpaque->Get("eos.iotype"))) {
+      oss_opaque += "&mgm.ioflag=";
+      oss_opaque += val;
+
+      if (std::string(val) == "csync") {
+        // cannot be done in the OSS
+        mSyncOnClose = true;
+      }
+    }
+  } else {
+    // forced by the MGM configuration
     oss_opaque += "&mgm.ioflag=";
     oss_opaque += val;
+
+    if (std::string(val) == "csync") {
+      // cannot be done in the OSS
+      mSyncOnClose = true;
+    }
   }
 
   // Open layout implementation
@@ -724,6 +741,12 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
   }
 
   if (rc > 0) {
+    // if required, unobfuscate a buffer server side
+    if (mLayout->IsEntryServer() && hmac.key.length()) {
+      eos::common::SymKey::UnobfuscateBuffer(const_cast<char*>(buffer), rc,
+                                             fileOffset, hmac);
+    }
+
     rOffset = fileOffset + rc;
     totalBytes += rc;
   }
@@ -861,6 +884,12 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
 
     // store next write position
     mWritePosition = fileOffset + buffer_size;
+  }
+
+  // if required, obfuscate a buffer server side
+  if (mLayout->IsEntryServer() && hmac.key.length()) {
+    eos::common::SymKey::ObfuscateBuffer(const_cast<char*>(buffer),
+                                         const_cast<char*>(buffer), buffer_size, fileOffset, hmac);
   }
 
   int rc = mLayout->Write(fileOffset, const_cast<char*>(buffer), buffer_size);
@@ -1339,20 +1368,20 @@ XrdFstOfsFile::_close()
         minimumsizeerror = false;
       }
 
-      eos_debug("checksumerror = %i, targetsizerror= %i,"
-                "mMaxOffsetWritten = %zu, targetsize = %lli",
+      eos_debug("checksumerror=%i targetsizerror=%i "
+                "mMaxOffsetWritten=%zu targetsize=%lli",
                 checksumerror, targetsizeerror, mMaxOffsetWritten, mTargetSize);
 
       // ---- add error simulation for checksum errors on read
       if ((!mIsRW) && gOFS.mSimXsReadErr) {
         checksumerror = true;
-        eos_warning("msg=\"simulating checksum errors on read\"");
+        eos_warning("%s", "msg=\"simulating checksum errors on read\"");
       }
 
       // ---- add error simulation for checksum errors on write
       if (mIsRW && gOFS.mSimXsWriteErr) {
         checksumerror = true;
-        eos_warning("msg=\"simulating checksum errors on write\"");
+        eos_warning("%s", "msg=\"simulating checksum errors on write\"");
       }
 
       if (mIsRW && (checksumerror || targetsizeerror || minimumsizeerror)) {
@@ -1632,6 +1661,12 @@ XrdFstOfsFile::_close()
     int closerc = 0; // return of the close
     brc = rc; // return before the close
     rc |= ModifiedWhileInUse();
+
+    if (mSyncOnClose) {
+      eos_info("syncing layout for iotype=csync");
+      rc |= mLayout->Sync();
+    }
+
     closerc = mLayout->Close();
     rc |= closerc;
     closed = true;
@@ -2420,7 +2455,10 @@ XrdFstOfsFile::ProcessCapOpaque(bool& is_repair_read,
   }
 
   int envlen {0};
-  eos_info("capability=%s", mCapOpaque->Env(envlen));
+  XrdOucString maskOpaque = mCapOpaque->Env(envlen);
+  eos::common::StringConversion::MaskTag(maskOpaque, "mgm.obfuscate.key");
+  eos::common::StringConversion::MaskTag(maskOpaque, "mgm.encryption.key");
+  eos_info("capability=%s", maskOpaque.c_str());
   char* val = nullptr;
   const char* hexfid = 0;
   const char* slid = 0;
@@ -2554,6 +2592,20 @@ XrdFstOfsFile::ProcessCapOpaque(bool& is_repair_read,
     mAppRR = mSecMap["app"];
   }
 
+  std::string obfuscation_key;
+  std::string encryption_key;
+
+  // handle obfuscation keys
+  if ((val = mCapOpaque->Get("mgm.obfuscate.key"))) {
+    obfuscation_key = val;
+  }
+
+  // handl encryption keys
+  if ((val = mCapOpaque->Get("mgm.encryption.key"))) {
+    encryption_key = val;
+  }
+
+  hmac.set(obfuscation_key, encryption_key);
   SetLogId(logId, vid, mTident.c_str());
   return SFS_OK;
 }
@@ -2580,12 +2632,11 @@ XrdFstOfsFile::ProcessMixedOpaque()
     opaqueCheckSum = val;
   }
 
-  eos_static_info("mgm.checksum is %s", opaqueCheckSum.c_str());
-
   // Call the checksum factory function with the selected layout
   if (opaqueCheckSum != "ignore") {
     mCheckSum = eos::fst::ChecksumPlugins::GetChecksumObject(mLid);
-    eos_debug("checksum requested %d %u", mCheckSum.get(), mLid);
+    eos_debug("msg=\"checksum requested\" xs_ptr=%p lid=%u mgm.checksum=\"%s\"",
+              mCheckSum.get(), mLid, opaqueCheckSum.c_str());
   }
 
   // Handle file system id and local prefix - If we open a replica we have to

@@ -35,6 +35,8 @@
 #include "Xrd/XrdScheduler.hh"
 #include <random>
 #include <cmath>
+#include "mgm/groupbalancer/BalancerEngineFactory.hh"
+#include "mgm/groupbalancer/BalancerEngineUtils.hh"
 
 extern XrdSysError gMgmOfsEroute;
 extern XrdOucTrace gMgmOfsTrace;
@@ -43,31 +45,56 @@ extern XrdOucTrace gMgmOfsTrace;
 
 EOSMGMNAMESPACE_BEGIN
 
-//------------------------------------------------------------------------------
-// GroupSize constructor (capacity must be > 0)
-//------------------------------------------------------------------------------
-GroupSize::GroupSize(uint64_t usedBytes, uint64_t capacity)
-  : mSize(usedBytes), mCapacity(capacity)
-{
-  assert(capacity > 0);
-}
+using group_balancer::BalancerEngineT;
+using group_balancer::group_size_map;
+using group_balancer::IBalancerInfoFetcher;
 
-//------------------------------------------------------------------------------
-// Subtracts the given size from this group and adds it to the given toGroup
-//------------------------------------------------------------------------------
-void
-GroupSize::swapFile(GroupSize* toGroup, uint64_t size)
+class eosBalancerInfoFetcher final: public IBalancerInfoFetcher
 {
-  toGroup->mSize += size;
-  mSize -= size;
+  std::string spaceName;
+public:
+  eosBalancerInfoFetcher(const std::string& _spaceName):
+    spaceName(_spaceName) {}
+  group_size_map fetch() override;
+};
+
+group_size_map eosBalancerInfoFetcher::fetch()
+{
+  group_size_map mGroupSizes;
+  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+
+  if (FsView::gFsView.mSpaceGroupView.count(spaceName) == 0) {
+    eos_static_err("No such space %s", spaceName.c_str());
+    return mGroupSizes;
+  }
+
+  auto set_fsgrp = FsView::gFsView.mSpaceGroupView[spaceName];
+
+  for (auto it = set_fsgrp.cbegin(); it != set_fsgrp.cend(); it++) {
+    if ((*it)->GetConfigMember("status") != "on") {
+      continue;
+    }
+
+    uint64_t size = (*it)->AverageDouble("stat.statfs.usedbytes", false);
+    uint64_t capacity = (*it)->AverageDouble("stat.statfs.capacity", false);
+
+    if (capacity == 0) {
+      continue;
+    }
+
+    mGroupSizes.emplace((*it)->mName, GroupSize(size, capacity));
+  }
+
+  return mGroupSizes;
 }
 
 //-------------------------------------------------------------------------------
 // GroupBalancer constructor
 //-------------------------------------------------------------------------------
 GroupBalancer::GroupBalancer(const char* spacename)
-  : mSpaceName(spacename), mThreshold(.5), mAvgUsedSize(0), mLastCheck(0)
+  : mSpaceName(spacename), mLastCheck(0)
 {
+  mEngine.reset(group_balancer::make_balancer_engine(BalancerEngineT::stddev));
   mThread.reset(&GroupBalancer::GroupBalance, this);
 }
 
@@ -86,153 +113,7 @@ GroupBalancer::Stop()
 GroupBalancer::~GroupBalancer()
 {
   Stop();
-  clearCachedSizes();
-}
-
-//------------------------------------------------------------------------------
-// Gets a random int between 0 and a given maximum
-//------------------------------------------------------------------------------
-int
-GroupBalancer::getRandom(int max)
-{
-  return (int) round(max * random() / (double) RAND_MAX);
-}
-
-//------------------------------------------------------------------------------
-// Recalculates the sizes average from the mGroupSizes
-//------------------------------------------------------------------------------
-void
-GroupBalancer::recalculateAvg()
-{
-  mAvgUsedSize = 0;
-
-  for (auto size_it = mGroupSizes.cbegin(); size_it != mGroupSizes.cend();
-       ++size_it) {
-    mAvgUsedSize += (*size_it).second->filled();
-  }
-
-  mAvgUsedSize /= (double) mGroupSizes.size();
-  eos_static_debug("New average calculated: %.02f %%", mAvgUsedSize * 100.0);
-}
-
-//------------------------------------------------------------------------------
-// Deletes all the GrouSize objects stored in mGroupSizes and empties it
-//------------------------------------------------------------------------------
-void
-GroupBalancer::clearCachedSizes()
-{
-  for (auto it = mGroupSizes.begin(); it != mGroupSizes.end(); ++it) {
-    delete(*it).second;
-  }
-
-  mGroupSizes.clear();
-  mGroupsOverAvg.clear();
-  mGroupsUnderAvg.clear();
-}
-
-//------------------------------------------------------------------------------
-// Places group in mGroupsOverAvg or mGroupsUnderAvg in case they're greater
-// than or less than the current mAvgUsedSize, respectively.
-//------------------------------------------------------------------------------
-void
-GroupBalancer::updateGroupAvgCache(FsGroup* group)
-
-{
-  if (mGroupSizes.count(group->mName) == 0) {
-    return;
-  }
-
-  const std::string& name = group->mName;
-  GroupSize* groupSize = mGroupSizes[name];
-  double diffWithAvg = ((double) groupSize->filled()
-                        - ((double) mAvgUsedSize));
-
-  if (mGroupsOverAvg.count(name)) {
-    mGroupsOverAvg.erase(name);
-  } else if (mGroupsUnderAvg.count(name)) {
-    mGroupsUnderAvg.erase(name);
-  }
-
-  eos_static_debug("diff=%.02f threshold=%.02f", diffWithAvg, mThreshold);
-
-  // Group is mThreshold over or under the average used size
-  if (abs(diffWithAvg) > mThreshold) {
-    if (diffWithAvg > 0) {
-      mGroupsOverAvg[name] = group;
-    } else {
-      mGroupsUnderAvg[name] = group;
-    }
-  }
-}
-
-//------------------------------------------------------------------------------
-// Fills mGroupsOverAvg and mGroupsUnderAvg with the objects in mGroupSizes,
-// in case they're greater than or less than the current mAvgUsedSize,
-// respectively
-//------------------------------------------------------------------------------
-void
-GroupBalancer::fillGroupsByAvg()
-
-{
-  mGroupsOverAvg.clear();
-  mGroupsUnderAvg.clear();
-
-  if (mGroupSizes.size() == 0) {
-    return;
-  }
-
-  for (auto size_it = mGroupSizes.cbegin(); size_it != mGroupSizes.cend();
-       ++size_it) {
-    const std::string& name = (*size_it).first;
-    FsGroup* group = FsView::gFsView.mGroupView[name];
-    updateGroupAvgCache(group);
-  }
-}
-
-//------------------------------------------------------------------------------
-// Fills mGroupSizes, calculates the mAvgUsedSize and fills mGroupsUnderAvg and
-// mGroupsOverAvg
-//------------------------------------------------------------------------------
-void
-GroupBalancer::populateGroupsInfo()
-{
-  const char* spaceName = mSpaceName.c_str();
-  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-  mAvgUsedSize = 0;
-  clearCachedSizes();
-
-  if (FsView::gFsView.mSpaceGroupView.count(spaceName) == 0) {
-    eos_static_err("No such space %s", spaceName);
-    return;
-  }
-
-  auto set_fsgrp = FsView::gFsView.mSpaceGroupView[spaceName];
-
-  for (auto it = set_fsgrp.cbegin(); it != set_fsgrp.cend(); it++) {
-    if ((*it)->GetConfigMember("status") != "on") {
-      continue;
-    }
-
-    uint64_t size = (*it)->AverageDouble("stat.statfs.usedbytes", false);
-    uint64_t capacity = (*it)->AverageDouble("stat.statfs.capacity", false);
-
-    if (capacity == 0) {
-      continue;
-    }
-
-    mGroupSizes[(*it)->mName] = new GroupSize(size, capacity);
-    mAvgUsedSize += mGroupSizes[(*it)->mName]->filled();
-  }
-
-  if (mGroupSizes.size() == 0) {
-    mAvgUsedSize = 0;
-    eos_static_debug("No groups to be balanced!");
-    return;
-  }
-
-  mAvgUsedSize /= ((double) mGroupSizes.size());
-  eos_static_debug("New average calculated: %.02f %%", mAvgUsedSize * 100.0);
-  fillGroupsByAvg();
+  mEngine->clear();
 }
 
 //------------------------------------------------------------------------------
@@ -318,14 +199,17 @@ GroupBalancer::UpdateTransferList()
   eos_static_info("scheduledtransfers=%d", mTransfers.size());
 }
 
+
 //------------------------------------------------------------------------------
 // Creates the conversion file in proc for the file ID, from the given
 // sourceGroup, to the targetGroup (and updates the cache structures)
 //------------------------------------------------------------------------------
 void
-GroupBalancer::scheduleTransfer(eos::common::FileId::fileid_t fid,
+GroupBalancer::scheduleTransfer(const FileInfo& file_info,
                                 FsGroup* sourceGroup, FsGroup* targetGroup)
 {
+  auto mGroupSizes = mEngine->get_group_sizes();
+
   if ((mGroupSizes.count(sourceGroup->mName) == 0) ||
       (mGroupSizes.count(targetGroup->mName) == 0)) {
     eos_static_err("msg=\"no src/trg group in map\" src_group=%s trg_group=%s",
@@ -333,22 +217,16 @@ GroupBalancer::scheduleTransfer(eos::common::FileId::fileid_t fid,
     return;
   }
 
-  eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
-  XrdOucErrInfo mError;
-  uint64_t size = -1;
-  std::string fileName = getFileProcTransferNameAndSize(fid, targetGroup, &size);
-
-  if (fileName == "") {
-    return;
-  }
-
   // Use new converter if available
   if (gOFS->mConverterDriver) {
     // Push conversion job to QuarkDB
-    std::string conv_tag = fileName;
+    // Since the proc file name is generated by
+    // getFileProcTransferNameAndSize it doesn't contain (!) so we can append without checking
+    std::string conv_tag = file_info.filename;
+    conv_tag += "^eos/groupbalancer^";
     conv_tag.erase(0, gOFS->MgmProcConversionPath.length() + 1);
 
-    if (gOFS->mConverterDriver->ScheduleJob(fid, conv_tag)) {
+    if (gOFS->mConverterDriver->ScheduleJob(file_info.fid, conv_tag)) {
       eos_static_info("msg=\"grp_balance scheduled job\" file=\"%s\" "
                       "src_grp=\"%s\" dst_grp=\"%s\"", conv_tag.c_str(),
                       sourceGroup->mName.c_str(), targetGroup->mName.c_str());
@@ -359,22 +237,21 @@ GroupBalancer::scheduleTransfer(eos::common::FileId::fileid_t fid,
                      targetGroup->mName.c_str());
     }
   } else { // use old converter
-    if (!gOFS->_touch(fileName.c_str(), mError, rootvid, 0)) {
+    eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
+    XrdOucErrInfo mError;
+
+    if (!gOFS->_touch(file_info.filename.c_str(), mError, rootvid, 0)) {
       eos_static_info("scheduledfile=%s src_group=%s trg_group=%s",
-                      fileName.c_str(), sourceGroup->mName.c_str(),
+                      file_info.filename.c_str(), sourceGroup->mName.c_str(),
                       targetGroup->mName.c_str());
     } else {
       eos_static_err("msg=\"failed to schedule transfer\" schedulingfile=\"%s\"",
-                     fileName.c_str());
+                     file_info.filename.c_str());
       return;
     }
   }
 
-  mTransfers[fid] = fileName.c_str();
-  mGroupSizes[sourceGroup->mName]->swapFile(mGroupSizes[targetGroup->mName],
-      size);
-  updateGroupAvgCache(sourceGroup);
-  updateGroupAvgCache(targetGroup);
+  mTransfers[file_info.fid] = file_info.filename;
 }
 
 //------------------------------------------------------------------------------
@@ -401,7 +278,7 @@ GroupBalancer::chooseFidFromGroup(FsGroup* group)
 
   while (validFsIndexes.size() > 0) {
     fs_it = group->begin();
-    rndIndex = getRandom(validFsIndexes.size() - 1);
+    rndIndex = group_balancer::getRandom(validFsIndexes.size() - 1);
     std::advance(fs_it, validFsIndexes[rndIndex]);
     fsid = *fs_it;
     // Accept only active file systems
@@ -421,7 +298,7 @@ GroupBalancer::chooseFidFromGroup(FsGroup* group)
 
   // Check if we have any files to transfer
   if (!found) {
-    return -1;
+    return {};
   }
 
   int attempts = 10;
@@ -435,20 +312,47 @@ GroupBalancer::chooseFidFromGroup(FsGroup* group)
     }
   }
 
-  return -1;
+  return {};
+}
+
+
+GroupBalancer::FileInfo
+GroupBalancer::chooseFileFromGroup(FsGroup* group, int attempts)
+{
+  uint64_t filesize;
+
+  while (attempts-- > 0) {
+    auto fid = chooseFidFromGroup(group);
+
+    if (!fid) {
+      continue;
+    }
+
+    auto filename = getFileProcTransferNameAndSize(fid, group, &filesize);
+
+    if (filename.empty() ||
+        (cfg.mMinFileSize > filesize) ||
+        (cfg.mMaxFileSize < filesize)) {
+      continue;
+    }
+
+    // We've a hit!
+    return {fid, std::move(filename), filesize};
+  }
+
+  return {};
 }
 
 //------------------------------------------------------------------------------
 // Print size
 //------------------------------------------------------------------------------
 static void
-printSizes(const std::map<std::string, GroupSize*>* sizes)
+printSizes(const group_size_map& group_sizes)
 {
-  std::map<std::string, GroupSize*>::const_iterator it;
-
-  for (it = sizes->cbegin(); it != sizes->cend(); it++)
-    eos_static_debug("group=%s average=%.02f", (*it).first.c_str(),
-                     (double)(*it).second->filled() * 100.0);
+  for (const auto& it : group_sizes)
+    eos_static_debug("group=%s average=%.02f",
+                     it.first.c_str(),
+                     (double)it.second.filled() * 100.0);
 }
 
 //------------------------------------------------------------------------------
@@ -459,44 +363,30 @@ void
 GroupBalancer::prepareTransfer()
 {
   FsGroup* fromGroup, *toGroup;
-  std::map<std::string, FsGroup*>::iterator over_it, under_it;
-  eos::mgm::BaseView::const_iterator fsid_it;
+  auto&& [over_it, under_it] = mEngine->pickGroupsforTransfer();
 
-  if (mGroupsUnderAvg.size() == 0 || mGroupsOverAvg.size() == 0) {
-    if (mGroupsOverAvg.size() == 0) {
-      eos_static_debug("No groups over the average!");
-    }
-
-    if (mGroupsUnderAvg.size() == 0) {
-      eos_static_debug("No groups under the average!");
-    }
-
-    recalculateAvg();
+  if (over_it.empty() || under_it.empty()) {
+    eos_static_info("Engine gave us empty groups skipping! engine_status: %s",
+                    mEngine->get_status_str(false, true).c_str());
     return;
   }
 
-  over_it = mGroupsOverAvg.begin();
-  under_it = mGroupsUnderAvg.begin();
-  int rndIndex = getRandom(mGroupsOverAvg.size() - 1);
-  std::advance(over_it, rndIndex);
-  rndIndex = getRandom(mGroupsUnderAvg.size() - 1);
-  std::advance(under_it, rndIndex);
-  fromGroup = (*over_it).second;
-  toGroup = (*under_it).second;
+  fromGroup = FsView::gFsView.mGroupView[over_it];
+  toGroup = FsView::gFsView.mGroupView[under_it];
 
   if (fromGroup->size() == 0) {
     return;
   }
 
-  eos::common::FileId::fileid_t fid = chooseFidFromGroup(fromGroup);
+  auto file_info = chooseFileFromGroup(fromGroup, cfg.file_attempts);
 
-  if ((int) fid == -1) {
+  if (!file_info) {
     eos_static_info("Couldn't choose any FID to schedule: failedgroup=%s",
                     fromGroup->mName.c_str());
     return;
   }
 
-  scheduleTransfer(fid, fromGroup, toGroup);
+  scheduleTransfer(file_info, fromGroup, toGroup);
 }
 
 //------------------------------------------------------------------------------
@@ -529,9 +419,64 @@ GroupBalancer::prepareTransfers(int nrTransfers)
   }
 
   if (allowedTransfers > 0) {
-    printSizes(&mGroupSizes);
+    printSizes(mEngine->get_group_sizes());
   }
 }
+
+std::string
+GroupBalancer::Status(bool detail, bool monitoring) const
+{
+  return mEngine->get_status_str(detail, monitoring);
+}
+
+bool
+GroupBalancer::is_valid_engine(std::string_view engine_name)
+{
+  return engine_name == "std" || engine_name == "minmax";
+}
+
+bool
+GroupBalancer::Configure(FsSpace* const space, GroupBalancer::Config& cfg)
+{
+  cfg.is_enabled = space->GetConfigMember("groupbalancer") == "on";
+  cfg.is_conv_enabled = space->GetConfigMember("converter") == "on";
+  cfg.num_tx = atoi(space->GetConfigMember("groupbalancer.ntx").c_str());
+  cfg.mMinFileSize = common::StringConversion::GetSizeFromString(
+                       space->GetConfigMember("groupbalancer.min_file_size"));
+  cfg.mMaxFileSize = common::StringConversion::GetSizeFromString(
+                       space->GetConfigMember("groupbalancer.max_file_size"));
+  cfg.engine_type = group_balancer::get_engine_type(
+                      space->GetConfigMember("groupbalancer.engine"));
+  cfg.file_attempts = atoi(
+                        space->GetConfigMember("groupbalancer.file_attempts").c_str());
+  auto min_threshold_str = space->GetConfigMember("groupbalancer.min_threshold");
+  auto max_threshold_str = space->GetConfigMember("groupbalancer.max_threshold");
+
+  if (!group_balancer::is_valid_threshold(min_threshold_str, max_threshold_str)) {
+    if (cfg.engine_type == BalancerEngineT::minmax) {
+      eos_static_err("%s", "msg=Invalid min/max balancer threshold configuration");
+      return false;
+    }
+
+    // This is a temporary stop gap until we force min/max threshold to be set
+    // and remove this param. For std. balancer in case there isn't an explicit
+    // min/max, let's set to configured threshold
+    auto threshold_str = space->GetConfigMember("groupbalancer.threshold");
+
+    if (!group_balancer::is_valid_threshold(threshold_str)) {
+      eos_static_err("%s", "msg=Invalid std balancer threshold configuration");
+      return false;
+    }
+
+    min_threshold_str = threshold_str;
+    max_threshold_str = threshold_str;
+  }
+
+  mEngineConf.insert_or_assign("min_threshold", std::move(min_threshold_str));
+  mEngineConf.insert_or_assign("max_threshold", std::move(max_threshold_str));
+  return true;
+}
+
 
 //------------------------------------------------------------------------------
 // Eternal loop trying to run conversion jobs
@@ -539,11 +484,12 @@ GroupBalancer::prepareTransfers(int nrTransfers)
 void
 GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
 {
-  int num_tx = 0;
-  bool is_enabled = true;
   uint64_t timeout_ns = 100 * 1e6; // 100 ms
   gOFS->WaitUntilNamespaceIsBooted();
   eos_static_info("%s", "msg=\"starting group balancer thread\"");
+  eosBalancerInfoFetcher fetcher(mSpaceName);
+  group_balancer::BalancerEngineT prev_engine_type {BalancerEngineT::stddev};
+  bool engine_reconfigured = false;
 
   // Loop forever until cancelled
   while (!assistant.terminationRequested()) {
@@ -572,41 +518,51 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
     // Update tracker for scheduled fid balance jobs
     gOFS->mFidTracker.DoCleanup(TrackerType::Balance);
     FsSpace* space = FsView::gFsView.mSpaceView[mSpaceName.c_str()];
-    is_enabled = space->GetConfigMember("groupbalancer") == "on";
-    num_tx = atoi(space->GetConfigMember("groupbalancer.ntx").c_str());
-    mThreshold = atof(space->GetConfigMember("groupbalancer.threshold").c_str()) /
-                 100.0;
 
-    if (!is_enabled) {
-      FsView::gFsView.ViewMutex.UnLockRead();
-      eos_static_debug("msg=\"group balancer disabled\" space=\"%s\"",
-                       mSpaceName.c_str());
+    if (!GroupBalancer::Configure(space, cfg)) {
+      eos_static_info("msg=\"group balancer configuration invalid! Waiting for 10s\"");
+      assistant.wait_for(std::chrono::seconds(10));
       continue;
     }
 
-    if (space->GetConfigMember("converter") != "on") {
+    if (!cfg.is_enabled || !cfg.is_conv_enabled) {
       FsView::gFsView.ViewMutex.UnLockRead();
-      eos_static_debug("msg=\"group balancer needs the converter to be enabled\""
-                       "space=\"%s\"", mSpaceName.c_str());
+      eos_static_info("msg=\"group balancer or converter not enabled\" space=\"%s\""
+                      " balancer status=%d converter status=%d",
+                      mSpaceName.c_str(), cfg.is_enabled, cfg.is_conv_enabled);
       continue;
     }
 
     FsView::gFsView.ViewMutex.UnLockRead();
-    eos_static_info("msg=\"group balancer enabled\" ntx=%d ", num_tx);
+
+    if (prev_engine_type != cfg.engine_type) {
+      mEngine.reset(group_balancer::make_balancer_engine(cfg.engine_type));
+      engine_reconfigured = true;
+      prev_engine_type = cfg.engine_type;
+    }
+
+    mEngine->configure(mEngineConf);
     UpdateTransferList();
 
-    if ((int) mTransfers.size() >= num_tx) {
+    if ((int) mTransfers.size() >= cfg.num_tx) {
       continue;
     }
 
-    if (cacheExpired()) {
-      populateGroupsInfo();
-      printSizes(&mGroupSizes);
+    eos_static_debug("msg=\"group balancer enabled\" ntx=%d ", cfg.num_tx);
+
+    if (cacheExpired() || engine_reconfigured) {
+      mEngine->populateGroupsInfo(fetcher.fetch());
+      printSizes(mEngine->get_group_sizes());
+
+      if (engine_reconfigured) {
+        eos_static_info("msg=\"group balancer engine reconfigured\"");
+        engine_reconfigured = false;
+      }
     } else {
-      recalculateAvg();
+      mEngine->recalculate();
     }
 
-    prepareTransfers(num_tx);
+    prepareTransfers(cfg.num_tx);
   }
 }
 

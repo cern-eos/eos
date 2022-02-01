@@ -38,7 +38,7 @@ void NamespaceMap(std::string& path, const char* ininfo,
   if (ininfo && strstr(ininfo, "eos.encodepath")) {
     store_path = eos::common::StringConversion::curl_unescaped(path).c_str();
   } else {
-    while (store_path.replace("#AND#", "&")) {}
+    eos::common::StringConversion::UnsealXrdPath(store_path);
   }
 
   if (vid.token) {

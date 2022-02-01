@@ -29,6 +29,7 @@
 #include "fst/utils/TpcInfo.hh"
 #include "common/Fmd.hh"
 #include "common/FileId.hh"
+#include "common/SymKeys.hh"
 #include "XrdVersion.hh"
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsTPCInfo.hh"
@@ -223,6 +224,9 @@ private:
 #ifdef IN_TEST_HARNESS
 public:
 #endif
+
+  eos::common::SymKey::hmac_t hmac;
+
   std::unique_ptr<XrdOucEnv> mOpenOpaque; ///< Open opaque info (encrypted)
   std::unique_ptr<XrdOucEnv> mCapOpaque; ///< Capability opaque info (decrypted)
   std::string mFstPath; ///< Physical path on the FST
@@ -238,7 +242,7 @@ public:
   XrdOucString mRedirectManager; ///< Manager host where we bounce back
   bool mTapeEnabled; ///< True if tape support is enabled
   XrdOucString mSecString; ///< string containing security summary
-  std::map<std::string,std::string> mSecMap; ///< map of all sec keys
+  std::map<std::string, std::string> mSecMap; ///< map of all sec keys
   std::string mEtag; ///< Current and new ETag (recomputed in close)
   unsigned long long mFileId; //! file id
   unsigned long mFsId; //! file system id
@@ -267,6 +271,7 @@ public:
   bool mIsOCchunk; //! indicator this is an OC chunk upload
   int writeErrorFlag; //! uses kOFSxx enums to specify an error condition
   bool mEventOnClose; ///< Indicator to send a specified event to MGM on close
+  bool mSyncOnClose; ///< Indicator to run a fsync on close
   //! Indicates the workflow to be triggered by an event
   XrdOucString mEventWorkflow;
   bool mSyncEventOnClose; //! Indicator to send a specified event to the mgm on close

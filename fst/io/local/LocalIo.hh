@@ -66,6 +66,20 @@ public:
                uint16_t timeout = 0);
 
   //----------------------------------------------------------------------------
+  //! Open file asynchronously
+  //!
+  //! @param flags open flags
+  //! @param mode open mode
+  //! @param opaque opaque info to be appended to the request
+  //! @param timeout operation timeout
+  //!
+  //! @return future holding the status response
+  //--------------------------------------------------------------------------
+  std::future<XrdCl::XRootDStatus>
+  fileOpenAsync(XrdSfsFileOpenMode flags, mode_t mode = 0,
+                const std::string& opaque = "", uint16_t timeout = 0) override;
+
+  //----------------------------------------------------------------------------
   //! Read from file - sync
   //!
   //! @param offset offset in file
@@ -117,8 +131,7 @@ public:
   //!
   //! @return number of bytes read of -1 if error
   //----------------------------------------------------------------------------
-  virtual int64_t fileReadV(XrdCl::ChunkList& chunkList, uint16_t timeout = 0);
-
+  int64_t fileReadV(XrdCl::ChunkList& chunkList, uint16_t timeout = 0);
 
   //------------------------------------------------------------------------------
   //! Vector read - async
@@ -129,9 +142,7 @@ public:
   //! @return number of bytes read of -1 if error; this actually calls the
   //!         ReadV sync method
   //------------------------------------------------------------------------------
-  virtual int64_t fileReadVAsync(XrdCl::ChunkList& chunkList,
-                                 uint16_t timeout = 0);
-
+  int64_t fileReadVAsync(XrdCl::ChunkList& chunkList, uint16_t timeout = 0);
 
   //----------------------------------------------------------------------------
   //! Write to file - sync

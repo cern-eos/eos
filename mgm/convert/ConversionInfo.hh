@@ -43,7 +43,8 @@ struct ConversionInfo {
                  const eos::common::LayoutId::layoutid_t lid,
                  const eos::common::GroupLocator& location,
                  const std::string& plct_policy,
-                 const bool update_ctime);
+                 const bool update_ctime,
+                 const std::string& app_tag);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -62,12 +63,13 @@ struct ConversionInfo {
   //! Parse a conversion string representation into a conversion info object.
   //!
   //! A conversion string has the following format:
-  //! <fid(016hex)>:<space[.group]>#<layoutid(08hex)>[~<placement_policy>][!]
+  //! <fid(016hex)>:<space[.group]>#<layoutid(08hex)>[^app_tag^][~<placement_policy>][!]
+  //!
   //!
   //! @param sconversion the conversion string representation
   //! @param conversion the conversion info object to fill
   //!
-  //! @return true if parsing succeeds, false otherwise
+  //! @return a shared_ptr holding ConversionInfo on success or nullptr
   //----------------------------------------------------------------------------
   static std::shared_ptr<ConversionInfo> parseConversionString(
     std::string sconversion);
@@ -77,7 +79,7 @@ struct ConversionInfo {
   const eos::common::GroupLocator mLocation; ///< Target space/group placement
   const std::string mPlctPolicy; ///< Placement policy
   const bool mUpdateCtime; ///< Update ctime of converted file
-
+  const std::string mAppTag; ///< application tag of submitting application
 private:
   std::string mConversionString; ///< Conversion string representation
 };

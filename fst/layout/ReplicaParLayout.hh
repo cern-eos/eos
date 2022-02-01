@@ -57,7 +57,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~ReplicaParLayout();
+  virtual ~ReplicaParLayout() = default;
 
   //--------------------------------------------------------------------------
   // Redirect to new target
@@ -74,10 +74,7 @@ public:
   //!
   //! @return 0 on success, -1 otherwise and error code is set
   //----------------------------------------------------------------------------
-  virtual int Open(
-    XrdSfsFileOpenMode flags,
-    mode_t mode,
-    const char* opaque);
+  virtual int Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque);
 
   //----------------------------------------------------------------------------
   //! Read from file
@@ -191,11 +188,10 @@ private:
   ///! Max offset for async writes before trying to collect some responses
   static const uint64_t sMaxOffsetWrAsync {5 * 1024 * 1024 * 1024ull};
   int mNumReplicas; ///< number of replicas for current file
-  bool mIoLocal; ///< mark if we are to do local IO
   std::atomic<bool> mHasWriteErr;
   std::atomic<bool> mDoAsyncWrite;
   ///! Replica file object, index 0 is the local file
-  std::vector<FileIo*> mReplicaFile;
+  std::vector<std::unique_ptr<FileIo>> mReplicaFile;
   ///! URLs for all the replica files
   std::vector<std::string> mReplicaUrl;
   ///! Vector of reponse collector for all replicas

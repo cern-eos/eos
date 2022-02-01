@@ -16,6 +16,88 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.74 Citrine``
+===================
+
+2022-01-27
+
+Bug
+---
+
+* [EOS-5062] - Node config command should take fs status into consideration
+* [EOS-5079] - Fix for Groupbalancer size calculation post transfer
+* [EOS-5081] - Align buffers used during various layout rd/wr ops
+
+New Feature
+-------------
+
+* [EOS-5067] - Groupbalancer now introduces multiple engines & supports min/max
+  file sizes. Check the GroupBalancer docs for details.
+* [EOS-5085] - Allow rate limits of zero
+
+Improvement
+-----------
+
+* [EOS-3275] - Port iostat information into quarkdb
+* [EOS-5049] - Handle draining for files with one replica on tape
+* [EOS-5051] - Benefit from parallelization in layout::open
+* [EOS-5076] - Extend iotype interfaces to be space/directory defined
+* [EOS-5080] - Support eos.app tag in the Converter interface
+* [EOS-5084] - Remove deprecated "exists" field in QUERY PREPARE response
+
+
+``v4.8.73 Citrine``
+===================
+
+2022-01-18
+
+Bug
+----
+
+* FST: Ensure buffers for write async requests are duplicated and kept until
+  requests are satisfied
+* FST: Fix starvation when deleting a TransferMultiplexer object
+* MGM: Fix crash when trying to convert files without replicas
+* MGM: Fix building of conversion id that was using hex representation for
+  the group indices.
+
+Improvements
+-------------
+
+* MGM: Prefetch the FileSystem contents outside the ns lock for Drop operations
+* FST: Use OS page size aligned buffers for the HeaderCRC objects
+
+
+``v4.8.72 Citrine``
+===================
+
+2022-01-17
+
+Bug
+----
+
+* [EOS-5069] - filesystem status in "rw + failed"
+* [EOS-5070] - Access::ThreadLimit creates re-entrant lock of the access mutex
+
+Improvement
+------------
+
+* [EOS-5065] - Add create-if-not-exists option in GRPC
+
+
+``v4.8.71 Citrine``
+===================
+
+2022-01-14
+
+Bug
+----
+
+* COMMON: Avoid segv due to mutex object set to nullptr in RWLock printout
+* [EOS-4850] - eosxd crash in destructor under metad::pmap::retrieveWithParentTS()
+* [EOS-5057] - Volume quota dispatched to FUSE clients mixes logical and physical bytes
+
+
 ``v4.8.70 Citrine``
 ===================
 

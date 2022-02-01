@@ -30,15 +30,17 @@ EOSMGMNAMESPACE_BEGIN
 
 struct QueryPrepareResponse {
   QueryPrepareResponse() :
-    is_exists(false), is_on_tape(false), is_online(false), is_requested(false), is_reqid_present(false) {}
+    is_exists(false), is_on_tape(false), is_online(false), is_requested(false),
+    is_reqid_present(false) {}
 
   QueryPrepareResponse(const std::string _path) :
-    path(_path), is_exists(false), is_on_tape(false), is_online(false), is_requested(false), is_reqid_present(false) {}
+    path(_path), is_exists(false), is_on_tape(false), is_online(false),
+    is_requested(false), is_reqid_present(false) {}
 
-  friend std::ostream& operator<<(std::ostream& json, QueryPrepareResponse &qpr) {
+  friend std::ostream& operator<<(std::ostream& json, QueryPrepareResponse& qpr)
+  {
     json << "{"
          << "\"path\":\""       << qpr.path << "\","
-         << "\"exists\":"       << (qpr.is_exists        ? "true," : "false,") // This line is deprecated, will be removed when FTS is updated to use "path_exists"
          << "\"path_exists\":"  << (qpr.is_exists        ? "true," : "false,")
          << "\"on_tape\":"      << (qpr.is_on_tape       ? "true," : "false,")
          << "\"online\":"       << (qpr.is_online        ? "true," : "false,")

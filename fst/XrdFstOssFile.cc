@@ -114,16 +114,11 @@ XrdFstOssFile::Open(const char* path, int flags, mode_t mode, XrdOucEnv& env)
     } else {
       if (!strcmp(val, "sync")) {
         // data + meta data
-        flags |= O_DSYNC | O_SYNC;
+        flags |= O_SYNC;
       } else {
-        if (!strcmp(val, "msync")) {
-          // meta data
-          flags |= O_SYNC;
-        } else {
-          // data
-          if (!strcmp(val, "dsync")) {
-            flags |= O_DSYNC;
-          }
+        // data
+        if (!strcmp(val, "dsync")) {
+          flags |= O_DSYNC;
         }
       }
     }
@@ -583,7 +578,7 @@ XrdFstOssFile::Fstat(struct stat* statinfo)
 
 
 //------------------------------------------------------------------------------
-// Truncate the file
+// Fsync the file
 //------------------------------------------------------------------------------
 int
 XrdFstOssFile::Fsync()

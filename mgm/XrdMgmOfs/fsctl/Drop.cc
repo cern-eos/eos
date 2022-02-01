@@ -64,6 +64,8 @@ XrdMgmOfs::Drop(const char* path,
     std::shared_ptr<eos::IContainerMD> container;
     std::shared_ptr<eos::IFileMD> fmd;
     eos::IQuotaNode* ns_quota = nullptr;
+    eos::Prefetcher::prefetchFilesystemFileListAndWait(gOFS->eosView,
+        gOFS->eosFsView, fsid);
     eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
     eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex, __FUNCTION__,
         __LINE__, __FILE__);

@@ -52,7 +52,7 @@ XrdMgmOfs::Symlink(const char* path,
     if (env.Get("eos.encodepath")) {
       target = eos::common::StringConversion::curl_unescaped(starget).c_str();
     } else {
-      while (target.replace("#AND#", "&")) {}
+      eos::common::StringConversion::UnsealXrdPath(target);
     }
 
     if (symlink(path, target.c_str(), error, client, 0, 0)) {

@@ -136,36 +136,36 @@ com_space(char* arg1)
   }
 
   if (subcommand == "inspector") {
-    
     in = "mgm.cmd=space&mgm.subcmd=inspector&mgm.space=default&mgm.options=";
-
     ok = true;
 
     do {
       subtokenizer.GetLine();
       option = subtokenizer.GetToken();
-      if (!option.length())
-	break;
 
-      if ( (option == "--current") ||
-	   (option == "-c") ){
-	in += "c";
-      } else if ( (option == "--last") ||
-		  (option == "-l") ) {
-	in += "l";
+      if (!option.length()) {
+        break;
+      }
+
+      if ((option == "--current") ||
+          (option == "-c")) {
+        in += "c";
+      } else if ((option == "--last") ||
+                 (option == "-l")) {
+        in += "l";
       } else if (option == "-m") {
-	in += "m";
-      } else if ( option == "-p") {
-	in += "p";
-      } else if ( option == "-e") {
-	in += "e";
-      }	else {
-	ok = false;
-	break;
+        in += "m";
+      } else if (option == "-p") {
+        in += "p";
+      } else if (option == "-e") {
+        in += "e";
+      } else {
+        ok = false;
+        break;
       }
     } while (option.length());
   }
-  
+
   if (subcommand == "reset") {
     in = "mgm.cmd=space&mgm.subcmd=reset";
     XrdOucString spacename = subtokenizer.GetToken();
@@ -457,9 +457,41 @@ com_space(char* arg1)
     ok = true;
   }
 
-  if (subcommand == "config") {
+  if (subcommand == "groupbalancer") {
     XrdOucString spacename = subtokenizer.GetToken();
+    XrdOucString balancercmd = subtokenizer.GetToken();
+
+    // TODO when you add more balancer cmds use a set and
+    // check membership here instead
+    if ((!spacename.length() || balancercmd.length())) {
+      goto com_space_usage;
+    }
+
+    in = "mgm.cmd=space&mgm.subcmd=groupbalancer&mgm.space=";
+    in += spacename;
+
+    if (balancercmd == "status") {
+      in += "&mgm.space.groupbalancer.cmd=status";
+      in += "&mgm.space.groupbalancer.cmd.status.options=";
+      ok = true;
+
+      do {
+        option = subtokenizer.GetToken();
+
+        if (option == "--detail" || option == "-d") {
+          in += "d";
+        }
+
+        if (option == "-m") {
+          in += "m";
+        }
+      } while (option.length());
+    }
+  }
+
+  if (subcommand == "config") {
     XrdOucString keyval = subtokenizer.GetToken();
+    XrdOucString spacename = subtokenizer.GetToken();
 
     if ((!spacename.length()) || (!keyval.length())) {
       goto com_space_usage;
@@ -567,23 +599,16 @@ com_space_usage:
           "       space config <space-name> space.tracker=on|off                : enable/disable the space layout creation tracker [default=off]\n");
   fprintf(stdout,
           "       space config <space-name> space.inspector=on|off                : enable/disable the file inspector [default=off]\n");
-
   fprintf(stdout,
           "       space config <space-name> space.autorepair=on|off             : enable auto-repair of faulty replica's/files (the converter has to be enabled too)\n");
   fprintf(stdout,
           "                                                                       => size can be given also like 10T, 20G, 2P ... without space before the unit \n");
-  fprintf(stdout,
-          "       space config <space-name> space.geo.access.policy.write.exact=on|off   : if 'on' use exact matching geo replica (if available) , 'off' uses weighting [ for write case ]\n");
-  fprintf(stdout,
-          "       space config <space-name> space.geo.access.policy.read.exact=on|off    : if 'on' use exact matching geo replica (if available) , 'off' uses weighting [ for read case  ]\n");
   fprintf(stdout, "\n");
-  fprintf(stdout, 
-	  "       space config <space-name> space.policy.[layout|nstripes|checksum|blockchecksum|blocksize|remove]=<value>              : configure default file layout creation settings as a space policy - a value='remove' deletes the space policy\n\n");
-  
+  fprintf(stdout,
+          "       space config <space-name> space.policy.[layout|nstripes|checksum|blockchecksum|blocksize|iotype|remove]=<value>              : configure default file layout creation settings as a space policy - a value='remove' deletes the space policy\n\n");
   fprintf(stdout,
           "       space config <space-name> fs.<key>=<value>                    : configure file system parameters for each filesystem in this space (see help of 'fs config' for details)\n");
   fprintf(stdout, "\n");
-
   fprintf(stdout,
           "       space define <space-name> [<groupsize> [<groupmod>]]          : define how many filesystems can end up in one scheduling group <groupsize> [default=0]\n");
   fprintf(stdout, "\n");
@@ -592,20 +617,18 @@ com_space_usage:
   fprintf(stdout,
           "                                                                       => <groupmod> maximum number of groups in the space, which should be at least equal to the maximun number of filesystems per node\n");
   fprintf(stdout, "\n");
-  
   fprintf(stdout,
-	  "       space inspector [--current|-c] [--last|-l] [-m] [-p] [-e]     : show namespace inspector output\n");
-  fprintf(stdout, 
-	  "                                                                 -c  : show current scan\n");
+          "       space inspector [--current|-c] [--last|-l] [-m] [-p] [-e]     : show namespace inspector output\n");
   fprintf(stdout,
-	  "                                                                 -l  : show last complete scan\n");
-  fprintf(stdout, 
-	  "                                                                 -m  : print last scan in monitoring format\n");
+          "                                                                 -c  : show current scan\n");
   fprintf(stdout,
-	  "                                                                 -p  : combined with -c or -l lists errorneous files\n");
+          "                                                                 -l  : show last complete scan\n");
   fprintf(stdout,
-	  "                                                                 -e  : combined with -c or -l exports errorneous files on the MGM into /var/log/eos/mgm/FileInspector.<date>.list\n");
-
+          "                                                                 -m  : print last scan in monitoring format\n");
+  fprintf(stdout,
+          "                                                                 -p  : combined with -c or -l lists errorneous files\n");
+  fprintf(stdout,
+          "                                                                 -e  : combined with -c or -l exports errorneous files on the MGM into /var/log/eos/mgm/FileInspector.<date>.list\n");
   fprintf(stdout, "\n");
   fprintf(stdout,
           "       space node-set <space-name> <node.key> <file-name>            : store the contents of <file-name> into the node configuration variable <node.key> visibile to all FSTs\n");
@@ -657,6 +680,8 @@ com_space_usage:
   fprintf(stdout, "\n");
   fprintf(stdout,
           "       space quota <space-name> on|off                               : enable/disable quota\n");
+  fprintf(stdout,
+          "       space groupbalancer status <space-name> [--detail(-d)|-m]     : get the groupbalancer status for the space\n");
   global_retc = EINVAL;
   return (0);
 }

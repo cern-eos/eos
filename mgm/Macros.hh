@@ -247,7 +247,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
   if(inpath && ininfo && strstr(ininfo,"eos.encodepath")) {             \
     store_path = eos::common::StringConversion::curl_unescaped(inpath).c_str(); \
   } else {                                                              \
-    while(store_path.replace("#AND#","&")){}                            \
+    eos::common::StringConversion::UnsealXrdPath(store_path);           \
   }                                                                     \
   if (vid.token && vid.token->Valid()) {        \
     if (!strncmp(path,"/zteos64:",9)) {         \

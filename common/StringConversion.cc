@@ -1365,27 +1365,51 @@ StringConversion::EncodeInvalidUTF8(const string& key)
 }
 
 //------------------------------------------------------------------------------
-// Seal opaque xrootd info. I.e. replace any & with #AND#
+// Seal xrootd path i.e. replace any & with #AND#
 //------------------------------------------------------------------------------
 std::string
-StringConversion::SealXrdOpaque(const std::string& input)
+StringConversion::SealXrdPath(const std::string& input)
 {
-  std::string sealed {
-    input
-  };
+  std::string sealed(input);
   ReplaceStringInPlace(sealed, "&", "#AND#");
   return sealed;
 }
 
 //------------------------------------------------------------------------------
-// Unseal opaque xrootd info. I.e. replace any #AND# with &
+// Unseal xrootd path i.e. replace any #AND# with &
 //------------------------------------------------------------------------------
 std::string
-StringConversion::UnsealXrdOpaque(const std::string& input)
+StringConversion::UnsealXrdPath(const std::string& input)
 {
-  std::string unsealed {input};
+  std::string unsealed(input);
   ReplaceStringInPlace(unsealed, "#AND#", "&");
   return unsealed;
+}
+
+//------------------------------------------------------------------------------
+// Seal xrootd path in place i.e. replace any & with #AND#
+//------------------------------------------------------------------------------
+const char*
+StringConversion::SealXrdPath(XrdOucString& input)
+{
+  const std::string seal = "#AND#";
+
+  while (input.replace("&", seal.c_str())) {};
+
+  return input.c_str();
+}
+
+//------------------------------------------------------------------------------
+// Unseal xrootd path in place i.e. replace any #AND# with &
+//------------------------------------------------------------------------------
+const char*
+StringConversion::UnsealXrdPath(XrdOucString& input)
+{
+  const std::string seal = "#AND#";
+
+  while (input.replace(seal.c_str(), "&")) {};
+
+  return input.c_str();
 }
 
 EOSCOMMONNAMESPACE_END

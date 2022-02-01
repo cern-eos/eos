@@ -944,6 +944,33 @@ FsSpace::FsSpace(const char* name)
       SetConfigMember("groupbalancer.threshold", "5");
     }
 
+    // Set the groupbalancer min file size by default
+    if (GetConfigMember("groupbalancer.min_file_size").empty()) {
+      SetConfigMember("groupbalancer.min_file_size", "1G");
+    }
+
+    // Set the groupbalancer max file size by default
+    if (GetConfigMember("groupbalancer.max_file_size").empty()) {
+      SetConfigMember("groupbalancer.max_file_size", "16G");
+    }
+
+    if (GetConfigMember("groupbalancer.file_attempts").empty()) {
+      SetConfigMember("groupbalancer.file_attempts", "50");
+    }
+
+    // Set the default group balancer engine
+    if (GetConfigMember("groupbalancer.engine").empty()) {
+      SetConfigMember("groupbalancer.engine", "std");
+    }
+
+    if (GetConfigMember("groupbalancer.min_threshold").empty()) {
+      SetConfigMember("groupbalancer.min_threshold", "0");
+    }
+
+    if (GetConfigMember("groupbalancer.max_threshold").empty()) {
+      SetConfigMember("groupbalancer.max_threshold", "0");
+    }
+
     if (GetConfigMember("geobalancer").empty()) {
       SetConfigMember("geobalancer", "off");
     }
@@ -2407,6 +2434,24 @@ FsView::HeartBeatCheck(ThreadAssistant& assistant) noexcept
           }
         }
       }
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+// Re-apply drain status for file systems to re-trigger draining
+//------------------------------------------------------------------------------
+void
+FsView::ReapplyDrainStatus()
+{
+  eos::common::RWMutexReadLock lock(ViewMutex, __FUNCTION__, __LINE__, __FILE__);
+
+  for (auto it = mIdView.begin(); it != mIdView.end(); ++it) {
+    eos::common::ConfigStatus cs = it->second->GetConfigStatus();
+
+    if ((cs == eos::common::ConfigStatus::kDrain) ||
+        (cs == eos::common::ConfigStatus::kDrainDead)) {
+      it->second->SetConfigStatus(cs);
     }
   }
 }

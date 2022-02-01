@@ -62,22 +62,43 @@ LocalIo::fileOpen(XrdSfsFileOpenMode flags, mode_t mode,
                   const std::string& opaque, uint16_t timeout)
 {
   if (!mLogicalFile) {
-    eos_err("error= the logical file must exist already");
+    eos_err("%s", "msg=\"logical file must exist already\"");
     return SFS_ERROR;
   }
 
   errno = 0;
-  eos_info("flags=%x, path=%s", flags, mFilePath.c_str());
+  eos_info("flags=%x path=%s", flags, mFilePath.c_str());
   int retc = mLogicalFile->openofs(mFilePath.c_str(), flags, mode, mSecEntity,
                                    opaque.c_str());
 
   if (retc != SFS_OK) {
-    eos_err("error= openofs failed errno=%d retc=%d", errno, retc);
+    eos_err("msg=\"openofs failed\" errno=%d retc=%d", errno, retc);
   } else {
     mIsOpen = true;
   }
 
   return retc;
+}
+
+//------------------------------------------------------------------------------
+// Open file asynchronously
+//----------------------------------------------------------------------------
+std::future<XrdCl::XRootDStatus>
+LocalIo::fileOpenAsync(XrdSfsFileOpenMode flags, mode_t mode,
+                       const std::string& opaque, uint16_t timeout)
+{
+  std::promise<XrdCl::XRootDStatus> open_promise;
+  std::future<XrdCl::XRootDStatus> open_future = open_promise.get_future();
+
+  if (fileOpen(flags, mode, opaque, timeout) != SFS_OK) {
+    open_promise.set_value(XrdCl::XRootDStatus(XrdCl::stError,
+                           XrdCl::errUnknown,
+                           EIO, "failed open"));
+  } else {
+    open_promise.set_value(XrdCl::XRootDStatus(XrdCl::stOK, ""));
+  }
+
+  return open_future;
 }
 
 //------------------------------------------------------------------------------
@@ -222,7 +243,7 @@ LocalIo::fileTruncateAsync(XrdSfsFileOffset offset, uint16_t timeout)
 int
 LocalIo::fileFallocate(XrdSfsFileOffset length)
 {
-  eos_debug("fallocate with length = %lli", length);
+  eos_debug("msg=\"fallocate\" length=%lli", length);
   XrdOucErrInfo error;
 
   if (mLogicalFile->XrdOfsFile::fctl(SFS_FCTL_GETFD, 0, error)) {
@@ -257,7 +278,7 @@ int
 LocalIo::fileFdeallocate(XrdSfsFileOffset fromOffset,
                          XrdSfsFileOffset toOffset)
 {
-  eos_debug("fdeallocate from = %lli to = %lli", fromOffset, toOffset);
+  eos_debug("msg=\"fdeallocate\" from=%lli to=%lli", fromOffset, toOffset);
   XrdOucErrInfo error;
 
   if (mLogicalFile->XrdOfsFile::fctl(SFS_FCTL_GETFD, 0, error)) {

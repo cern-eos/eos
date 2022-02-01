@@ -313,8 +313,7 @@ ProcCommand::Node()
               if ((fs->GetConfigStatus(false) != eos::common::ConfigStatus::kEmpty)) {
                 stdErr = "error: unable to remove node '";
                 stdErr += nodename.c_str();
-                stdErr += "' - filesystems are not all in empty state - try "
-                          "to drain them or: node config <name> configstatus=empty\n";
+                stdErr += "' - filesystems are not all in empty state\n";
                 retc = EBUSY;
                 return SFS_OK;
               }
@@ -405,13 +404,6 @@ ProcCommand::Node()
                 if ((eos::common::FileSystem::GetConfigStatusFromString(
                        value.c_str()) != eos::common::ConfigStatus::kUnknown)) {
                   fs->SetString(key.c_str(), value.c_str());
-
-                  if (value == "off") {
-                    // We have to remove the errc here, otherwise we cannot terminate
-                    // drainjobs on file systems with errc set
-                    fs->SetString("errc", "0");
-                  }
-
                   FsView::gFsView.StoreFsConfig(fs);
                 } else {
                   stdErr += "error: not an allowed parameter <";

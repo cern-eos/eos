@@ -173,7 +173,7 @@ TransferJob::GetSourceUrl()
 
     if (sourceenv.length()) {
       mSourceUrl += "?";
-      XrdMqMessage::UnSeal(sourceenv, "_AND_");
+      eos::common::StringConversion::UnSeal(sourceenv, "_AND_");
       mSourceUrl += sourceenv.c_str();
     }
   }
@@ -202,7 +202,7 @@ TransferJob::GetTargetUrl()
 
     if (targetenv.length()) {
       mTargetUrl += "?";
-      XrdMqMessage::UnSeal(targetenv, "_AND_");
+      eos::common::StringConversion::UnSeal(targetenv, "_AND_");
       mTargetUrl += targetenv.c_str();
     }
   }

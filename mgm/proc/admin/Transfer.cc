@@ -37,8 +37,8 @@ ProcCommand::Transfer()
                          "";
   XrdOucString src = pOpaque->Get("mgm.txsrc") ? pOpaque->Get("mgm.txsrc") : "";
   XrdOucString dst = pOpaque->Get("mgm.txdst") ? pOpaque->Get("mgm.txdst") : "";
-  src = XrdMqMessage::UnSeal(src);
-  dst = XrdMqMessage::UnSeal(dst);
+  src = eos::common::StringConversion::UnSeal(src);
+  dst = eos::common::StringConversion::UnSeal(dst);
   XrdOucString rate = pOpaque->Get("mgm.txrate") ? pOpaque->Get("mgm.txrate") :
                       "";
   XrdOucString streams = pOpaque->Get("mgm.txstreams") ?

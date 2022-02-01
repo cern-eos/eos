@@ -44,7 +44,8 @@ class CredentialConfig
 public:
 
   CredentialConfig() : use_user_krb5cc(false), use_user_gsiproxy(false),
-    use_user_sss(false), use_user_oauth2(false), tryKrb5First(false), fallback2nobody(false),
+    use_user_sss(false), use_user_oauth2(false), tryKrb5First(false),
+    use_user_unix(false),
     fuse_shared(false),
     environ_deadlock_timeout(500), forknoexec_heuristic(true),
     ignore_containerization(false) { }
@@ -59,9 +60,8 @@ public:
   bool use_user_oauth2;
   //! Indicates if Krb5 should be tried before Gsi
   bool tryKrb5First;
-  //! Indicates if unix authentication (as nobody) should be used as a fallback
-  //! if strong authentication is configured and none is found
-  bool fallback2nobody;
+  //! Indicates if unix authentication is to be used for authentication for all but uid=0
+  bool use_user_unix;
   //! Indicates if this is a shared fuse mount
   bool fuse_shared;
   //! How long to wait before declaring a kernel deadlock when reading /proc/environ
@@ -85,26 +85,29 @@ public:
   // Constructor
   //----------------------------------------------------------------------------
   TrustedCredentials(const UserCredentials& uc_, struct timespec mtime_,
-    const std::string& intercepted) {
+                     const std::string& intercepted)
+  {
     initialize(uc_, mtime_, intercepted);
   }
 
   //----------------------------------------------------------------------------
   // Empty constructor.
   //----------------------------------------------------------------------------
-  TrustedCredentials() {
+  TrustedCredentials()
+  {
     clear();
   }
 
   //----------------------------------------------------------------------------
   // Destructor
   //----------------------------------------------------------------------------
-  ~TrustedCredentials() {
-    if(!interceptedPath.empty()) {
-      if(unlink(interceptedPath.c_str()) != 0) {
+  ~TrustedCredentials()
+  {
+    if (!interceptedPath.empty()) {
+      if (unlink(interceptedPath.c_str()) != 0) {
         int myerrno = errno;
         eos_static_crit("Unable to unlink intercepted-path: %s, errno: %d",
-          interceptedPath.c_str(), myerrno);
+                        interceptedPath.c_str(), myerrno);
       }
     }
   }
@@ -112,7 +115,8 @@ public:
   //----------------------------------------------------------------------------
   // Clear contents.
   //----------------------------------------------------------------------------
-  void clear() {
+  void clear()
+  {
     uc = UserCredentials::MakeNobody();
     initialized = false;
     invalidated = false;
@@ -124,8 +128,8 @@ public:
   // Re-initialize contents.
   //----------------------------------------------------------------------------
   void initialize(const UserCredentials& uc_, struct timespec mtime_,
-    const std::string& intercepted) {
-
+                  const std::string& intercepted)
+  {
     uc = uc_;
     initialized = true;
     invalidated = false;
@@ -133,9 +137,11 @@ public:
     interceptedPath = intercepted;
 
     if (uc.type == CredentialType::OAUTH2) {
-      eos::common::StringConversion::LoadFileIntoString(getFinalPath().c_str(), uc.endorsement);
+      eos::common::StringConversion::LoadFileIntoString(getFinalPath().c_str(),
+          uc.endorsement);
+
       if (!uc.endorsement.empty()) {
-	eos_static_warning("loaded OAUTH2 token file '%s'", getFinalPath().c_str());
+        eos_static_warning("loaded OAUTH2 token file '%s'", getFinalPath().c_str());
       }
     }
   }
@@ -143,8 +149,9 @@ public:
   //----------------------------------------------------------------------------
   // Get credential path, maybe intercepted.
   //----------------------------------------------------------------------------
-  std::string getFinalPath() const {
-    if(!interceptedPath.empty()) {
+  std::string getFinalPath() const
+  {
+    if (!interceptedPath.empty()) {
       return interceptedPath;
     }
 
@@ -154,7 +161,8 @@ public:
   //----------------------------------------------------------------------------
   // Get the key secret retrieved from the environment
   //----------------------------------------------------------------------------
-  std::string getKey() const {
+  std::string getKey() const
+  {
     return uc.secretkey;
   }
 
@@ -180,14 +188,14 @@ public:
       return;
     }
 
-    if ( (uc.type != CredentialType::OAUTH2) &&
-	 (uc.type != CredentialType::SSS) ) {
-      if(interceptedPath.empty()) {
-	paramsMap["xrdcl.secuid"] = std::to_string(uc.uid);
-	paramsMap["xrdcl.secgid"] = std::to_string(uc.gid);
+    if ((uc.type != CredentialType::OAUTH2) &&
+        (uc.type != CredentialType::SSS)) {
+      if (interceptedPath.empty()) {
+        paramsMap["xrdcl.secuid"] = std::to_string(uc.uid);
+        paramsMap["xrdcl.secgid"] = std::to_string(uc.gid);
       }
-
     }
+
     if (uc.type == CredentialType::KRB5) {
       paramsMap["xrd.wantprot"] = "krb5,unix";
       paramsMap["xrd.k5ccname"] = getFinalPath();
@@ -240,21 +248,24 @@ public:
   //----------------------------------------------------------------------------
   // Accessor for underlying UserCredentials
   //----------------------------------------------------------------------------
-  UserCredentials& getUC() {
+  UserCredentials& getUC()
+  {
     return uc;
   }
 
   //----------------------------------------------------------------------------
   // Const accessor for underlying UserCredentials
   //----------------------------------------------------------------------------
-  const UserCredentials& getUC() const {
+  const UserCredentials& getUC() const
+  {
     return uc;
   }
 
   //----------------------------------------------------------------------------
   // Accessor for intercepted path
   //----------------------------------------------------------------------------
-  std::string getIntercepted() const {
+  std::string getIntercepted() const
+  {
     return interceptedPath;
   }
 
@@ -273,7 +284,8 @@ public:
   //----------------------------------------------------------------------------
   // Describe object as string
   //----------------------------------------------------------------------------
-  std::string describe() const {
+  std::string describe() const
+  {
     std::stringstream ss;
     ss << uc.describe() << std::endl;
     ss << "mtime: " << mtime.tv_sec << "." << mtime.tv_nsec << std::endl;
@@ -296,7 +308,8 @@ class BoundIdentity
 {
 public:
 
-  BoundIdentity() {
+  BoundIdentity()
+  {
     creationTime = std::chrono::steady_clock::now();
   }
 
@@ -320,16 +333,18 @@ public:
     return &creds;
   }
 
-  std::chrono::seconds getAge() const {
+  std::chrono::seconds getAge() const
+  {
     return std::chrono::duration_cast<std::chrono::seconds>(
-      std::chrono::steady_clock::now() - creationTime
-    );
+             std::chrono::steady_clock::now() - creationTime
+           );
   }
 
   //----------------------------------------------------------------------------
   // Describe object as string
   //----------------------------------------------------------------------------
-  std::string describe() const {
+  std::string describe() const
+  {
     std::stringstream ss;
     ss << "Login identifier: " << login.describe() << std::endl;
     ss << creds.describe();

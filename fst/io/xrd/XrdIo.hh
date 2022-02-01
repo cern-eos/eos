@@ -29,6 +29,7 @@
 #include "fst/io/SimpleHandler.hh"
 #include "common/FileMap.hh"
 #include "common/XrdConnPool.hh"
+#include "common/BufferManager.hh"
 #include "XrdCl/XrdClFile.hh"
 #include <queue>
 
@@ -194,7 +195,7 @@ public:
   //! @return 0 if successful, -1 otherwise and error code is set
   //----------------------------------------------------------------------------
   int fileOpen(XrdSfsFileOpenMode flags, mode_t mode = 0,
-               const std::string& opaque = "", uint16_t timeout = 0);
+               const std::string& opaque = "", uint16_t timeout = 0) override;
 
   //----------------------------------------------------------------------------
   //! Open file - asynchronously. This call is to be used from one of the file
@@ -211,7 +212,21 @@ public:
   //----------------------------------------------------------------------------
   int fileOpenAsync(void* io_handler, XrdSfsFileOpenMode flags,
                     mode_t mode = 0, const std::string& opaque = "",
-                    uint16_t timeout = 0);
+                    uint16_t timeout = 0) override;
+
+  //----------------------------------------------------------------------------
+  //! Open file asynchronously
+  //!
+  //! @param flags open flags
+  //! @param mode open mode
+  //! @param opaque opaque info to be appended to the request
+  //! @param timeout operation timeout
+  //!
+  //! @return future holding the status response
+  //--------------------------------------------------------------------------
+  std::future<XrdCl::XRootDStatus>
+  fileOpenAsync(XrdSfsFileOpenMode flags, mode_t mode = 0,
+                const std::string& opaque = "", uint16_t timeout = 0) override;
 
   //----------------------------------------------------------------------------
   //! Read from file - sync
@@ -688,18 +703,42 @@ public:
   enum class OpType {
     None,
     Write,
-    Truncate
+    Truncate,
+    Open
   };
 
   //----------------------------------------------------------------------------
   //! Constructor
   //!
-  //! @param wr_promise write promise used to notify when the answer arrives
+  //! @param promise promise object used to notify when the answer arrives
+  //! @param op type of operation for current handler
+  //! @param buf_mgr buffer manager object that supplies/recycles buffers
+  //! @param buffer user buffer object to be dulicated if valid and needed
+  //! @param buffer_len useful contents of the buffer to be used
   //----------------------------------------------------------------------------
-  XrdIoHandler(std::promise<XrdCl::XRootDStatus> wr_promise,
-               OpType op):
-    mPromise(std::move(wr_promise)), mOperationType(op)
-  {}
+  XrdIoHandler(std::promise<XrdCl::XRootDStatus> promise, OpType op,
+               eos::common::BufferManager* buf_mgr = nullptr,
+               const char* buffer = nullptr,
+               unsigned long long buffer_len = 0ull):
+    mOperationType(op), mPromise(std::move(promise)), mBufMgr(buf_mgr),
+    mBuffer(nullptr)
+  {
+    if (mBufMgr && buffer && buffer_len) {
+      mBuffer = mBufMgr->GetBuffer(buffer_len);
+      mBuffer->mLength = buffer_len;
+      (void) memcpy(mBuffer->GetDataPtr(), buffer, buffer_len);
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  ~XrdIoHandler()
+  {
+    if (mBufMgr && mBuffer) {
+      mBufMgr->Recycle(mBuffer);
+    }
+  }
 
   //----------------------------------------------------------------------------
   //! Handle response
@@ -725,9 +764,23 @@ public:
     delete this;
   }
 
+  //----------------------------------------------------------------------------
+  //! Get pointer to the underlying data buffer
+  //----------------------------------------------------------------------------
+  char* GetDataPtr()
+  {
+    if (mBuffer) {
+      return mBuffer->GetDataPtr();
+    }
+
+    return nullptr;
+  }
+
 private:
-  std::promise<XrdCl::XRootDStatus> mPromise;
   OpType mOperationType;
+  std::promise<XrdCl::XRootDStatus> mPromise;
+  eos::common::BufferManager* mBufMgr;
+  std::shared_ptr<eos::common::Buffer> mBuffer;
 };
 
 EOSFSTNAMESPACE_END

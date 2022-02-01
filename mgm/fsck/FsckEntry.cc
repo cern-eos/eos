@@ -268,7 +268,8 @@ FsckEntry::RepairMgmXsSzDiff()
 
   if (disk_xs_sz_match && sz_val) {
     size_t out_sz;
-    auto xs_binary = StringConversion::Hex2BinDataChar(xs_val, out_sz, SHA256_DIGEST_LENGTH);
+    auto xs_binary = StringConversion::Hex2BinDataChar(xs_val, out_sz,
+                     SHA256_DIGEST_LENGTH);
 
     if (xs_binary == nullptr) {
       eos_err("msg=\"mgm xs/size repair failed due to disk checksum conversion "
@@ -551,7 +552,8 @@ FsckEntry::RepairReplicaInconsistencies()
     auto& finfo = elem.second;
 
     if (found) {
-      if (finfo->mFstErr == FstErr::NotOnDisk) {
+      if ((finfo->mFstErr == FstErr::NotOnDisk) ||
+          (finfo->mFstErr == FstErr::NotExist)) {
         to_drop.insert(elem.first);
       }
     } else {
