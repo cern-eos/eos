@@ -26,6 +26,7 @@
 #include "common/Mapping.hh"
 #include "common/RWMutex.hh"
 #include "common/ParseUtils.hh"
+#include "common/Path.hh"
 #include "common/IntervalStopwatch.hh"
 #include "mgm/Quota.hh"
 #include "mgm/LRU.hh"
@@ -223,6 +224,7 @@ void LRU::performCycleQDB(ThreadAssistant& assistant) noexcept
   opts.populateLinkedAttributes = true;
   opts.view = gOFS->eosView;
   opts.ignoreFiles = true;
+  opts.depthLimit = eos::common::Path::MAX_LEVELS;
 
   // Initialize qclient..
   if (!mQcl) {
