@@ -170,7 +170,7 @@ TEST(BufferManager, MultipleThreads)
       uint64_t max_buff_sz = (1 << buff_mgr.GetNumSlots()) * MB;
       uint64_t value = std::round(std::abs(dis(gen)));
 
-      // Make sure the generated values is within limits
+      // Make sure the generated value is within limits
       if (value <= 0) {
         value = 1;
       } else if (value > max_buff_sz) {

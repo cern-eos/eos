@@ -542,6 +542,7 @@ DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain)
                (ino64_t) fdrain.mProto.id(),
                NULL, // entrypoints
                NULL, // firewall
+               //@todo(esindril) adjust based on the type of operation
                GeoTreeEngine::draining,
                &existing_repl,
                &fsid_geotags,
