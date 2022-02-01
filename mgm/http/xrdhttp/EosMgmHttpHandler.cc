@@ -350,16 +350,7 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
                               errmsg.length());
   }
 
-  bool isRestRequest = mMgmOfsHandler->mHttpd->isRestRequest(req.resource);
-
-  if(isRestRequest){
-    std::optional<int> retCode = readBody(req,body);
-    if(retCode){
-      return retCode.value();
-    }
-  }
-
-  if (req.verb == "POST" && !isRestRequest) {
+  if (isMacaroonRequest(req)) {
     if (mTokenHttpHandler) {
       // Delegate request to the XrdMacaroons library
       eos_info("%s", "msg=\"delegate request to XrdMacaroons library\"");
@@ -368,6 +359,15 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
       std::string errmsg = "POST request not supported";
       return req.SendSimpleResp(404, errmsg.c_str(), "", errmsg.c_str(),
                                 errmsg.length());
+    }
+  }
+
+  bool isRestRequest = mMgmOfsHandler->mHttpd->isRestRequest(req);
+
+  if(isRestRequest){
+    std::optional<int> retCode = readBody(req,body);
+    if(retCode){
+      return retCode.value();
     }
   }
 
@@ -604,4 +604,16 @@ std::optional<int> EosMgmHttpHandler::readBody(XrdHttpExtReq& req,std::string & 
     body += bodyTemp;
   } while(contentLeft);
   return returnCode;
+}
+
+bool EosMgmHttpHandler::isMacaroonRequest(const XrdHttpExtReq& req) {
+  if(req.verb == "POST") {
+    const auto & contentTypeItor = req.headers.find("Content-Type");
+    if(contentTypeItor!=req.headers.end()){
+      if(contentTypeItor->second == "application/macaroon-request"){
+        return true;
+      }
+    }
+  }
+  return false;
 }
