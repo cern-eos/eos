@@ -32,7 +32,6 @@
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/ContainerIterators.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
-#include "namespace/ns_quarkdb/explorer/NamespaceExplorer.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/utils/QuotaRecomputer.hh"
 #include "namespace/ns_quarkdb/NamespaceGroup.hh"
