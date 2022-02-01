@@ -38,6 +38,14 @@ Improvement
 
 * [EOS-5065] - Add create-if-not-exists option in GRPC
 * [EOS-5076] - Extend iotype interfaces to be space/directory defined
+* MGM: Fix missing support for cid/cxid and error output for convert command
+* WNC: Replaced auxiliary ACL function for fileinfo command
+
+New features
+------------
+
+* WNC: Implemented support for EOS-wnc token, convert, fsck and new find commands
+* WNC: Changed GRPC streaming mechanism for find, ls and transfer commands
 
 
 ``v5.0.9 Diopside``
