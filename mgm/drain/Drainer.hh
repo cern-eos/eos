@@ -1,10 +1,11 @@
 //------------------------------------------------------------------------------
 //! @file Drainer.hh
+//! @author Elvin Sindrilaru <esindril@cern.ch>
 //------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2019 CERN/Switzerland                                  *
+ * Copyright (C) 2021 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -101,7 +102,7 @@ public:
   //!
   //! @param max max value
   //----------------------------------------------------------------------------
-  void SetMaxThreadPoolSize(uint64_t max)
+  void SetMaxThreadPoolSize(unsigned int max)
   {
     mThreadPool.SetMaxThreads(max);
   }

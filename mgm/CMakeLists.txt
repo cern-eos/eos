@@ -202,6 +202,8 @@ add_library(
   XrdMgmOfs/fsctl/Version.cc
   XrdMgmOfs/fsctl/Xattr.cc
   Balancer.cc
+  balancer/FsBalancer.cc
+  balancer/FsBalancerStats.cc
   CommandMap.cc
   FileSystem.cc
   convert/ConversionInfo.cc

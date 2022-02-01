@@ -785,6 +785,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             (key == "graceperiod") ||
             (key == "drainperiod") ||
             (key == "balancer") ||
+            (key == "balancer.threshold") ||
             (key == "balancer.node.rate") ||
             (key == "balancer.node.ntx") ||
             (key == "drainer.node.rate") ||
@@ -828,7 +829,6 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             (key == eos::mgm::tgc::TGC_NAME_AVAIL_BYTES) ||
             (key == eos::mgm::tgc::TGC_NAME_TOTAL_BYTES) ||
             (key == "token.generation") ||
-            (key == "balancer.threshold") ||
             (key == eos::common::SCAN_IO_RATE_NAME) ||
             (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
             (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||

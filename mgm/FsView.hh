@@ -64,24 +64,47 @@ class Converter;
 class IConfigEngine;
 
 //------------------------------------------------------------------------------
-//! Check if given heartbeat timestamp is recent enough
+//! Struct holding file system info for balancing operations
 //------------------------------------------------------------------------------
-inline bool isHeartbeatRecent(time_t heartbeatTime)
-{
-  time_t now = time(NULL);
+struct FsBalanceInfo {
+  eos::common::FileSystem::fsid_t mFsId;
+  std::string mNodeHost;
+  double mFillRatio;
 
-  if ((now - heartbeatTime) < 60) {
-    return true;
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  FsBalanceInfo(eos::common::FileSystem::fsid_t fsid,
+                const std::string& node_host, double fill_ratio):
+    mFsId(fsid), mNodeHost(node_host), mFillRatio(fill_ratio)
+  {}
+
+  //----------------------------------------------------------------------------
+  //! Operator < implementation for storing such objects in sets
+  //----------------------------------------------------------------------------
+  operator< (const FsBalanceInfo& rhs) const
+  {
+    return mFsId < rhs.mFsId;
   }
+};
 
-  return false;
-}
+//------------------------------------------------------------------------------
+//! Priority sets of file systems to be used for balancing operations,
+//! containing 4 sets for fs'es with fill ratio in the following intervals:
+// [0, mean - threshold)
+// [mean - threshold, mean)
+// [mean, mean + threshold )
+// [mean + threshold, 100]
+//------------------------------------------------------------------------------
+using FsPrioritySets = std::tuple<std::set<FsBalanceInfo>,
+      std::set<FsBalanceInfo>,
+      std::set<FsBalanceInfo>,
+      std::set<FsBalanceInfo>>;
 
 //------------------------------------------------------------------------------
 //! Base class representing any element in a GeoTree
 //------------------------------------------------------------------------------
 struct GeoTreeElement {
-
   //------------------------------------------------------------------------------
   //! Destructor
   //------------------------------------------------------------------------------
@@ -472,7 +495,7 @@ public:
   //!
   //! Call with fsview lock at-least-read locked.
   //----------------------------------------------------------------------------
-  bool ShouldConsiderForStatistics(FileSystem* fs);
+  static bool ConsiderForStatistics(FileSystem* fs);
 
   //----------------------------------------------------------------------------
   //! Calculate the sum of <param> as long long
@@ -498,7 +521,7 @@ public:
   //----------------------------------------------------------------------------
   //! Calculates the maximum deviation from the average in a group
   //---------------------------------------------------------------------------
-  double
+  virtual double
   MaxAbsDeviation(const char* param, bool lock = true,
                   const std::set<eos::common::FileSystem::fsid_t>* subset = nullptr);
 
@@ -689,7 +712,6 @@ private:
   IConfigEngine* mOrigConfEngine; ///< Initial config engine object
 };
 
-
 //------------------------------------------------------------------------------
 //! Class describing an EOS pool including views
 //------------------------------------------------------------------------------
@@ -819,30 +841,6 @@ public:
   //----------------------------------------------------------------------------
   bool UnRegisterGroup(const char* groupname);
 
-  //! Mutex protecting all ...View variables
-  mutable eos::common::RWMutexR ViewMutex;
-
-  //! Map translating a space name to a set of group objects
-  std::map<std::string, std::set<FsGroup*> > mSpaceGroupView;
-
-  //! Map translating a space name to a space view object
-  std::map<std::string, FsSpace* > mSpaceView;
-
-  //! Map translating a group name to a group view object
-  std::map<std::string, FsGroup* > mGroupView;
-
-  //! Map translating a node name to a node view object
-  std::map<std::string, FsNode* > mNodeView;
-
-  //! Map translating a filesystem ID to a file system object
-  FileSystemRegistry mIdView;
-
-  //! Mutex protecting the set of gateway nodes mGwNodes
-  eos::common::RWMutex GwMutex;
-
-  //! Set containing all nodes which are usable as a gateway machine
-  std::set<std::string> mGwNodes;
-
   //----------------------------------------------------------------------------
   //! Check if quota is enabled for space
   //!
@@ -876,7 +874,7 @@ public:
   //----------------------------------------------------------------------------
   //! Check for an existing mapping by filesystem id
   //----------------------------------------------------------------------------
-  bool HasMapping(eos::common::FileSystem::fsid_t fsid)
+  inline bool HasMapping(eos::common::FileSystem::fsid_t fsid)
   {
     return mFilesystemMapper.hasFsid(fsid);
   }
@@ -933,7 +931,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set the configuration engine object
   //----------------------------------------------------------------------------
-  void SetConfigEngine(IConfigEngine* engine)
+  inline void SetConfigEngine(IConfigEngine* engine)
   {
     mConfigEngine = engine;
   }
@@ -1019,12 +1017,50 @@ public:
   //----------------------------------------------------------------------------
   void ReapplyDrainStatus();
 
+  //----------------------------------------------------------------------------
+  //! Get map of unbalanced groups given the threshold and their max dev.
+  //!
+  //! @param space_name space name
+  //! @param threshold deviation cut-off value used for selecting groups
+  //!
+  //! @return groups that are unbalanced with respect to the given thereshold
+  //----------------------------------------------------------------------------
+  std::map<std::string, double>
+  GetUnbalancedGroups(const std::string& space_name, double threshold) const;
+
+  //----------------------------------------------------------------------------
+  //! Get sets of file systems from given group that should be balanced
+  //!
+  //! @parma group_name group name
+  //! @param threshold cut-off value used for selecting file systems
+  //!
+  //! @return tuple of sets of file systems
+  //----------------------------------------------------------------------------
+  FsPrioritySets
+  GetFsToBalance(const std::string& group_name, double threshold) const;
+
+  //! Mutex protecting all ...View variables
+  mutable eos::common::RWMutexR ViewMutex;
+  //! Map translating a space name to a set of group objects
+  std::map<std::string, std::set<FsGroup*> > mSpaceGroupView;
+  //! Map translating a space name to a space view object
+  std::map<std::string, FsSpace* > mSpaceView;
+  //! Map translating a group name to a group view object
+  std::map<std::string, FsGroup* > mGroupView;
+  //! Map translating a node name to a node view object
+  std::map<std::string, FsNode* > mNodeView;
+  //! Map translating a filesystem ID to a file system object
+  FileSystemRegistry mIdView;
+  //! Mutex protecting the set of gateway nodes mGwNodes
+  eos::common::RWMutex GwMutex;
+  //! Set containing all nodes which are usable as a gateway machine
+  std::set<std::string> mGwNodes;
+
 private:
   IConfigEngine* mConfigEngine;
   AssistedThread mHeartBeatThread; ///< Thread monitoring heart-beats
   //! Object to map between fsid <-> uuid
   FilesystemUuidMapper mFilesystemMapper;
-
   std::map<std::string, std::pair<bool, time_t>> mUsageOk;
   XrdSysMutex mUsageMutex;
 };
@@ -1124,7 +1160,6 @@ public:
 class LongLongAggregator : public GeoTreeAggregator
 {
   typedef eos::common::FileSystem::fsid_t fsid_t;
-
   //! Name of the parameter for which the statistics are to be computed
   std::string pParam;
   std::vector<long long> pSums; ///< Sums at the elements of the tree
@@ -1134,7 +1169,6 @@ class LongLongAggregator : public GeoTreeAggregator
   BaseView* pView; ///< The base view ordering the statistics
 
 public:
-
   //----------------------------------------------------------------------------
   //! Constructor given the name of the parameter to compute the statistics for
   //----------------------------------------------------------------------------
