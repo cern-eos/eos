@@ -52,7 +52,6 @@
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetUtils.hh"
 #include "XrdOfs/XrdOfs.hh"
-#include "XrdOfs/XrdOfsTrace.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdSfs/XrdSfsAio.hh"
@@ -85,7 +84,7 @@ eos::fst::XrdFstOfs eos::fst::gOFS;
 extern XrdSysError OfsEroute;
 extern XrdOss* XrdOfsOss;
 extern XrdOfs* XrdOfsFS;
-extern XrdOucTrace OfsTrace;
+extern XrdSysTrace OfsTrace;
 
 // Set the version information
 XrdVERSIONINFO(XrdSfsGetFileSystem2, FstOfs);
