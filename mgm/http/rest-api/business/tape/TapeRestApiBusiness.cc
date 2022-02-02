@@ -127,14 +127,13 @@ std::shared_ptr<GetStageBulkRequestResponseModel> TapeRestApiBusiness::getStageB
       item->mPath = queryPrepareResponse.path;
       //For the stage bulk-request, the state is always set
       item->mState = *fileFromBulkRequest->getStateStr();
-      eos_static_crit("ITEM->MSTATE =%s",item->mState.c_str());
       if(fileFromBulkRequest->getError()) {
         item->mError = *fileFromBulkRequest->getError();
       } else {
         //Error comes from CTA, so we need to update the state of the file to ERROR
         item->mError = queryPrepareResponse.error_text;
         if(!item->mError.empty()) {
-          item->mState = item->mState = bulk::File::State::ERROR;
+          item->mState = bulk::File::getStateStr(bulk::File::State::ERROR);
         }
       }
       item->mOnDisk = queryPrepareResponse.is_online;

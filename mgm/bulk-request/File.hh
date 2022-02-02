@@ -49,6 +49,7 @@ public:
   void setState(const std::string & state);
   const std::optional<State> getState() const;
   const std::optional<std::string> getStateStr() const;
+  static const std::string getStateStr(const State & state);
   /**
    * Set the error passed in parameter to the file
    * only if there is not already an error set
