@@ -565,9 +565,6 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
         eos_static_info("msg=\"group balancer engine reconfigured\"");
         engine_reconfigured = false;
       }
-    } else {
-      eos::common::RWMutexWriteLock lock(mEngineMtx);
-      mEngine->recalculate();
     }
 
     prepareTransfers(cfg.num_tx);
