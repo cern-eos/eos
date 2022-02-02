@@ -1022,7 +1022,7 @@ runtest "### Attr Set  " unix 0 "" eos attr set sys.test=def "/eos/$EOS_TEST_INS
 runtest "### Newfind   " unix 0 "" eos newfind -f -x sys.test=abc "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 1"
 runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/links/"
 runtest "### Symlink   " unix 0 "" eos file symlink "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/links/a.ln" "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/a.txt"
-runtest "### Newfind   " unix 0 "" eos newfind "/eos/$EOS_TEST_INSTANCE/test/instancetest/links/ | grep -w \"/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/links/a.ln -> /eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/a.txt\""
+runtest "### Newfind   " unix 0 "" eos newfind "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/links/ | grep -w \"/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/links/a.ln -> /eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/a.txt\""
 runtest "### Rm        " unix 0 "" eos rm -r "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest"
 
 ################################################################################
