@@ -425,6 +425,7 @@ GroupBalancer::prepareTransfers(int nrTransfers)
 std::string
 GroupBalancer::Status(bool detail, bool monitoring) const
 {
+  eos::common::RWMutexReadLock lock(mEngineMtx);
   return mEngine->get_status_str(detail, monitoring);
 }
 
@@ -553,7 +554,11 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
     eos_static_debug("msg=\"group balancer enabled\" ntx=%d ", cfg.num_tx);
 
     if (cacheExpired() || engine_reconfigured) {
-      mEngine->populateGroupsInfo(fetcher.fetch());
+      {
+        eos::common::RWMutexWriteLock lock(mEngineMtx);
+        mEngine->populateGroupsInfo(fetcher.fetch());
+      }
+
       printSizes(mEngine->get_group_sizes());
 
       if (engine_reconfigured) {
@@ -561,6 +566,7 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
         engine_reconfigured = false;
       }
     } else {
+      eos::common::RWMutexWriteLock lock(mEngineMtx);
       mEngine->recalculate();
     }
 
