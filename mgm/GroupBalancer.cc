@@ -65,7 +65,7 @@ group_size_map eosBalancerInfoFetcher::fetch()
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
   if (FsView::gFsView.mSpaceGroupView.count(spaceName) == 0) {
-    eos_static_err("No such space %s", spaceName.c_str());
+    eos_static_err("msg=\"no such space %s\"", spaceName.c_str());
     return mGroupSizes;
   }
 
@@ -155,7 +155,7 @@ GroupBalancer::getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
         return std::string("");
       }
 
-      eos_static_debug("found file for transfering file=%s",
+      eos_static_debug("msg=\"found file for transfering\" file=\"%s\"",
                        fileURI.c_str());
     } catch (eos::MDException& e) {
       eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
@@ -351,8 +351,7 @@ static void
 printSizes(const group_size_map& group_sizes)
 {
   for (const auto& it : group_sizes)
-    eos_static_debug("group=%s average=%.02f",
-                     it.first.c_str(),
+    eos_static_debug("group=%s average=%.02f", it.first.c_str(),
                      (double)it.second.filled() * 100.0);
 }
 
@@ -367,7 +366,8 @@ GroupBalancer::prepareTransfer()
   auto&& [over_it, under_it] = mEngine->pickGroupsforTransfer();
 
   if (over_it.empty() || under_it.empty()) {
-    eos_static_info("Engine gave us empty groups skipping! engine_status: %s",
+    eos_static_info("msg=\"engine gave us empty groups skipping\" "
+                    "engine_status=%s",
                     mEngine->get_status_str(false, true).c_str());
     return;
   }
@@ -382,8 +382,8 @@ GroupBalancer::prepareTransfer()
   auto file_info = chooseFileFromGroup(fromGroup, cfg.file_attempts);
 
   if (!file_info) {
-    eos_static_info("Couldn't choose any FID to schedule: failedgroup=%s",
-                    fromGroup->mName.c_str());
+    eos_static_info("msg=\"failed to choose any fid to schedule\" "
+                    "failedgroup=%s", fromGroup->mName.c_str());
     return;
   }
 
@@ -455,7 +455,8 @@ GroupBalancer::Configure(FsSpace* const space, GroupBalancer::Config& cfg)
 
   if (!group_balancer::is_valid_threshold(min_threshold_str, max_threshold_str)) {
     if (cfg.engine_type == BalancerEngineT::minmax) {
-      eos_static_err("%s", "msg=Invalid min/max balancer threshold configuration");
+      eos_static_err("%s",
+                     "msg=\"invalid min/max balancer threshold configuration\"");
       return false;
     }
 
@@ -465,7 +466,7 @@ GroupBalancer::Configure(FsSpace* const space, GroupBalancer::Config& cfg)
     auto threshold_str = space->GetConfigMember("groupbalancer.threshold");
 
     if (!group_balancer::is_valid_threshold(threshold_str)) {
-      eos_static_err("%s", "msg=Invalid std balancer threshold configuration");
+      eos_static_err("%s", "msg=\"invalid std balancer threshold configuration\"");
       return false;
     }
 
@@ -498,7 +499,7 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
 
     if (!gOFS->mMaster->IsMaster()) {
       assistant.wait_for(std::chrono::seconds(10));
-      eos_static_debug("%s", "msg=\"group balancer disabled for slave mode\"");
+      eos_static_debug("%s", "msg=\"group balancer disabled for slave\"");
       continue;
     }
 
@@ -522,7 +523,8 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
 
     if (!GroupBalancer::Configure(space, cfg)) {
       FsView::gFsView.ViewMutex.UnLockRead();
-      eos_static_info("msg=\"group balancer configuration invalid! Waiting for 10s\"");
+      eos_static_info("%s", "msg=\"group balancer configuration invalid, "
+                      "waiting for 10s\"");
       assistant.wait_for(std::chrono::seconds(10));
       continue;
     }
@@ -530,7 +532,7 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
     if (!cfg.is_enabled || !cfg.is_conv_enabled) {
       FsView::gFsView.ViewMutex.UnLockRead();
       eos_static_info("msg=\"group balancer or converter not enabled\" space=\"%s\""
-                      " balancer status=%d converter status=%d",
+                      " balancer_status=%d converter_status=%d",
                       mSpaceName.c_str(), cfg.is_enabled, cfg.is_conv_enabled);
       continue;
     }
