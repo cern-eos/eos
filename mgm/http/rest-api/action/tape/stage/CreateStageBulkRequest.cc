@@ -51,29 +51,8 @@ common::HttpResponse* CreateStageBulkRequest::run(common::HttpRequest* request, 
   } catch (const TapeRestApiBusinessException &ex){
     return mResponseFactory.createInternalServerError(ex.what()).getHttpResponse();
   }
-  //const std::string & clientRequest = request->GetBody();
-  std::string host;
-  try {
-    host = request->GetHeaders().at("host");
-  } catch(const std::out_of_range &ex){
-    return mResponseFactory.createInternalServerError("No host information found in the header of the request").getHttpResponse();
-  }
-  //Persist the user request in the extended attribute of the directory where the bulk-request is saved
-  /*std::map<std::string, std::string> attributes;
-  common::SymKey::Base64Encode(clientRequest.c_str(),clientRequest.size(),attributes["base64jsonrequest"]);
-  try {
-    bulkRequestBusiness->addOrUpdateAttributes(bulkRequest, attributes);
-  } catch (const bulk::PersistencyException &ex) {
-    return mResponseFactory.createInternalServerError("Unable to persist the attributes of the bulk-request").getHttpResponse();
-  }*/
-  //Generate the bulk-request access URL
-  std::string bulkRequestAccessURL = URLBuilder::getInstance()
-                                         ->setHttpsProtocol()
-                                         ->setHostname(host)
-                                         ->setControllerAccessURL(mURLPattern)
-                                         ->setRequestId(bulkRequest->getId())->build();
   //Prepare the response and return it
-  std::shared_ptr<CreatedStageBulkRequestResponseModel> createdStageBulkRequestModel(new CreatedStageBulkRequestResponseModel(/*clientRequest,*/bulkRequestAccessURL));
+  std::shared_ptr<CreatedStageBulkRequestResponseModel> createdStageBulkRequestModel(new CreatedStageBulkRequestResponseModel(bulkRequest->getId()));
   createdStageBulkRequestModel->setJsonifier(mOutputObjectJsonifier);
   return mResponseFactory.createResponse(createdStageBulkRequestModel,common::HttpResponse::ResponseCodes::CREATED).getHttpResponse();
 }
