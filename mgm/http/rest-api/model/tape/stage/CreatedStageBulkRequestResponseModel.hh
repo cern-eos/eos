@@ -34,12 +34,10 @@ EOSMGMRESTNAMESPACE_BEGIN
 
 class CreatedStageBulkRequestResponseModel : public common::Jsonifiable<CreatedStageBulkRequestResponseModel> {
 public:
-  CreatedStageBulkRequestResponseModel(/*const std::string & jsonFromClient, */const std::string & accessURL);
-  const std::string & getAccessURL() const;
-  //const std::string & getJsonRequest() const;
+  CreatedStageBulkRequestResponseModel(const std::string & requestId);
+  const std::string & getRequestId() const;
 private:
-  //const std::string & mJsonFromClient;
-  const std::string & mAccessURL;
+  const std::string mRequestId;
 };
 
 EOSMGMRESTNAMESPACE_END
