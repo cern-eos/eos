@@ -78,6 +78,10 @@ const std::optional<std::string> File::getStateStr() const {
   return std::optional<std::string>();
 }
 
+const std::string File::getStateStr(const State& state) {
+  return STATE_TO_STRING_MAP.at(state);
+}
+
 void File::setErrorIfNotAlreadySet(const std::string& error) {
   if(!getError()){
     setError(error);

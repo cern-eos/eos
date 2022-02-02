@@ -24,17 +24,12 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-CreatedStageBulkRequestResponseModel::CreatedStageBulkRequestResponseModel(/*const std::string& jsonFromClient,*/ const std::string & accessURL): Jsonifiable(),
-                                                                          /*mJsonFromClient(jsonFromClient),*/mAccessURL(accessURL) {
+CreatedStageBulkRequestResponseModel::CreatedStageBulkRequestResponseModel(const std::string & requestId): Jsonifiable(), mRequestId(requestId) {
 
 }
 
-/*const std::string& CreatedStageBulkRequestResponseModel::getJsonRequest() const {
-  return mJsonFromClient;
-}*/
-
-const std::string& CreatedStageBulkRequestResponseModel::getAccessURL() const {
-  return mAccessURL;
+const std::string& CreatedStageBulkRequestResponseModel::getRequestId() const {
+  return mRequestId;
 }
 
 EOSMGMRESTNAMESPACE_END
