@@ -109,7 +109,7 @@ macosx_dmg:
   script:
     - git submodule update --init --recursive
     - version=`./genversion.sh`
-    - ./utils/eos-osx-package.sh $version
+    - ./utils/eos-osx-package.sh $version -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
     - ccache -s
     - mkdir osx_artifacts
     - cp build/*.dmg osx_artifacts
