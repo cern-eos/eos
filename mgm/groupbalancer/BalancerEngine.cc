@@ -61,7 +61,6 @@ int BalancerEngine::record_transfer(std::string_view source_group,
   return 0;
 }
 
-
 groups_picked_t
 BalancerEngine::pickGroupsforTransfer()
 {
@@ -86,22 +85,6 @@ BalancerEngine::pickGroupsforTransfer()
   rndIndex = getRandom(data.mGroupsUnderThreshold.size() - 1);
   std::advance(under_it, rndIndex);
   return {*over_it, *under_it};
-}
-
-template <typename C>
-static std::string pprint(const C& c, uint8_t items_per_line)
-{
-  std::stringstream ss;
-  ss << "[\n";
-  uint8_t ctr = 0;
-  for (const auto& it: c) {
-    ss << it << ", ";
-    if (++ctr%items_per_line == 0) {
-      ss << "\n";
-    }
-  }
-  ss << "]\n";
-  return ss.str();
 }
 
 std::string BalancerEngine::generate_table(const threshold_group_set& groups) const
