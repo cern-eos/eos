@@ -448,8 +448,7 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
   break;
 
   case eos::console::SpaceProto_ResetProto::NSFILESISTEMVIEW: {
-    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                       __FILE__);
+    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
     gOFS->eosFsView->shrink();
     std_out << "\ninfo: resized namespace filesystem view ...";
   }
@@ -460,8 +459,7 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
                               (gOFS->eosFileService);
 
     if (eos_chlog_filesvc) {
-      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                         __FILE__);
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
       eos_chlog_filesvc->resize();
       std_out << "\ninfo: resized namespace file map ...";
     } else {
@@ -475,8 +473,7 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
                              (gOFS->eosDirectoryService);
 
     if (eos_chlog_dirsvc) {
-      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                         __FILE__);
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
       eos_chlog_dirsvc->resize();
       std_out << "\ninfo: resized namespace directory map ...";
     } else {
@@ -486,8 +483,7 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
   break;
 
   case eos::console::SpaceProto_ResetProto::NS: {
-    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                       __FILE__);
+    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
     gOFS->eosFsView->shrink();
     auto* eos_chlog_filesvc = dynamic_cast<eos::IChLogFileMDSvc*>
                               (gOFS->eosFileService);
@@ -687,12 +683,12 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
 
         if (GroupBalancer::is_valid_engine(value)) {
           if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key,
-                                                                                 value)) {
+              value)) {
             std_err.str("error: cannot set space config value");
             ret_c = EIO;
           } else {
             std_out.str("success: configured groupbalancer.engine in space='" +
-                        config.mgmspace_name() +"' as "+ key + "='" + value + "'\n");
+                        config.mgmspace_name() + "' as " + key + "='" + value + "'\n");
             ret_c = 0;
           }
         } else {
@@ -1208,7 +1204,8 @@ void SpaceCmd::InspectorSubcmd(const eos::console::SpaceProto_InspectorProto&
   reply.set_retc(0);
 }
 
-void SpaceCmd::GroupBalancerSubCmd(const eos::console::SpaceProto_GroupBalancerProto& groupbalancer,
+void SpaceCmd::GroupBalancerSubCmd(const
+                                   eos::console::SpaceProto_GroupBalancerProto& groupbalancer,
                                    eos::console::ReplyProto& reply)
 {
   if (groupbalancer.mgmspace().empty()) {
@@ -1217,37 +1214,39 @@ void SpaceCmd::GroupBalancerSubCmd(const eos::console::SpaceProto_GroupBalancerP
   }
 
   auto space_it = FsView::gFsView.mSpaceView.find(groupbalancer.mgmspace());
+
   if (space_it == FsView::gFsView.mSpaceView.end()) {
     reply.set_std_err("error: No such space exists!");
     reply.set_retc(EINVAL);
     return;
   }
+
   const auto fs_space = space_it->second;
 
   switch (groupbalancer.cmd_case()) {
   case eos::console::SpaceProto_GroupBalancerProto::kStatus:
     GroupBalancerStatusCmd(groupbalancer.status(), reply, fs_space);
     break;
+
   default:
     reply.set_std_err("error: not supported");
     reply.set_retc(EINVAL);
   }
-
 }
 
-void SpaceCmd::GroupBalancerStatusCmd(const eos::console::SpaceProto_GroupBalancerStatusProto& status,
+void SpaceCmd::GroupBalancerStatusCmd(const
+                                      eos::console::SpaceProto_GroupBalancerStatusProto& status,
                                       eos::console::ReplyProto& reply,
                                       FsSpace* const fs_space)
 {
-
   if (fs_space == nullptr || fs_space->mGroupBalancer == nullptr) {
     reply.set_std_err("Invalid space/GroupBalancer config");
     reply.set_retc(EINVAL);
     return;
   }
+
   bool monitoring = status.options().find('m') != std::string::npos;
   bool detail = status.options().find('d') != std::string::npos;
-
   reply.set_std_out(fs_space->mGroupBalancer->Status(detail, monitoring));
   reply.set_retc(0);
 }

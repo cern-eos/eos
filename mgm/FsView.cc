@@ -2368,7 +2368,7 @@ FsView::HeartBeatCheck(ThreadAssistant& assistant) noexcept
 {
   while (!assistant.terminationRequested()) {
     assistant.wait_for(std::chrono::seconds(10));
-    eos::common::RWMutexReadLock lock(ViewMutex, __FUNCTION__, __LINE__, __FILE__);
+    eos::common::RWMutexReadLock lock(ViewMutex);
 
     // Loop over all the nodes and update their status
     for (auto it_node = mNodeView.begin();
@@ -2446,7 +2446,7 @@ FsView::HeartBeatCheck(ThreadAssistant& assistant) noexcept
 void
 FsView::ReapplyDrainStatus()
 {
-  eos::common::RWMutexReadLock lock(ViewMutex, __FUNCTION__, __LINE__, __FILE__);
+  eos::common::RWMutexReadLock fs_rd_lock(ViewMutex);
 
   for (auto it = mIdView.begin(); it != mIdView.end(); ++it) {
     eos::common::ConfigStatus cs = it->second->GetConfigStatus();

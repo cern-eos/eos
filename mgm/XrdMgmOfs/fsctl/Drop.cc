@@ -67,8 +67,7 @@ XrdMgmOfs::Drop(const char* path,
     eos::Prefetcher::prefetchFilesystemFileListAndWait(gOFS->eosView,
         gOFS->eosFsView, fsid);
     eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
-    eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex, __FUNCTION__,
-        __LINE__, __FILE__);
+    eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
 
     try {
       fmd = eosFileService->getFileMD(fid);

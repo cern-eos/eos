@@ -327,8 +327,7 @@ Server::FillContainerMD(uint64_t id, eos::fusex::md& dir,
     eos_debug("container-id=%llx", id);
   }
 
-  eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex, __FUNCTION__,
-                                          __LINE__, __FILE__);
+  eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
 
   try {
     cmd = gOFS->eosDirectoryService->getContainerMD(id, &clock);
@@ -442,8 +441,7 @@ Server::FillFileMD(uint64_t inode, eos::fusex::md& file,
   if (EOS_LOGS_DEBUG) eos_debug("file-inode=%llx file-id=%llx", inode,
                                   eos::common::FileId::InodeToFid(inode));
 
-  eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex, __FUNCTION__,
-                                          __LINE__, __FILE__);
+  eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
 
   try {
     bool has_mdino = false;
@@ -592,13 +590,17 @@ Server::FillContainerCAP(uint64_t id,
   {
     if (dir.attr().count("sys.force.leasetime") > 0) {
       // directory has leasetime overwrite
-      leasetime = strtoul((*(dir.mutable_attr()))["sys.forced.leasetime"].c_str(),0,10);
+      leasetime = strtoul((*(dir.mutable_attr()))["sys.forced.leasetime"].c_str(), 0,
+                          10);
     }
+
     eos::common::RWMutexReadLock lLock(gOFS->zMQ->gFuseServer.Client());
+
     if (!leasetime) {
       // only use client leasetime if there is no overwrite
       leasetime = gOFS->zMQ->gFuseServer.Client().leasetime(dir.clientuuid());
     }
+
     eos_debug("checking client %s leastime=%d", dir.clientid().c_str(),
               leasetime);
   }
@@ -970,7 +972,7 @@ Server::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
   eos::common::RWMutexReadLock rd_ns_lock;
 
   if (take_lock) {
-    rd_ns_lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    rd_ns_lock.Grab(gOFS->eosViewRWMutex);
   }
 
   try {
@@ -1412,8 +1414,7 @@ Server::OpSetDirectory(const std::string& id,
   std::shared_ptr<eos::IContainerMD> cpcmd;
   eos::fusex::md mv_md;
   mode_t sgid_mode = 0;
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                     __FILE__);
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
   try {
     if (md.md_ino() && exclusive) {
@@ -1548,7 +1549,7 @@ Server::OpSetDirectory(const std::string& id,
       if (md.name().substr(0, strlen(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX)) ==
           EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) {
         eos_err("ino=%lx name=%s atomic path is forbidden as a directory name",
-		md.md_pino(), md.name().c_str());
+                md.md_pino(), md.name().c_str());
         return EPERM;
       }
 
@@ -1747,8 +1748,7 @@ Server::OpSetFile(const std::string& id,
            (long) md.md_pino(),
            md.authid().c_str());
   eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                     __FILE__);
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   std::shared_ptr<eos::IFileMD> fmd;
   std::shared_ptr<eos::IFileMD> ofmd;
   std::shared_ptr<eos::IContainerMD> pcmd;
@@ -1848,7 +1848,7 @@ Server::OpSetFile(const std::string& id,
                 created_version = true;
               }
 
-              lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+              lock.Grab(gOFS->eosViewRWMutex);
             } else {
               // recycle bin - not for hardlinked files or hardlinks!
               if ((try_recycle &&
@@ -1862,7 +1862,7 @@ Server::OpSetFile(const std::string& id,
                 XrdOucErrInfo error;
                 (void) gOFS->_rem(fullpath.c_str(), error, vid, "",
                                   false, false, false, true, false);
-                lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);;
+                lock.Grab(gOFS->eosViewRWMutex);
               } else {
                 if (!created_version) {
                   // no recycle bin, no version
@@ -1907,7 +1907,7 @@ Server::OpSetFile(const std::string& id,
                       oPath.GetVersionDirectory(), nPath.GetVersionDirectory());
             }
 
-            lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+            lock.Grab(gOFS->eosViewRWMutex);
           }
         } else {
           if (fmd->getName() != md.name()) {
@@ -1973,7 +1973,7 @@ Server::OpSetFile(const std::string& id,
                   eos_debug("tried versioning - try_recycle=%d", try_recycle);
                 }
 
-                lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+                lock.Grab(gOFS->eosViewRWMutex);
               }
 
               // recycle bin - not for hardlinked files or hardlinks !
@@ -1988,7 +1988,7 @@ Server::OpSetFile(const std::string& id,
                 XrdOucErrInfo error;
                 (void) gOFS->_rem(fullpath.c_str(), error, vid, "", false, false,
                                   false, true, false);
-                lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+                lock.Grab(gOFS->eosViewRWMutex);
               } else {
                 if (!created_version) {
                   try {
@@ -2029,7 +2029,7 @@ Server::OpSetFile(const std::string& id,
                         oPath.GetVersionDirectory(), nPath.GetVersionDirectory());
               }
 
-              lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+              lock.Grab(gOFS->eosViewRWMutex);
             }
           }
         }
@@ -2146,7 +2146,6 @@ Server::OpSetFile(const std::string& id,
       bool schedule = false;
       std::string iopriority;
       std::string iotype;
-
       // retrieve the layout
       Policy::GetLayoutAndSpace("fusex", attrmap, vid, layoutId, space, env,
                                 forcedFsId, forcedGroup, bandwidth, schedule, iopriority, iotype, false);
@@ -2344,8 +2343,7 @@ Server::OpSetLink(const std::string& id,
 
   eos_info("ino=%#lx %s", (long) md.md_ino(),
            md.name().c_str());
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                     __FILE__);
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   std::shared_ptr<eos::IFileMD> fmd;
   std::shared_ptr<eos::IFileMD> ofmd;
   std::shared_ptr<eos::IContainerMD> pcmd;
@@ -2626,8 +2624,7 @@ Server::OpDeleteDirectory(const std::string& id,
   eos::IFileMD::ctime_t mtime;
   mtime.tv_sec = md.mtime();
   mtime.tv_nsec = md.mtime_ns();
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                     __FILE__);
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
   try {
     pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
@@ -2646,7 +2643,8 @@ Server::OpDeleteDirectory(const std::string& id,
 
     if (cmd->getName() != md.name()) {
       // directory was removed or renamed before deletion
-      throw_mdexception(ENOENT, "No such directory : " << md.name() << " (" << cmd->getName() << " )");
+      throw_mdexception(ENOENT,
+                        "No such directory : " << md.name() << " (" << cmd->getName() << " )");
     }
 
     pcmd->setMTime(mtime);
@@ -2729,8 +2727,7 @@ Server::OpDeleteFile(const std::string& id,
   eos::IFileMD::ctime_t mtime;
   mtime.tv_sec = md.mtime();
   mtime.tv_nsec = md.mtime_ns();
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                     __FILE__);
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
   try {
     pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
@@ -2749,7 +2746,8 @@ Server::OpDeleteFile(const std::string& id,
 
     if (fmd->getName() != md.name()) {
       // file was removed or renamed before deletion
-      throw_mdexception(ENOENT, "No such file : " << md.name() << " (" << fmd->getName() << " )");
+      throw_mdexception(ENOENT,
+                        "No such file : " << md.name() << " (" << fmd->getName() << " )");
     }
 
     pcmd->setMTime(mtime);
@@ -2776,7 +2774,7 @@ Server::OpDeleteFile(const std::string& id,
                         true,  // don't enforce quota
                         false // don't broadcast
                        );
-      lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+      lock.Grab(gOFS->eosViewRWMutex);
     } else {
       try {
         // handle quota
@@ -2927,8 +2925,7 @@ Server::OpDeleteLink(const std::string& id,
   eos::IFileMD::ctime_t mtime;
   mtime.tv_sec = md.mtime();
   mtime.tv_nsec = md.mtime_ns();
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                     __FILE__);
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
   try {
     pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
@@ -2942,7 +2939,8 @@ Server::OpDeleteLink(const std::string& id,
 
     if (fmd->getName() != md.name()) {
       // link was removed or renamed before deletion
-      throw_mdexception(ENOENT, "No such link : " << md.name() << " (" << fmd->getName() << " )");
+      throw_mdexception(ENOENT,
+                        "No such link : " << md.name() << " (" << fmd->getName() << " )");
     }
 
     pcmd->setMTime(mtime);
@@ -3022,9 +3020,9 @@ Server::OpGetCap(const std::string& id,
            cont.cap_().id(), cont.cap_().mode(), cont.cap_().vtime(),
            cont.cap_().vtime_ns(), cont.cap_().uid(), cont.cap_().gid(),
            cont.cap_().clientid().c_str(), cont.cap_().authid().c_str(),
-	   cont.cap_()._quota().quota_inode(),
-	   cont.cap_()._quota().volume_quota(),
-	   cont.cap_()._quota().inode_quota(),
+           cont.cap_()._quota().quota_inode(),
+           cont.cap_()._quota().volume_quota(),
+           cont.cap_()._quota().inode_quota(),
            cont.cap_().errc());
   EXEC_TIMING_END("Eosxd::ext::GETCAP");
   return 0;
@@ -3052,7 +3050,7 @@ Server::OpGetLock(const std::string& id,
   resp.mutable_lock_()->set_start(lock.l_start);
   resp.mutable_lock_()->set_pid(lock.l_pid);
   eos_info("getlk: rc=%d ino=%016lx start=%lu len=%ld pid=%u type=%d",
-	   rc,
+           rc,
            md.md_ino(),
            lock.l_start,
            lock.l_len,

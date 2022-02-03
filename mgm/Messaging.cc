@@ -143,16 +143,14 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
   }
 
   std::string nodequeue = advmsg->kQueue.c_str();
-  eos::common::RWMutexReadLock
-  rd_fs_lock(FsView::gFsView.ViewMutex, __FUNCTION__, __LINE__, __FILE__);
+  eos::common::RWMutexReadLock rd_fs_lock(FsView::gFsView.ViewMutex);
 
   if (FsView::gFsView.mNodeView.count(nodequeue) == 0) {
     // Rare case where a node is not yet known
     rd_fs_lock.Release();
     // Register the node to the global view and config
     eos_static_info("Registering node queue %s ..", nodequeue.c_str());
-    eos::common::RWMutexWriteLock
-    wr_fs_lock(FsView::gFsView.ViewMutex, __FUNCTION__, __LINE__, __FILE__);
+    eos::common::RWMutexWriteLock wr_fs_lock(FsView::gFsView.ViewMutex);
 
     if (FsView::gFsView.RegisterNode(nodequeue.c_str())) {
       // Just initialize config queue, taken care by constructor

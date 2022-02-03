@@ -172,7 +172,7 @@ void LRU::performCycleInMem(ThreadAssistant& assistant) noexcept
   // Do a slow find
   unsigned long long ndirs = 0;
   {
-    RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    RWMutexReadLock lock(gOFS->eosViewRWMutex);
     ndirs = gOFS->eosDirectoryService->getNumContainers();
   }
   time_t ms = 1;
@@ -392,7 +392,7 @@ LRU::AgeExpire(const char* dir, const std::string& policy)
     // Check the directory contents
     std::shared_ptr<eos::IContainerMD> cmd;
     eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView, dir);
-    RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
     try {
       cmd = gOFS->eosView->getContainer(dir);
@@ -681,7 +681,7 @@ LRU::ConvertMatch(const char* dir,
     // Check the directory contents
     std::shared_ptr<eos::IContainerMD> cmd;
     eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView, dir);
-    RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
     try {
       cmd = gOFS->eosView->getContainer(dir);

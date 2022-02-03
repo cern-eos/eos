@@ -71,7 +71,7 @@ XrdMgmOfs::_attr_ls(const char* path, XrdOucErrInfo& error,
   eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, path);
 
   if (take_lock) {
-    ns_rd_lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    ns_rd_lock.Grab(gOFS->eosViewRWMutex);
   }
 
   try {
@@ -127,7 +127,7 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
                      eos::common::VirtualIdentity& vid,
                      const char* info, const char* key, const char* value,
                      bool take_lock,
-		     bool exclusive)
+                     bool exclusive)
 {
   static const char* epname = "attr_set";
   EXEC_TIMING_BEGIN("AttrSet");
@@ -147,8 +147,8 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
   }
 
   // Never put any attribute on version directories
-  if ( (strstr(path, EOS_COMMON_PATH_VERSION_PREFIX) != 0) &&
-       ( (Key.beginswith("sys.forced")) || (Key.beginswith("user.forced")) ) ) {
+  if ((strstr(path, EOS_COMMON_PATH_VERSION_PREFIX) != 0) &&
+      ((Key.beginswith("sys.forced")) || (Key.beginswith("user.forced")))) {
     return SFS_OK;
   }
 
@@ -157,7 +157,7 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
   eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, path);
 
   if (take_lock) {
-    ns_wr_lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    ns_wr_lock.Grab(gOFS->eosViewRWMutex);
   }
 
   try {
@@ -191,8 +191,9 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
       }
 
       if (exclusive && dh->hasAttribute(Key.c_str())) {
-	errno = EEXIST;
-	return Emsg(epname, error, errno, "set attribute (exclusive set for existing attribute)", path);
+        errno = EEXIST;
+        return Emsg(epname, error, errno,
+                    "set attribute (exclusive set for existing attribute)", path);
       }
 
       dh->setAttribute(key, val.c_str());
@@ -231,10 +232,11 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
           && (!vid.sudoer && vid.uid)) {
         errno = EPERM;
       } else {
-	if (exclusive && fmd->hasAttribute(Key.c_str())) {
-	  errno = EEXIST;
-	  return Emsg(epname, error, errno, "set attribute (exclusive set for existing attribute)", path);
-	}
+        if (exclusive && fmd->hasAttribute(Key.c_str())) {
+          errno = EEXIST;
+          return Emsg(epname, error, errno,
+                      "set attribute (exclusive set for existing attribute)", path);
+        }
 
         XrdOucString val64 = value;
         XrdOucString val;
@@ -332,7 +334,7 @@ XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
   eos::common::RWMutexReadLock viewReadLock;
 
   if (take_lock) {
-    viewReadLock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    viewReadLock.Grab(gOFS->eosViewRWMutex);
   }
 
   try {
@@ -367,9 +369,10 @@ XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
       fmd = gOFS->eosView->getFile(path);
       value = (fmd->getAttribute(key)).c_str();
       errno = 0;
+
       if (std::string(key) == "user.obfuscate.key") {
-	// we never show this key
-	value = "";
+        // we never show this key
+        value = "";
       }
     } catch (eos::MDException& e) {
       errno = e.getErrno();
@@ -429,7 +432,7 @@ static bool attrGetInternal(T& md, std::string key, std::string& rvalue)
   std::string linkedContainer = md.getAttribute(kMagicKey);
   std::shared_ptr<eos::IContainerMD> dh;
   eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, linkedContainer);
-  eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+  eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
 
   try {
     dh = gOFS->eosView->getContainer(linkedContainer.c_str());
@@ -515,7 +518,7 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
   }
 
   eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, path);
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
   try {
     dh = gOFS->eosView->getContainer(path);
@@ -556,8 +559,8 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
       if (Key.beginswith("sys.") && ((!vid.sudoer) && (vid.uid))) {
         errno = EPERM;
       } else {
-	if ((vid.uid != fmd->getCUid())
-	    && (!vid.sudoer && vid.uid)) {
+        if ((vid.uid != fmd->getCUid())
+            && (!vid.sudoer && vid.uid)) {
           // TODO: REVIEW: only owner/sudoer can delete file attributes
           errno = EPERM;
         } else {
@@ -596,8 +599,8 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
 int
 XrdMgmOfs::_attr_clear(const char* path, XrdOucErrInfo& error,
                        eos::common::VirtualIdentity& vid,
-                       const char* info, 
-		       bool keep_acls)
+                       const char* info,
+                       bool keep_acls)
 
 {
   eos::IContainerMD::XAttrMap map;
@@ -609,11 +612,12 @@ XrdMgmOfs::_attr_clear(const char* path, XrdOucErrInfo& error,
   int success = SFS_OK;
 
   for (auto it = map.begin(); it != map.end(); ++it) {
-    if ( keep_acls && (
-		       (it->first == "sys.acl") ||
-		       (it->first == "user.acl") )) {
+    if (keep_acls && (
+          (it->first == "sys.acl") ||
+          (it->first == "user.acl"))) {
       continue;
     }
+
     success |= _attr_rem(path, error, vid, info, it->first.c_str());
   }
 

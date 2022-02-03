@@ -334,8 +334,7 @@ ProcCommand::Space()
     }
 
     if ((option == "nsfilesystemview")) {
-      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                         __FILE__);
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
       gOFS->eosFsView->shrink();
       stdOut += "\ninfo: resized namespace filesystem view ...";
     }
@@ -345,8 +344,7 @@ ProcCommand::Space()
         dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
 
       if (eos_chlog_filesvc) {
-        eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                           __FILE__);
+        eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
         eos_chlog_filesvc->resize();
         stdOut += "\ninfo: resized namespace file map ...";
       } else {
@@ -359,8 +357,7 @@ ProcCommand::Space()
         dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
 
       if (eos_chlog_dirsvc) {
-        eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                           __FILE__);
+        eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
         eos_chlog_dirsvc->resize();
         stdOut += "\ninfo: resized namespace directory map ...";
       } else {
@@ -369,8 +366,7 @@ ProcCommand::Space()
     }
 
     if ((option == "ns")) {
-      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                         __FILE__);
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
       gOFS->eosFsView->shrink();
       auto* eos_chlog_filesvc =
         dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);

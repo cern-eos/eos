@@ -42,8 +42,12 @@ ProcCommand::FuseX()
 {
   ACCESSMODE_R;
   FUNCTIONMAYSTALL("Eosxd::prot::LS", *pVid, *mError);
-  { FUNCTIONMAYSTALL("Eosxd::ext::LS", *pVid, *mError);}
-  { FUNCTIONMAYSTALL("Eosxd::ext::LS-Entry", *pVid, *mError);}
+  {
+    FUNCTIONMAYSTALL("Eosxd::ext::LS", *pVid, *mError);
+  }
+  {
+    FUNCTIONMAYSTALL("Eosxd::ext::LS-Entry", *pVid, *mError);
+  }
   gOFS->MgmStats.Add("Eosxd::prot::LS", pVid->uid, pVid->gid, 1);
   EXEC_TIMING_BEGIN("Eosxd::prot::LS");
   // -------------------------------------------------------------------------------------------------------
@@ -65,7 +69,8 @@ ProcCommand::FuseX()
   XrdOucString cid    = pOpaque->Get("mgm.cid") ? pOpaque->Get("mgm.cid") : "";
   XrdOucString authid = pOpaque->Get("mgm.authid") ? pOpaque->Get("mgm.authid") :
                         "";
-  bool inlined = pOpaque->Get("mgm.inline") ? true : false; // clients supports inlined responses in error messages
+  bool inlined = pOpaque->Get("mgm.inline") ? true :
+                 false; // clients supports inlined responses in error messages
 
   if (spath.length()) {
     // decode escaped path name
@@ -92,13 +97,10 @@ ProcCommand::FuseX()
     // translate spath into an inode number
     std::shared_ptr<eos::IFileMD> fmd;
     std::shared_ptr<eos::IContainerMD> cmd;
-
     eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, spath.c_str());
-
     errno = 0;
-
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
-    std::string emsg="none";
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    std::string emsg = "none";
 
     try {
       fmd = gOFS->eosView->getFile(spath.c_str(), true);
@@ -110,12 +112,9 @@ ProcCommand::FuseX()
 
     if (!fmd) {
       lock.Release();
-
       eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, spath.c_str());
-
       errno = 0 ;
-
-      lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+      lock.Grab(gOFS->eosViewRWMutex);
 
       try {
         cmd = gOFS->eosView->getContainer(spath.c_str(), true);
@@ -144,13 +143,10 @@ ProcCommand::FuseX()
     // decode escaped child name
     schild = eos::common::StringConversion::curl_unescaped(schild.c_str()).c_str();
     std::shared_ptr<eos::IContainerMD> cmd;
-
     eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView, inode);
-
     errno = 0;
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
-    std::string emsg="none";
-
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    std::string emsg = "none";
 
     // lookup by parent dir + name
     try {
@@ -179,7 +175,7 @@ ProcCommand::FuseX()
         emsg = schild.c_str();
         emsg += " - no such file or directory";
       } else {
-	errno = 0;
+        errno = 0;
       }
     } catch (eos::MDException& e) {
       errno = e.getErrno();
@@ -282,18 +278,18 @@ ProcCommand::FuseX()
   if (inlined) {
     if (result.size() < 2048) {
       if (EOS_LOGS_DEBUG) {
-	eos_debug("returning in-line result - len=%u", result.size());
+        eos_debug("returning in-line result - len=%u", result.size());
       }
-      
+
       std::string b64response;
       eos::common::SymKey::Base64(result, b64response);
-      
-      XrdOucBuffer* buff = new XrdOucBuffer(strndup(b64response.c_str(), b64response.size()), b64response.size());
+      XrdOucBuffer* buff = new XrdOucBuffer(strndup(b64response.c_str(),
+                                            b64response.size()), b64response.size());
       mError->setErrInfo(ECANCELED, buff);
       return SFS_ERROR;
     }
   }
-  
+
   mResultStream = result;
 
   if (EOS_LOGS_DEBUG)
@@ -307,8 +303,6 @@ ProcCommand::FuseX()
               eos::common::StringConversion::string_to_hex(result).c_str());
 
   EXEC_TIMING_END("Eosxd::prot::LS");
-
-
   return SFS_OK;
 }
 

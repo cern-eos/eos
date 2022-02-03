@@ -53,7 +53,6 @@ FuseServer::Caps::Store(const eos::fusex::cap& ecap,
                   ecap.id(),
                   ecap.clientid().c_str(),
                   ecap.authid().c_str());
-
   // register this clientid to a given client uuid
   ClientIds()[ecap.clientuuid()].insert(ecap.clientid());
 
@@ -61,6 +60,7 @@ FuseServer::Caps::Store(const eos::fusex::cap& ecap,
   if (auto kv = mCaps.find(ecap.authid());
       kv != mCaps.end()) {
     shared_cap cap = kv->second;
+
     if (cap->id() != ecap.id()) {
       eos_static_info("got inode change for %s from %x to %x",
                       ecap.authid().c_str(), cap->id(), ecap.id());
@@ -68,8 +68,7 @@ FuseServer::Caps::Store(const eos::fusex::cap& ecap,
     }
   }
 
-  mTimeOrderedCap.emplace(std::make_pair(ecap.vtime(),ecap.authid()));
-
+  mTimeOrderedCap.emplace(std::make_pair(ecap.vtime(), ecap.authid()));
   mClientCaps[ecap.clientid()].insert(ecap.authid());
   mClientInoCaps[ecap.clientid()][ecap.id()].insert(ecap.authid());
   shared_cap cap = std::make_shared<capx>();
@@ -135,6 +134,7 @@ FuseServer::Caps::Get(const FuseServer::Caps::authid_t& id, bool make_default)
       kv != mCaps.end()) {
     return kv->second;
   }
+
   return make_default ? std::make_shared<capx>() : nullptr;
 }
 
@@ -142,20 +142,20 @@ FuseServer::Caps::Get(const FuseServer::Caps::authid_t& id, bool make_default)
 // Get Broadcast Caps
 //----------------------------------------------------------------------------
 std::vector<std::shared_ptr<eos::mgm::FuseServer::Caps::capx>>
-FuseServer::Caps::GetBroadcastCapsTS(uint64_t id,
-                                     shared_cap refcap,
-                                     const eos::fusex::md* mdptr,
-                                     bool suppress,
-                                     std::string suppress_stat_tag)
+    FuseServer::Caps::GetBroadcastCapsTS(uint64_t id,
+        shared_cap refcap,
+        const eos::fusex::md* mdptr,
+        bool suppress,
+        std::string suppress_stat_tag)
 {
   std::vector<shared_cap> bccaps;
   std::vector<authid_t> auth_ids;
   size_t n_suppressed {0};
   regex_t regex;
-
   {
     std::lock_guard lg(mtx);
     auto ids = mInodeCaps.find(id);
+
     if (ids == mInodeCaps.end()) {
       return bccaps;
     }
@@ -184,10 +184,12 @@ FuseServer::Caps::GetBroadcastCapsTS(uint64_t id,
   }
 
   eos_static_debug("id=%lx mInodeCaps.count=1", id);
-  for (const auto& it: auth_ids) {
+
+  for (const auto& it : auth_ids) {
     // TODO: do we need to debug log mCaps.found
     // eos_static_debug("mCaps.found=1")
     shared_cap cap = GetTS(it);
+
     if (!cap->id()) {
       continue;
     }
@@ -210,10 +212,10 @@ FuseServer::Caps::GetBroadcastCapsTS(uint64_t id,
     }
 
     if (suppress) {
-        if (regexec(&regex, cap->clientid().c_str(), 0, NULL, 0) != REG_NOMATCH) {
-          n_suppressed++;
-          continue;
-        }
+      if (regexec(&regex, cap->clientid().c_str(), 0, NULL, 0) != REG_NOMATCH) {
+        n_suppressed++;
+        continue;
+      }
     }
 
     bccaps.emplace_back(std::move(cap));
@@ -235,7 +237,6 @@ FuseServer::Caps::BroadcastReleaseFromExternal(uint64_t id)
 {
   gOFS->MgmStats.Add("Eosxd::int::BcReleaseExt", 0, 0, 1);
   EXEC_TIMING_BEGIN("Eosxd::int::BcReleaseExt");
-
   auto bccaps = GetBroadcastCapsTS(id);
 
   for (auto it : bccaps) {
@@ -259,7 +260,8 @@ FuseServer::Caps::BroadcastRefreshFromExternal(uint64_t id, uint64_t pid)
   EXEC_TIMING_BEGIN("Eosxd::int::BcRefreshExt");
   // broad-cast refresh for a given inode
   eos_static_info("id=%lx pid=%lx", id, pid);
-  auto bccaps = GetBroadcastCapsTS(pid, nullptr, nullptr, true, "Eosxd::int::BcRefreshExtSup");
+  auto bccaps = GetBroadcastCapsTS(pid, nullptr, nullptr, true,
+                                   "Eosxd::int::BcRefreshExtSup");
 
   for (auto it : bccaps) {
     gOFS->zMQ->gFuseServer.Client().RefreshEntry((uint64_t) id,
@@ -364,12 +366,11 @@ FuseServer::Caps::BroadcastRefresh(uint64_t inode,
   size_t n_suppressed = 0;
   std::vector<authid_t> auth_ids;
   FuseServer::Caps::shared_cap refcap {nullptr};
-
   {
     std::lock_guard lg(mtx);
     refcap = Get(md.authid(), false);
-
     auto kv = mInodeCaps.find(parent_inode);
+
     if (kv == mInodeCaps.end()) {
       EXEC_TIMING_END("Eosxd::int::BcRefresh");
       return 0; // nothing to process here
@@ -380,9 +381,6 @@ FuseServer::Caps::BroadcastRefresh(uint64_t inode,
               kv->second.end(),
               std::back_inserter(auth_ids));
   }
-
-
-
   bool suppress_audience = false;
   regex_t regex;
   // audience check
@@ -400,8 +398,9 @@ FuseServer::Caps::BroadcastRefresh(uint64_t inode,
     }
   }
 
-  for (const auto& it: auth_ids) {
+  for (const auto& it : auth_ids) {
     shared_cap cap = GetTS(it);
+
     // avoid processing if the cap doesn't exist
     if (!cap->id()) {
       continue;
@@ -425,9 +424,9 @@ FuseServer::Caps::BroadcastRefresh(uint64_t inode,
     }
 
     gOFS->zMQ->gFuseServer.Client().RefreshEntry((uint64_t) inode,
-                                                 cap->clientuuid(),
-                                                 cap->clientid()
-                                                 );
+        cap->clientuuid(),
+        cap->clientid()
+                                                );
     errno = 0;
   }
 
@@ -464,16 +463,17 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
   std::unordered_set<std::string> clients_sent;
   std::vector<authid_t> auth_ids;
   FuseServer::Caps::shared_cap refcap {nullptr};
-
   {
     std::lock_guard lg(mtx);
     refcap = Get(md.authid(), false);
+
     if (refcap == nullptr) {
       EXEC_TIMING_END("Eosxd::int::BcMD");
       return 0;
     }
 
     auto kv = mInodeCaps.find(md_pino);
+
     if (kv == mInodeCaps.end()) {
       EXEC_TIMING_END("Eosxd::int::BcMD");
       return 0; // nothing to process here
@@ -484,6 +484,7 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
               kv->second.end(),
               std::back_inserter(auth_ids));
   }
+
   if (refcap != nullptr) {
     eos_static_info("id=%lx/%lx clientid=%s clientuuid=%s authid=%s",
                     refcap->id(), md_pino, refcap->clientid().c_str(),
@@ -507,11 +508,13 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
     }
   }
 
-  for (const auto& it: auth_ids) {
+  for (const auto& it : auth_ids) {
     shared_cap cap = GetTS(it, false);
+
     if (!cap) {
       continue;
     }
+
     // avoid processing if the cap doesn't exist or to a sent client
     if (!cap->id() || clients_sent.count(cap->clientuuid())) {
       continue;
@@ -539,7 +542,6 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
                      cap->clientid().c_str(),
                      cap->clientuuid().c_str(),
                      cap->authid().c_str());
-
     // make sure we sent the update only once to each client, even if this
     // one has many caps
     clients_sent.emplace(cap->clientuuid());
@@ -574,7 +576,7 @@ FuseServer::Caps::Print(const std::string& option,
   eos::common::RWMutexReadLock lock;
 
   if (option == "p") {
-    lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    lock.Grab(gOFS->eosViewRWMutex);
   }
 
   eos_static_info("option=%s string=%s", option.c_str(), filter.c_str());
@@ -590,6 +592,7 @@ FuseServer::Caps::Print(const std::string& option,
 
   if (option == "t") {
     std::lock_guard lg(mtx);
+
     // print by time order
     for (auto it = mTimeOrderedCap.begin(); it != mTimeOrderedCap.end();) {
       if (!mCaps.count(it->second)) {
@@ -749,7 +752,6 @@ FuseServer::Caps::Delete(uint64_t md_ino)
   };
   std::unordered_set<client_set_t::iterator, iter_client_set_hash>
   to_del_client_caps;
-
   std::lock_guard lg(mtx);
   const auto it_inode_caps = mInodeCaps.find(md_ino);
 

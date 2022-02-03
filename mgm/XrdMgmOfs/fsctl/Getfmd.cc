@@ -56,8 +56,7 @@ XrdMgmOfs::Getfmd(const char* path,
     std::string fullpath;
     std::shared_ptr<eos::IFileMD> fmd;
     eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
-    eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                       __FILE__);
+    eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
 
     try {
       fmd = gOFS->eosFileService->getFileMD(fid);

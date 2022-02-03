@@ -103,8 +103,7 @@ FsckEntry::CollectMgmInfo()
     // we need to clean it up and mark the parentId with 0 otherwise the fsck
     // mechanism gets confused.
     try {
-      eos::common::RWMutexWriteLock ns_rd_lock(gOFS->eosViewRWMutex,
-          __FUNCTION__, __LINE__, __FILE__);
+      eos::common::RWMutexWriteLock ns_rd_lock(gOFS->eosViewRWMutex);
       (void) gOFS->eosDirectoryService->getContainerMD(mMgmFmd.cont_id());
     } catch (const eos::MDException& e) {
       mMgmFmd.set_cont_id(0ull);
@@ -284,8 +283,7 @@ FsckEntry::RepairMgmXsSzDiff()
       try {
         eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, mFid);
         // Grab the file metadata object and update it
-        eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
-                                                __LINE__, __FILE__);
+        eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
         auto fmd = gOFS->eosFileService->getFileMD(mFid);
         fmd->setChecksum(xs_buff);
         fmd->setSize(sz_val);
@@ -454,8 +452,7 @@ FsckEntry::RepairRainInconsistencies()
         try {
           // Grab the file metadata object and update it
           eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, mFid);
-          eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
-                                                  __LINE__, __FILE__);
+          eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
           auto fmd = gOFS->eosFileService->getFileMD(mFid);
           fmd->addLocation(mFsidErr);
           gOFS->eosView->updateFileStore(fmd.get());
@@ -587,8 +584,7 @@ FsckEntry::RepairReplicaInconsistencies()
     if (gOFS) {
       try { // Update the MGM file md object
         eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, mFid);
-        eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
-                                                __LINE__, __FILE__);
+        eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
         auto fmd = gOFS->eosFileService->getFileMD(mFid);
         fmd->unlinkLocation(drop_fsid);
         fmd->removeLocation(drop_fsid);
@@ -658,8 +654,7 @@ FsckEntry::RepairReplicaInconsistencies()
         if (gOFS) {
           try {
             eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, mFid);
-            eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
-                                                    __LINE__, __FILE__);
+            eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
             auto fmd = gOFS->eosFileService->getFileMD(mFid);
             fmd->addLocation(new_fsid);
             gOFS->eosView->updateFileStore(fmd.get());

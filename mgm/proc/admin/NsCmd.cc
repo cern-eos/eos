@@ -420,12 +420,10 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
     // simplify the disk-only use of EOS
     if (gOFS->mTapeEnabled) {
       oss << "uid=all gid=all ns.tapeenabled=true" << std::endl;
-
       // GC should only be active on the master MGM node
       oss << "uid=all gid=all tgc.is_active="
           << (gOFS->mTapeGc->isGcActive() ? "true" : "false")
           << std::endl;
-
       // Tape GC stats are only displayed if enabled for at least one EOS space
       const auto tgcStats = gOFS->mTapeGc->getStats();
 
@@ -628,12 +626,10 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
     // simplify the disk-only use of EOS
     if (gOFS->mTapeEnabled) {
       oss << "ALL      tapeenabled                      true" << std::endl;
-
       // GC should only be active on the master MGM node
       oss << "ALL      tgc is active                    "
           << (gOFS->mTapeGc->isGcActive() ? "true" : "false")
           << std::endl;
-
       // Tape GC stats are only displayed if enabled for at least one EOS space
       const auto tgcStats = gOFS->mTapeGc->getStats();
 
@@ -839,8 +835,7 @@ void
 NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
                       eos::console::ReplyProto& reply)
 {
-  eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex, __FUNCTION__,
-      __LINE__, __FILE__);
+  eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
   std::shared_ptr<IContainerMD> cont;
 
   try {
@@ -885,8 +880,7 @@ NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
   std::string cont_uri {""};
   eos::IContainerMD::id_t cont_id {0ull};
   {
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
-                                            __LINE__, __FILE__);
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
     std::shared_ptr<IContainerMD> cont {nullptr};
 
     try {
@@ -960,8 +954,7 @@ NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
 
   // Update the quota note
   try {
-    eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex, __FUNCTION__,
-        __LINE__, __FILE__);
+    eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
     auto cont = gOFS->eosDirectoryService->getContainerMD(cont_id);
 
     if ((cont->getFlags() & eos::QUOTA_NODE_FLAG) == 0) {

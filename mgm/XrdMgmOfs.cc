@@ -832,17 +832,14 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   }
 
 #endif
-
   bool no_files_prepared = true;
-
   int error_counter = 0;
   XrdOucErrInfo first_error;
 
   // check that all files exist
   for (
-       ; pptr
-       ; pptr = pptr->next, optr = optr ? optr->next : optr) {
-
+    ; pptr
+    ; pptr = pptr->next, optr = optr ? optr->next : optr) {
     XrdOucString prep_path = (pptr->text ? pptr->text : "");
     std::string orig_path = prep_path.c_str();
     eos_info("msg =\"checking file exists\" path=\"%s\"", prep_path.c_str());
@@ -863,7 +860,11 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       Emsg(epname, error, ENOENT,
            "prepare - path empty or uses forbidden characters:",
            orig_path.c_str());
-      if (error_counter == 0) first_error = error;
+
+      if (error_counter == 0) {
+        first_error = error;
+      }
+
       error_counter++;
       continue;
     }
@@ -875,7 +876,11 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
              "prepare - file does not exist or is not accessible to you:",
              prep_path.c_str());
       }
-      if (error_counter == 0) first_error = error;
+
+      if (error_counter == 0) {
+        first_error = error;
+      }
+
       error_counter++;
       continue;
     }
@@ -910,7 +915,11 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       Emsg(epname, error, EPERM,
            "prepare - you don't have prepare permission:",
            prep_path.c_str());
-      if (error_counter == 0) first_error = error;
+
+      if (error_counter == 0) {
+        first_error = error;
+      }
+
       error_counter++;
       continue;
     }
@@ -921,15 +930,20 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   if ((pargs.opts & Prep_STAGE) && no_files_prepared) {
     eos_err("Unable to prepare - failed to prepare all files with reqID %s",
             reqid.c_str());
+
     if (error_counter > 0) {
       int err_code;
       std::stringstream err_message;
       err_message << first_error.getErrText(err_code);
+
       if (error_counter > 1) {
-        err_message << " (all " << (error_counter-1) << " other files also failed with errors)";
+        err_message << " (all " << (error_counter - 1) <<
+                    " other files also failed with errors)";
       }
+
       error.setErrInfo(err_code, err_message.str().c_str());
     }
+
     return SFS_ERROR;
   }
 
@@ -1008,9 +1022,12 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     int err_code;
     std::stringstream err_message;
     err_message << first_error.getErrText(err_code);
+
     if (error_counter > 1) {
-      err_message << " (" << (error_counter-1) << " other files also failed with errors)";
+      err_message << " (" << (error_counter - 1) <<
+                  " other files also failed with errors)";
     }
+
     error.setErrInfo(err_code, err_message.str().c_str());
     retc = SFS_ERROR;
   }
@@ -1972,8 +1989,7 @@ XrdMgmOfs::RemoveDetached(uint64_t id, bool is_dir, bool force,
 
   if (is_dir) {
     try {
-      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
-                                              __LINE__, __FILE__);
+      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
       std::shared_ptr<eos::IContainerMD> cont  =
         gOFS->eosDirectoryService->getContainerMD(id);
 
@@ -1994,8 +2010,7 @@ XrdMgmOfs::RemoveDetached(uint64_t id, bool is_dir, bool force,
   } else {
     try {
       eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-      eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex, __FUNCTION__,
-          __LINE__, __FILE__);
+      eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
       std::shared_ptr<eos::IFileMD> file = gOFS->eosFileService->getFileMD(id);
 
       if (file->getContainerId()) {

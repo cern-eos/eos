@@ -220,8 +220,7 @@ XrdMgmOfs::_symlink(const char* source_name,
   }
 
   {
-    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                       __FILE__);
+    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
     try {
       std::shared_ptr<eos::IContainerMD> dir = eosView->getContainer(
@@ -305,8 +304,7 @@ XrdMgmOfs::_readlink(const char* name,
   gOFS->MgmStats.Add("Symlink", vid.uid, vid.gid, 1);
   EXEC_TIMING_BEGIN("ReadLink");
   eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, name, false);
-  eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
-                                          __LINE__, __FILE__);
+  eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
   try {
     std::shared_ptr<eos::IFileMD> file = eosView->getFile(name, false);

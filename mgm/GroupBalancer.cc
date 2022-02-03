@@ -132,8 +132,7 @@ GroupBalancer::getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
   eos::common::FileId::fileid_t fileid = 0;
   {
     eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                      __FILE__);
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
     try {
       fmd = gOFS->eosFileService->getFileMD(fid);
@@ -266,8 +265,7 @@ GroupBalancer::chooseFidFromGroup(FsGroup* group)
   uint64_t fsid_size = 0ull;
   eos::common::FileSystem::fsid_t fsid = 0;
   eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
-  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                    __FILE__);
+  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
   // TODO(gbitzes): Add prefetching, make more efficient.
   std::vector<int> validFsIndexes(group->size());
 

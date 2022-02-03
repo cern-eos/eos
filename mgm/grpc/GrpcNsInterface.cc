@@ -483,7 +483,7 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
     }
 
     if (lock) {
-      viewReadLock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+      viewReadLock.Grab(gOFS->eosViewRWMutex);
     }
 
     if (fid) {
@@ -615,7 +615,7 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
     }
 
     if (lock) {
-      viewReadLock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+      viewReadLock.Grab(gOFS->eosViewRWMutex);
     }
 
     if (cid) {
@@ -739,7 +739,7 @@ GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
         cid);
   }
 
-  viewReadLock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+  viewReadLock.Grab(gOFS->eosViewRWMutex);
 
   if (cid) {
     try {
@@ -1014,8 +1014,7 @@ GrpcNsInterface::FileInsert(eos::common::VirtualIdentity& vid,
   }
 
   std::shared_ptr<eos::IFileMD> newfile;
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                     __FILE__);
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   std::vector<folly::Future<eos::IFileMDPtr>> conflicts;
 
   for (auto it : request->files()) {
@@ -1118,8 +1117,7 @@ GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
   }
 
   std::shared_ptr<eos::IContainerMD> newdir;
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                     __FILE__);
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   std::vector<folly::Future<eos::IContainerMDPtr>> conflicts;
 
   for (auto it : request->container()) {
@@ -1404,8 +1402,7 @@ grpc::Status GrpcNsInterface::Rmdir(eos::common::VirtualIdentity& vid,
 
   if (path.empty()) {
     try {
-      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                         __FILE__);
+      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
       path =
         gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(
                                 request->id().id()).get());
@@ -1490,8 +1487,7 @@ grpc::Status GrpcNsInterface::Unlink(eos::common::VirtualIdentity& vid,
 
   if (path.empty()) {
     try {
-      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                         __FILE__);
+      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
       path =
         gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(
                                 request->id().id()).get());
@@ -1678,8 +1674,7 @@ grpc::Status GrpcNsInterface::SetXAttr(eos::common::VirtualIdentity& vid,
   if (path.empty()) {
     if (request->id().type() == eos::rpc::FILE) {
       try {
-        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                           __FILE__);
+        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path =
           gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(
                                   request->id().id()).get());
@@ -1689,8 +1684,7 @@ grpc::Status GrpcNsInterface::SetXAttr(eos::common::VirtualIdentity& vid,
       }
     } else {
       try {
-        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                           __FILE__);
+        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path =
           gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(
                                   request->id().id()).get());
@@ -1774,8 +1768,7 @@ grpc::Status GrpcNsInterface::Version(eos::common::VirtualIdentity& vid,
     }
 
     try {
-      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                         __FILE__);
+      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
       path =
         gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid).get());
     } catch (eos::MDException& e) {
@@ -1884,89 +1877,88 @@ grpc::Status GrpcNsInterface::Version(eos::common::VirtualIdentity& vid,
           }
         }
       } else {
-	if (request->cmd() == eos::rpc::NSRequest::VersionRequest::GRAB) {
-	  // grab a given version
+        if (request->cmd() == eos::rpc::NSRequest::VersionRequest::GRAB) {
+          // grab a given version
+          XrdOucErrInfo error;
+          struct stat buf;
+          struct stat vbuf;
 
-	  XrdOucErrInfo error;
-	  struct stat buf;
-	  struct stat vbuf;
+          if (gOFS->_stat(path.c_str(), &buf, error, vid, "")) {
+            std::string msg;
+            msg = "error; unable to stat path=";
+            msg += path.c_str();
+            reply->set_code(errno);
+            reply->set_msg(msg);
+            return grpc::Status::OK;
+          }
 
-	  if (gOFS->_stat(path.c_str(), &buf, error, vid, "")) {
-	    std::string msg;
-	    msg = "error; unable to stat path=";
-	    msg += path.c_str();
-	    reply->set_code(errno);
-	    reply->set_msg(msg);
-	    return grpc::Status::OK;
-	  }
+          XrdOucString versionname = request->grabversion().c_str();
 
+          if (!versionname.length()) {
+            std::string msg = "error: you have to provide the version you want to stage!";
+            reply->set_code(EINVAL);
+            reply->set_msg(msg);
+            return grpc::Status::OK;
+          }
 
-	  XrdOucString versionname = request->grabversion().c_str();
+          XrdOucString versionpath = cPath.GetVersionDirectory();
+          versionpath += versionname;
 
-	  if (!versionname.length()) {
-	    std::string msg = "error: you have to provide the version you want to stage!";
-	    reply->set_code(EINVAL);
-	    reply->set_msg(msg);
-	    return grpc::Status::OK;
-	  }
+          if (gOFS->_stat(versionpath.c_str(), &vbuf, error, vid, "")) {
+            std::string msg;
+            msg = "error: failed to stat your provided version path='";
+            msg += versionpath.c_str();
+            msg += "'";
+            reply->set_code(errno);
+            reply->set_msg(msg);
+            return grpc::Status::OK;
+          }
 
-	  XrdOucString versionpath = cPath.GetVersionDirectory();
-	  versionpath += versionname;
+          // now stage a new version of the existing file
+          XrdOucString versionedpath;
 
-	  if (gOFS->_stat(versionpath.c_str(), &vbuf, error, vid, "")) {
-	    std::string msg;
-	    msg = "error: failed to stat your provided version path='";
-	    msg += versionpath.c_str();
-	    msg += "'";
-	    reply->set_code(errno);
-	    reply->set_msg(msg);
-	    return grpc::Status::OK;
-	  }
+          if (gOFS->Version(eos::common::FileId::InodeToFid(buf.st_ino), error,
+                            vid, -1, &versionedpath)) {
+            std::string msg;
+            msg += "error: unable to create a version of path=";
+            msg += path.c_str();
+            msg += "\n";
+            msg += "error: ";
+            msg += error.getErrText();
+            reply->set_code(error.getErrInfo());
+            reply->set_msg(msg);
+            return grpc::Status::OK;
+          }
 
-	  // now stage a new version of the existing file
-	  XrdOucString versionedpath;
-	  if (gOFS->Version(eos::common::FileId::InodeToFid(buf.st_ino), error,
-			    vid, -1, &versionedpath)) {
-	    std::string msg;
-	    msg += "error: unable to create a version of path=";
-	    msg += path.c_str();
-	    msg += "\n";
-	    msg += "error: ";
-	    msg += error.getErrText();
-	    reply->set_code(error.getErrInfo());
-	    reply->set_msg(msg);
-	    return grpc::Status::OK;
-	  }
-
-	  // and stage back the desired version
-	  if (gOFS->rename(versionpath.c_str(), path.c_str(), error, vid)) {
-	    std::string msg;
-	    msg += "error: unable to stage";
-	    msg += " '";
-	    msg += versionpath.c_str();
-	    msg += "' back to '";
-	    msg += path.c_str();
-	    msg += "'";
-	    reply->set_code(errno);
-	    reply->set_msg(msg);
-	    return grpc::Status::OK;
-	  } else {
-	    std::string msg;
-	    msg += "success: staged '";
-	    msg += versionpath.c_str();
-	    msg += "' back to '";
-	    msg += path.c_str();
-	    msg += "'";
-	    msg += " - the previous file is now '";
-	    msg += versionedpath.c_str();
-	    msg+= ";";
-	    reply->set_code(0);
-	    reply->set_msg(msg);
-	  }
-	} else {
-	  reply->set_code(EINVAL);
-	  reply->set_msg("error: command is not supported");
-	}
+          // and stage back the desired version
+          if (gOFS->rename(versionpath.c_str(), path.c_str(), error, vid)) {
+            std::string msg;
+            msg += "error: unable to stage";
+            msg += " '";
+            msg += versionpath.c_str();
+            msg += "' back to '";
+            msg += path.c_str();
+            msg += "'";
+            reply->set_code(errno);
+            reply->set_msg(msg);
+            return grpc::Status::OK;
+          } else {
+            std::string msg;
+            msg += "success: staged '";
+            msg += versionpath.c_str();
+            msg += "' back to '";
+            msg += path.c_str();
+            msg += "'";
+            msg += " - the previous file is now '";
+            msg += versionedpath.c_str();
+            msg += ";";
+            reply->set_code(0);
+            reply->set_msg(msg);
+          }
+        } else {
+          reply->set_code(EINVAL);
+          reply->set_msg("error: command is not supported");
+        }
       }
     }
   }
@@ -2101,8 +2093,7 @@ GrpcNsInterface::Chown(eos::common::VirtualIdentity& vid,
   if (path.empty()) {
     if (request->id().type() == eos::rpc::FILE) {
       try {
-        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                           __FILE__);
+        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path =
           gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(
                                   request->id().id()).get());
@@ -2112,8 +2103,7 @@ GrpcNsInterface::Chown(eos::common::VirtualIdentity& vid,
       }
     } else {
       try {
-        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                           __FILE__);
+        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path =
           gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(
                                   request->id().id()).get());
@@ -2196,8 +2186,7 @@ GrpcNsInterface::Chmod(eos::common::VirtualIdentity& vid,
   if (path.empty()) {
     if (request->id().type() == eos::rpc::FILE) {
       try {
-        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                           __FILE__);
+        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path =
           gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(
                                   request->id().id()).get());
@@ -2207,8 +2196,7 @@ GrpcNsInterface::Chmod(eos::common::VirtualIdentity& vid,
       }
     } else {
       try {
-        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                           __FILE__);
+        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
         path =
           gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(
                                   request->id().id()).get());
@@ -2279,8 +2267,7 @@ GrpcNsInterface::Acl(eos::common::VirtualIdentity& vid,
     }
 
     try {
-      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                         __FILE__);
+      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
 
       if (fid) {
         path =
@@ -2319,6 +2306,7 @@ GrpcNsInterface::Acl(eos::common::VirtualIdentity& vid,
   }
 
   uint32_t position = request->position();
+
   if (position) {
     req.mutable_acl()->set_position(position);
   }

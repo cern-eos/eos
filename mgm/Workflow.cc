@@ -39,7 +39,7 @@ EOSMGMNAMESPACE_BEGIN
 int
 Workflow::Trigger(const std::string& event, std::string workflow,
                   eos::common::VirtualIdentity& vid,
-                  const char * const ininfo, std::string& errorMessage)
+                  const char* const ininfo, std::string& errorMessage)
 {
   errno = 0;
 
@@ -126,7 +126,7 @@ Workflow::getCGICloseW(std::string workflow,
 
     try {
       eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, mFid);
-      eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+      eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
       auto fmd = gOFS->eosFileService->getFileMD(mFid);
       fullPath = gOFS->eosView->getUri(fmd.get());
       cuid = fmd->getCUid();
@@ -148,7 +148,8 @@ Workflow::getCGICloseW(std::string workflow,
 
     auto attrStr = attrStream.str();
     std::string attrEncoded;
-    eos::common::SymKey::Base64Encode(attrStr.c_str(), attrStr.length(), attrEncoded);
+    eos::common::SymKey::Base64Encode(attrStr.c_str(), attrStr.length(),
+                                      attrEncoded);
     cgi = "&mgm.event=sync::closew&mgm.workflow=";
     cgi += workflow;
     cgi += "&mgm.instance=";
@@ -201,25 +202,26 @@ Workflow::Attach(const char* path)
 /*----------------------------------------------------------------------------*/
 int
 Workflow::Create(eos::common::VirtualIdentity& vid,
-                 const char * const ininfo, std::string& errorMessage)
+                 const char* const ininfo, std::string& errorMessage)
 {
   try {
     return ExceptionThrowingCreate(vid, ininfo, errorMessage);
-  } catch(std::exception &se) {
+  } catch (std::exception& se) {
     errorMessage = se.what();
-  } catch(...) {
+  } catch (...) {
     errorMessage = "Caught an unknown exception";
   }
 
   // Reaching here means that an exception was thrown
-  eos_static_err("msg =\"Caught an unexpected exception: %s\"", errorMessage.c_str());
+  eos_static_err("msg =\"Caught an unexpected exception: %s\"",
+                 errorMessage.c_str());
   return ECANCELED;
 }
 
 /*----------------------------------------------------------------------------*/
 int
 Workflow::ExceptionThrowingCreate(eos::common::VirtualIdentity& vid,
-  const char * const ininfo, std::string& errorMessage)
+                                  const char* const ininfo, std::string& errorMessage)
 {
   int retc = 0;
   WFE::Job job(mFid, vid, errorMessage);
