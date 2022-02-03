@@ -110,8 +110,7 @@ void ProcDirectoryBulkRequestDAO::generateXattrsMapFromBulkRequestFiles(const Bu
     std::string fid;
     std::string fileError;
     try {
-      eos::common::RWMutexReadLock nsLock(mFileSystem->eosViewRWMutex,
-                                          __FUNCTION__, __LINE__, __FILE__);
+      eos::common::RWMutexReadLock nsLock(mFileSystem->eosViewRWMutex);
       file = mFileSystem->eosView->getFile(currentFilePath);
       fid = std::to_string(file->getId());
     } catch (const eos::MDException &ex){
@@ -139,8 +138,7 @@ void ProcDirectoryBulkRequestDAO::generateXattrsMapFromBulkRequestFiles(const Bu
 void ProcDirectoryBulkRequestDAO::persistBulkRequestDirectory(const std::string& directoryBulkReqPath, const eos::IContainerMD::XAttrMap& xattrs) {
   std::shared_ptr<eos::IContainerMD> bulkReqDirMd;
   {
-    eos::common::RWMutexWriteLock nsLock(mFileSystem->eosViewRWMutex,
-                                         __FUNCTION__, __LINE__, __FILE__);
+    eos::common::RWMutexWriteLock nsLock(mFileSystem->eosViewRWMutex);
     try {
       bulkReqDirMd = mFileSystem->eosView->getContainer(directoryBulkReqPath);
       for (auto& xattr : xattrs) {
@@ -198,8 +196,7 @@ void ProcDirectoryBulkRequestDAO::insertBulkRequestFilesToBulkRequestDirectory(c
     pathOfFileToTouch << bulkReqProcPath << "/";
     std::shared_ptr<IFileMD> file;
     try {
-      eos::common::RWMutexReadLock nsLock(mFileSystem->eosViewRWMutex,
-                                          __FUNCTION__, __LINE__, __FILE__);
+      eos::common::RWMutexReadLock nsLock(mFileSystem->eosViewRWMutex);
       file = mFileSystem->eosView->getFile(currentFilePath);
       pathOfFileToTouch << file->getId();
     } catch (const eos::MDException &ex){
@@ -218,8 +215,7 @@ void ProcDirectoryBulkRequestDAO::insertBulkRequestFilesToBulkRequestDirectory(c
       try {
         std::shared_ptr<IFileMD> fmd;
         {
-          eos::common::RWMutexWriteLock(mFileSystem->eosViewRWMutex,
-                                        __FUNCTION__, __LINE__, __FILE__);
+          eos::common::RWMutexWriteLock(mFileSystem->eosViewRWMutex);
           auto fmd = mFileSystem->eosView->createFile(pathOfFileToTouch.str(),
                                                       vid.uid, vid.gid);
           fmd->setSize(0);
@@ -417,7 +413,7 @@ void ProcDirectoryBulkRequestDAO::initiateFileMDFetch(const ProcDirBulkRequestFi
 }
 
 void ProcDirectoryBulkRequestDAO::getFilesPathAndAddToBulkRequest(std::map<ProcDirBulkRequestFile, folly::Future<IFileMDPtr>> & filesWithFuture, BulkRequest & bulkRequest) {
-  eos::common::RWMutexReadLock lock(mFileSystem->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+  eos::common::RWMutexReadLock lock(mFileSystem->eosViewRWMutex);
   for (auto& fileWithFuture : filesWithFuture) {
     try {
       fileWithFuture.second.wait();
