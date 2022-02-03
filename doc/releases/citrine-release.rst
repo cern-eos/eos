@@ -16,6 +16,29 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.75 Citrine``
+===================
+
+2022-02-03
+
+Bug
+----
+
+* MGM: Fix deadlock in the GroupBalancer
+* [EOS-5083] - Deletion via tokens deletes the original folder for which token was created
+* [EOS-5088] - newfind in root directory missing `maxdepth 0`
+* [EOS-5089] - newfind missing symlink listing
+* [EOS-5095] - Re-entrant lock triggered by out of quota warning
+* [EOS-5092] - allow removing max.ropen / max.wopen space/filesystem attributes
+
+Improvement
+-----------
+
+* [EOS-5101] - Label all mutex lock locations
+* [EOS-5102] - Display INGRESS and EGRESS performance in summary
+* [EOS-5103] - Add global timeout parameter to eoscp
+
+
 ``v4.8.74 Citrine``
 ===================
 
