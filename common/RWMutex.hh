@@ -613,6 +613,18 @@ private:
 #undef EOS_RWMUTEX_TIMER_STOP_AND_UPDATE
 #endif
 
+// For old clang on Apple avoid the use of builtin functions
+#if defined( __APPLE__) && defined(__clang__) && \
+    defined(__clang_major__) && (__clang_major__ < 12)
+#define EOS_FUNCTION __FUNCTION__
+#define EOS_FILE     __FILE__
+#define EOS_LINE     __LINE__
+#else
+#define EOS_FUNCTION __builtin_FUNCTION()
+#define EOS_FILE     __builtin_FILE()
+#define EOS_LINE     __builtin_LINE()
+#endif
+
 //------------------------------------------------------------------------------
 //! Class RWMutexReadLock
 //------------------------------------------------------------------------------
@@ -637,9 +649,9 @@ public:
   //! @param line caller line number in file
   //----------------------------------------------------------------------------
   RWMutexWriteLock(RWMutex& mutex,
-                   const char* function = __builtin_FUNCTION(),
-                   const char* file = __builtin_FILE(),
-                   int line = __builtin_LINE());
+                   const char* function = EOS_FUNCTION,
+                   const char* file = EOS_FILE,
+                   int line = EOS_LINE);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -660,9 +672,9 @@ public:
   //! @param line caller line number in file
   //----------------------------------------------------------------------------
   void Grab(RWMutex& mutex,
-            const char* function = __builtin_FUNCTION(),
-            const char* file = __builtin_FILE(),
-            int line = __builtin_LINE());
+            const char* function = EOS_FUNCTION,
+            const char* file = EOS_FILE,
+            int line = EOS_LINE);
 
   //----------------------------------------------------------------------------
   //! Release the write lock after grab
@@ -701,9 +713,9 @@ public:
   //! @param line caller line number in file
   //----------------------------------------------------------------------------
   RWMutexReadLock(RWMutex& mutex,
-                  const char* function = __builtin_FUNCTION(),
-                  const char* file = __builtin_FILE(),
-                  int line = __builtin_LINE());
+                  const char* function = EOS_FUNCTION,
+                  const char* file = EOS_FILE,
+                  int line = EOS_LINE);
 
   //----------------------------------------------------------------------------
   //! Grab mutex and read lock it
@@ -716,9 +728,9 @@ public:
   //! @param line caller line number in file
   //----------------------------------------------------------------------------
   void Grab(RWMutex& mutex,
-            const char* function = __builtin_FUNCTION(),
-            const char* file = __builtin_FILE(),
-            int line = __builtin_LINE());
+            const char* function = EOS_FUNCTION,
+            const char* file = EOS_FILE,
+            int line = EOS_LINE);
 
   //----------------------------------------------------------------------------
   //! Release the read lock after grab
