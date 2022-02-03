@@ -1379,7 +1379,7 @@ RWMutexWriteLock::Release()
          << blockedFor.count() <<  " milliseconds";
 
       if (blockedtracing) {
-        ss << ":";
+        ss << " : ";
         ss << eos::common::getStacktrace();
       }
 
@@ -1449,12 +1449,11 @@ RWMutexReadLock::Release()
 
     if (blockedFor.count() > blockedinterval) {
       std::ostringstream ss;
-      ss << "read lock [ " << mRdMutex->getName() << " ] held for " <<
-         blockedFor.count() <<
-         " milliseconds" << std::endl;
+      ss << "read lock [ " << mRdMutex->getName() << " ] held for "
+         << blockedFor.count() << " milliseconds";
 
       if (blockedtracing) {
-        ss << eos::common::getStacktrace();
+        ss << " : " << eos::common::getStacktrace();
       }
 
       eos_third_party_warning(mFunction, mFile, mLine, "%s", ss.str().c_str());
