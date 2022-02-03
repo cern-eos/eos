@@ -941,10 +941,17 @@ DavixIo::Statfs(struct statfs* sfs)
       s3_size = strtoull(getenv("EOS_FST_S3_STORAGE_SIZE"), 0, 10);
     }
 
+#ifdef __APPLE__
+    sfs->f_iosize = 4096;
+    sfs->f_bsize = sfs->f_iosize;
+    sfs->f_blocks = (fsblkcnt_t)(s3_size / sfs->f_iosize);
+    sfs->f_bavail = (fsblkcnt_t)(s3_size / sfs->f_iosize);
+#else
     sfs->f_frsize = 4096;
     sfs->f_bsize = sfs->f_frsize;
     sfs->f_blocks = (fsblkcnt_t)(s3_size / sfs->f_frsize);
     sfs->f_bavail = (fsblkcnt_t)(s3_size / sfs->f_frsize);
+#endif
     sfs->f_bfree = sfs->f_bavail;
     sfs->f_files = 1000000000ll;
     sfs->f_ffree = 1000000000ll;
@@ -993,10 +1000,17 @@ DavixIo::Statfs(struct statfs* sfs)
     eos_err("msg=\"failed to parse key-val quota map\"");
   }
 
+#ifdef __APPLE__
+    sfs->f_iosize = 4096;
+    sfs->f_bsize = sfs->f_iosize;
+    sfs->f_blocks = (fsblkcnt_t)(total_bytes / sfs->f_iosize);
+    sfs->f_bavail = (fsblkcnt_t)(total_bytes / sfs->f_iosize);
+#else
   sfs->f_frsize = 4096;
   sfs->f_bsize = sfs->f_frsize;
   sfs->f_blocks = (fsblkcnt_t)(total_bytes / sfs->f_frsize);
   sfs->f_bavail = (fsblkcnt_t)(free_bytes / sfs->f_frsize);
+#endif
   sfs->f_bfree = sfs->f_bavail;
   sfs->f_files = total_files;
   sfs->f_ffree = free_files;
