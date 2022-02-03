@@ -620,7 +620,7 @@ cap::quotax::dump()
   std::string jsonstring;
   {
     XrdSysMutexHelper qLock(Locker());
-    google::protobuf::util::MessageToJsonString(*((eos::fusex::quota*)(&(*this))),
+    google::protobuf::util::MessageToJsonString(*((eos::fusex::quota*)((*this)())),
         &jsonstring, options);
   }
   jsonstring.pop_back();
