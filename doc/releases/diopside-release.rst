@@ -17,6 +17,17 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.0.12 Diopside``
+===================
+
+2022-02-04
+
+Note
+----
+
+* Identical to 5.0.11 but re-tagged due to Koji issues
+
+
 ``v5.0.11 Diopside``
 ===================
 
