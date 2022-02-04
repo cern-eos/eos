@@ -13,7 +13,19 @@ Diopside Release Notes
 
 Introduction
 ------------
+
 This release is based on XRootD V5.
+
+
+``v5.0.11 Diopside``
+===================
+
+2022-02-04
+
+Bug
+----
+
+* [EOS-5105] - eosxd crash in cap::quotax::dump
 
 
 ``v5.0.10 Diopside``
