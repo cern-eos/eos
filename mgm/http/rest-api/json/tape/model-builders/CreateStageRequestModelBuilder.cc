@@ -23,39 +23,12 @@
 
 #include "CreateStageRequestModelBuilder.hh"
 #include "mgm/http/rest-api/json/builder/ValidationError.hh"
-#include "common/Logging.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-std::unique_ptr<CreateStageBulkRequestModel> CreateStageRequestModelBuilder::buildFromJson(const std::string& json) {
-  std::unique_ptr<CreateStageBulkRequestModel> model(new CreateStageBulkRequestModel());
-  std::unique_ptr<ValidationErrors> validationErrors(new ValidationErrors());
-  Json::Value root;
-  parseJson(json, root);
-  Json::Value & paths = root[PATHS_KEY_NAME];
-  try {
-    mValidatorFactory.getNonEmptyArrayValidator()->validate(paths);
-  } catch(const ValidatorException &ex) {
-    validationErrors->addError(PATHS_KEY_NAME,ex.what());
-    throw JsonValidationException(std::move(validationErrors));
-  }
-  for(auto path = paths.begin(); path != paths.end(); path++) {
-    try {
-      mValidatorFactory.getPathValidator()->validate(*path);
-      model->addFile(path->asString(),"");
-    } catch(const ValidatorException & ex) {
-      std::stringstream ss;
-      ss << "The value " << *path << " is not a correct path.";
-      validationErrors->addError(PATHS_KEY_NAME,ss.str());
-    }
-  }
-  if(validationErrors->hasAnyError()){
-    throw JsonValidationException(std::move(validationErrors));
-  }
-  return std::move(model);
-}
+CreateStageRequestModelBuilder::CreateStageRequestModelBuilder(const std::string& restApiEndpointId) : mRestApiEndpointId(restApiEndpointId){}
 
-std::unique_ptr<CreateStageBulkRequestModel> CreateStageRequestWithFilesModelBuilder::buildFromJson(const std::string& json) {
+std::unique_ptr<CreateStageBulkRequestModel> CreateStageRequestModelBuilder::buildFromJson(const std::string& json) {
   std::unique_ptr<CreateStageBulkRequestModel> model(new CreateStageBulkRequestModel());
   std::unique_ptr<ValidationErrors> validationErrors(new ValidationErrors());
   Json::Value root;
@@ -97,7 +70,7 @@ std::unique_ptr<CreateStageBulkRequestModel> CreateStageRequestWithFilesModelBui
       // targeted to us
       //TODO: HARDCODED FOR TESTING, THE UNIQUE ID OF THE ENDPOINT MUST BE PASSED
       //VIA THE CONSTRUCTOR OF THIS CLASS
-      Json::Value & myTargetedMetadata = targetedMetadata["localhost"];
+      Json::Value & myTargetedMetadata = targetedMetadata[mRestApiEndpointId];
       if(!myTargetedMetadata.empty() && myTargetedMetadata.isObject()) {
         //There are metadata for us
         //Each metadata will be converted into an opaque info
