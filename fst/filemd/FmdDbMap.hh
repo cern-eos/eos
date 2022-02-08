@@ -390,19 +390,7 @@ private:
   //----------------------------------------------------------------------------
   bool LocalPutFmd(eos::common::FileId::fileid_t fid,
                    eos::common::FileSystem::fsid_t fsid,
-                   const eos::common::FmdHelper& fmd) override
-  {
-    std::string sval;
-    fmd.mProtoFmd.SerializePartialToString(&sval);
-    auto it_db = mDbMap.find(fsid);
-
-    if (it_db != mDbMap.end()) {
-      return it_db->second->set(eos::common::Slice((const char*)&fid, sizeof(fid)),
-                                sval, "") == 0;
-    } else {
-      return false;
-    }
-  }
+                   const eos::common::FmdHelper& fmd) override;
 
   //----------------------------------------------------------------------------
   //! Reset mgm information for all files stored on a particular file system
