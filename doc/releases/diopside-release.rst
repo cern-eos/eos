@@ -17,6 +17,17 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.0.13 Diopside``
+===================
+
+2022-02-08
+
+Note
+----
+
+* Build with XRootD 5.4.1-rc1 (eos-xrootd-5.3.100) as dependency
+
+
 ``v5.0.12 Diopside``
 ===================
 
