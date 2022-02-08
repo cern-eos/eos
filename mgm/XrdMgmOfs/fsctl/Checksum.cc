@@ -53,8 +53,7 @@ XrdMgmOfs::Checksum(const char* path,
   int retc = 0;
   bool fuse_readable = env.Get("mgm.option") ? (std::string(
                          env.Get("mgm.option")) == "fuse") ? true : false : false;
-  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                    __FILE__);
+  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
   XrdOucString spath = path;
   unsigned long byfid = eos::Resolver::retrieveFileIdentifier(
                           spath).getUnderlyingUInt64();

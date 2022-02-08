@@ -248,8 +248,7 @@ ReplicationTracker::Commit(std::shared_ptr<eos::IFileMD> fmd)
     std::string tag = prefix + eos::common::FileId::Fid2Hex(fmd->getId());
     std::string uri = gOFS->eosView->getUri(fmd.get());
     std::shared_ptr<eos::IFileMD> entry_fmd;
-    eos::common::RWMutexWriteLock nslock(gOFS->eosViewRWMutex, __FUNCTION__,
-                                         __LINE__, __FILE__);
+    eos::common::RWMutexWriteLock nslock(gOFS->eosViewRWMutex);
 
     try {
       entry_fmd = gOFS->eosView->getFile(tag);
@@ -426,8 +425,7 @@ ReplicationTracker::Scan(uint64_t atomic_age, bool cleanup, std::string* out)
         std::shared_ptr<eos::IContainerMD> dmd;
         eos::IContainerMD::ctime_t ctime;
         // delete this directory if it is older than atomic_age
-        eos::common::RWMutexWriteLock viewWriteLock;
-        viewWriteLock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+        eos::common::RWMutexWriteLock viewWriteLock(gOFS->eosViewRWMutex);
 
         try {
           dmd = gOFS->eosView->getContainer(rfoundit->first);
@@ -465,7 +463,7 @@ ReplicationTracker::Scan(uint64_t atomic_age, bool cleanup, std::string* out)
           eos::IFileMD::ctime_t ctime;
           // reference by fxid
           eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
-          viewReadLock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+          viewReadLock.Grab(gOFS->eosViewRWMutex);
 
           try {
             fmd = gOFS->eosFileService->getFileMD(fid);
@@ -547,8 +545,7 @@ ReplicationTracker::Scan(uint64_t atomic_age, bool cleanup, std::string* out)
           }
 
           if (cleanup && flag_deletion) {
-            eos::common::RWMutexWriteLock viewWriteLock;
-            viewWriteLock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+            eos::common::RWMutexWriteLock viewWriteLock(gOFS->eosViewRWMutex);
 
             // cleanup the tag entry
             try {

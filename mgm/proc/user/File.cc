@@ -149,7 +149,7 @@ ProcCommand::File()
                                        spath).getUnderlyingUInt64();
             // reference by fid+fsid
             //-------------------------------------------
-            viewWriteLock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+            viewWriteLock.Grab(gOFS->eosViewRWMutex);
 
             try {
               fmd = gOFS->eosFileService->getFileMD(fid);
@@ -165,7 +165,7 @@ ProcCommand::File()
             // -----------------------------------------------------------------
             // reference by path
             // ----------------------------------------------------------------
-            viewWriteLock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+            viewWriteLock.Grab(gOFS->eosViewRWMutex);
 
             try {
               fmd = gOFS->eosView->getFile(spath.c_str());
@@ -298,8 +298,7 @@ ProcCommand::File()
 
       // only root can do that
       if (pVid->uid == 0) {
-        eos::common::RWMutexReadLock viewReadLock(gOFS->eosViewRWMutex, __FUNCTION__,
-            __LINE__, __FILE__);
+        eos::common::RWMutexReadLock viewReadLock(gOFS->eosViewRWMutex);
         std::shared_ptr<eos::IFileMD> fmd;
 
         if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")))) {
@@ -589,7 +588,6 @@ ProcCommand::File()
       cmdok = true;
       XrdOucString source = spath;
       XrdOucString target = pOpaque->Get("mgm.file.target");
-
       PROC_MOVE_TOKENSCOPE(source.c_str(), target.c_str());
 
       if (gOFS->rename(source.c_str(), target.c_str(), *mError, *pVid, 0, 0, true)) {
@@ -646,8 +644,7 @@ ProcCommand::File()
         //-------------------------------------------
         unsigned long long fid = Resolver::retrieveFileIdentifier(
                                    spath).getUnderlyingUInt64();
-        eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                          __FILE__);
+        eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
         std::shared_ptr<eos::IFileMD> fmd;
 
         try {
@@ -663,8 +660,7 @@ ProcCommand::File()
           return SFS_OK;
         }
       } else {
-        eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                          __FILE__);
+        eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
         std::shared_ptr<eos::IFileMD> fmd;
 
         try {
@@ -769,8 +765,7 @@ ProcCommand::File()
       } else {
         std::shared_ptr<eos::IFileMD> fmd;
         {
-          eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                             __FILE__);
+          eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
           try {
             fmd = gOFS->eosView->getFile(spath.c_str());
@@ -1091,8 +1086,7 @@ ProcCommand::File()
               eos::common::LayoutId::layoutid_t layoutid = 0;
               eos::common::FileId::fileid_t fileid = 0;
               {
-                eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                                  __FILE__);
+                eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
                 try {
                   fmd = gOFS->eosView->getFile(spath.c_str());
@@ -1335,8 +1329,7 @@ ProcCommand::File()
           icreationsubgroup = atoi(pOpaque->Get("mgm.file.desiredsubgroup"));
         }
 
-        eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
-                                                __LINE__, __FILE__);
+        eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
         // Reference by fid+fsid
         if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")))) {
@@ -1699,8 +1692,7 @@ ProcCommand::File()
                 for (unsigned int i = 0; i < fsid2delete.size(); i++) {
                   if (fmd->hasLocation(fsid2delete[i])) {
                     //-------------------------------------------
-                    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                                       __FILE__);
+                    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
                     try {
                       // we have to get again the original file meta data
@@ -1778,8 +1770,7 @@ ProcCommand::File()
         //-------------------------------------------
         std::string ns_path {};
         eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-        eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
-                                                __LINE__, __FILE__);
+        eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
         try {
           if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")))) {

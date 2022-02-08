@@ -633,8 +633,7 @@ CommitHelper::get_version_fid(eos::common::VirtualIdentity& vid,
 {
   eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
   std::shared_ptr<eos::IFileMD> versionfmd;
-  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                    __FILE__);
+  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
   try {
     auto fmd = gOFS->eosFileService->getFileMD(fid);
@@ -668,8 +667,7 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
                                )
 {
   eos::mgm::FusexCastBatch fuse_batch;
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__,
-                                     __LINE__, __FILE__);
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
   // We have to de-atomize the fmd name here e.g. make the temporary
   // atomic name a persistent name
@@ -717,7 +715,7 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
       } catch (eos::MDException& e) {
         errno = e.getErrno();
         eos_thread_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-			 e.getErrno(), e.getMessage().str().c_str());
+                         e.getErrno(), e.getMessage().str().c_str());
       }
     }
 

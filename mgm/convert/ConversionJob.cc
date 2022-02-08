@@ -162,8 +162,7 @@ void ConversionJob::DoIt() noexcept
 
   // Retrieve file metadata
   try {
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
-                                            __LINE__, __FILE__);
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
     auto fmd = gOFS->eosFileService->getFileMD(mConversionInfo.mFid);
     mSourcePath = gOFS->eosView->getUri(fmd.get());
     source_size = fmd->getSize();
@@ -263,8 +262,7 @@ void ConversionJob::DoIt() noexcept
   //  - Merge the conversion entry
   // Verify new file has all fragments according to layout
   try {
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
-                                            __LINE__, __FILE__);
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
     auto fmd = gOFS->eosView->getFile(mConversionPath);
     size_t expected = LayoutId::GetStripeNumber(mConversionInfo.mLid) + 1;
     size_t actual = fmd->getNumLocation();
@@ -284,8 +282,7 @@ void ConversionJob::DoIt() noexcept
   // Verify initial file hasn't changed
   try {
     eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, mConversionInfo.mFid);
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
-                                            __LINE__, __FILE__);
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
     auto fmd = gOFS->eosFileService->getFileMD(mConversionInfo.mFid);
     eos::appendChecksumOnStringAsHex(fmd.get(), source_xs_postconversion);
   } catch (eos::MDException& e) {
@@ -351,10 +348,8 @@ void ConversionJob::DoIt() noexcept
   // Notify the tape garbage collector if tape support is enabled
   if (gOFS->mTapeEnabled) {
     try {
-      eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex, __FUNCTION__,
-                                              __LINE__, __FILE__);
-      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
-                                              __LINE__, __FILE__);
+      eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
       const auto fmd = gOFS->eosView->getFile(mSourcePath);
 
       if (nullptr != fmd && fmd->hasAttribute("sys.archive.file_id")) {
@@ -427,8 +422,7 @@ ConversionJob::Merge()
   eos::IFileMD::id_t orig_fid {0ull}, conv_fid {0ull};
   std::shared_ptr<eos::IFileMD> orig_fmd, conv_fmd;
   {
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
-                                            __LINE__, __FILE__);
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
     try {
       orig_fmd = gOFS->eosFileService->getFileMD(mFid);
@@ -514,8 +508,7 @@ ConversionJob::Merge()
   // Do cleanup in case of failures
   if (failed_rename) {
     // Update locations and clean up conversion file object
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
-                                            __LINE__, __FILE__);
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
     try {
       orig_fmd = gOFS->eosFileService->getFileMD(orig_fid);
@@ -539,8 +532,7 @@ ConversionJob::Merge()
 
   {
     // Update locations and clean up conversion file object
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex, __FUNCTION__,
-                                            __LINE__, __FILE__);
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
     try {
       orig_fmd = gOFS->eosFileService->getFileMD(orig_fid);

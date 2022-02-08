@@ -332,8 +332,7 @@ ProcCommand::Space()
     }
 
     if ((option == "nsfilesystemview")) {
-      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                         __FILE__);
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
       gOFS->eosFsView->shrink();
       stdOut += "\ninfo: resized namespace filesystem view ...";
     }
@@ -347,8 +346,7 @@ ProcCommand::Space()
     }
 
     if ((option == "ns")) {
-      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                         __FILE__);
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
       gOFS->eosFsView->shrink();
       stdOut += "\ninfo: ns does not support map resizing";
     }

@@ -76,8 +76,7 @@ XrdMgmOfs::processIncomingMgmConfigurationChange(const std::string& key)
       if (key.find("fs:") == 0) {
         std::string fs_key = key;
         fs_key.erase(0, 3);
-        eos::common::RWMutexWriteLock
-        wr_view_lock(FsView::gFsView.ViewMutex, __FUNCTION__, __LINE__, __FILE__);
+        eos::common::RWMutexWriteLock wr_view_lock(FsView::gFsView.ViewMutex);
         // To avoid issues when applying config changes in the slave we need to
         // unregister the file system first and then apply the new configuration
         const bool first_unregister = true;
@@ -101,8 +100,7 @@ XrdMgmOfs::ProcessGeotagChange(const std::string& queue)
 {
   std::string newgeotag;
   eos::common::FileSystem::fsid_t fsid = 0;
-  eos::common::RWMutexReadLock
-  fs_rd_lock(FsView::gFsView.ViewMutex, __FUNCTION__, __LINE__, __FILE__);
+  eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
   FileSystem* fs = FsView::gFsView.mIdView.lookupByQueuePath(queue);
 
   if (fs == nullptr) {
@@ -131,8 +129,7 @@ XrdMgmOfs::ProcessGeotagChange(const std::string& queue)
                 oldgeotag.c_str(), newgeotag.c_str());
     // Release read lock and take write lock
     fs_rd_lock.Release();
-    eos::common::RWMutexWriteLock
-    fs_rw_lock(FsView::gFsView.ViewMutex, __FUNCTION__, __LINE__, __FILE__);
+    eos::common::RWMutexWriteLock fs_rw_lock(FsView::gFsView.ViewMutex);
     eos::common::FileSystem::fs_snapshot_t snapshot;
     fs->SnapShotFileSystem(snapshot);
 
@@ -221,8 +218,7 @@ void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept
           eos::common::ConfigStatus cfgstatus = eos::common::ConfigStatus::kOff;
           eos::common::BootStatus bstatus = eos::common::BootStatus::kDown;
           // read the id from the hash and the current error value
-          eos::common::RWMutexReadLock
-          fs_rd_lock(FsView::gFsView.ViewMutex, __FUNCTION__, __LINE__, __FILE__);
+          eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
           FileSystem* fs = FsView::gFsView.mIdView.lookupByQueuePath(
                              event.fileSystemQueue);
 

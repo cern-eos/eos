@@ -130,8 +130,7 @@ eos::mgm::StagerRmCmd::ProcessRequest() noexcept
     int evictionCounter = 0;
 
     try {
-      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                         __FILE__);
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
       auto fmd = gOFS->eosView->getFile(path.c_str());
 
       if (fmd->hasAttribute(eos::common::RETRIEVE_EVICT_COUNTER_NAME)) {
@@ -162,8 +161,7 @@ eos::mgm::StagerRmCmd::ProcessRequest() noexcept
       ret_c = SFS_ERROR;
     } else {
       // reset the retrieves counter in case of success
-      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                         __FILE__);
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
       try {
         auto fmd = gOFS->eosView->getFile(path.c_str());

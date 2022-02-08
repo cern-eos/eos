@@ -35,6 +35,7 @@
 #include <fcntl.h>
 #include <stdarg.h>
 #include <iostream>
+#include <chrono>
 #include <openssl/md5.h>
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
@@ -119,6 +120,7 @@ double write_wait = 0; ///< statistics about total write time
 char* buffer = NULL; ///< used for doing the reading
 bool first_time = true; ///< first time prefetch two blocks
 bool nooverwrite = false; ///< buy default we overwrite the target files
+int gtimeout = 0; ///< copy process timeout in seconds
 
 //..............................................................................
 // RAID related variables
@@ -154,6 +156,8 @@ std::unique_ptr<eos::fst::CheckSum> xsObj;
 struct timeval abs_start_time;
 struct timeval abs_stop_time;
 struct timezone tz;
+double ingress_microseconds = 0;
+double egress_microseconds = 0;
 
 std::string progressFile = "";
 
@@ -196,6 +200,7 @@ usage()
           "       -t <mb/s>    : reduce the traffic to an average of <mb/s> mb/s\n");
   fprintf(stderr, "       -S <#>       : read from <#> sources in 'parallel'\n");
   fprintf(stderr, "       -D <#>       : write to <#> sources in 'parallel'\n");
+  fprintf(stderr, "       -q <s>               : quit copy after <s> seconds\n");
   fprintf(stderr,
           "       -O <file>    : write progress file to <file> (0.00 - 100.00%%)\n");
   fprintf(stderr, "       -i           : enable transparent staging\n");
@@ -379,6 +384,16 @@ print_summary(VectLocationType& src,
             bytesread / abs_time / 1000.0));
     }
 
+    if (ingress_microseconds) {
+      COUT(("[eoscp] # INGRESS [MB/s]           : %f\n",
+            bytesread / ingress_microseconds));
+    }
+
+    if (egress_microseconds) {
+      COUT(("[eoscp] # EGRESS [MB/s]            : %f\n",
+            bytesread / egress_microseconds));
+    }
+
     if (bandwidth) {
       COUT(("[eoscp] # Bandwidth[MB/s]          : %d\n", (int) bandwidth));
     }
@@ -407,6 +422,16 @@ print_summary(VectLocationType& src,
 
     if (abs_time > 0) {
       COUT(("copy_rate=%f ", bytesread / abs_time / 1000.0));
+    }
+
+    if (ingress_microseconds) {
+      COUT(("ingress_rate=%f ",
+            bytesread / ingress_microseconds));
+    }
+
+    if (egress_microseconds) {
+      COUT(("egress_rate=%f ",
+            bytesread / egress_microseconds));
     }
 
     if (bandwidth) {
@@ -512,6 +537,17 @@ abort_handler(int)
   exit(EINTR);
 }
 
+//------------------------------------------------------------------------------
+// Alarm handler
+//------------------------------------------------------------------------------
+
+void
+alarm_handler(int)
+{
+  //  print_summary_header(src_location, dst_location);
+  fprintf(stdout, "error: [eoscp] has timedout after %d seconds\n", gtimeout);
+  exit(ETIMEDOUT);
+}
 
 
 //------------------------------------------------------------------------------
@@ -529,7 +565,7 @@ main(int argc, char* argv[])
   XrdCl::DefaultEnv::GetEnv()->PutInt("MetalinkProcessing", 0);
 
   while ((c = getopt(argc, argv,
-                     "nshxdvlipfce:P:X:b:m:u:g:t:S:D:5aA:r:N:L:RT:O:V0")) != -1) {
+                     "nshxdvlipfce:P:X:b:m:u:g:t:S:D:5aA:r:N:L:RT:O:V0q:")) != -1) {
     switch (c) {
     case 'v':
       verbose = 1;
@@ -702,6 +738,10 @@ main(int argc, char* argv[])
 
       break;
 
+    case 'q':
+      gtimeout = atoi(optarg);
+      break;
+
     case 'S':
       nsrc = atoi(optarg);
 
@@ -796,6 +836,11 @@ main(int argc, char* argv[])
 
   if (optind - 1 + nsrc + ndst >= argc) {
     usage();
+  }
+
+  if (gtimeout) {
+    signal(SIGALRM, alarm_handler);
+    alarm(gtimeout);
   }
 
   //............................................................................
@@ -2093,6 +2138,7 @@ main(int argc, char* argv[])
     }
 
     int nread = -1;
+    auto mReadStart = chrono::steady_clock::now();
 
     switch (src_type[0]) {
     case LOCAL_ACCESS:
@@ -2157,6 +2203,10 @@ main(int argc, char* argv[])
     break;
     }
 
+    auto mReadStop = chrono::steady_clock::now();
+    ingress_microseconds += chrono::duration_cast<chrono::microseconds>
+                            (mReadStop - mReadStart).count();
+
     if (nread < 0) {
       fprintf(stderr, "error: read failed on file %s - destination file "
               "is incomplete!\n", src_location[0].second.c_str());
@@ -2173,6 +2223,7 @@ main(int argc, char* argv[])
       offsetXS += nread;
     }
 
+    auto mWriteStart = chrono::steady_clock::now();
     int64_t nwrite = 0;
 
     for (int i = 0; i < ndst; i++) {
@@ -2239,6 +2290,9 @@ main(int argc, char* argv[])
       }
     }
 
+    auto mWriteStop = chrono::steady_clock::now();
+    egress_microseconds += chrono::duration_cast<chrono::microseconds>
+                           (mWriteStop - mWriteStart).count();
     totalbytes += nwrite;
     stopwritebyte += nwrite;
   } // end while(1)

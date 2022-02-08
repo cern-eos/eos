@@ -431,15 +431,16 @@ static void printFMD(S& ss, const eos::console::FindProto& req,
   if (req.fid()) {
     ss << " fid=" << fmd->getId();
   }
-/* Outputs of uid and gid are duplicated. These are also in printUidGid function
-  if (req.printuid()) {
-    ss << " uid=" << fmd->getCUid();
-  }
 
-  if (req.printgid()) {
-    ss << " gid=" << fmd->getCGid();
-  }
-*/
+  /* Outputs of uid and gid are duplicated. These are also in printUidGid function
+    if (req.printuid()) {
+      ss << " uid=" << fmd->getCUid();
+    }
+
+    if (req.printgid()) {
+      ss << " gid=" << fmd->getCGid();
+    }
+  */
   if (req.fs()) {
     printFs(ss, fmd);
   }
@@ -607,8 +608,7 @@ struct FindResult {
 
   std::shared_ptr<eos::IContainerMD> toContainerMD()
   {
-    eos::common::RWMutexReadLock eosViewMutexGuard(gOFS->eosViewRWMutex,
-        __FUNCTION__, __LINE__, __FILE__);
+    eos::common::RWMutexReadLock eosViewMutexGuard(gOFS->eosViewRWMutex);
 
     try {
       return gOFS->eosView->getContainer(path);
@@ -621,11 +621,10 @@ struct FindResult {
 
   std::shared_ptr<eos::IFileMD> toFileMD()
   {
-    eos::common::RWMutexReadLock eosViewMutexGuard(gOFS->eosViewRWMutex,
-        __FUNCTION__, __LINE__, __FILE__);
+    eos::common::RWMutexReadLock eosViewMutexGuard(gOFS->eosViewRWMutex);
 
     try {
-      return gOFS->eosView->getFile(path);
+      return gOFS->eosView->getFile(path, false);
     } catch (eos::MDException& e) {
       eos_static_err("caught exception %d %s\n", e.getErrno(),
                      e.getMessage().str().c_str());
@@ -641,14 +640,15 @@ class TraversalFilter : public ExpansionDecider
 {
 public:
   TraversalFilter(const eos::common::VirtualIdentity& v) : vid(v) {}
+
   virtual bool shouldExpandContainer(const eos::ns::ContainerMdProto& proto,
-                                     const eos::IContainerMD::XAttrMap& attrs, 
+                                     const eos::IContainerMD::XAttrMap& attrs,
                                      const std::string& fullPath) override
-  { 
+  {
     eos::QuarkContainerMD cmd;
     cmd.initializeWithoutChildren(eos::ns::ContainerMdProto(proto));
     return AccessChecker::checkContainer(&cmd, attrs, R_OK | X_OK, vid)
-        && AccessChecker::checkPublicAccess(fullPath, vid);
+           && AccessChecker::checkPublicAccess(fullPath, vid);
   }
 private:
   const eos::common::VirtualIdentity& vid;
@@ -887,9 +887,9 @@ NewfindCmd::ProcessRequest() noexcept
   // @note when findRequest.childcount() is true, the namespace explorer will skip the files during the namespace traversal.
   // This way we can have a fast aggregate sum of the file/container count for each directory
   int depthlimit = findRequest.Maxdepth__case() ==
-    eos::console::FindProto::MAXDEPTH__NOT_SET ?
-    eos::common::Path::MAX_LEVELS : cPath.GetSubPathSize() + findRequest.maxdepth();
-  
+                   eos::console::FindProto::MAXDEPTH__NOT_SET ?
+                   eos::common::Path::MAX_LEVELS : cPath.GetSubPathSize() + findRequest.maxdepth();
+
   // @note Shortcut with bad input --name regex filters. Move to client side?
   // Looks like std::regex suffers from https://gcc.gnu.org/bugzilla/show_bug.cgi?id=86164#c7
   // Found by filtering like " newfind --name '*sometext' " (note the '*' prefix!),
@@ -902,9 +902,9 @@ NewfindCmd::ProcessRequest() noexcept
       eos_static_info("caught exception %d %s with newfind findRequest.name()=%s\n",
                       e.code(), e.what(), findRequest.name().c_str());
       ofstderrStream << "error(caught exception " << e.code() << ' ' << e.what() <<
-        " with newfind --name=" << findRequest.name()
+                     " with newfind --name=" << findRequest.name()
                      << ").\nPlease note that --name filters by 'egrep' style regex match, you may have to sanitize your input\n";
-      
+
       if (!CloseTemporaryOutputFiles()) {
         reply.set_retc(EIO);
         reply.set_std_err("error: cannot save find result files on MGM\n");
@@ -914,10 +914,10 @@ NewfindCmd::ProcessRequest() noexcept
       }
     }
   }
-  
+
   findResultProvider.reset(new FindResultProvider(qcl.get(),
-                                                  findRequest.path(), depthlimit,
-                                                  findRequest.childcount(), mVid));
+                           findRequest.path(), depthlimit,
+                           findRequest.childcount(), mVid));
   uint64_t childcount_aggregate_dircounter = 0;
   uint64_t childcount_aggregate_filecounter = 0;
   uint64_t dircounter = 0;
@@ -925,7 +925,8 @@ NewfindCmd::ProcessRequest() noexcept
   // For general users, cannot return more than 50k dirs and 100k files with one find,
   // unless there is an access rule allowing deeper queries.
   // Special users (like root) have the limit lifted by default.
-  const bool limit_result=((mVid.uid != 0) && (!mVid.hasUid(3)) && (!mVid.hasGid(4)) && (!mVid.sudoer));
+  const bool limit_result = ((mVid.uid != 0) && (!mVid.hasUid(3)) &&
+                             (!mVid.hasGid(4)) && (!mVid.sudoer));
   static uint64_t dir_limit = 50000;
   static uint64_t file_limit = 100000;
   Access::GetFindLimits(mVid, dir_limit, file_limit);
@@ -967,8 +968,10 @@ NewfindCmd::ProcessRequest() noexcept
           ofstderrStream << findResult.path << std::endl;
           reply.set_retc(EACCES);
           continue;
-        } else if (!AccessChecker::checkPublicAccess(findResult.path,const_cast<common::VirtualIdentity&>(mVid))) {
-          ofstderrStream << "error(" << EACCES << "): public access level restriction on directory ";
+        } else if (!AccessChecker::checkPublicAccess(findResult.path,
+                   const_cast<common::VirtualIdentity&>(mVid))) {
+          ofstderrStream << "error(" << EACCES <<
+                         "): public access level restriction on directory ";
           ofstderrStream << findResult.path << std::endl;
           reply.set_retc(EACCES);
           continue;
@@ -1163,7 +1166,6 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
 {
   XrdOucString m_err {""};
   eos::console::ReplyProto StreamReply;
-
   const eos::console::FindProto& findRequest = mReqProto.find();
   auto& purgeversion = findRequest.purge();
   bool purge = false;
@@ -1211,8 +1213,8 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
   // @note when findRequest.childcount() is true, the namespace explorer will skip the files during the namespace traversal.
   // This way we can have a fast aggregate sum of the file/container count for each directory
   int depthlimit = findRequest.Maxdepth__case() ==
-    eos::console::FindProto::MAXDEPTH__NOT_SET ?
-    eos::common::Path::MAX_LEVELS : cPath.GetSubPathSize() + findRequest.maxdepth();
+                   eos::console::FindProto::MAXDEPTH__NOT_SET ?
+                   eos::common::Path::MAX_LEVELS : cPath.GetSubPathSize() + findRequest.maxdepth();
 
   // @note Shortcut with bad input --name regex filters. Move to client side?
   // Looks like std::regex suffers from https://gcc.gnu.org/bugzilla/show_bug.cgi?id=86164#c7
@@ -1227,7 +1229,8 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
                       e.code(), e.what(), findRequest.name().c_str());
       StreamReply.set_std_out("");
       StreamReply.set_std_err(
-        "error(caught exception " + std::to_string(e.code()) + " " + e.what() + " with find --name=" + findRequest.name() +
+        "error(caught exception " + std::to_string(e.code()) + " " + e.what() +
+        " with find --name=" + findRequest.name() +
         ").\nPlease note that --name filters by 'egrep' style regex match, you may have to sanitize your input\n");
       StreamReply.set_retc(errno);
       writer->Write(StreamReply);
@@ -1236,8 +1239,8 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
   }
 
   findResultProvider.reset(new FindResultProvider(qcl.get(),
-                                                  findRequest.path(), depthlimit,
-                                                  findRequest.childcount(), mVid));
+                           findRequest.path(), depthlimit,
+                           findRequest.childcount(), mVid));
   uint64_t childcount_aggregate_dircounter = 0;
   uint64_t childcount_aggregate_filecounter = 0;
   uint64_t dircounter = 0;
@@ -1245,7 +1248,8 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
   // For general users, cannot return more than 50k dirs and 100k files with one find,
   // unless there is an access rule allowing deeper queries.
   // Special users (like root) have the limit lifted by default.
-  const bool limit_result=((mVid.uid != 0) && (!mVid.hasUid(3)) && (!mVid.hasGid(4)) && (!mVid.sudoer));
+  const bool limit_result = ((mVid.uid != 0) && (!mVid.hasUid(3)) &&
+                             (!mVid.hasGid(4)) && (!mVid.sudoer));
   static uint64_t dir_limit = 50000;
   static uint64_t file_limit = 100000;
   Access::GetFindLimits(mVid, dir_limit, file_limit);
@@ -1261,14 +1265,18 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
   while (findResultProvider->next(findResult)) {
     if (limit_result) {
       if (dircounter >= dir_limit || filecounter >= file_limit) {
-        output_str += "warning(" + std::to_string(E2BIG) + "): find results are limited for you to " + std::to_string(dir_limit) +
-          " directories and " + std::to_string(file_limit) + " files.\nResult is truncated! (found " +
-          std::to_string(dircounter) + " directories and " + std::to_string(filecounter) + " files so far)\n";
+        output_str += "warning(" + std::to_string(E2BIG) +
+                      "): find results are limited for you to " + std::to_string(dir_limit) +
+                      " directories and " + std::to_string(file_limit) +
+                      " files.\nResult is truncated! (found " +
+                      std::to_string(dircounter) + " directories and " + std::to_string(
+                        filecounter) + " files so far)\n";
         break;
       }
     }
 
     std::stringstream output;
+
     if (findResult.isdir) {
       eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView,
           findResult.path, false, findRequest.childcount(), limit_result, dir_limit,
@@ -1282,10 +1290,13 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
         // Returns a meaningful error message. Mirrors the checks in shouldExpandContainer
         if (!AccessChecker::checkContainer(findResult.toContainerMD().get(),
                                            findResult.attrs, R_OK | X_OK, mVid)) {
-          output_str += "error(" + std::to_string(EACCES) + "): no permissions to read directory " + findResult.path + "\n";
+          output_str += "error(" + std::to_string(EACCES) +
+                        "): no permissions to read directory " + findResult.path + "\n";
           continue;
-        } else if (!AccessChecker::checkPublicAccess(findResult.path,const_cast<common::VirtualIdentity&>(mVid))) {
-          output_str += "error(" + std::to_string(EACCES) + "): public access level restriction on directory " + findResult.path + "\n";
+        } else if (!AccessChecker::checkPublicAccess(findResult.path,
+                   const_cast<common::VirtualIdentity&>(mVid))) {
+          output_str += "error(" + std::to_string(EACCES) +
+                        "): public access level restriction on directory " + findResult.path + "\n";
           continue;
         } else {
           // @note Empty branch, will be cut out from the compiler anyway.
@@ -1322,14 +1333,11 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
       if (purge) {
         this->PurgeVersions(output, max_version, findResult.path);
       }
-
       // Printing
-
       // Are we printing fileinfo -m? Then, that's it
       else if (findRequest.fileinfo()) {
         this->PrintFileInfoMinusM(output, findResult.path, errInfo);
-      }
-      else {
+      } else {
         printPath(output, findResult.path, findRequest.xurl());
         printUidGid(output, findRequest, cMD);
         printAttributes(output, findRequest, cMD);
@@ -1349,8 +1357,7 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
           output << '.' << (unsigned long long) mtime.tv_nsec;
         }
       }
-    }
-    else if (!findResult.isdir) { // redundant, no problem
+    } else if (!findResult.isdir) { // redundant, no problem
       if (!findRequest.files() && findRequest.directories()) {
         continue;
       }
@@ -1396,19 +1403,15 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
       if (purge_atomic) {
         this->ProcessAtomicFilePurge(output, findResult.path, *fMD.get());
       }
-
       // Modify layout stripes?
       else if (findRequest.dolayoutstripes()) {
         this->ModifyLayoutStripes(output, findRequest, findResult.path);
       }
-
       // Printing
-
       // Are we printing fileinfo -m? Then, that's it
       else if (findRequest.fileinfo()) {
         this->PrintFileInfoMinusM(output, findResult.path, errInfo);
-      }
-      else {
+      } else {
         printPath(output,
                   fMD->isLink() ? findResult.path + " -> " + fMD->getLink() : findResult.path,
                   findRequest.xurl());
@@ -1422,12 +1425,14 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
     counter++;
 
     // Erase "\t" if it is on the end of entry
-    if (!output_str.empty() && output_str.substr(output_str.size() - 1) == "\t")
+    if (!output_str.empty() && output_str.substr(output_str.size() - 1) == "\t") {
       output_str.erase(output_str.size() - 1);
+    }
 
     // Add "\n" if doesn't exist
-    if (!output_str.empty() && output_str.substr(output_str.size() - 1) != "\n")
+    if (!output_str.empty() && output_str.substr(output_str.size() - 1) != "\n") {
       output_str += "\n";
+    }
 
     // Write every 100 lines separately to gRPC
     if (counter >= 100) {
@@ -1467,7 +1472,8 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
 
   if (findRequest.count()) {
     StreamReply.set_std_out(
-      "nfiles=" + std::to_string(filecounter) + " ndirectories=" + std::to_string(dircounter) + "\n");
+      "nfiles=" + std::to_string(filecounter) + " ndirectories=" + std::to_string(
+        dircounter) + "\n");
     StreamReply.set_std_err("");
     StreamReply.set_retc(0);
     writer->Write(StreamReply);
@@ -1494,15 +1500,16 @@ NewfindCmd::PrintFileInfoMinusM(std::stringstream& ss,
   ProcCommand Cmd;
   std::string output_stdout(""), output_stderr("");
   std::string info = "&mgm.cmd=fileinfo&mgm.path=" + path +
-                      "&mgm.file.info.option=-m";
+                     "&mgm.file.info.option=-m";
   Cmd.open("/proc/user", info.c_str(), mVid, &errInfo);
   Cmd.AddOutput(output_stdout, output_stderr);
   Cmd.close();
 
-  if (Cmd.GetRetc() == 0)
+  if (Cmd.GetRetc() == 0) {
     ss << output_stdout;
-  else
+  } else {
     ss << output_stderr;
+  }
 }
 
 //------------------------------------------------------------------------------

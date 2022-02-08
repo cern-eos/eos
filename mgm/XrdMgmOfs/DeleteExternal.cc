@@ -36,8 +36,7 @@ XrdMgmOfs::DeleteExternal(eos::common::FileSystem::fsid_t fsid,
   int fst_port = 1095;
   XrdOucString capability = "";
   {
-    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex,
-                                            __FUNCTION__, __LINE__, __FILE__);
+    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
     auto* fs = FsView::gFsView.mIdView.lookupByID(fsid);
 
     if (fs) {

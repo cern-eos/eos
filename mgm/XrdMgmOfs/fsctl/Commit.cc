@@ -120,8 +120,7 @@ XrdMgmOfs::Commit(const char* path,
     {
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
       // Keep the lock order View => Namespace => Quota
-      eos::common::RWMutexWriteLock nslock(gOFS->eosViewRWMutex, __FUNCTION__,
-                                           __LINE__, __FILE__);
+      eos::common::RWMutexWriteLock nslock(gOFS->eosViewRWMutex);
       errno = 0;
 
       try {
@@ -255,13 +254,11 @@ XrdMgmOfs::Commit(const char* path,
       }
 
       eos_thread_debug("commit: setting size to %llu", fmd->getSize());
-
       eos::ContainerIdentifier p_ident;
 
       if (!CommitHelper::commit_fmd(vid, cid, fmd, size, option, emsg, p_ident)) {
         return Emsg(epname, error, errno, "commit filesize change", emsg.c_str());
       }
-
 
       eos::FileIdentifier f_ident = fmd->getIdentifier();
       eos::ContainerIdentifier c_ident = eos::ContainerIdentifier(
@@ -272,12 +269,13 @@ XrdMgmOfs::Commit(const char* path,
         // broadcast file md
         gOFS->FuseXCastRefresh(f_ident,
                                c_ident);
-	// Broadcast to the fusex network only if the change has been
-	// triggered outside the fusex client network e.g. xrdcp etc.
-	if (!option["fusex"]) {
-	  gOFS->FuseXCastContainer(c_ident);
-	  gOFS->FuseXCastRefresh(c_ident, p_ident);
-	}
+
+        // Broadcast to the fusex network only if the change has been
+        // triggered outside the fusex client network e.g. xrdcp etc.
+        if (!option["fusex"]) {
+          gOFS->FuseXCastContainer(c_ident);
+          gOFS->FuseXCastRefresh(c_ident, p_ident);
+        }
       }
     }
     {

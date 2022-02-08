@@ -45,7 +45,7 @@ SharedHashWrapper::SharedHashWrapper(mq::MessagingRealm* realm,
   }
 
   if (takeLock) {
-    mReadLock.Grab(mSom->HashMutex, __FUNCTION__, __LINE__, __FILE__);
+    mReadLock.Grab(mSom->HashMutex);
   }
 
   mHash = mSom->GetObject(mLocator.getConfigQueue().c_str(), "hash");
@@ -57,7 +57,7 @@ SharedHashWrapper::SharedHashWrapper(mq::MessagingRealm* realm,
     mReadLock.Release();
     mSom->CreateSharedHash(mLocator.getConfigQueue().c_str(),
                            mLocator.getBroadcastQueue().c_str(), mSom);
-    mReadLock.Grab(mSom->HashMutex, __FUNCTION__, __LINE__, __FILE__);
+    mReadLock.Grab(mSom->HashMutex);
     mHash = mSom->GetObject(mLocator.getConfigQueue().c_str(), "hash");
   } else if (mHash) {
     std::unique_lock lock(mHash->mMutex);

@@ -134,8 +134,7 @@ XrdMgmOfs::_rem(const char* path,
 
   // ---------------------------------------------------------------------------
   eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                     __FILE__);
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   // free the booked quota
   std::shared_ptr<eos::IFileMD> fmd;
   std::shared_ptr<eos::IContainerMD> container;
@@ -287,7 +286,7 @@ XrdMgmOfs::_rem(const char* path,
             eos_info("msg=\"workflow trigger returned\" retc=%d errno=%d", ret_wfe, errno);
           }
 
-          lock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+          lock.Grab(gOFS->eosViewRWMutex);
 
           if (ret_wfe && errno != ENOKEY) {
             eos::MDException e(errno);

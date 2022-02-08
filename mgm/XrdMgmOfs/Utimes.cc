@@ -97,21 +97,19 @@ XrdMgmOfs::_utimes(const char* path,
   gOFS->MgmStats.Add("Utimes", vid.uid, vid.gid, 1);
   eos_info("calling utimes for path=%s, uid=%i, gid=%i", path, vid.uid, vid.gid);
   // ---------------------------------------------------------------------------
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
   if (gOFS->_access(path,
-		    W_OK,
-		    error,
-		    vid,
-		    info,
-		    false))
-  {
+                    W_OK,
+                    error,
+                    vid,
+                    info,
+                    false)) {
     return SFS_ERROR;
   }
 
   try {
     cmd = gOFS->eosView->getContainer(path, false);
-
     cmd->setMTime(tvp[1]);
     cmd->notifyMTimeChange(gOFS->eosDirectoryService);
     eosView->updateContainerStore(cmd.get());

@@ -613,6 +613,18 @@ private:
 #undef EOS_RWMUTEX_TIMER_STOP_AND_UPDATE
 #endif
 
+// For old clang on Apple avoid the use of builtin functions
+#if defined( __APPLE__) && defined(__clang__) && \
+    defined(__clang_major__) && (__clang_major__ < 12)
+#define EOS_FUNCTION __FUNCTION__
+#define EOS_FILE     __FILE__
+#define EOS_LINE     __LINE__
+#else
+#define EOS_FUNCTION __builtin_FUNCTION()
+#define EOS_FILE     __builtin_FILE()
+#define EOS_LINE     __builtin_LINE()
+#endif
+
 //------------------------------------------------------------------------------
 //! Class RWMutexReadLock
 //------------------------------------------------------------------------------
@@ -622,41 +634,59 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  RWMutexWriteLock(): mWrMutex(nullptr) {};
-  RWMutexWriteLock(const char* function, int line, const char* file);
+  RWMutexWriteLock():
+    mWrMutex(nullptr), mFile("unknown"), mFunction("unknown"), mLine(0)
+  {}
 
   //----------------------------------------------------------------------------
   //! Constructor
   //!
   //! @param mutex mutex to lock for write
+  //! @param function caller function name, or empty string if not in the scope
+  //!        of a function
+  //! @param file caller file name, or empty string if not in the scope of a
+  //!        function
+  //! @param line caller line number in file
   //----------------------------------------------------------------------------
-  RWMutexWriteLock(RWMutex& mutex, const char* function = "unknown", int line = 0,
-                   const char* file = "unknown");
+  RWMutexWriteLock(RWMutex& mutex,
+                   const char* function = EOS_FUNCTION,
+                   const char* file = EOS_FILE,
+                   int line = EOS_LINE);
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  ~RWMutexWriteLock()
+  {
+    Release();
+  }
 
   //----------------------------------------------------------------------------
   //! Grab mutex and write lock it
   //!
   //! @param mutex mutex to lock for write
+  //! @param function caller function name, or empty string if not in the scope
+  //!        of a function
+  //! @param file caller file name, or empty string if not in the scope of a
+  //!        function
+  //! @param line caller line number in file
   //----------------------------------------------------------------------------
-  void Grab(RWMutex& mutex, const char* function = "unknown", int line = 0,
-            const char* file = "unknown");
+  void Grab(RWMutex& mutex,
+            const char* function = EOS_FUNCTION,
+            const char* file = EOS_FILE,
+            int line = EOS_LINE);
 
   //----------------------------------------------------------------------------
   //! Release the write lock after grab
   //----------------------------------------------------------------------------
   void Release();
 
-  //----------------------------------------------------------------------------
-  //! Destructor
-  //----------------------------------------------------------------------------
-  ~RWMutexWriteLock();
-
 private:
-  RWMutex* mWrMutex;
   std::chrono::steady_clock::time_point mAcquiredAt;
+  RWMutex* mWrMutex {nullptr};
+  const char* mFile;
   const char* mFunction;
   int mLine;
-  const char* mFile;
 };
 
 //------------------------------------------------------------------------------
@@ -668,42 +698,59 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  RWMutexReadLock(): mRdMutex(nullptr) {};
-  RWMutexReadLock(const char* function, int line,
-                  const char* file) : mRdMutex(nullptr), mFunction(""), mLine(0), mFile("") {};
+  RWMutexReadLock():
+    mRdMutex(nullptr), mFunction("unknown"), mFile("unknown"), mLine(0)
+  {}
 
   //----------------------------------------------------------------------------
   //! Constructor
   //!
-  //! @param mutex mutex to handle
+  //! @param mutex mutex to lock for read
+  //! @param function caller function name, or empty string if not in the scope
+  //!        of a function
+  //! @param file caller file name, or empty string if not in the scope of a
+  //!        function
+  //! @param line caller line number in file
   //----------------------------------------------------------------------------
-  RWMutexReadLock(RWMutex& mutex, const char* function = "unknown", int line = 0,
-                  const char* file = "unknown");
+  RWMutexReadLock(RWMutex& mutex,
+                  const char* function = EOS_FUNCTION,
+                  const char* file = EOS_FILE,
+                  int line = EOS_LINE);
 
   //----------------------------------------------------------------------------
   //! Grab mutex and read lock it
   //!
   //! @param mutex mutex to lock for read
+  //! @param function caller function name, or empty string if not in the scope
+  //!        of a function
+  //! @param file caller file name, or empty string if not in the scope of a
+  //!        function
+  //! @param line caller line number in file
   //----------------------------------------------------------------------------
-  void Grab(RWMutex& mutex, const char* function = "unknown", int line = 0,
-            const char* file = "unknown");
+  void Grab(RWMutex& mutex,
+            const char* function = EOS_FUNCTION,
+            const char* file = EOS_FILE,
+            int line = EOS_LINE);
 
   //----------------------------------------------------------------------------
-  //! Release the write lock after grab
+  //! Release the read lock after grab
   //----------------------------------------------------------------------------
   void Release();
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~RWMutexReadLock();
+  ~RWMutexReadLock()
+  {
+    Release();
+  }
 
 private:
   std::chrono::steady_clock::time_point mAcquiredAt;
-  RWMutex* mRdMutex = nullptr;
+  RWMutex* mRdMutex {nullptr};
   const char* mFunction;
-  int mLine;
   const char* mFile;
+  int mLine;
 };
 
 //------------------------------------------------------------------------------

@@ -242,8 +242,7 @@ void ConvertCmd::FileSubcmd(const eos::console::ConvertProto_FileProto& file,
   eos::IFileMD::location_t replica_location = 0;
 
   try {
-    eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                       __FILE__);
+    eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
     auto fmd = gOFS->eosView->getFile(path).get();
     file_id = fmd->getId();
     file_layoutid = fmd->getLayoutId();

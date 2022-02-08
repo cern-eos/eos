@@ -1117,8 +1117,7 @@ Recycle::Restore(std::string& std_out, std::string& std_err,
     // TODO(gbitzes): This could be more precise...
     eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
     eos::Prefetcher::prefetchContainerMDWithParentsAndWait(gOFS->eosView, fid);
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                      __FILE__);
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
     if (!force_directory) {
       try {

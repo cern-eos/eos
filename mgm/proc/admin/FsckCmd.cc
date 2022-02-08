@@ -101,8 +101,7 @@ FsckCmd::ProcessRequest() noexcept
 
     if (fsid == 0ul) {
       // Send command to all FSTs (nodes)
-      eos::common::RWMutexReadLock
-      fs_rd_lock(FsView::gFsView.ViewMutex, __FUNCTION__, __LINE__, __FILE__);
+      eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
 
       for (const auto& elem : FsView::gFsView.mNodeView) {
         if (elem.second->GetActiveStatus() == eos::common::ActiveStatus::kOnline) {
@@ -113,8 +112,7 @@ FsckCmd::ProcessRequest() noexcept
       }
     } else {
       // Send command only to the corresponding FST (node)
-      eos::common::RWMutexReadLock
-      fs_rd_lock(FsView::gFsView.ViewMutex, __FUNCTION__, __LINE__, __FILE__);
+      eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
       auto* fs = FsView::gFsView.mIdView.lookupByID(fsid);
 
       if (!fs) {

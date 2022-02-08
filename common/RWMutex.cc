@@ -1321,27 +1321,26 @@ RWMutex::PrintMutexOps(std::ostringstream& oss)
 //                      ***** Class RWMutexWriteLock *****
 //------------------------------------------------------------------------------
 
-
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 RWMutexWriteLock::RWMutexWriteLock(RWMutex& mutex, const char* function,
-                                   int line, const char* file)
+                                   const char* file, int line):
+  mWrMutex(nullptr)
 {
-  mWrMutex = nullptr;
-  Grab(mutex, function, line, file);
+  Grab(mutex, function, file, line);
 }
 
 //----------------------------------------------------------------------------
 // Grab mutex and write lock it
 //----------------------------------------------------------------------------
 void
-RWMutexWriteLock::Grab(RWMutex& mutex, const char* function, int line,
-                       const char* file)
+RWMutexWriteLock::Grab(RWMutex& mutex, const char* function,
+                       const char* file, int line)
 {
   mFunction = function;
-  mLine = line;
   mFile = file;
+  mLine = line;
 
   if (mWrMutex) {
     throw std::runtime_error("already holding a mutex");
@@ -1376,12 +1375,11 @@ RWMutexWriteLock::Release()
 
     if (blockedFor.count() > blockedinterval) {
       std::ostringstream ss;
-      ss << "write lock [ " << mWrMutex->getName() << " ] held for " <<
-         blockedFor.count() <<
-         " milliseconds" << std::endl;
+      ss << "write lock [ " << mWrMutex->getName() << " ] held for "
+         << blockedFor.count() <<  " milliseconds";
 
       if (blockedtracing) {
-        ss << ":";
+        ss << " : ";
         ss << eos::common::getStacktrace();
       }
 
@@ -1393,32 +1391,25 @@ RWMutexWriteLock::Release()
 }
 
 //------------------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------------------
-RWMutexWriteLock::~RWMutexWriteLock()
-{
-  Release();
-}
-
-//------------------------------------------------------------------------------
 //                      ***** Class RWMutexReadLock *****
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-RWMutexReadLock::RWMutexReadLock(RWMutex& mutex, const char* function, int line,
-                                 const char* file)
+RWMutexReadLock::RWMutexReadLock(RWMutex& mutex, const char* function,
+                                 const char* file, int line):
+  mRdMutex(nullptr)
 {
-  Grab(mutex, function, line, file);
+  Grab(mutex, function, file, line);
 }
 
 //----------------------------------------------------------------------------
 // Grab mutex and write lock it
 //----------------------------------------------------------------------------
 void
-RWMutexReadLock::Grab(RWMutex& mutex, const char* function, int line,
-                      const char* file)
+RWMutexReadLock::Grab(RWMutex& mutex, const char* function,
+                      const char* file, int line)
 {
   mFunction = function;
   mLine = line;
@@ -1434,11 +1425,14 @@ RWMutexReadLock::Grab(RWMutex& mutex, const char* function, int line,
   mRdMutex->LockRead();
   RWMutex::RecordMutexOp((uint64_t)mRdMutex->GetRawPtr(),
                          RWMutex::LOCK_T::eLockRead);
-  // acquiredAt must be updated _after_ we get the lock, since LockRead
+  // mAcquiredAt must be updated _after_ we get the lock, since LockRead
   // may take a long time to complete
   mAcquiredAt = std::chrono::steady_clock::now();
 }
 
+//------------------------------------------------------------------------------
+// Release the read lock after grab
+//------------------------------------------------------------------------------
 void
 RWMutexReadLock::Release()
 {
@@ -1455,12 +1449,11 @@ RWMutexReadLock::Release()
 
     if (blockedFor.count() > blockedinterval) {
       std::ostringstream ss;
-      ss << "read lock [ " << mRdMutex->getName() << " ] held for " <<
-         blockedFor.count() <<
-         " milliseconds" << std::endl;
+      ss << "read lock [ " << mRdMutex->getName() << " ] held for "
+         << blockedFor.count() << " milliseconds";
 
       if (blockedtracing) {
-        ss << eos::common::getStacktrace();
+        ss << " : " << eos::common::getStacktrace();
       }
 
       eos_third_party_warning(mFunction, mFile, mLine, "%s", ss.str().c_str());
@@ -1468,14 +1461,6 @@ RWMutexReadLock::Release()
 
     mRdMutex = nullptr;
   }
-}
-
-//------------------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------------------
-RWMutexReadLock::~RWMutexReadLock()
-{
-  Release();
 }
 
 EOSCOMMONNAMESPACE_END

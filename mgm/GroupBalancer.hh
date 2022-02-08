@@ -25,6 +25,7 @@
 #include "mgm/Namespace.hh"
 #include "common/FileId.hh"
 #include "common/AssistedThread.hh"
+#include "common/RWMutex.hh"
 #include <vector>
 #include <string>
 #include <cstring>
@@ -118,6 +119,7 @@ private:
   std::string mSpaceName; ///< Attached space name
   Config cfg;
 
+  mutable eos::common::RWMutexW mEngineMtx;
   std::unique_ptr<group_balancer::BalancerEngine> mEngine;
 
   /// last time the groups' real used space was checked

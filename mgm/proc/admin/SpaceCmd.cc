@@ -446,8 +446,7 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
   break;
 
   case eos::console::SpaceProto_ResetProto::NSFILESISTEMVIEW: {
-    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                       __FILE__);
+    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
     gOFS->eosFsView->shrink();
     std_out << "\ninfo: resized namespace filesystem view ...";
   }
@@ -464,8 +463,7 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
   break;
 
   case eos::console::SpaceProto_ResetProto::NS: {
-    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                       __FILE__);
+    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
     gOFS->eosFsView->shrink();
     std_out << "\ninfo: ns does not support map resizing";
   }
@@ -846,41 +844,53 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
               }
             }
           } else {
-            errno = 0;
-            unsigned long long size = eos::common::StringConversion::GetSizeFromString(
-                                        value.c_str());
-            applied = true;
+            if (value == "remove") {
+              applied = true;
 
-            if (!errno) {
-              if ((key != "balancer.threshold") &&
-                  (key != "geobalancer.threshold") &&
-                  (key != "groupbalancer.threshold") &&
-                  (key != "groupbalancer.min_threshold") &&
-                  (key != "groupbalancer.max_threshold")) {
-                // the threshold is allowed to be decimal!
-                char ssize[1024];
-                snprintf(ssize, sizeof(ssize) - 1, "%llu", size);
-                value = ssize;
-              }
-
-              if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key,
-                  value)) {
-                ret_c = EIO;
-                std_err.str("error: cannot set space config value");
+              if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->DeleteConfigMember(
+                    key)) {
+                ret_c = ENOENT;
+                std_err.str("error: key has not been deleted");
               } else {
-                std_out.str("success: setting " + key + "=" + value);
-
-                if ((key == "token.generation")) {
-                  eos::common::EosTok::sTokenGeneration = strtoull(value.c_str(), 0, 0);
-                }
-
-                if (key == "lru.interval") {
-                  gOFS->mLRUEngine->RefreshOptions();
-                }
+                std_out.str("success: deleted space config : " + key);
               }
             } else {
-              ret_c = EINVAL;
-              std_err.str("error: value has to be a positive number");
+              errno = 0;
+              unsigned long long size = eos::common::StringConversion::GetSizeFromString(
+                                          value.c_str());
+              applied = true;
+
+              if (!errno) {
+                if ((key != "balancer.threshold") &&
+                    (key != "geobalancer.threshold") &&
+                    (key != "groupbalancer.threshold") &&
+                    (key != "groupbalancer.min_threshold") &&
+                    (key != "groupbalancer.max_threshold")) {
+                  // the threshold is allowed to be decimal!
+                  char ssize[1024];
+                  snprintf(ssize, sizeof(ssize) - 1, "%llu", size);
+                  value = ssize;
+                }
+
+                if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key,
+                    value)) {
+                  ret_c = EIO;
+                  std_err.str("error: cannot set space config value");
+                } else {
+                  std_out.str("success: setting " + key + "=" + value);
+
+                  if ((key == "token.generation")) {
+                    eos::common::EosTok::sTokenGeneration = strtoull(value.c_str(), 0, 0);
+                  }
+
+                  if (key == "lru.interval") {
+                    gOFS->mLRUEngine->RefreshOptions();
+                  }
+                }
+              } else {
+                ret_c = EINVAL;
+                std_err.str("error: value has to be a positive number");
+              }
             }
           }
         }
@@ -979,12 +989,21 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
         char ssize[1024];
         snprintf(ssize, sizeof(ssize) - 1, "%llu", size);
 
-        if ((!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key,
-             ssize))) {
-          std_err << "error: failed to set space parameter <" + key + ">\n";
-          ret_c = EINVAL;
+        if (value == "remove") {
+          if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->DeleteConfigMember(
+                key)) {
+            ret_c = ENOENT;
+          } else {
+            std_out.str("success: deleting " + key);
+          }
         } else {
-          std_out.str("success: setting " + key + "=" + value);
+          if ((!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key,
+               ssize))) {
+            std_err << "error: failed to set space parameter <" + key + ">\n";
+            ret_c = EINVAL;
+          } else {
+            std_out.str("success: setting " + key + "=" + value);
+          }
         }
       } else {
         if (key != "configstatus") {
@@ -1016,8 +1035,13 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                  (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
                  (key == eos::common::SCAN_NS_RATE_NAME) ||
                  (key == eos::common::FSCK_REFRESH_INTERVAL_NAME)) && (!errno)) {
-              fs->SetLongLong(key.c_str(),
-                              eos::common::StringConversion::GetSizeFromString(value.c_str()));
+              if (value == "remove") {
+                fs->RemoveKey(key.c_str());
+              } else {
+                fs->SetLongLong(key.c_str(),
+                                eos::common::StringConversion::GetSizeFromString(value.c_str()));
+              }
+
               FsView::gFsView.StoreFsConfig(fs, false);
             } else {
               std_err << "error: not an allowed parameter <" + key + ">\n";

@@ -104,7 +104,7 @@ XrdMgmOfs::_access(const char* path,
   eos::common::RWMutexReadLock viewReadLock;
 
   if (lock) {
-    viewReadLock.Grab(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__, __FILE__);
+    viewReadLock.Grab(gOFS->eosViewRWMutex);
   }
 
   // check for existing file
@@ -228,8 +228,7 @@ XrdMgmOfs::acc_access(const char* path,
   bool d_ok = false;
   // ---------------------------------------------------------------------------
   eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, cPath.GetPath());
-  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex, __FUNCTION__, __LINE__,
-                                    __FILE__);
+  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
   // check for existing file
   try {
@@ -353,11 +352,12 @@ XrdMgmOfs::acc_access(const char* path,
 //------------------------------------------------------------------------------
 int
 XrdMgmOfs::is_squashfs_access(const char* path,
-			    eos::common::VirtualIdentity& vid)
+                              eos::common::VirtualIdentity& vid)
 {
   int errc = 0;
+
   if ((eos::common::Mapping::UserNameToUid(std::string("eosnobody"),
-					   errc) == vid.uid) &&
+       errc) == vid.uid) &&
       !errc && (vid.prot == "sss")) {
     // eosnobody can access all squash files
     eos::common::Path cPath(path);
@@ -366,8 +366,10 @@ XrdMgmOfs::is_squashfs_access(const char* path,
       errno = EACCES;
       return 1;
     }
+
     return 2;
   }
+
   return 0;
 }
 
@@ -378,7 +380,7 @@ bool
 XrdMgmOfs::allow_public_access(const char* path,
                                eos::common::VirtualIdentity& vid)
 {
-  int sq = is_squashfs_access(path,vid);
+  int sq = is_squashfs_access(path, vid);
 
   if (sq == 2) {
     // eosnobody squashfs file access is allowed
@@ -394,23 +396,23 @@ XrdMgmOfs::allow_public_access(const char* path,
   if (vid.uid != 99) {
     return true;
   }
-  
+
   // check publicaccess level
   int level = eos::common::Mapping::GetPublicAccessLevel();
-  
+
   if (level >= 1024) {
     // short cut
     return true;
   }
-  
+
   eos::common::Path cPath(path);
-  
+
   if ((int)cPath.GetSubPathSize() >= level) {
     // forbid everything to nobody in that case
     errno = EACCES;
     return false;
   }
-  
+
   return true;
 }
 

@@ -1438,8 +1438,7 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
     std::map<std::string, std::set < eos::common::FileId::fileid_t> >& fidset)
 {
   using eos::common::LayoutId;
-  eos::common::RWMutexReadLock map_rd_lock(mMapMutex, __FUNCTION__, __LINE__,
-      __FILE__);
+  eos::common::RWMutexReadLock map_rd_lock(mMapMutex);
 
   if (!mDbMap.count(fsid)) {
     return false;
