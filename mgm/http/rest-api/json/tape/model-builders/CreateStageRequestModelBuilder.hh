@@ -31,20 +31,17 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
+
 class CreateStageRequestModelBuilder : public JsonCppModelBuilder<CreateStageBulkRequestModel> {
 public:
-  std::unique_ptr<CreateStageBulkRequestModel> buildFromJson(const std::string & json) override;
-  inline static const std::string PATHS_KEY_NAME = "paths";
-protected:
-  TapeJsonCppValidatorFactory mValidatorFactory;
-};
-
-class CreateStageRequestWithFilesModelBuilder : public CreateStageRequestModelBuilder {
-public:
+  CreateStageRequestModelBuilder(const std::string & restApiEndpointId);
   virtual std::unique_ptr<CreateStageBulkRequestModel> buildFromJson(const std::string & json) override;
   inline static const std::string FILES_KEY_NAME = "files";
   inline static const std::string PATH_KEY_NAME = "path";
   inline static const std::string TARGETED_METADATA_KEY_NAME = "targeted_metadata";
+protected:
+  TapeJsonCppValidatorFactory mValidatorFactory;
+  std::string mRestApiEndpointId;
 };
 
 EOSMGMRESTNAMESPACE_END
