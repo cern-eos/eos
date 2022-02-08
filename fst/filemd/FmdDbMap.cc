@@ -722,4 +722,21 @@ FmdDbMapHandler::SetSyncStatus(eos::common::FileSystem::fsid_t fsid,
   mIsSyncing[fsid] = is_syncing;
 }
 
+bool
+FmdDbMapHandler::LocalPutFmd(eos::common::FileId::fileid_t fid,
+                             eos::common::FileSystem::fsid_t fsid,
+                             const common::FmdHelper& fmd)
+{
+  std::string sval;
+  fmd.mProtoFmd.SerializePartialToString(&sval);
+  auto it_db = mDbMap.find(fsid);
+
+  if (it_db != mDbMap.end()) {
+    return it_db->second->set(eos::common::Slice((const char*)&fid, sizeof(fid)),
+                              sval, "") == 0;
+  } else {
+    return false;
+  }
+}
+
 EOSFSTNAMESPACE_END
