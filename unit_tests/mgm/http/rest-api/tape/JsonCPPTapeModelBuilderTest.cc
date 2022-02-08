@@ -28,17 +28,40 @@
 using namespace eos::mgm::rest;
 
 TEST_F(JsonCPPTapeModelBuilderTest,createStageRequestModelBuilderTest){
-  CreateStageRequestModelBuilder builder;
+  std::string restApiEndpointID = "REST_API_ENDPOINT_ID";
+  CreateStageRequestModelBuilder builder(restApiEndpointID);
   std::string json = "jsonNotValid";
   ASSERT_THROW(builder.buildFromJson(json),JsonValidationException);
   json = "{}";
   ASSERT_THROW(builder.buildFromJson(json), JsonValidationException);
-  json = "{\"" + CreateStageRequestModelBuilder::PATHS_KEY_NAME + "\":12345}";
+  json = "{\"wrong_field\":[]}";
   ASSERT_THROW(builder.buildFromJson(json), JsonValidationException);
-  json = "{\"" + CreateStageRequestModelBuilder::PATHS_KEY_NAME + "\":[]}";
+  json = "{\"" + CreateStageRequestModelBuilder::FILES_KEY_NAME + "\":12345}";
   ASSERT_THROW(builder.buildFromJson(json), JsonValidationException);
-  json = "{\"" + CreateStageRequestModelBuilder::PATHS_KEY_NAME + "\":[1,2,3]}";
+  json = "{\"" + CreateStageRequestModelBuilder::FILES_KEY_NAME + "\":[]}";
   ASSERT_THROW(builder.buildFromJson(json), JsonValidationException);
-  json = "{\"" + CreateStageRequestModelBuilder::PATHS_KEY_NAME + "\":[\"/path/to/file.txt\",\"/path/to/file2.txt\"]}";
+  json = "{\"" + CreateStageRequestModelBuilder::FILES_KEY_NAME + "\":[1,2,3]}";
+  ASSERT_THROW(builder.buildFromJson(json), JsonValidationException);
+  json = "{\"" + CreateStageRequestModelBuilder::FILES_KEY_NAME + "\":[{\"" + CreateStageRequestModelBuilder::PATH_KEY_NAME +"\":1234}]";
+  ASSERT_THROW(builder.buildFromJson(json), JsonValidationException);
+  json = "{\"" + CreateStageRequestModelBuilder::FILES_KEY_NAME + "\":[{\"" + CreateStageRequestModelBuilder::PATH_KEY_NAME + "\":\"/path/to/file.txt\"},{\"" + CreateStageRequestModelBuilder::PATH_KEY_NAME + "\":\"/path/to/file2.txt\"}]}";
   ASSERT_NO_THROW(builder.buildFromJson(json));
+  std::string activityValue = "activityTest";
+  std::ostringstream oss;
+  oss << "{\""
+      <<    CreateStageRequestModelBuilder::FILES_KEY_NAME << "\": ["
+      <<      "{"
+      <<          "\"" << CreateStageRequestModelBuilder::PATH_KEY_NAME << "\": \"/path/to/file.txt\","
+      <<          "\"" << CreateStageRequestModelBuilder::TARGETED_METADATA_KEY_NAME <<  "\": {"
+      <<             "\"" << restApiEndpointID << "\" : {"
+      <<               "\"activity\":\"" <<  activityValue << "\""
+      <<             "}"
+      <<          "}"
+      <<      "}"
+      <<    "]"
+      << "}";
+  json = oss.str();
+  auto createStageRequestModel = builder.buildFromJson(json);
+  std::string expectedActivityOpaque = "activity=" + activityValue;
+  ASSERT_EQ(expectedActivityOpaque,createStageRequestModel->getFiles().getOpaqueInfos().at(0));
 }
