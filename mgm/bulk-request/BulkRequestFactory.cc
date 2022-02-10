@@ -26,30 +26,17 @@
 
 EOSBULKNAMESPACE_BEGIN
 
-std::unique_ptr<BulkRequest> BulkRequestFactory::createStageBulkRequest() {
+std::unique_ptr<StageBulkRequest> BulkRequestFactory::createStageBulkRequest(const common::VirtualIdentity & issuerVid) {
   std::string bulkRequestId = BulkRequestHelper::generateBulkRequestId();
-  return std::move(createBulkRequest(bulkRequestId,BulkRequest::Type::PREPARE_STAGE));
+  return std::make_unique<StageBulkRequest>(bulkRequestId,issuerVid);
 }
 
-std::unique_ptr<BulkRequest> BulkRequestFactory::createEvictBulkRequest() {
-  std::string bulkRequestId = BulkRequestHelper::generateBulkRequestId();
-  return std::move(createBulkRequest(bulkRequestId,BulkRequest::Type::PREPARE_EVICT));
+std::unique_ptr<StageBulkRequest> BulkRequestFactory::createStageBulkRequest(const std::string & requestId, const common::VirtualIdentity & issuerVid) {
+  return std::make_unique<StageBulkRequest>(requestId,issuerVid);
 }
 
-std::unique_ptr<BulkRequest> BulkRequestFactory::createCancelBulkRequest(const std::string& id){
-  return std::move(createBulkRequest(id,BulkRequest::Type::PREPARE_CANCEL));
+std::unique_ptr<CancellationBulkRequest> BulkRequestFactory::createCancelBulkRequest(const std::string& id){
+  return std::make_unique<CancellationBulkRequest>(id);
 }
 
-std::unique_ptr<BulkRequest> BulkRequestFactory::createBulkRequest(const std::string& id, const BulkRequest::Type & type) {
-  switch(type){
-  case BulkRequest::Type::PREPARE_STAGE:
-    return std::make_unique<StageBulkRequest>(id);
-  case BulkRequest::Type::PREPARE_EVICT:
-    return std::make_unique<EvictBulkRequest>(id);
-  case BulkRequest::Type::PREPARE_CANCEL:
-    return std::make_unique<CancellationBulkRequest>(id);
-  default:
-    return nullptr;
-  }
-}
 EOSBULKNAMESPACE_END

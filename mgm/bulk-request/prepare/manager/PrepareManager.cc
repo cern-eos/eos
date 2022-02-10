@@ -53,7 +53,7 @@ int PrepareManager::prepare(XrdSfsPrep &pargs, XrdOucErrInfo & error, const comm
   return doPrepare(pargs,error,&client,vid);
 }
 
-void PrepareManager::initializeStagePrepareRequest(XrdOucString& reqid) {
+void PrepareManager::initializeStagePrepareRequest(XrdOucString& reqid, const common::VirtualIdentity & vid) {
   reqid = eos::common::StringConversion::timebased_uuidstring().c_str();
 }
 
@@ -113,7 +113,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const Xrd
   case Prep_STAGE:
     event = "sync::prepare";
     mPrepareAction = PrepareAction::STAGE;
-    initializeStagePrepareRequest(reqid);
+    initializeStagePrepareRequest(reqid,vid);
     break;
 
   case Prep_CANCEL:

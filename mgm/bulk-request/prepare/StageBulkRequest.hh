@@ -34,10 +34,13 @@ EOSBULKNAMESPACE_BEGIN
  */
 class StageBulkRequest : public BulkRequest {
 public:
-  StageBulkRequest(const std::string & id);
+  StageBulkRequest(const std::string & id, const common::VirtualIdentity & issuerVid);
   void addFile(std::unique_ptr<File> && file) override;
   const BulkRequest::Type getType() const override;
+  const common::VirtualIdentity & getIssuerVid() const;
 private:
+  //The virtual identity of the person who issued this bulk-request
+  const eos::common::VirtualIdentity mIssuerVid;
 };
 
 EOSBULKNAMESPACE_END
