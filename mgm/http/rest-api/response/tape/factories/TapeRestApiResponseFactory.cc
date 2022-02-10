@@ -63,5 +63,9 @@ RestApiResponse<void> TapeRestApiResponseFactory::createOkEmptyResponse() const 
   return RestApiResponse<void>();
 }
 
+RestApiResponse<ErrorModel> TapeRestApiResponseFactory::createForbiddenError(const std::string& detail) const {
+  return createError(common::HttpResponse::FORBIDDEN,"Forbidden",detail);
+}
+
 
 EOSMGMRESTNAMESPACE_END
