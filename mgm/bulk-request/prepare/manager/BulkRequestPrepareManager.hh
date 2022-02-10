@@ -49,7 +49,7 @@ protected:
    * affect its reqid to the variable passed in parameter
    * @param reqid the request id that will be set to the bulk-request
    */
-  void initializeStagePrepareRequest(XrdOucString &reqid) override;
+  void initializeStagePrepareRequest(XrdOucString &reqid, const common::VirtualIdentity & vid) override;
 
   void initializeCancelPrepareRequest(XrdOucString & reqid) override;
 

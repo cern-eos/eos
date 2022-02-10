@@ -99,7 +99,7 @@ public:
 
 protected:
 
-  virtual void initializeStagePrepareRequest(XrdOucString & reqid);
+  virtual void initializeStagePrepareRequest(XrdOucString & reqid, const common::VirtualIdentity & vid);
 
   virtual void initializeCancelPrepareRequest(XrdOucString & reqid);
 

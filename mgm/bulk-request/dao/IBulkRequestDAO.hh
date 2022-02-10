@@ -26,6 +26,7 @@
 
 #include "mgm/Namespace.hh"
 #include "mgm/bulk-request/prepare/StageBulkRequest.hh"
+#include "mgm/bulk-request/prepare/CancellationBulkRequest.hh"
 #include <memory>
 #include <chrono>
 #include <map>
@@ -39,10 +40,16 @@ EOSBULKNAMESPACE_BEGIN
 class IBulkRequestDAO {
 public:
   /**
+   * Persists a stage-cancellation bulk-request
+   * @param bulkRequest the cancellation bulk-request to persist
+   */
+  virtual void saveBulkRequest(const CancellationBulkRequest * bulkRequest) = 0;
+
+  /**
    * This method allows to persist a StageBulkRequest
    * @param bulkRequest the bulk request to save
    */
-  virtual void saveBulkRequest(const BulkRequest * bulkRequest) = 0;
+  virtual void saveBulkRequest(const StageBulkRequest * bulkRequest) = 0;
 
   /**
    * Get the bulk-request from the persistence
@@ -53,20 +60,12 @@ public:
   virtual std::unique_ptr<BulkRequest> getBulkRequest(const std::string & id, const BulkRequest::Type & type) = 0;
 
   /**
-   * Delete all the bulk-request of a certain type that were not accessed for  hours
+   * Delete all the bulk-request of a certain type that were not accessed for a certain amount of seconds
    * @param type the bulk-request type to look for
    * @param seconds the number of seconds after which the bulk-requests can be deleted if they were not queried
    * @returns the number of deleted bulk-request
    */
   virtual uint64_t deleteBulkRequestNotQueriedFor(const BulkRequest::Type & type, const std::chrono::seconds & seconds) = 0;
-
-  /**
-   * Adds or updates the attributes of a persisted bulk-request
-   * @param bulkRequest the bulk-request to update
-   * @param attributes the attributes to add/update to the bulk-request
-   * @throws PersistencyException if the bulk-request does not exist
-   */
-  virtual void addOrUpdateAttributes(const BulkRequest * bulkRequest, const std::map<std::string,std::string> & attributes) = 0;
 
   /**
    * Returns true if the bulk-request corresponding to the id and the type
