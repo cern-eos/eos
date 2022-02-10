@@ -43,6 +43,7 @@ public:
   RestApiResponse<ErrorModel> createMethodNotAllowedError(const std::string & detail) const;
   RestApiResponse<ErrorModel> createInternalServerError(const std::string & detail) const;
   RestApiResponse<void> createOkEmptyResponse() const;
+  RestApiResponse<ErrorModel> createForbiddenError(const std::string & detail) const;
   template<typename Model>
   RestApiResponse<Model> createResponse(std::shared_ptr<Model> model,const common::HttpResponse::ResponseCodes code) const;
 private:
