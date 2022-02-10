@@ -40,6 +40,7 @@ class FsGroup;
 class FsSpace;
 static constexpr uint64_t GROUPBALANCER_MIN_FILE_SIZE = 1ULL<<30;
 static constexpr uint64_t GROUPBALANCER_MAX_FILE_SIZE = 16ULL<<30;
+static constexpr int GROUPBALANCER_FILE_ATTEMPTS = 50;
 using eos::mgm::group_balancer::GroupSize;
 //------------------------------------------------------------------------------
 //! @brief Class running the balancing among groups
@@ -106,8 +107,14 @@ public:
       return fid !=0  && !filename.empty();
     }
   };
+
   //----------------------------------------------------------------------------
   //! Set up Config based on values configured in space
+  //!
+  //! @param space the space to configure
+  //! @param cfg the GroupBalancer::Config struct
+  //!
+  //! @return boolean based on valid configuration
   //----------------------------------------------------------------------------
   bool Configure(FsSpace* const space, Config& cfg);
 
@@ -159,7 +166,7 @@ private:
   //! @return FileInfo for the chosen file
   //----------------------------------------------------------------------------
   FileInfo
-  chooseFileFromGroup(FsGroup *group, int attempts = 50);
+  chooseFileFromGroup(FsGroup *group, int attempts);
 
   void prepareTransfers(int nrTransfers);
 

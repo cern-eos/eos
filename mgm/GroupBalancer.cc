@@ -440,22 +440,43 @@ GroupBalancer::Configure(FsSpace* const space, GroupBalancer::Config& cfg)
 {
   cfg.is_enabled = space->GetConfigMember("groupbalancer") == "on";
   cfg.is_conv_enabled = space->GetConfigMember("converter") == "on";
+
+  if (!cfg.is_enabled || !cfg.is_conv_enabled) {
+    eos_static_info("msg=\"group balancer or converter not enabled\""
+                    " space=%s balancer_status=%d converter_status=%d",
+                    mSpaceName.c_str(), cfg.is_enabled, cfg.is_conv_enabled);
+    return false;
+  }
+
   cfg.num_tx = atoi(space->GetConfigMember("groupbalancer.ntx").c_str());
   cfg.mMinFileSize = common::StringConversion::GetSizeFromString(
                        space->GetConfigMember("groupbalancer.min_file_size"));
   cfg.mMaxFileSize = common::StringConversion::GetSizeFromString(
                        space->GetConfigMember("groupbalancer.max_file_size"));
+
+  if (!cfg.mMaxFileSize) {
+    eos_static_debug("msg=\"Invalid Max File Size, setting to default!\"");
+    cfg.mMaxFileSize = GROUPBALANCER_MAX_FILE_SIZE;
+  }
+
   cfg.engine_type = group_balancer::get_engine_type(
                       space->GetConfigMember("groupbalancer.engine"));
   cfg.file_attempts = atoi(
                         space->GetConfigMember("groupbalancer.file_attempts").c_str());
+
+  if (!cfg.file_attempts) {
+    eos_static_debug("msg=\"Invalid File Attempts Count, setting to default!\"");
+    cfg.file_attempts = GROUPBALANCER_FILE_ATTEMPTS;
+  }
+
+
   auto min_threshold_str = space->GetConfigMember("groupbalancer.min_threshold");
   auto max_threshold_str = space->GetConfigMember("groupbalancer.max_threshold");
 
   if (!group_balancer::is_valid_threshold(min_threshold_str, max_threshold_str)) {
     if (cfg.engine_type == BalancerEngineT::minmax) {
-      eos_static_err("%s",
-                     "msg=\"invalid min/max balancer threshold configuration\"");
+      eos_static_err("msg=\"invalid min/max balancer threshold configuration\""
+                     " space=%s", mSpaceName.c_str());
       return false;
     }
 
@@ -465,7 +486,8 @@ GroupBalancer::Configure(FsSpace* const space, GroupBalancer::Config& cfg)
     auto threshold_str = space->GetConfigMember("groupbalancer.threshold");
 
     if (!group_balancer::is_valid_threshold(threshold_str)) {
-      eos_static_err("%s", "msg=\"invalid std balancer threshold configuration\"");
+      eos_static_err("msg=\"invalid std balancer threshold configuration\""
+                     " space=%s", mSpaceName.c_str());
       return false;
     }
 
@@ -522,17 +544,6 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
 
     if (!GroupBalancer::Configure(space, cfg)) {
       FsView::gFsView.ViewMutex.UnLockRead();
-      eos_static_info("%s", "msg=\"group balancer configuration invalid, "
-                      "waiting for 10s\"");
-      assistant.wait_for(std::chrono::seconds(10));
-      continue;
-    }
-
-    if (!cfg.is_enabled || !cfg.is_conv_enabled) {
-      FsView::gFsView.ViewMutex.UnLockRead();
-      eos_static_info("msg=\"group balancer or converter not enabled\" space=\"%s\""
-                      " balancer_status=%d converter_status=%d",
-                      mSpaceName.c_str(), cfg.is_enabled, cfg.is_conv_enabled);
       continue;
     }
 
