@@ -24,6 +24,7 @@
 #include "TapeRestHandler.hh"
 #include "mgm/http/rest-api/exception/ControllerNotFoundException.hh"
 #include "mgm/http/rest-api/exception/MethodNotAllowedException.hh"
+#include "mgm/http/rest-api/exception/ForbiddenException.hh"
 #include "mgm/http/rest-api/response/tape/factories/TapeRestApiResponseFactory.hh"
 #include "mgm/http/rest-api/controllers/tape/factories/ControllerFactory.hh"
 #include "mgm/http/rest-api/action/tape/stage/CreateStageBulkRequest.hh"
@@ -95,6 +96,9 @@ common::HttpResponse* TapeRestHandler::handleRequest(common::HttpRequest* reques
     } catch (const MethodNotAllowedException &ex) {
       eos_static_info(ex.what());
       return mTapeRestApiResponseFactory.createMethodNotAllowedError(ex.what()).getHttpResponse();
+    } catch (const ForbiddenException & ex) {
+      eos_static_info(ex.what());
+      return mTapeRestApiResponseFactory.createForbiddenError(ex.what()).getHttpResponse();
     } catch(const RestException &ex) {
       eos_static_info(ex.what());
       return mTapeRestApiResponseFactory.createInternalServerError(ex.what()).getHttpResponse();

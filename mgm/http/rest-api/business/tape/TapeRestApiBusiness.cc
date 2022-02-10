@@ -31,6 +31,7 @@
 #include "mgm/bulk-request/dao/factories/ProcDirectoryDAOFactory.hh"
 #include "mgm/http/rest-api/exception/tape/TapeRestApiBusinessException.hh"
 #include "mgm/http/rest-api/exception/tape/FileDoesNotBelongToBulkRequestException.hh"
+#include "mgm/http/rest-api/exception/ForbiddenException.hh"
 #include "mgm/bulk-request/exception/PersistencyException.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
@@ -55,6 +56,10 @@ void TapeRestApiBusiness::cancelStageBulkRequest(const std::string & requestId, 
     std::stringstream ss;
     ss << "Unable to find the STAGE bulk-request ID = " << requestId;
     throw ObjectNotFoundException(ss.str());
+  }
+  //First, check if the issuer of the cancellation is root, or is the person who submitted the stage request
+  if(vid->uid != 0 && vid->uid != bulkRequest->getIssuerVid().uid) {
+    throw ForbiddenException("You are not allowed to cancel this bulk-request");
   }
   //Create the prepare arguments, we will only cancel the files that were given by the user
   const FilesContainer & filesFromClient = model->getFiles();
