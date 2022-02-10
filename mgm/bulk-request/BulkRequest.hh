@@ -28,6 +28,7 @@
 #include <string>
 #include <set>
 #include <map>
+#include <common/VirtualIdentity.hh>
 #include "FileCollection.hh"
 
 EOSBULKNAMESPACE_BEGIN

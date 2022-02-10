@@ -38,25 +38,19 @@ class BulkRequestFactory {
 public:
   /**
    * Returns a new StageBulkRequest with a unique identifier
+   * @param issuerVid the vid of the person who creates this bulk-request
    * @return a new StageBulkRequest
    */
-  static std::unique_ptr<BulkRequest> createStageBulkRequest();
+  static std::unique_ptr<StageBulkRequest> createStageBulkRequest(const common::VirtualIdentity & issuerVid);
 
   /**
-   * Returns a new EvictBulkRequest with a unique identifier
-   * @return a new EvictBulkRequest
+   * Returns a new cancel bulk-request
+   * @param id the id of the cancel bulk-request (normally is equal to a previously submitted stage bulk-request id)
+   * @return a new CancelBulkRequest
    */
-  static std::unique_ptr<BulkRequest> createEvictBulkRequest();
+  static std::unique_ptr<CancellationBulkRequest> createCancelBulkRequest(const std::string & id);
 
-  static std::unique_ptr<BulkRequest> createCancelBulkRequest(const std::string & id);
-
-  /**
-   * Instanciate a bulk-request according to the type passed in parameter
-   * @param id the id of the bulk-request to create
-   * @param type the type of the bulk-request to create
-   * @return a pointer to the bulk-request created
-   */
-  static std::unique_ptr<BulkRequest> createBulkRequest(const std::string & id, const BulkRequest::Type & type);
+  static std::unique_ptr<StageBulkRequest> createStageBulkRequest(const std::string & requestId, const common::VirtualIdentity & issuerVid);
 
 };
 
