@@ -275,6 +275,7 @@ add_library(
   http/rest-api/controllers/tape/unpin/UnpinController.cc
   http/rest-api/exception/RestException.cc
   http/rest-api/exception/ControllerNotFoundException.cc
+  http/rest-api/exception/ForbiddenException.cc
   http/rest-api/exception/JsonValidationException.cc
   http/rest-api/exception/MethodNotAllowedException.cc
   http/rest-api/exception/InvalidRestURLException.cc
