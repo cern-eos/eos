@@ -50,7 +50,7 @@ std::shared_ptr<bulk::BulkRequest> TapeRestApiBusiness::createStageBulkRequest(c
 
 void TapeRestApiBusiness::cancelStageBulkRequest(const std::string & requestId, const PathsModel* model, const common::VirtualIdentity * vid) {
   std::shared_ptr<bulk::BulkRequestBusiness> bulkRequestBusiness = createBulkRequestBusiness();
-  auto bulkRequest = bulkRequestBusiness->getBulkRequest(requestId,bulk::BulkRequest::Type::PREPARE_STAGE);
+  auto bulkRequest = bulkRequestBusiness->getStageBulkRequest(requestId);
   if(bulkRequest == nullptr) {
     std::stringstream ss;
     ss << "Unable to find the STAGE bulk-request ID = " << requestId;
@@ -92,9 +92,9 @@ void TapeRestApiBusiness::cancelStageBulkRequest(const std::string & requestId, 
 std::shared_ptr<GetStageBulkRequestResponseModel> TapeRestApiBusiness::getStageBulkRequest(const std::string& requestId,const common::VirtualIdentity * vid) {
   std::shared_ptr<GetStageBulkRequestResponseModel> ret = std::make_shared<GetStageBulkRequestResponseModel>();
   auto bulkRequestBusiness = createBulkRequestBusiness();
-  std::unique_ptr<bulk::BulkRequest> bulkRequest;
+  std::unique_ptr<bulk::StageBulkRequest> bulkRequest;
   try {
-    bulkRequest = bulkRequestBusiness->getBulkRequest(requestId,bulk::BulkRequest::PREPARE_STAGE);
+    bulkRequest = bulkRequestBusiness->getStageBulkRequest(requestId);
     if(!bulkRequest) {
       std::stringstream ss;
       ss << "Unable to find the STAGE bulk-request ID =" << requestId;
@@ -147,7 +147,7 @@ std::shared_ptr<GetStageBulkRequestResponseModel> TapeRestApiBusiness::getStageB
 void TapeRestApiBusiness::deleteStageBulkRequest(const std::string& requestId, const common::VirtualIdentity* vid) {
   //Get the prepare request from the persistency
   std::shared_ptr<bulk::BulkRequestBusiness> bulkRequestBusiness = createBulkRequestBusiness();
-  auto bulkRequest = bulkRequestBusiness->getBulkRequest(requestId,bulk::BulkRequest::Type::PREPARE_STAGE);
+  auto bulkRequest = bulkRequestBusiness->getStageBulkRequest(requestId);
   if(bulkRequest == nullptr) {
     std::stringstream ss;
     ss << "Unable to find the STAGE bulk-request ID = " << requestId;

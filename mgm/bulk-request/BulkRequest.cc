@@ -28,7 +28,7 @@
 
 EOSBULKNAMESPACE_BEGIN
 
-BulkRequest::BulkRequest(const std::string & id):mId(id){
+BulkRequest::BulkRequest(const std::string & id):mId(id) {
 }
 
 const std::string BulkRequest::getId() const {
@@ -57,6 +57,5 @@ const std::map<BulkRequest::Type,std::string> BulkRequest::BULK_REQ_TYPE_TO_STRI
     {BulkRequest::PREPARE_EVICT,"PREPARE_EVICT"},
     {BulkRequest::PREPARE_CANCEL,"PREPARE_CANCEL"}
 };
-
 
 EOSBULKNAMESPACE_END

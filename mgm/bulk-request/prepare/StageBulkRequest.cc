@@ -25,7 +25,7 @@
 #include "common/Logging.hh"
 EOSBULKNAMESPACE_BEGIN
 
-StageBulkRequest::StageBulkRequest(const std::string& id): BulkRequest(id)
+StageBulkRequest::StageBulkRequest(const std::string& id, const common::VirtualIdentity & issuerVid): BulkRequest(id),mIssuerVid(issuerVid)
 {
 }
 
@@ -47,6 +47,10 @@ void StageBulkRequest::addFile(std::unique_ptr<File>&& file) {
 const BulkRequest::Type StageBulkRequest::getType() const
 {
   return BulkRequest::Type::PREPARE_STAGE;
+}
+
+const common::VirtualIdentity & StageBulkRequest::getIssuerVid() const {
+  return mIssuerVid;
 }
 
 EOSBULKNAMESPACE_END
