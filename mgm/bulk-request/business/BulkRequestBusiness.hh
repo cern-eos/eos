@@ -62,11 +62,11 @@ public:
   std::unique_ptr<BulkRequest> getBulkRequest(const std::string & bulkRequestId, const BulkRequest::Type & type);
 
   /**
-   * Creates or update the persisted bulk-request attributes
-   * @param req the bulk-request to update its attributes
-   * @param attributes the attributes to add/update
+   * Returns the stage bulk-request persisted
+   * @param bulkRequestId the id of the stage bulk-request
+   * @return the stage bulk-request associated to the id passed in parameter
    */
-  void addOrUpdateAttributes(const BulkRequest * req, const std::map<std::string,std::string> & attributes);
+  std::unique_ptr<StageBulkRequest> getStageBulkRequest(const std::string & bulkRequestId);
 
   /**
    * Returns true if the bulk-request corresponding to the id and the type

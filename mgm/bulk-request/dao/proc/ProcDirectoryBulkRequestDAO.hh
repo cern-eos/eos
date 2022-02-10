@@ -42,6 +42,17 @@ EOSBULKNAMESPACE_BEGIN
 class ProcDirectoryBulkRequestDAO : public IBulkRequestDAO, public eos::common::LogId {
 public:
   ProcDirectoryBulkRequestDAO(XrdMgmOfs * fileSystem, const ProcDirectoryBulkRequestLocations & mBulkRequestDirSchema);
+
+  /**
+   * Save the bulk request by updating the state (to CANCELLED) of a subset of files
+   * belonging to a previously submitted stage bulk-request.
+   * The files that are contained in the CancellationBulkRequest represent
+   * the subset of files that needs to be cancelled on the Stage bulk-request
+   * @param bulkRequest the bulkRequest that will be used to update the state
+   * of the files located in a previously submitted stage request
+   */
+  void saveBulkRequest(const CancellationBulkRequest * bulkRequest) override;
+
   /**
    * Save the bulk request by creating a directory in the /eos/.../proc/ directory and creating one extended attribute
    * per file in this directory:
@@ -50,7 +61,7 @@ public:
    * recycle-bin (each '/' will be replaced by "#:#")
    * @param bulkRequest the BulkRequest to save
    */
-  void saveBulkRequest(const BulkRequest * bulkRequest) override;
+  void saveBulkRequest(const StageBulkRequest * bulkRequest) override;
 
   /**
    * Get the bulk-request from the /eos/.../proc directory
@@ -67,14 +78,6 @@ public:
    * @returns the number of deleted bulk-request
    */
   uint64_t deleteBulkRequestNotQueriedFor(const BulkRequest::Type & type, const std::chrono::seconds & seconds) override;
-
-  /**
-   * Adds or updates the attributes of a persisted bulk-request
-   * @param bulkRequest the bulk-request to update
-   * @param attributes the attributes to add/update to the bulk-request
-   * @throws PersistencyException if the bulk-request does not exist
-   */
-  void addOrUpdateAttributes(const BulkRequest * bulkRequest, const std::map<std::string,std::string> & attributes) override;
 
   /**
    * Returns true if the bulk-request corresponding to the id and the type
@@ -97,19 +100,12 @@ private:
   const ProcDirectoryBulkRequestLocations & mProcDirectoryBulkRequestLocations;
   eos::common::VirtualIdentity mVid;
 
-  const char * ERROR_MSG_ATTR_NAME = "error_msg";
-  const char * LAST_ACCESS_TIME_ATTR_NAME = "last_accessed_time";
+  const char * ERROR_MSG_XATTR_NAME = "error_msg";
+  const char * LAST_ACCESS_TIME_XATTR_NAME = "last_accessed_time";
+  inline static const std::string ISSUER_UID_XATTR_NAME = "issuer_uid";
   //File persisted as bulk-request's directory extended attribute will be prefixed by this prefix
   inline static const std::string FILE_ID_XATTR_KEY_PREFIX = "fid.";
   inline static const std::string FILE_ID_ERROR_XATTR_KEY_PREFIX = "fid.error.";
-
-  /**
-   * Specific saving method for cancellation bulk-request
-   * @param bulkRequest the bulk-request cancellation to save
-   */
-  void saveCancellationBulkRequest(const CancellationBulkRequest* bulkRequest);
-
-  void saveAnyBulkRequest(const BulkRequest * bulkRequest);
 
   void cancelStageBulkRequest(const CancellationBulkRequest * bulkRequest);
 
@@ -141,7 +137,7 @@ private:
    * @param bulkRequest the bulk-request containing the files to insert in the directory
    * @param bulkReqProcPath the he directory in /proc/ where the files contained in the bulk-request will be saved
    */
-  void insertBulkRequestFilesToBulkRequestDirectory(const BulkRequest * bulkRequest, const std::string & bulkReqProcPath);
+  //void insertBulkRequestFilesToBulkRequestDirectory(const BulkRequest * bulkRequest, const std::string & bulkReqProcPath);
 
   /**
    * Performs the cleaning of the bulk-request directory if an exception happens during the persistency of the bulk-request
@@ -156,13 +152,6 @@ private:
   void deleteDirectory(const std::string & path);
 
   /**
-   * Persists the error of the file by adding an extended attribute "bulk_req_error"
-   * @param persistedFilePath the path of the file in the /proc/ directory
-   * @param file the file that may have an error
-   */
-  void persistErrorIfAny(const std::string & persistedFilePath,const bulk::File & file);
-
-  /**
    * Returns true if the directory path passed in parameter exists, false otherwise
    * @param dirPath the path of the directory to check its existence
    * @return true if the directory path passed in parameter exists, false otherwise
@@ -170,12 +159,14 @@ private:
   bool existsAndIsDirectory(const std::string & dirPath);
 
   /**
-   * Fills the bulk-request with the information provided in the /proc/ directory
-   * @param bulkRequestProcPath the path of the bulk-request in the proc directory
-   * @param bulkRequest the bulk-request to fill
+   * creates the bulk request and fills it from the directory passed in parameter
+   * @param bulkRequest the bulkRequest to fill
+   * @param xattrs the extended attributes of the directory where the bulk-request is persisted
+   * @param bulkRequestProcPath the path where the bulk request is persisted
    */
-  void fillBulkRequest(const std::string & bulkRequestProcPath, BulkRequest & bulkRequest);
+  void fillBulkRequestFromXattrs(bulk::BulkRequest * bulkRequest, const eos::IContainerMD::XAttrMap & xattrs);
 
+  std::unique_ptr<StageBulkRequest> initializeStageBulkRequestFromXattrs(const std::string & requestId, const eos::IContainerMD::XAttrMap & xattrs);
   /**
    * Fills the directoryContent map passed in parameter. The key is the full path of the directory given in parameter
    * the value is the file names that are located in the directory.
@@ -185,13 +176,6 @@ private:
    * @param directoryContent the map that will be filled with the content of the directory passed in parameter
    */
   void getDirectoryContent(const std::string & path, std::map<std::string, std::set<std::string>> & directoryContent);
-
-  /**
-   * Fetch the extended attributes of the file passed in parameter
-   * @param file the file to fetch the extended attribute
-   * @param xattrs the extended attributes map that will be filled by this method
-   */
-  void fetchFileExtendedAttributes(const ProcDirBulkRequestFile & file, eos::IContainerMD::XAttrMap & xattrs);
 
   /**
    * Fills the xattrs map with the extended attributes of the file/directory whose path is passed in parameter
@@ -212,9 +196,9 @@ private:
    * Wait for the futures associated to the files inserted in the filesWithFuture map (got filled by the initiateFileMDFetch() method).
    * Once all the futures have returned
    * @param filesWithFuture the map containing the files and the associated future to get the metadata from it
-   * @param bulkRequest
+   * @param bulkRequest the bulk request in which the files will be added
    */
-  void getFilesPathAndAddToBulkRequest(std::map<ProcDirBulkRequestFile, folly::Future<IFileMDPtr>> & filesWithFuture, BulkRequest & bulkRequest);
+  void getFilesPathAndAddToBulkRequest(std::map<ProcDirBulkRequestFile, folly::Future<IFileMDPtr>> & filesWithFuture, BulkRequest * bulkRequest);
 
   /**
    * Sets an extended attribute on the file whose path is passed in parameter
@@ -235,7 +219,9 @@ private:
    * @param bulkRequest the bulk-request from which the map will be added
    * @param xattrs the map containing the fid of a file associated to an eventual error (e.g prepare submission)
    */
-  void generateXattrsMapFromBulkRequestFiles(const BulkRequest * bulkRequest,eos::IContainerMD::XAttrMap & xattrs);
+  void generateXattrsMapFromBulkRequest(const BulkRequest * bulkRequest,eos::IContainerMD::XAttrMap & xattrs);
+
+  void generateXattrsMapFromBulkRequest(const StageBulkRequest * bulkRequest, eos::IContainerMD::XAttrMap & xattrs);
 
   /**
    * Persist the bulk-request in the extended attributes of the directory

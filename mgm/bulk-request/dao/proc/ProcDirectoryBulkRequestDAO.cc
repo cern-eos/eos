@@ -37,15 +37,7 @@ ProcDirectoryBulkRequestDAO::ProcDirectoryBulkRequestDAO(XrdMgmOfs * fileSystem,
 
 }
 
-void ProcDirectoryBulkRequestDAO::saveBulkRequest(const BulkRequest * bulkRequest) {
-  if(bulkRequest->getType() == BulkRequest::PREPARE_CANCEL) {
-    saveCancellationBulkRequest(static_cast<const CancellationBulkRequest *>(bulkRequest));
-  } else {
-    saveAnyBulkRequest(bulkRequest);
-  }
-}
-
-void ProcDirectoryBulkRequestDAO::saveAnyBulkRequest(const BulkRequest* bulkRequest){
+void ProcDirectoryBulkRequestDAO::saveBulkRequest(const StageBulkRequest * bulkRequest){
   std::string directoryBulkReqPath = generateBulkRequestProcPath(bulkRequest);
   try {
     if(bulkRequest->getFiles()->size() == 0) {
@@ -64,17 +56,16 @@ void ProcDirectoryBulkRequestDAO::saveAnyBulkRequest(const BulkRequest* bulkRequ
     createBulkRequestDirectory(bulkRequest,directoryBulkReqPath);
     eos_debug("msg=\"Persistence of the bulk request %s : creating the xattrs map from the bulk-request paths\"",bulkRequest->getId().c_str());
     eos::IContainerMD::XAttrMap xattrs;
-    generateXattrsMapFromBulkRequestFiles(bulkRequest, xattrs);
+    generateXattrsMapFromBulkRequest(bulkRequest, xattrs);
     eos_debug("msg=\"Persistence of the bulk request %s : persisting the bulk-request information in the directory %s\"",bulkRequest->getId().c_str(),directoryBulkReqPath.c_str());
     persistBulkRequestDirectory(directoryBulkReqPath,xattrs);
-
   } catch (const PersistencyException &ex){
     cleanAfterExceptionHappenedDuringBulkRequestSave(directoryBulkReqPath);
     throw ex;
   }
 }
 
-void ProcDirectoryBulkRequestDAO::saveCancellationBulkRequest(const CancellationBulkRequest* bulkRequest) {
+void ProcDirectoryBulkRequestDAO::saveBulkRequest(const CancellationBulkRequest* bulkRequest) {
   cancelStageBulkRequest(bulkRequest);
 }
 
@@ -85,16 +76,17 @@ void ProcDirectoryBulkRequestDAO::cancelStageBulkRequest(const CancellationBulkR
     oss << "In ProcDirectoryBulkRequestDAO::cancelStageBulkRequest(), unable to cancel the bulk-request id=" << bulkRequest->getId() << " because it does not contain any files";
     throw PersistencyException(oss.str());
   }
-  updateLastAccessTime(bulkRequestProcPath);
-  //Get the ids of the files to update
   eos::IContainerMD::XAttrMap xattrs;
-  generateXattrsMapFromBulkRequestFiles(bulkRequest,xattrs);
+  generateXattrsMapFromBulkRequest(bulkRequest, xattrs);
   persistBulkRequestDirectory(bulkRequestProcPath,xattrs);
 }
 
-void ProcDirectoryBulkRequestDAO::generateXattrsMapFromBulkRequestFiles(const BulkRequest * bulkRequest, eos::IContainerMD::XAttrMap& xattrs) {
+void ProcDirectoryBulkRequestDAO::generateXattrsMapFromBulkRequest(const BulkRequest * bulkRequest, eos::IContainerMD::XAttrMap& xattrs) {
   std::map<bulk::File,folly::Future<IFileMDPtr>> filesWithMDFutures;
-
+  // Set last access time of the bulk-request directory
+  std::time_t now = std::time(nullptr);
+  std::string nowStr = std::to_string(now);
+  xattrs[LAST_ACCESS_TIME_XATTR_NAME] = nowStr;
   const auto & files = *bulkRequest->getFiles();
   for(auto & file : files){
     std::string path = file.first;
@@ -108,7 +100,6 @@ void ProcDirectoryBulkRequestDAO::generateXattrsMapFromBulkRequestFiles(const Bu
     const std::string& currentFilePath = fileWithMDFuture.first.getPath();
     std::shared_ptr<IFileMD> file;
     std::string fid;
-    std::string fileError;
     try {
       eos::common::RWMutexReadLock nsLock(mFileSystem->eosViewRWMutex);
       file = mFileSystem->eosView->getFile(currentFilePath);
@@ -120,7 +111,7 @@ void ProcDirectoryBulkRequestDAO::generateXattrsMapFromBulkRequestFiles(const Bu
       fid = newFilePath;
     } catch(const std::exception &ex){
       std::ostringstream errMsg;
-      errMsg << "In ProcDirectoryBulkRequestDAO::generateXattrsMapFromBulkRequestFiles(), got a standard exception trying to get informations about the file "
+      errMsg << "In ProcDirectoryBulkRequestDAO::generateXattrsMapFromBulkRequest(), got a standard exception trying to get informations about the file "
              << currentFilePath << " ExceptionWhat=\"" << ex.what() << "\"";
       throw PersistencyException(errMsg.str());
     }
@@ -135,6 +126,11 @@ void ProcDirectoryBulkRequestDAO::generateXattrsMapFromBulkRequestFiles(const Bu
   }
 }
 
+void ProcDirectoryBulkRequestDAO::generateXattrsMapFromBulkRequest(const StageBulkRequest* bulkRequest, eos::IContainerMD::XAttrMap& xattrs) {
+  generateXattrsMapFromBulkRequest(static_cast<const BulkRequest *>(bulkRequest),xattrs);
+  xattrs[ISSUER_UID_XATTR_NAME] = std::to_string(bulkRequest->getIssuerVid().uid);
+}
+
 void ProcDirectoryBulkRequestDAO::persistBulkRequestDirectory(const std::string& directoryBulkReqPath, const eos::IContainerMD::XAttrMap& xattrs) {
   std::shared_ptr<eos::IContainerMD> bulkReqDirMd;
   {
@@ -144,10 +140,6 @@ void ProcDirectoryBulkRequestDAO::persistBulkRequestDirectory(const std::string&
       for (auto& xattr : xattrs) {
         bulkReqDirMd->setAttribute(xattr.first, xattr.second);
       }
-      // Set last access time of the bulk-request directory
-      std::time_t now = std::time(nullptr);
-      std::string nowStr = std::to_string(now);
-      bulkReqDirMd->setAttribute(LAST_ACCESS_TIME_ATTR_NAME, nowStr);
       mFileSystem->eosView->updateContainerStore(bulkReqDirMd.get());
     } catch(const eos::MDException &ex) {
       std::ostringstream oss;
@@ -178,6 +170,7 @@ std::string ProcDirectoryBulkRequestDAO::generateBulkRequestProcPath(const std::
   return mProcDirectoryBulkRequestLocations.getDirectoryPathWhereBulkRequestCouldBeSaved(type) + bulkRequestId;
 }
 
+/*
 void ProcDirectoryBulkRequestDAO::insertBulkRequestFilesToBulkRequestDirectory(const BulkRequest * bulkRequest, const std::string & bulkReqProcPath) {
   const auto & files = *bulkRequest->getFiles();
   //Map of files associated to the future object for the in-memory prefetching of the file informations
@@ -220,7 +213,7 @@ void ProcDirectoryBulkRequestDAO::insertBulkRequestFilesToBulkRequestDirectory(c
                                                       vid.uid, vid.gid);
           fmd->setSize(0);
           if (fileWithMDFuture.first.getError()) {
-            fmd->setAttribute(ERROR_MSG_ATTR_NAME,
+            fmd->setAttribute(ERROR_MSG_XATTR_NAME,
                               fileWithMDFuture.first.getError().value());
           }
           mFileSystem->eosView->updateFileStore(fmd.get());
@@ -237,6 +230,7 @@ void ProcDirectoryBulkRequestDAO::insertBulkRequestFilesToBulkRequestDirectory(c
   }
   updateLastAccessTime(bulkReqProcPath);
 }
+ */
 
 void ProcDirectoryBulkRequestDAO::cleanAfterExceptionHappenedDuringBulkRequestSave(const std::string& bulkReqProcPath) noexcept {
   try {
@@ -271,25 +265,29 @@ void ProcDirectoryBulkRequestDAO::deleteDirectory(const std::string & path){
   }
 }
 
-void ProcDirectoryBulkRequestDAO::persistErrorIfAny(const std::string & persistedFilePath, const bulk::File & file) {
-  std::optional<std::string> errorMsg = file.getError();
-  if(errorMsg) {
-    setExtendedAttribute(persistedFilePath,ERROR_MSG_ATTR_NAME,errorMsg.value());
-  }
-}
-
 std::unique_ptr<BulkRequest> ProcDirectoryBulkRequestDAO::getBulkRequest(const std::string & id, const BulkRequest::Type & type) {
   EXEC_TIMING_BEGIN("ProcDirectoryBulkRequestDAO::getBulkRequest");
-  std::unique_ptr<BulkRequest> bulkRequest;
+  std::unique_ptr<BulkRequest> bulkRequest = nullptr;
   std::string bulkRequestProcPath = this->generateBulkRequestProcPath(id, type);
   try {
     if (existsAndIsDirectory(bulkRequestProcPath)) {
       // Directory exists, the bulk-request can be fetched
       // Update the last access time of the bulk-request directory
       updateLastAccessTime(bulkRequestProcPath);
-      // Fetch the bulk-request
-      bulkRequest = std::move(BulkRequestFactory::createBulkRequest(id, type));
-      fillBulkRequest(bulkRequestProcPath, *bulkRequest);
+      //Get all the extended attributes of the directory
+      eos::IContainerMD::XAttrMap xattrs;
+      fetchExtendedAttributes(bulkRequestProcPath, xattrs);
+      switch(type) {
+      case BulkRequest::PREPARE_STAGE:
+        {
+          bulkRequest = std::move(initializeStageBulkRequestFromXattrs(id, xattrs));
+          break;
+        }
+        default:
+          std::stringstream ss;
+          ss << "The bulk-request has a type (" << BulkRequest::bulkRequestTypeToString(type) << ") that cannot be persisted";
+          throw PersistencyException(ss.str());
+      }
     }
   } catch(const PersistencyException &ex) {
     std::ostringstream oss;
@@ -315,12 +313,21 @@ bool ProcDirectoryBulkRequestDAO::existsAndIsDirectory(const std::string& dirPat
   return fileExistence == XrdSfsFileExistIsDirectory;
 }
 
-void ProcDirectoryBulkRequestDAO::fillBulkRequest(const std::string & bulkRequestProcPath,BulkRequest& bulkRequest) {
+std::unique_ptr<StageBulkRequest> ProcDirectoryBulkRequestDAO::initializeStageBulkRequestFromXattrs(const std::string & requestId, const eos::IContainerMD::XAttrMap & xattrs) {
+  common::VirtualIdentity vid;
+  try {
+    vid.uid = ::strtoul(xattrs.at(ISSUER_UID_XATTR_NAME).c_str(),nullptr,0);
+  } catch (const std::out_of_range &ex) {
+    throw PersistencyException("The issuer vid could not be found");
+  }
+  std::unique_ptr<StageBulkRequest> stageBulkRequest = BulkRequestFactory::createStageBulkRequest(requestId,vid);
+  fillBulkRequestFromXattrs(stageBulkRequest.get(), xattrs);
+  return stageBulkRequest;
+}
+
+void ProcDirectoryBulkRequestDAO::fillBulkRequestFromXattrs(bulk::BulkRequest * bulkRequest, const eos::IContainerMD::XAttrMap & xattrs) {
   XrdOucErrInfo errFind;
   XrdOucString stdErr;
-  eos::IContainerMD::XAttrMap xattrs;
-  fetchExtendedAttributes(bulkRequestProcPath, xattrs);
-
   std::map<ProcDirBulkRequestFile, folly::Future<IFileMDPtr>> filesInBulkReqProcDirWithFuture;
   std::vector<std::string> fileWithPaths;
 
@@ -341,14 +348,13 @@ void ProcDirectoryBulkRequestDAO::fillBulkRequest(const std::string & bulkReques
       currentFileState = fileIdInfos.second;
       if(xattrs.find(FILE_ID_ERROR_XATTR_KEY_PREFIX + fileIdOrObfuscatedPath) != xattrs.end()) {
         //The current file has an error
-        currentFileError = xattrs[FILE_ID_ERROR_XATTR_KEY_PREFIX + fileIdOrObfuscatedPath];
+        currentFileError = xattrs.at(FILE_ID_ERROR_XATTR_KEY_PREFIX + fileIdOrObfuscatedPath);
       }
     } else {
       continue;
     }
-    std::string fullPath = bulkRequestProcPath + fileIdOrObfuscatedPath;
     //The files in the bulk-request proc directory will be wrapped into a ProcDirBulkRequestFile object.
-    ProcDirBulkRequestFile file(fullPath);
+    ProcDirBulkRequestFile file;
     file.setName(fileIdOrObfuscatedPath);
     if(currentFileState) {
       file.setState(*currentFileState);
@@ -371,7 +377,7 @@ void ProcDirectoryBulkRequestDAO::fillBulkRequest(const std::string & bulkReques
       if(file.getState()) {
         bulkRequestFile->setState(*file.getState());
       }
-      bulkRequest.addFile(std::move(bulkRequestFile));
+      bulkRequest->addFile(std::move(bulkRequestFile));
     }
   }
 
@@ -392,10 +398,6 @@ void ProcDirectoryBulkRequestDAO::getDirectoryContent(const std::string & path, 
   directoryContent.erase(path);
 }
 
-void ProcDirectoryBulkRequestDAO::fetchFileExtendedAttributes(const ProcDirBulkRequestFile& file, eos::IContainerMD::XAttrMap & xattrs) {
-  fetchExtendedAttributes(file.getFullPath(),xattrs);
-}
-
 void ProcDirectoryBulkRequestDAO::fetchExtendedAttributes(const std::string& path, eos::IContainerMD::XAttrMap& xattrs){
   XrdOucErrInfo error;
   if (mFileSystem->_attr_ls(path.c_str(), error, mVid, nullptr,xattrs) == SFS_ERROR) {
@@ -412,7 +414,7 @@ void ProcDirectoryBulkRequestDAO::initiateFileMDFetch(const ProcDirBulkRequestFi
   filesWithFuture.emplace(std::move(fileWithFuture));
 }
 
-void ProcDirectoryBulkRequestDAO::getFilesPathAndAddToBulkRequest(std::map<ProcDirBulkRequestFile, folly::Future<IFileMDPtr>> & filesWithFuture, BulkRequest & bulkRequest) {
+void ProcDirectoryBulkRequestDAO::getFilesPathAndAddToBulkRequest(std::map<ProcDirBulkRequestFile, folly::Future<IFileMDPtr>> & filesWithFuture, BulkRequest * bulkRequest) {
   eos::common::RWMutexReadLock lock(mFileSystem->eosViewRWMutex);
   for (auto& fileWithFuture : filesWithFuture) {
     try {
@@ -424,7 +426,7 @@ void ProcDirectoryBulkRequestDAO::getFilesPathAndAddToBulkRequest(std::map<ProcD
       if(state) {
         bulkReqFile->setState(state);
       }
-      bulkRequest.addFile(std::move(bulkReqFile));
+      bulkRequest->addFile(std::move(bulkReqFile));
     } catch (const eos::MDException & ex){
       //We could not get any information about this file (might have been deleted for example)
       //log this as a warning and remove this file
@@ -447,7 +449,7 @@ uint64_t ProcDirectoryBulkRequestDAO::deleteBulkRequestNotQueriedFor(const BulkR
     eos::IContainerMD::XAttrMap xattrs;
     fetchExtendedAttributes(kv.first,xattrs);
     try {
-      std::string lastAccessTimeStr = xattrs.at(LAST_ACCESS_TIME_ATTR_NAME);
+      std::string lastAccessTimeStr = xattrs.at(LAST_ACCESS_TIME_XATTR_NAME);
       std::time_t lastAccessTime = std::atoi(lastAccessTimeStr.c_str());
       time_t elapsedTimeBetweenNowAndLastAccessTime = std::time(nullptr) - lastAccessTime;
       if(elapsedTimeBetweenNowAndLastAccessTime > seconds.count()){
@@ -456,9 +458,9 @@ uint64_t ProcDirectoryBulkRequestDAO::deleteBulkRequestNotQueriedFor(const BulkR
         eos_info("msg=\"Deleted a bulk request from the /proc/ persistency\" path=\"%s\"",kv.first.c_str());
       }
     } catch (const std::out_of_range &){
-      //The extended attribute LAST_ACCESS_TIME_ATTR_NAME was not found, log an error
+      //The extended attribute LAST_ACCESS_TIME_XATTR_NAME was not found, log an error
       eos_err("In ProcDirectoryBulkRequestDAO::deleteBulkRequestNotQueriedFor(), the directory %s does not have the %s extended attribute set. "
-              "Unable to know if it can be deleted or not.",kv.first.c_str(),LAST_ACCESS_TIME_ATTR_NAME);
+              "Unable to know if it can be deleted or not.",kv.first.c_str(), LAST_ACCESS_TIME_XATTR_NAME);
     }
   }
   return nbDeletedBulkRequests;
@@ -479,20 +481,7 @@ void ProcDirectoryBulkRequestDAO::setExtendedAttribute(const std::string& path, 
 void ProcDirectoryBulkRequestDAO::updateLastAccessTime(const std::string & path){
   std::time_t now = std::time(nullptr);
   std::string nowStr = std::to_string(now);
-  setExtendedAttribute(path,LAST_ACCESS_TIME_ATTR_NAME,nowStr);
-}
-
-void ProcDirectoryBulkRequestDAO::addOrUpdateAttributes(const BulkRequest * bulkRequest, const std::map<std::string,std::string> & attributes){
-  std::string bulkRequestPath = generateBulkRequestProcPath(bulkRequest);
-  if(existsAndIsDirectory(bulkRequestPath)){
-    for(const auto& kv: attributes){
-      setExtendedAttribute(bulkRequestPath,kv.first,kv.second);
-    }
-  } else {
-    std::ostringstream oss;
-    oss << "In ProcDirectoryBulkRequestDAO::addOrUpdateAttributes(), the bulk-request " << bulkRequest->getId() << " does not exist";
-    throw PersistencyException(oss.str());
-  }
+  setExtendedAttribute(path, LAST_ACCESS_TIME_XATTR_NAME,nowStr);
 }
 
 bool ProcDirectoryBulkRequestDAO::exists(const std::string& bulkRequestId, const BulkRequest::Type& type) {
