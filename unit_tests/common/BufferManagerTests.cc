@@ -43,7 +43,7 @@ TEST(BufferManager, PowerCeil)
   ASSERT_EQ(2048, eos::common::power_ceil(1, 2048));
   ASSERT_EQ(4096, eos::common::power_ceil(2049, 2048));
   ASSERT_EQ(16384, eos::common::power_ceil(1, 16384));
-  ASSERT_EQ(32762, eos::common::power_ceil(16385, 16384));
+  ASSERT_EQ(32768, eos::common::power_ceil(16385, 16384));
 }
 
 TEST(BufferManager, MatchingSizes)
