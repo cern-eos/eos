@@ -25,6 +25,7 @@
 #include "common/ParseUtils.hh"
 #include "common/CLI11.hpp"
 #include <qclient/QClient.hh>
+#include <stdint.h>
 
 #define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl
 
@@ -122,7 +123,7 @@ int main(int argc, char* argv[])
   bool showSize = false;
   bool showMtime = false;
   bool withParents = false;
-  uint32_t maxDepth = 0;
+  uint32_t maxDepth = UINT32_MAX;
   bool json = false;
   dumpSubcommand->add_option("--path", dumpPath, "The target path to dump")
   ->required();
