@@ -38,6 +38,7 @@
 #include "common/plugin_manager/PluginManager.hh"
 #include "common/Strerror_r_wrapper.hh"
 #include "common/TransferQueue.hh"
+#include "common/BufferManager.hh"
 #include "namespace/Constants.hh"
 #include "namespace/interface/ContainerIterators.hh"
 #include "namespace/utils/Checksum.hh"
@@ -1727,7 +1728,9 @@ XrdMgmOfs::SetRedirectionInfo(XrdOucErrInfo& err_obj,
 
   // Otherwise use the XrdOucBuffPool to manage XrdOucBuffer objects that
   // can hold redirection info >= 2kb
-  XrdOucBuffer* buff = mXrdBuffPool.Alloc(rdr_info.length() + 1);
+  const uint32_t aligned_sz = eos::common::power_ceil(rdr_info.length() + 1,
+                              2 * eos::common::KB);
+  XrdOucBuffer* buff = mXrdBuffPool.Alloc(aligned_sz);
 
   if (buff == nullptr) {
     eos_static_err("msg=\"requested redirection buffer allocation size too "

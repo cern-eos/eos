@@ -48,6 +48,7 @@
 #include "common/XattrCompat.hh"
 #include "common/ParseUtils.hh"
 #include "common/ShellCmd.hh"
+#include "common/BufferManager.hh"
 #include "mq/SharedHashWrapper.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetUtils.hh"
@@ -1971,7 +1972,8 @@ XrdFstOfs::HandleFsck(XrdOucEnv& env, XrdOucErrInfo& err_obj)
   }
   // Use XrdOucBuffPool to manage XrdOucBuffer objects that can hold redirection
   // info >= 2kb but not bigger than MaxSize
-  XrdOucBuffer* buff = mXrdBuffPool.Alloc(response.length() + 1);
+  const uint32_t aligned_sz = eos::common::power_ceil(response.length() + 1);
+  XrdOucBuffer* buff = mXrdBuffPool.Alloc(aligned_sz);
 
   if (buff == nullptr) {
     eos_static_err("msg=\"requested fsck result buffer too big\" req_sz=%llu "
@@ -2114,7 +2116,8 @@ XrdFstOfs::HandleRtlog(XrdOucEnv& env, XrdOucErrInfo& err_obj)
 
   // Use XrdOucBuffPool to manage XrdOucBuffer objects that can hold redirection
   // info >= 2kb but not bigger than MaxSize
-  XrdOucBuffer* buff = mXrdBuffPool.Alloc(response.length() + 1);
+  const uint32_t aligned_sz = eos::common::power_ceil(response.length() + 1);
+  XrdOucBuffer* buff = mXrdBuffPool.Alloc(aligned_sz);
 
   if (buff == nullptr) {
     eos_static_err("msg=\"requested rtlog result buffer too big\" req_sz=%llu "
