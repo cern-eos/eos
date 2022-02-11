@@ -693,6 +693,30 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
 }
 
 grpc::Status
+GrpcNsInterface::Stat(eos::common::VirtualIdentity& ivid,
+		      grpc::ServerWriter<eos::rpc::MDResponse>* writer,
+		      const eos::rpc::MDRequest* request)
+{
+  eos::common::VirtualIdentity vid = ivid;
+
+  if (request->role().uid() || request->role().gid()) {
+    if ((ivid.uid != request->role().uid()) ||
+        (ivid.gid != request->role().gid())) {
+      if (!ivid.sudoer) {
+        return grpc::Status(grpc::StatusCode::PERMISSION_DENIED,
+                            std::string("Ask an admin to map your auth key to a sudo'er account - permission denied"));
+      } else {
+        vid = eos::common::Mapping::Someone(request->role().uid(),
+                                            request->role().gid());
+      }
+    }
+  } else {
+    // we don't implement sudo to root
+  }
+  return GetMD(vid, writer, request);
+}
+
+grpc::Status
 GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
                           grpc::ServerWriter<eos::rpc::MDResponse>* writer,
                           const eos::rpc::MDRequest* request,
@@ -829,10 +853,26 @@ GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
 }
 
 grpc::Status
-GrpcNsInterface::Find(eos::common::VirtualIdentity& vid,
+GrpcNsInterface::Find(eos::common::VirtualIdentity& ivid,
                       grpc::ServerWriter<eos::rpc::MDResponse>* writer,
                       const eos::rpc::FindRequest* request)
 {
+  eos::common::VirtualIdentity vid = ivid;
+  if (request->role().uid() || request->role().gid()) {
+    if ((ivid.uid != request->role().uid()) ||
+        (ivid.gid != request->role().gid())) {
+      if (!ivid.sudoer) {
+        return grpc::Status(grpc::StatusCode::PERMISSION_DENIED,
+                            std::string("Ask an admin to map your auth key to a sudo'er account - permission denied"));
+      } else {
+        vid = eos::common::Mapping::Someone(request->role().uid(),
+                                            request->role().gid());
+      }
+    }
+  } else {
+    // we don't implement sudo to root
+  }
+
   std::string path;
   std::vector< std::vector<uint64_t> > found_dirs;
   found_dirs.resize(1);

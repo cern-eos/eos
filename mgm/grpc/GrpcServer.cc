@@ -111,7 +111,7 @@ class RequestServiceImpl final : public Eos::Service
     case eos::rpc::FILE:
     case eos::rpc::CONTAINER:
     case eos::rpc::STAT:
-      return GrpcNsInterface::GetMD(vid, writer, request);
+      return GrpcNsInterface::Stat(vid, writer, request);
       break;
 
     case eos::rpc::LISTING:

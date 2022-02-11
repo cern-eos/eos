@@ -61,6 +61,10 @@ public:
                             const eos::rpc::MDRequest* request, bool check_perms = true, 
 			    bool lock=true);
 
+  static grpc::Status Stat(eos::common::VirtualIdentity& vid,
+			   grpc::ServerWriter<eos::rpc::MDResponse>* writer,
+			   const eos::rpc::MDRequest* request);
+
   static grpc::Status StreamMD(eos::common::VirtualIdentity& vid,
                                grpc::ServerWriter<eos::rpc::MDResponse>* writer,
                                const eos::rpc::MDRequest* request, 
