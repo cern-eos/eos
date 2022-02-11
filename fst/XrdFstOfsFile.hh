@@ -353,6 +353,8 @@ public:
   //! Stat struct to check if a file is updated between open-close
   struct stat updateStat;
 
+  double timeToOpen; ///< time the open call took
+
   //! TPC related types and variables
   enum TpcType_t {
     kTpcNone = 0, ///< No TPC access
