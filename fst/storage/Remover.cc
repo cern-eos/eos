@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/SymKeys.hh"
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/Deletion.hh"
@@ -82,12 +83,19 @@ Storage::Remover()
         capOpaqueString += OpaqueString;
 
         // Delete local file
+	std::string deletionreport;
+	std::string deletionreport64;
         if ((gOFS._rem("/DELETION", error, (const XrdSecEntity*) 0, &Opaque,
-                       0, 0, 0, true) != SFS_OK)) {
+                       0, 0, 0, true, &deletionreport) != SFS_OK)) {
           eos_static_warning("msg=\"unable to remove local file\" fxid=%s "
                              "fsid=%lu localprefix=%s", hex_fid.c_str(),
                              to_del->mFsid, to_del->mLocalPrefix.c_str());
         }
+
+	// encode the deletion report as base64
+	eos::common::SymKey::ZBase64(deletionreport,deletionreport64);
+	capOpaqueString += "&mgm.report=";
+	capOpaqueString += deletionreport64.c_str();
 
         // Update the manager
         if (gOFS.CallManager(&error, 0, 0 , capOpaqueString)) {
