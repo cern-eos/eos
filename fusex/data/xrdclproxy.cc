@@ -507,6 +507,7 @@ XrdCl::Proxy::OpenAsyncHandler::HandleResponseWithHosts(
       delete response;
     }
   }
+  dLock.Release();
   mProxy->CheckSelfDestruction();
 }
 
@@ -1345,7 +1346,12 @@ void
 XrdCl::Proxy::CheckSelfDestruction()
 {
   if (should_selfdestroy()) {
-    if (!IsClosing()) {
+    if (IsOpen()) {
+      // close the file if it is open
+      CloseAsync();
+    }
+
+    if (IsClosed()) {
       // don't destroy if we still expect an async close callback
       eos_debug("self-destruction %llx", this);
       eos::common::RWMutexWriteLock wLock(XrdCl::Proxy::gDeleteMutex);
