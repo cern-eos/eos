@@ -126,6 +126,7 @@ IostatPeriods::Add(unsigned long long val, time_t start, time_t stop,
 {
   size_t tdiff = stop - start;
   size_t toff = now - stop;
+  mTotal += val;
 
   for (size_t pidx = 0; pidx < std::size(mPeriodBinWidth); ++pidx) {
     // Chech if stop time falls into the last day/hour/5min/1min interval
@@ -193,6 +194,14 @@ IostatPeriods::GetSumForPeriod(Period period) const
   }
 
   return sum;
+}
+
+//------------------------------------------------------------------------------
+// Return total IostatPeriod sum
+//------------------------------------------------------------------------------
+unsigned long long IostatPeriods::GetTotalSum() const
+{
+  return mTotal;
 }
 
 //------------------------------------------------------------------------------
@@ -1246,7 +1255,8 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
         std::make_tuple("1min", 8, format_l),
         std::make_tuple("5min", 8, format_l),
         std::make_tuple("1h", 8, format_l),
-        std::make_tuple("24h", 8, format_l)
+        std::make_tuple("24h", 8, format_l),
+        std::make_tuple("sum", 8, format_l)
       });
     } else {
       table.SetHeader({
@@ -1255,7 +1265,8 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
         std::make_tuple("60s", 0, format_l),
         std::make_tuple("300s", 0, format_l),
         std::make_tuple("3600s", 0, format_l),
-        std::make_tuple("86400s", 0, format_l)
+        std::make_tuple("86400s", 0, format_l),
+        std::make_tuple("total", 0, format_l)
       });
     }
 
@@ -1273,6 +1284,7 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
       row.emplace_back(it->second.GetSumForPeriod(LAST_5MIN), format_l);
       row.emplace_back(it->second.GetSumForPeriod(LAST_HOUR), format_l);
       row.emplace_back(it->second.GetSumForPeriod(LAST_DAY), format_l);
+      row.emplace_back(it->second.GetTotalSum(), format_l);
     }
 
     // IO in bytes
@@ -1289,6 +1301,7 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
       row.emplace_back(it->second.GetSumForPeriod(LAST_5MIN), format_l);
       row.emplace_back(it->second.GetSumForPeriod(LAST_HOUR), format_l);
       row.emplace_back(it->second.GetSumForPeriod(LAST_DAY), format_l);
+      row.emplace_back(it->second.GetTotalSum(), format_l);
     }
 
     table.AddRows(table_data);
@@ -1306,7 +1319,8 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
         std::make_tuple("1min", 8, format_l),
         std::make_tuple("5min", 8, format_l),
         std::make_tuple("1h", 8, format_l),
-        std::make_tuple("24h", 8, format_l)
+        std::make_tuple("24h", 8, format_l),
+        std::make_tuple("sum", 8, format_l)
       });
     } else {
       table.SetHeader({
@@ -1315,7 +1329,8 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
         std::make_tuple("60s", 0, format_l),
         std::make_tuple("300s", 0, format_l),
         std::make_tuple("3600s", 0, format_l),
-        std::make_tuple("86400s", 0, format_l)
+        std::make_tuple("86400s", 0, format_l),
+        std::make_tuple("total", 0, format_l)
       });
     }
 
@@ -1332,6 +1347,7 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
       row.emplace_back(it->second.GetSumForPeriod(LAST_5MIN), format_l);
       row.emplace_back(it->second.GetSumForPeriod(LAST_HOUR), format_l);
       row.emplace_back(it->second.GetSumForPeriod(LAST_DAY), format_l);
+      row.emplace_back(it->second.GetTotalSum(), format_l);
     }
 
     // IO in bytes
@@ -1347,6 +1363,7 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
       row.emplace_back(it->second.GetSumForPeriod(LAST_5MIN), format_l);
       row.emplace_back(it->second.GetSumForPeriod(LAST_HOUR), format_l);
       row.emplace_back(it->second.GetSumForPeriod(LAST_DAY), format_l);
+      row.emplace_back(it->second.GetTotalSum(), format_l);
     }
 
     table.AddRows(table_data);

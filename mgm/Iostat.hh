@@ -102,6 +102,11 @@ public:
   //----------------------------------------------------------------------------
   unsigned long long GetSumForPeriod(Period period) const;
 
+  //------------------------------------------------------------------------------
+  // Return total IostatPeriod sum
+  //------------------------------------------------------------------------------
+  unsigned long long GetTotalSum() const;
+
 private:
 #ifdef IN_TEST_HARNESS
 public:
@@ -110,6 +115,7 @@ public:
   static constexpr size_t sBinsPerPeriod = 60;
   //! 3 arrays to collect stat per 1day, 1h, 5m and 60sec each within 60 bins
   unsigned long long mPeriodBins[sNumberOfPeriods][sBinsPerPeriod];
+  unsigned long long mTotal = 0;
   //! Setting the width of the (60) time bins of the arrays in mPeriodBins to
   //! 1440sec, 60sec, 5sec and 1 sec respectively
   const size_t mPeriodBinWidth[sNumberOfPeriods] {1440, 60, 5, 1};
