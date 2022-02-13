@@ -513,9 +513,10 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
   eosBalancerInfoFetcher fetcher(mSpaceName);
   group_balancer::BalancerEngineT prev_engine_type {BalancerEngineT::stddev};
   bool engine_reconfigured = false;
-
+  bool config_status = true;
   // Loop forever until cancelled
   while (!assistant.terminationRequested()) {
+    bool expected_reconfiguration = true;
     assistant.wait_for(std::chrono::seconds(10));
 
     if (!gOFS->mMaster->IsMaster()) {
@@ -542,7 +543,13 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
     gOFS->mFidTracker.DoCleanup(TrackerType::Balance);
     FsSpace* space = FsView::gFsView.mSpaceView[mSpaceName.c_str()];
 
-    if (!GroupBalancer::Configure(space, cfg)) {
+
+    if (needs_reconfigure.compare_exchange_strong(expected_reconfiguration, false,
+                                                  std::memory_order_acq_rel)) {
+      config_status = Configure(space, cfg);
+    }
+
+    if (!config_status) {
       FsView::gFsView.ViewMutex.UnLockRead();
       continue;
     }

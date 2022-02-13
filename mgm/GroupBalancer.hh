@@ -121,10 +121,27 @@ public:
   std::string Status(bool detail=false, bool monitoring=false) const;
 
   static bool is_valid_engine(std::string_view engine_name);
+
+
+  //----------------------------------------------------------------------------
+  //! Ask the engine to reconfigure itself
+  //! NOTE: Internally this is done by setting an atomic reconfigure flag
+  //! While technically due to conf being already synchronised internally with a
+  //! mutex, even with relaxed memory ordering we'll see the changes, but a stronger
+  //! release/acquire semantic is to ensure that we don't wait on the conf mutex
+  //! If you're changing this please make sure to change the corresponding acquire
+  //! call in the GroupBalance routine.
+  //----------------------------------------------------------------------------
+  inline void reconfigure() {
+    needs_reconfigure.store(true, std::memory_order_release);
+  }
+
 private:
   AssistedThread mThread; ///< Thread scheduling jobs
   std::string mSpaceName; ///< Attached space name
   Config cfg;
+
+  std::atomic<bool> needs_reconfigure {true};
 
   mutable eos::common::RWMutexW mEngineMtx;
   std::unique_ptr<group_balancer::BalancerEngine> mEngine;
