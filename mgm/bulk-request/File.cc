@@ -43,49 +43,14 @@ void File::setError(const std::string& error) {
   setError(errorOpt);
 }
 
-void File::setError(const std::optional<std::string> & error) {
-  mError = error;
-  if(error)
-    mState = State::ERROR;
-}
-
-void File::setState(const std::optional<std::string> & state)
-{
-  if (state && STRING_TO_STATE_MAP.find(state.value()) != STRING_TO_STATE_MAP.end()) {
-    mState = STRING_TO_STATE_MAP.at(*state);
-  }
-}
-
-void File::setState(const State& state) {
-  mState = state;
-}
-
-void File::setState(const std::string& state) {
-  if(STRING_TO_STATE_MAP.find(state) != STRING_TO_STATE_MAP.end()) {
-    mState = STRING_TO_STATE_MAP.at(state);
-  }
-  //State is not set if the string does not match any existing state
-}
-
-const std::optional<File::State> File::getState() const {
-  return mState;
-}
-
-const std::optional<std::string> File::getStateStr() const {
-  if(mState) {
-    return STATE_TO_STRING_MAP.at(*mState);
-  }
-  return std::optional<std::string>();
-}
-
-const std::string File::getStateStr(const State& state) {
-  return STATE_TO_STRING_MAP.at(state);
-}
-
 void File::setErrorIfNotAlreadySet(const std::string& error) {
   if(!getError()){
     setError(error);
   }
+}
+
+void File::setError(const std::optional<std::string> & error) {
+  mError = error;
 }
 
 const std::optional<std::string> File::getError() const {
