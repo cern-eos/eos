@@ -25,19 +25,23 @@
 #include "mgm/groupbalancer/BalancerEngineUtils.hh"
 #include "common/Logging.hh"
 
-namespace eos::mgm::group_balancer {
+namespace eos::mgm::group_balancer
+{
 
 void StdDevBalancerEngine::configure(const engine_conf_t& conf)
 {
   using namespace std::string_view_literals;
   std::string err;
   mMinDeviation = extract_percent_value(conf, "min_threshold"sv, 0.05, &err);
+
   if (!err.empty()) {
-    eos_static_err("msg=Failed to set min_deviation, err=%s", err.c_str());
+    eos_static_err("msg=\"failed to set min_deviation\" err=%s", err.c_str());
   }
+
   mMaxDeviation = extract_percent_value(conf, "max_threshold"sv, 0.05, &err);
+
   if (!err.empty()) {
-    eos_static_err("msg=Failed to set max_deviation, err=%s", err.c_str());
+    eos_static_err("msg=\"failed to set max_deviation\" err=%s", err.c_str());
   }
 }
 
@@ -46,10 +50,10 @@ void StdDevBalancerEngine::recalculate()
   mAvgUsedSize = calculateAvg(data.mGroupSizes);
 }
 
-
 void StdDevBalancerEngine::updateGroup(const std::string& group_name)
 {
   auto kv = data.mGroupSizes.find(group_name);
+
   if (kv == data.mGroupSizes.end()) {
     return;
   }
@@ -64,15 +68,18 @@ void StdDevBalancerEngine::updateGroup(const std::string& group_name)
   if (abs(diffWithAvg) > mMaxDeviation && diffWithAvg > 0) {
     data.mGroupsOverThreshold.emplace(group_name);
   }
+
   // Group is mThreshold over or under the average used size
   if (abs(diffWithAvg) > mMinDeviation && diffWithAvg < 0) {
     data.mGroupsUnderThreshold.emplace(group_name);
   }
 }
 
-std::string StdDevBalancerEngine::get_status_str(bool detail, bool monitoring) const
+std::string StdDevBalancerEngine::get_status_str(bool detail,
+    bool monitoring) const
 {
   std::stringstream oss;
+
   if (!monitoring) {
     oss << "Engine configured          : Std\n";
     oss << "Current Computed Average   : " << mAvgUsedSize << "\n";
@@ -82,7 +89,6 @@ std::string StdDevBalancerEngine::get_status_str(bool detail, bool monitoring) c
 
   oss << BalancerEngine::get_status_str(detail, monitoring);
   return oss.str();
-
 }
 
 } // namespace eos::mgm::group_balancer

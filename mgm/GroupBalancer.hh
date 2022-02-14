@@ -38,8 +38,8 @@ EOSMGMNAMESPACE_BEGIN
 
 class FsGroup;
 class FsSpace;
-static constexpr uint64_t GROUPBALANCER_MIN_FILE_SIZE = 1ULL<<30;
-static constexpr uint64_t GROUPBALANCER_MAX_FILE_SIZE = 16ULL<<30;
+static constexpr uint64_t GROUPBALANCER_MIN_FILE_SIZE = 1ULL << 30;
+static constexpr uint64_t GROUPBALANCER_MAX_FILE_SIZE = 16ULL << 30;
 static constexpr int GROUPBALANCER_FILE_ATTEMPTS = 50;
 using eos::mgm::group_balancer::GroupSize;
 //------------------------------------------------------------------------------
@@ -83,9 +83,9 @@ public:
     group_balancer::BalancerEngineT engine_type;
 
     Config(): is_enabled(true), is_conv_enabled(true), num_tx(0),
-              mMinFileSize(GROUPBALANCER_MIN_FILE_SIZE),
-              mMaxFileSize(GROUPBALANCER_MAX_FILE_SIZE),
-              engine_type(group_balancer::BalancerEngineT::stddev)
+      mMinFileSize(GROUPBALANCER_MIN_FILE_SIZE),
+      mMaxFileSize(GROUPBALANCER_MAX_FILE_SIZE),
+      engine_type(group_balancer::BalancerEngineT::stddev)
     {}
   };
 
@@ -97,19 +97,19 @@ public:
     FileInfo() = default;
     FileInfo(eos::common::FileId::fileid_t _fid,
              std::string&& _fname, uint64_t _fsize) : fid(_fid),
-                                                      filename(std::move(_fname)),
-                                                      filesize(_fsize)
+      filename(std::move(_fname)),
+      filesize(_fsize)
     {}
 
     // Check if both fid && filename are set, 0 size is valid
     operator bool() const
     {
-      return fid !=0  && !filename.empty();
+      return fid != 0  && !filename.empty();
     }
   };
 
   //----------------------------------------------------------------------------
-  //! Set up Config based on values configured in space
+  //! Apply configuration stored at the space level
   //!
   //! @param space the space to configure
   //! @param cfg the GroupBalancer::Config struct
@@ -118,7 +118,7 @@ public:
   //----------------------------------------------------------------------------
   bool Configure(FsSpace* const space, Config& cfg);
 
-  std::string Status(bool detail=false, bool monitoring=false) const;
+  std::string Status(bool detail = false, bool monitoring = false) const;
 
   static bool is_valid_engine(std::string_view engine_name);
 
@@ -132,16 +132,17 @@ public:
   //! If you're changing this please make sure to change the corresponding acquire
   //! call in the GroupBalance routine.
   //----------------------------------------------------------------------------
-  inline void reconfigure() {
-    needs_reconfigure.store(true, std::memory_order_release);
+  inline void reconfigure()
+  {
+    mDoConfigUpdate.store(true, std::memory_order_release);
   }
 
 private:
   AssistedThread mThread; ///< Thread scheduling jobs
   std::string mSpaceName; ///< Attached space name
-  Config cfg;
+  Config mCfg;
 
-  std::atomic<bool> needs_reconfigure {true};
+  std::atomic<bool> mDoConfigUpdate {true};
 
   mutable eos::common::RWMutexW mEngineMtx;
   std::unique_ptr<group_balancer::BalancerEngine> mEngine;
@@ -183,7 +184,7 @@ private:
   //! @return FileInfo for the chosen file
   //----------------------------------------------------------------------------
   FileInfo
-  chooseFileFromGroup(FsGroup *group, int attempts);
+  chooseFileFromGroup(FsGroup* group, int attempts);
 
   void prepareTransfers(int nrTransfers);
 

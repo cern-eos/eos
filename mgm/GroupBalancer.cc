@@ -330,8 +330,8 @@ GroupBalancer::chooseFileFromGroup(FsGroup* group, int attempts)
     auto filename = getFileProcTransferNameAndSize(fid, group, &filesize);
 
     if (filename.empty() ||
-        (cfg.mMinFileSize > filesize) ||
-        (cfg.mMaxFileSize < filesize)) {
+        (mCfg.mMinFileSize > filesize) ||
+        (mCfg.mMaxFileSize < filesize)) {
       continue;
     }
 
@@ -377,7 +377,7 @@ GroupBalancer::prepareTransfer()
     return;
   }
 
-  auto file_info = chooseFileFromGroup(fromGroup, cfg.file_attempts);
+  auto file_info = chooseFileFromGroup(fromGroup, mCfg.file_attempts);
 
   if (!file_info) {
     eos_static_info("msg=\"failed to choose any fid to schedule\" "
@@ -435,6 +435,9 @@ GroupBalancer::is_valid_engine(std::string_view engine_name)
   return engine_name == "std" || engine_name == "minmax";
 }
 
+//------------------------------------------------------------------------------
+// Appply configuration stored at the space level
+//------------------------------------------------------------------------------
 bool
 GroupBalancer::Configure(FsSpace* const space, GroupBalancer::Config& cfg)
 {
@@ -455,7 +458,7 @@ GroupBalancer::Configure(FsSpace* const space, GroupBalancer::Config& cfg)
                        space->GetConfigMember("groupbalancer.max_file_size"));
 
   if (!cfg.mMaxFileSize) {
-    eos_static_debug("msg=\"Invalid Max File Size, setting to default!\"");
+    eos_static_debug("%s", "msg=\"invalid Max File Size, using default\"");
     cfg.mMaxFileSize = GROUPBALANCER_MAX_FILE_SIZE;
   }
 
@@ -465,10 +468,9 @@ GroupBalancer::Configure(FsSpace* const space, GroupBalancer::Config& cfg)
                         space->GetConfigMember("groupbalancer.file_attempts").c_str());
 
   if (!cfg.file_attempts) {
-    eos_static_debug("msg=\"Invalid File Attempts Count, setting to default!\"");
+    eos_static_debug("%s", "msg=\"invalid File Attempts Count, using default\"");
     cfg.file_attempts = GROUPBALANCER_FILE_ATTEMPTS;
   }
-
 
   auto min_threshold_str = space->GetConfigMember("groupbalancer.min_threshold");
   auto max_threshold_str = space->GetConfigMember("groupbalancer.max_threshold");
@@ -514,6 +516,7 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
   group_balancer::BalancerEngineT prev_engine_type {BalancerEngineT::stddev};
   bool engine_reconfigured = false;
   bool config_status = true;
+
   // Loop forever until cancelled
   while (!assistant.terminationRequested()) {
     bool expected_reconfiguration = true;
@@ -543,40 +546,37 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
     gOFS->mFidTracker.DoCleanup(TrackerType::Balance);
     FsSpace* space = FsView::gFsView.mSpaceView[mSpaceName.c_str()];
 
-
-    if (needs_reconfigure.compare_exchange_strong(expected_reconfiguration, false,
-                                                  std::memory_order_acq_rel)) {
-      config_status = Configure(space, cfg);
-    }
-
-    if (!config_status) {
-      FsView::gFsView.ViewMutex.UnLockRead();
-      continue;
+    if (mDoConfigUpdate.compare_exchange_strong(expected_reconfiguration, false,
+        std::memory_order_acq_rel)) {
+      config_status = Configure(space, mCfg);
     }
 
     FsView::gFsView.ViewMutex.UnLockRead();
 
-    if (prev_engine_type != cfg.engine_type) {
-      mEngine.reset(group_balancer::make_balancer_engine(cfg.engine_type));
+    if (!config_status) {
+      continue;
+    }
+
+    if (prev_engine_type != mCfg.engine_type) {
+      mEngine.reset(group_balancer::make_balancer_engine(mCfg.engine_type));
       engine_reconfigured = true;
-      prev_engine_type = cfg.engine_type;
+      prev_engine_type = mCfg.engine_type;
     }
 
     mEngine->configure(mEngineConf);
     UpdateTransferList();
 
-    if ((int) mTransfers.size() >= cfg.num_tx) {
+    if ((int) mTransfers.size() >= mCfg.num_tx) {
       continue;
     }
 
-    eos_static_debug("msg=\"group balancer enabled\" ntx=%d ", cfg.num_tx);
+    eos_static_debug("msg=\"group balancer enabled\" ntx=%d ", mCfg.num_tx);
 
     if (cacheExpired() || engine_reconfigured) {
       {
         eos::common::RWMutexWriteLock lock(mEngineMtx);
         mEngine->populateGroupsInfo(fetcher.fetch());
       }
-
       printSizes(mEngine->get_group_sizes());
 
       if (engine_reconfigured) {
@@ -585,7 +585,7 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
       }
     }
 
-    prepareTransfers(cfg.num_tx);
+    prepareTransfers(mCfg.num_tx);
   }
 }
 
