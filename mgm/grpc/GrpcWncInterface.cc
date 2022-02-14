@@ -192,6 +192,10 @@ GrpcWncInterface::ExecCmd(eos::common::VirtualIdentity& vid,
     return Stat(vid, request, reply);
     break;
 
+  case eos::console::RequestProto::kStatus:
+    return Status(vid, request, reply);
+    break;
+
   case eos::console::RequestProto::kToken:
     return Token(vid, request, reply);
     break;
@@ -2749,6 +2753,37 @@ GrpcWncInterface::Stat(eos::common::VirtualIdentity& vid,
     reply->set_std_err("error: failed to stat " + path);
   }
 
+  return grpc::Status::OK;
+}
+
+grpc::Status
+GrpcWncInterface::Status(eos::common::VirtualIdentity& vid,
+                         const eos::console::RequestProto* request,
+                         eos::console::ReplyProto* reply)
+{
+  FILE* pipe = popen("eos-status", "r");
+  char line[4096];
+  std::string output = "";
+  int rc = 0;
+
+  if (!pipe) {
+    reply->set_std_err("Error: Failed to create pipe for eos-status execution");
+    reply->set_retc(errno);
+    return grpc::Status::OK;
+  }
+
+  while (fgets(line, sizeof(line), pipe)) {
+    output += line;
+  }
+
+  if ((rc = pclose(pipe)) == -1) {
+    reply->set_std_err("Error: Failed to close pipe for eos-status execution");
+    reply->set_retc(errno);
+    return grpc::Status::OK;
+  }
+
+  reply->set_std_out(output);
+  reply->set_retc(rc);
   return grpc::Status::OK;
 }
 
