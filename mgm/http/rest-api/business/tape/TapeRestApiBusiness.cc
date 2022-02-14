@@ -58,9 +58,7 @@ void TapeRestApiBusiness::cancelStageBulkRequest(const std::string & requestId, 
     throw ObjectNotFoundException(ss.str());
   }
   //First, check if the issuer of the cancellation is root, or is the person who submitted the stage request
-  if(vid->uid != 0 && vid->uid != bulkRequest->getIssuerVid().uid) {
-    throw ForbiddenException("You are not allowed to cancel this bulk-request");
-  }
+  checkIssuerAuthorizedToAccessStageBulkRequest(bulkRequest.get(), vid,"cancel");
   //Create the prepare arguments, we will only cancel the files that were given by the user
   const FilesContainer & filesFromClient = model->getFiles();
   auto filesFromBulkRequestContainer = bulkRequest->getFiles();
@@ -108,7 +106,7 @@ std::shared_ptr<GetStageBulkRequestResponseModel> TapeRestApiBusiness::getStageB
   } catch(bulk::PersistencyException & ex){
     throw TapeRestApiBusinessException(ex.what());
   }
-
+  checkIssuerAuthorizedToAccessStageBulkRequest(bulkRequest.get(), vid,"get");
   //Instanciate prepare manager to get the tape, disk residency and an eventual error (set by CTA)
   bulk::PrepareArgumentsWrapper pargsWrapper(requestId,Prep_QUERY);
   for(auto &kv: *bulkRequest->getFiles()) {
@@ -158,6 +156,7 @@ void TapeRestApiBusiness::deleteStageBulkRequest(const std::string& requestId, c
     ss << "Unable to find the STAGE bulk-request ID = " << requestId;
     throw ObjectNotFoundException(ss.str());
   }
+  checkIssuerAuthorizedToAccessStageBulkRequest(bulkRequest.get(), vid,"delete");
   //Create the prepare arguments, we will cancel all the files from this bulk-request
   auto filesFromBulkRequest = bulkRequest->getFiles();
   bulk::PrepareArgumentsWrapper pargsWrapper(requestId, Prep_CANCEL);
@@ -232,4 +231,10 @@ std::shared_ptr<bulk::BulkRequestBusiness> TapeRestApiBusiness::createBulkReques
   return std::make_shared<bulk::BulkRequestBusiness>(std::move(daoFactory));
 }
 
+void TapeRestApiBusiness::checkIssuerAuthorizedToAccessStageBulkRequest(const bulk::StageBulkRequest* bulkRequest, const common::VirtualIdentity* vid, const std::string & action) {
+  //First, check if the issuer of the cancellation is root, or is the person who submitted the stage request
+  if(vid->uid != 0 && vid->uid != bulkRequest->getIssuerVid().uid) {
+    throw ForbiddenException("You are not allowed to " + action + " this bulk-request");
+  }
+}
 EOSMGMRESTNAMESPACE_END

@@ -32,7 +32,7 @@ BulkRequestBusiness::BulkRequestBusiness(std::unique_ptr<AbstractDAOFactory> && 
 }
 
 void BulkRequestBusiness::saveBulkRequest(const BulkRequest * req){
-  eos_info("msg=\"Persisting bulk request id=%s nbFiles=%ld type=%s\"",req->getId().c_str(), req->getFiles()->size(),BulkRequest::bulkRequestTypeToString(req->getType()).c_str());
+  eos_static_info("msg=\"Persisting bulk request id=%s nbFiles=%ld type=%s\"",req->getId().c_str(), req->getFiles()->size(),BulkRequest::bulkRequestTypeToString(req->getType()).c_str());
   EXEC_TIMING_BEGIN("BulkRequestBusiness::saveBulkRequest");
   switch(req->getType()) {
     case BulkRequest::PREPARE_STAGE: {
@@ -49,7 +49,7 @@ void BulkRequestBusiness::saveBulkRequest(const BulkRequest * req){
       throw PersistencyException(errorMsg.str());
   }
   EXEC_TIMING_END("BulkRequestBusiness::saveBulkRequest");
-  eos_info("msg=\"Persisted bulk request id=%s\"",req->getId().c_str());
+  eos_static_info("msg=\"Persisted bulk request id=%s\"",req->getId().c_str());
 }
 
 std::unique_ptr<BulkRequest> BulkRequestBusiness::getBulkRequest(const std::string & bulkRequestId, const BulkRequest::Type & type){
@@ -57,10 +57,10 @@ std::unique_ptr<BulkRequest> BulkRequestBusiness::getBulkRequest(const std::stri
   std::unique_ptr<BulkRequest> bulkRequest =  mDaoFactory->getBulkRequestDAO()->getBulkRequest(bulkRequestId,type);
   EXEC_TIMING_END("BulkRequestBusiness::getBulkRequest");
   if(bulkRequest != nullptr) {
-    eos_info("msg=\"Retrieved bulk request id=%s from persistence layer\"",
+    eos_static_info("msg=\"Retrieved bulk request id=%s from persistence layer\"",
              bulkRequestId.c_str());
   } else {
-    eos_info("msg=\"No bulk request with id=%s has been found in the persistence layer\"",
+    eos_static_info("msg=\"No bulk request with id=%s has been found in the persistence layer\"",
              bulkRequestId.c_str());
   }
   return bulkRequest;
@@ -72,11 +72,11 @@ std::unique_ptr<StageBulkRequest> BulkRequestBusiness::getStageBulkRequest(const
   std::unique_ptr<BulkRequest> bulkRequest = mDaoFactory->getBulkRequestDAO()->getBulkRequest(bulkRequestId,BulkRequest::PREPARE_STAGE);
   EXEC_TIMING_END("BulkRequestBusiness::getStageBulkRequest");
   if(bulkRequest != nullptr) {
-    eos_info("msg=\"Retrieved bulk request id=%s from persistence layer\"",
+    eos_static_info("msg=\"Retrieved bulk request id=%s from persistence layer\"",
              bulkRequestId.c_str());
     ret.reset(static_cast<StageBulkRequest *>(bulkRequest.release()));
   } else {
-    eos_info("msg=\"No bulk request with id=%s has been found in the persistence layer\"",
+    eos_static_info("msg=\"No bulk request with id=%s has been found in the persistence layer\"",
              bulkRequestId.c_str());
   }
   return ret;
