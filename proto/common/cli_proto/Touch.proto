@@ -13,4 +13,5 @@ message TouchProto {
   Metadata md   = 1;
   bool nolayout = 2;
   bool truncate = 3;
+  bool parents  = 4;
 }
