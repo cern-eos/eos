@@ -18,4 +18,5 @@ message LsProto {
   bool num_ids        = 7; // -n
   bool append_dir_ind = 8; // -F
   bool silent         = 9; // -s
+  bool wnc            = 10; // for EOS-wnc
 }
