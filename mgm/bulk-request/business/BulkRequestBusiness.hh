@@ -37,7 +37,7 @@ EOSBULKNAMESPACE_BEGIN
  * It basically allows to get a bulk request, persist it, ... from the DAOs returned
  * by the AbstractDAOFactory given when constructing this object.
  */
-class BulkRequestBusiness : public eos::common::LogId {
+class BulkRequestBusiness {
 public:
   /**
    * Constructor of the BulkRequestBusiness object
