@@ -107,6 +107,11 @@ std::shared_ptr<GetStageBulkRequestResponseModel> TapeRestApiBusiness::getStageB
     throw TapeRestApiBusinessException(ex.what());
   }
   checkIssuerAuthorizedToAccessStageBulkRequest(bulkRequest.get(), vid,"get");
+
+  //Set bulk-request related attributes
+  ret->setCreationTime(bulkRequest->getCreationTime());
+  ret->setId(bulkRequest->getId());
+
   //Instanciate prepare manager to get the tape, disk residency and an eventual error (set by CTA)
   bulk::PrepareArgumentsWrapper pargsWrapper(requestId,Prep_QUERY);
   for(auto &kv: *bulkRequest->getFiles()) {
@@ -126,7 +131,7 @@ std::shared_ptr<GetStageBulkRequestResponseModel> TapeRestApiBusiness::getStageB
     auto fileFromBulkRequestItor = filesFromBulkRequest->find(queryPrepareResponse.path);
     if(fileFromBulkRequestItor != filesFromBulkRequest->end()) {
       auto & fileFromBulkRequest = fileFromBulkRequestItor->second;
-      std::unique_ptr<GetStageBulkRequestResponseModel::Item> item = std::make_unique<GetStageBulkRequestResponseModel::Item>();
+      std::unique_ptr<GetStageBulkRequestResponseModel::File> item = std::make_unique<GetStageBulkRequestResponseModel::File>();
       item->mPath = queryPrepareResponse.path;
       if(fileFromBulkRequest->getError()) {
         item->mError = *fileFromBulkRequest->getError();
@@ -135,7 +140,7 @@ std::shared_ptr<GetStageBulkRequestResponseModel> TapeRestApiBusiness::getStageB
         item->mError = queryPrepareResponse.error_text;
       }
       item->mOnDisk = queryPrepareResponse.is_online;
-      ret->addItem(std::move(item));
+      ret->addFile(std::move(item));
     }
   }
   return ret;
