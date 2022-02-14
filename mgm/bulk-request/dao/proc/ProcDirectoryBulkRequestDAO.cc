@@ -128,6 +128,7 @@ void ProcDirectoryBulkRequestDAO::generateXattrsMapFromBulkRequest(const BulkReq
 void ProcDirectoryBulkRequestDAO::generateXattrsMapFromBulkRequest(const StageBulkRequest* bulkRequest, eos::IContainerMD::XAttrMap& xattrs) {
   generateXattrsMapFromBulkRequest(static_cast<const BulkRequest *>(bulkRequest),xattrs);
   xattrs[ISSUER_UID_XATTR_NAME] = std::to_string(bulkRequest->getIssuerVid().uid);
+  xattrs[CREATION_TIME_XATTR_NAME] = std::to_string(bulkRequest->getCreationTime());
 }
 
 void ProcDirectoryBulkRequestDAO::persistBulkRequestDirectory(const std::string& directoryBulkReqPath, const eos::IContainerMD::XAttrMap& xattrs) {
@@ -314,12 +315,14 @@ bool ProcDirectoryBulkRequestDAO::existsAndIsDirectory(const std::string& dirPat
 
 std::unique_ptr<StageBulkRequest> ProcDirectoryBulkRequestDAO::initializeStageBulkRequestFromXattrs(const std::string & requestId, const eos::IContainerMD::XAttrMap & xattrs) {
   common::VirtualIdentity vid;
+  time_t creationTime;
   try {
     vid.uid = ::strtoul(xattrs.at(ISSUER_UID_XATTR_NAME).c_str(),nullptr,0);
+    creationTime = ::strtoul(xattrs.at(CREATION_TIME_XATTR_NAME).c_str(),nullptr,0);
   } catch (const std::out_of_range &ex) {
-    throw PersistencyException("The issuer vid could not be found");
+    throw PersistencyException("Unable to fetch the attributes to create the stage bulk-request");
   }
-  std::unique_ptr<StageBulkRequest> stageBulkRequest = BulkRequestFactory::createStageBulkRequest(requestId,vid);
+  std::unique_ptr<StageBulkRequest> stageBulkRequest = BulkRequestFactory::createStageBulkRequest(requestId,vid, creationTime);
   fillBulkRequestFromXattrs(stageBulkRequest.get(), xattrs);
   return stageBulkRequest;
 }
