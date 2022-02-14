@@ -128,19 +128,13 @@ std::shared_ptr<GetStageBulkRequestResponseModel> TapeRestApiBusiness::getStageB
       auto & fileFromBulkRequest = fileFromBulkRequestItor->second;
       std::unique_ptr<GetStageBulkRequestResponseModel::Item> item = std::make_unique<GetStageBulkRequestResponseModel::Item>();
       item->mPath = queryPrepareResponse.path;
-      //For the stage bulk-request, the state is always set
-      item->mState = *fileFromBulkRequest->getStateStr();
       if(fileFromBulkRequest->getError()) {
         item->mError = *fileFromBulkRequest->getError();
       } else {
         //Error comes from CTA, so we need to update the state of the file to ERROR
         item->mError = queryPrepareResponse.error_text;
-        if(!item->mError.empty()) {
-          item->mState = bulk::File::getStateStr(bulk::File::State::ERROR);
-        }
       }
       item->mOnDisk = queryPrepareResponse.is_online;
-      item->mOnTape = queryPrepareResponse.is_on_tape;
       ret->addItem(std::move(item));
     }
   }

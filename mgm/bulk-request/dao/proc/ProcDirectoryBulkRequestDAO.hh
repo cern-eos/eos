@@ -105,7 +105,6 @@ private:
   inline static const std::string ISSUER_UID_XATTR_NAME = "issuer_uid";
   //File persisted as bulk-request's directory extended attribute will be prefixed by this prefix
   inline static const std::string FILE_ID_XATTR_KEY_PREFIX = "fid.";
-  inline static const std::string FILE_ID_ERROR_XATTR_KEY_PREFIX = "fid.error.";
 
   void cancelStageBulkRequest(const CancellationBulkRequest * bulkRequest);
 

@@ -36,7 +36,6 @@ EOSBULKNAMESPACE_BEGIN
 class CancellationBulkRequest : public BulkRequest {
 public:
   CancellationBulkRequest(const std::string & id);
-  void addFile(std::unique_ptr<File>&& file) override;
   const BulkRequest::Type getType() const override;
 private:
 };

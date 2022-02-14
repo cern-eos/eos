@@ -31,11 +31,4 @@ const BulkRequest::Type CancellationBulkRequest::getType() const {
   return BulkRequest::Type::PREPARE_CANCEL;
 }
 
-void CancellationBulkRequest::addFile(std::unique_ptr<File>&& file) {
-  if(!file->getError()) {
-    file->setState(File::State::CANCELLED);
-  }
-  BulkRequest::addFile(std::move(file));
-}
-
 EOSBULKNAMESPACE_END
