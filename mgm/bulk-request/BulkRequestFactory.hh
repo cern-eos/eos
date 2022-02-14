@@ -50,7 +50,17 @@ public:
    */
   static std::unique_ptr<CancellationBulkRequest> createCancelBulkRequest(const std::string & id);
 
+  /**
+   * Creates a new StageBulkRequest with the requestId and the issuerVid of this bulk-request
+   * @return
+   */
   static std::unique_ptr<StageBulkRequest> createStageBulkRequest(const std::string & requestId, const common::VirtualIdentity & issuerVid);
+
+  /**
+   * Creates a new StageBulkRequest with the requestId, issuerVid and the creation time of this bulk-request
+   * @return a new StageBulkRequest
+   */
+  static std::unique_ptr<StageBulkRequest> createStageBulkRequest(const std::string & requestId, const common::VirtualIdentity & issuerVid, const time_t & creationTime);
 
 };
 
