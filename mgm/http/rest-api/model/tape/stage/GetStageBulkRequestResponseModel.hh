@@ -33,17 +33,24 @@ EOSMGMRESTNAMESPACE_BEGIN
 
 class GetStageBulkRequestResponseModel : public common::Jsonifiable<GetStageBulkRequestResponseModel> {
 public:
-  class Item {
+  class File {
   public:
     std::string mPath;
     std::string mError;
     bool mOnDisk;
   };
   GetStageBulkRequestResponseModel(){}
-  void addItem(std::unique_ptr<Item> && item);
-  const std::vector<std::unique_ptr<Item>> & getItems() const;
+  void addFile(std::unique_ptr<File> && file);
+  const std::vector<std::unique_ptr<File>> & getFiles() const;
+  const time_t getCreationTime() const;
+  const std::string getId() const;
+  void setCreationTime(const time_t & creationTime);
+  void setId(const std::string & id);
 private:
-  std::vector<std::unique_ptr<Item>> mItems;
+  std::vector<std::unique_ptr<File>> mFiles;
+  time_t mCreationTime;
+  time_t mStartTime;
+  std::string mId;
 };
 
 EOSMGMRESTNAMESPACE_END
