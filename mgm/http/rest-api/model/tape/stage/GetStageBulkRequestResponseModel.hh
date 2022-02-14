@@ -38,8 +38,6 @@ public:
     std::string mPath;
     std::string mError;
     bool mOnDisk;
-    bool mOnTape;
-    std::string mState;
   };
   GetStageBulkRequestResponseModel(){}
   void addItem(std::unique_ptr<Item> && item);
