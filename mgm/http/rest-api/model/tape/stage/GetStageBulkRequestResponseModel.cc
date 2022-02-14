@@ -25,12 +25,28 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-void GetStageBulkRequestResponseModel::addItem(std::unique_ptr<Item>&& item) {
-  mItems.emplace_back(std::move(item));
+void GetStageBulkRequestResponseModel::addFile(std::unique_ptr<File>&& file) {
+  mFiles.emplace_back(std::move(file));
 }
 
-const std::vector<std::unique_ptr<GetStageBulkRequestResponseModel::Item>> & GetStageBulkRequestResponseModel::getItems() const {
-  return mItems;
+const std::vector<std::unique_ptr<GetStageBulkRequestResponseModel::File>> & GetStageBulkRequestResponseModel::getFiles() const {
+  return mFiles;
+}
+
+const time_t GetStageBulkRequestResponseModel::getCreationTime() const {
+  return mCreationTime;
+}
+
+const std::string GetStageBulkRequestResponseModel::getId() const {
+  return mId;
+}
+
+void GetStageBulkRequestResponseModel::setCreationTime(const time_t& creationTime) {
+  mCreationTime = creationTime;
+}
+
+void GetStageBulkRequestResponseModel::setId(const std::string& id) {
+  mId = id;
 }
 
 EOSMGMRESTNAMESPACE_END
