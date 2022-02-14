@@ -35,6 +35,10 @@ std::unique_ptr<StageBulkRequest> BulkRequestFactory::createStageBulkRequest(con
   return std::make_unique<StageBulkRequest>(requestId,issuerVid);
 }
 
+std::unique_ptr<StageBulkRequest> BulkRequestFactory::createStageBulkRequest(const std::string& requestId, const common::VirtualIdentity& issuerVid, const time_t& creationTime) {
+  return std::make_unique<StageBulkRequest>(requestId,issuerVid,creationTime);
+}
+
 std::unique_ptr<CancellationBulkRequest> BulkRequestFactory::createCancelBulkRequest(const std::string& id){
   return std::make_unique<CancellationBulkRequest>(id);
 }
