@@ -167,6 +167,10 @@ class WncService final : public EosWnc::Service
       command = "Stat";
       break;
 
+    case eos::console::RequestProto::kStatus:
+      command = "Status";
+      break;
+
     case eos::console::RequestProto::kToken:
       command = "Token";
       break;
