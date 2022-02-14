@@ -47,8 +47,6 @@ FlushAllOnConstruction::~FlushAllOnConstruction() { }
 
 NsTestsFixture::NsTestsFixture()
 {
-  RequestBuilder::OverrideNumberOfFileBuckets(128);
-  RequestBuilder::OverrideNumberOfContainerBuckets(128);
   srandom(time(nullptr));
   // Connection parameters
   std::string qdb_hostport = getenv("EOS_QUARKDB_HOSTPORT") ?

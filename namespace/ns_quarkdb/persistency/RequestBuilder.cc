@@ -28,26 +28,25 @@
 
 EOSNSNAMESPACE_BEGIN
 
-std::uint64_t RequestBuilder::sNumContBuckets = 128 * 1024;
-std::uint64_t RequestBuilder::sNumFileBuckets = 1024 * 1024;
-
 //------------------------------------------------------------------------------
 //! Write container protobuf metadata.
 //------------------------------------------------------------------------------
 RedisRequest
-RequestBuilder::writeContainerProto(IContainerMD *obj)
+RequestBuilder::writeContainerProto(IContainerMD* obj)
 {
   eos::Buffer ebuff;
   obj->serialize(ebuff);
   std::string buffer(ebuff.getDataPtr(), ebuff.getSize());
-  return writeContainerProto(ContainerIdentifier(obj->getId()), obj->getLocalityHint(), buffer);
+  return writeContainerProto(ContainerIdentifier(obj->getId()),
+                             obj->getLocalityHint(), buffer);
 }
 
 //------------------------------------------------------------------------------
 //! Write container protobuf metadata - low level API.
 //------------------------------------------------------------------------------
 RedisRequest
-RequestBuilder::writeContainerProto(ContainerIdentifier id, const std::string &hint, const std::string &blob)
+RequestBuilder::writeContainerProto(ContainerIdentifier id,
+                                    const std::string& hint, const std::string& blob)
 {
   std::string sid = stringify(id.getUnderlyingUInt64());
   return { "LHSET", constants::sContainerKey, sid, hint, blob };
@@ -57,20 +56,21 @@ RequestBuilder::writeContainerProto(ContainerIdentifier id, const std::string &h
 //! Write file protobuf metadata.
 //------------------------------------------------------------------------------
 RedisRequest
-RequestBuilder::writeFileProto(IFileMD *obj)
+RequestBuilder::writeFileProto(IFileMD* obj)
 {
   eos::Buffer ebuff;
   obj->serialize(ebuff);
   std::string buffer(ebuff.getDataPtr(), ebuff.getSize());
-
-  return writeFileProto(FileIdentifier(obj->getId()), obj->getLocalityHint(), buffer);
+  return writeFileProto(FileIdentifier(obj->getId()), obj->getLocalityHint(),
+                        buffer);
 }
 
 //------------------------------------------------------------------------------
 //! Write file protobuf metadata - low level API.
 //------------------------------------------------------------------------------
 RedisRequest
-RequestBuilder::writeFileProto(FileIdentifier id, const std::string &hint, const std::string &blob)
+RequestBuilder::writeFileProto(FileIdentifier id, const std::string& hint,
+                               const std::string& blob)
 {
   std::string sid = stringify(id.getUnderlyingUInt64());
   return { "LHSET", constants::sFileKey, sid, hint, blob };
@@ -133,14 +133,16 @@ RedisRequest RequestBuilder::getNumberOfFiles()
 //------------------------------------------------------------------------------
 // Generate a cache-invalidation notification for a particular fid
 //------------------------------------------------------------------------------
-RedisRequest RequestBuilder::notifyCacheInvalidationFid(FileIdentifier id) {
+RedisRequest RequestBuilder::notifyCacheInvalidationFid(FileIdentifier id)
+{
   return {"PUBLISH", constants::sCacheInvalidationFidChannel, SSTR(id.getUnderlyingUInt64()) };
 }
 
 //------------------------------------------------------------------------------
 // Generate a cache-invalidation notification for a particular cid
 //------------------------------------------------------------------------------
-RedisRequest RequestBuilder::notifyCacheInvalidationCid(ContainerIdentifier id) {
+RedisRequest RequestBuilder::notifyCacheInvalidationCid(ContainerIdentifier id)
+{
   return {"PUBLISH", constants::sCacheInvalidationCidChannel, SSTR(id.getUnderlyingUInt64()) };
 }
 
@@ -158,34 +160,8 @@ std::string RequestBuilder::keyFilesystemFiles(IFileMD::location_t location)
 //------------------------------------------------------------------------------
 std::string RequestBuilder::keyFilesystemUnlinked(IFileMD::location_t location)
 {
-  return fsview::sPrefix + std::to_string(location) + ":" + fsview::sUnlinkedSuffix;
-}
-
-//------------------------------------------------------------------------------
-// Get container bucket
-//------------------------------------------------------------------------------
-std::string
-RequestBuilder::getContainerBucketKey(ContainerIdentifier identifier)
-{
-  uint64_t id = identifier.getUnderlyingUInt64();
-  id = id & (sNumContBuckets - 1);
-  std::string bucket_key = stringify(id);
-  bucket_key += constants::sContKeySuffix;
-  return bucket_key;
-}
-
-//------------------------------------------------------------------------------
-// Get file bucket
-//! Calculate number of files.
-//------------------------------------------------------------------------------
-std::string
-RequestBuilder::getFileBucketKey(FileIdentifier identifier)
-{
-  uint64_t id = identifier.getUnderlyingUInt64();
-  id = id & (sNumFileBuckets - 1);
-  std::string bucket_key = stringify(id);
-  bucket_key += constants::sFileKeySuffix;
-  return bucket_key;
+  return fsview::sPrefix + std::to_string(location) + ":" +
+         fsview::sUnlinkedSuffix;
 }
 
 EOSNSNAMESPACE_END
