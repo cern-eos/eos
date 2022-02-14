@@ -39,6 +39,7 @@ import "Route.proto";
 import "Space.proto";
 import "StagerRm.proto";
 import "Status.proto";
+import "StatWnc.proto";
 import "Token.proto";
 import "Touch.proto";
 import "Transfer.proto";
@@ -107,6 +108,7 @@ message RequestProto {
     BackupProto backup     = 46;
     MapProto map           = 47;
     MemberProto member     = 48;
+    StatusProto status     = 49;
   }
 
   string Comment = 30;

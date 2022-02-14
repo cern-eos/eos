@@ -1,10 +1,14 @@
 // ----------------------------------------------------------------------------
-// File: Status.proto
-// Author: Branko Blagojevic <branko.blagojevic@comtrade.com>
+// File: StatWnc.proto
+// Author: Ivan Arizanovic <ivan.arizanovic@comtrade.com>
 // ----------------------------------------------------------------------------
 
 syntax="proto3";
 
 package eos.console;
 
-message StatusProto {}
+message StatProto {
+  string path    = 1;
+  bool file      = 2;
+  bool directory = 3;
+}
