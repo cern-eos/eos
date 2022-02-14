@@ -2323,7 +2323,8 @@ GrpcWncInterface::Ls(eos::common::VirtualIdentity& vid,
   if (request->ls().long_list() || request->ls().tape() ||
       request->ls().readable_sizes() || request->ls().show_hidden() ||
       request->ls().inode_info() || request->ls().num_ids() ||
-      request->ls().append_dir_ind() || request->ls().silent()) {
+      request->ls().append_dir_ind() || request->ls().silent() ||
+      request->ls().wnc()) {
     in += "&mgm.option=";
 
     if (request->ls().long_list()) {
@@ -2338,7 +2339,7 @@ GrpcWncInterface::Ls(eos::common::VirtualIdentity& vid,
       in += "h";
     }
 
-    if (request->ls().show_hidden()) {
+    if (request->ls().show_hidden() || request->ls().wnc()) {
       in += "a";
     }
 
@@ -2350,7 +2351,7 @@ GrpcWncInterface::Ls(eos::common::VirtualIdentity& vid,
       in += "n";
     }
 
-    if (request->ls().append_dir_ind()) {
+    if (request->ls().append_dir_ind() || request->ls().wnc()) {
       in += "F";
     }
 
@@ -2369,9 +2370,51 @@ GrpcWncInterface::Ls(eos::common::VirtualIdentity& vid,
     std::string entry(""), out("");
     int counter = 0;
 
-    // Send every 100 lines separately
+    // Ouptput
     while (std::getline(list, entry)) {
-      out += entry + "\n";
+      if (request->ls().wnc()) {
+        uint64_t size = 0;
+        eos::IFileMD::ctime_t mtime;
+        eos::IFileMD::XAttrMap xattrs;
+
+        // Get full path
+        std::string full_path;
+        if (entry == "../")
+          continue;
+        else if (entry == "./")
+          full_path = path;
+        else
+          full_path = path + entry;
+
+        // Get the parameters
+        if (entry[entry.size() - 1] != '/') {
+          std::shared_ptr<eos::IFileMD> fmd;
+          fmd = gOFS->eosView->getFile(full_path.c_str());
+          fmd->getMTime(mtime);
+          xattrs = fmd->getAttributes();
+          size = fmd->getSize();
+        }
+        else {
+          std::shared_ptr<eos::IContainerMD> cmd;
+          cmd = gOFS->eosView->getContainer(full_path.c_str());
+          cmd->getMTime(mtime);
+          xattrs = cmd->getAttributes();
+        }
+
+        // Print the parameters
+        out += entry;
+        out += "\t\tsize=" + std::to_string(size);
+        out += " mtime=" + std::to_string(mtime.tv_sec);
+        out += "." + std::to_string(mtime.tv_nsec);
+        if (xattrs.count("sys.eos.btime"))
+          out += " btime=" + xattrs["sys.eos.btime"];
+        out += "\n";
+      }
+      else {
+        out += entry + "\n";
+      }
+
+      // Write every 100 lines separately to gRPC
       counter++;
       if (counter >= 100) {
         StreamReply.set_std_out(out);
@@ -2382,7 +2425,7 @@ GrpcWncInterface::Ls(eos::common::VirtualIdentity& vid,
       }
     }
 
-    // Send last part if exists
+    // Write last part to gRPC, if exists
     if (!out.empty()) {
       StreamReply.set_std_out(out);
       StreamReply.set_retc(0);
