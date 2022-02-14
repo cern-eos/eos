@@ -33,8 +33,6 @@ void GetStageBulkRequestJsonifier::jsonify(const GetStageBulkRequestResponseMode
     fileObj["path"] = file->mPath;
     fileObj["error"] = file->mError;
     fileObj["onDisk"] = file->mOnDisk;
-    fileObj["onTape"] = file->mOnTape;
-    fileObj["state"] = file->mState;
     root.append(fileObj);
   }
   ss << root;
