@@ -2850,10 +2850,12 @@ GrpcWncInterface::Touch(eos::common::VirtualIdentity& vid,
   std::string stdOut, stdErr;
   ProcCommand cmd;
   XrdOucErrInfo error;
+  std::string path = request->touch().md().path();
   std::string in = "mgm.cmd=file";
   in += "&mgm.subcmd=touch";
+
   // set the path
-  in += "&mgm.path=" + request->touch().md().path();
+  in += "&mgm.path=" + path;
 
   // set the options
   if (request->touch().nolayout()) {
@@ -2868,6 +2870,31 @@ GrpcWncInterface::Touch(eos::common::VirtualIdentity& vid,
   cmd.open("/proc/user", in.c_str(), vid, &error);
   cmd.AddOutput(stdOut, stdErr);
   cmd.close();
+
+  // Create parent directories
+  if (request->touch().parents() && cmd.GetRetc() == 2) {
+    size_t pos = 0;
+    if (!path.empty() && path[path.size() - 1] != '/' &&
+        (pos = path.rfind('/')) != std::string::npos) {
+      std::string parent_path = path.substr(0, pos);
+      eos::console::RequestProto mkdir_request;
+      eos::console::ReplyProto mkdir_reply;
+      mkdir_request.mutable_mkdir()->mutable_md()->set_path(parent_path);
+      mkdir_request.mutable_mkdir()->set_parents(true);
+      Mkdir(vid, &mkdir_request, &mkdir_reply);
+
+      // running touch command again
+      if (mkdir_reply.retc() == 0) {
+        stdOut.clear();
+        stdErr.clear();
+        cmd.open("/proc/user", in.c_str(), vid, &error);
+        cmd.AddOutput(stdOut, stdErr);
+        cmd.close();
+      }
+    }
+  }
+
+  // Send to grpc
   reply->set_retc(cmd.GetRetc());
   reply->set_std_err(stdErr);
   reply->set_std_out(stdOut);
