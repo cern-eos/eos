@@ -2487,9 +2487,9 @@ main(int argc, char* argv[])
   }
 
   if (debug) {
-    fprintf(stderr, "[eoscp] # Total read wait time is: %f milliseconds. \n",
+    fprintf(stderr, "[eoscp] # Total read wait time     : %f ms  \n",
             read_wait);
-    fprintf(stderr, "[eoscp] # Total write wait time is: %f milliseconds. \n",
+    fprintf(stderr, "[eoscp] # Total write wait time    : %f ms \n",
             write_wait);
   }
 

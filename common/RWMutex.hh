@@ -613,9 +613,8 @@ private:
 #undef EOS_RWMUTEX_TIMER_STOP_AND_UPDATE
 #endif
 
-// For old clang on Apple avoid the use of builtin functions
-#if defined( __APPLE__) && defined(__clang__) && \
-    defined(__clang_major__) && (__clang_major__ < 12)
+// For old clang avoid the use of builtin functions
+#if defined(__clang__) && defined(__clang_major__) && (__clang_major__ < 12)
 #define EOS_FUNCTION __FUNCTION__
 #define EOS_FILE     __FILE__
 #define EOS_LINE     __LINE__

@@ -2,6 +2,9 @@
 set -e
 fusedir=$1
 eosdir=$2
+# Sync time propgation happens every 5 seconds on average, set the sleep_time
+# to 7 seconds to make sure sync info is propagated.
+sleep_time=7
 
 # this test script creates a file/direcotry, chmod, rename's it and verifies that the sync times are updated accordingly
 
@@ -14,38 +17,38 @@ stime0=`eos file info /eos/$eosdir/synctime/ -m | grep -o 'stime=[^ ]\+' | cut -
 
 touch $fusedir/$eosdir/synctime/f.1
 
-sleep 5
+sleep ${sleep_time}
 
 stime1=`eos file info /eos/$eosdir/synctime/ -m | grep -o 'stime=[^ ]\+' | cut -d "=" -f 2`
 
 chmod 700 $fusedir/$eosdir/synctime/f.1
 
-sleep 5
+sleep ${sleep_time}
 
 stime2=`eos file info /eos/$eosdir/synctime/ -m | grep -o 'stime=[^ ]\+' | cut -d "=" -f 2`
 
 mv $fusedir/$eosdir/synctime/f.1 $fusedir/$eosdir/synctime/f.2
 
-sleep 5
+sleep ${sleep_time}
 
 stime3=`eos file info /eos/$eosdir/synctime/ -m | grep -o 'stime=[^ ]\+' | cut -d "=" -f 2`
 
 # SYNC TIME PROPAGATION FOR DIRECTORIES
 mkdir -p $fusedir/$eosdir/synctime/d.1
 
-sleep 5
+sleep ${sleep_time}
 
 stime4=`eos file info /eos/$eosdir/synctime/ -m | grep -o 'stime=[^ ]\+' | cut -d "=" -f 2`
 
 chmod 777 $fusedir/$eosdir/synctime/d.1
 
-sleep 5
+sleep ${sleep_time}
 
 stime5=`eos file info /eos/$eosdir/synctime/ -m | grep -o 'stime=[^ ]\+' | cut -d "=" -f 2`
 
 mv $fusedir/$eosdir/synctime/d.1 $fusedir/$eosdir/synctime/d.2
 
-sleep 5
+sleep ${sleep_time}
 
 stime6=`eos file info /eos/$eosdir/synctime/ -m | grep -o 'stime=[^ ]\+' | cut -d "=" -f 2`
 

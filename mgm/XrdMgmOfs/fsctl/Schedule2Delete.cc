@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "common/Logging.hh"
+#include "common/BufferManager.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFileMD.hh"
@@ -221,8 +222,9 @@ XrdMgmOfs::Schedule2Delete(const char* path,
         eos_static_debug("msg=\"query2delete reponse\" data=\"%s\"", json.c_str());
       }
 
-      const auto sz = del_fst.ByteSizeLong();
-      XrdOucBuffer* buff = mXrdBuffPool.Alloc(sz);
+      const auto sz = del_fst.ByteSize();
+      const uint32_t aligned_sz = eos::common::power_ceil(sz, 2 * eos::common::KB);
+      XrdOucBuffer* buff = mXrdBuffPool.Alloc(aligned_sz);
 
       if (buff == nullptr) {
         eos_static_err("msg=\"requested buffer allocation size too big\" "

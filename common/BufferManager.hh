@@ -33,6 +33,18 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
+
+//------------------------------------------------------------------------------
+//! Get the nearest power of 2 value bigger then the given input but always
+//! greater than given min
+//!
+//! @param input input value
+//! @param min min power of 2 to be used!!!
+//!
+//! @return nearest power of 2 bigger than input
+//------------------------------------------------------------------------------
+uint32_t power_ceil(const uint32_t input, const uint32_t min = 1024);
+
 //------------------------------------------------------------------------------
 //! Get OS page size aligned buffer
 //!

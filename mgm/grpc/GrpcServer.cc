@@ -110,7 +110,7 @@ class RequestServiceImpl final : public Eos::Service
     case eos::rpc::FILE:
     case eos::rpc::CONTAINER:
     case eos::rpc::STAT:
-      return GrpcNsInterface::GetMD(vid, writer, request);
+      return GrpcNsInterface::Stat(vid, writer, request);
       break;
 
     case eos::rpc::LISTING:
@@ -198,11 +198,16 @@ GrpcServer::DN(grpc::ServerContext* context)
   */
   std::string tag = "x509_common_name";
   auto resp = context->auth_context()->FindPropertyValues(tag);
-  if(resp.empty()){
+
+  if (resp.empty()) {
     tag = "x509_subject_alternative_name";
     auto resp = context->auth_context()->FindPropertyValues(tag);
-    if (resp.empty()) { return "";}
+
+    if (resp.empty()) {
+      return "";
+    }
   }
+
   return resp[0].data();
 }
 
@@ -218,28 +223,35 @@ std::string GrpcServer::IP(grpc::ServerContext* context, std::string* id,
   eos::common::StringConversion::Tokenize(context->peer(),
                                           tokens,
                                           "[]");
-  if (tokens.size() == 3){
+
+  if (tokens.size() == 3) {
     if (id) {
-      *id = tokens[0].substr(0,tokens[0].size()-1);
+      *id = tokens[0].substr(0, tokens[0].size() - 1);
     }
+
     if (port) {
-      *port = tokens[2].substr(1,tokens[2].size()-1);
+      *port = tokens[2].substr(1, tokens[2].size() - 1);
     }
-    return "["+tokens[1]+"]";
-  }else {
+
+    return "[" + tokens[1] + "]";
+  } else {
     tokens.clear();
     eos::common::StringConversion::Tokenize(context->peer(),
                                             tokens,
                                             ":");
-    if (tokens.size() == 3){
+
+    if (tokens.size() == 3) {
       if (id) {
-          *id = tokens[0].substr(0,tokens[0].size());
-        }
-        if (port) {
-          *port = tokens[2].substr(0,tokens[2].size());
-        }
-        return tokens[1];
+        *id = tokens[0].substr(0, tokens[0].size());
+      }
+
+      if (port) {
+        *port = tokens[2].substr(0, tokens[2].size());
+      }
+
+      return tokens[1];
     }
+
     return "";
   }
 }

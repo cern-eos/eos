@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "common/Logging.hh"
+#include "common/SymKeys.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IQuota.hh"
@@ -33,7 +34,7 @@
 #include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Macros.hh"
-
+#include "mgm/Iostat.hh"
 #include <XrdOuc/XrdOucEnv.hh>
 
 //----------------------------------------------------------------------------
@@ -57,6 +58,7 @@ XrdMgmOfs::Drop(const char* path,
   eos_thread_info("drop request for %s", env.Env(envlen));
   char* afid = env.Get("mgm.fid");
   char* afsid = env.Get("mgm.fsid");
+  char* report = env.Get("mgm.report");
 
   if (afid && afsid) {
     eos::IFileMD::id_t fid = eos::common::FileId::Hex2Fid(afid);
@@ -161,6 +163,18 @@ XrdMgmOfs::Drop(const char* path,
         }
       } catch (...) {
         eos_thread_warning("no meta record exists anymore for fxid=%s", afid);
+      }
+    }
+
+    if (report) {
+      // write the report via IoStat
+      std::string deletionreport64 = report;
+      std::string deletionreport;
+
+      if (eos::common::SymKey::ZDeBase64(deletionreport64, deletionreport)) {
+        gOFS->IoStats->WriteRecord(deletionreport);
+      } else {
+        eos_thread_err("failed to decode report '%s'", deletionreport64.c_str());
       }
     }
   } else {

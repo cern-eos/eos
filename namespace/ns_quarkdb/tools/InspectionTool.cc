@@ -25,6 +25,7 @@
 #include "common/ParseUtils.hh"
 #include "common/CLI11.hpp"
 #include <qclient/QClient.hh>
+#include <stdint.h>
 
 #define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl
 
@@ -122,7 +123,7 @@ int main(int argc, char* argv[])
   bool showSize = false;
   bool showMtime = false;
   bool withParents = false;
-  uint32_t maxDepth = 0;
+  uint32_t maxDepth = UINT32_MAX;
   bool json = false;
   dumpSubcommand->add_option("--path", dumpPath, "The target path to dump")
   ->required();
@@ -148,8 +149,8 @@ int main(int argc, char* argv[])
                     passwordFile);
   scanSubcommand->add_option("--path", dumpPath, "The target path to scan")
   ->required();
-  scanSubcommand->add_option("--trim", trimPaths, "REGEX to not expand scan for matching paths");
-
+  scanSubcommand->add_option("--trim", trimPaths,
+                             "REGEX to not expand scan for matching paths");
   scanSubcommand->add_flag("--relative-paths", relativePaths,
                            "Print paths relative to --path");
   scanSubcommand->add_flag("--raw-paths", rawPaths,
@@ -159,7 +160,7 @@ int main(int argc, char* argv[])
   scanSubcommand->add_flag("--no-files", noFiles,
                            "Don't print files, only directories");
   scanSubcommand->add_option("--maxdepth", maxDepth,
-                           "Descend only <maxdepth> levels.");
+                             "Descend only <maxdepth> levels.");
   scanSubcommand->add_flag("--json", json, "Use json output");
   //----------------------------------------------------------------------------
   // Set-up print subcommand..
@@ -503,7 +504,8 @@ int main(int argc, char* argv[])
   }
 
   if (scanSubcommand->parsed()) {
-    return inspector.scan(dumpPath, relativePaths, rawPaths, noDirs, noFiles, maxDepth, trimPaths=trimPaths);
+    return inspector.scan(dumpPath, relativePaths, rawPaths, noDirs, noFiles,
+                          maxDepth, trimPaths = trimPaths);
   }
 
   if (namingConflictsSubcommand->parsed()) {

@@ -30,6 +30,22 @@
 #include <thread>
 #include <chrono>
 
+
+TEST(BufferManager, PowerCeil)
+{
+  ASSERT_EQ(1024, eos::common::power_ceil(1));
+  ASSERT_EQ(1024, eos::common::power_ceil(1000));
+  ASSERT_EQ(1024, eos::common::power_ceil(1024));
+  ASSERT_EQ(2048, eos::common::power_ceil(1025));
+  ASSERT_EQ(4096, eos::common::power_ceil(2049));
+  ASSERT_EQ(8192, eos::common::power_ceil(5000));
+  ASSERT_EQ(16384, eos::common::power_ceil(9001));
+  ASSERT_EQ(2048, eos::common::power_ceil(1, 2048));
+  ASSERT_EQ(4096, eos::common::power_ceil(2049, 2048));
+  ASSERT_EQ(16384, eos::common::power_ceil(1, 16384));
+  ASSERT_EQ(32768, eos::common::power_ceil(16385, 16384));
+}
+
 TEST(BufferManager, MatchingSizes)
 {
   using namespace eos::common;

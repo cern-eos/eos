@@ -26,6 +26,21 @@
 EOSCOMMONNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
+// Get the nearest power of 2 value bigger then the given input but always
+// greater than min
+//------------------------------------------------------------------------------
+uint32_t power_ceil(const uint32_t input, const uint32_t min)
+{
+  uint32_t power = min;
+
+  while (input > power) {
+    power <<= 1;
+  }
+
+  return power;
+}
+
+//------------------------------------------------------------------------------
 // Get OS page size aligned buffer
 //------------------------------------------------------------------------------
 std::unique_ptr<char, void(*)(void*)>

@@ -274,7 +274,8 @@ public:
            const char* fstPath = 0,
            unsigned long long fid = 0,
            unsigned long fsid = 0,
-           bool ignoreifnotexist = false);
+           bool ignoreifnotexist = false,
+           std::string* deletion_report = 0);
 
   //----------------------------------------------------------------------------
   //! Get checksum - we publish checksums at the MGM
@@ -364,9 +365,10 @@ public:
 
   int Redirect(XrdOucErrInfo& error, const char* host, int& port);
 
-  void MakeDeletionReport(eos::common::FileSystem::fsid_t fsid,
-                          unsigned long long fid,
-                          struct stat& deletion_stat);
+  std::string MakeDeletionReport(eos::common::FileSystem::fsid_t fsid,
+                                 unsigned long long fid,
+                                 struct stat& deletion_stat,
+                                 bool viamq = true);
 
   XrdSysError* Eroute;
   eos::fst::Messaging* Messaging; ///< messaging interface class

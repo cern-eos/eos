@@ -241,32 +241,56 @@ public:
   void
   Print()
   {
+    std::cerr << std::endl << Dump() << std::endl;
+  }
+
+  std::string
+  Dump(bool pretty = false)
+  {
+    std::ostringstream ss;
     char msg[512];
     Timing* n;
     Timing* p = next;
     size_t cnt = 0;
 
     if (p == nullptr) {
-      return;
+      return "";
     }
-
-    std::cerr << std::endl;
 
     while ((n = p->next)) {
       cnt++;
-      sprintf(msg, " #%04lu : %s::%-20s %.03f ms\n", cnt, maintag.c_str(),
-              n->tag.c_str(), (float)((n->tv.tv_sec - p->tv.tv_sec) * 1000000 +
-                                      (n->tv.tv_usec - p->tv.tv_usec)) / 1000.0);
-      std::cerr << msg;
+
+      if (pretty) {
+        snprintf(msg, sizeof(msg), " #%04lu : %s::%-20s %.03f ms\n", cnt,
+                 maintag.c_str(),
+                 n->tag.c_str(), (float)((n->tv.tv_sec - p->tv.tv_sec) * 1000000 +
+                                         (n->tv.tv_usec - p->tv.tv_usec)) / 1000.0);
+      } else {
+        snprintf(msg, sizeof(msg), "%s=%.03fms ",
+                 n->tag.c_str(), (float)((n->tv.tv_sec - p->tv.tv_sec) * 1000000 +
+                                         (n->tv.tv_usec - p->tv.tv_usec)) / 1000.0);
+      }
+
+      ss << msg;
       p = n;
     }
 
     n = p;
     p = next;
-    sprintf(msg, " #==== : %s::%-20s %.03f ms\n", maintag.c_str(), "total",
-            (float)((n->tv.tv_sec - p->tv.tv_sec) * 1000000 + (n->tv.tv_usec -
-                    p->tv.tv_usec)) / 1000.0);
-    std::cerr << msg;
+
+    if (pretty) {
+      snprintf(msg, sizeof(msg), " #==== : %s::%-20s %.03f ms\n", maintag.c_str(),
+               "total",
+               (float)((n->tv.tv_sec - p->tv.tv_sec) * 1000000 + (n->tv.tv_usec -
+                       p->tv.tv_usec)) / 1000.0);
+    } else {
+      snprintf(msg, sizeof(msg), "%s=%.03fms", maintag.c_str(),
+               (float)((n->tv.tv_sec - p->tv.tv_sec) * 1000000 + (n->tv.tv_usec -
+                       p->tv.tv_usec)) / 1000.0);
+    }
+
+    ss << msg;
+    return ss.str();
   }
 
   //----------------------------------------------------------------------------

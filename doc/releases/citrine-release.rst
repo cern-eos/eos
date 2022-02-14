@@ -16,6 +16,24 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.76 Citrine``
+===================
+
+Bug
+----
+
+* [EOS-5110] - Consolidate Access control in GRPC MD, MDSTreaming
+* [EOS-5116] - Workaround for XrdOucBuffPool bug
+* [EOS-5118] - eos-ns-inspect scan is initializing maxdepth to 0, even if not used
+* [EOS-5119] - Deadlock scenario in eosxd
+
+Improvement
+------------
+
+* [EOS-5111] - Groupbalancer: newly introduced fields may not have a sane value
+* [EOS-5120] - io stat tag totals
+
+
 ``v4.8.75 Citrine``
 ===================
 

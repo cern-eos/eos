@@ -126,6 +126,7 @@ XrdMgmOfs::_access(const char* path,
 
   try {
     eos::IContainerMD::XAttrMap attrmap;
+    eos::IContainerMD::XAttrMap fattrmap;
 
     if (fh || (!dh)) {
       std::string uri;
@@ -133,6 +134,7 @@ XrdMgmOfs::_access(const char* path,
       // if this is a file or a not existing directory we check the access on the parent directory
       if (fh) {
         uri = gOFS->eosView->getUri(fh.get());
+        fattrmap = fh->getAttributes();
       } else {
         uri = cPath.GetPath();
       }
@@ -144,6 +146,12 @@ XrdMgmOfs::_access(const char* path,
 
     // ACL and permission check
     Acl acl(attr_path.c_str(), error, vid, attrmap, false);
+
+    if (fattrmap.size()) {
+      // take into account file acls
+      acl.SetFromAttrMap(attrmap, vid, &fattrmap);
+    }
+
     eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d mutable=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
              acl.CanBrowse(), acl.HasEgroup(), acl.IsMutable());

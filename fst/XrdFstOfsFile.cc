@@ -29,6 +29,7 @@
 #include "common/SecEntity.hh"
 #include "common/CtaCommon.hh"
 #include "common/IoPriority.hh"
+#include "common/Timing.hh"
 #include "common/xrootd-ssi-protobuf-interface/eos_cta/include/CtaFrontendApi.hpp"
 #include "fst/FmdDbMap.hh"
 #include "fst/layout/Layout.hh"
@@ -82,6 +83,7 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   totalBytes = 0;
   msSleep = 0;
   mBandwidth = 0;
+  timeToOpen = 0;
   tz.tz_dsttime = tz.tz_minuteswest = 0;
   mIoPriorityValue = 0;
   mIoPriorityClass = IOPRIO_CLASS_NONE;
@@ -109,6 +111,8 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
                     const char* opaque)
 {
   EPNAME("open");
+  eos::common::Timing tm("open");
+  COMMONTIMING("begin", &tm);
   const char* tident = error.getErrUser();
   SetLogId(ExtractLogId(opaque).c_str(), client, tident);
   mTident = error.getErrUser();
@@ -204,6 +208,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     }
   }
 
+  COMMONTIMING("path::print", &tm);
   eos_info("ns_path=%s fst_path=%s", mNsPath.c_str(), mFstPath.c_str());
 
   if (mNsPath.beginswith("/replicate:")) {
@@ -248,8 +253,10 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     return SFS_OK;
   }
 
+  COMMONTIMING("creation::barrier", &tm);
   OpenFileTracker::CreationBarrier creationSerialization(gOFS.runningCreation,
       mFsId, mFileId);
+  COMMONTIMING("layout::exists", &tm);
 
   if ((retc = mLayout->GetFileIo()->fileExists())) {
     // We have to distinguish if an Exists call fails or return ENOENT, otherwise
@@ -395,8 +402,10 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
                      "simulated error");
   }
 
+  COMMONTIMING("get::localfmd", &tm);
   mFmd = gFmdDbMapHandler.LocalGetFmd(mFileId, mFsId, isRepairRead, mIsRW,
                                       vid.uid, vid.gid, mLid);
+  COMMONTIMING("resync::localfmd", &tm);
 
   if (mFmd == nullptr) {
     if (gFmdDbMapHandler.ResyncMgm(mFsId, mFileId, mRedirectManager.c_str())) {
@@ -424,6 +433,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     return gOFS.Emsg(epname, error, ENOENT, "open - no FMD record found");
   }
 
+  COMMONTIMING("clone::fst", &tm);
   char* sCloneFST = mCapOpaque->Get("mgm.cloneFST");
 
   if (sCloneFST) {
@@ -510,7 +520,9 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   eos_info("fst_path=%s open-mode=%x create-mode=%x layout-name=%s oss-opaque=%s",
            mFstPath.c_str(), open_mode, create_mode, mLayout->GetName(),
            oss_opaque.c_str());
+  COMMONTIMING("layout::open", &tm);
   int rc = mLayout->Open(open_mode, create_mode, oss_opaque.c_str());
+  COMMONTIMING("layout::opened", &tm);
 
   if (rc) {
     // If we have local errors in open we don't disable the filesystem -
@@ -532,11 +544,14 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     creationSerialization.Release();
   }
 
+  COMMONTIMING("layout::stat", &tm);
+
   if (isReplication && !isCreation) {
     mLayout->Stat(&updateStat);
   }
 
   if (isCreation && mBookingSize) {
+    COMMONTIMING("full::mutex", &tm);
     // Check if the file system is full
     XrdSysMutexHelper lock(gOFS.Storage->mFsFullMapMutex);
 
@@ -559,7 +574,9 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
                        "(headroom) exceeded fn=", mFstPath.c_str());
     }
 
+    COMMONTIMING("layout::fallocate", &tm);
     rc = mLayout->Fallocate(mBookingSize);
+    COMMONTIMING("layout::fallocated", &tm);
 
     if (rc) {
       eos_crit("msg=\"file allocation failed\" retc=%d errno=%d size=%llu",
@@ -587,6 +604,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   }
 
   if (!isCreation) {
+    COMMONTIMING("layout::stat", &tm);
     // Get the real size of the file, not the local stripe size!
     struct stat statinfo {};
 
@@ -630,6 +648,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   // Set the eos lfn as extended attribute
   std::unique_ptr<FileIo> io
   (FileIoPlugin::GetIoObject(mLayout->GetLocalReplicaPath(), this));
+  COMMONTIMING("fileio::object", &tm);
 
   if (mIsRW) {
     if (mNsPath.beginswith("/replicate:") || mNsPath.beginswith("/fusex-open")) {
@@ -663,6 +682,8 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     }
   }
 
+  COMMONTIMING("open::accountingt", &tm);
+
   if (mIsRW) {
     gOFS.openedForWriting.up(mFsId, mFileId);
   } else {
@@ -670,6 +691,11 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   }
 
   mOpened = true;
+  COMMONTIMING("end", &tm);
+  timeToOpen = tm.RealTime();
+  // slow open reports
+  eos_info("open-duration=%.03fms path='%s' fxid=%08llx %s\n", timeToOpen,
+           mNsPath.c_str(), mFileId, tm.Dump().c_str());
   return SFS_OK;
 }
 
@@ -3016,7 +3042,7 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
              "wb=%llu&wb_min=%llu&wb_max=%llu&wb_sigma=%.02f&"
              "sfwdb=%llu&sbwdb=%llu&sxlfwdb=%llu&sxlbwdb=%llu&"
              "nfwds=%lu&nbwds=%lu&nxlfwds=%lu&nxlbwds=%lu&"
-             "rt=%.02f&rvt=%.02f&wt=%.02f&osize=%llu&csize=%llu&"
+             "ot=%.03frt=%.02f&rvt=%.02f&wt=%.02f&osize=%llu&csize=%llu&"
              "delete_on_close=%d&prio_c=%d&prio_l=%d&prio_d=%d&forced_bw=%d&ms_sleep=%llu&%s"
              , this->logId
              , mCapOpaque->Get("mgm.path") ? mCapOpaque->Get("mgm.path") : mNsPath.c_str()
@@ -3042,6 +3068,7 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
              , nBwdSeeks
              , nXlFwdSeeks
              , nXlBwdSeeks
+             , timeToOpen
              , ((rTime.tv_sec * 1000.0) + (rTime.tv_usec / 1000.0))
              , ((rvTime.tv_sec * 1000.0) + (rvTime.tv_usec / 1000.0))
              , ((wTime.tv_sec * 1000.0) + (wTime.tv_usec / 1000.0))

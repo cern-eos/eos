@@ -35,13 +35,13 @@ void StdDevBalancerEngine::configure(const engine_conf_t& conf)
   mMinDeviation = extract_percent_value(conf, "min_threshold"sv, 0.05, &err);
 
   if (!err.empty()) {
-    eos_static_err("msg=Failed to set min_deviation, err=%s", err.c_str());
+    eos_static_err("msg=\"failed to set min_deviation\" err=%s", err.c_str());
   }
 
   mMaxDeviation = extract_percent_value(conf, "max_threshold"sv, 0.05, &err);
 
   if (!err.empty()) {
-    eos_static_err("msg=Failed to set max_deviation, err=%s", err.c_str());
+    eos_static_err("msg=\"failed to set max_deviation\" err=%s", err.c_str());
   }
 }
 
@@ -49,7 +49,6 @@ void StdDevBalancerEngine::recalculate()
 {
   mAvgUsedSize = calculateAvg(data.mGroupSizes);
 }
-
 
 void StdDevBalancerEngine::updateGroup(const std::string& group_name)
 {

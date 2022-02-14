@@ -40,6 +40,7 @@ class FsGroup;
 class FsSpace;
 static constexpr uint64_t GROUPBALANCER_MIN_FILE_SIZE = 1ULL << 30;
 static constexpr uint64_t GROUPBALANCER_MAX_FILE_SIZE = 16ULL << 30;
+static constexpr int GROUPBALANCER_FILE_ATTEMPTS = 50;
 using eos::mgm::group_balancer::GroupSize;
 //------------------------------------------------------------------------------
 //! @brief Class running the balancing among groups
@@ -106,18 +107,42 @@ public:
       return fid != 0  && !filename.empty();
     }
   };
+
   //----------------------------------------------------------------------------
-  //! Set up Config based on values configured in space
+  //! Apply configuration stored at the space level
+  //!
+  //! @param space the space to configure
+  //! @param cfg the GroupBalancer::Config struct
+  //!
+  //! @return boolean based on valid configuration
   //----------------------------------------------------------------------------
   bool Configure(FsSpace* const space, Config& cfg);
 
   std::string Status(bool detail = false, bool monitoring = false) const;
 
   static bool is_valid_engine(std::string_view engine_name);
+
+
+  //----------------------------------------------------------------------------
+  //! Ask the engine to reconfigure itself
+  //! NOTE: Internally this is done by setting an atomic reconfigure flag
+  //! While technically due to conf being already synchronised internally with a
+  //! mutex, even with relaxed memory ordering we'll see the changes, but a stronger
+  //! release/acquire semantic is to ensure that we don't wait on the conf mutex
+  //! If you're changing this please make sure to change the corresponding acquire
+  //! call in the GroupBalance routine.
+  //----------------------------------------------------------------------------
+  inline void reconfigure()
+  {
+    mDoConfigUpdate.store(true, std::memory_order_release);
+  }
+
 private:
   AssistedThread mThread; ///< Thread scheduling jobs
   std::string mSpaceName; ///< Attached space name
-  Config cfg;
+  Config mCfg;
+
+  std::atomic<bool> mDoConfigUpdate {true};
 
   mutable eos::common::RWMutexW mEngineMtx;
   std::unique_ptr<group_balancer::BalancerEngine> mEngine;
@@ -158,8 +183,7 @@ private:
   //!
   //! @return FileInfo for the chosen file
   //----------------------------------------------------------------------------
-  FileInfo
-  chooseFileFromGroup(FsGroup* group, int attempts = 50);
+  FileInfo chooseFileFromGroup(FsGroup* group, int attempts);
 
   void prepareTransfers(int nrTransfers);
 

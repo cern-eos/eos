@@ -79,6 +79,7 @@ Each FST sends for each file replica or piece it writes a record which looks lik
    nbwds                number of backward seeks
    nxlfwds              number of large forward seeks (>=128kb)
    nxlbwds              number of large backward seeks (>=128kb)
+   ot                   time spent in ms to open the file
    rt                   time spent in ms waiting for disk reads
    rvt                  time spent in ms waiting for disk reads for vector reads
    wt                   time spent in ms waiting for disk writes

@@ -1172,7 +1172,7 @@ data::datax::recover_ropen(fuse_req_t req)
     status = proxy->opening_state();
 
     // once all callbacks are there, this object can destroy itself since we don't track it anymore
-    if (!proxy->IsWaitWrite() && !proxy->IsOpening() && !proxy->IsClosing()) {
+    if (proxy->IsClosed()) {
       proxy->flag_selfdestructionTS();
       proxy->CheckSelfDestruction();
     } else {
@@ -1325,7 +1325,7 @@ data::datax::try_ropen(fuse_req_t req, XrdCl::Proxy*& proxy,
     newproxy->inherit_protocol(proxy);
 
     // once all callbacks are there, this object can destroy itself since we don't track it anymore
-    if (!proxy->IsWaitWrite() && !proxy->IsOpening() && !proxy->IsClosing()) {
+    if (proxy->IsClosed()) {
       proxy->flag_selfdestructionTS();
       proxy->detach();
       proxy->CheckSelfDestruction();
@@ -1853,7 +1853,7 @@ data::datax::recover_write(fuse_req_t req)
     // once all callbacks are there, this object can destroy itself since we don't track it anymore
     proxy->flag_selfdestructionTS();
 
-    if (!proxy->IsWaitWrite() && !proxy->IsOpening() && !proxy->IsClosing()) {
+    if (proxy->IsClosed()) {
       proxy->CheckSelfDestruction();
     }
   } else {

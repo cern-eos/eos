@@ -48,6 +48,7 @@
 #include "common/XattrCompat.hh"
 #include "common/ParseUtils.hh"
 #include "common/ShellCmd.hh"
+#include "common/BufferManager.hh"
 #include "mq/SharedHashWrapper.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetUtils.hh"
@@ -1183,7 +1184,8 @@ int
 XrdFstOfs::_rem(const char* path, XrdOucErrInfo& error,
                 const XrdSecEntity* client, XrdOucEnv* capOpaque,
                 const char* fstpath, unsigned long long fid,
-                unsigned long fsid, bool ignoreifnotexist)
+                unsigned long fsid, bool ignoreifnotexist,
+                std::string* deletion_report)
 {
   EPNAME("rem");
   std::string fstPath = "";
@@ -1272,7 +1274,13 @@ XrdFstOfs::_rem(const char* path, XrdOucErrInfo& error,
     }
   } else {
     // make a deletion report entry
-    MakeDeletionReport(fsid, fid, sbd);
+    if (deletion_report) {
+      // just return the report to the caller e.g. storage::Remover
+      *deletion_report = MakeDeletionReport(fsid, fid, sbd, false);
+    } else {
+      // send the report via MQ
+      MakeDeletionReport(fsid, fid, sbd, true);
+    }
   }
 
   gFmdDbMapHandler.LocalDeleteFmd(fid, fsid);
@@ -1698,12 +1706,12 @@ XrdFstOfs::WaitForOngoingIO(std::chrono::seconds timeout)
 //------------------------------------------------------------------------------
 // Report file deletion
 //------------------------------------------------------------------------------
-void
+std::string
 XrdFstOfs::MakeDeletionReport(eos::common::FileSystem::fsid_t fsid,
                               unsigned long long fid,
-                              struct stat& deletion_stat)
+                              struct stat& deletion_stat,
+                              bool viamq)
 {
-  XrdOucString reportString;
   struct timespec ts_now;
   char report[16384];
   eos::common::Timing::GetTimeSpec(ts_now);
@@ -1733,10 +1741,15 @@ XrdFstOfs::MakeDeletionReport(eos::common::FileSystem::fsid_t fsid,
            , deletion_stat.st_atim.tv_nsec
 #endif
            , deletion_stat.st_size);
-  reportString = report;
-  gOFS.ReportQueueMutex.Lock();
-  gOFS.ReportQueue.push(reportString);
-  gOFS.ReportQueueMutex.UnLock();
+
+  if (viamq) {
+    XrdOucString reportString = report;
+    gOFS.ReportQueueMutex.Lock();
+    gOFS.ReportQueue.push(reportString);
+    gOFS.ReportQueueMutex.UnLock();
+  }
+
+  return report;
 }
 
 //------------------------------------------------------------------------------
@@ -1970,7 +1983,8 @@ XrdFstOfs::HandleFsck(XrdOucEnv& env, XrdOucErrInfo& err_obj)
   }
   // Use XrdOucBuffPool to manage XrdOucBuffer objects that can hold redirection
   // info >= 2kb but not bigger than MaxSize
-  XrdOucBuffer* buff = mXrdBuffPool.Alloc(response.length() + 1);
+  const uint32_t aligned_sz = eos::common::power_ceil(response.length() + 1);
+  XrdOucBuffer* buff = mXrdBuffPool.Alloc(aligned_sz);
 
   if (buff == nullptr) {
     eos_static_err("msg=\"requested fsck result buffer too big\" req_sz=%llu "
@@ -2113,7 +2127,8 @@ XrdFstOfs::HandleRtlog(XrdOucEnv& env, XrdOucErrInfo& err_obj)
 
   // Use XrdOucBuffPool to manage XrdOucBuffer objects that can hold redirection
   // info >= 2kb but not bigger than MaxSize
-  XrdOucBuffer* buff = mXrdBuffPool.Alloc(response.length() + 1);
+  const uint32_t aligned_sz = eos::common::power_ceil(response.length() + 1);
+  XrdOucBuffer* buff = mXrdBuffPool.Alloc(aligned_sz);
 
   if (buff == nullptr) {
     eos_static_err("msg=\"requested rtlog result buffer too big\" req_sz=%llu "

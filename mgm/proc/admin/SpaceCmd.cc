@@ -37,9 +37,11 @@
 #include "namespace/interface/IView.hh"
 #include "common/Constants.hh"
 #include "common/StringTokenizer.hh"
+#include "common/StringUtils.hh"
 #include "common/token/EosTok.hh"
 
 EOSMGMNAMESPACE_BEGIN
+static const std::string GROUPBALANCER_KEY_PREFIX = "groupbalancer";
 
 //------------------------------------------------------------------------------
 // Method implementing the specific behavior of the command executed by the
@@ -773,6 +775,8 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                   } else {
                     std_out << "success: groupbalancer is disabled!";
                   }
+
+                  FsView::gFsView.mSpaceView[config.mgmspace_name()]->mGroupBalancer->reconfigure();
                 }
 
                 if (key == "geobalancer") {
@@ -885,6 +889,10 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
 
                   if (key == "lru.interval") {
                     gOFS->mLRUEngine->RefreshOptions();
+                  }
+
+                  if (eos::common::startsWith(key, GROUPBALANCER_KEY_PREFIX)) {
+                    FsView::gFsView.mSpaceView[config.mgmspace_name()]->mGroupBalancer->reconfigure();
                   }
                 }
               } else {

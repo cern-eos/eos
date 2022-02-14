@@ -329,8 +329,8 @@ GroupBalancer::chooseFileFromGroup(FsGroup* group, int attempts)
     auto filename = getFileProcTransferNameAndSize(fid, group, &filesize);
 
     if (filename.empty() ||
-        (cfg.mMinFileSize > filesize) ||
-        (cfg.mMaxFileSize < filesize)) {
+        (mCfg.mMinFileSize > filesize) ||
+        (mCfg.mMaxFileSize < filesize)) {
       continue;
     }
 
@@ -376,7 +376,7 @@ GroupBalancer::prepareTransfer()
     return;
   }
 
-  auto file_info = chooseFileFromGroup(fromGroup, cfg.file_attempts);
+  auto file_info = chooseFileFromGroup(fromGroup, mCfg.file_attempts);
 
   if (!file_info) {
     eos_static_info("msg=\"failed to choose any fid to schedule\" "
@@ -434,27 +434,50 @@ GroupBalancer::is_valid_engine(std::string_view engine_name)
   return engine_name == "std" || engine_name == "minmax";
 }
 
+//------------------------------------------------------------------------------
+// Appply configuration stored at the space level
+//------------------------------------------------------------------------------
 bool
 GroupBalancer::Configure(FsSpace* const space, GroupBalancer::Config& cfg)
 {
   cfg.is_enabled = space->GetConfigMember("groupbalancer") == "on";
   cfg.is_conv_enabled = space->GetConfigMember("converter") == "on";
+
+  if (!cfg.is_enabled || !cfg.is_conv_enabled) {
+    eos_static_info("msg=\"group balancer or converter not enabled\""
+                    " space=%s balancer_status=%d converter_status=%d",
+                    mSpaceName.c_str(), cfg.is_enabled, cfg.is_conv_enabled);
+    return false;
+  }
+
   cfg.num_tx = atoi(space->GetConfigMember("groupbalancer.ntx").c_str());
   cfg.mMinFileSize = common::StringConversion::GetSizeFromString(
                        space->GetConfigMember("groupbalancer.min_file_size"));
   cfg.mMaxFileSize = common::StringConversion::GetSizeFromString(
                        space->GetConfigMember("groupbalancer.max_file_size"));
+
+  if (!cfg.mMaxFileSize) {
+    eos_static_debug("%s", "msg=\"invalid Max File Size, using default\"");
+    cfg.mMaxFileSize = GROUPBALANCER_MAX_FILE_SIZE;
+  }
+
   cfg.engine_type = group_balancer::get_engine_type(
                       space->GetConfigMember("groupbalancer.engine"));
   cfg.file_attempts = atoi(
                         space->GetConfigMember("groupbalancer.file_attempts").c_str());
+
+  if (!cfg.file_attempts) {
+    eos_static_debug("%s", "msg=\"invalid File Attempts Count, using default\"");
+    cfg.file_attempts = GROUPBALANCER_FILE_ATTEMPTS;
+  }
+
   auto min_threshold_str = space->GetConfigMember("groupbalancer.min_threshold");
   auto max_threshold_str = space->GetConfigMember("groupbalancer.max_threshold");
 
   if (!group_balancer::is_valid_threshold(min_threshold_str, max_threshold_str)) {
     if (cfg.engine_type == BalancerEngineT::minmax) {
-      eos_static_err("%s",
-                     "msg=\"invalid min/max balancer threshold configuration\"");
+      eos_static_err("msg=\"invalid min/max balancer threshold configuration\""
+                     " space=%s", mSpaceName.c_str());
       return false;
     }
 
@@ -464,7 +487,8 @@ GroupBalancer::Configure(FsSpace* const space, GroupBalancer::Config& cfg)
     auto threshold_str = space->GetConfigMember("groupbalancer.threshold");
 
     if (!group_balancer::is_valid_threshold(threshold_str)) {
-      eos_static_err("%s", "msg=\"invalid std balancer threshold configuration\"");
+      eos_static_err("msg=\"invalid std balancer threshold configuration\""
+                     " space=%s", mSpaceName.c_str());
       return false;
     }
 
@@ -490,9 +514,11 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
   eosBalancerInfoFetcher fetcher(mSpaceName);
   group_balancer::BalancerEngineT prev_engine_type {BalancerEngineT::stddev};
   bool engine_reconfigured = false;
+  bool config_status = true;
 
   // Loop forever until cancelled
   while (!assistant.terminationRequested()) {
+    bool expected_reconfiguration = true;
     assistant.wait_for(std::chrono::seconds(10));
 
     if (!gOFS->mMaster->IsMaster()) {
@@ -519,38 +545,31 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
     gOFS->mFidTracker.DoCleanup(TrackerType::Balance);
     FsSpace* space = FsView::gFsView.mSpaceView[mSpaceName.c_str()];
 
-    if (!GroupBalancer::Configure(space, cfg)) {
-      FsView::gFsView.ViewMutex.UnLockRead();
-      eos_static_info("%s", "msg=\"group balancer configuration invalid, "
-                      "waiting for 10s\"");
-      assistant.wait_for(std::chrono::seconds(10));
-      continue;
-    }
-
-    if (!cfg.is_enabled || !cfg.is_conv_enabled) {
-      FsView::gFsView.ViewMutex.UnLockRead();
-      eos_static_info("msg=\"group balancer or converter not enabled\" space=\"%s\""
-                      " balancer_status=%d converter_status=%d",
-                      mSpaceName.c_str(), cfg.is_enabled, cfg.is_conv_enabled);
-      continue;
+    if (mDoConfigUpdate.compare_exchange_strong(expected_reconfiguration, false,
+        std::memory_order_acq_rel)) {
+      config_status = Configure(space, mCfg);
     }
 
     FsView::gFsView.ViewMutex.UnLockRead();
 
-    if (prev_engine_type != cfg.engine_type) {
-      mEngine.reset(group_balancer::make_balancer_engine(cfg.engine_type));
+    if (!config_status) {
+      continue;
+    }
+
+    if (prev_engine_type != mCfg.engine_type) {
+      mEngine.reset(group_balancer::make_balancer_engine(mCfg.engine_type));
       engine_reconfigured = true;
-      prev_engine_type = cfg.engine_type;
+      prev_engine_type = mCfg.engine_type;
     }
 
     mEngine->configure(mEngineConf);
     UpdateTransferList();
 
-    if ((int) mTransfers.size() >= cfg.num_tx) {
+    if ((int) mTransfers.size() >= mCfg.num_tx) {
       continue;
     }
 
-    eos_static_debug("msg=\"group balancer enabled\" ntx=%d ", cfg.num_tx);
+    eos_static_debug("msg=\"group balancer enabled\" ntx=%d ", mCfg.num_tx);
 
     if (cacheExpired() || engine_reconfigured) {
       {
@@ -565,7 +584,7 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
       }
     }
 
-    prepareTransfers(cfg.num_tx);
+    prepareTransfers(mCfg.num_tx);
   }
 }
 
