@@ -82,11 +82,19 @@ void ProcDirectoryBulkRequestDAO::cancelStageBulkRequest(const CancellationBulkR
 }
 
 void ProcDirectoryBulkRequestDAO::generateXattrsMapFromBulkRequest(const BulkRequest * bulkRequest, eos::IContainerMD::XAttrMap& xattrs) {
-  std::map<bulk::File,folly::Future<IFileMDPtr>> filesWithMDFutures;
   // Set last access time of the bulk-request directory
   std::time_t now = std::time(nullptr);
   std::string nowStr = std::to_string(now);
   xattrs[LAST_ACCESS_TIME_XATTR_NAME] = nowStr;
+}
+
+void ProcDirectoryBulkRequestDAO::generateXattrsMapFromBulkRequest(const StageBulkRequest* bulkRequest, eos::IContainerMD::XAttrMap& xattrs) {
+  generateXattrsMapFromBulkRequest(static_cast<const BulkRequest *>(bulkRequest),xattrs);
+
+  xattrs[ISSUER_UID_XATTR_NAME] = std::to_string(bulkRequest->getIssuerVid().uid);
+  xattrs[CREATION_TIME_XATTR_NAME] = std::to_string(bulkRequest->getCreationTime());
+
+  std::map<bulk::File,folly::Future<IFileMDPtr>> filesWithMDFutures;
   const auto & files = *bulkRequest->getFiles();
   for(auto & file : files){
     std::string path = file.first;
@@ -123,12 +131,6 @@ void ProcDirectoryBulkRequestDAO::generateXattrsMapFromBulkRequest(const BulkReq
       xattrs[FILE_ID_XATTR_KEY_PREFIX + fid] = *error;
     }
   }
-}
-
-void ProcDirectoryBulkRequestDAO::generateXattrsMapFromBulkRequest(const StageBulkRequest* bulkRequest, eos::IContainerMD::XAttrMap& xattrs) {
-  generateXattrsMapFromBulkRequest(static_cast<const BulkRequest *>(bulkRequest),xattrs);
-  xattrs[ISSUER_UID_XATTR_NAME] = std::to_string(bulkRequest->getIssuerVid().uid);
-  xattrs[CREATION_TIME_XATTR_NAME] = std::to_string(bulkRequest->getCreationTime());
 }
 
 void ProcDirectoryBulkRequestDAO::persistBulkRequestDirectory(const std::string& directoryBulkReqPath, const eos::IContainerMD::XAttrMap& xattrs) {
