@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: CreateUnpinBulkRequest.cc
+// File: CreateReleaseBulkRequest.hh
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,27 +20,26 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
+#ifndef EOS_CREATERELEASEBULKREQUEST_HH
+#define EOS_CREATERELEASEBULKREQUEST_HH
 
-#include "CreateUnpinBulkRequest.hh"
-#include "mgm/http/rest-api/exception/JsonValidationException.hh"
-#include "mgm/http/rest-api/exception/tape/TapeRestApiBusinessException.hh"
+#include "mgm/Namespace.hh"
+#include "mgm/http/rest-api/action/tape/TapeAction.hh"
+#include "mgm/http/rest-api/action/tape/TapeAction.hh"
+#include "mgm/http/rest-api/json/builder/JsonModelBuilder.hh"
+#include "mgm/http/rest-api/json/tape/TapeRestApiJsonifier.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-common::HttpResponse* CreateUnpinBulkRequest::run(common::HttpRequest* request, const common::VirtualIdentity* vid) {
-  std::unique_ptr<PathsModel> paths;
-  try {
-    paths = mInputJsonModelBuilder->buildFromJson(request->GetBody());
-  } catch (const JsonValidationException & ex) {
-    return mResponseFactory.createBadRequestError(ex).getHttpResponse();
-  }
-  //Unpin the files provided by the user
-  try {
-    mTapeRestApiBusiness->unpinPaths(paths.get(), vid);
-  } catch(const TapeRestApiBusinessException & ex) {
-    return mResponseFactory.createInternalServerError(ex.what()).getHttpResponse();
-  }
-  return mResponseFactory.createOkEmptyResponse().getHttpResponse();
-}
+class CreateReleaseBulkRequest : public TapeAction {
+public:
+  CreateReleaseBulkRequest(const std::string & accessURL,const common::HttpHandler::Methods method,std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness,std::shared_ptr<JsonModelBuilder<PathsModel>> inputJsonModelBuilder):
+      TapeAction(accessURL,method,tapeRestApiBusiness),mInputJsonModelBuilder(inputJsonModelBuilder){}
+  common::HttpResponse * run(common::HttpRequest * request, const common::VirtualIdentity * vid) override;
+private:
+  std::shared_ptr<JsonModelBuilder<PathsModel>> mInputJsonModelBuilder;
+};
 
 EOSMGMRESTNAMESPACE_END
+
+#endif // EOS_CREATERELEASEBULKREQUEST_HH
