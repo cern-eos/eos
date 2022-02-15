@@ -79,7 +79,7 @@ std::unique_ptr<Controller> TapeRestHandler::initializeFileInfoController(const 
 std::unique_ptr<Controller> TapeRestHandler::initializeReleaseController(const std::string& apiVersion, std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness) {
   std::unique_ptr<Controller> releaseController(ControllerFactory::getReleaseController(mEntryPointURL + apiVersion + "/release/"));
   const std::string & releaseControllerAccessURL = releaseController->getAccessURL();
-  releaseController->addAction(std::make_unique<CreateReleaseBulkRequest>(releaseControllerAccessURL,common::HttpHandler::Methods::POST,tapeRestApiBusiness,std::make_shared<PathsModelBuilder>()));
+  releaseController->addAction(std::make_unique<CreateReleaseBulkRequest>(releaseControllerAccessURL + URLParametersConstants::ID,common::HttpHandler::Methods::POST,tapeRestApiBusiness,std::make_shared<PathsModelBuilder>()));
   return releaseController;
 }
 
