@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: UnpinController.hh
+// File: CreateReleaseBulkRequest.cc
 // Author: Cedric Caffy - CERN
 // ----------------------------------------------------------------------
 
@@ -20,22 +20,28 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-#ifndef EOS_UNPINCONTROLLER_HH
-#define EOS_UNPINCONTROLLER_HH
-#include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/controllers/Controller.hh"
+
+#include "CreateReleaseBulkRequest.hh"
+#include "mgm/http/rest-api/exception/JsonValidationException.hh"
+#include "mgm/http/rest-api/exception/tape/TapeRestApiBusinessException.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-/**
- * This controller is the version 1 of the stage
- * resource of the tape REST API
- */
-class UnpinController : public Controller {
-public:
-  UnpinController(const std::string & accessURL);
-  virtual common::HttpResponse * handleRequest(common::HttpRequest * request,const common::VirtualIdentity * vid) override;
-};
+common::HttpResponse*
+CreateReleaseBulkRequest::run(common::HttpRequest* request, const common::VirtualIdentity* vid) {
+  std::unique_ptr<PathsModel> paths;
+  try {
+    paths = mInputJsonModelBuilder->buildFromJson(request->GetBody());
+  } catch (const JsonValidationException & ex) {
+    return mResponseFactory.createBadRequestError(ex).getHttpResponse();
+  }
+  //release the files provided by the user
+  try {
+    mTapeRestApiBusiness->releasePaths(paths.get(), vid);
+  } catch(const TapeRestApiBusinessException & ex) {
+    return mResponseFactory.createInternalServerError(ex.what()).getHttpResponse();
+  }
+  return mResponseFactory.createOkEmptyResponse().getHttpResponse();
+}
 
 EOSMGMRESTNAMESPACE_END
-#endif // EOS_UNPINCONTROLLER_HH

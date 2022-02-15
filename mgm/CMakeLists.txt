@@ -264,7 +264,7 @@ add_library(
   http/rest-api/action/tape/stage/GetStageBulkRequest.cc
   http/rest-api/action/tape/stage/DeleteStageBulkRequest.cc
   http/rest-api/action/tape/fileinfo/GetFileInfo.cc
-  http/rest-api/action/tape/unpin/CreateUnpinBulkRequest.cc
+  http/rest-api/action/tape/release/CreateReleaseBulkRequest.cc
   http/rest-api/business/tape/TapeRestApiBusiness.cc
   http/rest-api/controllers/Controller.cc
   http/rest-api/controllers/tape/factories/ControllerFactory.cc
@@ -272,7 +272,7 @@ add_library(
   http/rest-api/controllers/ControllerActionDispatcher.cc
   http/rest-api/controllers/tape/stage/StageController.cc
   http/rest-api/controllers/tape/fileinfo/FileInfoController.cc
-  http/rest-api/controllers/tape/unpin/UnpinController.cc
+  http/rest-api/controllers/tape/release/ReleaseController.cc
   http/rest-api/exception/RestException.cc
   http/rest-api/exception/ControllerNotFoundException.cc
   http/rest-api/exception/ForbiddenException.cc

@@ -32,7 +32,7 @@
 #include "mgm/http/rest-api/action/tape/stage/GetStageBulkRequest.hh"
 #include "mgm/http/rest-api/action/tape/stage/DeleteStageBulkRequest.hh"
 #include "mgm/http/rest-api/action/tape/fileinfo/GetFileInfo.hh"
-#include "mgm/http/rest-api/action/tape/unpin/CreateUnpinBulkRequest.hh"
+#include "mgm/http/rest-api/action/tape/release/CreateReleaseBulkRequest.hh"
 #include "mgm/http/rest-api/controllers/tape/URLParametersConstants.hh"
 #include "mgm/http/rest-api/json/tape/model-builders/CreateStageRequestModelBuilder.hh"
 #include "mgm/http/rest-api/json/tape/jsonifiers/stage/CreatedStageBulkRequestJsonifier.hh"
@@ -55,8 +55,8 @@ void TapeRestHandler::initializeControllers() {
   std::unique_ptr<Controller> fileInfoController = initializeFileInfoController(VERSION_0,restApiBusiness);
   mControllerManager.addController(std::move(fileInfoController));
 
-  std::unique_ptr<Controller> unpinController = initializeUnpinController(VERSION_0,restApiBusiness);
-  mControllerManager.addController(std::move(unpinController));
+  std::unique_ptr<Controller> releaseController = initializeReleaseController(VERSION_0, restApiBusiness);
+  mControllerManager.addController(std::move(releaseController));
 }
 
 std::unique_ptr<Controller> TapeRestHandler::initializeStageController(const std::string & apiVersion, std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness) {
@@ -76,11 +76,11 @@ std::unique_ptr<Controller> TapeRestHandler::initializeFileInfoController(const 
   return fileInfoController;
 }
 
-std::unique_ptr<Controller> TapeRestHandler::initializeUnpinController(const std::string& apiVersion, std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness) {
-  std::unique_ptr<Controller> unpinController(ControllerFactory::getUnpinController(mEntryPointURL + apiVersion + "/unpin/"));
-  const std::string & unpinControllerAccessURL = unpinController->getAccessURL();
-  unpinController->addAction(std::make_unique<CreateUnpinBulkRequest>(unpinControllerAccessURL,common::HttpHandler::Methods::POST,tapeRestApiBusiness,std::make_shared<PathsModelBuilder>()));
-  return unpinController;
+std::unique_ptr<Controller> TapeRestHandler::initializeReleaseController(const std::string& apiVersion, std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness) {
+  std::unique_ptr<Controller> releaseController(ControllerFactory::getReleaseController(mEntryPointURL + apiVersion + "/release/"));
+  const std::string & releaseControllerAccessURL = releaseController->getAccessURL();
+  releaseController->addAction(std::make_unique<CreateReleaseBulkRequest>(releaseControllerAccessURL,common::HttpHandler::Methods::POST,tapeRestApiBusiness,std::make_shared<PathsModelBuilder>()));
+  return releaseController;
 }
 
 common::HttpResponse* TapeRestHandler::handleRequest(common::HttpRequest* request, const common::VirtualIdentity * vid) {
