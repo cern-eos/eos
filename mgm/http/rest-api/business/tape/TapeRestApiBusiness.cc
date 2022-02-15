@@ -196,7 +196,7 @@ std::shared_ptr<bulk::QueryPrepareResponse> TapeRestApiBusiness::getFileInfo(con
   return queryPrepareResult->getResponse();
 }
 
-void TapeRestApiBusiness::unpinPaths(const PathsModel* model, const common::VirtualIdentity* vid) {
+void TapeRestApiBusiness::releasePaths(const PathsModel* model, const common::VirtualIdentity* vid) {
   auto & filesContainer = model->getFiles();
   bulk::PrepareArgumentsWrapper pargsWrapper("fake_id", Prep_EVICT,
                                              filesContainer.getPaths(),
@@ -206,7 +206,7 @@ void TapeRestApiBusiness::unpinPaths(const PathsModel* model, const common::Virt
   int retEvict = pm->prepare(*pargsWrapper.getPrepareArguments(),error,vid);
   if(retEvict != SFS_OK) {
     std::stringstream ss;
-    ss << "Unable to unpin the files provided. errMsg=\"" << error.getErrText() << "\"";
+    ss << "Unable to release the files provided. errMsg=\"" << error.getErrText() << "\"";
     throw TapeRestApiBusinessException(ss.str());
   }
 }
