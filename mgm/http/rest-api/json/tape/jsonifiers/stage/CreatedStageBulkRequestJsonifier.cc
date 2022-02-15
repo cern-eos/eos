@@ -27,7 +27,7 @@ EOSMGMRESTNAMESPACE_BEGIN
 void
 CreatedStageBulkRequestJsonifier::jsonify(const CreatedStageBulkRequestResponseModel * model, std::stringstream& ss) {
   Json::Value root;
-  root["request_id"] = model->getRequestId();
+  root["requestId"] = model->getRequestId();
   ss << root;
 }
 
