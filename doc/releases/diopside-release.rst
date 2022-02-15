@@ -20,12 +20,26 @@ This release is based on XRootD V5.
 ``v5.0.13 Diopside``
 ===================
 
-2022-02-08
+2022-02-15
 
 Note
 ----
 
-* Build with XRootD 5.4.1-rc1 (eos-xrootd-5.3.100) as dependency
+* Includes all the changes from 4.8.76
+
+Bug
+---
+   
+* [EOS-5110] - Consolidate Access control in GRPC MD, MDSTreaming 
+* [EOS-5116] - Workaround for XrdOucBuffPool bug
+* [EOS-5118] - eos-ns-inspect scan is initializing maxdepth to 0, even if not used
+* [EOS-5119] - Deadlock scenario in eosxd
+
+Improvement
+-----------
+
+* [EOS-5111] - Groupbalancer: newly introduced fields may not have a sane value
+* [EOS-5120] - io stat tag totals
 
 
 ``v5.0.12 Diopside``
