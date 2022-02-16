@@ -85,7 +85,7 @@ eos::fst::XrdFstOfs eos::fst::gOFS;
 extern XrdSysError OfsEroute;
 extern XrdOss* XrdOfsOss;
 extern XrdOfs* XrdOfsFS;
-extern XrdOucTrace OfsTrace;
+extern XrdSysTrace OfsTrace;
 
 // Set the version information
 XrdVERSIONINFO(XrdSfsGetFileSystem2, FstOfs);

@@ -163,34 +163,142 @@ public:
   //----------------------------------------------------------------------------
   //! file pre-read fakes ok (we don't need it)
   //----------------------------------------------------------------------------
-
-  int
-  read(XrdSfsFileOffset fileOffset,
-       XrdSfsXferSize preread_sz)
+  int read(XrdSfsFileOffset fileOffset, XrdSfsXferSize preread_sz)
   {
     return SFS_OK;
   }
 
   //----------------------------------------------------------------------------
-  // file read used to stream proc command results
+  //! Read a partial result of a 'proc' interface command
+  //!
+  //! @param offset where to read from the result
+  //! @param buff buffer where to place the result
+  //! @param blen maximum size to read
+  //!
+  //! @return number of bytes read upon success or SFS_ERROR
+  //!
+  //! @note This read is only used to stream back 'proc' command results to
+  //! the EOS shell since all normal files get a redirection or error during
+  //! the file open.
   //----------------------------------------------------------------------------
-  XrdSfsXferSize read(XrdSfsFileOffset fileOffset,
-                      char* buffer,
-                      XrdSfsXferSize buffer_size);
+  XrdSfsXferSize read(XrdSfsFileOffset offset, char* buff, XrdSfsXferSize blen);
 
   //----------------------------------------------------------------------------
-  // file read in async mode (not supported)
+  //! File read in async mode - NOT SUPPORTED
   //----------------------------------------------------------------------------
-  int read(XrdSfsAio* aioparm);
+  int read(XrdSfsAio* aioparm)
+  {
+    static const char* epname = "aioread";
+    return Emsg(epname, error, EOPNOTSUPP, "read aio - not supported",
+                fileName.c_str());
+  }
 
-  XrdSfsXferSize write(XrdSfsFileOffset fileOffset,
-                       const char* buffer,
-                       XrdSfsXferSize buffer_size);
+  //----------------------------------------------------------------------------
+  //! Read file pages into a buffer and return corresponding checksums.
+  //!
+  //! @param  offset  - The offset where the read is to start. It may be
+  //!                   unaligned with certain caveats relative to csvec.
+  //! @param  buffer  - pointer to buffer where the bytes are to be placed.
+  //! @param  rdlen   - The number of bytes to read. The amount must be an
+  //!                   integral number of XrdSfsPage::Size bytes.
+  //! @param  csvec   - A vector of entries to be filled with the cooresponding
+  //!                   CRC32C checksum for each page. However, if the offset is
+  //!                   unaligned, then csvec[0] contains the crc for the page
+  //!                   fragment that brings it to alignment for csvec[1].
+  //!                   It must be sized to hold all aligned XrdSys::Pagesize
+  //!                   crc's plus additional ones for leading and ending page
+  //!                   fragments, if any.
+  //! @param  opts    - Processing options (see above).
+  //!
+  //! @return >= 0      The number of bytes that placed in buffer.
+  //! @return SFS_ERROR File could not be read, error holds the reason.
+  //----------------------------------------------------------------------------
+  XrdSfsXferSize pgRead(XrdSfsFileOffset offset, char* buffer,
+                        XrdSfsXferSize rdlen, uint32_t* csvec,
+                        uint64_t opts = 0) override;
 
   //----------------------------------------------------------------------------
-  // file write in async mode (not supported)
+  //! Read file pages and checksums using asynchronous I/O - NOT SUPPORTED
+  //!
+  //! @param  aioparm - Pointer to async I/O object controlling the I/O.
+  //! @param  opts    - Processing options (see above).
+  //!
+  //! @return SFS_OK    Request accepted and will be scheduled.
+  //! @return SFS_ERROR File could not be read, error holds the reason.
+  //-----------------------------------------------------------------------------
+  int pgRead(XrdSfsAio* aioparm, uint64_t opts = 0) override
+  {
+    static const char* epname = "aioPgRead";
+    return Emsg(epname, error, EOPNOTSUPP, "pgRead aio - not supported",
+                fileName.c_str());
+  }
+
   //----------------------------------------------------------------------------
-  int write(XrdSfsAio* aioparm);
+  //! Write to file - NOT SUPPORTED (no use case)
+  //----------------------------------------------------------------------------
+  XrdSfsXferSize write(XrdSfsFileOffset fileOffset, const char* buffer,
+                       XrdSfsXferSize buffer_size) override
+  {
+    static const char* epname = "write";
+    return Emsg(epname, error, EOPNOTSUPP, "write - not supported",
+                fileName.c_str());
+  }
+
+  //----------------------------------------------------------------------------
+  //! File write in async mode - NOT SUPPORTED
+  //----------------------------------------------------------------------------
+  int write(XrdSfsAio* aioparm)
+  {
+    static const char* epname = "aiowrite";
+    return Emsg(epname, error, EOPNOTSUPP, "write aio - not supported",
+                fileName.c_str());
+  }
+
+  //----------------------------------------------------------------------------
+  //! Write file pages into a file with corresponding checksums - NOT SUPPORTED
+  //!
+  //! @param  offset  - The offset where the write is to start. It may be
+  //!                   unaligned with certain caveats relative to csvec.
+  //! @param  buffer  - pointer to buffer containing the bytes to write.
+  //! @param  wrlen   - The number of bytes to write. If amount is not an
+  //!                   integral number of XrdSys::PageSize bytes, then this must
+  //!                   be the last write to the file at or above the offset.
+  //! @param  csvec   - A vector which contains the corresponding CRC32 checksum
+  //!                   for each page or page fragment. If offset is unaligned
+  //!                   then csvec[0] is the crc of the leading fragment to
+  //!                   align the subsequent full page who's crc is in csvec[1].
+  //!                   It must be sized to hold all aligned XrdSys::Pagesize
+  //!                   crc's plus additional ones for leading and ending page
+  //!                   fragments, if any.
+  //! @param  opts    - Processing options (see above).
+  //!
+  //! @return >= 0      The number of bytes written.
+  //! @return SFS_ERROR File could not be read, error holds the reason.
+  //----------------------------------------------------------------------------
+  XrdSfsXferSize pgWrite(XrdSfsFileOffset offset, char* buffer,
+                         XrdSfsXferSize wrlen, uint32_t* csvec,
+                         uint64_t opts = 0) override
+  {
+    static const char* epname = "PgWrite";
+    return Emsg(epname, error, EOPNOTSUPP, "pgWrite - not supported",
+                fileName.c_str());
+  }
+
+  //----------------------------------------------------------------------------
+  //! Write file pages and checksums using asynchronous I/O - NOT SUPPORTED
+  //!
+  //! @param  aioparm - Pointer to async I/O object controlling the I/O.
+  //! @param  opts    - Processing options (see above).
+  //!
+  //! @return SFS_OK    Request accepted and will be scheduled.
+  //! @return SFS_ERROR File could not be read, error holds the reason.
+  //----------------------------------------------------------------------------
+  int pgWrite(XrdSfsAio* aioparm, uint64_t opts = 0) override
+  {
+    static const char* epname = "aioPgWrite";
+    return Emsg(epname, error, EOPNOTSUPP, "pgWrite aio - not supported",
+                fileName.c_str());
+  }
 
   //----------------------------------------------------------------------------
   //! file sync
