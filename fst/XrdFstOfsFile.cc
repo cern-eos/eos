@@ -411,7 +411,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
   COMMONTIMING("resync::localfmd", &tm);
 
-  if (mFmd == nullptr) {
+  if (mFmd == nullptr && create_fmd) {
     if (gOFS.mFmdHandler->ResyncMgm(mFsId, mFileId, mRedirectManager.c_str())) {
       eos_info("msg=\"resync ok\" fsid=%lu fxid=%llx", mFsId, mFileId);
       mFmd = gOFS.mFmdHandler->LocalGetFmd(mFileId, mFsId, isRepairRead,
