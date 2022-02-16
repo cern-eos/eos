@@ -37,7 +37,7 @@ FmdAttrHandler::CreateFile(FileIo* fio)
   }
   FsIo fsio {fio->GetPath()};
   int rc = fsio.fileOpen(O_CREAT | O_RDWR | O_APPEND,
-                         S_IRUSR | S_IWUSR | S_IRGRP);
+                         S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
   if (rc != 0)
   {
     eos_err("Failed to open file rc=%d", errno);
