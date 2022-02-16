@@ -3089,49 +3089,14 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   return rcode;
 }
 
-/*----------------------------------------------------------------------------*/
-int
-XrdMgmOfsFile::close()
-/*----------------------------------------------------------------------------*/
-/*
- * @brief close a file object
- *
- * @return SFS_OK
- *
- * The close on the MGM is called only for files opened using the 'proc' e.g.
- * EOS shell comamnds. By construction failures can happen only during the open
- * of a 'proc' file e.g. the close always succeeds!
- */
-/*----------------------------------------------------------------------------*/
-{
-  oh = -1;
 
-  if (mProcCmd) {
-    mProcCmd->close();
-    return SFS_OK;
-  }
-
-  return SFS_OK;
-}
-
+//----------------------------------------------------------------------------
+// Read a partial result of a 'proc' interface command
+//----------------------------------------------------------------------------
 XrdSfsXferSize
 XrdMgmOfsFile::read(XrdSfsFileOffset offset,
                     char* buff,
                     XrdSfsXferSize blen)
-/*----------------------------------------------------------------------------*/
-/*
- * read a partial result of a 'proc' interface command
- *
- * @param offset where to read from the result
- * @param buff buffer where to place the result
- * @param blen maximum size to read
- *
- * @return number of bytes read upon success or SFS_ERROR
- *
- * This read is only used to stream back 'proc' command results to the EOS
- * shell since all normal files get a redirection or error during the file open.
- */
-/*----------------------------------------------------------------------------*/
 {
   static const char* epname = "read";
 
@@ -3146,63 +3111,41 @@ XrdMgmOfsFile::read(XrdSfsFileOffset offset,
   return Emsg(epname, error, EOPNOTSUPP, "read", fileName.c_str());
 }
 
-/*----------------------------------------------------------------------------*/
-int
-XrdMgmOfsFile::read(XrdSfsAio* aiop)
+//------------------------------------------------------------------------------
+// Read file pages into a buffer and return corresponding checksums
+//------------------------------------------------------------------------------
+XrdSfsXferSize
+XrdMgmOfsFile::pgRead(XrdSfsFileOffset offset, char* buffer,
+                      XrdSfsXferSize rdlen, uint32_t* csvec, uint64_t opts)
+{
+  // Not populating the checksum values
+  return read(offset, buffer, rdlen);
+}
+
 /*----------------------------------------------------------------------------*/
 /*
- * aio flavour of a read - not supported
- * @return SFS_ERROR and EOPNOTSUPP
+ * @brief close a file object
+ *
+ * @return SFS_OK
+ *
+ * The close on the MGM is called only for files opened using the 'proc' e.g.
+ * EOS shell comamnds. By construction failures can happen only during the open
+ * of a 'proc' file e.g. the close always succeeds!
  */
 /*----------------------------------------------------------------------------*/
+int
+XrdMgmOfsFile::close()
 {
-  static const char* epname = "read";
+  oh = -1;
 
-  if (isZeroSizeFile) {
-    return 0;
+  if (mProcCmd) {
+    mProcCmd->close();
+    return SFS_OK;
   }
 
-  // Execute this request in a synchronous fashion
-  //
-  return Emsg(epname, error, EOPNOTSUPP, "read", fileName.c_str());
+  return SFS_OK;
 }
 
-/*----------------------------------------------------------------------------*/
-XrdSfsXferSize
-XrdMgmOfsFile::write(XrdSfsFileOffset offset,
-                     const char* buff,
-                     XrdSfsXferSize blen)
-/*----------------------------------------------------------------------------*/
-/*
- * @brief write a block to an open file - not implemented (no use case)
- *
- * @return SFS_ERROR and EOPNOTSUPP
- */
-/*----------------------------------------------------------------------------*/
-{
-  static const char* epname = "write";
-  return Emsg(epname, error, EOPNOTSUPP, "write", fileName.c_str());
-}
-
-/*----------------------------------------------------------------------------*/
-int
-XrdMgmOfsFile::write(XrdSfsAio* aiop)
-/*----------------------------------------------------------------------------*/
-/*
- * @brief write a block to an open file - not implemented (no use case)
- *
- * @return SFS_ERROR and EOPNOTSUPP
- */
-/*----------------------------------------------------------------------------*/
-{
-  static const char* epname = "write";
-  // Execute this request in a synchronous fashion
-  return Emsg(epname, error, EOPNOTSUPP, "write", fileName.c_str());
-}
-
-/*----------------------------------------------------------------------------*/
-int
-XrdMgmOfsFile::stat(struct stat* buf)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief stat the size of an open 'proc' command/file
@@ -3215,6 +3158,8 @@ XrdMgmOfsFile::stat(struct stat* buf)
  * buffer.
  */
 /*----------------------------------------------------------------------------*/
+int
+XrdMgmOfsFile::stat(struct stat* buf)
 {
   static const char* epname = "stat";
 

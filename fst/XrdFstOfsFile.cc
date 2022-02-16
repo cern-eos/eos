@@ -39,6 +39,7 @@
 #include "XrdOss/XrdOssApi.hh"
 #include "fst/io/FileIoPluginCommon.hh"
 #include "namespace/utils/Etag.hh"
+#include "XrdOuc/XrdOucPgrwUtils.hh"
 extern XrdOssSys* XrdOfsOss;
 
 EOSFSTNAMESPACE_BEGIN
@@ -815,6 +816,36 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
   return rc;
 }
 
+//----------------------------------------------------------------------------
+// Read file pages into a buffer and return corresponding checksums
+//----------------------------------------------------------------------------
+XrdSfsXferSize
+XrdFstOfsFile::pgRead(XrdSfsFileOffset offset, char* buffer,
+                      XrdSfsXferSize rdlen, uint32_t* csvec, uint64_t opts)
+{
+  eos_debug("offset=%lli len=%i", offset, rdlen);
+  XrdSfsXferSize bytes;
+
+  // Read the data into the buffer
+  if ((bytes = read(offset, buffer, rdlen)) <= 0) {
+    return bytes;
+  }
+
+  // Generate the crc's
+  XrdOucPgrwUtils::csCalc(buffer, offset, bytes, csvec);
+  return bytes;
+}
+
+//------------------------------------------------------------------------------
+// Read file pages and checksums using asynchronous I/O - NOT SUPPORTED
+//------------------------------------------------------------------------------
+int
+XrdFstOfsFile::pgRead(XrdSfsAio* aioparm, uint64_t opts)
+{
+  return gOFS.Emsg("pgRead_aio", error, ENOTSUP, "pgRead aio - operation not "
+                   "supported");
+}
+
 //------------------------------------------------------------------------------
 // Vector read
 //------------------------------------------------------------------------------
@@ -1033,6 +1064,43 @@ int
 XrdFstOfsFile::write(XrdSfsAio* aioparm)
 {
   return gOFS.Emsg("write_aio", error, ENOTSUP, "write aio - operation not "
+                   "supported");
+}
+
+//----------------------------------------------------------------------------
+//! Write file pages into a file with corresponding checksums.
+//----------------------------------------------------------------------------
+XrdSfsXferSize
+XrdFstOfsFile::pgWrite(XrdSfsFileOffset offset, char* buffer,
+                       XrdSfsXferSize wrlen, uint32_t* csvec, uint64_t opts)
+{
+  eos_debug("offset=%lli len=%i", offset, wrlen);
+
+  // If we have a checksum vector and verify is on, do verification.
+  if (opts & Verify) {
+    XrdOucPgrwUtils::dataInfo dInfo(buffer, csvec, offset, wrlen);
+    off_t badoff;
+    int   badlen;
+
+    if (!XrdOucPgrwUtils::csVer(dInfo, badoff, badlen)) {
+      char eMsg[512];
+      snprintf(eMsg, sizeof(eMsg), "Checksum error at offset %lld",
+               (long long) badoff);
+      error.setErrInfo(EDOM, eMsg);
+      return SFS_ERROR;
+    }
+  }
+
+  return write(offset, buffer, wrlen);
+}
+
+//------------------------------------------------------------------------------
+// Write file pages and checksums using asynchronous I/O - NOT SUPPORTED
+//------------------------------------------------------------------------------
+int
+XrdFstOfsFile::pgWrite(XrdSfsAio* aioparm, uint64_t opts)
+{
+  return gOFS.Emsg("pgWrite_aio", error, ENOTSUP, "pgWrite aio - operation not "
                    "supported");
 }
 
