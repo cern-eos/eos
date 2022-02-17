@@ -75,7 +75,13 @@ ConvertCmd::ProcessRequest() noexcept
   } else if (subcmd == eos::console::ConvertProto::kList) {
     ListSubcmd(convert.list(), reply, jsonOutput);
   } else if (subcmd == eos::console::ConvertProto::kClear) {
-    ClearSubcmd(convert.clear(), reply);
+    // check if vid has admin permissions (root, sudoer, admin user, admin group)
+    if (!vid.uid || vid.sudoer || vid.hasUid(3)|| vid.hasGid(4)){
+      ClearSubcmd(convert.clear(), reply);
+    }else{
+      reply.set_retc(EPERM);
+      reply.set_std_err("error: you have to take role 'root' to execute this command");
+    }
   } else {
     reply.set_retc(EINVAL);
     reply.set_std_err("error: command not supported");
