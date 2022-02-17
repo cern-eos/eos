@@ -453,7 +453,8 @@ grpc::Status
 GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
                        grpc::ServerWriter<eos::rpc::MDResponse>* writer,
                        const eos::rpc::MDRequest* request, bool check_perms,
-                       bool lock)
+                       bool lock, 
+		       bool access_self)
 {
   eos::common::RWMutexReadLock viewReadLock;
 
@@ -527,7 +528,7 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
     }
 
     if (!fallthrough) {
-      if (check_perms && !Access(vid, R_OK, pmd)) {
+      if (check_perms && !Access(vid, X_OK, pmd)) {
         return grpc::Status(grpc::StatusCode::PERMISSION_DENIED,
                             "access to parent container denied");
       }
@@ -642,9 +643,16 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
       }
     }
 
-    if (!Access(vid, R_OK, pmd)) {
-      return grpc::Status(grpc::StatusCode::PERMISSION_DENIED,
-                          "access to parent container denied");
+    if (access_self) {
+      if (!Access(vid, X_OK, cmd)) {
+        return grpc::Status(grpc::StatusCode::PERMISSION_DENIED,
+                            "access to container denied");
+      }
+    } else {
+      if (!Access(vid, X_OK, pmd)) {
+        return grpc::Status(grpc::StatusCode::PERMISSION_DENIED,
+                            "access to parent container denied");
+      }
     }
 
     if (Filter(cmd, request->selection())) {
@@ -739,7 +747,7 @@ GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
   } else {
     // we don't implement sudo to root
   }
-
+  
   // stream container meta data
   eos::common::RWMutexReadLock viewReadLock;
   std::shared_ptr<eos::IContainerMD> cmd;
@@ -788,6 +796,12 @@ GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
     }
   }
 
+  // check if we can read this directory
+  if (!Access(vid, R_OK, cmd)) {
+    return grpc::Status(grpc::StatusCode::PERMISSION_DENIED,
+                        std::string("access to read directory denied"));
+  }
+
   grpc::Status status;
 
   if (streamparent && (request->type() != eos::rpc::FILE)) {
@@ -796,7 +810,7 @@ GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
     c_dir.mutable_selection()->CopyFrom(request->selection());
     c_dir.mutable_id()->set_id(cid);
     c_dir.set_type(eos::rpc::CONTAINER);
-    status = GetMD(vid, writer, &c_dir, true, false);
+    status = GetMD(vid, writer, &c_dir, true, false, true);
 
     if (!status.ok()) {
       return status;
@@ -889,7 +903,7 @@ GrpcNsInterface::Find(eos::common::VirtualIdentity& ivid,
     if (request->type() != eos::rpc::FILE) {
       c_dir.mutable_selection()->CopyFrom(request->selection());
       c_dir.set_type(eos::rpc::CONTAINER);
-      status = GetMD(vid, writer, &c_dir, true, false);
+      status = GetMD(vid, writer, &c_dir, true, false, true);
     }
 
     return status;
