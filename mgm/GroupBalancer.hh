@@ -178,12 +178,14 @@ private:
   //----------------------------------------------------------------------------
   //! Chooses a random file from a random filesystem in the given group, but makes
   //! a few attempts to pick a file within the configured size limits.
-  //! @param group the group from which the file id will be chosen
+  //! @param from_group the group from which the file id will be chosen
+  //! @param to_group the group to which file will be moved to
   //! @param no of attempts (default :50)
   //!
   //! @return FileInfo for the chosen file
   //----------------------------------------------------------------------------
-  FileInfo chooseFileFromGroup(FsGroup* group, int attempts);
+  GroupBalancer::FileInfo chooseFileFromGroup(FsGroup* from_group,
+                               FsGroup* to_group, int attempts);
 
   void prepareTransfers(int nrTransfers);
 
