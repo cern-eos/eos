@@ -314,20 +314,24 @@ GroupBalancer::chooseFidFromGroup(FsGroup* group)
   return {};
 }
 
-
 GroupBalancer::FileInfo
-GroupBalancer::chooseFileFromGroup(FsGroup* group, int attempts)
+GroupBalancer::chooseFileFromGroup(FsGroup* from_group, FsGroup* to_group,
+                                   int attempts)
 {
+  if (from_group == nullptr || to_group == nullptr) {
+    return {};
+  }
+
   uint64_t filesize;
 
   while (attempts-- > 0) {
-    auto fid = chooseFidFromGroup(group);
+    auto fid = chooseFidFromGroup(from_group);
 
     if (!fid) {
       continue;
     }
 
-    auto filename = getFileProcTransferNameAndSize(fid, group, &filesize);
+    auto filename = getFileProcTransferNameAndSize(fid, to_group, &filesize);
 
     if (filename.empty() ||
         (mCfg.mMinFileSize > filesize) ||
@@ -377,7 +381,7 @@ GroupBalancer::prepareTransfer()
     return;
   }
 
-  auto file_info = chooseFileFromGroup(fromGroup, mCfg.file_attempts);
+  auto file_info = chooseFileFromGroup(fromGroup, toGroup, mCfg.file_attempts);
 
   if (!file_info) {
     eos_static_info("msg=\"failed to choose any fid to schedule\" "
