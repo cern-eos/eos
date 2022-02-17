@@ -154,7 +154,8 @@ public:
 			    const eos::rpc::NSRequest::QuotaRequest* request);
   
   static bool Access(eos::common::VirtualIdentity& vid, int mode,
-                     std::shared_ptr<eos::IContainerMD> cmd);
+                     std::shared_ptr<eos::IContainerMD> cmd,
+		     eos::IFileMD::XAttrMap* attrmapF = 0);
 
 };
 
