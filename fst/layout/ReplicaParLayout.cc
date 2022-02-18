@@ -323,29 +323,26 @@ ReplicaParLayout::WriteAsync(XrdSfsFileOffset offset, const char* buffer,
     mResponses[i].CollectFuture(mReplicaFile[i]->fileWriteAsync
                                 (buffer, offset, length));
 
-    // Collect available responses every 5GB of data written
-    if (offset &&
-        (offset / sMaxOffsetWrAsync != (offset + length) / sMaxOffsetWrAsync)) {
-      if (!mResponses[i].CheckResponses(false)) {
-        XrdOucString maskUrl = mReplicaUrl[i].c_str() ? mReplicaUrl[i].c_str() : "";
-        eos::common::StringConversion::MaskTag(maskUrl, "cap.sym");
-        eos::common::StringConversion::MaskTag(maskUrl, "cap.msg");
-        eos::common::StringConversion::MaskTag(maskUrl, "authz");
+    // Collect available responses
+    if (!mResponses[i].CheckResponses(false)) {
+      XrdOucString maskUrl = mReplicaUrl[i].c_str() ? mReplicaUrl[i].c_str() : "";
+      eos::common::StringConversion::MaskTag(maskUrl, "cap.sym");
+      eos::common::StringConversion::MaskTag(maskUrl, "cap.msg");
+      eos::common::StringConversion::MaskTag(maskUrl, "authz");
 
-        // Show only the first write error as an error to broadcast upstream
-        if (mHasWriteErr) {
-          eos_err("msg=\"[NB] write failed for replica %i\" offset=%llu url=%s",
-                  i, offset, maskUrl.c_str());
-        } else {
-          eos_err("msg=\"write failed for replica %i\" offset=%llu url=%s",
-                  i, offset, maskUrl.c_str());
-        }
-
-        mHasWriteErr = true;
-        errno = (i == 0) ? EIO : EREMOTEIO;
-        return Emsg("ReplicaWrite", *mError, errno, "write replica failed",
-                    maskUrl.c_str());
+      // Show only the first write error as an error to broadcast upstream
+      if (mHasWriteErr) {
+        eos_err("msg=\"[NB] write failed for replica %i\" offset=%llu url=%s",
+                i, offset, maskUrl.c_str());
+      } else {
+        eos_err("msg=\"write failed for replica %i\" offset=%llu url=%s",
+                i, offset, maskUrl.c_str());
       }
+
+      mHasWriteErr = true;
+      errno = (i == 0) ? EIO : EREMOTEIO;
+      return Emsg("ReplicaWrite", *mError, errno, "write replica failed",
+                  maskUrl.c_str());
     }
   }
 

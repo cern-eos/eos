@@ -1457,7 +1457,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       return rcode;
     }
 
-    if ((!fmd)) {
+    if (!fmd) {
       gOFS->MgmStats.Add("OpenFailedENOENT", vid.uid, vid.gid, 1);
       return Emsg(epname, error, errno, "open file", path);
     }

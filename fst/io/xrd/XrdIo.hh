@@ -725,6 +725,7 @@ public:
   {
     if (mBufMgr && buffer && buffer_len) {
       mBuffer = mBufMgr->GetBuffer(buffer_len);
+      // @todo(esindril) check if mBuffer is not nullptr
       mBuffer->mLength = buffer_len;
       (void) memcpy(mBuffer->GetDataPtr(), buffer, buffer_len);
     }
