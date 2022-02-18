@@ -41,6 +41,7 @@ public:
     {
       openr = openw = 0;
       mInUse.SetBlockedStackTracing(false); // disable stacktracing
+      mInUse.SetBlocking(true); // do not use a timed mutex
     }
 
     RWMutex mInUse;
