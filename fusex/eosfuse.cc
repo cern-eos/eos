@@ -1558,6 +1558,11 @@ EosFuse::run(int argc, char* argv[], void* userdata)
               eos::common::Logging::GetInstance().LB->log_suspended,
               eos::common::Logging::GetInstance().LB->log_thread_started,
               eos::common::Logging::GetInstance().LB->log_buffer_in_q);
+
+      // make deletion mutex blocking and disable stack tracing
+      XrdCl::Proxy::gDeleteMutex.SetBlockedStackTracing(false);
+      XrdCl::Proxy::gDeleteMutex.SetBlocking(true);
+
       // initialize mKV in case no cache is configured to act as no-op
       mKV.reset(new NoKV());
 #ifdef HAVE_ROCKSDB

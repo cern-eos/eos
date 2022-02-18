@@ -46,6 +46,8 @@ public:
     if (capacity) {
       reserve(capacity);
     }
+    mMutex.SetBlockedStackTracing(false);
+    mMutex.SetBlocking(true);
   }
 
   virtual
