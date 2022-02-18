@@ -16,8 +16,30 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.8.77 Citrine``
+===================
+
+2022-02-18
+
+Bug
+----
+
+* FST: Make sure the async write implementation does not exhaust the system
+  memory in case the client(s) are pushing in more data than the machine can
+  distribute futher in the cluster for replica layouts.
+* [EOS-5090] - convert clear is not a admin command
+* [EOS-5122] - MD and Find calls via GRPC don't obey ACLs
+
+Improvement
+------------
+
+* [EOS-5108] - workaround: drop forced automount expiry on FUSEX updates
+
+
 ``v4.8.76 Citrine``
 ===================
+
+2022-02-14
 
 Bug
 ----
