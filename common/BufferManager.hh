@@ -33,7 +33,6 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
-
 //------------------------------------------------------------------------------
 //! Get the nearest power of 2 value bigger then the given input but always
 //! greater than given min
@@ -43,7 +42,12 @@ EOSCOMMONNAMESPACE_BEGIN
 //!
 //! @return nearest power of 2 bigger than input
 //------------------------------------------------------------------------------
-uint32_t power_ceil(const uint32_t input, const uint32_t min = 1024);
+uint32_t GetPowerCeil(const uint32_t input, const uint32_t min = 1024);
+
+//------------------------------------------------------------------------------
+//! Get amount of system memory
+//------------------------------------------------------------------------------
+uint64_t GetSystemMemorySize();
 
 //------------------------------------------------------------------------------
 //! Get OS page size aligned buffer
@@ -141,18 +145,20 @@ public:
   //----------------------------------------------------------------------------
   //! Get buffer
   //----------------------------------------------------------------------------
-  std::shared_ptr<Buffer> GetBuffer()
+  std::pair<std::shared_ptr<Buffer>, bool> GetBuffer()
   {
+    bool new_alloc = false;
     std::unique_lock<std::mutex> lock(mSlotMutex);
 
     if (!mAvailableBuffers.empty()) {
-      auto buff =  mAvailableBuffers.front();
+      auto buff = mAvailableBuffers.front();
       mAvailableBuffers.pop_front();
-      return buff;
+      return std::make_pair(buff, new_alloc);
     }
 
     ++mNumBuffers;
-    return std::make_shared<Buffer>(mBuffSize);
+    new_alloc = true;
+    return std::make_pair(std::make_shared<Buffer>(mBuffSize), new_alloc);
   }
 
   //----------------------------------------------------------------------------
@@ -211,7 +217,7 @@ public:
   //----------------------------------------------------------------------------
   BufferManager(uint64_t max_size = 256 * 1024 * 1024 , uint32_t slots = 2,
                 uint64_t slot_base_sz = 1024 * 1024):
-    mMaxSize(max_size), mNumSlots(slots)
+    mMaxSize(max_size), mAllocatedSize(0ull), mNumSlots(slots)
   {
     for (uint32_t i = 0u; i <= mNumSlots; ++i) {
       mSlots.emplace_back((1 << i) * slot_base_sz);
@@ -247,7 +253,18 @@ public:
       return nullptr;
     }
 
-    return mSlots[slot].GetBuffer();
+    // No new buffer if we already hold more than half of system memory
+    if (mAllocatedSize > (GetSystemMemorySize() >> 1)) {
+      return nullptr;
+    }
+
+    std::pair<std::shared_ptr<Buffer>, bool> pair = mSlots[slot].GetBuffer();
+
+    if (pair.second) {
+      mAllocatedSize += pair.first->mCapacity;
+    }
+
+    return pair.first;
   }
 
   //----------------------------------------------------------------------------
@@ -306,6 +323,10 @@ public:
     }
 
     mSlots[slot].Recycle(buffer, keep);
+
+    if (!keep) {
+      mAllocatedSize -= buffer->mCapacity;
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -354,6 +375,7 @@ public:
 
 private:
   std::atomic<uint64_t> mMaxSize;
+  std::atomic<uint64_t> mAllocatedSize;
   std::atomic<uint32_t> mNumSlots;
   std::vector<BufferSlot> mSlots;
 };

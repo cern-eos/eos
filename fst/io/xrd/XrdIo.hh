@@ -695,6 +695,19 @@ private:
 };
 
 //------------------------------------------------------------------------------
+//! Class BufferAllocateException
+//------------------------------------------------------------------------------
+class BufferAllocateException: public std::exception
+{
+public:
+  const char* what() const noexcept override
+  {
+    return "failed to allocate buffer";
+  }
+};
+
+
+//------------------------------------------------------------------------------
 //! Class XrdIoHandler
 //------------------------------------------------------------------------------
 class XrdIoHandler: public XrdCl::ResponseHandler
@@ -724,10 +737,23 @@ public:
     mBuffer(nullptr)
   {
     if (mBufMgr && buffer && buffer_len) {
-      mBuffer = mBufMgr->GetBuffer(buffer_len);
-      // @todo(esindril) check if mBuffer is not nullptr
-      mBuffer->mLength = buffer_len;
-      (void) memcpy(mBuffer->GetDataPtr(), buffer, buffer_len);
+      int attempts = 5;
+
+      do {
+        mBuffer = mBufMgr->GetBuffer(buffer_len);
+
+        if (mBuffer) {
+          mBuffer->mLength = buffer_len;
+          (void) memcpy(mBuffer->GetDataPtr(), buffer, buffer_len);
+          break;
+        } else {
+          std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+      } while (--attempts);
+
+      if (!mBuffer) {
+        throw BufferAllocateException();
+      }
     }
   }
 

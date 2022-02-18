@@ -1728,7 +1728,7 @@ XrdMgmOfs::SetRedirectionInfo(XrdOucErrInfo& err_obj,
 
   // Otherwise use the XrdOucBuffPool to manage XrdOucBuffer objects that
   // can hold redirection info >= 2kb
-  const uint32_t aligned_sz = eos::common::power_ceil(rdr_info.length() + 1,
+  const uint32_t aligned_sz = eos::common::GetPowerCeil(rdr_info.length() + 1,
                               2 * eos::common::KB);
   XrdOucBuffer* buff = mXrdBuffPool.Alloc(aligned_sz);
 

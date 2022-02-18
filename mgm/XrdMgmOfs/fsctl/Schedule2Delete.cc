@@ -223,7 +223,7 @@ XrdMgmOfs::Schedule2Delete(const char* path,
       }
 
       const auto sz = del_fst.ByteSize();
-      const uint32_t aligned_sz = eos::common::power_ceil(sz, 2 * eos::common::KB);
+      const uint32_t aligned_sz = eos::common::GetPowerCeil(sz, 2 * eos::common::KB);
       XrdOucBuffer* buff = mXrdBuffPool.Alloc(aligned_sz);
 
       if (buff == nullptr) {

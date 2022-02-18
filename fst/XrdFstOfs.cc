@@ -1186,7 +1186,7 @@ XrdFstOfs::_rem(const char* path, XrdOucErrInfo& error,
                 const XrdSecEntity* client, XrdOucEnv* capOpaque,
                 const char* fstpath, unsigned long long fid,
                 unsigned long fsid, bool ignoreifnotexist,
-		std::string* deletion_report)
+                std::string* deletion_report)
 {
   EPNAME("rem");
   std::string fstPath = "";
@@ -1710,8 +1710,8 @@ XrdFstOfs::WaitForOngoingIO(std::chrono::seconds timeout)
 std::string
 XrdFstOfs::MakeDeletionReport(eos::common::FileSystem::fsid_t fsid,
                               unsigned long long fid,
-                              struct stat& deletion_stat, 
-			      bool viamq)
+                              struct stat& deletion_stat,
+                              bool viamq)
 {
   struct timespec ts_now;
   char report[16384];
@@ -1749,6 +1749,7 @@ XrdFstOfs::MakeDeletionReport(eos::common::FileSystem::fsid_t fsid,
     gOFS.ReportQueue.push(reportString);
     gOFS.ReportQueueMutex.UnLock();
   }
+
   return report;
 }
 
@@ -1983,7 +1984,7 @@ XrdFstOfs::HandleFsck(XrdOucEnv& env, XrdOucErrInfo& err_obj)
   }
   // Use XrdOucBuffPool to manage XrdOucBuffer objects that can hold redirection
   // info >= 2kb but not bigger than MaxSize
-  const uint32_t aligned_sz = eos::common::power_ceil(response.length() + 1);
+  const uint32_t aligned_sz = eos::common::GetPowerCeil(response.length() + 1);
   XrdOucBuffer* buff = mXrdBuffPool.Alloc(aligned_sz);
 
   if (buff == nullptr) {
@@ -2127,7 +2128,7 @@ XrdFstOfs::HandleRtlog(XrdOucEnv& env, XrdOucErrInfo& err_obj)
 
   // Use XrdOucBuffPool to manage XrdOucBuffer objects that can hold redirection
   // info >= 2kb but not bigger than MaxSize
-  const uint32_t aligned_sz = eos::common::power_ceil(response.length() + 1);
+  const uint32_t aligned_sz = eos::common::GetPowerCeil(response.length() + 1);
   XrdOucBuffer* buff = mXrdBuffPool.Alloc(aligned_sz);
 
   if (buff == nullptr) {

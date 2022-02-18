@@ -710,13 +710,24 @@ XrdIo::fileWriteAsync(const char* buffer, XrdSfsFileOffset offset,
   if (!mXrdFile) {
     errno = EIO;
     wr_promise.set_value(XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errOSError,
-                         EIO));
+                         errno));
     return wr_future;
   }
 
-  XrdIoHandler* wr_handler = new XrdIoHandler(std::move(wr_promise),
-      XrdIoHandler::OpType::Write,
-      &gBuffMgr, buffer, length);
+  XrdIoHandler* wr_handler = nullptr;
+
+  try {
+    wr_handler = new XrdIoHandler(std::move(wr_promise),
+                                  XrdIoHandler::OpType::Write,
+                                  &gBuffMgr, buffer, length);
+  } catch (const BufferAllocateException& e) {
+    errno = ENOMEM;
+    eos_err("msg=\"%s\" offset=%lli, length=%li", e.what(), offset, length);
+    wr_promise.set_value(XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errOSError,
+                         errno));
+    return wr_future;
+  }
+
   XrdCl::XRootDStatus status = mXrdFile->Write(static_cast<uint64_t>(offset),
                                static_cast<uint32_t>(length),
                                wr_handler->GetDataPtr(), wr_handler);
