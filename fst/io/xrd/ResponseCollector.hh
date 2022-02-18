@@ -72,6 +72,11 @@ public:
   //----------------------------------------------------------------------------
   bool CheckResponses(bool wait_all, uint32_t max_pending = 40);
 
+  //----------------------------------------------------------------------------
+  //! Get number of registered responses
+  //----------------------------------------------------------------------------
+  uint32_t GetNumResponses() const;
+
 private:
   mutable std::mutex mMutex;
   std::list<std::future<XrdCl::XRootDStatus>> mResponses;

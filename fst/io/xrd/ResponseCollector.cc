@@ -70,6 +70,7 @@ ResponseCollector::CheckResponses(bool wait_all, uint32_t max_pending)
           break;
         }
       } else {
+        // If current response is available then retrieve it
         if (fut.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
           break;
         }
@@ -86,6 +87,16 @@ ResponseCollector::CheckResponses(bool wait_all, uint32_t max_pending)
   }
 
   return ok;
+}
+
+//------------------------------------------------------------------------------
+// Get number of registered responses
+//------------------------------------------------------------------------------
+uint32_t
+ResponseCollector::GetNumResponses() const
+{
+  std::unique_lock<std::mutex> lock(mMutex);
+  return mResponses.size();
 }
 
 EOSFSTNAMESPACE_END

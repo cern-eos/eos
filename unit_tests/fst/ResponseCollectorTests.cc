@@ -74,13 +74,14 @@ TEST(ResponseCollector, FailedRun)
 
 //------------------------------------------------------------------------------
 // Test collection of partial successful responses
-//----------------------------------------=--------------------------------------
+//------------------------------------------------------------------------------
 TEST(ResponseCollector, PartialSuccessfulRun)
 {
   eos::fst::ResponseCollector collector;
+  uint32_t num_requests = 100;
   std::list<std::promise<XrdCl::XRootDStatus>> lst_promises;
 
-  for (int i = 0; i < 100; ++i) {
+  for (unsigned int i = 0; i < num_requests; ++i) {
     auto& promise = lst_promises.emplace_back();
     collector.CollectFuture(promise.get_future());
   }
@@ -98,7 +99,7 @@ TEST(ResponseCollector, PartialSuccessfulRun)
 
   std::thread t([&]() {
     unsigned int c = 0;
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
     for (auto& promise : lst_promises) {
       ++c;
@@ -121,9 +122,10 @@ TEST(ResponseCollector, PartialSuccessfulRun)
 TEST(ResponseCollector, PartialFailedRun)
 {
   eos::fst::ResponseCollector collector;
+  uint32_t num_requests = 100;
   std::list<std::promise<XrdCl::XRootDStatus>> lst_promises;
 
-  for (int i = 0; i < 100; ++i) {
+  for (unsigned int i = 0; i < num_requests; ++i) {
     auto& promise = lst_promises.emplace_back();
     collector.CollectFuture(promise.get_future());
   }
@@ -141,7 +143,7 @@ TEST(ResponseCollector, PartialFailedRun)
 
   std::thread t([&]() {
     unsigned int c = 0;
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
     for (auto& promise : lst_promises) {
       ++c;
@@ -157,8 +159,57 @@ TEST(ResponseCollector, PartialFailedRun)
     }
   });
   // First half should all be successful, no waiting
-  ASSERT_TRUE(collector.CheckResponses(false));
+  ASSERT_TRUE(collector.CheckResponses(false, num_requests));
   // Second half has errors, wait for all
-  ASSERT_FALSE(collector.CheckResponses(true));
+  ASSERT_FALSE(collector.CheckResponses(true, num_requests));
+  t.join();
+}
+
+//------------------------------------------------------------------------------
+// Test collection when max_pending applies
+//----------------------------------------=--------------------------------------
+TEST(ResponseCollector, MaxPending)
+{
+  eos::fst::ResponseCollector collector;
+  uint32_t num_requests = 50;
+  uint32_t max_pending = 10;
+  std::list<std::promise<XrdCl::XRootDStatus>> lst_promises;
+
+  for (unsigned int i = 0; i < num_requests; ++i) {
+    auto& promise = lst_promises.emplace_back();
+    collector.CollectFuture(promise.get_future());
+  }
+
+  std::thread t([&]() {
+    unsigned int c = 0;
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+    for (auto& promise : lst_promises) {
+      ++c;
+
+      if (c <= (num_requests - (max_pending / 2))) {
+        promise.set_value(XrdCl::XRootDStatus());
+      } else {
+        static bool one_off = true;
+
+        if (one_off) {
+          std::this_thread::sleep_for(std::chrono::milliseconds(500));
+          one_off = false;
+        }
+
+        if (c != num_requests) {
+          promise.set_value(XrdCl::XRootDStatus());
+        } else {
+          promise.set_value(XrdCl::XRootDStatus(XrdCl::stError,
+                                                XrdCl::errUnknown, EINVAL));
+        }
+      }
+    }
+  });
+  // First batch should all be successful - 45 replies
+  ASSERT_TRUE(collector.CheckResponses(false, max_pending));
+  ASSERT_EQ(max_pending / 2, collector.GetNumResponses());
+  // Second batch has an error at the last reply
+  ASSERT_FALSE(collector.CheckResponses(true, max_pending));
   t.join();
 }
