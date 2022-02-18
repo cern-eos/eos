@@ -208,6 +208,10 @@ void
 GroupBalancer::scheduleTransfer(const FileInfo& file_info,
                                 FsGroup* sourceGroup, FsGroup* targetGroup)
 {
+  if (sourceGroup == nullptr || targetGroup == nullptr) {
+    return;
+  }
+
   auto mGroupSizes = mEngine->get_group_sizes();
 
   if ((mGroupSizes.count(sourceGroup->mName) == 0) ||
@@ -260,6 +264,10 @@ GroupBalancer::scheduleTransfer(const FileInfo& file_info,
 eos::common::FileId::fileid_t
 GroupBalancer::chooseFidFromGroup(FsGroup* group)
 {
+  if (group == nullptr) {
+    return {};
+  }
+
   int rndIndex;
   bool found = false;
   uint64_t fsid_size = 0ull;
@@ -322,6 +330,10 @@ GroupBalancer::chooseFileFromGroup(FsGroup* from_group, FsGroup* to_group,
     return {};
   }
 
+  if (from_group->size() == 0) {
+    return {};
+  }
+
   uint64_t filesize;
 
   while (attempts-- > 0) {
@@ -374,11 +386,18 @@ GroupBalancer::prepareTransfer()
     return;
   }
 
-  fromGroup = FsView::gFsView.mGroupView[over_it];
-  toGroup = FsView::gFsView.mGroupView[under_it];
+  {
+    eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
+    auto from_group_it = FsView::gFsView.mGroupView.find(over_it);
+    auto to_group_it = FsView::gFsView.mGroupView.find(under_it);
 
-  if (fromGroup->size() == 0) {
-    return;
+    if (from_group_it == FsView::gFsView.mGroupView.end() ||
+        to_group_it == FsView::gFsView.mGroupView.end()) {
+      return;
+    }
+
+    fromGroup = from_group_it->second;
+    toGroup = to_group_it->second;
   }
 
   auto file_info = chooseFileFromGroup(fromGroup, toGroup, mCfg.file_attempts);
