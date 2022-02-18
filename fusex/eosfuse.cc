@@ -1962,6 +1962,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
              "ALL        inodes-vmap         := %lu\n"
              "ALL        inodes-caps         := %lu\n"
              "ALL        inodes-tracker      := %lu\n"
+	     "ALL        rh-expired          := %lu\n"
 	     "ALL        proxies             := %d\n"
              "# -----------------------------------------------------------------------------------------------------------\n",
              this->getMdStat().inodes(),
@@ -1974,6 +1975,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
              this->mds.vmaps().size(),
              this->caps.size(),
              this->Tracker().size(),
+	     XrdCl::Proxy::ReadAsyncHandler::nexpired(),
 	     XrdCl::Proxy::Proxies()
             );
     sout += ino_stat;

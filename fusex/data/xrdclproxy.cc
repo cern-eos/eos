@@ -43,6 +43,9 @@ std::mutex XrdCl::Proxy::WriteAsyncHandler::gBuffReferenceMutex;
 std::map<std::string, uint64_t>
 XrdCl::Proxy::WriteAsyncHandler::gBufferReference;
 
+std::mutex XrdCl::Proxy::ReadAsyncHandler::gExpiredChunksMutex;
+std::vector<XrdCl::Proxy::read_handler> XrdCl::Proxy::ReadAsyncHandler::gExpiredChunks;
+
 /* -------------------------------------------------------------------------- */
 XRootDStatus
 /* -------------------------------------------------------------------------- */
@@ -87,6 +90,7 @@ XrdCl::Proxy::Read(uint64_t offset,
   bool isEOF = false;
   bool request_next = true;
   std::set<uint64_t> delete_chunk;
+  std::set<uint64_t> expired_chunk;
   void* pbuffer = buffer;
 
   if ((off_t)offset == (off_t)mPosition) {
@@ -129,8 +133,17 @@ XrdCl::Proxy::Read(uint64_t offset,
                                 match_size)) {
           readahead_window_hit++;
 
+	  size_t cnt=0;
           while (!it->second->done()) {
             it->second->ReadCondVar().WaitMS(25);
+	    cnt++;
+	    if (!(cnt%2400)) {
+	      // every 60 seconds ...
+	      if (it->second->expired()) {
+		eos_crit("read-ahead request expired after %u cycles - now: %lu ctime: %lu", cnt, time(NULL), it->second->creationtime());
+		continue;
+	      }
+	    }
           }
 
           status = it->second->Status();
@@ -198,31 +211,61 @@ XrdCl::Proxy::Read(uint64_t offset,
         for (auto it = ChunkRMap().begin(); it != last_chunk_before_match; ++it) {
           XrdSysCondVarHelper lLock(it->second->ReadCondVar());
 
-          if (it->second->done()) {
-            if (EOS_LOGS_DEBUG) {
-              eos_debug("----: dropping chunk offset=%lu chunk-offset=%lu", offset,
-                        it->second->offset());
-            }
-
-            delete_chunk.insert(it->first);
-          }
+	  if (it->second->expired()) {
+	    expired_chunk.insert(it->first);
+	  } else {
+	    if (it->second->done()) {
+	      if (EOS_LOGS_DEBUG) {
+		eos_debug("----: dropping chunk offset=%lu chunk-offset=%lu", offset,
+			  it->second->offset());
+	      }
+	      
+	      delete_chunk.insert(it->first);
+	    }
+	  }
         }
       } else {
         // clean-up all chunks in the read-ahead map
         for (auto it = ChunkRMap().begin(); it != ChunkRMap().end(); ++it) {
           XrdSysCondVarHelper lLock(it->second->ReadCondVar());
 
+	  size_t cnt=0;
           while (!it->second->done()) {
             it->second->ReadCondVar().WaitMS(25);
+	    cnt++;
+	    if (!(cnt%2400)) {
+	      // every 60 seconds ...
+	      if (it->second->expired()) {
+		eos_crit("read-ahead request expired after %u cycles - now: %lu ctime: %lu", cnt, time(NULL), it->second->creationtime());
+		break;
+	      }
+	    }
           }
-
-          delete_chunk.insert(it->first);
+	  if (it->second->expired()) {
+	    expired_chunk.insert(it->first);
+	  } else {
+	    delete_chunk.insert(it->first);
+	  }
         }
       }
 
       for (auto it = delete_chunk.begin(); it != delete_chunk.end(); ++it) {
 	eos::common::RWMutexReadLock dLock(XrdCl::Proxy::gDeleteMutex);
         ChunkRMap().erase(*it);
+      }
+
+      for (auto it = expired_chunk.begin(); it != expired_chunk.end(); ++it) {
+	auto chunk = ChunkRMap()[*it];
+	{
+	  // put on a garbage stack
+	  std::lock_guard<std::mutex> lock(XrdCl::Proxy::ReadAsyncHandler::gExpiredChunksMutex);
+	  XrdCl::Proxy::ReadAsyncHandler::gExpiredChunks.push_back(chunk);
+	}
+	{
+	  // delete form the read-ahead map
+	  eos::common::RWMutexReadLock dLock(XrdCl::Proxy::gDeleteMutex);
+	  ChunkRMap().erase(*it);
+	}
       }
     } else {
       if ((off_t) offset == mPosition) {
