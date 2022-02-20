@@ -729,12 +729,11 @@ public:
   //! @param buffer user buffer object to be dulicated if valid and needed
   //! @param buffer_len useful contents of the buffer to be used
   //----------------------------------------------------------------------------
-  XrdIoHandler(std::promise<XrdCl::XRootDStatus> promise, OpType op,
+  XrdIoHandler(std::promise<XrdCl::XRootDStatus>&& promise, OpType op,
                eos::common::BufferManager* buf_mgr = nullptr,
                const char* buffer = nullptr,
                unsigned long long buffer_len = 0ull):
-    mOperationType(op), mPromise(std::move(promise)), mBufMgr(buf_mgr),
-    mBuffer(nullptr)
+    mOperationType(op), mBufMgr(buf_mgr), mBuffer(nullptr)
   {
     if (mBufMgr && buffer && buffer_len) {
       int attempts = 5;
@@ -755,6 +754,10 @@ public:
         throw BufferAllocateException();
       }
     }
+
+    // The promise must be swaped after any potential exception is thrown
+    // otherwise the caller will be left with an invalid promise.
+    std::swap(mPromise, promise);
   }
 
   //----------------------------------------------------------------------------
