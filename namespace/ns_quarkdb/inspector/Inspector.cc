@@ -681,7 +681,7 @@ int Inspector::oneReplicaLayout(bool showName, bool showPaths,
 //----------------------------------------------------------------------------
 // Find files with non-nominal number of stripes (replicas)
 //----------------------------------------------------------------------------
-int Inspector::stripediff(std::ostream& out, std::ostream& err, bool printTime, bool complete)
+int Inspector::stripediff()
 {
   FilePrintingOptions filePrintingOpts;
   FileScanner fileScanner(mQcl, true);
@@ -705,33 +705,13 @@ int Inspector::stripediff(std::ostream& out, std::ostream& err, bool printTime, 
     }
 
     if (actual != expected && size != 0) {
-      // Keep old format
-      if (!complete) {
-        out << "id=" << proto.id() 
-          << " container=" << proto.cont_id() 
-          << " size=" << size 
-          << " actual-stripes=" << actual 
-          << " expected-stripes=" << expected 
-          << " unlinked-stripes=" << unlinked 
-          << " locations=" << serializeLocations(proto.locations()) 
-          << " unlinked-locations=" << serializeLocations(proto.unlink_locations());
-
-        if (printTime) {
-          out << " mtime=" << Printing::timespecToTimestamp(Printing::parseTimespec(
-                proto.mtime()))
-                << " ctime=" << Printing::timespecToTimestamp(Printing::parseTimespec(
-                proto.ctime()));
-        }
-        out << std::endl;
-      }else{
-        // Use output sink for complete report / json
-        std::map<std::string, std::string> extended;
-        extended["path"] =  fetchNameOrPath(proto,item);
-        extended["actual-stripes"] = std::to_string(actual);
-        extended["expected-stripes"] = std::to_string(expected);
-        extended["unlinked-stripes"] = std::to_string(unlinked);
-        mOutputSink.printWithAdditionalFields(proto, filePrintingOpts, extended);
-      }      
+      // Use output sink for complete report / json
+      std::map<std::string, std::string> extended;
+      extended["path"] =  fetchNameOrPath(proto,item);
+      extended["actual-stripes"] = std::to_string(actual);
+      extended["expected-stripes"] = std::to_string(expected);
+      extended["unlinked-stripes"] = std::to_string(unlinked);
+      mOutputSink.printWithAdditionalFields(proto, filePrintingOpts, extended);  
     }
 
     fileScanner.next();
@@ -740,7 +720,7 @@ int Inspector::stripediff(std::ostream& out, std::ostream& err, bool printTime, 
   std::string errorString;
 
   if (fileScanner.hasError(errorString)) {
-    err << errorString;
+    mOutputSink.err(errorString);
     return 1;
   }
 
