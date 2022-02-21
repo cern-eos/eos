@@ -1,6 +1,7 @@
 #include "FmdAttr.hh"
 #include "fst/io/local/LocalIo.hh"
 #include "fst/XrdFstOfs.hh"
+#include "FmdHandler.hh"
 
 namespace eos::fst {
 
@@ -128,9 +129,10 @@ FmdAttrHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
     eos_warning("msg=\"no fmd record found\" fid=%08llx fsid=%lu", fid, fsid);
     return nullptr;
   }
-  auto fmd = std::make_unique<eos::common::FmdHelper>(std::move(_fmd.mProtoFmd));
+
   // Check the various conditions
   if (!do_create) {
+    auto fmd = std::make_unique<eos::common::FmdHelper>(std::move(_fmd.mProtoFmd));
     if ((fmd->mProtoFmd.fid() != fid) || (fmd->mProtoFmd.fsid() != fsid)) {
       eos_crit("msg=\"mismatch between requested fid/fsid and retrieved ones\" "
                "fid=%08llx retrieved_fid=%08llx fsid=%lu retrieved_fsid=%lu",
@@ -177,20 +179,8 @@ FmdAttrHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
       }
     }
   } // !do_create
-
-  // creating an fmd
-  fmd->Reset();
-  fmd->mProtoFmd.set_uid(uid);
-  fmd->mProtoFmd.set_gid(gid);
-  fmd->mProtoFmd.set_lid(layoutid);
-  fmd->mProtoFmd.set_fsid(fsid);
-  fmd->mProtoFmd.set_fid(fid);
-
-  struct timeval tv;
-  struct timezone tz;
-  gettimeofday(&tv, &tz);
-  fmd->mProtoFmd.set_ctime(tv.tv_sec);
-  fmd->mProtoFmd.set_ctime_ns(tv.tv_usec * 1000);
+  auto fmd = eos::fst::FmdHandler::make_fmd_helper(fid, fsid, uid, gid,
+                                                   layoutid);
 
   if (Commit(fmd.get(), false)) {
     eos_debug("msg=\"return fmd object\" fid=%08llx fsid=%lu", fid, fsid);
